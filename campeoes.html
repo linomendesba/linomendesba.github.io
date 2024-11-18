@@ -257,6 +257,36 @@
         </tbody>
     </table>
 
+    <div class="buscador-container">
+        <h2>Analise automática</h2>
+        <div>
+          <input type="text" id="buscador-placar" class="buscador-input" placeholder="Placar (Ex: 0x1)">
+          <select id="buscador-mercado" class="buscador-select" aria-label="Selecione o mercado">
+            <option value="ambasMarcam" selected>Ambas Sim</option>
+            <option value="ambasNaoMarcam">Ambas Não</option>
+            <option value="casaVence">Casa vence</option>
+            <option value="foraVence">Fora vence</option>
+            <option value="empate">Empate</option>
+            <option value="over1.5">Over 1.5</option>
+            <option value="under1.5">Under 1.5</option>
+            <option value="over2.5">Over 2.5</option>
+            <option value="under2.5">Under 2.5</option>
+            <option value="over3.5">Over 3.5</option>
+            <option value="under3.5">Under 3.5</option>
+            <option value="over5">Over 5+</option>
+          </select>      
+          <input type="number" id="buscador-pular" class="buscador-input" placeholder="Pular Casas">
+          <input type="number" id="buscador-analisar" class="buscador-input" placeholder="Qtd. entradas">
+          <button class="buscador-btn-green" onclick="buscadorAnalisar()">Analisar</button>
+          <button class="buscador-btn-red" onclick="buscadorLimpar()">Limpar</button>
+        </div>
+        <div class="buscador-result">
+          <p id="buscador-localizados">LOCALIZADOS: 0</p>
+          <p id="buscador-greens" class="buscador-green">Greens: 0 (0%)</p>
+          <p id="buscador-reds" class="buscador-red">Reds: 0 (0%)</p>
+        </div>
+      </div>
+
     <h2> Máxima placar</h2>
 
             <!-- Contêiner para a tabela -->
@@ -2582,6 +2612,124 @@ fetchData();
         
                 // Executa a função principal
                 main();
+</script>
+<script>
+            // Verifique se 'apiUrl' já está declarado antes de declarar novamente
+            if (typeof apiUrl === 'undefined') {
+                const apiUrl = "https://betstat.site/resultados/Campe%C3%B5es";
+              }
+              
+              let data = [];
+          
+              // Carregar os dados da API (limitando a 480 jogos mais recentes)
+              async function fetchData() {
+                try {
+                  const response = await fetch(apiUrl);
+                  const allData = await response.json();
+          
+                  // Ordenar por data mais recente e limitar a 480 jogos
+                  data = allData.sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 480);
+          
+                  console.log("Dados carregados (480 mais recentes):", data);
+                } catch (error) {
+                  console.error("Erro ao buscar os dados:", error);
+                }
+              }
+          
+              // Normalizar placar (Ex: "0x1" -> "0 x 1")
+              function formatarPlacar(placar) {
+                return placar.replace(/x/, " x ");
+              }
+          
+              function buscadorAnalisar() {
+                const placarInput = document.getElementById("buscador-placar").value;
+                const mercado = document.getElementById("buscador-mercado").value;
+                const pular = parseInt(document.getElementById("buscador-pular").value, 10);
+                const analisarQtd = parseInt(document.getElementById("buscador-analisar").value, 10);
+          
+                if (!placarInput || isNaN(pular) || isNaN(analisarQtd)) {
+                  alert("Preencha todos os campos corretamente!");
+                  return;
+                }
+          
+                const placar = formatarPlacar(placarInput);
+          
+                // Filtrar jogos pelo placar
+                const jogosFiltrados = data.filter(jogo => jogo.ft === placar);
+                let localizados = 0;
+                let greens = 0;
+                let reds = 0;
+          
+                jogosFiltrados.forEach((jogo, index) => {
+                  if (index + pular + analisarQtd <= data.length) {
+                    localizados++;
+          
+                    // Verificar os jogos analisados após pular casas
+                    const jogosParaAnalisar = data.slice(index + pular, index + pular + analisarQtd);
+          
+                    // Verificar o mercado selecionado
+                    const houveGreen = jogosParaAnalisar.some(jogo => {
+                      const [golsA, golsB] = jogo.ft.split(" x ").map(Number);
+          
+                      switch (mercado) {
+                        case "ambasMarcam":
+                          return golsA > 0 && golsB > 0;
+                        case "ambasNaoMarcam":
+                          return golsA === 0 || golsB === 0;
+                        case "casaVence":
+                          return golsA > golsB;
+                        case "foraVence":
+                          return golsB > golsA;
+                        case "empate":
+                          return golsA === golsB;
+                        case "over1.5":
+                          return golsA + golsB > 1.5;
+                        case "under1.5":
+                          return golsA + golsB <= 1.5;
+                        case "over2.5":
+                          return golsA + golsB > 2.5;
+                        case "under2.5":
+                          return golsA + golsB <= 2.5;
+                        case "over3.5":
+                          return golsA + golsB > 3.5;
+                        case "under3.5":
+                          return golsA + golsB <= 3.5;
+                        case "over5":
+                          return golsA + golsB > 5;
+                        default:
+                          return false;
+                      }
+                    });
+          
+                    if (houveGreen) {
+                      greens++;
+                    } else {
+                      reds++;
+                    }
+                  }
+                });
+          
+                // Calcular porcentagens
+                const greenPercent = localizados ? ((greens / localizados) * 100).toFixed(2) : 0;
+                const redPercent = localizados ? ((reds / localizados) * 100).toFixed(2) : 0;
+          
+                // Atualizar resultados
+                document.getElementById("buscador-localizados").innerText = `LOCALIZADOS: ${localizados}`;
+                document.getElementById("buscador-greens").innerText = `Greens: ${greens} (${greenPercent}%)`;
+                document.getElementById("buscador-reds").innerText = `Reds: ${reds} (${redPercent}%)`;
+              }
+          
+              function buscadorLimpar() {
+                document.getElementById("buscador-placar").value = "";
+                document.getElementById("buscador-pular").value = "";
+                document.getElementById("buscador-analisar").value = "";
+                document.getElementById("buscador-localizados").innerText = "LOCALIZADOS: 0";
+                document.getElementById("buscador-greens").innerText = "Greens: 0 (0%)";
+                document.getElementById("buscador-reds").innerText = "Reds: 0 (0%)";
+              }
+          
+              // Carregar os dados ao iniciar
+              fetchData(); 
 </script>
 </body>
 </html>
