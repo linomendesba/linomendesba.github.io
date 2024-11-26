@@ -495,40 +495,61 @@
     
     <script>
         const minutosFixos = [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58];
-        
+
         function redirecionar(selectElement) {
             const url = selectElement.value;
             if (url) {
                 window.location.href = url;
             }
         }
-
+        
+        let placarSelecionado = localStorage.getItem('placarSelecionado');
+        
+        // Função auxiliar para selecionar todos os placares iguais
+        function selecionarPlacaresIguais(placarAlvo) {
+            if (placarAlvo) {
+                document.querySelectorAll('.placar').forEach(placar => {
+                    if (placar.textContent.split('\n')[0] === placarAlvo) {
+                        placar.classList.add('placar-selecionado');
+                    } else {
+                        placar.classList.remove('placar-selecionado');
+                    }
+                });
+            } else {
+                document.querySelectorAll('.placar').forEach(placar => {
+                    placar.classList.remove('placar-selecionado');
+                });
+            }
+        }
+        
+        
         function criarTabela(dados) {
             const tabelaBody = document.querySelector("#tabelaResultados tbody");
             const linhaPercentual = document.getElementById('linhaPercentual');
-            linhaPercentual.innerHTML = '<th>📊</th>'; // Limpa a linha de porcentagens por coluna
-            tabelaBody.innerHTML = ''; // Limpa a tabela antes de preencher novamente
+            linhaPercentual.innerHTML = '<th>📊</th>';
+            tabelaBody.innerHTML = '';
         
             const horasSelecionadas = parseInt(document.querySelector("#seletorHoras").value);
         
-            // Ordenar os dados pela data e hora (mais recente para mais antigo)
             dados.sort((a, b) => {
-                const dataHoraA = new Date(a.data).getTime() + (a.hora * 60 * 60 * 1000);
-                const dataHoraB = new Date(b.data).getTime() + (b.hora * 60 * 60 * 1000);
-                return dataHoraB - dataHoraA; // Ordem decrescente
+                const dataHoraA = new Date(`${a.data}T${a.hora.toString().padStart(2, '0')}:00:00`).getTime();
+                const dataHoraB = new Date(`${b.data}T${b.hora.toString().padStart(2, '0')}:00:00`).getTime();
+                return dataHoraA - dataHoraB; // Ordem crescente
             });
+            
         
             const chavesJaProcessadas = new Set();
             const mapeamentoChaveLinha = {};
         
             let contagemLinhas = 0;
         
-            // Criação de linhas únicas
-            dados.forEach(dado => {
+            // Criação de linhas únicas (mantido igual)
+            dados.reverse().forEach(dado => {
+        
                 if (contagemLinhas >= horasSelecionadas) return;
         
                 const dataHora = new Date(dado.data);
-                const hora = dado.hora; // Usa a hora diretamente do objeto
+                const hora = dado.hora;
                 const chave = `${dataHora.toISOString().split('T')[0]}-${hora}`;
         
                 if (!chavesJaProcessadas.has(chave)) {
@@ -547,14 +568,12 @@
                     contagemMercadosCelula.textContent = 0;
                     novaLinha.appendChild(contagemMercadosCelula);
         
-                    // Adicionar célula para somar os gols
                     const totalGolsCelula = document.createElement("td");
                     totalGolsCelula.textContent = 0;
                     novaLinha.appendChild(totalGolsCelula);
         
-                    // Adicionar célula para porcentagem
                     const porcentagemCelula = document.createElement("td");
-                    porcentagemCelula.textContent = "0%"; // Inicializa com 0%
+                    porcentagemCelula.textContent = "0%";
                     novaLinha.appendChild(porcentagemCelula);
         
                     tabelaBody.appendChild(novaLinha);
@@ -565,95 +584,114 @@
                 }
             });
         
+            
+        
+            // Função atualizada para lidar com o clique no placar
+            function handlePlacarClick(event) {
+                const placarClicado = event.currentTarget.textContent.split('\n')[0]; // Pega só o placar, sem o tooltip
+                
+                if (placarSelecionado === placarClicado) {
+                    placarSelecionado = null;
+                    localStorage.removeItem('placarSelecionado');
+                    selecionarPlacaresIguais(null);
+                } else {
+                    placarSelecionado = placarClicado;
+                    localStorage.setItem('placarSelecionado', placarClicado);
+                    selecionarPlacaresIguais(placarClicado);
+                }
+            }
+        
             // Preencher dados nas linhas corretas
             dados.forEach(dado => {
                 const dataHora = new Date(dado.data);
-                const hora = dado.hora; // Usa a hora diretamente do objeto
+                const hora = dado.hora;
                 const chave = `${dataHora.toISOString().split('T')[0]}-${hora}`;
                 const linha = mapeamentoChaveLinha[chave];
-            
+        
                 if (linha) {
-                    const indexMinuto = minutosFixos.indexOf(dado.minuto); // Certifique-se de que 'minuto' está correto
+                    const indexMinuto = minutosFixos.indexOf(dado.minuto);
                     if (indexMinuto !== -1) {
                         const colunaMinuto = linha.children[1 + indexMinuto];
-            
+        
                         if (!colunaMinuto.querySelector('.placar')) {
                             const placar = document.createElement("div");
                             placar.className = "placar";
-            
-                            // Obtenha o tipo de placar selecionado (FT ou HT)
+        
                             const tipoPlacar = document.querySelector("#seletorTipoPlacar").value;
                             const placarAtual = tipoPlacar === "ft" ? dado.ft : dado.ht;
-                            placar.textContent = placarAtual; // Usa o formato final dos gols
-            
+                            placar.textContent = placarAtual;
+        
+                            // Adiciona evento de clique ao placar
+                            placar.addEventListener('click', handlePlacarClick);
+        
+                            // Tooltip
                             const tooltip = document.createElement("span");
                             tooltip.className = "tooltip";
                             tooltip.textContent = `${dado.time_a} vs ${dado.time_b}`;
                             placar.appendChild(tooltip);
-            
-                            colunaMinuto.appendChild(placar);
-            
-                              // Lógica de verificação de acertos
-                              const selecaoResultado = document.querySelector("#seletorResultado").value;
-                              let acerto = false;
-                              const resultadoA = parseInt(placarAtual.split(' x ')[0]);
-                              const resultadoB = parseInt(placarAtual.split(' x ')[1]);
-  
-                              // Verificações de acerto
-                              if (selecaoResultado === "ambasMarcam") {
-                                  acerto = resultadoA > 0 && resultadoB > 0;
-                              } else if (selecaoResultado === "ambasNaoMarcam") {
-                                  acerto = resultadoA === 0 || resultadoB === 0;
-                              } else if (selecaoResultado === "over1.5") {
-                                  acerto = (resultadoA + resultadoB) > 1.5;
-                              } else if (selecaoResultado === "under1.5") {
-                                  acerto = (resultadoA + resultadoB) <= 1.5;
-                              } else if (selecaoResultado === "over2.5") {
-                                  acerto = (resultadoA + resultadoB) > 2.5;
-                              } else if (selecaoResultado === "under2.5") {
-                                  acerto = (resultadoA + resultadoB) <= 2.5;
-                              } else if (selecaoResultado === "over3.5") {
-                                  acerto = (resultadoA + resultadoB) > 3.5;
-                              } else if (selecaoResultado === "under3.5") {
-                                  acerto = (resultadoA + resultadoB) <= 3.5;
-                              } else if (selecaoResultado === "over5") {
-                                  acerto = (resultadoA + resultadoB) > 5;
-                              } else if (selecaoResultado === "casaVence") {
-                                  acerto = resultadoA > resultadoB;
-                              } else if (selecaoResultado === "foraVence") {
-                                  acerto = resultadoB > resultadoA;
-                              } else if (selecaoResultado === "empate") {
-                                  acerto = resultadoA === resultadoB; // Novo mercado de empate
-                              }
         
-                            // Aplicação de cores
-                            colunaMinuto.style.backgroundColor = acerto ? "#018b06" : "#be0e02"; // Verde se acerto, vermelho se não
-            
-                            if (acerto) {
-                                linha.children[linha.children.length - 2].textContent = parseInt(linha.children[linha.children.length - 2].textContent) + 1; // Contagem de mercados
+                            colunaMinuto.appendChild(placar);
+        
+                            // Se há um placar selecionado, verifica se este placar deve estar selecionado
+                            if (placarSelecionado === placarAtual) {
+                                placar.classList.add('placar-selecionado');
                             }
-            
-                            // Atualiza a célula de total de gols
-                            const totalGolsCelula = linha.children[linha.children.length - 3]; // A célula de total de gols é a penúltima
+        
+                            const selecaoResultado = document.querySelector("#seletorResultado").value;
+                            let acerto = false;
+                            const resultadoA = parseInt(placarAtual.split(' x ')[0]);
+                            const resultadoB = parseInt(placarAtual.split(' x ')[1]);
+        
+                            if (selecaoResultado === "ambasMarcam") {
+                                acerto = resultadoA > 0 && resultadoB > 0;
+                            } else if (selecaoResultado === "ambasNaoMarcam") {
+                                acerto = resultadoA === 0 || resultadoB === 0;
+                            } else if (selecaoResultado === "over1.5") {
+                                acerto = (resultadoA + resultadoB) > 1.5;
+                            } else if (selecaoResultado === "under1.5") {
+                                acerto = (resultadoA + resultadoB) <= 1.5;
+                            } else if (selecaoResultado === "over2.5") {
+                                acerto = (resultadoA + resultadoB) > 2.5;
+                            } else if (selecaoResultado === "under2.5") {
+                                acerto = (resultadoA + resultadoB) <= 2.5;
+                            } else if (selecaoResultado === "over3.5") {
+                                acerto = (resultadoA + resultadoB) > 3.5;
+                            } else if (selecaoResultado === "under3.5") {
+                                acerto = (resultadoA + resultadoB) <= 3.5;
+                            } else if (selecaoResultado === "over5") {
+                                acerto = (resultadoA + resultadoB) > 5;
+                            } else if (selecaoResultado === "casaVence") {
+                                acerto = resultadoA > resultadoB;
+                            } else if (selecaoResultado === "foraVence") {
+                                acerto = resultadoB > resultadoA;
+                            } else if (selecaoResultado === "empate") {
+                                acerto = resultadoA === resultadoB;
+                            }
+        
+                            colunaMinuto.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
+        
+                            if (acerto) {
+                                linha.children[linha.children.length - 2].textContent = parseInt(linha.children[linha.children.length - 2].textContent) + 1;
+                            }
+        
+                            const totalGolsCelula = linha.children[linha.children.length - 3];
                             const totalGols = resultadoA + resultadoB;
                             totalGolsCelula.textContent = parseInt(totalGolsCelula.textContent) + totalGols;
                         }
                     }
                 }
             });
-
-            // Cálculo da porcentagem horizontal (linha)
+        
+            // Cálculo da porcentagem horizontal
             const todasLinhas = Array.from(tabelaBody.querySelectorAll('tr'));
             todasLinhas.forEach((row) => {
-                const totalCelsProcessadas = Array.from(row.cells).slice(1, -3).filter(cell => cell.querySelector('.placar')).length; // Contagem das células processadas
-                const celsMercado = parseInt(row.children[row.children.length - 2].textContent); // Contagem de mercados
+                const totalCelsProcessadas = Array.from(row.cells).slice(1, -3).filter(cell => cell.querySelector('.placar')).length;
+                const celsMercado = parseInt(row.children[row.children.length - 2].textContent);
         
-                // Cálculo da porcentagem
                 const porcentagem = totalCelsProcessadas > 0 ? Math.floor((celsMercado / totalCelsProcessadas) * 100) : 0;
-                const porcentagemCell = row.children[row.children.length - 1]; // A célula da porcentagem deve ser a última
+                const porcentagemCell = row.children[row.children.length - 1];
                 porcentagemCell.innerText = `${porcentagem}%`;
         
-                // Aplica a cor na porcentagem horizontal
                 if (porcentagem >= 50) {
                     porcentagemCell.classList.add('porcentagem-verde');
                     porcentagemCell.classList.remove('porcentagem-branca');
@@ -663,31 +701,29 @@
                 }
             });
         
-            // Cálculo da porcentagem vertical (colunas)
+            // Cálculo da porcentagem vertical
             const totalColunas = minutosFixos.length;
             const totalMercadosPorColuna = Array(totalColunas).fill(0);
             const totalAcertosPorColuna = Array(totalColunas).fill(0);
-            
+        
             todasLinhas.forEach(row => {
                 Array.from(row.cells).slice(1, -3).forEach((cell, index) => {
                     if (cell.querySelector('.placar')) {
                         totalMercadosPorColuna[index]++;
-                        if (cell.style.backgroundColor === "rgb(1, 139, 6)") { // Verde para acertos
+                        if (cell.style.backgroundColor === "rgb(1, 139, 6)") {
                             totalAcertosPorColuna[index]++;
                         }
                     }
                 });
             });
-            
-            // Atualiza a linha de porcentagem com os resultados
-            linhaPercentual.innerHTML = '<th>📈</th>'; // Reinicia a linha de porcentagens
-
+        
+            linhaPercentual.innerHTML = '<th>📈</th>';
+        
             totalMercadosPorColuna.forEach((totalMercados, index) => {
                 const cell = document.createElement("td");
                 const porcentagemVertical = totalMercados > 0 ? Math.floor((totalAcertosPorColuna[index] / totalMercados) * 100) : 0;
                 cell.textContent = `${porcentagemVertical}%`;
-            
-                // Aplica as classes de CSS com base na porcentagem
+        
                 if (porcentagemVertical > 49) {
                     cell.classList.add('porcentagem-verde');
                     cell.classList.remove('porcentagem-branca');
@@ -695,23 +731,22 @@
                     cell.classList.add('porcentagem-branca');
                     cell.classList.remove('porcentagem-verde');
                 }
-            
+        
                 linhaPercentual.appendChild(cell);
             });
-            
-            // Adiciona três células vazias ao final
+        
             for (let i = 0; i < 3; i++) {
                 const emptyCell = document.createElement("td");
-                emptyCell.textContent = ""; // Pode deixar vazio ou adicionar algum caractere, se preferir
+                emptyCell.textContent = "";
                 linhaPercentual.appendChild(emptyCell);
             }
-            
-            
-            
+        
+            // Restaura a seleção após criar a tabela
+            if (placarSelecionado) {
+                selecionarPlacaresIguais(placarSelecionado);
+            }
         }
         
-        
-
         async function buscarDados() {
             try {
                 const response = await fetch('https://betstat.site/api/resultados/super');
@@ -724,10 +759,10 @@
                 console.error('Erro:', error);
             }
         }
-
+        
         buscarDados();
         setInterval(buscarDados, 10000);
-
+        
         document.querySelector("#seletorHoras").addEventListener("change", buscarDados);
         document.querySelector("#seletorResultado").addEventListener("change", buscarDados);
         document.querySelector("#seletorTipoPlacar").addEventListener("change", buscarDados);
