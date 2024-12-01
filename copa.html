@@ -2847,15 +2847,16 @@ function createOrUpdatePizzaChart(chart, ctx, data, labels, colors) {
         "minutofixo-under3.5": "Under 3.5",
     };
     
-    let selectedMinutes = []; // Array para armazenar os minutos selecionados
-    let marketCounts = {}; // Armazenar contagens dos mercados
-    let minuteOccurrences = {}; // Armazenar a contagem de jogos por minuto
+    let selectedMinutes = [];
+    let marketCounts = {};
+    let minuteOccurrences = {};
+    let goalSums = {}; // Para armazenar a soma de gols por minuto
     
     async function fetchMarketData() {
         try {
             const response = await fetch('https://betstat.site/resultados/Copa');
             const data = await response.json();
-            const recentGames = data.slice(-960); // Considera os 960 jogos mais recentes
+            const recentGames = data.slice(-960);
             processAndRenderTable(recentGames);
         } catch (error) {
             console.error('Erro ao buscar os dados:', error);
@@ -2868,6 +2869,7 @@ function createOrUpdatePizzaChart(chart, ctx, data, labels, colors) {
         // Inicializa os contadores
         minutes.forEach(minute => {
             minuteOccurrences[minute] = 0;
+            goalSums[minute] = 0;
             for (const market in markets) {
                 if (!marketCounts[market]) marketCounts[market] = {};
                 marketCounts[market][minute] = 0;
@@ -2880,28 +2882,73 @@ function createOrUpdatePizzaChart(chart, ctx, data, labels, colors) {
     
             if (minutes.includes(gameMinute)) {
                 const ft = game.ft.split('x').map(Number);
-                minuteOccurrences[gameMinute]++; // Incrementa os jogos para o minuto
+                const totalGoals = ft[0] + ft[1];
+    
+                minuteOccurrences[gameMinute]++;
+                goalSums[gameMinute] += totalGoals; // Soma os gols no minuto
     
                 if (ft[0] > 0 && ft[1] > 0) marketCounts["minutofixo-ambasMarcam"][gameMinute]++;
                 if (ft[0] === 0 || ft[1] === 0) marketCounts["minutofixo-ambasNaoMarcam"][gameMinute]++;
                 if (ft[0] > ft[1]) marketCounts["minutofixo-casaVence"][gameMinute]++;
                 if (ft[1] > ft[0]) marketCounts["minutofixo-foraVence"][gameMinute]++;
                 if (ft[0] === ft[1]) marketCounts["minutofixo-empate"][gameMinute]++;
-                if (ft[0] + ft[1] > 1.5) marketCounts["minutofixo-over1.5"][gameMinute]++;
-                if (ft[0] + ft[1] <= 1.5) marketCounts["minutofixo-under1.5"][gameMinute]++;
-                if (ft[0] + ft[1] > 2.5) marketCounts["minutofixo-over2.5"][gameMinute]++;
-                if (ft[0] + ft[1] <= 2.5) marketCounts["minutofixo-under2.5"][gameMinute]++;
-                if (ft[0] + ft[1] > 3.5) marketCounts["minutofixo-over3.5"][gameMinute]++;
-                if (ft[0] + ft[1] <= 3.5) marketCounts["minutofixo-under3.5"][gameMinute]++;
+                if (totalGoals > 1.5) marketCounts["minutofixo-over1.5"][gameMinute]++;
+                if (totalGoals <= 1.5) marketCounts["minutofixo-under1.5"][gameMinute]++;
+                if (totalGoals > 2.5) marketCounts["minutofixo-over2.5"][gameMinute]++;
+                if (totalGoals <= 2.5) marketCounts["minutofixo-under2.5"][gameMinute]++;
+                if (totalGoals > 3.5) marketCounts["minutofixo-over3.5"][gameMinute]++;
+                if (totalGoals <= 3.5) marketCounts["minutofixo-under3.5"][gameMinute]++;
             }
         });
     
-        renderTable(marketCounts, minuteOccurrences);
+        renderTable(marketCounts, minuteOccurrences, goalSums);
         renderMarketPercentages(marketCounts, minuteOccurrences);
     }
     
-    // Renderiza a tabela de dados dos mercados
-    function renderTable(marketCounts, minuteOccurrences) {
+    function processAndRenderTable(data) {
+        const totalGames = data.length;
+    
+        // Inicializa os contadores para cada minuto
+        minutes.forEach(minute => {
+            minuteOccurrences[minute] = 0;    // Total de jogos no minuto
+            goalSums[minute] = 0;              // Total de gols no minuto
+            for (const market in markets) {
+                if (!marketCounts[market]) marketCounts[market] = {};
+                marketCounts[market][minute] = 0;
+            }
+        });
+    
+        // Processa os jogos
+        data.forEach(game => {
+            const gameMinute = game.minuto;
+    
+            if (minutes.includes(gameMinute)) {
+                const ft = game.ft.split('x').map(Number); // Gols do time da casa e visitante
+                const totalGoals = ft[0] + ft[1]; // Total de gols no jogo
+    
+                minuteOccurrences[gameMinute]++; // Incrementa o número de jogos no minuto
+                goalSums[gameMinute] += totalGoals; // Soma os gols nesse minuto
+    
+                // Verificação dos mercados para esse minuto
+                if (ft[0] > 0 && ft[1] > 0) marketCounts["minutofixo-ambasMarcam"][gameMinute]++;
+                if (ft[0] === 0 || ft[1] === 0) marketCounts["minutofixo-ambasNaoMarcam"][gameMinute]++;
+                if (ft[0] > ft[1]) marketCounts["minutofixo-casaVence"][gameMinute]++;
+                if (ft[1] > ft[0]) marketCounts["minutofixo-foraVence"][gameMinute]++;
+                if (ft[0] === ft[1]) marketCounts["minutofixo-empate"][gameMinute]++;
+                if (totalGoals > 1.5) marketCounts["minutofixo-over1.5"][gameMinute]++;
+                if (totalGoals <= 1.5) marketCounts["minutofixo-under1.5"][gameMinute]++;
+                if (totalGoals > 2.5) marketCounts["minutofixo-over2.5"][gameMinute]++;
+                if (totalGoals <= 2.5) marketCounts["minutofixo-under2.5"][gameMinute]++;
+                if (totalGoals > 3.5) marketCounts["minutofixo-over3.5"][gameMinute]++;
+                if (totalGoals <= 3.5) marketCounts["minutofixo-under3.5"][gameMinute]++;
+            }
+        });
+    
+        renderTable(marketCounts, minuteOccurrences, goalSums);
+        renderMarketPercentages(marketCounts, minuteOccurrences);
+    }
+    
+    function renderTable(marketCounts, minuteOccurrences, goalSums) {
         const tbody = document.getElementById('minutofixo-market-table');
         tbody.innerHTML = '';
     
@@ -2915,21 +2962,31 @@ function createOrUpdatePizzaChart(chart, ctx, data, labels, colors) {
                 const cell = document.createElement('td');
                 const count = marketCounts[market][minute];
                 const gamesInMinute = minuteOccurrences[minute];
+                const totalGoals = goalSums[minute];
+    
                 const percentage = gamesInMinute > 0 
-                    ? Math.round((count / gamesInMinute) * 100)  // arredonda para inteiro
+                    ? Math.round((count / gamesInMinute) * 100)
                     : 0;
     
-                cell.textContent = `${count} (${percentage}%)`;
+                // Aqui é o cálculo correto da média de gols
+                const avgGoals = gamesInMinute > 0 
+                    ? (totalGoals / gamesInMinute).toFixed(2) // Média de gols por jogo
+                    : 0;
     
-                // Aplica a cor conforme a porcentagem
-                if (percentage >= 70) {
-                    cell.classList.add('minutofixo-green'); // Verde
-                } else if (percentage >= 50) {
-                    cell.classList.add('minutofixo-yellow'); // Amarelo
-                } else {
-                    cell.classList.add('minutofixo-red'); // Vermelho
+                cell.innerHTML = `<div>📊 ${percentage}%</div><div>⚽️ ${avgGoals}</div>`;
+    
+                // Aplica cores conforme os intervalos de 20%
+                if (percentage >= 0 && percentage <= 49) {
+                    cell.style.backgroundColor = '#be0e01'; // Vermelho escuro
+                } else if (percentage >= 40 && percentage <= 59) {
+                    cell.style.backgroundColor = '#028b07'; // Amarelo escuro
+                } else if (percentage >= 60 && percentage <= 79) {
+                    cell.style.backgroundColor = '#006400'; // Verde escuro
+                } else if (percentage >= 80 && percentage <= 100) {
+                    cell.style.backgroundColor = '#00008B'; // Azul escuro
                 }
     
+                cell.style.color = '#fff'; // Texto branco para contraste
                 row.appendChild(cell);
             });
     
@@ -2939,11 +2996,11 @@ function createOrUpdatePizzaChart(chart, ctx, data, labels, colors) {
         document.getElementById("total-games").textContent = `Total de jogos processados: ${Object.values(minuteOccurrences).reduce((a, b) => a + b, 0)}`;
     }
     
-    // Renderiza as porcentagens dos mercados com base nos minutos selecionados
+    
+    
     function renderMarketPercentages(marketCounts, minuteOccurrences) {
         const marketPercentages = {};
     
-        // Inicializa os contadores
         for (const market in markets) {
             let totalCount = 0;
             let totalGames = 0;
@@ -2966,51 +3023,45 @@ function createOrUpdatePizzaChart(chart, ctx, data, labels, colors) {
             const marketLabel = markets[market];
             const percentageDiv = document.createElement('div');
             percentageDiv.textContent = `${marketLabel}: ${marketPercentage}%`;
-            percentageDiv.style.display = 'inline-block'; // Exibe as porcentagens em linha
-            percentageDiv.style.marginRight = '20px'; // Espaçamento entre os itens
+            percentageDiv.style.display = 'inline-block';
+            percentageDiv.style.marginRight = '20px';
             percentagesDiv.appendChild(percentageDiv);
         }
     }
     
-    // Função para alternar a seleção de minutos
     function toggleMinuteSelection(minute) {
         const index = selectedMinutes.indexOf(minute);
     
         if (index === -1) {
-            selectedMinutes.push(minute); // Adiciona o minuto
-            document.querySelector(`th[data-minute="${minute}"]`).classList.add('selected'); // Marca o cabeçalho como selecionado
+            selectedMinutes.push(minute);
+            document.querySelector(`th[data-minute="${minute}"]`).classList.add('selected');
         } else {
-            selectedMinutes.splice(index, 1); // Remove o minuto
-            document.querySelector(`th[data-minute="${minute}"]`).classList.remove('selected'); // Desmarca o cabeçalho
+            selectedMinutes.splice(index, 1);
+            document.querySelector(`th[data-minute="${minute}"]`).classList.remove('selected');
         }
     
-        // Atualiza as porcentagens com base nos minutos selecionados
         renderMarketPercentages(marketCounts, minuteOccurrences);
     }
     
-    // Adiciona eventos de clique nos cabeçalhos de minutos
     document.querySelectorAll('.minute-header').forEach((cell, index) => {
         const minute = minutes[index];
-        cell.setAttribute('data-minute', minute); // Adiciona o atributo de dados para referência
+        cell.setAttribute('data-minute', minute);
     
         cell.addEventListener('click', () => {
             toggleMinuteSelection(minute);
         });
     });
     
-    // Função para limpar a seleção
     document.getElementById('clear-selection-btn')?.addEventListener('click', () => {
-        selectedMinutes = []; // Limpa os minutos selecionados
+        selectedMinutes = [];
         document.querySelectorAll('.minute-header').forEach(cell => {
-            cell.classList.remove('selected'); // Remove a seleção dos cabeçalhos
+            cell.classList.remove('selected');
         });
-        renderMarketPercentages(marketCounts, minuteOccurrences); // Atualiza as porcentagens
+        renderMarketPercentages(marketCounts, minuteOccurrences);
     });
     
-    // Atualiza os dados a cada 30 segundos
     setInterval(fetchMarketData, 5000);
     
-    // Busca os dados ao carregar a página
     fetchMarketData();
 </script>
 
