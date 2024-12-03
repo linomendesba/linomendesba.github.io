@@ -153,6 +153,34 @@
     </div>
 </div>
 
+<h2>Médias por hora</h2>
+
+<div class="selector-container">
+    <select id="league-selector" aria-label="Selecione uma liga">
+        <option value="Copa America">Copa America</option>
+        <option value="Taça Glória Eterna">Taça Glória Eterna</option>
+        <option value="Euro">Euro</option>
+        <option value="Campeonato Italiano">Campeonato Italiano</option>
+        <option value="Copa das estrelas">Copa das estrelas</option>
+        <option value="Ligas America">Ligas America</option>
+        <option value="Copa">Copa</option>
+        <option value="Premier">Premier</option>
+        <option value="Campeões">Campeões</option>
+    </select>
+</div>
+
+<table id="markets-table">
+    <thead>
+        <tr>
+            <th>Mercado</th>
+            <th>Jogos por Hora (Média)</th>
+        </tr>
+    </thead>
+    <tbody id="markets-body">
+        <!-- Dados serão inseridos aqui -->
+    </tbody>
+</table>
+
 
 <h2>Estatísticas de confronto</h2>
 
@@ -3035,6 +3063,184 @@ function createOrUpdatePizzaChart(chart, ctx, data, labels, colors) {
     setInterval(fetchMarketData, 5000);
     
     fetchMarketData();
+</script>
+
+<script>
+                // Função para formatar o nome dos mercados
+                function formatarNomeMercado(mercado) {
+                    const mapaFormatacao = {
+                        'ambasMarcam': 'Ambas Marcam',
+                        'ambasNaoMarcam': 'Ambas Não Marcam',
+                        'casaVence': 'Casa Vence',
+                        'foraVence': 'Fora Vence',
+                        'empate': 'Empate',
+                        'over1_5': 'Mais de 1.5 Gols',
+                        'under1_5': 'Menos de 1.5 Gols',
+                        'over2_5': 'Mais de 2.5 Gols',
+                        'under2_5': 'Menos de 2.5 Gols',
+                        'over3_5': 'Mais de 3.5 Gols',
+                        'under3_5': 'Menos de 3.5 Gols',
+                        'over5': 'Mais de 5 Gols'
+                    };
+                    return mapaFormatacao[mercado] || mercado;
+                }
+        
+                // Função para calcular os mercados com base no placar
+                function calcularMercados(placar) {
+                    const [golsCasa, golsFora] = placar.split(" x ").map(Number);
+                    const mercados = {
+                        ambasMarcam: golsCasa > 0 && golsFora > 0,
+                        ambasNaoMarcam: golsCasa > 0 && golsFora === 0 || golsCasa === 0 && golsFora > 0,
+                        casaVence: golsCasa > golsFora,
+                        foraVence: golsFora > golsCasa,
+                        empate: golsCasa === golsFora,
+                        over1_5: golsCasa + golsFora > 1.5,
+                        under1_5: golsCasa + golsFora < 1.5,
+                        over2_5: golsCasa + golsFora > 2.5,
+                        under2_5: golsCasa + golsFora < 2.5,
+                        over3_5: golsCasa + golsFora > 3.5,
+                        under3_5: golsCasa + golsFora < 3.5,
+                        over5: golsCasa + golsFora > 4.5
+                    };
+                    return mercados;
+                }
+        
+                // Classe para gerenciar dados das ligas
+                class LeagueDataManager {
+                    constructor() {
+                        this.leagueData = {};
+                        this.mercados = [
+                            "ambasMarcam", "ambasNaoMarcam", "casaVence", "foraVence", 
+                            "empate", "over1_5", "under1_5", "over2_5", "under2_5", 
+                            "over3_5", "under3_5", "over5"
+                        ];
+                    }
+        
+                    async fetchLeagueData(nomeLiga) {
+                        // Se já temos os dados, retorna imediatamente
+                        if (this.leagueData[nomeLiga]) {
+                            return this.leagueData[nomeLiga];
+                        }
+        
+                        try {
+                            const response = await fetch(`https://betstat.site/resultados/${encodeURIComponent(nomeLiga)}`);
+                            const data = await response.json();
+                            
+                            // Calcula e armazena os dados processados
+                            this.leagueData[nomeLiga] = this.processLeagueData(data);
+                            return this.leagueData[nomeLiga];
+                        } catch (error) {
+                            console.error('Erro ao buscar os dados:', error);
+                            throw error;
+                        }
+                    }
+        
+                    processLeagueData(data) {
+                        const totalMercadosPorHora = {};
+                        const totalJogosPorHora = {};
+        
+                        // Inicializando os contadores de cada mercado por hora
+                        this.mercados.forEach(mercado => {
+                            totalMercadosPorHora[mercado] = {};
+                        });
+        
+                        // Processando os dados para contar a quantidade total de cada mercado por hora
+                        data.slice(0, 480).forEach(match => {
+                            const placar = match.ft;
+                            const hora = match.hora;
+                            const mercadosJogo = calcularMercados(placar);
+        
+                            // Para cada mercado, se o mercado for verdadeiro, incrementamos a contagem por hora
+                            this.mercados.forEach(mercado => {
+                                if (mercadosJogo[mercado]) {
+                                    if (!totalMercadosPorHora[mercado][hora]) {
+                                        totalMercadosPorHora[mercado][hora] = 0;
+                                    }
+                                    totalMercadosPorHora[mercado][hora]++;
+                                }
+                            });
+        
+                            // Contando o número total de jogos por hora
+                            if (!totalJogosPorHora[hora]) {
+                                totalJogosPorHora[hora] = 0;
+                            }
+                            totalJogosPorHora[hora]++;
+                        });
+        
+                        return { totalMercadosPorHora, totalJogosPorHora };
+                    }
+        
+                    calcularMediasMercados(processedData) {
+                        const { totalMercadosPorHora, totalJogosPorHora } = processedData;
+                        const resultados = [];
+        
+                        this.mercados.forEach(mercado => {
+                            let totalJogosPorHoraMercado = 0;
+                            const horas = Object.keys(totalMercadosPorHora[mercado]);
+        
+                            // Soma os jogos por hora para esse mercado
+                            horas.forEach(hora => {
+                                totalJogosPorHoraMercado += totalMercadosPorHora[mercado][hora];
+                            });
+        
+                            // Média de jogos por hora para esse mercado
+                            const totalHorasProcessadas = Object.keys(totalJogosPorHora).length;
+                            const mediaJogosPorHora = totalJogosPorHoraMercado / totalHorasProcessadas;
+        
+                            resultados.push({
+                                mercado: formatarNomeMercado(mercado),
+                                media: mediaJogosPorHora.toFixed(2)
+                            });
+                        });
+        
+                        return resultados;
+                    }
+                }
+        
+                // Inicializa o gerenciador de dados
+                const leagueDataManager = new LeagueDataManager();
+        
+                // Função para atualizar a tabela com os dados da liga
+                async function atualizarTabelaLiga(nomeLiga) {
+                    const tableBody = document.getElementById('markets-body');
+                    
+                    try {
+                        // Busca e processa os dados da liga
+                        const processedData = await leagueDataManager.fetchLeagueData(nomeLiga);
+                        
+                        // Calcula as médias dos mercados
+                        const resultados = leagueDataManager.calcularMediasMercados(processedData);
+                        
+                        // Limpa o corpo da tabela
+                        tableBody.innerHTML = '';
+                        
+                        // Preenche a tabela com os novos dados
+                        resultados.forEach(item => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${item.mercado}</td>
+                                <td>${item.media}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    } catch (error) {
+                        tableBody.innerHTML = `
+                            <tr>
+                                <td colspan="2" style="color: red;">
+                                    Erro ao carregar dados da liga: ${error.message}
+                                </td>
+                            </tr>
+                        `;
+                    }
+                }
+        
+                // Adiciona evento de mudança ao seletor de liga
+                document.getElementById('league-selector').addEventListener('change', function(event) {
+                    atualizarTabelaLiga(event.target.value);
+                });
+        
+                // Carrega a primeira liga por padrão ao carregar a página
+                atualizarTabelaLiga('Copa America');
 </script>
 
 </body>
