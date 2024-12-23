@@ -153,6 +153,45 @@
 
     </div>
 
+    <div class="container">
+        <label for="time-selecionado"></label>
+        <select id="time-selecionado">
+            <option value="Brazil">Brazil</option>
+            <option value="El Salvador">El Salvador</option>
+            <option value="Trinidad">Trinidad</option>
+            <option value="Uruguay">Uruguay</option>
+            <option value="Barbados">Barbados</option>
+            <option value="Equador">Equador</option>
+            <option value="Jamaica">Jamaica</option>
+            <option value="Paraguay">Paraguay</option>
+            <option value="Colοmbia">Colοmbia</option>
+            <option value="Nicaragua">Nicaragua</option>
+            <option value="Haiti">Haiti</option>
+            <option value="Peru">Peru</option>
+            <option value="Bolivia">Bolivia</option>
+            <option value="Costa Rica">Costa Rica</option>
+            <option value="Venezuela">Venezuela</option>
+            <option value="Mexico">Mexico</option>
+            <option value="Panama">Panama</option>
+            <option value="Argentina">Argentina</option>
+            <option value="Chile">Chile</option>
+            <option value="Honduras">Honduras</option>
+        </select>
+        <button onclick="analisar()">Analisar</button>
+        <button onclick="toggleTabela()">Mostrar/Ocultar</button>
+          </div>
+          
+            <table id="time-tabela-resultados">
+              <thead>
+                <tr>
+                  <!-- Cabeçalhos dos minutos serão gerados dinamicamente -->
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Linhas de dados serão geradas dinamicamente -->
+              </tbody>
+            </table>
+
     <div id="market-selector">
         <label for="market">🏆 Ranking Top 10 </label>
         <select id="market">
@@ -2769,6 +2808,181 @@ autoUpdateInterval = setInterval(fetchAndUpdateResults, 15000);
                     button.textContent = "Contrair Vídeo";  
                 }
             }
+</script>
+<script>
+    let primeiroClique = false;
+
+async function carregarJogos() {
+  try {
+    const response = await fetch(API_URL);
+    const jogos = await response.json();
+    return jogos;
+  } catch (error) {
+    console.error('Erro ao carregar dados:', error);
+    return [];
+  }
+}
+
+function analisarMercados(jogos, timeSelecionado) {
+  const analise = {};
+
+  jogos.forEach(jogo => {
+    if (jogo.time_a === timeSelecionado || jogo.time_b === timeSelecionado) {
+      const minuto = jogo.minuto;
+      const ftGols = jogo.ft.split(' x ').map(Number);
+      const timeA = ftGols[0];
+      const timeB = ftGols[1];
+      const totalGols = timeA + timeB;
+
+      if (!analise[minuto]) {
+        analise[minuto] = {
+          ambasMarcamSim: 0,
+          ambasMarcamNao: 0,
+          over15: 0,
+          under15: 0,
+          over25: 0,
+          under25: 0,
+          over35: 0,
+          under35: 0,
+          casa: 0,
+          fora: 0,
+          empate: 0,
+          total: 0
+        };
+      }
+
+      analise[minuto].total += 1;
+
+      if (timeA > 0 && timeB > 0) analise[minuto].ambasMarcamSim += 1;
+      if (timeA === 0 || timeB === 0) analise[minuto].ambasMarcamNao += 1;
+
+      if (totalGols > 1.5) analise[minuto].over15 += 1;
+      if (totalGols <= 1.5) analise[minuto].under15 += 1;
+
+      if (totalGols > 2.5) analise[minuto].over25 += 1;
+      if (totalGols <= 2.5) analise[minuto].under25 += 1;
+
+      if (totalGols > 3.5) analise[minuto].over35 += 1;
+      if (totalGols <= 3.5) analise[minuto].under35 += 1;
+
+      if (timeA > timeB) analise[minuto].casa += 1;
+      if (timeB > timeA) analise[minuto].fora += 1;
+      if (timeA === timeB) analise[minuto].empate += 1;
+    }
+  });
+
+  return analise;
+}
+
+function gerarTabela(analise) {
+    const table = document.getElementById("time-tabela-resultados");
+    const tbody = table.querySelector("tbody");
+    const thead = table.querySelector("thead tr");
+
+    tbody.innerHTML = '';
+    thead.innerHTML = '<th>Mercado</th>';
+
+    const minutos = Object.keys(analise);
+    minutos.forEach(minuto => {
+        const th = document.createElement("th");
+        th.innerText = minuto;
+        thead.appendChild(th);
+    });
+
+    const mercados = [
+        { 
+            class: 'mercado-ambas-marcam',
+            label: 'Ambas',
+            yes: 'ambasMarcamSim',
+            no: 'ambasMarcamNao'
+        },
+        { 
+            class: 'mercado-over15',
+            label: '1.5',
+            over: 'over15',
+            under: 'under15'
+        },
+        { 
+            class: 'mercado-over25',
+            label: '2.5',
+            over: 'over25',
+            under: 'under25'
+        },
+        { 
+            class: 'mercado-over35',
+            label: '3.5',
+            over: 'over35',
+            under: 'under35'
+        },
+        { 
+            class: 'mercado-resultado',
+            label: 'C/F/E',
+            casa: 'casa',
+            fora: 'fora',
+            empate: 'empate'
+        }
+    ];
+
+    mercados.forEach(mercado => {
+        const tr = document.createElement("tr");
+        tr.classList.add(mercado.class);
+        
+        const td = document.createElement("td");
+        td.classList.add('mercado-header');
+        td.innerText = mercado.label;
+        tr.appendChild(td);
+
+        minutos.forEach(minuto => {
+            const td = document.createElement("td");
+            const dados = analise[minuto];
+            let texto = '';
+
+            if (mercado.yes && mercado.no) {
+                const simPercent = (dados[mercado.yes] / dados.total) * 100;
+                const naoPercent = (dados[mercado.no] / dados.total) * 100;
+                texto = `S:${simPercent.toFixed(0)}%\nN:${naoPercent.toFixed(0)}%`;
+            }
+
+            if (mercado.over && mercado.under) {
+                const overPercent = (dados[mercado.over] / dados.total) * 100;
+                const underPercent = (dados[mercado.under] / dados.total) * 100;
+                texto = `O:${overPercent.toFixed(0)}%\nU:${underPercent.toFixed(0)}%`;
+            }
+
+            if (mercado.casa && mercado.fora && mercado.empate) {
+                const casaPercent = (dados[mercado.casa] / dados.total) * 100;
+                const foraPercent = (dados[mercado.fora] / dados.total) * 100;
+                const empatePercent = (dados[mercado.empate] / dados.total) * 100;
+                texto = `C:${casaPercent.toFixed(0)}%\nF:${foraPercent.toFixed(0)}%\nE:${empatePercent.toFixed(0)}%`;
+            }
+
+            td.innerHTML = texto.replace(/\n/g, '<br>');
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+}
+
+function toggleTabela() {
+  const tabela = document.getElementById('time-tabela-resultados');
+  tabela.style.display = (tabela.style.display === 'none' || tabela.style.display === '') ? 'table' : 'none';
+}
+
+async function analisar() {
+  const timeSelecionado = document.getElementById('time-selecionado').value;
+  const jogos = await carregarJogos();
+  const analise = analisarMercados(jogos, timeSelecionado);
+  gerarTabela(analise);
+  toggleTabela();
+  primeiroClique = true;
+}
+
+document.getElementById('time-selecionado').addEventListener('change', async () => {
+  if (primeiroClique) {
+    await analisar();
+  }
+});
 </script>
 
 </body>
