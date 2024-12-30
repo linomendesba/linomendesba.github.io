@@ -111,6 +111,7 @@
               </tbody>
             </table>
 
+            <div id="data"></div>
 
     <div id="market-selector">
         <label for="market">🏆 Ranking Top 10 </label>
@@ -3002,6 +3003,103 @@ atualizarAnálise();
                     button.textContent = "Contrair Vídeo";  
                 }
             }
+</script>
+<script>
+            // Definindo thresholds específicos para cada mercado
+            const thresholds = {
+            'Casa': 33,
+            'Empate': 25,
+            'Fora': 33,
+            'Over 1.5': 60,
+            'Under 1.5': 35,
+            'Over 2.5': 45,
+            'Under 2.5': 45,
+            'Over 3.5': 25,
+            'Under 3.5': 65,
+            'Ambas Marcam (Sim)': 50,
+            'Ambas Marcam (Não)': 50
+        };
+
+        function calcularProbabilidadeAjustada(odd, oddsContrarias, tipo) {
+            // Calculando probabilidade bruta com precisão de 2 casas decimais
+            const probBruta = (1 / odd * 100);
+            
+            // Calculando a soma total das probabilidades
+            const probsContrarias = oddsContrarias.map(odd => 1 / odd * 100);
+            const somaTotal = probBruta + probsContrarias.reduce((a, b) => a + b, 0);
+            
+            // Calculando probabilidade ajustada com precisão
+            const probAjustada = (probBruta / somaTotal * 100);
+            
+            // Usando o threshold específico para o tipo de mercado
+            const threshold = thresholds[tipo] || 50;
+            const emoji = probAjustada > threshold ? '🟢' : '🔴';
+            
+            return { 
+                texto: `${probAjustada.toFixed(2)}% ${emoji}`, 
+                cor: probAjustada > threshold ? '#1a5c9e' : '#5e1f7d',
+                probBruta: probBruta.toFixed(2)
+            };
+        }
+
+        function atualizarDados() {
+            fetch('https://betstat.site/proximos/taca-gloria-eterna')
+                .then(response => response.json())
+                .then(data => {
+                    const primeiroDado = data[0];
+                    const container = document.getElementById('data');
+
+                    const tabela = `
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid #444;">
+                            <thead>
+                                <tr>
+                                    <th style="padding: 10px;  background-color: #282c34;">Tipo</th>
+                                    <th style="padding: 10px; background-color: #282c34;">Odd</th>
+                                    <th style="padding: 10px;  background-color: #282c34;">Prob. Bruta</th>
+                                    <th style="padding: 10px;  background-color: #282c34;">Prob. Ajustada</th>
+                                    <th style="padding: 10px;  background-color: #282c34;">Threshold</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${criarLinhaComProbs('Casa', primeiroDado.casa_odds, [primeiroDado.empate_odds, primeiroDado.fora_odds])}
+                                ${criarLinhaComProbs('Empate', primeiroDado.empate_odds, [primeiroDado.casa_odds, primeiroDado.fora_odds])}
+                                ${criarLinhaComProbs('Fora', primeiroDado.fora_odds, [primeiroDado.casa_odds, primeiroDado.empate_odds])}
+                                ${criarLinhaComProbs('Over 1.5', primeiroDado.over15_odds, [primeiroDado.under15_odds])}
+                                ${criarLinhaComProbs('Under 1.5', primeiroDado.under15_odds, [primeiroDado.over15_odds])}
+                                ${criarLinhaComProbs('Over 2.5', primeiroDado.over25_odds, [primeiroDado.under25_odds])}
+                                ${criarLinhaComProbs('Under 2.5', primeiroDado.under25_odds, [primeiroDado.over25_odds])}
+                                ${criarLinhaComProbs('Over 3.5', primeiroDado.over35_odds, [primeiroDado.under35_odds])}
+                                ${criarLinhaComProbs('Under 3.5', primeiroDado.under35_odds, [primeiroDado.over35_odds])}
+                                ${criarLinhaComProbs('Ambas Marcam (Sim)', primeiroDado.ambas_sim_odds, [primeiroDado.ambas_nao_odds])}
+                                ${criarLinhaComProbs('Ambas Marcam (Não)', primeiroDado.ambas_nao_odds, [primeiroDado.ambas_sim_odds])}
+                            </tbody>
+                        </table>
+                    `;
+
+                    container.innerHTML = tabela;
+                })
+                .catch(error => console.error('Erro ao carregar os dados:', error));
+        }
+
+        function criarLinhaComProbs(tipo, odd, oddsContrarias) {
+            const probabilidade = calcularProbabilidadeAjustada(odd, oddsContrarias, tipo);
+            
+            return `
+                <tr style="background-color: ${probabilidade.cor}; color: #fff;">
+                    <td style="padding: 10px;">${tipo}</td>
+                    <td style="padding: 10px;">${odd}</td>
+                    <td style="padding: 10px;">${probabilidade.probBruta}%</td>
+                    <td style="padding: 10px;">${probabilidade.texto}</td>
+                    <td style="padding: 10px;">${thresholds[tipo]}%</td>
+                </tr>
+            `;
+        }
+
+        // Atualizar os dados a cada 3 segundos
+        setInterval(atualizarDados, 3000);
+
+        // Carregar os dados inicialmente
+        atualizarDados();
 </script>
 </body>
 </html>
