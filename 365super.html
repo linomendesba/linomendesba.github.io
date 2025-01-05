@@ -1364,196 +1364,217 @@ window.onload = fetchRanking;
 <script>
     
     async function initializeChart() {
-        const ctx = document.getElementById('golsplus').getContext('2d');
-        let fetchedData = [];
-        let displayData = [];
-        let initialPercentageGols = 50;
-        
+    const ctx = document.getElementById('golsplus').getContext('2d');
+    let fetchedData = [];
+    let displayData = [];
+    let initialPercentageGols = 50;
+    let initialTeamAGols = 25;
+    let initialTeamBGols = 25;
 
-        function isOrdered(data) {
-            for (let i = 1; i < data.length; i++) {
-                const currentDate = new Date(data[i].data);
-                const previousDate = new Date(data[i - 1].data);
-                if (currentDate < previousDate) return false;
-                if (currentDate.getTime() === previousDate.getTime()) {
-                    if (data[i].hora < data[i - 1].hora ||
-                        (data[i].hora === data[i - 1].hora && data[i].minuto < data[i - 1].minuto)) return false;
-                }
+    function isOrdered(data) {
+        for (let i = 1; i < data.length; i++) {
+            const currentDate = new Date(data[i].data);
+            const previousDate = new Date(data[i - 1].data);
+            if (currentDate < previousDate) return false;
+            if (currentDate.getTime() === previousDate.getTime()) {
+                if (data[i].hora < data[i - 1].hora ||
+                    (data[i].hora === data[i - 1].hora && data[i].minuto < data[i - 1].minuto)) return false;
             }
-            return true;
         }
-    
+        return true;
+    }
 
-        async function fetchChartData() {
-            try {
-                const response = await fetch('https://betstat.site/api/resultados/super');
-                if (!response.ok) {
-                    throw new Error(`Erro na requisição: ${response.status}`);
-                }
-                const data = await response.json();
-                const sortedData = data.sort((a, b) => {
-                    const dateA = new Date(a.data);
-                    const dateB = new Date(b.data);
-                    if (dateA < dateB) return -1;
-                    if (dateA > dateB) return 1;
-                    if (a.hora < b.hora) return -1;
-                    if (a.hora > b.hora) return 1;
-                    return a.minuto - b.minuto;
-                });
-    
-                if (!isOrdered(sortedData)) {
-                    console.warn('Os dados não estão em ordem.');
-                    return [];
-                }
-    
-                return sortedData;
-            } catch (error) {
-                console.error('Erro ao buscar dados:', error);
+    async function fetchChartData() {
+        try {
+            const response = await fetch('https://betstat.site/api/resultados/super');
+            if (!response.ok) {
+                throw new Error(`Erro na requisição: ${response.status}`);
+            }
+            const data = await response.json();
+            const sortedData = data.sort((a, b) => {
+                const dateA = new Date(a.data);
+                const dateB = new Date(b.data);
+                if (dateA < dateB) return -1;
+                if (dateA > dateB) return 1;
+                if (a.hora < b.hora) return -1;
+                if (a.hora > b.hora) return 1;
+                return a.minuto - b.minuto;
+            });
+
+            if (!isOrdered(sortedData)) {
+                console.warn('Os dados não estão em ordem.');
                 return [];
             }
+
+            return sortedData;
+        } catch (error) {
+            console.error('Erro ao buscar dados:', error);
+            return [];
         }
-    
+    }
 
-        function getPreviousMatch(current) {
-            let previousHour = current.hora === 0 ? 23 : current.hora - 1;
-            const currentDate = current.data.split("T")[0];  
-    
+    function getPreviousMatch(current) {
+        let previousHour = current.hora === 0 ? 23 : current.hora - 1;
+        const currentDate = current.data.split("T")[0];  
 
-            if (current.hora === 0) {
-                const dateObj = new Date(current.data);
-                dateObj.setDate(dateObj.getDate() - 1);
-                return fetchedData.find(item => 
-                    item.data.split("T")[0] === dateObj.toISOString().split("T")[0] && 
-                    item.hora === previousHour && 
-                    item.minuto === current.minuto
-                );
-            }
-    
+        if (current.hora === 0) {
+            const dateObj = new Date(current.data);
+            dateObj.setDate(dateObj.getDate() - 1);
             return fetchedData.find(item => 
-                item.data.split("T")[0] === currentDate && 
+                item.data.split("T")[0] === dateObj.toISOString().split("T")[0] && 
                 item.hora === previousHour && 
                 item.minuto === current.minuto
             );
         }
-    
 
-        async function updateChart() {
-            fetchedData = await fetchChartData();
-            if (fetchedData.length === 0) {
-                console.warn('Nenhum dado para atualizar o gráfico.');
-                return;
-            }
-    
-            displayData = fetchedData.slice(-160);
-            const labels = displayData.map(item => `${item.hora}:${item.minuto.toString().padStart(2, '0')}`);
-            const golsData = [];
-            let previousGols = initialPercentageGols;
-    
-            for (let i = 0; i < displayData.length; i++) {
-                const current = displayData[i];
-                const previous = getPreviousMatch(current);
-    
-                if (previous) {
-                    const [golsAAtual, golsBAtual] = current.ft.split(' x ').map(Number);
-                    const [golsAAnterior, golsBAnterior] = previous.ft.split(' x ').map(Number);
-    
-                    if (golsAAnterior !== undefined && golsBAnterior !== undefined) {
-                        const totalGolsAtual = golsAAtual + golsBAtual;
-                        const totalGolsAnterior = golsAAnterior + golsBAnterior;
-    
+        return fetchedData.find(item => 
+            item.data.split("T")[0] === currentDate && 
+            item.hora === previousHour && 
+            item.minuto === current.minuto
+        );
+    }
 
-                        const diferencaGols = totalGolsAtual - totalGolsAnterior;
-    
-
-                        if (diferencaGols > 0) {
-
-                            previousGols += diferencaGols;
-                        } else if (diferencaGols < 0) {
-
-                            previousGols += diferencaGols;
-                        } else {
-
-                        }
-                    }
-                }
-                golsData.push(previousGols);
-            }
-    
-            golsplus.data.labels = labels;
-            golsplus.data.datasets[0].data = golsData;
-            golsplus.update();
+    async function updateChart() {
+        fetchedData = await fetchChartData();
+        if (fetchedData.length === 0) {
+            console.warn('Nenhum dado para atualizar o gráfico.');
+            return;
         }
-    
-        const chartData = {
-            labels: [],
-            datasets: [
-                {
-                    label: 'Gols',
-                    data: [],
-                    borderColor: 'rgba(0, 255, 0, 1)', 
-                    backgroundColor: 'rgba(0, 255, 0, 0.5)', 
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointBackgroundColor: 'rgba(0, 255, 0, 1)'                  
+
+        displayData = fetchedData.slice(-160);
+        const labels = displayData.map(item => `${item.hora}:${item.minuto.toString().padStart(2, '0')}`);
+        const golsData = [];
+        const teamAGolsData = [];
+        const teamBGolsData = [];
+        let previousGols = initialPercentageGols;
+        let previousTeamAGols = initialTeamAGols;
+        let previousTeamBGols = initialTeamBGols;
+
+        for (let i = 0; i < displayData.length; i++) {
+            const current = displayData[i];
+            const previous = getPreviousMatch(current);
+
+            if (previous) {
+                const [golsAAtual, golsBAtual] = current.ft.split(' x ').map(Number);
+                const [golsAAnterior, golsBAnterior] = previous.ft.split(' x ').map(Number);
+
+                if (golsAAnterior !== undefined && golsBAnterior !== undefined) {
+                    const totalGolsAtual = golsAAtual + golsBAtual;
+                    const totalGolsAnterior = golsAAnterior + golsBAnterior;
+
+                    const diferencaGols = totalGolsAtual - totalGolsAnterior;
+                    const diferencaGolsA = golsAAtual - golsAAnterior;
+                    const diferencaGolsB = golsBAtual - golsBAnterior;
+
+                    if (diferencaGols > 0) {
+                        previousGols += diferencaGols;
+                    } else if (diferencaGols < 0) {
+                        previousGols += diferencaGols;
+                    }
+
+                    previousTeamAGols += diferencaGolsA;
+                    previousTeamBGols += diferencaGolsB;
                 }
-            ]
-        };
-    
-        const golsplus = new Chart(ctx, {
-            type: 'line',
-            data: chartData,
-            options: {
-                scales: {
-                    y: {
-                        position: 'right',
-                        ticks: {
-                            color: 'white',
-                            stepSize: 5 
-                        },
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.5)', 
-                            drawBorder: false,
-                            lineWidth: 1 
-                        }
+            }
+            golsData.push(previousGols);
+            teamAGolsData.push(previousTeamAGols);
+            teamBGolsData.push(previousTeamBGols);
+        }
+
+        golsplus.data.labels = labels;
+        golsplus.data.datasets[0].data = golsData;
+        golsplus.data.datasets[1].data = teamAGolsData;
+        golsplus.data.datasets[2].data = teamBGolsData;
+        golsplus.update();
+    }
+
+    const chartData = {
+        labels: [],
+        datasets: [
+            {
+                label: 'Gols Totais',
+                data: [],
+                borderColor: 'rgba(0, 255, 0, 1)',
+                backgroundColor: 'rgba(0, 255, 0, 0.5)',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: 'rgba(0, 255, 0, 1)'
+            },
+            {
+                label: 'Time Casa',
+                data: [],
+                borderColor: 'rgba(255, 165, 0, 1)',
+                backgroundColor: 'rgba(255, 165, 0, 0.5)',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: 'rgba(255, 165, 0, 1)'
+            },
+            {
+                label: 'Time Visitante',
+                data: [],
+                borderColor: 'rgba(0, 191, 255, 1)',
+                backgroundColor: 'rgba(0, 191, 255, 0.5)',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: 'rgba(0, 191, 255, 1)'
+            }
+        ]
+    };
+
+    const golsplus = new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            scales: {
+                y: {
+                    position: 'right',
+                    ticks: {
+                        color: 'white',
+                        stepSize: 5
                     },
-                    x: {
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0)' 
-                        },
-                        ticks: {
-                            color: 'white',
-                            display: false 
-                        }
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        drawBorder: false,
+                        lineWidth: 1
                     }
                 },
-                responsive: true,
-                plugins: {
-                    legend: { display: true },
-                    tooltip: {
-                        enabled: true,
-                        callbacks: {
-                            title: (context) => `Hora: ${context[0].label}`,
-                            label: (context) => {
-                                const index = context.dataIndex;
-                                const currentGame = displayData[index] || { ft: 'N/A', hora: 'N/A', minuto: 'N/A' };
-                                const previousGame = getPreviousMatch(currentGame) || { ft: 'N/A', hora: 'N/A', minuto: 'N/A' };
-                                
-                                return [
-                                    `Placar: ${currentGame.ft}`,
-                                ];
-                            }
+                x: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0)'
+                    },
+                    ticks: {
+                        color: 'white',
+                        display: false
+                    }
+                }
+            },
+            responsive: true,
+            plugins: {
+                legend: { display: true },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        title: (context) => `Hora: ${context[0].label}`,
+                        label: (context) => {
+                            const index = context.dataIndex;
+                            const currentGame = displayData[index] || { ft: 'N/A', hora: 'N/A', minuto: 'N/A' };
+                            const previousGame = getPreviousMatch(currentGame) || { ft: 'N/A', hora: 'N/A', minuto: 'N/A' };
+                            
+                            return [
+                                `Placar: ${currentGame.ft}`,
+                            ];
                         }
                     }
                 }
             }
-        });
-    
-        setInterval(updateChart, 5000);
-        updateChart();
-    }
-    
+        }
+    });
 
-    initializeChart();
+    setInterval(updateChart, 5000);
+    updateChart();
+}
+
+initializeChart();
     
 </script>
 
