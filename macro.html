@@ -170,11 +170,13 @@ function MACROGenerate24Hours() {
     const now = new Date();
     const currentHour = now.getHours();
 
-    // Generate all 24 hours in chronological order starting from 24 hours ago
-    for (let i = 0; i < 24; i++) {
-        let hour = (currentHour - 23 + i + 24) % 24;  // Ensure positive hour values
+    // Gerar horas em ordem cronológica começando 24 horas atrás
+    for (let i = 24; i > 0; i--) {
+        let hour = (currentHour - i + 24) % 24;
         hours.push(hour);
     }
+    // Adicionar a hora atual como último elemento
+    hours.push(currentHour);
 
     return hours;
 }
@@ -195,7 +197,7 @@ function MACROProcessData(rawData) {
     const hours = MACROGenerate24Hours();
     const hourlyData = new Map();
 
-    // Initialize data for all hours
+    // Inicializar dados para todas as horas
     hours.forEach(hour => {
         hourlyData.set(hour, {
             'ambos-sim': 0,
@@ -217,9 +219,12 @@ function MACROProcessData(rawData) {
     const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000);
 
     rawData.forEach(entry => {
-        const entryDate = new Date(entry.data);
-        if (entryDate >= twentyFourHoursAgo) {
-            const hour = parseInt(entry.hora);
+        const [datePart] = entry.data.split('T');
+        const entryDate = new Date(`${datePart}T${entry.hora}:00:00`);
+        
+        // Verificar se o dado está dentro das últimas 24 horas
+        if (entryDate >= twentyFourHoursAgo && entryDate <= now) {
+            const hour = entryDate.getHours();
             if (hourlyData.has(hour)) {
                 const [goalsA, goalsB] = entry.ft.split('x').map(n => parseInt(n.trim()));
                 const hourStats = hourlyData.get(hour);
@@ -242,8 +247,11 @@ function MACROProcessData(rawData) {
         }
     });
 
+    // Formatar horas para exibição
+    const formattedHours = hours.map(h => h.toString().padStart(2, '0') + ':00');
+
     return {
-        hours: hours.map(h => `${h}:00`),
+        hours: formattedHours,
         hourlyData
     };
 }
@@ -252,9 +260,6 @@ function updateBestTimes(hourlyData) {
     const bestTimesList = document.getElementById('bestTimesList');
     bestTimesList.innerHTML = '';
 
-    const bestTimes = {};
-
-    // Para cada mercado, encontramos a hora com mais ocorrências
     for (let market in hourlyData.get(0)) {
         let bestHour = '';
         let maxCount = 0;
@@ -262,7 +267,7 @@ function updateBestTimes(hourlyData) {
         hourlyData.forEach((stats, hour) => {
             if (stats[market] > maxCount) {
                 maxCount = stats[market];
-                bestHour = `${hour}:00`;
+                bestHour = `${hour.toString().padStart(2, '0')}:00`;
             }
         });
 
