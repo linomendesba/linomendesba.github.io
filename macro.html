@@ -169,15 +169,16 @@ function MACROGenerate24Hours() {
     const hours = [];
     const now = new Date();
     const currentHour = now.getHours();
-
-    // Gerar horas em ordem cronológica começando 24 horas atrás
-    for (let i = 24; i > 0; i--) {
-        let hour = (currentHour - i + 24) % 24;
+    
+    // Gera as últimas 24 horas em ordem, começando da hora atual
+    for (let i = 23; i >= 0; i--) {
+        let hour = currentHour - i;
+        if (hour < 0) {
+            hour = 24 + hour; // Ajusta horas negativas para o dia anterior
+        }
         hours.push(hour);
     }
-    // Adicionar a hora atual como último elemento
-    hours.push(currentHour);
-
+    
     return hours;
 }
 
@@ -197,7 +198,7 @@ function MACROProcessData(rawData) {
     const hours = MACROGenerate24Hours();
     const hourlyData = new Map();
 
-    // Inicializar dados para todas as horas
+    // Initialize data for all hours
     hours.forEach(hour => {
         hourlyData.set(hour, {
             'ambos-sim': 0,
@@ -219,12 +220,9 @@ function MACROProcessData(rawData) {
     const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000);
 
     rawData.forEach(entry => {
-        const [datePart] = entry.data.split('T');
-        const entryDate = new Date(`${datePart}T${entry.hora}:00:00`);
-        
-        // Verificar se o dado está dentro das últimas 24 horas
-        if (entryDate >= twentyFourHoursAgo && entryDate <= now) {
-            const hour = entryDate.getHours();
+        const entryDate = new Date(entry.data);
+        if (entryDate >= twentyFourHoursAgo) {
+            const hour = parseInt(entry.hora);
             if (hourlyData.has(hour)) {
                 const [goalsA, goalsB] = entry.ft.split('x').map(n => parseInt(n.trim()));
                 const hourStats = hourlyData.get(hour);
@@ -247,136 +245,143 @@ function MACROProcessData(rawData) {
         }
     });
 
-    // Formatar horas para exibição
-    const formattedHours = hours.map(h => h.toString().padStart(2, '0') + ':00');
-
     return {
-        hours: formattedHours,
+        hours: hours.map(h => `${h}:00`),
         hourlyData
     };
 }
 
-function updateBestTimes(hourlyData) {
-    const bestTimesList = document.getElementById('bestTimesList');
-    bestTimesList.innerHTML = '';
 
-    for (let market in hourlyData.get(0)) {
-        let bestHour = '';
-        let maxCount = 0;
+        function updateBestTimes(hourlyData) {
+            const bestTimesList = document.getElementById('bestTimesList');
+            bestTimesList.innerHTML = '';
 
-        hourlyData.forEach((stats, hour) => {
-            if (stats[market] > maxCount) {
-                maxCount = stats[market];
-                bestHour = `${hour.toString().padStart(2, '0')}:00`;
-            }
-        });
+            const bestTimes = {};
 
-        let friendlyName = market
-            .replace(/([a-z])([A-Z])/g, '$1 $2')
-            .replace('Over 1_5', 'Over 1.5')
-            .replace('Under 1_5', 'Under 1.5')
-            .replace('Over 2_5', 'Over 2.5')
-            .replace('Under 2_5', 'Under 2.5')
-            .replace('Over 3_5', 'Over 3.5')
-            .replace('Under 3_5', 'Under 3.5')
-            .replace('CincoMaisGols', 'Cinco Mais Gols');
-        
-        const listItem = document.createElement('li');
-        listItem.innerHTML = `<strong>"${friendlyName}"</strong>: Melhor hora: <span>${bestHour}</span> (Total: <span>${maxCount}</span>)`;
-        bestTimesList.appendChild(listItem);
-    }
-}
+            // Para cada mercado, encontramos a hora com mais ocorrências
+            for (let market in hourlyData.get(0)) {
+                let bestHour = '';
+                let maxCount = 0;
 
-async function MACROUpdateChart() {
-    const selectedMarket = document.getElementById('MACROSelector').value;
-    const { hours, hourlyData } = await MACROFetchData();
-
-    const data = hours.map(hour => {
-        const h = parseInt(hour);
-        return hourlyData.get(h)[selectedMarket];
-    });
-
-    const average = data.reduce((acc, val) => acc + val, 0) / data.length;
-    const averageData = new Array(hours.length).fill(average);
-
-    if (!chartDataCache.length || JSON.stringify(data) !== JSON.stringify(chartDataCache)) {
-        chartDataCache = data;
-        averageDataCache = averageData;
-
-        if (MACROChart) {
-            MACROChart.data.labels = hours;
-            MACROChart.data.datasets[0].label = selectedMarket;
-            MACROChart.data.datasets[0].data = data;
-            MACROChart.data.datasets[1].data = averageData;
-            MACROChart.update();
-        } else {
-            const ctx = document.getElementById('MACROChart').getContext('2d');
-            MACROChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: hours,
-                    datasets: [
-                        {
-                            label: selectedMarket,
-                            data: data,
-                            borderColor: '#4CAF50',
-                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
-                            tension: 0.4,
-                            fill: true,
-                            pointBackgroundColor: '#4CAF50',
-                            pointRadius: 6,
-                            pointHoverRadius: 8
-                        },
-                        {
-                            label: 'Média',
-                            data: averageData,
-                            borderColor: '#FF9800',
-                            borderWidth: 2,
-                            borderDash: [5, 5],
-                            fill: false,
-                            tension: 0,
-                            pointBackgroundColor: '#FF9800',
-                            pointRadius: 4,
-                            pointHoverRadius: 6
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#e0e0e0'
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: '#444'
-                            },
-                            ticks: {
-                                color: '#e0e0e0'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                color: '#444'
-                            },
-                            ticks: {
-                                color: '#e0e0e0'
-                            }
-                        }
+                hourlyData.forEach((stats, hour) => {
+                    if (stats[market] > maxCount) {
+                        maxCount = stats[market];
+                        bestHour = `${hour}:00`;
                     }
-                }
-            });
-        }
-        updateBestTimes(hourlyData);
-    }
-}
+                });
 
-setInterval(MACROUpdateChart, 3000);
+                // Correção para exibir nomes amigáveis com espaços e 1.5 em vez de 1_5
+                let friendlyName = market
+                    .replace(/([a-z])([A-Z])/g, '$1 $2') // Adiciona espaço entre palavras
+                    .replace('Over 1_5', 'Over 1.5')
+                    .replace('Under 1_5', 'Under 1.5')
+                    .replace('Over 2_5', 'Over 2.5')
+                    .replace('Under 2_5', 'Under 2.5')
+                    .replace('Over 3_5', 'Over 3.5')
+                    .replace('Under 3_5', 'Under 3.5')
+                    .replace('CincoMaisGols', 'Cinco Mais Gols');
+                
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `<strong>"${friendlyName}"</strong>: Melhor hora: <span>${bestHour}</span> (Total: <span>${maxCount}</span>)`;
+                bestTimesList.appendChild(listItem);
+            }
+        }
+
+        
+
+        async function MACROUpdateChart() {
+            const selectedMarket = document.getElementById('MACROSelector').value;
+            const { hours, hourlyData } = await MACROFetchData();
+
+            const data = hours.map(hour => {
+                const h = parseInt(hour);
+                return hourlyData.get(h)[selectedMarket];
+            });
+
+            const average = data.reduce((acc, val) => acc + val, 0) / data.length;
+            const averageData = new Array(hours.length).fill(average);
+
+            if (!chartDataCache.length || JSON.stringify(data) !== JSON.stringify(chartDataCache)) {
+                chartDataCache = data;
+                averageDataCache = averageData;
+
+                if (MACROChart) {
+                    MACROChart.data.labels = hours;
+                    MACROChart.data.datasets[0].label = selectedMarket; // Atualiza o rótulo dinâmico
+                    MACROChart.data.datasets[0].data = data;
+                    MACROChart.data.datasets[1].data = averageData;
+                    MACROChart.update();
+                } else {
+                    const ctx = document.getElementById('MACROChart').getContext('2d');
+                    MACROChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: hours,
+                            datasets: [
+                            {
+                                label: selectedMarket,
+                                data: data,
+                                borderColor: '#4CAF50',
+                                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                                tension: 0.4,
+                                fill: true,
+                                pointBackgroundColor: '#4CAF50',  // Cor de preenchimento dos pontos
+                                pointRadius: 6,                    // Tamanho dos pontos (aumente ou diminua este valor conforme necessário)
+                                pointHoverRadius: 8               // Opcional: tamanho dos pontos quando o mouse passa por cima
+                            },
+                                {
+                                    label: 'Média',
+                                data: averageData,
+                                borderColor: '#FF9800',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                fill: false,
+                                tension: 0,
+                                pointBackgroundColor: '#FF9800',  // Cor de preenchimento dos pontos
+                                pointRadius: 4,                   // Tamanho dos pontos
+                                pointHoverRadius: 6               // Tamanho ao passar o mouse
+                                    
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    labels: {
+                                        color: '#e0e0e0'
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: '#444'
+                                    },
+                                    ticks: {
+                                        color: '#e0e0e0'
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        color: '#444'
+                                    },
+                                    ticks: {
+                                        color: '#e0e0e0'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                updateBestTimes(hourlyData);
+            }
+        }
+
+        setInterval(MACROUpdateChart, 3000);
+
+        window.onload = MACROUpdateChart;
     </script>
 
     <script>
