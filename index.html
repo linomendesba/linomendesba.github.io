@@ -336,6 +336,33 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h3>Previsão de Próxima Virada</h3>
+                <div id="previsao-virada"></div>
+            </div>
+    
+            <div class="card">
+                <h3>Top Times com Mais Viradas</h3>
+                <div id="ranking-viradas"></div>
+            </div>
+            
+            <div class="card">
+                <h3>Análise por Horário</h3>
+                <div id="horarios-viradas"></div>
+            </div>
+    
+            <div class="card">
+                <h3>Estatísticas Gerais</h3>
+                <div id="estatisticas-gerais"></div>
+            </div>
+    
+            <div class="card">
+                <h3>Últimas Viradas</h3>
+                <div id="ultimas-viradas"></div>
+            </div>
+        </div>
         
 
         <div class="buscador-container">
@@ -3942,6 +3969,150 @@ updateGolsChart(); // Chama a função para atualizar inicialmente
 
         init();
         setInterval(init, 300000); // Atualiza a cada 5 minutos
+</script>
+
+<script>
+            async function fetchAndDisplayData() {
+            try {
+                const response = await fetch('https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna');
+                const data = await response.json();
+
+                const analise = {
+                    viradaCount: {},
+                    viradaPorHorario: {},
+                    viradaIntervals: [],
+                    ultimasViradas: [],
+                    totalJogos: data.length,
+                    totalViradas: 0,
+                    jogosSemVirada: 0
+                };
+
+                let lastViradaIndex = null;
+                let ultimaViradaEncontrada = false;
+
+                for (let i = data.length - 1; i >= 0; i--) {
+                    const item = data[i];
+                    const [ht_a, ht_b] = item.ht.split(' x ').map(Number);
+                    const [ft_a, ft_b] = item.ft.split(' x ').map(Number);
+
+                    if (!ultimaViradaEncontrada) {
+                        if ((ht_a < ht_b && ft_a > ft_b) || (ht_a > ht_b && ft_a < ft_b)) {
+                            ultimaViradaEncontrada = true;
+                        } else {
+                            analise.jogosSemVirada++;
+                        }
+                    }
+
+                    if ((ht_a < ht_b && ft_a > ft_b) || (ht_a > ht_b && ft_a < ft_b)) {
+                        const vencedor = ft_a > ft_b ? item.time_a : item.time_b;
+                        analise.viradaCount[vencedor] = (analise.viradaCount[vencedor] || 0) + 1;
+                        analise.totalViradas++;
+
+                        const horarioJogo = `${item.hora}:${item.minuto.toString().padStart(2, '0')}`;
+                        analise.viradaPorHorario[horarioJogo] = (analise.viradaPorHorario[horarioJogo] || 0) + 1;
+
+                        analise.ultimasViradas.push({
+                            vencedor,
+                            adversario: ft_a > ft_b ? item.time_b : item.time_a,
+                            placarHT: item.ht,
+                            placarFT: item.ft,
+                            data: new Date(item.data).toLocaleDateString('pt-BR'),
+                            horario: horarioJogo
+                        });
+
+                        if (lastViradaIndex !== null) {
+                            analise.viradaIntervals.push(lastViradaIndex - i);
+                        }
+                        lastViradaIndex = i;
+                    }
+                }
+
+                atualizarInterface(analise);
+            } catch (error) {
+                console.error('Erro ao buscar os dados:', error);
+                document.querySelector('.dashboard').innerHTML = 
+                    '<div class="card"><h3>Erro</h3><p>Erro ao carregar os dados. Tente novamente mais tarde.</p></div>';
+            }
+        }
+
+        function atualizarInterface(analise) {
+            // Previsão de próxima virada
+            const mediaInterval = analise.viradaIntervals.length > 0
+                ? (analise.viradaIntervals.reduce((sum, val) => sum + val, 0) / analise.viradaIntervals.length)
+                : 0;
+
+            const jogosFaltantes = Math.max(0, Math.round(mediaInterval - analise.jogosSemVirada));
+
+            document.getElementById('previsao-virada').innerHTML = `
+                <div class="previsao">
+                    <div>Jogos desde última virada</div>
+                    <div class="previsao-numero">${analise.jogosSemVirada}</div>
+                    <div>Previsão próxima virada</div>
+                    <div class="previsao-numero">${jogosFaltantes}</div>
+                    <div class="previsao-info">
+                        Média: ${mediaInterval.toFixed(1)} jogos
+                    </div>
+                </div>
+            `;
+
+            // Ranking de viradas
+            const topViradas = Object.entries(analise.viradaCount)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+
+            document.getElementById('ranking-viradas').innerHTML = topViradas
+                .map(([team, count], index) => `
+                    <div class="estatistica">
+                        <span>${index + 1}. ${team}</span>
+                        <span>${count}</span>
+                    </div>
+                `).join('');
+
+            // Análise por horário
+            const horariosOrdenados = Object.entries(analise.viradaPorHorario)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3);
+
+            document.getElementById('horarios-viradas').innerHTML = horariosOrdenados
+                .map(([horario, quantidade]) => `
+                    <div class="horario-card">
+                        <div class="estatistica">
+                            <span>${horario}</span>
+                            <span>${quantidade}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+            // Estatísticas gerais
+            document.getElementById('estatisticas-gerais').innerHTML = `
+                <div class="estatistica">
+                    <span>Total Jogos</span>
+                    <span>${analise.totalJogos}</span>
+                </div>
+                <div class="estatistica">
+                    <span>Total Viradas</span>
+                    <span>${analise.totalViradas}</span>
+                </div>
+                <div class="estatistica">
+                    <span>% Viradas</span>
+                    <span>${((analise.totalViradas/analise.totalJogos)*100).toFixed(1)}%</span>
+                </div>
+            `;
+
+            // Últimas viradas
+            document.getElementById('ultimas-viradas').innerHTML = analise.ultimasViradas
+                .slice(-4)
+                .reverse()
+                .map(virada => `
+                    <div class="estatistica">
+                        <div>${virada.vencedor}</div>
+                        <span>${virada.placarHT} → ${virada.placarFT}</span>
+                    </div>
+                `).join('');
+        }
+
+        fetchAndDisplayData();
+        setInterval(fetchAndDisplayData, 180000);
 </script>
 
 </body>
