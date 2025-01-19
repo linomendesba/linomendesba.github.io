@@ -4233,179 +4233,171 @@ updateGolsChart(); // Chama a função para atualizar inicialmente
           }
         }
 
-        // Função para calcular o desempenho de um time
         function calculateTeamPerformance(data, team) {
-          const teamPerformanceData = [];
-          let previousPerformance = initialPerformance;
+    const teamPerformanceData = [];
+    let previousPerformance = initialPerformance;
 
-          for (let i = 0; i < data.length; i++) {
-            const current = data[i];
-            let performanceChange = 0;
+    for (let i = 0; i < data.length; i++) {
+      const current = data[i];
+      let performanceChange = 0;
 
-            if (current.time_a === team || current.time_b === team) {
-              const [teamAGols, teamBGols] = current.ft.split(" x ").map(Number);
+      if (current.time_a === team || current.time_b === team) {
+        const [teamAGols, teamBGols] = current.ft.split(" x ").map(Number);
 
-              if (current.time_a === team) {
-                if (teamAGols > teamBGols) {
-                  performanceChange = 1; // Vitória
-                } else if (teamAGols < teamBGols) {
-                  performanceChange = -1; // Derrota
-                }
-              } else if (current.time_b === team) {
-                if (teamBGols > teamAGols) {
-                  performanceChange = 1; // Vitória
-                } else if (teamBGols < teamAGols) {
-                  performanceChange = -1; // Derrota
-                }
-              }
-
-              // Empate não altera a performance
-              if (teamAGols === teamBGols) {
-                performanceChange = 0;
-              }
-            }
-
-            previousPerformance += performanceChange;
-            teamPerformanceData.push(previousPerformance);
+        if (current.time_a === team) {
+          if (teamAGols > teamBGols) {
+            performanceChange = 1; // Vitória
+          } else if (teamAGols < teamBGols) {
+            performanceChange = -1; // Derrota
           }
-
-          return teamPerformanceData;
+        } else if (current.time_b === team) {
+          if (teamBGols > teamAGols) {
+            performanceChange = 1; // Vitória
+          } else if (teamBGols < teamAGols) {
+            performanceChange = -1; // Derrota
+          }
         }
 
-        // Função para atualizar o gráfico
-        async function updateChart() {
-          const team1 = document.getElementById("timeSelector1").value;
-          const team2 = document.getElementById("timeSelector2").value;
-          
-          fetchedData = await fetchChartData();
-
-          if (fetchedData.length === 0) {
-            console.warn("Nenhum dado para atualizar o gráfico.");
-            return;
-          }
-
-          // Limita os dados aos 1000 jogos mais recentes
-          const recentGames = fetchedData.slice(-500);
-
-          // Filtra os dados para mostrar somente os jogos dos times selecionados
-          displayData = recentGames.filter(
-            (item) => 
-              item.time_a === team1 || 
-              item.time_b === team1 || 
-              item.time_a === team2 || 
-              item.time_b === team2
-          );
-
-          const labels = displayData.map(
-            (item) => `${item.hora}:${item.minuto.toString().padStart(2, "0")}`
-          );
-
-          const team1Performance = calculateTeamPerformance(displayData, team1);
-          const team2Performance = calculateTeamPerformance(displayData, team2);
-
-          // Atualiza os dados do gráfico
-          timeChart.data.labels = labels;
-          timeChart.data.datasets[0].data = team1Performance;
-          timeChart.data.datasets[0].label = `Desempenho - ${team1}`;
-          timeChart.data.datasets[1].data = team2Performance;
-          timeChart.data.datasets[1].label = `Desempenho - ${team2}`;
-          timeChart.update();
+        // Empate não altera a performance
+        if (teamAGols === teamBGols) {
+          performanceChange = 0;
         }
-
-        // Dados do gráfico inicial
-        const chartData = {
-          labels: [],
-          datasets: [
-            {
-              label: "Time 1",
-              data: [],
-              borderColor: "rgba(209, 166, 255, 1)", // Lilás brilhante
-              backgroundColor: "rgba(209, 166, 255, 0.5)",
-              borderWidth: 2,
-              pointRadius: 3,
-              pointBackgroundColor: "rgba(209, 166, 255, 1)",
-            },
-            {
-              label: "Time 2",
-              data: [],
-              borderColor: "rgba(255, 99, 132, 1)", // Vermelho
-              backgroundColor: "rgba(255, 99, 132, 0.5)",
-              borderWidth: 2,
-              pointRadius: 3,
-              pointBackgroundColor: "rgba(255, 99, 132, 1)",
-            }
-          ],
-        };
-
-        // Criação do gráfico
-        const timeChart = new Chart(ctx, {
-          type: "line",
-          data: chartData,
-          options: {
-            scales: {
-              y: {
-                position: "right",
-                ticks: {
-                  color: "white",
-                  stepSize: 2,
-                },
-                grid: {
-                  color: "rgba(255, 255, 255, 0.5)",
-                  drawBorder: false,
-                  lineWidth: 1,
-                },
-              },
-              x: {
-                grid: {
-                  color: "rgba(0, 0, 0, 0)",
-                },
-                ticks: {
-                  color: "white",
-                  display: false,
-                },
-              },
-            },
-            responsive: true,
-            plugins: {
-              legend: { 
-                display: true,
-                labels: {
-                  color: "white"
-                }
-              },
-              tooltip: {
-                enabled: true,
-                callbacks: {
-                  title: (context) => `Hora: ${context[0].label}`,
-                  label: (context) => {
-                    const index = context.dataIndex;
-                    const currentGame = displayData[index] || {
-                      ft: "N/A",
-                      hora: "N/A",
-                      minuto: "N/A",
-                    };
-                    return [
-                      `${context.dataset.label}`,
-                      `Placar: ${currentGame.ft}`
-                    ];
-                  },
-                },
-              },
-            },
-          },
-        });
-
-        // Adiciona event listeners para os selectors
-        document.getElementById("timeSelector1").addEventListener("change", updateChart);
-        document.getElementById("timeSelector2").addEventListener("change", updateChart);
-
-        // Atualiza o gráfico a cada 2 segundos
-        setInterval(updateChart, 2000);
-        updateChart();
       }
 
-      // Inicia o gráfico
-      initializeChart();
+      previousPerformance += performanceChange;
+      teamPerformanceData.push(previousPerformance);
+    }
+
+    return teamPerformanceData;
+  }
+
+  async function updateChart() {
+    const team1 = document.getElementById("timeSelector1").value;
+    const team2 = document.getElementById("timeSelector2").value;
+    
+    fetchedData = await fetchChartData();
+
+    if (fetchedData.length === 0) {
+      console.warn("Nenhum dado para atualizar o gráfico.");
+      return;
+    }
+
+    // Primeiro filtra apenas os jogos dos times selecionados
+    displayData = fetchedData.filter(
+      (item) => 
+        item.time_a === team1 || 
+        item.time_b === team1 || 
+        item.time_a === team2 || 
+        item.time_b === team2
+    );
+
+    // Então pega os 500 jogos mais recentes desses times específicos
+    displayData = displayData.slice(-100);
+
+    const labels = displayData.map(
+      (item) => `${item.hora}:${item.minuto.toString().padStart(2, "0")}`
+    );
+
+    const team1Performance = calculateTeamPerformance(displayData, team1);
+    const team2Performance = calculateTeamPerformance(displayData, team2);
+
+    timeChart.data.labels = labels;
+    timeChart.data.datasets[0].data = team1Performance;
+    timeChart.data.datasets[0].label = `Desempenho - ${team1}`;
+    timeChart.data.datasets[1].data = team2Performance;
+    timeChart.data.datasets[1].label = `Desempenho - ${team2}`;
+    timeChart.update();
+  }
+
+  const chartData = {
+    labels: [],
+    datasets: [
+      {
+        label: "Time 1",
+        data: [],
+        borderColor: "rgba(209, 166, 255, 1)", // Lilás brilhante
+        backgroundColor: "rgba(209, 166, 255, 0.5)",
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: "rgba(209, 166, 255, 1)",
+      },
+      {
+        label: "Time 2",
+        data: [],
+        borderColor: "rgba(255, 99, 132, 1)", // Vermelho
+        backgroundColor: "rgba(255, 99, 132, 0.5)",
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: "rgba(255, 99, 132, 1)",
+      }
+    ],
+  };
+
+  const timeChart = new Chart(ctx, {
+    type: "line",
+    data: chartData,
+    options: {
+      scales: {
+        y: {
+          position: "right",
+          ticks: {
+            color: "white",
+            stepSize: 2,
+          },
+          grid: {
+            color: "rgba(255, 255, 255, 0.5)",
+            drawBorder: false,
+            lineWidth: 1,
+          },
+        },
+        x: {
+          grid: {
+            color: "rgba(0, 0, 0, 0)",
+          },
+          ticks: {
+            color: "white",
+            display: false,
+          },
+        },
+      },
+      responsive: true,
+      plugins: {
+        legend: { 
+          display: true,
+          labels: {
+            color: "white"
+          }
+        },
+        tooltip: {
+          enabled: true,
+          callbacks: {
+            title: (context) => `Hora: ${context[0].label}`,
+            label: (context) => {
+              const index = context.dataIndex;
+              const currentGame = displayData[index] || {
+                ft: "N/A",
+                hora: "N/A",
+                minuto: "N/A",
+              };
+              return [
+                `${context.dataset.label}`,
+                `Placar: ${currentGame.ft}`
+              ];
+            },
+          },
+        },
+      },
+    },
+  });
+
+  document.getElementById("timeSelector1").addEventListener("change", updateChart);
+  document.getElementById("timeSelector2").addEventListener("change", updateChart);
+
+  setInterval(updateChart, 2000);
+  updateChart();
+}
+
+initializeChart();
 </script>
 
 </body>
