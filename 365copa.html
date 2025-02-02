@@ -145,6 +145,8 @@
             <canvas id="resumojogosChart40"></canvas>
         </div>
     </div>
+
+    <div id="games-container"></div>
     
     <div class="container">
         <label for="timeA"></label>
@@ -4502,6 +4504,111 @@ async function initializeChart() {
 }
 
 initializeChart();
+</script>
+
+<script>
+            function fetchGames() {
+            fetch('https://api.futreistips.com/api/nextGamesWorld')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("API Response:", data);
+
+                    if (!data.data || !Array.isArray(data.data)) {
+                        throw new Error("A resposta da API não contém um array válido!");
+                    }
+
+                    updateGamesUI(data.data.slice(0, 6));
+                })
+                .catch(error => {
+                    console.error("Erro ao buscar os jogos:", error);
+                });
+        }
+
+        function parseOdds(jsonString) {
+            try {
+                return JSON.parse(jsonString);
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function updateGamesUI(games) {
+            const gamesContainer = document.getElementById('games-container');
+            gamesContainer.innerHTML = '';
+
+            games.forEach(game => {
+                const gameElement = document.createElement('div');
+                gameElement.classList.add('game-box');
+
+                // Parse the odds data
+                const underAndOver = parseOdds(game.underAndOver);
+                const teamMarked = parseOdds(game.teamMarked);
+
+                const ambosSimOdd = teamMarked.find(t => t.teams === "Ambos os Times" && t.option === "Sim")?.odds || '-';
+                const ambosNaoOdd = teamMarked.find(t => t.teams === "Ambos os Times" && t.option === "Não")?.odds || '-';
+                const over15 = underAndOver.find(o => o.goal === 1.5 && o.option === "Mais de")?.odds || '-';
+                const under15 = underAndOver.find(o => o.goal === 1.5 && o.option === "Menos de")?.odds || '-';
+                const over25 = underAndOver.find(o => o.goal === 2.5 && o.option === "Mais de")?.odds || '-';
+                const under25 = underAndOver.find(o => o.goal === 2.5 && o.option === "Menos de")?.odds || '-';
+                const over35 = underAndOver.find(o => o.goal === 3.5 && o.option === "Mais de")?.odds || '-';
+                const under35 = underAndOver.find(o => o.goal === 3.5 && o.option === "Menos de")?.odds || '-';
+
+                gameElement.innerHTML = `
+                    <p>⏰ ${game.time}</p>
+                    <h2>${game.team_home} vs ${game.team_visit}</h2>
+                    <table>
+                        <tr>
+                            <th>Casa</th>
+                            <th>Empate</th>
+                            <th>Fora</th>
+                        </tr>
+                        <tr>
+                            <td class="odds-value">${game.odds_home}</td>
+                            <td class="odds-value">${game.odds_draw}</td>
+                            <td class="odds-value">${game.odds_visit}</td>
+                        </tr>
+                        <tr>
+                            <th>Ambas - Sim</th>
+                            <th>Ambas - Não</th>
+                            <th>Over 1.5</th>
+                        </tr>
+                        <tr>
+                            <td class="odds-value">${ambosSimOdd}</td>
+                            <td class="odds-value">${ambosNaoOdd}</td>
+                            <td class="odds-value">${over15}</td>
+                        </tr>
+                        <tr>
+                            <th>Under 1.5</th>
+                            <th>Over 2.5</th>
+                            <th>Under 2.5</th>
+                        </tr>
+                        <tr>
+                            <td class="odds-value">${under15}</td>
+                            <td class="odds-value">${over25}</td>
+                            <td class="odds-value">${under25}</td>
+                        </tr>
+                        <tr>
+                            <th>Over 3.5</th>
+                            <th>Under 3.5</th>
+                            <th></th>
+                        </tr>
+                        <tr>
+                            <td class="odds-value">${over35}</td>
+                            <td class="odds-value">${under35}</td>
+                            <td></td>
+                        </tr>
+                    </table>
+                `;
+
+                gamesContainer.appendChild(gameElement);
+            });
+        }
+
+        // Faz a primeira busca imediatamente
+        fetchGames();
+
+        // Atualiza a cada 30 segundos
+        setInterval(fetchGames, 30000);
 </script>
 
 </body>
