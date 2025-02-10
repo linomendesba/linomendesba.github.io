@@ -4762,6 +4762,14 @@ initializeChart();
             }
         }
         
+        function getTop3Indices(values) {
+            return values
+                .map((value, index) => ({ value, index }))
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 3)
+                .map(item => item.index);
+        }
+
         function processCiclosData(data) {
             const selectedMarket = document.getElementById("ciclos-market").value;
             const columnCount = parseInt(document.getElementById("ciclos-columns").value);
@@ -4774,12 +4782,12 @@ initializeChart();
             
             let ciclosCounts = {};
             let ciclosOccurrences = {};
-            let ciclosGoals = {}; // Objeto para armazenar a soma de gols por grupo
+            let ciclosGoals = {};
             groupedCiclos.forEach(group => {
                 let groupKey = group.join(" | ");
                 ciclosCounts[groupKey] = 0;
                 ciclosOccurrences[groupKey] = 0;
-                ciclosGoals[groupKey] = 0; // Inicializa a soma de gols
+                ciclosGoals[groupKey] = 0;
             });
             
             data.forEach(game => {
@@ -4791,7 +4799,7 @@ initializeChart();
                     if (group.includes(gameMinute)) {
                         let groupKey = group.join(" | ");
                         ciclosOccurrences[groupKey]++;
-                        ciclosGoals[groupKey] += totalGoals; // Soma os gols
+                        ciclosGoals[groupKey] += totalGoals;
                         if (selectedMarket.includes("ambasMarcam") && ft[0] > 0 && ft[1] > 0) ciclosCounts[groupKey]++;
                         if (selectedMarket.includes("ambasNaoMarcam") && (ft[0] === 0 || ft[1] === 0)) ciclosCounts[groupKey]++;
                         if (selectedMarket.includes("casaVence") && ft[0] > ft[1]) ciclosCounts[groupKey]++;
@@ -4817,33 +4825,59 @@ initializeChart();
             headerRow.innerHTML = "";
             tableBody.innerHTML = "";
             
-            for (const groupKey in ciclosCounts) {
+            const groupKeys = Object.keys(ciclosCounts);
+            
+            // Create headers
+            groupKeys.forEach(groupKey => {
                 const numbers = groupKey.split(" | ");
                 const formattedHeader = numbers
                     .map(num => `<span class="interval-number">${num}</span>`)
                     .join('<span class="interval-separator"> | </span>');
                 headerRow.innerHTML += `<th>${formattedHeader}</th>`;
-            }
+            });
             
-            let percentageRow = document.createElement("tr");
-            percentageRow.classList.add("percentage-row"); // Adiciona a classe para a linha de porcentagem
-            let averageGoalsRow = document.createElement("tr"); // Linha para a média de gols
-            
-            for (const groupKey in ciclosCounts) {
-                let percentage = ciclosOccurrences[groupKey] > 0 
+            // Calculate percentages and averages
+            const percentages = groupKeys.map(groupKey => 
+                ciclosOccurrences[groupKey] > 0 
                     ? Math.round((ciclosCounts[groupKey] / ciclosOccurrences[groupKey]) * 100) 
-                    : 0;
-                percentageRow.innerHTML += `<td>${percentage}%</td>`;
-                
-                // Calcula a média de gols
-                let averageGoals = ciclosOccurrences[groupKey] > 0
-                    ? (ciclosGoals[groupKey] / ciclosOccurrences[groupKey]).toFixed(2)
-                    : "0.00";
-                averageGoalsRow.innerHTML += `<td> ⚽️${averageGoals}</td>`;
-            }
+                    : 0
+            );
+            
+            const averageGoals = groupKeys.map(groupKey =>
+                ciclosOccurrences[groupKey] > 0
+                    ? parseFloat((ciclosGoals[groupKey] / ciclosOccurrences[groupKey]).toFixed(2))
+                    : 0
+            );
+            
+            // Get top 3 indices for both metrics
+            const top3PercentageIndices = getTop3Indices(percentages);
+            const top3AverageIndices = getTop3Indices(averageGoals);
+            
+            // Create percentage row
+            let percentageRow = document.createElement("tr");
+            percentageRow.classList.add("percentage-row");
+            percentages.forEach((percentage, index) => {
+                const td = document.createElement("td");
+                td.textContent = `${percentage}%`;
+                if (top3PercentageIndices.includes(index)) {
+                    td.classList.add("highlight-cell");
+                }
+                percentageRow.appendChild(td);
+            });
+            
+            // Create average goals row
+            let averageGoalsRow = document.createElement("tr");
+            averageGoals.forEach((average, index) => {
+                const td = document.createElement("td");
+                td.textContent = `⚽️${average.toFixed(2)}`;
+                if (top3AverageIndices.includes(index)) {
+                    td.classList.add("highlight-cell");
+                }
+                averageGoalsRow.appendChild(td);
+            });
             
             tableBody.appendChild(percentageRow);
-            tableBody.appendChild(averageGoalsRow); // Adiciona a linha da média de gols
+            tableBody.appendChild(averageGoalsRow);
         }
         
         populateCiclosMarket();
