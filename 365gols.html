@@ -630,324 +630,320 @@
 
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const leagueSelect = document.getElementById('league-select');
-            const filterSelect = document.getElementById('filter-select');
-            const rankingTableBody = document.getElementById('ranking-table').querySelector('tbody');
-            const teamDetails = document.getElementById('team-details');
-            const teamNameElem = document.getElementById('team-name');
-            const teamGamesElem = document.getElementById('team-games');
-            const closeDetails = document.getElementById('close-details');
-            let teams = {};
+document.addEventListener('DOMContentLoaded', () => {
+    const leagueSelect = document.getElementById('league-select');
+    const filterSelect = document.getElementById('filter-select');
+    const rankingTableBody = document.getElementById('ranking-table').querySelector('tbody');
+    const teamDetails = document.getElementById('team-details');
+    const teamNameElem = document.getElementById('team-name');
+    const teamGamesElem = document.getElementById('team-games');
+    const closeDetails = document.getElementById('close-details');
+    let teams = {};
 
-            leagueSelect.addEventListener('change', loadAndDisplayData);
-            filterSelect.addEventListener('change', loadAndDisplayData);
-            document.getElementById('lines-select').addEventListener('change', loadAndDisplayData);
-            
-            closeDetails.addEventListener('click', () => {
-                teamDetails.style.display = 'none';
-            });
-            
-            loadAndDisplayData();
+    leagueSelect.addEventListener('change', loadAndDisplayData);
+    filterSelect.addEventListener('change', loadAndDisplayData);
+    document.getElementById('lines-select').addEventListener('change', loadAndDisplayData);
+    
+    closeDetails.addEventListener('click', () => {
+        teamDetails.style.display = 'none';
+    });
+    
+    loadAndDisplayData();
 
-            function incrementGamesOnly(teams, team) {
-                if (!teams[team]) {
-                    teams[team] = { games: 0, points: 0, details: [] };
-                }
-                teams[team].games += 1;
-            }
+    function incrementGamesOnly(teams, team) {
+        if (!teams[team]) {
+            teams[team] = { games: 0, points: 0, details: [] };
+        }
+        teams[team].games += 1;
+    }
 
-            function loadAndDisplayData() {
-                const [resultsUrl, nextGamesUrl] = leagueSelect.value.split('|');
-                const linha = parseInt(document.getElementById('lines-select').value);
-                const filterOption = filterSelect.value;
+    function loadAndDisplayData() {
+        const [resultsUrl, nextGamesUrl] = leagueSelect.value.split('|');
+        const linha = parseInt(document.getElementById('lines-select').value);
+        const filterOption = filterSelect.value;
 
-                fetch(resultsUrl)
-                    .then(response => response.json())
-                    .then(data => {
-                        const rows = data.slice(-linha);
-                        teams = {};
+        fetch(resultsUrl)
+            .then(response => response.json())
+            .then(data => {
+                const rows = data.slice(-linha);
+                teams = {};
 
-                        rows.forEach((game, index) => {
-                            const team1 = game.time_a;
-                            const team2 = game.time_b;
-                            const [gol1, gol2] = game.ft.split(' x ').map(Number);
-                            const score = gol1 + gol2;
+                rows.forEach((game, index) => {
+                    const team1 = game.time_a;
+                    const team2 = game.time_b;
+                    const [gol1, gol2] = game.ft.split(' x ').map(Number);
+                    const score = gol1 + gol2;
 
-                            incrementGamesOnly(teams, team1);
-                            incrementGamesOnly(teams, team2);
+                    incrementGamesOnly(teams, team1);
+                    incrementGamesOnly(teams, team2);
 
-                            if ((filterOption === "5plus" && score >= 0) || 
-                                (filterOption === "under1.5" && score < 2)) {
-                                
-                                for (let i = -1; i <= 1; i++) {
-                                    if (rows[index + i]) {
-                                        const currentGame = rows[index + i];
-                                        if (currentGame.time_a === team1 || currentGame.time_a === team2) {
-                                            addToTeamDetails(teams, currentGame.time_a, currentGame, i === 0, index + i, rows);
-                                        }
-                                        if (currentGame.time_b === team1 || currentGame.time_b === team2) {
-                                            addToTeamDetails(teams, currentGame.time_b, currentGame, i === 0, index + i, rows);
-                                        }
-                                    }
+                    if ((filterOption === "5plus" && score >= 0) || 
+                        (filterOption === "under1.5" && score < 2)) {
+                        
+                        for (let i = -1; i <= 1; i++) {
+                            if (rows[index + i]) {
+                                const currentGame = rows[index + i];
+                                if (currentGame.time_a === team1 || currentGame.time_a === team2) {
+                                    addToTeamDetails(teams, currentGame.time_a, currentGame, i === 0, index + i, rows);
                                 }
-                                
-                                if (index >= 0 && index < rows.length) {
-                                    addPoints(teams, team1, score, index, rows);
-                                    addPoints(teams, team2, score, index, rows);
+                                if (currentGame.time_b === team1 || currentGame.time_b === team2) {
+                                    addToTeamDetails(teams, currentGame.time_b, currentGame, i === 0, index + i, rows);
                                 }
                             }
-                        });
-
-                        populateRankingTable(teams);
-                        sortTable(3);
-                        loadProximosJogos(nextGamesUrl);
-                    })
-                    .catch(error => console.error('Erro ao carregar resultados:', error));
-            }
-
-            function formatDateTime(game) {
-                const date = new Date(game.data);
-                const day = date.getDate().toString().padStart(2, '0');
-                const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                const year = date.getFullYear();
-                const hour = game.hora.toString().padStart(2, '0');
-                const minute = game.minuto.toString().padStart(2, '0');
-                return `${day}/${month}/${year}, ${hour}:${minute}`;
-            }
-
-            function addToTeamDetails(teams, team, game, isMainLine, index, rows) {
-                if (!teams[team]) {
-                    teams[team] = { games: 0, points: 0, details: [] };
-                }
-
-                const [goalsA, goalsB] = game.ft.split(' x ').map(Number);
-                const totalGoals = goalsA + goalsB;
-
-                const detail = {
-                    date: formatDateTime(game),
-                    opponent: game.time_a === team ? game.time_b : game.time_a,
-                    score: totalGoals,
-                    isMainLine: isMainLine,
-                    previousGame: null,
-                    nextGame: null
-                };
-
-                if (index > 0) {
-                    const prevGame = rows[index - 1];
-                    const [prevGoalsA, prevGoalsB] = prevGame.ft.split(' x ').map(Number);
-                    detail.previousGame = {
-                        date: formatDateTime(prevGame),
-                        opponent: prevGame.time_a === team ? prevGame.time_b : prevGame.time_a,
-                        score: prevGoalsA + prevGoalsB
-                    };
-                }
-
-                if (index < rows.length - 1) {
-                    const nextGame = rows[index + 1];
-                    const [nextGoalsA, nextGoalsB] = nextGame.ft.split(' x ').map(Number);
-                    detail.nextGame = {
-                        date: formatDateTime(nextGame),
-                        opponent: nextGame.time_a === team ? nextGame.time_b : nextGame.time_a,
-                        score: nextGoalsA + nextGoalsB
-                    };
-                }
-
-                const existingIndex = teams[team].details.findIndex(d => 
-                    d.date === detail.date && 
-                    d.opponent === detail.opponent
-                );
-
-                if (existingIndex === -1) {
-                    teams[team].details.push(detail);
-                }
-            }
-
-            function addPoints(teams, team, score, index, rows) {
-                if (!teams[team]) {
-                    teams[team] = { games: 0, points: 0, details: [] };
-                }
-
-                teams[team].points += score;
-
-                if (index > 0) {
-                    const prevGame = rows[index - 1];
-                    const [prevGoalsA, prevGoalsB] = prevGame.ft.split(' x ').map(Number);
-                    const prevScore = prevGoalsA + prevGoalsB;
-                    teams[team].points += prevScore;
-                }
-
-                if (index < rows.length - 1) {
-                    const nextGame = rows[index + 1];
-                    const [nextGoalsA, nextGoalsB] = nextGame.ft.split(' x ').map(Number);
-                    const nextScore = nextGoalsA + nextGoalsB;
-                    teams[team].points += nextScore;
-                }
-            }
-
-            function getTop5Teams(teams) {
-                return Object.entries(teams)
-                    .sort((a, b) => (b[1].points/b[1].games) - (a[1].points/a[1].games))
-                    .slice(0, 5)
-                    .map(entry => entry[0]);
-            }
-
-            function getBotton5Teams(teams) {
-                return Object.entries(teams)
-                    .sort((a, b) => (a[1].points/a[1].games) - (b[1].points/b[1].games))
-                    .slice(0, 5)
-                    .map(entry => entry[0]);
-            }
-
-            function loadProximosJogos(nextGamesUrl) {
-                fetch(nextGamesUrl)
-                    .then(response => response.json())
-                    .then(data => {
-                        const proximosJogos = data.data
-                            .filter(game => new Date(game.date_time) > new Date())
-                            .slice(0, 6)
-                            .reverse();
-                        displayProximosJogos(proximosJogos);
-                    })
-                    .catch(error => console.error('Erro ao carregar próximos jogos:', error));
-            }
-
-            function extractTimeFromDateTime(dateTimeStr) {
-                const date = new Date(dateTimeStr);
-                const hour = date.getUTCHours().toString().padStart(2, '0');
-                const minute = date.getUTCMinutes().toString().padStart(2, '0');
-                return `${hour}:${minute}`;
-            }
-
-            function displayProximosJogos(proximosJogos) {
-                const listaProximosJogos = document.getElementById("lista-proximos-jogos");
-                listaProximosJogos.innerHTML = '';
-                const top5Teams = getTop5Teams(teams);
-                const last5Teams = getBotton5Teams(teams);
-
-                proximosJogos.forEach(jogo => {
-                    // Tenta usar jogo.time; se não estiver disponível ou for inválido, usa jogo.date_time
-                    let time = jogo.time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(jogo.time) ? jogo.time : extractTimeFromDateTime(jogo.date_time);
-                    const horabr = ajustarHora(time);
-                    const li = document.createElement("li");
-                    li.textContent = `${horabr} - ${jogo.team_home.toUpperCase()} x ${jogo.team_visit.toUpperCase()}`;
-
-                    if (top5Teams.includes(jogo.team_home) || top5Teams.includes(jogo.team_visit)) {
-                        li.classList.add("highlight-green");
-                    } else if (last5Teams.includes(jogo.team_home) || last5Teams.includes(jogo.team_visit)) {
-                        li.classList.add("highlight-red");
-                    }
-                    
-                    listaProximosJogos.appendChild(li);
-                });
-            }
-
-            function ajustarHora(horario) {
-                const [hora, minuto] = horario.split(':').map(Number);
-                if (hora >= 0 && hora < 4) {
-                    const novaHora = (hora + 21) % 24;
-                    return `${novaHora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
-                }
-                const novaHora = (hora - 0 + 24) % 24;
-                return `${novaHora.toString().padStart(2, '0')}:${minuto.toString().padStart(2, '0')}`;
-            }
-
-            function populateRankingTable(teams) {
-                rankingTableBody.innerHTML = '';
-                const sortedTeams = Object.entries(teams).sort((a, b) => {
-                    const avgA = a[1].games > 0 ? a[1].points / (3 * a[1].games) : 0;
-                    const avgB = b[1].games > 0 ? b[1].points / (3 * b[1].games) : 0;
-                    return avgB - avgA;
-                });
-
-                const top5 = sortedTeams.slice(0, 5).map(entry => entry[0]);
-                const bottom5 = sortedTeams.slice(-5).map(entry => entry[0]);
-
-                sortedTeams.forEach(([team, stats]) => {
-                    const row = document.createElement('tr');
-                    const avgGoals = stats.games > 0 ? (stats.points / (3 * stats.games)).toFixed(2) : "0.00";
-                    let className = '';
-                    if (top5.includes(team)) {
-                        className = 'highlight-green';
-                    } else if (bottom5.includes(team)) {
-                        className = 'highlight-red';
-                    }
-                    row.innerHTML = `
-                        <td class="${className}">${team}</td>
-                        <td class="${className}">${stats.games}</td>
-                        <td class="${className}">${stats.points}</td>
-                        <td class="${className}">${avgGoals}</td>
-                    `;
-                    row.addEventListener('click', () => showTeamDetails(team));
-                    rankingTableBody.appendChild(row);
-                });
-            }
-
-            function sortTable(columnIndex) {
-                const rows = Array.from(rankingTableBody.rows);
-                rows.sort((a, b) => {
-                    const aValue = columnIndex === 0 ? a.cells[columnIndex].textContent : parseFloat(a.cells[columnIndex].textContent) || 0;
-                    const bValue = columnIndex === 0 ? b.cells[columnIndex].textContent : parseFloat(b.cells[columnIndex].textContent) || 0;
-                    return columnIndex === 0 ? aValue.localeCompare(bValue) : bValue - aValue;
-                });
-                rows.forEach(row => rankingTableBody.appendChild(row));
-            }
-
-            function showTeamDetails(team) {
-                const teamData = teams[team];
-                teamNameElem.textContent = team;
-                teamGamesElem.innerHTML = '';
-
-                teamData.details.sort((a, b) => {
-                    const timeA = new Date(a.date.split(', ')[0].split('/').reverse().join('-') + ' ' + a.date.split(', ')[1]);
-                    const timeB = new Date(b.date.split(', ')[0].split('/').reverse().join('-') + ' ' + b.date.split(', ')[1]);
-                    return timeA - timeB;
-                });
-
-                teamData.details.forEach(game => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${game.date}</td>
-                        <td>${game.opponent}</td>
-                        <td style="background-color: ${game.score > 2 ? 'var(--highlight-green)' : 'var(--highlight-red)'}">${game.score}</td>
-                    `;
-                    row.classList.add(game.isMainLine ? 'main-game' : 'game-context');
-                    teamGamesElem.appendChild(row);
-
-                    if (game.previousGame) {
-                        const prevRow = document.createElement('tr');
-                        prevRow.innerHTML = `
-                            <td>${game.previousGame.date} (anterior)</td>
-                            <td>${game.previousGame.opponent}</td>
-                            <td style="background-color: ${game.previousGame.score > 2 ? 'var(--highlight-green)' : 'var(--highlight-red)'}">${game.previousGame.score}</td>
-                        `;
-                        prevRow.classList.add('game-context');
-                        teamGamesElem.appendChild(prevRow);
-                    }
-
-                    if (game.nextGame) {
-                        const nextRow = document.createElement('tr');
-                        nextRow.innerHTML = `
-                            <td>${game.nextGame.date} (próximo)</td>
-                            <td>${game.nextGame.opponent}</td>
-                            <td style="background-color: ${game.nextGame.score > 2 ? 'var(--highlight-green)' : 'var(--highlight-red)'}">${game.nextGame.score}</td>
-                        `;
-                        nextRow.classList.add('game-context');
-                        teamGamesElem.appendChild(nextRow);
+                        }
+                        
+                        if (index >= 0 && index < rows.length) {
+                            addPoints(teams, team1, score, index, rows);
+                            addPoints(teams, team2, score, index, rows);
+                        }
                     }
                 });
-                teamDetails.style.display = 'block';
-            }
 
-            function startAutoUpdate() {
-                setInterval(() => {
-                    loadProximosJogos(leagueSelect.value.split('|')[1]);
-                    loadAndDisplayData();
-                }, 180000);
-            }
+                populateRankingTable(teams);
+                sortTable(3);
+                loadProximosJogos(nextGamesUrl);
+            })
+            .catch(error => console.error('Erro ao carregar resultados:', error));
+    }
 
-            startAutoUpdate();
+    function formatDateTime(game) {
+        const date = new Date(game.data);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        const hour = game.hora.toString().padStart(2, '0');
+        const minute = game.minuto.toString().padStart(2, '0');
+        return `${day}/${month}/${year}, ${hour}:${minute}`;
+    }
+
+    function addToTeamDetails(teams, team, game, isMainLine, index, rows) {
+        if (!teams[team]) {
+            teams[team] = { games: 0, points: 0, details: [] };
+        }
+
+        const [goalsA, goalsB] = game.ft.split(' x ').map(Number);
+        const totalGoals = goalsA + goalsB;
+
+        const detail = {
+            date: formatDateTime(game),
+            opponent: game.time_a === team ? game.time_b : game.time_a,
+            score: totalGoals,
+            isMainLine: isMainLine,
+            previousGame: null,
+            nextGame: null
+        };
+
+        if (index > 0) {
+            const prevGame = rows[index - 1];
+            const [prevGoalsA, prevGoalsB] = prevGame.ft.split(' x ').map(Number);
+            detail.previousGame = {
+                date: formatDateTime(prevGame),
+                opponent: prevGame.time_a === team ? prevGame.time_b : prevGame.time_a,
+                score: prevGoalsA + prevGoalsB
+            };
+        }
+
+        if (index < rows.length - 1) {
+            const nextGame = rows[index + 1];
+            const [nextGoalsA, nextGoalsB] = nextGame.ft.split(' x ').map(Number);
+            detail.nextGame = {
+                date: formatDateTime(nextGame),
+                opponent: nextGame.time_a === team ? nextGame.time_b : nextGame.time_a,
+                score: nextGoalsA + nextGoalsB
+            };
+        }
+
+        const existingIndex = teams[team].details.findIndex(d => 
+            d.date === detail.date && 
+            d.opponent === detail.opponent
+        );
+
+        if (existingIndex === -1) {
+            teams[team].details.push(detail);
+        }
+    }
+
+    function addPoints(teams, team, score, index, rows) {
+        if (!teams[team]) {
+            teams[team] = { games: 0, points: 0, details: [] };
+        }
+
+        teams[team].points += score;
+
+        if (index > 0) {
+            const prevGame = rows[index - 1];
+            const [prevGoalsA, prevGoalsB] = prevGame.ft.split(' x ').map(Number);
+            const prevScore = prevGoalsA + prevGoalsB;
+            teams[team].points += prevScore;
+        }
+
+        if (index < rows.length - 1) {
+            const nextGame = rows[index + 1];
+            const [nextGoalsA, nextGoalsB] = nextGame.ft.split(' x ').map(Number);
+            const nextScore = nextGoalsA + nextGoalsB;
+            teams[team].points += nextScore;
+        }
+    }
+
+    function getTop5Teams(teams) {
+        return Object.entries(teams)
+            .sort((a, b) => (b[1].points/b[1].games) - (a[1].points/a[1].games))
+            .slice(0, 5)
+            .map(entry => entry[0]);
+    }
+
+    function getBotton5Teams(teams) {
+        return Object.entries(teams)
+            .sort((a, b) => (a[1].points/a[1].games) - (b[1].points/b[1].games))
+            .slice(0, 5)
+            .map(entry => entry[0]);
+    }
+
+    function loadProximosJogos(nextGamesUrl) {
+        fetch(nextGamesUrl)
+            .then(response => response.json())
+            .then(data => {
+                const proximosJogos = data.data.slice(0, 6).reverse(); // Pega os 6 jogos sem filtro de data
+                displayProximosJogos(proximosJogos);
+            })
+            .catch(error => console.error('Erro ao carregar próximos jogos:', error));
+    }
+
+    function extractTimeFromDateTime(dateTimeStr) {
+        if (!dateTimeStr || isNaN(new Date(dateTimeStr))) {
+            return "Horário indisponível";
+        }
+        const date = new Date(dateTimeStr);
+        const hour = date.getUTCHours().toString().padStart(2, '0');
+        const minute = date.getUTCMinutes().toString().padStart(2, '0');
+        return `${hour}:${minute}`;
+    }
+
+    function displayProximosJogos(proximosJogos) {
+        const listaProximosJogos = document.getElementById("lista-proximos-jogos");
+        listaProximosJogos.innerHTML = '';
+        const top5Teams = getTop5Teams(teams);
+        const last5Teams = getBotton5Teams(teams);
+
+        if (!proximosJogos || proximosJogos.length === 0) {
+            listaProximosJogos.innerHTML = '<li>Nenhum jogo disponível</li>';
+            return;
+        }
+
+        proximosJogos.forEach(jogo => {
+            // Usa diretamente jogo.time se válido, caso contrário extrai de date_time
+            let time = jogo.time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(jogo.time) 
+                ? jogo.time 
+                : extractTimeFromDateTime(jogo.date_time);
+            const li = document.createElement("li");
+            li.textContent = `${time} - ${jogo.team_home.toUpperCase()} x ${jogo.team_visit.toUpperCase()}`;
+
+            if (top5Teams.includes(jogo.team_home) || top5Teams.includes(jogo.team_visit)) {
+                li.classList.add("highlight-green");
+            } else if (last5Teams.includes(jogo.team_home) || last5Teams.includes(jogo.team_visit)) {
+                li.classList.add("highlight-red");
+            }
+            
+            listaProximosJogos.appendChild(li);
         });
+    }
+
+    function populateRankingTable(teams) {
+        rankingTableBody.innerHTML = '';
+        const sortedTeams = Object.entries(teams).sort((a, b) => {
+            const avgA = a[1].games > 0 ? a[1].points / (3 * a[1].games) : 0;
+            const avgB = b[1].games > 0 ? b[1].points / (3 * b[1].games) : 0;
+            return avgB - avgA;
+        });
+
+        const top5 = sortedTeams.slice(0, 5).map(entry => entry[0]);
+        const bottom5 = sortedTeams.slice(-5).map(entry => entry[0]);
+
+        sortedTeams.forEach(([team, stats]) => {
+            const row = document.createElement('tr');
+            const avgGoals = stats.games > 0 ? (stats.points / (3 * stats.games)).toFixed(2) : "0.00";
+            let className = '';
+            if (top5.includes(team)) {
+                className = 'highlight-green';
+            } else if (bottom5.includes(team)) {
+                className = 'highlight-red';
+            }
+            row.innerHTML = `
+                <td class="${className}">${team}</td>
+                <td class="${className}">${stats.games}</td>
+                <td class="${className}">${stats.points}</td>
+                <td class="${className}">${avgGoals}</td>
+            `;
+            row.addEventListener('click', () => showTeamDetails(team));
+            rankingTableBody.appendChild(row);
+        });
+    }
+
+    function sortTable(columnIndex) {
+        const rows = Array.from(rankingTableBody.rows);
+        rows.sort((a, b) => {
+            const aValue = columnIndex === 0 ? a.cells[columnIndex].textContent : parseFloat(a.cells[columnIndex].textContent) || 0;
+            const bValue = columnIndex === 0 ? b.cells[columnIndex].textContent : parseFloat(b.cells[columnIndex].textContent) || 0;
+            return columnIndex === 0 ? aValue.localeCompare(bValue) : bValue - aValue;
+        });
+        rows.forEach(row => rankingTableBody.appendChild(row));
+    }
+
+    function showTeamDetails(team) {
+        const teamData = teams[team];
+        teamNameElem.textContent = team;
+        teamGamesElem.innerHTML = '';
+
+        teamData.details.sort((a, b) => {
+            const timeA = new Date(a.date.split(', ')[0].split('/').reverse().join('-') + ' ' + a.date.split(', ')[1]);
+            const timeB = new Date(b.date.split(', ')[0].split('/').reverse().join('-') + ' ' + b.date.split(', ')[1]);
+            return timeA - timeB;
+        });
+
+        teamData.details.forEach(game => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${game.date}</td>
+                <td>${game.opponent}</td>
+                <td style="background-color: ${game.score > 2 ? 'var(--highlight-green)' : 'var(--highlight-red)'}">${game.score}</td>
+            `;
+            row.classList.add(game.isMainLine ? 'main-game' : 'game-context');
+            teamGamesElem.appendChild(row);
+
+            if (game.previousGame) {
+                const prevRow = document.createElement('tr');
+                prevRow.innerHTML = `
+                    <td>${game.previousGame.date} (anterior)</td>
+                    <td>${game.previousGame.opponent}</td>
+                    <td style="background-color: ${game.previousGame.score > 2 ? 'var(--highlight-green)' : 'var(--highlight-red)'}">${game.previousGame.score}</td>
+                `;
+                prevRow.classList.add('game-context');
+                teamGamesElem.appendChild(prevRow);
+            }
+
+            if (game.nextGame) {
+                const nextRow = document.createElement('tr');
+                nextRow.innerHTML = `
+                    <td>${game.nextGame.date} (próximo)</td>
+                    <td>${game.nextGame.opponent}</td>
+                    <td style="background-color: ${game.nextGame.score > 2 ? 'var(--highlight-green)' : 'var(--highlight-red)'}">${game.nextGame.score}</td>
+                `;
+                nextRow.classList.add('game-context');
+                teamGamesElem.appendChild(nextRow);
+            }
+        });
+        teamDetails.style.display = 'block';
+    }
+
+    function startAutoUpdate() {
+        setInterval(() => {
+            loadProximosJogos(leagueSelect.value.split('|')[1]);
+            loadAndDisplayData();
+        }, 180000);
+    }
+
+    startAutoUpdate();
+});
     </script>
 
     <script>
