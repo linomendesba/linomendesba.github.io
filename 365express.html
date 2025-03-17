@@ -2524,7 +2524,7 @@ h2 {
         ];
 
 
-      function redirecionar(selectElement) {
+        function redirecionar(selectElement) {
         const url = selectElement.value;
         if (url) {
           window.location.href = url;
@@ -2535,12 +2535,10 @@ h2 {
 
       function selecionarPlacaresIguais(placarAlvo) {
         const placares = document.querySelectorAll(".placar");
-
         placares.forEach((placar) => {
           const texto = placar.childNodes[0].textContent.trim();
-
           if (placarAlvo) {
-            if (texto === placarAlvo) {
+            if (texto.includes(placarAlvo)) {
               placar.classList.add("placar-selecionado");
             } else {
               placar.classList.remove("placar-selecionado");
@@ -2551,15 +2549,57 @@ h2 {
         });
       }
 
+      function calculateGoalStats(todasLinhas) {
+        const totalGols = todasLinhas.reduce(
+          (acc, row) =>
+            acc + parseInt(row.children[row.children.length - 3].textContent),
+          0
+        );
+        const totalHorasJogadas = todasLinhas.length;
+        const mediaGolsHora =
+          totalHorasJogadas > 0
+            ? (totalGols / totalHorasJogadas).toFixed(2)
+            : 0;
+
+        return {
+          totalGols,
+          mediaGolsHora,
+        };
+      }
+
       function criarTabela(dados) {
         const tabelaBody = document.querySelector("#tabelaResultados tbody");
         const linhaPercentual = document.getElementById("linhaPercentual");
+        if (!tabelaBody || !linhaPercentual) {
+          console.error(
+            "Elementos tabelaResultados ou linhaPercentual não encontrados!"
+          );
+          return;
+        }
+
         linhaPercentual.innerHTML = "<th>📊</th>";
         tabelaBody.innerHTML = "";
 
-        const horasSelecionadas = parseInt(
-          document.querySelector("#seletorHoras").value
-        );
+        const seletorHoras = document.querySelector("#seletorHoras");
+        const seletorResultado = document.querySelector("#seletorResultado");
+        const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
+        const mostrarTimesSelect = document.querySelector("#mostrarTimes");
+        const mostrarHTSelect = document.querySelector("#mostrarHT");
+
+        if (
+          !seletorHoras ||
+          !seletorResultado ||
+          !seletorTipoPlacar ||
+          !mostrarTimesSelect ||
+          !mostrarHTSelect
+        ) {
+          console.error("Um ou mais seletores não foram encontrados no HTML!");
+          return;
+        }
+
+        const horasSelecionadas = parseInt(seletorHoras.value) || 12; // Valor direto (ex.: "12")
+        const mostrarTimes = mostrarTimesSelect.value === "sim"; // "sim" ou "nao"
+        const mostrarHT = mostrarHTSelect.value === "sim"; // "sim" ou "nao"
 
         dados.sort((a, b) => {
           const dataHoraA = new Date(
@@ -2573,7 +2613,6 @@ h2 {
 
         const chavesJaProcessadas = new Set();
         const mapeamentoChaveLinha = {};
-
         let contagemLinhas = 0;
 
         dados.reverse().forEach((dado) => {
@@ -2610,7 +2649,6 @@ h2 {
             tabelaBody.appendChild(novaLinha);
             chavesJaProcessadas.add(chave);
             mapeamentoChaveLinha[chave] = novaLinha;
-
             contagemLinhas++;
           }
         });
@@ -2618,7 +2656,6 @@ h2 {
         function handlePlacarClick(event) {
           const placarClicado =
             event.currentTarget.childNodes[0].textContent.trim();
-
           if (placarSelecionado === placarClicado) {
             placarSelecionado = null;
             localStorage.removeItem("placarSelecionado");
@@ -2645,30 +2682,57 @@ h2 {
                 const placar = document.createElement("div");
                 placar.className = "placar";
 
-                const tipoPlacar =
-                  document.querySelector("#seletorTipoPlacar").value;
-                const placarAtual = tipoPlacar === "ft" ? dado.ft : dado.ht;
+                const tipoPlacar = seletorTipoPlacar.value; // "ft" ou "ht"
+                const placarFT = dado.ft;
+                const placarHT = dado.ht;
 
                 const placarTexto = document.createElement("span");
-                placarTexto.textContent = placarAtual;
+                let textoPlacar = tipoPlacar === "ft" ? placarFT : placarHT;
+                if (mostrarHT) {
+                  textoPlacar =
+                    tipoPlacar === "ft"
+                      ? `${placarFT}\n(${placarHT})`
+                      : `${placarHT}\n( ${placarFT})`;
+                }
+                if (mostrarTimes) {
+                  const timeA =
+                    dado.time_a.length > 10
+                      ? dado.time_a.slice(0, 10) + "..."
+                      : dado.time_a;
+                  const timeB =
+                    dado.time_b.length > 10
+                      ? dado.time_b.slice(0, 10) + "..."
+                      : dado.time_b;
+                  textoPlacar = `${timeA}\n${textoPlacar}\n${timeB}`;
+                }
+                placarTexto.textContent = textoPlacar;
                 placar.appendChild(placarTexto);
 
                 placar.addEventListener("click", handlePlacarClick);
 
                 const tooltip = document.createElement("span");
                 tooltip.className = "tooltip";
-                tooltip.textContent = `${dado.time_a} vs ${dado.time_b}`;
+
+                // Criando estrutura com <span> para quebrar corretamente
+                tooltip.innerHTML = `
+                <span class="times">${dado.time_a} vs ${dado.time_b}</span>
+                <span class="placares">${placarFT} <span class="placarHT">(${placarHT})</span></span>
+                `;
+
                 placar.appendChild(tooltip);
 
                 colunaMinuto.appendChild(placar);
 
-                if (placarSelecionado === placarAtual) {
+                if (
+                  placarSelecionado &&
+                  textoPlacar.includes(placarSelecionado)
+                ) {
                   placar.classList.add("placar-selecionado");
                 }
 
-                const selecaoResultado =
-                  document.querySelector("#seletorResultado").value;
+                const selecaoResultado = seletorResultado.value; // "ambasMarcam", "over2.5", etc.
                 let acerto = false;
+                const placarAtual = tipoPlacar === "ft" ? placarFT : placarHT;
                 const resultadoA = parseInt(placarAtual.split(" x ")[0]);
                 const resultadoB = parseInt(placarAtual.split(" x ")[1]);
 
@@ -2788,6 +2852,14 @@ h2 {
           linhaPercentual.appendChild(emptyCell);
         }
 
+        const stats = calculateGoalStats(todasLinhas);
+        document.getElementById(
+          "totalGols"
+        ).textContent = `Gols: ${stats.totalGols}`;
+        document.getElementById(
+          "mediaGolsHora"
+        ).textContent = `Médias: ${stats.mediaGolsHora}`;
+
         if (placarSelecionado) {
           selecionarPlacaresIguais(placarSelecionado);
         }
@@ -2811,15 +2883,21 @@ h2 {
       buscarDados();
       setInterval(buscarDados, 10000);
 
-      document
-        .querySelector("#seletorHoras")
-        .addEventListener("change", buscarDados);
-      document
-        .querySelector("#seletorResultado")
-        .addEventListener("change", buscarDados);
-      document
-        .querySelector("#seletorTipoPlacar")
-        .addEventListener("change", buscarDados);
+      const seletorHoras = document.querySelector("#seletorHoras");
+      const seletorResultado = document.querySelector("#seletorResultado");
+      const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
+      const mostrarTimesSelect = document.querySelector("#mostrarTimes");
+      const mostrarHTSelect = document.querySelector("#mostrarHT");
+
+      if (seletorHoras) seletorHoras.addEventListener("change", buscarDados);
+      if (seletorResultado)
+        seletorResultado.addEventListener("change", buscarDados);
+      if (seletorTipoPlacar)
+        seletorTipoPlacar.addEventListener("change", buscarDados);
+      if (mostrarTimesSelect)
+        mostrarTimesSelect.addEventListener("change", buscarDados);
+      if (mostrarHTSelect)
+        mostrarHTSelect.addEventListener("change", buscarDados);
     </script>
 
     <script>
@@ -5110,61 +5188,97 @@ h2 {
     </script>
 
     <script>
-      document.addEventListener("contextmenu", function (e) {
+      // Bloqueia o menu de contexto (clique direito)
+      document.addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+});
+
+// Bloqueia atalhos de teclado comuns para ferramentas de desenvolvimento
+document.addEventListener("keydown", function(e) {
+    // F12
+    if (e.key === "F12") {
         e.preventDefault();
-      });
+    }
+    
+    // Ctrl + Shift + I
+    if (e.ctrlKey && e.shiftKey && e.key === "I") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + U (ver código fonte)
+    if (e.ctrlKey && e.key === "u") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + J (console)
+    if (e.ctrlKey && e.shiftKey && e.key === "J") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + C (inspeção de elementos)
+    if (e.ctrlKey && e.shiftKey && e.key === "C") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + S (salvar página)
+    if (e.ctrlKey && e.key === "s") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + P (imprimir)
+    if (e.ctrlKey && e.key === "p") {
+        e.preventDefault();
+    }
+});
 
-      document.addEventListener("keydown", function (e) {
-        if (e.key === "F12" || (e.ctrlKey && e.shiftKey && e.key === "I")) {
-          e.preventDefault();
+// Detecta abertura de ferramentas de desenvolvimento
+const devtools = { open: false };
+const element = new Image();
+Object.defineProperty(element, 'id', {
+    get: function () {
+        devtools.open = true;
+    }
+});
+
+// Adiciona detecção alternativa de devtools
+(function() {
+    const threshold = 160;
+    const checkDevTools = function() {
+        if ((window.outerWidth - window.innerWidth) > threshold || 
+            (window.outerHeight - window.innerHeight) > threshold) {
+            devtools.open = true;
         }
+    };
+    
+    window.addEventListener('resize', checkDevTools);
+    setInterval(checkDevTools, 500);
+})();
 
-        if (e.ctrlKey && e.key === "u") {
-          e.preventDefault();
-        }
+// Monitoramento contínuo
+console.log('%c', element);
+setInterval(function() {
+    if (devtools.open) {
+        document.body.innerHTML = '<h1>Acesso não autorizado detectado</h1>';
+        // Ou redirecionar:
+        // window.location.href = 'about:blank';
+        devtools.open = false;
+    }
+}, 1000);
 
-        if (e.ctrlKey && e.shiftKey && e.key === "J") {
-          e.preventDefault();
-        }
+// Impede seleção de texto
+document.addEventListener('selectstart', function(e) {
+    e.preventDefault();
+});
 
-        if (e.ctrlKey && e.shiftKey && e.key === "C") {
-          e.preventDefault();
-        }
-      });
+// Impede arrastar e soltar
+document.addEventListener('dragstart', function(e) {
+    e.preventDefault();
+});
 
-      const devtools = { open: false };
-      const element = new Image();
-      Object.defineProperty(element, "id", {
-        get: function () {
-          devtools.open = true;
-        },
-      });
-
-      console.log("%c", element);
-      setInterval(function () {
-        if (devtools.open) {
-          alert("Desculpe, as ferramentas de desenvolvedor estão abertas!");
-          devtools.open = false;
-        }
-      }, 1000);
-
-      function toggleVideo() {
-        const videoDiv = document.getElementById("liveVideo");
-        const overlayDiv = videoDiv.querySelector(".iframe-overlay");
-        const button = document.querySelector(".toggle-button");
-
-        const isVisible = window.getComputedStyle(videoDiv).display !== "none";
-
-        if (isVisible) {
-          videoDiv.style.display = "none";
-          overlayDiv.style.display = "none";
-          button.textContent = "Expandir Vídeo";
-        } else {
-          videoDiv.style.display = "block";
-          overlayDiv.style.display = "block";
-          button.textContent = "Contrair Vídeo";
-        }
-      }
+// Ofusca console
+console.log = function() {};
+console.debug = function() {};
+console.info = function() {};
     </script>
 
     <script>

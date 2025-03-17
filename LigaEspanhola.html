@@ -665,278 +665,379 @@
         const minutosFixos = [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59];
 
         function redirecionar(selectElement) {
-            const url = selectElement.value;
-            if (url) {
-                window.location.href = url;
-            }
+        const url = selectElement.value;
+        if (url) {
+          window.location.href = url;
         }
-        
-        let placarSelecionado = localStorage.getItem('placarSelecionado');
-        
+      }
 
-        function selecionarPlacaresIguais(placarAlvo) {
-            const placares = document.querySelectorAll('.placar');
-            
-            placares.forEach(placar => {
+      let placarSelecionado = localStorage.getItem("placarSelecionado");
 
-                const texto = placar.childNodes[0].textContent.trim();
-                
-                if (placarAlvo) {
-                    if (texto === placarAlvo) {
-                        placar.classList.add('placar-selecionado');
-                    } else {
-                        placar.classList.remove('placar-selecionado');
-                    }
-                } else {
-                    placar.classList.remove('placar-selecionado');
-                }
-            });
+      function selecionarPlacaresIguais(placarAlvo) {
+        const placares = document.querySelectorAll(".placar");
+        placares.forEach((placar) => {
+          const texto = placar.childNodes[0].textContent.trim();
+          if (placarAlvo) {
+            if (texto.includes(placarAlvo)) {
+              placar.classList.add("placar-selecionado");
+            } else {
+              placar.classList.remove("placar-selecionado");
+            }
+          } else {
+            placar.classList.remove("placar-selecionado");
+          }
+        });
+      }
+
+      function calculateGoalStats(todasLinhas) {
+        const totalGols = todasLinhas.reduce(
+          (acc, row) =>
+            acc + parseInt(row.children[row.children.length - 3].textContent),
+          0
+        );
+        const totalHorasJogadas = todasLinhas.length;
+        const mediaGolsHora =
+          totalHorasJogadas > 0
+            ? (totalGols / totalHorasJogadas).toFixed(2)
+            : 0;
+
+        return {
+          totalGols,
+          mediaGolsHora,
+        };
+      }
+
+      function criarTabela(dados) {
+        const tabelaBody = document.querySelector("#tabelaResultados tbody");
+        const linhaPercentual = document.getElementById("linhaPercentual");
+        if (!tabelaBody || !linhaPercentual) {
+          console.error(
+            "Elementos tabelaResultados ou linhaPercentual não encontrados!"
+          );
+          return;
         }
-        
-        function criarTabela(dados) {
-            const tabelaBody = document.querySelector("#tabelaResultados tbody");
-            const linhaPercentual = document.getElementById('linhaPercentual');
-            linhaPercentual.innerHTML = '<th>📊</th>';
-            tabelaBody.innerHTML = '';
-        
-            const horasSelecionadas = parseInt(document.querySelector("#seletorHoras").value);
-        
-            dados.sort((a, b) => {
-                const dataHoraA = new Date(`${a.data}T${a.hora.toString().padStart(2, '0')}:00:00`).getTime();
-                const dataHoraB = new Date(`${b.data}T${b.hora.toString().padStart(2, '0')}:00:00`).getTime();
-                return dataHoraA - dataHoraB;
-            });
-            
-            const chavesJaProcessadas = new Set();
-            const mapeamentoChaveLinha = {};
-        
-            let contagemLinhas = 0;
-        
 
-            dados.reverse().forEach(dado => {
-                if (contagemLinhas >= horasSelecionadas) return;
-        
-                const dataHora = new Date(dado.data);
-                const hora = dado.hora;
-                const chave = `${dataHora.toISOString().split('T')[0]}-${hora}`;
-        
-                if (!chavesJaProcessadas.has(chave)) {
-                    const novaLinha = document.createElement("tr");
-                    novaLinha.setAttribute('data-chave', chave);
-        
-                    const colunaHora = document.createElement("td");
-                    colunaHora.textContent = hora.toString().padStart(2, '0');
-                    novaLinha.appendChild(colunaHora);
-        
-                    minutosFixos.forEach(() => {
-                        novaLinha.appendChild(document.createElement("td"));
-                    });
-        
-                    const contagemMercadosCelula = document.createElement("td");
-                    contagemMercadosCelula.textContent = 0;
-                    novaLinha.appendChild(contagemMercadosCelula);
-        
-                    const totalGolsCelula = document.createElement("td");
-                    totalGolsCelula.textContent = 0;
-                    novaLinha.appendChild(totalGolsCelula);
-        
-                    const porcentagemCelula = document.createElement("td");
-                    porcentagemCelula.textContent = "0%";
-                    novaLinha.appendChild(porcentagemCelula);
-        
-                    tabelaBody.appendChild(novaLinha);
-                    chavesJaProcessadas.add(chave);
-                    mapeamentoChaveLinha[chave] = novaLinha;
-        
-                    contagemLinhas++;
-                }
-            });
-        
+        linhaPercentual.innerHTML = "<th>📊</th>";
+        tabelaBody.innerHTML = "";
 
-            function handlePlacarClick(event) {
+        const seletorHoras = document.querySelector("#seletorHoras");
+        const seletorResultado = document.querySelector("#seletorResultado");
+        const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
+        const mostrarTimesSelect = document.querySelector("#mostrarTimes");
+        const mostrarHTSelect = document.querySelector("#mostrarHT");
 
-                const placarClicado = event.currentTarget.childNodes[0].textContent.trim();
-                
-                if (placarSelecionado === placarClicado) {
-                    placarSelecionado = null;
-                    localStorage.removeItem('placarSelecionado');
-                    selecionarPlacaresIguais(null);
-                } else {
-                    placarSelecionado = placarClicado;
-                    localStorage.setItem('placarSelecionado', placarClicado);
-                    selecionarPlacaresIguais(placarClicado);
-                }
-            }
-        
-
-            dados.forEach(dado => {
-                const dataHora = new Date(dado.data);
-                const hora = dado.hora;
-                const chave = `${dataHora.toISOString().split('T')[0]}-${hora}`;
-                const linha = mapeamentoChaveLinha[chave];
-        
-                if (linha) {
-                    const indexMinuto = minutosFixos.indexOf(dado.minuto);
-                    if (indexMinuto !== -1) {
-                        const colunaMinuto = linha.children[1 + indexMinuto];
-        
-                        if (!colunaMinuto.querySelector('.placar')) {
-                            const placar = document.createElement("div");
-                            placar.className = "placar";
-        
-                            const tipoPlacar = document.querySelector("#seletorTipoPlacar").value;
-                            const placarAtual = tipoPlacar === "ft" ? dado.ft : dado.ht;
-        
-                            const placarTexto = document.createElement("span");
-                            placarTexto.textContent = placarAtual;
-                            placar.appendChild(placarTexto);
-        
-
-                            placar.addEventListener('click', handlePlacarClick);
-        
-
-                            const tooltip = document.createElement("span");
-                            tooltip.className = "tooltip";
-                            tooltip.textContent = `${dado.time_a} vs ${dado.time_b}`;
-                            placar.appendChild(tooltip);
-        
-                            colunaMinuto.appendChild(placar);
-        
-
-                            if (placarSelecionado === placarAtual) {
-                                placar.classList.add('placar-selecionado');
-                            }
-        
-                            const selecaoResultado = document.querySelector("#seletorResultado").value;
-                            let acerto = false;
-                            const resultadoA = parseInt(placarAtual.split(' x ')[0]);
-                            const resultadoB = parseInt(placarAtual.split(' x ')[1]);
-        
-
-                            if (selecaoResultado === "ambasMarcam") {
-                                acerto = resultadoA > 0 && resultadoB > 0;
-                            } else if (selecaoResultado === "ambasNaoMarcam") {
-                                acerto = resultadoA === 0 || resultadoB === 0;
-                            } else if (selecaoResultado === "over1.5") {
-                                acerto = (resultadoA + resultadoB) > 1.5;
-                            } else if (selecaoResultado === "under1.5") {
-                                acerto = (resultadoA + resultadoB) <= 1.5;
-                            } else if (selecaoResultado === "over2.5") {
-                                acerto = (resultadoA + resultadoB) > 2.5;
-                            } else if (selecaoResultado === "under2.5") {
-                                acerto = (resultadoA + resultadoB) <= 2.5;
-                            } else if (selecaoResultado === "over3.5") {
-                                acerto = (resultadoA + resultadoB) > 3.5;
-                            } else if (selecaoResultado === "under3.5") {
-                                acerto = (resultadoA + resultadoB) <= 3.5;
-                            } else if (selecaoResultado === "over5") {
-                                acerto = (resultadoA + resultadoB) > 5;
-                            } else if (selecaoResultado === "casaVence") {
-                                acerto = resultadoA > resultadoB;
-                            } else if (selecaoResultado === "foraVence") {
-                                acerto = resultadoB > resultadoA;
-                            } else if (selecaoResultado === "empate") {
-                                acerto = resultadoA === resultadoB;
-                            }
-        
-                            colunaMinuto.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
-        
-                            if (acerto) {
-                                linha.children[linha.children.length - 2].textContent = parseInt(linha.children[linha.children.length - 2].textContent) + 1;
-                            }
-        
-                            const totalGolsCelula = linha.children[linha.children.length - 3];
-                            const totalGols = resultadoA + resultadoB;
-                            totalGolsCelula.textContent = parseInt(totalGolsCelula.textContent) + totalGols;
-                        }
-                    }
-                }
-            });
-        
-
-            const todasLinhas = Array.from(tabelaBody.querySelectorAll('tr'));
-            todasLinhas.forEach((row) => {
-                const totalCelsProcessadas = Array.from(row.cells).slice(1, -3).filter(cell => cell.querySelector('.placar')).length;
-                const celsMercado = parseInt(row.children[row.children.length - 2].textContent);
-        
-                const porcentagem = totalCelsProcessadas > 0 ? Math.floor((celsMercado / totalCelsProcessadas) * 100) : 0;
-                const porcentagemCell = row.children[row.children.length - 1];
-                porcentagemCell.innerText = `${porcentagem}%`;
-        
-                if (porcentagem >= 50) {
-                    porcentagemCell.classList.add('porcentagem-verde');
-                    porcentagemCell.classList.remove('porcentagem-branca');
-                } else {
-                    porcentagemCell.classList.add('porcentagem-branca');
-                    porcentagemCell.classList.remove('porcentagem-verde');
-                }
-            });
-        
-
-            const totalColunas = minutosFixos.length;
-            const totalMercadosPorColuna = Array(totalColunas).fill(0);
-            const totalAcertosPorColuna = Array(totalColunas).fill(0);
-        
-            todasLinhas.forEach(row => {
-                Array.from(row.cells).slice(1, -3).forEach((cell, index) => {
-                    if (cell.querySelector('.placar')) {
-                        totalMercadosPorColuna[index]++;
-                        if (cell.style.backgroundColor === "rgb(1, 139, 6)") {
-                            totalAcertosPorColuna[index]++;
-                        }
-                    }
-                });
-            });
-        
-            linhaPercentual.innerHTML = '<th>📈</th>';
-        
-            totalMercadosPorColuna.forEach((totalMercados, index) => {
-                const cell = document.createElement("td");
-                const porcentagemVertical = totalMercados > 0 ? Math.floor((totalAcertosPorColuna[index] / totalMercados) * 100) : 0;
-                cell.textContent = `${porcentagemVertical}%`;
-        
-                if (porcentagemVertical > 49) {
-                    cell.classList.add('porcentagem-verde');
-                    cell.classList.remove('porcentagem-branca');
-                } else {
-                    cell.classList.add('porcentagem-branca');
-                    cell.classList.remove('porcentagem-verde');
-                }
-        
-                linhaPercentual.appendChild(cell);
-            });
-        
-            for (let i = 0; i < 3; i++) {
-                const emptyCell = document.createElement("td");
-                emptyCell.textContent = "";
-                linhaPercentual.appendChild(emptyCell);
-            }
-        
-
-            if (placarSelecionado) {
-                selecionarPlacaresIguais(placarSelecionado);
-            }
+        if (
+          !seletorHoras ||
+          !seletorResultado ||
+          !seletorTipoPlacar ||
+          !mostrarTimesSelect ||
+          !mostrarHTSelect
+        ) {
+          console.error("Um ou mais seletores não foram encontrados no HTML!");
+          return;
         }
-        
-        async function buscarDados() {
-            try {
-                const response = await fetch('https://betstat.site/resultados/Liga%20Espanhola');
-                if (!response.ok) {
-                    throw new Error('Erro ao buscar os dados da rota.');
-                }
-                const dados = await response.json();
-                criarTabela(dados);
-            } catch (error) {
-                console.error('Erro:', error);
-            }
+
+        const horasSelecionadas = parseInt(seletorHoras.value) || 12; // Valor direto (ex.: "12")
+        const mostrarTimes = mostrarTimesSelect.value === "sim"; // "sim" ou "nao"
+        const mostrarHT = mostrarHTSelect.value === "sim"; // "sim" ou "nao"
+
+        dados.sort((a, b) => {
+          const dataHoraA = new Date(
+            `${a.data}T${a.hora.toString().padStart(2, "0")}:00:00`
+          ).getTime();
+          const dataHoraB = new Date(
+            `${b.data}T${b.hora.toString().padStart(2, "0")}:00:00`
+          ).getTime();
+          return dataHoraA - dataHoraB;
+        });
+
+        const chavesJaProcessadas = new Set();
+        const mapeamentoChaveLinha = {};
+        let contagemLinhas = 0;
+
+        dados.reverse().forEach((dado) => {
+          if (contagemLinhas >= horasSelecionadas) return;
+
+          const dataHora = new Date(dado.data);
+          const hora = dado.hora;
+          const chave = `${dataHora.toISOString().split("T")[0]}-${hora}`;
+
+          if (!chavesJaProcessadas.has(chave)) {
+            const novaLinha = document.createElement("tr");
+            novaLinha.setAttribute("data-chave", chave);
+
+            const colunaHora = document.createElement("td");
+            colunaHora.textContent = hora.toString().padStart(2, "0");
+            novaLinha.appendChild(colunaHora);
+
+            minutosFixos.forEach(() => {
+              novaLinha.appendChild(document.createElement("td"));
+            });
+
+            const contagemMercadosCelula = document.createElement("td");
+            contagemMercadosCelula.textContent = 0;
+            novaLinha.appendChild(contagemMercadosCelula);
+
+            const totalGolsCelula = document.createElement("td");
+            totalGolsCelula.textContent = 0;
+            novaLinha.appendChild(totalGolsCelula);
+
+            const porcentagemCelula = document.createElement("td");
+            porcentagemCelula.textContent = "0%";
+            novaLinha.appendChild(porcentagemCelula);
+
+            tabelaBody.appendChild(novaLinha);
+            chavesJaProcessadas.add(chave);
+            mapeamentoChaveLinha[chave] = novaLinha;
+            contagemLinhas++;
+          }
+        });
+
+        function handlePlacarClick(event) {
+          const placarClicado =
+            event.currentTarget.childNodes[0].textContent.trim();
+          if (placarSelecionado === placarClicado) {
+            placarSelecionado = null;
+            localStorage.removeItem("placarSelecionado");
+            selecionarPlacaresIguais(null);
+          } else {
+            placarSelecionado = placarClicado;
+            localStorage.setItem("placarSelecionado", placarClicado);
+            selecionarPlacaresIguais(placarClicado);
+          }
         }
-        
-        buscarDados();
-        setInterval(buscarDados, 10000);
-        
-        document.querySelector("#seletorHoras").addEventListener("change", buscarDados);
-        document.querySelector("#seletorResultado").addEventListener("change", buscarDados);
-        document.querySelector("#seletorTipoPlacar").addEventListener("change", buscarDados);
+
+        dados.forEach((dado) => {
+          const dataHora = new Date(dado.data);
+          const hora = dado.hora;
+          const chave = `${dataHora.toISOString().split("T")[0]}-${hora}`;
+          const linha = mapeamentoChaveLinha[chave];
+
+          if (linha) {
+            const indexMinuto = minutosFixos.indexOf(dado.minuto);
+            if (indexMinuto !== -1) {
+              const colunaMinuto = linha.children[1 + indexMinuto];
+
+              if (!colunaMinuto.querySelector(".placar")) {
+                const placar = document.createElement("div");
+                placar.className = "placar";
+
+                const tipoPlacar = seletorTipoPlacar.value; // "ft" ou "ht"
+                const placarFT = dado.ft;
+                const placarHT = dado.ht;
+
+                const placarTexto = document.createElement("span");
+                let textoPlacar = tipoPlacar === "ft" ? placarFT : placarHT;
+                if (mostrarHT) {
+                  textoPlacar =
+                    tipoPlacar === "ft"
+                      ? `${placarFT}\n(${placarHT})`
+                      : `${placarHT}\n( ${placarFT})`;
+                }
+                if (mostrarTimes) {
+                  const timeA =
+                    dado.time_a.length > 10
+                      ? dado.time_a.slice(0, 10) + "..."
+                      : dado.time_a;
+                  const timeB =
+                    dado.time_b.length > 10
+                      ? dado.time_b.slice(0, 10) + "..."
+                      : dado.time_b;
+                  textoPlacar = `${timeA}\n${textoPlacar}\n${timeB}`;
+                }
+                placarTexto.textContent = textoPlacar;
+                placar.appendChild(placarTexto);
+
+                placar.addEventListener("click", handlePlacarClick);
+
+                const tooltip = document.createElement("span");
+                tooltip.className = "tooltip";
+
+                // Criando estrutura com <span> para quebrar corretamente
+                tooltip.innerHTML = `
+                <span class="times">${dado.time_a} vs ${dado.time_b}</span>
+                <span class="placares">${placarFT} <span class="placarHT">(${placarHT})</span></span>
+                `;
+
+                placar.appendChild(tooltip);
+
+                colunaMinuto.appendChild(placar);
+
+                if (
+                  placarSelecionado &&
+                  textoPlacar.includes(placarSelecionado)
+                ) {
+                  placar.classList.add("placar-selecionado");
+                }
+
+                const selecaoResultado = seletorResultado.value; // "ambasMarcam", "over2.5", etc.
+                let acerto = false;
+                const placarAtual = tipoPlacar === "ft" ? placarFT : placarHT;
+                const resultadoA = parseInt(placarAtual.split(" x ")[0]);
+                const resultadoB = parseInt(placarAtual.split(" x ")[1]);
+
+                if (selecaoResultado === "ambasMarcam") {
+                  acerto = resultadoA > 0 && resultadoB > 0;
+                } else if (selecaoResultado === "ambasNaoMarcam") {
+                  acerto = resultadoA === 0 || resultadoB === 0;
+                } else if (selecaoResultado === "over1.5") {
+                  acerto = resultadoA + resultadoB > 1.5;
+                } else if (selecaoResultado === "under1.5") {
+                  acerto = resultadoA + resultadoB <= 1.5;
+                } else if (selecaoResultado === "over2.5") {
+                  acerto = resultadoA + resultadoB > 2.5;
+                } else if (selecaoResultado === "under2.5") {
+                  acerto = resultadoA + resultadoB <= 2.5;
+                } else if (selecaoResultado === "over3.5") {
+                  acerto = resultadoA + resultadoB > 3.5;
+                } else if (selecaoResultado === "under3.5") {
+                  acerto = resultadoA + resultadoB <= 3.5;
+                } else if (selecaoResultado === "over5") {
+                  acerto = resultadoA + resultadoB > 5;
+                } else if (selecaoResultado === "casaVence") {
+                  acerto = resultadoA > resultadoB;
+                } else if (selecaoResultado === "foraVence") {
+                  acerto = resultadoB > resultadoA;
+                } else if (selecaoResultado === "empate") {
+                  acerto = resultadoA === resultadoB;
+                }
+
+                colunaMinuto.style.backgroundColor = acerto
+                  ? "#018b06"
+                  : "#be0e02";
+
+                if (acerto) {
+                  linha.children[linha.children.length - 2].textContent =
+                    parseInt(
+                      linha.children[linha.children.length - 2].textContent
+                    ) + 1;
+                }
+
+                const totalGolsCelula =
+                  linha.children[linha.children.length - 3];
+                const totalGols = resultadoA + resultadoB;
+                totalGolsCelula.textContent =
+                  parseInt(totalGolsCelula.textContent) + totalGols;
+              }
+            }
+          }
+        });
+
+        const todasLinhas = Array.from(tabelaBody.querySelectorAll("tr"));
+        todasLinhas.forEach((row) => {
+          const totalCelsProcessadas = Array.from(row.cells)
+            .slice(1, -3)
+            .filter((cell) => cell.querySelector(".placar")).length;
+          const celsMercado = parseInt(
+            row.children[row.children.length - 2].textContent
+          );
+
+          const porcentagem =
+            totalCelsProcessadas > 0
+              ? Math.floor((celsMercado / totalCelsProcessadas) * 100)
+              : 0;
+          const porcentagemCell = row.children[row.children.length - 1];
+          porcentagemCell.innerText = `${porcentagem}%`;
+
+          if (porcentagem >= 50) {
+            porcentagemCell.classList.add("porcentagem-verde");
+            porcentagemCell.classList.remove("porcentagem-branca");
+          } else {
+            porcentagemCell.classList.add("porcentagem-branca");
+            porcentagemCell.classList.remove("porcentagem-verde");
+          }
+        });
+
+        const totalColunas = minutosFixos.length;
+        const totalMercadosPorColuna = Array(totalColunas).fill(0);
+        const totalAcertosPorColuna = Array(totalColunas).fill(0);
+
+        todasLinhas.forEach((row) => {
+          Array.from(row.cells)
+            .slice(1, -3)
+            .forEach((cell, index) => {
+              if (cell.querySelector(".placar")) {
+                totalMercadosPorColuna[index]++;
+                if (cell.style.backgroundColor === "rgb(1, 139, 6)") {
+                  totalAcertosPorColuna[index]++;
+                }
+              }
+            });
+        });
+
+        linhaPercentual.innerHTML = "<th>📈</th>";
+
+        totalMercadosPorColuna.forEach((totalMercados, index) => {
+          const cell = document.createElement("td");
+          const porcentagemVertical =
+            totalMercados > 0
+              ? Math.floor((totalAcertosPorColuna[index] / totalMercados) * 100)
+              : 0;
+          cell.textContent = `${porcentagemVertical}%`;
+
+          if (porcentagemVertical > 49) {
+            cell.classList.add("porcentagem-verde");
+            cell.classList.remove("porcentagem-branca");
+          } else {
+            cell.classList.add("porcentagem-branca");
+            cell.classList.remove("porcentagem-verde");
+          }
+
+          linhaPercentual.appendChild(cell);
+        });
+
+        for (let i = 0; i < 3; i++) {
+          const emptyCell = document.createElement("td");
+          emptyCell.textContent = "";
+          linhaPercentual.appendChild(emptyCell);
+        }
+
+        const stats = calculateGoalStats(todasLinhas);
+        document.getElementById(
+          "totalGols"
+        ).textContent = `Gols: ${stats.totalGols}`;
+        document.getElementById(
+          "mediaGolsHora"
+        ).textContent = `Médias: ${stats.mediaGolsHora}`;
+
+        if (placarSelecionado) {
+          selecionarPlacaresIguais(placarSelecionado);
+        }
+      }
+
+      async function buscarDados() {
+        try {
+          const response = await fetch(
+            "https://betstat.site/resultados/Liga%20Espanhola"
+          );
+          if (!response.ok) {
+            throw new Error("Erro ao buscar os dados da rota.");
+          }
+          const dados = await response.json();
+          criarTabela(dados);
+        } catch (error) {
+          console.error("Erro:", error);
+        }
+      }
+
+      buscarDados();
+      setInterval(buscarDados, 10000);
+
+      const seletorHoras = document.querySelector("#seletorHoras");
+      const seletorResultado = document.querySelector("#seletorResultado");
+      const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
+      const mostrarTimesSelect = document.querySelector("#mostrarTimes");
+      const mostrarHTSelect = document.querySelector("#mostrarHT");
+
+      if (seletorHoras) seletorHoras.addEventListener("change", buscarDados);
+      if (seletorResultado)
+        seletorResultado.addEventListener("change", buscarDados);
+      if (seletorTipoPlacar)
+        seletorTipoPlacar.addEventListener("change", buscarDados);
+      if (mostrarTimesSelect)
+        mostrarTimesSelect.addEventListener("change", buscarDados);
+      if (mostrarHTSelect)
+        mostrarHTSelect.addEventListener("change", buscarDados);
 
         
     </script>
