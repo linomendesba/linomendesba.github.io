@@ -701,7 +701,9 @@
     </div>
   </div>
 
-  <div class="games-container" id="games-container"></div>
+  <div class="jogosfuturos-container">
+    <div class="jogosfuturos-games-container" id="jogosfuturos-games-container"></div>
+</div>
 
     <table id="tabelaResultados">
       <thead>
@@ -5550,22 +5552,22 @@ console.info = function() {};
     </script>
     <script>
               document.addEventListener('DOMContentLoaded', () => {
-            const gamesContainer = document.getElementById('games-container');
+            const jogosFuturosContainer = document.getElementById('jogosfuturos-games-container');
 
-            loadProximosJogos(); // Carrega inicialmente
-            startAutoUpdate();   // Inicia a atualização automática
+            loadJogosFuturos(); // Carrega inicialmente
+            startJogosFuturosAutoUpdate();   // Inicia a atualização automática
 
-            function loadProximosJogos() {
+            function loadJogosFuturos() {
                 const nextGamesUrl = 'https://api.futreistips.com/api/nextGamesWorld';
                 fetch(nextGamesUrl)
                     .then(response => response.json())
                     .then(data => {
                         const proximosJogos = data.data.slice(0, 6).reverse();
-                        displayProximosJogos(proximosJogos);
+                        displayJogosFuturos(proximosJogos);
                     })
                     .catch(error => {
                         console.error('Erro ao carregar próximos jogos:', error);
-                        gamesContainer.innerHTML = '<p>Erro ao carregar jogos</p>';
+                        jogosFuturosContainer.innerHTML = '<p>Erro ao carregar jogos</p>';
                     });
             }
 
@@ -5579,64 +5581,92 @@ console.info = function() {};
                 return { time: `${hour}:${minute}`, date };
             }
 
-            function isGameLive(gameTime, gameDateTime) {
-                const now = new Date();
-                const currentHour = now.getHours().toString().padStart(2, '0'); // Horário local
-                const currentMinute = now.getMinutes().toString().padStart(2, '0');
-                const currentTime = `${currentHour}:${currentMinute}`;
-                const currentDate = now.toISOString().split('T')[0]; // Data atual no formato YYYY-MM-DD
-
-                // Se não houver data/hora válida, comparamos apenas o horário
-                if (!gameDateTime) {
-                    return gameTime === currentTime;
-                }
-
-                const gameDate = gameDateTime.toISOString().split('T')[0];
-                if (currentDate !== gameDate) return false; // Só compara se for o mesmo dia
-
-                const gameHour = gameDateTime.getHours().toString().padStart(2, '0');
-                const gameMinute = gameDateTime.getMinutes().toString().padStart(2, '0');
-                const gameFullTime = `${gameHour}:${gameMinute}`;
-
-                // Considera "ao vivo" se o horário atual coincide exatamente com o horário do jogo
-                return gameFullTime === currentTime;
+            // Função que converte horário para minutos para facilitar comparação
+            function timeToMinutes(timeStr) {
+                if (!timeStr || timeStr === "Horário indisponível") return -1;
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return hours * 60 + minutes;
             }
 
-            function displayProximosJogos(proximosJogos) {
-                gamesContainer.innerHTML = '';
+            function displayJogosFuturos(proximosJogos) {
+                jogosFuturosContainer.innerHTML = '';
                 if (!proximosJogos || proximosJogos.length === 0) {
-                    gamesContainer.innerHTML = '<p>Nenhum jogo disponível</p>';
+                    jogosFuturosContainer.innerHTML = '<p>Nenhum jogo disponível</p>';
                     return;
                 }
 
-                proximosJogos.forEach(jogo => {
+                // Pegar horário atual
+                const now = new Date();
+                const currentHour = now.getHours();
+                const currentMinute = now.getMinutes();
+                const currentTimeInMinutes = currentHour * 60 + currentMinute;
+                const currentTimeStr = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+
+                // Preparar jogos com seus horários em minutos para ordenação
+                const jogosComTempo = proximosJogos.map(jogo => {
                     const { time, date } = jogo.time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(jogo.time) 
                         ? { time: jogo.time, date: null }
                         : extractTimeFromDateTime(jogo.date_time);
+                    
+                    const timeInMinutes = timeToMinutes(time);
+                    return { 
+                        jogo, 
+                        time, 
+                        timeInMinutes,
+                        distanceFromNow: timeInMinutes - currentTimeInMinutes
+                    };
+                });
 
+                // Identificar jogo atual (o mais próximo da hora atual)
+                // Se nenhum jogo estiver exatamente na hora atual, pega o próximo
+                let indexOfCurrent = -1;
+                let smallestPositiveDistance = Infinity;
+                
+                jogosComTempo.forEach((item, index) => {
+                    // Se o jogo é exatamente agora
+                    if (item.time === currentTimeStr) {
+                        indexOfCurrent = index;
+                    } 
+                    // Caso não tenha encontrado um exato, pega o próximo mais próximo
+                    else if (item.distanceFromNow > 0 && item.distanceFromNow < smallestPositiveDistance) {
+                        smallestPositiveDistance = item.distanceFromNow;
+                        if (indexOfCurrent === -1) indexOfCurrent = index;
+                    }
+                });
+
+                // Se ainda não encontrou, pega o primeiro
+                if (indexOfCurrent === -1 && jogosComTempo.length > 0) {
+                    indexOfCurrent = 0;
+                }
+
+                // Exibir os jogos com as cores apropriadas
+                jogosComTempo.forEach((item, index) => {
                     const box = document.createElement('div');
-                    box.classList.add('game-box');
-
-                    // Verifica se o jogo está "ao vivo" e adiciona a classe .live
-                    if (isGameLive(time, date)) {
-                        box.classList.add('live');
+                    box.classList.add('jogosfuturos-game-box');
+                    
+                    // Aplicar classes de cores com base na posição relativa ao jogo atual
+                    if (index === indexOfCurrent) {
+                        box.classList.add('jogosfuturos-current'); // Verde
+                    } else if (index === indexOfCurrent + 1 || index === indexOfCurrent + 2) {
+                        box.classList.add('jogosfuturos-next'); // Amarelo
+                    } else {
+                        box.classList.add('jogosfuturos-upcoming'); // Amarelo fraco
                     }
 
                     box.innerHTML = `
-                        <div class="time">🕒 ${time}</div>
-                        <div class="teams">${jogo.team_home.toUpperCase()} x ${jogo.team_visit.toUpperCase()}</div>
+                        <div class="jogosfuturos-time">🕒 ${item.time}</div>
+                        <div class="jogosfuturos-teams">${item.jogo.team_home.toUpperCase()} x ${item.jogo.team_visit.toUpperCase()}</div>
                     `;
-                    gamesContainer.appendChild(box);
+                    jogosFuturosContainer.appendChild(box);
                 });
             }
 
-            function startAutoUpdate() {
+            function startJogosFuturosAutoUpdate() {
                 setInterval(() => {
-                    loadProximosJogos();
+                    loadJogosFuturos();
                 }, 10000); // Atualiza a cada 10 segundos (10000 ms)
             }
         });
-
     </script>
   </body>
 </html>
