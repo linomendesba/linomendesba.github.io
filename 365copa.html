@@ -1847,22 +1847,29 @@
     </script>
 
     <script>
-      async function fetchResults() {
-        const response = await fetch(
-          "https://betstat.site/api/resultados/Copa"
-        );
-        const data = await response.json();
+// Função para buscar os resultados (removendo a redundância)
+async function fetchResults() {
+  const response = await fetch("https://betstat.site/api/resultados/Copa");
+  const data = await response.json();
 
-        return data.slice(-480).reverse();
-      }
+  // Adiciona um log para depuração
+  console.log("Dados retornados pela API:", data);
 
-      function calculatePercentage(data, market) {
-        let greens = 0;
-        let reds = 0;
+  return data.slice(-480).reverse();
+}
 
-        data.forEach((game) => {
-          const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
+// Função para calcular porcentagens com verificação mínima
+function calculatePercentage(data, market) {
+  let greens = 0;
+  let reds = 0;
 
+  data.forEach((game) => {
+    // Verifica se game.ft existe antes de tentar fazer o split
+    if (game.ft) {
+      try {
+        const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
+        // Apenas processa se scoreA e scoreB forem números válidos
+        if (!isNaN(scoreA) && !isNaN(scoreB)) {
           switch (market) {
             case "ambasMarcam":
               if (scoreA > 0 && scoreB > 0) greens++;
@@ -1915,93 +1922,109 @@
             default:
               break;
           }
-        });
-
-        const total = greens + reds;
-        return {
-          greens: ((greens / total) * 100).toFixed(1),
-          reds: ((reds / total) * 100).toFixed(1),
-        };
+        }
+      } catch (error) {
+        // Loga o jogo problemático para depuração
+        console.warn("Jogo ignorado devido a erro no ft:", game);
       }
+    } else {
+      // Loga o jogo problemático para depuração
+      console.warn("Jogo ignorado porque ft é undefined:", game);
+    }
+  });
 
-      document
-        .getElementById("seletorResultado")
-        .addEventListener("change", async (event) => {
-          const market = event.target.value;
-          const games = await fetchResults();
-          const percentages = calculatePercentage(games, market);
+  const total = greens + reds;
+  return {
+    greens: total > 0 ? ((greens / total) * 100).toFixed(1) : 0,
+    reds: total > 0 ? ((reds / total) * 100).toFixed(1) : 0,
+  };
+}
 
-          document.getElementById(
-            "greenPercentage"
-          ).innerText = `Greens: ${percentages.greens}%`;
-          document.getElementById(
-            "redPercentage"
-          ).innerText = `Reds: ${percentages.reds}%`;
-        });
+// Função para calcular estatísticas de gols com verificação mínima
+function calculateGoalStats(data) {
+  let totalGols = 0;
+  const totalHorasJogadas = 12;
 
-      window.addEventListener("load", async () => {
-        const market = document.getElementById("seletorResultado").value;
-        const games = await fetchResults();
-        const percentages = calculatePercentage(games, market);
-
-        document.getElementById(
-          "greenPercentage"
-        ).innerText = `Greens: ${percentages.greens}%`;
-        document.getElementById(
-          "redPercentage"
-        ).innerText = `Reds: ${percentages.reds}%`;
-      });
-
-      async function fetchResults() {
-        const response = await fetch(
-          "https://betstat.site/api/resultados/Copa"
-        );
-        const data = await response.json();
-
-        return data.slice(-240).reverse();
-      }
-
-      function calculateGoalStats(data) {
-        let totalGols = 0;
-        const totalHorasJogadas = 12;
-
-        data.forEach((game) => {
-          const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
+  data.forEach((game) => {
+    // Verifica se game.ft existe antes de tentar fazer o split
+    if (game.ft) {
+      try {
+        const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
+        // Apenas processa se scoreA e scoreB forem números válidos
+        if (!isNaN(scoreA) && !isNaN(scoreB)) {
           totalGols += scoreA + scoreB;
-        });
-
-        const mediaGolsHora = (totalGols / totalHorasJogadas).toFixed(2);
-        return {
-          totalGols,
-          mediaGolsHora,
-        };
+        }
+      } catch (error) {
+        // Loga o jogo problemático para depuração
+        console.warn("Jogo ignorado devido a erro no ft:", game);
       }
+    } else {
+      // Loga o jogo problemático para depuração
+      console.warn("Jogo ignorado porque ft é undefined:", game);
+    }
+  });
 
-      document
-        .getElementById("seletorResultado")
-        .addEventListener("change", async () => {
-          const games = await fetchResults();
-          const stats = calculateGoalStats(games);
+  const mediaGolsHora = (totalGols / totalHorasJogadas).toFixed(2);
+  return {
+    totalGols,
+    mediaGolsHora,
+  };
+}
 
-          document.getElementById(
-            "totalGols"
-          ).innerText = `Gols: ${stats.totalGols}`;
-          document.getElementById(
-            "mediaGolsHora"
-          ).innerText = `Média Gols Por Hora: ${stats.mediaGolsHora}`;
-        });
+// Evento de mudança no seletor de resultado (para porcentagens)
+document
+  .getElementById("seletorResultado")
+  .addEventListener("change", async (event) => {
+    const market = event.target.value;
+    const games = await fetchResults();
+    const percentages = calculatePercentage(games, market);
 
-      window.addEventListener("load", async () => {
-        const games = await fetchResults();
-        const stats = calculateGoalStats(games);
+    document.getElementById(
+      "greenPercentage"
+    ).innerText = `Greens: ${percentages.greens}%`;
+    document.getElementById(
+      "redPercentage"
+    ).innerText = `Reds: ${percentages.reds}%`;
+  });
 
-        document.getElementById(
-          "totalGols"
-        ).innerText = `Gols: ${stats.totalGols}`;
-        document.getElementById(
-          "mediaGolsHora"
-        ).innerText = `Média Gols Por Hora: ${stats.mediaGolsHora}`;
-      });
+// Evento de mudança no seletor de resultado (para estatísticas de gols)
+document
+  .getElementById("seletorResultado")
+  .addEventListener("change", async () => {
+    const games = await fetchResults();
+    const stats = calculateGoalStats(games);
+
+    document.getElementById(
+      "totalGols"
+    ).innerText = `Gols: ${stats.totalGols}`;
+    document.getElementById(
+      "mediaGolsHora"
+    ).innerText = `Média Gols Por Hora: ${stats.mediaGolsHora}`;
+  });
+
+// Evento de carregamento da página (para porcentagens e estatísticas de gols)
+window.addEventListener("load", async () => {
+  const market = document.getElementById("seletorResultado").value;
+  const games = await fetchResults();
+
+  // Calcula e exibe as porcentagens
+  const percentages = calculatePercentage(games, market);
+  document.getElementById(
+    "greenPercentage"
+  ).innerText = `Greens: ${percentages.greens}%`;
+  document.getElementById(
+    "redPercentage"
+  ).innerText = `Reds: ${percentages.reds}%`;
+
+  // Calcula e exibe as estatísticas de gols
+  const stats = calculateGoalStats(games);
+  document.getElementById(
+    "totalGols"
+  ).innerText = `Gols: ${stats.totalGols}`;
+  document.getElementById(
+    "mediaGolsHora"
+  ).innerText = `Média Gols Por Hora: ${stats.mediaGolsHora}`;
+});
     </script>
 
     <script>
