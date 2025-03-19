@@ -1847,185 +1847,161 @@
     </script>
 
     <script>
-// Função para buscar os resultados
-async function fetchResults() {
-  const response = await fetch("https://betstat.site/api/resultados/Copa");
-  const data = await response.json();
+      async function fetchResults() {
+        const response = await fetch(
+          "https://betstat.site/api/resultados/Copa"
+        );
+        const data = await response.json();
 
-  // Adiciona um log para depuração
-  console.log("Dados brutos retornados pela API:", data);
-
-  // Filtra os jogos para incluir apenas aqueles com ft definido e no formato correto
-  const jogosValidos = data
-    .slice(-480)
-    .reverse()
-    .filter((game) => {
-      if (!game.ft || typeof game.ft !== "string" || !game.ft.includes(" x ")) {
-        console.warn("Jogo filtrado porque ft é inválido:", game);
-        return false;
+        return data.slice(-480).reverse();
       }
-      return true;
-    });
 
-  // Loga os jogos válidos após o filtro
-  console.log("Jogos válidos após filtro:", jogosValidos);
+      function calculatePercentage(data, market) {
+        let greens = 0;
+        let reds = 0;
 
-  return jogosValidos;
-}
+        data.forEach((game) => {
+          const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
 
-// Função para calcular porcentagens
-function calculatePercentage(data, market) {
-  let greens = 0;
-  let reds = 0;
+          switch (market) {
+            case "ambasMarcam":
+              if (scoreA > 0 && scoreB > 0) greens++;
+              else reds++;
+              break;
+            case "ambasNaoMarcam":
+              if (scoreA === 0 || scoreB === 0) greens++;
+              else reds++;
+              break;
+            case "casaVence":
+              if (scoreA > scoreB) greens++;
+              else reds++;
+              break;
+            case "foraVence":
+              if (scoreA < scoreB) greens++;
+              else reds++;
+              break;
+            case "empate":
+              if (scoreA === scoreB) greens++;
+              else reds++;
+              break;
+            case "over1.5":
+              if (scoreA + scoreB > 1.5) greens++;
+              else reds++;
+              break;
+            case "under1.5":
+              if (scoreA + scoreB <= 1.5) greens++;
+              else reds++;
+              break;
+            case "over2.5":
+              if (scoreA + scoreB > 2.5) greens++;
+              else reds++;
+              break;
+            case "under2.5":
+              if (scoreA + scoreB <= 2.5) greens++;
+              else reds++;
+              break;
+            case "over3.5":
+              if (scoreA + scoreB > 3.5) greens++;
+              else reds++;
+              break;
+            case "under3.5":
+              if (scoreA + scoreB <= 3.5) greens++;
+              else reds++;
+              break;
+            case "over5":
+              if (scoreA + scoreB > 5) greens++;
+              else reds++;
+              break;
+            default:
+              break;
+          }
+        });
 
-  data.forEach((game) => {
-    try {
-      const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
-      // Apenas processa se scoreA e scoreB forem números válidos
-      if (!isNaN(scoreA) && !isNaN(scoreB)) {
-        switch (market) {
-          case "ambasMarcam":
-            if (scoreA > 0 && scoreB > 0) greens++;
-            else reds++;
-            break;
-          case "ambasNaoMarcam":
-            if (scoreA === 0 || scoreB === 0) greens++;
-            else reds++;
-            break;
-          case "casaVence":
-            if (scoreA > scoreB) greens++;
-            else reds++;
-            break;
-          case "foraVence":
-            if (scoreA < scoreB) greens++;
-            else reds++;
-            break;
-          case "empate":
-            if (scoreA === scoreB) greens++;
-            else reds++;
-            break;
-          case "over1.5":
-            if (scoreA + scoreB > 1.5) greens++;
-            else reds++;
-            break;
-          case "under1.5":
-            if (scoreA + scoreB <= 1.5) greens++;
-            else reds++;
-            break;
-          case "over2.5":
-            if (scoreA + scoreB > 2.5) greens++;
-            else reds++;
-            break;
-          case "under2.5":
-            if (scoreA + scoreB <= 2.5) greens++;
-            else reds++;
-            break;
-          case "over3.5":
-            if (scoreA + scoreB > 3.5) greens++;
-            else reds++;
-            break;
-          case "under3.5":
-            if (scoreA + scoreB <= 3.5) greens++;
-            else reds++;
-            break;
-          case "over5":
-            if (scoreA + scoreB > 5) greens++;
-            else reds++;
-            break;
-          default:
-            break;
-        }
+        const total = greens + reds;
+        return {
+          greens: ((greens / total) * 100).toFixed(1),
+          reds: ((reds / total) * 100).toFixed(1),
+        };
       }
-    } catch (error) {
-      console.warn("Erro ao processar jogo em calculatePercentage:", game, error);
-    }
-  });
 
-  const total = greens + reds;
-  return {
-    greens: total > 0 ? ((greens / total) * 100).toFixed(1) : 0,
-    reds: total > 0 ? ((reds / total) * 100).toFixed(1) : 0,
-  };
-}
+      document
+        .getElementById("seletorResultado")
+        .addEventListener("change", async (event) => {
+          const market = event.target.value;
+          const games = await fetchResults();
+          const percentages = calculatePercentage(games, market);
 
-// Função para calcular estatísticas de gols
-function calculateGoalStats(data) {
-  let totalGols = 0;
-  const totalHorasJogadas = 12;
+          document.getElementById(
+            "greenPercentage"
+          ).innerText = `Greens: ${percentages.greens}%`;
+          document.getElementById(
+            "redPercentage"
+          ).innerText = `Reds: ${percentages.reds}%`;
+        });
 
-  data.forEach((game) => {
-    try {
-      const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
-      // Apenas processa se scoreA e scoreB forem números válidos
-      if (!isNaN(scoreA) && !isNaN(scoreB)) {
-        totalGols += scoreA + scoreB;
+      window.addEventListener("load", async () => {
+        const market = document.getElementById("seletorResultado").value;
+        const games = await fetchResults();
+        const percentages = calculatePercentage(games, market);
+
+        document.getElementById(
+          "greenPercentage"
+        ).innerText = `Greens: ${percentages.greens}%`;
+        document.getElementById(
+          "redPercentage"
+        ).innerText = `Reds: ${percentages.reds}%`;
+      });
+
+      async function fetchResults() {
+        const response = await fetch(
+          "https://betstat.site/api/resultados/Copa"
+        );
+        const data = await response.json();
+
+        return data.slice(-240).reverse();
       }
-    } catch (error) {
-      console.warn("Erro ao processar jogo em calculateGoalStats:", game, error);
-    }
-  });
 
-  const mediaGolsHora = (totalGols / totalHorasJogadas).toFixed(2);
-  return {
-    totalGols,
-    mediaGolsHora,
-  };
-}
+      function calculateGoalStats(data) {
+        let totalGols = 0;
+        const totalHorasJogadas = 12;
 
-// Evento de mudança no seletor de resultado (para porcentagens)
-document
-  .getElementById("seletorResultado")
-  .addEventListener("change", async (event) => {
-    const market = event.target.value;
-    const games = await fetchResults();
-    const percentages = calculatePercentage(games, market);
+        data.forEach((game) => {
+          const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
+          totalGols += scoreA + scoreB;
+        });
 
-    document.getElementById(
-      "greenPercentage"
-    ).innerText = `Greens: ${percentages.greens}%`;
-    document.getElementById(
-      "redPercentage"
-    ).innerText = `Reds: ${percentages.reds}%`;
-  });
+        const mediaGolsHora = (totalGols / totalHorasJogadas).toFixed(2);
+        return {
+          totalGols,
+          mediaGolsHora,
+        };
+      }
 
-// Evento de mudança no seletor de resultado (para estatísticas de gols)
-document
-  .getElementById("seletorResultado")
-  .addEventListener("change", async () => {
-    const games = await fetchResults();
-    const stats = calculateGoalStats(games);
+      document
+        .getElementById("seletorResultado")
+        .addEventListener("change", async () => {
+          const games = await fetchResults();
+          const stats = calculateGoalStats(games);
 
-    document.getElementById(
-      "totalGols"
-    ).innerText = `Gols: ${stats.totalGols}`;
-    document.getElementById(
-      "mediaGolsHora"
-    ).innerText = `Média Gols Por Hora: ${stats.mediaGolsHora}`;
-  });
+          document.getElementById(
+            "totalGols"
+          ).innerText = `Gols: ${stats.totalGols}`;
+          document.getElementById(
+            "mediaGolsHora"
+          ).innerText = `Média Gols Por Hora: ${stats.mediaGolsHora}`;
+        });
 
-// Evento de carregamento da página (para porcentagens e estatísticas de gols)
-window.addEventListener("load", async () => {
-  const market = document.getElementById("seletorResultado").value;
-  const games = await fetchResults();
+      window.addEventListener("load", async () => {
+        const games = await fetchResults();
+        const stats = calculateGoalStats(games);
 
-  // Calcula e exibe as porcentagens
-  const percentages = calculatePercentage(games, market);
-  document.getElementById(
-    "greenPercentage"
-  ).innerText = `Greens: ${percentages.greens}%`;
-  document.getElementById(
-    "redPercentage"
-  ).innerText = `Reds: ${percentages.reds}%`;
-
-  // Calcula e exibe as estatísticas de gols
-  const stats = calculateGoalStats(games);
-  document.getElementById(
-    "totalGols"
-  ).innerText = `Gols: ${stats.totalGols}`;
-  document.getElementById(
-    "mediaGolsHora"
-  ).innerText = `Média Gols Por Hora: ${stats.mediaGolsHora}`;
-});
+        document.getElementById(
+          "totalGols"
+        ).innerText = `Gols: ${stats.totalGols}`;
+        document.getElementById(
+          "mediaGolsHora"
+        ).innerText = `Média Gols Por Hora: ${stats.mediaGolsHora}`;
+      });
     </script>
 
     <script>
