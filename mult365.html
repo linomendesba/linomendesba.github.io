@@ -217,6 +217,10 @@
             </select>
         </div>
     </div>
+
+    <div class="jogosfuturos-container" id="jogosfuturos-world-container">
+        <div class="jogosfuturos-games-container" id="jogosfuturos-world"></div>
+    </div>
     
     <!-- Copa League Table -->
     <h3>Copa do Mundo</h3>
@@ -844,6 +848,133 @@ document.addEventListener('dragstart', function(e) {
 console.log = function() {};
 console.debug = function() {};
 console.info = function() {};
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+    const containers = {
+        world: document.getElementById('jogosfuturos-world'),
+        euro: document.getElementById('jogosfuturos-euro'),
+        premier: document.getElementById('jogosfuturos-premier'),
+        south: document.getElementById('jogosfuturos-south')
+    };
+
+    const urls = {
+        world: 'https://api.futreistips.com/api/nextGamesWorld',
+        euro: 'https://api.futreistips.com/api/nextGamesEuro',
+        premier: 'https://api.futreistips.com/api/nextGamesPremier',
+        south: 'https://api.futreistips.com/api/nextGamesSouth'
+    };
+
+    // Carrega inicialmente todas as ligas
+    loadAllJogosFuturos();
+    // Inicia a atualização automática para todas as ligas
+    startAllJogosFuturosAutoUpdate();
+
+    function loadAllJogosFuturos() {
+        Object.keys(urls).forEach(league => {
+            loadJogosFuturos(league);
+        });
+    }
+
+    function loadJogosFuturos(league) {
+        fetch(urls[league])
+            .then(response => response.json())
+            .then(data => {
+                const proximosJogos = data.data.slice(0, 6).reverse();
+                displayJogosFuturos(containers[league], proximosJogos);
+            })
+            .catch(error => {
+                console.error(`Erro ao carregar jogos ${league}:`, error);
+                containers[league].innerHTML = '<p>Erro ao carregar jogos</p>';
+            });
+    }
+
+    function extractTimeFromDateTime(dateTimeStr) {
+        if (!dateTimeStr || isNaN(new Date(dateTimeStr))) {
+            return { time: "Horário indisponível", date: null };
+        }
+        const date = new Date(dateTimeStr);
+        const hour = date.getHours().toString().padStart(2, '0');
+        const minute = date.getMinutes().toString().padStart(2, '0');
+        return { time: `${hour}:${minute}`, date };
+    }
+
+    function timeToMinutes(timeStr) {
+        if (!timeStr || timeStr === "Horário indisponível") return -1;
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours * 60 + minutes;
+    }
+
+    function displayJogosFuturos(container, proximosJogos) {
+        container.innerHTML = '';
+        if (!proximosJogos || proximosJogos.length === 0) {
+            container.innerHTML = '<p>Nenhum jogo disponível</p>';
+            return;
+        }
+
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentTimeInMinutes = currentHour * 60 + currentMinute;
+        const currentTimeStr = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+
+        const jogosComTempo = proximosJogos.map(jogo => {
+            const { time, date } = jogo.time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(jogo.time) 
+                ? { time: jogo.time, date: null }
+                : extractTimeFromDateTime(jogo.date_time);
+            
+            const timeInMinutes = timeToMinutes(time);
+            return { 
+                jogo, 
+                time, 
+                timeInMinutes,
+                distanceFromNow: timeInMinutes - currentTimeInMinutes
+            };
+        });
+
+        let indexOfCurrent = -1;
+        let smallestPositiveDistance = Infinity;
+        
+        jogosComTempo.forEach((item, index) => {
+            if (item.time === currentTimeStr) {
+                indexOfCurrent = index;
+            } 
+            else if (item.distanceFromNow > 0 && item.distanceFromNow < smallestPositiveDistance) {
+                smallestPositiveDistance = item.distanceFromNow;
+                if (indexOfCurrent === -1) indexOfCurrent = index;
+            }
+        });
+
+        if (indexOfCurrent === -1 && jogosComTempo.length > 0) {
+            indexOfCurrent = 0;
+        }
+
+        jogosComTempo.forEach((item, index) => {
+            const box = document.createElement('div');
+            box.classList.add('jogosfuturos-game-box');
+            
+            if (index === indexOfCurrent) {
+                box.classList.add('jogosfuturos-current');
+            } else if (index === indexOfCurrent + 1 || index === indexOfCurrent + 2) {
+                box.classList.add('jogosfuturos-next');
+            } else {
+                box.classList.add('jogosfuturos-upcoming');
+            }
+
+            box.innerHTML = `
+                <div class="jogosfuturos-time">🕒 ${item.time}</div>
+                <div class="jogosfuturos-teams">${item.jogo.team_home.toUpperCase()} x ${item.jogo.team_visit.toUpperCase()}</div>
+            `;
+            container.appendChild(box);
+        });
+    }
+
+    function startAllJogosFuturosAutoUpdate() {
+        setInterval(() => {
+            loadAllJogosFuturos();
+        }, 10000);
+    }
+});
   </script>
   </body>
 </html>
