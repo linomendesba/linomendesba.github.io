@@ -349,64 +349,13 @@
 <div class="accordion-item">
   <button class="accordion-button" onclick="toggleAccordion(this)">▼ Gráficos de Times e Gols ▲</button>
   <div class="accordion-content">
-    <div class="selectors-container">
-      <div class="selector-wrapper">
-        <select id="timeSelector1">
-            <option value="Agua Branca">Agua Branca</option>
-            <option value="Asuncion">Asuncion</option>
-            <option value="Avellaneda">Avellaneda</option>
-            <option value="Belo Horizonte">Belo Horizonte</option>
-            <option value="Bogota">Bogota</option>
-            <option value="Buenos Aires">Buenos Aires</option>
-            <option value="Guayaquil">Guayaquil</option>
-            <option value="Itaquera">Itaquera</option>
-            <option value="La Boca">La Boca</option>
-            <option value="La Plata">La Plata</option>
-            <option value="Lima">Lima</option>
-            <option value="Medellin">Medellin</option>
-            <option value="Montevideo">Montevideo</option>
-            <option value="Penarol">Penarol</option>
-            <option value="Porto Alegre">Porto Alegre</option>
-            <option value="Quito">Quito</option>
-            <option value="Rio de Janeiro">Rio de Janeiro</option>
-            <option value="Santiago">Santiago</option>
-            <option value="Santos">Santos</option>
-            <option value="Sao Paulo">Sao Paulo</option>           
-        </select>
+      <div class="next-games-container" id="nextGamesChartContainer"></div>
+      <div class="chart-container">
+          <canvas id="timeChart" width="1080" height="200"></canvas>
       </div>
-      <div class="selector-wrapper">
-        <select id="timeSelector2">
-            <option value="Sao Paulo">Sao Paulo</option>
-            <option value="Santos">Santos</option>
-            <option value="Santiago">Santiago</option>
-            <option value="Rio de Janeiro">Rio de Janeiro</option>
-            <option value="Quito">Quito</option>
-            <option value="Porto Alegre">Porto Alegre</option>
-            <option value="Penarol">Penarol</option>
-            <option value="Montevideo">Montevideo</option>
-            <option value="Medellin">Medellin</option>
-            <option value="Lima">Lima</option>
-            <option value="La Plata">La Plata</option>
-            <option value="La Boca">La Boca</option>
-            <option value="Itaquera">Itaquera</option>
-            <option value="Guayaquil">Guayaquil</option>
-            <option value="Buenos Aires">Buenos Aires</option>
-            <option value="Bogota">Bogota</option>
-            <option value="Belo Horizonte">Belo Horizonte</option>
-            <option value="Avellaneda">Avellaneda</option>
-            <option value="Asuncion">Asuncion</option>
-            <option value="Agua Branca">Agua Branca</option>         
-        </select>
+      <div class="chart-container">
+          <canvas id="golsChart" width="1600" height="200"></canvas>
       </div>
-    </div>
-
-    <div class="chart-container">
-      <canvas id="timeChart" width="1080" height="200"></canvas>
-    </div>
-
-    <div class="chart-container">
-      <canvas id="golsChart" width="1600" height="200"></canvas>
-    </div>
   </div>
 </div>
 
@@ -4883,231 +4832,244 @@
     </script>
 
     <script>
-      async function initializeChart() {
-        const ctx = document.getElementById("timeChart").getContext("2d");
-        let fetchedData = [];
-        let displayData = [];
-        let initialPerformance = 0;
+async function initializeChart() {
+    const ctx = document.getElementById("timeChart").getContext("2d");
+    let fetchedData = [];
+    let displayData = [];
+    let initialPerformance = 0;
+    let selectedTeam1 = null;
+    let selectedTeam2 = null;
+    const NEXT_GAMES_API = "https://api.futreistips.com/api/nextGamesSouth";
 
-        function isOrdered(data) {
-          for (let i = 1; i < data.length; i++) {
+    function isOrdered(data) {
+        for (let i = 1; i < data.length; i++) {
             const currentDate = new Date(data[i].data);
             const previousDate = new Date(data[i - 1].data);
             if (currentDate < previousDate) return false;
             if (currentDate.getTime() === previousDate.getTime()) {
-              if (
-                data[i].hora < data[i - 1].hora ||
-                (data[i].hora === data[i - 1].hora &&
-                  data[i].minuto < data[i - 1].minuto)
-              )
-                return false;
+                if (
+                    data[i].hora < data[i - 1].hora ||
+                    (data[i].hora === data[i - 1].hora && data[i].minuto < data[i - 1].minuto)
+                )
+                    return false;
             }
-          }
-          return true;
         }
+        return true;
+    }
 
-        async function fetchChartData() {
-          try {
-            const response = await fetch(
-              "https://betstat.site/api/resultados/Super"
-            );
-            if (!response.ok) {
-              throw new Error(`Erro na requisição: ${response.status}`);
-            }
+    async function fetchChartData() {
+        try {
+            const response = await fetch("https://betstat.site/api/resultados/Super");
+            if (!response.ok) throw new Error(`Erro na requisição: ${response.status}`);
             const data = await response.json();
             const sortedData = data.sort((a, b) => {
-              const dateA = new Date(a.data);
-              const dateB = new Date(b.data);
-              if (dateA < dateB) return -1;
-              if (dateA > dateB) return 1;
-              if (a.hora < b.hora) return -1;
-              if (a.hora > b.hora) return 1;
-              return a.minuto - b.minuto;
+                const dateA = new Date(a.data);
+                const dateB = new Date(b.data);
+                if (dateA < dateB) return -1;
+                if (dateA > dateB) return 1;
+                return a.hora - b.hora || a.minuto - b.minuto;
             });
 
             if (!isOrdered(sortedData)) {
-              console.warn("Os dados não estão em ordem.");
-              return [];
+                console.warn("Os dados não estão em ordem.");
+                return [];
             }
-
             return sortedData;
-          } catch (error) {
+        } catch (error) {
             console.error("Erro ao buscar dados:", error);
             return [];
-          }
         }
+    }
 
-        function calculateTeamPerformance(data, team) {
-          const teamPerformanceData = [];
-          let previousPerformance = initialPerformance;
+    function calculateTeamPerformance(data, team) {
+        const teamPerformanceData = [];
+        let previousPerformance = initialPerformance;
 
-          for (let i = 0; i < data.length; i++) {
+        for (let i = 0; i < data.length; i++) {
             const current = data[i];
             let performanceChange = 0;
 
             if (current.time_a === team || current.time_b === team) {
-              const [teamAGols, teamBGols] = current.ft
-                .split(" x ")
-                .map(Number);
-
-              if (current.time_a === team) {
-                if (teamAGols > teamBGols) {
-                  performanceChange = 1; // Vitória
-                } else if (teamAGols < teamBGols) {
-                  performanceChange = -1; // Derrota
+                const [teamAGols, teamBGols] = current.ft.split(" x ").map(Number);
+                if (current.time_a === team) {
+                    performanceChange = teamAGols > teamBGols ? 1 : teamAGols < teamBGols ? -1 : 0;
+                } else if (current.time_b === team) {
+                    performanceChange = teamBGols > teamAGols ? 1 : teamBGols < teamAGols ? -1 : 0;
                 }
-              } else if (current.time_b === team) {
-                if (teamBGols > teamAGols) {
-                  performanceChange = 1; // Vitória
-                } else if (teamBGols < teamAGols) {
-                  performanceChange = -1; // Derrota
-                }
-              }
-
-              // Empate não altera a performance
-              if (teamAGols === teamBGols) {
-                performanceChange = 0;
-              }
             }
 
             previousPerformance += performanceChange;
             teamPerformanceData.push(previousPerformance);
-          }
+        }
+        return teamPerformanceData;
+    }
 
-          return teamPerformanceData;
+    async function loadNextGamesForChart() {
+        try {
+            const response = await fetch(NEXT_GAMES_API);
+            const data = await response.json();
+            const games = data.data.slice(0, 6).reverse();
+            const container = document.getElementById("nextGamesChartContainer");
+
+            // Salva os times selecionados antes de recarregar os cards
+            const previouslySelectedTeam1 = selectedTeam1;
+            const previouslySelectedTeam2 = selectedTeam2;
+
+            // Recria os cards
+            container.innerHTML = games.map(game => `
+                <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForChart(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}')">
+                    <div class="game-time">${game.time}</div>
+                    <div class="game-teams">
+                        <span class="team-home">${game.team_home}</span>
+                        <span class="vs">vs</span>
+                        <span class="team-visit">${game.team_visit}</span>
+                    </div>
+                </div>
+            `).join("");
+
+            // Restaura a seleção com base nos times previamente selecionados
+            const cards = container.querySelectorAll('.game-card');
+            let cardToSelect = null;
+
+            if (previouslySelectedTeam1 && previouslySelectedTeam2) {
+                // Procura o card correspondente aos times previamente selecionados
+                cards.forEach(card => {
+                    const home = card.getAttribute('data-home');
+                    const visit = card.getAttribute('data-visit');
+                    if (home === previouslySelectedTeam1 && visit === previouslySelectedTeam2) {
+                        cardToSelect = card;
+                    }
+                });
+            }
+
+            // Se não encontrar o card previamente selecionado (jogo pode ter sido removido da API), seleciona o primeiro
+            if (!cardToSelect && cards.length > 0) {
+                cardToSelect = cards[0];
+                selectedTeam1 = cardToSelect.getAttribute('data-home');
+                selectedTeam2 = cardToSelect.getAttribute('data-visit');
+            }
+
+            // Aplica a classe 'selected' ao card apropriado e atualiza o gráfico
+            if (cardToSelect) {
+                cardToSelect.classList.add('selected');
+                if (!previouslySelectedTeam1 || !previouslySelectedTeam2) {
+                    // Se for a primeira carga, define os times e atualiza o gráfico
+                    selectedTeam1 = cardToSelect.getAttribute('data-home');
+                    selectedTeam2 = cardToSelect.getAttribute('data-visit');
+                    await updateChart();
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao carregar próximos jogos para o gráfico:", error);
+        }
+    }
+
+    window.selectGameForChart = function(card, teamHome, teamVisit) {
+        document.querySelectorAll('#nextGamesChartContainer .game-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedTeam1 = teamHome;
+        selectedTeam2 = teamVisit;
+        updateChart();
+    };
+
+    async function updateChart() {
+        if (!selectedTeam1 || !selectedTeam2) {
+            console.warn("Times não selecionados. Gráfico não será atualizado.");
+            return;
         }
 
-        async function updateChart() {
-          const team1 = document.getElementById("timeSelector1").value;
-          const team2 = document.getElementById("timeSelector2").value;
-
-          fetchedData = await fetchChartData();
-
-          if (fetchedData.length === 0) {
+        fetchedData = await fetchChartData();
+        if (fetchedData.length === 0) {
             console.warn("Nenhum dado para atualizar o gráfico.");
             return;
-          }
-
-          // Primeiro filtra apenas os jogos dos times selecionados
-          displayData = fetchedData.filter(
-            (item) =>
-              item.time_a === team1 ||
-              item.time_b === team1 ||
-              item.time_a === team2 ||
-              item.time_b === team2
-          );
-
-          // Então pega os 500 jogos mais recentes desses times específicos
-          displayData = displayData.slice(-100);
-
-          const labels = displayData.map(
-            (item) => `${item.hora}:${item.minuto.toString().padStart(2, "0")}`
-          );
-
-          const team1Performance = calculateTeamPerformance(displayData, team1);
-          const team2Performance = calculateTeamPerformance(displayData, team2);
-
-          timeChart.data.labels = labels;
-          timeChart.data.datasets[0].data = team1Performance;
-          timeChart.data.datasets[0].label = `Desempenho - ${team1}`;
-          timeChart.data.datasets[1].data = team2Performance;
-          timeChart.data.datasets[1].label = `Desempenho - ${team2}`;
-          timeChart.update();
         }
 
-        const chartData = {
-          labels: [],
-          datasets: [
-            {
-              label: "Time 1",
-              data: [],
-              borderColor: "rgba(209, 166, 255, 1)", // Lilás brilhante
-              backgroundColor: "rgba(209, 166, 255, 0.5)",
-              borderWidth: 2,
-              pointRadius: 3,
-              pointBackgroundColor: "rgba(209, 166, 255, 1)",
-            },
-            {
-              label: "Time 2",
-              data: [],
-              borderColor: "rgba(255, 99, 132, 1)", // Vermelho
-              backgroundColor: "rgba(255, 99, 132, 0.5)",
-              borderWidth: 2,
-              pointRadius: 3,
-              pointBackgroundColor: "rgba(255, 99, 132, 1)",
-            },
-          ],
-        };
+        displayData = fetchedData.filter(
+            item => item.time_a === selectedTeam1 || item.time_b === selectedTeam1 ||
+                    item.time_a === selectedTeam2 || item.time_b === selectedTeam2
+        ).slice(-100);
 
-        const timeChart = new Chart(ctx, {
-          type: "line",
-          data: chartData,
-          options: {
+        const labels = displayData.map(
+            item => `${item.hora}:${item.minuto.toString().padStart(2, "0")}`
+        );
+
+        const team1Performance = calculateTeamPerformance(displayData, selectedTeam1);
+        const team2Performance = calculateTeamPerformance(displayData, selectedTeam2);
+
+        timeChart.data.labels = labels;
+        timeChart.data.datasets[0].data = team1Performance;
+        timeChart.data.datasets[0].label = `Desempenho - ${selectedTeam1}`;
+        timeChart.data.datasets[1].data = team2Performance;
+        timeChart.data.datasets[1].label = `Desempenho - ${selectedTeam2}`;
+        timeChart.update();
+    }
+
+    const chartData = {
+    labels: [],
+    datasets: [
+        {
+            label: "Time 1",
+            data: [],
+            borderColor: "rgba(31, 173, 139, 1)",  // 1fad8b
+            backgroundColor: "rgba(31, 173, 139, 0.5)",  // 1fad8b com 50% de transparência
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: "rgba(31, 173, 139, 1)",  // 1fad8b
+        },
+        {
+            label: "Time 2",
+            data: [],
+            borderColor: "rgba(255, 255, 255, 1)",  // branco
+            backgroundColor: "rgba(255, 255, 255, 0.5)",  // branco com 50% de transparência
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: "rgba(255, 255, 255, 1)",  // branco
+        },
+    ],
+};
+
+    const timeChart = new Chart(ctx, {
+        type: "line",
+        data: chartData,
+        options: {
             scales: {
-              y: {
-                position: "right",
-                ticks: {
-                  color: "white",
-                  stepSize: 2,
+                y: {
+                    position: "right",
+                    ticks: { color: "white", stepSize: 2 },
+                    grid: { color: "rgba(255, 255, 255, 0.5)", drawBorder: false, lineWidth: 1 },
                 },
-                grid: {
-                  color: "rgba(255, 255, 255, 0.5)",
-                  drawBorder: false,
-                  lineWidth: 1,
+                x: {
+                    grid: { color: "rgba(0, 0, 0, 0)" },
+                    ticks: { color: "white", display: false },
                 },
-              },
-              x: {
-                grid: {
-                  color: "rgba(0, 0, 0, 0)",
-                },
-                ticks: {
-                  color: "white",
-                  display: false,
-                },
-              },
             },
             responsive: true,
             plugins: {
-              legend: {
-                display: true,
-                labels: {
-                  color: "white",
+                legend: { display: true, labels: { color: "white" } },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        title: context => `Hora: ${context[0].label}`,
+                        label: context => {
+                            const index = context.dataIndex;
+                            const currentGame = displayData[index] || { ft: "N/A", hora: "N/A", minuto: "N/A" };
+                            return [`${context.dataset.label}`, `Placar: ${currentGame.ft}`];
+                        },
+                    },
                 },
-              },
-              tooltip: {
-                enabled: true,
-                callbacks: {
-                  title: (context) => `Hora: ${context[0].label}`,
-                  label: (context) => {
-                    const index = context.dataIndex;
-                    const currentGame = displayData[index] || {
-                      ft: "N/A",
-                      hora: "N/A",
-                      minuto: "N/A",
-                    };
-                    return [
-                      `${context.dataset.label}`,
-                      `Placar: ${currentGame.ft}`,
-                    ];
-                  },
-                },
-              },
             },
-          },
-        });
+        },
+    });
 
-        document
-          .getElementById("timeSelector1")
-          .addEventListener("change", updateChart);
-        document
-          .getElementById("timeSelector2")
-          .addEventListener("change", updateChart);
+    // Inicialização
+    await loadNextGamesForChart(); // Carrega os cards e seleciona o primeiro
+    setInterval(async () => {
+        await loadNextGamesForChart(); // Atualiza os cards, mantendo a seleção
+        await updateChart(); // Atualiza o gráfico com os times selecionados
+    }, 15000);
+}
 
-        setInterval(updateChart, 2000);
-        updateChart();
-      }
-
-      initializeChart();
+initializeChart();
     </script>
 
     <script>
