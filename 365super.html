@@ -1452,223 +1452,507 @@
     </script>
 
     <script>
-      let intervalId;
+let intervalId;
+let isTableInitialized = false;
 
-      document
-        .getElementById("toggle-ranking")
-        .addEventListener("click", function () {
-          const rankingDiv = document.getElementById("ranking");
-          rankingDiv.style.display =
-            rankingDiv.style.display === "none" ? "block" : "none";
+// Função para formatar números como porcentagem
+function formatPercentage(value, total) {
+    return total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+}
 
-          if (rankingDiv.style.display === "block") {
-            fetchRanking();
-            clearInterval(intervalId);
-            intervalId = setInterval(fetchRanking, 3000);
-          } else {
-            clearInterval(intervalId);
-          }
+async function carregarJogos() {
+    try {
+        const response = await fetch(API_URL);
+        const jogos = await response.json();
+        return jogos;
+    } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+        return [];
+    }
+}
+
+async function loadNextGamesForMinutes() {
+    try {
+        const response = await fetch(NEXT_GAMES_API);
+        const data = await response.json();
+        const games = data.data.slice(0, 6).reverse();
+        const container = document.getElementById("nextGamesMinutesContainer");
+
+        const previouslySelectedTeam1 = selectedTeam1;
+        const previouslySelectedTeam2 = selectedTeam2;
+
+        container.innerHTML = games.map(game => `
+            <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForMinutes(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}')">
+                <div class="game-time">${game.time}</div>
+                <div class="game-teams">
+                    <span class="team-home">${game.team_home}</span>
+                    <span class="vs">vs</span>
+                    <span class="team-visit">${game.team_visit}</span>
+                </div>
+            </div>
+        `).join("");
+
+        const cards = container.querySelectorAll('.game-card');
+        let cardToSelect = null;
+
+        if (previouslySelectedTeam1 && previouslySelectedTeam2) {
+            cards.forEach(card => {
+                const home = card.getAttribute('data-home');
+                const visit = card.getAttribute('data-visit');
+                if (home === previouslySelectedTeam1 && visit === previouslySelectedTeam2) {
+                    cardToSelect = card;
+                }
+            });
+        }
+
+        if (!cardToSelect && cards.length > 0) {
+            cardToSelect = cards[0];
+            selectedTeam1 = cardToSelect.getAttribute('data-home');
+            selectedTeam2 = cardToSelect.getAttribute('data-visit');
+        }
+
+        if (cardToSelect) {
+            cardToSelect.classList.add('selected');
+            if (!previouslySelectedTeam1 || !previouslySelectedTeam2) {
+                selectedTeam1 = cardToSelect.getAttribute('data-home');
+                selectedTeam2 = cardToSelect.getAttribute('data-visit');
+                await analisar();
+            }
+        }
+    } catch (error) {
+        console.error("Erro ao carregar próximos jogos para minutos:", error);
+    }
+}
+
+window.selectGameForMinutes = function(card, teamHome, teamVisit) {
+    document.querySelectorAll('#nextGamesMinutesContainer .game-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedTeam1 = teamHome;
+    selectedTeam2 = teamVisit;
+    document.getElementById("team1Title").innerText = teamHome;
+    document.getElementById("team2Title").innerText = teamVisit;
+    analisar();
+};
+
+function analisarMercados(jogos, timeSelecionado) {
+    const analise = {};
+
+    jogos.forEach((jogo) => {
+        if (jogo.time_a === timeSelecionado || jogo.time_b === timeSelecionado) {
+            const minuto = jogo.minuto;
+            const ftGols = jogo.ft.split(" x ").map(Number);
+            const timeA = ftGols[0];
+            const timeB = ftGols[1];
+            const totalGols = timeA + timeB;
+
+            if (!analise[minuto]) {
+                analise[minuto] = {
+                    ambasMarcamSim: 0,
+                    ambasMarcamNao: 0,
+                    over15: 0,
+                    under15: 0,
+                    over25: 0,
+                    under25: 0,
+                    over35: 0,
+                    under35: 0,
+                    casa: 0,
+                    fora: 0,
+                    empate: 0,
+                    total: 0,
+                };
+            }
+
+            analise[minuto].total += 1;
+
+            if (timeA > 0 && timeB > 0) analise[minuto].ambasMarcamSim += 1;
+            if (timeA === 0 || timeB === 0) analise[minuto].ambasMarcamNao += 1;
+
+            if (totalGols > 1.5) analise[minuto].over15 += 1;
+            if (totalGols <= 1.5) analise[minuto].under15 += 1;
+
+            if (totalGols > 2.5) analise[minuto].over25 += 1;
+            if (totalGols <= 2.5) analise[minuto].under25 += 1;
+
+            if (totalGols > 3.5) analise[minuto].over35 += 1;
+            if (totalGols <= 3.5) analise[minuto].under35 += 1;
+
+            if (timeA > timeB) analise[minuto].casa += 1;
+            if (timeB > timeA) analise[minuto].fora += 1;
+            if (timeA === timeB) analise[minuto].empate += 1;
+        }
+    });
+
+    return analise;
+}
+
+function gerarTabela(analise, tableId, teamName) {
+    const table = document.getElementById(tableId);
+    const tbody = table.querySelector("tbody");
+    const thead = table.querySelector("thead tr");
+
+    tbody.innerHTML = "";
+    thead.innerHTML = "<th>Mercado</th>";
+
+    const minutos = Object.keys(analise);
+    minutos.forEach((minuto) => {
+        const th = document.createElement("th");
+        th.innerText = minuto;
+        thead.appendChild(th);
+    });
+
+    const mercados = [
+        { class: "mercado-ambas-marcam", label: "Ambas", yes: "ambasMarcamSim", no: "ambasMarcamNao" },
+        { class: "mercado-over15", label: "1.5", over: "over15", under: "under15" },
+        { class: "mercado-over25", label: "2.5", over: "over25", under: "under25" },
+        { class: "mercado-over35", label: "3.5", over: "over35", under: "under35" },
+        { class: "mercado-resultado", label: "C/F/E", casa: "casa", fora: "fora", empate: "empate" },
+    ];
+
+    mercados.forEach((mercado) => {
+        const tr = document.createElement("tr");
+        tr.classList.add(mercado.class);
+
+        const td = document.createElement("td");
+        td.classList.add("mercado-header");
+        td.innerText = mercado.label;
+        tr.appendChild(td);
+
+        minutos.forEach((minuto) => {
+            const td = document.createElement("td");
+            const dados = analise[minuto];
+            let texto = "";
+
+            if (mercado.yes && mercado.no) {
+                const simPercent = (dados[mercado.yes] / dados.total) * 100;
+                const naoPercent = (dados[mercado.no] / dados.total) * 100;
+                texto = `S:${simPercent.toFixed(0)}%\nN:${naoPercent.toFixed(0)}%`;
+            }
+
+            if (mercado.over && mercado.under) {
+                const overPercent = (dados[mercado.over] / dados.total) * 100;
+                const underPercent = (dados[mercado.under] / dados.total) * 100;
+                texto = `O:${overPercent.toFixed(0)}%\nU:${underPercent.toFixed(0)}%`;
+            }
+
+            if (mercado.casa && mercado.fora && mercado.empate) {
+                const casaPercent = (dados[mercado.casa] / dados.total) * 100;
+                const foraPercent = (dados[mercado.fora] / dados.total) * 100;
+                const empatePercent = (dados[mercado.empate] / dados.total) * 100;
+                texto = `C:${casaPercent.toFixed(0)}%\nF:${foraPercent.toFixed(0)}%\nE:${empatePercent.toFixed(0)}%`;
+            }
+
+            td.innerHTML = texto.replace(/\n/g, "<br>");
+            tr.appendChild(td);
         });
 
-      document.getElementById("market").addEventListener("change", function () {
-        fetchRanking();
-      });
+        tbody.appendChild(tr);
+    });
+}
 
-      async function fetchRanking() {
-        const selectedMarket = document.getElementById("market").value;
-        try {
-          const rankingResponse = await fetch(
-            "https://betstat.site/api/resultados/Super"
-          );
-          const rankingData = await rankingResponse.json();
+async function analisar() {
+    if (!selectedTeam1 || !selectedTeam2) return;
 
-          const games = Array.isArray(rankingData)
-            ? rankingData.slice(0, 960)
-            : [rankingData];
-          const ranking = {};
+    const jogos = await carregarJogos();
 
-          // Calculate rankings
-          games.forEach((game) => {
+    const analiseTeam1 = analisarMercados(jogos, selectedTeam1);
+    gerarTabela(analiseTeam1, "team1-tabela-resultados", selectedTeam1);
+
+    const analiseTeam2 = analisarMercados(jogos, selectedTeam2);
+    gerarTabela(analiseTeam2, "team2-tabela-resultados", selectedTeam2);
+}
+
+async function fetchRanking() {
+    const selectedMarket = document.getElementById("market").value;
+    const rankingDiv = document.getElementById("ranking");
+
+    try {
+        const rankingResponse = await fetch("https://betstat.site/api/resultados/Super");
+        if (!rankingResponse.ok) throw new Error(`Erro na requisição: ${rankingResponse.status}`);
+        const rankingData = await rankingResponse.json();
+
+        const games = Array.isArray(rankingData) ? rankingData.slice(0, 960) : [rankingData];
+        const ranking = {};
+
+        games.forEach((game) => {
             const [golsA, golsB] = game.ft.split(" x ").map(Number);
             const timeA = game.time_a;
             const timeB = game.time_b;
+            const totalGols = golsA + golsB;
 
             ranking[timeA] = ranking[timeA] || {
-              gols: 0,
-              vitorias: 0,
-              empates: 0,
-              derrotas: 0,
-              ambosSim: 0,
-              ambosNao: 0,
-              over1_5: 0,
-              under1_5: 0,
-              over2_5: 0,
-              under2_5: 0,
-              over3_5: 0,
-              under3_5: 0,
-              casaVence: 0,
-              foraVence: 0,
-              cincoMaisGols: 0,
+                totalJogos: 0,
+                golsMarcados: 0,
+                golsSofridos: 0,
+                vitorias: 0,
+                empates: 0,
+                derrotas: 0,
+                ambosSim: 0,
+                ambosNao: 0,
+                over1_5: 0,
+                under1_5: 0,
+                over2_5: 0,
+                under2_5: 0,
+                over3_5: 0,
+                under3_5: 0,
+                casaVence: 0,
+                foraVence: 0,
+                cincoMaisGols: 0,
             };
             ranking[timeB] = ranking[timeB] || {
-              gols: 0,
-              vitorias: 0,
-              empates: 0,
-              derrotas: 0,
-              ambosSim: 0,
-              ambosNao: 0,
-              over1_5: 0,
-              under1_5: 0,
-              over2_5: 0,
-              under2_5: 0,
-              over3_5: 0,
-              under3_5: 0,
-              casaVence: 0,
-              foraVence: 0,
-              cincoMaisGols: 0,
+                totalJogos: 0,
+                golsMarcados: 0,
+                golsSofridos: 0,
+                vitorias: 0,
+                empates: 0,
+                derrotas: 0,
+                ambosSim: 0,
+                ambosNao: 0,
+                over1_5: 0,
+                under1_5: 0,
+                over2_5: 0,
+                under2_5: 0,
+                over3_5: 0,
+                under3_5: 0,
+                casaVence: 0,
+                foraVence: 0,
+                cincoMaisGols: 0,
             };
 
-            // Update statistics
-            ranking[timeA].gols += golsA;
-            ranking[timeB].gols += golsB;
+            ranking[timeA].totalJogos += 1;
+            ranking[timeB].totalJogos += 1;
+            ranking[timeA].golsMarcados += golsA;
+            ranking[timeB].golsMarcados += golsB;
+            ranking[timeA].golsSofridos += golsB;
+            ranking[timeB].golsSofridos += golsA;
 
             if (golsA > golsB) {
-              ranking[timeA].vitorias += 1;
-              ranking[timeB].derrotas += 1;
-              ranking[timeA].casaVence += 1;
+                ranking[timeA].vitorias += 1;
+                ranking[timeB].derrotas += 1;
+                ranking[timeA].casaVence += 1;
             } else if (golsA < golsB) {
-              ranking[timeB].vitorias += 1;
-              ranking[timeA].derrotas += 1;
-              ranking[timeB].foraVence += 1;
+                ranking[timeB].vitorias += 1;
+                ranking[timeA].derrotas += 1;
+                ranking[timeB].foraVence += 1;
             } else {
-              ranking[timeA].empates += 1;
-              ranking[timeB].empates += 1;
+                ranking[timeA].empates += 1;
+                ranking[timeB].empates += 1;
             }
 
             if (golsA > 0 && golsB > 0) {
-              ranking[timeA].ambosSim += 1;
-              ranking[timeB].ambosSim += 1;
+                ranking[timeA].ambosSim += 1;
+                ranking[timeB].ambosSim += 1;
             } else {
-              ranking[timeA].ambosNao += 1;
-              ranking[timeB].ambosNao += 1;
+                ranking[timeA].ambosNao += 1;
+                ranking[timeB].ambosNao += 1;
             }
 
-            const totalGols = golsA + golsB;
             if (totalGols > 1) {
-              ranking[timeA].over1_5 += 1;
-              ranking[timeB].over1_5 += 1;
+                ranking[timeA].over1_5 += 1;
+                ranking[timeB].over1_5 += 1;
             } else {
-              ranking[timeA].under1_5 += 1;
-              ranking[timeB].under1_5 += 1;
+                ranking[timeA].under1_5 += 1;
+                ranking[timeB].under1_5 += 1;
             }
 
             if (totalGols > 2) {
-              ranking[timeA].over2_5 += 1;
-              ranking[timeB].over2_5 += 1;
+                ranking[timeA].over2_5 += 1;
+                ranking[timeB].over2_5 += 1;
             } else {
-              ranking[timeA].under2_5 += 1;
-              ranking[timeB].under2_5 += 1;
+                ranking[timeA].under2_5 += 1;
+                ranking[timeB].under2_5 += 1;
             }
 
             if (totalGols > 3) {
-              ranking[timeA].over3_5 += 1;
-              ranking[timeB].over3_5 += 1;
+                ranking[timeA].over3_5 += 1;
+                ranking[timeB].over3_5 += 1;
             } else {
-              ranking[timeA].under3_5 += 1;
-              ranking[timeB].under3_5 += 1;
+                ranking[timeA].under3_5 += 1;
+                ranking[timeB].under3_5 += 1;
             }
 
             if (totalGols >= 5) {
-              ranking[timeA].cincoMaisGols += 1;
-              ranking[timeB].cincoMaisGols += 1;
+                ranking[timeA].cincoMaisGols += 1;
+                ranking[timeB].cincoMaisGols += 1;
             }
-          });
+        });
 
-          const rankedTeams = Object.entries(ranking)
-            .map(([team, stats]) => ({
-              name: team,
-              gols: stats.gols,
-              vitorias: stats.vitorias,
-              empates: stats.empates,
-              derrotas: stats.derrotas,
-              ambosSim: stats.ambosSim,
-              ambosNao: stats.ambosNao,
-              over1_5: stats.over1_5,
-              under1_5: stats.under1_5,
-              over2_5: stats.over2_5,
-              under2_5: stats.under2_5,
-              over3_5: stats.over3_5,
-              under3_5: stats.under3_5,
-              casaVence: stats.casaVence,
-              foraVence: stats.foraVence,
-              cincoMaisGols: stats.cincoMaisGols,
-            }))
-            .sort((a, b) => {
-              if (selectedMarket === "empates") {
-                return b.empates - a.empates;
-              } else if (selectedMarket === "ambos-sim") {
-                return b.ambosSim - a.ambosSim;
-              } else if (selectedMarket === "ambos-nao") {
-                return b.ambosNao - a.ambosNao;
-              } else {
-                return b[selectedMarket] - a[selectedMarket];
-              }
+        const rankedTeams = Object.entries(ranking).map(([team, stats]) => ({
+            name: team,
+            totalJogos: stats.totalJogos,
+            golsMarcados: stats.golsMarcados,
+            golsSofridos: stats.golsSofridos,
+            vitorias: stats.vitorias,
+            empates: stats.empates,
+            derrotas: stats.derrotas,
+            ambosSim: stats.ambosSim,
+            ambosNao: stats.ambosNao,
+            over1_5: stats.over1_5,
+            under1_5: stats.under1_5,
+            over2_5: stats.over2_5,
+            under2_5: stats.under2_5,
+            over3_5: stats.over3_5,
+            under3_5: stats.under3_5,
+            casaVence: stats.casaVence,
+            foraVence: stats.foraVence,
+            cincoMaisGols: stats.cincoMaisGols,
+            vitoriasPercent: formatPercentage(stats.vitorias, stats.totalJogos),
+            marketValue: selectedMarket === "ambos-sim" ? stats.ambosSim :
+                         selectedMarket === "ambos-nao" ? stats.ambosNao :
+                         selectedMarket === "empates" ? stats.empates :
+                         selectedMarket === "casaVence" ? stats.casaVence :
+                         selectedMarket === "foraVence" ? stats.foraVence :
+                         selectedMarket === "over1_5" ? stats.over1_5 :
+                         selectedMarket === "under1_5" ? stats.under1_5 :
+                         selectedMarket === "over2_5" ? stats.over2_5 :
+                         selectedMarket === "under2_5" ? stats.under2_5 :
+                         selectedMarket === "over3_5" ? stats.over3_5 :
+                         selectedMarket === "under3_5" ? stats.under3_5 :
+                         selectedMarket === "cincoMaisGols" ? stats.cincoMaisGols : 0,
+            marketPercent: formatPercentage(
+                selectedMarket === "ambos-sim" ? stats.ambosSim :
+                selectedMarket === "ambos-nao" ? stats.ambosNao :
+                selectedMarket === "empates" ? stats.empates :
+                selectedMarket === "casaVence" ? stats.casaVence :
+                selectedMarket === "foraVence" ? stats.foraVence :
+                selectedMarket === "over1_5" ? stats.over1_5 :
+                selectedMarket === "under1_5" ? stats.under1_5 :
+                selectedMarket === "over2_5" ? stats.over2_5 :
+                selectedMarket === "under2_5" ? stats.under2_5 :
+                selectedMarket === "over3_5" ? stats.over3_5 :
+                selectedMarket === "under3_5" ? stats.under3_5 :
+                selectedMarket === "cincoMaisGols" ? stats.cincoMaisGols : 0,
+                stats.totalJogos
+            ),
+        }));
+
+        // Ordenação fixa pelos 10 melhores do mercado selecionado
+        rankedTeams.sort((a, b) => b.marketValue - a.marketValue);
+
+        if (!isTableInitialized) {
+            rankingDiv.innerHTML = `
+                <table class="ranking-table">
+                    <thead>
+                        <tr style="color: #ffffff; background-color: #222;">
+                            <th>Posição</th>
+                            <th>Time</th>
+                            <th>Jogos</th>
+                            <th>Gols M</th>
+                            <th>Gols S</th>
+                            <th>V</th>
+                            <th>E</th>
+                            <th>D</th>
+                            <th>% Vitórias</th>
+                            <th>Qtd Mercado</th>
+                            <th id="market-header">${
+                                selectedMarket === "ambos-sim" ? "Ambas Sim" :
+                                selectedMarket === "ambos-nao" ? "Ambas Não" :
+                                selectedMarket === "casaVence" ? "Casa Vence" :
+                                selectedMarket === "foraVence" ? "Fora Vence" :
+                                selectedMarket === "empates" ? "Empates" :
+                                selectedMarket === "over1_5" ? "Over 1.5" :
+                                selectedMarket === "under1_5" ? "Under 1.5" :
+                                selectedMarket === "over2_5" ? "Over 2.5" :
+                                selectedMarket === "under2_5" ? "Under 2.5" :
+                                selectedMarket === "over3_5" ? "Over 3.5" :
+                                selectedMarket === "under3_5" ? "Under 3.5" :
+                                selectedMarket === "cincoMaisGols" ? "5+ Gols" : selectedMarket
+                            } (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ranking-body">
+                        ${rankedTeams.slice(0, 10).map((item, index) => `
+                            <tr style="background-color: ${index < 3 ? '#005540' : index < 5 ? '#003d2e' : '#00251f'};">
+                                <td class="position">${index < 3 ? "🏆 " : ""}${index + 1}º</td>
+                                <td class="name">${item.name}</td>
+                                <td class="totalJogos">${item.totalJogos}</td>
+                                <td class="golsMarcados">${item.golsMarcados}</td>
+                                <td class="golsSofridos">${item.golsSofridos}</td>
+                                <td class="vitorias">${item.vitorias}</td>
+                                <td class="empates">${item.empates}</td>
+                                <td class="derrotas">${item.derrotas}</td>
+                                <td class="vitoriasPercent">${item.vitoriasPercent}</td>
+                                <td class="marketValue">${item.marketValue}</td>
+                                <td class="marketPercent">${item.marketPercent}</td>
+                            </tr>
+                        `).join("")}
+                    </tbody>
+                </table>
+            `;
+            isTableInitialized = true;
+        } else {
+            const marketHeader = document.getElementById("market-header");
+            marketHeader.innerText = `${
+                selectedMarket === "ambos-sim" ? "Ambas Sim" :
+                selectedMarket === "ambos-nao" ? "Ambas Não" :
+                selectedMarket === "casaVence" ? "Casa Vence" :
+                selectedMarket === "foraVence" ? "Fora Vence" :
+                selectedMarket === "empates" ? "Empates" :
+                selectedMarket === "over1_5" ? "Over 1.5" :
+                selectedMarket === "under1_5" ? "Under 1.5" :
+                selectedMarket === "over2_5" ? "Over 2.5" :
+                selectedMarket === "under2_5" ? "Under 2.5" :
+                selectedMarket === "over3_5" ? "Over 3.5" :
+                selectedMarket === "under3_5" ? "Under 3.5" :
+                selectedMarket === "cincoMaisGols" ? "5+ Gols" : selectedMarket
+            } (%)`;
+
+            const tbody = document.getElementById("ranking-body");
+            const rows = tbody.getElementsByTagName("tr");
+
+            rankedTeams.slice(0, 10).forEach((item, index) => {
+                const row = rows[index] || tbody.insertRow();
+                row.style.backgroundColor = index < 3 ? '#005540' : index < 5 ? '#003d2e' : '#00251f';
+
+                const cells = row.cells;
+                if (cells.length === 0) {
+                    row.insertCell().className = "position";
+                    row.insertCell().className = "name";
+                    row.insertCell().className = "totalJogos";
+                    row.insertCell().className = "golsMarcados";
+                    row.insertCell().className = "golsSofridos";
+                    row.insertCell().className = "vitorias";
+                    row.insertCell().className = "empates";
+                    row.insertCell().className = "derrotas";
+                    row.insertCell().className = "vitoriasPercent";
+                    row.insertCell().className = "marketValue";
+                    row.insertCell().className = "marketPercent";
+                }
+
+                row.cells[0].innerText = `${index < 3 ? "🏆 " : ""}${index + 1}º`;
+                row.cells[1].innerText = item.name;
+                row.cells[2].innerText = item.totalJogos;
+                row.cells[3].innerText = item.golsMarcados;
+                row.cells[4].innerText = item.golsSofridos;
+                row.cells[5].innerText = item.vitorias;
+                row.cells[6].innerText = item.empates;
+                row.cells[7].innerText = item.derrotas;
+                row.cells[8].innerText = item.vitoriasPercent;
+                row.cells[9].innerText = item.marketValue;
+                row.cells[10].innerText = item.marketPercent;
             });
 
-          const rankingDiv = document.getElementById("ranking");
-          rankingDiv.innerHTML = `
-            <table>
-                <thead>
-                    <tr style="color: #ffffff;">
-                        <th>Posição</th>
-                        <th>Time</th>
-                        <th>Gols</th>
-                        <th>V</th>
-                        <th>E</th>
-                        <th>D</th>
-                        <th>${
-                          selectedMarket === "ambos-sim"
-                            ? "Ambas Sim"
-                            : selectedMarket === "ambos-nao"
-                            ? "Ambas Não"
-                            : selectedMarket
-                        }</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rankedTeams
-                      .slice(0, 10)
-                      .map((item, index) => {
-                        let rowColor = index < 5 ? '#005540' : '#003d2e';
-
-                        return `
-                            <tr style="background-color: ${rowColor};">
-                                <td>${index < 5 ? "🏆 " : ""}${index + 1}º</td>
-                                <td>${item.name}</td>
-                                <td>${item.gols}</td>
-                                <td>${item.vitorias}</td>
-                                <td>${item.empates}</td>
-                                <td>${item.derrotas}</td>
-                                <td>${
-                                  selectedMarket === "ambos-sim"
-                                    ? item.ambosSim
-                                    : selectedMarket === "ambos-nao"
-                                    ? item.ambosNao
-                                    : item[selectedMarket]
-                                }</td>
-                            </tr>
-                        `;
-                      })
-                      .join("")}
-                </tbody>
-            </table>
-        `;
-        } catch (error) {
-          console.error("Erro ao buscar dados:", error);
+            while (rows.length > rankedTeams.slice(0, 10).length) {
+                tbody.deleteRow(rows.length - 1);
+            }
         }
-      }
+    } catch (error) {
+        console.error("Erro ao buscar dados:", error);
+        rankingDiv.innerHTML = '<p style="color: red;">Erro ao carregar o ranking. Tente novamente mais tarde.</p>';
+        isTableInitialized = false;
+    }
+}
 
-      window.onload = fetchRanking;
+document.getElementById("market").addEventListener("change", function () {
+    fetchRanking();
+});
+
+// Inicialização
+loadNextGamesForMinutes();
+fetchRanking();
+intervalId = setInterval(fetchRanking, 3000);
+setInterval(async () => {
+    await loadNextGamesForMinutes();
+}, 15000);
     </script>
 
     <script>
