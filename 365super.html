@@ -408,67 +408,51 @@
     <div class="accordion-item">
       <button class="accordion-button" onclick="toggleAccordion(this)">▼ Times por Minuto e Ranking ▲</button>
       <div class="accordion-content">
-        <div class="container">
-          <label for="time-selecionado"></label>
-          <select id="time-selecionado">
-            <option value="Sao Paulo">Sao Paulo</option>
-            <option value="Santos">Santos</option>
-            <option value="Santiago">Santiago</option>
-            <option value="Rio de Janeiro">Rio de Janeiro</option>
-            <option value="Quito">Quito</option>
-            <option value="Porto Alegre">Porto Alegre</option>
-            <option value="Penarol">Penarol</option>
-            <option value="Montevideo">Montevideo</option>
-            <option value="Medellin">Medellin</option>
-            <option value="Lima">Lima</option>
-            <option value="La Plata">La Plata</option>
-            <option value="La Boca">La Boca</option>
-            <option value="Itaquera">Itaquera</option>
-            <option value="Guayaquil">Guayaquil</option>
-            <option value="Buenos Aires">Buenos Aires</option>
-            <option value="Bogota">Bogota</option>
-            <option value="Belo Horizonte">Belo Horizonte</option>
-            <option value="Avellaneda">Avellaneda</option>
-            <option value="Asuncion">Asuncion</option>
-            <option value="Agua Branca">Agua Branca</option>        
-          </select>
-          <button onclick="analisar()">Analisar</button>
-          <button onclick="toggleTabela()">Mostrar/Ocultar</button>
-        </div>
-    
-        <table id="time-tabela-resultados">
-          <thead>
-            <tr>
-              <!-- Cabeçalhos dos minutos serão gerados dinamicamente -->
-            </tr>
-          </thead>
-          <tbody>
-            <!-- Linhas de dados serão geradas dinamicamente -->
-          </tbody>
-        </table>
-    
-        <div id="market-selector">
-          <label for="market"> </label>
-          <select id="market">
-            <option value="ambos-sim">Ambas Sim</option>
-            <option value="ambos-nao">Ambas Não</option>
-            <option value="casaVence">Casa Vence</option>
-            <option value="foraVence">Fora Vence</option>
-            <option value="empates">Empates</option>
-            <option value="over1_5">Over 1.5</option>
-            <option value="under1_5">Under 1.5</option>
-            <option value="over2_5">Over 2.5</option>
-            <option value="under2_5">Under 2.5</option>
-            <option value="over3_5">Over 3.5</option>
-            <option value="under3_5">Under 3.5</option>
-            <option value="cincoMaisGols">5 ou mais Gols</option>
-          </select>
-          <button id="toggle-ranking">Mostrar Ranking</button>
-        </div>
-    
-        <div id="ranking" class="hidden"></div>
+          <div class="next-games-container" id="nextGamesMinutesContainer"></div>
+  
+          <div class="tables-container-minutes">
+              <div class="table-wrapper-minutes">
+                  <h3 id="team1Title">Time 1</h3>
+                  <table id="team1-tabela-resultados">
+                      <thead>
+                          <tr></tr>
+                      </thead>
+                      <tbody></tbody>
+                  </table>
+              </div>
+              <div class="table-wrapper-minutes">
+                  <h3 id="team2Title">Time 2</h3>
+                  <table id="team2-tabela-resultados">
+                      <thead>
+                          <tr></tr>
+                      </thead>
+                      <tbody></tbody>
+                  </table>
+              </div>
+          </div>
+  
+          <div id="market-selector">
+              <label for="market"> </label>
+              <select id="market">
+                  <option value="ambos-sim">Ambas Sim</option>
+                  <option value="ambos-nao">Ambas Não</option>
+                  <option value="casaVence">Casa Vence</option>
+                  <option value="foraVence">Fora Vence</option>
+                  <option value="empates">Empates</option>
+                  <option value="over1_5">Over 1.5</option>
+                  <option value="under1_5">Under 1.5</option>
+                  <option value="over2_5">Over 2.5</option>
+                  <option value="under2_5">Under 2.5</option>
+                  <option value="over3_5">Over 3.5</option>
+                  <option value="under3_5">Under 3.5</option>
+                  <option value="cincoMaisGols">5 ou mais Gols</option>
+              </select>
+              <button id="toggle-ranking">Mostrar Ranking</button>
+          </div>
+  
+          <div id="ranking" class="hidden"></div>
       </div>
-    </div>
+  </div>
 
 
     <div class="accordion-item">
@@ -3424,27 +3408,94 @@
 
 
     <script>
-      let primeiroClique = false;
+let selectedTeam1 = null;
+let selectedTeam2 = null;
+let primeiroClique = false;
 
-      async function carregarJogos() {
-        try {
-          const response = await fetch(API_URL);
-          const jogos = await response.json();
-          return jogos;
-        } catch (error) {
-          console.error("Erro ao carregar dados:", error);
-          return [];
+async function carregarJogos() {
+    try {
+        const response = await fetch(API_URL);
+        const jogos = await response.json();
+        return jogos;
+    } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+        return [];
+    }
+}
+
+async function loadNextGamesForMinutes() {
+    try {
+        const response = await fetch(NEXT_GAMES_API);
+        const data = await response.json();
+        const games = data.data.slice(0, 6).reverse();
+        const container = document.getElementById("nextGamesMinutesContainer");
+
+        // Salva os times selecionados antes de recarregar os cards
+        const previouslySelectedTeam1 = selectedTeam1;
+        const previouslySelectedTeam2 = selectedTeam2;
+
+        // Recria os cards
+        container.innerHTML = games.map(game => `
+            <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForMinutes(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}')">
+                <div class="game-time">${game.time}</div>
+                <div class="game-teams">
+                    <span class="team-home">${game.team_home}</span>
+                    <span class="vs">vs</span>
+                    <span class="team-visit">${game.team_visit}</span>
+                </div>
+            </div>
+        `).join("");
+
+        // Restaura a seleção com base nos times previamente selecionados
+        const cards = container.querySelectorAll('.game-card');
+        let cardToSelect = null;
+
+        if (previouslySelectedTeam1 && previouslySelectedTeam2) {
+            cards.forEach(card => {
+                const home = card.getAttribute('data-home');
+                const visit = card.getAttribute('data-visit');
+                if (home === previouslySelectedTeam1 && visit === previouslySelectedTeam2) {
+                    cardToSelect = card;
+                }
+            });
         }
-      }
 
-      function analisarMercados(jogos, timeSelecionado) {
-        const analise = {};
+        // Se não encontrar o card previamente selecionado, seleciona o primeiro
+        if (!cardToSelect && cards.length > 0) {
+            cardToSelect = cards[0];
+            selectedTeam1 = cardToSelect.getAttribute('data-home');
+            selectedTeam2 = cardToSelect.getAttribute('data-visit');
+        }
 
-        jogos.forEach((jogo) => {
-          if (
-            jogo.time_a === timeSelecionado ||
-            jogo.time_b === timeSelecionado
-          ) {
+        // Aplica a classe 'selected' ao card apropriado e atualiza as tabelas
+        if (cardToSelect) {
+            cardToSelect.classList.add('selected');
+            if (!previouslySelectedTeam1 || !previouslySelectedTeam2) {
+                selectedTeam1 = cardToSelect.getAttribute('data-home');
+                selectedTeam2 = cardToSelect.getAttribute('data-visit');
+                await analisar();
+            }
+        }
+    } catch (error) {
+        console.error("Erro ao carregar próximos jogos para minutos:", error);
+    }
+}
+
+window.selectGameForMinutes = function(card, teamHome, teamVisit) {
+    document.querySelectorAll('#nextGamesMinutesContainer .game-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedTeam1 = teamHome;
+    selectedTeam2 = teamVisit;
+    document.getElementById("team1Title").innerText = teamHome;
+    document.getElementById("team2Title").innerText = teamVisit;
+    analisar();
+};
+
+function analisarMercados(jogos, timeSelecionado) {
+    const analise = {};
+
+    jogos.forEach((jogo) => {
+        if (jogo.time_a === timeSelecionado || jogo.time_b === timeSelecionado) {
             const minuto = jogo.minuto;
             const ftGols = jogo.ft.split(" x ").map(Number);
             const timeA = ftGols[0];
@@ -3452,20 +3503,20 @@
             const totalGols = timeA + timeB;
 
             if (!analise[minuto]) {
-              analise[minuto] = {
-                ambasMarcamSim: 0,
-                ambasMarcamNao: 0,
-                over15: 0,
-                under15: 0,
-                over25: 0,
-                under25: 0,
-                over35: 0,
-                under35: 0,
-                casa: 0,
-                fora: 0,
-                empate: 0,
-                total: 0,
-              };
+                analise[minuto] = {
+                    ambasMarcamSim: 0,
+                    ambasMarcamNao: 0,
+                    over15: 0,
+                    under15: 0,
+                    over25: 0,
+                    under25: 0,
+                    over35: 0,
+                    under35: 0,
+                    casa: 0,
+                    fora: 0,
+                    empate: 0,
+                    total: 0,
+                };
             }
 
             analise[minuto].total += 1;
@@ -3485,133 +3536,101 @@
             if (timeA > timeB) analise[minuto].casa += 1;
             if (timeB > timeA) analise[minuto].fora += 1;
             if (timeA === timeB) analise[minuto].empate += 1;
-          }
-        });
+        }
+    });
 
-        return analise;
-      }
+    return analise;
+}
 
-      function gerarTabela(analise) {
-        const table = document.getElementById("time-tabela-resultados");
-        const tbody = table.querySelector("tbody");
-        const thead = table.querySelector("thead tr");
+function gerarTabela(analise, tableId, teamName) {
+    const table = document.getElementById(tableId);
+    const tbody = table.querySelector("tbody");
+    const thead = table.querySelector("thead tr");
 
-        tbody.innerHTML = "";
-        thead.innerHTML = "<th>Mercado</th>";
+    tbody.innerHTML = "";
+    thead.innerHTML = "<th>Mercado</th>";
 
-        const minutos = Object.keys(analise);
+    const minutos = Object.keys(analise);
+    minutos.forEach((minuto) => {
+        const th = document.createElement("th");
+        th.innerText = minuto;
+        thead.appendChild(th);
+    });
+
+    const mercados = [
+        { class: "mercado-ambas-marcam", label: "Ambas", yes: "ambasMarcamSim", no: "ambasMarcamNao" },
+        { class: "mercado-over15", label: "1.5", over: "over15", under: "under15" },
+        { class: "mercado-over25", label: "2.5", over: "over25", under: "under25" },
+        { class: "mercado-over35", label: "3.5", over: "over35", under: "under35" },
+        { class: "mercado-resultado", label: "C/F/E", casa: "casa", fora: "fora", empate: "empate" },
+    ];
+
+    mercados.forEach((mercado) => {
+        const tr = document.createElement("tr");
+        tr.classList.add(mercado.class);
+
+        const td = document.createElement("td");
+        td.classList.add("mercado-header");
+        td.innerText = mercado.label;
+        tr.appendChild(td);
+
         minutos.forEach((minuto) => {
-          const th = document.createElement("th");
-          th.innerText = minuto;
-          thead.appendChild(th);
-        });
-
-        const mercados = [
-          {
-            class: "mercado-ambas-marcam",
-            label: "Ambas",
-            yes: "ambasMarcamSim",
-            no: "ambasMarcamNao",
-          },
-          {
-            class: "mercado-over15",
-            label: "1.5",
-            over: "over15",
-            under: "under15",
-          },
-          {
-            class: "mercado-over25",
-            label: "2.5",
-            over: "over25",
-            under: "under25",
-          },
-          {
-            class: "mercado-over35",
-            label: "3.5",
-            over: "over35",
-            under: "under35",
-          },
-          {
-            class: "mercado-resultado",
-            label: "C/F/E",
-            casa: "casa",
-            fora: "fora",
-            empate: "empate",
-          },
-        ];
-
-        mercados.forEach((mercado) => {
-          const tr = document.createElement("tr");
-          tr.classList.add(mercado.class);
-
-          const td = document.createElement("td");
-          td.classList.add("mercado-header");
-          td.innerText = mercado.label;
-          tr.appendChild(td);
-
-          minutos.forEach((minuto) => {
             const td = document.createElement("td");
             const dados = analise[minuto];
             let texto = "";
 
             if (mercado.yes && mercado.no) {
-              const simPercent = (dados[mercado.yes] / dados.total) * 100;
-              const naoPercent = (dados[mercado.no] / dados.total) * 100;
-              texto = `S:${simPercent.toFixed(0)}%\nN:${naoPercent.toFixed(
-                0
-              )}%`;
+                const simPercent = (dados[mercado.yes] / dados.total) * 100;
+                const naoPercent = (dados[mercado.no] / dados.total) * 100;
+                texto = `S:${simPercent.toFixed(0)}%\nN:${naoPercent.toFixed(0)}%`;
             }
 
             if (mercado.over && mercado.under) {
-              const overPercent = (dados[mercado.over] / dados.total) * 100;
-              const underPercent = (dados[mercado.under] / dados.total) * 100;
-              texto = `O:${overPercent.toFixed(0)}%\nU:${underPercent.toFixed(
-                0
-              )}%`;
+                const overPercent = (dados[mercado.over] / dados.total) * 100;
+                const underPercent = (dados[mercado.under] / dados.total) * 100;
+                texto = `O:${overPercent.toFixed(0)}%\nU:${underPercent.toFixed(0)}%`;
             }
 
             if (mercado.casa && mercado.fora && mercado.empate) {
-              const casaPercent = (dados[mercado.casa] / dados.total) * 100;
-              const foraPercent = (dados[mercado.fora] / dados.total) * 100;
-              const empatePercent = (dados[mercado.empate] / dados.total) * 100;
-              texto = `C:${casaPercent.toFixed(0)}%\nF:${foraPercent.toFixed(
-                0
-              )}%\nE:${empatePercent.toFixed(0)}%`;
+                const casaPercent = (dados[mercado.casa] / dados.total) * 100;
+                const foraPercent = (dados[mercado.fora] / dados.total) * 100;
+                const empatePercent = (dados[mercado.empate] / dados.total) * 100;
+                texto = `C:${casaPercent.toFixed(0)}%\nF:${foraPercent.toFixed(0)}%\nE:${empatePercent.toFixed(0)}%`;
             }
 
             td.innerHTML = texto.replace(/\n/g, "<br>");
             tr.appendChild(td);
-          });
-
-          tbody.appendChild(tr);
         });
-      }
 
-      function toggleTabela() {
-        const tabela = document.getElementById("time-tabela-resultados");
-        tabela.style.display =
-          tabela.style.display === "none" || tabela.style.display === ""
-            ? "table"
-            : "none";
-      }
+        tbody.appendChild(tr);
+    });
+}
 
-      async function analisar() {
-        const timeSelecionado =
-          document.getElementById("time-selecionado").value;
-        const jogos = await carregarJogos();
-        const analise = analisarMercados(jogos, timeSelecionado);
-        gerarTabela(analise);
-        toggleTabela();
-        primeiroClique = true;
-      }
+async function analisar() {
+    if (!selectedTeam1 || !selectedTeam2) return;
 
-      document
-        .getElementById("time-selecionado")
-        .addEventListener("change", async () => {
-          if (primeiroClique) {
-            await analisar();
-          }
-        });
+    const jogos = await carregarJogos();
+
+    // Analisa os dados para o Time 1
+    const analiseTeam1 = analisarMercados(jogos, selectedTeam1);
+    gerarTabela(analiseTeam1, "team1-tabela-resultados", selectedTeam1);
+
+    // Analisa os dados para o Time 2
+    const analiseTeam2 = analisarMercados(jogos, selectedTeam2);
+    gerarTabela(analiseTeam2, "team2-tabela-resultados", selectedTeam2);
+}
+
+// Inicialização
+loadNextGamesForMinutes();
+setInterval(async () => {
+    await loadNextGamesForMinutes();
+}, 15000);
+
+// Mantém o comportamento do ranking (inalterado)
+document.getElementById("toggle-ranking").addEventListener("click", () => {
+    const ranking = document.getElementById("ranking");
+    ranking.classList.toggle("hidden");
+});
     </script>
     <script>
       const ctxGols = document.getElementById("golsChart").getContext("2d");
