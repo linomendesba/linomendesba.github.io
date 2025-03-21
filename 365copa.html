@@ -4924,6 +4924,12 @@ async function initializeChart() {
             const data = await response.json();
             const games = data.data.slice(0, 6).reverse();
             const container = document.getElementById("nextGamesChartContainer");
+
+            // Salva os times selecionados antes de recarregar os cards
+            const previouslySelectedTeam1 = selectedTeam1;
+            const previouslySelectedTeam2 = selectedTeam2;
+
+            // Recria os cards
             container.innerHTML = games.map(game => `
                 <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForChart(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}')">
                     <div class="game-time">${game.time}</div>
@@ -4935,13 +4941,37 @@ async function initializeChart() {
                 </div>
             `).join("");
 
-            // Seleciona automaticamente o primeiro card ao carregar
-            const firstCard = container.querySelector('.game-card');
-            if (firstCard) {
-                firstCard.classList.add('selected');
-                selectedTeam1 = firstCard.getAttribute('data-home');
-                selectedTeam2 = firstCard.getAttribute('data-visit');
-                await updateChart(); // Atualiza o gráfico com o primeiro card selecionado
+            // Restaura a seleção com base nos times previamente selecionados
+            const cards = container.querySelectorAll('.game-card');
+            let cardToSelect = null;
+
+            if (previouslySelectedTeam1 && previouslySelectedTeam2) {
+                // Procura o card correspondente aos times previamente selecionados
+                cards.forEach(card => {
+                    const home = card.getAttribute('data-home');
+                    const visit = card.getAttribute('data-visit');
+                    if (home === previouslySelectedTeam1 && visit === previouslySelectedTeam2) {
+                        cardToSelect = card;
+                    }
+                });
+            }
+
+            // Se não encontrar o card previamente selecionado (jogo pode ter sido removido da API), seleciona o primeiro
+            if (!cardToSelect && cards.length > 0) {
+                cardToSelect = cards[0];
+                selectedTeam1 = cardToSelect.getAttribute('data-home');
+                selectedTeam2 = cardToSelect.getAttribute('data-visit');
+            }
+
+            // Aplica a classe 'selected' ao card apropriado e atualiza o gráfico
+            if (cardToSelect) {
+                cardToSelect.classList.add('selected');
+                if (!previouslySelectedTeam1 || !previouslySelectedTeam2) {
+                    // Se for a primeira carga, define os times e atualiza o gráfico
+                    selectedTeam1 = cardToSelect.getAttribute('data-home');
+                    selectedTeam2 = cardToSelect.getAttribute('data-visit');
+                    await updateChart();
+                }
             }
         } catch (error) {
             console.error("Erro ao carregar próximos jogos para o gráfico:", error);
@@ -4949,9 +4979,7 @@ async function initializeChart() {
     }
 
     window.selectGameForChart = function(card, teamHome, teamVisit) {
-        // Remove a classe 'selected' de todos os cards
         document.querySelectorAll('#nextGamesChartContainer .game-card').forEach(c => c.classList.remove('selected'));
-        // Adiciona a classe 'selected' ao card clicado
         card.classList.add('selected');
         selectedTeam1 = teamHome;
         selectedTeam2 = teamVisit;
@@ -5050,8 +5078,8 @@ async function initializeChart() {
     // Inicialização
     await loadNextGamesForChart(); // Carrega os cards e seleciona o primeiro
     setInterval(async () => {
-        await loadNextGamesForChart();
-        await updateChart();
+        await loadNextGamesForChart(); // Atualiza os cards, mantendo a seleção
+        await updateChart(); // Atualiza o gráfico com os times selecionados
     }, 15000);
 }
 
