@@ -5,6 +5,7 @@ function redirecionar(select) {
     if (
         url === "https://t.me/betstatsite" ||
         url === "https://t.me/ProPlayerFut" ||
+        url === "https://www.betstat.site/blog.html" ||
         url === "https://www.betstat.site/tv/" ||
         url === "https://youtu.be/oRqi3RvH8zE" ||
         url === "https://www.betstat.site/central/" ||
