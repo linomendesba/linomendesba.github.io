@@ -477,17 +477,16 @@
             <select id="leagueSelect">
                 <option value="" selected>Escolha uma liga</option>
                 <option value="all">Todas as Ligas</option>
-                <option value="Copa%20America">Copa América</option>
+                <option value="Copa%20America">Copa America</option>
                 <option value="Ta%C3%A7a%20Gl%C3%B3ria%20eterna">Taça Glória Eterna</option>
                 <option value="Euro">Euro</option>
-                <option value="Campeonato%20Italiano">Campeonato Italiano</option>
+                <option value="Campeonato%20Italiano">Campeonato Italiano </option>
                 <option value="Copa%20das%20estrelas">Copa das Estrelas</option>
                 <option value="British%20Derbies">British Derbies</option>
                 <option value="Liga%20Espanhola">Liga Espanhola</option>
-                <option value="Scudetto%20Italiano">Scudetto Italiano</option>
+                <option value="Scudetto%20Italiano">Scudetto Italiano </option>
             </select>
         </div>
-    </div>
 
         <div class="control-group">
             <label for="marketSelect">Selecione o Mercado:</label>
@@ -555,7 +554,7 @@
 </div>
 
     <script>
-        let cachedData = {};
+let cachedData = {};
 
 function showLoading(show) {
     document.getElementById("loading").style.display = show ? "block" : "none";
@@ -583,7 +582,11 @@ function fetchApiData(league) {
 }
 
 function fetchAllLeagues() {
-    const leagues = ["Euro", "Copa", "Premier", "Super"];
+    const leagueSelect = document.getElementById("leagueSelect");
+    const leagues = Array.from(leagueSelect.options)
+        .map(option => option.value)
+        .filter(value => value && value !== "all"); // Pega todos os valores exceto "" e "all"
+    
     showLoading(true);
     Promise.all(leagues.map(league => 
         cachedData[league] ? Promise.resolve(cachedData[league]) : 
@@ -592,7 +595,7 @@ function fetchAllLeagues() {
     .then(results => {
         leagues.forEach((league, index) => cachedData[league] = results[index]);
         console.log("Dados recebidos para todas as ligas:", results);
-        processAllLeagues();
+        processAllLeagues(leagues);
         showLoading(false);
     })
     .catch(error => {
@@ -629,13 +632,14 @@ function processApiData(data, league) {
     displayProjections(projections);
 }
 
-function processAllLeagues() {
+function processAllLeagues(leagues) {
     const market = document.getElementById("marketSelect").value;
     const range = parseInt(document.getElementById("rangeSelect").value, 10);
     const selectedHour = document.getElementById("hourSelect").value;
     const gameLimit = document.getElementById("gameLimitSelect").value;
     let allProjections = {};
-    ["Euro", "Copa", "Premier", "Super"].forEach(league => {
+
+    leagues.forEach(league => {
         const limitedData = gameLimit === "todos" ? cachedData[league] : cachedData[league].slice(-parseInt(gameLimit, 10));
         const projections = analyzeProjections(limitedData, market, range, league, selectedHour);
         Object.keys(projections).forEach(hour => {
@@ -736,7 +740,7 @@ function analyzeProjections(data, market, range, league, selectedHour) {
                 const sequence = [minuto];
                 let currentMinute = parseInt(minuto);
                 for (let j = 1; j < range; j++) {
-                    currentMinute = (currentMinute + 3) % 60; // Incremento de 3 minutos, ajustando para o ciclo de 60
+                    currentMinute = (currentMinute + 3) % 60;
                     sequence.push(String(currentMinute).padStart(2, '0'));
                     usedMinutes.add(String(currentMinute).padStart(2, '0'));
                 }
@@ -792,13 +796,17 @@ function displayProjections(projections) {
         hourBlock.appendChild(hourTitle);
 
         Object.keys(projections[hour]).forEach(league => {
-            let leagueName = "";
+            let leagueName = decodeURIComponent(league); // Decodifica o nome da liga para exibição
             switch (league) {
-                case "Euro": leagueName = "Euro Cup"; break;
-                case "Copa": leagueName = "Copa do Mundo"; break;
-                case "Premier": leagueName = "Premier League"; break;
-                case "Super": leagueName = "Super Liga"; break;
-                default: leagueName = league.toUpperCase();
+                case "Copa%20America": leagueName = "Copa América"; break;
+                case "Ta%C3%A7a%20Gl%C3%B3ria%20eterna": leagueName = "Taça Glória Eterna"; break;
+                case "Euro": leagueName = "Euro"; break;
+                case "Campeonato%20Italiano": leagueName = "Campeonato Italiano"; break;
+                case "Copa%20das%20estrelas": leagueName = "Copa das Estrelas"; break;
+                case "British%20Derbies": leagueName = "British Derbies"; break;
+                case "Liga%20Espanhola": leagueName = "Liga Espanhola"; break;
+                case "Scudetto%20Italiano": leagueName = "Scudetto Italiano"; break;
+                default: leagueName = decodeURIComponent(league).toUpperCase();
             }
 
             projections[hour][league].forEach(sequence => {
