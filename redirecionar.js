@@ -18,6 +18,7 @@ function redirecionar(select) {
         url === "https://www.betstat.site/macrobetano.html" ||
         url === "https://www.betstat.site/betanofixo.html" ||
         url === "https://www.betstat.site/365fiboht.html" ||
+        url === "https://www.betstat.site/365tips.html" ||
         url === "https://www.betstat.site/365fiboexato.html" || // Novo
         url === "hhttps://www.betstat.site/geradorbet365/" || // Novo
         url === "https://www.betstat.site/365tips.html" || // Novo
