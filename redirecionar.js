@@ -6,6 +6,7 @@ function redirecionar(select) {
         url === "https://t.me/betstatsite" ||
         url === "https://t.me/ProPlayerFut" ||
         url === "blog.html" ||
+        url === "gestao.html" ||
         url === "https://www.betstat.site/tv/" ||
         url === "https://youtu.be/oRqi3RvH8zE" ||
         url === "https://www.betstat.site/central/" ||
