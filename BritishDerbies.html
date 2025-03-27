@@ -1194,6 +1194,14 @@ function processApiData(data, league) {
     let gol4 = [];
     let gol5 = [];
 
+    // Função para verificar se há lacuna entre dois jogos
+    function hasGap(prevMatch, currMatch) {
+        const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
+        const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
+        const diffMinutes = (currTime - prevTime) / (1000 * 60); // Diferença em minutos
+        return diffMinutes > 1; // Considera lacuna se a diferença for maior que 1 minuto
+    }
+
     for (let i = averagePoints; i < slicedData.length; i++) {
         let golsFTSum = 0;
         let casaVenceSum = 0;
@@ -1213,11 +1221,38 @@ function processApiData(data, league) {
         let gol3Sum = 0;
         let gol4Sum = 0;
         let gol5Sum = 0;
+        let validMatches = 0;
 
+        // Calcula a média apenas com os jogos disponíveis
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
             const ftScore = match.ft;
-            
+
+            // Verifica se há lacuna antes de processar
+            if (j > 0 && hasGap(slicedData[j - 1], match)) {
+                // Insere um ponto nulo no gráfico para indicar a lacuna
+                labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
+                golsFT.push(null); // null faz o Chart.js pular o ponto
+                casaVence.push(null);
+                empate.push(null);
+                foraVence.push(null);
+                ambasSim.push(null);
+                ambasNao.push(null);
+                over15.push(null);
+                over25.push(null);
+                over35.push(null);
+                under15.push(null);
+                under25.push(null);
+                under35.push(null);
+                gol0.push(null);
+                gol1.push(null);
+                gol2.push(null);
+                gol3.push(null);
+                gol4.push(null);
+                gol5.push(null);
+                continue; // Pula para o próximo jogo
+            }
+
             let ftScoreParts = [0, 0];
             if (ftScore && ftScore.includes(' x ')) {
                 ftScoreParts = ftScore.split(' x ').map(num => parseInt(num, 10));
@@ -1226,29 +1261,30 @@ function processApiData(data, league) {
             const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
 
             golsFTSum += totalGolsFT;
-            casaVenceSum += (ftScoreParts[0] > ftScoreParts[1]) ? 1 : 0;
-            empateSum += (ftScoreParts[0] === ftScoreParts[1]) ? 1 : 0;
-            foraVenceSum += (ftScoreParts[0] < ftScoreParts[1]) ? 1 : 0;
-            ambasSimSum += (ftScoreParts[0] > 0 && ftScoreParts[1] > 0) ? 1 : 0;
-            ambasNaoSum += (ftScoreParts[0] === 0 || ftScoreParts[1] === 0) ? 1 : 0;
-            over15Sum += (totalGolsFT > 1.5) ? 1 : 0;
-            over25Sum += (totalGolsFT > 2.5) ? 1 : 0;
-            over35Sum += (totalGolsFT > 3.5) ? 1 : 0;
-            under15Sum += (totalGolsFT < 1.5) ? 1 : 0;
-            under25Sum += (totalGolsFT < 2.5) ? 1 : 0;
-            under35Sum += (totalGolsFT < 3.5) ? 1 : 0;
-            gol0Sum += (totalGolsFT === 0) ? 1 : 0;
-            gol1Sum += (totalGolsFT === 1) ? 1 : 0;
-            gol2Sum += (totalGolsFT === 2) ? 1 : 0;
-            gol3Sum += (totalGolsFT === 3) ? 1 : 0;
-            gol4Sum += (totalGolsFT === 4) ? 1 : 0;
-            gol5Sum += (totalGolsFT === 5) ? 1 : 0;
+            casaVenceSum += ftScoreParts[0] > ftScoreParts[1] ? 1 : 0;
+            empateSum += ftScoreParts[0] === ftScoreParts[1] ? 1 : 0;
+            foraVenceSum += ftScoreParts[0] < ftScoreParts[1] ? 1 : 0;
+            ambasSimSum += ftScoreParts[0] > 0 && ftScoreParts[1] > 0 ? 1 : 0;
+            ambasNaoSum += ftScoreParts[0] === 0 || ftScoreParts[1] === 0 ? 1 : 0;
+            over15Sum += totalGolsFT > 1.5 ? 1 : 0;
+            over25Sum += totalGolsFT > 2.5 ? 1 : 0;
+            over35Sum += totalGolsFT > 3.5 ? 1 : 0;
+            under15Sum += totalGolsFT < 1.5 ? 1 : 0;
+            under25Sum += totalGolsFT < 2.5 ? 1 : 0;
+            under35Sum += totalGolsFT < 3.5 ? 1 : 0;
+            gol0Sum += totalGolsFT === 0 ? 1 : 0;
+            gol1Sum += totalGolsFT === 1 ? 1 : 0;
+            gol2Sum += totalGolsFT === 2 ? 1 : 0;
+            gol3Sum += totalGolsFT === 3 ? 1 : 0;
+            gol4Sum += totalGolsFT === 4 ? 1 : 0;
+            gol5Sum += totalGolsFT === 5 ? 1 : 0;
+            validMatches++;
         }
 
         const match = slicedData[i];
-        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-        
-        const avg = averagePoints + 1;
+        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`); // Linha corrigida
+
+        const avg = validMatches || 1; // Evita divisão por zero
         golsFT.push(golsFTSum / avg * 100);
         casaVence.push(casaVenceSum / avg * 100);
         empate.push(empateSum / avg * 100);
