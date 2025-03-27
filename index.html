@@ -618,7 +618,7 @@
               </div>
           </div>
           <div class="chart-container">
-            <canvas id="tacagloriaChart" width="400" height="130"></canvas>
+            <canvas id="tacagloriaChart" width="300" height="130"></canvas>
           </div>
       </div>
   </div>
@@ -1111,13 +1111,16 @@
     </script>
 
     <script>
-let copaAmericaChart, tacaGloriaChart, euroChart, campeonatoItalianoChart, copaEstrelasChart, britishDerbiesChart, ligaEspanholaChart, scudettoItalianoChart;
+let tacaGloriaChart;
 let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
-const leagues = ['CopaAmerica', 'TacaGloria', 'Euro', 'CampeonatoItaliano', 'CopaEstrelas', 'BritishDerbies', 'LigaEspanhola', 'ScudettoItaliano'];
 const chartInstances = {};
 let chartData = {};
+
+// Configuração da liga (apenas Taça Glória Eterna)
+const league = 'TacaGloria';
+const leagueUrl = 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna'; // Rota configurável
 
 const statsChartVisibleDatasets = {
     'Gols FT': false,
@@ -1384,13 +1387,11 @@ function createStatsChart(ctx, labels, data, league) {
                     borderWidth: 1,
                     callbacks: {
                         title: function(tooltipItems) {
-                            const league = leagues.find(l => chartInstances[l] === tooltipItems[0].chart);
                             const index = tooltipItems[0].dataIndex + averagePoints;
                             const match = chartData[league][index];
                             return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
                         },
                         label: function(tooltipItem) {
-                            const league = leagues.find(l => chartInstances[l] === tooltipItem.chart);
                             const index = tooltipItem.dataIndex + averagePoints;
                             const match = chartData[league][index];
                             const ftScore = match.ft || 'N/A';
@@ -1425,47 +1426,37 @@ function createStatsChart(ctx, labels, data, league) {
 
 function updateCharts() {
     const timestamp = new Date().getTime();
-    const leagueUrls = {
-
-        'TacaGloria': 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna',
-
-    };
-
-    leagues.forEach(league => {
-        const apiUrl = `${leagueUrls[league]}?timestamp=${timestamp}`;
-        console.log(`Buscando dados para ${league} em: ${apiUrl}`);
-        fetch(apiUrl)
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                console.log(`Dados processados para ${league}:`, data);
-                const processedData = processApiData(data, league);
-                const chartId = `${league.toLowerCase()}Chart`;
-                const canvasElement = document.getElementById(chartId);
-                if (!canvasElement) {
-                    console.error(`Canvas com ID '${chartId}' não encontrado no DOM`);
-                    return;
-                }
-                if (!chartInstances[league]) {
-                    const ctx = canvasElement.getContext('2d');
-                    chartInstances[league] = createStatsChart(ctx, processedData.labels, processedData, league);
-                    console.log(`Gráfico criado para ${league}`);
-                } else {
-                    updateStatsChart(chartInstances[league], processedData);
-                    console.log(`Gráfico atualizado para ${league}`);
-                }
-            })
-            .catch(error => console.error(`Erro ao buscar dados para ${league}:`, error));
-    });
+    const apiUrl = `${leagueUrl}?timestamp=${timestamp}`;
+    console.log(`Buscando dados para ${league} em: ${apiUrl}`);
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            console.log(`Dados processados para ${league}:`, data);
+            const processedData = processApiData(data, league);
+            const chartId = `${league.toLowerCase()}Chart`;
+            const canvasElement = document.getElementById(chartId);
+            if (!canvasElement) {
+                console.error(`Canvas com ID '${chartId}' não encontrado no DOM`);
+                return;
+            }
+            if (!chartInstances[league]) {
+                const ctx = canvasElement.getContext('2d');
+                chartInstances[league] = createStatsChart(ctx, processedData.labels, processedData, league);
+                console.log(`Gráfico criado para ${league}`);
+            } else {
+                updateStatsChart(chartInstances[league], processedData);
+                console.log(`Gráfico atualizado para ${league}`);
+            }
+        })
+        .catch(error => console.error(`Erro ao buscar dados para ${league}:`, error));
 }
 
 function toggleFibonacciLines() {
     showFibonacciLines = document.getElementById('fibonacciToggle').checked;
-    leagues.forEach(league => {
-        if (chartInstances[league]) chartInstances[league].update();
-    });
+    if (chartInstances[league]) chartInstances[league].update();
 }
 
 document.querySelectorAll('.accordion-header').forEach(header => {
