@@ -3541,235 +3541,166 @@ document.getElementById("toggle-ranking").addEventListener("click", () => {
 });
     </script>
     <script>
-      const ctxGols = document.getElementById("golsChart").getContext("2d");
+async function fetchChartData() {
+  try {
+    const response = await fetch("https://betstat.site/api/resultados/Euro");
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar dados: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Erro ao obter os dados:", error);
+    return [];
+  }
+}
 
-      const golsChartData = {
-        labels: [],
-        datasets: [
-          {
-            label: "Gols Barra",
-            data: [],
-            backgroundColor: "rgba(255, 255, 0, 0.5)", // Fundo amarelo
-            borderColor: "rgba(255, 255, 0, 1)", // Linha amarela
+const ctxGols = document.getElementById("golsChart").getContext("2d");
+
+const golsChartData = {
+  labels: [],
+  datasets: [
+    {
+      label: "Gols Barra",
+      data: [],
+      backgroundColor: "rgba(255, 255, 0, 0.5)",
+      borderColor: "rgba(255, 255, 0, 1)",
+      borderWidth: 2,
+    },
+  ],
+};
+
+const golsChart = new Chart(ctxGols, {
+  type: "bar",
+  data: golsChartData,
+  options: {
+    scales: {
+      y: {
+        position: "right",
+        min: 0,
+        max: 8,
+        beginAtZero: true,
+        ticks: {
+          stepSize: 1,
+          color: "white",
+        },
+        grid: {
+          color: "rgba(255, 255, 255, 0.5)",
+          drawBorder: false,
+        },
+      },
+      x: {
+        grid: { color: "rgba(0, 0, 0, 0)" },
+        ticks: {
+          color: "white",
+          display: false,
+        },
+      },
+    },
+    responsive: true,
+    plugins: {
+      legend: { display: true },
+      tooltip: {
+        enabled: true,
+        callbacks: {
+          title: (context) => `Hora: ${context[0].label}`,
+          label: (context) => {
+            const index = context.dataIndex;
+            const placar = golsChart.last80Data?.[index]?.ft || "N/A";
+            return `Placar: ${placar}`;
+          },
+        },
+      },
+      annotation: {
+        annotations: {
+          maxLine: {
+            type: "line",
+            yMin: 8,
+            yMax: 8,
+            borderColor: "red",
             borderWidth: 2,
-          },
-        ],
-      };
-
-      const golsChart = new Chart(ctxGols, {
-        type: "bar", // Tipo de gráfico definido como 'bar'
-        data: golsChartData,
-        options: {
-          scales: {
-            y: {
-              position: "right", // Mova os rótulos do eixo Y para a direita
-              min: 0,
-              max: 8, // Define o máximo do eixo Y como 8
-              beginAtZero: true,
-              ticks: {
-                stepSize: 1,
-                color: "white",
-              },
-              grid: {
-                color: "rgba(255, 255, 255, 0.5)",
-                drawBorder: false,
-              },
-            },
-            x: {
-              grid: {
-                color: "rgba(0, 0, 0, 0)",
-              },
-              ticks: {
-                color: "white",
-                display: false, // Desativa a exibição dos rótulos do eixo X
-              },
-            },
-          },
-          responsive: true,
-          plugins: {
-            legend: { display: true },
-            tooltip: {
+            label: {
+              content: "Máximo: 8 Gols",
               enabled: true,
-              callbacks: {
-                title: (context) => `Hora: ${context[0].label}`,
-                label: (context) => {
-                  // Usando a propriedade do gráfico para acessar last80Data
-                  const index = context.dataIndex; // Obtem o índice do dado
-                  const placar = golsChart.last80Data[index]?.ft || "N/A"; // Acesse o placar correto
-                  return `Placar: ${placar}`;
-                },
-              },
-            },
-            annotation: {
-              // Adiciona a configuração do plugin de anotações
-              annotations: {
-                maxLine: {
-                  type: "line",
-                  yMin: 8, // Valor máximo
-                  yMax: 8,
-                  borderColor: "red",
-                  borderWidth: 2,
-                  label: {
-                    content: "Máximo: 8 Gols", // Label para a linha
-                    enabled: true,
-                    position: "end",
-                  },
-                },
-              },
+              position: "end",
             },
           },
         },
-      });
+      },
+    },
+  },
+});
 
-      // Função para verificar se os dados estão em ordem
-      function isOrdered(data) {
-        for (let i = 1; i < data.length; i++) {
-          const currentDate = new Date(data[i].data); // Converte para Date
-          const previousDate = new Date(data[i - 1].data);
+function isOrdered(data) {
+  for (let i = 1; i < data.length; i++) {
+    const currentDate = new Date(data[i].data);
+    const previousDate = new Date(data[i - 1].data);
 
-          if (currentDate < previousDate) {
-            return false; // Dados não estão em ordem
-          }
-
-          if (currentDate.getTime() === previousDate.getTime()) {
-            if (
-              data[i].hora < data[i - 1].hora ||
-              (data[i].hora === data[i - 1].hora &&
-                data[i].minuto < data[i - 1].minuto)
-            ) {
-              return false; // Dados não estão em ordem
-            }
-          }
-        }
-        return true; // Dados estão em ordem
+    if (currentDate < previousDate) return false;
+    if (currentDate.getTime() === previousDate.getTime()) {
+      if (
+        data[i].hora < data[i - 1].hora ||
+        (data[i].hora === data[i - 1].hora && data[i].minuto < data[i - 1].minuto)
+      ) {
+        return false;
       }
+    }
+  }
+  return true;
+}
 
-      async function updateGolsChart() {
-        const fetchedData = await fetchChartData();
+function removeDuplicates(data) {
+  const uniqueGames = new Set();
+  return data.filter((item) => {
+    const gameKey = `${item.data}-${item.hora}-${item.minuto}-${item.ft}`;
+    if (uniqueGames.has(gameKey)) return false;
+    uniqueGames.add(gameKey);
+    return true;
+  });
+}
 
-        // Verifica se os dados estão em ordem e os ordena, se necessário
-        if (!isOrdered(fetchedData)) {
-          fetchedData.sort((a, b) => {
-            const dateA = new Date(a.data);
-            const dateB = new Date(b.data);
+async function updateGolsChart() {
+  const fetchedData = await fetchChartData();
+  const uniqueData = removeDuplicates(fetchedData);
 
-            if (dateA < dateB) return -1;
-            if (dateA > dateB) return 1;
+  if (!isOrdered(uniqueData)) {
+    uniqueData.sort((a, b) => {
+      const dateA = new Date(a.data);
+      const dateB = new Date(b.data);
+      if (dateA < dateB) return -1;
+      if (dateA > dateB) return 1;
+      if (a.hora < b.hora) return -1;
+      if (a.hora > b.hora) return 1;
+      return a.minuto - b.minuto;
+    });
+  }
 
-            if (a.hora < b.hora) return -1;
-            if (a.hora > b.hora) return 1;
+  const last80Data = uniqueData.slice(-160);
+  golsChart.last80Data = last80Data;
 
-            return a.minuto - b.minuto;
-          });
-        }
+  const labels = last80Data.map((item) => {
+    const hora = item.hora.toString().padStart(2, "0");
+    const minuto = item.minuto.toString().padStart(2, "0");
+    return `${hora}:${minuto}`;
+  });
 
-        const last80Data = fetchedData.slice(-240); // Pega apenas os últimos 120 dados
+  const somaGolsData = last80Data.map((item) => {
+    const [golsA, golsB] = item.ft.split(" x ").map(Number);
+    if (isNaN(golsA) || isNaN(golsB)) {
+      console.error(`Erro ao processar placar: ${item.ft}`);
+      return 0.1;
+    }
+    return golsA + golsB || 0.5;
+  });
 
-        // Armazena last80Data como uma propriedade do gráfico
-        golsChart.last80Data = last80Data;
+  golsChart.data.labels = labels;
+  golsChart.data.datasets[0].data = somaGolsData;
+  golsChart.update();
+}
 
-        const labels = last80Data.map((item) => {
-          const hora = item.hora.toString().padStart(2, "0");
-          const minuto = item.minuto.toString().padStart(2, "0");
-          return `${hora}:${minuto}`;
-        });
+setInterval(updateGolsChart, 5000);
+updateGolsChart();
 
-        const somaGolsData = last80Data.map((item) => {
-          // Extrai os gols da string 'ft'
-          const [golsA, golsB] = item.ft.split(" x ").map(Number);
-
-          // Verifica se a conversão de gols está correta
-          if (isNaN(golsA) || isNaN(golsB)) {
-            console.error(`Erro ao processar placar: ${item.ft}`);
-            return 0.1; // Retorna 0.1 se o placar não for válido, para que a barra apareça
-          }
-
-          const totalGols = golsA + golsB; // Soma total de gols
-
-          // Adiciona um console.log para verificar os valores
-          console.log(`Placar: ${item.ft}, Total de Gols: ${totalGols}`);
-
-          return totalGols === 0 ? 0.5 : totalGols; // Se total de gols for 0, define como 0.1
-        });
-
-        // Atualiza os dados do gráfico
-        golsChart.data.labels = labels;
-        golsChart.data.datasets[0].data = somaGolsData;
-
-        // Atualiza o gráfico
-        golsChart.update();
-      }
-
-      // Função para remover duplicatas usando data, hora, minuto e ft
-      function removeDuplicates(data) {
-        const uniqueGames = new Set();
-        return data.filter((item) => {
-          const gameKey = `${item.data}-${item.hora}-${item.minuto}-${item.ft}`;
-          if (uniqueGames.has(gameKey)) {
-            return false; // Jogo já existe, ignora duplicata
-          }
-          uniqueGames.add(gameKey); // Adiciona o jogo ao conjunto
-          return true; // Jogo é único, inclui no resultado
-        });
-      }
-
-      async function updateGolsChart() {
-        const fetchedData = await fetchChartData();
-
-        // Remove duplicatas antes de verificar a ordenação
-        const uniqueData = removeDuplicates(fetchedData);
-
-        // Verifica se os dados estão em ordem e os ordena, se necessário
-        if (!isOrdered(uniqueData)) {
-          uniqueData.sort((a, b) => {
-            const dateA = new Date(a.data);
-            const dateB = new Date(b.data);
-
-            if (dateA < dateB) return -1;
-            if (dateA > dateB) return 1;
-
-            if (a.hora < b.hora) return -1;
-            if (a.hora > b.hora) return 1;
-
-            return a.minuto - b.minuto;
-          });
-        }
-
-        const last80Data = uniqueData.slice(-160); // Pega apenas os últimos 80 dados
-
-        // Armazena last80Data como uma propriedade do gráfico
-        golsChart.last80Data = last80Data;
-
-        const labels = last80Data.map((item) => {
-          const hora = item.hora.toString().padStart(2, "0");
-          const minuto = item.minuto.toString().padStart(2, "0");
-          return `${hora}:${minuto}`;
-        });
-
-        const somaGolsData = last80Data.map((item) => {
-          const [golsA, golsB] = item.ft.split(" x ").map(Number);
-
-          if (isNaN(golsA) || isNaN(golsB)) {
-            console.error(`Erro ao processar placar: ${item.ft}`);
-            return 0.1;
-          }
-
-          const totalGols = golsA + golsB;
-          //console.log(`Placar: ${item.ft}, Total de Gols: ${totalGols}`);
-
-          return totalGols === 0 ? 0.5 : totalGols;
-        });
-
-        // Atualiza os dados do gráfico
-        golsChart.data.labels = labels;
-        golsChart.data.datasets[0].data = somaGolsData;
-
-        // Atualiza o gráfico
-        golsChart.update();
-      }
-
-      setInterval(updateGolsChart, 5000); // Atualiza o gráfico a cada 5 segundos
-      updateGolsChart(); // Chama a função para atualizar inicialmente
     </script>
     <script>
       // Função para buscar os dados da rota
