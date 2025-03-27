@@ -385,18 +385,6 @@
       </div>
   </div>
 
-
-    <div class="accordion-item">
-      <button class="accordion-button" onclick="toggleAccordion(this)">▼ Gráficos de Gols e Tendência ▲</button>
-      <div class="accordion-content">
-        <canvas id="golsplus" width="1080" height="200"></canvas>
-    
-        <div class="chart-container">
-          <canvas id="myChart" width="1080" height="200"></canvas>
-        </div>
-      </div>
-    </div>
-
     <div class="accordion-item">
       <button class="accordion-button" onclick="toggleAccordion(this)">▼ Ciclos de Porcentagem Vertical ▲</button>
       <div class="accordion-content">
@@ -473,6 +461,53 @@
         </table>
       </div>
     </div>
+
+    <div class="accordion-item">
+      <button class="accordion-button" onclick="toggleAccordion(this)">▼ Gráficos de Gols e Tendência ▲</button>
+      <div class="accordion-content">
+          <canvas id="golsplus" width="1080" height="200"></canvas>
+          <div class="control-panel">
+              <div>
+                  <label for="pointsSelector">Horas</label>
+                  <select id="pointsSelector">
+                      <option value="20">1 Hora</option>
+                      <option value="40">2 Horas</option>
+                      <option value="60">3 Horas</option>
+                      <option value="80">4 Horas</option>
+                      <option value="100">5 Horas</option>
+                      <option value="120">6 Horas</option>
+                      <option value="140">7 Horas</option>
+                      <option value="160">8 Horas</option>
+                      <option value="180">9 Horas</option>
+                      <option value="200">10 Horas</option>
+                      <option value="220">11 Horas</option>
+                      <option value="240">12 Horas</option>
+                      <option value="480">24 Horas</option>
+                  </select>
+              </div>
+              
+              <div>
+                  <label for="averageSelector">Base</label>
+                  <select id="averageSelector">
+                      <option value="19">20</option>
+                      <option value="39">40</option>
+                      <option value="59">60</option>
+                      <option value="79">80</option>
+                      <option value="99">100</option>
+                      <option value="119">120</option>
+                  </select>
+              </div>
+  
+              <div class="checkbox-container">
+                  <input type="checkbox" id="fibonacciToggle">
+                  <label for="fibonacciToggle">Ativar Fibonacci</label>
+              </div>
+          </div>
+          <div class="chart-container">
+              <canvas id="Premier" width="1080" height="300"></canvas>
+          </div>
+      </div>
+  </div>
 
   <div class="seletor-container">
 
@@ -965,420 +1000,386 @@
     </script>
 
     <script>
-      const ctx = document.getElementById("myChart").getContext("2d");
+let copaAmericaChart, CopaChart, EuroChart, PremierChart, SuperChart;
+let numPoints = 20;
+let averagePoints = 19;
+let showFibonacciLines = false;
+const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
+const chartInstances = {};
+let chartData = {};
 
-      let fetchedData = [];
-      let displayData = [];
-      let initialPercentage = 50;
-      let initialPercentageAmbasNaoMarcam = 50;
-      let initialCasaVence = 50;
-      let initialForaVence = 50;
-      let initialEmpate = 50;
+const statsChartVisibleDatasets = {
+    'Gols FT': false,
+    'Casa Vence': false,
+    'Empate': false,
+    'Fora Vence': false,
+    'Ambas Sim': true,
+    'Ambas Não': false,
+    'Over 1.5': false,
+    'Over 2.5': false,
+    'Over 3.5': false,
+    'Under 1.5': false,
+    'Under 2.5': false,
+    'Under 3.5': false,
+    '0 Gol Exato': false,
+    '1 Gol Exato': false,
+    '2 Gols Exatos': false,
+    '3 Gols Exatos': false,
+    '4 Gols Exatos': false,
+    '5 Gols Exatos': false
+};
 
-      async function fetchChartData() {
-        try {
-          const response = await fetch(
-            "https://betstat.site/api/resultados/Premier"
-          );
-          if (!response.ok) {
-            throw new Error(`Erro na requisição: ${response.status}`);
-          }
-          const data = await response.json();
-
-          return data.slice(-320);
-        } catch (error) {
-          console.error("Erro ao buscar dados:", error);
-          return [];
+function formatHtResult(ht) {
+    if (ht === 'OUT') return 'OUT';
+    if (ht && ht.includes(' x ')) {
+        const parts = ht.split(' x ');
+        if (parts.length === 2) {
+            return `${parts[0]}-${parts[1]}`;
         }
-      }
+    }
+    return ht;
+}
 
-      function ambosMarcam(ft) {
-        const [golsA, golsB] = ft.split(" x ").map(Number);
-        return golsA > 0 && golsB > 0;
-      }
-      function ambasNaoMarcam(ft) {
-        const [golsA, golsB] = ft.split(" x ").map(Number);
-        return golsA === 0 || golsB === 0;
-      }
-      function casaVence(ft) {
-        const [golsA, golsB] = ft.split(" x ").map(Number);
-        return golsA > golsB;
-      }
-      function foraVence(ft) {
-        const [golsA, golsB] = ft.split(" x ").map(Number);
-        return golsB > golsA;
-      }
-      function empate(ft) {
-        const [golsA, golsB] = ft.split(" x ").map(Number);
-        return golsA === golsB;
-      }
-      function isOver(ft, threshold) {
-        const [golsA, golsB] = ft.split(" x ").map(Number);
-        return golsA + golsB > threshold;
-      }
-      function isUnder(ft, threshold) {
-        const [golsA, golsB] = ft.split(" x ").map(Number);
-        return golsA + golsB < threshold;
-      }
+function updateStatsChart(chart, newData) {
+    if (chart) {
+        chart.data.labels = newData.labels;
+        chart.data.datasets[0].data = newData.golsFT;
+        chart.data.datasets[1].data = newData.casaVence;
+        chart.data.datasets[2].data = newData.empate;
+        chart.data.datasets[3].data = newData.foraVence;
+        chart.data.datasets[4].data = newData.ambasSim;
+        chart.data.datasets[5].data = newData.ambasNao;
+        chart.data.datasets[6].data = newData.over15;
+        chart.data.datasets[7].data = newData.over25;
+        chart.data.datasets[8].data = newData.over35;
+        chart.data.datasets[9].data = newData.under15;
+        chart.data.datasets[10].data = newData.under25;
+        chart.data.datasets[11].data = newData.under35;
+        chart.data.datasets[12].data = newData.gol0;
+        chart.data.datasets[13].data = newData.gol1;
+        chart.data.datasets[14].data = newData.gol2;
+        chart.data.datasets[15].data = newData.gol3;
+        chart.data.datasets[16].data = newData.gol4;
+        chart.data.datasets[17].data = newData.gol5;
+        chart.update('none');
+    }
+}
 
-      async function updateChart() {
-        fetchedData = await fetchChartData();
-        if (!isOrdered(fetchedData)) {
-          fetchedData.sort((a, b) => {
-            const dateA = new Date(a.data);
-            const dateB = new Date(b.data);
-            if (dateA < dateB) return -1;
-            if (dateA > dateB) return 1;
-            if (a.hora < b.hora) return -1;
-            if (a.hora > b.hora) return 1;
-            return a.minuto - b.minuto;
-          });
-        }
-        displayData = fetchedData.slice(-160);
-        const labels = displayData.map(
-          (item) =>
-            `${item.hora.toString().padStart(2, "0")}:${item.minuto
-              .toString()
-              .padStart(2, "0")}`
-        );
-        const ambosMarcamData = [];
-        const ambasNaoMarcamData = [];
-        const casaVenceData = [];
-        const foraVenceData = [];
-        const empateData = [];
-        const over1_5Data = [];
-        const under1_5Data = [];
-        const over2_5Data = [];
-        const under2_5Data = [];
-        const over3_5Data = [];
-        const under3_5Data = [];
+function processApiData(data, league) {
+    const sortedData = [...data].sort((a, b) => {
+        const dateA = new Date(a.data);
+        const dateB = new Date(b.data);
+        if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
+        if (a.hora !== b.hora) return a.hora - b.hora;
+        return a.minuto - b.minuto;
+    });
 
-        let previousAmbosMarcam = initialPercentage;
-        let previousAmbasNaoMarcam = initialPercentageAmbasNaoMarcam;
-        let previousCasaVence = initialCasaVence;
-        let previousForaVence = initialForaVence;
-        let previousEmpate = initialEmpate;
-        let previousOver1_5 = initialPercentage;
-        let previousUnder1_5 = initialPercentageAmbasNaoMarcam;
-        let previousOver2_5 = initialPercentage;
-        let previousUnder2_5 = initialPercentageAmbasNaoMarcam;
-        let previousOver3_5 = initialPercentage;
-        let previousUnder3_5 = initialPercentageAmbasNaoMarcam;
+    const slicedData = sortedData.slice(-numPoints - averagePoints);
+    chartData[league] = slicedData;
 
-        function getPreviousMatch(current, fetchedData) {
-          let previousHour = current.hora - 1;
+    let labels = [];
+    let golsFT = [];
+    let casaVence = [];
+    let empate = [];
+    let foraVence = [];
+    let ambasSim = [];
+    let ambasNao = [];
+    let over15 = [];
+    let over25 = [];
+    let over35 = [];
+    let under15 = [];
+    let under25 = [];
+    let under35 = [];
+    let gol0 = [];
+    let gol1 = [];
+    let gol2 = [];
+    let gol3 = [];
+    let gol4 = [];
+    let gol5 = [];
 
-          if (current.hora === 0) {
-            previousHour = 23;
-          }
+    for (let i = averagePoints; i < slicedData.length; i++) {
+        let golsFTSum = 0;
+        let casaVenceSum = 0;
+        let empateSum = 0;
+        let foraVenceSum = 0;
+        let ambasSimSum = 0;
+        let ambasNaoSum = 0;
+        let over15Sum = 0;
+        let over25Sum = 0;
+        let over35Sum = 0;
+        let under15Sum = 0;
+        let under25Sum = 0;
+        let under35Sum = 0;
+        let gol0Sum = 0;
+        let gol1Sum = 0;
+        let gol2Sum = 0;
+        let gol3Sum = 0;
+        let gol4Sum = 0;
+        let gol5Sum = 0;
 
-          const previousMatch = fetchedData.find(
-            (item) =>
-              item.hora === previousHour && item.minuto === current.minuto
-          );
-
-          if (previousMatch) {
-          } else {
-          }
-
-          return previousMatch;
-        }
-
-        for (let i = 0; i < displayData.length; i++) {
-          const current = displayData[i];
-
-          const previous = getPreviousMatch(current, fetchedData);
-
-          if (previous) {
-            if (ambosMarcam(previous.ft) !== ambosMarcam(current.ft)) {
-              previousAmbosMarcam += ambosMarcam(current.ft) ? 5 : -5;
+        for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
+            const match = slicedData[j];
+            const ftScore = match.ft;
+            
+            let ftScoreParts = [0, 0];
+            if (ftScore && ftScore.includes(' x ')) {
+                ftScoreParts = ftScore.split(' x ').map(num => parseInt(num, 10));
             }
-            ambosMarcamData.push(previousAmbosMarcam);
 
-            if (ambasNaoMarcam(previous.ft) !== ambasNaoMarcam(current.ft)) {
-              previousAmbasNaoMarcam += ambasNaoMarcam(current.ft) ? 5 : -5;
-            }
-            ambasNaoMarcamData.push(previousAmbasNaoMarcam);
+            const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
 
-            if (casaVence(previous.ft) !== casaVence(current.ft)) {
-              previousCasaVence += casaVence(current.ft) ? 5 : -5;
-            }
-            casaVenceData.push(previousCasaVence);
-
-            if (foraVence(previous.ft) !== foraVence(current.ft)) {
-              previousForaVence += foraVence(current.ft) ? 5 : -5;
-            }
-            foraVenceData.push(previousForaVence);
-
-            if (empate(previous.ft) !== empate(current.ft)) {
-              previousEmpate += empate(current.ft) ? 5 : -5;
-            }
-            empateData.push(previousEmpate);
-
-            const wasOver1_5 = isOver(previous.ft, 1.5);
-            const isNowOver1_5 = isOver(current.ft, 1.5);
-            if (wasOver1_5 !== isNowOver1_5) {
-              previousOver1_5 += isNowOver1_5 ? 5 : -5;
-            }
-            over1_5Data.push(previousOver1_5);
-
-            const wasUnder1_5 = isUnder(previous.ft, 1.5);
-            const isNowUnder1_5 = isUnder(current.ft, 1.5);
-            if (wasUnder1_5 !== isNowUnder1_5) {
-              previousUnder1_5 += isNowUnder1_5 ? 5 : -5;
-            }
-            under1_5Data.push(previousUnder1_5);
-
-            const wasOver2_5 = isOver(previous.ft, 2.5);
-            const isNowOver2_5 = isOver(current.ft, 2.5);
-            if (wasOver2_5 !== isNowOver2_5) {
-              previousOver2_5 += isNowOver2_5 ? 5 : -5;
-            }
-            over2_5Data.push(previousOver2_5);
-
-            const wasUnder2_5 = isUnder(previous.ft, 2.5);
-            const isNowUnder2_5 = isUnder(current.ft, 2.5);
-            if (wasUnder2_5 !== isNowUnder2_5) {
-              previousUnder2_5 += isNowUnder2_5 ? 5 : -5;
-            }
-            under2_5Data.push(previousUnder2_5);
-
-            const wasOver3_5 = isOver(previous.ft, 3.5);
-            const isNowOver3_5 = isOver(current.ft, 3.5);
-            if (wasOver3_5 !== isNowOver3_5) {
-              previousOver3_5 += isNowOver3_5 ? 5 : -5;
-            }
-            over3_5Data.push(previousOver3_5);
-
-            const wasUnder3_5 = isUnder(previous.ft, 3.5);
-            const isNowUnder3_5 = isUnder(current.ft, 3.5);
-            if (wasUnder3_5 !== isNowUnder3_5) {
-              previousUnder3_5 += isNowUnder3_5 ? 5 : -5;
-            }
-            under3_5Data.push(previousUnder3_5);
-          } else {
-            ambosMarcamData.push(previousAmbosMarcam);
-            ambasNaoMarcamData.push(previousAmbasNaoMarcam);
-            casaVenceData.push(previousCasaVence);
-            foraVenceData.push(previousForaVence);
-            empateData.push(previousEmpate);
-            over1_5Data.push(previousOver1_5);
-            under1_5Data.push(previousUnder1_5);
-            over2_5Data.push(previousOver2_5);
-            under2_5Data.push(previousUnder2_5);
-            over3_5Data.push(previousOver3_5);
-            under3_5Data.push(previousUnder3_5);
-          }
+            golsFTSum += totalGolsFT;
+            casaVenceSum += (ftScoreParts[0] > ftScoreParts[1]) ? 1 : 0;
+            empateSum += (ftScoreParts[0] === ftScoreParts[1]) ? 1 : 0;
+            foraVenceSum += (ftScoreParts[0] < ftScoreParts[1]) ? 1 : 0;
+            ambasSimSum += (ftScoreParts[0] > 0 && ftScoreParts[1] > 0) ? 1 : 0;
+            ambasNaoSum += (ftScoreParts[0] === 0 || ftScoreParts[1] === 0) ? 1 : 0;
+            over15Sum += (totalGolsFT > 1.5) ? 1 : 0;
+            over25Sum += (totalGolsFT > 2.5) ? 1 : 0;
+            over35Sum += (totalGolsFT > 3.5) ? 1 : 0;
+            under15Sum += (totalGolsFT < 1.5) ? 1 : 0;
+            under25Sum += (totalGolsFT < 2.5) ? 1 : 0;
+            under35Sum += (totalGolsFT < 3.5) ? 1 : 0;
+            gol0Sum += (totalGolsFT === 0) ? 1 : 0;
+            gol1Sum += (totalGolsFT === 1) ? 1 : 0;
+            gol2Sum += (totalGolsFT === 2) ? 1 : 0;
+            gol3Sum += (totalGolsFT === 3) ? 1 : 0;
+            gol4Sum += (totalGolsFT === 4) ? 1 : 0;
+            gol5Sum += (totalGolsFT === 5) ? 1 : 0;
         }
 
-        myChart.data.labels = labels;
-        myChart.data.datasets[0].data = ambosMarcamData;
-        myChart.data.datasets[1].data = ambasNaoMarcamData;
-        myChart.data.datasets[2].data = casaVenceData;
-        myChart.data.datasets[3].data = foraVenceData;
-        myChart.data.datasets[4].data = over1_5Data;
-        myChart.data.datasets[5].data = under1_5Data;
-        myChart.data.datasets[6].data = over2_5Data;
-        myChart.data.datasets[7].data = under2_5Data;
-        myChart.data.datasets[8].data = over3_5Data;
-        myChart.data.datasets[9].data = under3_5Data;
-        myChart.data.datasets[10].data = empateData;
-        myChart.update();
-      }
+        const match = slicedData[i];
+        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
+        
+        const avg = averagePoints + 1;
+        golsFT.push(golsFTSum / avg * 100);
+        casaVence.push(casaVenceSum / avg * 100);
+        empate.push(empateSum / avg * 100);
+        foraVence.push(foraVenceSum / avg * 100);
+        ambasSim.push(ambasSimSum / avg * 100);
+        ambasNao.push(ambasNaoSum / avg * 100);
+        over15.push(over15Sum / avg * 100);
+        over25.push(over25Sum / avg * 100);
+        over35.push(over35Sum / avg * 100);
+        under15.push(under15Sum / avg * 100);
+        under25.push(under25Sum / avg * 100);
+        under35.push(under35Sum / avg * 100);
+        gol0.push(gol0Sum / avg * 100);
+        gol1.push(gol1Sum / avg * 100);
+        gol2.push(gol2Sum / avg * 100);
+        gol3.push(gol3Sum / avg * 100);
+        gol4.push(gol4Sum / avg * 100);
+        gol5.push(gol5Sum / avg * 100);
+    }
 
-      function isOrdered(data) {
-        for (let i = 1; i < data.length; i++) {
-          const currentDate = new Date(data[i].data);
-          const previousDate = new Date(data[i - 1].data);
-          if (currentDate < previousDate) return false;
-          if (currentDate.getTime() === previousDate.getTime()) {
-            if (
-              data[i].hora < data[i - 1].hora ||
-              (data[i].hora === data[i - 1].hora &&
-                data[i].minuto < data[i - 1].minuto)
-            )
-              return false;
-          }
-        }
-        return true;
-      }
+    return { 
+        labels, golsFT, casaVence, empate, foraVence, ambasSim, ambasNao,
+        over15, over25, over35, under15, under25, under35,
+        gol0, gol1, gol2, gol3, gol4, gol5 
+    };
+}
 
-      const chartData = {
-        labels: [],
-        datasets: [
-          {
-            label: "Ambas Sim",
-            data: [],
-            backgroundColor: "rgba(255, 255, 255, 0.5)",
-            borderColor: "rgba(255, 255, 255, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(255, 255, 255, 1)",
-          },
-          {
-            label: "Ambas Não",
-            data: [],
-            backgroundColor: "rgba(255, 0, 0, 0.5)",
-            borderColor: "rgba(255, 0, 0, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(255, 0, 0, 1)",
-            hidden: true,
-          },
+const fibonacciLinesPlugin = {
+    id: 'fibonacciLines',
+    afterDraw: (chart) => {
+        if (!showFibonacciLines) return;
+        const ctx = chart.ctx;
+        const yAxis = chart.scales.y;
+        const fibonacciLevels = [0, 23.6, 38.2, 50, 61.8, 100];
+        const yMin = yAxis.min;
+        const yMax = yAxis.max;
+        const range = yMax - yMin;
+        const normalizedLevels = fibonacciLevels.map(level => yMin + (level / 100) * range);
 
-          {
-            label: "Casa Vence",
-            data: [],
-            backgroundColor: "rgba(255, 20, 147, 0.5)",
-            borderColor: "rgba(255, 20, 147, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(255, 20, 147, 1)",
-            hidden: true,
-          },
-          {
-            label: "Fora Vence",
-            data: [],
-            backgroundColor: "rgba(0, 0, 255, 0.5)",
-            borderColor: "rgba(0, 0, 255, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(0, 0, 255, 1)",
-            hidden: true,
-          },
-          {
-            label: "Over 1.5",
-            data: [],
-            backgroundColor: "rgba(0, 255, 127, 0.5)",
-            borderColor: "rgba(0, 255, 127, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(0, 255, 127, 1)",
-            hidden: true,
-          },
-          {
-            label: "Under 1.5",
-            data: [],
-            backgroundColor: "rgba(0, 128, 0, 0.5)",
-            borderColor: "rgba(0, 128, 0, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(0, 128, 0, 1)",
-            hidden: true,
-          },
-          {
-            label: "Over 2.5",
-            data: [],
-            backgroundColor: "rgba(255, 255, 0, 0.5)",
-            borderColor: "rgba(255, 255, 0, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(255, 255, 0, 1)",
-            hidden: true,
-          },
-          {
-            label: "Under 2.5",
-            data: [],
-            backgroundColor: "rgba(255, 165, 0, 0.5)",
-            borderColor: "rgba(255, 165, 0, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(255, 165, 0, 1)",
-            hidden: true,
-          },
-          {
-            label: "Over 3.5",
-            data: [],
-            backgroundColor: "rgba(0, 255, 255, 0.5)",
-            borderColor: "rgba(0, 255, 255, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(0, 255, 255, 1)",
-            hidden: true,
-          },
-          {
-            label: "Under 3.5",
-            data: [],
-            backgroundColor: "rgba(255, 105, 180, 0.5)",
-            borderColor: "rgba(255, 105, 180, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(255, 105, 180, 1)",
-            hidden: true,
-          },
+        ctx.save();
+        normalizedLevels.forEach((level, index) => {
+            const y = yAxis.getPixelForValue(level);
+            ctx.beginPath();
+            ctx.moveTo(chart.chartArea.left, y);
+            ctx.lineTo(chart.chartArea.right, y);
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.fillStyle = '#b0b0b0';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'left';
+            const textY = y - (index === 0 ? -10 : 5);
+            const textX = chart.chartArea.right + 10;
+            ctx.fillText(`${fibonacciLevels[index]}%`, textX, textY);
+        });
+        ctx.restore();
+    }
+};
 
-          {
-            label: "Empate",
-            data: [],
-            backgroundColor: "rgba(128, 128, 128, 0.5)",
-            borderColor: "rgba(128, 128, 128, 1)",
-            borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(128, 128, 128, 1)",
-            hidden: true,
-          },
-        ],
-      };
-
-      const myChart = new Chart(ctx, {
-        type: "line",
-        data: chartData,
-        options: {
-          scales: {
-            y: {
-              position: "right",
-              ticks: {
-                stepSize: 5,
-                color: "white",
-              },
-              grid: {
-                color: "rgba(255, 255, 255, 0.5)",
-                drawBorder: false,
-                lineWidth: 1,
-              },
-            },
-            x: {
-              grid: {
-                color: "rgba(0, 0, 0, 0)",
-              },
-              ticks: {
-                color: "white",
-                display: false,
-              },
-            },
-          },
-          responsive: true,
-          plugins: {
-            legend: { display: true },
-            tooltip: {
-              enabled: true,
-              callbacks: {
-                title: (context) => `Hora: ${context[0].label}`,
-                label: (context) => {
-                  const index = context.dataIndex;
-                  const currentGame = displayData[index] || {
-                    ft: "N/A",
-                    hora: "N/A",
-                    minuto: "N/A",
-                  };
-                  const previousGame =
-                    fetchedData.find(
-                      (item) =>
-                        item.hora === currentGame.hora - 1 &&
-                        item.minuto === currentGame.minuto
-                    ) || {};
-
-                  return [`Placar: ${currentGame.ft}`];
-                },
-              },
-            },
-          },
+function createStatsChart(ctx, labels, data, league) {
+    return new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: 'Gols FT', data: data.golsFT, borderColor: '#1E88E5', backgroundColor: '#1E88E5', hidden: !statsChartVisibleDatasets['Gols FT'] },
+                { label: 'Casa Vence', data: data.casaVence, borderColor: '#AB47BC', backgroundColor: '#AB47BC', hidden: !statsChartVisibleDatasets['Casa Vence'] },
+                { label: 'Empate', data: data.empate, borderColor: '#78909C', backgroundColor: '#78909C', hidden: !statsChartVisibleDatasets['Empate'] },
+                { label: 'Fora Vence', data: data.foraVence, borderColor: '#2196F3', backgroundColor: '#2196F3', hidden: !statsChartVisibleDatasets['Fora Vence'] },
+                { label: 'Ambas Sim', data: data.ambasSim, borderColor: '#B0BEC5', backgroundColor: '#B0BEC5', hidden: !statsChartVisibleDatasets['Ambas Sim'] },
+                { label: 'Ambas Não', data: data.ambasNao, borderColor: '#F44336', backgroundColor: '#F44336', hidden: !statsChartVisibleDatasets['Ambas Não'] },
+                { label: 'Over 1.5', data: data.over15, borderColor: '#26A69A', backgroundColor: '#26A69A', hidden: !statsChartVisibleDatasets['Over 1.5'] },
+                { label: 'Over 2.5', data: data.over25, borderColor: '#FFEB3B', backgroundColor: '#FFEB3B', hidden: !statsChartVisibleDatasets['Over 2.5'] },
+                { label: 'Over 3.5', data: data.over35, borderColor: '#00BCD4', backgroundColor: '#00BCD4', hidden: !statsChartVisibleDatasets['Over 3.5'] },
+                { label: 'Under 1.5', data: data.under15, borderColor: '#388E3C', backgroundColor: '#388E3C', hidden: !statsChartVisibleDatasets['Under 1.5'] },
+                { label: 'Under 2.5', data: data.under25, borderColor: '#FF9800', backgroundColor: '#FF9800', hidden: !statsChartVisibleDatasets['Under 2.5'] },
+                { label: 'Under 3.5', data: data.under35, borderColor: '#F06292', backgroundColor: '#F06292', hidden: !statsChartVisibleDatasets['Under 3.5'] },
+                { label: '0 Gol Exato', data: data.gol0, borderColor: '#D81B60', backgroundColor: '#D81B60', hidden: !statsChartVisibleDatasets['0 Gol Exato'] },
+                { label: '1 Gol Exato', data: data.gol1, borderColor: '#8E24AA', backgroundColor: '#8E24AA', hidden: !statsChartVisibleDatasets['1 Gol Exato'] },
+                { label: '2 Gols Exatos', data: data.gol2, borderColor: '#FDD835', backgroundColor: '#FDD835', hidden: !statsChartVisibleDatasets['2 Gols Exatos'] },
+                { label: '3 Gols Exatos', data: data.gol3, borderColor: '#546E7A', backgroundColor: '#546E7A', hidden: !statsChartVisibleDatasets['3 Gols Exatos'] },
+                { label: '4 Gols Exatos', data: data.gol4, borderColor: '#FFB300', backgroundColor: '#FFB300', hidden: !statsChartVisibleDatasets['4 Gols Exatos'] },
+                { label: '5 Gols Exatos', data: data.gol5, borderColor: '#00897B', backgroundColor: '#00897B', hidden: !statsChartVisibleDatasets['5 Gols Exatos'] }
+            ].map(dataset => ({
+                ...dataset,
+                borderWidth: 2,
+                pointRadius: 4,
+                pointBackgroundColor: dataset.borderColor,
+                fill: false
+            }))
         },
-      });
+        options: {
+            responsive: true,
+            layout: { 
+                padding: { 
+                    top: 30,
+                    right: 50
+                } 
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: { color: '#e0e0e0', font: { size: 12 } },
+                    onClick: function(e, legendItem, legend) {
+                        const dataset = legendItem.datasetIndex;
+                        const ci = legend.chart;
+                        const meta = ci.getDatasetMeta(dataset);
+                        meta.hidden = !meta.hidden;
+                        statsChartVisibleDatasets[legendItem.text] = !meta.hidden;
+                        ci.update();
+                    }
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#1fad8b',
+                    bodyColor: '#e0e0e0',
+                    borderColor: '#1fad8b',
+                    borderWidth: 1,
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            const league = leagues.find(l => chartInstances[l] === tooltipItems[0].chart);
+                            const index = tooltipItems[0].dataIndex + averagePoints;
+                            const match = chartData[league][index];
+                            return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
+                        },
+                        label: function(tooltipItem) {
+                            const league = leagues.find(l => chartInstances[l] === tooltipItem.chart);
+                            const index = tooltipItem.dataIndex + averagePoints;
+                            const match = chartData[league][index];
+                            const ftScore = match.ft || 'N/A';
+                            const htScore = formatHtResult(match.ht) || 'N/A';
+                            return [
+                                `FT: ${ftScore}`,
+                                `HT: ${htScore}`,
+                                `${tooltipItem.dataset.label}: ${Math.round(tooltipItem.raw)}`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
+                    ticks: { color: '#b0b0b0', maxRotation: 45, minRotation: 45 },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)', borderDash: [5, 5] }
+                },
+                y: {
+                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
+                    beginAtZero: false,
+                    ticks: { color: '#b0b0b0' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)', borderDash: [5, 5] },
+                    afterFit: function(scale) { scale.paddingTop = 20; }
+                }
+            }
+        },
+        plugins: [fibonacciLinesPlugin]
+    });
+}
 
-      setInterval(updateChart, 5000);
+function updateCharts() {
+    const timestamp = new Date().getTime();
+    const leagueUrls = {
+        'Copa': 'https://betstat.site/api/resultados/Copa',
+        'Euro': 'https://betstat.site/api/resultados/Euro',
+        'Premier': 'https://betstat.site/api/resultados/Premier',
+        'Super': 'https://betstat.site/api/resultados/Super',
+    };
 
-      updateChart();
+    leagues.forEach(league => {
+        const apiUrl = `${leagueUrls[league]}?timestamp=${timestamp}`;
+        console.log(`Buscando dados para ${league} em: ${apiUrl}`);
+        fetch(apiUrl)
+            .then(response => {
+                console.log(`Resposta recebida para ${league}:`, response);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                console.log(`Dados processados para ${league}:`, data);
+                const processedData = processApiData(data, league);
+                const chartId = league;
+                const canvasElement = document.getElementById(chartId);
+                if (!canvasElement) {
+                    console.error(`Canvas com ID '${chartId}' não encontrado no DOM`);
+                    return;
+                }
+                if (!chartInstances[league]) {
+                    const ctx = canvasElement.getContext('2d');
+                    chartInstances[league] = createStatsChart(ctx, processedData.labels, processedData, league);
+                    console.log(`Gráfico criado para ${league}`);
+                } else {
+                    updateStatsChart(chartInstances[league], processedData);
+                    console.log(`Gráfico atualizado para ${league}`);
+                }
+            })
+            .catch(error => console.error(`Erro ao buscar dados para ${league}:`, error));
+    });
+}
+
+function toggleFibonacciLines() {
+    showFibonacciLines = document.getElementById('fibonacciToggle').checked;
+    leagues.forEach(league => {
+        if (chartInstances[league]) chartInstances[league].update();
+    });
+}
+
+document.querySelectorAll('.accordion-header').forEach(header => {
+    header.addEventListener('click', () => {
+        const content = header.nextElementSibling;
+        content.classList.toggle('active');
+    });
+});
+
+document.getElementById('pointsSelector').addEventListener('change', function(event) {
+    numPoints = parseInt(event.target.value, 10);
+    updateCharts();
+});
+
+document.getElementById('averageSelector').addEventListener('change', function(event) {
+    averagePoints = parseInt(event.target.value, 10);
+    updateCharts();
+});
+
+document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
+
+window.onload = updateCharts;
+setInterval(updateCharts, 3000);
     </script>
 
     <script>
