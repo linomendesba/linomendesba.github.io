@@ -1066,6 +1066,24 @@ function updateStatsChart(chart, newData) {
         chart.data.datasets[16].data = newData.gol4;
         chart.data.datasets[17].data = newData.gol5;
         chart.data.datasets[18].data = newData.equilibrium;
+
+        // Calcula os limites do eixo Y com base nos dados visíveis
+        const visibleDatasets = chart.data.datasets.filter((dataset, index) => !chart.getDatasetMeta(index).hidden);
+        const allValues = visibleDatasets
+            .flatMap(dataset => dataset.data)
+            .filter(value => value !== null && !isNaN(value));
+        
+        if (allValues.length > 0) {
+            const minValue = Math.min(...allValues);
+            const maxValue = Math.max(...allValues);
+            const margin = (maxValue - minValue) * 0.1 || 10; // Margem de 10% ou 10 unidades
+            chart.options.scales.y.min = Math.max(0, minValue - margin);
+            chart.options.scales.y.max = Math.min(100, maxValue + margin);
+        } else {
+            chart.options.scales.y.min = 0;
+            chart.options.scales.y.max = 100;
+        }
+
         chart.update('none');
     }
 }
@@ -1383,7 +1401,7 @@ function createStatsChart(ctx, labels, data, league) {
                         meta.hidden = !meta.hidden;
                         statsChartVisibleDatasets[legendItem.text] = !meta.hidden;
 
-                        // Recalcula a linha de equilíbrio quando o mercado ativo muda
+                        // Recalcula a linha de equilíbrio e os limites do eixo Y
                         const newData = processApiData(chartData[leagues.find(l => chartInstances[l] === ci)], leagues.find(l => chartInstances[l] === ci));
                         updateStatsChart(ci, newData);
                     }
@@ -1425,7 +1443,6 @@ function createStatsChart(ctx, labels, data, league) {
                 },
                 y: {
                     title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                    beginAtZero: false,
                     ticks: { color: '#b0b0b0' },
                     grid: { color: 'rgba(255, 255, 255, 0.1)', borderDash: [5, 5] },
                     afterFit: function(scale) { scale.paddingTop = 20; }
