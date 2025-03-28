@@ -1110,6 +1110,75 @@ function processApiData(data, league) {
         return diffMinutes > 1;
     }
 
+    // Calcula a média global para cada mercado com base em todos os dados
+    const calculateMarketAverages = (dataSlice) => {
+        let over15Sum = 0, under15Sum = 0;
+        let over25Sum = 0, under25Sum = 0;
+        let over35Sum = 0, under35Sum = 0;
+        let ambasSimSum = 0, ambasNaoSum = 0;
+        let totalMatches = 0;
+
+        for (let match of dataSlice) {
+            let ftScoreParts = [0, 0];
+            if (match.ft && match.ft.includes(' x ')) {
+                ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
+            }
+            const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
+
+            over15Sum += totalGolsFT > 1.5 ? 1 : 0;
+            under15Sum += totalGolsFT < 1.5 ? 1 : 0;
+            over25Sum += totalGolsFT > 2.5 ? 1 : 0;
+            under25Sum += totalGolsFT < 2.5 ? 1 : 0;
+            over35Sum += totalGolsFT > 3.5 ? 1 : 0;
+            under35Sum += totalGolsFT < 3.5 ? 1 : 0;
+            ambasSimSum += ftScoreParts[0] > 0 && ftScoreParts[1] > 0 ? 1 : 0;
+            ambasNaoSum += ftScoreParts[0] === 0 || ftScoreParts[1] === 0 ? 1 : 0;
+            totalMatches++;
+        }
+
+        return {
+            over15: totalMatches ? (over15Sum / totalMatches) * 100 : 0,
+            under15: totalMatches ? (under15Sum / totalMatches) * 100 : 0,
+            over25: totalMatches ? (over25Sum / totalMatches) * 100 : 0,
+            under25: totalMatches ? (under25Sum / totalMatches) * 100 : 0,
+            over35: totalMatches ? (over35Sum / totalMatches) * 100 : 0,
+            under35: totalMatches ? (under35Sum / totalMatches) * 100 : 0,
+            ambasSim: totalMatches ? (ambasSimSum / totalMatches) * 100 : 0,
+            ambasNao: totalMatches ? (ambasNaoSum / totalMatches) * 100 : 0
+        };
+    };
+
+    // Calcula a linha de equilíbrio com base no mercado ativo
+    const calculateEquilibrium = () => {
+        const averages = calculateMarketAverages(slicedData);
+        const activeMarket = Object.keys(statsChartVisibleDatasets).find(key => 
+            statsChartVisibleDatasets[key] && key !== 'Linha de Equilíbrio'
+        );
+
+        if (!activeMarket) return 50; // Valor padrão se nenhum mercado estiver ativo
+
+        switch (activeMarket) {
+            case 'Over 1.5':
+                return (averages.over15 + averages.under15) / 2;
+            case 'Under 1.5':
+                return (averages.over15 + averages.under15) / 2;
+            case 'Over 2.5':
+                return (averages.over25 + averages.under25) / 2;
+            case 'Under 2.5':
+                return (averages.over25 + averages.under25) / 2;
+            case 'Over 3.5':
+                return (averages.over35 + averages.under35) / 2;
+            case 'Under 3.5':
+                return (averages.over35 + averages.under35) / 2;
+            case 'Ambas Sim':
+                return (averages.ambasSim + averages.ambasNao) / 2;
+            case 'Ambas Não':
+                return (averages.ambasSim + averages.ambasNao) / 2;
+            default:
+                return 50; // Para mercados sem oposto direto
+        }
+    };
+
     for (let i = averagePoints; i < slicedData.length; i++) {
         let golsFTSum = 0;
         let casaVenceSum = 0;
@@ -1209,7 +1278,10 @@ function processApiData(data, league) {
         gol3.push(gol3Sum / avg * 100);
         gol4.push(gol4Sum / avg * 100);
         gol5.push(gol5Sum / avg * 100);
-        equilibrium.push(50); // Linha de equilíbrio fixa em 50%
+
+        // Calcula a linha de equilíbrio com base no mercado ativo
+        const eqValue = calculateEquilibrium();
+        equilibrium.push(eqValue);
     }
 
     return { 
@@ -1310,7 +1382,10 @@ function createStatsChart(ctx, labels, data, league) {
                         const meta = ci.getDatasetMeta(dataset);
                         meta.hidden = !meta.hidden;
                         statsChartVisibleDatasets[legendItem.text] = !meta.hidden;
-                        ci.update();
+
+                        // Recalcula a linha de equilíbrio quando o mercado ativo muda
+                        const newData = processApiData(chartData[leagues.find(l => chartInstances[l] === ci)], leagues.find(l => chartInstances[l] === ci));
+                        updateStatsChart(ci, newData);
                     }
                 },
                 tooltip: {
