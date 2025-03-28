@@ -1029,7 +1029,8 @@ const statsChartVisibleDatasets = {
     '2 Gols Exatos': false,
     '3 Gols Exatos': false,
     '4 Gols Exatos': false,
-    '5 Gols Exatos': false
+    '5 Gols Exatos': false,
+    'Linha de Equilíbrio': false // Adicionada como um mercado
 };
 
 function formatHtResult(ht) {
@@ -1064,6 +1065,7 @@ function updateStatsChart(chart, newData) {
         chart.data.datasets[15].data = newData.gol3;
         chart.data.datasets[16].data = newData.gol4;
         chart.data.datasets[17].data = newData.gol5;
+        chart.data.datasets[18].data = newData.equilibrium; // Novo dataset
         chart.update('none');
     }
 }
@@ -1099,14 +1101,57 @@ function processApiData(data, league) {
     let gol3 = [];
     let gol4 = [];
     let gol5 = [];
+    let equilibrium = []; // Novo array para a linha de equilíbrio
 
-    // Função para verificar se há lacuna entre dois jogos
     function hasGap(prevMatch, currMatch) {
         const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
         const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
-        const diffMinutes = (currTime - prevTime) / (1000 * 60); // Diferença em minutos
-        return diffMinutes > 1; // Considera lacuna se a diferença for maior que 1 minuto
+        const diffMinutes = (currTime - prevTime) / (1000 * 60);
+        return diffMinutes > 1;
     }
+
+    // Calcula a média geral para o mercado ativo (usado na linha de equilíbrio)
+    const calculateEquilibrium = (dataSlice) => {
+        const activeMarket = Object.keys(statsChartVisibleDatasets).find(key => 
+            statsChartVisibleDatasets[key] && key !== 'Linha de Equilíbrio'
+        );
+        if (!activeMarket) return null;
+
+        let sum = 0;
+        let count = 0;
+        for (let match of dataSlice) {
+            let ftScoreParts = [0, 0];
+            if (match.ft && match.ft.includes(' x ')) {
+                ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
+            }
+            const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
+            let value = 0;
+
+            switch (activeMarket) {
+                case 'Gols FT': value = totalGolsFT; break;
+                case 'Casa Vence': value = ftScoreParts[0] > ftScoreParts[1] ? 1 : 0; break;
+                case 'Empate': value = ftScoreParts[0] === ftScoreParts[1] ? 1 : 0; break;
+                case 'Fora Vence': value = ftScoreParts[0] < ftScoreParts[1] ? 1 : 0; break;
+                case 'Ambas Sim': value = ftScoreParts[0] > 0 && ftScoreParts[1] > 0 ? 1 : 0; break;
+                case 'Ambas Não': value = ftScoreParts[0] === 0 || ftScoreParts[1] === 0 ? 1 : 0; break;
+                case 'Over 1.5': value = totalGolsFT > 1.5 ? 1 : 0; break;
+                case 'Over 2.5': value = totalGolsFT > 2.5 ? 1 : 0; break;
+                case 'Over 3.5': value = totalGolsFT > 3.5 ? 1 : 0; break;
+                case 'Under 1.5': value = totalGolsFT < 1.5 ? 1 : 0; break;
+                case 'Under 2.5': value = totalGolsFT < 2.5 ? 1 : 0; break;
+                case 'Under 3.5': value = totalGolsFT < 3.5 ? 1 : 0; break;
+                case '0 Gol Exato': value = totalGolsFT === 0 ? 1 : 0; break;
+                case '1 Gol Exato': value = totalGolsFT === 1 ? 1 : 0; break;
+                case '2 Gols Exatos': value = totalGolsFT === 2 ? 1 : 0; break;
+                case '3 Gols Exatos': value = totalGolsFT === 3 ? 1 : 0; break;
+                case '4 Gols Exatos': value = totalGolsFT === 4 ? 1 : 0; break;
+                case '5 Gols Exatos': value = totalGolsFT === 5 ? 1 : 0; break;
+            }
+            sum += value;
+            count++;
+        }
+        return count > 0 ? (sum / count) * 100 : null;
+    };
 
     for (let i = averagePoints; i < slicedData.length; i++) {
         let golsFTSum = 0;
@@ -1129,16 +1174,13 @@ function processApiData(data, league) {
         let gol5Sum = 0;
         let validMatches = 0;
 
-        // Calcula a média apenas com os jogos disponíveis
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
             const ftScore = match.ft;
 
-            // Verifica se há lacuna antes de processar
             if (j > 0 && hasGap(slicedData[j - 1], match)) {
-                // Insere um ponto nulo no gráfico para indicar a lacuna
                 labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-                golsFT.push(null); // null faz o Chart.js pular o ponto
+                golsFT.push(null);
                 casaVence.push(null);
                 empate.push(null);
                 foraVence.push(null);
@@ -1156,7 +1198,8 @@ function processApiData(data, league) {
                 gol3.push(null);
                 gol4.push(null);
                 gol5.push(null);
-                continue; // Pula para o próximo jogo
+                equilibrium.push(null);
+                continue;
             }
 
             let ftScoreParts = [0, 0];
@@ -1188,9 +1231,9 @@ function processApiData(data, league) {
         }
 
         const match = slicedData[i];
-        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`); // Linha corrigida
+        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
-        const avg = validMatches || 1; // Evita divisão por zero
+        const avg = validMatches || 1;
         golsFT.push(golsFTSum / avg * 100);
         casaVence.push(casaVenceSum / avg * 100);
         empate.push(empateSum / avg * 100);
@@ -1209,12 +1252,16 @@ function processApiData(data, league) {
         gol3.push(gol3Sum / avg * 100);
         gol4.push(gol4Sum / avg * 100);
         gol5.push(gol5Sum / avg * 100);
+
+        // Calcula o equilíbrio para o mercado ativo
+        const eqValue = calculateEquilibrium(slicedData.slice(0, i + 1));
+        equilibrium.push(eqValue);
     }
 
     return { 
         labels, golsFT, casaVence, empate, foraVence, ambasSim, ambasNao,
         over15, over25, over35, under15, under25, under35,
-        gol0, gol1, gol2, gol3, gol4, gol5 
+        gol0, gol1, gol2, gol3, gol4, gol5, equilibrium
     };
 }
 
@@ -1273,7 +1320,15 @@ function createStatsChart(ctx, labels, data, league) {
                 { label: '2 Gols Exatos', data: data.gol2, borderColor: '#FDD835', backgroundColor: '#FDD835', hidden: !statsChartVisibleDatasets['2 Gols Exatos'] },
                 { label: '3 Gols Exatos', data: data.gol3, borderColor: '#546E7A', backgroundColor: '#546E7A', hidden: !statsChartVisibleDatasets['3 Gols Exatos'] },
                 { label: '4 Gols Exatos', data: data.gol4, borderColor: '#FFB300', backgroundColor: '#FFB300', hidden: !statsChartVisibleDatasets['4 Gols Exatos'] },
-                { label: '5 Gols Exatos', data: data.gol5, borderColor: '#00897B', backgroundColor: '#00897B', hidden: !statsChartVisibleDatasets['5 Gols Exatos'] }
+                { label: '5 Gols Exatos', data: data.gol5, borderColor: '#00897B', backgroundColor: '#00897B', hidden: !statsChartVisibleDatasets['5 Gols Exatos'] },
+                { 
+                    label: 'Linha de Equilíbrio', 
+                    data: data.equilibrium, 
+                    borderColor: '#FFFFFF', 
+                    backgroundColor: '#FFFFFF', 
+                    hidden: !statsChartVisibleDatasets['Linha de Equilíbrio'],
+                    borderDash: [5, 5] // Linha tracejada
+                }
             ].map(dataset => ({
                 ...dataset,
                 borderWidth: 2,
