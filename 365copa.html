@@ -1100,115 +1100,131 @@ function processApiData(data, league) {
     let gol4 = [];
     let gol5 = [];
 
-    // Função para verificar se há lacuna entre dois jogos
+    // Funções auxiliares para verificar condições
+    const ambosMarcam = (ft) => ft && ft.split(' x ').map(Number).every(g => g > 0);
+    const ambasNaoMarcam = (ft) => ft && ft.split(' x ').map(Number).some(g => g === 0);
+    const casaVenceFn = (ft) => ft && ft.split(' x ').map(Number)[0] > ft.split(' x ').map(Number)[1];
+    const foraVenceFn = (ft) => ft && ft.split(' x ').map(Number)[0] < ft.split(' x ').map(Number)[1];
+    const empateFn = (ft) => ft && ft.split(' x ').map(Number)[0] === ft.split(' x ').map(Number)[1];
+    const isOver = (ft, threshold) => ft && ft.split(' x ').map(Number).reduce((a, b) => a + b, 0) > threshold;
+    const isUnder = (ft, ft, threshold) => ft && ft.split(' x ').map(Number).reduce((a, b) => a + b, 0) < threshold;
+
+    // Valores iniciais para a lógica de movimentação
+    let prevGolsFT = 50;
+    let prevCasaVence = 50;
+    let prevEmpate = 50;
+    let prevForaVence = 50;
+    let prevAmbasSim = 50;
+    let prevAmbasNao = 50;
+    let prevOver15 = 50;
+    let prevOver25 = 50;
+    let prevOver35 = 50;
+    let prevUnder15 = 50;
+    let prevUnder25 = 50;
+    let prevUnder35 = 50;
+    let prevGol0 = 50;
+    let prevGol1 = 50;
+    let prevGol2 = 50;
+    let prevGol3 = 50;
+    let prevGol4 = 50;
+    let prevGol5 = 50;
+
+    // Função para verificar lacunas
     function hasGap(prevMatch, currMatch) {
         const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
         const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
-        const diffMinutes = (currTime - prevTime) / (1000 * 60); // Diferença em minutos
-        return diffMinutes > 1; // Considera lacuna se a diferença for maior que 1 minuto
+        const diffMinutes = (currTime - prevTime) / (1000 * 60);
+        return diffMinutes > 1;
     }
 
-    for (let i = averagePoints; i < slicedData.length; i++) {
-        let golsFTSum = 0;
-        let casaVenceSum = 0;
-        let empateSum = 0;
-        let foraVenceSum = 0;
-        let ambasSimSum = 0;
-        let ambasNaoSum = 0;
-        let over15Sum = 0;
-        let over25Sum = 0;
-        let over35Sum = 0;
-        let under15Sum = 0;
-        let under25Sum = 0;
-        let under35Sum = 0;
-        let gol0Sum = 0;
-        let gol1Sum = 0;
-        let gol2Sum = 0;
-        let gol3Sum = 0;
-        let gol4Sum = 0;
-        let gol5Sum = 0;
-        let validMatches = 0;
+    for (let i = 0; i < slicedData.length; i++) {
+        const currMatch = slicedData[i];
+        const prevMatch = i > 0 ? slicedData[i - 1] : null;
+        const ftScore = currMatch.ft || '0 x 0';
 
-        // Calcula a média apenas com os jogos disponíveis
-        for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
-            const match = slicedData[j];
-            const ftScore = match.ft;
+        labels.push(`${currMatch.hora}:${currMatch.minuto.toString().padStart(2, '0')}`);
 
-            // Verifica se há lacuna antes de processar
-            if (j > 0 && hasGap(slicedData[j - 1], match)) {
-                // Insere um ponto nulo no gráfico para indicar a lacuna
-                labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-                golsFT.push(null); // null faz o Chart.js pular o ponto
-                casaVence.push(null);
-                empate.push(null);
-                foraVence.push(null);
-                ambasSim.push(null);
-                ambasNao.push(null);
-                over15.push(null);
-                over25.push(null);
-                over35.push(null);
-                under15.push(null);
-                under25.push(null);
-                under35.push(null);
-                gol0.push(null);
-                gol1.push(null);
-                gol2.push(null);
-                gol3.push(null);
-                gol4.push(null);
-                gol5.push(null);
-                continue; // Pula para o próximo jogo
-            }
-
-            let ftScoreParts = [0, 0];
-            if (ftScore && ftScore.includes(' x ')) {
-                ftScoreParts = ftScore.split(' x ').map(num => parseInt(num, 10));
-            }
-
-            const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
-
-            golsFTSum += totalGolsFT;
-            casaVenceSum += ftScoreParts[0] > ftScoreParts[1] ? 1 : 0;
-            empateSum += ftScoreParts[0] === ftScoreParts[1] ? 1 : 0;
-            foraVenceSum += ftScoreParts[0] < ftScoreParts[1] ? 1 : 0;
-            ambasSimSum += ftScoreParts[0] > 0 && ftScoreParts[1] > 0 ? 1 : 0;
-            ambasNaoSum += ftScoreParts[0] === 0 || ftScoreParts[1] === 0 ? 1 : 0;
-            over15Sum += totalGolsFT > 1.5 ? 1 : 0;
-            over25Sum += totalGolsFT > 2.5 ? 1 : 0;
-            over35Sum += totalGolsFT > 3.5 ? 1 : 0;
-            under15Sum += totalGolsFT < 1.5 ? 1 : 0;
-            under25Sum += totalGolsFT < 2.5 ? 1 : 0;
-            under35Sum += totalGolsFT < 3.5 ? 1 : 0;
-            gol0Sum += totalGolsFT === 0 ? 1 : 0;
-            gol1Sum += totalGolsFT === 1 ? 1 : 0;
-            gol2Sum += totalGolsFT === 2 ? 1 : 0;
-            gol3Sum += totalGolsFT === 3 ? 1 : 0;
-            gol4Sum += totalGolsFT === 4 ? 1 : 0;
-            gol5Sum += totalGolsFT === 5 ? 1 : 0;
-            validMatches++;
+        if (i === 0 || !prevMatch || hasGap(prevMatch, currMatch)) {
+            // Primeiro ponto ou lacuna: mantém o valor inicial ou insere null
+            golsFT.push(i === 0 ? prevGolsFT : null);
+            casaVence.push(i === 0 ? prevCasaVence : null);
+            empate.push(i === 0 ? prevEmpate : null);
+            foraVence.push(i === 0 ? prevForaVence : null);
+            ambasSim.push(i === 0 ? prevAmbasSim : null);
+            ambasNao.push(i === 0 ? prevAmbasNao : null);
+            over15.push(i === 0 ? prevOver15 : null);
+            over25.push(i === 0 ? prevOver25 : null);
+            over35.push(i === 0 ? prevOver35 : null);
+            under15.push(i === 0 ? prevUnder15 : null);
+            under25.push(i === 0 ? prevUnder25 : null);
+            under35.push(i === 0 ? prevUnder35 : null);
+            gol0.push(i === 0 ? prevGol0 : null);
+            gol1.push(i === 0 ? prevGol1 : null);
+            gol2.push(i === 0 ? prevGol2 : null);
+            gol3.push(i === 0 ? prevGol3 : null);
+            gol4.push(i === 0 ? prevGol4 : null);
+            gol5.push(i === 0 ? prevGol5 : null);
+            continue;
         }
 
-        const match = slicedData[i];
-        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`); // Linha corrigida
+        const prevFtScore = prevMatch.ft || '0 x 0';
+        const totalGolsFT = ftScore.split(' x ').map(Number).reduce((a, b) => a + b, 0);
 
-        const avg = validMatches || 1; // Evita divisão por zero
-        golsFT.push(golsFTSum / avg * 100);
-        casaVence.push(casaVenceSum / avg * 100);
-        empate.push(empateSum / avg * 100);
-        foraVence.push(foraVenceSum / avg * 100);
-        ambasSim.push(ambasSimSum / avg * 100);
-        ambasNao.push(ambasNaoSum / avg * 100);
-        over15.push(over15Sum / avg * 100);
-        over25.push(over25Sum / avg * 100);
-        over35.push(over35Sum / avg * 100);
-        under15.push(under15Sum / avg * 100);
-        under25.push(under25Sum / avg * 100);
-        under35.push(under35Sum / avg * 100);
-        gol0.push(gol0Sum / avg * 100);
-        gol1.push(gol1Sum / avg * 100);
-        gol2.push(gol2Sum / avg * 100);
-        gol3.push(gol3Sum / avg * 100);
-        gol4.push(gol4Sum / avg * 100);
-        gol5.push(gol5Sum / avg * 100);
+        // Lógica de movimentação incremental
+        const prevTotalGolsFT = prevFtScore.split(' x ').map(Number).reduce((a, b) => a + b, 0);
+        prevGolsFT += (totalGolsFT > prevTotalGolsFT) ? 5 : (totalGolsFT < prevTotalGolsFT ? -5 : 0);
+        golsFT.push(prevGolsFT);
+
+        prevCasaVence += (casaVenceFn(ftScore) !== casaVenceFn(prevFtScore)) ? (casaVenceFn(ftScore) ? 5 : -5) : 0;
+        casaVence.push(prevCasaVence);
+
+        prevEmpate += (empateFn(ftScore) !== empateFn(prevFtScore)) ? (empateFn(ftScore) ? 5 : -5) : 0;
+        empate.push(prevEmpate);
+
+        prevForaVence += (foraVenceFn(ftScore) !== foraVenceFn(prevFtScore)) ? (foraVenceFn(ftScore) ? 5 : -5) : 0;
+        foraVence.push(prevForaVence);
+
+        prevAmbasSim += (ambosMarcam(ftScore) !== ambosMarcam(prevFtScore)) ? (ambosMarcam(ftScore) ? 5 : -5) : 0;
+        ambasSim.push(prevAmbasSim);
+
+        prevAmbasNao += (ambasNaoMarcam(ftScore) !== ambasNaoMarcam(prevFtScore)) ? (ambasNaoMarcam(ftScore) ? 5 : -5) : 0;
+        ambasNao.push(prevAmbasNao);
+
+        prevOver15 += (isOver(ftScore, 1.5) !== isOver(prevFtScore, 1.5)) ? (isOver(ftScore, 1.5) ? 5 : -5) : 0;
+        over15.push(prevOver15);
+
+        prevOver25 += (isOver(ftScore, 2.5) !== isOver(prevFtScore, 2.5)) ? (isOver(ftScore, 2.5) ? 5 : -5) : 0;
+        over25.push(prevOver25);
+
+        prevOver35 += (isOver(ftScore, 3.5) !== isOver(prevFtScore, 3.5)) ? (isOver(ftScore, 3.5) ? 5 : -5) : 0;
+        over35.push(prevOver35);
+
+        prevUnder15 += (isUnder(ftScore, 1.5) !== isUnder(prevFtScore, 1.5)) ? (isUnder(ftScore, 1.5) ? 5 : -5) : 0;
+        under15.push(prevUnder15);
+
+        prevUnder25 += (isUnder(ftScore, 2.5) !== isUnder(prevFtScore, 2.5)) ? (isUnder(ftScore, 2.5) ? 5 : -5) : 0;
+        under25.push(prevUnder25);
+
+        prevUnder35 += (isUnder(ftScore, 3.5) !== isUnder(prevFtScore, 3.5)) ? (isUnder(ftScore, 3.5) ? 5 : -5) : 0;
+        under35.push(prevUnder35);
+
+        prevGol0 += (totalGolsFT === 0) !== (prevTotalGolsFT === 0) ? (totalGolsFT === 0 ? 5 : -5) : 0;
+        gol0.push(prevGol0);
+
+        prevGol1 += (totalGolsFT === 1) !== (prevTotalGolsFT === 1) ? (totalGolsFT === 1 ? 5 : -5) : 0;
+        gol1.push(prevGol1);
+
+        prevGol2 += (totalGolsFT === 2) !== (prevTotalGolsFT === 2) ? (totalGolsFT === 2 ? 5 : -5) : 0;
+        gol2.push(prevGol2);
+
+        prevGol3 += (totalGolsFT === 3) !== (prevTotalGolsFT === 3) ? (totalGolsFT === 3 ? 5 : -5) : 0;
+        gol3.push(prevGol3);
+
+        prevGol4 += (totalGolsFT === 4) !== (prevTotalGolsFT === 4) ? (totalGolsFT === 4 ? 5 : -5) : 0;
+        gol4.push(prevGol4);
+
+        prevGol5 += (totalGolsFT === 5) !== (prevTotalGolsFT === 5) ? (totalGolsFT === 5 ? 5 : -5) : 0;
+        gol5.push(prevGol5);
     }
 
     return { 
@@ -1313,13 +1329,13 @@ function createStatsChart(ctx, labels, data, league) {
                     callbacks: {
                         title: function(tooltipItems) {
                             const league = leagues.find(l => chartInstances[l] === tooltipItems[0].chart);
-                            const index = tooltipItems[0].dataIndex + averagePoints;
+                            const index = tooltipItems[0].dataIndex;
                             const match = chartData[league][index];
                             return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
                         },
                         label: function(tooltipItem) {
                             const league = leagues.find(l => chartInstances[l] === tooltipItem.chart);
-                            const index = tooltipItem.dataIndex + averagePoints;
+                            const index = tooltipItem.dataIndex;
                             const match = chartData[league][index];
                             const ftScore = match.ft || 'N/A';
                             const htScore = formatHtResult(match.ht) || 'N/A';
@@ -1341,7 +1357,7 @@ function createStatsChart(ctx, labels, data, league) {
                 y: {
                     title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
                     beginAtZero: false,
-                    ticks: { color: '#b0b0b0' },
+                    ticks: { color: '#b0b0b0', stepSize: 5 },
                     grid: { color: 'rgba(255, 255, 255, 0.1)', borderDash: [5, 5] },
                     afterFit: function(scale) { scale.paddingTop = 20; }
                 }
