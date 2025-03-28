@@ -501,8 +501,10 @@
               </div>
   
               <div class="checkbox-container">
-                  <input type="checkbox" id="fibonacciToggle">
-                  <label for="fibonacciToggle">Ativar Fibonacci</label>
+                <label for="fibonacciToggle">Mostrar Linhas de Fibonacci</label>
+                <input type="checkbox" id="fibonacciToggle">
+                <label for="equilibriumToggle">Mostrar Linha de Equilíbrio</label>
+                <input type="checkbox" id="equilibriumToggle">
               </div>
           </div>
           <div class="chart-container">
@@ -1007,6 +1009,7 @@ let copaAmericaChart, CopaChart, EuroChart, PremierChart, SuperChart;
 let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
+let showEquilibriumLine = false; // Controle da linha de equilíbrio
 const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
 let chartData = {};
@@ -1100,12 +1103,11 @@ function processApiData(data, league) {
     let gol4 = [];
     let gol5 = [];
 
-    // Função para verificar se há lacuna entre dois jogos
     function hasGap(prevMatch, currMatch) {
         const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
         const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
-        const diffMinutes = (currTime - prevTime) / (1000 * 60); // Diferença em minutos
-        return diffMinutes > 1; // Considera lacuna se a diferença for maior que 1 minuto
+        const diffMinutes = (currTime - prevTime) / (1000 * 60);
+        return diffMinutes > 1;
     }
 
     for (let i = averagePoints; i < slicedData.length; i++) {
@@ -1129,16 +1131,13 @@ function processApiData(data, league) {
         let gol5Sum = 0;
         let validMatches = 0;
 
-        // Calcula a média apenas com os jogos disponíveis
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
             const ftScore = match.ft;
 
-            // Verifica se há lacuna antes de processar
             if (j > 0 && hasGap(slicedData[j - 1], match)) {
-                // Insere um ponto nulo no gráfico para indicar a lacuna
                 labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-                golsFT.push(null); // null faz o Chart.js pular o ponto
+                golsFT.push(null);
                 casaVence.push(null);
                 empate.push(null);
                 foraVence.push(null);
@@ -1156,7 +1155,7 @@ function processApiData(data, league) {
                 gol3.push(null);
                 gol4.push(null);
                 gol5.push(null);
-                continue; // Pula para o próximo jogo
+                continue;
             }
 
             let ftScoreParts = [0, 0];
@@ -1188,9 +1187,9 @@ function processApiData(data, league) {
         }
 
         const match = slicedData[i];
-        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`); // Linha corrigida
+        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
-        const avg = validMatches || 1; // Evita divisão por zero
+        const avg = validMatches || 1;
         golsFT.push(golsFTSum / avg * 100);
         casaVence.push(casaVenceSum / avg * 100);
         empate.push(empateSum / avg * 100);
@@ -1246,6 +1245,50 @@ const fibonacciLinesPlugin = {
             const textX = chart.chartArea.right + 10;
             ctx.fillText(`${fibonacciLevels[index]}%`, textX, textY);
         });
+        ctx.restore();
+    }
+};
+
+const equilibriumLinePlugin = {
+    id: 'equilibriumLine',
+    afterDraw: (chart) => {
+        if (!showEquilibriumLine) return;
+        
+        const ctx = chart.ctx;
+        const yAxis = chart.scales.y;
+        
+        // Encontra o dataset visível para calcular o equilíbrio
+        const visibleDataset = chart.data.datasets.find(dataset => 
+            !dataset.hidden && statsChartVisibleDatasets[dataset.label]
+        );
+        
+        if (!visibleDataset) return;
+        
+        // Calcula a média (equilíbrio) do dataset visível
+        const equilibriumValue = visibleDataset.data
+            .filter(value => value !== null)
+            .reduce((sum, value) => sum + value, 0) / 
+            visibleDataset.data.filter(value => value !== null).length;
+
+        const y = yAxis.getPixelForValue(equilibriumValue);
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(chart.chartArea.left, y);
+        ctx.lineTo(chart.chartArea.right, y);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(`Equilíbrio: ${equilibriumValue.toFixed(1)}%`, 
+            chart.chartArea.right + 10, 
+            y
+        );
+        
         ctx.restore();
     }
 };
@@ -1347,7 +1390,7 @@ function createStatsChart(ctx, labels, data, league) {
                 }
             }
         },
-        plugins: [fibonacciLinesPlugin]
+        plugins: [fibonacciLinesPlugin, equilibriumLinePlugin]
     });
 }
 
@@ -1398,6 +1441,13 @@ function toggleFibonacciLines() {
     });
 }
 
+function toggleEquilibriumLine() {
+    showEquilibriumLine = document.getElementById('equilibriumToggle').checked;
+    leeks.forEach(league => {
+        if (chartInstances[league]) chartInstances[league].update();
+    });
+}
+
 document.querySelectorAll('.accordion-header').forEach(header => {
     header.addEventListener('click', () => {
         const content = header.nextElementSibling;
@@ -1416,6 +1466,7 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 });
 
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
+document.getElementById('equilibriumToggle').addEventListener('change', toggleEquilibriumLine);
 
 window.onload = updateCharts;
 setInterval(updateCharts, 3000);
