@@ -403,6 +403,14 @@ body {
             text-align: center;
         }
 
+        /* Estilo para destacar células com próximos jogos */
+        .next-game-high {
+            border: 2px solid #ffeb3b; /* Amarelo para alta probabilidade */
+        }
+        .next-game-low {
+            border: 2px solid #2196f3; /* Azul para baixa probabilidade */
+        }
+
 
     </style>
     
@@ -443,6 +451,12 @@ body {
             <option value="Under 3.5">Under 3.5</option>
             <option value="5 ou Mais Gols">5 ou Mais Gols</option>
         </select>
+    </div>
+
+    <!-- Checkbox para ativar/desativar o filtro de times -->
+    <div class="selector-container">
+        <label for="team-filter">Usar filtro de times: </label>
+        <input type="checkbox" id="team-filter" onchange="fetchMaximaPorHoraMinuto()" checked>
     </div>
 </div>
 
@@ -591,16 +605,37 @@ console.log = function() {};
                 "Ambas Não": "Ambas Sim",
                 "Casa Vence": "Fora Vence",
                 "Fora Vence": "Casa Vence",
-                "Empate": "Casa Vence", // Simplificação: consideramos o contrário de empate como uma vitória
+                "Empate": "Casa Vence",
                 "Over 1.5": "Under 1.5",
                 "Under 1.5": "Over 1.5",
                 "Over 2.5": "Under 2.5",
                 "Under 2.5": "Over 2.5",
                 "Over 3.5": "Under 3.5",
                 "Under 3.5": "Over 3.5",
-                "5 ou Mais Gols": "Under 3.5" // Simplificação: consideramos o contrário como menos gols
+                "5 ou Mais Gols": "Under 3.5"
             };
             return opposites[mercado] || mercado;
+        }
+
+        // Função para buscar os próximos jogos
+        async function fetchNextGames(liga) {
+            const apiRoutes = {
+                "Copa": "https://api.futreistips.com/api/nextGamesWorld",
+                "Euro": "https://api.futreistips.com/api/nextGamesEuro",
+                "Premier": "https://api.futreistips.com/api/nextGamesPremier",
+                "Super": "https://api.futreistips.com/api/nextGamesSouth"
+            };
+            const url = apiRoutes[liga];
+            if (!url) return [];
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                return data.data || [];
+            } catch (error) {
+                console.error("Erro ao buscar próximos jogos:", error);
+                return [];
+            }
         }
 
         async function fetchMaximaPorHoraMinuto() {
@@ -612,6 +647,10 @@ console.log = function() {};
 
                 const selectedMercado = document.getElementById("mercado-selector").value;
                 const oppositeMercado = getOppositeMarket(selectedMercado);
+                const useTeamFilter = document.getElementById("team-filter").checked;
+
+                // Busca os próximos jogos
+                const nextGames = await fetchNextGames(selectedLiga);
 
                 // Inicializa as estatísticas dos times
                 teamStats = {};
@@ -637,7 +676,6 @@ console.log = function() {};
                         "5 ou Mais Gols": golCasa + golFora >= 5,
                     };
 
-                    // Inicializa estatísticas para os times, se necessário
                     if (!teamStats[timeA]) {
                         teamStats[timeA] = { games: 0, markets: {}, oppositeMarkets: {} };
                     }
@@ -645,11 +683,9 @@ console.log = function() {};
                         teamStats[timeB] = { games: 0, markets: {}, oppositeMarkets: {} };
                     }
 
-                    // Incrementa o número de jogos
                     teamStats[timeA].games += 1;
                     teamStats[timeB].games += 1;
 
-                    // Registra o desempenho no mercado selecionado
                     if (!teamStats[timeA].markets[selectedMercado]) {
                         teamStats[timeA].markets[selectedMercado] = 0;
                     }
@@ -684,7 +720,8 @@ console.log = function() {};
                         resultsByHourMinute[hour][minuteStr] = {
                             totalGames: 0,
                             maximaStarts: 0,
-                            teamWeights: [] // Armazena os pesos dos times para ajuste
+                            teamWeights: [],
+                            nextGameWeight: null // Para armazenar a probabilidade dos próximos jogos
                         };
                     });
                 }
@@ -721,18 +758,19 @@ console.log = function() {};
 
                     const mercadoOcorreu = condicoes[selectedMercado];
 
-                    // Calcula o peso dos times (probabilidade de contribuir para uma máxima)
-                    const timeAStats = teamStats[timeA] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
-                    const timeBStats = teamStats[timeB] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
+                    let teamWeight = 0;
+                    if (useTeamFilter) {
+                        const timeAStats = teamStats[timeA] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
+                        const timeBStats = teamStats[timeB] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
 
-                    const timeAFailRate = timeAStats.games > 0 ? 1 - (timeAStats.markets[selectedMercado] / timeAStats.games) : 0; // Taxa de falha no mercado
-                    const timeBFailRate = timeBStats.games > 0 ? 1 - (timeBStats.markets[selectedMercado] / timeBStats.games) : 0;
-                    const timeAOppositeRate = timeAStats.games > 0 ? (timeAStats.oppositeMarkets[oppositeMercado] / timeAStats.games) : 0; // Taxa de sucesso no mercado contrário
-                    const timeBOppositeRate = timeBStats.games > 0 ? (timeBStats.oppositeMarkets[oppositeMercado] / timeBStats.games) : 0;
+                        const timeAFailRate = timeAStats.games > 0 ? 1 - (timeAStats.markets[selectedMercado] / timeAStats.games) : 0;
+                        const timeBFailRate = timeBStats.games > 0 ? 1 - (timeBStats.markets[selectedMercado] / timeBStats.games) : 0;
+                        const timeAOppositeRate = timeAStats.games > 0 ? (timeAStats.oppositeMarkets[oppositeMercado] / timeAStats.games) : 0;
+                        const timeBOppositeRate = timeBStats.games > 0 ? (timeBStats.oppositeMarkets[oppositeMercado] / timeBStats.games) : 0;
 
-                    // Peso combinado: média das taxas de falha e sucesso no mercado contrário
-                    const teamWeight = (timeAFailRate + timeBFailRate + timeAOppositeRate + timeBOppositeRate) / 4;
-                    resultsByHourMinute[hora][minuto].teamWeights.push(teamWeight);
+                        teamWeight = (timeAFailRate + timeBFailRate + timeAOppositeRate + timeBOppositeRate) / 4;
+                        resultsByHourMinute[hora][minuto].teamWeights.push(teamWeight);
+                    }
 
                     if (!mercadoOcorreu) {
                         if (sequenciaAtual === 0) {
@@ -740,11 +778,14 @@ console.log = function() {};
                         }
                         sequenciaAtual++;
                     } else {
-                        if (sequenciaAtual >= 5 && inicioSequencia) {
+                        if (sequenciaAtual >= 4 && inicioSequencia) {
                             const { hora: inicioHora, minuto: inicioMinuto } = inicioSequencia;
-                            // Ajusta a contagem de máximas com base no peso dos times
-                            const avgTeamWeight = resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.reduce((a, b) => a + b, 0) / (resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.length || 1);
-                            if (avgTeamWeight > 0.5) { // Só conta como máxima se os times têm alta probabilidade de falha
+                            if (useTeamFilter) {
+                                const avgTeamWeight = resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.reduce((a, b) => a + b, 0) / (resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.length || 1);
+                                if (avgTeamWeight > 0.5) {
+                                    resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
+                                }
+                            } else {
                                 resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
                             }
                         }
@@ -755,11 +796,45 @@ console.log = function() {};
 
                 if (sequenciaAtual >= 5 && inicioSequencia) {
                     const { hora: inicioHora, minuto: inicioMinuto } = inicioSequencia;
-                    const avgTeamWeight = resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.reduce((a, b) => a + b, 0) / (resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.length || 1);
-                    if (avgTeamWeight > 0.5) {
+                    if (useTeamFilter) {
+                        const avgTeamWeight = resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.reduce((a, b) => a + b, 0) / (resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.length || 1);
+                        if (avgTeamWeight > 0.5) {
+                            resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
+                        }
+                    } else {
                         resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
                     }
                 }
+
+                // Calcula a probabilidade de máxima para os próximos jogos
+                const nextGamesProbabilities = [];
+                nextGames.forEach(game => {
+                    const [hour, minute] = game.time.split(":");
+                    const hora = String(hour).padStart(2, "0");
+                    const minuto = String(minute).padStart(2, "0");
+
+                    const timeA = game.team_home;
+                    const timeB = game.team_visit;
+
+                    const timeAStats = teamStats[timeA] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
+                    const timeBStats = teamStats[timeB] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
+
+                    const timeAFailRate = timeAStats.games > 0 ? 1 - (timeAStats.markets[selectedMercado] / timeAStats.games) : 0;
+                    const timeBFailRate = timeBStats.games > 0 ? 1 - (timeBStats.markets[selectedMercado] / timeBStats.games) : 0;
+                    const timeAOppositeRate = timeAStats.games > 0 ? (timeAStats.oppositeMarkets[oppositeMercado] / timeAStats.games) : 0;
+                    const timeBOppositeRate = timeBStats.games > 0 ? (timeBStats.oppositeMarkets[oppositeMercado] / timeBStats.games) : 0;
+
+                    const teamWeight = (timeAFailRate + timeBFailRate + timeAOppositeRate + timeBOppositeRate) / 4;
+
+                    if (resultsByHourMinute[hora] && resultsByHourMinute[hora][minuto]) {
+                        resultsByHourMinute[hora][minuto].nextGameWeight = teamWeight;
+                    }
+
+                    nextGamesProbabilities.push({
+                        time: game.time,
+                        teamWeight: teamWeight
+                    });
+                });
 
                 const tableHeader = document.getElementById("maxima-hora-minuto-header");
                 const currentHourHeader = document.getElementById("current-hour-header");
@@ -846,6 +921,7 @@ console.log = function() {};
                 });
 
                 // Atualiza todas as horas na tabela principal
+                let nextGameMessage = "";
                 for (let h = 23; h >= 0; h--) {
                     const hour = String(h).padStart(2, "0");
                     uniqueMinutes.forEach(minute => {
@@ -865,17 +941,35 @@ console.log = function() {};
                             } else {
                                 cell.className = "percent-low";
                             }
+
+                            // Adiciona indicação visual para próximos jogos
+                            if (data.nextGameWeight !== null) {
+                                if (data.nextGameWeight > 0.5) {
+                                    cell.classList.add("next-game-high");
+                                    cell.setAttribute("data-tooltip", `${hour}:${minuteStr} - Alta probabilidade de máxima`);
+                                } else {
+                                    cell.classList.add("next-game-low");
+                                    cell.setAttribute("data-tooltip", `${hour}:${minuteStr} - Baixa probabilidade de máxima`);
+                                }
+                            }
                         }
                     });
                 }
 
+                // Monta a mensagem sobre os próximos jogos
+                //nextGamesProbabilities.forEach(game => {
+                    //if (game.teamWeight > 0.5) {
+                       // nextGameMessage += ` Próximo jogo às ${game.time} tem alta probabilidade de contribuir para uma máxima.`;
+                  //  }
+                //});
+
                 // Mensagem de chance de máxima
                 const messageDiv = document.getElementById("chance-maxima-message");
                 if (hasMaximaChance) {
-                    messageDiv.innerHTML = `Possível chance de máxima na hora atual (${currentHour}h) na liga ${selectedLiga} para o mercado "${selectedMercado}"!`;
+                    messageDiv.innerHTML = `Possível chance de máxima na hora atual (${currentHour}h) na liga ${selectedLiga} para o mercado "${selectedMercado}"!${nextGameMessage}`;
                     messageDiv.style.color = "#fff";
                 } else {
-                    messageDiv.innerHTML = `Nenhuma chance de máxima detectada na hora atual (${currentHour}h) na liga ${selectedLiga}.`;
+                    messageDiv.innerHTML = `Nenhuma chance de máxima detectada na hora atual (${currentHour}h) na liga ${selectedLiga}.${nextGameMessage}`;
                     messageDiv.style.color = "#e0e0e0";
                 }
 
