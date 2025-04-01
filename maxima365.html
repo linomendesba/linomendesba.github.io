@@ -581,6 +581,28 @@ console.log = function() {};
         let tableCells = {};
         let isFirstRun = true;
 
+        // Armazena estatísticas dos times
+        let teamStats = {};
+
+        // Função para determinar o mercado contrário
+        function getOppositeMarket(mercado) {
+            const opposites = {
+                "Ambas Sim": "Ambas Não",
+                "Ambas Não": "Ambas Sim",
+                "Casa Vence": "Fora Vence",
+                "Fora Vence": "Casa Vence",
+                "Empate": "Casa Vence", // Simplificação: consideramos o contrário de empate como uma vitória
+                "Over 1.5": "Under 1.5",
+                "Under 1.5": "Over 1.5",
+                "Over 2.5": "Under 2.5",
+                "Under 2.5": "Over 2.5",
+                "Over 3.5": "Under 3.5",
+                "Under 3.5": "Over 3.5",
+                "5 ou Mais Gols": "Under 3.5" // Simplificação: consideramos o contrário como menos gols
+            };
+            return opposites[mercado] || mercado;
+        }
+
         async function fetchMaximaPorHoraMinuto() {
             try {
                 const selectedLiga = document.getElementById("liga-selector").value;
@@ -589,6 +611,67 @@ console.log = function() {};
                 const recentData = data.slice(-1920);
 
                 const selectedMercado = document.getElementById("mercado-selector").value;
+                const oppositeMercado = getOppositeMarket(selectedMercado);
+
+                // Inicializa as estatísticas dos times
+                teamStats = {};
+
+                // Calcula estatísticas dos times
+                recentData.forEach(jogo => {
+                    const timeA = jogo.time_a;
+                    const timeB = jogo.time_b;
+                    const [golCasa, golFora] = jogo.ft.split(" x ").map(Number);
+
+                    const condicoes = {
+                        "Ambas Sim": golCasa > 0 && golFora > 0,
+                        "Ambas Não": golCasa === 0 || golFora === 0,
+                        "Casa Vence": golCasa > golFora,
+                        "Fora Vence": golFora > golCasa,
+                        "Empate": golCasa === golFora,
+                        "Over 1.5": golCasa + golFora > 1.5,
+                        "Under 1.5": golCasa + golFora <= 1.5,
+                        "Over 2.5": golCasa + golFora > 2.5,
+                        "Under 2.5": golCasa + golFora <= 2.5,
+                        "Over 3.5": golCasa + golFora > 3.5,
+                        "Under 3.5": golCasa + golFora <= 3.5,
+                        "5 ou Mais Gols": golCasa + golFora >= 5,
+                    };
+
+                    // Inicializa estatísticas para os times, se necessário
+                    if (!teamStats[timeA]) {
+                        teamStats[timeA] = { games: 0, markets: {}, oppositeMarkets: {} };
+                    }
+                    if (!teamStats[timeB]) {
+                        teamStats[timeB] = { games: 0, markets: {}, oppositeMarkets: {} };
+                    }
+
+                    // Incrementa o número de jogos
+                    teamStats[timeA].games += 1;
+                    teamStats[timeB].games += 1;
+
+                    // Registra o desempenho no mercado selecionado
+                    if (!teamStats[timeA].markets[selectedMercado]) {
+                        teamStats[timeA].markets[selectedMercado] = 0;
+                    }
+                    if (!teamStats[timeB].markets[selectedMercado]) {
+                        teamStats[timeB].markets[selectedMercado] = 0;
+                    }
+                    if (!teamStats[timeA].oppositeMarkets[oppositeMercado]) {
+                        teamStats[timeA].oppositeMarkets[oppositeMercado] = 0;
+                    }
+                    if (!teamStats[timeB].oppositeMarkets[oppositeMercado]) {
+                        teamStats[timeB].oppositeMarkets[oppositeMercado] = 0;
+                    }
+
+                    if (condicoes[selectedMercado]) {
+                        teamStats[timeA].markets[selectedMercado] += 1;
+                        teamStats[timeB].markets[selectedMercado] += 1;
+                    }
+                    if (condicoes[oppositeMercado]) {
+                        teamStats[timeA].oppositeMarkets[oppositeMercado] += 1;
+                        teamStats[timeB].oppositeMarkets[oppositeMercado] += 1;
+                    }
+                });
 
                 const uniqueMinutes = [...new Set(recentData.map(game => parseInt(game.minuto, 10)))].sort((a, b) => a - b);
 
@@ -600,7 +683,8 @@ console.log = function() {};
                         const minuteStr = String(minute).padStart(2, "0");
                         resultsByHourMinute[hour][minuteStr] = {
                             totalGames: 0,
-                            maximaStarts: 0
+                            maximaStarts: 0,
+                            teamWeights: [] // Armazena os pesos dos times para ajuste
                         };
                     });
                 }
@@ -612,6 +696,8 @@ console.log = function() {};
                     const jogo = recentData[i];
                     const hora = String(jogo.hora).padStart(2, "0");
                     const minuto = String(jogo.minuto).padStart(2, "0");
+                    const timeA = jogo.time_a;
+                    const timeB = jogo.time_b;
 
                     if (!resultsByHourMinute[hora] || !resultsByHourMinute[hora][minuto]) continue;
 
@@ -635,6 +721,19 @@ console.log = function() {};
 
                     const mercadoOcorreu = condicoes[selectedMercado];
 
+                    // Calcula o peso dos times (probabilidade de contribuir para uma máxima)
+                    const timeAStats = teamStats[timeA] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
+                    const timeBStats = teamStats[timeB] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
+
+                    const timeAFailRate = timeAStats.games > 0 ? 1 - (timeAStats.markets[selectedMercado] / timeAStats.games) : 0; // Taxa de falha no mercado
+                    const timeBFailRate = timeBStats.games > 0 ? 1 - (timeBStats.markets[selectedMercado] / timeBStats.games) : 0;
+                    const timeAOppositeRate = timeAStats.games > 0 ? (timeAStats.oppositeMarkets[oppositeMercado] / timeAStats.games) : 0; // Taxa de sucesso no mercado contrário
+                    const timeBOppositeRate = timeBStats.games > 0 ? (timeBStats.oppositeMarkets[oppositeMercado] / timeBStats.games) : 0;
+
+                    // Peso combinado: média das taxas de falha e sucesso no mercado contrário
+                    const teamWeight = (timeAFailRate + timeBFailRate + timeAOppositeRate + timeBOppositeRate) / 4;
+                    resultsByHourMinute[hora][minuto].teamWeights.push(teamWeight);
+
                     if (!mercadoOcorreu) {
                         if (sequenciaAtual === 0) {
                             inicioSequencia = { hora, minuto };
@@ -643,7 +742,11 @@ console.log = function() {};
                     } else {
                         if (sequenciaAtual >= 5 && inicioSequencia) {
                             const { hora: inicioHora, minuto: inicioMinuto } = inicioSequencia;
-                            resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
+                            // Ajusta a contagem de máximas com base no peso dos times
+                            const avgTeamWeight = resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.reduce((a, b) => a + b, 0) / (resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.length || 1);
+                            if (avgTeamWeight > 0.5) { // Só conta como máxima se os times têm alta probabilidade de falha
+                                resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
+                            }
                         }
                         sequenciaAtual = 0;
                         inicioSequencia = null;
@@ -652,7 +755,10 @@ console.log = function() {};
 
                 if (sequenciaAtual >= 5 && inicioSequencia) {
                     const { hora: inicioHora, minuto: inicioMinuto } = inicioSequencia;
-                    resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
+                    const avgTeamWeight = resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.reduce((a, b) => a + b, 0) / (resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.length || 1);
+                    if (avgTeamWeight > 0.5) {
+                        resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
+                    }
                 }
 
                 const tableHeader = document.getElementById("maxima-hora-minuto-header");
@@ -683,13 +789,13 @@ console.log = function() {};
                         const cell = document.createElement("td");
                         cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr}`);
                         currentRow.appendChild(cell);
-                        currentHourCells[minuteStr] = cell; // Armazena referência
+                        currentHourCells[minuteStr] = cell;
                     });
                     currentHourBody.appendChild(currentRow);
 
                     const resultsBody = document.getElementById("maxima-hora-minuto-resultados");
                     resultsBody.innerHTML = "";
-                    for (let h = 23; h >= 0; h--) { // Inclui todas as horas, sem pular a hora atual
+                    for (let h = 23; h >= 0; h--) {
                         const hour = String(h).padStart(2, "0");
                         const row = document.createElement("tr");
                         const hourCell = document.createElement("td");
@@ -702,7 +808,7 @@ console.log = function() {};
                             const cell = document.createElement("td");
                             cell.setAttribute("data-tooltip", `${hour}:${minuteStr}`);
                             row.appendChild(cell);
-                            tableCells[hour][minuteStr] = cell; // Armazena referência
+                            tableCells[hour][minuteStr] = cell;
                         });
                         resultsBody.appendChild(row);
                     }
@@ -739,7 +845,7 @@ console.log = function() {};
                     }
                 });
 
-                // Atualiza todas as horas na tabela principal (incluindo a hora atual)
+                // Atualiza todas as horas na tabela principal
                 for (let h = 23; h >= 0; h--) {
                     const hour = String(h).padStart(2, "0");
                     uniqueMinutes.forEach(minute => {
