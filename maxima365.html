@@ -96,14 +96,6 @@ body {
     cursor: pointer;
 }
 
-/* Estilo para destacar células com próximos jogos */
-.next-game-high {
-            border: 2px solid #ffeb3b; /* Amarelo para alta probabilidade */
-        }
-        .next-game-low {
-            border: 2px solid #2196f3; /* Azul para baixa probabilidade */
-        }
-
     button {
       background-color: #1c1f26;
       color: rgb(255, 255, 255);
@@ -585,237 +577,162 @@ console.log = function() {};
 console.debug = function() {};
 console.info = function() {};
     </script>
-    <script>
-console.log = function() {};
-        console.debug = function() {};
-        console.info = function() {};
 
-        // Armazena referências das células para evitar recriação
-        let currentHourCells = {};
-        let tableCells = {};
-        let isFirstRun = true;
+<script>
+    console.log = function() {};
+    console.debug = function() {};
+    console.info = function() {};
 
-        // Armazena estatísticas dos times
-        let teamStats = {};
+    // Armazena referências das células para evitar recriação
+    let currentHourCells = {};
+    let tableCells = {};
+    let isFirstRun = true;
 
-        // Função para determinar o mercado contrário
-        function getOppositeMarket(mercado) {
-            const opposites = {
-                "Ambas Sim": "Ambas Não",
-                "Ambas Não": "Ambas Sim",
-                "Casa Vence": "Fora Vence",
-                "Fora Vence": "Casa Vence",
-                "Empate": "Casa Vence",
-                "Over 1.5": "Under 1.5",
-                "Under 1.5": "Over 1.5",
-                "Over 2.5": "Under 2.5",
-                "Under 2.5": "Over 2.5",
-                "Over 3.5": "Under 3.5",
-                "Under 3.5": "Over 3.5",
-                "5 ou Mais Gols": "Under 3.5"
-            };
-            return opposites[mercado] || mercado;
-        }
+    // Armazena estatísticas dos times
+    let teamStats = {};
 
-        // Função para buscar os próximos jogos
-        async function fetchNextGames(liga) {
-            const apiRoutes = {
-                "Copa": "https://api.futreistips.com/api/nextGamesWorld",
-                "Euro": "https://api.futreistips.com/api/nextGamesEuro",
-                "Premier": "https://api.futreistips.com/api/nextGamesPremier",
-                "Super": "https://api.futreistips.com/api/nextGamesSouth"
-            };
-            const url = apiRoutes[liga];
-            if (!url) return [];
+    // Função para determinar o mercado contrário
+    function getOppositeMarket(mercado) {
+        const opposites = {
+            "Ambas Sim": "Ambas Não",
+            "Ambas Não": "Ambas Sim",
+            "Casa Vence": "Fora Vence",
+            "Fora Vence": "Casa Vence",
+            "Empate": "Casa Vence", // Simplificação: consideramos o contrário de empate como uma vitória
+            "Over 1.5": "Under 1.5",
+            "Under 1.5": "Over 1.5",
+            "Over 2.5": "Under 2.5",
+            "Under 2.5": "Over 2.5",
+            "Over 3.5": "Under 3.5",
+            "Under 3.5": "Over 3.5",
+            "5 ou Mais Gols": "Under 3.5" // Simplificação: consideramos o contrário como menos gols
+        };
+        return opposites[mercado] || mercado;
+    }
 
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                return data.data || [];
-            } catch (error) {
-                console.error("Erro ao buscar próximos jogos:", error);
-                return [];
-            }
-        }
+    async function fetchMaximaPorHoraMinuto() {
+        try {
+            const selectedLiga = document.getElementById("liga-selector").value;
+            const response = await fetch(`https://betstat.site/api/resultados/${selectedLiga}`);
+            const data = await response.json();
+            const recentData = data.slice(-1920);
 
-        async function fetchMaximaPorHoraMinuto() {
-            try {
-                const selectedLiga = document.getElementById("liga-selector").value;
-                const response = await fetch(`https://betstat.site/api/resultados/${selectedLiga}`);
-                const data = await response.json();
-                const recentData = data.slice(-1920);
+            const selectedMercado = document.getElementById("mercado-selector").value;
+            const oppositeMercado = getOppositeMarket(selectedMercado);
+            const useTeamFilter = document.getElementById("team-filter").checked; // Verifica se o filtro de times está ativado
 
-                const selectedMercado = document.getElementById("mercado-selector").value;
-                const oppositeMercado = getOppositeMarket(selectedMercado);
-                const useTeamFilter = document.getElementById("team-filter").checked;
+            // Inicializa as estatísticas dos times
+            teamStats = {};
 
-                // Busca os próximos jogos
-                const nextGames = await fetchNextGames(selectedLiga);
+            // Calcula estatísticas dos times (mesmo que o filtro esteja desativado, para evitar erros)
+            recentData.forEach(jogo => {
+                const timeA = jogo.time_a;
+                const timeB = jogo.time_b;
+                const [golCasa, golFora] = jogo.ft.split(" x ").map(Number);
 
-                // Inicializa as estatísticas dos times
-                teamStats = {};
+                const condicoes = {
+                    "Ambas Sim": golCasa > 0 && golFora > 0,
+                    "Ambas Não": golCasa === 0 || golFora === 0,
+                    "Casa Vence": golCasa > golFora,
+                    "Fora Vence": golFora > golCasa,
+                    "Empate": golCasa === golFora,
+                    "Over 1.5": golCasa + golFora > 1.5,
+                    "Under 1.5": golCasa + golFora <= 1.5,
+                    "Over 2.5": golCasa + golFora > 2.5,
+                    "Under 2.5": golCasa + golFora <= 2.5,
+                    "Over 3.5": golCasa + golFora > 3.5,
+                    "Under 3.5": golCasa + golFora <= 3.5,
+                    "5 ou Mais Gols": golCasa + golFora >= 5,
+                };
 
-                // Calcula estatísticas dos times
-                recentData.forEach(jogo => {
-                    const timeA = jogo.time_a;
-                    const timeB = jogo.time_b;
-                    const [golCasa, golFora] = jogo.ft.split(" x ").map(Number);
+                // Inicializa estatísticas para os times, se necessário
+                if (!teamStats[timeA]) {
+                    teamStats[timeA] = { games: 0, markets: {}, oppositeMarkets: {} };
+                }
+                if (!teamStats[timeB]) {
+                    teamStats[timeB] = { games: 0, markets: {}, oppositeMarkets: {} };
+                }
 
-                    const condicoes = {
-                        "Ambas Sim": golCasa > 0 && golFora > 0,
-                        "Ambas Não": golCasa === 0 || golFora === 0,
-                        "Casa Vence": golCasa > golFora,
-                        "Fora Vence": golFora > golCasa,
-                        "Empate": golCasa === golFora,
-                        "Over 1.5": golCasa + golFora > 1.5,
-                        "Under 1.5": golCasa + golFora <= 1.5,
-                        "Over 2.5": golCasa + golFora > 2.5,
-                        "Under 2.5": golCasa + golFora <= 2.5,
-                        "Over 3.5": golCasa + golFora > 3.5,
-                        "Under 3.5": golCasa + golFora <= 3.5,
-                        "5 ou Mais Gols": golCasa + golFora >= 5,
+                // Incrementa o número de jogos
+                teamStats[timeA].games += 1;
+                teamStats[timeB].games += 1;
+
+                // Registra o desempenho no mercado selecionado
+                if (!teamStats[timeA].markets[selectedMercado]) {
+                    teamStats[timeA].markets[selectedMercado] = 0;
+                }
+                if (!teamStats[timeB].markets[selectedMercado]) {
+                    teamStats[timeB].markets[selectedMercado] = 0;
+                }
+                if (!teamStats[timeA].oppositeMarkets[oppositeMercado]) {
+                    teamStats[timeA].oppositeMarkets[oppositeMercado] = 0;
+                }
+                if (!teamStats[timeB].oppositeMarkets[oppositeMercado]) {
+                    teamStats[timeB].oppositeMarkets[oppositeMercado] = 0;
+                }
+
+                if (condicoes[selectedMercado]) {
+                    teamStats[timeA].markets[selectedMercado] += 1;
+                    teamStats[timeB].markets[selectedMercado] += 1;
+                }
+                if (condicoes[oppositeMercado]) {
+                    teamStats[timeA].oppositeMarkets[oppositeMercado] += 1;
+                    teamStats[timeB].oppositeMarkets[oppositeMercado] += 1;
+                }
+            });
+
+            const uniqueMinutes = [...new Set(recentData.map(game => parseInt(game.minuto, 10)))].sort((a, b) => a - b);
+
+            const resultsByHourMinute = {};
+            for (let h = 0; h < 24; h++) {
+                const hour = String(h).padStart(2, "0");
+                resultsByHourMinute[hour] = {};
+                uniqueMinutes.forEach(minute => {
+                    const minuteStr = String(minute).padStart(2, "0");
+                    resultsByHourMinute[hour][minuteStr] = {
+                        totalGames: 0,
+                        maximaStarts: 0,
+                        teamWeights: [] // Armazena os pesos dos times para ajuste
                     };
-
-                    if (!teamStats[timeA]) {
-                        teamStats[timeA] = { games: 0, markets: {}, oppositeMarkets: {} };
-                    }
-                    if (!teamStats[timeB]) {
-                        teamStats[timeB] = { games: 0, markets: {}, oppositeMarkets: {} };
-                    }
-
-                    teamStats[timeA].games += 1;
-                    teamStats[timeB].games += 1;
-
-                    if (!teamStats[timeA].markets[selectedMercado]) {
-                        teamStats[timeA].markets[selectedMercado] = 0;
-                    }
-                    if (!teamStats[timeB].markets[selectedMercado]) {
-                        teamStats[timeB].markets[selectedMercado] = 0;
-                    }
-                    if (!teamStats[timeA].oppositeMarkets[oppositeMercado]) {
-                        teamStats[timeA].oppositeMarkets[oppositeMercado] = 0;
-                    }
-                    if (!teamStats[timeB].oppositeMarkets[oppositeMercado]) {
-                        teamStats[timeB].oppositeMarkets[oppositeMercado] = 0;
-                    }
-
-                    if (condicoes[selectedMercado]) {
-                        teamStats[timeA].markets[selectedMercado] += 1;
-                        teamStats[timeB].markets[selectedMercado] += 1;
-                    }
-                    if (condicoes[oppositeMercado]) {
-                        teamStats[timeA].oppositeMarkets[oppositeMercado] += 1;
-                        teamStats[timeB].oppositeMarkets[oppositeMercado] += 1;
-                    }
                 });
+            }
 
-                const uniqueMinutes = [...new Set(recentData.map(game => parseInt(game.minuto, 10)))].sort((a, b) => a - b);
+            let sequenciaAtual = 0;
+            let inicioSequencia = null;
 
-                const resultsByHourMinute = {};
-                for (let h = 0; h < 24; h++) {
-                    const hour = String(h).padStart(2, "0");
-                    resultsByHourMinute[hour] = {};
-                    uniqueMinutes.forEach(minute => {
-                        const minuteStr = String(minute).padStart(2, "0");
-                        resultsByHourMinute[hour][minuteStr] = {
-                            totalGames: 0,
-                            maximaStarts: 0,
-                            teamWeights: [],
-                            nextGameWeight: null // Para armazenar a probabilidade dos próximos jogos
-                        };
-                    });
-                }
+            for (let i = 0; i < recentData.length; i++) {
+                const jogo = recentData[i];
+                const hora = String(jogo.hora).padStart(2, "0");
+                const minuto = String(jogo.minuto).padStart(2, "0");
+Ascending();
+                const timeA = jogo.time_a;
+                const timeB = jogo.time_b;
 
-                let sequenciaAtual = 0;
-                let inicioSequencia = null;
+                if (!resultsByHourMinute[hora] || !resultsByHourMinute[hora][minuto]) continue;
 
-                for (let i = 0; i < recentData.length; i++) {
-                    const jogo = recentData[i];
-                    const hora = String(jogo.hora).padStart(2, "0");
-                    const minuto = String(jogo.minuto).padStart(2, "0");
-                    const timeA = jogo.time_a;
-                    const timeB = jogo.time_b;
+                resultsByHourMinute[hora][minuto].totalGames += 1;
 
-                    if (!resultsByHourMinute[hora] || !resultsByHourMinute[hora][minuto]) continue;
+                const [golCasa, golFora] = jogo.ft.split(" x ").map(Number);
+                const condicoes = {
+                    "Ambas Sim": golCasa > 0 && golFora > 0,
+                    "Ambas Não": golCasa === 0 || golFora === 0,
+                    "Casa Vence": golCasa > golFora,
+                    "Fora Vence": golFora > golCasa,
+                    "Empate": golCasa === golFora,
+                    "Over 1.5": golCasa + golFora > 1.5,
+                    "Under 1.5": golCasa + golFora <= 1.5,
+                    "Over 2.5": golCasa + golFora > 2.5,
+                    "Under 2.5": golCasa + golFora <= 2.5,
+                    "Over 3.5": golCasa + golFora > 3.5,
+                    "Under 3.5": golCasa + golFora <= 3.5,
+                    "5 ou Mais Gols": golCasa + golFora >= 5,
+                };
 
-                    resultsByHourMinute[hora][minuto].totalGames += 1;
+                const mercadoOcorreu = condicoes[selectedMercado];
 
-                    const [golCasa, golFora] = jogo.ft.split(" x ").map(Number);
-                    const condicoes = {
-                        "Ambas Sim": golCasa > 0 && golFora > 0,
-                        "Ambas Não": golCasa === 0 || golFora === 0,
-                        "Casa Vence": golCasa > golFora,
-                        "Fora Vence": golFora > golCasa,
-                        "Empate": golCasa === golFora,
-                        "Over 1.5": golCasa + golFora > 1.5,
-                        "Under 1.5": golCasa + golFora <= 1.5,
-                        "Over 2.5": golCasa + golFora > 2.5,
-                        "Under 2.5": golCasa + golFora <= 2.5,
-                        "Over 3.5": golCasa + golFora > 3.5,
-                        "Under 3.5": golCasa + golFora <= 3.5,
-                        "5 ou Mais Gols": golCasa + golFora >= 5,
-                    };
-
-                    const mercadoOcorreu = condicoes[selectedMercado];
-
-                    let teamWeight = 0;
-                    if (useTeamFilter) {
-                        const timeAStats = teamStats[timeA] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
-                        const timeBStats = teamStats[timeB] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
-
-                        const timeAFailRate = timeAStats.games > 0 ? 1 - (timeAStats.markets[selectedMercado] / timeAStats.games) : 0;
-                        const timeBFailRate = timeBStats.games > 0 ? 1 - (timeBStats.markets[selectedMercado] / timeBStats.games) : 0;
-                        const timeAOppositeRate = timeAStats.games > 0 ? (timeAStats.oppositeMarkets[oppositeMercado] / timeAStats.games) : 0;
-                        const timeBOppositeRate = timeBStats.games > 0 ? (timeBStats.oppositeMarkets[oppositeMercado] / timeBStats.games) : 0;
-
-                        teamWeight = (timeAFailRate + timeBFailRate + timeAOppositeRate + timeBOppositeRate) / 4;
-                        resultsByHourMinute[hora][minuto].teamWeights.push(teamWeight);
-                    }
-
-                    if (!mercadoOcorreu) {
-                        if (sequenciaAtual === 0) {
-                            inicioSequencia = { hora, minuto };
-                        }
-                        sequenciaAtual++;
-                    } else {
-                        if (sequenciaAtual >= 4 && inicioSequencia) {
-                            const { hora: inicioHora, minuto: inicioMinuto } = inicioSequencia;
-                            if (useTeamFilter) {
-                                const avgTeamWeight = resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.reduce((a, b) => a + b, 0) / (resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.length || 1);
-                                if (avgTeamWeight > 0.5) {
-                                    resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
-                                }
-                            } else {
-                                resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
-                            }
-                        }
-                        sequenciaAtual = 0;
-                        inicioSequencia = null;
-                    }
-                }
-
-                if (sequenciaAtual >= 4 && inicioSequencia) {
-                    const { hora: inicioHora, minuto: inicioMinuto } = inicioSequencia;
-                    if (useTeamFilter) {
-                        const avgTeamWeight = resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.reduce((a, b) => a + b, 0) / (resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.length || 1);
-                        if (avgTeamWeight > 0.5) {
-                            resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
-                        }
-                    } else {
-                        resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
-                    }
-                }
-
-                // Calcula a probabilidade de máxima para os próximos jogos
-                const nextGamesProbabilities = [];
-                nextGames.forEach(game => {
-                    const [hour, minute] = game.time.split(":");
-                    const hora = String(hour).padStart(2, "0");
-                    const minuto = String(minute).padStart(2, "0");
-
-                    const timeA = game.team_home;
-                    const timeB = game.team_visit;
-
+                // Calcula o peso dos times (se o filtro estiver ativado)
+                let teamWeight = 0;
+                if (useTeamFilter) {
                     const timeAStats = teamStats[timeA] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
                     const timeBStats = teamStats[timeB] || { games: 0, markets: { [selectedMercado]: 0 }, oppositeMarkets: { [oppositeMercado]: 0 } };
 
@@ -824,166 +741,176 @@ console.log = function() {};
                     const timeAOppositeRate = timeAStats.games > 0 ? (timeAStats.oppositeMarkets[oppositeMercado] / timeAStats.games) : 0;
                     const timeBOppositeRate = timeBStats.games > 0 ? (timeBStats.oppositeMarkets[oppositeMercado] / timeBStats.games) : 0;
 
-                    const teamWeight = (timeAFailRate + timeBFailRate + timeAOppositeRate + timeBOppositeRate) / 4;
-
-                    if (resultsByHourMinute[hora] && resultsByHourMinute[hora][minuto]) {
-                        resultsByHourMinute[hora][minuto].nextGameWeight = teamWeight;
-                    }
-
-                    nextGamesProbabilities.push({
-                        time: game.time,
-                        teamWeight: teamWeight
-                    });
-                });
-
-                const tableHeader = document.getElementById("maxima-hora-minuto-header");
-                const currentHourHeader = document.getElementById("current-hour-header");
-                const now = new Date();
-                const currentHour = String(now.getHours()).padStart(2, "0");
-                const currentMinute = String(now.getMinutes()).padStart(2, "0");
-
-                // Primeira execução: constrói a tabela
-                if (isFirstRun) {
-                    let headerRow = "<th>H</th>";
-                    uniqueMinutes.forEach(minute => {
-                        const minuteStr = String(minute).padStart(2, "0");
-                        headerRow += `<th>${minuteStr}</th>`;
-                    });
-                    tableHeader.innerHTML = headerRow;
-                    currentHourHeader.innerHTML = headerRow;
-
-                    const currentHourBody = document.getElementById("current-hour-resultados");
-                    currentHourBody.innerHTML = "";
-                    const currentRow = document.createElement("tr");
-                    const currentHourCell = document.createElement("td");
-                    currentHourCell.textContent = currentHour;
-                    currentRow.appendChild(currentHourCell);
-
-                    uniqueMinutes.forEach(minute => {
-                        const minuteStr = String(minute).padStart(2, "0");
-                        const cell = document.createElement("td");
-                        cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr}`);
-                        currentRow.appendChild(cell);
-                        currentHourCells[minuteStr] = cell;
-                    });
-                    currentHourBody.appendChild(currentRow);
-
-                    const resultsBody = document.getElementById("maxima-hora-minuto-resultados");
-                    resultsBody.innerHTML = "";
-                    for (let h = 23; h >= 0; h--) {
-                        const hour = String(h).padStart(2, "0");
-                        const row = document.createElement("tr");
-                        const hourCell = document.createElement("td");
-                        hourCell.textContent = hour;
-                        row.appendChild(hourCell);
-
-                        tableCells[hour] = {};
-                        uniqueMinutes.forEach(minute => {
-                            const minuteStr = String(minute).padStart(2, "0");
-                            const cell = document.createElement("td");
-                            cell.setAttribute("data-tooltip", `${hour}:${minuteStr}`);
-                            row.appendChild(cell);
-                            tableCells[hour][minuteStr] = cell;
-                        });
-                        resultsBody.appendChild(row);
-                    }
-                    isFirstRun = false;
+                    teamWeight = (timeAFailRate + timeBFailRate + timeAOppositeRate + timeBOppositeRate) / 4;
+                    resultsByHourMinute[hora][minuto].teamWeights.push(teamWeight);
                 }
 
-                // Atualiza os dados sem recriar a tabela
-                let hasMaximaChance = false;
+                if (!mercadoOcorreu) {
+                    if (sequenciaAtual === 0) {
+                        inicioSequencia = { hora, minuto };
+                    }
+                    sequenciaAtual++;
+                } else {
+                    if (sequenciaAtual >= 4 && inicioSequencia) { // Alterado de 5 para 4 jogos consecutivos
+                        const { hora: inicioHora, minuto: inicioMinuto } = inicioSequencia;
+                        if (useTeamFilter) {
+                            const avgTeamWeight = resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.reduce((a, b) => a + b, 0) / (resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.length || 1);
+                            if (avgTeamWeight > 0.5) {
+                                resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
+                            }
+                        } else {
+                            resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1; // Sem filtro de times
+                        }
+                    }
+                    sequenciaAtual = 0;
+                    inicioSequencia = null;
+                }
+            }
 
-                // Atualiza a hora atual (linha destacada)
+            if (sequenciaAtual >= 4 && inicioSequencia) { // Alterado de 5 para 4 jogos consecutivos
+                const { hora: inicioHora, minuto: inicioMinuto } = inicioSequencia;
+                if (useTeamFilter) {
+                    const avgTeamWeight = resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.reduce((a, b) => a + b, 0) / (resultsByHourMinute[inicioHora][inicioMinuto].teamWeights.length || 1);
+                    if (avgTeamWeight > 0.5) {
+                        resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1;
+                    }
+                } else {
+                    resultsByHourMinute[inicioHora][inicioMinuto].maximaStarts += 1; // Sem filtro de times
+                }
+            }
+
+            const tableHeader = document.getElementById("maxima-hora-minuto-header");
+            const currentHourHeader = document.getElementById("current-hour-header");
+            const now = new Date();
+            const currentHour = String(now.getHours()).padStart(2, "0");
+            const currentMinute = String(now.getMinutes()).padStart(2, "0");
+
+            // Primeira execução: constrói a tabela
+            if (isFirstRun) {
+                let headerRow = "<th>H</th>";
+                uniqueMinutes.forEach(minute => {
+                    const minuteStr = String(minute).padStart(2, "0");
+                    headerRow += `<th>${minuteStr}</th>`;
+                });
+                tableHeader.innerHTML = headerRow;
+                currentHourHeader.innerHTML = headerRow;
+
                 const currentHourBody = document.getElementById("current-hour-resultados");
-                currentHourBody.querySelector("td").textContent = currentHour;
+                currentHourBody.innerHTML = "";
+                const currentRow = document.createElement("tr");
+                const currentHourCell = document.createElement("td");
+                currentHourCell.textContent = currentHour;
+                currentRow.appendChild(currentHourCell);
 
                 uniqueMinutes.forEach(minute => {
                     const minuteStr = String(minute).padStart(2, "0");
-                    const data = resultsByHourMinute[currentHour][minuteStr];
+                    const cell = document.createElement("td");
+                    cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr}`);
+                    currentRow.appendChild(cell);
+                    currentHourCells[minuteStr] = cell;
+                });
+                currentHourBody.appendChild(currentRow);
+
+                const resultsBody = document.getElementById("maxima-hora-minuto-resultados");
+                resultsBody.innerHTML = "";
+                for (let h = 23; h >= 0; h--) {
+                    const hour = String(h).padStart(2, "0");
+                    const row = document.createElement("tr");
+                    const hourCell = document.createElement("td");
+                    hourCell.textContent = hour;
+                    row.appendChild(hourCell);
+
+                    tableCells[hour] = {};
+                    uniqueMinutes.forEach(minute => {
+                        const minuteStr = String(minute).padStart(2, "0");
+                        const cell = document.createElement("td");
+                        cell.setAttribute("data-tooltip", `${hour}:${minuteStr}`);
+                        row.appendChild(cell);
+                        tableCells[hour][minuteStr] = cell;
+                    });
+                    resultsBody.appendChild(row);
+                }
+                isFirstRun = false;
+            }
+
+            // Atualiza os dados sem recriar a tabela
+            let hasMaximaChance = false;
+
+            // Atualiza a hora atual (linha destacada)
+            const currentHourBody = document.getElementById("current-hour-resultados");
+            currentHourBody.querySelector("td").textContent = currentHour;
+
+            uniqueMinutes.forEach(minute => {
+                const minuteStr = String(minute).padStart(2, "0");
+                const data = resultsByHourMinute[currentHour][minuteStr];
+                const percentage = data.totalGames > 0
+                    ? ((data.maximaStarts / data.totalGames) * 100).toFixed(2)
+                    : "0.00";
+
+                const cell = currentHourCells[minuteStr];
+                if (cell) {
+                    cell.textContent = "";
+                    if (percentage == 100) {
+                        cell.className = "percent-maxima";
+                        hasMaximaChance = true;
+                    } else if (percentage == 0) {
+                        cell.className = "percent-0";
+                    } else {
+                        cell.className = "percent-low";
+                        hasMaximaChance = true;
+                    }
+                    cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr}`);
+                }
+            });
+
+            // Atualiza todas as horas na tabela principal
+            for (let h = 23; h >= 0; h--) {
+                const hour = String(h).padStart(2, "0");
+                uniqueMinutes.forEach(minute => {
+                    const minuteStr = String(minute).padStart(2, "0");
+                    const data = resultsByHourMinute[hour][minuteStr];
                     const percentage = data.totalGames > 0
                         ? ((data.maximaStarts / data.totalGames) * 100).toFixed(2)
                         : "0.00";
 
-                    const cell = currentHourCells[minuteStr];
+                    const cell = tableCells[hour][minuteStr];
                     if (cell) {
                         cell.textContent = "";
                         if (percentage == 100) {
                             cell.className = "percent-maxima";
-                            hasMaximaChance = true;
                         } else if (percentage == 0) {
                             cell.className = "percent-0";
                         } else {
                             cell.className = "percent-low";
-                            hasMaximaChance = true;
                         }
-                        cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr}`);
                     }
                 });
-
-                // Atualiza todas as horas na tabela principal
-                let nextGameMessage = "";
-                for (let h = 23; h >= 0; h--) {
-                    const hour = String(h).padStart(2, "0");
-                    uniqueMinutes.forEach(minute => {
-                        const minuteStr = String(minute).padStart(2, "0");
-                        const data = resultsByHourMinute[hour][minuteStr];
-                        const percentage = data.totalGames > 0
-                            ? ((data.maximaStarts / data.totalGames) * 100).toFixed(2)
-                            : "0.00";
-
-                        const cell = tableCells[hour][minuteStr];
-                        if (cell) {
-                            cell.textContent = "";
-                            if (percentage == 100) {
-                                cell.className = "percent-maxima";
-                            } else if (percentage == 0) {
-                                cell.className = "percent-0";
-                            } else {
-                                cell.className = "percent-low";
-                            }
-
-                            // Adiciona indicação visual para próximos jogos
-                            if (data.nextGameWeight !== null) {
-                                if (data.nextGameWeight > 0.5) {
-                                    cell.classList.add("next-game-high");
-                                    cell.setAttribute("data-tooltip", `${hour}:${minuteStr} - Alta probabilidade de máxima`);
-                                } else {
-                                    cell.classList.add("next-game-low");
-                                    cell.setAttribute("data-tooltip", `${hour}:${minuteStr} - Baixa probabilidade de máxima`);
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // Monta a mensagem sobre os próximos jogos
-                nextGamesProbabilities.forEach(game => {
-                    if (game.teamWeight > 0.5) {
-                        nextGameMessage += ` Próximo jogo às ${game.time} tem alta probabilidade de contribuir para uma máxima.`;
-                    }
-                });
-
-                // Mensagem de chance de máxima
-                const messageDiv = document.getElementById("chance-maxima-message");
-                if (hasMaximaChance) {
-                    messageDiv.innerHTML = `Possível chance de máxima na hora atual (${currentHour}h) na liga ${selectedLiga} para o mercado "${selectedMercado}"!${nextGameMessage}`;
-                    messageDiv.style.color = "#fff";
-                } else {
-                    messageDiv.innerHTML = `Nenhuma chance de máxima detectada na hora atual (${currentHour}h) na liga ${selectedLiga}.${nextGameMessage}`;
-                    messageDiv.style.color = "#e0e0e0";
-                }
-
-            } catch (error) {
-                console.error("Erro ao buscar os dados:", error);
             }
+
+            // Mensagem de chance de máxima
+            const messageDiv = document.getElementById("chance-maxima-message");
+            if (hasMaximaChance) {
+                messageDiv.innerHTML = `Possível chance de máxima na hora atual (${currentHour}h) na liga ${selectedLiga} para o mercado "${selectedMercado}"!`;
+                messageDiv.style.color = "#fff";
+            } else {
+                messageDiv.innerHTML = `Nenhuma chance de máxima detectada na hora atual (${currentHour}h) na liga ${selectedLiga}.`;
+                messageDiv.style.color = "#e0e0e0";
+            }
+
+        } catch (error) {
+            console.error("Erro ao buscar os dados:", error);
         }
+    }
 
-        // Chama a função imediatamente ao carregar a página
-        fetchMaximaPorHoraMinuto();
+    // Chama a função imediatamente ao carregar a página
+    fetchMaximaPorHoraMinuto();
 
-        // Configura a atualização a cada 5 minutos (300000 milissegundos)
-        setInterval(fetchMaximaPorHoraMinuto, 300000);
-    </script>
+    // Configura a atualização a cada 5 minutos (300000 milissegundos)
+    setInterval(fetchMaximaPorHoraMinuto, 300000);
+
+</script>
+  
+
 
 </body>
 </html>
