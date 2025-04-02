@@ -166,23 +166,22 @@
     </table>
 
     <script>
-        let cachedData = {};
+let cachedData = {};
 
+// Função para lidar com a mudança de seleção de liga
 function handleSelectionChange() {
     const leagueSelect = document.getElementById("leagueSelect");
     const selectedLeague = leagueSelect.value;
     
-    if (cachedData[selectedLeague]) {
-        processApiData(cachedData[selectedLeague]);
-    } else {
-        fetchApiData(selectedLeague);
-    }
+    fetchApiData(selectedLeague); // Sempre buscar novos dados ao mudar a liga
 }
 
+// Função para mostrar/esconder o loading
 function showLoading(show) {
     document.getElementById("loading").style.display = show ? "block" : "none";
 }
 
+// Função para buscar dados da API
 function fetchApiData(league) {
     showLoading(true);
     const apiUrl = `https://betstat.site/api/resultados/${league}`;
@@ -194,7 +193,7 @@ function fetchApiData(league) {
         })
         .then(data => {
             cachedData[league] = data;
-            processApiData(data);
+            processApiData(data, league);
             showLoading(false);
         })
         .catch(error => {
@@ -204,7 +203,8 @@ function fetchApiData(league) {
         });
 }
 
-function processApiData(data) {
+// Função para processar os dados da API
+function processApiData(data, league) {
     const marketSelect = document.getElementById("marketSelect").value;
     const range = parseInt(document.getElementById("rangeSelect").value, 10);
     const gameLimit = document.getElementById("gameLimitSelect").value;
@@ -212,14 +212,14 @@ function processApiData(data) {
     const limitedData = gameLimit === "todos" ? data : data.slice(-parseInt(gameLimit, 10));
     
     // Extrair os minutos únicos dos dados
-    const uniqueMinutes = [...new Set(limitedData.map(game => parseInt(game.minuto, 10)))].sort((a, b) => a - b);
+    const uniqueMinutesFromData = [...new Set(limitedData.map(game => parseInt(game.minuto, 10)))].sort((a, b) => a - b);
     
-    // Inicializar a matriz de resultados (24 horas x minutos únicos)
+    // Inicializar a matriz de resultados (24 horas x todos os minutos possíveis)
     const resultsByHourMinute = {};
     for (let h = 0; h < 24; h++) {
         const hour = String(h).padStart(2, '0');
         resultsByHourMinute[hour] = {};
-        uniqueMinutes.forEach(minute => {
+        uniqueMinutesFromData.forEach(minute => {
             const minuteStr = String(minute).padStart(2, '0');
             resultsByHourMinute[hour][minuteStr] = {
                 totalGames: 0,
@@ -230,7 +230,7 @@ function processApiData(data) {
 
     // Inicializar totais por minuto para a linha final
     const totalsByMinute = {};
-    uniqueMinutes.forEach(minute => {
+    uniqueMinutesFromData.forEach(minute => {
         const minuteStr = String(minute).padStart(2, '0');
         totalsByMinute[minuteStr] = {
             totalGames: 0,
@@ -238,7 +238,7 @@ function processApiData(data) {
         };
     });
 
-    // Processar os jogos
+    // Processar os jogos e preencher a matriz
     limitedData.forEach((game, index) => {
         const hora = String(game.hora).padStart(2, '0');
         const minuto = String(game.minuto).padStart(2, '0');
@@ -315,10 +315,26 @@ function processApiData(data) {
             totalsByMinute[minuto].greenGames += 1;
         }
     });
-    
-    displayResultsTable(resultsByHourMinute, uniqueMinutes, totalsByMinute);
+
+    // Filtrar minutos válidos (apenas minutos com totalGames > 0 em pelo menos uma hora)
+    const validMinutes = uniqueMinutesFromData.filter(minute => {
+        const minuteStr = String(minute).padStart(2, '0');
+        let hasGames = false;
+        for (let h = 0; h < 24; h++) {
+            const hour = String(h).padStart(2, '0');
+            if (resultsByHourMinute[hour][minuteStr].totalGames > 0) {
+                hasGames = true;
+                break;
+            }
+        }
+        return hasGames;
+    }).sort((a, b) => a - b);
+
+    // Exibir os resultados na tabela
+    displayResultsTable(resultsByHourMinute, validMinutes, totalsByMinute);
 }
 
+// Função para extrair gols do placar
 function extractGoalsFromScore(scoreString) {
     if (!scoreString || typeof scoreString !== 'string') return [0, 0];
     const scoreParts = scoreString.split('x').map(part => part.trim());
@@ -327,6 +343,7 @@ function extractGoalsFromScore(scoreString) {
         : [0, 0];
 }
 
+// Função para exibir os resultados na tabela
 function displayResultsTable(resultsByHourMinute, uniqueMinutes, totalsByMinute) {
     const tableHeader = document.getElementById("tableHeader");
     const resultsBody = document.getElementById("resultsBody");
@@ -476,7 +493,23 @@ function displayResultsTable(resultsByHourMinute, uniqueMinutes, totalsByMinute)
     resultsBody.appendChild(totalRow);
 }
 
-window.onload = handleSelectionChange;
+// Função para atualizar os dados a cada 5 minutos
+function startAutoUpdate() {
+    const leagueSelect = document.getElementById("leagueSelect");
+    const selectedLeague = leagueSelect.value;
+    
+    // Chama a função fetchApiData imediatamente e depois a cada 5 minutos
+    fetchApiData(selectedLeague);
+    setInterval(() => {
+        fetchApiData(selectedLeague);
+    }, 5 * 60 * 1000); // 5 minutos em milissegundos
+}
+
+// Inicializar ao carregar a página
+window.onload = () => {
+    handleSelectionChange();
+    startAutoUpdate();
+};
     </script>
 
 
