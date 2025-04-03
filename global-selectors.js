@@ -1,19 +1,21 @@
-// Salva a seleção no LocalStorage
+// Salva a seleção no LocalStorage, exceto para o pointsSelector
 function saveSelection(selectorId) {
     const selector = document.getElementById(selectorId);
-    if (selector) {
+    if (selector && selectorId !== "pointsSelector") { // Ignora pointsSelector
         const selectedValue = selector.value;
         localStorage.setItem(selectorId, selectedValue);
     }
 }
 
-// Restaura as seleções do LocalStorage
+// Restaura as seleções do LocalStorage, exceto para o pointsSelector
 function restoreSelections() {
     const selectors = document.querySelectorAll("select");
     selectors.forEach(selector => {
-        const savedValue = localStorage.getItem(selector.id);
-        if (savedValue) {
-            selector.value = savedValue;
+        if (selector.id !== "pointsSelector") { // Ignora pointsSelector
+            const savedValue = localStorage.getItem(selector.id);
+            if (savedValue) {
+                selector.value = savedValue;
+            }
         }
     });
 }
