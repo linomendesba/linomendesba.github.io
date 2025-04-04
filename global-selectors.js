@@ -1,5 +1,5 @@
 // Lista de seletores que não devem ser salvos
-const excludedSelectors = ["ligas", "avancado-betano", "ligas365", "avancado-bet365", "redes"];
+const excludedSelectors = ["ligas", "avancado-betano", "ligas365", "avancado-bet365", "redes", "pointsSelector"];
 
 // Salva a seleção no LocalStorage, exceto para os seletores excluídos
 function saveSelection(selectorId) {
