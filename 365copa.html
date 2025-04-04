@@ -1006,7 +1006,6 @@
     <script>
 let copaAmericaChart, CopaChart, EuroChart, PremierChart, SuperChart;
 let numPoints = 20;
-let averagePoints = 19;
 let showFibonacciLines = false;
 const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
@@ -1078,7 +1077,7 @@ function processApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const slicedData = sortedData.slice(-numPoints - averagePoints);
+    const slicedData = sortedData.slice(-numPoints);
     chartData[league] = slicedData;
 
     let labels = [];
@@ -1101,120 +1100,106 @@ function processApiData(data, league) {
     let gol4 = [];
     let gol5 = [];
 
-    // Função para verificar se há lacuna entre dois jogos
     function hasGap(prevMatch, currMatch) {
         const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
         const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
-        const diffMinutes = (currTime - prevTime) / (1000 * 60); // Diferença em minutos
-        return diffMinutes > 1; // Considera lacuna se a diferença for maior que 1 minuto
+        const diffMinutes = (currTime - prevTime) / (1000 * 60);
+        return diffMinutes > 1;
     }
 
-    for (let i = averagePoints; i < slicedData.length; i++) {
-        let golsFTSum = 0;
-        let casaVenceSum = 0;
-        let empateSum = 0;
-        let foraVenceSum = 0;
-        let ambasSimSum = 0;
-        let ambasNaoSum = 0;
-        let over15Sum = 0;
-        let over25Sum = 0;
-        let over35Sum = 0;
-        let under15Sum = 0;
-        let under25Sum = 0;
-        let under35Sum = 0;
-        let gol0Sum = 0;
-        let gol1Sum = 0;
-        let gol2Sum = 0;
-        let gol3Sum = 0;
-        let gol4Sum = 0;
-        let gol5Sum = 0;
-        let validMatches = 0;
+    // Mapa para armazenar os dados da hora anterior
+    const previousHourData = {};
 
-        // Calcula a média apenas com os jogos disponíveis
-        for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
-            const match = slicedData[j];
-            const ftScore = match.ft;
+    for (let i = 0; i < slicedData.length; i++) {
+        const match = slicedData[i];
+        const currentHour = parseInt(match.hora, 10);
+        const currentMinute = match.minuto;
+        const label = `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
+        labels.push(label);
 
-            // Verifica se há lacuna antes de processar
-            if (j > 0 && hasGap(slicedData[j - 1], match)) {
-                // Insere um ponto nulo no gráfico para indicar a lacuna
-                labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-                golsFT.push(null); // null faz o Chart.js pular o ponto
-                casaVence.push(null);
-                empate.push(null);
-                foraVence.push(null);
-                ambasSim.push(null);
-                ambasNao.push(null);
-                over15.push(null);
-                over25.push(null);
-                over35.push(null);
-                under15.push(null);
-                under25.push(null);
-                under35.push(null);
-                gol0.push(null);
-                gol1.push(null);
-                gol2.push(null);
-                gol3.push(null);
-                gol4.push(null);
-                gol5.push(null);
-                continue; // Pula para o próximo jogo
-            }
-
-            let ftScoreParts = [0, 0];
-            if (ftScore && ftScore.includes(' x ')) {
-                ftScoreParts = ftScore.split(' x ').map(num => parseInt(num, 10));
-            }
-
-            const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
-
-            golsFTSum += totalGolsFT;
-            casaVenceSum += ftScoreParts[0] > ftScoreParts[1] ? 1 : 0;
-            empateSum += ftScoreParts[0] === ftScoreParts[1] ? 1 : 0;
-            foraVenceSum += ftScoreParts[0] < ftScoreParts[1] ? 1 : 0;
-            ambasSimSum += ftScoreParts[0] > 0 && ftScoreParts[1] > 0 ? 1 : 0;
-            ambasNaoSum += ftScoreParts[0] === 0 || ftScoreParts[1] === 0 ? 1 : 0;
-            over15Sum += totalGolsFT > 1.5 ? 1 : 0;
-            over25Sum += totalGolsFT > 2.5 ? 1 : 0;
-            over35Sum += totalGolsFT > 3.5 ? 1 : 0;
-            under15Sum += totalGolsFT < 1.5 ? 1 : 0;
-            under25Sum += totalGolsFT < 2.5 ? 1 : 0;
-            under35Sum += totalGolsFT < 3.5 ? 1 : 0;
-            gol0Sum += totalGolsFT === 0 ? 1 : 0;
-            gol1Sum += totalGolsFT === 1 ? 1 : 0;
-            gol2Sum += totalGolsFT === 2 ? 1 : 0;
-            gol3Sum += totalGolsFT === 3 ? 1 : 0;
-            gol4Sum += totalGolsFT === 4 ? 1 : 0;
-            gol5Sum += totalGolsFT === 5 ? 1 : 0;
-            validMatches++;
+        // Verifica se há lacuna
+        if (i > 0 && hasGap(slicedData[i - 1], match)) {
+            golsFT.push(null);
+            casaVence.push(null);
+            empate.push(null);
+            foraVence.push(null);
+            ambasSim.push(null);
+            ambasNao.push(null);
+            over15.push(null);
+            over25.push(null);
+            over35.push(null);
+            under15.push(null);
+            under25.push(null);
+            under35.push(null);
+            gol0.push(null);
+            gol1.push(null);
+            gol2.push(null);
+            gol3.push(null);
+            gol4.push(null);
+            gol5.push(null);
+            continue;
         }
 
-        const match = slicedData[i];
-        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`); // Linha corrigida
+        let ftScoreParts = [0, 0];
+        if (match.ft && match.ft.includes(' x ')) {
+            ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
+        }
+        const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
 
-        const avg = validMatches || 1; // Evita divisão por zero
-        golsFT.push(golsFTSum / avg * 100);
-        casaVence.push(casaVenceSum / avg * 100);
-        empate.push(empateSum / avg * 100);
-        foraVence.push(foraVenceSum / avg * 100);
-        ambasSim.push(ambasSimSum / avg * 100);
-        ambasNao.push(ambasNaoSum / avg * 100);
-        over15.push(over15Sum / avg * 100);
-        over25.push(over25Sum / avg * 100);
-        over35.push(over35Sum / avg * 100);
-        under15.push(under15Sum / avg * 100);
-        under25.push(under25Sum / avg * 100);
-        under35.push(under35Sum / avg * 100);
-        gol0.push(gol0Sum / avg * 100);
-        gol1.push(gol1Sum / avg * 100);
-        gol2.push(gol2Sum / avg * 100);
-        gol3.push(gol3Sum / avg * 100);
-        gol4.push(gol4Sum / avg * 100);
-        gol5.push(gol5Sum / avg * 100);
+        // Calcula os valores atuais
+        const currentStats = {
+            golsFT: totalGolsFT,
+            casaVence: ftScoreParts[0] > ftScoreParts[1] ? 100 : 0,
+            empate: ftScoreParts[0] === ftScoreParts[1] ? 100 : 0,
+            foraVence: ftScoreParts[0] < ftScoreParts[1] ? 100 : 0,
+            ambasSim: ftScoreParts[0] > 0 && ftScoreParts[1] > 0 ? 100 : 0,
+            ambasNao: ftScoreParts[0] === 0 || ftScoreParts[1] === 0 ? 100 : 0,
+            over15: totalGolsFT > 1.5 ? 100 : 0,
+            over25: totalGolsFT > 2.5 ? 100 : 0,
+            over35: totalGolsFT > 3.5 ? 100 : 0,
+            under15: totalGolsFT < 1.5 ? 100 : 0,
+            under25: totalGolsFT < 2.5 ? 100 : 0,
+            under35: totalGolsFT < 3.5 ? 100 : 0,
+            gol0: totalGolsFT === 0 ? 100 : 0,
+            gol1: totalGolsFT === 1 ? 100 : 0,
+            gol2: totalGolsFT === 2 ? 100 : 0,
+            gol3: totalGolsFT === 3 ? 100 : 0,
+            gol4: totalGolsFT === 4 ? 100 : 0,
+            gol5: totalGolsFT === 5 ? 100 : 0
+        };
+
+        // Armazena os dados atuais para a próxima comparação
+        previousHourData[`${currentHour}:${currentMinute}`] = currentStats;
+
+        // Busca os dados da hora anterior (subtrai 1 hora)
+        const prevHour = (currentHour - 1 + 24) % 24; // Garante que não seja negativo
+        const prevKey = `${prevHour}:${currentMinute}`;
+        const prevStats = previousHourData[prevKey] || { golsFT: 0, casaVence: 0, empate: 0, foraVence: 0, ambasSim: 0, ambasNao: 0, over15: 0, over25: 0, over35: 0, under15: 0, under25: 0, under35: 0, gol0: 0, gol1: 0, gol2: 0, gol3: 0, gol4: 0, gol5: 0 };
+
+        // Calcula a diferença ou usa o valor atual se não houver dado anterior
+        golsFT.push(prevStats.golsFT !== undefined ? currentStats.golsFT - prevStats.golsFT : currentStats.golsFT);
+        casaVence.push(prevStats.casaVence !== undefined ? currentStats.casaVence - prevStats.casaVence : currentStats.casaVence);
+        empate.push(prevStats.empate !== undefined ? currentStats.empate - prevStats.empate : currentStats.empate);
+        foraVence.push(prevStats.foraVence !== undefined ? currentStats.foraVence - prevStats.foraVence : currentStats.foraVence);
+        ambasSim.push(prevStats.ambasSim !== undefined ? currentStats.ambasSim - prevStats.ambasSim : currentStats.ambasSim);
+        ambasNao.push(prevStats.ambasNao !== undefined ? currentStats.ambasNao - prevStats.ambasNao : currentStats.ambasNao);
+        over15.push(prevStats.over15 !== undefined ? currentStats.over15 - prevStats.over15 : currentStats.over15);
+        over25.push(prevStats.over25 !== undefined ? currentStats.over25 - prevStats.over25 : currentStats.over25);
+        over35.push(prevStats.over35 !== undefined ? currentStats.over35 - prevStats.over35 : currentStats.over35);
+        under15.push(prevStats.under15 !== undefined ? currentStats.under15 - prevStats.under15 : currentStats.under15);
+        under25.push(prevStats.under25 !== undefined ? currentStats.under25 - prevStats.under25 : currentStats.under25);
+        under35.push(prevStats.under35 !== undefined ? currentStats.under35 - prevStats.under35 : currentStats.under35);
+        gol0.push(prevStats.gol0 !== undefined ? currentStats.gol0 - prevStats.gol0 : currentStats.gol0);
+        gol1.push(prevStats.gol1 !== undefined ? currentStats.gol1 - prevStats.gol1 : currentStats.gol1);
+        gol2.push(prevStats.gol2 !== undefined ? currentStats.gol2 - prevStats.gol2 : currentStats.gol2);
+        gol3.push(prevStats.gol3 !== undefined ? currentStats.gol3 - prevStats.gol3 : currentStats.gol3);
+        gol4.push(prevStats.gol4 !== undefined ? currentStats.gol4 - prevStats.gol4 : currentStats.gol4);
+        gol5.push(prevStats.gol5 !== undefined ? currentStats.gol5 - prevStats.gol5 : currentStats.gol5);
     }
 
     return { 
         labels, golsFT, casaVence, empate, foraVence, ambasSim, ambasNao,
-        over15, over25, over35, under15, under25, under35,
+        over15, over15, over25, over35, under15, under25, under35,
         gol0, gol1, gol2, gol3, gol4, gol5 
     };
 }
@@ -1314,13 +1299,13 @@ function createStatsChart(ctx, labels, data, league) {
                     callbacks: {
                         title: function(tooltipItems) {
                             const league = leagues.find(l => chartInstances[l] === tooltipItems[0].chart);
-                            const index = tooltipItems[0].dataIndex + averagePoints;
+                            const index = tooltipItems[0].dataIndex;
                             const match = chartData[league][index];
                             return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
                         },
                         label: function(tooltipItem) {
                             const league = leagues.find(l => chartInstances[l] === tooltipItem.chart);
-                            const index = tooltipItem.dataIndex + averagePoints;
+                            const index = tooltipItem.dataIndex;
                             const match = chartData[league][index];
                             const ftScore = match.ft || 'N/A';
                             const htScore = formatHtResult(match.ht) || 'N/A';
@@ -1411,10 +1396,7 @@ document.getElementById('pointsSelector').addEventListener('change', function(ev
     updateCharts();
 });
 
-document.getElementById('averageSelector').addEventListener('change', function(event) {
-    averagePoints = parseInt(event.target.value, 10);
-    updateCharts();
-});
+// Removido o evento para averageSelector, pois a base não será mais alterada
 
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 
