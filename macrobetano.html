@@ -206,9 +206,14 @@ let statsChart = null;
 let statsChartVisibleDatasets = {
   'Ambas Marcam': true,
   'Ambas não Marcam': false,
+  'Over 1.5': false,
   'Over 2.5': true,
   'Over 3.5': false,
   'Under 1.5': false,
+  'Under 2.5': false,
+  'Under 3.5': false,
+  'Gols FT': false,
+  'Gols HT': false,
   '5+': false,
   'Casa Vence': false,
   'Fora Vence': false,
@@ -238,13 +243,32 @@ function processAPIData(data) {
   // Inicializa arrays para armazenar os dados processados
   const labels = [];
   const ambasMarcam = [];
+  const ambasMarcamCount = [];
   const ambasnaoMarcam = [];
+  const ambasnaoMarcamCount = [];
+  const over15 = [];
+  const over15Count = [];
   const over25 = [];
+  const over25Count = [];
   const over35 = [];
+  const over35Count = [];
   const under15 = [];
+  const under15Count = [];
+  const under25 = [];
+  const under25Count = [];
+  const under35 = [];
+  const under35Count = [];
+  const golsFT = [];
+  const golsFTTotal = [];
+  const golsHT = [];
+  const golsHTTotal = [];
   const mais5 = [];
+  const mais5Count = [];
   const casavence = [];
+  const casavenceCount = [];
   const foravence = [];
+  const foravenceCount = [];
+  const gamesPerHour = [];
   
   // Agrupa os dados por hora
   const hourData = {};
@@ -262,9 +286,14 @@ function processAPIData(data) {
       hourData[hourKey] = {
         ambasMarcam: 0,
         ambasnaoMarcam: 0,
+        over15: 0,
         over25: 0,
         over35: 0,
         under15: 0,
+        under25: 0,
+        under35: 0,
+        golsFTSum: 0,
+        golsHTSum: 0,
         mais5: 0,
         casavence: 0,
         foravence: 0,
@@ -275,44 +304,72 @@ function processAPIData(data) {
     // Incrementa o contador
     hourData[hourKey].count++;
     
-    // Processa o placar do jogo
+    // Processa o placar do jogo (FT e HT)
     if (game.ft) {
-      const scores = game.ft.split(' x ');
-      if (scores.length === 2) {
-        const homeGoals = parseInt(scores[0]) || 0;
-        const awayGoals = parseInt(scores[1]) || 0;
-        const totalGoals = homeGoals + awayGoals;
+      const ftScores = game.ft.split(' x ');
+      if (ftScores.length === 2) {
+        const homeGoalsFT = parseInt(ftScores[0]) || 0;
+        const awayGoalsFT = parseInt(ftScores[1]) || 0;
+        const totalGoalsFT = homeGoalsFT + awayGoalsFT;
         
-        // Atualiza as estatísticas
-        if (homeGoals > 0 && awayGoals > 0) {
+        // Atualiza as estatísticas para FT
+        if (homeGoalsFT > 0 && awayGoalsFT > 0) {
           hourData[hourKey].ambasMarcam++;
         } else {
           hourData[hourKey].ambasnaoMarcam++;
         }
         
-        if (totalGoals > 2.5) {
+        if (totalGoalsFT > 1.5) {
+          hourData[hourKey].over15++;
+        }
+        
+        if (totalGoalsFT > 2.5) {
           hourData[hourKey].over25++;
         }
         
-        if (totalGoals > 3.5) {
+        if (totalGoalsFT > 3.5) {
           hourData[hourKey].over35++;
         }
         
-        if (totalGoals < 1.5) {
+        if (totalGoalsFT < 1.5) {
           hourData[hourKey].under15++;
         }
         
-        if (totalGoals > 4) {
+        if (totalGoalsFT < 2.5) {
+          hourData[hourKey].under25++;
+        }
+        
+        if (totalGoalsFT < 3.5) {
+          hourData[hourKey].under35++;
+        }
+        
+        if (totalGoalsFT > 4) {
           hourData[hourKey].mais5++;
         }
         
-        if (homeGoals > awayGoals) {
+        if (homeGoalsFT > awayGoalsFT) {
           hourData[hourKey].casavence++;
         }
         
-        if (awayGoals > homeGoals) {
+        if (awayGoalsFT > homeGoalsFT) {
           hourData[hourKey].foravence++;
         }
+        
+        // Soma os gols FT
+        hourData[hourKey].golsFTSum += totalGoalsFT;
+      }
+    }
+    
+    // Processa o placar do intervalo (HT)
+    if (game.ht && game.ht !== 'OUT' && game.ht.includes(' x ')) {
+      const htScores = game.ht.split(' x ');
+      if (htScores.length === 2) {
+        const homeGoalsHT = parseInt(htScores[0]) || 0;
+        const awayGoalsHT = parseInt(htScores[1]) || 0;
+        const totalGoalsHT = homeGoalsHT + awayGoalsHT;
+        
+        // Soma os gols HT
+        hourData[hourKey].golsHTSum += totalGoalsHT;
       }
     }
   });
@@ -342,15 +399,38 @@ function processAPIData(data) {
     if (gamesInHour > 0) {
       labels.push(hour);
       
-      // Calcula as porcentagens
+      // Calcula as porcentagens e armazena as quantidades para Over, Under, etc.
       ambasMarcam.push((dataForHour.ambasMarcam / gamesInHour) * 100);
+      ambasMarcamCount.push(dataForHour.ambasMarcam);
       ambasnaoMarcam.push((dataForHour.ambasnaoMarcam / gamesInHour) * 100);
+      ambasnaoMarcamCount.push(dataForHour.ambasnaoMarcam);
+      over15.push((dataForHour.over15 / gamesInHour) * 100);
+      over15Count.push(dataForHour.over15);
       over25.push((dataForHour.over25 / gamesInHour) * 100);
+      over25Count.push(dataForHour.over25);
       over35.push((dataForHour.over35 / gamesInHour) * 100);
+      over35Count.push(dataForHour.over35);
       under15.push((dataForHour.under15 / gamesInHour) * 100);
+      under15Count.push(dataForHour.under15);
+      under25.push((dataForHour.under25 / gamesInHour) * 100);
+      under25Count.push(dataForHour.under25);
+      under35.push((dataForHour.under35 / gamesInHour) * 100);
+      under35Count.push(dataForHour.under35);
       mais5.push((dataForHour.mais5 / gamesInHour) * 100);
+      mais5Count.push(dataForHour.mais5);
       casavence.push((dataForHour.casavence / gamesInHour) * 100);
+      casavenceCount.push(dataForHour.casavence);
       foravence.push((dataForHour.foravence / gamesInHour) * 100);
+      foravenceCount.push(dataForHour.foravence);
+      
+      // Calcula as médias e armazena os totais para Gols FT e Gols HT
+      golsFT.push(dataForHour.golsFTSum / gamesInHour);
+      golsFTTotal.push(dataForHour.golsFTSum);
+      golsHT.push(dataForHour.golsHTSum / gamesInHour);
+      golsHTTotal.push(dataForHour.golsHTSum);
+      
+      // Armazena o número de jogos por hora
+      gamesPerHour.push(gamesInHour);
     }
   });
   
@@ -360,13 +440,32 @@ function processAPIData(data) {
   return {
     labels: labels,
     ambasMarcam: ambasMarcam,
+    ambasMarcamCount: ambasMarcamCount,
     ambasnaoMarcam: ambasnaoMarcam,
+    ambasnaoMarcamCount: ambasnaoMarcamCount,
+    over15: over15,
+    over15Count: over15Count,
     over25: over25,
+    over25Count: over25Count,
     over35: over35,
+    over35Count: over35Count,
     under15: under15,
+    under15Count: under15Count,
+    under25: under25,
+    under25Count: under25Count,
+    under35: under35,
+    under35Count: under35Count,
+    golsFT: golsFT,
+    golsFTTotal: golsFTTotal,
+    golsHT: golsHT,
+    golsHTTotal: golsHTTotal,
     mais5: mais5,
+    mais5Count: mais5Count,
     casavence: casavence,
-    foravence: foravence
+    casavenceCount: casavenceCount,
+    foravence: foravence,
+    foravenceCount: foravenceCount,
+    gamesPerHour: gamesPerHour
   };
 }
 
@@ -382,9 +481,14 @@ function createStatsChart(ctx, labels, data) {
   const marketDataMap = {
     'ambasMarcam': data.ambasMarcam,
     'ambasnaoMarcam': data.ambasnaoMarcam,
+    'over15': data.over15,
     'over25': data.over25,
     'over35': data.over35,
     'under15': data.under15,
+    'under25': data.under25,
+    'under35': data.under35,
+    'golsFT': data.golsFT,
+    'golsHT': data.golsHT,
     'mais5': data.mais5,
     'casavence': data.casavence,
     'foravence': data.foravence
@@ -394,165 +498,320 @@ function createStatsChart(ctx, labels, data) {
   const averageLineData = new Array(labels.length).fill(averageValue);
 
   return new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: labels,
-    datasets: [
-      {
-        label: 'Ambas Marcam',
-        data: data.ambasMarcam,
-        borderColor: 'rgba(0, 255, 0, 1)', // Verde neon
-        backgroundColor: 'rgba(0, 255, 0, 0.1)', // Preenchimento mais transparente
-        borderWidth: 2,
-        fill: true,
-        hidden: false, // Visível por padrão
-        pointRadius: 6,
-        pointBackgroundColor: 'rgba(0, 255, 0, 1)', // Cor dos pontos
-        tension: 0.4
-      },
-      {
-        label: 'Ambas não Marcam',
-        data: data.ambasnaoMarcam,
-        borderColor: 'rgba(255, 0, 255, 1)', // Rosa neon
-        backgroundColor: 'rgba(255, 0, 255, 0.1)', // Preenchimento mais transparente
-        borderWidth: 2,
-        fill: true,
-        hidden: false, // Visível por padrão
-        pointRadius: 6,
-        pointBackgroundColor: 'rgba(255, 0, 255, 1)', // Cor dos pontos
-        tension: 0.4
-      },
-      {
-        label: 'Over 2.5',
-        data: data.over25,
-        borderColor: 'rgba(0, 255, 255, 1)', // Azul neon
-        backgroundColor: 'rgba(0, 255, 255, 0.1)', // Preenchimento mais transparente
-        borderWidth: 2,
-        fill: true,
-        hidden: true, // Desativado por padrão
-        pointRadius: 6,
-        pointBackgroundColor: 'rgba(0, 255, 255, 1)', // Cor dos pontos
-        tension: 0.4
-      },
-      {
-        label: 'Over 3.5',
-        data: data.over35,
-        borderColor: 'rgba(255, 165, 0, 1)', // Laranja neon
-        backgroundColor: 'rgba(255, 165, 0, 0.1)', // Preenchimento mais transparente
-        borderWidth: 2,
-        fill: true,
-        hidden: true, // Desativado por padrão
-        pointRadius: 6,
-        pointBackgroundColor: 'rgba(255, 165, 0, 1)', // Cor dos pontos
-        tension: 0.4
-      },
-      {
-        label: 'Under 1.5',
-        data: data.under15,
-        borderColor: 'rgba(255, 20, 147, 1)', // Rosa choque neon
-        backgroundColor: 'rgba(255, 20, 147, 0.1)', // Preenchimento mais transparente
-        borderWidth: 2,
-        fill: true,
-        hidden: true, // Desativado por padrão
-        pointRadius: 6,
-        pointBackgroundColor: 'rgba(255, 20, 147, 1)', // Cor dos pontos
-        tension: 0.4
-      },
-      {
-        label: '5+',
-        data: data.mais5,
-        borderColor: 'rgba(255, 69, 0, 1)', // Vermelho neon
-        backgroundColor: 'rgba(255, 69, 0, 0.1)', // Preenchimento mais transparente
-        borderWidth: 2,
-        fill: true,
-        hidden: true, // Desativado por padrão
-        pointRadius: 6,
-        pointBackgroundColor: 'rgba(255, 69, 0, 1)', // Cor dos pontos
-        tension: 0.4
-      },
-      {
-        label: 'Casa Vence',
-        data: data.casavence,
-        borderColor: 'rgba(255, 105, 180, 1)', // Rosa neon claro
-        backgroundColor: 'rgba(255, 105, 180, 0.1)', // Preenchimento mais transparente
-        borderWidth: 2,
-        fill: true,
-        hidden: true, // Desativado por padrão
-        pointRadius: 6,
-        pointBackgroundColor: 'rgba(255, 105, 180, 1)', // Cor dos pontos
-        tension: 0.4
-      },
-      {
-        label: 'Fora Vence',
-        data: data.foravence,
-        borderColor: 'rgba(34, 193, 195, 1)', // Cores neon mescladas
-        backgroundColor: 'rgba(34, 193, 195, 0.1)', // Preenchimento mais transparente
-        borderWidth: 2,
-        fill: true,
-        hidden: true, // Desativado por padrão
-        pointRadius: 6,
-        pointBackgroundColor: 'rgba(34, 193, 195, 1)', // Cor dos pontos
-        tension: 0.4
-      },
-      {
-        label: 'Equilíbrio',
-        data: averageLineData,
-        borderColor: 'rgba(255, 255, 255, 0.5)',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        fill: false,
-        pointRadius: 0,
-        hidden: false, // Visível por padrão
-      }
-    ]
-  },
-  options: {
-    plugins: {
-      legend: {
-        display: true,
-        position: 'top',
-        labels: {
-          color: 'white'
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Ambas Marcam',
+          data: data.ambasMarcam,
+          borderColor: 'rgba(0, 255, 0, 1)', // Verde neon
+          backgroundColor: 'rgba(0, 255, 0, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Ambas Marcam'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(0, 255, 0, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
         },
-        onClick: function(e, legendItem, legend) {
-          const dataset = legendItem.datasetIndex;
-          const ci = legend.chart;
-          const meta = ci.getDatasetMeta(dataset);
-          meta.hidden = !meta.hidden;
-          statsChartVisibleDatasets[legendItem.text] = !meta.hidden;
-          ci.update();
+        {
+          label: 'Ambas não Marcam',
+          data: data.ambasnaoMarcam,
+          borderColor: 'rgba(255, 0, 255, 1)', // Rosa neon
+          backgroundColor: 'rgba(255, 0, 255, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Ambas não Marcam'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 0, 255, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Over 1.5',
+          data: data.over15,
+          borderColor: 'rgba(0, 191, 255, 1)', // Azul claro neon
+          backgroundColor: 'rgba(0, 191, 255, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Over 1.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(0, 191, 255, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Over 2.5',
+          data: data.over25,
+          borderColor: 'rgba(0, 255, 255, 1)', // Azul neon
+          backgroundColor: 'rgba(0, 255, 255, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Over 2.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(0, 255, 255, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Over 3.5',
+          data: data.over35,
+          borderColor: 'rgba(255, 165, 0, 1)', // Laranja neon
+          backgroundColor: 'rgba(255, 165, 0, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Over 3.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 165, 0, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Under 1.5',
+          data: data.under15,
+          borderColor: 'rgba(255, 20, 147, 1)', // Rosa choque neon
+          backgroundColor: 'rgba(255, 20, 147, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Under 1.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 20, 147, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Under 2.5',
+          data: data.under25,
+          borderColor: 'rgba(138, 43, 226, 1)', // Roxo neon
+          backgroundColor: 'rgba(138, 43, 226, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Under 2.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(138, 43, 226, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Under 3.5',
+          data: data.under35,
+          borderColor: 'rgba(75, 0, 130, 1)', // Índigo neon
+          backgroundColor: 'rgba(75, 0, 130, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Under 3.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(75, 0, 130, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Gols FT',
+          data: data.golsFT,
+          borderColor: 'rgba(255, 255, 0, 1)', // Amarelo neon
+          backgroundColor: 'rgba(255, 255, 0, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Gols FT'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 255, 0, 1)',
+          tension: 0.4,
+          yAxisID: 'y-gols'
+        },
+        {
+          label: 'Gols HT',
+          data: data.golsHT,
+          borderColor: 'rgba(50, 205, 50, 1)', // Verde limão neon
+          backgroundColor: 'rgba(50, 205, 50, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Gols HT'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(50, 205, 50, 1)',
+          tension: 0.4,
+          yAxisID: 'y-gols'
+        },
+        {
+          label: '5+',
+          data: data.mais5,
+          borderColor: 'rgba(255, 69, 0, 1)', // Vermelho neon
+          backgroundColor: 'rgba(255, 69, 0, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['5+'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 69, 0, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Casa Vence',
+          data: data.casavence,
+          borderColor: 'rgba(255, 105, 180, 1)', // Rosa neon claro
+          backgroundColor: 'rgba(255, 105, 180, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Casa Vence'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 105, 180, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Fora Vence',
+          data: data.foravence,
+          borderColor: 'rgba(34, 193, 195, 1)', // Cores neon mescladas
+          backgroundColor: 'rgba(34, 193, 195, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Fora Vence'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(34, 193, 195, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Equilíbrio',
+          data: averageLineData,
+          borderColor: 'rgba(255, 255, 255, 0.5)',
+          borderWidth: 2,
+          borderDash: [5, 5],
+          fill: false,
+          pointRadius: 0,
+          hidden: !statsChartVisibleDatasets['Equilíbrio'],
+          yAxisID: selectedMarket === 'golsFT' || selectedMarket === 'golsHT' ? 'y-gols' : 'y-percent'
         }
-      }
+      ]
     },
-    scales: {
-      x: {
-        title: {
+    options: {
+      plugins: {
+        legend: {
           display: true,
-          text: 'Data e Hora',
-          color: 'white'
+          position: 'top',
+          labels: {
+            color: 'white'
+          },
+          onClick: function(e, legendItem, legend) {
+            const dataset = legendItem.datasetIndex;
+            const ci = legend.chart;
+            const meta = ci.getDatasetMeta(dataset);
+            meta.hidden = !meta.hidden;
+            statsChartVisibleDatasets[legendItem.text] = !meta.hidden;
+            ci.update();
+          }
         },
-        ticks: {
-          color: 'white',
-          maxRotation: 45,
-          minRotation: 45
+        tooltip: {
+          callbacks: {
+            label: function(tooltipItem) {
+              const datasetLabel = tooltipItem.dataset.label;
+              const index = tooltipItem.dataIndex;
+              const games = data.gamesPerHour[index];
+              
+              if (datasetLabel === 'Gols FT') {
+                const avgGols = tooltipItem.raw.toFixed(2);
+                const totalGols = data.golsFTTotal[index];
+                return `${datasetLabel}: ${avgGols} gols (Total: ${totalGols} gols)`;
+              } else if (datasetLabel === 'Gols HT') {
+                const avgGols = tooltipItem.raw.toFixed(2);
+                const totalGols = data.golsHTTotal[index];
+                return `${datasetLabel}: ${avgGols} gols (Total: ${totalGols} gols)`;
+              } else if (datasetLabel === 'Equilíbrio') {
+                if (selectedMarket === 'golsFT' || selectedMarket === 'golsHT') {
+                  return `${datasetLabel}: ${tooltipItem.raw.toFixed(2)} gols`;
+                } else {
+                  return `${datasetLabel}: ${tooltipItem.raw.toFixed(1)}%`;
+                }
+              } else {
+                const percent = tooltipItem.raw.toFixed(1);
+                let count;
+                switch (datasetLabel) {
+                  case 'Ambas Marcam':
+                    count = data.ambasMarcamCount[index];
+                    break;
+                  case 'Ambas não Marcam':
+                    count = data.ambasnaoMarcamCount[index];
+                    break;
+                  case 'Over 1.5':
+                    count = data.over15Count[index];
+                    break;
+                  case 'Over 2.5':
+                    count = data.over25Count[index];
+                    break;
+                  case 'Over 3.5':
+                    count = data.over35Count[index];
+                    break;
+                  case 'Under 1.5':
+                    count = data.under15Count[index];
+                    break;
+                  case 'Under 2.5':
+                    count = data.under25Count[index];
+                    break;
+                  case 'Under 3.5':
+                    count = data.under35Count[index];
+                    break;
+                  case '5+':
+                    count = data.mais5Count[index];
+                    break;
+                  case 'Casa Vence':
+                    count = data.casavenceCount[index];
+                    break;
+                  case 'Fora Vence':
+                    count = data.foravenceCount[index];
+                    break;
+                  default:
+                    count = 0;
+                }
+                return `${datasetLabel}: ${percent}% (${count} de ${games} jogos)`;
+              }
+            }
+          }
         }
       },
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: 'Percentual (%)',
-          color: 'white'
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Data e Hora',
+            color: 'white'
+          },
+          ticks: {
+            color: 'white',
+            maxRotation: 45,
+            minRotation: 45
+          }
         },
-        ticks: {
-          color: 'white'
+        'y-percent': {
+          position: 'left',
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Percentual (%)',
+            color: 'white'
+          },
+          ticks: {
+            color: 'white'
+          }
+        },
+        'y-gols': {
+          position: 'right',
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Média de Gols',
+            color: 'white'
+          },
+          ticks: {
+            color: 'white'
+          },
+          grid: {
+            drawOnChartArea: false // Evita que o grid do eixo direito sobreponha o do eixo esquerdo
+          }
         }
-      }
-    },
-    maintainAspectRatio: false
-  }
-});
-
+      },
+      maintainAspectRatio: false
+    }
+  });
 }
 
 function updateCharts() {
@@ -567,7 +826,6 @@ function updateCharts() {
     })
     .catch(error => {
       console.error('Erro ao atualizar gráficos:', error);
-      // Exibe mensagem de erro para o usuário
       alert('Erro ao carregar dados. Verifique se o servidor está rodando em https://betstat.site/api/resultados/');
     });
 }
@@ -592,7 +850,6 @@ document.getElementById('marketAverageSelector').addEventListener('change', func
   updateCharts();
 });
 
-// Inicializa os gráficos ao carregar a página
 window.addEventListener('DOMContentLoaded', function() {
   updateCharts();
 });
