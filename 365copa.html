@@ -2820,9 +2820,6 @@ function processApiDataGolsPlus(data) {
         return diffMinutes > 1;
     }
 
-    // Definimos um valor máximo esperado de gols para normalizar os dados
-    const maxExpectedGoals = 5; // Ajuste conforme necessário
-
     for (let i = averagePointsGolsPlus; i < slicedData.length; i++) {
         let golsFTSum = 0;
         let golsFTCasaSum = 0;
@@ -2868,11 +2865,11 @@ function processApiDataGolsPlus(data) {
         labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
         const avg = validMatches || 1;
-        // Normalizamos os valores para uma escala de 0 a 100%
-        golsFT.push((golsFTSum / avg / maxExpectedGoals) * 100);
-        golsFTCasa.push((golsFTCasaSum / avg / maxExpectedGoals) * 100);
-        golsFTVisitante.push((golsFTVisitanteSum / avg / maxExpectedGoals) * 100);
-        golsHT.push((golsHTSum / avg / maxExpectedGoals) * 100);
+        // Exibimos os valores absolutos (médias de gols) sem normalização
+        golsFT.push(golsFTSum / avg);
+        golsFTCasa.push(golsFTCasaSum / avg);
+        golsFTVisitante.push(golsFTVisitanteSum / avg);
+        golsHT.push(golsHTSum / avg);
     }
 
     return { 
@@ -2913,6 +2910,23 @@ const fibonacciLinesPluginGolsPlus = {
 };
 
 function createStatsChartGolsPlus(ctx, labels, data) {
+    // Calculamos o valor mínimo e máximo dos dados visíveis
+    const allData = [];
+    if (statsChartVisibleDatasetsGolsPlus['Gols FT']) allData.push(...data.golsFT);
+    if (statsChartVisibleDatasetsGolsPlus['Gols FT Casa']) allData.push(...data.golsFTCasa);
+    if (statsChartVisibleDatasetsGolsPlus['Gols FT Visitante']) allData.push(...data.golsFTVisitante);
+    if (statsChartVisibleDatasetsGolsPlus['Gols HT']) allData.push(...data.golsHT);
+
+    // Filtramos valores null e encontramos o mínimo e máximo
+    const validData = allData.filter(val => val !== null);
+    const minValue = validData.length > 0 ? Math.min(...validData) : 0;
+    const maxValue = validData.length > 0 ? Math.max(...validData) : 5;
+
+    // Adicionamos um pequeno padding para melhor visualização
+    const padding = (maxValue - minValue) * 0.1; // 10% de padding
+    const yMin = Math.max(0, minValue - padding); // Garante que o mínimo não seja menor que 0
+    const yMax = maxValue + padding;
+
     return new Chart(ctx, {
         type: 'line',
         data: {
@@ -2948,6 +2962,19 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                         const meta = ci.getDatasetMeta(dataset);
                         meta.hidden = !meta.hidden;
                         statsChartVisibleDatasetsGolsPlus[legendItem.text] = !meta.hidden;
+                        // Recalcular os limites do eixo Y quando a visibilidade muda
+                        const allData = [];
+                        ci.data.datasets.forEach((dataset, index) => {
+                            if (!ci.getDatasetMeta(index).hidden) {
+                                allData.push(...dataset.data);
+                            }
+                        });
+                        const validData = allData.filter(val => val !== null);
+                        const minValue = validData.length > 0 ? Math.min(...validData) : 0;
+                        const maxValue = validData.length > 0 ? Math.max(...validData) : 5;
+                        const padding = (maxValue - minValue) * 0.1;
+                        ci.options.scales.y.min = Math.max(0, minValue - padding);
+                        ci.options.scales.y.max = maxValue + padding;
                         ci.update();
                     }
                 },
@@ -2969,13 +2996,10 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                             const match = chartDataGolsPlus['Copa'][index];
                             const ftScore = match.ft || 'N/A';
                             const htScore = formatHtResult(match.ht) || 'N/A';
-                            // Convertemos o valor de volta para o número de gols
-                            const maxExpectedGoals = 5;
-                            const originalValue = (tooltipItem.raw / 100) * maxExpectedGoals;
                             return [
                                 `FT: ${ftScore}`,
                                 `HT: ${htScore}`,
-                                `${tooltipItem.dataset.label}: ${originalValue.toFixed(2)}`
+                                `${tooltipItem.dataset.label}: ${tooltipItem.raw.toFixed(2)}`
                             ];
                         }
                     }
@@ -2989,12 +3013,11 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                 },
                 y: {
                     title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                    beginAtZero: true,
-                    min: 0,
-                    max: 100, // Escala de 0 a 100%
+                    min: yMin, // Ajustado dinamicamente
+                    max: yMax, // Ajustado dinamicamente
                     ticks: { 
                         color: '#b0b0b0',
-                        stepSize: 10 // Intervalos de 10%
+                        stepSize: (yMax - yMin) / 5 // Divide a escala em 5 intervalos
                     },
                     grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 },
                     afterFit: function(scale) { scale.paddingTop = 20; }
@@ -3026,6 +3049,21 @@ function updateChartsGolsPlus() {
                 golsPlusChart = createStatsChartGolsPlus(ctx, processedData.labels, processedData);
             } else {
                 updateStatsChartGolsPlus(golsPlusChart, processedData);
+                // Recalcular os limites do eixo Y ao atualizar os dados
+                const allData = [];
+                golsPlusChart.data.datasets.forEach((dataset, index) => {
+                    if (!golsPlusChart.getDatasetMeta(index).hidden) {
+                        allData.push(...dataset.data);
+                    }
+                });
+                const validData = allData.filter(val => val !== null);
+                const minValue = validData.length > 0 ? Math.min(...validData) : 0;
+                const maxValue = validData.length > 0 ? Math.max(...validData) : 5;
+                const padding = (maxValue - minValue) * 0.1;
+                golsPlusChart.options.scales.y.min = Math.max(0, minValue - padding);
+                golsPlusChart.options.scales.y.max = maxValue + padding;
+                golsPlusChart.options.scales.y.ticks.stepSize = (golsPlusChart.options.scales.y.max - golsPlusChart.options.scales.y.min) / 5;
+                golsPlusChart.update();
             }
         })
         .catch(error => console.error('Erro ao buscar dados para GolsPlus:', error));
