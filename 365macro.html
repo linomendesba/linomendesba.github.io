@@ -240,18 +240,32 @@ function processAPIData(data) {
   // Inicializa arrays para armazenar os dados processados
   const labels = [];
   const ambasMarcam = [];
+  const ambasMarcamCount = [];
   const ambasnaoMarcam = [];
+  const ambasnaoMarcamCount = [];
   const over15 = [];
+  const over15Count = [];
   const over25 = [];
+  const over25Count = [];
   const over35 = [];
+  const over35Count = [];
   const under15 = [];
+  const under15Count = [];
   const under25 = [];
+  const under25Count = [];
   const under35 = [];
+  const under35Count = [];
   const golsFT = [];
+  const golsFTTotal = [];
   const golsHT = [];
+  const golsHTTotal = [];
   const mais5 = [];
+  const mais5Count = [];
   const casavence = [];
+  const casavenceCount = [];
   const foravence = [];
+  const foravenceCount = [];
+  const gamesPerHour = [];
   
   // Agrupa os dados por hora
   const hourData = {};
@@ -382,22 +396,38 @@ function processAPIData(data) {
     if (gamesInHour > 0) {
       labels.push(hour);
       
-      // Calcula as porcentagens para Over, Under, etc.
+      // Calcula as porcentagens e armazena as quantidades para Over, Under, etc.
       ambasMarcam.push((dataForHour.ambasMarcam / gamesInHour) * 100);
+      ambasMarcamCount.push(dataForHour.ambasMarcam);
       ambasnaoMarcam.push((dataForHour.ambasnaoMarcam / gamesInHour) * 100);
+      ambasnaoMarcamCount.push(dataForHour.ambasnaoMarcam);
       over15.push((dataForHour.over15 / gamesInHour) * 100);
+      over15Count.push(dataForHour.over15);
       over25.push((dataForHour.over25 / gamesInHour) * 100);
+      over25Count.push(dataForHour.over25);
       over35.push((dataForHour.over35 / gamesInHour) * 100);
+      over35Count.push(dataForHour.over35);
       under15.push((dataForHour.under15 / gamesInHour) * 100);
+      under15Count.push(dataForHour.under15);
       under25.push((dataForHour.under25 / gamesInHour) * 100);
+      under25Count.push(dataForHour.under25);
       under35.push((dataForHour.under35 / gamesInHour) * 100);
+      under35Count.push(dataForHour.under35);
       mais5.push((dataForHour.mais5 / gamesInHour) * 100);
+      mais5Count.push(dataForHour.mais5);
       casavence.push((dataForHour.casavence / gamesInHour) * 100);
+      casavenceCount.push(dataForHour.casavence);
       foravence.push((dataForHour.foravence / gamesInHour) * 100);
+      foravenceCount.push(dataForHour.foravence);
       
-      // Calcula as médias para Gols FT e Gols HT
+      // Calcula as médias e armazena os totais para Gols FT e Gols HT
       golsFT.push(dataForHour.golsFTSum / gamesInHour);
+      golsFTTotal.push(dataForHour.golsFTSum);
       golsHT.push(dataForHour.golsHTSum / gamesInHour);
+      golsHTTotal.push(dataForHour.golsHTSum);
+      
+      // Armazena o número de jogos por hora
+      gamesPerHour.push(gamesInHour);
     }
   });
   
@@ -407,18 +437,32 @@ function processAPIData(data) {
   return {
     labels: labels,
     ambasMarcam: ambasMarcam,
+    ambasMarcamCount: ambasMarcamCount,
     ambasnaoMarcam: ambasnaoMarcam,
+    ambasnaoMarcamCount: ambasnaoMarcamCount,
     over15: over15,
+    over15Count: over15Count,
     over25: over25,
+    over25Count: over25Count,
     over35: over35,
+    over35Count: over35Count,
     under15: under15,
+    under15Count: under15Count,
     under25: under25,
+    under25Count: under25Count,
     under35: under35,
+    under35Count: under35Count,
     golsFT: golsFT,
+    golsFTTotal: golsFTTotal,
     golsHT: golsHT,
+    golsHTTotal: golsHTTotal,
     mais5: mais5,
+    mais5Count: mais5Count,
     casavence: casavence,
-    foravence: foravence
+    casavenceCount: casavenceCount,
+    foravence: foravence,
+    foravenceCount: foravenceCount,
+    gamesPerHour: gamesPerHour
   };
 }
 
@@ -652,6 +696,72 @@ function createStatsChart(ctx, labels, data) {
             meta.hidden = !meta.hidden;
             statsChartVisibleDatasets[legendItem.text] = !meta.hidden;
             ci.update();
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(tooltipItem) {
+              const datasetLabel = tooltipItem.dataset.label;
+              const index = tooltipItem.dataIndex;
+              const games = data.gamesPerHour[index];
+              
+              if (datasetLabel === 'Gols FT') {
+                const avgGols = tooltipItem.raw.toFixed(2);
+                const totalGols = data.golsFTTotal[index];
+                return `${datasetLabel}: ${avgGols} gols (Total: ${totalGols} gols)`;
+              } else if (datasetLabel === 'Gols HT') {
+                const avgGols = tooltipItem.raw.toFixed(2);
+                const totalGols = data.golsHTTotal[index];
+                return `${datasetLabel}: ${avgGols} gols (Total: ${totalGols} gols)`;
+              } else if (datasetLabel === 'Equilíbrio') {
+                if (selectedMarket === 'golsFT' || selectedMarket === 'golsHT') {
+                  return `${datasetLabel}: ${tooltipItem.raw.toFixed(2)} gols`;
+                } else {
+                  return `${datasetLabel}: ${tooltipItem.raw.toFixed(1)}%`;
+                }
+              } else {
+                const percent = tooltipItem.raw.toFixed(1);
+                let count;
+                switch (datasetLabel) {
+                  case 'Ambas Marcam':
+                    count = data.ambasMarcamCount[index];
+                    break;
+                  case 'Ambas não Marcam':
+                    count = data.ambasnaoMarcamCount[index];
+                    break;
+                  case 'Over 1.5':
+                    count = data.over15Count[index];
+                    break;
+                  case 'Over 2.5':
+                    count = data.over25Count[index];
+                    break;
+                  case 'Over 3.5':
+                    count = data.over35Count[index];
+                    break;
+                  case 'Under 1.5':
+                    count = data.under15Count[index];
+                    break;
+                  case 'Under 2.5':
+                    count = data.under25Count[index];
+                    break;
+                  case 'Under 3.5':
+                    count = data.under35Count[index];
+                    break;
+                  case '5+':
+                    count = data.mais5Count[index];
+                    break;
+                  case 'Casa Vence':
+                    count = data.casavenceCount[index];
+                    break;
+                  case 'Fora Vence':
+                    count = data.foravenceCount[index];
+                    break;
+                  default:
+                    count = 0;
+                }
+                return `${datasetLabel}: ${percent}% (${count} de ${games} jogos)`;
+              }
+            }
           }
         }
       },
