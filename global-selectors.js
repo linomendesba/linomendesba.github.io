@@ -1,5 +1,15 @@
 // Lista de seletores que não devem ser salvos
-const excludedSelectors = ["ligas", "avancado-betano", "ligas365", "avancado-bet365", "redes", "pointsSelector"];
+const excludedSelectors = [
+  "ligas",
+  "avancado-betano",
+  "ligas365",
+  "avancado-bet365",
+  "redes",
+  "pointsSelector",
+  "pointsSelectorGolsPlus",
+  "averageSelector",
+  "averageSelectorGolsPlus"
+];
 
 // Salva a seleção no LocalStorage, exceto para os seletores excluídos
 function saveSelection(selectorId) {
@@ -31,7 +41,7 @@ function setupSelectors() {
   });
 }
 
-// Função de redirecionamento (assumindo que já existe no seu código)
+// Função de redirecionamento (assumindo que já existe/No seu código)
 function redirecionar(selector) {
   if (selector.value) {
     window.location.href = selector.value;
