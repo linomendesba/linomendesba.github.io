@@ -2791,6 +2791,25 @@ function updateStatsChartGolsPlus(chart, newData) {
         chart.data.datasets[1].data = newData.golsFTCasa;
         chart.data.datasets[2].data = newData.golsFTVisitante;
         chart.data.datasets[3].data = newData.golsHT;
+
+        // Recalcular os limites do eixo Y com base nos novos dados
+        const allData = [];
+        chart.data.datasets.forEach((dataset, index) => {
+            if (!chart.getDatasetMeta(index).hidden) {
+                allData.push(...dataset.data);
+            }
+        });
+        const validData = allData.filter(val => val !== null && !isNaN(val));
+        const minValue = validData.length > 0 ? Math.min(...validData) : 0;
+        const maxValue = validData.length > 0 ? Math.max(...validData) : 5;
+        const padding = (maxValue - minValue) * 0.1 || 0.1; // Evitar padding zero
+        const yMin = Math.max(0, minValue - padding);
+        const yMax = maxValue + padding;
+
+        chart.options.scales.y.suggestedMin = yMin;
+        chart.options.scales.y.suggestedMax = yMax;
+        chart.options.scales.y.ticks.stepSize = (yMax - yMin) / 5;
+
         chart.update('none');
     }
 }
@@ -2865,7 +2884,6 @@ function processApiDataGolsPlus(data) {
         labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
         const avg = validMatches || 1;
-        // Exibimos os valores absolutos (médias de gols) sem normalização
         golsFT.push(golsFTSum / avg);
         golsFTCasa.push(golsFTCasaSum / avg);
         golsFTVisitante.push(golsFTVisitanteSum / avg);
@@ -2918,13 +2936,13 @@ function createStatsChartGolsPlus(ctx, labels, data) {
     if (statsChartVisibleDatasetsGolsPlus['Gols HT']) allData.push(...data.golsHT);
 
     // Filtramos valores null e encontramos o mínimo e máximo
-    const validData = allData.filter(val => val !== null);
+    const validData = allData.filter(val => val !== null && !isNaN(val));
     const minValue = validData.length > 0 ? Math.min(...validData) : 0;
     const maxValue = validData.length > 0 ? Math.max(...validData) : 5;
 
     // Adicionamos um pequeno padding para melhor visualização
-    const padding = (maxValue - minValue) * 0.1; // 10% de padding
-    const yMin = Math.max(0, minValue - padding); // Garante que o mínimo não seja menor que 0
+    const padding = (maxValue - minValue) * 0.1 || 0.1; // Evitar padding zero
+    const yMin = Math.max(0, minValue - padding);
     const yMax = maxValue + padding;
 
     return new Chart(ctx, {
@@ -2969,12 +2987,13 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                                 allData.push(...dataset.data);
                             }
                         });
-                        const validData = allData.filter(val => val !== null);
+                        const validData = allData.filter(val => val !== null && !isNaN(val));
                         const minValue = validData.length > 0 ? Math.min(...validData) : 0;
                         const maxValue = validData.length > 0 ? Math.max(...validData) : 5;
-                        const padding = (maxValue - minValue) * 0.1;
-                        ci.options.scales.y.min = Math.max(0, minValue - padding);
-                        ci.options.scales.y.max = maxValue + padding;
+                        const padding = (maxValue - minValue) * 0.1 || 0.1;
+                        ci.options.scales.y.suggestedMin = Math.max(0, minValue - padding);
+                        ci.options.scales.y.suggestedMax = maxValue + padding;
+                        ci.options.scales.y.ticks.stepSize = (ci.options.scales.y.suggestedMax - ci.options.scales.y.suggestedMin) / 5;
                         ci.update();
                     }
                 },
@@ -3013,8 +3032,8 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                 },
                 y: {
                     title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                    min: yMin, // Ajustado dinamicamente
-                    max: yMax, // Ajustado dinamicamente
+                    suggestedMin: yMin, // Usamos suggestedMin para evitar auto-scaling
+                    suggestedMax: yMax, // Usamos suggestedMax para evitar auto-scaling
                     ticks: { 
                         color: '#b0b0b0',
                         stepSize: (yMax - yMin) / 5 // Divide a escala em 5 intervalos
@@ -3049,21 +3068,6 @@ function updateChartsGolsPlus() {
                 golsPlusChart = createStatsChartGolsPlus(ctx, processedData.labels, processedData);
             } else {
                 updateStatsChartGolsPlus(golsPlusChart, processedData);
-                // Recalcular os limites do eixo Y ao atualizar os dados
-                const allData = [];
-                golsPlusChart.data.datasets.forEach((dataset, index) => {
-                    if (!golsPlusChart.getDatasetMeta(index).hidden) {
-                        allData.push(...dataset.data);
-                    }
-                });
-                const validData = allData.filter(val => val !== null);
-                const minValue = validData.length > 0 ? Math.min(...validData) : 0;
-                const maxValue = validData.length > 0 ? Math.max(...validData) : 5;
-                const padding = (maxValue - minValue) * 0.1;
-                golsPlusChart.options.scales.y.min = Math.max(0, minValue - padding);
-                golsPlusChart.options.scales.y.max = maxValue + padding;
-                golsPlusChart.options.scales.y.ticks.stepSize = (golsPlusChart.options.scales.y.max - golsPlusChart.options.scales.y.min) / 5;
-                golsPlusChart.update();
             }
         })
         .catch(error => console.error('Erro ao buscar dados para GolsPlus:', error));
