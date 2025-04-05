@@ -37,25 +37,40 @@ function restoreSelections() {
 function setupSelectors() {
   const selectors = document.querySelectorAll("select");
   selectors.forEach(selector => {
-    selector.addEventListener("change", () => saveSelection(selector.id));
+    // Verificamos se o seletor já tem um manipulador onclick que poderia redirecionar
+    const hasRedirectHandler = selector.hasAttribute("onclick") && 
+                              selector.getAttribute("onclick").includes("redirecionar");
+    
+    if (hasRedirectHandler) {
+      // Para seletores com redirecionamento, adicionamos um evento que salva antes do redirecionamento
+      const originalOnclick = selector.getAttribute("onclick");
+      
+      // Substituímos o manipulador onclick para primeiro salvar e depois redirecionar
+      selector.setAttribute("onclick", `saveSelection('${selector.id}'); ${originalOnclick}`);
+    } else {
+      // Para seletores sem redirecionamento, adicionamos o evento change normal
+      selector.addEventListener("change", () => saveSelection(selector.id));
+    }
   });
 }
 
-// Função de redirecionamento (assumindo que já existe/No seu código)
-function redirecionar(selector) {
-  if (selector.value) {
-    window.location.href = selector.value;
-  }
-}
-
-// Função de logout (assumindo que já existe no seu código)
-function logout() {
-  // Implemente sua lógica de logout aqui
-  console.log("Logout realizado");
+// Função auxiliar para usar no evento beforeunload
+function saveAllSelections() {
+  const selectors = document.querySelectorAll("select");
+  selectors.forEach(selector => {
+    if (!excludedSelectors.includes(selector.id)) {
+      saveSelection(selector.id);
+    }
+  });
 }
 
 // Inicializa o script ao carregar a página
 window.addEventListener("DOMContentLoaded", () => {
   restoreSelections();
   setupSelectors();
+});
+
+// Tentativa adicional de salvar seleções antes de redirecionar
+window.addEventListener("beforeunload", () => {
+  saveAllSelections();
 });
