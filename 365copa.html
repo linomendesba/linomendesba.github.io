@@ -469,7 +469,7 @@
       <button class="accordion-button" onclick="toggleAccordion(this)">▼ Gráficos de Gols e Tendência ▲</button>
       <div class="accordion-content">
           <!-- Gráfico GolsPlus -->
-          <canvas id="golsplus" width="1080" height="300"></canvas>
+          <canvas id="golsplus" width="1080" height="200"></canvas>
           <div class="control-panel">
               <div>
                   <label for="pointsSelectorGolsPlus"></label>
@@ -546,6 +546,7 @@
                   <div class="checkbox-container">
                       <input type="checkbox" id="fibonacciToggle">
                       <label for="fibonacciToggle">Ativar Fibonacci Ascendant Accordion (se necessário)
+                      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                       <script src="copa.js"></script> <!-- Seu script original do Copa -->
                       <script src="golsplus.js"></script> <!-- Novo script do GolsPlus -->
                   </div>
@@ -2819,6 +2820,9 @@ function processApiDataGolsPlus(data) {
         return diffMinutes > 1;
     }
 
+    // Definimos um valor máximo esperado de gols para normalizar os dados
+    const maxExpectedGoals = 5; // Ajuste conforme necessário
+
     for (let i = averagePointsGolsPlus; i < slicedData.length; i++) {
         let golsFTSum = 0;
         let golsFTCasaSum = 0;
@@ -2864,10 +2868,11 @@ function processApiDataGolsPlus(data) {
         labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
         const avg = validMatches || 1;
-        golsFT.push(golsFTSum / avg);
-        golsFTCasa.push(golsFTCasaSum / avg);
-        golsFTVisitante.push(golsFTVisitanteSum / avg);
-        golsHT.push(golsHTSum / avg);
+        // Normalizamos os valores para uma escala de 0 a 100%
+        golsFT.push((golsFTSum / avg / maxExpectedGoals) * 100);
+        golsFTCasa.push((golsFTCasaSum / avg / maxExpectedGoals) * 100);
+        golsFTVisitante.push((golsFTVisitanteSum / avg / maxExpectedGoals) * 100);
+        golsHT.push((golsHTSum / avg / maxExpectedGoals) * 100);
     }
 
     return { 
@@ -2964,10 +2969,13 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                             const match = chartDataGolsPlus['Copa'][index];
                             const ftScore = match.ft || 'N/A';
                             const htScore = formatHtResult(match.ht) || 'N/A';
+                            // Convertemos o valor de volta para o número de gols
+                            const maxExpectedGoals = 5;
+                            const originalValue = (tooltipItem.raw / 100) * maxExpectedGoals;
                             return [
                                 `FT: ${ftScore}`,
                                 `HT: ${htScore}`,
-                                `${tooltipItem.dataset.label}: ${tooltipItem.raw.toFixed(2)}`
+                                `${tooltipItem.dataset.label}: ${originalValue.toFixed(2)}`
                             ];
                         }
                     }
@@ -2982,9 +2990,11 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                 y: {
                     title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
                     beginAtZero: true,
+                    min: 0,
+                    max: 100, // Escala de 0 a 100%
                     ticks: { 
                         color: '#b0b0b0',
-                        stepSize: 0.5
+                        stepSize: 10 // Intervalos de 10%
                     },
                     grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 },
                     afterFit: function(scale) { scale.paddingTop = 20; }
