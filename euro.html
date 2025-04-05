@@ -2507,7 +2507,8 @@ const statsChartVisibleDatasetsGolsPlus = {
     'Gols FT': true,
     'Gols FT Casa': false,
     'Gols FT Visitante': false,
-    'Gols HT': false
+    'Gols HT': false,
+    'Equilíbrio': false
 };
 
 function formatHtResult(ht) {
@@ -2528,6 +2529,7 @@ function updateStatsChartGolsPlus(chart, newData) {
         chart.data.datasets[1].data = newData.golsFTCasa;
         chart.data.datasets[2].data = newData.golsFTVisitante;
         chart.data.datasets[3].data = newData.golsHT;
+        chart.data.datasets[4].data = newData.equilibrio; // Linha de equilíbrio
         chart.update('none');
     }
 }
@@ -2601,16 +2603,19 @@ function processApiDataGolsPlus(data) {
         const match = slicedData[i];
         labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
-        const avg = validMatches || 1;
-        // Multiplicamos por 100 para seguir a mesma lógica do "Copa"
-        golsFT.push(golsFTSum / avg * 100);
-        golsFTCasa.push(golsFTCasaSum / avg * 100);
-        golsFTVisitante.push(golsFTVisitanteSum / avg * 100);
-        golsHT.push(golsHTSum / avg * 100);
+        // Não calculamos média, apenas somamos os totais
+        golsFT.push(golsFTSum);
+        golsFTCasa.push(golsFTCasaSum);
+        golsFTVisitante.push(golsFTVisitanteSum);
+        golsHT.push(golsHTSum);
     }
 
+    // Calcular a média geral dos totais de "Gols FT" para a linha de equilíbrio
+    const averageGolsFT = golsFT.filter(val => val !== null).reduce((acc, val) => acc + val, 0) / golsFT.filter(val => val !== null).length;
+    const equilibrio = new Array(labels.length).fill(averageGolsFT);
+
     return { 
-        labels, golsFT, golsFTCasa, golsFTVisitante, golsHT
+        labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, equilibrio
     };
 }
 
@@ -2652,10 +2657,11 @@ function createStatsChartGolsPlus(ctx, labels, data) {
         data: {
             labels: labels,
             datasets: [
-                { label: 'Gols FT', data: data.golsFT, borderColor: '#1E88E5', backgroundColor: '#1E88E5', hidden: !statsChartVisibleDatasetsGolsPlus['Gols FT'] },
-                { label: 'Gols FT Casa', data: data.golsFTCasa, borderColor: '#AB47BC', backgroundColor: '#AB47BC', hidden: !statsChartVisibleDatasetsGolsPlus['Gols FT Casa'] },
-                { label: 'Gols FT Visitante', data: data.golsFTVisitante, borderColor: '#2196F3', backgroundColor: '#2196F3', hidden: !statsChartVisibleDatasetsGolsPlus['Gols FT Visitante'] },
-                { label: 'Gols HT', data: data.golsHT, borderColor: '#26A69A', backgroundColor: '#26A69A', hidden: !statsChartVisibleDatasetsGolsPlus['Gols HT'] }
+            { label: 'Gols FT', data: data.golsFT, borderColor: '#FFFF00', backgroundColor: '#FFFF00', hidden: !statsChartVisibleDatasetsGolsPlus['Gols FT'] },
+            { label: 'Gols FT Casa', data: data.golsFTCasa, borderColor: '#AB47BC', backgroundColor: '#AB47BC', hidden: !statsChartVisibleDatasetsGolsPlus['Gols FT Casa'] },
+            { label: 'Gols FT Visitante', data: data.golsFTVisitante, borderColor: '#2196F3', backgroundColor: '#2196F3', hidden: !statsChartVisibleDatasetsGolsPlus['Gols FT Visitante'] },
+            { label: 'Gols HT', data: data.golsHT, borderColor: '#26A69A', backgroundColor: '#26A69A', hidden: !statsChartVisibleDatasetsGolsPlus['Gols HT'] },
+            { label: 'Equilíbrio', data: data.equilibrio, borderColor: 'rgba(255, 255, 255, 0.5)', borderWidth: 1, borderDash: [2, 5], fill: false, pointRadius: 0, pointStyle: 'line', pointHitRadius: 0, hidden: !statsChartVisibleDatasetsGolsPlus['Equilíbrio'] }
             ].map(dataset => ({
                 ...dataset,
                 borderWidth: 2,
@@ -2703,12 +2709,10 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                             const match = chartDataGolsPlus['Copa'][index];
                             const ftScore = match.ft || 'N/A';
                             const htScore = formatHtResult(match.ht) || 'N/A';
-                            // Dividimos por 100 para mostrar o valor real em gols
-                            const originalValue = tooltipItem.raw / 100;
                             return [
                                 `FT: ${ftScore}`,
                                 `HT: ${htScore}`,
-                                `${tooltipItem.dataset.label}: ${originalValue.toFixed(2)}`
+                                `${tooltipItem.dataset.label}: ${tooltipItem.raw.toFixed(0)} gols (Total)`
                             ];
                         }
                     }
@@ -2721,11 +2725,11 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                     grid: { display: false }
                 },
                 y: {
-                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                    beginAtZero: false, // Mesma configuração do "Copa"
+                    title: { display: true, text: 'Total de Gols', color: '#1fad8b', font: { size: 14 } },
+                    beginAtZero: false,
                     ticks: { 
                         color: '#b0b0b0',
-                        stepSize: 5 // Mesma configuração do "Copa"
+                        stepSize: 10 // Intervalos de 10 gols
                     },
                     grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 },
                     afterFit: function(scale) { scale.paddingTop = 20; }
