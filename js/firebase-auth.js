@@ -29,10 +29,8 @@ const db = getFirestore(app);
 
 // Função para gerar ou recuperar um ID único para o dispositivo
 function getDeviceId() {
-  // Tenta recuperar o deviceId do localStorage
   let deviceId = localStorage.getItem("deviceId");
   if (!deviceId) {
-    // Se não existir, gera um novo e armazena
     deviceId = "device_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
     localStorage.setItem("deviceId", deviceId);
   }
@@ -52,7 +50,7 @@ async function restrictToSingleDevice(user) {
 
       if (registeredDevice && registeredDevice !== deviceId) {
         alert("Esta conta está sendo usada em outro dispositivo. Faça login novamente.");
-        localStorage.removeItem("deviceId"); // Limpa o deviceId local
+        localStorage.removeItem("deviceId");
         await signOut(auth);
         window.location.href = "auth.html";
         return false;
@@ -77,6 +75,7 @@ async function restrictToSingleDevice(user) {
 
 // Monitora o estado de autenticação
 onAuthStateChanged(auth, async (user) => {
+  console.log("Usuário detectado:", user); // Log para depuração
   if (!user) {
     window.location.href = "auth.html";
   } else {
@@ -90,7 +89,8 @@ onAuthStateChanged(auth, async (user) => {
 
 // Função de logout
 window.logout = function () {
-  localStorage.removeItem("deviceId"); // Limpa o deviceId ao deslogar
+  // Limpa o deviceId antes de tentar deslogar
+  localStorage.removeItem("deviceId");
   signOut(auth)
     .then(() => {
       alert("Você saiu com sucesso!");
@@ -98,5 +98,6 @@ window.logout = function () {
     })
     .catch((error) => {
       alert("Erro ao sair: " + error.message);
+      window.location.href = "auth.html"; // Redireciona mesmo se houver erro
     });
 };
