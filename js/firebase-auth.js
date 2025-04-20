@@ -10,6 +10,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
 
 // Configuração do Firebase
@@ -28,6 +29,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Variável para controlar o estado de redirecionamento
+let isRedirecting = false;
+
 // Função para gerar ou recuperar um ID único para o dispositivo
 function getDeviceId() {
   let deviceId = localStorage.getItem("deviceId");
@@ -38,89 +42,104 @@ function getDeviceId() {
   return deviceId;
 }
 
-// Função para gerenciar o dispositivo registrado (versão modificada)
-async function manageDeviceAuthentication(user) {
+// Função para registrar este dispositivo como o atual
+async function registerCurrentDevice(user) {
+  if (!user) return false;
+  
   const userRef = doc(db, "users", user.uid);
   const deviceId = getDeviceId();
   
   try {
-    const userDoc = await getDoc(userRef);
-    
-    // Sempre atualizamos com o dispositivo atual, forçando logout em outros dispositivos
+    // Sempre atualizamos com o dispositivo atual
     await setDoc(
       userRef,
       { 
         deviceId: deviceId, 
         lastLogin: new Date().toISOString(),
-        forceLogoutTimestamp: new Date().toISOString() // Marca temporal para forçar logout em outros dispositivos
+        lastLoginTime: Date.now() // Timestamp numérico para comparações
       },
       { merge: true }
     );
     
     return true;
   } catch (error) {
-    console.error("Erro ao gerenciar autenticação do dispositivo:", error);
-    alert("Erro ao verificar dispositivo: " + error.message);
-    localStorage.removeItem("deviceId");
-    await signOut(auth);
-    window.location.href = "auth.html";
+    console.error("Erro ao registrar dispositivo:", error);
     return false;
   }
 }
 
-// Função para verificar se este dispositivo deve ser desconectado
-async function checkForForcedLogout(user) {
+// Configurar listener para monitorar alterações no documento do usuário
+function setupDeviceMonitor(user) {
   if (!user) return;
   
-  const deviceId = getDeviceId();
   const userRef = doc(db, "users", user.uid);
+  const deviceId = getDeviceId();
   
-  try {
-    const userDoc = await getDoc(userRef);
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      const registeredDevice = userData.deviceId;
+  // Retorna a função de cancelamento para poder desativar o listener mais tarde
+  return onSnapshot(userRef, (doc) => {
+    if (isRedirecting) return; // Evita múltiplos redirecionamentos
+    
+    if (doc.exists()) {
+      const data = doc.data();
       
-      // Se o dispositivo registrado não é este dispositivo, desloga
-      if (registeredDevice && registeredDevice !== deviceId) {
-        console.log("Esta conta está sendo usada em outro dispositivo. Fazendo logout...");
+      // Se o deviceId no documento for diferente do atual, este dispositivo deve fazer logout
+      if (data.deviceId && data.deviceId !== deviceId) {
+        console.log("Detectada sessão em outro dispositivo. Realizando logout.");
+        isRedirecting = true;
+        
+        // Limpa o ID do dispositivo local e desconecta
         localStorage.removeItem("deviceId");
-        await signOut(auth);
-        window.location.href = "auth.html";
-        return false;
+        signOut(auth).then(() => {
+          // Usar setTimeout para evitar problemas com redirecionamentos sobrepostos
+          setTimeout(() => {
+            window.location.href = "auth.html";
+          }, 100);
+        });
       }
     }
-    return true;
-  } catch (error) {
-    console.error("Erro ao verificar logout forçado:", error);
-    return true; // Em caso de erro, permitimos continuar para não bloquear o usuário
-  }
+  });
 }
 
 // Monitora o estado de autenticação
+let unsubscribeDeviceMonitor = null;
+
 onAuthStateChanged(auth, async (user) => {
-  console.log("Usuário detectado:", user); // Log para depuração
+  console.log("Estado de autenticação alterado:", user ? "Logado" : "Deslogado");
+  
+  // Cancelar monitor anterior, se existir
+  if (unsubscribeDeviceMonitor) {
+    unsubscribeDeviceMonitor();
+    unsubscribeDeviceMonitor = null;
+  }
   
   if (!user) {
-    window.location.href = "auth.html";
-  } else {
-    // Verifica se há um logout forçado para este dispositivo
-    const canContinue = await checkForForcedLogout(user);
-    if (!canContinue) return;
-    
-    // Registra este dispositivo como o atual
-    const isAuthenticated = await manageDeviceAuthentication(user);
-    if (!isAuthenticated) return;
-    
-    console.log("Usuário autenticado:", user.uid);
+    // Se não houver usuário e não estamos em processo de redirecionamento
+    if (!isRedirecting && !window.location.href.includes("auth.html")) {
+      window.location.href = "auth.html";
+    }
+    return;
+  }
+  
+  // Usuário está logado
+  console.log("Usuário autenticado:", user.uid);
+  
+  // Registra este dispositivo
+  await registerCurrentDevice(user);
+  
+  // Configura monitoramento para detectar sessões em outros dispositivos
+  unsubscribeDeviceMonitor = setupDeviceMonitor(user);
+  
+  // Se estamos na página de auth mas o usuário está logado, redireciona para a página principal
+  if (window.location.href.includes("auth.html")) {
+    window.location.href = "index.html"; // Ajuste para sua página principal
   }
 });
 
-// Função de login (adicione esta função no seu arquivo de autenticação)
+// Função de login para a página de autenticação
 window.login = async function(email, password) {
   try {
+    isRedirecting = false; // Reseta o estado de redirecionamento
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    // O onAuthStateChanged acima vai lidar com o resto
     return userCredential.user;
   } catch (error) {
     console.error("Erro no login:", error);
@@ -131,15 +150,19 @@ window.login = async function(email, password) {
 
 // Função de logout
 window.logout = function() {
-  // Limpa o deviceId antes de tentar deslogar
+  isRedirecting = true;
   localStorage.removeItem("deviceId");
+  
   signOut(auth)
     .then(() => {
-      alert("Você saiu com sucesso!");
-      window.location.href = "auth.html";
+      setTimeout(() => {
+        window.location.href = "auth.html";
+      }, 100);
     })
     .catch((error) => {
-      alert("Erro ao sair: " + error.message);
-      window.location.href = "auth.html"; // Redireciona mesmo se houver erro
+      console.error("Erro ao sair:", error);
+      setTimeout(() => {
+        window.location.href = "auth.html";
+      }, 100);
     });
 };
