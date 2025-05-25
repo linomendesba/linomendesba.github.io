@@ -34,7 +34,7 @@ function redirecionar(select) {
         url === "https://www.betstat.site/betanofiboht.html" || // Novo
         url === "https://www.betstat.site/betanobuscador.html" || // Novo
         url === "https://www.betstat.site/365buscador.html" || // Novo
-        url === "https://www.betstat.site/365gols.html" || // Novo
+        url === "https://www.betstat.site/gols.html" || // Novo
         url === "https://www.betstat.site/betanotips.html" || // Novo
         url === "https://www.betstat.site/betanofiboexato.html"  // Novo
     ) {
