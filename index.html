@@ -2107,12 +2107,6 @@ setInterval(async () => {
     let isComparisonMode = false;
     let autoUpdateInterval = null;
 
-    // Função para comparar strings ignorando acentos, sem alterar o texto original
-    function compareWithoutAccents(str1, str2) {
-      const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-      return normalize(str1) === normalize(str2);
-    }
-
     function toggleAccordion(button) {
       const content = button.nextElementSibling;
       const isOpen = content.style.display === "block";
@@ -2125,29 +2119,36 @@ setInterval(async () => {
         const response = await fetch(NEXT_GAMES_API);
         if (!response.ok) throw new Error(`Erro na requisição: ${response.status}`);
         const games = await response.json();
-        const selectedGames = games.slice(0, 6); // Pega os 6 primeiros jogos na ordem da API
+        const selectedGames = games.slice(0, 6);
 
         const container = document.getElementById("nextGamesContainer");
-        container.innerHTML = selectedGames.map(game => {
-          return `
-            <div class="game-card" data-home="${game.team_home}" data-visit="${game.team_visit}" onclick="selectGame(this, '${game.team_home}', '${game.team_visit}')">
-              <div class="game-time">${game.time}</div>
-              <div class="game-teams">
-                <span class="team-home">${game.team_home}</span>
-                <span class="vs">vs</span>
-                <span class="team-visit">${game.team_visit}</span>
-              </div>
+        container.innerHTML = selectedGames.map(game => `
+          <div class="game-card" data-home="${game.team_home}" data-visit="${game.team_visit}">
+            <div class="game-time">${game.time}</div>
+            <div class="game-teams">
+              <span class="team-home">${game.team_home}</span>
+              <span class="vs">vs</span>
+              <span class="team-visit">${game.team_visit}</span>
             </div>
-          `;
-        }).join("");
+          </div>
+        `).join("");
+
+        container.addEventListener("click", (event) => {
+          const card = event.target.closest(".game-card");
+          if (card) {
+            const teamHome = card.dataset.home;
+            const teamVisit = card.dataset.visit;
+            selectGame(card, teamHome, teamVisit);
+          }
+        });
       } catch (error) {
         console.error("Erro ao carregar próximos jogos:", error);
       }
     }
 
     function selectGame(card, teamHome, teamVisit) {
-      document.querySelectorAll('.game-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
+      document.querySelectorAll(".game-card").forEach(c => c.classList.remove("selected"));
+      card.classList.add("selected");
       selectedGame = { teamHome, teamVisit };
       obterResultados(teamHome, teamVisit);
     }
@@ -2172,18 +2173,11 @@ setInterval(async () => {
         cleanSheets: 0,
         failedToScore: 0,
         form: [],
-        streak: { type: "", count: 0 },
-        htWins: 0,
-        htDraws: 0,
-        htLosses: 0,
-        htGoalsFor: 0,
-        htGoalsAgainst: 0,
-        htScored: 0,
-        htConceded: 0,
+        streak: { type: "", count: 0 }
       };
 
       matches.forEach((match) => {
-        const isHome = compareWithoutAccents(match.time_a, teamName);
+        const isHome = match.time_a === teamName;
         const [goalsHome, goalsAway] = match.ft.split(" x ").map(Number);
         const goalsScored = isHome ? goalsHome : goalsAway;
         const goalsConceded = isHome ? goalsAway : goalsHome;
@@ -2207,26 +2201,6 @@ setInterval(async () => {
         if (goalsScored === 0) stats.failedToScore++;
 
         stats.form.unshift(result);
-
-        if (match.ht !== "OUT") {
-          const [htGoalsHome, htGoalsAway] = match.ht.split(" x ").map(Number);
-          const htGoalsScored = isHome ? htGoalsHome : htGoalsAway;
-          const htGoalsConceded = isHome ? htGoalsAway : htGoalsHome;
-
-          if (htGoalsScored > htGoalsConceded) {
-            stats.htWins++;
-          } else if (htGoalsScored < htGoalsConceded) {
-            stats.htLosses++;
-          } else {
-            stats.htDraws++;
-          }
-
-          stats.htGoalsFor += htGoalsScored;
-          stats.htGoalsAgainst += htGoalsConceded;
-
-          if (htGoalsScored > 0) stats.htScored++;
-          if (htGoalsConceded > 0) stats.htConceded++;
-        }
       });
 
       let currentStreak = 1;
@@ -2240,50 +2214,23 @@ setInterval(async () => {
       }
       stats.streak = {
         type: lastResult,
-        count: currentStreak,
+        count: currentStreak
       };
 
       stats.form = stats.form.slice(0, 5);
       return stats;
     }
 
-    function createFormGuide(form) {
-      return `
-        <div class="form-guide">
-          ${form
-            .map(
-              (result) => `
-              <div class="form-result ${
-                result === "V" ? "win" : result === "D" ? "loss" : "draw"
-              }">
-                ${result}
-              </div>
-            `
-            )
-            .join("")}
-        </div>
-      `;
-    }
-
     function createTeamSection(title, matches, teamName) {
       const stats = calculateTeamStats(
         matches.filter(
-          (match) =>
-            compareWithoutAccents(match.time_a, teamName) ||
-            compareWithoutAccents(match.time_b, teamName)
+          (match) => match.time_a === teamName || match.time_b === teamName
         ),
         teamName
       );
 
       const totalMatches = stats.wins + stats.draws + stats.losses;
       const winRate = totalMatches > 0 ? ((stats.wins / totalMatches) * 100).toFixed(1) : 0;
-
-      const totalHtMatches = stats.htWins + stats.htDraws + stats.htLosses;
-      const htWinRate = totalHtMatches > 0 ? ((stats.htWins / totalHtMatches) * 100).toFixed(1) : 0;
-      const htScoredRate = totalHtMatches > 0 ? ((stats.htScored / totalHtMatches) * 100).toFixed(1) : 0;
-      const htConcededRate = totalHtMatches > 0 ? ((stats.htConceded / totalHtMatches) * 100).toFixed(1) : 0;
-      const avgHtGoalsFor = totalHtMatches > 0 ? (stats.htGoalsFor / totalHtMatches).toFixed(2) : 0;
-      const avgHtGoalsAgainst = totalHtMatches > 0 ? (stats.htGoalsAgainst / totalHtMatches).toFixed(2) : 0;
 
       return `
         <div class="section">
@@ -2309,37 +2256,11 @@ setInterval(async () => {
               <span class="stats-label">Sem marcar gols (FT):</span>
               <span class="stats-value">${stats.failedToScore}</span>
             </div>
-            <div class="stats-row">
-              <span class="stats-label">Aproveitamento (HT):</span>
-              <span class="stats-value">${htWinRate}%</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">V-E-D (HT):</span>
-              <span class="stats-value">${stats.htWins}-${stats.htDraws}-${stats.htLosses}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Gols (HT):</span>
-              <span class="stats-value">Marcados: ${stats.htGoalsFor} | Sofridos: ${stats.htGoalsAgainst}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Média de gols (HT):</span>
-              <span class="stats-value">Marcados: ${avgHtGoalsFor} | Sofridos: ${avgHtGoalsAgainst}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Marcou no HT:</span>
-              <span class="stats-value">${htScoredRate}%</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Sofreu gol no HT:</span>
-              <span class="stats-value">${htConcededRate}%</span>
-            </div>
           </div>
           <div class="match-container">
             ${matches
               .filter(
-                (match) =>
-                  compareWithoutAccents(match.time_a, teamName) ||
-                  compareWithoutAccents(match.time_b, teamName)
+                (match) => match.time_a === teamName || match.time_b === teamName
               )
               .slice(0, 15)
               .map(
@@ -2352,7 +2273,7 @@ setInterval(async () => {
                   )}</div>
                   <div class="match-teams">
                     <span>${match.time_a}</span>
-                    <span class="score">${match.ft} (HT: ${match.ht})</span>
+                    <span class="score">${match.ft}</span>
                     <span>${match.time_b}</span>
                   </div>
                   <div class="result-indicator ${getResultIndicator(
@@ -2373,8 +2294,8 @@ setInterval(async () => {
     function createConfrontosSection(matches, teamA, teamB) {
       const confrontos = matches.filter(
         (match) =>
-          (compareWithoutAccents(match.time_a, teamA) && compareWithoutAccents(match.time_b, teamB)) ||
-          (compareWithoutAccents(match.time_a, teamB) && compareWithoutAccents(match.time_b, teamA))
+          (match.time_a === teamA && match.time_b === teamB) ||
+          (match.time_a === teamB && match.time_b === teamA)
       );
 
       let stats = {
@@ -2393,21 +2314,13 @@ setInterval(async () => {
         over35: 0,
         under35: 0,
         casaVence: 0,
-        foraVence: 0,
-        htVitoriasPrimeiro: 0,
-        htVitoriasSegundo: 0,
-        htEmpates: 0,
-        htAmbasSim: 0,
-        htAmbasNao: 0,
-        htOver05: 0,
-        htUnder05: 0,
-        htResultMaintained: 0,
+        foraVence: 0
       };
 
       confrontos.forEach((match) => {
         const [goalsA, goalsB] = match.ft.split(" x ").map(Number);
 
-        if (compareWithoutAccents(match.time_a, teamA)) {
+        if (match.time_a === teamA) {
           stats.golsPrimeiro += goalsA;
           stats.golsSegundo += goalsB;
         } else {
@@ -2417,11 +2330,11 @@ setInterval(async () => {
 
         if (goalsA > goalsB) {
           stats.casaVence++;
-          if (compareWithoutAccents(match.time_a, teamA)) stats.vitoriasPrimeiro++;
+          if (match.time_a === teamA) stats.vitoriasPrimeiro++;
           else stats.vitoriasSegundo++;
         } else if (goalsA < goalsB) {
           stats.foraVence++;
-          if (compareWithoutAccents(match.time_a, teamA)) stats.vitoriasSegundo++;
+          if (match.time_a === teamA) stats.vitoriasSegundo++;
           else stats.vitoriasPrimeiro++;
         } else {
           stats.empates++;
@@ -2437,37 +2350,10 @@ setInterval(async () => {
         else stats.under25++;
         if (totalGoals > 3.5) stats.over35++;
         else stats.under35++;
-
-        if (match.ht !== "OUT") {
-          const [htGoalsA, htGoalsB] = match.ht.split(" x ").map(Number);
-          const htTotalGoals = htGoalsA + htGoalsB;
-
-          if (htGoalsA > htGoalsB) {
-            if (compareWithoutAccents(match.time_a, teamA)) stats.htVitoriasPrimeiro++;
-            else stats.htVitoriasSegundo++;
-          } else if (htGoalsA < htGoalsB) {
-            if (compareWithoutAccents(match.time_a, teamA)) stats.htVitoriasSegundo++;
-            else stats.htVitoriasPrimeiro++;
-          } else {
-            stats.htEmpates++;
-          }
-
-          if (htGoalsA > 0 && htGoalsB > 0) stats.htAmbasSim++;
-          else stats.htAmbasNao++;
-
-          if (htTotalGoals > 0.5) stats.htOver05++;
-          else stats.htUnder05++;
-
-          const htWinner = htGoalsA > htGoalsB ? match.time_a : htGoalsB > htGoalsA ? match.time_b : null;
-          const ftWinner = goalsA > goalsB ? match.time_a : goalsB > goalsA ? match.time_b : null;
-          if (htWinner && compareWithoutAccents(htWinner, ftWinner)) stats.htResultMaintained++;
-          else if (!htWinner && !ftWinner) stats.htResultMaintained++;
-        }
       });
 
       const mediaGols =
         (stats.golsPrimeiro + stats.golsSegundo) / stats.totalJogos || 0;
-      const htResultMaintainedRate = stats.totalJogos > 0 ? ((stats.htResultMaintained / stats.totalJogos) * 100).toFixed(1) : 0;
 
       const suggestedMarkets = suggestMarkets(stats);
 
@@ -2536,44 +2422,8 @@ setInterval(async () => {
               <span class="stats-value">${stats.under35}</span>
             </div>
             <div class="stats-row">
-              <span class="stats-label">Vitórias ${teamA} (HT):</span>
-              <span class="stats-value">${stats.htVitoriasPrimeiro}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Empates (HT):</span>
-              <span class="stats-value">${stats.htEmpates}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Vitórias ${teamB} (HT):</span>
-              <span class="stats-value">${stats.htVitoriasSegundo}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Ambas as equipes marcam (Sim) (HT):</span>
-              <span class="stats-value">${stats.htAmbasSim}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Ambas as equipes marcam (Não) (HT):</span>
-              <span class="stats-value">${stats.htAmbasNao}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Over 0.5 (HT):</span>
-              <span class="stats-value">${stats.htOver05}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Under 0.5 (HT):</span>
-              <span class="stats-value">${stats.htUnder05}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Resultado HT mantido no FT:</span>
-              <span class="stats-value">${htResultMaintainedRate}%</span>
-            </div>
-            <div class="stats-row">
               <span class="stats-label">Sugestões de mercado (FT):</span>
               <span class="stats-value" style="color: #ffc107;">${suggestedMarkets.ft.join(", ")}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Sugestões de mercado (HT):</span>
-              <span class="stats-value" style="color: #ffc107;">${suggestedMarkets.ht.join(", ")}</span>
             </div>
           </div>
           ${confrontos
@@ -2588,7 +2438,7 @@ setInterval(async () => {
                 )}</div>
                 <div class="match-teams">
                   <span>${match.time_a}</span>
-                  <span class="score">${match.ft} (HT: ${match.ht})</span>
+                  <span class="score">${match.ft}</span>
                   <span>${match.time_b}</span>
                 </div>
               </div>
@@ -2600,10 +2450,7 @@ setInterval(async () => {
     }
 
     function suggestMarkets(stats) {
-      const markets = {
-        ft: [],
-        ht: [],
-      };
+      const markets = { ft: [] };
 
       if (stats.ambasSim > stats.ambasNao) {
         markets.ft.push("Ambas(Sim)");
@@ -2625,27 +2472,15 @@ setInterval(async () => {
         markets.ft.push("Empate");
       }
 
-      if (stats.htAmbasSim > stats.htAmbasNao) {
-        markets.ht.push("Ambas(Sim) HT");
-      } else {
-        markets.ht.push("Ambas(Não) HT");
-      }
-
-      if (stats.htOver05 > stats.htUnder05) {
-        markets.ht.push("Over 0.5 HT");
-      } else {
-        markets.ht.push("Under 0.5 HT");
-      }
-
       return markets;
     }
 
     function getResultIndicator(score, teamA, teamB, targetTeam) {
       const [goalsA, goalsB] = score.split(" x ").map(Number);
-      if (compareWithoutAccents(targetTeam, teamA)) {
+      if (targetTeam === teamA) {
         if (goalsA > goalsB) return "win";
         if (goalsA < goalsB) return "loss";
-      } else if (compareWithoutAccents(targetTeam, teamB)) {
+      } else if (targetTeam === teamB) {
         if (goalsB > goalsA) return "win";
         if (goalsB < goalsA) return "loss";
       }
