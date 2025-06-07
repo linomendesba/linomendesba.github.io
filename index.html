@@ -3256,7 +3256,8 @@ setInterval(updateChartsGolsPlus, 3000);
     <script>
 let selectedTeam1 = null;
 let selectedTeam2 = null;
-let primeiroClique = false;
+let selectedTeamHomeDisplay = null;
+let selectedTeamVisitDisplay = null;
 
 function removeAccents(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -3310,33 +3311,44 @@ async function loadNextGamesForMinutes() {
             });
         }
 
-        // Se não encontrar o card previamente selecionado, seleciona o primeiro
-        if (!cardToSelect && cards.length > 0) {
-            cardToSelect = cards[0];
-            selectedTeam1 = cardToSelect.getAttribute('data-home');
-            selectedTeam2 = cardToSelect.getAttribute('data-visit');
-        }
-
-        // Aplica a classe 'selected' ao card apropriado e atualiza as tabelas
+        // Se não encontrar o card previamente selecionado, mantém a seleção anterior
         if (cardToSelect) {
             cardToSelect.classList.add('selected');
             selectedTeam1 = cardToSelect.getAttribute('data-home');
             selectedTeam2 = cardToSelect.getAttribute('data-visit');
-            await analisar(); // Sempre atualiza as tabelas após carregar os jogos
-        } else {
-            // Limpa as tabelas se não houver jogos
-            document.getElementById("team1-tabela-resultados").querySelector("tbody").innerHTML = "";
-            document.getElementById("team2-tabela-resultados").querySelector("tbody").innerHTML = "";
-            document.getElementById("team1Title").innerText = "";
-            document.getElementById("team2Title").innerText = "";
+            // Atualiza os títulos apenas se necessário
+            if (!selectedTeamHomeDisplay || !selectedTeamVisitDisplay) {
+                selectedTeamHomeDisplay = cardToSelect.querySelector('.team-home').innerText;
+                selectedTeamVisitDisplay = cardToSelect.querySelector('.team-visit').innerText;
+                document.getElementById("team1Title").innerText = selectedTeamHomeDisplay;
+                document.getElementById("team2Title").innerText = selectedTeamVisitDisplay;
+            }
+        } else if (previouslySelectedTeam1 && previouslySelectedTeam2) {
+            // Se o jogo selecionado não está na lista, mantém os times e tabelas
+            selectedTeam1 = previouslySelectedTeam1;
+            selectedTeam2 = previouslySelectedTeam2;
+        } else if (cards.length > 0) {
+            // Se não havia seleção anterior, seleciona o primeiro card
+            cardToSelect = cards[0];
+            cardToSelect.classList.add('selected');
+            selectedTeam1 = cardToSelect.getAttribute('data-home');
+            selectedTeam2 = cardToSelect.getAttribute('data-visit');
+            selectedTeamHomeDisplay = cardToSelect.querySelector('.team-home').innerText;
+            selectedTeamVisitDisplay = cardToSelect.querySelector('.team-visit').innerText;
+            document.getElementById("team1Title").innerText = selectedTeamHomeDisplay;
+            document.getElementById("team2Title").innerText = selectedTeamVisitDisplay;
+        }
+
+        // Sempre atualiza as tabelas com base nos times selecionados
+        if (selectedTeam1 && selectedTeam2) {
+            await analisar();
         }
     } catch (error) {
         console.error("Erro ao carregar próximos jogos para minutos:", error);
-        // Limpa as tabelas em caso de erro
-        document.getElementById("team1-tabela-resultados").querySelector("tbody").innerHTML = "";
-        document.getElementById("team2-tabela-resultados").querySelector("tbody").innerHTML = "";
-        document.getElementById("team1Title").innerText = "";
-        document.getElementById("team2Title").innerText = "";
+        // Não limpa as tabelas em caso de erro, mantém a última seleção válida
+        if (selectedTeam1 && selectedTeam2) {
+            await analisar();
+        }
     }
 }
 
@@ -3345,6 +3357,8 @@ window.selectGameForMinutes = function(card, teamHome, teamVisit, teamHomeDispla
     card.classList.add('selected');
     selectedTeam1 = teamHome;
     selectedTeam2 = teamVisit;
+    selectedTeamHomeDisplay = teamHomeDisplay;
+    selectedTeamVisitDisplay = teamVisitDisplay;
     document.getElementById("team1Title").innerText = teamHomeDisplay;
     document.getElementById("team2Title").innerText = teamVisitDisplay;
     analisar();
@@ -3405,13 +3419,13 @@ function analisarMercados(jogos, timeSelecionado) {
 
 function gerarTabela(analise, tableId, teamName) {
     const table = document.getElementById(tableId);
-    const tbody = table.querySelector("tbody");
-    const thead = table.querySelector("thead tr");
+const tbody = table.querySelector("tbody");
+const thead = table.querySelector("thead tr");
 
     tbody.innerHTML = "";
     thead.innerHTML = "<th>Mercado</th>";
 
-    const minutos = Object.keys(analise).sort((a, b) => Number(a) - Number(b)); // Ordena minutos numericamente
+    const minutos = Object.keys(analise).sort((a, b) => Number(a) - Number(b));
     minutos.forEach((minuto) => {
         const th = document.createElement("th");
         th.innerText = minuto;
