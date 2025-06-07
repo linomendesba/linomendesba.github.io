@@ -3266,19 +3266,24 @@ function removeAccents(str) {
 async function carregarJogos() {
     try {
         const response = await fetch(API_URL);
+        if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
         const jogos = await response.json();
+        console.log("Jogos carregados:", jogos);
         return jogos;
     } catch (error) {
-        console.error("Erro ao carregar dados:", error);
+        console.error("Erro ao carregar dados da API_URL:", error);
         return [];
     }
 }
 
 async function loadNextGamesForMinutes() {
+    console.log("Iniciando atualização dos próximos jogos...");
     try {
         const response = await fetch(NEXT_GAMES_API);
+        if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
         const data = await response.json();
-        const games = data.data.slice(0, 6).reverse();
+        const games = data.data ? data.data.slice(0, 6).reverse() : [];
+        console.log("Próximos jogos recebidos:", games);
         const container = document.getElementById("nextGamesMinutesContainer");
 
         // Salva os times selecionados antes de recarregar os cards
@@ -3286,16 +3291,20 @@ async function loadNextGamesForMinutes() {
         const previouslySelectedTeam2 = selectedTeam2;
 
         // Recria os cards, preservando acentos nos nomes exibidos
-        container.innerHTML = games.map(game => `
-            <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForMinutes(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}', '${game.team_home}', '${game.team_visit}')">
-                <div class="game-time">${game.time}</div>
-                <div class="game-teams">
-                    <span class="team-home">${game.team_home}</span>
-                    <span class="vs">vs</span>
-                    <span class="team-visit">${game.team_visit}</span>
+        if (games.length > 0) {
+            container.innerHTML = games.map(game => `
+                <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForMinutes(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}', '${game.team_home}', '${game.team_visit}')">
+                    <div class="game-time">${game.time}</div>
+                    <div class="game-teams">
+                        <span class="team-home">${game.team_home}</span>
+                        <span class="vs">vs</span>
+                        <span class="team-visit">${game.team_visit}</span>
+                    </div>
                 </div>
-            </div>
-        `).join("");
+            `).join("");
+        } else {
+            container.innerHTML = `<div class="game-card">Nenhum jogo disponível no momento</div>`;
+        }
 
         // Restaura a seleção com base nos times previamente selecionados
         const cards = container.querySelectorAll('.game-card');
@@ -3311,12 +3320,11 @@ async function loadNextGamesForMinutes() {
             });
         }
 
-        // Se não encontrar o card previamente selecionado, mantém a seleção anterior
+        // Aplica a classe 'selected' ao card correspondente
         if (cardToSelect) {
             cardToSelect.classList.add('selected');
             selectedTeam1 = cardToSelect.getAttribute('data-home');
             selectedTeam2 = cardToSelect.getAttribute('data-visit');
-            // Atualiza os títulos apenas se necessário
             if (!selectedTeamHomeDisplay || !selectedTeamVisitDisplay) {
                 selectedTeamHomeDisplay = cardToSelect.querySelector('.team-home').innerText;
                 selectedTeamVisitDisplay = cardToSelect.querySelector('.team-visit').innerText;
@@ -3324,11 +3332,11 @@ async function loadNextGamesForMinutes() {
                 document.getElementById("team2Title").innerText = selectedTeamVisitDisplay;
             }
         } else if (previouslySelectedTeam1 && previouslySelectedTeam2) {
-            // Se o jogo selecionado não está na lista, mantém os times e tabelas
+            // Mantém a seleção anterior se o jogo não estiver na lista
             selectedTeam1 = previouslySelectedTeam1;
             selectedTeam2 = previouslySelectedTeam2;
-        } else if (cards.length > 0) {
-            // Se não havia seleção anterior, seleciona o primeiro card
+        } else if (cards.length > 0 && cards[0].getAttribute('data-home')) {
+            // Seleciona o primeiro card se não houver seleção anterior
             cardToSelect = cards[0];
             cardToSelect.classList.add('selected');
             selectedTeam1 = cardToSelect.getAttribute('data-home');
@@ -3339,14 +3347,20 @@ async function loadNextGamesForMinutes() {
             document.getElementById("team2Title").innerText = selectedTeamVisitDisplay;
         }
 
-        // Sempre atualiza as tabelas com base nos times selecionados
+        // Atualiza as tabelas se houver times selecionados
         if (selectedTeam1 && selectedTeam2) {
+            console.log("Atualizando tabelas para:", selectedTeam1, selectedTeam2);
             await analisar();
+        } else {
+            console.log("Nenhum time selecionado para atualizar tabelas");
         }
     } catch (error) {
         console.error("Erro ao carregar próximos jogos para minutos:", error);
-        // Não limpa as tabelas em caso de erro, mantém a última seleção válida
+        const container = document.getElementById("nextGamesMinutesContainer");
+        container.innerHTML = `<div class="game-card">Erro ao carregar jogos</div>`;
+        // Mantém as tabelas com a última seleção válida
         if (selectedTeam1 && selectedTeam2) {
+            console.log("Mantendo tabelas com seleção anterior:", selectedTeam1, selectedTeam2);
             await analisar();
         }
     }
@@ -3361,6 +3375,7 @@ window.selectGameForMinutes = function(card, teamHome, teamVisit, teamHomeDispla
     selectedTeamVisitDisplay = teamVisitDisplay;
     document.getElementById("team1Title").innerText = teamHomeDisplay;
     document.getElementById("team2Title").innerText = teamVisitDisplay;
+    console.log("Jogo selecionado:", teamHome, teamVisit);
     analisar();
 };
 
@@ -3419,8 +3434,8 @@ function analisarMercados(jogos, timeSelecionado) {
 
 function gerarTabela(analise, tableId, teamName) {
     const table = document.getElementById(tableId);
-const tbody = table.querySelector("tbody");
-const thead = table.querySelector("thead tr");
+    const tbody = table.querySelector("tbody");
+    const thead = table.querySelector("thead tr");
 
     tbody.innerHTML = "";
     thead.innerHTML = "<th>Mercado</th>";
@@ -3451,7 +3466,7 @@ const thead = table.querySelector("thead tr");
 
         minutos.forEach((minuto) => {
             const td = document.createElement("td");
-            const dados = analise[minuto];
+            const dados = analise[minuto] || { total: 0 };
             let texto = "";
 
             if (mercado.yes && mercado.no) {
@@ -3482,7 +3497,10 @@ const thead = table.querySelector("thead tr");
 }
 
 async function analisar() {
-    if (!selectedTeam1 || !selectedTeam2) return;
+    if (!selectedTeam1 || !selectedTeam2) {
+        console.log("Nenhum time selecionado, pulando análise");
+        return;
+    }
 
     const jogos = await carregarJogos();
 
@@ -3493,11 +3511,13 @@ async function analisar() {
     // Analisa os dados para o Time 2
     const analiseTeam2 = analisarMercados(jogos, selectedTeam2);
     gerarTabela(analiseTeam2, "team2-tabela-resultados", selectedTeam2);
+    console.log("Tabelas atualizadas para:", selectedTeam1, selectedTeam2);
 }
 
 // Inicialização
 loadNextGamesForMinutes();
-setInterval(async () => {
+const updateInterval = setInterval(async () => {
+    console.log("Executando atualização periódica dos jogos...");
     await loadNextGamesForMinutes();
 }, 15000);
 
