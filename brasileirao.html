@@ -3254,7 +3254,8 @@ setInterval(updateChartsGolsPlus, 3000);
     <script>
 let selectedTeam1 = null;
 let selectedTeam2 = null;
-let primeiroClique = false;
+let selectedTeamHomeDisplay = null;
+let selectedTeamVisitDisplay = null;
 
 function removeAccents(str) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -3263,19 +3264,29 @@ function removeAccents(str) {
 async function carregarJogos() {
     try {
         const response = await fetch(API_URL);
+        if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
         const jogos = await response.json();
+        console.log("Jogos carregados da API_URL:", jogos);
         return jogos;
     } catch (error) {
-        console.error("Erro ao carregar dados:", error);
+        console.error("Erro ao carregar dados da API_URL:", error);
         return [];
     }
 }
 
 async function loadNextGamesForMinutes() {
+    console.log("Iniciando atualização dos próximos jogos...");
     try {
         const response = await fetch(NEXT_GAMES_API);
+        if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
         const data = await response.json();
-        const games = data.data.slice(0, 6).reverse();
+        console.log("Resposta completa da NEXT_GAMES_API:", data);
+
+        // Verifica a estrutura da resposta e extrai os jogos
+        const games = Array.isArray(data.data) ? data.data.slice(0, 6) : 
+                      Array.isArray(data) ? data.slice(0, 6) : [];
+        console.log("Jogos processados para exibição:", games);
+
         const container = document.getElementById("nextGamesMinutesContainer");
 
         // Salva os times selecionados antes de recarregar os cards
@@ -3283,16 +3294,21 @@ async function loadNextGamesForMinutes() {
         const previouslySelectedTeam2 = selectedTeam2;
 
         // Recria os cards, preservando acentos nos nomes exibidos
-        container.innerHTML = games.map(game => `
-            <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForMinutes(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}', '${game.team_home}', '${game.team_visit}')">
-                <div class="game-time">${game.time}</div>
-                <div class="game-teams">
-                    <span class="team-home">${game.team_home}</span>
-                    <span class="vs">vs</span>
-                    <span class="team-visit">${game.team_visit}</span>
+        if (games.length > 0) {
+            container.innerHTML = games.map(game => `
+                <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForMinutes(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}', '${game.team_home}', '${game.team_visit}')">
+                    <div class="game-time">${game.time || 'Hora não informada'}</div>
+                    <div class="game-teams">
+                        <span class="team-home">${game.team_home || 'Time A'}</span>
+                        <span class="vs">vs</span>
+                        <span class="team-visit">${game.team_visit || 'Time B'}</span>
+                    </div>
                 </div>
-            </div>
-        `).join("");
+            `).join("");
+        } else {
+            container.innerHTML = `<div class="game-card">Nenhum jogo disponível no momento</div>`;
+            console.warn("Nenhum jogo disponível na resposta da API.");
+        }
 
         // Restaura a seleção com base nos times previamente selecionados
         const cards = container.querySelectorAll('.game-card');
@@ -3308,24 +3324,49 @@ async function loadNextGamesForMinutes() {
             });
         }
 
-        // Se não encontrar o card previamente selecionado, seleciona o primeiro
-        if (!cardToSelect && cards.length > 0) {
-            cardToSelect = cards[0];
-            selectedTeam1 = cardToSelect.getAttribute('data-home');
-            selectedTeam2 = cardToSelect.getAttribute('data-visit');
-        }
-
-        // Aplica a classe 'selected' ao card apropriado e atualiza as tabelas
+        // Aplica a classe 'selected' ao card correspondente
         if (cardToSelect) {
             cardToSelect.classList.add('selected');
-            if (!previouslySelectedTeam1 || !previouslySelectedTeam2) {
-                selectedTeam1 = cardToSelect.getAttribute('data-home');
-                selectedTeam2 = cardToSelect.getAttribute('data-visit');
-                await analisar();
+            selectedTeam1 = cardToSelect.getAttribute('data-home');
+            selectedTeam2 = cardToSelect.getAttribute('data-visit');
+            if (!selectedTeamHomeDisplay || !selectedTeamVisitDisplay) {
+                selectedTeamHomeDisplay = cardToSelect.querySelector('.team-home').innerText;
+                selectedTeamVisitDisplay = cardToSelect.querySelector('.team-visit').innerText;
+                document.getElementById("team1Title").innerText = selectedTeamHomeDisplay;
+                document.getElementById("team2Title").innerText = selectedTeamVisitDisplay;
             }
+        } else if (previouslySelectedTeam1 && previouslySelectedTeam2) {
+            // Mantém a seleção anterior se o jogo não estiver na lista
+            selectedTeam1 = previouslySelectedTeam1;
+            selectedTeam2 = previouslySelectedTeam2;
+        } else if (cards.length > 0 && cards[0].getAttribute('data-home')) {
+            // Seleciona o primeiro card se não houver seleção anterior
+            cardToSelect = cards[0];
+            cardToSelect.classList.add('selected');
+            selectedTeam1 = cardToSelect.getAttribute('data-home');
+            selectedTeam2 = cardToSelect.getAttribute('data-visit');
+            selectedTeamHomeDisplay = cardToSelect.querySelector('.team-home').innerText;
+            selectedTeamVisitDisplay = cardToSelect.querySelector('.team-visit').innerText;
+            document.getElementById("team1Title").innerText = selectedTeamHomeDisplay;
+            document.getElementById("team2Title").innerText = selectedTeamVisitDisplay;
+        }
+
+        // Atualiza as tabelas se houver times selecionados
+        if (selectedTeam1 && selectedTeam2) {
+            console.log("Atualizando tabelas para:", selectedTeam1, selectedTeam2);
+            await analisar();
+        } else {
+            console.log("Nenhum time selecionado para atualizar tabelas");
         }
     } catch (error) {
         console.error("Erro ao carregar próximos jogos para minutos:", error);
+        const container = document.getElementById("nextGamesMinutesContainer");
+        container.innerHTML = `<div class="game-card">Erro ao carregar jogos: ${error.message}</div>`;
+        // Mantém as tabelas com a última seleção válida
+        if (selectedTeam1 && selectedTeam2) {
+            console.log("Mantendo tabelas com seleção anterior:", selectedTeam1, selectedTeam2);
+            await analisar();
+        }
     }
 }
 
@@ -3334,8 +3375,11 @@ window.selectGameForMinutes = function(card, teamHome, teamVisit, teamHomeDispla
     card.classList.add('selected');
     selectedTeam1 = teamHome;
     selectedTeam2 = teamVisit;
+    selectedTeamHomeDisplay = teamHomeDisplay;
+    selectedTeamVisitDisplay = teamVisitDisplay;
     document.getElementById("team1Title").innerText = teamHomeDisplay;
     document.getElementById("team2Title").innerText = teamVisitDisplay;
+    console.log("Jogo selecionado:", teamHome, teamVisit);
     analisar();
 };
 
@@ -3347,7 +3391,7 @@ function analisarMercados(jogos, timeSelecionado) {
         const timeB = removeAccents(jogo.time_b);
         if (timeA === timeSelecionado || timeB === timeSelecionado) {
             const minuto = jogo.minuto;
-            const ftGols = jogo.ft.split(" x ").map(Number);
+            const ftGols = jogo.ft ? jogo.ft.split(" x ").map(Number) : [0, 0];
             const timeAGols = ftGols[0];
             const timeBGols = ftGols[1];
             const totalGols = timeAGols + timeBGols;
@@ -3400,7 +3444,7 @@ function gerarTabela(analise, tableId, teamName) {
     tbody.innerHTML = "";
     thead.innerHTML = "<th>Mercado</th>";
 
-    const minutos = Object.keys(analise);
+    const minutos = Object.keys(analise).sort((a, b) => Number(a) - Number(b));
     minutos.forEach((minuto) => {
         const th = document.createElement("th");
         th.innerText = minuto;
@@ -3426,25 +3470,25 @@ function gerarTabela(analise, tableId, teamName) {
 
         minutos.forEach((minuto) => {
             const td = document.createElement("td");
-            const dados = analise[minuto];
+            const dados = analise[minuto] || { total: 0 };
             let texto = "";
 
             if (mercado.yes && mercado.no) {
-                const simPercent = (dados[mercado.yes] / dados.total) * 100;
-                const naoPercent = (dados[mercado.no] / dados.total) * 100;
+                const simPercent = dados[mercado.yes] && dados.total ? (dados[mercado.yes] / dados.total) * 100 : 0;
+                const naoPercent = dados[mercado.no] && dados.total ? (dados[mercado.no] / dados.total) * 100 : 0;
                 texto = `S:${simPercent.toFixed(0)}%\nN:${naoPercent.toFixed(0)}%`;
             }
 
             if (mercado.over && mercado.under) {
-                const overPercent = (dados[mercado.over] / dados.total) * 100;
-                const underPercent = (dados[mercado.under] / dados.total) * 100;
+                const overPercent = dados[mercado.over] && dados.total ? (dados[mercado.over] / dados.total) * 100 : 0;
+                const underPercent = dados[mercado.under] && dados.total ? (dados[mercado.under] / dados.total) * 100 : 0;
                 texto = `O:${overPercent.toFixed(0)}%\nU:${underPercent.toFixed(0)}%`;
             }
 
             if (mercado.casa && mercado.fora && mercado.empate) {
-                const casaPercent = (dados[mercado.casa] / dados.total) * 100;
-                const foraPercent = (dados[mercado.fora] / dados.total) * 100;
-                const empatePercent = (dados[mercado.empate] / dados.total) * 100;
+                const casaPercent = dados[mercado.casa] && dados.total ? (dados[mercado.casa] / dados.total) * 100 : 0;
+                const foraPercent = dados[mercado.fora] && dados.total ? (dados[mercado.fora] / dados.total) * 100 : 0;
+                const empatePercent = dados[mercado.empate] && dados.total ? (dados[mercado.empate] / dados.total) * 100 : 0;
                 texto = `C:${casaPercent.toFixed(0)}%\nF:${foraPercent.toFixed(0)}%\nE:${empatePercent.toFixed(0)}%`;
             }
 
@@ -3457,7 +3501,10 @@ function gerarTabela(analise, tableId, teamName) {
 }
 
 async function analisar() {
-    if (!selectedTeam1 || !selectedTeam2) return;
+    if (!selectedTeam1 || !selectedTeam2) {
+        console.log("Nenhum time selecionado, pulando análise");
+        return;
+    }
 
     const jogos = await carregarJogos();
 
@@ -3468,11 +3515,13 @@ async function analisar() {
     // Analisa os dados para o Time 2
     const analiseTeam2 = analisarMercados(jogos, selectedTeam2);
     gerarTabela(analiseTeam2, "team2-tabela-resultados", selectedTeam2);
+    console.log("Tabelas atualizadas para:", selectedTeam1, selectedTeam2);
 }
 
 // Inicialização
 loadNextGamesForMinutes();
-setInterval(async () => {
+const updateInterval = setInterval(async () => {
+    console.log("Executando atualização periódica dos jogos...");
     await loadNextGamesForMinutes();
 }, 15000);
 
