@@ -3268,7 +3268,7 @@ async function carregarJogos() {
         const response = await fetch(API_URL);
         if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
         const jogos = await response.json();
-        console.log("Jogos carregados:", jogos);
+        console.log("Jogos carregados da API_URL:", jogos);
         return jogos;
     } catch (error) {
         console.error("Erro ao carregar dados da API_URL:", error);
@@ -3282,8 +3282,13 @@ async function loadNextGamesForMinutes() {
         const response = await fetch(NEXT_GAMES_API);
         if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
         const data = await response.json();
-        const games = data.data ? data.data.slice(0, 6).reverse() : [];
-        console.log("Próximos jogos recebidos:", games);
+        console.log("Resposta completa da NEXT_GAMES_API:", data);
+
+        // Verifica a estrutura da resposta e extrai os jogos
+        const games = Array.isArray(data.data) ? data.data.slice(0, 6).reverse() : 
+                      Array.isArray(data) ? data.slice(0, 6).reverse() : [];
+        console.log("Jogos processados para exibição:", games);
+
         const container = document.getElementById("nextGamesMinutesContainer");
 
         // Salva os times selecionados antes de recarregar os cards
@@ -3294,16 +3299,17 @@ async function loadNextGamesForMinutes() {
         if (games.length > 0) {
             container.innerHTML = games.map(game => `
                 <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForMinutes(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}', '${game.team_home}', '${game.team_visit}')">
-                    <div class="game-time">${game.time}</div>
+                    <div class="game-time">${game.time || 'Hora não informada'}</div>
                     <div class="game-teams">
-                        <span class="team-home">${game.team_home}</span>
+                        <span class="team-home">${game.team_home || 'Time A'}</span>
                         <span class="vs">vs</span>
-                        <span class="team-visit">${game.team_visit}</span>
+                        <span class="team-visit">${game.team_visit || 'Time B'}</span>
                     </div>
                 </div>
             `).join("");
         } else {
             container.innerHTML = `<div class="game-card">Nenhum jogo disponível no momento</div>`;
+            console.warn("Nenhum jogo disponível na resposta da API.");
         }
 
         // Restaura a seleção com base nos times previamente selecionados
@@ -3357,7 +3363,7 @@ async function loadNextGamesForMinutes() {
     } catch (error) {
         console.error("Erro ao carregar próximos jogos para minutos:", error);
         const container = document.getElementById("nextGamesMinutesContainer");
-        container.innerHTML = `<div class="game-card">Erro ao carregar jogos</div>`;
+        container.innerHTML = `<div class="game-card">Erro ao carregar jogos: ${error.message}</div>`;
         // Mantém as tabelas com a última seleção válida
         if (selectedTeam1 && selectedTeam2) {
             console.log("Mantendo tabelas com seleção anterior:", selectedTeam1, selectedTeam2);
@@ -3387,7 +3393,7 @@ function analisarMercados(jogos, timeSelecionado) {
         const timeB = removeAccents(jogo.time_b);
         if (timeA === timeSelecionado || timeB === timeSelecionado) {
             const minuto = jogo.minuto;
-            const ftGols = jogo.ft.split(" x ").map(Number);
+            const ftGols = jogo.ft ? jogo.ft.split(" x ").map(Number) : [0, 0];
             const timeAGols = ftGols[0];
             const timeBGols = ftGols[1];
             const totalGols = timeAGols + timeBGols;
