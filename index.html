@@ -654,7 +654,7 @@ function selecionarPlacaresIguais(placarAlvo) {
   const placares = document.querySelectorAll(".placar");
   placares.forEach((placar) => {
     const texto = placar.querySelector(".placar-texto").textContent.trim();
-    if (placarAlvo) {
+    if (placarAlvo && !mostrarTimes) { // Só seleciona placar se Ver Times estiver desligado
       if (texto.includes(placarAlvo)) {
         placar.classList.add("placar-selecionado");
       } else {
@@ -671,18 +671,16 @@ function selecionarJogosPorTime(timeAlvo, tipoSelecao) {
   placares.forEach((placar) => {
     const timeA = placar.getAttribute("data-time-a");
     const timeB = placar.getAttribute("data-time-b");
-    if (timeAlvo) {
+    if (timeAlvo && mostrarTimes) { // Só seleciona time se Ver Times estiver ativado
       if (tipoSelecao === "casa" && timeA === timeAlvo) {
         placar.classList.add("time-casa-selecionado");
       } else if (tipoSelecao === "fora" && timeB === timeAlvo) {
         placar.classList.add("time-fora-selecionado");
-      } else if (tipoSelecao === "qualquer" && (timeA === timeAlvo || timeB === timeAlvo)) {
-        placar.classList.add("time-selecionado");
       } else {
-        placar.classList.remove("time-casa-selecionado", "time-fora-selecionado", "time-selecionado");
+        placar.classList.remove("time-casa-selecionado", "time-fora-selecionado");
       }
     } else {
-      placar.classList.remove("time-casa-selecionado", "time-fora-selecionado", "time-selecionado");
+      placar.classList.remove("time-casa-selecionado", "time-fora-selecionado");
     }
   });
 }
@@ -723,6 +721,7 @@ function criarTabela(dados) {
   const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
   const mostrarTimesSelect = document.querySelector("#mostrarTimes");
   const mostrarHTSelect = document.querySelector("#mostrarHT");
+  const mostrarTimes = mostrarTimesSelect ? mostrarTimesSelect.value === "sim" : false;
 
   if (
     !seletorHoras ||
@@ -736,7 +735,6 @@ function criarTabela(dados) {
   }
 
   const horasSelecionadas = parseInt(seletorHoras.value) || 12;
-  const mostrarTimes = mostrarTimesSelect.value === "sim";
   const mostrarHT = mostrarHTSelect.value === "sim";
 
   dados.sort((a, b) => {
@@ -792,6 +790,7 @@ function criarTabela(dados) {
   });
 
   function handlePlacarClick(event) {
+    if (mostrarTimes) return; // Desativa clique no placar quando Ver Times está ativado
     const placarClicado = event.currentTarget.querySelector(".placar-texto").textContent.trim();
     if (placarSelecionado === placarClicado) {
       placarSelecionado = null;
@@ -805,11 +804,11 @@ function criarTabela(dados) {
   }
 
   function handleTimeClick(event) {
-    if (mostrarTimesSelect.value !== "sim") return;
-    const timeClicado = event.target.textContent.trim();
+    if (!mostrarTimes) return; // Só permite clique em time quando Ver Times está ativado
+    const timeClicado = event.target.textContent.trim().replace(/\.\.\.$/, ""); // Remove "..." dos nomes abreviados
     const placar = event.target.closest(".placar");
-    const timeA = placar.getAttribute("data-time-a");
-    const timeB = placar.getAttribute("data-time-b");
+    const timeA = placar.getAttribute("data-time-a").replace(/\.\.\.$/, "");
+    const timeB = placar.getAttribute("data-time-b").replace(/\.\.\.$/, "");
     if (timeClicado === timeA) {
       if (timeCasaSelecionado === timeA) {
         timeCasaSelecionado = null;
@@ -901,13 +900,13 @@ function criarTabela(dados) {
 
           colunaMinuto.appendChild(placar);
 
-          if (placarSelecionado && textoPlacar.includes(placarSelecionado)) {
+          if (placarSelecionado && !mostrarTimes && textoPlacar.includes(placarSelecionado)) {
             placar.classList.add("placar-selecionado");
           }
-          if (timeCasaSelecionado && dado.time_a === timeCasaSelecionado) {
+          if (timeCasaSelecionado && mostrarTimes && dado.time_a === timeCasaSelecionado) {
             placar.classList.add("time-casa-selecionado");
           }
-          if (timeForaSelecionado && dado.time_b === timeForaSelecionado) {
+          if (timeForaSelecionado && mostrarTimes && dado.time_b === timeForaSelecionado) {
             placar.classList.add("time-fora-selecionado");
           }
 
@@ -1031,7 +1030,7 @@ function criarTabela(dados) {
   document.getElementById("totalGols").textContent = `Gols: ${stats.totalGols}`;
   document.getElementById("mediaGolsHora").textContent = `Médias: ${stats.mediaGolsHora}`;
 
-  if (placarSelecionado) {
+  if (placarSelecionado && !mostrarTimes) {
     selecionarPlacaresIguais(placarSelecionado);
   }
   if (timeCasaSelecionado && mostrarTimes) {
@@ -1072,10 +1071,13 @@ if (seletorTipoPlacar) seletorTipoPlacar.addEventListener("change", buscarDados)
 if (mostrarTimesSelect) {
   mostrarTimesSelect.addEventListener("change", () => {
     if (mostrarTimesSelect.value !== "sim") {
+      placarSelecionado = null;
       timeCasaSelecionado = null;
       timeForaSelecionado = null;
+      localStorage.removeItem("placarSelecionado");
       localStorage.removeItem("timeCasaSelecionado");
       localStorage.removeItem("timeForaSelecionado");
+      selecionarPlacaresIguais(null);
       selecionarJogosPorTime(null, "casa");
       selecionarJogosPorTime(null, "fora");
     }
