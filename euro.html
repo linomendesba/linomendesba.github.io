@@ -648,8 +648,7 @@ function redirecionar(selectElement) {
 }
 
 let placarSelecionado = localStorage.getItem("placarSelecionado");
-let timeCasaSelecionado = localStorage.getItem("timeCasaSelecionado");
-let timeForaSelecionado = localStorage.getItem("timeForaSelecionado");
+let timeSelecionado = localStorage.getItem("timeSelecionado");
 
 function selecionarPlacaresIguais(placarAlvo) {
   const placares = document.querySelectorAll(".placar");
@@ -667,23 +666,21 @@ function selecionarPlacaresIguais(placarAlvo) {
   });
 }
 
-function selecionarJogosPorTime(timeAlvo, tipoSelecao) {
+function selecionarJogosPorTime(timeAlvo) {
   const placares = document.querySelectorAll(".placar");
   if (!timeAlvo || !mostrarTimes) {
     placares.forEach((placar) => {
-      placar.classList.remove("time-casa-selecionado", "time-fora-selecionado");
+      placar.classList.remove("time-selecionado");
     });
     return;
   }
   placares.forEach((placar) => {
     const timeA = placar.getAttribute("data-time-a");
     const timeB = placar.getAttribute("data-time-b");
-    if (tipoSelecao === "casa" && timeA === timeAlvo) {
-      placar.classList.add("time-casa-selecionado");
-    } else if (tipoSelecao === "fora" && timeB === timeAlvo) {
-      placar.classList.add("time-fora-selecionado");
+    if (timeA === timeAlvo || timeB === timeAlvo) {
+      placar.classList.add("time-selecionado");
     } else {
-      placar.classList.remove("time-casa-selecionado", "time-fora-selecionado");
+      placar.classList.remove("time-selecionado");
     }
   });
 }
@@ -806,31 +803,19 @@ function criarTabela(dados) {
   }
 
   function handleTimeClick(event) {
-    if (!mostrarTimes) return; // Só permite clique em time quando Ver Times está ativado
-    const timeClicado = event.target.textContent.trim().replace(/\.\.\.$/, "");
-    const placar = event.target.closest(".placar");
-    const timeA = placar.getAttribute("data-time-a");
-    const timeB = placar.getAttribute("data-time-b");
-    if (timeA.startsWith(timeClicado)) {
-      if (timeCasaSelecionado === timeA) {
-        timeCasaSelecionado = null;
-        localStorage.removeItem("timeCasaSelecionado");
-        selecionarJogosPorTime(null, "casa");
-      } else {
-        timeCasaSelecionado = timeA;
-        localStorage.setItem("timeCasaSelecionado", timeA);
-        selecionarJogosPorTime(timeA, "casa");
-      }
-    } else if (timeB.startsWith(timeClicado)) {
-      if (timeForaSelecionado === timeB) {
-        timeForaSelecionado = null;
-        localStorage.removeItem("timeForaSelecionado");
-        selecionarJogosPorTime(null, "fora");
-      } else {
-        timeForaSelecionado = timeB;
-        localStorage.setItem("timeForaSelecionado", timeB);
-        selecionarJogosPorTime(timeB, "fora");
-      }
+    if (!mostrarTimes) return;
+    const timeElement = event.target;
+    const timeClicado = timeElement.getAttribute("data-full-time"); // Usa o nome completo do time
+    if (!timeClicado) return; // Segurança se o atributo não existir
+    const placar = timeElement.closest(".placar");
+    if (timeSelecionado === timeClicado) {
+      timeSelecionado = null;
+      localStorage.removeItem("timeSelecionado");
+      selecionarJogosPorTime(null);
+    } else {
+      timeSelecionado = timeClicado;
+      localStorage.setItem("timeSelecionado", timeClicado);
+      selecionarJogosPorTime(timeClicado);
     }
   }
 
@@ -864,19 +849,13 @@ function criarTabela(dados) {
                 : `${placarHT}\n(${placarFT})`;
           }
           if (mostrarTimes) {
-            const timeA =
-              dado.time_a.length > 10
-                ? dado.time_a.slice(0, 10) + "..."
-                : dado.time_a;
-            const timeB =
-              dado.time_b.length > 10
-                ? dado.time_b.slice(0, 10) + "..."
-                : dado.time_b;
+            const timeA = dado.time_a.length > 10 ? dado.time_a.slice(0, 10) + "..." : dado.time_a;
+            const timeB = dado.time_b.length > 10 ? dado.time_b.slice(0, 10) + "..." : dado.time_b;
             textoPlacar = `${timeA}\n${textoPlacar}\n${timeB}`;
             placarTexto.innerHTML = `
-              <span class="time-casa" style="cursor: pointer;">${timeA}</span>
+              <span class="time-casa" style="cursor: pointer;" data-full-time="${dado.time_a}">${timeA}</span>
               <span>${textoPlacar.split("\n")[1]}</span>
-              <span class="time-fora" style="cursor: pointer;">${timeB}</span>
+              <span class="time-fora" style="cursor: pointer;" data-full-time="${dado.time_b}">${timeB}</span>
             `;
           } else {
             placarTexto.textContent = textoPlacar;
@@ -904,11 +883,8 @@ function criarTabela(dados) {
           if (placarSelecionado && !mostrarTimes && textoPlacar.includes(placarSelecionado)) {
             placar.classList.add("placar-selecionado");
           }
-          if (timeCasaSelecionado && mostrarTimes && dado.time_a === timeCasaSelecionado) {
-            placar.classList.add("time-casa-selecionado");
-          }
-          if (timeForaSelecionado && mostrarTimes && dado.time_b === timeForaSelecionado) {
-            placar.classList.add("time-fora-selecionado");
+          if (timeSelecionado && mostrarTimes && (dado.time_a === timeSelecionado || dado.time_b === timeSelecionado)) {
+            placar.classList.add("time-selecionado");
           }
 
           const selecaoResultado = seletorResultado.value;
@@ -1034,11 +1010,8 @@ function criarTabela(dados) {
   if (placarSelecionado && !mostrarTimes) {
     selecionarPlacaresIguais(placarSelecionado);
   }
-  if (timeCasaSelecionado && mostrarTimes) {
-    selecionarJogosPorTime(timeCasaSelecionado, "casa");
-  }
-  if (timeForaSelecionado && mostrarTimes) {
-    selecionarJogosPorTime(timeForaSelecionado, "fora");
+  if (timeSelecionado && mostrarTimes) {
+    selecionarJogosPorTime(timeSelecionado);
   }
 }
 
@@ -1073,14 +1046,11 @@ if (mostrarTimesSelect) {
   mostrarTimesSelect.addEventListener("change", () => {
     if (mostrarTimesSelect.value !== "sim") {
       placarSelecionado = null;
-      timeCasaSelecionado = null;
-      timeForaSelecionado = null;
+      timeSelecionado = null;
       localStorage.removeItem("placarSelecionado");
-      localStorage.removeItem("timeCasaSelecionado");
-      localStorage.removeItem("timeForaSelecionado");
+      localStorage.removeItem("timeSelecionado");
       selecionarPlacaresIguais(null);
-      selecionarJogosPorTime(null, "casa");
-      selecionarJogosPorTime(null, "fora");
+      selecionarJogosPorTime(null);
     }
     buscarDados();
   });
