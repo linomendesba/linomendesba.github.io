@@ -647,7 +647,8 @@ function redirecionar(selectElement) {
 }
 
 let placarSelecionado = localStorage.getItem("placarSelecionado");
-let timeSelecionado = localStorage.getItem("timeSelecionado");
+let timeCasaSelecionado = localStorage.getItem("timeCasaSelecionado");
+let timeForaSelecionado = localStorage.getItem("timeForaSelecionado");
 
 function selecionarPlacaresIguais(placarAlvo) {
   const placares = document.querySelectorAll(".placar");
@@ -665,19 +666,23 @@ function selecionarPlacaresIguais(placarAlvo) {
   });
 }
 
-function selecionarJogosPorTime(timeAlvo) {
+function selecionarJogosPorTime(timeAlvo, tipoSelecao) {
   const placares = document.querySelectorAll(".placar");
   placares.forEach((placar) => {
     const timeA = placar.getAttribute("data-time-a");
     const timeB = placar.getAttribute("data-time-b");
     if (timeAlvo) {
-      if (timeA === timeAlvo || timeB === timeAlvo) {
+      if (tipoSelecao === "casa" && timeA === timeAlvo) {
+        placar.classList.add("time-casa-selecionado");
+      } else if (tipoSelecao === "fora" && timeB === timeAlvo) {
+        placar.classList.add("time-fora-selecionado");
+      } else if (tipoSelecao === "qualquer" && (timeA === timeAlvo || timeB === timeAlvo)) {
         placar.classList.add("time-selecionado");
       } else {
-        placar.classList.remove("time-selecionado");
+        placar.classList.remove("time-casa-selecionado", "time-fora-selecionado", "time-selecionado");
       }
     } else {
-      placar.classList.remove("time-selecionado");
+      placar.classList.remove("time-casa-selecionado", "time-fora-selecionado", "time-selecionado");
     }
   });
 }
@@ -800,19 +805,30 @@ function criarTabela(dados) {
   }
 
   function handleTimeClick(event) {
-    if (mostrarTimesSelect.value !== "sim") return; // Só permite seleção de time se "Ver Times" estiver ativado
+    if (mostrarTimesSelect.value !== "sim") return;
     const timeClicado = event.target.textContent.trim();
-    const timeA = event.target.parentElement.getAttribute("data-time-a");
-    const timeB = event.target.parentElement.getAttribute("data-time-b");
-    if (timeClicado === timeA || timeClicado === timeB) {
-      if (timeSelecionado === timeClicado) {
-        timeSelecionado = null;
-        localStorage.removeItem("timeSelecionado");
-        selecionarJogosPorTime(null);
+    const placar = event.target.closest(".placar");
+    const timeA = placar.getAttribute("data-time-a");
+    const timeB = placar.getAttribute("data-time-b");
+    if (timeClicado === timeA) {
+      if (timeCasaSelecionado === timeA) {
+        timeCasaSelecionado = null;
+        localStorage.removeItem("timeCasaSelecionado");
+        selecionarJogosPorTime(null, "casa");
       } else {
-        timeSelecionado = timeClicado;
-        localStorage.setItem("timeSelecionado", timeClicado);
-        selecionarJogosPorTime(timeClicado);
+        timeCasaSelecionado = timeA;
+        localStorage.setItem("timeCasaSelecionado", timeA);
+        selecionarJogosPorTime(timeA, "casa");
+      }
+    } else if (timeClicado === timeB) {
+      if (timeForaSelecionado === timeB) {
+        timeForaSelecionado = null;
+        localStorage.removeItem("timeForaSelecionado");
+        selecionarJogosPorTime(null, "fora");
+      } else {
+        timeForaSelecionado = timeB;
+        localStorage.setItem("timeForaSelecionado", timeB);
+        selecionarJogosPorTime(timeB, "fora");
       }
     }
   }
@@ -888,8 +904,11 @@ function criarTabela(dados) {
           if (placarSelecionado && textoPlacar.includes(placarSelecionado)) {
             placar.classList.add("placar-selecionado");
           }
-          if (timeSelecionado && (dado.time_a === timeSelecionado || dado.time_b === timeSelecionado)) {
-            placar.classList.add("time-selecionado");
+          if (timeCasaSelecionado && dado.time_a === timeCasaSelecionado) {
+            placar.classList.add("time-casa-selecionado");
+          }
+          if (timeForaSelecionado && dado.time_b === timeForaSelecionado) {
+            placar.classList.add("time-fora-selecionado");
           }
 
           const selecaoResultado = seletorResultado.value;
@@ -1015,8 +1034,11 @@ function criarTabela(dados) {
   if (placarSelecionado) {
     selecionarPlacaresIguais(placarSelecionado);
   }
-  if (timeSelecionado && mostrarTimes) {
-    selecionarJogosPorTime(timeSelecionado);
+  if (timeCasaSelecionado && mostrarTimes) {
+    selecionarJogosPorTime(timeCasaSelecionado, "casa");
+  }
+  if (timeForaSelecionado && mostrarTimes) {
+    selecionarJogosPorTime(timeForaSelecionado, "fora");
   }
 }
 
@@ -1050,9 +1072,12 @@ if (seletorTipoPlacar) seletorTipoPlacar.addEventListener("change", buscarDados)
 if (mostrarTimesSelect) {
   mostrarTimesSelect.addEventListener("change", () => {
     if (mostrarTimesSelect.value !== "sim") {
-      timeSelecionado = null;
-      localStorage.removeItem("timeSelecionado");
-      selecionarJogosPorTime(null);
+      timeCasaSelecionado = null;
+      timeForaSelecionado = null;
+      localStorage.removeItem("timeCasaSelecionado");
+      localStorage.removeItem("timeForaSelecionado");
+      selecionarJogosPorTime(null, "casa");
+      selecionarJogosPorTime(null, "fora");
     }
     buscarDados();
   });
