@@ -647,7 +647,7 @@ function redirecionar(selectElement) {
 }
 
 let placarSelecionado = localStorage.getItem("placarSelecionado");
-let timeSelecionado = localStorage.getItem("timeSelecionado"); // Alterado para uma única variável de time
+let timeSelecionado = localStorage.getItem("timeSelecionado");
 
 function selecionarPlacaresIguais(placarAlvo) {
   const placares = document.querySelectorAll(".placar");
@@ -803,16 +803,24 @@ function criarTabela(dados) {
 
   function handleTimeClick(event) {
     if (!mostrarTimes) return;
-    const timeClicado = event.target.textContent.trim().replace(/\.\.\.$/, "");
-    const placar = event.target.closest(".placar");
-    if (timeSelecionado === timeClicado) {
+    const timeElement = event.target;
+    const timeClicado = timeElement.getAttribute("data-full-time") || timeElement.textContent.trim().replace(/\.\.\.$/, ""); // Usa data-full-time se disponível, senão o texto visível
+    const placar = timeElement.closest(".placar");
+    const timeA = placar.getAttribute("data-time-a");
+    const timeB = placar.getAttribute("data-time-b");
+
+    // Ajuste para encontrar o nome completo com base no texto clicado
+    let fullTimeClicado = timeA === timeClicado || timeB.startsWith(timeClicado) ? timeA : timeB;
+    if (!fullTimeClicado) fullTimeClicado = timeB === timeClicado || timeA.startsWith(timeClicado) ? timeB : timeA;
+
+    if (timeSelecionado === fullTimeClicado) {
       timeSelecionado = null;
       localStorage.removeItem("timeSelecionado");
       selecionarJogosPorTime(null);
     } else {
-      timeSelecionado = timeClicado;
-      localStorage.setItem("timeSelecionado", timeClicado);
-      selecionarJogosPorTime(timeClicado);
+      timeSelecionado = fullTimeClicado;
+      localStorage.setItem("timeSelecionado", fullTimeClicado);
+      selecionarJogosPorTime(fullTimeClicado);
     }
   }
 
@@ -856,9 +864,9 @@ function criarTabela(dados) {
                 : dado.time_b;
             textoPlacar = `${timeA}\n${textoPlacar}\n${timeB}`;
             placarTexto.innerHTML = `
-              <span class="time-casa" style="cursor: pointer;">${timeA}</span>
+              <span class="time-casa" style="cursor: pointer;" data-full-time="${dado.time_a}">${timeA}</span>
               <span>${textoPlacar.split("\n")[1]}</span>
-              <span class="time-fora" style="cursor: pointer;">${timeB}</span>
+              <span class="time-fora" style="cursor: pointer;" data-full-time="${dado.time_b}">${timeB}</span>
             `;
           } else {
             placarTexto.textContent = textoPlacar;
