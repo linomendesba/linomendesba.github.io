@@ -652,14 +652,14 @@ let timeForaSelecionado = localStorage.getItem("timeForaSelecionado");
 
 function selecionarPlacaresIguais(placarAlvo) {
   const placares = document.querySelectorAll(".placar");
+  if (!placarAlvo || mostrarTimes) {
+    placares.forEach((placar) => placar.classList.remove("placar-selecionado"));
+    return;
+  }
   placares.forEach((placar) => {
     const texto = placar.querySelector(".placar-texto").textContent.trim();
-    if (placarAlvo && !mostrarTimes) { // Só seleciona placar quando Ver Times está desativado
-      if (texto.includes(placarAlvo)) {
-        placar.classList.add("placar-selecionado");
-      } else {
-        placar.classList.remove("placar-selecionado");
-      }
+    if (texto.includes(placarAlvo)) {
+      placar.classList.add("placar-selecionado");
     } else {
       placar.classList.remove("placar-selecionado");
     }
@@ -668,18 +668,19 @@ function selecionarPlacaresIguais(placarAlvo) {
 
 function selecionarJogosPorTime(timeAlvo, tipoSelecao) {
   const placares = document.querySelectorAll(".placar");
+  if (!timeAlvo || !mostrarTimes) {
+    placares.forEach((placar) => {
+      placar.classList.remove("time-casa-selecionado", "time-fora-selecionado");
+    });
+    return;
+  }
   placares.forEach((placar) => {
-    const timeA = placar.getAttribute("data-time-a").replace(/\.\.\.$/, "");
-    const timeB = placar.getAttribute("data-time-b").replace(/\.\.\.$/, "");
-    if (timeAlvo && mostrarTimes) { // Só seleciona time quando Ver Times está ativado
-      const timeClicado = timeAlvo.replace(/\.\.\.$/, "");
-      if (tipoSelecao === "casa" && timeA === timeClicado) {
-        placar.classList.add("time-casa-selecionado");
-      } else if (tipoSelecao === "fora" && timeB === timeClicado) {
-        placar.classList.add("time-fora-selecionado");
-      } else {
-        placar.classList.remove("time-casa-selecionado", "time-fora-selecionado");
-      }
+    const timeA = placar.getAttribute("data-time-a");
+    const timeB = placar.getAttribute("data-time-b");
+    if (tipoSelecao === "casa" && timeA === timeAlvo) {
+      placar.classList.add("time-casa-selecionado");
+    } else if (tipoSelecao === "fora" && timeB === timeAlvo) {
+      placar.classList.add("time-fora-selecionado");
     } else {
       placar.classList.remove("time-casa-selecionado", "time-fora-selecionado");
     }
@@ -806,29 +807,31 @@ function criarTabela(dados) {
 
   function handleTimeClick(event) {
     if (!mostrarTimes) return; // Só permite clique em time quando Ver Times está ativado
-    const timeClicado = event.target.textContent.trim().replace(/\.\.\.$/, ""); // Remove "..." dos nomes abreviados
+    const timeClicado = event.target.textContent.trim().replace(/\.\.\.$/, ""); // Remove "..." para exibição
     const placar = event.target.closest(".placar");
-    const timeA = placar.getAttribute("data-time-a").replace(/\.\.\.$/, "");
-    const timeB = placar.getAttribute("data-time-b").replace(/\.\.\.$/, "");
-    if (timeClicado === timeA) {
-      if (timeCasaSelecionado === timeA) {
-        timeCasaSelecionado = null;
-        localStorage.removeItem("timeCasaSelecionado");
-        selecionarJogosPorTime(null, "casa");
-      } else {
-        timeCasaSelecionado = timeA;
-        localStorage.setItem("timeCasaSelecionado", timeA);
-        selecionarJogosPorTime(timeA, "casa");
-      }
-    } else if (timeClicado === timeB) {
-      if (timeForaSelecionado === timeB) {
-        timeForaSelecionado = null;
-        localStorage.removeItem("timeForaSelecionado");
-        selecionarJogosPorTime(null, "fora");
-      } else {
-        timeForaSelecionado = timeB;
-        localStorage.setItem("timeForaSelecionado", timeB);
-        selecionarJogosPorTime(timeB, "fora");
+    const timeA = placar.getAttribute("data-time-a"); // Usa o valor completo de time_a
+    const timeB = placar.getAttribute("data-time-b"); // Usa o valor completo de time_b
+    if (timeClicado === timeA.slice(0, timeClicado.length) || timeClicado === timeB.slice(0, timeClicado.length)) {
+      if (timeA.startsWith(timeClicado)) {
+        if (timeCasaSelecionado === timeA) {
+          timeCasaSelecionado = null;
+          localStorage.removeItem("timeCasaSelecionado");
+          selecionarJogosPorTime(null, "casa");
+        } else {
+          timeCasaSelecionado = timeA;
+          localStorage.setItem("timeCasaSelecionado", timeA);
+          selecionarJogosPorTime(timeA, "casa");
+        }
+      } else if (timeB.startsWith(timeClicado)) {
+        if (timeForaSelecionado === timeB) {
+          timeForaSelecionado = null;
+          localStorage.removeItem("timeForaSelecionado");
+          selecionarJogosPorTime(null, "fora");
+        } else {
+          timeForaSelecionado = timeB;
+          localStorage.setItem("timeForaSelecionado", timeB);
+          selecionarJogosPorTime(timeB, "fora");
+        }
       }
     }
   }
@@ -847,8 +850,8 @@ function criarTabela(dados) {
         if (!colunaMinuto.querySelector(".placar")) {
           const placar = document.createElement("div");
           placar.className = "placar";
-          placar.setAttribute("data-time-a", dado.time_a);
-          placar.setAttribute("data-time-b", dado.time_b);
+          placar.setAttribute("data-time-a", dado.time_a); // Usa o nome completo
+          placar.setAttribute("data-time-b", dado.time_b); // Usa o nome completo
 
           const tipoPlacar = seletorTipoPlacar.value;
           const placarFT = dado.ft;
@@ -904,10 +907,10 @@ function criarTabela(dados) {
           if (placarSelecionado && !mostrarTimes && textoPlacar.includes(placarSelecionado)) {
             placar.classList.add("placar-selecionado");
           }
-          if (timeCasaSelecionado && mostrarTimes && dado.time_a.replace(/\.\.\.$/, "") === timeCasaSelecionado) {
+          if (timeCasaSelecionado && mostrarTimes && dado.time_a === timeCasaSelecionado) {
             placar.classList.add("time-casa-selecionado");
           }
-          if (timeForaSelecionado && mostrarTimes && dado.time_b.replace(/\.\.\.$/, "") === timeForaSelecionado) {
+          if (timeForaSelecionado && mostrarTimes && dado.time_b === timeForaSelecionado) {
             placar.classList.add("time-fora-selecionado");
           }
 
