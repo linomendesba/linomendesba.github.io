@@ -652,14 +652,14 @@ let timeForaSelecionado = localStorage.getItem("timeForaSelecionado");
 
 function selecionarPlacaresIguais(placarAlvo) {
   const placares = document.querySelectorAll(".placar");
+  if (!placarAlvo || mostrarTimes) {
+    placares.forEach((placar) => placar.classList.remove("placar-selecionado"));
+    return;
+  }
   placares.forEach((placar) => {
-    const texto = placar.childNodes[0].textContent.trim();
-    if (placarAlvo && !mostrarTimes) {
-      if (texto.includes(placarAlvo)) {
-        placar.classList.add("placar-selecionado");
-      } else {
-        placar.classList.remove("placar-selecionado");
-      }
+    const texto = placar.querySelector(".placar-texto").textContent.trim();
+    if (texto.includes(placarAlvo)) {
+      placar.classList.add("placar-selecionado");
     } else {
       placar.classList.remove("placar-selecionado");
     }
@@ -793,34 +793,47 @@ function criarTabela(dados) {
 
   function handlePlacarClick(event) {
     if (mostrarTimes) return; // Desativa clique no placar quando Ver Times está ativado
-    const placar = event.currentTarget;
-    const texto = placar.childNodes[0].textContent.trim();
-    if (placarSelecionado === texto) {
+    const placarClicado = event.currentTarget.querySelector(".placar-texto").textContent.trim();
+    if (placarSelecionado === placarClicado) {
       placarSelecionado = null;
       localStorage.removeItem("placarSelecionado");
+      selecionarPlacaresIguais(null);
     } else {
-      placarSelecionado = texto;
-      localStorage.setItem("placarSelecionado", texto);
+      placarSelecionado = placarClicado;
+      localStorage.setItem("placarSelecionado", placarClicado);
+      selecionarPlacaresIguais(placarClicado);
     }
-    selecionarPlacaresIguais(placarSelecionado);
   }
 
   function handleTimeClick(event) {
     if (!mostrarTimes) return; // Só permite clique em time quando Ver Times está ativado
-    const timeSpan = event.target;
-    const timeClicado = timeSpan.textContent.trim().replace(/\.\.\.$/, "");
-    const placar = timeSpan.closest(".placar");
-    const timeA = placar.getAttribute("data-time-a");
-    const timeB = placar.getAttribute("data-time-b");
-    if (timeA.startsWith(timeClicado)) {
-      timeCasaSelecionado = (timeCasaSelecionado === timeA) ? null : timeA;
-      localStorage.setItem("timeCasaSelecionado", timeCasaSelecionado);
-    } else if (timeB.startsWith(timeClicado)) {
-      timeForaSelecionado = (timeForaSelecionado === timeB) ? null : timeB;
-      localStorage.setItem("timeForaSelecionado", timeForaSelecionado);
+    const timeClicado = event.target.textContent.trim().replace(/\.\.\.$/, ""); // Remove "..." para exibição
+    const placar = event.target.closest(".placar");
+    const timeA = placar.getAttribute("data-time-a"); // Usa o valor completo de time_a
+    const timeB = placar.getAttribute("data-time-b"); // Usa o valor completo de time_b
+    if (timeClicado === timeA.slice(0, timeClicado.length) || timeClicado === timeB.slice(0, timeClicado.length)) {
+      if (timeA.startsWith(timeClicado)) {
+        if (timeCasaSelecionado === timeA) {
+          timeCasaSelecionado = null;
+          localStorage.removeItem("timeCasaSelecionado");
+          selecionarJogosPorTime(null, "casa");
+        } else {
+          timeCasaSelecionado = timeA;
+          localStorage.setItem("timeCasaSelecionado", timeA);
+          selecionarJogosPorTime(timeA, "casa");
+        }
+      } else if (timeB.startsWith(timeClicado)) {
+        if (timeForaSelecionado === timeB) {
+          timeForaSelecionado = null;
+          localStorage.removeItem("timeForaSelecionado");
+          selecionarJogosPorTime(null, "fora");
+        } else {
+          timeForaSelecionado = timeB;
+          localStorage.setItem("timeForaSelecionado", timeB);
+          selecionarJogosPorTime(timeB, "fora");
+        }
+      }
     }
-    selecionarJogosPorTime(timeCasaSelecionado, "casa");
-    selecionarJogosPorTime(timeForaSelecionado, "fora");
   }
 
   dados.forEach((dado) => {
@@ -837,14 +850,15 @@ function criarTabela(dados) {
         if (!colunaMinuto.querySelector(".placar")) {
           const placar = document.createElement("div");
           placar.className = "placar";
-          placar.setAttribute("data-time-a", dado.time_a);
-          placar.setAttribute("data-time-b", dado.time_b);
+          placar.setAttribute("data-time-a", dado.time_a); // Usa o nome completo
+          placar.setAttribute("data-time-b", dado.time_b); // Usa o nome completo
 
           const tipoPlacar = seletorTipoPlacar.value;
           const placarFT = dado.ft;
           const placarHT = dado.ht;
 
           const placarTexto = document.createElement("span");
+          placarTexto.className = "placar-texto";
           let textoPlacar = tipoPlacar === "ft" ? placarFT : placarHT;
           if (mostrarHT) {
             textoPlacar =
