@@ -26,6 +26,7 @@ function redirecionar(select) {
         url === "https://www.betstat.site/betanofixo.html" ||
         url === "https://www.betstat.site/365radar.html" ||
         url === "https://www.betstat.site/365maximaconfronto.html" ||
+                url === "https://www.betstat.site/ranking.html" ||
         url === "https://www.betstat.site/365fiboht.html" ||
         url === "https://www.betstat.site/365tips.html" ||
         url === "https://www.betstat.site/365fiboexato.html" || // Novo
