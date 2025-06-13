@@ -124,7 +124,7 @@
     cursor: pointer;
     transition: all 0.3s ease;
   }
-        body {
+       body {
             background-color: #1e2129;
             color: #ffffff;
             font-family: Arial, sans-serif;
@@ -222,19 +222,19 @@
             background-color: #003d2e !important;
         }
         .movement-up::after {
-            content: ' ↑';
+            content: '↑' attr(data-movement);
             color: #1fac89;
             font-size: 12px;
             margin-left: 2px;
         }
         .movement-down::after {
-            content: ' ↓';
+            content: '↓' attr(data-movement);
             color: #ff5555;
             font-size: 12px;
             margin-left: 2px;
         }
         .movement-stable::after {
-            content: ' −';
+            content: '−';
             color: #ffffff;
             font-size: 12px;
             margin-left: 2px;
@@ -265,8 +265,12 @@
     <body>
       <div id="header"></div>
 
+      <br>
+      <br>
+       <br>
+      <br>
+
     <div class="container">
-        <h1>Ranking - Taça Glória Eterna</h1>
         <div class="controls">
             <div class="control-group">
                 <label for="league">Selecionar Liga</label>
@@ -321,6 +325,13 @@
                 </select>
             </div>
             <div class="control-group">
+                <label for="resultType">Resultado</label>
+                <select id="resultType">
+                    <option value="ft" selected>FT</option>
+                    <option value="ht">HT</option>
+                </select>
+            </div>
+            <div class="control-group">
                 <label for="searchTeam">Pesquisar Time</label>
                 <input type="text" id="searchTeam" placeholder="Pesquisar time...">
             </div>
@@ -332,11 +343,12 @@
         </div>
         <div id="ranking"></div>
     </div>
+    </div>
 
 
 
     <script>
-       let intervalId;
+        let intervalId;
         let isTableInitialized = false;
         let previousRankings = {}; // Armazena rankings por intervalo de tempo, mercado e liga
 
@@ -350,6 +362,7 @@
             const currentTimeRange = parseInt(document.getElementById("currentTimeRange").value);
             const compareTimeRange = parseInt(document.getElementById("compareTimeRange").value);
             const selectedMarket = document.getElementById("market").value;
+            const resultType = document.getElementById("resultType").value;
             const searchQuery = document.getElementById("searchTeam").value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const rankingDiv = document.getElementById("ranking");
             const topCardsDiv = document.getElementById("top-cards");
@@ -379,7 +392,7 @@
                         const compareRanking = {};
 
                         currentGames.forEach((game) => {
-                            const [golsA, golsB] = game.ft.split(" x ").map(Number);
+                            const [golsA, golsB] = (resultType === "ft" ? game.ft : game.ht).split(" x ").map(Number) || [0, 0];
                             const timeA = game.time_a;
                             const timeB = game.time_b;
                             const totalGols = golsA + golsB;
@@ -455,7 +468,7 @@
 
                         if (compareTimeRange > 0) {
                             compareGames.forEach((game) => {
-                                const [golsA, golsB] = game.ft.split(" x ").map(Number);
+                                const [golsA, golsB] = (resultType === "ft" ? game.ft : game.ht).split(" x ").map(Number) || [0, 0];
                                 const timeA = game.time_a;
                                 const timeB = game.time_b;
                                 const totalGols = golsA + golsB;
@@ -613,10 +626,14 @@
                         const rankingWithMovement = filteredTeams.map(team => {
                             const prevPos = comparePositions[team.name] || null;
                             let movement = 'stable';
+                            let movementValue = 0;
                             if (prevPos !== null && compareTimeRange > 0) {
-                                movement = prevPos > filteredTeams.indexOf(team) + 1 ? 'up' : prevPos < filteredTeams.indexOf(team) + 1 ? 'down' : 'stable';
+                                const currentPos = filteredTeams.indexOf(team) + 1;
+                                movementValue = prevPos - currentPos;
+                                movement = movementValue > 0 ? 'up' : movementValue < 0 ? 'down' : 'stable';
+                                movementValue = Math.abs(movementValue);
                             }
-                            return { ...team, movement };
+                            return { ...team, movement, movementValue };
                         });
 
                         allTables += `
@@ -644,7 +661,7 @@
                                         ${rankingWithMovement.map((item, index) => `
                                             <tr class="${index < 3 ? 'top-3' : index < 5 ? 'top-4-5' : ''}">
                                                 <td class="position">${index + 1}º</td>
-                                                <td class="name movement-${item.movement}">${item.name}</td>
+                                                <td class="name movement-${item.movement}" data-movement="${item.movementValue > 0 ? item.movementValue : ''}">${item.name}</td>
                                                 <td class="totalJogos">${item.totalJogos}</td>
                                                 <td class="golsMarcados">${item.golsMarcados}</td>
                                                 <td class="mediaGolsMarcados">${item.mediaGolsMarcados}</td>
@@ -677,7 +694,7 @@
                     const compareRanking = {};
 
                     currentGames.forEach((game) => {
-                        const [golsA, golsB] = game.ft.split(" x ").map(Number);
+                        const [golsA, golsB] = (resultType === "ft" ? game.ft : game.ht).split(" x ").map(Number) || [0, 0];
                         const timeA = game.time_a;
                         const timeB = game.time_b;
                         const totalGols = golsA + golsB;
@@ -753,7 +770,7 @@
 
                     if (compareTimeRange > 0) {
                         compareGames.forEach((game) => {
-                            const [golsA, golsB] = game.ft.split(" x ").map(Number);
+                            const [golsA, golsB] = (resultType === "ft" ? game.ft : game.ht).split(" x ").map(Number) || [0, 0];
                             const timeA = game.time_a;
                             const timeB = game.time_b;
                             const totalGols = golsA + golsB;
@@ -911,10 +928,14 @@
                     const rankingWithMovement = filteredTeams.map(team => {
                         const prevPos = comparePositions[team.name] || null;
                         let movement = 'stable';
+                        let movementValue = 0;
                         if (prevPos !== null && compareTimeRange > 0) {
-                            movement = prevPos > filteredTeams.indexOf(team) + 1 ? 'up' : prevPos < filteredTeams.indexOf(team) + 1 ? 'down' : 'stable';
+                            const currentPos = filteredTeams.indexOf(team) + 1;
+                            movementValue = prevPos - currentPos;
+                            movement = movementValue > 0 ? 'up' : movementValue < 0 ? 'down' : 'stable';
+                            movementValue = Math.abs(movementValue);
                         }
-                        return { ...team, movement };
+                        return { ...team, movement, movementValue };
                     });
 
                     // Atualizar cards dos 3 melhores
@@ -949,7 +970,7 @@
                                     ${rankingWithMovement.map((item, index) => `
                                         <tr class="${index < 3 ? 'top-3' : index < 5 ? 'top-4-5' : ''}">
                                             <td class="position">${index + 1}º</td>
-                                            <td class="name movement-${item.movement}">${item.name}</td>
+                                            <td class="name movement-${item.movement}" data-movement="${item.movementValue > 0 ? item.movementValue : ''}">${item.name}</td>
                                             <td class="totalJogos">${item.totalJogos}</td>
                                             <td class="golsMarcados">${item.golsMarcados}</td>
                                             <td class="mediaGolsMarcados">${item.mediaGolsMarcados}</td>
@@ -997,6 +1018,7 @@
 
                             row.cells[0].innerText = `${index + 1}º`;
                             row.cells[1].className = `name movement-${item.movement}`;
+                            row.cells[1].setAttribute("data-movement", item.movementValue > 0 ? item.movementValue : '');
                             row.cells[1].innerText = item.name;
                             row.cells[2].innerText = item.totalJogos;
                             row.cells[3].innerText = item.golsMarcados;
@@ -1040,6 +1062,11 @@
             fetchRanking();
         });
         document.getElementById("market").addEventListener("change", () => {
+            document.getElementById("ranking").innerHTML = "";
+            isTableInitialized = false;
+            fetchRanking();
+        });
+        document.getElementById("resultType").addEventListener("change", () => {
             document.getElementById("ranking").innerHTML = "";
             isTableInitialized = false;
             fetchRanking();
