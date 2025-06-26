@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { background-color: #1c1f26; color: white; font-family: Arial, sans-serif; margin: 0; padding: 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #333; padding: 5px; text-align: center; font-size: 14px; }
+    .hora { background: none; color: #888; }
+    .gols { color: #ffd700; }
+    .acertos { color: #fff; }
+    .porcentagem { color: #fff; }
+    .green { background-color: #018b06; }
+    .red { background-color: #be0e02; }
+    select { margin: 5px; padding: 5px; background-color: #333; color: white; border: none; }
+    th { background-color: #1c1f26; }
+  </style>
+</head>
+<body>
+  <div>
+    <label for="seletorHoras">Hora: </label>
+    <select id="seletorHoras">
+      <option value="3">3</option>
+      <option value="6">6</option>
+      <option value="12" selected>12</option>
+      <option value="24">24</option>
+    </select>
+
+    <label for="seletorResultado">Mercado: </label>
+    <select id="seletorResultado">
+      <option value="ambasMarcam">Ambas Sim</option>
+      <option value="ambasNaoMarcam">Ambas Não</option>
+      <option value="casaVence">Casa Vence</option>
+      <option value="foraVence">Fora Vence</option>
+      <option value="empate">Empate</option>
+      <option value="over1.5">Over 1.5</option>
+      <option value="under1.5">Under 1.5</option>
+      <option value="over2.5">Over 2.5</option>
+      <option value="under2.5">Under 2.5</option>
+      <option value="over3.5">Over 3.5</option>
+      <option value="under3.5">Under 3.5</option>
+      <option value="over5">5 ou Mais Gols</option>
+    </select>
+
+    <label for="seletorLiga">Liga: </label>
+    <select id="seletorLiga">
+      <option value="https://betstat.site/resultados/Copa%20America">Copa América</option>
+      <option value="https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna">Taça Glória Eterna</option>
+      <option value="https://betstat.site/resultados/Euro">Euro</option>
+      <option value="https://betstat.site/resultados/Campeonato%20Italiano">Campeonato Italiano</option>
+      <option value="https://betstat.site/resultados/Copa%20das%20estrelas">Copa das Estrelas</option>
+      <option value="https://betstat.site/resultados/Brasileir%C3%A3o%20Betano">Brasileirão Betano</option>
+    </select>
+  </div>
+
+  <table id="tabelaResultados">
+    <thead>
+      <tr id="headerRow"></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let currentHourStats = null;
+
+    async function buscarDados() {
+      const seletorHoras = document.querySelector("#seletorHoras");
+      const seletorResultado = document.querySelector("#seletorResultado");
+      const seletorLiga = document.querySelector("#seletorLiga");
+
+      const horasSelecionadas = parseInt(seletorHoras.value);
+      const mercadoSelecionado = seletorResultado.value;
+      const ligaUrl = seletorLiga.value;
+
+      try {
+        const response = await fetch(ligaUrl);
+        if (!response.ok) throw new Error("Erro ao buscar dados");
+        const dados = await response.json();
+
+        const stats = processarDados(dados, horasSelecionadas, mercadoSelecionado);
+
+        if (!currentHourStats || JSON.stringify(Object.keys(stats).sort()) !== JSON.stringify(Object.keys(currentHourStats).sort())) {
+          criarTabela(stats, mercadoSelecionado);
+        } else {
+          atualizarTabela(stats, mercadoSelecionado);
+        }
+
+        currentHourStats = stats;
+      } catch (e) {
+        console.error("Erro ao buscar dados:", e);
+      }
+    }
+
+    function processarDados(dados, horasSelecionadas, mercadoSelecionado) {
+      const estatisticas = [];
+      const now = new Date().getTime();
+
+      dados.forEach(dado => {
+        try {
+          const dataHora = new Date(dado.data).getTime();
+          const gameTime = new Date(dataHora + (dado.hora * 3600000));
+          const diffHoras = (now - gameTime.getTime()) / 3600000;
+
+          if (diffHoras >= 0 && diffHoras <= horasSelecionadas) {
+            const timestamp = gameTime.getTime();
+            const horaFormatada = gameTime.getHours().toString().padStart(2, '0');
+
+            const placar = dado.ft ? dado.ft.split(" x ") : [0, 0];
+            const g1 = parseInt(placar[0]) || 0;
+            const g2 = parseInt(placar[1]) || 0;
+            const totalGols = g1 + g2;
+
+            let acerto = false;
+            if (mercadoSelecionado === "ambasMarcam") acerto = g1 > 0 && g2 > 0;
+            else if (mercadoSelecionado === "ambasNaoMarcam") acerto = g1 === 0 || g2 === 0;
+            else if (mercadoSelecionado === "casaVence") acerto = g1 > g2;
+            else if (mercadoSelecionado === "foraVence") acerto = g2 > g1;
+            else if (mercadoSelecionado === "empate") acerto = g1 === g2;
+            else if (mercadoSelecionado === "over1.5") acerto = totalGols > 1.5;
+            else if (mercadoSelecionado === "under1.5") acerto = totalGols <= 1.5;
+            else if (mercadoSelecionado === "over2.5") acerto = totalGols > 2.5;
+            else if (mercadoSelecionado === "under2.5") acerto = totalGols <= 2.5;
+            else if (mercadoSelecionado === "over3.5") acerto = totalGols > 3.5;
+            else if (mercadoSelecionado === "under3.5") acerto = totalGols <= 3.5;
+            else if (mercadoSelecionado === "over5") acerto = totalGols >= 5;
+
+            estatisticas.push({
+              hora: horaFormatada,
+              timestamp: timestamp,
+              totalGols: totalGols,
+              acerto: acerto
+            });
+          }
+        } catch (e) {
+          console.warn("Erro processando jogo", dado);
+        }
+      });
+
+      const agrupado = {};
+      estatisticas
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .forEach(item => {
+          if (!agrupado[item.hora]) {
+            agrupado[item.hora] = { totalGols: 0, mercadoCount: 0, totalJogos: 0 };
+          }
+          agrupado[item.hora].totalGols += item.totalGols;
+          agrupado[item.hora].mercadoCount += item.acerto ? 1 : 0;
+          agrupado[item.hora].totalJogos++;
+        });
+
+      return agrupado;
+    }
+
+    function criarTabela(stats, mercadoSelecionado) {
+      const tabela = document.querySelector("#tabelaResultados tbody");
+      const header = document.querySelector("#headerRow");
+      tabela.innerHTML = "";
+      header.innerHTML = "";
+
+      const mediaMercado = {
+        "ambasMarcam": 45, "ambasNaoMarcam": 55, "casaVence": 40,
+        "foraVence": 30, "empate": 30, "over1.5": 65, "under1.5": 35,
+        "over2.5": 40, "under2.5": 60, "over3.5": 20, "under3.5": 80,
+        "over5": 10
+      };
+
+      const horas = Object.keys(stats).sort((a, b) => b - a);
+      if (horas.length === 0) {
+        header.innerHTML = `<th class="hora">Sem dados</th>`;
+        return;
+      }
+
+      header.innerHTML = `<th class="hora">🕐</th>${horas.map(h => `<th class="hora">${h}</th>`).join('')}`;
+
+      const linhaGols = document.createElement("tr");
+      linhaGols.innerHTML = `<td class="gols">⚽</td>${horas.map(h => `<td class="gols" data-hora="${h}" data-tipo="gols">${stats[h].totalGols}</td>`).join('')}`;
+      tabela.appendChild(linhaGols);
+
+      const linhaAcertos = document.createElement("tr");
+      linhaAcertos.innerHTML = `<td class="acertos">✔</td>${horas.map(h => {
+        const p = Math.floor((stats[h].mercadoCount / stats[h].totalJogos) * 100);
+        const cor = p >= (mediaMercado[mercadoSelecionado] || 50) ? "green" : "red";
+        return `<td class="acertos ${cor}" data-hora="${h}" data-tipo="acertos">${stats[h].mercadoCount}</td>`;
+      }).join('')}`;
+      tabela.appendChild(linhaAcertos);
+
+      const linhaPct = document.createElement("tr");
+      linhaPct.innerHTML = `<td class="porcentagem">📊</td>${horas.map(h => {
+        const p = Math.floor((stats[h].mercadoCount / stats[h].totalJogos) * 100);
+        const cor = p >= (mediaMercado[mercadoSelecionado] || 50) ? "green" : "red";
+        return `<td class="porcentagem ${cor}" data-hora="${h}" data-tipo="porcentagem">${p}%</td>`;
+      }).join('')}`;
+      tabela.appendChild(linhaPct);
+    }
+
+    function atualizarTabela(stats, mercadoSelecionado) {
+      const mediaMercado = {
+        "ambasMarcam": 45, "ambasNaoMarcam": 55, "casaVence": 40,
+        "foraVence": 30, "empate": 30, "over1.5": 65, "under1.5": 35,
+        "over2.5": 40, "under2.5": 60, "over3.5": 20, "under3.5": 80,
+        "over5": 10
+      };
+
+      document.querySelectorAll('[data-tipo="gols"]').forEach(cel => {
+        const h = cel.dataset.hora;
+        if (stats[h]) cel.textContent = stats[h].totalGols;
+      });
+
+      document.querySelectorAll('[data-tipo="acertos"]').forEach(cel => {
+        const h = cel.dataset.hora;
+        if (stats[h]) {
+          const p = Math.floor((stats[h].mercadoCount / stats[h].totalJogos) * 100);
+          const cor = p >= (mediaMercado[mercadoSelecionado] || 50) ? "green" : "red";
+          cel.textContent = stats[h].mercadoCount;
+          cel.className = `acertos ${cor}`;
+        }
+      });
+
+      document.querySelectorAll('[data-tipo="porcentagem"]').forEach(cel => {
+        const h = cel.dataset.hora;
+        if (stats[h]) {
+          const p = Math.floor((stats[h].mercadoCount / stats[h].totalJogos) * 100);
+          const cor = p >= (mediaMercado[mercadoSelecionado] || 50) ? "green" : "red";
+          cel.textContent = `${p}%`;
+          cel.className = `porcentagem ${cor}`;
+        }
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelector("#seletorHoras").addEventListener("change", buscarDados);
+      document.querySelector("#seletorResultado").addEventListener("change", buscarDados);
+      document.querySelector("#seletorLiga").addEventListener("change", buscarDados);
+      buscarDados();
+      setInterval(buscarDados, 30000);
+    });
+  </script>
+</body>
+</html>
