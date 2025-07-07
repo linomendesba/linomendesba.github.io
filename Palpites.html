@@ -376,30 +376,14 @@ function calcularPalpite(relacionados, jogoAtual) {
     });
   });
 
-  // Ajustar porcentagens com peso maior para confrontos diretos
-  const casaConfrontos = confrontosDiretos.filter(j => {
-    const [g1, g2] = j.ft.split(" x ").map(Number);
-    return g1 > g2;
-  }).length / (confrontosDiretos.length || 1) * 100;
-  const foraConfrontos = confrontosDiretos.filter(j => {
-    const [g1, g2] = j.ft.split(" x ").map(Number);
-    return g1 < g2;
-  }).length / (confrontosDiretos.length || 1) * 100;
-  const empateConfrontos = confrontosDiretos.filter(j => {
-    const [g1, g2] = j.ft.split(" x ").map(Number);
-    return g1 === g2;
-  }).length / (confrontosDiretos.length || 1) * 100;
+  // Ajustar "Ambas Marcam" com peso maior para confrontos diretos
   const ambasSimConfrontos = confrontosDiretos.filter(j => {
     const [g1, g2] = j.ft.split(" x ").map(Number);
     return g1 > 0 && g2 > 0;
   }).length / (confrontosDiretos.length || 1) * 100;
-  const ambasNaoConfrontos = 100 - ambasSimConfrontos;
-
-  const casaGerais = (casaVence / (jogosGerais.length || 1) * 100) || 0;
-  const foraGerais = (foraVence / (jogosGerais.length || 1) * 100) || 0;
-  const empateGerais = (empate / (jogosGerais.length || 1) * 100) || 0;
   const ambasSimGerais = (ambasSim / (jogosGerais.length || 1) * 100) || 0;
-  const ambasNaoGerais = (ambasNao / (jogosGerais.length || 1) * 100) || 0;
+  const ambasSimAjustada = Math.round(ambasSimConfrontos * 0.6 + ambasSimGerais * 0.4);
+  const ambasNaoAjustada = 100 - ambasSimAjustada;
 
   return {
     over15: Math.round(over15 / total * 100),
@@ -409,11 +393,11 @@ function calcularPalpite(relacionados, jogoAtual) {
     over35: Math.round(over35 / total * 100),
     under35: Math.round((total - over35) / total * 100),
     over5: Math.round(over5 / total * 100),
-    ambasSim: Math.round(ambasSimConfrontos * 0.6 + ambasSimGerais * 0.4),
-    ambasNao: Math.round(ambasNaoConfrontos * 0.6 + ambasNaoGerais * 0.4),
-    casa: Math.round(casaConfrontos * 0.6 + casaGerais * 0.4),
-    fora: Math.round(foraConfrontos * 0.6 + foraGerais * 0.4),
-    empate: Math.round(empateConfrontos * 0.6 + empateGerais * 0.4),
+    ambasSim: Math.round(parseFloat(ambasSimAjustada)),
+    ambasNao: Math.round(parseFloat(ambasNaoAjustada)),
+    casa: Math.round(casaVence / total * 100),
+    fora: Math.round(foraVence / total * 100),
+    empate: Math.round(empate / total * 100),
     gols1: Math.round(gols1 / total * 100),
     gols2: Math.round(gols2 / total * 100),
     gols3: Math.round(gols3 / total * 100),
@@ -452,17 +436,29 @@ async function gerarPalpitesDaLiga(valor) {
 
     const cards = container.getElementsByClassName("palpite-card");
     proximos.forEach((jogo, index) => {
-      if (jogo.liga.toLowerCase() !== "copa américa".toLowerCase()) {
-        return; // Ignora jogos que não são da Copa América
-      }
-
       const relacionados = historico.filter(j =>
-        j.liga.toLowerCase() === "copa américa".toLowerCase() &&
+        j.liga.toLowerCase() === liga.toLowerCase() &&
         (j.time_a === jogo.team_home || j.time_b === jogo.team_home ||
          j.time_a === jogo.team_visit || j.time_b === jogo.team_visit)
       );
 
       let palpite = calcularPalpite(relacionados, jogo);
+
+      // Determinar o mercado de resultado com maior porcentagem
+      const resultados = [
+        { nome: 'casa', valor: parseFloat(palpite.casa), label: '🏠 Casa Vence', threshold: 40 },
+        { nome: 'empate', valor: parseFloat(palpite.empate), label: '🚫 Empate', threshold: 30 },
+        { nome: 'fora', valor: parseFloat(palpite.fora), label: '🚀 Fora Vence', threshold: 30 }
+      ];
+      const maxResultado = resultados.reduce((max, curr) => curr.valor > max.valor ? curr : max, resultados[0]);
+
+      // Determinar o mercado de gols com maior porcentagem para cada categoria
+      const golsMarkets = [
+        { over: 'over15', under: 'under15', overThreshold: 65, underThreshold: 35 },
+        { over: 'over25', under: 'under25', overThreshold: 40, underThreshold: 60 },
+        { over: 'over35', under: 'under35', overThreshold: 20, underThreshold: 80 },
+        { over: 'over5', under: null, overThreshold: 10, underThreshold: null }
+      ];
 
       let card = cards[index];
       if (!card) {
@@ -473,21 +469,15 @@ async function gerarPalpitesDaLiga(valor) {
 
       card.innerHTML = `
         <h2>${jogo.team_home} x ${jogo.team_visit}</h2>
-        <div class="horario-jogo">🕐 ${jogo.time || "06:02"}</div>
+        <div class="horario-jogo">🕐 ${jogo.time || "05:56"}</div>
         <div class="section">
           <div class="section-title">Resultado</div>
-          <div class="stat">
-            <div class="stat-label">🏠 Casa Vence</div>
-            <div class="stat-value ${parseFloat(palpite.casa) >= 40 ? 'above-average' : 'below-average'}">${palpite.casa}% <span style="font-size: 1.4em">${parseFloat(palpite.casa) >= 40 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">🚫 Empate</div>
-            <div class="stat-value ${parseFloat(palpite.empate) >= 30 ? 'above-average' : 'below-average'}">${palpite.empate}% <span style="font-size: 1.4em">${parseFloat(palpite.empate) >= 30 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">🚀 Fora Vence</div>
-            <div class="stat-value ${parseFloat(palpite.fora) >= 30 ? 'above-average' : 'below-average'}">${palpite.fora}% <span style="font-size: 1.4em">${parseFloat(palpite.fora) >= 30 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
+          ${resultados.map(res => `
+            <div class="stat">
+              <div class="stat-label">${res.label}</div>
+              <div class="stat-value ${res.nome === maxResultado.nome ? 'above-average' : 'below-average'}">${res.valor}% <span style="font-size: 1.4em">${res.nome === maxResultado.nome ? '👍🏻' : '👎🏻'}</span></div>
+            </div>
+          `).join('')}
         </div>
         <div class="section">
           <div class="section-title">Ambas Marcam</div>
@@ -502,34 +492,31 @@ async function gerarPalpitesDaLiga(valor) {
         </div>
         <div class="section">
           <div class="section-title">Gols</div>
-          <div class="stat">
-            <div class="stat-label">⚽ Over 1.5</div>
-            <div class="stat-value ${parseFloat(palpite.over15) >= 65 ? 'above-average' : 'below-average'}">${palpite.over15}% <span style="font-size: 1.4em">${parseFloat(palpite.over15) >= 65 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">⚽ Under 1.5</div>
-            <div class="stat-value ${parseFloat(palpite.under15) >= 35 ? 'above-average' : 'below-average'}">${palpite.under15}% <span style="font-size: 1.4em">${parseFloat(palpite.under15) >= 35 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">⚽ Over 2.5</div>
-            <div class="stat-value ${parseFloat(palpite.over25) >= 40 ? 'above-average' : 'below-average'}">${palpite.over25}% <span style="font-size: 1.4em">${parseFloat(palpite.over25) >= 40 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">⚽ Under 2.5</div>
-            <div class="stat-value ${parseFloat(palpite.under25) >= 60 ? 'above-average' : 'below-average'}">${palpite.under25}% <span style="font-size: 1.4em">${parseFloat(palpite.under25) >= 60 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">⚽ Over 3.5</div>
-            <div class="stat-value ${parseFloat(palpite.over35) >= 20 ? 'above-average' : 'below-average'}">${palpite.over35}% <span style="font-size: 1.4em">${parseFloat(palpite.over35) >= 20 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">⚽ Under 3.5</div>
-            <div class="stat-value ${parseFloat(palpite.under35) >= 80 ? 'above-average' : 'below-average'}">${palpite.under35}% <span style="font-size: 1.4em">${parseFloat(palpite.under35) >= 80 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">🔥 5 Gols ou Mais</div>
-            <div class="stat-value ${parseFloat(palpite.over5) >= 10 ? 'above-average' : 'below-average'}">${palpite.over5}% <span style="font-size: 1.4em">${parseFloat(palpite.over5) >= 10 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
+          ${golsMarkets.map(m => {
+            if (m.under) {
+              const overValue = parseFloat(palpite[m.over]);
+              const underValue = parseFloat(palpite[m.under]);
+              const maxValue = Math.max(overValue, underValue);
+              const isOverMax = overValue === maxValue;
+              return `
+                <div class="stat">
+                  <div class="stat-label">⚽ Over ${m.over.replace('over', '')}</div>
+                  <div class="stat-value ${isOverMax ? 'above-average' : 'below-average'}">${overValue}% <span style="font-size: 1.4em">${isOverMax ? '👍🏻' : '👎🏻'}</span></div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">⚽ Under ${m.under.replace('under', '')}</div>
+                  <div class="stat-value ${!isOverMax ? 'above-average' : 'below-average'}">${underValue}% <span style="font-size: 1.4em">${!isOverMax ? '👍🏻' : '👎🏻'}</span></div>
+                </div>
+              `;
+            } else {
+              return `
+                <div class="stat">
+                  <div class="stat-label">🔥 5 Gols ou Mais</div>
+                  <div class="stat-value ${parseFloat(palpite[m.over]) >= m.overThreshold ? 'above-average' : 'below-average'}">${palpite[m.over]}% <span style="font-size: 1.4em">${parseFloat(palpite[m.over]) >= m.overThreshold ? '👍🏻' : '👎🏻'}</span></div>
+                </div>
+              `;
+            }
+          }).join('')}
         </div>
         <div class="section">
           <div class="section-title">Gols Exatos</div>
@@ -562,7 +549,7 @@ async function gerarPalpitesDaLiga(valor) {
     }
   } catch (error) {
     console.error("Erro ao carregar dados:", error);
-    container.innerHTML = `<div class="erro">Erro ao carregar dados: ${error.message}. Verifique a URL ou conexão.</div>`;
+    container.innerHTML = `<div class="erro">Erro ao carregar dados: ${error.message}. Tente novamente mais tarde.</div>`;
   }
 }
 
