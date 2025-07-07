@@ -314,261 +314,247 @@
 
 
     <script>
-function calcularPalpite(relacionados, jogoAtual) {
-  if (!relacionados || relacionados.length === 0 || !jogoAtual) {
-    return {
-      over15: 0, under15: 0,
-      over25: 0, under25: 0,
-      over35: 0, under35: 0,
-      over5: 0,
-      ambasSim: 0, ambasNao: 0,
-      casa: 0, fora: 0, empate: 0,
-      gols1: 0, gols2: 0, gols3: 0, gols4: 0,
-      placarMaisProvavel: "N/D",
-      placarSugerido: "N/D"
-    };
-  }
-
-  const total = relacionados.length;
-  let over15 = 0, over25 = 0, over35 = 0, over5 = 0;
-  let gols1 = 0, gols2 = 0, gols3 = 0, gols4 = 0;
-  let ambasSim = 0, ambasNao = 0, casaVence = 0, foraVence = 0, empate = 0;
-  let placares = [];
-
-  const confrontosDiretos = relacionados.filter(j =>
-    j.liga.toLowerCase().includes(jogoAtual.liga.toLowerCase()) &&
-    ((j.time_a.toLowerCase() === jogoAtual.team_home.toLowerCase() && j.time_b.toLowerCase() === jogoAtual.team_visit.toLowerCase()) ||
-     (j.time_a.toLowerCase() === jogoAtual.team_visit.toLowerCase() && j.time_b.toLowerCase() === jogoAtual.team_home.toLowerCase()))
-  );
-  const jogosGerais = relacionados.filter(j =>
-    j.liga.toLowerCase().includes(jogoAtual.liga.toLowerCase()) &&
-    (j.time_a.toLowerCase() === jogoAtual.team_home.toLowerCase() || j.time_b.toLowerCase() === jogoAtual.team_home.toLowerCase() ||
-     j.time_a.toLowerCase() === jogoAtual.team_visit.toLowerCase() || j.time_b.toLowerCase() === jogoAtual.team_visit.toLowerCase())
-  );
-
-  [confrontosDiretos, jogosGerais].forEach(group => {
-    group.forEach(j => {
-      const partes = j.ft?.split(" x ");
-      if (partes?.length === 2) {
-        const g1 = parseInt(partes[0].trim());
-        const g2 = parseInt(partes[1].trim());
-        if (!isNaN(g1) && !isNaN(g2)) {
-          const totalGols = g1 + g2;
-          if (totalGols > 1.5) over15++;
-          if (totalGols > 2.5) over25++;
-          if (totalGols > 3.5) over35++;
-          if (totalGols >= 5) over5++;
-
-          if (totalGols === 1) gols1++;
-          if (totalGols === 2) gols2++;
-          if (totalGols === 3) gols3++;
-          if (totalGols === 4) gols4++;
-
-          if (g1 > 0 && g2 > 0) ambasSim++;
-          else ambasNao++;
-          if (g1 > g2) casaVence++;
-          else if (g1 < g2) foraVence++;
-          else empate++;
-
-          placares.push(`${g1} x ${g2}`);
-        }
+    function calcularPalpite(relacionados, jogoAtual) {
+      if (!relacionados || relacionados.length === 0 || !jogoAtual) {
+        return {
+          over15: 0, under15: 0,
+          over25: 0, under25: 0,
+          over35: 0, under35: 0,
+          over5: 0,
+          ambasSim: 0, ambasNao: 0,
+          casa: 0, fora: 0, empate: 0,
+          gols1: 0, gols2: 0, gols3: 0, gols4: 0,
+          placarMaisProvavel: "N/D",
+          placarSugerido: "N/D"
+        };
       }
-    });
-  });
 
-  const ambasSimConfrontos = confrontosDiretos.length ? confrontosDiretos.filter(j => {
-    const [g1, g2] = j.ft.split(" x ").map(Number);
-    return g1 > 0 && g2 > 0;
-  }).length / confrontosDiretos.length * 100 : 0;
-  const ambasSimGerais = jogosGerais.length ? (ambasSim / jogosGerais.length * 100) : 0;
-  const ambasSimAjustada = Math.round(ambasSimConfrontos * 0.6 + ambasSimGerais * 0.4);
-  const ambasNaoAjustada = 100 - ambasSimAjustada;
+      const total = relacionados.length;
+      let over15 = 0, over25 = 0, over35 = 0, over5 = 0;
+      let gols1 = 0, gols2 = 0, gols3 = 0, gols4 = 0;
+      let ambasSim = 0, ambasNao = 0, casaVence = 0, foraVence = 0, empate = 0;
+      let placares = [];
 
-  return {
-    over15: Math.round(over15 / total * 100) || 0,
-    under15: Math.round((total - over15) / total * 100) || 0,
-    over25: Math.round(over25 / total * 100) || 0,
-    under25: Math.round((total - over25) / total * 100) || 0,
-    over35: Math.round(over35 / total * 100) || 0,
-    under35: Math.round((total - over35) / total * 100) || 0,
-    over5: Math.round(over5 / total * 100) || 0,
-    ambasSim: Math.round(ambasSimAjustada) || 0,
-    ambasNao: Math.round(ambasNaoAjustada) || 0,
-    casa: Math.round(casaVence / total * 100) || 0,
-    fora: Math.round(foraVence / total * 100) || 0,
-    empate: Math.round(empate / total * 100) || 0,
-    gols1: Math.round(gols1 / total * 100) || 0,
-    gols2: Math.round(gols2 / total * 100) || 0,
-    gols3: Math.round(gols3 / total * 100) || 0,
-    gols4: Math.round(gols4 / total * 100) || 0,
-    placarMaisProvavel: placares.length ? placares.sort((a, b) => placares.filter(x => x === b).length - placares.filter(x => x === a).length)[0] : "N/D",
-    placarSugerido: placares.length ? placares.sort((a, b) => placares.filter(x => x === b).length - placares.filter(x => x === a).length)[0] : "N/D"
-  };
-}
-
-function determinarSugestao(palpite) {
-  return "Nenhuma sugestão disponível.";
-}
-
-async function gerarPalpitesDaLiga(valor) {
-  const [liga, urlHistorico, urlProximos] = valor.split('|');
-  const container = document.getElementById("palpites-container");
-
-  try {
-    const [historicoResp, proximosResp] = await Promise.all([
-      fetch(urlHistorico).then(res => {
-        if (!res.ok) throw new Error(`Erro ao carregar histórico: ${res.status}`);
-        return res.json();
-      }),
-      fetch(urlProximos).then(res => {
-        if (!res.ok) throw new Error(`Erro ao carregar próximos: ${res.status}`);
-        return res.json();
-      })
-    ]);
-
-    const historico = await historicoResp;
-    const proximos = await proximosResp;
-
-    if (!historico || !proximos || historico.length === 0 || proximos.length === 0) {
-      throw new Error("Dados não retornados ou insuficientes.");
-    }
-
-    const cards = container.getElementsByClassName("palpite-card");
-    proximos.forEach((jogo, index) => {
-      const relacionados = historico.filter(j =>
-        j.liga.toLowerCase().includes(liga.toLowerCase()) &&
-        (j.time_a.toLowerCase() === jogo.team_home.toLowerCase() || j.time_b.toLowerCase() === jogo.team_home.toLowerCase() ||
-         j.time_a.toLowerCase() === jogo.team_visit.toLowerCase() || j.time_b.toLowerCase() === jogo.team_visit.toLowerCase())
+      // Filtrar confrontos diretos e jogos gerais
+      const confrontosDiretos = relacionados.filter(j =>
+        (j.time_a === jogoAtual.team_home && j.time_b === jogoAtual.team_visit) ||
+        (j.time_a === jogoAtual.team_visit && j.time_b === jogoAtual.team_home)
+      );
+      const jogosGerais = relacionados.filter(j =>
+        (j.time_a === jogoAtual.team_home || j.time_b === jogoAtual.team_home) ||
+        (j.time_a === jogoAtual.team_visit || j.time_b === jogoAtual.team_visit)
       );
 
-      if (relacionados.length === 0) {
-        console.warn(`Nenhum dado histórico encontrado para ${jogo.team_home} x ${jogo.team_visit}`);
-      }
+      // Calcular estatísticas com base em confrontos diretos e jogos gerais
+      [confrontosDiretos, jogosGerais].forEach(group => {
+        group.forEach(j => {
+          const partes = j.ft?.split(" x ");
+          if (partes?.length === 2) {
+            const g1 = parseInt(partes[0].trim());
+            const g2 = parseInt(partes[1].trim());
+            if (!isNaN(g1) && !isNaN(g2)) {
+              const totalGols = g1 + g2;
+              if (totalGols > 1.5) over15++;
+              if (totalGols > 2.5) over25++;
+              if (totalGols > 3.5) over35++;
+              if (totalGols >= 5) over5++;
 
-      let palpite = calcularPalpite(relacionados, jogo);
+              if (totalGols === 1) gols1++;
+              if (totalGols === 2) gols2++;
+              if (totalGols === 3) gols3++;
+              if (totalGols === 4) gols4++;
 
-      const resultados = [
-        { nome: 'casa', valor: parseFloat(palpite.casa), label: '🏠 Casa Vence' },
-        { nome: 'empate', valor: parseFloat(palpite.empate), label: '🚫 Empate' },
-        { nome: 'fora', valor: parseFloat(palpite.fora), label: '🚀 Fora Vence' }
-      ];
-      const maxResultado = resultados.reduce((max, curr) => curr.valor > max.valor ? curr : max, resultados[0]);
+              if (g1 > 0 && g2 > 0) ambasSim++;
+              else ambasNao++;
+              if (g1 > g2) casaVence++;
+              else if (g1 < g2) foraVence++;
+              else empate++;
 
-      const golsMarkets = [
-        { over: 'over15', under: 'under15', overThreshold: 65, underThreshold: 35 },
-        { over: 'over25', under: 'under25', overThreshold: 40, underThreshold: 60 },
-        { over: 'over35', under: 'under35', overThreshold: 20, underThreshold: 80 },
-        { over: 'over5', under: null, overThreshold: 10, underThreshold: null }
-      ];
-
-      let card = cards[index];
-      if (!card) {
-        card = document.createElement("div");
-        card.className = "palpite-card";
-        container.appendChild(card);
-      }
-
-      card.innerHTML = `
-        <h2>${jogo.team_home} x ${jogo.team_visit}</h2>
-        <div class="horario-jogo">🕐 ${jogo.time || "05:50"}</div>
-        <div class="section">
-          <div class="section-title">Resultado</div>
-          ${resultados.map(res => `
-            <div class="stat">
-              <div class="stat-label">${res.label}</div>
-              <div class="stat-value ${res.nome === maxResultado.nome ? 'above-average' : 'below-average'}">${res.valor}% <span style="font-size: 1.4em">${res.nome === maxResultado.nome ? '👍🏻' : '👎🏻'}</span></div>
-            </div>
-          `).join('')}
-        </div>
-        <div class="section">
-          <div class="section-title">Ambas Marcam</div>
-          <div class="stat">
-            <div class="stat-label">✅ Ambas Marcam SIM</div>
-            <div class="stat-value ${parseFloat(palpite.ambasSim) >= 45 ? 'above-average' : 'below-average'}">${palpite.ambasSim}% <span style="font-size: 1.4em">${parseFloat(palpite.ambasSim) >= 45 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">❌ Ambas Marcam NÃO</div>
-            <div class="stat-value ${parseFloat(palpite.ambasNao) >= 55 ? 'above-average' : 'below-average'}">${palpite.ambasNao}% <span style="font-size: 1.4em">${parseFloat(palpite.ambasNao) >= 55 ? '👍🏻' : '👎🏻'}</span></div>
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-title">Gols</div>
-          ${golsMarkets.map(m => {
-            if (m.under) {
-              const overValue = parseFloat(palpite[m.over]);
-              const underValue = parseFloat(palpite[m.under]);
-              const isOverAbove = overValue >= m.overThreshold;
-              const isUnderAbove = underValue >= m.underThreshold;
-              const maxValue = Math.max(overValue, underValue);
-              const isOverMax = overValue === maxValue;
-              return `
-                <div class="stat">
-                  <div class="stat-label">⚽ Over ${m.over.replace('over', '')}</div>
-                  <div class="stat-value ${isOverMax ? 'above-average' : 'below-average'}">${overValue}% <span style="font-size: 1.4em">${isOverMax ? '👍🏻' : '👎🏻'}</span></div>
-                </div>
-                <div class="stat">
-                  <div class="stat-label">⚽ Under ${m.under.replace('under', '')}</div>
-                  <div class="stat-value ${!isOverMax ? 'above-average' : 'below-average'}">${underValue}% <span style="font-size: 1.4em">${!isOverMax ? '👍🏻' : '👎🏻'}</span></div>
-                </div>
-              `;
-            } else {
-              return `
-                <div class="stat">
-                  <div class="stat-label">🔥 ${m.over.replace('over', '5 Gols ou Mais')}</div>
-                  <div class="stat-value ${parseFloat(palpite[m.over]) >= m.overThreshold ? 'above-average' : 'below-average'}">${palpite[m.over]}% <span style="font-size: 1.4em">${parseFloat(palpite[m.over]) >= m.overThreshold ? '👍🏻' : '👎🏻'}</span></div>
-                </div>
-              `;
+              placares.push(`${g1} x ${g2}`);
             }
-          }).join('')}
-        </div>
-        <div class="section">
-          <div class="section-title">Gols Exatos</div>
-          <div class="stat">
-            <div class="stat-label">🎯 1 Gol</div>
-            <div class="stat-value exact-goals">${palpite.gols1}%</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">🎯 2 Gols</div>
-            <div class="stat-value exact-goals">${palpite.gols2}%</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">🎯 3 Gols</div>
-            <div class="stat-value exact-goals">${palpite.gols3}%</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">🎯 4 Gols</div>
-            <div class="stat-value exact-goals">${palpite.gols4}%</div>
-          </div>
-        </div>
-      `;
-      card.style.opacity = '0';
-      requestAnimationFrame(() => {
-        card.style.opacity = '1';
+          }
+        });
       });
+
+      // Ajustar "Ambas Marcam" com peso maior para confrontos diretos
+      const ambasSimConfrontos = confrontosDiretos.filter(j => {
+        const [g1, g2] = j.ft.split(" x ").map(Number);
+        return g1 > 0 && g2 > 0;
+      }).length / (confrontosDiretos.length || 1) * 100;
+      const ambasSimGerais = (ambasSim / (jogosGerais.length || 1) * 100) || 0;
+      const ambasSimAjustada = Math.round(ambasSimConfrontos * 0.6 + ambasSimGerais * 0.4);
+      const ambasNaoAjustada = 100 - ambasSimAjustada;
+
+      return {
+        over15: Math.round(over15 / total * 100),
+        under15: Math.round((total - over15) / total * 100),
+        over25: Math.round(over25 / total * 100),
+        under25: Math.round((total - over25) / total * 100),
+        over35: Math.round(over35 / total * 100),
+        under35: Math.round((total - over35) / total * 100),
+        over5: Math.round(over5 / total * 100),
+        ambasSim: Math.round(parseFloat(ambasSimAjustada)),
+        ambasNao: Math.round(parseFloat(ambasNaoAjustada)),
+        casa: Math.round(casaVence / total * 100),
+        fora: Math.round(foraVence / total * 100),
+        empate: Math.round(empate / total * 100),
+        gols1: Math.round(gols1 / total * 100),
+        gols2: Math.round(gols2 / total * 100),
+        gols3: Math.round(gols3 / total * 100),
+        gols4: Math.round(gols4 / total * 100),
+        placarMaisProvavel: "N/D",
+        placarSugerido: "N/D"
+      };
+    }
+
+    function determinarSugestao(palpite) {
+      return "Nenhuma sugestão disponível.";
+    }
+
+    async function gerarPalpitesDaLiga(valor) {
+      const [liga, urlHistorico, urlProximos] = valor.split('|');
+      const container = document.getElementById("palpites-container");
+
+      try {
+        const [historicoResp, proximosResp] = await Promise.all([
+          fetch(urlHistorico).then(res => {
+            if (!res.ok) throw new Error(`Erro ao carregar histórico: ${res.status}`);
+            return res.json();
+          }),
+          fetch(urlProximos).then(res => {
+            if (!res.ok) throw new Error(`Erro ao carregar próximos: ${res.status}`);
+            return res.json();
+          })
+        ]);
+
+        const historico = await historicoResp;
+        const proximos = await proximosResp;
+
+        if (!historico || !proximos) {
+          throw new Error("Dados não retornados corretamente.");
+        }
+
+        const cards = container.getElementsByClassName("palpite-card");
+        proximos.forEach((jogo, index) => {
+          const relacionados = historico.filter(j =>
+            j.liga.toLowerCase() === liga.toLowerCase() &&
+            (j.time_a === jogo.team_home || j.time_b === jogo.team_home ||
+             j.time_a === jogo.team_visit || j.time_b === jogo.team_visit)
+          );
+
+          let palpite = calcularPalpite(relacionados, jogo);
+
+          let card = cards[index];
+          if (!card) {
+            card = document.createElement("div");
+            card.className = "palpite-card";
+            container.appendChild(card);
+          }
+
+          card.innerHTML = `
+            <h2>${jogo.team_home} x ${jogo.team_visit}</h2>
+            <div class="horario-jogo">🕐 ${jogo.time || "04:52"}</div>
+            <div class="section">
+              <div class="section-title">Resultado</div>
+              <div class="stat">
+                <div class="stat-label">🏠 Casa Vence</div>
+                <div class="stat-value ${parseFloat(palpite.casa) >= 40 ? 'above-average' : 'below-average'}">${palpite.casa}% <span style="font-size: 1.4em">${parseFloat(palpite.casa) >= 40 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">🚫 Empate</div>
+                <div class="stat-value ${parseFloat(palpite.empate) >= 30 ? 'above-average' : 'below-average'}">${palpite.empate}% <span style="font-size: 1.4em">${parseFloat(palpite.empate) >= 30 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">🚀 Fora Vence</div>
+                <div class="stat-value ${parseFloat(palpite.fora) >= 30 ? 'above-average' : 'below-average'}">${palpite.fora}% <span style="font-size: 1.4em">${parseFloat(palpite.fora) >= 30 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-title">Ambas Marcam</div>
+              <div class="stat">
+                <div class="stat-label">✅ Ambas Marcam SIM</div>
+                <div class="stat-value ${parseFloat(palpite.ambasSim) >= 45 ? 'above-average' : 'below-average'}">${palpite.ambasSim}% <span style="font-size: 1.4em">${parseFloat(palpite.ambasSim) >= 45 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">❌ Ambas Marcam NÃO</div>
+                <div class="stat-value ${parseFloat(palpite.ambasNao) >= 55 ? 'above-average' : 'below-average'}">${palpite.ambasNao}% <span style="font-size: 1.4em">${parseFloat(palpite.ambasNao) >= 55 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-title">Gols</div>
+              <div class="stat">
+                <div class="stat-label">⚽ Over 1.5</div>
+                <div class="stat-value ${parseFloat(palpite.over15) >= 65 ? 'above-average' : 'below-average'}">${palpite.over15}% <span style="font-size: 1.4em">${parseFloat(palpite.over15) >= 65 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">⚽ Under 1.5</div>
+                <div class="stat-value ${parseFloat(palpite.under15) >= 35 ? 'above-average' : 'below-average'}">${palpite.under15}% <span style="font-size: 1.4em">${parseFloat(palpite.under15) >= 35 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">⚽ Over 2.5</div>
+                <div class="stat-value ${parseFloat(palpite.over25) >= 40 ? 'above-average' : 'below-average'}">${palpite.over25}% <span style="font-size: 1.4em">${parseFloat(palpite.over25) >= 40 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">⚽ Under 2.5</div>
+                <div class="stat-value ${parseFloat(palpite.under25) >= 60 ? 'above-average' : 'below-average'}">${palpite.under25}% <span style="font-size: 1.4em">${parseFloat(palpite.under25) >= 60 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">⚽ Over 3.5</div>
+                <div class="stat-value ${parseFloat(palpite.over35) >= 20 ? 'above-average' : 'below-average'}">${palpite.over35}% <span style="font-size: 1.4em">${parseFloat(palpite.over35) >= 20 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">⚽ Under 3.5</div>
+                <div class="stat-value ${parseFloat(palpite.under35) >= 80 ? 'above-average' : 'below-average'}">${palpite.under35}% <span style="font-size: 1.4em">${parseFloat(palpite.under35) >= 80 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">🔥 5 Gols ou Mais</div>
+                <div class="stat-value ${parseFloat(palpite.over5) >= 10 ? 'above-average' : 'below-average'}">${palpite.over5}% <span style="font-size: 1.4em">${parseFloat(palpite.over5) >= 10 ? '👍🏻' : '👎🏻'}</span></div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="section-title">Gols Exatos</div>
+              <div class="stat">
+                <div class="stat-label">🎯 1 Gol</div>
+                <div class="stat-value exact-goals">${palpite.gols1}%</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">🎯 2 Gols</div>
+                <div class="stat-value exact-goals">${palpite.gols2}%</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">🎯 3 Gols</div>
+                <div class="stat-value exact-goals">${palpite.gols3}%</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">🎯 4 Gols</div>
+                <div class="stat-value exact-goals">${palpite.gols4}%</div>
+              </div>
+            </div>
+          `;
+          card.style.opacity = '0';
+          requestAnimationFrame(() => {
+            card.style.opacity = '1';
+          });
+        });
+
+        while (cards.length > proximos.length) {
+          container.removeChild(cards[proximos.length]);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+        container.innerHTML = `<div class="erro">Erro ao carregar dados: ${error.message}. Tente novamente mais tarde.</div>`;
+      }
+    }
+
+    document.getElementById("liga-select").addEventListener("change", e => {
+      clearInterval(window.palpiteInterval);
+      gerarPalpitesDaLiga(e.target.value);
+      window.palpiteInterval = setInterval(() => gerarPalpitesDaLiga(e.target.value), 5000);
     });
 
-    while (cards.length > proximos.length) {
-      container.removeChild(cards[proximos.length]);
-    }
-  } catch (error) {
-    console.error("Erro ao carregar dados:", error);
-    container.innerHTML = `<div class="erro">Erro ao carregar dados: ${error.message}. Verifique as URLs ou conexão. Tente novamente mais tarde.</div>`;
-  }
-}
-
-document.getElementById("liga-select").addEventListener("change", e => {
-  clearInterval(window.palpiteInterval);
-  gerarPalpitesDaLiga(e.target.value);
-  window.palpiteInterval = setInterval(() => gerarPalpitesDaLiga(e.target.value), 5000);
-});
-
-const select = document.getElementById("liga-select");
-if (select) {
-  gerarPalpitesDaLiga(select.value);
-  window.palpiteInterval = setInterval(() => gerarPalpitesDaLiga(select.value), 5000);
-} else {
-  console.error("Elemento 'liga-select' não encontrado.");
-}
+    const select = document.getElementById("liga-select");
+    gerarPalpitesDaLiga(select.value);
+    window.palpiteInterval = setInterval(() => gerarPalpitesDaLiga(select.value), 5000);
     </script>
 
     <script>
