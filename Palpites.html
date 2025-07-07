@@ -335,7 +335,6 @@ function calcularPalpite(relacionados, jogoAtual) {
   let ambasSim = 0, ambasNao = 0, casaVence = 0, foraVence = 0, empate = 0;
   let placares = [];
 
-  // Filtrar confrontos diretos e jogos gerais com normalização de liga
   const confrontosDiretos = relacionados.filter(j =>
     j.liga.toLowerCase().includes(jogoAtual.liga.toLowerCase()) &&
     ((j.time_a.toLowerCase() === jogoAtual.team_home.toLowerCase() && j.time_b.toLowerCase() === jogoAtual.team_visit.toLowerCase()) ||
@@ -347,7 +346,6 @@ function calcularPalpite(relacionados, jogoAtual) {
      j.time_a.toLowerCase() === jogoAtual.team_visit.toLowerCase() || j.time_b.toLowerCase() === jogoAtual.team_visit.toLowerCase())
   );
 
-  // Calcular estatísticas
   [confrontosDiretos, jogosGerais].forEach(group => {
     group.forEach(j => {
       const partes = j.ft?.split(" x ");
@@ -378,7 +376,6 @@ function calcularPalpite(relacionados, jogoAtual) {
     });
   });
 
-  // Ajustar "Ambas Marcam" com peso maior para confrontos diretos
   const ambasSimConfrontos = confrontosDiretos.length ? confrontosDiretos.filter(j => {
     const [g1, g2] = j.ft.split(" x ").map(Number);
     return g1 > 0 && g2 > 0;
@@ -432,8 +429,8 @@ async function gerarPalpitesDaLiga(valor) {
     const historico = await historicoResp;
     const proximos = await proximosResp;
 
-    if (!historico || !proximos) {
-      throw new Error("Dados não retornados corretamente.");
+    if (!historico || !proximos || historico.length === 0 || proximos.length === 0) {
+      throw new Error("Dados não retornados ou insuficientes.");
     }
 
     const cards = container.getElementsByClassName("palpite-card");
@@ -444,9 +441,12 @@ async function gerarPalpitesDaLiga(valor) {
          j.time_a.toLowerCase() === jogo.team_visit.toLowerCase() || j.time_b.toLowerCase() === jogo.team_visit.toLowerCase())
       );
 
+      if (relacionados.length === 0) {
+        console.warn(`Nenhum dado histórico encontrado para ${jogo.team_home} x ${jogo.team_visit}`);
+      }
+
       let palpite = calcularPalpite(relacionados, jogo);
 
-      // Determinar o mercado com maior porcentagem
       const resultados = [
         { nome: 'casa', valor: parseFloat(palpite.casa), label: '🏠 Casa Vence' },
         { nome: 'empate', valor: parseFloat(palpite.empate), label: '🚫 Empate' },
@@ -454,7 +454,6 @@ async function gerarPalpitesDaLiga(valor) {
       ];
       const maxResultado = resultados.reduce((max, curr) => curr.valor > max.valor ? curr : max, resultados[0]);
 
-      // Determinar o mercado "Over" ou "Under" com maior porcentagem para cada categoria
       const golsMarkets = [
         { over: 'over15', under: 'under15', overThreshold: 65, underThreshold: 35 },
         { over: 'over25', under: 'under25', overThreshold: 40, underThreshold: 60 },
@@ -471,7 +470,7 @@ async function gerarPalpitesDaLiga(valor) {
 
       card.innerHTML = `
         <h2>${jogo.team_home} x ${jogo.team_visit}</h2>
-        <div class="horario-jogo">🕐 ${jogo.time || "04:52"}</div>
+        <div class="horario-jogo">🕐 ${jogo.time || "05:50"}</div>
         <div class="section">
           <div class="section-title">Resultado</div>
           ${resultados.map(res => `
@@ -553,7 +552,7 @@ async function gerarPalpitesDaLiga(valor) {
     }
   } catch (error) {
     console.error("Erro ao carregar dados:", error);
-    container.innerHTML = `<div class="erro">Erro ao carregar dados: ${error.message}. Tente novamente mais tarde.</div>`;
+    container.innerHTML = `<div class="erro">Erro ao carregar dados: ${error.message}. Verifique as URLs ou conexão. Tente novamente mais tarde.</div>`;
   }
 }
 
@@ -564,8 +563,12 @@ document.getElementById("liga-select").addEventListener("change", e => {
 });
 
 const select = document.getElementById("liga-select");
-gerarPalpitesDaLiga(select.value);
-window.palpiteInterval = setInterval(() => gerarPalpitesDaLiga(select.value), 5000);
+if (select) {
+  gerarPalpitesDaLiga(select.value);
+  window.palpiteInterval = setInterval(() => gerarPalpitesDaLiga(select.value), 5000);
+} else {
+  console.error("Elemento 'liga-select' não encontrado.");
+}
     </script>
 
     <script>
