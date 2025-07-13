@@ -24,6 +24,7 @@ function redirecionar(select) {
         url === "https://www.betstat.site/maximabetano.html" ||
         url === "https://www.betstat.site/porcentagembetano.html" ||
         url === "https://www.betstat.site/macrobetano.html" ||
+                url === "https://www.betstat.site/simulador.html" ||
         url === "https://www.betstat.site/betanofixo.html" ||
                 url === "https://www.betstat.site/LigaStat.html" ||
         url === "https://www.betstat.site/365radar.html" ||
