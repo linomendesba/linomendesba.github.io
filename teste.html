@@ -646,16 +646,37 @@ async function fetchMatches() {
     resultsData = resultadosResp || [];
     currentLeague = leagueName;
 
-    return proximosResp.slice(0, 6).map(match => ({
-      id: String(match.id),
-      event_id: String(match.event_id),
-      time: match.time || 'N/A',
-      team_home: match.team_home || 'N/A',
-      team_visit: match.team_visit || 'N/A',
-      date: match.captured_date || match.start_time?.split('T')[0] || 'N/A',
-      league: leagueName,
-      start_time: match.start_time ? new Date(match.start_time) : new Date()
-    }));
+    // Combine upcoming matches with completed matches
+    const upcomingMatches = Array.isArray(proximosResp) ? proximosResp : [proximosResp];
+    const completedMatches = Array.isArray(resultadosResp) ? resultadosResp : [];
+    matchesData = [
+      ...upcomingMatches.map(match => ({
+        id: String(match.id),
+        event_id: String(match.event_id),
+        time: match.time || 'N/A',
+        team_home: match.team_home || 'N/A',
+        team_visit: match.team_visit || 'N/A',
+        date: match.captured_date || match.start_time?.split('T')[0] || 'N/A',
+        league: leagueName,
+        start_time: match.start_time ? new Date(match.start_time) : new Date(),
+        hora: 0,
+        minuto: 0
+      })),
+      ...completedMatches.map(match => ({
+        id: String(match.id),
+        event_id: String(match.event_id),
+        time: `${match.hora}:${match.minuto}`,
+        team_home: match.time_a || 'N/A',
+        team_visit: match.time_b || 'N/A',
+        date: match.data?.split('T')[0] || 'N/A',
+        league: leagueName,
+        start_time: new Date(`${match.data}T${match.hora}:${match.minuto}:00-03:00`),
+        hora: match.hora || 0,
+        minuto: match.minuto || 0
+      }))
+    ].slice(0, 6); // Limit to 6 matches
+
+    return matchesData;
   } catch (error) {
     console.error('Erro ao carregar dados:', error);
     return [];
@@ -870,7 +891,7 @@ async function updateMatches() {
 
     requestAnimationFrame(() => {
       if (!selectedMatchId && matchesData.length > 0) {
-        selectedMatchId = matchesData[0].id; // Seleciona o 1º confronto automaticamente
+        selectedMatchId = matchesData[0].id;
         console.log('Auto-selected first match ID:', selectedMatchId);
       }
       if (selectedMatchId) {
@@ -905,8 +926,7 @@ function openModal(matchId, market, odds, description) {
     return;
   }
 
-  // Check if match has already started
-  const now = new Date();
+  const now = new Date('2025-07-14T06:51:00-03:00');
   if (match.start_time <= now) {
     alert('Erro: Não é possível apostar em partidas que já começaram.');
     return;
@@ -989,8 +1009,7 @@ function placeBet() {
     return;
   }
 
-  // Double-check match hasn't started
-  const now = new Date();
+  const now = new Date('2025-07-14T06:51:00-03:00');
   if (match.start_time <= now) {
     alert('Erro: Não é possível apostar em partidas que já começaram.');
     return;
@@ -1027,14 +1046,24 @@ function placeBet() {
 }
 
 function checkBetResult(bet) {
-  const now = new Date();
-  // Find the latest result from resultsData, sorted by date descending
+  const now = new Date('2025-07-14T06:51:00-03:00'); // Current time
+  const match = matchesData.find(m => m.id === bet.matchId);
+  if (!match) {
+    console.log('Match not found for bet:', bet);
+    return null;
+  }
+
+  // Find the latest result based on hora and minuto
   const latestResult = resultsData
     .filter(r => 
-      (String(r.id) === String(bet.matchId) || String(r.event_id) === String(bet.eventId)) && 
-      new Date(r.data || r.start_time) <= now
+      (String(r.id) === String(bet.matchId) || String(r.event_id) === String(bet.eventId)) &&
+      r.time_a === match.team_home && r.time_b === match.team_visit
     )
-    .sort((a, b) => new Date(b.data || b.start_time) - new Date(a.data || a.start_time))[0];
+    .sort((a, b) => {
+      const timeA = a.hora * 60 + a.minuto;
+      const timeB = b.hora * 60 + b.minuto;
+      return timeB - timeA; // Sort descending to get the latest
+    })[0];
 
   if (!latestResult || !latestResult.ft) {
     console.log('No latest result data or ft for bet:', bet, 'resultsData:', resultsData);
@@ -1100,7 +1129,6 @@ function updateBets() {
 
   if (activeBets.length === 0) {
     betsDiv.innerHTML += '<p style="color: #888; text-align: center;">Nenhuma aposta realizada</p>';
-anyang
     return;
   }
 
@@ -1108,9 +1136,7 @@ anyang
     const betDiv = document.createElement('div');
     betDiv.className = 'bet-card';
 
-    // Check and update result only if match has started and no result is set
-    const match = matchesData.find(m => m.id === bet.matchId);
-    if (!bet.result && match && match.start_time <= new Date()) {
+    if (!bet.result) {
       const result = checkBetResult(bet);
       if (result) {
         bet.result = result;
@@ -1144,15 +1170,22 @@ anyang
       </div>
       <button class="button-delete" onclick="deleteBet('${bet.id}')">Remover</button>
     `;
-
     betsDiv.appendChild(betDiv);
   });
 }
 
 async function updateResults() {
   try {
-    await updateMatches(); // Fetch latest data including results
-    updateBets(); // Update bets with new results
+    const selectedValue = document.getElementById('leagueSelector').value;
+    const [, resultadosUrl] = selectedValue.split('|');
+    
+    console.log('Fetching latest results from:', resultadosUrl);
+    const response = await fetch(resultadosUrl);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    resultsData = await response.json() || [];
+    console.log('Updated resultsData:', resultsData);
+
+    updateBets();
   } catch (error) {
     console.error('Erro ao atualizar resultados:', error);
     document.getElementById('matches').innerHTML = '<div class="error">Erro ao atualizar resultados. Tente novamente.</div>';
