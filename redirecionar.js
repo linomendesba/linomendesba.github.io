@@ -12,6 +12,7 @@ function redirecionar(select) {
         url === "https://www.betstat.site/central/" ||
                 url === "https://t.me/+H4sIBW3_H0oyMTI5" ||
         url === "https://www.betstat.site/sequencia.html" ||
+                url === "https://www.betstat.site/equipes.html" ||
         url === "https://www.betstat.site/porcentagem365.html" ||
         url === "https://www.betstat.site/buscadortime.html" ||
         url === "https://www.betstat.site/betanomaximasconfronto.html" ||
