@@ -942,7 +942,7 @@ function createMatchCard(match) {
           </div>
         </div>
         <div class="market-section">
-          <div class the="market-header">Total de gols exatos</div>
+          <div class="market-header">Total de gols exatos</div>
           <div class="market-content">
             <div class="market-row">
               <button class="market-button" onclick="openModal('${match.id}', '0Gols', ${match.odds['0Gols']}, '0 gols no jogo')">
@@ -1160,6 +1160,11 @@ function isDateWithinOneDay(date1, date2) {
   return diffDays <= 1;
 }
 
+function normalizeTeamName(name) {
+  // Normalize team names for comparison
+  return name?.trim().toLowerCase().replace(/\s+/g, ' ') || '';
+}
+
 function checkBetResult(bet) {
   console.log('Checking bet result for:', bet);
   console.log('Bet details:', {
@@ -1170,19 +1175,29 @@ function checkBetResult(bet) {
     teamVisit: bet.teamVisit
   });
 
-  // Normalize team names for comparison
-  const normalizeTeamName = (name) => name?.trim().toLowerCase().replace(/\s+/g, ' ');
+  // Log all results from the bet's date
+  const betDate = normalizeDateFormat(bet.matchDate);
+  const resultsOnDate = resultsData.filter(r => r.data.split('T')[0] === betDate);
+  console.log(`Results for date ${betDate}:`, resultsOnDate.map(r => ({
+    data: r.data,
+    hora: r.hora,
+    minuto: r.minuto,
+    time_a: r.time_a,
+    time_b: r.time_b,
+    ft: r.ft
+  })));
 
-  // Get the 20 most recent results, sorted by date and time
+  // Sort all results by date and time
   const latestResults = resultsData
     .sort((a, b) => {
       const dateA = new Date(`${a.data}T${a.hora}:${a.minuto}:00Z`);
       const dateB = new Date(`${b.data}T${b.hora}:${b.minuto}:00Z`);
       return dateB - dateA; // Sort descending
-    })
-    .slice(0, 20); // Take the 20 most recent
+    });
+    // Removed slice to check all results
 
-  console.log('Latest 20 results:', latestResults.map(r => ({
+  console.log('All results count:', latestResults.length);
+  console.log('Sample of latest results:', latestResults.slice(0, 20).map(r => ({
     data: r.data,
     hora: r.hora,
     minuto: r.minuto,
@@ -1201,7 +1216,8 @@ function checkBetResult(bet) {
     const matchVisit = normalizeTeamName(bet.teamVisit);
     const resultHome = normalizeTeamName(r.time_a);
     const resultVisit = normalizeTeamName(r.time_b);
-    const teamsMatch = matchHome === resultHome && matchVisit === resultVisit;
+    const teamsMatch = (resultHome.includes(matchHome) || matchHome.includes(resultHome)) &&
+                       (resultVisit.includes(matchVisit) || matchVisit.includes(resultVisit));
     console.log('Comparing:', {
       resultData: resultDate,
       betMatchDate: betDate,
