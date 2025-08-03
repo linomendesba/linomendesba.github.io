@@ -1113,7 +1113,6 @@ function placeBet() {
   const bet = {
     id: Date.now() + Math.random().toString(36).substr(2, 9),
     matchId: currentMatch,
-    eventId: match.event_id,
     market: currentMarket.market,
     odds: currentMarket.odds,
     amount: amount,
@@ -1125,7 +1124,9 @@ function placeBet() {
     matchTime: match.time,
     matchHora: match.hora,
     matchMinuto: match.minuto,
-    matchDate: match.date
+    matchDate: match.date,
+    teamHome: match.team_home,
+    teamVisit: match.team_visit
   };
 
   activeBets.push(bet);
@@ -1138,6 +1139,9 @@ function placeBet() {
 function checkBetResult(bet) {
   console.log('Checking bet result for:', bet);
 
+  // Normalize team names for comparison
+  const normalizeTeamName = (name) => name?.trim().toLowerCase().replace(/\s+/g, ' ');
+
   // Get the 5 most recent results, sorted by date and time
   const latestResults = resultsData
     .sort((a, b) => {
@@ -1149,11 +1153,25 @@ function checkBetResult(bet) {
 
   console.log('Latest 5 results:', latestResults);
 
-  // Find the result matching the bet's event_id
+  // Find the result matching date, time, and team names
   const result = latestResults.find(r => {
-    const eventIdMatch = String(r.event_id) === String(bet.eventId);
-    console.log('Comparing event_id:', { resultEventId: r.event_id, betEventId: bet.eventId, eventIdMatch });
-    return eventIdMatch;
+    const dateMatch = r.data.split('T')[0] === bet.matchDate;
+    const timeMatch = r.hora === bet.matchHora && r.minuto === bet.matchMinuto;
+    const matchHome = normalizeTeamName(bet.teamHome);
+    const matchVisit = normalizeTeamName(bet.teamVisit);
+    const resultHome = normalizeTeamName(r.time_a);
+    const resultVisit = normalizeTeamName(r.time_b);
+    const teamsMatch = matchHome === resultHome && matchVisit === resultVisit;
+    console.log('Comparing:', {
+      dateMatch,
+      timeMatch,
+      matchHome,
+      matchVisit,
+      resultHome,
+      resultVisit,
+      teamsMatch
+    });
+    return dateMatch && timeMatch && teamsMatch;
   });
 
   if (!result || !result.ft) {
