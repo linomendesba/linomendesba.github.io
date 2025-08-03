@@ -11,6 +11,7 @@ function redirecionar(select) {
         url === "https://youtu.be/oRqi3RvH8zE" ||
         url === "https://www.betstat.site/central/" ||
                 url === "https://t.me/tip_zera" ||
+                 url === "https://t.me/+grZB16eZ9ZJkNjVh" ||
         url === "https://www.betstat.site/sequencia.html" ||
                 url === "https://www.betstat.site/equipes.html" ||
         url === "https://www.betstat.site/porcentagem365.html" ||
