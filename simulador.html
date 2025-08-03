@@ -1124,7 +1124,8 @@ function placeBet() {
     league: currentLeague,
     matchTime: match.time,
     matchHora: match.hora,
-    matchMinuto: match.minuto
+    matchMinuto: match.minuto,
+    matchDate: match.date
   };
 
   activeBets.push(bet);
@@ -1145,21 +1146,32 @@ function checkBetResult(bet) {
   // Normalize team names for comparison
   const normalizeTeamName = (name) => name?.trim().toLowerCase().replace(/\s+/g, ' ');
 
-  // Filter results matching team names and sort by date
+  // Filter results matching event_id or team names and date/time
   const latestResults = resultsData
     .filter(r => {
+      const eventIdMatch = String(r.event_id) === String(bet.eventId);
       const matchHome = normalizeTeamName(match.team_home);
       const matchVisit = normalizeTeamName(match.team_visit);
       const resultHome = normalizeTeamName(r.time_a);
       const resultVisit = normalizeTeamName(r.time_b);
-      const timeMatch = r.hora === bet.matchHora && r.minuto === bet.matchMinuto;
       const teamsMatch = matchHome === resultHome && matchVisit === resultVisit;
-      console.log('Comparing:', { matchHome, matchVisit, resultHome, resultVisit, timeMatch, teamsMatch });
-      return teamsMatch && timeMatch;
+      const dateMatch = r.data.split('T')[0] === bet.matchDate;
+      const timeMatch = r.hora === bet.matchHora && r.minuto === bet.matchMinuto;
+      console.log('Comparing:', {
+        eventIdMatch,
+        matchHome,
+        matchVisit,
+        resultHome,
+        resultVisit,
+        dateMatch,
+        timeMatch,
+        teamsMatch
+      });
+      return (eventIdMatch || (teamsMatch && dateMatch && timeMatch));
     })
     .sort((a, b) => {
-      const dateA = new Date(`${a.data}T${a.hora}:${a.minuto}:00-03:00`);
-      const dateB = new Date(`${b.data}T${b.hora}:${b.minuto}:00-03:00`);
+      const dateA = new Date(`${a.data}T${a.hora}:${a.minuto}:00Z`);
+      const dateB = new Date(`${b.data}T${b.hora}:${b.minuto}:00Z`);
       return dateB - dateA; // Sort descending to get the latest
     })
     .slice(0, 5); // Limit to 5 most recent results
@@ -1172,7 +1184,7 @@ function checkBetResult(bet) {
   const result = latestResults[0]; // Use the most recent result
   console.log('Found result for bet:', result);
 
-  // Parse the ft field (e.g., "2 x 1")
+  // Parse the ft field (e.g., "0 x 2")
   let homeGoals, awayGoals;
   try {
     [homeGoals, awayGoals] = result.ft.split(' x ').map(Number);
