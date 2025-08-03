@@ -787,25 +787,25 @@ async function fetchMatches() {
 
 function generateRandomOdds() {
   const odds = {
-    Casa: (Math.random() * 2 + 1.5).toFixed(2), // 1.5 to 3.5
-    Empate: (Math.random() * 1 + 3.0).toFixed(2), // 3.0 to 4.0
-    Fora: (Math.random() * 2 + 2.0).toFixed(2), // 2.0 to 4.0
-    Over0_5: (Math.random() * 0.3 + 1.05).toFixed(2), // 1.05 to 1.35
-    Under0_5: (Math.random() * 4 + 6.0).toFixed(2), // 6.0 to 10.0
-    Over1_5: (Math.random() * 0.5 + 1.4).toFixed(2), // 1.4 to 1.9
-    Under1_5: (Math.random() * 1 + 2.0).toFixed(2), // 2.0 to 3.0
-    Over2_5: (Math.random() * 1 + 2.0).toFixed(2), // 2.0 to 3.0
-    Under2_5: (Math.random() * 0.5 + 1.3).toFixed(2), // 1.3 to 1.8
-    Over3_5: (Math.random() * 2 + 4.0).toFixed(2), // 4.0 to 6.0
-    Under3_5: (Math.random() * 0.3 + 1.1).toFixed(2), // 1.1 to 1.4
-    AmbasSim: (Math.random() * 0.5 + 1.8).toFixed(2), // 1.8 to 2.3
-    AmbasNao: (Math.random() * 0.5 + 1.5).toFixed(2), // 1.5 to 2.0
-    '0Gols': (Math.random() * 2 + 7.0).toFixed(2), // 7.0 to 9.0
-    '1Gols': (Math.random() * 1 + 3.5).toFixed(2), // 3.5 to 4.5
-    '2Gols': (Math.random() * 1 + 3.0).toFixed(2), // 3.0 to 4.0
-    '3Gols': (Math.random() * 1 + 4.0).toFixed(2), // 4.0 to 5.0
-    '4Gols': (Math.random() * 2 + 8.0).toFixed(2), // 8.0 to 10.0
-    '5Gols': (Math.random() * 5 + 12.0).toFixed(2) // 12.0 to 17.0
+    Casa: (Math.random() * 2 + 1.5).toFixed(2),
+    Empate: (Math.random() * 1 + 3.0).toFixed(2),
+    Fora: (Math.random() * 2 + 2.0).toFixed(2),
+    Over0_5: (Math.random() * 0.3 + 1.05).toFixed(2),
+    Under0_5: (Math.random() * 4 + 6.0).toFixed(2),
+    Over1_5: (Math.random() * 0.5 + 1.4).toFixed(2),
+    Under1_5: (Math.random() * 1 + 2.0).toFixed(2),
+    Over2_5: (Math.random() * 1 + 2.0).toFixed(2),
+    Under2_5: (Math.random() * 0.5 + 1.3).toFixed(2),
+    Over3_5: (Math.random() * 2 + 4.0).toFixed(2),
+    Under3_5: (Math.random() * 0.3 + 1.1).toFixed(2),
+    AmbasSim: (Math.random() * 0.5 + 1.8).toFixed(2),
+    AmbasNao: (Math.random() * 0.5 + 1.5).toFixed(2),
+    '0Gols': (Math.random() * 2 + 7.0).toFixed(2),
+    '1Gols': (Math.random() * 1 + 3.5).toFixed(2),
+    '2Gols': (Math.random() * 1 + 3.0).toFixed(2),
+    '3Gols': (Math.random() * 1 + 4.0).toFixed(2),
+    '4Gols': (Math.random() * 2 + 8.0).toFixed(2),
+    '5Gols': (Math.random() * 5 + 12.0).toFixed(2)
   };
   return odds;
 }
@@ -1088,7 +1088,10 @@ function placeBet() {
     teams: `${match.team_home} vs ${match.team_visit}`,
     result: null,
     timestamp: new Date().toISOString(),
-    league: currentLeague
+    league: currentLeague,
+    matchTime: match.time,
+    matchHora: match.hora,
+    matchMinuto: match.minuto
   };
 
   activeBets.push(bet);
@@ -1099,18 +1102,37 @@ function placeBet() {
 
 function checkBetResult(bet) {
   const match = matchesData.find(m => m.id === bet.matchId);
-  if (!match) return null;
+  if (!match) {
+    console.log('Partida não encontrada para aposta:', bet);
+    return null;
+  }
 
-  const result = resultsData.find(r => 
-    (String(r.id) === String(bet.matchId) || String(r.event_id) === String(bet.eventId)) &&
-    r.time_a === match.team_home && 
-    r.time_b === match.team_visit
-  );
+  // Obter os 5 resultados mais recentes com base na data e hora
+  const latestResults = resultsData
+    .filter(r => 
+      r.time_a === match.team_home && 
+      r.time_b === match.team_visit && 
+      r.hora === bet.matchHora && 
+      r.minuto === bet.matchMinuto
+    )
+    .sort((a, b) => {
+      const dateA = new Date(`${a.data}T${a.hora}:${a.minuto}:00-03:00`);
+      const dateB = new Date(`${b.data}T${b.hora}:${b.minuto}:00-03:00`);
+      return dateB - dateA; // Ordenar do mais recente ao mais antigo
+    })
+    .slice(0, 5); // Pegar os 5 mais recentes
 
-  if (!result || !result.ft) return null;
+  if (latestResults.length === 0 || !latestResults[0].ft) {
+    console.log('Nenhum resultado recente encontrado para:', bet, 'resultsData:', latestResults);
+    return null;
+  }
 
+  const result = latestResults[0]; // Usar o resultado mais recente
   const [homeGoals, awayGoals] = result.ft.split(' x ').map(Number);
-  if (isNaN(homeGoals) || isNaN(awayGoals)) return null;
+  if (isNaN(homeGoals) || isNaN(awayGoals)) {
+    console.warn('Dados de gols inválidos:', result.ft);
+    return null;
+  }
 
   const totalGoals = homeGoals + awayGoals;
 
@@ -1216,17 +1238,12 @@ async function updateResults() {
     const response = await fetch(resultadosUrl);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     resultsData = Array.isArray(await response.json()) ? await response.json() : [];
+    console.log('Resultados atualizados:', resultsData);
     updateBets();
   } catch (error) {
     console.error('Erro ao atualizar resultados:', error);
   }
 }
-
-document.getElementById('betModal').addEventListener('click', function(e) {
-  if (e.target === this) {
-    closeModal();
-  }
-});
 
 document.addEventListener('DOMContentLoaded', () => {
   loadBets();
@@ -1234,26 +1251,10 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(() => {
     updateMatches();
     updateResults();
-  }, 30000); // Update every 30 seconds
+  }, 30000);
 });
 
-// Anti-devtools and security scripts remain unchanged
-document.addEventListener("contextmenu", function(e) {
-  e.preventDefault();
-});
-
-document.addEventListener("keydown", function(e) {
-  if (e.key === "F12" || 
-      (e.ctrlKey && e.shiftKey && e.key === "I") || 
-      (e.ctrlKey && e.key === "u") || 
-      (e.ctrlKey && e.shiftKey && e.key === "J") || 
-      (e.ctrlKey && e.shiftKey && e.key === "C") || 
-      (e.ctrlKey && e.key === "s") || 
-      (e.ctrlKey && e.key === "p")) {
-    e.preventDefault();
-  }
-});
-
+// Anti-devtools and security scripts (unified)
 const devtools = { open: false };
 const element = new Image();
 Object.defineProperty(element, 'id', {
@@ -1274,6 +1275,22 @@ Object.defineProperty(element, 'id', {
   setInterval(checkDevTools, 500);
 })();
 
+document.addEventListener("contextmenu", function(e) {
+  e.preventDefault();
+});
+
+document.addEventListener("keydown", function(e) {
+  if (e.key === "F12" || 
+      (e.ctrlKey && e.shiftKey && e.key === "I") || 
+      (e.ctrlKey && e.key === "u") || 
+      (e.ctrlKey && e.shiftKey && e.key === "J") || 
+      (e.ctrlKey && e.shiftKey && e.key === "C") || 
+      (e.ctrlKey && e.key === "s") || 
+      (e.ctrlKey && e.key === "p")) {
+    e.preventDefault();
+  }
+});
+
 console.log('%c', element);
 setInterval(function() {
   if (devtools.open) {
@@ -1290,100 +1307,6 @@ document.addEventListener('dragstart', function(e) {
   e.preventDefault();
 });
 
-console.log = function() {};
-console.debug = function() {};
-console.info = function() {};
-    </script>
-
-    <script>
-      // Bloqueia o menu de contexto (clique direito)
-      document.addEventListener("contextmenu", function(e) {
-    e.preventDefault();
-});
-
-// Bloqueia atalhos de teclado comuns para ferramentas de desenvolvimento
-document.addEventListener("keydown", function(e) {
-    // F12
-    if (e.key === "F12") {
-        e.preventDefault();
-    }
-    
-    // Ctrl + Shift + I
-    if (e.ctrlKey && e.shiftKey && e.key === "I") {
-        e.preventDefault();
-    }
-    
-    // Ctrl + U (ver código fonte)
-    if (e.ctrlKey && e.key === "u") {
-        e.preventDefault();
-    }
-    
-    // Ctrl + Shift + J (console)
-    if (e.ctrlKey && e.shiftKey && e.key === "J") {
-        e.preventDefault();
-    }
-    
-    // Ctrl + Shift + C (inspeção de elementos)
-    if (e.ctrlKey && e.shiftKey && e.key === "C") {
-        e.preventDefault();
-    }
-    
-    // Ctrl + S (salvar página)
-    if (e.ctrlKey && e.key === "s") {
-        e.preventDefault();
-    }
-    
-    // Ctrl + P (imprimir)
-    if (e.ctrlKey && e.key === "p") {
-        e.preventDefault();
-    }
-});
-
-// Detecta abertura de ferramentas de desenvolvimento
-// Removido: const devtools = { open: false };
-const element2 = new Image();
-Object.defineProperty(element2, 'id', {
-    get: function () {
-        devtools.open = true;
-    }
-});
-
-// Adiciona detecção alternativa de devtools
-(function() {
-    const threshold = 160;
-    const checkDevTools = function() {
-        if ((window.outerWidth - window.innerWidth) > threshold || 
-            (window.outerHeight - window.innerHeight) > threshold) {
-            devtools.open = true;
-        }
-    };
-    
-    window.addEventListener('resize', checkDevTools);
-    setInterval(checkDevTools, 500);
-})();
-
-// Monitoramento contínuo
-console.log('%c', element2);
-setInterval(function() {
-    if (devtools.open) {
-        document.body.innerHTML = '<h1>Acesso não autorizado detectado</h1>';
-        // Ou redirecionar:
-        // window.location.href = 'about:blank';
-        devtools.open = false;
-    }
-}, 1000);
-
-// Impede seleção de texto
-document.addEventListener('selectstart', function(e) {
-    e.preventDefault();
-});
-
-// Impede arrastar e soltar
-document.addEventListener('dragstart', function(e) {
-    e.preventDefault();
-});
-
-// Ofusca console
 console.log = function() {};
 console.debug = function() {};
 console.info = function() {};
