@@ -773,19 +773,23 @@ async function fetchMatches() {
     currentLeague = leagueName;
 
     const upcomingMatches = Array.isArray(proximosResp) ? proximosResp : [proximosResp];
-    matchesData = upcomingMatches.map(match => ({
-      id: String(match.id || Date.now() + Math.random().toString(36).substr(2, 9)),
-      event_id: String(match.event_id || match.id),
-      time: match.time || match.start_time?.split('T')[1]?.slice(0, 5) || 'N/A',
-      team_home: match.team_home || match.time_a || 'N/A',
-      team_visit: match.team_visit || match.time_b || 'N/A',
-      date: match.captured_date || match.start_time?.split('T')[0] || new Date().toISOString().split('T')[0],
-      league: leagueName,
-      start_time: match.start_time ? new Date(match.start_time) : new Date(),
-      hora: match.hora || 0,
-      minuto: match.minuto || 0,
-      odds: generateRandomOdds()
-    }));
+    matchesData = upcomingMatches.map(match => {
+      const time = match.time || match.start_time?.split('T')[1]?.slice(0, 5) || '00:00';
+      const [hora, minuto] = time.split(':').map(Number);
+      return {
+        id: String(match.id || Date.now() + Math.random().toString(36).substr(2, 9)),
+        event_id: String(match.event_id || match.id),
+        time: time,
+        team_home: match.team_home || match.time_a || 'N/A',
+        team_visit: match.team_visit || match.time_b || 'N/A',
+        date: match.captured_date || match.start_time?.split('T')[0] || new Date().toISOString().split('T')[0],
+        league: leagueName,
+        start_time: match.start_time ? new Date(match.start_time) : new Date(),
+        hora: match.hora || hora || 0,
+        minuto: match.minuto || minuto || 0,
+        odds: generateRandomOdds()
+      };
+    });
 
     return matchesData;
   } catch (error) {
@@ -1138,6 +1142,13 @@ function placeBet() {
 
 function checkBetResult(bet) {
   console.log('Checking bet result for:', bet);
+  console.log('Bet details:', {
+    matchDate: bet.matchDate,
+    matchHora: bet.matchHora,
+    matchMinuto: bet.matchMinuto,
+    teamHome: bet.teamHome,
+    teamVisit: bet.teamVisit
+  });
 
   // Normalize team names for comparison
   const normalizeTeamName = (name) => name?.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -1151,19 +1162,32 @@ function checkBetResult(bet) {
     })
     .slice(0, 5); // Take the 5 most recent
 
-  console.log('Latest 5 results:', latestResults);
+  console.log('Latest 5 results:', latestResults.map(r => ({
+    data: r.data,
+    hora: r.hora,
+    minuto: r.minuto,
+    time_a: r.time_a,
+    time_b: r.time_b,
+    ft: r.ft
+  })));
 
   // Find the result matching date, time, and team names
   const result = latestResults.find(r => {
     const dateMatch = r.data.split('T')[0] === bet.matchDate;
-    const timeMatch = r.hora === bet.matchHora && r.minuto === bet.matchMinuto;
+    const timeMatch = Math.abs(r.hora - bet.matchHora) <= 1 && Math.abs(r.minuto - bet.matchMinuto) <= 5;
     const matchHome = normalizeTeamName(bet.teamHome);
     const matchVisit = normalizeTeamName(bet.teamVisit);
     const resultHome = normalizeTeamName(r.time_a);
     const resultVisit = normalizeTeamName(r.time_b);
     const teamsMatch = matchHome === resultHome && matchVisit === resultVisit;
     console.log('Comparing:', {
+      resultData: r.data.split('T')[0],
+      betMatchDate: bet.matchDate,
       dateMatch,
+      resultHora: r.hora,
+      betHora: bet.matchHora,
+      resultMinuto: r.minuto,
+      betMinuto: bet.matchMinuto,
       timeMatch,
       matchHome,
       matchVisit,
