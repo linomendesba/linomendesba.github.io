@@ -1142,14 +1142,21 @@ function checkBetResult(bet) {
     return null;
   }
 
-  // Filter results matching team names, hour, and minute, and sort by date
+  // Normalize team names for comparison
+  const normalizeTeamName = (name) => name?.trim().toLowerCase().replace(/\s+/g, ' ');
+
+  // Filter results matching team names and sort by date
   const latestResults = resultsData
-    .filter(r => 
-      r.time_a === match.team_home && 
-      r.time_b === match.team_visit && 
-      r.hora === bet.matchHora && 
-      r.minuto === bet.matchMinuto
-    )
+    .filter(r => {
+      const matchHome = normalizeTeamName(match.team_home);
+      const matchVisit = normalizeTeamName(match.team_visit);
+      const resultHome = normalizeTeamName(r.time_a);
+      const resultVisit = normalizeTeamName(r.time_b);
+      const timeMatch = r.hora === bet.matchHora && r.minuto === bet.matchMinuto;
+      const teamsMatch = matchHome === resultHome && matchVisit === resultVisit;
+      console.log('Comparing:', { matchHome, matchVisit, resultHome, resultVisit, timeMatch, teamsMatch });
+      return teamsMatch && timeMatch;
+    })
     .sort((a, b) => {
       const dateA = new Date(`${a.data}T${a.hora}:${a.minuto}:00-03:00`);
       const dateB = new Date(`${b.data}T${b.hora}:${b.minuto}:00-03:00`);
@@ -1164,9 +1171,16 @@ function checkBetResult(bet) {
 
   const result = latestResults[0]; // Use the most recent result
   console.log('Found result for bet:', result);
-  const [homeGoals, awayGoals] = result.ft.split(' x ').map(Number);
-  if (isNaN(homeGoals) || isNaN(awayGoals)) {
-    console.warn('Invalid goals data:', result.ft);
+
+  // Parse the ft field (e.g., "2 x 1")
+  let homeGoals, awayGoals;
+  try {
+    [homeGoals, awayGoals] = result.ft.split(' x ').map(Number);
+    if (isNaN(homeGoals) || isNaN(awayGoals)) {
+      throw new Error('Invalid goals format');
+    }
+  } catch (error) {
+    console.warn('Invalid goals data:', result.ft, error);
     return null;
   }
 
@@ -1212,6 +1226,7 @@ function checkBetResult(bet) {
     case '5Gols':
       return totalGoals >= 5 ? 'win' : 'lose';
     default:
+      console.warn('Unknown market:', bet.market);
       return null;
   }
 }
@@ -1274,13 +1289,20 @@ async function updateResults() {
     const [, resultadosUrl] = selectedValue.split('|');
     console.log('Fetching latest results from:', resultadosUrl);
     const response = await fetch(resultadosUrl);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    resultsData = Array.isArray(await response.json()) ? await response.json() : [];
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    resultsData = Array.isArray(data) ? data : [];
     console.log('Updated resultsData:', resultsData);
+    if (resultsData.length === 0) {
+      console.warn('No results data received from API');
+    }
     updateBets();
   } catch (error) {
-    console.error('Erro ao atualizar resultados:', error);
-    document.getElementById('bets').innerHTML = '<div class="error">Erro ao atualizar resultados. Tente novamente.</div>';
+    console.error('Erro ao atualizar resultados:', error.message, error.stack);
+    const betsDiv = document.getElementById('bets');
+    betsDiv.innerHTML = '<div class="error">Erro ao atualizar resultados: ' + error.message + '. Tente novamente.</div>';
   }
 }
 
