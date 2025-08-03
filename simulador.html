@@ -1137,52 +1137,31 @@ function placeBet() {
 
 function checkBetResult(bet) {
   console.log('Checking bet result for:', bet);
-  const match = matchesData.find(m => m.id === bet.matchId);
-  if (!match) {
-    console.log('Match not found for bet:', bet);
-    return null;
-  }
 
-  // Normalize team names for comparison
-  const normalizeTeamName = (name) => name?.trim().toLowerCase().replace(/\s+/g, ' ');
-
-  // Filter results matching event_id or team names and date/time
+  // Get the 5 most recent results, sorted by date and time
   const latestResults = resultsData
-    .filter(r => {
-      const eventIdMatch = String(r.event_id) === String(bet.eventId);
-      const matchHome = normalizeTeamName(match.team_home);
-      const matchVisit = normalizeTeamName(match.team_visit);
-      const resultHome = normalizeTeamName(r.time_a);
-      const resultVisit = normalizeTeamName(r.time_b);
-      const teamsMatch = matchHome === resultHome && matchVisit === resultVisit;
-      const dateMatch = r.data.split('T')[0] === bet.matchDate;
-      const timeMatch = r.hora === bet.matchHora && r.minuto === bet.matchMinuto;
-      console.log('Comparing:', {
-        eventIdMatch,
-        matchHome,
-        matchVisit,
-        resultHome,
-        resultVisit,
-        dateMatch,
-        timeMatch,
-        teamsMatch
-      });
-      return (eventIdMatch || (teamsMatch && dateMatch && timeMatch));
-    })
     .sort((a, b) => {
       const dateA = new Date(`${a.data}T${a.hora}:${a.minuto}:00Z`);
       const dateB = new Date(`${b.data}T${b.hora}:${b.minuto}:00Z`);
-      return dateB - dateA; // Sort descending to get the latest
+      return dateB - dateA; // Sort descending
     })
-    .slice(0, 5); // Limit to 5 most recent results
+    .slice(0, 5); // Take the 5 most recent
 
-  if (latestResults.length === 0 || !latestResults[0].ft) {
-    console.log('No matching result found for bet:', bet, 'latestResults:', latestResults);
+  console.log('Latest 5 results:', latestResults);
+
+  // Find the result matching the bet's event_id
+  const result = latestResults.find(r => {
+    const eventIdMatch = String(r.event_id) === String(bet.eventId);
+    console.log('Comparing event_id:', { resultEventId: r.event_id, betEventId: bet.eventId, eventIdMatch });
+    return eventIdMatch;
+  });
+
+  if (!result || !result.ft) {
+    console.log('No matching result found for bet:', bet, 'Result:', result);
     return null;
   }
 
-  const result = latestResults[0]; // Use the most recent result
-  console.log('Found result for bet:', result);
+  console.log('Found matching result for bet:', result);
 
   // Parse the ft field (e.g., "0 x 2")
   let homeGoals, awayGoals;
