@@ -747,12 +747,13 @@ function deleteBet(betId) {
 }
 
 function normalizeDateFormat(dateStr) {
-  // Converts 'DD/MM/YYYY' to 'YYYY-MM-DD' or returns unchanged if already in 'YYYY-MM-DD'
+  // Converts 'DD/MM/YYYY' or ISO to 'YYYY-MM-DD'
   if (!dateStr) return new Date().toISOString().split('T')[0];
   if (dateStr.includes('/')) {
     const [day, month, year] = dateStr.split('/').map(Number);
     return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
   }
+  if (dateStr.includes('T')) return dateStr.split('T')[0];
   return dateStr;
 }
 
@@ -786,10 +787,10 @@ async function fetchMatches() {
     matchesData = upcomingMatches.map(match => {
       const time = match.time || match.start_time?.split('T')[1]?.slice(0, 5) || '00:00';
       const [hora, minuto] = time.split(':').map(Number);
-      const date = normalizeDateFormat(match.captured_date || match.start_time?.split('T')[0] || new Date().toISOString().split('T')[0]);
+      const date = normalizeDateFormat(match.captured_date || match.start_time || new Date().toISOString());
       return {
         id: String(match.id || Date.now() + Math.random().toString(36).substr(2, 9)),
-        event_id: String(match.event_id || match.id),
+        event_id: String(match.event_id || match.id || ''),
         time: time,
         team_home: match.team_home || match.time_a || 'N/A',
         team_visit: match.team_visit || match.time_b || 'N/A',
@@ -985,7 +986,7 @@ function updateUpcomingMatches() {
   }
   matchesData.forEach(match => {
     const now = new Date();
-    if (match.start_time > now) { // Only show upcoming matches
+    if (match.start_time > now) {
       const matchDiv = document.createElement('div');
       matchDiv.className = 'upcoming-match';
       matchDiv.innerHTML = `
@@ -1128,6 +1129,7 @@ function placeBet() {
   const bet = {
     id: Date.now() + Math.random().toString(36).substr(2, 9),
     matchId: currentMatch,
+    event_id: match.event_id,
     market: currentMarket.market,
     odds: currentMarket.odds,
     amount: amount,
@@ -1139,7 +1141,7 @@ function placeBet() {
     matchTime: match.time,
     matchHora: match.hora,
     matchMinuto: match.minuto,
-    matchDate: normalizeDateFormat(match.date), // Ensure YYYY-MM-DD
+    matchDate: normalizeDateFormat(match.date),
     teamHome: match.team_home,
     teamVisit: match.team_visit
   };
@@ -1151,23 +1153,15 @@ function placeBet() {
   closeModal();
 }
 
-function isDateWithinOneDay(date1, date2) {
-  // Check if two dates are within 1 day of each other
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
-  const diffTime = Math.abs(d1 - d2);
-  const diffDays = diffTime / (1000 * 60 * 60 * 24);
-  return diffDays <= 1;
-}
-
 function normalizeTeamName(name) {
-  // Normalize team names for comparison
   return name?.trim().toLowerCase().replace(/\s+/g, ' ') || '';
 }
 
 function checkBetResult(bet) {
   console.log('Checking bet result for:', bet);
   console.log('Bet details:', {
+    matchId: bet.matchId,
+    event_id: bet.event_id,
     matchDate: bet.matchDate,
     matchHora: bet.matchHora,
     matchMinuto: bet.matchMinuto,
@@ -1175,10 +1169,11 @@ function checkBetResult(bet) {
     teamVisit: bet.teamVisit
   });
 
-  // Log all results from the bet's date
   const betDate = normalizeDateFormat(bet.matchDate);
-  const resultsOnDate = resultsData.filter(r => r.data.split('T')[0] === betDate);
+  const resultsOnDate = resultsData.filter(r => normalizeDateFormat(r.data) === betDate);
   console.log(`Results for date ${betDate}:`, resultsOnDate.map(r => ({
+    id: r.id,
+    event_id: r.event_id,
     data: r.data,
     hora: r.hora,
     minuto: r.minuto,
@@ -1187,38 +1182,19 @@ function checkBetResult(bet) {
     ft: r.ft
   })));
 
-  // Sort all results by date and time
-  const latestResults = resultsData
-    .sort((a, b) => {
-      const dateA = new Date(`${a.data}T${a.hora}:${a.minuto}:00Z`);
-      const dateB = new Date(`${b.data}T${b.hora}:${b.minuto}:00Z`);
-      return dateB - dateA; // Sort descending
-    });
-    // Removed slice to check all results
-
-  console.log('All results count:', latestResults.length);
-  console.log('Sample of latest results:', latestResults.slice(0, 20).map(r => ({
-    data: r.data,
-    hora: r.hora,
-    minuto: r.minuto,
-    time_a: r.time_a,
-    time_b: r.time_b,
-    ft: r.ft
-  })));
-
-  // Find the result matching date, time, and team names
-  const result = latestResults.find(r => {
-    const resultDate = r.data.split('T')[0];
-    const betDate = normalizeDateFormat(bet.matchDate);
-    const dateMatch = resultDate === betDate || isDateWithinOneDay(resultDate, betDate);
+  const result = resultsData.find(r => {
+    const resultDate = normalizeDateFormat(r.data);
+    const dateMatch = resultDate === betDate;
     const timeMatch = Math.abs(r.hora - bet.matchHora) <= 1 && Math.abs(r.minuto - bet.matchMinuto) <= 5;
     const matchHome = normalizeTeamName(bet.teamHome);
     const matchVisit = normalizeTeamName(bet.teamVisit);
     const resultHome = normalizeTeamName(r.time_a);
     const resultVisit = normalizeTeamName(r.time_b);
-    const teamsMatch = (resultHome.includes(matchHome) || matchHome.includes(resultHome)) &&
-                       (resultVisit.includes(matchVisit) || matchVisit.includes(resultVisit));
+    const teamsMatch = matchHome.includes(resultHome) && matchVisit.includes(resultVisit);
+    const eventMatch = bet.event_id && r.event_id ? String(bet.event_id) === String(r.event_id) : true;
     console.log('Comparing:', {
+      resultId: r.id,
+      resultEventId: r.event_id,
       resultData: resultDate,
       betMatchDate: betDate,
       dateMatch,
@@ -1231,9 +1207,10 @@ function checkBetResult(bet) {
       matchVisit,
       resultHome,
       resultVisit,
-      teamsMatch
+      teamsMatch,
+      eventMatch
     });
-    return dateMatch && timeMatch && teamsMatch;
+    return dateMatch && timeMatch && teamsMatch && eventMatch;
   });
 
   if (!result || !result.ft) {
@@ -1243,7 +1220,6 @@ function checkBetResult(bet) {
 
   console.log('Found matching result for bet:', result);
 
-  // Parse the ft field (e.g., "0 x 2")
   let homeGoals, awayGoals;
   try {
     [homeGoals, awayGoals] = result.ft.split(' x ').map(Number);
