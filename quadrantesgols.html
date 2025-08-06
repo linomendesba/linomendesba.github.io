@@ -426,7 +426,7 @@ function gameHasHappened(gameHour, gameMinute) {
     if (gameHour < currentHour) {
         return true;
     } else if (gameHour === currentHour) {
-        return gameMinute <= currentMinute;
+        return gameMinute < currentMinute; // Alterado para < para garantir que o minuto atual não seja considerado completo
     }
     return false;
 }
@@ -459,7 +459,7 @@ function processData(data) {
         if (match.hora < currentSystemHour) {
             return true;
         } else if (match.hora === currentSystemHour) {
-            return match.minuto <= currentSystemMinute;
+            return match.minuto < currentSystemMinute; // Alterado para < para excluir o minuto atual
         }
         return false;
     });
@@ -472,14 +472,14 @@ function processData(data) {
             minutes: {}
         };
         MINUTES.forEach(minute => {
-            processed[hour].minutes[minute] = { total: 0, teams: 'N/A x N/A', scoreDisplay: 'AGUARDANDO' };
+            processed[hour].minutes[minute] = { total: 0, teams: 'N/A x N/A', scoreDisplay: 'Aguardando resultado' };
         });
     });
     pastGames.forEach(match => {
         const matchHour = match.hora;
         const matchMinute = match.minuto;
         const scoreInfo = parseScore(match.ft, match.time_a, match.time_b);
-        if (processed[matchHour] && MINUTES.includes(matchMinute)) {
+        if (processed[matchHour] && MINUTES.includes(matchMinute) && gameHasHappened(matchHour, matchMinute)) {
             processed[matchHour].minutes[matchMinute] = {
                 total: scoreInfo.total,
                 teams: scoreInfo.teams,
@@ -636,9 +636,16 @@ function createScoreCards(data, quadrantIndex) {
     const lastHour = horasDisponiveis[0];
     if (!lastHour || !data[lastHour]) return '<div>Sem dados disponíveis</div>';
     let html = '';
+    const now = new Date();
+    const currentMinute = now.getMinutes();
     currentQuadrant.minutes.forEach(minute => {
         const matchData = data[lastHour].minutes[minute];
-        const score = gameHasHappened(lastHour, minute) ? matchData.scoreDisplay : 'Aguardando resultado';
+        let score = 'Aguardando resultado';
+        if (gameHasHappened(lastHour, minute)) {
+            score = matchData.scoreDisplay;
+        } else if (minute === currentMinute) {
+            score = 'Jogo em andamento';
+        }
         const teams = matchData.teams;
         html += `
             <div class="quadrantes-score-card">
