@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisador Futebol Virtual Euro</title>
+    <style>
+        body {
+            background-color: #1c1f26;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            font-size: 12px;
+        }
+        
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 50px;
+            justify-content: center;
+        }
+        
+        .quadrant {
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #2a2d35;
+            min-width: 400px;
+            margin-top: 20px;
+        }
+        
+        .quadrant h3 {
+            text-align: center;
+            background-color: #000;
+            color: white;
+            margin: -10px -10px 10px -10px;
+            padding: 10px;
+            border-radius: 6px 6px 0 0;
+            font-size: 14px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        
+        th, td {
+            border: 1px solid #444;
+            padding: 4px 6px;
+            text-align: center;
+            font-size: 11px;
+        }
+        
+        th {
+            background-color: #333;
+            font-weight: bold;
+        }
+        
+        .linha-atual {
+            background-color: #2d4a2d;
+        }
+        
+        .total-row {
+            background-color: #444;
+            font-weight: bold;
+        }
+        
+        .summary-table {
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .summary-table th {
+            background-color: #000;
+            color: white;
+        }
+        
+        .healthy-col {
+            background-color: #018b06;
+        }
+        
+        .unhealthy-col {
+            background-color: #be0e02;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #2a2d35;
+            border-radius: 5px;
+        }
+        
+        .loading {
+            color: #ffa500;
+        }
+        
+        .error {
+            color: #ff4444;
+        }
+        
+        .success {
+            color: #44ff44;
+        }
+        
+        .debug {
+            background-color: #3a3d45;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="container" id="container">
+        <!-- Tabelas serão geradas aqui -->
+    </div>
+    
+    <div class="quadrant">
+        <h3>RESUMO GERAL</h3>
+        <table class="summary-table" id="summaryTable">
+            <!-- Tabela resumo será gerada aqui -->
+        </table>
+    </div>
+
+    <script>
+        const API_URL = 'https://betstat.site/resultados/Euro';
+        const MINUTES = [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58];
+        const QUADRANTS = [
+            { name: 'PRIMEIRO QUADRANTE', minutes: [1, 4, 7, 10, 13] },
+            { name: 'SEGUNDO QUADRANTE', minutes: [16, 19, 22, 25, 28] },
+            { name: 'TERCEIRO QUADRANTE', minutes: [31, 34, 37, 40, 43] },
+            { name: 'QUARTO QUADRANTE', minutes: [46, 49, 52, 55, 58] }
+        ];
+        
+        const COLUNA_SAUDAVEL = 12.5;
+        const LINHA_SAUDAVEL = 10;
+        const MEDIA_GOLS = 50;
+        
+        let currentData = [];
+        let processedData = {};
+        let horasDisponiveis = [];
+        
+        function parseScore(scoreStr) {
+            if (!scoreStr || scoreStr === '' || scoreStr === 'x') return 0;
+            try {
+                const parts = scoreStr.toString().split(' x ');
+                if (parts.length !== 2) return 0;
+                const goals1 = parseInt(parts[0]) || 0;
+                const goals2 = parseInt(parts[1]) || 0;
+                return goals1 + goals2;
+            } catch (e) {
+                return 0;
+            }
+        }
+        
+        function getAvailableHours(data) {
+            // Pega a hora atual do sistema
+            const currentSystemHour = new Date().getHours();
+            
+            // Filtra apenas jogos que já aconteceram (hora <= hora atual do sistema)
+            const pastGames = data.filter(match => match.hora <= currentSystemHour);
+            
+            // Pega todas as horas únicas dos jogos passados e ordena em ordem decrescente
+            const hours = [...new Set(pastGames.map(match => match.hora))];
+            return hours.sort((a, b) => b - a); // Ordem decrescente (mais recente primeiro)
+        }
+        
+        function processData(data) {
+            const currentSystemHour = new Date().getHours();
+            const currentSystemMinute = new Date().getMinutes();
+            
+            // Filtrar apenas jogos que já aconteceram
+            const pastGames = data.filter(match => {
+                if (match.hora < currentSystemHour) {
+                    return true; // Horas passadas
+                } else if (match.hora === currentSystemHour) {
+                    return match.minuto <= currentSystemMinute; // Hora atual, mas minuto já passou
+                }
+                return false; // Jogos futuros
+            });
+            
+            horasDisponiveis = getAvailableHours(pastGames);
+            
+            // Pegar as 6 horas mais recentes (que já aconteceram)
+            const last6Hours = horasDisponiveis.slice(0, 6);
+            
+            const processed = {};
+            
+            // Inicializar estrutura para as 6 horas mais recentes
+            last6Hours.forEach((hour, hourIndex) => {
+                processed[hour] = {
+                    hourIndex: hourIndex,
+                    minutes: {}
+                };
+                MINUTES.forEach(minute => {
+                    processed[hour].minutes[minute] = 0;
+                });
+            });
+            
+            // Processar apenas jogos que já aconteceram
+            pastGames.forEach(match => {
+                const matchHour = match.hora;
+                const matchMinute = match.minuto;
+                const goals = parseScore(match.ft);
+                
+                // Se a hora está nas 6 mais recentes e o minuto existe na lista
+                if (processed[matchHour] && MINUTES.includes(matchMinute)) {
+                    processed[matchHour].minutes[matchMinute] = goals; // Cada minuto tem apenas 1 jogo
+                }
+            });
+            
+            return processed;
+        }
+        
+        function createQuadrantTable(quadrant, data) {
+            const last6Hours = horasDisponiveis.slice(0, 6);
+            if (last6Hours.length === 0) return '<div>Sem dados disponíveis</div>';
+            
+            let html = `
+                <div class="quadrant">
+                    <h3>EURO ${quadrant.name}</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th></th>
+                                ${quadrant.minutes.map(min => `<th>Min<br>${String(min).padStart(2, '0')}</th>`).join('')}
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            const linhaNames = ['LINHA ATUAL', 'SEGUNDA LINHA', 'TERCEIRA LINHA', 'QUARTA LINHA', 'QUINTA LINHA', 'SEXTA LINHA'];
+            
+            last6Hours.forEach((hour, index) => {
+                const rowClass = index === 0 ? 'linha-atual' : '';
+                let rowTotal = 0;
+                let rowHtml = `<tr class="${rowClass}"><td>${linhaNames[index]} (${hour}h)</td>`;
+                
+                quadrant.minutes.forEach(minute => {
+                    const goals = data[hour]?.minutes[minute] || 0;
+                    rowTotal += goals;
+                    rowHtml += `<td>${goals}</td>`;
+                });
+                
+                rowHtml += `<td>${rowTotal}</td></tr>`;
+                html += rowHtml;
+            });
+            
+            // Total de gols por coluna
+            html += '<tr class="total-row"><td>TOTAL DE GOLS</td>';
+            let grandTotal = 0;
+            quadrant.minutes.forEach(minute => {
+                let columnTotal = 0;
+                last6Hours.forEach(hour => {
+                    columnTotal += data[hour]?.minutes[minute] || 0;
+                });
+                html += `<td>${columnTotal}</td>`;
+                grandTotal += columnTotal;
+            });
+            html += `<td>${grandTotal}</td></tr>`;
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            return html;
+        }
+        
+        function createSummaryTable(data) {
+            const last6Hours = horasDisponiveis.slice(0, 6);
+            if (last6Hours.length === 0) return '<tbody><tr><td>Sem dados disponíveis</td></tr></tbody>';
+            
+            let html = `
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>LI ATU</th>
+                        <th>SEG L</th>
+                        <th>TER L</th>
+                        <th>QUA L</th>
+                        <th>QUI L</th>
+                        <th>SEX L</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+            
+            QUADRANTS.forEach((quadrant, qIndex) => {
+                let rowHtml = `<tr><td>${qIndex + 1} QUADRANTE ${String(quadrant.minutes[0]).padStart(2, '0')}-${String(quadrant.minutes[4]).padStart(2, '0')}</td>`;
+                
+                last6Hours.forEach((hour, hIndex) => {
+                    let quadrantTotal = 0;
+                    quadrant.minutes.forEach(minute => {
+                        quadrantTotal += data[hour]?.minutes[minute] || 0;
+                    });
+                    
+                    const cellClass = quadrantTotal >= COLUNA_SAUDAVEL ? 'healthy-col' : 'unhealthy-col';
+                    rowHtml += `<td class="${cellClass}">${quadrantTotal}</td>`;
+                });
+                
+                html += rowHtml + '</tr>';
+            });
+            
+            // Total de gols
+            html += '<tr class="total-row"><td>TOTAL DE GOLS</td>';
+            last6Hours.forEach(hour => {
+                let hourTotal = 0;
+                MINUTES.forEach(minute => {
+                    hourTotal += data[hour]?.minutes[minute] || 0;
+                });
+                html += `<td>${hourTotal}</td>`;
+            });
+            html += '</tr>';
+            
+            html += '</tbody>';
+            
+            return html;
+        }
+        
+        function updateDisplay() {
+            const container = document.getElementById('container');
+            const summaryTable = document.getElementById('summaryTable');
+            
+            if (!container || !summaryTable) {
+                console.error('Elementos da página não encontrados');
+                return;
+            }
+            
+            if (Object.keys(processedData).length === 0) {
+                container.innerHTML = '<div class="quadrant"><h3>Aguardando dados...</h3></div>';
+                summaryTable.innerHTML = '<tbody><tr><td>Aguardando dados...</td></tr></tbody>';
+                return;
+            }
+            
+            let html = '';
+            QUADRANTS.forEach(quadrant => {
+                html += createQuadrantTable(quadrant, processedData);
+            });
+            
+            container.innerHTML = html;
+            summaryTable.innerHTML = createSummaryTable(processedData);
+        }
+        
+        function updateStatus(message, type = 'loading') {
+            const status = document.getElementById('status');
+            if (status) {
+                status.innerHTML = `<span class="${type}">${message}</span>`;
+            }
+        }
+        
+        function updateDebug(data) {
+            const debug = document.getElementById('debug');
+            if (debug && data.length > 0) {
+                const currentSystemHour = new Date().getHours();
+                const currentSystemMinute = new Date().getMinutes();
+                const pastGames = data.filter(match => {
+                    if (match.hora < currentSystemHour) return true;
+                    if (match.hora === currentSystemHour) return match.minuto <= currentSystemMinute;
+                    return false;
+                });
+                
+                debug.innerHTML = `
+                    <strong>Debug Info:</strong><br>
+                    Hora do sistema: ${currentSystemHour}:${String(currentSystemMinute).padStart(2, '0')}<br>
+                    Horas disponíveis (passadas): ${horasDisponiveis.join(', ')}<br>
+                    Jogos passados: ${pastGames.length} / Total: ${data.length}<br>
+                    Exemplos de jogos passados:<br>
+                    ${pastGames.slice(0, 3).map(match => 
+                        `Hora: ${match.hora}, Min: ${match.minuto}, FT: ${match.ft} = ${parseScore(match.ft)} gols`
+                    ).join('<br>')}
+                `;
+                debug.style.display = 'block';
+            }
+        }
+        
+        async function fetchData() {
+            try {
+                updateStatus('Buscando dados...', 'loading');
+                
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!Array.isArray(data)) {
+                    throw new Error('Formato de dados inválido - esperado array');
+                }
+                
+                if (data.length === 0) {
+                    throw new Error('Nenhum dado retornado pela API');
+                }
+                
+                currentData = data;
+                processedData = processData(data);
+                updateDisplay();
+                updateDebug(data);
+                
+                const now = new Date();
+                const currentSystemHour = now.getHours();
+                const horaAtual = horasDisponiveis[0] || 'N/A';
+                const jogosFiltrados = currentData.filter(match => {
+                    if (match.hora < currentSystemHour) return true;
+                    if (match.hora === currentSystemHour) return match.minuto <= now.getMinutes();
+                    return false;
+                });
+                
+                updateStatus(`Última atualização: ${now.toLocaleTimeString()} - ${jogosFiltrados.length}/${data.length} jogos | Hora sistema: ${currentSystemHour}h | Hora atual dados: ${horaAtual}h`, 'success');
+                
+            } catch (error) {
+                console.error('Erro ao buscar dados:', error);
+                updateStatus(`Erro: ${error.message}`, 'error');
+            }
+        }
+        
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchData();
+            
+            // Atualizar a cada 10 segundos
+            setInterval(fetchData, 10000);
+        });
+    </script>
+</body>
+</html>
