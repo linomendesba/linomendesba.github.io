@@ -428,9 +428,10 @@ function gameHasHappened(gameHour, gameMinute) {
     if (gameHour < currentHour) {
         return true;
     }
-    // Se é na mesma hora, verifica se o minuto já passou
+    // Se é na mesma hora, verifica se o minuto já passou COM MARGEM
     else if (gameHour === currentHour) {
-        return gameMinute < currentMinute; // Mudança aqui: < ao invés de <=
+        // Só considera que aconteceu se passou pelo menos 1 minuto do horário do jogo
+        return gameMinute < (currentMinute - 1);
     }
     // Se é uma hora futura, ainda não aconteceu
     return false;
@@ -461,16 +462,6 @@ function processData(data) {
     const currentSystemHour = new Date().getHours();
     const currentSystemMinute = new Date().getMinutes();
     
-    // Filtra apenas jogos que já aconteceram completamente
-    const pastGames = data.filter(match => {
-        if (match.hora < currentSystemHour) {
-            return true;
-        } else if (match.hora === currentSystemHour) {
-            return match.minuto < currentSystemMinute;
-        }
-        return false;
-    });
-    
     horasDisponiveis = getAvailableHours(data);
     const last6Hours = horasDisponiveis.slice(0, 6);
     const processed = {};
@@ -485,21 +476,26 @@ function processData(data) {
         });
     });
     
-    // Processa APENAS os dados que realmente existem na API e já aconteceram
+    // Processa APENAS os dados que realmente existem na API
     data.forEach(match => {
         const matchHour = match.hora;
         const matchMinute = match.minuto;
         
-        // Só processa se o jogo existe nos dados E já aconteceu
-        if (processed[matchHour] && MINUTES.includes(matchMinute) && gameHasHappened(matchHour, matchMinute)) {
-            const scoreInfo = parseScore(match.ft, match.time_a, match.time_b);
-            processed[matchHour].minutes[matchMinute] = {
-                total: scoreInfo.total,
-                teams: scoreInfo.teams,
-                scoreDisplay: scoreInfo.scoreDisplay
-            };
+        // Verifica se temos um slot para esse horário/minuto
+        if (processed[matchHour] && MINUTES.includes(matchMinute)) {
+            // Só atualiza com dados reais se o jogo JÁ ACONTECEU
+            if (gameHasHappened(matchHour, matchMinute)) {
+                const scoreInfo = parseScore(match.ft, match.time_a, match.time_b);
+                // Só atualiza se tiver resultado válido
+                if (match.ft && match.ft !== '' && match.ft !== 'x') {
+                    processed[matchHour].minutes[matchMinute] = {
+                        total: scoreInfo.total,
+                        teams: scoreInfo.teams,
+                        scoreDisplay: scoreInfo.scoreDisplay
+                    };
+                }
+            }
         }
-        // Se o jogo ainda não aconteceu ou não existe nos dados, mantém os valores padrão (0, 'N/A x N/A', 'AGUARDANDO')
     });
     
     return processed;
