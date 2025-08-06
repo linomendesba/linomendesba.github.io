@@ -18,6 +18,7 @@ function redirecionar(select) {
         url === "https://www.betstat.site/buscadortime.html" ||
         url === "https://www.betstat.site/betanomaximasconfronto.html" ||
         url === "https://www.betstat.site/maxima365.html" ||
+                url === "https://www.betstat.site/quadrantesgols.html" ||
         url === "https://www.betstat.site/365macro.html" ||
         url === "https://www.betstat.site/mult365.html" ||
                 url === "https://www.betstat.site/Palpites.html" ||
