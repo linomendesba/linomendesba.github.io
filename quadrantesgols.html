@@ -423,17 +423,70 @@ function gameHasHappened(gameHour, gameMinute) {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
+    
+    // Se o jogo é de uma hora anterior, já aconteceu
     if (gameHour < currentHour) {
         return true;
-    } else if (gameHour === currentHour) {
-        return gameMinute < currentMinute; // Exclui o minuto atual
     }
+    // Se é na mesma hora, verifica se o minuto já passou COM MARGEM
+    else if (gameHour === currentHour) {
+        // Só considera que aconteceu se passou pelo menos 1 minuto do horário do jogo
+        return gameMinute < (currentMinute - 1);
+    }
+    // Se é uma hora futura, ainda não aconteceu
     return false;
 }
 
 function getAvailableHours(data) {
-    const hours = [...new Set(data.map(match => match.hora))];
-    return hours.sort((a, b) => b - a).slice(0, 6); // Pega até 6 horas disponíveis
+    // Pega todas as horas únicas dos dados que já aconteceram
+    const currentHour = new Date().getHours();
+    const allHours = [...new Set(data.map(match => match.hora))];
+    
+    // Filtra apenas horas que já passaram (incluindo a atual se tiver jogos que já aconteceram)
+    const pastHours = allHours.filter(hour => hour <= currentHour);
+    
+    // Ordena em ordem decrescente
+    pastHours.sort((a, b) => b - a);
+    
+    const hours = [];
+    
+    // Primeiro adiciona as horas com dados reais
+    pastHours.forEach(hour => {
+        if (hours.length < 6) {
+            hours.push(hour);
+        }
+    });
+    
+    // Se ainda precisamos de mais horas, adiciona horas decrescentes incluindo do dia anterior
+    let hourToAdd = currentHour;
+    while (hours.length < 6) {
+        if (!hours.includes(hourToAdd)) {
+            hours.push(hourToAdd);
+        }
+        hourToAdd--;
+        
+        // Quando chegar em -1, volta para 23 (dia anterior)
+        if (hourToAdd < 0) {
+            hourToAdd = 23;
+        }
+        
+        // Proteção para não entrar em loop infinito
+        if (hours.length >= 24) break;
+    }
+    
+    // Ordena novamente em ordem decrescente, mas mantendo a lógica de 24h
+    hours.sort((a, b) => {
+        // Se ambos são do mesmo "dia" (>=currentHour ou <currentHour), ordena normal
+        if ((a <= currentHour && b <= currentHour) || (a > currentHour && b > currentHour)) {
+            return b - a;
+        }
+        // Se um é do dia atual e outro do anterior, prioriza o atual
+        if (a <= currentHour && b > currentHour) return -1;
+        if (b <= currentHour && a > currentHour) return 1;
+        return b - a;
+    });
+    
+    return hours.slice(0, 6);
 }
 
 function getCurrentQuadrant() {
@@ -451,9 +504,14 @@ function getCurrentQuadrant() {
 }
 
 function processData(data) {
+    const currentSystemHour = new Date().getHours();
+    const currentSystemMinute = new Date().getMinutes();
+    
     horasDisponiveis = getAvailableHours(data);
-    const last6Hours = horasDisponiveis.slice(0, 6);
+    const last6Hours = horasDisponiveis;
     const processed = {};
+    
+    // Inicializa todas as 6 horas
     last6Hours.forEach((hour, hourIndex) => {
         processed[hour] = {
             hourIndex: hourIndex,
@@ -463,24 +521,36 @@ function processData(data) {
             processed[hour].minutes[minute] = { total: 0, teams: 'N/A x N/A', scoreDisplay: 'AGUARDANDO' };
         });
     });
+    
+    // Processa APENAS os dados que realmente existem na API
     data.forEach(match => {
         const matchHour = match.hora;
         const matchMinute = match.minuto;
-        const scoreInfo = parseScore(match.ft, match.time_a, match.time_b);
-        if (processed[matchHour] && MINUTES.includes(matchMinute) && gameHasHappened(matchHour, matchMinute)) {
-            processed[matchHour].minutes[matchMinute] = {
-                total: scoreInfo.total,
-                teams: scoreInfo.teams,
-                scoreDisplay: scoreInfo.scoreDisplay
-            };
+        
+        // Verifica se temos um slot para esse horário/minuto
+        if (processed[matchHour] && MINUTES.includes(matchMinute)) {
+            // Só atualiza com dados reais se o jogo JÁ ACONTECEU
+            if (gameHasHappened(matchHour, matchMinute)) {
+                const scoreInfo = parseScore(match.ft, match.time_a, match.time_b);
+                // Só atualiza se tiver resultado válido
+                if (match.ft && match.ft !== '' && match.ft !== 'x') {
+                    processed[matchHour].minutes[matchMinute] = {
+                        total: scoreInfo.total,
+                        teams: scoreInfo.teams,
+                        scoreDisplay: scoreInfo.scoreDisplay
+                    };
+                }
+            }
         }
     });
+    
     return processed;
 }
 
 function createQuadrantTable(quadrant, data) {
-    const last6Hours = horasDisponiveis.slice(0, 6);
+    const last6Hours = horasDisponiveis;
     if (last6Hours.length === 0) return '<div class="quadrantes-quadrant"><h3>Sem dados disponíveis</h3></div>';
+    
     let html = `
         <div class="quadrantes-quadrant">
             <h3>${quadrant.name}</h3>
@@ -494,44 +564,65 @@ function createQuadrantTable(quadrant, data) {
                 </thead>
                 <tbody>
     `;
+    
     const linhaNames = ['LINHA ATUAL', 'SEGUNDA LINHA', 'TERCEIRA LINHA', 'QUARTA LINHA', 'QUINTA LINHA', 'SEXTA LINHA'];
-    last6Hours.forEach((hour, index) => {
+    
+    // Garante que sempre mostramos 6 linhas
+    for (let index = 0; index < 6; index++) {
+        const hour = last6Hours[index] !== undefined ? last6Hours[index] : -1; // -1 para horas inexistentes
         const rowClass = index === 0 ? 'quadrantes-linha-atual' : '';
         let rowTotal = 0;
-        let rowHtml = `<tr class="${rowClass}"><td>${linhaNames[index]} (${hour}h)</td>`;
+        let rowHtml = `<tr class="${rowClass}"><td>${linhaNames[index]} (${hour >= 0 ? hour + 'h' : 'N/A'})</td>`;
+        
         quadrant.minutes.forEach(minute => {
             let goals = 0;
-            if (index === 0) {
-                if (gameHasHappened(hour, minute)) {
-                    goals = data[hour]?.minutes[minute]?.total || 0;
+            
+            if (hour >= 0 && data[hour]) {
+                // Para linha atual (index === 0), só mostra resultados de jogos que já aconteceram
+                if (index === 0) {
+                    if (gameHasHappened(hour, minute)) {
+                        goals = data[hour].minutes[minute]?.total || 0;
+                    }
+                    // Se não aconteceu, goals permanece 0
+                } else {
+                    // Para linhas anteriores, usa os dados normalmente
+                    goals = data[hour].minutes[minute]?.total || 0;
                 }
-            } else {
-                goals = data[hour]?.minutes[minute]?.total || 0;
             }
+            
             rowTotal += goals;
             rowHtml += `<td>${goals}</td>`;
         });
+        
         rowHtml += `<td>${rowTotal}</td></tr>`;
         html += rowHtml;
-    });
+    }
+    
+    // Linha de totais
     html += '<tr class="quadrantes-total-row"><td>TOTAL DE GOLS</td>';
     let grandTotal = 0;
+    
     quadrant.minutes.forEach(minute => {
         let columnTotal = 0;
-        last6Hours.forEach((hour, index) => {
+        for (let index = 0; index < 6; index++) {
+            const hour = last6Hours[index] !== undefined ? last6Hours[index] : -1;
             let goals = 0;
-            if (index === 0) {
-                if (gameHasHappened(hour, minute)) {
-                    goals = data[hour]?.minutes[minute]?.total || 0;
+            
+            if (hour >= 0 && data[hour]) {
+                if (index === 0) {
+                    if (gameHasHappened(hour, minute)) {
+                        goals = data[hour].minutes[minute]?.total || 0;
+                    }
+                } else {
+                    goals = data[hour].minutes[minute]?.total || 0;
                 }
-            } else {
-                goals = data[hour]?.minutes[minute]?.total || 0;
             }
             columnTotal += goals;
-        });
+        }
         html += `<td>${columnTotal}</td>`;
         grandTotal += columnTotal;
     });
+    
     html += `<td>${grandTotal}</td></tr>`;
     html += `
                 </tbody>
@@ -542,8 +633,8 @@ function createQuadrantTable(quadrant, data) {
 }
 
 function createSummaryTable(data) {
-    const last6Hours = horasDisponiveis.slice(0, 6);
-    if (last6Hours.length === 0) return '<tbody><tr><td>Sem dados disponíveis</td></tr></tbody>';
+    const last6Hours = horasDisponiveis;
+    
     let html = `
         <thead>
             <tr>
@@ -558,66 +649,87 @@ function createSummaryTable(data) {
         </thead>
         <tbody>
     `;
+    
     QUADRANTS.forEach((quadrant, qIndex) => {
         let rowHtml = `<tr><td>${qIndex + 1} QUADRANTE ${String(quadrant.minutes[0]).padStart(2, '0')}-${String(quadrant.minutes[4]).padStart(2, '0')}</td>`;
-        last6Hours.forEach((hour, hIndex) => {
+        
+        for (let hIndex = 0; hIndex < 6; hIndex++) {
+            const hour = last6Hours[hIndex] !== undefined ? last6Hours[hIndex] : -1;
             let quadrantTotal = 0;
-            quadrant.minutes.forEach(minute => {
+            
+            if (hour >= 0 && data[hour]) {
+                quadrant.minutes.forEach(minute => {
+                    let goals = 0;
+                    if (hIndex === 0) {
+                        if (gameHasHappened(hour, minute)) {
+                            goals = data[hour].minutes[minute]?.total || 0;
+                        }
+                    } else {
+                        goals = data[hour].minutes[minute]?.total || 0;
+                    }
+                    quadrantTotal += goals;
+                });
+            }
+            
+            const cellClass = quadrantTotal >= COLUNA_SAUDAVEL ? 'quadrantes-healthy-col' : 'quadrantes-unhealthy-col';
+            rowHtml += `<td class="${cellClass}">${quadrantTotal}</td>`;
+        }
+        
+        html += rowHtml + '</tr>';
+    });
+    
+    html += '<tr class="quadrantes-total-row"><td>TOTAL DE GOLS</td>';
+    
+    for (let hIndex = 0; hIndex < 6; hIndex++) {
+        const hour = last6Hours[hIndex] !== undefined ? last6Hours[hIndex] : -1;
+        let hourTotal = 0;
+        
+        if (hour >= 0 && data[hour]) {
+            MINUTES.forEach(minute => {
                 let goals = 0;
                 if (hIndex === 0) {
                     if (gameHasHappened(hour, minute)) {
-                        goals = data[hour]?.minutes[minute]?.total || 0;
+                        goals = data[hour].minutes[minute]?.total || 0;
                     }
                 } else {
-                    goals = data[hour]?.minutes[minute]?.total || 0;
+                    goals = data[hour].minutes[minute]?.total || 0;
                 }
-                quadrantTotal += goals;
+                hourTotal += goals;
             });
-            const cellClass = quadrantTotal >= COLUNA_SAUDAVEL ? 'quadrantes-healthy-col' : 'quadrantes-unhealthy-col';
-            rowHtml += `<td class="${cellClass}">${quadrantTotal}</td>`;
-        });
-        html += rowHtml + '</tr>';
-    });
-    html += '<tr class="quadrantes-total-row"><td>TOTAL DE GOLS</td>';
-    last6Hours.forEach((hour, hIndex) => {
-        let hourTotal = 0;
-        MINUTES.forEach(minute => {
-            let goals = 0;
-            if (hIndex === 0) {
-                if (gameHasHappened(hour, minute)) {
-                    goals = data[hour]?.minutes[minute]?.total || 0;
-                }
-            } else {
-                goals = data[hour]?.minutes[minute]?.total || 0;
-            }
-            hourTotal += goals;
-        });
+        }
+        
         html += `<td>${hourTotal}</td>`;
-    });
+    }
+    
     html += '</tr>';
     html += '</tbody>';
     return html;
 }
 
 function createAnalysisTable(data) {
-    const last6Hours = horasDisponiveis.slice(0, 6);
-    if (last6Hours.length === 0) return '<tbody><tr><td>Sem dados disponíveis</td></tr></tbody>';
+    const last6Hours = horasDisponiveis;
+    
     let totalGoalsAllQuadrants = 0;
+    
     QUADRANTS.forEach(quadrant => {
-        last6Hours.forEach((hour, hIndex) => {
-            quadrant.minutes.forEach(minute => {
-                let goals = 0;
-                if (hIndex === 0) {
-                    if (gameHasHappened(hour, minute)) {
-                        goals = data[hour]?.minutes[minute]?.total || 0;
+        for (let hIndex = 0; hIndex < 6; hIndex++) {
+            const hour = last6Hours[hIndex] !== undefined ? last6Hours[hIndex] : -1;
+            if (hour >= 0 && data[hour]) {
+                quadrant.minutes.forEach(minute => {
+                    let goals = 0;
+                    if (hIndex === 0) {
+                        if (gameHasHappened(hour, minute)) {
+                            goals = data[hour].minutes[minute]?.total || 0;
+                        }
+                    } else {
+                        goals = data[hour].minutes[minute]?.total || 0;
                     }
-                } else {
-                    goals = data[hour]?.minutes[minute]?.total || 0;
-                }
-                totalGoalsAllQuadrants += goals;
-            });
-        });
+                    totalGoalsAllQuadrants += goals;
+                });
+            }
+        }
     });
+    
     let html = `
         <thead>
             <tr>
@@ -628,27 +740,36 @@ function createAnalysisTable(data) {
         </thead>
         <tbody>
     `;
+    
     QUADRANTS.forEach((quadrant, qIndex) => {
         let quadrantTotals = [];
         let totalGolsQuadrante = 0;
-        last6Hours.forEach((hour, hIndex) => {
+        
+        for (let hIndex = 0; hIndex < 6; hIndex++) {
+            const hour = last6Hours[hIndex] !== undefined ? last6Hours[hIndex] : -1;
             let quadrantTotal = 0;
-            quadrant.minutes.forEach(minute => {
-                let goals = 0;
-                if (hIndex === 0) {
-                    if (gameHasHappened(hour, minute)) {
-                        goals = data[hour]?.minutes[minute]?.total || 0;
+            
+            if (hour >= 0 && data[hour]) {
+                quadrant.minutes.forEach(minute => {
+                    let goals = 0;
+                    if (hIndex === 0) {
+                        if (gameHasHappened(hour, minute)) {
+                            goals = data[hour].minutes[minute]?.total || 0;
+                        }
+                    } else {
+                        goals = data[hour].minutes[minute]?.total || 0;
                     }
-                } else {
-                    goals = data[hour]?.minutes[minute]?.total || 0;
-                }
-                quadrantTotal += goals;
-            });
+                    quadrantTotal += goals;
+                });
+            }
+            
             quadrantTotals.push(quadrantTotal);
             totalGolsQuadrante += quadrantTotal;
-        });
-        const mediaGols = last6Hours.length > 0 ? (totalGolsQuadrante / last6Hours.length).toFixed(1) : '0.0';
+        }
+        
+        const mediaGols = (totalGolsQuadrante / 6).toFixed(1);
         const percentage = totalGoalsAllQuadrants > 0 ? ((totalGolsQuadrante / totalGoalsAllQuadrants) * 100).toFixed(1) : '0.0';
+        
         html += `
             <tr>
                 <td>${qIndex + 1}º QUADRANTE (${String(quadrant.minutes[0]).padStart(2, '0')}-${String(quadrant.minutes[4]).padStart(2, '0')})</td>
@@ -657,6 +778,7 @@ function createAnalysisTable(data) {
             </tr>
         `;
     });
+    
     html += '</tbody>';
     return html;
 }
@@ -664,20 +786,15 @@ function createAnalysisTable(data) {
 function createScoreCards(data, quadrantIndex) {
     const currentQuadrant = QUADRANTS[quadrantIndex];
     const lastHour = horasDisponiveis[0];
-    if (!lastHour || !data[lastHour]) return '<div>Sem dados disponíveis</div>';
+    if (lastHour === undefined || lastHour < 0 || !data[lastHour]) return '<div>Sem dados disponíveis</div>';
+    
     let html = '';
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
     currentQuadrant.minutes.forEach(minute => {
         const matchData = data[lastHour].minutes[minute];
-        let score = 'AGUARDANDO';
-        if (lastHour === currentHour && minute === currentMinute) {
-            score = 'Jogo em andamento';
-        } else if (gameHasHappened(lastHour, minute)) {
-            score = matchData.scoreDisplay !== 'AGUARDANDO' ? matchData.scoreDisplay : '0 x 0';
-        }
+        // Só mostra resultado se o jogo já aconteceu
+        const score = gameHasHappened(lastHour, minute) ? matchData.scoreDisplay : 'AGUARDANDO';
         const teams = matchData.teams;
+        
         html += `
             <div class="quadrantes-score-card">
                 <h4>Minuto ${String(minute).padStart(2, '0')}</h4>
@@ -694,10 +811,12 @@ function updateDisplay() {
     const summaryTable = document.getElementById('quadrantes-summaryTable');
     const analysisTable = document.getElementById('quadrantes-analysisTable');
     const scoreCards = document.getElementById('quadrantes-scoreCards');
+    
     if (!container || !summaryTable || !analysisTable || !scoreCards) {
         console.error('Elementos da página não encontrados');
         return;
     }
+    
     if (Object.keys(processedData).length === 0) {
         container.innerHTML = '<div class="quadrantes-quadrant"><h3>Aguardando dados...</h3></div>';
         summaryTable.innerHTML = '<tbody><tr><td>Aguardando dados...</td></tr></tbody>';
@@ -705,13 +824,16 @@ function updateDisplay() {
         scoreCards.innerHTML = '<div>Sem dados disponíveis</div>';
         return;
     }
+    
     let html = '';
     QUADRANTS.forEach(quadrant => {
         html += createQuadrantTable(quadrant, processedData);
     });
+    
     container.innerHTML = html;
     summaryTable.innerHTML = createSummaryTable(processedData);
     analysisTable.innerHTML = createAnalysisTable(processedData);
+    
     const currentQuadrantIndex = getCurrentQuadrant();
     scoreCards.innerHTML = createScoreCards(processedData, currentQuadrantIndex);
 }
@@ -723,12 +845,15 @@ async function fetchData() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
+        
         if (!Array.isArray(data)) {
             throw new Error('Formato de dados inválido - esperado array');
         }
+        
         if (data.length === 0) {
             throw new Error('Nenhum dado retornado pela API');
         }
+        
         currentData = data;
         processedData = processData(data);
         updateDisplay();
@@ -740,7 +865,7 @@ async function fetchData() {
 document.addEventListener('DOMContentLoaded', function() {
     changeLeague();
     fetchData();
-    setInterval(fetchData, 10000);
+    setInterval(fetchData, 5000);
 });
     </script>
 
