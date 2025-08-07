@@ -404,371 +404,411 @@
         </script>
         
         <script>
-            let golsFTChart;
-            let numPoints = 20;
-            let averagePoints = 19;
-            let showFibonacciLines = false;
-            let showDataLabels = false;
-            let selectedLeague = 'all';
-            
-            const leagues = ['CopaAmerica', 'TacaGloria', 'Euro', 'CampeonatoItaliano', 'CopaEstrelas', 'brasileirao'];
-            let chartData = {};
-            
-            const leagueColors = {
-                'CopaAmerica': '#FF6B6B',      // Vermelho coral
-                'TacaGloria': '#4ECDC4',       // Turquesa
-                'Euro': '#45B7D1',            // Azul céu
-                'CampeonatoItaliano': '#96CEB4', // Verde mint
-                'CopaEstrelas': '#FECA57',     // Amarelo dourado  
-                'brasileirao': '#FF9FF3'      // Rosa claro
-            };
+let golsFTChart;
+let numPoints = 20;
+let averagePoints = 19;
+let showFibonacciLines = false;
+let showDataLabels = false;
+let selectedLeague = 'all';
 
-            const leagueNames = {
-                'CopaAmerica': 'Copa América',
-                'TacaGloria': 'Taça Glória Eterna',
-                'Euro': 'Euro',
-                'CampeonatoItaliano': 'Campeonato Italiano',
-                'CopaEstrelas': 'Copa das Estrelas',
-                'brasileirao': 'Brasileirão Betano'
-            };
+const leagues = ['CopaAmerica', 'TacaGloria', 'Euro', 'CampeonatoItaliano', 'CopaEstrelas', 'brasileirao'];
+let chartData = {};
 
-            // Controla a visibilidade dos datasets no modo "Todas as Ligas"
-            const visibleDatasets = {
-                'CopaAmerica': true,
-                'TacaGloria': true,
-                'Euro': true,
-                'CampeonatoItaliano': true,
-                'CopaEstrelas': true,
-                'brasileirao': true
-            };
+const leagueColors = {
+    'CopaAmerica': '#FF6B6B',      // Vermelho coral
+    'TacaGloria': '#4ECDC4',       // Turquesa
+    'Euro': '#45B7D1',            // Azul céu
+    'CampeonatoItaliano': '#96CEB4', // Verde mint
+    'CopaEstrelas': '#FECA57',     // Amarelo dourado  
+    'brasileirao': '#FF9FF3'      // Rosa claro
+};
 
-            function formatHtResult(ht) {
-                if (ht === 'OUT') return 'OUT';
-                if (ht && ht.includes(' x ')) {
-                    const parts = ht.split(' x ');
-                    if (parts.length === 2) {
-                        return `${parts[0]}-${parts[1]}`;
-                    }
-                }
-                return ht;
+const leagueNames = {
+    'CopaAmerica': 'Copa América',
+    'TacaGloria': 'Taça Glória Eterna',
+    'Euro': 'Euro',
+    'CampeonatoItaliano': 'Campeonato Italiano',
+    'CopaEstrelas': 'Copa das Estrelas',
+    'brasileirao': 'Brasileirão Betano'
+};
+
+// Controla a visibilidade dos datasets no modo "Todas as Ligas"
+const visibleDatasets = {
+    'CopaAmerica': true,
+    'TacaGloria': true,
+    'Euro': true,
+    'CampeonatoItaliano': true,
+    'CopaEstrelas': true,
+    'brasileirao': true
+};
+
+function formatHtResult(ht) {
+    if (ht === 'OUT') return 'OUT';
+    if (ht && ht.includes(' x ')) {
+        const parts = ht.split(' x ');
+        if (parts.length === 2) {
+            return `${parts[0]}-${parts[1]}`;
+        }
+    }
+    return ht;
+}
+
+function processApiData(data, league) {
+    const sortedData = [...data].sort((a, b) => {
+        const dateA = new Date(a.data);
+        const dateB = new Date(b.data);
+        if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
+        if (a.hora !== b.hora) return a.hora - b.hora;
+        return a.minuto - b.minuto;
+    });
+
+    const slicedData = sortedData.slice(-numPoints - averagePoints);
+    chartData[league] = slicedData;
+
+    let labels = [];
+    let golsFT = [];
+
+    function hasGap(prevMatch, currMatch) {
+        const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
+        const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
+        const diffMinutes = (currTime - prevTime) / (1000 * 60);
+        return diffMinutes > 1;
+    }
+
+    for (let i = averagePoints; i < slicedData.length; i++) {
+        let golsFTSum = 0;
+        let validMatches = 0;
+
+        for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
+            const match = slicedData[j];
+            const ftScore = match.ft;
+
+            if (j > 0 && hasGap(slicedData[j - 1], match)) {
+                labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
+                golsFT.push(null);
+                continue;
             }
 
-            function processApiData(data, league) {
-                const sortedData = [...data].sort((a, b) => {
-                    const dateA = new Date(a.data);
-                    const dateB = new Date(b.data);
-                    if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
-                    if (a.hora !== b.hora) return a.hora - b.hora;
-                    return a.minuto - b.minuto;
-                });
-
-                const slicedData = sortedData.slice(-numPoints - averagePoints);
-                chartData[league] = slicedData;
-
-                let labels = [];
-                let golsFT = [];
-
-                function hasGap(prevMatch, currMatch) {
-                    const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
-                    const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
-                    const diffMinutes = (currTime - prevTime) / (1000 * 60);
-                    return diffMinutes > 1;
-                }
-
-                for (let i = averagePoints; i < slicedData.length; i++) {
-                    let golsFTSum = 0;
-                    let validMatches = 0;
-
-                    for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
-                        const match = slicedData[j];
-                        const ftScore = match.ft;
-
-                        if (j > 0 && hasGap(slicedData[j - 1], match)) {
-                            labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-                            golsFT.push(null);
-                            continue;
-                        }
-
-                        let ftScoreParts = [0, 0];
-                        if (ftScore && ftScore.includes(' x ')) {
-                            ftScoreParts = ftScore.split(' x ').map(num => parseInt(num, 10));
-                        }
-
-                        const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
-                        golsFTSum += totalGolsFT;
-                        validMatches++;
-                    }
-
-                    const match = slicedData[i];
-                    labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-                    golsFT.push(golsFTSum);
-                }
-
-                return { labels, golsFT };
+            let ftScoreParts = [0, 0];
+            if (ftScore && ftScore.includes(' x ')) {
+                ftScoreParts = ftScore.split(' x ').map(num => parseInt(num, 10));
             }
 
-            Chart.register(ChartDataLabels);
+            const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
+            golsFTSum += totalGolsFT;
+            validMatches++;
+        }
 
-            const fibonacciLinesPlugin = {
-                id: 'fibonacciLines',
-                afterDraw: (chart) => {
-                    if (!showFibonacciLines) return;
-                    const ctx = chart.ctx;
-                    const yAxis = chart.scales.y;
-                    const fibonacciLevels = [0, 23.6, 38.2, 50, 61.8, 100];
-                    const yMin = yAxis.min;
-                    const yMax = yAxis.max;
-                    const range = yMax - yMin;
-                    const normalizedLevels = fibonacciLevels.map(level => yMin + (level / 100) * range);
+        const match = slicedData[i];
+        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
+        golsFT.push(golsFTSum);
+    }
 
-                    ctx.save();
-                    normalizedLevels.forEach((level, index) => {
-                        const y = yAxis.getPixelForValue(level);
-                        ctx.beginPath();
-                        ctx.moveTo(chart.chartArea.left, y);
-                        ctx.lineTo(chart.chartArea.right, y);
-                        ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-                        ctx.lineWidth = 1;
-                        ctx.stroke();
-                        ctx.fillStyle = '#b0b0b0';
-                        ctx.font = '11px Arial';
-                        ctx.textAlign = 'left';
-                        const textY = y - (index === 0 ? -10 : 5);
-                        const textX = chart.chartArea.right + 10;
-                        ctx.fillText(`${fibonacciLevels[index]}%`, textX, textY);
-                    });
-                    ctx.restore();
-                }
-            };
+    return { labels, golsFT };
+}
 
-            function createGolsFTChart() {
-                const ctx = document.getElementById('golsFTChart').getContext('2d');
-                
-                golsFTChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: [],
-                        datasets: []
-                    },
-                    options: {
-                        responsive: true,
-                        layout: { 
-                            padding: { 
-                                top: 30,
-                                right: 50
-                            } 
+Chart.register(ChartDataLabels);
+
+const fibonacciLinesPlugin = {
+    id: 'fibonacciLines',
+    afterDraw: (chart) => {
+        if (!showFibonacciLines) return;
+        const ctx = chart.ctx;
+        const yAxis = chart.scales.y;
+        const fibonacciLevels = [0, 23.6, 38.2, 50, 61.8, 100];
+        const yMin = yAxis.min;
+        const yMax = yAxis.max;
+        const range = yMax - yMin;
+        const normalizedLevels = fibonacciLevels.map(level => yMin + (level / 100) * range);
+
+        ctx.save();
+        normalizedLevels.forEach((level, index) => {
+            const y = yAxis.getPixelForValue(level);
+            ctx.beginPath();
+            ctx.moveTo(chart.chartArea.left, y);
+            ctx.lineTo(chart.chartArea.right, y);
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.fillStyle = '#b0b0b0';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'left';
+            const textY = y - (index === 0 ? -10 : 5);
+            const textX = chart.chartArea.right + 10;
+            ctx.fillText(`${fibonacciLevels[index]}%`, textX, textY);
+        });
+        ctx.restore();
+    }
+};
+
+// Função para salvar o estado atual das ligas visíveis
+function saveVisibilityState() {
+    if (golsFTChart && selectedLeague === 'all') {
+        golsFTChart.data.datasets.forEach((dataset, index) => {
+            const meta = golsFTChart.getDatasetMeta(index);
+            const leagueKey = dataset.leagueKey;
+            if (leagueKey) {
+                visibleDatasets[leagueKey] = !meta.hidden;
+            }
+        });
+    }
+}
+
+function createGolsFTChart() {
+    const ctx = document.getElementById('golsFTChart').getContext('2d');
+    
+    golsFTChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: []
+        },
+        options: {
+            responsive: true,
+            animation: {
+                duration: 0 // Remove animações para updates mais suaves
+            },
+            layout: { 
+                padding: { 
+                    top: 30,
+                    right: 50
+                } 
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: { color: '#e0e0e0', font: { size: 12 } },
+                    onClick: function(e, legendItem, legend) {
+                        if (selectedLeague === 'all') {
+                            const datasetIndex = legendItem.datasetIndex;
+                            const ci = legend.chart;
+                            const meta = ci.getDatasetMeta(datasetIndex);
+                            meta.hidden = !meta.hidden;
+                            
+                            // Atualiza o estado da liga
+                            const dataset = ci.data.datasets[datasetIndex];
+                            if (dataset.leagueKey) {
+                                visibleDatasets[dataset.leagueKey] = !meta.hidden;
+                            }
+                            
+                            ci.update('none'); // Update sem animação
+                        }
+                    }
+                },
+                datalabels: {
+                    display: showDataLabels,
+                    color: '#e0e0e0',
+                    font: { size: 10 },
+                    formatter: (value) => value ? Math.round(value) : '',
+                    anchor: 'end',
+                    align: 'top',
+                    offset: 1
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#1fad8b',
+                    bodyColor: '#e0e0e0',
+                    borderColor: '#1fad8b',
+                    borderWidth: 1,
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            const datasetIndex = tooltipItems[0].datasetIndex;
+                            const pointIndex = tooltipItems[0].dataIndex;
+                            const league = golsFTChart.data.datasets[datasetIndex].leagueKey;
+                            const index = pointIndex + averagePoints;
+                            const match = chartData[league][index];
+                            return match ? `${leagueNames[league]} - ${match.hora}:${match.minuto.toString().padStart(2, '0')}` : '';
                         },
-                        plugins: {
-                            legend: {
-                                display: true,
-                                labels: { color: '#e0e0e0', font: { size: 12 } },
-                                onClick: function(e, legendItem, legend) {
-                                    if (selectedLeague === 'all') {
-                                        const datasetIndex = legendItem.datasetIndex;
-                                        const ci = legend.chart;
-                                        const meta = ci.getDatasetMeta(datasetIndex);
-                                        meta.hidden = !meta.hidden;
-                                        visibleDatasets[legendItem.text] = !meta.hidden;
-                                        ci.update();
-                                    }
-                                }
-                            },
-                            datalabels: {
-                                display: showDataLabels,
-                                color: '#e0e0e0',
-                                font: { size: 10 },
-                                formatter: (value) => value ? Math.round(value) : '',
-                                anchor: 'end',
-                                align: 'top',
-                                offset: 1
-                            },
-                            tooltip: {
-                                enabled: true,
-                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                                titleColor: '#1fad8b',
-                                bodyColor: '#e0e0e0',
-                                borderColor: '#1fad8b',
-                                borderWidth: 1,
-                                callbacks: {
-                                    title: function(tooltipItems) {
-                                        const datasetIndex = tooltipItems[0].datasetIndex;
-                                        const pointIndex = tooltipItems[0].dataIndex;
-                                        const league = golsFTChart.data.datasets[datasetIndex].leagueKey;
-                                        const index = pointIndex + averagePoints;
-                                        const match = chartData[league][index];
-                                        return match ? `${leagueNames[league]} - ${match.hora}:${match.minuto.toString().padStart(2, '0')}` : '';
-                                    },
-                                    label: function(tooltipItem) {
-                                        const league = tooltipItem.dataset.leagueKey;
-                                        const index = tooltipItem.dataIndex + averagePoints;
-                                        const match = chartData[league] && chartData[league][index];
-                                        if (!match) return '';
-                                        
-                                        const ftScore = match.ft || 'N/A';
-                                        const htScore = formatHtResult(match.ht) || 'N/A';
-                                        return [
-                                            `FT: ${ftScore}`,
-                                            `HT: ${htScore}`,
-                                            `Gols FT: ${Math.round(tooltipItem.raw)} gols`
-                                        ];
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                title: { display: false },
-                                ticks: { color: '#b0b0b0', maxRotation: 45, minRotation: 45 },
-                                grid: { display: false }
-                            },
-                            y: {
-                                title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                                beginAtZero: false,
-                                ticks: { 
-                                    color: '#b0b0b0',
-                                    stepSize: 5
-                                },
-                                grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 },
-                                afterFit: function(scale) { scale.paddingTop = 20; }
-                            }
+                        label: function(tooltipItem) {
+                            const league = tooltipItem.dataset.leagueKey;
+                            const index = tooltipItem.dataIndex + averagePoints;
+                            const match = chartData[league] && chartData[league][index];
+                            if (!match) return '';
+                            
+                            const ftScore = match.ft || 'N/A';
+                            const htScore = formatHtResult(match.ht) || 'N/A';
+                            return [
+                                `FT: ${ftScore}`,
+                                `HT: ${htScore}`,
+                                `Gols FT: ${Math.round(tooltipItem.raw)} gols`
+                            ];
                         }
-                    },
-                    plugins: [ChartDataLabels, fibonacciLinesPlugin]
-                });
-            }
-
-            function updateChart() {
-                if (!golsFTChart) return;
-
-                let allLabels = [];
-
-                if (selectedLeague === 'all') {
-                    const datasets = leagues.map(league => {
-                        if (chartData[league] && chartData[league].length > 0) {
-                            const processedData = processApiData(chartData[league], league);
-                            if (allLabels.length === 0) {
-                                allLabels = processedData.labels;
-                            }
-                            return {
-                                label: leagueNames[league],
-                                data: processedData.golsFT,
-                                borderColor: leagueColors[league],
-                                backgroundColor: leagueColors[league],
-                                borderWidth: 2,
-                                pointRadius: 4,
-                                pointBackgroundColor: leagueColors[league],
-                                fill: false,
-                                leagueKey: league,
-                                hidden: !visibleDatasets[league]
-                            };
-                        }
-                        return null;
-                    }).filter(dataset => dataset !== null);
-
-                    golsFTChart.data.labels = allLabels;
-                    golsFTChart.data.datasets = datasets;
-                    document.getElementById('chartTitle').textContent = 'Gols FT - Todas as Ligas';
-                } else {
-                    if (chartData[selectedLeague] && chartData[selectedLeague].length > 0) {
-                        const processedData = processApiData(chartData[selectedLeague], selectedLeague);
-                        golsFTChart.data.labels = processedData.labels;
-                        golsFTChart.data.datasets = [{
-                            label: leagueNames[selectedLeague],
-                            data: processedData.golsFT,
-                            borderColor: leagueColors[selectedLeague],
-                            backgroundColor: leagueColors[selectedLeague],
-                            borderWidth: 2,
-                            pointRadius: 4,
-                            pointBackgroundColor: leagueColors[selectedLeague],
-                            fill: false,
-                            leagueKey: selectedLeague
-                        }];
-                        document.getElementById('chartTitle').textContent = `Gols FT - ${leagueNames[selectedLeague]}`;
                     }
                 }
-
-                golsFTChart.update('none');
+            },
+            scales: {
+                x: {
+                    title: { display: false },
+                    ticks: { color: '#b0b0b0', maxRotation: 45, minRotation: 45 },
+                    grid: { display: false }
+                },
+                y: {
+                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
+                    beginAtZero: false,
+                    ticks: { 
+                        color: '#b0b0b0',
+                        stepSize: 5
+                    },
+                    grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 },
+                    afterFit: function(scale) { scale.paddingTop = 20; }
+                }
             }
+        },
+        plugins: [ChartDataLabels, fibonacciLinesPlugin]
+    });
+}
 
-            function updateCharts() {
-                const timestamp = new Date().getTime();
-                const leagueUrls = {
-                    'CopaAmerica': 'https://betstat.site/resultados/Copa%20America',
-                    'TacaGloria': 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna',
-                    'Euro': 'https://betstat.site/resultados/Euro',
-                    'CampeonatoItaliano': 'https://betstat.site/resultados/Campeonato%20Italiano',
-                    'CopaEstrelas': 'https://betstat.site/resultados/Copa%20das%20estrelas',
-                    'brasileirao': 'https://betstat.site/resultados/Brasileir%C3%A3o%20Betano',
+function updateChart() {
+    if (!golsFTChart) return;
+
+    // Salva o estado antes de atualizar
+    saveVisibilityState();
+
+    let allLabels = [];
+
+    if (selectedLeague === 'all') {
+        const datasets = leagues.map(league => {
+            if (chartData[league] && chartData[league].length > 0) {
+                const processedData = processApiData(chartData[league], league);
+                if (allLabels.length === 0) {
+                    allLabels = processedData.labels;
+                }
+                return {
+                    label: leagueNames[league],
+                    data: processedData.golsFT,
+                    borderColor: leagueColors[league],
+                    backgroundColor: leagueColors[league],
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: leagueColors[league],
+                    fill: false,
+                    leagueKey: league,
+                    hidden: !visibleDatasets[league] // Aplica o estado salvo
                 };
-
-                const fetchPromises = leagues.map(league => {
-                    const apiUrl = `${leagueUrls[league]}?timestamp=${timestamp}`;
-                    return fetch(apiUrl)
-                        .then(response => {
-                            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                            return response.json();
-                        })
-                        .then(data => {
-                            chartData[league] = data;
-                            console.log(`Dados processados para ${league}:`, data);
-                        })
-                        .catch(error => {
-                            console.error(`Erro ao buscar dados para ${league}:`, error);
-                        });
-                });
-
-                Promise.all(fetchPromises).then(() => {
-                    updateChart();
-                });
             }
+            return null;
+        }).filter(dataset => dataset !== null);
 
-            function toggleFibonacciLines() {
-                showFibonacciLines = document.getElementById('fibonacciToggle').checked;
-                if (golsFTChart) golsFTChart.update();
+        // Atualiza apenas os dados, mantendo a estrutura
+        golsFTChart.data.labels = allLabels;
+        golsFTChart.data.datasets = datasets;
+        
+        // Restaura o estado de visibilidade após a atualização
+        golsFTChart.data.datasets.forEach((dataset, index) => {
+            if (dataset.leagueKey) {
+                const meta = golsFTChart.getDatasetMeta(index);
+                meta.hidden = !visibleDatasets[dataset.leagueKey];
             }
+        });
+        
+        document.getElementById('chartTitle').textContent = 'Gols FT - Todas as Ligas';
+    } else {
+        if (chartData[selectedLeague] && chartData[selectedLeague].length > 0) {
+            const processedData = processApiData(chartData[selectedLeague], selectedLeague);
+            golsFTChart.data.labels = processedData.labels;
+            golsFTChart.data.datasets = [{
+                label: leagueNames[selectedLeague],
+                data: processedData.golsFT,
+                borderColor: leagueColors[selectedLeague],
+                backgroundColor: leagueColors[selectedLeague],
+                borderWidth: 2,
+                pointRadius: 4,
+                pointBackgroundColor: leagueColors[selectedLeague],
+                fill: false,
+                leagueKey: selectedLeague
+            }];
+            document.getElementById('chartTitle').textContent = `Gols FT - ${leagueNames[selectedLeague]}`;
+        }
+    }
 
-            function toggleDataLabels() {
-                showDataLabels = document.getElementById('dataLabelsToggle').checked;
-                if (golsFTChart) {
-                    golsFTChart.options.plugins.datalabels.display = showDataLabels;
-                    golsFTChart.update();
-                }
-            }
+    // Update sem animação para evitar flickering
+    golsFTChart.update('none');
+}
 
-            // Event listeners para botões de liga
-            document.querySelectorAll('.league-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    document.querySelectorAll('.league-btn').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    selectedLeague = this.dataset.league;
-                    if (selectedLeague === 'all') {
-                        leagues.forEach(league => visibleDatasets[league] = true);
-                    }
-                    updateChart();
-                });
+function updateCharts() {
+    const timestamp = new Date().getTime();
+    const leagueUrls = {
+        'CopaAmerica': 'https://betstat.site/resultados/Copa%20America',
+        'TacaGloria': 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna',
+        'Euro': 'https://betstat.site/resultados/Euro',
+        'CampeonatoItaliano': 'https://betstat.site/resultados/Campeonato%20Italiano',
+        'CopaEstrelas': 'https://betstat.site/resultados/Copa%20das%20estrelas',
+        'brasileirao': 'https://betstat.site/resultados/Brasileir%C3%A3o%20Betano',
+    };
+
+    const fetchPromises = leagues.map(league => {
+        const apiUrl = `${leagueUrls[league]}?timestamp=${timestamp}`;
+        return fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                chartData[league] = data;
+                console.log(`Dados processados para ${league}:`, data);
+            })
+            .catch(error => {
+                console.error(`Erro ao buscar dados para ${league}:`, error);
             });
+    });
 
-            document.getElementById('pointsSelector').addEventListener('change', function(event) {
-                numPoints = parseInt(event.target.value, 10);
-                updateCharts();
-            });
+    Promise.all(fetchPromises).then(() => {
+        updateChart();
+    });
+}
 
-            document.getElementById('averageSelector').addEventListener('change', function(event) {
-                averagePoints = parseInt(event.target.value, 10);
-                updateCharts();
-            });
+function toggleFibonacciLines() {
+    showFibonacciLines = document.getElementById('fibonacciToggle').checked;
+    if (golsFTChart) golsFTChart.update('none');
+}
 
-            document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
-            document.getElementById('dataLabelsToggle').addEventListener('change', toggleDataLabels);
+function toggleDataLabels() {
+    showDataLabels = document.getElementById('dataLabelsToggle').checked;
+    if (golsFTChart) {
+        golsFTChart.options.plugins.datalabels.display = showDataLabels;
+        golsFTChart.update('none');
+    }
+}
 
-            // Inicialização
-            window.onload = function() {
-                createGolsFTChart();
-                updateCharts();
-            };
-            
-            setInterval(updateCharts, 3000);
+// Event listeners para botões de liga
+document.querySelectorAll('.league-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Salva o estado antes de mudar de liga
+        saveVisibilityState();
+        
+        document.querySelectorAll('.league-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        selectedLeague = this.dataset.league;
+        if (selectedLeague === 'all') {
+            // Ao voltar para "todas as ligas", mantém o estado salvo
+            // Não reseta para true automaticamente
+        }
+        updateChart();
+    });
+});
+
+document.getElementById('pointsSelector').addEventListener('change', function(event) {
+    numPoints = parseInt(event.target.value, 10);
+    updateCharts();
+});
+
+document.getElementById('averageSelector').addEventListener('change', function(event) {
+    averagePoints = parseInt(event.target.value, 10);
+    updateCharts();
+});
+
+document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
+document.getElementById('dataLabelsToggle').addEventListener('change', toggleDataLabels);
+
+// Inicialização
+window.onload = function() {
+    createGolsFTChart();
+    updateCharts();
+};
+
+setInterval(updateCharts, 3000);
         </script>
     </body>
 </html>
