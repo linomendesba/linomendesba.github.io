@@ -432,6 +432,16 @@
                 'brasileirao': 'Brasileirão Betano'
             };
 
+            // Controla a visibilidade dos datasets no modo "Todas as Ligas"
+            const visibleDatasets = {
+                'CopaAmerica': true,
+                'TacaGloria': true,
+                'Euro': true,
+                'CampeonatoItaliano': true,
+                'CopaEstrelas': true,
+                'brasileirao': true
+            };
+
             function formatHtResult(ht) {
                 if (ht === 'OUT') return 'OUT';
                 if (ht && ht.includes(' x ')) {
@@ -491,7 +501,7 @@
 
                     const match = slicedData[i];
                     labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-                    golsFT.push(golsFTSum); // Use sum of goals instead of percentage
+                    golsFT.push(golsFTSum);
                 }
 
                 return { labels, golsFT };
@@ -551,7 +561,17 @@
                         plugins: {
                             legend: {
                                 display: true,
-                                labels: { color: '#e0e0e0', font: { size: 12 } }
+                                labels: { color: '#e0e0e0', font: { size: 12 } },
+                                onClick: function(e, legendItem, legend) {
+                                    if (selectedLeague === 'all') {
+                                        const datasetIndex = legendItem.datasetIndex;
+                                        const ci = legend.chart;
+                                        const meta = ci.getDatasetMeta(datasetIndex);
+                                        meta.hidden = !meta.hidden;
+                                        visibleDatasets[legendItem.text] = !meta.hidden;
+                                        ci.update();
+                                    }
+                                }
                             },
                             datalabels: {
                                 display: showDataLabels,
@@ -589,7 +609,7 @@
                                         return [
                                             `FT: ${ftScore}`,
                                             `HT: ${htScore}`,
-                                            `Gols FT: ${Math.round(tooltipItem.raw)} gols (Total)`
+                                            `Gols FT: ${Math.round(tooltipItem.raw)} gols`
                                         ];
                                     }
                                 }
@@ -597,16 +617,16 @@
                         },
                         scales: {
                             x: {
-                                title: { display: true, text: 'Tempo', color: '#1fad8b', font: { size: 14 } },
+                                title: { display: false },
                                 ticks: { color: '#b0b0b0', maxRotation: 45, minRotation: 45 },
                                 grid: { display: false }
                             },
                             y: {
-                                title: { display: true, text: 'Gols FT (Total)', color: '#1fad8b', font: { size: 14 } },
+                                title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
                                 beginAtZero: false,
                                 ticks: { 
                                     color: '#b0b0b0',
-                                    stepSize: 5 // Fixed step size like second code
+                                    stepSize: 5
                                 },
                                 grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 },
                                 afterFit: function(scale) { scale.paddingTop = 20; }
@@ -620,15 +640,16 @@
             function updateChart() {
                 if (!golsFTChart) return;
 
-                const datasets = [];
                 let allLabels = [];
 
                 if (selectedLeague === 'all') {
-                    // Mostrar todas as ligas
-                    leagues.forEach(league => {
+                    const datasets = leagues.map(league => {
                         if (chartData[league] && chartData[league].length > 0) {
                             const processedData = processApiData(chartData[league], league);
-                            datasets.push({
+                            if (allLabels.length === 0) {
+                                allLabels = processedData.labels;
+                            }
+                            return {
                                 label: leagueNames[league],
                                 data: processedData.golsFT,
                                 borderColor: leagueColors[league],
@@ -637,20 +658,21 @@
                                 pointRadius: 4,
                                 pointBackgroundColor: leagueColors[league],
                                 fill: false,
-                                leagueKey: league
-                            });
-                            
-                            if (allLabels.length === 0) {
-                                allLabels = processedData.labels;
-                            }
+                                leagueKey: league,
+                                hidden: !visibleDatasets[league]
+                            };
                         }
-                    });
+                        return null;
+                    }).filter(dataset => dataset !== null);
+
+                    golsFTChart.data.labels = allLabels;
+                    golsFTChart.data.datasets = datasets;
                     document.getElementById('chartTitle').textContent = 'Gols FT - Todas as Ligas';
                 } else {
-                    // Mostrar apenas uma liga
                     if (chartData[selectedLeague] && chartData[selectedLeague].length > 0) {
                         const processedData = processApiData(chartData[selectedLeague], selectedLeague);
-                        datasets.push({
+                        golsFTChart.data.labels = processedData.labels;
+                        golsFTChart.data.datasets = [{
                             label: leagueNames[selectedLeague],
                             data: processedData.golsFT,
                             borderColor: leagueColors[selectedLeague],
@@ -660,14 +682,11 @@
                             pointBackgroundColor: leagueColors[selectedLeague],
                             fill: false,
                             leagueKey: selectedLeague
-                        });
-                        allLabels = processedData.labels;
+                        }];
                         document.getElementById('chartTitle').textContent = `Gols FT - ${leagueNames[selectedLeague]}`;
                     }
                 }
 
-                golsFTChart.data.labels = allLabels;
-                golsFTChart.data.datasets = datasets;
                 golsFTChart.update('none');
             }
 
@@ -719,12 +738,13 @@
             // Event listeners para botões de liga
             document.querySelectorAll('.league-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    // Remove active de todos os botões
                     document.querySelectorAll('.league-btn').forEach(b => b.classList.remove('active'));
-                    // Adiciona active ao botão clicado
                     this.classList.add('active');
                     
                     selectedLeague = this.dataset.league;
+                    if (selectedLeague === 'all') {
+                        leagues.forEach(league => visibleDatasets[league] = true);
+                    }
                     updateChart();
                 });
             });
