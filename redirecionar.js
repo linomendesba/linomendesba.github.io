@@ -23,6 +23,7 @@ function redirecionar(select) {
         url === "https://www.betstat.site/mult365.html" ||
                 url === "https://www.betstat.site/Palpites.html" ||
         url === "https://www.betstat.site/365fixo.html" ||
+                url === "https://www.betstat.site/graficosgols.html" ||
         url === "https://www.betstat.site/multbetano.html" ||
         url === "https://www.betstat.site/betanoradar.html" ||
         url === "https://www.betstat.site/maximabetano.html" ||
