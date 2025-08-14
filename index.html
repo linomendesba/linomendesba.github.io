@@ -759,7 +759,7 @@ async function fetchProximosJogos() {
 }
 
 function normalizeString(str) {
-  return str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return str ? str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 }
 
 function normalizeTime(timeStr) {
@@ -794,8 +794,8 @@ function findOddsForMatch(match, oddsData) {
   const teamMapping = {
     "peixe": "boca",
   };
-  const matchTimeA = normalizeString(teamMapping[match.time_a?.toLowerCase() || match.team_home.toLowerCase()] || match.time_a || match.team_home);
-  const matchTimeB = normalizeString(teamMapping[match.time_b?.toLowerCase() || match.team_visit.toLowerCase()] || match.time_b || match.team_visit);
+  const matchTimeA = normalizeString(teamMapping[match.time_a?.toLowerCase() || match.team_home?.toLowerCase()] || match.time_a || match.team_home);
+  const matchTimeB = normalizeString(teamMapping[match.time_b?.toLowerCase() || match.team_visit?.toLowerCase()] || match.time_b || match.team_visit);
   console.log(`Buscando odds para: ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime} (minuto ${matchMinute})`);
 
   let matchedOdd = oddsData.find(odd => {
@@ -813,31 +813,41 @@ function findOddsForMatch(match, oddsData) {
 
     if (!isMatch) {
       console.log(`Não encontrou correspondência exata: oddTime=${oddTime}, matchTime=${matchTime}, oddDate=${oddDate}, matchDate=${matchDate}, oddCasa=${oddTimeCasa}, matchCasa=${matchTimeA}, oddVisitante=${oddTimeVisitante}, matchVisitante=${matchTimeB}`);
+    } else {
+      console.log(`Correspondência exata encontrada: ${oddTimeCasa} vs ${oddTimeVisitante} em ${oddDate} ${oddTime}`);
     }
 
     return isMatch;
   });
 
   if (!matchedOdd && matchHour === 0) {
-    console.warn(`Não encontrou odds com correspondência exata para ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime}. Tentando correspondência por times e data (ignorando horário).`);
-    matchedOdd = oddsData.find(odd => {
+    console.warn(`Não encontrou odds com correspondência exata para ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime}. Tentando correspondência parcial por times e data.`);
+    const potentialMatches = oddsData.filter(odd => {
       const oddDate = odd.data_captura;
       const oddTimeCasa = normalizeString(odd.time_casa);
       const oddTimeVisitante = normalizeString(odd.time_visitante);
-      const isPartialMatch = (
-        (oddTimeCasa === matchTimeA && oddTimeVisitante === matchTimeB) &&
+      return (
+        oddTimeCasa === matchTimeA &&
+        oddTimeVisitante === matchTimeB &&
         oddDate === matchDate
       );
-
-      if (isPartialMatch) {
-        console.log(`Correspondência parcial encontrada: ${oddTimeCasa} vs ${oddTimeVisitante} em ${oddDate}`);
-      }
-
-      return isPartialMatch;
     });
+
+    if (potentialMatches.length === 1) {
+      matchedOdd = potentialMatches[0];
+      console.log(`Correspondência parcial encontrada: ${matchedOdd.time_casa} vs ${matchedOdd.time_visitante} em ${matchedOdd.data_captura}`);
+    } else if (potentialMatches.length > 1) {
+      console.warn(`Múltiplas correspondências parciais encontradas para ${matchTimeA} vs ${matchTimeB} em ${matchDate}. Ignorando para evitar ambiguidade.`);
+    } else {
+      console.log(`Nenhuma correspondência parcial encontrada para ${matchTimeA} vs ${matchTimeB} em ${matchDate}.`);
+    }
   }
 
-  console.log(`Odd encontrada para minuto ${matchMinute}:`, matchedOdd || "Nenhuma");
+  if (matchedOdd) {
+    console.log(`Odd encontrada para minuto ${matchMinute}:`, matchedOdd);
+  } else {
+    console.log(`Nenhuma odd encontrada para ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime} (minuto ${matchMinute})`);
+  }
   return matchedOdd;
 }
 
@@ -856,7 +866,8 @@ function getOddValue(odds, resultado) {
     "under3.5": "odds_menos_3_5",
     over5: "odds_mais_5_gols",
   };
-  return odds ? odds[oddMap[resultado]] || "N/A" : "N/A";
+  const oddValue = odds ? odds[oddMap[resultado]] : null;
+  return oddValue && !isNaN(parseFloat(oddValue)) ? oddValue : "N/A";
 }
 
 function extractTimeFromDateTime(dateTimeStr) {
