@@ -773,14 +773,20 @@ function formatDateToDDMMYYYY(dateStr) {
   }
   if (isNaN(date)) return null;
   const day = date.getDate().toString().padStart(2, "0");
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+ xlab const month = (date.getMonth() + 1).toString().padStart(2, "0");
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
 }
 
+function normalizeTime(timeStr) {
+  if (!timeStr) return "00:00";
+  const [hours, minutes] = timeStr.split(":").map(num => parseInt(num) || 0);
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+}
+
 function findOddsForMatch(match, oddsData) {
   const matchDate = formatDateToDDMMYYYY(match.data || match.start_time || match.captured_date);
-  const matchTime = match.hora ? `${match.hora.toString().padStart(2, "0")}:${match.minuto.toString().padStart(2, "0")}` : match.time;
+  const matchTime = normalizeTime(match.hora ? `${match.hora}:${match.minuto}` : match.time);
   const teamMapping = {
     "peixe": "boca",
   };
@@ -790,32 +796,46 @@ function findOddsForMatch(match, oddsData) {
 
   let matchedOdd = oddsData.find(odd => {
     const oddDate = odd.data_captura;
-    const oddTime = odd.horario.padStart(5, "0"); // Ensure "0:00" becomes "00:00"
+    const oddTime = normalizeTime(odd.horario);
     const oddTimeCasa = normalizeString(odd.time_casa);
     const oddTimeVisitante = normalizeString(odd.time_visitante);
 
-    return (
+    const isMatch = (
       oddTimeCasa === matchTimeA &&
       oddTimeVisitante === matchTimeB &&
       oddDate === matchDate &&
       oddTime === matchTime
     );
+
+    if (!isMatch) {
+      console.log(`Não encontrou correspondência exata: oddTime=${oddTime}, matchTime=${matchTime}, oddDate=${oddDate}, matchDate=${matchDate}, oddCasa=${oddTimeCasa}, matchCasa=${matchTimeA}, oddVisitante=${oddTimeVisitante}, matchVisitante=${matchTimeB}`);
+    }
+
+    return isMatch;
   });
 
   if (!matchedOdd) {
+    console.warn(`Não encontrou odds com correspondência exata para ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime}. Tentando correspondência parcial por times e data.`);
     matchedOdd = oddsData.find(odd => {
-      const oddTime = odd.horario.padStart(5, "0"); // Ensure consistent time format
+      const oddDate = odd.data_captura;
+      const oddTime = normalizeTime(odd.horario);
       const oddTimeCasa = normalizeString(odd.time_casa);
       const oddTimeVisitante = normalizeString(odd.time_visitante);
-      return (
+      const isPartialMatch = (
         (oddTimeCasa === matchTimeA || oddTimeVisitante === matchTimeA ||
          oddTimeCasa === matchTimeB || oddTimeVisitante === matchTimeB) &&
-        oddTime === matchTime
+        oddDate === matchDate
       );
+
+      if (isPartialMatch) {
+        console.log(`Correspondência parcial encontrada: ${oddTimeCasa} vs ${oddTimeVisitante} em ${oddDate} ${oddTime}`);
+      }
+
+      return isPartialMatch;
     });
   }
 
-  console.log(`Odd encontrada:`, matchedOdd);
+  console.log(`Odd encontrada:`, matchedOdd || "Nenhuma");
   return matchedOdd;
 }
 
