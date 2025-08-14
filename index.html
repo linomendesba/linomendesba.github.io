@@ -779,43 +779,57 @@
     }
 
     function findOddsForMatch(match, oddsData) {
-      const matchDate = formatDateToDDMMYYYY(match.data || match.start_time || match.captured_date);
-      const matchTime = match.hora ? `${match.hora.toString().padStart(2, "0")}:${match.minuto.toString().padStart(2, "0")}` : match.time;
+      const matchDate = formatDateToDDMMYYYY(match.data); // e.g., "12/06/2025"
+      const matchTime = `${match.hora.toString().padStart(2, "0")}:${match.minuto.toString().padStart(2, "0")}`; // e.g., "07:43"
       const teamMapping = {
         "peixe": "boca",
+        // Add other mappings as needed
       };
-      const matchTimeA = normalizeString(teamMapping[match.time_a?.toLowerCase() || match.team_home.toLowerCase()] || match.time_a || match.team_home);
-      const matchTimeB = normalizeString(teamMapping[match.time_b?.toLowerCase() || match.team_visit.toLowerCase()] || match.time_b || match.team_visit);
-      console.log(`Buscando odds para: ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime}`);
+      const matchTimeA = normalizeString(teamMapping[match.time_a.toLowerCase()] || match.time_a);
+      const matchTimeB = normalizeString(teamMapping[match.time_b.toLowerCase()] || match.time_b);
 
+      console.log(`Searching odds for match: ${matchTimeA} vs ${matchTimeB} on ${matchDate} at ${matchTime}`);
+
+      // Primary match: full criteria
       let matchedOdd = oddsData.find(odd => {
-        const oddDate = odd.data_captura;
-        const oddTime = odd.horario;
+        const oddDate = odd.data_captura; // e.g., "13/08/2025"
+        const oddTime = odd.horario; // e.g., "07:43"
         const oddTimeCasa = normalizeString(odd.time_casa);
         const oddTimeVisitante = normalizeString(odd.time_visitante);
 
-        return (
+        const isMatch =
           oddTimeCasa === matchTimeA &&
           oddTimeVisitante === matchTimeB &&
           oddDate === matchDate &&
-          oddTime === matchTime
-        );
+          oddTime === matchTime;
+
+        if (isMatch) {
+          console.log(`Found odds by full match:`, odd);
+        }
+        return isMatch;
       });
 
+      // Fallback: match by one team and time
       if (!matchedOdd) {
         matchedOdd = oddsData.find(odd => {
           const oddTime = odd.horario;
           const oddTimeCasa = normalizeString(odd.time_casa);
           const oddTimeVisitante = normalizeString(odd.time_visitante);
-          return (
-            (oddTimeCasa === matchTimeA || oddTimeVisitante === matchTimeA ||
+          const isTeamMatch =
+            (oddTimeCasa === matchTimeA || oddTimeVisitante === matchTimeA || 
              oddTimeCasa === matchTimeB || oddTimeVisitante === matchTimeB) &&
-            oddTime === matchTime
-          );
+            oddTime === matchTime;
+          if (isTeamMatch) {
+            console.log(`Found odds by team and time:`, odd);
+          }
+          return isTeamMatch;
         });
       }
 
-      console.log(`Odd encontrada:`, matchedOdd);
+      if (!matchedOdd) {
+        console.log(`No odds found for ${matchTimeA} vs ${matchTimeB} on ${matchDate} at ${matchTime}`);
+      }
+
       return matchedOdd;
     }
 
@@ -834,7 +848,8 @@
         "under3.5": "odds_menos_3_5",
         over5: "odds_mais_5_gols",
       };
-      return odds ? odds[oddMap[resultado]] || "N/A" : "N/A";
+      const oddValue = odds ? odds[oddMap[resultado]] || "N/A" : "N/A";
+      return oddValue;
     }
 
     function extractTimeFromDateTime(dateTimeStr) {
