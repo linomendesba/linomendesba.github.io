@@ -523,26 +523,6 @@
       </div>
   </div>
 
-        <div class="cardsligasbetano-container">
-        <div class="cardsligasbetano-card" onclick="window.location.href='euro.html'">
-            <h3>Euro Betano</h3>
-        </div>
-        <div class="cardsligasbetano-card" onclick="window.location.href='copa_america.html'">
-            <h3>Copa América</h3>
-        </div>
-        <div class="cardsligasbetano-card" onclick="window.location.href='copa_das_estrelas.html'">
-            <h3>Copa das Estrelas</h3>
-        </div>
-        <div class="cardsligasbetano-card" onclick="window.location.href='brasileirao.html'">
-            <h3>Brasileirão Betano</h3>
-        </div>
-        <div class="cardsligasbetano-card" onclick="window.location.href='index.html'">
-            <h3>Taça Glória Eterna</h3>
-        </div>
-        <div class="cardsligasbetano-card" onclick="window.location.href='campeonato_italiano.html'">
-            <h3>Campeonato Italiano</h3>
-        </div>
-    </div>
 
   <div id="errorMessage" class="error-message" style="display: none;"></div>
   <div class="seletor-container">
@@ -613,11 +593,6 @@
       <div id="redPercentage">Reds: 67.5%</div>
     </div>
   </div>
-
-
-  <div class="jogosfuturos-container">
-    <div class="jogosfuturos-games-container" id="jogosfuturos-games-container"></div>
-</div>
 
 
   <table id="tabelaResultados">
@@ -5623,124 +5598,6 @@ updateGolsChart();
         setInterval(fetchCiclosData, 3000);
     </script>
     
-    <script>
-   document.addEventListener('DOMContentLoaded', () => {
-      const jogosFuturosContainer = document.getElementById('jogosfuturos-games-container');
-
-      loadJogosFuturos(); // Carrega inicialmente
-      startJogosFuturosAutoUpdate(); // Inicia a atualização automática
-
-      function loadJogosFuturos() {
-        const nextGamesUrl = 'https://betstat.site/proximos/Taça%20Glória%20Eterna';
-        fetch(nextGamesUrl)
-          .then(response => {
-            if (!response.ok) throw new Error(`Erro na requisição: ${response.status}`);
-            return response.json();
-          })
-          .then(games => {
-            const proximosJogos = games
-              .sort((a, b) => new Date(a.start_time) - new Date(b.start_time)) // Ordem crescente (mais antigo primeiro)
-              .slice(0, 6); // Pega os 6 jogos mais recentes
-            displayJogosFuturos(proximosJogos);
-          })
-          .catch(error => {
-            console.error('Erro ao carregar próximos jogos:', error);
-            jogosFuturosContainer.innerHTML = '<p>Erro ao carregar jogos</p>';
-          });
-      }
-
-      function extractTimeFromDateTime(dateTimeStr) {
-        if (!dateTimeStr || isNaN(new Date(dateTimeStr))) {
-          return { time: "Horário indisponível", date: null };
-        }
-        const date = new Date(dateTimeStr);
-        const hour = date.getHours().toString().padStart(2, '0'); // Horário local
-        const minute = date.getMinutes().toString().padStart(2, '0');
-        return { time: `${hour}:${minute}`, date };
-      }
-
-      function timeToMinutes(timeStr) {
-        if (!timeStr || timeStr === "Horário indisponível") return -1;
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        return hours * 60 + minutes;
-      }
-
-      function displayJogosFuturos(proximosJogos) {
-        jogosFuturosContainer.innerHTML = '';
-        if (!proximosJogos || proximosJogos.length === 0) {
-          jogosFuturosContainer.innerHTML = '<p>Nenhum jogo disponível</p>';
-          return;
-        }
-
-        // Pegar horário atual
-        const now = new Date();
-        const currentHour = now.getHours();
-        const currentMinute = now.getMinutes();
-        const currentTimeInMinutes = currentHour * 60 + currentMinute;
-        const currentTimeStr = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
-
-        // Preparar jogos com seus horários em minutos para ordenação
-        const jogosComTempo = proximosJogos.map(jogo => {
-          const { time, date } = jogo.time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(jogo.time)
-            ? { time: jogo.time, date: null }
-            : extractTimeFromDateTime(jogo.start_time);
-          
-          const timeInMinutes = timeToMinutes(time);
-          return {
-            jogo,
-            time,
-            timeInMinutes,
-            distanceFromNow: timeInMinutes - currentTimeInMinutes
-          };
-        });
-
-        // Identificar jogo atual (o mais próximo da hora atual)
-        let indexOfCurrent = -1;
-        let smallestPositiveDistance = Infinity;
-
-        jogosComTempo.forEach((item, index) => {
-          if (item.time === currentTimeStr) {
-            indexOfCurrent = index;
-          } else if (item.distanceFromNow > 0 && item.distanceFromNow < smallestPositiveDistance) {
-            smallestPositiveDistance = item.distanceFromNow;
-            if (indexOfCurrent === -1) indexOfCurrent = index;
-          }
-        });
-
-        // Se não encontrou, pega o primeiro
-        if (indexOfCurrent === -1 && jogosComTempo.length > 0) {
-          indexOfCurrent = 0;
-        }
-
-        // Exibir os jogos com as cores apropriadas
-        jogosComTempo.forEach((item, index) => {
-          const box = document.createElement('div');
-          box.classList.add('jogosfuturos-game-box');
-
-          if (index === indexOfCurrent) {
-            box.classList.add('jogosfuturos-current'); // Verde
-          } else if (index === indexOfCurrent + 1 || index === indexOfCurrent + 2) {
-            box.classList.add('jogosfuturos-next'); // Amarelo
-          } else {
-            box.classList.add('jogosfuturos-upcoming'); // Amarelo fraco
-          }
-
-          box.innerHTML = `
-            <div class="jogosfuturos-time"> ${item.time}</div>
-            <div class="jogosfuturos-teams">${item.jogo.team_home.toUpperCase()} x ${item.jogo.team_visit.toUpperCase()}</div>
-          `;
-          jogosFuturosContainer.appendChild(box);
-        });
-      }
-
-      function startJogosFuturosAutoUpdate() {
-        setInterval(() => {
-          loadJogosFuturos();
-        }, 10000); // Atualiza a cada 10 segundos
-      }
-    });
-    </script>
-
 
 <script>
 
