@@ -781,13 +781,14 @@
 const oddsCache = new Map();
 
 function findOddsForMatch(match, oddsData) {
+  // Normaliza a data do jogo
   const matchDate = formatDateToDDMMYYYY(match.data || match.start_time || match.captured_date);
   
-  // Garante que matchTime seja sempre válido, usando "00:00" como padrão
+  // Normaliza o horário, garantindo formato "HH:MM"
   const matchTime = (match.hora != null && match.minuto != null)
     ? `${match.hora.toString().padStart(2, "0")}:${match.minuto.toString().padStart(2, "0")}`
-    : match.time || "00:00";
-  
+    : (match.time ? match.time.padStart(5, "0") : "00:00");
+
   const teamMapping = {
     "peixe": "boca",
   };
@@ -812,7 +813,7 @@ function findOddsForMatch(match, oddsData) {
   // Correspondência exata: times, data e horário
   let matchedOdd = oddsData.find(odd => {
     const oddDate = odd.data_captura;
-    const oddTime = odd.horario || "00:00"; // Usa "00:00" como padrão se odd.horario for undefined
+    const oddTime = odd.horario ? odd.horario.padStart(5, "0") : "00:00"; // Normaliza horário
     const oddTimeCasa = normalizeString(odd.time_casa || "");
     const oddTimeVisitante = normalizeString(odd.time_visitante || "");
 
@@ -828,11 +829,11 @@ function findOddsForMatch(match, oddsData) {
     return isMatch;
   });
 
-  // Correspondência alternativa: times e data, com tolerância de horário (±1 hora)
+  // Correspondência alternativa: times e data, com tolerância de horário (±2 horas)
   if (!matchedOdd) {
     matchedOdd = oddsData.find(odd => {
       const oddDate = odd.data_captura;
-      const oddTime = odd.horario || "00:00";
+      const oddTime = odd.horario ? odd.horario.padStart(5, "0") : "00:00";
       const oddTimeCasa = normalizeString(odd.time_casa || "");
       const oddTimeVisitante = normalizeString(odd.time_visitante || "");
 
@@ -841,11 +842,11 @@ function findOddsForMatch(match, oddsData) {
         (oddTimeCasa === matchTimeB && oddTimeVisitante === matchTimeA);
       const isDateMatch = oddDate === matchDate;
 
-      // Tolerância de horário
+      // Tolerância de horário (±2 horas)
       const matchDateTime = new Date(`${matchDate.split("/").reverse().join("-")}T${matchTime}:00-03:00`);
       const oddDateTime = new Date(`${oddDate.split("/").reverse().join("-")}T${oddTime}:00-03:00`);
       const timeDiff = Math.abs(matchDateTime - oddDateTime) / (1000 * 60 * 60);
-      const isTimeClose = timeDiff <= 1;
+      const isTimeClose = timeDiff <= 2;
 
       const isMatch = isTeamMatch && isDateMatch && isTimeClose;
       console.log(
@@ -855,22 +856,23 @@ function findOddsForMatch(match, oddsData) {
     });
   }
 
-  // Correspondência parcial: baseado em inclusão de nomes de times (última tentativa)
+  // Correspondência flexível: times e data, sem exigir horário
   if (!matchedOdd) {
     matchedOdd = oddsData.find(odd => {
+      const oddDate = odd.data_captura;
       const oddTimeCasa = normalizeString(odd.time_casa || "");
       const oddTimeVisitante = normalizeString(odd.time_visitante || "");
 
-      const isPartialMatch =
-        ((oddTimeCasa.includes(matchTimeA) || matchTimeA.includes(oddTimeCasa)) &&
-         (oddTimeVisitante.includes(matchTimeB) || matchTimeB.includes(oddTimeVisitante))) ||
-        ((oddTimeCasa.includes(matchTimeB) || matchTimeB.includes(oddTimeCasa)) &&
-         (oddTimeVisitante.includes(matchTimeA) || matchTimeA.includes(oddTimeVisitante)));
+      const isTeamMatch =
+        (oddTimeCasa === matchTimeA && oddTimeVisitante === matchTimeB) ||
+        (oddTimeCasa === matchTimeB && oddTimeVisitante === matchTimeA);
+      const isDateMatch = oddDate === matchDate;
 
-      if (isPartialMatch) {
-        console.log(`Tentativa parcial: ${oddTimeCasa} vs ${oddTimeVisitante} contém ${matchTimeA} vs ${matchTimeB} -> ${isPartialMatch}`);
-      }
-      return isPartialMatch;
+      const isMatch = isTeamMatch && isDateMatch;
+      console.log(
+        `Tentativa flexível: ${oddTimeCasa} vs ${oddTimeVisitante} (${oddDate}) -> Times: ${isTeamMatch}, Data: ${isDateMatch} -> ${isMatch}`
+      );
+      return isMatch;
     });
   }
 
