@@ -130,7 +130,7 @@
     </div>
   </div>
 
-  <script>
+<script>
     const minutosFixos = [
       1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
     ];
@@ -244,7 +244,13 @@
     }
 
     function normalizeString(str) {
-      return str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (!str) return "";
+      return str
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]/g, ""); // Remove caracteres especiais, espaços e hífens
     }
 
     function formatDateToDDMMYYYY(dateStr) {
@@ -265,42 +271,92 @@
 
     function findOddsForMatch(match, oddsData) {
       const matchDate = formatDateToDDMMYYYY(match.data || match.start_time || match.captured_date);
-      const matchTime = match.hora ? `${match.hora.toString().padStart(2, "0")}:${match.minuto.toString().padStart(2, "0")}` : match.time;
+      const matchTime = match.hora
+        ? `${match.hora.toString().padStart(2, "0")}:${match.minuto.toString().padStart(2, "0")}`
+        : match.time || "00:00";
       const teamMapping = {
-        "peixe": "boca",
+        peixe: "boca",
       };
-      const matchTimeA = normalizeString(teamMapping[match.time_a?.toLowerCase() || match.team_home.toLowerCase()] || match.time_a || match.team_home);
-      const matchTimeB = normalizeString(teamMapping[match.time_b?.toLowerCase() || match.team_visit.toLowerCase()] || match.time_b || match.team_visit);
-      console.log(`Buscando odds para: ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime}`);
+      const matchTimeA = normalizeString(
+        teamMapping[match.time_a?.toLowerCase() || match.team_home.toLowerCase()] ||
+          match.time_a ||
+          match.team_home
+      );
+      const matchTimeB = normalizeString(
+        teamMapping[match.time_b?.toLowerCase() || match.team_visit.toLowerCase()] ||
+          match.time_b ||
+          match.team_visit
+      );
 
-      let matchedOdd = oddsData.find(odd => {
+      console.log(
+        `Buscando odds para: ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime}`
+      );
+
+      // Correspondência exata por data, horário e times
+      let matchedOdd = oddsData.find((odd) => {
         const oddDate = odd.data_captura;
-        const oddTime = odd.horario;
+        const oddTime = odd.horario || "00:00";
         const oddTimeCasa = normalizeString(odd.time_casa);
         const oddTimeVisitante = normalizeString(odd.time_visitante);
 
-        return (
+        const isMatch =
           oddTimeCasa === matchTimeA &&
           oddTimeVisitante === matchTimeB &&
           oddDate === matchDate &&
-          oddTime === matchTime
+          oddTime === matchTime;
+
+        console.log(
+          `Tentativa exata: ${oddTimeCasa} vs ${oddTimeVisitante} (${oddDate} ${oddTime}) == ${matchTimeA} vs ${matchTimeB} (${matchDate} ${matchTime}) -> ${isMatch}`
         );
+        return isMatch;
       });
 
+      // Correspondência alternativa por data e times, com tolerância no horário
       if (!matchedOdd) {
-        matchedOdd = oddsData.find(odd => {
-          const oddTime = odd.horario;
+        matchedOdd = oddsData.find((odd) => {
+          const oddDate = odd.data_captura;
           const oddTimeCasa = normalizeString(odd.time_casa);
           const oddTimeVisitante = normalizeString(odd.time_visitante);
-          return (
-            (oddTimeCasa === matchTimeA || oddTimeVisitante === matchTimeA ||
-             oddTimeCasa === matchTimeB || oddTimeVisitante === matchTimeB) &&
-            oddTime === matchTime
+
+          const isTeamMatch =
+            (oddTimeCasa === matchTimeA && oddTimeVisitante === matchTimeB) ||
+            (oddTimeCasa === matchTimeB && oddTimeVisitante === matchTimeA);
+          const isDateMatch = oddDate === matchDate;
+
+          // Tolerância de ±1 hora
+          const matchDateTime = new Date(
+            `${matchDate.split("/").reverse().join("-")}T${matchTime}:00-03:00`
           );
+          const oddDateTime = new Date(
+            `${oddDate.split("/").reverse().join("-")}T${odd.horario || "00:00"}:00-03:00`
+          );
+          const timeDiff = Math.abs(matchDateTime - oddDateTime) / (1000 * 60 * 60);
+          const isTimeClose = timeDiff <= 1;
+
+          const isMatch = isTeamMatch && isDateMatch && isTimeClose;
+          console.log(
+            `Tentativa alternativa: ${oddTimeCasa} vs ${oddTimeVisitante} (${oddDate}) -> Times: ${isTeamMatch}, Data: ${isDateMatch}, Horário próximo: ${isTimeClose} -> ${isMatch}`
+          );
+          return isMatch;
         });
       }
 
-      console.log(`Odd encontrada:`, matchedOdd);
+      // Correspondência parcial por times (como última tentativa)
+      if (!matchedOdd) {
+        matchedOdd = oddsData.find((odd) => {
+          const oddTimeCasa = normalizeString(odd.time_casa);
+          const oddTimeVisitante = normalizeString(odd.time_visitante);
+          const isPartialMatch =
+            (oddTimeCasa.includes(matchTimeA) && oddTimeVisitante.includes(matchTimeB)) ||
+            (oddTimeCasa.includes(matchTimeB) && oddTimeVisitante.includes(matchTimeA));
+          console.log(
+            `Tentativa parcial: ${oddTimeCasa} vs ${oddTimeVisitante} contém ${matchTimeA} vs ${matchTimeB} -> ${isPartialMatch}`
+          );
+          return isPartialMatch;
+        });
+      }
+
+      console.log(`Odd encontrada para ${matchTimeA} vs ${matchTimeB}:`, matchedOdd || "Nenhuma");
       return matchedOdd;
     }
 
@@ -325,17 +381,19 @@
     function extractTimeFromDateTime(dateTimeStr) {
       if (!dateTimeStr || isNaN(new Date(dateTimeStr))) {
         console.warn(`Data/hora inválida: ${dateTimeStr}`);
-        return { time: "Horário indisponível", date: null, hour: null, minute: null };
+        return { time: "00:00", date: null, hour: 0, minute: null };
       }
       const date = new Date(dateTimeStr);
       const offsetDate = new Date(date.getTime() - 3 * 60 * 60 * 1000); // Subtrair 3 horas
       const hour = offsetDate.getHours();
       const minute = offsetDate.getMinutes();
-      const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      const time = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
       const closestMinute = minutosFixos.reduce((prev, curr) =>
         Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
       );
-      console.log(`Parsed time: ${dateTimeStr} -> local time: ${offsetDate.toISOString()} -> hour: ${hour}, minute: ${minute}, closestMinute: ${closestMinute}`);
+      console.log(
+        `Parsed time: ${dateTimeStr} -> local time: ${offsetDate.toISOString()} -> hour: ${hour}, minute: ${minute}, closestMinute: ${closestMinute}`
+      );
       return { time, date: offsetDate, hour, minute: closestMinute };
     }
 
@@ -343,7 +401,7 @@
       if (!teamName) return "";
       const words = teamName.trim().split(" ");
       if (words.length > 1) {
-        return words.map(word => word.charAt(0).toUpperCase()).join("") + words[words.length - 1].slice(0, 3).toLowerCase();
+        return words.map((word) => word.charAt(0).toUpperCase()).join("") + words[words.length - 1].slice(0, 3).toLowerCase();
       }
       return teamName.length > 5 ? teamName.slice(0, 5).toUpperCase() : teamName.toUpperCase();
     }
@@ -392,7 +450,7 @@
         return dataHoraA - dataHoraB;
       });
 
-      const proximosJogosComHoras = proximosJogos.map(jogo => {
+      const proximosJogosComHoras = proximosJogos.map((jogo) => {
         const { time, date, hour, minute } = extractTimeFromDateTime(jogo.start_time);
         return { ...jogo, time, date, hora: hour, minuto: minute, team_visitante: jogo.team_visit };
       }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
@@ -403,10 +461,10 @@
       let contagemLinhas = 0;
 
       const now = new Date();
-      proximosJogosComHoras.forEach(jogo => {
-        const hora = jogo.hora;
+      proximosJogosComHoras.forEach((jogo) => {
+        const hora = jogo.hora !== null ? jogo.hora : 0;
         const dataStr = jogo.date ? jogo.date.toISOString().split("T")[0] : jogo.captured_date.split("/").reverse().join("-");
-        const chave = `${dataStr}-${hora}`;
+        const chave = `${dataStr}-${hora.toString().padStart(2, "0")}`;
         if (!chavesJaProcessadas.has(chave)) {
           const jogoDateTime = new Date(jogo.start_time);
           const localJogoDateTime = new Date(jogoDateTime.getTime() - 3 * 60 * 60 * 1000);
@@ -433,7 +491,7 @@
         if (contagemLinhas >= horasSelecionadas) return;
         const dataHora = new Date(dado.data);
         const hora = dado.hora;
-        const chave = `${dataHora.toISOString().split("T")[0]}-${hora}`;
+        const chave = `${dataHora.toISOString().split("T")[0]}-${hora.toString().padStart(2, "0")}`;
         if (!chavesJaProcessadas.has(chave)) {
           const novaLinha = document.createElement("tr");
           novaLinha.setAttribute("data-chave", chave);
@@ -499,12 +557,13 @@
 
       const totalGolsPorColuna = Array(minutosFixos.length).fill(0);
       const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
+      const totalMercadosPorColuna = Array(minutosFixos.length).fill(0);
       const processedMatches = new Set();
 
       dados.forEach((dado) => {
         const dataHora = new Date(dado.data);
         const hora = dado.hora;
-        const chave = `${dataHora.toISOString().split("T")[0]}-${hora}`;
+        const chave = `${dataHora.toISOString().split("T")[0]}-${hora.toString().padStart(2, "0")}`;
         const linha = mapeamentoChaveLinha[chave];
         const matchKey = `${dado.time_a}-${dado.time_b}-${chave}-${dado.minuto}`;
 
@@ -530,8 +589,8 @@
               let secondaryScore = tipoPlacar === "ft" ? placarHT : placarFT;
 
               if (mostrarTimes) {
-                const timeA = abbreviateTeamName(dado.time_a); // Abreviar para jogos passados
-                const timeB = abbreviateTeamName(dado.time_b); // Abreviar para jogos passados
+                const timeA = abbreviateTeamName(dado.time_a);
+                const timeB = abbreviateTeamName(dado.time_b);
                 let textoPlacar = `<span class="time-casa" style="cursor: pointer;" data-full-time="${dado.time_a}">${timeA}</span>`;
                 textoPlacar += `<span>${primaryScore}</span>`;
                 if (mostrarHT) {
@@ -576,7 +635,9 @@
 
               colunaMinuto.appendChild(placar);
               processedMatches.add(matchKey);
-              console.log(`Adicionado resultado passado: ${dado.time_a} vs ${dado.time_b} em ${chave} minuto ${dado.minuto}`);
+              console.log(
+                `Adicionado resultado passado: ${dado.time_a} vs ${dado.time_b} em ${chave} minuto ${dado.minuto}`
+              );
 
               if (placarSelecionado && !mostrarTimes && placarTexto.textContent.includes(placarSelecionado)) {
                 placar.classList.add("placar-selecionado");
@@ -594,7 +655,7 @@
               const selecaoResultado = seletorResultado.value;
               let acerto = false;
               const placarAtual = tipoPlacar === "ft" ? placarFT : placarHT;
-              const [resultadoA, resultadoB] = placarAtual.split(" x ").map(num => parseInt(num) || 0);
+              const [resultadoA, resultadoB] = placarAtual.split(" x ").map((num) => parseInt(num) || 0);
 
               if (selecaoResultado === "ambasMarcam") {
                 acerto = resultadoA > 0 && resultadoB > 0;
@@ -622,116 +683,111 @@
                 acerto = resultadoA === resultadoB;
               }
 
-              colunaMinuto.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
-
               if (acerto) {
-                linha.children[linha.children.length - 2].textContent =
-                  parseInt(linha.children[linha.children.length - 2].textContent) + 1;
+                const totalAcertosCelula = linha.children[linha.children.length - 2];
+                totalAcertosCelula.textContent = parseInt(totalAcertosCelula.textContent || 0) + 1;
                 totalAcertosPorColuna[indexMinuto]++;
               }
 
+              totalMercadosPorColuna[indexMinuto]++;
+
               const totalGolsCelula = linha.children[linha.children.length - 3];
               const totalGols = resultadoA + resultadoB;
-              totalGolsCelula.textContent = parseInt(totalGolsCelula.textContent) + totalGols;
+              totalGolsCelula.textContent = parseInt(totalGolsCelula.textContent || 0) + totalGols;
 
               totalGolsPorColuna[indexMinuto] += totalGols;
+
+              colunaMinuto.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
             }
           }
         }
       });
 
-      proximosJogosComHoras.forEach(jogo => {
-        const dataStr = jogo.date ? jogo.date.toISOString().split("T")[0] : jogo.captured_date.split("/").reverse().join("-");
-        const hora = jogo.hora;
-        const chave = `${dataStr}-${hora}`;
+      proximosJogosComHoras.forEach((jogo) => {
+        const dataStr = jogo.date
+          ? jogo.date.toISOString().split("T")[0]
+          : jogo.captured_date.split("/").reverse().join("-");
+        const hora = jogo.hora !== null ? jogo.hora : 0;
+        const chave = `${dataStr}-${hora.toString().padStart(2, "0")}`;
         const linha = mapeamentoChaveLinha[chave];
         const matchKey = `${jogo.team_home}-${jogo.team_visit}-${chave}-${jogo.minuto}`;
 
         if (linha && jogo.minuto !== null && !processedMatches.has(matchKey)) {
-          const resultadoExistente = dados.find(dado => {
-            const dadoData = new Date(dado.data).toISOString().split("T")[0];
-            return (
-              normalizeString(dado.time_a) === normalizeString(jogo.team_home) &&
-              normalizeString(dado.time_b) === normalizeString(jogo.team_visit) &&
-              dadoData === dataStr &&
-              dado.hora === hora &&
-              dado.minuto === jogo.minuto
-            );
-          });
+          const indexMinuto = minutosFixos.indexOf(jogo.minuto);
+          if (indexMinuto !== -1) {
+            const colunaMinuto = linha.children[1 + indexMinuto];
+            if (!colunaMinuto.querySelector(".placar")) {
+              console.log(
+                `Adicionando jogo futuro: ${jogo.team_home} vs ${jogo.team_visit} em ${chave} minuto ${jogo.minuto}`
+              );
+              const placar = document.createElement("div");
+              placar.className = "placar placar-futuro";
+              placar.setAttribute("data-time-a", jogo.team_home);
+              placar.setAttribute("data-time-b", jogo.team_visit);
 
-          if (!resultadoExistente) {
-            const indexMinuto = minutosFixos.indexOf(jogo.minuto);
-            if (indexMinuto !== -1) {
-              const colunaMinuto = linha.children[1 + indexMinuto];
-              if (!colunaMinuto.querySelector(".placar")) {
-                console.log(`Adicionando jogo futuro: ${jogo.team_home} vs ${jogo.team_visit} em ${chave} minuto ${jogo.minuto}`);
-                const placar = document.createElement("div");
-                placar.className = "placar placar-futuro";
-                placar.setAttribute("data-time-a", jogo.team_home);
-                placar.setAttribute("data-time-b", jogo.team_visit);
+              const placarTexto = document.createElement("div");
+              placarTexto.className = "placar-texto";
 
-                const placarTexto = document.createElement("div");
-                placarTexto.className = "placar-texto";
+              if (mostrarTimes) {
+                const timeA = abbreviateTeamName(jogo.team_home);
+                const timeB = abbreviateTeamName(jogo.team_visit);
+                placarTexto.innerHTML = `
+                  <span class="time-casa" style="cursor: pointer;" data-full-time="${jogo.team_home}">${timeA}</span><br>
+                  <span>vs</span><br>
+                  <span class="time-fora" style="cursor: pointer;" data-full-time="${jogo.team_visit}">${timeB}</span>
+                `;
+              } else {
+                const timeA = abbreviateTeamName(jogo.team_home);
+                const timeB = abbreviateTeamName(jogo.team_visit);
+                placarTexto.innerHTML = `${timeA}<br>vs<br>${timeB}`;
+              }
+              placar.appendChild(placarTexto);
 
-                if (mostrarTimes) {
-                  const timeA = abbreviateTeamName(jogo.team_home); // Abreviar para jogos futuros
-                  const timeB = abbreviateTeamName(jogo.team_visit); // Abreviar para jogos futuros
-                  placarTexto.innerHTML = `
-                    <span class="time-casa" style="cursor: pointer;" data-full-time="${jogo.team_home}">${timeA}</span><br>
-                    <span>vs</span><br>
-                    <span class="time-fora" style="cursor: pointer;" data-full-time="${jogo.team_visit}">${timeB}</span>
-                  `;
-                } else {
-                  const timeA = abbreviateTeamName(jogo.team_home); // Abreviar para jogos futuros
-                  const timeB = abbreviateTeamName(jogo.team_visit); // Abreviar para jogos futuros
-                  placarTexto.innerHTML = `${timeA}<br>vs<br>${timeB}`;
-                }
-                placar.appendChild(placarTexto);
+              if (mostrarOdds) {
+                const odds = findOddsForMatch(jogo, oddsData);
+                const oddValue = getOddValue(odds, seletorResultado.value);
+                const oddsElement = document.createElement("div");
+                oddsElement.className = "odds";
+                oddsElement.textContent = `@${oddValue}`;
+                oddsElement.addEventListener("click", handleOddClick);
+                placar.appendChild(oddsElement);
+              }
 
-                if (mostrarOdds) {
-                  const odds = findOddsForMatch(jogo, oddsData);
-                  const oddValue = getOddValue(odds, seletorResultado.value);
-                  const oddsElement = document.createElement("div");
-                  oddsElement.className = "odds";
-                  oddsElement.textContent = `@${oddValue}`;
-                  oddsElement.addEventListener("click", handleOddClick);
-                  placar.appendChild(oddsElement);
-                }
+              placar.addEventListener("click", handlePlacarClick);
+              if (mostrarTimes) {
+                const timeCasa = placar.querySelector(".time-casa");
+                const timeFora = placar.querySelector(".time-fora");
+                if (timeCasa) timeCasa.addEventListener("click", handleTimeClick);
+                if (timeFora) timeFora.addEventListener("click", handleTimeClick);
+              }
 
-                placar.addEventListener("click", handlePlacarClick);
-                if (mostrarTimes) {
-                  const timeCasa = placar.querySelector(".time-casa");
-                  const timeFora = placar.querySelector(".time-fora");
-                  if (timeCasa) timeCasa.addEventListener("click", handleTimeClick);
-                  if (timeFora) timeFora.addEventListener("click", handleTimeClick);
-                }
+              const tooltip = document.createElement("span");
+              tooltip.className = "tooltip";
+              tooltip.innerHTML = `<span class="times">${jogo.team_home} vs ${jogo.team_visit}</span>`;
+              placar.appendChild(tooltip);
 
-                const tooltip = document.createElement("span");
-                tooltip.className = "tooltip";
-                tooltip.innerHTML = `<span class="times">${jogo.team_home} vs ${jogo.team_visit}</span>`;
-                placar.appendChild(tooltip);
+              colunaMinuto.appendChild(placar);
+              processedMatches.add(matchKey);
 
-                colunaMinuto.appendChild(placar);
-                processedMatches.add(matchKey);
-
-                if (timeSelecionado && mostrarTimes && (jogo.team_home === timeSelecionado || jogo.team_visit === timeSelecionado)) {
-                  placar.classList.add("time-selecionado");
-                }
-                if (oddSelecionada && mostrarOdds) {
-                  const oddElement = placar.querySelector(".odds");
-                  if (oddElement && oddElement.textContent === oddSelecionada) {
-                    oddElement.classList.add("odd-selecionada");
-                  }
+              if (timeSelecionado && mostrarTimes && (jogo.team_home === timeSelecionado || jogo.team_visit === timeSelecionado)) {
+                placar.classList.add("time-selecionado");
+              }
+              if (oddSelecionada && mostrarOdds) {
+                const oddElement = placar.querySelector(".odds");
+                if (oddElement && oddElement.textContent === oddSelecionada) {
+                  oddElement.classList.add("odd-selecionada");
                 }
               }
-            } else {
-              console.warn(`Minuto ${jogo.minuto} não encontrado em minutosFixos para jogo ${jogo.team_home} vs ${jogo.team_visit}`);
             }
           } else {
-            console.log(`Jogo ${jogo.team_home} vs ${jogo.team_visit} já tem resultado, não será adicionado como futuro`);
+            console.warn(
+              `Minuto ${jogo.minuto} não encontrado em minutosFixos para jogo ${jogo.team_home} vs ${jogo.team_visit}`
+            );
           }
         } else {
-          console.warn(`Linha não encontrada para chave ${chave} ou minuto nulo para jogo ${jogo.team_home} vs ${jogo.team_visit}`);
+          console.warn(
+            `Linha não encontrada para chave ${chave} ou minuto nulo para jogo ${jogo.team_home} vs ${jogo.team_visit}`
+          );
         }
       });
 
@@ -763,14 +819,12 @@
       todasLinhas.forEach((row) => {
         const totalCelsProcessadas = Array.from(row.cells)
           .slice(1, -3)
-          .filter((cell) => cell.querySelector(".placar")).length;
-        const celsMercado = parseInt(
-          row.children[row.children.length - 2].textContent
-        );
+          .filter((cell) => cell.querySelector(".placar:not(.placar-futuro)")).length;
+        const celsMercado = parseInt(row.children[row.children.length - 2].textContent || 0);
 
         const porcentagem =
           totalCelsProcessadas > 0
-            ? Math.floor((celsMercado / totalCelsProcessadas) * 100)
+            ? Math.round((celsMercado / totalCelsProcessadas) * 100)
             : 0;
         const porcentagemCell = row.children[row.children.length - 1];
         porcentagemCell.textContent = `${porcentagem}%`;
@@ -784,30 +838,16 @@
         }
       });
 
-      const totalColunas = minutosFixos.length;
-      const totalMercadosPorColuna = Array(totalColunas).fill(0);
-
-      todasLinhas.forEach((row) => {
-        Array.from(row.cells)
-          .slice(1, -3)
-          .forEach((cell, index) => {
-            if (cell.querySelector(".placar")) {
-              totalMercadosPorColuna[index]++;
-            }
-          });
-      });
-
       linhaPercentual.innerHTML = "<th>📈</th>";
-
       totalMercadosPorColuna.forEach((totalMercados, index) => {
         const cell = document.createElement("td");
         const porcentagemVertical =
           totalMercados > 0
-            ? Math.floor((totalAcertosPorColuna[index] / totalMercados) * 100)
+            ? Math.round((totalAcertosPorColuna[index] / totalMercados) * 100)
             : 0;
         cell.textContent = `${porcentagemVertical}%`;
 
-        if (porcentagemVertical > 49) {
+        if (porcentagemVertical >= 50) {
           cell.classList.add("porcentagem-verde");
           cell.classList.remove("porcentagem-branca");
         } else {
@@ -825,7 +865,7 @@
       }
 
       const minuteHeaders = document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header");
-      minuteHeaders.forEach(header => {
+      minuteHeaders.forEach((header) => {
         header.style.backgroundColor = "#2c303b";
       });
 
@@ -920,6 +960,7 @@
         buscarDados();
       });
     }
-  </script>
+</script>
+
 </body>
 </html>
