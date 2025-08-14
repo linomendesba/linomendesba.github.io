@@ -759,7 +759,15 @@ async function fetchProximosJogos() {
 }
 
 function normalizeString(str) {
-  return str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return str ? str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ") : "";
+}
+
+function normalizeTime(timeStr) {
+  if (!timeStr) return "00:00";
+  const cleanedTime = timeStr.trim();
+  if (cleanedTime === "0:00" || cleanedTime === "24:00" || cleanedTime === "midnight") return "00:00";
+  const [hours, minutes] = cleanedTime.split(":").map(num => parseInt(num) || 0);
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 }
 
 function formatDateToDDMMYYYY(dateStr) {
@@ -780,42 +788,99 @@ function formatDateToDDMMYYYY(dateStr) {
 
 function findOddsForMatch(match, oddsData) {
   const matchDate = formatDateToDDMMYYYY(match.data || match.start_time || match.captured_date);
-  const matchTime = match.hora ? `${match.hora.toString().padStart(2, "0")}:${match.minuto.toString().padStart(2, "0")}` : match.time;
+  const matchHour = match.hora ? parseInt(match.hora) : parseInt(match.time?.split(":")[0] || 0);
+  const matchMinute = match.minuto;
+  const matchTime = normalizeTime(match.hora ? `${match.hora}:${match.minuto}` : match.time);
   const teamMapping = {
     "peixe": "boca",
   };
-  const matchTimeA = normalizeString(teamMapping[match.time_a?.toLowerCase() || match.team_home.toLowerCase()] || match.time_a || match.team_home);
-  const matchTimeB = normalizeString(teamMapping[match.time_b?.toLowerCase() || match.team_visit.toLowerCase()] || match.time_b || match.team_visit);
-  console.log(`Buscando odds para: ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime}`);
+  const matchTimeA = normalizeString(teamMapping[match.time_a?.toLowerCase() || match.team_home?.toLowerCase()] || match.time_a || match.team_home);
+  const matchTimeB = normalizeString(teamMapping[match.time_b?.toLowerCase() || match.team_visit?.toLowerCase()] || match.time_b || match.team_visit);
+  console.log(`Buscando odds para: ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime} (minuto ${matchMinute})`);
 
+  if (!oddsData || oddsData.length === 0) {
+    console.warn(`Nenhum dado de odds disponível para ${matchTimeA} vs ${matchTimeB} em ${matchDate}`);
+    return null;
+  }
+
+  // Logar todas as odds disponíveis para a data do jogo
+  const oddsForDate = oddsData.filter(odd => odd.data_captura === matchDate);
+  console.log(`Odds disponíveis para ${matchDate}:`, oddsForDate);
+
+  // Correspondência exata
   let matchedOdd = oddsData.find(odd => {
     const oddDate = odd.data_captura;
-    const oddTime = odd.horario.padStart(5, "0"); // Ensure "0:00" becomes "00:00"
+    const oddTime = normalizeTime(odd.horario);
     const oddTimeCasa = normalizeString(odd.time_casa);
     const oddTimeVisitante = normalizeString(odd.time_visitante);
 
-    return (
+    const isMatch = (
       oddTimeCasa === matchTimeA &&
       oddTimeVisitante === matchTimeB &&
       oddDate === matchDate &&
       oddTime === matchTime
     );
+
+    if (isMatch) {
+      console.log(`Correspondência exata encontrada: ${oddTimeCasa} vs ${oddTimeVisitante} em ${oddDate} ${oddTime}`);
+    }
+
+    return isMatch;
   });
 
+  // Correspondência parcial (se não houver exata)
   if (!matchedOdd) {
-    matchedOdd = oddsData.find(odd => {
-      const oddTime = odd.horario.padStart(5, "0"); // Ensure consistent time format
+    console.warn(`Não encontrou correspondência exata para ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime}. Tentando correspondência parcial por times e data.`);
+    const potentialMatches = oddsData.filter(odd => {
+      const oddDate = odd.data_captura;
       const oddTimeCasa = normalizeString(odd.time_casa);
       const oddTimeVisitante = normalizeString(odd.time_visitante);
       return (
-        (oddTimeCasa === matchTimeA || oddTimeVisitante === matchTimeA ||
-         oddTimeCasa === matchTimeB || oddTimeVisitante === matchTimeB) &&
-        oddTime === matchTime
+        oddTimeCasa === matchTimeA &&
+        oddTimeVisitante === matchTimeB &&
+        oddDate === matchDate
       );
     });
+
+    if (potentialMatches.length === 1) {
+      matchedOdd = potentialMatches[0];
+      console.log(`Correspondência parcial encontrada: ${matchedOdd.time_casa} vs ${matchedOdd.time_visitante} em ${matchedOdd.data_captura} ${matchedOdd.horario}`);
+    } else if (potentialMatches.length > 1) {
+      console.warn(`Múltiplas correspondências parciais encontradas para ${matchTimeA} vs ${matchTimeB} em ${matchDate}. Ignorando para evitar ambiguidade.`);
+    } else {
+      console.log(`Nenhuma correspondência parcial encontrada para ${matchTimeA} vs ${matchTimeB} em ${matchDate}.`);
+    }
   }
 
-  console.log(`Odd encontrada:`, matchedOdd);
+  // Verificação adicional por minuto próximo
+  if (!matchedOdd && matchMinute !== null) {
+    console.log(`Tentando correspondência por minuto próximo para ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime} (minuto ${matchMinute})`);
+    const closestMinute = minutosFixos.reduce((prev, curr) =>
+      Math.abs(curr - matchMinute) < Math.abs(prev - matchMinute) ? curr : prev
+    );
+    matchedOdd = oddsData.find(odd => {
+      const oddDate = odd.data_captura;
+      const oddTime = normalizeTime(odd.horario);
+      const oddTimeCasa = normalizeString(odd.time_casa);
+      const oddTimeVisitante = normalizeString(odd.time_visitante);
+      return (
+        oddTimeCasa === matchTimeA &&
+        oddTimeVisitante === matchTimeB &&
+        oddDate === matchDate &&
+        Math.abs(parseInt(odd.horario?.split(":")[1] || 0) - closestMinute) <= 3
+      );
+    });
+
+    if (matchedOdd) {
+      console.log(`Correspondência por minuto próximo encontrada: ${matchedOdd.time_casa} vs ${matchedOdd.time_visitante} em ${matchedOdd.data_captura} ${matchedOdd.horario} (minuto próximo ${closestMinute})`);
+    }
+  }
+
+  if (matchedOdd) {
+    console.log(`Odd encontrada para minuto ${matchMinute}:`, matchedOdd);
+  } else {
+    console.log(`Nenhuma odd encontrada para ${matchTimeA} vs ${matchTimeB} em ${matchDate} ${matchTime} (minuto ${matchMinute})`);
+  }
   return matchedOdd;
 }
 
@@ -834,7 +899,8 @@ function getOddValue(odds, resultado) {
     "under3.5": "odds_menos_3_5",
     over5: "odds_mais_5_gols",
   };
-  return odds ? odds[oddMap[resultado]] || "N/A" : "N/A";
+  const oddValue = odds ? odds[oddMap[resultado]] : null;
+  return oddValue && !isNaN(parseFloat(oddValue)) ? oddValue : "N/A";
 }
 
 function extractTimeFromDateTime(dateTimeStr) {
@@ -846,7 +912,7 @@ function extractTimeFromDateTime(dateTimeStr) {
   const offsetDate = new Date(date.getTime() - 3 * 60 * 60 * 1000); // Subtrair 3 horas
   const hour = offsetDate.getHours();
   const minute = offsetDate.getMinutes();
-  const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`; // Always use two digits
+  const time = normalizeTime(`${hour}:${minute}`);
   const closestMinute = minutosFixos.reduce((prev, curr) =>
     Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
   );
@@ -1262,7 +1328,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   todasLinhas.forEach((row) => {
     const totalCelsProcessadas = Array.from(row.cells)
       .slice(1, -3)
-      .filter((cell) => cell.querySelector(".placar")).length;
+      .filter((cell) => cell.querySelector(".placar:not(.placar-futuro)")).length;
     const celsMercado = parseInt(
       row.children[row.children.length - 2].textContent
     );
@@ -1290,7 +1356,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     Array.from(row.cells)
       .slice(1, -3)
       .forEach((cell, index) => {
-        if (cell.querySelector(".placar")) {
+        if (cell.querySelector(".placar:not(.placar-futuro)")) {
           totalMercadosPorColuna[index]++;
         }
       });
