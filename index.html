@@ -5127,6 +5127,7 @@ async function initializeChart() {
   let fetchedData = [];
   let displayDataTeam1 = [];
   let displayDataTeam2 = [];
+  let initialPerformance = 0;
   let selectedTeam1 = null;
   let selectedTeam2 = null;
   const NEXT_GAMES_API = "https://betstat.site/proximos/Taça%20Glória%20Eterna";
@@ -5193,9 +5194,9 @@ async function initializeChart() {
     }
   }
 
-  function calculateTeamPerformance(data, team) {
+  function calculateTeamPerformance(data) {
     const teamPerformanceData = [];
-    let successCount = 0;
+    let previousPerformance = initialPerformance;
     const selectedMarket = document.getElementById('marketSelector').value;
 
     for (let i = 0; i < data.length; i++) {
@@ -5205,66 +5206,63 @@ async function initializeChart() {
       const [teamAGols, teamBGols] = current.ft.split(" x ").map(Number);
       const totalGoals = teamAGols + teamBGols;
       const [teamAGolsHT, teamBGolsHT] = current.ht ? current.ht.split(" x ").map(Number) : [0, 0];
-      const isHome = compareWithoutAccents(current.time_a, team);
-      const isAway = compareWithoutAccents(current.time_b, team);
 
       switch (selectedMarket) {
         case 'ambas sim':
-          performanceChange = (teamAGols > 0 && teamBGols > 0) ? 1 : 0;
+          performanceChange = (teamAGols > 0 && teamBGols > 0) ? 1 : -1;
           break;
         case 'ambas não':
-          performanceChange = (teamAGols === 0 || teamBGols === 0) ? 1 : 0;
+          performanceChange = (teamAGols === 0 || teamBGols === 0) ? 1 : -1;
           break;
         case 'over 1.5':
-          performanceChange = totalGoals > 1.5 ? 1 : 0;
+          performanceChange = totalGoals > 1.5 ? 1 : -1;
           break;
         case 'over 2.5':
-          performanceChange = totalGoals > 2.5 ? 1 : 0;
+          performanceChange = totalGoals > 2.5 ? 1 : -1;
           break;
         case 'over 3.5':
-          performanceChange = totalGoals > 3.5 ? 1 : 0;
+          performanceChange = totalGoals > 3.5 ? 1 : -1;
           break;
         case 'under 1.5':
-          performanceChange = totalGoals < 1.5 ? 1 : 0;
+          performanceChange = totalGoals < 1.5 ? 1 : -1;
           break;
         case 'under 2.5':
-          performanceChange = totalGoals < 2.5 ? 1 : 0;
+          performanceChange = totalGoals < 2.5 ? 1 : -1;
           break;
         case 'under 3.5':
-          performanceChange = totalGoals < 3.5 ? 1 : 0;
+          performanceChange = totalGoals < 3.5 ? 1 : -1;
           break;
         case 'casa vence':
-          performanceChange = (isHome && teamAGols > teamBGols) || (isAway && teamBGols > teamAGols) ? 1 : 0;
+          performanceChange = teamAGols > teamBGols ? 1 : -1;
           break;
         case 'fora vence':
-          performanceChange = (isHome && teamAGols < teamBGols) || (isAway && teamBGols < teamAGols) ? 1 : 0;
+          performanceChange = teamAGols < teamBGols ? 1 : -1;
           break;
         case 'empate':
-          performanceChange = teamAGols === teamBGols ? 1 : 0;
+          performanceChange = teamAGols === teamBGols ? 1 : -1;
           break;
         case 'empate ht':
-          performanceChange = teamAGolsHT === teamBGolsHT ? 1 : 0;
+          performanceChange = teamAGolsHT === teamBGolsHT ? 1 : -1;
           break;
         case '1 gol':
-          performanceChange = totalGoals === 1 ? 1 : 0;
+          performanceChange = totalGoals === 1 ? 1 : -1;
           break;
         case '2 gols':
-          performanceChange = totalGoals === 2 ? 1 : 0;
+          performanceChange = totalGoals === 2 ? 1 : -1;
           break;
         case '3 gols':
-          performanceChange = totalGoals === 3 ? 1 : 0;
+          performanceChange = totalGoals === 3 ? 1 : -1;
           break;
         case '4 gols':
-          performanceChange = totalGoals === 4 ? 1 : 0;
+          performanceChange = totalGoals === 4 ? 1 : -1;
           break;
         case '5 gols':
-          performanceChange = totalGoals === 5 ? 1 : 0;
+          performanceChange = totalGoals === 5 ? 1 : -1;
           break;
       }
 
-      successCount += performanceChange;
-      const percentage = data.length > 0 ? (successCount / (i + 1)) * 100 : 0;
-      teamPerformanceData.push(percentage);
+      previousPerformance += performanceChange;
+      teamPerformanceData.push(previousPerformance);
     }
     return teamPerformanceData;
   }
@@ -5274,8 +5272,8 @@ async function initializeChart() {
       const response = await fetch(NEXT_GAMES_API);
       const games = await response.json();
       const sortedGames = games
-        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
-        .slice(0, 6);
+        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time)) // Ordem crescente (mais antigo primeiro)
+        .slice(0, 6); // Pega os 6 jogos mais recentes
       const container = document.getElementById("nextGamesChartContainer");
 
       const previouslySelectedTeam1 = selectedTeam1;
@@ -5358,8 +5356,8 @@ async function initializeChart() {
     const maxLength = Math.max(displayDataTeam1.length, displayDataTeam2.length);
     const labels = Array.from({ length: maxLength }, (_, i) => `Jogo ${i + 1}`);
 
-    const team1Performance = calculateTeamPerformance(displayDataTeam1, selectedTeam1);
-    const team2Performance = calculateTeamPerformance(displayDataTeam2, selectedTeam2);
+    const team1Performance = calculateTeamPerformance(displayDataTeam1);
+    const team2Performance = calculateTeamPerformance(displayDataTeam2);
 
     timeChart.data.labels = labels;
     timeChart.data.datasets[0].data = team1Performance;
@@ -5400,23 +5398,12 @@ async function initializeChart() {
       scales: {
         y: {
           position: "right",
-          ticks: {
-            color: "white",
-            stepSize: 5,
-            callback: function(value) {
-              return value + '%';
-            }
-          },
+          ticks: { color: "white", stepSize: 2 },
           grid: { color: "rgba(255, 255, 255, 0.5)", drawBorder: false, lineWidth: 1 },
-          title: {
-            display: true,
-            text: 'Porcentagem de Sucesso',
-            color: 'white'
-          }
         },
         x: {
           grid: { color: "rgba(0, 0, 0, 0)" },
-          ticks: { display: false }, // Remove os rótulos do eixo x
+          ticks: { color: "white", display: false },
         },
       },
       responsive: true,
@@ -5437,7 +5424,7 @@ async function initializeChart() {
               const displayData = dsIndex === 0 ? displayDataTeam1 : displayDataTeam2;
               const index = context.dataIndex;
               const currentGame = displayData[index] || { ft: "N/A" };
-              return [`${context.dataset.label}`, `Placar: ${currentGame.ft}`, `Porcentagem: ${context.raw.toFixed(1)}%`];
+              return [`${context.dataset.label}`, `Placar: ${currentGame.ft}`];
             },
           },
         },
