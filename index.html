@@ -5127,7 +5127,6 @@ async function initializeChart() {
   let fetchedData = [];
   let displayDataTeam1 = [];
   let displayDataTeam2 = [];
-  let initialPerformance = 0;
   let selectedTeam1 = null;
   let selectedTeam2 = null;
   const NEXT_GAMES_API = "https://betstat.site/proximos/Taça%20Glória%20Eterna";
@@ -5196,7 +5195,7 @@ async function initializeChart() {
 
   function calculateTeamPerformance(data) {
     const teamPerformanceData = [];
-    let previousPerformance = initialPerformance;
+    let currentPercentage = 0; // Começa em 0%
     const selectedMarket = document.getElementById('marketSelector').value;
 
     for (let i = 0; i < data.length; i++) {
@@ -5209,60 +5208,60 @@ async function initializeChart() {
 
       switch (selectedMarket) {
         case 'ambas sim':
-          performanceChange = (teamAGols > 0 && teamBGols > 0) ? 1 : -1;
+          performanceChange = (teamAGols > 0 && teamBGols > 0) ? 5 : -5;
           break;
         case 'ambas não':
-          performanceChange = (teamAGols === 0 || teamBGols === 0) ? 1 : -1;
+          performanceChange = (teamAGols === 0 || teamBGols === 0) ? 5 : -5;
           break;
         case 'over 1.5':
-          performanceChange = totalGoals > 1.5 ? 1 : -1;
+          performanceChange = totalGoals > 1.5 ? 5 : -5;
           break;
         case 'over 2.5':
-          performanceChange = totalGoals > 2.5 ? 1 : -1;
+          performanceChange = totalGoals > 2.5 ? 5 : -5;
           break;
         case 'over 3.5':
-          performanceChange = totalGoals > 3.5 ? 1 : -1;
+          performanceChange = totalGoals > 3.5 ? 5 : -5;
           break;
         case 'under 1.5':
-          performanceChange = totalGoals < 1.5 ? 1 : -1;
+          performanceChange = totalGoals < 1.5 ? 5 : -5;
           break;
         case 'under 2.5':
-          performanceChange = totalGoals < 2.5 ? 1 : -1;
+          performanceChange = totalGoals < 2.5 ? 5 : -5;
           break;
         case 'under 3.5':
-          performanceChange = totalGoals < 3.5 ? 1 : -1;
+          performanceChange = totalGoals < 3.5 ? 5 : -5;
           break;
         case 'casa vence':
-          performanceChange = teamAGols > teamBGols ? 1 : -1;
+          performanceChange = teamAGols > teamBGols ? 5 : -5;
           break;
         case 'fora vence':
-          performanceChange = teamAGols < teamBGols ? 1 : -1;
+          performanceChange = teamAGols < teamBGols ? 5 : -5;
           break;
         case 'empate':
-          performanceChange = teamAGols === teamBGols ? 1 : -1;
+          performanceChange = teamAGols === teamBGols ? 5 : -5;
           break;
         case 'empate ht':
-          performanceChange = teamAGolsHT === teamBGolsHT ? 1 : -1;
+          performanceChange = teamAGolsHT === teamBGolsHT ? 5 : -5;
           break;
         case '1 gol':
-          performanceChange = totalGoals === 1 ? 1 : -1;
+          performanceChange = totalGoals === 1 ? 5 : -5;
           break;
         case '2 gols':
-          performanceChange = totalGoals === 2 ? 1 : -1;
+          performanceChange = totalGoals === 2 ? 5 : -5;
           break;
         case '3 gols':
-          performanceChange = totalGoals === 3 ? 1 : -1;
+          performanceChange = totalGoals === 3 ? 5 : -5;
           break;
         case '4 gols':
-          performanceChange = totalGoals === 4 ? 1 : -1;
+          performanceChange = totalGoals === 4 ? 5 : -5;
           break;
         case '5 gols':
-          performanceChange = totalGoals === 5 ? 1 : -1;
+          performanceChange = totalGoals === 5 ? 5 : -5;
           break;
       }
 
-      previousPerformance += performanceChange;
-      teamPerformanceData.push(previousPerformance);
+      currentPercentage += performanceChange;
+      teamPerformanceData.push(currentPercentage);
     }
     return teamPerformanceData;
   }
@@ -5272,8 +5271,8 @@ async function initializeChart() {
       const response = await fetch(NEXT_GAMES_API);
       const games = await response.json();
       const sortedGames = games
-        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time)) // Ordem crescente (mais antigo primeiro)
-        .slice(0, 6); // Pega os 6 jogos mais recentes
+        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+        .slice(0, 6);
       const container = document.getElementById("nextGamesChartContainer");
 
       const previouslySelectedTeam1 = selectedTeam1;
@@ -5398,9 +5397,19 @@ async function initializeChart() {
       scales: {
         y: {
           position: "right",
-          ticks: { color: "white", stepSize: 2 },
+          ticks: {
+            color: "white",
+            stepSize: 10, // Intervalo de 10% para as marcações
+            callback: function(value) {
+              return value + '%'; // Adiciona o símbolo de porcentagem
+            }
+          },
           grid: { color: "rgba(255, 255, 255, 0.5)", drawBorder: false, lineWidth: 1 },
-          
+          title: {
+            display: true,
+            text: 'Porcentagem de Sucesso',
+            color: 'white'
+          }
         },
         x: {
           grid: { color: "rgba(0, 0, 0, 0)" },
@@ -5425,7 +5434,7 @@ async function initializeChart() {
               const displayData = dsIndex === 0 ? displayDataTeam1 : displayDataTeam2;
               const index = context.dataIndex;
               const currentGame = displayData[index] || { ft: "N/A" };
-              return [`${context.dataset.label}`, `Placar: ${currentGame.ft}`];
+              return [`${context.dataset.label}`, `Placar: ${currentGame.ft}`, `Porcentagem: ${context.raw.toFixed(1)}%`];
             },
           },
         },
