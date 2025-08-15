@@ -5193,10 +5193,9 @@ async function initializeChart() {
     }
   }
 
-  function calculateTeamPerformance(data) {
+  function calculateTeamPerformance(data, team) {
     const teamPerformanceData = [];
     let successCount = 0;
-    const totalGames = data.length;
     const selectedMarket = document.getElementById('marketSelector').value;
 
     for (let i = 0; i < data.length; i++) {
@@ -5206,6 +5205,8 @@ async function initializeChart() {
       const [teamAGols, teamBGols] = current.ft.split(" x ").map(Number);
       const totalGoals = teamAGols + teamBGols;
       const [teamAGolsHT, teamBGolsHT] = current.ht ? current.ht.split(" x ").map(Number) : [0, 0];
+      const isHome = compareWithoutAccents(current.time_a, team);
+      const isAway = compareWithoutAccents(current.time_b, team);
 
       switch (selectedMarket) {
         case 'ambas sim':
@@ -5233,10 +5234,10 @@ async function initializeChart() {
           performanceChange = totalGoals < 3.5 ? 1 : 0;
           break;
         case 'casa vence':
-          performanceChange = teamAGols > teamBGols ? 1 : 0;
+          performanceChange = (isHome && teamAGols > teamBGols) || (isAway && teamBGols > teamAGols) ? 1 : 0;
           break;
         case 'fora vence':
-          performanceChange = teamAGols < teamBGols ? 1 : 0;
+          performanceChange = (isHome && teamAGols < teamBGols) || (isAway && teamBGols < teamAGols) ? 1 : 0;
           break;
         case 'empate':
           performanceChange = teamAGols === teamBGols ? 1 : 0;
@@ -5262,7 +5263,7 @@ async function initializeChart() {
       }
 
       successCount += performanceChange;
-      const percentage = totalGames > 0 ? (successCount / (i + 1)) * 100 : 0;
+      const percentage = data.length > 0 ? (successCount / (i + 1)) * 100 : 0;
       teamPerformanceData.push(percentage);
     }
     return teamPerformanceData;
@@ -5357,8 +5358,8 @@ async function initializeChart() {
     const maxLength = Math.max(displayDataTeam1.length, displayDataTeam2.length);
     const labels = Array.from({ length: maxLength }, (_, i) => `Jogo ${i + 1}`);
 
-    const team1Performance = calculateTeamPerformance(displayDataTeam1);
-    const team2Performance = calculateTeamPerformance(displayDataTeam2);
+    const team1Performance = calculateTeamPerformance(displayDataTeam1, selectedTeam1);
+    const team2Performance = calculateTeamPerformance(displayDataTeam2, selectedTeam2);
 
     timeChart.data.labels = labels;
     timeChart.data.datasets[0].data = team1Performance;
@@ -5399,8 +5400,6 @@ async function initializeChart() {
       scales: {
         y: {
           position: "right",
-          min: 0,
-          max: 100,
           ticks: {
             color: "white",
             stepSize: 5,
