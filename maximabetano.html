@@ -565,6 +565,25 @@ let isFirstRun = true;
 // Armazena estatísticas dos times
 let teamStats = {};
 
+// Mapeamento das ligas para nomes completos e rotas de próximos jogos
+const ligaDisplayNames = {
+    "Taça Glória Eterna": "Taça Glória Eterna",
+    "Copa América": "Copa América",
+    "Euro": "Euro",
+    "Campeonato Italiano": "Campeonato Italiano",
+    "Copa das Estrelas": "Copa das Estrelas",
+    "Brasileirão Betano": "Brasileirão Betano"
+};
+
+const ligaToProximosMap = {
+    "Taça Glória Eterna": "Ta%C3%A7a%20Gl%C3%B3ria%20Eterna",
+    "Copa América": "Copa%20Am%C3%A9rica",
+    "Euro": "Euro",
+    "Campeonato Italiano": "Campeonato%20Italiano",
+    "Copa das Estrelas": "Copa%20das%20Estrelas",
+    "Brasileirão Betano": "Brasileir%C3%A3o%20Betano"
+};
+
 // Função para determinar o mercado contrário
 function getOppositeMarket(mercado) {
     const opposites = {
@@ -583,15 +602,6 @@ function getOppositeMarket(mercado) {
     };
     return opposites[mercado] || mercado;
 }
-
-// Mapeamento das ligas para as novas rotas de próximos jogos
-const ligaToProximosMap = {
-    "Copa": "Ta%C3%A7a%20Gl%C3%B3ria%20Eterna",
-    "Euro": "Euro",
-    "Premier": "Campeonato%20Italiano",
-    "Super": "Brasileir%C3%A3o%20Betano"
-    // Adicione mais mapeamentos se necessário, ex: "OutraLiga": "Copa%20Am%C3%A9rica"
-};
 
 // Função para buscar os próximos jogos
 async function fetchNextGames(liga) {
@@ -612,6 +622,7 @@ async function fetchNextGames(liga) {
 async function fetchMaximaPorHoraMinuto() {
     try {
         const selectedLiga = document.getElementById("liga-selector").value;
+        const displayLiga = ligaDisplayNames[selectedLiga] || selectedLiga;
         const response = await fetch(`https://betstat.site/resultados/${selectedLiga}`);
         const data = await response.json();
         const recentData = data.slice(-1920);
@@ -834,6 +845,7 @@ async function fetchMaximaPorHoraMinuto() {
         uniqueMinutes.forEach(minute => {
             const minuteStr = String(minute).padStart(2, "0");
             const cell = document.createElement("td");
+            cell.style.height = "40px"; // Aumenta a altura das células
             cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr}`);
             currentRow.appendChild(cell);
             currentHourCells[minuteStr] = cell;
@@ -854,6 +866,7 @@ async function fetchMaximaPorHoraMinuto() {
             uniqueMinutes.forEach(minute => {
                 const minuteStr = String(minute).padStart(2, "0");
                 const cell = document.createElement("td");
+                cell.style.height = "40px"; // Aumenta a altura das células
                 cell.setAttribute("data-tooltip", `${hour}:${minuteStr}`);
                 row.appendChild(cell);
                 tableCells[hour][minuteStr] = cell;
@@ -863,6 +876,7 @@ async function fetchMaximaPorHoraMinuto() {
 
         // Atualiza os dados
         let hasMaximaChance = false;
+        let maximaMinutes = [];
 
         // Atualiza a hora atual (linha destacada)
         currentHourBody.querySelector("td").textContent = currentHour;
@@ -880,11 +894,13 @@ async function fetchMaximaPorHoraMinuto() {
                 if (percentage == 100) {
                     cell.className = "percent-maxima";
                     hasMaximaChance = true;
+                    maximaMinutes.push(minuteStr);
                 } else if (percentage == 0) {
                     cell.className = "percent-0";
                 } else {
                     cell.className = "percent-low";
                     hasMaximaChance = true;
+                    maximaMinutes.push(minuteStr);
                 }
                 cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr}`);
             }
@@ -927,11 +943,12 @@ async function fetchMaximaPorHoraMinuto() {
 
         // Mensagem de chance de máxima
         const messageDiv = document.getElementById("chance-maxima-message");
+        const minutesText = maximaMinutes.length > 0 ? ` nos minutos ${maximaMinutes.join(", ")}` : "";
         if (hasMaximaChance) {
-            messageDiv.innerHTML = `Possível chance de máxima às ${currentHour}h na liga ${selectedLiga} para o mercado "${selectedMercado}"!${nextGameMessage || ""}`;
+            messageDiv.innerHTML = `Possível chance de máxima às ${currentHour}h na liga ${displayLiga} para o mercado "${selectedMercado}"!${minutesText}${nextGameMessage || ""}`;
             messageDiv.style.color = "#fff";
         } else {
-            messageDiv.innerHTML = `Nenhuma chance de máxima detectada às ${currentHour}h na liga ${selectedLiga}.${nextGameMessage || ""}`;
+            messageDiv.innerHTML = `Nenhuma chance de máxima detectada às ${currentHour}h na liga ${displayLiga}.${nextGameMessage || ""}`;
             messageDiv.style.color = "#e0e0e0";
         }
 
