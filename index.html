@@ -1832,6 +1832,117 @@ const fibonacciLinesPlugin = {
     }
 };
 
+let startY;
+let fibId = 0;
+
+const fibCreator = {
+    id: 'fibCreator',
+    beforeEvent(chart, args) {
+        const event = args.event;
+        if (event.type === 'mousedown' && event.native.button === 2) {
+            startY = chart.scales.y.getValueForPixel(event.y);
+            event.native.preventDefault();
+            args.changed = true;
+            return;
+        }
+        if (event.type === 'mousemove' && startY !== undefined) {
+            args.changed = true;
+            return;
+        }
+        if (event.type === 'mouseup' && startY !== undefined) {
+            const endY = chart.scales.y.getValueForPixel(event.y);
+            const high = Math.max(startY, endY);
+            const low = Math.min(startY, endY);
+            const range = high - low;
+            const levels = [0, 23.6, 38.2, 50, 61.8, 100];
+            const annotations = chart.options.plugins.annotation.annotations;
+            const group = 'customFib' + (fibId++);
+            levels.forEach(level => {
+                const y = high - (level / 100) * range;
+                annotations.push({
+                    type: 'line',
+                    yMin: y,
+                    yMax: y,
+                    borderColor: 'rgba(0, 255, 0, 0.5)',
+                    borderWidth: 1,
+                    label: {
+                        display: true,
+                        content: `${level}%`,
+                        position: 'end'
+                    },
+                    group: group  // custom property for grouping
+                });
+            });
+            chart.update();
+            startY = undefined;
+            args.changed = true;
+        }
+    }
+};
+
+let annotationElement;
+let lastEvent;
+
+const dragger = {
+    id: 'dragger',
+    beforeEvent(chart, args) {
+        if (handleDrag(chart, args.event)) {
+            args.changed = true;
+            return;
+        }
+    }
+};
+
+function drag(chart, element, moveX, moveY) {
+    if (element.options.group) {
+        const group = element.options.group;
+        Object.values(chart.annotation.elements).forEach(el => {
+            if (el.options.group === group) {
+                el.y += moveY;
+                el.y2 += moveY;
+                el.centerY += moveY;
+            }
+        });
+    } else {
+        element.x += moveX;
+        element.y += moveY;
+        element.x2 += moveX;
+        element.y2 += moveY;
+        element.centerX += moveX;
+        element.centerY += moveY;
+    }
+}
+
+function handleElementDragging(chart, event) {
+    if (!lastEvent || !annotationElement) {
+        return false;
+    }
+    const moveX = event.x - lastEvent.x;
+    const moveY = event.y - lastEvent.y;
+    drag(chart, annotationElement, moveX, moveY);
+    lastEvent = event;
+    return true;
+}
+
+function handleDrag(chart, event) {
+    if (annotationElement) {
+        switch (event.type) {
+            case 'mousemove':
+                return handleElementDragging(chart, event);
+            case 'mouseout':
+            case 'mouseup':
+                lastEvent = undefined;
+                annotationElement = undefined;
+                break;
+            case 'mousedown':
+                lastEvent = event;
+                break;
+            default:
+        }
+    }
+    return false;
+}
+
 function createStatsChart(ctx, labels, data, league) {
     return new Chart(ctx, {
         type: 'line',
@@ -1872,6 +1983,16 @@ function createStatsChart(ctx, labels, data, league) {
                 } 
             },
             plugins: {
+                annotation: {
+                    annotations: [],
+                    enter(ctx) {
+                        annotationElement = ctx.element;
+                    },
+                    leave() {
+                        annotationElement = undefined;
+                        lastEvent = undefined;
+                    }
+                },
                 legend: {
                     display: true,
                     labels: { color: '#e0e0e0', font: { size: 12 } },
@@ -1931,7 +2052,7 @@ function createStatsChart(ctx, labels, data, league) {
                 }
             }
         },
-        plugins: [fibonacciLinesPlugin]
+        plugins: [fibonacciLinesPlugin, fibCreator, dragger]
     });
 }
 
@@ -2001,7 +2122,10 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 
-window.onload = updateCharts;
+window.onload = () => {
+    Chart.register(Annotation);
+    updateCharts();
+};
 setInterval(updateCharts, 3000);
     </script>
 
