@@ -1,17 +1,3 @@
-// =========================================================================
-// NOVO: CONSTANTES PARA O GRÁFICO
-// =========================================================================
-const DEFAULT_CHART_LABELS = [
-    'Gols FT', 'Casa Vence', 'Empate', 'Fora Vence', 'Ambas Sim', 'Ambas Não',
-    'Over 1.5', 'Over 2.5', 'Over 3.5', 'Under 1.5', 'Under 2.5', 'Under 3.5',
-    '0 Gol Exato', '1 Gol Exato', '2 Gols Exatos', '3 Gols Exatos', '4 Gols Exatos', '5 Gols Exatos'
-];
-
-
-// =========================================================================
-// SEU CÓDIGO ORIGINAL (PRESERVADO)
-// =========================================================================
-
 // Lista de seletores que não devem ser salvos
 const excludedSelectors = [
   "ligas",
@@ -257,120 +243,7 @@ function clearSavedData() {
   
   // Remove apenas o estado do acordeão específico
   localStorage.removeItem('accordion_tendencia_gols_mercados');
-
-  // NOVO: Remove também os estados de visibilidade dos gráficos
-  localStorage.removeItem('chart_visibility_golsplus');
-  localStorage.removeItem('chart_visibility_Copa');
-
-  console.log("Dados salvos foram limpos.");
 }
-
-// =========================================================================
-// NOVO: FUNÇÕES PARA SALVAR E RESTAURAR O ESTADO DAS LINHAS DO GRÁFICO
-// =========================================================================
-
-/**
- * Salva o estado de visibilidade atual das linhas de um gráfico específico.
- * @param {string} chartId - O ID do elemento canvas do gráfico.
- */
-function saveChartVisibilityState(chartId) {
-    const chartInstance = Chart.getChart(chartId);
-    if (!chartInstance) return;
-
-    const visibilityState = {};
-    chartInstance.data.datasets.forEach((dataset, index) => {
-        visibilityState[dataset.label] = chartInstance.isDatasetVisible(index);
-    });
-
-    localStorage.setItem(`chart_visibility_${chartId}`, JSON.stringify(visibilityState));
-}
-
-/**
- * Restaura o estado de visibilidade das linhas de um gráfico.
- * @param {string} chartId - O ID do elemento canvas do gráfico.
- * @returns {object} - Um objeto com o estado de visibilidade para cada linha.
- */
-function restoreChartVisibilityState(chartId) {
-    const savedStateJSON = localStorage.getItem(`chart_visibility_${chartId}`);
-
-    if (savedStateJSON) {
-        try {
-            return JSON.parse(savedStateJSON);
-        } catch (e) {
-            console.error("Erro ao restaurar o estado do gráfico:", e);
-        }
-    }
-
-    const defaultState = {};
-    DEFAULT_CHART_LABELS.forEach(label => {
-        defaultState[label] = true;
-    });
-    return defaultState;
-}
-
-// =========================================================================
-// MODIFICADO: FUNÇÃO DE CRIAÇÃO DO GRÁFICO
-// =========================================================================
-
-/**
- * Cria uma instância do gráfico, com lógica para salvar e restaurar o estado das linhas.
- * @param {CanvasRenderingContext2D} ctx - O contexto do canvas.
- * @param {string[]} labels - As etiquetas do eixo X.
- * @param {object} data - Os dados para os datasets.
- * @param {string} chartId - O ID do elemento canvas (ex: 'golsplus', 'Copa').
- */
-function createStatsChart(ctx, labels, data, chartId) {
-    const initialVisibilityState = restoreChartVisibilityState(chartId);
-
-    return new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                { label: 'Gols FT', data: data.golsFT, borderColor: '#1E88E5', backgroundColor: '#1E88E5', pointBackgroundColor: data.golsFTColors, hidden: !initialVisibilityState['Gols FT'] },
-                { label: 'Casa Vence', data: data.casaVence, borderColor: '#AB47BC', backgroundColor: '#AB47BC', pointBackgroundColor: data.casaVenceColors, hidden: !initialVisibilityState['Casa Vence'] },
-                { label: 'Empate', data: data.empate, borderColor: '#78909C', backgroundColor: '#78909C', pointBackgroundColor: data.empateColors, hidden: !initialVisibilityState['Empate'] },
-                { label: 'Fora Vence', data: data.foraVence, borderColor: '#2196F3', backgroundColor: '#2196F3', pointBackgroundColor: data.foraVenceColors, hidden: !initialVisibilityState['Fora Vence'] },
-                { label: 'Ambas Sim', data: data.ambasSim, borderColor: '#B0BEC5', backgroundColor: '#B0BEC5', pointBackgroundColor: data.ambasSimColors, hidden: !initialVisibilityState['Ambas Sim'] },
-                { label: 'Ambas Não', data: data.ambasNao, borderColor: '#F44336', backgroundColor: '#F44336', pointBackgroundColor: data.ambasNaoColors, hidden: !initialVisibilityState['Ambas Não'] },
-                { label: 'Over 1.5', data: data.over15, borderColor: '#26A69A', backgroundColor: '#26A69A', pointBackgroundColor: data.over15Colors, hidden: !initialVisibilityState['Over 1.5'] },
-                { label: 'Over 2.5', data: data.over25, borderColor: '#FFEB3B', backgroundColor: '#FFEB3B', pointBackgroundColor: data.over25Colors, hidden: !initialVisibilityState['Over 2.5'] },
-                { label: 'Over 3.5', data: data.over35, borderColor: '#00BCD4', backgroundColor: '#00BCD4', pointBackgroundColor: data.over35Colors, hidden: !initialVisibilityState['Over 3.5'] },
-                { label: 'Under 1.5', data: data.under15, borderColor: '#388E3C', backgroundColor: '#388E3C', pointBackgroundColor: data.under15Colors, hidden: !initialVisibilityState['Under 1.5'] },
-                { label: 'Under 2.5', data: data.under25, borderColor: '#FF9800', backgroundColor: '#FF9800', pointBackgroundColor: data.under25Colors, hidden: !initialVisibilityState['Under 2.5'] },
-                { label: 'Under 3.5', data: data.under35, borderColor: '#F06292', backgroundColor: '#F06292', pointBackgroundColor: data.under35Colors, hidden: !initialVisibilityState['Under 3.5'] },
-                { label: '0 Gol Exato', data: data.gol0, borderColor: '#D81B60', backgroundColor: '#D81B60', pointBackgroundColor: data.gol0Colors, hidden: !initialVisibilityState['0 Gol Exato'] },
-                { label: '1 Gol Exato', data: data.gol1, borderColor: '#8E24AA', backgroundColor: '#8E24AA', pointBackgroundColor: data.gol1Colors, hidden: !initialVisibilityState['1 Gol Exato'] },
-                { label: '2 Gols Exatos', data: data.gol2, borderColor: '#A0522D', backgroundColor: '#A0522D', pointBackgroundColor: data.gol2Colors, hidden: !initialVisibilityState['2 Gols Exatos'] },
-                { label: '3 Gols Exatos', data: data.gol3, borderColor: '#546E7A', backgroundColor: '#546E7A', pointBackgroundColor: data.gol3Colors, hidden: !initialVisibilityState['3 Gols Exatos'] },
-                { label: '4 Gols Exatos', data: data.gol4, borderColor: '#FFB300', backgroundColor: '#FFB300', pointBackgroundColor: data.gol4Colors, hidden: !initialVisibilityState['4 Gols Exatos'] },
-                { label: '5 Gols Exatos', data: data.gol5, borderColor: '#00897B', backgroundColor: '#00897B', pointBackgroundColor: data.gol5Colors, hidden: !initialVisibilityState['5 Gols Exatos'] }
-            ].map(dataset => ({
-                ...dataset,
-                borderWidth: 2,
-                pointRadius: 4,
-                fill: false
-            }))
-        },
-        options: {
-            plugins: {
-                legend: {
-                    onClick: (e, legendItem, legend) => {
-                        Chart.defaults.plugins.legend.onClick(e, legendItem, legend);
-                        saveChartVisibilityState(chartId);
-                    }
-                }
-            },
-            responsive: true,
-            maintainAspectRatio: false
-        }
-    });
-}
-
-
-// =========================================================================
-// INICIALIZAÇÃO DA PÁGINA
-// =========================================================================
 
 // Inicializa o script ao carregar a página
 window.addEventListener("DOMContentLoaded", () => {
@@ -380,18 +253,6 @@ window.addEventListener("DOMContentLoaded", () => {
   setTimeout(() => {
     restoreSelections();
     setupSelectors();
-
-    // ====================================================================
-    // Chame a função para criar os gráficos AQUI!
-    // ====================================================================
-    // Exemplo:
-    // try {
-    //   const ctxGolsPlus = document.getElementById('golsplus').getContext('2d');
-    //   createStatsChart(ctxGolsPlus, labelsGolsPlus, dataGolsPlus, 'golsplus');
-    //   const ctxCopa = document.getElementById('Copa').getContext('2d');
-    //   createStatsChart(ctxCopa, labelsCopa, dataCopa, 'Copa');
-    // } catch(e) { console.error("Erro ao inicializar gráficos:", e); }
-
   }, 100);
 });
 
