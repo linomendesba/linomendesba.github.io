@@ -7,6 +7,9 @@ const excludedSelectors = [
   "redes"
 ];
 
+// Variável para armazenar as instâncias dos gráficos
+let chartInstances = {};
+
 // Verifica se é o acordeão específico que deve ser salvo
 function isTargetAccordion(buttonElement) {
   return buttonElement.textContent.includes("Tendência Gols / Mercados");
@@ -44,6 +47,150 @@ function restoreAccordionState() {
           }
         }
       }
+    }
+  });
+}
+
+// NOVAS FUNÇÕES PARA SALVAR ESTADO DO GRÁFICO
+
+// Salva o estado das linhas visíveis do gráfico
+function saveChartState(chartId, visibleDatasets) {
+  const stateKey = `chart_state_${chartId}`;
+  localStorage.setItem(stateKey, JSON.stringify(visibleDatasets));
+}
+
+// Restaura o estado das linhas do gráfico
+function restoreChartState(chartId) {
+  const stateKey = `chart_state_${chartId}`;
+  const savedState = localStorage.getItem(stateKey);
+  
+  if (savedState) {
+    try {
+      return JSON.parse(savedState);
+    } catch (e) {
+      console.error('Erro ao restaurar estado do gráfico:', e);
+    }
+  }
+  
+  return null;
+}
+
+// Função melhorada para criar gráfico com salvamento de estado
+function createStatsChart(ctx, labels, data, league) {
+  // Gera um ID único para o gráfico baseado no contexto
+  const chartId = ctx.canvas.id || `chart_${league}_${Date.now()}`;
+  
+  // Restaura estado salvo ou usa o padrão
+  const savedState = restoreChartState(chartId);
+  let visibleDatasets;
+  
+  if (savedState) {
+    visibleDatasets = savedState;
+  } else {
+    // Estado padrão do statsChartVisibleDatasets
+    visibleDatasets = window.statsChartVisibleDatasets || {
+      'Gols FT': true,
+      'Casa Vence': true,
+      'Empate': true,
+      'Fora Vence': true,
+      'Ambas Sim': true,
+      'Ambas Não': true,
+      'Over 1.5': true,
+      'Over 2.5': true,
+      'Over 3.5': true,
+      'Under 1.5': true,
+      'Under 2.5': true,
+      'Under 3.5': true,
+      '0 Gol Exato': true,
+      '1 Gol Exato': true,
+      '2 Gols Exatos': true,
+      '3 Gols Exatos': true,
+      '4 Gols Exatos': true,
+      '5 Gols Exatos': true
+    };
+  }
+
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Gols FT', data: data.golsFT, borderColor: '#1E88E5', backgroundColor: '#1E88E5', pointBackgroundColor: data.golsFTColors, hidden: !visibleDatasets['Gols FT'] },
+        { label: 'Casa Vence', data: data.casaVence, borderColor: '#AB47BC', backgroundColor: '#AB47BC', pointBackgroundColor: data.casaVenceColors, hidden: !visibleDatasets['Casa Vence'] },
+        { label: 'Empate', data: data.empate, borderColor: '#78909C', backgroundColor: '#78909C', pointBackgroundColor: data.empateColors, hidden: !visibleDatasets['Empate'] },
+        { label: 'Fora Vence', data: data.foraVence, borderColor: '#2196F3', backgroundColor: '#2196F3', pointBackgroundColor: data.foraVenceColors, hidden: !visibleDatasets['Fora Vence'] },
+        { label: 'Ambas Sim', data: data.ambasSim, borderColor: '#B0BEC5', backgroundColor: '#B0BEC5', pointBackgroundColor: data.ambasSimColors, hidden: !visibleDatasets['Ambas Sim'] },
+        { label: 'Ambas Não', data: data.ambasNao, borderColor: '#F44336', backgroundColor: '#F44336', pointBackgroundColor: data.ambasNaoColors, hidden: !visibleDatasets['Ambas Não'] },
+        { label: 'Over 1.5', data: data.over15, borderColor: '#26A69A', backgroundColor: '#26A69A', pointBackgroundColor: data.over15Colors, hidden: !visibleDatasets['Over 1.5'] },
+        { label: 'Over 2.5', data: data.over25, borderColor: '#FFEB3B', backgroundColor: '#FFEB3B', pointBackgroundColor: data.over25Colors, hidden: !visibleDatasets['Over 2.5'] },
+        { label: 'Over 3.5', data: data.over35, borderColor: '#00BCD4', backgroundColor: '#00BCD4', pointBackgroundColor: data.over35Colors, hidden: !visibleDatasets['Over 3.5'] },
+        { label: 'Under 1.5', data: data.under15, borderColor: '#388E3C', backgroundColor: '#388E3C', pointBackgroundColor: data.under15Colors, hidden: !visibleDatasets['Under 1.5'] },
+        { label: 'Under 2.5', data: data.under25, borderColor: '#FF9800', backgroundColor: '#FF9800', pointBackgroundColor: data.under25Colors, hidden: !visibleDatasets['Under 2.5'] },
+        { label: 'Under 3.5', data: data.under35, borderColor: '#F06292', backgroundColor: '#F06292', pointBackgroundColor: data.under35Colors, hidden: !visibleDatasets['Under 3.5'] },
+        { label: '0 Gol Exato', data: data.gol0, borderColor: '#D81B60', backgroundColor: '#D81B60', pointBackgroundColor: data.gol0Colors, hidden: !visibleDatasets['0 Gol Exato'] },
+        { label: '1 Gol Exato', data: data.gol1, borderColor: '#8E24AA', backgroundColor: '#8E24AA', pointBackgroundColor: data.gol1Colors, hidden: !visibleDatasets['1 Gol Exato'] },
+        { label: '2 Gols Exatos', data: data.gol2, borderColor: '#A0522D', backgroundColor: '#A0522D', pointBackgroundColor: data.gol2Colors, hidden: !visibleDatasets['2 Gols Exatos'] },
+        { label: '3 Gols Exatos', data: data.gol3, borderColor: '#546E7A', backgroundColor: '#546E7A', pointBackgroundColor: data.gol3Colors, hidden: !visibleDatasets['3 Gols Exatos'] },
+        { label: '4 Gols Exatos', data: data.gol4, borderColor: '#FFB300', backgroundColor: '#FFB300', pointBackgroundColor: data.gol4Colors, hidden: !visibleDatasets['4 Gols Exatos'] },
+        { label: '5 Gols Exatos', data: data.gol5, borderColor: '#00897B', backgroundColor: '#00897B', pointBackgroundColor: data.gol5Colors, hidden: !visibleDatasets['5 Gols Exatos'] }
+      ].map(dataset => ({
+        ...dataset,
+        borderWidth: 2,
+        pointRadius: 4,
+        fill: false
+      }))
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          onClick: function(e, legendItem, legend) {
+            // Comportamento padrão do Chart.js para mostrar/ocultar datasets
+            const index = legendItem.datasetIndex;
+            const ci = legend.chart;
+            
+            if (ci.isDatasetVisible(index)) {
+              ci.hide(index);
+              legendItem.hidden = true;
+            } else {
+              ci.show(index);
+              legendItem.hidden = false;
+            }
+            
+            // Salva o novo estado
+            const currentState = {};
+            ci.data.datasets.forEach((dataset, idx) => {
+              currentState[dataset.label] = ci.isDatasetVisible(idx);
+            });
+            
+            saveChartState(chartId, currentState);
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+  
+  // Armazena a instância do gráfico para referência futura
+  chartInstances[chartId] = chart;
+  
+  return chart;
+}
+
+// Função para salvar estados de todos os gráficos ativos
+function saveAllChartsState() {
+  Object.keys(chartInstances).forEach(chartId => {
+    const chart = chartInstances[chartId];
+    if (chart && !chart.destroyed) {
+      const currentState = {};
+      chart.data.datasets.forEach((dataset, idx) => {
+        currentState[dataset.label] = chart.isDatasetVisible(idx);
+      });
+      saveChartState(chartId, currentState);
     }
   });
 }
@@ -148,7 +295,7 @@ function setupSelectors() {
         const originalOnclick = selector.getAttribute("onclick");
               
         // Substituímos o manipulador onclick para primeiro salvar e depois redirecionar
-        selector.setAttribute("onclick", `saveSelection('${selector.id}'); ${originalOnclick}`);
+        selector.setAttribute("onclick", `saveSelection('${selector.id}'); saveAllChartsState(); ${originalOnclick}`);
       } else {
         // Para seletores sem redirecionamento, adicionamos o evento change normal
         selector.addEventListener("change", () => {
@@ -158,6 +305,9 @@ function setupSelectors() {
           if (isInTargetAccordion) {
             saveAccordionState(accordionButton);
           }
+          
+          // Salva estados dos gráficos
+          saveAllChartsState();
         });
       }
     }
@@ -179,6 +329,9 @@ function setupSelectors() {
         if (isInTargetAccordion) {
           saveAccordionState(accordionButton);
         }
+        
+        // Salva estados dos gráficos
+        saveAllChartsState();
       });
     }
   });
@@ -215,6 +368,9 @@ function saveAllSelections() {
       saveAccordionState(button);
     }
   });
+  
+  // Salva estados dos gráficos
+  saveAllChartsState();
 }
 
 // Função para limpar dados salvos (útil para debug/reset)
@@ -243,6 +399,13 @@ function clearSavedData() {
   
   // Remove apenas o estado do acordeão específico
   localStorage.removeItem('accordion_tendencia_gols_mercados');
+  
+  // Remove estados dos gráficos
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith('chart_state_')) {
+      localStorage.removeItem(key);
+    }
+  });
 }
 
 // Inicializa o script ao carregar a página
