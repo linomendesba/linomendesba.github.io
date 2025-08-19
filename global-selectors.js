@@ -7,51 +7,10 @@ const excludedSelectors = [
   "redes"
 ];
 
+// ========== NOVAS VARIÁVEIS E FUNÇÕES PARA GRÁFICOS ==========
+
 // Variável para armazenar as instâncias dos gráficos
 let chartInstances = {};
-
-// Verifica se é o acordeão específico que deve ser salvo
-function isTargetAccordion(buttonElement) {
-  return buttonElement.textContent.includes("Tendência Gols / Mercados");
-}
-
-// Salva o estado do acordeão (apenas para o acordeão específico)
-function saveAccordionState(buttonElement) {
-  if (!isTargetAccordion(buttonElement)) return;
-  
-  const accordionContent = buttonElement.nextElementSibling;
-  const isOpen = accordionContent && accordionContent.style.display !== "none";
-  
-  localStorage.setItem('accordion_tendencia_gols_mercados', isOpen);
-}
-
-// Restaura o estado do acordeão (apenas para o acordeão específico)
-function restoreAccordionState() {
-  const accordionButtons = document.querySelectorAll('.accordion-button');
-  
-  accordionButtons.forEach(button => {
-    if (isTargetAccordion(button)) {
-      const savedState = localStorage.getItem('accordion_tendencia_gols_mercados');
-      
-      if (savedState !== null) {
-        const isOpen = savedState === 'true';
-        const accordionContent = button.nextElementSibling;
-        
-        if (accordionContent) {
-          if (isOpen) {
-            accordionContent.style.display = "block";
-            button.textContent = button.textContent.replace('▼', '▲');
-          } else {
-            accordionContent.style.display = "none";
-            button.textContent = button.textContent.replace('▲', '▼');
-          }
-        }
-      }
-    }
-  });
-}
-
-// NOVAS FUNÇÕES PARA SALVAR ESTADO DO GRÁFICO
 
 // Salva o estado das linhas visíveis do gráfico
 function saveChartState(chartId, visibleDatasets) {
@@ -73,6 +32,20 @@ function restoreChartState(chartId) {
   }
   
   return null;
+}
+
+// Função para salvar estados de todos os gráficos ativos
+function saveAllChartsState() {
+  Object.keys(chartInstances).forEach(chartId => {
+    const chart = chartInstances[chartId];
+    if (chart && !chart.destroyed) {
+      const currentState = {};
+      chart.data.datasets.forEach((dataset, idx) => {
+        currentState[dataset.label] = chart.isDatasetVisible(idx);
+      });
+      saveChartState(chartId, currentState);
+    }
+  });
 }
 
 // Função melhorada para criar gráfico com salvamento de estado
@@ -181,16 +154,45 @@ function createStatsChart(ctx, labels, data, league) {
   return chart;
 }
 
-// Função para salvar estados de todos os gráficos ativos
-function saveAllChartsState() {
-  Object.keys(chartInstances).forEach(chartId => {
-    const chart = chartInstances[chartId];
-    if (chart && !chart.destroyed) {
-      const currentState = {};
-      chart.data.datasets.forEach((dataset, idx) => {
-        currentState[dataset.label] = chart.isDatasetVisible(idx);
-      });
-      saveChartState(chartId, currentState);
+// ========== FUNÇÕES ORIGINAIS DO SEU CÓDIGO ==========
+
+// Verifica se é o acordeão específico que deve ser salvo
+function isTargetAccordion(buttonElement) {
+  return buttonElement.textContent.includes("Tendência Gols / Mercados");
+}
+
+// Salva o estado do acordeão (apenas para o acordeão específico)
+function saveAccordionState(buttonElement) {
+  if (!isTargetAccordion(buttonElement)) return;
+  
+  const accordionContent = buttonElement.nextElementSibling;
+  const isOpen = accordionContent && accordionContent.style.display !== "none";
+  
+  localStorage.setItem('accordion_tendencia_gols_mercados', isOpen);
+}
+
+// Restaura o estado do acordeão (apenas para o acordeão específico)
+function restoreAccordionState() {
+  const accordionButtons = document.querySelectorAll('.accordion-button');
+  
+  accordionButtons.forEach(button => {
+    if (isTargetAccordion(button)) {
+      const savedState = localStorage.getItem('accordion_tendencia_gols_mercados');
+      
+      if (savedState !== null) {
+        const isOpen = savedState === 'true';
+        const accordionContent = button.nextElementSibling;
+        
+        if (accordionContent) {
+          if (isOpen) {
+            accordionContent.style.display = "block";
+            button.textContent = button.textContent.replace('▼', '▲');
+          } else {
+            accordionContent.style.display = "none";
+            button.textContent = button.textContent.replace('▲', '▼');
+          }
+        }
+      }
     }
   });
 }
@@ -306,7 +308,7 @@ function setupSelectors() {
             saveAccordionState(accordionButton);
           }
           
-          // Salva estados dos gráficos
+          // Salva estados dos gráficos quando alterar seletores
           saveAllChartsState();
         });
       }
@@ -330,7 +332,7 @@ function setupSelectors() {
           saveAccordionState(accordionButton);
         }
         
-        // Salva estados dos gráficos
+        // Salva estados dos gráficos quando alterar checkboxes
         saveAllChartsState();
       });
     }
@@ -369,7 +371,7 @@ function saveAllSelections() {
     }
   });
   
-  // Salva estados dos gráficos
+  // Salva estados dos gráficos antes de sair da página
   saveAllChartsState();
 }
 
