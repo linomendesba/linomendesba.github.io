@@ -139,16 +139,16 @@ function setupSelectors() {
     
     // Só adiciona eventos se estiver no acordeão específico ou não estiver em nenhum acordeão
     if (isInTargetAccordion || !accordionButton) {
-      // Verificamos se o seletor já tem um manipulador onclick que poderia redirecionar
-      const hasRedirectHandler = selector.hasAttribute("onclick") &&
-                                 selector.getAttribute("onclick").includes("redirecionar");
+      // Verificamos se o seletor já tem um manipulador onchange que poderia redirecionar
+      const hasRedirectHandler = selector.hasAttribute("onchange") &&
+                                 selector.getAttribute("onchange").includes("redirecionar");
           
       if (hasRedirectHandler) {
         // Para seletores com redirecionamento, adicionamos um evento que salva antes do redirecionamento
-        const originalOnclick = selector.getAttribute("onclick");
+        const originalOnchange = selector.getAttribute("onchange");
               
-        // Substituímos o manipulador onclick para primeiro salvar e depois redirecionar
-        selector.setAttribute("onclick", `saveSelection('${selector.id}'); ${originalOnclick}`);
+        // Substituímos o manipulador onchange para primeiro salvar e depois redirecionar
+        selector.setAttribute("onchange", `saveSelection('${selector.id}'); ${originalOnchange}`);
       } else {
         // Para seletores sem redirecionamento, adicionamos o evento change normal
         selector.addEventListener("change", () => {
