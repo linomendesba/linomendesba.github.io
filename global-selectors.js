@@ -5,6 +5,8 @@ const excludedSelectors = [
   "ligas365",
   "avancado-bet365",
   "redes",
+  "pointsSelector",
+  "pointsSelectorGolsPlus",
   "averageSelector",
   "averageSelectorGolsPlus"
 ];
@@ -62,44 +64,10 @@ function saveAllSelections() {
   });
 }
 
-// Funções para salvar e restaurar o estado do accordion (assumindo uso da classe 'collapsed' para estado fechado)
-function saveAccordionState(accordionId) {
-  const button = document.getElementById(accordionId);
-  if (button) {
-    const isOpen = !button.classList.contains('collapsed');
-    localStorage.setItem(accordionId + '_state', isOpen ? 'open' : 'closed');
-  }
-}
-
-function restoreAccordionState(accordionId) {
-  const button = document.getElementById(accordionId);
-  if (button) {
-    const savedState = localStorage.getItem(accordionId + '_state');
-    const isCurrentlyOpen = !button.classList.contains('collapsed');
-    if ((savedState === 'open' && !isCurrentlyOpen) || (savedState === 'closed' && isCurrentlyOpen)) {
-      toggleAccordion(button);
-    }
-  }
-}
-
-// Configura o evento onclick do accordion para salvar o estado após toggle
-function setupAccordion(accordionId) {
-  const button = document.getElementById(accordionId);
-  if (button) {
-    const originalOnclick = button.onclick;
-    button.onclick = function() {
-      originalOnclick.call(this);
-      saveAccordionState(accordionId);
-    };
-  }
-}
-
 // Inicializa o script ao carregar a página
 window.addEventListener("DOMContentLoaded", () => {
   restoreSelections();
   setupSelectors();
-  restoreAccordionState('accordionGols');
-  setupAccordion('accordionGols');
 });
 
 // Tentativa adicional de salvar seleções antes de redirecionar
