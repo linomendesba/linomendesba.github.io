@@ -95,6 +95,15 @@ function restoreSelections() {
       const savedValue = localStorage.getItem(selector.id);
       if (savedValue) {
         selector.value = savedValue;
+        
+        // Dispara o evento change para carregar os dados
+        const changeEvent = new Event('change', { bubbles: true });
+        selector.dispatchEvent(changeEvent);
+        
+        // Também tenta disparar eventos personalizados se existirem
+        if (selector.onchange) {
+          selector.onchange();
+        }
       }
     }
   });
@@ -106,6 +115,14 @@ function restoreSelections() {
       const savedValue = localStorage.getItem(checkbox.id);
       if (savedValue !== null) {
         checkbox.checked = savedValue === 'true';
+        
+        // Dispara o evento change para checkboxes também
+        const changeEvent = new Event('change', { bubbles: true });
+        checkbox.dispatchEvent(changeEvent);
+        
+        if (checkbox.onchange) {
+          checkbox.onchange();
+        }
       }
     }
   });
@@ -230,9 +247,13 @@ function clearSavedData() {
 
 // Inicializa o script ao carregar a página
 window.addEventListener("DOMContentLoaded", () => {
-  restoreSelections();
   restoreAccordionState();
-  setupSelectors();
+  
+  // Pequeno delay para garantir que todos os elementos estejam prontos
+  setTimeout(() => {
+    restoreSelections();
+    setupSelectors();
+  }, 100);
 });
 
 // Tentativa adicional de salvar seleções antes de redirecionar
