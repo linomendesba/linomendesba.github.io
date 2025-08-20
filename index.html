@@ -870,22 +870,62 @@
       return oddValue;
     }
 
-    function extractTimeFromDateTime(dateTimeStr) {
-      if (!dateTimeStr || isNaN(new Date(dateTimeStr))) {
-        console.warn(`Data/hora inválida: ${dateTimeStr}`);
-        return { time: "Horário indisponível", date: null, hour: null, minute: null };
-      }
-      const date = new Date(dateTimeStr);
-      const offsetDate = new Date(date.getTime() - 3 * 60 * 60 * 1000); // Subtrair 3 horas
-      const hour = offsetDate.getHours();
-      const minute = offsetDate.getMinutes();
-      const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-      const closestMinute = minutosFixos.reduce((prev, curr) =>
-        Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
-      );
-      console.log(`Parsed time: ${dateTimeStr} -> local time: ${offsetDate.toISOString()} -> hour: ${hour}, minute: ${minute}, closestMinute: ${closestMinute}`);
-      return { time, date: offsetDate, hour, minute: closestMinute };
-    }
+// Nova função para parse correto de datas no formato DD/MM/YYYY (essencial para chaves consistentes)
+function parseBRDate(dateStr) {
+  const [day, month, year] = dateStr.split("/");
+  return new Date(year, month - 1, day); // Mês 0-indexed no JS
+}
+
+// Função atualizada com a condição especial para 21h a 1h
+function extractTimeFromDateTime(dateTimeStr) {
+  if (!dateTimeStr || isNaN(new Date(dateTimeStr))) {
+    console.warn(`Data/hora inválida: ${dateTimeStr}`);
+    return { time: "Horário indisponível", date: null, hour: null, minute: null };
+  }
+  const date = new Date(dateTimeStr);
+  let offsetDate = new Date(date.getTime() - 3 * 60 * 60 * 1000); // Subtrair 3 horas inicialmente
+  let hour = offsetDate.getHours();
+  let minute = offsetDate.getMinutes();
+
+  // Condição especial: se hour calculado está entre 21-23 ou 0-1, remove a subtração e usa o original
+  if (hour >= 21 || hour <= 1) {
+    offsetDate = new Date(date.getTime()); // Remove o ajuste
+    hour = offsetDate.getHours();
+    minute = offsetDate.getMinutes();
+    console.log(`Condição especial aplicada para hour ${hour} (original usado)`);
+  }
+
+  const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+  const closestMinute = minutosFixos.reduce((prev, curr) =>
+    Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
+  );
+  console.log(`Parsed time: ${dateTimeStr} -> local time: ${offsetDate.toISOString()} -> hour: ${hour}, minute: ${minute}, closestMinute: ${closestMinute}`);
+  return { time, date: offsetDate, hour, minute: closestMinute };
+}
+
+// Em criarTabela, use parseBRDate para dados passados (para chave correta)
+dados.sort((a, b) => {
+  const dataHoraA = parseBRDate(a.data); // Use parseBRDate
+  const dataHoraB = parseBRDate(b.data); // Use parseBRDate
+  const timeA = new Date(dataHoraA.getTime() + (a.hora * 60 * 60 * 1000) + (a.minuto * 60 * 1000)).getTime();
+  const timeB = new Date(dataHoraB.getTime() + (b.hora * 60 * 60 * 1000) + (b.minuto * 60 * 1000)).getTime();
+  return timeA - timeB;
+});
+
+// Para chaves de passados:
+dados.reverse().forEach((dado) => {
+  // ...
+  const dataHora = parseBRDate(dado.data); // Use aqui
+  const chave = `${dataHora.toISOString().split("T")[0]}-${dado.hora}`;
+  // ...
+});
+
+// No dados.forEach para adicionar placares:
+dados.forEach((dado) => {
+  const dataHora = parseBRDate(dado.data); // Use aqui também
+  const chave = `${dataHora.toISOString().split("T")[0]}-${dado.hora}`;
+  // ...
+});
 
     function abbreviateTeamName(teamName) {
       if (!teamName) return "";
