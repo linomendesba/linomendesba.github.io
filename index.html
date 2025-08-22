@@ -743,7 +743,6 @@ async function fetchOdds() {
       throw new Error(`Erro ao buscar odds: ${response.status} ${response.statusText}`);
     }
     const oddsData = await response.json();
-    console.log("Odds fetched:", oddsData);
     return oddsData;
   } catch (error) {
     console.error("Erro ao buscar odds:", error);
@@ -758,7 +757,6 @@ async function fetchProximosJogos() {
       throw new Error(`Erro ao buscar próximos jogos: ${response.status} ${response.statusText}`);
     }
     const jogos = await response.json();
-    console.log("Próximos jogos fetched:", jogos);
     return jogos.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 6);
   } catch (error) {
     console.error("Erro ao buscar próximos jogos:", error);
@@ -796,8 +794,6 @@ function findOddsForMatch(match, oddsData) {
   const matchTimeA = normalizeString(teamMapping[match.time_a.toLowerCase()] || match.time_a);
   const matchTimeB = normalizeString(teamMapping[match.time_b.toLowerCase()] || match.time_b);
 
-  console.log(`Searching odds for match: ${matchTimeA} vs ${matchTimeB} on ${matchDate} at ${matchTime}`);
-
   let matchedOdd = oddsData.find(odd => {
     const oddDate = odd.data_captura;
     const oddTime = odd.horario;
@@ -810,9 +806,6 @@ function findOddsForMatch(match, oddsData) {
       oddDate === matchDate &&
       oddTime === matchTime;
 
-    if (isMatch) {
-      console.log(`Found odds by full match:`, odd);
-    }
     return isMatch;
   });
 
@@ -825,15 +818,8 @@ function findOddsForMatch(match, oddsData) {
         (oddTimeCasa === matchTimeA || oddTimeVisitante === matchTimeA || 
          oddTimeCasa === matchTimeB || oddTimeVisitante === matchTimeB) &&
         oddTime === matchTime;
-      if (isTeamMatch) {
-        console.log(`Found odds by team and time:`, odd);
-      }
       return isTeamMatch;
     });
-  }
-
-  if (!matchedOdd) {
-    console.log(`No odds found for ${matchTimeA} vs ${matchTimeB} on ${matchDate} at ${matchTime}`);
   }
 
   return matchedOdd;
@@ -860,7 +846,6 @@ function getOddValue(odds, resultado) {
 
 function extractTimeFromDateTime(dateTimeStr) {
   if (!dateTimeStr || isNaN(new Date(dateTimeStr))) {
-    console.warn(`Data/hora inválida: ${dateTimeStr}`);
     return { time: "Horário indisponível", date: null, hour: null, minute: null };
   }
   const date = new Date(dateTimeStr);
@@ -870,7 +855,6 @@ function extractTimeFromDateTime(dateTimeStr) {
   const closestMinute = minutosFixos.reduce((prev, curr) =>
     Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
   );
-  console.log(`Parsed time: ${dateTimeStr} -> local time: ${date.toISOString()} -> hour: ${hour}, minute: ${minute}, closestMinute: ${closestMinute}`);
   return { time, date: date, hour, minute: closestMinute };
 }
 
@@ -955,7 +939,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const date = new Date(jogo.start_time);
     return { ...jogo, time: jogo.time, date, hora, minuto: closestMinute, team_visitante: jogo.team_visit };
   }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-  console.log("Próximos jogos processados:", proximosJogosComHoras);
 
   const chavesJaProcessadas = new Set();
   const mapeamentoChaveLinha = {};
@@ -987,7 +970,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
         chavesJaProcessadas.add(chave);
         mapeamentoChaveLinha[chave] = novaLinha;
         contagemLinhas++;
-        console.log(`Criada linha para hora futura (topo): ${chave}`);
       }
     }
   });
@@ -1016,7 +998,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
       chavesJaProcessadas.add(chave);
       mapeamentoChaveLinha[chave] = novaLinha;
       contagemLinhas++;
-      console.log(`Criada linha para dados passados: ${chave}`);
     }
   });
 
@@ -1144,7 +1125,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
           colunaMinuto.appendChild(placar);
           processedMatches.add(matchKey);
-          console.log(`Adicionado resultado passado: ${dado.time_a} vs ${dado.time_b} em ${chave} minuto ${dado.minuto}`);
 
           if (placarSelecionado && !mostrarTimes && placarTexto.textContent.includes(placarSelecionado)) {
             placar.classList.add("placar-selecionado");
@@ -1232,7 +1212,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
         if (indexMinuto !== -1) {
           const colunaMinuto = linha.children[2 + indexMinuto];
           if (!colunaMinuto.querySelector(".placar")) {
-            console.log(`Adicionando jogo futuro: ${jogo.team_home} vs ${jogo.team_visit} em ${chave} minuto ${jogo.minuto}`);
             const placar = document.createElement("div");
             placar.className = "placar placar-futuro";
             placar.setAttribute("data-time-a", jogo.team_home);
@@ -1277,14 +1256,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
             }
 
           }
-        } else {
-          console.warn(`Minuto ${jogo.minuto} não encontrado em minutosFixos para jogo ${jogo.team_home} vs ${jogo.team_visit}`);
         }
-      } else {
-        console.log(`Jogo ${jogo.team_home} vs ${jogo.team_visit} já tem resultado, não será adicionado como futuro`);
       }
-    } else {
-      console.warn(`Linha não encontrada para chave ${chave} ou minuto nulo para jogo ${jogo.team_home} vs ${jogo.team_visit}`);
     }
   });
 
@@ -1406,9 +1379,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const checkbox = row.querySelector("input[type=checkbox]");
     const chave = row.getAttribute("data-chave");
     if (checkbox && chave) {
-      if (savedSelected.includes(chave)) {
-        checkbox.checked = true;
-      }
+      checkbox.checked = savedSelected.includes(chave);
       checkbox.addEventListener("change", () => {
         updateSelectedRows();
         saveSelections();
@@ -1462,40 +1433,34 @@ function updateSelectedRows() {
     }
   });
 
-  selectedTable.style.display = selectedTbody.querySelectorAll("tr").length > 0 ? "table" : "none";
+  selectedTable.style.display = selectedTbody.querySelectorAll("tr").length > 0 ? "" : "none";
 }
 
 async function buscarDados() {
   hideErrorMessage();
-  let dados = [];
-  let oddsData = [];
-  let proximosJogos = [];
 
-  try {
-    const resultadosResponse = await fetch("https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna");
-    if (!resultadosResponse.ok) {
-      throw new Error(`Erro ao buscar resultados: ${resultadosResponse.status} ${resultadosResponse.statusText}`);
-    }
-    dados = await resultadosResponse.json();
-    console.log("Resultados fetched:", dados);
-  } catch (error) {
-    console.error("Erro ao buscar resultados:", error);
-    showErrorMessage(`Erro ao carregar resultados: ${error.message}`);
-  }
+  const [dadosRes, oddsData, proximosJogos] = await Promise.all([
+    fetch("https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna")
+      .then(res => {
+        if (!res.ok) throw new Error(`Erro ao buscar resultados: ${res.status} ${res.statusText}`);
+        return res.json();
+      })
+      .catch(error => {
+        console.error("Erro ao buscar resultados:", error);
+        showErrorMessage(`Erro ao carregar resultados: ${error.message}`);
+        return [];
+      }),
+    fetchOdds().catch(() => {
+      showErrorMessage(`Erro ao carregar odds. Exibindo tabela sem odds.`);
+      return [];
+    }),
+    fetchProximosJogos().catch(() => {
+      showErrorMessage(`Erro ao carregar próximos jogos. Exibindo tabela sem jogos futuros.`);
+      return [];
+    })
+  ]);
 
-  try {
-    oddsData = await fetchOdds();
-  } catch (error) {
-    console.error("Erro ao buscar odds:", error);
-    showErrorMessage(`Erro ao carregar odds: ${error.message}. Exibindo tabela sem odds.`);
-  }
-
-  try {
-    proximosJogos = await fetchProximosJogos();
-  } catch (error) {
-    console.error("Erro ao buscar próximos jogos:", error);
-    showErrorMessage(`Erro ao carregar próximos jogos: ${error.message}. Exibindo tabela sem jogos futuros.`);
-  }
+  const dados = dadosRes;
 
   if (dados.length > 0 || proximosJogos.length > 0) {
     criarTabela(dados, oddsData, proximosJogos);
