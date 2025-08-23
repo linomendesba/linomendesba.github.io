@@ -1,0 +1,398 @@
+    <div class="upcoming-games">
+        <h2>Próximos Jogos</h2>
+        <div class="games-table" id="lista-proximos-jogos"></div>
+    </div>
+
+    <div class="filter-container">
+        <div>
+            <label for="league-select">Liga:</label>
+            <select id="league-select">
+                <option value="Copa América|https://betstat.site/resultados/Copa%20Am%C3%A9rica|https://betstat.site/proximos/Copa%20Am%C3%A9rica" selected>Copa América</option>
+                <option value="Taça Glória Eterna|https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna|https://betstat.site/proximos/Taça%20Glória%20Eterna">Taça Glória Eterna</option>
+                <option value="Euro|https://betstat.site/resultados/Euro|https://betstat.site/proximos/Euro">Euro</option>
+                <option value="Campeonato Italiano|https://betstat.site/resultados/Campeonato%20Italiano|https://betstat.site/proximos/Campeonato%20Italiano">Campeonato Italiano</option>
+                <option value="Copa das Estrelas|https://betstat.site/resultados/Copa%20das%20estrelas|https://betstat.site/proximos/Copa%20das%20Estrelas">Copa das Estrelas</option>
+                <option value="Brasileirão Betano|https://betstat.site/resultados/Brasileir%C3%A3o%20Betano|https://betstat.site/proximos/Brasileir%C3%A3o%20Betano">Brasileirão Betano</option>
+            </select>
+        </div>
+        <div>
+            <label for="lines-select">Horas:</label>
+            <select id="lines-select">
+                <option value="60">3 horas</option>
+                <option value="120" selected>6 horas</option>
+                <option value="240">12 horas</option>
+                <option value="480">24 horas</option>
+                <option value="960">48 horas</option>
+                <option value="1440">72 horas</option>
+                <option value="1920">96 horas</option>
+            </select>
+        </div>
+        <div>
+            <label for="qual-select">Times:</label>
+            <select id="qual-select">
+                <option value="ambos" selected>Casa e Fora</option>
+                <option value="casa">Casa</option>
+                <option value="fora">Fora</option>
+            </select>
+        </div>
+        <div>
+            <label for="filter-select">Mercado:</label>
+            <select id="filter-select">
+                <option value="bothscoreunder" selected>Ambas Sim</option>
+                <option value="ambnao">Ambas não</option>
+                <option value="casavence">Casa Vence</option>
+                <option value="foravence">Fora Vence</option>
+                <option value="empate">Empate</option>
+                <option value="over1.5">Over 1.5</option>
+                <option value="over2.5">Over 2.5</option>
+                <option value="over3.5">Over 3.5</option>
+                <option value="5plus">5 ou mais gols</option>
+                <option value="under1.5">Under 1.5</option>
+                <option value="under2.5">Under 2.5</option>                
+            </select>
+        </div>
+        <div>
+            <label for="offset-select">Gales:</label>
+            <select id="offset-select">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+                <option value="4">4</option>
+            </select>
+        </div>
+        <div>
+            <label for="offset-select2">1º tiro:</label>
+            <select id="offset-select2">
+                <option value="-1" selected>Antes</option>
+                <option value="0">Time</option>
+                <option value="1">Depois</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="cards-container" id="team-cards"></div>
+    <div id="match-details" style="display: none;">
+        <div id="match-details-content"></div>
+    </div>
+
+    <script>
+        let teamStats = {};
+        let matchDetails = {};
+        let topTeams = [];
+        let selectedTeam = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            setInterval(updateDynamicData, 60000);
+        });
+
+        const filterElements = ['league-select', 'lines-select', 'filter-select', 'qual-select', 'offset-select', 'offset-select2'];
+        filterElements.forEach(id => {
+            document.getElementById(id).addEventListener('change', loadData);
+        });
+
+        async function loadData() {
+            teamStats = {};
+            matchDetails = {};
+            const [league, resultsUrl, nextGamesUrl] = document.getElementById('league-select').value.split('|');
+            const lines = parseInt(document.getElementById('lines-select').value);
+            const market = document.getElementById('filter-select').value;
+            const offsetLimit = parseInt(document.getElementById('offset-select').value);
+            const offsetStart = parseInt(document.getElementById('offset-select2').value);
+            const escolhe = document.getElementById('qual-select').value;
+
+            try {
+                const response = await fetch(resultsUrl);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                const recentMatches = data.slice(-lines);
+                processMatchData(recentMatches, escolhe, offsetLimit, offsetStart, market);
+                renderTeamCards();
+                await loadProximosJogos(nextGamesUrl);
+                document.getElementById('match-details').style.display = 'none';
+            } catch (error) {
+                console.error('Erro ao carregar os dados:', error);
+            }
+        }
+
+        async function updateDynamicData() {
+            const [league, resultsUrl, nextGamesUrl] = document.getElementById('league-select').value.split('|');
+            const lines = parseInt(document.getElementById('lines-select').value);
+            const market = document.getElementById('filter-select').value;
+            const offsetLimit = parseInt(document.getElementById('offset-select').value);
+            const offsetStart = parseInt(document.getElementById('offset-select2').value);
+            const escolhe = document.getElementById('qual-select').value;
+
+            try {
+                const response = await fetch(resultsUrl);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                const recentMatches = data.slice(-lines);
+                
+                teamStats = {};
+                matchDetails = {};
+                processMatchData(recentMatches, escolhe, offsetLimit, offsetStart, market);
+                updateTeamCards();
+                await loadProximosJogos(nextGamesUrl);
+            } catch (error) {
+                console.error('Erro ao atualizar os dados:', error);
+            }
+        }
+
+        function processMatchData(matches, escolhe, offsetLimit, offsetStart, market) {
+            matches.forEach((match, index) => {
+                const homeTeam = match.time_a;
+                const awayTeam = match.time_b;
+                const ftResult = match.ft;
+                const [goalsHome, goalsAway] = ftResult.split(' x ').map(Number);
+                const totalGoals = goalsHome + goalsAway;
+
+                if (escolhe === 'ambos' || escolhe === 'casa') {
+                    processTeam(homeTeam, matches, index, offsetLimit, offsetStart, market);
+                }
+                if (escolhe === 'ambos' || escolhe === 'fora') {
+                    processTeam(awayTeam, matches, index, offsetLimit, offsetStart, market);
+                }
+            });
+        }
+
+        function processTeam(team, matches, currentIndex, offsetLimit, offsetStart, market) {
+            if (!teamStats[team]) teamStats[team] = { games: 0, greens: 0 };
+            teamStats[team].games++;
+            if (!matchDetails[team]) matchDetails[team] = [];
+
+            const matchData = [];
+            let hasGreen = false;
+            let allRed = true;
+
+            for (let offset = offsetStart; offset < offsetStart + offsetLimit; offset++) {
+                const index = currentIndex + offset;
+                if (index >= 0 && index < matches.length) {
+                    const match = matches[index];
+                    const ftResult = match.ft;
+                    const [goalsHome, goalsAway] = ftResult.split(' x ').map(Number);
+                    const totalGoals = goalsHome + goalsAway;
+                    const gameStatus = checkMarketCondition(goalsHome, goalsAway, totalGoals, market) ? 'Green' : 'Red';
+
+                    if (gameStatus === 'Green') hasGreen = true;
+                    else allRed = false;
+
+                    const matchDate = new Date(match.data);
+                    const formattedDate = `${matchDate.getDate().toString().padStart(2, '0')}/${(matchDate.getMonth() + 1).toString().padStart(2, '0')}`;
+                    matchData.push(`${formattedDate} - ${match.time_a} ${goalsHome} x ${goalsAway} ${match.time_b} (${gameStatus})`);
+                }
+            }
+
+            const matchDetailClass = hasGreen ? 'highlight-green' : allRed ? 'highlight-red' : '';
+            matchDetails[team].push({ data: matchData.join(' | '), className: matchDetailClass });
+            if (hasGreen) teamStats[team].greens++;
+        }
+
+        function renderTeamCards() {
+            const cardsContainer = document.getElementById('team-cards');
+            cardsContainer.innerHTML = '';
+
+            const sortedTeams = Object.entries(teamStats)
+                .map(([team, stats]) => ({
+                    team,
+                    games: stats.games,
+                    greens: stats.greens,
+                    percentage: (stats.greens / stats.games * 100).toFixed(0)
+                }))
+                .sort((a, b) => parseInt(b.percentage) === parseInt(a.percentage) ? b.games - a.games : parseInt(b.percentage) - parseInt(a.percentage))
+                .slice(0, 21);
+
+            topTeams = sortedTeams.slice(0, 5).map(t => normalizeTeamName(t.team));
+
+            sortedTeams.forEach((teamData, index) => {
+                const card = document.createElement('div');
+                card.className = `team-card ${index < 5 ? 'top-rank' : ''}`;
+                card.dataset.team = teamData.team;
+                card.innerHTML = `
+                    <h3>${teamData.team}</h3>
+                    <div class="team-stats">
+                        <div>
+                            <p class="stat-label">Jogos</p>
+                            <p class="stat-value">${teamData.games}</p>
+                        </div>
+                        <div>
+                            <p class="stat-label">Greens</p>
+                            <p class="stat-value">${teamData.greens}</p>
+                        </div>
+                    </div>
+                    <div class="green-percentage">${teamData.percentage}%</div>
+                `;
+                card.addEventListener('click', () => toggleMatchDetails(teamData.team));
+                cardsContainer.appendChild(card);
+            });
+        }
+
+        function updateTeamCards() {
+            const sortedTeams = Object.entries(teamStats)
+                .map(([team, stats]) => ({
+                    team,
+                    games: stats.games,
+                    greens: stats.greens,
+                    percentage: (stats.greens / stats.games * 100).toFixed(0)
+                }))
+                .sort((a, b) => parseInt(b.percentage) === parseInt(a.percentage) ? b.games - a.games : parseInt(b.percentage) - parseInt(a.percentage))
+                .slice(0, 21);
+
+            topTeams = sortedTeams.slice(0, 5).map(t => normalizeTeamName(t.team));
+            
+            const cards = document.querySelectorAll('.team-card');
+            cards.forEach((card, index) => {
+                if (index < sortedTeams.length) {
+                    const teamData = sortedTeams[index];
+                    card.className = `team-card ${index < 5 ? 'top-rank' : ''}`;
+                    card.dataset.team = teamData.team;
+                    card.innerHTML = `
+                        <h3>${teamData.team}</h3>
+                        <div class="team-stats">
+                            <div>
+                                <p class="stat-label">Jogos</p>
+                                <p class="stat-value">${teamData.games}</p>
+                            </div>
+                            <div>
+                                <p class="stat-label">Greens</p>
+                                <p class="stat-value">${teamData.greens}</p>
+                            </div>
+                        </div>
+                        <div class="green-percentage">${teamData.percentage}%</div>
+                    `;
+                }
+            });
+        }
+
+        function toggleMatchDetails(team) {
+            const detailsDiv = document.getElementById('match-details');
+            if (selectedTeam === team && detailsDiv.style.display === 'block') {
+                detailsDiv.style.display = 'none';
+                selectedTeam = null;
+            } else {
+                showMatchDetails(team);
+                selectedTeam = team;
+            }
+        }
+
+        function showMatchDetails(team) {
+            const detailsDiv = document.getElementById('match-details');
+            const detailsContent = document.getElementById('match-details-content');
+            detailsContent.innerHTML = '';
+
+            const title = document.createElement('h2');
+            title.textContent = `Detalhes dos Jogos para ${team}`;
+            detailsContent.appendChild(title);
+
+            if (matchDetails[team] && matchDetails[team].length > 0) {
+                const ul = document.createElement('ul');
+                matchDetails[team].forEach(detail => {
+                    const li = document.createElement('li');
+                    li.className = detail.className;
+
+                    const matches = detail.data.split(' | ');
+                    matches.forEach(match => {
+                        const [date, rest] = match.split(' - ');
+                        const [teamsScore, status] = rest.split(' (');
+                        const [homeTeam, score, awayTeam] = teamsScore.split(/ (\d+ x \d+) /);
+                        const cleanStatus = status.replace(')', '');
+
+                        const matchDiv = document.createElement('div');
+                        matchDiv.innerHTML = `
+                            <span class="teams">
+                                <span class="team">${homeTeam}</span>
+                                <span class="score">${score}</span>
+                                <span class="team">${awayTeam}</span>
+                            </span>
+                            <span class="status ${cleanStatus === 'Green' ? 'status-green' : 'status-red'}">${cleanStatus}</span>
+                        `;
+                        li.appendChild(matchDiv);
+                    });
+
+                    ul.appendChild(li);
+                });
+                detailsContent.appendChild(ul);
+            } else {
+                const noData = document.createElement('p');
+                noData.textContent = 'Nenhum jogo encontrado.';
+                detailsContent.appendChild(noData);
+            }
+
+            detailsDiv.style.display = 'block';
+            detailsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function checkMarketCondition(goalsHome, goalsAway, goals, market) {
+            switch (market) {
+                case '5plus': return goals > 4;
+                case 'over3.5': return goals > 3.5;
+                case 'over2.5': return goals > 2.5;
+                case 'over1.5': return goals > 1.5;
+                case 'under1.5': return goals < 1.5;
+                case 'under2.5': return goals < 2.5;
+                case 'bothscoreunder': return (goalsHome > 0 && goalsAway > 0);
+                case 'ambnao': return (goalsHome == 0 || goalsAway == 0);
+                case 'casavence': return (goalsHome > goalsAway);
+                case 'foravence': return (goalsHome < goalsAway);
+                case 'empate': return (goalsHome == goalsAway);
+                default: return false;
+            }
+        }
+
+        function normalizeTeamName(teamName) {
+            if (!teamName) return '';
+            return teamName.trim().replace(/\s+/g, ' ');
+        }
+
+        async function loadProximosJogos(nextGamesUrl) {
+            try {
+                const response = await fetch(nextGamesUrl);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                const proximosJogos = data.slice(0, 6); // Removed .reverse() to keep original order
+                updateProximosJogos(proximosJogos);
+            } catch (error) {
+                console.error('Erro ao carregar próximos jogos:', error);
+            }
+        }
+
+        function extractTimeFromDateTime(dateTimeStr) {
+            if (!dateTimeStr || isNaN(new Date(dateTimeStr))) return "Horário indisponível";
+            const date = new Date(dateTimeStr);
+            const hour = date.getUTCHours().toString().padStart(2, '0');
+            const minute = date.getUTCMinutes().toString().padStart(2, '0');
+            return `${hour}:${minute}`;
+        }
+
+        function updateProximosJogos(proximosJogos) {
+            const listaProximosJogos = document.getElementById("lista-proximos-jogos");
+            listaProximosJogos.innerHTML = '';
+
+            if (!proximosJogos || proximosJogos.length === 0) {
+                listaProximosJogos.innerHTML = '<div class="game-card">Nenhum jogo disponível</div>';
+                return;
+            }
+
+            proximosJogos.forEach(jogo => {
+                let time = jogo.time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(jogo.time) 
+                    ? jogo.time 
+                    : extractTimeFromDateTime(jogo.start_time);
+
+                const homeTeam = normalizeTeamName(jogo.team_home);
+                const awayTeam = normalizeTeamName(jogo.team_visit);
+                const isTopMatch = topTeams.includes(homeTeam) || topTeams.includes(awayTeam);
+
+                const card = document.createElement("div");
+                card.className = `game-card ${isTopMatch ? 'top-match' : ''}`;
+                card.innerHTML = `
+                    <div class="time">${time}</div>
+                    <div class="teams">
+                        <span class="team ${topTeams.includes(homeTeam) ? 'top-team' : ''}">${homeTeam}</span>
+                        <span class="vs">x</span>
+                        <span class="team ${topTeams.includes(awayTeam) ? 'top-team' : ''}">${awayTeam}</span>
+                    </div>
+                `;
+                listaProximosJogos.appendChild(card);
+            });
+        }
+    </script>
