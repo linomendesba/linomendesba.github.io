@@ -242,15 +242,15 @@
         pointer-events: none;
       }
       /* Modo foco: escurece os não-selecionados */
-      .recent-bar.focus .cell {
+      table.focus td {
         opacity: 0.25;
         filter: grayscale(0.6);
       }
-      .recent-bar.focus .cell.cell-focus {
+      table.focus td.cell-focus {
         opacity: 1;
         filter: none;
       }
-      .recent-bar.focus .cell.cell-focus.cell-hit::after {
+      table.focus td.cell-focus.cell-hit::after {
         box-shadow: 0 0 0 3px var(--hit), 0 0 14px var(--hit);
       }
 
@@ -706,19 +706,14 @@
         let json = await resp.json();
         if (!Array.isArray(json)) json = [json]; // se for objeto único, wrap em array
         json.sort((a, b) => new Date(a.data) - new Date(b.data));
-        const dados = json.slice(-numLinhas).map((item) => {
+        const dados = json.slice(-numLinhas).map((item, index) => {
           const ft = (item.ft || "0 x 0").replace(/\s+/g, "").split("x");
           const a = parseInt(ft[0]) || 0;
           const b = parseInt(ft[1]) || 0;
           const mandante = (item.time_a || "").trim();
           const visitante = (item.time_b || "").trim();
           const horario = `${(item.hora || 0).toString().padStart(2, "0")}:${(item.minuto || 0).toString().padStart(2, "0")}`;
-          const hora = item.hora || 0;
-          const minuto = item.minuto || 0;
-          const data = item.data;
-          const ht = item.ht || "0 x 0";
-          const ftStr = item.ft || "0 x 0";
-          return { a, b, sum: a + b, mandante, visitante, horario, hora, minuto, data, ht, ft: ftStr };
+          return [a, b, a + b, mandante, visitante, horario, index];
         });
         return dados;
       }
@@ -727,8 +722,8 @@
       function janelaContemEquipe(jogos) {
         if (equipesFiltro.length === 0) return true;
         for (const j of jogos) {
-          const m = (j.mandante || "").toLowerCase(),
-            v = (j.visitante || "").toLowerCase();
+          const m = (j[3] || "").toLowerCase(),
+            v = (j[4] || "").toLowerCase();
           for (const alvo of equipesFiltro) {
             if (m.includes(alvo) || v.includes(alvo)) return true;
           }
@@ -759,22 +754,14 @@
             const tok = [],
               plac = [];
             for (const o of offs) {
-              const jogo = dados[i + o];
-              const a = jogo.a;
-              const b = jogo.b;
-              const t = jogo.sum;
-              const mandante = jogo.mandante;
-              const visitante = jogo.visitante;
+              const [a, b, t, mandante, visitante] = dados[i + o];
               tok.push(tokensDoJogo(a, b, t, mandante, visitante));
               plac.push(`${a}x${b}¦${mandante}¦${visitante}`); // guarda equipes para tooltip/mosaico
             }
             const combos = enumerateCombos(tok);
             let green = false;
             for (let j = ini; j < fimA && j < dados.length; j++) {
-              const jogo = dados[j];
-              const a = jogo.a;
-              const b = jogo.b;
-              const sum = jogo.sum;
+              const [a, b, sum] = dados[j];
               if (isGreenForSelectedMarket(a, b, sum)) {
                 green = true;
                 break;
@@ -887,12 +874,7 @@
         for (let i = start; i < end; i++) {
           let ok = true;
           for (let k = 0; k < offsets.length; k++) {
-            const jogo = dados[i + offsets[k]];
-            const a = jogo.a;
-            const b = jogo.b;
-            const t = jogo.sum;
-            const mandante = jogo.mandante;
-            const visitante = jogo.visitante;
+            const [a, b, t, mandante, visitante] = dados[i + offsets[k]];
             if (!tokensDoJogo(a, b, t, mandante, visitante).includes(req[k])) {
               ok = false;
               break;
@@ -949,54 +931,6 @@
           } else cells.push(`<span class="cell cell-grey">Pula</span>`);
         }
         return `<div class="mosaic">${cells.join("")}</div>`;
-      }
-
-      /* ★ Jogos passados (Últimos) com horário + nomes + placar */
-      function buildRecentResultsBarHTML(
-        dados,
-        count = 30,
-        indexColorMap = new Map()
-      ) {
-        const total = dados.length,
-          start = Math.max(0, total - count),
-          ultimos = dados.slice(start);
-        const cells = ultimos.map((item, i) => {
-          const idx = start + i,
-            a = item.a,
-            b = item.b,
-            sum = item.sum,
-            mand = item.mandante,
-            vis = item.visitante,
-            horario = item.horario;
-          const green = isGreenForSelectedMarket(a, b, sum);
-          const hitColor = indexColorMap.get(idx);
-          const title = `${horario ? horario + " — " : ""}${
-            mand || ""
-          } ${a}x${b} ${vis || ""}`.trim();
-          const base = `
-      <span class="time">${horario || ""}</span>
-      <span class="team">${mand || ""}</span>
-      <span class="score">${a}x${b}</span>
-      <span class="team">${vis || ""}</span>
-    `;
-          if (hitColor) {
-            return `<span class="cell ${
-              green ? "cell-green" : "cell-red"
-            } cell-hit" data-idx="${idx}" title="${title}" style="--hit:${hitColor}">
-        ${base}
-      </span>`;
-          }
-          return `<span class="cell ${
-            green ? "cell-green" : "cell-red"
-          }" data-idx="${idx}" title="${title}">
-      ${base}
-    </span>`;
-        });
-        return `<div class="recent-caption">Últimos ${
-          ultimos.length
-        } resultados (antigo ➜ recente)</div><div class="recent-bar">${cells.join(
-          ""
-        )}</div>`;
       }
 
       /* sort */
@@ -1134,7 +1068,7 @@
             const color = PALETA[i % PALETA.length];
 
             // hits nos últimos 30 (lista de arrays de índices); agregamos em um Set
-            const hits = findPatternHitsInLast(dadosCru, r.padrao, offsets, 30);
+            const hits = findPatternHitsInLast(dadosCru, r.padrao, offsets, 720); // large lookback to cover all
             const hitSet = new Set();
             hits.forEach((arr) =>
               arr.forEach((ix) => {
@@ -1172,11 +1106,8 @@
             linhasInfo.push({ tr, color, hitSet });
           });
 
-          root.appendChild(tabela);
-          attachSortingHandlers(tabela);
-
           // Nova tabela de 12 horas recentes fixa
-          const ligaConfig = ligasConfigs.find(l => l.nome === liga);
+          const ligaConfig = ligas.find(l => l.nome === liga);
           if (ligaConfig) {
             const resultsTable = document.createElement("table");
             const thead = document.createElement("thead");
@@ -1197,9 +1128,19 @@
             criarTabela(dadosCru, ligaConfig, tbody, percentRow);
           }
 
+          root.appendChild(tabela);
+          attachSortingHandlers(tabela);
+
           // Clique nas linhas -> modo foco nesta liga
           let activeRow = null;
           function clearFocus() {
+            const table = document.querySelector("table.focus");
+            if (table) {
+              table.classList.remove("focus");
+              table.querySelectorAll("td").forEach((c) => {
+                c.classList.remove("cell-focus");
+              });
+            }
             if (activeRow) {
               activeRow.classList.remove("row-active");
               activeRow = null;
@@ -1211,38 +1152,64 @@
                 clearFocus();
                 return;
               }
-              if (activeRow) activeRow.classList.remove("row-active");
+              clearFocus();
               activeRow = tr;
               tr.classList.add("row-active");
+
+              const table = tr.closest(".container").querySelector("table:not(:first-of-type)"); // the results table
+              if (table) {
+                table.classList.add("focus");
+                table.querySelectorAll("td[data-idx]").forEach((c) => {
+                  const idx = parseInt(c.getAttribute("data-idx"));
+                  if (hitSet.has(idx)) {
+                    c.classList.add("cell-focus");
+                    c.classList.add("cell-hit");
+                    c.style.setProperty("--hit", color);
+                  } else {
+                    c.classList.remove("cell-focus");
+                  }
+                });
+              }
             });
+          });
+
+          // clicar fora da tabela limpa foco
+          document.addEventListener("click", (e) => {
+            if (!e.target.closest("tr.row-colored") && !e.target.closest("td.cell-focus")) clearFocus();
           });
         }
       }
 
-      // Configurações das ligas para a tabela
-      const ligasConfigs = [
+      // League configurations
+      const ligas = [
           {
               nome: "Copa América",
+              rota: "https://betstat.site/resultados/Copa%20Am%C3%A9rica",
               minutosFixos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
           },
           {
               nome: "Taça Glória Eterna",
+              rota: "https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna",
               minutosFixos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
           },
           {
               nome: "Euro",
+              rota: "https://betstat.site/resultados/Euro",
               minutosFixos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
           },
           {
               nome: "Campeonato Italiano",
+              rota: "https://betstat.site/resultados/Campeonato%20Italiano",
               minutosFixos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
           },
           {
               nome: "Copa das Estrelas",
+              rota: "https://betstat.site/resultados/Copa%20das%20estrelas",
               minutosFixos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
           },
           {
               nome: "Brasileirao Betano",
+              rota: "https://betstat.site/resultados/Brasileir%C3%A3o%20Betano",
               minutosFixos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
           },
       ];
@@ -1267,16 +1234,16 @@
               }
           });
       }
-
-      function criarTabela(dados, ligaConfig, tabelaBody, linhaPercentual) {
+      
+      function criarTabela(dados, liga, tabelaBody, linhaPercentual) {
           linhaPercentual.innerHTML = '<th>📊</th>';
           tabelaBody.innerHTML = '';
 
-          const horasSelecionadas = 12; // Fixo em 12 horas recentes
+          const horasSelecionadas = 12; // Fixo em 12 horas
 
           dados.sort((a, b) => {
-              const dataHoraA = new Date(`${a.data}T${a.horario}`).getTime();
-              const dataHoraB = new Date(`${b.data}T${b.horario}`).getTime();
+              const dataHoraA = new Date(`${a[5].split(':')[0]}:${a[5].split(':')[1]}`); // Use horario
+              const dataHoraB = new Date(`${b[5].split(':')[0]}:${b[5].split(':')[1]}`);
               return dataHoraA - dataHoraB;
           });
           
@@ -1285,12 +1252,11 @@
 
           let contagemLinhas = 0;
 
-          dados.reverse().forEach(dado => {
+          dados.reverse().forEach((dado, originalIndex) => {
               if (contagemLinhas >= horasSelecionadas) return;
 
-              const dataHora = new Date(dado.data);
-              const hora = dado.hora;
-              const chave = `${dataHora.toISOString().split('T')[0]}-${hora}`;
+              const hora = parseInt(dado[5].split(':')[0]);
+              const chave = hora; // Use hora as chave since unique hours
 
               if (!chavesJaProcessadas.has(chave)) {
                   const novaLinha = document.createElement("tr");
@@ -1300,7 +1266,7 @@
                   colunaHora.textContent = hora.toString().padStart(2, '0');
                   novaLinha.appendChild(colunaHora);
 
-                  ligaConfig.minutosFixos.forEach(() => {
+                  liga.minutosFixos.forEach(() => {
                       novaLinha.appendChild(document.createElement("td"));
                   });
 
@@ -1338,23 +1304,24 @@
               }
           }
 
-          dados.forEach(dado => {
-              const dataHora = new Date(dado.data);
-              const hora = dado.hora;
-              const chave = `${dataHora.toISOString().split('T')[0]}-${hora}`;
+          dados.forEach((dado, originalIndex) => {
+              const hora = parseInt(dado[5].split(':')[0]);
+              const minuto = parseInt(dado[5].split(':')[1]);
+              const chave = hora;
               const linha = mapeamentoChaveLinha[chave];
 
               if (linha) {
-                  const indexMinuto = ligaConfig.minutosFixos.indexOf(dado.minuto);
+                  const indexMinuto = liga.minutosFixos.indexOf(minuto);
                   if (indexMinuto !== -1) {
                       const colunaMinuto = linha.children[1 + indexMinuto];
+                      colunaMinuto.setAttribute("data-idx", dado[6]); // Use the index
 
                       if (!colunaMinuto.querySelector('.placar')) {
                           const placar = document.createElement("div");
                           placar.className = "placar";
 
-                          const tipoPlacar = "ft"; // Hardcode para ft, pois não há seletor no código principal
-                          const placarAtual = tipoPlacar === "ft" ? dado.ft : dado.ht;
+                          const tipoPlacar = "ft"; // Assuming ft
+                          const placarAtual = tipoPlacar === "ft" ? `${dado[0]} x ${dado[1]}` : "0 x 0"; // Adjust if ht is available
 
                           const placarTexto = document.createElement("span");
                           placarTexto.textContent = placarAtual;
@@ -1364,7 +1331,7 @@
 
                           const tooltip = document.createElement("span");
                           tooltip.className = "tooltip";
-                          tooltip.textContent = `${dado.mandante} vs ${dado.visitante}`;
+                          tooltip.textContent = `${dado[3]} vs ${dado[4]}`;
                           placar.appendChild(tooltip);
 
                           colunaMinuto.appendChild(placar);
@@ -1375,8 +1342,8 @@
 
                           const selecaoResultado = document.getElementById("mercado").value;
                           let acerto = false;
-                          const resultadoA = parseInt(placarAtual.split(' x ')[0]);
-                          const resultadoB = parseInt(placarAtual.split(' x ')[1]);
+                          const resultadoA = dado[0];
+                          const resultadoB = dado[1];
 
                           if (selecaoResultado === "ambasMarcam") {
                               acerto = resultadoA > 0 && resultadoB > 0;
@@ -1404,7 +1371,7 @@
                               acerto = resultadoA === resultadoB;
                           }
 
-                          colunaMinuto.style.backgroundColor = acerto ? 'var(--cell-green)' : 'var(--cell-red)';
+                          colunaMinuto.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
 
                           if (acerto) {
                               linha.children[linha.children.length - 2].textContent = parseInt(linha.children[linha.children.length - 2].textContent) + 1;
@@ -1436,7 +1403,7 @@
               }
           });
 
-          const totalColunas = ligaConfig.minutosFixos.length;
+          const totalColunas = liga.minutosFixos.length;
           const totalMercadosPorColuna = Array(totalColunas).fill(0);
           const totalAcertosPorColuna = Array(totalColunas).fill(0);
 
@@ -1444,7 +1411,7 @@
               Array.from(row.cells).slice(1, -3).forEach((cell, index) => {
                   if (cell.querySelector('.placar')) {
                       totalMercadosPorColuna[index]++;
-                      if (cell.style.backgroundColor === "var(--cell-green)") {
+                      if (cell.style.backgroundColor === "rgb(1, 139, 6)") {
                           totalAcertosPorColuna[index]++;
                       }
                   }
@@ -1489,15 +1456,6 @@
             iniciarAnalise();
           });
         }
-
-        // Adicionar listeners para atualizar ao mudar seletores
-        document.getElementById("mercado").addEventListener("change", iniciarAnalise);
-        document.getElementById("placar_jogos").addEventListener("change", iniciarAnalise);
-        document.getElementById("tiros").addEventListener("change", iniciarAnalise);
-        document.getElementById("linhas").addEventListener("change", iniciarAnalise);
-        document.getElementById("intervalo_jogos").addEventListener("change", iniciarAnalise);
-        document.getElementById("equipes").addEventListener("input", iniciarAnalise);
-        document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.addEventListener("change", iniciarAnalise));
       });
     </script>
 
@@ -2236,8 +2194,8 @@
                     </div>
                   </div>
                   <div id="newsvd_dialog_in" class="dialog_in Yearly">
-                    <span class="discount">Save 52%</span>
-                    <div class="hotTitle">🔥 Flash Sale</div>
+                    <span class="discount">Save 52%</span
+                    ><div class="hotTitle">🔥 Flash Sale</div>
                     <div id="feature_explain" class="feature_explain">
                       <span id="fee" class="fee"
                         ><span>$ 39.99</span><span> / year</span></span
