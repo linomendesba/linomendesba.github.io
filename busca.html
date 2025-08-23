@@ -695,7 +695,7 @@
           )
             .toString()
             .padStart(2, "0")}`;
-          return [a, b, a + b, mandante, visitante, horario];
+          return [a, b, a + b, mandante, visitante, horario, item.data];
         });
         return dados;
       }
@@ -920,65 +920,62 @@
         dados,
         indexColorMap = new Map()
       ) {
-        const allHoursSet = new Set(dados.map(item => item[5].split(':')[0]));
-        const allHours = Array.from(allHoursSet).sort((a, b) => parseInt(b) - parseInt(a)); // desc
-        const hourList = allHours.slice(0, 3);
+        const now = new Date();
+        const currentDate = now.toISOString().split('T')[0];
+        const currentHourNum = now.getHours();
+        let hours = [];
+        let tempDate = new Date(now);
+        for (let i = 0; i < 3; i++) {
+          const h = tempDate.getHours().toString().padStart(2, '0');
+          const d = tempDate.toISOString().split('T')[0];
+          hours.push({date: d, hour: h});
+          tempDate.setHours(tempDate.getHours() - 1);
+        }
 
-        const hourToGames = {};
-        const hourToIndices = {};
-
-        hourList.forEach((h, index) => {
-          let games = dados.filter(item => item[5].startsWith(h + ':'));
+        let html = '';
+        hours.forEach(({date, hour}, index) => {
+          let games = dados.filter(item => item[6] === date && item[5].startsWith(hour + ':'));
           games.sort((a, b) => {
             const ma = parseInt(a[5].split(':')[1]);
             const mb = parseInt(b[5].split(':')[1]);
             return ma - mb;
           });
 
-          if (index === 0 && games.length < 20) {
+          const isCurrent = index === 0;
+          if (isCurrent && games.length < 20) {
             const missing = 20 - games.length;
             for (let k = 0; k < missing; k++) {
-              games.push([0, 0, 0, '', '', 'Aguardando']);
+              games.push([0, 0, 0, '', '', 'Aguardando', date]);
             }
           }
 
-          hourToGames[h] = games;
-
           const indices = [];
           dados.forEach((item, idx) => {
-            if (item[5].startsWith(h + ':')) indices.push(idx);
+            if (item[6] === date && item[5].startsWith(hour + ':')) indices.push(idx);
           });
           indices.sort((a, b) => {
             const ma = parseInt(dados[a][5].split(':')[1]);
             const mb = parseInt(dados[b][5].split(':')[1]);
             return ma - mb;
           });
-          hourToIndices[h] = indices;
-        });
+          const hourIndices = indices;
 
-        let html = '';
-        hourList.forEach((h, index) => {
-          const isCurrent = index === 0;
-          const cap = `LINHA ${(index + 1).toString().padStart(2, '0')} HORA ${h}${isCurrent ? ' (atual)' : ''}`;
+          const cap = `LINHA ${(index + 1).toString().padStart(2, '0')} HORA ${hour}${isCurrent ? ' (atual)' : ''}`;
           html += `<div class="hour-caption">${cap}</div>`;
 
-          const games = hourToGames[h];
-          const indices = hourToIndices[h];
-
           const cells = games.map((item, j) => {
-            const idx = indices[j] ?? -1;
-            const [a, b, sum, mand, vis, horario] = item;
-            let green = isGreenForSelectedMarket(a, b, sum);
+            const idx = hourIndices[j] ?? -1;
+            const [a, b, sum, mand, vis, horario, gameDate] = item;
+            const green = isGreenForSelectedMarket(a, b, sum);
             const hitColor = idx >= 0 ? indexColorMap.get(idx) : null;
-            let title = `${horario ? horario + " — " : ""}${mand || ""} ${a}x${b} ${vis || ""}`.trim();
-            let base = `
+            const title = `${horario ? horario + " — " : ""}${mand || ""} ${a}x${b} ${vis || ""}`.trim();
+            const base = `
       <span class="time">${horario || ""}</span>
       <span class="team">${mand || ""}</span>
       <span class="score">${a}x${b}</span>
       <span class="team">${vis || ""}</span>
     `;
             let cls = green ? "cell-green" : "cell-red";
-
             if (horario === 'Aguardando') {
               cls = 'cell-grey';
               base = `
@@ -988,9 +985,7 @@
       <span class="team"></span>
     `;
               title = 'Aguardando resultado';
-              green = false; // not green
             }
-
             if (hitColor) {
               return `<span class="cell ${cls} cell-hit" data-idx="${idx}" title="${title}" style="--hit:${hitColor}">
         ${base}
@@ -1000,7 +995,6 @@
       ${base}
     </span>`;
           });
-
           html += `<div class="recent-bar">${cells.join("")}</div>`;
         });
 
