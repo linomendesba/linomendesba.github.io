@@ -246,6 +246,17 @@
       .recent-bar.focus .cell.cell-focus.cell-hit::after {
         box-shadow: 0 0 0 3px var(--hit), 0 0 14px var(--hit);
       }
+      .recent-wrap.focus .cell {
+        opacity: 0.25;
+        filter: grayscale(0.6);
+      }
+      .recent-wrap.focus .cell.cell-focus {
+        opacity: 1;
+        filter: none;
+      }
+      .recent-wrap.focus .cell.cell-focus.cell-hit::after {
+        box-shadow: 0 0 0 3px var(--hit), 0 0 14px var(--hit);
+      }
 
       @media (max-width: 768px) {
         .filters {
@@ -609,7 +620,7 @@
           )
             .toString()
             .padStart(2, "0")}`;
-          return [a, b, a + b, mandante, visitante, horario];
+          return [a, b, a + b, mandante, visitante, horario, item.data];
         });
         return dados;
       }
@@ -836,54 +847,45 @@
         const total = dados.length,
           start = Math.max(0, total - count),
           ultimos = dados.slice(start);
-        // ultimos is oldest to newest
-        // to display newest to oldest, reverse
-        const reversed = [...ultimos].reverse();
-        // now group by hour
         const groups = [];
-        let currentHour = null;
-        let currentGroup = [];
-        reversed.forEach((item, localIdx) => {
-          const globalIdx = total - 1 - localIdx; // since reversed, first is total-1, last is total-count
-          const horario = item[5];
-          const hour = horario ? horario.split(':')[0] : '??';
-          if (hour !== currentHour) {
-            if (currentGroup.length > 0) {
-              groups.push({hour: currentHour, items: currentGroup});
-            }
-            currentHour = hour;
-            currentGroup = [];
-          }
-          // add with global idx
-          currentGroup.push({item, idx: globalIdx});
-        });
-        if (currentGroup.length > 0) {
-          groups.push({hour: currentHour, items: currentGroup});
+        for (let g = 0; g < 3; g++) {
+          const groupStart = ultimos.length - (g + 1) * 20;
+          const groupEnd = ultimos.length - g * 20;
+          groups.push(ultimos.slice(Math.max(0, groupStart), groupEnd));
         }
-        // now build HTML
-        let html = '';
-        groups.forEach(group => {
-          const cells = group.items.map(({item, idx}) => {
+        let html = "";
+        const captions = [
+          "Hora atual (mais recentes)",
+          "1 hora anterior",
+          "2 horas anterior",
+        ];
+        groups.forEach((group, gi) => {
+          const cells = group.map((item, i) => {
+            const globalI = start + (ultimos.length - (gi + 1) * 20 + i);
             const [a, b, sum, mand, vis, horario] = item;
             const green = isGreenForSelectedMarket(a, b, sum);
-            const hitColor = indexColorMap.get(idx);
-            const title = `${horario ? horario + " — " : ""}${mand || ""} ${a}x${b} ${vis || ""}`.trim();
+            const hitColor = indexColorMap.get(globalI);
+            const title = `${horario ? horario + " — " : ""}${
+              mand || ""
+            } ${a}x${b} ${vis || ""}`.trim();
             const base = `
-              ${horario || ""}
-              ${mand || ""}
-              ${a}x${b}
-              ${vis || ""}
-            `;
+      ${horario || ""}
+      ${mand || ""}
+      ${a}x${b}
+      ${vis || ""}
+    `;
             if (hitColor) {
               return `
-                ${base}
-              `;
+        ${base}
+      `;
             }
             return `
-              ${base}
-            `;
+      ${base}
+    `;
           });
-          html += `Hora ${group.hour}:00 (recente ➜ antigo) - ${group.items.length} resultados${cells.join('')}`;
+          html += `${captions[gi]} — Últimos resultados (antigo ➜ recente)${cells.join(
+            ""
+          )}`;
         });
         return html;
       }
@@ -1069,15 +1071,14 @@
             60,
             indexColorMap
           );
-          const recentBar = recent.querySelector(".recent-bar");
           root.appendChild(recent);
 
           // Clique nas linhas -> modo foco nesta liga
           let activeRow = null;
           function clearFocus() {
-            if (!recentBar) return;
-            recentBar.classList.remove("focus");
-            recentBar.querySelectorAll(".cell").forEach((c) => {
+            if (!recent) return;
+            recent.classList.remove("focus");
+            recent.querySelectorAll(".cell").forEach((c) => {
               c.classList.remove("cell-focus");
             });
             if (activeRow) {
@@ -1095,8 +1096,8 @@
               activeRow = tr;
               tr.classList.add("row-active");
 
-              recentBar.classList.add("focus");
-              recentBar.querySelectorAll(".cell").forEach((c) => {
+              recent.classList.add("focus");
+              recent.querySelectorAll(".cell").forEach((c) => {
                 const idx = parseInt(c.getAttribute("data-idx"));
                 if (hitSet.has(idx)) {
                   c.classList.add("cell-focus");
@@ -1110,7 +1111,7 @@
           });
 
           // clicar fora da tabela (na barra) limpa foco
-          recentBar.addEventListener("click", (e) => {
+          recent.addEventListener("click", (e) => {
             if (!e.target.closest(".cell-focus")) clearFocus();
           });
 
