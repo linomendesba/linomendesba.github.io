@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- saved from url=(0036)https://betaxis.com.br/padrao2g.html -->
 <html lang="pt-BR">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -665,7 +664,19 @@
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         let json = await resp.json();
         if (!Array.isArray(json)) json = [json]; // se for objeto único, wrap em array
-        json.sort((a, b) => new Date(a.data) - new Date(b.data));
+        json.sort((a, b) => {
+          const da = new Date(a.data);
+          const db = new Date(b.data);
+          if (da > db) return 1;
+          if (da < db) return -1;
+          const ha = a.hora || 0;
+          const hb = b.hora || 0;
+          if (ha > hb) return 1;
+          if (ha < hb) return -1;
+          const ma = a.minuto || 0;
+          const mb = b.minuto || 0;
+          return ma - mb;
+        });
         const dados = json.slice(-numLinhas).map((item) => {
           const ft = (item.ft || "0 x 0").replace(/\s+/g, "").split("x");
           const a = parseInt(ft[0]) || 0;
@@ -900,15 +911,53 @@
       /* ★ Jogos passados (Últimos) com horário + nomes + placar */
       function buildRecentResultsBarHTML(
         dados,
-        count = 30,
         indexColorMap = new Map()
       ) {
-        const total = dados.length,
-          start = Math.max(0, total - count),
-          ultimos = dados.slice(start);
-        const cells = ultimos.map((item, i) => {
-          const idx = start + i,
-            [a, b, sum, mand, vis, horario] = item;
+        // Coletar as 3 horas mais recentes
+        const numHours = 3;
+        let seenHours = new Set();
+        for (let i = dados.length - 1; i >= 0; i--) {
+          const horario = dados[i][5];
+          if (!horario) continue;
+          const h = horario.split(':')[0].padStart(2, '0');
+          if (!seenHours.has(h)) {
+            seenHours.add(h);
+            if (seenHours.size >= numHours) break;
+          }
+        }
+
+        // Ordenar as horas em ordem crescente (06 -> 07 -> 08)
+        const hourList = Array.from(seenHours).sort((a, b) => parseInt(a) - parseInt(b));
+
+        // Coletar jogos por hora
+        const hourToGames = {};
+        const hourToIndices = {};
+        hourList.forEach(h => {
+          hourToGames[h] = [];
+          hourToIndices[h] = [];
+        });
+
+        for (let i = 0; i < dados.length; i++) {
+          const horario = dados[i][5];
+          if (!horario) continue;
+          const h = horario.split(':')[0].padStart(2, '0');
+          if (seenHours.has(h)) {
+            hourToGames[h].push(dados[i]);
+            hourToIndices[h].push(i);
+          }
+        }
+
+        // Construir a lista de jogos: hora menor primeiro, jogos em ordem dentro da hora
+        const ultimos = [];
+        const originalIndices = [];
+        hourList.forEach(h => {
+          ultimos.push(...hourToGames[h]);
+          originalIndices.push(...hourToIndices[h]);
+        });
+
+        const cells = ultimos.map((item, j) => {
+          const idx = originalIndices[j];
+          const [a, b, sum, mand, vis, horario] = item;
           const green = isGreenForSelectedMarket(a, b, sum);
           const hitColor = indexColorMap.get(idx);
           const title = `${horario ? horario + " — " : ""}${
@@ -933,11 +982,10 @@
       ${base}
     </span>`;
         });
-        return `<div class="recent-caption">Últimos ${
-          ultimos.length
-        } resultados (antigo ➜ recente)</div><div class="recent-bar">${cells.join(
-          ""
-        )}</div>`;
+        const caption = hourList.length > 0 
+          ? `Jogos das ${hourList.length} horas mais recentes (${hourList.join(' ➜ ')}) (antigo ➜ recente)`
+          : `Nenhum jogo recente disponível`;
+        return `<div class="recent-caption">${caption}</div><div class="recent-bar">${cells.join("")}</div>`;
       }
 
       /* sort */
@@ -1118,7 +1166,6 @@
           recent.className = "recent-wrap";
           recent.innerHTML = buildRecentResultsBarHTML(
             dadosCru,
-            30,
             indexColorMap
           );
           const recentBar = recent.querySelector(".recent-bar");
