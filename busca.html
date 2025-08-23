@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
@@ -144,6 +145,12 @@
         font-size: 0.85rem;
         opacity: 0.8;
         margin-bottom: 15px;
+      }
+      .hour-caption {
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin-bottom: 8px;
+        color: #1fac89;
       }
 
       .cell {
@@ -913,79 +920,91 @@
         dados,
         indexColorMap = new Map()
       ) {
-        // Coletar as 3 horas mais recentes
-        const numHours = 3;
-        let seenHours = new Set();
-        for (let i = dados.length - 1; i >= 0; i--) {
-          const horario = dados[i][5];
-          if (!horario) continue;
-          const h = horario.split(':')[0].padStart(2, '0');
-          if (!seenHours.has(h)) {
-            seenHours.add(h);
-            if (seenHours.size >= numHours) break;
-          }
-        }
+        const allHoursSet = new Set(dados.map(item => item[5].split(':')[0]));
+        const allHours = Array.from(allHoursSet).sort((a, b) => parseInt(b) - parseInt(a)); // desc
+        const hourList = allHours.slice(0, 3);
 
-        // Ordenar as horas em ordem crescente (06 -> 07 -> 08)
-        const hourList = Array.from(seenHours).sort((a, b) => parseInt(a) - parseInt(b));
-
-        // Coletar jogos por hora
         const hourToGames = {};
         const hourToIndices = {};
-        hourList.forEach(h => {
-          hourToGames[h] = [];
-          hourToIndices[h] = [];
-        });
 
-        for (let i = 0; i < dados.length; i++) {
-          const horario = dados[i][5];
-          if (!horario) continue;
-          const h = horario.split(':')[0].padStart(2, '0');
-          if (seenHours.has(h)) {
-            hourToGames[h].push(dados[i]);
-            hourToIndices[h].push(i);
+        hourList.forEach((h, index) => {
+          let games = dados.filter(item => item[5].startsWith(h + ':'));
+          games.sort((a, b) => {
+            const ma = parseInt(a[5].split(':')[1]);
+            const mb = parseInt(b[5].split(':')[1]);
+            return ma - mb;
+          });
+
+          if (index === 0 && games.length < 20) {
+            const missing = 20 - games.length;
+            for (let k = 0; k < missing; k++) {
+              games.push([0, 0, 0, '', '', 'Aguardando']);
+            }
           }
-        }
 
-        // Construir a lista de jogos: hora menor primeiro, jogos em ordem dentro da hora
-        const ultimos = [];
-        const originalIndices = [];
-        hourList.forEach(h => {
-          ultimos.push(...hourToGames[h]);
-          originalIndices.push(...hourToIndices[h]);
+          hourToGames[h] = games;
+
+          const indices = [];
+          dados.forEach((item, idx) => {
+            if (item[5].startsWith(h + ':')) indices.push(idx);
+          });
+          indices.sort((a, b) => {
+            const ma = parseInt(dados[a][5].split(':')[1]);
+            const mb = parseInt(dados[b][5].split(':')[1]);
+            return ma - mb;
+          });
+          hourToIndices[h] = indices;
         });
 
-        const cells = ultimos.map((item, j) => {
-          const idx = originalIndices[j];
-          const [a, b, sum, mand, vis, horario] = item;
-          const green = isGreenForSelectedMarket(a, b, sum);
-          const hitColor = indexColorMap.get(idx);
-          const title = `${horario ? horario + " — " : ""}${
-            mand || ""
-          } ${a}x${b} ${vis || ""}`.trim();
-          const base = `
+        let html = '';
+        hourList.forEach((h, index) => {
+          const isCurrent = index === 0;
+          const cap = `LINHA ${(index + 1).toString().padStart(2, '0')} HORA ${h}${isCurrent ? ' (atual)' : ''}`;
+          html += `<div class="hour-caption">${cap}</div>`;
+
+          const games = hourToGames[h];
+          const indices = hourToIndices[h];
+
+          const cells = games.map((item, j) => {
+            const idx = indices[j] ?? -1;
+            const [a, b, sum, mand, vis, horario] = item;
+            let green = isGreenForSelectedMarket(a, b, sum);
+            const hitColor = idx >= 0 ? indexColorMap.get(idx) : null;
+            let title = `${horario ? horario + " — " : ""}${mand || ""} ${a}x${b} ${vis || ""}`.trim();
+            let base = `
       <span class="time">${horario || ""}</span>
       <span class="team">${mand || ""}</span>
       <span class="score">${a}x${b}</span>
       <span class="team">${vis || ""}</span>
     `;
-          if (hitColor) {
-            return `<span class="cell ${
-              green ? "cell-green" : "cell-red"
-            } cell-hit" data-idx="${idx}" title="${title}" style="--hit:${hitColor}">
+            let cls = green ? "cell-green" : "cell-red";
+
+            if (horario === 'Aguardando') {
+              cls = 'cell-grey';
+              base = `
+      <span class="time"></span>
+      <span class="team"></span>
+      <span class="score">-</span>
+      <span class="team"></span>
+    `;
+              title = 'Aguardando resultado';
+              green = false; // not green
+            }
+
+            if (hitColor) {
+              return `<span class="cell ${cls} cell-hit" data-idx="${idx}" title="${title}" style="--hit:${hitColor}">
         ${base}
       </span>`;
-          }
-          return `<span class="cell ${
-            green ? "cell-green" : "cell-red"
-          }" data-idx="${idx}" title="${title}">
+            }
+            return `<span class="cell ${cls}" data-idx="${idx}" title="${title}">
       ${base}
     </span>`;
+          });
+
+          html += `<div class="recent-bar">${cells.join("")}</div>`;
         });
-        const caption = hourList.length > 0 
-          ? `Jogos das ${hourList.length} horas mais recentes (${hourList.join(' ➜ ')}) (antigo ➜ recente)`
-          : `Nenhum jogo recente disponível`;
-        return `<div class="recent-caption">${caption}</div><div class="recent-bar">${cells.join("")}</div>`;
+
+        return html;
       }
 
       /* sort */
@@ -1168,15 +1187,14 @@
             dadosCru,
             indexColorMap
           );
-          const recentBar = recent.querySelector(".recent-bar");
+          const recentBars = recent.querySelectorAll(".recent-bar");
           root.appendChild(recent);
 
           // Clique nas linhas -> modo foco nesta liga
           let activeRow = null;
           function clearFocus() {
-            if (!recentBar) return;
-            recentBar.classList.remove("focus");
-            recentBar.querySelectorAll(".cell").forEach((c) => {
+            recent.classList.remove("focus");
+            recent.querySelectorAll(".cell").forEach((c) => {
               c.classList.remove("cell-focus");
             });
             if (activeRow) {
@@ -1194,8 +1212,8 @@
               activeRow = tr;
               tr.classList.add("row-active");
 
-              recentBar.classList.add("focus");
-              recentBar.querySelectorAll(".cell").forEach((c) => {
+              recent.classList.add("focus");
+              recent.querySelectorAll(".cell").forEach((c) => {
                 const idx = parseInt(c.getAttribute("data-idx"));
                 if (hitSet.has(idx)) {
                   c.classList.add("cell-focus");
@@ -1209,7 +1227,7 @@
           });
 
           // clicar fora da tabela (na barra) limpa foco
-          recentBar.addEventListener("click", (e) => {
+          recent.addEventListener("click", (e) => {
             if (!e.target.closest(".cell-focus")) clearFocus();
           });
 
@@ -2046,3 +2064,4 @@
     <div id="vtPopupMenu"></div>
   </body>
 </html>
+```
