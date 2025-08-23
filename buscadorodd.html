@@ -496,13 +496,13 @@
     <div>
         <label for="lines-select">Horas:</label>
         <select id="lines-select">
-            <option value="180">3 horas</option>
-            <option value="360" selected>6 horas</option>
-            <option value="720">12 horas</option>
-            <option value="1440">24 horas</option>
-            <option value="2880">48 horas</option>
-            <option value="4320">72 horas</option>
-            <option value="5760">96 horas</option>
+            <option value="60">3 horas</option>
+            <option value="120" selected>6 horas</option>
+            <option value="240">12 horas</option>
+            <option value="480">24 horas</option>
+            <option value="960">48 horas</option>
+            <option value="1440">72 horas</option>
+            <option value="1920">96 horas</option>
         </select>
     </div>
     <div>
@@ -554,9 +554,9 @@
 </div>
 
 <script>
-    let teamStats = {};
+    let oddStats = {};
     let matchDetails = {};
-    let selectedTeam = null;
+    let selectedOdd = null;
 
     const marketToOdd = {
         "bothscoreunder": "odds_ambas_marcam_sim",
@@ -584,10 +584,10 @@
     });
 
     async function loadData() {
-        teamStats = {};
+        oddStats = {};
         matchDetails = {};
         const [league, resultsUrl, oddsUrl] = document.getElementById('league-select').value.split('|');
-        const minutes = parseInt(document.getElementById('lines-select').value);
+        const lines = parseInt(document.getElementById('lines-select').value);
         const market = document.getElementById('filter-select').value;
         const offsetLimit = parseInt(document.getElementById('offset-select').value);
         const offsetStart = parseInt(document.getElementById('offset-select2').value);
@@ -600,17 +600,15 @@
 
             const responseOdds = await fetch(oddsUrl);
             if (!responseOdds.ok) throw new Error(`HTTP error! status: ${responseOdds.status}`);
-            const oddsData = await responseOdds.json();
+            let oddsData = await responseOdds.json();
 
             const resultsMap = buildResultsMap(resultsData);
 
-            const now = new Date();
-            const threshold = new Date(now.getTime() - minutes * 60000);
-            let recentMatches = oddsData.filter(match => parseCaptureDate(match) >= threshold);
-            recentMatches.sort((a, b) => parseCaptureDate(a) - parseCaptureDate(b));
+            oddsData.sort((a, b) => parseCaptureDate(a) - parseCaptureDate(b));
+            const recentMatches = oddsData.slice(-lines);
 
             processMatchData(recentMatches, escolhe, offsetLimit, offsetStart, market, resultsMap);
-            renderTeamCards();
+            renderOddCards();
             document.getElementById('match-details').style.display = 'none';
         } catch (error) {
             console.error('Erro ao carregar os dados:', error);
@@ -619,7 +617,7 @@
 
     async function updateDynamicData() {
         const [league, resultsUrl, oddsUrl] = document.getElementById('league-select').value.split('|');
-        const minutes = parseInt(document.getElementById('lines-select').value);
+        const lines = parseInt(document.getElementById('lines-select').value);
         const market = document.getElementById('filter-select').value;
         const offsetLimit = parseInt(document.getElementById('offset-select').value);
         const offsetStart = parseInt(document.getElementById('offset-select2').value);
@@ -632,19 +630,17 @@
 
             const responseOdds = await fetch(oddsUrl);
             if (!responseOdds.ok) throw new Error(`HTTP error! status: ${responseOdds.status}`);
-            const oddsData = await responseOdds.json();
+            let oddsData = await responseOdds.json();
 
             const resultsMap = buildResultsMap(resultsData);
 
-            const now = new Date();
-            const threshold = new Date(now.getTime() - minutes * 60000);
-            let recentMatches = oddsData.filter(match => parseCaptureDate(match) >= threshold);
-            recentMatches.sort((a, b) => parseCaptureDate(a) - parseCaptureDate(b));
+            oddsData.sort((a, b) => parseCaptureDate(a) - parseCaptureDate(b));
+            const recentMatches = oddsData.slice(-lines);
             
-            teamStats = {};
+            oddStats = {};
             matchDetails = {};
             processMatchData(recentMatches, escolhe, offsetLimit, offsetStart, market, resultsMap);
-            updateTeamCards();
+            updateOddCards();
         } catch (error) {
             console.error('Erro ao atualizar os dados:', error);
         }
@@ -673,24 +669,35 @@
         return new Date(year, month - 1, day, hour, minute);
     }
 
-    function processMatchData(matches, escolhe, offsetLimit, offsetStart, market, resultsMap) {
-        matches.forEach((match, index) => {
-            const homeTeam = match.time_casa;
-            const awayTeam = match.time_visitante;
+    function getMarketType(market) {
+        if (market === 'casavence') return 'home';
+        if (market === 'foravence') return 'away';
+        return 'neutral';
+    }
 
-            if (escolhe === 'ambos' || escolhe === 'casa') {
-                processTeam(homeTeam, matches, index, offsetLimit, offsetStart, market, resultsMap);
-            }
-            if (escolhe === 'ambos' || escolhe === 'fora') {
-                processTeam(awayTeam, matches, index, offsetLimit, offsetStart, market, resultsMap);
+    function processMatchData(matches, escolhe, offsetLimit, offsetStart, market, resultsMap) {
+        const marketType = getMarketType(market);
+        matches.forEach((match, index) => {
+            const shouldProcess = (escolhe === 'ambos') ||
+                (marketType === 'neutral') ||
+                (escolhe === 'casa' && marketType === 'home') ||
+                (escolhe === 'fora' && marketType === 'away');
+
+            if (shouldProcess) {
+                const oddField = marketToOdd[market];
+                const oddValue = parseFloat(match[oddField]);
+                if (!isNaN(oddValue)) {
+                    const key = oddValue.toFixed(2);
+                    processOdd(key, matches, index, offsetLimit, offsetStart, market, resultsMap);
+                }
             }
         });
     }
 
-    function processTeam(team, matches, currentIndex, offsetLimit, offsetStart, market, resultsMap) {
-        if (!teamStats[team]) teamStats[team] = { games: 0, greens: 0 };
-        teamStats[team].games++;
-        if (!matchDetails[team]) matchDetails[team] = [];
+    function processOdd(key, matches, currentIndex, offsetLimit, offsetStart, market, resultsMap) {
+        if (!oddStats[key]) oddStats[key] = { games: 0, greens: 0 };
+        oddStats[key].games++;
+        if (!matchDetails[key]) matchDetails[key] = [];
 
         const matchData = [];
         let hasGreen = false;
@@ -703,8 +710,8 @@
                 const gameStart = parseGameDate(match.inicio_jogo);
                 const formattedDate = `${gameStart.getDate().toString().padStart(2, '0')}/${(gameStart.getMonth() + 1).toString().padStart(2, '0')}`;
 
-                const key = `${normalizeTeamName(match.time_casa)} vs ${normalizeTeamName(match.time_visitante)}|${gameStart.toISOString()}`;
-                const ft = resultsMap[key];
+                const mapKey = `${normalizeTeamName(match.time_casa)} vs ${normalizeTeamName(match.time_visitante)}|${gameStart.toISOString()}`;
+                const ft = resultsMap[mapKey];
                 let goalsHome = 0, goalsAway = 0, totalGoals = 0;
                 if (ft) {
                     [goalsHome, goalsAway] = ft.split(' x ').map(Number);
@@ -724,17 +731,17 @@
         }
 
         const matchDetailClass = hasGreen ? 'highlight-green' : allRed ? 'highlight-red' : '';
-        matchDetails[team].push({ data: matchData.join(' | '), className: matchDetailClass });
-        if (hasGreen) teamStats[team].greens++;
+        matchDetails[key].push({ data: matchData.join(' | '), className: matchDetailClass });
+        if (hasGreen) oddStats[key].greens++;
     }
 
-    function renderTeamCards() {
+    function renderOddCards() {
         const cardsContainer = document.getElementById('team-cards');
         cardsContainer.innerHTML = '';
 
-        const sortedTeams = Object.entries(teamStats)
-            .map(([team, stats]) => ({
-                team,
+        const sortedOdds = Object.entries(oddStats)
+            .map(([key, stats]) => ({
+                key,
                 games: stats.games,
                 greens: stats.greens,
                 percentage: (stats.greens / stats.games * 100).toFixed(0)
@@ -742,33 +749,33 @@
             .sort((a, b) => parseInt(b.percentage) === parseInt(a.percentage) ? b.games - a.games : parseInt(b.percentage) - parseInt(a.percentage))
             .slice(0, 21);
 
-        sortedTeams.forEach((teamData, index) => {
+        sortedOdds.forEach((oddData, index) => {
             const card = document.createElement('div');
             card.className = `team-card ${index < 5 ? 'top-rank' : ''}`;
-            card.dataset.team = teamData.team;
+            card.dataset.key = oddData.key;
             card.innerHTML = `
-                <h3>${teamData.team}</h3>
+                <h3>${oddData.key}</h3>
                 <div class="team-stats">
                     <div>
                         <p class="stat-label">Jogos</p>
-                        <p class="stat-value">${teamData.games}</p>
+                        <p class="stat-value">${oddData.games}</p>
                     </div>
                     <div>
                         <p class="stat-label">Greens</p>
-                        <p class="stat-value">${teamData.greens}</p>
+                        <p class="stat-value">${oddData.greens}</p>
                     </div>
                 </div>
-                <div class="green-percentage">${teamData.percentage}%</div>
+                <div class="green-percentage">${oddData.percentage}%</div>
             `;
-            card.addEventListener('click', () => toggleMatchDetails(teamData.team));
+            card.addEventListener('click', () => toggleMatchDetails(oddData.key));
             cardsContainer.appendChild(card);
         });
     }
 
-    function updateTeamCards() {
-        const sortedTeams = Object.entries(teamStats)
-            .map(([team, stats]) => ({
-                team,
+    function updateOddCards() {
+        const sortedOdds = Object.entries(oddStats)
+            .map(([key, stats]) => ({
+                key,
                 games: stats.games,
                 greens: stats.greens,
                 percentage: (stats.greens / stats.games * 100).toFixed(0)
@@ -778,51 +785,51 @@
         
         const cards = document.querySelectorAll('.team-card');
         cards.forEach((card, index) => {
-            if (index < sortedTeams.length) {
-                const teamData = sortedTeams[index];
+            if (index < sortedOdds.length) {
+                const oddData = sortedOdds[index];
                 card.className = `team-card ${index < 5 ? 'top-rank' : ''}`;
-                card.dataset.team = teamData.team;
+                card.dataset.key = oddData.key;
                 card.innerHTML = `
-                    <h3>${teamData.team}</h3>
+                    <h3>${oddData.key}</h3>
                     <div class="team-stats">
                         <div>
                             <p class="stat-label">Jogos</p>
-                            <p class="stat-value">${teamData.games}</p>
+                            <p class="stat-value">${oddData.games}</p>
                         </div>
                         <div>
                             <p class="stat-label">Greens</p>
-                            <p class="stat-value">${teamData.greens}</p>
+                            <p class="stat-value">${oddData.greens}</p>
                         </div>
                     </div>
-                    <div class="green-percentage">${teamData.percentage}%</div>
+                    <div class="green-percentage">${oddData.percentage}%</div>
                 `;
             }
         });
     }
 
-    function toggleMatchDetails(team) {
+    function toggleMatchDetails(key) {
         const detailsDiv = document.getElementById('match-details');
-        if (selectedTeam === team && detailsDiv.style.display === 'block') {
+        if (selectedOdd === key && detailsDiv.style.display === 'block') {
             detailsDiv.style.display = 'none';
-            selectedTeam = null;
+            selectedOdd = null;
         } else {
-            showMatchDetails(team);
-            selectedTeam = team;
+            showMatchDetails(key);
+            selectedOdd = key;
         }
     }
 
-    function showMatchDetails(team) {
+    function showMatchDetails(key) {
         const detailsDiv = document.getElementById('match-details');
         const detailsContent = document.getElementById('match-details-content');
         detailsContent.innerHTML = '';
 
         const title = document.createElement('h2');
-        title.textContent = `Detalhes dos Jogos para ${team}`;
+        title.textContent = `Detalhes dos Jogos para odd ${key}`;
         detailsContent.appendChild(title);
 
-        if (matchDetails[team] && matchDetails[team].length > 0) {
+        if (matchDetails[key] && matchDetails[key].length > 0) {
             const ul = document.createElement('ul');
-            matchDetails[team].forEach(detail => {
+            matchDetails[key].forEach(detail => {
                 const li = document.createElement('li');
                 li.className = detail.className;
 
