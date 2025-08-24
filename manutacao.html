@@ -915,28 +915,16 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   const horasSelecionadas = parseInt(seletorHoras.value) || 12;
 
-  // Função para criar timestamp correto considerando transição de dias
-  function criarTimestampCorreto(data, hora, minuto = 0) {
-    const dateStr = getDateStr(data);
-    let dataBase = new Date(`${dateStr}T00:00:00`);
-    
-    // Se a hora for de madrugada (00-06), considera como dia seguinte
-    if (hora >= 0 && hora <= 6) {
-      dataBase.setDate(dataBase.getDate() + 1);
-    }
-    
-    dataBase.setHours(hora, minuto, 0, 0);
-    return dataBase.getTime();
-  }
-
-  // Ordena os dados passados por timestamp correto descendente
+  // Ordena os dados passados por data-hora descendente (mantém a ordenação original)
   dados.sort((a, b) => {
-    const timestampA = criarTimestampCorreto(a.data, a.hora, a.minuto);
-    const timestampB = criarTimestampCorreto(b.data, b.hora, b.minuto);
-    return timestampB - timestampA; // Descendente: mais recente primeiro
+    const dateStrA = getDateStr(a.data);
+    const dateStrB = getDateStr(b.data);
+    const dataHoraA = new Date(`${dateStrA}T${a.hora.toString().padStart(2, "0")}:${a.minuto.toString().padStart(2, "0")}:00`).getTime();
+    const dataHoraB = new Date(`${dateStrB}T${b.hora.toString().padStart(2, "0")}:${b.minuto.toString().padStart(2, "0")}:00`).getTime();
+    return dataHoraB - dataHoraA; // Descendente diretamente
   });
 
-  // Processa proximosJogos com timestamp correto e ordena descendente
+  // Processa proximosJogos e ordena descendente por start_time
   const proximosJogosComHoras = proximosJogos.map(jogo => {
     const [horaStr, minutoStr] = jogo.time.split(":");
     const hora = parseInt(horaStr, 10);
@@ -944,60 +932,42 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const closestMinute = minutosFixos.reduce((prev, curr) =>
       Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
     );
-    
-    const timestamp = criarTimestampCorreto(jogo.start_time, hora, closestMinute);
-    
-    return { 
-      ...jogo, 
-      time: jogo.time, 
-      date: new Date(timestamp),
-      hora, 
-      minuto: closestMinute, 
-      team_visitante: jogo.team_visit,
-      timestamp: timestamp
-    };
-  }).sort((a, b) => b.timestamp - a.timestamp); // Ordenar por timestamp correto
+    const date = new Date(jogo.start_time);
+    return { ...jogo, time: jogo.time, date, hora, minuto: closestMinute, team_visitante: jogo.team_visit };
+  }).sort((a, b) => new Date(b.start_time) - new Date(a.start_time)); // Descendente: mais futuro/recente primeiro
 
   console.log("Próximos jogos processados:", proximosJogosComHoras);
 
-  // Coletar todas as chaves únicas de data-hora com timestamps corretos
-  const todasChaves = new Map();
+  // Coletar todas as horas únicas considerando tanto dados quanto próximos jogos
+  const todasHorasComTimestamp = new Set();
 
-  // Adiciona chaves de proximosJogos (futuros)
+  // Adiciona horas de proximosJogos (futuros)
   proximosJogosComHoras.forEach(jogo => {
-    const hora = jogo.hora;
-    const dataStr = jogo.date.toISOString().split("T")[0];
-    const chave = `${dataStr}-${hora}`;
-    
-    if (!todasChaves.has(chave)) {
-      todasChaves.set(chave, {
-        chave,
-        timestamp: jogo.timestamp,
-        tipo: 'futuro'
-      });
-    }
+    const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
+    const timestamp = new Date(`${dataStr}T${jogo.hora.toString().padStart(2, "0")}:00:00`).getTime();
+    todasHorasComTimestamp.add(JSON.stringify({ hora: jogo.hora, timestamp, data: dataStr }));
   });
 
-  // Adiciona chaves de dados (passados)
+  // Adiciona horas de dados (passados)
   dados.forEach(dado => {
-    const hora = dado.hora;
-    const timestamp = criarTimestampCorreto(dado.data, hora, dado.minuto);
-    const dataStr = new Date(timestamp).toISOString().split("T")[0];
-    const chave = `${dataStr}-${hora}`;
-    
-    if (!todasChaves.has(chave)) {
-      todasChaves.set(chave, {
-        chave,
-        timestamp: timestamp,
-        tipo: 'passado'
-      });
-    }
+    const dateStr = getDateStr(dado.data);
+    const timestamp = new Date(`${dateStr}T${dado.hora.toString().padStart(2, "0")}:00:00`).getTime();
+    todasHorasComTimestamp.add(JSON.stringify({ hora: dado.hora, timestamp, data: dateStr }));
   });
 
-  // Converte Map para array, ordena por timestamp descendente e limita
-  const chavesOrdenadas = Array.from(todasChaves.values())
+  // Converte para array, remove duplicatas, ordena por timestamp descendente e limita
+  const horasUnicas = Array.from(todasHorasComTimestamp)
+    .map(str => JSON.parse(str))
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, horasSelecionadas);
+
+  // Cria chaves baseadas em hora-timestamp para evitar conflitos
+  const chavesOrdenadas = horasUnicas.map(item => ({
+    chave: `${item.data}-${item.hora}`,
+    timestamp: item.timestamp,
+    hora: item.hora,
+    data: item.data
+  }));
 
   // Cria mapeamento vazio
   const mapeamentoChaveLinha = {};
@@ -1070,10 +1040,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const processedMatches = new Set();
 
   dados.forEach((dado) => {
-    const timestamp = criarTimestampCorreto(dado.data, dado.hora, dado.minuto);
-    const dataStr = new Date(timestamp).toISOString().split("T")[0];
-    const hora = dado.hora;
-    const chave = `${dataStr}-${hora}`;
+    const dateStr = getDateStr(dado.data);
+    const chave = `${dateStr}-${dado.hora}`;
     const linha = mapeamentoChaveLinha[chave];
     const matchKey = `${dado.time_a}-${dado.time_b}-${chave}-${dado.minuto}`;
 
@@ -1210,21 +1178,19 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
 
   proximosJogosComHoras.forEach(jogo => {
-    const dataStr = jogo.date.toISOString().split("T")[0];
-    const hora = jogo.hora;
-    const chave = `${dataStr}-${hora}`;
+    const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
+    const chave = `${dataStr}-${jogo.hora}`;
     const linha = mapeamentoChaveLinha[chave];
     const matchKey = `${jogo.team_home}-${jogo.team_visit}-${chave}-${jogo.minuto}`;
 
     if (linha && jogo.minuto !== null && !processedMatches.has(matchKey)) {
       const resultadoExistente = dados.find(dado => {
-        const dadoTimestamp = criarTimestampCorreto(dado.data, dado.hora, dado.minuto);
-        const dadoData = new Date(dadoTimestamp).toISOString().split("T")[0];
+        const dadoData = getDateStr(dado.data);
         return (
           normalizeString(dado.time_a) === normalizeString(jogo.team_home) &&
           normalizeString(dado.time_b) === normalizeString(jogo.team_visit) &&
           dadoData === dataStr &&
-          dado.hora === hora &&
+          dado.hora === jogo.hora &&
           dado.minuto === jogo.minuto
         );
       });
