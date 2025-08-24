@@ -644,7 +644,6 @@
       </div>
 
     <script>
-
 const minutosFixos = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
@@ -916,16 +915,18 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   const horasSelecionadas = parseInt(seletorHoras.value) || 12;
 
-  // Ordena os dados passados por data-hora descendente
   dados.sort((a, b) => {
     const dateStrA = getDateStr(a.data);
     const dateStrB = getDateStr(b.data);
-    const dataHoraA = new Date(`${dateStrA}T${a.hora.toString().padStart(2, "0")}:${a.minuto.toString().padStart(2, "0")}:00`).getTime();
-    const dataHoraB = new Date(`${dateStrB}T${b.hora.toString().padStart(2, "0")}:${b.minuto.toString().padStart(2, "0")}:00`).getTime();
-    return dataHoraB - dataHoraA; // Descendente diretamente
+    const dataHoraA = new Date(
+      `${dateStrA}T${a.hora.toString().padStart(2, "0")}:${a.minuto.toString().padStart(2, "0")}:00`
+    ).getTime();
+    const dataHoraB = new Date(
+      `${dateStrB}T${b.hora.toString().padStart(2, "0")}:${b.minuto.toString().padStart(2, "0")}:00`
+    ).getTime();
+    return dataHoraA - dataHoraB;
   });
 
-  // Processa proximosJogos e ordena descendente por start_time
   const proximosJogosComHoras = proximosJogos.map(jogo => {
     const [horaStr, minutoStr] = jogo.time.split(":");
     const hora = parseInt(horaStr, 10);
@@ -935,55 +936,60 @@ function criarTabela(dados, oddsData, proximosJogos) {
     );
     const date = new Date(jogo.start_time);
     return { ...jogo, time: jogo.time, date, hora, minuto: closestMinute, team_visitante: jogo.team_visit };
-  }).sort((a, b) => new Date(b.start_time) - new Date(a.start_time)); // Descendente: mais futuro/recente primeiro
-
+  }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
   console.log("Próximos jogos processados:", proximosJogosComHoras);
 
-  // Coletar todas as chaves únicas de data-hora com timestamps
-  const todasChaves = new Set();
+  const chavesJaProcessadas = new Set();
+  const mapeamentoChaveLinha = {};
+  let contagemLinhas = 0;
 
-  // Adiciona chaves de proximosJogos (futuros)
+  const now = new Date();
   proximosJogosComHoras.forEach(jogo => {
-    const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
     const hora = jogo.hora;
+    const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
     const chave = `${dataStr}-${hora}`;
-    if (!todasChaves.has(chave)) { // Evita duplicatas
-      todasChaves.add({ chave, timestamp: new Date(jogo.start_time).getTime() });
+    if (!chavesJaProcessadas.has(chave)) {
+      const jogoDateTime = new Date(jogo.start_time);
+      if (jogoDateTime > now) {
+        const novaLinha = document.createElement("tr");
+        novaLinha.setAttribute("data-chave", chave);
+        const colunaHora = document.createElement("td");
+        colunaHora.textContent = hora.toString().padStart(2, "0");
+        novaLinha.appendChild(colunaHora);
+        minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
+        novaLinha.appendChild(document.createElement("td")).textContent = "0";
+        novaLinha.appendChild(document.createElement("td")).textContent = "0";
+        novaLinha.appendChild(document.createElement("td")).textContent = "0%";
+        tabelaBody.insertBefore(novaLinha, tabelaBody.firstChild);
+        chavesJaProcessadas.add(chave);
+        mapeamentoChaveLinha[chave] = novaLinha;
+        contagemLinhas++;
+        console.log(`Criada linha para hora futura (topo): ${chave}`);
+      }
     }
   });
 
-  // Adiciona chaves de dados (passados)
-  dados.forEach(dado => {
+  dados.reverse().forEach((dado) => {
+    if (contagemLinhas >= horasSelecionadas) return;
     const dateStr = getDateStr(dado.data);
     const hora = dado.hora;
     const chave = `${dateStr}-${hora}`;
-    if (!todasChaves.has(chave)) { // Evita duplicatas
-      todasChaves.add({ chave, timestamp: new Date(`${dateStr}T${hora.toString().padStart(2, "0")}:00:00`).getTime() });
+    if (!chavesJaProcessadas.has(chave)) {
+      const novaLinha = document.createElement("tr");
+      novaLinha.setAttribute("data-chave", chave);
+      const colunaHora = document.createElement("td");
+      colunaHora.textContent = hora.toString().padStart(2, "0");
+      novaLinha.appendChild(colunaHora);
+      minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
+      novaLinha.appendChild(document.createElement("td")).textContent = "0";
+      novaLinha.appendChild(document.createElement("td")).textContent = "0";
+      novaLinha.appendChild(document.createElement("td")).textContent = "0%";
+      tabelaBody.appendChild(novaLinha);
+      chavesJaProcessadas.add(chave);
+      mapeamentoChaveLinha[chave] = novaLinha;
+      contagemLinhas++;
+      console.log(`Criada linha para dados passados: ${chave}`);
     }
-  });
-
-  // Converte Set para array, ordena por timestamp descendente e limita
-  const chavesOrdenadas = Array.from(todasChaves).sort((a, b) => b.timestamp - a.timestamp).slice(0, horasSelecionadas);
-
-  // Cria mapeamento vazio
-  const mapeamentoChaveLinha = {};
-
-  // Cria linhas na ordem das chaves ordenadas
-  chavesOrdenadas.forEach(item => {
-    const chave = item.chave;
-    const [dateStr, hora] = chave.split('-');
-    const novaLinha = document.createElement("tr");
-    novaLinha.setAttribute("data-chave", chave);
-    const colunaHora = document.createElement("td");
-    colunaHora.textContent = hora.toString().padStart(2, "0");
-    novaLinha.appendChild(colunaHora);
-    minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
-    novaLinha.appendChild(document.createElement("td")).textContent = "0"; // Total gols
-    novaLinha.appendChild(document.createElement("td")).textContent = "0"; // Acertos
-    novaLinha.appendChild(document.createElement("td")).textContent = "0%"; // Porcentagem
-    tabelaBody.appendChild(novaLinha);
-    mapeamentoChaveLinha[chave] = novaLinha;
-    console.log(`Criada linha para chave: ${chave}`);
   });
 
   function handlePlacarClick(event) {
@@ -1310,8 +1316,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     Array.from(row.cells)
       .slice(1, -3)
       .forEach((cell, index) => {
-        // Ajuste: Conta só placares passados (não futuros ou vazios)
-        if (cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
+        if (cell.querySelector(".placar")) {
           totalMercadosPorColuna[index]++;
         }
       });
@@ -1440,7 +1445,6 @@ if (mostrarOddsSelect) {
     buscarDados();
   });
 }
-
   </script>
     </script>
 
