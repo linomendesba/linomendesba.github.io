@@ -644,7 +644,6 @@
       </div>
 
     <script>
-
 const minutosFixos = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
@@ -749,7 +748,7 @@ async function fetchProximosJogos() {
     }
     const jogos = await response.json();
     console.log("Próximos jogos fetched:", jogos);
-    return jogos.sort((a, b) => new Date(b.start_time) - new Date(a.start_time)).slice(0, 6);
+    return jogos.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 6);
   } catch (error) {
     console.error("Erro ao buscar próximos jogos:", error);
     showErrorMessage(`Erro ao carregar próximos jogos: ${error.message}`);
@@ -938,7 +937,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     );
     const date = new Date(jogo.start_time);
     return { ...jogo, time: jogo.time, date, hora, minuto: closestMinute, team_visitante: jogo.team_visit };
-  }).sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+  }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
   console.log("Próximos jogos processados:", proximosJogosComHoras);
 
   const chavesJaProcessadas = new Set();
@@ -950,37 +949,56 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const hora = jogo.hora;
     const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
     const chave = `${dataStr}-${hora}`;
-    if (!chavesJaProcessadas.has(chave)) {
-      const jogoDateTime = new Date(jogo.start_time);
-      if (jogoDateTime > now) {
-        const novaLinha = document.createElement("tr");
-        novaLinha.setAttribute("data-chave", chave);
-        const colunaHora = document.createElement("td");
-        colunaHora.textContent = `${hora.toString().padStart(2, "0")} (${formatDateToDDMMYYYY(dataStr)})`;
-        novaLinha.appendChild(colunaHora);
-        minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
-        novaLinha.appendChild(document.createElement("td")).textContent = "0";
-        novaLinha.appendChild(document.createElement("td")).textContent = "0";
-        novaLinha.appendChild(document.createElement("td")).textContent = "0%";
-        tabelaBody.insertBefore(novaLinha, tabelaBody.firstChild);
-        chavesJaProcessadas.add(chave);
-        mapeamentoChaveLinha[chave] = novaLinha;
-        contagemLinhas++;
-        console.log(`Criada linha para hora futura (topo): ${chave}`);
-      }
-    }
-  });
-
-  dados.reverse().forEach((dado) => {
-    if (contagemLinhas >= horasSelecionadas) return;
-    const dateStr = getDateStr(dado.data);
-    const hora = dado.hora;
-    const chave = `${dateStr}-${hora}`;
-    if (!chavesJaProcessadas.has(chave)) {
+    const jogoDateTime = new Date(jogo.start_time);
+    if (jogoDateTime > now && !chavesJaProcessadas.has(chave) && contagemLinhas < horasSelecionadas) {
       const novaLinha = document.createElement("tr");
       novaLinha.setAttribute("data-chave", chave);
       const colunaHora = document.createElement("td");
-      colunaHora.textContent = `${hora.toString().padStart(2, "0")} (${formatDateToDDMMYYYY(dateStr)})`;
+      colunaHora.textContent = `${hora.toString().padStart(2, "0")} (${formatDateToDDMMYYYY(dataStr)})`;
+      novaLinha.appendChild(colunaHora);
+      minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
+      novaLinha.appendChild(document.createElement("td")).textContent = "0";
+      novaLinha.appendChild(document.createElement("td")).textContent = "0";
+      novaLinha.appendChild(document.createElement("td")).textContent = "0%";
+      tabelaBody.appendChild(novaLinha);
+      chavesJaProcessadas.add(chave);
+      mapeamentoChaveLinha[chave] = novaLinha;
+      contagemLinhas++;
+      console.log(`Criada linha para hora futura: ${chave}`);
+    }
+  });
+
+  const pastChavesSet = new Set();
+  dados.forEach(dado => {
+    const dateStr = getDateStr(dado.data);
+    const hora = dado.hora;
+    const chave = `${dateStr}-${hora}`;
+    pastChavesSet.add(chave);
+  });
+
+  const sortedPastChaves = Array.from(pastChavesSet).sort((a, b) => {
+    const [dateA, horaStrA] = a.split('-');
+    const [dateB, horaStrB] = b.split('-');
+    const dateTimeA = new Date(`${dateA}T00:00:00`).getTime();
+    const dateTimeB = new Date(`${dateB}T00:00:00`).getTime();
+    if (dateTimeA !== dateTimeB) {
+      return dateTimeB - dateTimeA; // later dates first
+    }
+    const horaA = parseInt(horaStrA);
+    const horaB = parseInt(horaStrB);
+    const adjA = horaA === 0 ? -1 : horaA;
+    const adjB = horaB === 0 ? -1 : horaB;
+    return adjB - adjA; // higher adj first
+  });
+
+  sortedPastChaves.forEach(chave => {
+    if (contagemLinhas >= horasSelecionadas) return;
+    if (!chavesJaProcessadas.has(chave)) {
+      const novaLinha = document.createElement("tr");
+      novaLinha.setAttribute("data-chave", chave);
+      const [dateStr, horaStr] = chave.split('-');
+      const colunaHora = document.createElement("td");
+      colunaHora.textContent = `${parseInt(horaStr).toString().padStart(2, "0")} (${formatDateToDDMMYYYY(dateStr)})`;
       novaLinha.appendChild(colunaHora);
       minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
       novaLinha.appendChild(document.createElement("td")).textContent = "0";
