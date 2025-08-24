@@ -761,19 +761,18 @@ function normalizeString(str) {
 }
 
 function formatDateToDDMMYYYY(dateStr) {
+  let date;
   if (dateStr.includes("T")) {
-    const date = new Date(dateStr);
+    date = new Date(dateStr);
     const day = date.getUTCDate().toString().padStart(2, "0");
     const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
     const year = date.getUTCFullYear();
     return `${day}/${month}/${year}`;
-  } else if (dateStr.includes("-")) {
-    const [year, month, day] = dateStr.split("-");
-    return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
   } else {
     const [day, month, year] = dateStr.split("/");
     return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
   }
+  if (isNaN(date)) return null;
 }
 
 function findOddsForMatch(match, oddsData) {
@@ -940,54 +939,57 @@ function criarTabela(dados, oddsData, proximosJogos) {
   }).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
   console.log("Próximos jogos processados:", proximosJogosComHoras);
 
-  const pastChavesSet = new Set();
-  dados.forEach(dado => {
+  const chavesJaProcessadas = new Set();
+  const mapeamentoChaveLinha = {};
+  let contagemLinhas = 0;
+
+  const now = new Date();
+  proximosJogosComHoras.forEach(jogo => {
+    const hora = jogo.hora;
+    const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
+    const chave = `${dataStr}-${hora}`;
+    if (!chavesJaProcessadas.has(chave)) {
+      const jogoDateTime = new Date(jogo.start_time);
+      if (jogoDateTime > now) {
+        const novaLinha = document.createElement("tr");
+        novaLinha.setAttribute("data-chave", chave);
+        const colunaHora = document.createElement("td");
+        colunaHora.textContent = hora.toString().padStart(2, "0");
+        novaLinha.appendChild(colunaHora);
+        minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
+        novaLinha.appendChild(document.createElement("td")).textContent = "0";
+        novaLinha.appendChild(document.createElement("td")).textContent = "0";
+        novaLinha.appendChild(document.createElement("td")).textContent = "0%";
+        tabelaBody.insertBefore(novaLinha, tabelaBody.firstChild);
+        chavesJaProcessadas.add(chave);
+        mapeamentoChaveLinha[chave] = novaLinha;
+        contagemLinhas++;
+        console.log(`Criada linha para hora futura (topo): ${chave}`);
+      }
+    }
+  });
+
+  dados.reverse().forEach((dado) => {
+    if (contagemLinhas >= horasSelecionadas) return;
     const dateStr = getDateStr(dado.data);
     const hora = dado.hora;
     const chave = `${dateStr}-${hora}`;
-    pastChavesSet.add(chave);
-  });
-
-  const futureChavesSet = new Set();
-  proximosJogosComHoras.forEach(jogo => {
-    const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
-    const chave = `${dataStr}-${jogo.hora}`;
-    futureChavesSet.add(chave);
-  });
-
-  const allChaves = new Set([...pastChavesSet, ...futureChavesSet]);
-
-  const sortedChaves = Array.from(allChaves).sort((a, b) => {
-    const [dateA, horaStrA] = a.split('-');
-    const [dateB, horaStrB] = b.split('-');
-    const timeDateA = new Date(dateA).getTime();
-    const timeDateB = new Date(dateB).getTime();
-    if (timeDateA !== timeDateB) {
-      return timeDateB - timeDateA; // newer date first
+    if (!chavesJaProcessadas.has(chave)) {
+      const novaLinha = document.createElement("tr");
+      novaLinha.setAttribute("data-chave", chave);
+      const colunaHora = document.createElement("td");
+      colunaHora.textContent = hora.toString().padStart(2, "0");
+      novaLinha.appendChild(colunaHora);
+      minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
+      novaLinha.appendChild(document.createElement("td")).textContent = "0";
+      novaLinha.appendChild(document.createElement("td")).textContent = "0";
+      novaLinha.appendChild(document.createElement("td")).textContent = "0%";
+      tabelaBody.appendChild(novaLinha);
+      chavesJaProcessadas.add(chave);
+      mapeamentoChaveLinha[chave] = novaLinha;
+      contagemLinhas++;
+      console.log(`Criada linha para dados passados: ${chave}`);
     }
-    const adjA = parseInt(horaStrA) === 0 ? 24 : parseInt(horaStrA);
-    const adjB = parseInt(horaStrB) === 0 ? 24 : parseInt(horaStrB);
-    return adjB - adjA; // higher adj first
-  });
-
-  const mapeamentoChaveLinha = {};
-  let contagemLinhas = 0;
-  sortedChaves.forEach(chave => {
-    if (contagemLinhas >= horasSelecionadas) return;
-    const novaLinha = document.createElement("tr");
-    novaLinha.setAttribute("data-chave", chave);
-    const [dateStr, horaStr] = chave.split('-');
-    const colunaHora = document.createElement("td");
-    colunaHora.textContent = parseInt(horaStr).toString().padStart(2, "0");
-    novaLinha.appendChild(colunaHora);
-    minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
-    novaLinha.appendChild(document.createElement("td")).textContent = "0";
-    novaLinha.appendChild(document.createElement("td")).textContent = "0";
-    novaLinha.appendChild(document.createElement("td")).textContent = "0%";
-    tabelaBody.appendChild(novaLinha);
-    mapeamentoChaveLinha[chave] = novaLinha;
-    contagemLinhas++;
-    console.log(`Criada linha para chave: ${chave}`);
   });
 
   function handlePlacarClick(event) {
@@ -1178,16 +1180,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
     }
   });
 
-  const now = new Date();
   proximosJogosComHoras.forEach(jogo => {
     const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
     const hora = jogo.hora;
     const chave = `${dataStr}-${hora}`;
     const linha = mapeamentoChaveLinha[chave];
     const matchKey = `${jogo.team_home}-${jogo.team_visit}-${chave}-${jogo.minuto}`;
-    const jogoDateTime = new Date(jogo.start_time);
 
-    if (linha && jogoDateTime > now && jogo.minuto !== null && !processedMatches.has(matchKey)) {
+    if (linha && jogo.minuto !== null && !processedMatches.has(matchKey)) {
       const resultadoExistente = dados.find(dado => {
         const dadoData = getDateStr(dado.data);
         return (
@@ -1256,7 +1256,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
         console.log(`Jogo ${jogo.team_home} vs ${jogo.team_visit} já tem resultado, não será adicionado como futuro`);
       }
     } else {
-      console.warn(`Linha não encontrada para chave ${chave} ou minuto nulo ou não futuro para jogo ${jogo.team_home} vs ${jogo.team_visit}`);
+      console.warn(`Linha não encontrada para chave ${chave} ou minuto nulo para jogo ${jogo.team_home} vs ${jogo.team_visit}`);
     }
   });
 
@@ -1288,7 +1288,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   todasLinhas.forEach((row) => {
     const totalCelsProcessadas = Array.from(row.cells)
       .slice(1, -3)
-      .filter((cell) => cell.querySelector(".placar:not(.placar-futuro)")).length;
+      .filter((cell) => cell.querySelector(".placar")).length;
     const celsMercado = parseInt(
       row.children[row.children.length - 2].textContent
     );
@@ -1316,7 +1316,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     Array.from(row.cells)
       .slice(1, -3)
       .forEach((cell, index) => {
-        if (cell.querySelector(".placar:not(.placar-futuro)")) {
+        if (cell.querySelector(".placar")) {
           totalMercadosPorColuna[index]++;
         }
       });
