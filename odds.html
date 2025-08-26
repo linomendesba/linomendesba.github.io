@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gráfico de Análise de Odds</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: linear-gradient(to bottom, #1c1f26, #2a2e39);
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #1fad8b;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+        .chart-container {
+            width: 90%;
+            max-width: 1800px;
+            background-color: #2a2e39;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .canvas-wrapper {
+            position: relative;
+            height: 60vh;
+            width: 100%;
+        }
+        .control-panel, .custom-odd-panel {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #313543;
+            border-radius: 8px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .control-panel > div {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-size: 14px;
+            color: #b0b0b0;
+        }
+        select, input, button {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #4a4e5a;
+            background-color: #3c404d;
+            color: #e0e0e0;
+            transition: border-color 0.3s ease;
+        }
+        button {
+            cursor: pointer;
+            background-color: #1fad8b;
+            border-color: #1fad8b;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #1ca580;
+        }
+        select:hover, input:hover {
+            border-color: #1fad8b;
+        }
+        .checkbox-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-container label {
+            margin-bottom: 0;
+        }
+        #oddsCheckboxesContainer {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #313543;
+            border-radius: 8px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .odd-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .odd-checkbox-item label {
+            cursor: pointer;
+        }
+        .remove-btn {
+            cursor: pointer;
+            color: #ff6b6b; 
+            font-weight: bold;
+            margin-left: 5px;
+            font-size: 12px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            background-color: rgba(255, 107, 107, 0.2);
+            transition: background-color 0.2s;
+        }
+        .remove-btn:hover {
+            background-color: rgba(255, 107, 107, 0.4);
+        }
+        .green-text {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chart-container">
+        <div class="canvas-wrapper">
+            <canvas id="oddsChart"></canvas>
+        </div>
+
+        <div class="control-panel">
+            <div>
+                <label for="leagueSelector">Liga:</label>
+                <select id="leagueSelector"></select>
+            </div>
+            <div>
+                <label for="marketSelector">Mercado:</label>
+                <select id="marketSelector"></select>
+            </div>
+            <div>
+                <label for="pointsSelector">Jogos Recentes:</label>
+                <select id="pointsSelector">
+                    <option value="20">1 Hora (20)</option>
+                    <option value="40">2 Horas (40)</option>
+                    <option value="60">3 Horas (60)</option>
+                    <option value="80">4 Horas (80)</option>
+                    <option value="120">6 Horas (120)</option>
+                    <option value="240" selected>12 Horas (240)</option>
+                    <option value="480">24 Horas (480)</option>
+                    <option value="960">48 Horas (960)</option>
+                    <option value="1440">72 Horas (1440)</option>
+                </select>
+            </div>
+            <div>
+                <label for="averageSelector">Média Móvel (Jogos):</label>
+                <select id="averageSelector">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20" selected>20</option>
+                    <option value="30">30</option>
+                </select>
+            </div>
+            <div class="checkbox-container">
+                <input type="checkbox" id="fibonacciToggle" checked>
+                <label for="fibonacciToggle">Ativar Fibonacci</label>
+            </div>
+        </div>
+
+        <div class="custom-odd-panel">
+             <div>
+                <label for="customOddInput">Adicionar Odd Específica:</label>
+                <input type="number" id="customOddInput" placeholder="Ex: 1.85" step="0.01">
+            </div>
+            <button id="addCustomOddBtn">Adicionar Odd</button>
+        </div>
+        
+        <div id="oddsCheckboxesContainer"></div>
+    </div>
+
+<script>
+let oddsChart;
+let showFibonacciLines = true;
+let allOddsData = {};
+let allResultsData = {};
+let topRankedOdds = [];
+let customOdds = [];
+let updateInterval;
+let chartDatasCache = [];
+
+const CUSTOM_ODD_COLOR = '#66CDAA';
+
+const leagues = {
+    'Copa América': 'Copa%20Am%C3%A9rica',
+    'Taça Glória Eterna': 'Ta%C3%A7a%20Gl%C3%B3ria%20eterna',
+    'Euro': 'Euro',
+    'Campeonato Italiano': 'Campeonato%20Italiano',
+    'Copa das Estrelas': 'Copa%20das%20estrelas',
+    'Brasileirão Betano': 'Brasileir%C3%A3o%20Betano'
+};
+
+const markets = {
+    'odds_ambas_marcam_sim': 'Ambas Marcam: Sim',
+    'odds_casa_vence': 'Casa Vence',
+    'odds_visitante_vence': 'Visitante Vence',
+    'odds_empate': 'Empate',
+    'odds_ambas_marcam_nao': 'Ambas Marcam: Não',
+    'odds_mais_1_5': 'Over 1.5',
+    'odds_menos_1_5': 'Under 1.5',
+    'odds_mais_2_5': 'Over 2.5',
+    'odds_menos_2_5': 'Under 2.5',
+    'odds_mais_3_5': 'Over 3.5',
+    'odds_menos_3_5': 'Under 3.5',
+};
+
+const fixedColors = [
+    '#ffffff', '#FFFF33', '#FF3333', '#6699FF', '#9933FF',
+    '#FF9933', '#FF99CC', '#CCCCCC', '#A0522D', '#990099'
+];
+
+const leagueSelector = document.getElementById('leagueSelector');
+const marketSelector = document.getElementById('marketSelector');
+const pointsSelector = document.getElementById('pointsSelector');
+const averageSelector = document.getElementById('averageSelector');
+const fibonacciToggle = document.getElementById('fibonacciToggle');
+const oddsCheckboxesContainer = document.getElementById('oddsCheckboxesContainer');
+const customOddInput = document.getElementById('customOddInput');
+const addCustomOddBtn = document.getElementById('addCustomOddBtn');
+
+async function fetchData(leagueKey) {
+    if (allOddsData[leagueKey] && allResultsData[leagueKey]) return;
+    try {
+        const [oddsResponse, resultsResponse] = await Promise.all([
+            fetch(`http://localhost:5001/odds/${leagueKey}`),
+            fetch(`http://localhost:5001/resultados/${leagueKey}`)
+        ]);
+        if (!oddsResponse.ok || !resultsResponse.ok) throw new Error('Falha na resposta da rede.');
+        allOddsData[leagueKey] = await oddsResponse.json();
+        allResultsData[leagueKey] = await resultsResponse.json();
+    } catch (error) {
+        console.error(`Erro ao buscar dados para ${leagueKey}:`, error);
+        alert(`Não foi possível carregar os dados para a liga selecionada.`);
+    }
+}
+
+function checkMarketOutcome(marketKey, ftScore) {
+    if (!ftScore || !ftScore.includes(' x ')) return false;
+    const parts = ftScore.split(' x ').map(Number);
+    if (parts.some(isNaN)) return false;
+    const [homeGoals, awayGoals] = parts;
+    const totalGoals = homeGoals + awayGoals;
+    switch (marketKey) {
+        case 'odds_casa_vence': return homeGoals > awayGoals;
+        case 'odds_visitante_vence': return awayGoals > homeGoals;
+        case 'odds_empate': return homeGoals === awayGoals;
+        case 'odds_ambas_marcam_sim': return homeGoals > 0 && awayGoals > 0;
+        case 'odds_ambas_marcam_nao': return homeGoals === 0 || awayGoals === 0;
+        case 'odds_mais_1_5': return totalGoals > 1.5;
+        case 'odds_menos_1_5': return totalGoals < 1.5;
+        case 'odds_mais_2_5': return totalGoals > 2.5;
+        case 'odds_menos_2_5': return totalGoals < 2.5;
+        case 'odds_mais_3_5': return totalGoals > 3.5;
+        case 'odds_menos_3_5': return totalGoals < 3.5;
+        default: return false;
+    }
+}
+
+function renderAllOddsCheckboxes() {
+    oddsCheckboxesContainer.innerHTML = '';
+    
+    topRankedOdds.forEach(([odd, count, greenCount], index) => {
+        const item = document.createElement('div');
+        item.classList.add('odd-checkbox-item');
+        item.innerHTML = `
+            <input type="checkbox" id="odd-${odd}" value="${odd}" ${index === 0 ? 'checked' : ''}>
+            <label for="odd-${odd}" style="color: ${fixedColors[index]};">Odd ${odd} (${count}x) <span class="green-text">(${greenCount}g)</span></label>
+        `;
+        oddsCheckboxesContainer.appendChild(item);
+    });
+
+    const rankedOddValues = topRankedOdds.map(o => o[0]);
+    customOdds.forEach(odd => {
+        if (!rankedOddValues.includes(odd)) {
+            const item = document.createElement('div');
+            item.classList.add('odd-checkbox-item');
+            item.innerHTML = `
+                <input type="checkbox" id="odd-${odd}" value="${odd}" checked>
+                <label for="odd-${odd}" style="color: ${CUSTOM_ODD_COLOR};">Odd ${odd} (Custom)</label>
+                <span class="remove-btn" data-odd="${odd}">X</span>
+            `;
+            oddsCheckboxesContainer.appendChild(item);
+        }
+    });
+}
+
+async function rankAndDisplayOdds() {
+    const leagueKey = leagueSelector.value;
+    const marketKey = marketSelector.value;
+    
+    oddsCheckboxesContainer.innerHTML = '<span>Analisando odds...</span>';
+    
+    await fetchData(leagueKey);
+
+    if (!marketKey || !allOddsData[leagueKey] || !allResultsData[leagueKey]) {
+        oddsCheckboxesContainer.innerHTML = '<span>Selecione um Mercado ou dados indisponíveis.</span>';
+        return;
+    }
+    
+    const resultsMap = new Map(allResultsData[leagueKey].map(r => [r.event_id, r]));
+    const oddsCounts = {};
+    const greenCounts = {};
+
+    allOddsData[leagueKey].forEach(game => {
+        const oddValue = game[marketKey];
+        if (oddValue) {
+            oddsCounts[oddValue] = (oddsCounts[oddValue] || 0) + 1;
+            const result = resultsMap.get(parseInt(game.match_id));
+            if (result && checkMarketOutcome(marketKey, result.ft)) {
+                greenCounts[oddValue] = (greenCounts[oddValue] || 0) + 1;
+            }
+        }
+    });
+
+    topRankedOdds = Object.entries(oddsCounts)
+        .map(([odd, count]) => [odd, count, greenCounts[odd] || 0])
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10);
+    
+    renderAllOddsCheckboxes();
+}
+
+async function generateAndRenderChart() {
+    const leagueKey = leagueSelector.value;
+    const marketKey = marketSelector.value;
+    
+    const selectedOdds = Array.from(oddsCheckboxesContainer.querySelectorAll('input:checked')).map(cb => cb.value);
+
+    const numPoints = parseInt(pointsSelector.value, 10);
+    const averagePoints = parseInt(averageSelector.value, 10);
+
+    if (!leagueKey || !marketKey || selectedOdds.length === 0) {
+        if (oddsChart) oddsChart.destroy();
+        oddsChart = null;
+        return;
+    }
+
+    await fetchData(leagueKey);
+    const resultsMap = new Map(allResultsData[leagueKey]?.map(r => [r.event_id, r]) || []);
+    if (resultsMap.size === 0) {
+        if (oddsChart) oddsChart.destroy();
+        oddsChart = null;
+        return;
+    }
+
+    const chartDatas = [];
+    
+    for (const selectedOdd of selectedOdds) {
+        const filteredGames = allOddsData[leagueKey]
+            .map(game => {
+                const result = resultsMap.get(parseInt(game.match_id));
+                return result && game[marketKey] == selectedOdd ? { ...game, ...result, isGreen: checkMarketOutcome(marketKey, result.ft) } : null;
+            })
+            .filter(Boolean)
+            .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        
+        const recentGames = filteredGames.slice(-numPoints);
+        
+        if (recentGames.length < averagePoints) {
+            continue;
+        }
+        
+        const dataPoints = [];
+        const gameDetails = [];
+        const pointBackgroundColors = [];
+
+        for (let i = averagePoints - 1; i < recentGames.length; i++) {
+            const windowStart = i - averagePoints + 1;
+            const windowEnd = i + 1;
+            const gameWindow = recentGames.slice(windowStart, windowEnd);
+            const greenCountInWindow = gameWindow.filter(game => game.isGreen).length;
+            const currentPercentage = (greenCountInWindow / gameWindow.length) * 100;
+            dataPoints.push(currentPercentage);
+            
+            const currentGame = recentGames[i];
+            gameDetails.push({
+                odd: selectedOdd,
+                score: currentGame.ft,
+                outcome: currentGame.isGreen ? 'Green' : 'Red',
+                date: new Date(currentGame.created_at).toLocaleString('pt-BR'),
+                gameLabel: `${currentGame.time_casa} vs ${currentGame.time_visitante}`,
+                isPositive: currentGame.isGreen,
+            });
+            pointBackgroundColors.push(currentGame.isGreen ? '#00FF00' : '#FF0000');
+        }
+        
+        const totalGreenCount = recentGames.filter(g => g.isGreen).length;
+        const actualWinRate = recentGames.length > 0 ? (totalGreenCount / recentGames.length) * 100 : 0;
+        
+        let color;
+        if (customOdds.includes(selectedOdd)) {
+            color = CUSTOM_ODD_COLOR;
+        } else {
+            const colorIndex = topRankedOdds.findIndex(o => o[0] === selectedOdd);
+            color = fixedColors[colorIndex !== -1 ? colorIndex : 0];
+        }
+
+        chartDatas.push({
+            odd: selectedOdd,
+            dataPoints: dataPoints,
+            gameDetails: gameDetails,
+            actualWinRate: actualWinRate,
+            color: color,
+            pointBackgroundColors: pointBackgroundColors
+        });
+    };
+
+    if (chartDatas.length === 0) {
+        if (oddsChart) oddsChart.destroy();
+        oddsChart = null;
+        return;
+    }
+
+    chartDatasCache = chartDatas;
+
+    const maxLength = Math.max(0, ...chartDatas.map(cd => cd.dataPoints.length));
+    const commonLabels = Array.from({ length: maxLength }, (_, i) => `Jogo ${i + 1}`);
+
+    const datasets = chartDatas.map(cd => ({
+        label: `Odd ${cd.odd} (Acerto: ${cd.actualWinRate.toFixed(1)}%)`,
+        data: cd.dataPoints,
+        borderColor: cd.color,
+        pointBackgroundColor: cd.pointBackgroundColors,
+        pointBorderColor: cd.pointBackgroundColors,
+        borderWidth: 2,
+        pointRadius: 4,
+        fill: false,
+        tension: 0
+    }));
+    
+    if (oddsChart) {
+        oddsChart.data.labels = commonLabels;
+        oddsChart.data.datasets = datasets;
+        oddsChart.update('none');
+    } else {
+        renderChart(commonLabels, datasets, chartDatas);
+    }
+}
+
+const fibonacciLinesPlugin = {
+    id: 'fibonacciLines',
+    afterDraw: (chart) => {
+        if (!showFibonacciLines || chart.data.datasets.length === 0) return;
+        const { ctx, chartArea, scales } = chart;
+        const yAxis = scales.y;
+        const fibonacciLevels = [0, 23.6, 38.2, 50, 61.8, 100];
+        ctx.save();
+        fibonacciLevels.forEach(level => {
+            const y = yAxis.getPixelForValue(level);
+            if (y >= chartArea.top && y <= chartArea.bottom) {
+                ctx.beginPath();
+                ctx.moveTo(chartArea.left, y);
+                ctx.lineTo(chartArea.right, y);
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.fillStyle = '#b0b0b0';
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText(`${level.toFixed(1)}%`, chartArea.right + 35, y + 4);
+            }
+        });
+        ctx.restore();
+    }
+};
+
+function renderChart(commonLabels, datasets, chartDatas) {
+    const ctx = document.getElementById('oddsChart').getContext('2d');
+    
+    oddsChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: commonLabels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 20, right: 50, bottom: 10, left: 10 } },
+            plugins: {
+                legend: { labels: { color: '#e0e0e0', font: { size: 14 } } },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#1fad8b',
+                    bodyColor: '#e0e0e0',
+                    borderColor: '#1fad8b',
+                    borderWidth: 1,
+                    callbacks: {
+                        title: (tooltipItems) => {
+                            const item = tooltipItems[0];
+                            const dataset = chartDatasCache[item.datasetIndex];
+                            if (!dataset || item.dataIndex >= dataset.gameDetails.length) return '';
+                            return dataset.gameDetails[item.dataIndex].gameLabel;
+                        },
+                        label: (tooltipItem) => {
+                            const dataset = chartDatasCache[tooltipItem.datasetIndex];
+                            const pos = tooltipItem.dataIndex;
+                            if (!dataset || pos >= dataset.gameDetails.length) return [];
+                            const details = dataset.gameDetails[pos];
+                            return [
+                                `Odd: ${details.odd}`, `Data/Hora: ${details.date}`,
+                                `Placar FT: ${details.score}`, `Resultado: ${details.outcome}`,
+                                `Média Atual: ${tooltipItem.raw.toFixed(1)}%`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { display: false }, grid: { display: false } },
+                y: {
+                    min: 0, 
+                    max: 100,
+                    ticks: { 
+                        color: '#b0b0b0', stepSize: 10,
+                        callback: (value) => value + '%'
+                    },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                }
+            }
+        },
+        plugins: [fibonacciLinesPlugin]
+    });
+}
+
+async function initialize() {
+    Object.entries(leagues).forEach(([name, key]) => {
+        leagueSelector.appendChild(new Option(name, key));
+    });
+    Object.entries(markets).forEach(([key, name]) => {
+        marketSelector.appendChild(new Option(name, key));
+    });
+    leagueSelector.value = 'Ta%C3%A7a%20Gl%C3%B3ria%20eterna';
+    marketSelector.value = 'odds_ambas_marcam_sim';
+
+    const handleContextChange = async () => {
+        await rankAndDisplayOdds();
+        await generateAndRenderChart();
+    };
+    
+    leagueSelector.addEventListener('change', handleContextChange);
+    marketSelector.addEventListener('change', handleContextChange);
+    pointsSelector.addEventListener('change', generateAndRenderChart);
+    averageSelector.addEventListener('change', generateAndRenderChart);
+
+    oddsCheckboxesContainer.addEventListener('click', (event) => {
+        if (event.target.type === 'checkbox') {
+            generateAndRenderChart();
+        }
+        if (event.target.classList.contains('remove-btn')) {
+            const oddToRemove = event.target.dataset.odd;
+            customOdds = customOdds.filter(o => o !== oddToRemove);
+            renderAllOddsCheckboxes();
+            generateAndRenderChart();
+        }
+    });
+
+    fibonacciToggle.addEventListener('change', () => {
+        showFibonacciLines = fibonacciToggle.checked;
+        if (oddsChart) oddsChart.update();
+    });
+
+    addCustomOddBtn.addEventListener('click', () => {
+        const oddValue = parseFloat(customOddInput.value).toFixed(2);
+        const allCurrentOdds = [
+            ...topRankedOdds.map(o => o[0]),
+            ...customOdds
+        ];
+        if (oddValue && oddValue > 1 && !allCurrentOdds.includes(oddValue)) {
+            customOdds.push(oddValue);
+            renderAllOddsCheckboxes();
+            generateAndRenderChart();
+        }
+        customOddInput.value = '';
+    });
+
+    await handleContextChange();
+
+    if (updateInterval) clearInterval(updateInterval);
+    updateInterval = setInterval(async () => {
+        console.log("Atualizando dados periodicamente...");
+        const currentLeague = leagueSelector.value;
+        allOddsData[currentLeague] = null;
+        allResultsData[currentLeague] = null;
+        await generateAndRenderChart();
+    }, 3 * 60 * 1000);
+}
+
+document.addEventListener('DOMContentLoaded', initialize);
+</script>
+</body>
+</html>
