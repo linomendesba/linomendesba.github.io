@@ -23,7 +23,7 @@
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
         .chart-container {
-            width: 90%;
+            width: 95%;
             max-width: 1800px;
             background-color: #2a2e39;
             padding: 20px;
@@ -32,7 +32,7 @@
         }
         .canvas-wrapper {
             position: relative;
-            height: 60vh;
+            height: 50vh;
             width: 100%;
         }
         .control-panel, .custom-odd-panel {
@@ -66,7 +66,7 @@
         }
         button {
             cursor: pointer;
-            background-color: #1fad8b;
+            background-color: #1fac89;
             border-color: #1fad8b;
             font-weight: bold;
         }
@@ -147,7 +147,7 @@
                     <option value="40">2 Horas (40)</option>
                     <option value="60">3 Horas (60)</option>
                     <option value="80">4 Horas (80)</option>
-                    <option value="120"selected>6 Horas (120)</option>
+                    <option value="120" selected>6 Horas (120)</option>
                     <option value="240">12 Horas (240)</option>
                     <option value="480">24 Horas (480)</option>
                     <option value="960">48 Horas (960)</option>
@@ -160,7 +160,7 @@
                     <option value="5">5</option>
                     <option value="10">10</option>
                     <option value="15">15</option>
-                    <option value="20"selected>20</option>
+                    <option value="20" selected>20</option>
                     <option value="30">30</option>
                 </select>
             </div>
@@ -234,8 +234,8 @@ async function fetchData(leagueKey) {
     if (allOddsData[leagueKey] && allResultsData[leagueKey]) return;
     try {
         const [oddsResponse, resultsResponse] = await Promise.all([
-            fetch(`https://betstat.site/odds/${leagueKey}`),
-            fetch(`https://betstat.site/resultados/${leagueKey}`)
+            fetch(`http://localhost:5001/odds/${leagueKey}`),
+            fetch(`http://localhost:5001/resultados/${leagueKey}`)
         ]);
         if (!oddsResponse.ok || !resultsResponse.ok) throw new Error('Falha na resposta da rede.');
         allOddsData[leagueKey] = await oddsResponse.json();
@@ -393,7 +393,7 @@ async function generateAndRenderChart() {
                 gameLabel: `${currentGame.time_casa} vs ${currentGame.time_visitante}`,
                 isPositive: currentGame.isGreen,
             });
-            pointBackgroundColors.push(currentGame.isGreen ? '#00FF00' : '#FF0000');
+            pointBackgroundColors.push(currentGame.isGreen ? '#018b04' : '#c60903');
         }
         
         const totalGreenCount = recentGames.filter(g => g.isGreen).length;
@@ -415,7 +415,7 @@ async function generateAndRenderChart() {
             color: color,
             pointBackgroundColors: pointBackgroundColors
         });
-    };
+    }
 
     if (chartDatas.length === 0) {
         if (oddsChart) oddsChart.destroy();
@@ -449,29 +449,49 @@ async function generateAndRenderChart() {
     }
 }
 
+// Plugin Fibonacci corrigido - Independente da escala
 const fibonacciLinesPlugin = {
     id: 'fibonacciLines',
     afterDraw: (chart) => {
         if (!showFibonacciLines || chart.data.datasets.length === 0) return;
-        const { ctx, chartArea, scales } = chart;
-        const yAxis = scales.y;
+        
+        const { ctx, chartArea } = chart;
+        
+        // Níveis de Fibonacci em porcentagem - SEMPRE fixos
         const fibonacciLevels = [0, 23.6, 38.2, 50, 61.8, 100];
+        
         ctx.save();
+        
         fibonacciLevels.forEach(level => {
-            const y = yAxis.getPixelForValue(level);
+            // Calcular a posição Y baseada na altura do chartArea (0-100% mapeado para altura total)
+            const percentagePosition = level / 100; // Converter para 0-1
+            const y = chartArea.bottom - (percentagePosition * (chartArea.bottom - chartArea.top));
+            
+            // Só desenhar se a linha estiver dentro da área do gráfico
             if (y >= chartArea.top && y <= chartArea.bottom) {
+                // Desenhar a linha horizontal
                 ctx.beginPath();
                 ctx.moveTo(chartArea.left, y);
                 ctx.lineTo(chartArea.right, y);
-                ctx.strokeStyle = 'rgba(0, 255, 0, 0.4)';
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
                 ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]); // Linha tracejada
                 ctx.stroke();
-                ctx.fillStyle = '#b0b0b0';
+                ctx.setLineDash([]); // Reset para linha sólida
+                
+                // Desenhar o label à direita da linha
+                ctx.fillStyle = '#ffffff';
                 ctx.font = '11px Arial';
-                ctx.textAlign = 'right';
-                ctx.fillText(`${level.toFixed(1)}%`, chartArea.right + 35, y + 4);
+                ctx.textAlign = 'left';
+                
+                // Posicionar o texto ligeiramente à direita da área do gráfico
+                const textX = chartArea.right + 10;
+                const textY = y + 4;
+                
+                ctx.fillText(`${level.toFixed(1)}%`, textX, textY);
             }
         });
+        
         ctx.restore();
     }
 };
@@ -485,7 +505,14 @@ function renderChart(commonLabels, datasets, chartDatas) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 20, right: 50, bottom: 10, left: 10 } },
+            layout: { 
+                padding: { 
+                    top: 20, 
+                    right: 60, // Aumentado para dar espaço aos labels do Fibonacci
+                    bottom: 10, 
+                    left: 10 
+                } 
+            },
             plugins: {
                 legend: { labels: { color: '#e0e0e0', font: { size: 14 } } },
                 tooltip: {
@@ -516,12 +543,14 @@ function renderChart(commonLabels, datasets, chartDatas) {
                 }
             },
             scales: {
-                x: { ticks: { display: false }, grid: { display: false } },
+                x: { 
+                    ticks: { display: false }, 
+                    grid: { display: false } 
+                },
                 y: {
-                    min: 0, 
-                    max: 100,
                     ticks: { 
-                        color: '#b0b0b0', stepSize: 10,
+                        color: '#b0b0b0', 
+                        stepSize: 5,
                         callback: (value) => value + '%'
                     },
                     grid: { color: 'rgba(255, 255, 255, 0.1)' }
