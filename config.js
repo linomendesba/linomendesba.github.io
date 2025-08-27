@@ -2,6 +2,7 @@
 
 // 1) URL base da API
 const API_BASE_URL = "https://betstat.site";
+//const API_BASE_URL = "http://localhost:5001";
 
 // 2) Ligas centralizadas
 const LIGAS = {
