@@ -242,16 +242,29 @@
   </div>
 </div>
 
-<div class="accordion-item">
-    <button class="accordion-button" onclick="toggleAccordion(this)">▼ Desempenho de Times ▲</button>
-    <div class="accordion-content">
-        <div class="next-games-container" id="nextGamesChartContainer"></div>
-        <!-- Os seletores serão adicionados aqui pelo JavaScript -->
-        <div class="chart-container">
-            <canvas id="timeChart" width="1080" height="200"></canvas>
+    <div class="container">
+        <h1>Análise de Desempenho de Times</h1>
+
+        <div class="controls-container">
+            <div class="control-item">
+                <label for="fibonacciToggle">Linhas Fibonacci:</label>
+                <label class="switch">
+                    <input type="checkbox" id="fibonacciToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <button class="accordion-button active" onclick="toggleAccordion(this)">▼ Desempenho de Times ▲</button>
+            <div class="accordion-content" style="max-height: 1000px;"> <p style="text-align:center; margin-top:15px;">Selecione um dos próximos jogos para comparar o desempenho dos times:</p>
+                <div class="next-games-container" id="nextGamesChartContainer"></div>
+                <div class="chart-container">
+                    <canvas id="timeChart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
     <div class="classificacao-container">
       <button id="botao-classificacao">▲ Tabela de Classificação ▼</button>
@@ -5273,349 +5286,271 @@ updateGolsChart();
     </script>
 
     <script>
-// Função mantida para referência, mas não usada
-function removeAccents(str) {
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
+(function() {
+    'use strict'; // Ajuda a prevenir erros comuns
 
-// Função para comparar strings ignorando acentos, sem alterar o texto original
-function compareWithoutAccents(str1, str2) {
-  const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return normalize(str1) === normalize(str2);
-}
-
-async function initializeChart() {
-  const ctx = document.getElementById("timeChart").getContext("2d");
-  let fetchedData = [];
-  let displayDataTeam1 = [];
-  let displayDataTeam2 = [];
-  let selectedTeam1 = null;
-  let selectedTeam2 = null;
-  const NEXT_GAMES_API = "https://betstat.site/proximos/Taça%20Glória%20Eterna";
-
-  // Configurações dos seletores
-  const marketOptions = [
-    'Ambas Sim', 'Ambas Não',
-    'Over 1.5', 'Over 2.5', 'Over 3.5',
-    'Under 1.5', 'Under 2.5', 'Under 3.5',
-    'Casa Vence', 'Fora Vence', 'Empate', 'Empate HT',
-    '1 Gol', '2 Gols', '3 Gols', '4 Gols', '5 Gols'
-  ];
-  const gameCountOptions = [30, 60, 120, 240];
-
-  // Adicionar seletores abaixo do container de próximos jogos
-  document.getElementById('nextGamesChartContainer').insertAdjacentHTML('afterend', `
-    <div class="selectors-container">
-      <select id="marketSelector">
-        ${marketOptions.map(option => `<option value="${option.toLowerCase()}">${option}</option>`).join('')}
-      </select>
-      <select id="gameCountSelector">
-        ${gameCountOptions.map(count => `<option value="${count}">${count} Jogos</option>`).join('')}
-      </select>
-    </div>
-  `);
-
-  function isOrdered(data) {
-    for (let i = 1; i < data.length; i++) {
-      const currentDate = new Date(data[i].data);
-      const previousDate = new Date(data[i - 1].data);
-      if (currentDate < previousDate) return false;
-      if (currentDate.getTime() === previousDate.getTime()) {
-        if (
-          data[i].hora < data[i - 1].hora ||
-          (data[i].hora === data[i - 1].hora && data[i].minuto < data[i - 1].minuto)
-        )
-          return false;
-      }
-    }
-    return true;
-  }
-
-  async function fetchChartData() {
-    try {
-      const response = await fetch("https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna");
-      if (!response.ok) throw new Error(`Erro na requisição: ${response.status}`);
-      const data = await response.json();
-      const sortedData = data.sort((a, b) => {
-        const dateA = new Date(a.data);
-        const dateB = new Date(b.data);
-        if (dateA < dateB) return -1;
-        if (dateA > dateB) return 1;
-        return a.hora - b.hora || a.minuto - b.minuto;
-      });
-
-      if (!isOrdered(sortedData)) {
-        console.warn("Os dados não estão em ordem.");
-        return [];
-      }
-      return sortedData;
-    } catch (error) {
-      console.error("Erro ao buscar dados:", error);
-      return [];
-    }
-  }
-
-  function calculateTeamPerformance(data) {
-    const teamPerformanceData = [];
-    let currentPercentage = 0; // Começa em 0%
-    const selectedMarket = document.getElementById('marketSelector').value;
-
-    for (let i = 0; i < data.length; i++) {
-      const current = data[i];
-      let performanceChange = 0;
-
-      const [teamAGols, teamBGols] = current.ft.split(" x ").map(Number);
-      const totalGoals = teamAGols + teamBGols;
-      const [teamAGolsHT, teamBGolsHT] = current.ht ? current.ht.split(" x ").map(Number) : [0, 0];
-
-      switch (selectedMarket) {
-        case 'ambas sim':
-          performanceChange = (teamAGols > 0 && teamBGols > 0) ? 5 : -5;
-          break;
-        case 'ambas não':
-          performanceChange = (teamAGols === 0 || teamBGols === 0) ? 5 : -5;
-          break;
-        case 'over 1.5':
-          performanceChange = totalGoals > 1.5 ? 5 : -5;
-          break;
-        case 'over 2.5':
-          performanceChange = totalGoals > 2.5 ? 5 : -5;
-          break;
-        case 'over 3.5':
-          performanceChange = totalGoals > 3.5 ? 5 : -5;
-          break;
-        case 'under 1.5':
-          performanceChange = totalGoals < 1.5 ? 5 : -5;
-          break;
-        case 'under 2.5':
-          performanceChange = totalGoals < 2.5 ? 5 : -5;
-          break;
-        case 'under 3.5':
-          performanceChange = totalGoals < 3.5 ? 5 : -5;
-          break;
-        case 'casa vence':
-          performanceChange = teamAGols > teamBGols ? 5 : -5;
-          break;
-        case 'fora vence':
-          performanceChange = teamAGols < teamBGols ? 5 : -5;
-          break;
-        case 'empate':
-          performanceChange = teamAGols === teamBGols ? 5 : -5;
-          break;
-        case 'empate ht':
-          performanceChange = teamAGolsHT === teamBGolsHT ? 5 : -5;
-          break;
-        case '1 gol':
-          performanceChange = totalGoals === 1 ? 5 : -5;
-          break;
-        case '2 gols':
-          performanceChange = totalGoals === 2 ? 5 : -5;
-          break;
-        case '3 gols':
-          performanceChange = totalGoals === 3 ? 5 : -5;
-          break;
-        case '4 gols':
-          performanceChange = totalGoals === 4 ? 5 : -5;
-          break;
-        case '5 gols':
-          performanceChange = totalGoals === 5 ? 5 : -5;
-          break;
-      }
-
-      currentPercentage += performanceChange;
-      teamPerformanceData.push(currentPercentage);
-    }
-    return teamPerformanceData;
-  }
-
-  async function loadNextGamesForChart() {
-    try {
-      const response = await fetch(NEXT_GAMES_API);
-      const games = await response.json();
-      const sortedGames = games
-        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
-        .slice(0, 6);
-      const container = document.getElementById("nextGamesChartContainer");
-
-      const previouslySelectedTeam1 = selectedTeam1;
-      const previouslySelectedTeam2 = selectedTeam2;
-
-      container.innerHTML = sortedGames.map(game => `
-        <div class="game-card" data-home="${game.team_home}" data-visit="${game.team_visit}" onclick="selectGameForChart(this, '${game.team_home}', '${game.team_visit}')">
-          <div class="game-time">${game.time}</div>
-          <div class="game-teams">
-            <span class="team-home">${game.team_home}</span>
-            <span class="vs">vs</span>
-            <span class="team-visit">${game.team_visit}</span>
-          </div>
-        </div>
-      `).join("");
-
-      const cards = container.querySelectorAll('.game-card');
-      let cardToSelect = null;
-
-      if (previouslySelectedTeam1 && previouslySelectedTeam2) {
-        cards.forEach(card => {
-          const home = card.getAttribute('data-home');
-          const visit = card.getAttribute('data-visit');
-          if (compareWithoutAccents(home, previouslySelectedTeam1) && compareWithoutAccents(visit, previouslySelectedTeam2)) {
-            cardToSelect = card;
-          }
-        });
-      }
-
-      if (!cardToSelect && cards.length > 0) {
-        cardToSelect = cards[0];
-        selectedTeam1 = cardToSelect.getAttribute('data-home');
-        selectedTeam2 = cardToSelect.getAttribute('data-visit');
-      }
-
-      if (cardToSelect) {
-        cardToSelect.classList.add('selected');
-        if (!previouslySelectedTeam1 || !previouslySelectedTeam2) {
-          selectedTeam1 = cardToSelect.getAttribute('data-home');
-          selectedTeam2 = cardToSelect.getAttribute('data-visit');
-          await updateChart();
+    // As funções que precisam ser chamadas pelo HTML (via onclick) são anexadas ao objeto 'window'
+    window.toggleAccordion = function(button) {
+        const content = button.nextElementSibling;
+        button.classList.toggle('active');
+        if (content.style.maxHeight) {
+            content.style.maxHeight = null;
+        } else {
+            content.style.maxHeight = (content.scrollHeight + 50) + "px";
         }
-      }
-    } catch (error) {
-      console.error("Erro ao carregar próximos jogos:", error);
+    };
+
+    /**
+     * Verifica o resultado de um mercado (green/red) com base no placar.
+     * @param {string} marketKey - A chave do mercado.
+     * @param {string} ftScore - O placar final.
+     * @param {string} htScore - O placar do intervalo.
+     * @returns {boolean} - True se for 'green', false se for 'red'.
+     */
+    function checkMarketOutcome(marketKey, ftScore, htScore) {
+        if (!ftScore || !ftScore.includes(' x ')) return false;
+        const [homeGoals, awayGoals] = ftScore.split(' x ').map(Number);
+        if ([homeGoals, awayGoals].some(isNaN)) return false;
+        const totalGoals = homeGoals + awayGoals;
+
+        const [homeGoalsHT, awayGoalsHT] = (htScore || '0 x 0').split(' x ').map(Number);
+        if ([homeGoalsHT, awayGoalsHT].some(isNaN)) return false;
+
+        switch (marketKey) {
+            case 'odds_ambas_marcam_sim': return homeGoals > 0 && awayGoals > 0;
+            case 'odds_ambas_marcam_nao': return homeGoals === 0 || awayGoals === 0;
+            case 'odds_mais_1_5': return totalGoals > 1.5;
+            case 'odds_menos_1_5': return totalGoals < 1.5;
+            case 'odds_mais_2_5': return totalGoals > 2.5;
+            case 'odds_menos_2_5': return totalGoals < 2.5;
+            case 'odds_mais_3_5': return totalGoals > 3.5;
+            case 'odds_menos_3_5': return totalGoals < 3.5;
+            case 'odds_casa_vence': return homeGoals > awayGoals;
+            case 'odds_visitante_vence': return awayGoals > homeGoals;
+            case 'odds_empate': return homeGoals === awayGoals;
+            case 'odds_empate_ht': return homeGoalsHT === awayGoalsHT;
+            case 'odds_1_gol': return totalGoals === 1;
+            case 'odds_2_gols': return totalGoals === 2;
+            case 'odds_3_gols': return totalGoals === 3;
+            case 'odds_4_gols': return totalGoals === 4;
+            case 'odds_5_gols': return totalGoals === 5;
+            default: return false;
+        }
     }
-  }
 
-  window.selectGameForChart = function(card, teamHome, teamVisit) {
-    document.querySelectorAll('#nextGamesChartContainer .game-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-    selectedTeam1 = teamHome;
-    selectedTeam2 = teamVisit;
-    updateChart();
-  };
+    let showFibonacciLines = true; // Agora está dentro do escopo privado
 
-  async function updateChart() {
-    if (!selectedTeam1 || !selectedTeam2) {
-      console.warn("Times não selecionados.");
-      return;
-    }
+    const fibonacciLinesPlugin = { // Agora está dentro do escopo privado
+        id: 'fibonacciLines',
+        afterDraw: (chart) => {
+            if (!showFibonacciLines || chart.data.datasets.length === 0 || !chart.data.datasets.some(d => d.data.length > 0)) return;
+            
+            const { ctx, chartArea } = chart;
+            const fibonacciLevels = [0, 23.6, 38.2, 50, 61.8, 100];
+            ctx.save();
+            fibonacciLevels.forEach(level => {
+                const percentagePosition = level / 100;
+                const y = chartArea.bottom - (percentagePosition * (chartArea.bottom - chartArea.top));
+                if (y >= chartArea.top && y <= chartArea.bottom) {
+                    ctx.beginPath();
+                    ctx.moveTo(chartArea.left, y);
+                    ctx.lineTo(chartArea.right, y);
+                    ctx.strokeStyle = 'rgba(255, 235, 59, 0.6)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 4]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = 'rgba(255, 235, 59, 0.6)';
+                    ctx.font = '10px Arial';
+                    ctx.textAlign = 'left';
+                    const textX = chartArea.right + 5;
+                    const textY = y + 3;
+                    ctx.fillText(`${level.toFixed(1)}%`, textX, textY);
+                }
+            });
+            ctx.restore();
+        }
+    };
+    
+    async function initializeChart() {
+        const ctx = document.getElementById("timeChart").getContext("2d");
+        const fibonacciToggle = document.getElementById('fibonacciToggle');
+        let fetchedData = [];
+        let displayDataTeam1 = [];
+        let displayDataTeam2 = [];
+        let selectedTeam1 = null;
+        let selectedTeam2 = null;
+        let timeChart = null;
+        const NEXT_GAMES_API = "https://betstat.site/proximos/Taça%20Glória%20Eterna";
 
-    fetchedData = await fetchChartData();
-    if (fetchedData.length === 0) {
-      console.warn("Nenhum dado para atualizar.");
-      return;
-    }
+        const markets = {
+            'Ambas Sim': 'odds_ambas_marcam_sim', 'Ambas Não': 'odds_ambas_marcam_nao',
+            'Over 1.5': 'odds_mais_1_5', 'Over 2.5': 'odds_mais_2_5', 'Over 3.5': 'odds_mais_3_5',
+            'Under 1.5': 'odds_menos_1_5', 'Under 2.5': 'odds_menos_2_5', 'Under 3.5': 'odds_menos_3_5',
+            'Casa Vence': 'odds_casa_vence', 'Fora Vence': 'odds_visitante_vence', 'Empate': 'odds_empate', 'Empate HT': 'odds_empate_ht',
+            '1 Gol': 'odds_1_gol', '2 Gols': 'odds_2_gols', '3 Gols': 'odds_3_gols', '4 Gols': 'odds_4_gols', '5 Gols': 'odds_5_gols'
+        };
+        const gameCountOptions = [30, 60, 120, 240];
+        const averageOptions = [5, 10, 15, 20];
 
-    const gameCount = parseInt(document.getElementById('gameCountSelector').value);
-    displayDataTeam1 = fetchedData.filter(
-      item => compareWithoutAccents(item.time_a, selectedTeam1) ||
-              compareWithoutAccents(item.time_b, selectedTeam1)
-    ).slice(-gameCount);
+        document.getElementById('nextGamesChartContainer').insertAdjacentHTML('afterend', `
+          <div class="selectors-container">
+              <select id="marketSelectorTime">
+                  ${Object.keys(markets).map(option => `<option value="${option}">${option}</option>`).join('')}
+              </select>
+              <select id="gameCountSelectorTime">
+                  ${gameCountOptions.map(count => `<option value="${count}">${count} Jogos</option>`).join('')}
+              </select>
+              <select id="averageSelectorTime">
+                  ${averageOptions.map(avg => `<option value="${avg}" ${avg === 10 ? 'selected' : ''}>Média ${avg} Jogos</option>`).join('')}
+              </select>
+          </div>
+        `);
 
-    displayDataTeam2 = fetchedData.filter(
-      item => compareWithoutAccents(item.time_a, selectedTeam2) ||
-              compareWithoutAccents(item.time_b, selectedTeam2)
-    ).slice(-gameCount);
+        function compareWithoutAccents(str1, str2) {
+            if (!str1 || !str2) return false;
+            const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            return normalize(str1) === normalize(str2);
+        }
 
-    const maxLength = Math.max(displayDataTeam1.length, displayDataTeam2.length);
-    const labels = Array.from({ length: maxLength }, (_, i) => `Jogo ${i + 1}`);
-
-    const team1Performance = calculateTeamPerformance(displayDataTeam1);
-    const team2Performance = calculateTeamPerformance(displayDataTeam2);
-
-    timeChart.data.labels = labels;
-    timeChart.data.datasets[0].data = team1Performance;
-    timeChart.data.datasets[0].label = `Desempenho - ${selectedTeam1}`;
-    timeChart.data.datasets[1].data = team2Performance;
-    timeChart.data.datasets[1].label = `Desempenho - ${selectedTeam2}`;
-    timeChart.update();
-  }
-
-  const chartData = {
-    labels: [],
-    datasets: [
-      {
-        label: "Time 1",
-        data: [],
-        borderColor: "rgba(31, 173, 139, 1)",
-        backgroundColor: "rgba(31, 173, 139, 0.5)",
-        borderWidth: 2,
-        pointRadius: 3,
-        pointBackgroundColor: "rgba(31, 173, 139, 1)",
-      },
-      {
-        label: "Time 2",
-        data: [],
-        borderColor: "rgba(255, 255, 255, 1)",
-        backgroundColor: "rgba(255, 255, 255, 0.5)",
-        borderWidth: 2,
-        pointRadius: 3,
-        pointBackgroundColor: "rgba(255, 255, 255, 1)",
-      },
-    ],
-  };
-
-  const timeChart = new Chart(ctx, {
-    type: "line",
-    data: chartData,
-    options: {
-      scales: {
-        y: {
-          position: "right",
-          ticks: {
-            color: "white",
-            stepSize: 10, // Intervalo de 10% para as marcações
-            callback: function(value) {
-              return value + '%'; // Adiciona o símbolo de porcentagem
+        async function fetchChartData() {
+            try {
+                const response = await fetch("https://betstat.site/resultados/Taça%20Glória%20Eterna");
+                const data = await response.json();
+                return data.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            } catch (error) {
+                console.error("Erro ao buscar dados históricos:", error);
+                return [];
             }
-          },
-          grid: { color: "rgba(255, 255, 255, 0.5)", drawBorder: false, lineWidth: 1 },
-          title: {
-            display: true,
-            color: 'white'
-          }
-        },
-        x: {
-          grid: { color: "rgba(0, 0, 0, 0)" },
-          ticks: { color: "white", display: false },
-        },
-      },
-      responsive: true,
-      plugins: {
-        legend: { display: true, labels: { color: "white" } },
-        tooltip: {
-          enabled: true,
-          callbacks: {
-            title: function(context) {
-              const dsIndex = context[0].datasetIndex;
-              const displayData = dsIndex === 0 ? displayDataTeam1 : displayDataTeam2;
-              const index = context[0].dataIndex;
-              const game = displayData[index];
-              return game ? `${game.data} ${game.hora}:${game.minuto.toString().padStart(2, "0")}` : 'N/A';
+        }
+
+        function calculateMovingAverage(games, marketKey, averageWindow) {
+            if (games.length < averageWindow) {
+                return { dataPoints: [], pointBackgroundColors: [] };
+            }
+            const dataPoints = [], pointBackgroundColors = [];
+            const gamesWithOutcome = games.map(game => ({ ...game, isGreen: checkMarketOutcome(marketKey, game.ft, game.ht) }));
+
+            for (let i = averageWindow - 1; i < gamesWithOutcome.length; i++) {
+                const gameWindow = gamesWithOutcome.slice(i - averageWindow + 1, i + 1);
+                const greenCountInWindow = gameWindow.filter(g => g.isGreen).length;
+                dataPoints.push((greenCountInWindow / gameWindow.length) * 100);
+                pointBackgroundColors.push(gamesWithOutcome[i].isGreen ? '#018b06' : '#be0e02');
+            }
+            return { dataPoints, pointBackgroundColors };
+        }
+        
+        async function loadNextGamesForChart() {
+           try {
+               const response = await fetch(NEXT_GAMES_API);
+               const games = await response.json();
+               const container = document.getElementById("nextGamesChartContainer");
+               container.innerHTML = games.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 6)
+                   .map(game => `
+                     <div class="game-card" data-home="${game.team_home}" data-visit="${game.team_visit}" onclick="selectGameForChart(this, '${game.team_home}', '${game.team_visit}')">
+                       <div class="game-time">${game.time}</div>
+                       <div class="game-teams">
+                         <span>${game.team_home}</span><span class="vs">vs</span><span>${game.team_visit}</span>
+                       </div>
+                     </div>`).join("");
+
+               const firstCard = container.querySelector('.game-card');
+               if (firstCard && (!selectedTeam1 || !selectedTeam2)) {
+                   firstCard.click();
+               }
+           } catch (error) {
+               console.error("Erro ao carregar próximos jogos:", error);
+           }
+        }
+
+        window.selectGameForChart = function(card, teamHome, teamVisit) {
+            document.querySelectorAll('#nextGamesChartContainer .game-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedTeam1 = teamHome;
+            selectedTeam2 = teamVisit;
+            updateChart();
+        };
+
+        async function updateChart() {
+            if (!selectedTeam1 || !selectedTeam2 || !timeChart) return;
+            
+            if (fetchedData.length === 0) {
+                fetchedData = await fetchChartData();
+                if (fetchedData.length === 0) return;
+            }
+
+            const marketKey = markets[document.getElementById('marketSelectorTime').value];
+            const gameCount = parseInt(document.getElementById('gameCountSelectorTime').value);
+            const averageWindow = parseInt(document.getElementById('averageSelectorTime').value);
+
+            displayDataTeam1 = fetchedData.filter(item => compareWithoutAccents(item.time_a, selectedTeam1) || compareWithoutAccents(item.time_b, selectedTeam1)).slice(-gameCount);
+            displayDataTeam2 = fetchedData.filter(item => compareWithoutAccents(item.time_a, selectedTeam2) || compareWithoutAccents(item.time_b, selectedTeam2)).slice(-gameCount);
+            
+            const perfTeam1 = calculateMovingAverage(displayDataTeam1, marketKey, averageWindow);
+            const perfTeam2 = calculateMovingAverage(displayDataTeam2, marketKey, averageWindow);
+            
+            const totalWinRateTeam1 = displayDataTeam1.length > 0 ? (displayDataTeam1.filter(g => checkMarketOutcome(marketKey, g.ft, g.ht)).length / displayDataTeam1.length * 100) : 0;
+            const totalWinRateTeam2 = displayDataTeam2.length > 0 ? (displayDataTeam2.filter(g => checkMarketOutcome(marketKey, g.ft, g.ht)).length / displayDataTeam2.length * 100) : 0;
+
+            timeChart.data.labels = Array.from({ length: Math.max(perfTeam1.dataPoints.length, perfTeam2.dataPoints.length) }, (_, i) => `Ponto ${i + 1}`);
+            Object.assign(timeChart.data.datasets[0], { data: perfTeam1.dataPoints, pointBackgroundColor: perfTeam1.pointBackgroundColors, pointBorderColor: perfTeam1.pointBackgroundColors, label: `${selectedTeam1} (${totalWinRateTeam1.toFixed(1)}%)` });
+            Object.assign(timeChart.data.datasets[1], { data: perfTeam2.dataPoints, pointBackgroundColor: perfTeam2.pointBackgroundColors, pointBorderColor: perfTeam2.pointBackgroundColors, label: `${selectedTeam2} (${totalWinRateTeam2.toFixed(1)}%)` });
+            
+            timeChart.update('none');
+        }
+
+        timeChart = new Chart(ctx, {
+            type: "line",
+            data: {
+                datasets: [
+                    { borderColor: "rgba(31, 173, 139, 1)", borderWidth: 2, tension: 0.1, pointRadius: 4, pointHoverRadius: 6 },
+                    { borderColor: "rgba(255, 255, 255, 1)", borderWidth: 2, tension: 0.1, pointRadius: 4, pointHoverRadius: 6 }
+                ]
             },
-            label: function(context) {
-              const dsIndex = context.datasetIndex;
-              const displayData = dsIndex === 0 ? displayDataTeam1 : displayDataTeam2;
-              const index = context.dataIndex;
-              const currentGame = displayData[index] || { ft: "N/A" };
-              return [`${context.dataset.label}`, `Placar: ${currentGame.ft}`, `Porcentagem: ${context.raw.toFixed(1)}%`];
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                layout: { padding: { top: 10, right: 60, bottom: 5, left: 5 } },
+                scales: {
+                    y: { position: "right", ticks: { color: "white", callback: (value) => value + '%' }, grid: { color: "rgba(255, 255, 255, 0.2)" } },
+                    x: { grid: { display: false }, ticks: { display: false } },
+                },
+                plugins: {
+                    legend: { labels: { color: "white" } },
+                    tooltip: {
+                        callbacks: {
+                            title: (ctx) => {
+                                const data = ctx[0].datasetIndex === 0 ? displayDataTeam1 : displayDataTeam2;
+                                const game = data[ctx[0].dataIndex + parseInt(document.getElementById('averageSelectorTime').value) - 1];
+                                return game ? `${game.time_a} vs ${game.time_b}` : 'N/A';
+                            },
+                            label: (ctx) => {
+                                const data = ctx.datasetIndex === 0 ? displayDataTeam1 : displayDataTeam2;
+                                const game = data[ctx.dataIndex + parseInt(document.getElementById('averageSelectorTime').value) - 1];
+                                return game ? [`Placar: ${game.ft}`, `Data: ${new Date(game.created_at).toLocaleDateString()}`, `Média: ${ctx.raw.toFixed(1)}%`] : "";
+                            }
+                        }
+                    }
+                }
             },
-          },
-        },
-      },
-    },
-  });
+            plugins: [fibonacciLinesPlugin]
+        });
 
-  // Adicionar eventos aos seletores
-  document.getElementById('marketSelector').addEventListener('change', updateChart);
-  document.getElementById('gameCountSelector').addEventListener('change', updateChart);
+        fibonacciToggle.addEventListener('change', () => {
+            showFibonacciLines = fibonacciToggle.checked;
+            if (timeChart) timeChart.update();
+        });
+        
+        ['marketSelectorTime', 'gameCountSelectorTime', 'averageSelectorTime'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateChart);
+        });
+        
+        await loadNextGamesForChart();
+        setInterval(loadNextGamesForChart, 30000);
+    }
 
-  // Inicialização
-  await loadNextGamesForChart();
-  setInterval(async () => {
-    await loadNextGamesForChart();
-    await updateChart();
-  }, 15000);
-}
+    document.addEventListener('DOMContentLoaded', initializeChart);
 
-initializeChart();
+})(); // Fim do encapsulamento
     </script>
 
 
