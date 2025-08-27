@@ -247,15 +247,19 @@
     <button class="accordion-button" onclick="toggleAccordion(this)">▼ Desempenho de Times ▲</button>
     <div class="accordion-content">
         <div class="next-games-container" id="nextGamesChartContainer"></div>
-        <!-- Os seletores serão adicionados aqui pelo JavaScript -->
-        <div class="chart-container">
-             <label for="fibonacciToggle">novo Linhas Fibonacci:</label>
-            <canvas id="timeChart" width="1080" height="400"></canvas>
+        <div class="selectors-container">
+            <select id="marketSelectorTime"></select>
+            <select id="gameCountSelectorTime"></select>
+            <select id="averageSelectorTime"></select>
         </div>
-                        <label class="switch">
-                    <input type="checkbox" id="fibonacciToggle" checked>
-                    <span class="slider"></span>
-                </label>
+        <div class="chart-container">
+            <label for="fibonacciToggle">Linhas Fibonacci:</label>
+            <canvas id="timeChart"></canvas>
+            <label class="switch">
+                <input type="checkbox" id="fibonacciToggle" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
     </div>
 </div>
 
@@ -5281,26 +5285,30 @@ updateGolsChart();
 
     <script>
 (function() {
-    'use strict'; // Ajuda a prevenir erros comuns
+    'use strict';
 
-    // As funções que precisam ser chamadas pelo HTML (via onclick) são anexadas ao objeto 'window'
     window.toggleAccordion = function(button) {
         const content = button.nextElementSibling;
+        const panel = button.parentElement;
+        const allItems = document.querySelectorAll('.accordion-item');
+
+        allItems.forEach(item => {
+            const currentContent = item.querySelector('.accordion-content');
+            const currentButton = item.querySelector('.accordion-button');
+            if (currentContent !== content && currentContent.style.maxHeight) {
+                currentContent.style.maxHeight = null;
+                currentButton.classList.remove('active');
+            }
+        });
+
         button.classList.toggle('active');
         if (content.style.maxHeight) {
             content.style.maxHeight = null;
         } else {
-            content.style.maxHeight = (content.scrollHeight + 50) + "px";
+            content.style.maxHeight = content.scrollHeight + "px";
         }
     };
 
-    /**
-     * Verifica o resultado de um mercado (green/red) com base no placar.
-     * @param {string} marketKey - A chave do mercado.
-     * @param {string} ftScore - O placar final.
-     * @param {string} htScore - O placar do intervalo.
-     * @returns {boolean} - True se for 'green', false se for 'red'.
-     */
     function checkMarketOutcome(marketKey, ftScore, htScore) {
         if (!ftScore || !ftScore.includes(' x ')) return false;
         const [homeGoals, awayGoals] = ftScore.split(' x ').map(Number);
@@ -5332,9 +5340,9 @@ updateGolsChart();
         }
     }
 
-    let showFibonacciLines = true; // Agora está dentro do escopo privado
+    let showFibonacciLines = true;
 
-    const fibonacciLinesPlugin = { // Agora está dentro do escopo privado
+    const fibonacciLinesPlugin = {
         id: 'fibonacciLines',
         afterDraw: (chart) => {
             if (!showFibonacciLines || chart.data.datasets.length === 0 || !chart.data.datasets.some(d => d.data.length > 0)) return;
@@ -5349,15 +5357,15 @@ updateGolsChart();
                     ctx.beginPath();
                     ctx.moveTo(chartArea.left, y);
                     ctx.lineTo(chartArea.right, y);
-                    ctx.strokeStyle = 'rgba(255, 235, 59, 0.6)';
-                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#00C853'; /* Cor verde vibrante */
+                    ctx.lineWidth = 1.5;
                     ctx.setLineDash([4, 4]);
                     ctx.stroke();
                     ctx.setLineDash([]);
-                    ctx.fillStyle = 'rgba(255, 235, 59, 0.6)';
+                    ctx.fillStyle = '#00C853';
                     ctx.font = '10px Arial';
-                    ctx.textAlign = 'left';
-                    const textX = chartArea.right + 5;
+                    ctx.textAlign = 'right';
+                    const textX = chartArea.left - 5;
                     const textY = y + 3;
                     ctx.fillText(`${level.toFixed(1)}%`, textX, textY);
                 }
@@ -5387,19 +5395,21 @@ updateGolsChart();
         const gameCountOptions = [30, 60, 120, 240];
         const averageOptions = [5, 10, 15, 20];
 
-        document.getElementById('nextGamesChartContainer').insertAdjacentHTML('afterend', `
-          <div class="selectors-container">
-              <select id="marketSelectorTime">
-                  ${Object.keys(markets).map(option => `<option value="${option}">${option}</option>`).join('')}
-              </select>
-              <select id="gameCountSelectorTime">
-                  ${gameCountOptions.map(count => `<option value="${count}">${count} Jogos</option>`).join('')}
-              </select>
-              <select id="averageSelectorTime">
-                  ${averageOptions.map(avg => `<option value="${avg}" ${avg === 10 ? 'selected' : ''}>Média ${avg} Jogos</option>`).join('')}
-              </select>
-          </div>
-        `);
+        function createSelectors() {
+            const selectorsContainer = document.querySelector('.selectors-container');
+            selectorsContainer.innerHTML = `
+                <select id="marketSelectorTime">
+                    ${Object.keys(markets).map(option => `<option value="${option}">${option}</option>`).join('')}
+                </select>
+                <select id="gameCountSelectorTime">
+                    ${gameCountOptions.map(count => `<option value="${count}">${count} Jogos</option>`).join('')}
+                </select>
+                <select id="averageSelectorTime">
+                    ${averageOptions.map(avg => `<option value="${avg}" ${avg === 10 ? 'selected' : ''}>Média ${avg} Jogos</option>`).join('')}
+                </select>
+            `;
+        }
+        createSelectors();
 
         function compareWithoutAccents(str1, str2) {
             if (!str1 || !str2) return false;
@@ -5435,26 +5445,26 @@ updateGolsChart();
         }
         
         async function loadNextGamesForChart() {
-           try {
-               const response = await fetch(NEXT_GAMES_API);
-               const games = await response.json();
-               const container = document.getElementById("nextGamesChartContainer");
-               container.innerHTML = games.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 6)
-                   .map(game => `
-                     <div class="game-card" data-home="${game.team_home}" data-visit="${game.team_visit}" onclick="selectGameForChart(this, '${game.team_home}', '${game.team_visit}')">
-                       <div class="game-time">${game.time}</div>
-                       <div class="game-teams">
-                         <span>${game.team_home}</span><span class="vs">vs</span><span>${game.team_visit}</span>
-                       </div>
-                     </div>`).join("");
+            try {
+                const response = await fetch(NEXT_GAMES_API);
+                const games = await response.json();
+                const container = document.getElementById("nextGamesChartContainer");
+                container.innerHTML = games.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 6)
+                    .map(game => `
+                        <div class="game-card" data-home="${game.team_home}" data-visit="${game.team_visit}" onclick="selectGameForChart(this, '${game.team_home}', '${game.team_visit}')">
+                            <div class="game-time">${game.time}</div>
+                            <div class="game-teams">
+                                <span>${game.team_home}</span><span class="vs">vs</span><span>${game.team_visit}</span>
+                            </div>
+                        </div>`).join("");
 
-               const firstCard = container.querySelector('.game-card');
-               if (firstCard && (!selectedTeam1 || !selectedTeam2)) {
-                   firstCard.click();
-               }
-           } catch (error) {
-               console.error("Erro ao carregar próximos jogos:", error);
-           }
+                const firstCard = container.querySelector('.game-card');
+                if (firstCard && (!selectedTeam1 || !selectedTeam2)) {
+                    firstCard.click();
+                }
+            } catch (error) {
+                console.error("Erro ao carregar próximos jogos:", error);
+            }
         }
 
         window.selectGameForChart = function(card, teamHome, teamVisit) {
@@ -5466,7 +5476,7 @@ updateGolsChart();
         };
 
         async function updateChart() {
-            if (!selectedTeam1 || !selectedTeam2 || !timeChart) return;
+            if (!selectedTeam1 || !selectedTeam2) return;
             
             if (fetchedData.length === 0) {
                 fetchedData = await fetchChartData();
@@ -5486,48 +5496,61 @@ updateGolsChart();
             const totalWinRateTeam1 = displayDataTeam1.length > 0 ? (displayDataTeam1.filter(g => checkMarketOutcome(marketKey, g.ft, g.ht)).length / displayDataTeam1.length * 100) : 0;
             const totalWinRateTeam2 = displayDataTeam2.length > 0 ? (displayDataTeam2.filter(g => checkMarketOutcome(marketKey, g.ft, g.ht)).length / displayDataTeam2.length * 100) : 0;
 
+            if (!timeChart) {
+                timeChart = new Chart(ctx, {
+                    type: "line",
+                    data: {
+                        datasets: [
+                            { borderColor: "rgba(31, 173, 139, 1)", borderWidth: 2, tension: 0.1, pointRadius: 4, pointHoverRadius: 6 },
+                            { borderColor: "rgba(255, 255, 255, 1)", borderWidth: 2, tension: 0.1, pointRadius: 4, pointHoverRadius: 6 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        layout: { padding: { top: 10, right: 10, bottom: 5, left: 60 } },
+                        scales: {
+                            y: {
+                                position: "left",
+                                ticks: {
+                                    color: "white",
+                                    callback: (value) => value + '%'
+                                },
+                                grid: { color: "rgba(255, 255, 255, 0.2)" }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { display: false }
+                            },
+                        },
+                        plugins: {
+                            legend: { labels: { color: "white" } },
+                            tooltip: {
+                                callbacks: {
+                                    title: (ctx) => {
+                                        const data = ctx[0].datasetIndex === 0 ? displayDataTeam1 : displayDataTeam2;
+                                        const game = data[ctx[0].dataIndex + parseInt(document.getElementById('averageSelectorTime').value) - 1];
+                                        return game ? `${game.time_a} vs ${game.time_b}` : 'N/A';
+                                    },
+                                    label: (ctx) => {
+                                        const data = ctx.datasetIndex === 0 ? displayDataTeam1 : displayDataTeam2;
+                                        const game = data[ctx.dataIndex + parseInt(document.getElementById('averageSelectorTime').value) - 1];
+                                        return game ? [`Placar: ${game.ft}`, `Data: ${new Date(game.created_at).toLocaleDateString()}`, `Média: ${ctx.raw.toFixed(1)}%`] : "";
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    plugins: [fibonacciLinesPlugin]
+                });
+            }
+
             timeChart.data.labels = Array.from({ length: Math.max(perfTeam1.dataPoints.length, perfTeam2.dataPoints.length) }, (_, i) => `Ponto ${i + 1}`);
             Object.assign(timeChart.data.datasets[0], { data: perfTeam1.dataPoints, pointBackgroundColor: perfTeam1.pointBackgroundColors, pointBorderColor: perfTeam1.pointBackgroundColors, label: `${selectedTeam1} (${totalWinRateTeam1.toFixed(1)}%)` });
             Object.assign(timeChart.data.datasets[1], { data: perfTeam2.dataPoints, pointBackgroundColor: perfTeam2.pointBackgroundColors, pointBorderColor: perfTeam2.pointBackgroundColors, label: `${selectedTeam2} (${totalWinRateTeam2.toFixed(1)}%)` });
             
             timeChart.update('none');
         }
-
-        timeChart = new Chart(ctx, {
-            type: "line",
-            data: {
-                datasets: [
-                    { borderColor: "rgba(31, 173, 139, 1)", borderWidth: 2, tension: 0.1, pointRadius: 4, pointHoverRadius: 6 },
-                    { borderColor: "rgba(255, 255, 255, 1)", borderWidth: 2, tension: 0.1, pointRadius: 4, pointHoverRadius: 6 }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                layout: { padding: { top: 10, right: 60, bottom: 5, left: 5 } },
-                scales: {
-                    y: { position: "right", ticks: { color: "white", callback: (value) => value + '%' }, grid: { color: "rgba(255, 255, 255, 0.2)" } },
-                    x: { grid: { display: false }, ticks: { display: false } },
-                },
-                plugins: {
-                    legend: { labels: { color: "white" } },
-                    tooltip: {
-                        callbacks: {
-                            title: (ctx) => {
-                                const data = ctx[0].datasetIndex === 0 ? displayDataTeam1 : displayDataTeam2;
-                                const game = data[ctx[0].dataIndex + parseInt(document.getElementById('averageSelectorTime').value) - 1];
-                                return game ? `${game.time_a} vs ${game.time_b}` : 'N/A';
-                            },
-                            label: (ctx) => {
-                                const data = ctx.datasetIndex === 0 ? displayDataTeam1 : displayDataTeam2;
-                                const game = data[ctx.dataIndex + parseInt(document.getElementById('averageSelectorTime').value) - 1];
-                                return game ? [`Placar: ${game.ft}`, `Data: ${new Date(game.created_at).toLocaleDateString()}`, `Média: ${ctx.raw.toFixed(1)}%`] : "";
-                            }
-                        }
-                    }
-                }
-            },
-            plugins: [fibonacciLinesPlugin]
-        });
 
         fibonacciToggle.addEventListener('change', () => {
             showFibonacciLines = fibonacciToggle.checked;
@@ -5544,7 +5567,7 @@ updateGolsChart();
 
     document.addEventListener('DOMContentLoaded', initializeChart);
 
-})(); // Fim do encapsulamento
+})();
     </script>
 
 
