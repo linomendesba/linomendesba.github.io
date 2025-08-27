@@ -2466,63 +2466,51 @@ setInterval(async () => {
     </script>
 
     <script>
-const API_URL = ROTAS_API.resultados(LIGA_ATUAL);        // string da URL
-const NEXT_GAMES_URL = ROTAS_API.proximosJogos(LIGA_ATUAL); // string da URL
+    const API_URL = "https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna";
+    const NEXT_GAMES_API = "https://betstat.site/proximos/Taça%20Glória%20Eterna";
+    let lastResults = [];
+    let selectedGame = null;
+    let isComparisonMode = false;
+    let autoUpdateInterval = null;
 
-let lastResults = [];
-let selectedGame = null;
-let isComparisonMode = false;
-let autoUpdateInterval = null;
+    function toggleAccordion(button) {
+      const content = button.nextElementSibling;
+      const isOpen = content.style.display === "block";
+      content.style.display = isOpen ? "none" : "block";
+      button.innerHTML = isOpen ? "▼ Próximos Confrontos ▲" : "▲ Próximos Confrontos ▼";
+    }
 
-function toggleAccordion(button) {
-  const content = button.nextElementSibling;
-  const isOpen = content.style.display === "block";
-  content.style.display = isOpen ? "none" : "block";
-  button.innerHTML = isOpen ? "▼ Próximos Confrontos ▲" : "▲ Próximos Confrontos ▼";
-}
+    async function loadNextGames() {
+      try {
+        const response = await fetch(NEXT_GAMES_API);
+        if (!response.ok) throw new Error(`Erro na requisição: ${response.status}`);
+        const games = await response.json();
+        const selectedGames = games.slice(0, 6);
 
-async function loadNextGames() {
-  try {
-    const response = await fetch(`${NEXT_GAMES_URL}?timestamp=${Date.now()}`);
-    if (!response.ok) throw new Error(`Erro na requisição: ${response.status}`);
-    const games = await response.json();
-    const selectedGames = games.slice(0, 6);
+        const container = document.getElementById("nextGamesContainer");
+        container.innerHTML = selectedGames.map(game => `
+          <div class="game-card" data-home="${game.team_home}" data-visit="${game.team_visit}">
+            <div class="game-time">${game.time}</div>
+            <div class="game-teams">
+              <span class="team-home">${game.team_home}</span>
+              <span class="vs">vs</span>
+              <span class="team-visit">${game.team_visit}</span>
+            </div>
+          </div>
+        `).join("");
 
-    const container = document.getElementById("nextGamesContainer");
-    container.innerHTML = selectedGames.map(game => `
-      <div class="game-card" data-home="${game.team_home}" data-visit="${game.team_visit}">
-        <div class="game-time">${game.time || game.start_time || ""}</div>
-        <div class="game-teams">
-          <span class="team-home">${game.team_home}</span>
-          <span class="vs">vs</span>
-          <span class="team-visit">${game.team_visit}</span>
-        </div>
-      </div>
-    `).join("");
-
-    // Clique nos cards
-    container.addEventListener("click", (event) => {
-      const card = event.target.closest(".game-card");
-      if (card) {
-        const teamHome = card.dataset.home;
-        const teamVisit = card.dataset.visit;
-        selectGame(card, teamHome, teamVisit);
+        container.addEventListener("click", (event) => {
+          const card = event.target.closest(".game-card");
+          if (card) {
+            const teamHome = card.dataset.home;
+            const teamVisit = card.dataset.visit;
+            selectGame(card, teamHome, teamVisit);
+          }
+        });
+      } catch (error) {
+        console.error("Erro ao carregar próximos jogos:", error);
       }
-    });
-
-  } catch (error) {
-    console.error("Erro ao carregar próximos jogos:", error);
-  }
-}
-
-// Função de exemplo para selecionar jogo
-function selectGame(cardEl, home, visit) {
-  selectedGame = { home, visit };
-  console.log("Jogo selecionado:", selectedGame);
-  document.querySelectorAll(".game-card").forEach(c => c.classList.remove("selected"));
-  cardEl.classList.add("selected");
-}
-
+    }
 
     function selectGame(card, teamHome, teamVisit) {
       document.querySelectorAll(".game-card").forEach(c => c.classList.remove("selected"));
