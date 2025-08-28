@@ -21,6 +21,9 @@ function redirecionar(select) {
     url === "https://www.betstat.site/quadrantesgols.html" ||
     url === "https://www.betstat.site/365macro.html" ||
     url === "https://www.betstat.site/mult365.html" ||
+    url === "https://www.betstat.site/localizAI.html" ||
+    url === "https://www.betstat.site/classificacao.html" ||
+    url === "https://www.betstat.site/graficotime.html" ||
     url === "https://www.betstat.site/Palpites.html" ||
     url === "https://www.betstat.site/365fixo.html" ||
     url === "https://www.betstat.site/graficoodd.html" ||
