@@ -289,7 +289,7 @@ function showBusy(text='Calculando os padrões…'){
 }
 function hideBusy(){ const o=document.getElementById('busy'); if(o) o.style.display='none'; }
 
-function buildFutureBarHTML(count=9){
+function buildFutureBarHTML(count=6){
   const cells = Array.from({length:count}, () =>
     `<span class="cell cell-grey"></span>`
   ).join('');
@@ -465,6 +465,7 @@ async function baixarArquivoRaw(url){
         raw,
         lastFetched: Date.now()
     };
+    return raw;
 }
 
 /* Garante cache (ou força novo download) */
@@ -580,6 +581,24 @@ function attachSortingHandlers(tabela){
   });
 }
 
+function renderProximosJogos(futureBar, proximosJogos) {
+    if (!futureBar || !proximosJogos || !Array.isArray(proximosJogos)) return;
+    const cells = futureBar.querySelectorAll('.cell');
+    proximosJogos.slice(0, cells.length).forEach((jogo, index) => {
+        const cell = cells[index];
+        if (cell) {
+            cell.innerHTML = `
+                <span class="time">${jogo.time || ''}</span>
+                <span class="team">${jogo.team_home || ''}</span>
+                <span class="score">VS</span>
+                <span class="team">${jogo.team_visit || ''}</span>
+            `;
+            cell.title = `${jogo.time} · ${jogo.team_home} vs ${jogo.team_visit}`;
+        }
+    });
+}
+
+
 /* render principal */
 function exibirResultados(conjuntos, combinado, activeMarkets=[]){
   window.recentCountByLeague = window.recentCountByLeague || {};
@@ -620,7 +639,7 @@ function exibirResultados(conjuntos, combinado, activeMarkets=[]){
   }
 
   for(const conjunto of conjuntos){
-    const { liga: nomeLiga, resultadosPorAtivo, dadosCru } = conjunto;
+    const { liga: nomeLiga, resultadosPorAtivo, dadosCru, proximosJogos } = conjunto;
     const indexColorMap=new Map();
 
     const header=document.createElement('div');
@@ -648,21 +667,25 @@ function exibirResultados(conjuntos, combinado, activeMarkets=[]){
 
     const futureWrap=document.createElement('div');
     futureWrap.className='recent-wrap';
-    futureWrap.innerHTML = buildFutureBarHTML(9);
+    futureWrap.innerHTML = buildFutureBarHTML(6);
     const futureBar = futureWrap.querySelector('.future-bar');
     root.appendChild(futureWrap);
+    
+    // Renderiza os próximos jogos ANTES de calcular as entradas de padrão
+    renderProximosJogos(futureBar, proximosJogos);
 
     function clearFutureBar(){
       if(!futureBar) return;
+      futureBar.querySelectorAll('.entry-badge').forEach(b => b.remove());
       futureBar.querySelectorAll('.cell').forEach(c=>{
         c.classList.remove('cell-hit','cell-focus');
         c.style.removeProperty('--hit');
-        c.innerHTML = '';
       });
     }
+    
     function addMarkerToFutureSlot(f, color, label){
       if(!futureBar) return;
-      if(f<0 || f>=9) return;
+      if(f<0 || f>=6) return;
       const c = futureBar.querySelectorAll('.cell')[f];
       if(!c) return;
 
@@ -826,7 +849,7 @@ function exibirResultados(conjuntos, combinado, activeMarkets=[]){
         const iBase = arr[0] - offsets[0];
         const entrada = iBase + lastOffset + 1 + pular;
         const f = entrada - futureBase;
-        if(f>=0 && f<9){
+        if(f>=0 && f<6){
           if(!futureSlotMap.has(f)) futureSlotMap.set(f, []);
           futureSlotMap.get(f).push({ lineInfo, arr, marketDisplayIndex });
           addMarkerToFutureSlot(f, color, `E${marketDisplayIndex+1}`);
@@ -846,7 +869,7 @@ function exibirResultados(conjuntos, combinado, activeMarkets=[]){
             const iBase = arr[0] - offsets[0];
             const entrada = iBase + lastOffset + 1 + pular;
             const f = entrada - futureBase;
-            if(f>=0 && f<9){
+            if(f>=0 && f<6){
               if(!futureSlotMap.has(f)) futureSlotMap.set(f, []);
               const already = futureSlotMap.get(f).some(x=>x.lineInfo===li);
               if(!already){
@@ -891,7 +914,7 @@ function exibirResultados(conjuntos, combinado, activeMarkets=[]){
         const base = arr[k] - offsets[k];
         const entrada = base + lastOffset + 1 + pular;
         const f = entrada - futureBase;
-        if(f>=0 && f<9){
+        if(f>=0 && f<6){
           if(!futureSlotMap.has(f)) futureSlotMap.set(f, []);
           futureSlotMap.get(f).push({ lineInfo: match, arr, marketDisplayIndex });
           addMarkerToFutureSlot(f, color, `E${marketDisplayIndex+1}`);
@@ -1138,8 +1161,10 @@ document.addEventListener('click', (ev)=>{
       tr.classList.remove('row-active');
       tr.style.removeProperty('box-shadow');
     });
-    document.querySelectorAll('.future-bar .cell').forEach(c=>{
-      c.classList.remove('cell-hit','cell-focus'); c.style.removeProperty('--hit'); c.innerHTML='';
+    const futureBars = document.querySelectorAll('.future-bar');
+    futureBars.forEach(fb => {
+        const proximos = JSON.parse(fb.dataset.proximos || '[]');
+        renderProximosJogos(fb, proximos);
     });
   }
 }, true);
@@ -1223,11 +1248,15 @@ async function reprocessarComCache(){
       try{
         const arq = liga.url;
         const cached = window.CACHE_ARQUIVOS[arq];
-        if(!cached){
-          console.warn(`Arquivo ${arq} ainda não está em cache. Clique em "Carregar Dados".`);
+        const cachedProximos = window.CACHE_ARQUIVOS[arq.replace('/resultados/', '/proximos/')];
+
+        if(!cached || !cachedProximos){
+          console.warn(`Dados para ${liga.name} não estão em cache. Clique em "Carregar Dados".`);
           continue;
         }
         const {dados} = parseJSONToDados(cached.raw, numLinhas);
+        const proximosJogos = JSON.parse(cachedProximos.raw);
+
 
         if(activeMarkets.length===0){
           activeMarkets = [{val:m1, idx:0}];
@@ -1245,7 +1274,7 @@ async function reprocessarComCache(){
           combinado: (tipoPadrao==='combinado')
         });
 
-        pac.push({ liga: liga.name, resultadosPorAtivo, dadosCru:dados });
+        pac.push({ liga: liga.name, resultadosPorAtivo, dadosCru:dados, proximosJogos });
       }catch(e){
         console.error(e);
         alert(`Erro ao processar ${liga.name} do cache`);
@@ -1301,22 +1330,37 @@ async function carregarDados(forceFresh = false){
   if(ligas.length===0){ alert("Por favor, selecione pelo menos uma liga."); return; }
 
   showBusy('Baixando dados das ligas…');
-  for(const liga of ligas){
-    try{
-      await garantirCacheArquivo(liga.url, { forceFresh });
-    }catch(e){
-      console.error(e);
-      alert(`Erro ao baixar ${liga.name}`);
-    }
-  }
+  const promises = ligas.map(liga => {
+    const resultadosUrl = liga.url;
+    const proximosUrl = liga.url.replace('/resultados/', '/proximos/');
+    return Promise.all([
+        garantirCacheArquivo(resultadosUrl, { forceFresh }),
+        baixarArquivoRaw(proximosUrl) // Sempre busca os próximos jogos mais recentes
+    ]).catch(e => {
+        console.error(`Falha ao carregar dados para ${liga.name}:`, e);
+        alert(`Erro ao baixar dados para a liga: ${liga.name}`);
+        return null; // Retorna null em caso de erro para não quebrar o loop
+    });
+  });
+
+  await Promise.all(promises);
+
 
   showBusy('Calculando os padrões…');
   try{
     const pac=[];
     for(const liga of ligas){
-      const cached = window.CACHE_ARQUIVOS[liga.url];
-      if(!cached) continue;
-      const {dados} = parseJSONToDados(cached.raw, numLinhas);
+      const resultadosUrl = liga.url;
+      const proximosUrl = liga.url.replace('/resultados/', '/proximos/');
+
+      const cachedResultados = window.CACHE_ARQUIVOS[resultadosUrl];
+      const cachedProximos = window.CACHE_ARQUIVOS[proximosUrl];
+      
+      if(!cachedResultados || !cachedProximos) continue;
+
+      const {dados} = parseJSONToDados(cachedResultados.raw, numLinhas);
+      const proximosJogos = JSON.parse(cachedProximos.raw);
+
 
       if(activeMarkets.length===0){
         activeMarkets = [{val:m1, idx:0}];
@@ -1334,7 +1378,7 @@ async function carregarDados(forceFresh = false){
         combinado: (tipoPadrao==='combinado')
       });
 
-      pac.push({ liga: liga.name, resultadosPorAtivo, dadosCru:dados });
+      pac.push({ liga: liga.name, resultadosPorAtivo, dadosCru:dados, proximosJogos });
     }
 
     window.ULTIMO_PAC = pac;
