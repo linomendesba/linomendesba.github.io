@@ -244,7 +244,12 @@
       Próxima atualização em: <span id="contador">180</span> segundos
     </div>
 
-    <div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:.8rem;margin-top:.4rem;justify-content:center;">
+    <div>
+      <label for="equipes">Equipes (filtro opcional):</label>
+      <input id="equipes" type="text" placeholder="Ex.: Barcelona, Real Madrid, Boca">
+    </div>
+
+    <div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:.8rem;margin-top:.4rem">
         <label><input type="checkbox" value="https://betstat.site/resultados/Copa%20Am%C3%A9rica" checked> Copa América</label>
         <label><input type="checkbox" value="https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna"> Taça Glória Eterna</label>
         <label><input type="checkbox" value="https://betstat.site/resultados/Euro"> Euro</label>
@@ -320,15 +325,17 @@ function parseJSONToDados(rawJson, numLinhas) {
     const dados = [];
     for (const jogo of jogosRecentes) {
         const ftScore = (jogo.ft || 'x').split('x').map(s => parseInt(s.trim(), 10));
+        const htScoreRaw = (jogo.ht || 'x').split('x').map(s => s.trim()).join('-');
 
         const a = ftScore[0];
         const b = ftScore[1];
         const mandante = (jogo.time_a || '').trim();
         const visitante = (jogo.time_b || '').trim();
         const horario = `${String(jogo.hora).padStart(2, '0')}:${String(jogo.minuto).padStart(2, '0')}`;
+        const ht = normalizarHT(htScoreRaw);
 
         if (Number.isFinite(a) && Number.isFinite(b)) {
-            dados.push([a, b, a + b, mandante, visitante, horario]);
+            dados.push([a, b, a + b, mandante, visitante, horario, ht]);
         }
     }
     return { dados };
@@ -351,7 +358,7 @@ function getRecentCountByInterval(){
 }
 
 /* ===== Util ===== */
-function tokensDoJogo(a,b,total, mandante, visitante){
+function tokensDoJogo(a,b,total, mandante, visitante, ht){
   const t=new Set();
 
   if(incPlacares){ t.add(`${a}-${b}`); }
@@ -376,7 +383,7 @@ function tokensDoJogo(a,b,total, mandante, visitante){
 }
 
 /* GREEN por mercado */
-function isGreenForMarket(m,a,b,total){
+function isGreenForMarket(m,a,b,total,ht){
   if(m==='ambasMarcam') return a>0 && b>0;
   if(m==='ambasNaoMarcam') return a===0 || b===0;
   if(m==='casaVence') return a>b;
@@ -404,6 +411,14 @@ function marketLabel(v){
   return v ? (M[v]||v) : 'Desativado';
 }
 
+function normalizarHT(s){
+  const t = (s||'').replace(/\s/g,'').replace(':','-').toUpperCase();
+  const whitelist = new Set(['0-0','0-1','1-0','1-1','0-2','2-0']);
+  if(whitelist.has(t)) return t;
+  if(!t) return '';
+  return 'OUT';
+}
+
 /* auto-atualização */
 function iniciarAnalise(){
   carregarDados(true);
@@ -429,8 +444,8 @@ function atualizarContador(){
 
 /* filtros */
 function definirEquipesEModo(){
-  // const raw = (document.getElementById('equipes')?.value || '').trim(); REMOVIDO
-  // equipesFiltro = raw ? raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean) : []; REMOVIDO
+  const raw = (document.getElementById('equipes')?.value || '').trim();
+  equipesFiltro = raw ? raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean) : [];
   const sel = document.getElementById('modo-padrao');
   modoPadrao = sel ? sel.value : 'todos';
   aplicarModoPadrao();
@@ -505,9 +520,9 @@ function buildRecentResultsBarHTML(
   for(let i = 0; i < ultimos.length; i++){
     const item = ultimos[i];
     const idx = start + i;
-    const [a,b,sum,mand,vis,horario] = item;
+    const [a,b,sum,mand,vis,horario,ht] = item;
 
-    const green = isGreenForMarket(marketForPaint, a,b,sum);
+    const green = isGreenForMarket(marketForPaint, a,b,sum,ht);
     const hitColor = indexColorMap.get(idx);
 
     const title = (mand||vis)
@@ -518,6 +533,7 @@ function buildRecentResultsBarHTML(
       <span class="time">${horario || ''}</span>
       <span class="team">${mand || ''}</span>
       <span class="score">${a}x${b}</span>
+      <span class="time">${ht}</span>
       <span class="team">${vis || ''}</span>
     `;
 
@@ -536,13 +552,13 @@ function buildRecentResultsBarHTML(
     }
   }
 
-  return `<div class="recent-bar">${cells.join('')}</div>`;
+  return `<div class="recent-caption">Últimos ${ultimos.length} resultados (antigo ➜ recente)</div><div class="recent-bar">${cells.join('')}</div>`;
 }
 
 /* sort (Pular, Ocorrências, Percentual) */
 function attachSortingHandlers(tabela){
   const ths=[...tabela.querySelectorAll('th')];
-  const idxP=ths.findIndex(th=>th.textContent.trim().toLowerCase().startsWith('ignorar'));
+  const idxP=ths.findIndex(th=>th.textContent.trim().toLowerCase().startsWith('pular'));
   const idxO=ths.findIndex(th=>th.textContent.trim().toLowerCase().startsWith('ocorr'));
   const idxPerc=ths.findIndex(th=>th.textContent.trim().toLowerCase().startsWith('percentual'));
   [idxP,idxO,idxPerc].forEach(idx=>{
@@ -704,7 +720,7 @@ function exibirResultados(conjuntos, combinado, activeMarkets=[]){
       cap.textContent = `M${posAtivo+1}: ${marketLabel(marketValue)}`;
       tabela.innerHTML=`<tr>
         <th>Padrão (mosaico)</th>
-        <th>Ignorar Jogos</th>
+        <th>Pular Jogos</th>
         <th>Ocorrências</th>
         <th>Greens</th>
         <th>Percentual</th>
@@ -844,7 +860,7 @@ function exibirResultados(conjuntos, combinado, activeMarkets=[]){
       renderProximosJogos(futureBar, proximosJogos);
       futureSlotMap.clear();
 
-      allLineGroups.flat().forEach((linhasInfo)=>{
+      allLineGroups.forEach((linhasInfo)=>{
         for(const li of linhasInfo){
           const { hits, offsets, pular, lastOffset, color, marketDisplayIndex } = li;
           for(const arr of hits){
@@ -947,11 +963,10 @@ function buildPatternMosaicHTML(padraoStr, offsets){
 
   for(let i = 0; i <= last; i++){
     if(offsets.includes(i)){
-      const rawToken = tokens[k++] || '';
-      const displayToken = marketLabel(rawToken) !== rawToken ? marketLabel(rawToken) : rawToken;
-      cells.push(`<span class="cell cell-neutral" title="${rawToken}">${displayToken}</span>`);
+      const token = tokens[k++] || '';
+      cells.push(`<span class="cell cell-neutral" title="${token}">${token}</span>`);
     }else{
-      cells.push(`<span class="cell cell-grey">Ignorar</span>`);
+      cells.push(`<span class="cell cell-grey">Pula</span>`);
     }
   }
   return `<div class="mosaic">${cells.join('')}</div>`;
@@ -965,8 +980,8 @@ function findPatternHitsInLast(dados, padraoStr, offsets, lookback=60){
   for(let i=start;i<end;i++){
     let ok=true;
     for(let k=0;k<offsets.length;k++){
-      const [a,b,t,mandante,visitante,horario]=dados[i+offsets[k]];
-      if(!tokensDoJogo(a,b,t, mandante, visitante).includes(req[k])){ ok=false; break; }
+      const [a,b,t,mandante,visitante,horario,ht]=dados[i+offsets[k]];
+      if(!tokensDoJogo(a,b,t, mandante, visitante, ht).includes(req[k])){ ok=false; break; }
     }
     if(ok && equipesFiltro.length>0){
       const janela = offsets.map(o=>dados[i+o]);
@@ -1010,7 +1025,7 @@ function janelaContemEquipe(jogos, equipesFiltro){
   }
   return false;
 }
-function tokensDoJogo(a,b,total, mandante, visitante, incFlags){
+function tokensDoJogo(a,b,total, mandante, visitante, ht, incFlags){
     const t = new Set();
     if (incFlags.incPlacares) { t.add(\`\${a}-\${b}\`); }
 
@@ -1032,7 +1047,7 @@ function tokensDoJogo(a,b,total, mandante, visitante, incFlags){
     }
     return Array.from(t);
 }
-function isGreenForMarket(m,a,b,total){
+function isGreenForMarket(m,a,b,total,ht){
     if (m === 'ambasMarcam') return a > 0 && b > 0;
     if (m === 'ambasNaoMarcam') return a === 0 || b === 0;
     if (m === 'casaVence') return a > b;
@@ -1060,15 +1075,15 @@ function analisarAutoPadroes(dados,tipo,tiros,market,incFlags,equipesFiltro,inic
 
       const tok=[], plac=[];
       for(const o of offs){
-        const [a,b,t,mandante,visitante,horario]=dados[i+o];
-        tok.push(tokensDoJogo(a,b,t, mandante, visitante, incFlags));
+        const [a,b,t,mandante,visitante,horario,ht]=dados[i+o];
+        tok.push(tokensDoJogo(a,b,t, mandante, visitante, ht, incFlags));
         plac.push(\`\${a}x\${b}¦\${mandante}¦\${visitante}\`);
       }
       const combos=enumerateCombos(tok);
       let green=false;
       for(let j=ini;j<fimA&&j<dados.length;j++){
-        const [a,b,sum,_m,_v,_h]=dados[j];
-        if(isGreenForMarket(market, a,b,sum)){ green=true; break; }
+        const [a,b,sum,_m,_v,_h,ht]=dados[j];
+        if(isGreenForMarket(market, a,b,sum,ht)){ green=true; break; }
       }
       const placStr=plac.join(' | ');
       for(const seq of combos){
@@ -1183,7 +1198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  ['mercado1','mercado2','mercado3','placar_jogos','tiros','linhas','intervalo_jogos'].forEach(id=>{
+  ['mercado1','mercado2','mercado3','placar_jogos','tiros','linhas','intervalo_jogos','equipes'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el) return;
     el.addEventListener('change', ()=>{
