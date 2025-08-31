@@ -78,6 +78,7 @@
             font-size: 1.2rem;
             color: var(--accent-color);
             padding: 20px;
+            display: none;
         }
 
         .filters {
@@ -254,6 +255,7 @@
         let allOdds = [];
         let recentGames = [];
         let oddsMap = new Map();
+        let isInitialLoad = true;
 
         const LIGAS_BASE_URL = 'https://betstat.site/resultados/';
         const ODDS_BASE_URL = 'https://betstat.site/odds/';
@@ -278,9 +280,15 @@
         async function loadData() {
             const liga = document.getElementById("ligas").value;
             const loadingDiv = document.getElementById("loading");
+            const sectionIds = ['section-mercados', 'section-placares', 'section-placares-repetidos', 'section-odds'];
 
-            loadingDiv.style.display = 'block';
-            ['section-mercados', 'section-placares', 'section-placares-repetidos', 'section-odds'].forEach(id => document.getElementById(id).style.display = 'none');
+            if (isInitialLoad) {
+                loadingDiv.style.display = 'block';
+                sectionIds.forEach(id => document.getElementById(id).style.display = 'none');
+            } else {
+                loadingDiv.textContent = 'Atualizando dados...';
+                loadingDiv.style.display = 'block';
+            }
 
             try {
                 const [resultadosResponse, oddsResponse] = await Promise.all([
@@ -299,8 +307,12 @@
             } catch (error) {
                 loadingDiv.textContent = 'Erro: ' + error.message;
             } finally {
+                if (isInitialLoad) {
+                    sectionIds.forEach(id => document.getElementById(id).style.display = 'block');
+                    isInitialLoad = false;
+                }
                 loadingDiv.style.display = 'none';
-                ['section-mercados', 'section-placares', 'section-placares-repetidos', 'section-odds'].forEach(id => document.getElementById(id).style.display = 'block');
+                loadingDiv.textContent = 'Carregando dados...'; // Reset text for next time
             }
         }
         
@@ -431,7 +443,7 @@
                 const labelEl = item.querySelector('.item-label');
                 labelEl.textContent = key;
                 const valueEl = item.querySelector('.item-value');
-                const val = data[key];
+                const val = data[key] || { current: 0, max: 0 }; // Safeguard
                 valueEl.textContent = val.current + '/' + val.max;
                 const isMax = val.current === val.max && val.max > 0;
                 item.classList.toggle('highlight-red', isMax);
