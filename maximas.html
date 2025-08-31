@@ -240,6 +240,8 @@
     <script>
         let allGames = [];
         let allOdds = [];
+        let recentGames = [];
+        let oddsMap = new Map();
 
         const LIGAS_BASE_URL = 'https://betstat.site/resultados/';
         const ODDS_BASE_URL = 'https://betstat.site/odds/';
@@ -278,6 +280,7 @@
 
                 allGames = await resultadosResponse.json();
                 allOdds = await oddsResponse.json();
+                oddsMap = new Map(allOdds.map(o => [String(o.match_id), o]));
                 
                 analyzeData();
 
@@ -293,19 +296,19 @@
             if (allGames.length === 0) return;
 
             const limite = parseInt(document.getElementById("limite").value);
-            const recentGames = allGames.slice(-limite);
+            recentGames = allGames.slice(-limite);
             
-            analyzePlacares(recentGames);
-            analyzeMarkets(recentGames);
-            analyzeOdds(recentGames); // Passando a lista de jogos filtrada
+            analyzePlacares();
+            analyzeMarkets();
+            analyzeOdds();
         }
 
-        function analyzePlacares(games) {
+        function analyzePlacares() {
             const statsPlacares = {};
             const frequency = {};
             placaresAlvo.forEach(p => statsPlacares[p] = { current: 0, max: 0 });
 
-            games.forEach(game => {
+            recentGames.forEach(game => {
                 const placarAtual = game.ft.replace(/ /g, '');
                 frequency[placarAtual] = (frequency[placarAtual] || 0) + 1;
                 for (const p of placaresAlvo) {
@@ -323,14 +326,14 @@
             displayFrequencyBoxes('frequencia-placares-container', sortedFrequency);
         }
 
-        function analyzeMarkets(games) {
+        function analyzeMarkets() {
             const statsMercados = {};
             for (const key in marketToOddsKey) {
                 const marketName = marketToOddsKey[key].name;
                 statsMercados[marketName] = { current: 0, max: 0 };
             }
 
-            games.forEach(game => {
+            recentGames.forEach(game => {
                 for (const key in marketToOddsKey) {
                     const marketName = marketToOddsKey[key].name;
                     if (marketToOddsKey[key].condition(game)) {
@@ -345,16 +348,12 @@
         }
 
         function analyzeOdds() {
-            if (allGames.length === 0 || allOdds.length === 0) return;
-
-            const limite = parseInt(document.getElementById("limite").value);
-            const recentGames = allGames.slice(-limite);
+            if (recentGames.length === 0 || allOdds.length === 0) return;
             
             const selectedMarketKey = document.getElementById('mercado-odds').value;
             const oddKey = marketToOddsKey[selectedMarketKey].key;
             const marketCondition = marketToOddsKey[selectedMarketKey].condition;
-            const oddsMap = new Map(allOdds.map(o => [String(o.match_id), o]));
-            
+
             const winningOddsFrequency = {};
             recentGames.forEach(game => {
                 const gameOddsData = oddsMap.get(String(game.event_id));
@@ -378,18 +377,19 @@
             recentGames.forEach(game => {
                 const gameOddsData = oddsMap.get(String(game.event_id));
                 const oddValue = gameOddsData ? parseFloat(gameOddsData[oddKey]) : NaN;
+                const oddGroup = oddValue && !isNaN(oddValue) ? oddValue.toFixed(1) : null;
 
-                for (const oddGroup in maximaStats) {
-                    if (oddValue && oddValue.toFixed(1) === oddGroup) {
+                for (const group in maximaStats) {
+                    if (group === oddGroup) {
                         if (marketCondition(game)) {
-                            maximaStats[oddGroup].current = 0;
+                            maximaStats[group].current = 0;
                         } else {
-                            maximaStats[oddGroup].current++;
+                            maximaStats[group].current++;
                         }
                     } else {
-                        maximaStats[oddGroup].current++;
+                        maximaStats[group].current++;
                     }
-                    maximaStats[oddGroup].max = Math.max(maximaStats[oddGroup].max, maximaStats[oddGroup].current);
+                    maximaStats[group].max = Math.max(maximaStats[group].max, maximaStats[group].current);
                 }
             });
 
