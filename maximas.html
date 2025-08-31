@@ -565,7 +565,9 @@
                     statsPlacares[p].max = Math.max(statsPlacares[p].max, statsPlacares[p].current);
                 }
             });
-            const sortedFrequency = Object.entries(frequency).sort((a, b) => b[1] - a[1]);
+            const sortedFrequency = Object.entries(frequency)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 12); // Limita para apenas os 12 placares mais repetidos
 
             displayMaximaBoxes('maximas-placares-container', statsPlacares, placaresAlvo);
             displayFrequencyBoxes('frequencia-placares-container', sortedFrequency);
@@ -600,32 +602,31 @@
             const oddKey = marketToOddsKey[selectedMarketKey].key;
             const marketCondition = marketToOddsKey[selectedMarketKey].condition;
 
-            // Primeiro, vamos coletar TODAS as odds disponíveis para este mercado na rota
+            // Coletar TODAS as odds disponíveis na rota para este mercado específico
             const allAvailableOdds = new Set();
             
             allOdds.forEach(oddsData => {
                 if (oddsData[oddKey] && !isNaN(parseFloat(oddsData[oddKey]))) {
                     const oddValue = parseFloat(oddsData[oddKey]);
-                    allAvailableOdds.add(oddValue.toFixed(1));
+                    allAvailableOdds.add(oddValue.toFixed(2)); // Usar 2 casas para manter precisão
                 }
             });
 
-            // Inicializar oddsSummary com TODAS as odds disponíveis
+            // Inicializar oddsSummary com TODAS as odds reais da rota
             const oddsSummary = {};
             allAvailableOdds.forEach(oddValue => {
                 oddsSummary[oddValue] = { current: 0, max: 0, count: 0 };
             });
 
-            // Agora processar apenas os jogos do período selecionado
+            // Processar os jogos do período selecionado
             recentGames.forEach(game => {
                 const gameOddsData = oddsMap.get(String(game.event_id));
                 const oddValue = gameOddsData ? parseFloat(gameOddsData[oddKey]) : null;
                 const didConditionPass = marketCondition(game);
 
                 if (oddValue) {
-                    const oddGroup = oddValue.toFixed(1);
+                    const oddGroup = oddValue.toFixed(2);
                     
-                    // Só processa se a odd existe no oddsSummary (o que deve sempre ser verdade agora)
                     if (oddsSummary[oddGroup]) {
                         oddsSummary[oddGroup].count++;
 
@@ -654,6 +655,7 @@
                 }
             }
             
+            // Ordenar por valor numérico da odd
             const sortedOdds = Object.entries(oddsSummary)
                 .sort((a, b) => Number(a[0]) - Number(b[0]))
                 .reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
