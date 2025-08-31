@@ -354,19 +354,22 @@
             const oddKey = marketToOddsKey[selectedMarketKey].key;
             const marketCondition = marketToOddsKey[selectedMarketKey].condition;
 
-            const winningOddsFrequency = {};
-            recentGames.forEach(game => {
+            const oddFrequency = {};
+            const gamesWithOdds = recentGames.filter(game => {
                 const gameOddsData = oddsMap.get(String(game.event_id));
-                if (gameOddsData && marketCondition(game)) {
-                    const oddValue = parseFloat(gameOddsData[oddKey]);
-                    if (!isNaN(oddValue)) {
-                        const oddGroup = oddValue.toFixed(1);
-                        winningOddsFrequency[oddGroup] = (winningOddsFrequency[oddGroup] || 0) + 1;
-                    }
+                return gameOddsData && gameOddsData[oddKey] !== null;
+            });
+
+            gamesWithOdds.forEach(game => {
+                const gameOddsData = oddsMap.get(String(game.event_id));
+                const oddValue = parseFloat(gameOddsData[oddKey]);
+                if (!isNaN(oddValue)) {
+                    const oddGroup = oddValue.toFixed(1);
+                    oddFrequency[oddGroup] = (oddFrequency[oddGroup] || 0) + 1;
                 }
             });
 
-            const sortedOddsRanking = Object.entries(winningOddsFrequency).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            const sortedOddsRanking = Object.entries(oddFrequency).sort((a, b) => b[1] - a[1]).slice(0, 10);
             
             const maximaStats = {};
             sortedOddsRanking.forEach(entry => {
@@ -374,15 +377,13 @@
                 maximaStats[group] = { current: 0, max: 0 };
             });
             
-            // Nova lógica de contagem
             recentGames.forEach(game => {
-                const gameOddsData = oddsMap.get(String(game.event_id));
-                const oddValue = gameOddsData ? parseFloat(gameOddsData[oddKey]) : null;
-                const oddGroup = oddValue !== null && !isNaN(oddValue) ? oddValue.toFixed(1) : null;
                 const didConditionPass = marketCondition(game);
+                const gameOddsData = oddsMap.get(String(game.event_id));
+                const currentOddGroup = gameOddsData ? parseFloat(gameOddsData[oddKey]).toFixed(1) : null;
 
                 for (const group in maximaStats) {
-                    if (group === oddGroup && didConditionPass) {
+                    if (group === currentOddGroup && didConditionPass) {
                         maximaStats[group].current = 0;
                     } else {
                         maximaStats[group].current++;
