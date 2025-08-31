@@ -600,8 +600,23 @@
             const oddKey = marketToOddsKey[selectedMarketKey].key;
             const marketCondition = marketToOddsKey[selectedMarketKey].condition;
 
-            const oddsSummary = {};
+            // Primeiro, vamos coletar TODAS as odds disponíveis para este mercado na rota
+            const allAvailableOdds = new Set();
+            
+            allOdds.forEach(oddsData => {
+                if (oddsData[oddKey] && !isNaN(parseFloat(oddsData[oddKey]))) {
+                    const oddValue = parseFloat(oddsData[oddKey]);
+                    allAvailableOdds.add(oddValue.toFixed(1));
+                }
+            });
 
+            // Inicializar oddsSummary com TODAS as odds disponíveis
+            const oddsSummary = {};
+            allAvailableOdds.forEach(oddValue => {
+                oddsSummary[oddValue] = { current: 0, max: 0, count: 0 };
+            });
+
+            // Agora processar apenas os jogos do período selecionado
             recentGames.forEach(game => {
                 const gameOddsData = oddsMap.get(String(game.event_id));
                 const oddValue = gameOddsData ? parseFloat(gameOddsData[oddKey]) : null;
@@ -610,21 +625,34 @@
                 if (oddValue) {
                     const oddGroup = oddValue.toFixed(1);
                     
-                    if (!oddsSummary[oddGroup]) {
-                        oddsSummary[oddGroup] = { current: 0, max: 0, count: 0 };
-                    }
-                    
-                    oddsSummary[oddGroup].count++;
+                    // Só processa se a odd existe no oddsSummary (o que deve sempre ser verdade agora)
+                    if (oddsSummary[oddGroup]) {
+                        oddsSummary[oddGroup].count++;
 
-                    if (didConditionPass) {
-                        oddsSummary[oddGroup].current = 0;
-                    } else {
-                        oddsSummary[oddGroup].current++;
+                        if (didConditionPass) {
+                            // Reset current streak for this odd range
+                            for (const odd in oddsSummary) {
+                                oddsSummary[odd].current = 0;
+                            }
+                        } else {
+                            // Increment current streak for this odd range only
+                            oddsSummary[oddGroup].current++;
+                        }
+                        
+                        // Update max for this specific odd
+                        oddsSummary[oddGroup].max = Math.max(oddsSummary[oddGroup].max, oddsSummary[oddGroup].current);
                     }
-                    
-                    oddsSummary[oddGroup].max = Math.max(oddsSummary[oddGroup].max, oddsSummary[oddGroup].current);
                 }
             });
+
+            // Para odds que não tiveram jogos no período, calcular sequência máxima
+            for (const oddGroup in oddsSummary) {
+                if (oddsSummary[oddGroup].count === 0) {
+                    // Se não houve jogos com essa odd no período, a sequência atual é o total de jogos
+                    oddsSummary[oddGroup].current = recentGames.length;
+                    oddsSummary[oddGroup].max = recentGames.length;
+                }
+            }
             
             const sortedOdds = Object.entries(oddsSummary)
                 .sort((a, b) => Number(a[0]) - Number(b[0]))
