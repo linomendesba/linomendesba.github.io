@@ -297,7 +297,7 @@
             
             analyzePlacares(recentGames);
             analyzeMarkets(recentGames);
-            analyzeOdds();
+            analyzeOdds(recentGames); // Passando a lista de jogos filtrada
         }
 
         function analyzePlacares(games) {
@@ -319,7 +319,7 @@
             });
             const sortedFrequency = Object.entries(frequency).sort((a, b) => b[1] - a[1]);
 
-            displayMaximaBoxes('maximas-placares-container', statsPlacares, true);
+            displayMaximaBoxes('maximas-placares-container', statsPlacares);
             displayFrequencyBoxes('frequencia-placares-container', sortedFrequency);
         }
 
@@ -341,21 +341,19 @@
                     statsMercados[marketName].max = Math.max(statsMercados[marketName].max, statsMercados[marketName].current);
                 }
             });
-            displayMaximaBoxes('maximas-mercados-container', statsMercados, true);
+            displayMaximaBoxes('maximas-mercados-container', statsMercados);
         }
 
-        function analyzeOdds() {
-            if (allGames.length === 0 || allOdds.length === 0) return;
+        function analyzeOdds(games) {
+            if (games.length === 0 || allOdds.length === 0) return;
 
             const selectedMarketKey = document.getElementById('mercado-odds').value;
             const oddKey = marketToOddsKey[selectedMarketKey].key;
             const marketCondition = marketToOddsKey[selectedMarketKey].condition;
-            const limite = parseInt(document.getElementById("limite").value);
-            const recentGames = allGames.slice(-limite);
             const oddsMap = new Map(allOdds.map(o => [String(o.match_id), o]));
             
             const winningOddsFrequency = {};
-            recentGames.forEach(game => {
+            games.forEach(game => {
                 const gameOddsData = oddsMap.get(String(game.event_id));
                 if (gameOddsData && marketCondition(game)) {
                     const oddValue = parseFloat(gameOddsData[oddKey]);
@@ -374,27 +372,28 @@
                 maximaStats[group] = { current: 0, max: 0 };
             });
 
-            recentGames.forEach(game => {
+            games.forEach(game => {
                 const gameOddsData = oddsMap.get(String(game.event_id));
-                if (gameOddsData) {
-                    const oddValue = parseFloat(gameOddsData[oddKey]);
-                    if (!isNaN(oddValue)) {
-                        const oddGroup = oddValue.toFixed(1);
-                        if (maximaStats[oddGroup]) {
-                            if (marketCondition(game)) {
-                                maximaStats[oddGroup].current = 0;
-                            } else {
-                                maximaStats[oddGroup].current++;
-                            }
-                            maximaStats[oddGroup].max = Math.max(maximaStats[oddGroup].max, maximaStats[oddGroup].current);
+                const oddValue = gameOddsData ? parseFloat(gameOddsData[oddKey]) : NaN;
+
+                for (const oddGroup in maximaStats) {
+                    if (oddValue && oddValue.toFixed(1) === oddGroup) {
+                        if (marketCondition(game)) {
+                            maximaStats[oddGroup].current = 0;
+                        } else {
+                            maximaStats[oddGroup].current++;
                         }
+                    } else {
+                        maximaStats[oddGroup].current++;
                     }
+                    maximaStats[oddGroup].max = Math.max(maximaStats[oddGroup].max, maximaStats[oddGroup].current);
                 }
             });
-            displayMaximaBoxes('maximas-odds-container', maximaStats, true);
+
+            displayMaximaBoxes('maximas-odds-container', maximaStats);
         }
 
-        function displayMaximaBoxes(containerId, data, showMax) {
+        function displayMaximaBoxes(containerId, data) {
             const container = document.getElementById(containerId);
             container.innerHTML = "";
             for (const key in data) {
