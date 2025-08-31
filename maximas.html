@@ -354,45 +354,38 @@
             const oddKey = marketToOddsKey[selectedMarketKey].key;
             const marketCondition = marketToOddsKey[selectedMarketKey].condition;
 
-            const oddFrequency = {};
+            const oddsSummary = {};
+
             recentGames.forEach(game => {
                 const gameOddsData = oddsMap.get(String(game.event_id));
                 const oddValue = gameOddsData ? parseFloat(gameOddsData[oddKey]) : null;
+                const didConditionPass = marketCondition(game);
+
                 if (oddValue) {
-                     const oddGroup = oddValue.toFixed(1);
-                     oddFrequency[oddGroup] = (oddFrequency[oddGroup] || 0) + 1;
+                    const oddGroup = oddValue.toFixed(1);
+                    
+                    if (!oddsSummary[oddGroup]) {
+                        oddsSummary[oddGroup] = { current: 0, max: 0, count: 0 };
+                    }
+                    
+                    oddsSummary[oddGroup].count++;
+
+                    if (didConditionPass) {
+                        oddsSummary[oddGroup].current = 0;
+                    } else {
+                        oddsSummary[oddGroup].current++;
+                    }
+                    
+                    oddsSummary[oddGroup].max = Math.max(oddsSummary[oddGroup].max, oddsSummary[oddGroup].current);
                 }
             });
-
-            const sortedOddsRanking = Object.entries(oddFrequency).sort((a, b) => b[1] - a[1]).slice(0, 10);
             
-            const maximaStats = {};
-            
-            sortedOddsRanking.forEach(entry => {
-                const group = entry[0];
-                let currentStreak = 0;
-                let maxStreak = 0;
-                
-                recentGames.forEach((game) => {
-                    const didConditionPass = marketCondition(game);
-                    const gameOddsData = oddsMap.get(String(game.event_id));
-                    const currentOddGroup = gameOddsData ? parseFloat(gameOddsData[oddKey]).toFixed(1) : null;
-                    
-                    if (currentOddGroup === group && didConditionPass) {
-                        currentStreak = 0;
-                    } else {
-                        currentStreak++;
-                    }
-                    maxStreak = Math.max(maxStreak, currentStreak);
-                });
-                
-                maximaStats[group] = {
-                    current: currentStreak,
-                    max: maxStreak
-                };
-            });
+            const sortedOdds = Object.entries(oddsSummary)
+                .sort((a, b) => b[1].count - a[1].count)
+                .slice(0, 10)
+                .reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
 
-            displayMaximaBoxes('maximas-odds-container', maximaStats);
+            displayMaximaBoxes('maximas-odds-container', sortedOdds);
         }
 
         function displayMaximaBoxes(containerId, data) {
