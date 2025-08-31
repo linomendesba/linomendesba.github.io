@@ -205,10 +205,10 @@
         
         .maximas-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 20px;
             transition: opacity 0.3s ease;
-            padding: 0 0.5rem;
+            padding: 0 1rem;
         }
 
         .maxima-item, .frequencia-item {
@@ -217,9 +217,9 @@
             justify-content: center;
             align-items: center;
             background: linear-gradient(145deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            padding: 0.8rem 0.5rem;
-            border-radius: 8px;
-            min-height: 70px;
+            padding: 1.5rem 1rem;
+            border-radius: 12px;
+            min-height: 100px;
             box-sizing: border-box;
             text-align: center;
             transition: var(--transition);
@@ -565,9 +565,7 @@
                     statsPlacares[p].max = Math.max(statsPlacares[p].max, statsPlacares[p].current);
                 }
             });
-            const sortedFrequency = Object.entries(frequency)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 12); // Limita para apenas os 12 placares mais repetidos
+            const sortedFrequency = Object.entries(frequency).sort((a, b) => b[1] - a[1]);
 
             displayMaximaBoxes('maximas-placares-container', statsPlacares, placaresAlvo);
             displayFrequencyBoxes('frequencia-placares-container', sortedFrequency);
@@ -602,60 +600,32 @@
             const oddKey = marketToOddsKey[selectedMarketKey].key;
             const marketCondition = marketToOddsKey[selectedMarketKey].condition;
 
-            // Coletar TODAS as odds disponíveis na rota para este mercado específico
-            const allAvailableOdds = new Set();
-            
-            allOdds.forEach(oddsData => {
-                if (oddsData[oddKey] && !isNaN(parseFloat(oddsData[oddKey]))) {
-                    const oddValue = parseFloat(oddsData[oddKey]);
-                    allAvailableOdds.add(oddValue.toFixed(2)); // Usar 2 casas para manter precisão
-                }
-            });
-
-            // Inicializar oddsSummary com TODAS as odds reais da rota
             const oddsSummary = {};
-            allAvailableOdds.forEach(oddValue => {
-                oddsSummary[oddValue] = { current: 0, max: 0, count: 0 };
-            });
 
-            // Processar os jogos do período selecionado
             recentGames.forEach(game => {
                 const gameOddsData = oddsMap.get(String(game.event_id));
                 const oddValue = gameOddsData ? parseFloat(gameOddsData[oddKey]) : null;
                 const didConditionPass = marketCondition(game);
 
                 if (oddValue) {
-                    const oddGroup = oddValue.toFixed(2);
+                    const oddGroup = oddValue.toFixed(1);
                     
-                    if (oddsSummary[oddGroup]) {
-                        oddsSummary[oddGroup].count++;
-
-                        if (didConditionPass) {
-                            // Reset current streak for this odd range
-                            for (const odd in oddsSummary) {
-                                oddsSummary[odd].current = 0;
-                            }
-                        } else {
-                            // Increment current streak for this odd range only
-                            oddsSummary[oddGroup].current++;
-                        }
-                        
-                        // Update max for this specific odd
-                        oddsSummary[oddGroup].max = Math.max(oddsSummary[oddGroup].max, oddsSummary[oddGroup].current);
+                    if (!oddsSummary[oddGroup]) {
+                        oddsSummary[oddGroup] = { current: 0, max: 0, count: 0 };
                     }
+                    
+                    oddsSummary[oddGroup].count++;
+
+                    if (didConditionPass) {
+                        oddsSummary[oddGroup].current = 0;
+                    } else {
+                        oddsSummary[oddGroup].current++;
+                    }
+                    
+                    oddsSummary[oddGroup].max = Math.max(oddsSummary[oddGroup].max, oddsSummary[oddGroup].current);
                 }
             });
-
-            // Para odds que não tiveram jogos no período, calcular sequência máxima
-            for (const oddGroup in oddsSummary) {
-                if (oddsSummary[oddGroup].count === 0) {
-                    // Se não houve jogos com essa odd no período, a sequência atual é o total de jogos
-                    oddsSummary[oddGroup].current = recentGames.length;
-                    oddsSummary[oddGroup].max = recentGames.length;
-                }
-            }
             
-            // Ordenar por valor numérico da odd
             const sortedOdds = Object.entries(oddsSummary)
                 .sort((a, b) => Number(a[0]) - Number(b[0]))
                 .reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
