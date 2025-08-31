@@ -31,16 +31,24 @@
             margin: 0 auto;
         }
 
-        h1, h2 {
+        h1 {
             color: var(--accent-color);
             margin: 1.5rem 0 1rem 0;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        h2 {
+            color: var(--accent-color);
+            margin: 2rem 0 1rem 0;
             text-align: center;
             text-transform: uppercase;
             letter-spacing: 1px;
             border-bottom: 2px solid var(--accent-color);
             padding-bottom: 10px;
         }
-        
+
         #loading {
             text-align: center;
             font-size: 1.2rem;
@@ -77,16 +85,6 @@
             transition: all 0.3s ease;
         }
 
-        select:hover {
-            border-color: var(--accent-color);
-        }
-
-        select:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(0,255,136,0.2);
-        }
-
         .grid-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -115,7 +113,6 @@
             font-weight: 600;
             text-transform: uppercase;
             font-size: 0.9em;
-            cursor: pointer;
         }
 
         tr:last-child td {
@@ -126,11 +123,7 @@
             background: var(--secondary-color);
         }
         
-        td:nth-child(2), td:nth-child(3) {
-            font-weight: bold;
-            text-align: center;
-        }
-        th:nth-child(2), th:nth-child(3) {
+        td:nth-child(n+2), th:nth-child(n+2) {
             text-align: center;
         }
         
@@ -139,6 +132,7 @@
             color: white;
             border-radius: 5px;
             padding: 2px 6px;
+            font-weight: bold;
         }
 
     </style>
@@ -179,11 +173,7 @@
             <h2>Máximas de Mercado</h2>
             <table id="results-mercados">
                 <thead>
-                    <tr>
-                        <th>Mercado</th>
-                        <th>🚫 Jogos sem Green</th>
-                        <th>📈 Máximo sem Green</th>
-                    </tr>
+                    <tr><th>Mercado</th><th>🚫 Jogos sem Green</th><th>📈 Máximo sem Green</th></tr>
                 </thead>
                 <tbody></tbody>
             </table>
@@ -194,11 +184,7 @@
                 <h2>Máximas de Placares</h2>
                 <table id="results-placares-maxima">
                     <thead>
-                        <tr>
-                            <th>Placar</th>
-                            <th>🚫 Jogos sem Ocorrência</th>
-                            <th>📈 Máximo sem Ocorrência</th>
-                        </tr>
+                        <tr><th>Placar</th><th>🚫 Jogos sem Ocorrência</th><th>📈 Máximo sem Ocorrência</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -208,10 +194,7 @@
                 <h2>Placares Mais Repetidos</h2>
                 <table id="results-placares-repetidos">
                     <thead>
-                        <tr>
-                            <th>Placar</th>
-                            <th>Ocorrências</th>
-                        </tr>
+                        <tr><th>Placar</th><th>Ocorrências</th></tr>
                     </thead>
                     <tbody></tbody>
                 </table>
@@ -220,14 +203,38 @@
 
         <div id="section-odds" style="display:none;">
             <h2>Máximas de Odds</h2>
-            <table id="results-odds">
+            <div class="filters" style="grid-template-columns: 1fr;">
+                 <div>
+                    <label for="mercado-odds">📊 Selecione um Mercado para analisar as Odds:</label>
+                    <select id="mercado-odds" onchange="analyzeOdds()">
+                        <option value="casaVence">Casa vence</option>
+                        <option value="foraVence">Fora vence</option>
+                        <option value="empate">Empate</option>
+                        <option value="ambasMarcam">Ambas Sim</option>
+                        <option value="ambasNaoMarcam">Ambas Não</option>
+                        <option value="over1.5">Over 1.5</option>
+                        <option value="under1.5">Under 1.5</option>
+                        <option value="over2.5">Over 2.5</option>
+                        <option value="under2.5">Under 2.5</option>
+                        <option value="over3.5">Over 3.5</option>
+                        <option value="under3.5">Under 3.5</option>
+                        <option value="over5">5 ou mais gols</option>
+                    </select>
+                </div>
+            </div>
+            
+            <h3 style="text-align:center; color: var(--text-color);">Ranking de Odds que mais resultaram em Green</h3>
+            <table id="results-odds-ranking">
                 <thead>
-                    <tr>
-                        <th>Mercado</th>
-                        <th>Faixa de Odd</th>
-                        <th>🚫 Jogos sem Green</th>
-                        <th>📈 Máximo sem Green</th>
-                    </tr>
+                    <tr><th>Faixa de Odd</th><th>Ocorrências de Green</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            
+            <h3 style="text-align:center; color: var(--text-color);">Máximas para as Faixas de Odds mais frequentes</h3>
+            <table id="results-odds-maxima">
+                 <thead>
+                    <tr><th>Faixa de Odd</th><th>🚫 Jogos sem Green</th><th>📈 Máximo sem Green</th></tr>
                 </thead>
                 <tbody></tbody>
             </table>
@@ -242,29 +249,35 @@
         const LIGAS_BASE_URL = 'https://betstat.site/resultados/';
         const ODDS_BASE_URL = 'https://betstat.site/odds/';
 
-        // Função para carregar dados de resultados e odds
+        const marketToOddsKey = {
+            'ambasMarcam': { name: 'Ambas Sim', key: 'odds_ambas_marcam_sim' },
+            'ambasNaoMarcam': { name: 'Ambas Não', key: 'odds_ambas_marcam_nao' },
+            'casaVence': { name: 'Casa vence', key: 'odds_casa_vence' },
+            'foraVence': { name: 'Fora vence', key: 'odds_visitante_vence' },
+            'empate': { name: 'Empate', key: 'odds_empate' },
+            'over1.5': { name: 'Over 1.5', key: 'odds_mais_1_5' },
+            'under1.5': { name: 'Under 1.5', key: 'odds_menos_1_5' },
+            'over2.5': { name: 'Over 2.5', key: 'odds_mais_2_5' },
+            'under2.5': { name: 'Under 2.5', key: 'odds_menos_2_5' },
+            'over3.5': { name: 'Over 3.5', key: 'odds_mais_3_5' },
+            'under3.5': { name: 'Under 3.5', key: 'odds_menos_3_5' },
+            'over5': { name: '5 ou mais gols', key: 'odds_mais_5_gols' }
+        };
+
         async function loadData() {
             const liga = document.getElementById("ligas").value;
             const loadingDiv = document.getElementById("loading");
             
-            // Oculta as seções e exibe o carregamento
             loadingDiv.style.display = 'block';
-            document.getElementById('section-mercados').style.display = 'none';
-            document.getElementById('section-placares-maxima').style.display = 'none';
-            document.getElementById('section-placares-repetidos').style.display = 'none';
-            document.getElementById('section-odds').style.display = 'none';
-
+            ['section-mercados', 'section-placares-maxima', 'section-placares-repetidos', 'section-odds'].forEach(function(id) { document.getElementById(id).style.display = 'none'; });
 
             try {
-                // Carrega resultados e odds em paralelo
                 const [resultadosResponse, oddsResponse] = await Promise.all([
                     fetch(LIGAS_BASE_URL + liga),
                     fetch(ODDS_BASE_URL + liga)
                 ]);
 
-                if (!resultadosResponse.ok || !oddsResponse.ok) {
-                    throw new Error('Falha ao carregar os dados da API.');
-                }
+                if (!resultadosResponse.ok || !oddsResponse.ok) throw new Error('Falha ao carregar os dados da API.');
 
                 allGames = await resultadosResponse.json();
                 allOdds = await oddsResponse.json();
@@ -272,100 +285,77 @@
                 analyzeData();
 
             } catch (error) {
-                loadingDiv.textContent = `Erro ao carregar dados: ${error.message}`;
-                console.error(error);
+                loadingDiv.textContent = 'Erro: ' + error.message;
             } finally {
-                loadingDiv.style.display = 'none'; // Oculta o carregamento após a conclusão
+                loadingDiv.style.display = 'none';
             }
         }
 
-        // Função principal para analisar os dados
+        function getMarketConditions(game) {
+            const [golsCasa, golsFora] = game.ft.split(' x ').map(Number);
+            const totalGols = golsCasa + golsFora;
+            return {
+                ambasMarcam: golsCasa > 0 && golsFora > 0,
+                ambasNaoMarcam: golsCasa === 0 || golsFora === 0,
+                casaVence: golsCasa > golsFora,
+                foraVence: golsCasa < golsFora,
+                empate: golsCasa === golsFora,
+                over1: totalGols > 1.5,
+                under1: totalGols < 1.5,
+                over2: totalGols > 2.5,
+                under2: totalGols < 2.5,
+                over3: totalGols > 3.5,
+                under3: totalGols < 3.5,
+                over5: totalGols >= 5
+            };
+        }
+        
         function analyzeData() {
+            if (allGames.length === 0) return;
+
             const limite = parseInt(document.getElementById("limite").value);
             const recentGames = allGames.slice(-limite);
 
-            if (recentGames.length === 0) return;
-
-            // Análises
             analyzeMarkets(recentGames);
             analyzePlacares(recentGames);
-            analyzeOdds(recentGames, allOdds);
+            analyzeOdds(); 
             
-            // Exibe as seções
-            document.getElementById('section-mercados').style.display = 'block';
-            document.getElementById('section-placares-maxima').style.display = 'block';
-            document.getElementById('section-placares-repetidos').style.display = 'block';
-            document.getElementById('section-odds').style.display = 'block';
+            ['section-mercados', 'section-placares-maxima', 'section-placares-repetidos', 'section-odds'].forEach(function(id) { document.getElementById(id).style.display = 'block'; });
         }
 
-        // 1. Análise de Mercados
         function analyzeMarkets(games) {
-            const markets = {
-                'Ambas Sim': { contagem: 0, maxContagem: 0 },
-                'Ambas Não': { contagem: 0, maxContagem: 0 },
-                'Casa vence': { contagem: 0, maxContagem: 0 },
-                'Fora vence': { contagem: 0, maxContagem: 0 },
-                'Empate': { contagem: 0, maxContagem: 0 },
-                'Over 1.5': { contagem: 0, maxContagem: 0 },
-                'Under 1.5': { contagem: 0, maxContagem: 0 },
-                'Over 2.5': { contagem: 0, maxContagem: 0 },
-                'Under 2.5': { contagem: 0, maxContagem: 0 },
-                'Over 3.5': { contagem: 0, maxContagem: 0 },
-                'Under 3.5': { contagem: 0, maxContagem: 0 },
-                '5 ou mais gols': { contagem: 0, maxContagem: 0 },
-            };
+            const markets = {};
+            for (const key in marketToOddsKey) {
+                markets[marketToOddsKey[key].name] = { contagem: 0, maxContagem: 0 };
+            }
 
-            games.forEach(game => {
-                const [golsCasa, golsFora] = game.ft.split(' x ').map(Number);
-                const totalGols = golsCasa + golsFora;
-
-                const conditions = {
-                    'Ambas Sim': golsCasa > 0 && golsFora > 0,
-                    'Ambas Não': golsCasa === 0 || golsFora === 0,
-                    'Casa vence': golsCasa > golsFora,
-                    'Fora vence': golsCasa < golsFora,
-                    'Empate': golsCasa === golsFora,
-                    'Over 1.5': totalGols > 1.5,
-                    'Under 1.5': totalGols < 1.5,
-                    'Over 2.5': totalGols > 2.5,
-                    'Under 2.5': totalGols < 2.5,
-                    'Over 3.5': totalGols > 3.5,
-                    'Under 3.5': totalGols < 3.5,
-                    '5 ou mais gols': totalGols >= 5,
-                };
-
-                for (const market in conditions) {
-                    if (conditions[market]) {
-                        markets[market].contagem = 0;
+            games.forEach(function(game) {
+                const conditions = getMarketConditions(game);
+                for (const key in marketToOddsKey) {
+                    const marketName = marketToOddsKey[key].name;
+                    if (conditions[key]) {
+                        markets[marketName].contagem = 0;
                     } else {
-                        markets[market].contagem++;
+                        markets[marketName].contagem++;
                     }
-                    markets[market].maxContagem = Math.max(markets[market].maxContagem, markets[market].contagem);
+                    markets[marketName].maxContagem = Math.max(markets[marketName].maxContagem, markets[marketName].contagem);
                 }
             });
-
-            displayResults('results-mercados', markets, ['Mercado', '🚫 Jogos sem Green', '📈 Máximo sem Green']);
+            displayMaxima('results-mercados', markets);
         }
 
-        // 2. Análise de Placares
         function analyzePlacares(games) {
             const placaresAlvo = ['2x0', '2x1', '0x0', '0x2', '1x2', '0x1', '1x0', '1x1', '2x2', '3x1', '4x0', '0x3', '3x0', '4x1', '2x3', '2x4', '1x3', '3x2', '4x2', '0x4'];
             const statsPlacares = {};
             const frequency = {};
+            placaresAlvo.forEach(function(p) { statsPlacares[p] = { contagem: 0, maxContagem: 0 }; });
 
-            placaresAlvo.forEach(p => {
-                statsPlacares[p] = { contagem: 0, maxContagem: 0 };
-            });
+            games.forEach(function(game) {
+                const placarAtual = game.ft.replace(/ /g, '');
+                frequency[placarAtual] = (frequency[placarAtual] || 0) + 1;
 
-            games.forEach(game => {
-                const placar = game.ft.replace(' ', '');
-                
-                // Contagem de frequência
-                frequency[placar] = (frequency[placar] || 0) + 1;
-
-                // Análise de máximas
                 for (const p of placaresAlvo) {
-                    if (p === placar) {
+                    if (p === placarAtual) {
                         statsPlacares[p].contagem = 0;
                     } else {
                         statsPlacares[p].contagem++;
@@ -373,154 +363,93 @@
                     statsPlacares[p].maxContagem = Math.max(statsPlacares[p].maxContagem, statsPlacares[p].contagem);
                 }
             });
-
-            // Ordena os placares por frequência
-            const sortedFrequency = Object.entries(frequency).sort(([,a],[,b]) => b-a);
             
-            displayResults('results-placares-maxima', statsPlacares, ['Placar', '🚫 Jogos sem Ocorrência', '📈 Máximo sem Ocorrência']);
+            const sortedFrequency = Object.entries(frequency).sort(function(a, b) { return b[1] - a[1]; });
+            displayMaxima('results-placares-maxima', statsPlacares);
             displayFrequency('results-placares-repetidos', sortedFrequency);
         }
 
-        // 3. Análise de Odds
-        function analyzeOdds(games, oddsData) {
-            const oddsMap = new Map(oddsData.map(o => [o.match_id, o]));
-            const oddsBrackets = {
-                '1.00-1.50': { min: 1.00, max: 1.50 },
-                '1.51-2.00': { min: 1.51, max: 2.00 },
-                '2.01-2.50': { min: 2.01, max: 2.50 },
-                '2.51-3.00': { min: 2.51, max: 3.00 },
-                '3.01-4.00': { min: 3.01, max: 4.00 },
-                '4.01+':     { min: 4.01, max: Infinity },
-            };
-            const oddsStats = {};
+        function analyzeOdds() {
+            if (allGames.length === 0 || allOdds.length === 0) return;
 
-            // Mapeamento de mercados para chaves de odds
-            const marketToOddsKey = {
-                'Casa vence': 'odds_casa_vence',
-                'Fora vence': 'odds_visitante_vence',
-                'Empate': 'odds_empate',
-                'Ambas Sim': 'odds_ambas_marcam_sim',
-                'Ambas Não': 'odds_ambas_marcam_nao',
-                'Over 1.5': 'odds_mais_1_5',
-                'Under 1.5': 'odds_menos_1_5',
-                'Over 2.5': 'odds_mais_2_5',
-                'Under 2.5': 'odds_menos_2_5',
-                'Over 3.5': 'odds_mais_3_5',
-                'Under 3.5': 'odds_menos_3_5',
-                '5 ou mais gols': 'odds_mais_5_gols',
-            };
+            const selectedMarketKey = document.getElementById('mercado-odds').value;
+            const oddKey = marketToOddsKey[selectedMarketKey].key;
+            const limite = parseInt(document.getElementById("limite").value);
+            const recentGames = allGames.slice(-limite);
+            const oddsMap = new Map(allOdds.map(function(o) { return [String(o.match_id), o]; }));
             
-            // Inicializa a estrutura de stats
-            for (const market in marketToOddsKey) {
-                oddsStats[market] = {};
-                for (const bracket in oddsBrackets) {
-                    oddsStats[market][bracket] = { contagem: 0, maxContagem: 0 };
+            const winningOddsFrequency = {};
+            recentGames.forEach(function(game) {
+                const conditions = getMarketConditions(game);
+                const gameOddsData = oddsMap.get(String(game.event_id));
+
+                if (conditions[selectedMarketKey] && gameOddsData) {
+                    const oddValue = parseFloat(gameOddsData[oddKey]);
+                    if (!isNaN(oddValue)) {
+                        const oddGroup = oddValue.toFixed(1);
+                        winningOddsFrequency[oddGroup] = (winningOddsFrequency[oddGroup] || 0) + 1;
+                    }
                 }
-            }
+            });
 
-            games.forEach(game => {
-                const gameOdds = oddsMap.get(String(game.event_id));
-                if (!gameOdds) return; // Pula se não encontrar as odds para o jogo
+            const sortedOddsRanking = Object.entries(winningOddsFrequency).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+            
+            const maximaStats = {};
+            sortedOddsRanking.forEach(function(entry) {
+                const group = entry[0];
+                maximaStats[group] = { contagem: 0, maxContagem: 0 };
+            });
 
-                const [golsCasa, golsFora] = game.ft.split(' x ').map(Number);
-                const totalGols = golsCasa + golsFora;
+            recentGames.forEach(function(game) {
+                const conditions = getMarketConditions(game);
+                const gameOddsData = oddsMap.get(String(game.event_id));
 
-                const conditions = {
-                    'Casa vence': golsCasa > golsFora,
-                    'Fora vence': golsCasa < golsFora,
-                    'Empate': golsCasa === golsFora,
-                    'Ambas Sim': golsCasa > 0 && golsFora > 0,
-                    'Ambas Não': golsCasa === 0 || golsFora === 0,
-                    'Over 1.5': totalGols > 1.5,
-                    'Under 1.5': totalGols < 1.5,
-                    'Over 2.5': totalGols > 2.5,
-                    'Under 2.5': totalGols < 2.5,
-                    'Over 3.5': totalGols > 3.5,
-                    'Under 3.5': totalGols < 3.5,
-                    '5 ou mais gols': totalGols >= 5,
-                };
-                
-                for (const market in conditions) {
-                    const oddKey = marketToOddsKey[market];
-                    const oddValue = parseFloat(gameOdds[oddKey]);
-                    if (isNaN(oddValue)) continue;
-
-                    for (const bracketName in oddsBrackets) {
-                        const bracket = oddsBrackets[bracketName];
-                        const isOddInBracket = oddValue >= bracket.min && oddValue <= bracket.max;
-                        
-                        // Atualiza a contagem apenas para a faixa de odd correspondente
-                        if (isOddInBracket) {
-                            if (conditions[market]) {
-                                oddsStats[market][bracketName].contagem = 0; // Green
+                if (gameOddsData) {
+                    const oddValue = parseFloat(gameOddsData[oddKey]);
+                    if (!isNaN(oddValue)) {
+                        const oddGroup = oddValue.toFixed(1);
+                        if (maximaStats[oddGroup]) {
+                            if (conditions[selectedMarketKey]) {
+                                maximaStats[oddGroup].contagem = 0;
                             } else {
-                                oddsStats[market][bracketName].contagem++; // Red
+                                maximaStats[oddGroup].contagem++;
                             }
-                            oddsStats[market][bracketName].maxContagem = Math.max(
-                                oddsStats[market][bracketName].maxContagem,
-                                oddsStats[market][bracketName].contagem
-                            );
+                            maximaStats[oddGroup].maxContagem = Math.max(maximaStats[oddGroup].maxContagem, maximaStats[oddGroup].contagem);
                         }
                     }
                 }
             });
-            
-            displayOddsResults('results-odds', oddsStats);
+
+            displayFrequency('results-odds-ranking', sortedOddsRanking);
+            displayMaxima('results-odds-maxima', maximaStats);
         }
 
-        // --- Funções de Exibição ---
-
-        function displayResults(tableId, data, headers) {
-            const tbody = document.getElementById(tableId).getElementsByTagName('tbody')[0];
+        function displayMaxima(tableId, data) {
+            const tbody = document.getElementById(tableId).querySelector('tbody');
             tbody.innerHTML = "";
-
             for (const key in data) {
                 const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td>${key}</td>
-                    <td>${data[key].contagem}</td>
-                    <td><span class="${data[key].contagem === data[key].maxContagem && data[key].maxContagem > 0 ? 'highlight' : ''}">${data[key].maxContagem}</span></td>
-                `;
+                const isMax = data[key].contagem === data[key].maxContagem && data[key].maxContagem > 0;
+                tr.innerHTML = '<td>' + key + '</td>' +
+                               '<td>' + data[key].contagem + '</td>' +
+                               '<td><span class="' + (isMax ? 'highlight' : '') + '">' + data[key].maxContagem + '</span></td>';
                 tbody.appendChild(tr);
             }
         }
 
         function displayFrequency(tableId, sortedData) {
-            const tbody = document.getElementById(tableId).getElementsByTagName('tbody')[0];
+            const tbody = document.getElementById(tableId).querySelector('tbody');
             tbody.innerHTML = "";
-
-            sortedData.forEach(([placar, count]) => {
+            sortedData.forEach(function(entry) {
+                const key = entry[0];
+                const count = entry[1];
                 const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td>${placar}</td>
-                    <td style="text-align:center;">${count}</td>
-                `;
+                tr.innerHTML = '<td>' + key + '</td><td>' + count + '</td>';
                 tbody.appendChild(tr);
             });
         }
-        
-        function displayOddsResults(tableId, oddsStats) {
-            const tbody = document.getElementById(tableId).getElementsByTagName('tbody')[0];
-            tbody.innerHTML = "";
 
-            for (const market in oddsStats) {
-                for (const bracket in oddsStats[market]) {
-                    const stat = oddsStats[market][bracket];
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td>${market}</td>
-                        <td>${bracket}</td>
-                        <td>${stat.contagem}</td>
-                        <td><span class="${stat.contagem === stat.maxContagem && stat.maxContagem > 0 ? 'highlight' : ''}">${stat.maxContagem}</span></td>
-                    `;
-                    tbody.appendChild(tr);
-                }
-            }
-        }
-
-        // Inicia o carregamento dos dados quando a página é carregada
         window.onload = loadData;
-
     </script>
 </body>
 </html>
