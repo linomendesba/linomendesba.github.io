@@ -367,49 +367,44 @@
             const sortedOddsRanking = Object.entries(oddFrequency).sort((a, b) => b[1] - a[1]).slice(0, 10);
             
             const maximaStats = {};
-            const lastGreenIndex = {};
-            const currentSequence = {};
             
             sortedOddsRanking.forEach(entry => {
                 const group = entry[0];
                 maximaStats[group] = { current: 0, max: 0 };
-                lastGreenIndex[group] = -1;
-                currentSequence[group] = 0;
-            });
-            
-            recentGames.forEach((game, index) => {
-                const didConditionPass = marketCondition(game);
-                const gameOddsData = oddsMap.get(String(game.event_id));
-                const currentOddGroup = gameOddsData ? parseFloat(gameOddsData[oddKey]).toFixed(1) : null;
-
-                for (const group in maximaStats) {
-                    // Check if the current game is a green for the specific odd group
-                    const isGreenForThisOdd = (group === currentOddGroup && didConditionPass);
-
-                    if (isGreenForThisOdd) {
-                        // Reset the sequence and update the last green index
-                        lastGreenIndex[group] = index;
-                        currentSequence[group] = 0;
+                let currentStreak = 0;
+                let maxStreak = 0;
+                
+                recentGames.forEach((game, index) => {
+                    const didConditionPass = marketCondition(game);
+                    const gameOddsData = oddsMap.get(String(game.event_id));
+                    const currentOddGroup = gameOddsData ? parseFloat(gameOddsData[oddKey]).toFixed(1) : null;
+                    
+                    if (group === currentOddGroup && didConditionPass) {
+                        currentStreak = 0;
                     } else {
-                        // Increment the current sequence
-                        currentSequence[group]++;
+                        currentStreak++;
                     }
-
-                    // Update the max sequence found so far
-                    maximaStats[group].max = Math.max(maximaStats[group].max, currentSequence[group]);
+                    maxStreak = Math.max(maxStreak, currentStreak);
+                });
+                
+                // Final calculation for current streak
+                let lastGreenIndex = -1;
+                for (let i = recentGames.length - 1; i >= 0; i--) {
+                    const game = recentGames[i];
+                    const gameOddsData = oddsMap.get(String(game.event_id));
+                    const currentOddGroup = gameOddsData ? parseFloat(gameOddsData[oddKey]).toFixed(1) : null;
+                    const didConditionPass = marketCondition(game);
+                    if (group === currentOddGroup && didConditionPass) {
+                        lastGreenIndex = i;
+                        break;
+                    }
                 }
+                
+                const current = (lastGreenIndex === -1) ? recentGames.length : recentGames.length - 1 - lastGreenIndex;
+                
+                maximaStats[group].current = current;
+                maximaStats[group].max = maxStreak;
             });
-
-            // After iterating through all games, calculate the final current sequence
-            for (const group in maximaStats) {
-                if (lastGreenIndex[group] === -1) {
-                    // No green for this odd in the entire history, so current sequence is the total games
-                    maximaStats[group].current = recentGames.length;
-                } else {
-                    // Current sequence is the games since the last green
-                    maximaStats[group].current = recentGames.length - 1 - lastGreenIndex[group];
-                }
-            }
 
             displayMaximaBoxes('maximas-odds-container', maximaStats);
         }
