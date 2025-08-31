@@ -370,40 +370,31 @@
             
             sortedOddsRanking.forEach(entry => {
                 const group = entry[0];
-                maximaStats[group] = { current: 0, max: 0 };
                 let currentStreak = 0;
                 let maxStreak = 0;
                 
-                recentGames.forEach((game, index) => {
+                // Track the games since the last green for this odd
+                let gamesSinceLastGreen = 0;
+                let foundGreenForThisOdd = false;
+
+                recentGames.forEach(game => {
                     const didConditionPass = marketCondition(game);
                     const gameOddsData = oddsMap.get(String(game.event_id));
                     const currentOddGroup = gameOddsData ? parseFloat(gameOddsData[oddKey]).toFixed(1) : null;
                     
-                    if (group === currentOddGroup && didConditionPass) {
-                        currentStreak = 0;
+                    if (currentOddGroup === group && didConditionPass) {
+                        gamesSinceLastGreen = 0;
+                        foundGreenForThisOdd = true;
                     } else {
-                        currentStreak++;
+                        gamesSinceLastGreen++;
                     }
-                    maxStreak = Math.max(maxStreak, currentStreak);
+                    maxStreak = Math.max(maxStreak, gamesSinceLastGreen);
                 });
                 
-                // Final calculation for current streak
-                let lastGreenIndex = -1;
-                for (let i = recentGames.length - 1; i >= 0; i--) {
-                    const game = recentGames[i];
-                    const gameOddsData = oddsMap.get(String(game.event_id));
-                    const currentOddGroup = gameOddsData ? parseFloat(gameOddsData[oddKey]).toFixed(1) : null;
-                    const didConditionPass = marketCondition(game);
-                    if (group === currentOddGroup && didConditionPass) {
-                        lastGreenIndex = i;
-                        break;
-                    }
-                }
-                
-                const current = (lastGreenIndex === -1) ? recentGames.length : recentGames.length - 1 - lastGreenIndex;
-                
-                maximaStats[group].current = current;
-                maximaStats[group].max = maxStreak;
+                maximaStats[group] = {
+                    current: gamesSinceLastGreen,
+                    max: maxStreak
+                };
             });
 
             displayMaximaBoxes('maximas-odds-container', maximaStats);
