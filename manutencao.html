@@ -3362,9 +3362,7 @@ function updateRsiChartGolsPlus(chart, newData) {
     if (chart) {
         chart.data.labels = newData.labels;
         chart.data.datasets.forEach(ds => {
-            if (!ds.label.includes('Overbought') && !ds.label.includes('Oversold')) {
-                ds.data = newData[labelToKeyGolsPlus[ds.label] + 'RSI'];
-            }
+            ds.data = newData[labelToKeyGolsPlus[ds.label] + 'RSI'];
         });
         chart.update('none');
     }
@@ -3440,7 +3438,8 @@ function processApiDataGolsPlus(data) {
         return a.minuto - b.minuto;
     });
 
-    const slicedData = sortedData.slice(-numPointsGolsPlus - averagePointsGolsPlus - 14); // +14 para RSI
+    const extraRsiPoints = 14;
+    const slicedData = sortedData.slice(-numPointsGolsPlus - averagePointsGolsPlus - extraRsiPoints);
     chartDataGolsPlus['Copa'] = slicedData;
 
     let labels = [];
@@ -3506,6 +3505,20 @@ function processApiDataGolsPlus(data) {
         golsHT.push(golsHTSum);
     }
 
+    const fullStats = {
+        golsFT: [...golsFT],
+        golsFTCasa: [...golsFTCasa],
+        golsFTVisitante: [...golsFTVisitante],
+        golsHT: [...golsHT]
+    };
+
+    const displayStart = labels.length - numPointsGolsPlus;
+    labels = labels.slice(displayStart);
+    golsFT = golsFT.slice(displayStart);
+    golsFTCasa = golsFTCasa.slice(displayStart);
+    golsFTVisitante = golsFTVisitante.slice(displayStart);
+    golsHT = golsHT.slice(displayStart);
+
     // Calcular a média geral dos totais de "Gols FT" para a linha de equilíbrio
     const averageGolsFT = golsFT.filter(val => val !== null).reduce((acc, val) => acc + val, 0) / golsFT.filter(val => val !== null).length;
     const equilibrio = new Array(labels.length).fill(averageGolsFT);
@@ -3514,7 +3527,7 @@ function processApiDataGolsPlus(data) {
         labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, equilibrio
     };
 
-    // Compute moving averages
+    // Compute moving averages on displayed data
     const shortPeriod = 5;
     const mediumPeriod = 10;
     const longPeriod = 20;
@@ -3524,7 +3537,7 @@ function processApiDataGolsPlus(data) {
         result[key + 'Short'] = computeMAGolsPlus(result[key], shortPeriod);
         result[key + 'Medium'] = computeMAGolsPlus(result[key], mediumPeriod);
         result[key + 'Long'] = computeMAGolsPlus(result[key], longPeriod);
-        result[key + 'RSI'] = computeRSIGolsPlus(result[key]);
+        result[key + 'RSI'] = computeRSIGolsPlus(fullStats[key]).slice(-numPointsGolsPlus);
     });
 
     return result;
@@ -3695,12 +3708,12 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                     borderWidth: 1,
                     callbacks: {
                         title: function(tooltipItems) {
-                            const index = tooltipItems[0].dataIndex + averagePointsGolsPlus;
+                            const index = tooltipItems[0].dataIndex + averagePointsGolsPlus + 14;
                             const match = chartDataGolsPlus['Copa'][index];
                             return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
                         },
                         label: function(tooltipItem) {
-                            const index = tooltipItem.dataIndex + averagePointsGolsPlus;
+                            const index = tooltipItem.dataIndex + averagePointsGolsPlus + 14;
                             const match = chartDataGolsPlus['Copa'][index];
                             const ftScore = match.ft || 'N/A';
                             const htScore = formatHtResult(match.ht) || 'N/A';
@@ -3754,26 +3767,6 @@ function createRsiChartGolsPlus(ctx, labels, data) {
         hidden: !statsChartVisibleDatasetsGolsPlus[config.label]
     }));
 
-    datasets.push({
-        label: 'Overbought',
-        data: Array(labels.length).fill(70),
-        borderColor: '#00FF00',
-        borderWidth: 1,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        fill: false
-    });
-
-    datasets.push({
-        label: 'Oversold',
-        data: Array(labels.length).fill(30),
-        borderColor: '#FF0000',
-        borderWidth: 1,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        fill: false
-    });
-
     return new Chart(ctx, {
         type: 'line',
         data: {
@@ -3801,12 +3794,12 @@ function createRsiChartGolsPlus(ctx, labels, data) {
                     borderWidth: 1,
                     callbacks: {
                         title: function(tooltipItems) {
-                            const index = tooltipItems[0].dataIndex + averagePointsGolsPlus;
+                            const index = tooltipItems[0].dataIndex + averagePointsGolsPlus + 14;
                             const match = chartDataGolsPlus['Copa'][index];
                             return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
                         },
                         label: function(tooltipItem) {
-                            const index = tooltipItem.dataIndex + averagePointsGolsPlus;
+                            const index = tooltipItem.dataIndex + averagePointsGolsPlus + 14;
                             const match = chartDataGolsPlus['Copa'][index];
                             const ftScore = match.ft || 'N/A';
                             const htScore = formatHtResult(match.ht) || 'N/A';
