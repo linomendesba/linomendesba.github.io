@@ -1307,6 +1307,7 @@ let showRSI = false;
 const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
 let chartData = {};
+const rsiPeriod = 14;
 
 const statsChartVisibleDatasets = {
     'Gols FT': false,
@@ -1444,7 +1445,7 @@ function calculateRSI(segment, period) {
     return rsi;
 }
 
-function computeRSI(prices, period = 14) {
+function computeRSI(prices, period = rsiPeriod) {
     let rsi = Array(prices.length).fill(null);
     let start = 0;
     while (start < prices.length) {
@@ -1473,8 +1474,8 @@ function processApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const extraRsiPoints = 14;
-    const slicedData = sortedData.slice(-numPoints - averagePoints - extraRsiPoints);
+    const slicedData = sortedData.slice(-numPoints - averagePoints - rsiPeriod);
+    chartData[league] = slicedData;
 
     let labels = [];
     let golsFT = [];
@@ -1552,6 +1553,7 @@ function processApiData(data, league) {
         // Calcula a média apenas com os jogos disponíveis
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
+            const ftScore = match.ft;
 
             // Verifica se há lacuna antes de processar
             if (j > 0 && hasGap(slicedData[j - 1], match)) {
@@ -1923,13 +1925,13 @@ function createMainChart(ctx, labels, data, league) {
                     callbacks: {
                         title: function(tooltipItems) {
                             const league = leagues.find(l => chartInstances[l].main === tooltipItems[0].chart);
-                            const index = tooltipItems[0].dataIndex + averagePoints;
+                            const index = tooltipItems[0].dataIndex + averagePoints + rsiPeriod;
                             const match = chartData[league][index];
                             return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
                         },
                         label: function(tooltipItem) {
                             const league = leagues.find(l => chartInstances[l].main === tooltipItem.chart);
-                            const index = tooltipItem.dataIndex + averagePoints;
+                            const index = tooltipItem.dataIndex + averagePoints + rsiPeriod;
                             const match = chartData[league][index];
                             const ftScore = match.ft || 'N/A';
                             const htScore = formatHtResult(match.ht) || 'N/A';
@@ -2028,13 +2030,13 @@ function createRsiChart(ctx, labels, data, league) {
                     callbacks: {
                         title: function(tooltipItems) {
                             const league = leagues.find(l => chartInstances[l].rsi === tooltipItems[0].chart);
-                            const index = tooltipItems[0].dataIndex + averagePoints;
+                            const index = tooltipItems[0].dataIndex + averagePoints + rsiPeriod;
                             const match = chartData[league][index];
                             return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
                         },
                         label: function(tooltipItem) {
                             const league = leagues.find(l => chartInstances[l].rsi === tooltipItem.chart);
-                            const index = tooltipItem.dataIndex + averagePoints;
+                            const index = tooltipItem.dataIndex + averagePoints + rsiPeriod;
                             const match = chartData[league][index];
                             const ftScore = match.ft || 'N/A';
                             const htScore = formatHtResult(match.ht) || 'N/A';
