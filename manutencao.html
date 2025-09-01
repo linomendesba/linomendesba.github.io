@@ -1395,7 +1395,9 @@ function updateRsiChart(chart, newData) {
     if (chart) {
         chart.data.labels = newData.labels;
         chart.data.datasets.forEach(ds => {
-            ds.data = newData[labelToKey[ds.label] + 'RSI'];
+            if (!ds.label.includes('Overbought') && !ds.label.includes('Oversold')) {
+                ds.data = newData[labelToKey[ds.label] + 'RSI'];
+            }
         });
         chart.update('none');
     }
@@ -1877,23 +1879,23 @@ function createMainChart(ctx, labels, data, league) {
                     onClick: function(e, legendItem, legend) {
                         const ci = legend.chart;
                         const datasetLabel = legendItem.text;
-                        const datasetIndex = legendItem.datasetIndex * 4; // Since each group has 4 datasets
-                        const meta = ci.getDatasetMeta(datasetIndex);
+                        const mainIndex = ci.data.datasets.findIndex(ds => ds.label === datasetLabel);
+                        const meta = ci.getDatasetMeta(mainIndex);
                         meta.hidden = !meta.hidden;
                         statsChartVisibleDatasets[datasetLabel] = !meta.hidden;
 
-                        // Toggle MAs
-                        for (let offset = 1; offset <= 3; offset++) {
-                            const maMeta = ci.getDatasetMeta(datasetIndex + offset);
-                            maMeta.hidden = !showMovingAverages || meta.hidden;
-                        }
+                        // Toggle related MAs
+                        ci.data.datasets.forEach((ds, dsIndex) => {
+                            if (ds.label.startsWith(datasetLabel + ' -')) {
+                                const metaMA = ci.getDatasetMeta(dsIndex);
+                                metaMA.hidden = !showMovingAverages || meta.hidden;
+                            }
+                        });
 
-                        // Toggle RSI if available
-                        const league = ci.league;
-                        const rsiCi = chartInstances[league].rsi;
+                        // Toggle RSI
+                        const rsiCi = chartInstances[ci.league].rsi;
                         if (rsiCi) {
-                            const rsiIndex = legendItem.datasetIndex;
-                            const rsiMeta = rsiCi.getDatasetMeta(rsiIndex);
+                            const rsiMeta = rsiCi.getDatasetMeta(legendItem.datasetIndex);
                             rsiMeta.hidden = meta.hidden;
                             rsiCi.update();
                         }
@@ -1980,13 +1982,33 @@ function createRsiChart(ctx, labels, data, league) {
     const datasets = datasetConfigs.map(config => ({
         label: config.label,
         data: data[config.key + 'RSI'],
-        borderColor: config.color,
+        borderColor: '#FFD700',
         backgroundColor: 'transparent',
         borderWidth: 1,
         pointRadius: 0,
         fill: false,
         hidden: !statsChartVisibleDatasets[config.label]
     }));
+
+    datasets.push({
+        label: 'Overbought',
+        data: Array(labels.length).fill(70),
+        borderColor: '#00FF00',
+        borderWidth: 1,
+        borderDash: [5, 5],
+        pointRadius: 0,
+        fill: false
+    });
+
+    datasets.push({
+        label: 'Oversold',
+        data: Array(labels.length).fill(30),
+        borderColor: '#FF0000',
+        borderWidth: 1,
+        borderDash: [5, 5],
+        pointRadius: 0,
+        fill: false
+    });
 
     const rsiChart = new Chart(ctx, {
         type: 'line',
