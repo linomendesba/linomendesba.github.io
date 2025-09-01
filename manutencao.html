@@ -1446,22 +1446,22 @@ function calculateRSI(segment, period) {
 }
 
 function computeRSI(prices, period = 14) {
-    let rsi = Array(prices.length).fill(null);
-    let start = 0;
-    while (start < prices.length) {
-        while (start < prices.length && prices[start] === null) start++;
-        if (start >= prices.length) break;
-        let end = start + 1;
-        while (end < prices.length && prices[end] !== null) end++;
-        let segment = prices.slice(start, end);
-        if (segment.length >= period + 1) {
-            let segmentRSI = calculateRSI(segment, period);
-            for (let k = 0; k < segmentRSI.length; k++) {
-                rsi[start + k] = segmentRSI[k];
-            }
-        }
-        start = end;
+    const compact = prices.filter(p => p !== null);
+    const rsi = Array(prices.length).fill(null);
+
+    if (compact.length < period + 1) {
+        return rsi; // All null if not enough data
     }
+
+    const segmentRSI = calculateRSI(compact, period);
+
+    let k = 0;
+    for (let i = 0; i < prices.length; i++) {
+        if (prices[i] !== null) {
+            rsi[i] = segmentRSI[k++];
+        }
+    }
+
     return rsi;
 }
 
@@ -1997,7 +1997,8 @@ function createRsiChart(ctx, labels, data, league) {
         borderWidth: 1,
         pointRadius: 0,
         fill: false,
-        hidden: !statsChartVisibleDatasets[config.label]
+        hidden: !statsChartVisibleDatasets[config.label],
+        spanGaps: true
     }));
 
     datasets.push({
