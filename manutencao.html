@@ -1343,6 +1343,15 @@ const labelToKey = {
     '5 Gols Exatos': 'gol5'
 };
 
+// Lista de seletores que não devem ser salvos
+const excludedSelectors = [
+    "ligas",
+    "avancado-betano",
+    "ligas365",
+    "avancado-bet365",
+    "redes"
+];
+
 function hexToRgba(hex, alpha) {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -1812,7 +1821,7 @@ function createStatsChart(ctx, labels, data, league) {
                         ci.data.datasets.forEach((ds, dsIndex) => {
                             if (ds.label.startsWith(datasetLabel + ' - MA')) {
                                 const metaMA = ci.getDatasetMeta(dsIndex);
-                                metaMA.hidden = !showMovingAverages || meta.hidden;
+                                metaMA.hidden = !showMovingAverages || !statsChartVisibleDatasets[datasetLabel];
                             }
                         });
 
@@ -1902,6 +1911,8 @@ function updateCharts() {
                     updateStatsChart(chartInstances[league], processedData);
                     console.log(`Gráfico atualizado para ${league}`);
                 }
+                // Após inicializar ou atualizar o gráfico, restaurar seleções
+                restoreSelections();
             })
             .catch(error => console.error(`Erro ao buscar dados para ${league}:`, error));
     });
@@ -1909,6 +1920,8 @@ function updateCharts() {
 
 function toggleFibonacciLines() {
     showFibonacciLines = document.getElementById('fibonacciToggle').checked;
+    console.log(`showFibonacciLines: ${showFibonacciLines}`);
+    saveSelection('fibonacciToggle');
     leagues.forEach(league => {
         if (chartInstances[league]) {
             chartInstances[league].update();
@@ -1918,7 +1931,8 @@ function toggleFibonacciLines() {
 
 function toggleMovingAverages() {
     showMovingAverages = document.getElementById('movingAveragesToggle').checked;
-    console.log(`showMovingAverages: ${showMovingAverages}`); // Debug
+    console.log(`showMovingAverages: ${showMovingAverages}`);
+    saveSelection('movingAveragesToggle');
     leagues.forEach(league => {
         const chart = chartInstances[league];
         if (chart) {
@@ -1928,7 +1942,7 @@ function toggleMovingAverages() {
                     const isMainVisible = statsChartVisibleDatasets[mainLabel];
                     const meta = chart.getDatasetMeta(index);
                     meta.hidden = !showMovingAverages || !isMainVisible;
-                    console.log(`Dataset ${dataset.label}: hidden=${meta.hidden}`); // Debug
+                    console.log(`Dataset ${dataset.label}: hidden=${meta.hidden}`);
                 }
             });
             chart.update();
@@ -1936,20 +1950,215 @@ function toggleMovingAverages() {
     });
 }
 
+// Verifica se é o acordeão específico que deve ser salvo
+function isTargetAccordion(buttonElement) {
+    return buttonElement.textContent.includes("Tendência Gols / Mercados");
+}
+
+// Salva o estado do acordeão (apenas para o acordeão específico)
+function saveAccordionState(buttonElement) {
+    if (!isTargetAccordion(buttonElement)) return;
+    
+    const accordionContent = buttonElement.nextElementSibling;
+    const isOpen = accordionContent && accordionContent.style.display !== "none";
+    
+    localStorage.setItem('accordion_tendencia_gols_mercados', isOpen);
+}
+
+// Restaura o estado do acordeão (apenas para o acordeão específico)
+function restoreAccordionState() {
+    const accordionButtons = document.querySelectorAll('.accordion-button');
+    
+    accordionButtons.forEach(button => {
+        if (isTargetAccordion(button)) {
+            const savedState = localStorage.getItem('accordion_tendencia_gols_mercados');
+            
+            if (savedState !== null) {
+                const isOpen = savedState === 'true';
+                const accordionContent = button.nextElementSibling;
+                
+                if (accordionContent) {
+                    if (isOpen) {
+                        accordionContent.style.display = "block";
+                        button.textContent = button.textContent.replace('▼', '▲');
+                    } else {
+                        accordionContent.style.display = "none";
+                        button.textContent = button.textContent.replace('▲', '▼');
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Função para toggle do acordeão que salva o estado
+function toggleAccordion(buttonElement) {
+    const accordionContent = buttonElement.nextElementSibling;
+    
+    if (accordionContent.style.display === "none" || accordionContent.style.display === "") {
+        accordionContent.style.display = "block";
+        buttonElement.textContent = buttonElement.textContent.replace('▼', '▲');
+    } else {
+        accordionContent.style.display = "none";
+        buttonElement.textContent = buttonElement.textContent.replace('▲', '▼');
+    }
+    
+    if (isTargetAccordion(buttonElement)) {
+        saveAccordionState(buttonElement);
+        
+        const selectorsInAccordion = accordionContent.querySelectorAll('select, input[type="checkbox"]');
+        selectorsInAccordion.forEach(element => {
+            if (!excludedSelectors.includes(element.id)) {
+                saveSelection(element.id);
+            }
+        });
+    }
+}
+
+// Salva a seleção no LocalStorage, exceto para os seletores excluídos
+function saveSelection(elementId) {
+    const element = document.getElementById(elementId);
+    if (element && !excludedSelectors.includes(elementId)) {
+        if (element.type === 'checkbox') {
+            localStorage.setItem(elementId, element.checked);
+        } else {
+            localStorage.setItem(elementId, element.value);
+        }
+        console.log(`Saved ${elementId}: ${element.type === 'checkbox' ? element.checked : element.value}`);
+    }
+}
+
+// Restaura as seleções do LocalStorage, exceto para os seletores excluídos
+function restoreSelections() {
+    const selectors = document.querySelectorAll("select");
+    selectors.forEach(selector => {
+        if (!excludedSelectors.includes(selector.id)) {
+            const savedValue = localStorage.getItem(selector.id);
+            if (savedValue) {
+                selector.value = savedValue;
+                const changeEvent = new Event('change', { bubbles: true });
+                selector.dispatchEvent(changeEvent);
+                console.log(`Restored ${selector.id}: ${savedValue}`);
+            }
+        }
+    });
+    
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        if (!excludedSelectors.includes(checkbox.id)) {
+            const savedValue = localStorage.getItem(checkbox.id);
+            if (savedValue !== null) {
+                checkbox.checked = savedValue === 'true';
+                const changeEvent = new Event('change', { bubbles: true });
+                checkbox.dispatchEvent(changeEvent);
+                console.log(`Restored ${checkbox.id}: ${checkbox.checked}`);
+            }
+        }
+    });
+}
+
+// Adiciona eventos onchange para salvar automaticamente as alterações
+function setupSelectors() {
+    const selectors = document.querySelectorAll("select");
+    selectors.forEach(selector => {
+        const accordionButton = selector.closest('.accordion-content')?.previousElementSibling;
+        const isInTargetAccordion = accordionButton && isTargetAccordion(accordionButton);
+        
+        if (isInTargetAccordion || !accordionButton) {
+            const hasRedirectHandler = selector.hasAttribute("onclick") &&
+                                     selector.getAttribute("onclick").includes("redirecionar");
+            
+            if (hasRedirectHandler) {
+                const originalOnclick = selector.getAttribute("onclick");
+                selector.setAttribute("onclick", `saveSelection('${selector.id}'); ${originalOnclick}`);
+            } else {
+                selector.addEventListener("change", () => {
+                    saveSelection(selector.id);
+                    if (isInTargetAccordion) {
+                        saveAccordionState(accordionButton);
+                    }
+                });
+            }
+        }
+    });
+    
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        const accordionButton = checkbox.closest('.accordion-content')?.previousElementSibling;
+        const isInTargetAccordion = accordionButton && isTargetAccordion(accordionButton);
+        
+        if (isInTargetAccordion || !accordionButton) {
+            checkbox.addEventListener("change", () => {
+                saveSelection(checkbox.id);
+                if (isInTargetAccordion) {
+                    saveAccordionState(accordionButton);
+                }
+            });
+        }
+    });
+}
+
+function saveAllSelections() {
+    const selectors = document.querySelectorAll("select");
+    selectors.forEach(selector => {
+        const accordionButton = selector.closest('.accordion-content')?.previousElementSibling;
+        const isInTargetAccordion = accordionButton && isTargetAccordion(accordionButton);
+        
+        if (!excludedSelectors.includes(selector.id) && (isInTargetAccordion || !accordionButton)) {
+            saveSelection(selector.id);
+        }
+    });
+    
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        const accordionButton = checkbox.closest('.accordion-content')?.previousElementSibling;
+        const isInTargetAccordion = accordionButton && isTargetAccordion(accordionButton);
+        
+        if (!excludedSelectors.includes(checkbox.id) && (isInTargetAccordion || !accordionButton)) {
+            saveSelection(checkbox.id);
+        }
+    });
+    
+    const accordionButtons = document.querySelectorAll('.accordion-button');
+    accordionButtons.forEach(button => {
+        if (isTargetAccordion(button)) {
+            saveAccordionState(button);
+        }
+    });
+}
+
 document.getElementById('pointsSelector').addEventListener('change', function(event) {
     numPoints = parseInt(event.target.value, 10);
+    saveSelection('pointsSelector');
     updateCharts();
 });
 
 document.getElementById('averageSelector').addEventListener('change', function(event) {
     averagePoints = parseInt(event.target.value, 10);
+    saveSelection('averageSelector');
     updateCharts();
 });
 
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
 
-window.onload = updateCharts;
+document.querySelectorAll('.accordion-button').forEach(button => {
+    button.addEventListener('click', () => toggleAccordion(button));
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+    restoreAccordionState();
+    setupSelectors();
+});
+
+window.onload = () => {
+    updateCharts();
+};
+
+window.addEventListener("beforeunload", () => {
+    saveAllSelections();
+});
+
 setInterval(updateCharts, 3000);
     </script>
 
