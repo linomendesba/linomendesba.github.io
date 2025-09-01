@@ -1298,57 +1298,38 @@ if (mostrarOddsSelect) {
     </script>
 
     <script>
-let copaAmericaChart, CopaChart, EuroChart, PremierChart, SuperChart;
+// =================================================================================
+// CONFIGURAÇÕES GLOBAIS E ESTADO INICIAL
+// =================================================================================
+
 let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
 let showRSI = false;
-const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
+const leagues = ['Copa']; // Simplificado para o exemplo
 const chartInstances = {};
 let chartData = {};
 
 const statsChartVisibleDatasets = {
-    'Gols FT': false,
-    'Casa Vence': false,
-    'Empate': false,
-    'Fora Vence': false,
-    'Ambas Sim': true,
-    'Ambas Não': false,
-    'Over 1.5': false,
-    'Over 2.5': false,
-    'Over 3.5': false,
-    'Under 1.5': false,
-    'Under 2.5': false,
-    'Under 3.5': false,
-    '0 Gol Exato': false,
-    '1 Gol Exato': false,
-    '2 Gols Exatos': false,
-    '3 Gols Exatos': false,
-    '4 Gols Exatos': false,
-    '5 Gols Exatos': false
+    'Gols FT': false, 'Casa Vence': false, 'Empate': false, 'Fora Vence': false,
+    'Ambas Sim': true, 'Ambas Não': false, 'Over 1.5': false, 'Over 2.5': false,
+    'Over 3.5': false, 'Under 1.5': false, 'Under 2.5': false, 'Under 3.5': false,
+    '0 Gol Exato': false, '1 Gol Exato': false, '2 Gols Exatos': false,
+    '3 Gols Exatos': false, '4 Gols Exatos': false, '5 Gols Exatos': false
 };
 
 const labelToKey = {
-    'Gols FT': 'golsFT',
-    'Casa Vence': 'casaVence',
-    'Empate': 'empate',
-    'Fora Vence': 'foraVence',
-    'Ambas Sim': 'ambasSim',
-    'Ambas Não': 'ambasNao',
-    'Over 1.5': 'over15',
-    'Over 2.5': 'over25',
-    'Over 3.5': 'over35',
-    'Under 1.5': 'under15',
-    'Under 2.5': 'under25',
-    'Under 3.5': 'under35',
-    '0 Gol Exato': 'gol0',
-    '1 Gol Exato': 'gol1',
-    '2 Gols Exatos': 'gol2',
-    '3 Gols Exatos': 'gol3',
-    '4 Gols Exatos': 'gol4',
-    '5 Gols Exatos': 'gol5'
+    'Gols FT': 'golsFT', 'Casa Vence': 'casaVence', 'Empate': 'empate', 'Fora Vence': 'foraVence',
+    'Ambas Sim': 'ambasSim', 'Ambas Não': 'ambasNao', 'Over 1.5': 'over15', 'Over 2.5': 'over25',
+    'Over 3.5': 'over35', 'Under 1.5': 'under15', 'Under 2.5': 'under25', 'Under 3.5': 'under35',
+    '0 Gol Exato': 'gol0', '1 Gol Exato': 'gol1', '2 Gols Exatos': 'gol2', '3 Gols Exatos': 'gol3',
+    '4 Gols Exatos': 'gol4', '5 Gols Exatos': 'gol5'
 };
+
+// =================================================================================
+// FUNÇÕES UTILITÁRIAS
+// =================================================================================
 
 function hexToRgba(hex, alpha) {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -1361,47 +1342,22 @@ function formatHtResult(ht) {
     if (ht === 'OUT') return 'OUT';
     if (ht && ht.includes(' x ')) {
         const parts = ht.split(' x ');
-        if (parts.length === 2) {
-            return `${parts[0]}-${parts[1]}`;
-        }
+        return parts.length === 2 ? `${parts[0]}-${parts[1]}` : ht;
     }
     return ht;
 }
 
 function getKeyFromLabel(label) {
     if (label.includes(' - ')) {
-        const [mainLabel, maPart] = label.split(' - ');
-        const maType = maPart.split(' ')[0];
-        return labelToKey[mainLabel] + maType;
-    } else {
-        return labelToKey[label];
+        const [mainLabel] = label.split(' - ');
+        return labelToKey[mainLabel];
     }
+    return labelToKey[label];
 }
 
-function updateStatsChart(chart, newData) {
-    if (chart) {
-        chart.data.labels = newData.labels;
-        chart.data.datasets.forEach(ds => {
-            ds.data = newData[getKeyFromLabel(ds.label)];
-            if (!ds.label.includes(' MA')) {
-                ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + 'Colors'];
-            }
-        });
-        chart.update('none');
-    }
-}
-
-function updateRsiChart(chart, newData) {
-    if (chart) {
-        chart.data.labels = newData.labels;
-        chart.data.datasets.forEach(ds => {
-            if (!ds.label.includes('Overbought') && !ds.label.includes('Oversold')) {
-                ds.data = newData[labelToKey[ds.label] + 'RSI'];
-            }
-        });
-        chart.update('none');
-    }
-}
+// =================================================================================
+// LÓGICA DE CÁLCULO DOS GRÁFICOS
+// =================================================================================
 
 function computeMA(dataArray, period) {
     let ma = [];
@@ -1421,25 +1377,41 @@ function computeMA(dataArray, period) {
 
 function calculateRSI(segment, period) {
     let rsi = Array(segment.length).fill(null);
+    if (segment.length < period + 1) return rsi;
+
     let gains = 0;
     let losses = 0;
-    for (let i = 1; i < period + 1; i++) {
+
+    for (let i = 1; i <= period; i++) {
         let delta = segment[i] - segment[i - 1];
         if (delta > 0) gains += delta;
         else losses -= delta;
     }
+
     let avgGain = gains / period;
     let avgLoss = losses / period;
-    let rs = avgLoss === 0 ? Infinity : avgGain / avgLoss;
-    rsi[period] = rs === Infinity ? 100 : 100 - 100 / (1 + rs);
+
+    if (avgLoss === 0) {
+        rsi[period] = 100;
+    } else {
+        let rs = avgGain / avgLoss;
+        rsi[period] = 100 - (100 / (1 + rs));
+    }
+
     for (let i = period + 1; i < segment.length; i++) {
         let delta = segment[i] - segment[i - 1];
-        let gain = Math.max(delta, 0);
-        let loss = Math.max(-delta, 0);
+        let gain = delta > 0 ? delta : 0;
+        let loss = delta < 0 ? -delta : 0;
+
         avgGain = (avgGain * (period - 1) + gain) / period;
         avgLoss = (avgLoss * (period - 1) + loss) / period;
-        rs = avgLoss === 0 ? Infinity : avgGain / avgLoss;
-        rsi[i] = rs === Infinity ? 100 : 100 - 100 / (1 + rs);
+
+        if (avgLoss === 0) {
+            rsi[i] = 100;
+        } else {
+            let rs = avgGain / avgLoss;
+            rsi[i] = 100 - (100 / (1 + rs));
+        }
     }
     return rsi;
 }
@@ -1464,6 +1436,53 @@ function computeRSI(prices, period = 14) {
     return rsi;
 }
 
+function calculateAllStats(fullData, localAveragePoints) {
+    const stats = {};
+    Object.values(labelToKey).forEach(key => { stats[key] = []; });
+
+    for (let i = 0; i < fullData.length; i++) {
+        let sums = {};
+        Object.keys(labelToKey).forEach(label => { sums[labelToKey[label] + 'Sum'] = 0; });
+        let validMatches = 0;
+
+        for (let j = Math.max(0, i - localAveragePoints); j <= i; j++) {
+            const match = fullData[j];
+            if (!match || !match.ft) continue;
+
+            const ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
+            const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
+
+            sums.golsFTSum += totalGolsFT;
+            sums.casaVenceSum += ftScoreParts[0] > ftScoreParts[1] ? 1 : 0;
+            sums.empateSum += ftScoreParts[0] === ftScoreParts[1] ? 1 : 0;
+            sums.foraVenceSum += ftScoreParts[0] < ftScoreParts[1] ? 1 : 0;
+            sums.ambasSimSum += (ftScoreParts[0] > 0 && ftScoreParts[1] > 0) ? 1 : 0;
+            sums.ambasNaoSum += (ftScoreParts[0] === 0 || ftScoreParts[1] === 0) ? 1 : 0;
+            sums.over15Sum += totalGolsFT > 1.5 ? 1 : 0;
+            sums.over25Sum += totalGolsFT > 2.5 ? 1 : 0;
+            sums.over35Sum += totalGolsFT > 3.5 ? 1 : 0;
+            sums.under15Sum += totalGolsFT < 1.5 ? 1 : 0;
+            sums.under25Sum += totalGolsFT < 2.5 ? 1 : 0;
+            sums.under35Sum += totalGolsFT < 3.5 ? 1 : 0;
+            sums.gol0Sum += totalGolsFT === 0 ? 1 : 0;
+            sums.gol1Sum += totalGolsFT === 1 ? 1 : 0;
+            sums.gol2Sum += totalGolsFT === 2 ? 1 : 0;
+            sums.gol3Sum += totalGolsFT === 3 ? 1 : 0;
+            sums.gol4Sum += totalGolsFT === 4 ? 1 : 0;
+            sums.gol5Sum += totalGolsFT === 5 ? 1 : 0;
+            validMatches++;
+        }
+
+        const avg = validMatches || 1;
+        Object.keys(labelToKey).forEach(label => {
+            const key = labelToKey[label];
+            stats[key].push((sums[key + 'Sum'] / avg) * 100);
+        });
+    }
+    return stats;
+}
+
+
 function processApiData(data, league) {
     const sortedData = [...data].sort((a, b) => {
         const dateA = new Date(a.data);
@@ -1473,719 +1492,348 @@ function processApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const slicedData = sortedData.slice(-numPoints - averagePoints);
-    chartData[league] = slicedData;
+    const fullHistorySize = numPoints + averagePoints;
+    const fullHistoryData = sortedData.slice(-fullHistorySize);
+    chartData[league] = fullHistoryData;
 
-    let labels = [];
-    let golsFT = [];
-    let casaVence = [];
-    let empate = [];
-    let foraVence = [];
-    let ambasSim = [];
-    let ambasNao = [];
-    let over15 = [];
-    let over25 = [];
-    let over35 = [];
-    let under15 = [];
-    let under25 = [];
-    let under35 = [];
-    let gol0 = [];
-    let gol1 = [];
-    let gol2 = [];
-    let gol3 = [];
-    let gol4 = [];
-    let gol5 = [];
+    const fullStats = calculateAllStats(fullHistoryData, averagePoints);
 
-    let golsFTColors = [];
-    let casaVenceColors = [];
-    let empateColors = [];
-    let foraVenceColors = [];
-    let ambasSimColors = [];
-    let ambasNaoColors = [];
-    let over15Colors = [];
-    let over25Colors = [];
-    let over35Colors = [];
-    let under15Colors = [];
-    let under25Colors = [];
-    let under35Colors = [];
-    let gol0Colors = [];
-    let gol1Colors = [];
-    let gol2Colors = [];
-    let gol3Colors = [];
-    let gol4Colors = [];
-    let gol5Colors = [];
-
+    const result = { labels: [] };
+    Object.values(labelToKey).forEach(key => {
+        result[key] = [];
+        result[key + 'Colors'] = [];
+    });
+    
     const green = '#00FF00';
     const red = '#FF0000';
-    const golsFTLineColor = '#1E88E5'; // Same as borderColor for Gols FT
-    const transparent = 'transparent';
+    const golsFTLineColor = '#1E88E5';
 
-    // Função para verificar se há lacuna entre dois jogos
-    function hasGap(prevMatch, currMatch) {
-        const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
-        const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
-        const diffMinutes = (currTime - prevTime) / (1000 * 60); // Diferença em minutos
-        return diffMinutes > 1; // Considera lacuna se a diferença for maior que 1 minuto
-    }
+    fullHistoryData.slice(-numPoints).forEach((match, index) => {
+        const fullIndex = averagePoints + index;
+        result.labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
-    for (let i = averagePoints; i < slicedData.length; i++) {
-        let golsFTSum = 0;
-        let casaVenceSum = 0;
-        let empateSum = 0;
-        let foraVenceSum = 0;
-        let ambasSimSum = 0;
-        let ambasNaoSum = 0;
-        let over15Sum = 0;
-        let over25Sum = 0;
-        let over35Sum = 0;
-        let under15Sum = 0;
-        let under25Sum = 0;
-        let under35Sum = 0;
-        let gol0Sum = 0;
-        let gol1Sum = 0;
-        let gol2Sum = 0;
-        let gol3Sum = 0;
-        let gol4Sum = 0;
-        let gol5Sum = 0;
-        let validMatches = 0;
-
-        // Calcula a média apenas com os jogos disponíveis
-        for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
-            const match = slicedData[j];
-            const ftScore = match.ft;
-
-            // Verifica se há lacuna antes de processar
-            if (j > 0 && hasGap(slicedData[j - 1], match)) {
-                // Insere um ponto nulo no gráfico para indicar a lacuna
-                labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-                golsFT.push(null); // null faz o Chart.js pular o ponto
-                casaVence.push(null);
-                empate.push(null);
-                foraVence.push(null);
-                ambasSim.push(null);
-                ambasNao.push(null);
-                over15.push(null);
-                over25.push(null);
-                over35.push(null);
-                under15.push(null);
-                under25.push(null);
-                under35.push(null);
-                gol0.push(null);
-                gol1.push(null);
-                gol2.push(null);
-                gol3.push(null);
-                gol4.push(null);
-                gol5.push(null);
-
-                golsFTColors.push(transparent);
-                casaVenceColors.push(transparent);
-                empateColors.push(transparent);
-                foraVenceColors.push(transparent);
-                ambasSimColors.push(transparent);
-                ambasNaoColors.push(transparent);
-                over15Colors.push(transparent);
-                over25Colors.push(transparent);
-                over35Colors.push(transparent);
-                under15Colors.push(transparent);
-                under25Colors.push(transparent);
-                under35Colors.push(transparent);
-                gol0Colors.push(transparent);
-                gol1Colors.push(transparent);
-                gol2Colors.push(transparent);
-                gol3Colors.push(transparent);
-                gol4Colors.push(transparent);
-                gol5Colors.push(transparent);
-
-                continue; // Pula para o próximo jogo
-            }
-
-            let ftScoreParts = [0, 0];
-            if (ftScore && ftScore.includes(' x ')) {
-                ftScoreParts = ftScore.split(' x ').map(num => parseInt(num, 10));
-            }
-
-            const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
-
-            golsFTSum += totalGolsFT;
-            casaVenceSum += ftScoreParts[0] > ftScoreParts[1] ? 1 : 0;
-            empateSum += ftScoreParts[0] === ftScoreParts[1] ? 1 : 0;
-            foraVenceSum += ftScoreParts[0] < ftScoreParts[1] ? 1 : 0;
-            ambasSimSum += ftScoreParts[0] > 0 && ftScoreParts[1] > 0 ? 1 : 0;
-            ambasNaoSum += ftScoreParts[0] === 0 || ftScoreParts[1] === 0 ? 1 : 0;
-            over15Sum += totalGolsFT > 1.5 ? 1 : 0;
-            over25Sum += totalGolsFT > 2.5 ? 1 : 0;
-            over35Sum += totalGolsFT > 3.5 ? 1 : 0;
-            under15Sum += totalGolsFT < 1.5 ? 1 : 0;
-            under25Sum += totalGolsFT < 2.5 ? 1 : 0;
-            under35Sum += totalGolsFT < 3.5 ? 1 : 0;
-            gol0Sum += totalGolsFT === 0 ? 1 : 0;
-            gol1Sum += totalGolsFT === 1 ? 1 : 0;
-            gol2Sum += totalGolsFT === 2 ? 1 : 0;
-            gol3Sum += totalGolsFT === 3 ? 1 : 0;
-            gol4Sum += totalGolsFT === 4 ? 1 : 0;
-            gol5Sum += totalGolsFT === 5 ? 1 : 0;
-            validMatches++;
-        }
-
-        const match = slicedData[i];
-        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`); // Linha corrigida
-
-        const avg = validMatches || 1; // Evita divisão por zero
-
-        let ftScoreParts = [0, 0];
-        if (match.ft && match.ft.includes(' x ')) {
-            ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
-        }
+        const ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
         const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
 
-        const isCasaVence = ftScoreParts[0] > ftScoreParts[1];
-        const isEmpate = ftScoreParts[0] === ftScoreParts[1];
-        const isForaVence = ftScoreParts[0] < ftScoreParts[1];
-        const isAmbasSim = ftScoreParts[0] > 0 && ftScoreParts[1] > 0;
-        const isAmbasNao = !isAmbasSim;
-        const isOver15 = totalGolsFT > 1.5;
-        const isOver25 = totalGolsFT > 2.5;
-        const isOver35 = totalGolsFT > 3.5;
-        const isUnder15 = totalGolsFT < 1.5;
-        const isUnder25 = totalGolsFT < 2.5;
-        const isUnder35 = totalGolsFT < 3.5;
-        const isGol0 = totalGolsFT === 0;
-        const isGol1 = totalGolsFT === 1;
-        const isGol2 = totalGolsFT === 2;
-        const isGol3 = totalGolsFT === 3;
-        const isGol4 = totalGolsFT === 4;
-        const isGol5 = totalGolsFT === 5;
+        result.golsFT.push(fullStats.golsFT[fullIndex]);
+        result.casaVence.push(fullStats.casaVence[fullIndex]);
+        result.empate.push(fullStats.empate[fullIndex]);
+        result.foraVence.push(fullStats.foraVence[fullIndex]);
+        result.ambasSim.push(fullStats.ambasSim[fullIndex]);
+        result.ambasNao.push(fullStats.ambasNao[fullIndex]);
+        result.over15.push(fullStats.over15[fullIndex]);
+        result.over25.push(fullStats.over25[fullIndex]);
+        result.over35.push(fullStats.over35[fullIndex]);
+        result.under15.push(fullStats.under15[fullIndex]);
+        result.under25.push(fullStats.under25[fullIndex]);
+        result.under35.push(fullStats.under35[fullIndex]);
+        result.gol0.push(fullStats.gol0[fullIndex]);
+        result.gol1.push(fullStats.gol1[fullIndex]);
+        result.gol2.push(fullStats.gol2[fullIndex]);
+        result.gol3.push(fullStats.gol3[fullIndex]);
+        result.gol4.push(fullStats.gol4[fullIndex]);
+        result.gol5.push(fullStats.gol5[fullIndex]);
 
-        golsFT.push(golsFTSum / avg * 100);
-        golsFTColors.push(golsFTLineColor); // Keep uniform color for Gols FT
+        result.golsFTColors.push(golsFTLineColor);
+        result.casaVenceColors.push(ftScoreParts[0] > ftScoreParts[1] ? green : red);
+        result.empateColors.push(ftScoreParts[0] === ftScoreParts[1] ? green : red);
+        result.foraVenceColors.push(ftScoreParts[0] < ftScoreParts[1] ? green : red);
+        result.ambasSimColors.push((ftScoreParts[0] > 0 && ftScoreParts[1] > 0) ? green : red);
+        result.ambasNaoColors.push((ftScoreParts[0] === 0 || ftScoreParts[1] === 0) ? green : red);
+        result.over15Colors.push(totalGolsFT > 1.5 ? green : red);
+        result.over25Colors.push(totalGolsFT > 2.5 ? green : red);
+        result.over35Colors.push(totalGolsFT > 3.5 ? green : red);
+        result.under15Colors.push(totalGolsFT < 1.5 ? green : red);
+        result.under25Colors.push(totalGolsFT < 2.5 ? green : red);
+        result.under35Colors.push(totalGolsFT < 3.5 ? green : red);
+        result.gol0Colors.push(totalGolsFT === 0 ? green : red);
+        result.gol1Colors.push(totalGolsFT === 1 ? green : red);
+        result.gol2Colors.push(totalGolsFT === 2 ? green : red);
+        result.gol3Colors.push(totalGolsFT === 3 ? green : red);
+        result.gol4Colors.push(totalGolsFT === 4 ? green : red);
+        result.gol5Colors.push(totalGolsFT === 5 ? green : red);
+    });
 
-        casaVence.push(casaVenceSum / avg * 100);
-        casaVenceColors.push(isCasaVence ? green : red);
-
-        empate.push(empateSum / avg * 100);
-        empateColors.push(isEmpate ? green : red);
-
-        foraVence.push(foraVenceSum / avg * 100);
-        foraVenceColors.push(isForaVence ? green : red);
-
-        ambasSim.push(ambasSimSum / avg * 100);
-        ambasSimColors.push(isAmbasSim ? green : red);
-
-        ambasNao.push(ambasNaoSum / avg * 100);
-        ambasNaoColors.push(isAmbasNao ? green : red);
-
-        over15.push(over15Sum / avg * 100);
-        over15Colors.push(isOver15 ? green : red);
-
-        over25.push(over25Sum / avg * 100);
-        over25Colors.push(isOver25 ? green : red);
-
-        over35.push(over35Sum / avg * 100);
-        over35Colors.push(isOver35 ? green : red);
-
-        under15.push(under15Sum / avg * 100);
-        under15Colors.push(isUnder15 ? green : red);
-
-        under25.push(under25Sum / avg * 100);
-        under25Colors.push(isUnder25 ? green : red);
-
-        under35.push(under35Sum / avg * 100);
-        under35Colors.push(isUnder35 ? green : red);
-
-        gol0.push(gol0Sum / avg * 100);
-        gol0Colors.push(isGol0 ? green : red);
-
-        gol1.push(gol1Sum / avg * 100);
-        gol1Colors.push(isGol1 ? green : red);
-
-        gol2.push(gol2Sum / avg * 100);
-        gol2Colors.push(isGol2 ? green : red);
-
-        gol3.push(gol3Sum / avg * 100);
-        gol3Colors.push(isGol3 ? green : red);
-
-        gol4.push(gol4Sum / avg * 100);
-        gol4Colors.push(isGol4 ? green : red);
-
-        gol5.push(gol5Sum / avg * 100);
-        gol5Colors.push(isGol5 ? green : red);
-    }
-
-    const result = { 
-        labels, golsFT, casaVence, empate, foraVence, ambasSim, ambasNao,
-        over15, over25, over35, under15, under25, under35,
-        gol0, gol1, gol2, gol3, gol4, gol5,
-        golsFTColors, casaVenceColors, empateColors, foraVenceColors,
-        ambasSimColors, ambasNaoColors, over15Colors, over25Colors, over35Colors,
-        under15Colors, under25Colors, under35Colors, gol0Colors, gol1Colors,
-        gol2Colors, gol3Colors, gol4Colors, gol5Colors
-    };
-
-    // Compute moving averages
-    const shortPeriod = 5;
-    const mediumPeriod = 10;
-    const longPeriod = 20;
-
+    const shortPeriod = 5, mediumPeriod = 10, longPeriod = 20;
     Object.keys(labelToKey).forEach(label => {
         const key = labelToKey[label];
-        result[key + 'Short'] = computeMA(result[key], shortPeriod);
-        result[key + 'Medium'] = computeMA(result[key], mediumPeriod);
-        result[key + 'Long'] = computeMA(result[key], longPeriod);
-        result[key + 'RSI'] = computeRSI(result[key]);
+        const fullMA_Short = computeMA(fullStats[key], shortPeriod);
+        const fullMA_Medium = computeMA(fullStats[key], mediumPeriod);
+        const fullMA_Long = computeMA(fullStats[key], longPeriod);
+        const fullRSI = computeRSI(fullStats[key]);
+
+        result[key + 'Short'] = fullMA_Short.slice(-numPoints);
+        result[key + 'Medium'] = fullMA_Medium.slice(-numPoints);
+        result[key + 'Long'] = fullMA_Long.slice(-numPoints);
+        result[key + 'RSI'] = fullRSI.slice(-numPoints);
     });
 
     return result;
 }
 
+
+// =================================================================================
+// CRIAÇÃO E ATUALIZAÇÃO DOS GRÁFICOS (CHART.JS)
+// =================================================================================
+
 const fibonacciLinesPlugin = {
     id: 'fibonacciLines',
     afterDraw: (chart) => {
         if (!showFibonacciLines) return;
-        const ctx = chart.ctx;
-        const yAxis = chart.scales.y;
-        const fibonacciLevels = [0, 23.6, 38.2, 50, 61.8, 100];
-        const yMin = yAxis.min;
-        const yMax = yAxis.max;
-        const range = yMax - yMin;
-        const normalizedLevels = fibonacciLevels.map(level => yMin + (level / 100) * range);
-
+        const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+        const fibLevels = [0, 23.6, 38.2, 50, 61.8, 100];
+        const range = y.max - y.min;
         ctx.save();
-        normalizedLevels.forEach((level, index) => {
-        const y = yAxis.getPixelForValue(level);
-        ctx.beginPath();
-        ctx.setLineDash([5, 5]); // <-- deixa tracejado
-        ctx.moveTo(chart.chartArea.left, y);
-        ctx.lineTo(chart.chartArea.right, y);
         ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.setLineDash([]); // <-- reseta para linhas normais depois
-
-        // Texto ao lado da linha
         ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
         ctx.font = '11px Arial';
         ctx.textAlign = 'left';
-        const textY = y - (index === 0 ? -10 : 5);
-        const textX = chart.chartArea.right + 10;
-        ctx.fillText(`${fibonacciLevels[index]}%`, textX, textY);
+        fibLevels.forEach((level, index) => {
+            const yVal = y.min + (level / 100) * range;
+            const yPx = y.getPixelForValue(yVal);
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(left, yPx);
+            ctx.lineTo(right, yPx);
+            ctx.stroke();
+            const textY = yPx - (index === 0 ? -10 : 5);
+            ctx.fillText(`${level}%`, right + 10, textY);
         });
         ctx.restore();
     }
 };
 
-function createMainChart(ctx, labels, data, league) {
-    const datasetConfigs = [
-        { label: 'Gols FT', color: '#1E88E5', key: 'golsFT' },
-        { label: 'Casa Vence', color: '#AB47BC', key: 'casaVence' },
-        { label: 'Empate', color: '#78909C', key: 'empate' },
-        { label: 'Fora Vence', color: '#2196F3', key: 'foraVence' },
-        { label: 'Ambas Sim', color: '#B0BEC5', key: 'ambasSim' },
-        { label: 'Ambas Não', color: '#F44336', key: 'ambasNao' },
-        { label: 'Over 1.5', color: '#26A69A', key: 'over15' },
-        { label: 'Over 2.5', color: '#FFEB3B', key: 'over25' },
-        { label: 'Over 3.5', color: '#00BCD4', key: 'over35' },
-        { label: 'Under 1.5', color: '#388E3C', key: 'under15' },
-        { label: 'Under 2.5', color: '#FF9800', key: 'under25' },
-        { label: 'Under 3.5', color: '#F06292', key: 'under35' },
-        { label: '0 Gol Exato', color: '#D81B60', key: 'gol0' },
-        { label: '1 Gol Exato', color: '#8E24AA', key: 'gol1' },
-        { label: '2 Gols Exatos', color: '#A0522D', key: 'gol2' },
-        { label: '3 Gols Exatos', color: '#546E7A', key: 'gol3' },
-        { label: '4 Gols Exatos', color: '#FFB300', key: 'gol4' },
-        { label: '5 Gols Exatos', color: '#00897B', key: 'gol5' }
-    ];
-
+function createMainChart(ctx, data, league) {
+    const datasetConfigs = Object.keys(labelToKey).map(label => ({
+        label: label,
+        color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'), // Cor aleatória para exemplo
+        key: labelToKey[label]
+    }));
     const datasets = [];
-
-    const shortColor = hexToRgba('#FF0000', 0.5); // red faded
-    const mediumColor = hexToRgba('#FFFF00', 0.5); // yellow faded
-    const longColor = hexToRgba('#FFFFFF', 0.5); // white faded
+    const shortColor = hexToRgba('#FF0000', 0.5), mediumColor = hexToRgba('#FFFF00', 0.5), longColor = hexToRgba('#FFFFFF', 0.5);
 
     datasetConfigs.forEach(config => {
-        // Main dataset
         datasets.push({
-            label: config.label,
-            data: data[config.key],
-            borderColor: config.color,
-            backgroundColor: config.color,
-            pointBackgroundColor: data[config.key + 'Colors'],
-            borderWidth: 2,
-            pointRadius: 4,
-            fill: false,
+            label: config.label, data: data[config.key], borderColor: config.color, backgroundColor: config.color,
+            pointBackgroundColor: data[config.key + 'Colors'], borderWidth: 2, pointRadius: 4, fill: false,
             hidden: !statsChartVisibleDatasets[config.label]
         });
-
-        // Short MA
         datasets.push({
-            label: config.label + ' - Short MA',
-            data: data[config.key + 'Short'],
-            borderColor: shortColor,
-            backgroundColor: 'transparent',
-            borderWidth: 1,
-            pointRadius: 0,
-            fill: false,
-            hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
+            label: `${config.label} - Short MA`, data: data[config.key + 'Short'], borderColor: shortColor, borderWidth: 1,
+            pointRadius: 0, fill: false, hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
         });
-
-        // Medium MA
         datasets.push({
-            label: config.label + ' - Medium MA',
-            data: data[config.key + 'Medium'],
-            borderColor: mediumColor,
-            backgroundColor: 'transparent',
-            borderWidth: 1,
-            pointRadius: 0,
-            fill: false,
-            hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
+            label: `${config.label} - Medium MA`, data: data[config.key + 'Medium'], borderColor: mediumColor, borderWidth: 1,
+            pointRadius: 0, fill: false, hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
         });
-
-        // Long MA
         datasets.push({
-            label: config.label + ' - Long MA',
-            data: data[config.key + 'Long'],
-            borderColor: longColor,
-            backgroundColor: 'transparent',
-            borderWidth: 1,
-            pointRadius: 0,
-            fill: false,
-            hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
+            label: `${config.label} - Long MA`, data: data[config.key + 'Long'], borderColor: longColor, borderWidth: 1,
+            pointRadius: 0, fill: false, hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
         });
     });
 
-    const mainChart = new Chart(ctx, {
+    const chart = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
+        data: { labels: data.labels, datasets },
         options: {
-            responsive: true,
-            layout: { 
-                padding: { 
-                    top: 30,
-                    right: 50
-                } 
-            },
+            responsive: true, maintainAspectRatio: false,
+            layout: { padding: { top: 30, right: 50 } },
             plugins: {
                 legend: {
-                    display: true,
-                    labels: { 
-                        color: '#e0e0e0', 
-                        font: { size: 12 },
-                        filter: function(legendItem) {
-                            return !legendItem.text.includes(' MA');
-                        }
-                    },
-                    onClick: function(e, legendItem, legend) {
+                    labels: { color: '#e0e0e0', filter: item => !item.text.includes(' MA') },
+                    onClick: (e, legendItem, legend) => {
                         const ci = legend.chart;
-                        const datasetLabel = legendItem.text;
-                        const mainIndex = ci.data.datasets.findIndex(ds => ds.label === datasetLabel);
-                        const meta = ci.getDatasetMeta(mainIndex);
+                        const meta = ci.getDatasetMeta(legendItem.datasetIndex);
                         meta.hidden = !meta.hidden;
-                        statsChartVisibleDatasets[datasetLabel] = !meta.hidden;
-
-                        // Toggle related MAs
-                        ci.data.datasets.forEach((ds, dsIndex) => {
-                            if (ds.label.startsWith(datasetLabel + ' -')) {
-                                const metaMA = ci.getDatasetMeta(dsIndex);
-                                metaMA.hidden = !showMovingAverages || meta.hidden;
+                        statsChartVisibleDatasets[legendItem.text] = !meta.hidden;
+                        ci.data.datasets.forEach((ds, i) => {
+                            if (ds.label.startsWith(legendItem.text + ' -')) {
+                                ci.getDatasetMeta(i).hidden = !showMovingAverages || meta.hidden;
                             }
                         });
-
-                        // Toggle RSI
-                        const rsiCi = chartInstances[ci.league].rsi;
-                        if (rsiCi) {
-                            const rsiMeta = rsiCi.getDatasetMeta(legendItem.datasetIndex);
-                            rsiMeta.hidden = meta.hidden;
-                            rsiCi.update();
+                        if (chartInstances[ci.league].rsi) {
+                            chartInstances[ci.league].rsi.getDatasetMeta(legendItem.datasetIndex).hidden = meta.hidden;
+                            chartInstances[ci.league].rsi.update('none');
                         }
-
                         ci.update();
                     }
                 },
                 tooltip: {
-                    enabled: true,
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#1fad8b',
-                    bodyColor: '#e0e0e0',
-                    borderColor: '#1fad8b',
-                    borderWidth: 1,
                     callbacks: {
-                        title: function(tooltipItems) {
-                            const league = leagues.find(l => chartInstances[l].main === tooltipItems[0].chart);
-                            const index = tooltipItems[0].dataIndex + averagePoints;
-                            const match = chartData[league][index];
-                            return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
+                        title: items => {
+                            const index = items[0].dataIndex;
+                            const match = chartData[league][averagePoints + index];
+                            return match ? `${match.hora}:${match.minuto.toString().padStart(2, '0')}` : '';
                         },
-                        label: function(tooltipItem) {
-                            const league = leagues.find(l => chartInstances[l].main === tooltipItem.chart);
-                            const index = tooltipItem.dataIndex + averagePoints;
-                            const match = chartData[league][index];
-                            const ftScore = match.ft || 'N/A';
-                            const htScore = formatHtResult(match.ht) || 'N/A';
-                            return [
-                                `FT: ${ftScore}`,
-                                `HT: ${htScore}`,
-                                `${tooltipItem.dataset.label}: ${Math.round(tooltipItem.raw)}`
-                            ];
+                        label: item => {
+                            const index = item.dataIndex;
+                            const match = chartData[league][averagePoints + index];
+                            if (!match) return `${item.dataset.label}: ${Math.round(item.raw)}`;
+                            return [`FT: ${match.ft || 'N/A'}`, `HT: ${formatHtResult(match.ht) || 'N/A'}`, `${item.dataset.label}: ${Math.round(item.raw)}`];
                         }
                     }
                 }
             },
             scales: {
-                x: {
-                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                    ticks: { display: false },
-                    grid: { display: false }
-                },
-                y: {
-                  title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                  beginAtZero: false,
-                  ticks: { 
-                      color: '#b0b0b0',
-                      stepSize: 5 // Adiciona mais linhas
-                  },
-                  grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 }, // Linhas brancas, contínuas, finas e levemente apagadas
-                  afterFit: function(scale) { scale.paddingTop = 20; }
-                }
+                x: { ticks: { display: false }, grid: { display: false } },
+                y: { beginAtZero: false, ticks: { color: '#b0b0b0' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }
             }
         },
         plugins: [fibonacciLinesPlugin]
     });
-
-    mainChart.league = league;
-    return mainChart;
+    chart.league = league;
+    return chart;
 }
 
-function createRsiChart(ctx, labels, data, league) {
-    const datasetConfigs = [
-        { label: 'Gols FT', color: '#1E88E5', key: 'golsFT' },
-        { label: 'Casa Vence', color: '#AB47BC', key: 'casaVence' },
-        { label: 'Empate', color: '#78909C', key: 'empate' },
-        { label: 'Fora Vence', color: '#2196F3', key: 'foraVence' },
-        { label: 'Ambas Sim', color: '#B0BEC5', key: 'ambasSim' },
-        { label: 'Ambas Não', color: '#F44336', key: 'ambasNao' },
-        { label: 'Over 1.5', color: '#26A69A', key: 'over15' },
-        { label: 'Over 2.5', color: '#FFEB3B', key: 'over25' },
-        { label: 'Over 3.5', color: '#00BCD4', key: 'over35' },
-        { label: 'Under 1.5', color: '#388E3C', key: 'under15' },
-        { label: 'Under 2.5', color: '#FF9800', key: 'under25' },
-        { label: 'Under 3.5', color: '#F06292', key: 'under35' },
-        { label: '0 Gol Exato', color: '#D81B60', key: 'gol0' },
-        { label: '1 Gol Exato', color: '#8E24AA', key: 'gol1' },
-        { label: '2 Gols Exatos', color: '#A0522D', key: 'gol2' },
-        { label: '3 Gols Exatos', color: '#546E7A', key: 'gol3' },
-        { label: '4 Gols Exatos', color: '#FFB300', key: 'gol4' },
-        { label: '5 Gols Exatos', color: '#00897B', key: 'gol5' }
-    ];
-
+function createRsiChart(ctx, data, league) {
+    const datasetConfigs = Object.keys(labelToKey).map(label => ({ label, key: labelToKey[label] }));
     const datasets = datasetConfigs.map(config => ({
-        label: config.label,
-        data: data[config.key + 'RSI'],
-        borderColor: '#FFD700',
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: false,
-        hidden: !statsChartVisibleDatasets[config.label]
+        label: config.label, data: data[config.key + 'RSI'], borderColor: '#FFD700', borderWidth: 1,
+        pointRadius: 0, fill: false, hidden: !statsChartVisibleDatasets[config.label]
     }));
-
     datasets.push({
-        label: 'Overbought',
-        data: Array(labels.length).fill(70),
-        borderColor: '#00FF00',
-        borderWidth: 1,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        fill: false
+        label: 'Overbought', data: Array(data.labels.length).fill(70), borderColor: '#00FF00',
+        borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false
     });
-
     datasets.push({
-        label: 'Oversold',
-        data: Array(labels.length).fill(30),
-        borderColor: '#FF0000',
-        borderWidth: 1,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        fill: false
+        label: 'Oversold', data: Array(data.labels.length).fill(30), borderColor: '#FF0000',
+        borderWidth: 1, borderDash: [5, 5], pointRadius: 0, fill: false
     });
-
-    const rsiChart = new Chart(ctx, {
+    const chart = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
+        data: { labels: data.labels, datasets },
         options: {
-            responsive: true,
-            layout: { 
-                padding: { 
-                    top: 10,
-                    right: 50
-                } 
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    enabled: true,
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#1fad8b',
-                    bodyColor: '#e0e0e0',
-                    borderColor: '#1fad8b',
-                    borderWidth: 1,
-                    callbacks: {
-                        title: function(tooltipItems) {
-                            const league = leagues.find(l => chartInstances[l].rsi === tooltipItems[0].chart);
-                            const index = tooltipItems[0].dataIndex + averagePoints;
-                            const match = chartData[league][index];
-                            return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
-                        },
-                        label: function(tooltipItem) {
-                            const league = leagues.find(l => chartInstances[l].rsi === tooltipItem.chart);
-                            const index = tooltipItem.dataIndex + averagePoints;
-                            const match = chartData[league][index];
-                            const ftScore = match.ft || 'N/A';
-                            const htScore = formatHtResult(match.ht) || 'N/A';
-                            return [
-                                `FT: ${ftScore}`,
-                                `HT: ${htScore}`,
-                                `${tooltipItem.dataset.label} IFR: ${Math.round(tooltipItem.raw)}`
-                            ];
-                        }
-                    }
-                }
-            },
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
             scales: {
-                x: {
-                    title: { display: false },
-                    ticks: { display: false },
-                    grid: { display: false }
-                },
-                y: {
-                  min: 0,
-                  max: 100,
-                  title: { display: false },
-                  ticks: { 
-                      color: '#b0b0b0',
-                      stepSize: 20
-                  },
-                  grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 }
-                }
+                x: { ticks: { display: false }, grid: { display: false } },
+                y: { min: 0, max: 100, ticks: { color: '#b0b0b0' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }
             }
         }
     });
-
-    rsiChart.league = league;
-    return rsiChart;
+    chart.league = league;
+    return chart;
 }
 
 function updateCharts() {
-    const timestamp = new Date().getTime();
-    const leagueUrls = {
-        'Copa': ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${timestamp}`,
-    };
-
-
     leagues.forEach(league => {
-        const apiUrl = leagueUrls[league] ? `${leagueUrls[league]}?timestamp=${timestamp}` : null;
-        if (!apiUrl) return;
-        console.log(`Buscando dados para ${league} em: ${apiUrl}`);
-        fetch(apiUrl)
-            .then(response => {
-                console.log(`Resposta recebida para ${league}:`, response);
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                return response.json();
-            })
+        getMockApiData() // <-- SUBSTITUA PELA SUA CHAMADA fetch() AQUI
             .then(data => {
-                console.log(`Dados processados para ${league}:`, data);
                 const processedData = processApiData(data, league);
-                const chartId = league;
-                const canvasElement = document.getElementById(chartId);
-                if (!canvasElement) {
-                    console.error(`Canvas com ID '${chartId}' não encontrado no DOM`);
-                    return;
-                }
                 if (!chartInstances[league]) {
-                    const mainCtx = canvasElement.getContext('2d');
-                    const rsiCanvasElement = document.getElementById(chartId + 'RSI');
-                    const rsiCtx = rsiCanvasElement ? rsiCanvasElement.getContext('2d') : null;
+                    const mainCtx = document.getElementById(league).getContext('2d');
+                    const rsiCtx = document.getElementById(league + 'RSI').getContext('2d');
                     chartInstances[league] = {
-                        main: createMainChart(mainCtx, processedData.labels, processedData, league),
-                        rsi: rsiCtx ? createRsiChart(rsiCtx, processedData.labels, processedData, league) : null
+                        main: createMainChart(mainCtx, processedData, league),
+                        rsi: createRsiChart(rsiCtx, processedData, league)
                     };
-                    console.log(`Gráficos criados para ${league}`);
                 } else {
-                    updateStatsChart(chartInstances[league].main, processedData);
-                    if (chartInstances[league].rsi) {
-                        updateRsiChart(chartInstances[league].rsi, processedData);
-                    }
-                    console.log(`Gráficos atualizados para ${league}`);
+                    const mainChart = chartInstances[league].main;
+                    const rsiChart = chartInstances[league].rsi;
+                    mainChart.data.labels = processedData.labels;
+                    rsiChart.data.labels = processedData.labels;
+                    mainChart.data.datasets.forEach(ds => {
+                        const key = getKeyFromLabel(ds.label);
+                        if (ds.label.includes('Short MA')) ds.data = processedData[key + 'Short'];
+                        else if (ds.label.includes('Medium MA')) ds.data = processedData[key + 'Medium'];
+                        else if (ds.label.includes('Long MA')) ds.data = processedData[key + 'Long'];
+                        else {
+                             ds.data = processedData[key];
+                             ds.pointBackgroundColor = processedData[key + 'Colors'];
+                        }
+                    });
+                     rsiChart.data.datasets.forEach(ds => {
+                        if (labelToKey[ds.label]) {
+                           ds.data = processedData[labelToKey[ds.label] + 'RSI'];
+                        }
+                    });
+                    mainChart.update('none');
+                    rsiChart.update('none');
                 }
             })
             .catch(error => console.error(`Erro ao buscar dados para ${league}:`, error));
     });
 }
 
+
+// =================================================================================
+// CONTROLES DE INTERFACE E INICIALIZAÇÃO
+// =================================================================================
+
 function toggleFibonacciLines() {
     showFibonacciLines = document.getElementById('fibonacciToggle').checked;
-    leagues.forEach(league => {
-        if (chartInstances[league] && chartInstances[league].main) chartInstances[league].main.update();
-    });
+    Object.values(chartInstances).forEach(c => c.main.update());
 }
 
 function toggleMovingAverages() {
     showMovingAverages = document.getElementById('movingAveragesToggle').checked;
-    leagues.forEach(league => {
-        const ci = chartInstances[league] ? chartInstances[league].main : null;
-        if (ci) {
-            ci.data.datasets.forEach((ds, idx) => {
-                if (ds.label.includes(' - ')) { // MA dataset
-                    const mainLabel = ds.label.split(' - ')[0];
-                    const mainVisible = statsChartVisibleDatasets[mainLabel];
-                    const meta = ci.getDatasetMeta(idx);
-                    meta.hidden = !showMovingAverages || !mainVisible;
-                }
-            });
-            ci.update();
-        }
+    Object.values(chartInstances).forEach(charts => {
+        const ci = charts.main;
+        ci.data.datasets.forEach((ds, idx) => {
+            if (ds.label.includes(' - ')) {
+                const mainLabel = ds.label.split(' - ')[0];
+                ci.getDatasetMeta(idx).hidden = !showMovingAverages || !statsChartVisibleDatasets[mainLabel];
+            }
+        });
+        ci.update();
     });
 }
 
 function toggleRSI() {
     showRSI = document.getElementById('rsiToggle').checked;
     leagues.forEach(league => {
-        const rsiElement = document.getElementById(league + 'RSI');
-        if (rsiElement) {
-            rsiElement.style.display = showRSI ? 'block' : 'none';
-        }
+        document.getElementById(league + 'RSIContainer').style.display = showRSI ? 'block' : 'none';
     });
 }
 
-document.querySelectorAll('.accordion-header').forEach(header => {
-    header.addEventListener('click', () => {
-        const content = header.nextElementSibling;
-        content.classList.toggle('active');
+function handleSelectorsChange() {
+    numPoints = parseInt(document.getElementById('timeSelector').value, 10);
+    averagePoints = parseInt(document.getElementById('baseSelector').value, 10);
+    updateCharts();
+}
+
+// =================================================================================
+// DADOS DE EXEMPLO (MOCK API)
+// =================================================================================
+
+function getMockApiData() {
+    return new Promise(resolve => {
+        const data = [];
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+
+        for (let i = 0; i < 100; i++) {
+            const matchTime = new Date(now.getTime() + i * 4 * 60000); // Jogo a cada 4 minutos
+            const homeGoals = Math.floor(Math.random() * 4);
+            const awayGoals = Math.floor(Math.random() * 4);
+            const htHomeGoals = Math.floor(Math.random() * (homeGoals + 1));
+            const htAwayGoals = Math.floor(Math.random() * (awayGoals + 1));
+
+            data.push({
+                data: matchTime.toISOString().split('T')[0],
+                hora: matchTime.getHours(),
+                minuto: matchTime.getMinutes(),
+                ft: `${homeGoals} x ${awayGoals}`,
+                ht: `${htHomeGoals} x ${htAwayGoals}`
+            });
+        }
+        resolve(data);
     });
-});
+}
 
-document.getElementById('pointsSelector').addEventListener('change', function(event) {
-    numPoints = parseInt(event.target.value, 10);
+// =================================================================================
+// INICIALIZAÇÃO DO SCRIPT
+// =================================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
     updateCharts();
+    // setInterval(updateCharts, 60000); // Atualiza a cada minuto
+
+    document.getElementById('timeSelector').addEventListener('change', handleSelectorsChange);
+    document.getElementById('baseSelector').addEventListener('change', handleSelectorsChange);
 });
 
-document.getElementById('averageSelector').addEventListener('change', function(event) {
-    averagePoints = parseInt(event.target.value, 10);
-    updateCharts();
-});
 
-document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
-document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
-document.getElementById('rsiToggle').addEventListener('change', toggleRSI);
-
-window.onload = updateCharts;
-setInterval(updateCharts, 3000);
     </script>
 
     <script>
