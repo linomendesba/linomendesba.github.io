@@ -1293,12 +1293,11 @@ if (mostrarOddsSelect) {
     </script>
 
     <script>
-let copaAmericaChart, CopaChart, EuroChart, PremierChart, SuperChart;
 let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
-const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
+const leagues = ['Copa'];
 const chartInstances = {};
 let chartData = {};
 
@@ -1381,7 +1380,7 @@ function updateStatsChart(chart, newData) {
                 ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + 'Colors'];
             }
         });
-        chart.update('none');
+        chart.update();
     }
 }
 
@@ -1813,7 +1812,7 @@ function createStatsChart(ctx, labels, data, league) {
                         ci.data.datasets.forEach((ds, dsIndex) => {
                             if (ds.label.startsWith(datasetLabel + ' - MA')) {
                                 const metaMA = ci.getDatasetMeta(dsIndex);
-                                metaMA.hidden = !showMovingAverages || !statsChartVisibleDatasets[datasetLabel];
+                                metaMA.hidden = !showMovingAverages || meta.hidden;
                             }
                         });
 
@@ -1878,7 +1877,7 @@ function updateCharts() {
     };
 
     leagues.forEach(league => {
-        const apiUrl = `${leagueUrls[league]}?timestamp=${timestamp}`;
+        const apiUrl = leagueUrls[league];
         console.log(`Buscando dados para ${league} em: ${apiUrl}`);
         fetch(apiUrl)
             .then(response => {
@@ -1911,24 +1910,28 @@ function updateCharts() {
 function toggleFibonacciLines() {
     showFibonacciLines = document.getElementById('fibonacciToggle').checked;
     leagues.forEach(league => {
-        if (chartInstances[league]) chartInstances[league].update();
+        if (chartInstances[league]) {
+            chartInstances[league].update();
+        }
     });
 }
 
 function toggleMovingAverages() {
     showMovingAverages = document.getElementById('movingAveragesToggle').checked;
+    console.log(`showMovingAverages: ${showMovingAverages}`); // Debug
     leagues.forEach(league => {
-        const ci = chartInstances[league];
-        if (ci) {
-            ci.data.datasets.forEach((ds, idx) => {
-                if (ds.label.includes(' - MA')) {
-                    const mainLabel = ds.label.split(' - ')[0];
-                    const mainVisible = statsChartVisibleDatasets[mainLabel];
-                    const meta = ci.getDatasetMeta(idx);
-                    meta.hidden = !showMovingAverages || !mainVisible;
+        const chart = chartInstances[league];
+        if (chart) {
+            chart.data.datasets.forEach((dataset, index) => {
+                if (dataset.label.includes(' - MA')) {
+                    const mainLabel = dataset.label.split(' - ')[0];
+                    const isMainVisible = statsChartVisibleDatasets[mainLabel];
+                    const meta = chart.getDatasetMeta(index);
+                    meta.hidden = !showMovingAverages || !isMainVisible;
+                    console.log(`Dataset ${dataset.label}: hidden=${meta.hidden}`); // Debug
                 }
             });
-            ci.update();
+            chart.update();
         }
     });
 }
