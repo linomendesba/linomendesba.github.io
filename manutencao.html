@@ -312,7 +312,6 @@
                 <option value="1440">72 Horas</option>
             </select>
         </div>
-        
         <div>
             <label for="averageSelector"></label>
             <select id="averageSelector">
@@ -324,7 +323,6 @@
                 <option value="119">Base 120</option>
             </select>
         </div>
-
         <div class="checkbox-container">
             <input type="checkbox" id="fibonacciToggle">
             <label for="fibonacciToggle">Ativar Fibonacci</label>
@@ -332,6 +330,14 @@
         <div class="checkbox-container">
             <input type="checkbox" id="movingAveragesToggle">
             <label for="movingAveragesToggle">Ativar Médias Móveis</label>
+        </div>
+        <div class="checkbox-container">
+            <input type="checkbox" id="bollingerToggle">
+            <label for="bollingerToggle">Ativar Bandas de Bollinger</label>
+        </div>
+        <div class="checkbox-container">
+            <input type="checkbox" id="supportResistanceToggle">
+            <label for="supportResistanceToggle">Ativar Suporte/Resistência</label>
         </div>
     </div>
 </div>
@@ -1299,6 +1305,7 @@ let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
 let showBollingerBands = false;
+let showSupportResistance = false;
 const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
 let chartData = {};
@@ -1365,9 +1372,9 @@ function formatHtResult(ht) {
 
 function getKeyFromLabel(label) {
     if (label.includes(' - ')) {
-        const [mainLabel, maPart] = label.split(' - ');
-        const maType = maPart.split(' ')[0];
-        return labelToKey[mainLabel] + maType;
+        const [mainLabel, subPart] = label.split(' - ');
+        const subType = subPart.split(' ')[0];
+        return labelToKey[mainLabel] + subType;
     } else {
         return labelToKey[label];
     }
@@ -1423,6 +1430,14 @@ function computeBollinger(dataArray, period = 20, stdDevMultiplier = 2) {
         bands.lower.push(ma - stdDevMultiplier * stdDev);
     }
     return bands;
+}
+
+function computeSupportResistance(dataArray) {
+    let validData = dataArray.filter(val => val !== null);
+    if (validData.length === 0) return { support: null, resistance: null };
+    let max = Math.max(...validData);
+    let min = Math.min(...validData);
+    return { support: min, resistance: max };
 }
 
 function processApiData(data, league) {
@@ -1481,12 +1496,11 @@ function processApiData(data, league) {
     const golsFTLineColor = '#1E88E5'; // Same as borderColor for Gols FT
     const transparent = 'transparent';
 
-    // Função para verificar se há lacuna entre dois jogos
     function hasGap(prevMatch, currMatch) {
         const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
         const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
-        const diffMinutes = (currTime - prevTime) / (1000 * 60); // Diferença em minutos
-        return diffMinutes > 1; // Considera lacuna se a diferença for maior que 1 minuto
+        const diffMinutes = (currTime - prevTime) / (1000 * 60);
+        return diffMinutes > 1;
     }
 
     for (let i = averagePoints; i < slicedData.length; i++) {
@@ -1510,16 +1524,13 @@ function processApiData(data, league) {
         let gol5Sum = 0;
         let validMatches = 0;
 
-        // Calcula a média apenas com os jogos disponíveis
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
             const ftScore = match.ft;
 
-            // Verifica se há lacuna antes de processar
             if (j > 0 && hasGap(slicedData[j - 1], match)) {
-                // Insere um ponto nulo no gráfico para indicar a lacuna
                 labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-                golsFT.push(null); // null faz o Chart.js pular o ponto
+                golsFT.push(null);
                 casaVence.push(null);
                 empate.push(null);
                 foraVence.push(null);
@@ -1557,7 +1568,7 @@ function processApiData(data, league) {
                 gol4Colors.push(transparent);
                 gol5Colors.push(transparent);
 
-                continue; // Pula para o próximo jogo
+                continue;
             }
 
             let ftScoreParts = [0, 0];
@@ -1589,9 +1600,9 @@ function processApiData(data, league) {
         }
 
         const match = slicedData[i];
-        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`); // Linha corrigida
+        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
-        const avg = validMatches || 1; // Evita divisão por zero
+        const avg = validMatches || 1;
 
         let ftScoreParts = [0, 0];
         if (match.ft && match.ft.includes(' x ')) {
@@ -1618,7 +1629,7 @@ function processApiData(data, league) {
         const isGol5 = totalGolsFT === 5;
 
         golsFT.push(golsFTSum / avg * 100);
-        golsFTColors.push(golsFTLineColor); // Keep uniform color for Gols FT
+        golsFTColors.push(golsFTLineColor);
 
         casaVence.push(casaVenceSum / avg * 100);
         casaVenceColors.push(isCasaVence ? green : red);
@@ -1682,7 +1693,6 @@ function processApiData(data, league) {
         gol2Colors, gol3Colors, gol4Colors, gol5Colors
     };
 
-    // Compute moving averages
     const shortPeriod = 5;
     const mediumPeriod = 10;
     const longPeriod = 20;
@@ -1692,11 +1702,6 @@ function processApiData(data, league) {
         result[key + 'Short'] = computeMA(result[key], shortPeriod);
         result[key + 'Medium'] = computeMA(result[key], mediumPeriod);
         result[key + 'Long'] = computeMA(result[key], longPeriod);
-    });
-
-    // Compute Bollinger Bands (using 20-period MA and 2 std devs)
-    Object.keys(labelToKey).forEach(label => {
-        const key = labelToKey[label];
         const bollinger = computeBollinger(result[key]);
         result[key + 'Upper'] = bollinger.upper;
         result[key + 'Lower'] = bollinger.lower;
@@ -1719,23 +1724,58 @@ const fibonacciLinesPlugin = {
 
         ctx.save();
         normalizedLevels.forEach((level, index) => {
-        const y = yAxis.getPixelForValue(level);
-        ctx.beginPath();
-        ctx.setLineDash([5, 5]); // <-- deixa tracejado
-        ctx.moveTo(chart.chartArea.left, y);
-        ctx.lineTo(chart.chartArea.right, y);
-        ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.setLineDash([]); // <-- reseta para linhas normais depois
+            const y = yAxis.getPixelForValue(level);
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(chart.chartArea.left, y);
+            ctx.lineTo(chart.chartArea.right, y);
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
 
-        // Texto ao lado da linha
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'left';
-        const textY = y - (index === 0 ? -10 : 5);
-        const textX = chart.chartArea.right + 10;
-        ctx.fillText(`${fibonacciLevels[index]}%`, textX, textY);
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'left';
+            const textY = y - (index === 0 ? -10 : 5);
+            const textX = chart.chartArea.right + 10;
+            ctx.fillText(`${fibonacciLevels[index]}%`, textX, textY);
+        });
+        ctx.restore();
+    }
+};
+
+const supportResistancePlugin = {
+    id: 'supportResistance',
+    afterDraw: (chart) => {
+        if (!showSupportResistance) return;
+        const ctx = chart.ctx;
+        const yAxis = chart.scales.y;
+        const datasets = chart.data.datasets.filter(ds => !ds.hidden && !ds.label.includes(' MA') && !ds.label.includes(' Bollinger'));
+        let allData = [];
+        datasets.forEach(ds => {
+            allData.push(...ds.data.filter(val => val !== null));
+        });
+        const { support, resistance } = computeSupportResistance(allData);
+
+        ctx.save();
+        [support, resistance].forEach((level, index) => {
+            if (level !== null) {
+                const y = yAxis.getPixelForValue(level);
+                ctx.beginPath();
+                ctx.setLineDash([10, 5]);
+                ctx.moveTo(chart.chartArea.left, y);
+                ctx.lineTo(chart.chartArea.right, y);
+                ctx.strokeStyle = index === 0 ? 'rgba(0, 0, 255, 0.5)' : 'rgba(255, 0, 0, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = index === 0 ? 'rgba(0, 0, 255, 0.5)' : 'rgba(255, 0, 0, 0.5)';
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(index === 0 ? 'Suporte' : 'Resistência', chart.chartArea.right + 10, y);
+            }
         });
         ctx.restore();
     }
@@ -1765,14 +1805,13 @@ function createStatsChart(ctx, labels, data, league) {
 
     const datasets = [];
 
-    const shortColor = hexToRgba('#FF0000', 0.5); // red faded
-    const mediumColor = hexToRgba('#FFFF00', 0.5); // yellow faded
-    const longColor = hexToRgba('#FFFFFF', 0.5); // white faded
-    const bollingerUpperColor = hexToRgba('#00FF00', 0.3); // green faded
-    const bollingerLowerColor = hexToRgba('#FF0000', 0.3); // red faded
+    const shortColor = hexToRgba('#FF0000', 0.5);
+    const mediumColor = hexToRgba('#FFFF00', 0.5);
+    const longColor = hexToRgba('#FFFFFF', 0.5);
+    const bollingerUpperColor = hexToRgba('#00FF00', 0.3);
+    const bollingerLowerColor = hexToRgba('#FF0000', 0.3);
 
     datasetConfigs.forEach(config => {
-        // Main dataset
         datasets.push({
             label: config.label,
             data: data[config.key],
@@ -1785,7 +1824,6 @@ function createStatsChart(ctx, labels, data, league) {
             hidden: !statsChartVisibleDatasets[config.label]
         });
 
-        // Short MA
         datasets.push({
             label: config.label + ' - Short MA',
             data: data[config.key + 'Short'],
@@ -1797,7 +1835,6 @@ function createStatsChart(ctx, labels, data, league) {
             hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
         });
 
-        // Medium MA
         datasets.push({
             label: config.label + ' - Medium MA',
             data: data[config.key + 'Medium'],
@@ -1809,7 +1846,6 @@ function createStatsChart(ctx, labels, data, league) {
             hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
         });
 
-        // Long MA
         datasets.push({
             label: config.label + ' - Long MA',
             data: data[config.key + 'Long'],
@@ -1821,7 +1857,6 @@ function createStatsChart(ctx, labels, data, league) {
             hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
         });
 
-        // Bollinger Upper
         datasets.push({
             label: config.label + ' - Bollinger Upper',
             data: data[config.key + 'Upper'],
@@ -1834,7 +1869,6 @@ function createStatsChart(ctx, labels, data, league) {
             hidden: !showBollingerBands || !statsChartVisibleDatasets[config.label]
         });
 
-        // Bollinger Lower
         datasets.push({
             label: config.label + ' - Bollinger Lower',
             data: data[config.key + 'Lower'],
@@ -1880,14 +1914,13 @@ function createStatsChart(ctx, labels, data, league) {
                         meta.hidden = !meta.hidden;
                         statsChartVisibleDatasets[datasetLabel] = !meta.hidden;
 
-                        // Toggle related MAs and Bollinger Bands
                         ci.data.datasets.forEach((ds, dsIndex) => {
                             if (ds.label.startsWith(datasetLabel + ' -')) {
                                 const metaSub = ci.getDatasetMeta(dsIndex);
                                 if (ds.label.includes(' MA')) {
-                                    metaSub.hidden = !showMovingAverages || meta.hidden;
+                                    metaSub.hidden = !showMovingAverages || !statsChartVisibleDatasets[datasetLabel];
                                 } else if (ds.label.includes(' Bollinger')) {
-                                    metaSub.hidden = !showBollingerBands || meta.hidden;
+                                    metaSub.hidden = !showBollingerBands || !statsChartVisibleDatasets[datasetLabel];
                                 }
                             }
                         });
@@ -1931,18 +1964,18 @@ function createStatsChart(ctx, labels, data, league) {
                     grid: { display: false }
                 },
                 y: {
-                  title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                  beginAtZero: false,
-                  ticks: { 
-                      color: '#b0b0b0',
-                      stepSize: 5 // Adiciona mais linhas
-                  },
-                  grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 }, // Linhas brancas, contínuas, finas e levemente apagadas
-                  afterFit: function(scale) { scale.paddingTop = 20; }
+                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
+                    beginAtZero: false,
+                    ticks: { 
+                        color: '#b0b0b0',
+                        stepSize: 5
+                    },
+                    grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 },
+                    afterFit: function(scale) { scale.paddingTop = 20; }
                 }
             }
         },
-        plugins: [fibonacciLinesPlugin]
+        plugins: [fibonacciLinesPlugin, supportResistancePlugin]
     });
 }
 
@@ -1996,7 +2029,7 @@ function toggleMovingAverages() {
         const ci = chartInstances[league];
         if (ci) {
             ci.data.datasets.forEach((ds, idx) => {
-                if (ds.label.includes(' - MA')) { // MA dataset
+                if (ds.label.includes(' - MA')) {
                     const mainLabel = ds.label.split(' - ')[0];
                     const mainVisible = statsChartVisibleDatasets[mainLabel];
                     const meta = ci.getDatasetMeta(idx);
@@ -2014,7 +2047,7 @@ function toggleBollingerBands() {
         const ci = chartInstances[league];
         if (ci) {
             ci.data.datasets.forEach((ds, idx) => {
-                if (ds.label.includes(' - Bollinger')) { // Bollinger dataset
+                if (ds.label.includes(' - Bollinger')) {
                     const mainLabel = ds.label.split(' - ')[0];
                     const mainVisible = statsChartVisibleDatasets[mainLabel];
                     const meta = ci.getDatasetMeta(idx);
@@ -2023,6 +2056,13 @@ function toggleBollingerBands() {
             });
             ci.update();
         }
+    });
+}
+
+function toggleSupportResistance() {
+    showSupportResistance = document.getElementById('supportResistanceToggle').checked;
+    leagues.forEach(league => {
+        if (chartInstances[league]) chartInstances[league].update();
     });
 }
 
@@ -2046,6 +2086,7 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
 document.getElementById('bollingerToggle').addEventListener('change', toggleBollingerBands);
+document.getElementById('supportResistanceToggle').addEventListener('change', toggleSupportResistance);
 
 window.onload = updateCharts;
 setInterval(updateCharts, 3000);
