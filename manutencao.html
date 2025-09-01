@@ -1304,6 +1304,7 @@ let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
 let showRSI = false;
+const rsiPeriod = 14;
 const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
 let chartData = {};
@@ -1473,7 +1474,8 @@ function processApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const slicedData = sortedData.slice(-numPoints - averagePoints);
+    const extra = rsiPeriod + 14;
+    const slicedData = sortedData.slice(- (numPoints + averagePoints + extra));
     chartData[league] = slicedData;
 
     let labels = [];
@@ -1552,7 +1554,6 @@ function processApiData(data, league) {
         // Calcula a média apenas com os jogos disponíveis
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
-            const ftScore = match.ft;
 
             // Verifica se há lacuna antes de processar
             if (j > 0 && hasGap(slicedData[j - 1], match)) {
@@ -1732,6 +1733,15 @@ function processApiData(data, league) {
         result[key + 'Medium'] = computeMA(result[key], mediumPeriod);
         result[key + 'Long'] = computeMA(result[key], longPeriod);
         result[key + 'RSI'] = computeRSI(result[key]);
+    });
+
+    // Slice to the last numPoints for display (after computing on extended data)
+    const displayLength = numPoints;
+    const startIndex = result.labels.length - displayLength;
+    result.labels = result.labels.slice(startIndex);
+    const arrayKeys = Object.keys(result).filter(k => Array.isArray(result[k]));
+    arrayKeys.forEach(key => {
+        result[key] = result[key].slice(startIndex);
     });
 
     return result;
