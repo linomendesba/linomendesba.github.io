@@ -1304,7 +1304,6 @@ let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
 let showRSI = false;
-const rsiPeriod = 14;
 const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
 let chartData = {};
@@ -1446,22 +1445,22 @@ function calculateRSI(segment, period) {
 }
 
 function computeRSI(prices, period = 14) {
-    const compact = prices.filter(p => p !== null);
-    const rsi = Array(prices.length).fill(null);
-
-    if (compact.length < period + 1) {
-        return rsi; // All null if not enough data
-    }
-
-    const segmentRSI = calculateRSI(compact, period);
-
-    let k = 0;
-    for (let i = 0; i < prices.length; i++) {
-        if (prices[i] !== null) {
-            rsi[i] = segmentRSI[k++];
+    let rsi = Array(prices.length).fill(null);
+    let start = 0;
+    while (start < prices.length) {
+        while (start < prices.length && prices[start] === null) start++;
+        if (start >= prices.length) break;
+        let end = start + 1;
+        while (end < prices.length && prices[end] !== null) end++;
+        let segment = prices.slice(start, end);
+        if (segment.length >= period + 1) {
+            let segmentRSI = calculateRSI(segment, period);
+            for (let k = 0; k < segmentRSI.length; k++) {
+                rsi[start + k] = segmentRSI[k];
+            }
         }
+        start = end;
     }
-
     return rsi;
 }
 
@@ -1474,8 +1473,7 @@ function processApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const extra = rsiPeriod + 14;
-    const slicedData = sortedData.slice(- (numPoints + averagePoints + extra));
+    const slicedData = sortedData.slice(-numPoints - averagePoints);
     chartData[league] = slicedData;
 
     let labels = [];
@@ -1524,60 +1522,13 @@ function processApiData(data, league) {
 
     // Função para verificar se há lacuna entre dois jogos
     function hasGap(prevMatch, currMatch) {
-        if (!prevMatch) return false;
         const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
         const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
         const diffMinutes = (currTime - prevTime) / (1000 * 60); // Diferença em minutos
         return diffMinutes > 1; // Considera lacuna se a diferença for maior que 1 minuto
     }
 
-    let previousMatch = averagePoints > 0 ? slicedData[averagePoints - 1] : null;
-
     for (let i = averagePoints; i < slicedData.length; i++) {
-        const match = slicedData[i];
-
-        if (hasGap(previousMatch, match)) {
-            // Insere um ponto nulo no gráfico para indicar a lacuna
-            labels.push(''); // Label vazio para o ponto de lacuna
-            golsFT.push(null);
-            casaVence.push(null);
-            empate.push(null);
-            foraVence.push(null);
-            ambasSim.push(null);
-            ambasNao.push(null);
-            over15.push(null);
-            over25.push(null);
-            over35.push(null);
-            under15.push(null);
-            under25.push(null);
-            under35.push(null);
-            gol0.push(null);
-            gol1.push(null);
-            gol2.push(null);
-            gol3.push(null);
-            gol4.push(null);
-            gol5.push(null);
-
-            golsFTColors.push(transparent);
-            casaVenceColors.push(transparent);
-            empateColors.push(transparent);
-            foraVenceColors.push(transparent);
-            ambasSimColors.push(transparent);
-            ambasNaoColors.push(transparent);
-            over15Colors.push(transparent);
-            over25Colors.push(transparent);
-            over35Colors.push(transparent);
-            under15Colors.push(transparent);
-            under25Colors.push(transparent);
-            under35Colors.push(transparent);
-            gol0Colors.push(transparent);
-            gol1Colors.push(transparent);
-            gol2Colors.push(transparent);
-            gol3Colors.push(transparent);
-            gol4Colors.push(transparent);
-            gol5Colors.push(transparent);
-        }
-
         let golsFTSum = 0;
         let casaVenceSum = 0;
         let empateSum = 0;
@@ -1599,13 +1550,58 @@ function processApiData(data, league) {
         let validMatches = 0;
 
         // Calcula a média apenas com os jogos disponíveis
-        const startJ = Math.max(0, i - averagePoints);
-        for (let j = startJ; j <= i; j++) {
-            const pastMatch = slicedData[j];
+        for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
+            const match = slicedData[j];
+            const ftScore = match.ft;
+
+            // Verifica se há lacuna antes de processar
+            if (j > 0 && hasGap(slicedData[j - 1], match)) {
+                // Insere um ponto nulo no gráfico para indicar a lacuna
+                labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
+                golsFT.push(null); // null faz o Chart.js pular o ponto
+                casaVence.push(null);
+                empate.push(null);
+                foraVence.push(null);
+                ambasSim.push(null);
+                ambasNao.push(null);
+                over15.push(null);
+                over25.push(null);
+                over35.push(null);
+                under15.push(null);
+                under25.push(null);
+                under35.push(null);
+                gol0.push(null);
+                gol1.push(null);
+                gol2.push(null);
+                gol3.push(null);
+                gol4.push(null);
+                gol5.push(null);
+
+                golsFTColors.push(transparent);
+                casaVenceColors.push(transparent);
+                empateColors.push(transparent);
+                foraVenceColors.push(transparent);
+                ambasSimColors.push(transparent);
+                ambasNaoColors.push(transparent);
+                over15Colors.push(transparent);
+                over25Colors.push(transparent);
+                over35Colors.push(transparent);
+                under15Colors.push(transparent);
+                under25Colors.push(transparent);
+                under35Colors.push(transparent);
+                gol0Colors.push(transparent);
+                gol1Colors.push(transparent);
+                gol2Colors.push(transparent);
+                gol3Colors.push(transparent);
+                gol4Colors.push(transparent);
+                gol5Colors.push(transparent);
+
+                continue; // Pula para o próximo jogo
+            }
 
             let ftScoreParts = [0, 0];
-            if (pastMatch.ft && pastMatch.ft.includes(' x ')) {
-                ftScoreParts = pastMatch.ft.split(' x ').map(num => parseInt(num, 10));
+            if (ftScore && ftScore.includes(' x ')) {
+                ftScoreParts = ftScore.split(' x ').map(num => parseInt(num, 10));
             }
 
             const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
@@ -1631,6 +1627,7 @@ function processApiData(data, league) {
             validMatches++;
         }
 
+        const match = slicedData[i];
         labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`); // Linha corrigida
 
         const avg = validMatches || 1; // Evita divisão por zero
@@ -1712,8 +1709,6 @@ function processApiData(data, league) {
 
         gol5.push(gol5Sum / avg * 100);
         gol5Colors.push(isGol5 ? green : red);
-
-        previousMatch = match;
     }
 
     const result = { 
@@ -1737,15 +1732,6 @@ function processApiData(data, league) {
         result[key + 'Medium'] = computeMA(result[key], mediumPeriod);
         result[key + 'Long'] = computeMA(result[key], longPeriod);
         result[key + 'RSI'] = computeRSI(result[key]);
-    });
-
-    // Slice to the last numPoints for display (after computing on extended data)
-    const displayLength = numPoints;
-    const startIndex = result.labels.length - displayLength;
-    result.labels = result.labels.slice(startIndex);
-    const arrayKeys = Object.keys(result).filter(k => Array.isArray(result[k]));
-    arrayKeys.forEach(key => {
-        result[key] = result[key].slice(startIndex);
     });
 
     return result;
@@ -2001,8 +1987,7 @@ function createRsiChart(ctx, labels, data, league) {
         borderWidth: 1,
         pointRadius: 0,
         fill: false,
-        hidden: !statsChartVisibleDatasets[config.label],
-        spanGaps: true
+        hidden: !statsChartVisibleDatasets[config.label]
     }));
 
     datasets.push({
