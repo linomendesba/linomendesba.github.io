@@ -1293,11 +1293,12 @@ if (mostrarOddsSelect) {
     </script>
 
     <script>
+let copaAmericaChart, CopaChart, EuroChart, PremierChart, SuperChart;
 let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
-const leagues = ['Copa'];
+const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
 let chartData = {};
 
@@ -1821,7 +1822,7 @@ function createStatsChart(ctx, labels, data, league) {
                         ci.data.datasets.forEach((ds, dsIndex) => {
                             if (ds.label.startsWith(datasetLabel + ' - MA')) {
                                 const metaMA = ci.getDatasetMeta(dsIndex);
-                                metaMA.hidden = !showMovingAverages || !statsChartVisibleDatasets[datasetLabel];
+                                metaMA.hidden = !showMovingAverages || meta.hidden;
                             }
                         });
 
@@ -1886,7 +1887,7 @@ function updateCharts() {
     };
 
     leagues.forEach(league => {
-        const apiUrl = leagueUrls[league];
+        const apiUrl = `${leagueUrls[league]}?timestamp=${timestamp}`;
         console.log(`Buscando dados para ${league} em: ${apiUrl}`);
         fetch(apiUrl)
             .then(response => {
@@ -1911,7 +1912,7 @@ function updateCharts() {
                     updateStatsChart(chartInstances[league], processedData);
                     console.log(`Gráfico atualizado para ${league}`);
                 }
-                // Após inicializar ou atualizar o gráfico, restaurar seleções
+                // Restaurar seleções após inicializar o gráfico
                 restoreSelections();
             })
             .catch(error => console.error(`Erro ao buscar dados para ${league}:`, error));
@@ -1923,9 +1924,7 @@ function toggleFibonacciLines() {
     console.log(`showFibonacciLines: ${showFibonacciLines}`);
     saveSelection('fibonacciToggle');
     leagues.forEach(league => {
-        if (chartInstances[league]) {
-            chartInstances[league].update();
-        }
+        if (chartInstances[league]) chartInstances[league].update();
     });
 }
 
@@ -1934,18 +1933,18 @@ function toggleMovingAverages() {
     console.log(`showMovingAverages: ${showMovingAverages}`);
     saveSelection('movingAveragesToggle');
     leagues.forEach(league => {
-        const chart = chartInstances[league];
-        if (chart) {
-            chart.data.datasets.forEach((dataset, index) => {
-                if (dataset.label.includes(' - MA')) {
-                    const mainLabel = dataset.label.split(' - ')[0];
-                    const isMainVisible = statsChartVisibleDatasets[mainLabel];
-                    const meta = chart.getDatasetMeta(index);
-                    meta.hidden = !showMovingAverages || !isMainVisible;
-                    console.log(`Dataset ${dataset.label}: hidden=${meta.hidden}`);
+        const ci = chartInstances[league];
+        if (ci) {
+            ci.data.datasets.forEach((ds, idx) => {
+                if (ds.label.includes(' - MA')) {
+                    const mainLabel = ds.label.split(' - ')[0];
+                    const mainVisible = statsChartVisibleDatasets[mainLabel];
+                    const meta = ci.getDatasetMeta(idx);
+                    meta.hidden = !showMovingAverages || !mainVisible;
+                    console.log(`Dataset ${ds.label}: hidden=${meta.hidden}`);
                 }
             });
-            chart.update();
+            ci.update();
         }
     });
 }
