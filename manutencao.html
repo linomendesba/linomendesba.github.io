@@ -1298,6 +1298,7 @@ let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
+let showBollingerBands = false;
 const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
 let chartData = {};
@@ -1377,7 +1378,7 @@ function updateStatsChart(chart, newData) {
         chart.data.labels = newData.labels;
         chart.data.datasets.forEach(ds => {
             ds.data = newData[getKeyFromLabel(ds.label)];
-            if (!ds.label.includes(' MA')) {
+            if (!ds.label.includes(' MA') && !ds.label.includes(' Bollinger')) {
                 ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + 'Colors'];
             }
         });
@@ -1399,6 +1400,29 @@ function computeMA(dataArray, period) {
         ma.push(count > 0 ? sum / count : null);
     }
     return ma;
+}
+
+function computeBollinger(dataArray, period = 20, stdDevMultiplier = 2) {
+    let bands = { upper: [], lower: [] };
+    for (let i = 0; i < dataArray.length; i++) {
+        if (i < period - 1) {
+            bands.upper.push(null);
+            bands.lower.push(null);
+            continue;
+        }
+        let slice = dataArray.slice(i - period + 1, i + 1).filter(val => val !== null);
+        if (slice.length === 0) {
+            bands.upper.push(null);
+            bands.lower.push(null);
+            continue;
+        }
+        let ma = slice.reduce((a, b) => a + b, 0) / slice.length;
+        let variance = slice.reduce((a, b) => a + Math.pow(b - ma, 2), 0) / slice.length;
+        let stdDev = Math.sqrt(variance);
+        bands.upper.push(ma + stdDevMultiplier * stdDev);
+        bands.lower.push(ma - stdDevMultiplier * stdDev);
+    }
+    return bands;
 }
 
 function processApiData(data, league) {
@@ -1670,6 +1694,14 @@ function processApiData(data, league) {
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
 
+    // Compute Bollinger Bands (using 20-period MA and 2 std devs)
+    Object.keys(labelToKey).forEach(label => {
+        const key = labelToKey[label];
+        const bollinger = computeBollinger(result[key]);
+        result[key + 'Upper'] = bollinger.upper;
+        result[key + 'Lower'] = bollinger.lower;
+    });
+
     return result;
 }
 
@@ -1736,6 +1768,8 @@ function createStatsChart(ctx, labels, data, league) {
     const shortColor = hexToRgba('#FF0000', 0.5); // red faded
     const mediumColor = hexToRgba('#FFFF00', 0.5); // yellow faded
     const longColor = hexToRgba('#FFFFFF', 0.5); // white faded
+    const bollingerUpperColor = hexToRgba('#00FF00', 0.3); // green faded
+    const bollingerLowerColor = hexToRgba('#FF0000', 0.3); // red faded
 
     datasetConfigs.forEach(config => {
         // Main dataset
@@ -1786,6 +1820,32 @@ function createStatsChart(ctx, labels, data, league) {
             fill: false,
             hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
         });
+
+        // Bollinger Upper
+        datasets.push({
+            label: config.label + ' - Bollinger Upper',
+            data: data[config.key + 'Upper'],
+            borderColor: bollingerUpperColor,
+            backgroundColor: 'transparent',
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+            borderDash: [5, 5],
+            hidden: !showBollingerBands || !statsChartVisibleDatasets[config.label]
+        });
+
+        // Bollinger Lower
+        datasets.push({
+            label: config.label + ' - Bollinger Lower',
+            data: data[config.key + 'Lower'],
+            borderColor: bollingerLowerColor,
+            backgroundColor: 'transparent',
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+            borderDash: [5, 5],
+            hidden: !showBollingerBands || !statsChartVisibleDatasets[config.label]
+        });
     });
 
     return new Chart(ctx, {
@@ -1809,7 +1869,7 @@ function createStatsChart(ctx, labels, data, league) {
                         color: '#e0e0e0', 
                         font: { size: 12 },
                         filter: function(legendItem) {
-                            return !legendItem.text.includes(' MA');
+                            return !legendItem.text.includes(' MA') && !legendItem.text.includes(' Bollinger');
                         }
                     },
                     onClick: function(e, legendItem, legend) {
@@ -1820,11 +1880,15 @@ function createStatsChart(ctx, labels, data, league) {
                         meta.hidden = !meta.hidden;
                         statsChartVisibleDatasets[datasetLabel] = !meta.hidden;
 
-                        // Toggle related MAs
+                        // Toggle related MAs and Bollinger Bands
                         ci.data.datasets.forEach((ds, dsIndex) => {
                             if (ds.label.startsWith(datasetLabel + ' -')) {
-                                const metaMA = ci.getDatasetMeta(dsIndex);
-                                metaMA.hidden = !showMovingAverages || meta.hidden;
+                                const metaSub = ci.getDatasetMeta(dsIndex);
+                                if (ds.label.includes(' MA')) {
+                                    metaSub.hidden = !showMovingAverages || meta.hidden;
+                                } else if (ds.label.includes(' Bollinger')) {
+                                    metaSub.hidden = !showBollingerBands || meta.hidden;
+                                }
                             }
                         });
 
@@ -1846,7 +1910,7 @@ function createStatsChart(ctx, labels, data, league) {
                             return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
                         },
                         label: function(tooltipItem) {
-                            const league = leagues.find(l => chartInstances[l] === tooltipItems[0].chart);
+                            const league = leagues.find(l => chartInstances[l] === tooltipItem.chart);
                             const index = tooltipItem.dataIndex + averagePoints;
                             const match = chartData[league][index];
                             const ftScore = match.ft || 'N/A';
@@ -1932,11 +1996,29 @@ function toggleMovingAverages() {
         const ci = chartInstances[league];
         if (ci) {
             ci.data.datasets.forEach((ds, idx) => {
-                if (ds.label.includes(' - ')) { // MA dataset
+                if (ds.label.includes(' - MA')) { // MA dataset
                     const mainLabel = ds.label.split(' - ')[0];
                     const mainVisible = statsChartVisibleDatasets[mainLabel];
                     const meta = ci.getDatasetMeta(idx);
                     meta.hidden = !showMovingAverages || !mainVisible;
+                }
+            });
+            ci.update();
+        }
+    });
+}
+
+function toggleBollingerBands() {
+    showBollingerBands = document.getElementById('bollingerToggle').checked;
+    leagues.forEach(league => {
+        const ci = chartInstances[league];
+        if (ci) {
+            ci.data.datasets.forEach((ds, idx) => {
+                if (ds.label.includes(' - Bollinger')) { // Bollinger dataset
+                    const mainLabel = ds.label.split(' - ')[0];
+                    const mainVisible = statsChartVisibleDatasets[mainLabel];
+                    const meta = ci.getDatasetMeta(idx);
+                    meta.hidden = !showBollingerBands || !mainVisible;
                 }
             });
             ci.update();
@@ -1963,6 +2045,7 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
+document.getElementById('bollingerToggle').addEventListener('change', toggleBollingerBands);
 
 window.onload = updateCharts;
 setInterval(updateCharts, 3000);
