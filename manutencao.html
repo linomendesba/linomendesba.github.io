@@ -1302,13 +1302,6 @@ const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
 let chartData = {};
 
-// Adicionado: Variáveis de visibilidade para MACD
-const macdVisibleDatasets = {
-    'MACD': true, // Exibe o MACD por padrão
-    'Histograma': true, // Exibe o Histograma por padrão
-    'Sinal': true // Exibe a Linha de Sinal por padrão
-};
-
 const statsChartVisibleDatasets = {
     'Gols FT': false,
     'Casa Vence': false,
@@ -1383,9 +1376,9 @@ function updateStatsChart(chart, newData) {
     if (chart) {
         chart.data.labels = newData.labels;
         chart.data.datasets.forEach(ds => {
-            ds.data = newData[ds.dataKey];
-            if (ds.pointBackgroundColor && newData[ds.dataKey + 'Colors']) {
-                ds.pointBackgroundColor = newData[ds.dataKey + 'Colors'];
+            ds.data = newData[getKeyFromLabel(ds.label)];
+            if (!ds.label.includes(' MA')) {
+                ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + 'Colors'];
             }
         });
         chart.update('none');
@@ -1406,40 +1399,6 @@ function computeMA(dataArray, period) {
         ma.push(count > 0 ? sum / count : null);
     }
     return ma;
-}
-
-// Adicionado: Função para calcular a Média Móvel Exponencial (EMA)
-function computeEMA(dataArray, period) {
-    if (!dataArray || dataArray.length < period) return Array(dataArray.length).fill(null);
-    const multiplier = 2 / (period + 1);
-    let ema = [];
-    let sum = 0;
-    for (let i = 0; i < period; i++) {
-        sum += dataArray[i];
-        ema.push(null); // Os primeiros pontos são nulos para iniciar no mesmo ponto que a MA
-    }
-    ema[period - 1] = sum / period; // Primeiro ponto é uma SMA
-    for (let i = period; i < dataArray.length; i++) {
-        ema.push((dataArray[i] - ema[i - 1]) * multiplier + ema[i - 1]);
-    }
-    return ema;
-}
-
-// Adicionado: Função para calcular o MACD
-function computeMACD(dataArray, fastPeriod, slowPeriod, signalPeriod) {
-    const fastEMA = computeEMA(dataArray, fastPeriod);
-    const slowEMA = computeEMA(dataArray, slowPeriod);
-    const macdLine = [];
-    for (let i = 0; i < dataArray.length; i++) {
-        if (fastEMA[i] !== null && slowEMA[i] !== null) {
-            macdLine.push(fastEMA[i] - slowEMA[i]);
-        } else {
-            macdLine.push(null);
-        }
-    }
-    const signalLine = computeEMA(macdLine, signalPeriod);
-    const histogram = macdLine.map((val, i) => val !== null && signalLine[i] !== null ? val - signalLine[i] : null);
-    return { macdLine, signalLine, histogram };
 }
 
 function processApiData(data, league) {
@@ -1689,7 +1648,7 @@ function processApiData(data, league) {
         gol5Colors.push(isGol5 ? green : red);
     }
 
-    const result = {
+    const result = { 
         labels, golsFT, casaVence, empate, foraVence, ambasSim, ambasNao,
         over15, over25, over35, under15, under25, under35,
         gol0, gol1, gol2, gol3, gol4, gol5,
@@ -1710,12 +1669,6 @@ function processApiData(data, league) {
         result[key + 'Medium'] = computeMA(result[key], mediumPeriod);
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
-
-    // Adicionado: Calcular MACD para a linha de 'Ambas Sim'
-    const macdData = computeMACD(result.ambasSim, 12, 26, 9);
-    result.macdLine = macdData.macdLine;
-    result.signalLine = macdData.signalLine;
-    result.histogram = macdData.histogram;
 
     return result;
 }
@@ -1787,7 +1740,6 @@ function createStatsChart(ctx, labels, data, league) {
         datasets.push({
             label: config.label,
             data: data[config.key],
-            dataKey: config.key, // Adicionado para facilitar a atualização
             borderColor: config.color,
             backgroundColor: config.color,
             pointBackgroundColor: data[config.key + 'Colors'],
@@ -1800,7 +1752,6 @@ function createStatsChart(ctx, labels, data, league) {
         datasets.push({
             label: config.label + ' - Short MA',
             data: data[config.key + 'Short'],
-            dataKey: config.key + 'Short', // Adicionado para facilitar a atualização
             borderColor: shortColor,
             backgroundColor: 'transparent',
             borderWidth: 1,
@@ -1812,7 +1763,6 @@ function createStatsChart(ctx, labels, data, league) {
         datasets.push({
             label: config.label + ' - Medium MA',
             data: data[config.key + 'Medium'],
-            dataKey: config.key + 'Medium', // Adicionado para facilitar a atualização
             borderColor: mediumColor,
             backgroundColor: 'transparent',
             borderWidth: 1,
@@ -1824,7 +1774,6 @@ function createStatsChart(ctx, labels, data, league) {
         datasets.push({
             label: config.label + ' - Long MA',
             data: data[config.key + 'Long'],
-            dataKey: config.key + 'Long', // Adicionado para facilitar a atualização
             borderColor: longColor,
             backgroundColor: 'transparent',
             borderWidth: 1,
@@ -1832,45 +1781,6 @@ function createStatsChart(ctx, labels, data, league) {
             fill: false,
             hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
         });
-    });
-
-    // Adicionado: Datasets para o MACD
-    datasets.push({
-        label: 'MACD',
-        data: data.macdLine,
-        dataKey: 'macdLine',
-        borderColor: '#FFFF00', // Cor da linha MACD (amarelo)
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: false,
-        hidden: !macdVisibleDatasets['MACD']
-    });
-
-    datasets.push({
-        label: 'Sinal',
-        data: data.signalLine,
-        dataKey: 'signalLine',
-        borderColor: '#FFFFFF', // Cor da linha de Sinal (branco)
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: false,
-        hidden: !macdVisibleDatasets['Sinal']
-    });
-
-    datasets.push({
-        label: 'Histograma',
-        data: data.histogram,
-        dataKey: 'histogram',
-        backgroundColor: (context) => {
-            const value = context.raw;
-            return value >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)';
-        },
-        borderColor: 'transparent',
-        borderWidth: 1,
-        type: 'bar', // Tipo de gráfico de barras para o histograma
-        hidden: !macdVisibleDatasets['Histograma']
     });
 
     return new Chart(ctx, {
@@ -1881,18 +1791,16 @@ function createStatsChart(ctx, labels, data, league) {
         },
         options: {
             responsive: true,
-            layout: {
-                padding: { top: 30, right: 50 }
+            layout: { 
+                padding: { top: 30, right: 50 } 
             },
             plugins: {
                 legend: {
                     display: true,
-                    labels: {
-                        color: '#e0e0e0',
+                    labels: { 
+                        color: '#e0e0e0', 
                         font: { size: 12 },
-                        filter: (legendItem) => {
-                            return !legendItem.text.includes(' MA') && !legendItem.text.includes('MACD') && !legendItem.text.includes('Sinal') && !legendItem.text.includes('Histograma');
-                        }
+                        filter: (legendItem) => !legendItem.text.includes(' MA')
                     },
                     onClick: function(e, legendItem, legend) {
                         const ci = legend.chart;
@@ -1946,11 +1854,11 @@ function createStatsChart(ctx, labels, data, league) {
                     grid: { display: false }
                 },
                 y: {
-                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                    beginAtZero: false,
-                    ticks: { color: '#b0b0b0', stepSize: 5 },
-                    grid: { color: 'rgba(255, 255, 255, 0.3)', lineWidth: 0.5 },
-                    afterFit: function(scale) { scale.paddingTop = 20; }
+                  title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
+                  beginAtZero: false,
+                  ticks: { color: '#b0b0b0', stepSize: 5 },
+                  grid: { color: 'rgba(255, 255, 255, 0.3)', lineWidth: 0.5 },
+                  afterFit: function(scale) { scale.paddingTop = 20; }
                 }
             }
         },
@@ -2020,29 +1928,6 @@ function toggleMovingAverages() {
     });
 }
 
-// Adicionado: Função para alternar a visibilidade dos datasets MACD
-function toggleMacdDatasets() {
-    leagues.forEach(league => {
-        const ci = chartInstances[league];
-        if (ci) {
-            ci.data.datasets.forEach((ds, idx) => {
-                if (ds.label === 'MACD') {
-                    const meta = ci.getDatasetMeta(idx);
-                    meta.hidden = !macdVisibleDatasets['MACD'];
-                } else if (ds.label === 'Histograma') {
-                    const meta = ci.getDatasetMeta(idx);
-                    meta.hidden = !macdVisibleDatasets['Histograma'];
-                } else if (ds.label === 'Sinal') {
-                    const meta = ci.getDatasetMeta(idx);
-                    meta.hidden = !macdVisibleDatasets['Sinal'];
-                }
-            });
-            ci.update();
-        }
-    });
-}
-
-
 document.querySelectorAll('.accordion-header').forEach(header => {
     header.addEventListener('click', () => {
         const content = header.nextElementSibling;
@@ -2062,23 +1947,6 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
-
-// Adicionado: Event listeners para as novas checkboxes do MACD
-document.getElementById('macdToggle').addEventListener('change', function(event) {
-    macdVisibleDatasets['MACD'] = event.target.checked;
-    toggleMacdDatasets();
-});
-
-document.getElementById('signalToggle').addEventListener('change', function(event) {
-    macdVisibleDatasets['Sinal'] = event.target.checked;
-    toggleMacdDatasets();
-});
-
-document.getElementById('histogramToggle').addEventListener('change', function(event) {
-    macdVisibleDatasets['Histograma'] = event.target.checked;
-    toggleMacdDatasets();
-});
-
 
 window.onload = updateCharts;
 setInterval(updateCharts, 3000);
