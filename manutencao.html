@@ -1473,8 +1473,8 @@ function processApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const slicedData = sortedData.slice(-numPoints - averagePoints);
-    chartData[league] = slicedData;
+    const extraRsiPoints = 14;
+    const slicedData = sortedData.slice(-numPoints - averagePoints - extraRsiPoints);
 
     let labels = [];
     let golsFT = [];
@@ -1552,7 +1552,6 @@ function processApiData(data, league) {
         // Calcula a média apenas com os jogos disponíveis
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
-            const ftScore = match.ft;
 
             // Verifica se há lacuna antes de processar
             if (j > 0 && hasGap(slicedData[j - 1], match)) {
@@ -1711,14 +1710,25 @@ function processApiData(data, league) {
         gol5Colors.push(isGol5 ? green : red);
     }
 
+    const statArrays = { golsFT, casaVence, empate, foraVence, ambasSim, ambasNao, over15, over25, over35, under15, under25, under35, gol0, gol1, gol2, gol3, gol4, gol5 };
+    const colorArrays = { golsFTColors, casaVenceColors, empateColors, foraVenceColors, ambasSimColors, ambasNaoColors, over15Colors, over25Colors, over35Colors, under15Colors, under25Colors, under35Colors, gol0Colors, gol1Colors, gol2Colors, gol3Colors, gol4Colors, gol5Colors };
+
+    const fullStats = {};
+    for (let key in statArrays) {
+        fullStats[key] = [...statArrays[key]];
+    }
+
+    const displayStart = labels.length - numPoints;
+    labels = labels.slice(displayStart);
+    for (let key in statArrays) {
+        statArrays[key] = statArrays[key].slice(displayStart);
+    }
+    for (let key in colorArrays) {
+        colorArrays[key] = colorArrays[key].slice(displayStart);
+    }
+
     const result = { 
-        labels, golsFT, casaVence, empate, foraVence, ambasSim, ambasNao,
-        over15, over25, over35, under15, under25, under35,
-        gol0, gol1, gol2, gol3, gol4, gol5,
-        golsFTColors, casaVenceColors, empateColors, foraVenceColors,
-        ambasSimColors, ambasNaoColors, over15Colors, over25Colors, over35Colors,
-        under15Colors, under25Colors, under35Colors, gol0Colors, gol1Colors,
-        gol2Colors, gol3Colors, gol4Colors, gol5Colors
+        labels, ...statArrays, ...colorArrays
     };
 
     // Compute moving averages
@@ -1731,7 +1741,7 @@ function processApiData(data, league) {
         result[key + 'Short'] = computeMA(result[key], shortPeriod);
         result[key + 'Medium'] = computeMA(result[key], mediumPeriod);
         result[key + 'Long'] = computeMA(result[key], longPeriod);
-        result[key + 'RSI'] = computeRSI(result[key]);
+        result[key + 'RSI'] = computeRSI(fullStats[key]).slice(-numPoints);
     });
 
     return result;
@@ -1989,26 +1999,6 @@ function createRsiChart(ctx, labels, data, league) {
         fill: false,
         hidden: !statsChartVisibleDatasets[config.label]
     }));
-
-    datasets.push({
-        label: 'Overbought',
-        data: Array(labels.length).fill(70),
-        borderColor: '#00FF00',
-        borderWidth: 1,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        fill: false
-    });
-
-    datasets.push({
-        label: 'Oversold',
-        data: Array(labels.length).fill(30),
-        borderColor: '#FF0000',
-        borderWidth: 1,
-        borderDash: [5, 5],
-        pointRadius: 0,
-        fill: false
-    });
 
     const rsiChart = new Chart(ctx, {
         type: 'line',
