@@ -4090,41 +4090,43 @@ const golsChartData = {
   labels: [],
   datasets: [
     {
-      label: "Gols Barra",
+      label: "IFR (Índice de Força Relativa)",
       data: [],
-      backgroundColor: "rgba(255, 255, 0, 0.5)",
       borderColor: "rgba(255, 255, 0, 1)",
+      backgroundColor: "rgba(255, 255, 0, 0.5)",
       borderWidth: 2,
-    },
-  ],
+      pointRadius: 3,
+      fill: false
+    }
+  ]
 };
 
 const golsChart = new Chart(ctxGols, {
-  type: "bar",
+  type: "line",
   data: golsChartData,
   options: {
     scales: {
       y: {
         position: "right",
         min: 0,
-        max: 8,
+        max: 100,
         beginAtZero: true,
         ticks: {
-          stepSize: 1,
-          color: "white",
+          stepSize: 10,
+          color: "white"
         },
         grid: {
           color: "rgba(255, 255, 255, 0.3)",
-          drawBorder: false,
-        },
+          drawBorder: false
+        }
       },
       x: {
         grid: { color: "rgba(0, 0, 0, 0)" },
         ticks: {
           color: "white",
-          display: false,
-        },
-      },
+          display: false
+        }
+      }
     },
     responsive: true,
     plugins: {
@@ -4132,32 +4134,50 @@ const golsChart = new Chart(ctxGols, {
       tooltip: {
         enabled: true,
         callbacks: {
-          title: (context) => `Hora: ${context[0].label}`,
-          label: (context) => {
-            const index = context.dataIndex;
-            const placar = golsChart.lastData?.[index]?.ft || "N/A";
-            return `Placar: ${placar}`;
+          title: function(context) {
+            return `Hora: ${context[0].label}`;
           },
-        },
+          label: function(context) {
+            const index = context.dataIndex;
+            const placar = (golsChart.lastData && golsChart.lastData[index] && golsChart.lastData[index].ft) || "N/A";
+            return [`Placar: ${placar}`, `IFR: ${context.raw.toFixed(2)}`];
+          }
+        }
       },
       annotation: {
         annotations: {
-          maxLine: {
+          overboughtLine: {
             type: "line",
-            yMin: 8,
-            yMax: 8,
+            yMin: 70,
+            yMax: 70,
             borderColor: "red",
-            borderWidth: 2,
+            borderWidth: 1,
+            borderDash: [5, 5],
             label: {
-              content: "Máximo: 8 Gols",
+              content: "Overbought (70)",
               enabled: true,
               position: "end",
-            },
+              backgroundColor: "rgba(255, 0, 0, 0.7)"
+            }
           },
-        },
-      },
-    },
-  },
+          oversoldLine: {
+            type: "line",
+            yMin: 30,
+            yMax: 30,
+            borderColor: "green",
+            borderWidth: 1,
+            borderDash: [5, 5],
+            label: {
+              content: "Oversold (30)",
+              enabled: true,
+              position: "end",
+              backgroundColor: "rgba(0, 255, 0, 0.7)"
+            }
+          }
+        }
+      }
+    }
+  }
 });
 
 function isOrdered(data) {
@@ -4165,7 +4185,9 @@ function isOrdered(data) {
     const currentDate = new Date(data[i].data);
     const previousDate = new Date(data[i - 1].data);
 
-    if (currentDate < previousDate) return false;
+    if (currentDate < previousDate) {
+      return false;
+    }
     if (currentDate.getTime() === previousDate.getTime()) {
       if (
         data[i].hora < data[i - 1].hora ||
@@ -4180,12 +4202,53 @@ function isOrdered(data) {
 
 function removeDuplicates(data) {
   const uniqueGames = new Set();
-  return data.filter((item) => {
+  return data.filter(function(item) {
     const gameKey = `${item.data}-${item.hora}-${item.minuto}-${item.ft}`;
-    if (uniqueGames.has(gameKey)) return false;
+    if (uniqueGames.has(gameKey)) {
+      return false;
+    }
     uniqueGames.add(gameKey);
     return true;
   });
+}
+
+function calculateRSI(data, period) {
+  period = period || 14;
+  if (data.length < period) {
+    return new Array(data.length).fill(50);
+  }
+
+  const rsi = [];
+  const changes = [];
+  for (let i = 1; i < data.length; i++) {
+    changes.push(data[i] - data[i - 1]);
+  }
+
+  let avgGain = changes.slice(0, period).reduce(function(sum, change) {
+    return sum + Math.max(change, 0);
+  }, 0) / period;
+  let avgLoss = changes.slice(0, period).reduce(function(sum, change) {
+    return sum + Math.abs(Math.min(change, 0));
+  }, 0) / period;
+
+  for (let i = 0; i < period; i++) {
+    rsi.push(50);
+  }
+
+  for (let i = period; i < data.length; i++) {
+    const currentChange = changes[i - 1];
+    const currentGain = Math.max(currentChange, 0);
+    const currentLoss = Math.abs(Math.min(currentChange, 0));
+
+    avgGain = (avgGain * (period - 1) + currentGain) / period;
+    avgLoss = (avgLoss * (period - 1) + currentLoss) / period;
+
+    const rs = (avgLoss === 0) ? Infinity : avgGain / avgLoss;
+    const currentRSI = (rs === Infinity) ? 100 : 100 - (100 / (1 + rs));
+    rsi.push(currentRSI);
+  }
+
+  return rsi;
 }
 
 async function updateGolsChart() {
@@ -4193,13 +4256,21 @@ async function updateGolsChart() {
   const uniqueData = removeDuplicates(fetchedData);
 
   if (!isOrdered(uniqueData)) {
-    uniqueData.sort((a, b) => {
+    uniqueData.sort(function(a, b) {
       const dateA = new Date(a.data);
       const dateB = new Date(b.data);
-      if (dateA < dateB) return -1;
-      if (dateA > dateB) return 1;
-      if (a.hora < b.hora) return -1;
-      if (a.hora > b.hora) return 1;
+      if (dateA < dateB) {
+        return -1;
+      }
+      if (dateA > dateB) {
+        return 1;
+      }
+      if (a.hora < b.hora) {
+        return -1;
+      }
+      if (a.hora > b.hora) {
+        return 1;
+      }
       return a.minuto - b.minuto;
     });
   }
@@ -4208,14 +4279,16 @@ async function updateGolsChart() {
   const lastData = uniqueData.slice(-selectedPoints);
   golsChart.lastData = lastData;
 
-  const labels = lastData.map((item) => {
+  const labels = lastData.map(function(item) {
     const hora = item.hora.toString().padStart(2, "0");
     const minuto = item.minuto.toString().padStart(2, "0");
     return `${hora}:${minuto}`;
   });
 
-  const somaGolsData = lastData.map((item) => {
-    const [golsA, golsB] = item.ft.split(" x ").map(Number);
+  const somaGolsData = lastData.map(function(item) {
+    const ftSplit = item.ft.split(" x ");
+    const golsA = parseFloat(ftSplit[0]);
+    const golsB = parseFloat(ftSplit[1]);
     if (isNaN(golsA) || isNaN(golsB)) {
       console.error(`Erro ao processar placar: ${item.ft}`);
       return 0.1;
@@ -4223,12 +4296,13 @@ async function updateGolsChart() {
     return golsA + golsB || 0.5;
   });
 
+  const ifrData = calculateRSI(somaGolsData, 14);
+
   golsChart.data.labels = labels;
-  golsChart.data.datasets[0].data = somaGolsData;
+  golsChart.data.datasets[0].data = ifrData;
   golsChart.update();
 }
 
-// Adiciona listener para atualizar o gráfico quando o seletor mudar
 document.getElementById('pointsSelectorGolsPlus').addEventListener('change', updateGolsChart);
 
 setInterval(updateGolsChart, 5000);
