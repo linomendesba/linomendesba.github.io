@@ -62,6 +62,35 @@
     <br>
     <br>
 
+        <div class="accordion-item">
+        <button class="accordion-button" onclick="toggleAccordion(this)">▼ Ranking Rápido ▲</button>
+        <div class="accordion-content">
+            
+            <div class="ranking-controls">
+                <label for="marketSelector"><strong>Selecione o Mercado:</strong></label>
+                <select id="marketSelector">
+                    <option value="ambasMarcam" selected>Ambas Sim</option>
+                    <option value="ambasNaoMarcam">Ambas Não</option>
+                    <option value="casaVence">Casa vence</option>
+                    <option value="foraVence">Fora vence</option>
+                    <option value="empate">Empate</option>
+                    <option value="over1.5">Over 1.5</option>
+                    <option value="under1.5">Under 1.5</option>
+                    <option value="over2.5">Over 2.5</option>
+                    <option value="under2.5">Under 2.5</option>
+                    <option value="over3.5">Over 3.5</option>
+                    <option value="under3.5">Under 3.5</option>
+                    <option value="over5">Over 5+</option>
+                </select>
+            </div>
+
+            <div id="rankingContainer">
+                <p>Selecione um mercado para ver o ranking.</p>
+            </div>
+
+        </div>
+    </div>
+
     <div class="accordion-item">
       <button class="accordion-button" onclick="toggleAccordion(this)">▼ Agenda de Confrontos ▲</button>
       <div class="accordion-content">
@@ -4337,6 +4366,147 @@ loadNextGamesForMinutes();
     }
 
     document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<script>
+          // --- LÓGICA DO ACORDEÃO ---
+        function toggleAccordion(buttonElement) {
+            const content = buttonElement.nextElementSibling;
+            content.classList.toggle('active');
+        }
+
+        // --- LÓGICA DO RANKING RÁPIDO ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const marketSelector = document.getElementById('marketSelector');
+            const rankingContainer = document.getElementById('rankingContainer');
+            const API_URL = 'await fetch(ROTAS_API.resultados(LIGA_ATUAL));';
+
+            // Função principal que busca, analisa e exibe os dados
+            async function updateRanking() {
+                const selectedMarket = marketSelector.value;
+                rankingContainer.innerHTML = '<p>Analisando dados, por favor aguarde...</p>';
+
+                try {
+                    // 1. Buscar os dados da API
+                    const response = await fetch(API_URL);
+                    if (!response.ok) {
+                        throw new Error(`Erro na API: ${response.statusText}`);
+                    }
+                    const allGames = await response.json();
+                    
+                    // 2. Pegar apenas as 480 entradas mais recentes
+                    const games = allGames.slice(0, 480);
+
+                    // 3. Processar os jogos para calcular as estatísticas
+                    const teamStats = {};
+
+                    games.forEach(game => {
+                        const { time_a, time_b, ft } = game;
+                        if (!ft || !ft.includes(' x ')) return; // Pula jogos sem placar
+
+                        const [golsA, golsB] = ft.split(' x ').map(Number);
+                        const totalGols = golsA + golsB;
+
+                        // Inicializa as estatísticas para os times se for a primeira vez que aparecem
+                        [time_a, time_b].forEach(team => {
+                            if (!teamStats[team]) {
+                                teamStats[team] = { name: team, totalGames: 0, marketCount: 0 };
+                            }
+                        });
+
+                        // Incrementa o total de jogos de cada time
+                        teamStats[time_a].totalGames++;
+                        teamStats[time_b].totalGames++;
+                        
+                        // 4. Lógica para cada mercado
+                        let marketOccurred = false;
+                        switch (selectedMarket) {
+                            case 'ambasMarcam':     marketOccurred = golsA > 0 && golsB > 0; break;
+                            case 'ambasNaoMarcam':  marketOccurred = golsA === 0 || golsB === 0; break;
+                            case 'empate':          marketOccurred = golsA === golsB; break;
+                            case 'over1.5':         marketOccurred = totalGols > 1; break;
+                            case 'under1.5':        marketOccurred = totalGols < 2; break;
+                            case 'over2.5':         marketOccurred = totalGols > 2; break;
+                            case 'under2.5':        marketOccurred = totalGols < 3; break;
+                            case 'over3.5':         marketOccurred = totalGols > 3; break;
+                            case 'under3.5':        marketOccurred = totalGols < 4; break;
+                            case 'over5':           marketOccurred = totalGols >= 5; break; // 5 ou mais gols
+                        }
+                        
+                        if (marketOccurred) {
+                            teamStats[time_a].marketCount++;
+                            teamStats[time_b].marketCount++;
+                        }
+                        // Casos especiais: vitória de casa ou fora (só um time pontua)
+                        if (selectedMarket === 'casaVence' && golsA > golsB) {
+                            teamStats[time_a].marketCount++;
+                        }
+                        if (selectedMarket === 'foraVence' && golsB > golsA) {
+                            teamStats[time_b].marketCount++;
+                        }
+                    });
+
+                    // 5. Transformar objeto em array, calcular porcentagem e ordenar
+                    const statsArray = Object.values(teamStats).map(team => ({
+                        ...team,
+                        percentage: team.totalGames > 0 ? ((team.marketCount / team.totalGames) * 100).toFixed(1) : 0
+                    }));
+
+                    statsArray.sort((a, b) => b.marketCount - a.marketCount || b.percentage - a.percentage);
+
+                    // 6. Pegar o Top 10 e gerar a tabela HTML
+                    const top10 = statsArray.slice(0, 10);
+                    renderTable(top10);
+
+                } catch (error) {
+                    rankingContainer.innerHTML = `<p style="color: red;">Erro ao carregar dados: ${error.message}</p>`;
+                    console.error(error);
+                }
+            }
+
+            // Função para desenhar a tabela no HTML
+            function renderTable(data) {
+                if (data.length === 0) {
+                    rankingContainer.innerHTML = '<p>Nenhum dado encontrado para este mercado.</p>';
+                    return;
+                }
+                
+                let tableHTML = `
+                    <table class="ranking-table">
+                        <thead>
+                            <tr>
+                                <th>Pos.</th>
+                                <th>Time</th>
+                                <th>Ocorrências</th>
+                                <th>Jogos</th>
+                                <th>%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.forEach((team, index) => {
+                    tableHTML += `
+                        <tr>
+                            <td>${index + 1}º</td>
+                            <td>${team.name}</td>
+                            <td>${team.marketCount}</td>
+                            <td>${team.totalGames}</td>
+                            <td><strong>${team.percentage}%</strong></td>
+                        </tr>
+                    `;
+                });
+
+                tableHTML += `</tbody></table>`;
+                rankingContainer.innerHTML = tableHTML;
+            }
+
+            // Adiciona o evento que dispara a atualização quando o seletor muda
+            marketSelector.addEventListener('change', updateRanking);
+
+            // Carrega o ranking para o mercado padrão assim que a página carrega
+            updateRanking();
+        });
 </script>
 
 <script src="global-selectors.js"></script>
