@@ -4369,144 +4369,148 @@ loadNextGamesForMinutes();
 </script>
 
 <script>
-          // --- LÓGICA DO ACORDEÃO ---
-        function toggleAccordion(buttonElement) {
-            const content = buttonElement.nextElementSibling;
-            content.classList.toggle('active');
+    // --- LÓGICA DO ACORDEÃO ---
+    function toggleAccordion(buttonElement) {
+        const content = buttonElement.nextElementSibling;
+        content.classList.toggle('active');
+    }
+
+    // --- LÓGICA DO RANKING RÁPIDO ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        const marketSelector = document.getElementById('marketSelector');
+        const rankingContainer = document.getElementById('rankingContainer');
+        
+        // Variável para armazenar os dados dos jogos depois de buscá-los uma única vez.
+        let allGames = [];
+
+        // 1. BUSCA OS DADOS DA API APENAS UMA VEZ, AO CARREGAR A PÁGINA.
+        try {
+            // Supondo que ROTAS_API.resultados(LIGA_ATUAL) retorna a URL correta.
+            const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+            if (!response.ok) {
+                throw new Error(`Erro na API: ${response.statusText}`);
+            }
+            allGames = await response.json(); // Armazena os dados na variável
+        } catch (error) {
+            rankingContainer.innerHTML = `<p style="color: red;">Falha ao carregar os dados iniciais: ${error.message}</p>`;
+            return; // Interrompe a execução se a busca inicial falhar
         }
 
-        // --- LÓGICA DO RANKING RÁPIDO ---
-        document.addEventListener('DOMContentLoaded', async () => {
-            const marketSelector = document.getElementById('marketSelector');
-            const rankingContainer = document.getElementById('rankingContainer');
-            const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+        // 2. FUNÇÃO QUE APENAS PROCESSA OS DADOS JÁ CARREGADOS.
+        //    (Removemos o 'async' e a busca 'fetch' de dentro dela)
+        function updateRanking() {
+            const selectedMarket = marketSelector.value;
+            rankingContainer.innerHTML = '<p>Analisando dados, por favor aguarde...</p>';
 
-            // Função principal que busca, analisa e exibe os dados
-            async function updateRanking() {
-                const selectedMarket = marketSelector.value;
-                rankingContainer.innerHTML = '<p>Analisando dados, por favor aguarde...</p>';
+            try {
+                // Pega apenas as 480 entradas mais recentes dos dados já carregados
+                const games = allGames.slice(0, 480);
+                const teamStats = {};
 
-                try {
-                    // 1. Buscar os dados da API
-                    const response = await fetch(API_URL);
-                    if (!response.ok) {
-                        throw new Error(`Erro na API: ${response.statusText}`);
-                    }
-                    const allGames = await response.json();
-                    
-                    // 2. Pegar apenas as 480 entradas mais recentes
-                    const games = allGames.slice(0, 480);
+                games.forEach(game => {
+                    const { time_a, time_b, ft } = game;
+                    if (!ft || !ft.includes(' x ')) return;
 
-                    // 3. Processar os jogos para calcular as estatísticas
-                    const teamStats = {};
+                    const [golsA, golsB] = ft.split(' x ').map(Number);
+                    const totalGols = golsA + golsB;
 
-                    games.forEach(game => {
-                        const { time_a, time_b, ft } = game;
-                        if (!ft || !ft.includes(' x ')) return; // Pula jogos sem placar
-
-                        const [golsA, golsB] = ft.split(' x ').map(Number);
-                        const totalGols = golsA + golsB;
-
-                        // Inicializa as estatísticas para os times se for a primeira vez que aparecem
-                        [time_a, time_b].forEach(team => {
-                            if (!teamStats[team]) {
-                                teamStats[team] = { name: team, totalGames: 0, marketCount: 0 };
-                            }
-                        });
-
-                        // Incrementa o total de jogos de cada time
-                        teamStats[time_a].totalGames++;
-                        teamStats[time_b].totalGames++;
-                        
-                        // 4. Lógica para cada mercado
-                        let marketOccurred = false;
-                        switch (selectedMarket) {
-                            case 'ambasMarcam':     marketOccurred = golsA > 0 && golsB > 0; break;
-                            case 'ambasNaoMarcam':  marketOccurred = golsA === 0 || golsB === 0; break;
-                            case 'empate':          marketOccurred = golsA === golsB; break;
-                            case 'over1.5':         marketOccurred = totalGols > 1; break;
-                            case 'under1.5':        marketOccurred = totalGols < 2; break;
-                            case 'over2.5':         marketOccurred = totalGols > 2; break;
-                            case 'under2.5':        marketOccurred = totalGols < 3; break;
-                            case 'over3.5':         marketOccurred = totalGols > 3; break;
-                            case 'under3.5':        marketOccurred = totalGols < 4; break;
-                            case 'over5':           marketOccurred = totalGols >= 5; break; // 5 ou mais gols
-                        }
-                        
-                        if (marketOccurred) {
-                            teamStats[time_a].marketCount++;
-                            teamStats[time_b].marketCount++;
-                        }
-                        // Casos especiais: vitória de casa ou fora (só um time pontua)
-                        if (selectedMarket === 'casaVence' && golsA > golsB) {
-                            teamStats[time_a].marketCount++;
-                        }
-                        if (selectedMarket === 'foraVence' && golsB > golsA) {
-                            teamStats[time_b].marketCount++;
+                    [time_a, time_b].forEach(team => {
+                        if (!teamStats[team]) {
+                            teamStats[team] = { name: team, totalGames: 0, marketCount: 0 };
                         }
                     });
 
-                    // 5. Transformar objeto em array, calcular porcentagem e ordenar
-                    const statsArray = Object.values(teamStats).map(team => ({
-                        ...team,
-                        percentage: team.totalGames > 0 ? ((team.marketCount / team.totalGames) * 100).toFixed(1) : 0
-                    }));
-
-                    statsArray.sort((a, b) => b.marketCount - a.marketCount || b.percentage - a.percentage);
-
-                    // 6. Pegar o Top 10 e gerar a tabela HTML
-                    const top10 = statsArray.slice(0, 10);
-                    renderTable(top10);
-
-                } catch (error) {
-                    rankingContainer.innerHTML = `<p style="color: red;">Erro ao carregar dados: ${error.message}</p>`;
-                    console.error(error);
-                }
-            }
-
-            // Função para desenhar a tabela no HTML
-            function renderTable(data) {
-                if (data.length === 0) {
-                    rankingContainer.innerHTML = '<p>Nenhum dado encontrado para este mercado.</p>';
-                    return;
-                }
-                
-                let tableHTML = `
-                    <table class="ranking-table">
-                        <thead>
-                            <tr>
-                                <th>Pos.</th>
-                                <th>Time</th>
-                                <th>Ocorrências</th>
-                                <th>Jogos</th>
-                                <th>%</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-                
-                data.forEach((team, index) => {
-                    tableHTML += `
-                        <tr>
-                            <td>${index + 1}º</td>
-                            <td>${team.name}</td>
-                            <td>${team.marketCount}</td>
-                            <td>${team.totalGames}</td>
-                            <td><strong>${team.percentage}%</strong></td>
-                        </tr>
-                    `;
+                    teamStats[time_a].totalGames++;
+                    teamStats[time_b].totalGames++;
+                    
+                    let marketOccurred = false;
+                    switch (selectedMarket) {
+                        case 'ambasMarcam':     marketOccurred = golsA > 0 && golsB > 0; break;
+                        case 'ambasNaoMarcam':  marketOccurred = golsA === 0 || golsB === 0; break;
+                        case 'empate':          marketOccurred = golsA === golsB; break;
+                        case 'over1.5':         marketOccurred = totalGols > 1; break;
+                        case 'under1.5':        marketOccurred = totalGols < 2; break;
+                        case 'over2.5':         marketOccurred = totalGols > 2; break;
+                        case 'under2.5':        marketOccurred = totalGols < 3; break;
+                        case 'over3.5':         marketOccurred = totalGols > 3; break;
+                        case 'under3.5':        marketOccurred = totalGols < 4; break;
+                        case 'over5':           marketOccurred = totalGols >= 5; break;
+                    }
+                    
+                    if (marketOccurred) {
+                        teamStats[time_a].marketCount++;
+                        teamStats[time_b].marketCount++;
+                    }
+                    
+                    if (selectedMarket === 'casaVence' && golsA > golsB) {
+                        teamStats[time_a].marketCount++;
+                    }
+                    if (selectedMarket === 'foraVence' && golsB > golsA) {
+                        teamStats[time_b].marketCount++;
+                    }
                 });
 
-                tableHTML += `</tbody></table>`;
-                rankingContainer.innerHTML = tableHTML;
+                const statsArray = Object.values(teamStats).map(team => ({
+                    ...team,
+                    percentage: team.totalGames > 0 ? ((team.marketCount / team.totalGames) * 100).toFixed(1) : 0
+                }));
+
+                statsArray.sort((a, b) => b.marketCount - a.marketCount || b.percentage - a.percentage);
+
+                const top10 = statsArray.slice(0, 10);
+                renderTable(top10);
+
+            } catch (error) {
+                // Este 'catch' agora pega erros de processamento, não de busca
+                rankingContainer.innerHTML = `<p style="color: red;">Erro ao processar os dados: ${error.message}</p>`;
+                console.error(error);
             }
+        }
 
-            // Adiciona o evento que dispara a atualização quando o seletor muda
-            marketSelector.addEventListener('change', updateRanking);
+        // Função para desenhar a tabela no HTML (permanece igual)
+        function renderTable(data) {
+            if (data.length === 0) {
+                rankingContainer.innerHTML = '<p>Nenhum dado encontrado para este mercado.</p>';
+                return;
+            }
+            
+            let tableHTML = `
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th>Pos.</th>
+                            <th>Time</th>
+                            <th>Ocorrências</th>
+                            <th>Jogos</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            data.forEach((team, index) => {
+                tableHTML += `
+                    <tr>
+                        <td>${index + 1}º</td>
+                        <td>${team.name}</td>
+                        <td>${team.marketCount}</td>
+                        <td>${team.totalGames}</td>
+                        <td><strong>${team.percentage}%</strong></td>
+                    </tr>
+                `;
+            });
 
-            // Carrega o ranking para o mercado padrão assim que a página carrega
-            updateRanking();
-        });
+            tableHTML += `</tbody></table>`;
+            rankingContainer.innerHTML = tableHTML;
+        }
+
+        // Adiciona o evento que dispara a atualização quando o seletor muda
+        marketSelector.addEventListener('change', updateRanking);
+
+        // 3. CHAMA A FUNÇÃO PELA PRIMEIRA VEZ PARA CARREGAR O MERCADO PADRÃO
+        //    (Agora funciona, pois os dados já estão na variável 'allGames')
+        updateRanking();
+    });
 </script>
 
 <script src="global-selectors.js"></script>
