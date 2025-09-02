@@ -324,6 +324,58 @@
         <br>
       <br>
 
+      <div class="ciclos-container">
+  <div class="ciclos-controls">
+    <div class="ciclos-control-group">
+      <label class="ciclos-label" for="ciclos-league">Escolha a Liga:</label>
+      <select class="ciclos-select" id="ciclos-league">
+        <option value="copaAmerica">Copa América</option>
+        <option value="tacaGloria">Taça Glória</option>
+        <option value="euro">Euro</option>
+        <option value="campeonatoItaliano">Italiano</option>
+        <option value="copaEstrelas">Estrelas</option>
+        <option value="brasileirao">Brasileirão</option>
+      </select>
+    </div>
+
+    <div class="ciclos-control-group">
+      <label class="ciclos-label" for="ciclos-market">Escolha o Mercado:</label>
+      <select class="ciclos-select" id="ciclos-market"></select>
+    </div>
+    
+    <div class="ciclos-control-group">
+      <label class="ciclos-label" for="ciclos-columns">Ciclos de porcentagem:</label>
+      <select class="ciclos-select" id="ciclos-columns">
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+    </div>
+
+    <div class="ciclos-control-group">
+      <label class="ciclos-label" for="ciclos-time">Período de Tempo:</label>
+      <select class="ciclos-select" id="ciclos-time">
+        <option value="60">3 Horas</option>
+        <option value="120">6 Horas</option>
+        <option value="240">12 Horas</option>
+        <option value="480">24 Horas</option>
+        <option value="960">48 Horas</option>
+        <option value="1440">72 Horas</option>
+      </select>
+    </div>
+    
+    <button class="ciclos-button" onclick="fetchCiclosData()">Atualizar</button>
+  </div>
+  
+  <table class="ciclos-table">
+    <thead>
+      <tr id="ciclos-header"></tr>
+    </thead>
+    <tbody id="ciclos-body"></tbody>
+  </table>
+</div>
+
     <div id="quadrantes-container">
         <div id="quadrantes-league-selector">
             <select id="leagueSelect" onchange="changeLeague()">
@@ -801,6 +853,180 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchData();
     setInterval(fetchData, 5000);
 });
+    </script>
+
+    <script>
+        const ciclosMinutes = [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58];
+const ciclosMarkets = {
+    "ciclos-ambasMarcam": "Ambas Sim",
+    "ciclos-ambasNaoMarcam": "Ambas Não",
+    "ciclos-casaVence": "Casa Vence",
+    "ciclos-foraVence": "Fora Vence",
+    "ciclos-empate": "Empate",
+    "ciclos-over1.5": "Over 1.5",
+    "ciclos-under1.5": "Under 1.5",
+    "ciclos-over2.5": "Over 2.5",
+    "ciclos-under2.5": "Under 2.5",
+    "ciclos-over3.5": "Over 3.5",
+    "ciclos-under3.5": "Under 3.5",
+};
+
+const leagues = [
+    { id: 'copaAmerica', label: 'Copa América', endpoint: 'https://betstat.site/resultados/Copa%20Am%C3%A9rica' },
+    { id: 'tacaGloria', label: 'Taça Glória', endpoint: 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna' },
+    { id: 'euro', label: 'Euro', endpoint: 'https://betstat.site/resultados/Euro' },
+    { id: 'campeonatoItaliano', label: 'Italiano', endpoint: 'https://betstat.site/resultados/Campeonato%20Italiano' },
+    { id: 'copaEstrelas', label: 'Estrelas', endpoint: 'https://betstat.site/resultados/Copa%20das%20estrelas' },
+    { id: 'brasileirao', label: 'Brasileirão', endpoint: 'https://betstat.site/resultados/Brasileir%C3%A3o%20Betano' },
+];
+
+function populateCiclosMarket() {
+    const select = document.getElementById("ciclos-market");
+    for (const key in ciclosMarkets) {
+        let option = document.createElement("option");
+        option.value = key;
+        option.textContent = ciclosMarkets[key];
+        select.appendChild(option);
+    }
+    select.value = "ciclos-ambasMarcam";
+}
+
+async function fetchCiclosData() {
+    try {
+        const selectedLeagueId = document.getElementById("ciclos-league").value;
+        const selectedLeague = leagues.find(league => league.id === selectedLeagueId);
+        const response = await fetch(selectedLeague.endpoint);
+        const data = await response.json();
+        const timeRange = parseInt(document.getElementById("ciclos-time").value);
+        processCiclosData(data.slice(-timeRange));
+    } catch (error) {
+        console.error("Erro ao buscar dados dos ciclos", error);
+    }
+}
+
+function getTop3Indices(values) {
+    return values
+        .map((value, index) => ({ value, index }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 3)
+        .map(item => item.index);
+}
+
+function processCiclosData(data) {
+    const selectedMarket = document.getElementById("ciclos-market").value;
+    const columnCount = parseInt(document.getElementById("ciclos-columns").value);
+    
+    let groupedCiclos = [];
+    for (let i = 0; i < ciclosMinutes.length; i += columnCount) {
+        let group = ciclosMinutes.slice(i, i + columnCount);
+        groupedCiclos.push(group);
+    }
+    
+    let ciclosCounts = {};
+    let ciclosOccurrences = {};
+    let ciclosGoals = {};
+    groupedCiclos.forEach(group => {
+        let groupKey = group.join(" | ");
+        ciclosCounts[groupKey] = 0;
+        ciclosOccurrences[groupKey] = 0;
+        ciclosGoals[groupKey] = 0;
+    });
+    
+    data.forEach(game => {
+        let gameMinute = game.minuto;
+        let ft = game.ft.split('x').map(Number);
+        let totalGoals = ft[0] + ft[1];
+        
+        groupedCiclos.forEach(group => {
+            if (group.includes(gameMinute)) {
+                let groupKey = group.join(" | ");
+                ciclosOccurrences[groupKey]++;
+                ciclosGoals[groupKey] += totalGoals;
+                if (selectedMarket.includes("ambasMarcam") && ft[0] > 0 && ft[1] > 0) ciclosCounts[groupKey]++;
+                if (selectedMarket.includes("ambasNaoMarcam") && (ft[0] === 0 || ft[1] === 0)) ciclosCounts[groupKey]++;
+                if (selectedMarket.includes("casaVence") && ft[0] > ft[1]) ciclosCounts[groupKey]++;
+                if (selectedMarket.includes("foraVence") && ft[1] > ft[0]) ciclosCounts[groupKey]++;
+                if (selectedMarket.includes("empate") && ft[0] === ft[1]) ciclosCounts[groupKey]++;
+                if (selectedMarket.includes("over1.5") && totalGoals > 1.5) ciclosCounts[groupKey]++;
+                if (selectedMarket.includes("under1.5") && totalGoals <= 1.5) ciclosCounts[groupKey]++;
+                if (selectedMarket.includes("over2.5") && totalGoals > 2.5) ciclosCounts[groupKey]++;
+                if (selectedMarket.includes("under2.5") && totalGoals <= 2.5) ciclosCounts[groupKey]++;
+                if (selectedMarket.includes("over3.5") && totalGoals > 3.5) ciclosCounts[groupKey]++;
+                if (selectedMarket.includes("under3.5") && totalGoals <= 3.5) ciclosCounts[groupKey]++;
+            }
+        });
+    });
+    
+    renderCiclosTable(ciclosCounts, ciclosOccurrences, ciclosGoals);
+}
+
+function renderCiclosTable(ciclosCounts, ciclosOccurrences, ciclosGoals) {
+    const headerRow = document.getElementById("ciclos-header");
+    const tableBody = document.getElementById("ciclos-body");
+    
+    headerRow.innerHTML = "";
+    tableBody.innerHTML = "";
+    
+    const groupKeys = Object.keys(ciclosCounts);
+    
+    // Create headers
+    groupKeys.forEach(groupKey => {
+        const numbers = groupKey.split(" | ");
+        const formattedHeader = numbers
+            .map(num => `<span class="interval-number">${num}</span>`)
+            .join('<span class="interval-separator"> | </span>');
+        headerRow.innerHTML += `<th>${formattedHeader}</th>`;
+    });
+    
+    // Calculate percentages and averages
+    const percentages = groupKeys.map(groupKey => 
+        ciclosOccurrences[groupKey] > 0 
+            ? Math.round((ciclosCounts[groupKey] / ciclosOccurrences[groupKey]) * 100) 
+            : 0
+    );
+    
+    const averageGoals = groupKeys.map(groupKey =>
+        ciclosOccurrences[groupKey] > 0
+            ? parseFloat((ciclosGoals[groupKey] / ciclosOccurrences[groupKey]).toFixed(2))
+            : 0
+    );
+    
+    // Get top 3 indices for both metrics
+    const top3PercentageIndices = getTop3Indices(percentages);
+    const top3AverageIndices = getTop3Indices(averageGoals);
+    
+    // Create percentage row
+    let percentageRow = document.createElement("tr");
+    percentageRow.classList.add("percentage-row");
+    percentages.forEach((percentage, index) => {
+        const td = document.createElement("td");
+        td.textContent = `${percentage}%`;
+        if (top3PercentageIndices.includes(index)) {
+            td.classList.add("highlight-cell");
+        }
+        percentageRow.appendChild(td);
+    });
+    
+    // Create average goals row
+    let averageGoalsRow = document.createElement("tr");
+    averageGoals.forEach((average, index) => {
+        const td = document.createElement("td");
+        td.textContent = `⚽️${average.toFixed(2)}`;
+        if (top3AverageIndices.includes(index)) {
+            td.classList.add("highlight-cell");
+        }
+        averageGoalsRow.appendChild(td);
+    });
+    
+    tableBody.appendChild(percentageRow);
+    tableBody.appendChild(averageGoalsRow);
+}
+
+populateCiclosMarket();
+document.addEventListener('DOMContentLoaded', fetchCiclosData);
+
+// Atualiza os dados a cada 3 segundos
+setInterval(fetchCiclosData, 3000);
     </script>
 
     <script>
