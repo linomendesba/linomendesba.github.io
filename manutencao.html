@@ -242,51 +242,55 @@
       <button class="accordion-button" onclick="toggleAccordion(this)">▼ Tendência Gols / Mercados ▲</button>
       <div class="accordion-content">
           <!-- Gráfico GolsPlus -->
+<div class="chart-container"> <!-- Adicionada a classe chart-container -->
+    <canvas id="golsplus" width="1080" height="300"></canvas>
     <div class="chart-container">
-        <canvas id="golsplus" width="1080" height="300"></canvas>
-        <div class="control-panel">
-            <div>
-                <label for="pointsSelectorGolsPlus">Período:</label>
-                <select id="pointsSelectorGolsPlus">
-                    <option value="20">1 Hora</option>
-                    <option value="40">2 Horas</option>
-                    <option value="60">3 Horas</option>
-                    <option value="80">4 Horas</option>
-                    <option value="100">5 Horas</option>
-                    <option value="120">6 Horas</option>
-                    <option value="140">7 Horas</option>
-                    <option value="160">8 Horas</option>
-                    <option value="180">9 Horas</option>
-                    <option value="200">10 Horas</option>
-                    <option value="220">11 Horas</option>
-                    <option value="240">12 Horas</option>
-                    <option value="480">24 Horas</option>
-                    <option value="960">48 Horas</option>
-                    <option value="1440">72 Horas</option>
-                </select>
-            </div>
-            
-            <div>
-                <label for="averageSelectorGolsPlus">Base de Cálculo:</label>
-                <select id="averageSelectorGolsPlus">
-                    <option value="19">Base 20</option>
-                    <option value="39">Base 40</option>
-                    <option value="59">Base 60</option>
-                    <option value="79">Base 80</option>
-                    <option value="99">Base 100</option>
-                    <option value="119">Base 120</option>
-                </select>
-            </div>
+        <canvas id="golsChart" width="1600" height="200"></canvas>
+    </div>
+    <div class="control-panel">
+        <div>
+            <label for="pointsSelectorGolsPlus"></label>
+            <select id="pointsSelectorGolsPlus">
+                <option value="20">1 Hora</option>
+                <option value="40">2 Horas</option>
+                <option value="60">3 Horas</option>
+                <option value="80">4 Horas</option>
+                <option value="100">5 Horas</option>
+                <option value="120">6 Horas</option>
+                <option value="140">7 Horas</option>
+                <option value="160">8 Horas</option>
+                <option value="180">9 Horas</option>
+                <option value="200">10 Horas</option>
+                <option value="220">11 Horas</option>
+                <option value="240">12 Horas</option>
+                <option value="480">24 Horas</option>
+                <option value="960">48 Horas</option>
+                <option value="1440">72 Horas</option>
+            </select>
+        </div>
+        
+        <div>
+            <label for="averageSelectorGolsPlus"></label>
+            <select id="averageSelectorGolsPlus">
+                <option value="19">Base 20</option>
+                <option value="39">Base 40</option>
+                <option value="59">Base 60</option>
+                <option value="79">Base 80</option>
+                <option value="99">Base 100</option>
+                <option value="119">Base 120</option>
+            </select>
+        </div>
 
-            <div class="checkbox-container">
-                <input type="checkbox" id="movingAveragesToggleGolsPlus">
-                <label for="movingAveragesToggleGolsPlus">Ativar Médias Móveis</label>
-            </div>
-
-            <div class="checkbox-container">
-                <input type="checkbox" id="fibonacciToggleGolsPlus">
-                <label for="fibonacciToggleGolsPlus">Ativar Fibonacci</label>
-            </div>
+        <div class="checkbox-container">
+            <input type="checkbox" id="fibonacciToggleGolsPlus">
+            <label for="fibonacciToggleGolsPlus">Ativar Fibonacci</label>
+        </div>
+        <div class="checkbox-container">
+            <input type="checkbox" id="movingAveragesToggleGolsPlus">
+            <label for="movingAveragesToggleGolsPlus">Ativar Médias Móveis</label>
+        </div>
+    </div>
+</div> <!-- Fim do chart-container -->
   
           <!-- Gráfico Copa (original) -->
 <div class="chart-container">
@@ -3076,7 +3080,6 @@ let showFibonacciLinesGolsPlus = false;
 let showMovingAveragesGolsPlus = false;
 let chartDataGolsPlus = {};
 
-// Objeto para controlar a visibilidade inicial e dinâmica dos datasets
 const statsChartVisibleDatasetsGolsPlus = {
     'Gols FT': true,
     'Gols FT Casa': false,
@@ -3085,11 +3088,13 @@ const statsChartVisibleDatasetsGolsPlus = {
     'Equilíbrio': false
 };
 
-// --- FUNÇÕES AUXILIARES ---
+const labelToKeyGolsPlus = {
+    'Gols FT': 'golsFT',
+    'Gols FT Casa': 'golsFTCasa',
+    'Gols FT Visitante': 'golsFTVisitante',
+    'Gols HT': 'golsHT'
+};
 
-/**
- * Converte um código de cor hexadecimal para RGBA.
- */
 function hexToRgba(hex, alpha) {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -3097,9 +3102,6 @@ function hexToRgba(hex, alpha) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-/**
- * Formata o resultado do intervalo (HT) para o formato 'X-Y'.
- */
 function formatHtResult(ht) {
     if (ht === 'OUT') return 'OUT';
     if (ht && ht.includes(' x ')) {
@@ -3111,9 +3113,32 @@ function formatHtResult(ht) {
     return ht;
 }
 
-/**
- * Calcula a Média Móvel Simples (Simple Moving Average - SMA) para um array de dados.
- */
+function getKeyFromLabelGolsPlus(label) {
+    if (label.includes(' - ')) {
+        const [mainLabel, maPart] = label.split(' - ');
+        const maType = maPart.split(' ')[0];
+        return labelToKeyGolsPlus[mainLabel] + maType;
+    } else {
+        return labelToKeyGolsPlus[label];
+    }
+}
+
+function updateStatsChartGolsPlus(chart, newData) {
+    if (chart) {
+        chart.data.labels = newData.labels;
+        chart.data.datasets.forEach(ds => {
+            if (ds.label === 'Equilíbrio') {
+                ds.data = newData.equilibrio;
+            } else if (!ds.label.includes(' - ')) {
+                ds.data = newData[getKeyFromLabelGolsPlus(ds.label)];
+            } else {
+                ds.data = newData[getKeyFromLabelGolsPlus(ds.label)];
+            }
+        });
+        chart.update('none');
+    }
+}
+
 function computeMA(dataArray, period) {
     let ma = [];
     for (let i = 0; i < dataArray.length; i++) {
@@ -3130,8 +3155,6 @@ function computeMA(dataArray, period) {
     return ma;
 }
 
-// --- PROCESSAMENTO DE DADOS ---
-
 function processApiDataGolsPlus(data) {
     const sortedData = [...data].sort((a, b) => {
         const dateA = new Date(a.data);
@@ -3145,46 +3168,83 @@ function processApiDataGolsPlus(data) {
     chartDataGolsPlus['Copa'] = slicedData;
 
     let labels = [];
-    let golsFT = [], golsFTCasa = [], golsFTVisitante = [], golsHT = [];
+    let golsFT = [];
+    let golsFTCasa = [];
+    let golsFTVisitante = [];
+    let golsHT = [];
+
+    function hasGap(prevMatch, currMatch) {
+        const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
+        const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
+        const diffMinutes = (currTime - prevTime) / (1000 * 60);
+        return diffMinutes > 1;
+    }
 
     for (let i = averagePointsGolsPlus; i < slicedData.length; i++) {
-        let golsFTSum = 0, golsFTCasaSum = 0, golsFTVisitanteSum = 0, golsHTSum = 0;
+        let golsFTSum = 0;
+        let golsFTCasaSum = 0;
+        let golsFTVisitanteSum = 0;
+        let golsHTSum = 0;
+        let validMatches = 0;
 
         for (let j = Math.max(0, i - averagePointsGolsPlus); j <= i; j++) {
             const match = slicedData[j];
-            let ftScoreParts = [0, 0];
-            if (match.ft && match.ft.includes(' x ')) {
-                ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
-            }
-            let htScoreParts = [0, 0];
-            if (match.ht && match.ht.includes(' x ')) {
-                htScoreParts = match.ht.split(' x ').map(num => parseInt(num, 10));
+            const ftScore = match.ft;
+            const htScore = match.ht;
+
+            if (j > 0 && hasGap(slicedData[j - 1], match)) {
+                labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
+                golsFT.push(null);
+                golsFTCasa.push(null);
+                golsFTVisitante.push(null);
+                golsHT.push(null);
+                continue;
             }
 
-            golsFTSum += ftScoreParts[0] + ftScoreParts[1];
+            let ftScoreParts = [0, 0];
+            if (ftScore && ftScore.includes(' x ')) {
+                ftScoreParts = ftScore.split(' x ').map(num => parseInt(num, 10));
+            }
+
+            let htScoreParts = [0, 0];
+            if (htScore && htScore.includes(' x ')) {
+                htScoreParts = htScore.split(' x ').map(num => parseInt(num, 10));
+            }
+
+            const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
+            const totalGolsHT = htScoreParts[0] + htScoreParts[1];
+
+            golsFTSum += totalGolsFT;
             golsFTCasaSum += ftScoreParts[0];
             golsFTVisitanteSum += ftScoreParts[1];
-            golsHTSum += htScoreParts[0] + htScoreParts[1];
+            golsHTSum += totalGolsHT;
+            validMatches++;
         }
 
         const match = slicedData[i];
         labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
+
         golsFT.push(golsFTSum);
         golsFTCasa.push(golsFTCasaSum);
         golsFTVisitante.push(golsFTVisitanteSum);
         golsHT.push(golsHTSum);
     }
 
+    // Calcular a média geral dos totais de "Gols FT" para a linha de equilíbrio
     const averageGolsFT = golsFT.filter(val => val !== null).reduce((acc, val) => acc + val, 0) / golsFT.filter(val => val !== null).length;
     const equilibrio = new Array(labels.length).fill(averageGolsFT);
 
-    const result = { labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, equilibrio };
+    const result = { 
+        labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, equilibrio
+    };
 
-    // Calcula as médias móveis para os datasets relevantes
-    const shortPeriod = 5, mediumPeriod = 10, longPeriod = 20;
-    const keysToProcess = ['golsFT', 'golsFTCasa', 'golsFTVisitante', 'golsHT'];
-    
-    keysToProcess.forEach(key => {
+    // Compute moving averages
+    const shortPeriod = 5;
+    const mediumPeriod = 10;
+    const longPeriod = 20;
+
+    Object.keys(labelToKeyGolsPlus).forEach(label => {
+        const key = labelToKeyGolsPlus[label];
         result[key + 'Short'] = computeMA(result[key], shortPeriod);
         result[key + 'Medium'] = computeMA(result[key], mediumPeriod);
         result[key + 'Long'] = computeMA(result[key], longPeriod);
@@ -3192,9 +3252,6 @@ function processApiDataGolsPlus(data) {
 
     return result;
 }
-
-
-// --- CONFIGURAÇÃO E CRIAÇÃO DO GRÁFICO ---
 
 const fibonacciLinesPluginGolsPlus = {
     id: 'fibonacciLinesGolsPlus',
@@ -3212,13 +3269,15 @@ const fibonacciLinesPluginGolsPlus = {
         normalizedLevels.forEach((level, index) => {
             const y = yAxis.getPixelForValue(level);
             ctx.beginPath();
-            ctx.setLineDash([5, 5]);
+            ctx.setLineDash([5, 5]); // deixa tracejado
             ctx.moveTo(chart.chartArea.left, y);
             ctx.lineTo(chart.chartArea.right, y);
             ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
             ctx.lineWidth = 1;
             ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.setLineDash([]); // reseta para não afetar outros desenhos
+
+            // Texto ao lado da linha
             ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
             ctx.font = '11px Arial';
             ctx.textAlign = 'left';
@@ -3230,98 +3289,123 @@ const fibonacciLinesPluginGolsPlus = {
     }
 };
 
-function createStatsChartGolsPlus(ctx, data) {
+function createStatsChartGolsPlus(ctx, labels, data) {
     const datasetConfigs = [
         { label: 'Gols FT', color: '#FFFF00', key: 'golsFT' },
         { label: 'Gols FT Casa', color: '#AB47BC', key: 'golsFTCasa' },
         { label: 'Gols FT Visitante', color: '#2196F3', key: 'golsFTVisitante' },
-        { label: 'Gols HT', color: '#26A69A', key: 'golsHT' },
+        { label: 'Gols HT', color: '#26A69A', key: 'golsHT' }
     ];
 
     const datasets = [];
-    const shortColor = hexToRgba('#00FF00', 0.5); 
-    const mediumColor = hexToRgba('#FFFF00', 0.4);
-    const longColor  = hexToRgba('#1E90FF', 0.3);
+    const shortColor = hexToRgba('#00FF00', 0.5); // Verde apagado
+    const mediumColor = hexToRgba('#FFFF00', 0.4); // Amarelo apagado
+    const longColor = hexToRgba('#1E90FF', 0.3); // Azul apagado
 
     datasetConfigs.forEach(config => {
-        // Linha Principal
         datasets.push({
             label: config.label,
             data: data[config.key],
             borderColor: config.color,
             backgroundColor: config.color,
+            pointBackgroundColor: config.color,
             borderWidth: 2,
             pointRadius: 4,
             fill: false,
             hidden: !statsChartVisibleDatasetsGolsPlus[config.label]
         });
 
-        // Médias Móveis
         datasets.push({
-            label: config.label + ' - Short MA', data: data[config.key + 'Short'], borderColor: shortColor,
+            label: config.label + ' - Short MA',
+            data: data[config.key + 'Short'],
+            borderColor: shortColor,
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
             hidden: !showMovingAveragesGolsPlus || !statsChartVisibleDatasetsGolsPlus[config.label]
-        }, {
-            label: config.label + ' - Medium MA', data: data[config.key + 'Medium'], borderColor: mediumColor,
+        });
+
+        datasets.push({
+            label: config.label + ' - Medium MA',
+            data: data[config.key + 'Medium'],
+            borderColor: mediumColor,
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
             hidden: !showMovingAveragesGolsPlus || !statsChartVisibleDatasetsGolsPlus[config.label]
-        }, {
-            label: config.label + ' - Long MA', data: data[config.key + 'Long'], borderColor: longColor,
+        });
+
+        datasets.push({
+            label: config.label + ' - Long MA',
+            data: data[config.key + 'Long'],
+            borderColor: longColor,
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
             hidden: !showMovingAveragesGolsPlus || !statsChartVisibleDatasetsGolsPlus[config.label]
         });
     });
-    
-    // Adiciona a linha de Equilíbrio
-    datasets.push({ 
-        label: 'Equilíbrio', 
-        data: data.equilibrio, 
-        borderColor: 'rgba(255, 255, 255, 0.5)', 
-        borderWidth: 1, 
-        borderDash: [2, 5], 
-        fill: false, 
-        pointRadius: 0, 
-        hidden: !statsChartVisibleDatasetsGolsPlus['Equilíbrio'] 
-    });
 
-    // Padrões para as médias móveis
-    datasets.forEach(ds => {
-        if (ds.label.includes('MA')) {
-            ds.backgroundColor = 'transparent';
-            ds.tension = 0.3;
-            ds.borderWidth = 1;
-            ds.pointRadius = 0;
-            ds.fill = false;
-        }
+    // Adicionar Equilíbrio separadamente (sem MAs)
+    datasets.push({
+        label: 'Equilíbrio',
+        data: data.equilibrio,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        borderWidth: 1,
+        borderDash: [2, 5],
+        fill: false,
+        pointRadius: 0,
+        pointStyle: 'line',
+        pointHitRadius: 0,
+        hidden: !statsChartVisibleDatasetsGolsPlus['Equilíbrio']
     });
 
     return new Chart(ctx, {
         type: 'line',
-        data: { labels: data.labels, datasets: datasets },
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
         options: {
             responsive: true,
-            layout: { padding: { top: 30, right: 50 } },
+            layout: { 
+                padding: { 
+                    top: 30,
+                    right: 50
+                } 
+            },
             plugins: {
                 legend: {
+                    display: true,
                     labels: { 
                         color: '#e0e0e0', 
                         font: { size: 12 },
-                        filter: (legendItem) => !legendItem.text.includes(' MA') // Filtra MAs da legenda
+                        filter: (legendItem) => !legendItem.text.includes(' MA')
                     },
                     onClick: function(e, legendItem, legend) {
                         const ci = legend.chart;
                         const datasetLabel = legendItem.text;
                         const mainIndex = ci.data.datasets.findIndex(ds => ds.label === datasetLabel);
-                        
-                        const meta = ci.getDatasetMeta(mainIndex);
-                        meta.hidden = !meta.hidden;
-                        statsChartVisibleDatasetsGolsPlus[datasetLabel] = !meta.hidden;
+                        if (mainIndex !== -1) {
+                            const meta = ci.getDatasetMeta(mainIndex);
+                            meta.hidden = !meta.hidden;
+                            statsChartVisibleDatasetsGolsPlus[datasetLabel] = !meta.hidden;
 
-                        // Alterna a visibilidade das MAs associadas
-                        ci.data.datasets.forEach((ds, dsIndex) => {
-                            if (ds.label.startsWith(datasetLabel + ' -')) {
-                                const metaMA = ci.getDatasetMeta(dsIndex);
-                                metaMA.hidden = !showMovingAveragesGolsPlus || meta.hidden;
-                            }
-                        });
-                        ci.update();
+                            ci.data.datasets.forEach((ds, dsIndex) => {
+                                if (ds.label.startsWith(datasetLabel + ' -')) {
+                                    const metaMA = ci.getDatasetMeta(dsIndex);
+                                    metaMA.hidden = !showMovingAveragesGolsPlus || meta.hidden;
+                                }
+                            });
+
+                            ci.update();
+                        }
                     }
                 },
                 tooltip: {
@@ -3335,30 +3419,37 @@ function createStatsChartGolsPlus(ctx, data) {
                         title: function(tooltipItems) {
                             const index = tooltipItems[0].dataIndex + averagePointsGolsPlus;
                             const match = chartDataGolsPlus['Copa'][index];
-                            return match ? `${match.hora}:${match.minuto.toString().padStart(2, '0')}` : '';
+                            return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
                         },
                         label: function(tooltipItem) {
                             const index = tooltipItem.dataIndex + averagePointsGolsPlus;
                             const match = chartDataGolsPlus['Copa'][index];
-                            if (!match) return '';
-
                             const ftScore = match.ft || 'N/A';
                             const htScore = formatHtResult(match.ht) || 'N/A';
                             return [
                                 `FT: ${ftScore}`,
                                 `HT: ${htScore}`,
-                                `${tooltipItem.dataset.label}: ${tooltipItem.raw.toFixed(0)} gols`
+                                `${tooltipItem.dataset.label}: ${tooltipItem.raw.toFixed(0)} gols (Total)`
                             ];
                         }
                     }
                 }
             },
             scales: {
-                x: { ticks: { display: false }, grid: { display: false } },
+                x: {
+                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
+                    ticks: { display: false },
+                    grid: { display: false }
+                },
                 y: {
+                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
                     beginAtZero: false,
-                    ticks: { color: '#b0b0b0', stepSize: 5 },
-                    grid: { color: 'rgba(255, 255, 255, 0.3)', lineWidth: 0.5 },
+                    ticks: { 
+                        color: '#b0b0b0',
+                        stepSize: 5 // Intervalos de 5 gols
+                    },
+                    grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 },
+                    afterFit: function(scale) { scale.paddingTop = 20; }
                 }
             }
         },
@@ -3366,30 +3457,7 @@ function createStatsChartGolsPlus(ctx, data) {
     });
 }
 
-
-// --- ATUALIZAÇÃO E CONTROLES ---
-
-function updateStatsChartGolsPlus(chart, newData) {
-    if (chart) {
-        chart.data.labels = newData.labels;
-        chart.data.datasets.forEach(dataset => {
-            const key = dataset.label.replace(' - Short MA', 'Short').replace(' - Medium MA', 'Medium').replace(' - Long MA', 'Long').replace(/ /g, '');
-            const dataKey = key.charAt(0).toLowerCase() + key.slice(1);
-            if (newData[dataKey]) {
-                dataset.data = newData[dataKey];
-            }
-        });
-        chart.update('none');
-    }
-}
-
 function updateChartsGolsPlus() {
-    // Simulação de onde suas constantes viriam
-    const LIGA_ATUAL = "sua_liga_aqui";
-    const ROTAS_API = {
-        resultados: (liga) => `URL_DA_SUA_API/${liga}`
-    };
-
     const timestamp = Date.now();
     const apiUrl = `${ROTAS_API.resultados(LIGA_ATUAL)}?timestamp=${timestamp}`;
 
@@ -3401,18 +3469,19 @@ function updateChartsGolsPlus() {
         .then(data => {
             const processedData = processApiDataGolsPlus(data);
             const canvasElement = document.getElementById('golsplus');
-            if (!canvasElement) return;
-
+            if (!canvasElement) {
+                console.error("Canvas 'golsplus' não encontrado no DOM");
+                return;
+            }
             if (!golsPlusChart) {
                 const ctx = canvasElement.getContext('2d');
-                golsPlusChart = createStatsChartGolsPlus(ctx, processedData);
+                golsPlusChart = createStatsChartGolsPlus(ctx, processedData.labels, processedData);
             } else {
                 updateStatsChartGolsPlus(golsPlusChart, processedData);
             }
         })
         .catch(error => console.error('Erro ao buscar dados para GolsPlus:', error));
 }
-
 
 function toggleFibonacciLinesGolsPlus() {
     showFibonacciLinesGolsPlus = document.getElementById('fibonacciToggleGolsPlus').checked;
@@ -3421,21 +3490,18 @@ function toggleFibonacciLinesGolsPlus() {
 
 function toggleMovingAveragesGolsPlus() {
     showMovingAveragesGolsPlus = document.getElementById('movingAveragesToggleGolsPlus').checked;
-    const ci = golsPlusChart;
-    if (ci) {
-        ci.data.datasets.forEach((ds, idx) => {
-            if (ds.label.includes(' - ')) { // É uma Média Móvel
+    if (golsPlusChart) {
+        golsPlusChart.data.datasets.forEach((ds, idx) => {
+            if (ds.label.includes(' - ')) { // Dataset de MA
                 const mainLabel = ds.label.split(' - ')[0];
                 const mainVisible = statsChartVisibleDatasetsGolsPlus[mainLabel];
-                const meta = ci.getDatasetMeta(idx);
+                const meta = golsPlusChart.getDatasetMeta(idx);
                 meta.hidden = !showMovingAveragesGolsPlus || !mainVisible;
             }
         });
-        ci.update();
+        golsPlusChart.update();
     }
 }
-
-// --- EVENT LISTENERS ---
 
 document.getElementById('pointsSelectorGolsPlus').addEventListener('change', function(event) {
     numPointsGolsPlus = parseInt(event.target.value, 10);
@@ -3450,7 +3516,6 @@ document.getElementById('averageSelectorGolsPlus').addEventListener('change', fu
 document.getElementById('fibonacciToggleGolsPlus').addEventListener('change', toggleFibonacciLinesGolsPlus);
 document.getElementById('movingAveragesToggleGolsPlus').addEventListener('change', toggleMovingAveragesGolsPlus);
 
-// Inicia o processo
 window.addEventListener('load', updateChartsGolsPlus);
 setInterval(updateChartsGolsPlus, 3000);
     </script>
