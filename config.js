@@ -54,7 +54,7 @@ const ROTAS_API = {
     if (kironParam) {
       return `${API_BASE_URL}/odds/kiron/${kironParam}`;
     }
-    return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    return `${API_BASE_URL}/odds/kiron/${encodeURIComponent(nomeLiga)}`;
   }
 };
 
