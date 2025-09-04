@@ -953,59 +953,68 @@
         return [0, 1]; // Default
       }
 
-/* Barra últimos N */
-function buildRecentResultsBarHTML(
-  dados,
-  count = 80,
-  indexColorMap = new Map(),
-  maxPerLine = 20,
-  marketForPaint = "over2.5"
-) {
-  const total = dados.length;
-  // Pega os últimos "count" e inverte para deixar o mais recente primeiro
-  const ultimos = dados.slice(-count).reverse();
-  const cells = [];
+      /* Barra últimos N */
+      function buildRecentResultsBarHTML(
+        dados,
+        count = 80,
+        indexColorMap = new Map(),
+        maxPerLine = 20,
+        marketForPaint = "over2.5"
+      ) {
+        const total = dados.length;
+        const start = Math.max(0, total - count);
+        const ultimos = dados.slice(start);
+        const cells = [];
 
-  for (let i = 0; i < ultimos.length; i++) {
-    const item = ultimos[i];
-    const idx = total - 1 - i; // índice real no array original
-    const [a, b, sum, mand, vis, horario, ht] = item;
+        for (let i = 0; i < ultimos.length; i++) {
+          const item = ultimos[i];
+          const idx = start + i;
+          const [a, b, sum, mand, vis, horario, ht] = item;
 
-    const green = isGreenForMarket(marketForPaint, a, b, sum, ht);
-    const hitColor = indexColorMap.get(idx);
+          const green = isGreenForMarket(marketForPaint, a, b, sum, ht);
+          const hitColor = indexColorMap.get(idx);
 
-    const title =
-      mand || vis
-        ? `${horario ? horario + " · " : ""}${mand} ${a}x${b} ${vis}`
-        : `${horario ? horario + " · " : ""}${a}x${b}`;
+          const title =
+            mand || vis
+              ? `${horario ? horario + " · " : ""}${mand} ${a}x${b} ${vis}`
+              : `${horario ? horario + " · " : ""}${a}x${b}`;
 
-    let base = `
+          let base = `
       <span class="time">${horario || ""}</span>
       <span class="team">${mand || ""}</span>
       <span class="score">${a}x${b}</span>
       <span class="team">${vis || ""}</span>
     `;
 
-    cells.push(`
-      <div 
-        class="cell ${green ? "green" : "red"}" 
-        title="${title}" 
-        style="background-color:${hitColor || ""}"
-      >
-        ${base}
-      </div>
-    `);
-  }
+          if (hitColor) {
+            cells.push(
+              `<span class="cell ${
+                green ? "cell-green" : "cell-red"
+              } cell-hit" data-base-hit="1" data-idx="${idx}" title="${title}" style="--hit:${hitColor}">${base}</span>`
+            );
+          } else {
+            cells.push(
+              `<span class="cell ${
+                green ? "cell-green" : "cell-red"
+              }" data-idx="${idx}" title="${title}">${base}</span>`
+            );
+          }
 
-  // Quebra em linhas de até "maxPerLine" células
-  const lines = [];
-  for (let i = 0; i < cells.length; i += maxPerLine) {
-    lines.push(`<div class="line">${cells.slice(i, i + maxPerLine).join("")}</div>`);
-  }
+          if (
+            maxPerLine > 0 &&
+            (i + 1) % maxPerLine === 0 &&
+            i < ultimos.length - 1
+          ) {
+            cells.push('<i class="breaker"></i>');
+          }
+        }
 
-  return `<div class="recent-results-bar">${lines.join("")}</div>`;
-}
-
+        return `<div class="recent-caption">Últimos ${
+          ultimos.length
+        } resultados (antigo ➜ recente)</div><div class="recent-bar">${cells.join(
+          ""
+        )}</div>`;
+      }
 
       /* sort (Pular, Ocorrências, Percentual) */
       function attachSortingHandlers(tabela) {
