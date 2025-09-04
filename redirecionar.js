@@ -44,16 +44,16 @@ function redirecionar(select) {
     url === "https://www.betstat.site/ranking.html" ||
     url === "https://www.betstat.site/365fiboht.html" ||
     url === "https://www.betstat.site/365tips.html" ||
-    url === "https://www.betstat.site/365fiboexato.html" || // Novo
-    url === "https://www.betstat.site/geradorbet365/" || // Novo
-    url === "https://www.betstat.site/365tips.html" || // Novo
-    url === "https://www.betstat.site/betanofiboht.html" || // Novo
-    url === "https://www.betstat.site/betanobuscador.html" || // Novo
-    url === "https://www.betstat.site/buscadorodd.html" || // Novo
-    url === "https://www.betstat.site/365buscador.html" || // Novo
-    url === "https://www.betstat.site/gols.html" || // Novo
-    url === "https://www.betstat.site/betanotips.html" || // Novo
-    url === "https://www.betstat.site/betanofiboexato.html" // Novo
+    url === "https://www.betstat.site/365fiboexato.html" || 
+    url === "https://www.betstat.site/geradorbet365/" || 
+    url === "https://www.betstat.site/365tips.html" || 
+    url === "https://www.betstat.site/betanofiboht.html" || 
+    url === "https://www.betstat.site/betanobuscador.html" || 
+    url === "https://www.betstat.site/buscadorodd.html" || 
+    url === "https://www.betstat.site/365buscador.html" || 
+    url === "https://www.betstat.site/gols.html" || 
+    url === "https://www.betstat.site/betanotips.html" || 
+    url === "https://www.betstat.site/betanofiboexato.html" 
   ) {
     window.open(url, "_blank");
   } else if (url) {
