@@ -25,6 +25,8 @@ function redirecionar(select) {
     url === "https://www.betstat.site/localizAI.html" ||
     url === "https://www.betstat.site/classificacao.html" ||
     url === "https://www.betstat.site/graficotime.html" ||
+    url === "https://goldebet.bet.br/sports#/virtual" ||
+    url === "https://www.betano.bet.br/virtuals/futebol/" ||
     url === "https://www.betstat.site/Palpites.html" ||
     url === "https://www.betstat.site/365fixo.html" ||
     url === "https://www.betstat.site/graficoodd.html" ||
