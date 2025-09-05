@@ -14,16 +14,18 @@ const LIGAS = {
   COPA_ESTRELAS: "Copa das Estrelas",
   BRASILEIRAO: "Brasileirão Betano",
 
-  // Novas Ligas Kiron adicionadas
+  // Ligas Kiron
   KIRON_BRAZIL: "Kiron Liga Brasil",
   KIRON_ENGLAND: "Kiron Liga Inglaterra",
   KIRON_ITALY: "Kiron Liga Itália",
   KIRON_AMERICA: "Kiron Liga América Latina",
-  KIRON_SPAIN: "Kiron Liga Espanha"
+  KIRON_SPAIN: "Kiron Liga Espanha",
+
+  // Nova liga Estrela
+  ESTRELA: "estrela"
 };
 
 // 3) Mapeamento para URLs específicas da Kiron
-//    Isso ajuda a converter o nome da liga no parâmetro correto da URL da API.
 const KIRON_URL_PARAMS = {
   [LIGAS.KIRON_BRAZIL]: "Brazil",
   [LIGAS.KIRON_ENGLAND]: "England",
@@ -32,33 +34,49 @@ const KIRON_URL_PARAMS = {
   [LIGAS.KIRON_SPAIN]: "Spain"
 };
 
-// 4) Rotas completas da API
-//    A lógica foi atualizada para diferenciar as ligas normais das ligas Kiron.
+// 4) Mapeamento para URLs específicas da Estrela
+const ESTRELA_URL_PARAMS = {
+  [LIGAS.ESTRELA]: "estrela"
+};
+
+// 5) Rotas completas da API
 const ROTAS_API = {
   resultados: (nomeLiga) => {
     const kironParam = KIRON_URL_PARAMS[nomeLiga];
+    const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
     if (kironParam) {
       return `${API_BASE_URL}/resultados/kiron/${kironParam}`;
+    }
+    if (estrelaParam) {
+      return `${API_BASE_URL}/resultados/estrela/${estrelaParam}`;
     }
     return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
   },
   proximosJogos: (nomeLiga) => {
     const kironParam = KIRON_URL_PARAMS[nomeLiga];
+    const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
     if (kironParam) {
       return `${API_BASE_URL}/proximos/kiron/${kironParam}`;
+    }
+    if (estrelaParam) {
+      return `${API_BASE_URL}/proximos/estrela/${estrelaParam}`;
     }
     return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
   },
   odds: (nomeLiga) => {
     const kironParam = KIRON_URL_PARAMS[nomeLiga];
+    const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
     if (kironParam) {
       return `${API_BASE_URL}/odds/kiron/${kironParam}`;
+    }
+    if (estrelaParam) {
+      return `${API_BASE_URL}/odds/estrela/${estrelaParam}`;
     }
     return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
   }
 };
 
-// 5) Detecta em qual página estamos
+// 6) Detecta em qual página estamos
 function detectarLigaAtual() {
   const caminho = (window.location.pathname || "").toLowerCase();
 
@@ -69,16 +87,19 @@ function detectarLigaAtual() {
   if (caminho.includes("copa_das_estrelas.html")) return LIGAS.COPA_ESTRELAS;
   if (caminho.includes("euro.html")) return LIGAS.EURO;
 
-  // Novas Ligas Kiron baseadas no nome do arquivo HTML
+  // Ligas Kiron
   if (caminho.includes("kironbrazil.html")) return LIGAS.KIRON_BRAZIL;
   if (caminho.includes("kironengland.html")) return LIGAS.KIRON_ENGLAND;
   if (caminho.includes("kironitaly.html")) return LIGAS.KIRON_ITALY;
   if (caminho.includes("kironamerica.html")) return LIGAS.KIRON_AMERICA;
   if (caminho.includes("kironspain.html")) return LIGAS.KIRON_SPAIN;
 
+  // Nova liga Estrela
+  if (caminho.includes("estrela.html")) return LIGAS.ESTRELA;
+
   // Se não bater com nada, assume que é a página principal (index.html)
   return LIGAS.GLORIA_ETERNA;
 }
 
-// 6) Liga detectada automaticamente
+// 7) Liga detectada automaticamente
 const LIGA_ATUAL = detectarLigaAtual();
