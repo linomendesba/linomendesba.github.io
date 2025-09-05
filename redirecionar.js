@@ -48,6 +48,8 @@ function redirecionar(select) {
     url === "https://www.betstat.site/365tips.html" ||
     url === "https://www.betstat.site/365fiboexato.html" || 
     url === "https://www.betstat.site/geradorbet365/" || 
+    url === "https://www.betstat.site/classificacaokiron.html" || 
+    url === "https://www.betstat.site/kirontips.html" || 
     url === "https://www.betstat.site/365tips.html" || 
     url === "https://www.betstat.site/rankingkiron.html" || 
     url === "https://www.betstat.site/betanofiboht.html" || 
