@@ -51,6 +51,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/365tips.html" || 
     url === "https://www.betstat.site/rankingkiron.html" || 
     url === "https://www.betstat.site/betanofiboht.html" || 
+    url === "https://www.betstat.site/LigaStatkiron.html" || 
     url === "https://www.betstat.site/betanobuscador.html" || 
     url === "https://www.betstat.site/buscadorodd.html" || 
     url === "https://www.betstat.site/365buscador.html" || 
