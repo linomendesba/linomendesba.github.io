@@ -42,6 +42,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/multbetano.html" ||
     url === "https://www.betstat.site/betanoradar.html" ||
     url === "https://www.betstat.site/maximabetano.html" ||
+    url === "https://www.betstat.site/maximaestrela.html" ||
     url === "https://www.betstat.site/porcentagembetano.html" ||
     url === "https://www.betstat.site/macrobetano.html" ||
     url === "https://www.betstat.site/simulador.html" ||
