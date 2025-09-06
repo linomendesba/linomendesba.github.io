@@ -26,6 +26,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/quadrantesgols.html" ||
     url === "https://www.betstat.site/tvkiron/" ||
     url === "https://www.betstat.site/365macro.html" ||
+    url === "https://www.betstat.site/rankingestrela.html" ||
     url === "https://www.betstat.site/maximaskiron.html" ||
      url === "https://www.betstat.site/localizAIkiron.html" ||
     url === "https://www.betstat.site/mult365.html" ||
