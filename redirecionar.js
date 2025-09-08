@@ -8,6 +8,9 @@ function redirecionar(select) {
     url === "blog.html" ||
     url === "gestao.html" ||
     url === "https://www.betstat.site/tv/" ||
+    url === "https://t.me/+DlBr7IVFBk0yZTRh" ||
+    url === "https://t.me/+v8-Zj8xsnec0ZGMx" ||
+    url === "https://t.me/+BxTdgAR89hAxMDAx" ||
     url === "https://youtu.be/oRqi3RvH8zE" ||
     url === "https://www.betstat.site/central/" ||
     url === "https://t.me/tip_zera" ||
