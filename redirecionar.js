@@ -10,6 +10,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/tv/" ||
     url === "https://t.me/+DlBr7IVFBk0yZTRh" ||
     url === "https://t.me/+v8-Zj8xsnec0ZGMx" ||
+    url === "https://www.betstat.site/localizAIbets.html" ||
     url === "https://t.me/+BxTdgAR89hAxMDAx" ||
     url === "https://youtu.be/oRqi3RvH8zE" ||
     url === "https://www.betstat.site/central/" ||
