@@ -22,12 +22,7 @@ const LIGAS = {
   KIRON_SPAIN: "Kiron Liga Espanha",
 
   // Nova liga Estrela
-  ESTRELA: "estrela",
-
-  // Ligas Betsson
-  BETSSON_ESPANHA: "Espanha",
-  BETSSON_INGLATERRA: "Inglaterra",
-  BETSSON_BRASIL: "Brasil"
+  ESTRELA: "estrela"
 };
 
 // 3) Mapeamento para URLs específicas da Kiron
@@ -44,63 +39,44 @@ const ESTRELA_URL_PARAMS = {
   [LIGAS.ESTRELA]: "estrela"
 };
 
-// 5) Mapeamento para URLs específicas da Betsson
-const BETSSON_URL_PARAMS = {
-  [LIGAS.BETSSON_ESPANHA]: "Espanha",
-  [LIGAS.BETSSON_INGLATERRA]: "Inglaterra",
-  [LIGAS.BETSSON_BRASIL]: "Brasil"
-};
-
-// 6) Rotas completas da API
+// 5) Rotas completas da API
 const ROTAS_API = {
   resultados: (nomeLiga) => {
     const kironParam = KIRON_URL_PARAMS[nomeLiga];
     const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
-    const betssonParam = BETSSON_URL_PARAMS[nomeLiga];
     if (kironParam) {
       return `${API_BASE_URL}/resultados/kiron/${kironParam}`;
     }
     if (estrelaParam) {
       return `${API_BASE_URL}/resultados/estrela/${estrelaParam}`;
     }
-    if (betssonParam) {
-      return `${API_BASE_URL}/resultados/betsson/${betssonParam}`;
-    }
     return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
   },
   proximosJogos: (nomeLiga) => {
     const kironParam = KIRON_URL_PARAMS[nomeLiga];
     const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
-    const betssonParam = BETSSON_URL_PARAMS[nomeLiga];
     if (kironParam) {
       return `${API_BASE_URL}/proximos/kiron/${kironParam}`;
     }
     if (estrelaParam) {
       return `${API_BASE_URL}/proximos/estrela/${estrelaParam}`;
     }
-    if (betssonParam) {
-      return `${API_BASE_URL}/proximos/betsson/${betssonParam}`;
-    }
     return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
   },
   odds: (nomeLiga) => {
     const kironParam = KIRON_URL_PARAMS[nomeLiga];
     const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
-    const betssonParam = BETSSON_URL_PARAMS[nomeLiga];
     if (kironParam) {
       return `${API_BASE_URL}/odds/kiron/${kironParam}`;
     }
     if (estrelaParam) {
       return `${API_BASE_URL}/odds/estrela/${estrelaParam}`;
     }
-    if (betssonParam) {
-      return `${API_BASE_URL}/odds/betsson/${betssonParam}`;
-    }
     return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
   }
 };
 
-// 7) Detecta em qual página estamos
+// 6) Detecta em qual página estamos
 function detectarLigaAtual() {
   const caminho = (window.location.pathname || "").toLowerCase();
 
@@ -121,14 +97,9 @@ function detectarLigaAtual() {
   // Nova liga Estrela
   if (caminho.includes("estrela.html")) return LIGAS.ESTRELA;
 
-  // Ligas Betsson
-  if (caminho.includes("betsespanha.html")) return LIGAS.BETSSON_ESPANHA;
-  if (caminho.includes("betsbrasil.html")) return LIGAS.BETSSON_BRASIL;
-  if (caminho.includes("betsinglaterra.html")) return LIGAS.BETSSON_INGLATERRA;
-
   // Se não bater com nada, assume que é a página principal (index.html)
   return LIGAS.GLORIA_ETERNA;
 }
 
-// 8) Liga detectada automaticamente
+// 7) Liga detectada automaticamente
 const LIGA_ATUAL = detectarLigaAtual();
