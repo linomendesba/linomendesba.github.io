@@ -49,6 +49,7 @@ function redirecionar(select) {
     url === "https://goldebet.bet.br/sports#/virtual" ||
     url === "https://www.betano.bet.br/virtuals/futebol/" ||
     url === "https://www.betstat.site/Palpites.html" ||
+    url === "https://www.betsson.bet.br/esportes-virtuais/todos-jogos-esportes-virtuais/virtual-football-nations-cup" ||
     url === "https://www.betstat.site/365fixo.html" ||
     url === "https://www.betstat.site/graficoodd.html" ||
     url === "https://www.betstat.site/graficosgols.html" ||
