@@ -10,6 +10,8 @@ function redirecionar(select) {
     url === "https://www.betstat.site/tv/" ||
     url === "https://t.me/+DlBr7IVFBk0yZTRh" ||
     url === "https://www.betstat.site/maximabets.html" ||
+    url === "https://www.betstat.site/golsbets.html" ||
+    url === "https://www.betstat.site/rakingbets.html" ||
     url === "https://t.me/+v8-Zj8xsnec0ZGMx" ||
     url === "https://www.betstat.site/estrelafixo.html" ||
     url === "https://www.betstat.site/localizAIbets.html" ||
