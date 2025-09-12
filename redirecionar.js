@@ -8,6 +8,7 @@ function redirecionar(select) {
     url === "blog.html" ||
     url === "gestao.html" ||
     url === "https://www.betstat.site/tv/" ||
+    url === "https://www.betstat.site/multkiron.html" ||
     url === "https://t.me/+DlBr7IVFBk0yZTRh" ||
     url === "https://www.betstat.site/maximabets.html" ||
     url === "https://www.betstat.site/golsbets.html" ||
