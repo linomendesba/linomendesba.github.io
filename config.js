@@ -60,7 +60,7 @@ const BETSSON_URL_PARAMS = {
 // 6) Mapeamento para URLs específicas da bet365
 const BET365_URL_PARAMS = {
   [LIGAS.BET365_COPA]: "Copa",
-  [LIGAS.BET365_EURO]: "Euro",
+  [LIGAS.BET365_EURO]: "Eurob",
   [LIGAS.BET365_SUPER]: "Super",
   [LIGAS.BET365_PREMIER]: "Premier"
 };
