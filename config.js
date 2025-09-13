@@ -9,7 +9,7 @@ const LIGAS = {
   // Ligas existentes
   GLORIA_ETERNA: "Taça Glória Eterna",
   COPA_AMERICA: "Copa América",
-  EURO_BETANO: "Euro", // Euro da Betano (usa rota padrão)
+  EURO: "Euro",
   ITALIANO: "Campeonato Italiano",
   COPA_ESTRELAS: "Copa das Estrelas",
   BRASILEIRAO: "Brasileirão Betano",
@@ -31,7 +31,7 @@ const LIGAS = {
 
   // Ligas bet365
   BET365_COPA: "Copa",
-  BET365_EURO: "Euro", // Euro da bet365
+  BET365_EURO: "Euro",
   BET365_SUPER: "Super",
   BET365_PREMIER: "Premier"
 };
@@ -72,7 +72,6 @@ const ROTAS_API = {
     const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
     const betssonParam = BETSSON_URL_PARAMS[nomeLiga];
     const bet365Param = BET365_URL_PARAMS[nomeLiga];
-    
     if (kironParam) {
       return `${API_BASE_URL}/resultados/kiron/${kironParam}`;
     }
@@ -92,7 +91,6 @@ const ROTAS_API = {
     const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
     const betssonParam = BETSSON_URL_PARAMS[nomeLiga];
     const bet365Param = BET365_URL_PARAMS[nomeLiga];
-    
     if (kironParam) {
       return `${API_BASE_URL}/proximos/kiron/${kironParam}`;
     }
@@ -112,7 +110,6 @@ const ROTAS_API = {
     const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
     const betssonParam = BETSSON_URL_PARAMS[nomeLiga];
     const bet365Param = BET365_URL_PARAMS[nomeLiga];
-    
     if (kironParam) {
       return `${API_BASE_URL}/odds/kiron/${kironParam}`;
     }
@@ -138,7 +135,7 @@ function detectarLigaAtual() {
   if (caminho.includes("campeonato_italiano.html")) return LIGAS.ITALIANO;
   if (caminho.includes("copa_america.html")) return LIGAS.COPA_AMERICA;
   if (caminho.includes("copa_das_estrelas.html")) return LIGAS.COPA_ESTRELAS;
-  if (caminho.includes("euro.html")) return LIGAS.EURO_BETANO; // Euro da Betano
+  if (caminho.includes("euro.html")) return LIGAS.EURO;
 
   // Ligas Kiron
   if (caminho.includes("kironbrazil.html")) return LIGAS.KIRON_BRAZIL;
@@ -157,7 +154,7 @@ function detectarLigaAtual() {
 
   // Ligas bet365
   if (caminho.includes("copa.html")) return LIGAS.BET365_COPA;
-  if (caminho.includes("eurob.html")) return LIGAS.BET365_EURO; // Euro da bet365
+  if (caminho.includes("eurob.html")) return LIGAS.BET365_EURO;
   if (caminho.includes("super.html")) return LIGAS.BET365_SUPER;
   if (caminho.includes("premier.html")) return LIGAS.BET365_PREMIER;
 
