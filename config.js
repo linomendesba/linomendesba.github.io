@@ -9,7 +9,7 @@ const LIGAS = {
   // Ligas existentes
   GLORIA_ETERNA: "Taça Glória Eterna",
   COPA_AMERICA: "Copa América",
-  EURO_BETANO: "Euro", // Euro da Betano
+  EURO_BETANO: "Euro", // Euro da Betano (usa rota padrão)
   ITALIANO: "Campeonato Italiano",
   COPA_ESTRELAS: "Copa das Estrelas",
   BRASILEIRAO: "Brasileirão Betano",
