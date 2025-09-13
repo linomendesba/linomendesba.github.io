@@ -110,6 +110,12 @@ const ROTAS_API = {
     const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
     const betssonParam = BETSSON_URL_PARAMS[nomeLiga];
     const bet365Param = BET365_URL_PARAMS[nomeLiga];
+    
+    // Verifica primeiro se é uma liga bet365 específica (pelas constantes, não pelo valor)
+    if (nomeLiga === LIGAS.BET365_COPA || nomeLiga === LIGAS.BET365_EURO || 
+        nomeLiga === LIGAS.BET365_SUPER || nomeLiga === LIGAS.BET365_PREMIER) {
+      return `${API_BASE_URL}/odds/bet365/${bet365Param}`;
+    }
     if (kironParam) {
       return `${API_BASE_URL}/odds/kiron/${kironParam}`;
     }
@@ -118,9 +124,6 @@ const ROTAS_API = {
     }
     if (betssonParam) {
       return `${API_BASE_URL}/odds/betsson/${betssonParam}`;
-    }
-    if (bet365Param) {
-      return `${API_BASE_URL}/odds/bet365/${bet365Param}`;
     }
     return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
   }
