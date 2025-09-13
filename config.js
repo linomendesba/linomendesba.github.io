@@ -157,7 +157,7 @@ function detectarLigaAtual() {
 
   // Ligas bet365
   if (caminho.includes("copa.html")) return LIGAS.BET365_COPA;
-  if (caminho.includes("euro.html")) return LIGAS.BET365_EURO;
+  if (caminho.includes("eurob.html")) return LIGAS.BET365_EURO;
   if (caminho.includes("super.html")) return LIGAS.BET365_SUPER;
   if (caminho.includes("premier.html")) return LIGAS.BET365_PREMIER;
 
