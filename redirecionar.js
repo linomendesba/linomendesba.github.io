@@ -10,6 +10,9 @@ function redirecionar(select) {
     url === "https://www.betstat.site/tv/" ||
     url === "https://www.betstat.site/multkiron.html" ||
     url === "https://www.betstat.site/kironft.html" ||
+    url === "https://www.betstat.site/kirongf.html" ||
+    url === "https://www.betstat.site/kironht.html" ||
+    url === "https://www.betstat.site/kironmacro.html" ||
     url === "https://t.me/+DlBr7IVFBk0yZTRh" ||
     url === "https://www.betstat.site/maximabets.html" ||
     url === "https://www.betstat.site/golsbets.html" ||
@@ -18,6 +21,7 @@ function redirecionar(select) {
     url === "https://t.me/+v8-Zj8xsnec0ZGMx" ||
     url === "https://www.betstat.site/estrelafixo.html" ||
     url === "https://www.betstat.site/localizAIbets.html" ||
+    url === "https://www.betstat.site/https://www.betstat.site/kironht.html" ||
     url === "https://t.me/+BxTdgAR89hAxMDAx" ||
     url === "https://youtu.be/oRqi3RvH8zE" ||
     url === "https://www.betstat.site/central/" ||
