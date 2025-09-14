@@ -12,6 +12,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/kironft.html" ||
     url === "https://www.betstat.site/kirongf.html" ||
     url === "https://www.betstat.site/kironht.html" ||
+    url === "https://www.betstat.site/estrelaht.html" ||
     url === "https://www.betstat.site/kironmacro.html" ||
     url === "https://t.me/+DlBr7IVFBk0yZTRh" ||
     url === "https://www.betstat.site/maximabets.html" ||
