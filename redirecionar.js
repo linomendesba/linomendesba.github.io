@@ -9,6 +9,21 @@ function redirecionar(select) {
     url === "gestao.html" ||
     url === "https://www.betstat.site/tv/" ||
     url === "https://www.betstat.site/multkiron.html" ||
+    url === "https://www.betstat.site/kironft.html" ||
+    url === "https://www.betstat.site/betsodds.html" ||
+    url === "https://www.betstat.site/betstimes.html" ||
+    url === "https://www.betstat.site/betsht.html" ||
+    url === "https://www.betstat.site/betsft.html" ||
+    url === "https://www.betstat.site/kirongf.html" ||
+    url === "https://www.betstat.site/betsgf.html" ||
+    url === "https://www.betstat.site/betsmacro.html" ||
+    url === "https://www.betstat.site/betsporcentagem.html" ||
+    url === "https://www.betstat.site/multbets.html" ||
+    url === "https://www.betstat.site/fixobets.html" ||
+    url === "https://www.betstat.site/classificacaobets.html" ||
+    url === "https://www.betstat.site/kironht.html" ||
+    url === "https://www.betstat.site/estrelaht.html" ||
+    url === "https://www.betstat.site/kironmacro.html" ||
     url === "https://t.me/+DlBr7IVFBk0yZTRh" ||
     url === "https://www.betstat.site/maximabets.html" ||
     url === "https://www.betstat.site/golsbets.html" ||
@@ -17,6 +32,7 @@ function redirecionar(select) {
     url === "https://t.me/+v8-Zj8xsnec0ZGMx" ||
     url === "https://www.betstat.site/estrelafixo.html" ||
     url === "https://www.betstat.site/localizAIbets.html" ||
+    url === "https://www.betstat.site/https://www.betstat.site/kironht.html" ||
     url === "https://t.me/+BxTdgAR89hAxMDAx" ||
     url === "https://youtu.be/oRqi3RvH8zE" ||
     url === "https://www.betstat.site/central/" ||

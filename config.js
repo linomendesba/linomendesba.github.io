@@ -6,7 +6,7 @@ const API_BASE_URL = "https://betstat.site";
 
 // 2) Ligas centralizadas
 const LIGAS = {
-  // Ligas existentes (Betano)
+  // Ligas existentes
   GLORIA_ETERNA: "Taça Glória Eterna",
   COPA_AMERICA: "Copa América",
   EURO: "Euro",
@@ -27,13 +27,7 @@ const LIGAS = {
   // Ligas Betsson
   BETSSON_ESPANHA: "Espanha",
   BETSSON_INGLATERRA: "Inglaterra",
-  BETSSON_BRASIL: "Brasil",
-
-  // Ligas bet365
-  BET365_COPA: "Copa bet365",
-  BET365_EURO: "Euro bet365",
-  BET365_SUPER: "Super bet365",
-  BET365_PREMIER: "Premier bet365"
+  BETSSON_BRASIL: "Brasil"
 };
 
 // 3) Mapeamento para URLs específicas da Kiron
@@ -57,36 +51,12 @@ const BETSSON_URL_PARAMS = {
   [LIGAS.BETSSON_BRASIL]: "Brasil"
 };
 
-// 6) Mapeamento para URLs específicas da bet365
-const BET365_URL_PARAMS = {
-  [LIGAS.BET365_COPA]: "Copa",
-  [LIGAS.BET365_EURO]: "Euro",
-  [LIGAS.BET365_SUPER]: "Super",
-  [LIGAS.BET365_PREMIER]: "Premier"
-};
-
-// 7) Rotas completas da API
+// 6) Rotas completas da API
 const ROTAS_API = {
   resultados: (nomeLiga) => {
-    // Verifica bet365 primeiro por comparação exata
-    if (nomeLiga === LIGAS.BET365_COPA) {
-      return `${API_BASE_URL}/resultados/bet365/Copa`;
-    }
-    if (nomeLiga === LIGAS.BET365_EURO) {
-      return `${API_BASE_URL}/resultados/bet365/Euro`;
-    }
-    if (nomeLiga === LIGAS.BET365_SUPER) {
-      return `${API_BASE_URL}/resultados/bet365/Super`;
-    }
-    if (nomeLiga === LIGAS.BET365_PREMIER) {
-      return `${API_BASE_URL}/resultados/bet365/Premier`;
-    }
-
-    // Verifica outros mapeamentos
     const kironParam = KIRON_URL_PARAMS[nomeLiga];
     const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
     const betssonParam = BETSSON_URL_PARAMS[nomeLiga];
-    
     if (kironParam) {
       return `${API_BASE_URL}/resultados/kiron/${kironParam}`;
     }
@@ -96,30 +66,12 @@ const ROTAS_API = {
     if (betssonParam) {
       return `${API_BASE_URL}/resultados/betsson/${betssonParam}`;
     }
-    
     return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
   },
-  
   proximosJogos: (nomeLiga) => {
-    // Verifica bet365 primeiro por comparação exata
-    if (nomeLiga === LIGAS.BET365_COPA) {
-      return `${API_BASE_URL}/proximos/bet365/Copa`;
-    }
-    if (nomeLiga === LIGAS.BET365_EURO) {
-      return `${API_BASE_URL}/proximos/bet365/Euro`;
-    }
-    if (nomeLiga === LIGAS.BET365_SUPER) {
-      return `${API_BASE_URL}/proximos/bet365/Super`;
-    }
-    if (nomeLiga === LIGAS.BET365_PREMIER) {
-      return `${API_BASE_URL}/proximos/bet365/Premier`;
-    }
-
-    // Verifica outros mapeamentos
     const kironParam = KIRON_URL_PARAMS[nomeLiga];
     const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
     const betssonParam = BETSSON_URL_PARAMS[nomeLiga];
-    
     if (kironParam) {
       return `${API_BASE_URL}/proximos/kiron/${kironParam}`;
     }
@@ -129,30 +81,12 @@ const ROTAS_API = {
     if (betssonParam) {
       return `${API_BASE_URL}/proximos/betsson/${betssonParam}`;
     }
-    
     return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
   },
-  
   odds: (nomeLiga) => {
-    // Verifica bet365 primeiro por comparação exata
-    if (nomeLiga === LIGAS.BET365_COPA) {
-      return `${API_BASE_URL}/odds/bet365/Copa`;
-    }
-    if (nomeLiga === LIGAS.BET365_EURO) {
-      return `${API_BASE_URL}/odds/bet365/Euro`;
-    }
-    if (nomeLiga === LIGAS.BET365_SUPER) {
-      return `${API_BASE_URL}/odds/bet365/Super`;
-    }
-    if (nomeLiga === LIGAS.BET365_PREMIER) {
-      return `${API_BASE_URL}/odds/bet365/Premier`;
-    }
-
-    // Verifica outros mapeamentos
     const kironParam = KIRON_URL_PARAMS[nomeLiga];
     const estrelaParam = ESTRELA_URL_PARAMS[nomeLiga];
     const betssonParam = BETSSON_URL_PARAMS[nomeLiga];
-    
     if (kironParam) {
       return `${API_BASE_URL}/odds/kiron/${kironParam}`;
     }
@@ -162,12 +96,11 @@ const ROTAS_API = {
     if (betssonParam) {
       return `${API_BASE_URL}/odds/betsson/${betssonParam}`;
     }
-    
     return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
   }
 };
 
-// 8) Detecta em qual página estamos
+// 7) Detecta em qual página estamos
 function detectarLigaAtual() {
   const caminho = (window.location.pathname || "").toLowerCase();
 
@@ -193,15 +126,9 @@ function detectarLigaAtual() {
   if (caminho.includes("betsbrasil.html")) return LIGAS.BETSSON_BRASIL;
   if (caminho.includes("betsinglaterra.html")) return LIGAS.BETSSON_INGLATERRA;
 
-  // Ligas bet365 - VERIFICA PRIMEIRO para evitar conflitos
-  if (caminho.includes("eurob.html")) return LIGAS.BET365_EURO;
-  if (caminho.includes("copa.html")) return LIGAS.BET365_COPA;
-  if (caminho.includes("super.html")) return LIGAS.BET365_SUPER;
-  if (caminho.includes("premier.html")) return LIGAS.BET365_PREMIER;
-
   // Se não bater com nada, assume que é a página principal (index.html)
   return LIGAS.GLORIA_ETERNA;
 }
 
-// 9) Liga detectada automaticamente
+// 8) Liga detectada automaticamente
 const LIGA_ATUAL = detectarLigaAtual();

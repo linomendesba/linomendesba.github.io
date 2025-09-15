@@ -1,0 +1,547 @@
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+        <link rel="stylesheet" href="fixos.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"
+        ></script>
+        <title>BetStat</title>
+        <!-- Meta tags SEO principais -->
+        <meta
+          name="description"
+          content="Transforme suas apostas com BetStat - a única plataforma especializada em futebol virtual Betano. Análises precisas, estatísticas confiáveis e resultados comprovados para investimentos inteligentes."
+        />
+        <meta
+          name="keywords"
+          content="BetStat, apostas esportivas, futebol virtual, Betano, estatísticas apostas, análise apostas, investimentos esportivos"
+        />
+    
+        <!-- Open Graph meta tags para redes sociais -->
+        <meta
+          property="og:title"
+          content="BetStat | Plataforma de Análise para Apostas Esportivas"
+        />
+        <meta
+          property="og:description"
+          content="Transforme suas apostas com análises precisas e estatísticas confiáveis. A única plataforma especializada em futebol virtual Betano."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.betstat.site/payment.html" />
+        <meta property="og:site_name" content="BetStat" />
+    
+        <!-- Meta tags adicionais -->
+        <meta name="robots" content="index, follow" />
+        <meta name="author" content="BetStat" />
+        <meta name="canonical" href="https://www.betstat.site/payment.html" />
+        <script type="module" src="js/firebase-auth.js"></script>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag() {
+            dataLayer.push(arguments);
+          }
+          gtag("js", new Date());
+    
+          gtag("config", "G-4WT805FFHQ");
+        </script>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+
+      <style>
+        .logo2 {
+  width: 60px;      /* define a largura fixa */
+  height: auto;     /* mantém a proporção da imagem */
+}
+
+
+      </style>
+
+  <body>
+    <body>
+        <div id="header"></div>
+
+    <br><br>
+
+    <div class="controls">
+        <label for="leagueSelect">Liga:</label>
+        <select id="leagueSelect" onchange="handleSelectionChange()">
+            <option value="Brasil" selected>Brasil</option>
+            <option value="Inglaterra">Inglaterra </option>
+            <option value="Espanha">Espanha</option>
+        </select>
+
+        <label for="marketSelect">Mercado:</label>
+        <select id="marketSelect" onchange="handleSelectionChange()">
+            <option value="ambas" selected>Ambas Sim</option>
+            <option value="ambasnao">Ambas Não</option>
+            <option value="casa">Casa Vence</option>
+            <option value="fora">Fora Vence</option>
+            <option value="empate">Empate</option>
+            <option value="over1.5">Over 1.5</option>
+            <option value="over2.5">Over 2.5</option>
+            <option value="over3.5">Over 3.5</option>
+            <option value="under15">Under 1.5</option>
+            <option value="under25">Under 2.5</option>
+            <option value="cincog">5+ Gols</option>
+        </select>
+
+        <label for="rangeSelect">Gales:</label>
+        <select id="rangeSelect" onchange="handleSelectionChange()">
+            <option value="1">01</option>
+            <option value="2" selected>02</option>
+            <option value="3">03</option>
+            <option value="4">04</option>
+            <option value="5">05</option>
+        </select>
+
+        <label for="gameLimitSelect">Período:</label>
+        <select id="gameLimitSelect" onchange="handleSelectionChange()">
+            <option value="todos" selected>Todos</option>
+            <option value="480">1 Dia</option>
+            <option value="960">2 Dias</option>
+            <option value="1440">3 Dias</option>
+            <option value="1920">4 Dias</option>
+            <option value="2400">5 Dias</option>
+        </select>
+    </div>
+
+    <div id="loading" class="loading" style="display: none;">Carregando dados...</div>
+
+    <!-- Tabela para a linha da hora atual -->
+    <table id="currentHourTable">
+        <thead id="currentHourHeader"></thead>
+        <tbody id="currentHourBody"></tbody>
+    </table>
+
+    <!-- Tabela principal -->
+    <table id="resultsTable">
+        <thead id="tableHeader"></thead>
+        <tbody id="resultsBody"></tbody>
+    </table>
+
+    <script>
+        let cachedData = {};
+
+function handleSelectionChange() {
+    const leagueSelect = document.getElementById("leagueSelect");
+    const selectedLeague = leagueSelect.value;
+    
+    if (cachedData[selectedLeague]) {
+        processApiData(cachedData[selectedLeague]);
+    } else {
+        fetchApiData(selectedLeague);
+    }
+}
+
+function showLoading(show) {
+    document.getElementById("loading").style.display = show ? "block" : "none";
+}
+
+function fetchApiData(league) {
+    showLoading(true);
+    const apiUrl = ` https://betstat.site/resultados/betsson/${league}`;
+    
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            cachedData[league] = data;
+            processApiData(data);
+            showLoading(false);
+        })
+        .catch(error => {
+            console.error("Erro ao buscar dados:", error);
+            showLoading(false);
+            alert("Erro ao buscar dados da API.");
+        });
+}
+
+function processApiData(data) {
+    const marketSelect = document.getElementById("marketSelect").value;
+    const range = parseInt(document.getElementById("rangeSelect").value, 10);
+    const gameLimit = document.getElementById("gameLimitSelect").value;
+    
+    const limitedData = gameLimit === "todos" ? data : data.slice(-parseInt(gameLimit, 10));
+    
+    // Extrair os minutos únicos dos dados
+    const uniqueMinutes = [...new Set(limitedData.map(game => parseInt(game.minuto, 10)))].sort((a, b) => a - b);
+    
+    // Inicializar a matriz de resultados (24 horas x minutos únicos)
+    const resultsByHourMinute = {};
+    for (let h = 0; h < 24; h++) {
+        const hour = String(h).padStart(2, '0');
+        resultsByHourMinute[hour] = {};
+        uniqueMinutes.forEach(minute => {
+            const minuteStr = String(minute).padStart(2, '0');
+            resultsByHourMinute[hour][minuteStr] = {
+                totalGames: 0,
+                greenGames: 0
+            };
+        });
+    }
+
+    // Inicializar totais por minuto para a linha final
+    const totalsByMinute = {};
+    uniqueMinutes.forEach(minute => {
+        const minuteStr = String(minute).padStart(2, '0');
+        totalsByMinute[minuteStr] = {
+            totalGames: 0,
+            greenGames: 0
+        };
+    });
+
+    // Processar os jogos
+    limitedData.forEach((game, index) => {
+        const hora = String(game.hora).padStart(2, '0');
+        const minuto = String(game.minuto).padStart(2, '0');
+        
+        if (!resultsByHourMinute[hora] || !resultsByHourMinute[hora][minuto]) return;
+        
+        resultsByHourMinute[hora][minuto].totalGames += 1;
+        totalsByMinute[minuto].totalGames += 1;
+        
+        let foundGreen = false;
+        for (let i = 0; i < range; i++) {
+            const checkGame = limitedData[index + i];
+            if (!checkGame) break;
+            
+            const [checkGolsEquipe1, checkGolsEquipe2] = extractGoalsFromScore(checkGame.ft);
+            const placarht = checkGame.ht || "";
+            
+            if (marketSelect === "over2.5" && (checkGolsEquipe1 + checkGolsEquipe2) > 2) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "ambas" && checkGolsEquipe1 > 0 && checkGolsEquipe2 > 0) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "over3.5" && (checkGolsEquipe1 + checkGolsEquipe2) > 3) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "ambasnao" && (checkGolsEquipe1 === 0 || checkGolsEquipe2 === 0)) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "over1.5" && (checkGolsEquipe1 + checkGolsEquipe2) > 1) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "under15" && (checkGolsEquipe1 + checkGolsEquipe2) < 2) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "under25" && (checkGolsEquipe1 + checkGolsEquipe2) < 3) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "zerog" && (checkGolsEquipe1 + checkGolsEquipe2) === 0) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "umg" && (checkGolsEquipe1 + checkGolsEquipe2) === 1) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "doisg" && (checkGolsEquipe1 + checkGolsEquipe2) === 2) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "tresg" && (checkGolsEquipe1 + checkGolsEquipe2) === 3) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "quatrog" && (checkGolsEquipe1 + checkGolsEquipe2) === 4) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "cincog" && (checkGolsEquipe1 + checkGolsEquipe2) > 4) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "casa" && (checkGolsEquipe1 > checkGolsEquipe2)) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "fora" && (checkGolsEquipe1 < checkGolsEquipe2)) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "empate" && (checkGolsEquipe1 === checkGolsEquipe2)) {
+                foundGreen = true;
+                break;
+            } else if (marketSelect === "OUT" && placarht === "OUT") {
+                foundGreen = true;
+                break;
+            }
+        }
+        
+        if (foundGreen) {
+            resultsByHourMinute[hora][minuto].greenGames += 1;
+            totalsByMinute[minuto].greenGames += 1;
+        }
+    });
+    
+    displayResultsTable(resultsByHourMinute, uniqueMinutes, totalsByMinute);
+}
+
+function extractGoalsFromScore(scoreString) {
+    if (!scoreString || typeof scoreString !== 'string') return [0, 0];
+    const scoreParts = scoreString.split('x').map(part => part.trim());
+    return scoreParts.length === 2 
+        ? [parseInt(scoreParts[0], 10) || 0, parseInt(scoreParts[1], 10) || 0]
+        : [0, 0];
+}
+
+function displayResultsTable(resultsByHourMinute, uniqueMinutes, totalsByMinute) {
+    const tableHeader = document.getElementById("tableHeader");
+    const resultsBody = document.getElementById("resultsBody");
+    const currentHourHeader = document.getElementById("currentHourHeader");
+    const currentHourBody = document.getElementById("currentHourBody");
+    
+    // Criar o cabeçalho com os minutos únicos (para ambas as tabelas)
+    let headerRow = "<tr><th>H</th>";
+    uniqueMinutes.forEach(minute => {
+        const minuteStr = String(minute).padStart(2, '0');
+        headerRow += `<th>${minuteStr}</th>`;
+    });
+    headerRow += "</tr>";
+    tableHeader.innerHTML = headerRow;
+    currentHourHeader.innerHTML = headerRow;
+    
+    // Obter a hora atual
+    const now = new Date();
+    const currentHour = String(now.getHours()).padStart(2, '0');
+    
+    // Criar a tabela da hora atual (apenas a linha da hora atual)
+    currentHourBody.innerHTML = "";
+    const currentRow = document.createElement("tr");
+    const currentHourCell = document.createElement("td");
+    currentHourCell.textContent = currentHour;
+    currentRow.appendChild(currentHourCell);
+    
+    uniqueMinutes.forEach(minute => {
+        const minuteStr = String(minute).padStart(2, '0');
+        const data = resultsByHourMinute[currentHour][minuteStr];
+        
+        const percentage = data.totalGames > 0 
+            ? ((data.greenGames / data.totalGames) * 100).toFixed(2) 
+            : "0.00";
+        
+        const cell = document.createElement("td");
+        cell.textContent = percentage;
+        
+        if (percentage == 100) {
+            cell.className = "percent-100";
+        } else if (percentage >= 90) {
+            cell.className = "percent-90-99";
+        } else if (percentage >= 80) {
+            cell.className = "percent-80-90";
+        } else if (percentage >= 70) {
+            cell.className = "percent-70-80";
+        } else if (percentage >= 60) {
+            cell.className = "percent-60-70";
+        } else if (percentage >= 50) {
+            cell.className = "percent-50-60";
+        } else if (percentage >= 40) {
+            cell.className = "percent-40-50";
+        } else {
+            cell.className = "percent-0-40";
+        }
+        
+        currentRow.appendChild(cell);
+    });
+    
+    currentHourBody.appendChild(currentRow);
+    
+    // Criar as linhas para cada hora na tabela principal (de 23h a 00h)
+    resultsBody.innerHTML = "";
+    for (let h = 23; h >= 0; h--) {
+        const hour = String(h).padStart(2, '0');
+        const row = document.createElement("tr");
+        
+        const hourCell = document.createElement("td");
+        hourCell.textContent = hour;
+        row.appendChild(hourCell);
+        
+        uniqueMinutes.forEach(minute => {
+            const minuteStr = String(minute).padStart(2, '0');
+            const data = resultsByHourMinute[hour][minuteStr];
+            
+            const percentage = data.totalGames > 0 
+                ? ((data.greenGames / data.totalGames) * 100).toFixed(2) 
+                : "0.00";
+            
+            const cell = document.createElement("td");
+            cell.textContent = percentage;
+            
+            if (percentage == 100) {
+                cell.className = "percent-100";
+            } else if (percentage >= 90) {
+                cell.className = "percent-90-99";
+            } else if (percentage >= 80) {
+                cell.className = "percent-80-90";
+            } else if (percentage >= 70) {
+                cell.className = "percent-70-80";
+            } else if (percentage >= 60) {
+                cell.className = "percent-60-70";
+            } else if (percentage >= 50) {
+                cell.className = "percent-50-60";
+            } else if (percentage >= 40) {
+                cell.className = "percent-40-50";
+            } else {
+                cell.className = "percent-0-40";
+            }
+            
+            row.appendChild(cell);
+        });
+        
+        resultsBody.appendChild(row);
+    }
+
+    // Adicionar a linha de totais na tabela principal
+    const totalRow = document.createElement("tr");
+    totalRow.className = "total-row";
+    
+    const totalLabelCell = document.createElement("th");
+    totalLabelCell.textContent = "%";
+    totalRow.appendChild(totalLabelCell);
+    
+    uniqueMinutes.forEach(minute => {
+        const minuteStr = String(minute).padStart(2, '0');
+        const data = totalsByMinute[minuteStr];
+        
+        const percentage = data.totalGames > 0 
+            ? ((data.greenGames / data.totalGames) * 100).toFixed(2) 
+            : "0.00";
+        
+        const cell = document.createElement("td");
+        cell.textContent = percentage;
+        
+        if (percentage == 100) {
+            cell.className = "percent-100";
+        } else if (percentage >= 90) {
+            cell.className = "percent-90-99";
+        } else if (percentage >= 80) {
+            cell.className = "percent-80-90";
+        } else if (percentage >= 70) {
+            cell.className = "percent-70-80";
+        } else if (percentage >= 60) {
+            cell.className = "percent-60-70";
+        } else if (percentage >= 50) {
+            cell.className = "percent-50-60";
+        } else if (percentage >= 40) {
+            cell.className = "percent-40-50";
+        } else {
+            cell.className = "percent-0-40";
+        }
+        
+        totalRow.appendChild(cell);
+    });
+    
+    resultsBody.appendChild(totalRow);
+}
+
+window.onload = handleSelectionChange;
+    </script>
+
+
+<script>
+    fetch('header.html')
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById('header').innerHTML = data;
+      });
+  </script>
+  <script src="redirecionar.js"></script>
+
+<script>
+      // Bloqueia o menu de contexto (clique direito)
+      document.addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+});
+
+// Bloqueia atalhos de teclado comuns para ferramentas de desenvolvimento
+document.addEventListener("keydown", function(e) {
+    // F12
+    if (e.key === "F12") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + I
+    if (e.ctrlKey && e.shiftKey && e.key === "I") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + U (ver código fonte)
+    if (e.ctrlKey && e.key === "u") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + J (console)
+    if (e.ctrlKey && e.shiftKey && e.key === "J") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + C (inspeção de elementos)
+    if (e.ctrlKey && e.shiftKey && e.key === "C") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + S (salvar página)
+    if (e.ctrlKey && e.key === "s") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + P (imprimir)
+    if (e.ctrlKey && e.key === "p") {
+        e.preventDefault();
+    }
+});
+
+// Detecta abertura de ferramentas de desenvolvimento
+const devtools = { open: false };
+const element = new Image();
+Object.defineProperty(element, 'id', {
+    get: function () {
+        devtools.open = true;
+    }
+});
+
+// Adiciona detecção alternativa de devtools
+(function() {
+    const threshold = 160;
+    const checkDevTools = function() {
+        if ((window.outerWidth - window.innerWidth) > threshold || 
+            (window.outerHeight - window.innerHeight) > threshold) {
+            devtools.open = true;
+        }
+    };
+    
+    window.addEventListener('resize', checkDevTools);
+    setInterval(checkDevTools, 500);
+})();
+
+// Monitoramento contínuo
+console.log('%c', element);
+setInterval(function() {
+    if (devtools.open) {
+        document.body.innerHTML = '<h1>Acesso não autorizado detectado</h1>';
+        // Ou redirecionar:
+        // window.location.href = 'about:blank';
+        devtools.open = false;
+    }
+}, 1000);
+
+// Impede seleção de texto
+document.addEventListener('selectstart', function(e) {
+    e.preventDefault();
+});
+
+// Impede arrastar e soltar
+document.addEventListener('dragstart', function(e) {
+    e.preventDefault();
+});
+
+// Ofusca console
+console.log = function() {};
+console.debug = function() {};
+console.info = function() {};
+  </script>
+  </body>
+</html>
