@@ -4462,6 +4462,279 @@ console.log = function() {};
 console.debug = function() {};
 console.info = function() {};
     </script>
+    <script>
+    // --- LÓGICA DO ACORDEÃO ---
+    function toggleAccordion(buttonElement) {
+        const content = buttonElement.nextElementSibling;
+        content.classList.toggle('active');
+    }
+
+    // --- LÓGICA DO RANKING RÁPIDO ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        const marketSelector = document.getElementById('marketSelector');
+        const rankingContainer = document.getElementById('rankingContainer');
+        
+        // Variável para armazenar os dados dos jogos depois de buscá-los uma única vez.
+        let allGames = [];
+
+        // 1. BUSCA OS DADOS DA API APENAS UMA VEZ, AO CARREGAR A PÁGINA.
+        try {
+            // Supondo que ROTAS_API.resultados(LIGA_ATUAL) retorna a URL correta.
+            const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+            if (!response.ok) {
+                throw new Error(`Erro na API: ${response.statusText}`);
+            }
+            allGames = await response.json(); // Armazena os dados na variável
+        } catch (error) {
+            rankingContainer.innerHTML = `<p style="color: red;">Falha ao carregar os dados iniciais: ${error.message}</p>`;
+            return; // Interrompe a execução se a busca inicial falhar
+        }
+
+        // 2. FUNÇÃO QUE APENAS PROCESSA OS DADOS JÁ CARREGADOS.
+        //    (Removemos o 'async' e a busca 'fetch' de dentro dela)
+        function updateRanking() {
+            const selectedMarket = marketSelector.value;
+            rankingContainer.innerHTML = '<p style="color: #1fac89; text-align: center; font-size: 16px; margin: 20px 0;">Analisando dados, por favor aguarde...</p>';
+
+            try {
+                // Pega apenas as 480 entradas mais recentes dos dados já carregados
+                const games = allGames.slice(0, 480);
+                const teamStats = {};
+
+                games.forEach(game => {
+                    const { time_a, time_b, ft } = game;
+                    if (!ft || !ft.includes(' x ')) return;
+
+                    const [golsA, golsB] = ft.split(' x ').map(Number);
+                    const totalGols = golsA + golsB;
+
+                    [time_a, time_b].forEach(team => {
+                        if (!teamStats[team]) {
+                            teamStats[team] = { name: team, totalGames: 0, marketCount: 0 };
+                        }
+                    });
+
+                    teamStats[time_a].totalGames++;
+                    teamStats[time_b].totalGames++;
+                    
+                    let marketOccurred = false;
+                    switch (selectedMarket) {
+                        case 'ambasMarcam':     marketOccurred = golsA > 0 && golsB > 0; break;
+                        case 'ambasNaoMarcam':  marketOccurred = golsA === 0 || golsB === 0; break;
+                        case 'empate':          marketOccurred = golsA === golsB; break;
+                        case 'over1.5':         marketOccurred = totalGols > 1; break;
+                        case 'under1.5':        marketOccurred = totalGols < 2; break;
+                        case 'over2.5':         marketOccurred = totalGols > 2; break;
+                        case 'under2.5':        marketOccurred = totalGols < 3; break;
+                        case 'over3.5':         marketOccurred = totalGols > 3; break;
+                        case 'under3.5':        marketOccurred = totalGols < 4; break;
+                        case 'over5':           marketOccurred = totalGols >= 5; break;
+                    }
+                    
+                    if (marketOccurred) {
+                        teamStats[time_a].marketCount++;
+                        teamStats[time_b].marketCount++;
+                    }
+                    
+                    if (selectedMarket === 'casaVence' && golsA > golsB) {
+                        teamStats[time_a].marketCount++;
+                    }
+                    if (selectedMarket === 'foraVence' && golsB > golsA) {
+                        teamStats[time_b].marketCount++;
+                    }
+                });
+
+                const statsArray = Object.values(teamStats).map(team => ({
+                    ...team,
+                    percentage: team.totalGames > 0 ? ((team.marketCount / team.totalGames) * 100).toFixed(1) : 0
+                }));
+
+                statsArray.sort((a, b) => b.marketCount - a.marketCount || b.percentage - a.percentage);
+
+                const top10 = statsArray.slice(0, 10);
+                renderTable(top10);
+
+            } catch (error) {
+                // Este 'catch' agora pega erros de processamento, não de busca
+                rankingContainer.innerHTML = `<p style="color: red;">Erro ao processar os dados: ${error.message}</p>`;
+                console.error(error);
+            }
+        }
+
+        // Função para desenhar a tabela no HTML com CSS melhorado
+        function renderTable(data) {
+            if (data.length === 0) {
+                rankingContainer.innerHTML = '<p style="color: #ffffff; text-align: center; font-size: 16px; margin: 20px 0;">Nenhum dado encontrado para este mercado.</p>';
+                return;
+            }
+            
+            let tableHTML = `
+                <div style="overflow-x: auto; margin: 20px 0; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
+                    <table style="
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        background: linear-gradient(135deg, #1c1f26 0%, #242831 50%, #2a2d35 100%);
+                        border-radius: 12px;
+                        overflow: hidden;
+                        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+                    ">
+                        <thead>
+                            <tr style="background: linear-gradient(135deg, #1fac89 0%, #17956f 100%); box-shadow: 0 2px 10px rgba(31, 172, 137, 0.3);">
+                                <th style="
+                                    padding: 16px 12px; 
+                                    text-align: center; 
+                                    color: #ffffff; 
+                                    font-weight: 700; 
+                                    font-size: 14px;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.5px;
+                                    border: none;
+                                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+                                ">Pos.</th>
+                                <th style="
+                                    padding: 16px 12px; 
+                                    text-align: left; 
+                                    color: #ffffff; 
+                                    font-weight: 700; 
+                                    font-size: 14px;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.5px;
+                                    border: none;
+                                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+                                ">Time</th>
+                                <th style="
+                                    padding: 16px 12px; 
+                                    text-align: center; 
+                                    color: #ffffff; 
+                                    font-weight: 700; 
+                                    font-size: 14px;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.5px;
+                                    border: none;
+                                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+                                ">Ocorrências</th>
+                                <th style="
+                                    padding: 16px 12px; 
+                                    text-align: center; 
+                                    color: #ffffff; 
+                                    font-weight: 700; 
+                                    font-size: 14px;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.5px;
+                                    border: none;
+                                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+                                ">Jogos</th>
+                                <th style="
+                                    padding: 16px 12px; 
+                                    text-align: center; 
+                                    color: #ffffff; 
+                                    font-weight: 700; 
+                                    font-size: 14px;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.5px;
+                                    border: none;
+                                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+                                ">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            data.forEach((team, index) => {
+                // Cores diferentes para as primeiras posições
+                let positionColor = '#1fac89';
+                let bgColor = 'rgba(255, 255, 255, 0.03)';
+                let hoverBg = 'rgba(31, 172, 137, 0.08)';
+                
+                if (index === 0) {
+                    positionColor = '#ffd700'; // Ouro para 1º lugar
+                    bgColor = 'rgba(255, 215, 0, 0.08)';
+                    hoverBg = 'rgba(255, 215, 0, 0.15)';
+                } else if (index === 1) {
+                    positionColor = '#cd7f32'; // Bronze para 3º lugar
+                    bgColor = 'rgba(205, 127, 50, 0.08)';
+                    hoverBg = 'rgba(205, 127, 50, 0.15)';
+                } else if (index === 2) {
+                    positionColor = '#c0c0c0'; // Prata para 2º lugar
+                    bgColor = 'rgba(192, 192, 192, 0.08)';
+                    hoverBg = 'rgba(192, 192, 192, 0.15)';
+                }
+
+                tableHTML += `
+                    <tr style="
+                        background: ${bgColor}; 
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                        transition: all 0.3s ease;
+                    " 
+                    onmouseover="this.style.background='${hoverBg}'; this.style.transform='translateX(4px)'" 
+                    onmouseout="this.style.background='${bgColor}'; this.style.transform='translateX(0)'">
+                        <td style="
+                            padding: 16px 12px; 
+                            text-align: center; 
+                            color: ${positionColor}; 
+                            font-weight: 700; 
+                            font-size: 16px;
+                            border: none;
+                            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+                        ">${index + 1}º</td>
+                        <td style="
+                            padding: 16px 12px; 
+                            text-align: left; 
+                            color: #ffffff; 
+                            font-weight: 600; 
+                            font-size: 15px;
+                            border: none;
+                            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+                        ">${team.name}</td>
+                        <td style="
+                            padding: 16px 12px; 
+                            text-align: center; 
+                            color: #1fac89; 
+                            font-weight: 600; 
+                            font-size: 15px;
+                            border: none;
+                            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+                        ">${team.marketCount}</td>
+                        <td style="
+                            padding: 16px 12px; 
+                            text-align: center; 
+                            color: #b0b3c1; 
+                            font-weight: 500; 
+                            font-size: 15px;
+                            border: none;
+                            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+                        ">${team.totalGames}</td>
+                        <td style="
+                            padding: 16px 12px; 
+                            text-align: center; 
+                            color: #ffffff; 
+                            font-weight: 700; 
+                            font-size: 16px;
+                            border: none;
+                            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+                            background: linear-gradient(135deg, rgba(31, 172, 137, 0.2) 0%, rgba(23, 149, 111, 0.2) 100%);
+                            border-radius: 8px;
+                        ">${team.percentage}%</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            rankingContainer.innerHTML = tableHTML;
+        }
+
+        // Adiciona o evento que dispara a atualização quando o seletor muda
+        marketSelector.addEventListener('change', updateRanking);
+
+        // 3. CHAMA A FUNÇÃO PELA PRIMEIRA VEZ PARA CARREGAR O MERCADO PADRÃO
+        //    (Agora funciona, pois os dados já estão na variável 'allGames')
+        updateRanking();
+    });
+</script>
 
 <script src="global-selectors.js"></script>
 
