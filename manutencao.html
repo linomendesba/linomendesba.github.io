@@ -679,6 +679,11 @@ function updateSelectedRows() {
     selectedContainer.className = mainTable.className; // Copia classes para estilo similar
 
     const thead = mainTable.querySelector("thead").cloneNode(true);
+    // Remover a coluna de seletor do thead clonado
+    const theadTr = thead.querySelector("tr");
+    if (theadTr) {
+      theadTr.removeChild(theadTr.firstChild);
+    }
     selectedContainer.appendChild(thead);
 
     const tbody = document.createElement("tbody");
@@ -688,17 +693,23 @@ function updateSelectedRows() {
   }
 
   if (selectedContainer) {
-    const selectedTbody = selectedContainer.querySelector("tbody");
-    selectedTbody.innerHTML = "";
+    if (selectedChaves.length === 0) {
+      selectedContainer.style.display = "none";
+    } else {
+      selectedContainer.style.display = "";
+      const selectedTbody = selectedContainer.querySelector("tbody");
+      selectedTbody.innerHTML = "";
 
-    selectedChaves.forEach(chave => {
-      const row = document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`);
-      if (row) {
-        const clone = row.cloneNode(true);
-        // Reanexa eventos aos clones se necessário (aqui assumimos display apenas, eventos no principal)
-        selectedTbody.appendChild(clone);
-      }
-    });
+      selectedChaves.forEach(chave => {
+        const row = document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`);
+        if (row) {
+          const clone = row.cloneNode(true);
+          // Remover a coluna de seletor do clone
+          clone.removeChild(clone.firstChild);
+          selectedTbody.appendChild(clone);
+        }
+      });
+    }
   }
 }
 
@@ -713,9 +724,17 @@ function criarTabela(dados, oddsData, proximosJogos) {
     return;
   }
 
-  linhaPercentual.innerHTML = "<th>📊</th>";
-  linhaTotalGols.innerHTML = "<th>⚽</th>";
-  linhaAcertosMercado.innerHTML = "<th>✔️</th>";
+  // Adicionar coluna de seletor ao thead principal, se não existir
+  const theadTr = document.querySelector("#tabelaResultados thead tr");
+  if (theadTr && !theadTr.querySelector(".selector-header")) {
+    const selectTh = document.createElement("th");
+    selectTh.className = "selector-header";
+    theadTr.insertBefore(selectTh, theadTr.firstChild);
+  }
+
+  linhaPercentual.innerHTML = "<th></th><th>📈</th>";
+  linhaTotalGols.innerHTML = "<th></th><th>⚽</th>";
+  linhaAcertosMercado.innerHTML = "<th></th><th>✔️</th>";
   tabelaBody.innerHTML = "";
 
   const seletorHoras = document.querySelector("#seletorHoras");
@@ -888,7 +907,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     if (linha && !processedMatches.has(matchKey)) {
       const indexMinuto = minutosFixos.indexOf(dado.minuto);
       if (indexMinuto !== -1) {
-        const colunaMinuto = linha.children[2 + indexMinuto]; // Ajuste pelo seletor (índice 0: seletor, 1: hora, 2+: minutos)
+        const colunaMinuto = linha.children[2 + indexMinuto]; // 0: selector, 1: hora, 2+: minutos
 
         if (!colunaMinuto.querySelector(".placar")) {
           const placar = document.createElement("div");
@@ -1048,7 +1067,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
       if (!resultadoExistente) {
         const indexMinuto = minutosFixos.indexOf(jogo.minuto);
         if (indexMinuto !== -1) {
-          const colunaMinuto = linha.children[2 + indexMinuto]; // Ajuste pelo seletor
+          const colunaMinuto = linha.children[2 + indexMinuto]; // 0: selector, 1: hora, 2+: minutos
           if (!colunaMinuto.querySelector(".placar")) {
             console.log(`Adicionando jogo futuro: ${jogo.team_home} vs ${jogo.team_visit} em ${chave} minuto ${jogo.minuto}`);
             const placar = document.createElement("div");
@@ -1133,7 +1152,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const todasLinhas = Array.from(tabelaBody.querySelectorAll("tr"));
   todasLinhas.forEach((row) => {
     const totalCelsProcessadas = Array.from(row.cells)
-      .slice(2, -3) // Ajuste pelo seletor (índice 0: seletor, 1: hora, 2+: minutos)
+      .slice(2, -3) // 0: selector, 1: hora, 2+: minutos
       .filter((cell) => cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")).length;
     const celsMercado = parseInt(
       row.children[row.children.length - 2].textContent
@@ -1160,7 +1179,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   todasLinhas.forEach((row) => {
     Array.from(row.cells)
-      .slice(2, -3) // Ajuste pelo seletor
+      .slice(2, -3) // 0: selector, 1: hora, 2+: minutos
       .forEach((cell, index) => {
         // Conta só placares passados (não futuros ou vazios)
         if (cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
@@ -1168,8 +1187,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
         }
       });
   });
-
-  linhaPercentual.innerHTML = "<th>📈</th>";
 
   totalMercadosPorColuna.forEach((totalMercados, index) => {
     const cell = document.createElement("td");
