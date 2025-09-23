@@ -61,6 +61,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/365macro.html" ||
     url === "https://www.betstat.site/quadrantestar.html" ||
     url === "https://www.betstat.site/classificacaoestrela.html" ||
+    url === "https://www.betstat.site/kirongraficotime.html" ||
     url === "https://www.betstat.site/rankingestrela.html" ||
     url === "https://www.betstat.site/maximaskiron.html" ||
     url === "https://www.betstat.site/porcentagemstar.html" ||
