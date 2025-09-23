@@ -63,7 +63,7 @@
     <br>
 
         <div class="accordion-item">
-        <button class="accordion-button" onclick="toggleAccordion(this)">▼ Ranking Rápido ▲</button>
+        <button class="accordion-button" onclick="toggleAccordion(this)">▼ Ranking Rápido 24h ▲</button>
         <div class="accordion-content">
             
             <div class="ranking-controls">
@@ -284,30 +284,35 @@
     <div class="seletor-horas">
       <select id="seletorHoras">
         <option value="3">Horas:3</option>
-        <option value="6">Horas:6</option>
-        <option value="12"selected>Horas:12</option>
+        <option value="6"selected>Horas:6</option>
+        <option value="12">Horas:12</option>
         <option value="24">Horas:24</option>
         <option value="48">Horas:48</option>
         <option value="72">Horas:72</option>
       </select>
     </div>
 
-    <div class="seletor-resultado">
-      <select id="seletorResultado">
-        <option value="ambasMarcam" selected>Ambas Sim</option>
-        <option value="ambasNaoMarcam">Ambas Não</option>
-        <option value="casaVence">Casa vence</option>
-        <option value="foraVence">Fora vence</option>
-        <option value="empate">Empate</option>
-        <option value="over1.5">Over 1.5</option>
-        <option value="under1.5">Under 1.5</option>
-        <option value="over2.5">Over 2.5</option>
-        <option value="under2.5">Under 2.5</option>
-        <option value="over3.5">Over 3.5</option>
-        <option value="under3.5">Under 3.5</option>
-        <option value="over5">Over 5+</option>
-      </select>
-    </div>
+<div class="seletor-resultado">
+  <select id="seletorResultado">
+    <option value="ambasMarcam" selected>Ambas Sim</option>
+    <option value="ambasNaoMarcam">Ambas Não</option>
+    <option value="casaVence">Casa vence</option>
+    <option value="foraVence">Fora vence</option>
+    <option value="empate">Empate</option>
+    <option value="over1.5">Over 1.5</option>
+    <option value="under1.5">Under 1.5</option>
+    <option value="over2.5">Over 2.5</option>
+    <option value="under2.5">Under 2.5</option>
+    <option value="over3.5">Over 3.5</option>
+    <option value="under3.5">Under 3.5</option>
+    <option value="over5">Over 5+</option>
+    <option value="exato0">0 Gol</option>
+    <option value="exato1">1 Gol</option>
+    <option value="exato2">2 Gols</option>
+    <option value="exato3">3 Gols</option>
+    <option value="exato4">4 Gols</option>
+  </select>
+</div>
 
     <div class="seletor-ver-odds">
       <select id="mostrarOdds">
@@ -354,6 +359,24 @@
     <div class="cardsligasbetano-card" onclick="window.location.href='campeonato_italiano.html'">
         <h3>Campeonato Italiano</h3>
     </div>
+</div>
+
+<!-- Nova seção acima da tabela para linhas selecionadas -->
+<div id="linhasSelecionadas">
+  <h3>Linhas Selecionadas</h3>
+  <p id="linhasSelecionadasTexto">Nenhuma linha selecionada.</p>
+  <div id="statsLinhasSelecionadas">
+    <!-- Aqui serão exibidos os stats: Green %, Red %, Total Gols, % Greens -->
+  </div>
+</div>
+
+<!-- Nova seção acima da tabela para colunas (minutos) selecionadas -->
+<div id="colunasSelecionadas">
+  <h3>Colunas (Minutos) Selecionadas</h3>
+  <p id="colunasSelecionadasTexto">Nenhuma coluna selecionada.</p>
+  <div id="statsColunasSelecionadas">
+    <!-- Aqui serão exibidos os stats verticais: Green %, Red %, Total Gols, % Greens -->
+  </div>
 </div>
 
     <div class="overflow-x-auto">
@@ -418,7 +441,7 @@
 
 <script src="disableChartAnimations.js"></script>
 
-    <script>
+<script>
 const minutosFixos = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
@@ -426,6 +449,10 @@ const minutosFixos = [
 let placarSelecionado = localStorage.getItem("placarSelecionado");
 let timeSelecionado = localStorage.getItem("timeSelecionado");
 let oddSelecionada = localStorage.getItem("oddSelecionada");
+
+// Novas variáveis para seleções
+let linhasSelecionadas = []; // Array de chaves de linhas (horas)
+let colunasSelecionadas = []; // Array de índices de minutos
 
 function showErrorMessage(message) {
   const errorMessageDiv = document.getElementById("errorMessage");
@@ -515,7 +542,6 @@ async function fetchOdds() {
   }
 }
 
-
 async function fetchProximosJogos() {
   try {
     const response = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
@@ -531,7 +557,6 @@ async function fetchProximosJogos() {
     return [];
   }
 }
-
 
 function normalizeString(str) {
   return str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -619,6 +644,12 @@ function getOddValue(odds, resultado) {
     "over3.5": "odds_mais_3_5",
     "under3.5": "odds_menos_3_5",
     over5: "odds_mais_5_gols",
+    // Novos mapeamentos para gols exatos (ajuste se necessário para suas odds reais)
+    exato0: "odds_exato_0_gols", // Assumindo que você tem campos assim no oddsData; ajuste conforme
+    exato1: "odds_exato_1_gol",
+    exato2: "odds_exato_2_gols",
+    exato3: "odds_exato_3_gols",
+    exato4: "odds_exato_4_gols",
   };
   const oddValue = odds ? odds[oddMap[resultado]] || "N/A" : "N/A";
   return oddValue;
@@ -656,6 +687,95 @@ function getDateStr(data) {
     const [day, month, year] = data.split("/");
     return `${year}-${month}-${day}`;
   }
+}
+
+// Nova função para atualizar a seção de linhas selecionadas
+function atualizarLinhasSelecionadas() {
+  const texto = document.getElementById("linhasSelecionadasTexto");
+  const statsDiv = document.getElementById("statsLinhasSelecionadas");
+  if (linhasSelecionadas.length === 0) {
+    texto.textContent = "Nenhuma linha selecionada.";
+    statsDiv.innerHTML = "";
+    return;
+  }
+
+  texto.textContent = `Linhas selecionadas: ${linhasSelecionadas.map(chave => chave.split('-')[1]).join(", ")}`; // Exibe horas
+
+  // Calcular stats das linhas selecionadas
+  let totalGols = 0;
+  let totalAcertos = 0;
+  let totalCelsProcessadas = 0;
+
+  linhasSelecionadas.forEach(chave => {
+    const linha = document.querySelector(`tr[data-chave="${chave}"]`);
+    if (linha) {
+      totalGols += parseInt(linha.children[linha.children.length - 3].textContent || 0);
+      totalAcertos += parseInt(linha.children[linha.children.length - 2].textContent || 0);
+      totalCelsProcessadas += Array.from(linha.cells).slice(1, -3).filter(cell => cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")).length;
+    }
+  });
+
+  const greenPercent = totalCelsProcessadas > 0 ? Math.floor((totalAcertos / totalCelsProcessadas) * 100) : 0;
+  const redPercent = 100 - greenPercent;
+
+  statsDiv.innerHTML = `
+    <p>Green: ${greenPercent}%</p>
+    <p>Red: ${redPercent}%</p>
+    <p>Total Gols: ${totalGols}</p>
+    <p>Percentual de Greens Selecionados: ${greenPercent}%</p>
+  `;
+}
+
+// Nova função para atualizar a seção de colunas selecionadas (cálculo vertical)
+function atualizarColunasSelecionadas() {
+  const texto = document.getElementById("colunasSelecionadasTexto");
+  const statsDiv = document.getElementById("statsColunasSelecionadas");
+  if (colunasSelecionadas.length === 0) {
+    texto.textContent = "Nenhuma coluna selecionada.";
+    statsDiv.innerHTML = "";
+    return;
+  }
+
+  texto.textContent = `Minutos selecionados: ${colunasSelecionadas.map(idx => minutosFixos[idx]).join(", ")}`;
+
+  // Calcular stats verticais das colunas selecionadas
+  const todasLinhas = Array.from(document.querySelector("#tabelaResultados tbody").querySelectorAll("tr"));
+  let totalGols = 0;
+  let totalAcertos = 0;
+  let totalCelsProcessadas = 0;
+
+  colunasSelecionadas.forEach(idx => {
+    let golsColuna = 0;
+    let acertosColuna = 0;
+    let processadasColuna = 0;
+    todasLinhas.forEach(linha => {
+      const cell = linha.cells[1 + idx];
+      if (cell && cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
+        processadasColuna++;
+        // Assumir cor de fundo para acerto (verde = acerto)
+        if (cell.style.backgroundColor === "rgb(1, 139, 6)") { // #018b06 em RGB
+          acertosColuna++;
+        }
+        // Extrair gols da célula (do placar-texto)
+        const placarTexto = cell.querySelector(".placar-texto")?.textContent.trim() || "";
+        const [a, b] = placarTexto.split(/[\sx()]+/).map(num => parseInt(num) || 0);
+        golsColuna += a + b;
+      }
+    });
+    totalGols += golsColuna;
+    totalAcertos += acertosColuna;
+    totalCelsProcessadas += processadasColuna;
+  });
+
+  const greenPercent = totalCelsProcessadas > 0 ? Math.floor((totalAcertos / totalCelsProcessadas) * 100) : 0;
+  const redPercent = 100 - greenPercent;
+
+  statsDiv.innerHTML = `
+    <p>Green: ${greenPercent}%</p>
+    <p>Red: ${redPercent}%</p>
+    <p>Total Gols: ${totalGols}</p>
+    <p>Percentual de Greens Selecionados: ${greenPercent}%</p>
+  `;
 }
 
 function criarTabela(dados, oddsData, proximosJogos) {
@@ -765,6 +885,33 @@ function criarTabela(dados, oddsData, proximosJogos) {
     tabelaBody.appendChild(novaLinha);
     mapeamentoChaveLinha[chave] = novaLinha;
     console.log(`Criada linha para chave: ${chave} com hora: ${hora} (timestamp: ${new Date(item.timestamp).toISOString()})`);
+
+    // Adicionar event listener para seleção de linha (clique na coluna de hora)
+    colunaHora.addEventListener("click", () => {
+      if (linhasSelecionadas.includes(chave)) {
+        linhasSelecionadas = linhasSelecionadas.filter(c => c !== chave);
+        novaLinha.classList.remove("linha-selecionada");
+      } else {
+        linhasSelecionadas.push(chave);
+        novaLinha.classList.add("linha-selecionada"); // Adicione CSS para destacar: .linha-selecionada { background: yellow; }
+      }
+      atualizarLinhasSelecionadas();
+    });
+  });
+
+  // Adicionar event listeners para headers de minutos (assumindo que há th.minute-header no thead)
+  const minuteHeaders = document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header");
+  minuteHeaders.forEach((header, idx) => {
+    header.addEventListener("click", () => {
+      if (colunasSelecionadas.includes(idx)) {
+        colunasSelecionadas = colunasSelecionadas.filter(i => i !== idx);
+        header.classList.remove("coluna-selecionada");
+      } else {
+        colunasSelecionadas.push(idx);
+        header.classList.add("coluna-selecionada"); // Adicione CSS: .coluna-selecionada { background: lightblue; }
+      }
+      atualizarColunasSelecionadas();
+    });
   });
 
   function handlePlacarClick(event) {
@@ -909,31 +1056,42 @@ function criarTabela(dados, oddsData, proximosJogos) {
           let acerto = false;
           const placarAtual = tipoPlacar === "ft" ? placarFT : placarHT;
           const [resultadoA, resultadoB] = placarAtual.split(" x ").map(num => parseInt(num) || 0);
+          const totalGols = resultadoA + resultadoB;
 
           if (selecaoResultado === "ambasMarcam") {
             acerto = resultadoA > 0 && resultadoB > 0;
           } else if (selecaoResultado === "ambasNaoMarcam") {
             acerto = resultadoA === 0 || resultadoB === 0;
           } else if (selecaoResultado === "over1.5") {
-            acerto = resultadoA + resultadoB > 1.5;
+            acerto = totalGols > 1.5;
           } else if (selecaoResultado === "under1.5") {
-            acerto = resultadoA + resultadoB <= 1.5;
+            acerto = totalGols <= 1.5;
           } else if (selecaoResultado === "over2.5") {
-            acerto = resultadoA + resultadoB > 2.5;
+            acerto = totalGols > 2.5;
           } else if (selecaoResultado === "under2.5") {
-            acerto = resultadoA + resultadoB <= 2.5;
+            acerto = totalGols <= 2.5;
           } else if (selecaoResultado === "over3.5") {
-            acerto = resultadoA + resultadoB > 3.5;
+            acerto = totalGols > 3.5;
           } else if (selecaoResultado === "under3.5") {
-            acerto = resultadoA + resultadoB <= 3.5;
+            acerto = totalGols <= 3.5;
           } else if (selecaoResultado === "over5") {
-            acerto = resultadoA + resultadoB >= 5;
+            acerto = totalGols >= 5;
           } else if (selecaoResultado === "casaVence") {
             acerto = resultadoA > resultadoB;
           } else if (selecaoResultado === "foraVence") {
             acerto = resultadoB > resultadoA;
           } else if (selecaoResultado === "empate") {
             acerto = resultadoA === resultadoB;
+          } else if (selecaoResultado === "exato0") {
+            acerto = totalGols === 0;
+          } else if (selecaoResultado === "exato1") {
+            acerto = totalGols === 1;
+          } else if (selecaoResultado === "exato2") {
+            acerto = totalGols === 2;
+          } else if (selecaoResultado === "exato3") {
+            acerto = totalGols === 3;
+          } else if (selecaoResultado === "exato4") {
+            acerto = totalGols === 4;
           }
 
           colunaMinuto.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
@@ -945,7 +1103,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
           }
 
           const totalGolsCelula = linha.children[linha.children.length - 3];
-          const totalGols = resultadoA + resultadoB;
           totalGolsCelula.textContent = parseInt(totalGolsCelula.textContent) + totalGols;
 
           totalGolsPorColuna[indexMinuto] += totalGols;
@@ -1123,8 +1280,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
     linhaPercentual.appendChild(emptyCell);
   }
 
-  const minuteHeaders = document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header");
-  minuteHeaders.forEach(header => {
+  const minuteHeaders2 = document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header");
+  minuteHeaders2.forEach(header => {
     header.style.backgroundColor = "#2c303b";
   });
 
@@ -1141,6 +1298,10 @@ function criarTabela(dados, oddsData, proximosJogos) {
   if (oddSelecionada && mostrarOdds) {
     selecionarOddsIguais(oddSelecionada);
   }
+
+  // Atualizar seções de selecionadas após criar a tabela
+  atualizarLinhasSelecionadas();
+  atualizarColunasSelecionadas();
 }
 
 async function buscarDados() {
@@ -1219,7 +1380,7 @@ if (mostrarOddsSelect) {
     buscarDados();
   });
 }
-  </script>
+</script>
     </script>
 
     <script>
@@ -4108,278 +4269,290 @@ loadNextGamesForMinutes();
 </script>
 
 <script>
-      // --- CONFIGURAÇÕES ---
-    const API_URL = ROTAS_API.resultados(LIGA_ATUAL);
-    const UPDATE_INTERVAL = 3000; // 3 segundos
+// --- CONFIGURAÇÕES ---
+const API_URL = ROTAS_API.resultados(LIGA_ATUAL);
+const UPDATE_INTERVAL = 3000; // 3 segundos
 
-    // --- DEFINIÇÕES DOS BLOCOS ---
-    const blocosDeMinutos = [
-        [1, 4, 7, 10, 13],    // Bloco 1
-        [16, 19, 22, 25, 28], // Bloco 2
-        [31, 34, 37, 40, 43], // Bloco 3
-        [46, 49, 52, 55, 58]  // Bloco 4
-    ];
+// --- DEFINIÇÕES DOS BLOCOS ---
+const blocosDeMinutos = [
+    [1, 4, 7, 10, 13],    // Bloco 1
+    [16, 19, 22, 25, 28], // Bloco 2
+    [31, 34, 37, 40, 43], // Bloco 3
+    [46, 49, 52, 55, 58]  // Bloco 4
+];
 
-    // --- MAPEAMENTO DE MERCADOS OPOSTOS ---
-    const counterMarketMap = {
-        'ambasMarcam': 'ambasNaoMarcam', 'ambasNaoMarcam': 'ambasMarcam',
-        'over1.5': 'under1.5', 'under1.5': 'over1.5',
-        'over2.5': 'under2.5', 'under2.5': 'over2.5',
-        'over3.5': 'under3.5', 'under3.5': 'over3.5',
-        'casaVence': 'empateOuFora', 'foraVence': 'empateOuCasa',
-        'empate': 'casaOuFora', 'over5': null
-    };
+// --- MAPEAMENTO DE MERCADOS OPOSTOS ---
+const counterMarketMap = {
+    'ambasMarcam': 'ambasNaoMarcam', 'ambasNaoMarcam': 'ambasMarcam',
+    'over1.5': 'under1.5', 'under1.5': 'over1.5',
+    'over2.5': 'under2.5', 'under2.5': 'over2.5',
+    'over3.5': 'under3.5', 'under3.5': 'over3.5',
+    'casaVence': 'empateOuFora', 'foraVence': 'empateOuCasa',
+    'empate': 'casaOuFora', 'over5': null
+};
 
-    let numPreviousHours = 1;
+let numPreviousHours = 1;
 
-    /**
-     * Verifica se um resultado de jogo atende a um mercado específico.
-     */
-    function checkMarket(ftScore, market) {
-        if (!ftScore || !ftScore.includes('x')) return false;
-        const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
-        const totalGols = golsCasa + golsFora;
-        switch (market) {
-            case 'ambasMarcam': return golsCasa > 0 && golsFora > 0;
-            case 'ambasNaoMarcam': return golsCasa === 0 || golsFora === 0;
-            case 'casaVence': return golsCasa > golsFora;
-            case 'foraVence': return golsFora > golsCasa;
-            case 'empate': return golsCasa === golsFora;
-            case 'over1.5': return totalGols > 1.5;
-            case 'under1.5': return totalGols < 1.5;
-            case 'over2.5': return totalGols > 2.5;
-            case 'under2.5': return totalGols < 2.5;
-            case 'over3.5': return totalGols > 3.5;
-            case 'under3.5': return totalGols < 3.5;
-            case 'over5': return totalGols >= 5;
-            case 'empateOuFora': return golsCasa <= golsFora;
-            case 'empateOuCasa': return golsCasa >= golsFora;
-            case 'casaOuFora': return golsCasa !== golsFora;
-            default: return false;
-        }
+/**
+ * Verifica se um resultado de jogo atende a um mercado específico.
+ */
+function checkMarket(ftScore, market) {
+    if (!ftScore || !ftScore.includes('x')) return false;
+    const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+    const totalGols = golsCasa + golsFora;
+    switch (market) {
+        case 'ambasMarcam': return golsCasa > 0 && golsFora > 0;
+        case 'ambasNaoMarcam': return golsCasa === 0 || golsFora === 0;
+        case 'casaVence': return golsCasa > golsFora;
+        case 'foraVence': return golsFora > golsCasa;
+        case 'empate': return golsCasa === golsFora;
+        case 'over1.5': return totalGols > 1.5;
+        case 'under1.5': return totalGols < 1.5;
+        case 'over2.5': return totalGols > 2.5;
+        case 'under2.5': return totalGols < 2.5;
+        case 'over3.5': return totalGols > 3.5;
+        case 'under3.5': return totalGols < 3.5;
+        case 'over5': return totalGols >= 5;
+        case 'empateOuFora': return golsCasa <= golsFora;
+        case 'empateOuCasa': return golsCasa >= golsFora;
+        case 'casaOuFora': return golsCasa !== golsFora;
+        default: return false;
     }
+}
 
-    /**
-     * Pega a hora atual do sistema
-     */
-    function getHoraAtual() {
+/**
+ * Pega a hora atual do sistema
+ */
+function getHoraAtual() {
+    const agora = new Date();
+    return agora.getHours();
+}
+
+/**
+ * Gera o HTML para um único bloco de estatísticas.
+ */
+function createBlocoHtml(index, timeSlots) {
+    const nomeBloco = `Bloco ${String(index + 1).padStart(2, '0')}`;
+    
+    let html = `
+        <th colspan="5" style="color: #d1d5db; font-weight: 600; padding: 0; border-left: 1px solid #1fac89; text-align: center; font-size: 13px; line-height: 1; margin-right: 10px;">
+            <table style="width: 100%; border-collapse: collapse; margin: 0; padding: 0;">
+    `;
+    
+    timeSlots.forEach((slot, slotIdx) => {
+        const isCurrent = slotIdx === 0;
+        const labelColor = isCurrent ? '#e5e7eb' : '#9ca3af';
+        const labelWeight = isCurrent ? '600' : '400';
+        const labelSize = isCurrent ? '11px' : '10px';
+        const mtStyle = slotIdx > 0 ? 'border-top: 1px solid rgba(75,85,99,0.3);' : '';
+
+        const label = `${nomeBloco}: ${slot.hour.toString().padStart(2, '0')}`;
+
+        html += `
+            <tr style="${mtStyle} height: 1.2rem; margin: 0; padding: 0;">
+                <td style="color: ${labelColor}; font-weight: ${labelWeight}; font-size: ${labelSize}; text-align: center; vertical-align: middle; padding: 0 8px; margin: 0;">${label}</td>
+                <td style="color: #d1d5db; font-size: 12px; text-align: center; vertical-align: middle; padding: 0 4px; margin: 0;">
+                    G <strong id="gols-${index}-${slotIdx}" style="color: #fbbf24;">0</strong>
+                </td>
+                <td style="color: #d1d5db; font-size: 12px; text-align: center; vertical-align: middle; padding: 0 4px; margin: 0;">
+                    A <strong id="hits-${index}-${slotIdx}" style="color: #22c55e;">0</strong>
+                </td>
+                <td style="color: #d1d5db; font-size: 12px; text-align: center; vertical-align: middle; padding: 0 4px; margin: 0;">
+                    E <strong id="counter-hits-${index}-${slotIdx}" style="color: #ef4444;">0</strong>
+                </td>
+                <td style="color: #9ca3af; font-size: 12px; text-align: center; vertical-align: middle; padding: 0 4px; margin: 0;">
+                    MG <strong id="media-gols-${index}-${slotIdx}" style="color: #60a5fa;">0.0</strong>
+                </td>
+                <td style="color: #9ca3af; font-size: 12px; text-align: center; vertical-align: middle; padding: 0 4px; margin: 0;">
+                    % <strong id="media-mercado-${index}-${slotIdx}" style="color: #a78bfa;">0</strong>
+                </td>
+            </tr>
+        `;
+    });
+    html += `</table></th>`;
+    return html;
+}
+
+/**
+ * Gera o HTML para os controles de horas.
+ */
+function createControlsHtml() {
+    return `
+        <th style="color: #d1d5db; font-weight: 600; padding: 0rem 19px; border-left: 1px solid #2596be; text-align: center;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                <button id="decrease-hours" class="blocos-button">-</button>
+                <span id="num-previous" style="color: white; font-size: 12px;">1</span>
+                <button id="increase-hours" class="blocos-button">+</button>
+            </div>
+        </th>
+    `;
+}
+
+/**
+ * Busca os dados da API, processa e atualiza a interface.
+ */
+async function fetchAndUpdateData() {
+    try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`);
+        const resultados = await response.json();
+
+        if (!resultados || resultados.length === 0) {
+            console.warn("Nenhum resultado encontrado na API.");
+            return;
+        }
+
+        // Usar a data e hora atuais do sistema
         const agora = new Date();
-        return agora.getHours();
-    }
+        const horaAtualNumero = agora.getHours();
 
-    /**
-     * Gera o HTML para um único bloco de estatísticas.
-     */
-    function createBlocoHtml(index, timeSlots) {
-        let html = `
-            <th colspan="5" style="color: #d1d5db; font-weight: 600; padding: 0.5rem; border-left: 1px solid #1fac89; text-align: center; font-size: 13px; line-height: 1.25;">
-        `;
-        timeSlots.forEach((slot, slotIdx) => {
-            const isCurrent = slotIdx === 0;
-            const labelColor = isCurrent ? '#e5e7eb' : '#9ca3af';
-            const labelWeight = isCurrent ? '600' : '400';
-            const labelSize = isCurrent ? '11px' : '10px';
-            const mtStyle = slotIdx > 0 ? 'margin-top: 0.25rem;' : '';
-            const golsBorderColor = isCurrent ? 'rgba(75,85,99,0.6)' : 'rgba(55,65,81,0.6)';
-            const golsBgColor = isCurrent ? 'rgba(75,85,99,0.1)' : 'rgba(55,65,81,0.1)';
-            const golsTextColor = isCurrent ? '#e5e7eb' : '#d1d5db';
-            const hitBorderColor = isCurrent ? '#3a3f4b;' : 'rgba(4,120,87,0.6)';
-            const hitBgColor = isCurrent ? 'rgba(1,139,6,0.1)' : 'rgb(41 45 54)';
-            const hitTextColor = isCurrent ? '#018b06' : '#6ee7b7';
-            const counterBorderColor = isCurrent ? '#3a3f4b;' : '#3a3f4b;';
-            const counterBgColor = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)';
-            const counterTextColor = isCurrent ? '#be0e02' : '#fda4af';
-            const label = isCurrent ? `Hora Atual: ${slot.hour.toString().padStart(2, '0')}` : `Hora Anterior ${slotIdx}: ${slot.hour.toString().padStart(2, '0')}`;
+        let timeSlots = [];
+        let currentDate = new Date(agora);
+        let currentHour = horaAtualNumero;
 
-            html += `
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; ${mtStyle}">
-                    <span style="color: ${labelColor}; font-weight: ${labelWeight}; font-size: ${labelSize};">${label}</span>
-                    <div style="display: flex; align-items: center; gap: 0.375rem;">
-                        <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${golsBorderColor}; background-color: ${golsBgColor}; color: ${golsTextColor}; white-space: nowrap;" title="Total de Gols">
-                            <span style="font-size: 11px; line-height: 14px;">⚽</span>
-                            <strong id="gols-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
-                        </span>
-                        <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${hitBorderColor}; background-color: ${hitBgColor}; color: ${hitTextColor}; white-space: nowrap;" title="Mercado Selecionado">
-                            <span style="font-size: 11px; line-height: 14px;">✅</span>
-                            <strong id="hits-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
-                        </span>
-                        <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${counterBorderColor}; background-color: ${counterBgColor}; color: ${counterTextColor}; white-space: nowrap;" title="Mercado Contrário">
-                            <span style="font-size: 11px; line-height: 14px;">❌</span>
-                            <strong id="counter-hits-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
-                        </span>
-                    </div>
-                </div>
-            `;
+        for (let i = 0; i <= numPreviousHours; i++) { // inclui atual + anteriores
+            timeSlots.push({
+                date: currentDate.toISOString().split('T')[0],
+                hour: currentHour
+            });
+
+            currentHour--;
+            if (currentHour < 0) {
+                currentHour = 23;
+                currentDate.setDate(currentDate.getDate() - 1);
+            }
+        }
+
+        console.log(`Time slots: ${JSON.stringify(timeSlots)}`);
+
+        // Filtrar jogos por slot de tempo
+        const jogosPorSlot = timeSlots.map(slot =>
+            resultados.filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
+        );
+
+        console.log(`Jogos encontrados por slot: ${jogosPorSlot.map(j => j.length).join(', ')}`);
+
+        // Atualizar HTML apenas se necessário
+        const trContainer = document.getElementById('trBlocks');
+        if (!trContainer.children.length || trContainer.dataset.horaAtual != horaAtualNumero || trContainer.dataset.numPrevious != numPreviousHours) {
+            let tableHtml = `<th style="position: sticky;left: 0;z-index: 10;background-color: #1f2129;color: #d1d5db;font-weight: 600;padding: 7px;text-align: center;border-right: 1px solid #555;font-size: 12px;line-height: 1.25;">Quadrantes</th>`;
+            
+            for (let i = 0; i < blocosDeMinutos.length; i++) {
+                tableHtml += createBlocoHtml(i, timeSlots);
+            }
+
+            tableHtml += createControlsHtml();
+            
+            trContainer.innerHTML = tableHtml;
+            trContainer.dataset.horaAtual = horaAtualNumero;
+            trContainer.dataset.numPrevious = numPreviousHours;
+
+            // Re-anexar event listeners após recriar HTML
+            attachControlListeners();
+        }
+
+        const selectedMarket = document.getElementById('seletorResultado').value;
+        const counterMarket = counterMarketMap[selectedMarket];
+
+        blocosDeMinutos.forEach((minutosDoBloco, index) => {
+            timeSlots.forEach((slot, slotIdx) => {
+                const jogos = jogosPorSlot[slotIdx];
+                const stats = calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket);
+
+                // Atualizar elementos
+                const golsEl = document.getElementById(`gols-${index}-${slotIdx}`);
+                const hitsEl = document.getElementById(`hits-${index}-${slotIdx}`);
+                const counterHitsEl = document.getElementById(`counter-hits-${index}-${slotIdx}`);
+                const mediaGolsEl = document.getElementById(`media-gols-${index}-${slotIdx}`);
+                const mediaMercadoEl = document.getElementById(`media-mercado-${index}-${slotIdx}`);
+
+                if (golsEl) golsEl.innerText = stats.totalGols;
+                if (hitsEl) hitsEl.innerText = stats.marketHits;
+                if (counterHitsEl) counterHitsEl.innerText = stats.counterMarketHits;
+                if (mediaGolsEl) mediaGolsEl.innerText = stats.mediaGols;
+                if (mediaMercadoEl) mediaMercadoEl.innerText = stats.percentualMercado;
+            });
         });
-        html += `</th>`;
-        return html;
+
+    } catch (error) {
+        console.error("Falha ao buscar ou processar dados:", error);
     }
+}
 
-    /**
-     * Gera o HTML para os controles de horas.
-     */
-    function createControlsHtml() {
-        return `
-            <th style="color: #d1d5db; font-weight: 600; padding: 0rem 19px; border-left: 1px solid #2596be; text-align: center;">
-                <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
-                    <button id="decrease-hours" class="blocos-button">-</button>
-                    <span id="num-previous" style="color: white; font-size: 12px;">1</span>
-                    <button id="increase-hours" class="blocos-button">+</button>
-                </div>
-            </th>
-        `;
-    }
-
-    /**
-     * Busca os dados da API, processa e atualiza a interface.
-     */
-    async function fetchAndUpdateData() {
-        try {
-            const response = await fetch(API_URL);
-            if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`);
-            const resultados = await response.json();
-
-            if (!resultados || resultados.length === 0) {
-                console.warn("Nenhum resultado encontrado na API.");
-                return;
-            }
-
-            // Usar a data e hora atuais do sistema
-            const agora = new Date();
-            const horaAtualNumero = agora.getHours();
-
-            let timeSlots = [];
-            let currentDate = new Date(agora);
-            let currentHour = horaAtualNumero;
-
-            for (let i = 0; i <= numPreviousHours; i++) { // inclui atual + anteriores
-                timeSlots.push({
-                    date: currentDate.toISOString().split('T')[0],
-                    hour: currentHour
-                });
-
-                currentHour--;
-                if (currentHour < 0) {
-                    currentHour = 23;
-                    currentDate.setDate(currentDate.getDate() - 1);
-                }
-            }
-
-            console.log(`Time slots: ${JSON.stringify(timeSlots)}`);
-
-            // Filtrar jogos por slot de tempo
-            const jogosPorSlot = timeSlots.map(slot =>
-                resultados.filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
-            );
-
-            console.log(`Jogos encontrados por slot: ${jogosPorSlot.map(j => j.length).join(', ')}`);
-
-            // Atualizar HTML apenas se necessário
-            const trContainer = document.getElementById('trBlocks');
-            if (!trContainer.children.length || trContainer.dataset.horaAtual != horaAtualNumero || trContainer.dataset.numPrevious != numPreviousHours) {
-                let tableHtml = `<th style="position: sticky;left: 0;z-index: 10;background-color: #1f2129;color: #d1d5db;font-weight: 600;padding: 7px;text-align: center;border-right: 1px solid #555;font-size: 12px;line-height: 1.25;">QDT</th>`;
-                
-                for (let i = 0; i < blocosDeMinutos.length; i++) {
-                    tableHtml += createBlocoHtml(i, timeSlots);
-                }
-
-                tableHtml += createControlsHtml();
-                
-                trContainer.innerHTML = tableHtml;
-                trContainer.dataset.horaAtual = horaAtualNumero;
-                trContainer.dataset.numPrevious = numPreviousHours;
-
-                // Re-anexar event listeners após recriar HTML
-                attachControlListeners();
-            }
-
-            const selectedMarket = document.getElementById('seletorResultado').value;
-            const counterMarket = counterMarketMap[selectedMarket];
-
-            blocosDeMinutos.forEach((minutosDoBloco, index) => {
-                timeSlots.forEach((slot, slotIdx) => {
-                    const jogos = jogosPorSlot[slotIdx];
-                    const stats = calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket);
-
-                    // Atualizar elementos
-                    const golsEl = document.getElementById(`gols-${index}-${slotIdx}`);
-                    const hitsEl = document.getElementById(`hits-${index}-${slotIdx}`);
-                    const counterHitsEl = document.getElementById(`counter-hits-${index}-${slotIdx}`);
-
-                    if (golsEl) golsEl.innerText = stats.totalGols;
-                    if (hitsEl) hitsEl.innerText = stats.marketHits;
-                    if (counterHitsEl) counterHitsEl.innerText = stats.counterMarketHits;
-                });
-            });
-
-        } catch (error) {
-            console.error("Falha ao buscar ou processar dados:", error);
-        }
-    }
-
-    function calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
-        const stats = { totalGols: 0, marketHits: 0, counterMarketHits: 0 };
-        const jogosDoBloco = jogos.filter(j => minutosDoBloco.includes(j.minuto));
+function calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
+    const stats = { totalGols: 0, marketHits: 0, counterMarketHits: 0, totalJogos: 0 };
+    const jogosDoBloco = jogos.filter(j => minutosDoBloco.includes(j.minuto));
+    
+    for (const jogo of jogosDoBloco) {
+        const [golsCasa, golsFora] = jogo.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+        stats.totalGols += golsCasa + golsFora;
+        stats.totalJogos++;
         
-        for (const jogo of jogosDoBloco) {
-            const [golsCasa, golsFora] = jogo.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
-            stats.totalGols += golsCasa + golsFora;
-            if (checkMarket(jogo.ft, selectedMarket)) stats.marketHits++;
-            if (counterMarket && checkMarket(jogo.ft, counterMarket)) stats.counterMarketHits++;
-        }
-        return stats;
+        if (checkMarket(jogo.ft, selectedMarket)) stats.marketHits++;
+        if (counterMarket && checkMarket(jogo.ft, counterMarket)) stats.counterMarketHits++;
     }
 
-    function attachControlListeners() {
-        const decreaseBtn = document.getElementById('decrease-hours');
-        const increaseBtn = document.getElementById('increase-hours');
-        const numSpan = document.getElementById('num-previous');
+    // Calcular médias
+    const mediaGols = stats.totalJogos > 0 ? (stats.totalGols / stats.totalJogos).toFixed(1) : '0.0';
+    const percentualMercado = stats.totalJogos > 0 ? Math.round((stats.marketHits / stats.totalJogos) * 100) : 0;
 
-        if (numSpan) numSpan.innerText = numPreviousHours;
+    return {
+        ...stats,
+        mediaGols,
+        percentualMercado
+    };
+}
 
-        if (decreaseBtn) {
-            decreaseBtn.addEventListener('click', () => {
-                if (numPreviousHours > 0) {
-                    numPreviousHours--;
-                    if (numSpan) numSpan.innerText = numPreviousHours;
-                    fetchAndUpdateData();
-                }
-            });
-        }
+function attachControlListeners() {
+    const decreaseBtn = document.getElementById('decrease-hours');
+    const increaseBtn = document.getElementById('increase-hours');
+    const numSpan = document.getElementById('num-previous');
 
-        if (increaseBtn) {
-            increaseBtn.addEventListener('click', () => {
-                numPreviousHours++;
+    if (numSpan) numSpan.innerText = numPreviousHours;
+
+    if (decreaseBtn) {
+        decreaseBtn.addEventListener('click', () => {
+            if (numPreviousHours > 0) {
+                numPreviousHours--;
                 if (numSpan) numSpan.innerText = numPreviousHours;
                 fetchAndUpdateData();
-            });
-        }
+            }
+        });
     }
 
-    /**
-     * Inicializa a aplicação.
-     */
-    function init() {
-        document.getElementById('seletorResultado').addEventListener('change', fetchAndUpdateData);
-        fetchAndUpdateData(); 
-        setInterval(fetchAndUpdateData, UPDATE_INTERVAL);
+    if (increaseBtn) {
+        increaseBtn.addEventListener('click', () => {
+            numPreviousHours++;
+            if (numSpan) numSpan.innerText = numPreviousHours;
+            fetchAndUpdateData();
+        });
     }
+}
 
-    document.addEventListener('DOMContentLoaded', init);
+/**
+ * Inicializa a aplicação.
+ */
+function init() {
+    document.getElementById('seletorResultado').addEventListener('change', fetchAndUpdateData);
+    fetchAndUpdateData(); 
+    setInterval(fetchAndUpdateData, UPDATE_INTERVAL);
+}
+
+document.addEventListener('DOMContentLoaded', init);
 </script>
 
 <script>
-    // --- LÓGICA DO ACORDEÃO ---
+    // --- LÓgica do ACORDEÃO ---
     function toggleAccordion(buttonElement) {
         const content = buttonElement.nextElementSibling;
         content.classList.toggle('active');
     }
 
-    // --- LÓGICA DO RANKING RÁPIDO ---
+    // --- LÓgica DO RANKING RÁPIDO ---
     document.addEventListener('DOMContentLoaded', async () => {
         const marketSelector = document.getElementById('marketSelector');
         const rankingContainer = document.getElementById('rankingContainer');
-        
+
         // Variável para armazenar os dados dos jogos depois de buscá-los uma única vez.
         let allGames = [];
 
@@ -4397,10 +4570,10 @@ loadNextGamesForMinutes();
         }
 
         // 2. FUNÇÃO QUE APENAS PROCESSA OS DADOS JÁ CARREGADOS.
-        //    (Removemos o 'async' e a busca 'fetch' de dentro dela)
         function updateRanking() {
             const selectedMarket = marketSelector.value;
-            rankingContainer.innerHTML = '<p style="color: #1fac89; text-align: center; font-size: 16px; margin: 20px 0;">Analisando dados, por favor aguarde...</p>';
+            // A fonte da mensagem de "aguarde" também foi ajustada para 12px
+            rankingContainer.innerHTML = '<p style="color: #1fac89; text-align: center; font-size: 12px; margin: 20px 0;">Analisando dados, por favor aguarde...</p>';
 
             try {
                 // Pega apenas as 480 entradas mais recentes dos dados já carregados
@@ -4422,7 +4595,7 @@ loadNextGamesForMinutes();
 
                     teamStats[time_a].totalGames++;
                     teamStats[time_b].totalGames++;
-                    
+
                     let marketOccurred = false;
                     switch (selectedMarket) {
                         case 'ambasMarcam':     marketOccurred = golsA > 0 && golsB > 0; break;
@@ -4436,12 +4609,12 @@ loadNextGamesForMinutes();
                         case 'under3.5':        marketOccurred = totalGols < 4; break;
                         case 'over5':           marketOccurred = totalGols >= 5; break;
                     }
-                    
+
                     if (marketOccurred) {
                         teamStats[time_a].marketCount++;
                         teamStats[time_b].marketCount++;
                     }
-                    
+
                     if (selectedMarket === 'casaVence' && golsA > golsB) {
                         teamStats[time_a].marketCount++;
                     }
@@ -4461,19 +4634,19 @@ loadNextGamesForMinutes();
                 renderTable(top10);
 
             } catch (error) {
-                // Este 'catch' agora pega erros de processamento, não de busca
                 rankingContainer.innerHTML = `<p style="color: red;">Erro ao processar os dados: ${error.message}</p>`;
                 console.error(error);
             }
         }
 
-        // Função para desenhar a tabela no HTML com CSS melhorado
+        // Função para desenhar a tabela no HTML com as fontes ajustadas
         function renderTable(data) {
             if (data.length === 0) {
-                rankingContainer.innerHTML = '<p style="color: #ffffff; text-align: center; font-size: 16px; margin: 20px 0;">Nenhum dado encontrado para este mercado.</p>';
+                // A fonte da mensagem de "nenhum dado" também foi ajustada para 12px
+                rankingContainer.innerHTML = '<p style="color: #ffffff; text-align: center; font-size: 12px; margin: 20px 0;">Nenhum dado encontrado para este mercado.</p>';
                 return;
             }
-            
+
             let tableHTML = `
                 <div style="overflow-x: auto; margin: 20px 0; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
                     <table style="
@@ -4491,7 +4664,7 @@ loadNextGamesForMinutes();
                                     text-align: center; 
                                     color: #ffffff; 
                                     font-weight: 700; 
-                                    font-size: 14px;
+                                    font-size: 12px; /* <-- AJUSTADO */
                                     text-transform: uppercase;
                                     letter-spacing: 0.5px;
                                     border: none;
@@ -4502,7 +4675,7 @@ loadNextGamesForMinutes();
                                     text-align: left; 
                                     color: #ffffff; 
                                     font-weight: 700; 
-                                    font-size: 14px;
+                                    font-size: 12px; /* <-- AJUSTADO */
                                     text-transform: uppercase;
                                     letter-spacing: 0.5px;
                                     border: none;
@@ -4513,7 +4686,7 @@ loadNextGamesForMinutes();
                                     text-align: center; 
                                     color: #ffffff; 
                                     font-weight: 700; 
-                                    font-size: 14px;
+                                    font-size: 12px; /* <-- AJUSTADO */
                                     text-transform: uppercase;
                                     letter-spacing: 0.5px;
                                     border: none;
@@ -4524,7 +4697,7 @@ loadNextGamesForMinutes();
                                     text-align: center; 
                                     color: #ffffff; 
                                     font-weight: 700; 
-                                    font-size: 14px;
+                                    font-size: 12px; /* <-- AJUSTADO */
                                     text-transform: uppercase;
                                     letter-spacing: 0.5px;
                                     border: none;
@@ -4535,7 +4708,7 @@ loadNextGamesForMinutes();
                                     text-align: center; 
                                     color: #ffffff; 
                                     font-weight: 700; 
-                                    font-size: 14px;
+                                    font-size: 12px; /* <-- AJUSTADO */
                                     text-transform: uppercase;
                                     letter-spacing: 0.5px;
                                     border: none;
@@ -4545,23 +4718,22 @@ loadNextGamesForMinutes();
                         </thead>
                         <tbody>
             `;
-            
+
             data.forEach((team, index) => {
-                // Cores diferentes para as primeiras posições
                 let positionColor = '#1fac89';
                 let bgColor = 'rgba(255, 255, 255, 0.03)';
                 let hoverBg = 'rgba(31, 172, 137, 0.08)';
-                
+
                 if (index === 0) {
-                    positionColor = '#ffd700'; // Ouro para 1º lugar
+                    positionColor = '#ffd700';
                     bgColor = 'rgba(255, 215, 0, 0.08)';
                     hoverBg = 'rgba(255, 215, 0, 0.15)';
                 } else if (index === 1) {
-                    positionColor = '#cd7f32'; // Bronze para 3º lugar
+                    positionColor = '#cd7f32';
                     bgColor = 'rgba(205, 127, 50, 0.08)';
                     hoverBg = 'rgba(205, 127, 50, 0.15)';
                 } else if (index === 2) {
-                    positionColor = '#c0c0c0'; // Prata para 2º lugar
+                    positionColor = '#c0c0c0';
                     bgColor = 'rgba(192, 192, 192, 0.08)';
                     hoverBg = 'rgba(192, 192, 192, 0.15)';
                 }
@@ -4579,7 +4751,7 @@ loadNextGamesForMinutes();
                             text-align: center; 
                             color: ${positionColor}; 
                             font-weight: 700; 
-                            font-size: 16px;
+                            font-size: 12px; /* <-- AJUSTADO */
                             border: none;
                             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
                         ">${index + 1}º</td>
@@ -4588,7 +4760,7 @@ loadNextGamesForMinutes();
                             text-align: left; 
                             color: #ffffff; 
                             font-weight: 600; 
-                            font-size: 15px;
+                            font-size: 12px; /* <-- AJUSTADO */
                             border: none;
                             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
                         ">${team.name}</td>
@@ -4597,7 +4769,7 @@ loadNextGamesForMinutes();
                             text-align: center; 
                             color: #1fac89; 
                             font-weight: 600; 
-                            font-size: 15px;
+                            font-size: 12px; /* <-- AJUSTADO */
                             border: none;
                             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
                         ">${team.marketCount}</td>
@@ -4606,7 +4778,7 @@ loadNextGamesForMinutes();
                             text-align: center; 
                             color: #b0b3c1; 
                             font-weight: 500; 
-                            font-size: 15px;
+                            font-size: 12px; /* <-- AJUSTADO */
                             border: none;
                             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
                         ">${team.totalGames}</td>
@@ -4615,7 +4787,7 @@ loadNextGamesForMinutes();
                             text-align: center; 
                             color: #ffffff; 
                             font-weight: 700; 
-                            font-size: 16px;
+                            font-size: 12px; /* <-- AJUSTADO */
                             border: none;
                             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
                             background: linear-gradient(135deg, rgba(31, 172, 137, 0.2) 0%, rgba(23, 149, 111, 0.2) 100%);
@@ -4637,10 +4809,105 @@ loadNextGamesForMinutes();
         marketSelector.addEventListener('change', updateRanking);
 
         // 3. CHAMA A FUNÇÃO PELA PRIMEIRA VEZ PARA CARREGAR O MERCADO PADRÃO
-        //    (Agora funciona, pois os dados já estão na variável 'allGames')
         updateRanking();
     });
 </script>
+
+    <script>
+            // Bloqueia o menu de contexto (clique direito)
+document.addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+});
+
+// Bloqueia atalhos de teclado comuns para ferramentas de desenvolvimento
+document.addEventListener("keydown", function(e) {
+    // F12
+    if (e.key === "F12") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + I
+    if (e.ctrlKey && e.shiftKey && e.key === "I") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + U (ver código fonte)
+    if (e.ctrlKey && e.key === "u") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + J (console)
+    if (e.ctrlKey && e.shiftKey && e.key === "J") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + C (inspeção de elementos)
+    if (e.ctrlKey && e.shiftKey && e.key === "C") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + S (salvar página)
+    if (e.ctrlKey && e.key === "s") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + P (imprimir)
+    if (e.ctrlKey && e.key === "p") {
+        e.preventDefault();
+    }
+});
+
+// Detecta abertura de ferramentas de desenvolvimento
+const devtools = { open: false };
+const element = new Image();
+Object.defineProperty(element, 'id', {
+    get: function () {
+        devtools.open = true;
+    }
+});
+
+// Adiciona detecção alternativa de devtools
+(function() {
+    const threshold = 160;
+    const checkDevTools = function() {
+        if ((window.outerWidth - window.innerWidth) > threshold || 
+            (window.outerHeight - window.innerHeight) > threshold) {
+            devtools.open = true;
+        }
+    };
+    
+    window.addEventListener('resize', checkDevTools);
+    setInterval(checkDevTools, 500);
+})();
+
+// Monitoramento contínuo
+console.log('%c', element);
+setInterval(function() {
+    if (devtools.open) {
+        document.body.innerHTML = '<h1>Acesso não autorizado detectado</h1>';
+        // Ou redirecionar:
+        // window.location.href = 'about:blank';
+        devtools.open = false;
+    }
+}, 1000);
+
+// Impede seleção de texto
+document.addEventListener('selectstart', function(e) {
+    e.preventDefault();
+});
+
+// Impede arrastar e soltar
+document.addEventListener('dragstart', function(e) {
+    e.preventDefault();
+});
+
+// Ofusca console
+console.log = function() {};
+console.debug = function() {};
+console.info = function() {};
+    </script>
+
+    
 
 <script src="global-selectors.js"></script>
 
