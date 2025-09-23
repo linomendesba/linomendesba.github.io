@@ -66,6 +66,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/rankingestrela.html" ||
     url === "https://www.betstat.site/maximaskiron.html" ||
     url === "https://www.betstat.site/porcentagemstar.html" ||
+    url === "https://www.betstat.site/kironmaximafonfronto.html" ||
     url === "https://www.betstat.site/buscadoroddstar.html" ||
      url === "https://www.betstat.site/localizAIkiron.html" ||
      url === "https://www.betstat.site/kirongraficoood.html" ||
