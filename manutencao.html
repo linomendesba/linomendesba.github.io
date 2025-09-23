@@ -306,11 +306,11 @@
     <option value="over3.5">Over 3.5</option>
     <option value="under3.5">Under 3.5</option>
     <option value="over5">Over 5+</option>
-    <option value="exato0">0 Gol</option>
-    <option value="exato1">1 Gol</option>
-    <option value="exato2">2 Gols</option>
-    <option value="exato3">3 Gols</option>
-    <option value="exato4">4 Gols</option>
+    <option value="exato0">Exato 0 gols</option>
+    <option value="exato1">Exato 1 gol</option>
+    <option value="exato2">Exato 2 gols</option>
+    <option value="exato3">Exato 3 gols</option>
+    <option value="exato4">Exato 4 gols</option>
   </select>
 </div>
 
@@ -359,24 +359,6 @@
     <div class="cardsligasbetano-card" onclick="window.location.href='campeonato_italiano.html'">
         <h3>Campeonato Italiano</h3>
     </div>
-</div>
-
-<!-- Nova seção acima da tabela para linhas selecionadas -->
-<div id="linhasSelecionadas">
-  <h3>Linhas Selecionadas</h3>
-  <p id="linhasSelecionadasTexto">Nenhuma linha selecionada.</p>
-  <table id="tabelaLinhasSelecionadas">
-    <!-- Aqui será criada dinamicamente a tabela com stats e rows selecionadas -->
-  </table>
-</div>
-
-<!-- Nova seção acima da tabela para colunas (minutos) selecionadas -->
-<div id="colunasSelecionadas">
-  <h3>Colunas (Minutos) Selecionadas</h3>
-  <p id="colunasSelecionadasTexto">Nenhuma coluna selecionada.</p>
-  <div id="statsColunasSelecionadas">
-    <!-- Aqui serão exibidos os stats verticais: Green %, Red %, Total Gols, % Greens -->
-  </div>
 </div>
 
     <div class="overflow-x-auto">
@@ -449,10 +431,7 @@ const minutosFixos = [
 let placarSelecionado = localStorage.getItem("placarSelecionado");
 let timeSelecionado = localStorage.getItem("timeSelecionado");
 let oddSelecionada = localStorage.getItem("oddSelecionada");
-
-// Novas variáveis para seleções
-let linhasSelecionadas = []; // Array de chaves de linhas (horas)
-let colunasSelecionadas = []; // Array de índices de minutos
+let selectedChaves = JSON.parse(localStorage.getItem("selectedChaves")) || [];
 
 function showErrorMessage(message) {
   const errorMessageDiv = document.getElementById("errorMessage");
@@ -542,6 +521,7 @@ async function fetchOdds() {
   }
 }
 
+
 async function fetchProximosJogos() {
   try {
     const response = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
@@ -557,6 +537,7 @@ async function fetchProximosJogos() {
     return [];
   }
 }
+
 
 function normalizeString(str) {
   return str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -644,8 +625,7 @@ function getOddValue(odds, resultado) {
     "over3.5": "odds_mais_3_5",
     "under3.5": "odds_menos_3_5",
     over5: "odds_mais_5_gols",
-    // Novos mapeamentos para gols exatos (ajuste se necessário para suas odds reais)
-    exato0: "odds_exato_0_gols", // Assumindo que você tem campos assim no oddsData; ajuste conforme
+    exato0: "odds_exato_0_gols",
     exato1: "odds_exato_1_gol",
     exato2: "odds_exato_2_gols",
     exato3: "odds_exato_3_gols",
@@ -689,169 +669,37 @@ function getDateStr(data) {
   }
 }
 
-// Nova função para atualizar a seção de linhas selecionadas, criando uma tabela duplicada com stats
-function atualizarLinhasSelecionadas() {
-  const texto = document.getElementById("linhasSelecionadasTexto");
-  const tabelaSelecionadas = document.getElementById("tabelaLinhasSelecionadas");
-  tabelaSelecionadas.innerHTML = "";
-  if (linhasSelecionadas.length === 0) {
-    texto.textContent = "Nenhuma linha selecionada.";
-    return;
+function updateSelectedRows() {
+  let selectedContainer = document.getElementById("selectedRowsContainer");
+  const mainTable = document.getElementById("tabelaResultados");
+
+  if (!selectedContainer && mainTable) {
+    selectedContainer = document.createElement("table");
+    selectedContainer.id = "selectedRowsContainer";
+    selectedContainer.className = mainTable.className; // Copia classes para estilo similar
+
+    const thead = mainTable.querySelector("thead").cloneNode(true);
+    selectedContainer.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    selectedContainer.appendChild(tbody);
+
+    mainTable.parentNode.insertBefore(selectedContainer, mainTable);
   }
 
-  texto.textContent = `Linhas selecionadas: ${linhasSelecionadas.map(chave => chave.split('-')[1]).join(", ")}`; // Exibe horas
+  if (selectedContainer) {
+    const selectedTbody = selectedContainer.querySelector("tbody");
+    selectedTbody.innerHTML = "";
 
-  // Calcular stats das linhas selecionadas
-  const totalGolsPorColunaSel = Array(minutosFixos.length).fill(0);
-  const totalAcertosPorColunaSel = Array(minutosFixos.length).fill(0);
-  const totalMercadosPorColunaSel = Array(minutosFixos.length).fill(0);
-
-  // Criar a estrutura da tabela
-  const thead = document.createElement("thead");
-  const tbody = document.createElement("tbody");
-
-  // Linha de Total Gols
-  const linhaTotalGols = document.createElement("tr");
-  linhaTotalGols.innerHTML = "<th>Total Gols</th>";
-  minutosFixos.forEach((min, idx) => {
-    const td = document.createElement("td");
-    td.textContent = `${totalGolsPorColunaSel[idx]}⚽`;
-    linhaTotalGols.appendChild(td);
-  });
-  linhaTotalGols.appendChild(document.createElement("td")); // Espaço para total
-  thead.appendChild(linhaTotalGols);
-
-  // Linha de % Greens (vertical)
-  const linhaPercentual = document.createElement("tr");
-  linhaPercentual.innerHTML = "<th>% Greens</th>";
-  minutosFixos.forEach((min, idx) => {
-    const td = document.createElement("td");
-    td.textContent = "0%";
-    linhaPercentual.appendChild(td);
-  });
-  linhaPercentual.appendChild(document.createElement("td")); // Espaço para média
-  thead.appendChild(linhaPercentual);
-
-  // Linha de Hora/Minuto header
-  const linhaHeader = document.createElement("tr");
-  linhaHeader.innerHTML = "<th>Hora/Minuto</th>";
-  minutosFixos.forEach(min => {
-    const th = document.createElement("th");
-    th.textContent = min;
-    linhaHeader.appendChild(th);
-  });
-  linhaHeader.innerHTML += "<th>Total Gols</th><th>% Greens</th>";
-  thead.appendChild(linhaHeader);
-
-  tabelaSelecionadas.appendChild(thead);
-  tabelaSelecionadas.appendChild(tbody);
-
-  // Adicionar rows selecionadas e calcular stats
-  let totalGolsGeral = 0;
-  let totalAcertosGeral = 0;
-  let totalProcessadasGeral = 0;
-
-  linhasSelecionadas.forEach(chave => {
-    const linhaOriginal = document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`);
-    if (linhaOriginal) {
-      const novaLinha = linhaOriginal.cloneNode(true);
-      tbody.appendChild(novaLinha);
-
-      // Calcular para stats
-      Array.from(linhaOriginal.cells).slice(1, 1 + minutosFixos.length).forEach((cell, idx) => {
-        if (cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
-          totalMercadosPorColunaSel[idx]++;
-          totalProcessadasGeral++;
-          if (cell.style.backgroundColor === "rgb(1, 139, 6)") { // Verde
-            totalAcertosPorColunaSel[idx]++;
-            totalAcertosGeral++;
-          }
-          // Extrair gols
-          const placarTexto = cell.querySelector(".placar-texto")?.innerHTML || "";
-          const matches = placarTexto.match(/\d+/g) || [];
-          const gols = matches.reduce((sum, num) => sum + parseInt(num), 0);
-          totalGolsPorColunaSel[idx] += gols;
-          totalGolsGeral += gols;
-        }
-      });
-    }
-  });
-
-  // Atualizar linha de Total Gols
-  Array.from(linhaTotalGols.cells).slice(1, 1 + minutosFixos.length).forEach((td, idx) => {
-    td.textContent = `${totalGolsPorColunaSel[idx]}⚽`;
-  });
-
-  // Atualizar linha de % Greens
-  Array.from(linhaPercentual.cells).slice(1, 1 + minutosFixos.length).forEach((td, idx) => {
-    const perc = totalMercadosPorColunaSel[idx] > 0 ? Math.floor((totalAcertosPorColunaSel[idx] / totalMercadosPorColunaSel[idx]) * 100) : 0;
-    td.textContent = `${totalAcertosPorColunaSel[idx]} ${perc}%`;
-  });
-
-  // Calcular overall stats
-  const greenPercent = totalProcessadasGeral > 0 ? Math.floor((totalAcertosGeral / totalProcessadasGeral) * 100) : 0;
-  const redPercent = 100 - greenPercent;
-  const mediaGols = (totalGolsGeral / linhasSelecionadas.length).toFixed(1);
-
-  // Adicionar stats gerais acima da tabela
-  const statsDiv = document.createElement("div");
-  statsDiv.innerHTML = `
-    <p>Green: ${greenPercent}%</p>
-    <p>Red: ${redPercent}%</p>
-    <p>Gols: ${totalGolsGeral} ⚽ ${mediaGols}</p>
-    <p>Percentual de Greens Selecionados: ${greenPercent}%</p>
-  `;
-  document.getElementById("linhasSelecionadas").insertBefore(statsDiv, tabelaSelecionadas);
-}
-
-// Nova função para atualizar a seção de colunas selecionadas (cálculo vertical)
-function atualizarColunasSelecionadas() {
-  const texto = document.getElementById("colunasSelecionadasTexto");
-  const statsDiv = document.getElementById("statsColunasSelecionadas");
-  statsDiv.innerHTML = "";
-  if (colunasSelecionadas.length === 0) {
-    texto.textContent = "Nenhuma coluna selecionada.";
-    return;
-  }
-
-  texto.textContent = `Minutos selecionados: ${colunasSelecionadas.map(idx => minutosFixos[idx]).join(", ")}`;
-
-  // Calcular stats verticais das colunas selecionadas
-  const todasLinhas = Array.from(document.querySelector("#tabelaResultados tbody").querySelectorAll("tr"));
-  let totalGols = 0;
-  let totalAcertos = 0;
-  let totalCelsProcessadas = 0;
-
-  colunasSelecionadas.forEach(idx => {
-    let golsColuna = 0;
-    let acertosColuna = 0;
-    let processadasColuna = 0;
-    todasLinhas.forEach(linha => {
-      const cell = linha.cells[1 + idx];
-      if (cell && cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
-        processadasColuna++;
-        if (cell.style.backgroundColor === "rgb(1, 139, 6)") { // #018b06 em RGB
-          acertosColuna++;
-        }
-        const placarTexto = cell.querySelector(".placar-texto")?.textContent.trim() || "";
-        const [a, b] = placarTexto.split(/[\sx()]+/).map(num => parseInt(num) || 0);
-        golsColuna += a + b;
+    selectedChaves.forEach(chave => {
+      const row = document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`);
+      if (row) {
+        const clone = row.cloneNode(true);
+        // Reanexa eventos aos clones se necessário (aqui assumimos display apenas, eventos no principal)
+        selectedTbody.appendChild(clone);
       }
     });
-    totalGols += golsColuna;
-    totalAcertos += acertosColuna;
-    totalCelsProcessadas += processadasColuna;
-  });
-
-  const greenPercent = totalCelsProcessadas > 0 ? Math.floor((totalAcertos / totalCelsProcessadas) * 100) : 0;
-  const redPercent = 100 - greenPercent;
-
-  statsDiv.innerHTML = `
-    <p>Green: ${greenPercent}%</p>
-    <p>Red: ${redPercent}%</p>
-    <p>Total Gols: ${totalGols}</p>
-    <p>Percentual de Greens Selecionados: ${greenPercent}%</p>
-  `;
+  }
 }
 
 function criarTabela(dados, oddsData, proximosJogos) {
@@ -951,22 +799,27 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const hora = item.hora; // Usa a hora do item diretamente
     const novaLinha = document.createElement("tr");
     novaLinha.setAttribute("data-chave", chave);
-    const colunaHora = document.createElement("td");
+
+    // Adiciona coluna de seletor
+    const seletorTd = document.createElement("td");
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-    checkbox.className = "select-linha";
-    checkbox.addEventListener("change", () => {
-      if (checkbox.checked) {
-        linhasSelecionadas.push(chave);
-        novaLinha.classList.add("linha-selecionada");
+    checkbox.className = "row-selector";
+    checkbox.checked = selectedChaves.includes(chave);
+    checkbox.addEventListener("change", function() {
+      if (this.checked) {
+        if (!selectedChaves.includes(chave)) selectedChaves.push(chave);
       } else {
-        linhasSelecionadas = linhasSelecionadas.filter(c => c !== chave);
-        novaLinha.classList.remove("linha-selecionada");
+        selectedChaves = selectedChaves.filter(c => c !== chave);
       }
-      atualizarLinhasSelecionadas();
+      localStorage.setItem("selectedChaves", JSON.stringify(selectedChaves));
+      updateSelectedRows();
     });
-    colunaHora.appendChild(checkbox);
-    colunaHora.appendChild(document.createTextNode(` ${hora.toString().padStart(2, "0")}`));
+    seletorTd.appendChild(checkbox);
+    novaLinha.appendChild(seletorTd);
+
+    const colunaHora = document.createElement("td");
+    colunaHora.textContent = hora.toString().padStart(2, "0");
     novaLinha.appendChild(colunaHora);
     minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
     novaLinha.appendChild(document.createElement("td")).textContent = "0"; // Total gols
@@ -975,21 +828,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
     tabelaBody.appendChild(novaLinha);
     mapeamentoChaveLinha[chave] = novaLinha;
     console.log(`Criada linha para chave: ${chave} com hora: ${hora} (timestamp: ${new Date(item.timestamp).toISOString()})`);
-  });
-
-  // Adicionar event listeners para headers de minutos (clique para selecionar e calcular %)
-  const minuteHeaders = document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header");
-  minuteHeaders.forEach((header, idx) => {
-    header.addEventListener("click", () => {
-      if (colunasSelecionadas.includes(idx)) {
-        colunasSelecionadas = colunasSelecionadas.filter(i => i !== idx);
-        header.classList.remove("coluna-selecionada");
-      } else {
-        colunasSelecionadas.push(idx);
-        header.classList.add("coluna-selecionada");
-      }
-      atualizarColunasSelecionadas();
-    });
   });
 
   function handlePlacarClick(event) {
@@ -1050,7 +888,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     if (linha && !processedMatches.has(matchKey)) {
       const indexMinuto = minutosFixos.indexOf(dado.minuto);
       if (indexMinuto !== -1) {
-        const colunaMinuto = linha.children[1 + indexMinuto];
+        const colunaMinuto = linha.children[2 + indexMinuto]; // Ajuste pelo seletor (índice 0: seletor, 1: hora, 2+: minutos)
 
         if (!colunaMinuto.querySelector(".placar")) {
           const placar = document.createElement("div");
@@ -1210,7 +1048,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
       if (!resultadoExistente) {
         const indexMinuto = minutosFixos.indexOf(jogo.minuto);
         if (indexMinuto !== -1) {
-          const colunaMinuto = linha.children[1 + indexMinuto];
+          const colunaMinuto = linha.children[2 + indexMinuto]; // Ajuste pelo seletor
           if (!colunaMinuto.querySelector(".placar")) {
             console.log(`Adicionando jogo futuro: ${jogo.team_home} vs ${jogo.team_visit} em ${chave} minuto ${jogo.minuto}`);
             const placar = document.createElement("div");
@@ -1295,7 +1133,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const todasLinhas = Array.from(tabelaBody.querySelectorAll("tr"));
   todasLinhas.forEach((row) => {
     const totalCelsProcessadas = Array.from(row.cells)
-      .slice(1, -3)
+      .slice(2, -3) // Ajuste pelo seletor (índice 0: seletor, 1: hora, 2+: minutos)
       .filter((cell) => cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")).length;
     const celsMercado = parseInt(
       row.children[row.children.length - 2].textContent
@@ -1322,7 +1160,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   todasLinhas.forEach((row) => {
     Array.from(row.cells)
-      .slice(1, -3)
+      .slice(2, -3) // Ajuste pelo seletor
       .forEach((cell, index) => {
         // Conta só placares passados (não futuros ou vazios)
         if (cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
@@ -1358,8 +1196,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
     linhaPercentual.appendChild(emptyCell);
   }
 
-  const minuteHeaders2 = document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header");
-  minuteHeaders2.forEach(header => {
+  const minuteHeaders = document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header");
+  minuteHeaders.forEach(header => {
     header.style.backgroundColor = "#2c303b";
   });
 
@@ -1377,9 +1215,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     selecionarOddsIguais(oddSelecionada);
   }
 
-  // Atualizar seções de selecionadas após criar a tabela
-  atualizarLinhasSelecionadas();
-  atualizarColunasSelecionadas();
+  updateSelectedRows();
 }
 
 async function buscarDados() {
