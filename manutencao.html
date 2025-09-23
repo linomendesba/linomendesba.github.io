@@ -521,7 +521,6 @@ async function fetchOdds() {
   }
 }
 
-
 async function fetchProximosJogos() {
   try {
     const response = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
@@ -530,14 +529,12 @@ async function fetchProximosJogos() {
     }
     const jogos = await response.json();
     console.log("Próximos jogos fetched para:", LIGA_ATUAL, jogos);
-    // Exemplo: pegar apenas os 6 próximos jogos
     return jogos.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 6);
   } catch (error) {
     console.error("Erro ao buscar próximos jogos:", error);
     return [];
   }
 }
-
 
 function normalizeString(str) {
   return str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -563,7 +560,6 @@ function findOddsForMatch(match, oddsData) {
   const matchTime = `${match.hora.toString().padStart(2, "0")}:${match.minuto.toString().padStart(2, "0")}`;
   const teamMapping = {
     "peixe": "boca",
-    // Add other mappings as needed
   };
   const matchTimeA = normalizeString(teamMapping[match.time_a.toLowerCase()] || match.time_a);
   const matchTimeB = normalizeString(teamMapping[match.time_b.toLowerCase()] || match.time_b);
@@ -677,11 +673,12 @@ function updateSelectedRows() {
     selectedContainer = document.createElement("table");
     selectedContainer.id = "selectedRowsContainer";
     selectedContainer.className = mainTable.className; // Copia classes para estilo similar
+    selectedContainer.style.width = mainTable.style.width || "100%"; // Garante a mesma largura
 
     const thead = mainTable.querySelector("thead").cloneNode(true);
     // Remover a coluna de seletor do thead clonado
     const theadTr = thead.querySelector("tr");
-    if (theadTr) {
+    if (theadTr && theadTr.firstChild.className === "selector-header") {
       theadTr.removeChild(theadTr.firstChild);
     }
     selectedContainer.appendChild(thead);
@@ -705,7 +702,9 @@ function updateSelectedRows() {
         if (row) {
           const clone = row.cloneNode(true);
           // Remover a coluna de seletor do clone
-          clone.removeChild(clone.firstChild);
+          if (clone.firstChild.className === "row-selector") {
+            clone.removeChild(clone.firstChild);
+          }
           selectedTbody.appendChild(clone);
         }
       });
@@ -729,6 +728,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   if (theadTr && !theadTr.querySelector(".selector-header")) {
     const selectTh = document.createElement("th");
     selectTh.className = "selector-header";
+    selectTh.style.width = "30px"; // Define uma largura fixa para o seletor
     theadTr.insertBefore(selectTh, theadTr.firstChild);
   }
 
@@ -755,16 +755,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   const horasSelecionadas = parseInt(seletorHoras.value) || 12;
 
-  // Ordena os dados passados por data-hora descendente (mantém a ordenação original)
   dados.sort((a, b) => {
     const dateStrA = getDateStr(a.data);
     const dateStrB = getDateStr(b.data);
     const dataHoraA = new Date(`${dateStrA}T${a.hora.toString().padStart(2, "0")}:${a.minuto.toString().padStart(2, "0")}:00`).getTime();
     const dataHoraB = new Date(`${dateStrB}T${b.hora.toString().padStart(2, "0")}:${b.minuto.toString().padStart(2, "0")}:00`).getTime();
-    return dataHoraB - dataHoraA; // Descendente diretamente
+    return dataHoraB - dataHoraA;
   });
 
-  // Processa proximosJogos e ordena descendente por start_time
   const proximosJogosComHoras = proximosJogos.map(jogo => {
     const [horaStr, minutoStr] = jogo.time.split(":");
     const hora = parseInt(horaStr, 10);
@@ -774,34 +772,28 @@ function criarTabela(dados, oddsData, proximosJogos) {
     );
     const date = new Date(jogo.start_time);
     return { ...jogo, time: jogo.time, date, hora, minuto: closestMinute, team_visitante: jogo.team_visit };
-  }).sort((a, b) => new Date(b.start_time) - new Date(a.start_time)); // Descendente: mais futuro/recente primeiro
+  }).sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
 
   console.log("Próximos jogos processados:", proximosJogosComHoras);
 
-  // Coletar todas as horas únicas considerando tanto dados quanto próximos jogos
   const todasHorasComTimestamp = new Set();
-
-  // Adiciona horas de proximosJogos (futuros)
   proximosJogosComHoras.forEach(jogo => {
     const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
     const timestamp = new Date(`${dataStr}T${jogo.hora.toString().padStart(2, "0")}:00:00`).getTime();
     todasHorasComTimestamp.add(JSON.stringify({ hora: jogo.hora, timestamp, data: dataStr }));
   });
 
-  // Adiciona horas de dados (passados)
   dados.forEach(dado => {
     const dateStr = getDateStr(dado.data);
     const timestamp = new Date(`${dateStr}T${dado.hora.toString().padStart(2, "0")}:00:00`).getTime();
     todasHorasComTimestamp.add(JSON.stringify({ hora: dado.hora, timestamp, data: dateStr }));
   });
 
-  // Converte para array, remove duplicatas, ordena por timestamp descendente e limita
   const horasUnicas = Array.from(todasHorasComTimestamp)
     .map(str => JSON.parse(str))
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, horasSelecionadas);
 
-  // Cria chaves baseadas em hora-timestamp para evitar conflitos
   const chavesOrdenadas = horasUnicas.map(item => ({
     chave: `${item.data}-${item.hora}`,
     timestamp: item.timestamp,
@@ -809,17 +801,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
     data: item.data
   }));
 
-  // Cria mapeamento vazio
   const mapeamentoChaveLinha = {};
 
-  // Cria linhas na ordem das chaves ordenadas
   chavesOrdenadas.forEach(item => {
     const chave = item.chave;
-    const hora = item.hora; // Usa a hora do item diretamente
+    const hora = item.hora;
     const novaLinha = document.createElement("tr");
     novaLinha.setAttribute("data-chave", chave);
 
-    // Adiciona coluna de seletor
     const seletorTd = document.createElement("td");
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
@@ -840,7 +829,11 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const colunaHora = document.createElement("td");
     colunaHora.textContent = hora.toString().padStart(2, "0");
     novaLinha.appendChild(colunaHora);
-    minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
+    minutosFixos.forEach(() => {
+      const td = document.createElement("td");
+      td.style.width = `${100 / minutosFixos.length}%`; // Distribui largura igualmente
+      novaLinha.appendChild(td);
+    });
     novaLinha.appendChild(document.createElement("td")).textContent = "0"; // Total gols
     novaLinha.appendChild(document.createElement("td")).textContent = "0"; // Acertos
     novaLinha.appendChild(document.createElement("td")).textContent = "0%"; // Porcentagem
@@ -1067,7 +1060,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
       if (!resultadoExistente) {
         const indexMinuto = minutosFixos.indexOf(jogo.minuto);
         if (indexMinuto !== -1) {
-          const colunaMinuto = linha.children[2 + indexMinuto]; // 0: selector, 1: hora, 2+: minutos
+          const colunaMinuto = linha.children[2 + indexMinuto];
           if (!colunaMinuto.querySelector(".placar")) {
             console.log(`Adicionando jogo futuro: ${jogo.team_home} vs ${jogo.team_visit} em ${chave} minuto ${jogo.minuto}`);
             const placar = document.createElement("div");
@@ -1112,7 +1105,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
             if (timeSelecionado && mostrarTimes && (jogo.team_home === timeSelecionado || jogo.team_visit === timeSelecionado)) {
               placar.classList.add("time-selecionado");
             }
-
           }
         } else {
           console.warn(`Minuto ${jogo.minuto} não encontrado em minutosFixos para jogo ${jogo.team_home} vs ${jogo.team_visit}`);
@@ -1181,7 +1173,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
     Array.from(row.cells)
       .slice(2, -3) // 0: selector, 1: hora, 2+: minutos
       .forEach((cell, index) => {
-        // Conta só placares passados (não futuros ou vazios)
         if (cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
           totalMercadosPorColuna[index]++;
         }
@@ -1216,6 +1207,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const minuteHeaders = document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header");
   minuteHeaders.forEach(header => {
     header.style.backgroundColor = "#2c303b";
+    header.style.width = `${100 / minutosFixos.length}%`; // Alinha a largura das colunas de minutos
   });
 
   const stats = calculateGoalStats(todasLinhas);
