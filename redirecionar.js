@@ -13,6 +13,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/estrelaprojecoes.html" ||
     url === "https://www.betstat.site/kironft.html" ||
     url === "https://www.betstat.site/betsodds.html" ||
+    url === "https://www.betstat.site/estrelasequencia.html" ||
     url === "https://www.betstat.site/estrelaequipes.html" ||
     url === "https://www.betstat.site/betstimes.html" ||
     url === "https://www.betstat.site/kironprojecao.html" ||
