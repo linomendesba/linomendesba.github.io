@@ -1,0 +1,919 @@
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+        <link rel="stylesheet" href="style.css" />
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"
+        ></script>
+        <title>BetStat</title>
+        <!-- Meta tags SEO principais -->
+        <meta
+          name="description"
+          content="Transforme suas apostas com BetStat - a única plataforma especializada em futebol virtual Betano. Análises precisas, estatísticas confiáveis e resultados comprovados para investimentos inteligentes."
+        />
+        <meta
+          name="keywords"
+          content="BetStat, apostas esportivas, futebol virtual, Betano, estatísticas apostas, análise apostas, investimentos esportivos"
+        />
+    
+        <!-- Open Graph meta tags para redes sociais -->
+        <meta
+          property="og:title"
+          content="BetStat | Plataforma de Análise para Apostas Esportivas"
+        />
+        <meta
+          property="og:description"
+          content="Transforme suas apostas com análises precisas e estatísticas confiáveis. A única plataforma especializada em futebol virtual Betano."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.betstat.site/payment.html" />
+        <meta property="og:site_name" content="BetStat" />
+    
+        <!-- Meta tags adicionais -->
+        <meta name="robots" content="index, follow" />
+        <meta name="author" content="BetStat" />
+        <meta name="canonical" href="https://www.betstat.site/payment.html" />
+        <script type="module" src="js/firebase-auth.js"></script>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag() {
+            dataLayer.push(arguments);
+          }
+          gtag("js", new Date());
+    
+          gtag("config", "G-4WT805FFHQ");
+        </script>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+
+      <style>
+        .table-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-bottom: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+table {
+  width: 100%;
+  max-width: 6000px;
+  border-collapse: collapse;
+  font-size: 12px;
+  background-color: black;
+  color: white;
+}
+th, td {
+  border: 1px solid white;
+  font-family: Arial, sans-serif;
+  padding: 10px;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+}
+th {
+  background-color: #000000;
+}
+.green {
+  background-color: #4b9d31;
+}
+.red {
+  background-color: #f31313;
+}
+h2 {
+  text-align: center;
+  font-size: 14px;
+}
+.control-panel {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.chart-container {
+  position: relative;
+  height: 600px;
+  width: 100%;
+}
+
+  
+  #marketAverageSelector {
+    display: block;
+    margin: 10px auto;
+    text-align: center;
+  }
+
+  #marketAverageSelector option {
+    text-align: center;
+  }
+      </style>
+
+  <body>
+    <body>
+      <div id="header"></div>
+
+    <br><br>
+
+    <select id="campeonatoSelector" style="margin: 10px;">
+        <option value="estrela">Estrela</option>
+      </select>
+      
+      <select id="pointsSelector" style="margin: 10px;">
+        <option value="200">10 Horas</option>
+        <option value="220">11 Horas</option>
+        <option value="240">12 Horas</option>
+        <option value="480">24 Horas</option>
+        <option value="960">48 Horas</option>
+        <option value="1440">72 Horas</option>
+      </select>
+
+      <select id="averageSelector" style="margin: 10px;">
+        <option value="20">Média 20 Jogos</option>
+      </select>
+      
+      
+      <label for="marketAverageSelector"></label>
+      <select id="marketAverageSelector" style="margin: 10px;">
+        <option value="ambasMarcam">Equilíbrio: Ambas Sim</option>
+        <option value="ambasnaoMarcam">Equilíbrio: Ambas não</option>
+        <option value="over25">Equilíbrio: Over 2.5</option>
+        <option value="over35">Equilíbrio: Over 3.5</option>
+        <option value="under15">Equilíbrio: Under 1.5</option>
+        <option value="mais5">Equilíbrio: 5+</option>
+        <option value="casavence">Equilíbrio: Casa Vence</option>
+        <option value="foravence">Equilíbrio: Fora Vence</option>
+      </select>
+      
+      <div class="chart-container">
+        <canvas id="statsChart"></canvas>
+      </div>
+
+    <script>
+let currentCampeonato = 'Euro';
+let numPoints = 200;
+let averagePoints = 20; 
+let selectedMarket = 'ambasMarcam';
+let statsChart = null;
+
+let statsChartVisibleDatasets = {
+  'Ambas Marcam': true,
+  'Ambas não Marcam': false,
+  'Over 1.5': false,
+  'Over 2.5': true,
+  'Over 3.5': false,
+  'Under 1.5': false,
+  'Under 2.5': false,
+  'Under 3.5': false,
+  'Gols FT': false,
+  'Gols HT': false,
+  '5+': false,
+  'Casa Vence': false,
+  'Fora Vence': false,
+  'Equilíbrio': true
+};
+
+function fetchAPIData(campeonato) {
+  return fetch(`https://betstat.site/resultados/estrela/${campeonato}`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .catch(error => {
+      console.error(`Erro ao buscar dados da API: ${error}`);
+      return [];
+    });
+}
+
+function processAPIData(data) {
+  // Pega os últimos 'numPoints' jogos
+  const limitedData = data.slice(-numPoints);
+  
+  console.log('Dados da API:', limitedData);
+  
+  // Inicializa arrays para armazenar os dados processados
+  const labels = [];
+  const ambasMarcam = [];
+  const ambasMarcamCount = [];
+  const ambasnaoMarcam = [];
+  const ambasnaoMarcamCount = [];
+  const over15 = [];
+  const over15Count = [];
+  const over25 = [];
+  const over25Count = [];
+  const over35 = [];
+  const over35Count = [];
+  const under15 = [];
+  const under15Count = [];
+  const under25 = [];
+  const under25Count = [];
+  const under35 = [];
+  const under35Count = [];
+  const golsFT = [];
+  const golsFTTotal = [];
+  const golsHT = [];
+  const golsHTTotal = [];
+  const mais5 = [];
+  const mais5Count = [];
+  const casavence = [];
+  const casavenceCount = [];
+  const foravence = [];
+  const foravenceCount = [];
+  const gamesPerHour = [];
+  
+  // Agrupa os dados por hora
+  const hourData = {};
+  
+  limitedData.forEach(game => {
+    // Extrai a data e hora do jogo
+    const gameDate = new Date(game.data);
+    const formattedDate = `${gameDate.getDate()}/${gameDate.getMonth() + 1}`;
+    const hour = game.hora;
+    
+    // Cria uma chave única para cada hora/dia
+    const hourKey = `${formattedDate} ${hour}`;
+    
+    if (!hourData[hourKey]) {
+      hourData[hourKey] = {
+        ambasMarcam: 0,
+        ambasnaoMarcam: 0,
+        over15: 0,
+        over25: 0,
+        over35: 0,
+        under15: 0,
+        under25: 0,
+        under35: 0,
+        golsFTSum: 0,
+        golsHTSum: 0,
+        mais5: 0,
+        casavence: 0,
+        foravence: 0,
+        count: 0
+      };
+    }
+    
+    // Incrementa o contador
+    hourData[hourKey].count++;
+    
+    // Processa o placar do jogo (FT e HT)
+    if (game.ft) {
+      const ftScores = game.ft.split(' x ');
+      if (ftScores.length === 2) {
+        const homeGoalsFT = parseInt(ftScores[0]) || 0;
+        const awayGoalsFT = parseInt(ftScores[1]) || 0;
+        const totalGoalsFT = homeGoalsFT + awayGoalsFT;
+        
+        // Atualiza as estatísticas para FT
+        if (homeGoalsFT > 0 && awayGoalsFT > 0) {
+          hourData[hourKey].ambasMarcam++;
+        } else {
+          hourData[hourKey].ambasnaoMarcam++;
+        }
+        
+        if (totalGoalsFT > 1.5) {
+          hourData[hourKey].over15++;
+        }
+        
+        if (totalGoalsFT > 2.5) {
+          hourData[hourKey].over25++;
+        }
+        
+        if (totalGoalsFT > 3.5) {
+          hourData[hourKey].over35++;
+        }
+        
+        if (totalGoalsFT < 1.5) {
+          hourData[hourKey].under15++;
+        }
+        
+        if (totalGoalsFT < 2.5) {
+          hourData[hourKey].under25++;
+        }
+        
+        if (totalGoalsFT < 3.5) {
+          hourData[hourKey].under35++;
+        }
+        
+        if (totalGoalsFT > 4) {
+          hourData[hourKey].mais5++;
+        }
+        
+        if (homeGoalsFT > awayGoalsFT) {
+          hourData[hourKey].casavence++;
+        }
+        
+        if (awayGoalsFT > homeGoalsFT) {
+          hourData[hourKey].foravence++;
+        }
+        
+        // Soma os gols FT
+        hourData[hourKey].golsFTSum += totalGoalsFT;
+      }
+    }
+    
+    // Processa o placar do intervalo (HT)
+    if (game.ht && game.ht !== 'OUT' && game.ht.includes(' x ')) {
+      const htScores = game.ht.split(' x ');
+      if (htScores.length === 2) {
+        const homeGoalsHT = parseInt(htScores[0]) || 0;
+        const awayGoalsHT = parseInt(htScores[1]) || 0;
+        const totalGoalsHT = homeGoalsHT + awayGoalsHT;
+        
+        // Soma os gols HT
+        hourData[hourKey].golsHTSum += totalGoalsHT;
+      }
+    }
+  });
+  
+  // Converte os dados agregados para arrays para o gráfico
+  const sortedHours = Object.keys(hourData).sort((a, b) => {
+    const [dateA, hourA] = a.split(' ');
+    const [dateB, hourB] = b.split(' ');
+    
+    // Primeiro compara as datas
+    if (dateA !== dateB) {
+      const [dayA, monthA] = dateA.split('/').map(Number);
+      const [dayB, monthB] = dateB.split('/').map(Number);
+      
+      if (monthA !== monthB) return monthA - monthB;
+      return dayA - dayB;
+    }
+    
+    // Se as datas forem iguais, compara as horas
+    return parseInt(hourA) - parseInt(hourB);
+  });
+  
+  sortedHours.forEach(hour => {
+    const dataForHour = hourData[hour];
+    const gamesInHour = dataForHour.count;
+    
+    if (gamesInHour > 0) {
+      labels.push(hour);
+      
+      // Calcula as porcentagens e armazena as quantidades para Over, Under, etc.
+      ambasMarcam.push((dataForHour.ambasMarcam / gamesInHour) * 100);
+      ambasMarcamCount.push(dataForHour.ambasMarcam);
+      ambasnaoMarcam.push((dataForHour.ambasnaoMarcam / gamesInHour) * 100);
+      ambasnaoMarcamCount.push(dataForHour.ambasnaoMarcam);
+      over15.push((dataForHour.over15 / gamesInHour) * 100);
+      over15Count.push(dataForHour.over15);
+      over25.push((dataForHour.over25 / gamesInHour) * 100);
+      over25Count.push(dataForHour.over25);
+      over35.push((dataForHour.over35 / gamesInHour) * 100);
+      over35Count.push(dataForHour.over35);
+      under15.push((dataForHour.under15 / gamesInHour) * 100);
+      under15Count.push(dataForHour.under15);
+      under25.push((dataForHour.under25 / gamesInHour) * 100);
+      under25Count.push(dataForHour.under25);
+      under35.push((dataForHour.under35 / gamesInHour) * 100);
+      under35Count.push(dataForHour.under35);
+      mais5.push((dataForHour.mais5 / gamesInHour) * 100);
+      mais5Count.push(dataForHour.mais5);
+      casavence.push((dataForHour.casavence / gamesInHour) * 100);
+      casavenceCount.push(dataForHour.casavence);
+      foravence.push((dataForHour.foravence / gamesInHour) * 100);
+      foravenceCount.push(dataForHour.foravence);
+      
+      // Calcula as médias e armazena os totais para Gols FT e Gols HT
+      golsFT.push(dataForHour.golsFTSum / gamesInHour);
+      golsFTTotal.push(dataForHour.golsFTSum);
+      golsHT.push(dataForHour.golsHTSum / gamesInHour);
+      golsHTTotal.push(dataForHour.golsHTSum);
+      
+      // Armazena o número de jogos por hora
+      gamesPerHour.push(gamesInHour);
+    }
+  });
+  
+  console.log('Labels processados:', labels);
+  console.log('Ambas Marcam processados:', ambasMarcam);
+  
+  return {
+    labels: labels,
+    ambasMarcam: ambasMarcam,
+    ambasMarcamCount: ambasMarcamCount,
+    ambasnaoMarcam: ambasnaoMarcam,
+    ambasnaoMarcamCount: ambasnaoMarcamCount,
+    over15: over15,
+    over15Count: over15Count,
+    over25: over25,
+    over25Count: over25Count,
+    over35: over35,
+    over35Count: over35Count,
+    under15: under15,
+    under15Count: under15Count,
+    under25: under25,
+    under25Count: under25Count,
+    under35: under35,
+    under35Count: under35Count,
+    golsFT: golsFT,
+    golsFTTotal: golsFTTotal,
+    golsHT: golsHT,
+    golsHTTotal: golsHTTotal,
+    mais5: mais5,
+    mais5Count: mais5Count,
+    casavence: casavence,
+    casavenceCount: casavenceCount,
+    foravence: foravence,
+    foravenceCount: foravenceCount,
+    gamesPerHour: gamesPerHour
+  };
+}
+
+function calculateAverage(data) {
+  const filteredData = data.filter(val => !isNaN(val));
+  if (filteredData.length === 0) return 0;
+  const total = filteredData.reduce((acc, val) => acc + val, 0);
+  return total / filteredData.length;
+}
+
+function createStatsChart(ctx, labels, data) {
+  // Calcula o valor médio para a linha de equilíbrio
+  const marketDataMap = {
+    'ambasMarcam': data.ambasMarcam,
+    'ambasnaoMarcam': data.ambasnaoMarcam,
+    'over15': data.over15,
+    'over25': data.over25,
+    'over35': data.over35,
+    'under15': data.under15,
+    'under25': data.under25,
+    'under35': data.under35,
+    'golsFT': data.golsFT,
+    'golsHT': data.golsHT,
+    'mais5': data.mais5,
+    'casavence': data.casavence,
+    'foravence': data.foravence
+  };
+  
+  const averageValue = calculateAverage(marketDataMap[selectedMarket]);
+  const averageLineData = new Array(labels.length).fill(averageValue);
+
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Ambas Marcam',
+          data: data.ambasMarcam,
+          borderColor: 'rgba(0, 255, 0, 1)', // Verde neon
+          backgroundColor: 'rgba(0, 255, 0, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Ambas Marcam'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(0, 255, 0, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Ambas não Marcam',
+          data: data.ambasnaoMarcam,
+          borderColor: 'rgba(255, 0, 255, 1)', // Rosa neon
+          backgroundColor: 'rgba(255, 0, 255, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Ambas não Marcam'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 0, 255, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Over 1.5',
+          data: data.over15,
+          borderColor: 'rgba(0, 191, 255, 1)', // Azul claro neon
+          backgroundColor: 'rgba(0, 191, 255, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Over 1.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(0, 191, 255, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Over 2.5',
+          data: data.over25,
+          borderColor: 'rgba(0, 255, 255, 1)', // Azul neon
+          backgroundColor: 'rgba(0, 255, 255, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Over 2.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(0, 255, 255, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Over 3.5',
+          data: data.over35,
+          borderColor: 'rgba(255, 165, 0, 1)', // Laranja neon
+          backgroundColor: 'rgba(255, 165, 0, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Over 3.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 165, 0, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Under 1.5',
+          data: data.under15,
+          borderColor: 'rgba(255, 20, 147, 1)', // Rosa choque neon
+          backgroundColor: 'rgba(255, 20, 147, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Under 1.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 20, 147, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Under 2.5',
+          data: data.under25,
+          borderColor: 'rgba(138, 43, 226, 1)', // Roxo neon
+          backgroundColor: 'rgba(138, 43, 226, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Under 2.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(138, 43, 226, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Under 3.5',
+          data: data.under35,
+          borderColor: 'rgba(75, 0, 130, 1)', // Índigo neon
+          backgroundColor: 'rgba(75, 0, 130, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Under 3.5'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(75, 0, 130, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Gols FT',
+          data: data.golsFT,
+          borderColor: 'rgba(255, 255, 0, 1)', // Amarelo neon
+          backgroundColor: 'rgba(255, 255, 0, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Gols FT'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 255, 0, 1)',
+          tension: 0.4,
+          yAxisID: 'y-gols'
+        },
+        {
+          label: 'Gols HT',
+          data: data.golsHT,
+          borderColor: 'rgba(50, 205, 50, 1)', // Verde limão neon
+          backgroundColor: 'rgba(50, 205, 50, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Gols HT'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(50, 205, 50, 1)',
+          tension: 0.4,
+          yAxisID: 'y-gols'
+        },
+        {
+          label: '5+',
+          data: data.mais5,
+          borderColor: 'rgba(255, 69, 0, 1)', // Vermelho neon
+          backgroundColor: 'rgba(255, 69, 0, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['5+'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 69, 0, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Casa Vence',
+          data: data.casavence,
+          borderColor: 'rgba(255, 105, 180, 1)', // Rosa neon claro
+          backgroundColor: 'rgba(255, 105, 180, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Casa Vence'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(255, 105, 180, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Fora Vence',
+          data: data.foravence,
+          borderColor: 'rgba(34, 193, 195, 1)', // Cores neon mescladas
+          backgroundColor: 'rgba(34, 193, 195, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          hidden: !statsChartVisibleDatasets['Fora Vence'],
+          pointRadius: 6,
+          pointBackgroundColor: 'rgba(34, 193, 195, 1)',
+          tension: 0.4,
+          yAxisID: 'y-percent'
+        },
+        {
+          label: 'Equilíbrio',
+          data: averageLineData,
+          borderColor: 'rgba(255, 255, 255, 0.5)',
+          borderWidth: 2,
+          borderDash: [5, 5],
+          fill: false,
+          pointRadius: 0,
+          hidden: !statsChartVisibleDatasets['Equilíbrio'],
+          yAxisID: selectedMarket === 'golsFT' || selectedMarket === 'golsHT' ? 'y-gols' : 'y-percent'
+        }
+      ]
+    },
+    options: {
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: {
+            color: 'white'
+          },
+          onClick: function(e, legendItem, legend) {
+            const dataset = legendItem.datasetIndex;
+            const ci = legend.chart;
+            const meta = ci.getDatasetMeta(dataset);
+            meta.hidden = !meta.hidden;
+            statsChartVisibleDatasets[legendItem.text] = !meta.hidden;
+            ci.update();
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(tooltipItem) {
+              const datasetLabel = tooltipItem.dataset.label;
+              const index = tooltipItem.dataIndex;
+              const games = data.gamesPerHour[index];
+              
+              if (datasetLabel === 'Gols FT') {
+                const avgGols = tooltipItem.raw.toFixed(2);
+                const totalGols = data.golsFTTotal[index];
+                return `${datasetLabel}: ${avgGols} gols (Total: ${totalGols} gols)`;
+              } else if (datasetLabel === 'Gols HT') {
+                const avgGols = tooltipItem.raw.toFixed(2);
+                const totalGols = data.golsHTTotal[index];
+                return `${datasetLabel}: ${avgGols} gols (Total: ${totalGols} gols)`;
+              } else if (datasetLabel === 'Equilíbrio') {
+                if (selectedMarket === 'golsFT' || selectedMarket === 'golsHT') {
+                  return `${datasetLabel}: ${tooltipItem.raw.toFixed(2)} gols`;
+                } else {
+                  return `${datasetLabel}: ${tooltipItem.raw.toFixed(1)}%`;
+                }
+              } else {
+                const percent = tooltipItem.raw.toFixed(1);
+                let count;
+                switch (datasetLabel) {
+                  case 'Ambas Marcam':
+                    count = data.ambasMarcamCount[index];
+                    break;
+                  case 'Ambas não Marcam':
+                    count = data.ambasnaoMarcamCount[index];
+                    break;
+                  case 'Over 1.5':
+                    count = data.over15Count[index];
+                    break;
+                  case 'Over 2.5':
+                    count = data.over25Count[index];
+                    break;
+                  case 'Over 3.5':
+                    count = data.over35Count[index];
+                    break;
+                  case 'Under 1.5':
+                    count = data.under15Count[index];
+                    break;
+                  case 'Under 2.5':
+                    count = data.under25Count[index];
+                    break;
+                  case 'Under 3.5':
+                    count = data.under35Count[index];
+                    break;
+                  case '5+':
+                    count = data.mais5Count[index];
+                    break;
+                  case 'Casa Vence':
+                    count = data.casavenceCount[index];
+                    break;
+                  case 'Fora Vence':
+                    count = data.foravenceCount[index];
+                    break;
+                  default:
+                    count = 0;
+                }
+                return `${datasetLabel}: ${percent}% (${count} de ${games} jogos)`;
+              }
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: {
+            display: true,
+            text: 'Data e Hora',
+            color: 'white'
+          },
+          ticks: {
+            color: 'white',
+            maxRotation: 45,
+            minRotation: 45
+          }
+        },
+        'y-percent': {
+          position: 'left',
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Percentual (%)',
+            color: 'white'
+          },
+          ticks: {
+            color: 'white'
+          }
+        },
+        'y-gols': {
+          position: 'right',
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Média de Gols',
+            color: 'white'
+          },
+          ticks: {
+            color: 'white'
+          },
+          grid: {
+            drawOnChartArea: false // Evita que o grid do eixo direito sobreponha o do eixo esquerdo
+          }
+        }
+      },
+      maintainAspectRatio: false
+    }
+  });
+}
+
+function updateCharts() {
+  fetchAPIData(currentCampeonato)
+    .then(data => {
+      const processedData = processAPIData(data);
+      
+      if (statsChart) statsChart.destroy();
+      
+      const ctxStats = document.getElementById('statsChart').getContext('2d');
+      statsChart = createStatsChart(ctxStats, processedData.labels, processedData);
+    })
+    .catch(error => {
+      console.error('Erro ao atualizar gráficos:', error);
+      alert('Erro ao carregar dados. Verifique se o servidor está rodando em https://betstat.site/api/resultados/');
+    });
+}
+
+document.getElementById('campeonatoSelector').addEventListener('change', function(e) {
+  currentCampeonato = e.target.value;
+  updateCharts();
+});
+
+document.getElementById('pointsSelector').addEventListener('change', function(e) {
+  numPoints = parseInt(e.target.value);
+  updateCharts();
+});
+
+document.getElementById('averageSelector').addEventListener('change', function(e) {
+  averagePoints = parseInt(e.target.value);
+  updateCharts();
+});
+
+document.getElementById('marketAverageSelector').addEventListener('change', function() {
+  selectedMarket = this.value;
+  updateCharts();
+});
+
+window.addEventListener('DOMContentLoaded', function() {
+  updateCharts();
+});
+    </script>
+
+
+<script>
+  fetch('header.html')
+    .then(response => response.text())
+    .then(data => {
+      document.getElementById('header').innerHTML = data;
+    });
+</script>
+<script src="redirecionar.js"></script>
+
+<script>
+      // Bloqueia o menu de contexto (clique direito)
+      document.addEventListener("contextmenu", function(e) {
+    e.preventDefault();
+});
+
+// Bloqueia atalhos de teclado comuns para ferramentas de desenvolvimento
+document.addEventListener("keydown", function(e) {
+    // F12
+    if (e.key === "F12") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + I
+    if (e.ctrlKey && e.shiftKey && e.key === "I") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + U (ver código fonte)
+    if (e.ctrlKey && e.key === "u") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + J (console)
+    if (e.ctrlKey && e.shiftKey && e.key === "J") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + Shift + C (inspeção de elementos)
+    if (e.ctrlKey && e.shiftKey && e.key === "C") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + S (salvar página)
+    if (e.ctrlKey && e.key === "s") {
+        e.preventDefault();
+    }
+    
+    // Ctrl + P (imprimir)
+    if (e.ctrlKey && e.key === "p") {
+        e.preventDefault();
+    }
+});
+
+// Detecta abertura de ferramentas de desenvolvimento
+const devtools = { open: false };
+const element = new Image();
+Object.defineProperty(element, 'id', {
+    get: function () {
+        devtools.open = true;
+    }
+});
+
+// Adiciona detecção alternativa de devtools
+(function() {
+    const threshold = 160;
+    const checkDevTools = function() {
+        if ((window.outerWidth - window.innerWidth) > threshold || 
+            (window.outerHeight - window.innerHeight) > threshold) {
+            devtools.open = true;
+        }
+    };
+    
+    window.addEventListener('resize', checkDevTools);
+    setInterval(checkDevTools, 500);
+})();
+
+// Monitoramento contínuo
+console.log('%c', element);
+setInterval(function() {
+    if (devtools.open) {
+        document.body.innerHTML = '<h1>Acesso não autorizado detectado</h1>';
+        // Ou redirecionar:
+        // window.location.href = 'about:blank';
+        devtools.open = false;
+    }
+}, 1000);
+
+// Impede seleção de texto
+document.addEventListener('selectstart', function(e) {
+    e.preventDefault();
+});
+
+// Impede arrastar e soltar
+document.addEventListener('dragstart', function(e) {
+    e.preventDefault();
+});
+
+// Ofusca console
+console.log = function() {};
+console.debug = function() {};
+console.info = function() {};
+  </script>
+  </body>
+</html>
