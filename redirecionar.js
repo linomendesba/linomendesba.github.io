@@ -11,6 +11,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/multkiron.html" ||
     url === "https://www.betstat.site/kironft.html" ||
     url === "https://www.betstat.site/betsodds.html" ||
+    url === "https://www.betstat.site/estrelaequipes.html" ||
     url === "https://www.betstat.site/betstimes.html" ||
     url === "https://www.betstat.site/kironprojecao.html" ||
     url === "https://www.betstat.site/kironradar.html" ||
