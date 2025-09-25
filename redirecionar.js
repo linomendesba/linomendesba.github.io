@@ -9,8 +9,16 @@ function redirecionar(select) {
     url === "gestao.html" ||
     url === "https://www.betstat.site/tv/" ||
     url === "https://www.betstat.site/multkiron.html" ||
+    url === "https://www.betstat.site/estrelapalpite.html" ||
+    url === "https://www.betstat.site/estrelagraficotime.html" ||
+    url === "https://www.betstat.site/estrelaconfronto.html" ||
+    url === "https://www.betstat.site/estrelamacro.html" ||
+    url === "https://www.betstat.site/estrelagraficoodd.html" ||
+    url === "https://www.betstat.site/estrelaprojecoes.html" ||
     url === "https://www.betstat.site/kironft.html" ||
     url === "https://www.betstat.site/betsodds.html" ||
+    url === "https://www.betstat.site/estrelasequencia.html" ||
+    url === "https://www.betstat.site/estrelaequipes.html" ||
     url === "https://www.betstat.site/betstimes.html" ||
     url === "https://www.betstat.site/kironprojecao.html" ||
     url === "https://www.betstat.site/kironradar.html" ||
@@ -18,6 +26,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/betsft.html" ||
     url === "https://www.betstat.site/kirongf.html" ||
     url === "https://www.betstat.site/kironequipes.html" ||
+    url === "https://www.betstat.site/estrelaradar.html" ||
     url === "https://www.betstat.site/kironpalpites.html" ||
     url === "https://www.betstat.site/kironsequencia.html" ||
     url === "https://www.betstat.site/betsgf.html" ||
