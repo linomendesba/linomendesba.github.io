@@ -276,6 +276,13 @@
                 </div>
             </div>
 
+            <div class="section" id="liga-section" style="display: none;">
+                <h2 class="section-title">Liga</h2>
+                <div class="btn-grid" id="ligas-group">
+                    <!-- Ligas serão carregadas dinamicamente -->
+                </div>
+            </div>
+
             <div class="section">
                 <h2 class="section-title">Mercado de Análise</h2>
                 <div class="btn-grid" id="mercados-group">
@@ -291,6 +298,10 @@
                     <button class="btn" data-value="ambas_sim">Ambas Sim</button>
                     <button class="btn" data-value="ambas_nao">Ambas Não</button>
                     <button class="btn" data-value="over_5">5+ Gols</button>
+                    <button class="btn" data-value="gol_exato_1">Gol Exato 1</button>
+                    <button class="btn" data-value="gol_exato_2">Gol Exato 2</button>
+                    <button class="btn" data-value="gol_exato_3">Gol Exato 3</button>
+                    <button class="btn" data-value="gol_exato_4">Gol Exato 4</button>
                 </div>
             </div>
 
@@ -386,9 +397,39 @@
                         currentActive.classList.remove('active');
                     }
                     event.target.classList.add('active');
+                    
+                    // Se é o grupo de casas, mostrar as ligas correspondentes
+                    if (group.id === 'casas-group') {
+                        mostrarLigas(event.target.dataset.value);
+                    }
                 }
             });
         });
+
+        function mostrarLigas(casa) {
+            const ligaSection = document.getElementById('liga-section');
+            const ligasGroup = document.getElementById('ligas-group');
+            
+            if (!casasConfig[casa]) {
+                ligaSection.style.display = 'none';
+                return;
+            }
+            
+            // Limpar ligas anteriores
+            ligasGroup.innerHTML = '';
+            
+            // Adicionar ligas da casa selecionada
+            casasConfig[casa].ligas.forEach(liga => {
+                const btn = document.createElement('button');
+                btn.className = 'btn';
+                btn.dataset.value = liga;
+                btn.textContent = liga;
+                ligasGroup.appendChild(btn);
+            });
+            
+            // Mostrar seção de ligas
+            ligaSection.style.display = 'block';
+        }
 
         function getSelectedValue(groupId) {
             const group = document.getElementById(groupId);
@@ -406,10 +447,11 @@
             document.querySelectorAll('.btn.active').forEach(btn => btn.classList.remove('active'));
             document.getElementById('observacao').value = '';
             document.getElementById('result-container').style.display = 'none';
+            document.getElementById('liga-section').style.display = 'none';
         }
 
         // Função para buscar dados da API
-        async function buscarDadosAPI(casa, numJogos) {
+        async function buscarDadosAPI(casa, liga, numJogos) {
             const config = casasConfig[casa];
             if (!config) {
                 throw new Error(`Casa ${casa} não encontrada`);
@@ -417,43 +459,38 @@
 
             const dadosCompletos = {
                 casa: config.name,
-                ligas: {},
+                liga: liga,
                 totalJogos: 0
             };
 
             try {
-                for (const liga of config.ligas) {
-                    const ligaEncoded = encodeURIComponent(liga);
-                    
-                    // Construir URLs
-                    let baseUrl = 'https://betstat.site';
-                    let resultadosUrl, proximosUrl, oddsUrl;
-                    
-                    if (config.path) {
-                        resultadosUrl = `${baseUrl}/resultados/${config.path}/${ligaEncoded}`;
-                        proximosUrl = `${baseUrl}/proximos/${config.path}/${ligaEncoded}`;
-                        oddsUrl = `${baseUrl}/odds/${config.path}/${ligaEncoded}`;
-                    } else {
-                        resultadosUrl = `${baseUrl}/resultados/${ligaEncoded}`;
-                        proximosUrl = `${baseUrl}/proximos/${ligaEncoded}`;
-                        oddsUrl = `${baseUrl}/odds/${ligaEncoded}`;
-                    }
-
-                    // Buscar dados
-                    const [resultados, proximos, odds] = await Promise.all([
-                        fetch(resultadosUrl).then(r => r.json()),
-                        fetch(proximosUrl).then(r => r.json()),
-                        fetch(oddsUrl).then(r => r.json())
-                    ]);
-
-                    dadosCompletos.ligas[liga] = {
-                        resultados: resultados.slice(0, numJogos),
-                        proximos: proximos.slice(0, 10),
-                        odds: odds.slice(0, 5)
-                    };
-
-                    dadosCompletos.totalJogos += resultados.slice(0, numJogos).length;
+                const ligaEncoded = encodeURIComponent(liga);
+                
+                // Construir URLs
+                let baseUrl = 'https://betstat.site';
+                let resultadosUrl, proximosUrl, oddsUrl;
+                
+                if (config.path) {
+                    resultadosUrl = `${baseUrl}/resultados/${config.path}/${ligaEncoded}`;
+                    proximosUrl = `${baseUrl}/proximos/${config.path}/${ligaEncoded}`;
+                    oddsUrl = `${baseUrl}/odds/${config.path}/${ligaEncoded}`;
+                } else {
+                    resultadosUrl = `${baseUrl}/resultados/${ligaEncoded}`;
+                    proximosUrl = `${baseUrl}/proximos/${ligaEncoded}`;
+                    oddsUrl = `${baseUrl}/odds/${ligaEncoded}`;
                 }
+
+                // Buscar dados
+                const [resultados, proximos, odds] = await Promise.all([
+                    fetch(resultadosUrl).then(r => r.json()),
+                    fetch(proximosUrl).then(r => r.json()),
+                    fetch(oddsUrl).then(r => r.json())
+                ]);
+
+                dadosCompletos.resultados = resultados.slice(0, numJogos);
+                dadosCompletos.proximos = proximos.slice(0, 10);
+                dadosCompletos.odds = odds.slice(0, 5);
+                dadosCompletos.totalJogos = dadosCompletos.resultados.length;
 
                 return dadosCompletos;
 
@@ -470,6 +507,7 @@ Você é um analista especialista em futebol virtual, focado em identificar padr
 
 **DADOS PARA ANÁLISE:**
 - Casa: ${dados.casa}
+- Liga: ${dados.liga}
 - Mercado: ${parametros.mercado}
 - Total de jogos analisados: ${dados.totalJogos}
 - Estratégia Martingale: ${parametros.martingale}
@@ -545,13 +583,14 @@ ${JSON.stringify(dados, null, 2)}
         // Função principal para gerar análise
         async function gerarAnalise() {
             const casa = getSelectedValue('casas-group');
+            const liga = getSelectedValue('ligas-group');
             const mercado = getSelectedText('mercados-group');
             const martingale = getSelectedText('martingale-group');
             const periodo = getSelectedValue('periodo-group');
             const observacao = document.getElementById('observacao').value;
 
-            if (!casa || !mercado || !periodo) {
-                alert('Por favor, selecione Casa, Mercado e Período de Análise.');
+            if (!casa || !liga || !mercado || !periodo) {
+                alert('Por favor, selecione Casa, Liga, Mercado e Período de Análise.');
                 return;
             }
 
@@ -570,14 +609,15 @@ ${JSON.stringify(dados, null, 2)}
 
             try {
                 // Buscar dados
-                resultTitle.innerHTML = '<div class="loading"><div class="spinner"></div>Analisando ' + periodo + ' jogos mais recentes...</div>';
-                const dados = await buscarDadosAPI(casa, parseInt(periodo));
+                resultTitle.innerHTML = '<div class="loading"><div class="spinner"></div>Analisando ' + periodo + ' jogos de ' + liga + '...</div>';
+                const dados = await buscarDadosAPI(casa, liga, parseInt(periodo));
                 
                 // Analisar com IA
                 resultTitle.innerHTML = '<div class="loading"><div class="spinner"></div>Processando análise com IA...</div>';
                 
                 const parametros = {
                     mercado,
+                    liga,
                     martingale: martingale || 'Nenhum',
                     periodo: periodo + ' jogos',
                     observacao
@@ -586,7 +626,7 @@ ${JSON.stringify(dados, null, 2)}
                 const analise = await analisarComGemini(dados, parametros);
                 
                 // Mostrar resultado
-                resultTitle.innerHTML = '✓ Análise Concluída - ' + casasConfig[casa].name;
+                resultTitle.innerHTML = '✓ Análise Concluída - ' + casasConfig[casa].name + ' (' + liga + ')';
                 resultContent.textContent = analise;
 
             } catch (error) {
