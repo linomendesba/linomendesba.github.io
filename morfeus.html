@@ -395,9 +395,10 @@
         </div>
     </div>
 
-    <script>
-         // Nota: O erro 404 na API Gemini provavelmente é devido à chave API inválida ou expirada.
+<script>
+        // Nota: O erro 404 na API Gemini provavelmente é devido à chave API inválida ou expirada.
         // Substitua pela sua própria chave obtida em https://aistudio.google.com/app/apikey
+        // Além disso, atualizei o modelo para gemini-2.5-flash, conforme solicitado.
         const GEMINI_API_KEY = 'AIzaSyAwrtYzlQxzMfBHK3k6sw5qAWTS7jBSSNQ';
         const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
@@ -547,7 +548,7 @@
                     const ftScore = (jogo.ft || "x").split("x").map((s) => parseInt(s.trim(), 10));
                     const a = ftScore[0], b = ftScore[1];
                     if (Number.isFinite(a) && Number.isFinite(b)) {
-                        dadosCompletos.dadosCru.push([a, b, a + b, (jogo.time_a || "").trim(), (jogo.time_b || "").trim()]);
+                        dadosCompletos.dadosCru.push([a, b, a + b, (jogo.time_a || "").trim(), (jogo.time_b || "").trim(), jogo.hora, jogo.minuto]);
                     }
                 }
 
@@ -689,6 +690,157 @@
             });
         }
 
+        function mapMercado(mercadoValue) {
+            const map = {
+                'ambasMarcam': 'ambasSim',
+                'ambasNaoMarcam': 'ambasNao',
+                'casaVence': 'casaVence',
+                'foraVence': 'foraVence',
+                'empate': 'empate',
+                'over1.5': 'over1.5',
+                'over2.5': 'over2.5',
+                'over3.5': 'over3.5',
+                'under1.5': 'under1.5',
+                'under2.5': 'under2.5',
+                'under3.5': 'under3.5',
+                'exact1': 'umGolExato',
+                'exact2': 'doisGolsExatos',
+                'exact3': 'tresGolsExatos',
+                'exact4': 'quatroGolsExatos',
+                'over5': 'cincoOuMaisGols'
+            };
+            return map[mercadoValue] || mercadoValue;
+        }
+
+        function checkMarket(market, homeGoals, awayGoals, totalGoals) {
+            switch (market) {
+                case 'ambasSim':
+                    return homeGoals > 0 && awayGoals > 0 ? 1 : 0;
+                case 'ambasNao':
+                    return homeGoals === 0 || awayGoals === 0 ? 1 : 0;
+                case 'casaVence':
+                    return homeGoals > awayGoals ? 1 : 0;
+                case 'foraVence':
+                    return awayGoals > homeGoals ? 1 : 0;
+                case 'empate':
+                    return homeGoals === awayGoals ? 1 : 0;
+                case 'over1.5':
+                    return totalGoals > 1.5 ? 1 : 0;
+                case 'over2.5':
+                    return totalGoals > 2.5 ? 1 : 0;
+                case 'over3.5':
+                    return totalGoals > 3.5 ? 1 : 0;
+                case 'under1.5':
+                    return totalGoals < 1.5 ? 1 : 0;
+                case 'under2.5':
+                    return totalGoals < 2.5 ? 1 : 0;
+                case 'under3.5':
+                    return totalGoals < 3.5 ? 1 : 0;
+                case 'umGolExato':
+                    return totalGoals === 1 ? 1 : 0;
+                case 'doisGolsExatos':
+                    return totalGoals === 2 ? 1 : 0;
+                case 'tresGolsExatos':
+                    return totalGoals === 3 ? 1 : 0;
+                case 'quatroGolsExatos':
+                    return totalGoals === 4 ? 1 : 0;
+                case 'cincoOuMaisGols':
+                    return totalGoals >= 5 ? 1 : 0;
+                default:
+                    return 0;
+            }
+        }
+
+        function calculateMarketAnalysis(dados, searchedMarket, numberOfGames, linesToSum, verifyLines) {
+            const combinedData = dados.dadosCru.map(item => [
+                `${item[5].toString().padStart(2, '0')}:${item[6].toString().padStart(2, '0')}`,
+                item[0],
+                item[1],
+                item[3],
+                item[4],
+                item[2],
+                dados.liga.toLowerCase()
+            ]).slice(-numberOfGames);
+
+            if (combinedData.length === 0) {
+                return { currentPercentage: 0, top5: [] };
+            }
+
+            // Calcular a porcentagem atual do mercado selecionado (baseado nos últimos jogos)
+            const recentGames = combinedData.slice(-linesToSum);
+            const currentMarketCount = recentGames.reduce((sum, row) => sum + checkMarket(searchedMarket, row[1], row[2], row[5]), 0);
+            const currentPercentage = (currentMarketCount / linesToSum * 100).toFixed(0);
+
+            // Calcular o ranking
+            const marketGroups = {};
+            combinedData.forEach((row, i) => {
+                const [dateTime, homeGoals, awayGoals, homeTeam, awayTeam, totalGoals, league] = row;
+
+                if (i >= linesToSum - 1) {
+                    const sumMarket = combinedData.slice(i - linesToSum + 1, i + 1).reduce((sum, row) => sum + checkMarket(searchedMarket, row[1], row[2], row[5]), 0);
+                    const marketPercentage = Math.round(sumMarket / linesToSum * 100);
+
+                    let result = "red";
+                    let greens = 0;
+                    let reds = 0;
+                    if (i + verifyLines <= combinedData.length) {
+                        const nextRows = combinedData.slice(i + 1, i + 1 + verifyLines);
+                        greens = nextRows.filter(row => checkMarket(searchedMarket, row[1], row[2], row[5]) === 1).length;
+                        reds = verifyLines - greens;
+                        const searchResult = nextRows.some(row => checkMarket(searchedMarket, row[1], row[2], row[5]) === 1);
+                        if (searchResult) {
+                            result = "green";
+                        }
+                    }
+
+                    const marketGroup = `${searchedMarket} ${marketPercentage}%`;
+                    if (!marketGroups[marketGroup]) {
+                        marketGroups[marketGroup] = { occurrences: 0, greens: 0, reds: 0, totalGreens: greens, totalReds: reds };
+                    }
+                    marketGroups[marketGroup].occurrences += 1;
+                    if (result === "green") {
+                        marketGroups[marketGroup].greens += 1;
+                    } else {
+                        marketGroups[marketGroup].reds += 1;
+                    }
+                    marketGroups[marketGroup].totalGreens = greens;
+                    marketGroups[marketGroup].totalReds = reds;
+                }
+            });
+
+            const sortedGroups = Object.keys(marketGroups).map(key => {
+                const group = marketGroups[key];
+                const greenPercentage = (group.greens / group.occurrences * 100).toFixed(2);
+                let analysis = '';
+                const percentageNum = parseFloat(greenPercentage);
+                if (percentageNum > 75) {
+                    analysis = 'Alta chance de acerto';
+                } else if (percentageNum > 50) {
+                    analysis = 'Moderada chance';
+                } else if (percentageNum > 25) {
+                    analysis = 'Risco elevado';
+                } else {
+                    analysis = 'Alta chance de falha';
+                }
+
+                return {
+                    marketGroup: key,
+                    marketPercentage: parseFloat(key.split(' ')[1]),
+                    occurrences: group.occurrences,
+                    greens: group.greens,
+                    reds: group.reds,
+                    greenPercentage: greenPercentage,
+                    totalGreens: group.totalGreens,
+                    totalReds: group.totalReds,
+                    analysis: analysis
+                };
+            }).sort((a, b) => b.greenPercentage - a.greenPercentage || b.greens - a.greens).slice(0, 100);
+
+            const top5 = sortedGroups.slice(0, 5);
+
+            return { currentPercentage, top5 };
+        }
+
         function criarPromptAnalise(dados, parametros) {
             return `
 Você é um analista especialista em futebol virtual, focado em interpretar dados pré-processados para identificar oportunidades de investimento de alto valor.
@@ -713,8 +865,13 @@ ${JSON.stringify(dados.padroesEncontrados, null, 2)}
 3. PRÓXIMOS 6 CONFRONTOS:
 ${JSON.stringify(dados.proximos, null, 2)}
 
+4. ANÁLISE DE GRÁFICO DE MERCADO PARA O MERCADO "${parametros.mercado}":
+Porcentagem Atual: ${dados.marketAnalysis.currentPercentage}%
+Top 5 Melhores Porcentagens:
+${JSON.stringify(dados.marketAnalysis.top5, null, 2)}
+
 INSTRUÇÕES DE ANÁLISE (SUA TAREFA):
-1.  Sua missão é conectar as três informações acima. Não processe dados brutos, apenas interprete os resultados que eu forneci.
+1.  Sua missão é conectar as informações acima. Não processe dados brutos, apenas interprete os resultados que eu forneci.
 2.  Analise os "TOP 15 PADRÕES". Identifique quais têm o maior percentual de acerto (percentual) e um número sólido de ocorrências. Padrões com 100% de acerto e poucas ocorrências são promissores, mas de alto risco.
 3.  Observe os "PRÓXIMOS 6 CONFRONTOS". Verifique se algum desses jogos envolve times que estão bem posicionados no "RANKING DE TIMES".
 4.  Cruze as informações: A oportunidade de maior valor acontece quando um padrão forte aponta para um dos próximos confrontos E esse confronto envolve times com bom desempenho histórico no mercado.
@@ -722,6 +879,7 @@ INSTRUÇÕES DE ANÁLISE (SUA TAREFA):
 6.  Baseado nesta síntese, gere a sua análise no formato abaixo. O número de sugestões de horários deve seguir a estratégia Martingale (Nenhum = 1 jogo, 1 Cobertura = 2 jogos, 2 Coberturas = 3 jogos, 3 Coberturas = 4 jogos).
 7.  Se nenhum padrão forte se alinhar com os próximos jogos de times bem ranqueados, seja honesto e informe que nenhuma oportunidade clara foi encontrada.
 8.  Para as sugestões de horários: Selecione o próximo confronto que melhor se alinha com padrões fortes e times bem ranqueados como o principal. Em seguida, adicione as coberturas como os confrontos sequenciais seguintes. Garanta que os horários estejam em sequência cronológica crescente, sem repetições, e baseados exclusivamente nos horários fornecidos nos próximos confrontos. Assuma que a lista de próximos está ordenada por tempo, e selecione apenas horários futuros ou os mais próximos. O primeiro horário é o principal com padrão e análise, os demais são coberturas.
+9.  Inclua uma seção independente para a Análise de Gráfico de Mercado, comentando a porcentagem atual e destacando as top 5 melhores porcentagens, considerando o Martingale selecionado para a verificação.
 
 FORMATO DA RESPOSTA (Use um tom natural e profissional, evite usar negrito com asteriscos **):
 
@@ -730,6 +888,9 @@ FORMATO DA RESPOSTA (Use um tom natural e profissional, evite usar negrito com a
 
 📊 PADRÕES RELEVANTES
 [Destaque 2 ou 3 dos padrões mais promissores da lista, explicando por que são relevantes. Ex: "O padrão 'over2.5 | 1-2' se destaca com 85% de acerto em 20 ocorrências, mostrando ser um gatilho confiável..."]
+
+📈 ANÁLISE DE GRÁFICO DE MERCADO
+[Comente sobre a porcentagem atual do mercado e destaque as top 5 melhores porcentagens, incluindo greenPercentage, occurrences, etc., considerando o Martingale selecionado para a verificação de linhas.]
 
 ⚡ PRÓXIMAS OPORTUNIDADES
 [Baseado na sua análise combinada, liste as entradas recomendadas. Se nenhuma for encontrada, justifique o motivo.
@@ -813,6 +974,12 @@ Justificativa: [Breve explicação do porquê esta é uma boa entrada, mencionan
                 });
                 dados.padroesEncontrados = resultados;
                 
+                // Calcular análise de gráfico de mercado
+                const searchedMarket = mapMercado(mercadoValue);
+                const linesToSum = (casa === 'kiron') ? 30 : 20; // Ajuste dinâmico baseado na casa
+                const verifyLines = martingaleCoberturas + 1;
+                dados.marketAnalysis = calculateMarketAnalysis(dados, searchedMarket, dados.totalJogos, linesToSum, verifyLines);
+                
                 resultTitle.innerHTML = '<div class="loading"><div class="spinner"></div>Gerando análise com IA...</div>';
                 const parametros = {
                     mercado: mercadoText,
@@ -832,7 +999,7 @@ Justificativa: [Breve explicação do porquê esta é uma boa entrada, mencionan
                 resultTitle.innerHTML = '❌ Erro na Análise';
                 resultContent.innerHTML = `<div class="error">
                     <strong>Erro:</strong> ${error.message}<br><br>
-                    <strong>Causas possíveis:</strong> Falha na API BetStat, erro na análise de padrões ou limite da API Gemini atingido. Verifique o console para mais detalhes. Se for erro 404 na Gemini, obtenha uma nova chave API em https://aistudio.google.com/app/apikey e substitua no código.
+                    <strong>Causas possíveis:</strong> Falha na API BetStat, erro na análise de padrões ou limite da API Gemini atingido. Verifique o console para mais detalhes. Se for erro 404 na Gemini, obtenha uma nova chave API em https://aistudio.google.com/app/apikey e substitua no código. Além disso, verifique se o nome do modelo está correto (ex: gemini-2.5-flash).
                 </div>`;
             } finally {
                 generateBtn.disabled = false;
