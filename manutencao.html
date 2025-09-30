@@ -1364,7 +1364,6 @@ let rsiPeriod = 14;
 let macdFast = 12;
 let macdSlow = 26;
 let macdSignal = 9;
-let congestionNum = 1;
 let indicatorCharts = {}; // Para os gráficos de indicadores abaixo
 
 const statsChartVisibleDatasets = {
@@ -1446,7 +1445,6 @@ function updateStatsChart(chart, newData) {
                 ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + 'Colors'];
             }
         });
-        chart.options.congestionAreas = newData.congestionAreas;
         chart.update('none');
     }
 }
@@ -1467,61 +1465,74 @@ function computeMA(dataArray, period) {
     return ma;
 }
 
-// Adição: Função para calcular EMA (usada no MACD), ajustada para lidar melhor com dados iniciais
+// Adição: Função para preencher gaps com valor anterior
+function fillGaps(data) {
+    let filled = [...data];
+    let last = null;
+    for (let i = 0; i < filled.length; i++) {
+        if (filled[i] !== null) {
+            last = filled[i];
+        } else if (last !== null) {
+            filled[i] = last;
+        }
+    }
+    // Se houver gaps no início, preencher com o primeiro não-null (backward fill para início)
+    if (last === null) {
+        last = filled.find(d => d !== null);
+        if (last !== undefined) {
+            for (let i = 0; i < filled.length; i++) {
+                if (filled[i] === null) filled[i] = last;
+                else break;
+            }
+        }
+    }
+    return filled;
+}
+
+// Adição: Função para calcular EMA
 function calculateEMA(data, period) {
     const k = 2 / (period + 1);
     let ema = new Array(data.length).fill(null);
     let sum = 0;
     let count = 0;
-    let i = 0;
-    while (i < data.length) {
-        if (data[i] !== null) {
-            sum += data[i];
-            count++;
-        }
-        if (count > 0 && (count >= period || i === data.length - 1)) {
-            ema[i] = sum / count;
+    for (let i = 0; i < data.length; i++) {
+        if (data[i] === null) continue;
+        sum += data[i];
+        count++;
+        if (count === period) {
+            ema[i] = sum / period;
             break;
         }
-        i++;
     }
-    for (let j = i + 1; j < data.length; j++) {
-        if (data[j] !== null) {
-            ema[j] = (data[j] * k) + (ema[j - 1] * (1 - k));
-        } else {
-            ema[j] = ema[j - 1]; // Propagar valor anterior em gaps
+    for (let i = 0; i < data.length; i++) {
+        if (ema[i] !== null) {
+            for (let j = i + 1; j < data.length; j++) {
+                if (data[j] !== null) {
+                    ema[j] = (data[j] * k) + (ema[j - 1] * (1 - k));
+                }
+            }
+            break;
         }
     }
     return ema;
 }
 
-// Adição: Função para calcular RSI (aplicada em 'Ambas Sim' como referência)
+// Adição: Função para calcular RSI
 function calculateRSI(data, period) {
     let rsi = new Array(data.length).fill(null);
     if (data.length < period + 1) return rsi;
     let gains = 0, losses = 0;
-    let prev = null;
-    let start = 0;
-    while (start < data.length && data[start] === null) start++;
-    prev = data[start];
-    let effectivePeriod = 0;
-    for (let i = start + 1; i < data.length; i++) {
-        if (data[i] === null) continue;
-        let diff = data[i] - prev;
+    for (let i = 1; i <= period; i++) {
+        if (data[i] === null || data[i - 1] === null) continue;
+        let diff = data[i] - data[i - 1];
         if (diff > 0) gains += diff;
         else losses -= diff;
-        prev = data[i];
-        effectivePeriod++;
-        if (effectivePeriod >= period) break;
     }
-    let avgGain = gains / effectivePeriod;
-    let avgLoss = losses / effectivePeriod;
-    if (effectivePeriod > 0) {
-        let idx = Math.min(start + effectivePeriod, data.length - 1);
-        rsi[idx] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
-    }
-    for (let i = start + effectivePeriod + 1; i < data.length; i++) {
-        if (data[i] === null) continue;
+    let avgGain = gains / period;
+    let avgLoss = losses / period;
+    rsi[period] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
+    for (let i = period + 1; i < data.length; i++) {
+        if (data[i] === null || data[i - 1] === null) continue;
         let diff = data[i] - data[i - 1];
         let gain = diff > 0 ? diff : 0;
         let loss = Math.abs(diff < 0 ? diff : 0);
@@ -1540,34 +1551,6 @@ function calculateMACD(data, fast, slow, signal) {
     const emaSignal = calculateEMA(macdLine, signal);
     let histogram = data.map((d, i) => (macdLine[i] !== null && emaSignal[i] !== null ? macdLine[i] - emaSignal[i] : null));
     return { macdLine, emaSignal, histogram };
-}
-
-// Adição: Função para encontrar áreas de congestão (sideways movement) baseadas em baixa volatilidade
-function findCongestionAreas(data, window = 5, threshold = 5) {
-    let areas = [];
-    let start = -1;
-    for (let i = 0; i < data.length; i++) {
-        let isCongestion = false;
-        if (i >= window - 1) {
-            let slice = data.slice(i - window + 1, i + 1).filter(d => d !== null);
-            if (slice.length >= window) {
-                let mean = slice.reduce((a, b) => a + b, 0) / slice.length;
-                let variance = slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / slice.length;
-                let sd = Math.sqrt(variance);
-                isCongestion = sd < threshold;
-            }
-        }
-        if (isCongestion) {
-            if (start === -1) start = i;
-        } else {
-            if (start !== -1) {
-                areas.push({ start, end: i - 1 });
-                start = -1;
-            }
-        }
-    }
-    if (start !== -1) areas.push({ start, end: data.length - 1 });
-    return areas;
 }
 
 function processApiData(data, league) {
@@ -1835,50 +1818,13 @@ function processApiData(data, league) {
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
 
-    // Adições: Calcular RSI, MACD para 'Ambas Sim' (como referência principal visível)
-    result.ambasSimRSI = calculateRSI(result.ambasSim, rsiPeriod);
-    result.macd = calculateMACD(result.ambasSim, macdFast, macdSlow, macdSignal);
-
-    // Calcular áreas de congestão com threshold baseado em congestionNum (mais alto = mais sensível, threshold menor)
-    const threshold = 8 - congestionNum * 2; // 6 para 1, 4 para 2, 2 para 3
-    result.congestionAreas = findCongestionAreas(result.ambasSim, 5, threshold);
+    // Adições: Preencher gaps e calcular RSI, MACD para 'Ambas Sim'
+    let filledAmbasSim = fillGaps(result.ambasSim);
+    result.ambasSimRSI = calculateRSI(filledAmbasSim, rsiPeriod);
+    result.macd = calculateMACD(filledAmbasSim, macdFast, macdSlow, macdSignal);
 
     return result;
 }
-
-// Adição: Plugin para áreas de congestão (retângulos destacando movimento lateral)
-const congestionAreasPlugin = {
-    id: 'congestionAreas',
-    afterDraw: (chart) => {
-        const ctx = chart.ctx;
-        const xAxis = chart.scales.x;
-        const yAxis = chart.scales.y;
-        const areas = chart.options.congestionAreas || [];
-        const ambasData = chart.data.datasets.find(ds => ds.label === 'Ambas Sim').data;
-
-        ctx.save();
-        areas.forEach(area => {
-            let minY = Infinity, maxY = -Infinity;
-            for (let k = area.start; k <= area.end; k++) {
-                if (ambasData[k] !== null) {
-                    minY = Math.min(minY, ambasData[k]);
-                    maxY = Math.max(maxY, ambasData[k]);
-                }
-            }
-            if (minY === Infinity) return;
-            const pad = (maxY - minY) * 0.1 || 5; // Padding mínimo
-            minY -= pad;
-            maxY += pad;
-            const x1 = xAxis.getPixelForValue(area.start);
-            const x2 = xAxis.getPixelForValue(area.end);
-            const y1 = yAxis.getPixelForValue(maxY);
-            const y2 = yAxis.getPixelForValue(minY);
-            ctx.fillStyle = 'rgba(255, 165, 0, 0.2)'; // Laranja claro para áreas de congestão
-            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
-        });
-        ctx.restore();
-    }
-};
 
 const fibonacciLinesPlugin = {
     id: 'fibonacciLines',
@@ -2009,7 +1955,6 @@ function createStatsChart(ctx, labels, data, league) {
             layout: { 
                 padding: { top: 30, right: 50 } 
             },
-            congestionAreas: data.congestionAreas, // Passar áreas para o plugin
             plugins: {
                 legend: {
                     display: true,
@@ -2087,7 +2032,7 @@ function createStatsChart(ctx, labels, data, league) {
                 }
             }
         },
-        plugins: [fibonacciLinesPlugin, congestionAreasPlugin]
+        plugins: [fibonacciLinesPlugin]
     });
 }
 
@@ -2275,10 +2220,6 @@ document.getElementById('macdSlow').addEventListener('change', function(event) {
 });
 document.getElementById('macdSignal').addEventListener('change', function(event) {
     macdSignal = parseInt(event.target.value, 10);
-    updateCharts();
-});
-document.getElementById('congestionLines').addEventListener('change', function(event) {
-    congestionNum = parseInt(event.target.value, 10);
     updateCharts();
 });
 
