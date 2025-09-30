@@ -251,6 +251,29 @@
             </select>
         </div>
 
+        <div>
+            <label for="marketSelector">Mercado para Indicadores:</label>
+            <select id="marketSelector">
+                <option value="ambasMarcam" selected>Ambas Sim</option>
+                <option value="ambasNaoMarcam">Ambas Não</option>
+                <option value="casaVence">Casa vence</option>
+                <option value="foraVence">Fora vence</option>
+                <option value="empate">Empate</option>
+                <option value="over1.5">Over 1.5</option>
+                <option value="under1.5">Under 1.5</option>
+                <option value="over2.5">Over 2.5</option>
+                <option value="under2.5">Under 2.5</option>
+                <option value="over3.5">Over 3.5</option>
+                <option value="under3.5">Under 3.5</option>
+                <option value="over5">Over 5+</option>
+                <option value="exato0">Exato 0 </option>
+                <option value="exato1">Exato 1 </option>
+                <option value="exato2">Exato 2 </option>
+                <option value="exato3">Exato 3 </option>
+                <option value="exato4">Exato 4 </option>
+            </select>
+        </div>
+
         <div class="checkbox-container">
             <input type="checkbox" id="fibonacciToggle">
             <label for="fibonacciToggle">Ativar Fibonacci</label>
@@ -261,19 +284,15 @@
         </div>
 
         <!-- Adições do HTML de referência: Controles para RSI, MACD -->
-        <div>
-            <label for="rsiPeriod">RSI Período:</label>
-            <input type="number" id="rsiPeriod" value="14">
-        </div>
-        <div>
+        <div style="display: inline-block; width: 120px;">
             <label for="macdFast">MACD Rápida:</label>
             <input type="number" id="macdFast" value="12">
         </div>
-        <div>
+        <div style="display: inline-block; width: 120px;">
             <label for="macdSlow">MACD Lenta:</label>
             <input type="number" id="macdSlow" value="26">
         </div>
-        <div>
+        <div style="display: inline-block; width: 120px;">
             <label for="macdSignal">MACD Sinal:</label>
             <input type="number" id="macdSignal" value="9">
         </div>
@@ -1360,11 +1379,31 @@ const chartInstances = {};
 let chartData = {};
 
 // Adições: Variáveis para os novos controles do HTML de referência
-let rsiPeriod = 14;
 let macdFast = 12;
 let macdSlow = 26;
 let macdSignal = 9;
 let indicatorCharts = {}; // Para os gráficos de indicadores abaixo
+let selectedMarket = 'ambasMarcam';
+
+const marketKeys = {
+    ambasMarcam: 'ambasSim',
+    ambasNaoMarcam: 'ambasNao',
+    casaVence: 'casaVence',
+    foraVence: 'foraVence',
+    empate: 'empate',
+    'over1.5': 'over15',
+    'under1.5': 'under15',
+    'over2.5': 'over25',
+    'under2.5': 'under25',
+    'over3.5': 'over35',
+    'under3.5': 'under35',
+    over5: 'over45',
+    exato0: 'gol0',
+    exato1: 'gol1',
+    exato2: 'gol2',
+    exato3: 'gol3',
+    exato4: 'gol4',
+};
 
 const statsChartVisibleDatasets = {
     'Gols FT': false,
@@ -1379,6 +1418,7 @@ const statsChartVisibleDatasets = {
     'Under 1.5': false,
     'Under 2.5': false,
     'Under 3.5': false,
+    'Over 5+': false,
     '0 Gol Exato': false,
     '1 Gol Exato': false,
     '2 Gols Exatos': false,
@@ -1400,6 +1440,7 @@ const labelToKey = {
     'Under 1.5': 'under15',
     'Under 2.5': 'under25',
     'Under 3.5': 'under35',
+    'Over 5+': 'over45',
     '0 Gol Exato': 'gol0',
     '1 Gol Exato': 'gol1',
     '2 Gols Exatos': 'gol2',
@@ -1536,40 +1577,6 @@ function calculateEMA(data, period) {
     return fillInitial(ema);
 }
 
-// Adição: Função para calcular RSI
-function calculateRSI(data, period) {
-    let rsi = new Array(data.length).fill(null);
-    if (data.length < 2) return rsi;
-    let gains = 0, losses = 0;
-    let count = 0;
-    for (let i = 1; i < data.length; i++) {
-        if (data[i] === null || data[i - 1] === null) continue;
-        let diff = data[i] - data[i - 1];
-        if (diff > 0) gains += diff;
-        else losses -= diff;
-        count++;
-        if (count >= period) break;
-    }
-    if (count === 0) return rsi;
-    let avgGain = gains / count;
-    let avgLoss = losses / count;
-    let initialIdx = count;
-    rsi[initialIdx] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
-    for (let i = initialIdx + 1; i < data.length; i++) {
-        if (data[i] === null || data[i - 1] === null) {
-            rsi[i] = rsi[i - 1];
-            continue;
-        }
-        let diff = data[i] - data[i - 1];
-        let gain = diff > 0 ? diff : 0;
-        let loss = Math.abs(diff < 0 ? diff : 0);
-        avgGain = (avgGain * (period - 1) + gain) / period;
-        avgLoss = (avgLoss * (period - 1) + loss) / period;
-        rsi[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
-    }
-    return fillInitial(rsi);
-}
-
 // Adição: Função para calcular MACD (linha, sinal e histograma, aplicada em 'Ambas Sim')
 function calculateMACD(data, fast, slow, signal) {
     const emaFast = calculateEMA(data, fast);
@@ -1608,6 +1615,7 @@ function processApiData(data, league) {
     let under15 = [];
     let under25 = [];
     let under35 = [];
+    let over45 = [];
     let gol0 = [];
     let gol1 = [];
     let gol2 = [];
@@ -1627,6 +1635,7 @@ function processApiData(data, league) {
     let under15Colors = [];
     let under25Colors = [];
     let under35Colors = [];
+    let over45Colors = [];
     let gol0Colors = [];
     let gol1Colors = [];
     let gol2Colors = [];
@@ -1660,6 +1669,7 @@ function processApiData(data, league) {
         let under15Sum = 0;
         let under25Sum = 0;
         let under35Sum = 0;
+        let over45Sum = 0;
         let gol0Sum = 0;
         let gol1Sum = 0;
         let gol2Sum = 0;
@@ -1690,6 +1700,7 @@ function processApiData(data, league) {
             under15Sum += totalGolsFT < 1.5 ? 1 : 0;
             under25Sum += totalGolsFT < 2.5 ? 1 : 0;
             under35Sum += totalGolsFT < 3.5 ? 1 : 0;
+            over45Sum += totalGolsFT > 4.5 ? 1 : 0;
             gol0Sum += totalGolsFT === 0 ? 1 : 0;
             gol1Sum += totalGolsFT === 1 ? 1 : 0;
             gol2Sum += totalGolsFT === 2 ? 1 : 0;
@@ -1716,6 +1727,7 @@ function processApiData(data, league) {
             under15.push(null);
             under25.push(null);
             under35.push(null);
+            over45.push(null);
             gol0.push(null);
             gol1.push(null);
             gol2.push(null);
@@ -1735,6 +1747,7 @@ function processApiData(data, league) {
             under15Colors.push(transparent);
             under25Colors.push(transparent);
             under35Colors.push(transparent);
+            over45Colors.push(transparent);
             gol0Colors.push(transparent);
             gol1Colors.push(transparent);
             gol2Colors.push(transparent);
@@ -1764,6 +1777,7 @@ function processApiData(data, league) {
         const isUnder15 = totalGolsFT < 1.5;
         const isUnder25 = totalGolsFT < 2.5;
         const isUnder35 = totalGolsFT < 3.5;
+        const isOver45 = totalGolsFT > 4.5;
         const isGol0 = totalGolsFT === 0;
         const isGol1 = totalGolsFT === 1;
         const isGol2 = totalGolsFT === 2;
@@ -1807,6 +1821,9 @@ function processApiData(data, league) {
         under35.push(under35Sum / avg * 100);
         under35Colors.push(isUnder35 ? green : red);
 
+        over45.push(over45Sum / avg * 100);
+        over45Colors.push(isOver45 ? green : red);
+
         gol0.push(gol0Sum / avg * 100);
         gol0Colors.push(isGol0 ? green : red);
 
@@ -1828,11 +1845,11 @@ function processApiData(data, league) {
 
     const result = { 
         labels, golsFT, casaVence, empate, foraVence, ambasSim, ambasNao,
-        over15, over25, over35, under15, under25, under35,
+        over15, over25, over35, under15, under25, under35, over45,
         gol0, gol1, gol2, gol3, gol4, gol5,
         golsFTColors, casaVenceColors, empateColors, foraVenceColors,
         ambasSimColors, ambasNaoColors, over15Colors, over25Colors, over35Colors,
-        under15Colors, under25Colors, under35Colors, gol0Colors, gol1Colors,
+        under15Colors, under25Colors, under35Colors, over45Colors, gol0Colors, gol1Colors,
         gol2Colors, gol3Colors, gol4Colors, gol5Colors
     };
 
@@ -1848,10 +1865,10 @@ function processApiData(data, league) {
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
 
-    // Adições: Preencher gaps e calcular RSI, MACD para 'Ambas Sim'
-    let filledAmbasSim = fillGaps(result.ambasSim);
-    result.ambasSimRSI = calculateRSI(filledAmbasSim, rsiPeriod);
-    result.macd = calculateMACD(filledAmbasSim, macdFast, macdSlow, macdSignal);
+    // Adições: Preencher gaps e calcular MACD para o mercado selecionado
+    const marketKey = marketKeys[selectedMarket];
+    const filledData = fillGaps(result[marketKey]);
+    result.macd = calculateMACD(filledData, macdFast, macdSlow, macdSignal);
 
     // Slice chartData to remove extra for tooltip consistency
     chartData[league] = slicedData.slice(extra);
@@ -1864,7 +1881,6 @@ function processApiData(data, league) {
                 result[key] = result[key].slice(start);
             }
         }
-        result.ambasSimRSI = result.ambasSimRSI.slice(start);
         result.macd.macdLine = result.macd.macdLine.slice(start);
         result.macd.emaSignal = result.macd.emaSignal.slice(start);
         result.macd.histogram = result.macd.histogram.slice(start);
@@ -1923,6 +1939,7 @@ function createStatsChart(ctx, labels, data, league) {
         { label: 'Under 1.5', color: '#388E3C', key: 'under15' },
         { label: 'Under 2.5', color: '#FF9800', key: 'under25' },
         { label: 'Under 3.5', color: '#F06292', key: 'under35' },
+        { label: 'Over 5+', color: '#673AB7', key: 'over45' },
         { label: '0 Gol Exato', color: '#D81B60', key: 'gol0' },
         { label: '1 Gol Exato', color: '#8E24AA', key: 'gol1' },
         { label: '2 Gols Exatos', color: '#A0522D', key: 'gol2' },
@@ -2087,16 +2104,6 @@ function createStatsChart(ctx, labels, data, league) {
 function createIndicatorChart(ctx, labels, data) {
     const datasets = [
         {
-            label: 'RSI',
-            data: data.ambasSimRSI,
-            borderColor: '#9370DB',
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            pointRadius: 0,
-            yAxisID: 'y-rsi',
-            fill: false
-        },
-        {
             label: 'MACD Line',
             data: data.macd.macdLine,
             borderColor: '#00BFFF',
@@ -2136,14 +2143,6 @@ function createIndicatorChart(ctx, labels, data) {
             scales: {
                 x: {
                     ticks: { display: false },
-                    grid: { display: false }
-                },
-                'y-rsi': {
-                    type: 'linear',
-                    position: 'left',
-                    min: 0,
-                    max: 100,
-                    title: { display: true, text: 'RSI' },
                     grid: { display: false }
                 },
                 'y-macd': {
@@ -2194,11 +2193,10 @@ function updateCharts() {
                     updateStatsChart(chartInstances[league], processedData);
                     // Adição: Atualizar gráfico de indicadores
                     indicatorCharts[league].data.labels = processedData.labels;
-                    indicatorCharts[league].data.datasets[0].data = processedData.ambasSimRSI;
-                    indicatorCharts[league].data.datasets[1].data = processedData.macd.macdLine;
-                    indicatorCharts[league].data.datasets[2].data = processedData.macd.emaSignal;
-                    indicatorCharts[league].data.datasets[3].data = processedData.macd.histogram;
-                    indicatorCharts[league].data.datasets[3].backgroundColor = processedData.macd.histogram.map(val => val > 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
+                    indicatorCharts[league].data.datasets[0].data = processedData.macd.macdLine;
+                    indicatorCharts[league].data.datasets[1].data = processedData.macd.emaSignal;
+                    indicatorCharts[league].data.datasets[2].data = processedData.macd.histogram;
+                    indicatorCharts[league].data.datasets[2].backgroundColor = processedData.macd.histogram.map(val => val > 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
                     indicatorCharts[league].update('none');
                     console.log(`Gráfico atualizado para ${league}`);
                 }
@@ -2249,14 +2247,15 @@ document.getElementById('averageSelector').addEventListener('change', function(e
     updateCharts();
 });
 
+document.getElementById('marketSelector').addEventListener('change', function(event) {
+    selectedMarket = event.target.value;
+    updateCharts();
+});
+
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
 
 // Adições: Listeners para os novos controles (atualizam ao mudar valores)
-document.getElementById('rsiPeriod').addEventListener('change', function(event) {
-    rsiPeriod = parseInt(event.target.value, 10);
-    updateCharts();
-});
 document.getElementById('macdFast').addEventListener('change', function(event) {
     macdFast = parseInt(event.target.value, 10);
     updateCharts();
