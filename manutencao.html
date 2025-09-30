@@ -1368,15 +1368,13 @@ if (mostrarOddsSelect) {
     </script>
 
     <script>
-let copaAmericaChart, CopaChart, EuroChart, PremierChart, SuperChart;
 let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
-const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
+const leagues = ['Copa'];
 const chartInstances = {};
 let chartData = {};
-
 let macdFast = 12;
 let macdSlow = 26;
 let macdSignal = 9;
@@ -1476,16 +1474,15 @@ function getKeyFromLabel(label) {
 }
 
 function updateStatsChart(chart, newData) {
-    if (chart) {
-        chart.data.labels = newData.labels;
-        chart.data.datasets.forEach(ds => {
-            ds.data = newData[getKeyFromLabel(ds.label)];
-            if (!ds.label.includes(' MA')) {
-                ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + 'Colors'];
-            }
-        });
-        chart.update('none');
-    }
+    if (!chart) return;
+    chart.data.labels = newData.labels;
+    chart.data.datasets.forEach(ds => {
+        ds.data = newData[getKeyFromLabel(ds.label)] || [];
+        if (!ds.label.includes(' MA')) {
+            ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + 'Colors'] || [];
+        }
+    });
+    chart.update('none');
 }
 
 function computeMA(dataArray, period) {
@@ -1494,7 +1491,7 @@ function computeMA(dataArray, period) {
         let sum = 0;
         let count = 0;
         for (let j = Math.max(0, i - period + 1); j <= i; j++) {
-            if (dataArray[j] !== null) {
+            if (dataArray[j] !== null && dataArray[j] !== undefined) {
                 sum += dataArray[j];
                 count++;
             }
@@ -1508,7 +1505,7 @@ function fillGaps(data) {
     let filled = [...data];
     let last = null;
     for (let i = 0; i < filled.length; i++) {
-        if (filled[i] !== null) {
+        if (filled[i] !== null && filled[i] !== undefined) {
             last = filled[i];
         } else if (last !== null) {
             filled[i] = last;
@@ -1516,7 +1513,7 @@ function fillGaps(data) {
     }
     if (last === null) {
         for (let i = filled.length - 1; i >= 0; i--) {
-            if (filled[i] !== null) {
+            if (filled[i] !== null && filled[i] !== undefined) {
                 last = filled[i];
             } else if (last !== null) {
                 filled[i] = last;
@@ -1524,7 +1521,7 @@ function fillGaps(data) {
         }
     } else {
         for (let i = 0; i < filled.length; i++) {
-            if (filled[i] === null) filled[i] = last;
+            if (filled[i] === null || filled[i] === undefined) filled[i] = last;
             else break;
         }
     }
@@ -1532,10 +1529,10 @@ function fillGaps(data) {
 }
 
 function fillInitial(array) {
-    let first = array.find(v => v !== null);
+    let first = array.find(v => v !== null && v !== undefined);
     if (first !== undefined) {
         for (let i = 0; i < array.length; i++) {
-            if (array[i] === null) array[i] = first;
+            if (array[i] === null || array[i] === undefined) array[i] = first;
             else break;
         }
     }
@@ -1548,7 +1545,7 @@ function calculateEMA(data, period) {
     let sum = 0;
     let count = 0;
     for (let i = 0; i < data.length; i++) {
-        if (data[i] === null) continue;
+        if (data[i] === null || data[i] === undefined) continue;
         sum += data[i];
         count++;
         if (count >= 1) {
@@ -1559,7 +1556,7 @@ function calculateEMA(data, period) {
     for (let i = 0; i < data.length; i++) {
         if (ema[i] !== null) {
             for (let j = i + 1; j < data.length; j++) {
-                if (data[j] !== null) {
+                if (data[j] !== null && data[j] !== undefined) {
                     ema[j] = (data[j] * k) + (ema[j - 1] * (1 - k));
                 } else {
                     ema[j] = ema[j - 1];
@@ -1582,7 +1579,12 @@ function calculateMACD(data, fast, slow, signal) {
     return { macdLine, emaSignal, histogram };
 }
 
-function processApiData(data, league, market = selectedMarket) {
+function processApiData(data, league) {
+    if (!data || !Array.isArray(data)) {
+        console.error(`Dados inválidos para ${league}:`, data);
+        return { labels: [], macd: { macdLine: [], emaSignal: [], histogram: [] } };
+    }
+
     const sortedData = [...data].sort((a, b) => {
         const dateA = new Date(a.data);
         const dateB = new Date(b.data);
@@ -1854,8 +1856,8 @@ function processApiData(data, league, market = selectedMarket) {
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
 
-    const marketKey = marketKeys[market] || 'ambasSim';
-    const filledData = fillGaps(result[marketKey]);
+    const marketKey = marketKeys[selectedMarket] || 'ambasSim';
+    const filledData = fillGaps(result[marketKey] || []);
     result.macd = calculateMACD(filledData, macdFast, macdSlow, macdSignal);
 
     chartData[league] = slicedData.slice(extra);
@@ -1881,6 +1883,7 @@ const fibonacciLinesPlugin = {
         if (!showFibonacciLines) return;
         const ctx = chart.ctx;
         const yAxis = chart.scales.y;
+        if (!yAxis) return;
         const fibonacciLevels = [0, 23.6, 38.2, 50, 61.8, 100];
         const yMin = yAxis.min;
         const yMax = yAxis.max;
@@ -1911,6 +1914,11 @@ const fibonacciLinesPlugin = {
 };
 
 function createStatsChart(ctx, labels, data, league) {
+    if (!ctx) {
+        console.error(`Contexto do canvas para ${league} é inválido`);
+        return null;
+    }
+
     const datasetConfigs = [
         { label: 'Gols FT', color: '#1E88E5', key: 'golsFT' },
         { label: 'Casa Vence', color: '#AB47BC', key: 'casaVence' },
@@ -1941,10 +1949,10 @@ function createStatsChart(ctx, labels, data, league) {
     datasetConfigs.forEach(config => {
         datasets.push({
             label: config.label,
-            data: data[config.key],
+            data: data[config.key] || [],
             borderColor: config.color,
             backgroundColor: config.color,
-            pointBackgroundColor: data[config.key + 'Colors'],
+            pointBackgroundColor: data[config.key + 'Colors'] || [],
             pointBorderColor: "rgba(0,0,0,0)",
             pointBorderWidth: 0,
             borderWidth: 2,
@@ -1955,7 +1963,7 @@ function createStatsChart(ctx, labels, data, league) {
 
         datasets.push({
             label: config.label + ' - Short MA',
-            data: data[config.key + 'Short'],
+            data: data[config.key + 'Short'] || [],
             borderColor: shortColor,
             backgroundColor: 'transparent',
             tension: 0.3,
@@ -1967,7 +1975,7 @@ function createStatsChart(ctx, labels, data, league) {
 
         datasets.push({
             label: config.label + ' - Medium MA',
-            data: data[config.key + 'Medium'],
+            data: data[config.key + 'Medium'] || [],
             borderColor: mediumColor,
             backgroundColor: 'transparent',
             tension: 0.3,
@@ -1979,7 +1987,7 @@ function createStatsChart(ctx, labels, data, league) {
 
         datasets.push({
             label: config.label + ' - Long MA',
-            data: data[config.key + 'Long'],
+            data: data[config.key + 'Long'] || [],
             borderColor: longColor,
             backgroundColor: 'transparent',
             tension: 0.3,
@@ -1990,101 +1998,111 @@ function createStatsChart(ctx, labels, data, league) {
         });
     });
 
-    return new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            layout: { 
-                padding: { top: 30, right: 50 } 
+    try {
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels || [],
+                datasets: datasets
             },
-            plugins: {
-                legend: {
-                    display: true,
-                    labels: { 
-                        color: '#e0e0e0', 
-                        font: { size: 12 },
-                        filter: (legendItem) => !legendItem.text.includes(' MA')
-                    },
-                    onClick: function(e, legendItem, legend) {
-                        const ci = legend.chart;
-                        const datasetLabel = legendItem.text;
-                        const mainIndex = ci.data.datasets.findIndex(ds => ds.label === datasetLabel);
-                        const meta = ci.getDatasetMeta(mainIndex);
-                        meta.hidden = !meta.hidden;
-                        statsChartVisibleDatasets[datasetLabel] = !meta.hidden;
-
-                        ci.data.datasets.forEach((ds, dsIndex) => {
-                            if (ds.label.startsWith(datasetLabel + ' -')) {
-                                const metaMA = ci.getDatasetMeta(dsIndex);
-                                metaMA.hidden = !showMovingAverages || meta.hidden;
-                            }
-                        });
-
-                        ci.update();
-                    }
+            options: {
+                responsive: true,
+                layout: { 
+                    padding: { top: 30, right: 50 } 
                 },
-                tooltip: {
-                    enabled: true,
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleColor: '#1fad8b',
-                    bodyColor: '#e0e0e0',
-                    borderColor: '#1fad8b',
-                    borderWidth: 1,
-                    callbacks: {
-                        title: function(tooltipItems) {
-                            const index = tooltipItems[0].dataIndex + averagePoints;
-                            const match = chartData[league][index];
-                            return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { 
+                            color: '#e0e0e0', 
+                            font: { size: 12 },
+                            filter: (legendItem) => !legendItem.text.includes(' MA')
                         },
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) {
-                                const value = context.parsed.y;
-                                if (value !== null) {
-                                    label += `: ${value.toFixed(2)}%`;
+                        onClick: function(e, legendItem, legend) {
+                            const ci = legend.chart;
+                            const datasetLabel = legendItem.text;
+                            const mainIndex = ci.data.datasets.findIndex(ds => ds.label === datasetLabel);
+                            const meta = ci.getDatasetMeta(mainIndex);
+                            meta.hidden = !meta.hidden;
+                            statsChartVisibleDatasets[datasetLabel] = !meta.hidden;
+
+                            ci.data.datasets.forEach((ds, dsIndex) => {
+                                if (ds.label.startsWith(datasetLabel + ' -')) {
+                                    const metaMA = ci.getDatasetMeta(dsIndex);
+                                    metaMA.hidden = !showMovingAverages || meta.hidden;
                                 }
+                            });
+
+                            ci.update();
+                        }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#1fad8b',
+                        bodyColor: '#e0e0e0',
+                        borderColor: '#1fad8b',
+                        borderWidth: 1,
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const index = tooltipItems[0].dataIndex + averagePoints;
+                                const match = chartData[league] && chartData[league][index];
+                                return match ? `${match.hora}:${match.minuto.toString().padStart(2, '0')}` : '';
+                            },
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    const value = context.parsed.y;
+                                    if (value !== null && value !== undefined) {
+                                        label += `: ${value.toFixed(2)}%`;
+                                    }
+                                }
+                                return label;
+                            },
+                            afterBody: function(tooltipItems) {
+                                const index = tooltipItems[0].dataIndex + averagePoints;
+                                const match = chartData[league] && chartData[league][index];
+                                const ftScore = match && match.ft ? match.ft : 'N/A';
+                                return `FT: ${ftScore}`;
                             }
-                            return label;
-                        },
-                        afterBody: function(tooltipItems) {
-                            const index = tooltipItems[0].dataIndex + averagePoints;
-                            const match = chartData[league][index];
-                            const ftScore = match.ft || 'N/A';
-                            return `FT: ${ftScore}`;
                         }
                     }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
+                        ticks: { display: false },
+                        grid: { display: false }
+                    },
+                    y: {
+                        title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
+                        beginAtZero: false,
+                        ticks: { color: '#b0b0b0', stepSize: 5 },
+                        grid: { color: 'rgba(255, 255, 255, 0.3)', lineWidth: 0.5 },
+                        afterFit: function(scale) { scale.paddingTop = 20; }
+                    }
                 }
             },
-            scales: {
-                x: {
-                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                    ticks: { display: false },
-                    grid: { display: false }
-                },
-                y: {
-                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                    beginAtZero: false,
-                    ticks: { color: '#b0b0b0', stepSize: 5 },
-                    grid: { color: 'rgba(255, 255, 255, 0.3)', lineWidth: 0.5 },
-                    afterFit: function(scale) { scale.paddingTop = 20; }
-                }
-            }
-        },
-        plugins: [fibonacciLinesPlugin]
-    });
+            plugins: [fibonacciLinesPlugin]
+        });
+    } catch (error) {
+        console.error(`Erro ao criar gráfico de estatísticas para ${league}:`, error);
+        return null;
+    }
 }
 
 function createIndicatorChart(ctx, labels, data, league) {
+    if (!ctx) {
+        console.error(`Contexto do canvas para indicadores de ${league} é inválido`);
+        return null;
+    }
+
     const marketKey = marketKeys[selectedMarket] || 'ambasSim';
-    const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'ambasMarcam';
+    const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'Ambas Sim';
     const datasets = [
         {
             label: 'MACD Line',
-            data: data.macd.macdLine,
+            data: data.macd.macdLine || [],
             borderColor: '#00BFFF',
             backgroundColor: 'transparent',
             borderWidth: 2,
@@ -2094,7 +2112,7 @@ function createIndicatorChart(ctx, labels, data, league) {
         },
         {
             label: 'MACD Signal',
-            data: data.macd.emaSignal,
+            data: data.macd.emaSignal || [],
             borderColor: '#FFA500',
             backgroundColor: 'transparent',
             borderWidth: 2,
@@ -2104,76 +2122,85 @@ function createIndicatorChart(ctx, labels, data, league) {
         },
         {
             label: `MACD Histogram (${marketLabel})`,
-            data: data.macd.histogram,
+            data: data.macd.histogram || [],
             type: 'bar',
-            backgroundColor: data.macd.histogram.map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'),
+            backgroundColor: (data.macd.histogram || []).map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'),
             yAxisID: 'y-macd'
         }
     ];
 
-    return new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            scales: {
-                x: {
-                    ticks: { display: false },
-                    grid: { display: false }
-                },
-                'y-macd': {
-                    type: 'linear',
-                    position: 'right',
-                    title: { 
-                        display: true, 
-                        text: `MACD (${marketLabel})`
-                    }
-                }
+    try {
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels || [],
+                datasets: datasets
             },
-            plugins: {
-                legend: { 
-                    display: true,
-                    labels: {
-                        generateLabels: function(chart) {
-                            return chart.data.datasets.map((dataset, i) => ({
-                                text: dataset.label,
-                                fillStyle: dataset.backgroundColor || dataset.borderColor,
-                                hidden: !chart.isDatasetVisible(i),
-                                lineCap: dataset.borderCap,
-                                lineDash: dataset.borderDash,
-                                lineDashOffset: dataset.borderDashOffset,
-                                lineJoin: dataset.borderJoin,
-                                lineWidth: dataset.borderWidth,
-                                strokeStyle: dataset.borderColor,
-                                pointStyle: dataset.pointStyle,
-                                datasetIndex: i
-                            }));
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        ticks: { display: false },
+                        grid: { display: false }
+                    },
+                    'y-macd': {
+                        type: 'linear',
+                        position: 'right',
+                        title: { 
+                            display: true, 
+                            text: `MACD (${marketLabel})`
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { 
+                        display: true,
+                        labels: {
+                            generateLabels: function(chart) {
+                                return chart.data.datasets.map((dataset, i) => ({
+                                    text: dataset.label,
+                                    fillStyle: dataset.backgroundColor || dataset.borderColor,
+                                    hidden: !chart.isDatasetVisible(i),
+                                    lineCap: dataset.borderCap,
+                                    lineDash: dataset.borderDash,
+                                    lineDashOffset: dataset.borderDashOffset,
+                                    lineJoin: dataset.borderJoin,
+                                    lineWidth: dataset.borderWidth,
+                                    strokeStyle: dataset.borderColor,
+                                    pointStyle: dataset.pointStyle,
+                                    datasetIndex: i
+                                }));
+                            }
                         }
                     }
                 }
             }
-        }
-    });
+        });
+    } catch (error) {
+        console.error(`Erro ao criar gráfico de indicadores para ${league}:`, error);
+        return null;
+    }
 }
 
-function updateIndicatorChart(league, market) {
-    if (chartData[league] && indicatorCharts[league]) {
-        const processedData = processApiData(chartData[league], league, market);
-        const marketKey = marketKeys[market] || 'ambasSim';
-        const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'ambasMarcam';
-        indicatorCharts[league].data.labels = processedData.labels;
-        indicatorCharts[league].data.datasets[0].data = processedData.macd.macdLine;
-        indicatorCharts[league].data.datasets[1].data = processedData.macd.emaSignal;
-        indicatorCharts[league].data.datasets[2].data = processedData.macd.histogram;
-        indicatorCharts[league].data.datasets[2].backgroundColor = processedData.macd.histogram.map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
-        indicatorCharts[league].data.datasets[2].label = `MACD Histogram (${marketLabel})`;
-        indicatorCharts[league].options.scales['y-macd'].title.text = `MACD (${marketLabel})`;
-        indicatorCharts[league].update('none');
-        console.log(`Gráfico de indicadores atualizado para ${league} com mercado ${marketLabel}`);
+function updateIndicatorChart(league) {
+    if (!chartData[league] || !indicatorCharts[league]) {
+        console.warn(`Dados ou gráfico de indicadores não disponíveis para ${league}`);
+        return;
     }
+
+    const processedData = processApiData(chartData[league], league);
+    const marketKey = marketKeys[selectedMarket] || 'ambasSim';
+    const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'Ambas Sim';
+
+    indicatorCharts[league].data.labels = processedData.labels || [];
+    indicatorCharts[league].data.datasets[0].data = processedData.macd.macdLine || [];
+    indicatorCharts[league].data.datasets[1].data = processedData.macd.emaSignal || [];
+    indicatorCharts[league].data.datasets[2].data = processedData.macd.histogram || [];
+    indicatorCharts[league].data.datasets[2].backgroundColor = (processedData.macd.histogram || []).map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
+    indicatorCharts[league].data.datasets[2].label = `MACD Histogram (${marketLabel})`;
+    indicatorCharts[league].options.scales['y-macd'].title.text = `MACD (${marketLabel})`;
+    indicatorCharts[league].update('none');
+    console.log(`Gráfico de indicadores atualizado para ${league} com mercado ${marketLabel}`);
 }
 
 function updateCharts() {
@@ -2183,43 +2210,60 @@ function updateCharts() {
     };
 
     leagues.forEach(league => {
-        const apiUrl = `${leagueUrls[league]}?timestamp=${timestamp}`;
+        const apiUrl = leagueUrls[league];
         console.log(`Buscando dados para ${league} em: ${apiUrl}`);
         fetch(apiUrl)
             .then(response => {
-                console.log(`Resposta recebida para ${league}:`, response);
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
                 return response.json();
             })
             .then(data => {
-                console.log(`Dados processados para ${league}:`, data);
-                const processedData = processApiData(data, league, selectedMarket);
+                console.log(`Dados recebidos para ${league}:`, data);
+                const processedData = processApiData(data, league);
                 const chartId = league;
                 const canvasElement = document.getElementById(chartId);
-                if (!canvasElement) {
-                    console.error(`Canvas com ID '${chartId}' não encontrado no DOM`);
+                const indicatorCanvas = document.getElementById('Indicators');
+
+                if (!canvasElement || !indicatorCanvas) {
+                    console.error(`Canvas não encontrado: ${chartId} ou Indicators`);
                     return;
                 }
+
                 if (!chartInstances[league]) {
                     const ctx = canvasElement.getContext('2d');
                     chartInstances[league] = createStatsChart(ctx, processedData.labels, processedData, league);
-                    const indicatorCtx = document.getElementById('Indicators').getContext('2d');
+                    if (!chartInstances[league]) {
+                        console.error(`Falha ao criar gráfico de estatísticas para ${league}`);
+                        return;
+                    }
+
+                    const indicatorCtx = indicatorCanvas.getContext('2d');
                     indicatorCharts[league] = createIndicatorChart(indicatorCtx, processedData.labels, processedData, league);
-                    console.log(`Gráfico criado para ${league}`);
+                    if (!indicatorCharts[league]) {
+                        console.error(`Falha ao criar gráfico de indicadores para ${league}`);
+                        return;
+                    }
+                    console.log(`Gráficos criados para ${league}`);
                 } else {
                     updateStatsChart(chartInstances[league], processedData);
-                    updateIndicatorChart(league, selectedMarket);
-                    console.log(`Gráfico atualizado para ${league}`);
+                    updateIndicatorChart(league);
+                    console.log(`Gráficos atualizados para ${league}`);
                 }
             })
-            .catch(error => console.error(`Erro ao buscar dados para ${league}:`, error));
+            .catch(error => {
+                console.error(`Erro ao buscar dados para ${league}:`, error);
+            });
     });
 }
 
 function toggleFibonacciLines() {
     showFibonacciLines = document.getElementById('fibonacciToggle').checked;
     leagues.forEach(league => {
-        if (chartInstances[league]) chartInstances[league].update();
+        if (chartInstances[league]) {
+            chartInstances[league].update();
+        }
     });
 }
 
@@ -2241,47 +2285,78 @@ function toggleMovingAverages() {
     });
 }
 
-document.querySelectorAll('.accordion-header').forEach(header => {
-    header.addEventListener('click', () => {
-        const content = header.nextElementSibling;
-        content.classList.toggle('active');
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.accordion-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const content = header.nextElementSibling;
+            content.classList.toggle('active');
+        });
     });
-});
 
-document.getElementById('pointsSelector').addEventListener('change', function(event) {
-    numPoints = parseInt(event.target.value, 10);
+    const pointsSelector = document.getElementById('pointsSelector');
+    if (pointsSelector) {
+        pointsSelector.addEventListener('change', function(event) {
+            numPoints = parseInt(event.target.value, 10);
+            updateCharts();
+        });
+    }
+
+    const averageSelector = document.getElementById('averageSelector');
+    if (averageSelector) {
+        averageSelector.addEventListener('change', function(event) {
+            averagePoints = parseInt(event.target.value, 10);
+            updateCharts();
+        });
+    }
+
+    const marketSelector = document.getElementById('marketSelector');
+    if (marketSelector) {
+        marketSelector.addEventListener('change', function(event) {
+            selectedMarket = event.target.value;
+            console.log(`Mercado selecionado: ${selectedMarket}`);
+            leagues.forEach(league => {
+                updateIndicatorChart(league);
+            });
+        });
+    }
+
+    const fibonacciToggle = document.getElementById('fibonacciToggle');
+    if (fibonacciToggle) {
+        fibonacciToggle.addEventListener('change', toggleFibonacciLines);
+    }
+
+    const movingAveragesToggle = document.getElementById('movingAveragesToggle');
+    if (movingAveragesToggle) {
+        movingAveragesToggle.addEventListener('change', toggleMovingAverages);
+    }
+
+    const macdFastInput = document.getElementById('macdFast');
+    if (macdFastInput) {
+        macdFastInput.addEventListener('change', function(event) {
+            macdFast = parseInt(event.target.value, 10);
+            updateCharts();
+        });
+    }
+
+    const macdSlowInput = document.getElementById('macdSlow');
+    if (macdSlowInput) {
+        macdSlowInput.addEventListener('change', function(event) {
+            macdSlow = parseInt(event.target.value, 10);
+            updateCharts();
+        });
+    }
+
+    const macdSignalInput = document.getElementById('macdSignal');
+    if (macdSignalInput) {
+        macdSignalInput.addEventListener('change', function(event) {
+            macdSignal = parseInt(event.target.value, 10);
+            updateCharts();
+        });
+    }
+
     updateCharts();
 });
 
-document.getElementById('averageSelector').addEventListener('change', function(event) {
-    averagePoints = parseInt(event.target.value, 10);
-    updateCharts();
-});
-
-document.getElementById('marketSelector').addEventListener('change', function(event) {
-    selectedMarket = event.target.value;
-    leagues.forEach(league => {
-        updateIndicatorChart(league, selectedMarket);
-    });
-});
-
-document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
-document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
-
-document.getElementById('macdFast').addEventListener('change', function(event) {
-    macdFast = parseInt(event.target.value, 10);
-    updateCharts();
-});
-document.getElementById('macdSlow').addEventListener('change', function(event) {
-    macdSlow = parseInt(event.target.value, 10);
-    updateCharts();
-});
-document.getElementById('macdSignal').addEventListener('change', function(event) {
-    macdSignal = parseInt(event.target.value, 10);
-    updateCharts();
-});
-
-window.onload = updateCharts;
 setInterval(updateCharts, 3000);
     </script>
 
