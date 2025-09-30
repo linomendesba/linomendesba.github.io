@@ -2207,19 +2207,41 @@ function updateIndicatorChart(league) {
         return;
     }
 
+    // CORREÇÃO PRINCIPAL: Recalcular o MACD com o mercado selecionado
     const macdData = getIndicatorData(league, selectedMarket);
     const marketKey = marketKeys[selectedMarket] || 'ambasSim';
     const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'Ambas Sim';
 
-    indicatorCharts[league].data.labels = processedChartData[league]?.labels || [];
+    // Atualizar os labels
+    const fullLabels = processedChartData[league]?.labels || [];
+    const start = fullLabels.length - numPoints;
+    const slicedLabels = start > 0 ? fullLabels.slice(start) : fullLabels;
+
+    indicatorCharts[league].data.labels = slicedLabels;
+    
+    // Atualizar os dados do MACD Line
     indicatorCharts[league].data.datasets[0].data = macdData.macdLine || [];
+    
+    // Atualizar os dados do MACD Signal
     indicatorCharts[league].data.datasets[1].data = macdData.emaSignal || [];
+    
+    // Atualizar os dados do Histograma com as cores corretas
     indicatorCharts[league].data.datasets[2].data = macdData.histogram || [];
-    indicatorCharts[league].data.datasets[2].backgroundColor = (macdData.histogram || []).map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
+    indicatorCharts[league].data.datasets[2].backgroundColor = (macdData.histogram || []).map(val => 
+        val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'
+    );
+    
+    // Atualizar o label do histograma
     indicatorCharts[league].data.datasets[2].label = `MACD Histogram (${marketLabel})`;
+    
+    // Atualizar o título do eixo Y
     indicatorCharts[league].options.scales['y-macd'].title.text = `MACD (${marketLabel})`;
+    
+    // Forçar atualização do gráfico
     indicatorCharts[league].update('none');
+    
     console.log(`Gráfico de indicadores atualizado para ${league} com mercado ${marketLabel}`);
+    console.log('Dados MACD:', macdData);
 }
 
 function updateCharts() {
@@ -2334,6 +2356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         marketSelector.addEventListener('change', function(event) {
             selectedMarket = event.target.value;
             console.log(`Mercado selecionado: ${selectedMarket}`);
+            // CORREÇÃO: Atualizar cada liga individualmente
             leagues.forEach(league => {
                 updateIndicatorChart(league);
             });
