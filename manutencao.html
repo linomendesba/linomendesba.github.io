@@ -1421,7 +1421,7 @@ const statsChartVisibleDatasets = {
     '2 Gols Exatos': false,
     '3 Gols Exatos': false,
     '4 Gols Exatos': false,
-    '5 Gols Exatos': false
+    '5+ Gols': false
 };
 
 const labelToKey = {
@@ -1443,8 +1443,13 @@ const labelToKey = {
     '2 Gols Exatos': 'gol2',
     '3 Gols Exatos': 'gol3',
     '4 Gols Exatos': 'gol4',
-    '5 Gols Exatos': 'gol5'
+    '5+ Gols': 'gol5'
 };
+
+const keyToLabel = {};
+Object.entries(labelToKey).forEach(([label, key]) => {
+    keyToLabel[key] = label;
+});
 
 function hexToRgba(hex, alpha) {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -1957,7 +1962,7 @@ function createStatsChart(ctx, labels, data, league) {
         { label: '2 Gols Exatos', color: '#A0522D', key: 'gol2' },
         { label: '3 Gols Exatos', color: '#546E7A', key: 'gol3' },
         { label: '4 Gols Exatos', color: '#FFB300', key: 'gol4' },
-        { label: '5 Gols Exatos', color: '#00897B', key: 'gol5' }
+        { label: '5+ Gols', color: '#00897B', key: 'gol5' }
     ];
 
     const datasets = [];
@@ -2117,7 +2122,7 @@ function createIndicatorChart(ctx, labels, macdData, league) {
     }
 
     const marketKey = marketKeys[selectedMarket] || 'ambasSim';
-    const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'Ambas Sim';
+    const marketLabel = keyToLabel[marketKey] || 'Ambas Sim';
     const datasets = [
         {
             label: 'MACD Line',
@@ -2209,7 +2214,7 @@ function updateIndicatorChart(league) {
 
     const macdData = getIndicatorData(league, selectedMarket);
     const marketKey = marketKeys[selectedMarket] || 'ambasSim';
-    const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'Ambas Sim';
+    const marketLabel = keyToLabel[marketKey] || 'Ambas Sim';
 
     indicatorCharts[league].data.labels = processedChartData[league]?.labels || [];
     indicatorCharts[league].data.datasets[0].data = macdData.macdLine || [];
@@ -2334,7 +2339,27 @@ document.addEventListener('DOMContentLoaded', () => {
         marketSelector.addEventListener('change', function(event) {
             selectedMarket = event.target.value;
             console.log(`Mercado selecionado: ${selectedMarket}`);
+            const marketKey = marketKeys[selectedMarket] || 'ambasSim';
+            const selectedLabel = keyToLabel[marketKey] || 'Ambas Sim';
+            Object.keys(statsChartVisibleDatasets).forEach(label => {
+                statsChartVisibleDatasets[label] = (label === selectedLabel);
+            });
             leagues.forEach(league => {
+                const ci = chartInstances[league];
+                if (ci) {
+                    ci.data.datasets.forEach((ds, idx) => {
+                        if (!ds.label.includes(' MA')) {
+                            const meta = ci.getDatasetMeta(idx);
+                            meta.hidden = !statsChartVisibleDatasets[ds.label];
+                        } else {
+                            const mainLabel = ds.label.split(' - ')[0];
+                            const mainVisible = statsChartVisibleDatasets[mainLabel];
+                            const meta = ci.getDatasetMeta(idx);
+                            meta.hidden = !showMovingAverages || !mainVisible;
+                        }
+                    });
+                    ci.update();
+                }
                 updateIndicatorChart(league);
             });
         });
