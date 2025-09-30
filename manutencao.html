@@ -1378,11 +1378,10 @@ const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
 let chartData = {};
 
-// Adições: Variáveis para os novos controles do HTML de referência
 let macdFast = 12;
 let macdSlow = 26;
 let macdSignal = 9;
-let indicatorCharts = {}; // Para os gráficos de indicadores abaixo
+let indicatorCharts = {};
 let selectedMarket = 'ambasMarcam';
 
 const marketKeys = {
@@ -1402,7 +1401,7 @@ const marketKeys = {
     exato1: 'gol1',
     exato2: 'gol2',
     exato3: 'gol3',
-    exato4: 'gol4',
+    exato4: 'gol4'
 };
 
 const statsChartVisibleDatasets = {
@@ -1506,7 +1505,6 @@ function computeMA(dataArray, period) {
     return ma;
 }
 
-// Adição: Função para preencher gaps com valor anterior
 function fillGaps(data) {
     let filled = [...data];
     let last = null;
@@ -1517,7 +1515,6 @@ function fillGaps(data) {
             filled[i] = last;
         }
     }
-    // Backward fill for initial gaps
     if (last === null) {
         for (let i = filled.length - 1; i >= 0; i--) {
             if (filled[i] !== null) {
@@ -1535,7 +1532,6 @@ function fillGaps(data) {
     return filled;
 }
 
-// Adição: Função para preencher array de indicador backward
 function fillInitial(array) {
     let first = array.find(v => v !== null);
     if (first !== undefined) {
@@ -1547,7 +1543,6 @@ function fillInitial(array) {
     return array;
 }
 
-// Adição: Função para calcular EMA
 function calculateEMA(data, period) {
     const k = 2 / (period + 1);
     let ema = new Array(data.length).fill(null);
@@ -1557,7 +1552,7 @@ function calculateEMA(data, period) {
         if (data[i] === null) continue;
         sum += data[i];
         count++;
-        if (count >= 1) { // Começar logo com o primeiro ponto
+        if (count >= 1) {
             ema[i] = sum / count;
             if (count >= period) break;
         }
@@ -1577,7 +1572,6 @@ function calculateEMA(data, period) {
     return fillInitial(ema);
 }
 
-// Adição: Função para calcular MACD (linha, sinal e histograma, aplicada em 'Ambas Sim')
 function calculateMACD(data, fast, slow, signal) {
     const emaFast = calculateEMA(data, fast);
     const emaSlow = calculateEMA(data, slow);
@@ -1598,7 +1592,7 @@ function processApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const extra = 50; // Adicionar 50 jogos extras para base dos indicadores
+    const extra = 50;
     const slicedData = sortedData.slice(- (numPoints + averagePoints + extra));
     chartData[league] = slicedData;
 
@@ -1645,15 +1639,14 @@ function processApiData(data, league) {
 
     const green = '#00FF00';
     const red = '#FF0000';
-    const golsFTLineColor = '#1E88E5'; // Same as borderColor for Gols FT
+    const golsFTLineColor = '#1E88E5';
     const transparent = 'transparent';
 
-    // Função para verificar se há lacuna entre dois jogos
     function hasGap(prevMatch, currMatch) {
         const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
         const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
-        const diffMinutes = (currTime - prevTime) / (1000 * 60); // Diferença em minutos
-        return diffMinutes > 1; // Considera lacuna se a diferença for maior que 1 minuto
+        const diffMinutes = (currTime - prevTime) / (1000 * 60);
+        return diffMinutes > 1;
     }
 
     for (let i = averagePoints; i < slicedData.length; i++) {
@@ -1678,7 +1671,6 @@ function processApiData(data, league) {
         let gol5Sum = 0;
         let validMatches = 0;
 
-        // Calcula a média apenas com os jogos disponíveis
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
             let ftScoreParts = [0, 0];
@@ -1706,15 +1698,14 @@ function processApiData(data, league) {
             gol2Sum += totalGolsFT === 2 ? 1 : 0;
             gol3Sum += totalGolsFT === 3 ? 1 : 0;
             gol4Sum += totalGolsFT === 4 ? 1 : 0;
-            gol5Sum += totalGolsFT === 5 ? 1 : 0;
+            gol5Sum += totalGolsFT >= 5 ? 1 : 0;
             validMatches++;
         }
 
         const match = slicedData[i];
 
-        // Correção para inserir null apenas antes do ponto atual se houver gap com o anterior
         if (i > averagePoints && hasGap(slicedData[i - 1], match)) {
-            labels.push(''); // Label vazio para gap (não aparece nos ticks)
+            labels.push('');
             golsFT.push(null);
             casaVence.push(null);
             empate.push(null);
@@ -1758,7 +1749,7 @@ function processApiData(data, league) {
 
         labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
-        const avg = validMatches || 1; // Evita divisão por zero
+        const avg = validMatches || 1;
 
         let ftScoreParts = [0, 0];
         if (match.ft && match.ft.includes(' x ')) {
@@ -1783,10 +1774,10 @@ function processApiData(data, league) {
         const isGol2 = totalGolsFT === 2;
         const isGol3 = totalGolsFT === 3;
         const isGol4 = totalGolsFT === 4;
-        const isGol5 = totalGolsFT === 5;
+        const isGol5 = totalGolsFT >= 5;
 
         golsFT.push(golsFTSum / avg * 100);
-        golsFTColors.push(golsFTLineColor); // Keep uniform color for Gols FT
+        golsFTColors.push(golsFTLineColor);
 
         casaVence.push(casaVenceSum / avg * 100);
         casaVenceColors.push(isCasaVence ? green : red);
@@ -1853,7 +1844,6 @@ function processApiData(data, league) {
         gol2Colors, gol3Colors, gol4Colors, gol5Colors
     };
 
-    // Compute moving averages
     const shortPeriod = 5;
     const mediumPeriod = 10;
     const longPeriod = 20;
@@ -1865,15 +1855,12 @@ function processApiData(data, league) {
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
 
-    // Adições: Preencher gaps e calcular MACD para o mercado selecionado
-    const marketKey = marketKeys[selectedMarket];
+    const marketKey = marketKeys[selectedMarket] || 'ambasSim';
     const filledData = fillGaps(result[marketKey]);
     result.macd = calculateMACD(filledData, macdFast, macdSlow, macdSignal);
 
-    // Slice chartData to remove extra for tooltip consistency
     chartData[league] = slicedData.slice(extra);
 
-    // Slice the result arrays to the last numPoints (since with extra, result has numPoints + extra points)
     const start = result.labels.length - numPoints;
     if (start > 0) {
         for (let key in result) {
@@ -1903,23 +1890,22 @@ const fibonacciLinesPlugin = {
 
         ctx.save();
         normalizedLevels.forEach((level, index) => {
-        const y = yAxis.getPixelForValue(level);
-        ctx.beginPath();
-        ctx.setLineDash([5, 5]); // <-- deixa tracejado
-        ctx.moveTo(chart.chartArea.left, y);
-        ctx.lineTo(chart.chartArea.right, y);
-        ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.setLineDash([]); // <-- reseta para linhas normais depois
+            const y = yAxis.getPixelForValue(level);
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(chart.chartArea.left, y);
+            ctx.lineTo(chart.chartArea.right, y);
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
 
-        // Texto ao lado da linha
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'left';
-        const textY = y - (index === 0 ? -10 : 5);
-        const textX = chart.chartArea.right + 10;
-        ctx.fillText(`${fibonacciLevels[index]}%`, textX, textY);
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'left';
+            const textY = y - (index === 0 ? -10 : 5);
+            const textX = chart.chartArea.right + 10;
+            ctx.fillText(`${fibonacciLevels[index]}%`, textX, textY);
         });
         ctx.restore();
     }
@@ -1949,26 +1935,23 @@ function createStatsChart(ctx, labels, data, league) {
     ];
 
     const datasets = [];
-    const shortColor = hexToRgba('#00FF00', 0.5); // Verde apagado
-    const mediumColor = hexToRgba('#FFFF00', 0.4); // Amarelo apagado
-    const longColor  = hexToRgba('#1E90FF', 0.3); // Azul apagado
-
-
+    const shortColor = hexToRgba('#00FF00', 0.5);
+    const mediumColor = hexToRgba('#FFFF00', 0.4);
+    const longColor = hexToRgba('#1E90FF', 0.3);
 
     datasetConfigs.forEach(config => {
         datasets.push({
-        label: config.label,
-        data: data[config.key],
-        borderColor: config.color,
-        backgroundColor: config.color,
-        pointBackgroundColor: data[config.key + 'Colors'],
-        pointBorderColor: "rgba(0,0,0,0)", // garante que a borda fique invisível
-        pointBorderWidth: 0,                // sem espessura
-        borderWidth: 2,
-        pointRadius: 4,
-        fill: false,
-        hidden: !statsChartVisibleDatasets[config.label]
-
+            label: config.label,
+            data: data[config.key],
+            borderColor: config.color,
+            backgroundColor: config.color,
+            pointBackgroundColor: data[config.key + 'Colors'],
+            pointBorderColor: "rgba(0,0,0,0)",
+            pointBorderWidth: 0,
+            borderWidth: 2,
+            pointRadius: 4,
+            fill: false,
+            hidden: !statsChartVisibleDatasets[config.label]
         });
 
         datasets.push({
@@ -2045,41 +2028,37 @@ function createStatsChart(ctx, labels, data, league) {
                         ci.update();
                     }
                 },
-              tooltip: {
-                  enabled: true,
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  titleColor: '#1fad8b',
-                  bodyColor: '#e0e0e0',
-                  borderColor: '#1fad8b',
-                  borderWidth: 1,
-                  callbacks: {
-                      title: function(tooltipItems) {
-                          const index = tooltipItems[0].dataIndex + averagePoints;
-                          const match = chartData[league][index];
-                          return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
-                      },
-                      // --- ESTA É A FUNÇÃO ALTERADA ---
-                      label: function(context) {
-                          let label = context.dataset.label || ''; // Pega o nome do dataset (ex: 'Ambas Sim')
-                          if (label) {
-                              // Pega o valor do ponto e formata com 2 casas decimais, adicionando o '%'
-                              const value = context.parsed.y;
-                              if (value !== null) {
-                                  label += `: ${value.toFixed(2)}%`;
-                              }
-                          }
-                          return label;
-                      },
-                      // ---------------------------------
-                      afterBody: function(tooltipItems) {
-                          const index = tooltipItems[0].dataIndex + averagePoints;
-                          const match = chartData[league][index];
-                          const ftScore = match.ft || 'N/A';
-                          return `FT: ${ftScore}`;
-                      }
-                  }
-              }
-
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#1fad8b',
+                    bodyColor: '#e0e0e0',
+                    borderColor: '#1fad8b',
+                    borderWidth: 1,
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            const index = tooltipItems[0].dataIndex + averagePoints;
+                            const match = chartData[league][index];
+                            return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
+                        },
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                const value = context.parsed.y;
+                                if (value !== null) {
+                                    label += `: ${value.toFixed(2)}%`;
+                                }
+                            }
+                            return label;
+                        },
+                        afterBody: function(tooltipItems) {
+                            const index = tooltipItems[0].dataIndex + averagePoints;
+                            const match = chartData[league][index];
+                            const ftScore = match.ft || 'N/A';
+                            return `FT: ${ftScore}`;
+                        }
+                    }
+                }
             },
             scales: {
                 x: {
@@ -2088,11 +2067,11 @@ function createStatsChart(ctx, labels, data, league) {
                     grid: { display: false }
                 },
                 y: {
-                  title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
-                  beginAtZero: false,
-                  ticks: { color: '#b0b0b0', stepSize: 5 },
-                  grid: { color: 'rgba(255, 255, 255, 0.3)', lineWidth: 0.5 },
-                  afterFit: function(scale) { scale.paddingTop = 20; }
+                    title: { display: true, text: '', color: '#1fad8b', font: { size: 14 } },
+                    beginAtZero: false,
+                    ticks: { color: '#b0b0b0', stepSize: 5 },
+                    grid: { color: 'rgba(255, 255, 255, 0.3)', lineWidth: 0.5 },
+                    afterFit: function(scale) { scale.paddingTop = 20; }
                 }
             }
         },
@@ -2100,7 +2079,6 @@ function createStatsChart(ctx, labels, data, league) {
     });
 }
 
-// Adição: Função para criar o gráfico de indicadores abaixo (RSI, MACD com histograma)
 function createIndicatorChart(ctx, labels, data) {
     const datasets = [
         {
@@ -2148,7 +2126,7 @@ function createIndicatorChart(ctx, labels, data) {
                 'y-macd': {
                     type: 'linear',
                     position: 'right',
-                    title: { display: true, text: 'MACD' }
+                    title: { display: true, text: `MACD (${selectedMarket})` }
                 }
             },
             plugins: {
@@ -2161,7 +2139,7 @@ function createIndicatorChart(ctx, labels, data) {
 function updateCharts() {
     const timestamp = new Date().getTime();
     const leagueUrls = {
-        'Copa': ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${timestamp}`,
+        'Copa': ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${timestamp}`
     };
 
     leagues.forEach(league => {
@@ -2185,18 +2163,17 @@ function updateCharts() {
                 if (!chartInstances[league]) {
                     const ctx = canvasElement.getContext('2d');
                     chartInstances[league] = createStatsChart(ctx, processedData.labels, processedData, league);
-                    // Adição: Criar gráfico de indicadores
                     const indicatorCtx = document.getElementById('Indicators').getContext('2d');
                     indicatorCharts[league] = createIndicatorChart(indicatorCtx, processedData.labels, processedData);
                     console.log(`Gráfico criado para ${league}`);
                 } else {
                     updateStatsChart(chartInstances[league], processedData);
-                    // Adição: Atualizar gráfico de indicadores
                     indicatorCharts[league].data.labels = processedData.labels;
                     indicatorCharts[league].data.datasets[0].data = processedData.macd.macdLine;
                     indicatorCharts[league].data.datasets[1].data = processedData.macd.emaSignal;
                     indicatorCharts[league].data.datasets[2].data = processedData.macd.histogram;
                     indicatorCharts[league].data.datasets[2].backgroundColor = processedData.macd.histogram.map(val => val > 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
+                    indicatorCharts[league].options.scales['y-macd'].title.text = `MACD (${selectedMarket})`;
                     indicatorCharts[league].update('none');
                     console.log(`Gráfico atualizado para ${league}`);
                 }
@@ -2218,7 +2195,7 @@ function toggleMovingAverages() {
         const ci = chartInstances[league];
         if (ci) {
             ci.data.datasets.forEach((ds, idx) => {
-                if (ds.label.includes(' - ')) { // MA dataset
+                if (ds.label.includes(' - ')) {
                     const mainLabel = ds.label.split(' - ')[0];
                     const mainVisible = statsChartVisibleDatasets[mainLabel];
                     const meta = ci.getDatasetMeta(idx);
@@ -2255,7 +2232,6 @@ document.getElementById('marketSelector').addEventListener('change', function(ev
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
 
-// Adições: Listeners para os novos controles (atualizam ao mudar valores)
 document.getElementById('macdFast').addEventListener('change', function(event) {
     macdFast = parseInt(event.target.value, 10);
     updateCharts();
