@@ -1,4 +1,764 @@
-);
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gráfico MACD e RSI</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0a0a0a;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #00BFFF;
+            font-size: 28px;
+        }
+
+        .chart-container {
+            background-color: #1a1a1a;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        #Indicators { 
+            width: 100% !important;
+            height: 500px !important;
+        }
+
+        .controls {
+            background-color: #1a1a1a;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .controls h2 {
+            color: #00BFFF;
+            margin-bottom: 20px;
+            font-size: 20px;
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            color: #aaa;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        select, input[type="number"] {
+            background-color: #2a2a2a;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        select:hover, input[type="number"]:hover {
+            border-color: #00BFFF;
+        }
+
+        select:focus, input[type="number"]:focus {
+            border-color: #00BFFF;
+            box-shadow: 0 0 0 3px rgba(0, 191, 255, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background-color: #2a2a2a;
+            border-radius: 6px;
+            border: 1px solid #444;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .checkbox-group:hover {
+            border-color: #00BFFF;
+            background-color: #333;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #00BFFF;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        @media (max-width: 768px) {
+            .control-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .controls h2 {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Análise Técnica - MACD e RSI</h1>
+
+        <div class="chart-container">
+            <canvas id="Indicators"></canvas>
+        </div>
+
+        <div class="controls">
+            <h2>Configurações dos Indicadores</h2>
+            
+            <div class="control-grid">
+                <div class="control-group">
+                    <label for="marketSelector">Mercado</label>
+                    <select id="marketSelector">
+                        <option value="ambasMarcam">Ambas Marcam</option>
+                        <option value="ambasNaoMarcam">Ambas Não Marcam</option>
+                        <option value="casaVence">Casa Vence</option>
+                        <option value="foraVence">Fora Vence</option>
+                        <option value="empate">Empate</option>
+                        <option value="over1.5">Over 1.5</option>
+                        <option value="under1.5">Under 1.5</option>
+                        <option value="over2.5">Over 2.5</option>
+                        <option value="under2.5">Under 2.5</option>
+                        <option value="over3.5">Over 3.5</option>
+                        <option value="under3.5">Under 3.5</option>
+                        <option value="over5">Over 5+</option>
+                        <option value="exato0">0 Gol Exato</option>
+                        <option value="exato1">1 Gol Exato</option>
+                        <option value="exato2">2 Gols Exatos</option>
+                        <option value="exato3">3 Gols Exatos</option>
+                        <option value="exato4">4 Gols Exatos</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="pointsSelector">Período de Análise</label>
+                    <select id="pointsSelector">
+                        <option value="20">1 Hora</option>
+                        <option value="40">2 Horas</option>
+                        <option value="60">3 Horas</option>
+                        <option value="80">4 Horas</option>
+                        <option value="100">5 Horas</option>
+                        <option value="120">6 Horas</option>
+                        <option value="140">7 Horas</option>
+                        <option value="160">8 Horas</option>
+                        <option value="180">9 Horas</option>
+                        <option value="200">10 Horas</option>
+                        <option value="220">11 Horas</option>
+                        <option value="240">12 Horas</option>
+                        <option value="480">24 Horas</option>
+                        <option value="960">48 Horas</option>
+                        <option value="1440">72 Horas</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="averageSelector">Pontos de Média</label>
+                    <input type="number" id="averageSelector" value="19" min="1" max="100">
+                </div>
+            </div>
+
+            <div class="control-grid">
+                <div class="control-group">
+                    <label for="macdFast">MACD Rápido</label>
+                    <input type="number" id="macdFast" value="12" min="1" max="50">
+                </div>
+
+                <div class="control-group">
+                    <label for="macdSlow">MACD Lento</label>
+                    <input type="number" id="macdSlow" value="26" min="1" max="100">
+                </div>
+
+                <div class="control-group">
+                    <label for="macdSignal">MACD Sinal</label>
+                    <input type="number" id="macdSignal" value="9" min="1" max="50">
+                </div>
+
+                <div class="control-group">
+                    <label for="rsiPeriod">Período RSI</label>
+                    <input type="number" id="rsiPeriod" value="14" min="1" max="50">
+                </div>
+            </div>
+
+            <div class="control-grid">
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showRSI" checked>
+                        <label for="showRSI">Exibir RSI</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DATA_URL = 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20Eterna';
+
+        let numPoints = 20;
+        let averagePoints = 19;
+        const leagues = ['Copa'];
+        let chartData = {};
+        let processedChartData = {};
+        let macdFast = 12;
+        let macdSlow = 26;
+        let macdSignal = 9;
+        let rsiPeriod = 14;
+        let showRSI = true;
+        let indicatorCharts = {};
+        let selectedMarket = 'ambasMarcam';
+
+        const marketKeys = {
+            ambasMarcam: 'ambasSim',
+            ambasNaoMarcam: 'ambasNao',
+            casaVence: 'casaVence',
+            foraVence: 'foraVence',
+            empate: 'empate',
+            'over1.5': 'over15',
+            'under1.5': 'under15',
+            'over2.5': 'over25',
+            'under2.5': 'under25',
+            'over3.5': 'over35',
+            'under3.5': 'under35',
+            over5: 'over45',
+            exato0: 'gol0',
+            exato1: 'gol1',
+            exato2: 'gol2',
+            exato3: 'gol3',
+            exato4: 'gol4'
+        };
+
+        const labelToKey = {
+            'Gols FT': 'golsFT',
+            'Casa Vence': 'casaVence',
+            'Empate': 'empate',
+            'Fora Vence': 'foraVence',
+            'Ambas Sim': 'ambasSim',
+            'Ambas Não': 'ambasNao',
+            'Over 1.5': 'over15',
+            'Over 2.5': 'over25',
+            'Over 3.5': 'over35',
+            'Under 1.5': 'under15',
+            'Under 2.5': 'under25',
+            'Under 3.5': 'under35',
+            'Over 5+': 'over45',
+            '0 Gol Exato': 'gol0',
+            '1 Gol Exato': 'gol1',
+            '2 Gols Exatos': 'gol2',
+            '3 Gols Exatos': 'gol3',
+            '4 Gols Exatos': 'gol4',
+            '5+ Gols': 'gol5'
+        };
+
+        const keyToLabel = {};
+        Object.entries(labelToKey).forEach(([label, key]) => {
+            keyToLabel[key] = label;
+        });
+
+        function fillGaps(data) {
+            let filled = [...data];
+            let last = null;
+            for (let i = 0; i < filled.length; i++) {
+                if (filled[i] !== null && filled[i] !== undefined) {
+                    last = filled[i];
+                } else if (last !== null) {
+                    filled[i] = last;
+                }
+            }
+            if (last === null) {
+                for (let i = filled.length - 1; i >= 0; i--) {
+                    if (filled[i] !== null && filled[i] !== undefined) {
+                        last = filled[i];
+                    } else if (last !== null) {
+                        filled[i] = last;
+                    }
+                }
+            } else {
+                for (let i = 0; i < filled.length; i++) {
+                    if (filled[i] === null || filled[i] === undefined) filled[i] = last;
+                    else break;
+                }
+            }
+            return filled;
+        }
+
+        function fillInitial(array) {
+            let first = array.find(v => v !== null && v !== undefined);
+            if (first !== undefined) {
+                for (let i = 0; i < array.length; i++) {
+                    if (array[i] === null || array[i] === undefined) array[i] = first;
+                    else break;
+                }
+            }
+            return array;
+        }
+
+        function calculateEMA(data, period) {
+            const k = 2 / (period + 1);
+            let ema = new Array(data.length).fill(null);
+            let sum = 0;
+            let count = 0;
+            for (let i = 0; i < data.length; i++) {
+                if (data[i] === null || data[i] === undefined) continue;
+                sum += data[i];
+                count++;
+                if (count >= 1) {
+                    ema[i] = sum / count;
+                    if (count >= period) break;
+                }
+            }
+            for (let i = 0; i < data.length; i++) {
+                if (ema[i] !== null) {
+                    for (let j = i + 1; j < data.length; j++) {
+                        if (data[j] !== null && data[j] !== undefined) {
+                            ema[j] = (data[j] * k) + (ema[j - 1] * (1 - k));
+                        } else {
+                            ema[j] = ema[j - 1];
+                        }
+                    }
+                    break;
+                }
+            }
+            return fillInitial(ema);
+        }
+
+        function calculateMACD(data, fast, slow, signal) {
+            const emaFast = calculateEMA(data, fast);
+            const emaSlow = calculateEMA(data, slow);
+            let macdLine = data.map((d, i) => (emaFast[i] !== null && emaSlow[i] !== null ? emaFast[i] - emaSlow[i] : null));
+            macdLine = fillInitial(macdLine);
+            const emaSignal = calculateEMA(macdLine, signal);
+            let histogram = data.map((d, i) => (macdLine[i] !== null && emaSignal[i] !== null ? macdLine[i] - emaSignal[i] : null));
+            histogram = fillInitial(histogram);
+            return { macdLine, emaSignal, histogram };
+        }
+
+        function calculateRSI(data, period) {
+            let rsi = new Array(data.length).fill(null);
+            let gains = [];
+            let losses = [];
+
+            for (let i = 1; i < data.length; i++) {
+                if (data[i] === null || data[i - 1] === null) continue;
+                
+                const change = data[i] - data[i - 1];
+                gains.push(change > 0 ? change : 0);
+                losses.push(change < 0 ? -change : 0);
+
+                if (gains.length >= period) {
+                    const avgGain = gains.slice(-period).reduce((a, b) => a + b, 0) / period;
+                    const avgLoss = losses.slice(-period).reduce((a, b) => a + b, 0) / period;
+                    
+                    if (avgLoss === 0) {
+                        rsi[i] = 100;
+                    } else {
+                        const rs = avgGain / avgLoss;
+                        rsi[i] = 100 - (100 / (1 + rs));
+                    }
+                }
+            }
+
+            return fillInitial(rsi);
+        }
+
+        function processApiData(data, league) {
+            if (!data || !Array.isArray(data)) {
+                console.error(`Dados inválidos para ${league}:`, data);
+                return { labels: [] };
+            }
+
+            const sortedData = [...data].sort((a, b) => {
+                const dateA = new Date(a.data);
+                const dateB = new Date(b.data);
+                if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
+                if (a.hora !== b.hora) return a.hora - b.hora;
+                return a.minuto - b.minuto;
+            });
+
+            const extra = 50;
+            const slicedData = sortedData.slice(- (numPoints + averagePoints + extra));
+            chartData[league] = slicedData;
+
+            let labels = [];
+            let ambasSim = [];
+            let ambasNao = [];
+            let casaVence = [];
+            let empate = [];
+            let foraVence = [];
+            let over15 = [];
+            let over25 = [];
+            let over35 = [];
+            let under15 = [];
+            let under25 = [];
+            let under35 = [];
+            let over45 = [];
+            let gol0 = [];
+            let gol1 = [];
+            let gol2 = [];
+            let gol3 = [];
+            let gol4 = [];
+
+            function hasGap(prevMatch, currMatch) {
+                const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
+                const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
+                const diffMinutes = (currTime - prevTime) / (1000 * 60);
+                return diffMinutes > 1;
+            }
+
+            for (let i = averagePoints; i < slicedData.length; i++) {
+                let ambasSimSum = 0;
+                let ambasNaoSum = 0;
+                let casaVenceSum = 0;
+                let empateSum = 0;
+                let foraVenceSum = 0;
+                let over15Sum = 0;
+                let over25Sum = 0;
+                let over35Sum = 0;
+                let under15Sum = 0;
+                let under25Sum = 0;
+                let under35Sum = 0;
+                let over45Sum = 0;
+                let gol0Sum = 0;
+                let gol1Sum = 0;
+                let gol2Sum = 0;
+                let gol3Sum = 0;
+                let gol4Sum = 0;
+                let validMatches = 0;
+
+                for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
+                    const match = slicedData[j];
+                    let ftScoreParts = [0, 0];
+                    if (match.ft && match.ft.includes(' x ')) {
+                        ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
+                    }
+
+                    const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
+
+                    ambasSimSum += ftScoreParts[0] > 0 && ftScoreParts[1] > 0 ? 1 : 0;
+                    ambasNaoSum += ftScoreParts[0] === 0 || ftScoreParts[1] === 0 ? 1 : 0;
+                    casaVenceSum += ftScoreParts[0] > ftScoreParts[1] ? 1 : 0;
+                    empateSum += ftScoreParts[0] === ftScoreParts[1] ? 1 : 0;
+                    foraVenceSum += ftScoreParts[0] < ftScoreParts[1] ? 1 : 0;
+                    over15Sum += totalGolsFT > 1.5 ? 1 : 0;
+                    over25Sum += totalGolsFT > 2.5 ? 1 : 0;
+                    over35Sum += totalGolsFT > 3.5 ? 1 : 0;
+                    under15Sum += totalGolsFT < 1.5 ? 1 : 0;
+                    under25Sum += totalGolsFT < 2.5 ? 1 : 0;
+                    under35Sum += totalGolsFT < 3.5 ? 1 : 0;
+                    over45Sum += totalGolsFT > 4.5 ? 1 : 0;
+                    gol0Sum += totalGolsFT === 0 ? 1 : 0;
+                    gol1Sum += totalGolsFT === 1 ? 1 : 0;
+                    gol2Sum += totalGolsFT === 2 ? 1 : 0;
+                    gol3Sum += totalGolsFT === 3 ? 1 : 0;
+                    gol4Sum += totalGolsFT === 4 ? 1 : 0;
+                    validMatches++;
+                }
+
+                const match = slicedData[i];
+
+                if (i > averagePoints && hasGap(slicedData[i - 1], match)) {
+                    labels.push('');
+                    ambasSim.push(null);
+                    ambasNao.push(null);
+                    casaVence.push(null);
+                    empate.push(null);
+                    foraVence.push(null);
+                    over15.push(null);
+                    over25.push(null);
+                    over35.push(null);
+                    under15.push(null);
+                    under25.push(null);
+                    under35.push(null);
+                    over45.push(null);
+                    gol0.push(null);
+                    gol1.push(null);
+                    gol2.push(null);
+                    gol3.push(null);
+                    gol4.push(null);
+                }
+
+                labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
+
+                const avg = validMatches || 1;
+
+                ambasSim.push(ambasSimSum / avg * 100);
+                ambasNao.push(ambasNaoSum / avg * 100);
+                casaVence.push(casaVenceSum / avg * 100);
+                empate.push(empateSum / avg * 100);
+                foraVence.push(foraVenceSum / avg * 100);
+                over15.push(over15Sum / avg * 100);
+                over25.push(over25Sum / avg * 100);
+                over35.push(over35Sum / avg * 100);
+                under15.push(under15Sum / avg * 100);
+                under25.push(under25Sum / avg * 100);
+                under35.push(under35Sum / avg * 100);
+                over45.push(over45Sum / avg * 100);
+                gol0.push(gol0Sum / avg * 100);
+                gol1.push(gol1Sum / avg * 100);
+                gol2.push(gol2Sum / avg * 100);
+                gol3.push(gol3Sum / avg * 100);
+                gol4.push(gol4Sum / avg * 100);
+            }
+
+            const result = { 
+                labels, ambasSim, ambasNao, casaVence, empate, foraVence,
+                over15, over25, over35, under15, under25, under35, over45,
+                gol0, gol1, gol2, gol3, gol4
+            };
+
+            processedChartData[league] = result;
+            chartData[league] = slicedData.slice(extra);
+
+            const start = result.labels.length - numPoints;
+            if (start > 0) {
+                for (let key in result) {
+                    if (Array.isArray(result[key])) {
+                        result[key] = result[key].slice(start);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        function getIndicatorData(league, market) {
+            if (!processedChartData[league]) {
+                console.warn(`Dados processados não disponíveis para ${league}`);
+                return { macdLine: [], emaSignal: [], histogram: [], rsi: [] };
+            }
+
+            const marketKey = marketKeys[market] || 'ambasSim';
+            const data = processedChartData[league][marketKey] || [];
+            const filledData = fillGaps(data);
+            const macd = calculateMACD(filledData, macdFast, macdSlow, macdSignal);
+            const rsi = calculateRSI(filledData, rsiPeriod);
+
+            return { ...macd, rsi };
+        }
+
+        function createIndicatorChart(ctx, labels, indicatorData, league) {
+            if (!ctx) {
+                console.error(`Contexto do canvas para indicadores de ${league} é inválido`);
+                return null;
+            }
+
+            const marketKey = marketKeys[selectedMarket] || 'ambasSim';
+            const marketLabel = keyToLabel[marketKey] || 'Ambas Sim';
+            
+            const datasets = [
+                {
+                    label: 'Linha MACD',
+                    data: indicatorData.macdLine || [],
+                    borderColor: '#00BFFF',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    yAxisID: 'y-macd',
+                    fill: false
+                },
+                {
+                    label: 'Sinal MACD',
+                    data: indicatorData.emaSignal || [],
+                    borderColor: '#FFA500',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    yAxisID: 'y-macd',
+                    fill: false
+                },
+                {
+                    label: `Histograma MACD (${marketLabel})`,
+                    data: indicatorData.histogram || [],
+                    type: 'bar',
+                    backgroundColor: (indicatorData.histogram || []).map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'),
+                    yAxisID: 'y-macd'
+                }
+            ];
+
+            if (showRSI) {
+                datasets.push({
+                    label: 'RSI',
+                    data: indicatorData.rsi || [],
+                    borderColor: '#9C27B0',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    yAxisID: 'y-rsi',
+                    fill: false
+                });
+            }
+
+            const scales = {
+                x: {
+                    ticks: { 
+                        color: '#aaa',
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    grid: { color: '#222' }
+                },
+                'y-macd': {
+                    type: 'linear',
+                    position: 'left',
+                    title: { 
+                        display: true, 
+                        text: `MACD (${marketLabel})`,
+                        color: '#00BFFF',
+                        font: { size: 14, weight: 'bold' }
+                    },
+                    ticks: { color: '#aaa' },
+                    grid: { color: '#222' }
+                }
+            };
+
+            if (showRSI) {
+                scales['y-rsi'] = {
+                    type: 'linear',
+                    position: 'right',
+                    min: 0,
+                    max: 100,
+                    title: { 
+                        display: true, 
+                        text: 'RSI',
+                        color: '#9C27B0',
+                        font: { size: 14, weight: 'bold' }
+                    },
+                    ticks: { 
+                        color: '#aaa',
+                        callback: function(value) {
+                            if (value === 30 || value === 70) {
+                                return value;
+                            }
+                            return value;
+                        }
+                    },
+                    grid: { 
+                        color: '#222',
+                        drawBorder: true
+                    }
+                };
+            }
+
+            try {
+                return new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels || [],
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        scales: scales,
+                        plugins: {
+                            legend: { 
+                                display: true,
+                                labels: { 
+                                    color: '#fff',
+                                    padding: 15,
+                                    font: { size: 12 }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#00BFFF',
+                                bodyColor: '#fff',
+                                borderColor: '#00BFFF',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: true,
+                                callbacks: {
+                                    title: function(context) {
+                                        return 'Horário: ' + context[0].label;
+                                    },
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed.y !== null) {
+                                            label += context.parsed.y.toFixed(2);
+                                            if (context.dataset.yAxisID === 'y-rsi') {
+                                                if (context.parsed.y > 70) {
+                                                    label += ' (Sobrecompra)';
+                                                } else if (context.parsed.y < 30) {
+                                                    label += ' (Sobrevenda)';
+                                                }
+                                            }
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error(`Erro ao criar gráfico de indicadores para ${league}:`, error);
+                return null;
+            }
+        }
+
+        function updateIndicatorChart(league) {
+            if (!indicatorCharts[league]) {
+                console.warn(`Gráfico de indicadores não inicializado para ${league}`);
+                return;
+            }
+
+            const indicatorData = getIndicatorData(league, selectedMarket);
             const marketKey = marketKeys[selectedMarket] || 'ambasSim';
             const marketLabel = keyToLabel[marketKey] || 'Ambas Sim';
 
