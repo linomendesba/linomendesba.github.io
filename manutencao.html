@@ -1476,14 +1476,19 @@ function fillGaps(data) {
             filled[i] = last;
         }
     }
-    // Se houver gaps no início, preencher com o primeiro não-null (backward fill para início)
+    // Backward fill for initial gaps
     if (last === null) {
-        last = filled.find(d => d !== null);
-        if (last !== undefined) {
-            for (let i = 0; i < filled.length; i++) {
-                if (filled[i] === null) filled[i] = last;
-                else break;
+        for (let i = filled.length - 1; i >= 0; i--) {
+            if (filled[i] !== null) {
+                last = filled[i];
+            } else if (last !== null) {
+                filled[i] = last;
             }
+        }
+    } else {
+        for (let i = 0; i < filled.length; i++) {
+            if (filled[i] === null) filled[i] = last;
+            else break;
         }
     }
     return filled;
@@ -1499,9 +1504,9 @@ function calculateEMA(data, period) {
         if (data[i] === null) continue;
         sum += data[i];
         count++;
-        if (count === period) {
-            ema[i] = sum / period;
-            break;
+        if (count >= 1) { // Começar logo com o primeiro ponto
+            ema[i] = sum / count;
+            if (count >= period) break;
         }
     }
     for (let i = 0; i < data.length; i++) {
@@ -1509,6 +1514,8 @@ function calculateEMA(data, period) {
             for (let j = i + 1; j < data.length; j++) {
                 if (data[j] !== null) {
                     ema[j] = (data[j] * k) + (ema[j - 1] * (1 - k));
+                } else {
+                    ema[j] = ema[j - 1];
                 }
             }
             break;
@@ -1520,25 +1527,40 @@ function calculateEMA(data, period) {
 // Adição: Função para calcular RSI
 function calculateRSI(data, period) {
     let rsi = new Array(data.length).fill(null);
-    if (data.length < period + 1) return rsi;
+    if (data.length < 2) return rsi;
     let gains = 0, losses = 0;
-    for (let i = 1; i <= period; i++) {
+    let count = 0;
+    for (let i = 1; i < data.length; i++) {
         if (data[i] === null || data[i - 1] === null) continue;
         let diff = data[i] - data[i - 1];
         if (diff > 0) gains += diff;
         else losses -= diff;
+        count++;
+        if (count >= period) break;
     }
-    let avgGain = gains / period;
-    let avgLoss = losses / period;
-    rsi[period] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
-    for (let i = period + 1; i < data.length; i++) {
-        if (data[i] === null || data[i - 1] === null) continue;
+    if (count === 0) return rsi;
+    let avgGain = gains / count;
+    let avgLoss = losses / count;
+    let initialIdx = count;
+    rsi[initialIdx] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
+    for (let i = initialIdx + 1; i < data.length; i++) {
+        if (data[i] === null || data[i - 1] === null) {
+            rsi[i] = rsi[i - 1];
+            continue;
+        }
         let diff = data[i] - data[i - 1];
         let gain = diff > 0 ? diff : 0;
         let loss = Math.abs(diff < 0 ? diff : 0);
         avgGain = (avgGain * (period - 1) + gain) / period;
         avgLoss = (avgLoss * (period - 1) + loss) / period;
         rsi[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
+    }
+    // Preencher inicial com o primeiro RSI válido
+    let firstRsi = rsi.find(v => v !== null);
+    if (firstRsi !== undefined) {
+        for (let i = 0; i < initialIdx; i++) {
+            rsi[i] = firstRsi;
+        }
     }
     return rsi;
 }
@@ -1562,7 +1584,8 @@ function processApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const slicedData = sortedData.slice(-numPoints - averagePoints);
+    const extra = 50; // Adicionar 50 jogos extras para base dos indicadores
+    const slicedData = sortedData.slice(- (numPoints + averagePoints + extra));
     chartData[league] = slicedData;
 
     let labels = [];
@@ -1822,6 +1845,23 @@ function processApiData(data, league) {
     let filledAmbasSim = fillGaps(result.ambasSim);
     result.ambasSimRSI = calculateRSI(filledAmbasSim, rsiPeriod);
     result.macd = calculateMACD(filledAmbasSim, macdFast, macdSlow, macdSignal);
+
+    // Slice chartData to remove extra for tooltip consistency
+    chartData[league] = slicedData.slice(extra);
+
+    // Slice the result arrays to the last numPoints (since with extra, result has numPoints + extra points)
+    const start = result.labels.length - numPoints;
+    if (start > 0) {
+        for (let key in result) {
+            if (Array.isArray(result[key])) {
+                result[key] = result[key].slice(start);
+            }
+        }
+        result.ambasSimRSI = result.ambasSimRSI.slice(start);
+        result.macd.macdLine = result.macd.macdLine.slice(start);
+        result.macd.emaSignal = result.macd.emaSignal.slice(start);
+        result.macd.histogram = result.macd.histogram.slice(start);
+    }
 
     return result;
 }
