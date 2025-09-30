@@ -260,7 +260,7 @@
             <label for="movingAveragesToggle">Ativar Médias Móveis</label>
         </div>
 
-        <!-- Adições do HTML de referência: Controles para RSI, MACD, Congestão, Topo/Fundo -->
+        <!-- Adições do HTML de referência: Controles para RSI, MACD, Congestão -->
         <div>
             <label for="rsiPeriod">RSI Período:</label>
             <input type="number" id="rsiPeriod" value="14">
@@ -284,10 +284,6 @@
                 <option value="2">2</option>
                 <option value="3">3</option>
             </select>
-        </div>
-        <div class="checkbox-container">
-            <input type="checkbox" id="bollingerToggle">
-            <label for="bollingerToggle">Ativar Topo/Fundo (Bollinger Bands)</label>
         </div>
     </div>
 </div>
@@ -1377,7 +1373,6 @@ let macdFast = 12;
 let macdSlow = 26;
 let macdSignal = 9;
 let congestionNum = 1;
-let showBollinger = false;
 let indicatorCharts = {}; // Para os gráficos de indicadores abaixo
 
 const statsChartVisibleDatasets = {
@@ -1459,6 +1454,7 @@ function updateStatsChart(chart, newData) {
                 ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + 'Colors'];
             }
         });
+        chart.options.congestionAreas = newData.congestionAreas;
         chart.update('none');
     }
 }
@@ -1479,29 +1475,29 @@ function computeMA(dataArray, period) {
     return ma;
 }
 
-// Adição: Função para calcular EMA (usada no MACD)
+// Adição: Função para calcular EMA (usada no MACD), ajustada para lidar melhor com dados iniciais
 function calculateEMA(data, period) {
     const k = 2 / (period + 1);
     let ema = new Array(data.length).fill(null);
     let sum = 0;
     let count = 0;
-    for (let i = 0; i < data.length; i++) {
-        if (data[i] === null) continue;
-        sum += data[i];
-        count++;
-        if (count === period) {
-            ema[i] = sum / period;
+    let i = 0;
+    while (i < data.length) {
+        if (data[i] !== null) {
+            sum += data[i];
+            count++;
+        }
+        if (count > 0 && (count >= period || i === data.length - 1)) {
+            ema[i] = sum / count;
             break;
         }
+        i++;
     }
-    for (let i = 0; i < data.length; i++) {
-        if (ema[i] !== null) {
-            for (let j = i + 1; j < data.length; j++) {
-                if (data[j] !== null) {
-                    ema[j] = (data[j] * k) + (ema[j - 1] * (1 - k));
-                }
-            }
-            break;
+    for (let j = i + 1; j < data.length; j++) {
+        if (data[j] !== null) {
+            ema[j] = (data[j] * k) + (ema[j - 1] * (1 - k));
+        } else {
+            ema[j] = ema[j - 1]; // Propagar valor anterior em gaps
         }
     }
     return ema;
@@ -1512,17 +1508,28 @@ function calculateRSI(data, period) {
     let rsi = new Array(data.length).fill(null);
     if (data.length < period + 1) return rsi;
     let gains = 0, losses = 0;
-    for (let i = 1; i <= period; i++) {
-        if (data[i] === null || data[i - 1] === null) continue;
-        let diff = data[i] - data[i - 1];
+    let prev = null;
+    let start = 0;
+    while (start < data.length && data[start] === null) start++;
+    prev = data[start];
+    let effectivePeriod = 0;
+    for (let i = start + 1; i < data.length; i++) {
+        if (data[i] === null) continue;
+        let diff = data[i] - prev;
         if (diff > 0) gains += diff;
         else losses -= diff;
+        prev = data[i];
+        effectivePeriod++;
+        if (effectivePeriod >= period) break;
     }
-    let avgGain = gains / period;
-    let avgLoss = losses / period;
-    rsi[period] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
-    for (let i = period + 1; i < data.length; i++) {
-        if (data[i] === null || data[i - 1] === null) continue;
+    let avgGain = gains / effectivePeriod;
+    let avgLoss = losses / effectivePeriod;
+    if (effectivePeriod > 0) {
+        let idx = Math.min(start + effectivePeriod, data.length - 1);
+        rsi[idx] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
+    }
+    for (let i = start + effectivePeriod + 1; i < data.length; i++) {
+        if (data[i] === null) continue;
         let diff = data[i] - data[i - 1];
         let gain = diff > 0 ? diff : 0;
         let loss = Math.abs(diff < 0 ? diff : 0);
@@ -1543,31 +1550,32 @@ function calculateMACD(data, fast, slow, signal) {
     return { macdLine, emaSignal, histogram };
 }
 
-// Adição: Função para calcular Bollinger Bands (Topo/Fundo, aplicada em 'Ambas Sim')
-function calculateBollinger(data, period = 20, stdDev = 2) {
-    let ma = computeMA(data, period);
-    let upper = [];
-    let lower = [];
+// Adição: Função para encontrar áreas de congestão (sideways movement) baseadas em baixa volatilidade
+function findCongestionAreas(data, window = 5, threshold = 5) {
+    let areas = [];
+    let start = -1;
     for (let i = 0; i < data.length; i++) {
-        if (ma[i] === null) {
-            upper[i] = null;
-            lower[i] = null;
-            continue;
-        }
-        let sumSq = 0;
-        let count = 0;
-        for (let j = Math.max(0, i - period + 1); j <= i; j++) {
-            if (data[j] !== null) {
-                sumSq += Math.pow(data[j] - ma[i], 2);
-                count++;
+        let isCongestion = false;
+        if (i >= window - 1) {
+            let slice = data.slice(i - window + 1, i + 1).filter(d => d !== null);
+            if (slice.length >= window) {
+                let mean = slice.reduce((a, b) => a + b, 0) / slice.length;
+                let variance = slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / slice.length;
+                let sd = Math.sqrt(variance);
+                isCongestion = sd < threshold;
             }
         }
-        let variance = sumSq / count;
-        let sd = Math.sqrt(variance);
-        upper[i] = ma[i] + stdDev * sd;
-        lower[i] = ma[i] - stdDev * sd;
+        if (isCongestion) {
+            if (start === -1) start = i;
+        } else {
+            if (start !== -1) {
+                areas.push({ start, end: i - 1 });
+                start = -1;
+            }
+        }
     }
-    return { upper, lower };
+    if (start !== -1) areas.push({ start, end: data.length - 1 });
+    return areas;
 }
 
 function processApiData(data, league) {
@@ -1835,41 +1843,46 @@ function processApiData(data, league) {
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
 
-    // Adições: Calcular RSI, MACD e Bollinger para 'Ambas Sim' (como referência principal visível)
+    // Adições: Calcular RSI, MACD para 'Ambas Sim' (como referência principal visível)
     result.ambasSimRSI = calculateRSI(result.ambasSim, rsiPeriod);
     result.macd = calculateMACD(result.ambasSim, macdFast, macdSlow, macdSignal);
-    result.ambasSimBollinger = calculateBollinger(result.ambasSim);
+
+    // Calcular áreas de congestão com threshold baseado em congestionNum (mais alto = mais sensível, threshold menor)
+    const threshold = 8 - congestionNum * 2; // 6 para 1, 4 para 2, 2 para 3
+    result.congestionAreas = findCongestionAreas(result.ambasSim, 5, threshold);
 
     return result;
 }
 
-// Adição: Plugin para linhas de congestão (desenha linhas horizontais em níveis de congestão baseados no número selecionado, ex: 1=50%, 2=30/70%, 3=20/50/80%)
-const congestionLinesPlugin = {
-    id: 'congestionLines',
+// Adição: Plugin para áreas de congestão (retângulos destacando movimento lateral)
+const congestionAreasPlugin = {
+    id: 'congestionAreas',
     afterDraw: (chart) => {
         const ctx = chart.ctx;
+        const xAxis = chart.scales.x;
         const yAxis = chart.scales.y;
-        const levels = {
-            1: [50],
-            2: [30, 70],
-            3: [20, 50, 80]
-        }[congestionNum] || [];
-        const yMin = yAxis.min;
-        const yMax = yAxis.max;
-        const range = yMax - yMin;
-        const normalizedLevels = levels.map(level => yMin + (level / 100) * range);
+        const areas = chart.options.congestionAreas || [];
+        const ambasData = chart.data.datasets.find(ds => ds.label === 'Ambas Sim').data;
 
         ctx.save();
-        normalizedLevels.forEach(level => {
-            const y = yAxis.getPixelForValue(level);
-            ctx.beginPath();
-            ctx.setLineDash([5, 5]);
-            ctx.moveTo(chart.chartArea.left, y);
-            ctx.lineTo(chart.chartArea.right, y);
-            ctx.strokeStyle = 'rgba(255, 165, 0, 0.5)'; // Laranja para congestão
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            ctx.setLineDash([]);
+        areas.forEach(area => {
+            let minY = Infinity, maxY = -Infinity;
+            for (let k = area.start; k <= area.end; k++) {
+                if (ambasData[k] !== null) {
+                    minY = Math.min(minY, ambasData[k]);
+                    maxY = Math.max(maxY, ambasData[k]);
+                }
+            }
+            if (minY === Infinity) return;
+            const pad = (maxY - minY) * 0.1 || 5; // Padding mínimo
+            minY -= pad;
+            maxY += pad;
+            const x1 = xAxis.getPixelForValue(area.start);
+            const x2 = xAxis.getPixelForValue(area.end);
+            const y1 = yAxis.getPixelForValue(maxY);
+            const y2 = yAxis.getPixelForValue(minY);
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.2)'; // Laranja claro para áreas de congestão
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
         });
         ctx.restore();
     }
@@ -1993,28 +2006,6 @@ function createStatsChart(ctx, labels, data, league) {
         });
     });
 
-    // Adição: Datasets para Bollinger Bands (Topo/Fundo) em 'Ambas Sim'
-    datasets.push({
-        label: 'Ambas Sim - Upper Band',
-        data: data.ambasSimBollinger.upper,
-        borderColor: '#FF0000',
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: false,
-        hidden: !showBollinger || !statsChartVisibleDatasets['Ambas Sim']
-    });
-    datasets.push({
-        label: 'Ambas Sim - Lower Band',
-        data: data.ambasSimBollinger.lower,
-        borderColor: '#FF0000',
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: false,
-        hidden: !showBollinger || !statsChartVisibleDatasets['Ambas Sim']
-    });
-
     return new Chart(ctx, {
         type: 'line',
         data: {
@@ -2026,6 +2017,7 @@ function createStatsChart(ctx, labels, data, league) {
             layout: { 
                 padding: { top: 30, right: 50 } 
             },
+            congestionAreas: data.congestionAreas, // Passar áreas para o plugin
             plugins: {
                 legend: {
                     display: true,
@@ -2103,7 +2095,7 @@ function createStatsChart(ctx, labels, data, league) {
                 }
             }
         },
-        plugins: [fibonacciLinesPlugin, congestionLinesPlugin] // Adicionado plugin de congestão
+        plugins: [fibonacciLinesPlugin, congestionAreasPlugin]
     });
 }
 
@@ -2256,23 +2248,6 @@ function toggleMovingAverages() {
     });
 }
 
-// Adição: Função para toggle de Bollinger (Topo/Fundo)
-function toggleBollinger() {
-    showBollinger = document.getElementById('bollingerToggle').checked;
-    leagues.forEach(league => {
-        const ci = chartInstances[league];
-        if (ci) {
-            ci.data.datasets.forEach((ds, idx) => {
-                if (ds.label.includes('Upper Band') || ds.label.includes('Lower Band')) {
-                    const meta = ci.getDatasetMeta(idx);
-                    meta.hidden = !showBollinger || !statsChartVisibleDatasets['Ambas Sim'];
-                }
-            });
-            ci.update();
-        }
-    });
-}
-
 document.querySelectorAll('.accordion-header').forEach(header => {
     header.addEventListener('click', () => {
         const content = header.nextElementSibling;
@@ -2312,11 +2287,8 @@ document.getElementById('macdSignal').addEventListener('change', function(event)
 });
 document.getElementById('congestionLines').addEventListener('change', function(event) {
     congestionNum = parseInt(event.target.value, 10);
-    leagues.forEach(league => {
-        if (chartInstances[league]) chartInstances[league].update();
-    });
+    updateCharts();
 });
-document.getElementById('bollingerToggle').addEventListener('change', toggleBollinger);
 
 window.onload = updateCharts;
 setInterval(updateCharts, 3000);
