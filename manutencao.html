@@ -1373,7 +1373,7 @@ let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
-const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
+const leagues = ['Copa'];
 const chartInstances = {};
 let chartData = {};
 
@@ -1546,7 +1546,7 @@ function calculateEMA(data, period) {
     const k = 2 / (period + 1);
     let ema = new Array(data.length).fill(null);
     let sum = 0;
-    let count = 0;
+    let count = á0;
     for (let i = 0; i < data.length; i++) {
         if (data[i] === null) continue;
         sum += data[i];
@@ -1582,7 +1582,7 @@ function calculateMACD(data, fast, slow, signal) {
     return { macdLine, emaSignal, histogram };
 }
 
-function processApiData(data, league, market = selectedMarket) {
+function processApiData(data, league) {
     const sortedData = [...data].sort((a, b) => {
         const dateA = new Date(a.data);
         const dateB = new Date(b.data);
@@ -1788,7 +1788,7 @@ function processApiData(data, league, market = selectedMarket) {
         foraVenceColors.push(isForaVence ? green : red);
 
         ambasSim.push(ambasSimSum / avg * 100);
-        ambasSimColors.push(isAmbasSim ? green : red);
+        ambasSimColors.push(isAmbasSimrequest ? green : red);
 
         ambasNao.push(ambasNaoSum / avg * 100);
         ambasNaoColors.push(isAmbasNao ? green : red);
@@ -1854,7 +1854,7 @@ function processApiData(data, league, market = selectedMarket) {
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
 
-    const marketKey = marketKeys[market] || 'ambasSim';
+    const marketKey = marketKeys[selectedMarket] || 'ambasSim';
     const filledData = fillGaps(result[marketKey]);
     result.macd = calculateMACD(filledData, macdFast, macdSlow, macdSignal);
 
@@ -2080,7 +2080,7 @@ function createStatsChart(ctx, labels, data, league) {
 
 function createIndicatorChart(ctx, labels, data, league) {
     const marketKey = marketKeys[selectedMarket] || 'ambasSim';
-    const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'ambasMarcam';
+    const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'Ambas Sim';
     const datasets = [
         {
             label: 'MACD Line',
@@ -2159,21 +2159,22 @@ function createIndicatorChart(ctx, labels, data, league) {
     });
 }
 
-function updateIndicatorChart(league, market) {
-    if (chartData[league] && indicatorCharts[league]) {
-        const processedData = processApiData(chartData[league], league, market);
-        const marketKey = marketKeys[market] || 'ambasSim';
-        const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'ambasMarcam';
-        indicatorCharts[league].data.labels = processedData.labels;
-        indicatorCharts[league].data.datasets[0].data = processedData.macd.macdLine;
-        indicatorCharts[league].data.datasets[1].data = processedData.macd.emaSignal;
-        indicatorCharts[league].data.datasets[2].data = processedData.macd.histogram;
-        indicatorCharts[league].data.datasets[2].backgroundColor = processedData.macd.histogram.map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
-        indicatorCharts[league].data.datasets[2].label = `MACD Histogram (${marketLabel})`;
-        indicatorCharts[league].options.scales['y-macd'].title.text = `MACD (${marketLabel})`;
-        indicatorCharts[league].update('none');
-        console.log(`Gráfico de indicadores atualizado para ${league} com mercado ${marketLabel}`);
-    }
+function updateIndicatorChart(league) {
+    if (!chartData[league] || !indicatorCharts[league]) return;
+    
+    const processedData = processApiData(chartData[league], league);
+    const marketKey = marketKeys[selectedMarket] || 'ambasSim';
+    const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'Ambas Sim';
+    
+    indicatorCharts[league].data.labels = processedData.labels;
+    indicatorCharts[league].data.datasets[0].data = processedData.macd.macdLine;
+    indicatorCharts[league].data.datasets[1].data = processedData.macd.emaSignal;
+    indicatorCharts[league].data.datasets[2].data = processedData.macd.histogram;
+    indicatorCharts[league].data.datasets[2].backgroundColor = processedData.macd.histogram.map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
+    indicatorCharts[league].data.datasets[2].label = `MACD Histogram (${marketLabel})`;
+    indicatorCharts[league].options.scales['y-macd'].title.text = `MACD (${marketLabel})`;
+    indicatorCharts[league].update('none');
+    console.log(`Gráfico de indicadores atualizado para ${league} com mercado ${marketLabel}`);
 }
 
 function updateCharts() {
@@ -2193,7 +2194,7 @@ function updateCharts() {
             })
             .then(data => {
                 console.log(`Dados processados para ${league}:`, data);
-                const processedData = processApiData(data, league, selectedMarket);
+                const processedData = processApiData(data, league);
                 const chartId = league;
                 const canvasElement = document.getElementById(chartId);
                 if (!canvasElement) {
@@ -2208,7 +2209,7 @@ function updateCharts() {
                     console.log(`Gráfico criado para ${league}`);
                 } else {
                     updateStatsChart(chartInstances[league], processedData);
-                    updateIndicatorChart(league, selectedMarket);
+                    updateIndicatorChart(league);
                     console.log(`Gráfico atualizado para ${league}`);
                 }
             })
@@ -2261,7 +2262,7 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 document.getElementById('marketSelector').addEventListener('change', function(event) {
     selectedMarket = event.target.value;
     leagues.forEach(league => {
-        updateIndicatorChart(league, selectedMarket);
+        updateIndicatorChart(league);
     });
 });
 
