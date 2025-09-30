@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MACD Histogram Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #000; color: #fff; padding: 20px; }
+        #Indicators { max-width: 800px; margin: 20px auto; }
+        .controls { max-width: 800px; margin: 20px auto; text-align: center; }
+        select, input { background-color: #333; color: #fff; border: 1px solid #555; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <label for="marketSelector">Select Market:</label>
+        <select id="marketSelector">
+            <option value="ambasMarcam">Ambas Marcam</option>
+            <option value="ambasNaoMarcam">Ambas Não Marcam</option>
+            <option value="casaVence">Casa Vence</option>
+            <option value="foraVence">Fora Vence</option>
+            <option value="empate">Empate</option>
+            <option value="over1.5">Over 1.5</option>
+            <option value="under1.5">Under 1.5</option>
+            <option value="over2.5">Over 2.5</option>
+            <option value="under2.5">Under 2.5</option>
+            <option value="over3.5">Over 3.5</option>
+            <option value="under3.5">Under 3.5</option>
+            <option value="over5">Over 5+</option>
+            <option value="exato0">0 Gol Exato</option>
+            <option value="exato1">1 Gol Exato</option>
+            <option value="exato2">2 Gols Exatos</option>
+            <option value="exato3">3 Gols Exatos</option>
+            <option value="exato4">4 Gols Exatos</option>
+        </select>
+
+        <label for="macdFast">MACD Fast:</label>
+        <input type="number" id="macdFast" value="12">
+
+        <label for="macdSlow">MACD Slow:</label>
+        <input type="number" id="macdSlow" value="26">
+
+        <label for="macdSignal">MACD Signal:</label>
+        <input type="number" id="macdSignal" value="9">
+
+        <label for="pointsSelector">Num Points:</label>
+        <input type="number" id="pointsSelector" value="20">
+
+        <label for="averageSelector">Average Points:</label>
+        <input type="number" id="averageSelector" value="19">
+    </div>
+
+    <canvas id="Indicators"></canvas>
+
+    <script>
+        // Use the specified route
+        const DATA_URL = 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20Eterna';
+
+        let numPoints = 20;
+        let averagePoints = 19;
+        const leagues = ['Copa'];
+        let chartData = {};
+        let processedChartData = {};
+        let macdFast = 12;
+        let macdSlow = 26;
+        let macdSignal = 9;
+        let indicatorCharts = {};
+        let selectedMarket = 'ambasMarcam';
+
+        const marketKeys = {
+            ambasMarcam: 'ambasSim',
+            ambasNaoMarcam: 'ambasNao',
+            casaVence: 'casaVence',
+            foraVence: 'foraVence',
+            empate: 'empate',
+            'over1.5': 'over15',
+            'under1.5': 'under15',
+            'over2.5': 'over25',
+            'under2.5': 'under25',
+            'over3.5': 'over35',
+            'under3.5': 'under35',
+            over5: 'over45',
+            exato0: 'gol0',
+            exato1: 'gol1',
+            exato2: 'gol2',
+            exato3: 'gol3',
+            exato4: 'gol4'
+        };
+
+        const labelToKey = {
+            'Gols FT': 'golsFT',
+            'Casa Vence': 'casaVence',
+            'Empate': 'empate',
+            'Fora Vence': 'foraVence',
+            'Ambas Sim': 'ambasSim',
+            'Ambas Não': 'ambasNao',
+            'Over 1.5': 'over15',
+            'Over 2.5': 'over25',
+            'Over 3.5': 'over35',
+            'Under 1.5': 'under15',
+            'Under 2.5': 'under25',
+            'Under 3.5': 'under35',
+            'Over 5+': 'over45',
+            '0 Gol Exato': 'gol0',
+            '1 Gol Exato': 'gol1',
+            '2 Gols Exatos': 'gol2',
+            '3 Gols Exatos': 'gol3',
+            '4 Gols Exatos': 'gol4',
+            '5+ Gols': 'gol5'
+        };
+
+        const keyToLabel = {};
+        Object.entries(labelToKey).forEach(([label, key]) => {
+            keyToLabel[key] = label;
+        });
+
+        function fillGaps(data) {
+            let filled = [...data];
+            let last = null;
+            for (let i = 0; i < filled.length; i++) {
+                if (filled[i] !== null && filled[i] !== undefined) {
+                    last = filled[i];
+                } else if (last !== null) {
+                    filled[i] = last;
+                }
+            }
+            if (last === null) {
+                for (let i = filled.length - 1; i >= 0; i--) {
+                    if (filled[i] !== null && filled[i] !== undefined) {
+                        last = filled[i];
+                    } else if (last !== null) {
+                        filled[i] = last;
+                    }
+                }
+            } else {
+                for (let i = 0; i < filled.length; i++) {
+                    if (filled[i] === null || filled[i] === undefined) filled[i] = last;
+                    else break;
+                }
+            }
+            return filled;
+        }
+
+        function fillInitial(array) {
+            let first = array.find(v => v !== null && v !== undefined);
+            if (first !== undefined) {
+                for (let i = 0; i < array.length; i++) {
+                    if (array[i] === null || array[i] === undefined) array[i] = first;
+                    else break;
+                }
+            }
+            return array;
+        }
+
+        function calculateEMA(data, period) {
+            const k = 2 / (period + 1);
+            let ema = new Array(data.length).fill(null);
+            let sum = 0;
+            let count = 0;
+            for (let i = 0; i < data.length; i++) {
+                if (data[i] === null || data[i] === undefined) continue;
+                sum += data[i];
+                count++;
+                if (count >= 1) {
+                    ema[i] = sum / count;
+                    if (count >= period) break;
+                }
+            }
+            for (let i = 0; i < data.length; i++) {
+                if (ema[i] !== null) {
+                    for (let j = i + 1; j < data.length; j++) {
+                        if (data[j] !== null && data[j] !== undefined) {
+                            ema[j] = (data[j] * k) + (ema[j - 1] * (1 - k));
+                        } else {
+                            ema[j] = ema[j - 1];
+                        }
+                    }
+                    break;
+                }
+            }
+            return fillInitial(ema);
+        }
+
+        function calculateMACD(data, fast, slow, signal) {
+            const emaFast = calculateEMA(data, fast);
+            const emaSlow = calculateEMA(data, slow);
+            let macdLine = data.map((d, i) => (emaFast[i] !== null && emaSlow[i] !== null ? emaFast[i] - emaSlow[i] : null));
+            macdLine = fillInitial(macdLine);
+            const emaSignal = calculateEMA(macdLine, signal);
+            let histogram = data.map((d, i) => (macdLine[i] !== null && emaSignal[i] !== null ? macdLine[i] - emaSignal[i] : null));
+            histogram = fillInitial(histogram);
+            return { macdLine, emaSignal, histogram };
+        }
+
+        function processApiData(data, league) {
+            if (!data || !Array.isArray(data)) {
+                console.error(`Dados inválidos para ${league}:`, data);
+                return { labels: [] };
+            }
+
+            const sortedData = [...data].sort((a, b) => {
+                const dateA = new Date(a.data);
+                const dateB = new Date(b.data);
+                if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
+                if (a.hora !== b.hora) return a.hora - b.hora;
+                return a.minuto - b.minuto;
+            });
+
+            const extra = 50;
+            const slicedData = sortedData.slice(- (numPoints + averagePoints + extra));
+            chartData[league] = slicedData;
+
+            let labels = [];
+            let ambasSim = [];
+            let ambasNao = [];
+            let casaVence = [];
+            let empate = [];
+            let foraVence = [];
+            let over15 = [];
+            let over25 = [];
+            let over35 = [];
+            let under15 = [];
+            let under25 = [];
+            let under35 = [];
+            let over45 = [];
+            let gol0 = [];
+            let gol1 = [];
+            let gol2 = [];
+            let gol3 = [];
+            let gol4 = [];
+
+            const transparent = 'transparent';
+
+            function hasGap(prevMatch, currMatch) {
+                const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
+                const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
+                const diffMinutes = (currTime - prevTime) / (1000 * 60);
+                return diffMinutes > 1;
+            }
+
+            for (let i = averagePoints; i < slicedData.length; i++) {
+                let ambasSimSum = 0;
+                let ambasNaoSum = 0;
+                let casaVenceSum = 0;
+                let empateSum = 0;
+                let foraVenceSum = 0;
+                let over15Sum = 0;
+                let over25Sum = 0;
+                let over35Sum = 0;
+                let under15Sum = 0;
+                let under25Sum = 0;
+                let under35Sum = 0;
+                let over45Sum = 0;
+                let gol0Sum = 0;
+                let gol1Sum = 0;
+                let gol2Sum = 0;
+                let gol3Sum = 0;
+                let gol4Sum = 0;
+                let validMatches = 0;
+
+                for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
+                    const match = slicedData[j];
+                    let ftScoreParts = [0, 0];
+                    if (match.ft && match.ft.includes(' x ')) {
+                        ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
+                    }
+
+                    const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
+
+                    ambasSimSum += ftScoreParts[0] > 0 && ftScoreParts[1] > 0 ? 1 : 0;
+                    ambasNaoSum += ftScoreParts[0] === 0 || ftScoreParts[1] === 0 ? 1 : 0;
+                    casaVenceSum += ftScoreParts[0] > ftScoreParts[1] ? 1 : 0;
+                    empateSum += ftScoreParts[0] === ftScoreParts[1] ? 1 : 0;
+                    foraVenceSum += ftScoreParts[0] < ftScoreParts[1] ? 1 : 0;
+                    over15Sum += totalGolsFT > 1.5 ? 1 : 0;
+                    over25Sum += totalGolsFT > 2.5 ? 1 : 0;
+                    over35Sum += totalGolsFT > 3.5 ? 1 : 0;
+                    under15Sum += totalGolsFT < 1.5 ? 1 : 0;
+                    under25Sum += totalGolsFT < 2.5 ? 1 : 0;
+                    under35Sum += totalGolsFT < 3.5 ? 1 : 0;
+                    over45Sum += totalGolsFT > 4.5 ? 1 : 0;
+                    gol0Sum += totalGolsFT === 0 ? 1 : 0;
+                    gol1Sum += totalGolsFT === 1 ? 1 : 0;
+                    gol2Sum += totalGolsFT === 2 ? 1 : 0;
+                    gol3Sum += totalGolsFT === 3 ? 1 : 0;
+                    gol4Sum += totalGolsFT === 4 ? 1 : 0;
+                    validMatches++;
+                }
+
+                const match = slicedData[i];
+
+                if (i > averagePoints && hasGap(slicedData[i - 1], match)) {
+                    labels.push('');
+                    ambasSim.push(null);
+                    ambasNao.push(null);
+                    casaVence.push(null);
+                    empate.push(null);
+                    foraVence.push(null);
+                    over15.push(null);
+                    over25.push(null);
+                    over35.push(null);
+                    under15.push(null);
+                    under25.push(null);
+                    under35.push(null);
+                    over45.push(null);
+                    gol0.push(null);
+                    gol1.push(null);
+                    gol2.push(null);
+                    gol3.push(null);
+                    gol4.push(null);
+                }
+
+                labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
+
+                const avg = validMatches || 1;
+
+                ambasSim.push(ambasSimSum / avg * 100);
+                ambasNao.push(ambasNaoSum / avg * 100);
+                casaVence.push(casaVenceSum / avg * 100);
+                empate.push(empateSum / avg * 100);
+                foraVence.push(foraVenceSum / avg * 100);
+                over15.push(over15Sum / avg * 100);
+                over25.push(over25Sum / avg * 100);
+                over35.push(over35Sum / avg * 100);
+                under15.push(under15Sum / avg * 100);
+                under25.push(under25Sum / avg * 100);
+                under35.push(under35Sum / avg * 100);
+                over45.push(over45Sum / avg * 100);
+                gol0.push(gol0Sum / avg * 100);
+                gol1.push(gol1Sum / avg * 100);
+                gol2.push(gol2Sum / avg * 100);
+                gol3.push(gol3Sum / avg * 100);
+                gol4.push(gol4Sum / avg * 100);
+            }
+
+            const result = { 
+                labels, ambasSim, ambasNao, casaVence, empate, foraVence,
+                over15, over25, over35, under15, under25, under35, over45,
+                gol0, gol1, gol2, gol3, gol4
+            };
+
+            processedChartData[league] = result;
+            chartData[league] = slicedData.slice(extra);
+
+            const start = result.labels.length - numPoints;
+            if (start > 0) {
+                for (let key in result) {
+                    if (Array.isArray(result[key])) {
+                        result[key] = result[key].slice(start);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        function getIndicatorData(league, market) {
+            if (!processedChartData[league]) {
+                console.warn(`Dados processados não disponíveis para ${league}`);
+                return { macdLine: [], emaSignal: [], histogram: [] };
+            }
+
+            const marketKey = marketKeys[market] || 'ambasSim';
+            const data = processedChartData[league][marketKey] || [];
+            const filledData = fillGaps(data);
+            const macd = calculateMACD(filledData, macdFast, macdSlow, macdSignal);
+
+            return macd;
+        }
+
+        function createIndicatorChart(ctx, labels, macdData, league) {
+            if (!ctx) {
+                console.error(`Contexto do canvas para indicadores de ${league} é inválido`);
+                return null;
+            }
+
+            const marketKey = marketKeys[selectedMarket] || 'ambasSim';
+            const marketLabel = keyToLabel[marketKey] || 'Ambas Sim';
+            const datasets = [
+                {
+                    label: 'MACD Line',
+                    data: macdData.macdLine || [],
+                    borderColor: '#00BFFF',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    yAxisID: 'y-macd',
+                    fill: false
+                },
+                {
+                    label: 'MACD Signal',
+                    data: macdData.emaSignal || [],
+                    borderColor: '#FFA500',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    yAxisID: 'y-macd',
+                    fill: false
+                },
+                {
+                    label: `MACD Histogram (${marketLabel})`,
+                    data: macdData.histogram || [],
+                    type: 'bar',
+                    backgroundColor: (macdData.histogram || []).map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'),
+                    yAxisID: 'y-macd'
+                }
+            ];
+
+            try {
+                return new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels || [],
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: {
+                                ticks: { display: false, color: '#fff' },
+                                grid: { display: false }
+                            },
+                            'y-macd': {
+                                type: 'linear',
+                                position: 'right',
+                                title: { 
+                                    display: true, 
+                                    text: `MACD (${marketLabel})`,
+                                    color: '#fff'
+                                },
+                                ticks: { color: '#fff' },
+                                grid: { color: '#333' }
+                            }
+                        },
+                        plugins: {
+                            legend: { 
+                                display: true,
+                                labels: { color: '#fff' }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error(`Erro ao criar gráfico de indicadores para ${league}:`, error);
+                return null;
+            }
+        }
+
+        function updateIndicatorChart(league) {
+            if (!indicatorCharts[league]) {
+                console.warn(`Gráfico de indicadores não inicializado para ${league}`);
+                return;
+            }
+
+            const macdData = getIndicatorData(league, selectedMarket);
+            const marketKey = marketKeys[selectedMarket] || 'ambasSim';
+            const marketLabel = keyToLabel[marketKey] || 'Ambas Sim';
+
+            indicatorCharts[league].data.labels = processedChartData[league]?.labels || [];
+            indicatorCharts[league].data.datasets[0].data = macdData.macdLine || [];
+            indicatorCharts[league].data.datasets[1].data = macdData.emaSignal || [];
+            indicatorCharts[league].data.datasets[2].data = macdData.histogram || [];
+            indicatorCharts[league].data.datasets[2].backgroundColor = (macdData.histogram || []).map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
+            indicatorCharts[league].data.datasets[2].label = `MACD Histogram (${marketLabel})`;
+            indicatorCharts[league].options.scales['y-macd'].title.text = `MACD (${marketLabel})`;
+            indicatorCharts[league].update('none');
+            console.log(`Gráfico de indicadores atualizado para ${league} com mercado ${marketLabel}`);
+        }
+
+        function updateCharts() {
+            const timestamp = new Date().getTime();
+            const apiUrl = `${DATA_URL}?timestamp=${timestamp}`;
+            console.log(`Buscando dados em: ${apiUrl}`);
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(`Dados recebidos:`, data);
+                    const league = 'Copa';
+                    const processedData = processApiData(data, league);
+                    const indicatorCanvas = document.getElementById('Indicators');
+
+                    if (!indicatorCanvas) {
+                        console.error(`Canvas não encontrado: Indicators`);
+                        return;
+                    }
+
+                    if (!indicatorCharts[league]) {
+                        const indicatorCtx = indicatorCanvas.getContext('2d');
+                        const macdData = getIndicatorData(league, selectedMarket);
+                        indicatorCharts[league] = createIndicatorChart(indicatorCtx, processedData.labels, macdData, league);
+                        if (!indicatorCharts[league]) {
+                            console.error(`Falha ao criar gráfico de indicadores para ${league}`);
+                            return;
+                        }
+                        console.log(`Gráfico criado para ${league}`);
+                    } else {
+                        updateIndicatorChart(league);
+                        console.log(`Gráfico atualizado para ${league}`);
+                    }
+                })
+                .catch(error => {
+                    console.error(`Erro ao buscar dados:`, error);
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const marketSelector = document.getElementById('marketSelector');
+            if (marketSelector) {
+                marketSelector.addEventListener('change', function(event) {
+                    selectedMarket = event.target.value;
+                    console.log(`Mercado selecionado: ${selectedMarket}`);
+                    leagues.forEach(league => {
+                        updateIndicatorChart(league);
+                    });
+                });
+            }
+
+            const macdFastInput = document.getElementById('macdFast');
+            if (macdFastInput) {
+                macdFastInput.addEventListener('change', function(event) {
+                    macdFast = parseInt(event.target.value, 10);
+                    leagues.forEach(league => {
+                        updateIndicatorChart(league);
+                    });
+                });
+            }
+
+            const macdSlowInput = document.getElementById('macdSlow');
+            if (macdSlowInput) {
+                macdSlowInput.addEventListener('change', function(event) {
+                    macdSlow = parseInt(event.target.value, 10);
+                    leagues.forEach(league => {
+                        updateIndicatorChart(league);
+                    });
+                });
+            }
+
+            const macdSignalInput = document.getElementById('macdSignal');
+            if (macdSignalInput) {
+                macdSignalInput.addEventListener('change', function(event) {
+                    macdSignal = parseInt(event.target.value, 10);
+                    leagues.forEach(league => {
+                        updateIndicatorChart(league);
+                    });
+                });
+            }
+
+            const pointsSelector = document.getElementById('pointsSelector');
+            if (pointsSelector) {
+                pointsSelector.addEventListener('change', function(event) {
+                    numPoints = parseInt(event.target.value, 10);
+                    updateCharts();
+                });
+            }
+
+            const averageSelector = document.getElementById('averageSelector');
+            if (averageSelector) {
+                averageSelector.addEventListener('change', function(event) {
+                    averagePoints = parseInt(event.target.value, 10);
+                    updateCharts();
+                });
+            }
+
+            updateCharts();
+        });
+
+        setInterval(updateCharts, 3000);
+    </script>
+</body>
+</html>
