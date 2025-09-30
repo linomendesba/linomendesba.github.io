@@ -1582,7 +1582,7 @@ function calculateMACD(data, fast, slow, signal) {
     return { macdLine, emaSignal, histogram };
 }
 
-function processApiData(data, league) {
+function processApiData(data, league, market = selectedMarket) {
     const sortedData = [...data].sort((a, b) => {
         const dateA = new Date(a.data);
         const dateB = new Date(b.data);
@@ -1854,7 +1854,7 @@ function processApiData(data, league) {
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
 
-    const marketKey = marketKeys[selectedMarket] || 'ambasSim';
+    const marketKey = marketKeys[market] || 'ambasSim';
     const filledData = fillGaps(result[marketKey]);
     result.macd = calculateMACD(filledData, macdFast, macdSlow, macdSignal);
 
@@ -2080,6 +2080,7 @@ function createStatsChart(ctx, labels, data, league) {
 
 function createIndicatorChart(ctx, labels, data, league) {
     const marketKey = marketKeys[selectedMarket] || 'ambasSim';
+    const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'ambasMarcam';
     const datasets = [
         {
             label: 'MACD Line',
@@ -2102,7 +2103,7 @@ function createIndicatorChart(ctx, labels, data, league) {
             fill: false
         },
         {
-            label: `MACD Histogram (${selectedMarket})`,
+            label: `MACD Histogram (${marketLabel})`,
             data: data.macd.histogram,
             type: 'bar',
             backgroundColor: data.macd.histogram.map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'),
@@ -2128,7 +2129,7 @@ function createIndicatorChart(ctx, labels, data, league) {
                     position: 'right',
                     title: { 
                         display: true, 
-                        text: `MACD (${Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'Ambas Sim'})`
+                        text: `MACD (${marketLabel})`
                     }
                 }
             },
@@ -2158,6 +2159,23 @@ function createIndicatorChart(ctx, labels, data, league) {
     });
 }
 
+function updateIndicatorChart(league, market) {
+    if (chartData[league] && indicatorCharts[league]) {
+        const processedData = processApiData(chartData[league], league, market);
+        const marketKey = marketKeys[market] || 'ambasSim';
+        const marketLabel = Object.keys(marketKeys).find(key => marketKeys[key] === marketKey) || 'ambasMarcam';
+        indicatorCharts[league].data.labels = processedData.labels;
+        indicatorCharts[league].data.datasets[0].data = processedData.macd.macdLine;
+        indicatorCharts[league].data.datasets[1].data = processedData.macd.emaSignal;
+        indicatorCharts[league].data.datasets[2].data = processedData.macd.histogram;
+        indicatorCharts[league].data.datasets[2].backgroundColor = processedData.macd.histogram.map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
+        indicatorCharts[league].data.datasets[2].label = `MACD Histogram (${marketLabel})`;
+        indicatorCharts[league].options.scales['y-macd'].title.text = `MACD (${marketLabel})`;
+        indicatorCharts[league].update('none');
+        console.log(`Gráfico de indicadores atualizado para ${league} com mercado ${marketLabel}`);
+    }
+}
+
 function updateCharts() {
     const timestamp = new Date().getTime();
     const leagueUrls = {
@@ -2175,7 +2193,7 @@ function updateCharts() {
             })
             .then(data => {
                 console.log(`Dados processados para ${league}:`, data);
-                const processedData = processApiData(data, league);
+                const processedData = processApiData(data, league, selectedMarket);
                 const chartId = league;
                 const canvasElement = document.getElementById(chartId);
                 if (!canvasElement) {
@@ -2190,14 +2208,7 @@ function updateCharts() {
                     console.log(`Gráfico criado para ${league}`);
                 } else {
                     updateStatsChart(chartInstances[league], processedData);
-                    indicatorCharts[league].data.labels = processedData.labels;
-                    indicatorCharts[league].data.datasets[0].data = processedData.macd.macdLine;
-                    indicatorCharts[league].data.datasets[1].data = processedData.macd.emaSignal;
-                    indicatorCharts[league].data.datasets[2].data = processedData.macd.histogram;
-                    indicatorCharts[league].data.datasets[2].backgroundColor = processedData.macd.histogram.map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
-                    indicatorCharts[league].data.datasets[2].label = `MACD Histogram (${selectedMarket})`;
-                    indicatorCharts[league].options.scales['y-macd'].title.text = `MACD (${selectedMarket})`;
-                    indicatorCharts[league].update('none');
+                    updateIndicatorChart(league, selectedMarket);
                     console.log(`Gráfico atualizado para ${league}`);
                 }
             })
@@ -2250,17 +2261,7 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 document.getElementById('marketSelector').addEventListener('change', function(event) {
     selectedMarket = event.target.value;
     leagues.forEach(league => {
-        if (indicatorCharts[league]) {
-            const processedData = processApiData(chartData[league], league);
-            indicatorCharts[league].data.labels = processedData.labels;
-            indicatorCharts[league].data.datasets[0].data = processedData.macd.macdLine;
-            indicatorCharts[league].data.datasets[1].data = processedData.macd.emaSignal;
-            indicatorCharts[league].data.datasets[2].data = processedData.macd.histogram;
-            indicatorCharts[league].data.datasets[2].backgroundColor = processedData.macd.histogram.map(val => val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)');
-            indicatorCharts[league].data.datasets[2].label = `MACD Histogram (${selectedMarket})`;
-            indicatorCharts[league].options.scales['y-macd'].title.text = `MACD (${selectedMarket})`;
-            indicatorCharts[league].update('none');
-        }
+        updateIndicatorChart(league, selectedMarket);
     });
 });
 
