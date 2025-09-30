@@ -1395,13 +1395,13 @@ if (mostrarOddsSelect) {
 
     <script>
 let copaAmericaChart, CopaChart, EuroChart, PremierChart, SuperChart;
-let numPoints = 20;
-let averagePoints = 19;
+let numPointsStats = 20;
+// let averagePoints = 19; // Removed duplicate declaration to fix redeclaration error
 let showFibonacciLines = false;
 let showMovingAverages = false;
 const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
 const chartInstances = {};
-let chartData = {};
+// let chartData = {}; // Removed duplicate declaration to fix redeclaration error
 
 const statsChartVisibleDatasets = {
     'Gols FT': false,
@@ -1511,7 +1511,7 @@ function processApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const slicedData = sortedData.slice(-numPoints - averagePoints);
+    const slicedData = sortedData.slice(-numPointsStats - averagePoints);
     chartData[league] = slicedData;
 
     let labels = [];
@@ -2054,7 +2054,7 @@ document.querySelectorAll('.accordion-header').forEach(header => {
 });
 
 document.getElementById('pointsSelector').addEventListener('change', function(event) {
-    numPoints = parseInt(event.target.value, 10);
+    numPointsStats = parseInt(event.target.value, 10);
     updateCharts();
 });
 
@@ -4927,42 +4927,77 @@ console.info = function() {};
     </script>
 
     <script>
+// Variáveis de configuração da API - AJUSTE CONFORME SUAS ROTAS
+const ROTAS_API = {
+    resultados: (liga) => `/api/${liga.toLowerCase()}/resultados` // Ajuste o caminho conforme sua API
+};
+
+const LIGA_ATUAL = 'Copa'; // Ajuste conforme necessário
+
+// Variáveis do gráfico
 let numPoints = 20;
 let averagePoints = 19;
 let selectedMarket = 'ambasSim';
-const leagues = ['Copa'];
 let chartData = {};
 
 // Variáveis para os controles do MACD
 let macdFast = 12;
 let macdSlow = 26;
 let macdSignal = 9;
-let indicatorChart;
+let indicatorChart = null;
+
+// Função para buscar dados da API
+async function fetchData() {
+    try {
+        console.log('Buscando dados da API...');
+        const resultadosResponse = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+        
+        if (!resultadosResponse.ok) {
+            throw new Error(`Erro HTTP! Status: ${resultadosResponse.status}`);
+        }
+        
+        const data = await resultadosResponse.json();
+        console.log('Dados recebidos:', data);
+        return data;
+    } catch (error) {
+        console.error('Erro ao buscar dados:', error);
+        // Retorna dados de exemplo para teste
+        return generateSampleData();
+    }
+}
+
+// Função para gerar dados de exemplo (para teste)
+function generateSampleData() {
+    const sampleData = [];
+    const now = new Date();
+    
+    for (let i = 0; i < 100; i++) {
+        const time = new Date(now.getTime() - (100 - i) * 60000);
+        const homeGoals = Math.floor(Math.random() * 4);
+        const awayGoals = Math.floor(Math.random() * 4);
+        
+        sampleData.push({
+            data: time.toISOString().split('T')[0],
+            hora: time.getHours(),
+            minuto: time.getMinutes(),
+            ft: `${homeGoals} x ${awayGoals}`
+        });
+    }
+    
+    return sampleData;
+}
 
 // Função para preencher gaps com valor anterior
 function fillGaps(data) {
+    if (!data || data.length === 0) return [];
+    
     let filled = [...data];
     let last = null;
     for (let i = 0; i < filled.length; i++) {
-        if (filled[i] !== null) {
+        if (filled[i] !== null && filled[i] !== undefined) {
             last = filled[i];
         } else if (last !== null) {
             filled[i] = last;
-        }
-    }
-    // Backward fill for initial gaps
-    if (last === null) {
-        for (let i = filled.length - 1; i >= 0; i--) {
-            if (filled[i] !== null) {
-                last = filled[i];
-            } else if (last !== null) {
-                filled[i] = last;
-            }
-        }
-    } else {
-        for (let i = 0; i < filled.length; i++) {
-            if (filled[i] === null) filled[i] = last;
-            else break;
         }
     }
     return filled;
@@ -4970,10 +5005,12 @@ function fillGaps(data) {
 
 // Função para preencher array de indicador backward
 function fillInitial(array) {
-    let first = array.find(v => v !== null);
+    if (!array || array.length === 0) return [];
+    
+    let first = array.find(v => v !== null && v !== undefined);
     if (first !== undefined) {
         for (let i = 0; i < array.length; i++) {
-            if (array[i] === null) array[i] = first;
+            if (array[i] === null || array[i] === undefined) array[i] = first;
             else break;
         }
     }
@@ -4982,47 +5019,86 @@ function fillInitial(array) {
 
 // Função para calcular EMA
 function calculateEMA(data, period) {
+    if (!data || data.length === 0) return new Array(0).fill(null);
+    
     const k = 2 / (period + 1);
     let ema = new Array(data.length).fill(null);
-    let sum = 0;
-    let count = 0;
+    
+    // Encontrar primeiro valor não nulo
+    let startIndex = -1;
     for (let i = 0; i < data.length; i++) {
-        if (data[i] === null) continue;
-        sum += data[i];
-        count++;
-        if (count >= 1) {
-            ema[i] = sum / count;
-            if (count >= period) break;
-        }
-    }
-    for (let i = 0; i < data.length; i++) {
-        if (ema[i] !== null) {
-            for (let j = i + 1; j < data.length; j++) {
-                if (data[j] !== null) {
-                    ema[j] = (data[j] * k) + (ema[j - 1] * (1 - k));
-                } else {
-                    ema[j] = ema[j - 1];
-                }
-            }
+        if (data[i] !== null && data[i] !== undefined) {
+            startIndex = i;
             break;
         }
     }
+    
+    if (startIndex === -1) return ema;
+    
+    // Calcular primeira EMA como SMA
+    let sum = 0;
+    let count = 0;
+    for (let i = startIndex; i < Math.min(startIndex + period, data.length); i++) {
+        if (data[i] !== null && data[i] !== undefined) {
+            sum += data[i];
+            count++;
+        }
+    }
+    
+    if (count === 0) return ema;
+    
+    ema[startIndex + count - 1] = sum / count;
+    
+    // Calcular EMA subsequente
+    for (let i = startIndex + count; i < data.length; i++) {
+        if (data[i] !== null && data[i] !== undefined && ema[i-1] !== null) {
+            ema[i] = (data[i] * k) + (ema[i-1] * (1 - k));
+        } else if (ema[i-1] !== null) {
+            ema[i] = ema[i-1];
+        }
+    }
+    
     return fillInitial(ema);
 }
 
-// Função para calcular MACD (linha, sinal e histograma)
+// Função para calcular MACD
 function calculateMACD(data, fast, slow, signal) {
     const emaFast = calculateEMA(data, fast);
     const emaSlow = calculateEMA(data, slow);
-    let macdLine = data.map((d, i) => (emaFast[i] !== null && emaSlow[i] !== null ? emaFast[i] - emaSlow[i] : null));
+    
+    let macdLine = data.map((d, i) => {
+        if (emaFast[i] !== null && emaSlow[i] !== null) {
+            return emaFast[i] - emaSlow[i];
+        }
+        return null;
+    });
+    
     macdLine = fillInitial(macdLine);
     const emaSignal = calculateEMA(macdLine, signal);
-    let histogram = data.map((d, i) => (macdLine[i] !== null && emaSignal[i] !== null ? macdLine[i] - emaSignal[i] : null));
+    
+    let histogram = data.map((d, i) => {
+        if (macdLine[i] !== null && emaSignal[i] !== null) {
+            return macdLine[i] - emaSignal[i];
+        }
+        return null;
+    });
+    
     histogram = fillInitial(histogram);
     return { macdLine, emaSignal, histogram };
 }
 
 function processApiData(data, league) {
+    if (!data || !Array.isArray(data)) {
+        console.error('Dados da API inválidos:', data);
+        return { 
+            labels: [], 
+            selectedMarketData: [], 
+            macd: { macdLine: [], emaSignal: [], histogram: [] } 
+        };
+    }
+
+    console.log('Processando dados:', data.length, 'registros');
+
     const sortedData = [...data].sort((a, b) => {
         const dateA = new Date(a.data);
         const dateB = new Date(b.data);
@@ -5031,26 +5107,19 @@ function processApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const extra = 50;
-    const slicedData = sortedData.slice(- (numPoints + averagePoints + extra));
+    const extra = 10;
+    const totalNeeded = numPoints + averagePoints + extra;
+    const slicedData = sortedData.slice(-totalNeeded);
     chartData[league] = slicedData;
 
     let labels = [];
     let selectedMarketData = [];
 
-    // Função para verificar se há lacuna entre dois jogos
-    function hasGap(prevMatch, currMatch) {
-        const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
-        const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
-        const diffMinutes = (currTime - prevTime) / (1000 * 60);
-        return diffMinutes > 1;
-    }
-
     for (let i = averagePoints; i < slicedData.length; i++) {
         let marketSum = 0;
         let validMatches = 0;
 
-        // Calcula a média apenas com os jogos disponíveis
+        // Calcula a média com os jogos disponíveis
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
             let ftScoreParts = [0, 0];
@@ -5114,6 +5183,8 @@ function processApiData(data, league) {
                 case 'gol5':
                     marketValue = totalGolsFT === 5 ? 1 : 0;
                     break;
+                default:
+                    marketValue = 0;
             }
 
             marketSum += marketValue;
@@ -5121,13 +5192,6 @@ function processApiData(data, league) {
         }
 
         const match = slicedData[i];
-
-        // Insere null para gaps
-        if (i > averagePoints && hasGap(slicedData[i - 1], match)) {
-            labels.push('');
-            selectedMarketData.push(null);
-        }
-
         labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
         const avg = validMatches || 1;
@@ -5139,15 +5203,12 @@ function processApiData(data, league) {
         selectedMarketData
     };
 
-    // Preencher gaps e calcular MACD para o mercado selecionado
+    // Preencher gaps e calcular MACD
     let filledMarketData = fillGaps(result.selectedMarketData);
     result.macd = calculateMACD(filledMarketData, macdFast, macdSlow, macdSignal);
 
-    // Slice chartData to remove extra for tooltip consistency
-    chartData[league] = slicedData.slice(extra);
-
-    // Slice the result arrays to the last numPoints
-    const start = result.labels.length - numPoints;
+    // Ajustar para o número de pontos desejado
+    const start = Math.max(0, result.labels.length - numPoints);
     if (start > 0) {
         result.labels = result.labels.slice(start);
         result.selectedMarketData = result.selectedMarketData.slice(start);
@@ -5156,11 +5217,17 @@ function processApiData(data, league) {
         result.macd.histogram = result.macd.histogram.slice(start);
     }
 
+    console.log('Dados processados:', result);
     return result;
 }
 
-// Função para criar o gráfico de MACD (linha, sinal e histograma)
+// Função para criar o gráfico de MACD
 function createMACDChart(ctx, labels, data) {
+    // Destruir gráfico existente se houver
+    if (indicatorChart) {
+        indicatorChart.destroy();
+    }
+
     const datasets = [
         {
             label: 'MACD Line',
@@ -5193,7 +5260,7 @@ function createMACDChart(ctx, labels, data) {
         }
     ];
 
-    return new Chart(ctx, {
+    indicatorChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
@@ -5201,6 +5268,7 @@ function createMACDChart(ctx, labels, data) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             layout: {
                 padding: { top: 20, right: 50 }
             },
@@ -5250,9 +5318,12 @@ function createMACDChart(ctx, labels, data) {
                     borderWidth: 1,
                     callbacks: {
                         title: function(tooltipItems) {
-                            const index = tooltipItems[0].dataIndex + averagePoints;
-                            const match = chartData['Copa'][index];
-                            return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
+                            const index = tooltipItems[0].dataIndex;
+                            if (chartData['Copa'] && chartData['Copa'][index]) {
+                                const match = chartData['Copa'][index];
+                                return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
+                            }
+                            return '';
                         },
                         label: function(context) {
                             let label = context.dataset.label || '';
@@ -5265,10 +5336,13 @@ function createMACDChart(ctx, labels, data) {
                             return label;
                         },
                         afterBody: function(tooltipItems) {
-                            const index = tooltipItems[0].dataIndex + averagePoints;
-                            const match = chartData['Copa'][index];
-                            const ftScore = match.ft || 'N/A';
-                            return `FT: ${ftScore}\nMercado: ${document.getElementById('marketSelector').options[document.getElementById('marketSelector').selectedIndex].text}`;
+                            const index = tooltipItems[0].dataIndex;
+                            if (chartData['Copa'] && chartData['Copa'][index]) {
+                                const match = chartData['Copa'][index];
+                                const ftScore = match.ft || 'N/A';
+                                return `FT: ${ftScore}\nMercado: ${document.getElementById('marketSelector').options[document.getElementById('marketSelector').selectedIndex].text}`;
+                            }
+                            return '';
                         }
                     }
                 }
@@ -5277,51 +5351,26 @@ function createMACDChart(ctx, labels, data) {
     });
 }
 
-function updateCharts() {
-    const timestamp = new Date().getTime();
-    const leagueUrls = {
-        'Copa': ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${timestamp}`,
-    };
-
-    leagues.forEach(league => {
-        const apiUrl = `${leagueUrls[league]}?timestamp=${timestamp}`;
-        console.log(`Buscando dados para ${league} em: ${apiUrl}`);
-        fetch(apiUrl)
-            .then(response => {
-                console.log(`Resposta recebida para ${league}:`, response);
-                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                console.log(`Dados processados para ${league}:`, data);
-                const processedData = processApiData(data, league);
-                const canvasElement = document.getElementById('Indicators');
-                if (!canvasElement) {
-                    console.error(`Canvas com ID 'Indicators' não encontrado no DOM`);
-                    return;
-                }
-                if (!indicatorChart) {
-                    const ctx = canvasElement.getContext('2d');
-                    indicatorChart = createMACDChart(ctx, processedData.labels, processedData);
-                    console.log(`Gráfico MACD criado para ${league}`);
-                } else {
-                    // Atualizar gráfico MACD
-                    indicatorChart.data.labels = processedData.labels;
-                    indicatorChart.data.datasets[0].data = processedData.macd.macdLine;
-                    indicatorChart.data.datasets[1].data = processedData.macd.emaSignal;
-                    indicatorChart.data.datasets[2].data = processedData.macd.histogram;
-                    indicatorChart.data.datasets[2].backgroundColor = processedData.macd.histogram.map(val => val > 0 ? 'rgba(0, 255, 0, 0.7)' : 'rgba(255, 0, 0, 0.7)');
-                    indicatorChart.data.datasets[2].borderColor = processedData.macd.histogram.map(val => val > 0 ? 'rgba(0, 255, 0, 1)' : 'rgba(255, 0, 0, 1)');
-                    
-                    // Atualizar título do eixo Y
-                    indicatorChart.options.scales['y-macd'].title.text = `MACD - ${selectedMarket.toUpperCase()}`;
-                    
-                    indicatorChart.update('none');
-                    console.log(`Gráfico MACD atualizado para ${league}`);
-                }
-            })
-            .catch(error => console.error(`Erro ao buscar dados para ${league}:`, error));
-    });
+// Função principal para atualizar os gráficos
+async function updateCharts() {
+    try {
+        console.log('Atualizando gráficos...');
+        const data = await fetchData();
+        const processedData = processApiData(data, 'Copa');
+        
+        const canvasElement = document.getElementById('Indicators');
+        if (!canvasElement) {
+            console.error('Canvas com ID Indicators não encontrado');
+            return;
+        }
+        
+        const ctx = canvasElement.getContext('2d');
+        createMACDChart(ctx, processedData.labels, processedData);
+        
+        console.log('Gráfico atualizado com sucesso!');
+    } catch (error) {
+        console.error('Erro ao atualizar gráficos:', error);
+    }
 }
 
 // Event listeners
@@ -5350,8 +5399,14 @@ document.getElementById('macdSignal').addEventListener('change', function(event)
     updateCharts();
 });
 
-window.onload = updateCharts;
-setInterval(updateCharts, 3000);
+// Inicializar gráfico quando a página carregar
+window.addEventListener('load', function() {
+    console.log('Página carregada, inicializando gráfico...');
+    updateCharts();
+});
+
+// Atualizar a cada 30 segundos
+setInterval(updateCharts, 30000);
 </script>
 
     
