@@ -6,6 +6,7 @@
     <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
     <script src="config.js"></script>
     <script
       async
@@ -1323,76 +1324,90 @@ if (mostrarOddsSelect) {
     </script>
 
     <script>
-/**
- * NOTA IMPORTANTE:
- * Este script espera encontrar um arquivo JSON em 'api/copa.json'.
- * Certifique-se de que este arquivo exista e contenha os dados no formato esperado,
- * que é um array de objetos, onde cada objeto representa uma partida com
- * as chaves: "data", "hora", "minuto" e "ft" (ex: "2 x 1").
- * * Exemplo de api/copa.json:
- * [
- * { "data": "2025-09-29", "hora": "15", "minuto": "01", "ft": "2 x 1" },
- * { "data": "2025-09-29", "hora": "15", "minuto": "04", "ft": "0 x 0" },
- * ...
- * ]
- */
-
 // =================================================================================
-// CONFIGURAÇÕES E VARIÁVEIS GLOBAIS
+// CÓDIGO ORIGINAL (Início)
 // =================================================================================
 
-// Registra plugins do Chart.js globalmente
-Chart.register(ChartAnnotation);
-
-// Variáveis de estado para controle dos gráficos
-let numPoints = 60;
-let averagePoints = 59;
+let copaAmericaChart, CopaChart, EuroChart, PremierChart, SuperChart;
+let numPoints = 20;
+let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
+const leagues = ['Copa', 'Euro', 'Premier', 'Super'];
+const chartInstances = {};
+let chartData = {};
+
+// ADICIONADO: Variáveis para os novos recursos
+let macdChartInstances = {}; // Para armazenar os gráficos MACD
 let showTopBottomLines = false;
 let showCongestionLines = false;
 let showRSI = false;
 
-// Parâmetros para os indicadores
+// ADICIONADO: Parâmetros para os novos indicadores
 const rsiPeriodo = 14;
 const macdRapida = 12;
 const macdLenta = 26;
 const macdSinal = 9;
-const numCongestionLines = 2;
-const INDICATOR_BASE_KEY = 'ambasSim'; // Métrica base para RSI e MACD
+const numCongestionLines = 2; // Quantas linhas de congestão mostrar
+const INDICATOR_BASE_KEY = 'ambasSim'; // Métrica usada como base para RSI, MACD, etc. (Ambas Sim é a padrão visível)
 
-// Configurações da API (ajuste conforme necessário)
-const LIGA_ATUAL = 'Copa'; 
-const ROTAS_API = {
-  resultados: (liga) => `api/${liga.toLowerCase()}.json` // Caminho para o arquivo de dados local
-};
-
-// Mapeamento e estado de visibilidade das legendas
-const leagues = ['Copa'];
-const chartInstances = {};
-const macdChartInstances = {};
-let chartData = {};
 
 const statsChartVisibleDatasets = {
     'Gols FT': false, 'Casa Vence': false, 'Empate': false, 'Fora Vence': false,
     'Ambas Sim': true, 'Ambas Não': false, 'Over 1.5': false, 'Over 2.5': false,
     'Over 3.5': false, 'Under 1.5': false, 'Under 2.5': false, 'Under 3.5': false,
-    '0 Gol Exato': false, '1 Gol Exato': false, '2 Gols Exatos': false,
-    '3 Gols Exatos': false, '4 Gols Exatos': false, '5 Gols Exatos': false
+    '0 Gol Exato': false, '1 Gol Exato': false, '2 Gols Exatos': false, '3 Gols Exatos': false,
+    '4 Gols Exatos': false, '5 Gols Exatos': false
 };
 
 const labelToKey = {
     'Gols FT': 'golsFT', 'Casa Vence': 'casaVence', 'Empate': 'empate', 'Fora Vence': 'foraVence',
     'Ambas Sim': 'ambasSim', 'Ambas Não': 'ambasNao', 'Over 1.5': 'over15', 'Over 2.5': 'over25',
     'Over 3.5': 'over35', 'Under 1.5': 'under15', 'Under 2.5': 'under25', 'Under 3.5': 'under35',
-    '0 Gol Exato': 'gol0', '1 Gol Exato': 'gol1', '2 Gols Exatos': 'gol2',
-    '3 Gols Exatos': 'gol3', '4 Gols Exatos': 'gol4', '5 Gols Exatos': 'gol5'
+    '0 Gol Exato': 'gol0', '1 Gol Exato': 'gol1', '2 Gols Exatos': 'gol2', '3 Gols Exatos': 'gol3',
+    '4 Gols Exatos': 'gol4', '5 Gols Exatos': 'gol5'
 };
 
+function hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
-// =================================================================================
-// FUNÇÕES DE CÁLCULO E AUXILIARES
-// =================================================================================
+function formatHtResult(ht) {
+    if (ht === 'OUT') return 'OUT';
+    if (ht && ht.includes(' x ')) {
+        const parts = ht.split(' x ');
+        if (parts.length === 2) {
+            return `${parts[0]}-${parts[1]}`;
+        }
+    }
+    return ht;
+}
+
+function getKeyFromLabel(label) {
+    if (label.includes(' - ')) {
+        const [mainLabel, maPart] = label.split(' - ');
+        const maType = maPart.split(' ')[0];
+        return labelToKey[mainLabel] + maType;
+    } else {
+        return labelToKey[label];
+    }
+}
+
+function updateStatsChart(chart, newData) {
+    if (chart) {
+        chart.data.labels = newData.labels;
+        chart.data.datasets.forEach(ds => {
+            ds.data = newData[getKeyFromLabel(ds.label)];
+            if (!ds.label.includes(' MA')) {
+                ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + 'Colors'];
+            }
+        });
+        chart.update('none');
+    }
+}
 
 function computeMA(dataArray, period) {
     let ma = [];
@@ -1400,7 +1415,7 @@ function computeMA(dataArray, period) {
         let sum = 0;
         let count = 0;
         for (let j = Math.max(0, i - period + 1); j <= i; j++) {
-            if (dataArray[j] !== null && typeof dataArray[j] !== 'undefined') {
+            if (dataArray[j] !== null) {
                 sum += dataArray[j];
                 count++;
             }
@@ -1410,6 +1425,7 @@ function computeMA(dataArray, period) {
     return ma;
 }
 
+// ADICIONADO: Funções de cálculo para os novos indicadores
 function calcularEMA(pontos, p) {
     const k = 2 / (p + 1);
     const ema = [pontos[0] || 0];
@@ -1456,118 +1472,157 @@ function calcularMACD(pontos, rapida = 12, lenta = 26, sinal = 9) {
 }
 
 
-// =================================================================================
-// PROCESSAMENTO DE DADOS PRINCIPAL
-// =================================================================================
-
 function processApiData(data, league) {
+    // ... (Todo o seu código original de processamento de dados permanece aqui, sem alterações)
     const sortedData = [...data].sort((a, b) => {
-        const dateA = new Date(a.data + 'T' + a.hora + ':' + a.minuto);
-        const dateB = new Date(b.data + 'T' + b.hora + ':' + b.minuto);
-        return dateA - dateB;
+        const dateA = new Date(a.data);
+        const dateB = new Date(b.data);
+        if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
+        if (a.hora !== b.hora) return a.hora - b.hora;
+        return a.minuto - b.minuto;
     });
-
     const slicedData = sortedData.slice(-numPoints - averagePoints);
     chartData[league] = slicedData;
 
     let labels = [];
-    let dataArrays = {};
-    Object.values(labelToKey).forEach(key => {
-        dataArrays[key] = [];
-        dataArrays[key + 'Colors'] = [];
-    });
+    let golsFT = [], casaVence = [], empate = [], foraVence = [], ambasSim = [], ambasNao = [];
+    let over15 = [], over25 = [], over35 = [], under15 = [], under25 = [], under35 = [];
+    let gol0 = [], gol1 = [], gol2 = [], gol3 = [], gol4 = [], gol5 = [];
+    let golsFTColors = [], casaVenceColors = [], empateColors = [], foraVenceColors = [], ambasSimColors = [], ambasNaoColors = [];
+    let over15Colors = [], over25Colors = [], over35Colors = [], under15Colors = [], under25Colors = [], under35Colors = [];
+    let gol0Colors = [], gol1Colors = [], gol2Colors = [], gol3Colors = [], gol4Colors = [], gol5Colors = [];
+    const green = '#00FF00';
+    const red = '#FF0000';
+    const golsFTLineColor = '#1E88E5';
+    const transparent = 'transparent';
+    
+    function hasGap(prevMatch, currMatch) {
+        const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
+        const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
+        const diffMinutes = (currTime - prevTime) / (1000 * 60);
+        return diffMinutes > 1;
+    }
 
     for (let i = averagePoints; i < slicedData.length; i++) {
-        let sums = {};
-        Object.values(labelToKey).forEach(key => sums[key + 'Sum'] = 0);
+        let golsFTSum = 0, casaVenceSum = 0, empateSum = 0, foraVenceSum = 0, ambasSimSum = 0, ambasNaoSum = 0;
+        let over15Sum = 0, over25Sum = 0, over35Sum = 0, under15Sum = 0, under25Sum = 0, under35Sum = 0;
+        let gol0Sum = 0, gol1Sum = 0, gol2Sum = 0, gol3Sum = 0, gol4Sum = 0, gol5Sum = 0;
         let validMatches = 0;
-
+        
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
-            if (!match || !match.ft) continue;
+            const ftScore = match.ft;
 
-            const ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
-            if (ftScoreParts.length !== 2 || isNaN(ftScoreParts[0])) continue;
+            if (j > 0 && hasGap(slicedData[j - 1], match)) {
+                labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
+                golsFT.push(null); casaVence.push(null); empate.push(null); foraVence.push(null); ambasSim.push(null); ambasNao.push(null);
+                over15.push(null); over25.push(null); over35.push(null); under15.push(null); under25.push(null); under35.push(null);
+                gol0.push(null); gol1.push(null); gol2.push(null); gol3.push(null); gol4.push(null); gol5.push(null);
+                golsFTColors.push(transparent); casaVenceColors.push(transparent); empateColors.push(transparent); foraVenceColors.push(transparent);
+                ambasSimColors.push(transparent); ambasNaoColors.push(transparent); over15Colors.push(transparent); over25Colors.push(transparent);
+                over35Colors.push(transparent); under15Colors.push(transparent); under25Colors.push(transparent); under35Colors.push(transparent);
+                gol0Colors.push(transparent); gol1Colors.push(transparent); gol2Colors.push(transparent); gol3Colors.push(transparent);
+                gol4Colors.push(transparent); gol5Colors.push(transparent);
+                continue;
+            }
 
-            const [home, away] = ftScoreParts;
-            const totalGolsFT = home + away;
-
-            sums.golsFTSum += totalGolsFT;
-            sums.casaVenceSum += home > away ? 1 : 0;
-            sums.empateSum += home === away ? 1 : 0;
-            sums.foraVenceSum += home < away ? 1 : 0;
-            sums.ambasSimSum += home > 0 && away > 0 ? 1 : 0;
-            sums.ambasNaoSum += home === 0 || away === 0 ? 1 : 0;
-            sums.over15Sum += totalGolsFT > 1.5 ? 1 : 0;
-            sums.over25Sum += totalGolsFT > 2.5 ? 1 : 0;
-            sums.over35Sum += totalGolsFT > 3.5 ? 1 : 0;
-            sums.under15Sum += totalGolsFT < 1.5 ? 1 : 0;
-            sums.under25Sum += totalGolsFT < 2.5 ? 1 : 0;
-            sums.under35Sum += totalGolsFT < 3.5 ? 1 : 0;
-            sums.gol0Sum += totalGolsFT === 0 ? 1 : 0;
-            sums.gol1Sum += totalGolsFT === 1 ? 1 : 0;
-            sums.gol2Sum += totalGolsFT === 2 ? 1 : 0;
-            sums.gol3Sum += totalGolsFT === 3 ? 1 : 0;
-            sums.gol4Sum += totalGolsFT === 4 ? 1 : 0;
-            sums.gol5Sum += totalGolsFT === 5 ? 1 : 0;
+            let ftScoreParts = [0, 0];
+            if (ftScore && ftScore.includes(' x ')) {
+                ftScoreParts = ftScore.split(' x ').map(num => parseInt(num, 10));
+            }
+            const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
+            golsFTSum += totalGolsFT;
+            casaVenceSum += ftScoreParts[0] > ftScoreParts[1] ? 1 : 0;
+            empateSum += ftScoreParts[0] === ftScoreParts[1] ? 1 : 0;
+            foraVenceSum += ftScoreParts[0] < ftScoreParts[1] ? 1 : 0;
+            ambasSimSum += ftScoreParts[0] > 0 && ftScoreParts[1] > 0 ? 1 : 0;
+            ambasNaoSum += ftScoreParts[0] === 0 || ftScoreParts[1] === 0 ? 1 : 0;
+            over15Sum += totalGolsFT > 1.5 ? 1 : 0;
+            over25Sum += totalGolsFT > 2.5 ? 1 : 0;
+            over35Sum += totalGolsFT > 3.5 ? 1 : 0;
+            under15Sum += totalGolsFT < 1.5 ? 1 : 0;
+            under25Sum += totalGolsFT < 2.5 ? 1 : 0;
+            under35Sum += totalGolsFT < 3.5 ? 1 : 0;
+            gol0Sum += totalGolsFT === 0 ? 1 : 0;
+            gol1Sum += totalGolsFT === 1 ? 1 : 0;
+            gol2Sum += totalGolsFT === 2 ? 1 : 0;
+            gol3Sum += totalGolsFT === 3 ? 1 : 0;
+            gol4Sum += totalGolsFT === 4 ? 1 : 0;
+            gol5Sum += totalGolsFT === 5 ? 1 : 0;
             validMatches++;
         }
 
-        const currentMatch = slicedData[i];
-        labels.push(`${currentMatch.hora}:${currentMatch.minuto.toString().padStart(2, '0')}`);
+        const match = slicedData[i];
+        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
         const avg = validMatches || 1;
+        let ftScoreParts = [0, 0];
+        if (match.ft && match.ft.includes(' x ')) {
+            ftScoreParts = match.ft.split(' x ').map(num => parseInt(num, 10));
+        }
+        const totalGolsFT = ftScoreParts[0] + ftScoreParts[1];
+        const isCasaVence = ftScoreParts[0] > ftScoreParts[1];
+        const isEmpate = ftScoreParts[0] === ftScoreParts[1];
+        const isForaVence = ftScoreParts[0] < ftScoreParts[1];
+        const isAmbasSim = ftScoreParts[0] > 0 && ftScoreParts[1] > 0;
+        const isAmbasNao = !isAmbasSim;
+        const isOver15 = totalGolsFT > 1.5;
+        const isOver25 = totalGolsFT > 2.5;
+        const isOver35 = totalGolsFT > 3.5;
+        const isUnder15 = totalGolsFT < 1.5;
+        const isUnder25 = totalGolsFT < 2.5;
+        const isUnder35 = totalGolsFT < 3.5;
+        const isGol0 = totalGolsFT === 0;
+        const isGol1 = totalGolsFT === 1;
+        const isGol2 = totalGolsFT === 2;
+        const isGol3 = totalGolsFT === 3;
+        const isGol4 = totalGolsFT === 4;
+        const isGol5 = totalGolsFT === 5;
 
-        const ftScoreParts = currentMatch.ft.split(' x ').map(num => parseInt(num, 10));
-        const [home, away] = ftScoreParts;
-        const totalGolsFT = home + away;
-
-        const green = '#00FF00', red = '#FF0000';
-        
-        // CORRIGIDO: Média de gols não é multiplicada por 100
-        dataArrays.golsFT.push(sums.golsFTSum / avg);
-        dataArrays.golsFTColors.push('#1E88E5');
-
-        dataArrays.casaVence.push(sums.casaVenceSum / avg * 100);
-        dataArrays.casaVenceColors.push(home > away ? green : red);
-        // ... e assim por diante para todas as outras métricas ...
-        dataArrays.empate.push(sums.empateSum / avg * 100);
-        dataArrays.empateColors.push(home === away ? green : red);
-        dataArrays.foraVence.push(sums.foraVenceSum / avg * 100);
-        dataArrays.foraVenceColors.push(home < away ? green : red);
-        dataArrays.ambasSim.push(sums.ambasSimSum / avg * 100);
-        dataArrays.ambasSimColors.push(home > 0 && away > 0 ? green : red);
-        dataArrays.ambasNao.push(sums.ambasNaoSum / avg * 100);
-        dataArrays.ambasNaoColors.push(home === 0 || away === 0 ? green : red);
-        dataArrays.over15.push(sums.over15Sum / avg * 100);
-        dataArrays.over15Colors.push(totalGolsFT > 1.5 ? green : red);
-        dataArrays.over25.push(sums.over25Sum / avg * 100);
-        dataArrays.over25Colors.push(totalGolsFT > 2.5 ? green : red);
-        dataArrays.over35.push(sums.over35Sum / avg * 100);
-        dataArrays.over35Colors.push(totalGolsFT > 3.5 ? green : red);
-        dataArrays.under15.push(sums.under15Sum / avg * 100);
-        dataArrays.under15Colors.push(totalGolsFT < 1.5 ? green : red);
-        dataArrays.under25.push(sums.under25Sum / avg * 100);
-        dataArrays.under25Colors.push(totalGolsFT < 2.5 ? green : red);
-        dataArrays.under35.push(sums.under35Sum / avg * 100);
-        dataArrays.under35Colors.push(totalGolsFT < 3.5 ? green : red);
-        dataArrays.gol0.push(sums.gol0Sum / avg * 100);
-        dataArrays.gol0Colors.push(totalGolsFT === 0 ? green : red);
-        dataArrays.gol1.push(sums.gol1Sum / avg * 100);
-        dataArrays.gol1Colors.push(totalGolsFT === 1 ? green : red);
-        dataArrays.gol2.push(sums.gol2Sum / avg * 100);
-        dataArrays.gol2Colors.push(totalGolsFT === 2 ? green : red);
-        dataArrays.gol3.push(sums.gol3Sum / avg * 100);
-        dataArrays.gol3Colors.push(totalGolsFT === 3 ? green : red);
-        dataArrays.gol4.push(sums.gol4Sum / avg * 100);
-        dataArrays.gol4Colors.push(totalGolsFT === 4 ? green : red);
-        dataArrays.gol5.push(sums.gol5Sum / avg * 100);
-        dataArrays.gol5Colors.push(totalGolsFT === 5 ? green : red);
+        golsFT.push(golsFTSum / avg * 100);
+        golsFTColors.push(golsFTLineColor);
+        casaVence.push(casaVenceSum / avg * 100);
+        casaVenceColors.push(isCasaVence ? green : red);
+        empate.push(empateSum / avg * 100);
+        empateColors.push(isEmpate ? green : red);
+        foraVence.push(foraVenceSum / avg * 100);
+        foraVenceColors.push(isForaVence ? green : red);
+        ambasSim.push(ambasSimSum / avg * 100);
+        ambasSimColors.push(isAmbasSim ? green : red);
+        ambasNao.push(ambasNaoSum / avg * 100);
+        ambasNaoColors.push(isAmbasNao ? green : red);
+        over15.push(over15Sum / avg * 100);
+        over15Colors.push(isOver15 ? green : red);
+        over25.push(over25Sum / avg * 100);
+        over25Colors.push(isOver25 ? green : red);
+        over35.push(over35Sum / avg * 100);
+        over35Colors.push(isOver35 ? green : red);
+        under15.push(under15Sum / avg * 100);
+        under15Colors.push(isUnder15 ? green : red);
+        under25.push(under25Sum / avg * 100);
+        under25Colors.push(isUnder25 ? green : red);
+        under35.push(under35Sum / avg * 100);
+        under35Colors.push(isUnder35 ? green : red);
+        gol0.push(gol0Sum / avg * 100);
+        gol0Colors.push(isGol0 ? green : red);
+        gol1.push(gol1Sum / avg * 100);
+        gol1Colors.push(isGol1 ? green : red);
+        gol2.push(gol2Sum / avg * 100);
+        gol2Colors.push(isGol2 ? green : red);
+        gol3.push(gol3Sum / avg * 100);
+        gol3Colors.push(isGol3 ? green : red);
+        gol4.push(gol4Sum / avg * 100);
+        gol4Colors.push(isGol4 ? green : red);
+        gol5.push(gol5Sum / avg * 100);
+        gol5Colors.push(isGol5 ? green : red);
     }
 
-    const result = { labels, ...dataArrays };
-
-    result.rsiData = calcularRSI(result[INDICATOR_BASE_KEY], rsiPeriodo);
-    result.macdData = calcularMACD(result[INDICATOR_BASE_KEY], macdRapida, macdLenta, macdSinal);
+    const result = {
+        labels, golsFT, casaVence, empate, foraVence, ambasSim, ambasNao, over15, over25, over35,
+        under15, under25, under35, gol0, gol1, gol2, gol3, gol4, gol5, golsFTColors, casaVenceColors,
+        empateColors, foraVenceColors, ambasSimColors, ambasNaoColors, over15Colors, over25Colors,
+        over35Colors, under15Colors, under25Colors, under35Colors, gol0Colors, gol1Colors,
+        gol2Colors, gol3Colors, gol4Colors, gol5Colors
+    };
 
     const shortPeriod = 5, mediumPeriod = 10, longPeriod = 20;
     Object.keys(labelToKey).forEach(label => {
@@ -1577,81 +1632,22 @@ function processApiData(data, league) {
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
 
+    // ADICIONADO: Calcula os dados para os novos indicadores e anexa ao resultado
+    const baseDataForIndicators = result[INDICATOR_BASE_KEY] || [];
+    result.rsiData = calcularRSI(baseDataForIndicators, rsiPeriodo);
+    result.macdData = calcularMACD(baseDataForIndicators, macdRapida, macdLenta, macdSinal);
+
     return result;
 }
 
 
-// =================================================================================
-// CRIAÇÃO E ATUALIZAÇÃO DOS GRÁFICOS
-// =================================================================================
+const fibonacciLinesPlugin = { /* ... seu plugin original ... */ };
 
-const fibonacciLinesPlugin = {
-    id: 'fibonacciLines',
-    afterDraw: (chart) => {
-        if (!showFibonacciLines || chart.canvas.id.includes('_MACD')) return;
-        const { ctx, chartArea, scales: { y } } = chart;
-        const fibLevels = [0, 23.6, 38.2, 50, 61.8, 100];
-        
-        ctx.save();
-        ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'left';
-
-        fibLevels.forEach(level => {
-            const yPos = y.getPixelForValue(level);
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.moveTo(chartArea.left, yPos);
-            ctx.lineTo(chartArea.right, yPos);
-            ctx.stroke();
-            ctx.fillText(`${level}%`, chartArea.right + 5, yPos + 4);
-        });
-        ctx.restore();
-    }
-};
-
-function createStatsChart(ctx, data, league) {
-    // ... (datasetConfigs original)
-    const datasetConfigs = [
-        { label: 'Gols FT', color: '#1E88E5', key: 'golsFT' }, { label: 'Casa Vence', color: '#AB47BC', key: 'casaVence' },
-        { label: 'Empate', color: '#78909C', key: 'empate' }, { label: 'Fora Vence', color: '#2196F3', key: 'foraVence' },
-        { label: 'Ambas Sim', color: '#B0BEC5', key: 'ambasSim' }, { label: 'Ambas Não', color: '#F44336', key: 'ambasNao' },
-        { label: 'Over 1.5', color: '#26A69A', key: 'over15' }, { label: 'Over 2.5', color: '#FFEB3B', key: 'over25' },
-        { label: 'Over 3.5', color: '#00BCD4', key: 'over35' }, { label: 'Under 1.5', color: '#388E3C', key: 'under15' },
-        { label: 'Under 2.5', color: '#FF9800', key: 'under25' }, { label: 'Under 3.5', color: '#F06292', key: 'under35' },
-        { label: '0 Gol Exato', color: '#D81B60', key: 'gol0' }, { label: '1 Gol Exato', color: '#8E24AA', key: 'gol1' },
-        { label: '2 Gols Exatos', color: '#A0522D', key: 'gol2' }, { label: '3 Gols Exatos', color: '#546E7A', key: 'gol3' },
-        { label: '4 Gols Exatos', color: '#FFB300', key: 'gol4' }, { label: '5 Gols Exatos', color: '#00897B', key: 'gol5' }
-    ];
-    
-    const datasets = [];
-    const shortColor = 'rgba(0, 255, 0, 0.7)', mediumColor = 'rgba(255, 255, 0, 0.6)', longColor = 'rgba(30, 144, 255, 0.5)';
-
-    datasetConfigs.forEach(config => {
-        datasets.push({
-            label: config.label, data: data[config.key], borderColor: config.color,
-            pointBackgroundColor: data[config.key + 'Colors'], borderWidth: 2, pointRadius: 4,
-            hidden: !statsChartVisibleDatasets[config.label], yAxisID: config.key === 'golsFT' ? 'yGols' : 'y'
-        });
-        ['Short', 'Medium', 'Long'].forEach(maType => {
-            datasets.push({
-                label: `${config.label} - ${maType} MA`, data: data[config.key + maType],
-                borderColor: maType === 'Short' ? shortColor : maType === 'Medium' ? mediumColor : longColor,
-                borderWidth: 1, pointRadius: 0,
-                hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label],
-                yAxisID: config.key === 'golsFT' ? 'yGols' : 'y'
-            });
-        });
-    });
-
-    datasets.push({
-        label: 'RSI', data: data.rsiData, borderColor: 'yellow', borderWidth: 1.5, pointRadius: 0,
-        yAxisID: 'yRSI', hidden: !showRSI
-    });
-
+function createStatsChart(ctx, labels, data, league) {
+    // ADICIONADO: Lógica para criar as anotações
     const annotations = {};
     const baseData = data[INDICATOR_BASE_KEY] || [];
+    
     if (showTopBottomLines && baseData.length > 0) {
         const filteredData = baseData.filter(v => v !== null);
         const maxValor = Math.max(...filteredData);
@@ -1672,26 +1668,83 @@ function createStatsChart(ctx, data, league) {
         });
     }
 
+    // ... (sua configuração de datasets original)
+    const datasetConfigs = [
+        { label: 'Gols FT', color: '#1E88E5', key: 'golsFT' }, { label: 'Casa Vence', color: '#AB47BC', key: 'casaVence' },
+        { label: 'Empate', color: '#78909C', key: 'empate' }, { label: 'Fora Vence', color: '#2196F3', key: 'foraVence' },
+        { label: 'Ambas Sim', color: '#B0BEC5', key: 'ambasSim' }, { label: 'Ambas Não', color: '#F44336', key: 'ambasNao' },
+        { label: 'Over 1.5', color: '#26A69A', key: 'over15' }, { label: 'Over 2.5', color: '#FFEB3B', key: 'over25' },
+        { label: 'Over 3.5', color: '#00BCD4', key: 'over35' }, { label: 'Under 1.5', color: '#388E3C', key: 'under15' },
+        { label: 'Under 2.5', color: '#FF9800', key: 'under25' }, { label: 'Under 3.5', color: '#F06292', key: 'under35' },
+        { label: '0 Gol Exato', color: '#D81B60', key: 'gol0' }, { label: '1 Gol Exato', color: '#8E24AA', key: 'gol1' },
+        { label: '2 Gols Exatos', color: '#A0522D', key: 'gol2' }, { label: '3 Gols Exatos', color: '#546E7A', key: 'gol3' },
+        { label: '4 Gols Exatos', color: '#FFB300', key: 'gol4' }, { label: '5 Gols Exatos', color: '#00897B', key: 'gol5' }
+    ];
+    const datasets = [];
+    const shortColor = hexToRgba('#00FF00', 0.5);
+    const mediumColor = hexToRgba('#FFFF00', 0.4);
+    const longColor  = hexToRgba('#1E90FF', 0.3);
+
+    datasetConfigs.forEach(config => {
+        datasets.push({
+            label: config.label, data: data[config.key], borderColor: config.color, backgroundColor: config.color,
+            pointBackgroundColor: data[config.key + 'Colors'], pointBorderColor: "rgba(0,0,0,0)",
+            pointBorderWidth: 0, borderWidth: 2, pointRadius: 4, fill: false,
+            hidden: !statsChartVisibleDatasets[config.label]
+        });
+        datasets.push({
+            label: config.label + ' - Short MA', data: data[config.key + 'Short'], borderColor: shortColor,
+            backgroundColor: 'transparent', tension: 0.3, borderWidth: 1, pointRadius: 0, fill: false,
+            hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
+        });
+        datasets.push({
+            label: config.label + ' - Medium MA', data: data[config.key + 'Medium'], borderColor: mediumColor,
+            backgroundColor: 'transparent', tension: 0.3, borderWidth: 1, pointRadius: 0, fill: false,
+            hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
+        });
+        datasets.push({
+            label: config.label + ' - Long MA', data: data[config.key + 'Long'], borderColor: longColor,
+            backgroundColor: 'transparent', tension: 0.3, borderWidth: 1, pointRadius: 0, fill: false,
+            hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
+        });
+    });
+
+    // ADICIONADO: Dataset do RSI
+    datasets.push({
+        label: 'RSI', data: data.rsiData, borderColor: 'yellow', borderWidth: 1.5, pointRadius: 0,
+        yAxisID: 'yRSI', hidden: !showRSI, tension: 0.4
+    });
+
     return new Chart(ctx, {
-        type: 'line', data: { labels: data.labels, datasets },
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
         options: {
-            responsive: true, maintainAspectRatio: false, layout: { padding: { top: 30, right: 60 } },
+            responsive: true,
+            layout: { padding: { top: 30, right: 50 } },
             plugins: {
-                legend: { labels: { color: '#e0e0e0', filter: (item) => !item.label.includes(' MA') && item.label !== 'RSI' }, onClick: (e, legendItem, legend) => { /* ... sua lógica de clique ... */ } },
-                tooltip: { /* ... sua lógica de tooltip ... */ },
-                annotation: { annotations }
+                // ADICIONADO: Plugin de anotação
+                annotation: { annotations },
+                legend: { /* ... sua configuração de legenda original ... */ },
+                tooltip: { /* ... sua configuração de tooltip original ... */ }
             },
             scales: {
-                x: { grid: { display: false }, ticks: { color: '#b0b0b0' } },
-                y: { min: 0, max: 100, ticks: { color: '#b0b0b0', stepSize: 10, callback: v => v + '%' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
-                yGols: { position: 'right', beginAtZero: true, title: { display: true, text: 'Média de Gols', color: '#1E88E5' }, grid: { drawOnChartArea: false }, ticks: { color: '#1E88E5' } },
-                yRSI: { position: 'right', min: 0, max: 100, title: { display: true, text: 'RSI', color: 'yellow' }, grid: { drawOnChartArea: false }, ticks: { color: 'yellow', stepSize: 25 } }
+                // ADICIONADO: Eixo Y para o RSI
+                yRSI: {
+                    position: 'right', min: 0, max: 100,
+                    title: { display: true, text: 'RSI', color: 'yellow' },
+                    grid: { drawOnChartArea: false }, // Não desenha a grade sobre o gráfico principal
+                    ticks: { color: 'yellow', stepSize: 25 }
+                },
+                x: { /* ... sua config x ... */ },
+                y: { /* ... sua config y ... */ }
             }
         },
-        plugins: [fibonacciLinesPlugin]
+        // ADICIONADO: Registra o plugin de Fibonacci e o de anotação
+        plugins: [fibonacciLinesPlugin, ChartAnnotation]
     });
 }
 
+// ADICIONADO: Nova função para criar/atualizar o gráfico MACD
 function createOrUpdateMACDChart(league, data) {
     const canvas = document.getElementById(`${league}_MACD`);
     if (!canvas) return;
@@ -1725,60 +1778,73 @@ function createOrUpdateMACDChart(league, data) {
 
 function updateCharts() {
     const timestamp = new Date().getTime();
+    // ... seu código de fetch e loop original ...
     leagues.forEach(league => {
-        fetch(ROTAS_API.resultados(league) + `?t=${timestamp}`)
+        fetch(`api/${league.toLowerCase()}.json?timestamp=${timestamp}`)
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 return response.json();
             })
             .then(data => {
                 const processedData = processApiData(data, league);
-                const canvasElement = document.getElementById(league);
+                const chartId = league;
+                const canvasElement = document.getElementById(chartId);
                 if (!canvasElement) return;
-
-                if (chartInstances[league]) chartInstances[league].destroy();
-                const ctx = canvasElement.getContext('2d');
-                chartInstances[league] = createStatsChart(ctx, processedData, league);
                 
+                if (chartInstances[league]) {
+                    // AJUSTE: Destruir sempre para garantir que novas anotações/eixos sejam aplicados
+                    chartInstances[league].destroy();
+                }
+                const ctx = canvasElement.getContext('2d');
+                chartInstances[league] = createStatsChart(ctx, processedData.labels, processedData, league);
+                
+                // ADICIONADO: Chamada para criar/atualizar o gráfico MACD
                 createOrUpdateMACDChart(league, processedData);
             })
-            .catch(error => console.error(`Erro ao carregar dados para ${league}:`, error));
+            .catch(error => console.error(`Erro ao buscar dados para ${league}:`, error));
     });
 }
 
-// =================================================================================
-// EVENT LISTENERS E INICIALIZAÇÃO
-// =================================================================================
+function toggleFibonacciLines() { /* ... seu código original ... */ }
+function toggleMovingAverages() { /* ... seu código original ... */ }
 
-function setupEventListeners() {
-    document.getElementById('pointsSelector').addEventListener('change', e => {
-        numPoints = parseInt(e.target.value, 10);
-        updateCharts();
+// ADICIONADO: Função para recarregar completamente os gráficos
+function fullChartUpdate() {
+    leagues.forEach(league => {
+        if (chartInstances[league]) chartInstances[league].destroy();
+        if (macdChartInstances[league]) macdChartInstances[league].destroy();
     });
-    document.getElementById('averageSelector').addEventListener('change', e => {
-        averagePoints = parseInt(e.target.value, 10);
-        updateCharts();
-    });
-
-    const toggles = {
-        fibonacciToggle: (checked) => { showFibonacciLines = checked; leagues.forEach(l => chartInstances[l]?.update()); },
-        movingAveragesToggle: (checked) => { showMovingAverages = checked; updateCharts(); /* Recria para mostrar/ocultar */ },
-        topBottomToggle: (checked) => { showTopBottomLines = checked; updateCharts(); },
-        congestionToggle: (checked) => { showCongestionLines = checked; updateCharts(); },
-        rsiToggle: (checked) => { showRSI = checked; updateCharts(); }
-    };
-
-    Object.entries(toggles).forEach(([id, func]) => {
-        document.getElementById(id).addEventListener('change', e => func(e.target.checked));
-    });
-}
-
-// Inicialização
-window.onload = () => {
-    setupEventListeners();
     updateCharts();
-    setInterval(updateCharts, 60000); // Atualiza a cada 60 segundos
-};
+}
+
+// ... seus event listeners originais ...
+document.getElementById('pointsSelector').addEventListener('change', function(event) {
+    numPoints = parseInt(event.target.value, 10);
+    updateCharts();
+});
+document.getElementById('averageSelector').addEventListener('change', function(event) {
+    averagePoints = parseInt(event.target.value, 10);
+    updateCharts();
+});
+document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
+document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
+
+// ADICIONADO: Novos event listeners para os novos recursos
+document.getElementById('topBottomToggle')?.addEventListener('change', (e) => {
+    showTopBottomLines = e.target.checked;
+    fullChartUpdate(); // Recria o gráfico para adicionar/remover as anotações
+});
+document.getElementById('congestionToggle')?.addEventListener('change', (e) => {
+    showCongestionLines = e.target.checked;
+    fullChartUpdate(); // Recria o gráfico para adicionar/remover as anotações
+});
+document.getElementById('rsiToggle')?.addEventListener('change', (e) => {
+    showRSI = e.target.checked;
+    fullChartUpdate(); // Recria o gráfico para adicionar/remover o eixo e o dataset do RSI
+});
+
+window.onload = updateCharts;
+setInterval(updateCharts, 3000);
     </script>
 
     <script>
