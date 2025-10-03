@@ -399,94 +399,80 @@
 
     <script>
 
-      document.addEventListener("contextmenu", function(e) {
-    e.preventDefault();
-});
-
-
-document.addEventListener("keydown", function(e) {
-
-    if (e.key === "F12") {
-        e.preventDefault();
-    }
-    
-
-    if (e.ctrlKey && e.shiftKey && e.key === "I") {
-        e.preventDefault();
-    }
-    
- 
-    if (e.ctrlKey && e.key === "u") {
-        e.preventDefault();
-    }
-    
-
-    if (e.ctrlKey && e.shiftKey && e.key === "J") {
-        e.preventDefault();
-    }
-    
-
-    if (e.ctrlKey && e.shiftKey && e.key === "C") {
-        e.preventDefault();
-    }
-    
-
-    if (e.ctrlKey && e.key === "s") {
-        e.preventDefault();
-    }
-    
-
-    if (e.ctrlKey && e.key === "p") {
-        e.preventDefault();
-    }
-});
-
-
-const devtools = { open: false };
-const element = new Image();
-Object.defineProperty(element, 'id', {
-    get: function () {
-        devtools.open = true;
-    }
-});
-
-
+// protections.js (client)
 (function() {
-    const threshold = 160;
-    const checkDevTools = function() {
-        if ((window.outerWidth - window.innerWidth) > threshold || 
-            (window.outerHeight - window.innerHeight) > threshold) {
-            devtools.open = true;
-        }
-    };
-    
-    window.addEventListener('resize', checkDevTools);
-    setInterval(checkDevTools, 500);
+  // Bloqueios básicos (não confiáveis, mas ajudam para usuários comuns)
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('selectstart', e => e.preventDefault());
+  document.addEventListener('dragstart', e => e.preventDefault());
+
+  // Consolidar keydown checks (mais eficiente)
+  const blockedCombos = [
+    // keys normalized
+    { ctrl: true, shift: true, key: 'I' },
+    { ctrl: true, shift: true, key: 'J' },
+    { ctrl: true, shift: true, key: 'C' },
+    { ctrl: true, key: 'U' },
+    { ctrl: true, key: 'S' },
+    { ctrl: true, key: 'P' },
+  ];
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'F12') e.preventDefault();
+    for (const c of blockedCombos) {
+      if ((!!c.ctrl === e.ctrlKey) && (!!c.shift === e.shiftKey) && e.key.toUpperCase() === c.key) {
+        e.preventDefault();
+        // optional: reportAttempt('blocked_key', { key: e.key });
+      }
+    }
+  });
+
+  // Detecta DevTools usando heurística de tempo (mais resistente)
+  let devtoolsDetected = false;
+  function detectDevToolsByTime() {
+    const start = performance.now();
+    // "debugger" delays execution when DevTools are open in some browsers
+    // Note: this is heuristic and não é confiável 100%
+    // small try/catch to avoid break in strict environments
+    try { debugger; } catch (e) {}
+    const elapsed = performance.now() - start;
+    if (elapsed > 100) { // threshold experimental
+      devtoolsDetected = true;
+      handleDevtools();
+    }
+  }
+
+  // Tamper detection: checa se função foi alterada (ex: console.log.toString())
+  const originalConsoleToString = Function.prototype.toString.call(console.log);
+  function checkConsoleTamper() {
+    try {
+      const cur = Function.prototype.toString.call(console.log);
+      if (cur !== originalConsoleToString) {
+        // console foi sobrescrito => possível tentativa de bypass
+        // reportAttempt('console_tampered');
+      }
+    } catch (e) {}
+  }
+
+  function handleDevtools() {
+    if (devtoolsDetected) return;
+    devtoolsDetected = true;
+    // ação moderada: exibir aviso e registrar no backend
+    const warningEl = document.createElement('div');
+    warningEl.style = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#fff;z-index:999999;';
+    warningEl.innerHTML = '<div style="text-align:center;font-family:sans-serif"><h2>Acesso não autorizado detectado</h2><p>Se você não autorizou, feche essa janela ou contate o suporte.</p></div>';
+    document.documentElement.appendChild(warningEl);
+
+    // reporte para backend (não conter dados sensíveis)
+    navigator.sendBeacon && navigator.sendBeacon('/api/report-suspicious', JSON.stringify({ event: 'devtools_open', ts: Date.now(), url: location.href }));
+    // não quebre a app — apenas bloqueie UI até reavaliação
+  }
+
+  // intervalos de checagem leves
+  setInterval(detectDevToolsByTime, 3000);
+  setInterval(checkConsoleTamper, 5000);
 })();
 
-
-console.log('%c', element);
-setInterval(function() {
-    if (devtools.open) {
-        document.body.innerHTML = '<h1>Acesso não autorizado detectado</h1>';
-        devtools.open = false;
-    }
-}, 1000);
-
-// Impede seleção de texto
-document.addEventListener('selectstart', function(e) {
-    e.preventDefault();
-});
-
-// Impede arrastar e soltar
-document.addEventListener('dragstart', function(e) {
-    e.preventDefault();
-});
-
-// Ofusca console
-console.log = function() {};
-console.debug = function() {};
-console.info = function() {};
     </script>
 
 <script>
