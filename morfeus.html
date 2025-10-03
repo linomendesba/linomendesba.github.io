@@ -399,14 +399,14 @@
 
     <script>
 
-// protections.js (client)
+
 (function() {
-  // Bloqueios básicos (não confiáveis, mas ajudam para usuários comuns)
+
   document.addEventListener('contextmenu', e => e.preventDefault());
   document.addEventListener('selectstart', e => e.preventDefault());
   document.addEventListener('dragstart', e => e.preventDefault());
 
-  // Consolidar keydown checks (mais eficiente)
+
   const blockedCombos = [
     // keys normalized
     { ctrl: true, shift: true, key: 'I' },
@@ -422,34 +422,31 @@
     for (const c of blockedCombos) {
       if ((!!c.ctrl === e.ctrlKey) && (!!c.shift === e.shiftKey) && e.key.toUpperCase() === c.key) {
         e.preventDefault();
-        // optional: reportAttempt('blocked_key', { key: e.key });
+
       }
     }
   });
 
-  // Detecta DevTools usando heurística de tempo (mais resistente)
+
   let devtoolsDetected = false;
   function detectDevToolsByTime() {
     const start = performance.now();
-    // "debugger" delays execution when DevTools are open in some browsers
-    // Note: this is heuristic and não é confiável 100%
-    // small try/catch to avoid break in strict environments
+
     try { debugger; } catch (e) {}
     const elapsed = performance.now() - start;
-    if (elapsed > 100) { // threshold experimental
+    if (elapsed > 100) { 
       devtoolsDetected = true;
       handleDevtools();
     }
   }
 
-  // Tamper detection: checa se função foi alterada (ex: console.log.toString())
+
   const originalConsoleToString = Function.prototype.toString.call(console.log);
   function checkConsoleTamper() {
     try {
       const cur = Function.prototype.toString.call(console.log);
       if (cur !== originalConsoleToString) {
-        // console foi sobrescrito => possível tentativa de bypass
-        // reportAttempt('console_tampered');
+
       }
     } catch (e) {}
   }
@@ -457,18 +454,18 @@
   function handleDevtools() {
     if (devtoolsDetected) return;
     devtoolsDetected = true;
-    // ação moderada: exibir aviso e registrar no backend
+
     const warningEl = document.createElement('div');
     warningEl.style = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#fff;z-index:999999;';
     warningEl.innerHTML = '<div style="text-align:center;font-family:sans-serif"><h2>Acesso não autorizado detectado</h2><p>Se você não autorizou, feche essa janela ou contate o suporte.</p></div>';
     document.documentElement.appendChild(warningEl);
 
-    // reporte para backend (não conter dados sensíveis)
+
     navigator.sendBeacon && navigator.sendBeacon('/api/report-suspicious', JSON.stringify({ event: 'devtools_open', ts: Date.now(), url: location.href }));
-    // não quebre a app — apenas bloqueie UI até reavaliação
+
   }
 
-  // intervalos de checagem leves
+
   setInterval(detectDevToolsByTime, 3000);
   setInterval(checkConsoleTamper, 5000);
 })();
