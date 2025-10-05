@@ -36,6 +36,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/fixobets.html" ||
     url === "https://www.betstat.site/classificacaobets.html" ||
     url === "https://www.betstat.site/kironht.html" ||
+    url === "https://www.betstat.site/estrelabuscador.html" ||
     url === "https://www.betstat.site/estrelaht.html" ||
     url === "https://www.betstat.site/kironmacro.html" ||
     url === "https://t.me/+DlBr7IVFBk0yZTRh" ||
