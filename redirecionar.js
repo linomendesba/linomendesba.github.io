@@ -43,6 +43,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/golsbets.html" ||
     url === "https://www.betstat.site/rakingbets.html" ||
     url === "https://www.betstat.site/graficoftkiron.html" ||
+    url === "https://www.betstat.site/kironbuscador.html" ||
     url === "https://t.me/+v8-Zj8xsnec0ZGMx" ||
     url === "https://www.betstat.site/estrelafixo.html" ||
     url === "https://www.betstat.site/localizAIbets.html" ||
