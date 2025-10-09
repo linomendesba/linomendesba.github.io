@@ -461,6 +461,7 @@
         <br>
         <br>
         
+<div class="container">
     <div class="upcoming-games">
         <h2>Próximos Jogos</h2>
         <div class="games-table" id="lista-proximos-jogos"></div>
@@ -511,7 +512,7 @@
                 <option value="over3.5">Over 3.5</option>
                 <option value="5plus">5 ou mais gols</option>
                 <option value="under1.5">Under 1.5</option>
-                <option value="under2.5">Under 2.5</option>                
+                <option value="under2.5">Under 2.5</option>
             </select>
         </div>
         <div>
@@ -537,6 +538,7 @@
     <div id="match-details" style="display: none;">
         <div id="match-details-content"></div>
     </div>
+</div>
 
     <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -544,16 +546,23 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateDynamicData, 60000);
 });
 
-// Variáveis globais para armazenar dados dos confrontos
+// Variáveis globais
 let matchupStats = {};
 let matchDetails = {};
 let topMatchups = [];
 let selectedMatchup = null;
 
+// Todos os filtros originais
 const filterElements = ['league-select', 'lines-select', 'filter-select', 'qual-select', 'offset-select', 'offset-select2'];
 filterElements.forEach(id => {
     document.getElementById(id).addEventListener('change', loadData);
 });
+
+// Função para criar uma chave única e ordenada para o confronto
+function createMatchupKey(teamA, teamB) {
+    const teams = [normalizeTeamName(teamA), normalizeTeamName(teamB)].sort();
+    return `${teams[0]} vs ${teams[1]}`;
+}
 
 async function loadData() {
     matchupStats = {};
@@ -561,6 +570,9 @@ async function loadData() {
     const [league, resultsUrl, nextGamesUrl] = document.getElementById('league-select').value.split('|');
     const lines = parseInt(document.getElementById('lines-select').value);
     const market = document.getElementById('filter-select').value;
+    const offsetLimit = parseInt(document.getElementById('offset-select').value);
+    const offsetStart = parseInt(document.getElementById('offset-select2').value);
+    const escolhe = document.getElementById('qual-select').value;
 
     try {
         const response = await fetch(resultsUrl);
@@ -568,7 +580,7 @@ async function loadData() {
         const data = await response.json();
         const recentMatches = data.slice(-lines);
         
-        processMatchData(recentMatches, market);
+        processMatchData(recentMatches, escolhe, offsetLimit, offsetStart, market);
         renderMatchupCards();
         await loadProximosJogos(nextGamesUrl);
         document.getElementById('match-details').style.display = 'none';
@@ -578,67 +590,83 @@ async function loadData() {
 }
 
 async function updateDynamicData() {
-    const [league, resultsUrl, nextGamesUrl] = document.getElementById('league-select').value.split('|');
-    const lines = parseInt(document.getElementById('lines-select').value);
-    const market = document.getElementById('filter-select').value;
-
-    try {
-        const response = await fetch(resultsUrl);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        const recentMatches = data.slice(-lines);
-
-        matchupStats = {};
-        matchDetails = {};
-        processMatchData(recentMatches, market);
-        updateMatchupCards();
-        await loadProximosJogos(nextGamesUrl);
-    } catch (error) {
-        console.error('Erro ao atualizar os dados:', error);
-    }
+    await loadData(); // Simplificado para recarregar tudo
 }
 
-// Função para criar uma chave única e ordenada para cada confronto
-function createMatchupKey(teamA, teamB) {
-    const teams = [normalizeTeamName(teamA), normalizeTeamName(teamB)].sort();
-    return `${teams[0]} vs ${teams[1]}`;
-}
-
-function processMatchData(matches, market) {
-    matches.forEach(match => {
+function processMatchData(matches, escolhe, offsetLimit, offsetStart, market) {
+    matches.forEach((match, index) => {
         const homeTeam = match.time_a;
         const awayTeam = match.time_b;
         const matchupKey = createMatchupKey(homeTeam, awayTeam);
 
-        processMatchup(matchupKey, match, market);
+        // Inicializa as estatísticas para o confronto se ainda não existirem
+        if (!matchupStats[matchupKey]) {
+            matchupStats[matchupKey] = { games: 0, greens: 0 };
+        }
+        if (!matchDetails[matchupKey]) {
+            matchDetails[matchupKey] = [];
+        }
+
+        matchupStats[matchupKey].games++;
+
+        let homeTeamHasGreen = false;
+        let awayTeamHasGreen = false;
+
+        // Roda a análise de sequência para o time da casa
+        if (escolhe === 'ambos' || escolhe === 'casa') {
+            homeTeamHasGreen = checkTeamSequence(homeTeam, matches, index, offsetLimit, offsetStart, market, matchupKey);
+        }
+        // Roda a análise de sequência para o time de fora
+        if (escolhe === 'ambos' || escolhe === 'fora') {
+            awayTeamHasGreen = checkTeamSequence(awayTeam, matches, index, offsetLimit, offsetStart, market, matchupKey);
+        }
+        
+        // Se a opção for 'ambos', o green acontece se QUALQUER UM dos times tiver green.
+        // Se for 'casa' ou 'fora', a respectiva variável determinará o resultado.
+        if (homeTeamHasGreen || awayTeamHasGreen) {
+            matchupStats[matchupKey].greens++;
+        }
     });
 }
 
-function processMatchup(matchupKey, match, market) {
-    if (!matchupStats[matchupKey]) {
-        matchupStats[matchupKey] = { games: 0, greens: 0 };
+// Esta função contém a lógica original de análise de sequência para UM TIME
+function checkTeamSequence(team, allMatches, currentIndex, offsetLimit, offsetStart, market, matchupKey) {
+    let hasGreen = false;
+    let allRed = true;
+    const matchDataForDetail = [];
+
+    // O loop 'for' procura por um Green na janela definida pelos offsets (Gales/1º tiro)
+    for (let offset = offsetStart; offset < offsetStart + offsetLimit; offset++) {
+        const targetIndex = currentIndex + offset;
+        
+        if (targetIndex >= 0 && targetIndex < allMatches.length) {
+            const targetMatch = allMatches[targetIndex];
+            
+            // A análise só faz sentido se o time participou do jogo alvo
+            if (targetMatch.time_a === team || targetMatch.time_b === team) {
+                const [goalsHome, goalsAway] = targetMatch.ft.split(' x ').map(Number);
+                const totalGoals = goalsHome + goalsAway;
+                const gameStatus = checkMarketCondition(goalsHome, goalsAway, totalGoals, market) ? 'Green' : 'Red';
+
+                if (gameStatus === 'Green') hasGreen = true;
+                else allRed = false;
+
+                const matchDate = new Date(targetMatch.data);
+                const formattedDate = `${matchDate.getDate().toString().padStart(2, '0')}/${(matchDate.getMonth() + 1).toString().padStart(2, '0')}`;
+                matchDataForDetail.push(`${formattedDate} - ${targetMatch.time_a} ${goalsHome} x ${goalsAway} ${targetMatch.time_b} (${gameStatus})`);
+            }
+        }
     }
-    matchupStats[matchupKey].games++;
-
-    if (!matchDetails[matchupKey]) {
-        matchDetails[matchupKey] = [];
-    }
-
-    const [goalsHome, goalsAway] = match.ft.split(' x ').map(Number);
-    const totalGoals = goalsHome + goalsAway;
-    const gameStatus = checkMarketCondition(goalsHome, goalsAway, totalGoals, market) ? 'Green' : 'Red';
-
-    if (gameStatus === 'Green') {
-        matchupStats[matchupKey].greens++;
-    }
-
-    const matchDate = new Date(match.data);
-    const formattedDate = `${matchDate.getDate().toString().padStart(2, '0')}/${(matchDate.getMonth() + 1).toString().padStart(2, '0')}`;
-    const detailData = `${formattedDate} - ${match.time_a} ${goalsHome} x ${goalsAway} ${match.time_b} (${gameStatus})`;
     
-    const detailClass = gameStatus === 'Green' ? 'highlight-green' : 'highlight-red';
-    matchDetails[matchupKey].push({ data: detailData, className: detailClass });
+    // Adiciona os detalhes dos jogos analisados para este confronto
+    const matchDetailClass = hasGreen ? 'highlight-green' : (allRed && matchDataForDetail.length > 0) ? 'highlight-red' : '';
+    if (matchDataForDetail.length > 0) {
+        matchDetails[matchupKey].push({ data: matchDataForDetail.join(' | '), className: matchDetailClass });
+    }
+
+    return hasGreen;
 }
+
 
 function renderMatchupCards() {
     const cardsContainer = document.getElementById('team-cards');
@@ -649,9 +677,9 @@ function renderMatchupCards() {
             matchup,
             games: stats.games,
             greens: stats.greens,
-            percentage: (stats.greens / stats.games * 100).toFixed(0)
+            percentage: stats.games > 0 ? (stats.greens / stats.games * 100).toFixed(0) : 0
         }))
-        .sort((a, b) => parseInt(b.percentage) === parseInt(a.percentage) ? b.games - a.games : parseInt(b.percentage) - parseInt(a.percentage))
+        .sort((a, b) => parseInt(b.percentage) - parseInt(a.percentage) || b.games - a.games)
         .slice(0, 21);
 
     topMatchups = sortedMatchups.slice(0, 5).map(m => m.matchup);
@@ -663,14 +691,8 @@ function renderMatchupCards() {
         card.innerHTML = `
             <h3>${matchupData.matchup}</h3>
             <div class="team-stats">
-                <div>
-                    <p class="stat-label">Jogos</p>
-                    <p class="stat-value">${matchupData.games}</p>
-                </div>
-                <div>
-                    <p class="stat-label">Greens</p>
-                    <p class="stat-value">${matchupData.greens}</p>
-                </div>
+                <div><p class="stat-label">Jogos</p><p class="stat-value">${matchupData.games}</p></div>
+                <div><p class="stat-label">Greens</p><p class="stat-value">${matchupData.greens}</p></div>
             </div>
             <div class="green-percentage">${matchupData.percentage}%</div>
         `;
@@ -680,40 +702,7 @@ function renderMatchupCards() {
 }
 
 function updateMatchupCards() {
-    const sortedMatchups = Object.entries(matchupStats)
-        .map(([matchup, stats]) => ({
-            matchup,
-            games: stats.games,
-            greens: stats.greens,
-            percentage: (stats.greens / stats.games * 100).toFixed(0)
-        }))
-        .sort((a, b) => parseInt(b.percentage) === parseInt(a.percentage) ? b.games - a.games : parseInt(b.percentage) - parseInt(a.percentage))
-        .slice(0, 21);
-
-    topMatchups = sortedMatchups.slice(0, 5).map(m => m.matchup);
-    
-    const cards = document.querySelectorAll('.team-card');
-    cards.forEach((card, index) => {
-        if (index < sortedMatchups.length) {
-            const matchupData = sortedMatchups[index];
-            card.className = `team-card ${index < 5 ? 'top-rank' : ''}`;
-            card.dataset.matchup = matchupData.matchup;
-            card.innerHTML = `
-                <h3>${matchupData.matchup}</h3>
-                <div class="team-stats">
-                    <div>
-                        <p class="stat-label">Jogos</p>
-                        <p class="stat-value">${matchupData.games}</p>
-                    </div>
-                    <div>
-                        <p class="stat-label">Greens</p>
-                        <p class="stat-value">${matchupData.greens}</p>
-                    </div>
-                </div>
-                <div class="green-percentage">${matchupData.percentage}%</div>
-            `;
-        }
-    });
+    renderMatchupCards();
 }
 
 function toggleMatchDetails(matchup) {
@@ -742,19 +731,24 @@ function showMatchDetails(matchup) {
             const li = document.createElement('li');
             li.className = detail.className;
 
-            const [date, rest] = detail.data.split(' - ');
-            const [teamsScore, status] = rest.split(' (');
-            const [homeTeam, score, awayTeam] = teamsScore.split(/ (\d+ x \d+) /);
-            const cleanStatus = status.replace(')', '');
+            const matches = detail.data.split(' | ');
+            matches.forEach(matchStr => {
+                const [date, rest] = matchStr.split(' - ');
+                const [teamsScore, status] = rest.split(' (');
+                const [homeTeam, score, awayTeam] = teamsScore.split(/ (\d+ x \d+) /);
+                const cleanStatus = status.replace(')', '');
 
-            li.innerHTML = `
-                <span class="teams">
-                    <span class="team">${homeTeam}</span>
-                    <span class="score">${score}</span>
-                    <span class="team">${awayTeam}</span>
-                </span>
-                <span class="status ${cleanStatus === 'Green' ? 'status-green' : 'status-red'}">${cleanStatus}</span>
-            `;
+                const matchDiv = document.createElement('div');
+                matchDiv.innerHTML = `
+                    <span class="teams">
+                        <span class="team">${homeTeam}</span>
+                        <span class="score">${score}</span>
+                        <span class="team">${awayTeam}</span>
+                    </span>
+                    <span class="status ${cleanStatus === 'Green' ? 'status-green' : 'status-red'}">${cleanStatus}</span>
+                `;
+                li.appendChild(matchDiv);
+            });
             ul.appendChild(li);
         });
         detailsContent.appendChild(ul);
