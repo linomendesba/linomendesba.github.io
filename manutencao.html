@@ -518,21 +518,18 @@ const minutosFixos = [
 let placarSelecionado = localStorage.getItem("placarSelecionado");
 let timeSelecionado = localStorage.getItem("timeSelecionado");
 let oddSelecionada = localStorage.getItem("oddSelecionada");
-let selectedChaves = JSON.parse(localStorage.getItem("selectedChaves")) || [];
+// Removida a antiga variável 'selectedChaves'. A seleção agora é gerenciada por 'persistedSelectedRows'.
 
 // --- INÍCIO DAS MODIFICAÇÕES ---
 
-// Variáveis globais para gerenciar o estado da seleção e da interface.
-let cachedSelectedRows = new Map();
-let mostrarTimes = false;
+let mostrarTimes = false; // Será atualizada pela função criarTabela
 
 /**
- * Adiciona os listeners de clique a um elemento de placar e seus componentes internos.
- * @param {HTMLElement} placarElement O elemento do placar.
- * @returns {HTMLElement} O novo elemento do placar com listeners (um clone).
+ * Adiciona listeners de clique a um elemento de placar, garantindo a interatividade.
+ * A função clona o elemento para limpar listeners antigos antes de adicionar novos.
+ * @param {HTMLElement} placarElement - O elemento do placar a ser modificado.
  */
 function addListenersToPlacar(placarElement) {
-  // Clona o elemento para remover listeners antigos e evitar duplicação.
   const newElement = placarElement.cloneNode(true);
   placarElement.parentNode.replaceChild(newElement, placarElement);
 
@@ -547,12 +544,11 @@ function addListenersToPlacar(placarElement) {
   if (oddsElement) {
     oddsElement.addEventListener("click", handleOddClick);
   }
-  return newElement;
 }
 
 /**
- * Manipula o clique em um placar.
- * @param {Event} event O evento de clique.
+ * Manipula o evento de clique em um placar para seleção.
+ * @param {Event} event
  */
 function handlePlacarClick(event) {
   if (mostrarTimes) return;
@@ -570,8 +566,8 @@ function handlePlacarClick(event) {
 }
 
 /**
- * Manipula o clique no nome de um time.
- * @param {Event} event O evento de clique.
+ * Manipula o evento de clique no nome de um time para seleção.
+ * @param {Event} event
  */
 function handleTimeClick(event) {
   if (!mostrarTimes) return;
@@ -590,8 +586,8 @@ function handleTimeClick(event) {
 }
 
 /**
- * Manipula o clique em uma odd.
- * @param {Event} event O evento de clique.
+ * Manipula o evento de clique em uma odd para seleção.
+ * @param {Event} event
  */
 function handleOddClick(event) {
   event.stopPropagation();
@@ -608,7 +604,9 @@ function handleOddClick(event) {
 }
 
 /**
- * Atualiza a tabela de linhas selecionadas, mantendo o estado entre as ligas e atualizando em tempo real.
+ * Atualiza a tabela de linhas selecionadas.
+ * Esta função agora lê o conteúdo HTML das linhas do localStorage,
+ * atualiza-as com dados ao vivo quando disponíveis e as re-renderiza.
  */
 function updateSelectedRows() {
   let selectedContainer = document.getElementById("selectedRowsContainer");
@@ -620,55 +618,51 @@ function updateSelectedRows() {
     selectedContainer.className = mainTable.className;
     selectedContainer.style.width = "100%";
     selectedContainer.style.marginBottom = "10px";
-
     const thead = mainTable.querySelector("thead").cloneNode(true);
-    const theadTr = thead.querySelector("tr");
-    if (theadTr && theadTr.firstChild.className === "selector-header") {
-      theadTr.removeChild(theadTr.firstChild);
+    const firstHeaderCell = thead.querySelector("tr .selector-header");
+    if (firstHeaderCell) {
+      firstHeaderCell.parentNode.removeChild(firstHeaderCell);
     }
     selectedContainer.appendChild(thead);
     const tbody = document.createElement("tbody");
     selectedContainer.appendChild(tbody);
-
     mainTable.parentNode.insertBefore(selectedContainer, mainTable);
   }
 
   if (!selectedContainer) return;
 
   const selectedTbody = selectedContainer.querySelector("tbody");
-  const selectedChaves = JSON.parse(localStorage.getItem("selectedChaves")) || [];
+  let persistedSelectedRows = JSON.parse(localStorage.getItem("persistedSelectedRows")) || {};
+  const chaves = Object.keys(persistedSelectedRows);
 
-  // Atualiza as linhas em cache que estão presentes na tabela principal (para obter dados ao vivo).
-  selectedChaves.forEach(chave => {
+  // Atualiza as linhas armazenadas com dados "ao vivo" da tabela principal, se estiverem visíveis
+  chaves.forEach(chave => {
     const liveRow = document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`);
     if (liveRow) {
       const clone = liveRow.cloneNode(true);
       if (clone.firstChild && clone.firstChild.className === "row-selector") {
         clone.removeChild(clone.firstChild);
       }
-      clone.querySelectorAll('.placar').forEach(addListenersToPlacar);
-      cachedSelectedRows.set(chave, clone);
+      persistedSelectedRows[chave] = clone.innerHTML; // Atualiza o HTML armazenado com a versão mais recente
     }
   });
+  localStorage.setItem("persistedSelectedRows", JSON.stringify(persistedSelectedRows));
 
-  // Remove do cache as linhas que não estão mais selecionadas.
-  const currentCachedKeys = Array.from(cachedSelectedRows.keys());
-  currentCachedKeys.forEach(chave => {
-    if (!selectedChaves.includes(chave)) {
-      cachedSelectedRows.delete(chave);
-    }
-  });
-
-  // Renderiza novamente a tabela de seleção a partir do cache.
+  // Limpa e re-renderiza a tabela de seleção a partir dos dados do localStorage
   selectedTbody.innerHTML = "";
-  const sortedChaves = Array.from(cachedSelectedRows.keys()).sort((a, b) => b.localeCompare(a));
+  const sortedChaves = Object.keys(persistedSelectedRows).sort((a, b) => b.localeCompare(a));
 
   sortedChaves.forEach(chave => {
-    selectedTbody.appendChild(cachedSelectedRows.get(chave));
+    const newRow = document.createElement('tr');
+    newRow.setAttribute('data-chave', chave);
+    newRow.innerHTML = persistedSelectedRows[chave];
+    // É crucial re-adicionar os listeners a cada placar na linha recriada
+    Array.from(newRow.querySelectorAll('.placar')).forEach(addListenersToPlacar);
+    selectedTbody.appendChild(newRow);
   });
-
-  // Lógica para exibir/ocultar o container.
-  if (selectedChaves.length === 0) {
+  
+  // Exibe ou oculta o container
+  if (sortedChaves.length === 0) {
     selectedContainer.style.display = "none";
   } else {
     selectedContainer.style.display = "";
@@ -968,8 +962,8 @@ const mostrarTimesSelect = document.querySelector("#mostrarTimes");
   const mostrarHTSelect = document.querySelector("#mostrarHT");
   const mostrarOddsSelect = document.querySelector("#mostrarOdds");
   
-  // Atualiza a variável global
-  mostrarTimes = mostrarTimesSelect ? mostrarTimesSelect.value === "sim" : false; 
+  // Atualiza a variável global 'mostrarTimes'
+  mostrarTimes = mostrarTimesSelect ? mostrarTimesSelect.value === "sim" : false;
   
   const mostrarOdds = mostrarOddsSelect ? mostrarOddsSelect.value === "sim" : false;
   const mostrarHT = mostrarHTSelect ?
@@ -1023,6 +1017,7 @@ const chavesOrdenadas = horasUnicas.map(item => ({
     data: item.data
   }));
 const mapeamentoChaveLinha = {};
+  const persistedSelectedRows = JSON.parse(localStorage.getItem("persistedSelectedRows")) || {};
 
   chavesOrdenadas.forEach(item => {
     const chave = item.chave;
@@ -1034,15 +1029,22 @@ const mapeamentoChaveLinha = {};
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.className = "row-selector";
-    checkbox.checked = selectedChaves.includes(chave);
+    checkbox.checked = persistedSelectedRows.hasOwnProperty(chave); // Verifica se a chave existe no objeto de persistência
     checkbox.addEventListener("change", function() {
+      let currentSelected = JSON.parse(localStorage.getItem("persistedSelectedRows")) || {};
+      const row = document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`);
       if (this.checked) {
-        if (!selectedChaves.includes(chave)) selectedChaves.push(chave);
+        if (row) {
+          const clone = row.cloneNode(true);
+          if (clone.firstChild && clone.firstChild.className === 'row-selector') {
+            clone.removeChild(clone.firstChild);
+          }
+          currentSelected[chave] = clone.innerHTML;
+        }
       } else {
-    
-    selectedChaves = selectedChaves.filter(c => c !== chave);
+        delete currentSelected[chave];
       }
-      localStorage.setItem("selectedChaves", JSON.stringify(selectedChaves));
+      localStorage.setItem("persistedSelectedRows", JSON.stringify(currentSelected));
       updateSelectedRows();
     });
     seletorTd.appendChild(checkbox);
@@ -1133,7 +1135,7 @@ tooltip.innerHTML = `
 placar.appendChild(tooltip);
 
           colunaMinuto.appendChild(placar);
-          addListenersToPlacar(placar); // Adiciona listeners de forma centralizada
+          addListenersToPlacar(placar);
 
           processedMatches.add(matchKey);
           console.log(`Adicionado resultado passado: ${dado.time_a} vs ${dado.time_b} em ${chave} minuto ${dado.minuto}`);
@@ -1263,7 +1265,7 @@ tooltip.innerHTML = `<span class="times">${jogo.team_home} vs ${jogo.team_visit}
             placar.appendChild(tooltip);
 
             colunaMinuto.appendChild(placar);
-            addListenersToPlacar(placar); // Adiciona listeners de forma centralizada
+            addListenersToPlacar(placar);
 
             processedMatches.add(matchKey);
 
