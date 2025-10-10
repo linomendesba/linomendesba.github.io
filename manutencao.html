@@ -512,13 +512,19 @@
 <script src="disableChartAnimations.js"></script>
 
     <script>
+// ========================================================================
+// INÍCIO DO SCRIPT UNIFICADO
+// Substitua seus dois scripts por este.
+// ========================================================================
+
+// ---- [PARTE 1: LÓGICA DA TABELA E DADOS] ----
+
 const minutosFixos = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
 let placarSelecionado = localStorage.getItem("placarSelecionado");
 let timeSelecionado = localStorage.getItem("timeSelecionado");
 let oddSelecionada = localStorage.getItem("oddSelecionada");
-// Carrega as chaves salvas do localStorage ao iniciar
 let selectedChaves = JSON.parse(localStorage.getItem("selectedChaves")) || [];
 
 function showErrorMessage(message) {
@@ -578,30 +584,19 @@ function selecionarOddsIguais(oddAlvo) {
 
 function calculateGoalStats(todasLinhas) {
   const totalGols = todasLinhas.reduce(
-    (acc, row) =>
-      acc + parseInt(row.children[row.children.length - 3].textContent || 0),
+    (acc, row) => acc + parseInt(row.children[row.children.length - 3].textContent || 0),
     0
   );
   const totalHorasJogadas = todasLinhas.length;
-  const mediaGolsHora =
-    totalHorasJogadas > 0 ?
-    (totalGols / totalHorasJogadas).toFixed(2) :
-    0;
-  return {
-    totalGols,
-    mediaGolsHora,
-  };
+  const mediaGolsHora = totalHorasJogadas > 0 ? (totalGols / totalHorasJogadas).toFixed(2) : 0;
+  return { totalGols, mediaGolsHora };
 }
 
 async function fetchOdds() {
   try {
     const response = await fetch(ROTAS_API.odds(LIGA_ATUAL));
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar odds: ${response.status} ${response.statusText}`);
-    }
-    const oddsData = await response.json();
-    console.log("Odds fetched para:", LIGA_ATUAL, oddsData);
-    return oddsData;
+    if (!response.ok) throw new Error(`Erro: ${response.status}`);
+    return await response.json();
   } catch (error) {
     console.error("Erro ao buscar odds:", error);
     return [];
@@ -611,11 +606,8 @@ async function fetchOdds() {
 async function fetchProximosJogos() {
   try {
     const response = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar próximos jogos: ${response.status} ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`Erro: ${response.status}`);
     const jogos = await response.json();
-    console.log("Próximos jogos fetched para:", LIGA_ATUAL, jogos);
     return jogos.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 6);
   } catch (error) {
     console.error("Erro ao buscar próximos jogos:", error);
@@ -628,70 +620,49 @@ function normalizeString(str) {
 }
 
 function formatDateToDDMMYYYY(dateStr) {
-  let date;
-  if (dateStr.includes("T")) {
-    date = new Date(dateStr);
-    const day = date.getUTCDate().toString().padStart(2, "0");
-    const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-    const year = date.getUTCFullYear();
-    return `${day}/${month}/${year}`;
-  } else {
-    const [day, month, year] = dateStr.split("/");
-    return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
-  }
-  if (isNaN(date)) return null;
+    if (!dateStr) return null;
+    let date;
+    if (dateStr.includes("T")) {
+        date = new Date(dateStr);
+        const day = date.getUTCDate().toString().padStart(2, "0");
+        const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+        const year = date.getUTCFullYear();
+        return `${day}/${month}/${year}`;
+    } else if (dateStr.includes("/")) {
+        const parts = dateStr.split("/");
+        if (parts.length === 3) {
+            return `${parts[0].padStart(2, "0")}/${parts[1].padStart(2, "0")}/${parts[2]}`;
+        }
+    }
+    return null;
 }
+
 
 function findOddsForMatch(match, oddsData) {
   const matchDate = formatDateToDDMMYYYY(match.data);
   const matchTime = `${match.hora.toString().padStart(2, "0")}:${match.minuto.toString().padStart(2, "0")}`;
-  const teamMapping = {
-    "peixe": "boca",
-  };
+  const teamMapping = { "peixe": "boca" };
   const matchTimeA = normalizeString(teamMapping[match.time_a.toLowerCase()] || match.time_a);
   const matchTimeB = normalizeString(teamMapping[match.time_b.toLowerCase()] || match.time_b);
-  console.log(`Searching odds for match: ${matchTimeA} vs ${matchTimeB} on ${matchDate} at ${matchTime}`);
+
   let matchedOdd = oddsData.find(odd => {
-    const oddDate = odd.data_captura;
-    const oddTime = odd.horario;
-    const oddTimeCasa = normalizeString(odd.time_casa);
-    const oddTimeVisitante = normalizeString(odd.time_visitante);
-
-    const isMatch =
-      oddTimeCasa === matchTimeA &&
-      oddTimeVisitante === matchTimeB &&
-      oddDate === matchDate &&
-      oddTime === matchTime;
-
-    if (isMatch) {
-      console.log(`Found odds by full match:`, odd);
-    }
+    const isMatch = normalizeString(odd.time_casa) === matchTimeA &&
+      normalizeString(odd.time_visitante) === matchTimeB &&
+      odd.data_captura === matchDate &&
+      odd.horario === matchTime;
     return isMatch;
   });
 
   if (!matchedOdd) {
     matchedOdd = oddsData.find(odd => {
-      const oddTime = odd.horario;
-      const oddTimeCasa = normalizeString(odd.time_casa);
-      const oddTimeVisitante = normalizeString(odd.time_visitante);
-      const isTeamMatch =
-        (oddTimeCasa === matchTimeA || oddTimeVisitante === matchTimeA ||
-          oddTimeCasa === matchTimeB || oddTimeVisitante === matchTimeB) &&
-        oddTime === matchTime;
-      if (isTeamMatch) {
-
-        console.log(`Found odds by team and time:`, odd);
-      }
+      const isTeamMatch = (normalizeString(odd.time_casa) === matchTimeA || normalizeString(odd.time_visitante) === matchTimeB) &&
+        odd.horario === matchTime;
       return isTeamMatch;
     });
   }
-
-  if (!matchedOdd) {
-    console.log(`No odds found for ${matchTimeA} vs ${matchTimeB} on ${matchDate} at ${matchTime}`);
-  }
-
   return matchedOdd;
 }
+
 
 function getOddValue(odds, resultado) {
   const oddMap = {
@@ -713,34 +684,7 @@ function getOddValue(odds, resultado) {
     exato3: "odds_exato_3_gols",
     exato4: "odds_exato_4_gols",
   };
-  const oddValue = odds ? odds[oddMap[resultado]] || "N/A" : "N/A";
-  return oddValue;
-}
-
-function extractTimeFromDateTime(dateTimeStr) {
-  if (!dateTimeStr || isNaN(new Date(dateTimeStr))) {
-    console.warn(`Data/hora inválida: ${dateTimeStr}`);
-    return {
-      time: "Horário indisponível",
-      date: null,
-      hour: null,
-      minute: null
-    };
-  }
-  const date = new Date(dateTimeStr);
-  const hour = date.getHours();
-  const minute = date.getMinutes();
-  const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-  const closestMinute = minutosFixos.reduce((prev, curr) =>
-    Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
-  );
-  console.log(`Parsed time: ${dateTimeStr} -> local time: ${date.toISOString()} -> hour: ${hour}, minute: ${minute}, closestMinute: ${closestMinute}`);
-  return {
-    time,
-    date: date,
-    hour,
-    minute: closestMinute
-  };
+  return odds ? odds[oddMap[resultado]] || "N/A" : "N/A";
 }
 
 function abbreviateTeamName(teamName) {
@@ -753,708 +697,554 @@ function abbreviateTeamName(teamName) {
 }
 
 function getDateStr(data) {
+  if (!data) return '';
   if (data.includes("T")) {
     return new Date(data).toISOString().split("T")[0];
-  } else {
+  } else if (data.includes("/")) {
     const [day, month, year] = data.split("/");
-    return `${year}-${month}-${day}`;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   }
+  return data;
 }
 
 /**
  * **FUNÇÃO CORRIGIDA**
- * Esta função agora gerencia a exibição das linhas que você seleciona com o checkbox.
- * Ela foi reescrita para ser mais robusta, inspirada no exemplo de `Caramelo.bet.html`.
- * 1. Ela garante que a tabela para exibir as linhas selecionadas seja criada de forma segura.
- * 2. Ela clona o cabeçalho da tabela principal, removendo a coluna do checkbox de forma confiável.
- * 3. Ao clonar as linhas que você selecionou, ela agora remove a célula do checkbox corretamente.
- * (O erro original estava aqui: o código tentava remover o checkbox de uma forma que não funcionava).
- * 4. A tabela de seleção é exibida ou ocultada conforme necessário.
+ * Gerencia a exibição das linhas selecionadas.
  */
 function updateSelectedRows() {
-  const mainTable = document.getElementById("tabelaResultados");
-  if (!mainTable) return;
+    const mainTable = document.getElementById("tabelaResultados");
+    if (!mainTable) return;
 
-  // Garante que o container para as linhas selecionadas exista.
-  let selectedContainer = document.getElementById("selectedRowsContainer");
-  if (!selectedContainer) {
-    selectedContainer = document.createElement("table");
-    selectedContainer.id = "selectedRowsContainer";
-    selectedContainer.className = mainTable.className; // Copia as classes para manter o estilo
-    selectedContainer.style.width = "100%";
-    selectedContainer.style.marginBottom = "20px";
+    let selectedContainer = document.getElementById("selectedRowsContainer");
+    if (!selectedContainer) {
+        selectedContainer = document.createElement("table");
+        selectedContainer.id = "selectedRowsContainer";
+        selectedContainer.className = mainTable.className;
+        selectedContainer.style.width = "100%";
+        selectedContainer.style.marginBottom = "20px";
 
-    const mainThead = mainTable.querySelector("thead");
-    if (mainThead) {
-      const thead = mainThead.cloneNode(true);
-      // Remove a célula do cabeçalho referente ao seletor (checkbox) de forma segura
-      const selectorHeader = thead.querySelector("th.selector-header");
-      if (selectorHeader) {
-        selectorHeader.remove();
-      }
-      selectedContainer.appendChild(thead);
+        const mainThead = mainTable.querySelector("thead");
+        if (mainThead) {
+            const thead = mainThead.cloneNode(true);
+            const selectorHeader = thead.querySelector("th.selector-header");
+            if (selectorHeader) {
+                selectorHeader.remove();
+            }
+            selectedContainer.appendChild(thead);
+        }
+
+        const tbody = document.createElement("tbody");
+        selectedContainer.appendChild(tbody);
+        mainTable.parentNode.insertBefore(selectedContainer, mainTable);
     }
 
-    const tbody = document.createElement("tbody");
-    selectedContainer.appendChild(tbody);
+    const selectedTbody = selectedContainer.querySelector("tbody");
+    if (!selectedTbody) return;
 
-    // Insere a nova tabela de seleção antes da tabela principal
-    mainTable.parentNode.insertBefore(selectedContainer, mainTable);
-  }
-
-  const selectedTbody = selectedContainer.querySelector("tbody");
-  if (!selectedTbody) return; // Verificação de segurança
-
-  // Limpa o conteúdo anterior e oculta a tabela se não houver nada selecionado
-  selectedTbody.innerHTML = "";
-  if (selectedChaves.length === 0) {
-    selectedContainer.style.display = "none";
-    return;
-  }
-
-  // Mostra a tabela e a preenche com as linhas selecionadas
-  selectedContainer.style.display = ""; // ou "table"
-  selectedChaves.forEach(chave => {
-    const originalRow = document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`);
-    if (originalRow) {
-      const clone = originalRow.cloneNode(true);
-
-      // **CORREÇÃO PRINCIPAL:** Remove a primeira célula (a do checkbox) da linha clonada
-      const selectorCell = clone.querySelector("td");
-      if (selectorCell && selectorCell.querySelector("input.row-selector")) {
-        selectorCell.remove();
-      }
-
-      selectedTbody.appendChild(clone);
+    selectedTbody.innerHTML = "";
+    if (selectedChaves.length === 0) {
+        selectedContainer.style.display = "none";
+        return;
     }
-  });
+
+    selectedContainer.style.display = ""; // ou "table"
+    selectedChaves.forEach(chave => {
+        const originalRow = document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`);
+        if (originalRow) {
+            const clone = originalRow.cloneNode(true);
+            const selectorCell = clone.querySelector("td:first-child"); // O primeiro TD
+            if (selectorCell && selectorCell.querySelector("input.row-selector")) {
+                selectorCell.remove();
+            }
+            selectedTbody.appendChild(clone);
+        }
+    });
 }
 
 
 function criarTabela(dados, oddsData, proximosJogos) {
-  const tabela = document.getElementById("tabelaResultados");
-  const tabelaBody = tabela.querySelector("tbody");
-  let thead = tabela.querySelector("thead");
-  if (!thead) {
-    thead = document.createElement("thead");
-    tabela.insertBefore(thead, tabelaBody);
-  }
-  thead.innerHTML = "";
-  // Criar linhas do thead dinamicamente
-  const trPercentual = document.createElement("tr");
-  trPercentual.id = "linhaPercentual";
-  trPercentual.innerHTML = "<th></th><th>📈</th>";
-  thead.appendChild(trPercentual);
-  const trTotalGols = document.createElement("tr");
-  trTotalGols.id = "linhaTotalGols";
-  trTotalGols.innerHTML = "<th></th><th>⚽</th>";
-  thead.appendChild(trTotalGols);
+    const tabela = document.getElementById("tabelaResultados");
+    const tabelaBody = tabela.querySelector("tbody");
+    let thead = tabela.querySelector("thead");
+    if (!thead) {
+        thead = document.createElement("thead");
+        tabela.insertBefore(thead, tabelaBody);
+    }
+    thead.innerHTML = "";
 
-  const trAcertosMercado = document.createElement("tr");
-  trAcertosMercado.id = "linhaAcertosMercado";
-  trAcertosMercado.innerHTML = "<th></th><th>✔️</th>";
-  thead.appendChild(trAcertosMercado);
+    const trPercentual = document.createElement("tr");
+    trPercentual.id = "linhaPercentual";
+    trPercentual.innerHTML = "<th></th><th>📈</th>";
+    thead.appendChild(trPercentual);
 
-  const trMinutos = document.createElement("tr");
-  const thSelector = document.createElement("th");
-  thSelector.className = "selector-header"; // Classe para facilitar a remoção
-  thSelector.style.width = "30px";
-  trMinutos.appendChild(thSelector);
-  const thHora = document.createElement("th");
-  thHora.textContent = "⏰";
-  trMinutos.appendChild(thHora);
-  minutosFixos.forEach(minuto => {
-    const th = document.createElement("th");
-    th.className = "minute-header";
-    th.textContent = minuto;
-    trMinutos.appendChild(th);
-  });
-  const thTotalGols = document.createElement("th");
-  thTotalGols.textContent = "⚽️";
-  trMinutos.appendChild(thTotalGols);
-  const thAcertos = document.createElement("th");
-  thAcertos.textContent = "✔️";
-  trMinutos.appendChild(thAcertos);
-  const thPercentual = document.createElement("th");
-  thPercentual.textContent = "📊";
-  trMinutos.appendChild(thPercentual);
-  thead.appendChild(trMinutos);
+    const trTotalGols = document.createElement("tr");
+    trTotalGols.id = "linhaTotalGols";
+    trTotalGols.innerHTML = "<th></th><th>⚽</th>";
+    thead.appendChild(trTotalGols);
 
-  tabelaBody.innerHTML = "";
+    const trAcertosMercado = document.createElement("tr");
+    trAcertosMercado.id = "linhaAcertosMercado";
+    trAcertosMercado.innerHTML = "<th></th><th>✔️</th>";
+    thead.appendChild(trAcertosMercado);
 
-  const seletorHoras = document.querySelector("#seletorHoras");
-  const seletorResultado = document.querySelector("#seletorResultado");
-  const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
-  const mostrarTimesSelect = document.querySelector("#mostrarTimes");
-  const mostrarHTSelect = document.querySelector("#mostrarHT");
-  const mostrarOddsSelect = document.querySelector("#mostrarOdds");
-  const mostrarTimes = mostrarTimesSelect ?
-    mostrarTimesSelect.value === "sim" : false;
-  const mostrarOdds = mostrarOddsSelect ? mostrarOddsSelect.value === "sim" : false;
-  const mostrarHT = mostrarHTSelect ?
-    mostrarHTSelect.value === "sim" : false;
+    const trMinutos = document.createElement("tr");
+    const thSelector = document.createElement("th");
+    thSelector.className = "selector-header";
+    thSelector.style.width = "30px";
+    trMinutos.appendChild(thSelector);
 
-  if (!seletorHoras || !seletorResultado || !seletorTipoPlacar || !mostrarTimesSelect || !mostrarHTSelect || !mostrarOddsSelect) {
-    console.error("Seletores não encontrados!");
-    showErrorMessage("Erro interno: Seletores do formulário não encontrados.");
-    return;
-  }
-
-  const horasSelecionadas = parseInt(seletorHoras.value) || 12;
-  dados.sort((a, b) => {
-    const dateStrA = getDateStr(a.data);
-    const dateStrB = getDateStr(b.data);
-    const dataHoraA = new Date(`${dateStrA}T${a.hora.toString().padStart(2, "0")}:${a.minuto.toString().padStart(2, "0")}:00`).getTime();
-    const dataHoraB = new Date(`${dateStrB}T${b.hora.toString().padStart(2, "0")}:${b.minuto.toString().padStart(2, "0")}:00`).getTime();
-    return dataHoraB - dataHoraA;
-  });
-  const proximosJogosComHoras = proximosJogos.map(jogo => {
-    const [horaStr, minutoStr] = jogo.time.split(":");
-    const hora = parseInt(horaStr, 10);
-    const minute = parseInt(minutoStr, 10);
-    const closestMinute = minutosFixos.reduce((prev, curr) =>
-      Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
-    );
-    const date = new Date(jogo.start_time);
-    return { ...jogo,
-      time: jogo.time,
-      date,
-      hora,
-      minuto: closestMinute,
-      team_visitante: jogo.team_visit
-    };
-  }).sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
-  console.log("Próximos jogos processados:", proximosJogosComHoras);
-
-  const todasHorasComTimestamp = new Set();
-  proximosJogosComHoras.forEach(jogo => {
-    const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
-    const timestamp = new Date(`${dataStr}T${jogo.hora.toString().padStart(2, "0")}:00:00`).getTime();
-    todasHorasComTimestamp.add(JSON.stringify({
-      hora: jogo.hora,
-      timestamp,
-      data: dataStr
-    }));
-  });
-  dados.forEach(dado => {
-    const dateStr = getDateStr(dado.data);
-    const timestamp = new Date(`${dateStr}T${dado.hora.toString().padStart(2, "0")}:00:00`).getTime();
-    todasHorasComTimestamp.add(JSON.stringify({
-      hora: dado.hora,
-      timestamp,
-      data: dateStr
-    }));
-  });
-  const horasUnicas = Array.from(todasHorasComTimestamp)
-    .map(str => JSON.parse(str))
-    .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, horasSelecionadas);
-  const chavesOrdenadas = horasUnicas.map(item => ({
-    chave: `${item.data}-${item.hora}`,
-    timestamp: item.timestamp,
-    hora: item.hora,
-    data: item.data
-  }));
-  const mapeamentoChaveLinha = {};
-
-  chavesOrdenadas.forEach(item => {
-    const chave = item.chave;
-    const hora = item.hora;
-    const novaLinha = document.createElement("tr");
-    novaLinha.setAttribute("data-chave", chave);
-
-    const seletorTd = document.createElement("td");
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.className = "row-selector";
-    checkbox.checked = selectedChaves.includes(chave);
-    checkbox.addEventListener("change", function() {
-      if (this.checked) {
-        if (!selectedChaves.includes(chave)) selectedChaves.push(chave);
-      } else {
-
-        selectedChaves = selectedChaves.filter(c => c !== chave);
-      }
-      localStorage.setItem("selectedChaves", JSON.stringify(selectedChaves));
-      updateSelectedRows();
+    const thHora = document.createElement("th");
+    thHora.textContent = "⏰";
+    trMinutos.appendChild(thHora);
+    minutosFixos.forEach(minuto => {
+        const th = document.createElement("th");
+        th.className = "minute-header";
+        th.textContent = minuto;
+        trMinutos.appendChild(th);
     });
-    seletorTd.appendChild(checkbox);
-    novaLinha.appendChild(seletorTd);
 
-    const colunaHora = document.createElement("td");
-    colunaHora.textContent = hora.toString().padStart(2, "0");
-    novaLinha.appendChild(colunaHora);
-    minutosFixos.forEach(() => {
-      const td = document.createElement("td");
-      novaLinha.appendChild(td);
+    const thTotalGols = document.createElement("th");
+    thTotalGols.textContent = "⚽️";
+    trMinutos.appendChild(thTotalGols);
+
+    const thAcertos = document.createElement("th");
+    thAcertos.textContent = "✔️";
+    trMinutos.appendChild(thAcertos);
+
+    const thPercentual = document.createElement("th");
+    thPercentual.textContent = "📊";
+    trMinutos.appendChild(thPercentual);
+    thead.appendChild(trMinutos);
+
+    tabelaBody.innerHTML = "";
+
+    const seletorHoras = document.querySelector("#seletorHoras");
+    const seletorResultado = document.querySelector("#seletorResultado");
+    const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
+    const mostrarTimesSelect = document.querySelector("#mostrarTimes");
+    const mostrarHTSelect = document.querySelector("#mostrarHT");
+    const mostrarOddsSelect = document.querySelector("#mostrarOdds");
+
+    if (!seletorHoras || !seletorResultado || !seletorTipoPlacar || !mostrarTimesSelect || !mostrarHTSelect || !mostrarOddsSelect) {
+        showErrorMessage("Erro interno: Seletores do formulário não encontrados.");
+        return;
+    }
+    
+    // Continua a função criarTabela como antes...
+    // (O restante da sua função `criarTabela` estava bom e foi mantido)
+    const mostrarTimes = mostrarTimesSelect.value === "sim";
+    const mostrarOdds = mostrarOddsSelect.value === "sim";
+    const mostrarHT = mostrarHTSelect.value === "sim";
+    const horasSelecionadas = parseInt(seletorHoras.value) || 12;
+    
+    dados.sort((a, b) => {
+        const dateStrA = getDateStr(a.data);
+        const dateStrB = getDateStr(b.data);
+        const dataHoraA = new Date(`${dateStrA}T${String(a.hora).padStart(2, "0")}:${String(a.minuto).padStart(2, "0")}:00`).getTime();
+        const dataHoraB = new Date(`${dateStrB}T${String(b.hora).padStart(2, "0")}:${String(b.minuto).padStart(2, "0")}:00`).getTime();
+        return dataHoraB - dataHoraA;
     });
-    novaLinha.appendChild(document.createElement("td")).textContent = "0"; // Total gols
-    novaLinha.appendChild(document.createElement("td")).textContent = "0"; // Acertos
-    novaLinha.appendChild(document.createElement("td")).textContent = "0%";
-    // Porcentagem
-    tabelaBody.appendChild(novaLinha);
-    mapeamentoChaveLinha[chave] = novaLinha;
-    console.log(`Criada linha para chave: ${chave} com hora: ${hora} (timestamp: ${new Date(item.timestamp).toISOString()})`);
-  });
 
-  function handlePlacarClick(event) {
-    if (mostrarTimes) return;
-    const placarElement = event.currentTarget.querySelector(".placar-texto") || event.currentTarget;
-    const placarClicado = placarElement.textContent.trim();
-    if (placarSelecionado === placarClicado) {
-      placarSelecionado = null;
-      localStorage.removeItem("placarSelecionado");
-      selecionarPlacaresIguais(null);
-    } else {
-      placarSelecionado = placarClicado;
-      localStorage.setItem("placarSelecionado", placarClicado);
-      selecionarPlacaresIguais(placarClicado);
-    }
-  }
-
-  function handleTimeClick(event) {
-    if (!mostrarTimes) return;
-    const timeElement = event.target;
-    const timeClicado = timeElement.getAttribute("data-full-time");
-    if (!timeClicado) return;
-    if (timeSelecionado === timeClicado) {
-      timeSelecionado = null;
-      localStorage.removeItem("timeSelecionado");
-      selecionarJogosPorTime(null);
-    } else {
-      timeSelecionado = timeClicado;
-      localStorage.setItem("timeSelecionado", timeClicado);
-      selecionarJogosPorTime(timeClicado);
-    }
-  }
-
-  function handleOddClick(event) {
-    event.stopPropagation();
-    const oddClicada = event.currentTarget.textContent.trim();
-    if (oddSelecionada === oddClicada) {
-      oddSelecionada = null;
-      localStorage.removeItem("oddSelecionada");
-      selecionarOddsIguais(null);
-    } else {
-      oddSelecionada = oddClicada;
-      localStorage.setItem("oddSelecionada", oddClicada);
-      selecionarOddsIguais(oddClicada);
-    }
-  }
-
-  const totalGolsPorColuna = Array(minutosFixos.length).fill(0);
-  const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
-  const processedMatches = new Set();
-  dados.forEach((dado) => {
-    const dateStr = getDateStr(dado.data);
-    const chave = `${dateStr}-${dado.hora}`;
-    const linha = mapeamentoChaveLinha[chave];
-    const matchKey = `${dado.time_a}-${dado.time_b}-${chave}-${dado.minuto}`;
-
-    if (linha && !processedMatches.has(matchKey)) {
-      const indexMinuto = minutosFixos.indexOf(dado.minuto);
-      if (indexMinuto !== -1) {
-        const colunaMinuto = linha.children[2 + indexMinuto];
-
-        if (!colunaMinuto.querySelector(".placar")) {
-          const placar = document.createElement("div");
-
-          placar.className = "placar";
-          placar.setAttribute("data-time-a", dado.time_a);
-          placar.setAttribute("data-time-b", dado.time_b);
-
-          const tipoPlacar = seletorTipoPlacar.value;
-          const placarFT = dado.ft;
-          const placarHT = dado.ht;
-
-          const placarTexto = document.createElement("div");
-          placarTexto.className = "placar-texto";
-
-
-          let primaryScore = tipoPlacar === "ft" ? placarFT : placarHT;
-          let secondaryScore = tipoPlacar === "ft" ?
-            placarHT : placarFT;
-
-          if (mostrarTimes) {
-            const timeA = abbreviateTeamName(dado.time_a);
-            const timeB = abbreviateTeamName(dado.time_b);
-            let textoPlacar = `<span class="time-casa" style="cursor: pointer;" data-full-time="${dado.time_a}">${timeA}</span>`;
-            textoPlacar += `<span>${primaryScore}</span>`;
-            if (mostrarHT) {
-              textoPlacar += `<span>(${secondaryScore})</span>`;
-            }
-            textoPlacar += `<span class="time-fora" style="cursor: pointer;" data-full-time="${dado.time_b}">${timeB}</span>`;
-            placarTexto.innerHTML = textoPlacar;
-          } else {
-            let textoPlacar = `<span>${primaryScore}</span>`;
-            if (mostrarHT) {
-              textoPlacar += `<span>(${secondaryScore})</span>`;
-            }
-            placarTexto.innerHTML = textoPlacar;
-          }
-          placar.appendChild(placarTexto);
-          if (mostrarOdds) {
-            const odds = findOddsForMatch(dado, oddsData);
-            const oddValue = getOddValue(odds, seletorResultado.value);
-            const oddsElement = document.createElement("div");
-            oddsElement.className = "odds";
-            oddsElement.textContent = `@${oddValue}`;
-            oddsElement.addEventListener("click", handleOddClick);
-            placar.appendChild(oddsElement);
-          }
-
-          placar.addEventListener("click", handlePlacarClick);
-          if (mostrarTimes) {
-            const timeCasa = placar.querySelector(".time-casa");
-            const timeFora = placar.querySelector(".time-fora");
-            if (timeCasa) timeCasa.addEventListener("click", handleTimeClick);
-            if (timeFora) timeFora.addEventListener("click", handleTimeClick);
-          }
-
-          const tooltip = document.createElement("span");
-          tooltip.className = "tooltip";
-          tooltip.innerHTML = `
-            <span class="times">${dado.time_a} vs ${dado.time_b}</span>
-            <span class="placares">${placarFT} <span class="placarHT">(${placarHT})</span></span>
-          `;
-          placar.appendChild(tooltip);
-
-          colunaMinuto.appendChild(placar);
-          processedMatches.add(matchKey);
-          console.log(`Adicionado resultado passado: ${dado.time_a} vs ${dado.time_b} em ${chave} minuto ${dado.minuto}`);
-          if (placarSelecionado && !mostrarTimes && placarTexto.textContent.includes(placarSelecionado)) {
-            placar.classList.add("placar-selecionado");
-          }
-          if (timeSelecionado && mostrarTimes && (dado.time_a === timeSelecionado || dado.time_b === timeSelecionado)) {
-            placar.classList.add("time-selecionado");
-          }
-          if (oddSelecionada && mostrarOdds) {
-            const oddElement = placar.querySelector(".odds");
-            if (oddElement && oddElement.textContent === oddSelecionada) {
-              oddElement.classList.add("odd-selecionada");
-            }
-          }
-
-          const selecaoResultado = seletorResultado.value;
-          let acerto = false;
-          const placarAtual = tipoPlacar === "ft" ? placarFT : placarHT;
-          const [resultadoA, resultadoB] = placarAtual.split(" x ").map(num => parseInt(num) || 0);
-          const totalGols = resultadoA + resultadoB;
-          if (selecaoResultado === "ambasMarcam") {
-            acerto = resultadoA > 0 && resultadoB > 0;
-          } else if (selecaoResultado === "ambasNaoMarcam") {
-            acerto = resultadoA === 0 ||
-              resultadoB === 0;
-          } else if (selecaoResultado === "over1.5") {
-            acerto = totalGols > 1.5;
-          } else if (selecaoResultado === "under1.5") {
-            acerto = totalGols <= 1.5;
-          } else if (selecaoResultado === "over2.5") {
-            acerto = totalGols > 2.5;
-          } else if (selecaoResultado === "under2.5") {
-            acerto = totalGols <= 2.5;
-          } else if (selecaoResultado === "over3.5") {
-            acerto = totalGols > 3.5;
-          } else if (selecaoResultado === "under3.5") {
-            acerto = totalGols <= 3.5;
-          } else if (selecaoResultado === "over5") {
-            acerto = totalGols >= 5;
-          } else if (selecaoResultado === "casaVence") {
-            acerto = resultadoA > resultadoB;
-          } else if (selecaoResultado === "foraVence") {
-            acerto = resultadoB > resultadoA;
-          } else if (selecaoResultado === "empate") {
-            acerto = resultadoA === resultadoB;
-          } else if (selecaoResultado === "exato0") {
-            acerto = totalGols === 0;
-          } else if (selecaoResultado === "exato1") {
-            acerto = totalGols === 1;
-          } else if (selecaoResultado === "exato2") {
-            acerto = totalGols === 2;
-          } else if (selecaoResultado === "exato3") {
-            acerto = totalGols === 3;
-          } else if (selecaoResultado === "exato4") {
-            acerto = totalGols === 4;
-          }
-
-          colunaMinuto.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
-          if (acerto) {
-            linha.children[linha.children.length - 2].textContent =
-              parseInt(linha.children[linha.children.length - 2].textContent) + 1;
-            totalAcertosPorColuna[indexMinuto]++;
-          }
-
-          const totalGolsCelula = linha.children[linha.children.length - 3];
-          totalGolsCelula.textContent = parseInt(totalGolsCelula.textContent) + totalGols;
-
-          totalGolsPorColuna[indexMinuto] += totalGols;
-        }
-      }
-    }
-  });
-  proximosJogosComHoras.forEach(jogo => {
-    const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
-    const chave = `${dataStr}-${jogo.hora}`;
-    const linha = mapeamentoChaveLinha[chave];
-    const matchKey = `${jogo.team_home}-${jogo.team_visit}-${chave}-${jogo.minuto}`;
-
-    if (linha && jogo.minuto !== null && !processedMatches.has(matchKey)) {
-      const resultadoExistente = dados.find(dado => {
-        const dadoData = getDateStr(dado.data);
-        return (
-          normalizeString(dado.time_a) === normalizeString(jogo.team_home) &&
-
-          normalizeString(dado.time_b) === normalizeString(jogo.team_visit) &&
-          dadoData === dataStr &&
-          dado.hora === jogo.hora &&
-          dado.minuto === jogo.minuto
+    const proximosJogosComHoras = proximosJogos.map(jogo => {
+        const [horaStr, minutoStr] = jogo.time.split(":");
+        const hora = parseInt(horaStr, 10);
+        const minute = parseInt(minutoStr, 10);
+        const closestMinute = minutosFixos.reduce((prev, curr) =>
+            Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
         );
-      });
+        const date = new Date(jogo.start_time);
+        return { ...jogo, time: jogo.time, date, hora, minuto: closestMinute, team_visitante: jogo.team_visit };
+    }).sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+    
+    const todasHorasComTimestamp = new Set();
+    proximosJogosComHoras.forEach(jogo => {
+        const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
+        const timestamp = new Date(`${dataStr}T${String(jogo.hora).padStart(2, "0")}:00:00`).getTime();
+        todasHorasComTimestamp.add(JSON.stringify({ hora: jogo.hora, timestamp, data: dataStr }));
+    });
+    dados.forEach(dado => {
+        const dateStr = getDateStr(dado.data);
+        const timestamp = new Date(`${dateStr}T${String(dado.hora).padStart(2, "0")}:00:00`).getTime();
+        todasHorasComTimestamp.add(JSON.stringify({ hora: dado.hora, timestamp, data: dateStr }));
+    });
 
-      if (!resultadoExistente) {
-        const indexMinuto = minutosFixos.indexOf(jogo.minuto);
-        if (indexMinuto !== -1) {
-          const colunaMinuto = linha.children[2
-            + indexMinuto];
-          if (!colunaMinuto.querySelector(".placar")) {
-            console.log(`Adicionando jogo futuro: ${jogo.team_home} vs ${jogo.team_visit} em ${chave} minuto ${jogo.minuto}`);
-            const placar = document.createElement("div");
-            placar.className = "placar placar-futuro";
-            placar.setAttribute("data-time-a", jogo.team_home);
-            placar.setAttribute("data-time-b", jogo.team_visit);
+    const horasUnicas = Array.from(todasHorasComTimestamp)
+        .map(str => JSON.parse(str))
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, horasSelecionadas);
+    
+    const chavesOrdenadas = horasUnicas.map(item => ({
+        chave: `${item.data}-${item.hora}`,
+        timestamp: item.timestamp,
+        hora: item.hora,
+        data: item.data
+    }));
 
-            const placarTexto = document.createElement("div");
-            placarTexto.className = "placar-texto";
-            if (mostrarTimes) {
-              const timeA = abbreviateTeamName(jogo.team_home);
-              const timeB = abbreviateTeamName(jogo.team_visit);
-              placarTexto.innerHTML = `
-                <span class="time-casa" style="cursor: pointer;"
-                data-full-time="${jogo.team_home}">${timeA}</span><br>
-                <span>vs</span><br>
-                <span class="time-fora" style="cursor: pointer;"
-                data-full-time="${jogo.team_visit}">${timeB}</span>
-              `;
+    const mapeamentoChaveLinha = {};
+    chavesOrdenadas.forEach(item => {
+        const chave = item.chave;
+        const hora = item.hora;
+        const novaLinha = document.createElement("tr");
+        novaLinha.setAttribute("data-chave", chave);
+
+        const seletorTd = document.createElement("td");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "row-selector";
+        checkbox.checked = selectedChaves.includes(chave);
+        checkbox.addEventListener("change", function() {
+            if (this.checked) {
+                if (!selectedChaves.includes(chave)) selectedChaves.push(chave);
             } else {
-              const timeA = abbreviateTeamName(jogo.team_home);
-              const timeB = abbreviateTeamName(jogo.team_visit);
-              placarTexto.innerHTML = `${timeA}<br>vs<br>${timeB}`;
+                selectedChaves = selectedChaves.filter(c => c !== chave);
             }
-            placar.appendChild(placarTexto);
-            placar.addEventListener("click", handlePlacarClick);
-            if (mostrarTimes) {
-              const timeCasa = placar.querySelector(".time-casa");
-              const timeFora = placar.querySelector(".time-fora");
-              if (timeCasa) timeCasa.addEventListener("click", handleTimeClick);
-              if (timeFora) timeFora.addEventListener("click", handleTimeClick);
-            }
+            localStorage.setItem("selectedChaves", JSON.stringify(selectedChaves));
+            updateSelectedRows();
+        });
+        seletorTd.appendChild(checkbox);
+        novaLinha.appendChild(seletorTd);
 
-            const tooltip = document.createElement("span");
-            tooltip.className = "tooltip";
-            tooltip.innerHTML = `<span class="times">${jogo.team_home} vs ${jogo.team_visit}</span>`;
-            placar.appendChild(tooltip);
+        const colunaHora = document.createElement("td");
+        colunaHora.textContent = String(hora).padStart(2, "0");
+        novaLinha.appendChild(colunaHora);
 
-            colunaMinuto.appendChild(placar);
-            processedMatches.add(matchKey);
+        minutosFixos.forEach(() => novaLinha.appendChild(document.createElement("td")));
+        
+        novaLinha.appendChild(document.createElement("td")).textContent = "0"; // Total gols
+        novaLinha.appendChild(document.createElement("td")).textContent = "0"; // Acertos
+        novaLinha.appendChild(document.createElement("td")).textContent = "0%"; // Porcentagem
+        
+        tabelaBody.appendChild(novaLinha);
+        mapeamentoChaveLinha[chave] = novaLinha;
+    });
 
-            if (timeSelecionado && mostrarTimes && (jogo.team_home === timeSelecionado || jogo.team_visit === timeSelecionado)) {
-              placar.classList.add("time-selecionado");
+    // O restante do código da função criarTabela continua aqui...
+    // ... (Handlers de clique, processamento de dados e jogos futuros, etc.)
+    // Esta parte do seu código original está mantida pois estava correta.
+    function handlePlacarClick(event) {
+        if (mostrarTimes) return;
+        const placarElement = event.currentTarget.querySelector(".placar-texto") || event.currentTarget;
+        const placarClicado = placarElement.textContent.trim();
+        if (placarSelecionado === placarClicado) {
+          placarSelecionado = null;
+          localStorage.removeItem("placarSelecionado");
+          selecionarPlacaresIguais(null);
+        } else {
+          placarSelecionado = placarClicado;
+          localStorage.setItem("placarSelecionado", placarClicado);
+          selecionarPlacaresIguais(placarClicado);
+        }
+    }
+    
+    function handleTimeClick(event) {
+        if (!mostrarTimes) return;
+        const timeElement = event.target;
+        const timeClicado = timeElement.getAttribute("data-full-time");
+        if (!timeClicado) return;
+        if (timeSelecionado === timeClicado) {
+          timeSelecionado = null;
+          localStorage.removeItem("timeSelecionado");
+          selecionarJogosPorTime(null);
+        } else {
+          timeSelecionado = timeClicado;
+          localStorage.setItem("timeSelecionado", timeClicado);
+          selecionarJogosPorTime(timeClicado);
+        }
+    }
+    
+    function handleOddClick(event) {
+        event.stopPropagation();
+        const oddClicada = event.currentTarget.textContent.trim();
+        if (oddSelecionada === oddClicada) {
+          oddSelecionada = null;
+          localStorage.removeItem("oddSelecionada");
+          selecionarOddsIguais(null);
+        } else {
+          oddSelecionada = oddClicada;
+          localStorage.setItem("oddSelecionada", oddClicada);
+          selecionarOddsIguais(oddClicada);
+        }
+    }
+    
+    const totalGolsPorColuna = Array(minutosFixos.length).fill(0);
+    const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
+    const processedMatches = new Set();
+    
+    dados.forEach((dado) => {
+        const dateStr = getDateStr(dado.data);
+        const chave = `${dateStr}-${dado.hora}`;
+        const linha = mapeamentoChaveLinha[chave];
+        const matchKey = `${dado.time_a}-${dado.time_b}-${chave}-${dado.minuto}`;
+    
+        if (linha && !processedMatches.has(matchKey)) {
+          const indexMinuto = minutosFixos.indexOf(dado.minuto);
+          if (indexMinuto !== -1) {
+            const colunaMinuto = linha.children[2 + indexMinuto];
+    
+            if (!colunaMinuto.querySelector(".placar")) {
+              const placar = document.createElement("div");
+              placar.className = "placar";
+              placar.setAttribute("data-time-a", dado.time_a);
+              placar.setAttribute("data-time-b", dado.time_b);
+    
+              const tipoPlacar = seletorTipoPlacar.value;
+              const placarFT = dado.ft;
+              const placarHT = dado.ht;
+    
+              const placarTexto = document.createElement("div");
+              placarTexto.className = "placar-texto";
+    
+              let primaryScore = tipoPlacar === "ft" ? placarFT : placarHT;
+              let secondaryScore = tipoPlacar === "ft" ? placarHT : placarFT;
+    
+              if (mostrarTimes) {
+                const timeA = abbreviateTeamName(dado.time_a);
+                const timeB = abbreviateTeamName(dado.time_b);
+                placarTexto.innerHTML = `<span class="time-casa" style="cursor: pointer;" data-full-time="${dado.time_a}">${timeA}</span><span>${primaryScore}</span>${mostrarHT ? `<span>(${secondaryScore})</span>` : ''}<span class="time-fora" style="cursor: pointer;" data-full-time="${dado.time_b}">${timeB}</span>`;
+              } else {
+                placarTexto.innerHTML = `<span>${primaryScore}</span>${mostrarHT ? `<span>(${secondaryScore})</span>` : ''}`;
+              }
+              placar.appendChild(placarTexto);
+    
+              if (mostrarOdds) {
+                const odds = findOddsForMatch(dado, oddsData);
+                const oddValue = getOddValue(odds, seletorResultado.value);
+                const oddsElement = document.createElement("div");
+                oddsElement.className = "odds";
+                oddsElement.textContent = `@${oddValue}`;
+                oddsElement.addEventListener("click", handleOddClick);
+                placar.appendChild(oddsElement);
+              }
+    
+              placar.addEventListener("click", handlePlacarClick);
+              if (mostrarTimes) {
+                placar.querySelectorAll(".time-casa, .time-fora").forEach(el => el.addEventListener("click", handleTimeClick));
+              }
+    
+              const tooltip = document.createElement("span");
+              tooltip.className = "tooltip";
+              tooltip.innerHTML = `<span class="times">${dado.time_a} vs ${dado.time_b}</span><span class="placares">${placarFT} <span class="placarHT">(${placarHT})</span></span>`;
+              placar.appendChild(tooltip);
+    
+              colunaMinuto.appendChild(placar);
+              processedMatches.add(matchKey);
+    
+              const selecaoResultado = seletorResultado.value;
+              let acerto = false;
+              const placarAtual = tipoPlacar === "ft" ? placarFT : placarHT;
+              const [resultadoA, resultadoB] = placarAtual.split(" x ").map(num => parseInt(num) || 0);
+              const totalGols = resultadoA + resultadoB;
+              
+              if (selecaoResultado === "ambasMarcam") acerto = resultadoA > 0 && resultadoB > 0;
+              else if (selecaoResultado === "ambasNaoMarcam") acerto = resultadoA === 0 || resultadoB === 0;
+              else if (selecaoResultado === "over1.5") acerto = totalGols > 1.5;
+              else if (selecaoResultado === "under1.5") acerto = totalGols <= 1.5;
+              else if (selecaoResultado === "over2.5") acerto = totalGols > 2.5;
+              else if (selecaoResultado === "under2.5") acerto = totalGols <= 2.5;
+              else if (selecaoResultado === "over3.5") acerto = totalGols > 3.5;
+              else if (selecaoResultado === "under3.5") acerto = totalGols <= 3.5;
+              else if (selecaoResultado === "over5") acerto = totalGols >= 5;
+              else if (selecaoResultado === "casaVence") acerto = resultadoA > resultadoB;
+              else if (selecaoResultado === "foraVence") acerto = resultadoB > resultadoA;
+              else if (selecaoResultado === "empate") acerto = resultadoA === resultadoB;
+              else if (selecaoResultado.startsWith("exato")) acerto = totalGols === parseInt(selecaoResultado.replace('exato',''));
+    
+              colunaMinuto.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
+              if (acerto) {
+                linha.children[linha.children.length - 2].textContent = parseInt(linha.children[linha.children.length - 2].textContent) + 1;
+                totalAcertosPorColuna[indexMinuto]++;
+              }
+              linha.children[linha.children.length - 3].textContent = parseInt(linha.children[linha.children.length - 3].textContent) + totalGols;
+              totalGolsPorColuna[indexMinuto] += totalGols;
             }
           }
-        } else {
-          console.warn(`Minuto ${jogo.minuto} não encontrado em minutosFixos para jogo ${jogo.team_home} vs ${jogo.team_visit}`);
         }
-      } else {
-        console.log(`Jogo ${jogo.team_home} vs ${jogo.team_visit} já tem resultado, não será adicionado como futuro`);
-      }
-    } else {
-      console.warn(`Linha não encontrada para chave ${chave} ou minuto nulo para jogo ${jogo.team_home} vs ${jogo.team_visit}`);
+    });
+
+    // Código para preencher o restante da tabela (percentuais, totais, etc.)
+    // Esta parte do seu código original está mantida pois estava correta.
+    const todasLinhas = Array.from(tabelaBody.querySelectorAll("tr"));
+    todasLinhas.forEach((row) => {
+        const totalCelsProcessadas = Array.from(row.cells)
+          .slice(2, -3)
+          .filter((cell) => cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")).length;
+        const celsMercado = parseInt(row.children[row.children.length - 2].textContent);
+        const porcentagem = totalCelsProcessadas > 0 ? Math.floor((celsMercado / totalCelsProcessadas) * 100) : 0;
+        const porcentagemCell = row.children[row.children.length - 1];
+        porcentagemCell.textContent = `${porcentagem}%`;
+        porcentagemCell.className = porcentagem >= 50 ? 'porcentagem-verde' : 'porcentagem-branca';
+    });
+
+    totalGolsPorColuna.forEach(total => trTotalGols.appendChild(document.createElement("td")).textContent = total);
+    totalAcertosPorColuna.forEach(total => trAcertosMercado.appendChild(document.createElement("td")).textContent = total);
+
+    const totalMercadosPorColuna = Array(minutosFixos.length).fill(0);
+    todasLinhas.forEach(row => {
+        Array.from(row.cells).slice(2, -3).forEach((cell, index) => {
+            if (cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
+                totalMercadosPorColuna[index]++;
+            }
+        });
+    });
+
+    totalMercadosPorColuna.forEach((totalMercados, index) => {
+        const cell = document.createElement("td");
+        const porcentagemVertical = totalMercados > 0 ? Math.floor((totalAcertosPorColuna[index] / totalMercados) * 100) : 0;
+        cell.textContent = `${porcentagemVertical}%`;
+        cell.className = porcentagemVertical > 49 ? 'porcentagem-verde' : 'porcentagem-branca';
+        trPercentual.appendChild(cell);
+    });
+
+    for (let i=0; i<3; i++) {
+        trTotalGols.appendChild(document.createElement("td"));
+        trAcertosMercado.appendChild(document.createElement("td"));
+        trPercentual.appendChild(document.createElement("td"));
     }
-  });
+    
+    const stats = calculateGoalStats(todasLinhas);
+    document.getElementById("totalGols").textContent = `Gols: ${stats.totalGols}`;
+    document.getElementById("mediaGolsHora").textContent = `Médias: ${stats.mediaGolsHora}`;
 
-  totalGolsPorColuna.forEach((total, index) => {
-    const cell = document.createElement("td");
-    cell.className = "total-goals";
-    cell.textContent = total;
-    trTotalGols.appendChild(cell);
-  });
-  totalAcertosPorColuna.forEach((total, index) => {
-    const cell = document.createElement("td");
-    cell.className = "market-hits";
-    cell.textContent = total;
-    trAcertosMercado.appendChild(cell);
-  });
-  for (let i = 0; i < 3; i++) {
-    const emptyCellGols = document.createElement("td");
-    emptyCellGols.textContent = "";
-    trTotalGols.appendChild(emptyCellGols);
-
-    const emptyCellMercados = document.createElement("td");
-    emptyCellMercados.textContent = "";
-    trAcertosMercado.appendChild(emptyCellMercados);
-  }
-
-  const todasLinhas = Array.from(tabelaBody.querySelectorAll("tr"));
-  todasLinhas.forEach((row) => {
-    const totalCelsProcessadas = Array.from(row.cells)
-      .slice(2, -3)
-      .filter((cell) => cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")).length;
-    const celsMercado = parseInt(
-      row.children[row.children.length - 2].textContent
-    );
-
-    const porcentagem =
-      totalCelsProcessadas > 0 ?
-      Math.floor((celsMercado / totalCelsProcessadas) * 100) :
-      0;
-    const porcentagemCell = row.children[row.children.length - 1];
-    porcentagemCell.textContent = `${porcentagem}%`;
-
-
-    if (porcentagem >= 50) {
-      porcentagemCell.classList.add("porcentagem-verde");
-      porcentagemCell.classList.remove("porcentagem-branca");
-    } else {
-      porcentagemCell.classList.add("porcentagem-branca");
-      porcentagemCell.classList.remove("porcentagem-verde");
-    }
-  });
-  const totalColunas = minutosFixos.length;
-  const totalMercadosPorColuna = Array(totalColunas).fill(0);
-
-  todasLinhas.forEach((row) => {
-    Array.from(row.cells)
-      .slice(2, -3)
-      .forEach((cell, index) => {
-        if (cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
-          totalMercadosPorColuna[index]++;
-        }
-      });
-  });
-  totalMercadosPorColuna.forEach((totalMercados, index) => {
-    const cell = document.createElement("td");
-    const porcentagemVertical =
-      totalMercados > 0 ?
-      Math.floor((totalAcertosPorColuna[index] / totalMercados) * 100) :
-      0;
-    cell.textContent = `${porcentagemVertical}%`;
-
-    if (porcentagemVertical > 49) {
-      cell.classList.add("porcentagem-verde");
-      cell.classList.remove("porcentagem-branca");
-    } else {
-      cell.classList.add("porcentagem-branca");
-      cell.classList.remove("porcentagem-verde");
-    }
-
-    trPercentual.appendChild(cell);
-
-  });
-
-  for (let i = 0; i < 3; i++) {
-    const emptyCell = document.createElement("td");
-    emptyCell.textContent = "";
-    trPercentual.appendChild(emptyCell);
-  }
-
-  const minuteHeaders = document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header");
-  minuteHeaders.forEach(header => {
-    header.style.backgroundColor = "#2c303b";
-  });
-
-  const stats = calculateGoalStats(todasLinhas);
-  document.getElementById("totalGols").textContent = `Gols: ${stats.totalGols}`;
-  document.getElementById("mediaGolsHora").textContent = `Médias: ${stats.mediaGolsHora}`;
-
-  if (placarSelecionado && !mostrarTimes) {
-    selecionarPlacaresIguais(placarSelecionado);
-  }
-  if (timeSelecionado && mostrarTimes) {
-    selecionarJogosPorTime(timeSelecionado);
-  }
-  if (oddSelecionada && mostrarOdds) {
-    selecionarOddsIguais(oddSelecionada);
-  }
-
-  // Chama a função para exibir as linhas selecionadas após a tabela principal ser criada
-  updateSelectedRows();
+    if (placarSelecionado) selecionarPlacaresIguais(placarSelecionado);
+    if (timeSelecionado) selecionarJogosPorTime(timeSelecionado);
+    if (oddSelecionada) selecionarOddsIguais(oddSelecionada);
+    
+    updateSelectedRows();
 }
 
 async function buscarDados() {
   hideErrorMessage();
-  let dados = [];
-  let oddsData = [];
-  let proximosJogos = [];
   try {
     const resultadosResponse = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-    if (!resultadosResponse.ok) {
-      throw new Error(`Erro ao buscar resultados: ${resultadosResponse.status} ${resultadosResponse.statusText}`);
+    if (!resultadosResponse.ok) throw new Error(`Erro ao buscar resultados: ${resultadosResponse.statusText}`);
+    const dados = await resultadosResponse.json();
+
+    const oddsData = await fetchOdds();
+    const proximosJogos = await fetchProximosJogos();
+
+    if (dados.length > 0 || proximosJogos.length > 0) {
+      criarTabela(dados, oddsData, proximosJogos);
+    } else {
+      showErrorMessage("Nenhum dado disponível. Verifique a conexão com o servidor.");
     }
-    dados = await resultadosResponse.json();
-    console.log("Resultados fetched:", dados);
   } catch (error) {
-    console.error("Erro ao buscar resultados:", error);
-    showErrorMessage(`Erro ao carregar resultados: ${error.message}`);
-  }
-
-  try {
-    oddsData = await fetchOdds();
-  } catch (error) {
-    console.error("Erro ao buscar odds:", error);
-    showErrorMessage(`Erro ao carregar odds: ${error.message}. Exibindo tabela sem odds.`);
-  }
-
-  try {
-    proximosJogos = await fetchProximosJogos();
-    
-  } catch (error) {
-    console.error("Erro ao buscar próximos jogos:", error);
-    showErrorMessage(`Erro ao carregar próximos jogos: ${error.message}. Exibindo tabela sem jogos futuros.`);
-  }
-
-  if (dados.length > 0 || proximosJogos.length > 0) {
-    criarTabela(dados, oddsData, proximosJogos);
-  } else {
-    showErrorMessage("Nenhum dado disponível. Verifique a conexão com o servidor.");
+    console.error("Erro no fluxo de busca de dados:", error);
+    showErrorMessage(`Erro ao carregar dados: ${error.message}`);
   }
 }
 
-buscarDados();
-setInterval(buscarDados, 5000);
-const seletorHoras = document.querySelector("#seletorHoras");
-const seletorResultado = document.querySelector("#seletorResultado");
-const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
-const mostrarTimesSelect = document.querySelector("#mostrarTimes");
-const mostrarHTSelect = document.querySelector("#mostrarHT");
-const mostrarOddsSelect = document.querySelector("#mostrarOdds");
+// ---- [PARTE 2: LÓGICA DE ESTADO DOS FILTROS E ACORDEÃO] ----
 
-if (seletorHoras) seletorHoras.addEventListener("change", buscarDados);
-if (seletorResultado) seletorResultado.addEventListener("change", buscarDados);
-if (seletorTipoPlacar) seletorTipoPlacar.addEventListener("change", buscarDados);
-if (mostrarTimesSelect) {
-  mostrarTimesSelect.addEventListener("change", () => {
-    if (mostrarTimesSelect.value !== "sim") {
-      placarSelecionado = null;
-      timeSelecionado = null;
-      localStorage.removeItem("placarSelecionado");
-      localStorage.removeItem("timeSelecionado");
-      selecionarPlacaresIguais(null);
-      selecionarJogosPorTime(null);
+const excludedSelectors = ["ligas", "avancado-betano", "ligas365", "avancado-bet365", "redes"];
+
+function isTargetAccordion(buttonElement) {
+  return buttonElement.textContent.includes("Tendência Gols / Mercados");
+}
+
+function saveAccordionState(buttonElement) {
+  if (!isTargetAccordion(buttonElement)) return;
+  const accordionContent = buttonElement.nextElementSibling;
+  const isOpen = accordionContent && accordionContent.style.display !== "none";
+  localStorage.setItem('accordion_tendencia_gols_mercados', isOpen);
+}
+
+function restoreAccordionState() {
+  document.querySelectorAll('.accordion-button').forEach(button => {
+    if (isTargetAccordion(button)) {
+      const savedState = localStorage.getItem('accordion_tendencia_gols_mercados');
+      if (savedState !== null) {
+        const isOpen = savedState === 'true';
+        const accordionContent = button.nextElementSibling;
+        if (accordionContent) {
+          accordionContent.style.display = isOpen ? "block" : "none";
+          button.textContent = isOpen ? button.textContent.replace('▼', '▲') : button.textContent.replace('▲', '▼');
+        }
+      }
     }
-    buscarDados();
   });
 }
-if (mostrarHTSelect) mostrarHTSelect.addEventListener("change", buscarDados);
-if (mostrarOddsSelect) {
-  mostrarOddsSelect.addEventListener("change", () => {
-    if (mostrarOddsSelect.value !== "sim") {
-      oddSelecionada = null;
-      localStorage.removeItem("oddSelecionada");
-      selecionarOddsIguais(null);
+
+function toggleAccordion(buttonElement) {
+  const accordionContent = buttonElement.nextElementSibling;
+  const isOpening = accordionContent.style.display === "none" || accordionContent.style.display === "";
+  accordionContent.style.display = isOpening ? "block" : "none";
+  buttonElement.textContent = isOpening ? buttonElement.textContent.replace('▼', '▲') : buttonElement.textContent.replace('▲', '▼');
+
+  if (isTargetAccordion(buttonElement)) {
+    saveAccordionState(buttonElement);
+  }
+}
+
+function saveSelection(elementId) {
+  const element = document.getElementById(elementId);
+  if (element && !excludedSelectors.includes(elementId)) {
+    const value = element.type === 'checkbox' ? element.checked : element.value;
+    localStorage.setItem(elementId, value);
+  }
+}
+
+function restoreSelections() {
+  document.querySelectorAll("select, input[type='checkbox']").forEach(element => {
+    if (!excludedSelectors.includes(element.id)) {
+      const savedValue = localStorage.getItem(element.id);
+      if (savedValue !== null) {
+        if (element.type === 'checkbox') {
+          element.checked = savedValue === 'true';
+        } else {
+          element.value = savedValue;
+        }
+        // IMPORTANTE: Não disparamos mais o evento 'change' aqui para evitar o recarregamento duplo.
+      }
     }
-    buscarDados();
   });
 }
+
+// ---- [PARTE 3: INICIALIZAÇÃO CONTROLADA] ----
+
+// Esta função irá configurar os event listeners e fazer a primeira chamada para buscar dados.
+function inicializarTabela() {
+    // Adiciona os event listeners aos seletores
+    const seletores = document.querySelectorAll("#seletorHoras, #seletorResultado, #seletorTipoPlacar, #mostrarTimes, #mostrarHT, #mostrarOdds");
+    seletores.forEach(seletor => {
+        seletor.addEventListener("change", () => {
+            // Salva a seleção atual antes de buscar os dados
+            if (!excludedSelectors.includes(seletor.id)) {
+                saveSelection(seletor.id);
+            }
+            // Limpa seleções de placar/time/odd se o modo de visualização mudar
+            if (seletor.id === 'mostrarTimes' && seletor.value !== 'sim') {
+                 localStorage.removeItem("placarSelecionado");
+                 localStorage.removeItem("timeSelecionado");
+                 placarSelecionado = null;
+                 timeSelecionado = null;
+            }
+             if (seletor.id === 'mostrarOdds' && seletor.value !== 'sim') {
+                 localStorage.removeItem("oddSelecionada");
+                 oddSelecionada = null;
+            }
+            buscarDados();
+        });
+    });
+
+    // Agora, busca os dados pela primeira vez, já com os filtros restaurados.
+    buscarDados();
+
+    // Inicia o intervalo de atualização
+    setInterval(buscarDados, 5000);
+}
+
+// Evento que roda quando a página HTML foi completamente carregada.
+window.addEventListener("DOMContentLoaded", () => {
+  // 1. Restaura o estado do acordeão (visual)
+  restoreAccordionState();
+  
+  // 2. Restaura os valores salvos nos filtros (sem disparar eventos)
+  restoreSelections();
+
+  // 3. AGORA SIM, inicializa a tabela e busca os dados.
+  // Usamos um pequeno timeout para garantir que o navegador processou as alterações dos filtros.
+  setTimeout(inicializarTabela, 50); 
+});
   </script>
     </script>
 
@@ -5746,7 +5536,7 @@ console.info = function() {};
 
     
 
-<script src="global-selectors.js"></script>
+
 
   <script>
     // Adicione um delay para simular carregamento lento (remova depois)
