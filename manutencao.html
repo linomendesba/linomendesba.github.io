@@ -519,7 +519,8 @@ const minutosFixos = [
 let placarSelecionado = localStorage.getItem("placarSelecionado");
 let timeSelecionado = localStorage.getItem("timeSelecionado");
 let oddSelecionada = localStorage.getItem("oddSelecionada");
-let selectedChaves = JSON.parse(localStorage.getItem("selectedChaves")) || [];
+let selectedChaves = JSON.parse(localStorage.getItem(`selectedChaves_${LIGA_ATUAL}`)) || [];
+let selectedData = JSON.parse(localStorage.getItem(`selectedData_${LIGA_ATUAL}`)) || {};
 
 function showErrorMessage(message) {
   const errorMessageDiv = document.getElementById("errorMessage");
@@ -917,7 +918,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
       const hora = parseInt(parts[3], 10);
       const timestamp = new Date(`${data}T${hora.toString().padStart(2, "0")}:00:00`).getTime();
       const item = { hora, timestamp, data };
-      if (!horasUnicas.some(u => u.data === data && u.hora === hora)) {
+      if (!horasUnicas.some(u => u.data === u.data && u.hora === hora)) {
         horasUnicas.push(item);
       }
     }
@@ -952,11 +953,17 @@ function criarTabela(dados, oddsData, proximosJogos) {
     checkbox.checked = selectedChaves.includes(chave);
     checkbox.addEventListener("change", function() {
       if (this.checked) {
-        if (!selectedChaves.includes(chave)) selectedChaves.push(chave);
+        if (!selectedChaves.includes(chave)) {
+          selectedChaves.push(chave);
+          const dadosForChave = dados.filter(d => getDateStr(d.data) + '-' + d.hora === chave);
+          selectedData[chave] = dadosForChave;
+        }
       } else {
         selectedChaves = selectedChaves.filter(c => c !== chave);
+        delete selectedData[chave];
       }
-      localStorage.setItem("selectedChaves", JSON.stringify(selectedChaves));
+      localStorage.setItem(`selectedChaves_${LIGA_ATUAL}`, JSON.stringify(selectedChaves));
+      localStorage.setItem(`selectedData_${LIGA_ATUAL}`, JSON.stringify(selectedData));
       updateSelectedRows();
     });
     seletorTd.appendChild(checkbox);
@@ -1363,7 +1370,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
 async function buscarDados() {
   hideErrorMessage();
-  selectedChaves = JSON.parse(localStorage.getItem("selectedChaves")) || [];
+  selectedChaves = JSON.parse(localStorage.getItem(`selectedChaves_${LIGA_ATUAL}`)) || [];
+  selectedData = JSON.parse(localStorage.getItem(`selectedData_${LIGA_ATUAL}`)) || {};
   let dados = [];
   let oddsData = [];
   let proximosJogos = [];
@@ -1378,6 +1386,14 @@ async function buscarDados() {
   } catch (error) {
     console.error("Erro ao buscar resultados:", error);
     showErrorMessage(`Erro ao carregar resultados: ${error.message}`);
+  }
+
+  // Adicionar dados salvos para chaves selecionadas se não presentes nos dados fetched
+  for (const chave of selectedChaves) {
+    const hasInDados = dados.some(d => getDateStr(d.data) + '-' + d.hora === chave);
+    if (!hasInDados && selectedData[chave]) {
+      dados = dados.concat(selectedData[chave]);
+    }
   }
 
   try {
@@ -1399,6 +1415,13 @@ async function buscarDados() {
   } else {
     showErrorMessage("Nenhum dado disponível. Verifique a conexão com o servidor.");
   }
+
+  // Atualizar selectedData com os dados atuais para chaves selecionadas
+  for (const chave of selectedChaves) {
+    const dadosForChave = dados.filter(d => getDateStr(d.data) + '-' + d.hora === chave);
+    selectedData[chave] = dadosForChave;
+  }
+  localStorage.setItem(`selectedData_${LIGA_ATUAL}`, JSON.stringify(selectedData));
 }
 
 buscarDados();
@@ -5729,7 +5752,7 @@ console.info = function() {};
 
     
 
-
+<script src="global-selectors.js"></script>
 
   <script>
     // Adicione um delay para simular carregamento lento (remova depois)
