@@ -519,8 +519,7 @@ const minutosFixos = [
 let placarSelecionado = localStorage.getItem("placarSelecionado");
 let timeSelecionado = localStorage.getItem("timeSelecionado");
 let oddSelecionada = localStorage.getItem("oddSelecionada");
-let selectedChaves = JSON.parse(localStorage.getItem(`selectedChaves_${LIGA_ATUAL}`)) || [];
-let selectedData = JSON.parse(localStorage.getItem(`selectedData_${LIGA_ATUAL}`)) || {};
+let selectedChaves = JSON.parse(localStorage.getItem("selectedChaves")) || [];
 
 function showErrorMessage(message) {
   const errorMessageDiv = document.getElementById("errorMessage");
@@ -859,7 +858,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const mostrarTimesSelect = document.querySelector("#mostrarTimes");
   const mostrarHTSelect = document.querySelector("#mostrarHT");
   const mostrarOddsSelect = document.querySelector("#mostrarOdds");
-
   const mostrarTimes = mostrarTimesSelect ? mostrarTimesSelect.value === "sim" : false;
   const mostrarOdds = mostrarOddsSelect ? mostrarOddsSelect.value === "sim" : false;
   const mostrarHT = mostrarHTSelect ? mostrarHTSelect.value === "sim" : false;
@@ -906,32 +904,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
     todasHorasComTimestamp.add(JSON.stringify({ hora: dado.hora, timestamp, data: dateStr }));
   });
 
-  let horasUnicas = Array.from(todasHorasComTimestamp)
+  const horasUnicas = Array.from(todasHorasComTimestamp)
     .map(str => JSON.parse(str))
-    .sort((a, b) => b.timestamp - a.timestamp);
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, horasSelecionadas);
 
-  // Incluir chaves selecionadas que possam não estar nas horas únicas
-  selectedChaves.forEach(chave => {
-    const parts = chave.split('-');
-    if (parts.length === 4) {
-      const data = `${parts[0]}-${parts[1]}-${parts[2]}`;
-      const hora = parseInt(parts[3], 10);
-      const timestamp = new Date(`${data}T${hora.toString().padStart(2, "0")}:00:00`).getTime();
-      const item = { hora, timestamp, data };
-      if (!horasUnicas.some(u => u.data === u.data && u.hora === hora)) {
-        horasUnicas.push(item);
-      }
-    }
-  });
-
-  // Selecionar as mais recentes + todas as selecionadas
-  const selectedHoras = horasUnicas.filter(item => selectedChaves.includes(`${item.data}-${item.hora}`));
-  const nonSelectedHoras = horasUnicas.filter(item => !selectedChaves.includes(`${item.data}-${item.hora}`));
-  const recentNonSelected = nonSelectedHoras.slice(0, horasSelecionadas);
-
-  const horasToShow = [...selectedHoras, ...recentNonSelected].sort((a, b) => b.timestamp - a.timestamp);
-
-  const chavesOrdenadas = horasToShow.map(item => ({
+  const chavesOrdenadas = horasUnicas.map(item => ({
     chave: `${item.data}-${item.hora}`,
     timestamp: item.timestamp,
     hora: item.hora,
@@ -953,17 +931,11 @@ function criarTabela(dados, oddsData, proximosJogos) {
     checkbox.checked = selectedChaves.includes(chave);
     checkbox.addEventListener("change", function() {
       if (this.checked) {
-        if (!selectedChaves.includes(chave)) {
-          selectedChaves.push(chave);
-          const dadosForChave = dados.filter(d => getDateStr(d.data) + '-' + d.hora === chave);
-          selectedData[chave] = dadosForChave;
-        }
+        if (!selectedChaves.includes(chave)) selectedChaves.push(chave);
       } else {
         selectedChaves = selectedChaves.filter(c => c !== chave);
-        delete selectedData[chave];
       }
-      localStorage.setItem(`selectedChaves_${LIGA_ATUAL}`, JSON.stringify(selectedChaves));
-      localStorage.setItem(`selectedData_${LIGA_ATUAL}`, JSON.stringify(selectedData));
+      localStorage.setItem("selectedChaves", JSON.stringify(selectedChaves));
       updateSelectedRows();
     });
     seletorTd.appendChild(checkbox);
@@ -1370,8 +1342,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
 async function buscarDados() {
   hideErrorMessage();
-  selectedChaves = JSON.parse(localStorage.getItem(`selectedChaves_${LIGA_ATUAL}`)) || [];
-  selectedData = JSON.parse(localStorage.getItem(`selectedData_${LIGA_ATUAL}`)) || {};
   let dados = [];
   let oddsData = [];
   let proximosJogos = [];
@@ -1386,14 +1356,6 @@ async function buscarDados() {
   } catch (error) {
     console.error("Erro ao buscar resultados:", error);
     showErrorMessage(`Erro ao carregar resultados: ${error.message}`);
-  }
-
-  // Adicionar dados salvos para chaves selecionadas se não presentes nos dados fetched
-  for (const chave of selectedChaves) {
-    const hasInDados = dados.some(d => getDateStr(d.data) + '-' + d.hora === chave);
-    if (!hasInDados && selectedData[chave]) {
-      dados = dados.concat(selectedData[chave]);
-    }
   }
 
   try {
@@ -1415,13 +1377,6 @@ async function buscarDados() {
   } else {
     showErrorMessage("Nenhum dado disponível. Verifique a conexão com o servidor.");
   }
-
-  // Atualizar selectedData com os dados atuais para chaves selecionadas
-  for (const chave of selectedChaves) {
-    const dadosForChave = dados.filter(d => getDateStr(d.data) + '-' + d.hora === chave);
-    selectedData[chave] = dadosForChave;
-  }
-  localStorage.setItem(`selectedData_${LIGA_ATUAL}`, JSON.stringify(selectedData));
 }
 
 buscarDados();
