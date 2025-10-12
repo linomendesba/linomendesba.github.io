@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise de Jogos</title>
+    <style>
+        body {
+            background-color: #1c1f26;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        #leagueSelector {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #2a2e35;
+            color: #ffffff;
+            border: 1px solid #444;
+        }
+        .game-card {
+            background-color: #2a2e35;
+            border: 1px solid #444;
+            padding: 10px;
+            margin: 10px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .game-card.selected {
+            background-color: #4a4e55;
+            border-color: #888;
+        }
+        .game-time {
+            font-weight: bold;
+        }
+        .game-teams {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .vs {
+            margin: 0 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #444;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #2a2e35;
+        }
+        #nextGamesMinutesContainer {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Análise de Jogos</h1>
+    
+    <label for="leagueSelector">Selecione a Liga:</label>
+    <select id="leagueSelector">
+        <option value="Taça%20Glória%20Eterna">Taça Glória Eterna</option>
+        <option value="Copa%20América">Copa América</option>
+        <option value="Euro">Euro</option>
+        <option value="Campeonato%20Italiano">Campeonato Italiano</option>
+        <option value="Copa%20das%20Estrelas">Copa das Estrelas</option>
+        <option value="Brasileirão%20Betano">Brasileirão Betano</option>
+    </select>
+    
+    <h2>Próximos Jogos</h2>
+    <div id="nextGamesMinutesContainer"></div>
+    
+    <h2 id="team1Title">Time 1</h2>
+    <table id="team1-tabela-resultados">
+        <thead><tr></tr></thead>
+        <tbody></tbody>
+    </table>
+    
+    <h2 id="team2Title">Time 2</h2>
+    <table id="team2-tabela-resultados">
+        <thead><tr></tr></thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        let selectedTeam1 = null;
+        let selectedTeam2 = null;
+        let selectedTeamHomeDisplay = null;
+        let selectedTeamVisitDisplay = null;
+
+        let selectedLeague = "Taça%20Glória%20Eterna"; // Default
+        let API_URL = `https://betstat.site/resultados/${selectedLeague}`;
+        let NEXT_GAMES_API = `https://betstat.site/proximos/${selectedLeague}`;
+
+        function removeAccents(str) {
+            return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        async function carregarJogos() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+                const jogos = await response.json();
+                console.log("Jogos carregados da API_URL:", jogos);
+                return jogos;
+            } catch (error) {
+                console.error("Erro ao carregar dados da API_URL:", error);
+                return [];
+            }
+        }
+
+        async function loadNextGamesForMinutes() {
+            console.log("Iniciando atualização dos próximos jogos...");
+            try {
+                const response = await fetch(NEXT_GAMES_API);
+                if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+                const data = await response.json();
+                console.log("Resposta completa da NEXT_GAMES_API:", data);
+
+                // Verifica a estrutura da resposta e extrai os jogos
+                const games = Array.isArray(data.data) ? data.data.slice(0, 6) : 
+                              Array.isArray(data) ? data.slice(0, 6) : [];
+                console.log("Jogos processados para exibição:", games);
+
+                const container = document.getElementById("nextGamesMinutesContainer");
+
+                // Salva os times selecionados antes de recarregar os cards
+                const previouslySelectedTeam1 = selectedTeam1;
+                const previouslySelectedTeam2 = selectedTeam2;
+
+                // Recria os cards, preservando acentos nos nomes exibidos
+                if (games.length > 0) {
+                    container.innerHTML = games.map(game => `
+                        <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForMinutes(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}', '${game.team_home}', '${game.team_visit}')">
+                            <div class="game-time">${game.time || 'Hora não informada'}</div>
+                            <div class="game-teams">
+                                <span class="team-home">${game.team_home || 'Time A'}</span>
+                                <span class="vs">vs</span>
+                                <span class="team-visit">${game.team_visit || 'Time B'}</span>
+                            </div>
+                        </div>
+                    `).join("");
+                } else {
+                    container.innerHTML = `<div class="game-card">Nenhum jogo disponível no momento</div>`;
+                    console.warn("Nenhum jogo disponível na resposta da API.");
+                }
+
+                // Restaura a seleção com base nos times previamente selecionados
+                const cards = container.querySelectorAll('.game-card');
+                let cardToSelect = null;
+
+                if (previouslySelectedTeam1 && previouslySelectedTeam2) {
+                    cards.forEach(card => {
+                        const home = card.getAttribute('data-home');
+                        const visit = card.getAttribute('data-visit');
+                        if (home === previouslySelectedTeam1 && visit === previouslySelectedTeam2) {
+                            cardToSelect = card;
+                        }
+                    });
+                }
+
+                // Aplica a classe 'selected' ao card correspondente
+                if (cardToSelect) {
+                    cardToSelect.classList.add('selected');
+                    selectedTeam1 = cardToSelect.getAttribute('data-home');
+                    selectedTeam2 = cardToSelect.getAttribute('data-visit');
+                    if (!selectedTeamHomeDisplay || !selectedTeamVisitDisplay) {
+                        selectedTeamHomeDisplay = cardToSelect.querySelector('.team-home').innerText;
+                        selectedTeamVisitDisplay = cardToSelect.querySelector('.team-visit').innerText;
+                        document.getElementById("team1Title").innerText = selectedTeamHomeDisplay;
+                        document.getElementById("team2Title").innerText = selectedTeamVisitDisplay;
+                    }
+                } else if (previouslySelectedTeam1 && previouslySelectedTeam2) {
+                    // Mantém a seleção anterior se o jogo não estiver na lista
+                    selectedTeam1 = previouslySelectedTeam1;
+                    selectedTeam2 = previouslySelectedTeam2;
+                } else if (cards.length > 0 && cards[0].getAttribute('data-home')) {
+                    // Seleciona o primeiro card se não houver seleção anterior
+                    cardToSelect = cards[0];
+                    cardToSelect.classList.add('selected');
+                    selectedTeam1 = cardToSelect.getAttribute('data-home');
+                    selectedTeam2 = cardToSelect.getAttribute('data-visit');
+                    selectedTeamHomeDisplay = cardToSelect.querySelector('.team-home').innerText;
+                    selectedTeamVisitDisplay = cardToSelect.querySelector('.team-visit').innerText;
+                    document.getElementById("team1Title").innerText = selectedTeamHomeDisplay;
+                    document.getElementById("team2Title").innerText = selectedTeamVisitDisplay;
+                }
+
+                // Atualiza as tabelas se houver times selecionados
+                if (selectedTeam1 && selectedTeam2) {
+                    console.log("Atualizando tabelas para:", selectedTeam1, selectedTeam2);
+                    await analisar();
+                } else {
+                    console.log("Nenhum time selecionado para atualizar tabelas");
+                }
+            } catch (error) {
+                console.error("Erro ao carregar próximos jogos para minutos:", error);
+                const container = document.getElementById("nextGamesMinutesContainer");
+                container.innerHTML = `<div class="game-card">Erro ao carregar jogos: ${error.message}</div>`;
+                // Mantém as tabelas com a última seleção válida
+                if (selectedTeam1 && selectedTeam2) {
+                    console.log("Mantendo tabelas com seleção anterior:", selectedTeam1, selectedTeam2);
+                    await analisar();
+                }
+            }
+        }
+
+        window.selectGameForMinutes = function(card, teamHome, teamVisit, teamHomeDisplay, teamVisitDisplay) {
+            document.querySelectorAll('#nextGamesMinutesContainer .game-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedTeam1 = teamHome;
+            selectedTeam2 = teamVisit;
+            selectedTeamHomeDisplay = teamHomeDisplay;
+            selectedTeamVisitDisplay = teamVisitDisplay;
+            document.getElementById("team1Title").innerText = teamHomeDisplay;
+            document.getElementById("team2Title").innerText = teamVisitDisplay;
+            console.log("Jogo selecionado:", teamHome, teamVisit);
+            analisar();
+        };
+
+        function analisarMercados(jogos, timeSelecionado) {
+            const analise = {};
+
+            jogos.forEach((jogo) => {
+                const timeA = removeAccents(jogo.time_a);
+                const timeB = removeAccents(jogo.time_b);
+                if (timeA === timeSelecionado || timeB === timeSelecionado) {
+                    const minuto = jogo.minuto;
+                    const ftGols = jogo.ft ? jogo.ft.split(" x ").map(Number) : [0, 0];
+                    const timeAGols = ftGols[0];
+                    const timeBGols = ftGols[1];
+                    const totalGols = timeAGols + timeBGols;
+
+                    if (!analise[minuto]) {
+                        analise[minuto] = {
+                            ambasMarcamSim: 0,
+                            ambasMarcamNao: 0,
+                            over15: 0,
+                            under15: 0,
+                            over25: 0,
+                            under25: 0,
+                            over35: 0,
+                            under35: 0,
+                            casa: 0,
+                            fora: 0,
+                            empate: 0,
+                            total: 0,
+                        };
+                    }
+
+                    analise[minuto].total += 1;
+
+                    if (timeAGols > 0 && timeBGols > 0) analise[minuto].ambasMarcamSim += 1;
+                    if (timeAGols === 0 || timeBGols === 0) analise[minuto].ambasMarcamNao += 1;
+
+                    if (totalGols > 1.5) analise[minuto].over15 += 1;
+                    if (totalGols <= 1.5) analise[minuto].under15 += 1;
+
+                    if (totalGols > 2.5) analise[minuto].over25 += 1;
+                    if (totalGols <= 2.5) analise[minuto].under25 += 1;
+
+                    if (totalGols > 3.5) analise[minuto].over35 += 1;
+                    if (totalGols <= 3.5) analise[minuto].under35 += 1;
+
+                    if (timeAGols > timeBGols) analise[minuto].casa += 1;
+                    if (timeBGols > timeAGols) analise[minuto].fora += 1;
+                    if (timeAGols === timeBGols) analise[minuto].empate += 1;
+                }
+            });
+
+            return analise;
+        }
+
+        function gerarTabela(analise, tableId, teamName) {
+            const table = document.getElementById(tableId);
+            const tbody = table.querySelector("tbody");
+            const thead = table.querySelector("thead tr");
+
+            tbody.innerHTML = "";
+            thead.innerHTML = "<th>Mercado</th>";
+
+            const minutos = Object.keys(analise).sort((a, b) => Number(a) - Number(b));
+            minutos.forEach((minuto) => {
+                const th = document.createElement("th");
+                th.innerText = minuto;
+                thead.appendChild(th);
+            });
+
+            const mercados = [
+                { class: "mercado-ambas-marcam", label: "Ambas", yes: "ambasMarcamSim", no: "ambasMarcamNao" },
+                { class: "mercado-over15", label: "1.5", over: "over15", under: "under15" },
+                { class: "mercado-over25", label: "2.5", over: "over25", under: "under25" },
+                { class: "mercado-over35", label: "3.5", over: "over35", under: "under35" },
+                { class: "mercado-resultado", label: "C/F/E", casa: "casa", fora: "fora", empate: "empate" },
+            ];
+
+            mercados.forEach((mercado) => {
+                const tr = document.createElement("tr");
+                tr.classList.add(mercado.class);
+
+                const td = document.createElement("td");
+                td.classList.add("mercado-header");
+                td.innerText = mercado.label;
+                tr.appendChild(td);
+
+                minutos.forEach((minuto) => {
+                    const td = document.createElement("td");
+                    const dados = analise[minuto] || { total: 0 };
+                    let texto = "";
+
+                    if (mercado.yes && mercado.no) {
+                        const simPercent = dados[mercado.yes] && dados.total ? (dados[mercado.yes] / dados.total) * 100 : 0;
+                        const naoPercent = dados[mercado.no] && dados.total ? (dados[mercado.no] / dados.total) * 100 : 0;
+                        texto = `S:${simPercent.toFixed(0)}%\nN:${naoPercent.toFixed(0)}%`;
+                    }
+
+                    if (mercado.over && mercado.under) {
+                        const overPercent = dados[mercado.over] && dados.total ? (dados[mercado.over] / dados.total) * 100 : 0;
+                        const underPercent = dados[mercado.under] && dados.total ? (dados[mercado.under] / dados.total) * 100 : 0;
+                        texto = `O:${overPercent.toFixed(0)}%\nU:${underPercent.toFixed(0)}%`;
+                    }
+
+                    if (mercado.casa && mercado.fora && mercado.empate) {
+                        const casaPercent = dados[mercado.casa] && dados.total ? (dados[mercado.casa] / dados.total) * 100 : 0;
+                        const foraPercent = dados[mercado.fora] && dados.total ? (dados[mercado.fora] / dados.total) * 100 : 0;
+                        const empatePercent = dados[mercado.empate] && dados.total ? (dados[mercado.empate] / dados.total) * 100 : 0;
+                        texto = `C:${casaPercent.toFixed(0)}%\nF:${foraPercent.toFixed(0)}%\nE:${empatePercent.toFixed(0)}%`;
+                    }
+
+                    td.innerHTML = texto.replace(/\n/g, "<br>");
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function analisar() {
+            if (!selectedTeam1 || !selectedTeam2) {
+                console.log("Nenhum time selecionado, pulando análise");
+                return;
+            }
+
+            const jogos = await carregarJogos();
+
+            // Analisa os dados para o Time 1
+            const analiseTeam1 = analisarMercados(jogos, selectedTeam1);
+            gerarTabela(analiseTeam1, "team1-tabela-resultados", selectedTeam1);
+
+            // Analisa os dados para o Time 2
+            const analiseTeam2 = analisarMercados(jogos, selectedTeam2);
+            gerarTabela(analiseTeam2, "team2-tabela-resultados", selectedTeam2);
+            console.log("Tabelas atualizadas para:", selectedTeam1, selectedTeam2);
+        }
+
+        // Evento para mudança de liga
+        document.getElementById('leagueSelector').addEventListener('change', (e) => {
+            selectedLeague = e.target.value;
+            API_URL = `https://betstat.site/resultados/${selectedLeague}`;
+            NEXT_GAMES_API = `https://betstat.site/proximos/${selectedLeague}`;
+            // Resetar seleções ao mudar de liga
+            selectedTeam1 = null;
+            selectedTeam2 = null;
+            selectedTeamHomeDisplay = null;
+            selectedTeamVisitDisplay = null;
+            document.getElementById("team1Title").innerText = "Time 1";
+            document.getElementById("team2Title").innerText = "Time 2";
+            // Limpar tabelas
+            document.getElementById("team1-tabela-resultados").querySelector("tbody").innerHTML = "";
+            document.getElementById("team1-tabela-resultados").querySelector("thead tr").innerHTML = "";
+            document.getElementById("team2-tabela-resultados").querySelector("tbody").innerHTML = "";
+            document.getElementById("team2-tabela-resultados").querySelector("thead tr").innerHTML = "";
+            loadNextGamesForMinutes();
+        });
+
+        // Inicialização
+        loadNextGamesForMinutes();
+        const updateInterval = setInterval(async () => {
+            console.log("Executando atualização periódica dos jogos...");
+            await loadNextGamesForMinutes();
+        }, 15000);
+    </script>
+</body>
+</html>
