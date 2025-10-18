@@ -35,6 +35,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/kironsequencia.html" ||
     url === "https://www.betstat.site/kironminuto.html" ||
     url === "https://www.betstat.site/estrelaminuto.html" ||
+    url === "https://www.betstat.site/betanomacd.html" ||
     url === "https://www.betstat.site/betsgf.html" ||
     url === "https://www.betstat.site/betsmacro.html" ||
     url === "https://www.betstat.site/betsminuto.html" ||
