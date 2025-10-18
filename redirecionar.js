@@ -39,6 +39,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/betsgf.html" ||
     url === "https://www.betstat.site/betsmacro.html" ||
     url === "https://www.betstat.site/kironmacd.html" ||
+    url === "https://www.betstat.site/betsmacd.html" ||
     url === "https://www.betstat.site/betsminuto.html" ||
     url === "https://www.betstat.site/betsporcentagem.html" ||
     url === "https://www.betstat.site/multbets.html" ||
