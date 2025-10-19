@@ -1574,15 +1574,14 @@ function processApiData(data, league) {
 
     const green = '#00FF00';
     const red = '#FF0000';
-    const golsFTLineColor = '#1E88E5'; // Same as borderColor for Gols FT
+    const golsFTLineColor = '#1E88E5';
     const transparent = 'transparent';
 
-    // Função para verificar se há lacuna entre dois jogos
     function hasGap(prevMatch, currMatch) {
         const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + prevMatch.minuto + ':00');
         const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + currMatch.minuto + ':00');
-        const diffMinutes = (currTime - prevTime) / (1000 * 60); // Diferença em minutos
-        return diffMinutes > 1; // Considera lacuna se a diferença for maior que 1 minuto
+        const diffMinutes = (currTime - prevTime) / (1000 * 60);
+        return diffMinutes > 1;
     }
 
     for (let i = averagePoints; i < slicedData.length; i++) {
@@ -1606,16 +1605,13 @@ function processApiData(data, league) {
         let gol5Sum = 0;
         let validMatches = 0;
 
-        // Calcula a média apenas com os jogos disponíveis
         for (let j = Math.max(0, i - averagePoints); j <= i; j++) {
             const match = slicedData[j];
             const ftScore = match.ft;
 
-            // Verifica se há lacuna antes de processar
             if (j > 0 && hasGap(slicedData[j - 1], match)) {
-                // Insere um ponto nulo no gráfico para indicar a lacuna
                 labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
-                golsFT.push(null); // null faz o Chart.js pular o ponto
+                golsFT.push(null);
                 casaVence.push(null);
                 empate.push(null);
                 foraVence.push(null);
@@ -1653,7 +1649,7 @@ function processApiData(data, league) {
                 gol4Colors.push(transparent);
                 gol5Colors.push(transparent);
 
-                continue; // Pula para o próximo jogo
+                continue;
             }
 
             let ftScoreParts = [0, 0];
@@ -1685,9 +1681,9 @@ function processApiData(data, league) {
         }
 
         const match = slicedData[i];
-        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`); // Linha corrigida
+        labels.push(`${match.hora}:${match.minuto.toString().padStart(2, '0')}`);
 
-        const avg = validMatches || 1; // Evita divisão por zero
+        const avg = validMatches || 1;
 
         let ftScoreParts = [0, 0];
         if (match.ft && match.ft.includes(' x ')) {
@@ -1714,7 +1710,7 @@ function processApiData(data, league) {
         const isGol5 = totalGolsFT === 5;
 
         golsFT.push(golsFTSum / avg * 100);
-        golsFTColors.push(golsFTLineColor); // Keep uniform color for Gols FT
+        golsFTColors.push(golsFTLineColor);
 
         casaVence.push(casaVenceSum / avg * 100);
         casaVenceColors.push(isCasaVence ? green : red);
@@ -1778,15 +1774,13 @@ function processApiData(data, league) {
         gol2Colors, gol3Colors, gol4Colors, gol5Colors
     };
 
-    // Compute moving averages
+    // Compute apenas 2 médias móveis: curta e longa
     const shortPeriod = 5;
-    const mediumPeriod = 10;
     const longPeriod = 20;
 
     Object.keys(labelToKey).forEach(label => {
         const key = labelToKey[label];
         result[key + 'Short'] = computeMA(result[key], shortPeriod);
-        result[key + 'Medium'] = computeMA(result[key], mediumPeriod);
         result[key + 'Long'] = computeMA(result[key], longPeriod);
     });
 
@@ -1809,15 +1803,14 @@ const fibonacciLinesPlugin = {
         normalizedLevels.forEach((level, index) => {
         const y = yAxis.getPixelForValue(level);
         ctx.beginPath();
-        ctx.setLineDash([5, 5]); // <-- deixa tracejado
+        ctx.setLineDash([5, 5]);
         ctx.moveTo(chart.chartArea.left, y);
         ctx.lineTo(chart.chartArea.right, y);
         ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
         ctx.lineWidth = 1;
         ctx.stroke();
-        ctx.setLineDash([]); // <-- reseta para linhas normais depois
+        ctx.setLineDash([]);
 
-        // Texto ao lado da linha
         ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
         ctx.font = '11px Arial';
         ctx.textAlign = 'left';
@@ -1852,61 +1845,50 @@ function createStatsChart(ctx, labels, data, league) {
     ];
 
     const datasets = [];
-    const shortColor = hexToRgba('#00FF00', 0.5); // Verde apagado
-    const mediumColor = hexToRgba('#FFFF00', 0.4); // Amarelo apagado
-    const longColor  = hexToRgba('#1E90FF', 0.3); // Azul apagado
-
-
+    // Cores fortes sem opacidade
+    const shortColor = '#00FF00'; // Verde forte
+    const longColor = '#FF0000';  // Vermelho forte
 
     datasetConfigs.forEach(config => {
         datasets.push({
-        label: config.label,
-        data: data[config.key],
-        borderColor: config.color,
-        backgroundColor: config.color,
-        pointBackgroundColor: data[config.key + 'Colors'],
-        pointBorderColor: "rgba(0,0,0,0)", // garante que a borda fique invisível
-        pointBorderWidth: 0,                // sem espessura
-        borderWidth: 2,
-        pointRadius: 4,
-        fill: false,
-        hidden: !statsChartVisibleDatasets[config.label]
-
+            label: config.label,
+            data: data[config.key],
+            borderColor: config.color,
+            backgroundColor: config.color,
+            pointBackgroundColor: data[config.key + 'Colors'],
+            pointBorderColor: "rgba(0,0,0,0)",
+            pointBorderWidth: 0,
+            borderWidth: 2,
+            pointRadius: 4,
+            fill: false,
+            hidden: !statsChartVisibleDatasets[config.label]
         });
 
+        // Média móvel curta (verde)
         datasets.push({
             label: config.label + ' - Short MA',
             data: data[config.key + 'Short'],
             borderColor: shortColor,
             backgroundColor: 'transparent',
             tension: 0.3,
-            borderWidth: 1,
+            borderWidth: 2,
             pointRadius: 0,
             fill: false,
+            borderDash: [5, 5], // Linha serrilhada
             hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
         });
 
-        datasets.push({
-            label: config.label + ' - Medium MA',
-            data: data[config.key + 'Medium'],
-            borderColor: mediumColor,
-            backgroundColor: 'transparent',
-            tension: 0.3,
-            borderWidth: 1,
-            pointRadius: 0,
-            fill: false,
-            hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
-        });
-
+        // Média móvel longa (vermelha)
         datasets.push({
             label: config.label + ' - Long MA',
             data: data[config.key + 'Long'],
             borderColor: longColor,
             backgroundColor: 'transparent',
             tension: 0.3,
-            borderWidth: 1,
+            borderWidth: 2,
             pointRadius: 0,
             fill: false,
+            borderDash: [5, 5], // Linha serrilhada
             hidden: !showMovingAverages || !statsChartVisibleDatasets[config.label]
         });
     });
@@ -1961,11 +1943,9 @@ function createStatsChart(ctx, labels, data, league) {
                           const match = chartData[league][index];
                           return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
                       },
-                      // --- ESTA É A FUNÇÃO ALTERADA ---
                       label: function(context) {
-                          let label = context.dataset.label || ''; // Pega o nome do dataset (ex: 'Ambas Sim')
+                          let label = context.dataset.label || '';
                           if (label) {
-                              // Pega o valor do ponto e formata com 2 casas decimais, adicionando o '%'
                               const value = context.parsed.y;
                               if (value !== null) {
                                   label += `: ${value.toFixed(2)}%`;
@@ -1973,7 +1953,6 @@ function createStatsChart(ctx, labels, data, league) {
                           }
                           return label;
                       },
-                      // ---------------------------------
                       afterBody: function(tooltipItems) {
                           const index = tooltipItems[0].dataIndex + averagePoints;
                           const match = chartData[league][index];
@@ -1982,7 +1961,6 @@ function createStatsChart(ctx, labels, data, league) {
                       }
                   }
               }
-
             },
             scales: {
                 x: {
@@ -2053,7 +2031,7 @@ function toggleMovingAverages() {
         const ci = chartInstances[league];
         if (ci) {
             ci.data.datasets.forEach((ds, idx) => {
-                if (ds.label.includes(' - ')) { // MA dataset
+                if (ds.label.includes(' - ')) {
                     const mainLabel = ds.label.split(' - ')[0];
                     const mainVisible = statsChartVisibleDatasets[mainLabel];
                     const meta = ci.getDatasetMeta(idx);
