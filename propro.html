@@ -478,6 +478,7 @@
 
     <script>
 let cachedData = {};
+let allProjectionsData = {}; // Armazena todas as projeções para comparação
 
 function showLoading(show) {
     document.getElementById("loading").style.display = show ? "block" : "none";
@@ -571,12 +572,90 @@ function processAllLeagues(leagues) {
     displayProjections(allProjections);
 }
 
-/* === CÁLCULO DA FORÇA DO SINAL BASEADO NA MÉDIA DOS PERCENTUAIS DE GALE === */
-function calculateSignalStrength(galePercents, market) {
-    // A força do sinal é baseada na média ponderada dos percentuais de cada gale
-    // Dando mais peso ao SG (sem gale) e menos peso aos gales subsequentes
+/* === CÁLCULO DE ESTATÍSTICAS AVANÇADAS === */
+function calculateAdvancedStats(games, market, sequence) {
+    const stats = {
+        totalGames: games.length,
+        greens: 0,
+        reds: 0,
+        avgGoals: 0,
+        lastOccurrence: null,
+        consistency: 0,
+        trend: 'stable',
+        recentPerformance: []
+    };
+
+    let totalGoals = 0;
+    let results = [];
     
-    const weights = [0.5, 0.3, 0.2]; // Pesos: SG=50%, G1=30%, G2=20%
+    games.forEach((game, index) => {
+        const [g1, g2] = extractGoalsFromScore(game.ft);
+        totalGoals += (g1 + g2);
+        
+        const isGreen = checkMarketGreen(g1, g2, market, game.ht);
+        results.push(isGreen ? 1 : 0);
+        
+        if (isGreen) {
+            stats.greens++;
+            if (!stats.lastOccurrence) {
+                stats.lastOccurrence = index;
+            }
+        } else {
+            stats.reds++;
+        }
+    });
+
+    stats.avgGoals = games.length > 0 ? (totalGoals / games.length).toFixed(1) : 0;
+    stats.hitRate = games.length > 0 ? Math.round((stats.greens / games.length) * 100) : 0;
+    
+    // Últimos 5 jogos para tendência
+    const recent5 = results.slice(-5);
+    stats.recentPerformance = recent5;
+    const recentHitRate = recent5.length > 0 ? (recent5.filter(r => r === 1).length / recent5.length) * 100 : 0;
+    
+    // Calcular tendência
+    if (recentHitRate > stats.hitRate + 10) {
+        stats.trend = 'up';
+    } else if (recentHitRate < stats.hitRate - 10) {
+        stats.trend = 'down';
+    }
+    
+    // Calcular consistência (desvio padrão)
+    if (results.length > 1) {
+        const mean = results.reduce((a, b) => a + b, 0) / results.length;
+        const variance = results.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / results.length;
+        stats.consistency = Math.round((1 - Math.sqrt(variance)) * 100);
+    }
+    
+    return stats;
+}
+
+function checkMarketGreen(g1, g2, market, placarht) {
+    return (
+        (market === "over2.5" && (g1 + g2) > 2) ||
+        (market === "over1.5" && (g1 + g2) > 1) ||
+        (market === "over3.5" && (g1 + g2) > 3) ||
+        (market === "ambas" && g1 > 0 && g2 > 0) ||
+        (market === "ambasnao" && (g1 === 0 || g2 === 0)) ||
+        (market === "under15" && (g1 + g2) < 2) ||
+        (market === "under25" && (g1 + g2) < 3) ||
+        (market === "zerog" && (g1 + g2) === 0) ||
+        (market === "umg" && (g1 + g2) === 1) ||
+        (market === "doisg" && (g1 + g2) === 2) ||
+        (market === "tresg" && (g1 + g2) === 3) ||
+        (market === "quatrog" && (g1 + g2) === 4) ||
+        (market === "cincog" && (g1 + g2) >= 5) ||
+        (market === "casa" && g1 > g2) ||
+        (market === "fora" && g1 < g2) ||
+        (market === "empate" && g1 === g2) ||
+        (market === "OUT" && placarht === "OUT")
+    );
+}
+
+/* === CÁLCULO DA FORÇA DO SINAL MELHORADO === */
+function calculateSignalStrength(galePercents, market, advancedStats) {
+    // Força base: média ponderada dos gales
+    const weights = [0.4, 0.3, 0.2]; // SG=40%, G1=30%, G2=20%
     let weightedSum = 0;
     let totalWeight = 0;
     
@@ -585,32 +664,56 @@ function calculateSignalStrength(galePercents, market) {
         totalWeight += weights[i];
     }
     
-    const forcaSinal = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
-    return forcaSinal;
+    let forcaBase = totalWeight > 0 ? weightedSum / totalWeight : 0;
+    
+    // Ajustes baseados em estatísticas avançadas
+    // +10% se consistência alta (>80%)
+    if (advancedStats.consistency > 80) {
+        forcaBase *= 1.10;
+    }
+    
+    // +5% se tendência positiva
+    if (advancedStats.trend === 'up') {
+        forcaBase *= 1.05;
+    }
+    
+    // -5% se tendência negativa
+    if (advancedStats.trend === 'down') {
+        forcaBase *= 0.95;
+    }
+    
+    // +5% se média de gols alta (>2.5 para overs)
+    if ((market.includes('over') || market === 'ambas') && advancedStats.avgGoals > 2.5) {
+        forcaBase *= 1.05;
+    }
+    
+    return Math.min(Math.round(forcaBase), 100); // Cap em 100%
 }
 
 /* === CÁLCULO DE PROBABILIDADE POR GALE === */
 function calculateGaleProbabilities(galePercents) {
-    // Usa os percentuais reais calculados da análise histórica
-    const probabilities = {
+    return {
         sg: galePercents[0] || 0,
         g1: galePercents[1] || 0,
         g2: galePercents[2] || 0
     };
-    
-    return probabilities;
 }
 
-/* === ANÁLISE CORRETA: % POR GALE + FORÇA DO SINAL === */
+/* === ANÁLISE PRINCIPAL === */
 function analyzeProjections(data, market, range, league, selectedHour) {
     const gamesByHour = {};
+    const gamesByMinute = {}; // Para estatísticas avançadas
+    
     data.forEach(game => {
         const hora = String(game.hora).padStart(2, '0');
         const minuto = String(game.minuto).padStart(2, '0');
         const horario = `${hora}:${minuto}`;
         if (selectedHour && hora !== selectedHour) return;
         if (!gamesByHour[hora]) gamesByHour[hora] = [];
+        if (!gamesByMinute[minuto]) gamesByMinute[minuto] = [];
+        
         gamesByHour[hora].push({ time: horario, ft: game.ft, ht: game.ht });
+        gamesByMinute[minuto].push({ ft: game.ft, ht: game.ht });
     });
 
     const results = {};
@@ -636,24 +739,7 @@ function analyzeProjections(data, market, range, league, selectedHour) {
                 const [g1, g2] = extractGoalsFromScore(check.ft);
                 const placarht = check.ht || "";
 
-                const isGreen =
-                    (market === "over2.5" && (g1 + g2) > 2) ||
-                    (market === "over1.5" && (g1 + g2) > 1) ||
-                    (market === "over3.5" && (g1 + g2) > 3) ||
-                    (market === "ambas" && g1 > 0 && g2 > 0) ||
-                    (market === "ambasnao" && (g1 === 0 || g2 === 0)) ||
-                    (market === "under15" && (g1 + g2) < 2) ||
-                    (market === "under25" && (g1 + g2) < 3) ||
-                    (market === "zerog" && (g1 + g2) === 0) ||
-                    (market === "umg" && (g1 + g2) === 1) ||
-                    (market === "doisg" && (g1 + g2) === 2) ||
-                    (market === "tresg" && (g1 + g2) === 3) ||
-                    (market === "quatrog" && (g1 + g2) === 4) ||
-                    (market === "cincog" && (g1 + g2) >= 5) ||
-                    (market === "casa" && g1 > g2) ||
-                    (market === "fora" && g1 < g2) ||
-                    (market === "empate" && g1 === g2) ||
-                    (market === "OUT" && placarht === "OUT");
+                const isGreen = checkMarketGreen(g1, g2, market, placarht);
 
                 if (isGreen && !greenFound) {
                     galeHits[minuto][i]++;
@@ -677,17 +763,21 @@ function analyzeProjections(data, market, range, league, selectedHour) {
                     used.add(String(cur).padStart(2, '0'));
                 }
                 
-                // Calcula percentuais reais por gale
                 const percents = galeHits[min].map(h => totals[min] ? Math.round((h / totals[min]) * 100) : 0);
                 seq.galePercents = percents;
                 
-                // Calcula força do sinal baseada nos percentuais reais
-                const forcaSinal = calculateSignalStrength(percents, market);
+                // Estatísticas avançadas
+                const advancedStats = calculateAdvancedStats(gamesByMinute[min] || [], market, seq);
+                seq.advancedStats = advancedStats;
+                
+                const forcaSinal = calculateSignalStrength(percents, market, advancedStats);
                 seq.forcaSinal = forcaSinal;
                 
-                // Usa os percentuais reais para as probabilidades
                 const galeProbabilities = calculateGaleProbabilities(percents);
                 seq.galeProbabilities = galeProbabilities;
+                
+                // Últimos jogos para exibição
+                seq.lastGames = (gamesByMinute[min] || []).slice(-5);
                 
                 sequences.push(seq);
                 used.add(min);
@@ -733,7 +823,87 @@ function getSignalColor(percent) {
     return '#ff0000';
 }
 
-/* === DISPLAY FINAL COM FORÇA DO SINAL === */
+function getTrendEmoji(trend) {
+    if (trend === 'up') return '📈';
+    if (trend === 'down') return '📉';
+    return '➡️';
+}
+
+/* === BARRA DE PROGRESSO VISUAL === */
+function createProgressBar(percent) {
+    const filled = Math.round(percent / 10);
+    const empty = 10 - filled;
+    return `[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${percent}%`;
+}
+
+/* === EXPORTAR RESULTADOS === */
+function exportResults(projections) {
+    let text = "=== PROJEÇÕES DE SINAIS ===\n\n";
+    
+    Object.keys(projections).sort((a, b) => a - b).forEach(hour => {
+        text += `\n📍 HORA: ${String(hour).padStart(2, '0')}\n`;
+        text += "=".repeat(50) + "\n";
+        
+        Object.keys(projections[hour]).forEach(league => {
+            const leagueName = decodeURIComponent(league);
+            
+            projections[hour][league].forEach(seq => {
+                const minutes = seq.slice(0, 3).join(' ');
+                const force = seq.forcaSinal;
+                const emoji = getSignalEmoji(force);
+                const strength = getSignalStrength(force);
+                const probs = seq.galeProbabilities;
+                
+                text += `\n${emoji} ${leagueName}\n`;
+                text += `   Minutos: ${minutes}\n`;
+                text += `   Força: ${force}% (${strength})\n`;
+                text += `   SG: ${probs.sg}% | G1: ${probs.g1}% | G2: ${probs.g2}%\n`;
+            });
+        });
+    });
+    
+    return text;
+}
+
+/* === FILTRAR PROJEÇÕES POR FORÇA === */
+function filterByStrength(projections, minStrength) {
+    const filtered = {};
+    
+    Object.keys(projections).forEach(hour => {
+        Object.keys(projections[hour]).forEach(league => {
+            const sequences = projections[hour][league].filter(seq => seq.forcaSinal >= minStrength);
+            
+            if (sequences.length > 0) {
+                if (!filtered[hour]) filtered[hour] = {};
+                filtered[hour][league] = sequences;
+            }
+        });
+    });
+    
+    return filtered;
+}
+
+/* === ENCONTRAR MELHORES SINAIS === */
+function findTopSignals(projections, topN = 3) {
+    const allSignals = [];
+    
+    Object.keys(projections).forEach(hour => {
+        Object.keys(projections[hour]).forEach(league => {
+            projections[hour][league].forEach(seq => {
+                allSignals.push({
+                    hour,
+                    league,
+                    sequence: seq,
+                    force: seq.forcaSinal
+                });
+            });
+        });
+    });
+    
+    return allSignals.sort((a, b) => b.force - a.force).slice(0, topN);
+}
+
+/* === DISPLAY FINAL MELHORADO === */
 function displayProjections(projections) {
     const projectionsDiv = document.getElementById("projections");
     const marketText = document.getElementById("marketSelect").options[document.getElementById("marketSelect").selectedIndex].text;
@@ -748,10 +918,67 @@ function displayProjections(projections) {
         return;
     }
 
-    const header = document.createElement("h2");
-    header.textContent = `PROJEÇÕES PARA ${range} GALES\nMercado: ${marketText}`;
+    // Armazena projeções globalmente
+    allProjectionsData = projections;
+
+    // Header com controles
+    const header = document.createElement("div");
+    header.style.marginBottom = "20px";
+    header.innerHTML = `
+        <h2>PROJEÇÕES PARA ${range} GALES - Mercado: ${marketText}</h2>
+        <div style="display: flex; gap: 15px; margin: 15px 0; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 5px;">
+                <input type="checkbox" id="filterGoodSignals" onchange="applyFilters()">
+                Mostrar apenas sinais Bons/Ótimos
+            </label>
+            <label style="display: flex; align-items: center; gap: 5px;">
+                Força mínima: 
+                <input type="range" id="minStrength" min="0" max="100" value="0" step="5" 
+                       oninput="document.getElementById('strengthValue').textContent = this.value + '%'; applyFilters()"
+                       style="width: 150px;">
+                <span id="strengthValue">0%</span>
+            </label>
+            <button onclick="copyResults()" style="padding: 5px 15px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 4px;">
+                📋 Copiar Resultados
+            </button>
+        </div>
+    `;
     projectionsDiv.appendChild(header);
 
+    // Top 3 melhores sinais
+    const topSignals = findTopSignals(projections, 3);
+    if (topSignals.length > 0) {
+        const topSection = document.createElement("div");
+        topSection.style.cssText = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);";
+        topSection.innerHTML = `<h3 style="margin: 0 0 15px 0; color: white;">⭐ TOP 3 MELHORES SINAIS DO DIA</h3>`;
+        
+        topSignals.forEach((signal, index) => {
+            const leagueName = decodeURIComponent(signal.league);
+            const minutes = signal.sequence.slice(0, range).join(' ');
+            const emoji = getSignalEmoji(signal.force);
+            
+            topSection.innerHTML += `
+                <div style="background: rgba(255,255,255,0.1); padding: 10px; margin: 8px 0; border-radius: 8px; color: white;">
+                    <strong>#${index + 1}</strong> ${emoji} ${leagueName} - Hora ${String(signal.hour).padStart(2, '0')} - Minutos: ${minutes}
+                    <br><span style="font-size: 14px;">Força: ${signal.force}% | ${getSignalStrength(signal.force)}</span>
+                </div>
+            `;
+        });
+        
+        projectionsDiv.appendChild(topSection);
+    }
+
+    // Container para projeções
+    const projectionsContainer = document.createElement("div");
+    projectionsContainer.id = "projectionsContainer";
+    projectionsDiv.appendChild(projectionsContainer);
+
+    renderProjections(projections, projectionsContainer, range, marketText);
+}
+
+function renderProjections(projections, container, range, marketText) {
+    container.innerHTML = "";
+    
     Object.keys(projections).sort((a, b) => a - b).forEach(hour => {
         const hourBlock = document.createElement("div");
         hourBlock.className = "hour-block";
@@ -777,27 +1004,26 @@ function displayProjections(projections) {
             projections[hour][league].forEach(sequence => {
                 const mainLine = document.createElement("div");
                 mainLine.className = "projection-item";
-                mainLine.style.marginBottom = "4px";
+                mainLine.style.cssText = "margin-bottom: 4px; cursor: pointer; transition: all 0.3s;";
+                mainLine.onclick = () => toggleDetails(mainLine);
 
                 const minutesText = sequence.slice(0, range).join(' ');
                 const forcaSinal = sequence.forcaSinal || 0;
                 const emoji = getSignalEmoji(forcaSinal);
+                const isBest = forcaSinal >= 90;
                 
                 mainLine.innerHTML = `
-                    <span class="emoji">🏆</span> ${leagueName}
+                    <span class="emoji">🏆</span> ${leagueName} ${isBest ? '⭐' : ''}
                     <span class="minutes-list">⏰ ${minutesText}</span> → ${marketText}
                 `;
 
-                // Linha de força do sinal e percentuais por gale
+                // Linha de força do sinal
                 const statsLine = document.createElement("div");
-                statsLine.style.marginLeft = "30px";
-                statsLine.style.fontSize = "14px";
-                statsLine.style.color = "#b0b8c1";
-                statsLine.style.marginBottom = "12px";
+                statsLine.style.cssText = "margin-left: 30px; font-size: 14px; color: #b0b8c1; margin-bottom: 5px;";
 
                 const galeProbabilities = sequence.galeProbabilities || {};
+                const advStats = sequence.advancedStats || {};
                 
-                // Formata os percentuais por gale (SG, G1, G2)
                 let galeTexts = '';
                 if (range >= 1 && galeProbabilities.sg !== undefined) {
                     galeTexts += `SG: ${galeProbabilities.sg}%`;
@@ -811,22 +1037,92 @@ function displayProjections(projections) {
 
                 const strength = getSignalStrength(forcaSinal);
                 const color = getSignalColor(forcaSinal);
+                const progressBar = createProgressBar(forcaSinal);
+                const trendEmoji = getTrendEmoji(advStats.trend);
 
                 statsLine.innerHTML = `
-                    ${emoji} <span style="color: ${color}; font-weight: bold;">Força: ${forcaSinal}%</span> - ${strength} | ${galeTexts}
+                    ${emoji} <span style="color: ${color}; font-weight: bold;">${progressBar}</span> - ${strength} ${trendEmoji}
+                    <br><span style="font-size: 12px;">${galeTexts}</span>
+                `;
+
+                // Detalhes expandíveis (ocultos inicialmente)
+                const detailsLine = document.createElement("div");
+                detailsLine.className = "details-section";
+                detailsLine.style.cssText = "display: none; margin-left: 30px; margin-top: 8px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; font-size: 13px;";
+                
+                detailsLine.innerHTML = `
+                    <div style="margin-bottom: 5px;"><strong>📊 Estatísticas Avançadas:</strong></div>
+                    <div>• Taxa de acerto: ${advStats.hitRate || 0}% (${advStats.greens || 0}✅ / ${advStats.reds || 0}❌)</div>
+                    <div>• Média de gols: ${advStats.avgGoals || 0} gols/jogo</div>
+                    <div>• Consistência: ${advStats.consistency || 0}%</div>
+                    <div>• Tendência: ${trendEmoji} ${advStats.trend === 'up' ? 'Melhorando' : advStats.trend === 'down' ? 'Piorando' : 'Estável'}</div>
+                    ${sequence.lastGames && sequence.lastGames.length > 0 ? `
+                    <div style="margin-top: 8px;"><strong>📜 Últimos 5 jogos:</strong></div>
+                    <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px;">
+                        ${sequence.lastGames.map(g => {
+                            const [g1, g2] = extractGoalsFromScore(g.ft);
+                            const market = document.getElementById("marketSelect").value;
+                            const isGreen = checkMarketGreen(g1, g2, market, g.ht);
+                            return `<span style="padding: 3px 8px; background: ${isGreen ? '#2d5016' : '#5c1a1a'}; border-radius: 3px;">${g.ft} ${isGreen ? '✅' : '❌'}</span>`;
+                        }).join('')}
+                    </div>
+                    ` : ''}
                 `;
 
                 hourBlock.appendChild(mainLine);
                 hourBlock.appendChild(statsLine);
+                hourBlock.appendChild(detailsLine);
             });
         });
 
-        projectionsDiv.appendChild(hourBlock);
+        container.appendChild(hourBlock);
 
         const separator = document.createElement("p");
         separator.className = "separator";
         separator.textContent = "•";
-        projectionsDiv.appendChild(separator);
+        container.appendChild(separator);
+    });
+}
+
+function toggleDetails(element) {
+    const detailsSection = element.nextElementSibling.nextElementSibling;
+    if (detailsSection && detailsSection.className === 'details-section') {
+        detailsSection.style.display = detailsSection.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function applyFilters() {
+    const filterGood = document.getElementById("filterGoodSignals")?.checked || false;
+    const minStrength = parseInt(document.getElementById("minStrength")?.value || 0);
+    
+    let filtered = allProjectionsData;
+    
+    // Filtrar por força mínima
+    if (minStrength > 0) {
+        filtered = filterByStrength(filtered, minStrength);
+    }
+    
+    // Filtrar apenas bons/ótimos
+    if (filterGood) {
+        filtered = filterByStrength(filtered, 45);
+    }
+    
+    const container = document.getElementById("projectionsContainer");
+    const marketText = document.getElementById("marketSelect").options[document.getElementById("marketSelect").selectedIndex].text;
+    const range = document.getElementById("rangeSelect").value;
+    
+    if (container) {
+        renderProjections(filtered, container, range, marketText);
+    }
+}
+
+function copyResults() {
+    const text = exportResults(allProjectionsData);
+    navigator.clipboard.writeText(text).then(() => {
+        alert("✅ Resultados copiados para a área de transferência!");
+    }).catch(err => {
+        console.error("Erro ao copiar:", err);
+        alert("❌ Erro ao copiar resultados.");
     });
 }
     </script>
