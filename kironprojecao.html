@@ -403,9 +403,9 @@
             <select id="leagueSelect">
                 <option value="" selected>Escolha uma liga</option>
                 <option value="all">Todas as Ligas</option>
-                <option value="England">England</option>
-                <option value="Italy">Italy</option>
-                <option value="Spain">Spain</option>
+                <option value="resultados/kiron/England">Kiron England</option>
+                <option value="resultados/kiron/Italy">Kiron Italy</option>
+                <option value="resultados/kiron/Spain">Kiron Spain</option>
             </select>
         </div>
 
@@ -483,22 +483,28 @@ function showLoading(show) {
 
 function fetchApiData(league) {
     showLoading(true);
-    const apiUrl = `https://betstat.site/resultados/${league}`;
+    const apiUrl = `https://betstat.site/${league}`;
+    console.log(`Buscando dados em: ${apiUrl}`);
     fetch(apiUrl)
         .then(response => {
+            console.log(`Status da resposta: ${response.status}`);
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             return response.json();
         })
         .then(data => {
             cachedData[league] = data;
             console.log(`Dados recebidos para ${league}:`, data);
+            if (!data || data.length === 0) {
+                alert(`Nenhum dado encontrado para ${league}`);
+            }
             processApiData(data, league);
             showLoading(false);
         })
         .catch(error => {
             console.error("Erro ao buscar dados:", error);
+            console.error("URL tentada:", apiUrl);
             showLoading(false);
-            alert("Erro ao buscar dados da API.");
+            alert(`Erro ao buscar dados da API: ${error.message}\nURL: ${apiUrl}`);
         });
 }
 
@@ -508,13 +514,31 @@ function fetchAllLeagues() {
         .map(option => option.value)
         .filter(value => value && value !== "all");
     
+    console.log("Ligas selecionadas para buscar:", leagues);
+    
     showLoading(true);
-    Promise.all(leagues.map(league => 
-        cachedData[league] ? Promise.resolve(cachedData[league]) : 
-        fetch(`https://betstat.site/resultados/${league}`).then(res => res.json())
-    ))
+    Promise.all(leagues.map(league => {
+        if (cachedData[league]) {
+            return Promise.resolve(cachedData[league]);
+        }
+        const url = `https://betstat.site/${league}`;
+        console.log(`Buscando: ${url}`);
+        return fetch(url)
+            .then(res => {
+                if (!res.ok) throw new Error(`Erro ${res.status} em ${league}`);
+                return res.json();
+            })
+            .catch(err => {
+                console.error(`Erro ao buscar ${league}:`, err);
+                return []; // Retorna array vazio em caso de erro
+            });
+    }))
     .then(results => {
-        leagues.forEach((league, index) => cachedData[league] = results[index]);
+        leagues.forEach((league, index) => {
+            if (results[index] && results[index].length > 0) {
+                cachedData[league] = results[index];
+            }
+        });
         console.log("Dados recebidos para todas as ligas:", results);
         processAllLeagues(leagues);
         showLoading(false);
@@ -522,7 +546,7 @@ function fetchAllLeagues() {
     .catch(error => {
         console.error("Erro ao buscar todas as ligas:", error);
         showLoading(false);
-        alert("Erro ao buscar dados de todas as ligas.");
+        alert("Erro ao buscar dados de todas as ligas: " + error.message);
     });
 }
 
