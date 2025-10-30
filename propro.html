@@ -530,12 +530,10 @@ function fetchAllLeagues() {
 
 function generateList() {
     const leagueSelect = document.getElementById("leagueSelect").value;
-
     if (!leagueSelect) {
         alert("Por favor, selecione uma liga.");
         return;
     }
-
     if (leagueSelect === "all") {
         fetchAllLeagues();
     } else if (cachedData[leagueSelect]) {
@@ -573,7 +571,7 @@ function processAllLeagues(leagues) {
     displayProjections(allProjections);
 }
 
-/* === ANÁLISE COM % POR GALE E FORÇA DO SINAL === */
+/* === ANÁLISE CORRETA: % POR GALE + FORÇA DO SINAL === */
 function analyzeProjections(data, market, range, league, selectedHour) {
     const gamesByHour = {};
     data.forEach(game => {
@@ -586,8 +584,8 @@ function analyzeProjections(data, market, range, league, selectedHour) {
     });
 
     const results = {};
-    const galeHits = {};           // {minuto: [hits_sg, hits_g1, ...]}
-    const totals = {};             // {minuto: total_ocorrencias}
+    const galeHits = {};  // {minuto: [sg_hits, g1_hits, ...]}
+    const totals = {};    // {minuto: total_ocorrencias}
 
     Object.keys(gamesByHour).forEach(hour => {
         gamesByHour[hour].sort((a, b) => a.time.localeCompare(b.time));
@@ -603,7 +601,7 @@ function analyzeProjections(data, market, range, league, selectedHour) {
             const minuto = game.time.split(':')[1];
             totals[minuto]++;
 
-            // verifica em qual gale bateu (0 = sg, 1 = g1, ...)
+            let greenFound = false;
             for (let i = 0; i < range && (index + i) < gamesByHour[hour].length; i++) {
                 const check = gamesByHour[hour][index + i];
                 const [g1, g2] = extractGoalsFromScore(check.ft);
@@ -628,9 +626,9 @@ function analyzeProjections(data, market, range, league, selectedHour) {
                     (market === "empate" && g1 === g2) ||
                     (market === "OUT" && placarht === "OUT");
 
-                if (isGreen) {
-                    galeHits[minuto][i]++;   // conta na gale correta
-                    break;
+                if (isGreen && !greenFound) {
+                    galeHits[minuto][i]++;  // conta apenas na primeira gale que bateu
+                    greenFound = true;
                 }
             }
         });
@@ -678,7 +676,7 @@ function extractGoalsFromScore(scoreString) {
     return [0, 0];
 }
 
-/* === FORÇA DO SINAL === */
+/* === EMOJI E FORÇA DO SINAL === */
 function getSignalEmoji(percent) {
     if (percent >= 80) return 'Ótimo';
     if (percent >= 60) return 'Bom';
@@ -691,7 +689,13 @@ function getSignalStrength(percent) {
     return 'Ruim';
 }
 
-/* === DISPLAY CORRIGIDO (ABAIXO, NÃO DO LADO) === */
+function getSignalIcon(percent) {
+    if (percent >= 80) return 'Ótimo';
+    if (percent >= 60) return 'Bom';
+    return 'Ruim';
+}
+
+/* === DISPLAY FINAL: ABAIXO + EMOJIS === */
 function displayProjections(projections) {
     const projectionsDiv = document.getElementById("projections");
     const marketText = document.getElementById("marketSelect").options[document.getElementById("marketSelect").selectedIndex].text;
@@ -758,10 +762,10 @@ function displayProjections(projections) {
                 }).join(' - ');
 
                 const avg = percents.length ? Math.round(percents.reduce((a,b) => a + b, 0) / percents.length) : 0;
-                const signal = getSignalEmoji(avg);
+                const icon = getSignalIcon(avg);
                 const strength = getSignalStrength(avg);
 
-                statsLine.innerHTML = `${signal} ${avg}% - ${strength} | ${galeTexts}`;
+                statsLine.innerHTML = `${icon} ${avg}% - ${strength} | ${galeTexts}`;
 
                 hourBlock.appendChild(mainLine);
                 hourBlock.appendChild(statsLine);
