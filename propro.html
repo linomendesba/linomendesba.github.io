@@ -571,6 +571,64 @@ function processAllLeagues(leagues) {
     displayProjections(allProjections);
 }
 
+/* === CÁLCULO DA FORÇA DO SINAL === */
+function calculateSignalStrength(data, market, sequence) {
+    // Extrai estatísticas dos jogos para calcular a força
+    const stats = {
+        over25_t1: 0,
+        over25_t2: 0,
+        media_gols: 0,
+        ataque_rank: 0,
+        defesa_rank: 0
+    };
+
+    let totalGols = 0;
+    let jogosOver25T1 = 0;
+    let jogosOver25T2 = 0;
+    let totalJogos = data.length;
+
+    data.forEach(game => {
+        const [g1, g2] = extractGoalsFromScore(game.ft);
+        totalGols += (g1 + g2);
+        
+        if ((g1 + g2) > 2) {
+            jogosOver25T1++;
+            jogosOver25T2++;
+        }
+    });
+
+    stats.over25_t1 = totalJogos > 0 ? jogosOver25T1 / totalJogos : 0;
+    stats.over25_t2 = totalJogos > 0 ? jogosOver25T2 / totalJogos : 0;
+    stats.media_gols = totalJogos > 0 ? totalGols / totalJogos : 0;
+    stats.ataque_rank = Math.min(stats.media_gols / 5, 1); // Normaliza entre 0 e 1
+    stats.defesa_rank = 1 - stats.ataque_rank; // Inversamente proporcional
+
+    // Cálculo da força baseado na fórmula das imagens
+    const forca_sinal = (
+        (stats.over25_t1 * 0.3) +
+        (stats.over25_t2 * 0.3) +
+        (stats.media_gols / 5 * 0.2) +
+        (stats.ataque_rank * 0.1) +
+        ((1 - stats.defesa_rank) * 0.1)
+    ) * 100;
+
+    return Math.round(forca_sinal);
+}
+
+/* === CÁLCULO DE PROBABILIDADE POR GALE === */
+function calculateGaleProbabilities(sg_percent) {
+    // Baseado na imagem 2: ajustes incrementais por gale
+    const prob_sg = sg_percent;
+    const prob_g1 = Math.min(prob_sg + 15, 100); // +15% no primeiro gale
+    const prob_g2 = Math.min(prob_g1 + 7, 100);  // +7% no segundo gale
+    
+    return {
+        sg: prob_sg,
+        g1: prob_g1,
+        g2: prob_g2
+    };
+}
+
 /* === ANÁLISE CORRETA: % POR GALE + FORÇA DO SINAL === */
 function analyzeProjections(data, market, range, league, selectedHour) {
     const gamesByHour = {};
@@ -584,13 +642,12 @@ function analyzeProjections(data, market, range, league, selectedHour) {
     });
 
     const results = {};
-    const galeHits = {};  // {minuto: [sg_hits, g1_hits, ...]}
-    const totals = {};    // {minuto: total_ocorrencias}
+    const galeHits = {};
+    const totals = {};
 
     Object.keys(gamesByHour).forEach(hour => {
         gamesByHour[hour].sort((a, b) => a.time.localeCompare(b.time));
 
-        // inicializa contadores
         gamesByHour[hour].forEach(g => {
             const min = g.time.split(':')[1];
             if (!galeHits[min]) galeHits[min] = Array(range).fill(0);
@@ -627,13 +684,12 @@ function analyzeProjections(data, market, range, league, selectedHour) {
                     (market === "OUT" && placarht === "OUT");
 
                 if (isGreen && !greenFound) {
-                    galeHits[minuto][i]++;  // conta apenas na primeira gale que bateu
+                    galeHits[minuto][i]++;
                     greenFound = true;
                 }
             }
         });
 
-        // gera sequências (só se 100% green em pelo menos 1 gale)
         const sequences = [];
         const used = new Set();
 
@@ -648,9 +704,18 @@ function analyzeProjections(data, market, range, league, selectedHour) {
                     seq.push(String(cur).padStart(2, '0'));
                     used.add(String(cur).padStart(2, '0'));
                 }
-                // calcula % por gale
+                
                 const percents = galeHits[min].map(h => totals[min] ? Math.round((h / totals[min]) * 100) : 0);
                 seq.galePercents = percents;
+                
+                // Calcula força do sinal baseada nos dados
+                const forcaSinal = calculateSignalStrength(data, market, seq);
+                seq.forcaSinal = forcaSinal;
+                
+                // Calcula probabilidades por gale
+                const galeProbabilities = calculateGaleProbabilities(percents[0]);
+                seq.galeProbabilities = galeProbabilities;
+                
                 sequences.push(seq);
                 used.add(min);
             }
@@ -676,26 +741,26 @@ function extractGoalsFromScore(scoreString) {
     return [0, 0];
 }
 
-/* === EMOJI E FORÇA DO SINAL === */
+/* === EMOJIS E CLASSIFICAÇÃO === */
 function getSignalEmoji(percent) {
-    if (percent >= 80) return 'Ótimo';
-    if (percent >= 60) return 'Bom';
-    return 'Ruim';
+    if (percent >= 80) return '🟢';
+    if (percent >= 60) return '🟡';
+    return '🔴';
 }
 
 function getSignalStrength(percent) {
-    if (percent >= 80) return 'Ótimo';
-    if (percent >= 60) return 'Bom';
-    return 'Ruim';
+    if (percent >= 80) return 'Forte';
+    if (percent >= 60) return 'Médio';
+    return 'Fraco';
 }
 
-function getSignalIcon(percent) {
-    if (percent >= 80) return 'Ótimo';
-    if (percent >= 60) return 'Bom';
-    return 'Ruim';
+function getSignalColor(percent) {
+    if (percent >= 80) return '#00ff00';
+    if (percent >= 60) return '#ffff00';
+    return '#ff0000';
 }
 
-/* === DISPLAY FINAL: ABAIXO + EMOJIS === */
+/* === DISPLAY FINAL COM FORÇA DO SINAL === */
 function displayProjections(projections) {
     const projectionsDiv = document.getElementById("projections");
     const marketText = document.getElementById("marketSelect").options[document.getElementById("marketSelect").selectedIndex].text;
@@ -742,13 +807,15 @@ function displayProjections(projections) {
                 mainLine.style.marginBottom = "4px";
 
                 const minutesText = sequence.slice(0, range).join(' ');
-
+                const forcaSinal = sequence.forcaSinal || 0;
+                const emoji = getSignalEmoji(forcaSinal);
+                
                 mainLine.innerHTML = `
-                    <span class="emoji">Troféu</span> ${leagueName}
-                    <span class="minutes-list">Relógio ${minutesText}</span> → ${marketText}
+                    <span class="emoji">🏆</span> ${leagueName}
+                    <span class="minutes-list">⏰ ${minutesText}</span> → ${marketText}
                 `;
 
-                // linha de indicadores (abaixo)
+                // Linha de força do sinal e percentuais por gale
                 const statsLine = document.createElement("div");
                 statsLine.style.marginLeft = "30px";
                 statsLine.style.fontSize = "14px";
@@ -756,16 +823,26 @@ function displayProjections(projections) {
                 statsLine.style.marginBottom = "12px";
 
                 const percents = sequence.galePercents || [];
-                const galeTexts = percents.map((p, i) => {
-                    const label = i === 0 ? 'sg' : `g${i}`;
-                    return `${label} ${p}%`;
-                }).join(' - ');
+                const galeProbabilities = sequence.galeProbabilities || {};
+                
+                // Formata os percentuais por gale (SG, G1, G2)
+                let galeTexts = '';
+                if (range >= 1) {
+                    galeTexts += `SG: ${galeProbabilities.sg || percents[0] || 0}%`;
+                }
+                if (range >= 2) {
+                    galeTexts += ` | G1: ${galeProbabilities.g1 || percents[1] || 0}%`;
+                }
+                if (range >= 3) {
+                    galeTexts += ` | G2: ${galeProbabilities.g2 || percents[2] || 0}%`;
+                }
 
-                const avg = percents.length ? Math.round(percents.reduce((a,b) => a + b, 0) / percents.length) : 0;
-                const icon = getSignalIcon(avg);
-                const strength = getSignalStrength(avg);
+                const strength = getSignalStrength(forcaSinal);
+                const color = getSignalColor(forcaSinal);
 
-                statsLine.innerHTML = `${icon} ${avg}% - ${strength} | ${galeTexts}`;
+                statsLine.innerHTML = `
+                    ${emoji} <span style="color: ${color}; font-weight: bold;">Força: ${forcaSinal}%</span> - ${strength} | ${galeTexts}
+                `;
 
                 hourBlock.appendChild(mainLine);
                 hourBlock.appendChild(statsLine);
