@@ -573,7 +573,7 @@ function processAllLeagues(leagues) {
     displayProjections(allProjections);
 }
 
-/* === NOVO: estrutura para armazenar % por gale === */
+/* === ANÁLISE COM % POR GALE E FORÇA DO SINAL === */
 function analyzeProjections(data, market, range, league, selectedHour) {
     const gamesByHour = {};
     data.forEach(game => {
@@ -585,28 +585,29 @@ function analyzeProjections(data, market, range, league, selectedHour) {
         gamesByHour[hora].push({ time: horario, ft: game.ft, ht: game.ht });
     });
 
-    const minutesConsistency = {};   // {minuto: {total, greens}}
-    const galeHits = {};             // {minuto: [sg%, g1%, g2%, ...]}
+    const results = {};
+    const galeHits = {};           // {minuto: [hits_sg, hits_g1, ...]}
+    const totals = {};             // {minuto: total_ocorrencias}
 
     Object.keys(gamesByHour).forEach(hour => {
         gamesByHour[hour].sort((a, b) => a.time.localeCompare(b.time));
 
-        // inicializa galeHits para cada minuto da hora
+        // inicializa contadores
         gamesByHour[hour].forEach(g => {
             const min = g.time.split(':')[1];
             if (!galeHits[min]) galeHits[min] = Array(range).fill(0);
-            if (!minutesConsistency[min]) minutesConsistency[min] = { total: 0, greens: 0 };
+            if (!totals[min]) totals[min] = 0;
         });
 
         gamesByHour[hour].forEach((game, index) => {
             const minuto = game.time.split(':')[1];
-            minutesConsistency[minuto].total++;
+            totals[minuto]++;
 
-            // verifica até onde o green acontece (0 = sg, 1 = g1, ...)
+            // verifica em qual gale bateu (0 = sg, 1 = g1, ...)
             for (let i = 0; i < range && (index + i) < gamesByHour[hour].length; i++) {
-                const checkGame = gamesByHour[hour][index + i];
-                const [g1, g2] = extractGoalsFromScore(checkGame.ft);
-                const placarht = checkGame.ht || "";
+                const check = gamesByHour[hour][index + i];
+                const [g1, g2] = extractGoalsFromScore(check.ft);
+                const placarht = check.ht || "";
 
                 const isGreen =
                     (market === "over2.5" && (g1 + g2) > 2) ||
@@ -628,42 +629,35 @@ function analyzeProjections(data, market, range, league, selectedHour) {
                     (market === "OUT" && placarht === "OUT");
 
                 if (isGreen) {
-                    galeHits[minuto][i]++;      // conta green na gale i
-                    minutesConsistency[minuto].greens++;
-                    break;                       // para no primeiro green
+                    galeHits[minuto][i]++;   // conta na gale correta
+                    break;
                 }
             }
         });
 
-        // calcula % por gale
-        Object.keys(galeHits).forEach(min => {
-            const total = minutesConsistency[min].total;
-            galeHits[min] = galeHits[min].map(count => total ? Math.round((count / total) * 100) : 0);
-        });
-    });
-
-    // === gera sequências (mantém lógica original) ===
-    const results = {};
-    Object.keys(gamesByHour).forEach(hour => {
+        // gera sequências (só se 100% green em pelo menos 1 gale)
         const sequences = [];
-        const usedMinutes = new Set();
+        const used = new Set();
 
         for (let i = 0; i < gamesByHour[hour].length; i++) {
-            const minuto = gamesByHour[hour][i].time.split(':')[1];
-            if (minutesConsistency[minuto].greens === minutesConsistency[minuto].total && !usedMinutes.has(minuto)) {
-                const sequence = [minuto];
-                let cur = parseInt(minuto);
+            const min = gamesByHour[hour][i].time.split(':')[1];
+            const totalHits = galeHits[min].reduce((a, b) => a + b, 0);
+            if (totalHits === totals[min] && !used.has(min)) {
+                const seq = [min];
+                let cur = parseInt(min);
                 for (let j = 1; j < range; j++) {
                     cur = (cur + 3) % 60;
-                    sequence.push(String(cur).padStart(2, '0'));
-                    usedMinutes.add(String(cur).padStart(2, '0'));
+                    seq.push(String(cur).padStart(2, '0'));
+                    used.add(String(cur).padStart(2, '0'));
                 }
-                // adiciona % por gale à sequência
-                sequence.galePercents = galeHits[minuto];
-                sequences.push(sequence);
-                usedMinutes.add(minuto);
+                // calcula % por gale
+                const percents = galeHits[min].map(h => totals[min] ? Math.round((h / totals[min]) * 100) : 0);
+                seq.galePercents = percents;
+                sequences.push(seq);
+                used.add(min);
             }
         }
+
         if (sequences.length > 0) {
             if (!results[hour]) results[hour] = {};
             results[hour][league] = sequences;
@@ -684,20 +678,20 @@ function extractGoalsFromScore(scoreString) {
     return [0, 0];
 }
 
-/* === FUNÇÃO DE FORÇA DO SINAL === */
-function getSignalStrength(percent) {
-    if (percent >= 80) return 'Ótimo';
-    if (percent >= 60) return 'Bom';
-    return 'Ruim';
-}
-
+/* === FORÇA DO SINAL === */
 function getSignalEmoji(percent) {
     if (percent >= 80) return 'Ótimo';
     if (percent >= 60) return 'Bom';
     return 'Ruim';
 }
 
-/* === DISPLAY COM INDICADORES === */
+function getSignalStrength(percent) {
+    if (percent >= 80) return 'Ótimo';
+    if (percent >= 60) return 'Bom';
+    return 'Ruim';
+}
+
+/* === DISPLAY CORRIGIDO (ABAIXO, NÃO DO LADO) === */
 function displayProjections(projections) {
     const projectionsDiv = document.getElementById("projections");
     const marketText = document.getElementById("marketSelect").options[document.getElementById("marketSelect").selectedIndex].text;
@@ -739,30 +733,38 @@ function displayProjections(projections) {
             }
 
             projections[hour][league].forEach(sequence => {
-                const projLine = document.createElement("div");
-                projLine.className = "projection-item";
-                const minutesText = sequence.slice(0, range).join(' '); // só os minutos da sequência
+                const mainLine = document.createElement("div");
+                mainLine.className = "projection-item";
+                mainLine.style.marginBottom = "4px";
 
-                // % por gale
+                const minutesText = sequence.slice(0, range).join(' ');
+
+                mainLine.innerHTML = `
+                    <span class="emoji">Troféu</span> ${leagueName}
+                    <span class="minutes-list">Relógio ${minutesText}</span> → ${marketText}
+                `;
+
+                // linha de indicadores (abaixo)
+                const statsLine = document.createElement("div");
+                statsLine.style.marginLeft = "30px";
+                statsLine.style.fontSize = "14px";
+                statsLine.style.color = "#b0b8c1";
+                statsLine.style.marginBottom = "12px";
+
                 const percents = sequence.galePercents || [];
                 const galeTexts = percents.map((p, i) => {
                     const label = i === 0 ? 'sg' : `g${i}`;
                     return `${label} ${p}%`;
                 }).join(' - ');
 
-                // força do sinal (média dos %)
-                const avg = percents.length ? Math.round(percents.reduce((a,b)=>a+b,0)/percents.length) : 0;
+                const avg = percents.length ? Math.round(percents.reduce((a,b) => a + b, 0) / percents.length) : 0;
                 const signal = getSignalEmoji(avg);
                 const strength = getSignalStrength(avg);
 
-                projLine.innerHTML = `
-                    <span class="emoji">Troféu</span> ${leagueName}
-                    <span class="minutes-list">Relógio ${minutesText}</span> → ${marketText}<br>
-                    <small style="color:#b0b8c1; margin-left:30px;">
-                        ${signal} ${avg}% - ${strength} | ${galeTexts}
-                    </small>
-                `;
-                hourBlock.appendChild(projLine);
+                statsLine.innerHTML = `${signal} ${avg}% - ${strength} | ${galeTexts}`;
+
+                hourBlock.appendChild(mainLine);
+                hourBlock.appendChild(statsLine);
             });
         });
 
