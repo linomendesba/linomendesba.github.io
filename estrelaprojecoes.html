@@ -395,17 +395,13 @@
 <div id="header"></div>
 
 <div class="container">
-
+    
+    <!-- Badge da Liga Estrela -->
+    <div style="text-align: center; background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color: #1a1a2e; padding: 15px; border-radius: 10px; margin-bottom: 30px; font-size: 1.5em; font-weight: bold; box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);">
+        ⭐ LIGA ESTRELA ⭐
+    </div>
     
     <div class="controls">
-        <div class="control-group">
-            <label for="leagueSelect">Selecione uma Liga:</label>
-            <select id="leagueSelect">
-                <option value="" selected>Escolha uma liga</option>
-                <option value="estrela">Estrela</option>
-            </select>
-        </div>
-
         <div class="control-group">
             <label for="marketSelect">Selecione o Mercado:</label>
             <select id="marketSelect">
@@ -471,24 +467,25 @@
 </div>
 
     <script>
-let cachedData = {};
+let cachedData = null;
+let allProjectionsData = {};
 
 function showLoading(show) {
     document.getElementById("loading").style.display = show ? "block" : "none";
 }
 
-function fetchApiData(league) {
+function fetchApiData() {
     showLoading(true);
-    const apiUrl = `https://betstat.site/resultados/estrela/${league}`;
+    const apiUrl = "https://betstat.site/resultados/estrela/estrela";
     fetch(apiUrl)
         .then(response => {
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             return response.json();
         })
         .then(data => {
-            cachedData[league] = data;
-            console.log(`Dados recebidos para ${league}:`, data);
-            processApiData(data, league);
+            cachedData = data;
+            console.log("Dados recebidos para Liga Estrela:", data);
+            processApiData(data);
             showLoading(false);
         })
         .catch(error => {
@@ -498,180 +495,242 @@ function fetchApiData(league) {
         });
 }
 
-function fetchAllLeagues() {
-    const leagueSelect = document.getElementById("leagueSelect");
-    const leagues = Array.from(leagueSelect.options)
-        .map(option => option.value)
-        .filter(value => value && value !== "all"); // Pega todos os valores exceto "" e "all"
-    
-    showLoading(true);
-    Promise.all(leagues.map(league => 
-        cachedData[league] ? Promise.resolve(cachedData[league]) : 
-        fetch(`https://betstat.site/resultados/${league}`).then(res => res.json())
-    ))
-    .then(results => {
-        leagues.forEach((league, index) => cachedData[league] = results[index]);
-        console.log("Dados recebidos para todas as ligas:", results);
-        processAllLeagues(leagues);
-        showLoading(false);
-    })
-    .catch(error => {
-        console.error("Erro ao buscar todas as ligas:", error);
-        showLoading(false);
-        alert("Erro ao buscar dados de todas as ligas.");
-    });
-}
-
 function generateList() {
-    const leagueSelect = document.getElementById("leagueSelect").value;
-
-    if (!leagueSelect) {
-        alert("Por favor, selecione uma liga.");
-        return;
-    }
-
-    if (leagueSelect === "all") {
-        fetchAllLeagues();
-    } else if (cachedData[leagueSelect]) {
-        processApiData(cachedData[leagueSelect], leagueSelect);
+    if (cachedData) {
+        processApiData(cachedData);
     } else {
-        fetchApiData(leagueSelect);
+        fetchApiData();
     }
 }
 
-function processApiData(data, league) {
+function processApiData(data) {
     const market = document.getElementById("marketSelect").value;
     const range = parseInt(document.getElementById("rangeSelect").value, 10);
     const selectedHour = document.getElementById("hourSelect").value;
     const gameLimit = document.getElementById("gameLimitSelect").value;
     const limitedData = gameLimit === "todos" ? data : data.slice(-parseInt(gameLimit, 10));
-    const projections = analyzeProjections(limitedData, market, range, league, selectedHour);
+    const projections = analyzeProjections(limitedData, market, range, selectedHour);
     displayProjections(projections);
 }
 
-function processAllLeagues(leagues) {
-    const market = document.getElementById("marketSelect").value;
-    const range = parseInt(document.getElementById("rangeSelect").value, 10);
-    const selectedHour = document.getElementById("hourSelect").value;
-    const gameLimit = document.getElementById("gameLimitSelect").value;
-    let allProjections = {};
+/* === CÁLCULO DE ESTATÍSTICAS AVANÇADAS === */
+function calculateAdvancedStats(games, market, sequence) {
+    const stats = {
+        totalGames: games.length,
+        greens: 0,
+        reds: 0,
+        avgGoals: 0,
+        lastOccurrence: null,
+        consistency: 0,
+        trend: 'stable',
+        recentPerformance: []
+    };
 
-    leagues.forEach(league => {
-        const limitedData = gameLimit === "todos" ? cachedData[league] : cachedData[league].slice(-parseInt(gameLimit, 10));
-        const projections = analyzeProjections(limitedData, market, range, league, selectedHour);
-        Object.keys(projections).forEach(hour => {
-            if (!allProjections[hour]) allProjections[hour] = {};
-            allProjections[hour][league] = projections[hour][league];
-        });
+    let totalGoals = 0;
+    let results = [];
+    
+    games.forEach((game, index) => {
+        const [g1, g2] = extractGoalsFromScore(game.ft);
+        totalGoals += (g1 + g2);
+        
+        const isGreen = checkMarketGreen(g1, g2, market, game.ht);
+        results.push(isGreen ? 1 : 0);
+        
+        if (isGreen) {
+            stats.greens++;
+            if (!stats.lastOccurrence) {
+                stats.lastOccurrence = index;
+            }
+        } else {
+            stats.reds++;
+        }
     });
-    displayProjections(allProjections);
+
+    stats.avgGoals = games.length > 0 ? (totalGoals / games.length).toFixed(1) : 0;
+    stats.hitRate = games.length > 0 ? Math.round((stats.greens / games.length) * 100) : 0;
+    
+    // Últimos 5 jogos para tendência
+    const recent5 = results.slice(-5);
+    stats.recentPerformance = recent5;
+    const recentHitRate = recent5.length > 0 ? (recent5.filter(r => r === 1).length / recent5.length) * 100 : 0;
+    
+    // Calcular tendência
+    if (recentHitRate > stats.hitRate + 10) {
+        stats.trend = 'up';
+    } else if (recentHitRate < stats.hitRate - 10) {
+        stats.trend = 'down';
+    }
+    
+    // Calcular consistência (desvio padrão)
+    if (results.length > 1) {
+        const mean = results.reduce((a, b) => a + b, 0) / results.length;
+        const variance = results.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / results.length;
+        stats.consistency = Math.round((1 - Math.sqrt(variance)) * 100);
+    }
+    
+    return stats;
 }
 
-function analyzeProjections(data, market, range, league, selectedHour) {
+function checkMarketGreen(g1, g2, market, placarht) {
+    return (
+        (market === "over2.5" && (g1 + g2) > 2) ||
+        (market === "over1.5" && (g1 + g2) > 1) ||
+        (market === "over3.5" && (g1 + g2) > 3) ||
+        (market === "ambas" && g1 > 0 && g2 > 0) ||
+        (market === "ambasnao" && (g1 === 0 || g2 === 0)) ||
+        (market === "under15" && (g1 + g2) < 2) ||
+        (market === "under25" && (g1 + g2) < 3) ||
+        (market === "zerog" && (g1 + g2) === 0) ||
+        (market === "umg" && (g1 + g2) === 1) ||
+        (market === "doisg" && (g1 + g2) === 2) ||
+        (market === "tresg" && (g1 + g2) === 3) ||
+        (market === "quatrog" && (g1 + g2) === 4) ||
+        (market === "cincog" && (g1 + g2) >= 5) ||
+        (market === "casa" && g1 > g2) ||
+        (market === "fora" && g1 < g2) ||
+        (market === "empate" && g1 === g2) ||
+        (market === "OUT" && placarht === "OUT")
+    );
+}
+
+/* === CÁLCULO DA FORÇA DO SINAL MELHORADO === */
+function calculateSignalStrength(galePercents, market, advancedStats) {
+    // Força base: média ponderada dos gales
+    const weights = [0.4, 0.3, 0.2]; // SG=40%, G1=30%, G2=20%
+    let weightedSum = 0;
+    let totalWeight = 0;
+    
+    for (let i = 0; i < galePercents.length && i < weights.length; i++) {
+        weightedSum += galePercents[i] * weights[i];
+        totalWeight += weights[i];
+    }
+    
+    let forcaBase = totalWeight > 0 ? weightedSum / totalWeight : 0;
+    
+    // Ajustes baseados em estatísticas avançadas
+    // +10% se consistência alta (>80%)
+    if (advancedStats.consistency > 80) {
+        forcaBase *= 1.10;
+    }
+    
+    // +5% se tendência positiva
+    if (advancedStats.trend === 'up') {
+        forcaBase *= 1.05;
+    }
+    
+    // -5% se tendência negativa
+    if (advancedStats.trend === 'down') {
+        forcaBase *= 0.95;
+    }
+    
+    // +5% se média de gols alta (>2.5 para overs)
+    if ((market.includes('over') || market === 'ambas') && advancedStats.avgGoals > 2.5) {
+        forcaBase *= 1.05;
+    }
+    
+    return Math.min(Math.round(forcaBase), 100); // Cap em 100%
+}
+
+/* === CÁLCULO DE PROBABILIDADE POR GALE === */
+function calculateGaleProbabilities(galePercents) {
+    return {
+        sg: galePercents[0] || 0,
+        g1: galePercents[1] || 0,
+        g2: galePercents[2] || 0
+    };
+}
+
+/* === ANÁLISE PRINCIPAL === */
+function analyzeProjections(data, market, range, selectedHour) {
     const gamesByHour = {};
+    const gamesByMinute = {}; // Para estatísticas avançadas
+    
     data.forEach(game => {
         const hora = String(game.hora).padStart(2, '0');
         const minuto = String(game.minuto).padStart(2, '0');
         const horario = `${hora}:${minuto}`;
         if (selectedHour && hora !== selectedHour) return;
         if (!gamesByHour[hora]) gamesByHour[hora] = [];
+        if (!gamesByMinute[minuto]) gamesByMinute[minuto] = [];
+        
         gamesByHour[hora].push({ time: horario, ft: game.ft, ht: game.ht });
+        gamesByMinute[minuto].push({ ft: game.ft, ht: game.ht });
     });
 
-    const minutesConsistency = {};
     const results = {};
+    const galeHits = {};
+    const totals = {};
 
     Object.keys(gamesByHour).forEach(hour => {
         gamesByHour[hour].sort((a, b) => a.time.localeCompare(b.time));
+
+        gamesByHour[hour].forEach(g => {
+            const min = g.time.split(':')[1];
+            if (!galeHits[min]) galeHits[min] = Array(range).fill(0);
+            if (!totals[min]) totals[min] = 0;
+        });
+
         gamesByHour[hour].forEach((game, index) => {
             const minuto = game.time.split(':')[1];
+            totals[minuto]++;
+
             let greenFound = false;
             for (let i = 0; i < range && (index + i) < gamesByHour[hour].length; i++) {
-                const checkGame = gamesByHour[hour][index + i];
-                const [golsEquipe1, golsEquipe2] = extractGoalsFromScore(checkGame.ft);
-                const placarht = checkGame.ht || "";
+                const check = gamesByHour[hour][index + i];
+                const [g1, g2] = extractGoalsFromScore(check.ft);
+                const placarht = check.ht || "";
 
-                if (market === "over2.5" && (golsEquipe1 + golsEquipe2) > 2) {
+                const isGreen = checkMarketGreen(g1, g2, market, placarht);
+
+                if (isGreen && !greenFound) {
+                    galeHits[minuto][i]++;
                     greenFound = true;
-                    break;
-                } else if (market === "over1.5" && (golsEquipe1 + golsEquipe2) > 1) {
-                    greenFound = true;
-                    break;
-                } else if (market === "over3.5" && (golsEquipe1 + golsEquipe2) > 3) {
-                    greenFound = true;
-                    break;
-                } else if (market === "ambas" && golsEquipe1 > 0 && golsEquipe2 > 0) {
-                    greenFound = true;
-                    break;
-                } else if (market === "ambasnao" && (golsEquipe1 === 0 || golsEquipe2 === 0)) {
-                    greenFound = true;
-                    break;
-                } else if (market === "under15" && (golsEquipe1 + golsEquipe2) < 2) {
-                    greenFound = true;
-                    break;
-                } else if (market === "under25" && (golsEquipe1 + golsEquipe2) < 3) {
-                    greenFound = true;
-                    break;
-                } else if (market === "zerog" && (golsEquipe1 + golsEquipe2) === 0) {
-                    greenFound = true;
-                    break;
-                } else if (market === "umg" && (golsEquipe1 + golsEquipe2) === 1) {
-                    greenFound = true;
-                    break;
-                } else if (market === "doisg" && (golsEquipe1 + golsEquipe2) === 2) {
-                    greenFound = true;
-                    break;
-                } else if (market === "tresg" && (golsEquipe1 + golsEquipe2) === 3) {
-                    greenFound = true;
-                    break;
-                } else if (market === "quatrog" && (golsEquipe1 + golsEquipe2) === 4) {
-                    greenFound = true;
-                    break;
-                } else if (market === "cincog" && (golsEquipe1 + golsEquipe2) >= 5) {
-                    greenFound = true;
-                    break;
-                } else if (market === "casa" && (golsEquipe1 > golsEquipe2)) {
-                    greenFound = true;
-                    break;
-                } else if (market === "fora" && (golsEquipe1 < golsEquipe2)) {
-                    greenFound = true;
-                    break;
-                } else if (market === "empate" && (golsEquipe1 === golsEquipe2)) {
-                    greenFound = true;
-                    break;
-                } else if (market === "OUT" && placarht === "OUT") {
-                    greenFound = true;
-                    break;
                 }
             }
-            if (!minutesConsistency[minuto]) minutesConsistency[minuto] = { total: 0, greens: 0 };
-            minutesConsistency[minuto].total++;
-            if (greenFound) minutesConsistency[minuto].greens++;
         });
 
         const sequences = [];
-        const usedMinutes = new Set();
+        const used = new Set();
+
         for (let i = 0; i < gamesByHour[hour].length; i++) {
-            const minuto = gamesByHour[hour][i].time.split(':')[1];
-            if (minutesConsistency[minuto].greens === minutesConsistency[minuto].total && !usedMinutes.has(minuto)) {
-                const sequence = [minuto];
-                let currentMinute = parseInt(minuto);
+            const min = gamesByHour[hour][i].time.split(':')[1];
+            const totalHits = galeHits[min].reduce((a, b) => a + b, 0);
+            if (totalHits === totals[min] && !used.has(min)) {
+                const seq = [min];
+                let cur = parseInt(min);
                 for (let j = 1; j < range; j++) {
-                    currentMinute = (currentMinute + 3) % 60;
-                    sequence.push(String(currentMinute).padStart(2, '0'));
-                    usedMinutes.add(String(currentMinute).padStart(2, '0'));
+                    cur = (cur + 3) % 60;
+                    seq.push(String(cur).padStart(2, '0'));
+                    used.add(String(cur).padStart(2, '0'));
                 }
-                sequences.push(sequence);
-                usedMinutes.add(minuto);
+                
+                const percents = galeHits[min].map(h => totals[min] ? Math.round((h / totals[min]) * 100) : 0);
+                seq.galePercents = percents;
+                
+                // Estatísticas avançadas
+                const advancedStats = calculateAdvancedStats(gamesByMinute[min] || [], market, seq);
+                seq.advancedStats = advancedStats;
+                
+                const forcaSinal = calculateSignalStrength(percents, market, advancedStats);
+                seq.forcaSinal = forcaSinal;
+                
+                const galeProbabilities = calculateGaleProbabilities(percents);
+                seq.galeProbabilities = galeProbabilities;
+                
+                // Últimos jogos para exibição
+                seq.lastGames = (gamesByMinute[min] || []).slice(-5);
+                
+                sequences.push(seq);
+                used.add(min);
             }
         }
+
         if (sequences.length > 0) {
             if (!results[hour]) results[hour] = {};
-            results[hour][league] = sequences;
+            results[hour]["Liga Estrela"] = sequences;
         }
     });
 
-    console.log("Projeções filtradas:", results);
     return results;
 }
 
@@ -686,6 +745,104 @@ function extractGoalsFromScore(scoreString) {
     return [0, 0];
 }
 
+/* === EMOJIS E CLASSIFICAÇÃO === */
+function getSignalEmoji(percent) {
+    if (percent >= 85) return '🟢';
+    if (percent >= 40) return '🟡';
+    return '🟠';
+}
+
+function getSignalStrength(percent) {
+    if (percent >= 85) return 'Excelente';
+    if (percent >= 40) return 'Bom';
+    return 'Regular';
+}
+
+function getSignalColor(percent) {
+    if (percent >= 85) return '#00ff00';
+    if (percent >= 40) return '#ffff00';
+    return '#ff9500';
+}
+
+function getTrendEmoji(trend) {
+    if (trend === 'up') return '📈';
+    if (trend === 'down') return '📉';
+    return '';
+}
+
+/* === BARRA DE PROGRESSO VISUAL === */
+function createProgressBar(percent) {
+    const filled = Math.round(percent / 10);
+    const empty = 10 - filled;
+    return `[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${percent}%`;
+}
+
+/* === EXPORTAR RESULTADOS === */
+function exportResults(projections) {
+    let text = "=== PROJEÇÕES DE SINAIS - LIGA ESTRELA ===\n\n";
+    
+    Object.keys(projections).sort((a, b) => a - b).forEach(hour => {
+        text += `\n🕐 HORA: ${String(hour).padStart(2, '0')}\n`;
+        text += "=".repeat(50) + "\n";
+        
+        Object.keys(projections[hour]).forEach(league => {
+            projections[hour][league].forEach(seq => {
+                const minutes = seq.slice(0, 3).join(' ');
+                const force = seq.forcaSinal;
+                const emoji = getSignalEmoji(force);
+                const strength = getSignalStrength(force);
+                const probs = seq.galeProbabilities;
+                
+                text += `\n${emoji} ${league}\n`;
+                text += `   Minutos: ${minutes}\n`;
+                text += `   Força: ${force}% (${strength})\n`;
+                text += `   SG: ${probs.sg}% | G1: ${probs.g1}% | G2: ${probs.g2}%\n`;
+            });
+        });
+    });
+    
+    return text;
+}
+
+/* === FILTRAR PROJEÇÕES POR FORÇA === */
+function filterByStrength(projections, minStrength) {
+    const filtered = {};
+    
+    Object.keys(projections).forEach(hour => {
+        Object.keys(projections[hour]).forEach(league => {
+            const sequences = projections[hour][league].filter(seq => seq.forcaSinal >= minStrength);
+            
+            if (sequences.length > 0) {
+                if (!filtered[hour]) filtered[hour] = {};
+                filtered[hour][league] = sequences;
+            }
+        });
+    });
+    
+    return filtered;
+}
+
+/* === ENCONTRAR MELHORES SINAIS === */
+function findTopSignals(projections, topN = 3) {
+    const allSignals = [];
+    
+    Object.keys(projections).forEach(hour => {
+        Object.keys(projections[hour]).forEach(league => {
+            projections[hour][league].forEach(seq => {
+                allSignals.push({
+                    hour,
+                    league,
+                    sequence: seq,
+                    force: seq.forcaSinal
+                });
+            });
+        });
+    });
+    
+    return allSignals.sort((a, b) => b.force - a.force).slice(0, topN);
+}
+
+/* === DISPLAY FINAL MELHORADO === */
 function displayProjections(projections) {
     const projectionsDiv = document.getElementById("projections");
     const marketText = document.getElementById("marketSelect").options[document.getElementById("marketSelect").selectedIndex].text;
@@ -700,10 +857,57 @@ function displayProjections(projections) {
         return;
     }
 
-    const header = document.createElement("h2");
-    header.textContent = `PROJEÇÕES PARA ${range} GALES\nMercado: ${marketText}`;
+    // Armazena projeções globalmente
+    allProjectionsData = projections;
+
+    // Header com controles
+    const header = document.createElement("div");
+    header.style.marginBottom = "20px";
+    header.innerHTML = `
+        <h2>PROJEÇÕES PARA ${range} GALES - Mercado: ${marketText}</h2>
+        <h3 style="color: #00d9ff; margin-top: 10px;">⭐ LIGA ESTRELA</h3>
+        <div style="display: flex; gap: 15px; margin: 15px 0; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 5px;">
+                <input type="checkbox" id="filterGoodSignals" onchange="applyFilters()">
+                Mostrar apenas sinais Bons/Ótimos
+            </label>
+        </div>
+    `;
     projectionsDiv.appendChild(header);
 
+    // Top 3 melhores sinais
+    const topSignals = findTopSignals(projections, 3);
+    if (topSignals.length > 0) {
+        const topSection = document.createElement("div");
+        topSection.style.cssText = "background: linear-gradient(135deg, #1c1f26 0%, #005540 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);";
+        topSection.innerHTML = `<h3 style="margin: 0 0 15px 0; color: white;">⭐ TOP 3 MELHORES SINAIS</h3>`;
+
+        topSignals.forEach((signal, index) => {
+            const minutes = signal.sequence.slice(0, range).join(' ');
+            const emoji = getSignalEmoji(signal.force);
+            
+            topSection.innerHTML += `
+                <div style="background: rgba(0, 217, 255, 0.1); padding: 10px; margin: 8px 0; border-radius: 8px; border-left: 3px solid #00d9ff; color: #e0e0e0;">
+                    <strong style="color: #00d9ff;">#${index + 1}</strong> ${emoji} ${signal.league} - Hora ${String(signal.hour).padStart(2, '0')} - Minutos: ${minutes}
+                    <br><span style="font-size: 14px;">Força: ${signal.force}% | ${getSignalStrength(signal.force)}</span>
+                </div>
+            `;
+        });
+        
+        projectionsDiv.appendChild(topSection);
+    }
+
+    // Container para projeções
+    const projectionsContainer = document.createElement("div");
+    projectionsContainer.id = "projectionsContainer";
+    projectionsDiv.appendChild(projectionsContainer);
+
+    renderProjections(projections, projectionsContainer, range, marketText);
+}
+
+function renderProjections(projections, container, range, marketText) {
+    container.innerHTML = "";
+    
     Object.keys(projections).sort((a, b) => a - b).forEach(hour => {
         const hourBlock = document.createElement("div");
         hourBlock.className = "hour-block";
@@ -713,39 +917,122 @@ function displayProjections(projections) {
         hourBlock.appendChild(hourTitle);
 
         Object.keys(projections[hour]).forEach(league => {
-            let leagueName = decodeURIComponent(league); // Decodifica o nome da liga para exibição
-            switch (league) {
-                case "Copa%20Am%C3%A9rica": leagueName = "Copa América"; break;
-                case "Ta%C3%A7a%20Gl%C3%B3ria%20eterna": leagueName = "Taça Glória Eterna"; break;
-                case "Euro": leagueName = "Euro"; break;
-                case "Campeonato%20Italiano": leagueName = "Campeonato Italiano"; break;
-                case "Copa%20das%20estrelas": leagueName = "Copa das Estrelas"; break;
-                case "British%20Derbies": leagueName = "British Derbies"; break;
-                case "Liga%20Espanhola": leagueName = "Liga Espanhola"; break;
-                case "Scudetto%20Italiano": leagueName = "Scudetto Italiano"; break;
-                default: leagueName = decodeURIComponent(league).toUpperCase();
-            }
-
             projections[hour][league].forEach(sequence => {
-                const projLine = document.createElement("div");
-                projLine.className = "projection-item";
-                const minutesText = sequence.join(' ');
+                const mainLine = document.createElement("div");
+                mainLine.className = "projection-item";
+                mainLine.style.cssText = "margin-bottom: 4px; cursor: pointer; transition: all 0.3s;";
+                mainLine.onclick = () => toggleDetails(mainLine);
 
-                projLine.innerHTML = `
-                    <span class="emoji">🏆</span> ${leagueName} <span class="emoji"> </span>
-                    <span class="minutes-list">🕒 ${minutesText} </span>
-                    <span class="emoji"> </span>  ➡️ ${marketText}
+                const minutesText = sequence.slice(0, range).join(' ');
+                const forcaSinal = sequence.forcaSinal || 0;
+                const emoji = getSignalEmoji(forcaSinal);
+                const isBest = forcaSinal >= 90;
+                
+                mainLine.innerHTML = `
+                    <span class="emoji">🏆</span> ${league} ${isBest ? '⭐' : ''}
+                    <span class="minutes-list">⏰ ${minutesText}</span> → ${marketText}
                 `;
-                hourBlock.appendChild(projLine);
+
+                // Linha de força do sinal
+                const statsLine = document.createElement("div");
+                statsLine.style.cssText = "margin-left: 30px; font-size: 14px; color: #b0b8c1; margin-bottom: 5px;";
+
+                const galeProbabilities = sequence.galeProbabilities || {};
+                const advStats = sequence.advancedStats || {};
+                
+                let galeTexts = '';
+                if (range >= 1 && galeProbabilities.sg !== undefined) {
+                    galeTexts += `SG: ${galeProbabilities.sg}%`;
+                }
+                if (range >= 2 && galeProbabilities.g1 !== undefined) {
+                    galeTexts += ` | G1: ${galeProbabilities.g1}%`;
+                }
+                if (range >= 3 && galeProbabilities.g2 !== undefined) {
+                    galeTexts += ` | G2: ${galeProbabilities.g2}%`;
+                }
+
+                const strength = getSignalStrength(forcaSinal);
+                const color = getSignalColor(forcaSinal);
+                const progressBar = createProgressBar(forcaSinal);
+                const trendEmoji = getTrendEmoji(advStats.trend);
+
+                statsLine.innerHTML = `
+                    ${emoji} <span style="color: ${color}; font-weight: bold;">${progressBar}</span> - ${strength} ${trendEmoji}
+                    <br><span style="font-size: 12px;">${galeTexts}</span>
+                `;
+
+                // Detalhes expandíveis (ocultos inicialmente)
+                const detailsLine = document.createElement("div");
+                detailsLine.className = "details-section";
+                detailsLine.style.cssText = "display: none; margin-left: 30px; margin-top: 8px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; font-size: 13px;";
+                
+                detailsLine.innerHTML = `
+                    <div style="margin-bottom: 5px;"><strong>📊 Estatísticas Avançadas:</strong></div>
+                    <div>• Taxa de acerto: ${advStats.hitRate || 0}% (${advStats.greens || 0}✅ / ${advStats.reds || 0}❌)</div>
+                    <div>• Média de gols: ${advStats.avgGoals || 0} gols/jogo</div>
+                    <div>• Consistência: ${advStats.consistency || 0}%</div>
+                    <div>• Tendência: ${trendEmoji} ${advStats.trend === 'up' ? 'Melhorando' : advStats.trend === 'down' ? 'Piorando' : 'Estável'}</div>
+                    ${sequence.lastGames && sequence.lastGames.length > 0 ? `
+                    <div style="margin-top: 8px;"><strong>📜 Últimos 5 jogos:</strong></div>
+                    <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px;">
+                        ${sequence.lastGames.map(g => {
+                            const [g1, g2] = extractGoalsFromScore(g.ft);
+                            const market = document.getElementById("marketSelect").value;
+                            const isGreen = checkMarketGreen(g1, g2, market, g.ht);
+                            return `<span style="padding: 3px 8px; background: ${isGreen ? '#2d5016' : '#5c1a1a'}; border-radius: 3px;">${g.ft} ${isGreen ? '✅' : '❌'}</span>`;
+                        }).join('')}
+                    </div>
+                    ` : ''}
+                `;
+
+                hourBlock.appendChild(mainLine);
+                hourBlock.appendChild(statsLine);
+                hourBlock.appendChild(detailsLine);
             });
         });
 
-        projectionsDiv.appendChild(hourBlock);
+        container.appendChild(hourBlock);
 
         const separator = document.createElement("p");
         separator.className = "separator";
         separator.textContent = "•";
-        projectionsDiv.appendChild(separator);
+        container.appendChild(separator);
+    });
+}
+
+function toggleDetails(element) {
+    const detailsSection = element.nextElementSibling.nextElementSibling;
+    if (detailsSection && detailsSection.className === 'details-section') {
+        detailsSection.style.display = detailsSection.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function applyFilters() {
+    const filterGood = document.getElementById("filterGoodSignals")?.checked || false;
+    
+    let filtered = allProjectionsData;
+    
+    // Filtrar apenas bons/ótimos
+    if (filterGood) {
+        filtered = filterByStrength(filtered, 45);
+    }
+    
+    const container = document.getElementById("projectionsContainer");
+    const marketText = document.getElementById("marketSelect").options[document.getElementById("marketSelect").selectedIndex].text;
+    const range = document.getElementById("rangeSelect").value;
+    
+    if (container) {
+        renderProjections(filtered, container, range, marketText);
+    }
+}
+
+function copyResults() {
+    const text = exportResults(allProjectionsData);
+    navigator.clipboard.writeText(text).then(() => {
+        alert("✅ Resultados copiados para a área de transferência!");
+    }).catch(err => {
+        console.error("Erro ao copiar:", err);
+        alert("❌ Erro ao copiar resultados.");
     });
 }
     </script>
