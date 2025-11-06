@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisador de Mercados - BetStat</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1c1f26;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #1fac89;
+            font-size: 28px;
+        }
+
+        .controls {
+            background: #2a2d35;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-bottom: 8px;
+            color: #1fac89;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        select, button {
+            padding: 12px;
+            border-radius: 6px;
+            border: 2px solid #1fac89;
+            background: #1c1f26;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        select:hover, select:focus {
+            background: #2a2d35;
+            outline: none;
+        }
+
+        button {
+            background: #1fac89;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background: #17865f;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #1fac89;
+        }
+
+        .error {
+            background: #ef4444;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .summary {
+            background: #2a2d35;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 0 auto 20px;
+            border: 2px solid #1fac89;
+            max-width: 1200px;
+        }
+
+        .summary-title {
+            font-size: 20px;
+            color: #1fac89;
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .best-minutes {
+            background: #1c1f26;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .best-minutes-title {
+            font-size: 16px;
+            color: #1fac89;
+            margin-bottom: 10px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .minutes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 10px;
+        }
+
+        .minute-box {
+            background: #2a2d35;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            border: 2px solid #1fac89;
+            transition: all 0.3s;
+        }
+
+        .minute-box.top-1 {
+            border: 3px solid #FFD700;
+            background: linear-gradient(135deg, #2a2d35 0%, #3d3416 100%);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        .minute-box.top-2 {
+            border: 3px solid #C0C0C0;
+            background: linear-gradient(135deg, #2a2d35 0%, #3a3a3a 100%);
+            transform: scale(1.03);
+            box-shadow: 0 0 15px rgba(192, 192, 192, 0.5);
+        }
+
+        .minute-box.top-3 {
+            border: 3px solid #CD7F32;
+            background: linear-gradient(135deg, #2a2d35 0%, #3d2d1f 100%);
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(205, 127, 50, 0.5);
+        }
+
+        .minute-label {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1fac89;
+        }
+
+        .minute-box.top-1 .minute-label {
+            color: #FFD700;
+        }
+
+        .minute-box.top-2 .minute-label {
+            color: #C0C0C0;
+        }
+
+        .minute-box.top-3 .minute-label {
+            color: #CD7F32;
+        }
+
+        .minute-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #4ade80;
+            margin-top: 4px;
+        }
+
+        .minute-perc {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
+        .stat-box {
+            background: #1c1f26;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .stat-percentage {
+            font-size: 16px;
+            margin-top: 5px;
+            opacity: 0.9;
+        }
+
+        .market-primary {
+            color: #4ade80;
+        }
+
+        .market-opposite {
+            color: #ef4444;
+        }
+
+        /* Gráfico Macro */
+        .macro-chart-section {
+            background: #2a2d35;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 0 auto 30px;
+            border: 2px solid #1fac89;
+            max-width: 1600px;
+        }
+
+        .macro-chart-title {
+            font-size: 20px;
+            color: #1fac89;
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .macro-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .macro-controls select {
+            min-width: 200px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            background: #1c1f26;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .hours-container {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding: 10px 0;
+            direction: ltr;
+        }
+
+        .hour-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            min-width: 240px;
+            max-width: 240px;
+            background: #0f1419;
+            border-radius: 10px;
+            border: 2px solid #1fac89;
+            padding: 0;
+            height: 520px;
+        }
+
+        .hour-header {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+            color: #1fac89;
+            padding: 12px;
+            background: #1a1f28;
+            border-radius: 8px 8px 0 0;
+            border-bottom: 2px solid #1fac89;
+        }
+
+        .columns-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 10px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .market-column {
+            background: #1a1f28;
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .market-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 8px;
+            padding: 6px;
+            border-radius: 4px;
+        }
+
+        .market-title.primary {
+            background: #4ade80;
+            color: #1c1f26;
+        }
+
+        .market-title.opposite {
+            background: #ef4444;
+            color: white;
+        }
+
+        .squares-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .square {
+            aspect-ratio: 1.5 / 1;
+            min-height: 45px;
+            max-height: 55px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px;
+            text-align: center;
+        }
+
+        .square.green {
+            background-color: #4ade80;
+            color: #1c1f26;
+        }
+
+        .square.red {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .square:hover {
+            transform: scale(1.05);
+            z-index: 10;
+            box-shadow: 0 0 10px rgba(31, 172, 137, 0.5);
+        }
+
+        .market-stats {
+            text-align: center;
+            font-size: 11px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #2a2d35;
+        }
+
+        .market-count {
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .market-perc {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 2px;
+        }
+
+        ::-webkit-scrollbar {
+            height: 10px;
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2a2d35;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1fac89;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #17865f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Analisador de Mercados - BetStat</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="liga">Liga:</label>
+                <select id="liga">
+                    <option value="Ta%C3%A7a%20Gl%C3%B3ria%20Eterna">Taça Glória Eterna</option>
+                    <option value="Copa%20Am%C3%A9rica">Copa América</option>
+                    <option value="Euro">Euro</option>
+                    <option value="Campeonato%20Italiano">Campeonato Italiano</option>
+                    <option value="Copa%20das%20Estrelas">Copa das Estrelas</option>
+                    <option value="Brasileir%C3%A3o%20Betano">Brasileirão Betano</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="horas">Quantidade de Horas:</label>
+                <select id="horas">
+                    <option value="3">3 Horas</option>
+                    <option value="6" selected>6 Horas</option>
+                    <option value="12">12 Horas</option>
+                    <option value="24">24 Horas</option>
+                    <option value="48">48 Horas</option>
+                    <option value="72">72 Horas</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="mercado">Mercado:</label>
+                <select id="mercado">
+                    <option value="ambasMarcam">Ambas Marcam</option>
+                    <option value="ambasNaoMarcam">Ambas Não Marcam</option>
+                    <option value="casaVence">Casa Vence</option>
+                    <option value="foraVence">Fora Vence</option>
+                    <option value="empate">Empate</option>
+                    <option value="over1.5">Over 1.5</option>
+                    <option value="under1.5">Under 1.5</option>
+                    <option value="over2.5" selected>Over 2.5</option>
+                    <option value="under2.5">Under 2.5</option>
+                    <option value="over3.5">Over 3.5</option>
+                    <option value="under3.5">Under 3.5</option>
+                    <option value="over5">Over 5+</option>
+                    <option value="exato0">0 Gol Exato</option>
+                    <option value="exato1">1 Gol Exato</option>
+                    <option value="exato2">2 Gols Exatos</option>
+                    <option value="exato3">3 Gols Exatos</option>
+                    <option value="exato4">4 Gols Exatos</option>
+                </select>
+            </div>
+
+            <div class="control-group" style="align-self: end;">
+                <button id="analisar" onclick="analisar()">Analisar</button>
+            </div>
+        </div>
+
+        <div id="error"></div>
+        <div id="loading"></div>
+        <div id="summary"></div>
+
+        <!-- Gráfico Macro -->
+        <div id="macroChartSection" class="macro-chart-section" style="display: none;">
+            <div class="macro-chart-title">Análise Macro - Tendências de Mercado</div>
+            <div class="macro-controls">
+                <div class="control-group">
+                    <label for="macroMercado">Mercado Macro:</label>
+                    <select id="macroMercado">
+                        <option value="ambasMarcam">Ambas Marcam</option>
+                        <option value="ambasNaoMarcam">Ambas Não Marcam</option>
+                        <option value="over25" selected>Over 2.5</option>
+                        <option value="over35">Over 3.5</option>
+                        <option value="under15">Under 1.5</option>
+                        <option value="mais5">5+</option>
+                        <option value="casavence">Casa Vence</option>
+                        <option value="foravence">Fora Vence</option>
+                    </select>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="macroChart"></canvas>
+            </div>
+        </div>
+
+        <div id="results" class="hours-container"></div>
+    </div>
+
+    <script>
+        let macroChart = null;
+
+        function getMercadoOposto(mercado) {
+            const opostos = {
+                'ambasMarcam': 'ambasNaoMarcam',
+                'ambasNaoMarcam': 'ambasMarcam',
+                'casaVence': 'foraVence',
+                'foraVence': 'casaVence',
+                'empate': 'naoEmpate',
+                'over1.5': 'under1.5',
+                'under1.5': 'over1.5',
+                'over2.5': 'under2.5',
+                'under2.5': 'over2.5',
+                'over3.5': 'under3.5',
+                'under3.5': 'over3.5',
+                'over5': 'under5',
+                'exato0': 'naoExato0',
+                'exato1': 'naoExato1',
+                'exato2': 'naoExato2',
+                'exato3': 'naoExato3',
+                'exato4': 'naoExato4'
+            };
+            return opostos[mercado] || 'oposto';
+        }
+
+        function getMercadoNome(mercado) {
+            const nomes = {
+                'ambasMarcam': 'Ambas Marcam',
+                'ambasNaoMarcam': 'Ambas Não Marcam',
+                'casaVence': 'Casa Vence',
+                'foraVence': 'Fora Vence',
+                'empate': 'Empate',
+                'naoEmpate': 'Não Empate',
+                'over1.5': 'Over 1.5',
+                'under1.5': 'Under 1.5',
+                'over2.5': 'Over 2.5',
+                'under2.5': 'Under 2.5',
+                'over3.5': 'Over 3.5',
+                'under3.5': 'Under 3.5',
+                'over5': 'Over 5+',
+                'under5': 'Under 5',
+                'exato0': '0 Gol Exato',
+                'exato1': '1 Gol Exato',
+                'exato2': '2 Gols Exatos',
+                'exato3': '3 Gols Exatos',
+                'exato4': '4 Gols Exatos',
+                'naoExato0': 'Não 0 Gol',
+                'naoExato1': 'Não 1 Gol',
+                'naoExato2': 'Não 2 Gols',
+                'naoExato3': 'Não 3 Gols',
+                'naoExato4': 'Não 4 Gols',
+                'mais5': '5+',
+                'casavence': 'Casa Vence',
+                'foravence': 'Fora Vence',
+                'under5': 'Under 5'
+            };
+            return nomes[mercado] || mercado;
+        }
+
+        function verificarMercado(jogo, mercado) {
+            const ft = jogo.ft.split(' x ').map(Number);
+            const golsCasa = ft[0];
+            const golsFora = ft[1];
+            const totalGols = golsCasa + golsFora;
+
+            switch(mercado) {
+                case 'ambasMarcam': return golsCasa > 0 && golsFora > 0;
+                case 'ambasNaoMarcam': return golsCasa === 0 || golsFora === 0;
+                case 'casaVence': return golsCasa > golsFora;
+                case 'foraVence': return golsFora > golsCasa;
+                case 'empate': return golsCasa === golsFora;
+                case 'naoEmpate': return golsCasa !== golsFora;
+                case 'over1.5': return totalGols > 1.5;
+                case 'under1.5': return totalGols < 1.5;
+                case 'over2.5': return totalGols > 2.5;
+                case 'under2.5': return totalGols < 2.5;
+                case 'over3.5': return totalGols > 3.5;
+                case 'under3.5': return totalGols < 3.5;
+                case 'over5': return totalGols >= 5;
+                case 'under5': return totalGols < 5;
+                case 'mais5': return totalGols >= 5;
+                case 'over25': return totalGols > 2.5;
+                case 'over35': return totalGols > 3.5;
+                case 'under15': return totalGols < 1.5;
+                case 'casavence': return golsCasa > golsFora;
+                case 'foravence': return golsFora > golsCasa;
+                case 'exato0': return totalGols === 0;
+                case 'exato1': return totalGols === 1;
+                case 'exato2': return totalGols === 2;
+                case 'exato3': return totalGols === 3;
+                case 'exato4': return totalGols === 4;
+                case 'naoExato0': return totalGols !== 0;
+                case 'naoExato1': return totalGols !== 1;
+                case 'naoExato2': return totalGols !== 2;
+                case 'naoExato3': return totalGols !== 3;
+                case 'naoExato4': return totalGols !== 4;
+                default: return false;
+            }
+        }
+
+        function getDateStr(data) {
+            if (data.includes("T")) {
+                return new Date(data).toISOString().split("T")[0];
+            } else {
+                const [day, month, year] = data.split("/");
+                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+        }
+
+        function createMacroChart(jogosPorHora, mercadoMacro) {
+            const ctx = document.getElementById('macroChart');
+            if (!ctx) return;
+
+            const horasOrdenadas = Object.values(jogosPorHora)
+                .sort((a, b) => a.timestamp - b.timestamp);
+
+            const labels = horasOrdenadas.map(h => `${h.hora}h`);
+            const percentuais = [];
+            const volumes = [];
+            
+            horasOrdenadas.forEach(horaData => {
+                const jogos = horaData.jogos;
+                const acertos = jogos.filter(j => verificarMercado(j, mercadoMacro)).length;
+                const perc = (acertos / jogos.length) * 100;
+                percentuais.push(perc);
+                volumes.push(jogos.length);
+            });
+
+            // Calcular média móvel
+            const mediaMovel = [];
+            const periodo = 3;
+            for (let i = 0; i < percentuais.length; i++) {
+                if (i < periodo - 1) {
+                    mediaMovel.push(null);
+                } else {
+                    const soma = percentuais.slice(i - periodo + 1, i + 1).reduce((a, b) => a + b, 0);
+                    mediaMovel.push(soma / periodo);
+                }
+            }
+
+            if (macroChart) {
+                macroChart.destroy();
+            }
+
+            macroChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: getMercadoNome(mercadoMacro),
+                            data: percentuais,
+                            borderColor: '#4ade80',
+                            backgroundColor: function(context) {
+                                const ctx = context.chart.ctx;
+                                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                                gradient.addColorStop(0, 'rgba(74, 222, 128, 0.3)');
+                                gradient.addColorStop(1, 'rgba(74, 222, 128, 0)');
+                                return gradient;
+                            },
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            pointBackgroundColor: '#4ade80',
+                            pointBorderColor: '#1c1f26',
+                            pointBorderWidth: 2,
+                            yAxisID: 'y-percent'
+                        },
+                        {
+                            label: 'Média Móvel (3)',
+                            data: mediaMovel,
+                            borderColor: '#fbbf24',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            yAxisID: 'y-percent'
+                        },
+                        {
+                            label: 'Volume de Jogos',
+                            data: volumes,
+                            type: 'bar',
+                            backgroundColor: 'rgba(31, 172, 137, 0.3)',
+                            borderColor: '#1fac89',
+                            borderWidth: 1,
+                            yAxisID: 'y-volume'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#fff',
+                                font: {
+                                    size: 12
+                                },
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#1fac89',
+                            bodyColor: '#fff',
+                            borderColor: '#1fac89',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.dataset.label === 'Volume de Jogos') {
+                                        return `${context.dataset.label}: ${context.parsed.y} jogos`;
+                                    } else if (context.dataset.label.includes('Média')) {
+                                        return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                                    } else {
+                                        return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#fff',
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        'y-percent': {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#4ade80',
+                                font: {
+                                    size: 11
+                                },
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Percentual (%)',
+                                color: '#4ade80',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        'y-volume': {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            grid: {
+                                drawOnChartArea: false,
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#1fac89',
+                                font: {
+                                    size: 11
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Volume de Jogos',
+                                color: '#1fac89',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function analisar() {
+            const liga = document.getElementById('liga').value;
+            const horasQtd = parseInt(document.getElementById('horas').value);
+            const mercado = document.getElementById('mercado').value;
+            const mercadoOposto = getMercadoOposto(mercado);
+
+            document.getElementById('error').innerHTML = '';
+            document.getElementById('loading').innerHTML = '<div class="loading">⏳ Carregando dados...</div>';
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('summary').innerHTML = '';
+            document.getElementById('macroChartSection').style.display = 'none';
+            document.getElementById('analisar').disabled = true;
+
+            try {
+                const response = await fetch(`https://betstat.site/resultados/${liga}`);
+                if (!response.ok) throw new Error('Erro ao buscar dados');
+                
+                const dados = await response.json();
+                
+                dados.sort((a, b) => {
+                    const dateStrA = getDateStr(a.data);
+                    const dateStrB = getDateStr(b.data);
+                    const dataHoraA = new Date(`${dateStrA}T${a.hora.toString().padStart(2, "0")}:${a.minuto.toString().padStart(2, "0")}:00`).getTime();
+                    const dataHoraB = new Date(`${dateStrB}T${b.hora.toString().padStart(2, "0")}:${b.minuto.toString().padStart(2, "0")}:00`).getTime();
+                    return dataHoraB - dataHoraA;
+                });const jogosPorHora = {};
+                dados.forEach(jogo => {
+                    const dateStr = getDateStr(jogo.data);
+                    const chave = `${dateStr}-${jogo.hora}`;
+                    if (!jogosPorHora[chave]) {
+                        jogosPorHora[chave] = {
+                            hora: jogo.hora,
+                            data: dateStr,
+                            jogos: [],
+                            timestamp: new Date(`${dateStr}T${jogo.hora.toString().padStart(2, "0")}:00:00`).getTime()
+                        };
+                    }
+                    jogosPorHora[chave].jogos.push(jogo);
+                });
+
+                const horasOrdenadas = Object.values(jogosPorHora)
+                    .sort((a, b) => b.timestamp - a.timestamp)
+                    .slice(0, horasQtd)
+                    .reverse();
+
+                let totalPrimario = 0;
+                let totalOposto = 0;
+                let totalJogos = 0;
+                
+                const minutosPrimario = {};
+                const minutosTotal = {};
+
+                let html = '';
+
+                horasOrdenadas.forEach(horaData => {
+                    const jogos = horaData.jogos;
+                    const primarios = jogos.filter(j => verificarMercado(j, mercado));
+                    const opostos = jogos.filter(j => verificarMercado(j, mercadoOposto));
+
+                    totalPrimario += primarios.length;
+                    totalOposto += opostos.length;
+                    totalJogos += jogos.length;
+                    
+                    jogos.forEach(jogo => {
+                        const min = jogo.minuto;
+                        if (!minutosTotal[min]) minutosTotal[min] = 0;
+                        if (!minutosPrimario[min]) minutosPrimario[min] = 0;
+                        
+                        minutosTotal[min]++;
+                        if (verificarMercado(jogo, mercado)) {
+                            minutosPrimario[min]++;
+                        }
+                    });
+
+                    const percPrimario = ((primarios.length / jogos.length) * 100).toFixed(1);
+                    const percOposto = ((opostos.length / jogos.length) * 100).toFixed(1);
+
+                    let squaresPrimario = '';
+                    jogos.forEach(jogo => {
+                        const acertou = verificarMercado(jogo, mercado);
+                        if (acertou) {
+                            squaresPrimario += `<div class="square green" 
+                                                  title="${jogo.time_a} x ${jogo.time_b}\nMinuto: ${jogo.minuto}">
+                                                  M${jogo.minuto.toString().padStart(2, '0')}<br>${jogo.ft}
+                                                </div>`;
+                        }
+                    });
+
+                    let squaresOposto = '';
+                    jogos.forEach(jogo => {
+                        const acertou = verificarMercado(jogo, mercadoOposto);
+                        if (acertou) {
+                            squaresOposto += `<div class="square red" 
+                                                title="${jogo.time_a} x ${jogo.time_b}\nMinuto: ${jogo.minuto}">
+                                                M${jogo.minuto.toString().padStart(2, '0')}<br>${jogo.ft}
+                                              </div>`;
+                        }
+                    });
+
+                    html += `
+                        <div class="hour-group">
+                            <div class="hour-header">${horaData.hora}h</div>
+                            <div class="columns-wrapper">
+                                <div class="market-column">
+                                    <div class="market-title primary">${getMercadoNome(mercado)}</div>
+                                    <div class="squares-grid">
+                                        ${squaresPrimario}
+                                    </div>
+                                    <div class="market-stats">
+                                        <div class="market-count market-primary">${primarios.length}</div>
+                                        <div class="market-perc">${percPrimario}%</div>
+                                    </div>
+                                </div>
+
+                                <div class="market-column">
+                                    <div class="market-title opposite">${getMercadoNome(mercadoOposto)}</div>
+                                    <div class="squares-grid">
+                                        ${squaresOposto}
+                                    </div>
+                                    <div class="market-stats">
+                                        <div class="market-count market-opposite">${opostos.length}</div>
+                                        <div class="market-perc">${percOposto}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                const percGeralPrimario = ((totalPrimario / totalJogos) * 100).toFixed(1);
+                const percGeralOposto = ((totalOposto / totalJogos) * 100).toFixed(1);
+                
+                const minutosOrdenados = Object.keys(minutosPrimario)
+                    .map(min => ({
+                        minuto: min,
+                        acertos: minutosPrimario[min],
+                        total: minutosTotal[min],
+                        percentual: ((minutosPrimario[min] / minutosTotal[min]) * 100).toFixed(1)
+                    }))
+                    .sort((a, b) => b.acertos - a.acertos)
+                    .slice(0, 10);
+
+                const melhoresMinutosHtml = minutosOrdenados.map((m, index) => {
+                    let topClass = '';
+                    if (index === 0) topClass = 'top-1';
+                    else if (index === 1) topClass = 'top-2';
+                    else if (index === 2) topClass = 'top-3';
+                    
+                    return `
+                        <div class="minute-box ${topClass}">
+                            <div class="minute-label">${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : ''} Min ${m.minuto}</div>
+                            <div class="minute-value">${m.acertos}</div>
+                            <div class="minute-perc">${m.percentual}%</div>
+                        </div>
+                    `;
+                }).join('');
+
+                const summaryHtml = `
+                    <div class="summary">
+                        <div class="summary-title">Resumo Geral - ${horasQtd} Horas Mais Recentes</div>
+                        <div class="summary-grid">
+                            <div class="stat-box">
+                                <div class="stat-label">Total de Jogos</div>
+                                <div class="stat-value">${totalJogos}</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-label">${getMercadoNome(mercado)}</div>
+                                <div class="stat-value market-primary">${totalPrimario}</div>
+                                <div class="stat-percentage">${percGeralPrimario}%</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-label">${getMercadoNome(mercadoOposto)}</div>
+                                <div class="stat-value market-opposite">${totalOposto}</div>
+                                <div class="stat-percentage">${percGeralOposto}%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="best-minutes">
+                            <div class="best-minutes-title">🎯 Melhores Minutos para ${getMercadoNome(mercado)}</div>
+                            <div class="minutes-grid">
+                                ${melhoresMinutosHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('summary').innerHTML = summaryHtml;
+                
+                // Criar gráfico macro
+                document.getElementById('macroChartSection').style.display = 'block';
+                const mercadoMacroInicial = document.getElementById('macroMercado').value;
+                createMacroChart(jogosPorHora, mercadoMacroInicial);
+                
+                document.getElementById('results').innerHTML = html;
+                document.getElementById('loading').innerHTML = '';
+
+            } catch (error) {
+                document.getElementById('error').innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+                document.getElementById('loading').innerHTML = '';
+            } finally {
+                document.getElementById('analisar').disabled = false;
+            }
+        }
+
+        // Event listener para mudança no mercado macro
+        document.getElementById('macroMercado').addEventListener('change', async function() {
+            const liga = document.getElementById('liga').value;
+            
+            try {
+                const response = await fetch(`https://betstat.site/resultados/${liga}`);
+                if (!response.ok) throw new Error('Erro ao buscar dados');
+                
+                const dados = await response.json();
+                
+                const jogosPorHora = {};
+                dados.forEach(jogo => {
+                    const dateStr = getDateStr(jogo.data);
+                    const chave = `${dateStr}-${jogo.hora}`;
+                    if (!jogosPorHora[chave]) {
+                        jogosPorHora[chave] = {
+                            hora: jogo.hora,
+                            data: dateStr,
+                            jogos: [],
+                            timestamp: new Date(`${dateStr}T${jogo.hora.toString().padStart(2, "0")}:00:00`).getTime()
+                        };
+                    }
+                    jogosPorHora[chave].jogos.push(jogo);
+                });
+
+                const mercadoMacro = this.value;
+                createMacroChart(jogosPorHora, mercadoMacro);
+                
+            } catch (error) {
+                console.error('Erro ao atualizar gráfico macro:', error);
+            }
+        });
+
+        // Analisar automaticamente ao carregar
+        window.addEventListener('load', analisar);
+    </script>
+</body>
+</html>
