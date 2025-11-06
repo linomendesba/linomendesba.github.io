@@ -19,6 +19,7 @@
             color: #fff;
             padding: 20px;
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
         .container {
@@ -90,6 +91,20 @@
             font-size: 20px;
             color: #1fac89;
             font-weight: 500;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            border-radius: 12px;
+            z-index: 1000;
+            width: 200px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading.show {
+            opacity: 1;
         }
 
         .error {
@@ -110,6 +125,12 @@
             margin-bottom: 30px;
             border: 2px solid #1fac89;
             box-shadow: 0 4px 20px rgba(31, 172, 137, 0.2);
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .summary.updating {
+            opacity: 0.7;
         }
 
         .summary-title {
@@ -203,6 +224,11 @@
             transition: all 0.3s ease;
             min-width: 85px;
             box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            opacity: 1;
+        }
+
+        .minute-box.updating {
+            opacity: 0.6;
         }
 
         .minute-box:hover {
@@ -276,6 +302,12 @@
             border: 2px solid #1fac89;
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .hour-group.updating {
+            opacity: 0.7;
         }
 
         .hour-header {
@@ -391,6 +423,12 @@
             border: 2px solid rgba(31, 172, 137, 0.3);
             margin-top: 40px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .chart-section.updating {
+            opacity: 0.7;
         }
 
         .chart-header {
@@ -519,22 +557,22 @@
             }
 
             .minutes-grid {
-                justify-content: flex-start;
+                justify-content: center;
             }
         }
 
-        /* Transições suaves para atualizações */
-        #summary, #results, .chart-section, .minute-box {
-            transition: all 0.3s ease;
-        }
-
-        .updating {
-            opacity: 0.6;
+        /* Evita qualquer flash */
+        * {
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <div id="loading" class="loading">Atualizando...</div>
         
         <div class="controls">
             <div class="controls-row">
@@ -588,7 +626,6 @@
         </div>
 
         <div id="error"></div>
-        <div id="loading"></div>
         <div id="summary"></div>
         <div id="results" class="hours-container"></div>
     </div>
@@ -625,7 +662,7 @@
         </div>
 
         <div id="error2"></div>
-        <div id="loading2"></div>
+        <div id="loading2" class="loading">Atualizando...</div>
 
         <div class="chart-section" id="chartSection" style="display: none;">
             <div class="chart-header">
@@ -768,8 +805,8 @@
             const mercado = document.getElementById('mercado').value;
             const mercadoOposto = getMercadoOposto(mercado);
 
-            document.getElementById('error').innerHTML = '';
-            document.getElementById('loading').innerHTML = '<div class="loading">Atualizando dados...</div>';
+            const loadingEl = document.getElementById('loading');
+            loadingEl.classList.add('show');
             document.getElementById('summary').classList.add('updating');
             document.getElementById('results').classList.add('updating');
 
@@ -944,18 +981,33 @@
                     </div>
                 `;
 
-                // Atualização suave: apenas substitui o conteúdo interno
+                // Atualização com fade suave e sem recriar DOM
                 const summaryEl = document.getElementById('summary');
                 const resultsEl = document.getElementById('results');
-                summaryEl.innerHTML = summaryHtml;
-                resultsEl.innerHTML = html;
+                
+                // Fade out
+                summaryEl.style.opacity = '0.7';
+                resultsEl.style.opacity = '0.7';
+
+                setTimeout(() => {
+                    summaryEl.innerHTML = summaryHtml;
+                    resultsEl.innerHTML = html;
+                    
+                    // Fade in
+                    setTimeout(() => {
+                        summaryEl.style.opacity = '1';
+                        resultsEl.style.opacity = '1';
+                    }, 50);
+                }, 150);
 
             } catch (error) {
                 document.getElementById('error').innerHTML = `<div class="error">Erro: ${error.message}</div>`;
             } finally {
-                document.getElementById('loading').innerHTML = '';
-                document.getElementById('summary').classList.remove('updating');
-                document.getElementById('results').classList.remove('updating');
+                setTimeout(() => {
+                    loadingEl.classList.remove('show');
+                    document.getElementById('summary').classList.remove('updating');
+                    document.getElementById('results').classList.remove('updating');
+                }, 200);
             }
         }
 
@@ -985,8 +1037,8 @@
             const mercado = document.getElementById('mercado').value;
             const mercadoOposto = getMercadoOposto(mercado);
 
-            document.getElementById('error2').innerHTML = '';
-            document.getElementById('loading2').innerHTML = '<div class="loading">Atualizando gráfico...</div>';
+            const loadingEl = document.getElementById('loading2');
+            loadingEl.classList.add('show');
             document.getElementById('chartSection').classList.add('updating');
 
             try {
@@ -1054,7 +1106,6 @@
 
                 criarGrafico(labels, percentuaisMercado, percentuaisOposto, volumes, acertosMercado, acertosOposto, media, mercado, mercadoOposto);
 
-                // Previsão para próxima hora
                 const last3 = percentuaisMercado.slice(-3);
                 const last3_avg = last3.length > 0 ? (last3.reduce((a, b) => a + b, 0) / last3.length).toFixed(1) : 0;
                 const overall_avg = parseFloat(media);
@@ -1073,8 +1124,10 @@
             } catch (error) {
                 document.getElementById('error2').innerHTML = `<div class="error">Erro: ${error.message}</div>`;
             } finally {
-                document.getElementById('loading2').innerHTML = '';
-                document.getElementById('chartSection').classList.remove('updating');
+                setTimeout(() => {
+                    loadingEl.classList.remove('show');
+                    document.getElementById('chartSection').classList.remove('updating');
+                }, 200);
             }
         }
 
@@ -1153,11 +1206,11 @@
             if (activeIndicators.volume) {
                 datasets.push({
                     label: 'Volume de Jogos',
-                    data: volumes,
                     type: 'bar',
                     backgroundColor: 'rgba(74, 222, 128, 0.3)',
                     borderColor: 'rgba(74, 222, 128, 0.8)',
                     borderWidth: 1,
+                    data: volumes,
                     yAxisID: 'y-volume',
                     order: 5
                 });
@@ -1213,7 +1266,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
-                    animation: false,
+                    animation: { duration: 0 },
                     plugins: {
                         legend: {
                             display: true,
