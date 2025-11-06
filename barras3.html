@@ -65,7 +65,7 @@
             letter-spacing: 0.5px;
         }
 
-        select, button {
+        select {
             padding: 12px 15px;
             border-radius: 8px;
             border: 2px solid rgba(31, 172, 137, 0.5);
@@ -82,26 +82,6 @@
             border-color: #1fac89;
             outline: none;
             transform: translateY(-1px);
-        }
-
-        button {
-            background: linear-gradient(135deg, #1fac89 0%, #17865f 100%);
-            font-weight: 600;
-            text-transform: uppercase;
-            border: none;
-            box-shadow: 0 4px 15px rgba(31, 172, 137, 0.3);
-        }
-
-        button:hover {
-            background: linear-gradient(135deg, #17865f 0%, #135a47 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(31, 172, 137, 0.4);
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
         }
 
         .loading {
@@ -207,23 +187,42 @@
         }
 
         .minutes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-            gap: 10px;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 10px 0;
         }
 
         .minute-box {
             background: rgba(42, 45, 53, 0.9);
-            padding: 12px;
-            border-radius: 8px;
+            padding: 14px 12px;
+            border-radius: 10px;
             text-align: center;
             border: 2px solid #1fac89;
             transition: all 0.3s ease;
+            min-width: 85px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
         }
 
         .minute-box:hover {
             transform: translateY(-3px);
             box-shadow: 0 6px 20px rgba(31, 172, 137, 0.4);
+        }
+
+        .minute-box.top3 {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.15);
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+        }
+
+        .minute-box.top3 .minute-label {
+            color: #ffd700;
+        }
+
+        .minute-box.top3 .minute-value {
+            color: #ffd700;
+            font-weight: 800;
         }
 
         .minute-label {
@@ -237,13 +236,13 @@
             font-size: 24px;
             font-weight: 700;
             color: #4ade80;
-            margin-top: 5px;
+            margin: 4px 0;
         }
 
         .minute-perc {
             font-size: 11px;
             opacity: 0.8;
-            margin-top: 3px;
+            margin-top: 2px;
         }
 
         .hours-container {
@@ -518,15 +517,19 @@
             .hour-group {
                 min-width: 250px;
             }
+
+            .minutes-grid {
+                justify-content: flex-start;
+            }
         }
 
-        /* Transições para atualizações suaves */
-        #summary, #results, .chart-section {
-            transition: opacity 0.3s ease;
+        /* Transições suaves para atualizações */
+        #summary, #results, .chart-section, .minute-box {
+            transition: all 0.3s ease;
         }
 
         .updating {
-            opacity: 0.5;
+            opacity: 0.6;
         }
     </style>
 </head>
@@ -766,7 +769,7 @@
             const mercadoOposto = getMercadoOposto(mercado);
 
             document.getElementById('error').innerHTML = '';
-            document.getElementById('loading').innerHTML = '<div class="loading">⏳ Carregando dados...</div>';
+            document.getElementById('loading').innerHTML = '<div class="loading">Atualizando dados...</div>';
             document.getElementById('summary').classList.add('updating');
             document.getElementById('results').classList.add('updating');
 
@@ -901,13 +904,16 @@
                     .sort((a, b) => b.acertos - a.acertos)
                     .slice(0, 10);
 
-                const melhoresMinutosHtml = minutosOrdenados.map(m => `
-                    <div class="minute-box">
-                        <div class="minute-label">Min ${m.minuto}</div>
-                        <div class="minute-value">${m.acertos}</div>
-                        <div class="minute-perc">${m.percentual}%</div>
-                    </div>
-                `).join('');
+                const melhoresMinutosHtml = minutosOrdenados.map((m, index) => {
+                    const isTop3 = index < 3 ? ' top3' : '';
+                    return `
+                        <div class="minute-box${isTop3}">
+                            <div class="minute-label">Min ${m.minuto}</div>
+                            <div class="minute-value">${m.acertos}</div>
+                            <div class="minute-perc">${m.percentual}%</div>
+                        </div>
+                    `;
+                }).join('');
 
                 const summaryHtml = `
                     <div class="summary">
@@ -938,14 +944,16 @@
                     </div>
                 `;
 
-                document.getElementById('summary').innerHTML = summaryHtml;
-                document.getElementById('results').innerHTML = html;
-                document.getElementById('loading').innerHTML = '';
+                // Atualização suave: apenas substitui o conteúdo interno
+                const summaryEl = document.getElementById('summary');
+                const resultsEl = document.getElementById('results');
+                summaryEl.innerHTML = summaryHtml;
+                resultsEl.innerHTML = html;
 
             } catch (error) {
-                document.getElementById('error').innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
-                document.getElementById('loading').innerHTML = '';
+                document.getElementById('error').innerHTML = `<div class="error">Erro: ${error.message}</div>`;
             } finally {
+                document.getElementById('loading').innerHTML = '';
                 document.getElementById('summary').classList.remove('updating');
                 document.getElementById('results').classList.remove('updating');
             }
@@ -978,7 +986,7 @@
             const mercadoOposto = getMercadoOposto(mercado);
 
             document.getElementById('error2').innerHTML = '';
-            document.getElementById('loading2').innerHTML = '<div class="loading">⏳ Carregando dados...</div>';
+            document.getElementById('loading2').innerHTML = '<div class="loading">Atualizando gráfico...</div>';
             document.getElementById('chartSection').classList.add('updating');
 
             try {
@@ -1060,13 +1068,12 @@
                 }
                 document.getElementById('prediction').innerHTML = `<div class="prediction">${msg}</div>`;
 
-                document.getElementById('loading2').innerHTML = '';
                 document.getElementById('chartSection').style.display = 'block';
 
             } catch (error) {
-                document.getElementById('error2').innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
-                document.getElementById('loading2').innerHTML = '';
+                document.getElementById('error2').innerHTML = `<div class="error">Erro: ${error.message}</div>`;
             } finally {
+                document.getElementById('loading2').innerHTML = '';
                 document.getElementById('chartSection').classList.remove('updating');
             }
         }
@@ -1158,17 +1165,10 @@
 
             const scales = {
                 x: {
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.05)',
-                        drawBorder: false
-                    },
+                    grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
                     ticks: {
                         color: 'rgba(255, 255, 255, 0.7)',
-                        font: {
-                            size: 10,
-                            weight: '500',
-                            family: 'Roboto'
-                        },
+                        font: { size: 10, weight: '500', family: 'Roboto' },
                         maxRotation: 45,
                         minRotation: 45
                     }
@@ -1178,20 +1178,11 @@
                     position: 'left',
                     beginAtZero: true,
                     max: 100,
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.05)',
-                        drawBorder: false
-                    },
+                    grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false },
                     ticks: {
                         color: '#4ade80',
-                        font: {
-                            size: 11,
-                            weight: '600',
-                            family: 'Roboto'
-                        },
-                        callback: function(value) {
-                            return value + '%';
-                        }
+                        font: { size: 11, weight: '600', family: 'Roboto' },
+                        callback: value => value + '%'
                     }
                 }
             };
@@ -1201,44 +1192,27 @@
                     type: 'linear',
                     position: 'right',
                     beginAtZero: true,
-                    grid: {
-                        drawOnChartArea: false,
-                        drawBorder: false
-                    },
+                    grid: { drawOnChartArea: false, drawBorder: false },
                     ticks: {
                         color: 'rgba(255, 255, 255, 0.7)',
-                        font: {
-                            size: 10,
-                            weight: '500',
-                            family: 'Roboto'
-                        }
+                        font: { size: 10, weight: '500', family: 'Roboto' }
                     },
                     title: {
                         display: true,
                         text: 'Volume',
                         color: 'rgba(255, 255, 255, 0.7)',
-                        font: {
-                            size: 11,
-                            weight: 'bold',
-                            family: 'Roboto'
-                        }
+                        font: { size: 11, weight: 'bold', family: 'Roboto' }
                     }
                 };
             }
 
             macroChart = new Chart(ctx, {
                 type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
+                data: { labels, datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
+                    interaction: { mode: 'index', intersect: false },
                     animation: false,
                     plugins: {
                         legend: {
@@ -1246,11 +1220,7 @@
                             position: 'top',
                             labels: {
                                 color: '#fff',
-                                font: {
-                                    size: 12,
-                                    weight: '600',
-                                    family: 'Roboto'
-                                },
+                                font: { size: 12, weight: '600', family: 'Roboto' },
                                 usePointStyle: true,
                                 padding: 15,
                                 boxWidth: 8,
@@ -1265,15 +1235,8 @@
                             borderWidth: 2,
                             padding: 15,
                             displayColors: true,
-                            titleFont: {
-                                size: 14,
-                                weight: 'bold',
-                                family: 'Roboto'
-                            },
-                            bodyFont: {
-                                size: 13,
-                                family: 'Roboto'
-                            },
+                            titleFont: { size: 14, weight: 'bold', family: 'Roboto' },
+                            bodyFont: { size: 13, family: 'Roboto' },
                             callbacks: {
                                 label: function(context) {
                                     const index = context.dataIndex;
