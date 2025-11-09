@@ -13,6 +13,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/estreladuelo.html" ||
     url === "https://www.betstat.site/kironduelo.html" ||
     url === "https://www.betstat.site/buscaconfronto.html" ||
+    url === "https://www.betstat.site/betsfluxo.html" ||
     url === "https://www.betstat.site/betsprojecoes.html" ||
     url === "https://www.betstat.site/estrelapalpite.html" ||
     url === "https://www.betstat.site/kironfluxo.html" ||
