@@ -11,10 +11,14 @@ function redirecionar(select) {
     url === "https://www.betstat.site/multkiron.html" ||
     url === "https://www.betstat.site/betsduelo.html" ||
     url === "https://www.betstat.site/estreladuelo.html" ||
+    url === "https://www.betstat.site/estrelafluxo.html" ||
     url === "https://www.betstat.site/kironduelo.html" ||
     url === "https://www.betstat.site/buscaconfronto.html" ||
+    url === "https://www.betstat.site/betsfluxo.html" ||
     url === "https://www.betstat.site/betsprojecoes.html" ||
     url === "https://www.betstat.site/estrelapalpite.html" ||
+    url === "https://www.betstat.site/kironfluxo.html" ||
+    url === "https://www.betstat.site/fluxo.html" ||
     url === "https://www.betstat.site/estrelagraficotime.html" ||
     url === "https://www.betstat.site/estrelaconfronto.html" ||
     url === "https://www.betstat.site/estrelamacro.html" ||
