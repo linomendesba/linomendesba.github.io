@@ -1,8 +1,8 @@
-// Arquivo: config.js (VERSÃO QUE FUNCIONA COM O SERVIDOR ATUAL)
+// config.js – VERSÃO QUE FUNCIONA COM SEU SERVIDOR ATUAL
 
 const API_BASE_URL = "https://betstat.site";
 
-// Ligas (mantive seu padrão exato, inclusive o kironbrazil que você usa)
+// Ligas (mantive seu padrão + kironbrazil que você usa)
 const LIGAS = {
   GLORIA_ETERNA: "Taça Glória Eterna",
   COPA_AMERICA: "Copa América",
@@ -17,13 +17,13 @@ const LIGAS = {
   KIRON_AMERICA: "Kiron Liga América Latina",
   KIRON_SPAIN: "Kiron Liga Espanha",
 
-  // AS 3 NOVAS LIGAS ESTRELABET – nomes EXATOS que o servidor espera
+  // AS 3 NOVAS DA ESTRELABET – nomes BONITOS pro título
   ESTRELA_COPA_MUNDO: "Copa do Mundo",
-  ESTRELA_CHAMPIONS: "Ligas dos Campeoes",
-  ESTRELA_AMERICA_LATINA: "America Latina"
+  ESTRELA_CHAMPIONS: "Ligas dos Campeões",
+  ESTRELA_AMERICA_LATINA: "América Latina"
 };
 
-// Kiron (exatamente como você sempre teve)
+// Kiron (exato como você sempre usou)
 const KIRON_URL_PARAMS = {
   [LIGAS.KIRON_BRAZIL]: "Brazil",
   [LIGAS.KIRON_ENGLAND]: "England",
@@ -32,11 +32,11 @@ const KIRON_URL_PARAMS = {
   [LIGAS.KIRON_SPAIN]: "Spain"
 };
 
-// ESTRELA – nomes EXATOS que você usa no servidor (sem ç, õ, é)
+// ESTRELA – URLs 100% compatíveis com seu servidor (encodeURIComponent)
 const ESTRELA_URL_PARAMS = {
   [LIGAS.ESTRELA_COPA_MUNDO]: "Copa%20do%20Mundo",
-  [LIGAS.ESTRELA_CHAMPIONS]: "Ligas%20dos%20Campeoes",
-  [LIGAS.ESTRELA_AMERICA_LATINA]: "America%20Latina"
+  [LIGAS.ESTRELA_CHAMPIONS]: "Ligas%20dos%20Campe%C3%B5es",  // ← AQUI ESTAVA O ERRO!
+  [LIGAS.ESTRELA_AMERICA_LATINA]: "Am%C3%A9rica%20Latina"     // ← e aqui também
 };
 
 // Rotas (Betsson removida)
@@ -64,7 +64,7 @@ const ROTAS_API = {
   }
 };
 
-// Detectar página (mantive seu padrão)
+// Detectar página
 function detectarLigaAtual() {
   const caminho = (window.location.pathname || "").toLowerCase();
 
@@ -80,7 +80,6 @@ function detectarLigaAtual() {
   if (caminho.includes("kironamerica.html")) return LIGAS.KIRON_AMERICA;
   if (caminho.includes("kironspain.html")) return LIGAS.KIRON_SPAIN;
 
-  // 3 novas páginas EstrelaBet
   if (caminho.includes("estrelacopamundo.html")) return LIGAS.ESTRELA_COPA_MUNDO;
   if (caminho.includes("estrelachampions.html")) return LIGAS.ESTRELA_CHAMPIONS;
   if (caminho.includes("estrelaamericalatina.html")) return LIGAS.ESTRELA_AMERICA_LATINA;
