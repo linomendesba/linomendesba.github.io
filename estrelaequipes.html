@@ -214,14 +214,17 @@
       <br>
 
 <div class="control-group">
-    <label for="euipesbetano-leagueSelect">Selecionar Liga</label>
-    <select id="euipesbetano-leagueSelect" class="euipesbetano-select" onchange="loadTeams()">
-        <option value="">Selecione a liga</option>
-        <option value="estrela_copa">Copa do Mundo</option>
-        <option value="estrela_champions">Ligas dos Campeões</option>
-        <option value="estrela_latina">América Latina</option>
-    </select>
-</div>
+        <label for="euipesbetano-leagueSelect">Selecionar Liga</label><br>
+        <select id="euipesbetano-leagueSelect" class="euipesbetano-select" onchange="loadTeams()">
+            <option value="">Selecione a liga</option>
+            <option value="estrela_copa">Copa do Mundo</option>
+            <option value="estrela_champions">Ligas dos Campeões</option>
+            <option value="estrela_latina">América Latina</option>
+        </select>
+    </div>
+
+    <div id="loading" style="display:none; text-align:center; color: blue;">Carregando dados...</div>
+    <div id="error-msg" style="display:none; text-align:center; color: red; background: #fee; padding: 10px;"></div>
 
     <div id="euipesbetano-teamList" class="euipesbetano-teamList">
         <div class="euipesbetano-teamCardContainer"></div>
@@ -233,217 +236,184 @@
 
 
     <script>
-// 1. Configuração das URLs das Ligas
-const leagues = {
-    "estrela_copa": "https://betstat.site/resultados/estrela/Copa%20do%20Mundo",
-    "estrela_champions": "https://betstat.site/resultados/estrela/Ligas%20dos%20Campe%C3%B5es",
-    "estrela_latina": "https://betstat.site/resultados/estrela/Am%C3%A9rica%20Latina"
-};
+// 1. Configuração das URLs
+        const leagues = {
+            "estrela_copa": "https://betstat.site/resultados/estrela/Copa%20do%20Mundo",
+            "estrela_champions": "https://betstat.site/resultados/estrela/Ligas%20dos%20Campe%C3%B5es",
+            "estrela_latina": "https://betstat.site/resultados/estrela/Am%C3%A9rica%20Latina"
+        };
 
-let teams = [];
-let allData = [];
+        let teams = [];
+        let allData = [];
 
-// 2. Função Principal para Carregar os Times
-async function loadTeams() {
-    const leagueSelect = document.getElementById('euipesbetano-leagueSelect');
-    const teamList = document.getElementById('euipesbetano-teamList');
-    const teamCardContainer = teamList.querySelector('.euipesbetano-teamCardContainer');
-    const statsDiv = document.getElementById('euipesbetano-stats');
-    const matchesDiv = document.getElementById('euipesbetano-matches');
-    
-    // Pega o valor selecionado (ex: "estrela_copa")
-    const leagueKey = leagueSelect.value;
-
-    // Reseta a visualização
-    teamList.style.display = 'none';
-    statsDiv.style.display = 'none';
-    matchesDiv.style.display = 'none';
-    teamCardContainer.innerHTML = '';
-    statsDiv.innerHTML = '';
-    matchesDiv.innerHTML = '';
-
-    // Verifica se uma liga válida foi selecionada
-    if (leagueKey && leagues[leagueKey]) {
-        const url = leagues[leagueKey]; // Pega a URL correspondente no objeto
-        
-        try {
-            console.log(`Carregando dados de: ${url}`); // Log para depuração
-            const response = await fetch(url);
+        // 2. Função Principal LoadTeams
+        async function loadTeams() {
+            const leagueSelect = document.getElementById('euipesbetano-leagueSelect');
+            const teamList = document.getElementById('euipesbetano-teamList');
+            const teamCardContainer = teamList.querySelector('.euipesbetano-teamCardContainer');
+            const statsDiv = document.getElementById('euipesbetano-stats');
+            const matchesDiv = document.getElementById('euipesbetano-matches');
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error-msg');
             
-            if (!response.ok) throw new Error('Falha na conexão com a API');
+            const leagueKey = leagueSelect.value;
 
-            allData = await response.json();
-            allData = allData.slice(0, -480); // Mantém apenas os dados recentes (limite do seu código original)
-            
-            // Filtra times únicos
-            teams = [...new Set(allData.map(entry => entry.time_a).concat(allData.map(entry => entry.time_b)))];
-            teams.sort(); // Opcional: ordena os times alfabeticamente
+            // Limpa tela
+            teamCardContainer.innerHTML = '';
+            statsDiv.style.display = 'none';
+            matchesDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
 
-            teamList.style.display = 'block';
-            
-            // Cria os cards dos times
-            teams.forEach(team => {
-                const teamCard = document.createElement('div');
-                teamCard.className = 'euipesbetano-teamCard';
-                // Adicionei uma verificação de imagem genérica caso não tenha logo
-                teamCard.innerHTML = `<img src="img/time.png" alt="${team}" width="30" onerror="this.style.display='none'"><br>${team}`;
-                teamCard.onclick = () => loadTeamStats(team);
-                teamCardContainer.appendChild(teamCard);
+            if (leagueKey && leagues[leagueKey]) {
+                const url = leagues[leagueKey];
+                loadingDiv.style.display = 'block';
+                
+                try {
+                    console.log(`Tentando conectar em: ${url}`);
+                    
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Erro HTTP: ${response.status}`);
+                    }
+
+                    allData = await response.json();
+                    console.log("Dados recebidos (primeiros 2):", allData.slice(0, 2));
+
+                    // Ajuste dos dados (código original)
+                    if(allData.length > 480) {
+                        allData = allData.slice(0, -480); 
+                    }
+                    
+                    // Extrai times únicos
+                    teams = [...new Set(allData.map(entry => entry.time_a).concat(allData.map(entry => entry.time_b)))];
+                    teams.sort();
+
+                    if (teams.length === 0) {
+                        throw new Error("A API retornou dados, mas nenhum time foi encontrado.");
+                    }
+
+                    // Cria os Cards
+                    teams.forEach(team => {
+                        const teamCard = document.createElement('div');
+                        teamCard.className = 'euipesbetano-teamCard';
+                        teamCard.innerHTML = `
+                            <div style="font-weight:bold; font-size:20px;">⚽</div>
+                            <br>${team}
+                        `;
+                        teamCard.onclick = () => loadTeamStats(team);
+                        teamCardContainer.appendChild(teamCard);
+                    });
+
+                } catch (error) {
+                    console.error('ERRO GRAVE:', error);
+                    errorDiv.style.display = 'block';
+                    errorDiv.innerHTML = `<strong>Erro ao carregar:</strong> ${error.message}<br><br>
+                    Se aparecer "Failed to fetch" ou "Erro de rede", é provável que o site betstat.site esteja bloqueando o acesso externo (CORS).`;
+                } finally {
+                    loadingDiv.style.display = 'none';
+                }
+            }
+        }
+
+        // 3. Cálculo de Estatísticas
+        function calculateStats(teamData, team) {
+            const totalGames = teamData.length;
+            if (totalGames === 0) return null;
+
+            let wins = 0, draws = 0, losses = 0;
+            let over15 = 0, over25 = 0, over35 = 0, over5 = 0;
+            let under15 = 0, under25 = 0, under35 = 0, under5 = 0;
+            let bttsYes = 0, bttsNo = 0;
+
+            teamData.forEach(match => {
+                if (!match.ft || !match.ft.includes(' x ')) return;
+                const [scoreA, scoreB] = match.ft.split(' x ').map(Number);
+                const isHome = match.time_a === team;
+                
+                // Resultados
+                if ((isHome && scoreA > scoreB) || (!isHome && scoreB > scoreA)) wins++;
+                else if (scoreA === scoreB) draws++;
+                else losses++;
+
+                // Gols
+                const totalGoals = scoreA + scoreB;
+                if (totalGoals > 1) over15++;
+                if (totalGoals > 2) over25++;
+                if (totalGoals > 3) over35++;
+                if (totalGoals > 5) over5++;
+                
+                if (totalGoals < 2) under15++;
+                if (totalGoals < 3) under25++;
+                if (totalGoals < 4) under35++;
+                if (totalGoals < 6) under5++;
+
+                // Ambas marcam
+                if (scoreA > 0 && scoreB > 0) bttsYes++;
+                else bttsNo++;
             });
 
-        } catch (error) {
-            console.error('Erro ao carregar times:', error);
-            alert('Erro ao carregar os dados da liga. Verifique o console.');
-        }
-    }
-}
+            const getPct = (val) => ((val / totalGames) * 100).toFixed(0);
 
-// 3. Função de Cálculos Estatísticos
-function calculateStats(teamData, team) {
-    const totalGames = teamData.length;
-    if (totalGames === 0) return null; // Previne divisão por zero
-
-    let wins = 0, draws = 0, losses = 0;
-    let over15 = 0, over25 = 0, over35 = 0, over5 = 0;
-    let under15 = 0, under25 = 0, under35 = 0, under5 = 0;
-    let bttsYes = 0, bttsNo = 0;
-    let goalsScored = 0, goalsConceded = 0;
-
-    teamData.forEach(match => {
-        // Garante que o placar seja tratado corretamente
-        if (!match.ft || !match.ft.includes(' x ')) return;
-
-        const [scoreA, scoreB] = match.ft.split(' x ').map(Number);
-        const isHome = match.time_a === team;
-        // const teamScore = isHome ? scoreA : scoreB; // (Variável não usada no display, mas útil se precisar)
-        // const oppScore = isHome ? scoreB : scoreA;  // (Variável não usada no display, mas útil se precisar)
-
-        // Resultado (V/E/D)
-        if ((isHome && scoreA > scoreB) || (!isHome && scoreB > scoreA)) {
-            wins++;
-        } else if (scoreA === scoreB) {
-            draws++;
-        } else {
-            losses++;
+            return {
+                wins: getPct(wins), winsGames: wins,
+                draws: getPct(draws), drawsGames: draws,
+                losses: getPct(losses), lossesGames: losses,
+                over15: getPct(over15), over15Games: over15,
+                over25: getPct(over25), over25Games: over25,
+                over35: getPct(over35), over35Games: over35,
+                over5: getPct(over5), over5Games: over5,
+                under15: getPct(under15), under15Games: under15,
+                under25: getPct(under25), under25Games: under25,
+                under35: getPct(under35), under35Games: under35,
+                under5: getPct(under5), under5Games: under5,
+                bttsYes: getPct(bttsYes), bttsYesGames: bttsYes,
+                bttsNo: getPct(bttsNo), bttsNoGames: bttsNo
+            };
         }
 
-        // Gols (Over/Under)
-        const totalGoals = scoreA + scoreB;
-        if (totalGoals > 1) over15++;
-        if (totalGoals > 2) over25++;
-        if (totalGoals > 3) over35++;
-        if (totalGoals > 5) over5++; // Nota: Seu código original usa > 5 (6 ou mais)
-        
-        if (totalGoals < 2) under15++;
-        if (totalGoals < 3) under25++;
-        if (totalGoals < 4) under35++;
-        if (totalGoals < 6) under5++;
+        // 4. Exibir Stats
+        function loadTeamStats(team) {
+            const statsDiv = document.getElementById('euipesbetano-stats');
+            const matchesDiv = document.getElementById('euipesbetano-matches');
 
-        // Ambas Marcam
-        if (scoreA > 0 && scoreB > 0) bttsYes++;
-        else bttsNo++;
+            if (!team || !allData.length) return;
 
-        goalsScored += isHome ? scoreA : scoreB;
-        goalsConceded += isHome ? scoreB : scoreA;
-    });
+            const teamData = allData.filter(match => match.time_a === team || match.time_b === team);
+            const stats = calculateStats(teamData, team);
 
-    // Função auxiliar para calcular porcentagem
-    const getPct = (val) => ((val / totalGames) * 100).toFixed(2);
+            if(!stats) return;
 
-    return {
-        wins: getPct(wins), winsGames: wins,
-        draws: getPct(draws), drawsGames: draws,
-        losses: getPct(losses), lossesGames: losses,
-        over15: getPct(over15), over15Games: over15,
-        over25: getPct(over25), over25Games: over25,
-        over35: getPct(over35), over35Games: over35,
-        over5: getPct(over5), over5Games: over5,
-        under15: getPct(under15), under15Games: under15,
-        under25: getPct(under25), under25Games: under25,
-        under35: getPct(under35), under35Games: under35,
-        under5: getPct(under5), under5Games: under5,
-        bttsYes: getPct(bttsYes), bttsYesGames: bttsYes,
-        bttsNo: getPct(bttsNo), bttsNoGames: bttsNo
-    };
-}
+            statsDiv.style.display = 'block';
+            matchesDiv.style.display = 'block';
 
-// 4. Função para Exibir Estatísticas do Time
-async function loadTeamStats(team) {
-    const statsDiv = document.getElementById('euipesbetano-stats');
-    const matchesDiv = document.getElementById('euipesbetano-matches');
+            // Função auxiliar para criar caixinhas
+            const box = (titulo, pct, jogos) => `
+                <div class="euipesbetano-statBox">
+                    <h3>${titulo}</h3>
+                    <p class="euipesbetano-value">${pct}%</p>
+                    <p style="font-size:12px; color:#777;">${jogos} jogos</p>
+                </div>`;
 
-    statsDiv.style.display = 'none';
-    matchesDiv.style.display = 'none';
-    statsDiv.innerHTML = '';
-    matchesDiv.innerHTML = '';
-
-    if (team) {
-        // Filtra apenas jogos do time selecionado
-        const teamData = allData.filter(match => match.time_a === team || match.time_b === team);
-        
-        // Calcula as estatísticas
-        const stats = calculateStats(teamData, team);
-        
-        if (!stats) return; // Se não tiver jogos, para aqui
-
-        statsDiv.style.display = 'block';
-        
-        // Monta o HTML das caixas de estatísticas
-        statsDiv.innerHTML = `
-            <div class="euipesbetano-header">
-                <img src="img/time.png" alt="${team}" onerror="this.style.display='none'">
-                <span>${team}</span>
-            </div>
-            <div class="euipesbetano-statsContainer">
-                ${createStatBox('Vitórias', stats.wins, stats.winsGames)}
-                ${createStatBox('Empates', stats.draws, stats.drawsGames)}
-                ${createStatBox('Derrotas', stats.losses, stats.lossesGames)}
-                
-                ${createStatBox('Over 1.5', stats.over15, stats.over15Games)}
-                ${createStatBox('Over 2.5', stats.over25, stats.over25Games)}
-                ${createStatBox('Over 3.5', stats.over35, stats.over35Games)}
-                ${createStatBox('Over 5+', stats.over5, stats.over5Games)}
-                
-                ${createStatBox('Under 1.5', stats.under15, stats.under15Games)}
-                ${createStatBox('Under 2.5', stats.under25, stats.under25Games)}
-                ${createStatBox('Under 3.5', stats.under35, stats.under35Games)}
-                
-                ${createStatBox('Ambas Marcam (Sim)', stats.bttsYes, stats.bttsYesGames)}
-                ${createStatBox('Ambas Marcam (Não)', stats.bttsNo, stats.bttsNoGames)}
-            </div>
-        `;
-
-        matchesDiv.style.display = 'block';
-        let matchesHTML = '<h3 class="euipesbetano-h2">Últimos Resultados</h3>';
-        
-        teamData.forEach(match => {
-            // Formata a data se possível
-            let dataFormatada = match.data;
-            try {
-                dataFormatada = new Date(match.data).toLocaleDateString('pt-BR');
-            } catch (e) {}
-
-            matchesHTML += `
-                <div class="euipesbetano-match">
-                    ${match.time_a} <strong>${match.ft}</strong> ${match.time_b} <br>
-                    <small>(${dataFormatada}) - ${match.liga || 'Liga'}</small>
+            statsDiv.innerHTML = `
+                <h2 style="text-align:center;">${team}</h2>
+                <div class="euipesbetano-statsContainer">
+                    ${box('Vitórias', stats.wins, stats.winsGames)}
+                    ${box('Empates', stats.draws, stats.drawsGames)}
+                    ${box('Derrotas', stats.losses, stats.lossesGames)}
+                    ${box('Over 2.5', stats.over25, stats.over25Games)}
+                    ${box('Ambas Marcam', stats.bttsYes, stats.bttsYesGames)}
                 </div>
             `;
-        });
-        matchesDiv.innerHTML = matchesHTML;
-    }
-}
 
-// Função auxiliar para criar o HTML da caixinha (para reduzir código repetido)
-function createStatBox(title, percent, games) {
-    return `
-        <div class="euipesbetano-statBox">
-            <h3>${title}</h3>
-            <p class="euipesbetano-value">${percent}%</p>
-            <p class="euipesbetano-games">${games} jogos</p>
-        </div>
-    `;
-}
+            let matchesHTML = '<h3>Últimos Jogos</h3>';
+            teamData.slice(0, 15).forEach(match => { // Mostra só os ultimos 15
+                 matchesHTML += `<div class="euipesbetano-match">
+                    ${match.time_a} <b>${match.ft}</b> ${match.time_b}
+                 </div>`;
+            });
+            matchesDiv.innerHTML = matchesHTML;
+        }
     </script>
 
     <script>
