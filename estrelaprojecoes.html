@@ -395,9 +395,20 @@
 <div id="header"></div>
 
 <div class="container">
-    
+
     
     <div class="controls">
+        <div class="control-group">
+            <label for="leagueSelect">Selecione uma Liga:</label>
+            <select id="leagueSelect">
+            <option value="" selected>Escolha uma liga</option>
+            <option value="all">Todas as Ligas</option>
+            <option value="Copa%20do%20Mundo">Copa do Mundo</option>
+            <option value="Ligas%20dos%20Campe%C3%B5es">Ligas dos Campeões</option>
+            <option value="Am%C3%A9rica%20Latina">América Latina</option>
+            </select>
+        </div>
+
         <div class="control-group">
             <label for="marketSelect">Selecione o Mercado:</label>
             <select id="marketSelect">
@@ -463,25 +474,25 @@
 </div>
 
     <script>
-let cachedData = null;
-let allProjectionsData = {};
+let cachedData = {};
+let allProjectionsData = {}; // Armazena todas as projeções para comparação
 
 function showLoading(show) {
     document.getElementById("loading").style.display = show ? "block" : "none";
 }
 
-function fetchApiData() {
+function fetchApiData(league) {
     showLoading(true);
-    const apiUrl = "https://betstat.site/resultados/estrela/estrela";
+    const apiUrl = `https://betstat.site/resultados/estrela/${league}`;
     fetch(apiUrl)
         .then(response => {
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             return response.json();
         })
         .then(data => {
-            cachedData = data;
-            console.log("Dados recebidos para Liga Estrela:", data);
-            processApiData(data);
+            cachedData[league] = data;
+            console.log(`Dados recebidos para ${league}:`, data);
+            processApiData(data, league);
             showLoading(false);
         })
         .catch(error => {
@@ -491,22 +502,71 @@ function fetchApiData() {
         });
 }
 
+function fetchAllLeagues() {
+    const leagueSelect = document.getElementById("leagueSelect");
+    const leagues = Array.from(leagueSelect.options)
+        .map(option => option.value)
+        .filter(value => value && value !== "all");
+    
+    showLoading(true);
+    Promise.all(leagues.map(league => 
+        cachedData[league] ? Promise.resolve(cachedData[league]) : 
+        fetch(`https://betstat.site/resultados/estrela/${league}`).then(res => res.json())
+    ))
+    .then(results => {
+        leagues.forEach((league, index) => cachedData[league] = results[index]);
+        console.log("Dados recebidos para todas as ligas:", results);
+        processAllLeagues(leagues);
+        showLoading(false);
+    })
+    .catch(error => {
+        console.error("Erro ao buscar todas as ligas:", error);
+        showLoading(false);
+        alert("Erro ao buscar dados de todas as ligas.");
+    });
+}
+
 function generateList() {
-    if (cachedData) {
-        processApiData(cachedData);
+    const leagueSelect = document.getElementById("leagueSelect").value;
+    if (!leagueSelect) {
+        alert("Por favor, selecione uma liga.");
+        return;
+    }
+    if (leagueSelect === "all") {
+        fetchAllLeagues();
+    } else if (cachedData[leagueSelect]) {
+        processApiData(cachedData[leagueSelect], leagueSelect);
     } else {
-        fetchApiData();
+        fetchApiData(leagueSelect);
     }
 }
 
-function processApiData(data) {
+function processApiData(data, league) {
     const market = document.getElementById("marketSelect").value;
     const range = parseInt(document.getElementById("rangeSelect").value, 10);
     const selectedHour = document.getElementById("hourSelect").value;
     const gameLimit = document.getElementById("gameLimitSelect").value;
     const limitedData = gameLimit === "todos" ? data : data.slice(-parseInt(gameLimit, 10));
-    const projections = analyzeProjections(limitedData, market, range, selectedHour);
+    const projections = analyzeProjections(limitedData, market, range, league, selectedHour);
     displayProjections(projections);
+}
+
+function processAllLeagues(leagues) {
+    const market = document.getElementById("marketSelect").value;
+    const range = parseInt(document.getElementById("rangeSelect").value, 10);
+    const selectedHour = document.getElementById("hourSelect").value;
+    const gameLimit = document.getElementById("gameLimitSelect").value;
+    let allProjections = {};
+
+    leagues.forEach(league => {
+        const limitedData = gameLimit === "todos" ? cachedData[league] : cachedData[league].slice(-parseInt(gameLimit, 10));
+        const projections = analyzeProjections(limitedData, market, range, league, selectedHour);
+        Object.keys(projections).forEach(hour => {
+            if (!allProjections[hour]) allProjections[hour] = {};
+            allProjections[hour][league] = projections[hour][league];
+        });
+    });
+    displayProjections(allProjections);
 }
 
 /* === CÁLCULO DE ESTATÍSTICAS AVANÇADAS === */
@@ -637,7 +697,7 @@ function calculateGaleProbabilities(galePercents) {
 }
 
 /* === ANÁLISE PRINCIPAL === */
-function analyzeProjections(data, market, range, selectedHour) {
+function analyzeProjections(data, market, range, league, selectedHour) {
     const gamesByHour = {};
     const gamesByMinute = {}; // Para estatísticas avançadas
     
@@ -723,7 +783,7 @@ function analyzeProjections(data, market, range, selectedHour) {
 
         if (sequences.length > 0) {
             if (!results[hour]) results[hour] = {};
-            results[hour]["Liga Estrela"] = sequences;
+            results[hour][league] = sequences;
         }
     });
 
@@ -775,13 +835,15 @@ function createProgressBar(percent) {
 
 /* === EXPORTAR RESULTADOS === */
 function exportResults(projections) {
-    let text = "=== PROJEÇÕES DE SINAIS - LIGA ESTRELA ===\n\n";
+    let text = "=== PROJEÇÕES DE SINAIS ===\n\n";
     
     Object.keys(projections).sort((a, b) => a - b).forEach(hour => {
-        text += `\n🕐 HORA: ${String(hour).padStart(2, '0')}\n`;
+        text += `\n📍 HORA: ${String(hour).padStart(2, '0')}\n`;
         text += "=".repeat(50) + "\n";
         
         Object.keys(projections[hour]).forEach(league => {
+            const leagueName = decodeURIComponent(league);
+            
             projections[hour][league].forEach(seq => {
                 const minutes = seq.slice(0, 3).join(' ');
                 const force = seq.forcaSinal;
@@ -789,7 +851,7 @@ function exportResults(projections) {
                 const strength = getSignalStrength(force);
                 const probs = seq.galeProbabilities;
                 
-                text += `\n${emoji} ${league}\n`;
+                text += `\n${emoji} ${leagueName}\n`;
                 text += `   Minutos: ${minutes}\n`;
                 text += `   Força: ${force}% (${strength})\n`;
                 text += `   SG: ${probs.sg}% | G1: ${probs.g1}% | G2: ${probs.g2}%\n`;
@@ -861,7 +923,6 @@ function displayProjections(projections) {
     header.style.marginBottom = "20px";
     header.innerHTML = `
         <h2>PROJEÇÕES PARA ${range} GALES - Mercado: ${marketText}</h2>
-        <h3 style="color: #00d9ff; margin-top: 10px;">⭐ LIGA ESTRELA</h3>
         <div style="display: flex; gap: 15px; margin: 15px 0; flex-wrap: wrap;">
             <label style="display: flex; align-items: center; gap: 5px;">
                 <input type="checkbox" id="filterGoodSignals" onchange="applyFilters()">
@@ -876,15 +937,17 @@ function displayProjections(projections) {
     if (topSignals.length > 0) {
         const topSection = document.createElement("div");
         topSection.style.cssText = "background: linear-gradient(135deg, #1c1f26 0%, #005540 100%); padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);";
-        topSection.innerHTML = `<h3 style="margin: 0 0 15px 0; color: white;">⭐ TOP 3 MELHORES SINAIS</h3>`;
+        topSection.innerHTML = `<h3 style="margin: 0 0 15px 0; color: white;">⭐ TOP 3 MELHORES SINAIS </h3>`;
 
+        
         topSignals.forEach((signal, index) => {
+            const leagueName = decodeURIComponent(signal.league);
             const minutes = signal.sequence.slice(0, range).join(' ');
             const emoji = getSignalEmoji(signal.force);
             
             topSection.innerHTML += `
                 <div style="background: rgba(0, 217, 255, 0.1); padding: 10px; margin: 8px 0; border-radius: 8px; border-left: 3px solid #00d9ff; color: #e0e0e0;">
-                    <strong style="color: #00d9ff;">#${index + 1}</strong> ${emoji} ${signal.league} - Hora ${String(signal.hour).padStart(2, '0')} - Minutos: ${minutes}
+                    <strong style="color: #00d9ff;">#${index + 1}</strong> ${emoji} ${leagueName} - Hora ${String(signal.hour).padStart(2, '0')} - Minutos: ${minutes}
                     <br><span style="font-size: 14px;">Força: ${signal.force}% | ${getSignalStrength(signal.force)}</span>
                 </div>
             `;
@@ -913,6 +976,14 @@ function renderProjections(projections, container, range, marketText) {
         hourBlock.appendChild(hourTitle);
 
         Object.keys(projections[hour]).forEach(league => {
+            let leagueName = decodeURIComponent(league);
+switch (league) {
+    case "Copa%20do%20Mundo": leagueName = "Copa do Mundo"; break;
+    case "Ligas%20dos%20Campe%C3%B5es": leagueName = "Ligas dos Campeões"; break;
+    case "Am%C3%A9rica%20Latina": leagueName = "América Latina"; break;
+    default: leagueName = decodeURIComponent(league);
+}
+
             projections[hour][league].forEach(sequence => {
                 const mainLine = document.createElement("div");
                 mainLine.className = "projection-item";
@@ -925,7 +996,7 @@ function renderProjections(projections, container, range, marketText) {
                 const isBest = forcaSinal >= 90;
                 
                 mainLine.innerHTML = `
-                    <span class="emoji">🏆</span> ${league} ${isBest ? '⭐' : ''}
+                    <span class="emoji">🏆</span> ${leagueName} ${isBest ? '⭐' : ''}
                     <span class="minutes-list">⏰ ${minutesText}</span> → ${marketText}
                 `;
 
@@ -1033,9 +1104,9 @@ function copyResults() {
 }
     </script>
 
-    <script>
-              // Bloqueia o menu de contexto (clique direito)
-      document.addEventListener("contextmenu", function(e) {
+        <script>
+            // Bloqueia o menu de contexto (clique direito)
+document.addEventListener("contextmenu", function(e) {
     e.preventDefault();
 });
 
@@ -1126,6 +1197,8 @@ console.log = function() {};
 console.debug = function() {};
 console.info = function() {};
     </script>
+
+
 
 
 <script>
