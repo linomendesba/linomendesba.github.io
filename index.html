@@ -2874,15 +2874,14 @@ const fibonacciLinesPluginGolsPlus = {
         normalizedLevels.forEach((level, index) => {
             const y = yAxis.getPixelForValue(level);
             ctx.beginPath();
-            ctx.setLineDash([5, 5]); // deixa tracejado
+            ctx.setLineDash([5, 5]);
             ctx.moveTo(chart.chartArea.left, y);
             ctx.lineTo(chart.chartArea.right, y);
             ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
             ctx.lineWidth = 1;
             ctx.stroke();
-            ctx.setLineDash([]); // reseta para não afetar outros desenhos
+            ctx.setLineDash([]);
 
-            // Texto ao lado da linha
             ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
             ctx.font = '11px Arial';
             ctx.textAlign = 'left';
@@ -2903,9 +2902,9 @@ function createStatsChartGolsPlus(ctx, labels, data) {
     ];
 
     const datasets = [];
-    const shortColor = hexToRgba('#00FF00', 0.5); // Verde apagado
-    const mediumColor = hexToRgba('#FFFF00', 0.4); // Amarelo apagado
-    const longColor = hexToRgba('#1E90FF', 0.3); // Azul apagado
+    const shortColor = hexToRgba('#00FF00', 0.5);
+    const mediumColor = hexToRgba('#FFFF00', 0.4);
+    const longColor = hexToRgba('#1E90FF', 0.3);
 
     datasetConfigs.forEach(config => {
         datasets.push({
@@ -2914,8 +2913,8 @@ function createStatsChartGolsPlus(ctx, labels, data) {
             borderColor: config.color,
             backgroundColor: config.color,
             pointBackgroundColor: config.color,
-            pointBorderColor: "rgba(0,0,0,0)", // garante que a borda fique invisível
-            pointBorderWidth: 0,                // sem espessura
+            pointBorderColor: "rgba(0,0,0,0)",
+            pointBorderWidth: 0,
             borderWidth: 2,
             pointRadius: 4,
             fill: false,
@@ -3015,32 +3014,47 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                         }
                     }
                 },
-                    tooltip: {
-                        enabled: true,
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: '#1fad8b',
-                        bodyColor: '#e0e0e0',
-                        borderColor: '#1fad8b',
-                        borderWidth: 1,
-                        callbacks: {
-                            title: function(tooltipItems) {
-                                const index = tooltipItems[0].dataIndex + averagePointsGolsPlus;
-                                const match = chartDataGolsPlus['Copa'][index];
-                                return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
-                            },
-                            label: function() {
-                                // evita repetição nos datasets
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: '#1fad8b',
+                    bodyColor: '#e0e0e0',
+                    borderColor: '#1fad8b',
+                    borderWidth: 1,
+                    callbacks: {
+                        title: function(tooltipItems) {
+                            const index = tooltipItems[0].dataIndex + averagePointsGolsPlus;
+                            const match = chartDataGolsPlus['Copa'][index];
+                            return `${match.hora}:${match.minuto.toString().padStart(2, '0')}`;
+                        },
+                        label: function(context) {
+                            // Evita repetição das Moving Averages
+                            if (context.dataset.label.includes(' - ')) {
                                 return '';
-                            },
-                            afterBody: function(tooltipItems) {
-                                const index = tooltipItems[0].dataIndex + averagePointsGolsPlus;
-                                const match = chartDataGolsPlus['Copa'][index];
-                                const ftScore = match.ft || 'N/A';
-                                return `FT: ${ftScore}`;
                             }
+                            
+                            const label = context.dataset.label;
+                            const value = context.parsed.y;
+                            
+                            if (label === 'Equilíbrio') {
+                                return `${label}: ${value.toFixed(1)} gols`;
+                            }
+                            
+                            return `${label}: ${value} gols`;
+                        },
+                        afterBody: function(tooltipItems) {
+                            const index = tooltipItems[0].dataIndex + averagePointsGolsPlus;
+                            const match = chartDataGolsPlus['Copa'][index];
+                            const ftScore = match.ft || 'N/A';
+                            const htScore = formatHtResult(match.ht) || 'N/A';
+                            
+                            return [
+                                `\nPlacar FT: ${ftScore}`,
+                                `Placar HT: ${htScore}`
+                            ];
                         }
                     }
-
+                }
             },
             scales: {
                 x: {
@@ -3053,7 +3067,7 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                     beginAtZero: false,
                     ticks: { 
                         color: '#b0b0b0',
-                        stepSize: 5 // Intervalos de 5 gols
+                        stepSize: 5
                     },
                     grid: { color: 'rgba(255, 255, 255, 0.3)', borderDash: [], lineWidth: 0.5 },
                     afterFit: function(scale) { scale.paddingTop = 20; }
@@ -3099,7 +3113,7 @@ function toggleMovingAveragesGolsPlus() {
     showMovingAveragesGolsPlus = document.getElementById('movingAveragesToggleGolsPlus').checked;
     if (golsPlusChart) {
         golsPlusChart.data.datasets.forEach((ds, idx) => {
-            if (ds.label.includes(' - ')) { // Dataset de MA
+            if (ds.label.includes(' - ')) {
                 const mainLabel = ds.label.split(' - ')[0];
                 const mainVisible = statsChartVisibleDatasetsGolsPlus[mainLabel];
                 const meta = golsPlusChart.getDatasetMeta(idx);
