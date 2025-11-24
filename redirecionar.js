@@ -9,6 +9,7 @@ function redirecionar(select) {
     url === "gestao.html" ||
     url === "https://www.betstat.site/tv/" ||
     url === "https://www.betstat.site/multkiron.html" ||
+    url === "https://www.betstat.site/estrelaodds.html" ||
     url === "https://www.betstat.site/estrelaght.html" ||
     url === "https://www.betstat.site/estrelatimeminuto.html" ||
     url === "https://www.betstat.site/estrelamacd.html" ||
