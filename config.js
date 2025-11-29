@@ -53,12 +53,21 @@ const ESTRELA_URL_PARAMS = {
   [LIGAS.ESTRELA_AMERICA_LATINA]: "Am%C3%A9rica%20Latina"
 };
 
+// Ligas Betano explicitamente
+const BETANO_LEAGUES = [
+  LIGAS.GLORIA_ETERNA,
+  LIGAS.COPA_AMERICA,
+  LIGAS.EURO,
+  LIGAS.ITALIANO,
+  LIGAS.COPA_ESTRELAS,
+  LIGAS.BRASILEIRAO
+];
+
 // Rotas (verificação inteligente - Betano tem prioridade sobre Bet365)
 const ROTAS_API = {
   resultados: (nomeLiga) => {
     // Verifica PRIMEIRO se é liga da Betano (prioridade)
-    if (Object.values(LIGAS).slice(0, 6).includes(nomeLiga)) {
-      // É uma das 6 primeiras ligas (Betano)
+    if (BETANO_LEAGUES.includes(nomeLiga)) {
       return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
     }
     
@@ -77,7 +86,7 @@ const ROTAS_API = {
   
   proximosJogos: (nomeLiga) => {
     // Verifica PRIMEIRO se é liga da Betano (prioridade)
-    if (Object.values(LIGAS).slice(0, 6).includes(nomeLiga)) {
+    if (BETANO_LEAGUES.includes(nomeLiga)) {
       return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
     }
     
@@ -94,7 +103,7 @@ const ROTAS_API = {
   
   odds: (nomeLiga) => {
     // Verifica PRIMEIRO se é liga da Betano (prioridade)
-    if (Object.values(LIGAS).slice(0, 6).includes(nomeLiga)) {
+    if (BETANO_LEAGUES.includes(nomeLiga)) {
       return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
     }
     
