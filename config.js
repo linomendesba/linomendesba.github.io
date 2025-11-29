@@ -1,8 +1,8 @@
-// config.js – VERSÃO COM BET365 (sem alterar servidor)
+// config.js – VERSÃO SIMPLES E DIRETA
 
 const API_BASE_URL = "https://betstat.site";
 
-// Ligas (mantive seu padrão + bet365)
+// Ligas
 const LIGAS = {
   GLORIA_ETERNA: "Taça Glória Eterna",
   COPA_AMERICA: "Copa América",
@@ -11,9 +11,9 @@ const LIGAS = {
   COPA_ESTRELAS: "Copa das Estrelas",
   BRASILEIRAO: "Brasileirão Betano",
 
-  // BET365 - 4 ligas
+  // BET365 - Nomes únicos
   BET365_COPA: "Bet365 Copa",
-  BET365_EURO: "Bet365 Euro",  // ← Nome diferente aqui no JS
+  BET365_EURO: "Bet365 Euro",
   BET365_SUPER: "Bet365 Super",
   BET365_PREMIER: "Bet365 Premier",
 
@@ -23,97 +23,99 @@ const LIGAS = {
   KIRON_AMERICA: "Kiron Liga América Latina",
   KIRON_SPAIN: "Kiron Liga Espanha",
 
-  // AS 3 NOVAS DA ESTRELABET
   ESTRELA_COPA_MUNDO: "Copa do Mundo",
   ESTRELA_CHAMPIONS: "Ligas dos Campeões",
   ESTRELA_AMERICA_LATINA: "América Latina"
 };
 
-// Kiron (exato como você sempre usou)
-const KIRON_URL_PARAMS = {
-  [LIGAS.KIRON_BRAZIL]: "Brazil",
-  [LIGAS.KIRON_ENGLAND]: "England",
-  [LIGAS.KIRON_ITALY]: "Italy",
-  [LIGAS.KIRON_AMERICA]: "America%20Latina",
-  [LIGAS.KIRON_SPAIN]: "Spain"
-};
-
-// BET365 - Mapeia pro nome no banco de dados
-const BET365_URL_PARAMS = {
-  [LIGAS.BET365_COPA]: "Copa",
-  [LIGAS.BET365_EURO]: "Euro",  // ← No banco continua "Euro"
-  [LIGAS.BET365_SUPER]: "Super",
-  [LIGAS.BET365_PREMIER]: "Premier"
-};
-
-// ESTRELA – URLs 100% compatíveis com seu servidor
-const ESTRELA_URL_PARAMS = {
-  [LIGAS.ESTRELA_COPA_MUNDO]: "Copa%20do%20Mundo",
-  [LIGAS.ESTRELA_CHAMPIONS]: "Ligas%20dos%20Campe%C3%B5es",
-  [LIGAS.ESTRELA_AMERICA_LATINA]: "Am%C3%A9rica%20Latina"
-};
-
-// Ligas Betano explicitamente
-const BETANO_LEAGUES = [
-  LIGAS.GLORIA_ETERNA,
-  LIGAS.COPA_AMERICA,
-  LIGAS.EURO,
-  LIGAS.ITALIANO,
-  LIGAS.COPA_ESTRELAS,
-  LIGAS.BRASILEIRAO
-];
-
-// Rotas (verificação inteligente - Betano tem prioridade sobre Bet365)
+// Mapeamento direto e explícito de cada liga
 const ROTAS_API = {
   resultados: (nomeLiga) => {
-    // Verifica PRIMEIRO se é liga da Betano (prioridade)
-    if (BETANO_LEAGUES.includes(nomeLiga)) {
-      return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
-    }
+    // BETANO - rotas diretas
+    if (nomeLiga === LIGAS.GLORIA_ETERNA) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_AMERICA) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.EURO) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.ITALIANO) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.BRASILEIRAO) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
     
-    // Depois verifica as outras plataformas
-    const kiron = KIRON_URL_PARAMS[nomeLiga];
-    const bet365 = BET365_URL_PARAMS[nomeLiga];
-    const estrela = ESTRELA_URL_PARAMS[nomeLiga];
+    // BET365 - rotas específicas
+    if (nomeLiga === LIGAS.BET365_COPA) return `${API_BASE_URL}/resultados/bet365/Copa`;
+    if (nomeLiga === LIGAS.BET365_EURO) return `${API_BASE_URL}/resultados/bet365/Euro`;
+    if (nomeLiga === LIGAS.BET365_SUPER) return `${API_BASE_URL}/resultados/bet365/Super`;
+    if (nomeLiga === LIGAS.BET365_PREMIER) return `${API_BASE_URL}/resultados/bet365/Premier`;
     
-    if (kiron) return `${API_BASE_URL}/resultados/kiron/${kiron}`;
-    if (bet365) return `${API_BASE_URL}/resultados/bet365/${bet365}`;
-    if (estrela) return `${API_BASE_URL}/resultados/estrela/${estrela}`;
+    // KIRON
+    if (nomeLiga === LIGAS.KIRON_BRAZIL) return `${API_BASE_URL}/resultados/kiron/Brazil`;
+    if (nomeLiga === LIGAS.KIRON_ENGLAND) return `${API_BASE_URL}/resultados/kiron/England`;
+    if (nomeLiga === LIGAS.KIRON_ITALY) return `${API_BASE_URL}/resultados/kiron/Italy`;
+    if (nomeLiga === LIGAS.KIRON_AMERICA) return `${API_BASE_URL}/resultados/kiron/America%20Latina`;
+    if (nomeLiga === LIGAS.KIRON_SPAIN) return `${API_BASE_URL}/resultados/kiron/Spain`;
     
-    // Fallback padrão
+    // ESTRELA
+    if (nomeLiga === LIGAS.ESTRELA_COPA_MUNDO) return `${API_BASE_URL}/resultados/estrela/Copa%20do%20Mundo`;
+    if (nomeLiga === LIGAS.ESTRELA_CHAMPIONS) return `${API_BASE_URL}/resultados/estrela/Ligas%20dos%20Campe%C3%B5es`;
+    if (nomeLiga === LIGAS.ESTRELA_AMERICA_LATINA) return `${API_BASE_URL}/resultados/estrela/Am%C3%A9rica%20Latina`;
+    
     return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
   },
   
   proximosJogos: (nomeLiga) => {
-    // Verifica PRIMEIRO se é liga da Betano (prioridade)
-    if (BETANO_LEAGUES.includes(nomeLiga)) {
-      return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
-    }
+    // BETANO
+    if (nomeLiga === LIGAS.GLORIA_ETERNA) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_AMERICA) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.EURO) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.ITALIANO) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.BRASILEIRAO) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
     
-    const kiron = KIRON_URL_PARAMS[nomeLiga];
-    const bet365 = BET365_URL_PARAMS[nomeLiga];
-    const estrela = ESTRELA_URL_PARAMS[nomeLiga];
+    // BET365
+    if (nomeLiga === LIGAS.BET365_COPA) return `${API_BASE_URL}/proximos/bet365/Copa`;
+    if (nomeLiga === LIGAS.BET365_EURO) return `${API_BASE_URL}/proximos/bet365/Euro`;
+    if (nomeLiga === LIGAS.BET365_SUPER) return `${API_BASE_URL}/proximos/bet365/Super`;
+    if (nomeLiga === LIGAS.BET365_PREMIER) return `${API_BASE_URL}/proximos/bet365/Premier`;
     
-    if (kiron) return `${API_BASE_URL}/proximos/kiron/${kiron}`;
-    if (bet365) return `${API_BASE_URL}/proximos/bet365/${bet365}`;
-    if (estrela) return `${API_BASE_URL}/proximos/estrela/${estrela}`;
+    // KIRON
+    if (nomeLiga === LIGAS.KIRON_BRAZIL) return `${API_BASE_URL}/proximos/kiron/Brazil`;
+    if (nomeLiga === LIGAS.KIRON_ENGLAND) return `${API_BASE_URL}/proximos/kiron/England`;
+    if (nomeLiga === LIGAS.KIRON_ITALY) return `${API_BASE_URL}/proximos/kiron/Italy`;
+    if (nomeLiga === LIGAS.KIRON_AMERICA) return `${API_BASE_URL}/proximos/kiron/America%20Latina`;
+    if (nomeLiga === LIGAS.KIRON_SPAIN) return `${API_BASE_URL}/proximos/kiron/Spain`;
+    
+    // ESTRELA
+    if (nomeLiga === LIGAS.ESTRELA_COPA_MUNDO) return `${API_BASE_URL}/proximos/estrela/Copa%20do%20Mundo`;
+    if (nomeLiga === LIGAS.ESTRELA_CHAMPIONS) return `${API_BASE_URL}/proximos/estrela/Ligas%20dos%20Campe%C3%B5es`;
+    if (nomeLiga === LIGAS.ESTRELA_AMERICA_LATINA) return `${API_BASE_URL}/proximos/estrela/Am%C3%A9rica%20Latina`;
     
     return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
   },
   
   odds: (nomeLiga) => {
-    // Verifica PRIMEIRO se é liga da Betano (prioridade)
-    if (BETANO_LEAGUES.includes(nomeLiga)) {
-      return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
-    }
+    // BETANO
+    if (nomeLiga === LIGAS.GLORIA_ETERNA) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_AMERICA) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.EURO) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.ITALIANO) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.BRASILEIRAO) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
     
-    const kiron = KIRON_URL_PARAMS[nomeLiga];
-    const bet365 = BET365_URL_PARAMS[nomeLiga];
-    const estrela = ESTRELA_URL_PARAMS[nomeLiga];
+    // BET365
+    if (nomeLiga === LIGAS.BET365_COPA) return `${API_BASE_URL}/odds/bet365/Copa`;
+    if (nomeLiga === LIGAS.BET365_EURO) return `${API_BASE_URL}/odds/bet365/Euro`;
+    if (nomeLiga === LIGAS.BET365_SUPER) return `${API_BASE_URL}/odds/bet365/Super`;
+    if (nomeLiga === LIGAS.BET365_PREMIER) return `${API_BASE_URL}/odds/bet365/Premier`;
     
-    if (kiron) return `${API_BASE_URL}/odds/kiron/${kiron}`;
-    if (bet365) return `${API_BASE_URL}/odds/bet365/${bet365}`;
-    if (estrela) return `${API_BASE_URL}/odds/estrela/${estrela}`;
+    // KIRON
+    if (nomeLiga === LIGAS.KIRON_BRAZIL) return `${API_BASE_URL}/odds/kiron/Brazil`;
+    if (nomeLiga === LIGAS.KIRON_ENGLAND) return `${API_BASE_URL}/odds/kiron/England`;
+    if (nomeLiga === LIGAS.KIRON_ITALY) return `${API_BASE_URL}/odds/kiron/Italy`;
+    if (nomeLiga === LIGAS.KIRON_AMERICA) return `${API_BASE_URL}/odds/kiron/America%20Latina`;
+    if (nomeLiga === LIGAS.KIRON_SPAIN) return `${API_BASE_URL}/odds/kiron/Spain`;
+    
+    // ESTRELA
+    if (nomeLiga === LIGAS.ESTRELA_COPA_MUNDO) return `${API_BASE_URL}/odds/estrela/Copa%20do%20Mundo`;
+    if (nomeLiga === LIGAS.ESTRELA_CHAMPIONS) return `${API_BASE_URL}/odds/estrela/Ligas%20dos%20Campe%C3%B5es`;
+    if (nomeLiga === LIGAS.ESTRELA_AMERICA_LATINA) return `${API_BASE_URL}/odds/estrela/Am%C3%A9rica%20Latina`;
     
     return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
   }
@@ -123,16 +125,16 @@ const ROTAS_API = {
 function detectarLigaAtual() {
   const caminho = (window.location.pathname || "").toLowerCase();
 
-  // BETANO (prioridade máxima)
+  // BETANO
   if (caminho.includes("brasileirao.html")) return LIGAS.BRASILEIRAO;
   if (caminho.includes("campeonato_italiano.html")) return LIGAS.ITALIANO;
   if (caminho.includes("copa_america.html")) return LIGAS.COPA_AMERICA;
   if (caminho.includes("copa_das_estrelas.html")) return LIGAS.COPA_ESTRELAS;
-  if (caminho.includes("euro.html")) return LIGAS.EURO;  // ← Euro da BETANO
+  if (caminho.includes("euro.html") && !caminho.includes("bet365")) return LIGAS.EURO;
 
-  // BET365 (nome diferente nos arquivos HTML)
+  // BET365
   if (caminho.includes("bet365copa.html")) return LIGAS.BET365_COPA;
-  if (caminho.includes("bet365euro.html")) return LIGAS.BET365_EURO;  // ← Euro da BET365
+  if (caminho.includes("bet365euro.html")) return LIGAS.BET365_EURO;
   if (caminho.includes("bet365super.html")) return LIGAS.BET365_SUPER;
   if (caminho.includes("bet365premier.html")) return LIGAS.BET365_PREMIER;
 
