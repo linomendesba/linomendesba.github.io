@@ -20,6 +20,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/estrelaodds.html" ||
     url === "https://www.betstat.site/estrelaequipes.html" ||
     url === "https://www.betstat.site/365gratime.html" ||
+    url === "https://www.betstat.site/365macro.html" ||
     url === "https://www.betstat.site/estrelaght.html" ||
     url === "https://www.betstat.site/estrelatimeminuto.html" ||
     url === "https://www.betstat.site/estrelamacd.html" ||
