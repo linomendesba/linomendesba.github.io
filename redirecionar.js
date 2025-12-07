@@ -124,6 +124,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/classificacao.html" ||
     url === "https://www.betstat.site/365palpites.html" ||
     url === "https://www.betstat.site/localizAIstar.html" ||
+    url === "https://www.betstat.site/365macd.html" ||
     url === "https://www.betstat.site/365stat.html" ||
     url === "https://www.betstat.site/365fixo.html" ||
     url === "https://www.betstat.site/365gols.html" ||
