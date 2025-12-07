@@ -122,6 +122,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/mult365.html" ||
     url === "https://www.betstat.site/localizAI.html" ||
     url === "https://www.betstat.site/classificacao.html" ||
+    url === "https://www.betstat.site/365palpites.html" ||
     url === "https://www.betstat.site/localizAIstar.html" ||
     url === "https://www.betstat.site/graficotime.html" ||
     url === "https://goldebet.bet.br/sports#/virtual" ||
