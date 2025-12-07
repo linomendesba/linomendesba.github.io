@@ -26,6 +26,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/estrelaclassifica.html" ||
     url === "https://www.betstat.site/estrelastat.html" ||
     url === "https://www.betstat.site/365projecoes.html" ||
+    url === "https://www.betstat.site/365porcent.html" ||
     url === "https://www.betstat.site/estrelagf.html" ||
     url === "https://www.betstat.site/betsduelo.html" ||
     url === "https://www.betstat.site/estreladuelo.html" ||
