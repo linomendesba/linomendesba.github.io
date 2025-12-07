@@ -126,6 +126,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/localizAIstar.html" ||
     url === "https://www.betstat.site/365macd.html" ||
     url === "https://www.betstat.site/365stat.html" ||
+    url === "https://www.betstat.site/365timeminuto.html" ||
     url === "https://www.betstat.site/365fixo.html" ||
     url === "https://www.betstat.site/365gols.html" ||
     url === "https://www.betstat.site/graficotime.html" ||
