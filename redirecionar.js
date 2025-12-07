@@ -17,6 +17,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/mult365.html" ||
     url === "https://www.betstat.site/estrelaradar.htmll" ||
     url === "https://www.betstat.site/estrelapalpites.html" ||
+    url === "https://www.betstat.site/365confronto.html" ||
     url === "https://www.betstat.site/estrelaodds.html" ||
     url === "https://www.betstat.site/estrelaequipes.html" ||
     url === "https://www.betstat.site/365gratime.html" ||
