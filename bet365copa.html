@@ -4301,277 +4301,283 @@ loadNextGamesForMinutes();
 </script>
 
 <script>
-{
 // --- CONFIGURAÇÕES ---
-    const API_URL = ROTAS_API.resultados(LIGA_ATUAL);
-    const UPDATE_INTERVAL = 3000; // 3 segundos [cite: 1, 2]
+const API_URL = ROTAS_API.resultados(LIGA_ATUAL);
+const UPDATE_INTERVAL = 3000; // 3 segundos
 
-    // --- DEFINIÇÕES DOS BLOCOS ---
-    const blocosDeMinutos = [
-        [1, 4, 7, 10, 13],    // Bloco 1
-        [16, 19, 22, 25, 28], // Bloco 2
-        [31, 34, 37, 40, 43], // Bloco 3
-        [46, 49, 52, 55, 58]  // Bloco 4
-    ]; // [cite: 2]
+// --- DEFINIÇÕES DOS BLOCOS ---
+const blocosDeMinutos = [
+    [1, 4, 7, 10, 13],    // Bloco 1
+    [16, 19, 22, 25, 28], // Bloco 2
+    [31, 34, 37, 40, 43], // Bloco 3
+    [46, 49, 52, 55, 58]  // Bloco 4
+];
 
 // --- MAPEAMENTO DE MERCADOS OPOSTOS ---
-    const counterMarketMap = {
-        'ambasMarcam': 'ambasNaoMarcam', 'ambasNaoMarcam': 'ambasMarcam',
-        'over1.5': 'under1.5', 'under1.5': 'over1.5',
-        'over2.5': 'under2.5', 'under2.5': 'over2.5',
-        'over3.5': 'under3.5', 'under3.5': 'over3.5',
-        'casaVence': 'empateOuFora', 'foraVence': 'empateOuCasa',
-        'empate': 'casaOuFora', 'over5': null
-    }; // [cite: 3]
-    let numPreviousHours = 1; // [cite: 4]
+const counterMarketMap = {
+    'ambasMarcam': 'ambasNaoMarcam', 'ambasNaoMarcam': 'ambasMarcam',
+    'over1.5': 'under1.5', 'under1.5': 'over1.5',
+    'over2.5': 'under2.5', 'under2.5': 'over2.5',
+    'over3.5': 'under3.5', 'under3.5': 'over3.5',
+    'casaVence': 'empateOuFora', 'foraVence': 'empateOuCasa',
+    'empate': 'casaOuFora', 'over5': null
+};
 
-    /**
-     * Verifica se um resultado de jogo atende a um mercado específico.
-     */
-    function checkMarket(ftScore, market) { // [cite: 5]
-        if (!ftScore || !ftScore.includes('x')) return false; // [cite: 5]
-        const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g); // [cite: 6]
-        const totalGols = golsCasa + golsFora; // [cite: 6]
-        switch (market) { // [cite: 7]
-            case 'ambasMarcam': return golsCasa > 0 && golsFora > 0; // [cite: 7]
-            case 'ambasNaoMarcam': return golsCasa === 0 || golsFora === 0; // [cite: 8]
-            case 'casaVence': return golsCasa > golsFora; // [cite: 8]
-            case 'foraVence': return golsFora > golsCasa; // [cite: 9]
-            case 'empate': return golsCasa === golsFora; // [cite: 9]
-            case 'over1.5': return totalGols > 1.5; // [cite: 9]
-            case 'under1.5': return totalGols < 1.5; // [cite: 10]
-            case 'over2.5': return totalGols > 2.5; // [cite: 10]
-            case 'under2.5': return totalGols < 2.5; // [cite: 10]
-            case 'over3.5': return totalGols > 3.5; // [cite: 11]
-            case 'under3.5': return totalGols < 3.5; // [cite: 11]
-            case 'over5': return totalGols >= 5; // [cite: 11]
-            case 'empateOuFora': return golsCasa <= golsFora; // [cite: 12]
-            case 'empateOuCasa': return golsCasa >= golsFora; // [cite: 12]
-            case 'casaOuFora': return golsCasa !== golsFora; // [cite: 12]
-            default: return false; // [cite: 13]
-        }
-    }
+let numPreviousHours = 1;
 
-    /**
-     * Pega a hora atual do sistema e ajusta o fuso horário (adiciona 3 horas).
-     * Retorna a hora do dia (0-23) já ajustada.
-     */
-    function getHoraAtualComFuso() {
-        const agora = new Date();
-        // Adiciona 3 horas à hora atual
-        agora.setHours(agora.getHours() + 3); 
-        return agora.getHours(); // 
-    }
-
-    /**
-     * Gera o HTML para um único bloco de estatísticas.
-     */
-    function createBlocoHtml(index, timeSlots) { // [cite: 15]
-        let html = `
-            <th colspan="5" style="color: #d1d5db; font-weight: 600; padding: 0.5rem; border-left: 1px solid #1fac89; text-align: center; font-size: 13px; line-height: 1.25;">
-        `; // [cite: 15]
-        timeSlots.forEach((slot, slotIdx) => { // [cite: 16]
-            const isCurrent = slotIdx === 0; // [cite: 16]
-            const labelColor = isCurrent ? '#e5e7eb' : '#9ca3af'; // [cite: 16]
-            const labelWeight = isCurrent ? '600' : '400'; // [cite: 16]
-            const labelSize = isCurrent ? '11px' : '10px'; // [cite: 16]
-            const mtStyle = slotIdx > 0 ? 'margin-top: 0.25rem;' : ''; // [cite: 16]
- 
-            const golsBorderColor = isCurrent ? 'rgba(75,85,99,0.6)' : 'rgba(55,65,81,0.6)'; // [cite: 17]
-            const golsBgColor = isCurrent ? 'rgba(75,85,99,0.1)' : 'rgba(55,65,81,0.1)'; // [cite: 17]
-            const golsTextColor = isCurrent ? '#e5e7eb' : '#d1d5db'; // [cite: 17]
-            const hitBorderColor = isCurrent ? '#3a3f4b;' : 'rgba(4,120,87,0.6)'; // [cite: 17]
-            const hitBgColor = isCurrent ? 'rgba(1,139,6,0.1)' : 'rgb(41 45 54)'; // [cite: 17]
-    
-            const hitTextColor = isCurrent ? '#018b06' : '#6ee7b7'; // [cite: 18]
-            const counterBorderColor = isCurrent ? '#3a3f4b;' : '#3a3f4b;'; // [cite: 18]
-            const counterBgColor = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)'; // [cite: 18]
-            const counterTextColor = isCurrent ? '#be0e02' : '#fda4af'; // [cite: 19]
-            const label = isCurrent ?
-                `Hora Atual: ${slot.hour.toString().padStart(2, '0')}` : `Hora Anterior ${slotIdx}: ${slot.hour.toString().padStart(2, '0')}`; // [cite: 19, 20]
-            html += `
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; ${mtStyle}">
-                    <span style="color: ${labelColor}; font-weight: ${labelWeight}; font-size: ${labelSize};">${label}</span>
-                    <div style="display: flex; align-items: center; gap: 0.375rem;">
-                     
-    <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${golsBorderColor}; background-color: ${golsBgColor}; color: ${golsTextColor}; white-space: nowrap;"
-    title="Total de Gols"> // [cite: 21, 22]
-                            <span style="font-size: 11px; line-height: 14px;">⚽</span> // [cite: 22]
-                            <strong id="gols-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong> // [cite: 23]
-                        </span>
-         
-                <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${hitBorderColor}; background-color: ${hitBgColor}; color: ${hitTextColor}; white-space: nowrap;"
-    title="Mercado Selecionado"> // [cite: 24, 25]
-                            <span style="font-size: 11px; line-height: 14px;">✅</span> // [cite: 25]
-                            <strong id="hits-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong> // [cite: 25]
-                        </span>
-          
-               <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${counterBorderColor}; background-color: ${counterBgColor}; color: ${counterTextColor}; white-space: nowrap;"
-    title="Mercado Contrário"> // [cite: 26, 27]
-                            <span style="font-size: 11px; line-height: 14px;">❌</span> // [cite: 27]
-                            <strong id="counter-hits-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong> // [cite: 27]
-                        </span>
-          
-           </div>
-                </div>
-            `; // [cite: 28]
-        }); // [cite: 29]
-        html += `</th>`; // [cite: 29]
-        return html; // [cite: 29]
-    }
-
-    /**
-     * Gera o HTML para os controles de horas.
-     */
-    function createControlsHtml() { // [cite: 30]
-        return `
-            <th style="color: #d1d5db; font-weight: 600; padding: 0rem 19px; border-left: 1px solid #2596be; text-align: center;">
-                <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
-                    <button id="decrease-hours" class="blocos-button">-</button>
-              
-       <span id="num-previous" style="color: white; font-size: 12px;">1</span> // [cite: 31]
-                    <button id="increase-hours" class="blocos-button">+</button> // [cite: 31]
-                </div>
-            </th>
-        `; // [cite: 32]
-    }
-
-    /**
-     * Busca os dados da API, processa e atualiza a interface.
-     */
-    async function fetchAndUpdateData() { // [cite: 33]
-        try {
-            const response = await fetch(API_URL); // [cite: 33]
-            if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`); // [cite: 34]
-            const resultados = await response.json(); // [cite: 34]
-            if (!resultados || resultados.length === 0) { // [cite: 35]
-                console.warn("Nenhum resultado encontrado na API."); // [cite: 35]
-                return; // [cite: 36]
-            }
-
-            // Usar a hora atual do sistema ajustada pelo fuso (+3h)
-            const horaAtualNumero = getHoraAtualComFuso(); // AQUI: Usando a nova função
-
-            let timeSlots = [];
-            // Para encontrar a data correta para a hora ajustada, precisamos de um objeto Date ajustado.
-            let agoraComFuso = new Date();
-            agoraComFuso.setHours(agoraComFuso.getHours() + 3);
-            let currentDate = new Date(agoraComFuso);
-            let currentHour = horaAtualNumero;
-            
-            for (let i = 0; i <= numPreviousHours; i++) { // inclui atual + anteriores [cite: 38]
-                timeSlots.push({
-                    date: currentDate.toISOString().split('T')[0],
-                    hour: currentHour
-                }); // [cite: 38, 39]
-
-                // Retrocede a hora
-                currentHour--; // [cite: 39]
-                if (currentHour < 0) { // [cite: 39]
-                    currentHour = 23; // [cite: 40]
-                    // Se a hora for zero, também voltamos um dia
-                    currentDate.setDate(currentDate.getDate() - 1); // [cite: 40]
-                }
-            }
-
-            console.log(`Time slots: ${JSON.stringify(timeSlots)}`); // [cite: 40]
-            // Filtrar jogos por slot de tempo
-            const jogosPorSlot = timeSlots.map(slot =>
-                resultados.filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
-            ); // [cite: 41]
-            console.log(`Jogos encontrados por slot: ${jogosPorSlot.map(j => j.length).join(', ')}`); // [cite: 42]
-
-            // Atualizar HTML apenas se necessário
-            const trContainer = document.getElementById('trBlocks'); // [cite: 42]
-            if (!trContainer.children.length || trContainer.dataset.horaAtual != horaAtualNumero || trContainer.dataset.numPrevious != numPreviousHours) { // [cite: 43]
-                let tableHtml = `<th style="position: sticky;left: 0;z-index: 10;background-color: #1f2129;color: #d1d5db;font-weight: 600;padding: 7px;text-align: center;border-right: 1px solid #555;font-size: 12px;line-height: 1.25;background-color: #292d36;">QDT</th>`; // [cite: 43]
-                for (let i = 0; i < blocosDeMinutos.length; i++) { // [cite: 44]
-                    tableHtml += createBlocoHtml(i, timeSlots); // [cite: 44, 45]
-                }
-
-                tableHtml += createControlsHtml(); // [cite: 45]
-                trContainer.innerHTML = tableHtml; // [cite: 46]
-                trContainer.dataset.horaAtual = horaAtualNumero; // [cite: 46]
-                trContainer.dataset.numPrevious = numPreviousHours; // [cite: 46]
-
-                // Re-anexar event listeners após recriar HTML
-                attachControlListeners(); // [cite: 46, 47]
-            }
-
-            const selectedMarket = document.getElementById('seletorResultado').value; // [cite: 47]
-            const counterMarket = counterMarketMap[selectedMarket]; // [cite: 47]
-            blocosDeMinutos.forEach((minutosDoBloco, index) => { // [cite: 48]
-                timeSlots.forEach((slot, slotIdx) => { // [cite: 48]
-                    const jogos = jogosPorSlot[slotIdx]; // [cite: 48]
-                    const stats = calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket); // [cite: 48]
-
-                    // Atualizar elementos
-       
-                    const golsEl = document.getElementById(`gols-${index}-${slotIdx}`); // [cite: 49]
-                    const hitsEl = document.getElementById(`hits-${index}-${slotIdx}`); // [cite: 49]
-                    const counterHitsEl = document.getElementById(`counter-hits-${index}-${slotIdx}`); // [cite: 49]
-
-                    if (golsEl) golsEl.innerText = stats.totalGols; // [cite: 49, 50]
-              
-                    if (hitsEl) hitsEl.innerText = stats.marketHits; // [cite: 50]
-                    if (counterHitsEl) counterHitsEl.innerText = stats.counterMarketHits; // [cite: 50]
-                }); // [cite: 50]
-            }); // [cite: 50]
-        } catch (error) { // [cite: 51]
-            console.error("Falha ao buscar ou processar dados:", error); // [cite: 51]
-        } // [cite: 52]
-    }
-
-    function calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket) { // [cite: 52]
-        const stats = { totalGols: 0, marketHits: 0, counterMarketHits: 0 }; // [cite: 52]
-        const jogosDoBloco = jogos.filter(j => minutosDoBloco.includes(j.minuto)); // [cite: 53]
-        
-        for (const jogo of jogosDoBloco) { // [cite: 53]
-            const [golsCasa, golsFora] = jogo.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g); // [cite: 53]
-            stats.totalGols += golsCasa + golsFora; // [cite: 54]
-            if (checkMarket(jogo.ft, selectedMarket)) stats.marketHits++; // [cite: 54]
-            if (counterMarket && checkMarket(jogo.ft, counterMarket)) stats.counterMarketHits++; // [cite: 54]
-        } // [cite: 55]
-        return stats; // [cite: 55]
-    }
-
-    function attachControlListeners() { // [cite: 56]
-        const decreaseBtn = document.getElementById('decrease-hours'); // [cite: 56]
-        const increaseBtn = document.getElementById('increase-hours'); // [cite: 57]
-        const numSpan = document.getElementById('num-previous'); // [cite: 57]
-
-        if (numSpan) numSpan.innerText = numPreviousHours; // [cite: 57]
-        if (decreaseBtn) { // [cite: 58]
-            decreaseBtn.addEventListener('click', () => { // [cite: 58]
-                if (numPreviousHours > 0) { // [cite: 58]
-                    numPreviousHours--; // [cite: 59]
-                    if (numSpan) numSpan.innerText = numPreviousHours; // [cite: 59]
-                   
-                    fetchAndUpdateData(); // [cite: 59]
-                }
-            }); // [cite: 60]
-        }
-
-        if (increaseBtn) { // [cite: 60]
-            increaseBtn.addEventListener('click', () => { // [cite: 60]
-                numPreviousHours++; // [cite: 60]
-                if (numSpan) numSpan.innerText = numPreviousHours; // [cite: 61]
-                fetchAndUpdateData(); // [cite: 61]
-            });
-        }
-    }
-
-    /**
-     * Inicializa a aplicação.
-     */
-    function init() { // [cite: 62]
-        document.getElementById('seletorResultado').addEventListener('change', fetchAndUpdateData); // [cite: 62]
-        fetchAndUpdateData(); // [cite: 62]
-        setInterval(fetchAndUpdateData, UPDATE_INTERVAL); // [cite: 63]
-    }
-
-    document.addEventListener('DOMContentLoaded', init); // [cite: 63]
+/**
+ * Pega a hora atual do sistema e adiciona 3 horas (fuso horário dos dados)
+ */
+function getHoraComFuso() {
+    const agora = new Date();
+    const horaLocal = agora.getHours();
+    const horaComFuso = (horaLocal + 3) % 24;
+    return horaComFuso;
 }
+
+/**
+ * Pega a data ajustada considerando o fuso horário
+ */
+function getDataComFuso() {
+    const agora = new Date();
+    const horaLocal = agora.getHours();
+    
+    // Se adicionar 3 horas passar para o dia seguinte
+    if (horaLocal >= 21) {
+        const dataFutura = new Date(agora);
+        dataFutura.setDate(dataFutura.getDate() + 1);
+        return dataFutura;
+    }
+    
+    return agora;
+}
+
+/**
+ * Verifica se um resultado de jogo atende a um mercado específico.
+ */
+function checkMarket(ftScore, market) {
+    if (!ftScore || !ftScore.includes('x')) return false;
+    const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+    const totalGols = golsCasa + golsFora;
+    switch (market) {
+        case 'ambasMarcam': return golsCasa > 0 && golsFora > 0;
+        case 'ambasNaoMarcam': return golsCasa === 0 || golsFora === 0;
+        case 'casaVence': return golsCasa > golsFora;
+        case 'foraVence': return golsFora > golsCasa;
+        case 'empate': return golsCasa === golsFora;
+        case 'over1.5': return totalGols > 1.5;
+        case 'under1.5': return totalGols < 1.5;
+        case 'over2.5': return totalGols > 2.5;
+        case 'under2.5': return totalGols < 2.5;
+        case 'over3.5': return totalGols > 3.5;
+        case 'under3.5': return totalGols < 3.5;
+        case 'over5': return totalGols >= 5;
+        case 'empateOuFora': return golsCasa <= golsFora;
+        case 'empateOuCasa': return golsCasa >= golsFora;
+        case 'casaOuFora': return golsCasa !== golsFora;
+        default: return false;
+    }
+}
+
+/**
+ * Gera o HTML para um único bloco de estatísticas.
+ */
+function createBlocoHtml(index, timeSlots) {
+    let html = `
+        <th colspan="5" style="color: #d1d5db; font-weight: 600; padding: 0.5rem; border-left: 1px solid #1fac89; text-align: center; font-size: 13px; line-height: 1.25;">
+    `;
+    timeSlots.forEach((slot, slotIdx) => {
+        const isCurrent = slotIdx === 0;
+        const labelColor = isCurrent ? '#e5e7eb' : '#9ca3af';
+        const labelWeight = isCurrent ? '600' : '400';
+        const labelSize = isCurrent ? '11px' : '10px';
+        const mtStyle = slotIdx > 0 ? 'margin-top: 0.25rem;' : '';
+        const golsBorderColor = isCurrent ? 'rgba(75,85,99,0.6)' : 'rgba(55,65,81,0.6)';
+        const golsBgColor = isCurrent ? 'rgba(75,85,99,0.1)' : 'rgba(55,65,81,0.1)';
+        const golsTextColor = isCurrent ? '#e5e7eb' : '#d1d5db';
+        const hitBorderColor = isCurrent ? '#3a3f4b;' : 'rgba(4,120,87,0.6)';
+        const hitBgColor = isCurrent ? 'rgba(1,139,6,0.1)' : 'rgb(41 45 54)';
+        const hitTextColor = isCurrent ? '#018b06' : '#6ee7b7';
+        const counterBorderColor = isCurrent ? '#3a3f4b;' : '#3a3f4b;';
+        const counterBgColor = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)';
+        const counterTextColor = isCurrent ? '#be0e02' : '#fda4af';
+        const label = isCurrent ? `Hora Atual: ${slot.hour.toString().padStart(2, '0')}` : `Hora Anterior ${slotIdx}: ${slot.hour.toString().padStart(2, '0')}`;
+
+        html += `
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; ${mtStyle}">
+                <span style="color: ${labelColor}; font-weight: ${labelWeight}; font-size: ${labelSize};">${label}</span>
+                <div style="display: flex; align-items: center; gap: 0.375rem;">
+                    <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${golsBorderColor}; background-color: ${golsBgColor}; color: ${golsTextColor}; white-space: nowrap;" title="Total de Gols">
+                        <span style="font-size: 11px; line-height: 14px;">⚽</span>
+                        <strong id="gols-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
+                    </span>
+                    <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${hitBorderColor}; background-color: ${hitBgColor}; color: ${hitTextColor}; white-space: nowrap;" title="Mercado Selecionado">
+                        <span style="font-size: 11px; line-height: 14px;">✅</span>
+                        <strong id="hits-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
+                    </span>
+                    <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${counterBorderColor}; background-color: ${counterBgColor}; color: ${counterTextColor}; white-space: nowrap;" title="Mercado Contrário">
+                        <span style="font-size: 11px; line-height: 14px;">❌</span>
+                        <strong id="counter-hits-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
+                    </span>
+                </div>
+            </div>
+        `;
+    });
+    html += `</th>`;
+    return html;
+}
+
+/**
+ * Gera o HTML para os controles de horas.
+ */
+function createControlsHtml() {
+    return `
+        <th style="color: #d1d5db; font-weight: 600; padding: 0rem 19px; border-left: 1px solid #2596be; text-align: center;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                <button id="decrease-hours" class="blocos-button">-</button>
+                <span id="num-previous" style="color: white; font-size: 12px;">1</span>
+                <button id="increase-hours" class="blocos-button">+</button>
+            </div>
+        </th>
+    `;
+}
+
+/**
+ * Busca os dados da API, processa e atualiza a interface.
+ */
+async function fetchAndUpdateData() {
+    try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`);
+        const resultados = await response.json();
+
+        if (!resultados || resultados.length === 0) {
+            console.warn("Nenhum resultado encontrado na API.");
+            return;
+        }
+
+        // Usar a hora com fuso horário ajustado (+3 horas)
+        const horaAtualComFuso = getHoraComFuso();
+        const dataAtualComFuso = getDataComFuso();
+
+        let timeSlots = [];
+        let currentDate = new Date(dataAtualComFuso);
+        let currentHour = horaAtualComFuso;
+
+        for (let i = 0; i <= numPreviousHours; i++) { // inclui atual + anteriores
+            timeSlots.push({
+                date: currentDate.toISOString().split('T')[0],
+                hour: currentHour
+            });
+
+            currentHour--;
+            if (currentHour < 0) {
+                currentHour = 23;
+                currentDate.setDate(currentDate.getDate() - 1);
+            }
+        }
+
+        console.log(`Time slots (com fuso +3h): ${JSON.stringify(timeSlots)}`);
+
+        // Filtrar jogos por slot de tempo
+        const jogosPorSlot = timeSlots.map(slot =>
+            resultados.filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
+        );
+
+        console.log(`Jogos encontrados por slot: ${jogosPorSlot.map(j => j.length).join(', ')}`);
+
+        // Atualizar HTML apenas se necessário
+        const trContainer = document.getElementById('trBlocks');
+        if (!trContainer.children.length || trContainer.dataset.horaAtual != horaAtualComFuso || trContainer.dataset.numPrevious != numPreviousHours) {
+            let tableHtml = `<th style="position: sticky;left: 0;z-index: 10;background-color: #1f2129;color: #d1d5db;font-weight: 600;padding: 7px;text-align: center;border-right: 1px solid #555;font-size: 12px;line-height: 1.25;background-color: #292d36;">QDT</th>`;
+            
+            for (let i = 0; i < blocosDeMinutos.length; i++) {
+                tableHtml += createBlocoHtml(i, timeSlots);
+            }
+
+            tableHtml += createControlsHtml();
+            
+            trContainer.innerHTML = tableHtml;
+            trContainer.dataset.horaAtual = horaAtualComFuso;
+            trContainer.dataset.numPrevious = numPreviousHours;
+
+            // Re-anexar event listeners após recriar HTML
+            attachControlListeners();
+        }
+
+        const selectedMarket = document.getElementById('seletorResultado').value;
+        const counterMarket = counterMarketMap[selectedMarket];
+
+        blocosDeMinutos.forEach((minutosDoBloco, index) => {
+            timeSlots.forEach((slot, slotIdx) => {
+                const jogos = jogosPorSlot[slotIdx];
+                const stats = calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket);
+
+                // Atualizar elementos
+                const golsEl = document.getElementById(`gols-${index}-${slotIdx}`);
+                const hitsEl = document.getElementById(`hits-${index}-${slotIdx}`);
+                const counterHitsEl = document.getElementById(`counter-hits-${index}-${slotIdx}`);
+
+                if (golsEl) golsEl.innerText = stats.totalGols;
+                if (hitsEl) hitsEl.innerText = stats.marketHits;
+                if (counterHitsEl) counterHitsEl.innerText = stats.counterMarketHits;
+            });
+        });
+
+    } catch (error) {
+        console.error("Falha ao buscar ou processar dados:", error);
+    }
+}
+
+function calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
+    const stats = { totalGols: 0, marketHits: 0, counterMarketHits: 0 };
+    const jogosDoBloco = jogos.filter(j => minutosDoBloco.includes(j.minuto));
+    
+    for (const jogo of jogosDoBloco) {
+        const [golsCasa, golsFora] = jogo.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+        stats.totalGols += golsCasa + golsFora;
+        if (checkMarket(jogo.ft, selectedMarket)) stats.marketHits++;
+        if (counterMarket && checkMarket(jogo.ft, counterMarket)) stats.counterMarketHits++;
+    }
+    return stats;
+}
+
+function attachControlListeners() {
+    const decreaseBtn = document.getElementById('decrease-hours');
+    const increaseBtn = document.getElementById('increase-hours');
+    const numSpan = document.getElementById('num-previous');
+
+    if (numSpan) numSpan.innerText = numPreviousHours;
+
+    if (decreaseBtn) {
+        decreaseBtn.addEventListener('click', () => {
+            if (numPreviousHours > 0) {
+                numPreviousHours--;
+                if (numSpan) numSpan.innerText = numPreviousHours;
+                fetchAndUpdateData();
+            }
+        });
+    }
+
+    if (increaseBtn) {
+        increaseBtn.addEventListener('click', () => {
+            numPreviousHours++;
+            if (numSpan) numSpan.innerText = numPreviousHours;
+            fetchAndUpdateData();
+        });
+    }
+}
+
+/**
+ * Inicializa a aplicação.
+ */
+function init() {
+    document.getElementById('seletorResultado').addEventListener('change', fetchAndUpdateData);
+    fetchAndUpdateData(); 
+    setInterval(fetchAndUpdateData, UPDATE_INTERVAL);
+}
+
+document.addEventListener('DOMContentLoaded', init);
 </script>
 
 <script>
