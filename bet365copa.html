@@ -4356,7 +4356,7 @@ function checkMarket(ftScore, market) {
 /**
  * Gera o HTML para um único bloco de estatísticas.
  */
-function createBlocoHtml(index, groups) {
+function createBlocoHtml(index, groups, horaAtualAjustada) {
     let html = `
         <th colspan="5" style="color: #d1d5db; font-weight: 600; padding: 0.5rem; border-left: 1px solid #1fac89; text-align: center; font-size: 13px; line-height: 1.25;">
     `;
@@ -4376,11 +4376,10 @@ function createBlocoHtml(index, groups) {
         const counterBgColor = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)';
         const counterTextColor = isCurrent ? '#be0e02' : '#fda4af';
         
-        // Pega a hora do primeiro jogo do grupo para exibir
-        const primeiroJogo = group.jogos[0];
-        const horaExibicao = primeiroJogo ? `${String(primeiroJogo.hora).padStart(2, '0')}h` : '--';
+        // Usa a hora atual do sistema ajustada (+3h)
+        const horaExibicao = `${String(horaAtualAjustada).padStart(2, '0')}h`;
         
-        const label = isCurrent ? `Hora Atual: ${horaExibicao}` : `Hora Anterior ${groupIdx}: ${horaExibicao}`;
+        const label = isCurrent ? `Hora Atual: ${horaExibicao}` : `Grupo Anterior ${groupIdx}`;
 
         html += `
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; ${mtStyle}">
@@ -4454,19 +4453,27 @@ async function fetchAndUpdateData() {
         console.log(`Grupos criados: ${groups.length}`);
         console.log(`Jogos por grupo: ${groups.map(g => g.jogos.length).join(', ')}`);
 
+        // Pega a hora atual do sistema e adiciona 3 horas
+        const agora = new Date();
+        let horaAtualAjustada = agora.getHours() + 3;
+        if (horaAtualAjustada >= 24) {
+            horaAtualAjustada -= 24;
+        }
+
         // Atualizar HTML apenas se necessário
         const trContainer = document.getElementById('trBlocks');
-        if (!trContainer.children.length || trContainer.dataset.numPrevious != numPreviousGroups) {
+        if (!trContainer.children.length || trContainer.dataset.numPrevious != numPreviousGroups || trContainer.dataset.horaAtual != horaAtualAjustada) {
             let tableHtml = `<th style="position: sticky;left: 0;z-index: 10;background-color: #1f2129;color: #d1d5db;font-weight: 600;padding: 7px;text-align: center;border-right: 1px solid #555;font-size: 12px;line-height: 1.25;background-color: #292d36;">QDT</th>`;
             
             for (let i = 0; i < blocosDeMinutos.length; i++) {
-                tableHtml += createBlocoHtml(i, groups);
+                tableHtml += createBlocoHtml(i, groups, horaAtualAjustada);
             }
 
             tableHtml += createControlsHtml();
             
             trContainer.innerHTML = tableHtml;
             trContainer.dataset.numPrevious = numPreviousGroups;
+            trContainer.dataset.horaAtual = horaAtualAjustada;
 
             // Re-anexar event listeners após recriar HTML
             attachControlListeners();
