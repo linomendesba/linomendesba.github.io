@@ -4301,17 +4301,17 @@ loadNextGamesForMinutes();
 </script>
 
 <script>
-      // --- CONFIGURAÇÕES ---
-    const API_URL = ROTAS_API.resultados(LIGA_ATUAL);
-    const UPDATE_INTERVAL = 3000; // 3 segundos
+// --- CONFIGURAÇÕES ---
+const API_URL = ROTAS_API.resultados(LIGA_ATUAL);
+const UPDATE_INTERVAL = 3000; // 3 segundos
 
-    // --- DEFINIÇÕES DOS BLOCOS ---
-    const blocosDeMinutos = [
-        [1, 4, 7, 10, 13],    // Bloco 1
-        [16, 19, 22, 25, 28], // Bloco 2
-        [31, 34, 37, 40, 43], // Bloco 3
-        [46, 49, 52, 55, 58]  // Bloco 4
-    ];
+// --- DEFINIÇÕES DOS BLOCOS ---
+const blocosDeMinutos = [
+    [1, 4, 7, 10, 13],    // Bloco 1
+    [16, 19, 22, 25, 28], // Bloco 2
+    [31, 34, 37, 40, 43], // Bloco 3
+    [46, 49, 52, 55, 58]  // Bloco 4
+];
 
 // --- MAPEAMENTO DE MERCADOS OPOSTOS ---
 const counterMarketMap = {
@@ -4323,36 +4323,8 @@ const counterMarketMap = {
     'empate': 'casaOuFora', 'over5': null
 };
 
-let numPreviousHours = 1;
-
-/**
- * Pega a hora atual do sistema e adiciona 3 horas
- */
-function getHoraAtualAjustada() {
-    const agora = new Date();
-    let horaAjustada = agora.getHours() + 3;
-    
-    // Se passar de 23, volta para o início do dia
-    if (horaAjustada >= 24) {
-        horaAjustada -= 24;
-    }
-    
-    return horaAjustada;
-}
-
-/**
- * Pega a data e hora ajustadas (+3 horas)
- */
-function getDataHoraAjustada() {
-    const agora = new Date();
-    // Adiciona 3 horas
-    agora.setHours(agora.getHours() + 3);
-    
-    return {
-        date: agora.toISOString().split('T')[0],
-        hour: agora.getHours()
-    };
-}
+let numPreviousGroups = 1;
+const JOGOS_POR_GRUPO = 20; // Quantidade de jogos por grupo
 
 /**
  * Verifica se um resultado de jogo atende a um mercado específico.
@@ -4384,16 +4356,16 @@ function checkMarket(ftScore, market) {
 /**
  * Gera o HTML para um único bloco de estatísticas.
  */
-function createBlocoHtml(index, timeSlots) {
+function createBlocoHtml(index, groups) {
     let html = `
         <th colspan="5" style="color: #d1d5db; font-weight: 600; padding: 0.5rem; border-left: 1px solid #1fac89; text-align: center; font-size: 13px; line-height: 1.25;">
     `;
-    timeSlots.forEach((slot, slotIdx) => {
-        const isCurrent = slotIdx === 0;
+    groups.forEach((group, groupIdx) => {
+        const isCurrent = groupIdx === 0;
         const labelColor = isCurrent ? '#e5e7eb' : '#9ca3af';
         const labelWeight = isCurrent ? '600' : '400';
         const labelSize = isCurrent ? '11px' : '10px';
-        const mtStyle = slotIdx > 0 ? 'margin-top: 0.25rem;' : '';
+        const mtStyle = groupIdx > 0 ? 'margin-top: 0.25rem;' : '';
         const golsBorderColor = isCurrent ? 'rgba(75,85,99,0.6)' : 'rgba(55,65,81,0.6)';
         const golsBgColor = isCurrent ? 'rgba(75,85,99,0.1)' : 'rgba(55,65,81,0.1)';
         const golsTextColor = isCurrent ? '#e5e7eb' : '#d1d5db';
@@ -4403,7 +4375,12 @@ function createBlocoHtml(index, timeSlots) {
         const counterBorderColor = isCurrent ? '#3a3f4b;' : '#3a3f4b;';
         const counterBgColor = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)';
         const counterTextColor = isCurrent ? '#be0e02' : '#fda4af';
-        const label = isCurrent ? `Hora Atual: ${slot.hour.toString().padStart(2, '0')}` : `Hora Anterior ${slotIdx}: ${slot.hour.toString().padStart(2, '0')}`;
+        
+        // Pega a hora do primeiro jogo do grupo para exibir
+        const primeiroJogo = group.jogos[0];
+        const horaExibicao = primeiroJogo ? `${String(primeiroJogo.hora).padStart(2, '0')}h` : '--';
+        
+        const label = isCurrent ? `Hora Atual: ${horaExibicao}` : `Hora Anterior ${groupIdx}: ${horaExibicao}`;
 
         html += `
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; ${mtStyle}">
@@ -4411,15 +4388,15 @@ function createBlocoHtml(index, timeSlots) {
                 <div style="display: flex; align-items: center; gap: 0.375rem;">
                     <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${golsBorderColor}; background-color: ${golsBgColor}; color: ${golsTextColor}; white-space: nowrap;" title="Total de Gols">
                         <span style="font-size: 11px; line-height: 14px;">⚽</span>
-                        <strong id="gols-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
+                        <strong id="gols-${index}-${groupIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
                     </span>
                     <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${hitBorderColor}; background-color: ${hitBgColor}; color: ${hitTextColor}; white-space: nowrap;" title="Mercado Selecionado">
                         <span style="font-size: 11px; line-height: 14px;">✅</span>
-                        <strong id="hits-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
+                        <strong id="hits-${index}-${groupIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
                     </span>
                     <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.375rem; border-radius: 0.375rem; border: 1px solid ${counterBorderColor}; background-color: ${counterBgColor}; color: ${counterTextColor}; white-space: nowrap;" title="Mercado Contrário">
                         <span style="font-size: 11px; line-height: 14px;">❌</span>
-                        <strong id="counter-hits-${index}-${slotIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
+                        <strong id="counter-hits-${index}-${groupIdx}" style="font-size: 12px; line-height: 14px;">0</strong>
                     </span>
                 </div>
             </div>
@@ -4430,15 +4407,15 @@ function createBlocoHtml(index, timeSlots) {
 }
 
 /**
- * Gera o HTML para os controles de horas.
+ * Gera o HTML para os controles de grupos.
  */
 function createControlsHtml() {
     return `
         <th style="color: #d1d5db; font-weight: 600; padding: 0rem 19px; border-left: 1px solid #2596be; text-align: center;">
             <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
-                <button id="decrease-hours" class="blocos-button">-</button>
+                <button id="decrease-groups" class="blocos-button">-</button>
                 <span id="num-previous" style="color: white; font-size: 12px;">1</span>
-                <button id="increase-hours" class="blocos-button">+</button>
+                <button id="increase-groups" class="blocos-button">+</button>
             </div>
         </th>
     `;
@@ -4458,52 +4435,38 @@ async function fetchAndUpdateData() {
             return;
         }
 
-        // Usar data e hora ajustadas (+3 horas)
-        const dataHoraAtual = getDataHoraAjustada();
-        const horaAtualNumero = dataHoraAtual.hour;
-
-        let timeSlots = [];
-        let currentDate = new Date();
-        // Adiciona 3 horas à data atual
-        currentDate.setHours(currentDate.getHours() + 3);
-        let currentHour = currentDate.getHours();
-
-        for (let i = 0; i <= numPreviousHours; i++) { // inclui atual + anteriores
-            timeSlots.push({
-                date: currentDate.toISOString().split('T')[0],
-                hour: currentHour
+        // Pega os jogos na ordem que vêm do banco (mais recentes primeiro)
+        // e divide em grupos de JOGOS_POR_GRUPO
+        const totalGrupos = numPreviousGroups + 1; // atual + anteriores
+        const groups = [];
+        
+        for (let i = 0; i < totalGrupos; i++) {
+            const inicio = i * JOGOS_POR_GRUPO;
+            const fim = inicio + JOGOS_POR_GRUPO;
+            const jogosDoGrupo = resultados.slice(inicio, fim);
+            
+            groups.push({
+                index: i,
+                jogos: jogosDoGrupo
             });
-
-            currentHour--;
-            if (currentHour < 0) {
-                currentHour = 23;
-                currentDate.setDate(currentDate.getDate() - 1);
-            }
         }
 
-        console.log(`Time slots (com +3h ajustadas): ${JSON.stringify(timeSlots)}`);
-
-        // Filtrar jogos por slot de tempo
-        const jogosPorSlot = timeSlots.map(slot =>
-            resultados.filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
-        );
-
-        console.log(`Jogos encontrados por slot: ${jogosPorSlot.map(j => j.length).join(', ')}`);
+        console.log(`Grupos criados: ${groups.length}`);
+        console.log(`Jogos por grupo: ${groups.map(g => g.jogos.length).join(', ')}`);
 
         // Atualizar HTML apenas se necessário
         const trContainer = document.getElementById('trBlocks');
-        if (!trContainer.children.length || trContainer.dataset.horaAtual != horaAtualNumero || trContainer.dataset.numPrevious != numPreviousHours) {
+        if (!trContainer.children.length || trContainer.dataset.numPrevious != numPreviousGroups) {
             let tableHtml = `<th style="position: sticky;left: 0;z-index: 10;background-color: #1f2129;color: #d1d5db;font-weight: 600;padding: 7px;text-align: center;border-right: 1px solid #555;font-size: 12px;line-height: 1.25;background-color: #292d36;">QDT</th>`;
             
             for (let i = 0; i < blocosDeMinutos.length; i++) {
-                tableHtml += createBlocoHtml(i, timeSlots);
+                tableHtml += createBlocoHtml(i, groups);
             }
 
             tableHtml += createControlsHtml();
             
             trContainer.innerHTML = tableHtml;
-            trContainer.dataset.horaAtual = horaAtualNumero;
-            trContainer.dataset.numPrevious = numPreviousHours;
+            trContainer.dataset.numPrevious = numPreviousGroups;
 
             // Re-anexar event listeners após recriar HTML
             attachControlListeners();
@@ -4512,15 +4475,15 @@ async function fetchAndUpdateData() {
         const selectedMarket = document.getElementById('seletorResultado').value;
         const counterMarket = counterMarketMap[selectedMarket];
 
-        blocosDeMinutos.forEach((minutosDoBloco, index) => {
-            timeSlots.forEach((slot, slotIdx) => {
-                const jogos = jogosPorSlot[slotIdx];
-                const stats = calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket);
+        // Calcular estatísticas para cada bloco e grupo
+        blocosDeMinutos.forEach((minutosDoBloco, blocoIndex) => {
+            groups.forEach((group, groupIdx) => {
+                const stats = calcularStats(group.jogos, minutosDoBloco, selectedMarket, counterMarket);
 
                 // Atualizar elementos
-                const golsEl = document.getElementById(`gols-${index}-${slotIdx}`);
-                const hitsEl = document.getElementById(`hits-${index}-${slotIdx}`);
-                const counterHitsEl = document.getElementById(`counter-hits-${index}-${slotIdx}`);
+                const golsEl = document.getElementById(`gols-${blocoIndex}-${groupIdx}`);
+                const hitsEl = document.getElementById(`hits-${blocoIndex}-${groupIdx}`);
+                const counterHitsEl = document.getElementById(`counter-hits-${blocoIndex}-${groupIdx}`);
 
                 if (golsEl) golsEl.innerText = stats.totalGols;
                 if (hitsEl) hitsEl.innerText = stats.marketHits;
@@ -4547,17 +4510,17 @@ function calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
 }
 
 function attachControlListeners() {
-    const decreaseBtn = document.getElementById('decrease-hours');
-    const increaseBtn = document.getElementById('increase-hours');
+    const decreaseBtn = document.getElementById('decrease-groups');
+    const increaseBtn = document.getElementById('increase-groups');
     const numSpan = document.getElementById('num-previous');
 
-    if (numSpan) numSpan.innerText = numPreviousHours;
+    if (numSpan) numSpan.innerText = numPreviousGroups;
 
     if (decreaseBtn) {
         decreaseBtn.addEventListener('click', () => {
-            if (numPreviousHours > 0) {
-                numPreviousHours--;
-                if (numSpan) numSpan.innerText = numPreviousHours;
+            if (numPreviousGroups > 0) {
+                numPreviousGroups--;
+                if (numSpan) numSpan.innerText = numPreviousGroups;
                 fetchAndUpdateData();
             }
         });
@@ -4565,8 +4528,8 @@ function attachControlListeners() {
 
     if (increaseBtn) {
         increaseBtn.addEventListener('click', () => {
-            numPreviousHours++;
-            if (numSpan) numSpan.innerText = numPreviousHours;
+            numPreviousGroups++;
+            if (numSpan) numSpan.innerText = numPreviousGroups;
             fetchAndUpdateData();
         });
     }
