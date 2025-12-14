@@ -11,6 +11,8 @@ function redirecionar(select) {
     url === "https://www.betstat.site/multkiron.html" ||
     url === "https://www.betstat.site/365raking.html" ||
     url === "https://www.betstat.site/365maximas.html" ||
+    url === "https://www.bet365.bet.br/#/AVR/B146/R^1/" ||
+    url === "https://br4.bet.br/sports/overview" ||
     url === "https://www.betstat.site/365fluxo.html" ||
     url === "https://www.betstat.site/estrelaquadrante.html" ||
     url === "https://www.betstat.site/365localizAI.html" ||
