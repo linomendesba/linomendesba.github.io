@@ -577,22 +577,21 @@ const ligaConfig = {
     }
 };
 
-// Função para converter horário UK para horário do Brasil
-function convertUKtoBrazil(hourUK) {
-    let hourBR = hourUK - TIMEZONE_OFFSET;
-    if (hourBR < 0) {
-        hourBR += 24;
+// Função para obter a hora atual no horário da Inglaterra (UK)
+function getCurrentUKTime() {
+    const now = new Date();
+    const ukHour = now.getHours() + TIMEZONE_OFFSET;
+    const ukMinute = now.getMinutes();
+    
+    let adjustedHour = ukHour;
+    if (adjustedHour >= 24) {
+        adjustedHour -= 24;
     }
-    return hourBR;
-}
-
-// Função para converter horário do Brasil para UK
-function convertBrazilToUK(hourBR) {
-    let hourUK = hourBR + TIMEZONE_OFFSET;
-    if (hourUK >= 24) {
-        hourUK -= 24;
-    }
-    return hourUK;
+    
+    return {
+        hour: String(adjustedHour).padStart(2, "0"),
+        minute: String(ukMinute).padStart(2, "0")
+    };
 }
 
 // Função para determinar o mercado contrário
@@ -726,10 +725,8 @@ async function fetchMaximaPorHoraMinuto() {
 
         for (let i = 0; i < recentData.length; i++) {
             const jogo = recentData[i];
-            // Converte horário UK para horário do Brasil
-            const horaUK = parseInt(jogo.hora, 10);
-            const horaBR = convertUKtoBrazil(horaUK);
-            const hora = String(horaBR).padStart(2, "0");
+            // Os dados já vêm em horário UK, então usamos direto
+            const hora = String(jogo.hora).padStart(2, "0");
             const minuto = String(jogo.minuto).padStart(2, "0");
             const timeA = jogo.time_a;
             const timeB = jogo.time_b;
@@ -808,9 +805,7 @@ async function fetchMaximaPorHoraMinuto() {
         const nextGamesProbabilities = [];
         nextGames.forEach(game => {
             const [hour, minute] = game.time.split(":");
-            const horaUK = parseInt(hour, 10);
-            const horaBR = convertUKtoBrazil(horaUK);
-            const hora = String(horaBR).padStart(2, "0");
+            const hora = String(hour).padStart(2, "0");
             const minuto = String(minute).padStart(2, "0");
 
             const timeA = game.team_home;
@@ -831,20 +826,21 @@ async function fetchMaximaPorHoraMinuto() {
             }
 
             nextGamesProbabilities.push({
-                time: `${hora}:${minuto}`,
-                timeUK: game.time,
+                time: game.time,
                 teamWeight: teamWeight
             });
         });
 
         const tableHeader = document.getElementById("maxima-hora-minuto-header");
         const currentHourHeader = document.getElementById("current-hour-header");
-        const now = new Date();
-        const currentHour = String(now.getHours()).padStart(2, "0");
-        const currentMinute = String(now.getMinutes()).padStart(2, "0");
+        
+        // Obtém a hora atual no horário UK
+        const ukTime = getCurrentUKTime();
+        const currentHour = ukTime.hour;
+        const currentMinute = ukTime.minute;
 
         // Reconstrói a tabela toda vez que a liga muda para refletir os minutos únicos
-        let headerRow = "<th>H</th>";
+        let headerRow = "<th>H (UK)</th>";
         uniqueMinutes.forEach(minute => {
             const minuteStr = String(minute).padStart(2, "0");
             headerRow += `<th>${minuteStr}</th>`;
@@ -864,7 +860,7 @@ async function fetchMaximaPorHoraMinuto() {
             const minuteStr = String(minute).padStart(2, "0");
             const cell = document.createElement("td");
             cell.style.height = "30px";
-            cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr} (BR)`);
+            cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr} (UK)`);
             currentRow.appendChild(cell);
             currentHourCells[minuteStr] = cell;
         });
@@ -885,8 +881,7 @@ async function fetchMaximaPorHoraMinuto() {
                 const minuteStr = String(minute).padStart(2, "0");
                 const cell = document.createElement("td");
                 cell.style.height = "30px";
-                const hourUK = convertBrazilToUK(h);
-                cell.setAttribute("data-tooltip", `${hour}:${minuteStr} (BR) | ${String(hourUK).padStart(2, "0")}:${minuteStr} (UK)`);
+                cell.setAttribute("data-tooltip", `${hour}:${minuteStr} (UK)`);
                 row.appendChild(cell);
                 tableCells[hour][minuteStr] = cell;
             });
@@ -921,8 +916,7 @@ async function fetchMaximaPorHoraMinuto() {
                     hasMaximaChance = true;
                     maximaMinutes.push(minuteStr);
                 }
-                const hourUK = convertBrazilToUK(parseInt(currentHour, 10));
-                cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr} (BR) | ${String(hourUK).padStart(2, "0")}:${minuteStr} (UK)`);
+                cell.setAttribute("data-tooltip", `${currentHour}:${minuteStr} (UK)`);
             }
         });
 
@@ -951,12 +945,10 @@ async function fetchMaximaPorHoraMinuto() {
                     if (data.nextGameWeight !== null) {
                         if (data.nextGameWeight > 0.5) {
                             cell.classList.add("next-game-high");
-                            const hourUK = convertBrazilToUK(h);
-                            cell.setAttribute("data-tooltip", `${hour}:${minuteStr} (BR) | ${String(hourUK).padStart(2, "0")}:${minuteStr} (UK) - Alta probabilidade de máxima`);
+                            cell.setAttribute("data-tooltip", `${hour}:${minuteStr} (UK) - Alta probabilidade de máxima`);
                         } else {
                             cell.classList.add("next-game-low");
-                            const hourUK = convertBrazilToUK(h);
-                            cell.setAttribute("data-tooltip", `${hour}:${minuteStr} (BR) | ${String(hourUK).padStart(2, "0")}:${minuteStr} (UK) - Baixa probabilidade de máxima`);
+                            cell.setAttribute("data-tooltip", `${hour}:${minuteStr} (UK) - Baixa probabilidade de máxima`);
                         }
                     }
                 }
@@ -966,12 +958,11 @@ async function fetchMaximaPorHoraMinuto() {
         // Mensagem de chance de máxima
         const messageDiv = document.getElementById("chance-maxima-message");
         const minutesText = maximaMinutes.length > 0 ? ` nos minutos ${maximaMinutes.join(", ")}` : "";
-        const hourUK = convertBrazilToUK(parseInt(currentHour, 10));
         if (hasMaximaChance) {
-            messageDiv.innerHTML = `Possível chance de máxima às ${currentHour}h (BR) / ${String(hourUK).padStart(2, "0")}h (UK) para o mercado "${selectedMercado}" ${minutesText}${nextGameMessage || ""}`;
+            messageDiv.innerHTML = `Possível chance de máxima às ${currentHour}h (UK) para o mercado "${selectedMercado}" ${minutesText}${nextGameMessage || ""}`;
             messageDiv.style.color = "#fff";
         } else {
-            messageDiv.innerHTML = `Nenhuma chance de máxima detectada às ${currentHour}h (BR) / ${String(hourUK).padStart(2, "0")}h (UK).${nextGameMessage || ""}`;
+            messageDiv.innerHTML = `Nenhuma chance de máxima detectada às ${currentHour}h (UK).${nextGameMessage || ""}`;
             messageDiv.style.color = "#e0e0e0";
         }
 
