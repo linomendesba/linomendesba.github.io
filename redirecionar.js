@@ -10,6 +10,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/tv/" ||
     url === "https://www.betstat.site/multkiron.html" ||
     url === "https://www.betstat.site/365equipes.html" ||
+    url === "https://www.betstat.site/365sequencia.html" ||
     url === "https://www.betstat.site/365raking.html" ||
     url === "https://www.betstat.site/365maximas.html" ||
     url === "https://www.bet365.bet.br/#/AVR/B146/R^1/" ||
