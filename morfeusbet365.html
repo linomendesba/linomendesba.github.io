@@ -367,7 +367,209 @@
     </div>
 
     <script>
-const GROQ_API_KEY="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",GROQ_URL="https://api.groq.com/openai/v1/chat/completions",casasConfig={betano:{name:"Betano",ligas:[{name:"Cl\xe1ssicos da Am\xe9rica",value:"Ta\xe7a Gl\xf3ria Eterna"},"Copa Am\xe9rica","Euro","Campeonato Italiano","Copa das Estrelas","Brasileir\xe3o Betano"]},kiron:{name:"Kiron",ligas:["England","Italy","Spain"],path:"kiron"},estrela:{name:"Estrelabet",ligas:["Copa do Mundo","Ligas dos Campe\xf5es","Am\xe9rica Latina"],path:"estrela"},bet365:{name:"Bet365",ligas:["Copa","Euro","Super","Premier"],path:"bet365"}};function mostrarLigas(e){let a=document.getElementById("liga-section"),t=document.getElementById("ligas-group");if(!casasConfig[e]){a.style.display="none";return}t.innerHTML="",casasConfig[e].ligas.forEach(e=>{let a=document.createElement("button");a.className="btn","object"==typeof e?(a.dataset.value=e.value,a.textContent=e.name):(a.dataset.value=e,a.textContent=e),t.appendChild(a)}),a.style.display="block"}function getSelectedValue(e){let a=document.getElementById(e),t=a.querySelector(".btn.active");return t?t.dataset.value:null}function getSelectedText(e){let a=document.getElementById(e),t=a.querySelector(".btn.active");return t?t.innerText:null}function limparAnalise(){document.querySelectorAll(".btn.active").forEach(e=>e.classList.remove("active")),document.getElementById("observacao").value="",document.getElementById("image-upload").value="",document.getElementById("image-status").textContent="Nenhum arquivo selecionado",document.getElementById("image-preview").style.display="none",document.getElementById("result-container").style.display="none",document.getElementById("liga-section").style.display="none"}function calcularRankingTimes(e,a){let t={};e.forEach(e=>{let{time_a:o,time_b:r,ft:n}=e;if(!n||!n.includes(" x "))return;let[s,i]=n.split(" x ").map(Number),c=s+i;[o,r].forEach(e=>{t[e]||(t[e]={name:e,totalGames:0,marketCount:0})}),t[o].totalGames++,t[r].totalGames++;let l=!1;switch(a){case"ambasMarcam":l=s>0&&i>0;break;case"ambasNaoMarcam":l=0===s||0===i;break;case"empate":l=s===i;break;case"over1.5":l=c>1;break;case"under1.5":l=c<2;break;case"over2.5":l=c>2;break;case"under2.5":l=c<3;break;case"over3.5":l=c>3;break;case"under3.5":l=c<4;break;case"over5":l=c>=5;break;case"exact1":l=1===c;break;case"exact2":l=2===c;break;case"exact3":l=3===c;break;case"exact4":l=4===c}l&&(t[o].marketCount++,t[r].marketCount++),"casaVence"===a&&s>i&&t[o].marketCount++,"foraVence"===a&&i>s&&t[r].marketCount++});let o=Object.values(t).map(e=>({...e,percentage:e.totalGames>0?(e.marketCount/e.totalGames*100).toFixed(1):"0.0"}));return o.sort((e,a)=>a.marketCount-e.marketCount||parseFloat(a.percentage)-parseFloat(e.percentage)),o}async function buscarDadosAPI(e,a,t){let o=casasConfig[e];if(!o)throw Error(`Casa ${e} n\xe3o encontrada`);let r={casa:o.name,liga:a,totalJogos:0,dadosCru:[]};try{let n=encodeURIComponent(a),s="https://betstat.site",i,c;o.path?(i=`${s}/resultados/${o.path}/${n}`,c=`${s}/proximos/${o.path}/${n}`):(i=`${s}/resultados/${n}`,c=`${s}/proximos/${n}`);let[l,d]=await Promise.all([fetch(i).then(e=>e.json()),fetch(c).then(e=>e.json())]),u=l.slice(-t);for(let m of u){let p=(m.ft||"x").split("x").map(e=>parseInt(e.trim(),10)),f=p[0],g=p[1];Number.isFinite(f)&&Number.isFinite(g)&&r.dadosCru.push([f,g,f+g,(m.time_a||"").trim(),(m.time_b||"").trim(),m.hora,m.minuto])}return r.proximos=d.slice(0,6),r.totalJogos=r.dadosCru.length,r}catch(v){throw console.error("Erro ao buscar dados da API:",v),Error(`Falha ao conectar com a API: ${v.message}`)}}document.querySelectorAll(".btn-grid").forEach(e=>{e.addEventListener("click",a=>{if(a.target.classList.contains("btn")){let t=e.querySelector(".btn.active");t&&t.classList.remove("active"),a.target.classList.add("active"),"casas-group"===e.id&&mostrarLigas(a.target.dataset.value)}})});const ANALYZE_WORKER_SRC=`
+/* CONFIGURAÇÃO DA API GROQ
+   Substituição do Gemini pela Groq conforme solicitado.
+*/
+const GROQ_API_KEY = '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';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+const casasConfig = {
+  'betano': {
+    name: 'Betano',
+    /* AJUSTE SOLICITADO:
+       Para a "Taça Glória Eterna", definimos um objeto:
+       - name: O que aparece no HTML ('Clássicos da América')
+       - value: O que vai para a API/Pesquisa ('grlria eterna')
+       As outras ligas continuam como strings normais.
+    */
+    ligas: [
+      { name: 'Clássicos da América', value: 'Taça Glória Eterna' }, 
+      'Copa América', 
+      'Euro', 
+      'Campeonato Italiano', 
+      'Copa das Estrelas', 
+      'Brasileirão Betano'
+    ]
+  },
+  'kiron': { 
+    name: 'Kiron', 
+    ligas: ['England', 'Italy', 'Spain'], 
+    path: 'kiron' 
+  },
+  'estrela': { 
+    name: 'Estrelabet', 
+    ligas: ['Copa do Mundo', 'Ligas dos Campeões', 'América Latina'], 
+    path: 'estrela' 
+  },
+  'bet365': { 
+    name: 'Bet365', 
+    ligas: ['Copa', 'Euro', 'Super', 'Premier'], 
+    path: 'bet365' 
+  }
+};
+
+document.querySelectorAll('.btn-grid').forEach(group => {
+  group.addEventListener('click', event => {
+    if (event.target.classList.contains('btn')) {
+      const currentActive = group.querySelector('.btn.active');
+      if (currentActive) {
+        currentActive.classList.remove('active');
+      }
+      event.target.classList.add('active');
+  
+      if (group.id === 'casas-group') {
+        mostrarLigas(event.target.dataset.value);
+      }
+    }
+  });
+});
+
+function mostrarLigas(casa) {
+  const ligaSection = document.getElementById('liga-section');
+  const ligasGroup = document.getElementById('ligas-group');
+
+  if (!casasConfig[casa]) {
+    ligaSection.style.display = 'none';
+    return;
+  }
+  
+  ligasGroup.innerHTML = '';
+  
+  /* LÓGICA ATUALIZADA PARA ACEITAR OBJETOS (Betano) E STRINGS */
+  casasConfig[casa].ligas.forEach(ligaItem => {
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    
+    // Verifica se é um objeto (configuração especial) ou string simples
+    if (typeof ligaItem === 'object') {
+        btn.dataset.value = ligaItem.value; // Valor para pesquisa (ex: grlria eterna)
+        btn.textContent = ligaItem.name;    // Nome visível (ex: Clássicos da América)
+    } else {
+        btn.dataset.value = ligaItem;
+        btn.textContent = ligaItem;
+    }
+    
+    ligasGroup.appendChild(btn);
+  });
+
+  ligaSection.style.display = 'block';
+}
+
+function getSelectedValue(groupId) {
+  const group = document.getElementById(groupId);
+  const activeButton = group.querySelector('.btn.active');
+  return activeButton ? activeButton.dataset.value : null;
+}
+
+function getSelectedText(groupId) {
+  const group = document.getElementById(groupId);
+  const activeButton = group.querySelector('.btn.active');
+  return activeButton ? activeButton.innerText : null;
+}
+
+function limparAnalise() {
+  document.querySelectorAll('.btn.active').forEach(btn => btn.classList.remove('active'));
+  document.getElementById('observacao').value = '';
+  document.getElementById('image-upload').value = '';
+  document.getElementById('image-status').textContent = 'Nenhum arquivo selecionado';
+  document.getElementById('image-preview').style.display = 'none';
+  document.getElementById('result-container').style.display = 'none';
+  document.getElementById('liga-section').style.display = 'none';
+}
+
+function calcularRankingTimes(games, mercado) {
+  const teamStats = {};
+  games.forEach(game => {
+    const { time_a, time_b, ft } = game;
+    if (!ft || !ft.includes(' x ')) return;
+    const [golsA, golsB] = ft.split(' x ').map(Number);
+    const totalGols = golsA + golsB;
+
+    [time_a, time_b].forEach(team => {
+      if (!teamStats[team]) {
+        teamStats[team] = { name: team, totalGames: 0, marketCount: 0 };
+      }
+    });
+
+    teamStats[time_a].totalGames++;
+    teamStats[time_b].totalGames++;
+
+    let marketOccurred = false;
+    switch (mercado) {
+      case 'ambasMarcam': marketOccurred = golsA > 0 && golsB > 0; break;
+      case 'ambasNaoMarcam': marketOccurred = golsA === 0 || golsB === 0; break;
+      case 'empate': marketOccurred = golsA === golsB; break;
+      case 'over1.5': marketOccurred = totalGols > 1; break;
+      case 'under1.5': marketOccurred = totalGols < 2; break;
+      case 'over2.5': marketOccurred = totalGols > 2; break;
+      case 'under2.5': marketOccurred = totalGols < 3; break;
+      case 'over3.5': marketOccurred = totalGols > 3; break;
+      case 'under3.5': marketOccurred = totalGols < 4; break;
+      case 'over5': marketOccurred = totalGols >= 5; break;
+      case 'exact1': marketOccurred = totalGols === 1; break;
+      case 'exact2': marketOccurred = totalGols === 2; break;
+      case 'exact3': marketOccurred = totalGols === 3; break;
+      case 'exact4': marketOccurred = totalGols === 4; break;
+    }
+
+    if (marketOccurred) {
+      teamStats[time_a].marketCount++;
+      teamStats[time_b].marketCount++;
+    }
+    if (mercado === 'casaVence' && golsA > golsB) teamStats[time_a].marketCount++;
+    if (mercado === 'foraVence' && golsB > golsA) teamStats[time_b].marketCount++;
+  });
+
+  const statsArray = Object.values(teamStats).map(team => ({
+    ...team,
+    percentage: team.totalGames > 0 ? ((team.marketCount / team.totalGames) * 100).toFixed(1) : "0.0"
+  }));
+  statsArray.sort((a, b) => b.marketCount - a.marketCount || parseFloat(b.percentage) - parseFloat(a.percentage));
+  return statsArray;
+}
+
+async function buscarDadosAPI(casa, liga, numJogos) {
+  const config = casasConfig[casa];
+  if (!config) throw new Error(`Casa ${casa} não encontrada`);
+
+  const dadosCompletos = { casa: config.name, liga: liga, totalJogos: 0, dadosCru: [] };
+  try {
+    const ligaEncoded = encodeURIComponent(liga);
+    const baseUrl = 'https://betstat.site';
+    let resultadosUrl, proximosUrl;
+    
+    if (config.path) {
+      resultadosUrl = `${baseUrl}/resultados/${config.path}/${ligaEncoded}`;
+      proximosUrl = `${baseUrl}/proximos/${config.path}/${ligaEncoded}`;
+    } else {
+      resultadosUrl = `${baseUrl}/resultados/${ligaEncoded}`;
+      proximosUrl = `${baseUrl}/proximos/${ligaEncoded}`;
+    }
+
+    const [resultados, proximos] = await Promise.all([
+      fetch(resultadosUrl).then(r => r.json()),
+      fetch(proximosUrl).then(r => r.json())
+    ]);
+    const jogosRecentes = resultados.slice(-numJogos);
+    
+    for (const jogo of jogosRecentes) {
+      const ftScore = (jogo.ft || "x").split("x").map((s) => parseInt(s.trim(), 10));
+      const a = ftScore[0], b = ftScore[1];
+      if (Number.isFinite(a) && Number.isFinite(b)) {
+        dadosCompletos.dadosCru.push([a, b, a + b, (jogo.time_a || "").trim(), (jogo.time_b || "").trim(), jogo.hora, jogo.minuto]);
+      }
+    }
+
+    dadosCompletos.proximos = proximos.slice(0, 6);
+    dadosCompletos.totalJogos = dadosCompletos.dadosCru.length;
+    return dadosCompletos;
+  } catch (error) {
+    console.error('Erro ao buscar dados da API:', error);
+    throw new Error(`Falha ao conectar com a API: ${error.message}`);
+  }
+}
+
+const ANALYZE_WORKER_SRC = `
   self.onmessage = (e) => {
     const p = e.data;
     if (!p || p.cmd !== 'analyze') return;
@@ -489,88 +691,461 @@ const GROQ_API_KEY="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",GR
     todos.sort((a,b)=>parseFloat(b.percentual)-parseFloat(a.percentual)||b.ocorrencias-a.ocorrencias);
     return { resultados: todos.slice(0,15) };
   }
-`;let ANALYZE_WORKER=null;function getAnalyzeWorker(){if(!ANALYZE_WORKER){let e=new Blob([ANALYZE_WORKER_SRC],{type:"application/javascript"});ANALYZE_WORKER=new Worker(URL.createObjectURL(e))}return ANALYZE_WORKER}function analyzeInWorker(e,a){return new Promise((t,o)=>{let r=getAnalyzeWorker(),n=Math.random().toString(36).slice(2),s=e=>{let a=e.data;a&&a.id===n&&(r.removeEventListener("message",s),a.ok?t(a.result):o(a.error||"Erro no worker de an\xe1lise"))};r.addEventListener("message",s),r.postMessage({cmd:"analyze",id:n,payload:{dados:e,...a}})})}function mapMercado(e){return({ambasMarcam:"ambasSim",ambasNaoMarcam:"ambasNao",casaVence:"casaVence",foraVence:"foraVence",empate:"empate","over1.5":"over1.5","over2.5":"over2.5","over3.5":"over3.5","under1.5":"under1.5","under2.5":"under2.5","under3.5":"under3.5",exact1:"umGolExato",exact2:"doisGolsExatos",exact3:"tresGolsExatos",exact4:"quatroGolsExatos",over5:"cincoOuMaisGols"})[e]||e}function checkMarket(e,a,t,o){switch(e){case"ambasSim":return a>0&&t>0?1:0;case"ambasNao":return 0===a||0===t?1:0;case"casaVence":return a>t?1:0;case"foraVence":return t>a?1:0;case"empate":return a===t?1:0;case"over1.5":return o>1.5?1:0;case"over2.5":return o>2.5?1:0;case"over3.5":return o>3.5?1:0;case"under1.5":return o<1.5?1:0;case"under2.5":return o<2.5?1:0;case"under3.5":return o<3.5?1:0;case"umGolExato":return 1===o?1:0;case"doisGolsExatos":return 2===o?1:0;case"tresGolsExatos":return 3===o?1:0;case"quatroGolsExatos":return 4===o?1:0;case"cincoOuMaisGols":return o>=5?1:0;default:return 0}}function calculateMarketAnalysis(e,a,t,o,r){let n=e.dadosCru.map(a=>[`${a[5].toString().padStart(2,"0")}:${a[6].toString().padStart(2,"0")}`,a[0],a[1],a[3],a[4],a[2],e.liga.toLowerCase()]).slice(-t);if(0===n.length)return{currentPercentage:0,top5:[]};let s=n.slice(-o),i=s.reduce((e,t)=>e+checkMarket(a,t[1],t[2],t[5]),0),c=(i/o*100).toFixed(0),l={};n.forEach((e,t)=>{let[s,i,c,d,u,m,p]=e;if(t>=o-1){let f=n.slice(t-o+1,t+1).reduce((e,t)=>e+checkMarket(a,t[1],t[2],t[5]),0),g="red",v=0,b=0;if(t+r<=n.length){let $=n.slice(t+1,t+1+r);b=r-(v=$.filter(e=>1===checkMarket(a,e[1],e[2],e[5])).length);let E=$.some(e=>1===checkMarket(a,e[1],e[2],e[5]));E&&(g="green")}let _=`${a} ${Math.round(f/o*100)}%`;l[_]||(l[_]={occurrences:0,greens:0,reds:0,totalGreens:v,totalReds:b}),l[_].occurrences+=1,"green"===g?l[_].greens+=1:l[_].reds+=1,l[_].totalGreens=v,l[_].totalReds=b}});let d=Object.keys(l).map(e=>{let a=l[e],t=(a.greens/a.occurrences*100).toFixed(2),o="",r=parseFloat(t);return o=r>75?"Alta chance de acerto":r>50?"Moderada chance":r>25?"Risco elevado":"Alta chance de falha",{marketGroup:e,marketPercentage:parseFloat(e.split(" ")[1]),occurrences:a.occurrences,greens:a.greens,reds:a.reds,greenPercentage:t,totalGreens:a.totalGreens,totalReds:a.totalReds,analysis:o}}).sort((e,a)=>a.greenPercentage-e.greenPercentage||a.greens-e.greens).slice(0,100),u=d.slice(0,5);return{currentPercentage:c,top5:u}}function criarPromptAnalise(e,a){return`
-Voc\xea \xe9 um analista especialista em futebol virtual, focado em interpretar dados pr\xe9-processados para identificar oportunidades de investimento de alto valor.
-DADOS PARA AN\xc1LISE:
-- Casa: ${e.casa}
-- Liga: ${e.liga}
-- Mercado: ${a.mercado}
-- Total de jogos analisados: ${e.totalJogos}
-- Estrat\xe9gia Martingale: ${a.martingale}
-- Observa\xe7\xf5es do Usu\xe1rio: ${a.observacao||"Nenhuma"}
-${a.imagem?"- Imagem fornecida: O usu\xe1rio enviou uma imagem para complementar, considere isso se aplic\xe1vel.":""}
+`;
 
-INFORMA\xc7\xd5ES PR\xc9-PROCESSADAS:
+let ANALYZE_WORKER = null;
+function getAnalyzeWorker() {
+  if (!ANALYZE_WORKER) {
+    const blob = new Blob([ANALYZE_WORKER_SRC], { type: "application/javascript" });
+    ANALYZE_WORKER = new Worker(URL.createObjectURL(blob));
+  }
+  return ANALYZE_WORKER;
+}
 
-1. RANKING DE TIMES PARA O MERCADO "${a.mercado}" (Top 10):
-${JSON.stringify(e.ranking.slice(0,10),null,2)}
+function analyzeInWorker(dados, opts) {
+  return new Promise((resolve, reject) => {
+    const w = getAnalyzeWorker();
+    const id = Math.random().toString(36).slice(2);
+    const onMsg = (ev) => {
+      const msg = ev.data;
+      if (!msg || msg.id !== id) return;
 
-2. TOP 15 PADR\xd5ES ENCONTRADOS PARA O MERCADO "${a.mercado}":
-${JSON.stringify(e.padroesEncontrados,null,2)}
+      w.removeEventListener("message", onMsg);
+      if (msg.ok) resolve(msg.result);
+      else reject(msg.error || "Erro no worker de análise");
+    };
+    w.addEventListener("message", onMsg);
+    w.postMessage({ cmd: "analyze", id, payload: { dados, ...opts } });
+  });
+}
 
-3. PR\xd3XIMOS 6 CONFRONTOS:
-${JSON.stringify(e.proximos,null,2)}
+function mapMercado(mercadoValue) {
+  const map = {
+    'ambasMarcam': 'ambasSim',
+    'ambasNaoMarcam': 'ambasNao',
+    'casaVence': 'casaVence',
+    'foraVence': 'foraVence',
+    'empate': 'empate',
+    'over1.5': 'over1.5',
+    'over2.5': 'over2.5',
 
-4. AN\xc1LISE DE GR\xc1FICO DE MERCADO PARA O MERCADO "${a.mercado}":
-Porcentagem Atual: ${e.marketAnalysis.currentPercentage}%
+    'over3.5': 'over3.5',
+    'under1.5': 'under1.5',
+    'under2.5': 'under2.5',
+    'under3.5': 'under3.5',
+    'exact1': 'umGolExato',
+    'exact2': 'doisGolsExatos',
+    'exact3': 'tresGolsExatos',
+    'exact4': 'quatroGolsExatos',
+    'over5': 'cincoOuMaisGols'
+
+  };
+  return map[mercadoValue] || mercadoValue;
+}
+
+function checkMarket(market, homeGoals, awayGoals, totalGoals) {
+  switch (market) {
+    case 'ambasSim': return homeGoals > 0 && awayGoals > 0 ?
+      1 : 0;
+    case 'ambasNao': return homeGoals === 0 || awayGoals === 0 ? 1 : 0;
+    case 'casaVence': return homeGoals > awayGoals ? 1 : 0;
+    case 'foraVence': return awayGoals > homeGoals ? 1 : 0;
+    case 'empate': return homeGoals === awayGoals ? 1 : 0;
+    case 'over1.5': return totalGoals > 1.5 ? 1 : 0;
+    case 'over2.5': return totalGoals > 2.5 ? 1 : 0;
+    case 'over3.5': return totalGoals > 3.5 ? 1 : 0;
+    case 'under1.5': return totalGoals < 1.5 ? 1 : 0;
+    case 'under2.5': return totalGoals < 2.5 ? 1 : 0;
+    case 'under3.5': return totalGoals < 3.5 ? 1 : 0;
+    case 'umGolExato': return totalGoals === 1 ? 1 : 0;
+    case 'doisGolsExatos': return totalGoals === 2 ? 1 : 0;
+    case 'tresGolsExatos': return totalGoals === 3 ? 1 : 0;
+    case 'quatroGolsExatos': return totalGoals === 4 ? 1 : 0;
+    case 'cincoOuMaisGols': return totalGoals >= 5 ? 1 : 0;
+    default: return 0;
+  }
+}
+
+function calculateMarketAnalysis(dados, searchedMarket, numberOfGames, linesToSum, verifyLines) {
+  const combinedData = dados.dadosCru.map(item => [
+    `${item[5].toString().padStart(2, '0')}:${item[6].toString().padStart(2, '0')}`,
+    item[0],
+    item[1],
+    item[3],
+    item[4],
+    item[2],
+
+    dados.liga.toLowerCase()
+  ]).slice(-numberOfGames);
+  if (combinedData.length === 0) {
+    return { currentPercentage: 0, top5: [] };
+  }
+
+  const recentGames = combinedData.slice(-linesToSum);
+  const currentMarketCount = recentGames.reduce((sum, row) => sum + checkMarket(searchedMarket, row[1], row[2], row[5]), 0);
+  const currentPercentage = (currentMarketCount / linesToSum * 100).toFixed(0);
+
+  const marketGroups = {};
+  combinedData.forEach((row, i) => {
+    const [dateTime, homeGoals, awayGoals, homeTeam, awayTeam, totalGoals, league] = row;
+
+    if (i >= linesToSum - 1) {
+      const sumMarket = combinedData.slice(i - linesToSum + 1, i + 1).reduce((sum, row) => sum + checkMarket(searchedMarket, row[1], row[2], row[5]), 0);
+      const marketPercentage = Math.round(sumMarket / linesToSum * 100);
+
+
+      let result = "red";
+      let greens = 0;
+      let reds = 0;
+
+      if (i + verifyLines <= combinedData.length) {
+        const nextRows = combinedData.slice(i + 1, i + 1 + verifyLines);
+
+        greens = nextRows.filter(row => checkMarket(searchedMarket, row[1], row[2], row[5]) === 1).length;
+        reds = verifyLines - greens;
+        const searchResult = nextRows.some(row => checkMarket(searchedMarket, row[1], row[2], row[5]) === 1);
+        if (searchResult) {
+          result = "green";
+        }
+      }
+
+      const marketGroup = `${searchedMarket} ${marketPercentage}%`;
+      if (!marketGroups[marketGroup]) {
+        marketGroups[marketGroup] = { occurrences: 0, greens: 0, reds: 0, totalGreens: greens, totalReds: reds };
+      }
+      marketGroups[marketGroup].occurrences += 1;
+      if (result === "green") {
+        marketGroups[marketGroup].greens += 1;
+      } else {
+        marketGroups[marketGroup].reds += 1;
+      }
+      marketGroups[marketGroup].totalGreens = greens;
+      marketGroups[marketGroup].totalReds = reds;
+    }
+  });
+
+  const sortedGroups = Object.keys(marketGroups).map(key => {
+    const group = marketGroups[key];
+    const greenPercentage = (group.greens / group.occurrences * 100).toFixed(2);
+    let analysis = '';
+    const percentageNum = parseFloat(greenPercentage);
+
+    if (percentageNum > 75) {
+
+      analysis = 'Alta chance de acerto';
+    } else if (percentageNum > 50) {
+      analysis = 'Moderada chance';
+    } else if (percentageNum > 25) {
+      analysis = 'Risco elevado';
+    } else {
+      analysis = 'Alta chance de falha';
+    }
+
+    return {
+      marketGroup: key,
+      marketPercentage: parseFloat(key.split(' ')[1]),
+      occurrences: group.occurrences,
+      greens: group.greens,
+      reds: group.reds,
+
+      greenPercentage: greenPercentage,
+      totalGreens: group.totalGreens,
+      totalReds: group.totalReds,
+      analysis: analysis
+    };
+  }).sort((a, b) => b.greenPercentage - a.greenPercentage || b.greens - a.greens).slice(0, 100);
+
+  const top5 = sortedGroups.slice(0, 5);
+  return { currentPercentage, top5 };
+}
+
+function criarPromptAnalise(dados, parametros) {
+  return `
+Você é um analista especialista em futebol virtual, focado em interpretar dados pré-processados para identificar oportunidades de investimento de alto valor.
+DADOS PARA ANÁLISE:
+- Casa: ${dados.casa}
+- Liga: ${dados.liga}
+- Mercado: ${parametros.mercado}
+- Total de jogos analisados: ${dados.totalJogos}
+- Estratégia Martingale: ${parametros.martingale}
+- Observações do Usuário: ${parametros.observacao || 'Nenhuma'}
+${parametros.imagem ? '- Imagem fornecida: O usuário enviou uma imagem para complementar, considere isso se aplicável.' : ''}
+
+INFORMAÇÕES PRÉ-PROCESSADAS:
+
+1. RANKING DE TIMES PARA O MERCADO "${parametros.mercado}" (Top 10):
+${JSON.stringify(dados.ranking.slice(0, 10), null, 2)}
+
+2. TOP 15 PADRÕES ENCONTRADOS PARA O MERCADO "${parametros.mercado}":
+${JSON.stringify(dados.padroesEncontrados, null, 2)}
+
+3. PRÓXIMOS 6 CONFRONTOS:
+${JSON.stringify(dados.proximos, null, 2)}
+
+4. ANÁLISE DE GRÁFICO DE MERCADO PARA O MERCADO "${parametros.mercado}":
+Porcentagem Atual: ${dados.marketAnalysis.currentPercentage}%
 Top 5 Melhores Porcentagens:
-${JSON.stringify(e.marketAnalysis.top5,null,2)}
+${JSON.stringify(dados.marketAnalysis.top5, null, 2)}
 
-INSTRU\xc7\xd5ES DE AN\xc1LISE (SUA TAREFA):
-1. Sua miss\xe3o \xe9 conectar as informa\xe7\xf5es acima.
-N\xe3o processe dados brutos, apenas interprete os resultados que eu forneci.
-2. Analise os "TOP 15 PADR\xd5ES".
-Identifique quais t\xeam o maior percentual de acerto (percentual) e um n\xfamero s\xf3lido de ocorr\xeancias.
-Padr\xf5es com 100% de acerto e poucas ocorr\xeancias s\xe3o promissores, mas de alto risco.
-3. Observe os "PR\xd3XIMOS 6 CONFRONTOS".
-Verifique se algum desses jogos envolve times que est\xe3o bem posicionados no "RANKING DE TIMES".
-4. Cruze as informa\xe7\xf5es: A oportunidade de maior valor acontece quando um padr\xe3o forte aponta para um dos pr\xf3ximos confrontos E esse confronto envolve times com bom desempenho hist\xf3rico no mercado.
-5. Se uma imagem foi fornecida, considere que ela pode conter informa\xe7\xf5es visuais complementares.
-6. Baseado nesta s\xedntese, gere a sua an\xe1lise no formato abaixo.
-O n\xfamero de sugest\xf5es de hor\xe1rios deve seguir a estrat\xe9gia Martingale (Nenhum = 1 jogo, 1 Cobertura = 2 jogos, 2 Coberturas = 3 jogos, 3 Coberturas = 4 jogos).
-7. Se nenhum padr\xe3o forte se alinhar com os pr\xf3ximos jogos de times bem ranqueados, seja honesto e informe que nenhuma oportunidade clara foi encontrada.
-8. Para as sugest\xf5es de hor\xe1rios: Selecione o pr\xf3ximo confronto que melhor se alinha com padr\xf5es fortes e times bem ranqueados como o principal.
+INSTRUÇÕES DE ANÁLISE (SUA TAREFA):
+1. Sua missão é conectar as informações acima.
+Não processe dados brutos, apenas interprete os resultados que eu forneci.
+2. Analise os "TOP 15 PADRÕES".
+Identifique quais têm o maior percentual de acerto (percentual) e um número sólido de ocorrências.
+Padrões com 100% de acerto e poucas ocorrências são promissores, mas de alto risco.
+3. Observe os "PRÓXIMOS 6 CONFRONTOS".
+Verifique se algum desses jogos envolve times que estão bem posicionados no "RANKING DE TIMES".
+4. Cruze as informações: A oportunidade de maior valor acontece quando um padrão forte aponta para um dos próximos confrontos E esse confronto envolve times com bom desempenho histórico no mercado.
+5. Se uma imagem foi fornecida, considere que ela pode conter informações visuais complementares.
+6. Baseado nesta síntese, gere a sua análise no formato abaixo.
+O número de sugestões de horários deve seguir a estratégia Martingale (Nenhum = 1 jogo, 1 Cobertura = 2 jogos, 2 Coberturas = 3 jogos, 3 Coberturas = 4 jogos).
+7. Se nenhum padrão forte se alinhar com os próximos jogos de times bem ranqueados, seja honesto e informe que nenhuma oportunidade clara foi encontrada.
+8. Para as sugestões de horários: Selecione o próximo confronto que melhor se alinha com padrões fortes e times bem ranqueados como o principal.
 Em seguida, adicione as coberturas como os confrontos sequenciais seguintes.
-Garanta que os hor\xe1rios estejam em sequ\xeancia cronol\xf3gica crescente, sem repeti\xe7\xf5es, e baseados exclusivamente nos hor\xe1rios fornecidos nos pr\xf3ximos confrontos.
-Assuma que a lista de pr\xf3ximos est\xe1 ordenada por tempo, e selecione apenas hor\xe1rios futuros ou os mais pr\xf3ximos.
-O primeiro hor\xe1rio \xe9 o principal com padr\xe3o e an\xe1lise, os demais s\xe3o coberturas.
-9. Inclua uma se\xe7\xe3o independente para a An\xe1lise de Gr\xe1fico de Mercado, comentando a porcentagem atual e destacando as top 5 melhores porcentagens, considerando o Martingale selecionado para a verifica\xe7\xe3o.
+Garanta que os horários estejam em sequência cronológica crescente, sem repetições, e baseados exclusivamente nos horários fornecidos nos próximos confrontos.
+Assuma que a lista de próximos está ordenada por tempo, e selecione apenas horários futuros ou os mais próximos.
+O primeiro horário é o principal com padrão e análise, os demais são coberturas.
+9. Inclua uma seção independente para a Análise de Gráfico de Mercado, comentando a porcentagem atual e destacando as top 5 melhores porcentagens, considerando o Martingale selecionado para a verificação.
 FORMATO DA RESPOSTA (Use um tom natural e profissional, evite usar negrito com asteriscos **):
 
-🎯 AN\xc1LISE ESTAT\xcdSTICA
-[Comente brevemente sobre o desempenho dos times no ranking e a for\xe7a geral dos padr\xf5es encontrados.
-Ex: "Observa-se que os times X e Y s\xe3o dominantes neste mercado. Foram encontrados N padr\xf5es com mais de 80% de acerto, indicando consist\xeancia..."]
+🎯 ANÁLISE ESTATÍSTICA
+[Comente brevemente sobre o desempenho dos times no ranking e a força geral dos padrões encontrados.
+Ex: "Observa-se que os times X e Y são dominantes neste mercado. Foram encontrados N padrões com mais de 80% de acerto, indicando consistência..."]
 
-📊 PADR\xd5ES RELEVANTES
-[Destaque 2 ou 3 dos padr\xf5es mais promissores da lista, explicando por que s\xe3o relevantes.
-Ex: "O padr\xe3o 'over2.5 | 1-2' se destaca com 85% de acerto em 20 ocorr\xeancias, mostrando ser um gatilho confi\xe1vel..."]
+📊 PADRÕES RELEVANTES
+[Destaque 2 ou 3 dos padrões mais promissores da lista, explicando por que são relevantes.
+Ex: "O padrão 'over2.5 | 1-2' se destaca com 85% de acerto em 20 ocorrências, mostrando ser um gatilho confiável..."]
 
-📈 AN\xc1LISE DE GR\xc1FICO DE MERCADO
-[Comente sobre a porcentagem atual do mercado e destaque as top 5 melhores porcentagens, incluindo greenPercentage, occurrences, etc., considerando o Martingale selecionado para a verifica\xe7\xe3o de linhas.]
+📈 ANÁLISE DE GRÁFICO DE MERCADO
+[Comente sobre a porcentagem atual do mercado e destaque as top 5 melhores porcentagens, incluindo greenPercentage, occurrences, etc., considerando o Martingale selecionado para a verificação de linhas.]
 
-⚡ PR\xd3XIMAS OPORTUNIDADES
-[Baseado na sua an\xe1lise combinada, liste as entradas recomendadas.
+⚡ PRÓXIMAS OPORTUNIDADES
+[Baseado na sua análise combinada, liste as entradas recomendadas.
 Se nenhuma for encontrada, justifique o motivo.
 Formato se encontrar:
 Liga: [liga]
 Mercado: [mercado]
-⏰ Hor\xe1rios
-▸ [hora:minuto] ▸ [hora:minuto] ... (n\xfamero baseado na Martingale, em sequ\xeancia sem repeti\xe7\xf5es)
-Justificativa: [Breve explica\xe7\xe3o do porqu\xea esta \xe9 uma boa entrada, mencionando o padr\xe3o e os times envolvidos.
-Note que o primeiro hor\xe1rio \xe9 o principal onde padr\xf5es foram encontrados, os demais s\xe3o coberturas sequenciais.]
+⏰ Horários
+▸ [hora:minuto] ▸ [hora:minuto] ... (número baseado na Martingale, em sequência sem repetições)
+Justificativa: [Breve explicação do porquê esta é uma boa entrada, mencionando o padrão e os times envolvidos.
+Note que o primeiro horário é o principal onde padrões foram encontrados, os demais são coberturas sequenciais.]
 
-🎲 ESTRAT\xc9GIA MARTINGALE
-[Avalie a seguran\xe7a da estrat\xe9gia para este cen\xe1rio.
-Ex: "Considerando a for\xe7a dos padr\xf5es encontrados, a estrat\xe9gia de [N] coberturas parece [segura/arriscada]..."]
+🎲 ESTRATÉGIA MARTINGALE
+[Avalie a segurança da estratégia para este cenário.
+Ex: "Considerando a força dos padrões encontrados, a estratégia de [N] coberturas parece [segura/arriscada]..."]
 
-💡 RECOMENDA\xc7\xc3O FINAL
-[D\xea uma recomenda\xe7\xe3o final clara e objetiva.
-Ex: "Recomendo a entrada nos hor\xe1rios sugeridos devido \xe0 forte conflu\xeancia entre o padr\xe3o X e o confronto envolvendo o time Y, que possui um hist\xf3rico excelente neste mercado."]
-`}async function analisarComGroq(e,a){let t=criarPromptAnalise(e,a),o=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer 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"},body:JSON.stringify({model:"llama-3.3-70b-versatile",messages:[{role:"user",content:t}],temperature:.7,max_tokens:2048,top_p:1})});if(!o.ok){let r=await o.json();throw console.error("Erro na API Groq:",r),Error(`Erro na API Groq: ${o.status}`)}let n=await o.json();return n.choices[0].message.content}async function gerarAnalise(){let e=new Date,a=e.toISOString().split("T")[0],t=JSON.parse(localStorage.getItem("analysisUsage"))||{};if(t.date!==a&&(t={date:a,count:0,lastAnalysis:null}),t.count>=6){alert("Voc\xea atingiu o limite de 6 an\xe1lises por dia. Por favor, volte amanh\xe3.");return}if(t.lastAnalysis){let o=new Date(t.lastAnalysis),r=(e-o)/6e4;if(r<3){alert(`Por favor, aguarde ${Math.ceil(3-r)} minuto(s) antes de gerar uma nova an\xe1lise.`);return}}let n=getSelectedValue("casas-group"),s=getSelectedValue("ligas-group"),i=getSelectedValue("mercados-group"),c=getSelectedText("mercados-group"),l=parseInt(getSelectedValue("martingale-group")||"0",10),d=getSelectedText("martingale-group"),u=getSelectedValue("periodo-group"),m=document.getElementById("observacao").value,p=document.getElementById("image-upload").files[0];if(!n||!s||!i||!u){alert("Por favor, selecione Casa, Liga, Mercado e Per\xedodo de An\xe1lise.");return}let f=document.querySelector(".btn-generate"),g=document.getElementById("result-container"),v=document.getElementById("result-title"),b=document.getElementById("result-content");f.disabled=!0,f.innerHTML='<div class="spinner"></div> Processando...',g.style.display="block",b.innerHTML="";try{v.innerHTML=`<div class="loading"><div class="spinner"></div>Coletando ${u} jogos...</div>`;let $=await buscarDadosAPI(n,s,parseInt(u));$.ranking=calcularRankingTimes($.dadosCru.map(e=>({time_a:e[3],time_b:e[4],ft:`${e[0]} x ${e[1]}`})),i),v.innerHTML='<div class="loading"><div class="spinner"></div>Analisando padr\xf5es...</div>';let{resultados:E}=await analyzeInWorker($.dadosCru,{tiros:l+1,market:i,combinado:!0});$.padroesEncontrados=E;let _=mapMercado(i);$.marketAnalysis=calculateMarketAnalysis($,_,$.totalJogos,"kiron"===n?30:20,l+1),v.innerHTML='<div class="loading"><div class="spinner"></div>Gerando an\xe1lise com IA (Groq)...</div>';let y=await analisarComGroq($,{mercado:c,liga:s,martingale:d||"Nenhum",periodo:u+" jogos",observacao:m,imagem:!!p});v.innerHTML="✓ An\xe1lise Conclu\xedda - "+casasConfig[n].name+" ("+s+")",b.textContent=y,t.count++,t.lastAnalysis=e.toISOString(),localStorage.setItem("analysisUsage",JSON.stringify(t))}catch(A){console.error("Erro no processo de an\xe1lise:",A),v.innerHTML="✖ Erro na An\xe1lise",b.innerHTML=`<div class="error">
-      <strong>Erro:</strong> ${A.message}<br><br>
-      <strong>Causas poss\xedveis:</strong> Falha na opera\xe7\xe3o ou na API.
-      Atualize a p\xe1gina e tente outra vez mais tarde.
-    </div>`}finally{f.disabled=!1,f.innerHTML="Gerar An\xe1lise IA"}}document.getElementById("image-upload").addEventListener("change",function(e){let a=e.target.files[0],t=document.getElementById("image-preview"),o=document.getElementById("image-status");if(a){let r=new FileReader;r.onload=function(e){t.src=e.target.result,t.style.display="block"},r.readAsDataURL(a),o.textContent=a.name}else t.style.display="none",o.textContent="Nenhum arquivo selecionado"}),document.addEventListener("contextmenu",function(e){e.preventDefault()}),document.addEventListener("keydown",function(e){"F12"===e.key&&e.preventDefault(),e.ctrlKey&&e.shiftKey&&"I"===e.key&&e.preventDefault(),e.ctrlKey&&"u"===e.key&&e.preventDefault(),e.ctrlKey&&e.shiftKey&&"J"===e.key&&e.preventDefault(),e.ctrlKey&&e.shiftKey&&"C"===e.key&&e.preventDefault(),e.ctrlKey&&"s"===e.key&&e.preventDefault(),e.ctrlKey&&"p"===e.key&&e.preventDefault()});const devtools={open:!1},element=new Image;Object.defineProperty(element,"id",{get:function(){devtools.open=!0}}),function(){let e=function(){(window.outerWidth-window.innerWidth>160||window.outerHeight-window.innerHeight>160)&&(devtools.open=!0)};window.addEventListener("resize",e),setInterval(e,500)}(),console.log("%c",element),setInterval(function(){devtools.open&&(document.body.innerHTML="<h1>Acesso n\xe3o autorizado detectado</h1>",devtools.open=!1)},1e3),document.addEventListener("selectstart",function(e){e.preventDefault()}),document.addEventListener("dragstart",function(e){e.preventDefault()}),console.log=function(){},console.debug=function(){},console.info=function(){};
+💡 RECOMENDAÇÃO FINAL
+[Dê uma recomendação final clara e objetiva.
+Ex: "Recomendo a entrada nos horários sugeridos devido à forte confluência entre o padrão X e o confronto envolvendo o time Y, que possui um histórico excelente neste mercado."]
+`;
+}
+
+/* NOVA FUNÇÃO: Analisar com Groq 
+   Substitui a antiga analisarComGemini.
+*/
+async function analisarComGroq(dados, parametros) {
+  const prompt = criarPromptAnalise(dados, parametros);
+  
+  const payload = {
+    model: "llama-3.3-70b-versatile", // Modelo inteligente da Groq
+    messages: [
+       { role: "user", content: prompt }
+    ],
+    temperature: 0.7,
+    max_tokens: 2048,
+    top_p: 1
+  };
+
+  const response = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json();
+    console.error("Erro na API Groq:", errorBody);
+    throw new Error(`Erro na API Groq: ${response.status}`);
+  }
+
+  const data = await response.json();
+  // A estrutura de resposta da Groq é similar à da OpenAI
+  return data.choices[0].message.content;
+}
+
+async function gerarAnalise() {
+  const MAX_ANALYSES_PER_DAY = 6;
+  const COOLDOWN_MINUTES = 3;
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+
+  let usageData = JSON.parse(localStorage.getItem('analysisUsage')) || {};
+  if (usageData.date !== today) {
+    usageData = { date: today, count: 0, lastAnalysis: null };
+  }
+
+  if (usageData.count >= MAX_ANALYSES_PER_DAY) {
+    alert('Você atingiu o limite de 6 análises por dia. Por favor, volte amanhã.');
+    return;
+  }
+
+  if (usageData.lastAnalysis) {
+    const lastAnalysisTime = new Date(usageData.lastAnalysis);
+    const diffMinutes = (now - lastAnalysisTime) / (1000 * 60);
+    if (diffMinutes < COOLDOWN_MINUTES) {
+      const remainingTime = Math.ceil(COOLDOWN_MINUTES - diffMinutes);
+      alert(`Por favor, aguarde ${remainingTime} minuto(s) antes de gerar uma nova análise.`);
+      return;
+    }
+  }
+
+  const casa = getSelectedValue('casas-group');
+  const liga = getSelectedValue('ligas-group');
+  const mercadoValue = getSelectedValue('mercados-group');
+  const mercadoText = getSelectedText('mercados-group');
+  const martingaleCoberturas = parseInt(getSelectedValue('martingale-group') || '0', 10);
+  const martingaleText = getSelectedText('martingale-group');
+  const periodo = getSelectedValue('periodo-group');
+  const observacao = document.getElementById('observacao').value;
+  const imagem = document.getElementById('image-upload').files[0];
+  if (!casa || !liga || !mercadoValue || !periodo) {
+    alert('Por favor, selecione Casa, Liga, Mercado e Período de Análise.');
+    return;
+  }
+
+  const generateBtn = document.querySelector('.btn-generate');
+  const resultContainer = document.getElementById('result-container');
+  const resultTitle = document.getElementById('result-title');
+  const resultContent = document.getElementById('result-content');
+
+  generateBtn.disabled = true;
+  generateBtn.innerHTML = '<div class="spinner"></div> Processando...';
+  resultContainer.style.display = 'block';
+  resultContent.innerHTML = '';
+  
+  try {
+    resultTitle.innerHTML = `<div class="loading"><div class="spinner"></div>Coletando ${periodo} jogos...</div>`;
+    const dados = await buscarDadosAPI(casa, liga, parseInt(periodo));
+    
+    dados.ranking = calcularRankingTimes(dados.dadosCru.map(j => ({time_a: j[3], time_b: j[4], ft: `${j[0]} x ${j[1]}`})), mercadoValue);
+    resultTitle.innerHTML = '<div class="loading"><div class="spinner"></div>Analisando padrões...</div>';
+    const tiros = martingaleCoberturas + 1;
+    const { resultados } = await analyzeInWorker(dados.dadosCru, {
+      tiros: tiros,
+      market: mercadoValue,
+      combinado: true 
+    });
+    dados.padroesEncontrados = resultados;
+
+    const searchedMarket = mapMercado(mercadoValue);
+    const linesToSum = (casa === 'kiron') ? 30 : 20;
+    const verifyLines = martingaleCoberturas + 1;
+    dados.marketAnalysis = calculateMarketAnalysis(dados, searchedMarket, dados.totalJogos, linesToSum, verifyLines);
+    resultTitle.innerHTML = '<div class="loading"><div class="spinner"></div>Gerando análise com IA (Groq)...</div>';
+    const parametros = {
+      mercado: mercadoText,
+      liga,
+      martingale: martingaleText || 'Nenhum',
+      periodo: periodo + ' jogos',
+      observacao,
+      imagem: imagem ? true : false
+    };
+    
+    // CHAMADA ATUALIZADA PARA GROQ
+    const analise = await analisarComGroq(dados, parametros);
+    
+    resultTitle.innerHTML = '✓ Análise Concluída - ' + casasConfig[casa].name + ' (' + liga + ')';
+    resultContent.textContent = analise;
+
+    usageData.count++;
+    usageData.lastAnalysis = now.toISOString();
+    localStorage.setItem('analysisUsage', JSON.stringify(usageData));
+
+  } catch (error) {
+    console.error('Erro no processo de análise:', error);
+    resultTitle.innerHTML = '✖ Erro na Análise';
+    resultContent.innerHTML = `<div class="error">
+      <strong>Erro:</strong> ${error.message}<br><br>
+      <strong>Causas possíveis:</strong> Falha na operação ou na API.
+      Atualize a página e tente outra vez mais tarde.
+    </div>`;
+  } finally {
+    generateBtn.disabled = false;
+    generateBtn.innerHTML = 'Gerar Análise IA';
+  }
+}
+
+document.getElementById('image-upload').addEventListener('change', function(event) {
+  const file = event.target.files[0];
+  const preview = document.getElementById('image-preview');
+  const status = document.getElementById('image-status');
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      preview.src = e.target.result;
+
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+    status.textContent = file.name;
+  } else {
+    preview.style.display = 'none';
+    status.textContent = 'Nenhum arquivo selecionado';
+  }
+});
+document.addEventListener("contextmenu", function(e) {
+  e.preventDefault();
+});
+document.addEventListener("keydown", function(e) {
+  if (e.key === "F12") e.preventDefault();
+  if (e.ctrlKey && e.shiftKey && e.key === "I") e.preventDefault();
+  if (e.ctrlKey && e.key === "u") e.preventDefault();
+  if (e.ctrlKey && e.shiftKey && e.key === "J") e.preventDefault();
+  if (e.ctrlKey && e.shiftKey && e.key === "C") e.preventDefault();
+  if (e.ctrlKey && e.key === "s") e.preventDefault();
+  if (e.ctrlKey 
+&& e.key === "p") e.preventDefault();
+});
+
+const devtools = { open: false };
+const element = new Image();
+Object.defineProperty(element, 'id', {
+  get: function () {
+    devtools.open = true;
+  }
+});
+(function() {
+  const threshold = 160;
+  const checkDevTools = function() {
+    if ((window.outerWidth - window.innerWidth) > threshold || 
+        (window.outerHeight - window.innerHeight) > threshold) {
+      devtools.open = true;
+    }
+  };
+  
+
+  window.addEventListener('resize', checkDevTools);
+  setInterval(checkDevTools, 500);
+})();
+console.log('%c', element);
+setInterval(function() {
+  if (devtools.open) {
+    document.body.innerHTML = '<h1>Acesso não autorizado detectado</h1>';
+    devtools.open = false;
+  }
+}, 1000);
+document.addEventListener('selectstart', function(e) {
+  e.preventDefault();
+});
+document.addEventListener('dragstart', function(e) {
+  e.preventDefault();
+});
+console.log = function() {};
+console.debug = function() {};
+console.info = function() {};
     </script>
   </body>
 </html>
