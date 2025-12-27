@@ -449,20 +449,10 @@ let currentData = [];
 let processedData = {};
 let horasDisponiveis = [];
 
-// Função para converter hora do Brasil para Inglaterra
-function convertToUKTime(brazilHour) {
-    return (brazilHour + TIMEZONE_OFFSET) % 24;
-}
-
-// Função para converter hora da Inglaterra para Brasil
-function convertToBrazilTime(ukHour) {
-    return (ukHour - TIMEZONE_OFFSET + 24) % 24;
-}
-
-// Função para obter hora atual da Inglaterra
+// Função para obter hora atual da Inglaterra (hora do Brasil + 3)
 function getUKCurrentHour() {
     const now = new Date();
-    return convertToUKTime(now.getHours());
+    return (now.getHours() + TIMEZONE_OFFSET) % 24;
 }
 
 // Função para obter minuto atual
@@ -499,17 +489,16 @@ function parseScore(scoreStr, time_a, time_b) {
     }
 }
 
-function gameHasHappened(gameHourBrazil, gameMinute) {
-    const now = new Date();
-    const currentHourBrazil = now.getHours();
-    const currentMinute = now.getMinutes();
+function gameHasHappened(gameHourUK, gameMinute) {
+    const currentHourUK = getUKCurrentHour();
+    const currentMinute = getCurrentMinute();
     
     // Se o jogo é de uma hora anterior, já aconteceu
-    if (gameHourBrazil < currentHourBrazil) {
+    if (gameHourUK < currentHourUK) {
         return true;
     }
     // Se é na mesma hora, verifica se o minuto já passou COM MARGEM
-    else if (gameHourBrazil === currentHourBrazil) {
+    else if (gameHourUK === currentHourUK) {
         // Só considera que aconteceu se passou pelo menos 1 minuto do horário do jogo
         return gameMinute < (currentMinute - 1);
     }
@@ -518,8 +507,8 @@ function gameHasHappened(gameHourBrazil, gameMinute) {
 }
 
 function getAvailableHours(data) {
-    const currentSystemHourBrazil = new Date().getHours();
-    const pastGames = data.filter(match => match.hora <= currentSystemHourBrazil);
+    const currentSystemHourUK = getUKCurrentHour();
+    const pastGames = data.filter(match => match.hora <= currentSystemHourUK);
     const hours = [...new Set(pastGames.map(match => match.hora))];
     return hours.sort((a, b) => b - a);
 }
@@ -539,8 +528,8 @@ function getCurrentQuadrant() {
 }
 
 function processData(data) {
-    const currentSystemHourBrazil = new Date().getHours();
-    const currentSystemMinute = new Date().getMinutes();
+    const currentSystemHourUK = getUKCurrentHour();
+    const currentSystemMinute = getCurrentMinute();
     
     horasDisponiveis = getAvailableHours(data);
     const last6Hours = horasDisponiveis.slice(0, 6);
@@ -549,7 +538,6 @@ function processData(data) {
     last6Hours.forEach((hour, hourIndex) => {
         processed[hour] = {
             hourIndex: hourIndex,
-            hourUK: convertToUKTime(hour), // Adiciona o horário UK para referência
             minutes: {}
         };
         MINUTES.forEach(minute => {
@@ -559,7 +547,7 @@ function processData(data) {
     
     // Processa APENAS os dados que realmente existem na API
     data.forEach(match => {
-        const matchHour = match.hora;
+        const matchHour = match.hora; // Já está no horário da Inglaterra
         const matchMinute = match.minuto;
         
         // Verifica se temos um slot para esse horário/minuto
@@ -602,8 +590,7 @@ function createQuadrantTable(quadrant, data) {
     
     const linhaNames = ['LINHA ATUAL', 'SEGUNDA LINHA', 'TERCEIRA LINHA', 'QUARTA LINHA', 'QUINTA LINHA', 'SEXTA LINHA'];
     
-    last6Hours.forEach((hourBrazil, index) => {
-        const hourUK = convertToUKTime(hourBrazil);
+    last6Hours.forEach((hourUK, index) => {
         const rowClass = index === 0 ? 'quadrantes-linha-atual' : '';
         let rowTotal = 0;
         let rowHtml = `<tr class="${rowClass}"><td>${linhaNames[index]} (${String(hourUK).padStart(2, '0')}h)</td>`;
@@ -613,13 +600,13 @@ function createQuadrantTable(quadrant, data) {
             
             // Para linha atual (index === 0), só mostra resultados de jogos que já aconteceram
             if (index === 0) {
-                if (gameHasHappened(hourBrazil, minute)) {
-                    goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                if (gameHasHappened(hourUK, minute)) {
+                    goals = data[hourUK]?.minutes[minute]?.total || 0;
                 }
                 // Se não aconteceu, goals permanece 0
             } else {
                 // Para linhas anteriores, usa os dados normalmente
-                goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                goals = data[hourUK]?.minutes[minute]?.total || 0;
             }
             
             rowTotal += goals;
@@ -636,14 +623,14 @@ function createQuadrantTable(quadrant, data) {
     
     quadrant.minutes.forEach(minute => {
         let columnTotal = 0;
-        last6Hours.forEach((hourBrazil, index) => {
+        last6Hours.forEach((hourUK, index) => {
             let goals = 0;
             if (index === 0) {
-                if (gameHasHappened(hourBrazil, minute)) {
-                    goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                if (gameHasHappened(hourUK, minute)) {
+                    goals = data[hourUK]?.minutes[minute]?.total || 0;
                 }
             } else {
-                goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                goals = data[hourUK]?.minutes[minute]?.total || 0;
             }
             columnTotal += goals;
         });
@@ -682,16 +669,16 @@ function createSummaryTable(data) {
     QUADRANTS.forEach((quadrant, qIndex) => {
         let rowHtml = `<tr><td>${qIndex + 1} QUADRANTE ${String(quadrant.minutes[0]).padStart(2, '0')}-${String(quadrant.minutes[4]).padStart(2, '0')}</td>`;
         
-        last6Hours.forEach((hourBrazil, hIndex) => {
+        last6Hours.forEach((hourUK, hIndex) => {
             let quadrantTotal = 0;
             quadrant.minutes.forEach(minute => {
                 let goals = 0;
                 if (hIndex === 0) {
-                    if (gameHasHappened(hourBrazil, minute)) {
-                        goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                    if (gameHasHappened(hourUK, minute)) {
+                        goals = data[hourUK]?.minutes[minute]?.total || 0;
                     }
                 } else {
-                    goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                    goals = data[hourUK]?.minutes[minute]?.total || 0;
                 }
                 quadrantTotal += goals;
             });
@@ -705,16 +692,16 @@ function createSummaryTable(data) {
     
     html += '<tr class="quadrantes-total-row"><td>TOTAL DE GOLS</td>';
     
-    last6Hours.forEach((hourBrazil, hIndex) => {
+    last6Hours.forEach((hourUK, hIndex) => {
         let hourTotal = 0;
         MINUTES.forEach(minute => {
             let goals = 0;
             if (hIndex === 0) {
-                if (gameHasHappened(hourBrazil, minute)) {
-                    goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                if (gameHasHappened(hourUK, minute)) {
+                    goals = data[hourUK]?.minutes[minute]?.total || 0;
                 }
             } else {
-                goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                goals = data[hourUK]?.minutes[minute]?.total || 0;
             }
             hourTotal += goals;
         });
@@ -733,15 +720,15 @@ function createAnalysisTable(data) {
     let totalGoalsAllQuadrants = 0;
     
     QUADRANTS.forEach(quadrant => {
-        last6Hours.forEach((hourBrazil, hIndex) => {
+        last6Hours.forEach((hourUK, hIndex) => {
             quadrant.minutes.forEach(minute => {
                 let goals = 0;
                 if (hIndex === 0) {
-                    if (gameHasHappened(hourBrazil, minute)) {
-                        goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                    if (gameHasHappened(hourUK, minute)) {
+                        goals = data[hourUK]?.minutes[minute]?.total || 0;
                     }
                 } else {
-                    goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                    goals = data[hourUK]?.minutes[minute]?.total || 0;
                 }
                 totalGoalsAllQuadrants += goals;
             });
@@ -763,16 +750,16 @@ function createAnalysisTable(data) {
         let quadrantTotals = [];
         let totalGolsQuadrante = 0;
         
-        last6Hours.forEach((hourBrazil, hIndex) => {
+        last6Hours.forEach((hourUK, hIndex) => {
             let quadrantTotal = 0;
             quadrant.minutes.forEach(minute => {
                 let goals = 0;
                 if (hIndex === 0) {
-                    if (gameHasHappened(hourBrazil, minute)) {
-                        goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                    if (gameHasHappened(hourUK, minute)) {
+                        goals = data[hourUK]?.minutes[minute]?.total || 0;
                     }
                 } else {
-                    goals = data[hourBrazil]?.minutes[minute]?.total || 0;
+                    goals = data[hourUK]?.minutes[minute]?.total || 0;
                 }
                 quadrantTotal += goals;
             });
@@ -798,16 +785,14 @@ function createAnalysisTable(data) {
 
 function createScoreCards(data, quadrantIndex) {
     const currentQuadrant = QUADRANTS[quadrantIndex];
-    const lastHourBrazil = horasDisponiveis[0];
-    if (!lastHourBrazil || !data[lastHourBrazil]) return '<div>Sem dados disponíveis</div>';
-    
-    const lastHourUK = convertToUKTime(lastHourBrazil);
+    const lastHourUK = horasDisponiveis[0];
+    if (!lastHourUK || !data[lastHourUK]) return '<div>Sem dados disponíveis</div>';
     
     let html = '';
     currentQuadrant.minutes.forEach(minute => {
-        const matchData = data[lastHourBrazil].minutes[minute];
+        const matchData = data[lastHourUK].minutes[minute];
         // Só mostra resultado se o jogo já aconteceu
-        const score = gameHasHappened(lastHourBrazil, minute) ? matchData.scoreDisplay : 'AGUARDANDO';
+        const score = gameHasHappened(lastHourUK, minute) ? matchData.scoreDisplay : 'AGUARDANDO';
         const teams = matchData.teams;
         
         html += `
