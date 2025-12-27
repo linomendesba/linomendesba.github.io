@@ -917,6 +917,23 @@ function getDateStr(data) {
     }
 }
 
+// Função para converter hora da UK (UTC) para hora local (+3 horas)
+function converterHoraUKParaLocal(horaUK) {
+    let horaLocal = horaUK + 3;
+    if (horaLocal >= 24) {
+        horaLocal -= 24;
+    }
+    return horaLocal;
+}
+
+// Função para verificar se é hora atual (considerando +3h)
+function verificarHoraAtual(horaUK) {
+    const agora = new Date();
+    const horaAtualLocal = agora.getHours();
+    const horaLocalDoJogo = converterHoraUKParaLocal(horaUK);
+    return horaLocalDoJogo === horaAtualLocal;
+}
+
 async function analisar() {
     const liga = document.getElementById('liga').value;
     const horasQtd = parseInt(document.getElementById('horas').value);
@@ -942,20 +959,21 @@ async function analisar() {
             return dataHoraB - dataHoraA;
         });
 
-        const agora = new Date();
-        const horaAtual = agora.getHours();
-
         const jogosPorHora = {};
         dados.forEach(jogo => {
             const dateStr = getDateStr(jogo.data);
-            const chave = `${dateStr}-${jogo.hora}`;
+            const horaUK = jogo.hora;
+            const horaLocal = converterHoraUKParaLocal(horaUK);
+            const chave = `${dateStr}-${horaUK}`;
+            
             if (!jogosPorHora[chave]) {
                 jogosPorHora[chave] = {
-                    hora: jogo.hora,
+                    horaUK: horaUK,
+                    horaLocal: horaLocal,
                     data: dateStr,
                     jogos: [],
-                    timestamp: new Date(`${dateStr}T${jogo.hora.toString().padStart(2, "0")}:00:00`).getTime(),
-                    isHoraAtual: jogo.hora === horaAtual
+                    timestamp: new Date(`${dateStr}T${horaUK.toString().padStart(2, "0")}:00:00`).getTime(),
+                    isHoraAtual: verificarHoraAtual(horaUK)
                 };
             }
             jogosPorHora[chave].jogos.push(jogo);
@@ -1022,7 +1040,7 @@ async function analisar() {
 
             html += `
                 <div class="hour-group">
-                    <div class="hour-header">${horaData.hora}h${horaData.isHoraAtual ? ' 🔴 AO VIVO' : ''}</div>
+                    <div class="hour-header">${horaData.horaLocal}h${horaData.isHoraAtual ? ' 🔴 AO VIVO' : ''}</div>
                     <div class="columns-wrapper">
                         <div class="market-column">
                             <div class="market-title primary">${getMercadoNome(mercado)}</div>
@@ -1172,15 +1190,18 @@ async function carregarDados() {
             const dateStr = getDateStr(jogo.data);
             const gameDate = new Date(jogo.data);
             const formattedDate = `${gameDate.getDate()}/${gameDate.getMonth() + 1}`;
-            const chave = `${dateStr}-${jogo.hora}`;
+            const horaUK = jogo.hora;
+            const horaLocal = converterHoraUKParaLocal(horaUK);
+            const chave = `${dateStr}-${horaUK}`;
             
             if (!jogosPorHora[chave]) {
                 jogosPorHora[chave] = {
-                    hora: jogo.hora,
+                    horaUK: horaUK,
+                    horaLocal: horaLocal,
                     data: dateStr,
-                    label: `${formattedDate} ${jogo.hora}h`,
+                    label: `${formattedDate} ${horaLocal}h`,
                     jogos: [],
-                    timestamp: new Date(`${dateStr}T${jogo.hora.toString().padStart(2, "0")}:00:00`).getTime()
+                    timestamp: new Date(`${dateStr}T${horaUK.toString().padStart(2, "0")}:00:00`).getTime()
                 };
             }
             jogosPorHora[chave].jogos.push(jogo);
