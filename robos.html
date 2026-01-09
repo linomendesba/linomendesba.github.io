@@ -883,7 +883,7 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
         const numberGrid = document.getElementById('numberGrid');
         const telegramIds = new Set();
         const cellStates = {};
-        const savedBots = [];
+        let savedBots = [];
         const MAX_BOTS = 10;
         let tooltip = null;
         
@@ -925,6 +925,7 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             'exato-3': '3 Gols Exatos',
             'exato-4': '4 Gols Exatos'
         };
+
         // DADOS DAS LIGAS
         const leaguesData = {
             betano: [
@@ -952,6 +953,51 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
                 { name: "América Latina", value: "https://www.betstat.site/estrelaamericalatina.html" }
             ]
         };
+
+        // ============================================
+        // FUNÇÕES DE PERSISTÊNCIA (localStorage)
+        // ============================================
+        
+        function saveToLocalStorage() {
+            try {
+                const data = {
+                    bots: savedBots,
+                    telegramIds: Array.from(telegramIds)
+                };
+                localStorage.setItem('botConfigData', JSON.stringify(data));
+                console.log('✅ Dados salvos no localStorage');
+            } catch (error) {
+                console.error('❌ Erro ao salvar no localStorage:', error);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const stored = localStorage.getItem('botConfigData');
+                if (stored) {
+                    const data = JSON.parse(stored);
+                    savedBots = data.bots || [];
+                    
+                    // Restaurar telegram IDs
+                    if (data.telegramIds) {
+                        telegramIds.clear();
+                        data.telegramIds.forEach(id => telegramIds.add(id));
+                        renderTelegramList();
+                        updateActiveTelegramSelect();
+                    }
+                    
+                    console.log('✅ Dados carregados do localStorage:', data);
+                    renderBotsList();
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar do localStorage:', error);
+            }
+        }
+
+        // ============================================
+        // FUNÇÕES PRINCIPAIS
+        // ============================================
+
         function toggleRule(id) {
             const content = document.getElementById(id);
             const header = content.previousElementSibling;
@@ -986,8 +1032,7 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             if (!tooltip) createTooltip();
 
             const filterName = filterFullNames[state.filter] || state.filter;
-            const modeText = state.entryConfirmed ?
-' (Entrada)' : ' (Padrão)';
+            const modeText = state.entryConfirmed ? ' (Entrada)' : ' (Padrão)';
             tooltip.textContent = filterName + modeText;
 
             const rect = event.target.getBoundingClientRect();
@@ -1003,20 +1048,17 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             }
         }
 
-        // FUNÇÃO QUE DETECTA MUDANÇA NA CASA DE APOSTA
         function changeBookmaker() {
             const selectedBookmaker = document.getElementById('bookmaker').value;
             const leagueContainer = document.getElementById('leagueContainer');
             const grid = document.getElementById('numberGrid');
 
-            // 1. ATUALIZAR GRID (Kiron = 30 colunas, Outras = 20)
             if (selectedBookmaker === 'kiron') {
                 grid.style.gridTemplateColumns = 'repeat(30, 1fr)';
             } else {
                 grid.style.gridTemplateColumns = 'repeat(20, 1fr)';
             }
 
-            // 2. ATUALIZAR LIGAS
             leagueContainer.innerHTML = '';
             const leagues = leaguesData[selectedBookmaker] || [];
             
@@ -1039,7 +1081,6 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             updateLeagueCount();
         }
 
-        // FUNÇÃO PARA SELECIONAR/DESMARCAR TODAS AS LIGAS
         function toggleAllLeagues() {
             const checkboxes = document.querySelectorAll('#leagueContainer input[type="checkbox"]');
             const allChecked = Array.from(checkboxes).every(cb => cb.checked);
@@ -1050,7 +1091,6 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             updateLeagueCount();
         }
 
-        // ATUALIZAR CONTADOR DE LIGAS SELECIONADAS
         function updateLeagueCount() {
             const checkedCount = document.querySelectorAll('#leagueContainer input[type="checkbox"]:checked').length;
             const totalCount = document.querySelectorAll('#leagueContainer input[type="checkbox"]').length;
@@ -1061,26 +1101,24 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
         function toggleNumber(num, cell) {
             const selectedFilter = document.getElementById('filter').value;
             const markMode = document.getElementById('markMode').value;
-            if (!selectedFilter) { alert('Por favor, selecione uma estratégia no filtro primeiro.'); return;
+            if (!selectedFilter) { 
+                alert('Por favor, selecione uma estratégia no filtro primeiro.'); 
+                return;
             }
             
             const state = cellStates[num];
             cell.innerHTML = num;
 
-            // Se já está marcado, desmarca
             if (state.filter) {
                 state.filter = null;
                 state.entryConfirmed = false;
                 cell.className = 'number-cell';
             } else {
-                // Se não está marcado, marca com a cor do modo selecionado
                 state.filter = selectedFilter;
                 if (markMode === 'padrao') {
-                    // Modo Padrão = Azul
                     state.entryConfirmed = false;
                     cell.className = 'number-cell filter-selected';
                 } else {
-                    // Modo Entrada = Verde
                     state.entryConfirmed = true;
                     cell.className = 'number-cell entry-confirmed';
                 }
@@ -1113,6 +1151,7 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             input.value = '';
             renderTelegramList();
             updateActiveTelegramSelect();
+            saveToLocalStorage(); // Salvar alteração
         }
 
         function removeTelegramId(id) {
@@ -1121,6 +1160,7 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             if (activeSelect.value === id) activeSelect.value = '';
             renderTelegramList();
             updateActiveTelegramSelect();
+            saveToLocalStorage(); // Salvar alteração
         }
 
         function updateActiveTelegramSelect() {
@@ -1159,7 +1199,7 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
                 return;
             }
             
-            if (savedBots.length >= MAX_BOTS && !window.editingBotIndex) {
+            if (savedBots.length >= MAX_BOTS && window.editingBotIndex === undefined) {
                 alert(`Você atingiu o limite de ${MAX_BOTS} bots!`);
                 return;
             }
@@ -1167,66 +1207,58 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             const btn = document.querySelector('.btn-save');
             const originalText = btn.innerHTML;
             
-            // Coletar ligas selecionadas
             const selectedLeagues = [];
             document.querySelectorAll('#leagueContainer input[type="checkbox"]:checked').forEach(cb => {
                 selectedLeagues.push(cb.value);
             });
-            // Salvar estado do grid
+
             const gridState = {};
             Object.keys(cellStates).forEach(key => {
                 if (cellStates[key].filter) {
                     gridState[key] = { ...cellStates[key] };
                 }
             });
-            // Criar objeto do bot
-            // NOTA: Não salvamos a assertividade estática aqui. Ela será calculada em tempo real no renderBotsList.
+
             const botData = {
-                id: window.editingBotIndex !== undefined ?
-                savedBots[window.editingBotIndex].id : Date.now(),
+                id: window.editingBotIndex !== undefined ? savedBots[window.editingBotIndex].id : Date.now(),
                 name: botName,
                 bookmaker: bookmaker,
                 markMode: markMode,
                 filter: filter,
-                telegramId: telegramId || 'Não definido', // Salva o ID do telegram
+                telegramId: telegramId || 'Não definido',
                 selectedLeagues: selectedLeagues,
                 leagues: selectedLeagues.length,
-                status: window.editingBotIndex !== undefined ?
-                savedBots[window.editingBotIndex].status : 'active',
+                status: window.editingBotIndex !== undefined ? savedBots[window.editingBotIndex].status : 'active',
                 gridState: gridState,
-                createdAt: window.editingBotIndex !== undefined ?
-                savedBots[window.editingBotIndex].createdAt : new Date().toISOString()
+                createdAt: window.editingBotIndex !== undefined ? savedBots[window.editingBotIndex].createdAt : new Date().toISOString()
             };
 
             btn.innerHTML = '<span>💾</span><span>Salvando...</span>';
+            
             setTimeout(() => {
                 if (window.editingBotIndex !== undefined) {
-                    // Atualizar bot existente
                     savedBots[window.editingBotIndex] = botData;
                     alert(`✅ Bot "${botName}" atualizado com sucesso!`);
                     window.editingBotIndex = undefined;
                 } else {
-                    // Criar novo bot
                     savedBots.push(botData);
                     alert(`✅ Bot "${botName}" salvo com sucesso!\n\nCasa: ${bookmaker.toUpperCase()}\nTelegram: ${telegramId || 'N/A'}\nLigas: ${selectedLeagues.length}`);
                 }
                 
+                saveToLocalStorage(); // SALVAR NO LOCALSTORAGE
                 btn.innerHTML = originalText;
-                renderBotsList(); // Isso irá forçar um recálculo das estatísticas para visualização
+                renderBotsList();
                 clearFormAfterSave();
             }, 800);
         }
 
         function clearFormAfterSave() {
-            // Limpar flag de edição
             window.editingBotIndex = undefined;
-            // Limpa campos de configuração
             document.getElementById('botName').value = '';
             document.getElementById('bookmaker').value = 'bet365';
             document.getElementById('markMode').value = 'padrao';
             document.getElementById('filter').value = '';
             
-            // Limpa o grid de números
             document.querySelectorAll('.number-cell').forEach(cell => {
                 cell.className = 'number-cell';
                 cell.innerHTML = cell.dataset.number;
@@ -1234,15 +1266,13 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             Object.keys(cellStates).forEach(key => {
                 cellStates[key] = { filter: null, entryConfirmed: false };
             });
-            // Limpa as checkboxes de ligas
+
             document.querySelectorAll('#leagueContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
             updateLeagueCount();
             
-            // Limpa IDs do Telegram
             document.getElementById('newTelegramId').value = '';
             document.getElementById('activeTelegramId').value = '';
             
-            // Atualiza visualizações
             changeBookmaker();
             updateProgress();
             updateAssertivity();
@@ -1250,15 +1280,13 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
 
         function clearAll() {
             if(!confirm('Tem certeza que deseja limpar as configurações atuais?\n\n(Os bots salvos não serão afetados)')) return;
-            // Limpar flag de edição se estiver editando
+            
             window.editingBotIndex = undefined;
-            // Limpa campos de configuração
             document.getElementById('botName').value = '';
             document.getElementById('bookmaker').value = 'bet365';
             document.getElementById('markMode').value = 'padrao';
             document.getElementById('filter').value = '';
             
-            // Limpa o grid de números
             document.querySelectorAll('.number-cell').forEach(cell => {
                 cell.className = 'number-cell';
                 cell.innerHTML = cell.dataset.number;
@@ -1266,22 +1294,19 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             Object.keys(cellStates).forEach(key => {
                 cellStates[key] = { filter: null, entryConfirmed: false };
             });
-            // Limpa as checkboxes de ligas
+
             document.querySelectorAll('#leagueContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
             updateLeagueCount();
             
-            // Limpa IDs do Telegram
             document.getElementById('newTelegramId').value = '';
             document.getElementById('activeTelegramId').value = '';
             
-            // Atualiza visualizações
             changeBookmaker();
             updateProgress();
             updateAssertivity();
             alert('✅ Configurações limpas!\n\nVocê pode configurar um novo bot.');
         }
 
-        // ANÁLISE DE ASSERTIVIDADE (SIMULAÇÃO)
         function updateAssertivity() {
             const grid = document.getElementById('assertivityGrid');
             const selectedFilter = document.getElementById('filter').value;
@@ -1291,7 +1316,6 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
                 return;
             }
 
-            // Simulação de dados para o painel principal
             const currentStats = generateCurrentStats(selectedFilter);
             
             grid.innerHTML = currentStats.map(period => {
@@ -1320,16 +1344,8 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             }).join('');
         }
 
-        // FUNÇÃO QUE GERA DADOS FRESCOS (Simulação de tempo real)
         function generateCurrentStats(filterName) {
-            // Esta função simula uma chamada de API que busca dados atualizados
-            // Em um sistema real, aqui você faria um fetch para seu backend
-            
-            // Usamos o nome do filtro para gerar "seeds" levemente diferentes para parecer real
-            // mas mantemos consistente para não mudar a cada milissegundo loucamente
             const baseMultiplier = filterName ? filterName.length : 5;
-            
-            // Simula pequenas variações baseadas no minuto atual para parecer "vivo"
             const timeVariance = new Date().getMinutes() % 5; 
 
             return [
@@ -1341,7 +1357,6 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
             ];
         }
 
-        // MODAL DE BOTS
         function toggleBotsModal() {
             const modal = document.getElementById('botsModal');
             modal.classList.toggle('active');
@@ -1375,12 +1390,9 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
                 return;
             }
 
-            // Mapeia e Renderiza
             body.innerHTML = savedBots.map((bot, index) => {
-                // AQUI É A MÁGICA: Recalcula a estatística AGORA (tempo real simulado)
                 const liveStats = generateCurrentStats(bot.filter);
                 
-                // Gera o HTML das estatísticas
                 const statsHTML = liveStats.map(stat => {
                     const total = stat.green + stat.red;
                     const pct = ((stat.green / total) * 100).toFixed(0);
@@ -1453,33 +1465,27 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
 
         function editBot(index) {
             const bot = savedBots[index];
-            // Marcar que estamos editando
             window.editingBotIndex = index;
-            // Carregar dados básicos do bot
+            
             document.getElementById('botName').value = bot.name;
             document.getElementById('bookmaker').value = bot.bookmaker;
             document.getElementById('markMode').value = bot.markMode;
             document.getElementById('filter').value = bot.filter;
             
-            // Tenta carregar o telegram salvo, se ele ainda existir na lista, seleciona, senão deixa em branco
             if(telegramIds.has(bot.telegramId)) {
                 document.getElementById('activeTelegramId').value = bot.telegramId;
             }
 
-            // Atualizar casa de aposta para carregar ligas corretas
             changeBookmaker();
-            // Aguardar um momento para as ligas serem carregadas
+            
             setTimeout(() => {
-                // Marcar ligas selecionadas
                 bot.selectedLeagues.forEach(league => {
                     const checkbox = document.getElementById(league);
                     if (checkbox) checkbox.checked = true;
                 });
                 updateLeagueCount();
                 
-                // Restaurar o grid de números
                 if (bot.gridState) {
-                    // Limpar grid primeiro
                     document.querySelectorAll('.number-cell').forEach(cell => {
                         cell.className = 'number-cell';
                         cell.innerHTML = cell.dataset.number;
@@ -1488,7 +1494,6 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
                         cellStates[key] = { filter: null, entryConfirmed: false };
                     });
                     
-                    // Restaurar marcações
                     Object.keys(bot.gridState).forEach(cellNum => {
                         const state = bot.gridState[cellNum];
                         cellStates[cellNum] = { ...state };
@@ -1502,7 +1507,6 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
                                 cell.className = 'number-cell filter-selected';
                             }
                             addLabel(cell, state.filter);
-                            // Reativar eventos do tooltip
                             cell.onmouseenter = (e) => showTooltip(e, cellNum);
                             cell.onmouseleave = hideTooltip;
                         }
@@ -1511,28 +1515,28 @@ color: var(--text-muted);" id="leagueCount">0 selecionadas</span>
                 }
                 
                 updateAssertivity();
-                // Fechar modal
                 toggleBotsModal();
-                // Scroll para o topo
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 alert(`📝 Editando bot "${bot.name}"\n\nFaça as alterações e clique em Salvar.`);
             }, 100);
         }
 
         function toggleBotStatus(index) {
-            savedBots[index].status = savedBots[index].status === 'active' ?
-'paused' : 'active';
+            savedBots[index].status = savedBots[index].status === 'active' ? 'paused' : 'active';
+            saveToLocalStorage(); // SALVAR ALTERAÇÃO
             renderBotsList();
         }
 
         function deleteBot(index) {
             if (!confirm(`Tem certeza que deseja excluir o bot "${savedBots[index].name}"?`)) return;
             savedBots.splice(index, 1);
+            saveToLocalStorage(); // SALVAR ALTERAÇÃO
             renderBotsList();
         }
 
-        // Inicializar com a primeira opção (Bet365) ao carregar a página
+        // INICIALIZAÇÃO
         window.onload = function() {
+            loadFromLocalStorage(); // CARREGAR DADOS SALVOS
             changeBookmaker();
             updateAssertivity();
             renderBotsList();
