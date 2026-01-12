@@ -25,6 +25,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/multkiron.html" ||
     url === "https://www.betstat.site/morfeus.html" ||
     url === "https://www.betstat.site/calculadora.html" ||
+    url === "https://www.betstat.site/robos.html" ||
     url === "https://www.betstat.site/365equipes.html" ||
     url === "https://www.betstat.site/365sequencia.html" ||
     url === "https://www.betstat.site/365raking.html" ||
