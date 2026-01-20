@@ -107,6 +107,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/maximabets.html" ||
     url === "https://www.betstat.site/golsbets.html" ||
     url === "https://www.betstat.site/rakingbets.html" ||
+    url === "https://t.me/Betstatsite" ||
     url === "https://www.betstat.site/graficoftkiron.html" ||
     url === "https://www.betstat.site/kironbuscador.html" ||
     url === "https://www.betstat.site/estrelafixo.html" ||
