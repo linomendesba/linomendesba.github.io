@@ -159,43 +159,50 @@
             }
         }
 
-        function processDataByHour(data, hours) {
+        function processDataByHour(data, hoursToShow) {
             const now = new Date();
-            const cutoffTime = new Date(now.getTime() - hours * 60 * 60 * 1000);
+            const currentHour = now.getHours();
             
+            // Criar array de horas do passado até o presente
+            const hours = [];
+            for (let i = hoursToShow - 1; i >= 0; i--) {
+                const hour = (currentHour - i + 24) % 24;
+                hours.push(hour);
+            }
+            
+            // Inicializar contador de gols por hora
             const hourlyGoals = {};
-
+            hours.forEach(h => {
+                hourlyGoals[h] = 0;
+            });
+            
+            // Calcular tempo de corte
+            const cutoffTime = new Date(now.getTime() - hoursToShow * 60 * 60 * 1000);
+            
+            // Processar cada jogo
             data.forEach(game => {
                 const gameDate = new Date(game.data);
                 gameDate.setHours(game.hora, game.minuto, 0, 0);
-
+                
+                // Verificar se o jogo está dentro do período
                 if (gameDate >= cutoffTime && gameDate <= now) {
-                    const hourKey = game.hora;
+                    const gameHour = game.hora;
                     
-                    if (!hourlyGoals[hourKey]) {
-                        hourlyGoals[hourKey] = 0;
-                    }
-
-                    const [goalsA, goalsB] = game.ft.split(' x ').map(Number);
-                    if (!isNaN(goalsA) && !isNaN(goalsB)) {
-                        hourlyGoals[hourKey] += goalsA + goalsB;
+                    // Somar gols apenas se a hora estiver no range
+                    if (hourlyGoals.hasOwnProperty(gameHour)) {
+                        const [goalsA, goalsB] = game.ft.split(' x ').map(Number);
+                        if (!isNaN(goalsA) && !isNaN(goalsB)) {
+                            hourlyGoals[gameHour] += goalsA + goalsB;
+                        }
                     }
                 }
             });
-
-            return hourlyGoals;
-        }
-
-        function getBarColor(goals) {
-            if (goals === 0) return { background: 'rgba(255, 0, 0, 0.6)', border: 'rgba(255, 0, 0, 1)' };
-            if (goals <= 20) return { background: 'rgba(0, 0, 255, 0.6)', border: 'rgba(0, 0, 255, 1)' };
-            if (goals <= 40) return { background: 'rgba(255, 255, 255, 0.6)', border: 'rgba(255, 255, 255, 1)' };
-            if (goals <= 60) return { background: 'rgba(0, 128, 0, 0.6)', border: 'rgba(0, 128, 0, 1)' };
-            if (goals <= 80) return { background: 'rgba(255, 255, 0, 0.6)', border: 'rgba(255, 255, 0, 1)' };
-            if (goals <= 100) return { background: 'rgba(200, 162, 200, 0.6)', border: 'rgba(200, 162, 200, 1)' };
-            if (goals <= 120) return { background: 'rgba(128, 0, 128, 0.6)', border: 'rgba(128, 0, 128, 1)' };
-            if (goals <= 140) return { background: 'rgba(255, 165, 0, 0.6)', border: 'rgba(255, 165, 0, 1)' };
-            return { background: 'rgba(31, 172, 137, 0.6)', border: 'rgba(31, 172, 137, 1)' };
+            
+            // Retornar dados ordenados do passado para o presente
+            return hours.map(h => ({
+                hour: h,
+                goals: hourlyGoals[h]
+            }));
         }
 
         function createChart(canvasId, leagueName) {
@@ -208,8 +215,8 @@
                     datasets: [{
                         label: 'Total de Gols',
                         data: [],
-                        backgroundColor: [],
-                        borderColor: [],
+                        backgroundColor: 'rgba(255, 255, 0, 0.6)',
+                        borderColor: 'rgba(255, 255, 0, 1)',
                         borderWidth: 2
                     }]
                 },
@@ -221,7 +228,7 @@
                             beginAtZero: true,
                             ticks: {
                                 color: 'white',
-                                stepSize: 20
+                                stepSize: 10
                             },
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.1)'
@@ -257,26 +264,19 @@
         }
 
         async function updateChart(league, index) {
-            const hours = parseInt(document.getElementById('hoursSelector').value);
+            const hoursToShow = parseInt(document.getElementById('hoursSelector').value);
             const data = await fetchLeagueData(league.url);
             
-            const hourlyGoals = processDataByHour(data, hours);
+            const processedData = processDataByHour(data, hoursToShow);
             
-            const sortedHours = Object.keys(hourlyGoals).sort((a, b) => Number(a) - Number(b));
-            const labels = sortedHours.map(h => `${h}:00`);
-            const goalsData = sortedHours.map(h => hourlyGoals[h]);
-            
-            const colors = goalsData.map(goals => getBarColor(goals));
-            const backgroundColors = colors.map(c => c.background);
-            const borderColors = colors.map(c => c.border);
+            const labels = processedData.map(d => `${d.hour.toString().padStart(2, '0')}:00`);
+            const goalsData = processedData.map(d => d.goals);
 
             const chartId = `chart-${index}`;
             
             if (charts[chartId]) {
                 charts[chartId].data.labels = labels;
                 charts[chartId].data.datasets[0].data = goalsData;
-                charts[chartId].data.datasets[0].backgroundColor = backgroundColors;
-                charts[chartId].data.datasets[0].borderColor = borderColors;
                 charts[chartId].update();
             }
         }
