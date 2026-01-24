@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gols por Hora - Análise de Ligas</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1c1f26;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1fac89;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: rgba(31, 172, 137, 0.1);
+            border-radius: 10px;
+            border: 2px solid #1fac89;
+        }
+
+        .controls label {
+            font-size: 1.1em;
+            color: #1fac89;
+            font-weight: bold;
+        }
+
+        .controls select {
+            padding: 10px 20px;
+            font-size: 1em;
+            background-color: #2a2d35;
+            color: white;
+            border: 2px solid #1fac89;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .controls select:hover {
+            background-color: #1fac89;
+            color: #1c1f26;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background-color: #2a2d35;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #1fac89;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-title {
+            text-align: center;
+            color: #1fac89;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #1fac89;
+            padding: 20px;
+            font-size: 1.2em;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Análise de Gols por Hora - Ligas</h1>
+        
+        <div class="controls">
+            <label for="hoursSelector">Período de Análise:</label>
+            <select id="hoursSelector">
+                <option value="6">Últimas 6 horas</option>
+                <option value="12">Últimas 12 horas</option>
+                <option value="24" selected>Últimas 24 horas</option>
+                <option value="48">Últimas 48 horas</option>
+                <option value="72">Últimas 72 horas</option>
+            </select>
+        </div>
+
+        <div class="charts-grid" id="chartsGrid">
+            <div class="loading">Carregando gráficos...</div>
+        </div>
+    </div>
+
+    <script>
+        const LEAGUES = [
+            { name: 'Copa América', url: 'https://betstat.site/resultados/Copa%20Am%C3%A9rica' },
+            { name: 'Taça Glória eterna', url: 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna' },
+            { name: 'Euro', url: 'https://betstat.site/resultados/Euro' },
+            { name: 'Campeonato Italiano', url: 'https://betstat.site/resultados/Campeonato%20Italiano' },
+            { name: 'Copa das estrelas', url: 'https://betstat.site/resultados/Copa%20das%20estrelas' },
+            { name: 'Brasileirão Betano', url: 'https://betstat.site/resultados/Brasileir%C3%A3o%20Betano' }
+        ];
+
+        const charts = {};
+
+        async function fetchLeagueData(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error(`Erro ao carregar dados de ${url}:`, error);
+                return [];
+            }
+        }
+
+        function processDataByHour(data, hours) {
+            const now = new Date();
+            const cutoffTime = new Date(now.getTime() - hours * 60 * 60 * 1000);
+            
+            const hourlyGoals = {};
+
+            data.forEach(game => {
+                const gameDate = new Date(game.data);
+                gameDate.setHours(game.hora, game.minuto, 0, 0);
+
+                if (gameDate >= cutoffTime && gameDate <= now) {
+                    const hourKey = game.hora;
+                    
+                    if (!hourlyGoals[hourKey]) {
+                        hourlyGoals[hourKey] = 0;
+                    }
+
+                    const [goalsA, goalsB] = game.ft.split(' x ').map(Number);
+                    if (!isNaN(goalsA) && !isNaN(goalsB)) {
+                        hourlyGoals[hourKey] += goalsA + goalsB;
+                    }
+                }
+            });
+
+            return hourlyGoals;
+        }
+
+        function getBarColor(goals) {
+            if (goals === 0) return { background: 'rgba(255, 0, 0, 0.6)', border: 'rgba(255, 0, 0, 1)' };
+            if (goals <= 20) return { background: 'rgba(0, 0, 255, 0.6)', border: 'rgba(0, 0, 255, 1)' };
+            if (goals <= 40) return { background: 'rgba(255, 255, 255, 0.6)', border: 'rgba(255, 255, 255, 1)' };
+            if (goals <= 60) return { background: 'rgba(0, 128, 0, 0.6)', border: 'rgba(0, 128, 0, 1)' };
+            if (goals <= 80) return { background: 'rgba(255, 255, 0, 0.6)', border: 'rgba(255, 255, 0, 1)' };
+            if (goals <= 100) return { background: 'rgba(200, 162, 200, 0.6)', border: 'rgba(200, 162, 200, 1)' };
+            if (goals <= 120) return { background: 'rgba(128, 0, 128, 0.6)', border: 'rgba(128, 0, 128, 1)' };
+            if (goals <= 140) return { background: 'rgba(255, 165, 0, 0.6)', border: 'rgba(255, 165, 0, 1)' };
+            return { background: 'rgba(31, 172, 137, 0.6)', border: 'rgba(31, 172, 137, 1)' };
+        }
+
+        function createChart(canvasId, leagueName) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            
+            return new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Total de Gols',
+                        data: [],
+                        backgroundColor: [],
+                        borderColor: [],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: 'white',
+                                stepSize: 20
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                color: '#1fac89',
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `Total de Gols: ${context.parsed.y}`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function updateChart(league, index) {
+            const hours = parseInt(document.getElementById('hoursSelector').value);
+            const data = await fetchLeagueData(league.url);
+            
+            const hourlyGoals = processDataByHour(data, hours);
+            
+            const sortedHours = Object.keys(hourlyGoals).sort((a, b) => Number(a) - Number(b));
+            const labels = sortedHours.map(h => `${h}:00`);
+            const goalsData = sortedHours.map(h => hourlyGoals[h]);
+            
+            const colors = goalsData.map(goals => getBarColor(goals));
+            const backgroundColors = colors.map(c => c.background);
+            const borderColors = colors.map(c => c.border);
+
+            const chartId = `chart-${index}`;
+            
+            if (charts[chartId]) {
+                charts[chartId].data.labels = labels;
+                charts[chartId].data.datasets[0].data = goalsData;
+                charts[chartId].data.datasets[0].backgroundColor = backgroundColors;
+                charts[chartId].data.datasets[0].borderColor = borderColors;
+                charts[chartId].update();
+            }
+        }
+
+        async function initializeCharts() {
+            const grid = document.getElementById('chartsGrid');
+            grid.innerHTML = '';
+
+            LEAGUES.forEach((league, index) => {
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                chartContainer.innerHTML = `
+                    <div class="chart-title">${league.name}</div>
+                    <div class="chart-wrapper">
+                        <canvas id="chart-${index}"></canvas>
+                    </div>
+                `;
+                grid.appendChild(chartContainer);
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            LEAGUES.forEach((league, index) => {
+                const chartId = `chart-${index}`;
+                charts[chartId] = createChart(chartId, league.name);
+            });
+
+            await updateAllCharts();
+        }
+
+        async function updateAllCharts() {
+            const promises = LEAGUES.map((league, index) => updateChart(league, index));
+            await Promise.all(promises);
+        }
+
+        document.getElementById('hoursSelector').addEventListener('change', updateAllCharts);
+
+        setInterval(updateAllCharts, 30000);
+
+        initializeCharts();
+    </script>
+</body>
+</html>
