@@ -113,6 +113,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/kironbuscador.html" ||
     url === "https://www.betstat.site/estrelafixo.html" ||
     url === "https://www.betstat.site/localizAIbets.html" ||
+    url === "https://www.betstat.site/estrelaclassificacao.html" ||
     url === "https://www.betstat.site/sequencia.html" ||
     url === "https://www.betstat.site/equipes.html" ||
     url === "https://www.betstat.site/porcentagem365.html" ||
