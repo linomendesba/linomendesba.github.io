@@ -114,6 +114,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/estrelafixo.html" ||
     url === "https://www.betstat.site/localizAIbets.html" ||
     url === "https://www.betstat.site/estrelaclassificacao.html" ||
+    url === "https://www.betstat.site/kironbar.html" ||
     url === "https://www.betstat.site/betanobar.html" ||
     url === "https://www.betstat.site/estrelabar.html" ||
     url === "https://www.betstat.site/365bar.html" ||
