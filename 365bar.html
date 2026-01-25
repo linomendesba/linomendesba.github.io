@@ -271,285 +271,295 @@
     </div>
 
     <script>
-        const LEAGUES = [
-            { name: 'Copa', url: 'https://betstat.site/resultados/bet365/Copa' },
-            { name: 'Euro', url: 'https://betstat.site/resultados/bet365/Euro' },
-            { name: 'Super', url: 'https://betstat.site/resultados/bet365/Super' },
-            { name: 'Premier', url: 'https://betstat.site/resultados/bet365/Premier' }
-        ];
+const LEAGUES = [
+    { name: 'Copa', url: 'https://betstat.site/resultados/bet365/Copa' },
+    { name: 'Euro', url: 'https://betstat.site/resultados/bet365/Euro' },
+    { name: 'Super', url: 'https://betstat.site/resultados/bet365/Super' },
+    { name: 'Premier', url: 'https://betstat.site/resultados/bet365/Premier' }
+];
 
+const charts = {};
+let leaguesData = {};
 
-        const charts = {};
-        let leaguesData = {};
+async function fetchLeagueData(url) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error(`Erro ao carregar dados de ${url}:`, error);
+        return [];
+    }
+}
 
-        async function fetchLeagueData(url) {
-            try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error(`Erro ao carregar dados de ${url}:`, error);
-                return [];
+function processDataByHour(data, hoursToShow) {
+    const now = new Date();
+    const hoursMap = new Map();
+    
+    // Processar jogos e agrupar por hora (horário UK)
+    data.forEach(game => {
+        const gameDate = new Date(game.data);
+        const gameDay = gameDate.getDate();
+        const gameMonth = gameDate.getMonth();
+        const gameYear = gameDate.getFullYear();
+        const gameHour = game.hora;
+        
+        const key = `${gameYear}-${gameMonth}-${gameDay}-${gameHour}`;
+        
+        const [goalsA, goalsB] = game.ft.split(' x ').map(Number);
+        if (!isNaN(goalsA) && !isNaN(goalsB)) {
+            const totalGoals = goalsA + goalsB;
+            if (hoursMap.has(key)) {
+                hoursMap.set(key, hoursMap.get(key) + totalGoals);
+            } else {
+                hoursMap.set(key, totalGoals);
             }
         }
-
-        function processDataByHour(data, hoursToShow) {
-            const now = new Date();
-            
-            const hoursData = [];
-            for (let i = hoursToShow - 1; i >= 0; i--) {
-                const targetDate = new Date(now.getTime() - i * 60 * 60 * 1000);
-                // Ajustar para o horário da Inglaterra (+3 horas)
-                const targetDateUK = new Date(targetDate.getTime() + 3 * 60 * 60 * 1000);
-                
-                hoursData.push({
-                    date: targetDateUK.getDate(),
-                    month: targetDateUK.getMonth(),
-                    year: targetDateUK.getFullYear(),
-                    hour: targetDateUK.getHours(),
-                    fullDate: new Date(targetDateUK.getFullYear(), targetDateUK.getMonth(), targetDateUK.getDate(), targetDateUK.getHours()),
-                    goals: 0,
-                    isCurrent: i === 0,
-                    // Manter data original do Brasil para exibição
-                    displayDate: targetDate.getDate(),
-                    displayMonth: targetDate.getMonth(),
-                    displayHour: targetDate.getHours()
-                });
-            }
-            
-            data.forEach(game => {
-                const gameDate = new Date(game.data);
-                const gameDay = gameDate.getDate();
-                const gameMonth = gameDate.getMonth();
-                const gameYear = gameDate.getFullYear();
-                const gameHour = game.hora;
-                
-                const hourIndex = hoursData.findIndex(h => 
-                    h.date === gameDay && 
-                    h.month === gameMonth && 
-                    h.year === gameYear && 
-                    h.hour === gameHour
-                );
-                
-                if (hourIndex !== -1) {
-                    const [goalsA, goalsB] = game.ft.split(' x ').map(Number);
-                    if (!isNaN(goalsA) && !isNaN(goalsB)) {
-                        hoursData[hourIndex].goals += goalsA + goalsB;
-                    }
-                }
+    });
+    
+    // Criar array apenas com horas que têm dados
+    const hoursData = [];
+    for (let i = hoursToShow - 1; i >= 0; i--) {
+        const targetDate = new Date(now.getTime() - i * 60 * 60 * 1000);
+        // Ajustar para o horário da Inglaterra (+3 horas)
+        const targetDateUK = new Date(targetDate.getTime() + 3 * 60 * 60 * 1000);
+        
+        const key = `${targetDateUK.getFullYear()}-${targetDateUK.getMonth()}-${targetDateUK.getDate()}-${targetDateUK.getHours()}`;
+        
+        // Apenas adicionar se houver dados para essa hora
+        if (hoursMap.has(key)) {
+            hoursData.push({
+                date: targetDateUK.getDate(),
+                month: targetDateUK.getMonth(),
+                year: targetDateUK.getFullYear(),
+                hour: targetDateUK.getHours(),
+                goals: hoursMap.get(key),
+                isCurrent: i === 0,
+                displayDate: targetDate.getDate(),
+                displayMonth: targetDate.getMonth(),
+                displayHour: targetDate.getHours()
             });
-            
-            return hoursData;
         }
+    }
+    
+    return hoursData;
+}
 
-        function calculateStats() {
-            const hoursToShow = parseInt(document.getElementById('hoursSelector').value);
-            const stats = {};
+function calculateStats() {
+    const stats = {};
+    
+    LEAGUES.forEach(league => {
+        const processedData = leaguesData[league.name];
+        if (!processedData || processedData.length === 0) return;
+        
+        const totalGoals = processedData.reduce((sum, h) => sum + h.goals, 0);
+        const avgGoals = totalGoals / processedData.length;
+        
+        // Calcular tendência (comparar segunda metade com primeira metade)
+        const halfPoint = Math.floor(processedData.length / 2);
+        if (halfPoint > 0) {
+            const firstHalf = processedData.slice(0, halfPoint);
+            const secondHalf = processedData.slice(halfPoint);
             
-            LEAGUES.forEach(league => {
-                const processedData = leaguesData[league.name];
-                if (!processedData || processedData.length === 0) return;
-                
-                const totalGoals = processedData.reduce((sum, h) => sum + h.goals, 0);
-                const avgGoals = totalGoals / processedData.length;
-                
-                // Calcular tendência (comparar segunda metade com primeira metade)
-                const halfPoint = Math.floor(processedData.length / 2);
-                const firstHalf = processedData.slice(0, halfPoint);
-                const secondHalf = processedData.slice(halfPoint);
-                
-                const avgFirstHalf = firstHalf.reduce((sum, h) => sum + h.goals, 0) / firstHalf.length;
-                const avgSecondHalf = secondHalf.reduce((sum, h) => sum + h.goals, 0) / secondHalf.length;
-                const trend = ((avgSecondHalf - avgFirstHalf) / avgFirstHalf) * 100;
-                
-                // Score para recomendação (média + tendência)
-                const score = avgGoals + (trend > 0 ? trend : 0);
-                
-                stats[league.name] = {
-                    avgGoals: avgGoals,
-                    trend: trend,
-                    score: score,
-                    totalGoals: totalGoals
-                };
-            });
+            const avgFirstHalf = firstHalf.reduce((sum, h) => sum + h.goals, 0) / firstHalf.length;
+            const avgSecondHalf = secondHalf.reduce((sum, h) => sum + h.goals, 0) / secondHalf.length;
+            const trend = avgFirstHalf > 0 ? ((avgSecondHalf - avgFirstHalf) / avgFirstHalf) * 100 : 0;
             
-            // Encontrar melhores
-            let bestAvg = { name: '', value: 0 };
-            let bestTrend = { name: '', value: -Infinity };
-            let bestRecommended = { name: '', value: 0 };
+            // Score para recomendação (média + tendência)
+            const score = avgGoals + (trend > 0 ? trend : 0);
             
-            Object.keys(stats).forEach(name => {
-                if (stats[name].avgGoals > bestAvg.value) {
-                    bestAvg = { name, value: stats[name].avgGoals };
-                }
-                if (stats[name].trend > bestTrend.value) {
-                    bestTrend = { name, value: stats[name].trend };
-                }
-                if (stats[name].score > bestRecommended.value) {
-                    bestRecommended = { name, value: stats[name].score };
-                }
-            });
-            
-            // Atualizar interface
-            document.getElementById('bestAvgLeague').innerText = bestAvg.name;
-            document.getElementById('bestAvgValue').innerText = `${bestAvg.value.toFixed(1)} gols/hora`;
-            
-            document.getElementById('bestTrendLeague').innerText = bestTrend.name;
-            document.getElementById('bestTrendValue').innerText = bestTrend.value > 0 ? 
-                `+${bestTrend.value.toFixed(1)}% de crescimento` : 
-                `${bestTrend.value.toFixed(1)}% de variação`;
-            
-            document.getElementById('recommendedLeague').innerText = bestRecommended.name;
-            document.getElementById('recommendedReason').innerText = `Melhor combinação: ${stats[bestRecommended.name].avgGoals.toFixed(1)} gols/hora + tendência positiva`;
+            stats[league.name] = {
+                avgGoals: avgGoals,
+                trend: trend,
+                score: score,
+                totalGoals: totalGoals
+            };
         }
+    });
+    
+    // Encontrar melhores
+    let bestAvg = { name: '', value: 0 };
+    let bestTrend = { name: '', value: -Infinity };
+    let bestRecommended = { name: '', value: 0 };
+    
+    Object.keys(stats).forEach(name => {
+        if (stats[name].avgGoals > bestAvg.value) {
+            bestAvg = { name, value: stats[name].avgGoals };
+        }
+        if (stats[name].trend > bestTrend.value) {
+            bestTrend = { name, value: stats[name].trend };
+        }
+        if (stats[name].score > bestRecommended.value) {
+            bestRecommended = { name, value: stats[name].score };
+        }
+    });
+    
+    // Atualizar interface
+    if (bestAvg.name) {
+        document.getElementById('bestAvgLeague').innerText = bestAvg.name;
+        document.getElementById('bestAvgValue').innerText = `${bestAvg.value.toFixed(1)} gols/hora`;
+    }
+    
+    if (bestTrend.name) {
+        document.getElementById('bestTrendLeague').innerText = bestTrend.name;
+        document.getElementById('bestTrendValue').innerText = bestTrend.value > 0 ? 
+            `+${bestTrend.value.toFixed(1)}% de crescimento` : 
+            `${bestTrend.value.toFixed(1)}% de variação`;
+    }
+    
+    if (bestRecommended.name) {
+        document.getElementById('recommendedLeague').innerText = bestRecommended.name;
+        document.getElementById('recommendedReason').innerText = `Melhor combinação: ${stats[bestRecommended.name].avgGoals.toFixed(1)} gols/hora + tendência positiva`;
+    }
+}
 
-        function createChart(canvasId, leagueName) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            
-            return new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Total de Gols',
-                        data: [],
-                        backgroundColor: [],
-                        borderColor: [],
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                color: '#a1a1aa',
-                                stepSize: 10,
-                                font: {
-                                    size: 11
-                                }
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.08)',
-                                drawBorder: false
-                            }
-                        },
-                        x: {
-                            ticks: {
-                                display: false
-                            },
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.15)',
-                                drawBorder: true,
-                                borderColor: 'rgba(255, 255, 255, 0.2)'
-                            }
+function createChart(canvasId, leagueName) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    
+    return new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Total de Gols',
+                data: [],
+                backgroundColor: [],
+                borderColor: [],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: '#a1a1aa',
+                        stepSize: 10,
+                        font: {
+                            size: 11
                         }
                     },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            labels: {
-                                color: '#1fac89',
-                                font: {
-                                    size: 13,
-                                    weight: '500'
-                                }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                            titleColor: '#1fac89',
-                            bodyColor: '#e4e4e7',
-                            borderColor: '#1fac89',
-                            borderWidth: 1,
-                            padding: 12,
-                            callbacks: {
-                                title: (context) => {
-                                    const index = context[0].dataIndex;
-                                    const chart = context[0].chart;
-                                    const hourData = chart.hourData[index];
-                                    const day = hourData.date.toString().padStart(2, '0');
-                                    const month = (hourData.month + 1).toString().padStart(2, '0');
-                                    const hour = hourData.hour.toString().padStart(2, '0');
-                                    return `${day}/${month} às ${hour}:00`;
-                                },
-                                label: (context) => `Total de Gols: ${context.parsed.y}`
-                            }
-                        }
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.08)',
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    ticks: {
+                        display: false
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.15)',
+                        drawBorder: true,
+                        borderColor: 'rgba(255, 255, 255, 0.2)'
                     }
                 }
-            });
-        }
-
-        async function updateChart(league, index) {
-            const hoursToShow = parseInt(document.getElementById('hoursSelector').value);
-            const data = await fetchLeagueData(league.url);
-            
-            const processedData = processDataByHour(data, hoursToShow);
-            leaguesData[league.name] = processedData;
-            
-            const labels = processedData.map((d, i) => i);
-            const goalsData = processedData.map(d => d.goals);
-            
-            const backgroundColors = processedData.map(d => 
-                d.isCurrent ? 'rgba(31, 172, 137, 0.7)' : 'rgba(255, 255, 0, 0.6)'
-            );
-            const borderColors = processedData.map(d => 
-                d.isCurrent ? 'rgba(31, 172, 137, 1)' : 'rgba(255, 255, 0, 1)'
-            );
-
-            const chartId = `chart-${index}`;
-            
-            if (charts[chartId]) {
-                charts[chartId].data.labels = labels;
-                charts[chartId].data.datasets[0].data = goalsData;
-                charts[chartId].data.datasets[0].backgroundColor = backgroundColors;
-                charts[chartId].data.datasets[0].borderColor = borderColors;
-                charts[chartId].hourData = processedData;
-                charts[chartId].update();
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: {
+                        color: '#1fac89',
+                        font: {
+                            size: 13,
+                            weight: '500'
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    titleColor: '#1fac89',
+                    bodyColor: '#e4e4e7',
+                    borderColor: '#1fac89',
+                    borderWidth: 1,
+                    padding: 12,
+                    callbacks: {
+                        title: (context) => {
+                            const index = context[0].dataIndex;
+                            const chart = context[0].chart;
+                            const hourData = chart.hourData[index];
+                            const day = hourData.displayDate.toString().padStart(2, '0');
+                            const month = (hourData.displayMonth + 1).toString().padStart(2, '0');
+                            const hour = hourData.displayHour.toString().padStart(2, '0');
+                            return `${day}/${month} às ${hour}:00 (BR)`;
+                        },
+                        label: (context) => `Total de Gols: ${context.parsed.y}`
+                    }
+                }
             }
         }
+    });
+}
 
-        async function initializeCharts() {
-            const grid = document.getElementById('chartsGrid');
-            grid.innerHTML = '';
+async function updateChart(league, index) {
+    const hoursToShow = parseInt(document.getElementById('hoursSelector').value);
+    const data = await fetchLeagueData(league.url);
+    
+    const processedData = processDataByHour(data, hoursToShow);
+    leaguesData[league.name] = processedData;
+    
+    const labels = processedData.map((d, i) => i);
+    const goalsData = processedData.map(d => d.goals);
+    
+    const backgroundColors = processedData.map(d => 
+        d.isCurrent ? 'rgba(31, 172, 137, 0.7)' : 'rgba(255, 255, 0, 0.6)'
+    );
+    const borderColors = processedData.map(d => 
+        d.isCurrent ? 'rgba(31, 172, 137, 1)' : 'rgba(255, 255, 0, 1)'
+    );
 
-            LEAGUES.forEach((league, index) => {
-                const chartContainer = document.createElement('div');
-                chartContainer.className = 'chart-container';
-                chartContainer.innerHTML = `
-                    <div class="chart-title">${league.name}</div>
-                    <div class="chart-wrapper">
-                        <canvas id="chart-${index}"></canvas>
-                    </div>
-                `;
-                grid.appendChild(chartContainer);
-            });
+    const chartId = `chart-${index}`;
+    
+    if (charts[chartId]) {
+        charts[chartId].data.labels = labels;
+        charts[chartId].data.datasets[0].data = goalsData;
+        charts[chartId].data.datasets[0].backgroundColor = backgroundColors;
+        charts[chartId].data.datasets[0].borderColor = borderColors;
+        charts[chartId].hourData = processedData;
+        charts[chartId].update();
+    }
+}
 
-            await new Promise(resolve => setTimeout(resolve, 100));
+async function initializeCharts() {
+    const grid = document.getElementById('chartsGrid');
+    grid.innerHTML = '';
 
-            LEAGUES.forEach((league, index) => {
-                const chartId = `chart-${index}`;
-                charts[chartId] = createChart(chartId, league.name);
-            });
+    LEAGUES.forEach((league, index) => {
+        const chartContainer = document.createElement('div');
+        chartContainer.className = 'chart-container';
+        chartContainer.innerHTML = `
+            <div class="chart-title">${league.name}</div>
+            <div class="chart-wrapper">
+                <canvas id="chart-${index}"></canvas>
+            </div>
+        `;
+        grid.appendChild(chartContainer);
+    });
 
-            await updateAllCharts();
-        }
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-        async function updateAllCharts() {
-            const promises = LEAGUES.map((league, index) => updateChart(league, index));
-            await Promise.all(promises);
-            calculateStats();
-        }
+    LEAGUES.forEach((league, index) => {
+        const chartId = `chart-${index}`;
+        charts[chartId] = createChart(chartId, league.name);
+    });
 
-        document.getElementById('hoursSelector').addEventListener('change', updateAllCharts);
+    await updateAllCharts();
+}
 
-        setInterval(updateAllCharts, 30000);
+async function updateAllCharts() {
+    const promises = LEAGUES.map((league, index) => updateChart(league, index));
+    await Promise.all(promises);
+    calculateStats();
+}
 
-        initializeCharts();
+document.getElementById('hoursSelector').addEventListener('change', updateAllCharts);
+
+setInterval(updateAllCharts, 30000);
+
+initializeCharts();
     </script>
 
 <script>
