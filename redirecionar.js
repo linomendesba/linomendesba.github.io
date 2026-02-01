@@ -107,6 +107,9 @@ function redirecionar(select) {
     url === "https://www.betstat.site/maximabets.html" ||
     url === "https://www.betstat.site/golsbets.html" ||
     url === "https://www.betstat.site/rakingbets.html" ||
+    url === "https://t.me/+QxvS7OEOdqk2MWEx" ||
+    url === "https://t.me/+O7NG82B7SExmYzIx" ||
+    url === "https://t.me/+hXWRT3ICzvc3YmY5" ||
     url === "https://www.betstat.site/bet365clasificacao.html" ||
     url === "https://t.me/Betstatsite" ||
     url === "https://www.betstat.site/graficoftkiron.html" ||
