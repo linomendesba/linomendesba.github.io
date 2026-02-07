@@ -2,109 +2,132 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Scanner Pro - Inversão Cronológica</title>
+    <title>Sniper Virtual - Betano</title>
     <style>
         :root {
             --bg: #1c1f26; --card: #252a33; --accent: #ff9000;
             --green: #00ff88; --red: #ff4444; --text: #e0e0e0;
         }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
         
-        /* Menu Lateral e Header */
-        .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #121418; border-bottom: 2px solid var(--accent); margin-bottom: 20px; }
-        .ligas-container { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; }
-        .btn-liga { background: #2d343e; border: none; color: #888; padding: 8px 16px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+        /* Menu e Filtros */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .btn-liga { background: #2d343e; border: none; color: #888; padding: 10px 18px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
         .btn-liga.active { background: var(--accent); color: #000; font-weight: bold; }
 
-        /* Grid de Delay */
-        .delay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-        .delay-card { background: var(--card); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #2d343e; position: relative; }
-        .delay-card.critical { border-color: var(--red); box-shadow: inset 0 0 10px rgba(255, 68, 68, 0.2); }
-        .delay-card.value { border-color: var(--green); box-shadow: inset 0 0 10px rgba(0, 255, 136, 0.2); }
-        .delay-num { font-size: 1.8em; font-weight: bold; color: var(--accent); display: block; }
-        .market-label { font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+        /* Grade Principal */
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid #2d343e; }
 
-        /* Status */
-        .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 0.7em; font-weight: bold; background: #3d4452; }
-        .live { background: var(--red); animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        /* Ideia 3: Tabela de Minutos */
+        .minuto-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+        .minuto-cell { background: #1c1f26; padding: 10px 5px; text-align: center; border-radius: 4px; font-size: 0.8em; border: 1px solid #3d4452; }
+        .minuto-cell.hot { background: rgba(0, 255, 136, 0.2); border-color: var(--green); color: var(--green); }
+
+        /* Ideia 2: Sniper de Zebra */
+        .zebra-card { background: #121418; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--red); }
+        .zebra-card.high-value { border-left-color: var(--green); }
+        .zebra-badge { float: right; font-size: 0.7em; padding: 3px 7px; border-radius: 3px; background: #3d4452; }
+
+        h2 { font-size: 1.1em; color: var(--accent); margin-top: 0; display: flex; align-items: center; gap: 10px; }
     </style>
 </head>
 <body>
 
-<div class="top-bar">
-    <h1 style="margin:0; font-size: 1.2em;">VIRTUAL <span style="color:var(--accent)">SCANNER</span></h1>
-    <div id="last-update" class="status-pill">Sincronizando...</div>
+<div class="header">
+    <h1>SNIPER <span style="color:var(--accent)">VIRTUAL</span></h1>
+    <div id="menu-ligas" style="display: flex; gap: 5px;"></div>
 </div>
 
-<div class="ligas-container" id="menu-ligas"></div>
+<div class="main-grid">
+    <div class="card">
+        <h2>🕒 JANELAS DE PAGAMENTO (Última 1h)</h2>
+        <p style="font-size: 0.8em; color: #888; margin-bottom: 15px;">Frequência de Over 2.5 por minuto final do jogo.</p>
+        <div class="minuto-grid" id="grid-minutos">
+            </div>
+    </div>
 
-<h3 style="color: var(--accent); border-left: 4px solid var(--accent); padding-left: 10px;">📊 CICLOS DE ATRASO (ORDEM INVERSA)</h3>
-<div class="delay-grid" id="grid-delays"></div>
+    <div class="card">
+        <h2>🎯 SNIPER: GAP DE VALOR (ODDS VS REALIDADE)</h2>
+        <div id="zebra-list">
+            </div>
+    </div>
+</div>
 
 <script>
 const LIGAS = ["Taça Glória Eterna", "Copa América", "Euro", "Campeonato Italiano", "Copa das Estrelas", "Brasileirão Betano"];
 let ligaAtual = LIGAS[0];
 const API = "https://betstat.site";
 
-const mercados = {
-    "Ambas Sim": (g) => g[0] > 0 && g[1] > 0,
-    "Ambas Não": (g) => g[0] === 0 || g[1] === 0,
-    "Casa": (g) => g[0] > g[1],
-    "Fora": (g) => g[1] > g[0],
-    "Empate": (g) => g[0] === g[1],
-    "Over 1.5": (g) => (g[0]+g[1]) > 1.5,
-    "Under 1.5": (g) => (g[0]+g[1]) < 1.5,
-    "Over 2.5": (g) => (g[0]+g[1]) > 2.5,
-    "Under 2.5": (g) => (g[0]+g[1]) < 2.5,
-    "Over 3.5": (g) => (g[0]+g[1]) > 3.5,
-    "Over 5+": (g) => (g[0]+g[1]) > 5,
-    "Exato 0": (g) => (g[0]+g[1]) === 0,
-    "Exato 1": (g) => (g[0]+g[1]) === 1,
-    "Exato 2": (g) => (g[0]+g[1]) === 2,
-    "Exato 3": (g) => (g[0]+g[1]) === 3,
-    "Exato 4": (g) => (g[0]+g[1]) === 4
-};
-
-async function engine() {
+async function atualizar() {
     try {
-        const resRaw = await fetch(`${API}/resultados/${encodeURIComponent(ligaAtual)}`).then(r => r.json());
-        
-        // --- O PULO DO GATO: INVERSÃO CRONOLÓGICA ---
-        // Se o último jogo da lista for o mais recente, o reverse coloca ele na posição [0]
-        const resultadosCrescente = [...resRaw].reverse(); 
+        const url = encodeURIComponent(ligaAtual);
+        const [prox, odds, res] = await Promise.all([
+            fetch(`${API}/proximos/${url}`).then(r => r.json()),
+            fetch(`${API}/odds/${url}`).then(r => r.json()),
+            fetch(`${API}/resultados/${url}`).then(r => r.json())
+        ]);
 
-        const container = document.getElementById('grid-delays');
-        container.innerHTML = '';
+        const resultadosInvertidos = [...res].reverse();
 
-        Object.keys(mercados).forEach(nome => {
-            let delay = 0;
-            for(let jogo of resultadosCrescente) {
-                const placar = jogo.ft.split(' x ').map(Number);
-                if(mercados[nome](placar)) break;
-                delay++;
+        // --- LÓGICA 3: MINUTOS DE OURO ---
+        const contagemMinutos = {};
+        resultadosInvertidos.slice(0, 20).forEach(j => {
+            const placar = j.ft.split(' x ').map(Number);
+            const totalGols = placar[0] + placar[1];
+            if(totalGols > 2.5) {
+                const min = j.minuto.toString().padStart(2, '0');
+                contagemMinutos[min] = (contagemMinutos[min] || 0) + 1;
             }
-
-            let classe = '';
-            if(delay >= 10) classe = 'critical';
-            else if(delay >= 6) classe = 'value';
-
-            container.innerHTML += `
-                <div class="delay-card ${classe}">
-                    <span class="market-label">${nome}</span>
-                    <span class="delay-num">${delay}</span>
-                    <small style="font-size:0.6em; color:#666">SEQUÊNCIA SEM</small>
-                </div>
-            `;
         });
 
-        const ult = resultadosCrescente[0];
-        document.getElementById('last-update').innerHTML = `<span class="live"></span> LIVE: JOGO ${ult.hora}:${ult.minuto} (${ult.ft})`;
+        const gridMin = document.getElementById('grid-minutos');
+        gridMin.innerHTML = '';
+        // Criar lista de minutos padrão do virtual (de 3 em 3 geralmente)
+        for(let i=1; i<60; i+=3) {
+            const m = i.toString().padStart(2, '0');
+            const freq = contagemMinutos[m] || 0;
+            gridMin.innerHTML += `<div class="minuto-cell ${freq > 1 ? 'hot' : ''}">:${m}<br><b>${freq}x</b></div>`;
+        }
 
-    } catch(e) { console.error("Erro Engine:", e); }
+        // --- LÓGICA 2: FAVORITO FALSO ---
+        const zebraList = document.getElementById('zebra-list');
+        zebraList.innerHTML = '';
+
+        prox.slice(0, 4).forEach(jogo => {
+            const odd = odds.find(o => o.match_id == jogo.event_id || o.horario == jogo.time);
+            if(!odd) return;
+
+            const oddCasa = parseFloat(odd.odds_casa_vence);
+            // Se o time da casa é muito favorito nas odds (< 1.80)
+            if(oddCasa < 1.80) {
+                // Analisa os últimos 3 jogos deste time na rota de resultados
+                const ultimosDoTime = resultadosInvertidos.filter(r => r.time_a === jogo.team_home || r.time_b === jogo.team_home).slice(0, 3);
+                const vitoriasReais = ultimosDoTime.filter(r => {
+                    const g = r.ft.split(' x ').map(Number);
+                    return (r.time_a === jogo.team_home && g[0] > g[1]) || (r.time_b === jogo.team_home && g[1] > g[0]);
+                }).length;
+
+                // Se o favorito não ganhou nenhum dos últimos 3, alerta de Gap de Valor
+                if(vitoriasReais === 0) {
+                    zebraList.innerHTML += `
+                        <div class="zebra-card high-value">
+                            <span class="zebra-badge">OPORTUNIDADE DE ZEBRA</span>
+                            <div style="font-weight:bold">${jogo.team_home} (Favorito Falso)</div>
+                            <div style="font-size:0.8em; color:#aaa">Odd: ${oddCasa} | Vitórias Recentes: 0/3</div>
+                            <div style="margin-top:10px; color:var(--green); font-size:0.85em">➔ Sugestão: Dupla Hipótese Fora ou Empate</div>
+                        </div>
+                    `;
+                }
+            }
+        });
+        
+        if(zebraList.innerHTML === '') zebraList.innerHTML = '<p style="color:#666">Nenhum favorito falso detectado agora.</p>';
+
+    } catch(e) { console.error(e); }
 }
 
-// Menu dinâmico
+// Menu
 const nav = document.getElementById('menu-ligas');
 LIGAS.forEach(l => {
     const b = document.createElement('button');
@@ -114,13 +137,13 @@ LIGAS.forEach(l => {
         document.querySelectorAll('.btn-liga').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
         ligaAtual = l;
-        engine();
+        atualizar();
     };
     nav.appendChild(b);
 });
 
-setInterval(engine, 30000);
-engine();
+setInterval(atualizar, 30000);
+atualizar();
 </script>
 </body>
 </html>
