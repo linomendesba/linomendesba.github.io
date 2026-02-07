@@ -2,55 +2,52 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Sniper Virtual - Betano</title>
+    <title>Deep Analytics - Virtual Pro</title>
     <style>
-        :root {
-            --bg: #1c1f26; --card: #252a33; --accent: #ff9000;
-            --green: #00ff88; --red: #ff4444; --text: #e0e0e0;
-        }
-        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
+        body { background: #1c1f26; color: #e0e0e0; font-family: 'Consolas', monospace; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: #252a33; border: 1px solid #3d4452; border-radius: 4px; padding: 20px; }
         
-        /* Menu e Filtros */
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .btn-liga { background: #2d343e; border: none; color: #888; padding: 10px 18px; border-radius: 6px; cursor: pointer; transition: 0.3s; }
-        .btn-liga.active { background: var(--accent); color: #000; font-weight: bold; }
-
-        /* Grade Principal */
-        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .card { background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid #2d343e; }
-
-        /* Ideia 3: Tabela de Minutos */
-        .minuto-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
-        .minuto-cell { background: #1c1f26; padding: 10px 5px; text-align: center; border-radius: 4px; font-size: 0.8em; border: 1px solid #3d4452; }
-        .minuto-cell.hot { background: rgba(0, 255, 136, 0.2); border-color: var(--green); color: var(--green); }
-
-        /* Ideia 2: Sniper de Zebra */
-        .zebra-card { background: #121418; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--red); }
-        .zebra-card.high-value { border-left-color: var(--green); }
-        .zebra-badge { float: right; font-size: 0.7em; padding: 3px 7px; border-radius: 3px; background: #3d4452; }
-
-        h2 { font-size: 1.1em; color: var(--accent); margin-top: 0; display: flex; align-items: center; gap: 10px; }
+        /* Indicador de Saúde da Liga */
+        .gauge-container { text-align: center; padding: 20px; }
+        .gauge-bar { height: 20px; background: #121418; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .gauge-fill { height: 100%; width: 50%; transition: 1s; }
+        
+        /* Lista de Alvos */
+        .target-item { border-left: 4px solid #ff9000; background: #1c1f26; margin-bottom: 10px; padding: 10px; }
+        .tag { font-size: 0.7em; padding: 2px 5px; border-radius: 3px; background: #3d4452; color: #ff9000; }
+        
+        .btn-liga { background: #2d343e; color: #888; border: none; padding: 10px; cursor: pointer; margin-right: 5px; }
+        .btn-liga.active { background: #ff9000; color: #000; font-weight: bold; }
+        h2 { font-size: 1rem; color: #ff9000; text-transform: uppercase; border-bottom: 1px solid #3d4452; padding-bottom: 10px; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>SNIPER <span style="color:var(--accent)">VIRTUAL</span></h1>
-    <div id="menu-ligas" style="display: flex; gap: 5px;"></div>
-</div>
+<div class="container">
+    <div id="menu" style="margin-bottom: 20px;"></div>
 
-<div class="main-grid">
-    <div class="card">
-        <h2>🕒 JANELAS DE PAGAMENTO (Última 1h)</h2>
-        <p style="font-size: 0.8em; color: #888; margin-bottom: 15px;">Frequência de Over 2.5 por minuto final do jogo.</p>
-        <div class="minuto-grid" id="grid-minutos">
+    <div class="grid">
+        <div class="card">
+            <h2>📊 Termômetro de Pagamento (Últimos 20)</h2>
+            <div class="gauge-container">
+                <div id="status-text" style="font-size: 1.2em; font-weight: bold;">ANALISANDO...</div>
+                <div class="gauge-bar">
+                    <div id="gauge-fill" class="gauge-fill"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.8em; color: #888;">
+                    <span>SEGURANDO (UNDER)</span>
+                    <span>PAGANDO (OVER)</span>
+                </div>
             </div>
-    </div>
+            <p style="font-size: 0.8em; color: #666;">Se o termômetro estiver muito na direita, a liga vai "fechar" em breve. Se estiver na esquerda, a "chuva de gols" está vindo.</p>
+        </div>
 
-    <div class="card">
-        <h2>🎯 SNIPER: GAP DE VALOR (ODDS VS REALIDADE)</h2>
-        <div id="zebra-list">
-            </div>
+        <div class="card">
+            <h2>🎯 Alvos: Recuperação de Favoritos</h2>
+            <div id="alvos-list"></div>
+        </div>
     </div>
 </div>
 
@@ -59,76 +56,67 @@ const LIGAS = ["Taça Glória Eterna", "Copa América", "Euro", "Campeonato Ital
 let ligaAtual = LIGAS[0];
 const API = "https://betstat.site";
 
-async function atualizar() {
-    try {
-        const url = encodeURIComponent(ligaAtual);
-        const [prox, odds, res] = await Promise.all([
-            fetch(`${API}/proximos/${url}`).then(r => r.json()),
-            fetch(`${API}/odds/${url}`).then(r => r.json()),
-            fetch(`${API}/resultados/${url}`).then(r => r.json())
-        ]);
+async function carregar() {
+    const url = encodeURIComponent(ligaAtual);
+    const [prox, odds, res] = await Promise.all([
+        fetch(`${API}/proximos/${url}`).then(r => r.json()),
+        fetch(`${API}/odds/${url}`).then(r => r.json()),
+        fetch(`${API}/resultados/${url}`).then(r => r.json())
+    ]);
 
-        const resultadosInvertidos = [...res].reverse();
+    // 1. LÓGICA DO TERMÔMETRO (Análise de Ciclo Econômico)
+    const ultimos20 = res.slice(0, 20);
+    const overs = ultimos20.filter(j => {
+        const g = j.ft.split(' x ').map(Number);
+        return (g[0]+g[1]) > 2.5;
+    }).length;
 
-        // --- LÓGICA 3: MINUTOS DE OURO ---
-        const contagemMinutos = {};
-        resultadosInvertidos.slice(0, 20).forEach(j => {
-            const placar = j.ft.split(' x ').map(Number);
-            const totalGols = placar[0] + placar[1];
-            if(totalGols > 2.5) {
-                const min = j.minuto.toString().padStart(2, '0');
-                contagemMinutos[min] = (contagemMinutos[min] || 0) + 1;
-            }
+    const percentual = (overs / 20) * 100;
+    const fill = document.getElementById('gauge-fill');
+    const txt = document.getElementById('status-text');
+    
+    fill.style.width = percentual + '%';
+    if(percentual > 60) {
+        fill.style.background = '#ff4444';
+        txt.innerText = "LIGA SATURADA (RISCO DE UNDER)";
+    } else if(percentual < 40) {
+        fill.style.background = '#00ff88';
+        txt.innerText = "LIGA COMPRIMIDA (CHANCE DE OVER)";
+    } else {
+        fill.style.background = '#ff9000';
+        txt.innerText = "LIGA ESTÁVEL";
+    }
+
+    // 2. LÓGICA DE ALVOS (Times grandes que "devem" gols)
+    const lista = document.getElementById('alvos-list');
+    lista.innerHTML = '';
+    
+    prox.slice(0, 4).forEach(jogo => {
+        const odd = odds.find(o => o.match_id == jogo.event_id);
+        if(!odd) return;
+
+        // Se o time de casa tem odd de favorito mas não marcou nos últimos 2 jogos
+        const ultimosCasa = res.filter(r => r.time_a === jogo.team_home || r.time_b === jogo.team_home).slice(0, 2);
+        const marcou = ultimosCasa.some(r => {
+            const g = r.ft.split(' x ').map(Number);
+            return (r.time_a === jogo.team_home && g[0] > 0) || (r.time_b === jogo.team_home && g[1] > 0);
         });
 
-        const gridMin = document.getElementById('grid-minutos');
-        gridMin.innerHTML = '';
-        // Criar lista de minutos padrão do virtual (de 3 em 3 geralmente)
-        for(let i=1; i<60; i+=3) {
-            const m = i.toString().padStart(2, '0');
-            const freq = contagemMinutos[m] || 0;
-            gridMin.innerHTML += `<div class="minuto-cell ${freq > 1 ? 'hot' : ''}">:${m}<br><b>${freq}x</b></div>`;
+        if(!marcou && parseFloat(odd.odds_casa_vence) < 2.0) {
+            lista.innerHTML += `
+                <div class="target-item">
+                    <span class="tag">RECUPERAÇÃO DE GOL</span>
+                    <div style="margin: 5px 0;"><strong>${jogo.team_home}</strong> vs ${jogo.team_visit}</div>
+                    <div style="font-size: 0.8em; color: #888;">Odd Casa: ${odd.odds_casa_vence} | Time seco há 2 jogos</div>
+                </div>
+            `;
         }
-
-        // --- LÓGICA 2: FAVORITO FALSO ---
-        const zebraList = document.getElementById('zebra-list');
-        zebraList.innerHTML = '';
-
-        prox.slice(0, 4).forEach(jogo => {
-            const odd = odds.find(o => o.match_id == jogo.event_id || o.horario == jogo.time);
-            if(!odd) return;
-
-            const oddCasa = parseFloat(odd.odds_casa_vence);
-            // Se o time da casa é muito favorito nas odds (< 1.80)
-            if(oddCasa < 1.80) {
-                // Analisa os últimos 3 jogos deste time na rota de resultados
-                const ultimosDoTime = resultadosInvertidos.filter(r => r.time_a === jogo.team_home || r.time_b === jogo.team_home).slice(0, 3);
-                const vitoriasReais = ultimosDoTime.filter(r => {
-                    const g = r.ft.split(' x ').map(Number);
-                    return (r.time_a === jogo.team_home && g[0] > g[1]) || (r.time_b === jogo.team_home && g[1] > g[0]);
-                }).length;
-
-                // Se o favorito não ganhou nenhum dos últimos 3, alerta de Gap de Valor
-                if(vitoriasReais === 0) {
-                    zebraList.innerHTML += `
-                        <div class="zebra-card high-value">
-                            <span class="zebra-badge">OPORTUNIDADE DE ZEBRA</span>
-                            <div style="font-weight:bold">${jogo.team_home} (Favorito Falso)</div>
-                            <div style="font-size:0.8em; color:#aaa">Odd: ${oddCasa} | Vitórias Recentes: 0/3</div>
-                            <div style="margin-top:10px; color:var(--green); font-size:0.85em">➔ Sugestão: Dupla Hipótese Fora ou Empate</div>
-                        </div>
-                    `;
-                }
-            }
-        });
-        
-        if(zebraList.innerHTML === '') zebraList.innerHTML = '<p style="color:#666">Nenhum favorito falso detectado agora.</p>';
-
-    } catch(e) { console.error(e); }
+    });
+    if(lista.innerHTML === '') lista.innerHTML = "Aguardando anomalias de mercado...";
 }
 
-// Menu
-const nav = document.getElementById('menu-ligas');
+// Menu e Init
+const menu = document.getElementById('menu');
 LIGAS.forEach(l => {
     const b = document.createElement('button');
     b.className = `btn-liga ${l === ligaAtual ? 'active' : ''}`;
@@ -137,13 +125,12 @@ LIGAS.forEach(l => {
         document.querySelectorAll('.btn-liga').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
         ligaAtual = l;
-        atualizar();
+        carregar();
     };
-    nav.appendChild(b);
+    menu.appendChild(b);
 });
-
-setInterval(atualizar, 30000);
-atualizar();
+setInterval(carregar, 30000);
+carregar();
 </script>
 </body>
 </html>
