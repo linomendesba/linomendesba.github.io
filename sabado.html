@@ -448,20 +448,19 @@
 
         /* Gráfico simples */
         .chart-container {
-            height: 220px;
+            height: 200px;
             display: flex;
             align-items: flex-end;
-            justify-content: center;
-            gap: 8px;
-            padding: 30px 15px;
+            justify-content: space-around;
+            gap: 4px;
+            padding: 20px 10px;
             background: var(--bg-main);
             border-radius: 6px;
             margin-top: 15px;
-            overflow-x: auto;
         }
 
         .chart-bar {
-            min-width: 45px;
+            flex: 1;
             background: linear-gradient(to top, var(--accent), #2cd9b3);
             border-radius: 4px 4px 0 0;
             min-height: 20px;
@@ -477,23 +476,22 @@
 
         .chart-bar-label {
             position: absolute;
-            bottom: -25px;
+            bottom: -20px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--text-dim);
             white-space: nowrap;
         }
 
         .chart-bar-value {
             position: absolute;
-            top: -22px;
+            top: -20px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: var(--accent);
             font-weight: bold;
-            white-space: nowrap;
         }
 
         /* Comparação de mercados */
@@ -1042,34 +1040,35 @@ function aplicarFiltros() {
     }).join('');
 }
 
-// Atualizar gráfico - APENAS HORAS COM DADOS
+// Atualizar gráfico com horas corretas
 function atualizarGrafico(dados, mercadoKey, horasLimit) {
     const container = document.getElementById('chart-container');
     const horarios = {};
+    const agora = new Date();
+    const horaAtual = agora.getHours();
     
-    // Coletar apenas as horas que têm jogos nos dados
-    dados.forEach(function(j) {
-        const hora = parseInt(j.hora);
-        if (!horarios[hora]) {
-            horarios[hora] = { total: 0, greens: 0 };
-        }
-        horarios[hora].total++;
-        const g = j.ft.split(' x ').map(Number);
-        if (REGRAS[mercadoKey](g)) horarios[hora].greens++;
-    });
-    
-    // Ordenar as horas
-    const horasOrdenadas = Object.keys(horarios).map(Number).sort(function(a, b) { return a - b; });
-    
-    // Criar barras apenas para horas com dados
-    container.innerHTML = '';
-    
-    if (horasOrdenadas.length === 0) {
-        container.innerHTML = '<div style="text-align: center; color: var(--text-dim); padding: 40px;">Nenhum dado disponível para o período selecionado</div>';
-        return;
+    // Criar array de horas na ordem correta (da mais antiga para a mais recente)
+    const horasArray = [];
+    for (let i = horasLimit - 1; i >= 0; i--) {
+        let h = horaAtual - i;
+        if (h < 0) h += 24;
+        horasArray.push(h);
+        horarios[h] = { total: 0, greens: 0 };
     }
     
-    horasOrdenadas.forEach(function(hora) {
+    // Contar jogos por horário
+    dados.forEach(function(j) {
+        const hora = parseInt(j.hora);
+        if (horarios[hora] !== undefined) {
+            horarios[hora].total++;
+            const g = j.ft.split(' x ').map(Number);
+            if (REGRAS[mercadoKey](g)) horarios[hora].greens++;
+        }
+    });
+    
+    // Criar barras do gráfico
+    container.innerHTML = '';
+    horasArray.forEach(function(hora) {
         const perc = horarios[hora].total > 0 ? (horarios[hora].greens / horarios[hora].total * 100) : 0;
         const bar = document.createElement('div');
         bar.className = 'chart-bar';
