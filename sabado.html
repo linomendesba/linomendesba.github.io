@@ -2,183 +2,125 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Elite Scanner - Betano Virtual</title>
+    <title>Scanner Pro - Inversão Cronológica</title>
     <style>
         :root {
             --bg: #1c1f26; --card: #252a33; --accent: #ff9000;
-            --green: #00ff88; --red: #ff4444; --blue: #00d4ff;
+            --green: #00ff88; --red: #ff4444; --text: #e0e0e0;
         }
-        body { background: var(--bg); color: #e0e0e0; font-family: 'Inter', sans-serif; margin: 0; padding: 20px; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
         
-        /* Layout */
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2d343e; padding-bottom: 15px; margin-bottom: 20px; }
-        .grid-main { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+        /* Menu Lateral e Header */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #121418; border-bottom: 2px solid var(--accent); margin-bottom: 20px; }
+        .ligas-container { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; }
+        .btn-liga { background: #2d343e; border: none; color: #888; padding: 8px 16px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+        .btn-liga.active { background: var(--accent); color: #000; font-weight: bold; }
 
-        /* Estilo Botões Ligas */
-        .btn-liga { background: #2d343e; border: none; color: #aaa; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.3s; }
-        .btn-liga.active { background: var(--accent); color: #000; box-shadow: 0 0 15px rgba(255,144,0,0.4); }
+        /* Grid de Delay */
+        .delay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .delay-card { background: var(--card); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #2d343e; position: relative; }
+        .delay-card.critical { border-color: var(--red); box-shadow: inset 0 0 10px rgba(255, 68, 68, 0.2); }
+        .delay-card.value { border-color: var(--green); box-shadow: inset 0 0 10px rgba(0, 255, 136, 0.2); }
+        .delay-num { font-size: 1.8em; font-weight: bold; color: var(--accent); display: block; }
+        .market-label { font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* Ideia A: Barras de Delay (Ciclos) */
-        .card { background: var(--card); border-radius: 15px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #2d343e; }
-        .stat-row { margin-bottom: 20px; }
-        .stat-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9em; }
-        .progress-bar { height: 10px; background: #121418; border-radius: 5px; overflow: hidden; }
-        .progress-fill { height: 100%; transition: width 0.5s ease; border-radius: 5px; }
-
-        /* Ideia B: Oportunidades e Valor */
-        .match-card { background: #1c1f26; border-radius: 12px; padding: 15px; margin-bottom: 12px; border-left: 5px solid #3d4452; display: flex; justify-content: space-between; align-items: center; }
-        .match-card.hot { border-left-color: var(--green); background: rgba(0, 255, 136, 0.05); animation: pulse 2s infinite; }
-        .odds-badge { background: #2d343e; padding: 5px 10px; border-radius: 6px; font-family: monospace; font-size: 1.1em; color: var(--accent); }
-        
-        /* Histórico Visual (Mini Heatmap) */
-        .heatmap { display: flex; gap: 5px; margin-top: 10px; }
-        .dot { width: 12px; height: 12px; border-radius: 3px; }
-        .dot.win { background: var(--green); }
-        .dot.loss { background: var(--red); }
-
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,255,136,0.4); } 70% { box-shadow: 0 0 0 10px rgba(0,255,136,0); } 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); } }
+        /* Status */
+        .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 0.7em; font-weight: bold; background: #3d4452; }
+        .live { background: var(--red); animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <div>
-        <h1 style="margin:0; color:var(--accent)">BETANO <span style="color:#fff">ANALYTICS v2</span></h1>
-        <small id="update-time">Sincronizado com API BetStat</small>
-    </div>
-    <div id="nav-ligas" class="menu-ligas"></div>
+<div class="top-bar">
+    <h1 style="margin:0; font-size: 1.2em;">VIRTUAL <span style="color:var(--accent)">SCANNER</span></h1>
+    <div id="last-update" class="status-pill">Sincronizando...</div>
 </div>
 
-<div class="grid-main">
-    <div class="card">
-        <h2 style="font-size:1.1em; margin-bottom:25px; display:flex; align-items:center; gap:10px;">
-            📊 PRESSÃO DE MERCADO
-        </h2>
-        
-        <div id="ciclos-container">
-            </div>
+<div class="ligas-container" id="menu-ligas"></div>
 
-        <hr style="border:0; border-top:1px solid #3d4452; margin: 25px 0;">
-        
-        <h3>Última Sequência (Tendência)</h3>
-        <div id="heatmap-gols" class="heatmap"></div>
-        <p style="font-size:0.8em; color:#888; margin-top:8px">Baseado nos últimos 15 resultados.</p>
-    </div>
-
-    <div class="card">
-        <h2 style="font-size:1.1em; margin-bottom:25px;">💎 ENTRADAS SUGERIDAS PELA IA</h2>
-        <div id="oportunidades-list"></div>
-    </div>
-</div>
+<h3 style="color: var(--accent); border-left: 4px solid var(--accent); padding-left: 10px;">📊 CICLOS DE ATRASO (ORDEM INVERSA)</h3>
+<div class="delay-grid" id="grid-delays"></div>
 
 <script>
-const ligas = ["Taça Glória Eterna", "Copa América", "Euro", "Campeonato Italiano", "Copa das Estrelas", "Brasileirão Betano"];
-let ligaAtiva = "Taça Glória Eterna";
+const LIGAS = ["Taça Glória Eterna", "Copa América", "Euro", "Campeonato Italiano", "Copa das Estrelas", "Brasileirão Betano"];
+let ligaAtual = LIGAS[0];
 const API = "https://betstat.site";
 
-// Inicializar Menu
-const nav = document.getElementById('nav-ligas');
-ligas.forEach(l => {
-    const b = document.createElement('button');
-    b.className = `btn-liga ${l === ligaAtiva ? 'active' : ''}`;
-    b.innerText = l;
-    b.onclick = () => {
-        document.querySelectorAll('.btn-liga').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        ligaAtiva = l;
-        render();
-    };
-    nav.appendChild(b);
-});
+const mercados = {
+    "Ambas Sim": (g) => g[0] > 0 && g[1] > 0,
+    "Ambas Não": (g) => g[0] === 0 || g[1] === 0,
+    "Casa": (g) => g[0] > g[1],
+    "Fora": (g) => g[1] > g[0],
+    "Empate": (g) => g[0] === g[1],
+    "Over 1.5": (g) => (g[0]+g[1]) > 1.5,
+    "Under 1.5": (g) => (g[0]+g[1]) < 1.5,
+    "Over 2.5": (g) => (g[0]+g[1]) > 2.5,
+    "Under 2.5": (g) => (g[0]+g[1]) < 2.5,
+    "Over 3.5": (g) => (g[0]+g[1]) > 3.5,
+    "Over 5+": (g) => (g[0]+g[1]) > 5,
+    "Exato 0": (g) => (g[0]+g[1]) === 0,
+    "Exato 1": (g) => (g[0]+g[1]) === 1,
+    "Exato 2": (g) => (g[0]+g[1]) === 2,
+    "Exato 3": (g) => (g[0]+g[1]) === 3,
+    "Exato 4": (g) => (g[0]+g[1]) === 4
+};
 
-async function render() {
+async function engine() {
     try {
-        const urlLiga = encodeURIComponent(ligaAtiva);
-        const [prox, odds, res] = await Promise.all([
-            fetch(`${API}/proximos/${urlLiga}`).then(r => r.json()),
-            fetch(`${API}/odds/${urlLiga}`).then(r => r.json()),
-            fetch(`${API}/resultados/${urlLiga}`).then(r => r.json())
-        ]);
+        const resRaw = await fetch(`${API}/resultados/${encodeURIComponent(ligaAtual)}`).then(r => r.json());
+        
+        // --- O PULO DO GATO: INVERSÃO CRONOLÓGICA ---
+        // Se o último jogo da lista for o mais recente, o reverse coloca ele na posição [0]
+        const resultadosCrescente = [...resRaw].reverse(); 
 
-        // 1. CALCULAR CICLOS COM PERCENTUAL DE RISCO
-        const calcDelay = (lista, critério) => {
-            let d = 0;
-            for(let j of lista) {
-                const g = j.ft.split(' x ').map(Number);
-                if(critério(g)) break;
-                d++;
+        const container = document.getElementById('grid-delays');
+        container.innerHTML = '';
+
+        Object.keys(mercados).forEach(nome => {
+            let delay = 0;
+            for(let jogo of resultadosCrescente) {
+                const placar = jogo.ft.split(' x ').map(Number);
+                if(mercados[nome](placar)) break;
+                delay++;
             }
-            return d;
-        };
 
-        const d_ambas = calcDelay(res, g => g[0] > 0 && g[1] > 0);
-        const d_over25 = calcDelay(res, g => (g[0]+g[1]) > 2.5);
-        const d_over15 = calcDelay(res, g => (g[0]+g[1]) > 1.5);
-        const d_empate = calcDelay(res, g => g[0] === g[1]);
+            let classe = '';
+            if(delay >= 10) classe = 'critical';
+            else if(delay >= 6) classe = 'value';
 
-        renderCiclo("Ambas Marcam", d_ambas, 12, "#ff9000"); // 12 é a média de estouro
-        renderCiclo("Over 2.5 Gols", d_over25, 10, "#00d4ff");
-        renderCiclo("Over 1.5 Gols", d_over15, 6, "#00ff88");
-        renderCiclo("Empate", d_empate, 18, "#ffffff");
-
-        // 2. HEATMAP DE RESULTADOS
-        const heat = document.getElementById('heatmap-gols');
-        heat.innerHTML = res.slice(0, 15).map(j => {
-            const sum = j.ft.split(' x ').map(Number).reduce((a,b)=>a+b);
-            return `<div class="dot ${sum > 2.5 ? 'win' : 'loss'}" title="${j.ft}"></div>`;
-        }).join('');
-
-        // 3. OPORTUNIDADES COM IA (Valor Real)
-        const listOp = document.getElementById('oportunidades-list');
-        listOp.innerHTML = '';
-        prox.slice(0, 5).forEach(jogo => {
-            const odd = odds.find(o => o.match_id == jogo.event_id || o.horario == jogo.time);
-            if(!odd) return;
-
-            // Lógica Pro: Valor é quando o Delay está alto E a Odd não está muito esmagada
-            const scoreOver = (d_over25 * 10) + (parseFloat(odd.odds_mais_2_5) * 5);
-            const isHot = scoreOver > 80;
-
-            listOp.innerHTML += `
-                <div class="match-card ${isHot ? 'hot' : ''}">
-                    <div>
-                        <div style="color:#888; font-size:0.8em">${jogo.time} • ${ligaAtiva}</div>
-                        <div style="font-weight:bold; font-size:1.1em; margin: 4px 0;">${jogo.team_home} vs ${jogo.team_visit}</div>
-                        <div style="font-size:0.85em; color:${isHot ? 'var(--green)' : '#aaa'}">
-                            ${isHot ? '🔥 ALTA PROBABILIDADE ESTATÍSTICA' : 'Analisando Mercado...'}
-                        </div>
-                    </div>
-                    <div style="text-align:right">
-                        <div style="font-size:0.7em; margin-bottom:5px; color:#888">ODDS OVER 2.5</div>
-                        <div class="odds-badge">${odd.odds_mais_2_5}</div>
-                    </div>
+            container.innerHTML += `
+                <div class="delay-card ${classe}">
+                    <span class="market-label">${nome}</span>
+                    <span class="delay-num">${delay}</span>
+                    <small style="font-size:0.6em; color:#666">SEQUÊNCIA SEM</small>
                 </div>
             `;
         });
 
-    } catch(e) { console.error(e); }
+        const ult = resultadosCrescente[0];
+        document.getElementById('last-update').innerHTML = `<span class="live"></span> LIVE: JOGO ${ult.hora}:${ult.minuto} (${ult.ft})`;
+
+    } catch(e) { console.error("Erro Engine:", e); }
 }
 
-function renderCiclo(label, valor, max, color) {
-    const container = document.getElementById('ciclos-container');
-    if(label === "Ambas Marcam") container.innerHTML = '';
-    
-    const porc = Math.min((valor / max) * 100, 100);
-    container.innerHTML += `
-        <div class="stat-row">
-            <div class="stat-header">
-                <span>${label}</span>
-                <span style="color:${color}; font-weight:bold">${valor} <small style="color:#555">/ max ${max}</small></span>
-            </div>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width:${porc}%; background:${color}; box-shadow: 0 0 10px ${color}66"></div>
-            </div>
-        </div>
-    `;
-}
+// Menu dinâmico
+const nav = document.getElementById('menu-ligas');
+LIGAS.forEach(l => {
+    const b = document.createElement('button');
+    b.className = `btn-liga ${l === ligaAtual ? 'active' : ''}`;
+    b.innerText = l;
+    b.onclick = () => {
+        document.querySelectorAll('.btn-liga').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        ligaAtual = l;
+        engine();
+    };
+    nav.appendChild(b);
+});
 
-setInterval(render, 30000);
-render();
+setInterval(engine, 30000);
+engine();
 </script>
 </body>
 </html>
