@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Scanner Betano - Ciclos e Valor</title>
+    <style>
+        :root {
+            --bg-color: #1c1f26;
+            --card-bg: #252a33;
+            --accent: #ff9000;
+            --green: #00ff88;
+            --red: #ff4444;
+            --text: #e0e0e0;
+        }
+        body { background-color: var(--bg-color); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; }
+        
+        /* Menu de Ligas */
+        .menu-ligas { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        button { background: var(--card-bg); color: white; border: 1px solid var(--accent); padding: 8px 15px; border-radius: 5px; cursor: pointer; transition: 0.3s; }
+        button:hover, button.active { background: var(--accent); color: black; }
+
+        /* Grid */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid #2d343e; }
+        
+        /* Ciclos */
+        .ciclo-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #3d4452; }
+        .atraso-alerta { color: var(--accent); font-weight: bold; font-size: 1.3em; text-shadow: 0 0 10px rgba(255,144,0,0.3); }
+
+        /* Oportunidades */
+        .oportunidade-row { border-left: 4px solid var(--accent); margin-bottom: 15px; padding: 15px; background: rgba(255,255,255,0.02); border-radius: 0 8px 8px 0; }
+        .status-badge { float: right; padding: 4px 10px; border-radius: 4px; font-size: 0.75em; text-transform: uppercase; }
+        .bom { background: var(--green); color: black; box-shadow: 0 0 10px var(--green); }
+        .ruim { background: #3d4452; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: var(--accent); margin-bottom: 5px;">BETANO ANALYTICS</h1>
+        <p style="color: #888;">Monitorando Ciclos de Máxima e Gap de Odds</p>
+    </header>
+
+    <div class="menu-ligas" id="botoes-ligas">
+        </div>
+
+    <div class="grid">
+        <div class="card">
+            <h2 style="margin-top:0">⚠️ CICLOS DE MÁXIMA (DELAY)</h2>
+            <div id="display-ciclos">
+                <div class="ciclo-item"><span>Sem Ambos Marcam (Sim):</span> <span class="atraso-alerta" id="d-ambas">0</span></div>
+                <div class="ciclo-item"><span>Sem Over 2.5:</span> <span class="atraso-alerta" id="d-over25">0</span></div>
+                <div class="ciclo-item"><span>Sem Over 1.5:</span> <span class="atraso-alerta" id="d-over15">0</span></div>
+                <div class="ciclo-item"><span>Sem Empates:</span> <span class="atraso-alerta" id="d-empate">0</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-top:0">💎 VALOR IDENTIFICADO</h2>
+            <div id="display-oportunidades">
+                </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const ligas = [
+    "Taça Glória Eterna", "Copa América", "Euro", 
+    "Campeonato Italiano", "Copa das Estrelas", "Brasileirão Betano"
+];
+
+let ligaAtual = "Taça Glória Eterna";
+const BASE_URL = "https://betstat.site";
+
+// Criar botões do menu
+const menu = document.getElementById('botoes-ligas');
+ligas.forEach(l => {
+    const btn = document.createElement('button');
+    btn.innerText = l;
+    btn.onclick = () => mudarLiga(l, btn);
+    if(l === ligaAtual) btn.classList.add('active');
+    menu.appendChild(btn);
+});
+
+function mudarLiga(nome, btn) {
+    ligaAtual = nome;
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    processarDados();
+}
+
+async function processarDados() {
+    try {
+        const ligaEscapada = encodeURIComponent(ligaAtual);
+        
+        // Chamada direta nas rotas que você enviou
+        const [prox, odds, res] = await Promise.all([
+            fetch(`${BASE_URL}/proximos/${ligaEscapada}`).then(r => r.json()),
+            fetch(`${BASE_URL}/odds/${ligaEscapada}`).then(r => r.json()),
+            fetch(`${BASE_URL}/resultados/${ligaEscapada}`).then(r => r.json())
+        ]);
+
+        // --- CÁLCULO DE CICLOS (IDEIA A) ---
+        let delays = { ambas: 0, over25: 0, over15: 0, empate: 0 };
+        
+        // Loop para Ambas
+        for(let j of res) {
+            const gols = j.ft.split(' x ').map(Number);
+            if(gols[0] > 0 && gols[1] > 0) break;
+            delays.ambas++;
+        }
+        // Loop para Over 2.5
+        for(let j of res) {
+            const gols = j.ft.split(' x ').map(Number);
+            if((gols[0] + gols[1]) > 2.5) break;
+            delays.over25++;
+        }
+        // Loop para Over 1.5
+        for(let j of res) {
+            const gols = j.ft.split(' x ').map(Number);
+            if((gols[0] + gols[1]) > 1.5) break;
+            delays.over15++;
+        }
+        // Loop para Empate
+        for(let j of res) {
+            const gols = j.ft.split(' x ').map(Number);
+            if(gols[0] === gols[1]) break;
+            delays.empate++;
+        }
+
+        // Atualizar tela de ciclos
+        document.getElementById('d-ambas').innerText = delays.ambas;
+        document.getElementById('d-over25').innerText = delays.over25;
+        document.getElementById('d-over15').innerText = delays.over15;
+        document.getElementById('d-empate').innerText = delays.empate;
+
+        // --- CÁLCULO DE VALOR (IDEIA B) ---
+        const containerOp = document.getElementById('display-oportunidades');
+        containerOp.innerHTML = '';
+
+        prox.slice(0, 4).forEach(jogo => {
+            const odd = odds.find(o => o.match_id == jogo.event_id || (o.horario == jogo.time));
+            if(odd) {
+                // Lógica de Valor: Se o delay for alto e a odd estiver pagando bem
+                const temValorOver = (delays.over25 >= 6 && parseFloat(odd.odds_mais_2_5) <= 2.20);
+                const temValorAmbas = (delays.ambas >= 6 && parseFloat(odd.odds_ambas_marcam_sim) <= 2.10);
+
+                containerOp.innerHTML += `
+                    <div class="oportunidade-row">
+                        <span class="status-badge ${temValorOver || temValorAmbas ? 'bom' : 'ruim'}">
+                            ${temValorOver || temValorAmbas ? 'Entrada Confirmada' : 'Aguardando Padrão'}
+                        </span>
+                        <div style="font-weight:bold; color:var(--accent)">${jogo.time}</div>
+                        <div style="font-size:0.9em">${jogo.team_home} vs ${jogo.team_visit}</div>
+                        <div style="margin-top:8px; font-size:0.8em; color:#aaa">
+                            Over 2.5: <strong>${odd.odds_mais_2_5}</strong> | 
+                            Ambas: <strong>${odd.odds_ambas_marcam_sim}</strong>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+
+    } catch (err) { console.error("Erro ao ler APIs:", err); }
+}
+
+// Atualização automática a cada 30 segundos
+setInterval(processarDados, 30000);
+processarDados();
+
+</script>
+</body>
+</html>
