@@ -1040,70 +1040,41 @@ function aplicarFiltros() {
     }).join('');
 }
 
-// Atualizar gráfico com horas corretas - VERSÃO CORRIGIDA
+// Atualizar gráfico com horas corretas
 function atualizarGrafico(dados, mercadoKey, horasLimit) {
     const container = document.getElementById('chart-container');
+    const horarios = {};
     const agora = new Date();
+    const horaAtual = agora.getHours();
     
-    // Criar estrutura para armazenar dados por timestamp de hora
-    const intervalosPorHora = [];
-    
-    // Criar array de intervalos de hora (da mais antiga para a mais recente)
+    // Criar array de horas na ordem correta (da mais antiga para a mais recente)
+    const horasArray = [];
     for (let i = horasLimit - 1; i >= 0; i--) {
-        const timestampHora = new Date(agora.getTime() - (i * 60 * 60 * 1000));
-        const horaExibicao = timestampHora.getHours();
-        const diaExibicao = timestampHora.getDate();
-        const mesExibicao = timestampHora.getMonth();
-        
-        intervalosPorHora.push({
-            timestamp: timestampHora.getTime(),
-            timestampFim: new Date(agora.getTime() - ((i - 1) * 60 * 60 * 1000)).getTime(),
-            hora: horaExibicao,
-            dia: diaExibicao,
-            mes: mesExibicao,
-            total: 0,
-            greens: 0,
-            label: horaExibicao + 'h'
-        });
+        let h = horaAtual - i;
+        if (h < 0) h += 24;
+        horasArray.push(h);
+        horarios[h] = { total: 0, greens: 0 };
     }
     
-    // Contar jogos por intervalo de hora baseado no timestamp completo
+    // Contar jogos por horário
     dados.forEach(function(j) {
-        const dataJogo = new Date(j.data).getTime();
-        
-        // Encontrar o intervalo correto para este jogo
-        for (let i = 0; i < intervalosPorHora.length; i++) {
-            const intervalo = intervalosPorHora[i];
-            
-            // Verificar se o jogo está dentro deste intervalo de hora
-            if (dataJogo >= intervalo.timestamp && 
-                (i === intervalosPorHora.length - 1 || dataJogo < intervalo.timestampFim)) {
-                
-                intervalo.total++;
-                const g = j.ft.split(' x ').map(Number);
-                if (REGRAS[mercadoKey](g)) intervalo.greens++;
-                break;
-            }
+        const hora = parseInt(j.hora);
+        if (horarios[hora] !== undefined) {
+            horarios[hora].total++;
+            const g = j.ft.split(' x ').map(Number);
+            if (REGRAS[mercadoKey](g)) horarios[hora].greens++;
         }
     });
     
     // Criar barras do gráfico
     container.innerHTML = '';
-    intervalosPorHora.forEach(function(intervalo) {
-        const perc = intervalo.total > 0 ? (intervalo.greens / intervalo.total * 100) : 0;
+    horasArray.forEach(function(hora) {
+        const perc = horarios[hora].total > 0 ? (horarios[hora].greens / horarios[hora].total * 100) : 0;
         const bar = document.createElement('div');
         bar.className = 'chart-bar';
         bar.style.height = Math.max((perc * 1.5), 20) + 'px';
-        
-        // Formatar label com data se for de dia diferente
-        let labelCompleto = intervalo.label;
-        const hoje = new Date();
-        if (intervalo.dia !== hoje.getDate() || intervalo.mes !== hoje.getMonth()) {
-            labelCompleto = intervalo.dia + '/' + (intervalo.mes + 1) + ' ' + intervalo.hora + 'h';
-        }
-        
-        bar.innerHTML = '<span class="chart-bar-value">' + perc.toFixed(0) + '%</span><span class="chart-bar-label">' + labelCompleto + '</span>';
-        bar.title = labelCompleto + ' - ' + intervalo.greens + '/' + intervalo.total + ' (' + perc.toFixed(1) + '%)';
+        bar.innerHTML = '<span class="chart-bar-value">' + perc.toFixed(0) + '%</span><span class="chart-bar-label">' + hora + 'h</span>';
+        bar.title = hora + ':00 - ' + horarios[hora].greens + '/' + horarios[hora].total + ' (' + perc.toFixed(1) + '%)';
         container.appendChild(bar);
     });
 }
