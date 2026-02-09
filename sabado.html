@@ -849,6 +849,22 @@ const REGRAS = {
     exato4: function(g) { return (g[0]+g[1]) === 4; }
 };
 
+// Função auxiliar para criar timestamp do jogo baseado em data + hora + minuto
+function obterTimestampJogo(jogo) {
+    // A data vem em UTC (ex: "2025-08-14T03:00:00.000Z")
+    // Mas hora e minuto são locais, então precisamos ajustar
+    const dataBase = new Date(jogo.data);
+    
+    // Criar nova data com hora e minuto do jogo
+    const dataJogo = new Date(dataBase);
+    dataJogo.setHours(parseInt(jogo.hora));
+    dataJogo.setMinutes(parseInt(jogo.minuto));
+    dataJogo.setSeconds(0);
+    dataJogo.setMilliseconds(0);
+    
+    return dataJogo.getTime();
+}
+
 // Função principal de carregamento
 async function carregar(forcar) {
     const selectMercado = document.getElementById('select-mercado');
@@ -873,13 +889,16 @@ async function carregar(forcar) {
             cacheLocal[cacheKey] = { data: res, timestamp: Date.now() };
         }
         
-        const agora = new Date();
-        const limite = new Date(agora.getTime() - (horasLimit * 60 * 60 * 1000));
+        const agora = Date.now();
+        const limite = agora - (horasLimit * 60 * 60 * 1000);
 
         const filtrados = res.filter(function(j) {
-            const dataJogo = new Date(j.data).getTime();
-            return dataJogo >= limite.getTime();
-        }).reverse();
+            const timestampJogo = obterTimestampJogo(j);
+            return timestampJogo >= limite && timestampJogo <= agora;
+        }).sort(function(a, b) {
+            // Ordenar do mais recente para o mais antigo
+            return obterTimestampJogo(b) - obterTimestampJogo(a);
+        });
 
         dadosGlobais = filtrados.length > 0 ? filtrados : res.slice(0, 20);
         
@@ -1036,45 +1055,82 @@ function aplicarFiltros() {
     document.getElementById('log-lista').innerHTML = dadosFiltrados.map(function(j, index) {
         const placar = j.ft.split(' x ').map(Number);
         const bateu = REGRAS[mercadoKey](placar);
-        return '<div class="target-item" style="animation-delay: ' + (index * 0.05) + 's"><div class="target-info"><span class="target-time">' + j.hora + ':' + j.minuto + '</span><span class="target-teams">' + j.time_a + ' × ' + j.time_b + '</span></div><div class="target-result"><span class="target-score ' + (bateu ? 'win-tag' : 'loss-tag') + '">' + j.ft + '</span><span class="result-badge ' + (bateu ? 'badge-win' : 'badge-loss') + '">' + (bateu ? 'GREEN' : 'RED') + '</span></div></div>';
+        
+        // Formatar hora com zero à esquerda se necessário
+        const horaFormatada = String(j.hora).padStart(2, '0');
+        const minutoFormatado = String(j.minuto).padStart(2, '0');
+        
+        return '<div class="target-item" style="animation-delay: ' + (index * 0.05) + 's"><div class="target-info"><span class="target-time">' + horaFormatada + ':' + minutoFormatado + '</span><span class="target-teams">' + j.time_a + ' × ' + j.time_b + '</span></div><div class="target-result"><span class="target-score ' + (bateu ? 'win-tag' : 'loss-tag') + '">' + j.ft + '</span><span class="result-badge ' + (bateu ? 'badge-win' : 'badge-loss') + '">' + (bateu ? 'GREEN' : 'RED') + '</span></div></div>';
     }).join('');
 }
 
-// Atualizar gráfico com horas corretas
+// Atualizar gráfico com horas de datas anteriores - VERSÃO FINAL CORRIGIDA
 function atualizarGrafico(dados, mercadoKey, horasLimit) {
     const container = document.getElementById('chart-container');
-    const horarios = {};
-    const agora = new Date();
-    const horaAtual = agora.getHours();
+    const agora = Date.now();
     
-    // Criar array de horas na ordem correta (da mais antiga para a mais recente)
-    const horasArray = [];
+    // Criar estrutura para armazenar dados por intervalo de hora
+    const intervalosPorHora = [];
+    
+    // Criar array de intervalos de hora (da mais antiga para a mais recente)
     for (let i = horasLimit - 1; i >= 0; i--) {
-        let h = horaAtual - i;
-        if (h < 0) h += 24;
-        horasArray.push(h);
-        horarios[h] = { total: 0, greens: 0 };
+        const inicioIntervalo = agora - (i * 60 * 60 * 1000);
+        const fimIntervalo = agora - ((i - 1) * 60 * 60 * 1000);
+        const dataIntervalo = new Date(inicioIntervalo);
+        
+        intervalosPorHora.push({
+            inicio: inicioIntervalo,
+            fim: fimIntervalo,
+            hora: dataIntervalo.getHours(),
+            dia: dataIntervalo.getDate(),
+            mes: dataIntervalo.getMonth() + 1,
+            total: 0,
+            greens: 0
+        });
     }
     
-    // Contar jogos por horário
+    // Contar jogos por intervalo baseado no timestamp completo
     dados.forEach(function(j) {
-        const hora = parseInt(j.hora);
-        if (horarios[hora] !== undefined) {
-            horarios[hora].total++;
-            const g = j.ft.split(' x ').map(Number);
-            if (REGRAS[mercadoKey](g)) horarios[hora].greens++;
+        const timestampJogo = obterTimestampJogo(j);
+        
+        // Encontrar o intervalo correto para este jogo
+        for (let i = 0; i < intervalosPorHora.length; i++) {
+            const intervalo = intervalosPorHora[i];
+            
+            // Verificar se o jogo está dentro deste intervalo de hora
+            if (timestampJogo >= intervalo.inicio && timestampJogo < intervalo.fim) {
+                intervalo.total++;
+                const g = j.ft.split(' x ').map(Number);
+                if (REGRAS[mercadoKey](g)) intervalo.greens++;
+                break;
+            }
         }
     });
     
     // Criar barras do gráfico
     container.innerHTML = '';
-    horasArray.forEach(function(hora) {
-        const perc = horarios[hora].total > 0 ? (horarios[hora].greens / horarios[hora].total * 100) : 0;
+    const hoje = new Date();
+    const diaHoje = hoje.getDate();
+    const mesHoje = hoje.getMonth() + 1;
+    
+    intervalosPorHora.forEach(function(intervalo) {
+        const perc = intervalo.total > 0 ? (intervalo.greens / intervalo.total * 100) : 0;
         const bar = document.createElement('div');
         bar.className = 'chart-bar';
         bar.style.height = Math.max((perc * 1.5), 20) + 'px';
-        bar.innerHTML = '<span class="chart-bar-value">' + perc.toFixed(0) + '%</span><span class="chart-bar-label">' + hora + 'h</span>';
-        bar.title = hora + ':00 - ' + horarios[hora].greens + '/' + horarios[hora].total + ' (' + perc.toFixed(1) + '%)';
+        
+        // Formatar label
+        let label = intervalo.hora + 'h';
+        let labelCompleto = String(intervalo.hora).padStart(2, '0') + ':00';
+        
+        // Adicionar data se for de dia diferente
+        if (intervalo.dia !== diaHoje || intervalo.mes !== mesHoje) {
+            label = intervalo.dia + '/' + intervalo.mes + ' ' + intervalo.hora + 'h';
+            labelCompleto = intervalo.dia + '/' + intervalo.mes + ' ' + String(intervalo.hora).padStart(2, '0') + ':00';
+        }
+        
+        bar.innerHTML = '<span class="chart-bar-value">' + perc.toFixed(0) + '%</span><span class="chart-bar-label">' + label + '</span>';
+        bar.title = labelCompleto + ' - ' + intervalo.greens + '/' + intervalo.total + ' (' + perc.toFixed(1) + '%)';
         container.appendChild(bar);
     });
 }
