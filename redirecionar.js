@@ -112,6 +112,7 @@ function redirecionar(select) {
     url === "https://t.me/+hXWRT3ICzvc3YmY5" ||
     url === "https://www.betstat.site/bet365clasificacao.html" ||
     url === "https://www.betstat.site/betanopre.html" ||
+    url === "https://www.betstat.site/estrelapre.html" ||
     url === "https://t.me/Betstatsite" ||
     url === "https://www.betstat.site/graficoftkiron.html" ||
     url === "https://www.betstat.site/kironbuscador.html" ||
