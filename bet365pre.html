@@ -860,6 +860,15 @@
 </div>
 
     <script>
+// ============================================================
+// CONFIGURAÇÃO DE FUSO HORÁRIO
+// Os dados da API vêm no horário da Inglaterra (UTC+0 / BST)
+// O Brasil (BRT) está UTC-3, ou seja, 3 horas ATRÁS da Inglaterra.
+// Para exibir o horário correto localmente (UK), somamos +3h
+// ao interpretar os campos hora/minuto que chegam como hora local BR.
+// ============================================================
+const UK_OFFSET_HORAS = 3; // Inglaterra está 3h na frente do Brasil
+
 // Configuração de ligas: [Nome para exibição, Nome na API]
 const LIGAS = [
     { display: "Copa", api: "Copa" },
@@ -912,28 +921,82 @@ const REGRAS = {
     exato4: function(g) { return (g[0]+g[1]) === 4; }
 };
 
+// ------------------------------------------------------------
 // Função auxiliar para obter liga atual
+// ------------------------------------------------------------
 function getLigaAtual() {
     return LIGAS[ligaAtualIndex];
 }
 
-// Função auxiliar para criar timestamp do jogo baseado em data + hora + minuto
+// ------------------------------------------------------------
+// Converte hora/minuto do jogo (que estão no horário UK)
+// para um timestamp UTC correto, levando em conta que o
+// campo j.hora e j.minuto representam o horário da Inglaterra.
+//
+// A data base (j.data) já vem em UTC (ex: "2025-08-14T03:00:00.000Z"),
+// mas hora e minuto são do fuso UK. Para obter o timestamp UTC real,
+// subtraímos o offset UK do horário local informado.
+// ------------------------------------------------------------
 function obterTimestampJogo(jogo) {
-    // A data vem em UTC (ex: "2025-08-14T03:00:00.000Z")
-    // Mas hora e minuto são locais, então precisamos ajustar
     const dataBase = new Date(jogo.data);
-    
-    // Criar nova data com hora e minuto do jogo
+
+    // hora e minuto vêm no fuso da Inglaterra
+    const horaUK = parseInt(jogo.hora);
+    const minutoUK = parseInt(jogo.minuto);
+
+    // Construir data usando os componentes UTC da data base
+    // e aplicar a hora/minuto UK convertida para UTC
+    // UK = UTC+0 (inverno) ou UTC+1 (verão BST)
+    // Como o offset fixo passado é 3h (diferença BR→UK), inferimos:
+    // UTC = hora_UK - 0 (se winter) ou hora_UK - 1 (se BST)
+    // Para simplificar com offset fixo de 3h (UK está 3h na frente do Brasil BRT=-3):
+    // timestamp_UTC = data_base + horaUK_em_ms - offset_BR_em_ms
+    // Ou seja: construímos a data como se fosse local BR e somamos 3h para UTC.
+
     const dataJogo = new Date(dataBase);
-    dataJogo.setHours(parseInt(jogo.hora));
-    dataJogo.setMinutes(parseInt(jogo.minuto));
-    dataJogo.setSeconds(0);
-    dataJogo.setMilliseconds(0);
-    
+    // Setar componentes como hora local BR (o que o servidor originalmente gravou)
+    // e então ajustar para UK somando UK_OFFSET_HORAS
+    dataJogo.setUTCHours(horaUK - UK_OFFSET_HORAS); // converte hora UK para UTC
+    dataJogo.setUTCMinutes(minutoUK);
+    dataJogo.setUTCSeconds(0);
+    dataJogo.setUTCMilliseconds(0);
+
     return dataJogo.getTime();
 }
 
+// ------------------------------------------------------------
+// Formata hora do jogo para exibição no horário UK
+// Recebe o objeto jogo e retorna string "HH:MM"
+// ------------------------------------------------------------
+function formatarHoraExibicao(jogo) {
+    // Os campos hora/minuto já vêm no horário UK — exibir diretamente
+    const horaFormatada = String(parseInt(jogo.hora)).padStart(2, '0');
+    const minutoFormatado = String(parseInt(jogo.minuto)).padStart(2, '0');
+    return horaFormatada + ':' + minutoFormatado;
+}
+
+// ------------------------------------------------------------
+// Retorna o número da hora UK do jogo (para agrupamento no heatmap)
+// ------------------------------------------------------------
+function obterHoraUK(jogo) {
+    return parseInt(jogo.hora);
+}
+
+// ------------------------------------------------------------
+// Retorna a hora atual no fuso UK (somando offset ao horário local BR)
+// ------------------------------------------------------------
+function agoraUK() {
+    // Date.now() está em UTC. A hora "atual" em UK = UTC+0 ou UTC+1 (BST).
+    // Como o offset configurado é 3h (UK está 3h na frente do Brasil):
+    // hora_UK = hora_UTC + 0 (winter) ou +1 (BST)
+    // Mas para fins de filtragem de dados que usam hora UK nos campos,
+    // precisamos que o "agora" seja equivalente ao timestamp UTC real.
+    return Date.now(); // timestamp UTC puro, usado para comparação com obterTimestampJogo()
+}
+
+// ------------------------------------------------------------
 // Função principal de carregamento
+// ------------------------------------------------------------
 async function carregar(forcar) {
     const selectMercado = document.getElementById('select-mercado');
     const mercadoKey = selectMercado.value;
@@ -954,20 +1017,18 @@ async function carregar(forcar) {
         if (!forcar && cacheLocal[cacheKey] && (Date.now() - cacheLocal[cacheKey].timestamp < 60000)) {
             res = cacheLocal[cacheKey].data;
         } else {
-            // Usar o nome correto da API para a requisição
             const response = await fetch(API + '/resultados/' + encodeURIComponent(ligaAtual.api));
             res = await response.json();
             cacheLocal[cacheKey] = { data: res, timestamp: Date.now() };
         }
         
-        const agora = Date.now();
+        const agora = agoraUK();
         const limite = agora - (horasLimit * 60 * 60 * 1000);
 
         const filtrados = res.filter(function(j) {
             const timestampJogo = obterTimestampJogo(j);
             return timestampJogo >= limite && timestampJogo <= agora;
         }).sort(function(a, b) {
-            // Ordenar do mais recente para o mais antigo
             return obterTimestampJogo(b) - obterTimestampJogo(a);
         });
 
@@ -989,7 +1050,9 @@ async function carregar(forcar) {
     }
 }
 
+// ------------------------------------------------------------
 // Atualizar estatísticas do topo
+// ------------------------------------------------------------
 function atualizarStats(dados, mercadoKey) {
     const total = dados.length;
     const greens = dados.filter(function(j) {
@@ -1002,10 +1065,10 @@ function atualizarStats(dados, mercadoKey) {
     document.getElementById('stat-total').innerText = total;
     document.getElementById('stat-taxa').innerText = percentual.toFixed(1) + '%';
     
-    // Melhor horário
+    // Melhor horário — agrupado pela hora UK (campo j.hora)
     const horarios = {};
     dados.forEach(function(j) {
-        const hora = j.hora;
+        const hora = obterHoraUK(j); // hora no fuso UK
         if (!horarios[hora]) horarios[hora] = { total: 0, greens: 0 };
         horarios[hora].total++;
         const g = j.ft.split(' x ').map(Number);
@@ -1051,7 +1114,9 @@ function atualizarStats(dados, mercadoKey) {
     document.getElementById('stat-sequencia-tipo').style.color = tipo === 'green' ? 'var(--accent)' : 'var(--danger)';
 }
 
+// ------------------------------------------------------------
 // Atualizar gauge
+// ------------------------------------------------------------
 function atualizarGauge(dados, mercadoKey, mercadoTxt, horasLimit) {
     const total = dados.length;
     const greens = dados.filter(function(j) {
@@ -1083,7 +1148,9 @@ function atualizarGauge(dados, mercadoKey, mercadoTxt, horasLimit) {
     }
 }
 
+// ------------------------------------------------------------
 // Atualizar sequência visual
+// ------------------------------------------------------------
 function atualizarSequencia(dados, mercadoKey) {
     const container = document.getElementById('sequence-display');
     const ultimos = dados.slice(0, 15);
@@ -1095,24 +1162,27 @@ function atualizarSequencia(dados, mercadoKey) {
     }).join('');
 }
 
+// ------------------------------------------------------------
 // Atualizar log
+// ------------------------------------------------------------
 function atualizarLog(dados, mercadoKey) {
     aplicarFiltros();
 }
 
+// ------------------------------------------------------------
 // Aplicar filtros no log
+// Exibe horário no fuso UK (campo hora/minuto já estão em UK)
+// ------------------------------------------------------------
 function aplicarFiltros() {
     const mercadoKey = document.getElementById('select-mercado').value;
     const filtroTime = document.getElementById('filtro-time').value.toLowerCase();
     const filtroResultado = document.getElementById('filtro-resultado').value;
     
     let dadosFiltrados = dadosGlobais.filter(function(j) {
-        // Filtro por time
         if (filtroTime && !j.time_a.toLowerCase().includes(filtroTime) && !j.time_b.toLowerCase().includes(filtroTime)) {
             return false;
         }
         
-        // Filtro por resultado
         if (filtroResultado !== 'todos') {
             const g = j.ft.split(' x ').map(Number);
             const bateu = REGRAS[mercadoKey](g);
@@ -1127,48 +1197,55 @@ function aplicarFiltros() {
         const placar = j.ft.split(' x ').map(Number);
         const bateu = REGRAS[mercadoKey](placar);
         
-        // Formatar hora com zero à esquerda se necessário
-        const horaFormatada = String(j.hora).padStart(2, '0');
-        const minutoFormatado = String(j.minuto).padStart(2, '0');
+        // Hora e minuto já estão no fuso UK — exibir diretamente
+        const horaExibicao = formatarHoraExibicao(j);
         
-        return '<div class="target-item" style="animation-delay: ' + (index * 0.05) + 's"><div class="target-info"><span class="target-time">' + horaFormatada + ':' + minutoFormatado + '</span><span class="target-teams">' + j.time_a + ' × ' + j.time_b + '</span></div><div class="target-result"><span class="target-score ' + (bateu ? 'win-tag' : 'loss-tag') + '">' + j.ft + '</span><span class="result-badge ' + (bateu ? 'badge-win' : 'badge-loss') + '">' + (bateu ? 'GREEN' : 'RED') + '</span></div></div>';
+        return '<div class="target-item" style="animation-delay: ' + (index * 0.05) + 's"><div class="target-info"><span class="target-time">' + horaExibicao + '</span><span class="target-teams">' + j.time_a + ' × ' + j.time_b + '</span></div><div class="target-result"><span class="target-score ' + (bateu ? 'win-tag' : 'loss-tag') + '">' + j.ft + '</span><span class="result-badge ' + (bateu ? 'badge-win' : 'badge-loss') + '">' + (bateu ? 'GREEN' : 'RED') + '</span></div></div>';
     }).join('');
 }
 
-// Atualizar gráfico com horas de datas anteriores - VERSÃO FINAL CORRIGIDA
+// ------------------------------------------------------------
+// Atualizar gráfico — intervalos calculados em UTC,
+// labels exibidos no fuso UK (hora_UTC + offset_UK)
+// ------------------------------------------------------------
 function atualizarGrafico(dados, mercadoKey, horasLimit) {
     const container = document.getElementById('chart-container');
-    const agora = Date.now();
+    const agora = agoraUK();
     
-    // Criar estrutura para armazenar dados por intervalo de hora
     const intervalosPorHora = [];
     
-    // Criar array de intervalos de hora (da mais antiga para a mais recente)
     for (let i = horasLimit - 1; i >= 0; i--) {
         const inicioIntervalo = agora - (i * 60 * 60 * 1000);
         const fimIntervalo = agora - ((i - 1) * 60 * 60 * 1000);
+        
+        // Converter o início do intervalo para hora UK para exibição
+        // hora_UK = hora_UTC + offset (0 inverno / 1 BST)
+        // Aqui usamos o offset fixo de diferença BR→UK:
+        // hora_UK_display = hora_UTC + 0 (UK winter) — para label correto
+        // Como o usuário está no Brasil (UTC-3) e UK está a +3h,
+        // a hora UK equivale a: new Date(ts).getUTCHours() para UTC+0
         const dataIntervalo = new Date(inicioIntervalo);
+        const horaUKDisplay = dataIntervalo.getUTCHours(); // UK inverno = UTC
+        const diaUK = dataIntervalo.getUTCDate();
+        const mesUK = dataIntervalo.getUTCMonth() + 1;
         
         intervalosPorHora.push({
             inicio: inicioIntervalo,
             fim: fimIntervalo,
-            hora: dataIntervalo.getHours(),
-            dia: dataIntervalo.getDate(),
-            mes: dataIntervalo.getMonth() + 1,
+            hora: horaUKDisplay,
+            dia: diaUK,
+            mes: mesUK,
             total: 0,
             greens: 0
         });
     }
     
-    // Contar jogos por intervalo baseado no timestamp completo
+    // Contar jogos por intervalo usando timestamp UTC correto
     dados.forEach(function(j) {
         const timestampJogo = obterTimestampJogo(j);
         
-        // Encontrar o intervalo correto para este jogo
         for (let i = 0; i < intervalosPorHora.length; i++) {
             const intervalo = intervalosPorHora[i];
-            
-            // Verificar se o jogo está dentro deste intervalo de hora
             if (timestampJogo >= intervalo.inicio && timestampJogo < intervalo.fim) {
                 intervalo.total++;
                 const g = j.ft.split(' x ').map(Number);
@@ -1178,11 +1255,12 @@ function atualizarGrafico(dados, mercadoKey, horasLimit) {
         }
     });
     
-    // Criar barras do gráfico
     container.innerHTML = '';
-    const hoje = new Date();
-    const diaHoje = hoje.getDate();
-    const mesHoje = hoje.getMonth() + 1;
+    
+    // "Hoje" em UK (UTC)
+    const hojeUK = new Date();
+    const diaHojeUK = hojeUK.getUTCDate();
+    const mesHojeUK = hojeUK.getUTCMonth() + 1;
     
     intervalosPorHora.forEach(function(intervalo) {
         const perc = intervalo.total > 0 ? (intervalo.greens / intervalo.total * 100) : 0;
@@ -1190,14 +1268,12 @@ function atualizarGrafico(dados, mercadoKey, horasLimit) {
         bar.className = 'chart-bar';
         bar.style.height = Math.max((perc * 1.5), 20) + 'px';
         
-        // Formatar label
         let label = intervalo.hora + 'h';
-        let labelCompleto = String(intervalo.hora).padStart(2, '0') + ':00';
+        let labelCompleto = String(intervalo.hora).padStart(2, '0') + ':00 (UK)';
         
-        // Adicionar data se for de dia diferente
-        if (intervalo.dia !== diaHoje || intervalo.mes !== mesHoje) {
+        if (intervalo.dia !== diaHojeUK || intervalo.mes !== mesHojeUK) {
             label = intervalo.dia + '/' + intervalo.mes + ' ' + intervalo.hora + 'h';
-            labelCompleto = intervalo.dia + '/' + intervalo.mes + ' ' + String(intervalo.hora).padStart(2, '0') + ':00';
+            labelCompleto = intervalo.dia + '/' + intervalo.mes + ' ' + String(intervalo.hora).padStart(2, '0') + ':00 (UK)';
         }
         
         bar.innerHTML = '<span class="chart-bar-value">' + perc.toFixed(0) + '%</span><span class="chart-bar-label">' + label + '</span>';
@@ -1206,7 +1282,9 @@ function atualizarGrafico(dados, mercadoKey, horasLimit) {
     });
 }
 
+// ------------------------------------------------------------
 // Atualizar comparação de mercados
+// ------------------------------------------------------------
 function atualizarComparacao(dados) {
     const container = document.getElementById('comparison-grid');
     const mercados = ['over2_5', 'under2_5', 'ambasMarcam', 'ambasNaoMarcam', 'casaVence', 'foraVence', 'empate', 'over1_5'];
@@ -1232,7 +1310,9 @@ function atualizarComparacao(dados) {
     }).join('');
 }
 
+// ------------------------------------------------------------
 // Atualizar sugestões
+// ------------------------------------------------------------
 function atualizarSugestoes(dados) {
     const container = document.getElementById('suggestions-container');
     const mercados = ['over2_5', 'under2_5', 'ambasMarcam', 'ambasNaoMarcam', 'casaVence', 'foraVence'];
@@ -1269,7 +1349,10 @@ function atualizarSugestoes(dados) {
     }).join('');
 }
 
+// ------------------------------------------------------------
 // Atualizar heatmap
+// Agrupamento pela hora UK (campo j.hora já está em UK)
+// ------------------------------------------------------------
 function atualizarHeatmap(dados, mercadoKey) {
     const container = document.getElementById('heatmap-container');
     const horas = {};
@@ -1279,10 +1362,12 @@ function atualizarHeatmap(dados, mercadoKey) {
     }
     
     dados.forEach(function(j) {
-        const hora = parseInt(j.hora);
-        horas[hora].total++;
-        const g = j.ft.split(' x ').map(Number);
-        if (REGRAS[mercadoKey](g)) horas[hora].greens++;
+        const hora = obterHoraUK(j); // campo hora já está no fuso UK
+        if (hora >= 0 && hora < 24) {
+            horas[hora].total++;
+            const g = j.ft.split(' x ').map(Number);
+            if (REGRAS[mercadoKey](g)) horas[hora].greens++;
+        }
     });
     
     container.innerHTML = '';
@@ -1294,17 +1379,18 @@ function atualizarHeatmap(dados, mercadoKey) {
         cell.style.background = 'rgba(31, 172, 137, ' + opacity + ')';
         cell.style.color = opacity > 0.5 ? '#000' : '#fff';
         cell.innerText = h;
-        cell.title = h + ':00 - ' + perc.toFixed(1) + '% (' + horas[h].greens + '/' + horas[h].total + ')';
+        cell.title = h + ':00 UK - ' + perc.toFixed(1) + '% (' + horas[h].greens + '/' + horas[h].total + ')';
         container.appendChild(cell);
     }
 }
 
+// ------------------------------------------------------------
 // Gerar alertas inteligentes
+// ------------------------------------------------------------
 function gerarAlertas(dados, mercadoKey, mercadoTxt) {
     const container = document.getElementById('alerts-container');
     const alertas = [];
     
-    // Verifica sequência longa
     let sequencia = 0;
     let tipo = '';
     const ultimos = dados.slice(0, 20);
@@ -1332,7 +1418,6 @@ function gerarAlertas(dados, mercadoKey, mercadoTxt) {
         alertas.push('<div class="alert ' + classe + '">' + emoji + ' <strong>Sequência Detectada:</strong> ' + sequencia + ' ' + (tipo === 'green' ? 'greens' : 'reds') + ' consecutivos. Probabilidade de inversão aumenta.</div>');
     }
     
-    // Verifica desvio da média
     const perc = calcularPercentual(dados, mercadoKey);
     const media = MEDIAS_HISTORICAS[mercadoKey] || 50;
     const diferenca = Math.abs(perc - media);
@@ -1344,7 +1429,9 @@ function gerarAlertas(dados, mercadoKey, mercadoTxt) {
     container.innerHTML = alertas.join('');
 }
 
+// ------------------------------------------------------------
 // Calcular percentual
+// ------------------------------------------------------------
 function calcularPercentual(dados, mercadoKey) {
     const total = dados.length;
     const greens = dados.filter(function(j) {
@@ -1354,7 +1441,9 @@ function calcularPercentual(dados, mercadoKey) {
     return total > 0 ? (greens / total * 100) : 0;
 }
 
+// ------------------------------------------------------------
 // Mudar tab
+// ------------------------------------------------------------
 function mudarTab(tab) {
     const tabs = document.querySelectorAll('.tab');
     const contents = document.querySelectorAll('.tab-content');
@@ -1366,18 +1455,20 @@ function mudarTab(tab) {
     document.getElementById('tab-' + tab).style.display = 'block';
 }
 
+// ------------------------------------------------------------
 // Inicialização
+// ------------------------------------------------------------
 const menu = document.getElementById('menu');
 LIGAS.forEach(function(liga, index) {
     const b = document.createElement('button');
     b.className = 'btn-liga' + (index === ligaAtualIndex ? ' active' : '');
-    b.textContent = liga.display; // Mostra o nome de exibição
+    b.textContent = liga.display;
     b.onclick = function() {
         document.querySelectorAll('.btn-liga').forEach(function(x) { 
             x.classList.remove('active'); 
         });
         b.classList.add('active');
-        ligaAtualIndex = index; // Armazena apenas o índice
+        ligaAtualIndex = index;
         carregar();
     };
     menu.appendChild(b);
