@@ -860,6 +860,16 @@
 </div>
 
     <script>
+// ============================================================
+// CONFIGURAÇÃO DE FUSO HORÁRIO
+// Os dados da API vêm com hora/minuto no horário da Inglaterra (UTC+0 no inverno).
+// O Brasil (BRT) está UTC-3, ou seja, 3 horas ATRÁS da Inglaterra.
+// UK_OFFSET_HORAS = 3 representa essa diferença.
+// Para converter hora UK → UTC: hora_UTC = hora_UK - 0 (UK inverno = UTC)
+// Para exibição: os campos j.hora e j.minuto já estão em UK, usar diretamente.
+// ============================================================
+const UK_OFFSET_HORAS = 3; // Diferença entre UK e Brasil (BR = UK - 3h)
+
 // Configuração de ligas: [Nome para exibição, Nome na API]
 const LIGAS = [
     { display: "Copa", api: "Copa" },
@@ -892,87 +902,104 @@ const MEDIAS_HISTORICAS = {
     exato4: 12
 };
 
-const REGRAS = { 
-    ambasMarcam: function(g) { return g[0] > 0 && g[1] > 0; },
+const REGRAS = {
+    ambasMarcam:    function(g) { return g[0] > 0 && g[1] > 0; },
     ambasNaoMarcam: function(g) { return g[0] === 0 || g[1] === 0; },
-    casaVence: function(g) { return g[0] > g[1]; },
-    foraVence: function(g) { return g[1] > g[0]; },
-    empate: function(g) { return g[0] === g[1]; },
-    over1_5: function(g) { return (g[0]+g[1]) > 1.5; },
-    under1_5: function(g) { return (g[0]+g[1]) < 1.5; },
-    over2_5: function(g) { return (g[0]+g[1]) > 2.5; },
-    under2_5: function(g) { return (g[0]+g[1]) < 2.5; },
-    over3_5: function(g) { return (g[0]+g[1]) > 3.5; },
-    under3_5: function(g) { return (g[0]+g[1]) < 3.5; },
-    over5: function(g) { return (g[0]+g[1]) > 5; },
-    exato0: function(g) { return (g[0]+g[1]) === 0; },
-    exato1: function(g) { return (g[0]+g[1]) === 1; },
-    exato2: function(g) { return (g[0]+g[1]) === 2; },
-    exato3: function(g) { return (g[0]+g[1]) === 3; },
-    exato4: function(g) { return (g[0]+g[1]) === 4; }
+    casaVence:      function(g) { return g[0] > g[1]; },
+    foraVence:      function(g) { return g[1] > g[0]; },
+    empate:         function(g) { return g[0] === g[1]; },
+    over1_5:        function(g) { return (g[0]+g[1]) > 1.5; },
+    under1_5:       function(g) { return (g[0]+g[1]) < 1.5; },
+    over2_5:        function(g) { return (g[0]+g[1]) > 2.5; },
+    under2_5:       function(g) { return (g[0]+g[1]) < 2.5; },
+    over3_5:        function(g) { return (g[0]+g[1]) > 3.5; },
+    under3_5:       function(g) { return (g[0]+g[1]) < 3.5; },
+    over5:          function(g) { return (g[0]+g[1]) > 5; },
+    exato0:         function(g) { return (g[0]+g[1]) === 0; },
+    exato1:         function(g) { return (g[0]+g[1]) === 1; },
+    exato2:         function(g) { return (g[0]+g[1]) === 2; },
+    exato3:         function(g) { return (g[0]+g[1]) === 3; },
+    exato4:         function(g) { return (g[0]+g[1]) === 4; }
 };
 
-// Função auxiliar para obter liga atual
+// ------------------------------------------------------------
+// Retorna a liga atual
+// ------------------------------------------------------------
 function getLigaAtual() {
     return LIGAS[ligaAtualIndex];
 }
 
-// Função auxiliar para criar timestamp do jogo baseado em data + hora + minuto
+// ------------------------------------------------------------
+// Converte hora/minuto do jogo (que chegam no fuso UK) para
+// um timestamp UTC correto, para comparação com Date.now().
+//
+// j.hora e j.minuto estão no horário UK (ex: 14 = 14:00 UK).
+// UK inverno = UTC+0, portanto hora_UTC = hora_UK.
+// O servidor gravou a data base em UTC. Construímos o timestamp
+// sobrescrevendo os componentes UTC com os valores UK do jogo.
+// ------------------------------------------------------------
 function obterTimestampJogo(jogo) {
-    // A data vem em UTC (ex: "2025-08-14T03:00:00.000Z")
-    // Mas hora e minuto são locais, então precisamos ajustar
-    const dataBase = new Date(jogo.data);
-    
-    // Criar nova data com hora e minuto do jogo
+    const dataBase = new Date(jogo.data); // já é UTC
+    const horaUK   = parseInt(jogo.hora);
+    const minutoUK = parseInt(jogo.minuto);
+
+    // UK inverno = UTC, então setamos diretamente como UTC
     const dataJogo = new Date(dataBase);
-    dataJogo.setHours(parseInt(jogo.hora));
-    dataJogo.setMinutes(parseInt(jogo.minuto));
-    dataJogo.setSeconds(0);
-    dataJogo.setMilliseconds(0);
-    
+    dataJogo.setUTCHours(horaUK);
+    dataJogo.setUTCMinutes(minutoUK);
+    dataJogo.setUTCSeconds(0);
+    dataJogo.setUTCMilliseconds(0);
+
     return dataJogo.getTime();
 }
 
+// ------------------------------------------------------------
+// Formata hora do jogo para exibição — campos j.hora/j.minuto
+// já estão em UK, exibir diretamente.
+// ------------------------------------------------------------
+function formatarHoraExibicao(jogo) {
+    return String(parseInt(jogo.hora)).padStart(2, '0') + ':' + String(parseInt(jogo.minuto)).padStart(2, '0');
+}
+
+// ------------------------------------------------------------
 // Função principal de carregamento
+// ------------------------------------------------------------
 async function carregar(forcar) {
     const selectMercado = document.getElementById('select-mercado');
-    const mercadoKey = selectMercado.value;
-    const mercadoTxt = selectMercado.options[selectMercado.selectedIndex].text;
-    const horasLimit = parseInt(document.getElementById('select-horas').value);
-    
+    const mercadoKey    = selectMercado.value;
+    const mercadoTxt    = selectMercado.options[selectMercado.selectedIndex].text;
+    const horasLimit    = parseInt(document.getElementById('select-horas').value);
+
     const ligaAtual = getLigaAtual();
-    
-    document.getElementById('label-mercado').innerText = mercadoTxt;
-    document.getElementById('heatmap-mercado').innerText = mercadoTxt;
-    document.getElementById('grafico-periodo').innerText = 'Últimas ' + horasLimit + ' horas';
-    
+
+    document.getElementById('label-mercado').innerText    = mercadoTxt;
+    document.getElementById('heatmap-mercado').innerText  = mercadoTxt;
+    document.getElementById('grafico-periodo').innerText  = 'Últimas ' + horasLimit + ' horas';
+
     try {
-        // Verificar cache - usando nome da API
         const cacheKey = ligaAtual.api + '_' + horasLimit;
         let res;
-        
+
         if (!forcar && cacheLocal[cacheKey] && (Date.now() - cacheLocal[cacheKey].timestamp < 60000)) {
             res = cacheLocal[cacheKey].data;
         } else {
-            // Usar o nome correto da API para a requisição
             const response = await fetch(API + '/' + encodeURIComponent(ligaAtual.api));
             res = await response.json();
             cacheLocal[cacheKey] = { data: res, timestamp: Date.now() };
         }
-        
-        const agora = Date.now();
+
+        const agora  = Date.now();
         const limite = agora - (horasLimit * 60 * 60 * 1000);
 
         const filtrados = res.filter(function(j) {
-            const timestampJogo = obterTimestampJogo(j);
-            return timestampJogo >= limite && timestampJogo <= agora;
+            const ts = obterTimestampJogo(j);
+            return ts >= limite && ts <= agora;
         }).sort(function(a, b) {
-            // Ordenar do mais recente para o mais antigo
             return obterTimestampJogo(b) - obterTimestampJogo(a);
         });
 
         dadosGlobais = filtrados.length > 0 ? filtrados : res.slice(0, 20);
-        
+
         atualizarStats(dadosGlobais, mercadoKey);
         atualizarGauge(dadosGlobais, mercadoKey, mercadoTxt, horasLimit);
         atualizarSequencia(dadosGlobais, mercadoKey);
@@ -989,29 +1016,29 @@ async function carregar(forcar) {
     }
 }
 
+// ------------------------------------------------------------
 // Atualizar estatísticas do topo
+// ------------------------------------------------------------
 function atualizarStats(dados, mercadoKey) {
-    const total = dados.length;
+    const total  = dados.length;
     const greens = dados.filter(function(j) {
-        const g = j.ft.split(' x ').map(Number);
-        return REGRAS[mercadoKey](g);
+        return REGRAS[mercadoKey](j.ft.split(' x ').map(Number));
     }).length;
-    
+
     const percentual = total > 0 ? (greens / total * 100) : 0;
-    
+
     document.getElementById('stat-total').innerText = total;
-    document.getElementById('stat-taxa').innerText = percentual.toFixed(1) + '%';
-    
-    // Melhor horário
+    document.getElementById('stat-taxa').innerText  = percentual.toFixed(1) + '%';
+
+    // Melhor horário — agrupado pela hora UK (j.hora já está em UK)
     const horarios = {};
     dados.forEach(function(j) {
-        const hora = j.hora;
+        const hora = parseInt(j.hora);
         if (!horarios[hora]) horarios[hora] = { total: 0, greens: 0 };
         horarios[hora].total++;
-        const g = j.ft.split(' x ').map(Number);
-        if (REGRAS[mercadoKey](g)) horarios[hora].greens++;
+        if (REGRAS[mercadoKey](j.ft.split(' x ').map(Number))) horarios[hora].greens++;
     });
-    
+
     let melhorHora = '--';
     let melhorTaxa = 0;
     for (let hora in horarios) {
@@ -1021,363 +1048,348 @@ function atualizarStats(dados, mercadoKey) {
             melhorHora = hora + ':00';
         }
     }
-    
     document.getElementById('stat-horario').innerText = melhorHora;
-    
+
     // Sequência atual
     let sequencia = 0;
     let tipo = '';
     const ultimos = dados.slice(0, 20);
-    
+
     for (let i = 0; i < ultimos.length; i++) {
-        const g = ultimos[i].ft.split(' x ').map(Number);
-        const bateu = REGRAS[mercadoKey](g);
-        
+        const bateu = REGRAS[mercadoKey](ultimos[i].ft.split(' x ').map(Number));
         if (i === 0) {
             tipo = bateu ? 'green' : 'red';
             sequencia = 1;
         } else {
             const anterior = REGRAS[mercadoKey](ultimos[i-1].ft.split(' x ').map(Number));
-            if (bateu === anterior) {
-                sequencia++;
-            } else {
-                break;
-            }
+            if (bateu === anterior) { sequencia++; } else { break; }
         }
     }
-    
-    document.getElementById('stat-sequencia').innerText = sequencia;
-    document.getElementById('stat-sequencia-tipo').innerText = tipo === 'green' ? 'Greens seguidos' : 'Reds seguidos';
+
+    document.getElementById('stat-sequencia').innerText        = sequencia;
+    document.getElementById('stat-sequencia-tipo').innerText   = tipo === 'green' ? 'Greens seguidos' : 'Reds seguidos';
     document.getElementById('stat-sequencia-tipo').style.color = tipo === 'green' ? 'var(--accent)' : 'var(--danger)';
 }
 
+// ------------------------------------------------------------
 // Atualizar gauge
+// ------------------------------------------------------------
 function atualizarGauge(dados, mercadoKey, mercadoTxt, horasLimit) {
-    const total = dados.length;
+    const total  = dados.length;
     const greens = dados.filter(function(j) {
-        const g = j.ft.split(' x ').map(Number);
-        return REGRAS[mercadoKey](g);
+        return REGRAS[mercadoKey](j.ft.split(' x ').map(Number));
     }).length;
 
-    const percentual = total > 0 ? (greens / total * 100) : 0;
+    const percentual     = total > 0 ? (greens / total * 100) : 0;
     const mediaHistorica = MEDIAS_HISTORICAS[mercadoKey] || 50;
 
     document.getElementById('gauge-fill').style.width = percentual + '%';
     document.getElementById('perc-display').innerText = percentual.toFixed(1) + '%';
 
-    const txt = document.getElementById('status-text');
+    const txt     = document.getElementById('status-text');
     const insight = document.getElementById('insight-text');
 
-    if(percentual > 55) {
-        txt.innerText = "MERCADO SATURADO";
-        txt.style.color = "#ff9966";
+    if (percentual > 55) {
+        txt.innerText     = "MERCADO SATURADO";
+        txt.style.color   = "#ff9966";
         insight.innerHTML = 'O mercado de <strong>' + mercadoTxt + '</strong> apresenta volume <strong>acima da média</strong> nas últimas ' + horasLimit + 'h (' + percentual.toFixed(1) + '% vs média histórica de <span class="media-historica">' + mediaHistorica + '%</span>). No futebol virtual, o algoritmo tende a buscar equilíbrio. Expectativa de correção para mercados opostos em sequência.';
-    } else if(percentual < 40) {
-        txt.innerText = "MERCADO COMPRIMIDO";
-        txt.style.color = "#66ccff";
+    } else if (percentual < 40) {
+        txt.innerText     = "MERCADO COMPRIMIDO";
+        txt.style.color   = "#66ccff";
         insight.innerHTML = 'Baixa ocorrência de <strong>' + mercadoTxt + '</strong> detectada (' + percentual.toFixed(1) + '% vs média histórica de <span class="media-historica">' + mediaHistorica + '%</span>). O algoritmo do futebol virtual busca reequilíbrio, aumentando a probabilidade de sequência positiva para este mercado nas próximas partidas.';
     } else {
-        txt.innerText = "MERCADO ESTÁVEL";
-        txt.style.color = "#1fac89";
+        txt.innerText     = "MERCADO ESTÁVEL";
+        txt.style.color   = "#1fac89";
         insight.innerHTML = 'Frequência normalizada para <strong>' + mercadoTxt + '</strong> (' + percentual.toFixed(1) + '% próximo da média histórica de <span class="media-historica">' + mediaHistorica + '%</span>). O padrão do algoritmo está dentro do esperado. Recomenda-se análise individual dos confrontos considerando o histórico recente e os padrões específicos da liga virtual.';
     }
 }
 
+// ------------------------------------------------------------
 // Atualizar sequência visual
+// ------------------------------------------------------------
 function atualizarSequencia(dados, mercadoKey) {
     const container = document.getElementById('sequence-display');
-    const ultimos = dados.slice(0, 15);
-    
+    const ultimos   = dados.slice(0, 15);
+
     container.innerHTML = ultimos.map(function(j) {
-        const g = j.ft.split(' x ').map(Number);
-        const bateu = REGRAS[mercadoKey](g);
+        const bateu = REGRAS[mercadoKey](j.ft.split(' x ').map(Number));
         return '<div class="sequence-dot ' + (bateu ? 'green' : 'red') + '" title="' + j.time_a + ' × ' + j.time_b + ' - ' + j.ft + '"></div>';
     }).join('');
 }
 
+// ------------------------------------------------------------
 // Atualizar log
+// ------------------------------------------------------------
 function atualizarLog(dados, mercadoKey) {
     aplicarFiltros();
 }
 
+// ------------------------------------------------------------
 // Aplicar filtros no log
+// Exibe hora no fuso UK — j.hora/j.minuto já estão em UK
+// ------------------------------------------------------------
 function aplicarFiltros() {
-    const mercadoKey = document.getElementById('select-mercado').value;
-    const filtroTime = document.getElementById('filtro-time').value.toLowerCase();
+    const mercadoKey      = document.getElementById('select-mercado').value;
+    const filtroTime      = document.getElementById('filtro-time').value.toLowerCase();
     const filtroResultado = document.getElementById('filtro-resultado').value;
-    
+
     let dadosFiltrados = dadosGlobais.filter(function(j) {
-        // Filtro por time
         if (filtroTime && !j.time_a.toLowerCase().includes(filtroTime) && !j.time_b.toLowerCase().includes(filtroTime)) {
             return false;
         }
-        
-        // Filtro por resultado
         if (filtroResultado !== 'todos') {
-            const g = j.ft.split(' x ').map(Number);
-            const bateu = REGRAS[mercadoKey](g);
+            const bateu = REGRAS[mercadoKey](j.ft.split(' x ').map(Number));
             if (filtroResultado === 'greens' && !bateu) return false;
-            if (filtroResultado === 'reds' && bateu) return false;
+            if (filtroResultado === 'reds'   &&  bateu) return false;
         }
-        
         return true;
     });
-    
+
     document.getElementById('log-lista').innerHTML = dadosFiltrados.map(function(j, index) {
         const placar = j.ft.split(' x ').map(Number);
-        const bateu = REGRAS[mercadoKey](placar);
-        
-        // Formatar hora com zero à esquerda se necessário
-        const horaFormatada = String(j.hora).padStart(2, '0');
-        const minutoFormatado = String(j.minuto).padStart(2, '0');
-        
-        return '<div class="target-item" style="animation-delay: ' + (index * 0.05) + 's"><div class="target-info"><span class="target-time">' + horaFormatada + ':' + minutoFormatado + '</span><span class="target-teams">' + j.time_a + ' × ' + j.time_b + '</span></div><div class="target-result"><span class="target-score ' + (bateu ? 'win-tag' : 'loss-tag') + '">' + j.ft + '</span><span class="result-badge ' + (bateu ? 'badge-win' : 'badge-loss') + '">' + (bateu ? 'GREEN' : 'RED') + '</span></div></div>';
+        const bateu  = REGRAS[mercadoKey](placar);
+
+        // j.hora/j.minuto já estão em UK — exibir diretamente
+        const horaExibicao = formatarHoraExibicao(j);
+
+        return '<div class="target-item" style="animation-delay: ' + (index * 0.05) + 's">'
+             + '<div class="target-info">'
+             + '<span class="target-time">' + horaExibicao + '</span>'
+             + '<span class="target-teams">' + j.time_a + ' × ' + j.time_b + '</span>'
+             + '</div>'
+             + '<div class="target-result">'
+             + '<span class="target-score ' + (bateu ? 'win-tag' : 'loss-tag') + '">' + j.ft + '</span>'
+             + '<span class="result-badge ' + (bateu ? 'badge-win' : 'badge-loss') + '">' + (bateu ? 'GREEN' : 'RED') + '</span>'
+             + '</div></div>';
     }).join('');
 }
 
-// Atualizar gráfico com horas de datas anteriores - VERSÃO FINAL CORRIGIDA
+// ------------------------------------------------------------
+// Atualizar gráfico
+// Intervalos calculados em UTC; labels exibidos em hora UK (UTC+0 inverno)
+// ------------------------------------------------------------
 function atualizarGrafico(dados, mercadoKey, horasLimit) {
     const container = document.getElementById('chart-container');
-    const agora = Date.now();
-    
-    // Criar estrutura para armazenar dados por intervalo de hora
+    const agora     = Date.now();
+
     const intervalosPorHora = [];
-    
-    // Criar array de intervalos de hora (da mais antiga para a mais recente)
+
     for (let i = horasLimit - 1; i >= 0; i--) {
         const inicioIntervalo = agora - (i * 60 * 60 * 1000);
-        const fimIntervalo = agora - ((i - 1) * 60 * 60 * 1000);
-        const dataIntervalo = new Date(inicioIntervalo);
-        
+        const fimIntervalo    = agora - ((i - 1) * 60 * 60 * 1000);
+        const dataIntervalo   = new Date(inicioIntervalo);
+
+        // UK inverno = UTC, getUTCHours() dá a hora UK correta
         intervalosPorHora.push({
             inicio: inicioIntervalo,
-            fim: fimIntervalo,
-            hora: dataIntervalo.getHours(),
-            dia: dataIntervalo.getDate(),
-            mes: dataIntervalo.getMonth() + 1,
-            total: 0,
+            fim:    fimIntervalo,
+            hora:   dataIntervalo.getUTCHours(),
+            dia:    dataIntervalo.getUTCDate(),
+            mes:    dataIntervalo.getUTCMonth() + 1,
+            total:  0,
             greens: 0
         });
     }
-    
-    // Contar jogos por intervalo baseado no timestamp completo
+
     dados.forEach(function(j) {
-        const timestampJogo = obterTimestampJogo(j);
-        
-        // Encontrar o intervalo correto para este jogo
+        const ts = obterTimestampJogo(j);
         for (let i = 0; i < intervalosPorHora.length; i++) {
-            const intervalo = intervalosPorHora[i];
-            
-            // Verificar se o jogo está dentro deste intervalo de hora
-            if (timestampJogo >= intervalo.inicio && timestampJogo < intervalo.fim) {
-                intervalo.total++;
-                const g = j.ft.split(' x ').map(Number);
-                if (REGRAS[mercadoKey](g)) intervalo.greens++;
+            const iv = intervalosPorHora[i];
+            if (ts >= iv.inicio && ts < iv.fim) {
+                iv.total++;
+                if (REGRAS[mercadoKey](j.ft.split(' x ').map(Number))) iv.greens++;
                 break;
             }
         }
     });
-    
-    // Criar barras do gráfico
+
     container.innerHTML = '';
-    const hoje = new Date();
-    const diaHoje = hoje.getDate();
-    const mesHoje = hoje.getMonth() + 1;
-    
-    intervalosPorHora.forEach(function(intervalo) {
-        const perc = intervalo.total > 0 ? (intervalo.greens / intervalo.total * 100) : 0;
-        const bar = document.createElement('div');
-        bar.className = 'chart-bar';
+
+    // "Hoje" em UK (UTC)
+    const hojeUK  = new Date();
+    const diaHoje = hojeUK.getUTCDate();
+    const mesHoje = hojeUK.getUTCMonth() + 1;
+
+    intervalosPorHora.forEach(function(iv) {
+        const perc = iv.total > 0 ? (iv.greens / iv.total * 100) : 0;
+        const bar  = document.createElement('div');
+        bar.className    = 'chart-bar';
         bar.style.height = Math.max((perc * 1.5), 20) + 'px';
-        
-        // Formatar label
-        let label = intervalo.hora + 'h';
-        let labelCompleto = String(intervalo.hora).padStart(2, '0') + ':00';
-        
-        // Adicionar data se for de dia diferente
-        if (intervalo.dia !== diaHoje || intervalo.mes !== mesHoje) {
-            label = intervalo.dia + '/' + intervalo.mes + ' ' + intervalo.hora + 'h';
-            labelCompleto = intervalo.dia + '/' + intervalo.mes + ' ' + String(intervalo.hora).padStart(2, '0') + ':00';
+
+        let label         = iv.hora + 'h';
+        let labelCompleto = String(iv.hora).padStart(2, '0') + ':00 (UK)';
+
+        if (iv.dia !== diaHoje || iv.mes !== mesHoje) {
+            label         = iv.dia + '/' + iv.mes + ' ' + iv.hora + 'h';
+            labelCompleto = iv.dia + '/' + iv.mes + ' ' + String(iv.hora).padStart(2, '0') + ':00 (UK)';
         }
-        
-        bar.innerHTML = '<span class="chart-bar-value">' + perc.toFixed(0) + '%</span><span class="chart-bar-label">' + label + '</span>';
-        bar.title = labelCompleto + ' - ' + intervalo.greens + '/' + intervalo.total + ' (' + perc.toFixed(1) + '%)';
+
+        bar.innerHTML = '<span class="chart-bar-value">' + perc.toFixed(0) + '%</span>'
+                      + '<span class="chart-bar-label">' + label + '</span>';
+        bar.title = labelCompleto + ' - ' + iv.greens + '/' + iv.total + ' (' + perc.toFixed(1) + '%)';
         container.appendChild(bar);
     });
 }
 
+// ------------------------------------------------------------
 // Atualizar comparação de mercados
+// ------------------------------------------------------------
 function atualizarComparacao(dados) {
     const container = document.getElementById('comparison-grid');
-    const mercados = ['over2_5', 'under2_5', 'ambasMarcam', 'ambasNaoMarcam', 'casaVence', 'foraVence', 'empate', 'over1_5'];
-    const nomes = {
-        over2_5: 'Over 2.5',
-        under2_5: 'Under 2.5',
-        ambasMarcam: 'Ambas Sim',
-        ambasNaoMarcam: 'Ambas Não',
-        casaVence: 'Casa',
-        foraVence: 'Fora',
-        empate: 'Empate',
-        over1_5: 'Over 1.5'
+    const mercados  = ['over2_5', 'under2_5', 'ambasMarcam', 'ambasNaoMarcam', 'casaVence', 'foraVence', 'empate', 'over1_5'];
+    const nomes     = {
+        over2_5: 'Over 2.5', under2_5: 'Under 2.5',
+        ambasMarcam: 'Ambas Sim', ambasNaoMarcam: 'Ambas Não',
+        casaVence: 'Casa', foraVence: 'Fora',
+        empate: 'Empate', over1_5: 'Over 1.5'
     };
-    
+
     container.innerHTML = mercados.map(function(m) {
-        const greens = dados.filter(function(j) {
-            const g = j.ft.split(' x ').map(Number);
-            return REGRAS[m](g);
-        }).length;
-        const perc = dados.length > 0 ? (greens / dados.length * 100) : 0;
-        
+        const greens = dados.filter(function(j) { return REGRAS[m](j.ft.split(' x ').map(Number)); }).length;
+        const perc   = dados.length > 0 ? (greens / dados.length * 100) : 0;
         return '<div class="comparison-item"><div class="comparison-name">' + nomes[m] + '</div><div class="comparison-value">' + perc.toFixed(1) + '%</div></div>';
     }).join('');
 }
 
+// ------------------------------------------------------------
 // Atualizar sugestões
+// ------------------------------------------------------------
 function atualizarSugestoes(dados) {
     const container = document.getElementById('suggestions-container');
-    const mercados = ['over2_5', 'under2_5', 'ambasMarcam', 'ambasNaoMarcam', 'casaVence', 'foraVence'];
-    const nomes = {
-        over2_5: 'Over 2.5',
-        under2_5: 'Under 2.5',
-        ambasMarcam: 'Ambas Marcam',
-        ambasNaoMarcam: 'Ambas Não Marcam',
-        casaVence: 'Casa Vence',
-        foraVence: 'Fora Vence'
+    const mercados  = ['over2_5', 'under2_5', 'ambasMarcam', 'ambasNaoMarcam', 'casaVence', 'foraVence'];
+    const nomes     = {
+        over2_5: 'Over 2.5', under2_5: 'Under 2.5',
+        ambasMarcam: 'Ambas Marcam', ambasNaoMarcam: 'Ambas Não Marcam',
+        casaVence: 'Casa Vence', foraVence: 'Fora Vence'
     };
-    
+
     const sugestoes = mercados.map(function(m) {
-        const greens = dados.filter(function(j) {
-            const g = j.ft.split(' x ').map(Number);
-            return REGRAS[m](g);
-        }).length;
-        const perc = dados.length > 0 ? (greens / dados.length * 100) : 0;
-        const media = MEDIAS_HISTORICAS[m] || 50;
+        const greens    = dados.filter(function(j) { return REGRAS[m](j.ft.split(' x ').map(Number)); }).length;
+        const perc      = dados.length > 0 ? (greens / dados.length * 100) : 0;
+        const media     = MEDIAS_HISTORICAS[m] || 50;
         const diferenca = Math.abs(perc - media);
-        
-        let confianca = 'Baixa';
+        let confianca   = 'Baixa';
         if (diferenca > 20) confianca = 'Alta';
         else if (diferenca > 10) confianca = 'Média';
-        
-        return { mercado: m, nome: nomes[m], perc: perc, media: media, diferenca: diferenca, confianca: confianca };
+        return { mercado: m, nome: nomes[m], perc, media, diferenca, confianca };
     }).sort(function(a, b) { return b.diferenca - a.diferenca; }).slice(0, 3);
-    
+
     container.innerHTML = sugestoes.map(function(s) {
-        const tipo = s.perc < s.media ? '📉 Comprimido' : '📈 Saturado';
+        const tipo         = s.perc < s.media ? '📉 Comprimido' : '📈 Saturado';
         const recomendacao = s.perc < s.media ? 'Expectativa de alta' : 'Expectativa de correção';
-        
-        return '<div class="suggestion-item"><div><div class="suggestion-market">' + s.nome + '</div><div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">' + tipo + ' - ' + recomendacao + '</div></div><div class="suggestion-confidence">' + s.confianca + '</div></div>';
+        return '<div class="suggestion-item"><div><div class="suggestion-market">' + s.nome + '</div>'
+             + '<div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">' + tipo + ' - ' + recomendacao + '</div>'
+             + '</div><div class="suggestion-confidence">' + s.confianca + '</div></div>';
     }).join('');
 }
 
+// ------------------------------------------------------------
 // Atualizar heatmap
+// j.hora já está em UK — usar diretamente para agrupamento
+// ------------------------------------------------------------
 function atualizarHeatmap(dados, mercadoKey) {
     const container = document.getElementById('heatmap-container');
     const horas = {};
-    
-    for (let h = 0; h < 24; h++) {
-        horas[h] = { total: 0, greens: 0 };
-    }
-    
+    for (let h = 0; h < 24; h++) horas[h] = { total: 0, greens: 0 };
+
     dados.forEach(function(j) {
         const hora = parseInt(j.hora);
-        horas[hora].total++;
-        const g = j.ft.split(' x ').map(Number);
-        if (REGRAS[mercadoKey](g)) horas[hora].greens++;
+        if (hora >= 0 && hora < 24) {
+            horas[hora].total++;
+            if (REGRAS[mercadoKey](j.ft.split(' x ').map(Number))) horas[hora].greens++;
+        }
     });
-    
+
     container.innerHTML = '';
     for (let h = 0; h < 24; h++) {
-        const perc = horas[h].total > 0 ? (horas[h].greens / horas[h].total * 100) : 0;
+        const perc    = horas[h].total > 0 ? (horas[h].greens / horas[h].total * 100) : 0;
         const opacity = perc / 100;
-        const cell = document.createElement('div');
-        cell.className = 'heatmap-cell';
+        const cell    = document.createElement('div');
+        cell.className        = 'heatmap-cell';
         cell.style.background = 'rgba(31, 172, 137, ' + opacity + ')';
-        cell.style.color = opacity > 0.5 ? '#000' : '#fff';
-        cell.innerText = h;
-        cell.title = h + ':00 - ' + perc.toFixed(1) + '% (' + horas[h].greens + '/' + horas[h].total + ')';
+        cell.style.color      = opacity > 0.5 ? '#000' : '#fff';
+        cell.innerText        = h;
+        cell.title            = h + ':00 UK - ' + perc.toFixed(1) + '% (' + horas[h].greens + '/' + horas[h].total + ')';
         container.appendChild(cell);
     }
 }
 
+// ------------------------------------------------------------
 // Gerar alertas inteligentes
+// ------------------------------------------------------------
 function gerarAlertas(dados, mercadoKey, mercadoTxt) {
     const container = document.getElementById('alerts-container');
-    const alertas = [];
-    
-    // Verifica sequência longa
+    const alertas   = [];
+
     let sequencia = 0;
     let tipo = '';
     const ultimos = dados.slice(0, 20);
-    
+
     for (let i = 0; i < ultimos.length; i++) {
-        const g = ultimos[i].ft.split(' x ').map(Number);
-        const bateu = REGRAS[mercadoKey](g);
-        
+        const bateu = REGRAS[mercadoKey](ultimos[i].ft.split(' x ').map(Number));
         if (i === 0) {
             tipo = bateu ? 'green' : 'red';
             sequencia = 1;
         } else {
             const anterior = REGRAS[mercadoKey](ultimos[i-1].ft.split(' x ').map(Number));
-            if (bateu === anterior) {
-                sequencia++;
-            } else {
-                break;
-            }
+            if (bateu === anterior) { sequencia++; } else { break; }
         }
     }
-    
+
     if (sequencia >= 5) {
         const classe = tipo === 'green' ? 'success' : 'info';
-        const emoji = tipo === 'green' ? '✅' : '⚠️';
+        const emoji  = tipo === 'green' ? '✅' : '⚠️';
         alertas.push('<div class="alert ' + classe + '">' + emoji + ' <strong>Sequência Detectada:</strong> ' + sequencia + ' ' + (tipo === 'green' ? 'greens' : 'reds') + ' consecutivos. Probabilidade de inversão aumenta.</div>');
     }
-    
-    // Verifica desvio da média
-    const perc = calcularPercentual(dados, mercadoKey);
-    const media = MEDIAS_HISTORICAS[mercadoKey] || 50;
+
+    const perc      = calcularPercentual(dados, mercadoKey);
+    const media     = MEDIAS_HISTORICAS[mercadoKey] || 50;
     const diferenca = Math.abs(perc - media);
-    
+
     if (diferenca > 20) {
         alertas.push('<div class="alert">🎯 <strong>Desvio Significativo:</strong> O mercado está ' + diferenca.toFixed(1) + '% ' + (perc > media ? 'acima' : 'abaixo') + ' da média histórica. Atenção redobrada!</div>');
     }
-    
+
     container.innerHTML = alertas.join('');
 }
 
+// ------------------------------------------------------------
 // Calcular percentual
+// ------------------------------------------------------------
 function calcularPercentual(dados, mercadoKey) {
-    const total = dados.length;
+    const total  = dados.length;
     const greens = dados.filter(function(j) {
-        const g = j.ft.split(' x ').map(Number);
-        return REGRAS[mercadoKey](g);
+        return REGRAS[mercadoKey](j.ft.split(' x ').map(Number));
     }).length;
     return total > 0 ? (greens / total * 100) : 0;
 }
 
+// ------------------------------------------------------------
 // Mudar tab
+// ------------------------------------------------------------
 function mudarTab(tab) {
-    const tabs = document.querySelectorAll('.tab');
+    const tabs     = document.querySelectorAll('.tab');
     const contents = document.querySelectorAll('.tab-content');
-    
+
     tabs.forEach(function(t) { t.classList.remove('active'); });
     contents.forEach(function(c) { c.style.display = 'none'; });
-    
+
     event.target.classList.add('active');
     document.getElementById('tab-' + tab).style.display = 'block';
 }
 
+// ------------------------------------------------------------
 // Inicialização
+// ------------------------------------------------------------
 const menu = document.getElementById('menu');
 LIGAS.forEach(function(liga, index) {
     const b = document.createElement('button');
-    b.className = 'btn-liga' + (index === ligaAtualIndex ? ' active' : '');
-    b.textContent = liga.display; // Mostra o nome de exibição
+    b.className   = 'btn-liga' + (index === ligaAtualIndex ? ' active' : '');
+    b.textContent = liga.display;
     b.onclick = function() {
-        document.querySelectorAll('.btn-liga').forEach(function(x) { 
-            x.classList.remove('active'); 
-        });
+        document.querySelectorAll('.btn-liga').forEach(function(x) { x.classList.remove('active'); });
         b.classList.add('active');
-        ligaAtualIndex = index; // Armazena apenas o índice
+        ligaAtualIndex = index;
         carregar();
     };
     menu.appendChild(b);
