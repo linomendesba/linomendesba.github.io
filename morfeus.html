@@ -588,6 +588,21 @@ const casasConfig = {
 };
 
 /* =====================================================
+   CACHE DE API — evita rebuscar dados idênticos
+   TTL: 3 minutos por chave
+   ===================================================== */
+const _apiCache = new Map();
+const CACHE_TTL_MS = 3 * 60 * 1000;
+
+async function fetchComCache(url) {
+  const cached = _apiCache.get(url);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) return cached.data;
+  const data = await fetch(url).then(r => r.json());
+  _apiCache.set(url, { ts: Date.now(), data });
+  return data;
+}
+
+/* =====================================================
    GERENCIAMENTO DE BOTÕES E UI
    ===================================================== */
 document.querySelectorAll('.btn-grid').forEach(group => {
@@ -643,6 +658,20 @@ function limparAnalise() {
   document.getElementById('liga-section').style.display = 'none';
 }
 
+/* Atualiza o contador de análises restantes no dia no HTML (se existir) */
+function atualizarContadorUI() {
+  const el = document.getElementById('analises-restantes');
+  if (!el) return;
+  const MAX = 6;
+  const hoje = new Date().toISOString().split('T')[0];
+  const usage = JSON.parse(localStorage.getItem('analysisUsage')) || {};
+  const usadas = usage.date === hoje ? (usage.count || 0) : 0;
+  const restantes = Math.max(0, MAX - usadas);
+  el.textContent = `${restantes} análise(s) restante(s) hoje`;
+  el.style.color = restantes <= 1 ? '#ff6b6b' : restantes <= 3 ? '#ffd93d' : '#00ff88';
+}
+document.addEventListener('DOMContentLoaded', atualizarContadorUI);
+
 /* =====================================================
    BUSCA DE DADOS DA API
    Estrutura confirmada:
@@ -666,9 +695,9 @@ async function buscarDadosAPI(casa, liga, numJogos) {
     const prefix = config.path ? `/${config.path}` : '';
 
     const [resultados, proximos, oddsRaw] = await Promise.all([
-      fetch(`${base}/resultados${prefix}/${ligaEncoded}`).then(r => r.json()),
-      fetch(`${base}/proximos${prefix}/${ligaEncoded}`).then(r => r.json()),
-      fetch(`${base}/odds${prefix}/${ligaEncoded}`).then(r => r.json()).catch(() => [])
+      fetchComCache(`${base}/resultados${prefix}/${ligaEncoded}`),
+      fetchComCache(`${base}/proximos${prefix}/${ligaEncoded}`),
+      fetchComCache(`${base}/odds${prefix}/${ligaEncoded}`).catch(() => [])
     ]);
 
     /* ---- RESULTADOS ---- */
@@ -686,9 +715,7 @@ async function buscarDadosAPI(casa, liga, numJogos) {
       }
     });
 
-    /* ---- PRÓXIMOS JOGOS ----
-       Campos reais: team_home, team_visit, time "HH:MM"
-    ----------------------------- */
+    /* ---- PRÓXIMOS JOGOS ---- */
     dadosCompletos.proximos = proximos.slice(0, 8).map(j => {
       const timeStr = j.time || '';
       let hora = 0, minuto = 0;
@@ -701,22 +728,18 @@ async function buscarDadosAPI(casa, liga, numJogos) {
         time_a:   (j.team_home  || '').trim(),
         time_b:   (j.team_visit || '').trim(),
         horario:  timeStr,
-        hora,
-        minuto,
+        hora, minuto,
         liga:     j.league || liga,
         id:       j.id,
         event_id: j.event_id
       };
     });
 
-    /* ---- ODDS ----
-       Indexadas por "time_casa|time_visitante" (lowercase).
-       Também guardamos o array bruto para o ranking de odds.
-    ----------------------------- */
+    /* ---- ODDS ---- */
     const oddsIndex = {};
     if (Array.isArray(oddsRaw)) {
       oddsRaw.forEach(o => {
-        const key = `${(o.time_casa || '').trim().toLowerCase()}|${(o.time_visitante || '').trim().toLowerCase()}`;
+        const key = `${(o.time_casa||'').trim().toLowerCase()}|${(o.time_visitante||'').trim().toLowerCase()}`;
         oddsIndex[key] = {
           horario:        o.horario || '',
           time_casa:      (o.time_casa || '').trim(),
@@ -736,6 +759,7 @@ async function buscarDadosAPI(casa, liga, numJogos) {
         };
       });
     }
+
     dadosCompletos.oddsIndex       = oddsIndex;
     dadosCompletos.oddsRaw         = Array.isArray(oddsRaw) ? oddsRaw : [];
     dadosCompletos.oddsDisponiveis = Object.keys(oddsIndex).length > 0;
@@ -761,26 +785,10 @@ function calcularRankingTimes(games, mercado) {
     });
     stats[time_a].totalGames++;
     stats[time_b].totalGames++;
-    let hit = false;
-    switch (mercado) {
-      case 'ambasMarcam':    hit = golsA > 0 && golsB > 0;    break;
-      case 'ambasNaoMarcam': hit = golsA === 0 || golsB === 0; break;
-      case 'empate':         hit = golsA === golsB;             break;
-      case 'casaVence':      hit = golsA > golsB;               break;
-      case 'foraVence':      hit = golsB > golsA;               break;
-      case 'over1.5':        hit = total > 1;                   break;
-      case 'under1.5':       hit = total < 2;                   break;
-      case 'over2.5':        hit = total > 2;                   break;
-      case 'under2.5':       hit = total < 3;                   break;
-      case 'over3.5':        hit = total > 3;                   break;
-      case 'under3.5':       hit = total < 4;                   break;
-      case 'over5':          hit = total >= 5;                  break;
-      case 'exact1':         hit = total === 1;                 break;
-      case 'exact2':         hit = total === 2;                 break;
-      case 'exact3':         hit = total === 3;                 break;
-      case 'exact4':         hit = total === 4;                 break;
+    if (isGreenForMercado(mercado, golsA, golsB, total)) {
+      stats[time_a].marketCount++;
+      stats[time_b].marketCount++;
     }
-    if (hit) { stats[time_a].marketCount++; stats[time_b].marketCount++; }
   });
   return Object.values(stats)
     .map(t => ({ ...t, percentage: t.totalGames > 0 ? ((t.marketCount / t.totalGames) * 100).toFixed(1) : '0.0' }))
@@ -788,13 +796,77 @@ function calcularRankingTimes(games, mercado) {
 }
 
 /* =====================================================
-   RANKING DE ODDS (lógica do arquivo de referência)
-
-   Para cada resultado histórico que tem odd disponível,
-   agrupa pelo VALOR da odd do mercado selecionado e conta
-   quantas vezes aquela odd específica deu green.
-   Próximos jogos são destacados se a odd pertence ao top 5.
+   STREAK ATUAL DO MERCADO
+   Conta quantos jogos CONSECUTIVOS estão no mesmo estado
+   (green ou red) nos últimos resultados.
    ===================================================== */
+function calcularStreak(dadosCru, mercado) {
+  if (!dadosCru || dadosCru.length === 0) return { tipo: 'neutro', contagem: 0 };
+
+  const ultimo = dadosCru[dadosCru.length - 1];
+  const tipoUltimo = isGreenForMercado(mercado, ultimo[0], ultimo[1], ultimo[2]) ? 'green' : 'red';
+
+  let contagem = 1;
+  for (let i = dadosCru.length - 2; i >= 0; i--) {
+    const [a, b, t] = dadosCru[i];
+    const tipo = isGreenForMercado(mercado, a, b, t) ? 'green' : 'red';
+    if (tipo === tipoUltimo) contagem++;
+    else break;
+  }
+
+  return { tipo: tipoUltimo, contagem };
+}
+
+/* =====================================================
+   SCORE DE CONFIANÇA COMPOSTO (0–100)
+   Pondera 4 dimensões em pesos diferentes:
+   - Acerto do melhor padrão  40%
+   - Temperatura do mercado   25%
+   - Odd no top 5             20%
+   - Volume de padrões bons   15%
+   ===================================================== */
+function calcularScoreConfianca(maiorAcerto, pctMercado, temOddTop5, qtdPadroesBons, totalPadroes) {
+  const p1 = Math.min(maiorAcerto, 100) * 0.40;
+  const p2 = Math.min(pctMercado, 100)  * 0.25;
+  const p3 = temOddTop5 ? 20 : 0;
+  const volPct = totalPadroes > 0 ? (qtdPadroesBons / totalPadroes) * 100 : 0;
+  const p4 = Math.min(volPct, 100) * 0.15;
+  const score = Math.round(p1 + p2 + p3 + p4);
+
+  let label, emoji;
+  if (score >= 80) { label = 'ALTÍSSIMA';  emoji = '🟢🟢🟢'; }
+  else if (score >= 65) { label = 'ALTA';  emoji = '🟢🟢'; }
+  else if (score >= 50) { label = 'MODERADA'; emoji = '🟡'; }
+  else if (score >= 35) { label = 'BAIXA';  emoji = '🟠'; }
+  else { label = 'MUITO BAIXA'; emoji = '🔴'; }
+
+  return { score, label, emoji };
+}
+
+/* =====================================================
+   RANKING DE ODDS POR FAIXA
+   Agrupa as odds em faixas (ex: 1.30–1.50) em vez de valor
+   exato, gerando muito mais volume estatístico e precisão.
+   ===================================================== */
+const FAIXAS_ODDS = [
+  { label: '1.01–1.30', min: 1.01, max: 1.30 },
+  { label: '1.31–1.50', min: 1.31, max: 1.50 },
+  { label: '1.51–1.70', min: 1.51, max: 1.70 },
+  { label: '1.71–1.90', min: 1.71, max: 1.90 },
+  { label: '1.91–2.10', min: 1.91, max: 2.10 },
+  { label: '2.11–2.30', min: 2.11, max: 2.30 },
+  { label: '2.31–2.60', min: 2.31, max: 2.60 },
+  { label: '2.61–3.00', min: 2.61, max: 3.00 },
+  { label: '3.01–3.50', min: 3.01, max: 3.50 },
+  { label: '3.51–4.50', min: 3.51, max: 4.50 },
+  { label: '4.51–9.99', min: 4.51, max: 9.99 },
+  { label: '10.00+',    min: 10.0, max: Infinity }
+];
+
+function getFaixaOdd(odd) {
+  return FAIXAS_ODDS.find(f => odd >= f.min && odd <= f.max) || null;
+}
+
 function getOddFieldName(mercadoValue) {
   return ({
     'ambasMarcam':    'ambasSim',
@@ -812,100 +884,6 @@ function getOddFieldName(mercadoValue) {
   })[mercadoValue] || null;
 }
 
-function calcularRankingOdds(dados, mercadoValue, martingaleTiros) {
-  const { dadosCru, oddsRaw, oddsIndex } = dados;
-  const oddField = getOddFieldName(mercadoValue);
-  if (!oddField || !oddsRaw || oddsRaw.length === 0) return { ranking: [], top5Odds: new Set() };
-
-  // Monta histórico de resultados indexado por time_a|time_b para cruzar com odds
-  // Como a API de odds é de próximos jogos (não histórico),
-  // usamos a lógica inversa: para cada resultado, tentamos encontrar qual foi
-  // a odd típica daquele confronto no histórico de odds disponível.
-  // Mas como o endpoint de odds só traz próximos, fazemos o ranking
-  // sobre os PRÓXIMOS jogos disponíveis no oddsRaw, cruzando com resultados históricos.
-  //
-  // Lógica real (igual ao arquivo de referência):
-  // Para cada resultado histórico que tem um registro de odds no oddsRaw
-  // (mesmo confronto, mesmo horário), agrupa pelo valor da odd do mercado.
-
-  // Alternativa robusta: usamos os resultados históricos e o oddsRaw juntos.
-  // Para cada confronto do oddsRaw que também aparece nos últimos N resultados,
-  // verificamos se deu green. Para jogos sem cruzamento, usamos os dados puros.
-
-  // Abordagem principal: agrupar os resultados históricos por faixa de odd.
-  // Como não temos o histórico de odds junto aos resultados, fazemos
-  // o ranking dos próximos jogos: quais odds do mercado selecionado
-  // aparecem mais frequentemente nos jogos que deram green.
-
-  // Reconstrução: cruza dadosCru (resultados) com oddsRaw (próximos+odds)
-  // pelo padrão de odds semelhante — agrupa todos os oddsRaw disponíveis
-  // pelo valor da odd do mercado selecionado, e conta quantos resultados
-  // históricos com aquela odd aproximada deram green.
-
-  const oddStats = {}; // key: valor da odd arredondado, value: { jogos, greens }
-
-  // Para cada entrada no oddsRaw que tem a odd do mercado selecionado,
-  // tentamos encontrar o resultado correspondente no dadosCru pelo horário
-  oddsRaw.forEach(o => {
-    const odd = parseFloat(o[`odds_${oddFieldToRawKey(oddField)}`] || 0);
-    if (!odd || odd <= 0) return;
-    const oddKey = odd.toFixed(2);
-
-    // Tenta cruzar com resultado histórico pelo confronto
-    const taKey = (o.time_casa || '').trim().toLowerCase();
-    const tbKey = (o.time_visitante || '').trim().toLowerCase();
-
-    // Procura resultado correspondente no histórico
-    const resultado = dadosCru.find(j => {
-      const jA = (j[3] || '').toLowerCase().trim();
-      const jB = (j[4] || '').toLowerCase().trim();
-      return (jA === taKey && jB === tbKey) || (jA === tbKey && jB === taKey);
-    });
-
-    if (!oddStats[oddKey]) oddStats[oddKey] = { odd: odd, jogos: 0, greens: 0 };
-    oddStats[oddKey].jogos++;
-
-    if (resultado) {
-      const [golsA, golsB, total] = resultado;
-      if (isGreenForMercado(mercadoValue, golsA, golsB, total)) {
-        oddStats[oddKey].greens++;
-      }
-    }
-  });
-
-  // Se não cruzou nada, faz ranking direto por todos resultados históricos
-  // usando as odds típicas da liga como referência
-  if (Object.values(oddStats).every(s => s.jogos < 2)) {
-    dadosCru.forEach((j, idx) => {
-      const [golsA, golsB, total] = j;
-      // Pega a odd mais próxima do oddsRaw para estimar
-      const oddEstimada = estimarOddParaMercado(oddsRaw, oddField, mercadoValue, golsA, golsB);
-      if (!oddEstimada) return;
-      const oddKey = oddEstimada.toFixed(2);
-      if (!oddStats[oddKey]) oddStats[oddKey] = { odd: oddEstimada, jogos: 0, greens: 0 };
-      oddStats[oddKey].jogos++;
-      if (isGreenForMercado(mercadoValue, golsA, golsB, total)) oddStats[oddKey].greens++;
-    });
-  }
-
-  // Ordena por % de green desc, depois por nº de jogos desc
-  const ranking = Object.values(oddStats)
-    .filter(s => s.jogos >= 1)
-    .map(s => ({
-      odd: s.odd,
-      jogos: s.jogos,
-      greens: s.greens,
-      pct: s.jogos > 0 ? ((s.greens / s.jogos) * 100).toFixed(0) : '0'
-    }))
-    .sort((a, b) => parseFloat(b.pct) - parseFloat(a.pct) || b.greens - a.greens || b.jogos - a.jogos);
-
-  // Top 5 odds (por % de green)
-  const top5Odds = new Set(ranking.slice(0, 5).map(r => r.odd.toFixed(2)));
-
-  return { ranking: ranking.slice(0, 30), top5Odds };
-}
-
-// Converte o nome do campo interno para o campo real do oddsRaw
 function oddFieldToRawKey(oddField) {
   return ({
     'casaVence':      'casa_vence',
@@ -923,7 +901,6 @@ function oddFieldToRawKey(oddField) {
   })[oddField] || oddField;
 }
 
-// Verifica se um resultado foi green para o mercado
 function isGreenForMercado(mercado, a, b, total) {
   switch (mercado) {
     case 'ambasMarcam':    return a > 0 && b > 0;
@@ -946,15 +923,97 @@ function isGreenForMercado(mercado, a, b, total) {
   }
 }
 
-// Estima uma odd típica para o mercado com base nos oddsRaw disponíveis
-function estimarOddParaMercado(oddsRaw, oddField, mercado, golsA, golsB) {
-  if (!oddsRaw || oddsRaw.length === 0) return null;
-  // Pega a mediana das odds disponíveis como estimativa
+function calcularRankingOdds(dados, mercadoValue) {
+  const { dadosCru, oddsRaw, oddsIndex } = dados;
+  const oddField = getOddFieldName(mercadoValue);
+  if (!oddField || !oddsRaw || oddsRaw.length === 0) return { rankingExato: [], rankingFaixas: [], top5Odds: new Set(), top3Faixas: new Set() };
+
   const rawKey = `odds_${oddFieldToRawKey(oddField)}`;
-  const odds = oddsRaw.map(o => parseFloat(o[rawKey])).filter(v => v > 0);
-  if (odds.length === 0) return null;
-  odds.sort((a, b) => a - b);
-  return odds[Math.floor(odds.length / 2)];
+
+  /* ---- RANKING EXATO (valor exato da odd) ---- */
+  const oddStats = {};
+  oddsRaw.forEach(o => {
+    const odd = parseFloat(o[rawKey] || 0);
+    if (!odd || odd <= 0) return;
+    const oddKey = odd.toFixed(2);
+    const taKey  = (o.time_casa || '').trim().toLowerCase();
+    const tbKey  = (o.time_visitante || '').trim().toLowerCase();
+
+    // Cruza com resultado histórico
+    const resultado = dadosCru.find(j => {
+      const jA = (j[3]||'').toLowerCase().trim();
+      const jB = (j[4]||'').toLowerCase().trim();
+      return (jA===taKey && jB===tbKey) || (jA===tbKey && jB===taKey);
+    });
+
+    if (!oddStats[oddKey]) oddStats[oddKey] = { odd, jogos: 0, greens: 0 };
+    oddStats[oddKey].jogos++;
+    if (resultado && isGreenForMercado(mercadoValue, resultado[0], resultado[1], resultado[2])) {
+      oddStats[oddKey].greens++;
+    }
+  });
+
+  /* Fallback: se não cruzou, usa todos os resultados com a mediana das odds */
+  const temCruzamento = Object.values(oddStats).some(s => s.greens > 0 || s.jogos > 1);
+  if (!temCruzamento) {
+    const oddsDisp = oddsRaw.map(o => parseFloat(o[rawKey])).filter(v => v > 0);
+    if (oddsDisp.length > 0) {
+      oddsDisp.sort((a,b) => a-b);
+      const mediana = oddsDisp[Math.floor(oddsDisp.length / 2)];
+      const key = mediana.toFixed(2);
+      dadosCru.forEach(j => {
+        const [a, b, t] = j;
+        if (!oddStats[key]) oddStats[key] = { odd: mediana, jogos: 0, greens: 0 };
+        oddStats[key].jogos++;
+        if (isGreenForMercado(mercadoValue, a, b, t)) oddStats[key].greens++;
+      });
+    }
+  }
+
+  const rankingExato = Object.values(oddStats)
+    .filter(s => s.jogos >= 1)
+    .map(s => ({ odd: s.odd, jogos: s.jogos, greens: s.greens, pct: ((s.greens/s.jogos)*100).toFixed(0) }))
+    .sort((a,b) => parseFloat(b.pct)-parseFloat(a.pct) || b.greens-a.greens || b.jogos-a.jogos);
+
+  const top5Odds = new Set(rankingExato.slice(0,5).map(r => r.odd.toFixed(2)));
+
+  /* ---- RANKING POR FAIXAS (maior volume estatístico) ---- */
+  const faixaStats = {};
+  FAIXAS_ODDS.forEach(f => { faixaStats[f.label] = { label: f.label, min: f.min, max: f.max, jogos: 0, greens: 0 }; });
+
+  oddsRaw.forEach(o => {
+    const odd = parseFloat(o[rawKey] || 0);
+    if (!odd || odd <= 0) return;
+    const faixa = getFaixaOdd(odd);
+    if (!faixa) return;
+    const taKey = (o.time_casa || '').trim().toLowerCase();
+    const tbKey = (o.time_visitante || '').trim().toLowerCase();
+    const resultado = dadosCru.find(j => {
+      const jA = (j[3]||'').toLowerCase().trim();
+      const jB = (j[4]||'').toLowerCase().trim();
+      return (jA===taKey && jB===tbKey) || (jA===tbKey && jB===taKey);
+    });
+    faixaStats[faixa.label].jogos++;
+    if (resultado && isGreenForMercado(mercadoValue, resultado[0], resultado[1], resultado[2])) {
+      faixaStats[faixa.label].greens++;
+    }
+  });
+
+  const rankingFaixas = Object.values(faixaStats)
+    .filter(f => f.jogos >= 1)
+    .map(f => ({ ...f, pct: ((f.greens/f.jogos)*100).toFixed(0) }))
+    .sort((a,b) => parseFloat(b.pct)-parseFloat(a.pct) || b.greens-a.greens);
+
+  const top3Faixas = new Set(rankingFaixas.slice(0,3).map(r => r.label));
+
+  return { rankingExato: rankingExato.slice(0,20), rankingFaixas, top5Odds, top3Faixas };
+}
+
+/* Verifica se a odd de um jogo está em faixa favorável */
+function getOddNaFaixaTop(odd, top3Faixas) {
+  if (!odd || !top3Faixas) return false;
+  const faixa = getFaixaOdd(odd);
+  return faixa ? top3Faixas.has(faixa.label) : false;
 }
 
 /* =====================================================
@@ -1155,78 +1214,122 @@ function buscarOddsJogo(oddsIndex, timeA, timeB) {
 function gerarAnaliseLocal(dados, parametros) {
   const { mercado, mercadoValue, liga, martingale, observacao } = parametros;
   const { ranking, padroesEncontrados, proximos, marketAnalysis,
-          totalJogos, oddsIndex, oddsDisponiveis, rankingOdds, top5Odds } = dados;
+          totalJogos, oddsIndex, oddsDisponiveis,
+          rankingExato, rankingFaixas, top5Odds, top3Faixas,
+          streak } = dados;
   const L = [];
 
-  /* ── ANÁLISE ESTATÍSTICA ── */
-  L.push('🎯 ANÁLISE ESTATÍSTICA');
-  const topTimes          = ranking.slice(0,5);
+  const melhorPadrao      = padroesEncontrados[0];
+  const maiorAcerto       = melhorPadrao ? parseFloat(melhorPadrao.percentual) : 0;
+  const pct               = parseInt(marketAnalysis.currentPercentage, 10);
   const padroesBons       = padroesEncontrados.filter(p => parseFloat(p.percentual) >= 70);
   const padroesExcelentes = padroesEncontrados.filter(p => parseFloat(p.percentual) >= 90);
+  const martMap           = { 'Nenhum':1, '1 Cobertura':2, '2 Coberturas':3, '3 Coberturas':4 };
+  const qtd               = martMap[martingale] || 1;
 
-  if (topTimes.length > 0) {
-    L.push(`Os times com maior histórico positivo no mercado "${mercado}" são: ` +
-      topTimes.map(t => `${t.name} (${t.percentage}% em ${t.totalGames} jogos)`).join(', ') + '.');
-  } else {
-    L.push('Não foram encontrados dados suficientes de times para este mercado.');
+  /* ── CABEÇALHO COM TIMESTAMP ── */
+  const agora = new Date();
+  const horaAnalise = `${String(agora.getHours()).padStart(2,'0')}:${String(agora.getMinutes()).padStart(2,'0')}`;
+  L.push(`══════════════════════════════════════════`);
+  L.push(`  ANÁLISE GERADA: ${horaAnalise}  |  Liga: ${liga}  |  Mercado: ${mercado}`);
+  L.push(`══════════════════════════════════════════`);
+  L.push('');
+
+  /* ── SCORE DE CONFIANÇA ── */
+  const temOddTop5NosProximos = (proximos||[]).some(j => {
+    const o = buscarOddsJogo(oddsIndex, j.time_a||'', j.time_b||'');
+    const odd = getOddDoMercado(o, mercadoValue);
+    return odd && top5Odds && top5Odds.has(odd.toFixed(2));
+  });
+  const { score, label, emoji } = calcularScoreConfianca(maiorAcerto, pct, temOddTop5NosProximos, padroesBons.length, padroesEncontrados.length);
+  L.push(`🎯 SCORE DE CONFIANÇA: ${score}/100 — ${label} ${emoji}`);
+  L.push(`   Padrões (${maiorAcerto}% acerto) × Mercado (${pct}%) × Odds Top5 (${temOddTop5NosProximos?'Sim':'Não'}) × Volume (${padroesBons.length}/${padroesEncontrados.length} padrões bons)`);
+  L.push('');
+
+  /* ── STREAK ATUAL ── */
+  if (streak && streak.contagem > 0) {
+    const streakEmoji = streak.tipo === 'green' ? '✅' : '❌';
+    const streakAlerta = streak.tipo === 'red' && streak.contagem >= 3
+      ? ' ⚠️  ATENÇÃO: sequência longa de reds — possível reversão próxima.'
+      : streak.tipo === 'green' && streak.contagem >= 4
+      ? ' ℹ️  Sequência longa de greens — mercado aquecido, mas fique atento a correção.'
+      : '';
+    L.push(`🔥 STREAK ATUAL: ${streak.contagem}x ${streak.tipo.toUpperCase()} consecutivo(s) ${streakEmoji}${streakAlerta}`);
+    L.push('');
   }
-  if (padroesEncontrados.length === 0) {
-    L.push(`Com ${totalJogos} jogos analisados, nenhum padrão recorrente foi identificado. Recomenda-se aumentar o período de análise.`);
+
+  /* ── ANÁLISE ESTATÍSTICA ── */
+  L.push('📊 ANÁLISE ESTATÍSTICA');
+  const topTimes = ranking.slice(0,5);
+  if (topTimes.length > 0) {
+    L.push('Times com maior histórico positivo:');
+    L.push('  ' + topTimes.map(t => `${t.name} (${t.percentage}% / ${t.totalGames}j)`).join('  ·  '));
   } else {
-    L.push(`Foram processados ${totalJogos} jogos. ${padroesBons.length} padrão(ões) com acerto acima de 70% identificados` +
-      (padroesExcelentes.length > 0
-        ? `, incluindo ${padroesExcelentes.length} com acerto acima de 90% — sinal forte de consistência.`
-        : `, indicando nível moderado de previsibilidade.`));
+    L.push('Dados insuficientes de times para este mercado.');
+  }
+  L.push('');
+  if (padroesEncontrados.length === 0) {
+    L.push(`${totalJogos} jogos analisados — nenhum padrão recorrente encontrado. Amplie o período.`);
+  } else {
+    L.push(`${totalJogos} jogos analisados — ${padroesBons.length} padrão(ões) acima de 70%` +
+      (padroesExcelentes.length > 0 ? `, sendo ${padroesExcelentes.length} acima de 90% ⭐` : '.'));
   }
   L.push('');
 
   /* ── PADRÕES RELEVANTES ── */
-  L.push('📊 PADRÕES RELEVANTES');
+  L.push('🔎 PADRÕES RELEVANTES');
   if (padroesEncontrados.length === 0) {
-    L.push('Nenhum padrão com ocorrências suficientes foi encontrado.');
+    L.push('  Nenhum padrão encontrado com ocorrências suficientes.');
   } else {
     padroesEncontrados.slice(0,3).forEach((p, i) => {
-      const nivel = parseFloat(p.percentual) >= 90 ? 'excelente' : parseFloat(p.percentual) >= 70 ? 'forte' : 'moderado';
-      const conf  = p.ocorrencias >= 10 ? 'alta confiabilidade' : p.ocorrencias >= 5 ? 'confiabilidade razoável' : 'baixo volume — use com cautela';
-      L.push(`${i+1}. "${p.padrao}" — Acerto: ${p.percentual}% em ${p.ocorrencias} ocorrência(s) (${p.greens} acertos). Nível ${nivel}, ${conf}. Saltos: ${p.pular_jogos} jogo(s).`);
+      const nivel = parseFloat(p.percentual) >= 90 ? 'EXCELENTE ⭐' : parseFloat(p.percentual) >= 70 ? 'FORTE ✅' : 'MODERADO 🟡';
+      const conf  = p.ocorrencias >= 10 ? 'alta confiabilidade' : p.ocorrencias >= 5 ? 'confiabilidade razoável' : 'baixo volume';
+      L.push(`  ${i+1}. "${p.padrao}"`);
+      L.push(`     Acerto: ${p.percentual}% | ${p.greens}/${p.ocorrencias} ocorrências | ${nivel} | ${conf} | Saltos: ${p.pular_jogos}j`);
     });
   }
   L.push('');
 
-  /* ── RANKING DE ODDS (lógica do arquivo de referência) ── */
-  if (oddsDisponiveis && rankingOdds && rankingOdds.length > 0) {
-    L.push(`💰 RANKING DE ODDS — MERCADO "${mercado}"`);
-    L.push('(Odds agrupadas por valor — quantas vezes cada odd deu green neste mercado)');
+  /* ── RANKING DE ODDS POR FAIXA ── */
+  if (oddsDisponiveis && rankingFaixas && rankingFaixas.filter(f=>f.jogos>0).length > 0) {
+    L.push(`💰 RANKING DE ODDS POR FAIXA — "${mercado}"`);
+    L.push('  (⭐ = faixa no top 3 de greens)');
     L.push('');
-    L.push('  Odd    | Jogos | Greens | %');
-    L.push('  -------|-------|--------|--------');
-
-    rankingOdds.slice(0, 15).forEach(r => {
-      const destaque = top5Odds.has(r.odd.toFixed(2)) ? ' ⭐ TOP' : '';
-      const barra = r.pct >= 80 ? '████' : r.pct >= 60 ? '███' : r.pct >= 40 ? '██' : '█';
-      L.push(`  ${String(r.odd.toFixed(2)).padEnd(6)} | ${String(r.jogos).padEnd(5)} | ${String(r.greens).padEnd(6)} | ${r.pct}%  ${barra}${destaque}`);
+    L.push('  Faixa de Odd   | Jogos | Greens | %    |');
+    L.push('  ---------------|-------|--------|------|');
+    rankingFaixas.filter(f => f.jogos > 0).forEach(f => {
+      const isTop = top3Faixas && top3Faixas.has(f.label);
+      const barra = parseInt(f.pct)>=80?'████':parseInt(f.pct)>=60?'███':parseInt(f.pct)>=40?'██':'█';
+      const mark  = isTop ? ' ⭐' : '  ';
+      L.push(`${mark} ${f.label.padEnd(14)} | ${String(f.jogos).padEnd(5)} | ${String(f.greens).padEnd(6)} | ${String(f.pct).padStart(3)}% | ${barra}`);
     });
 
-    if (top5Odds.size > 0) {
+    /* Ranking exato — apenas os top 10 */
+    if (rankingExato && rankingExato.length > 0) {
       L.push('');
-      L.push(`  ⭐ Top 5 odds com maior % de green: ${[...top5Odds].join(', ')}`);
+      L.push('  Top 10 odds por valor exato:');
+      L.push('  Odd    | Jogos | Greens | %');
+      L.push('  -------|-------|--------|------');
+      rankingExato.slice(0,10).forEach(r => {
+        const mark = top5Odds && top5Odds.has(r.odd.toFixed(2)) ? '⭐' : '  ';
+        L.push(`  ${mark}${String(r.odd.toFixed(2)).padEnd(5)} | ${String(r.jogos).padEnd(5)} | ${String(r.greens).padEnd(6)} | ${r.pct}%`);
+      });
     }
     L.push('');
   }
 
   /* ── GRÁFICO DE MERCADO ── */
-  L.push('📈 ANÁLISE DE GRÁFICO DE MERCADO');
-  const pct = parseInt(marketAnalysis.currentPercentage, 10);
-  const tend = pct>=70 ? 'Mercado aquecido — alta frequência de acertos recentes.'
-    : pct>=50 ? 'Frequência moderada. Atenção ao contexto antes de entrar.'
-    : pct>=30 ? 'Momento desfavorável. Frequência recente está baixa.'
-    : 'Mercado frio. Frequência muito baixa — risco elevado.';
-  L.push(`Porcentagem atual do mercado "${mercado}": ${pct}%. ${tend}`);
+  L.push('📈 TEMPERATURA DO MERCADO');
+  const tend = pct>=70 ? '🔥 Mercado aquecido — alta frequência de greens recentes.'
+    : pct>=50 ? '🟡 Frequência moderada. Atenção ao contexto antes de entrar.'
+    : pct>=30 ? '🟠 Momento desfavorável. Frequência recente está baixa.'
+    : '❄️  Mercado frio. Frequência muito baixa — risco elevado.';
+  L.push(`Porcentagem atual "${mercado}": ${pct}% — ${tend}`);
   if (marketAnalysis.top5.length > 0) {
     L.push('');
-    L.push('Top 5 melhores faixas de porcentagem:');
+    L.push('  Top 5 faixas de porcentagem com maior acerto pós-entrada:');
     marketAnalysis.top5.forEach((item, i) => {
-      L.push(`  ${i+1}. "${item.marketGroup}" — Acerto pós-entrada: ${item.greenPercentage}% | Ocorrências: ${item.occurrences} | ✅ ${item.greens} | ❌ ${item.reds} — ${item.analysis}`);
+      L.push(`  ${i+1}. "${item.marketGroup}" → ${item.greenPercentage}% acerto | ${item.occurrences}x | ✅${item.greens} ❌${item.reds} — ${item.analysis}`);
     });
   }
   L.push('');
@@ -1238,55 +1341,46 @@ function gerarAnaliseLocal(dados, parametros) {
     timesTop.has((j.time_a||'').toLowerCase().trim()) ||
     timesTop.has((j.time_b||'').toLowerCase().trim())
   );
-  const melhorPadrao = padroesEncontrados[0];
-  const martMap = { 'Nenhum':1, '1 Cobertura':2, '2 Coberturas':3, '3 Coberturas':4 };
-  const qtd = martMap[martingale] || 1;
 
-  if (!melhorPadrao || parseFloat(melhorPadrao.percentual) < 55) {
-    L.push('Nenhuma oportunidade clara identificada neste momento.');
-    L.push('Acerto máximo dos padrões abaixo de 55%. Aguarde próxima janela ou amplie o período.');
+  if (!melhorPadrao || maiorAcerto < 55) {
+    L.push('  Nenhuma oportunidade clara identificada neste momento.');
+    L.push(`  Acerto máximo (${maiorAcerto}%) abaixo do mínimo de 55%. Aguarde ou amplie o período.`);
   } else {
     const candidatos = (jogosBons.length > 0 ? jogosBons : (proximos||[])).slice(0, qtd);
     if (candidatos.length === 0) {
-      L.push('Não há confrontos próximos disponíveis.');
+      L.push('  Não há confrontos próximos disponíveis.');
     } else {
-      L.push(`Liga: ${liga}`);
-      L.push(`Mercado: ${mercado}`);
+      L.push(`  Liga: ${liga}  |  Mercado: ${mercado}  |  Martingale: ${martingale}`);
       L.push('');
-      L.push(`⏰ Horários: ${candidatos.map(j => j.horario).join(' ▸ ')}`);
+      L.push(`  ⏰ Horários: ${candidatos.map(j => j.horario).join(' ▸ ')}`);
       L.push('');
-      L.push('Confrontos:');
       candidatos.forEach((j, i) => {
         const ta  = j.time_a || '—';
         const tb  = j.time_b || '—';
         const hr  = j.horario;
-        const pre = i===0 ? '[Principal]' : `[Cobertura ${i}]`;
-
-        // Odd do mercado selecionado
+        const pre = i===0 ? '▶ [Principal]  ' : `  [Cobertura ${i}]`;
         const oddsJogo = buscarOddsJogo(oddsIndex, ta, tb);
         const odd = getOddDoMercado(oddsJogo, mercadoValue);
         const oddStr = odd ? ` | Odd: ${odd.toFixed(2)} ${avaliarOdd(odd)}` : '';
-
-        // Destaque se odd está no top 5
         const oddKey = odd ? odd.toFixed(2) : null;
-        const isTop5 = oddKey && top5Odds && top5Odds.has(oddKey);
-        const top5Str = isTop5 ? ' ⭐ ODD NO TOP 5!' : '';
-
-        L.push(`  ${pre} ${hr} — ${ta} x ${tb}${oddStr}${top5Str}`);
+        const isExato = oddKey && top5Odds && top5Odds.has(oddKey);
+        const isFaixa = odd && top3Faixas && getOddNaFaixaTop(odd, top3Faixas);
+        const topStr  = isExato ? ' ⭐ ODD EXATA NO TOP 5!' : isFaixa ? ' ✅ Faixa favorável' : '';
+        L.push(`  ${pre} ${hr} — ${ta} x ${tb}${oddStr}${topStr}`);
       });
       L.push('');
       const justBase = jogosBons.length > 0
-        ? 'Confrontos com times de bom histórico no mercado. '
-        : 'Confrontos selecionados por sequência cronológica. ';
-      L.push(`Justificativa: ${justBase}O padrão "${melhorPadrao.padrao}" apoia esta entrada com ${melhorPadrao.percentual}% de acerto em ${melhorPadrao.ocorrencias} ocorrência(s).`);
+        ? 'Times com bom histórico no mercado detectados. '
+        : 'Seleção cronológica (nenhum time top nos próximos). ';
+      L.push(`  Justificativa: ${justBase}Padrão "${melhorPadrao.padrao}" → ${melhorPadrao.percentual}% de acerto em ${melhorPadrao.ocorrencias} ocorrências.`);
     }
   }
   L.push('');
 
-  /* ── TODOS OS PRÓXIMOS JOGOS COM ODDS ── */
+  /* ── TODOS OS PRÓXIMOS JOGOS COM ODD ── */
   if (oddsDisponiveis && proximos && proximos.length > 0) {
     L.push(`📋 PRÓXIMOS JOGOS — ODD "${mercado}"`);
-    L.push('(⭐ = odd pertence ao top 5 de greens históricos)');
+    L.push('  (⭐ = valor exato no top 5 | ✅ = faixa no top 3)');
     L.push('');
     proximos.forEach(j => {
       const ta = j.time_a || '—';
@@ -1298,18 +1392,18 @@ function gerarAnaliseLocal(dados, parametros) {
         L.push(`  ${hr} — ${ta} x ${tb}  (odd não disponível)`);
         return;
       }
-      const oddKey = odd.toFixed(2);
-      const isTop  = top5Odds && top5Odds.has(oddKey);
-      const label  = isTop ? ' ⭐' : '';
-      L.push(`  ${hr} — ${ta} x ${tb}  | Odd: ${oddKey}${label}`);
+      const oddKey  = odd.toFixed(2);
+      const isExato = top5Odds && top5Odds.has(oddKey);
+      const isFaixa = top3Faixas && getOddNaFaixaTop(odd, top3Faixas);
+      const mark    = isExato ? '⭐' : isFaixa ? '✅' : '  ';
+      L.push(`  ${mark} ${hr} — ${ta} x ${tb}  | Odd: ${oddKey}`);
     });
     L.push('');
   }
 
   /* ── ESTRATÉGIA MARTINGALE ── */
   L.push('🎲 ESTRATÉGIA MARTINGALE');
-  const maiorAcerto = melhorPadrao ? parseFloat(melhorPadrao.percentual) : 0;
-  const coberturas  = qtd - 1;
+  const coberturas = qtd - 1;
   let aval;
   if (martingale === 'Nenhum') {
     aval = maiorAcerto>=70
@@ -1317,40 +1411,39 @@ function gerarAnaliseLocal(dados, parametros) {
       : `Entrada simples. Acerto máximo: ${maiorAcerto}% — proceda com cautela.`;
   } else {
     aval = maiorAcerto>=80
-      ? `${coberturas} cobertura(s) bem embasada(s) pelos padrões (${maiorAcerto}%). Bom suporte estatístico.`
+      ? `${coberturas} cobertura(s) bem embasada(s) (padrão ${maiorAcerto}%). Bom suporte estatístico.`
       : maiorAcerto>=60
-        ? `${coberturas} cobertura(s) razoável, mas acerto (${maiorAcerto}%) não é excepcional. Gerencie o tamanho das apostas.`
-        : `${coberturas} cobertura(s) com risco elevado (acerto ${maiorAcerto}%). Considere aguardar padrões mais fortes.`;
+        ? `${coberturas} cobertura(s) razoável (${maiorAcerto}% de acerto). Gerencie o tamanho das apostas.`
+        : `${coberturas} cobertura(s) com risco elevado (${maiorAcerto}%). Aguarde padrões mais fortes.`;
   }
-  L.push(aval);
+  L.push(`  ${aval}`);
   L.push('');
 
   /* ── RECOMENDAÇÃO FINAL ── */
   L.push('💡 RECOMENDAÇÃO FINAL');
   const melhorGrupo = marketAnalysis.top5[0];
-
-  // Verifica confluência: padrão forte + odd no top 5 nos próximos jogos
-  const temOddTop5NosProximos = proximos && proximos.some(j => {
-    const o = buscarOddsJogo(oddsIndex, j.time_a||'', j.time_b||'');
-    const odd = getOddDoMercado(o, mercadoValue);
-    return odd && top5Odds && top5Odds.has(odd.toFixed(2));
-  });
-
   let rec;
-  if (maiorAcerto>=80 && pct>=50 && temOddTop5NosProximos) {
-    rec = `Recomendação: ENTRADA FORTE. Confluência tripla: padrões (${maiorAcerto}%), mercado (${pct}%) e odd dos próximos jogos pertence ao top 5 histórico de greens. Alta confiança.`;
-  } else if (maiorAcerto>=80 && pct>=50) {
-    rec = `Recomendação: ENTRADA. Padrões fortes (${maiorAcerto}%) e mercado favorável (${pct}%).`;
-    if (melhorGrupo) rec += ` Faixa "${melhorGrupo.marketGroup}" resulta em ${melhorGrupo.greenPercentage}% pós-entrada historicamente.`;
-  } else if (maiorAcerto>=65 || pct>=55) {
-    rec = `Recomendação: ENTRADA COM CAUTELA. Sinais moderados — padrões: ${maiorAcerto}%, mercado: ${pct}%. Use gestão rigorosa de banca.`;
-    if (temOddTop5NosProximos) rec += ' Ponto positivo: odd dos próximos jogos está no top 5 histórico.';
+  if (score >= 80) {
+    rec = `✅ ENTRADA FORTE (Score ${score}/100). Confluência tripla detectada — padrões, mercado e odds todos favoráveis.`;
+    if (melhorGrupo) rec += ` Faixa "${melhorGrupo.marketGroup}" → ${melhorGrupo.greenPercentage}% de acerto pós-entrada.`;
+  } else if (score >= 65) {
+    rec = `🟡 ENTRADA (Score ${score}/100). Sinais positivos mas sem confluência total. Gerencie a banca com disciplina.`;
+    if (temOddTop5NosProximos) rec += ' Ponto positivo: odd dos próximos jogos no top 5 histórico.';
+  } else if (score >= 50) {
+    rec = `🟠 ENTRADA COM CAUTELA (Score ${score}/100). Indicadores moderados — padrões: ${maiorAcerto}%, mercado: ${pct}%. Risco existe.`;
   } else {
-    rec = `Recomendação: AGUARDAR. Padrões (${maiorAcerto}%) e mercado (${pct}%) abaixo dos critérios mínimos. Monitore a próxima janela.`;
+    rec = `🔴 AGUARDAR (Score ${score}/100). Indicadores abaixo do mínimo de segurança. Monitore a próxima janela.`;
   }
 
-  if (observacao && observacao.trim()) rec += ` Obs: "${observacao.trim()}".`;
-  L.push(rec);
+  /* Alerta de streak adverso */
+  if (streak && streak.tipo === 'red' && streak.contagem >= 4) {
+    rec += ` ⚠️ Streak de ${streak.contagem}x red — momento de alta reversão potencial, mas também de alto risco acumulado.`;
+  }
+
+  if (observacao && observacao.trim()) rec += ` | Obs: "${observacao.trim()}"`;
+  L.push(`  ${rec}`);
+  L.push('');
+  L.push(`══════════════════════════════════════════`);
 
   return L.join('\n');
 }
@@ -1413,18 +1506,21 @@ async function gerarAnalise() {
       mercadoValue
     );
 
+    // Streak atual
+    dados.streak = calcularStreak(dados.dadosCru, mercadoValue);
+
     resultTitle.innerHTML = '<div class="loading"><div class="spinner"></div>Analisando padrões e odds...</div>';
 
     const tiros = martCob + 1;
-    const [workerResult] = await Promise.all([
-      analyzeInWorker(dados.dadosCru, { tiros, market: mercadoValue, combinado: true })
-    ]);
+    const workerResult = await analyzeInWorker(dados.dadosCru, { tiros, market: mercadoValue, combinado: true });
     dados.padroesEncontrados = workerResult.resultados;
 
-    // Ranking de odds (lógica do arquivo de referência)
-    const { ranking: rankOdds, top5Odds } = calcularRankingOdds(dados, mercadoValue, tiros);
-    dados.rankingOdds = rankOdds;
-    dados.top5Odds    = top5Odds;
+    // Ranking de odds (exato + faixas)
+    const { rankingExato, rankingFaixas, top5Odds, top3Faixas } = calcularRankingOdds(dados, mercadoValue);
+    dados.rankingExato  = rankingExato;
+    dados.rankingFaixas = rankingFaixas;
+    dados.top5Odds      = top5Odds;
+    dados.top3Faixas    = top3Faixas;
 
     const sm         = mapMercado(mercadoValue);
     const linesToSum = casa === 'kiron' ? 30 : 20;
@@ -1448,6 +1544,7 @@ async function gerarAnalise() {
     usageData.count++;
     usageData.lastAnalysis = now.toISOString();
     localStorage.setItem('analysisUsage', JSON.stringify(usageData));
+    atualizarContadorUI();
 
   } catch (error) {
     resultTitle.innerHTML = '✖ Erro na Análise';
