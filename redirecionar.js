@@ -21,7 +21,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/tv/" ||
     url === "https://www.betstat.site/tvkiron/" ||
     url === "https://www.betstat.site/central/" ||
-    url === "https://www.betstat.site/morfeus.html" ||
+    url === "https://www.betstat.site/morfeus" ||
     url === "https://www.betstat.site/geradorbet365/" ||
     url === "https://www.betstat.site/multkiron.html" ||
     url === "https://www.betstat.site/morfeus.html" ||
