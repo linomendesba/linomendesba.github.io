@@ -648,6 +648,27 @@ Estado.carregar();
     }
     @keyframes toastIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
     @keyframes toastOut { from { opacity:1; } to { opacity:0; } }
+
+    #painel-selecao {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 10px; flex-wrap: wrap; margin-bottom: 6px;
+    }
+    #selecao-indicator { margin-bottom: 0; flex: 1; min-width: 0; }
+    #stats-selecao { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+    #stats-selecao:empty { display: none; }
+    .stat-row {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.06); border-radius: 8px;
+      padding: 4px 10px; font-size: 0.78em; white-space: nowrap;
+    }
+    .stat-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .stat-label { font-weight: bold; color: #fff; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+    .stat-sep { color: rgba(255,255,255,0.3); }
+    .stat-count-green { color: #4cff55; font-weight: bold; }
+    .stat-count-red   { color: #ff5555; font-weight: bold; }
+    .stat-pct { margin-left: 2px; padding: 1px 7px; border-radius: 10px; font-weight: bold; color: #fff; font-size: 0.88em; }
+    .stat-pct-verde  { background: #018b06; }
+    .stat-pct-branca { background: #555; }
   `;
   document.head.appendChild(style);
 
@@ -668,20 +689,95 @@ function showToast(msg) {
 }
 
 // ─── INDICADOR DE SELEÇÕES ATIVAS ────────────────────────────────────────────
-function criarOuObterIndicador() {
-  let el = document.getElementById("selecao-indicator");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "selecao-indicator";
+function criarOuObterPainel() {
+  let painel = document.getElementById("painel-selecao");
+  if (!painel) {
+    painel = document.createElement("div");
+    painel.id = "painel-selecao";
+
+    const indicator = document.createElement("div");
+    indicator.id = "selecao-indicator";
+    painel.appendChild(indicator);
+
+    const stats = document.createElement("div");
+    stats.id = "stats-selecao";
+    painel.appendChild(stats);
+
     const tabela = document.getElementById("tabelaResultados");
-    if (tabela) tabela.parentNode.insertBefore(el, tabela);
+    if (tabela) tabela.parentNode.insertBefore(painel, tabela);
   }
-  return el;
+  return painel;
+}
+
+function criarOuObterIndicador() {
+  criarOuObterPainel();
+  return document.getElementById("selecao-indicator");
+}
+
+function criarOuObterStats() {
+  criarOuObterPainel();
+  return document.getElementById("stats-selecao");
+}
+
+// statsMap: Map< valor -> { green, red, cor } >
+function atualizarStatsSelecao(statsMap) {
+  const el = criarOuObterStats();
+  el.innerHTML = "";
+
+  if (!statsMap || statsMap.size === 0) return;
+
+  statsMap.forEach(({ green, red, cor, label }, valor) => {
+    const total = green + red;
+    if (total === 0) return;
+    const pct = Math.round((green / total) * 100);
+
+    const row = document.createElement("div");
+    row.className = "stat-row";
+
+    const dot = document.createElement("span");
+    dot.className = "stat-color-dot";
+    dot.style.background = cor;
+
+    const lbl = document.createElement("span");
+    lbl.className = "stat-label";
+    lbl.title = valor;
+    lbl.textContent = label ? `${label}: ${valor}` : valor;
+
+    const sep = document.createElement("span");
+    sep.className = "stat-sep";
+    sep.textContent = "·";
+
+    const gSpan = document.createElement("span");
+    gSpan.className = "stat-count-green";
+    gSpan.textContent = `${green}✔`;
+
+    const sep2 = document.createElement("span");
+    sep2.className = "stat-sep";
+    sep2.textContent = "/";
+
+    const rSpan = document.createElement("span");
+    rSpan.className = "stat-count-red";
+    rSpan.textContent = `${red}✘`;
+
+    const pctSpan = document.createElement("span");
+    pctSpan.className = `stat-pct ${pct >= 50 ? "stat-pct-verde" : "stat-pct-branca"}`;
+    pctSpan.textContent = `${pct}%`;
+
+    row.append(dot, lbl, sep, gSpan, sep2, rSpan, pctSpan);
+    el.appendChild(row);
+  });
 }
 
 function atualizarIndicadorSelecao() {
   const el = criarOuObterIndicador();
   el.innerHTML = "";
+
+  // Limpa stats também se nada selecionado
+  const temSelecoes = Estado.placarSelecionados.length + Estado.timesSelecionados.length + Estado.oddsSelecionadas.length;
+  if (temSelecoes === 0) {
+    const statsEl = criarOuObterStats();
+    if (statsEl) statsEl.innerHTML = "";
+  }
 
   const grupos = [
     { lista: Estado.placarSelecionados, chave: "placarSelecionados", prefixo: "Placar" },
@@ -1078,6 +1174,20 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
   const processedMatches      = new Set();
 
+  // Stats por seleção: Map< valor -> { green, red, cor, label } >
+  const statsPlacar = new Map();
+  const statsTime   = new Map();
+  const statsOdd    = new Map();
+  Estado.placarSelecionados.forEach((val, i) => {
+    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Placar" });
+  });
+  Estado.timesSelecionados.forEach((val, i) => {
+    statsTime.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Time" });
+  });
+  Estado.oddsSelecionadas.forEach((val, i) => {
+    statsOdd.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Odd" });
+  });
+
   dados.forEach(dado => {
     const ds    = getDateStr(dado.data);
     const chave = `${ds}-${dado.hora}`;
@@ -1202,6 +1312,40 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const tgCel = linha.children[linha.children.length - 3];
     tgCel.textContent = parseInt(tgCel.textContent) + tg;
     totalGolsPorColuna[idx] += tg;
+
+    // Acumula stats por seleção
+    if (!mostrarTimes) {
+      const textoP = placarTexto.textContent.trim();
+      for (const val of Estado.placarSelecionados) {
+        if (textoP.includes(val)) {
+          const s = statsPlacar.get(val);
+          if (s) { acerto ? s.green++ : s.red++; }
+          break;
+        }
+      }
+    }
+    if (mostrarTimes) {
+      for (const val of Estado.timesSelecionados) {
+        if (dado.time_a === val || dado.time_b === val) {
+          const s = statsTime.get(val);
+          if (s) { acerto ? s.green++ : s.red++; }
+          break;
+        }
+      }
+    }
+    if (mostrarOdds) {
+      const oel = placar.querySelector(".odds");
+      if (oel) {
+        const oddTxt = oel.textContent.trim();
+        for (const val of Estado.oddsSelecionadas) {
+          if (oddTxt === val) {
+            const s = statsOdd.get(val);
+            if (s) { acerto ? s.green++ : s.red++; }
+            break;
+          }
+        }
+      }
+    }
   });
 
   // Próximos jogos
@@ -1328,9 +1472,16 @@ function criarTabela(dados, oddsData, proximosJogos) {
   document.getElementById("totalGols").textContent     = `Gols: ${stats.totalGols}`;
   document.getElementById("mediaGolsHora").textContent = `Médias: ${stats.mediaGolsHora}`;
 
+  // Monta mapa unificado de stats para exibição (placar + time + odd)
+  const statsUnificado = new Map();
+  statsPlacar.forEach((v, k) => statsUnificado.set(k, v));
+  statsTime.forEach((v, k)   => statsUnificado.set(k, v));
+  statsOdd.forEach((v, k)    => statsUnificado.set(k, v));
+
   aplicarHighlights();
+  atualizarStatsSelecao(statsUnificado);
   updateSelectedRows();
-  criarOuObterIndicador();
+  criarOuObterPainel();
 }
 
 // ─── BUSCA COM DIFF ───────────────────────────────────────────────────────────
