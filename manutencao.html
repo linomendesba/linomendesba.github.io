@@ -518,11 +518,118 @@ const minutosFixos = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
 
-let placarSelecionado = localStorage.getItem("placarSelecionado");
-let timeSelecionado = localStorage.getItem("timeSelecionado");
-let oddSelecionada = localStorage.getItem("oddSelecionada");
+// ─── CORES PARA MULTI-SELEÇÃO ───────────────────────────────────────────────
+const CORES_SELECAO = [
+  { bg: "#7B2FBE", label: "roxo" },     // 1ª seleção
+  { bg: "#E6A817", label: "amarelo" },  // 2ª seleção
+  { bg: "#1E88E5", label: "azul" },     // 3ª seleção
+  { bg: "#E53935", label: "vermelho" }, // 4ª seleção
+  { bg: "#00897B", label: "verde" },    // 5ª seleção
+];
+
+// ─── ESTADO DE SELEÇÃO MÚLTIPLA ──────────────────────────────────────────────
+// Cada array pode conter até 5 itens
+let placarSelecionados = JSON.parse(localStorage.getItem("placarSelecionados")) || [];
+let timesSelecionados   = JSON.parse(localStorage.getItem("timesSelecionados"))  || [];
+let oddsSelecionadas    = JSON.parse(localStorage.getItem("oddsSelecionadas"))   || [];
+
+// Mantém compatibilidade com código legado que usava variáveis únicas
+let placarSelecionado = placarSelecionados[0] || localStorage.getItem("placarSelecionado") || null;
+let timeSelecionado   = timesSelecionados[0]  || localStorage.getItem("timeSelecionado")  || null;
+let oddSelecionada    = oddsSelecionadas[0]   || localStorage.getItem("oddSelecionada")   || null;
+
 let selectedChaves = JSON.parse(localStorage.getItem("selectedChaves")) || [];
 
+// ─── HELPERS DE SELEÇÃO MÚLTIPLA ─────────────────────────────────────────────
+function toggleSelecao(lista, valor, storageKey) {
+  const idx = lista.indexOf(valor);
+  if (idx !== -1) {
+    lista.splice(idx, 1);
+  } else {
+    if (lista.length >= 5) lista.shift(); // remove o mais antigo se já tiver 5
+    lista.push(valor);
+  }
+  localStorage.setItem(storageKey, JSON.stringify(lista));
+}
+
+function getCorSelecao(lista, valor) {
+  const idx = lista.indexOf(valor);
+  if (idx === -1) return null;
+  return CORES_SELECAO[idx % CORES_SELECAO.length];
+}
+
+// ─── INJEÇÃO DE ESTILOS DINÂMICOS ────────────────────────────────────────────
+(function injectMultiSelectStyles() {
+  if (document.getElementById("multi-select-styles")) return;
+  const style = document.createElement("style");
+  style.id = "multi-select-styles";
+  style.textContent = `
+    .placar-selecionado { outline: 3px solid var(--sel-color, #7B2FBE) !important; }
+    .time-selecionado   { outline: 3px solid var(--sel-color, #7B2FBE) !important; }
+    .odd-selecionada    { outline: 3px solid var(--sel-color, #7B2FBE) !important; color: var(--sel-color, #7B2FBE) !important; }
+    .placar-futuro-odd  { font-size: 0.7em; opacity: 0.85; margin-top: 2px; color: #f0c040; font-weight: bold; }
+  `;
+  document.head.appendChild(style);
+})();
+
+// ─── FUNÇÕES DE HIGHLIGHT ─────────────────────────────────────────────────────
+function selecionarPlacaresIguais() {
+  document.querySelectorAll(".placar").forEach((placar) => {
+    const texto = placar.querySelector(".placar-texto")?.textContent.trim() || placar.textContent.trim();
+    placar.classList.remove("placar-selecionado");
+    placar.style.removeProperty("--sel-color");
+
+    for (const val of placarSelecionados) {
+      if (texto.includes(val)) {
+        const cor = getCorSelecao(placarSelecionados, val);
+        placar.style.setProperty("--sel-color", cor.bg);
+        placar.classList.add("placar-selecionado");
+        break;
+      }
+    }
+  });
+}
+
+function selecionarJogosPorTime() {
+  const mostrarTimes = document.querySelector("#mostrarTimes")?.value === "sim";
+  document.querySelectorAll(".placar").forEach((placar) => {
+    placar.classList.remove("time-selecionado");
+    placar.style.removeProperty("--sel-color");
+
+    if (!mostrarTimes || timesSelecionados.length === 0) return;
+
+    const timeA = placar.getAttribute("data-time-a");
+    const timeB = placar.getAttribute("data-time-b");
+
+    for (const val of timesSelecionados) {
+      if (timeA === val || timeB === val) {
+        const cor = getCorSelecao(timesSelecionados, val);
+        placar.style.setProperty("--sel-color", cor.bg);
+        placar.classList.add("time-selecionado");
+        break;
+      }
+    }
+  });
+}
+
+function selecionarOddsIguais() {
+  document.querySelectorAll(".odds").forEach((oddElement) => {
+    const texto = oddElement.textContent.trim();
+    oddElement.classList.remove("odd-selecionada");
+    oddElement.style.removeProperty("--sel-color");
+
+    for (const val of oddsSelecionadas) {
+      if (texto === val) {
+        const cor = getCorSelecao(oddsSelecionadas, val);
+        oddElement.style.setProperty("--sel-color", cor.bg);
+        oddElement.classList.add("odd-selecionada");
+        break;
+      }
+    }
+  });
+}
+
+// ─── UTILITÁRIOS ─────────────────────────────────────────────────────────────
 function showErrorMessage(message) {
   const errorMessageDiv = document.getElementById("errorMessage");
   errorMessageDiv.textContent = message;
@@ -535,49 +642,6 @@ function hideErrorMessage() {
   errorMessageDiv.style.display = "none";
 }
 
-function selecionarPlacaresIguais(placarAlvo) {
-  const placares = document.querySelectorAll(".placar");
-  placares.forEach((placar) => {
-    const texto = placar.querySelector(".placar-texto")?.textContent.trim() || placar.textContent.trim();
-    if (placarAlvo && texto.includes(placarAlvo)) {
-      placar.classList.add("placar-selecionado");
-    } else {
-      placar.classList.remove("placar-selecionado");
-    }
-  });
-}
-
-function selecionarJogosPorTime(timeAlvo) {
-  const placares = document.querySelectorAll(".placar");
-  if (!timeAlvo || document.querySelector("#mostrarTimes").value !== "sim") {
-    placares.forEach((placar) => {
-      placar.classList.remove("time-selecionado");
-    });
-    return;
-  }
-  placares.forEach((placar) => {
-    const timeA = placar.getAttribute("data-time-a");
-    const timeB = placar.getAttribute("data-time-b");
-    if (timeA === timeAlvo || timeB === timeAlvo) {
-      placar.classList.add("time-selecionado");
-    } else {
-      placar.classList.remove("time-selecionado");
-    }
-  });
-}
-
-function selecionarOddsIguais(oddAlvo) {
-  const oddsElements = document.querySelectorAll(".odds");
-  oddsElements.forEach((oddElement) => {
-    const oddTexto = oddElement.textContent.trim();
-    if (oddAlvo && oddTexto === oddAlvo) {
-      oddElement.classList.add("odd-selecionada");
-    } else {
-      oddElement.classList.remove("odd-selecionada");
-    }
-  });
-}
-
 function calculateGoalStats(todasLinhas) {
   const totalGols = todasLinhas.reduce(
     (acc, row) =>
@@ -586,22 +650,14 @@ function calculateGoalStats(todasLinhas) {
   );
   const totalHorasJogadas = todasLinhas.length;
   const mediaGolsHora =
-    totalHorasJogadas > 0
-      ? (totalGols / totalHorasJogadas).toFixed(2)
-      : 0;
-
-  return {
-    totalGols,
-    mediaGolsHora,
-  };
+    totalHorasJogadas > 0 ? (totalGols / totalHorasJogadas).toFixed(2) : 0;
+  return { totalGols, mediaGolsHora };
 }
 
 async function fetchOdds() {
   try {
     const response = await fetch(ROTAS_API.odds(LIGA_ATUAL));
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar odds: ${response.status} ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`Erro ao buscar odds: ${response.status} ${response.statusText}`);
     const oddsData = await response.json();
     console.log("Odds fetched para:", LIGA_ATUAL, oddsData);
     return oddsData;
@@ -614,9 +670,7 @@ async function fetchOdds() {
 async function fetchProximosJogos() {
   try {
     const response = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar próximos jogos: ${response.status} ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`Erro ao buscar próximos jogos: ${response.status} ${response.statusText}`);
     const jogos = await response.json();
     console.log("Próximos jogos fetched para:", LIGA_ATUAL, jogos);
     return jogos.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 6);
@@ -642,56 +696,73 @@ function formatDateToDDMMYYYY(dateStr) {
     const [day, month, year] = dateStr.split("/");
     return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
   }
-  if (isNaN(date)) return null;
 }
 
 function findOddsForMatch(match, oddsData) {
   const matchDate = formatDateToDDMMYYYY(match.data);
   const matchTime = `${match.hora.toString().padStart(2, "0")}:${match.minuto.toString().padStart(2, "0")}`;
-  const teamMapping = {
-    "peixe": "boca",
-  };
-  const matchTimeA = normalizeString(teamMapping[match.time_a.toLowerCase()] || match.time_a);
-  const matchTimeB = normalizeString(teamMapping[match.time_b.toLowerCase()] || match.time_b);
+  const teamMapping = { "peixe": "boca" };
+  const matchTimeA = normalizeString(teamMapping[match.time_a?.toLowerCase()] || match.time_a);
+  const matchTimeB = normalizeString(teamMapping[match.time_b?.toLowerCase()] || match.time_b);
 
   console.log(`Searching odds for match: ${matchTimeA} vs ${matchTimeB} on ${matchDate} at ${matchTime}`);
 
   let matchedOdd = oddsData.find(odd => {
-    const oddDate = odd.data_captura;
-    const oddTime = odd.horario;
     const oddTimeCasa = normalizeString(odd.time_casa);
     const oddTimeVisitante = normalizeString(odd.time_visitante);
-
     const isMatch =
       oddTimeCasa === matchTimeA &&
       oddTimeVisitante === matchTimeB &&
-      oddDate === matchDate &&
-      oddTime === matchTime;
-
-    if (isMatch) {
-      console.log(`Found odds by full match:`, odd);
-    }
+      odd.data_captura === matchDate &&
+      odd.horario === matchTime;
+    if (isMatch) console.log(`Found odds by full match:`, odd);
     return isMatch;
   });
 
   if (!matchedOdd) {
     matchedOdd = oddsData.find(odd => {
-      const oddTime = odd.horario;
       const oddTimeCasa = normalizeString(odd.time_casa);
       const oddTimeVisitante = normalizeString(odd.time_visitante);
       const isTeamMatch =
-        (oddTimeCasa === matchTimeA || oddTimeVisitante === matchTimeA || 
+        (oddTimeCasa === matchTimeA || oddTimeVisitante === matchTimeA ||
          oddTimeCasa === matchTimeB || oddTimeVisitante === matchTimeB) &&
-        oddTime === matchTime;
-      if (isTeamMatch) {
-        console.log(`Found odds by team and time:`, odd);
-      }
+        odd.horario === matchTime;
+      if (isTeamMatch) console.log(`Found odds by team and time:`, odd);
       return isTeamMatch;
     });
   }
 
+  if (!matchedOdd) console.log(`No odds found for ${matchTimeA} vs ${matchTimeB} on ${matchDate} at ${matchTime}`);
+  return matchedOdd;
+}
+
+// Versão para próximos jogos (busca por time_home / team_visit)
+function findOddsForProximoJogo(jogo, oddsData) {
+  const teamMapping = { "peixe": "boca" };
+  const timeA = normalizeString(teamMapping[jogo.team_home?.toLowerCase()] || jogo.team_home || "");
+  const timeB = normalizeString(teamMapping[jogo.team_visit?.toLowerCase()] || jogo.team_visit || "");
+  const jogoTime = jogo.time || "";
+
+  let matchedOdd = oddsData.find(odd => {
+    const oddTimeCasa = normalizeString(odd.time_casa);
+    const oddTimeVisitante = normalizeString(odd.time_visitante);
+    return (
+      oddTimeCasa === timeA &&
+      oddTimeVisitante === timeB &&
+      odd.horario === jogoTime
+    );
+  });
+
   if (!matchedOdd) {
-    console.log(`No odds found for ${matchTimeA} vs ${matchTimeB} on ${matchDate} at ${matchTime}`);
+    matchedOdd = oddsData.find(odd => {
+      const oddTimeCasa = normalizeString(odd.time_casa);
+      const oddTimeVisitante = normalizeString(odd.time_visitante);
+      return (
+        (oddTimeCasa === timeA || oddTimeVisitante === timeA ||
+         oddTimeCasa === timeB || oddTimeVisitante === timeB) &&
+        odd.horario === jogoTime
+      );
+    });
   }
 
   return matchedOdd;
@@ -699,26 +770,25 @@ function findOddsForMatch(match, oddsData) {
 
 function getOddValue(odds, resultado) {
   const oddMap = {
-    ambasMarcam: "odds_ambas_marcam_sim",
-    ambasNaoMarcam: "odds_ambas_marcam_nao",
-    casaVence: "odds_casa_vence",
-    foraVence: "odds_visitante_vence",
-    empate: "odds_empate",
-    "over1.5": "odds_mais_1_5",
-    "under1.5": "odds_menos_1_5",
-    "over2.5": "odds_mais_2_5",
-    "under2.5": "odds_menos_2_5",
-    "over3.5": "odds_mais_3_5",
-    "under3.5": "odds_menos_3_5",
-    over5: "odds_mais_5_gols",
-    exato0: "odds_exato_0_gols",
-    exato1: "odds_exato_1_gol",
-    exato2: "odds_exato_2_gols",
-    exato3: "odds_exato_3_gols",
-    exato4: "odds_exato_4_gols",
+    ambasMarcam:     "odds_ambas_marcam_sim",
+    ambasNaoMarcam:  "odds_ambas_marcam_nao",
+    casaVence:       "odds_casa_vence",
+    foraVence:       "odds_visitante_vence",
+    empate:          "odds_empate",
+    "over1.5":       "odds_mais_1_5",
+    "under1.5":      "odds_menos_1_5",
+    "over2.5":       "odds_mais_2_5",
+    "under2.5":      "odds_menos_2_5",
+    "over3.5":       "odds_mais_3_5",
+    "under3.5":      "odds_menos_3_5",
+    over5:           "odds_mais_5_gols",
+    exato0:          "odds_exato_0_gols",
+    exato1:          "odds_exato_1_gol",
+    exato2:          "odds_exato_2_gols",
+    exato3:          "odds_exato_3_gols",
+    exato4:          "odds_exato_4_gols",
   };
-  const oddValue = odds ? odds[oddMap[resultado]] || "N/A" : "N/A";
-  return oddValue;
+  return odds ? odds[oddMap[resultado]] || "N/A" : "N/A";
 }
 
 function extractTimeFromDateTime(dateTimeStr) {
@@ -734,7 +804,7 @@ function extractTimeFromDateTime(dateTimeStr) {
     Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
   );
   console.log(`Parsed time: ${dateTimeStr} -> local time: ${date.toISOString()} -> hour: ${hour}, minute: ${minute}, closestMinute: ${closestMinute}`);
-  return { time, date: date, hour, minute: closestMinute };
+  return { time, date, hour, minute: closestMinute };
 }
 
 function abbreviateTeamName(teamName) {
@@ -801,6 +871,7 @@ function updateSelectedRows() {
   }
 }
 
+// ─── CRIAÇÃO DA TABELA ────────────────────────────────────────────────────────
 function criarTabela(dados, oddsData, proximosJogos) {
   const tabela = document.getElementById("tabelaResultados");
   const tabelaBody = tabela.querySelector("tbody");
@@ -811,7 +882,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
   }
   thead.innerHTML = "";
 
-  // Criar linhas do thead dinamicamente
   const trPercentual = document.createElement("tr");
   trPercentual.id = "linhaPercentual";
   trPercentual.innerHTML = "<th></th><th>📈</th>";
@@ -854,15 +924,16 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   tabelaBody.innerHTML = "";
 
-  const seletorHoras = document.querySelector("#seletorHoras");
-  const seletorResultado = document.querySelector("#seletorResultado");
-  const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
+  const seletorHoras       = document.querySelector("#seletorHoras");
+  const seletorResultado   = document.querySelector("#seletorResultado");
+  const seletorTipoPlacar  = document.querySelector("#seletorTipoPlacar");
   const mostrarTimesSelect = document.querySelector("#mostrarTimes");
-  const mostrarHTSelect = document.querySelector("#mostrarHT");
-  const mostrarOddsSelect = document.querySelector("#mostrarOdds");
+  const mostrarHTSelect    = document.querySelector("#mostrarHT");
+  const mostrarOddsSelect  = document.querySelector("#mostrarOdds");
+
   const mostrarTimes = mostrarTimesSelect ? mostrarTimesSelect.value === "sim" : false;
-  const mostrarOdds = mostrarOddsSelect ? mostrarOddsSelect.value === "sim" : false;
-  const mostrarHT = mostrarHTSelect ? mostrarHTSelect.value === "sim" : false;
+  const mostrarOdds  = mostrarOddsSelect  ? mostrarOddsSelect.value === "sim"  : false;
+  const mostrarHT    = mostrarHTSelect    ? mostrarHTSelect.value === "sim"    : false;
 
   if (!seletorHoras || !seletorResultado || !seletorTipoPlacar || !mostrarTimesSelect || !mostrarHTSelect || !mostrarOddsSelect) {
     console.error("Seletores não encontrados!");
@@ -882,7 +953,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   const proximosJogosComHoras = proximosJogos.map(jogo => {
     const [horaStr, minutoStr] = jogo.time.split(":");
-    const hora = parseInt(horaStr, 10);
+    const hora   = parseInt(horaStr, 10);
     const minute = parseInt(minutoStr, 10);
     const closestMinute = minutosFixos.reduce((prev, curr) =>
       Math.abs(curr - minute) < Math.abs(prev - minute) ? curr : prev
@@ -922,16 +993,16 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   chavesOrdenadas.forEach(item => {
     const chave = item.chave;
-    const hora = item.hora;
+    const hora  = item.hora;
     const novaLinha = document.createElement("tr");
     novaLinha.setAttribute("data-chave", chave);
 
     const seletorTd = document.createElement("td");
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
+    const checkbox  = document.createElement("input");
+    checkbox.type      = "checkbox";
     checkbox.className = "row-selector";
-    checkbox.checked = selectedChaves.includes(chave);
-    checkbox.addEventListener("change", function() {
+    checkbox.checked   = selectedChaves.includes(chave);
+    checkbox.addEventListener("change", function () {
       if (this.checked) {
         if (!selectedChaves.includes(chave)) selectedChaves.push(chave);
       } else {
@@ -958,59 +1029,43 @@ function criarTabela(dados, oddsData, proximosJogos) {
     console.log(`Criada linha para chave: ${chave} com hora: ${hora} (timestamp: ${new Date(item.timestamp).toISOString()})`);
   });
 
+  // ── Handlers de clique com multi-seleção ──────────────────────────────────
   function handlePlacarClick(event) {
     if (mostrarTimes) return;
     const placarElement = event.currentTarget.querySelector(".placar-texto") || event.currentTarget;
     const placarClicado = placarElement.textContent.trim();
-    if (placarSelecionado === placarClicado) {
-      placarSelecionado = null;
-      localStorage.removeItem("placarSelecionado");
-      selecionarPlacaresIguais(null);
-    } else {
-      placarSelecionado = placarClicado;
-      localStorage.setItem("placarSelecionado", placarClicado);
-      selecionarPlacaresIguais(placarClicado);
-    }
+    toggleSelecao(placarSelecionados, placarClicado, "placarSelecionados");
+    // compatibilidade legado
+    placarSelecionado = placarSelecionados[0] || null;
+    selecionarPlacaresIguais();
   }
 
   function handleTimeClick(event) {
     if (!mostrarTimes) return;
-    const timeElement = event.target;
-    const timeClicado = timeElement.getAttribute("data-full-time");
+    const timeClicado = event.target.getAttribute("data-full-time");
     if (!timeClicado) return;
-    if (timeSelecionado === timeClicado) {
-      timeSelecionado = null;
-      localStorage.removeItem("timeSelecionado");
-      selecionarJogosPorTime(null);
-    } else {
-      timeSelecionado = timeClicado;
-      localStorage.setItem("timeSelecionado", timeClicado);
-      selecionarJogosPorTime(timeClicado);
-    }
+    toggleSelecao(timesSelecionados, timeClicado, "timesSelecionados");
+    timeSelecionado = timesSelecionados[0] || null;
+    selecionarJogosPorTime();
   }
 
   function handleOddClick(event) {
     event.stopPropagation();
     const oddClicada = event.currentTarget.textContent.trim();
-    if (oddSelecionada === oddClicada) {
-      oddSelecionada = null;
-      localStorage.removeItem("oddSelecionada");
-      selecionarOddsIguais(null);
-    } else {
-      oddSelecionada = oddClicada;
-      localStorage.setItem("oddSelecionada", oddClicada);
-      selecionarOddsIguais(oddClicada);
-    }
+    toggleSelecao(oddsSelecionadas, oddClicada, "oddsSelecionadas");
+    oddSelecionada = oddsSelecionadas[0] || null;
+    selecionarOddsIguais();
   }
 
-  const totalGolsPorColuna = Array(minutosFixos.length).fill(0);
+  // ── Dados passados ────────────────────────────────────────────────────────
+  const totalGolsPorColuna   = Array(minutosFixos.length).fill(0);
   const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
-  const processedMatches = new Set();
+  const processedMatches     = new Set();
 
   dados.forEach((dado) => {
-    const dateStr = getDateStr(dado.data);
-    const chave = `${dateStr}-${dado.hora}`;
-    const linha = mapeamentoChaveLinha[chave];
+    const dateStr  = getDateStr(dado.data);
+    const chave    = `${dateStr}-${dado.hora}`;
+    const linha    = mapeamentoChaveLinha[chave];
     const matchKey = `${dado.time_a}-${dado.time_b}-${chave}-${dado.minuto}`;
 
     if (linha && !processedMatches.has(matchKey)) {
@@ -1024,14 +1079,13 @@ function criarTabela(dados, oddsData, proximosJogos) {
           placar.setAttribute("data-time-a", dado.time_a);
           placar.setAttribute("data-time-b", dado.time_b);
 
-          const tipoPlacar = seletorTipoPlacar.value;
-          const placarFT = dado.ft;
-          const placarHT = dado.ht;
-
-          const placarTexto = document.createElement("div");
+          const tipoPlacar    = seletorTipoPlacar.value;
+          const placarFT      = dado.ft;
+          const placarHT      = dado.ht;
+          const placarTexto   = document.createElement("div");
           placarTexto.className = "placar-texto";
 
-          let primaryScore = tipoPlacar === "ft" ? placarFT : placarHT;
+          let primaryScore   = tipoPlacar === "ft" ? placarFT : placarHT;
           let secondaryScore = tipoPlacar === "ft" ? placarHT : placarFT;
 
           if (mostrarTimes) {
@@ -1039,22 +1093,18 @@ function criarTabela(dados, oddsData, proximosJogos) {
             const timeB = abbreviateTeamName(dado.time_b);
             let textoPlacar = `<span class="time-casa" style="cursor: pointer;" data-full-time="${dado.time_a}">${timeA}</span>`;
             textoPlacar += `<span>${primaryScore}</span>`;
-            if (mostrarHT) {
-              textoPlacar += `<span>(${secondaryScore})</span>`;
-            }
+            if (mostrarHT) textoPlacar += `<span>(${secondaryScore})</span>`;
             textoPlacar += `<span class="time-fora" style="cursor: pointer;" data-full-time="${dado.time_b}">${timeB}</span>`;
             placarTexto.innerHTML = textoPlacar;
           } else {
             let textoPlacar = `<span>${primaryScore}</span>`;
-            if (mostrarHT) {
-              textoPlacar += `<span>(${secondaryScore})</span>`;
-            }
+            if (mostrarHT) textoPlacar += `<span>(${secondaryScore})</span>`;
             placarTexto.innerHTML = textoPlacar;
           }
           placar.appendChild(placarTexto);
 
           if (mostrarOdds) {
-            const odds = findOddsForMatch(dado, oddsData);
+            const odds     = findOddsForMatch(dado, oddsData);
             const oddValue = getOddValue(odds, seletorResultado.value);
             const oddsElement = document.createElement("div");
             oddsElement.className = "odds";
@@ -1083,60 +1133,65 @@ function criarTabela(dados, oddsData, proximosJogos) {
           processedMatches.add(matchKey);
           console.log(`Adicionado resultado passado: ${dado.time_a} vs ${dado.time_b} em ${chave} minuto ${dado.minuto}`);
 
-          if (placarSelecionado && !mostrarTimes && placarTexto.textContent.includes(placarSelecionado)) {
-            placar.classList.add("placar-selecionado");
+          // ── Aplicar seleções múltiplas ───────────────────────────────────
+          if (!mostrarTimes) {
+            for (const val of placarSelecionados) {
+              if (placarTexto.textContent.includes(val)) {
+                const cor = getCorSelecao(placarSelecionados, val);
+                placar.style.setProperty("--sel-color", cor.bg);
+                placar.classList.add("placar-selecionado");
+                break;
+              }
+            }
           }
-          if (timeSelecionado && mostrarTimes && (dado.time_a === timeSelecionado || dado.time_b === timeSelecionado)) {
-            placar.classList.add("time-selecionado");
+          if (mostrarTimes) {
+            for (const val of timesSelecionados) {
+              if (dado.time_a === val || dado.time_b === val) {
+                const cor = getCorSelecao(timesSelecionados, val);
+                placar.style.setProperty("--sel-color", cor.bg);
+                placar.classList.add("time-selecionado");
+                break;
+              }
+            }
           }
-          if (oddSelecionada && mostrarOdds) {
-            const oddElement = placar.querySelector(".odds");
-            if (oddElement && oddElement.textContent === oddSelecionada) {
-              oddElement.classList.add("odd-selecionada");
+          if (mostrarOdds) {
+            const oddEl = placar.querySelector(".odds");
+            if (oddEl) {
+              for (const val of oddsSelecionadas) {
+                if (oddEl.textContent === val) {
+                  const cor = getCorSelecao(oddsSelecionadas, val);
+                  oddEl.style.setProperty("--sel-color", cor.bg);
+                  oddEl.classList.add("odd-selecionada");
+                  break;
+                }
+              }
             }
           }
 
+          // ── Cálculo de acerto ────────────────────────────────────────────
           const selecaoResultado = seletorResultado.value;
           let acerto = false;
           const placarAtual = tipoPlacar === "ft" ? placarFT : placarHT;
           const [resultadoA, resultadoB] = placarAtual.split(" x ").map(num => parseInt(num) || 0);
           const totalGols = resultadoA + resultadoB;
 
-          if (selecaoResultado === "ambasMarcam") {
-            acerto = resultadoA > 0 && resultadoB > 0;
-          } else if (selecaoResultado === "ambasNaoMarcam") {
-            acerto = resultadoA === 0 || resultadoB === 0;
-          } else if (selecaoResultado === "over1.5") {
-            acerto = totalGols > 1.5;
-          } else if (selecaoResultado === "under1.5") {
-            acerto = totalGols <= 1.5;
-          } else if (selecaoResultado === "over2.5") {
-            acerto = totalGols > 2.5;
-          } else if (selecaoResultado === "under2.5") {
-            acerto = totalGols <= 2.5;
-          } else if (selecaoResultado === "over3.5") {
-            acerto = totalGols > 3.5;
-          } else if (selecaoResultado === "under3.5") {
-            acerto = totalGols <= 3.5;
-          } else if (selecaoResultado === "over5") {
-            acerto = totalGols >= 5;
-          } else if (selecaoResultado === "casaVence") {
-            acerto = resultadoA > resultadoB;
-          } else if (selecaoResultado === "foraVence") {
-            acerto = resultadoB > resultadoA;
-          } else if (selecaoResultado === "empate") {
-            acerto = resultadoA === resultadoB;
-          } else if (selecaoResultado === "exato0") {
-            acerto = totalGols === 0;
-          } else if (selecaoResultado === "exato1") {
-            acerto = totalGols === 1;
-          } else if (selecaoResultado === "exato2") {
-            acerto = totalGols === 2;
-          } else if (selecaoResultado === "exato3") {
-            acerto = totalGols === 3;
-          } else if (selecaoResultado === "exato4") {
-            acerto = totalGols === 4;
-          }
+          if      (selecaoResultado === "ambasMarcam")    acerto = resultadoA > 0 && resultadoB > 0;
+          else if (selecaoResultado === "ambasNaoMarcam") acerto = resultadoA === 0 || resultadoB === 0;
+          else if (selecaoResultado === "over1.5")        acerto = totalGols > 1.5;
+          else if (selecaoResultado === "under1.5")       acerto = totalGols <= 1.5;
+          else if (selecaoResultado === "over2.5")        acerto = totalGols > 2.5;
+          else if (selecaoResultado === "under2.5")       acerto = totalGols <= 2.5;
+          else if (selecaoResultado === "over3.5")        acerto = totalGols > 3.5;
+          else if (selecaoResultado === "under3.5")       acerto = totalGols <= 3.5;
+          else if (selecaoResultado === "over5")          acerto = totalGols >= 5;
+          else if (selecaoResultado === "casaVence")      acerto = resultadoA > resultadoB;
+          else if (selecaoResultado === "foraVence")      acerto = resultadoB > resultadoA;
+          else if (selecaoResultado === "empate")         acerto = resultadoA === resultadoB;
+          else if (selecaoResultado === "exato0")         acerto = totalGols === 0;
+          else if (selecaoResultado === "exato1")         acerto = totalGols === 1;
+          else if (selecaoResultado === "exato2")         acerto = totalGols === 2;
+          else if (selecaoResultado === "exato3")         acerto = totalGols === 3;
+          else if (selecaoResultado === "exato4")         acerto = totalGols === 4;
 
           colunaMinuto.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
 
@@ -1155,10 +1210,11 @@ function criarTabela(dados, oddsData, proximosJogos) {
     }
   });
 
+  // ── Próximos jogos (jogos futuros) ────────────────────────────────────────
   proximosJogosComHoras.forEach(jogo => {
-    const dataStr = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
-    const chave = `${dataStr}-${jogo.hora}`;
-    const linha = mapeamentoChaveLinha[chave];
+    const dataStr  = jogo.captured_date ? jogo.captured_date.split("/").reverse().join("-") : jogo.date.toISOString().split("T")[0];
+    const chave    = `${dataStr}-${jogo.hora}`;
+    const linha    = mapeamentoChaveLinha[chave];
     const matchKey = `${jogo.team_home}-${jogo.team_visit}-${chave}-${jogo.minuto}`;
 
     if (linha && jogo.minuto !== null && !processedMatches.has(matchKey)) {
@@ -1179,6 +1235,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
           const colunaMinuto = linha.children[2 + indexMinuto];
           if (!colunaMinuto.querySelector(".placar")) {
             console.log(`Adicionando jogo futuro: ${jogo.team_home} vs ${jogo.team_visit} em ${chave} minuto ${jogo.minuto}`);
+
             const placar = document.createElement("div");
             placar.className = "placar placar-futuro";
             placar.setAttribute("data-time-a", jogo.team_home);
@@ -1187,20 +1244,29 @@ function criarTabela(dados, oddsData, proximosJogos) {
             const placarTexto = document.createElement("div");
             placarTexto.className = "placar-texto";
 
+            const timeAAbbr = abbreviateTeamName(jogo.team_home);
+            const timeBAbbr = abbreviateTeamName(jogo.team_visit);
+
             if (mostrarTimes) {
-              const timeA = abbreviateTeamName(jogo.team_home);
-              const timeB = abbreviateTeamName(jogo.team_visit);
               placarTexto.innerHTML = `
-                <span class="time-casa" style="cursor: pointer;" data-full-time="${jogo.team_home}">${timeA}</span><br>
+                <span class="time-casa" style="cursor: pointer;" data-full-time="${jogo.team_home}">${timeAAbbr}</span><br>
                 <span>vs</span><br>
-                <span class="time-fora" style="cursor: pointer;" data-full-time="${jogo.team_visit}">${timeB}</span>
+                <span class="time-fora" style="cursor: pointer;" data-full-time="${jogo.team_visit}">${timeBAbbr}</span>
               `;
             } else {
-              const timeA = abbreviateTeamName(jogo.team_home);
-              const timeB = abbreviateTeamName(jogo.team_visit);
-              placarTexto.innerHTML = `${timeA}<br>vs<br>${timeB}`;
+              placarTexto.innerHTML = `${timeAAbbr}<br>vs<br>${timeBAbbr}`;
             }
             placar.appendChild(placarTexto);
+
+            // ── Odd do mercado selecionado para próximo jogo ───────────────
+            const oddsProximo = findOddsForProximoJogo(jogo, oddsData);
+            const oddValProximo = getOddValue(oddsProximo, seletorResultado.value);
+            if (oddValProximo && oddValProximo !== "N/A") {
+              const oddFuturoEl = document.createElement("div");
+              oddFuturoEl.className = "placar-futuro-odd";
+              oddFuturoEl.textContent = `@${oddValProximo}`;
+              placar.appendChild(oddFuturoEl);
+            }
 
             placar.addEventListener("click", handlePlacarClick);
             if (mostrarTimes) {
@@ -1218,8 +1284,16 @@ function criarTabela(dados, oddsData, proximosJogos) {
             colunaMinuto.appendChild(placar);
             processedMatches.add(matchKey);
 
-            if (timeSelecionado && mostrarTimes && (jogo.team_home === timeSelecionado || jogo.team_visit === timeSelecionado)) {
-              placar.classList.add("time-selecionado");
+            // multi-seleção times em próximos jogos
+            if (mostrarTimes) {
+              for (const val of timesSelecionados) {
+                if (jogo.team_home === val || jogo.team_visit === val) {
+                  const cor = getCorSelecao(timesSelecionados, val);
+                  placar.style.setProperty("--sel-color", cor.bg);
+                  placar.classList.add("time-selecionado");
+                  break;
+                }
+              }
             }
           }
         } else {
@@ -1233,14 +1307,15 @@ function criarTabela(dados, oddsData, proximosJogos) {
     }
   });
 
-  totalGolsPorColuna.forEach((total, index) => {
+  // ── Footer totais ──────────────────────────────────────────────────────────
+  totalGolsPorColuna.forEach((total) => {
     const cell = document.createElement("td");
     cell.className = "total-goals";
     cell.textContent = total;
     trTotalGols.appendChild(cell);
   });
 
-  totalAcertosPorColuna.forEach((total, index) => {
+  totalAcertosPorColuna.forEach((total) => {
     const cell = document.createElement("td");
     cell.className = "market-hits";
     cell.textContent = total;
@@ -1248,13 +1323,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
 
   for (let i = 0; i < 3; i++) {
-    const emptyCellGols = document.createElement("td");
-    emptyCellGols.textContent = "";
-    trTotalGols.appendChild(emptyCellGols);
-
-    const emptyCellMercados = document.createElement("td");
-    emptyCellMercados.textContent = "";
-    trAcertosMercado.appendChild(emptyCellMercados);
+    trTotalGols.appendChild(document.createElement("td")).textContent = "";
+    trAcertosMercado.appendChild(document.createElement("td")).textContent = "";
   }
 
   const todasLinhas = Array.from(tabelaBody.querySelectorAll("tr"));
@@ -1262,14 +1332,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const totalCelsProcessadas = Array.from(row.cells)
       .slice(2, -3)
       .filter((cell) => cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")).length;
-    const celsMercado = parseInt(
-      row.children[row.children.length - 2].textContent
-    );
-
-    const porcentagem =
-      totalCelsProcessadas > 0
-        ? Math.floor((celsMercado / totalCelsProcessadas) * 100)
-        : 0;
+    const celsMercado = parseInt(row.children[row.children.length - 2].textContent);
+    const porcentagem = totalCelsProcessadas > 0 ? Math.floor((celsMercado / totalCelsProcessadas) * 100) : 0;
     const porcentagemCell = row.children[row.children.length - 1];
     porcentagemCell.textContent = `${porcentagem}%`;
 
@@ -1282,25 +1346,19 @@ function criarTabela(dados, oddsData, proximosJogos) {
     }
   });
 
-  const totalColunas = minutosFixos.length;
-  const totalMercadosPorColuna = Array(totalColunas).fill(0);
-
+  const totalMercadosPorColuna = Array(minutosFixos.length).fill(0);
   todasLinhas.forEach((row) => {
-    Array.from(row.cells)
-      .slice(2, -3)
-      .forEach((cell, index) => {
-        if (cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
-          totalMercadosPorColuna[index]++;
-        }
-      });
+    Array.from(row.cells).slice(2, -3).forEach((cell, index) => {
+      if (cell.querySelector(".placar") && !cell.querySelector(".placar-futuro")) {
+        totalMercadosPorColuna[index]++;
+      }
+    });
   });
 
   totalMercadosPorColuna.forEach((totalMercados, index) => {
     const cell = document.createElement("td");
     const porcentagemVertical =
-      totalMercados > 0
-        ? Math.floor((totalAcertosPorColuna[index] / totalMercados) * 100)
-        : 0;
+      totalMercados > 0 ? Math.floor((totalAcertosPorColuna[index] / totalMercados) * 100) : 0;
     cell.textContent = `${porcentagemVertical}%`;
 
     if (porcentagemVertical > 49) {
@@ -1315,13 +1373,10 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
 
   for (let i = 0; i < 3; i++) {
-    const emptyCell = document.createElement("td");
-    emptyCell.textContent = "";
-    trPercentual.appendChild(emptyCell);
+    trPercentual.appendChild(document.createElement("td")).textContent = "";
   }
 
-  const minuteHeaders = document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header");
-  minuteHeaders.forEach(header => {
+  document.querySelectorAll("#tabelaResultados thead tr:last-child th.minute-header").forEach(header => {
     header.style.backgroundColor = "#2c303b";
   });
 
@@ -1329,30 +1384,22 @@ function criarTabela(dados, oddsData, proximosJogos) {
   document.getElementById("totalGols").textContent = `Gols: ${stats.totalGols}`;
   document.getElementById("mediaGolsHora").textContent = `Médias: ${stats.mediaGolsHora}`;
 
-  if (placarSelecionado && !mostrarTimes) {
-    selecionarPlacaresIguais(placarSelecionado);
-  }
-  if (timeSelecionado && mostrarTimes) {
-    selecionarJogosPorTime(timeSelecionado);
-  }
-  if (oddSelecionada && mostrarOdds) {
-    selecionarOddsIguais(oddSelecionada);
-  }
+  // ── Re-aplicar seleções globais após rebuild ───────────────────────────────
+  selecionarPlacaresIguais();
+  selecionarJogosPorTime();
+  if (mostrarOdds) selecionarOddsIguais();
 
   updateSelectedRows();
 }
 
+// ─── BUSCA DE DADOS ───────────────────────────────────────────────────────────
 async function buscarDados() {
   hideErrorMessage();
-  let dados = [];
-  let oddsData = [];
-  let proximosJogos = [];
+  let dados = [], oddsData = [], proximosJogos = [];
 
   try {
     const resultadosResponse = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-    if (!resultadosResponse.ok) {
-      throw new Error(`Erro ao buscar resultados: ${resultadosResponse.status} ${resultadosResponse.statusText}`);
-    }
+    if (!resultadosResponse.ok) throw new Error(`Erro ao buscar resultados: ${resultadosResponse.status} ${resultadosResponse.statusText}`);
     dados = await resultadosResponse.json();
     console.log("Resultados fetched:", dados);
   } catch (error) {
@@ -1384,36 +1431,44 @@ async function buscarDados() {
 buscarDados();
 setInterval(buscarDados, 5000);
 
-const seletorHoras = document.querySelector("#seletorHoras");
-const seletorResultado = document.querySelector("#seletorResultado");
+// ─── LISTENERS DOS CONTROLES ──────────────────────────────────────────────────
+const seletorHoras      = document.querySelector("#seletorHoras");
+const seletorResultado  = document.querySelector("#seletorResultado");
 const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
 const mostrarTimesSelect = document.querySelector("#mostrarTimes");
-const mostrarHTSelect = document.querySelector("#mostrarHT");
-const mostrarOddsSelect = document.querySelector("#mostrarOdds");
+const mostrarHTSelect    = document.querySelector("#mostrarHT");
+const mostrarOddsSelect  = document.querySelector("#mostrarOdds");
 
-if (seletorHoras) seletorHoras.addEventListener("change", buscarDados);
-if (seletorResultado) seletorResultado.addEventListener("change", buscarDados);
+if (seletorHoras)      seletorHoras.addEventListener("change", buscarDados);
+if (seletorResultado)  seletorResultado.addEventListener("change", buscarDados);
 if (seletorTipoPlacar) seletorTipoPlacar.addEventListener("change", buscarDados);
+
 if (mostrarTimesSelect) {
   mostrarTimesSelect.addEventListener("change", () => {
     if (mostrarTimesSelect.value !== "sim") {
+      placarSelecionados.length = 0;
+      timesSelecionados.length  = 0;
+      localStorage.removeItem("placarSelecionados");
+      localStorage.removeItem("timesSelecionados");
+      // legado
       placarSelecionado = null;
-      timeSelecionado = null;
+      timeSelecionado   = null;
       localStorage.removeItem("placarSelecionado");
       localStorage.removeItem("timeSelecionado");
-      selecionarPlacaresIguais(null);
-      selecionarJogosPorTime(null);
     }
     buscarDados();
   });
 }
+
 if (mostrarHTSelect) mostrarHTSelect.addEventListener("change", buscarDados);
+
 if (mostrarOddsSelect) {
   mostrarOddsSelect.addEventListener("change", () => {
     if (mostrarOddsSelect.value !== "sim") {
+      oddsSelecionadas.length = 0;
+      localStorage.removeItem("oddsSelecionadas");
       oddSelecionada = null;
       localStorage.removeItem("oddSelecionada");
-      selecionarOddsIguais(null);
     }
     buscarDados();
   });
@@ -4961,7 +5016,6 @@ loadNextGamesForMinutes();
         updateRanking();
     });
 </script>
-
 
     <script>
               const HISTOMACD_DATA_URL = 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20Eterna';
