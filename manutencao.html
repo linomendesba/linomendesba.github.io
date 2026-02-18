@@ -655,7 +655,6 @@ Estado.carregar();
     }
     #selecao-indicator { margin-bottom: 0; flex: 1; min-width: 0; }
     #stats-selecao { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
-    #stats-selecao:empty { display: none; }
     .stat-row {
       display: flex; align-items: center; gap: 6px;
       background: rgba(255,255,255,0.06); border-radius: 8px;
@@ -730,7 +729,9 @@ function atualizarStatsSelecao(statsMap) {
   if (!el) { console.warn("stats-selecao não encontrado"); return; }
   el.innerHTML = "";
 
-  if (!statsMap || statsMap.size === 0) return;
+  const temItems = statsMap && [...statsMap.values()].some(v => (v.green + v.red) > 0);
+  el.style.display = temItems ? "flex" : "none";
+  if (!temItems) return;
 
   statsMap.forEach(({ green, red, cor, label }, valor) => {
     const total = green + red;
@@ -807,6 +808,79 @@ function atualizarIndicadorSelecao() {
   });
 }
 
+// ─── COMPUTA STATS LENDO O DOM (chamado após seleção do usuário) ──────────────
+function computeStatsFromDOM() {
+  const mostrarTimes = document.querySelector("#mostrarTimes")?.value === "sim";
+  const mostrarOdds  = document.querySelector("#mostrarOdds")?.value  === "sim";
+
+  // Inicializa mapas zerados
+  const statsPlacar = new Map();
+  const statsTime   = new Map();
+  const statsOdd    = new Map();
+  Estado.placarSelecionados.forEach((val, i) => {
+    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Placar" });
+  });
+  Estado.timesSelecionados.forEach((val, i) => {
+    statsTime.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Time" });
+  });
+  Estado.oddsSelecionadas.forEach((val, i) => {
+    statsOdd.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Odd" });
+  });
+
+  // Lê cada célula da tabela (ignora futuros)
+  document.querySelectorAll("#tabelaResultados tbody td").forEach(cel => {
+    const placarEl = cel.querySelector(".placar:not(.placar-futuro)");
+    if (!placarEl) return;
+
+    const isGreen = cel.style.backgroundColor === "rgb(1, 139, 6)";   // #018b06
+    const isRed   = cel.style.backgroundColor === "rgb(190, 14, 2)";  // #be0e02
+    if (!isGreen && !isRed) return; // célula sem cor = sem resultado processado
+
+    const acerto = isGreen;
+    const textoP = placarEl.querySelector(".placar-texto")?.textContent.trim() || "";
+    const timeA  = placarEl.getAttribute("data-time-a");
+    const timeB  = placarEl.getAttribute("data-time-b");
+    const oddEl  = placarEl.querySelector(".odds");
+    const oddTxt = oddEl ? oddEl.textContent.trim() : "";
+
+    if (!mostrarTimes) {
+      for (const val of Estado.placarSelecionados) {
+        if (textoP.includes(val)) {
+          const s = statsPlacar.get(val);
+          if (s) { acerto ? s.green++ : s.red++; }
+          break;
+        }
+      }
+    }
+    if (mostrarTimes) {
+      for (const val of Estado.timesSelecionados) {
+        if (timeA === val || timeB === val) {
+          const s = statsTime.get(val);
+          if (s) { acerto ? s.green++ : s.red++; }
+          break;
+        }
+      }
+    }
+    if (mostrarOdds && oddTxt) {
+      for (const val of Estado.oddsSelecionadas) {
+        if (oddTxt === val) {
+          const s = statsOdd.get(val);
+          if (s) { acerto ? s.green++ : s.red++; }
+          break;
+        }
+      }
+    }
+  });
+
+  const statsUnificado = new Map();
+  statsPlacar.forEach((v, k) => statsUnificado.set(k, v));
+  statsTime.forEach((v, k)   => statsUnificado.set(k, v));
+  statsOdd.forEach((v, k)    => statsUnificado.set(k, v));
+
+  criarOuObterPainel();
+  atualizarStatsSelecao(statsUnificado);
+}
+
 // ─── HIGHLIGHTS ───────────────────────────────────────────────────────────────
 function aplicarHighlights() {
   const mostrarTimes = document.querySelector("#mostrarTimes")?.value === "sim";
@@ -860,6 +934,7 @@ function aplicarHighlights() {
   });
 
   atualizarIndicadorSelecao();
+  computeStatsFromDOM();
 }
 
 // ─── UTILITÁRIOS ──────────────────────────────────────────────────────────────
