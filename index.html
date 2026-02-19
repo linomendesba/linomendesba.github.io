@@ -560,11 +560,15 @@ const Estado = {
   _ultimoHashOdds:     null,
   _ultimoHashProximos: null,
 
+  _chavesKey() {
+    return `selectedChaves_${typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "default"}`;
+  },
+
   carregar() {
     this.placarSelecionados = JSON.parse(localStorage.getItem("placarSelecionados")) || [];
     this.timesSelecionados  = JSON.parse(localStorage.getItem("timesSelecionados"))  || [];
     this.oddsSelecionadas   = JSON.parse(localStorage.getItem("oddsSelecionadas"))   || [];
-    this.selectedChaves     = JSON.parse(localStorage.getItem("selectedChaves"))     || [];
+    this.selectedChaves     = JSON.parse(localStorage.getItem(this._chavesKey()))    || [];
     // Migra chaves legadas se existirem
     const lP = localStorage.getItem("placarSelecionado");
     const lT = localStorage.getItem("timeSelecionado");
@@ -581,7 +585,12 @@ const Estado = {
     localStorage.setItem("placarSelecionados", JSON.stringify(this.placarSelecionados));
     localStorage.setItem("timesSelecionados",  JSON.stringify(this.timesSelecionados));
     localStorage.setItem("oddsSelecionadas",   JSON.stringify(this.oddsSelecionadas));
-    localStorage.setItem("selectedChaves",     JSON.stringify(this.selectedChaves));
+    localStorage.setItem(this._chavesKey(),    JSON.stringify(this.selectedChaves));
+  },
+
+  // Recarrega selectedChaves para a liga atual (chamado ao trocar de liga)
+  recarregarChaves() {
+    this.selectedChaves = JSON.parse(localStorage.getItem(this._chavesKey())) || [];
   },
 
   toggleSelecao(chave, valor) {
@@ -615,7 +624,11 @@ const Estado = {
 
   hashDados(dados) {
     if (!dados || dados.length === 0) return "vazio";
-    return dados.length + "_" + (dados[0]?.id || dados[0]?.match_id || JSON.stringify(dados[0]).length);
+    // Include last item too so new entries at the end are detected
+    const first = dados[0];
+    const last  = dados[dados.length - 1];
+    const keyFn = d => d?.id || d?.match_id || d?.ft || JSON.stringify(d).length;
+    return `${dados.length}_${keyFn(first)}_${keyFn(last)}`;
   },
 
   dadosMudaram(dados, odds, proximos) {
@@ -693,7 +706,13 @@ Estado.carregar();
 
     #painel-selecao {
       display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 12px; margin-bottom: 6px;
+      gap: 12px; margin-bottom: 6px; flex-wrap: wrap;
+    }
+    .liga-badge {
+      font-size: 0.7em; font-weight: bold; color: #fff;
+      background: rgba(255,255,255,0.12); border-radius: 6px;
+      padding: 2px 8px; align-self: center; white-space: nowrap;
+      letter-spacing: 0.03em; flex-shrink: 0;
     }
     #selecao-indicator { margin-bottom: 0; flex: 1; min-width: 0; flex-wrap: wrap; }
     #stats-selecao {
@@ -750,12 +769,22 @@ function criarOuObterPainel() {
 
     const tabela = document.getElementById("tabelaResultados");
     if (tabela) {
-      // Insert before selectedRowsContainer if it exists, otherwise before the main table
       const selCont = document.getElementById("selectedRowsContainer");
       const anchor = selCont || tabela;
       anchor.parentNode.insertBefore(painel, anchor);
     }
   }
+
+  // Update liga badge
+  const liga = typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "";
+  let ligaBadge = painel.querySelector(".liga-badge");
+  if (!ligaBadge && liga) {
+    ligaBadge = document.createElement("span");
+    ligaBadge.className = "liga-badge";
+    painel.insertBefore(ligaBadge, painel.firstChild);
+  }
+  if (ligaBadge) ligaBadge.textContent = liga;
+
   return painel;
 }
 
@@ -1696,6 +1725,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
 // ─── BUSCA COM DIFF ───────────────────────────────────────────────────────────
 async function buscarDados() {
   hideErrorMessage();
+  // Recarrega chaves selecionadas para a liga atual (evita cross-liga)
+  Estado.recarregarChaves();
   let dados = [], oddsData = [], proximosJogos = [];
 
   try {
@@ -1730,7 +1761,15 @@ async function buscarDados() {
 }
 
 buscarDados();
-setInterval(buscarDados, 5000);
+
+// Debounced interval: only fires next cycle after current fetch completes
+let _buscando = false;
+setInterval(async () => {
+  if (_buscando) return;
+  _buscando = true;
+  try { await buscarDados(); }
+  finally { _buscando = false; }
+}, 5000);
 
 // ─── LISTENERS ────────────────────────────────────────────────────────────────
 const _seletorHoras       = document.querySelector("#seletorHoras");
