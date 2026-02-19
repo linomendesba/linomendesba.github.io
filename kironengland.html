@@ -505,6 +505,32 @@
     <script>
 const minutosFixos = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58]
 
+// Média esperada por hora (20 jogos/hora) → threshold para verde
+// Fonte: tabela "Média de Mercados por Hora"
+const MERCADO_THRESHOLD = {
+  ambasMarcam:    Math.round((9  / 20) * 100), // 45%
+  ambasNaoMarcam: Math.round((11 / 20) * 100), // 55%
+  casaVence:      Math.round((8  / 20) * 100), // 40%
+  foraVence:      Math.round((7  / 20) * 100), // 35%
+  empate:         Math.round((5  / 20) * 100), // 25%
+  "over1.5":      Math.round((14 / 20) * 100), // 70%
+  "under1.5":     Math.round((6  / 20) * 100), // 30%
+  "over2.5":      Math.round((8  / 20) * 100), // 40%
+  "under2.5":     Math.round((12 / 20) * 100), // 60%
+  "over3.5":      Math.round((4  / 20) * 100), // 20%
+  "under3.5":     Math.round((16 / 20) * 100), // 80%
+  over5:          Math.round((2  / 20) * 100), // 10%
+  exato0:         10,
+  exato1:         20,
+  exato2:         20,
+  exato3:         15,
+  exato4:         10,
+};
+
+function getThreshold(mercado) {
+  return MERCADO_THRESHOLD[mercado] ?? 50;
+}
+
 // ─── CORES PARA MULTI-SELEÇÃO ─────────────────────────────────────────────────
 // Paletas independentes por tipo — sem verde nem vermelho, máximo contraste entre itens
 const CORES_PLACAR = [
@@ -699,8 +725,8 @@ Estado.carregar();
 
     #selecao-indicator { margin-bottom: 0; flex: 1; min-width: 0; flex-wrap: wrap; }
     #stats-selecao {
-      display: flex; flex-direction: column; gap: 4px;
-      flex-shrink: 0; align-items: flex-end;
+      display: flex; flex-direction: row; flex-wrap: wrap;
+      gap: 4px; flex-shrink: 0; justify-content: flex-end; align-items: flex-start;
     }
     .stat-row {
       display: flex; align-items: center; gap: 5px;
@@ -781,59 +807,69 @@ function atualizarStatsSelecao(statsMap) {
   el.style.display = temItems ? "flex" : "none";
   if (!temItems) return;
 
-  statsMap.forEach(({ green, red, cor, label }, valor) => {
+  statsMap.forEach(({ green, red, cor, label, tipo }, valor) => {
     const total = green + red;
     if (total === 0) return;
-    const pct = Math.round((green / total) * 100);
 
     const row = document.createElement("div");
     row.className = "stat-row";
 
-    // Ponto colorido
     const dot = document.createElement("span");
     dot.className = "stat-color-dot";
     dot.style.background = cor;
 
-    // Label (Placar: 1 x 2)
     const lbl = document.createElement("span");
     lbl.className = "stat-label";
     lbl.title = valor;
     lbl.textContent = label ? `${label}: ${valor}` : valor;
 
-    // Separador
     const sep0 = document.createElement("span");
     sep0.className = "stat-sep";
     sep0.textContent = "·";
 
-    // Total
-    const totSpan = document.createElement("span");
-    totSpan.className = "stat-total";
-    totSpan.textContent = `${total}x`;
+    if (tipo === "placar") {
+      // Placar: só mostra contagem de ocorrências (sem green/red de mercado)
+      const totSpan = document.createElement("span");
+      totSpan.className = "stat-total";
+      totSpan.textContent = `${total}×`;
 
-    const sep1 = document.createElement("span");
-    sep1.className = "stat-sep";
-    sep1.textContent = "/";
+      const info = document.createElement("span");
+      info.style.cssText = "color:#aaa;font-size:0.85em";
+      info.textContent = "ocorrências";
 
-    // Green
-    const gSpan = document.createElement("span");
-    gSpan.className = "stat-count-green";
-    gSpan.textContent = `${green}✔`;
+      row.append(dot, lbl, sep0, totSpan, info);
+    } else {
+      // Times e Odds: mostra total + green + red + %
+      const pct = Math.round((green / total) * 100);
 
-    const sep2 = document.createElement("span");
-    sep2.className = "stat-sep";
-    sep2.textContent = "/";
+      const totSpan = document.createElement("span");
+      totSpan.className = "stat-total";
+      totSpan.textContent = `${total}×`;
 
-    // Red
-    const rSpan = document.createElement("span");
-    rSpan.className = "stat-count-red";
-    rSpan.textContent = `${red}✘`;
+      const sep1 = document.createElement("span");
+      sep1.className = "stat-sep";
+      sep1.textContent = "/";
 
-    // Percentual badge
-    const pctSpan = document.createElement("span");
-    pctSpan.className = `stat-pct ${pct >= 50 ? "stat-pct-verde" : "stat-pct-branca"}`;
-    pctSpan.textContent = `${pct}%`;
+      const gSpan = document.createElement("span");
+      gSpan.className = "stat-count-green";
+      gSpan.textContent = `${green}✔`;
 
-    row.append(dot, lbl, sep0, totSpan, sep1, gSpan, sep2, rSpan, pctSpan);
+      const sep2 = document.createElement("span");
+      sep2.className = "stat-sep";
+      sep2.textContent = "/";
+
+      const rSpan = document.createElement("span");
+      rSpan.className = "stat-count-red";
+      rSpan.textContent = `${red}✘`;
+
+      const pctSpan = document.createElement("span");
+      const _threshStat = getThreshold(document.querySelector("#seletorResultado")?.value || "");
+      pctSpan.className = `stat-pct ${pct >= _threshStat ? "stat-pct-verde" : "stat-pct-branca"}`;
+      pctSpan.textContent = `${pct}%`;
+
+      row.append(dot, lbl, sep0, totSpan, sep1, gSpan, sep2, rSpan, pctSpan);
+    }
+
     el.appendChild(row);
   });
 }
@@ -881,13 +917,13 @@ function computeStatsFromDOM() {
   const statsTime   = new Map();
   const statsOdd    = new Map();
   Estado.placarSelecionados.forEach((val, i) => {
-    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_PLACAR[i % CORES_PLACAR.length], label: "Placar" });
+    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_PLACAR[i % CORES_PLACAR.length], label: "Placar", tipo: "placar" });
   });
   Estado.timesSelecionados.forEach((val, i) => {
-    statsTime.set(val, { green: 0, red: 0, cor: CORES_TIME[i % CORES_TIME.length], label: "Time" });
+    statsTime.set(val, { green: 0, red: 0, cor: CORES_TIME[i % CORES_TIME.length], label: "Time", tipo: "time" });
   });
   Estado.oddsSelecionadas.forEach((val, i) => {
-    statsOdd.set(val, { green: 0, red: 0, cor: CORES_ODD[i % CORES_ODD.length], label: "Odd" });
+    statsOdd.set(val, { green: 0, red: 0, cor: CORES_ODD[i % CORES_ODD.length], label: "Odd", tipo: "odd" });
   });
 
   // Lê cada célula da tabela (ignora futuros)
@@ -900,7 +936,7 @@ function computeStatsFromDOM() {
     if (!isGreen && !isRed) return; // célula sem cor = sem resultado processado
 
     const acerto = isGreen;
-    const textoP = placarEl.querySelector(".placar-texto")?.textContent.trim() || "";
+    const textoP = extrairPlacarFromEl(placarEl);
     const timeA  = placarEl.getAttribute("data-time-a");
     const timeB  = placarEl.getAttribute("data-time-b");
     const oddEl  = placarEl.querySelector(".odds");
@@ -949,13 +985,26 @@ function computeStatsFromDOM() {
   atualizarStatsSelecao(statsUnificado);
 }
 
+// ─── HELPER GLOBAL: extrai só o placar (sem nomes de times) ─────────────────
+function extrairPlacarFromEl(placarEl) {
+  const textoEl = placarEl.querySelector(".placar-texto");
+  if (!textoEl) return placarEl.textContent.trim();
+  return Array.from(textoEl.querySelectorAll("span"))
+    .filter(s => !s.classList.contains("time-casa") && !s.classList.contains("time-fora"))
+    .map(s => s.textContent.trim())
+    .filter(t => t.length > 0)
+    .join(" ")
+    .trim();
+}
+
 // ─── HIGHLIGHTS ───────────────────────────────────────────────────────────────
 function aplicarHighlights() {
   const mostrarTimes = document.querySelector("#mostrarTimes")?.value === "sim";
   const mostrarOdds  = document.querySelector("#mostrarOdds")?.value  === "sim";
 
   document.querySelectorAll(".placar").forEach(placar => {
-    const texto = placar.querySelector(".placar-texto")?.textContent.trim() || "";
+    // Use only score text (no team names) for placar matching
+    const texto = extrairPlacarFromEl(placar);
     const timeA = placar.getAttribute("data-time-a");
     const timeB = placar.getAttribute("data-time-b");
 
@@ -1245,20 +1294,20 @@ function criarTabela(dados, oddsData, proximosJogos) {
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
   thead.innerHTML = "";
 
-  const trPercentual    = Object.assign(document.createElement("tr"), { id: "linhaPercentual",    innerHTML: "<th></th><th>📈</th>" });
+  const trPercentual    = Object.assign(document.createElement("tr"), { id: "linhaPercentual",    innerHTML: "<th></th><th>📊</th>" });
   const trTotalGols     = Object.assign(document.createElement("tr"), { id: "linhaTotalGols",     innerHTML: "<th></th><th>⚽</th>" });
-  const trAcertosMercado = Object.assign(document.createElement("tr"), { id: "linhaAcertosMercado", innerHTML: "<th></th><th>✔️</th>" });
+  const trAcertosMercado = Object.assign(document.createElement("tr"), { id: "linhaAcertosMercado", innerHTML: "<th></th><th>✅</th>" });
   thead.append(trPercentual, trTotalGols, trAcertosMercado);
 
   const trMinutos = document.createElement("tr");
   const thSel = Object.assign(document.createElement("th"), { className: "selector-header" });
   thSel.style.width = "30px";
   trMinutos.appendChild(thSel);
-  trMinutos.appendChild(Object.assign(document.createElement("th"), { textContent: "⏰" }));
+  trMinutos.appendChild(Object.assign(document.createElement("th"), { textContent: "🕐" }));
   minutosFixos.forEach(m => {
     trMinutos.appendChild(Object.assign(document.createElement("th"), { className: "minute-header", textContent: m }));
   });
-  ["⚽️","✔️","📊"].forEach(t => trMinutos.appendChild(Object.assign(document.createElement("th"), { textContent: t })));
+  ["⚽","✅","📈"].forEach(t => trMinutos.appendChild(Object.assign(document.createElement("th"), { textContent: t })));
   thead.appendChild(trMinutos);
 
   tabelaBody.innerHTML = "";
@@ -1344,11 +1393,20 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
 
   // Handlers de clique
+  function extrairPlacar(placarEl) {
+    // Extracts only the score text, ignoring team name spans
+    const textoEl = placarEl.querySelector(".placar-texto");
+    if (!textoEl) return placarEl.textContent.trim();
+    return Array.from(textoEl.querySelectorAll("span"))
+      .filter(s => !s.classList.contains("time-casa") && !s.classList.contains("time-fora"))
+      .map(s => s.textContent.trim())
+      .join(" ")
+      .trim();
+  }
+
   function handlePlacarClick(e) {
-    // Allow placar selection regardless of mostrarTimes mode
-    // But only if click was not on a time span (those are handled by handleTimeClick)
     if (e.target.classList.contains("time-casa") || e.target.classList.contains("time-fora")) return;
-    const txt = (e.currentTarget.querySelector(".placar-texto") || e.currentTarget).textContent.trim();
+    const txt = extrairPlacar(e.currentTarget);
     Estado.toggleSelecao("placarSelecionados", txt);
     aplicarHighlights();
   }
@@ -1375,13 +1433,13 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const statsTime   = new Map();
   const statsOdd    = new Map();
   Estado.placarSelecionados.forEach((val, i) => {
-    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_PLACAR[i % CORES_PLACAR.length], label: "Placar" });
+    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_PLACAR[i % CORES_PLACAR.length], label: "Placar", tipo: "placar" });
   });
   Estado.timesSelecionados.forEach((val, i) => {
-    statsTime.set(val, { green: 0, red: 0, cor: CORES_TIME[i % CORES_TIME.length], label: "Time" });
+    statsTime.set(val, { green: 0, red: 0, cor: CORES_TIME[i % CORES_TIME.length], label: "Time", tipo: "time" });
   });
   Estado.oddsSelecionadas.forEach((val, i) => {
-    statsOdd.set(val, { green: 0, red: 0, cor: CORES_ODD[i % CORES_ODD.length], label: "Odd" });
+    statsOdd.set(val, { green: 0, red: 0, cor: CORES_ODD[i % CORES_ODD.length], label: "Odd", tipo: "odd" });
   });
 
   dados.forEach(dado => {
@@ -1448,8 +1506,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
     processedMatches.add(mk);
 
     // Highlights iniciais - placar highlight on score spans
+    const _scoreText = extrairPlacarFromEl(placar);
     for (const val of Estado.placarSelecionados) {
-      if (placarTexto.textContent.includes(val)) {
+      if (_scoreText.includes(val)) {
         const cor = Estado.getCorSelecao(Estado.placarSelecionados, val, "placar");
         placarTexto.querySelectorAll("span").forEach(span => {
           if (!span.classList.contains("time-casa") && !span.classList.contains("time-fora")) {
@@ -1656,8 +1715,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const pct = total > 0 ? Math.floor((acertos / total) * 100) : 0;
     const pctCell = row.children[row.children.length - 1];
     pctCell.textContent = `${pct}%`;
-    pctCell.classList.toggle("porcentagem-verde", pct >= 50);
-    pctCell.classList.toggle("porcentagem-branca", pct < 50);
+    const _thresh = getThreshold(selecaoResultado);
+    pctCell.classList.toggle("porcentagem-verde", pct >= _thresh);
+    pctCell.classList.toggle("porcentagem-branca", pct < _thresh);
   });
 
   // % por coluna
@@ -1671,8 +1731,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const pct = tot > 0 ? Math.floor((totalAcertosPorColuna[i] / tot) * 100) : 0;
     const cell = document.createElement("td");
     cell.textContent = `${pct}%`;
-    cell.classList.toggle("porcentagem-verde", pct > 49);
-    cell.classList.toggle("porcentagem-branca", pct <= 49);
+    const _threshCol = getThreshold(selecaoResultado);
+    cell.classList.toggle("porcentagem-verde", pct >= _threshCol);
+    cell.classList.toggle("porcentagem-branca", pct < _threshCol);
     trPercentual.appendChild(cell);
   });
   for (let i = 0; i < 3; i++) trPercentual.appendChild(document.createElement("td"));
@@ -1681,8 +1742,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
     .forEach(th => { th.style.backgroundColor = "#2c303b"; });
 
   const stats = calculateGoalStats(todasLinhas);
-  document.getElementById("totalGols").textContent     = `Gols: ${stats.totalGols}`;
-  document.getElementById("mediaGolsHora").textContent = `Médias: ${stats.mediaGolsHora}`;
+  document.getElementById("totalGols").textContent     = `⚽ Gols: ${stats.totalGols}`;
+  document.getElementById("mediaGolsHora").textContent = `📊 Médias: ${stats.mediaGolsHora}`;
 
   // Monta mapa unificado de stats para exibição (placar + time + odd)
   const statsUnificado = new Map();
