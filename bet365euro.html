@@ -512,13 +512,36 @@
 const minutosFixos = [ 2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59,];
 
 // ─── CORES PARA MULTI-SELEÇÃO ─────────────────────────────────────────────────
-const CORES_SELECAO = [
-  { bg: "#7B2FBE", label: "roxo" },
-  { bg: "#E6A817", label: "amarelo" },
-  { bg: "#1E88E5", label: "azul" },
-  { bg: "#E53935", label: "vermelho" },
-  { bg: "#00897B", label: "verde" },
+// Paletas independentes por tipo — sem verde nem vermelho, máximo contraste entre itens
+const CORES_PLACAR = [
+  "#A855F7", // roxo vibrante
+  "#F59E0B", // âmbar
+  "#3B82F6", // azul
+  "#EC4899", // rosa choque
+  "#06B6D4", // ciano
+  "#F97316", // laranja
 ];
+
+const CORES_TIME = [
+  "#FACC15", // amarelo forte
+  "#818CF8", // índigo claro
+  "#34D399", // esmeralda  — OK: não é o verde-célula (#018b06)
+  "#FB7185", // coral      — OK: não é o vermelho-célula (#be0e02)
+  "#A78BFA", // lilás
+  "#22D3EE", // azul turquesa
+];
+
+const CORES_ODD = [
+  "#F472B6", // rosa claro
+  "#FDE68A", // amarelo pastel
+  "#93C5FD", // azul claro
+  "#6EE7B7", // menta       — OK: não é o verde-célula
+  "#FCA5A1", // salmão      — OK: não é o vermelho-célula
+  "#C4B5FD", // lavanda
+];
+
+// Mantém compatibilidade com getCorSelecao genérico (usa CORES_PLACAR como fallback)
+const CORES_SELECAO = CORES_PLACAR.map(bg => ({ bg }));
 
 // ─── ESTADO CENTRALIZADO ──────────────────────────────────────────────────────
 const Estado = {
@@ -526,15 +549,20 @@ const Estado = {
   timesSelecionados:  [],
   oddsSelecionadas:   [],
   selectedChaves:     [],
-  _ultimoHashDados:    null,
-  _ultimoHashOdds:     null,
-  _ultimoHashProximos: null,
+  _ultimoHashDados:       null,
+  _ultimoHashOdds:        null,
+  _ultimoHashProximos:    null,
+  _ultimaLigaRenderizada: null,
+
+  _chavesKey() {
+    return `selectedChaves_${typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "default"}`;
+  },
 
   carregar() {
     this.placarSelecionados = JSON.parse(localStorage.getItem("placarSelecionados")) || [];
     this.timesSelecionados  = JSON.parse(localStorage.getItem("timesSelecionados"))  || [];
     this.oddsSelecionadas   = JSON.parse(localStorage.getItem("oddsSelecionadas"))   || [];
-    this.selectedChaves     = JSON.parse(localStorage.getItem("selectedChaves"))     || [];
+    this.selectedChaves     = JSON.parse(localStorage.getItem(this._chavesKey()))    || [];
     // Migra chaves legadas se existirem
     const lP = localStorage.getItem("placarSelecionado");
     const lT = localStorage.getItem("timeSelecionado");
@@ -551,7 +579,12 @@ const Estado = {
     localStorage.setItem("placarSelecionados", JSON.stringify(this.placarSelecionados));
     localStorage.setItem("timesSelecionados",  JSON.stringify(this.timesSelecionados));
     localStorage.setItem("oddsSelecionadas",   JSON.stringify(this.oddsSelecionadas));
-    localStorage.setItem("selectedChaves",     JSON.stringify(this.selectedChaves));
+    localStorage.setItem(this._chavesKey(),    JSON.stringify(this.selectedChaves));
+  },
+
+  // Recarrega selectedChaves para a liga atual (chamado ao trocar de liga)
+  recarregarChaves() {
+    this.selectedChaves = JSON.parse(localStorage.getItem(this._chavesKey())) || [];
   },
 
   toggleSelecao(chave, valor) {
@@ -560,7 +593,7 @@ const Estado = {
     if (idx !== -1) {
       lista.splice(idx, 1);
     } else {
-      if (lista.length >= 5) lista.shift();
+      if (lista.length >= 6) lista.shift();
       lista.push(valor);
     }
     this.salvar();
@@ -573,14 +606,23 @@ const Estado = {
     atualizarIndicadorSelecao();
   },
 
-  getCorSelecao(lista, valor) {
+  getCorSelecao(lista, valor, tipo) {
     const idx = lista.indexOf(valor);
-    return idx === -1 ? null : CORES_SELECAO[idx % CORES_SELECAO.length];
+    if (idx === -1) return null;
+    let paleta;
+    if (tipo === "time")  paleta = CORES_TIME;
+    else if (tipo === "odd") paleta = CORES_ODD;
+    else paleta = CORES_PLACAR;
+    return { bg: paleta[idx % paleta.length] };
   },
 
   hashDados(dados) {
     if (!dados || dados.length === 0) return "vazio";
-    return dados.length + "_" + (dados[0]?.id || dados[0]?.match_id || JSON.stringify(dados[0]).length);
+    // Include last item too so new entries at the end are detected
+    const first = dados[0];
+    const last  = dados[dados.length - 1];
+    const keyFn = d => d?.id || d?.match_id || d?.ft || JSON.stringify(d).length;
+    return `${dados.length}_${keyFn(first)}_${keyFn(last)}`;
   },
 
   dadosMudaram(dados, odds, proximos) {
@@ -609,9 +651,23 @@ Estado.carregar();
   const style = document.createElement("style");
   style.id = "multi-select-styles";
   style.textContent = `
-    .placar-selecionado { border: 3px solid var(--sel-color, #7B2FBE) !important; outline: none !important; }
-    .time-selecionado   { border: 3px solid var(--sel-color, #7B2FBE) !important; outline: none !important; }
-    .odd-selecionada    { border: 3px solid var(--sel-color, #7B2FBE) !important; outline: none !important; color: var(--sel-color, #7B2FBE) !important; }
+    .placar-selecionado { /* controlled via .placar-score-selecionado on inner spans */ }
+    .time-selecionado   { /* controlled via .time-nome-selecionado on the span */ }
+    .odd-selecionada    { border: 3px solid var(--sel-color, #A855F7) !important; outline: none !important; color: var(--sel-color, #A855F7) !important; }
+    .time-nome-selecionado {
+      background-color: var(--sel-color, #A855F7) !important;
+      color: #fff !important;
+      border-radius: 3px;
+      padding: 0 2px;
+      font-weight: bold;
+    }
+    .placar-score-selecionado {
+      background-color: var(--sel-color, #A855F7) !important;
+      color: #fff !important;
+      border-radius: 3px;
+      padding: 0 3px;
+      font-weight: bold;
+    }
     .placar-futuro-odd  { font-size: 0.7em; opacity: 0.85; margin-top: 2px; color: #f0c040; font-weight: bold; }
     .odd-tooltip        { color: #f0c040; font-weight: bold; margin-top: 3px; display: block; }
 
@@ -644,8 +700,9 @@ Estado.carregar();
 
     #painel-selecao {
       display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 12px; margin-bottom: 6px;
+      gap: 12px; margin-bottom: 6px; flex-wrap: wrap;
     }
+
     #selecao-indicator { margin-bottom: 0; flex: 1; min-width: 0; flex-wrap: wrap; }
     #stats-selecao {
       display: flex; flex-direction: column; gap: 4px;
@@ -701,12 +758,12 @@ function criarOuObterPainel() {
 
     const tabela = document.getElementById("tabelaResultados");
     if (tabela) {
-      // Insert before selectedRowsContainer if it exists, otherwise before the main table
       const selCont = document.getElementById("selectedRowsContainer");
       const anchor = selCont || tabela;
       anchor.parentNode.insertBefore(painel, anchor);
     }
   }
+
   return painel;
 }
 
@@ -799,14 +856,14 @@ function atualizarIndicadorSelecao() {
   }
 
   const grupos = [
-    { lista: Estado.placarSelecionados, chave: "placarSelecionados", prefixo: "Placar" },
-    { lista: Estado.timesSelecionados,  chave: "timesSelecionados",  prefixo: "Time"   },
-    { lista: Estado.oddsSelecionadas,   chave: "oddsSelecionadas",   prefixo: "Odd"    },
+    { lista: Estado.placarSelecionados, chave: "placarSelecionados", prefixo: "Placar", paleta: CORES_PLACAR },
+    { lista: Estado.timesSelecionados,  chave: "timesSelecionados",  prefixo: "Time",   paleta: CORES_TIME  },
+    { lista: Estado.oddsSelecionadas,   chave: "oddsSelecionadas",   prefixo: "Odd",    paleta: CORES_ODD   },
   ];
 
-  grupos.forEach(({ lista, chave, prefixo }) => {
+  grupos.forEach(({ lista, chave, prefixo, paleta }) => {
     lista.forEach((valor, idx) => {
-      const cor = CORES_SELECAO[idx % CORES_SELECAO.length];
+      const cor = { bg: paleta[idx % paleta.length] };
       const tag = document.createElement("span");
       tag.className = "sel-tag";
       tag.style.background = cor.bg;
@@ -830,13 +887,13 @@ function computeStatsFromDOM() {
   const statsTime   = new Map();
   const statsOdd    = new Map();
   Estado.placarSelecionados.forEach((val, i) => {
-    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Placar" });
+    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_PLACAR[i % CORES_PLACAR.length], label: "Placar" });
   });
   Estado.timesSelecionados.forEach((val, i) => {
-    statsTime.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Time" });
+    statsTime.set(val, { green: 0, red: 0, cor: CORES_TIME[i % CORES_TIME.length], label: "Time" });
   });
   Estado.oddsSelecionadas.forEach((val, i) => {
-    statsOdd.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Odd" });
+    statsOdd.set(val, { green: 0, red: 0, cor: CORES_ODD[i % CORES_ODD.length], label: "Odd" });
   });
 
   // Lê cada célula da tabela (ignora futuros)
@@ -864,13 +921,18 @@ function computeStatsFromDOM() {
         }
       }
     }
-    if (mostrarTimes) {
-      for (const val of Estado.timesSelecionados) {
-        if (timeA === val || timeB === val) {
-          const s = statsTime.get(val);
-          if (s) { acerto ? s.green++ : s.red++; }
-          break;
-        }
+    // Time stats: match against data-full-time on individual name spans
+    const timeSpans = placarEl.querySelectorAll(".time-casa, .time-fora");
+    const timeNames = Array.from(timeSpans).map(s => s.getAttribute("data-full-time")).filter(Boolean);
+    if (timeNames.length === 0) {
+      // fallback to data attributes on card
+      timeNames.push(timeA, timeB);
+    }
+    for (const val of Estado.timesSelecionados) {
+      if (timeNames.includes(val)) {
+        const s = statsTime.get(val);
+        if (s) { acerto ? s.green++ : s.red++; }
+        break;
       }
     }
     if (mostrarOdds && oddTxt) {
@@ -903,29 +965,55 @@ function aplicarHighlights() {
     const timeA = placar.getAttribute("data-time-a");
     const timeB = placar.getAttribute("data-time-b");
 
-    placar.classList.remove("placar-selecionado", "time-selecionado");
+    // Reset all highlights
+    placar.classList.remove("placar-selecionado");
     placar.style.removeProperty("--sel-color");
 
-    if (!mostrarTimes) {
-      for (const val of Estado.placarSelecionados) {
-        if (texto.includes(val)) {
-          const cor = Estado.getCorSelecao(Estado.placarSelecionados, val);
-          placar.style.setProperty("--sel-color", cor.bg);
-          placar.classList.add("placar-selecionado");
-          break;
+    // Reset placar score span highlights
+    placar.querySelectorAll(".placar-score-selecionado").forEach(el => {
+      el.classList.remove("placar-score-selecionado");
+      el.style.removeProperty("--sel-color");
+    });
+
+    // Reset time name highlights
+    placar.querySelectorAll(".time-casa, .time-fora").forEach(span => {
+      span.classList.remove("time-nome-selecionado");
+      span.style.removeProperty("--sel-color");
+    });
+
+    // Placar highlight on the score text spans inside .placar-texto
+    for (const val of Estado.placarSelecionados) {
+      if (texto.includes(val)) {
+        const cor = Estado.getCorSelecao(Estado.placarSelecionados, val, "placar");
+        // Apply highlight to all score spans (skip time-casa/time-fora spans)
+        const placarTextoEl = placar.querySelector(".placar-texto");
+        if (placarTextoEl) {
+          placarTextoEl.querySelectorAll("span").forEach(span => {
+            if (!span.classList.contains("time-casa") && !span.classList.contains("time-fora")) {
+              span.style.setProperty("--sel-color", cor.bg);
+              span.classList.add("placar-score-selecionado");
+            }
+          });
         }
+        break;
       }
     }
 
-    if (mostrarTimes && Estado.timesSelecionados.length > 0) {
-      for (const val of Estado.timesSelecionados) {
-        if (timeA === val || timeB === val) {
-          const cor = Estado.getCorSelecao(Estado.timesSelecionados, val);
-          placar.style.setProperty("--sel-color", cor.bg);
-          placar.classList.add("time-selecionado");
-          break;
+    // Time highlight: color fill on the name span only
+    if (Estado.timesSelecionados.length > 0) {
+      [".time-casa", ".time-fora"].forEach(sel => {
+        const span = placar.querySelector(sel);
+        if (!span) return;
+        const fullTime = span.getAttribute("data-full-time");
+        for (const val of Estado.timesSelecionados) {
+          if (fullTime === val) {
+            const cor = Estado.getCorSelecao(Estado.timesSelecionados, val, "time");
+            span.style.setProperty("--sel-color", cor.bg);
+            span.classList.add("time-nome-selecionado");
+            break;
+          }
         }
-      }
+      });
     }
 
     if (mostrarOdds) {
@@ -935,7 +1023,7 @@ function aplicarHighlights() {
         oddEl.style.removeProperty("--sel-color");
         for (const val of Estado.oddsSelecionadas) {
           if (oddEl.textContent.trim() === val) {
-            const cor = Estado.getCorSelecao(Estado.oddsSelecionadas, val);
+            const cor = Estado.getCorSelecao(Estado.oddsSelecionadas, val, "odd");
             oddEl.style.setProperty("--sel-color", cor.bg);
             oddEl.classList.add("odd-selecionada");
             break;
@@ -1127,7 +1215,23 @@ function updateSelectedRows() {
   sel.style.display = "";
   const tbody = sel.querySelector("tbody");
   tbody.innerHTML = "";
-  Estado.selectedChaves.forEach(chave => {
+  // Sort selected chaves chronologically (oldest at bottom = descending by timestamp)
+  // chave format: "YYYY-MM-DD-HH"
+  const chavesOrdenadas = [...Estado.selectedChaves].sort((a, b) => {
+    // chave: "2025-08-21-14" -> date part + hour
+    const partsA = a.split("-");
+    const partsB = b.split("-");
+    // last element is hour, rest is date
+    const horaA = parseInt(partsA[partsA.length - 1]);
+    const horaB = parseInt(partsB[partsB.length - 1]);
+    const dateA = partsA.slice(0, -1).join("-");
+    const dateB = partsB.slice(0, -1).join("-");
+    const tsA = new Date(`${dateA}T${horaA.toString().padStart(2,"0")}:00:00`).getTime();
+    const tsB = new Date(`${dateB}T${horaB.toString().padStart(2,"0")}:00:00`).getTime();
+    return tsB - tsA; // newest first (top), oldest last (bottom)
+  });
+
+  chavesOrdenadas.forEach(chave => {
     const row = document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`);
     if (!row) return;
     const clone = row.cloneNode(true);
@@ -1247,7 +1351,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   // Handlers de clique
   function handlePlacarClick(e) {
-    if (mostrarTimes) return;
+    // Allow placar selection regardless of mostrarTimes mode
+    // But only if click was not on a time span (those are handled by handleTimeClick)
+    if (e.target.classList.contains("time-casa") || e.target.classList.contains("time-fora")) return;
     const txt = (e.currentTarget.querySelector(".placar-texto") || e.currentTarget).textContent.trim();
     Estado.toggleSelecao("placarSelecionados", txt);
     aplicarHighlights();
@@ -1275,13 +1381,13 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const statsTime   = new Map();
   const statsOdd    = new Map();
   Estado.placarSelecionados.forEach((val, i) => {
-    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Placar" });
+    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_PLACAR[i % CORES_PLACAR.length], label: "Placar" });
   });
   Estado.timesSelecionados.forEach((val, i) => {
-    statsTime.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Time" });
+    statsTime.set(val, { green: 0, red: 0, cor: CORES_TIME[i % CORES_TIME.length], label: "Time" });
   });
   Estado.oddsSelecionadas.forEach((val, i) => {
-    statsOdd.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Odd" });
+    statsOdd.set(val, { green: 0, red: 0, cor: CORES_ODD[i % CORES_ODD.length], label: "Odd" });
   });
 
   dados.forEach(dado => {
@@ -1347,29 +1453,39 @@ function criarTabela(dados, oddsData, proximosJogos) {
     cel.appendChild(placar);
     processedMatches.add(mk);
 
-    // Highlights iniciais
-    if (!mostrarTimes) {
-      for (const val of Estado.placarSelecionados) {
-        if (placarTexto.textContent.includes(val)) {
-          placar.style.setProperty("--sel-color", Estado.getCorSelecao(Estado.placarSelecionados, val).bg);
-          placar.classList.add("placar-selecionado"); break;
-        }
+    // Highlights iniciais - placar highlight on score spans
+    for (const val of Estado.placarSelecionados) {
+      if (placarTexto.textContent.includes(val)) {
+        const cor = Estado.getCorSelecao(Estado.placarSelecionados, val, "placar");
+        placarTexto.querySelectorAll("span").forEach(span => {
+          if (!span.classList.contains("time-casa") && !span.classList.contains("time-fora")) {
+            span.style.setProperty("--sel-color", cor.bg);
+            span.classList.add("placar-score-selecionado");
+          }
+        });
+        break;
       }
     }
-    if (mostrarTimes) {
+    // Time name highlight (applied to each span individually)
+    [".time-casa", ".time-fora"].forEach(sel => {
+      const span = placar.querySelector(sel);
+      if (!span) return;
+      const fullTime = span.getAttribute("data-full-time");
       for (const val of Estado.timesSelecionados) {
-        if (dado.time_a === val || dado.time_b === val) {
-          placar.style.setProperty("--sel-color", Estado.getCorSelecao(Estado.timesSelecionados, val).bg);
-          placar.classList.add("time-selecionado"); break;
+        if (fullTime === val) {
+          const cor = Estado.getCorSelecao(Estado.timesSelecionados, val, "time");
+          span.style.setProperty("--sel-color", cor.bg);
+          span.classList.add("time-nome-selecionado");
+          break;
         }
       }
-    }
+    });
     if (mostrarOdds) {
       const oel = placar.querySelector(".odds");
       if (oel) {
         for (const val of Estado.oddsSelecionadas) {
           if (oel.textContent.trim() === val) {
-            oel.style.setProperty("--sel-color", Estado.getCorSelecao(Estado.oddsSelecionadas, val).bg);
+            oel.style.setProperty("--sel-color", Estado.getCorSelecao(Estado.oddsSelecionadas, val, "odd").bg);
             oel.classList.add("odd-selecionada"); break;
           }
         }
@@ -1509,14 +1625,20 @@ function criarTabela(dados, oddsData, proximosJogos) {
     cel.appendChild(placar);
     processedMatches.add(mk);
 
-    if (mostrarTimes) {
+    // Time name highlight for future matches
+    [".time-casa", ".time-fora"].forEach(sel => {
+      const span = placar.querySelector(sel);
+      if (!span) return;
+      const fullTime = span.getAttribute("data-full-time");
       for (const val of Estado.timesSelecionados) {
-        if (jogo.team_home === val || jogo.team_visit === val) {
-          placar.style.setProperty("--sel-color", Estado.getCorSelecao(Estado.timesSelecionados, val).bg);
-          placar.classList.add("time-selecionado"); break;
+        if (fullTime === val) {
+          const cor = Estado.getCorSelecao(Estado.timesSelecionados, val, "time");
+          span.style.setProperty("--sel-color", cor.bg);
+          span.classList.add("time-nome-selecionado");
+          break;
         }
       }
-    }
+    });
   });
 
   // Footer totais
@@ -1582,6 +1704,15 @@ function criarTabela(dados, oddsData, proximosJogos) {
 // ─── BUSCA COM DIFF ───────────────────────────────────────────────────────────
 async function buscarDados() {
   hideErrorMessage();
+  // Recarrega chaves selecionadas para a liga atual e detecta troca de liga
+  const ligaAnterior = Estado._ultimaLigaRenderizada;
+  const ligaAtual = typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "default";
+  Estado.recarregarChaves();
+  if (ligaAnterior !== ligaAtual) {
+    // Liga mudou: força re-render completo e atualiza badge
+    Estado.forcarRerender();
+    Estado._ultimaLigaRenderizada = ligaAtual;
+  }
   let dados = [], oddsData = [], proximosJogos = [];
 
   try {
@@ -1606,9 +1737,8 @@ async function buscarDados() {
 
   if (!Estado.dadosMudaram(dados, oddsData, proximosJogos)) {
     console.log("Dados inalterados, re-render ignorado.");
-    // Mesmo sem re-render, recomputa stats caso novas células tenham aparecido
-    // ou o usuário tenha feito uma seleção desde o último ciclo
     computeStatsFromDOM();
+    updateSelectedRows(); // garante exibição das linhas selecionadas ao voltar de outra liga
     return;
   }
 
@@ -1616,7 +1746,15 @@ async function buscarDados() {
 }
 
 buscarDados();
-setInterval(buscarDados, 5000);
+
+// Debounced interval: only fires next cycle after current fetch completes
+let _buscando = false;
+setInterval(async () => {
+  if (_buscando) return;
+  _buscando = true;
+  try { await buscarDados(); }
+  finally { _buscando = false; }
+}, 5000);
 
 // ─── LISTENERS ────────────────────────────────────────────────────────────────
 const _seletorHoras       = document.querySelector("#seletorHoras");
@@ -1633,8 +1771,8 @@ if (_seletorTipoPlacar) _seletorTipoPlacar.addEventListener("change", () => { Es
 if (_mostrarTimesSelect) {
   _mostrarTimesSelect.addEventListener("change", () => {
     if (_mostrarTimesSelect.value !== "sim") {
-      Estado.limparSelecoes(["placarSelecionados", "timesSelecionados"]);
-      showToast("Seleções de placar e time limpas");
+      Estado.limparSelecoes(["timesSelecionados"]);
+      showToast("Seleções de time limpas");
     }
     Estado.forcarRerender();
     buscarDados();
