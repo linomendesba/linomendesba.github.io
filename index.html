@@ -556,9 +556,10 @@ const Estado = {
   timesSelecionados:  [],
   oddsSelecionadas:   [],
   selectedChaves:     [],
-  _ultimoHashDados:    null,
-  _ultimoHashOdds:     null,
-  _ultimoHashProximos: null,
+  _ultimoHashDados:       null,
+  _ultimoHashOdds:        null,
+  _ultimoHashProximos:    null,
+  _ultimaLigaRenderizada: null,
 
   _chavesKey() {
     return `selectedChaves_${typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "default"}`;
@@ -1725,8 +1726,15 @@ function criarTabela(dados, oddsData, proximosJogos) {
 // ─── BUSCA COM DIFF ───────────────────────────────────────────────────────────
 async function buscarDados() {
   hideErrorMessage();
-  // Recarrega chaves selecionadas para a liga atual (evita cross-liga)
+  // Recarrega chaves selecionadas para a liga atual e detecta troca de liga
+  const ligaAnterior = Estado._ultimaLigaRenderizada;
+  const ligaAtual = typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "default";
   Estado.recarregarChaves();
+  if (ligaAnterior !== ligaAtual) {
+    // Liga mudou: força re-render completo e atualiza badge
+    Estado.forcarRerender();
+    Estado._ultimaLigaRenderizada = ligaAtual;
+  }
   let dados = [], oddsData = [], proximosJogos = [];
 
   try {
@@ -1751,9 +1759,8 @@ async function buscarDados() {
 
   if (!Estado.dadosMudaram(dados, oddsData, proximosJogos)) {
     console.log("Dados inalterados, re-render ignorado.");
-    // Mesmo sem re-render, recomputa stats caso novas células tenham aparecido
-    // ou o usuário tenha feito uma seleção desde o último ciclo
     computeStatsFromDOM();
+    updateSelectedRows(); // garante exibição das linhas selecionadas ao voltar de outra liga
     return;
   }
 
