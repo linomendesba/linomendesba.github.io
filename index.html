@@ -519,14 +519,36 @@ const minutosFixos = [
 ];
 
 // ─── CORES PARA MULTI-SELEÇÃO ─────────────────────────────────────────────────
-const CORES_SELECAO = [
-  { bg: "#A855F7", label: "roxo" },    // roxo vibrante
-  { bg: "#F59E0B", label: "amarelo" }, // âmbar
-  { bg: "#3B82F6", label: "azul" },    // azul
-  { bg: "#EC4899", label: "rosa" },    // rosa
-  { bg: "#06B6D4", label: "ciano" },   // ciano
-  { bg: "#F97316", label: "laranja" }, // laranja
+// Paletas independentes por tipo — sem verde (#0x8) nem vermelho (#Cx2)
+const CORES_PLACAR = [
+  "#A855F7", // roxo
+  "#7C3AED", // violeta
+  "#6366F1", // indigo
+  "#8B5CF6", // lilás
+  "#A78BFA", // lavanda
+  "#C084FC", // púrpura claro
 ];
+
+const CORES_TIME = [
+  "#F59E0B", // âmbar
+  "#FBBF24", // amarelo
+  "#FCD34D", // amarelo claro
+  "#F97316", // laranja
+  "#FB923C", // laranja claro
+  "#FDBA74", // pêssego
+];
+
+const CORES_ODD = [
+  "#06B6D4", // ciano
+  "#0EA5E9", // azul céu
+  "#3B82F6", // azul
+  "#EC4899", // rosa
+  "#F472B6", // rosa claro
+  "#67E8F9", // ciano claro
+];
+
+// Mantém compatibilidade com getCorSelecao genérico (usa CORES_PLACAR como fallback)
+const CORES_SELECAO = CORES_PLACAR.map(bg => ({ bg }));
 
 // ─── ESTADO CENTRALIZADO ──────────────────────────────────────────────────────
 const Estado = {
@@ -581,9 +603,14 @@ const Estado = {
     atualizarIndicadorSelecao();
   },
 
-  getCorSelecao(lista, valor) {
+  getCorSelecao(lista, valor, tipo) {
     const idx = lista.indexOf(valor);
-    return idx === -1 ? null : CORES_SELECAO[idx % CORES_SELECAO.length];
+    if (idx === -1) return null;
+    let paleta;
+    if (tipo === "time")  paleta = CORES_TIME;
+    else if (tipo === "odd") paleta = CORES_ODD;
+    else paleta = CORES_PLACAR;
+    return { bg: paleta[idx % paleta.length] };
   },
 
   hashDados(dados) {
@@ -821,14 +848,14 @@ function atualizarIndicadorSelecao() {
   }
 
   const grupos = [
-    { lista: Estado.placarSelecionados, chave: "placarSelecionados", prefixo: "Placar" },
-    { lista: Estado.timesSelecionados,  chave: "timesSelecionados",  prefixo: "Time"   },
-    { lista: Estado.oddsSelecionadas,   chave: "oddsSelecionadas",   prefixo: "Odd"    },
+    { lista: Estado.placarSelecionados, chave: "placarSelecionados", prefixo: "Placar", paleta: CORES_PLACAR },
+    { lista: Estado.timesSelecionados,  chave: "timesSelecionados",  prefixo: "Time",   paleta: CORES_TIME  },
+    { lista: Estado.oddsSelecionadas,   chave: "oddsSelecionadas",   prefixo: "Odd",    paleta: CORES_ODD   },
   ];
 
-  grupos.forEach(({ lista, chave, prefixo }) => {
+  grupos.forEach(({ lista, chave, prefixo, paleta }) => {
     lista.forEach((valor, idx) => {
-      const cor = CORES_SELECAO[idx % CORES_SELECAO.length];
+      const cor = { bg: paleta[idx % paleta.length] };
       const tag = document.createElement("span");
       tag.className = "sel-tag";
       tag.style.background = cor.bg;
@@ -852,13 +879,13 @@ function computeStatsFromDOM() {
   const statsTime   = new Map();
   const statsOdd    = new Map();
   Estado.placarSelecionados.forEach((val, i) => {
-    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Placar" });
+    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_PLACAR[i % CORES_PLACAR.length], label: "Placar" });
   });
   Estado.timesSelecionados.forEach((val, i) => {
-    statsTime.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Time" });
+    statsTime.set(val, { green: 0, red: 0, cor: CORES_TIME[i % CORES_TIME.length], label: "Time" });
   });
   Estado.oddsSelecionadas.forEach((val, i) => {
-    statsOdd.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Odd" });
+    statsOdd.set(val, { green: 0, red: 0, cor: CORES_ODD[i % CORES_ODD.length], label: "Odd" });
   });
 
   // Lê cada célula da tabela (ignora futuros)
@@ -949,7 +976,7 @@ function aplicarHighlights() {
     // Placar highlight on the score text spans inside .placar-texto
     for (const val of Estado.placarSelecionados) {
       if (texto.includes(val)) {
-        const cor = Estado.getCorSelecao(Estado.placarSelecionados, val);
+        const cor = Estado.getCorSelecao(Estado.placarSelecionados, val, "placar");
         // Apply highlight to all score spans (skip time-casa/time-fora spans)
         const placarTextoEl = placar.querySelector(".placar-texto");
         if (placarTextoEl) {
@@ -972,7 +999,7 @@ function aplicarHighlights() {
         const fullTime = span.getAttribute("data-full-time");
         for (const val of Estado.timesSelecionados) {
           if (fullTime === val) {
-            const cor = Estado.getCorSelecao(Estado.timesSelecionados, val);
+            const cor = Estado.getCorSelecao(Estado.timesSelecionados, val, "time");
             span.style.setProperty("--sel-color", cor.bg);
             span.classList.add("time-nome-selecionado");
             break;
@@ -988,7 +1015,7 @@ function aplicarHighlights() {
         oddEl.style.removeProperty("--sel-color");
         for (const val of Estado.oddsSelecionadas) {
           if (oddEl.textContent.trim() === val) {
-            const cor = Estado.getCorSelecao(Estado.oddsSelecionadas, val);
+            const cor = Estado.getCorSelecao(Estado.oddsSelecionadas, val, "odd");
             oddEl.style.setProperty("--sel-color", cor.bg);
             oddEl.classList.add("odd-selecionada");
             break;
@@ -1346,13 +1373,13 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const statsTime   = new Map();
   const statsOdd    = new Map();
   Estado.placarSelecionados.forEach((val, i) => {
-    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Placar" });
+    statsPlacar.set(val, { green: 0, red: 0, cor: CORES_PLACAR[i % CORES_PLACAR.length], label: "Placar" });
   });
   Estado.timesSelecionados.forEach((val, i) => {
-    statsTime.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Time" });
+    statsTime.set(val, { green: 0, red: 0, cor: CORES_TIME[i % CORES_TIME.length], label: "Time" });
   });
   Estado.oddsSelecionadas.forEach((val, i) => {
-    statsOdd.set(val, { green: 0, red: 0, cor: CORES_SELECAO[i % CORES_SELECAO.length].bg, label: "Odd" });
+    statsOdd.set(val, { green: 0, red: 0, cor: CORES_ODD[i % CORES_ODD.length], label: "Odd" });
   });
 
   dados.forEach(dado => {
@@ -1421,7 +1448,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     // Highlights iniciais - placar highlight on score spans
     for (const val of Estado.placarSelecionados) {
       if (placarTexto.textContent.includes(val)) {
-        const cor = Estado.getCorSelecao(Estado.placarSelecionados, val);
+        const cor = Estado.getCorSelecao(Estado.placarSelecionados, val, "placar");
         placarTexto.querySelectorAll("span").forEach(span => {
           if (!span.classList.contains("time-casa") && !span.classList.contains("time-fora")) {
             span.style.setProperty("--sel-color", cor.bg);
@@ -1438,7 +1465,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
       const fullTime = span.getAttribute("data-full-time");
       for (const val of Estado.timesSelecionados) {
         if (fullTime === val) {
-          const cor = Estado.getCorSelecao(Estado.timesSelecionados, val);
+          const cor = Estado.getCorSelecao(Estado.timesSelecionados, val, "time");
           span.style.setProperty("--sel-color", cor.bg);
           span.classList.add("time-nome-selecionado");
           break;
@@ -1450,7 +1477,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
       if (oel) {
         for (const val of Estado.oddsSelecionadas) {
           if (oel.textContent.trim() === val) {
-            oel.style.setProperty("--sel-color", Estado.getCorSelecao(Estado.oddsSelecionadas, val).bg);
+            oel.style.setProperty("--sel-color", Estado.getCorSelecao(Estado.oddsSelecionadas, val, "odd").bg);
             oel.classList.add("odd-selecionada"); break;
           }
         }
@@ -1597,7 +1624,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
       const fullTime = span.getAttribute("data-full-time");
       for (const val of Estado.timesSelecionados) {
         if (fullTime === val) {
-          const cor = Estado.getCorSelecao(Estado.timesSelecionados, val);
+          const cor = Estado.getCorSelecao(Estado.timesSelecionados, val, "time");
           span.style.setProperty("--sel-color", cor.bg);
           span.classList.add("time-nome-selecionado");
           break;
