@@ -581,16 +581,22 @@ const Estado = {
   _ultimoHashOdds:        null,
   _ultimoHashProximos:    null,
   _ultimaLigaRenderizada: null,
+  colunasSelecionadas:    [],
 
   _chavesKey() {
     return `selectedChaves_${typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "default"}`;
+  },
+
+  _colunasKey() {
+    return `colunasSelecionadas_${typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "default"}`;
   },
 
   carregar() {
     this.placarSelecionados = JSON.parse(localStorage.getItem("placarSelecionados")) || [];
     this.timesSelecionados  = JSON.parse(localStorage.getItem("timesSelecionados"))  || [];
     this.oddsSelecionadas   = JSON.parse(localStorage.getItem("oddsSelecionadas"))   || [];
-    this.selectedChaves     = JSON.parse(localStorage.getItem(this._chavesKey()))    || [];
+    this.selectedChaves      = JSON.parse(localStorage.getItem(this._chavesKey()))    || [];
+    this.colunasSelecionadas = JSON.parse(localStorage.getItem(this._colunasKey()))   || [];
     // Migra chaves legadas se existirem
     const lP = localStorage.getItem("placarSelecionado");
     const lT = localStorage.getItem("timeSelecionado");
@@ -608,11 +614,13 @@ const Estado = {
     localStorage.setItem("timesSelecionados",  JSON.stringify(this.timesSelecionados));
     localStorage.setItem("oddsSelecionadas",   JSON.stringify(this.oddsSelecionadas));
     localStorage.setItem(this._chavesKey(),    JSON.stringify(this.selectedChaves));
+    localStorage.setItem(this._colunasKey(),  JSON.stringify(this.colunasSelecionadas));
   },
 
   // Recarrega selectedChaves para a liga atual (chamado ao trocar de liga)
   recarregarChaves() {
-    this.selectedChaves = JSON.parse(localStorage.getItem(this._chavesKey())) || [];
+    this.selectedChaves      = JSON.parse(localStorage.getItem(this._chavesKey()))  || [];
+    this.colunasSelecionadas = JSON.parse(localStorage.getItem(this._colunasKey())) || [];
   },
 
   toggleSelecao(chave, valor) {
@@ -697,6 +705,57 @@ Estado.carregar();
       font-weight: bold;
     }
     .placar-futuro-odd  { font-size: 0.7em; opacity: 0.85; margin-top: 2px; color: #f0c040; font-weight: bold; }
+
+    /* ── Seleção de colunas ── */
+    .minute-header { cursor: pointer; user-select: none; transition: background 0.15s; }
+    .minute-header:hover { filter: brightness(1.3); }
+
+    /* Quando há seleção ativa: escurece colunas NÃO selecionadas */
+    #tabelaResultados.tem-coluna-selecionada td:not(.coluna-selecionada) {
+      filter: brightness(0.45);
+    }
+    #tabelaResultados.tem-coluna-selecionada th.minute-header:not(.coluna-selecionada) {
+      filter: brightness(0.45);
+    }
+    /* Colunas selecionadas ficam normais + header levemente destacado */
+    #tabelaResultados.tem-coluna-selecionada td.coluna-selecionada { filter: none; }
+    #tabelaResultados.tem-coluna-selecionada th.coluna-selecionada {
+      filter: none;
+      background: rgba(255,255,255,0.15) !important;
+    }
+    /* Células que nunca devem ser escurecidas (hora, checkbox, totais) */
+    #tabelaResultados.tem-coluna-selecionada td:first-child,
+    #tabelaResultados.tem-coluna-selecionada td:nth-child(2),
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(1),
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(2),
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(3) {
+      filter: none;
+    }
+
+    /* ── Stats de colunas selecionadas ── */
+    #coluna-stats {
+      display: flex; flex-wrap: wrap; gap: 5px;
+      padding: 5px 8px; margin-bottom: 4px;
+    }
+    #coluna-stats:empty { display: none; }
+    .col-stat-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: rgba(255,255,255,0.08); border-radius: 8px;
+      padding: 3px 10px; font-size: 0.76em; white-space: nowrap; color: #fff;
+    }
+    .col-stat-tag .col-min { font-weight: bold; color: #ccc; }
+    .col-stat-tag .col-g { color: #4cff55; font-weight: bold; }
+    .col-stat-tag .col-r { color: #ff5555; font-weight: bold; }
+    .col-stat-tag .col-pct { padding: 1px 6px; border-radius: 8px; font-weight: bold; color: #fff; margin-left: 2px; }
+    .col-stat-verde  { background: #018b06; }
+    .col-stat-branca { background: #555; }
+    .col-stat-tag .col-remove { cursor: pointer; opacity: 0.6; margin-left: 2px; }
+    .col-stat-tag .col-remove:hover { opacity: 1; }
+
+    /* ── Divisores de quadrante (a cada 5 colunas) ── */
+    td.quadrant-border, th.quadrant-border {
+      border-left: 2px solid rgba(255,255,255,0.35) !important;
+    }
     .odd-tooltip        { color: #f0c040; font-weight: bold; margin-top: 3px; display: block; }
 
     #selecao-indicator {
@@ -991,6 +1050,107 @@ function computeStatsFromDOM() {
 
   criarOuObterPainel();
   atualizarStatsSelecao(statsUnificado);
+}
+
+// ─── SELEÇÃO DE COLUNAS ──────────────────────────────────────────────────────
+function toggleColuna(minuto) {
+  const lista = Estado.colunasSelecionadas;
+  const idx = lista.indexOf(minuto);
+  if (idx !== -1) lista.splice(idx, 1);
+  else lista.push(minuto);
+  Estado.salvar();
+  aplicarColunaHighlights();
+  atualizarColunaStats();
+}
+
+function aplicarColunaHighlights() {
+  const tabela = document.getElementById("tabelaResultados");
+  const temSel = Estado.colunasSelecionadas.length > 0;
+
+  // Classe no <table> controla o escurecimento via CSS
+  if (tabela) tabela.classList.toggle("tem-coluna-selecionada", temSel);
+
+  // Marca headers
+  document.querySelectorAll(".minute-header").forEach(th => {
+    const min = parseInt(th.textContent.trim());
+    th.classList.toggle("coluna-selecionada", Estado.colunasSelecionadas.includes(min));
+  });
+
+  // Marca e garante quadrant-border em todas as células do tbody
+  document.querySelectorAll("#tabelaResultados tbody tr").forEach(row => {
+    Array.from(row.cells).forEach((cell, i) => {
+      if (i < 2 || i >= 2 + minutosFixos.length) return;
+      const colIdx = i - 2;
+      const min = minutosFixos[colIdx];
+      cell.classList.toggle("coluna-selecionada", Estado.colunasSelecionadas.includes(min));
+      // Garante divisor de quadrante
+      cell.classList.toggle("quadrant-border", colIdx > 0 && colIdx % 5 === 0);
+    });
+  });
+
+  // Garante quadrant-border nos headers também
+  document.querySelectorAll(".minute-header").forEach((th, i) => {
+    th.classList.toggle("quadrant-border", i > 0 && i % 5 === 0);
+  });
+}
+
+function atualizarColunaStats() {
+  let el = document.getElementById("coluna-stats");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "coluna-stats";
+    const painel = document.getElementById("painel-selecao");
+    if (painel) painel.insertAdjacentElement("afterend", el);
+    else {
+      const tabela = document.getElementById("tabelaResultados");
+      if (tabela) tabela.parentNode.insertBefore(el, tabela);
+    }
+  }
+  el.innerHTML = "";
+
+  if (Estado.colunasSelecionadas.length === 0) return;
+
+  // Soma TODAS as colunas selecionadas em um único total
+  let greenTotal = 0, redTotal = 0;
+  const colOrdenadas = [...Estado.colunasSelecionadas]
+    .sort((a, b) => minutosFixos.indexOf(a) - minutosFixos.indexOf(b));
+
+  colOrdenadas.forEach(min => {
+    const colIdx = minutosFixos.indexOf(min);
+    if (colIdx === -1) return;
+    document.querySelectorAll("#tabelaResultados tbody tr").forEach(row => {
+      const cell = row.cells[2 + colIdx];
+      if (!cell) return;
+      const bg = cell.style.backgroundColor;
+      if (bg === "rgb(1, 139, 6)")       greenTotal++;
+      else if (bg === "rgb(190, 14, 2)") redTotal++;
+    });
+  });
+
+  const total = greenTotal + redTotal;
+  if (total === 0) return;
+
+  const pct    = Math.round((greenTotal / total) * 100);
+  const thresh = getThreshold(document.querySelector("#seletorResultado")?.value || "");
+  const mins   = colOrdenadas.join(", ");
+
+  const tag = document.createElement("div");
+  tag.className = "col-stat-tag";
+  tag.innerHTML = `
+    <span class="col-min">min ${mins}</span>
+    <span style="color:#aaa;font-size:0.85em">${total}×</span>
+    <span class="col-g">${greenTotal}✔</span>
+    <span class="col-r">${redTotal}✘</span>
+    <span class="col-pct ${pct >= thresh ? "col-stat-verde" : "col-stat-branca"}">${pct}%</span>
+    <span class="col-remove" title="Limpar seleção">✕</span>
+  `;
+  tag.querySelector(".col-remove").addEventListener("click", () => {
+    Estado.colunasSelecionadas.length = 0;
+    Estado.salvar();
+    aplicarColunaHighlights();
+    atualizarColunaStats();
+  });
+  el.appendChild(tag);
 }
 
 // ─── HELPER GLOBAL: extrai só o placar (sem nomes de times) ─────────────────
@@ -1312,8 +1472,15 @@ function criarTabela(dados, oddsData, proximosJogos) {
   thSel.style.width = "30px";
   trMinutos.appendChild(thSel);
   trMinutos.appendChild(Object.assign(document.createElement("th"), { textContent: "🕐" }));
-  minutosFixos.forEach(m => {
-    trMinutos.appendChild(Object.assign(document.createElement("th"), { className: "minute-header", textContent: m }));
+  minutosFixos.forEach((m, i) => {
+    const th = document.createElement("th");
+    th.className = "minute-header";
+    th.textContent = m;
+    // Quadrant border: every 5 columns (after col 4, 9, 14, 19)
+    if (i > 0 && i % 5 === 0) th.classList.add("quadrant-border");
+    if (Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
+    th.addEventListener("click", () => toggleColuna(m));
+    trMinutos.appendChild(th);
   });
   ["⚽","✅","📈"].forEach(t => trMinutos.appendChild(Object.assign(document.createElement("th"), { textContent: t })));
   thead.appendChild(trMinutos);
@@ -1392,7 +1559,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
     });
     tdSel.appendChild(cb); tr.appendChild(tdSel);
     tr.appendChild(Object.assign(document.createElement("td"), { textContent: item.hora.toString().padStart(2,"0") }));
-    minutosFixos.forEach(() => tr.appendChild(document.createElement("td")));
+    minutosFixos.forEach((m, i) => {
+      const td = document.createElement("td");
+      if (i > 0 && i % 5 === 0) td.classList.add("quadrant-border");
+      if (Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
+      tr.appendChild(td);
+    });
     tr.appendChild(Object.assign(document.createElement("td"), { textContent: "0" }));
     tr.appendChild(Object.assign(document.createElement("td"), { textContent: "0" }));
     tr.appendChild(Object.assign(document.createElement("td"), { textContent: "0%" }));
@@ -1762,6 +1934,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
   criarOuObterPainel(); // garante que o DOM do painel existe antes de atualizar
   aplicarHighlights();  // internamente chama computeStatsFromDOM() lendo o DOM final
   updateSelectedRows();
+  aplicarColunaHighlights();
+  atualizarColunaStats();
 }
 
 // ─── BUSCA COM DIFF ───────────────────────────────────────────────────────────
@@ -1802,6 +1976,8 @@ async function buscarDados() {
     console.log("Dados inalterados, re-render ignorado.");
     computeStatsFromDOM();
     updateSelectedRows(); // garante exibição das linhas selecionadas ao voltar de outra liga
+    aplicarColunaHighlights();
+    atualizarColunaStats();
     return;
   }
 
