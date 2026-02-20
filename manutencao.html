@@ -713,9 +713,29 @@ Estado.carregar();
 
     /* ── Seleção de colunas ── */
     .minute-header { cursor: pointer; user-select: none; transition: background 0.15s; }
-    .minute-header:hover { background: rgba(255,255,255,0.12) !important; }
-    .coluna-selecionada { background: rgba(255,255,255,0.13) !important; }
-    th.coluna-selecionada { background: rgba(255,255,255,0.18) !important; }
+    .minute-header:hover { filter: brightness(1.3); }
+
+    /* Quando há seleção ativa: escurece colunas NÃO selecionadas */
+    #tabelaResultados.tem-coluna-selecionada td:not(.coluna-selecionada) {
+      filter: brightness(0.45);
+    }
+    #tabelaResultados.tem-coluna-selecionada th.minute-header:not(.coluna-selecionada) {
+      filter: brightness(0.45);
+    }
+    /* Colunas selecionadas ficam normais + header levemente destacado */
+    #tabelaResultados.tem-coluna-selecionada td.coluna-selecionada { filter: none; }
+    #tabelaResultados.tem-coluna-selecionada th.coluna-selecionada {
+      filter: none;
+      background: rgba(255,255,255,0.15) !important;
+    }
+    /* Células que nunca devem ser escurecidas (hora, checkbox, totais) */
+    #tabelaResultados.tem-coluna-selecionada td:first-child,
+    #tabelaResultados.tem-coluna-selecionada td:nth-child(2),
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(1),
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(2),
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(3) {
+      filter: none;
+    }
 
     /* ── Stats de colunas selecionadas ── */
     #coluna-stats {
@@ -739,7 +759,7 @@ Estado.carregar();
 
     /* ── Divisores de quadrante (a cada 5 colunas) ── */
     td.quadrant-border, th.quadrant-border {
-      border-left: 1px solid rgba(255,255,255,0.18) !important;
+      border-left: 2px solid rgba(255,255,255,0.35) !important;
     }
     .odd-tooltip        { color: #f0c040; font-weight: bold; margin-top: 3px; display: block; }
 
@@ -1049,18 +1069,33 @@ function toggleColuna(minuto) {
 }
 
 function aplicarColunaHighlights() {
-  // Highlight header
+  const tabela = document.getElementById("tabelaResultados");
+  const temSel = Estado.colunasSelecionadas.length > 0;
+
+  // Classe no <table> controla o escurecimento via CSS
+  if (tabela) tabela.classList.toggle("tem-coluna-selecionada", temSel);
+
+  // Marca headers
   document.querySelectorAll(".minute-header").forEach(th => {
     const min = parseInt(th.textContent.trim());
     th.classList.toggle("coluna-selecionada", Estado.colunasSelecionadas.includes(min));
   });
-  // Highlight body cells
+
+  // Marca e garante quadrant-border em todas as células do tbody
   document.querySelectorAll("#tabelaResultados tbody tr").forEach(row => {
     Array.from(row.cells).forEach((cell, i) => {
-      if (i < 2 || i >= 2 + minutosFixos.length) return; // skip hora e footer
-      const min = minutosFixos[i - 2];
+      if (i < 2 || i >= 2 + minutosFixos.length) return;
+      const colIdx = i - 2;
+      const min = minutosFixos[colIdx];
       cell.classList.toggle("coluna-selecionada", Estado.colunasSelecionadas.includes(min));
+      // Garante divisor de quadrante
+      cell.classList.toggle("quadrant-border", colIdx > 0 && colIdx % 5 === 0);
     });
+  });
+
+  // Garante quadrant-border nos headers também
+  document.querySelectorAll(".minute-header").forEach((th, i) => {
+    th.classList.toggle("quadrant-border", i > 0 && i % 5 === 0);
   });
 }
 
@@ -1080,40 +1115,47 @@ function atualizarColunaStats() {
 
   if (Estado.colunasSelecionadas.length === 0) return;
 
-  // Sort colunas by minutosFixos order
+  // Soma TODAS as colunas selecionadas em um único total
+  let greenTotal = 0, redTotal = 0;
   const colOrdenadas = [...Estado.colunasSelecionadas]
     .sort((a, b) => minutosFixos.indexOf(a) - minutosFixos.indexOf(b));
 
   colOrdenadas.forEach(min => {
     const colIdx = minutosFixos.indexOf(min);
     if (colIdx === -1) return;
-
-    let green = 0, red = 0;
     document.querySelectorAll("#tabelaResultados tbody tr").forEach(row => {
       const cell = row.cells[2 + colIdx];
       if (!cell) return;
       const bg = cell.style.backgroundColor;
-      if (bg === "rgb(1, 139, 6)")   green++;
-      else if (bg === "rgb(190, 14, 2)") red++;
+      if (bg === "rgb(1, 139, 6)")       greenTotal++;
+      else if (bg === "rgb(190, 14, 2)") redTotal++;
     });
-
-    const total = green + red;
-    if (total === 0) return;
-    const pct = Math.round((green / total) * 100);
-    const thresh = getThreshold(document.querySelector("#seletorResultado")?.value || "");
-
-    const tag = document.createElement("div");
-    tag.className = "col-stat-tag";
-    tag.innerHTML = `
-      <span class="col-min">min ${min}</span>
-      <span class="col-g">${green}✔</span>
-      <span class="col-r">${red}✘</span>
-      <span class="col-pct ${pct >= thresh ? "col-stat-verde" : "col-stat-branca"}">${pct}%</span>
-      <span class="col-remove" title="Remover">✕</span>
-    `;
-    tag.querySelector(".col-remove").addEventListener("click", () => toggleColuna(min));
-    el.appendChild(tag);
   });
+
+  const total = greenTotal + redTotal;
+  if (total === 0) return;
+
+  const pct    = Math.round((greenTotal / total) * 100);
+  const thresh = getThreshold(document.querySelector("#seletorResultado")?.value || "");
+  const mins   = colOrdenadas.join(", ");
+
+  const tag = document.createElement("div");
+  tag.className = "col-stat-tag";
+  tag.innerHTML = `
+    <span class="col-min">min ${mins}</span>
+    <span style="color:#aaa;font-size:0.85em">${total}×</span>
+    <span class="col-g">${greenTotal}✔</span>
+    <span class="col-r">${redTotal}✘</span>
+    <span class="col-pct ${pct >= thresh ? "col-stat-verde" : "col-stat-branca"}">${pct}%</span>
+    <span class="col-remove" title="Limpar seleção">✕</span>
+  `;
+  tag.querySelector(".col-remove").addEventListener("click", () => {
+    Estado.colunasSelecionadas.length = 0;
+    Estado.salvar();
+    aplicarColunaHighlights();
+    atualizarColunaStats();
+  });
+  el.appendChild(tag);
 }
 
 // ─── HELPER GLOBAL: extrai só o placar (sem nomes de times) ─────────────────
