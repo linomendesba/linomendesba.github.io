@@ -17,7 +17,7 @@ const excludedSelectors = [
 const ACCORDION_KEYS = {
     "Gráfico Gols":      "accordion_grafico_gols",
     "Gráfico MACD/RSI":  "accordion_grafico_macd",
-    "Gráfico Mercardos": "accordion_grafico_mercados"
+    "Gráfico Mercados": "accordion_grafico_mercados"
 };
 
 // ─── helpers ───────────────────────────────────────────
