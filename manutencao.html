@@ -2380,8 +2380,7 @@ const linhaAtualPlugin = {
     id: 'linhaAtual',
 
     afterDraw(chart, args, opts) {
-        // opts pode ser undefined quando plugin está no array local
-        // fallback: lê diretamente de chart.options.plugins.linhaAtual
+        // lê enabled de opts ou diretamente de chart.options.plugins.linhaAtual
         const cfg = (opts && opts.enabled !== undefined)
             ? opts
             : (chart.options?.plugins?.linhaAtual ?? {});
@@ -2392,27 +2391,24 @@ const linhaAtualPlugin = {
 
         const yS = scales.y;
         const { left, right, top, bottom } = chartArea;
+        const padX = 5;
+        const h = 18;
 
-        // Busca o último valor não-nulo do primeiro dataset visível (não-MA)
-        // No Chart.js v3/v4: dataset é visível se dataset.hidden !== true
-        // E se meta.hidden !== true (meta pode ser null quando nunca foi clicado)
-        let yVal = null;
-        const datasets = chart.data.datasets;
+        // Percorre TODOS os datasets visíveis (não-MA) e desenha
+        // uma linha atual para cada um, na cor do próprio dataset
+        chart.data.datasets.forEach((d, i) => {
+            if (!d.label || d.label.includes(' MA')) return;
 
-        for (let i = 0; i < datasets.length; i++) {
-            const d = datasets[i];
-            if (!d.label || d.label.includes(' MA')) continue;
-
-            // dataset.hidden === true significa escondido
-            if (d.hidden === true) continue;
-
-            // meta.hidden === true significa clicado na legenda para esconder
+            // visibilidade: dataset.hidden OU meta.hidden
+            if (d.hidden === true) return;
             const meta = chart.getDatasetMeta(i);
-            if (meta.hidden === true) continue;
+            if (meta.hidden === true) return;
 
             const arr = d.data;
-            if (!arr || !arr.length) continue;
+            if (!arr || !arr.length) return;
 
+            // último valor não-nulo
+            let yVal = null;
             for (let j = arr.length - 1; j >= 0; j--) {
                 const v = arr[j];
                 if (v !== null && v !== undefined && typeof v === 'number' && isFinite(v)) {
@@ -2420,45 +2416,44 @@ const linhaAtualPlugin = {
                     break;
                 }
             }
-            if (yVal !== null) break;
-        }
+            if (yVal === null) return;
 
-        if (yVal === null) return;
+            const yPx = yS.getPixelForValue(yVal);
+            if (!isFinite(yPx) || yPx < top || yPx > bottom) return;
 
-        const yPx = yS.getPixelForValue(yVal);
-        if (!isFinite(yPx) || yPx < top || yPx > bottom) return;
+            // usa a cor do próprio dataset
+            const color = d.borderColor || '#f1c40f';
 
-        const color = '#f1c40f';
+            ctx.save();
 
-        // Linha tracejada amarela
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.moveTo(left, yPx);
-        ctx.lineTo(right, yPx);
-        ctx.stroke();
-        ctx.setLineDash([]);
+            // linha tracejada na cor do dataset
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.moveTo(left, yPx);
+            ctx.lineTo(right, yPx);
+            ctx.stroke();
+            ctx.setLineDash([]);
 
-        // Badge %
-        const text = yVal.toFixed(1) + '%';
-        ctx.font = 'bold 11px Arial, sans-serif';
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'left';
-        const padX = 5;
-        const h = 18;
-        const w = Math.ceil(ctx.measureText(text).width) + padX * 2;
-        const bx = right + 4;
-        const by = yPx - h / 2;
-        ctx.fillStyle = 'rgba(10, 12, 20, 0.97)';
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.fillRect(bx, by, w, h);
-        ctx.strokeRect(bx, by, w, h);
-        ctx.fillStyle = color;
-        ctx.fillText(text, bx + padX, yPx);
-        ctx.restore();
+            // badge % na cor do dataset
+            const text = yVal.toFixed(1) + '%';
+            ctx.font = 'bold 10px Arial, sans-serif';
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+            const w = Math.ceil(ctx.measureText(text).width) + padX * 2;
+            const bx = right + 4;
+            const by = yPx - h / 2;
+            ctx.fillStyle = 'rgba(10, 12, 20, 0.95)';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.2;
+            ctx.fillRect(bx, by, w, h);
+            ctx.strokeRect(bx, by, w, h);
+            ctx.fillStyle = color;
+            ctx.fillText(text, bx + padX, yPx);
+
+            ctx.restore();
+        });
     }
 };
 
