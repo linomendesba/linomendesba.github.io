@@ -308,7 +308,7 @@
 
 <div class="chart-container">
 <div class="canvas-wrapper">
-    <canvas id="Copa" width="1080" height="600" style="max-height:600px;"></canvas>
+    <canvas id="Copa" width="1080" height="300" style="max-height:300px;"></canvas>
 </div>
 
     <div class="control-panel">
@@ -2078,6 +2078,10 @@ if (_mostrarOddsSelect) {
     </script>
 
     <script>
+
+/* ═══════════════════════════════════════════════════════════════════
+   VARIÁVEIS GLOBAIS
+═══════════════════════════════════════════════════════════════════ */
 let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
@@ -2347,13 +2351,14 @@ function updateStatsChart(chart, newData) {
    ✅ PLUGIN: LINHA ATUAL
    Linha amarela tracejada que SEGUE o resultado mais recente.
    - Controlada por variável JS (não por getElementById no plugin)
-   - afterRender garante que roda DEPOIS de tudo, inclusive fibonacci
+   - afterDraw: roda a CADA update do chart — nunca fica com valor antigo
+   - controlada por variável JS global linhaAtualAtiva
 ═══════════════════════════════════════════════════════════════════ */
-let linhaAtualAtiva = true; // estado controlado pelo checkbox
+let linhaAtualAtiva = true;
 
 const linhaAtualPlugin = {
     id: 'linhaAtual',
-    afterRender(chart) {
+    afterDraw(chart) {
         if (!linhaAtualAtiva) return;
 
         const { ctx, chartArea, scales } = chart;
@@ -2362,17 +2367,22 @@ const linhaAtualPlugin = {
         const yS = scales.y;
         const { left, right, top, bottom } = chartArea;
 
-        // Busca o último valor não-nulo do primeiro dataset visível (não-MA)
+        // Lê DIRETAMENTE chart.data.datasets — sempre o valor mais recente
         let yVal = null;
-        for (let i = 0; i < chart.data.datasets.length; i++) {
-            const d = chart.data.datasets[i];
-            if (d.label.includes(' MA')) continue;
+        const datasets = chart.data.datasets;
+        for (let i = 0; i < datasets.length; i++) {
+            const d = datasets[i];
+            if (d.label && d.label.includes(' MA')) continue;
             const meta = chart.getDatasetMeta(i);
             if (meta.hidden) continue;
-            if (!d.data || !d.data.length) continue;
-            for (let j = d.data.length - 1; j >= 0; j--) {
-                const v = d.data[j];
-                if (v !== null && v !== undefined && !isNaN(v)) { yVal = v; break; }
+            const arr = d.data;
+            if (!arr || !arr.length) continue;
+            for (let j = arr.length - 1; j >= 0; j--) {
+                const v = arr[j];
+                if (v !== null && v !== undefined && typeof v === 'number' && isFinite(v)) {
+                    yVal = v;
+                    break;
+                }
             }
             if (yVal !== null) break;
         }
@@ -2921,15 +2931,12 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
 
-/* ✅ Toggle Linha Atual - usa variável JS, força re-render completo */
+/* ✅ Toggle Linha Atual */
 document.getElementById('linhaAtualToggle').addEventListener('change', function() {
     linhaAtualAtiva = this.checked;
     leagues.forEach(league => {
         const ci = chartInstances[league];
-        if (ci) {
-            // Limpa o canvas e redesenha do zero
-            ci.draw();
-        }
+        if (ci) ci.render();
     });
 });
 
