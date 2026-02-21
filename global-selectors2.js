@@ -21,9 +21,11 @@ if (allowedPages.includes(currentPage)) {
     // ─── Acordeons gerenciados ───────────────────────────
     // Ajuste os nomes aqui se renomear algum botão
     const ACCORDION_KEYS = {
-        "Gráfico Gols":      "accordion_grafico_gols",
-        "Gráfico MACD/RSI":  "accordion_grafico_macd",
-        "Gráfico Mercardos": "accordion_grafico_mercados"
+        "Ranking Rápido 24h":  "accordion_ranking_rapido",
+        "Agenda de Confrontos":"accordion_agenda_confrontos",
+        "Gráfico Gols":        "accordion_grafico_gols",
+        "Gráfico MACD/RSI":    "accordion_grafico_macd",
+        "Gráfico Mercados":    "accordion_grafico_mercados"
     };
 
     function getAccordionKey(btn) {
