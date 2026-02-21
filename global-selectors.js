@@ -15,9 +15,9 @@ const excludedSelectors = [
 //  Ajuste aqui se renomear algum acordeon
 // ═══════════════════════════════════════════════════════
 const ACCORDION_KEYS = {
-    "Tendência Gols / Mercados": "accordion_tendencia_gols",
-    "MACD / RSI":                "accordion_macd_rsi",
-    "Mercados":                  "accordion_mercados"
+    "Gráfico Gols":      "accordion_grafico_gols",
+    "Gráfico MACD/RSI":  "accordion_grafico_macd",
+    "Gráfico Mercardos": "accordion_grafico_mercados"
 };
 
 // ─── helpers ───────────────────────────────────────────
