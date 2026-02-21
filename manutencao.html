@@ -2078,10 +2078,6 @@ if (_mostrarOddsSelect) {
     </script>
 
     <script>
-
-/* ═══════════════════════════════════════════════════════════════════
-   VARIÁVEIS GLOBAIS
-═══════════════════════════════════════════════════════════════════ */
 let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
@@ -2349,15 +2345,16 @@ function updateStatsChart(chart, newData) {
 
 /* ═══════════════════════════════════════════════════════════════════
    ✅ PLUGIN: LINHA ATUAL
-   Linha amarela tracejada que SEGUE o resultado mais recente
-   (último ponto não-nulo do dataset visível), atualiza a cada draw.
+   Linha amarela tracejada que SEGUE o resultado mais recente.
+   - Controlada por variável JS (não por getElementById no plugin)
+   - afterRender garante que roda DEPOIS de tudo, inclusive fibonacci
 ═══════════════════════════════════════════════════════════════════ */
+let linhaAtualAtiva = true; // estado controlado pelo checkbox
+
 const linhaAtualPlugin = {
     id: 'linhaAtual',
-    afterDatasetsDraw(chart) {
-        // Verifica toggle — se desmarcado, não desenha
-        const toggle = document.getElementById('linhaAtualToggle');
-        if (!toggle || !toggle.checked) return;
+    afterRender(chart) {
+        if (!linhaAtualAtiva) return;
 
         const { ctx, chartArea, scales } = chart;
         if (!chartArea || !scales.y) return;
@@ -2365,39 +2362,28 @@ const linhaAtualPlugin = {
         const yS = scales.y;
         const { left, right, top, bottom } = chartArea;
 
-        // Percorre todos os datasets visíveis (não-MA) e usa o ÚLTIMO ponto não-nulo
-        // de cada um — assim a linha acompanha o dataset ativo mais recente
+        // Busca o último valor não-nulo do primeiro dataset visível (não-MA)
         let yVal = null;
-
         for (let i = 0; i < chart.data.datasets.length; i++) {
             const d = chart.data.datasets[i];
-            // Ignora médias móveis e datasets ocultos
             if (d.label.includes(' MA')) continue;
             const meta = chart.getDatasetMeta(i);
             if (meta.hidden) continue;
             if (!d.data || !d.data.length) continue;
-
-            // Pega o último valor não-nulo deste dataset
             for (let j = d.data.length - 1; j >= 0; j--) {
-                if (d.data[j] !== null && d.data[j] !== undefined && !isNaN(d.data[j])) {
-                    yVal = d.data[j];
-                    break;
-                }
+                const v = d.data[j];
+                if (v !== null && v !== undefined && !isNaN(v)) { yVal = v; break; }
             }
-            // Usa o primeiro dataset visível encontrado (o que está "em cima" na legenda)
             if (yVal !== null) break;
         }
-
         if (yVal === null) return;
 
         const yPx = yS.getPixelForValue(yVal);
         if (!isFinite(yPx) || yPx < top || yPx > bottom) return;
 
-        const color = 'rgba(241, 196, 15, 0.95)';
+        const color = '#f1c40f';
 
         ctx.save();
-
-        // Linha tracejada da esquerda até a direita
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([6, 4]);
@@ -2407,26 +2393,25 @@ const linhaAtualPlugin = {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Label com % à direita do gráfico
+        // Badge com % — posicionado para NÃO colidir com fibonacci nem draggable
         const text = yVal.toFixed(1) + '%';
-        ctx.font = 'bold 11px sans-serif';
+        ctx.font = 'bold 11px Arial, sans-serif';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
         const padX = 5;
         const h = 18;
         const w = Math.ceil(ctx.measureText(text).width) + padX * 2;
-        const bx = right + 6;
+        // Posição: bem grudado na borda direita do chartArea, antes do padding
+        const bx = right + 4;
         const by = yPx - h / 2;
 
-        ctx.fillStyle = 'rgba(15, 18, 25, 0.97)';
+        ctx.fillStyle = 'rgba(10, 12, 20, 0.97)';
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
         ctx.fillRect(bx, by, w, h);
         ctx.strokeRect(bx, by, w, h);
-
-        ctx.fillStyle = '#f1c40f';
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'left';
+        ctx.fillStyle = color;
         ctx.fillText(text, bx + padX, yPx);
-
         ctx.restore();
     }
 };
@@ -2635,14 +2620,15 @@ const linhaDraggablePlugin = {
                 ctx.fill();
             }
 
-            // Label com % à direita
+            // Label com % à direita — mesma coluna da linha atual (right + 4)
             const text = l.y.toFixed(1) + '%';
-            ctx.font = isSelected ? 'bold 11px sans-serif' : '10px sans-serif';
+            ctx.font = isSelected ? 'bold 11px Arial, sans-serif' : '10px Arial, sans-serif';
             ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
             const padX = 5;
             const boxW = Math.ceil(ctx.measureText(text).width) + padX * 2;
             const boxH = 16;
-            const bx = right + 8;
+            const bx = right + 4;
             const by = yPx - boxH / 2;
 
             ctx.fillStyle = 'rgba(15,23,42,0.95)';
@@ -2659,7 +2645,7 @@ const linhaDraggablePlugin = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════
-   PLUGIN: FIBONACCI (original)
+   PLUGIN: FIBONACCI (original — labels sem sobrepor linha atual)
 ═══════════════════════════════════════════════════════════════════ */
 const fibonacciLinesPlugin = {
     id: 'fibonacciLines',
@@ -2671,6 +2657,7 @@ const fibonacciLinesPlugin = {
         const yMin = yAxis.min, yMax = yAxis.max;
         const range = yMax - yMin;
         const normalizedLevels = fibonacciLevels.map(l => yMin + (l / 100) * range);
+        const { right } = chart.chartArea;
 
         ctx.save();
         normalizedLevels.forEach((level, index) => {
@@ -2678,17 +2665,20 @@ const fibonacciLinesPlugin = {
             ctx.beginPath();
             ctx.setLineDash([5, 5]);
             ctx.moveTo(chart.chartArea.left, y);
-            ctx.lineTo(chart.chartArea.right, y);
+            ctx.lineTo(right, y);
             ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
             ctx.lineWidth = 1;
             ctx.stroke();
             ctx.setLineDash([]);
 
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
-            ctx.font = '11px Arial';
+            // Label do fibonacci: posicionada mais à direita (após o badge da linha atual)
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.85)';
+            ctx.font = '10px Arial';
             ctx.textAlign = 'left';
-            const textY = y - (index === 0 ? -10 : 5);
-            const textX = chart.chartArea.right + 10;
+            ctx.textBaseline = 'middle';
+            const textY = y - (index === 0 ? -8 : 0);
+            // Offset 50px à direita do chartArea — zona exclusiva para fibonacci
+            const textX = right + 52;
             ctx.fillText(`${fibonacciLevels[index]}%`, textX, textY);
         });
         ctx.restore();
@@ -2781,7 +2771,7 @@ function createStatsChart(ctx, labels, data, league) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: { padding: { top: 30, right: 60 } },
+            layout: { padding: { top: 30, right: 80 } },
             plugins: {
                 legend: {
                     display: true,
@@ -2931,10 +2921,15 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
 
-/* ✅ Toggle Linha Atual - força redesenho completo */
+/* ✅ Toggle Linha Atual - usa variável JS, força re-render completo */
 document.getElementById('linhaAtualToggle').addEventListener('change', function() {
+    linhaAtualAtiva = this.checked;
     leagues.forEach(league => {
-        if (chartInstances[league]) chartInstances[league].update();
+        const ci = chartInstances[league];
+        if (ci) {
+            // Limpa o canvas e redesenha do zero
+            ci.draw();
+        }
     });
 });
 
