@@ -2332,9 +2332,9 @@ function updateStatsChart(chart, newData) {
     }
 }
 
+
 /* ═══════════════════════════════════════════════════════════════════
-   PLUGIN: FIBONACCI
-   Registrado globalmente via Chart.register — funciona sempre
+   PLUGIN: FIBONACCI (array local, afterDraw via opts)
 ═══════════════════════════════════════════════════════════════════ */
 const fibonacciLinesPlugin = {
     id: 'fibonacciLines',
@@ -2348,7 +2348,6 @@ const fibonacciLinesPlugin = {
         const range = yMax - yMin;
         const normalizedLevels = fibonacciLevels.map(l => yMin + (l / 100) * range);
         const { left, right } = chart.chartArea;
-
         ctx.save();
         normalizedLevels.forEach((level, index) => {
             const y = yAxis.getPixelForValue(level);
@@ -2372,15 +2371,17 @@ const fibonacciLinesPlugin = {
 
 /* ═══════════════════════════════════════════════════════════════════
    PLUGIN: LINHA ATUAL
-   Registrado globalmente — afterDraw garantido em qualquer update
-   Linha amarela tracejada no último valor do dataset visível ativo
+   Padrão idêntico ao Caramelo:
+   - Plugin no array local do new Chart()
+   - enabled/desabilitado via options.plugins.linhaAtual.enabled
+   - Toggle chama chart.update() — Chart.js repassa opts para afterDraw
 ═══════════════════════════════════════════════════════════════════ */
-let linhaAtualAtiva = true;
-
 const linhaAtualPlugin = {
     id: 'linhaAtual',
-    afterDraw(chart) {
-        if (!linhaAtualAtiva) return;
+
+    afterDraw(chart, args, opts) {
+        // opts vem de options.plugins.linhaAtual — padrão Chart.js v3/v4
+        if (!opts || opts.enabled === false) return;
 
         const { ctx, chartArea, scales } = chart;
         if (!chartArea || !scales.y) return;
@@ -2388,7 +2389,8 @@ const linhaAtualPlugin = {
         const yS = scales.y;
         const { left, right, top, bottom } = chartArea;
 
-        // Lê o dataset visível mais recente diretamente
+        // Percorre datasets buscando o primeiro visível (não-MA)
+        // e pega seu último valor não-nulo
         let yVal = null;
         const datasets = chart.data.datasets;
         for (let i = 0; i < datasets.length; i++) {
@@ -2414,6 +2416,7 @@ const linhaAtualPlugin = {
 
         const color = '#f1c40f';
 
+        // Linha tracejada amarela
         ctx.save();
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
@@ -2424,6 +2427,7 @@ const linhaAtualPlugin = {
         ctx.stroke();
         ctx.setLineDash([]);
 
+        // Badge %
         const text = yVal.toFixed(1) + '%';
         ctx.font = 'bold 11px Arial, sans-serif';
         ctx.textBaseline = 'middle';
@@ -2444,8 +2448,7 @@ const linhaAtualPlugin = {
     }
 };
 
-// Registra globalmente — única forma garantida de afterDraw funcionar sempre
-Chart.register(fibonacciLinesPlugin, linhaAtualPlugin);
+
 
 /* ═══════════════════════════════════════════════════════════════════
    PLUGIN: LINHAS ARRASTÁVEIS (DRAGGABLE)
@@ -2809,6 +2812,10 @@ function createStatsChart(ctx, labels, data, league) {
                             return `FT: ${match.ft || 'N/A'}`;
                         }
                     }
+                },
+                // Configuração da linha atual — lida pelo plugin via opts
+                linhaAtual: {
+                    enabled: true  // padrão ativado; toggle muda via chart.options.plugins.linhaAtual.enabled
                 }
             },
             scales: {
@@ -2826,9 +2833,7 @@ function createStatsChart(ctx, labels, data, league) {
                 }
             }
         },
-        // Apenas linhaDraggablePlugin aqui pois precisa do afterInit no canvas
-        // fibonacciLinesPlugin e linhaAtualPlugin estão registrados globalmente via Chart.register()
-        plugins: [linhaDraggablePlugin]
+        plugins: [fibonacciLinesPlugin, linhaAtualPlugin, linhaDraggablePlugin]
     });
 }
 
@@ -2904,12 +2909,14 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
 
-// Toggle Linha Atual — usa update() para garantir que afterDraw do plugin é chamado
+// Toggle Linha Atual — atualiza options.plugins.linhaAtual.enabled e redesenha
+// Exatamente o padrão do Caramelo: muda a opção, chama chart.update()
 document.getElementById('linhaAtualToggle').addEventListener('change', function() {
-    linhaAtualAtiva = this.checked;
     leagues.forEach(league => {
         const ci = chartInstances[league];
-        if (ci) ci.update(); // update() sem 'none' garante redesenho completo dos plugins
+        if (!ci) return;
+        ci.options.plugins.linhaAtual.enabled = this.checked;
+        ci.update();
     });
 });
 
