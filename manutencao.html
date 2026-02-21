@@ -2334,7 +2334,7 @@ function updateStatsChart(chart, newData) {
 
 /* ═══════════════════════════════════════════════════════════════════
    PLUGIN: FIBONACCI
-   Labels na coluna da direita, separadas dos outros badges
+   Registrado globalmente via Chart.register — funciona sempre
 ═══════════════════════════════════════════════════════════════════ */
 const fibonacciLinesPlugin = {
     id: 'fibonacciLines',
@@ -2342,6 +2342,7 @@ const fibonacciLinesPlugin = {
         if (!showFibonacciLines) return;
         const ctx = chart.ctx;
         const yAxis = chart.scales.y;
+        if (!yAxis) return;
         const fibonacciLevels = [0, 23.6, 38.2, 50, 61.8, 100];
         const yMin = yAxis.min, yMax = yAxis.max;
         const range = yMax - yMin;
@@ -2359,9 +2360,6 @@ const fibonacciLinesPlugin = {
             ctx.lineWidth = 1;
             ctx.stroke();
             ctx.setLineDash([]);
-
-            // Fibonacci labels: coluna exclusiva em right + 52
-            // (depois do badge da linha atual em right+4 e do drag em right+4)
             ctx.fillStyle = 'rgba(0, 255, 0, 0.85)';
             ctx.font = '10px Arial';
             ctx.textAlign = 'left';
@@ -2374,10 +2372,8 @@ const fibonacciLinesPlugin = {
 
 /* ═══════════════════════════════════════════════════════════════════
    PLUGIN: LINHA ATUAL
-   ─ Linha amarela tracejada no último valor do dataset ativo
-   ─ Acompanha o resultado mais recente a cada update (afterDraw)
-   ─ Badge amarelo na coluna A: right + 4
-   ─ Ativada/desativada pela variável linhaAtualAtiva
+   Registrado globalmente — afterDraw garantido em qualquer update
+   Linha amarela tracejada no último valor do dataset visível ativo
 ═══════════════════════════════════════════════════════════════════ */
 let linhaAtualAtiva = true;
 
@@ -2392,8 +2388,7 @@ const linhaAtualPlugin = {
         const yS = scales.y;
         const { left, right, top, bottom } = chartArea;
 
-        // Pega o último valor real do dataset visível ativo
-        // Lê chart.data.datasets diretamente para ter sempre o dado atual
+        // Lê o dataset visível mais recente diretamente
         let yVal = null;
         const datasets = chart.data.datasets;
         for (let i = 0; i < datasets.length; i++) {
@@ -2420,8 +2415,6 @@ const linhaAtualPlugin = {
         const color = '#f1c40f';
 
         ctx.save();
-
-        // Linha tracejada amarela
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([6, 4]);
@@ -2431,7 +2424,6 @@ const linhaAtualPlugin = {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Badge na COLUNA A: right + 4
         const text = yVal.toFixed(1) + '%';
         ctx.font = 'bold 11px Arial, sans-serif';
         ctx.textBaseline = 'middle';
@@ -2441,7 +2433,6 @@ const linhaAtualPlugin = {
         const w = Math.ceil(ctx.measureText(text).width) + padX * 2;
         const bx = right + 4;
         const by = yPx - h / 2;
-
         ctx.fillStyle = 'rgba(10, 12, 20, 0.97)';
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
@@ -2449,10 +2440,12 @@ const linhaAtualPlugin = {
         ctx.strokeRect(bx, by, w, h);
         ctx.fillStyle = color;
         ctx.fillText(text, bx + padX, yPx);
-
         ctx.restore();
     }
 };
+
+// Registra globalmente — única forma garantida de afterDraw funcionar sempre
+Chart.register(fibonacciLinesPlugin, linhaAtualPlugin);
 
 /* ═══════════════════════════════════════════════════════════════════
    PLUGIN: LINHAS ARRASTÁVEIS (DRAGGABLE)
@@ -2833,8 +2826,9 @@ function createStatsChart(ctx, labels, data, league) {
                 }
             }
         },
-        // Ordem importa: fibonacci → draggable → linhaAtual (fica sempre por cima)
-        plugins: [fibonacciLinesPlugin, linhaDraggablePlugin, linhaAtualPlugin]
+        // Apenas linhaDraggablePlugin aqui pois precisa do afterInit no canvas
+        // fibonacciLinesPlugin e linhaAtualPlugin estão registrados globalmente via Chart.register()
+        plugins: [linhaDraggablePlugin]
     });
 }
 
