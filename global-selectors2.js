@@ -1,216 +1,200 @@
-// ---> NOVO: Lista de páginas onde o script deve funcionar
+// ─── Páginas onde o script deve funcionar ───────────────
 const allowedPages = [
-  "kironengland.html",
-  "kironitaly.html",
-  "kironspain.html"
+    "kironengland.html",
+    "kironitaly.html",
+    "kironspain.html"
 ];
 
-// ---> NOVO: Pega o nome do arquivo da URL atual
 const currentPage = window.location.pathname.split('/').pop();
 
-// ---> NOVO: Executa todo o código somente se a página atual estiver na lista de permitidas
 if (allowedPages.includes(currentPage)) {
 
-  // Lista de seletores que não devem ser salvos
-  const excludedSelectors = [
-    "ligas",
-    "avancado-betano",
-    "ligas365",
-    "avancado-bet365",
-    "redes"
-  ];
+    // ─── Seletores excluídos do save ────────────────────
+    const excludedSelectors = [
+        "ligas",
+        "avancado-betano",
+        "ligas365",
+        "avancado-bet365",
+        "redes"
+    ];
 
-  // Verifica se é o acordeão específico que deve ser salvo
-  function isTargetAccordion(buttonElement) {
-    return buttonElement.textContent.includes("Tendência Gols / Mercados");
-  }
+    // ─── Acordeons gerenciados ───────────────────────────
+    // Ajuste os nomes aqui se renomear algum botão
+    const ACCORDION_KEYS = {
+        "Gráfico Gols":      "accordion_grafico_gols",
+        "Gráfico MACD/RSI":  "accordion_grafico_macd",
+        "Gráfico Mercardos": "accordion_grafico_mercados"
+    };
 
-  // ---> MODIFICADO: Salva o estado do acordeão com um prefixo de página
-  function saveAccordionState(buttonElement) {
-    if (!isTargetAccordion(buttonElement)) return;
-
-    const accordionContent = buttonElement.nextElementSibling;
-    const isOpen = accordionContent && accordionContent.style.display !== "none";
-
-    // Prefixo com o nome da página para isolar o dado
-    localStorage.setItem(`accordion_state_${currentPage}`, isOpen);
-  }
-
-  // ---> MODIFICADO: Restaura o estado do acordeão com o prefixo de página
-  function restoreAccordionState() {
-    const accordionButtons = document.querySelectorAll('.accordion-button');
-
-    accordionButtons.forEach(button => {
-      if (isTargetAccordion(button)) {
-        // Busca o dado isolado da página atual
-        const savedState = localStorage.getItem(`accordion_state_${currentPage}`);
-
-        if (savedState !== null) {
-          const isOpen = savedState === 'true';
-          const accordionContent = button.nextElementSibling;
-
-          if (accordionContent) {
-            if (isOpen) {
-              accordionContent.style.display = "block";
-              button.textContent = button.textContent.replace('▼', '▲');
-            } else {
-              accordionContent.style.display = "none";
-              button.textContent = button.textContent.replace('▲', '▼');
-            }
-          }
+    function getAccordionKey(btn) {
+        const text = btn.textContent || "";
+        for (const [label, key] of Object.entries(ACCORDION_KEYS)) {
+            if (text.includes(label)) return key;
         }
-      }
-    });
-  }
-
-  // Função melhorada para toggle do acordeão
-  function toggleAccordion(buttonElement) {
-    const accordionContent = buttonElement.nextElementSibling;
-
-    if (accordionContent.style.display === "none" || accordionContent.style.display === "") {
-      accordionContent.style.display = "block";
-      buttonElement.textContent = buttonElement.textContent.replace('▼', '▲');
-    } else {
-      accordionContent.style.display = "none";
-      buttonElement.textContent = buttonElement.textContent.replace('▲', '▼');
+        return null;
     }
 
-    if (isTargetAccordion(buttonElement)) {
-      saveAccordionState(buttonElement);
-
-      const selectorsInAccordion = accordionContent.querySelectorAll('select, input[type="checkbox"]');
-      selectorsInAccordion.forEach(element => {
-        if (!excludedSelectors.includes(element.id)) {
-          saveSelection(element.id);
-        }
-      });
+    function isTargetAccordion(btn) {
+        return getAccordionKey(btn) !== null;
     }
-  }
 
-  // ---> MODIFICADO: Salva a seleção com um prefixo de página
-  function saveSelection(elementId) {
-    const element = document.getElementById(elementId);
-    if (element && !excludedSelectors.includes(elementId)) {
-      const key = `${currentPage}_${elementId}`; // Cria chave única: "kironengland.html_meu-seletor"
-      if (element.type === 'checkbox') {
-        localStorage.setItem(key, element.checked);
-      } else {
-        localStorage.setItem(key, element.value);
-      }
+    function getParentAccordionBtn(el) {
+        return el.closest(".accordion-content")?.previousElementSibling ?? null;
     }
-  }
 
-  // ---> MODIFICADO: Restaura as seleções com o prefixo de página
-  function restoreSelections() {
-    // Restaura selects
-    const selectors = document.querySelectorAll("select");
-    selectors.forEach(selector => {
-      if (!excludedSelectors.includes(selector.id)) {
-        const key = `${currentPage}_${selector.id}`;
-        const savedValue = localStorage.getItem(key);
-        if (savedValue) {
-          selector.value = savedValue;
-          const changeEvent = new Event('change', { bubbles: true });
-          selector.dispatchEvent(changeEvent);
-          if (selector.onchange) {
-            selector.onchange();
-          }
-        }
-      }
-    });
+    // ─── Chave com prefixo de página ────────────────────
+    function pageKey(id) {
+        return `${currentPage}_${id}`;
+    }
 
-    // Restaura checkboxes
-    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-      if (!excludedSelectors.includes(checkbox.id)) {
-        const key = `${currentPage}_${checkbox.id}`;
-        const savedValue = localStorage.getItem(key);
-        if (savedValue !== null) {
-          checkbox.checked = savedValue === 'true';
-          const changeEvent = new Event('change', { bubbles: true });
-          checkbox.dispatchEvent(changeEvent);
-          if (checkbox.onchange) {
-            checkbox.onchange();
-          }
-        }
-      }
-    });
-  }
+    // ─── Toggle ─────────────────────────────────────────
+    function toggleAccordion(btn) {
+        const content = btn.nextElementSibling;
 
-  // Adiciona eventos onchange para salvar automaticamente as alterações (lógica interna inalterada)
-  function setupSelectors() {
-    // Setup para selects
-    const selectors = document.querySelectorAll("select");
-    selectors.forEach(selector => {
-      const accordionButton = selector.closest('.accordion-content')?.previousElementSibling;
-      const isInTargetAccordion = accordionButton && isTargetAccordion(accordionButton);
-
-      if (isInTargetAccordion || !accordionButton) {
-        const hasRedirectHandler = selector.hasAttribute("onclick") &&
-                                 selector.getAttribute("onclick").includes("redirecionar");
-
-        if (hasRedirectHandler) {
-          const originalOnclick = selector.getAttribute("onclick");
-          selector.setAttribute("onclick", `saveSelection('${selector.id}'); ${originalOnclick}`);
+        if (content.style.display === "none" || content.style.display === "") {
+            content.style.display = "block";
+            btn.textContent = btn.textContent.replace("▼", "▲");
         } else {
-          selector.addEventListener("change", () => {
-            saveSelection(selector.id);
-            if (isInTargetAccordion) {
-              saveAccordionState(accordionButton);
-            }
-          });
+            content.style.display = "none";
+            btn.textContent = btn.textContent.replace("▲", "▼");
         }
-      }
-    });
 
-    // Setup para checkboxes
-    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-      const accordionButton = checkbox.closest('.accordion-content')?.previousElementSibling;
-      const isInTargetAccordion = accordionButton && isTargetAccordion(accordionButton);
-      
-      if (isInTargetAccordion || !accordionButton) {
-        checkbox.addEventListener("change", () => {
-          saveSelection(checkbox.id);
-          if (isInTargetAccordion) {
-            saveAccordionState(accordionButton);
-          }
+        if (!isTargetAccordion(btn)) return;
+
+        saveAccordionState(btn);
+
+        content.querySelectorAll("select, input[type='checkbox'], input[type='number']")
+            .forEach(el => { if (!excludedSelectors.includes(el.id)) saveSelection(el.id); });
+    }
+
+    // ─── Save / Restore — estado aberto/fechado ─────────
+    function saveAccordionState(btn) {
+        const key = getAccordionKey(btn);
+        if (!key) return;
+        const isOpen = btn.nextElementSibling?.style.display !== "none";
+        localStorage.setItem(`${currentPage}_${key}`, isOpen);
+    }
+
+    function restoreAccordionState() {
+        document.querySelectorAll(".accordion-button").forEach(btn => {
+            const key = getAccordionKey(btn);
+            if (!key) return;
+
+            const saved = localStorage.getItem(`${currentPage}_${key}`);
+            if (saved === null) return;
+
+            const content = btn.nextElementSibling;
+            if (!content) return;
+
+            if (saved === "true") {
+                content.style.display = "block";
+                btn.textContent = btn.textContent.replace("▼", "▲");
+            } else {
+                content.style.display = "none";
+                btn.textContent = btn.textContent.replace("▲", "▼");
+            }
         });
-      }
+    }
+
+    // ─── Save / Restore — valores de controles ──────────
+    // Suporta: select | checkbox | input[type=number]
+    function saveSelection(id) {
+        const el = document.getElementById(id);
+        if (!el || excludedSelectors.includes(id) || !id) return;
+        localStorage.setItem(
+            pageKey(id),
+            el.type === "checkbox" ? el.checked : el.value
+        );
+    }
+
+    function restoreSelections() {
+        // selects
+        document.querySelectorAll("select").forEach(sel => {
+            if (excludedSelectors.includes(sel.id)) return;
+            const saved = localStorage.getItem(pageKey(sel.id));
+            if (saved === null) return;
+            sel.value = saved;
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+            if (sel.onchange) sel.onchange();
+        });
+
+        // checkboxes
+        document.querySelectorAll("input[type='checkbox']").forEach(cb => {
+            if (excludedSelectors.includes(cb.id)) return;
+            const saved = localStorage.getItem(pageKey(cb.id));
+            if (saved === null) return;
+            cb.checked = saved === "true";
+            cb.dispatchEvent(new Event("change", { bubbles: true }));
+            if (cb.onchange) cb.onchange();
+        });
+
+        // number inputs (MACD, RSI, etc.)
+        document.querySelectorAll("input[type='number']").forEach(inp => {
+            if (excludedSelectors.includes(inp.id)) return;
+            const saved = localStorage.getItem(pageKey(inp.id));
+            if (saved === null) return;
+            inp.value = saved;
+            inp.dispatchEvent(new Event("change", { bubbles: true }));
+            if (inp.onchange) inp.onchange();
+        });
+    }
+
+    // ─── Setup — listeners automáticos ──────────────────
+    function setupSelectors() {
+        const selector = "select, input[type='checkbox'], input[type='number']";
+
+        document.querySelectorAll(selector).forEach(el => {
+            if (excludedSelectors.includes(el.id)) return;
+
+            const accordionBtn = getParentAccordionBtn(el);
+            const inTarget     = accordionBtn && isTargetAccordion(accordionBtn);
+
+            // Ignora controles em acordeons não gerenciados
+            if (accordionBtn && !inTarget) return;
+
+            // Selects com redirecionamento: salva antes de navegar
+            if (
+                el.tagName === "SELECT" &&
+                el.hasAttribute("onclick") &&
+                el.getAttribute("onclick").includes("redirecionar")
+            ) {
+                const orig = el.getAttribute("onclick");
+                el.setAttribute("onclick", `saveSelection('${el.id}'); ${orig}`);
+                return;
+            }
+
+            el.addEventListener("change", () => {
+                saveSelection(el.id);
+                if (inTarget) saveAccordionState(accordionBtn);
+            });
+        });
+    }
+
+    // ─── Save All — snapshot antes de fechar ────────────
+    function saveAllSelections() {
+        const selector = "select, input[type='checkbox'], input[type='number']";
+
+        document.querySelectorAll(selector).forEach(el => {
+            if (excludedSelectors.includes(el.id) || !el.id) return;
+            const btn      = getParentAccordionBtn(el);
+            const inTarget = !btn || isTargetAccordion(btn);
+            if (inTarget) saveSelection(el.id);
+        });
+
+        document.querySelectorAll(".accordion-button").forEach(btn => {
+            saveAccordionState(btn);
+        });
+    }
+
+    // ─── Init ────────────────────────────────────────────
+    window.addEventListener("DOMContentLoaded", () => {
+        restoreAccordionState();
+        setTimeout(() => {
+            restoreSelections();
+            setupSelectors();
+        }, 100);
     });
-  }
-  
-  // Função auxiliar para usar no evento beforeunload (lógica interna inalterada)
-  function saveAllSelections() {
-    const allElements = document.querySelectorAll("select, input[type='checkbox']");
-    allElements.forEach(element => {
-      const accordionButton = element.closest('.accordion-content')?.previousElementSibling;
-      const isInTargetAccordion = accordionButton && isTargetAccordion(accordionButton);
-      if (!excludedSelectors.includes(element.id) && (isInTargetAccordion || !accordionButton)) {
-        saveSelection(element.id);
-      }
-    });
 
-    const accordionButtons = document.querySelectorAll('.accordion-button');
-    accordionButtons.forEach(button => {
-      if (isTargetAccordion(button)) {
-        saveAccordionState(button);
-      }
-    });
-  }
+    window.addEventListener("beforeunload", saveAllSelections);
 
-  // Inicializa o script ao carregar a página
-  window.addEventListener("DOMContentLoaded", () => {
-    restoreAccordionState();
-    setTimeout(() => {
-      restoreSelections();
-      setupSelectors();
-    }, 100);
-  });
-
-  // Salva seleções antes de redirecionar
-  window.addEventListener("beforeunload", () => {
-    saveAllSelections();
-  });
-
-} // ---> NOVO: Fim do bloco condicional
+} // fim do bloco condicional
