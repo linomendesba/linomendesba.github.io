@@ -307,7 +307,9 @@
             <!-- Gráfico Copa (ÚLTIMO - movido para o final) -->
 
 <div class="chart-container">
-    <canvas id="Copa" height="300"></canvas>
+<div class="canvas-wrapper">
+    <canvas id="Copa" width="1080" height="300" style="max-height:300px;"></canvas>
+</div>
 
     <div class="control-panel">
         <!-- Seletor de pontos -->
@@ -2347,43 +2349,55 @@ function updateStatsChart(chart, newData) {
 
 /* ═══════════════════════════════════════════════════════════════════
    ✅ PLUGIN: LINHA ATUAL
-   Linha amarela tracejada no último valor visível, com label de %
+   Linha amarela tracejada que SEGUE o resultado mais recente
+   (último ponto não-nulo do dataset visível), atualiza a cada draw.
 ═══════════════════════════════════════════════════════════════════ */
 const linhaAtualPlugin = {
     id: 'linhaAtual',
-    afterDraw(chart) {
+    afterDatasetsDraw(chart) {
+        // Verifica toggle — se desmarcado, não desenha
         const toggle = document.getElementById('linhaAtualToggle');
         if (!toggle || !toggle.checked) return;
 
         const { ctx, chartArea, scales } = chart;
         if (!chartArea || !scales.y) return;
 
-        const yS = chart.scales.y;
+        const yS = scales.y;
         const { left, right, top, bottom } = chartArea;
 
-        // Encontra o primeiro dataset visível (não-MA, não-hidden)
-        let ds = null;
+        // Percorre todos os datasets visíveis (não-MA) e usa o ÚLTIMO ponto não-nulo
+        // de cada um — assim a linha acompanha o dataset ativo mais recente
+        let yVal = null;
+
         for (let i = 0; i < chart.data.datasets.length; i++) {
             const d = chart.data.datasets[i];
+            // Ignora médias móveis e datasets ocultos
+            if (d.label.includes(' MA')) continue;
             const meta = chart.getDatasetMeta(i);
-            if (!d.label.includes(' MA') && !meta.hidden) { ds = d; break; }
-        }
-        if (!ds || !ds.data || !ds.data.length) return;
+            if (meta.hidden) continue;
+            if (!d.data || !d.data.length) continue;
 
-        // Pega o último valor não-nulo
-        let yVal = null;
-        for (let i = ds.data.length - 1; i >= 0; i--) {
-            if (ds.data[i] !== null && ds.data[i] !== undefined) { yVal = ds.data[i]; break; }
+            // Pega o último valor não-nulo deste dataset
+            for (let j = d.data.length - 1; j >= 0; j--) {
+                if (d.data[j] !== null && d.data[j] !== undefined && !isNaN(d.data[j])) {
+                    yVal = d.data[j];
+                    break;
+                }
+            }
+            // Usa o primeiro dataset visível encontrado (o que está "em cima" na legenda)
+            if (yVal !== null) break;
         }
+
         if (yVal === null) return;
 
         const yPx = yS.getPixelForValue(yVal);
-        if (yPx < top || yPx > bottom) return;
+        if (!isFinite(yPx) || yPx < top || yPx > bottom) return;
 
         const color = 'rgba(241, 196, 15, 0.95)';
 
-        // Linha tracejada
         ctx.save();
+
+        // Linha tracejada da esquerda até a direita
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([6, 4]);
@@ -2393,7 +2407,7 @@ const linhaAtualPlugin = {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Label com %
+        // Label com % à direita do gráfico
         const text = yVal.toFixed(1) + '%';
         ctx.font = 'bold 11px sans-serif';
         const padX = 5;
@@ -2402,7 +2416,7 @@ const linhaAtualPlugin = {
         const bx = right + 6;
         const by = yPx - h / 2;
 
-        ctx.fillStyle = 'rgba(15, 18, 25, 0.95)';
+        ctx.fillStyle = 'rgba(15, 18, 25, 0.97)';
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
         ctx.fillRect(bx, by, w, h);
@@ -2410,7 +2424,9 @@ const linhaAtualPlugin = {
 
         ctx.fillStyle = '#f1c40f';
         ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
         ctx.fillText(text, bx + padX, yPx);
+
         ctx.restore();
     }
 };
@@ -2764,6 +2780,7 @@ function createStatsChart(ctx, labels, data, league) {
         data: { labels, datasets },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             layout: { padding: { top: 30, right: 60 } },
             plugins: {
                 legend: {
@@ -2914,10 +2931,10 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
 
-/* ✅ Toggle Linha Atual - redesenha o gráfico */
+/* ✅ Toggle Linha Atual - força redesenho completo */
 document.getElementById('linhaAtualToggle').addEventListener('change', function() {
     leagues.forEach(league => {
-        if (chartInstances[league]) chartInstances[league].update('none');
+        if (chartInstances[league]) chartInstances[league].update();
     });
 });
 
@@ -2940,6 +2957,89 @@ document.getElementById('linhaToolsPanel').addEventListener('click', function(e)
 /* ── Init ── */
 window.onload = updateCharts;
 setInterval(updateCharts, 3000);
+</script>
+
+<!-- ═══ RESTANTE DOS SEUS SCRIPTS (cálculo de % etc.) ═══ -->
+<script>
+async function fetchResults() {
+    const response = await fetch(typeof ROTAS_API !== 'undefined' ? ROTAS_API.resultados(LIGA_ATUAL) : '/api/resultados');
+    const data = await response.json();
+    return data.slice(-480).reverse();
+}
+
+function calculatePercentage(data, market) {
+    let greens = 0, reds = 0;
+    data.forEach((game) => {
+        const [scoreA, scoreB] = game.ft.split(' x ').map(Number);
+        switch (market) {
+            case 'ambasMarcam':     if (scoreA > 0 && scoreB > 0) greens++; else reds++; break;
+            case 'ambasNaoMarcam':  if (scoreA === 0 || scoreB === 0) greens++; else reds++; break;
+            case 'casaVence':       if (scoreA > scoreB) greens++; else reds++; break;
+            case 'foraVence':       if (scoreA < scoreB) greens++; else reds++; break;
+            case 'empate':          if (scoreA === scoreB) greens++; else reds++; break;
+            case 'over1.5':         if (scoreA + scoreB > 1.5) greens++; else reds++; break;
+            case 'under1.5':        if (scoreA + scoreB <= 1.5) greens++; else reds++; break;
+            case 'over2.5':         if (scoreA + scoreB > 2.5) greens++; else reds++; break;
+            case 'under2.5':        if (scoreA + scoreB <= 2.5) greens++; else reds++; break;
+            case 'over3.5':         if (scoreA + scoreB > 3.5) greens++; else reds++; break;
+            case 'under3.5':        if (scoreA + scoreB <= 3.5) greens++; else reds++; break;
+            case 'over5':           if (scoreA + scoreB > 5) greens++; else reds++; break;
+        }
+    });
+    const total = greens + reds;
+    return {
+        greens: ((greens / total) * 100).toFixed(1),
+        reds:   ((reds   / total) * 100).toFixed(1)
+    };
+}
+
+document.getElementById('seletorResultado')?.addEventListener('change', async (event) => {
+    const market = event.target.value;
+    const games = await fetchResults();
+    const percentages = calculatePercentage(games, market);
+    document.getElementById('greenPercentage').innerText = `Greens: ${percentages.greens}%`;
+    document.getElementById('redPercentage').innerText   = `Reds: ${percentages.reds}%`;
+});
+
+window.addEventListener('load', async () => {
+    const sel = document.getElementById('seletorResultado');
+    if (!sel) return;
+    const market = sel.value;
+    const games = await fetchResults();
+    const percentages = calculatePercentage(games, market);
+    const gEl = document.getElementById('greenPercentage');
+    const rEl = document.getElementById('redPercentage');
+    if (gEl) gEl.innerText = `Greens: ${percentages.greens}%`;
+    if (rEl) rEl.innerText = `Reds: ${percentages.reds}%`;
+});
+
+function calculateGoalStats(data) {
+    let totalGols = 0;
+    const totalHorasJogadas = 12;
+    data.forEach((game) => {
+        const [scoreA, scoreB] = game.ft.split(' x ').map(Number);
+        totalGols += scoreA + scoreB;
+    });
+    return { totalGols, mediaGolsHora: (totalGols / totalHorasJogadas).toFixed(2) };
+}
+
+document.getElementById('seletorResultado')?.addEventListener('change', async () => {
+    const games = await fetchResults();
+    const stats = calculateGoalStats(games);
+    const tEl = document.getElementById('totalGols');
+    const mEl = document.getElementById('mediaGolsHora');
+    if (tEl) tEl.innerText = `Gols: ${stats.totalGols}`;
+    if (mEl) mEl.innerText = `Gols/Hora: ${stats.mediaGolsHora}`;
+});
+
+window.addEventListener('load', async () => {
+    const games = await fetchResults();
+    const stats = calculateGoalStats(games);
+    const tEl = document.getElementById('totalGols');
+    const mEl = document.getElementById('mediaGolsHora');
+    if (tEl) tEl.innerText = `Gols: ${stats.totalGols}`;
+    if (mEl) mEl.innerText = `Gols/Hora: ${stats.mediaGolsHora}`;
+});
 </script>
 
 <!-- ═══ RESTANTE DOS SEUS SCRIPTS (cálculo de % etc.) ═══ -->
