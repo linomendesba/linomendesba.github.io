@@ -2380,7 +2380,6 @@ const linhaAtualPlugin = {
     id: 'linhaAtual',
 
     afterDraw(chart, args, opts) {
-        // lê enabled de opts ou diretamente de chart.options.plugins.linhaAtual
         const cfg = (opts && opts.enabled !== undefined)
             ? opts
             : (chart.options?.plugins?.linhaAtual ?? {});
@@ -2392,22 +2391,19 @@ const linhaAtualPlugin = {
         const yS = scales.y;
         const { left, right, top, bottom } = chartArea;
         const padX = 5;
-        const h = 18;
+        const BAD_H = 18; // altura do badge
 
-        // Percorre TODOS os datasets visíveis (não-MA) e desenha
-        // uma linha atual para cada um, na cor do próprio dataset
+        // Coleta todos os datasets visíveis (não-MA) com seu último valor
+        const entries = [];
         chart.data.datasets.forEach((d, i) => {
             if (!d.label || d.label.includes(' MA')) return;
 
-            // visibilidade: dataset.hidden OU meta.hidden
-            if (d.hidden === true) return;
-            const meta = chart.getDatasetMeta(i);
-            if (meta.hidden === true) return;
+            // isDatasetVisible é o método oficial do Chart.js v3/v4
+            if (!chart.isDatasetVisible(i)) return;
 
             const arr = d.data;
             if (!arr || !arr.length) return;
 
-            // último valor não-nulo
             let yVal = null;
             for (let j = arr.length - 1; j >= 0; j--) {
                 const v = arr[j];
@@ -2421,9 +2417,33 @@ const linhaAtualPlugin = {
             const yPx = yS.getPixelForValue(yVal);
             if (!isFinite(yPx) || yPx < top || yPx > bottom) return;
 
-            // usa a cor do próprio dataset
-            const color = d.borderColor || '#f1c40f';
+            entries.push({
+                yVal,
+                yPx,
+                color: d.borderColor || '#ffffff'
+            });
+        });
 
+        if (!entries.length) return;
+
+        // Resolve colisão de badges: se dois badges se sobrepõem verticalmente,
+        // empurra o de baixo para não colidir
+        entries.sort((a, b) => a.yPx - b.yPx);
+        for (let i = 1; i < entries.length; i++) {
+            const prev = entries[i - 1];
+            const curr = entries[i];
+            const minDist = BAD_H + 2;
+            if (curr.yPx - prev.badgeY < minDist) {
+                curr.badgeY = prev.badgeY + minDist;
+            } else {
+                curr.badgeY = curr.yPx;
+            }
+            if (i === 1) prev.badgeY = prev.badgeY ?? prev.yPx;
+        }
+        if (entries.length === 1) entries[0].badgeY = entries[0].yPx;
+
+        // Desenha linha + badge para cada entry
+        entries.forEach(({ yVal, yPx, badgeY, color }) => {
             ctx.save();
 
             // linha tracejada na cor do dataset
@@ -2436,21 +2456,22 @@ const linhaAtualPlugin = {
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // badge % na cor do dataset
+            // badge na posição ajustada (sem colisão)
             const text = yVal.toFixed(1) + '%';
             ctx.font = 'bold 10px Arial, sans-serif';
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
-            const w = Math.ceil(ctx.measureText(text).width) + padX * 2;
+            const bw = Math.ceil(ctx.measureText(text).width) + padX * 2;
             const bx = right + 4;
-            const by = yPx - h / 2;
+            const by = badgeY - BAD_H / 2;
+
             ctx.fillStyle = 'rgba(10, 12, 20, 0.95)';
             ctx.strokeStyle = color;
             ctx.lineWidth = 1.2;
-            ctx.fillRect(bx, by, w, h);
-            ctx.strokeRect(bx, by, w, h);
+            ctx.fillRect(bx, by, bw, BAD_H);
+            ctx.strokeRect(bx, by, bw, BAD_H);
             ctx.fillStyle = color;
-            ctx.fillText(text, bx + padX, yPx);
+            ctx.fillText(text, bx + padX, badgeY);
 
             ctx.restore();
         });
