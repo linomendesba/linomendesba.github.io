@@ -1,19 +1,14 @@
 /**
- * MARCADOR.JS — Ferramenta de anotação para BetStat
- * Uso: <script src="marcador.js"></script>  ← só isso!
+ * MARCADOR.JS — Ferramenta de anotação global para BetStat
+ * Uso: <script src="marcador.js"></script>
  *
- * O script detecta automaticamente a estrutura da página:
- *  - Cria o botão e injeta na .seletor-container
- *  - Cobre a #tabelaResultados com o canvas
- *
- * Configuração opcional (antes do script):
- *   window.MARCADOR_TARGET = '#meuElemento'   // seletor do elemento alvo
- *   window.MARCADOR_PARENT = '.meu-container' // onde injetar o botão
+ * Canvas cobre TODA a página (position:fixed, full viewport).
+ * Quando ativo, você desenha em qualquer lugar da tela.
+ * O botão é injetado automaticamente na .seletor-container.
  */
 (function () {
   'use strict';
 
-  // ── CSS ────────────────────────────────────────────────────────────
   const css = `
     #btnMarcador {
       display: inline-flex;
@@ -31,7 +26,6 @@
       white-space: nowrap;
       font-family: inherit;
       height: 30px;
-      vertical-align: middle;
     }
     #btnMarcador:hover {
       border-color: #1fac89;
@@ -40,77 +34,45 @@
       box-shadow: 0 0 20px rgba(31,172,137,0.18);
     }
     #btnMarcador.mrc-active {
+      background: rgba(31,172,137,0.22);
       border-color: #1fac89;
-      background: rgba(31,172,137,0.25);
       color: #fff;
-      box-shadow: 0 0 20px rgba(31,172,137,0.18);
+      box-shadow: 0 0 20px rgba(31,172,137,0.25);
     }
     #btnMarcador svg { width: 12px; height: 12px; flex-shrink: 0; }
 
-    #mrcRoot {
-      position: absolute;
-      inset: 0;
-      z-index: 999;
-      pointer-events: none;
-      overflow: hidden;
-      border-radius: inherit;
-    }
-    #mrcRoot.mrc-active { pointer-events: all; }
-
-    #mrcRoot::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(28,31,38,0.15);
-      opacity: 0;
-      transition: opacity 0.3s;
-      pointer-events: none;
-    }
-    #mrcRoot.mrc-active::before { opacity: 1; }
-
-    #mrcRoot.mrc-active::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border: 1.5px solid rgba(31,172,137,0.4);
-      border-radius: inherit;
-      pointer-events: none;
-      animation: mrc-border 2.5s ease-in-out infinite;
-    }
-    @keyframes mrc-border {
-      0%,100% { border-color: rgba(31,172,137,0.4); }
-      50%      { border-color: rgba(31,172,137,0.1); }
-    }
-
+    /* Canvas global — cobre toda a viewport */
     #mrcCanvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 99998;
+      display: none;
       cursor: crosshair;
-      display: block;
+      touch-action: none;
     }
+    body.mrc-open #mrcCanvas { display: block; }
 
-    /* Toolbar — fixed para ficar visível mesmo com scroll na tabela */
+    /* Toolbar lateral direita */
     #mrcToolbar {
       position: fixed;
-      right: 16px;
+      right: 14px;
       top: 50%;
-      transform: translateY(-50%) translateX(8px);
+      transform: translateY(-50%) translateX(10px);
       width: 48px;
-      background: #22262f;
-      border: 1px solid rgba(255,255,255,0.12);
+      background: #1e2229;
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: 16px;
       padding: 8px 5px;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 2px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 24px rgba(31,172,137,0.18);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 24px rgba(31,172,137,0.15);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.25s, transform 0.25s;
-      z-index: 10000;
+      transition: opacity 0.22s, transform 0.22s;
+      z-index: 99999;
     }
     body.mrc-open #mrcToolbar {
       opacity: 1;
@@ -123,10 +85,10 @@
       border-radius: 10px;
       border: 1px solid transparent;
       background: transparent;
-      color: rgba(255,255,255,0.35);
+      color: rgba(255,255,255,0.3);
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      transition: all 0.14s;
+      transition: all 0.13s;
       flex-shrink: 0;
       position: relative;
       padding: 0;
@@ -135,132 +97,136 @@
     .mrc-btn:hover {
       background: rgba(31,172,137,0.12);
       color: #26d4a7;
-      border-color: rgba(31,172,137,0.2);
+      border-color: rgba(31,172,137,0.25);
     }
-    .mrc-btn.mrc-active {
-      background: rgba(31,172,137,0.25);
-      border-color: rgba(31,172,137,0.5);
+    .mrc-btn.mrc-sel {
+      background: rgba(31,172,137,0.22);
+      border-color: rgba(31,172,137,0.55);
       color: #26d4a7;
-      box-shadow: 0 0 12px rgba(31,172,137,0.2);
+      box-shadow: 0 0 10px rgba(31,172,137,0.18);
     }
-    .mrc-btn.mrc-danger:hover { background: rgba(248,113,113,0.1); color: #f87171; border-color: rgba(248,113,113,0.25); }
-    .mrc-btn.mrc-warn:hover   { background: rgba(251,191,36,0.1);  color: #fbbf24; border-color: rgba(251,191,36,0.25); }
+    .mrc-btn.mrc-danger:hover { background: rgba(248,113,113,0.1); color: #f87171; border-color: rgba(248,113,113,0.3); }
+    .mrc-btn.mrc-warn:hover   { background: rgba(251,191,36,0.1);  color: #fbbf24; border-color: rgba(251,191,36,0.3); }
 
-    .mrc-btn::after {
+    /* Tooltip */
+    .mrc-btn[data-tip]::after {
       content: attr(data-tip);
       position: absolute;
       right: calc(100% + 10px);
-      top: 50%;
-      transform: translateY(-50%);
-      background: #2f3542;
-      border: 1px solid rgba(255,255,255,0.12);
+      top: 50%; transform: translateY(-50%);
+      background: #2a2f3a;
+      border: 1px solid rgba(255,255,255,0.1);
       color: rgba(255,255,255,0.85);
-      font-size: 10px;
-      font-family: monospace;
-      padding: 4px 8px;
+      font-size: 10px; font-family: monospace;
+      padding: 4px 9px;
       border-radius: 6px;
       white-space: nowrap;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.15s;
-      letter-spacing: 0.04em;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.14s;
     }
-    .mrc-btn:hover::after { opacity: 1; }
+    .mrc-btn[data-tip]:hover::after { opacity: 1; }
 
-    .mrc-sep { width: 26px; height: 1px; background: rgba(255,255,255,0.07); margin: 3px 0; flex-shrink: 0; }
+    .mrc-sep { width: 28px; height: 1px; background: rgba(255,255,255,0.06); margin: 3px 0; flex-shrink: 0; }
 
     .mrc-color-wrap {
       width: 36px; height: 36px;
       border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.1);
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; padding: 5px;
-      transition: border-color 0.14s;
+      transition: border-color 0.13s;
     }
     .mrc-color-wrap:hover { border-color: rgba(31,172,137,0.4); }
-    #mrcColor { width: 100%; height: 100%; border: none; padding: 0; cursor: pointer; background: transparent; border-radius: 6px; }
+    #mrcColor {
+      width: 100%; height: 100%;
+      border: none; padding: 0;
+      cursor: pointer; background: transparent; border-radius: 6px;
+    }
 
-    .mrc-size-wrap { display: flex; align-items: center; justify-content: center; height: 64px; }
-    #mrcSize { writing-mode: vertical-lr; direction: rtl; width: 24px; height: 56px; accent-color: #1fac89; cursor: pointer; }
+    .mrc-size-wrap { display: flex; align-items: center; justify-content: center; height: 68px; }
+    #mrcSize {
+      writing-mode: vertical-lr; direction: rtl;
+      width: 24px; height: 58px;
+      accent-color: #1fac89; cursor: pointer;
+    }
 
+    /* Badge topo centro */
     #mrcBadge {
       position: fixed;
-      top: 14px; left: 50%;
+      top: 12px; left: 50%;
       transform: translateX(-50%);
-      background: #22262f;
-      border: 1px solid rgba(31,172,137,0.35);
+      background: #1e2229;
+      border: 1px solid rgba(31,172,137,0.4);
       border-radius: 20px;
-      padding: 5px 16px;
+      padding: 5px 18px;
       font-size: 11px; font-family: monospace;
       color: #1fac89;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      letter-spacing: 0.09em; text-transform: uppercase;
       white-space: nowrap;
-      opacity: 0;
-      transition: opacity 0.25s;
-      pointer-events: none;
-      box-shadow: 0 4px 20px rgba(31,172,137,0.15);
-      display: flex; align-items: center; gap: 7px;
-      z-index: 10001;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.22s;
+      box-shadow: 0 4px 20px rgba(31,172,137,0.12);
+      display: flex; align-items: center; gap: 8px;
+      z-index: 99999;
     }
     body.mrc-open #mrcBadge { opacity: 1; }
-
     .mrc-dot {
       width: 6px; height: 6px; border-radius: 50%;
       background: #1fac89; flex-shrink: 0;
-      animation: mrc-pulse 2s ease-in-out infinite;
+      animation: mrcPulse 2s ease-in-out infinite;
     }
-    @keyframes mrc-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+    @keyframes mrcPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.65)} }
 
+    /* Botão fechar (canto superior esquerdo) */
     #mrcBtnFechar {
       position: fixed;
-      top: 14px; left: 16px;
-      height: 32px; padding: 0 12px;
+      top: 12px; left: 14px;
+      height: 32px; padding: 0 13px;
       border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: #22262f;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: #1e2229;
       color: rgba(255,255,255,0.35);
       cursor: pointer;
       display: flex; align-items: center; gap: 6px;
       font-size: 11px; font-family: monospace;
       letter-spacing: 0.05em;
-      transition: all 0.14s;
+      transition: all 0.13s;
       opacity: 0; pointer-events: none;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-      z-index: 10001;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+      z-index: 99999;
     }
     body.mrc-open #mrcBtnFechar { opacity: 1; pointer-events: all; }
-    #mrcBtnFechar:hover { border-color: rgba(248,113,113,0.4); color: #f87171; background: rgba(248,113,113,0.06); }
+    #mrcBtnFechar:hover { border-color: rgba(248,113,113,0.45); color: #f87171; background: rgba(248,113,113,0.07); }
     #mrcBtnFechar svg { width: 12px; height: 12px; }
 
+    /* Contador (canto inferior direito) */
     #mrcContador {
       position: fixed;
-      bottom: 14px; right: 76px;
-      background: #22262f;
+      bottom: 14px; right: 70px;
+      background: #1e2229;
       border: 1px solid rgba(255,255,255,0.07);
       border-radius: 8px;
-      padding: 4px 10px;
+      padding: 4px 11px;
       font-size: 10px; font-family: monospace;
-      color: rgba(255,255,255,0.35);
+      color: rgba(255,255,255,0.3);
       letter-spacing: 0.06em;
-      opacity: 0; transition: opacity 0.2s;
-      pointer-events: none;
-      z-index: 10001;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 99999;
     }
     body.mrc-open #mrcContador { opacity: 1; }
 
+    /* Input de texto flutuante */
     #mrcTextInput {
-      position: absolute;
+      position: fixed;
       background: transparent; border: none;
       border-bottom: 1.5px solid #1fac89;
-      color: #fff; font-size: 15px; font-family: monospace;
-      outline: none; min-width: 140px;
-      padding: 2px 6px; z-index: 20; display: none;
-      caret-color: #1fac89;
+      color: #fff; outline: none;
+      padding: 2px 6px; z-index: 100000; display: none;
+      caret-color: #1fac89; font-family: monospace;
     }
   `;
 
-  // ── SVGs ──────────────────────────────────────────────────────────
   const svg = {
     pencil:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
     close:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
@@ -275,105 +241,101 @@
     lixeira: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>',
   };
 
-  // ── Injetar CSS ───────────────────────────────────────────────────
-  const styleEl = document.createElement('style');
+  // Injetar CSS
+  var styleEl = document.createElement('style');
   styleEl.textContent = css;
   document.head.appendChild(styleEl);
 
-  // ── Init ──────────────────────────────────────────────────────────
   function init() {
-    // Elemento alvo (onde o canvas fica por cima)
-    const targetSel = window.MARCADOR_TARGET || '#tabelaResultados';
-    const target    = document.querySelector(targetSel);
-    if (!target) { console.warn('[Marcador] Elemento alvo não encontrado:', targetSel); return; }
 
-    // Garante position relative no target
-    if (getComputedStyle(target).position === 'static') target.style.position = 'relative';
+    // ── Canvas GLOBAL (full viewport, fixed) ─────────────────────
+    var canvas = document.createElement('canvas');
+    canvas.id = 'mrcCanvas';
+    document.body.appendChild(canvas);
 
-    // ─ Criar botão e injetar na .seletor-container
-    const btnAbrir = document.createElement('button');
-    btnAbrir.id = 'btnMarcador';
-    btnAbrir.innerHTML = svg.pencil + ' Marcar';
-
-    const parentSel = window.MARCADOR_PARENT || '.seletor-container';
-    const btnParent = document.querySelector(parentSel);
-    if (btnParent) {
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'display:inline-flex;align-items:center;';
-      wrap.appendChild(btnAbrir);
-      btnParent.appendChild(wrap);
-    } else {
-      target.parentElement.insertBefore(btnAbrir, target);
-    }
-
-    // ─ Root do marcador (canvas overlay) — dentro do target
-    const root = document.createElement('div');
-    root.id = 'mrcRoot';
-    root.innerHTML = '<canvas id="mrcCanvas"></canvas><input id="mrcTextInput" type="text" placeholder="escreva... Enter pra confirmar">';
-    target.appendChild(root);
-
-    // ─ Elementos fixed (fora do root, no body)
-    const toolbar = document.createElement('div');
+    // ── Toolbar ──────────────────────────────────────────────────
+    var toolbar = document.createElement('div');
     toolbar.id = 'mrcToolbar';
     toolbar.innerHTML =
-      '<button class="mrc-btn mrc-active" data-tool="linha"     data-tip="Linha - L">'     + svg.linha   + '</button>' +
-      '<button class="mrc-btn"            data-tool="seta"      data-tip="Seta - A">'       + svg.seta    + '</button>' +
-      '<button class="mrc-btn"            data-tool="caneta"    data-tip="Caneta - P">'     + svg.caneta  + '</button>' +
-      '<button class="mrc-btn"            data-tool="retangulo" data-tip="Retangulo - R">'  + svg.rect    + '</button>' +
-      '<button class="mrc-btn"            data-tool="circulo"   data-tip="Circulo - C">'    + svg.circle  + '</button>' +
-      '<button class="mrc-btn"            data-tool="texto"     data-tip="Texto - T">'      + svg.texto   + '</button>' +
-      '<button class="mrc-btn"            data-tool="borracha"  data-tip="Borracha - E">'   + svg.borracha+ '</button>' +
+      '<button class="mrc-btn mrc-sel" data-tool="linha"     data-tip="Linha - L">'     + svg.linha    + '</button>' +
+      '<button class="mrc-btn"         data-tool="seta"      data-tip="Seta - A">'       + svg.seta     + '</button>' +
+      '<button class="mrc-btn"         data-tool="caneta"    data-tip="Caneta - P">'     + svg.caneta   + '</button>' +
+      '<button class="mrc-btn"         data-tool="retangulo" data-tip="Retangulo - R">'  + svg.rect     + '</button>' +
+      '<button class="mrc-btn"         data-tool="circulo"   data-tip="Circulo - C">'    + svg.circle   + '</button>' +
+      '<button class="mrc-btn"         data-tool="texto"     data-tip="Texto - T">'      + svg.texto    + '</button>' +
+      '<button class="mrc-btn"         data-tool="borracha"  data-tip="Borracha - E">'   + svg.borracha + '</button>' +
       '<div class="mrc-sep"></div>' +
-      '<div class="mrc-color-wrap" data-tip="Cor"><input id="mrcColor" type="color" value="#1fac89"></div>' +
-      '<div class="mrc-size-wrap"><input id="mrcSize" type="range" min="1" max="40" value="3" data-tip="Espessura"></div>' +
+      '<div class="mrc-color-wrap" title="Cor"><input id="mrcColor" type="color" value="#1fac89"></div>' +
+      '<div class="mrc-size-wrap"><input id="mrcSize" type="range" min="1" max="40" value="3" title="Espessura"></div>' +
       '<div class="mrc-sep"></div>' +
       '<button class="mrc-btn mrc-warn"   id="mrcUndo"   data-tip="Desfazer - Ctrl+Z">' + svg.undo    + '</button>' +
       '<button class="mrc-btn mrc-danger" id="mrcLimpar" data-tip="Apagar tudo - Del">' + svg.lixeira + '</button>';
+    document.body.appendChild(toolbar);
 
-    const badge = document.createElement('div');
+    // ── Badge ─────────────────────────────────────────────────────
+    var badge = document.createElement('div');
     badge.id = 'mrcBadge';
     badge.innerHTML = '<span class="mrc-dot"></span> modo marcacao';
+    document.body.appendChild(badge);
 
-    const btnFechar = document.createElement('button');
+    // ── Botão fechar ──────────────────────────────────────────────
+    var btnFechar = document.createElement('button');
     btnFechar.id = 'mrcBtnFechar';
     btnFechar.innerHTML = svg.close + ' sair';
+    document.body.appendChild(btnFechar);
 
-    const contador = document.createElement('div');
+    // ── Contador ──────────────────────────────────────────────────
+    var contador = document.createElement('div');
     contador.id = 'mrcContador';
     contador.textContent = '0 marcacoes';
-
-    document.body.appendChild(toolbar);
-    document.body.appendChild(badge);
-    document.body.appendChild(btnFechar);
     document.body.appendChild(contador);
 
-    // ── Referências ──────────────────────────────────────────────
-    const canvas    = root.querySelector('#mrcCanvas');
-    const colorEl   = toolbar.querySelector('#mrcColor');
-    const sizeEl    = toolbar.querySelector('#mrcSize');
-    const btnDesfaz = toolbar.querySelector('#mrcUndo');
-    const btnLimpar = toolbar.querySelector('#mrcLimpar');
-    const textInput = root.querySelector('#mrcTextInput');
-    const ctx       = canvas.getContext('2d');
+    // ── Input de texto flutuante ─────────────────────────────────
+    var textInput = document.createElement('input');
+    textInput.id = 'mrcTextInput';
+    textInput.type = 'text';
+    textInput.placeholder = 'escreva... Enter pra confirmar';
+    document.body.appendChild(textInput);
 
-    let ferramenta = 'linha', desenhando = false;
-    let startX = 0, startY = 0, snapshot = null;
-    let historico = [], aberto = false, totalMarcacoes = 0;
+    // ── Botão Marcar (injetado na .seletor-container) ─────────────
+    var btnAbrir = document.createElement('button');
+    btnAbrir.id = 'btnMarcador';
+    btnAbrir.innerHTML = svg.pencil + ' Marcar';
+    var parentSel = window.MARCADOR_PARENT || '.seletor-container';
+    var btnParent = document.querySelector(parentSel);
+    if (btnParent) {
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'display:inline-flex;align-items:center;margin-left:4px;';
+      wrap.appendChild(btnAbrir);
+      btnParent.appendChild(wrap);
+    } else {
+      document.body.appendChild(btnAbrir);
+    }
+
+    // ── Contexto e estado ─────────────────────────────────────────
+    var ctx = canvas.getContext('2d');
+    var ferramenta = 'linha', desenhando = false;
+    var startX = 0, startY = 0, snapshot = null;
+    var historico = [], aberto = false, totalMarcacoes = 0;
+
+    // Canvas sempre do tamanho da viewport
+    function resizeCanvas() {
+      // Salva desenho atual
+      var img = (canvas.width > 0 && canvas.height > 0)
+        ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      if (img) ctx.putImageData(img, 0, 0);
+    }
+    resizeCanvas();
+    window.addEventListener('resize', function() { if (aberto) resizeCanvas(); });
 
     function atualizarContador() {
       contador.textContent = totalMarcacoes + (totalMarcacoes === 1 ? ' marcacao' : ' marcacoes');
     }
 
-    function resizeCanvas() {
-      var img = canvas.width > 0 ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
-      canvas.width  = target.offsetWidth;
-      canvas.height = target.offsetHeight;
-      if (img) ctx.putImageData(img, 0, 0);
-    }
-
     function abrir() {
-      resizeCanvas();
-      root.classList.add('mrc-active');
+      if (!aberto) resizeCanvas();
       document.body.classList.add('mrc-open');
       btnAbrir.classList.add('mrc-active');
       btnAbrir.innerHTML = svg.pencil + ' Sair';
@@ -381,7 +343,6 @@
     }
 
     function fechar() {
-      root.classList.remove('mrc-active');
       document.body.classList.remove('mrc-open');
       btnAbrir.classList.remove('mrc-active');
       btnAbrir.innerHTML = svg.pencil + ' Marcar';
@@ -392,14 +353,20 @@
     btnAbrir.addEventListener('click', function() { aberto ? fechar() : abrir(); });
     btnFechar.addEventListener('click', fechar);
 
+    // Selecionar ferramenta
     toolbar.querySelectorAll('[data-tool]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         ferramenta = btn.dataset.tool;
-        toolbar.querySelectorAll('[data-tool]').forEach(function(b) { b.classList.remove('mrc-active'); });
-        btn.classList.add('mrc-active');
+        toolbar.querySelectorAll('[data-tool]').forEach(function(b) { b.classList.remove('mrc-sel'); });
+        btn.classList.add('mrc-sel');
         canvas.style.cursor = ferramenta === 'borracha' ? 'cell' : 'crosshair';
       });
     });
+
+    var colorEl   = document.getElementById('mrcColor');
+    var sizeEl    = document.getElementById('mrcSize');
+    var btnDesfaz = document.getElementById('mrcUndo');
+    var btnLimpar = document.getElementById('mrcLimpar');
 
     var getCor = function() { return colorEl.value; };
     var getTam = function() { return parseInt(sizeEl.value); };
@@ -409,10 +376,10 @@
       if (historico.length > 80) historico.shift();
     }
 
+    // Posição do cursor já em coords de canvas (canvas = viewport, então é direto)
     function getPos(e) {
-      var r = canvas.getBoundingClientRect();
       var s = e.touches ? e.touches[0] : e;
-      return { x: (s.clientX - r.left) * (canvas.width / r.width), y: (s.clientY - r.top) * (canvas.height / r.height) };
+      return { x: s.clientX, y: s.clientY };
     }
 
     function aplicarEstilo() {
@@ -434,12 +401,16 @@
       totalMarcacoes = 0; atualizarContador();
     });
 
+    // Texto flutuante
     var tx = 0, ty = 0;
     function abrirTexto(x, y) {
       tx = x; ty = y;
-      textInput.style.left = x + 'px'; textInput.style.top = (y - 22) + 'px';
-      textInput.style.color = getCor(); textInput.style.fontSize = Math.max(14, getTam() * 4) + 'px';
-      textInput.style.display = 'block'; textInput.value = ''; textInput.focus();
+      textInput.style.left = x + 'px';
+      textInput.style.top  = (y - 24) + 'px';
+      textInput.style.color     = getCor();
+      textInput.style.fontSize  = Math.max(14, getTam() * 4) + 'px';
+      textInput.style.display   = 'block';
+      textInput.value = ''; textInput.focus();
     }
     function fecharTexto() { textInput.style.display = 'none'; textInput.value = ''; }
 
@@ -449,7 +420,8 @@
         if (txt) {
           salvarHistorico();
           ctx.font = Math.max(14, getTam() * 4) + 'px monospace';
-          ctx.fillStyle = getCor(); ctx.fillText(txt, tx, ty);
+          ctx.fillStyle = getCor();
+          ctx.fillText(txt, tx, ty);
           totalMarcacoes++; atualizarContador();
         }
         fecharTexto();
@@ -457,12 +429,14 @@
       if (e.key === 'Escape') fecharTexto();
     });
 
+    // Desenhar formas
     function desenharForma(x, y) {
       ctx.putImageData(snapshot, 0, 0); aplicarEstilo();
       if (ferramenta === 'linha') {
         ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(x, y); ctx.stroke();
       } else if (ferramenta === 'seta') {
-        var ang = Math.atan2(y - startY, x - startX), hl = Math.max(14, getTam() * 4);
+        var ang = Math.atan2(y - startY, x - startX);
+        var hl  = Math.max(14, getTam() * 5);
         ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(x, y); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(x, y);
         ctx.lineTo(x - hl * Math.cos(ang - Math.PI/6), y - hl * Math.sin(ang - Math.PI/6));
@@ -476,59 +450,90 @@
       }
     }
 
-    function aoIniciar(e) {
+    canvas.addEventListener('mousedown', function(e) {
       e.preventDefault();
       var pos = getPos(e);
       if (ferramenta === 'texto') { abrirTexto(pos.x, pos.y); return; }
       desenhando = true; startX = pos.x; startY = pos.y;
       salvarHistorico(); aplicarEstilo();
-      if (ferramenta === 'caneta' || ferramenta === 'borracha') { ctx.beginPath(); ctx.moveTo(pos.x, pos.y); }
-      else snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    }
+      if (ferramenta === 'caneta' || ferramenta === 'borracha') {
+        ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+      } else {
+        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      }
+    });
 
-    function aoMover(e) {
+    canvas.addEventListener('mousemove', function(e) {
       e.preventDefault();
       if (!desenhando) return;
       var pos = getPos(e); aplicarEstilo();
-      if (ferramenta === 'caneta') { ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
-      else if (ferramenta === 'borracha') {
+      if (ferramenta === 'caneta') {
+        ctx.lineTo(pos.x, pos.y); ctx.stroke();
+      } else if (ferramenta === 'borracha') {
         ctx.globalCompositeOperation = 'destination-out';
-        ctx.lineWidth = getTam() * 5; ctx.lineTo(pos.x, pos.y); ctx.stroke();
+        ctx.lineWidth = getTam() * 6; ctx.lineTo(pos.x, pos.y); ctx.stroke();
         ctx.globalCompositeOperation = 'source-over';
-      } else desenharForma(pos.x, pos.y);
-    }
+      } else {
+        desenharForma(pos.x, pos.y);
+      }
+    });
 
-    function aoSoltar(e) {
-      e.preventDefault();
+    function pararDesenho(e) {
+      if (e) e.preventDefault();
       if (!desenhando) return;
       desenhando = false;
       if (ferramenta === 'borracha') ctx.globalCompositeOperation = 'source-over';
       if (ferramenta !== 'texto') { totalMarcacoes++; atualizarContador(); }
     }
 
-    canvas.addEventListener('mousedown',  aoIniciar);
-    canvas.addEventListener('mousemove',  aoMover);
-    canvas.addEventListener('mouseup',    aoSoltar);
-    canvas.addEventListener('mouseleave', aoSoltar);
-    canvas.addEventListener('touchstart', aoIniciar, { passive: false });
-    canvas.addEventListener('touchmove',  aoMover,   { passive: false });
-    canvas.addEventListener('touchend',   aoSoltar,  { passive: false });
+    canvas.addEventListener('mouseup',    pararDesenho);
+    canvas.addEventListener('mouseleave', pararDesenho);
+    canvas.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      var pos = getPos(e);
+      if (ferramenta === 'texto') { abrirTexto(pos.x, pos.y); return; }
+      desenhando = true; startX = pos.x; startY = pos.y;
+      salvarHistorico(); aplicarEstilo();
+      if (ferramenta === 'caneta' || ferramenta === 'borracha') {
+        ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+      } else {
+        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+      if (!desenhando) return;
+      var pos = getPos(e); aplicarEstilo();
+      if (ferramenta === 'caneta') { ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
+      else if (ferramenta === 'borracha') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = getTam() * 6; ctx.lineTo(pos.x, pos.y); ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+      } else { desenharForma(pos.x, pos.y); }
+    }, { passive: false });
+    canvas.addEventListener('touchend', pararDesenho, { passive: false });
 
+    // Atalhos de teclado
     document.addEventListener('keydown', function(e) {
       if (!aberto || document.activeElement === textInput) return;
       var mapa = { p:'caneta', l:'linha', a:'seta', r:'retangulo', c:'circulo', t:'texto', e:'borracha' };
       var tool = mapa[e.key.toLowerCase()];
-      if (tool) { var el = toolbar.querySelector('[data-tool="' + tool + '"]'); if (el) el.click(); }
+      if (tool) {
+        var btn = toolbar.querySelector('[data-tool="' + tool + '"]');
+        if (btn) btn.click();
+      }
       if (e.key === 'Escape') fechar();
       if (e.key === 'Delete') btnLimpar.click();
       if (e.ctrlKey && e.key === 'z') { e.preventDefault(); desfazer(); }
     });
 
-    new ResizeObserver(function() { if (aberto) resizeCanvas(); }).observe(target);
     atualizarContador();
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
 })();
