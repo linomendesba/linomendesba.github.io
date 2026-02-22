@@ -1,82 +1,218 @@
-// 1. Configuração inicial dos Labels (O que você quer que salve)
-// Ele tenta buscar do navegador, se não existir, usa esse padrão abaixo
-window.statsChartVisibleDatasets = JSON.parse(localStorage.getItem('meus_labels_grafico')) || {
-    'Gols FT': false, 'Casa Vence': false, 'Empate': false, 'Fora Vence': false,
-    'Ambas Sim': true, 'Ambas Não': false, 'Over 1.5': false, 'Over 2.5': false,
-    'Over 3.5': false, 'Under 1.5': false, 'Under 2.5': false, 'Under 3.5': false,
-    '0 Gol Exato': false, '1 Gol Exato': false, '2 Gols Exatos': false,
-    '3 Gols Exatos': false, '4 Gols Exatos': false, '5 Gols Exatos': false,
-    '0x0': false, '1x0': false, '2x0': false, '3x0': false,
-    '2x1': false, '3x1': false, '3x2': false, '4x0': false, '4x1': false
+// ═══════════════════════════════════════════════════════
+//  SELETORES EXCLUÍDOS DO SAVE
+// ═══════════════════════════════════════════════════════
+const excludedSelectors = [
+    "ligas",
+    "avancado-betano",
+    "ligas365",
+    "avancado-bet365",
+    "redes"
+];
+
+// ═══════════════════════════════════════════════════════
+//  ACORDEONS GERENCIADOS
+//  Chave localStorage ← trecho do texto do botão
+//  Ajuste aqui se renomear algum acordeon
+// ═══════════════════════════════════════════════════════
+const ACCORDION_KEYS = {
+    "Gráfico Gols":      "accordion_grafico_gols",
+    "Gráfico MACD/RSI":  "accordion_grafico_macd",
+    "Gráfico Mercados": "accordion_grafico_mercados"
 };
 
-// 2. Seletores que não salvam
-const excludedSelectors = ["ligas", "avancado-betano", "ligas365", "avancado-bet365", "redes"];
+// ─── helpers ───────────────────────────────────────────
+function getAccordionKey(btn) {
+    const text = btn.textContent || "";
+    for (const [label, key] of Object.entries(ACCORDION_KEYS)) {
+        if (text.includes(label)) return key;
+    }
+    return null;
+}
 
-// --- FUNÇÃO SIMPLES DE SALVAR ---
-function salvarTudo() {
-    // Salva os Labels do Gráfico
-    localStorage.setItem('meus_labels_grafico', JSON.stringify(window.statsChartVisibleDatasets));
+function isTargetAccordion(btn) {
+    return getAccordionKey(btn) !== null;
+}
 
-    // Salva todos os Selects e Checkboxes pelo ID
-    document.querySelectorAll("select, input[type='checkbox'], input[type='number']").forEach(el => {
-        if (el.id && !excludedSelectors.includes(el.id)) {
-            const valor = el.type === 'checkbox' ? el.checked : el.value;
-            localStorage.setItem('save_' + el.id, valor);
+// Retorna o botão-acordeon pai de um elemento (ou null)
+function getParentAccordionBtn(el) {
+    return el.closest(".accordion-content")?.previousElementSibling ?? null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOGGLE — abre/fecha e persiste estado
+// ═══════════════════════════════════════════════════════
+function toggleAccordion(btn) {
+    const content = btn.nextElementSibling;
+
+    if (content.style.display === "none" || content.style.display === "") {
+        content.style.display = "block";
+        btn.textContent = btn.textContent.replace("▼", "▲");
+    } else {
+        content.style.display = "none";
+        btn.textContent = btn.textContent.replace("▲", "▼");
+    }
+
+    if (!isTargetAccordion(btn)) return;
+
+    saveAccordionState(btn);
+
+    // Persiste todos os controles do acordeon ao abrir/fechar
+    content.querySelectorAll("select, input[type='checkbox'], input[type='number']")
+        .forEach(el => { if (!excludedSelectors.includes(el.id)) saveSelection(el.id); });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SAVE / RESTORE — estado aberto/fechado dos acordeons
+// ═══════════════════════════════════════════════════════
+function saveAccordionState(btn) {
+    const key = getAccordionKey(btn);
+    if (!key) return;
+    const isOpen = btn.nextElementSibling?.style.display !== "none";
+    localStorage.setItem(key, isOpen);
+}
+
+function restoreAccordionState() {
+    document.querySelectorAll(".accordion-button").forEach(btn => {
+        const key = getAccordionKey(btn);
+        if (!key) return;
+
+        const saved = localStorage.getItem(key);
+        if (saved === null) return;
+
+        const content = btn.nextElementSibling;
+        if (!content) return;
+
+        if (saved === "true") {
+            content.style.display = "block";
+            btn.textContent = btn.textContent.replace("▼", "▲");
+        } else {
+            content.style.display = "none";
+            btn.textContent = btn.textContent.replace("▲", "▼");
         }
-    });
-
-    // Salva quais acordeões estão abertos
-    document.querySelectorAll(".accordion-button").forEach((btn, index) => {
-        const isOpen = btn.nextElementSibling.style.display === "block";
-        localStorage.setItem('acc_' + index, isOpen);
     });
 }
 
-// --- FUNÇÃO SIMPLES DE CARREGAR ---
-function carregarTudo() {
-    // Restaurar Acordeões pelo índice (posição deles na tela)
-    document.querySelectorAll(".accordion-button").forEach((btn, index) => {
-        const saved = localStorage.getItem('acc_' + index);
-        if (saved !== null) {
-            const isOpen = saved === "true";
-            btn.nextElementSibling.style.display = isOpen ? "block" : "none";
-            btn.textContent = isOpen ? btn.textContent.replace("▼", "▲") : btn.textContent.replace("▲", "▼");
-        }
+// ═══════════════════════════════════════════════════════
+//  SAVE / RESTORE — valores de controles individuais
+//  Suporta: select | checkbox | number input
+// ═══════════════════════════════════════════════════════
+function saveSelection(id) {
+    const el = document.getElementById(id);
+    if (!el || excludedSelectors.includes(id) || !id) return;
+
+    if (el.type === "checkbox") {
+        localStorage.setItem(id, el.checked);
+    } else {
+        // select e input[type=number] tratados igual
+        localStorage.setItem(id, el.value);
+    }
+}
+
+function restoreSelections() {
+    // selects
+    document.querySelectorAll("select").forEach(sel => {
+        if (excludedSelectors.includes(sel.id)) return;
+        const saved = localStorage.getItem(sel.id);
+        if (saved === null) return;
+        sel.value = saved;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+        if (sel.onchange) sel.onchange();
     });
 
-    // Restaurar Selects e Checkboxes
-    document.querySelectorAll("select, input[type='checkbox'], input[type='number']").forEach(el => {
-        const saved = localStorage.getItem('save_' + el.id);
-        if (saved !== null && !excludedSelectors.includes(el.id)) {
-            if (el.type === 'checkbox') el.checked = saved === "true";
-            else el.value = saved;
-            
-            // Força o gráfico a entender que o valor mudou
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+    // checkboxes
+    document.querySelectorAll("input[type='checkbox']").forEach(cb => {
+        if (excludedSelectors.includes(cb.id)) return;
+        const saved = localStorage.getItem(cb.id);
+        if (saved === null) return;
+        cb.checked = saved === "true";
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+        if (cb.onchange) cb.onchange();
+    });
+
+    // number inputs (MACD, RSI, etc.)
+    document.querySelectorAll("input[type='number']").forEach(inp => {
+        if (excludedSelectors.includes(inp.id)) return;
+        const saved = localStorage.getItem(inp.id);
+        if (saved === null) return;
+        inp.value = saved;
+        inp.dispatchEvent(new Event("change", { bubbles: true }));
+        if (inp.onchange) inp.onchange();
     });
 }
 
-// --- EVENTOS ---
+// ═══════════════════════════════════════════════════════
+//  SETUP — listeners automáticos em todos os controles
+//  dos 3 acordeons alvo
+// ═══════════════════════════════════════════════════════
+function setupSelectors() {
+    const selector = "select, input[type='checkbox'], input[type='number']";
 
-// Quando clicar em qualquer coisa, salva
-document.addEventListener('change', (e) => {
-    if (e.target.closest('select, input')) salvarTudo();
-});
+    document.querySelectorAll(selector).forEach(el => {
+        if (excludedSelectors.includes(el.id)) return;
 
-// Quando clicar no botão do acordeão, salva
-document.querySelectorAll('.accordion-button').forEach(btn => {
-    btn.addEventListener('click', () => {
-        // Pequeno delay para esperar a animação do seu toggle original
-        setTimeout(salvarTudo, 100);
+        const accordionBtn = getParentAccordionBtn(el);
+        const inTarget     = accordionBtn && isTargetAccordion(accordionBtn);
+
+        // Ignora controles que estão em acordeons NÃO gerenciados
+        if (accordionBtn && !inTarget) return;
+
+        // Selects com redirecionamento: salva antes de navegar
+        if (
+            el.tagName === "SELECT" &&
+            el.hasAttribute("onclick") &&
+            el.getAttribute("onclick").includes("redirecionar")
+        ) {
+            const orig = el.getAttribute("onclick");
+            el.setAttribute("onclick", `saveSelection('${el.id}'); ${orig}`);
+            return;
+        }
+
+        // Evento padrão para todos os outros controles
+        el.addEventListener("change", () => {
+            saveSelection(el.id);
+            if (inTarget) saveAccordionState(accordionBtn);
+        });
     });
-});
+}
 
-// Inicia ao abrir a página
+// ═══════════════════════════════════════════════════════
+//  SAVE ALL — snapshot completo antes de fechar a aba
+// ═══════════════════════════════════════════════════════
+function saveAllSelections() {
+    const selector = "select, input[type='checkbox'], input[type='number']";
+
+    document.querySelectorAll(selector).forEach(el => {
+        if (excludedSelectors.includes(el.id) || !el.id) return;
+        const btn      = getParentAccordionBtn(el);
+        const inTarget = !btn || isTargetAccordion(btn);
+        if (inTarget) saveSelection(el.id);
+    });
+
+    document.querySelectorAll(".accordion-button").forEach(btn => {
+        saveAccordionState(btn); // salva apenas os que têm chave definida
+    });
+}
+
+// ═══════════════════════════════════════════════════════
+//  CLEAR — limpa localStorage (debug / reset)
+// ═══════════════════════════════════════════════════════
+function clearSavedData() {
+    const selector = "select, input[type='checkbox'], input[type='number']";
+    document.querySelectorAll(selector).forEach(el => {
+        if (!excludedSelectors.includes(el.id) && el.id) localStorage.removeItem(el.id);
+    });
+    Object.values(ACCORDION_KEYS).forEach(key => localStorage.removeItem(key));
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
 window.addEventListener("DOMContentLoaded", () => {
-    carregarTudo();
+    restoreAccordionState();
+    setTimeout(() => {
+        restoreSelections();
+        setupSelectors();
+    }, 100);
 });
 
-// Salva ao fechar ou mudar de página
-window.addEventListener("beforeunload", salvarTudo);
+window.addEventListener("beforeunload", saveAllSelections);
