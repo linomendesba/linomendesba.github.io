@@ -2121,15 +2121,41 @@ const leagues = ['Copa'];
 const chartInstances = {};
 let chartData = {};
 
-const statsChartVisibleDatasets = {
+// ─── PERSISTÊNCIA DOS DATASETS VISÍVEIS ─────────────────────────────
+const VISIBLE_DATASETS_KEY = 'meu_grafico:visibleDatasets';
+
+const defaultStatsChartVisibleDatasets = {
     'Gols FT': false, 'Casa Vence': false, 'Empate': false, 'Fora Vence': false,
-    'Ambas Sim': false, 'Ambas Não': false, 'Over 1.5': false, 'Over 2.5': true,
+    'Ambas Sim': true, 'Ambas Não': false, 'Over 1.5': false, 'Over 2.5': false,
     'Over 3.5': false, 'Under 1.5': false, 'Under 2.5': false, 'Under 3.5': false,
     '0 Gol Exato': false, '1 Gol Exato': false, '2 Gols Exatos': false,
     '3 Gols Exatos': false, '4 Gols Exatos': false, '5 Gols Exatos': false,
     '0x0': false, '1x0': false, '2x0': false, '3x0': false,
     '2x1': false, '3x1': false, '3x2': false, '4x0': false, '4x1': false
 };
+
+function _loadVisibleDatasets() {
+    try {
+        const raw = localStorage.getItem(VISIBLE_DATASETS_KEY);
+        if (!raw) return { ...defaultStatsChartVisibleDatasets };
+        const saved = JSON.parse(raw);
+        // Merge: valores salvos têm prioridade; novas chaves usam o default
+        return Object.assign({}, defaultStatsChartVisibleDatasets, saved);
+    } catch {
+        return { ...defaultStatsChartVisibleDatasets };
+    }
+}
+
+function _saveVisibleDatasets(obj) {
+    try {
+        localStorage.setItem(VISIBLE_DATASETS_KEY, JSON.stringify(obj));
+    } catch {}
+}
+
+// Estado global carregado do localStorage (ou default)
+let statsChartVisibleDatasets = _loadVisibleDatasets();
+
+// ────────────────────────────────────────────────────────────────────
 
 const labelToKey = {
     'Gols FT': 'golsFT', 'Casa Vence': 'casaVence', 'Empate': 'empate',
@@ -2360,7 +2386,7 @@ function updateStatsChart(chart, newData) {
             if (!ds.label.includes(' MA'))
                 ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + 'Colors'];
         });
-        chart.update(); // update() completo para que afterDraw da linhaAtual seja chamado
+        chart.update();
     }
 }
 
@@ -2403,10 +2429,6 @@ const fibonacciLinesPlugin = {
 
 /* ═══════════════════════════════════════════════════════════════════
    PLUGIN: LINHA ATUAL
-   Padrão idêntico ao Caramelo:
-   - Plugin no array local do new Chart()
-   - enabled/desabilitado via options.plugins.linhaAtual.enabled
-   - Toggle chama chart.update() — Chart.js repassa opts para afterDraw
 ═══════════════════════════════════════════════════════════════════ */
 const linhaAtualPlugin = {
     id: 'linhaAtual',
@@ -2423,14 +2445,11 @@ const linhaAtualPlugin = {
         const yS = scales.y;
         const { left, right, top, bottom } = chartArea;
         const padX = 5;
-        const BAD_H = 18; // altura do badge
+        const BAD_H = 18;
 
-        // Coleta todos os datasets visíveis (não-MA) com seu último valor
         const entries = [];
         chart.data.datasets.forEach((d, i) => {
             if (!d.label || d.label.includes(' MA')) return;
-
-            // isDatasetVisible é o método oficial do Chart.js v3/v4
             if (!chart.isDatasetVisible(i)) return;
 
             const arr = d.data;
@@ -2458,8 +2477,6 @@ const linhaAtualPlugin = {
 
         if (!entries.length) return;
 
-        // Resolve colisão de badges: se dois badges se sobrepõem verticalmente,
-        // empurra o de baixo para não colidir
         entries.sort((a, b) => a.yPx - b.yPx);
         for (let i = 1; i < entries.length; i++) {
             const prev = entries[i - 1];
@@ -2474,11 +2491,9 @@ const linhaAtualPlugin = {
         }
         if (entries.length === 1) entries[0].badgeY = entries[0].yPx;
 
-        // Desenha linha + badge para cada entry
         entries.forEach(({ yVal, yPx, badgeY, color }) => {
             ctx.save();
 
-            // linha tracejada na cor do dataset
             ctx.strokeStyle = color;
             ctx.lineWidth = 1.2;
             ctx.setLineDash([6, 4]);
@@ -2488,7 +2503,6 @@ const linhaAtualPlugin = {
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // badge na posição ajustada (sem colisão)
             const text = yVal.toFixed(1) + '%';
             ctx.font = 'bold 10px Arial, sans-serif';
             ctx.textBaseline = 'middle';
@@ -2514,11 +2528,6 @@ const linhaAtualPlugin = {
 
 /* ═══════════════════════════════════════════════════════════════════
    PLUGIN: LINHAS ARRASTÁVEIS (DRAGGABLE)
-   ─ Até 6 linhas com cor escolhida pelo usuário
-   ─ Badge na COLUNA B: right + 4, mas linha própria separada visualmente
-     pela cor e tracejado diferente da linha atual
-   ─ Salvas no localStorage
-   ─ Clique para selecionar, Delete/Backspace para apagar
 ═══════════════════════════════════════════════════════════════════ */
 const DRAG_LINES_KEY = 'meu_grafico:draglines';
 const MAX_DRAG_LINES = 6;
@@ -2590,7 +2599,7 @@ const linhaDraggablePlugin = {
             chart._selectedDragLine = chart.dragLines.length - 1;
             _saveDragLines(chart.dragLines);
             _atualizarContador(chart.dragLines);
-            chart.update(); // redesenha tudo incluindo linhaAtual
+            chart.update();
         };
 
         chart.deleteDragLine = () => {
@@ -2600,7 +2609,7 @@ const linhaDraggablePlugin = {
                 chart._selectedDragLine = -1;
                 _saveDragLines(chart.dragLines);
                 _atualizarContador(chart.dragLines);
-                chart.update(); // redesenha tudo incluindo linhaAtual
+                chart.update();
             }
         };
 
@@ -2609,7 +2618,7 @@ const linhaDraggablePlugin = {
             chart._selectedDragLine = -1;
             _saveDragLines(chart.dragLines);
             _atualizarContador(chart.dragLines);
-            chart.update(); // update() sem argumento redesenha TODOS os plugins
+            chart.update();
         };
 
         window.adicionarLinhaDraggable = () => {
@@ -2637,7 +2646,7 @@ const linhaDraggablePlugin = {
             } else {
                 chart._selectedDragLine = -1;
             }
-            chart.update(); // redesenha incluindo linhaAtual
+            chart.update();
         };
 
         const moveDrag = (evt) => {
@@ -2649,7 +2658,7 @@ const linhaDraggablePlugin = {
             newVal = Math.max(yS.min, Math.min(yS.max, newVal));
             newVal = Math.round(newVal * 10) / 10;
             chart.dragLines[draggingIdx].y = newVal;
-            chart.update('active'); // leve mas chama afterDraw dos plugins
+            chart.update('active');
         };
 
         const stopDrag = () => {
@@ -2695,10 +2704,8 @@ const linhaDraggablePlugin = {
 
             ctx.save();
 
-            // Linha da cor escolhida pelo usuário — SEMPRE sólida (não tracejada)
-            // para se diferenciar visualmente da linha atual (que é amarela tracejada)
             ctx.beginPath();
-            ctx.setLineDash(isSelected ? [4, 2] : []); // selecionada: tracejada; normal: sólida
+            ctx.setLineDash(isSelected ? [4, 2] : []);
             ctx.lineWidth = isSelected ? 1.8 : 1.2;
             ctx.strokeStyle = l.color || '#1fcc59';
             ctx.moveTo(left, yPx);
@@ -2706,7 +2713,6 @@ const linhaDraggablePlugin = {
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Alça circular na esquerda quando selecionada
             if (isSelected) {
                 ctx.beginPath();
                 ctx.arc(left + 10, yPx, 4, 0, Math.PI * 2);
@@ -2714,8 +2720,6 @@ const linhaDraggablePlugin = {
                 ctx.fill();
             }
 
-            // Badge na COLUNA A: right + 4
-            // A cor diferente já separa visualmente da linha atual
             const text = l.y.toFixed(1) + '%';
             ctx.font = isSelected ? 'bold 11px Arial, sans-serif' : '10px Arial, sans-serif';
             ctx.textBaseline = 'middle';
@@ -2837,7 +2841,12 @@ function createStatsChart(ctx, labels, data, league) {
                         const mainIndex = ci.data.datasets.findIndex(ds => ds.label === datasetLabel);
                         const meta = ci.getDatasetMeta(mainIndex);
                         meta.hidden = !meta.hidden;
+
+                        // ─── SALVA O ESTADO NO LOCALSTORAGE ────────────────────
                         statsChartVisibleDatasets[datasetLabel] = !meta.hidden;
+                        _saveVisibleDatasets(statsChartVisibleDatasets);
+                        // ───────────────────────────────────────────────────────
+
                         ci.data.datasets.forEach((ds, dsIndex) => {
                             if (ds.label.startsWith(datasetLabel + ' -')) {
                                 const metaMA = ci.getDatasetMeta(dsIndex);
@@ -2875,9 +2884,8 @@ function createStatsChart(ctx, labels, data, league) {
                         }
                     }
                 },
-                // Configuração da linha atual — lida pelo plugin via opts
                 linhaAtual: {
-                    enabled: true  // padrão ativado; toggle muda via chart.options.plugins.linhaAtual.enabled
+                    enabled: true
                 }
             },
             scales: {
@@ -2971,8 +2979,6 @@ document.getElementById('averageSelector').addEventListener('change', function(e
 document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
 
-// Toggle Linha Atual — atualiza options.plugins.linhaAtual.enabled e redesenha
-// Exatamente o padrão do Caramelo: muda a opção, chama chart.update()
 document.getElementById('linhaAtualToggle').addEventListener('change', function() {
     leagues.forEach(league => {
         const ci = chartInstances[league];
@@ -2982,7 +2988,6 @@ document.getElementById('linhaAtualToggle').addEventListener('change', function(
     });
 });
 
-// Botão Linha — abre/fecha painel
 document.getElementById('btnLinhaTools').addEventListener('click', function(e) {
     e.stopPropagation();
     const panel = document.getElementById('linhaToolsPanel');
@@ -2998,6 +3003,96 @@ document.getElementById('linhaToolsPanel').addEventListener('click', function(e)
 
 window.onload = updateCharts;
 setInterval(updateCharts, 3000);
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   SEGUNDO BLOCO: PERCENTUAIS E GOLS
+═══════════════════════════════════════════════════════════════════ */
+async function fetchResults() {
+    const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+    const data = await response.json();
+    return data.slice(-240).reverse();
+}
+
+function calculatePercentage(data, market) {
+    let greens = 0;
+    let reds = 0;
+
+    data.forEach((game) => {
+        const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
+
+        switch (market) {
+            case "ambasMarcam":
+                if (scoreA > 0 && scoreB > 0) greens++; else reds++; break;
+            case "ambasNaoMarcam":
+                if (scoreA === 0 || scoreB === 0) greens++; else reds++; break;
+            case "casaVence":
+                if (scoreA > scoreB) greens++; else reds++; break;
+            case "foraVence":
+                if (scoreA < scoreB) greens++; else reds++; break;
+            case "empate":
+                if (scoreA === scoreB) greens++; else reds++; break;
+            case "over1.5":
+                if (scoreA + scoreB > 1.5) greens++; else reds++; break;
+            case "under1.5":
+                if (scoreA + scoreB <= 1.5) greens++; else reds++; break;
+            case "over2.5":
+                if (scoreA + scoreB > 2.5) greens++; else reds++; break;
+            case "under2.5":
+                if (scoreA + scoreB <= 2.5) greens++; else reds++; break;
+            case "over3.5":
+                if (scoreA + scoreB > 3.5) greens++; else reds++; break;
+            case "under3.5":
+                if (scoreA + scoreB <= 3.5) greens++; else reds++; break;
+            case "over5":
+                if (scoreA + scoreB > 5) greens++; else reds++; break;
+            default: break;
+        }
+    });
+
+    const total = greens + reds;
+    return {
+        greens: ((greens / total) * 100).toFixed(1),
+        reds: ((reds / total) * 100).toFixed(1),
+    };
+}
+
+function calculateGoalStats(data) {
+    let totalGols = 0;
+    const totalHorasJogadas = 12;
+
+    data.forEach((game) => {
+        const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
+        totalGols += scoreA + scoreB;
+    });
+
+    const mediaGolsHora = (totalGols / totalHorasJogadas).toFixed(2);
+    return { totalGols, mediaGolsHora };
+}
+
+document.getElementById("seletorResultado").addEventListener("change", async (event) => {
+    const market = event.target.value;
+    const games = await fetchResults();
+    const percentages = calculatePercentage(games, market);
+    const stats = calculateGoalStats(games);
+
+    document.getElementById("greenPercentage").innerText = `Greens: ${percentages.greens}%`;
+    document.getElementById("redPercentage").innerText = `Reds: ${percentages.reds}%`;
+    document.getElementById("totalGols").innerText = `Gols: ${stats.totalGols}`;
+    document.getElementById("mediaGolsHora").innerText = `Gols/Hora: ${stats.mediaGolsHora}`;
+});
+
+window.addEventListener("load", async () => {
+    const market = document.getElementById("seletorResultado").value;
+    const games = await fetchResults();
+    const percentages = calculatePercentage(games, market);
+    const stats = calculateGoalStats(games);
+
+    document.getElementById("greenPercentage").innerText = `Greens: ${percentages.greens}%`;
+    document.getElementById("redPercentage").innerText = `Reds: ${percentages.reds}%`;
+    document.getElementById("totalGols").innerText = `Gols: ${stats.totalGols}`;
+    document.getElementById("mediaGolsHora").innerText = `Gols/Hora: ${stats.mediaGolsHora}`;
+});
     </script>
 
     <script>
