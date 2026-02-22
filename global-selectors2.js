@@ -162,22 +162,35 @@ if (allowedPages.includes(currentPage)) {
     }
 
     // ─── MELHORIA 3: Patch no toggleAccordion ────────────
-    // Em vez de redeclarar, envolve a função nativa existente
-    // para adicionar o save sem conflito.
+    // Substitui toggleAccordion tratando cada tipo de botão:
+    // - tabelas-maximas-button: lógica especial de ícone (nativa)
+    // - botões normais ▼/▲: lógica simples + save
     function patchToggleAccordion() {
         const native = window.toggleAccordion;
 
         window.toggleAccordion = function(btn) {
-            // Chama a implementação nativa que já existe no HTML
-            if (typeof native === "function") native(btn);
+            const content = btn.nextElementSibling;
+            if (!content) return;
 
-            // Adiciona o save por cima, apenas para acordeons gerenciados
+            // tabelas-maximas-button: delega para o nativo que trata os ícones
+            if (btn.classList.contains("tabelas-maximas-button")) {
+                if (typeof native === "function") native(btn);
+                return;
+            }
+
+            // Botões normais com ▼/▲ no texto
+            if (content.style.display === "none" || content.style.display === "") {
+                content.style.display = "block";
+                btn.textContent = btn.textContent.replace("▼", "▲");
+            } else {
+                content.style.display = "none";
+                btn.textContent = btn.textContent.replace("▲", "▼");
+            }
+
+            // Save apenas para acordeons gerenciados
             if (!isTargetAccordion(btn)) return;
 
             saveAccordionState(btn);
-
-            const content = btn.nextElementSibling;
-            if (!content) return;
             content.querySelectorAll("select, input[type='checkbox'], input[type='number']")
                 .forEach(el => { if (el.id && !excludedSelectors.includes(el.id)) saveSelection(el.id); });
         };
