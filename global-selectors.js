@@ -10,6 +10,48 @@ const excludedSelectors = [
 ];
 
 // ═══════════════════════════════════════════════════════
+//  CONFIGURAÇÃO DO GRÁFICO (NOVO)
+// ═══════════════════════════════════════════════════════
+window.statsChartVisibleDatasets = {
+    'Gols FT': false, 'Casa Vence': false, 'Empate': false, 'Fora Vence': false,
+    'Ambas Sim': true, 'Ambas Não': false, 'Over 1.5': false, 'Over 2.5': false,
+    'Over 3.5': false, 'Under 1.5': false, 'Under 2.5': false, 'Under 3.5': false,
+    '0 Gol Exato': false, '1 Gol Exato': false, '2 Gols Exatos': false,
+    '3 Gols Exatos': false, '4 Gols Exatos': false, '5 Gols Exatos': false,
+    '0x0': false, '1x0': false, '2x0': false, '3x0': false,
+    '2x1': false, '3x1': false, '3x2': false, '4x0': false, '4x1': false
+};
+
+const labelToKey = {
+    'Gols FT': 'golsFT', 'Casa Vence': 'casaVence', 'Empate': 'empate',
+    'Fora Vence': 'foraVence', 'Ambas Sim': 'ambasSim', 'Ambas Não': 'ambasNao',
+    'Over 1.5': 'over15', 'Over 2.5': 'over25', 'Over 3.5': 'over35',
+    'Under 1.5': 'under15', 'Under 2.5': 'under25', 'Under 3.5': 'under35',
+    '0 Gol Exato': 'gol0', '1 Gol Exato': 'gol1', '2 Gols Exatos': 'gol2',
+    '3 Gols Exatos': 'gol3', '4 Gols Exatos': 'gol4', '5 Gols Exatos': 'gol5',
+    '0x0': 'placar0x0', '1x0': 'placar1x0', '2x0': 'placar2x0',
+    '3x0': 'placar3x0', '2x1': 'placar2x1', '3x1': 'placar3x1',
+    '3x2': 'placar3x2', '4x0': 'placar4x0', '4x1': 'placar4x1'
+};
+
+function saveChartDatasetsState() {
+    localStorage.setItem("chart_datasets_state", JSON.stringify(window.statsChartVisibleDatasets));
+}
+
+function restoreChartDatasetsState() {
+    const saved = localStorage.getItem("chart_datasets_state");
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            // Mescla os dados salvos com o padrão para manter a integridade
+            window.statsChartVisibleDatasets = { ...window.statsChartVisibleDatasets, ...parsed };
+        } catch (e) {
+            console.error("Erro ao restaurar o gráfico:", e);
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════
 //  ACORDEONS GERENCIADOS
 //  Chave localStorage ← trecho do texto do botão
 //  Ajuste aqui se renomear algum acordeon
@@ -191,6 +233,9 @@ function saveAllSelections() {
     document.querySelectorAll(".accordion-button").forEach(btn => {
         saveAccordionState(btn); // salva apenas os que têm chave definida
     });
+
+    // Salva o estado dos labels do gráfico
+    saveChartDatasetsState();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -202,12 +247,14 @@ function clearSavedData() {
         if (!excludedSelectors.includes(el.id) && el.id) localStorage.removeItem(el.id);
     });
     Object.values(ACCORDION_KEYS).forEach(key => localStorage.removeItem(key));
+    localStorage.removeItem("chart_datasets_state");
 }
 
 // ═══════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════
 window.addEventListener("DOMContentLoaded", () => {
+    restoreChartDatasetsState(); // Restaura as seleções do gráfico
     restoreAccordionState();
     setTimeout(() => {
         restoreSelections();
