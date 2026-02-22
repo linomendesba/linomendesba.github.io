@@ -3,8 +3,8 @@
 //  Salva e restaura por página:
 //  - Estado aberto/fechado dos 5 acordeons
 //  - Todos os selects, checkboxes e number inputs
-//  - Seletores de horas/base (sincroniza variáveis JS)
-//  - Visibilidade das linhas nos gráficos (legenda)
+//  - Seletores de horas (dispara change após window.load)
+//  - Visibilidade das linhas nos gráficos (via Chart.getChart)
 // ═══════════════════════════════════════════════════════
 
 const allowedPages = [
@@ -31,19 +31,28 @@ if (allowedPages.includes(currentPage)) {
         "Gráfico Mercados": "accordion_grafico_mercados"
     };
 
-    // ─── Selects que controlam fetch dos gráficos ────────
-    // Além de restaurar o valor visual, precisam sincronizar
-    // a variável JS correspondente antes dos charts serem criados.
-    const CHART_SELECTOR_VARS = {
-        "pointsSelector":         () => { window.numPoints        = parseInt(getSaved("pointsSelector"),        10) || 30; },
-        "averageSelector":        () => { window.averagePoints     = parseInt(getSaved("averageSelector"),        10) || 29; },
-        "pointsSelectorGolsPlus": () => { window.numPointsGolsPlus = parseInt(getSaved("pointsSelectorGolsPlus"), 10) || 20; },
-        "averageSelectorGolsPlus":() => { window.averagePointsGolsPlus = parseInt(getSaved("averageSelectorGolsPlus"), 10) || 19; }
+    // ─── Selects que controlam fetch — precisam de change ─
+    // numPoints/averagePoints são "let" no script inline,
+    // inacessíveis via window. Único jeito de sincronizá-los
+    // é disparar change no elemento após o window.load.
+    const CHART_SELECTORS = [
+        "pointsSelector",
+        "averageSelector",
+        "pointsSelectorGolsPlus",
+        "averageSelectorGolsPlus",
+        "histomacdMarketSelector",
+        "histomacdPointsSelector"
+    ];
+
+    // ─── Canvas IDs dos gráficos com legenda ─────────────
+    const CHART_CANVASES = {
+        mercados: "Copa",
+        gols:     "golsplus"
     };
 
     // ─── Helpers ─────────────────────────────────────────
-    function pageKey(id)    { return `${currentPage}_${id}`; }
-    function getSaved(id)   { return localStorage.getItem(pageKey(id)); }
+    function pageKey(id)  { return `${currentPage}_${id}`; }
+    function getSaved(id) { return localStorage.getItem(pageKey(id)); }
 
     function getAccordionKey(btn) {
         const text = btn.textContent || "";
@@ -53,12 +62,19 @@ if (allowedPages.includes(currentPage)) {
         return null;
     }
 
-    function isTargetAccordion(btn)   { return getAccordionKey(btn) !== null; }
-    function getParentAccordionBtn(el){ return el.closest(".accordion-content")?.previousElementSibling ?? null; }
+    function isTargetAccordion(btn)    { return getAccordionKey(btn) !== null; }
+    function getParentAccordionBtn(el) { return el.closest(".accordion-content")?.previousElementSibling ?? null; }
 
     function debounce(fn, delay = 400) {
         let timer;
         return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
+    }
+
+    // Acessa chart pelo canvas ID usando Chart.js v3 API
+    function getChartByCanvas(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return null;
+        return Chart.getChart(canvas) ?? null;
     }
 
     // ─── Save ─────────────────────────────────────────────
@@ -74,6 +90,17 @@ if (allowedPages.includes(currentPage)) {
         if (!key) return;
         const isOpen = btn.nextElementSibling?.style.display !== "none";
         localStorage.setItem(pageKey(key), isOpen);
+    }
+
+    // Salva quais datasets estão visíveis no chart
+    function saveDatasetVisibility(canvasId) {
+        const chart = getChartByCanvas(canvasId);
+        if (!chart) return;
+        const state = {};
+        chart.data.datasets.forEach((ds, i) => {
+            state[ds.label] = !chart.getDatasetMeta(i).hidden;
+        });
+        try { localStorage.setItem(pageKey(`datasets_${canvasId}`), JSON.stringify(state)); } catch {}
     }
 
     // ─── Restore — acordeons ──────────────────────────────
@@ -96,19 +123,9 @@ if (allowedPages.includes(currentPage)) {
         });
     }
 
-    // ─── Restore — variáveis JS dos gráficos ─────────────
-    // Chamado o mais cedo possível — antes de window.onload
-    // criar os charts. Ajusta numPoints etc. direto na variável
-    // global para que o primeiro fetch já use o valor correto.
-    function restoreChartVars() {
-        Object.entries(CHART_SELECTOR_VARS).forEach(([id, applyFn]) => {
-            if (getSaved(id) !== null) applyFn();
-        });
-    }
-
     // ─── Restore — valores visuais dos controles ─────────
     function restoreSelections() {
-        // selects — restaura valor visual + dispara change onde necessário
+        // selects
         document.querySelectorAll("select").forEach(sel => {
             if (!sel.id || excludedSelectors.includes(sel.id)) return;
             const saved = getSaved(sel.id);
@@ -116,12 +133,11 @@ if (allowedPages.includes(currentPage)) {
             const optionExists = Array.from(sel.options).some(o => o.value === saved);
             if (!optionExists) return;
             sel.value = saved;
-            // Selects fora de acordeon precisam do change (ex: marketSelector do Ranking)
-            // Chart selectors NÃO disparam change aqui — a variável JS já foi
-            // sincronizada em restoreChartVars(), e o fetch acontece no window.onload
+            // Selects fora de acordeon (Ranking etc) precisam do change para renderizar
+            // Chart selectors são tratados separadamente em restoreChartSelectors()
             const outsideAccordion = !getParentAccordionBtn(sel);
-            const isChartSelector  = sel.id in CHART_SELECTOR_VARS;
-            if (outsideAccordion && !isChartSelector) {
+            const isChartSel = CHART_SELECTORS.includes(sel.id);
+            if (outsideAccordion && !isChartSel) {
                 sel.dispatchEvent(new Event("change", { bubbles: true }));
                 if (sel.onchange) sel.onchange();
             }
@@ -137,7 +153,7 @@ if (allowedPages.includes(currentPage)) {
             if (cb.onchange) cb.onchange();
         });
 
-        // number inputs (MACD — lidos direto no render, sem change)
+        // number inputs (MACD — lidos direto no render)
         document.querySelectorAll("input[type='number']").forEach(inp => {
             if (!inp.id || excludedSelectors.includes(inp.id)) return;
             const saved = getSaved(inp.id);
@@ -146,18 +162,59 @@ if (allowedPages.includes(currentPage)) {
         });
     }
 
+    // ─── Restore — seletores de horas/base dos gráficos ──
+    // Disparado APÓS window.load (charts já criados).
+    // Atualiza o valor visual E dispara change para que
+    // numPoints/averagePoints sejam sincronizados e o
+    // fetch seja refeito com o período correto.
+    function restoreChartSelectors() {
+        CHART_SELECTORS.forEach(id => {
+            const saved = getSaved(id);
+            if (saved === null) return;
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            const optionExists = Array.from(sel.options).some(o => o.value === saved);
+            if (!optionExists) return;
+            if (sel.value === saved) return; // já está correto, não refaz fetch
+            sel.value = saved;
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+    }
+
+    // ─── Restore — visibilidade dos datasets ─────────────
+    // Após charts criados: aplica hidden/visible em cada dataset
+    // usando Chart.getChart() (Chart.js v3 API).
+    function restoreDatasetVisibility(canvasId) {
+        const saved = getSaved(`datasets_${canvasId}`);
+        if (!saved) return;
+        let state;
+        try { state = JSON.parse(saved); } catch { return; }
+
+        const chart = getChartByCanvas(canvasId);
+        if (!chart) return;
+
+        let changed = false;
+        chart.data.datasets.forEach((ds, i) => {
+            if (!(ds.label in state)) return;
+            const meta    = chart.getDatasetMeta(i);
+            const visible = state[ds.label];
+            if (meta.hidden === !visible) return; // já correto
+            meta.hidden = !visible;
+            changed = true;
+        });
+        if (changed) chart.update("none");
+    }
+
     // ─── Patch toggleAccordion ────────────────────────────
     function patchToggleAccordion() {
         const native = window.toggleAccordion;
         window.toggleAccordion = function(btn) {
             const content = btn.nextElementSibling;
             if (!content) return;
-            // tabelas-maximas-button: lógica especial de ícone
             if (btn.classList.contains("tabelas-maximas-button")) {
                 if (typeof native === "function") native(btn);
                 return;
             }
-            // Botões normais
             if (content.style.display === "none" || content.style.display === "") {
                 content.style.display = "block";
                 btn.textContent = btn.textContent.replace("▼", "▲");
@@ -170,6 +227,27 @@ if (allowedPages.includes(currentPage)) {
             content.querySelectorAll("select, input[type='checkbox'], input[type='number']")
                 .forEach(el => { if (el.id && !excludedSelectors.includes(el.id)) saveSelection(el.id); });
         };
+    }
+
+    // ─── Patch legenda dos gráficos ───────────────────────
+    // Aguarda o chart aparecer via Chart.getChart() e envolve
+    // o onClick original para salvar após cada clique na legenda.
+    function patchLegendSave(canvasId, maxTries = 30) {
+        let tries = 0;
+        const interval = setInterval(() => {
+            const chart = getChartByCanvas(canvasId);
+            if (!chart) {
+                if (++tries >= maxTries) clearInterval(interval);
+                return;
+            }
+            clearInterval(interval);
+            const original = chart.options.plugins.legend.onClick;
+            chart.options.plugins.legend.onClick = function(e, legendItem, legend) {
+                if (typeof original === "function") original.call(this, e, legendItem, legend);
+                // Salva após o clique processar (próximo tick)
+                setTimeout(() => saveDatasetVisibility(canvasId), 0);
+            };
+        }, 300);
     }
 
     // ─── Setup listeners ──────────────────────────────────
@@ -187,7 +265,7 @@ if (allowedPages.includes(currentPage)) {
                 return;
             }
             if (el.type === "number") {
-                el.addEventListener("blur", () => saveSelection(el.id));
+                el.addEventListener("blur",   () => saveSelection(el.id));
                 el.addEventListener("change", debounce(() => {
                     saveSelection(el.id);
                     if (inTarget) saveAccordionState(accordionBtn);
@@ -201,95 +279,45 @@ if (allowedPages.includes(currentPage)) {
         });
     }
 
-    // ─── Visibilidade dos datasets (linhas da legenda) ────
-    const DS_KEY_MERCADOS = pageKey("datasets_mercados");
-    const DS_KEY_GOLS     = pageKey("datasets_gols");
-
-    function saveDatasetVisibility(key, obj) {
-        try { localStorage.setItem(key, JSON.stringify(obj)); } catch {}
-    }
-
-    // Sobrescreve os objetos globais ANTES dos charts serem criados
-    function restoreDatasetVisibility() {
-        try {
-            const saved = localStorage.getItem(DS_KEY_MERCADOS);
-            if (saved && window.statsChartVisibleDatasets)
-                Object.assign(window.statsChartVisibleDatasets, JSON.parse(saved));
-        } catch {}
-        try {
-            const saved = localStorage.getItem(DS_KEY_GOLS);
-            if (saved && window.statsChartVisibleDatasetsGolsPlus)
-                Object.assign(window.statsChartVisibleDatasetsGolsPlus, JSON.parse(saved));
-        } catch {}
-    }
-
-    // Aguarda o chart estar disponível e faz patch no onClick da legenda
-    function patchChartLegendSave(chartGetter, dsObj, storageKey, maxTries = 20) {
-        let tries = 0;
-        const interval = setInterval(() => {
-            const chart = chartGetter();
-            if (!chart) {
-                if (++tries >= maxTries) clearInterval(interval);
-                return;
-            }
-            clearInterval(interval);
-            const original = chart.options.plugins.legend.onClick;
-            chart.options.plugins.legend.onClick = function(e, legendItem, legend) {
-                if (typeof original === "function") original.call(this, e, legendItem, legend);
-                saveDatasetVisibility(storageKey, dsObj);
-            };
-            chart.update("none");
-        }, 300);
-    }
-
     // ─── Expõe reset global ───────────────────────────────
     window.clearKironSavedData = function() {
         document.querySelectorAll("select, input[type='checkbox'], input[type='number']").forEach(el => {
             if (el.id && !excludedSelectors.includes(el.id)) localStorage.removeItem(pageKey(el.id));
         });
         Object.values(ACCORDION_KEYS).forEach(key => localStorage.removeItem(pageKey(key)));
-        localStorage.removeItem(DS_KEY_MERCADOS);
-        localStorage.removeItem(DS_KEY_GOLS);
+        Object.values(CHART_CANVASES).forEach(id => localStorage.removeItem(pageKey(`datasets_${id}`)));
         console.log(`[kiron save] Dados de "${currentPage}" limpos.`);
     };
 
     // ─── Init ─────────────────────────────────────────────
     window.addEventListener("DOMContentLoaded", () => {
-        // 1. Acordeons: restaura antes de qualquer render
+        // 1. Acordeons — antes de qualquer render
         restoreAccordionState();
 
-        // 2. Variáveis JS dos charts: restaura antes do window.onload criar os charts
-        //    Feito logo aqui para garantir que numPoints/averagePoints estão corretos
-        //    quando updateCharts() rodar no window.onload
-        restoreChartVars();
-
         setTimeout(() => {
-            // 3. Patch do toggleAccordion (após função nativa ser declarada)
+            // 2. Patch toggleAccordion (após função nativa declarada)
             patchToggleAccordion();
-
-            // 4. Valores visuais + checkboxes
+            // 3. Valores visuais + checkboxes
             restoreSelections();
-
-            // 5. Visibilidade dos datasets (antes do window.onload criar os charts)
-            restoreDatasetVisibility();
-
-            // 6. Listeners de save
+            // 4. Listeners de save
             setupSelectors();
         }, 100);
     });
 
-    // 7. Patch das legendas (após charts criados pelo window.onload)
     window.addEventListener("load", () => {
-        patchChartLegendSave(
-            () => window.chartInstances?.["Copa"],
-            window.statsChartVisibleDatasets,
-            DS_KEY_MERCADOS
-        );
-        patchChartLegendSave(
-            () => window.golsPlusChart,
-            window.statsChartVisibleDatasetsGolsPlus,
-            DS_KEY_GOLS
-        );
+        // 5. Chart selectors (horas/base): dispara change para sincronizar
+        //    numPoints/averagePoints e refazer fetch com período correto.
+        //    Delay para garantir que os listeners do HTML estão registrados
+        //    e o fetch inicial do window.onload já começou.
+        setTimeout(() => restoreChartSelectors(), 200);
+
+        // 6. Visibilidade dos datasets: aplica hidden/visible nos charts criados
+        setTimeout(() => {
+            Object.values(CHART_CANVASES).forEach(restoreDatasetVisibility);
+        }, 600);
+
+        // 7. Patch das legendas para salvar após cada clique
+        Object.values(CHART_CANVASES).forEach(patchLegendSave);
     });
 
 } // fim do bloco condicional
