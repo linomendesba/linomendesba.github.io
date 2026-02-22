@@ -50,8 +50,9 @@
       display: none;
       cursor: crosshair;
       touch-action: none;
+      background: transparent !important; /* CORREÇÃO AQUI: Força o fundo a ser transparente */
     }
-    body.mrc-open #mrcCanvas { display: block; }
+    body.mrc-is-active #mrcCanvas { display: block; } /* CORREÇÃO AQUI: Mudança de classe para evitar conflitos */
 
     /* Toolbar lateral direita */
     #mrcToolbar {
@@ -74,7 +75,7 @@
       transition: opacity 0.22s, transform 0.22s;
       z-index: 99999;
     }
-    body.mrc-open #mrcToolbar {
+    body.mrc-is-active #mrcToolbar {
       opacity: 1;
       pointer-events: all;
       transform: translateY(-50%) translateX(0);
@@ -117,7 +118,8 @@
       background: #2a2f3a;
       border: 1px solid rgba(255,255,255,0.1);
       color: rgba(255,255,255,0.85);
-      font-size: 10px; font-family: monospace;
+      font-size: 10px;
+      font-family: monospace;
       padding: 4px 9px;
       border-radius: 6px;
       white-space: nowrap;
@@ -145,7 +147,8 @@
 
     .mrc-size-wrap { display: flex; align-items: center; justify-content: center; height: 68px; }
     #mrcSize {
-      writing-mode: vertical-lr; direction: rtl;
+      writing-mode: vertical-lr;
+      direction: rtl;
       width: 24px; height: 58px;
       accent-color: #1fac89; cursor: pointer;
     }
@@ -159,7 +162,8 @@
       border: 1px solid rgba(31,172,137,0.4);
       border-radius: 20px;
       padding: 5px 18px;
-      font-size: 11px; font-family: monospace;
+      font-size: 11px;
+      font-family: monospace;
       color: #1fac89;
       letter-spacing: 0.09em; text-transform: uppercase;
       white-space: nowrap;
@@ -169,7 +173,7 @@
       display: flex; align-items: center; gap: 8px;
       z-index: 99999;
     }
-    body.mrc-open #mrcBadge { opacity: 1; }
+    body.mrc-is-active #mrcBadge { opacity: 1; }
     .mrc-dot {
       width: 6px; height: 6px; border-radius: 50%;
       background: #1fac89; flex-shrink: 0;
@@ -191,11 +195,12 @@
       font-size: 11px; font-family: monospace;
       letter-spacing: 0.05em;
       transition: all 0.13s;
-      opacity: 0; pointer-events: none;
+      opacity: 0;
+      pointer-events: none;
       box-shadow: 0 4px 16px rgba(0,0,0,0.45);
       z-index: 99999;
     }
-    body.mrc-open #mrcBtnFechar { opacity: 1; pointer-events: all; }
+    body.mrc-is-active #mrcBtnFechar { opacity: 1; pointer-events: all; }
     #mrcBtnFechar:hover { border-color: rgba(248,113,113,0.45); color: #f87171; background: rgba(248,113,113,0.07); }
     #mrcBtnFechar svg { width: 12px; height: 12px; }
 
@@ -214,7 +219,7 @@
       transition: opacity 0.2s;
       z-index: 99999;
     }
-    body.mrc-open #mrcContador { opacity: 1; }
+    body.mrc-is-active #mrcContador { opacity: 1; }
 
     /* Input de texto flutuante */
     #mrcTextInput {
@@ -336,14 +341,14 @@
 
     function abrir() {
       if (!aberto) resizeCanvas();
-      document.body.classList.add('mrc-open');
+      document.body.classList.add('mrc-is-active');
       btnAbrir.classList.add('mrc-active');
       btnAbrir.innerHTML = svg.pencil + ' Sair';
       aberto = true;
     }
 
     function fechar() {
-      document.body.classList.remove('mrc-open');
+      document.body.classList.remove('mrc-is-active');
       btnAbrir.classList.remove('mrc-active');
       btnAbrir.innerHTML = svg.pencil + ' Marcar';
       fecharTexto();
@@ -422,7 +427,8 @@
           ctx.font = Math.max(14, getTam() * 4) + 'px monospace';
           ctx.fillStyle = getCor();
           ctx.fillText(txt, tx, ty);
-          totalMarcacoes++; atualizarContador();
+          totalMarcacoes++; 
+          atualizarContador();
         }
         fecharTexto();
       }
@@ -473,7 +479,8 @@
         ctx.globalCompositeOperation = 'destination-out';
         ctx.lineWidth = getTam() * 6; ctx.lineTo(pos.x, pos.y); ctx.stroke();
         ctx.globalCompositeOperation = 'source-over';
-      } else {
+      } 
+      else {
         desenharForma(pos.x, pos.y);
       }
     });
@@ -488,6 +495,7 @@
 
     canvas.addEventListener('mouseup',    pararDesenho);
     canvas.addEventListener('mouseleave', pararDesenho);
+
     canvas.addEventListener('touchstart', function(e) {
       e.preventDefault();
       var pos = getPos(e);
@@ -500,6 +508,7 @@
         snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
       }
     }, { passive: false });
+
     canvas.addEventListener('touchmove', function(e) {
       e.preventDefault();
       if (!desenhando) return;
