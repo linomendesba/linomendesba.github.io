@@ -1,12 +1,10 @@
 // ═══════════════════════════════════════════════════════
 //  KIRON SAVE SELECT
-//  Melhorias aplicadas:
-//  1. restoreSelections sem dispatchEvent (silencioso)
-//  2. Debounce nos input[type=number]
-//  3. toggleAccordion via patch — não redeclara a função nativa
-//  4. Validação de valor antes de aplicar no select
-//  5. clearSavedData exposta globalmente (window)
-//  6. beforeunload substituído por blur nos number inputs
+//  Salva e restaura por página:
+//  - Estado aberto/fechado dos 5 acordeons
+//  - Todos os selects, checkboxes e number inputs
+//  - Seletores de horas/base (sincroniza variáveis JS)
+//  - Visibilidade das linhas nos gráficos (legenda)
 // ═══════════════════════════════════════════════════════
 
 const allowedPages = [
@@ -21,15 +19,10 @@ if (allowedPages.includes(currentPage)) {
 
     // ─── IDs excluídos do save ───────────────────────────
     const excludedSelectors = [
-        "ligas",
-        "avancado-betano",
-        "ligas365",
-        "avancado-bet365",
-        "redes"
+        "ligas", "avancado-betano", "ligas365", "avancado-bet365", "redes"
     ];
 
     // ─── Acordeons gerenciados ───────────────────────────
-    // "Ver Máximas" tem style="display:none" fixo — não incluído.
     const ACCORDION_KEYS = {
         "Ranking Speed":    "accordion_ranking_speed",
         "Ver Confrontos":   "accordion_ver_confrontos",
@@ -38,7 +31,20 @@ if (allowedPages.includes(currentPage)) {
         "Gráfico Mercados": "accordion_grafico_mercados"
     };
 
+    // ─── Selects que controlam fetch dos gráficos ────────
+    // Além de restaurar o valor visual, precisam sincronizar
+    // a variável JS correspondente antes dos charts serem criados.
+    const CHART_SELECTOR_VARS = {
+        "pointsSelector":         () => { window.numPoints        = parseInt(getSaved("pointsSelector"),        10) || 30; },
+        "averageSelector":        () => { window.averagePoints     = parseInt(getSaved("averageSelector"),        10) || 29; },
+        "pointsSelectorGolsPlus": () => { window.numPointsGolsPlus = parseInt(getSaved("pointsSelectorGolsPlus"), 10) || 20; },
+        "averageSelectorGolsPlus":() => { window.averagePointsGolsPlus = parseInt(getSaved("averageSelectorGolsPlus"), 10) || 19; }
+    };
+
     // ─── Helpers ─────────────────────────────────────────
+    function pageKey(id)    { return `${currentPage}_${id}`; }
+    function getSaved(id)   { return localStorage.getItem(pageKey(id)); }
+
     function getAccordionKey(btn) {
         const text = btn.textContent || "";
         for (const [label, key] of Object.entries(ACCORDION_KEYS)) {
@@ -47,28 +53,22 @@ if (allowedPages.includes(currentPage)) {
         return null;
     }
 
-    function isTargetAccordion(btn) {
-        return getAccordionKey(btn) !== null;
-    }
+    function isTargetAccordion(btn)   { return getAccordionKey(btn) !== null; }
+    function getParentAccordionBtn(el){ return el.closest(".accordion-content")?.previousElementSibling ?? null; }
 
-    function getParentAccordionBtn(el) {
-        return el.closest(".accordion-content")?.previousElementSibling ?? null;
-    }
-
-    function pageKey(id) {
-        return `${currentPage}_${id}`;
-    }
-
-    // ─── MELHORIA 2: Debounce ────────────────────────────
     function debounce(fn, delay = 400) {
         let timer;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(() => fn(...args), delay);
-        };
+        return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
     }
 
-    // ─── Save / Restore — estado aberto/fechado ──────────
+    // ─── Save ─────────────────────────────────────────────
+    function saveSelection(id) {
+        if (!id || excludedSelectors.includes(id)) return;
+        const el = document.getElementById(id);
+        if (!el) return;
+        localStorage.setItem(pageKey(id), el.type === "checkbox" ? el.checked : el.value);
+    }
+
     function saveAccordionState(btn) {
         const key = getAccordionKey(btn);
         if (!key) return;
@@ -76,19 +76,16 @@ if (allowedPages.includes(currentPage)) {
         localStorage.setItem(pageKey(key), isOpen);
     }
 
+    // ─── Restore — acordeons ──────────────────────────────
     function restoreAccordionState() {
         document.querySelectorAll(".accordion-button").forEach(btn => {
             if (btn.classList.contains("tabelas-maximas-button")) return;
-
             const key = getAccordionKey(btn);
             if (!key) return;
-
             const saved = localStorage.getItem(pageKey(key));
             if (saved === null) return;
-
             const content = btn.nextElementSibling;
             if (!content) return;
-
             if (saved === "true") {
                 content.style.display = "block";
                 btn.textContent = btn.textContent.replace("▼", "▲");
@@ -99,86 +96,68 @@ if (allowedPages.includes(currentPage)) {
         });
     }
 
-    // ─── Save / Restore — valores dos controles ──────────
-
-    function saveSelection(id) {
-        if (!id || excludedSelectors.includes(id)) return;
-        const el = document.getElementById(id);
-        if (!el) return;
-        localStorage.setItem(
-            pageKey(id),
-            el.type === "checkbox" ? el.checked : el.value
-        );
+    // ─── Restore — variáveis JS dos gráficos ─────────────
+    // Chamado o mais cedo possível — antes de window.onload
+    // criar os charts. Ajusta numPoints etc. direto na variável
+    // global para que o primeiro fetch já use o valor correto.
+    function restoreChartVars() {
+        Object.entries(CHART_SELECTOR_VARS).forEach(([id, applyFn]) => {
+            if (getSaved(id) !== null) applyFn();
+        });
     }
 
-    // MELHORIA 1: restaura silenciosamente — sem dispatchEvent
-    // Os gráficos são inicializados pelos seus próprios scripts
-    // depois do DOMContentLoaded; não precisamos re-acionar change.
-    // Exceção: selects fora de acordeon (ex: marketSelector do Ranking)
-    // que precisam do change para renderizar a tabela inicial.
+    // ─── Restore — valores visuais dos controles ─────────
     function restoreSelections() {
-        // selects
+        // selects — restaura valor visual + dispara change onde necessário
         document.querySelectorAll("select").forEach(sel => {
             if (!sel.id || excludedSelectors.includes(sel.id)) return;
-            const saved = localStorage.getItem(pageKey(sel.id));
+            const saved = getSaved(sel.id);
             if (saved === null) return;
-
-            // MELHORIA 4: valida se o valor existe como option antes de aplicar
             const optionExists = Array.from(sel.options).some(o => o.value === saved);
             if (!optionExists) return;
-
             sel.value = saved;
-
-            // Selects fora de acordeon precisam disparar change para
-            // acionar renderizações iniciais (ex: ranking, agenda)
-            const accordionBtn = getParentAccordionBtn(sel);
-            if (!accordionBtn) {
+            // Selects fora de acordeon precisam do change (ex: marketSelector do Ranking)
+            // Chart selectors NÃO disparam change aqui — a variável JS já foi
+            // sincronizada em restoreChartVars(), e o fetch acontece no window.onload
+            const outsideAccordion = !getParentAccordionBtn(sel);
+            const isChartSelector  = sel.id in CHART_SELECTOR_VARS;
+            if (outsideAccordion && !isChartSelector) {
                 sel.dispatchEvent(new Event("change", { bubbles: true }));
                 if (sel.onchange) sel.onchange();
             }
         });
 
-        // checkboxes — restaura valor silenciosamente
-        // (os toggles de gráfico são aplicados no init de cada chart)
+        // checkboxes
         document.querySelectorAll("input[type='checkbox']").forEach(cb => {
             if (!cb.id || excludedSelectors.includes(cb.id)) return;
-            const saved = localStorage.getItem(pageKey(cb.id));
+            const saved = getSaved(cb.id);
             if (saved === null) return;
             cb.checked = saved === "true";
-            // Dispara change para que o gráfico aplique o estado salvo
             cb.dispatchEvent(new Event("change", { bubbles: true }));
             if (cb.onchange) cb.onchange();
         });
 
-        // number inputs — restaura valor silenciosamente
+        // number inputs (MACD — lidos direto no render, sem change)
         document.querySelectorAll("input[type='number']").forEach(inp => {
             if (!inp.id || excludedSelectors.includes(inp.id)) return;
-            const saved = localStorage.getItem(pageKey(inp.id));
+            const saved = getSaved(inp.id);
             if (saved === null) return;
             inp.value = saved;
-            // Não dispara change — o gráfico MACD lê os valores
-            // diretamente dos inputs no momento do render
         });
     }
 
-    // ─── MELHORIA 3: Patch no toggleAccordion ────────────
-    // Substitui toggleAccordion tratando cada tipo de botão:
-    // - tabelas-maximas-button: lógica especial de ícone (nativa)
-    // - botões normais ▼/▲: lógica simples + save
+    // ─── Patch toggleAccordion ────────────────────────────
     function patchToggleAccordion() {
         const native = window.toggleAccordion;
-
         window.toggleAccordion = function(btn) {
             const content = btn.nextElementSibling;
             if (!content) return;
-
-            // tabelas-maximas-button: delega para o nativo que trata os ícones
+            // tabelas-maximas-button: lógica especial de ícone
             if (btn.classList.contains("tabelas-maximas-button")) {
                 if (typeof native === "function") native(btn);
                 return;
             }
-
-            // Botões normais com ▼/▲ no texto
+            // Botões normais
             if (content.style.display === "none" || content.style.display === "") {
                 content.style.display = "block";
                 btn.textContent = btn.textContent.replace("▼", "▲");
@@ -186,39 +165,27 @@ if (allowedPages.includes(currentPage)) {
                 content.style.display = "none";
                 btn.textContent = btn.textContent.replace("▲", "▼");
             }
-
-            // Save apenas para acordeons gerenciados
             if (!isTargetAccordion(btn)) return;
-
             saveAccordionState(btn);
             content.querySelectorAll("select, input[type='checkbox'], input[type='number']")
                 .forEach(el => { if (el.id && !excludedSelectors.includes(el.id)) saveSelection(el.id); });
         };
     }
 
-    // ─── Setup — listeners automáticos ───────────────────
+    // ─── Setup listeners ──────────────────────────────────
     function setupSelectors() {
         document.querySelectorAll("select, input[type='checkbox'], input[type='number']").forEach(el => {
             if (!el.id || excludedSelectors.includes(el.id)) return;
-
             const accordionBtn = getParentAccordionBtn(el);
             const inTarget     = accordionBtn && isTargetAccordion(accordionBtn);
-
             if (accordionBtn && !inTarget) return;
 
-            // Selects com redirecionamento
-            if (
-                el.tagName === "SELECT" &&
-                el.hasAttribute("onclick") &&
-                el.getAttribute("onclick").includes("redirecionar")
-            ) {
+            if (el.tagName === "SELECT" && el.hasAttribute("onclick") &&
+                el.getAttribute("onclick").includes("redirecionar")) {
                 const orig = el.getAttribute("onclick");
                 el.setAttribute("onclick", `saveSelection('${el.id}'); ${orig}`);
                 return;
             }
-
-            // MELHORIA 6: number inputs usam blur + debounce
-            // em vez de depender do beforeunload
             if (el.type === "number") {
                 el.addEventListener("blur", () => saveSelection(el.id));
                 el.addEventListener("change", debounce(() => {
@@ -227,8 +194,6 @@ if (allowedPages.includes(currentPage)) {
                 }, 400));
                 return;
             }
-
-            // Todos os outros (select, checkbox)
             el.addEventListener("change", () => {
                 saveSelection(el.id);
                 if (inTarget) saveAccordionState(accordionBtn);
@@ -236,33 +201,95 @@ if (allowedPages.includes(currentPage)) {
         });
     }
 
-    // ─── MELHORIA 5: clearSavedData exposta globalmente ──
+    // ─── Visibilidade dos datasets (linhas da legenda) ────
+    const DS_KEY_MERCADOS = pageKey("datasets_mercados");
+    const DS_KEY_GOLS     = pageKey("datasets_gols");
+
+    function saveDatasetVisibility(key, obj) {
+        try { localStorage.setItem(key, JSON.stringify(obj)); } catch {}
+    }
+
+    // Sobrescreve os objetos globais ANTES dos charts serem criados
+    function restoreDatasetVisibility() {
+        try {
+            const saved = localStorage.getItem(DS_KEY_MERCADOS);
+            if (saved && window.statsChartVisibleDatasets)
+                Object.assign(window.statsChartVisibleDatasets, JSON.parse(saved));
+        } catch {}
+        try {
+            const saved = localStorage.getItem(DS_KEY_GOLS);
+            if (saved && window.statsChartVisibleDatasetsGolsPlus)
+                Object.assign(window.statsChartVisibleDatasetsGolsPlus, JSON.parse(saved));
+        } catch {}
+    }
+
+    // Aguarda o chart estar disponível e faz patch no onClick da legenda
+    function patchChartLegendSave(chartGetter, dsObj, storageKey, maxTries = 20) {
+        let tries = 0;
+        const interval = setInterval(() => {
+            const chart = chartGetter();
+            if (!chart) {
+                if (++tries >= maxTries) clearInterval(interval);
+                return;
+            }
+            clearInterval(interval);
+            const original = chart.options.plugins.legend.onClick;
+            chart.options.plugins.legend.onClick = function(e, legendItem, legend) {
+                if (typeof original === "function") original.call(this, e, legendItem, legend);
+                saveDatasetVisibility(storageKey, dsObj);
+            };
+            chart.update("none");
+        }, 300);
+    }
+
+    // ─── Expõe reset global ───────────────────────────────
     window.clearKironSavedData = function() {
         document.querySelectorAll("select, input[type='checkbox'], input[type='number']").forEach(el => {
-            if (el.id && !excludedSelectors.includes(el.id))
-                localStorage.removeItem(pageKey(el.id));
+            if (el.id && !excludedSelectors.includes(el.id)) localStorage.removeItem(pageKey(el.id));
         });
-        Object.values(ACCORDION_KEYS).forEach(key =>
-            localStorage.removeItem(pageKey(key))
-        );
-        console.log(`[kiron save] Dados de "${currentPage}" limpos do localStorage.`);
+        Object.values(ACCORDION_KEYS).forEach(key => localStorage.removeItem(pageKey(key)));
+        localStorage.removeItem(DS_KEY_MERCADOS);
+        localStorage.removeItem(DS_KEY_GOLS);
+        console.log(`[kiron save] Dados de "${currentPage}" limpos.`);
     };
 
     // ─── Init ─────────────────────────────────────────────
     window.addEventListener("DOMContentLoaded", () => {
+        // 1. Acordeons: restaura antes de qualquer render
         restoreAccordionState();
 
-        // Patch feito após DOMContentLoaded para garantir que
-        // a função nativa do HTML já foi declarada
+        // 2. Variáveis JS dos charts: restaura antes do window.onload criar os charts
+        //    Feito logo aqui para garantir que numPoints/averagePoints estão corretos
+        //    quando updateCharts() rodar no window.onload
+        restoreChartVars();
+
         setTimeout(() => {
+            // 3. Patch do toggleAccordion (após função nativa ser declarada)
             patchToggleAccordion();
+
+            // 4. Valores visuais + checkboxes
             restoreSelections();
+
+            // 5. Visibilidade dos datasets (antes do window.onload criar os charts)
+            restoreDatasetVisibility();
+
+            // 6. Listeners de save
             setupSelectors();
         }, 100);
     });
 
-    // MELHORIA 6: beforeunload removido — cada controle salva
-    // no próprio evento (change / blur). Não há mais risco de
-    // perder dados ao fechar a aba.
+    // 7. Patch das legendas (após charts criados pelo window.onload)
+    window.addEventListener("load", () => {
+        patchChartLegendSave(
+            () => window.chartInstances?.["Copa"],
+            window.statsChartVisibleDatasets,
+            DS_KEY_MERCADOS
+        );
+        patchChartLegendSave(
+            () => window.golsPlusChart,
+            window.statsChartVisibleDatasetsGolsPlus,
+            DS_KEY_GOLS
+        );
+    });
 
-} // fim do bloco condicional — só roda nas páginas kiron
+} // fim do bloco condicional
