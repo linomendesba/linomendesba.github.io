@@ -56,7 +56,6 @@
       margin: 0 auto;
     }
 
-    /* ── ESPAÇO HEADER ── */
     .header-spacer { height: 60px; }
 
     /* ── CONTROLES ── */
@@ -172,19 +171,29 @@
       border-bottom: 1px solid var(--border-color);
     }
 
-    /* ── PRÓXIMOS JOGOS ── */
-    .games-table { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+    /* ── PRÓXIMOS JOGOS — GRID 2 COLUNAS ── */
+    /* ============================================================
+       FIX 1: games-table agora usa grid de 2 colunas
+       para exibir os confrontos lado a lado
+    ============================================================ */
+    .games-table {
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;   /* ← 2 colunas lado a lado */
+      gap: 6px;
+    }
 
     .game-row {
       display: grid;
-      grid-template-columns: 50px 1fr auto;
+      grid-template-columns: 44px 1fr auto;
       align-items: center;
-      padding: 10px 12px;
+      padding: 10px 10px;
       background-color: var(--header-bg);
       border-radius: 6px;
       border: 1px solid var(--border-color);
-      gap: 10px;
+      gap: 8px;
       transition: background-color 0.15s;
+      min-width: 0; /* evita overflow dentro do grid */
     }
 
     .game-row:hover { background-color: var(--hover-bg); }
@@ -196,12 +205,18 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .game-teams { font-size: 13px; color: var(--text-color); }
+    .game-teams {
+      font-size: 12px;
+      color: var(--text-color);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     .signal-tag {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
-      padding: 2px 8px;
+      padding: 2px 6px;
       border-radius: 4px;
       white-space: nowrap;
       text-transform: uppercase;
@@ -367,7 +382,6 @@
     .pct-mid  { background-color: var(--yellow-soft); color: #cfc800; }
     .pct-low  { background-color: var(--header-bg); color: var(--muted); }
 
-    /* Highlight nas linhas */
     .highlight-green td { background-color: var(--green-soft); }
     .highlight-green td:first-child { border-left: 3px solid var(--green); }
     .highlight-red td   { background-color: var(--yellow-soft); }
@@ -441,6 +455,11 @@
       .main-content { grid-template-columns: 1fr; }
     }
 
+    /* Em telas pequenas, próximos jogos volta para 1 coluna */
+    @media (max-width: 700px) {
+      .games-table { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 600px) {
       .kpi-row { grid-template-columns: 1fr 1fr; }
       .market-grid { grid-template-columns: 1fr; }
@@ -450,7 +469,6 @@
 </head>
 
 <body>
-  <!-- HEADER EXTERNO (mantido exatamente como você usa) -->
   <div id="header"></div>
   <div class="header-spacer"></div>
 
@@ -505,25 +523,24 @@
     <div class="kpi-card">
       <div class="kpi-label">Melhor equipe</div>
       <div class="kpi-value" id="kpi-best-avg" style="font-size:18px">—</div>
-      <div class="kpi-sub" id="kpi-best-name">gols/jogo</div>
+      <div class="kpi-sub" id="kpi-best-name">gols/jogo (contexto)</div>
     </div>
   </div>
 
   <!-- CONTEÚDO PRINCIPAL -->
   <div class="main-content">
 
-    <!-- COLUNA ESQUERDA -->
     <div class="left-column">
 
       <!-- Próximos Jogos -->
       <div class="section-box">
         <div class="section-title">Proximos Jogos</div>
         <div class="games-table" id="lista-proximos-jogos">
-          <div style="padding:16px;color:var(--muted);text-align:center;font-size:13px;">Carregando...</div>
+          <div style="padding:16px;color:var(--muted);text-align:center;font-size:13px;grid-column:1/-1;">Carregando...</div>
         </div>
       </div>
 
-      <!-- Detalhes do time (aparece ao clicar) -->
+      <!-- Detalhes do time -->
       <div class="team-details" id="team-details">
         <div class="team-details-header">
           <span>Detalhes: <span class="team-name" id="team-name"></span></span>
@@ -534,15 +551,12 @@
 
     </div>
 
-    <!-- COLUNA DIREITA -->
     <div style="display:flex;flex-direction:column;gap:20px;">
 
       <!-- Análise de mercados -->
       <div class="section-box">
         <div class="section-title">Analise de Mercados — Período Selecionado</div>
-        <div class="market-grid" id="market-grid">
-          <!-- preenchido via JS -->
-        </div>
+        <div class="market-grid" id="market-grid"></div>
       </div>
 
       <!-- Ranking -->
@@ -566,22 +580,20 @@
       </div>
 
     </div>
-  </div><!-- /main-content -->
+  </div>
 
-
-  <!-- ═══════════════════════════════ SCRIPTS ═══════════════════════════════ -->
 
   <script>
   document.addEventListener('DOMContentLoaded', () => {
 
-    const leagueSelect = document.getElementById('league-select');
-    const linesSelect  = document.getElementById('lines-select');
+    const leagueSelect     = document.getElementById('league-select');
+    const linesSelect      = document.getElementById('lines-select');
     const rankingTableBody = document.getElementById('ranking-table').querySelector('tbody');
-    const teamDetails  = document.getElementById('team-details');
-    const teamNameElem = document.getElementById('team-name');
-    const teamGamesElem= document.getElementById('team-games');
-    const closeDetails = document.getElementById('close-details');
-    const topTeamStats = document.getElementById('top-team-stats');
+    const teamDetails      = document.getElementById('team-details');
+    const teamNameElem     = document.getElementById('team-name');
+    const teamGamesElem    = document.getElementById('team-games');
+    const closeDetails     = document.getElementById('close-details');
+    const topTeamStats     = document.getElementById('top-team-stats');
 
     let teams = {};
     let currentTeam = null;
@@ -603,11 +615,11 @@
 
     /* ── FORMATO DATA ── */
     function fmtDT(game) {
-      const d = new Date(game.data);
-      const day  = String(d.getDate()).padStart(2, '0');
-      const mon  = String(d.getMonth() + 1).padStart(2, '0');
-      const hr   = String(game.hora).padStart(2, '0');
-      const min  = String(game.minuto).padStart(2, '0');
+      const d   = new Date(game.data);
+      const day = String(d.getDate()).padStart(2, '0');
+      const mon = String(d.getMonth() + 1).padStart(2, '0');
+      const hr  = String(game.hora).padStart(2, '0');
+      const min = String(game.minuto).padStart(2, '0');
       return `${day}/${mon} ${hr}:${min}`;
     }
 
@@ -626,32 +638,42 @@
             const t1 = norm(game.time_a);
             const t2 = norm(game.time_b);
             const [g1, g2] = game.ft.split(' x ').map(Number);
-            const total = g1 + g2;
+            const total    = g1 + g2;
 
             [t1, t2].forEach(t => ensureTeam(t));
 
-            // Registra jogo para cada equipe
+            // ============================================================
+            // FIX 2: Lógica de contexto corrigida
+            //
+            // Para cada time envolvido no jogo[index], somamos os gols de:
+            //   - jogo anterior no calendário geral (index-1)
+            //   - jogo atual (index)
+            //   - jogo seguinte no calendário geral (index+1)
+            //
+            // Isso representa "o ambiente de gols ao redor daquele confronto".
+            // A média points/(3*games) dá a média de gols por janela de 3 jogos.
+            // ============================================================
             [t1, t2].forEach(t => {
               teams[t].games++;
               teams[t].goals += total;
-              if (total > 2) teams[t].over25++;
-              if (total > 3) teams[t].over35++;
+              if (total > 2)  teams[t].over25++;
+              if (total > 3)  teams[t].over35++;
               if (total >= 5) teams[t].over5++;
 
-              // pontuação de contexto (jogo anterior + atual + próximo)
+              // Janela de 3: jogo anterior + atual + próximo
               let ctxGoals = total;
               if (index > 0) {
-                const [pa, pb] = rows[index - 1].ft.split(' x ').map(Number);
-                ctxGoals += pa + pb;
+                const prev = rows[index - 1].ft.split(' x ').map(Number);
+                ctxGoals += prev[0] + prev[1];
               }
               if (index < rows.length - 1) {
-                const [na, nb] = rows[index + 1].ft.split(' x ').map(Number);
-                ctxGoals += na + nb;
+                const next = rows[index + 1].ft.split(' x ').map(Number);
+                ctxGoals += next[0] + next[1];
               }
               teams[t].points += ctxGoals;
 
-              // detalhe do jogo
-              const opp = t === t1 ? t2 : t1;
+              // Detalhe do jogo para o painel de detalhes
+              const opp     = t === t1 ? t2 : t1;
               const dateStr = fmtDT(game);
               const dup = teams[t].details.find(d => d.date === dateStr && d.opponent === opp);
               if (!dup) {
@@ -678,8 +700,10 @@
 
     /* ── KPIs ── */
     function updateKPIs(rows) {
-      const total = rows.length || 1;
-      const goals = rows.reduce((s, r) => s + r.ft.split(' x ').map(Number).reduce((a, b) => a + b, 0), 0);
+      const total  = rows.length || 1;
+      const goals  = rows.reduce((s, r) => {
+        return s + r.ft.split(' x ').map(Number).reduce((a, b) => a + b, 0);
+      }, 0);
       const maxGoals = rows.reduce((m, r) => {
         const g = r.ft.split(' x ').map(Number).reduce((a, b) => a + b, 0);
         return g > m ? g : m;
@@ -689,12 +713,19 @@
       document.getElementById('kpi-avg').textContent   = (goals / total).toFixed(2);
       document.getElementById('kpi-max').textContent   = maxGoals;
 
-      const best = Object.entries(teams).sort((a, b) =>
-        (b[1].games ? b[1].goals / b[1].games : 0) - (a[1].games ? a[1].goals / a[1].games : 0)
-      )[0];
+      // ============================================================
+      // FIX 3: KPI "Melhor equipe" agora usa a MESMA métrica do ranking
+      //        (points / 3*games), não mais goals/games.
+      //        Isso garante consistência: o time exibido aqui é o #1 do ranking.
+      // ============================================================
+      const best = Object.entries(teams).sort((a, b) => {
+        const scoreA = a[1].games ? a[1].points / (3 * a[1].games) : 0;
+        const scoreB = b[1].games ? b[1].points / (3 * b[1].games) : 0;
+        return scoreB - scoreA;
+      })[0];
 
       if (best) {
-        const avg = (best[1].goals / best[1].games).toFixed(2);
+        const avg = (best[1].points / (3 * best[1].games)).toFixed(2);
         document.getElementById('kpi-best-avg').textContent  = avg;
         document.getElementById('kpi-best-name').textContent = best[0];
       }
@@ -702,7 +733,7 @@
 
     /* ── MERCADOS ── */
     function updateMarkets(rows) {
-      const total = rows.length || 1;
+      const total   = rows.length || 1;
       const markets = [
         { label: 'Over 2.5', fn: v => v > 2 },
         { label: 'Over 3.5', fn: v => v > 3 },
@@ -712,10 +743,12 @@
       grid.innerHTML = '';
 
       markets.forEach(m => {
-        const cnt = rows.filter(r => m.fn(r.ft.split(' x ').map(Number).reduce((a, b) => a + b, 0))).length;
-        const pct = ((cnt / total) * 100).toFixed(0);
+        const cnt = rows.filter(r =>
+          m.fn(r.ft.split(' x ').map(Number).reduce((a, b) => a + b, 0))
+        ).length;
+        const pct      = ((cnt / total) * 100).toFixed(0);
         const barClass = pct >= 60 ? 'high' : pct >= 40 ? 'mid' : '';
-        const cell = document.createElement('div');
+        const cell     = document.createElement('div');
         cell.className = 'market-cell';
         cell.innerHTML = `
           <div class="market-name">${m.label}</div>
@@ -742,8 +775,8 @@
       rankingTableBody.innerHTML = '';
 
       sorted.forEach(([team, s], i) => {
-        const nt   = norm(team);
-        const avg  = s.games ? (s.points / (3 * s.games)).toFixed(2) : '0.00';
+        const nt    = norm(team);
+        const avg   = s.games ? (s.points / (3 * s.games)).toFixed(2) : '0.00';
         const pct25 = s.games ? `${((s.over25 / s.games) * 100).toFixed(0)}%` : '—';
         const pct35 = s.games ? `${((s.over35 / s.games) * 100).toFixed(0)}%` : '—';
         const pct5  = s.games ? `${((s.over5  / s.games) * 100).toFixed(0)}%` : '—';
@@ -763,7 +796,7 @@
           <td><span class="pct-badge ${cls5}">${pct5}</span></td>`;
 
         tr.classList.remove('highlight-green', 'highlight-red');
-        if (top5.includes(nt)) tr.classList.add('highlight-green');
+        if (top5.includes(nt))      tr.classList.add('highlight-green');
         else if (bot5.includes(nt)) tr.classList.add('highlight-red');
 
         tr.addEventListener('click', () => { currentTeam = nt; showTeamDetails(nt); });
@@ -798,14 +831,14 @@
       if (!best) { topTeamStats.innerHTML = 'Nenhum dado disponível'; return; }
       const [team, s] = best;
       const avg = s.games ? (s.points / (3 * s.games)).toFixed(2) : '0.00';
-      topTeamStats.innerHTML = `Melhor equipe: <strong>${norm(team)}</strong> &mdash; Média ${avg} gols/jogo &mdash; Over 2.5: ${s.games ? ((s.over25/s.games)*100).toFixed(0) : 0}% &mdash; Over 3.5: ${s.games ? ((s.over35/s.games)*100).toFixed(0) : 0}%`;
+      topTeamStats.innerHTML = `Melhor equipe: <strong>${norm(team)}</strong> &mdash; Média contexto ${avg} gols/jogo &mdash; Over 2.5: ${s.games ? ((s.over25/s.games)*100).toFixed(0) : 0}% &mdash; Over 3.5: ${s.games ? ((s.over35/s.games)*100).toFixed(0) : 0}%`;
     }
 
     /* ── PRÓXIMOS JOGOS ── */
     function loadProximosJogos(url) {
       fetch(url)
         .then(r => r.json())
-        .then(data => renderProximos(data.slice(0, 6)))
+        .then(data => renderProximos(data.slice(0, 8))) // 8 jogos para preencher bem o grid 2 colunas
         .catch(e => console.error('Erro próximos:', e));
     }
 
@@ -821,11 +854,11 @@
     function renderProximos(jogos) {
       const container = document.getElementById('lista-proximos-jogos');
       const sorted    = getSortedTeams();
-      const top5  = sorted.slice(0, 5).map(e => norm(e[0]));
-      const bot5  = sorted.slice(5, 10).map(e => norm(e[0]));
+      const top5 = sorted.slice(0, 5).map(e => norm(e[0]));
+      const bot5 = sorted.slice(5, 10).map(e => norm(e[0]));
 
       if (!jogos || !jogos.length) {
-        container.innerHTML = '<div style="padding:16px;color:var(--muted);text-align:center;font-size:13px;">Nenhum jogo disponivel</div>';
+        container.innerHTML = '<div style="padding:16px;color:var(--muted);text-align:center;font-size:13px;grid-column:1/-1;">Nenhum jogo disponivel</div>';
         return;
       }
 
@@ -835,14 +868,14 @@
         const away = norm(jogo.team_visit);
         const time = xTime(jogo);
 
-        const isHot  = top5.includes(home) || top5.includes(away);
-        const isMid  = !isHot && (bot5.includes(home) || bot5.includes(away));
+        const isHot = top5.includes(home) || top5.includes(away);
+        const isMid = !isHot && (bot5.includes(home) || bot5.includes(away));
 
         const div = document.createElement('div');
         div.className = 'game-row' + (isHot ? ' highlight-green' : isMid ? ' highlight-red' : '');
 
         let tagHtml = '';
-        if (isHot)     tagHtml = '<span class="signal-tag tag-high">Alta</span>';
+        if (isHot)      tagHtml = '<span class="signal-tag tag-high">Alta</span>';
         else if (isMid) tagHtml = '<span class="signal-tag tag-mid">Media</span>';
 
         div.innerHTML = `
