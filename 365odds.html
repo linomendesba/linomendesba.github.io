@@ -95,9 +95,9 @@
         border: 1px solid var(--border);
         border-radius: 8px;
         padding: 12px 14px;
-        min-width: 230px;
+        min-width: 200px;
         flex: 1;
-        max-width: 300px;
+        max-width: 280px;
       }
 
       .game-card.top-match {
@@ -126,46 +126,33 @@
       .game-card .gc-team.top-team { color: var(--accent); }
       .game-card .gc-vs { color: var(--text-secondary); font-size: 0.7rem; }
 
-      /* odds row dentro do card de proximo jogo */
-      .gc-odds {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-      }
-
-      .gc-odd-pill {
-        flex: 1;
-        min-width: 50px;
+      /* Odd unica do mercado selecionado */
+      .gc-market-odd {
         text-align: center;
-        background: var(--bg-primary);
-        border-radius: 5px;
-        padding: 4px 6px;
-        border: 1px solid var(--border);
+        background: rgba(31,173,139,0.08);
+        border: 1px solid var(--border-accent);
+        border-radius: 6px;
+        padding: 6px 10px;
       }
 
-      .gc-odd-pill .op-label {
+      .gc-market-odd .gmo-label {
         font-size: 0.55rem;
         font-family: "DM Mono", monospace;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--text-secondary);
         margin-bottom: 2px;
       }
 
-      .gc-odd-pill .op-value {
-        font-size: 0.82rem;
+      .gc-market-odd .gmo-value {
+        font-size: 1.05rem;
         font-family: "DM Mono", monospace;
         font-weight: 600;
-        color: var(--odd-color);
-      }
-
-      .gc-odd-pill.highlighted {
-        border-color: var(--accent-dim);
-        background: rgba(31,173,139,0.08);
-      }
-
-      .gc-odd-pill.highlighted .op-value {
         color: var(--accent);
+      }
+
+      .gc-market-odd.is-top .gmo-value {
+        color: var(--odd-color);
       }
 
       /* ── FILTERS ── */
@@ -664,13 +651,6 @@
         exact2: 'odds_2_gols', exact3: 'odds_3_gols', exact4: 'odds_4_gols',
       };
 
-      // Campos de odds a exibir nos proximos jogos
-      const oddsDisplayFields = [
-        { key: 'odds_casa_vence',      label: 'Casa' },
-        { key: 'odds_empate',          label: 'Emp' },
-        { key: 'odds_visitante_vence', label: 'Fora' },
-      ];
-
       document.addEventListener('DOMContentLoaded', () => {
         loadData();
         setInterval(updateDynamicData, 60000);
@@ -715,12 +695,30 @@
         await loadData();
       }
 
+      // ── CORRIGIDO: usa métodos locais (getFullYear, getMonth, getDate)
+      // em vez de UTC para que a chave de data bata com a gerada em processOdd
       function buildResultsMap(resultsData) {
         const map = {};
         resultsData.forEach(result => {
-          const gameStart = new Date(result.data);
-          const dateKey = `${gameStart.getUTCFullYear()}-${(gameStart.getUTCMonth()+1).toString().padStart(2,'0')}-${gameStart.getUTCDate().toString().padStart(2,'0')}`;
-          const key = `${normalizeTeamName(result.time_a)} vs ${normalizeTeamName(result.time_b)}|${dateKey}`;
+          // result.data pode vir como "DD/MM/YYYY, HH:MM" ou ISO string
+          let gameStart;
+          if (result.data && result.data.includes('/')) {
+            // formato DD/MM/YYYY, HH:MM
+            gameStart = parseGameDate(result.data);
+          } else {
+            gameStart = new Date(result.data);
+          }
+
+          const year  = gameStart.getFullYear();
+          const month = (gameStart.getMonth() + 1).toString().padStart(2, '0');
+          const day   = gameStart.getDate().toString().padStart(2, '0');
+          const dateKey = `${year}-${month}-${day}`;
+
+          // Tenta múltiplos campos de nome de time para maior compatibilidade
+          const homeRaw = result.time_a || result.time_casa || result.home || '';
+          const awayRaw = result.time_b || result.time_visitante || result.away || '';
+
+          const key = `${normalizeTeamName(homeRaw)} vs ${normalizeTeamName(awayRaw)}|${dateKey}`;
           map[key] = result.ft;
         });
         return map;
@@ -768,15 +766,22 @@
           if (index >= 0 && index < matches.length) {
             const match = matches[index];
             const gameStart = parseGameDate(match.inicio_jogo);
-            const formattedDate = `${gameStart.getDate().toString().padStart(2,'0')}/${(gameStart.getMonth()+1).toString().padStart(2,'0')}`;
-            const dateKey = `${gameStart.getFullYear()}-${(gameStart.getMonth()+1).toString().padStart(2,'0')}-${gameStart.getDate().toString().padStart(2,'0')}`;
+
+            const year  = gameStart.getFullYear();
+            const month = (gameStart.getMonth() + 1).toString().padStart(2, '0');
+            const day   = gameStart.getDate().toString().padStart(2, '0');
+            const formattedDate = `${day}/${month}`;
+            const dateKey = `${year}-${month}-${day}`;
+
             const mapKey = `${normalizeTeamName(match.time_casa)} vs ${normalizeTeamName(match.time_visitante)}|${dateKey}`;
             const ft = resultsMap[mapKey] || '0 x 0';
             const [goalsHome, goalsAway] = ft.split(' x ').map(Number);
             const totalGoals = goalsHome + goalsAway;
             const gameStatus = checkMarketCondition(goalsHome, goalsAway, totalGoals, market) ? 'Green' : 'Red';
+
             if (gameStatus === 'Green') hasGreen = true;
             else allRed = false;
+
             const oddField = marketToOdd[market];
             const oddValue = match[oddField] || 'N/A';
             matchData.push(`${formattedDate}|${match.time_casa}|${ft}|${match.time_visitante}|${oddValue}|${gameStatus}`);
@@ -944,13 +949,11 @@
         detailsDiv.scrollIntoView({ behavior: 'smooth' });
       }
 
-      // ── PROXIMOS JOGOS COM ODDS ──
+      // ── PROXIMOS JOGOS — exibe apenas a odd do mercado selecionado ──
       function renderProximosJogos(oddsData, market) {
         const lista = document.getElementById('lista-proximos-jogos');
         lista.innerHTML = '';
 
-        // Pega os proximos jogos — os que ainda nao ocorreram ou os mais recentes
-        // Usa os ultimos 6 registros como "proximos" (mesmo criterio das outras paginas)
         const proximos = oddsData.slice(-6).reverse();
 
         if (!proximos || proximos.length === 0) {
@@ -959,6 +962,11 @@
         }
 
         const oddField = marketToOdd[market];
+        const marketLabel = MARKET_LABELS[market] || market;
+
+        // Top 5 odds do ranking para destacar jogos relevantes
+        const sortedOdds = getSortedOdds();
+        const topOddKeys = sortedOdds.slice(0, 5).map(o => o.key);
 
         proximos.forEach(jogo => {
           let time = '--:--';
@@ -969,38 +977,10 @@
 
           const homeTeam = jogo.time_casa || '';
           const awayTeam = jogo.time_visitante || '';
-          const marketOddValue = parseFloat(jogo[oddField]);
-          const marketOddKey = !isNaN(marketOddValue) ? marketOddValue.toFixed(2) : null;
 
-          // Verifica se a odd desse jogo esta entre as top 5
-          const sortedOdds = getSortedOdds();
-          const topOddKeys = sortedOdds.slice(0, 5).map(o => o.key);
-          const isTopMatch = marketOddKey && topOddKeys.includes(marketOddKey);
-
-          // Monta as pills de odds — sempre exibe Casa/Emp/Fora + odd do mercado atual se diferente
-          const pillsHtml = oddsDisplayFields.map(f => {
-            const val = parseFloat(jogo[f.key]);
-            const isActiveField = f.key === oddField;
-            return `
-              <div class="gc-odd-pill ${isActiveField ? 'highlighted' : ''}">
-                <div class="op-label">${f.label}</div>
-                <div class="op-value">${isNaN(val) ? '—' : val.toFixed(2)}</div>
-              </div>
-            `;
-          }).join('');
-
-          // Se o mercado atual nao for um dos 3 basicos, adiciona pill extra
-          const basicFields = oddsDisplayFields.map(f => f.key);
-          let extraPill = '';
-          if (oddField && !basicFields.includes(oddField)) {
-            const val = parseFloat(jogo[oddField]);
-            extraPill = `
-              <div class="gc-odd-pill highlighted">
-                <div class="op-label">${MARKET_LABELS[market] || market}</div>
-                <div class="op-value">${isNaN(val) ? '—' : val.toFixed(2)}</div>
-              </div>
-            `;
-          }
+          const marketOddRaw = parseFloat(jogo[oddField]);
+          const marketOddValue = !isNaN(marketOddRaw) ? marketOddRaw.toFixed(2) : null;
+          const isTopMatch = marketOddValue && topOddKeys.includes(marketOddValue);
 
           const card = document.createElement('div');
           card.className = `game-card ${isTopMatch ? 'top-match' : ''}`;
@@ -1011,9 +991,9 @@
               <span class="gc-vs">×</span>
               <span class="gc-team ${isTopMatch ? 'top-team' : ''}">${awayTeam}</span>
             </div>
-            <div class="gc-odds">
-              ${pillsHtml}
-              ${extraPill}
+            <div class="gc-market-odd ${isTopMatch ? 'is-top' : ''}">
+              <div class="gmo-label">${marketLabel}</div>
+              <div class="gmo-value">${marketOddValue ? '@' + marketOddValue : '—'}</div>
             </div>
           `;
           lista.appendChild(card);
