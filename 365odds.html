@@ -524,10 +524,10 @@
           <div class="filter-group">
             <label for="league-select">Liga</label>
             <select id="league-select">
-              <option value="Copa|https://betstat.site/resultados/bet365/Copa|https://betstat.site/odds/bet365/Copa" selected>Copa</option>
-              <option value="Euro|https://betstat.site/resultados/bet365/Euro|https://betstat.site/odds/bet365/Euro">Euro</option>
-              <option value="Super|https://betstat.site/resultados/bet365/Super|https://betstat.site/odds/bet365/Super">Super</option>
-              <option value="Premier|https://betstat.site/resultados/bet365/Premier|https://betstat.site/odds/bet365/Premier">Premier</option>
+              <option value="Copa|https://betstat.site/resultados/bet365/Copa|https://betstat.site/odds/bet365/Copa|https://betstat.site/proximos/bet365/Copa" selected>Copa</option>
+              <option value="Euro|https://betstat.site/resultados/bet365/Euro|https://betstat.site/odds/bet365/Euro|https://betstat.site/proximos/bet365/Euro">Euro</option>
+              <option value="Super|https://betstat.site/resultados/bet365/Super|https://betstat.site/odds/bet365/Super|https://betstat.site/proximos/bet365/Super">Super</option>
+              <option value="Premier|https://betstat.site/resultados/bet365/Premier|https://betstat.site/odds/bet365/Premier|https://betstat.site/proximos/bet365/Premier">Premier</option>
             </select>
           </div>
           <div class="filter-group">
@@ -663,17 +663,30 @@
       async function loadData() {
         oddStats = {};
         matchDetails = {};
-        const [league, resultsUrl, oddsUrl] = document.getElementById('league-select').value.split('|');
+        const parts = document.getElementById('league-select').value.split('|');
+        const resultsUrl = parts[1];
+        const oddsUrl    = parts[2];
+        const proximosUrl = parts[3];
         const lines = parseInt(document.getElementById('lines-select').value);
         currentMarket = document.getElementById('filter-select').value;
         const offsetLimit = parseInt(document.getElementById('offset-select').value);
         const offsetStart = parseInt(document.getElementById('offset-select2').value);
 
         try {
+          // Busca resultados e odds em paralelo; proximos é opcional (não falha se der erro)
           const [resResults, resOdds] = await Promise.all([fetch(resultsUrl), fetch(oddsUrl)]);
           if (!resResults.ok || !resOdds.ok) throw new Error('HTTP error');
           const resultsData = await resResults.json();
           const oddsData = await resOdds.json();
+
+          // Tenta buscar proximos jogos; se falhar usa array vazio
+          let proximosData = [];
+          try {
+            const resProximos = await fetch(proximosUrl);
+            if (resProximos.ok) proximosData = await resProximos.json();
+          } catch(e) {
+            console.warn('Proximos jogos indisponivel:', e);
+          }
 
           const resultsMap = buildResultsMap(resultsData);
           oddsData.sort((a, b) => parseCaptureDate(a) - parseCaptureDate(b));
@@ -683,7 +696,10 @@
           processMatchData(recentMatches, offsetLimit, offsetStart, currentMarket, resultsMap);
           renderOddCards(currentMarket);
           updateStatsBar(currentMarket);
-          renderProximosJogos(oddsData, currentMarket);
+
+          // Passa proximos + oddsData para cruzamento de odds
+          renderProximosJogos(proximosData, oddsData, currentMarket);
+
           document.getElementById('match-details').style.display = 'none';
           selectedOdd = null;
         } catch (error) {
@@ -950,52 +966,96 @@
       }
 
       // ── PROXIMOS JOGOS — exibe apenas a odd do mercado selecionado ──
-      function renderProximosJogos(oddsData, market) {
+      // ── PROXIMOS JOGOS ──
+      // Cruza o endpoint /proximos (team_home, team_visit, start_time)
+      // com o histórico de odds para obter a odd do mercado selecionado.
+      function renderProximosJogos(proximosData, oddsData, market) {
         const lista = document.getElementById('lista-proximos-jogos');
         lista.innerHTML = '';
 
-        const proximos = oddsData.slice(-6).reverse();
-
-        if (!proximos || proximos.length === 0) {
-          lista.innerHTML = '<div class="game-card">Nenhum jogo disponivel</div>';
+        if (!proximosData || proximosData.length === 0) {
+          lista.innerHTML = '<div class="game-card" style="color:var(--text-secondary);font-size:0.8rem;">Nenhum proximo jogo disponivel</div>';
           return;
         }
 
-        const oddField = marketToOdd[market];
+        const oddField    = marketToOdd[market];
         const marketLabel = MARKET_LABELS[market] || market;
 
-        // Top 5 odds do ranking para destacar jogos relevantes
+        // 1. Monta índice de odds: "normalHome|normalAway|YYYY-MM-DD" -> registro
+        // Percorre de trás para frente para ficar com o mais recente em caso de duplicata
+        const oddsIndex = {};
+        for (let i = oddsData.length - 1; i >= 0; i--) {
+          const o = oddsData[i];
+          const gd = parseGameDate(o.inicio_jogo);
+          if (!gd || isNaN(gd)) continue;
+          const yr  = gd.getFullYear();
+          const mo  = (gd.getMonth() + 1).toString().padStart(2, '0');
+          const dy  = gd.getDate().toString().padStart(2, '0');
+          const dk  = yr + '-' + mo + '-' + dy;
+          const ik  = normalizeTeamName(o.time_casa) + '|' + normalizeTeamName(o.time_visitante) + '|' + dk;
+          if (!oddsIndex[ik]) oddsIndex[ik] = o;
+        }
+
+        // 2. Top 5 odds do ranking para destacar jogos relevantes
         const sortedOdds = getSortedOdds();
         const topOddKeys = sortedOdds.slice(0, 5).map(o => o.key);
 
-        proximos.forEach(jogo => {
-          let time = '--:--';
-          try {
-            const gd = parseGameDate(jogo.inicio_jogo);
-            time = `${gd.getHours().toString().padStart(2,'0')}:${gd.getMinutes().toString().padStart(2,'0')}`;
-          } catch(e) {}
+        // 3. Renderiza cada próximo jogo
+        proximosData.forEach(function(jogo) {
+          // Horario
+          var time = jogo.time || '--:--';
+          if (!jogo.time && jogo.start_time) {
+            try {
+              var ds = new Date(jogo.start_time);
+              time = ds.getHours().toString().padStart(2,'0') + ':' + ds.getMinutes().toString().padStart(2,'0');
+            } catch(e) {}
+          }
 
-          const homeTeam = jogo.time_casa || '';
-          const awayTeam = jogo.time_visitante || '';
+          var homeTeam = jogo.team_home  || jogo.time_casa      || '';
+          var awayTeam = jogo.team_visit || jogo.time_visitante  || '';
 
-          const marketOddRaw = parseFloat(jogo[oddField]);
-          const marketOddValue = !isNaN(marketOddRaw) ? marketOddRaw.toFixed(2) : null;
-          const isTopMatch = marketOddValue && topOddKeys.includes(marketOddValue);
+          // Data do jogo para o cruzamento
+          var yr2, mo2, dy2;
+          if (jogo.start_time) {
+            var d2 = new Date(jogo.start_time);
+            yr2 = d2.getFullYear();
+            mo2 = (d2.getMonth() + 1).toString().padStart(2, '0');
+            dy2 = d2.getDate().toString().padStart(2, '0');
+          } else if (jogo.captured_date) {
+            var parts2 = jogo.captured_date.split('/');
+            dy2 = parts2[0]; mo2 = parts2[1]; yr2 = parts2[2];
+          }
+          var dateKey2 = yr2 + '-' + mo2 + '-' + dy2;
 
-          const card = document.createElement('div');
-          card.className = `game-card ${isTopMatch ? 'top-match' : ''}`;
-          card.innerHTML = `
-            <div class="gc-time">${time}</div>
-            <div class="gc-teams">
-              <span class="gc-team ${isTopMatch ? 'top-team' : ''}">${homeTeam}</span>
-              <span class="gc-vs">×</span>
-              <span class="gc-team ${isTopMatch ? 'top-team' : ''}">${awayTeam}</span>
-            </div>
-            <div class="gc-market-odd ${isTopMatch ? 'is-top' : ''}">
-              <div class="gmo-label">${marketLabel}</div>
-              <div class="gmo-value">${marketOddValue ? '@' + marketOddValue : '—'}</div>
-            </div>
-          `;
+          // Cruzamento exato por times + data
+          var oddsEntry = null;
+          var exactKey = normalizeTeamName(homeTeam) + '|' + normalizeTeamName(awayTeam) + '|' + dateKey2;
+          if (oddsIndex[exactKey]) {
+            oddsEntry = oddsIndex[exactKey];
+          } else {
+            // Fallback: só por times (ignora data), pega o mais recente
+            var partialKey = normalizeTeamName(homeTeam) + '|' + normalizeTeamName(awayTeam) + '|';
+            var foundKey = Object.keys(oddsIndex).find(function(k) { return k.indexOf(partialKey) === 0; });
+            if (foundKey) oddsEntry = oddsIndex[foundKey];
+          }
+
+          var marketOddRaw   = oddsEntry ? parseFloat(oddsEntry[oddField]) : NaN;
+          var marketOddValue = !isNaN(marketOddRaw) ? marketOddRaw.toFixed(2) : null;
+          var isTopMatch     = marketOddValue && topOddKeys.includes(marketOddValue);
+
+          var card = document.createElement('div');
+          card.className = 'game-card' + (isTopMatch ? ' top-match' : '');
+          card.innerHTML =
+            '<div class="gc-time">' + time + '</div>' +
+            '<div class="gc-teams">' +
+              '<span class="gc-team' + (isTopMatch ? ' top-team' : '') + '">' + homeTeam + '</span>' +
+              '<span class="gc-vs">x</span>' +
+              '<span class="gc-team' + (isTopMatch ? ' top-team' : '') + '">' + awayTeam + '</span>' +
+            '</div>' +
+            '<div class="gc-market-odd' + (isTopMatch ? ' is-top' : '') + '">' +
+              '<div class="gmo-label">' + marketLabel + '</div>' +
+              '<div class="gmo-value">' + (marketOddValue ? '@' + marketOddValue : '—') + '</div>' +
+            '</div>';
           lista.appendChild(card);
         });
       }
