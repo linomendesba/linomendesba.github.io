@@ -711,33 +711,113 @@
         await loadData();
       }
 
-      // ── CORRIGIDO: usa métodos locais (getFullYear, getMonth, getDate)
-      // em vez de UTC para que a chave de data bata com a gerada em processOdd
+      // ── buildResultsMap: tripla indexação para garantir o cruzamento ──
+      // Chaves geradas: "home|away|YYYY-MM-DD" (exato), "home|away" (sem data), "away|home" (invertido)
       function buildResultsMap(resultsData) {
+        // map principal: chave -> ft
+        // mapByTeams: "home|away" -> array de { dateKey, ft } (todos os jogos desses times)
         const map = {};
+        const mapByTeams = {};
+
         resultsData.forEach(result => {
-          // result.data pode vir como "DD/MM/YYYY, HH:MM" ou ISO string
-          let gameStart;
-          if (result.data && result.data.includes('/')) {
-            // formato DD/MM/YYYY, HH:MM
-            gameStart = parseGameDate(result.data);
-          } else {
-            gameStart = new Date(result.data);
+          // Extrai o placar de múltiplos formatos possíveis
+          const ftRaw = result.ft || result.placar || result.score || '';
+          const ft    = parseFt(ftRaw);
+
+          // Nomes dos times — tenta vários campos
+          const homeRaw = result.time_a  || result.time_casa      || result.home  || result.team_home  || '';
+          const awayRaw = result.time_b  || result.time_visitante  || result.away  || result.team_visit || '';
+          const homeN   = normalizeTeamName(homeRaw);
+          const awayN   = normalizeTeamName(awayRaw);
+
+          // Data do resultado — suporta "DD/MM/YYYY, HH:MM", "DD/MM/YYYY", ISO e timestamp
+          let dateKey = '';
+          try {
+            const rawData = result.data || result.data_jogo || result.date || '';
+            if (rawData.includes('/')) {
+              // "DD/MM/YYYY, HH:MM" ou "DD/MM/YYYY"
+              const datePart = rawData.split(',')[0].trim();
+              const [d, m, y] = datePart.split('/');
+              dateKey = y + '-' + m.padStart(2,'0') + '-' + d.padStart(2,'0');
+            } else if (rawData.includes('T') || rawData.includes('-')) {
+              // ISO "2025-08-21T12:31:00.000Z" — extrai só a data sem conversão TZ
+              dateKey = rawData.split('T')[0].substring(0,10);
+            }
+          } catch(e) {}
+
+          // Índice 1: exato com data
+          if (dateKey) {
+            map[homeN + '|' + awayN + '|' + dateKey] = ft;
+            map[awayN + '|' + homeN + '|' + dateKey] = ft; // invertido (segurança)
           }
 
-          const year  = gameStart.getFullYear();
-          const month = (gameStart.getMonth() + 1).toString().padStart(2, '0');
-          const day   = gameStart.getDate().toString().padStart(2, '0');
-          const dateKey = `${year}-${month}-${day}`;
+          // Índice 2: só por times (sem data) — para fallback
+          const teamKey = homeN + '|' + awayN;
+          if (!mapByTeams[teamKey]) mapByTeams[teamKey] = [];
+          mapByTeams[teamKey].push({ dateKey, ft });
 
-          // Tenta múltiplos campos de nome de time para maior compatibilidade
-          const homeRaw = result.time_a || result.time_casa || result.home || '';
-          const awayRaw = result.time_b || result.time_visitante || result.away || '';
-
-          const key = `${normalizeTeamName(homeRaw)} vs ${normalizeTeamName(awayRaw)}|${dateKey}`;
-          map[key] = result.ft;
+          const teamKeyInv = awayN + '|' + homeN;
+          if (!mapByTeams[teamKeyInv]) mapByTeams[teamKeyInv] = [];
+          mapByTeams[teamKeyInv].push({ dateKey, ft });
         });
+
+        // Expõe mapByTeams como propriedade do map para uso no lookup
+        map.__byTeams = mapByTeams;
         return map;
+      }
+
+      // Normaliza o placar para "G x G" independente do formato original
+      function parseFt(ft) {
+        if (!ft) return null;
+        ft = String(ft).trim();
+        // "1 x 0", "1x0", "1-0", "1:0", "1 - 0"
+        const m = ft.match(/(\d+)\s*[x\-:]\s*(\d+)/);
+        if (m) return m[1] + ' x ' + m[2];
+        return ft; // devolve como está se não reconhecer
+      }
+
+      // Lookup robusto: exato com data → ±1 dia → só times (mais recente) → null
+      function lookupResult(resultsMap, homeTeam, awayTeam, dateKey) {
+        const homeN = normalizeTeamName(homeTeam);
+        const awayN = normalizeTeamName(awayTeam);
+
+        // 1. Exato
+        const exact = resultsMap[homeN + '|' + awayN + '|' + dateKey];
+        if (exact) return exact;
+
+        // 2. Invertido (segurança — times trocados entre endpoints)
+        const inv = resultsMap[awayN + '|' + homeN + '|' + dateKey];
+        if (inv) return inv;
+
+        // 3. ±1 dia (diferença de fuso)
+        try {
+          const base = new Date(dateKey + 'T12:00:00');
+          for (const delta of [-1, 1]) {
+            const d2 = new Date(base);
+            d2.setDate(d2.getDate() + delta);
+            const dk2 = d2.getFullYear() + '-' +
+                        (d2.getMonth()+1).toString().padStart(2,'0') + '-' +
+                        d2.getDate().toString().padStart(2,'0');
+            const r = resultsMap[homeN + '|' + awayN + '|' + dk2]
+                   || resultsMap[awayN + '|' + homeN + '|' + dk2];
+            if (r) return r;
+          }
+        } catch(e) {}
+
+        // 4. Só por times, sem data — pega o mais recente disponível
+        const byTeams = resultsMap.__byTeams || {};
+        const candidates = byTeams[homeN + '|' + awayN] || byTeams[awayN + '|' + homeN] || [];
+        if (candidates.length > 0) {
+          // ordena pelo dateKey mais próximo da data do jogo
+          const sorted = candidates.slice().sort((a, b) => {
+            const da = Math.abs(new Date(a.dateKey) - new Date(dateKey));
+            const db = Math.abs(new Date(b.dateKey) - new Date(dateKey));
+            return da - db;
+          });
+          if (sorted[0].ft) return sorted[0].ft;
+        }
+
+        return null; // não encontrou
       }
 
       function parseCaptureDate(match) {
@@ -774,39 +854,52 @@
         if (!matchDetails[key]) matchDetails[key] = [];
 
         const matchData = [];
-        let hasGreen = false;
-        let allRed = true;
+        let hasGreen  = false;
+        let hasResult = false; // ao menos um resultado encontrado
 
         for (let offset = offsetStart; offset < offsetStart + offsetLimit; offset++) {
           const index = currentIndex + offset;
           if (index >= 0 && index < matches.length) {
-            const match = matches[index];
+            const match    = matches[index];
             const gameStart = parseGameDate(match.inicio_jogo);
 
             const year  = gameStart.getFullYear();
             const month = (gameStart.getMonth() + 1).toString().padStart(2, '0');
             const day   = gameStart.getDate().toString().padStart(2, '0');
-            const formattedDate = `${day}/${month}`;
-            const dateKey = `${year}-${month}-${day}`;
+            const formattedDate = day + '/' + month;
+            const dateKey = year + '-' + month + '-' + day;
 
-            const mapKey = `${normalizeTeamName(match.time_casa)} vs ${normalizeTeamName(match.time_visitante)}|${dateKey}`;
-            const ft = resultsMap[mapKey] || '0 x 0';
-            const [goalsHome, goalsAway] = ft.split(' x ').map(Number);
-            const totalGoals = goalsHome + goalsAway;
-            const gameStatus = checkMarketCondition(goalsHome, goalsAway, totalGoals, market) ? 'Green' : 'Red';
+            // Lookup robusto em 4 camadas
+            const ftFound = lookupResult(resultsMap, match.time_casa, match.time_visitante, dateKey);
 
-            if (gameStatus === 'Green') hasGreen = true;
-            else allRed = false;
+            // Só computa se encontrou resultado real
+            let gameStatus = 'N/A';
+            let ftDisplay  = '?';
+            if (ftFound) {
+              hasResult  = true;
+              ftDisplay  = ftFound;
+              const parts = ftFound.split(' x ').map(Number);
+              const goalsHome  = isNaN(parts[0]) ? 0 : parts[0];
+              const goalsAway  = isNaN(parts[1]) ? 0 : parts[1];
+              const totalGoals = goalsHome + goalsAway;
+              const isGreen = checkMarketCondition(goalsHome, goalsAway, totalGoals, market);
+              gameStatus = isGreen ? 'Green' : 'Red';
+              if (isGreen) hasGreen = true;
+            }
 
             const oddField = marketToOdd[market];
             const oddValue = match[oddField] || 'N/A';
-            matchData.push(`${formattedDate}|${match.time_casa}|${ft}|${match.time_visitante}|${oddValue}|${gameStatus}`);
+            matchData.push(formattedDate + '|' + match.time_casa + '|' + ftDisplay + '|' + match.time_visitante + '|' + oddValue + '|' + gameStatus);
           }
         }
 
-        const className = hasGreen ? 'highlight-green' : allRed ? 'highlight-red' : '';
+        // Só conta greens se ao menos um resultado foi encontrado (evita falso Red)
+        const className = hasGreen ? 'highlight-green' : hasResult ? 'highlight-red' : '';
         matchDetails[key].push({ data: matchData.join('||'), className });
         if (hasGreen) oddStats[key].greens++;
+
+        // Se nenhum resultado encontrado, não incrementa games (descarta entrada sem dados)
+        if (!hasResult) oddStats[key].games--;
       }
 
       function getSortedOdds() {
