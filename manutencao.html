@@ -859,6 +859,14 @@ Estado.carregar();
       transition:background 0.15s;
     }
     .btn-reset-cores:hover { background:rgba(255,255,255,0.18); }
+    .btn-aplicar-cores {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:4px 14px; background:#1a6e2e;
+      border:1px solid #2d9e46; border-radius:7px;
+      cursor:pointer; color:#fff; font-size:0.9em; font-weight:600;
+      transition:background 0.15s;
+    }
+    .btn-aplicar-cores:hover { background:#237a36; }
   `;
   document.head.appendChild(style);
 
@@ -877,6 +885,16 @@ function showToast(msg) {
   c.appendChild(t); setTimeout(() => t.remove(), 2200);
 }
 
+// ─── APLICA CORES NAS CÉLULAS (inline style) ──────────────────────────────────
+// As células têm inline style que sobrescreve CSS vars — precisamos atualizar direto
+function aplicarCoresCelulas() {
+  document.querySelectorAll("td[data-resultado]").forEach(cel => {
+    const tipo = cel.getAttribute("data-resultado");
+    if (tipo === "acerto") cel.style.setProperty("background-color", Estado.corGreen, "important");
+    else if (tipo === "erro") cel.style.setProperty("background-color", Estado.corRed, "important");
+  });
+}
+
 // ─── PAINEL DE CORES (abaixo da tabela) ──────────────────────────────────────
 function garantirPainelCores() {
   if (document.getElementById("painel-cores")) return;
@@ -893,28 +911,39 @@ function garantirPainelCores() {
       Erro
       <input type="color" id="input-cor-red" value="${Estado.corRed}">
     </label>
+    <button class="btn-aplicar-cores" id="btn-aplicar-cores">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>
+      Aplicar
+    </button>
     <button class="btn-reset-cores" id="btn-reset-cores">${SVG_ICONS.reset} Resetar padrão</button>
   `;
+
+  // Live preview ao arrastar o color picker (só visual, aplica ao soltar ou clicar Aplicar)
   el.querySelector("#input-cor-green").addEventListener("input", e => {
     Estado.corGreen = e.target.value; Estado.salvar();
     document.getElementById("preview-green").style.background = e.target.value;
-    document.documentElement.style.setProperty("--cor-green", e.target.value);
   });
   el.querySelector("#input-cor-red").addEventListener("input", e => {
     Estado.corRed = e.target.value; Estado.salvar();
     document.getElementById("preview-red").style.background = e.target.value;
-    document.documentElement.style.setProperty("--cor-red", e.target.value);
   });
+
+  // Botão Aplicar — atualiza todas as células imediatamente
+  el.querySelector("#btn-aplicar-cores").addEventListener("click", () => {
+    aplicarCoresCelulas();
+    showToast("Cores aplicadas!");
+  });
+
   el.querySelector("#btn-reset-cores").addEventListener("click", () => {
     Estado.corGreen = COR_GREEN_PADRAO; Estado.corRed = COR_RED_PADRAO; Estado.salvar();
     el.querySelector("#input-cor-green").value = COR_GREEN_PADRAO;
     el.querySelector("#input-cor-red").value   = COR_RED_PADRAO;
     el.querySelector("#preview-green").style.background = COR_GREEN_PADRAO;
     el.querySelector("#preview-red").style.background   = COR_RED_PADRAO;
-    document.documentElement.style.setProperty("--cor-green", COR_GREEN_PADRAO);
-    document.documentElement.style.setProperty("--cor-red",   COR_RED_PADRAO);
+    aplicarCoresCelulas();
     showToast("Cores resetadas para o padrão");
   });
+
   const tabela = document.getElementById("tabelaResultados");
   if (tabela && tabela.parentNode) tabela.parentNode.insertBefore(el, tabela.nextSibling);
   else document.body.appendChild(el);
@@ -929,8 +958,8 @@ function sincronizarPainelCores() {
   if (ir) ir.value = Estado.corRed;
   if (pg) pg.style.background = Estado.corGreen;
   if (pr) pr.style.background = Estado.corRed;
-  document.documentElement.style.setProperty("--cor-green", Estado.corGreen);
-  document.documentElement.style.setProperty("--cor-red",   Estado.corRed);
+  // Aplica as cores salvas nas células ao carregar/re-renderizar
+  aplicarCoresCelulas();
 }
 
 // ─── PAINEL DE SELEÇÕES ───────────────────────────────────────────────────────
