@@ -614,7 +614,7 @@ const COR_RED_PADRAO   = "#be0e02";
 // ─── PALETAS DE SELEÇÃO ───────────────────────────────────────────────────────
 // FT e HT têm paletas distintas para diferenciar visualmente
 const CORES_PLACAR_FT = ["#A855F7","#F59E0B","#3B82F6","#EC4899","#06B6D4","#F97316"];
-const CORES_PLACAR_HT = ["#10B981","#F43F5E","#8B5CF6","#0EA5E9","#D97706","#6366F1"];
+const CORES_PLACAR_HT = ["#C084FC","#FCD34D","#67E8F9","#F9A8D4","#A5B4FC","#6EE7B7"]; // neutros — sem verde/vermelho
 const CORES_TIME      = ["#FACC15","#818CF8","#34D399","#FB7185","#A78BFA","#22D3EE"];
 const CORES_ODD       = ["#F472B6","#FDE68A","#93C5FD","#6EE7B7","#FCA5A1","#C4B5FD"];
 
@@ -643,8 +643,9 @@ const Estado = {
   corGreen: COR_GREEN_PADRAO,
   corRed:   COR_RED_PADRAO,
 
-  _chavesKey() { return `selectedChaves_${typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default"}`; },
+  _chavesKey()  { return `selectedChaves_${typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default"}`; },
   _colunasKey() { return `colunasSelecionadas_${typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default"}`; },
+  _horasKey()   { return `seletorHoras_${typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default"}`; },
 
   carregar() {
     // Migra legado placarSelecionados → placarFTSelecionados
@@ -657,6 +658,16 @@ const Estado = {
     this.colunasSelecionadas  = JSON.parse(localStorage.getItem(this._colunasKey()))     || [];
     this.corGreen = localStorage.getItem("corGreen") || COR_GREEN_PADRAO;
     this.corRed   = localStorage.getItem("corRed")   || COR_RED_PADRAO;
+    // Restaura seletor de horas para a liga atual
+    const horasSalvas = localStorage.getItem(this._horasKey());
+    if (horasSalvas) {
+      const el = document.querySelector("#seletorHoras");
+      if (el) el.value = horasSalvas;
+    }
+    // Limpa valores HT com prefixos legados
+    this.placarHTSelecionados = this.placarHTSelecionados
+      .map(v => v.replace(/^(__ht__|_ht_|ht:)/i, "").trim())
+      .filter(v => v.length > 0);
     ["placarSelecionado","timeSelecionado","oddSelecionada"].forEach(k => localStorage.removeItem(k));
   },
 
@@ -669,11 +680,20 @@ const Estado = {
     localStorage.setItem(this._colunasKey(),     JSON.stringify(this.colunasSelecionadas));
     localStorage.setItem("corGreen", this.corGreen);
     localStorage.setItem("corRed",   this.corRed);
+    // Salva seletor de horas por liga
+    const elH = document.querySelector("#seletorHoras");
+    if (elH) localStorage.setItem(this._horasKey(), elH.value);
   },
 
   recarregarChaves() {
     this.selectedChaves      = JSON.parse(localStorage.getItem(this._chavesKey()))  || [];
     this.colunasSelecionadas = JSON.parse(localStorage.getItem(this._colunasKey())) || [];
+    // Restaura seletor de horas para a liga atual
+    const horasSalvas = localStorage.getItem(this._horasKey());
+    if (horasSalvas) {
+      const el = document.querySelector("#seletorHoras");
+      if (el && el.value !== horasSalvas) el.value = horasSalvas;
+    }
   },
 
   toggleSelecao(chave, valor) {
@@ -784,7 +804,7 @@ Estado.carregar();
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(3) { filter: none; }
 
     /* ── Divisores de quadrante ── */
-    td.quadrant-border, th.quadrant-border { border-left: 2px solid rgba(255,255,255,0.2) !important; }
+    td.quadrant-border, th.quadrant-border { border-left: 3px solid rgba(255,255,255,0.35) !important; }
 
     /* ── Stats de colunas selecionadas ── */
     #coluna-stats { display:flex; flex-wrap:wrap; gap:5px; padding:5px 8px; margin-bottom:4px; }
@@ -859,6 +879,27 @@ Estado.carregar();
       transition:background 0.15s;
     }
     .btn-reset-cores:hover { background:rgba(255,255,255,0.18); }
+
+    /* ── Alerta de streak máximo consecutivo ── */
+    @keyframes streakPulse {
+      0%   { box-shadow: 0 0 0 0px rgba(255,220,0,0); }
+      50%  { box-shadow: 0 0 0 5px rgba(255,220,0,0.8), inset 0 0 0 2px rgba(255,220,0,0.4); }
+      100% { box-shadow: 0 0 0 0px rgba(255,220,0,0); }
+    }
+    .streak-alerta {
+      animation: streakPulse 2.2s ease-in-out infinite;
+      z-index: 2; position: relative;
+    }
+    .alerta-toggle-label {
+      display: inline-flex; align-items: center; gap: 6px;
+      cursor: pointer; color: #bbb; font-size: 0.82em; user-select: none;
+      padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .alerta-toggle-label:hover { border-color: rgba(255,220,0,0.4); color: #f5c518; }
+    .alerta-toggle-label input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; accent-color: #f5c518; }
+    .alerta-ativo { color: #f5c518 !important; font-weight: 600; border-color: rgba(255,220,0,0.5) !important; }
+
     .btn-aplicar-cores {
       display:inline-flex; align-items:center; gap:5px;
       padding:4px 14px; background:#1a6e2e;
@@ -883,6 +924,74 @@ function showToast(msg) {
   const c = document.getElementById("toast-container"); if (!c) return;
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
   c.appendChild(t); setTimeout(() => t.remove(), 2200);
+}
+
+
+// ─── ALERTA DE MÁXIMO CONSECUTIVO ────────────────────────────────────────────
+// Calcula, para cada coluna (minuto), a maior sequência de "não acerto" (erro)
+// consecutivos na tabela atual, e destaca essas células com piscada suave.
+function calcularStreakMaximo() {
+  // Lê todas as colunas de dados (ignora checkbox, hora, totais)
+  const tbody = document.querySelector("#tabelaResultados tbody");
+  if (!tbody) return;
+
+  // Remove streaks anteriores
+  document.querySelectorAll(".streak-alerta").forEach(el => el.classList.remove("streak-alerta"));
+
+  const alertaAtivo = localStorage.getItem("alertaStreakAtivo") === "1";
+  if (!alertaAtivo) return;
+
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  const numCols = minutosFixos.length;
+
+  // Para cada coluna, coleta sequência de resultados (acerto=true, erro=false, null=sem dado)
+  for (let colIdx = 0; colIdx < numCols; colIdx++) {
+    // Extrai resultados da coluna de cima para baixo (mais recente primeiro → mais antigo por último)
+    const resultados = []; // { resultado: "acerto"|"erro", cel, rowIdx }
+    rows.forEach((row, rowIdx) => {
+      const cel = row.cells[2 + colIdx];
+      if (!cel) return;
+      const tipo = cel.getAttribute("data-resultado");
+      if (tipo === "acerto" || tipo === "erro") {
+        resultados.push({ tipo, cel, rowIdx });
+      }
+    });
+
+    if (resultados.length < 2) continue;
+
+    // Encontra a maior sequência de "erro" consecutivos
+    let maxStreak = 0, bestStart = -1, bestEnd = -1;
+    let curStreak = 0, curStart = -1;
+    for (let i = 0; i < resultados.length; i++) {
+      if (resultados[i].tipo === "erro") {
+        if (curStreak === 0) curStart = i;
+        curStreak++;
+        if (curStreak > maxStreak) {
+          maxStreak = curStreak;
+          bestStart = curStart;
+          bestEnd = i;
+        }
+      } else {
+        curStreak = 0;
+      }
+    }
+
+    // Destaca somente se o streak máximo for ≥ 3 (relevante)
+    if (maxStreak >= 3) {
+      for (let i = bestStart; i <= bestEnd; i++) {
+        resultados[i].cel.classList.add("streak-alerta");
+      }
+    }
+  }
+}
+
+function atualizarCheckboxStreak() {
+  const cb = document.getElementById("cb-streak-alerta");
+  const lbl = document.getElementById("lbl-streak-alerta");
+  if (!cb || !lbl) return;
+  const ativo = localStorage.getItem("alertaStreakAtivo") === "1";
+  cb.checked = ativo;
+  lbl.classList.toggle("alerta-ativo", ativo);
 }
 
 // ─── APLICA CORES NAS CÉLULAS (inline style) ──────────────────────────────────
@@ -914,6 +1023,10 @@ function garantirPainelCores() {
       Aplicar
     </button>
     <button class="btn-reset-cores" id="btn-reset-cores">${SVG_ICONS.reset} Resetar padrão</button>
+    <label class="alerta-toggle-label" id="lbl-streak-alerta">
+      <input type="checkbox" id="cb-streak-alerta">
+      ⚡ Alerta máx. consecutivo
+    </label>
   `;
 
   // Live preview ao arrastar o color picker (só visual, aplica ao soltar ou clicar Aplicar)
@@ -928,6 +1041,12 @@ function garantirPainelCores() {
   el.querySelector("#btn-aplicar-cores").addEventListener("click", () => {
     aplicarCoresCelulas();
     showToast("Cores aplicadas!");
+  });
+
+  el.querySelector("#cb-streak-alerta").addEventListener("change", function() {
+    localStorage.setItem("alertaStreakAtivo", this.checked ? "1" : "0");
+    atualizarCheckboxStreak();
+    calcularStreakMaximo();
   });
 
   el.querySelector("#btn-reset-cores").addEventListener("click", () => {
@@ -982,7 +1101,9 @@ function atualizarStatsSelecao(statsMap) {
     const total = green+red; if (total===0) return;
     const row = document.createElement("div"); row.className = "stat-row";
     const dot = document.createElement("span"); dot.className="stat-color-dot"; dot.style.background=cor;
-    const lbl = document.createElement("span"); lbl.className="stat-label"; lbl.title=valor; lbl.textContent=`${label}: ${valor}`;
+    // Remove internal prefixes from display (ex: ★ht★ used to avoid key collisions)
+    const valorDisplay = valor.replace(/^[★✦⊕]ht[★✦⊕]/, "");
+    const lbl = document.createElement("span"); lbl.className="stat-label"; lbl.title=valorDisplay; lbl.textContent=`${label}: ${valorDisplay}`;
     const sep0 = document.createElement("span"); sep0.className="stat-sep"; sep0.textContent="·";
     if (tipo==="ft"||tipo==="ht") {
       const tot=document.createElement("span"); tot.className="stat-total"; tot.textContent=`${total}×`;
@@ -1049,7 +1170,7 @@ function computeStatsFromDOM() {
   });
   const unif=new Map();
   statsFT.forEach((v,k)=>unif.set(k,v));
-  statsHT.forEach((v,k)=>unif.set(`__ht__${k}`,v));
+  statsHT.forEach((v,k)=>unif.set(`★ht★${k}`,v)); // chave única sem prefixo feio
   statsTime.forEach((v,k)=>unif.set(k,v));
   statsOdd.forEach((v,k)=>unif.set(k,v));
   criarOuObterPainel(); atualizarStatsSelecao(unif);
@@ -1545,6 +1666,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   // Painel de cores sempre após a tabela
   garantirPainelCores(); sincronizarPainelCores();
+  // Alerta de streak após renderizar
+  atualizarCheckboxStreak();
+  calcularStreakMaximo();
 }
 
 // ─── BUSCA COM DIFF ───────────────────────────────────────────────────────────
@@ -1561,7 +1685,8 @@ async function buscarDados() {
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
   if(!Estado.dadosMudaram(dados,oddsData,proximosJogos)){
     console.log("Dados inalterados."); computeStatsFromDOM(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
-    garantirPainelCores(); sincronizarPainelCores(); return;
+    garantirPainelCores(); sincronizarPainelCores();
+    atualizarCheckboxStreak(); calcularStreakMaximo(); return;
   }
   criarTabela(dados,oddsData,proximosJogos);
 }
@@ -1578,7 +1703,12 @@ const _mt=document.querySelector("#mostrarTimes");
 const _mht=document.querySelector("#mostrarHT");
 const _mo=document.querySelector("#mostrarOdds");
 
-if(_sh)  _sh.addEventListener("change", ()=>{Estado.forcarRerender();buscarDados();});
+if(_sh)  _sh.addEventListener("change", ()=>{
+  // Salva valor do seletor de horas para esta liga
+  const ligaK = typeof LIGA_ATUAL!=="undefined" ? LIGA_ATUAL : "default";
+  localStorage.setItem(`seletorHoras_${ligaK}`, _sh.value);
+  Estado.forcarRerender();buscarDados();
+});
 if(_sr)  _sr.addEventListener("change", ()=>{Estado.forcarRerender();buscarDados();});
 if(_stp) _stp.addEventListener("change",()=>{Estado.forcarRerender();buscarDados();});
 if(_mt){
