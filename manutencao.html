@@ -1683,6 +1683,34 @@ function criarTabela(dados, oddsData, proximosJogos) {
   // Alerta de streak após renderizar
   atualizarCheckboxStreak();
   calcularStreakMaximo();
+  // Instala observer para manter streak atualizado automaticamente
+  iniciarObserverStreak();
+}
+
+
+// ─── OBSERVER: re-aplica streak automaticamente após qualquer mudança no DOM ──
+// Garante que o streak nunca fica desatualizado, mesmo com re-renders parciais.
+let _streakDebounceTimer = null;
+function iniciarObserverStreak() {
+  const tabela = document.getElementById("tabelaResultados");
+  if (!tabela || tabela._streakObserver) return; // já instalado
+
+  const observer = new MutationObserver(() => {
+    // Debounce: aguarda 120ms após a última mutação antes de recalcular
+    clearTimeout(_streakDebounceTimer);
+    _streakDebounceTimer = setTimeout(() => {
+      calcularStreakMaximo();
+    }, 120);
+  });
+
+  observer.observe(tabela, {
+    childList:     true,  // detecta adição/remoção de linhas
+    subtree:       true,  // detecta mudanças em células filhas
+    attributes:    true,  // detecta mudança de data-resultado nas células
+    attributeFilter: ["data-resultado"],
+  });
+
+  tabela._streakObserver = observer; // marca como instalado
 }
 
 // ─── BUSCA COM DIFF ───────────────────────────────────────────────────────────
@@ -1700,12 +1728,15 @@ async function buscarDados() {
   if(!Estado.dadosMudaram(dados,oddsData,proximosJogos)){
     console.log("Dados inalterados."); computeStatsFromDOM(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
     garantirPainelCores(); sincronizarPainelCores();
-    atualizarCheckboxStreak(); calcularStreakMaximo(); return;
+    atualizarCheckboxStreak(); calcularStreakMaximo();
+    iniciarObserverStreak(); return;
   }
   criarTabela(dados,oddsData,proximosJogos);
 }
 
 buscarDados();
+// Tenta instalar o observer assim que a tabela existir
+setTimeout(iniciarObserverStreak, 1000);
 let _buscando=false;
 setInterval(async()=>{if(_buscando)return;_buscando=true;try{await buscarDados();}finally{_buscando=false;}},5000);
 
