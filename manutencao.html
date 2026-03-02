@@ -937,7 +937,6 @@ function calcularStreakMaximo() {
   const tbody = document.querySelector("#tabelaResultados tbody");
   if (!tbody) return;
 
-  // Remove highlights anteriores
   document.querySelectorAll(".streak-alerta").forEach(el => el.classList.remove("streak-alerta"));
 
   const alertaAtivo = localStorage.getItem("alertaStreakAtivo") === "1";
@@ -946,26 +945,21 @@ function calcularStreakMaximo() {
   const rows = Array.from(tbody.querySelectorAll("tr"));
   const numCols = minutosFixos.length;
 
-  // ── Ordem cronológica CORRETA ──────────────────────────────────────────────
-  // Tabela: linha do topo = hora mais RECENTE, linha do fundo = hora mais ANTIGA
-  // Dentro de cada linha: coluna 0 (min 1) = mais ANTIGO, coluna 19 (min 58) = mais RECENTE
+  // ── Ordem cronológica real ─────────────────────────────────────────────────
+  // Tabela: linha do FUNDO = hora mais ANTIGA, linha do TOPO = hora mais RECENTE
+  // Dentro de cada linha: col0(min1) = mais antigo → col19(min58) = mais recente
   //
-  // Ordem real dos jogos (mais antigo → mais recente):
-  //   Última linha, col 0 → col 19
-  //   Penúltima linha, col 0 → col 19
-  //   ...
-  //   Primeira linha (topo), col 0 → col 19
+  // Leitura: fundo→topo, dentro de cada linha esq→dir
+  // O min58 de uma hora e o min1 da hora seguinte SÃO consecutivos —
+  // são jogos que se seguem na sequência temporal da liga.
   //
-  // Jogos consecutivos DENTRO de uma mesma hora são realmente consecutivos.
-  // O jogo min 58 de uma hora e o min 1 da hora SEGUINTE (linha acima) também
-  // são consecutivos no tempo — sem interrupção entre horas.
+  // Encontramos o ÚNICO maior streak global de erros consecutivos
+  // e destacamos somente essas células.
 
-  const jogos = []; // { tipo: "acerto"|"erro", cel } — do mais antigo ao mais recente
+  const jogos = []; // { tipo, cel } — do mais antigo ao mais recente
 
-  // Itera de baixo para cima (mais antigo → mais recente)
   for (let r = rows.length - 1; r >= 0; r--) {
     const row = rows[r];
-    // Dentro da linha: esquerda → direita (min1 → min58, mais antigo → mais recente)
     for (let colIdx = 0; colIdx < numCols; colIdx++) {
       const cel = row.cells[2 + colIdx];
       if (!cel) continue;
@@ -978,8 +972,7 @@ function calcularStreakMaximo() {
 
   if (jogos.length < 2) return;
 
-  // ── Encontra a MAIOR sequência global de erros consecutivos ───────────────
-  // Percorre do mais antigo ao mais recente — streak é interrompido por qualquer acerto
+  // ── Maior sequência global de erros ───────────────────────────────────────
   let maxLen = 0, bestStart = -1, bestEnd = -1;
   let curLen = 0, curStart = -1;
 
@@ -993,16 +986,13 @@ function calcularStreakMaximo() {
         bestEnd   = i;
       }
     } else {
-      // acerto — interrompe a sequência
-      curLen = 0;
+      curLen   = 0;
       curStart = -1;
     }
   }
 
-  // Só destaca se a sequência máxima for >= 3
   if (maxLen < 3) return;
 
-  // ── Destaca SOMENTE as células do streak máximo ───────────────────────────
   for (let i = bestStart; i <= bestEnd; i++) {
     jogos[i].cel.classList.add("streak-alerta");
   }
