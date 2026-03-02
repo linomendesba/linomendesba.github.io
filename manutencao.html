@@ -645,7 +645,12 @@ const Estado = {
 
   _chavesKey()  { return `selectedChaves_${typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default"}`; },
   _colunasKey() { return `colunasSelecionadas_${typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default"}`; },
-  _horasKey()   { return `seletorHoras_${typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default"}`; },
+  _horasKey() {
+    // Usa o nome da liga do <h4 class="custom-color"> no HTML
+    const h4 = document.querySelector("h4.custom-color");
+    const ligaNome = h4 ? h4.textContent.trim().toLowerCase().replace(/\s+/g,"_") : (typeof LIGA_ATUAL!=="undefined" ? LIGA_ATUAL : "default");
+    return `seletorHoras_${ligaNome}`;
+  },
 
   carregar() {
     // Migra legado placarSelecionados → placarFTSelecionados
@@ -658,12 +663,6 @@ const Estado = {
     this.colunasSelecionadas  = JSON.parse(localStorage.getItem(this._colunasKey()))     || [];
     this.corGreen = localStorage.getItem("corGreen") || COR_GREEN_PADRAO;
     this.corRed   = localStorage.getItem("corRed")   || COR_RED_PADRAO;
-    // Restaura seletor de horas para a liga atual
-    const horasSalvas = localStorage.getItem(this._horasKey());
-    if (horasSalvas) {
-      const el = document.querySelector("#seletorHoras");
-      if (el) el.value = horasSalvas;
-    }
     // Limpa valores HT com prefixos legados
     this.placarHTSelecionados = this.placarHTSelecionados
       .map(v => v.replace(/^(__ht__|_ht_|ht:)/i, "").trim())
@@ -688,12 +687,7 @@ const Estado = {
   recarregarChaves() {
     this.selectedChaves      = JSON.parse(localStorage.getItem(this._chavesKey()))  || [];
     this.colunasSelecionadas = JSON.parse(localStorage.getItem(this._colunasKey())) || [];
-    // Restaura seletor de horas para a liga atual
-    const horasSalvas = localStorage.getItem(this._horasKey());
-    if (horasSalvas) {
-      const el = document.querySelector("#seletorHoras");
-      if (el && el.value !== horasSalvas) el.value = horasSalvas;
-    }
+
   },
 
   toggleSelecao(chave, valor) {
@@ -738,6 +732,22 @@ const Estado = {
 };
 
 Estado.carregar();
+
+// ─── RESTAURAR HORAS POR LIGA ─────────────────────────────────────────────────
+let _ultimaLigaHorasRestauradas = null;
+function restaurarHorasSeletor() {
+  const key = Estado._horasKey();
+  // Só restaura uma vez por liga — evita sobrescrever mudança manual do usuário
+  if (_ultimaLigaHorasRestauradas === key) return;
+  _ultimaLigaHorasRestauradas = key;
+  const salvo = localStorage.getItem(key);
+  if (!salvo) return;
+  const el = document.querySelector("#seletorHoras");
+  if (el && el.value !== salvo) {
+    el.value = salvo;
+  }
+}
+
 
 // ─── INJEÇÃO DE ESTILOS ───────────────────────────────────────────────────────
 (function injectStyles() {
@@ -972,7 +982,17 @@ function calcularStreakMaximo() {
 
   if (jogos.length < 2) return;
 
+  // ── Streak ATUAL: conta erros consecutivos a partir do jogo MAIS RECENTE ──
+  // jogos[] está ordenado do mais antigo (índice 0) ao mais recente (último índice)
+  // O mais recente é jogos[jogos.length-1]
+  let atualLen = 0;
+  for (let i = jogos.length - 1; i >= 0; i--) {
+    if (jogos[i].tipo === "erro") atualLen++;
+    else break;
+  }
+
   // ── Maior sequência global de erros ───────────────────────────────────────
+  // Em caso de EMPATE de tamanho, fica com o MAIS RECENTE (maior índice)
   let maxLen = 0, bestStart = -1, bestEnd = -1;
   let curLen = 0, curStart = -1;
 
@@ -980,7 +1000,7 @@ function calcularStreakMaximo() {
     if (jogos[i].tipo === "erro") {
       if (curLen === 0) curStart = i;
       curLen++;
-      if (curLen > maxLen) {
+      if (curLen >= maxLen) {   // >= para pegar o mais recente em empate
         maxLen    = curLen;
         bestStart = curStart;
         bestEnd   = i;
@@ -992,20 +1012,12 @@ function calcularStreakMaximo() {
   }
 
   if (maxLen < 3) {
-    atualizarBadgeStreak(0);
+    atualizarBadgeStreak(0, atualLen);
     return;
   }
 
   for (let i = bestStart; i <= bestEnd; i++) {
     jogos[i].cel.classList.add("streak-alerta");
-  }
-
-  // Calcula streak ATUAL — sequência de erros a partir do jogo mais recente
-  // O jogo mais recente é o ÚLTIMO da lista jogos[] (topo da tabela, coluna direita)
-  let atualLen = 0;
-  for (let i = jogos.length - 1; i >= 0; i--) {
-    if (jogos[i].tipo === "erro") atualLen++;
-    else break;
   }
 
   atualizarBadgeStreak(maxLen, atualLen);
@@ -1026,14 +1038,15 @@ function atualizarBadgeStreak(n, atual = 0) {
   badge.className = "sel-tag";
   badge.style.cssText = "background:#92400e;border-color:#f59e0b;color:#fef3c7;gap:5px;";
 
-  const atualTxt = atual > 0
-    ? ` <span style="color:rgba(255,255,255,0.4);margin:0 2px">/</span> Atual: <strong style="color:${atual >= n ? '#f87171' : '#fbbf24'}">${atual} jogos</strong>`
-    : "";
+  // Sempre mostra o Atual, mesmo quando = 0 (significa que o mercado acabou de acontecer)
+  const corAtual = atual === 0 ? '#4ade80' : (atual >= n ? '#f87171' : '#fbbf24');
+  const atualTxt = ` <span style="color:rgba(255,255,255,0.35);margin:0 3px">|</span> Atual: <strong style="color:${corAtual}">${atual} jogo${atual !== 1 ? 's' : ''}</strong>`;
 
   badge.innerHTML = `
     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/></svg>
     Máx: <strong style="color:#fbbf24">${n} jogos</strong>${atualTxt}
   `;
+  indicator.style.display = "flex";
   indicator.appendChild(badge);
 }
 
@@ -1756,9 +1769,11 @@ function iniciarObserverStreak() {
 // ─── BUSCA COM DIFF ───────────────────────────────────────────────────────────
 async function buscarDados() {
   hideErrorMessage();
+  // Restaura horas do seletor para esta liga (DOM garantidamente pronto aqui)
+  restaurarHorasSeletor();
   const ligaAtual=typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default";
   Estado.recarregarChaves();
-  if(Estado._ultimaLigaRenderizada!==ligaAtual){Estado.forcarRerender();Estado._ultimaLigaRenderizada=ligaAtual;}
+  if(Estado._ultimaLigaRenderizada!==ligaAtual){Estado.forcarRerender();Estado._ultimaLigaRenderizada=ligaAtual;_ultimaLigaHorasRestauradas=null;}
   let dados=[],oddsData=[],proximosJogos=[];
   try{const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));if(!r.ok)throw new Error(`${r.status}`);dados=await r.json();}
   catch(e){console.error("Erro resultados:",e);showErrorMessage(`Erro ao carregar resultados: ${e.message}`);}
@@ -1790,8 +1805,7 @@ const _mo=document.querySelector("#mostrarOdds");
 
 if(_sh)  _sh.addEventListener("change", ()=>{
   // Salva valor do seletor de horas para esta liga
-  const ligaK = typeof LIGA_ATUAL!=="undefined" ? LIGA_ATUAL : "default";
-  localStorage.setItem(`seletorHoras_${ligaK}`, _sh.value);
+  localStorage.setItem(Estado._horasKey(), _sh.value);
   Estado.forcarRerender();buscarDados();
 });
 if(_sr)  _sr.addEventListener("change", ()=>{Estado.forcarRerender();buscarDados();});
