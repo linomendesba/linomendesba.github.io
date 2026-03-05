@@ -3274,7 +3274,6 @@ const statsChartVisibleDatasetsGolsPlus = {
     'Gols FT Casa':      false,
     'Gols FT Visitante': false,
     'Gols HT':           false,
-    'Gols 2T':           false,
     'Equilíbrio':        false
 };
 
@@ -3282,8 +3281,7 @@ const labelToKeyGolsPlus = {
     'Gols FT':           'golsFT',
     'Gols FT Casa':      'golsFTCasa',
     'Gols FT Visitante': 'golsFTVisitante',
-    'Gols HT':           'golsHT',
-    'Gols 2T':           'gols2T'
+    'Gols HT':           'golsHT'
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -3308,17 +3306,15 @@ function getKeyFromLabelGolsPlus(label) {
  * Se for "OUT" (3+ gols), retorna total=3 como valor conservador.
  */
 function parseHtScore(htStr) {
-    if (!htStr) return { total: 0, casa: 0, vis: 0 };
-    if (htStr === 'OUT') {
-        return { total: 3, casa: 1, vis: 2 };
-    }
+    if (!htStr) return 0;
+    if (htStr === 'OUT') return 3;
     if (htStr.includes(' x ')) {
         const parts = htStr.split(' x ').map(Number);
         if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-            return { total: parts[0] + parts[1], casa: parts[0], vis: parts[1] };
+            return parts[0] + parts[1];
         }
     }
-    return { total: 0, casa: 0, vis: 0 };
+    return 0;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -3335,7 +3331,7 @@ function processApiDataGolsPlus(data) {
     const sliced = sorted.slice(-numPointsGolsPlus - averagePointsGolsPlus);
     chartDataGolsPlus['Copa'] = sliced;
 
-    const labels = [], golsFT = [], golsFTCasa = [], golsFTVisitante = [], golsHT = [], gols2T = [];
+    const labels = [], golsFT = [], golsFTCasa = [], golsFTVisitante = [], golsHT = [];
 
     const hasGap = (prev, curr) => {
         const pt = new Date(`${prev.data}T${prev.hora}:${prev.minuto}:00`);
@@ -3344,26 +3340,23 @@ function processApiDataGolsPlus(data) {
     };
 
     for (let i = averagePointsGolsPlus; i < sliced.length; i++) {
-        let ftSum=0, casaSum=0, visSum=0, htSum=0, stSum=0;
+        let ftSum=0, casaSum=0, visSum=0, htSum=0;
 
         for (let j = Math.max(0, i - averagePointsGolsPlus); j <= i; j++) {
             const m = sliced[j];
             if (j > 0 && hasGap(sliced[j-1], m)) {
                 labels.push(`${m.hora}:${m.minuto.toString().padStart(2,'0')}`);
                 golsFT.push(null); golsFTCasa.push(null);
-                golsFTVisitante.push(null); golsHT.push(null); gols2T.push(null);
+                golsFTVisitante.push(null); golsHT.push(null);
                 continue;
             }
-            let ft = [0, 0];
+            let ft=[0,0];
             if (m.ft && m.ft.includes(' x ')) ft = m.ft.split(' x ').map(Number);
 
-            const ht = parseHtScore(m.ht);
-
-            ftSum   += ft[0] + ft[1];
+            ftSum   += ft[0]+ft[1];
             casaSum += ft[0];
             visSum  += ft[1];
-            htSum   += ht.total;
-            stSum   += Math.max(0, (ft[0] + ft[1]) - ht.total);
+            htSum   += parseHtScore(m.ht);
         }
 
         const m = sliced[i];
@@ -3372,14 +3365,13 @@ function processApiDataGolsPlus(data) {
         golsFTCasa.push(casaSum);
         golsFTVisitante.push(visSum);
         golsHT.push(htSum);
-        gols2T.push(stSum);
     }
 
     const validFT = golsFT.filter(v => v !== null);
     const avgFT   = validFT.length ? validFT.reduce((a,b) => a+b, 0) / validFT.length : 0;
     const equilibrio = new Array(labels.length).fill(avgFT);
 
-    return { labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, gols2T, equilibrio };
+    return { labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, equilibrio };
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -3689,8 +3681,7 @@ function createStatsChartGolsPlus(ctx, labels, data) {
         { label:'Gols FT',           color:'#FFFF00', key:'golsFT' },
         { label:'Gols FT Casa',      color:'#AB47BC', key:'golsFTCasa' },
         { label:'Gols FT Visitante', color:'#2196F3', key:'golsFTVisitante' },
-        { label:'Gols HT',           color:'#26A69A', key:'golsHT' },
-        { label:'Gols 2T',           color:'#FF9800', key:'gols2T' }
+        { label:'Gols HT',           color:'#26A69A', key:'golsHT' }
     ];
 
     const datasets = [];
