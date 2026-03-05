@@ -3264,6 +3264,7 @@ let lastResults = [];
    GOLS PLUS — VARIÁVEIS GLOBAIS
 ═══════════════════════════════════════════════════════ */
 let golsPlusChart;
+let golsST_Chart; // Gráfico Gols 2º Tempo
 let numPointsGolsPlus     = 20;
 let averagePointsGolsPlus = 19;
 let showFibonacciLinesGolsPlus = false;
@@ -3277,6 +3278,13 @@ const statsChartVisibleDatasetsGolsPlus = {
     'Equilíbrio':        false
 };
 
+const statsChartVisibleDatasetsGolsST = {
+    'Gols 2T':           true,
+    'Gols 2T Casa':      false,
+    'Gols 2T Visitante': false,
+    'Equilíbrio 2T':     false
+};
+
 const labelToKeyGolsPlus = {
     'Gols FT':           'golsFT',
     'Gols FT Casa':      'golsFTCasa',
@@ -3284,11 +3292,17 @@ const labelToKeyGolsPlus = {
     'Gols HT':           'golsHT'
 };
 
+const labelToKeyGolsST = {
+    'Gols 2T':           'gols2T',
+    'Gols 2T Casa':      'gols2TCasa',
+    'Gols 2T Visitante': 'gols2TVisitante'
+};
+
 /* ═══════════════════════════════════════════════════════
    UTILITÁRIOS
 ═══════════════════════════════════════════════════════ */
 function formatHtResultGols(ht) {
-    if (ht === 'OUT') return 'OUT';
+    if (ht === 'OUT') return 'OUT (3+)';
     if (ht && ht.includes(' x ')) {
         const p = ht.split(' x ');
         if (p.length === 2) return `${p[0]}-${p[1]}`;
@@ -3299,6 +3313,34 @@ function formatHtResultGols(ht) {
 function getKeyFromLabelGolsPlus(label) {
     if (label.includes(' - ')) return labelToKeyGolsPlus[label.split(' - ')[0]];
     return labelToKeyGolsPlus[label];
+}
+
+function getKeyFromLabelGolsST(label) {
+    if (label.includes(' - ')) return labelToKeyGolsST[label.split(' - ')[0]];
+    return labelToKeyGolsST[label];
+}
+
+/**
+ * Parseia o placar HT.
+ * Se for "OUT", retorna [valor mínimo de 3 gols] dividido igualmente entre casa/vis.
+ * Retorna { total, casa, vis }
+ */
+function parseHtScore(htStr) {
+    if (!htStr) return { total: 0, casa: 0, vis: 0 };
+
+    if (htStr === 'OUT') {
+        // OUT = 3 gols ou mais; usamos 3 como valor conservador
+        return { total: 3, casa: 1, vis: 2 }; // distribuição padrão aproximada
+    }
+
+    if (htStr.includes(' x ')) {
+        const parts = htStr.split(' x ').map(Number);
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            return { total: parts[0] + parts[1], casa: parts[0], vis: parts[1] };
+        }
+    }
+
+    return { total: 0, casa: 0, vis: 0 };
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -3315,7 +3357,9 @@ function processApiDataGolsPlus(data) {
     const sliced = sorted.slice(-numPointsGolsPlus - averagePointsGolsPlus);
     chartDataGolsPlus['Copa'] = sliced;
 
-    const labels = [], golsFT = [], golsFTCasa = [], golsFTVisitante = [], golsHT = [];
+    const labels = [];
+    const golsFT = [], golsFTCasa = [], golsFTVisitante = [], golsHT = [];
+    const gols2T = [], gols2TCasa = [], gols2TVisitante = [];
 
     const hasGap = (prev, curr) => {
         const pt = new Date(`${prev.data}T${prev.hora}:${prev.minuto}:00`);
@@ -3325,6 +3369,7 @@ function processApiDataGolsPlus(data) {
 
     for (let i = averagePointsGolsPlus; i < sliced.length; i++) {
         let ftSum=0, casaSum=0, visSum=0, htSum=0;
+        let stSum=0, stCasaSum=0, stVisSum=0;
 
         for (let j = Math.max(0, i - averagePointsGolsPlus); j <= i; j++) {
             const m = sliced[j];
@@ -3332,15 +3377,27 @@ function processApiDataGolsPlus(data) {
                 labels.push(`${m.hora}:${m.minuto.toString().padStart(2,'0')}`);
                 golsFT.push(null); golsFTCasa.push(null);
                 golsFTVisitante.push(null); golsHT.push(null);
+                gols2T.push(null); gols2TCasa.push(null); gols2TVisitante.push(null);
                 continue;
             }
-            let ft=[0,0], ht=[0,0];
+
+            let ft = [0, 0];
             if (m.ft && m.ft.includes(' x ')) ft = m.ft.split(' x ').map(Number);
-            if (m.ht && m.ht.includes(' x ')) ht = m.ht.split(' x ').map(Number);
-            ftSum   += ft[0]+ft[1];
+
+            const ht = parseHtScore(m.ht);
+
+            ftSum   += ft[0] + ft[1];
             casaSum += ft[0];
             visSum  += ft[1];
-            htSum   += ht[0]+ht[1];
+            htSum   += ht.total;
+
+            // 2º Tempo = FT - HT
+            const st2Total = Math.max(0, (ft[0] + ft[1]) - ht.total);
+            const st2Casa  = Math.max(0, ft[0] - ht.casa);
+            const st2Vis   = Math.max(0, ft[1] - ht.vis);
+            stSum    += st2Total;
+            stCasaSum+= st2Casa;
+            stVisSum += st2Vis;
         }
 
         const m = sliced[i];
@@ -3349,13 +3406,25 @@ function processApiDataGolsPlus(data) {
         golsFTCasa.push(casaSum);
         golsFTVisitante.push(visSum);
         golsHT.push(htSum);
+        gols2T.push(stSum);
+        gols2TCasa.push(stCasaSum);
+        gols2TVisitante.push(stVisSum);
     }
 
     const validFT = golsFT.filter(v => v !== null);
     const avgFT   = validFT.length ? validFT.reduce((a,b) => a+b, 0) / validFT.length : 0;
     const equilibrio = new Array(labels.length).fill(avgFT);
 
-    return { labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, equilibrio };
+    const valid2T = gols2T.filter(v => v !== null);
+    const avg2T   = valid2T.length ? valid2T.reduce((a,b) => a+b, 0) / valid2T.length : 0;
+    const equilibrio2T = new Array(labels.length).fill(avg2T);
+
+    return {
+        labels,
+        golsFT, golsFTCasa, golsFTVisitante, golsHT,
+        gols2T, gols2TCasa, gols2TVisitante,
+        equilibrio, equilibrio2T
+    };
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -3398,7 +3467,7 @@ const rotulosPluginGolsPlus = {
         if (!chartArea) return;
 
         chart.data.datasets.forEach((ds, i) => {
-            if (!ds.label || ds.label.includes(' MA') || ds.label === 'Equilíbrio') return;
+            if (!ds.label || ds.label.includes(' MA') || ds.label === 'Equilíbrio' || ds.label === 'Equilíbrio 2T') return;
             if (!chart.isDatasetVisible(i)) return;
             const meta = chart.getDatasetMeta(i);
             meta.data.forEach((point, j) => {
@@ -3419,7 +3488,6 @@ const rotulosPluginGolsPlus = {
 
 /* ═══════════════════════════════════════════════════════
    PLUGIN: LINHA ATUAL
-   Uma linha tracejada por dataset visível, na cor do dataset
 ═══════════════════════════════════════════════════════ */
 const linhaAtualPluginGolsPlus = {
     id: 'linhaAtualGolsPlus',
@@ -3437,7 +3505,7 @@ const linhaAtualPluginGolsPlus = {
 
         const entries = [];
         chart.data.datasets.forEach((d, i) => {
-            if (!d.label || d.label.includes(' MA') || d.label === 'Equilíbrio') return;
+            if (!d.label || d.label.includes(' MA') || d.label === 'Equilíbrio' || d.label === 'Equilíbrio 2T') return;
             if (!chart.isDatasetVisible(i)) return;
             const arr = d.data;
             if (!arr?.length) return;
@@ -3456,7 +3524,6 @@ const linhaAtualPluginGolsPlus = {
 
         if (!entries.length) return;
 
-        // Anti-colisão
         entries.sort((a,b) => a.yPx - b.yPx);
         entries.forEach((e, i) => {
             e.badgeY = i === 0 ? e.yPx
@@ -3644,7 +3711,7 @@ const linhaDraggablePluginGolsPlus = {
 };
 
 /* ═══════════════════════════════════════════════════════
-   UPDATE STATS CHART
+   UPDATE STATS CHART — GOLS FT/HT
 ═══════════════════════════════════════════════════════ */
 function updateStatsChartGolsPlus(chart, newData) {
     if (!chart) return;
@@ -3658,7 +3725,21 @@ function updateStatsChartGolsPlus(chart, newData) {
 }
 
 /* ═══════════════════════════════════════════════════════
-   CRIAÇÃO DO GRÁFICO
+   UPDATE STATS CHART — GOLS 2T
+═══════════════════════════════════════════════════════ */
+function updateStatsChartGolsST(chart, newData) {
+    if (!chart) return;
+    chart.data.labels = newData.labels;
+    chart.data.datasets.forEach(ds => {
+        if (ds.label === 'Equilíbrio 2T') { ds.data = newData.equilibrio2T; return; }
+        const key = getKeyFromLabelGolsST(ds.label);
+        if (key) ds.data = newData[key];
+    });
+    chart.update();
+}
+
+/* ═══════════════════════════════════════════════════════
+   CRIAÇÃO DO GRÁFICO — GOLS FT/HT
 ═══════════════════════════════════════════════════════ */
 function createStatsChartGolsPlus(ctx, labels, data) {
     const configs = [
@@ -3684,10 +3765,8 @@ function createStatsChartGolsPlus(ctx, labels, data) {
             fill: false,
             hidden: !statsChartVisibleDatasetsGolsPlus[cfg.label]
         });
-        // Sem médias móveis — removidas
     });
 
-    // Equilíbrio — vermelho conforme solicitado
     datasets.push({
         label: 'Equilíbrio',
         data:  data.equilibrio,
@@ -3776,6 +3855,211 @@ function createStatsChartGolsPlus(ctx, labels, data) {
 }
 
 /* ═══════════════════════════════════════════════════════
+   CRIAÇÃO DO GRÁFICO — GOLS 2º TEMPO
+═══════════════════════════════════════════════════════ */
+function createStatsChartGolsST(ctx, labels, data) {
+    const configs = [
+        { label:'Gols 2T',           color:'#FF9800', key:'gols2T' },
+        { label:'Gols 2T Casa',      color:'#E91E63', key:'gols2TCasa' },
+        { label:'Gols 2T Visitante', color:'#00BCD4', key:'gols2TVisitante' }
+    ];
+
+    const datasets = [];
+
+    configs.forEach(cfg => {
+        datasets.push({
+            label: cfg.label,
+            data:  data[cfg.key],
+            borderColor: cfg.color,
+            backgroundColor: cfg.color,
+            pointBackgroundColor: cfg.color,
+            pointBorderColor: 'rgba(0,0,0,0)',
+            pointBorderWidth: 0,
+            borderWidth: 2,
+            pointRadius: 4,
+            fill: false,
+            hidden: !statsChartVisibleDatasetsGolsST[cfg.label]
+        });
+    });
+
+    datasets.push({
+        label: 'Equilíbrio 2T',
+        data:  data.equilibrio2T,
+        borderColor:  '#e74c3c',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderDash: [6, 4],
+        fill: false,
+        pointRadius: 0,
+        pointHitRadius: 0,
+        hidden: !statsChartVisibleDatasetsGolsST['Equilíbrio 2T']
+    });
+
+    /* Plugin de rótulos reutilizado — funciona para qualquer chart */
+    const rotulosST = {
+        id: 'rotulosST',
+        afterDatasetsDraw(chart, args, opts) {
+            const cfg2 = (opts?.enabled !== undefined) ? opts
+                : (chart.options?.plugins?.rotulosST ?? {});
+            if (cfg2.enabled === false) return;
+            const { ctx: c, chartArea } = chart;
+            if (!chartArea) return;
+            chart.data.datasets.forEach((ds, i) => {
+                if (!ds.label || ds.label === 'Equilíbrio 2T') return;
+                if (!chart.isDatasetVisible(i)) return;
+                const meta = chart.getDatasetMeta(i);
+                meta.data.forEach((point, j) => {
+                    const val = ds.data[j];
+                    if (val === null || val === undefined) return;
+                    const text = Number.isInteger(val) ? String(val) : val.toFixed(1);
+                    c.save();
+                    c.font = 'bold 9px Arial, sans-serif';
+                    c.fillStyle = ds.borderColor || '#fff';
+                    c.textAlign = 'center';
+                    c.textBaseline = 'bottom';
+                    c.fillText(text, point.x, point.y - 5);
+                    c.restore();
+                });
+            });
+        }
+    };
+
+    /* Plugin linha atual reutilizado para 2T */
+    const linhaAtualST = {
+        id: 'linhaAtualST',
+        afterDraw(chart) {
+            const enabled = chart.options?.plugins?.linhaAtualST?.enabled;
+            if (enabled === false) return;
+            const { ctx: c, chartArea, scales } = chart;
+            if (!chartArea || !scales.y) return;
+            const yS = scales.y;
+            const { left, right, top, bottom } = chartArea;
+            const PAD = 5, H = 18;
+            const entries = [];
+            chart.data.datasets.forEach((d, i) => {
+                if (!d.label || d.label === 'Equilíbrio 2T') return;
+                if (!chart.isDatasetVisible(i)) return;
+                const arr = d.data;
+                if (!arr?.length) return;
+                let yVal = null;
+                for (let j = arr.length-1; j >= 0; j--) {
+                    const v = arr[j];
+                    if (v !== null && v !== undefined && typeof v === 'number' && isFinite(v)) {
+                        yVal = v; break;
+                    }
+                }
+                if (yVal === null) return;
+                const yPx = yS.getPixelForValue(yVal);
+                if (!isFinite(yPx) || yPx < top || yPx > bottom) return;
+                entries.push({ yVal, yPx, color: d.borderColor || '#fff' });
+            });
+            if (!entries.length) return;
+            entries.sort((a,b) => a.yPx - b.yPx);
+            entries.forEach((e, i) => {
+                e.badgeY = i === 0 ? e.yPx
+                    : (e.yPx - entries[i-1].badgeY < H+2 ? entries[i-1].badgeY + H+2 : e.yPx);
+            });
+            entries.forEach(({ yVal, yPx, badgeY, color }) => {
+                c.save();
+                c.strokeStyle = color; c.lineWidth = 1.2;
+                c.setLineDash([6,4]);
+                c.beginPath(); c.moveTo(left,yPx); c.lineTo(right,yPx); c.stroke();
+                c.setLineDash([]);
+                const text = Number.isInteger(yVal) ? `${yVal} g` : `${yVal.toFixed(1)} g`;
+                c.font = 'bold 10px Arial, sans-serif';
+                c.textBaseline = 'middle'; c.textAlign = 'left';
+                const bw = Math.ceil(c.measureText(text).width) + PAD*2;
+                const bx = right+4, by = badgeY - H/2;
+                c.fillStyle = 'rgba(10,12,20,0.95)';
+                c.fillRect(bx,by,bw,H);
+                c.strokeStyle = color; c.lineWidth = 1.2;
+                c.strokeRect(bx,by,bw,H);
+                c.fillStyle = color;
+                c.fillText(text, bx+PAD, badgeY);
+                c.restore();
+            });
+        }
+    };
+
+    return new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 30, right: 80 } },
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: { color:'#e0e0e0', font:{size:12} },
+                    onClick(e, legendItem, legend) {
+                        const ci = legend.chart;
+                        const lbl = legendItem.text;
+                        const idx = ci.data.datasets.findIndex(ds => ds.label===lbl);
+                        if (idx === -1) return;
+                        const meta = ci.getDatasetMeta(idx);
+                        meta.hidden = !meta.hidden;
+                        statsChartVisibleDatasetsGolsST[lbl] = !meta.hidden;
+                        ci.update();
+                    }
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleColor: '#FF9800',
+                    bodyColor: '#e0e0e0',
+                    borderColor: '#FF9800',
+                    borderWidth: 1,
+                    callbacks: {
+                        title(items) {
+                            const idx = items[0].dataIndex + averagePointsGolsPlus;
+                            const m = chartDataGolsPlus['Copa']?.[idx];
+                            return m ? `${m.hora}:${m.minuto.toString().padStart(2,'0')}` : '';
+                        },
+                        label(ctx) {
+                            const lbl = ctx.dataset.label, val = ctx.parsed.y;
+                            return lbl==='Equilíbrio 2T'
+                                ? `${lbl}: ${val.toFixed(2)} gols (média)`
+                                : `${lbl}: ${val} gols`;
+                        },
+                        afterBody(items) {
+                            const idx = items[0].dataIndex + averagePointsGolsPlus;
+                            const m = chartDataGolsPlus['Copa']?.[idx];
+                            if (!m) return [];
+                            const htParsed = parseHtScore(m.ht);
+                            const ftParts  = m.ft?.includes(' x ') ? m.ft.split(' x ').map(Number) : [0,0];
+                            const st2Casa  = Math.max(0, ftParts[0] - htParsed.casa);
+                            const st2Vis   = Math.max(0, ftParts[1] - htParsed.vis);
+                            const htDisplay = m.ht === 'OUT' ? 'OUT (3+)' : (m.ht || 'N/A');
+                            return [
+                                `\nPlacar FT: ${m.ft||'N/A'}`,
+                                `Placar HT: ${htDisplay}`,
+                                `Gols 2T: ${st2Casa} x ${st2Vis}`
+                            ];
+                        }
+                    }
+                },
+                rotulosST:    { enabled: true },
+                linhaAtualST: { enabled: true }
+            },
+            scales: {
+                x: {
+                    ticks: { display: false },
+                    grid:  { display: false }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color:'#b0b0b0', stepSize:1 },
+                    grid:  { color:'rgba(255,255,255,0.3)', lineWidth:0.5 },
+                    afterFit(scale) { scale.paddingTop = 20; }
+                }
+            }
+        },
+        plugins: [ rotulosST, linhaAtualST ]
+    });
+}
+
+/* ═══════════════════════════════════════════════════════
    FETCH + REFRESH
 ═══════════════════════════════════════════════════════ */
 function updateChartsGolsPlus() {
@@ -3784,12 +4068,25 @@ function updateChartsGolsPlus() {
         .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(data => {
             const processed = processApiDataGolsPlus(data);
-            const canvas    = document.getElementById('golsplus');
-            if (!canvas) return;
-            if (!golsPlusChart) {
-                golsPlusChart = createStatsChartGolsPlus(canvas.getContext('2d'), processed.labels, processed);
-            } else {
-                updateStatsChartGolsPlus(golsPlusChart, processed);
+
+            // Gráfico principal (FT / HT)
+            const canvas = document.getElementById('golsplus');
+            if (canvas) {
+                if (!golsPlusChart) {
+                    golsPlusChart = createStatsChartGolsPlus(canvas.getContext('2d'), processed.labels, processed);
+                } else {
+                    updateStatsChartGolsPlus(golsPlusChart, processed);
+                }
+            }
+
+            // Gráfico 2º Tempo
+            const canvasST = document.getElementById('golssegundotempo');
+            if (canvasST) {
+                if (!golsST_Chart) {
+                    golsST_Chart = createStatsChartGolsST(canvasST.getContext('2d'), processed.labels, processed);
+                } else {
+                    updateStatsChartGolsST(golsST_Chart, processed);
+                }
             }
         })
         .catch(err => console.error('Erro GolsPlus:', err));
@@ -3820,6 +4117,24 @@ document.getElementById('linhaAtualToggleGolsPlus').addEventListener('change', f
     golsPlusChart.options.plugins.linhaAtualGolsPlus.enabled = this.checked;
     golsPlusChart.update();
 });
+
+// Toggles do gráfico 2T (adicione esses IDs no seu HTML se quiser controles independentes)
+const rotulosToggleST = document.getElementById('rotulosToggleGolsST');
+if (rotulosToggleST) {
+    rotulosToggleST.addEventListener('change', function() {
+        if (!golsST_Chart) return;
+        golsST_Chart.options.plugins.rotulosST.enabled = this.checked;
+        golsST_Chart.update();
+    });
+}
+const linhaAtualToggleST = document.getElementById('linhaAtualToggleGolsST');
+if (linhaAtualToggleST) {
+    linhaAtualToggleST.addEventListener('change', function() {
+        if (!golsST_Chart) return;
+        golsST_Chart.options.plugins.linhaAtualST.enabled = this.checked;
+        golsST_Chart.update();
+    });
+}
 
 // Painel Linha
 document.getElementById('btnLinhaToolsGolsPlus').addEventListener('click', function(e) {
