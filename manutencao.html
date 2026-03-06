@@ -3332,8 +3332,8 @@ let lastResults = [];
    GOLS PLUS — VARIÁVEIS GLOBAIS
 ═══════════════════════════════════════════════════════ */
 let golsPlusChart;
-let numPointsGolsPlus      = 20;
-let averagePointsGolsPlus  = 19;
+let numPointsGolsPlus     = 20;
+let averagePointsGolsPlus = 19;
 let showFibonacciLinesGolsPlus = false;
 let chartDataGolsPlus = {};
 
@@ -3345,6 +3345,7 @@ const defaultVisibleGolsPlus = {
     'Gols FT Casa':      false,
     'Gols FT Visitante': false,
     'Gols HT':           false,
+    'Gols 2T':           false,
     'Equilíbrio':        false
 };
 
@@ -3364,7 +3365,8 @@ const labelToKeyGolsPlus = {
     'Gols FT':           'golsFT',
     'Gols FT Casa':      'golsFTCasa',
     'Gols FT Visitante': 'golsFTVisitante',
-    'Gols HT':           'golsHT'
+    'Gols HT':           'golsHT',
+    'Gols 2T':           'gols2T'
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -3496,7 +3498,7 @@ const htmlLegendPluginGolsPlus = {
    UTILITÁRIOS
 ═══════════════════════════════════════════════════════ */
 function formatHtResultGols(ht) {
-    if (ht === 'OUT') return 'OUT';
+    if (ht === 'OUT') return 'OUT (3+)';
     if (ht && ht.includes(' x ')) {
         const p = ht.split(' x ');
         if (p.length === 2) return `${p[0]}-${p[1]}`;
@@ -3507,6 +3509,22 @@ function formatHtResultGols(ht) {
 function getKeyFromLabelGolsPlus(label) {
     if (label.includes(' - ')) return labelToKeyGolsPlus[label.split(' - ')[0]];
     return labelToKeyGolsPlus[label];
+}
+
+/**
+ * Parseia o placar HT.
+ * Se for "OUT" (3+ gols), retorna 3 como valor conservador.
+ */
+function parseHtScore(htStr) {
+    if (!htStr) return 0;
+    if (htStr === 'OUT') return 3;
+    if (htStr.includes(' x ')) {
+        const parts = htStr.split(' x ').map(Number);
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            return parts[0] + parts[1];
+        }
+    }
+    return 0;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -3523,7 +3541,7 @@ function processApiDataGolsPlus(data) {
     const sliced = sorted.slice(-numPointsGolsPlus - averagePointsGolsPlus);
     chartDataGolsPlus['Copa'] = sliced;
 
-    const labels = [], golsFT = [], golsFTCasa = [], golsFTVisitante = [], golsHT = [];
+    const labels = [], golsFT = [], golsFTCasa = [], golsFTVisitante = [], golsHT = [], gols2T = [];
 
     const hasGap = (prev, curr) => {
         const pt = new Date(`${prev.data}T${prev.hora}:${prev.minuto}:00`);
@@ -3532,23 +3550,27 @@ function processApiDataGolsPlus(data) {
     };
 
     for (let i = averagePointsGolsPlus; i < sliced.length; i++) {
-        let ftSum = 0, casaSum = 0, visSum = 0, htSum = 0;
+        let ftSum = 0, casaSum = 0, visSum = 0, htSum = 0, stSum = 0;
 
         for (let j = Math.max(0, i - averagePointsGolsPlus); j <= i; j++) {
             const m = sliced[j];
             if (j > 0 && hasGap(sliced[j - 1], m)) {
                 labels.push(`${m.hora}:${m.minuto.toString().padStart(2, '0')}`);
                 golsFT.push(null); golsFTCasa.push(null);
-                golsFTVisitante.push(null); golsHT.push(null);
+                golsFTVisitante.push(null); golsHT.push(null); gols2T.push(null);
                 continue;
             }
-            let ft = [0, 0], ht = [0, 0];
+            let ft = [0, 0];
             if (m.ft && m.ft.includes(' x ')) ft = m.ft.split(' x ').map(Number);
-            if (m.ht && m.ht.includes(' x ')) ht = m.ht.split(' x ').map(Number);
-            ftSum   += ft[0] + ft[1];
+
+            const htTotal = parseHtScore(m.ht);
+            const ftTotal = ft[0] + ft[1];
+
+            ftSum   += ftTotal;
             casaSum += ft[0];
             visSum  += ft[1];
-            htSum   += ht[0] + ht[1];
+            htSum   += htTotal;
+            stSum   += Math.max(0, ftTotal - htTotal); // gols só do 2T
         }
 
         const m = sliced[i];
@@ -3557,13 +3579,14 @@ function processApiDataGolsPlus(data) {
         golsFTCasa.push(casaSum);
         golsFTVisitante.push(visSum);
         golsHT.push(htSum);
+        gols2T.push(stSum);
     }
 
     const validFT = golsFT.filter(v => v !== null);
     const avgFT   = validFT.length ? validFT.reduce((a, b) => a + b, 0) / validFT.length : 0;
     const equilibrio = new Array(labels.length).fill(avgFT);
 
-    return { labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, equilibrio };
+    return { labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, gols2T, equilibrio };
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -3696,8 +3719,8 @@ const linhaAtualPluginGolsPlus = {
 /* ═══════════════════════════════════════════════════════
    PLUGIN: LINHAS ARRASTÁVEIS
 ═══════════════════════════════════════════════════════ */
-const DRAG_KEY_GOLS = 'golsplus:draglines';
-const MAX_DRAG_GOLS = 6;
+const DRAG_KEY_GOLS  = 'golsplus:draglines';
+const MAX_DRAG_GOLS  = 6;
 
 function _loadDragGols() {
     try {
@@ -3873,7 +3896,8 @@ function createStatsChartGolsPlus(ctx, labels, data) {
         { label: 'Gols FT',           color: '#FFFF00', key: 'golsFT' },
         { label: 'Gols FT Casa',      color: '#AB47BC', key: 'golsFTCasa' },
         { label: 'Gols FT Visitante', color: '#2196F3', key: 'golsFTVisitante' },
-        { label: 'Gols HT',           color: '#26A69A', key: 'golsHT' }
+        { label: 'Gols HT',           color: '#26A69A', key: 'golsHT' },
+        { label: 'Gols 2T',           color: '#FF9800', key: 'gols2T' }
     ];
 
     const datasets = [];
