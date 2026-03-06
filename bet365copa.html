@@ -6041,20 +6041,22 @@ function histomacdProcessApiData(data, league) {
         return { labels: [] };
     }
 
+    // Caramelo: mais recente primeiro (todosResultados[0] = mais recente)
     const sortedData = [...data].sort((a, b) => {
         const dateA = new Date(a.data), dateB = new Date(b.data);
-        if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
-        if (a.hora !== b.hora) return a.hora - b.hora;
-        return a.minuto - b.minuto;
+        if (dateA.getTime() !== dateB.getTime()) return dateB - dateA;
+        if (a.hora !== b.hora) return b.hora - a.hora;
+        return b.minuto - a.minuto;
     });
 
     const blockSize   = histomacdAveragePoints;
-    const totalNeeded = (histomacdNumPoints + 2) * blockSize; // blocos suficientes
-    const usados      = sortedData.slice(-totalNeeded);
+    const totalNeeded = (histomacdNumPoints + 2) * blockSize;
+    const usados      = sortedData.slice(0, totalNeeded); // mais recentes primeiro
 
     const totalBlocos = Math.floor(usados.length / blockSize);
     if (totalBlocos < 2) return { labels: [] };
 
+    // blocos[0] = mais recente, blocos[totalBlocos-1] = mais antigo — igual ao Caramelo
     const blocos = [];
     for (let i = 0; i < totalBlocos; i++) {
         blocos.push(usados.slice(i * blockSize, i * blockSize + blockSize));
@@ -6075,40 +6077,41 @@ function histomacdProcessApiData(data, league) {
     const series        = {};
 
     allMarketKeys.forEach(mk => {
-        const blocoMaisRecente = parsed[totalBlocos - 1];
-        const totalCond  = blocoMaisRecente.filter(p =>
+        // pctInicial = bloco mais ANTIGO (blocos[totalBlocos-1]) — igual ao Caramelo
+        const blocoRef   = parsed[totalBlocos - 1];
+        const totalCond  = blocoRef.filter(p =>
             histomacdVerificarCondicao(p.ftHome, p.ftAway, p.st2Home, p.st2Away, mk)
         ).length;
-        const pctInicial = (totalCond / blocoMaisRecente.length) * 100;
-        const pontos     = [pctInicial];
+        const pctInicial = (totalCond / blocoRef.length) * 100;
+        const pontos     = [pctInicial]; // pontos cresce do mais antigo → mais recente
 
+        // Loop exato do Caramelo: b de totalBlocos-2 até 0, i de blockSize-1 até 0
         for (let b = totalBlocos - 2; b >= 0; b--) {
             for (let i = blockSize - 1; i >= 0; i--) {
-                const atualP = parsed[b][i];
-                const refP   = parsed[b + 1][i];
+                const atualP = parsed[b][i];       // bloco mais recente
+                const refP   = parsed[b + 1][i];   // bloco mais antigo (referência)
                 const a = histomacdVerificarCondicao(atualP.ftHome, atualP.ftAway, atualP.st2Home, atualP.st2Away, mk);
                 const r = histomacdVerificarCondicao(refP.ftHome,   refP.ftAway,   refP.st2Home,   refP.st2Away,   mk);
                 let delta = 0;
-                if (a && !r)  delta =  5;
-                if (!a && r)  delta = -5;
+                if (a && !r)       delta =  5;
+                else if (!a && r)  delta = -5;
                 pontos.push(pontos[pontos.length - 1] + delta);
             }
         }
-
-        series[mk] = pontos.reverse();
+        // pontos[0] = mais antigo, pontos[N] = mais recente
+        series[mk] = pontos;
     });
 
-    // Labels: horário de cada ponto (do mais antigo ao mais recente)
-    const labelsRaw = [];
-    const blocoMaisRecente = blocos[totalBlocos - 1];
-    labelsRaw.push(`${blocoMaisRecente[blocoMaisRecente.length - 1].hora}:${String(blocoMaisRecente[blocoMaisRecente.length - 1].minuto).padStart(2,'0')}`);
+    // Labels: do mais antigo ao mais recente — igual ao Caramelo
+    const labels = [];
+    const blocoMaisAntigo = blocos[totalBlocos - 1];
+    labels.push(`${blocoMaisAntigo[blocoMaisAntigo.length - 1].hora}:${String(blocoMaisAntigo[blocoMaisAntigo.length - 1].minuto).padStart(2,'0')}`);
     for (let b = totalBlocos - 2; b >= 0; b--) {
         for (let i = blockSize - 1; i >= 0; i--) {
             const m = blocos[b][i];
-            labelsRaw.push(`${m.hora}:${String(m.minuto).padStart(2,'0')}`);
+            labels.push(`${m.hora}:${String(m.minuto).padStart(2,'0')}`);
         }
     }
-    const labels = labelsRaw.reverse();
 
     // Corta para exibir apenas histomacdNumPoints pontos
     const cut = labels.length - histomacdNumPoints;
