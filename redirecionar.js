@@ -6,6 +6,7 @@ function redirecionar(select) {
     url === "https://t.me/betstatsite" ||
     url === "https://t.me/ProPlayerFut" ||
     url === "https://t.me/+DlBr7IVFBk0yZTRh" ||
+    url === "https://t.me/+JvrAVLNVlIVkNTYx" ||
     url === "https://t.me/+v8-Zj8xsnec0ZGMx" ||
     url === "https://t.me/+BxTdgAR89hAxMDAx" ||
     url === "https://t.me/tip_zera" ||
