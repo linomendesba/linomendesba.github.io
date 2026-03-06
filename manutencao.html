@@ -5808,7 +5808,62 @@ loadNextGamesForMinutes();
 
 
     <script>
-// ─── Mapeamento: valor do select → chave interna ───────────────────────────
+const HISTOMACD_DATA_URL = 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20Eterna';
+
+// ─── Configurações salvas no localStorage ─────────────────────────────────
+function histomacdSaveSettings() {
+    const settings = {
+        selectedMarket: histomacdSelectedMarket,
+        numPoints: histomacdNumPoints,
+        averagePoints: histomacdAveragePoints,
+        macdFast: histomacdMacdFast,
+        macdSlow: histomacdMacdSlow,
+        macdSignal: histomacdMacdSignal,
+        rsiPeriod: histomacdRsiPeriod,
+        showRSI: histomacdShowRSI
+    };
+    localStorage.setItem('histomacdChartSettings', JSON.stringify(settings));
+}
+
+function histomacdLoadSettings() {
+    const saved = localStorage.getItem('histomacdChartSettings');
+    if (saved) {
+        const settings = JSON.parse(saved);
+        histomacdSelectedMarket = settings.selectedMarket || 'ambasMarcam';
+        histomacdNumPoints      = settings.numPoints      || 20;
+        histomacdAveragePoints  = settings.averagePoints  || 19;
+        histomacdMacdFast       = settings.macdFast       || 12;
+        histomacdMacdSlow       = settings.macdSlow       || 26;
+        histomacdMacdSignal     = settings.macdSignal     || 9;
+        histomacdRsiPeriod      = settings.rsiPeriod      || 14;
+        histomacdShowRSI        = settings.showRSI !== undefined ? settings.showRSI : true;
+
+        document.getElementById('histomacdMarketSelector').value  = histomacdSelectedMarket;
+        document.getElementById('histomacdPointsSelector').value  = histomacdNumPoints;
+        document.getElementById('histomacdAverageSelector').value = histomacdAveragePoints;
+        document.getElementById('histomacdMacdFast').value        = histomacdMacdFast;
+        document.getElementById('histomacdMacdSlow').value        = histomacdMacdSlow;
+        document.getElementById('histomacdMacdSignal').value      = histomacdMacdSignal;
+        document.getElementById('histomacdRsiPeriod').value       = histomacdRsiPeriod;
+        document.getElementById('histomacdShowRSI').checked       = histomacdShowRSI;
+    }
+}
+
+// ─── Variáveis globais ─────────────────────────────────────────────────────
+let histomacdNumPoints      = 20;
+let histomacdAveragePoints  = 19;
+const histomacdLeagues      = ['Copa'];
+let histomacdChartData      = {};
+let histomacdProcessedChartData = {};
+let histomacdMacdFast       = 12;
+let histomacdMacdSlow       = 26;
+let histomacdMacdSignal     = 9;
+let histomacdRsiPeriod      = 14;
+let histomacdShowRSI        = true;
+let histomacdIndicatorCharts = {};
+let histomacdSelectedMarket = 'ambasMarcam';
+
+// ─── Mapeamento: valor do select → chave interna ──────────────────────────
 const histomacdMarketKeys = {
     // Ambas Marcam
     ambasMarcam:    'ambasSim',
@@ -5861,9 +5916,9 @@ const histomacdMarketKeys = {
     fora4Gols: 'fora4',
 };
 
-// ─── Mapeamento: label da API → chave interna ──────────────────────────────
+// ─── Mapeamento: label legível → chave interna ────────────────────────────
 const histomacdLabelToKey = {
-    'Gols FT':         'golsFT',
+    'Gols FT':    'golsFT',
 
     // Resultado
     'Casa Vence': 'casaVence',
@@ -5888,12 +5943,12 @@ const histomacdLabelToKey = {
     'Under 3.5': 'under35',
 
     // Gols Exatos FT
-    '0 Gol Exato':    'gol0',
-    '1 Gol Exato':    'gol1',
-    '2 Gols Exatos':  'gol2',
-    '3 Gols Exatos':  'gol3',
-    '4 Gols Exatos':  'gol4',
-    '5+ Gols':        'gol5',
+    '0 Gol Exato':   'gol0',
+    '1 Gol Exato':   'gol1',
+    '2 Gols Exatos': 'gol2',
+    '3 Gols Exatos': 'gol3',
+    '4 Gols Exatos': 'gol4',
+    '5+ Gols':       'gol5',
 
     // Gols Exatos 2º Tempo
     '0 gol / 2° tempo':  'gol2t0',
@@ -5917,14 +5972,122 @@ const histomacdLabelToKey = {
     'Fora 4 Gols': 'fora4',
 };
 
-// ─── Inverso: chave interna → label legível ────────────────────────────────
+// ─── Inverso: chave interna → label legível ───────────────────────────────
 const histomacdKeyToLabel = {};
 Object.entries(histomacdLabelToKey).forEach(([label, key]) => {
     histomacdKeyToLabel[key] = label;
 });
 
+// ─── Utilitários ──────────────────────────────────────────────────────────
+function histomacdFillGaps(data) {
+    let filled = [...data];
+    let last = null;
+    for (let i = 0; i < filled.length; i++) {
+        if (filled[i] !== null && filled[i] !== undefined) {
+            last = filled[i];
+        } else if (last !== null) {
+            filled[i] = last;
+        }
+    }
+    if (last === null) {
+        for (let i = filled.length - 1; i >= 0; i--) {
+            if (filled[i] !== null && filled[i] !== undefined) {
+                last = filled[i];
+            } else if (last !== null) {
+                filled[i] = last;
+            }
+        }
+    } else {
+        for (let i = 0; i < filled.length; i++) {
+            if (filled[i] === null || filled[i] === undefined) filled[i] = last;
+            else break;
+        }
+    }
+    return filled;
+}
 
-// ─── processApiData — inclui todos os novos arrays ─────────────────────────
+function histomacdFillInitial(array) {
+    let first = array.find(v => v !== null && v !== undefined);
+    if (first !== undefined) {
+        for (let i = 0; i < array.length; i++) {
+            if (array[i] === null || array[i] === undefined) array[i] = first;
+            else break;
+        }
+    }
+    return array;
+}
+
+// ─── Indicadores técnicos ─────────────────────────────────────────────────
+function histomacdCalculateEMA(data, period) {
+    const k = 2 / (period + 1);
+    let ema = new Array(data.length).fill(null);
+    let sum = 0;
+    let count = 0;
+    for (let i = 0; i < data.length; i++) {
+        if (data[i] === null || data[i] === undefined) continue;
+        sum += data[i];
+        count++;
+        if (count >= 1) {
+            ema[i] = sum / count;
+            if (count >= period) break;
+        }
+    }
+    for (let i = 0; i < data.length; i++) {
+        if (ema[i] !== null) {
+            for (let j = i + 1; j < data.length; j++) {
+                if (data[j] !== null && data[j] !== undefined) {
+                    ema[j] = (data[j] * k) + (ema[j - 1] * (1 - k));
+                } else {
+                    ema[j] = ema[j - 1];
+                }
+            }
+            break;
+        }
+    }
+    return histomacdFillInitial(ema);
+}
+
+function histomacdCalculateMACD(data, fast, slow, signal) {
+    const emaFast = histomacdCalculateEMA(data, fast);
+    const emaSlow = histomacdCalculateEMA(data, slow);
+    let macdLine = data.map((d, i) =>
+        (emaFast[i] !== null && emaSlow[i] !== null ? emaFast[i] - emaSlow[i] : null)
+    );
+    macdLine = histomacdFillInitial(macdLine);
+    const emaSignal = histomacdCalculateEMA(macdLine, signal);
+    let histogram = data.map((d, i) =>
+        (macdLine[i] !== null && emaSignal[i] !== null ? macdLine[i] - emaSignal[i] : null)
+    );
+    histogram = histomacdFillInitial(histogram);
+    return { macdLine, emaSignal, histogram };
+}
+
+function histomacdCalculateRSI(data, period) {
+    let rsi = new Array(data.length).fill(null);
+    let gains = [];
+    let losses = [];
+
+    for (let i = 1; i < data.length; i++) {
+        if (data[i] === null || data[i - 1] === null) continue;
+        const change = data[i] - data[i - 1];
+        gains.push(change > 0 ? change : 0);
+        losses.push(change < 0 ? -change : 0);
+
+        if (gains.length >= period) {
+            const avgGain = gains.slice(-period).reduce((a, b) => a + b, 0) / period;
+            const avgLoss = losses.slice(-period).reduce((a, b) => a + b, 0) / period;
+            if (avgLoss === 0) {
+                rsi[i] = 100;
+            } else {
+                const rs = avgGain / avgLoss;
+                rsi[i] = 100 - (100 / (1 + rs));
+            }
+        }
+    }
+    return histomacdFillInitial(rsi);
+}
+
+// ─── Processamento dos dados da API ───────────────────────────────────────
 function histomacdProcessApiData(data, league) {
     if (!data || !Array.isArray(data)) {
         console.error(`Dados inválidos para ${league}:`, data);
@@ -5943,39 +6106,24 @@ function histomacdProcessApiData(data, league) {
     const slicedData = sortedData.slice(-(histomacdNumPoints + histomacdAveragePoints + extra));
     histomacdChartData[league] = slicedData;
 
-    // ── arrays de série temporal ──
+    // Arrays de série temporal
     let labels = [];
-
-    // Ambas
     let ambasSim = [], ambasNao = [];
-
-    // Resultado
     let casaVence = [], empate = [], foraVence = [];
-
-    // Over / Under
     let over05 = [], over15 = [], over25 = [], over35 = [], over45 = [];
     let under05 = [], under15 = [], under25 = [], under35 = [];
-
-    // Gols Exatos FT
     let gol0 = [], gol1 = [], gol2 = [], gol3 = [], gol4 = [];
-
-    // Gols Exatos 2º Tempo
     let gol2t0 = [], gol2t1 = [], gol2t2 = [], gol2t3 = [], gol2t4 = [];
-
-    // Gols Casa
     let casa0 = [], casa1 = [], casa2 = [], casa3 = [], casa4 = [];
-
-    // Gols Fora
     let fora0 = [], fora1 = [], fora2 = [], fora3 = [], fora4 = [];
 
     function hasGap(prevMatch, currMatch) {
-        const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + String(prevMatch.minuto).padStart(2,'0') + ':00');
-        const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + String(currMatch.minuto).padStart(2,'0') + ':00');
+        const prevTime = new Date(prevMatch.data + 'T' + prevMatch.hora + ':' + String(prevMatch.minuto).padStart(2, '0') + ':00');
+        const currTime = new Date(currMatch.data + 'T' + currMatch.hora + ':' + String(currMatch.minuto).padStart(2, '0') + ':00');
         return (currTime - prevTime) / (1000 * 60) > 1;
     }
 
     for (let i = histomacdAveragePoints; i < slicedData.length; i++) {
-        // Acumuladores
         let sAmbasSim=0, sAmbasNao=0;
         let sCasaVence=0, sEmpate=0, sForaVence=0;
         let sOver05=0, sOver15=0, sOver25=0, sOver35=0, sOver45=0;
@@ -5989,7 +6137,7 @@ function histomacdProcessApiData(data, league) {
         for (let j = Math.max(0, i - histomacdAveragePoints); j <= i; j++) {
             const match = slicedData[j];
 
-            // ── Placar FT ──
+            // Placar FT
             let ftParts = [0, 0];
             if (match.ft && match.ft.includes(' x ')) {
                 ftParts = match.ft.split(' x ').map(n => parseInt(n, 10));
@@ -5997,13 +6145,14 @@ function histomacdProcessApiData(data, league) {
             const [ftHome, ftAway] = ftParts;
             const totalFT = ftHome + ftAway;
 
-            // ── Placar 2T ──
-            let stParts = [0, 0];
-            if (match.st && match.st.includes(' x ')) {
-                stParts = match.st.split(' x ').map(n => parseInt(n, 10));
+            // Placar 2T = FT - HT
+            let htParts = [0, 0];
+            if (match.ht && match.ht.includes(' x ')) {
+                htParts = match.ht.split(' x ').map(n => parseInt(n, 10));
             }
-            const [stHome, stAway] = stParts;
-            const total2T = stHome + stAway;
+            const st2Home = ftHome - htParts[0];
+            const st2Away = ftAway - htParts[1];
+            const total2T = st2Home + st2Away;
 
             // Ambas
             sAmbasSim += ftHome > 0 && ftAway > 0 ? 1 : 0;
@@ -6022,7 +6171,7 @@ function histomacdProcessApiData(data, league) {
             sOver45 += totalFT > 4.5 ? 1 : 0;
 
             // Under
-            sUnder05 += totalFT < 0.5 ? 1 : 0;  // equivale a 0 gols
+            sUnder05 += totalFT < 0.5 ? 1 : 0;
             sUnder15 += totalFT < 1.5 ? 1 : 0;
             sUnder25 += totalFT < 2.5 ? 1 : 0;
             sUnder35 += totalFT < 3.5 ? 1 : 0;
@@ -6034,7 +6183,7 @@ function histomacdProcessApiData(data, league) {
             sGol3 += totalFT === 3 ? 1 : 0;
             sGol4 += totalFT === 4 ? 1 : 0;
 
-            // Gols Exatos 2T  (usa campo match.st → "X x Y")
+            // Gols Exatos 2T
             sGol2t0 += total2T === 0 ? 1 : 0;
             sGol2t1 += total2T === 1 ? 1 : 0;
             sGol2t2 += total2T === 2 ? 1 : 0;
@@ -6078,10 +6227,10 @@ function histomacdProcessApiData(data, league) {
         const avg = validMatches || 1;
         const pct = n => (n / avg) * 100;
 
-        ambasSim.push(pct(sAmbasSim));   ambasNao.push(pct(sAmbasNao));
-        casaVence.push(pct(sCasaVence)); empate.push(pct(sEmpate));   foraVence.push(pct(sForaVence));
-        over05.push(pct(sOver05));  over15.push(pct(sOver15));  over25.push(pct(sOver25));
-        over35.push(pct(sOver35));  over45.push(pct(sOver45));
+        ambasSim.push(pct(sAmbasSim));    ambasNao.push(pct(sAmbasNao));
+        casaVence.push(pct(sCasaVence));  empate.push(pct(sEmpate));    foraVence.push(pct(sForaVence));
+        over05.push(pct(sOver05));   over15.push(pct(sOver15));   over25.push(pct(sOver25));
+        over35.push(pct(sOver35));   over45.push(pct(sOver45));
         under05.push(pct(sUnder05)); under15.push(pct(sUnder15)); under25.push(pct(sUnder25)); under35.push(pct(sUnder35));
         gol0.push(pct(sGol0)); gol1.push(pct(sGol1)); gol2.push(pct(sGol2)); gol3.push(pct(sGol3)); gol4.push(pct(sGol4));
         gol2t0.push(pct(sGol2t0)); gol2t1.push(pct(sGol2t1)); gol2t2.push(pct(sGol2t2)); gol2t3.push(pct(sGol2t3)); gol2t4.push(pct(sGol2t4));
@@ -6115,6 +6264,360 @@ function histomacdProcessApiData(data, league) {
 
     return result;
 }
+
+// ─── Obter dados de indicadores para um mercado ───────────────────────────
+function histomacdGetIndicatorData(league, market) {
+    if (!histomacdProcessedChartData[league]) {
+        console.warn(`Dados processados não disponíveis para ${league}`);
+        return { macdLine: [], emaSignal: [], histogram: [], rsi: [] };
+    }
+
+    const marketKey = histomacdMarketKeys[market] || 'ambasSim';
+    const data = histomacdProcessedChartData[league][marketKey] || [];
+    const filledData = histomacdFillGaps(data);
+    const macd = histomacdCalculateMACD(filledData, histomacdMacdFast, histomacdMacdSlow, histomacdMacdSignal);
+    const rsi  = histomacdCalculateRSI(filledData, histomacdRsiPeriod);
+
+    return { ...macd, rsi };
+}
+
+// ─── Criar gráfico de indicadores ─────────────────────────────────────────
+function histomacdCreateIndicatorChart(ctx, labels, indicatorData, league) {
+    if (!ctx) {
+        console.error(`Contexto do canvas para indicadores de ${league} é inválido`);
+        return null;
+    }
+
+    const marketKey   = histomacdMarketKeys[histomacdSelectedMarket] || 'ambasSim';
+    const marketLabel = histomacdKeyToLabel[marketKey] || 'Ambas Sim';
+
+    const datasets = [
+        {
+            label: 'Linha MACD',
+            data: indicatorData.macdLine || [],
+            borderColor: '#00BFFF',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            pointRadius: 0,
+            yAxisID: 'y-macd',
+            fill: false
+        },
+        {
+            label: 'Sinal MACD',
+            data: indicatorData.emaSignal || [],
+            borderColor: '#FFA500',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            pointRadius: 0,
+            yAxisID: 'y-macd',
+            fill: false
+        },
+        {
+            label: `Histograma MACD (${marketLabel})`,
+            data: indicatorData.histogram || [],
+            type: 'bar',
+            backgroundColor: (indicatorData.histogram || []).map(val =>
+                val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'
+            ),
+            yAxisID: 'y-macd'
+        }
+    ];
+
+    if (histomacdShowRSI) {
+        datasets.push({
+            label: 'RSI',
+            data: indicatorData.rsi || [],
+            borderColor: '#9C27B0',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            pointRadius: 0,
+            yAxisID: 'y-rsi',
+            fill: false
+        });
+    }
+
+    const scales = {
+        x: {
+            ticks: { color: '#aaa', maxRotation: 45, minRotation: 45 },
+            grid:  { color: '#222' }
+        },
+        'y-macd': {
+            type: 'linear',
+            position: 'left',
+            ticks: { color: '#aaa' },
+            grid:  { color: '#222' }
+        }
+    };
+
+    if (histomacdShowRSI) {
+        scales['y-rsi'] = {
+            type: 'linear',
+            position: 'right',
+            min: 0,
+            max: 100,
+            title: {
+                display: true,
+                text: 'RSI',
+                color: '#9C27B0',
+                font: { size: 12, weight: 'bold' }
+            },
+            ticks: {
+                color: '#aaa',
+                callback: function(value) { return value; }
+            },
+            grid: { color: '#222', drawBorder: true }
+        };
+    }
+
+    try {
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels || [],
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: scales,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: '#fff', padding: 10, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#1fad8b',
+                        bodyColor: '#e0e0e0',
+                        borderColor: '#1fad8b',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: true,
+                        callbacks: {
+                            title: function(context) {
+                                return 'Horário: ' + context[0].label;
+                            },
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(2);
+                                    if (context.dataset.yAxisID === 'y-rsi') {
+                                        if (context.parsed.y > 70) label += ' (Sobrecompra)';
+                                        else if (context.parsed.y < 30) label += ' (Sobrevenda)';
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error(`Erro ao criar gráfico de indicadores para ${league}:`, error);
+        return null;
+    }
+}
+
+// ─── Atualizar gráfico de indicadores ────────────────────────────────────
+function histomacdUpdateIndicatorChart(league) {
+    if (!histomacdIndicatorCharts[league]) {
+        console.warn(`Gráfico de indicadores não inicializado para ${league}`);
+        return;
+    }
+
+    const indicatorData = histomacdGetIndicatorData(league, histomacdSelectedMarket);
+    const marketKey     = histomacdMarketKeys[histomacdSelectedMarket] || 'ambasSim';
+    const marketLabel   = histomacdKeyToLabel[marketKey] || 'Ambas Sim';
+
+    histomacdIndicatorCharts[league].data.labels                   = histomacdProcessedChartData[league]?.labels || [];
+    histomacdIndicatorCharts[league].data.datasets[0].data         = indicatorData.macdLine || [];
+    histomacdIndicatorCharts[league].data.datasets[1].data         = indicatorData.emaSignal || [];
+    histomacdIndicatorCharts[league].data.datasets[2].data         = indicatorData.histogram || [];
+    histomacdIndicatorCharts[league].data.datasets[2].backgroundColor = (indicatorData.histogram || []).map(val =>
+        val >= 0 ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)'
+    );
+    histomacdIndicatorCharts[league].data.datasets[2].label = `Histograma MACD (${marketLabel})`;
+
+    if (histomacdShowRSI) {
+        if (histomacdIndicatorCharts[league].data.datasets.length === 3) {
+            histomacdIndicatorCharts[league].data.datasets.push({
+                label: 'RSI',
+                data: indicatorData.rsi || [],
+                borderColor: '#9C27B0',
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                pointRadius: 0,
+                yAxisID: 'y-rsi',
+                fill: false
+            });
+        } else {
+            histomacdIndicatorCharts[league].data.datasets[3].data = indicatorData.rsi || [];
+        }
+
+        if (!histomacdIndicatorCharts[league].options.scales['y-rsi']) {
+            histomacdIndicatorCharts[league].options.scales['y-rsi'] = {
+                type: 'linear',
+                position: 'right',
+                min: 0,
+                max: 100,
+                title: {
+                    display: true,
+                    text: 'RSI',
+                    color: '#9C27B0',
+                    font: { size: 12, weight: 'bold' }
+                },
+                ticks: {
+                    color: '#aaa',
+                    callback: function(value) { return value; }
+                },
+                grid: { color: '#222', drawBorder: true }
+            };
+        }
+    } else {
+        if (histomacdIndicatorCharts[league].data.datasets.length > 3) {
+            histomacdIndicatorCharts[league].data.datasets.splice(3, 1);
+        }
+        if (histomacdIndicatorCharts[league].options.scales['y-rsi']) {
+            delete histomacdIndicatorCharts[league].options.scales['y-rsi'];
+        }
+    }
+
+    histomacdIndicatorCharts[league].options.scales['y-macd'].title = {
+        display: true,
+        text: `MACD (${marketLabel})`
+    };
+    histomacdIndicatorCharts[league].update('none');
+    console.log(`Gráfico de indicadores atualizado para ${league} com mercado ${marketLabel}`);
+}
+
+// ─── Buscar dados e atualizar gráficos ────────────────────────────────────
+function histomacdUpdateCharts() {
+    const timestamp = new Date().getTime();
+    const apiUrl = `${HISTOMACD_DATA_URL}?timestamp=${timestamp}`;
+    console.log(`Buscando dados em: ${apiUrl}`);
+
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            console.log(`Dados recebidos:`, data);
+            const league = 'Copa';
+            const processedData = histomacdProcessApiData(data, league);
+            const indicatorCanvas = document.getElementById('histomacdIndicators');
+
+            if (!indicatorCanvas) {
+                console.error(`Canvas não encontrado: histomacdIndicators`);
+                return;
+            }
+
+            if (!histomacdIndicatorCharts[league]) {
+                const indicatorCtx  = indicatorCanvas.getContext('2d');
+                const indicatorData = histomacdGetIndicatorData(league, histomacdSelectedMarket);
+                histomacdIndicatorCharts[league] = histomacdCreateIndicatorChart(
+                    indicatorCtx, processedData.labels, indicatorData, league
+                );
+                if (!histomacdIndicatorCharts[league]) {
+                    console.error(`Falha ao criar gráfico de indicadores para ${league}`);
+                    return;
+                }
+                console.log(`Gráfico criado para ${league}`);
+            } else {
+                histomacdUpdateIndicatorChart(league);
+                console.log(`Gráfico atualizado para ${league}`);
+            }
+        })
+        .catch(error => {
+            console.error(`Erro ao buscar dados:`, error);
+        });
+}
+
+// ─── Inicialização e eventos ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    histomacdLoadSettings();
+
+    const marketSelector = document.getElementById('histomacdMarketSelector');
+    if (marketSelector) {
+        marketSelector.addEventListener('change', function(event) {
+            histomacdSelectedMarket = event.target.value;
+            histomacdSaveSettings();
+            console.log(`Mercado selecionado: ${histomacdSelectedMarket}`);
+            histomacdLeagues.forEach(league => histomacdUpdateIndicatorChart(league));
+        });
+    }
+
+    const macdFastInput = document.getElementById('histomacdMacdFast');
+    if (macdFastInput) {
+        macdFastInput.addEventListener('change', function(event) {
+            histomacdMacdFast = parseInt(event.target.value, 10);
+            histomacdSaveSettings();
+            histomacdLeagues.forEach(league => histomacdUpdateIndicatorChart(league));
+        });
+    }
+
+    const macdSlowInput = document.getElementById('histomacdMacdSlow');
+    if (macdSlowInput) {
+        macdSlowInput.addEventListener('change', function(event) {
+            histomacdMacdSlow = parseInt(event.target.value, 10);
+            histomacdSaveSettings();
+            histomacdLeagues.forEach(league => histomacdUpdateIndicatorChart(league));
+        });
+    }
+
+    const macdSignalInput = document.getElementById('histomacdMacdSignal');
+    if (macdSignalInput) {
+        macdSignalInput.addEventListener('change', function(event) {
+            histomacdMacdSignal = parseInt(event.target.value, 10);
+            histomacdSaveSettings();
+            histomacdLeagues.forEach(league => histomacdUpdateIndicatorChart(league));
+        });
+    }
+
+    const rsiPeriodInput = document.getElementById('histomacdRsiPeriod');
+    if (rsiPeriodInput) {
+        rsiPeriodInput.addEventListener('change', function(event) {
+            histomacdRsiPeriod = parseInt(event.target.value, 10);
+            histomacdSaveSettings();
+            histomacdLeagues.forEach(league => histomacdUpdateIndicatorChart(league));
+        });
+    }
+
+    const showRSICheckbox = document.getElementById('histomacdShowRSI');
+    if (showRSICheckbox) {
+        showRSICheckbox.addEventListener('change', function(event) {
+            histomacdShowRSI = event.target.checked;
+            histomacdSaveSettings();
+            console.log(`RSI ${histomacdShowRSI ? 'ativado' : 'desativado'}`);
+            histomacdLeagues.forEach(league => histomacdUpdateIndicatorChart(league));
+        });
+    }
+
+    const pointsSelector = document.getElementById('histomacdPointsSelector');
+    if (pointsSelector) {
+        pointsSelector.addEventListener('change', function(event) {
+            histomacdNumPoints = parseInt(event.target.value, 10);
+            histomacdSaveSettings();
+            histomacdUpdateCharts();
+        });
+    }
+
+    const averageSelector = document.getElementById('histomacdAverageSelector');
+    if (averageSelector) {
+        averageSelector.addEventListener('change', function(event) {
+            histomacdAveragePoints = parseInt(event.target.value, 10);
+            histomacdSaveSettings();
+            histomacdUpdateCharts();
+        });
+    }
+
+    histomacdUpdateCharts();
+});
+
+setInterval(histomacdUpdateCharts, 3000);
     </script>
 
         <script src="marcador.js"></script>
