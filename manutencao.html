@@ -1885,12 +1885,6 @@ const labelToKey = {
 
 /* ═══════════════════════════════════════════════════════════════════
    PLUGIN: LEGENDA HTML CUSTOMIZADA
-   Estrutura HTML alvo:
-     .chart-container
-       ← #legenda-customizada  (inserido aqui, acima do canvas-wrapper)
-       .canvas-wrapper
-         canvas#Copa
-       .control-panel
 ═══════════════════════════════════════════════════════════════════ */
 let _legendRebuilding = false;
 
@@ -1898,7 +1892,6 @@ const htmlLegendPlugin = {
     id: 'htmlLegend',
 
     beforeInit(chart) {
-        // Injeta CSS uma única vez
         if (!document.getElementById('html-legend-style')) {
             const style = document.createElement('style');
             style.id = 'html-legend-style';
@@ -1922,7 +1915,7 @@ const htmlLegendPlugin = {
                     color: #e0e0e0;
                     background: rgba(255,255,255,0.06);
                     border: 1px solid rgba(255,255,255,0.10);
-                    transition: background 0.15s, opacity 0.15s, border-color 0.15s;
+                    transition: background 0.2s, opacity 0.2s, border-color 0.2s;
                     white-space: nowrap;
                 }
                 .leg-item:hover {
@@ -1934,6 +1927,12 @@ const htmlLegendPlugin = {
                     text-decoration: line-through;
                     background: rgba(255,255,255,0.02);
                     border-color: transparent;
+                    transition: background 0.2s, opacity 0.2s, border-color 0.2s;
+                }
+                .leg-item.leg-hidden:hover {
+                    opacity: 0.65;
+                    background: rgba(255,255,255,0.09);
+                    border-color: rgba(255,255,255,0.20);
                 }
                 .leg-dot {
                     width: 9px;
@@ -1947,23 +1946,18 @@ const htmlLegendPlugin = {
             document.head.appendChild(style);
         }
 
-        // Cria o container apenas uma vez e insere ANTES de .canvas-wrapper
-        // dentro de .chart-container — assim os controles abaixo não se movem
         if (!document.getElementById('legenda-customizada')) {
             const container = document.createElement('div');
             container.id = 'legenda-customizada';
 
-            // canvas → .canvas-wrapper → .chart-container
             const canvasWrapper = chart.canvas.closest('.canvas-wrapper');
             const chartContainer = canvasWrapper ? canvasWrapper.parentNode : chart.canvas.parentNode.parentNode;
 
-            // Insere antes do .canvas-wrapper (topo do .chart-container)
             chartContainer.insertBefore(container, chartContainer.firstChild);
         }
     },
 
     afterUpdate(chart) {
-        // Não reconstrói durante updates disparados pelos toggles/controls
         if (_legendRebuilding) return;
 
         const container = document.getElementById('legenda-customizada');
@@ -1973,7 +1967,6 @@ const htmlLegendPlugin = {
             .generateLabels(chart)
             .filter(item => !item.text.includes(' MA'));
 
-        // Só atualiza o estado hidden se estrutura já existe
         if (container.children.length === items.length) {
             Array.from(container.children).forEach((el, i) => {
                 el.classList.toggle('leg-hidden', items[i].hidden);
@@ -1981,7 +1974,6 @@ const htmlLegendPlugin = {
             return;
         }
 
-        // Constrói os pills pela primeira vez
         container.innerHTML = '';
         items.forEach(item => {
             const pill = document.createElement('div');
@@ -2445,7 +2437,10 @@ function createStatsChart(ctx, labels, data, league) {
             borderColor:cfg.color,backgroundColor:cfg.color,
             pointBackgroundColor:data[cfg.key+'Colors'],
             pointBorderColor:'rgba(0,0,0,0)',pointBorderWidth:0,
-            borderWidth:2,pointRadius:4,fill:false,
+            borderWidth:2,
+            pointRadius:2.5,         // ← bolinhas menores
+            pointHoverRadius:5,      // ← hover um pouco maior para feedback
+            fill:false,
             hidden:!statsChartVisibleDatasets[cfg.label]
         });
         datasets.push({label:cfg.label+' - Short MA',data:data[cfg.key+'Short'],borderColor:shortColor,backgroundColor:'transparent',tension:0.3,borderWidth:2,pointRadius:0,fill:false,borderDash:[5,5],hidden:!showMovingAverages||!statsChartVisibleDatasets[cfg.label]});
@@ -2461,7 +2456,7 @@ function createStatsChart(ctx, labels, data, league) {
             layout:{padding:{top:30,right:80}},
             plugins:{
                 legend:{
-                    display:false, // legenda nativa oculta — htmlLegendPlugin cuida disso
+                    display:false,
                     labels:{
                         color:'#e0e0e0',font:{size:12},
                         filter:item=>!item.text.includes(' MA'),
@@ -2538,7 +2533,6 @@ document.getElementById('averageSelector').addEventListener('change',e=>{average
 document.getElementById('fibonacciToggle').addEventListener('change',toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change',toggleMovingAverages);
 
-// ── Linha Atual: flag evita bug do "2 cliques" ──────────────────────
 document.getElementById('linhaAtualToggle').addEventListener('change',function(){
     _legendRebuilding=true;
     leagues.forEach(l=>{
