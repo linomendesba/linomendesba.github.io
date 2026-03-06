@@ -6050,8 +6050,9 @@ function histomacdProcessApiData(data, league) {
     });
 
     const blockSize   = histomacdAveragePoints;
-    const totalNeeded = (histomacdNumPoints + 2) * blockSize;
-    const usados      = sortedData.slice(0, totalNeeded); // mais recentes primeiro
+    // Usa o máximo disponível (igual ao Caramelo que usa até 420 jogos)
+    // Quanto mais jogos, mais preciso o MACD porque calcula em cima da série completa
+    const usados      = sortedData.slice(0, 420);
 
     const totalBlocos = Math.floor(usados.length / blockSize);
     if (totalBlocos < 2) return { labels: [] };
@@ -6113,7 +6114,11 @@ function histomacdProcessApiData(data, league) {
         }
     }
 
-    // Corta para exibir apenas histomacdNumPoints pontos
+    // Guarda a série COMPLETA para o MACD ser calculado em cima de tudo (igual ao Caramelo)
+    const fullSeries = {};
+    allMarketKeys.forEach(mk => { fullSeries[mk] = [...series[mk]]; });
+
+    // Corta para exibir apenas histomacdNumPoints pontos nas labels e séries de exibição
     const cut = labels.length - histomacdNumPoints;
     if (cut > 0) {
         allMarketKeys.forEach(mk => { series[mk] = series[mk].slice(cut); });
@@ -6121,6 +6126,7 @@ function histomacdProcessApiData(data, league) {
     }
 
     series.labels = labels;
+    series._full  = fullSeries; // série completa para cálculo do MACD
 
     histomacdProcessedChartData[league] = series;
     histomacdChartData[league]          = usados;
@@ -6129,18 +6135,31 @@ function histomacdProcessApiData(data, league) {
 }
 
 // ─── Obter dados de indicadores para um mercado ───────────────────────────
+// IMPORTANTE: o MACD é calculado em cima da série COMPLETA (igual ao Caramelo),
+// depois os arrays são cortados para o tamanho de exibição.
 function histomacdGetIndicatorData(league, market) {
     if (!histomacdProcessedChartData[league]) {
         console.warn(`Dados processados não disponíveis para ${league}`);
         return { macdLine: [], emaSignal: [], histogram: [], rsi: [] };
     }
-    const marketKey = histomacdMarketKeys[market] || 'ambasSim';
-    const data      = histomacdProcessedChartData[league][marketKey] || [];
-    if (data.length === 0) return { macdLine: [], emaSignal: [], histogram: [], rsi: [] };
+    const marketKey  = histomacdMarketKeys[market] || 'ambasSim';
+    const fullSeries = histomacdProcessedChartData[league]._full?.[marketKey] || [];
+    if (fullSeries.length === 0) return { macdLine: [], emaSignal: [], histogram: [], rsi: [] };
 
-    const macd = histomacdCalculateMACD(data, histomacdMacdFast, histomacdMacdSlow, histomacdMacdSignal);
-    const rsi  = histomacdCalculateRSI(data, histomacdRsiPeriod);
-    return { ...macd, rsi };
+    // Calcula em cima da série completa
+    const macd = histomacdCalculateMACD(fullSeries, histomacdMacdFast, histomacdMacdSlow, histomacdMacdSignal);
+    const rsi  = histomacdCalculateRSI(fullSeries, histomacdRsiPeriod);
+
+    // Corta para exibir apenas os últimos histomacdNumPoints pontos
+    const cut = fullSeries.length - histomacdNumPoints;
+    const sliceFn = arr => cut > 0 ? arr.slice(cut) : arr;
+
+    return {
+        macdLine:  sliceFn(macd.macdLine),
+        emaSignal: sliceFn(macd.emaSignal),
+        histogram: sliceFn(macd.histogram),
+        rsi:       sliceFn(rsi)
+    };
 }
 
 // ─── Cor do histograma: mais intenso quando acelera, mais fraco quando desacelera ──
