@@ -3329,110 +3329,105 @@ let lastResults = [];
 
     <script>
 /* ═══════════════════════════════════════════════════════
-   GOLS PLUS — VARIÁVEIS GLOBAIS
+   GOLS BARRA — VARIÁVEIS GLOBAIS
 ═══════════════════════════════════════════════════════ */
-let golsPlusChart;
-let numPointsGolsPlus     = 20;
-let averagePointsGolsPlus = 19;
-let showFibonacciLinesGolsPlus = false;
-let chartDataGolsPlus = {};
-
-const statsChartVisibleDatasetsGolsPlus = {
-    'Gols FT':           true,
-    'Gols FT Casa':      false,
-    'Gols FT Visitante': false,
-    'Gols HT':           false,
-    'Equilíbrio':        false
-};
-
-const labelToKeyGolsPlus = {
-    'Gols FT':           'golsFT',
-    'Gols FT Casa':      'golsFTCasa',
-    'Gols FT Visitante': 'golsFTVisitante',
-    'Gols HT':           'golsHT'
-};
+let golsBarraChart;
+let numPointsGolsBarra     = 160;
+let showFibonacciLinesGolsBarra = false;
+let chartDataGolsBarra = [];
 
 /* ═══════════════════════════════════════════════════════
    UTILITÁRIOS
 ═══════════════════════════════════════════════════════ */
-function formatHtResultGols(ht) {
-    if (ht === 'OUT') return 'OUT';
-    if (ht && ht.includes(' x ')) {
-        const p = ht.split(' x ');
-        if (p.length === 2) return `${p[0]}-${p[1]}`;
+function isOrderedGolsBarra(data) {
+    for (let i = 1; i < data.length; i++) {
+        const curr = data[i], prev = data[i - 1];
+        const dC = new Date(curr.data), dP = new Date(prev.data);
+        if (dC < dP) return false;
+        if (dC.getTime() === dP.getTime()) {
+            if (curr.hora < prev.hora) return false;
+            if (curr.hora === prev.hora && curr.minuto < prev.minuto) return false;
+        }
     }
-    return ht;
+    return true;
 }
 
-function getKeyFromLabelGolsPlus(label) {
-    if (label.includes(' - ')) return labelToKeyGolsPlus[label.split(' - ')[0]];
-    return labelToKeyGolsPlus[label];
+function removeDuplicatesGolsBarra(data) {
+    const seen = new Set();
+    return data.filter(item => {
+        const key = `${item.data}-${item.hora}-${item.minuto}-${item.ft}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function getBarColorGolsBarra(goals) {
+    const g = Math.floor(goals);
+    const map = {
+        0: ['rgba(255,0,0,0.5)',       'rgba(255,0,0,1)'],
+        1: ['rgba(0,0,255,0.5)',        'rgba(0,0,255,1)'],
+        2: ['rgba(255,255,255,0.5)',    'rgba(255,255,255,1)'],
+        3: ['rgba(0,128,0,0.5)',        'rgba(0,128,0,1)'],
+        4: ['rgba(255,255,0,0.5)',      'rgba(255,255,0,1)'],
+        5: ['rgba(200,162,200,0.5)',    'rgba(200,162,200,1)'],
+        6: ['rgba(128,0,128,0.5)',      'rgba(128,0,128,1)'],
+        7: ['rgba(255,165,0,0.5)',      'rgba(255,165,0,1)'],
+        8: ['rgba(0,255,255,0.5)',      'rgba(0,255,255,1)'],
+    };
+    const [background, border] = map[g] ?? ['rgba(128,128,128,0.5)', 'rgba(128,128,128,1)'];
+    return { background, border };
 }
 
 /* ═══════════════════════════════════════════════════════
    PROCESSAMENTO DE DADOS
 ═══════════════════════════════════════════════════════ */
-function processApiDataGolsPlus(data) {
-    const sorted = [...data].sort((a, b) => {
-        const dA = new Date(a.data), dB = new Date(b.data);
-        if (dA - dB !== 0) return dA - dB;
-        if (a.hora !== b.hora) return a.hora - b.hora;
-        return a.minuto - b.minuto;
-    });
+function processApiDataGolsBarra(data) {
+    const unique = removeDuplicatesGolsBarra(data);
 
-    const sliced = sorted.slice(-numPointsGolsPlus - averagePointsGolsPlus);
-    chartDataGolsPlus['Copa'] = sliced;
-
-    const labels = [], golsFT = [], golsFTCasa = [], golsFTVisitante = [], golsHT = [];
-
-    const hasGap = (prev, curr) => {
-        const pt = new Date(`${prev.data}T${prev.hora}:${prev.minuto}:00`);
-        const ct = new Date(`${curr.data}T${curr.hora}:${curr.minuto}:00`);
-        return (ct - pt) / 60000 > 1;
-    };
-
-    for (let i = averagePointsGolsPlus; i < sliced.length; i++) {
-        let ftSum=0, casaSum=0, visSum=0, htSum=0;
-
-        for (let j = Math.max(0, i - averagePointsGolsPlus); j <= i; j++) {
-            const m = sliced[j];
-            if (j > 0 && hasGap(sliced[j-1], m)) {
-                labels.push(`${m.hora}:${m.minuto.toString().padStart(2,'0')}`);
-                golsFT.push(null); golsFTCasa.push(null);
-                golsFTVisitante.push(null); golsHT.push(null);
-                continue;
-            }
-            let ft=[0,0], ht=[0,0];
-            if (m.ft && m.ft.includes(' x ')) ft = m.ft.split(' x ').map(Number);
-            if (m.ht && m.ht.includes(' x ')) ht = m.ht.split(' x ').map(Number);
-            ftSum   += ft[0]+ft[1];
-            casaSum += ft[0];
-            visSum  += ft[1];
-            htSum   += ht[0]+ht[1];
-        }
-
-        const m = sliced[i];
-        labels.push(`${m.hora}:${m.minuto.toString().padStart(2,'0')}`);
-        golsFT.push(ftSum);
-        golsFTCasa.push(casaSum);
-        golsFTVisitante.push(visSum);
-        golsHT.push(htSum);
+    if (!isOrderedGolsBarra(unique)) {
+        unique.sort((a, b) => {
+            const dA = new Date(a.data), dB = new Date(b.data);
+            if (dA < dB) return -1;
+            if (dA > dB) return  1;
+            if (a.hora < b.hora) return -1;
+            if (a.hora > b.hora) return  1;
+            return a.minuto - b.minuto;
+        });
     }
 
-    const validFT = golsFT.filter(v => v !== null);
-    const avgFT   = validFT.length ? validFT.reduce((a,b) => a+b, 0) / validFT.length : 0;
-    const equilibrio = new Array(labels.length).fill(avgFT);
+    const lastData = unique.slice(-numPointsGolsBarra);
+    chartDataGolsBarra = lastData;
 
-    return { labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, equilibrio };
+    const labels           = [];
+    const somaGols         = [];
+    const backgroundColors = [];
+    const borderColors     = [];
+
+    lastData.forEach(item => {
+        const hora   = item.hora.toString().padStart(2, '0');
+        const minuto = item.minuto.toString().padStart(2, '0');
+        labels.push(`${hora}:${minuto}`);
+
+        const [gA, gB] = item.ft?.split(' x ').map(Number) ?? [NaN, NaN];
+        const total = (!isNaN(gA) && !isNaN(gB)) ? (gA + gB || 0.5) : 0.1;
+        somaGols.push(total);
+
+        const { background, border } = getBarColorGolsBarra(total);
+        backgroundColors.push(background);
+        borderColors.push(border);
+    });
+
+    return { labels, somaGols, backgroundColors, borderColors };
 }
 
 /* ═══════════════════════════════════════════════════════
    PLUGIN: FIBONACCI
 ═══════════════════════════════════════════════════════ */
-const fibonacciLinesPluginGolsPlus = {
-    id: 'fibonacciLinesGolsPlus',
+const fibonacciLinesPluginGolsBarra = {
+    id: 'fibonacciLinesGolsBarra',
     afterDraw(chart) {
-        if (!showFibonacciLinesGolsPlus) return;
+        if (!showFibonacciLinesGolsBarra) return;
         const ctx = chart.ctx, yS = chart.scales.y;
         if (!yS) return;
         const levels = [0, 23.6, 38.2, 50, 61.8, 100];
@@ -3440,45 +3435,47 @@ const fibonacciLinesPluginGolsPlus = {
         const range = yS.max - yS.min;
         ctx.save();
         levels.forEach((lv, i) => {
-            const y = yS.getPixelForValue(yS.min + (lv/100)*range);
-            ctx.beginPath(); ctx.setLineDash([5,5]);
-            ctx.moveTo(left,y); ctx.lineTo(right,y);
-            ctx.strokeStyle='rgba(0,255,0,0.5)'; ctx.lineWidth=1; ctx.stroke();
+            const y = yS.getPixelForValue(yS.min + (lv / 100) * range);
+            ctx.beginPath(); ctx.setLineDash([5, 5]);
+            ctx.moveTo(left, y); ctx.lineTo(right, y);
+            ctx.strokeStyle = 'rgba(0,255,0,0.5)'; ctx.lineWidth = 1; ctx.stroke();
             ctx.setLineDash([]);
-            ctx.fillStyle='rgba(0,255,0,0.85)'; ctx.font='10px Arial';
-            ctx.textAlign='left'; ctx.textBaseline='middle';
-            ctx.fillText(`${lv}%`, right+52, y-(i===0?-8:0));
+            ctx.fillStyle = 'rgba(0,255,0,0.85)'; ctx.font = '10px Arial';
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillText(`${lv}%`, right + 52, y - (i === 0 ? -8 : 0));
         });
         ctx.restore();
     }
 };
 
 /* ═══════════════════════════════════════════════════════
-   PLUGIN: RÓTULOS ACIMA DOS PONTOS
+   PLUGIN: RÓTULOS ACIMA DAS BARRAS
 ═══════════════════════════════════════════════════════ */
-const rotulosPluginGolsPlus = {
-    id: 'rotulosGolsPlus',
+const rotulosPluginGolsBarra = {
+    id: 'rotulosGolsBarra',
     afterDatasetsDraw(chart, args, opts) {
         const cfg = (opts?.enabled !== undefined) ? opts
-            : (chart.options?.plugins?.rotulosGolsPlus ?? {});
+            : (chart.options?.plugins?.rotulosGolsBarra ?? {});
         if (cfg.enabled === false) return;
         const { ctx, chartArea } = chart;
         if (!chartArea) return;
 
         chart.data.datasets.forEach((ds, i) => {
-            if (!ds.label || ds.label.includes(' MA') || ds.label === 'Equilíbrio') return;
             if (!chart.isDatasetVisible(i)) return;
             const meta = chart.getDatasetMeta(i);
-            meta.data.forEach((point, j) => {
+            meta.data.forEach((bar, j) => {
                 const val = ds.data[j];
                 if (val === null || val === undefined) return;
-                const text = Number.isInteger(val) ? String(val) : val.toFixed(1);
+                const raw = chartDataGolsBarra[j];
+                if (!raw) return;
+                const [gA, gB] = raw.ft?.split(' x ').map(Number) ?? [0, 0];
+                const text = `${gA}-${gB}`;
                 ctx.save();
                 ctx.font = 'bold 9px Arial, sans-serif';
-                ctx.fillStyle = ds.borderColor || '#fff';
+                ctx.fillStyle = Array.isArray(ds.borderColor) ? ds.borderColor[j] : '#fff';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
-                ctx.fillText(text, point.x, point.y - 5);
+                ctx.fillText(text, bar.x, bar.y - 3);
                 ctx.restore();
             });
         });
@@ -3487,13 +3484,13 @@ const rotulosPluginGolsPlus = {
 
 /* ═══════════════════════════════════════════════════════
    PLUGIN: LINHA ATUAL
-   Uma linha tracejada por dataset visível, na cor do dataset
+   Linha tracejada no valor da última barra
 ═══════════════════════════════════════════════════════ */
-const linhaAtualPluginGolsPlus = {
-    id: 'linhaAtualGolsPlus',
+const linhaAtualPluginGolsBarra = {
+    id: 'linhaAtualGolsBarra',
     afterDraw(chart, args, opts) {
         const cfg = (opts?.enabled !== undefined) ? opts
-            : (chart.options?.plugins?.linhaAtualGolsPlus ?? {});
+            : (chart.options?.plugins?.linhaAtualGolsBarra ?? {});
         if (cfg.enabled === false) return;
 
         const { ctx, chartArea, scales } = chart;
@@ -3503,85 +3500,73 @@ const linhaAtualPluginGolsPlus = {
         const { left, right, top, bottom } = chartArea;
         const PAD = 5, H = 18;
 
-        const entries = [];
-        chart.data.datasets.forEach((d, i) => {
-            if (!d.label || d.label.includes(' MA') || d.label === 'Equilíbrio') return;
-            if (!chart.isDatasetVisible(i)) return;
-            const arr = d.data;
-            if (!arr?.length) return;
-            let yVal = null;
-            for (let j = arr.length-1; j >= 0; j--) {
-                const v = arr[j];
-                if (v !== null && v !== undefined && typeof v === 'number' && isFinite(v)) {
-                    yVal = v; break;
-                }
+        const ds  = chart.data.datasets[0];
+        if (!ds?.data?.length) return;
+
+        let yVal = null;
+        for (let j = ds.data.length - 1; j >= 0; j--) {
+            const v = ds.data[j];
+            if (v !== null && v !== undefined && typeof v === 'number' && isFinite(v) && v > 0.5) {
+                yVal = Math.round(v); break;   // mostra total inteiro real
             }
-            if (yVal === null) return;
-            const yPx = yS.getPixelForValue(yVal);
-            if (!isFinite(yPx) || yPx < top || yPx > bottom) return;
-            entries.push({ yVal, yPx, color: d.borderColor || '#fff' });
-        });
+        }
+        if (yVal === null) return;
 
-        if (!entries.length) return;
+        const yPx = yS.getPixelForValue(yVal);
+        if (!isFinite(yPx) || yPx < top || yPx > bottom) return;
 
-        // Anti-colisão
-        entries.sort((a,b) => a.yPx - b.yPx);
-        entries.forEach((e, i) => {
-            e.badgeY = i === 0 ? e.yPx
-                : (e.yPx - entries[i-1].badgeY < H+2 ? entries[i-1].badgeY + H+2 : e.yPx);
-        });
+        const { border: color } = getBarColorGolsBarra(yVal);
 
-        entries.forEach(({ yVal, yPx, badgeY, color }) => {
-            ctx.save();
-            ctx.strokeStyle = color; ctx.lineWidth = 1.2;
-            ctx.setLineDash([6,4]);
-            ctx.beginPath(); ctx.moveTo(left,yPx); ctx.lineTo(right,yPx); ctx.stroke();
-            ctx.setLineDash([]);
-            const text = Number.isInteger(yVal) ? `${yVal} g` : `${yVal.toFixed(1)} g`;
-            ctx.font = 'bold 10px Arial, sans-serif';
-            ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-            const bw = Math.ceil(ctx.measureText(text).width) + PAD*2;
-            const bx = right+4, by = badgeY - H/2;
-            ctx.fillStyle = 'rgba(10,12,20,0.95)';
-            ctx.fillRect(bx,by,bw,H);
-            ctx.strokeStyle = color; ctx.lineWidth = 1.2;
-            ctx.strokeRect(bx,by,bw,H);
-            ctx.fillStyle = color;
-            ctx.fillText(text, bx+PAD, badgeY);
-            ctx.restore();
-        });
+        ctx.save();
+        ctx.strokeStyle = color; ctx.lineWidth = 1.2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath(); ctx.moveTo(left, yPx); ctx.lineTo(right, yPx); ctx.stroke();
+        ctx.setLineDash([]);
+
+        const text = `${yVal} g`;
+        ctx.font = 'bold 10px Arial, sans-serif';
+        ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+        const bw = Math.ceil(ctx.measureText(text).width) + PAD * 2;
+        const bx = right + 4, by = yPx - H / 2;
+        ctx.fillStyle = 'rgba(10,12,20,0.95)';
+        ctx.fillRect(bx, by, bw, H);
+        ctx.strokeStyle = color; ctx.lineWidth = 1.2;
+        ctx.strokeRect(bx, by, bw, H);
+        ctx.fillStyle = color;
+        ctx.fillText(text, bx + PAD, yPx);
+        ctx.restore();
     }
 };
 
 /* ═══════════════════════════════════════════════════════
    PLUGIN: LINHAS ARRASTÁVEIS
 ═══════════════════════════════════════════════════════ */
-const DRAG_KEY_GOLS  = 'golsplus:draglines';
-const MAX_DRAG_GOLS  = 6;
+const DRAG_KEY_BARRA = 'golsbarra:draglines';
+const MAX_DRAG_BARRA = 6;
 
-function _loadDragGols() {
+function _loadDragBarra() {
     try {
-        const arr = JSON.parse(localStorage.getItem(DRAG_KEY_GOLS) || '[]');
+        const arr = JSON.parse(localStorage.getItem(DRAG_KEY_BARRA) || '[]');
         return Array.isArray(arr)
-            ? arr.map(l => ({ y: Number(l.y), color: l.color||'#1fcc59', dragging:false }))
+            ? arr.map(l => ({ y: Number(l.y), color: l.color || '#1fcc59', dragging: false }))
             : [];
     } catch { return []; }
 }
-function _saveDragGols(lines) {
-    try { localStorage.setItem(DRAG_KEY_GOLS, JSON.stringify(lines.map(l => ({ y:l.y, color:l.color })))); }
+function _saveDragBarra(lines) {
+    try { localStorage.setItem(DRAG_KEY_BARRA, JSON.stringify(lines.map(l => ({ y: l.y, color: l.color })))); }
     catch {}
 }
-function _updateCounterGols(lines) {
-    const el = document.getElementById('contadorLinhasGolsPlus');
-    if (el) el.textContent = `${(lines||[]).length} / ${MAX_DRAG_GOLS} linhas`;
+function _updateCounterBarra(lines) {
+    const el = document.getElementById('contadorLinhasGolsBarra');
+    if (el) el.textContent = `${(lines || []).length} / ${MAX_DRAG_BARRA} linhas`;
 }
 
-const linhaDraggablePluginGolsPlus = {
-    id: 'linhaDraggableGolsPlus',
+const linhaDraggablePluginGolsBarra = {
+    id: 'linhaDraggableGolsBarra',
 
     afterInit(chart) {
         const canvas = chart.canvas;
-        chart.dragLines = _loadDragGols();
+        chart.dragLines = _loadDragBarra();
         chart._selectedDragLine = -1;
         const HIT = 8;
         let dragIdx = -1;
@@ -3595,51 +3580,51 @@ const linhaDraggablePluginGolsPlus = {
             const yS = getYS();
             if (!yS || !chart.chartArea) return -1;
             const { top, bottom } = chart.chartArea;
-            let best=-1, bestD=Infinity;
-            (chart.dragLines||[]).forEach((l,i) => {
+            let best = -1, bestD = Infinity;
+            (chart.dragLines || []).forEach((l, i) => {
                 const ly = yS.getPixelForValue(l.y);
                 if (ly < top || ly > bottom) return;
-                const d = Math.abs(ly-pxY);
-                if (d < bestD && d <= HIT) { bestD=d; best=i; }
+                const d = Math.abs(ly - pxY);
+                if (d < bestD && d <= HIT) { bestD = d; best = i; }
             });
             return best;
         };
 
-        chart.addDragLine = (color='#1fcc59') => {
-            if ((chart.dragLines||[]).length >= MAX_DRAG_GOLS) {
-                alert(`Máximo de ${MAX_DRAG_GOLS} linhas!`); return;
+        chart.addDragLine = (color = '#1fcc59') => {
+            if ((chart.dragLines || []).length >= MAX_DRAG_BARRA) {
+                alert(`Máximo de ${MAX_DRAG_BARRA} linhas!`); return;
             }
             const yS = getYS(); if (!yS) return;
-            chart.dragLines.push({ y: Math.round((yS.min+yS.max)/2), color, dragging:false });
-            chart._selectedDragLine = chart.dragLines.length-1;
-            _saveDragGols(chart.dragLines); _updateCounterGols(chart.dragLines); chart.update();
+            chart.dragLines.push({ y: Math.round((yS.min + yS.max) / 2), color, dragging: false });
+            chart._selectedDragLine = chart.dragLines.length - 1;
+            _saveDragBarra(chart.dragLines); _updateCounterBarra(chart.dragLines); chart.update();
         };
         chart.deleteDragLine = () => {
             const idx = chart._selectedDragLine;
-            if (idx >= 0 && idx < (chart.dragLines||[]).length) {
-                chart.dragLines.splice(idx,1); chart._selectedDragLine=-1;
-                _saveDragGols(chart.dragLines); _updateCounterGols(chart.dragLines); chart.update();
+            if (idx >= 0 && idx < (chart.dragLines || []).length) {
+                chart.dragLines.splice(idx, 1); chart._selectedDragLine = -1;
+                _saveDragBarra(chart.dragLines); _updateCounterBarra(chart.dragLines); chart.update();
             }
         };
         chart.clearDragLines = () => {
-            chart.dragLines=[]; chart._selectedDragLine=-1;
-            _saveDragGols(chart.dragLines); _updateCounterGols(chart.dragLines); chart.update();
+            chart.dragLines = []; chart._selectedDragLine = -1;
+            _saveDragBarra(chart.dragLines); _updateCounterBarra(chart.dragLines); chart.update();
         };
 
-        window.adicionarLinhaGolsPlus = () => {
-            if (golsPlusChart) golsPlusChart.addDragLine(
-                document.getElementById('lineColorPickerGolsPlus')?.value || '#1fcc59'
+        window.adicionarLinhaGolsBarra = () => {
+            if (golsBarraChart) golsBarraChart.addDragLine(
+                document.getElementById('lineColorPickerGolsBarra')?.value || '#1fcc59'
             );
         };
-        window.deletarLinhaSelecionadaGolsPlus = () => { if (golsPlusChart) golsPlusChart.deleteDragLine(); };
-        window.limparTodasLinhasGolsPlus        = () => { if (golsPlusChart) golsPlusChart.clearDragLines(); };
+        window.deletarLinhaSelecionadaGolsBarra = () => { if (golsBarraChart) golsBarraChart.deleteDragLine(); };
+        window.limparTodasLinhasGolsBarra        = () => { if (golsBarraChart) golsBarraChart.clearDragLines(); };
 
         const startDrag = evt => {
             const pxY = getEvtY(evt), idx = nearest(pxY);
             if (idx >= 0) {
                 if (evt.cancelable) evt.preventDefault();
-                dragIdx=idx; chart.dragLines[idx].dragging=true; chart._selectedDragLine=idx;
-            } else { chart._selectedDragLine=-1; }
+                dragIdx = idx; chart.dragLines[idx].dragging = true; chart._selectedDragLine = idx;
+            } else { chart._selectedDragLine = -1; }
             chart.update();
         };
         const moveDrag = evt => {
@@ -3647,37 +3632,37 @@ const linhaDraggablePluginGolsPlus = {
             if (evt.cancelable) evt.preventDefault();
             const yS = getYS(); if (!yS) return;
             let v = yS.getValueForPixel(getEvtY(evt));
-            v = Math.max(yS.min, Math.min(yS.max, Math.round(v*10)/10));
+            v = Math.max(yS.min, Math.min(yS.max, Math.round(v * 10) / 10));
             chart.dragLines[dragIdx].y = v; chart.update('active');
         };
         const stopDrag = () => {
             if (dragIdx >= 0) {
-                if (chart.dragLines[dragIdx]) chart.dragLines[dragIdx].dragging=false;
-                _saveDragGols(chart.dragLines);
+                if (chart.dragLines[dragIdx]) chart.dragLines[dragIdx].dragging = false;
+                _saveDragBarra(chart.dragLines);
             }
-            dragIdx=-1;
+            dragIdx = -1;
         };
 
-        canvas.addEventListener('mousedown',  startDrag);
-        canvas.addEventListener('mousemove',  moveDrag);
-        canvas.addEventListener('mouseleave', stopDrag);
-        window.addEventListener('mouseup',    stopDrag);
-        canvas.addEventListener('touchstart', startDrag, {passive:false});
-        canvas.addEventListener('touchmove',  moveDrag,  {passive:false});
-        canvas.addEventListener('touchend',   stopDrag,  {passive:true});
-        canvas.addEventListener('touchcancel',stopDrag,  {passive:true});
+        canvas.addEventListener('mousedown',   startDrag);
+        canvas.addEventListener('mousemove',   moveDrag);
+        canvas.addEventListener('mouseleave',  stopDrag);
+        window.addEventListener('mouseup',     stopDrag);
+        canvas.addEventListener('touchstart',  startDrag, { passive: false });
+        canvas.addEventListener('touchmove',   moveDrag,  { passive: false });
+        canvas.addEventListener('touchend',    stopDrag,  { passive: true });
+        canvas.addEventListener('touchcancel', stopDrag,  { passive: true });
         window.addEventListener('keydown', e => {
-            if ((e.key==='Delete'||e.key==='Backspace') && golsPlusChart)
-                golsPlusChart.deleteDragLine();
+            if ((e.key === 'Delete' || e.key === 'Backspace') && golsBarraChart)
+                golsBarraChart.deleteDragLine();
         });
 
-        _updateCounterGols(chart.dragLines);
+        _updateCounterBarra(chart.dragLines);
     },
 
     afterDatasetsDraw(chart) {
-        const yS = chart.scales.y, lines = chart.dragLines||[];
+        const yS = chart.scales.y, lines = chart.dragLines || [];
         if (!yS || !lines.length || !chart.chartArea) return;
-        const { ctx, chartArea:{left,right} } = chart;
+        const { ctx, chartArea: { left, right } } = chart;
 
         lines.forEach((l, idx) => {
             const yPx = yS.getPixelForValue(l.y);
@@ -3685,93 +3670,48 @@ const linhaDraggablePluginGolsPlus = {
             const isSel = idx === chart._selectedDragLine;
             ctx.save();
             ctx.beginPath();
-            ctx.setLineDash(isSel ? [4,2] : []);
+            ctx.setLineDash(isSel ? [4, 2] : []);
             ctx.lineWidth = isSel ? 1.8 : 1.2;
-            ctx.strokeStyle = l.color||'#1fcc59';
-            ctx.moveTo(left,yPx); ctx.lineTo(right,yPx); ctx.stroke();
+            ctx.strokeStyle = l.color || '#1fcc59';
+            ctx.moveTo(left, yPx); ctx.lineTo(right, yPx); ctx.stroke();
             ctx.setLineDash([]);
             if (isSel) {
-                ctx.beginPath(); ctx.arc(left+10,yPx,4,0,Math.PI*2);
-                ctx.fillStyle=l.color||'#1fcc59'; ctx.fill();
+                ctx.beginPath(); ctx.arc(left + 10, yPx, 4, 0, Math.PI * 2);
+                ctx.fillStyle = l.color || '#1fcc59'; ctx.fill();
             }
-            const text = l.y.toFixed(1)+' g';
+            const text = l.y.toFixed(1) + ' g';
             ctx.font = isSel ? 'bold 10px Arial' : '10px Arial';
-            ctx.textBaseline='middle'; ctx.textAlign='left';
-            const PAD=5, BH=16;
-            const bw = Math.ceil(ctx.measureText(text).width)+PAD*2;
-            const bx=right+4, by=yPx-BH/2;
-            ctx.fillStyle='rgba(10,12,20,0.95)';
-            ctx.fillRect(bx,by,bw,BH);
-            ctx.strokeStyle=l.color||'#1fcc59'; ctx.lineWidth=isSel?1.5:1;
-            ctx.strokeRect(bx,by,bw,BH);
-            ctx.fillStyle=l.color||'#1fcc59';
-            ctx.fillText(text,bx+PAD,yPx);
+            ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+            const PAD = 5, BH = 16;
+            const bw = Math.ceil(ctx.measureText(text).width) + PAD * 2;
+            const bx = right + 4, by = yPx - BH / 2;
+            ctx.fillStyle = 'rgba(10,12,20,0.95)';
+            ctx.fillRect(bx, by, bw, BH);
+            ctx.strokeStyle = l.color || '#1fcc59'; ctx.lineWidth = isSel ? 1.5 : 1;
+            ctx.strokeRect(bx, by, bw, BH);
+            ctx.fillStyle = l.color || '#1fcc59';
+            ctx.fillText(text, bx + PAD, yPx);
             ctx.restore();
         });
     }
 };
 
 /* ═══════════════════════════════════════════════════════
-   UPDATE STATS CHART
-═══════════════════════════════════════════════════════ */
-function updateStatsChartGolsPlus(chart, newData) {
-    if (!chart) return;
-    chart.data.labels = newData.labels;
-    chart.data.datasets.forEach(ds => {
-        if (ds.label === 'Equilíbrio') { ds.data = newData.equilibrio; return; }
-        const key = getKeyFromLabelGolsPlus(ds.label);
-        if (key) ds.data = newData[key];
-    });
-    chart.update();
-}
-
-/* ═══════════════════════════════════════════════════════
    CRIAÇÃO DO GRÁFICO
 ═══════════════════════════════════════════════════════ */
-function createStatsChartGolsPlus(ctx, labels, data) {
-    const configs = [
-        { label:'Gols FT',           color:'#FFFF00', key:'golsFT' },
-        { label:'Gols FT Casa',      color:'#AB47BC', key:'golsFTCasa' },
-        { label:'Gols FT Visitante', color:'#2196F3', key:'golsFTVisitante' },
-        { label:'Gols HT',           color:'#26A69A', key:'golsHT' }
-    ];
-
-    const datasets = [];
-
-    configs.forEach(cfg => {
-        datasets.push({
-            label: cfg.label,
-            data:  data[cfg.key],
-            borderColor: cfg.color,
-            backgroundColor: cfg.color,
-            pointBackgroundColor: cfg.color,
-            pointBorderColor: 'rgba(0,0,0,0)',
-            pointBorderWidth: 0,
-            borderWidth: 2,
-            pointRadius: 4,
-            fill: false,
-            hidden: !statsChartVisibleDatasetsGolsPlus[cfg.label]
-        });
-        // Sem médias móveis — removidas
-    });
-
-    // Equilíbrio — vermelho conforme solicitado
-    datasets.push({
-        label: 'Equilíbrio',
-        data:  data.equilibrio,
-        borderColor:  '#e74c3c',
-        backgroundColor: 'transparent',
-        borderWidth: 1.5,
-        borderDash: [6, 4],
-        fill: false,
-        pointRadius: 0,
-        pointHitRadius: 0,
-        hidden: !statsChartVisibleDatasetsGolsPlus['Equilíbrio']
-    });
-
-    return new Chart(ctx, {
-        type: 'line',
-        data: { labels, datasets },
+function createGolsBarraChart(canvasCtx, processed) {
+    return new Chart(canvasCtx, {
+        type: 'bar',
+        data: {
+            labels: processed.labels,
+            datasets: [{
+                label:           'Gols Barra',
+                data:            processed.somaGols,
+                backgroundColor: processed.backgroundColors,
+                borderColor:     processed.borderColors,
+                borderWidth:     2
+            }]
+        },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -3779,47 +3719,29 @@ function createStatsChartGolsPlus(ctx, labels, data) {
             plugins: {
                 legend: {
                     display: true,
-                    labels: { color:'#e0e0e0', font:{size:12} },
-                    onClick(e, legendItem, legend) {
-                        const ci = legend.chart;
-                        const lbl = legendItem.text;
-                        const idx = ci.data.datasets.findIndex(ds => ds.label===lbl);
-                        if (idx === -1) return;
-                        const meta = ci.getDatasetMeta(idx);
-                        meta.hidden = !meta.hidden;
-                        statsChartVisibleDatasetsGolsPlus[lbl] = !meta.hidden;
-                        ci.update();
+                    labels: {
+                        color: '#e0e0e0',
+                        font: { size: 12 },
+                        filter: (item) => item.text !== 'Gols Barra'
                     }
                 },
                 tooltip: {
                     enabled: true,
                     backgroundColor: 'rgba(0,0,0,0.8)',
-                    titleColor: '#1fad8b',
-                    bodyColor: '#e0e0e0',
-                    borderColor: '#1fad8b',
-                    borderWidth: 1,
+                    titleColor:      '#1fad8b',
+                    bodyColor:       '#e0e0e0',
+                    borderColor:     '#1fad8b',
+                    borderWidth:     1,
                     callbacks: {
-                        title(items) {
-                            const idx = items[0].dataIndex + averagePointsGolsPlus;
-                            const m = chartDataGolsPlus['Copa']?.[idx];
-                            return m ? `${m.hora}:${m.minuto.toString().padStart(2,'0')}` : '';
-                        },
-                        label(ctx) {
-                            const lbl = ctx.dataset.label, val = ctx.parsed.y;
-                            return lbl==='Equilíbrio'
-                                ? `${lbl}: ${val.toFixed(2)} gols (média)`
-                                : `${lbl}: ${val} gols`;
-                        },
-                        afterBody(items) {
-                            const idx = items[0].dataIndex + averagePointsGolsPlus;
-                            const m = chartDataGolsPlus['Copa']?.[idx];
-                            if (!m) return [];
-                            return [`\nPlacar FT: ${m.ft||'N/A'}`, `Placar HT: ${formatHtResultGols(m.ht)||'N/A'}`];
+                        title: (items) => `Hora: ${items[0].label}`,
+                        label: (ctx) => {
+                            const raw = chartDataGolsBarra[ctx.dataIndex];
+                            return `Placar: ${raw?.ft || 'N/A'}`;
                         }
                     }
                 },
-                rotulosGolsPlus:    { enabled: true },
-                linhaAtualGolsPlus: { enabled: true }
+                rotulosGolsBarra:    { enabled: true },
+                linhaAtualGolsBarra: { enabled: true }
             },
             scales: {
                 x: {
@@ -3827,82 +3749,93 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                     grid:  { display: false }
                 },
                 y: {
-                    beginAtZero: false,
-                    ticks: { color:'#b0b0b0', stepSize:1 },
-                    grid:  { color:'rgba(255,255,255,0.3)', lineWidth:0.5 },
+                    position:    'right',
+                    min:         0,
+                    max:         8,
+                    beginAtZero: true,
+                    ticks:       { stepSize: 1, color: '#b0b0b0' },
+                    grid:        { color: 'rgba(255,255,255,0.3)', lineWidth: 0.5 },
                     afterFit(scale) { scale.paddingTop = 20; }
                 }
             }
         },
         plugins: [
-            fibonacciLinesPluginGolsPlus,
-            rotulosPluginGolsPlus,
-            linhaAtualPluginGolsPlus,
-            linhaDraggablePluginGolsPlus
+            fibonacciLinesPluginGolsBarra,
+            rotulosPluginGolsBarra,
+            linhaAtualPluginGolsBarra,
+            linhaDraggablePluginGolsBarra
         ]
     });
 }
 
 /* ═══════════════════════════════════════════════════════
+   UPDATE DO GRÁFICO
+═══════════════════════════════════════════════════════ */
+function updateGolsBarraChartData(chart, processed) {
+    if (!chart) return;
+    chart.data.labels                        = processed.labels;
+    chart.data.datasets[0].data             = processed.somaGols;
+    chart.data.datasets[0].backgroundColor  = processed.backgroundColors;
+    chart.data.datasets[0].borderColor      = processed.borderColors;
+    chart.update();
+}
+
+/* ═══════════════════════════════════════════════════════
    FETCH + REFRESH
 ═══════════════════════════════════════════════════════ */
-function updateChartsGolsPlus() {
+function updateGolsBarra() {
     const url = `${ROTAS_API.resultados(LIGA_ATUAL)}?timestamp=${Date.now()}`;
     fetch(url)
         .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(data => {
-            const processed = processApiDataGolsPlus(data);
-            const canvas    = document.getElementById('golsplus');
+            const processed = processApiDataGolsBarra(data);
+            const canvas    = document.getElementById('golsChart');
             if (!canvas) return;
-            if (!golsPlusChart) {
-                golsPlusChart = createStatsChartGolsPlus(canvas.getContext('2d'), processed.labels, processed);
+            if (!golsBarraChart) {
+                golsBarraChart = createGolsBarraChart(canvas.getContext('2d'), processed);
             } else {
-                updateStatsChartGolsPlus(golsPlusChart, processed);
+                updateGolsBarraChartData(golsBarraChart, processed);
             }
         })
-        .catch(err => console.error('Erro GolsPlus:', err));
+        .catch(err => console.error('Erro GolsBarra:', err));
 }
 
 /* ═══════════════════════════════════════════════════════
    EVENT LISTENERS
 ═══════════════════════════════════════════════════════ */
-document.getElementById('pointsSelectorGolsPlus').addEventListener('change', function() {
-    numPointsGolsPlus = parseInt(this.value, 10);
-    updateChartsGolsPlus();
+document.getElementById('pointsSelectorGolsPlus').addEventListener('change', function () {
+    numPointsGolsBarra = parseInt(this.value, 10);
+    updateGolsBarra();
 });
-document.getElementById('averageSelectorGolsPlus').addEventListener('change', function() {
-    averagePointsGolsPlus = parseInt(this.value, 10);
-    updateChartsGolsPlus();
+document.getElementById('fibonacciToggleGolsBarra')?.addEventListener('change', function () {
+    showFibonacciLinesGolsBarra = this.checked;
+    if (golsBarraChart) golsBarraChart.update();
 });
-document.getElementById('fibonacciToggleGolsPlus').addEventListener('change', function() {
-    showFibonacciLinesGolsPlus = this.checked;
-    if (golsPlusChart) golsPlusChart.update();
+document.getElementById('rotulosToggleGolsBarra')?.addEventListener('change', function () {
+    if (!golsBarraChart) return;
+    golsBarraChart.options.plugins.rotulosGolsBarra.enabled = this.checked;
+    golsBarraChart.update();
 });
-document.getElementById('rotulosToggleGolsPlus').addEventListener('change', function() {
-    if (!golsPlusChart) return;
-    golsPlusChart.options.plugins.rotulosGolsPlus.enabled = this.checked;
-    golsPlusChart.update();
-});
-document.getElementById('linhaAtualToggleGolsPlus').addEventListener('change', function() {
-    if (!golsPlusChart) return;
-    golsPlusChart.options.plugins.linhaAtualGolsPlus.enabled = this.checked;
-    golsPlusChart.update();
+document.getElementById('linhaAtualToggleGolsBarra')?.addEventListener('change', function () {
+    if (!golsBarraChart) return;
+    golsBarraChart.options.plugins.linhaAtualGolsBarra.enabled = this.checked;
+    golsBarraChart.update();
 });
 
 // Painel Linha
-document.getElementById('btnLinhaToolsGolsPlus').addEventListener('click', function(e) {
+document.getElementById('btnLinhaToolsGolsBarra')?.addEventListener('click', function (e) {
     e.stopPropagation();
-    const p = document.getElementById('linhaToolsPanelGolsPlus');
+    const p = document.getElementById('linhaToolsPanelGolsBarra');
     p.style.display = p.style.display === 'none' ? 'block' : 'none';
 });
 document.addEventListener('click', () => {
-    const p = document.getElementById('linhaToolsPanelGolsPlus');
+    const p = document.getElementById('linhaToolsPanelGolsBarra');
     if (p) p.style.display = 'none';
 });
-document.getElementById('linhaToolsPanelGolsPlus').addEventListener('click', e => e.stopPropagation());
+document.getElementById('linhaToolsPanelGolsBarra')?.addEventListener('click', e => e.stopPropagation());
 
-window.addEventListener('load', updateChartsGolsPlus);
-setInterval(updateChartsGolsPlus, 3000);
+window.addEventListener('load', updateGolsBarra);
+setInterval(updateGolsBarra, 5000);
     </script>
 
 
