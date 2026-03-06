@@ -5775,8 +5775,8 @@ let histomacdRsiPeriod          = 14;
 let histomacdShowRSI            = true;
 let histomacdIndicatorCharts    = {};
 let histomacdSelectedMarket     = 'ambasMarcam';
-let histomacdLastDataHash       = null;   // controle de dados novos
-let histomacdLastUpdateTime     = null;   // para exibir última atualização
+let histomacdLastDataHash       = null;
+let histomacdLastUpdateTime     = null;
 
 // ─── Configurações salvas no localStorage ─────────────────────────────────
 function histomacdSaveSettings() {
@@ -5799,7 +5799,6 @@ function histomacdLoadSettings() {
 
     const settings = JSON.parse(saved);
 
-    // Valida se o mercado salvo ainda existe no select antes de aplicar
     const marketSelector = document.getElementById('histomacdMarketSelector');
     const marketExists = marketSelector
         ? Array.from(marketSelector.options).some(o => o.value === settings.selectedMarket)
@@ -5814,14 +5813,14 @@ function histomacdLoadSettings() {
     histomacdRsiPeriod      = settings.rsiPeriod     || 14;
     histomacdShowRSI        = settings.showRSI !== undefined ? settings.showRSI : true;
 
-    if (marketSelector)                                             marketSelector.value  = histomacdSelectedMarket;
-    const ps = document.getElementById('histomacdPointsSelector');  if (ps)  ps.value   = histomacdNumPoints;
-    const as = document.getElementById('histomacdAverageSelector'); if (as)  as.value   = histomacdAveragePoints;
-    const mf = document.getElementById('histomacdMacdFast');        if (mf)  mf.value   = histomacdMacdFast;
-    const ms = document.getElementById('histomacdMacdSlow');        if (ms)  ms.value   = histomacdMacdSlow;
-    const mg = document.getElementById('histomacdMacdSignal');      if (mg)  mg.value   = histomacdMacdSignal;
-    const rp = document.getElementById('histomacdRsiPeriod');       if (rp)  rp.value   = histomacdRsiPeriod;
-    const sr = document.getElementById('histomacdShowRSI');         if (sr)  sr.checked = histomacdShowRSI;
+    if (marketSelector)                                              marketSelector.value  = histomacdSelectedMarket;
+    const ps = document.getElementById('histomacdPointsSelector');  if (ps)  ps.value    = histomacdNumPoints;
+    const as = document.getElementById('histomacdAverageSelector'); if (as)  as.value    = histomacdAveragePoints;
+    const mf = document.getElementById('histomacdMacdFast');        if (mf)  mf.value    = histomacdMacdFast;
+    const ms = document.getElementById('histomacdMacdSlow');        if (ms)  ms.value    = histomacdMacdSlow;
+    const mg = document.getElementById('histomacdMacdSignal');      if (mg)  mg.value    = histomacdMacdSignal;
+    const rp = document.getElementById('histomacdRsiPeriod');       if (rp)  rp.value    = histomacdRsiPeriod;
+    const sr = document.getElementById('histomacdShowRSI');         if (sr)  sr.checked  = histomacdShowRSI;
 }
 
 // ─── Mapeamento: valor do select → chave interna ──────────────────────────
@@ -5908,14 +5907,16 @@ Object.entries(histomacdLabelToKey).forEach(([label, key]) => {
     histomacdKeyToLabel[key] = label;
 });
 
-// ─── Sanitização de placar (robustez contra dados sujos da API) ───────────
+// ─── Sanitização de placar ────────────────────────────────────────────────
 function histomacdParsePlacar(str) {
     if (!str || typeof str !== 'string') return [0, 0];
     const parts = str.replace(/\s/g, '').split('x').map(Number);
     return parts.length === 2 && !parts.some(isNaN) ? parts : [0, 0];
 }
 
-// ─── Utilitários ──────────────────────────────────────────────────────────
+// ─── Utilitário: preenche gaps (nulls no meio) com o valor anterior ───────
+// Mantido apenas para uso interno antes de passar ao MACD/RSI,
+// mas NÃO é mais usado entre etapas de cálculo.
 function histomacdFillGaps(data) {
     let filled = [...data];
     let last = null;
@@ -5926,12 +5927,8 @@ function histomacdFillGaps(data) {
             filled[i] = last;
         }
     }
-    if (last === null) {
-        for (let i = filled.length - 1; i >= 0; i--) {
-            if (filled[i] !== null && filled[i] !== undefined) last = filled[i];
-            else if (last !== null) filled[i] = last;
-        }
-    } else {
+    // Preenche nulls do início com o primeiro valor encontrado
+    if (last !== null) {
         for (let i = 0; i < filled.length; i++) {
             if (filled[i] === null || filled[i] === undefined) filled[i] = last;
             else break;
@@ -5940,72 +5937,60 @@ function histomacdFillGaps(data) {
     return filled;
 }
 
-function histomacdFillInitial(array) {
-    const first = array.find(v => v !== null && v !== undefined);
-    if (first !== undefined) {
-        for (let i = 0; i < array.length; i++) {
-            if (array[i] === null || array[i] === undefined) array[i] = first;
-            else break;
-        }
-    }
-    return array;
-}
+// ─── Indicadores técnicos (alinhados ao Caramelo) ────────────────────────
 
-// ─── Indicadores técnicos ─────────────────────────────────────────────────
+/**
+ * EMA — seed = primeiro valor da série (padrão de mercado).
+ * Nulls são substituídos por 0 antes do cálculo para não quebrar a fórmula;
+ * use histomacdFillGaps nos dados antes de chamar esta função para melhor resultado.
+ */
 function histomacdCalculateEMA(data, period) {
+    const pontos = data.map(v => (v === null || v === undefined) ? 0 : v);
     const k = 2 / (period + 1);
-    let ema = new Array(data.length).fill(null);
-    let sum = 0, count = 0;
-    for (let i = 0; i < data.length; i++) {
-        if (data[i] === null || data[i] === undefined) continue;
-        sum += data[i];
-        count++;
-        if (count >= 1) {
-            ema[i] = sum / count;
-            if (count >= period) break;
-        }
+    const ema = [pontos[0]];
+    for (let i = 1; i < pontos.length; i++) {
+        ema.push(pontos[i] * k + ema[i - 1] * (1 - k));
     }
-    for (let i = 0; i < data.length; i++) {
-        if (ema[i] !== null) {
-            for (let j = i + 1; j < data.length; j++) {
-                ema[j] = (data[j] !== null && data[j] !== undefined)
-                    ? (data[j] * k) + (ema[j - 1] * (1 - k))
-                    : ema[j - 1];
-            }
-            break;
-        }
-    }
-    return histomacdFillInitial(ema);
+    return ema;
 }
 
+/**
+ * MACD — idêntico ao Caramelo:
+ * macdLine = EMA(fast) − EMA(slow)
+ * emaSignal = EMA(macdLine, signal)
+ * histogram = macdLine − emaSignal
+ */
 function histomacdCalculateMACD(data, fast, slow, signal) {
-    const emaFast = histomacdCalculateEMA(data, fast);
-    const emaSlow = histomacdCalculateEMA(data, slow);
-    let macdLine = histomacdFillInitial(
-        data.map((d, i) => (emaFast[i] !== null && emaSlow[i] !== null ? emaFast[i] - emaSlow[i] : null))
-    );
+    const pontos   = histomacdFillGaps(data).map(v => (v === null || v === undefined) ? 0 : v);
+    const emaFast  = histomacdCalculateEMA(pontos, fast);
+    const emaSlow  = histomacdCalculateEMA(pontos, slow);
+    const macdLine = emaFast.map((v, i) => v - emaSlow[i]);
     const emaSignal = histomacdCalculateEMA(macdLine, signal);
-    let histogram = histomacdFillInitial(
-        data.map((d, i) => (macdLine[i] !== null && emaSignal[i] !== null ? macdLine[i] - emaSignal[i] : null))
-    );
+    const histogram = macdLine.map((v, i) => v - emaSignal[i]);
     return { macdLine, emaSignal, histogram };
 }
 
+/**
+ * RSI — idêntico ao Caramelo:
+ * Os primeiros `period` pontos são null (sem preenchimento falso).
+ */
 function histomacdCalculateRSI(data, period) {
-    let rsi = new Array(data.length).fill(null);
-    let gains = [], losses = [];
-    for (let i = 1; i < data.length; i++) {
-        if (data[i] === null || data[i - 1] === null) continue;
-        const change = data[i] - data[i - 1];
-        gains.push(change > 0 ? change : 0);
-        losses.push(change < 0 ? -change : 0);
-        if (gains.length >= period) {
-            const avgGain = gains.slice(-period).reduce((a, b) => a + b, 0) / period;
-            const avgLoss = losses.slice(-period).reduce((a, b) => a + b, 0) / period;
-            rsi[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
-        }
+    const pontos = histomacdFillGaps(data).map(v => (v === null || v === undefined) ? 0 : v);
+    const ganhos = [], perdas = [];
+    for (let i = 1; i < pontos.length; i++) {
+        const d = pontos[i] - pontos[i - 1];
+        ganhos.push(d > 0 ? d : 0);
+        perdas.push(d < 0 ? Math.abs(d) : 0);
     }
-    return histomacdFillInitial(rsi);
+    const rsi = [];
+    for (let i = period; i < ganhos.length; i++) {
+        const mg = ganhos.slice(i - period, i).reduce((a, b) => a + b, 0) / period;
+        const mp = perdas.slice(i - period, i).reduce((a, b) => a + b, 0) / period;
+        const rs = mg / (mp || 1);
+        rsi.push(100 - 100 / (1 + rs));
+    }
+    // Primeiros `period` pontos ficam null, igual ao Caramelo
+    return Array(period).fill(null).concat(rsi);
 }
 
 // ─── Hash simples para detectar dados novos ───────────────────────────────
@@ -6015,11 +6000,11 @@ function histomacdHashData(data) {
     return `${data.length}-${last.id}-${last.ft}`;
 }
 
-// ─── Atualiza indicador de status na tela ────────────────────────────────
+// ─── Atualiza indicador de status na tela ─────────────────────────────────
 function histomacdUpdateStatus(status) {
     const el = document.getElementById('histomacdStatus');
     if (!el) return;
-    const now = new Date();
+    const now  = new Date();
     const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
     if (status === 'ok') {
         el.style.color = '#1fad8b';
@@ -6033,7 +6018,7 @@ function histomacdUpdateStatus(status) {
     }
 }
 
-// ─── Processamento dos dados da API (sliding window O(n)) ────────────────
+// ─── Processamento dos dados da API (sliding window O(n)) ─────────────────
 function histomacdProcessApiData(data, league) {
     if (!data || !Array.isArray(data)) {
         console.error(`Dados inválidos para ${league}:`, data);
@@ -6047,22 +6032,19 @@ function histomacdProcessApiData(data, league) {
         return a.minuto - b.minuto;
     });
 
-    const extra = 50;
+    const extra      = 50;
     const slicedData = sortedData.slice(-(histomacdNumPoints + histomacdAveragePoints + extra));
 
-    // ── Pré-calcula estatísticas de cada partida ──
     const parsed = slicedData.map(match => {
         const [ftHome, ftAway] = histomacdParsePlacar(match.ft);
         const [htHome, htAway] = histomacdParsePlacar(match.ht);
-        // Proteção contra HT > FT (dado sujo)
-        const st2Home = Math.max(0, ftHome - htHome);
-        const st2Away = Math.max(0, ftAway - htAway);
-        const totalFT = ftHome + ftAway;
-        const total2T = st2Home + st2Away;
+        const st2Home  = Math.max(0, ftHome - htHome);
+        const st2Away  = Math.max(0, ftAway - htAway);
+        const totalFT  = ftHome + ftAway;
+        const total2T  = st2Home + st2Away;
         return { match, ftHome, ftAway, totalFT, st2Home, st2Away, total2T };
     });
 
-    // ── Acumuladores iniciais para a primeira janela (sliding window) ──
     const acc = {
         ambasSim:0, ambasNao:0,
         casaVence:0, empate:0, foraVence:0,
@@ -6074,12 +6056,10 @@ function histomacdProcessApiData(data, league) {
         fora0:0, fora1:0, fora2:0, fora3:0, fora4:0,
     };
 
-    // Preenche a janela inicial
     for (let j = 0; j < histomacdAveragePoints && j < parsed.length; j++) {
         histomacdAccAdd(acc, parsed[j]);
     }
 
-    // Arrays de resultado
     const series = {};
     Object.keys(acc).forEach(k => series[k] = []);
     series.labels = [];
@@ -6091,15 +6071,13 @@ function histomacdProcessApiData(data, league) {
     }
 
     for (let i = histomacdAveragePoints; i < parsed.length; i++) {
-        // Sliding window: adiciona o novo elemento, remove o mais antigo
         histomacdAccAdd(acc, parsed[i]);
         const removeIdx = i - histomacdAveragePoints;
         if (removeIdx >= 0) histomacdAccRemove(acc, parsed[removeIdx]);
 
         const windowSize = Math.min(i + 1, histomacdAveragePoints + 1);
-        const { match } = parsed[i];
+        const { match }  = parsed[i];
 
-        // Gap → ponto nulo
         if (i > histomacdAveragePoints && hasGap(parsed[i - 1].match, match)) {
             series.labels.push('');
             Object.keys(acc).forEach(k => series[k].push(null));
@@ -6111,7 +6089,7 @@ function histomacdProcessApiData(data, league) {
     }
 
     histomacdProcessedChartData[league] = series;
-    histomacdChartData[league] = slicedData.slice(extra);
+    histomacdChartData[league]          = slicedData.slice(extra);
 
     const start = series.labels.length - histomacdNumPoints;
     if (start > 0) {
@@ -6206,11 +6184,10 @@ function histomacdGetIndicatorData(league, market) {
         console.warn(`Dados processados não disponíveis para ${league}`);
         return { macdLine: [], emaSignal: [], histogram: [], rsi: [] };
     }
-    const marketKey  = histomacdMarketKeys[market] || 'ambasSim';
-    const data       = histomacdProcessedChartData[league][marketKey] || [];
-    const filledData = histomacdFillGaps(data);
-    const macd       = histomacdCalculateMACD(filledData, histomacdMacdFast, histomacdMacdSlow, histomacdMacdSignal);
-    const rsi        = histomacdCalculateRSI(filledData, histomacdRsiPeriod);
+    const marketKey = histomacdMarketKeys[market] || 'ambasSim';
+    const data      = histomacdProcessedChartData[league][marketKey] || [];
+    const macd      = histomacdCalculateMACD(data, histomacdMacdFast, histomacdMacdSlow, histomacdMacdSignal);
+    const rsi       = histomacdCalculateRSI(data, histomacdRsiPeriod);
     return { ...macd, rsi };
 }
 
@@ -6406,7 +6383,6 @@ function histomacdUpdateCharts() {
             return response.json();
         })
         .then(data => {
-            // Só processa se os dados mudaram
             const newHash = histomacdHashData(data);
             if (newHash === histomacdLastDataHash) {
                 histomacdUpdateStatus('nochange');
@@ -6461,21 +6437,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const updateAll    = () => histomacdLeagues.forEach(l => histomacdUpdateIndicatorChart(l));
-    const refetchAll   = () => histomacdUpdateCharts();
+    const updateAll  = () => histomacdLeagues.forEach(l => histomacdUpdateIndicatorChart(l));
+    const refetchAll = () => histomacdUpdateCharts();
 
-    bind('histomacdMarketSelector',  null,                    false, () => {
+    bind('histomacdMarketSelector', null, false, () => {
         histomacdSelectedMarket = document.getElementById('histomacdMarketSelector').value;
         histomacdSaveSettings();
         updateAll();
     });
-    bind('histomacdMacdFast',        'histomacdMacdFast',     true,  updateAll);
-    bind('histomacdMacdSlow',        'histomacdMacdSlow',     true,  updateAll);
-    bind('histomacdMacdSignal',      'histomacdMacdSignal',   true,  updateAll);
-    bind('histomacdRsiPeriod',       'histomacdRsiPeriod',    true,  updateAll);
-    bind('histomacdShowRSI',         'histomacdShowRSI',      false, updateAll);
-    bind('histomacdPointsSelector',  'histomacdNumPoints',    true,  refetchAll);
-    bind('histomacdAverageSelector', 'histomacdAveragePoints',true,  refetchAll);
+    bind('histomacdMacdFast',        'histomacdMacdFast',      true,  updateAll);
+    bind('histomacdMacdSlow',        'histomacdMacdSlow',      true,  updateAll);
+    bind('histomacdMacdSignal',      'histomacdMacdSignal',    true,  updateAll);
+    bind('histomacdRsiPeriod',       'histomacdRsiPeriod',     true,  updateAll);
+    bind('histomacdShowRSI',         'histomacdShowRSI',       false, updateAll);
+    bind('histomacdPointsSelector',  'histomacdNumPoints',     true,  refetchAll);
+    bind('histomacdAverageSelector', 'histomacdAveragePoints', true,  refetchAll);
 
     histomacdUpdateCharts();
 });
