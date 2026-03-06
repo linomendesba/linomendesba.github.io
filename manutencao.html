@@ -1843,6 +1843,13 @@ const leagues = ['Copa'];
 const chartInstances = {};
 let chartData = {};
 
+// ─── PAUSA FETCH QUANDO ABA ESTÁ OCULTA ─────────────────────────────
+let _tabVisible = !document.hidden;
+document.addEventListener('visibilitychange', () => {
+    _tabVisible = !document.hidden;
+    if (_tabVisible) updateCharts(); // atualiza imediatamente ao voltar
+});
+
 // ─── PERSISTÊNCIA DOS DATASETS VISÍVEIS ─────────────────────────────
 const VISIBLE_DATASETS_KEY = 'meu_grafico:visibleDatasets';
 
@@ -1870,10 +1877,15 @@ function _loadVisibleDatasets() {
     } catch { return { ...defaultStatsChartVisibleDatasets }; }
 }
 function _saveVisibleDatasets(obj) {
-    try { localStorage.setItem(VISIBLE_DATASETS_KEY, JSON.stringify(obj)); } catch {}
+    try {
+        localStorage.setItem(VISIBLE_DATASETS_KEY, JSON.stringify(obj));
+    } catch (e) {
+        console.warn('Não foi possível salvar preferências da legenda:', e);
+    }
 }
 let statsChartVisibleDatasets = _loadVisibleDatasets();
 
+// ─── MAPA DE LABELS → CHAVES DE DADOS ────────────────────────────────
 const labelToKey = {
     'Gols FT':'golsFT','Casa Vence':'casaVence','Empate':'empate','Fora Vence':'foraVence',
     'Ambas Sim':'ambasSim','Ambas Não':'ambasNao',
@@ -1889,11 +1901,40 @@ const labelToKey = {
     '0x0 HT':'placarHT0x0'
 };
 
-/* ═══════════════════════════════════════════════════════════════════
-   PLUGIN: LEGENDA HTML CUSTOMIZADA
-═══════════════════════════════════════════════════════════════════ */
-let _legendRebuilding = false;
+// ─── CORES CENTRALIZADAS — única fonte de verdade ────────────────────
+const DATASET_COLORS = {
+    'Ambas Sim':'#B0BEC5','Ambas Não':'#F44336',
+    'Casa Vence':'#AB47BC','Empate':'#78909C','Fora Vence':'#2196F3',
+    'Over 0.5':'#80DEEA','Over 1.5':'#26A69A','Over 2.5':'#FFEB3B','Over 3.5':'#00BCD4','Over 5+':'#FF7043',
+    'Under 0.5':'#A5D6A7','Under 1.5':'#388E3C','Under 2.5':'#FF9800','Under 3.5':'#F06292',
+    '0 Gol Exato':'#D81B60','1 Gol Exato':'#8E24AA','2 Gols Exatos':'#A0522D',
+    '3 Gols Exatos':'#546E7A','4 Gols Exatos':'#FFB300','5 Gols Exatos':'#00897B',
+    '0 Gol 2T':'#CE93D8','1 Gol 2T':'#BA68C8','2 Gols 2T':'#9C27B0','3 Gols 2T':'#7B1FA2','4 Gols 2T':'#4A148C',
+    'Casa 0 Gols':'#FFCCBC','Casa 1 Gol':'#FF8A65','Casa 2 Gols':'#FF5722','Casa 3 Gols':'#E64A19','Casa 4 Gols':'#BF360C',
+    'Fora 0 Gols':'#B3E5FC','Fora 1 Gol':'#4FC3F7','Fora 2 Gols':'#0288D1','Fora 3 Gols':'#01579B','Fora 4 Gols':'#002F6C',
+    'Gols FT':'#1E88E5',
+    '0x0':'#E91E63','1x0':'#9C27B0','2x0':'#673AB7','3x0':'#3F51B5',
+    '2x1':'#009688','3x1':'#4CAF50','3x2':'#8BC34A','4x0':'#CDDC39','4x1':'#FFC107',
+    '0x0 HT':'#FF6090'
+};
 
+// ─── GRUPOS DA LEGENDA ────────────────────────────────────────────────
+const LEGEND_GROUPS = [
+    { title: 'Resultado',   labels: ['Casa Vence','Empate','Fora Vence'] },
+    { title: 'Ambas',       labels: ['Ambas Sim','Ambas Não'] },
+    { title: 'Over',        labels: ['Over 0.5','Over 1.5','Over 2.5','Over 3.5','Over 5+'] },
+    { title: 'Under',       labels: ['Under 0.5','Under 1.5','Under 2.5','Under 3.5'] },
+    { title: 'Gols Exatos', labels: ['0 Gol Exato','1 Gol Exato','2 Gols Exatos','3 Gols Exatos','4 Gols Exatos','5 Gols Exatos'] },
+    { title: 'Gols 2T',     labels: ['0 Gol 2T','1 Gol 2T','2 Gols 2T','3 Gols 2T','4 Gols 2T'] },
+    { title: 'Casa',        labels: ['Casa 0 Gols','Casa 1 Gol','Casa 2 Gols','Casa 3 Gols','Casa 4 Gols'] },
+    { title: 'Fora',        labels: ['Fora 0 Gols','Fora 1 Gol','Fora 2 Gols','Fora 3 Gols','Fora 4 Gols'] },
+    { title: 'Placares',    labels: ['0x0','1x0','2x0','3x0','2x1','3x1','3x2','4x0','4x1','0x0 HT'] },
+    { title: 'Geral',       labels: ['Gols FT'] }
+];
+
+/* ═══════════════════════════════════════════════════════════════════
+   PLUGIN: LEGENDA HTML CUSTOMIZADA COM GRUPOS
+═══════════════════════════════════════════════════════════════════ */
 const htmlLegendPlugin = {
     id: 'htmlLegend',
 
@@ -1902,11 +1943,43 @@ const htmlLegendPlugin = {
             const style = document.createElement('style');
             style.id = 'html-legend-style';
             style.textContent = `
-                #legenda-customizada {
+                #legenda-customizada { padding: 8px 6px 10px; }
+                .leg-toolbar {
+                    display: flex;
+                    gap: 6px;
+                    margin-bottom: 8px;
+                    flex-wrap: wrap;
+                }
+                .leg-btn {
+                    font-size: 0.72em;
+                    font-weight: 600;
+                    padding: 3px 10px;
+                    border-radius: 20px;
+                    cursor: pointer;
+                    user-select: none;
+                    border: 1px solid rgba(255,255,255,0.22);
+                    background: rgba(255,255,255,0.08);
+                    color: #e0e0e0;
+                    transition: background 0.15s, border-color 0.15s;
+                }
+                .leg-btn:hover {
+                    background: rgba(255,255,255,0.18);
+                    border-color: rgba(255,255,255,0.4);
+                }
+                .leg-group { margin-bottom: 7px; }
+                .leg-group-title {
+                    font-size: 0.68em;
+                    font-weight: 700;
+                    letter-spacing: 0.06em;
+                    text-transform: uppercase;
+                    color: rgba(255,255,255,0.35);
+                    margin-bottom: 4px;
+                    padding-left: 2px;
+                }
+                .leg-group-pills {
                     display: flex;
                     flex-wrap: wrap;
-                    gap: 5px 6px;
-                    padding: 8px 6px 10px;
+                    gap: 4px 5px;
                 }
                 .leg-item {
                     display: inline-flex;
@@ -1933,7 +2006,6 @@ const htmlLegendPlugin = {
                     text-decoration: line-through;
                     background: rgba(255,255,255,0.02);
                     border-color: transparent;
-                    transition: background 0.2s, opacity 0.2s, border-color 0.2s;
                 }
                 .leg-item.leg-hidden:hover {
                     opacity: 0.65;
@@ -1941,8 +2013,7 @@ const htmlLegendPlugin = {
                     border-color: rgba(255,255,255,0.20);
                 }
                 .leg-dot {
-                    width: 9px;
-                    height: 9px;
+                    width: 9px; height: 9px;
                     border-radius: 50%;
                     flex-shrink: 0;
                     transition: transform 0.15s;
@@ -1955,79 +2026,131 @@ const htmlLegendPlugin = {
         if (!document.getElementById('legenda-customizada')) {
             const container = document.createElement('div');
             container.id = 'legenda-customizada';
-
             const canvasWrapper = chart.canvas.closest('.canvas-wrapper');
             const chartContainer = canvasWrapper ? canvasWrapper.parentNode : chart.canvas.parentNode.parentNode;
-
             chartContainer.insertBefore(container, chartContainer.firstChild);
         }
     },
 
     afterUpdate(chart) {
-        // Nunca bloqueia: apenas sincroniza o estado visual das pills
         const container = document.getElementById('legenda-customizada');
         if (!container) return;
 
-        const items = chart.options.plugins.legend.labels
-            .generateLabels(chart)
-            .filter(item => !item.text.includes(' MA'));
+        // Mapa label → hidden
+        const hiddenMap = {};
+        chart.data.datasets.forEach((ds, i) => {
+            if (!ds.label.includes(' MA'))
+                hiddenMap[ds.label] = !!chart.getDatasetMeta(i).hidden;
+        });
 
-        // Já existe — só atualiza classes, não reconstrói
-        if (container.children.length === items.length) {
-            Array.from(container.children).forEach((el, i) => {
-                el.classList.toggle('leg-hidden', items[i].hidden);
+        // Já construído → só sincroniza classes
+        if (container.dataset.built === '1') {
+            container.querySelectorAll('.leg-item[data-label]').forEach(pill => {
+                const lbl = pill.dataset.label;
+                if (lbl in hiddenMap) pill.classList.toggle('leg-hidden', hiddenMap[lbl]);
             });
             return;
         }
 
-        // Primeira construção
-        container.innerHTML = '';
-        items.forEach(item => {
-            const pill = document.createElement('div');
-            pill.className = 'leg-item' + (item.hidden ? ' leg-hidden' : '');
-            pill.dataset.label = item.text;
-            pill.title = item.text;
+        // ── Primeira construção ──────────────────────────────────────
+        // Toolbar
+        const toolbar = document.createElement('div');
+        toolbar.className = 'leg-toolbar';
+        const btnShow = document.createElement('button');
+        btnShow.className = 'leg-btn';
+        btnShow.textContent = '✦ Mostrar todos';
+        btnShow.addEventListener('click', () => _toggleAllDatasets(chart, true));
+        const btnHide = document.createElement('button');
+        btnHide.className = 'leg-btn';
+        btnHide.textContent = '✦ Ocultar todos';
+        btnHide.addEventListener('click', () => _toggleAllDatasets(chart, false));
+        toolbar.appendChild(btnShow);
+        toolbar.appendChild(btnHide);
+        container.appendChild(toolbar);
 
-            const dot = document.createElement('span');
-            dot.className = 'leg-dot';
-            dot.style.background = item.fillStyle || item.strokeStyle || '#888';
+        // Grupos
+        LEGEND_GROUPS.forEach(group => {
+            const groupEl = document.createElement('div');
+            groupEl.className = 'leg-group';
+            const titleEl = document.createElement('div');
+            titleEl.className = 'leg-group-title';
+            titleEl.textContent = group.title;
+            const pillsEl = document.createElement('div');
+            pillsEl.className = 'leg-group-pills';
 
-            const lbl = document.createElement('span');
-            lbl.textContent = item.text;
+            group.labels.forEach(labelText => {
+                const color = DATASET_COLORS[labelText] || '#888';
+                const isHidden = hiddenMap[labelText] !== false;
 
-            pill.appendChild(dot);
-            pill.appendChild(lbl);
+                const pill = document.createElement('div');
+                pill.className = 'leg-item' + (isHidden ? ' leg-hidden' : '');
+                pill.dataset.label = labelText;
+                pill.title = labelText;
 
-            pill.addEventListener('click', () => {
-                const mainIdx = chart.data.datasets.findIndex(ds => ds.label === item.text);
-                if (mainIdx < 0) return;
+                const dot = document.createElement('span');
+                dot.className = 'leg-dot';
+                dot.style.background = color;
 
-                const meta = chart.getDatasetMeta(mainIdx);
-                const nowVisible = meta.hidden; // será verdadeiro após o toggle
+                const lbl = document.createElement('span');
+                lbl.textContent = labelText;
 
-                // 1. Atualiza o estado interno
-                meta.hidden = !meta.hidden;
-                statsChartVisibleDatasets[item.text] = nowVisible;
-                _saveVisibleDatasets(statsChartVisibleDatasets);
+                pill.appendChild(dot);
+                pill.appendChild(lbl);
 
-                // 2. Atualiza a pill imediatamente — sem esperar o chart.update()
-                pill.classList.toggle('leg-hidden', !nowVisible);
+                pill.addEventListener('click', () => {
+                    const mainIdx = chart.data.datasets.findIndex(ds => ds.label === labelText);
+                    if (mainIdx < 0) return;
+                    const meta = chart.getDatasetMeta(mainIdx);
+                    const nowVisible = meta.hidden;
 
-                // 3. Sincroniza MAs
-                chart.data.datasets.forEach((ds, dsIdx) => {
-                    if (ds.label.startsWith(item.text + ' -')) {
-                        chart.getDatasetMeta(dsIdx).hidden = !showMovingAverages || !nowVisible;
-                    }
+                    meta.hidden = !meta.hidden;
+                    statsChartVisibleDatasets[labelText] = nowVisible;
+                    _saveVisibleDatasets(statsChartVisibleDatasets);
+
+                    pill.classList.toggle('leg-hidden', !nowVisible);
+
+                    chart.data.datasets.forEach((ds, dsIdx) => {
+                        if (ds.label.startsWith(labelText + ' -'))
+                            chart.getDatasetMeta(dsIdx).hidden = !showMovingAverages || !nowVisible;
+                    });
+
+                    chart.update('active');
                 });
 
-                // 4. Renderiza o gráfico — afterUpdate irá apenas sincronizar classes, não reconstruir
-                chart.update('active');
+                pillsEl.appendChild(pill);
             });
 
-            container.appendChild(pill);
+            groupEl.appendChild(titleEl);
+            groupEl.appendChild(pillsEl);
+            container.appendChild(groupEl);
         });
+
+        container.dataset.built = '1';
     }
 };
+
+// ─── HELPER: mostrar/ocultar todos ───────────────────────────────────
+function _toggleAllDatasets(chart, visible) {
+    Object.keys(statsChartVisibleDatasets).forEach(label => {
+        statsChartVisibleDatasets[label] = visible;
+    });
+    _saveVisibleDatasets(statsChartVisibleDatasets);
+
+    chart.data.datasets.forEach((ds, idx) => {
+        chart.getDatasetMeta(idx).hidden = ds.label.includes(' - ')
+            ? !showMovingAverages || !visible
+            : !visible;
+    });
+
+    const container = document.getElementById('legenda-customizada');
+    if (container) {
+        container.querySelectorAll('.leg-item[data-label]').forEach(pill => {
+            pill.classList.toggle('leg-hidden', !visible);
+        });
+    }
+
+    chart.update('active');
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    UTILITÁRIOS
@@ -2256,7 +2379,7 @@ function updateStatsChart(chart, newData) {
         if (!ds.label.includes(' MA'))
             ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label)+'Colors'];
     });
-    chart.update();
+    chart.update('none'); // atualização silenciosa — mais leve
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2395,65 +2518,19 @@ const linhaDraggablePlugin={
    CRIAÇÃO DO GRÁFICO
 ═══════════════════════════════════════════════════════════════════ */
 function createStatsChart(ctx, labels, data, league) {
-    const datasetConfigs=[
-        {label:'Ambas Sim',     color:'#B0BEC5',key:'ambasSim'},
-        {label:'Ambas Não',     color:'#F44336',key:'ambasNao'},
-        {label:'Casa Vence',    color:'#AB47BC',key:'casaVence'},
-        {label:'Empate',        color:'#78909C',key:'empate'},
-        {label:'Fora Vence',    color:'#2196F3',key:'foraVence'},
-        {label:'Over 0.5',      color:'#80DEEA',key:'over05'},
-        {label:'Over 1.5',      color:'#26A69A',key:'over15'},
-        {label:'Over 2.5',      color:'#FFEB3B',key:'over25'},
-        {label:'Over 3.5',      color:'#00BCD4',key:'over35'},
-        {label:'Over 5+',       color:'#FF7043',key:'over5'},
-        {label:'Under 0.5',     color:'#A5D6A7',key:'under05'},
-        {label:'Under 1.5',     color:'#388E3C',key:'under15'},
-        {label:'Under 2.5',     color:'#FF9800',key:'under25'},
-        {label:'Under 3.5',     color:'#F06292',key:'under35'},
-        {label:'0 Gol Exato',   color:'#D81B60',key:'gol0'},
-        {label:'1 Gol Exato',   color:'#8E24AA',key:'gol1'},
-        {label:'2 Gols Exatos', color:'#A0522D',key:'gol2'},
-        {label:'3 Gols Exatos', color:'#546E7A',key:'gol3'},
-        {label:'4 Gols Exatos', color:'#FFB300',key:'gol4'},
-        {label:'5 Gols Exatos', color:'#00897B',key:'gol5'},
-        {label:'0 Gol 2T',      color:'#CE93D8',key:'gol2t0'},
-        {label:'1 Gol 2T',      color:'#BA68C8',key:'gol2t1'},
-        {label:'2 Gols 2T',     color:'#9C27B0',key:'gol2t2'},
-        {label:'3 Gols 2T',     color:'#7B1FA2',key:'gol2t3'},
-        {label:'4 Gols 2T',     color:'#4A148C',key:'gol2t4'},
-        {label:'Casa 0 Gols',   color:'#FFCCBC',key:'casa0'},
-        {label:'Casa 1 Gol',    color:'#FF8A65',key:'casa1'},
-        {label:'Casa 2 Gols',   color:'#FF5722',key:'casa2'},
-        {label:'Casa 3 Gols',   color:'#E64A19',key:'casa3'},
-        {label:'Casa 4 Gols',   color:'#BF360C',key:'casa4'},
-        {label:'Fora 0 Gols',   color:'#B3E5FC',key:'fora0'},
-        {label:'Fora 1 Gol',    color:'#4FC3F7',key:'fora1'},
-        {label:'Fora 2 Gols',   color:'#0288D1',key:'fora2'},
-        {label:'Fora 3 Gols',   color:'#01579B',key:'fora3'},
-        {label:'Fora 4 Gols',   color:'#002F6C',key:'fora4'},
-        {label:'Gols FT',       color:'#1E88E5',key:'golsFT'},
-        {label:'0x0',  color:'#E91E63',key:'placar0x0'},
-        {label:'1x0',  color:'#9C27B0',key:'placar1x0'},
-        {label:'2x0',  color:'#673AB7',key:'placar2x0'},
-        {label:'3x0',  color:'#3F51B5',key:'placar3x0'},
-        {label:'2x1',  color:'#009688',key:'placar2x1'},
-        {label:'3x1',  color:'#4CAF50',key:'placar3x1'},
-        {label:'3x2',  color:'#8BC34A',key:'placar3x2'},
-        {label:'4x0',  color:'#CDDC39',key:'placar4x0'},
-        {label:'4x1',  color:'#FFC107',key:'placar4x1'},
-        {label:'0x0 HT',color:'#FF6090',key:'placarHT0x0'}
-    ];
+    // Usa DATASET_COLORS como fonte única de verdade — sem duplicação
+    const datasetConfigs = Object.entries(labelToKey).map(([label, key]) => ({
+        label, key, color: DATASET_COLORS[label] || '#888'
+    }));
 
     const datasets=[],shortColor='#00FF00',longColor='#FF0000';
     datasetConfigs.forEach(cfg=>{
         datasets.push({
-            label:cfg.label,data:data[cfg.key],
-            borderColor:cfg.color,backgroundColor:cfg.color,
+            label:cfg.label, data:data[cfg.key],
+            borderColor:cfg.color, backgroundColor:cfg.color,
             pointBackgroundColor:data[cfg.key+'Colors'],
-            pointBorderColor:'rgba(0,0,0,0)',pointBorderWidth:0,
-            borderWidth:2,
-            pointRadius:3,         // ← bolinhas menores
-            pointHoverRadius:5,      // ← hover um pouco maior para feedback
+            pointBorderColor:'rgba(0,0,0,0)', pointBorderWidth:0,
+            borderWidth:2, pointRadius:3, pointHoverRadius:5,
             fill:false,
             hidden:!statsChartVisibleDatasets[cfg.label]
         });
@@ -2503,6 +2580,7 @@ function createStatsChart(ctx, labels, data, league) {
    UPDATE / CONTROLES
 ═══════════════════════════════════════════════════════════════════ */
 function updateCharts() {
+    if (!_tabVisible) return; // não faz fetch com aba oculta
     const ts=new Date().getTime();
     leagues.forEach(league=>{
         fetch(ROTAS_API.resultados(LIGA_ATUAL)+`?timestamp=${ts}`)
@@ -2568,13 +2646,20 @@ setInterval(updateCharts,3000);
    SEGUNDO BLOCO: PERCENTUAIS E GOLS
 ═══════════════════════════════════════════════════════════════════ */
 async function fetchResults(){
-    const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-    return(await r.json()).slice(-240).reverse();
+    try {
+        const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return (await r.json()).slice(-240).reverse();
+    } catch(e) {
+        console.error('Erro ao buscar resultados:', e);
+        return [];
+    }
 }
 
 function calculatePercentage(data,market){
     let greens=0,reds=0;
     data.forEach(game=>{
+        if (!game.ft?.includes(' x ')) return;
         const[scoreA,scoreB]=game.ft.split(' x ').map(Number);
         const tg=scoreA+scoreB;
         let htA=0,htB=0;
@@ -2619,33 +2704,35 @@ function calculatePercentage(data,market){
         }
     });
     const total=greens+reds;
+    if (!total) return { greens: '0.0', reds: '0.0' };
     return{greens:((greens/total)*100).toFixed(1),reds:((reds/total)*100).toFixed(1)};
 }
 
 function calculateGoalStats(data){
-    const totalGols=data.reduce((a,g)=>{const[A,B]=g.ft.split(' x ').map(Number);return a+A+B;},0);
-    return{totalGols,mediaGolsHora:(totalGols/12).toFixed(2)};
+    if (!data.length) return { totalGols: 0, mediaGolsHora: '0.00' };
+    const totalGols=data.reduce((a,g)=>{
+        if (!g.ft?.includes(' x ')) return a;
+        const[A,B]=g.ft.split(' x ').map(Number);
+        return a+A+B;
+    },0);
+    // Média dinâmica baseada no tamanho real da amostra (12 jogos/hora)
+    const horasEquivalentes = data.length / 12;
+    return { totalGols, mediaGolsHora: (totalGols / horasEquivalentes).toFixed(2) };
 }
 
-document.getElementById('seletorResultado').addEventListener('change',async e=>{
-    const games=await fetchResults();
-    const p=calculatePercentage(games,e.target.value);
+async function _atualizarBlocoPercentuais() {
+    const games = await fetchResults();
+    if (!games.length) return;
+    const p=calculatePercentage(games, document.getElementById('seletorResultado').value);
     const s=calculateGoalStats(games);
     document.getElementById('greenPercentage').innerText=`Greens: ${p.greens}%`;
     document.getElementById('redPercentage').innerText=`Reds: ${p.reds}%`;
     document.getElementById('totalGols').innerText=`Gols: ${s.totalGols}`;
     document.getElementById('mediaGolsHora').innerText=`Gols/Hora: ${s.mediaGolsHora}`;
-});
+}
 
-window.addEventListener('load',async()=>{
-    const games=await fetchResults();
-    const p=calculatePercentage(games,document.getElementById('seletorResultado').value);
-    const s=calculateGoalStats(games);
-    document.getElementById('greenPercentage').innerText=`Greens: ${p.greens}%`;
-    document.getElementById('redPercentage').innerText=`Reds: ${p.reds}%`;
-    document.getElementById('totalGols').innerText=`Gols: ${s.totalGols}`;
-    document.getElementById('mediaGolsHora').innerText=`Gols/Hora: ${s.mediaGolsHora}`;
-});
+document.getElementById('seletorResultado').addEventListener('change', _atualizarBlocoPercentuais);
+window.addEventListener('load', _atualizarBlocoPercentuais);
     </script>
 
     <script>
