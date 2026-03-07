@@ -6362,7 +6362,14 @@ console.info = function() {};
     </script>
 
     <script>
-              const HISTOMACD_DATA_URL = 'https://betstat.site/resultados/kiron/England';
+const HISTOMACD_DATA_URL = 'https://betstat.site/resultados/kiron/England';
+
+// ─── Detecta nome da liga pela URL (para salvar config separada por página) ──
+function histomacdGetLeagueKey() {
+    const path = window.location.pathname;
+    const match = path.match(/kiron(england|italy|spain)/i);
+    return match ? match[0].toLowerCase() : 'kirondefault';
+}
 
 // ─── Variáveis globais ─────────────────────────────────────────────────────
 let histomacdNumPoints          = 30;
@@ -6376,12 +6383,13 @@ let histomacdMacdSignal         = 9;
 let histomacdRsiPeriod          = 14;
 let histomacdShowRSI            = true;
 let histomacdIndicatorCharts    = {};
-let histomacdSelectedMarket     = 'over25';
+let histomacdSelectedMarket     = 'under2.5'; // under2.5 no select = over2.5 internamente
 let histomacdLastDataHash       = null;
 let histomacdLastUpdateTime     = null;
 
-// ─── Configurações salvas no localStorage ─────────────────────────────────
+// ─── Configurações salvas no localStorage por liga ────────────────────────
 function histomacdSaveSettings() {
+    const key = 'histomacdChartSettings_' + histomacdGetLeagueKey();
     const settings = {
         selectedMarket: histomacdSelectedMarket,
         numPoints:      histomacdNumPoints,
@@ -6392,37 +6400,52 @@ function histomacdSaveSettings() {
         rsiPeriod:      histomacdRsiPeriod,
         showRSI:        histomacdShowRSI
     };
-    localStorage.setItem('histomacdChartSettings', JSON.stringify(settings));
+    localStorage.setItem(key, JSON.stringify(settings));
 }
 
 function histomacdLoadSettings() {
-    const saved = localStorage.getItem('histomacdChartSettings');
-    if (!saved) return;
+    const key   = 'histomacdChartSettings_' + histomacdGetLeagueKey();
+    const saved = localStorage.getItem(key);
 
-    const settings = JSON.parse(saved);
+    // Padrões (over 2.5 = select value 'under2.5' por causa do mapeamento invertido)
+    histomacdSelectedMarket = 'under2.5';
+    histomacdNumPoints      = 30;
+    histomacdAveragePoints  = 30;
+    histomacdMacdFast       = 12;
+    histomacdMacdSlow       = 26;
+    histomacdMacdSignal     = 9;
+    histomacdRsiPeriod      = 14;
+    histomacdShowRSI        = true;
 
+    if (saved) {
+        const settings = JSON.parse(saved);
+
+        const marketSelector = document.getElementById('histomacdMarketSelector');
+        const marketExists = marketSelector
+            ? Array.from(marketSelector.options).some(o => o.value === settings.selectedMarket)
+            : false;
+
+        histomacdSelectedMarket = marketExists ? settings.selectedMarket : 'under2.5';
+        histomacdNumPoints      = settings.numPoints     || 30;
+        histomacdAveragePoints  = settings.averagePoints || 30;
+        histomacdMacdFast       = settings.macdFast      || 12;
+        histomacdMacdSlow       = settings.macdSlow      || 26;
+        histomacdMacdSignal     = settings.macdSignal    || 9;
+        histomacdRsiPeriod      = settings.rsiPeriod     || 14;
+        histomacdShowRSI        = settings.showRSI !== undefined ? settings.showRSI : true;
+    }
+
+    // Aplica nos elementos
     const marketSelector = document.getElementById('histomacdMarketSelector');
-    const marketExists = marketSelector
-        ? Array.from(marketSelector.options).some(o => o.value === settings.selectedMarket)
-        : false;
+    if (marketSelector) marketSelector.value = histomacdSelectedMarket;
 
-    histomacdSelectedMarket = marketExists ? settings.selectedMarket : 'ambasNaoMarcam';
-    histomacdNumPoints      = settings.numPoints     || 20;
-    histomacdAveragePoints  = settings.averagePoints || 20;
-    histomacdMacdFast       = settings.macdFast      || 12;
-    histomacdMacdSlow       = settings.macdSlow      || 26;
-    histomacdMacdSignal     = settings.macdSignal    || 9;
-    histomacdRsiPeriod      = settings.rsiPeriod     || 14;
-    histomacdShowRSI        = settings.showRSI !== undefined ? settings.showRSI : true;
-
-    if (marketSelector)                                              marketSelector.value  = histomacdSelectedMarket;
-    const ps = document.getElementById('histomacdPointsSelector');  if (ps)  ps.value    = histomacdNumPoints;
-    const as = document.getElementById('histomacdAverageSelector'); if (as)  as.value    = histomacdAveragePoints;
-    const mf = document.getElementById('histomacdMacdFast');        if (mf)  mf.value    = histomacdMacdFast;
-    const ms = document.getElementById('histomacdMacdSlow');        if (ms)  ms.value    = histomacdMacdSlow;
-    const mg = document.getElementById('histomacdMacdSignal');      if (mg)  mg.value    = histomacdMacdSignal;
-    const rp = document.getElementById('histomacdRsiPeriod');       if (rp)  rp.value    = histomacdRsiPeriod;
-    const sr = document.getElementById('histomacdShowRSI');         if (sr)  sr.checked  = histomacdShowRSI;
+    const ps = document.getElementById('histomacdPointsSelector');  if (ps)  ps.value   = histomacdNumPoints;
+    const as = document.getElementById('histomacdAverageSelector'); if (as)  as.value   = histomacdAveragePoints;
+    const mf = document.getElementById('histomacdMacdFast');        if (mf)  mf.value   = histomacdMacdFast;
+    const ms = document.getElementById('histomacdMacdSlow');        if (ms)  ms.value   = histomacdMacdSlow;
+    const mg = document.getElementById('histomacdMacdSignal');      if (mg)  mg.value   = histomacdMacdSignal;
+    const rp = document.getElementById('histomacdRsiPeriod');       if (rp)  rp.value   = histomacdRsiPeriod;
+    const sr = document.getElementById('histomacdShowRSI');         if (sr)  sr.checked = histomacdShowRSI;
 }
 
 // ─── Mapeamento: valor do select → chave interna ──────────────────────────
@@ -6736,7 +6759,7 @@ function histomacdGetIndicatorData(league, market) {
         console.warn(`Dados processados não disponíveis para ${league}`);
         return { macdLine: [], emaSignal: [], histogram: [], rsi: [] };
     }
-    const marketKey  = histomacdMarketKeys[market] || 'ambasSim';
+    const marketKey  = histomacdMarketKeys[market] || 'over25';
     const fullSeries = histomacdProcessedChartData[league]._full?.[marketKey] || [];
     if (fullSeries.length === 0) return { macdLine: [], emaSignal: [], histogram: [], rsi: [] };
 
@@ -6767,8 +6790,8 @@ function histomacdCreateIndicatorChart(ctx, labels, indicatorData, league) {
         return null;
     }
 
-    const marketKey   = histomacdMarketKeys[histomacdSelectedMarket] || 'ambasSim';
-    const marketLabel = histomacdKeyToLabel[marketKey] || 'Ambas Sim';
+    const marketKey   = histomacdMarketKeys[histomacdSelectedMarket] || 'over25';
+    const marketLabel = histomacdKeyToLabel[marketKey] || 'Over 2.5';
     const hist        = indicatorData.histogram || [];
     const histColors  = hist.map((val, i) => histomacdHistColor(val, i > 0 ? hist[i - 1] : 0));
 
@@ -6911,8 +6934,8 @@ function histomacdUpdateIndicatorChart(league) {
     }
 
     const indicatorData = histomacdGetIndicatorData(league, histomacdSelectedMarket);
-    const marketKey     = histomacdMarketKeys[histomacdSelectedMarket] || 'ambasSim';
-    const marketLabel   = histomacdKeyToLabel[marketKey] || 'Ambas Sim';
+    const marketKey     = histomacdMarketKeys[histomacdSelectedMarket] || 'over25';
+    const marketLabel   = histomacdKeyToLabel[marketKey] || 'Over 2.5';
     const chart         = histomacdIndicatorCharts[league];
     const hist          = indicatorData.histogram || [];
     const histColors    = hist.map((val, i) => histomacdHistColor(val, i > 0 ? hist[i - 1] : 0));
@@ -7062,14 +7085,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const elPoints = document.getElementById('histomacdPointsSelector');
     if (elPoints) elPoints.addEventListener('change', function() {
-        histomacdNumPoints = parseInt(this.value, 10) || 20;
+        histomacdNumPoints = parseInt(this.value, 10) || 30;
         histomacdSaveSettings();
         refetchAll();
     });
 
     const elAvg = document.getElementById('histomacdAverageSelector');
     if (elAvg) elAvg.addEventListener('change', function() {
-        histomacdAveragePoints = parseInt(this.value, 10) || 20;
+        histomacdAveragePoints = parseInt(this.value, 10) || 30;
         histomacdSaveSettings();
         refetchAll();
     });
