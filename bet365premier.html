@@ -5286,66 +5286,201 @@ loadNextGamesForMinutes();
 
 // --- MAPEAMENTO DE MERCADOS OPOSTOS ---
 const counterMarketMap = {
-    'ambasMarcam': 'ambasNaoMarcam', 'ambasNaoMarcam': 'ambasMarcam',
-    'over1.5': 'under1.5', 'under1.5': 'over1.5',
-    'over2.5': 'under2.5', 'under2.5': 'over2.5',
-    'over3.5': 'under3.5', 'under3.5': 'over3.5',
-    'casaVence': 'empateOuFora', 'foraVence': 'empateOuCasa',
-    'empate': 'casaOuFora', 'over5': null
+    // Ambas
+    'ambasMarcam':        'ambasNaoMarcam',
+    'ambasNaoMarcam':     'ambasMarcam',
+
+    // Resultado FT
+    'casaVence':          'empateOuFora',
+    'empateOuFora':       'casaVence',
+    'foraVence':          'empateOuCasa',
+    'empateOuCasa':       'foraVence',
+    'empate':             'casaOuFora',
+    'casaOuFora':         'empate',
+
+    // Over
+    'over0.5':            'under0.5',
+    'over1.5':            'under1.5',
+    'over2.5':            'under2.5',
+    'over3.5':            'under3.5',
+    'over5':              null,
+
+    // Under
+    'under0.5':           'over0.5',
+    'under1.5':           'over1.5',
+    'under2.5':           'over2.5',
+    'under3.5':           'over3.5',
+
+    // Gols Exatos FT (oposto = qualquer outro placar de gols totais)
+    'exato0':             'naoExato0',
+    'exato1':             'naoExato1',
+    'exato2':             'naoExato2',
+    'exato3':             'naoExato3',
+    'exato4':             'naoExato4',
+
+    // Gols Exatos 2º Tempo
+    'exato2t0':           'naoExato2t0',
+    'exato2t1':           'naoExato2t1',
+    'exato2t2':           'naoExato2t2',
+    'exato2t3':           'naoExato2t3',
+    'exato2t4':           'naoExato2t4',
+
+    // Gols Casa
+    'casa0Gols':          'casaMaisDeZero',
+    'casa1Gol':           'casaNaoUm',
+    'casa2Gols':          'casaNaoDois',
+    'casa3Gols':          'casaNaoTres',
+    'casa4Gols':          'casaNaoQuatro',
+
+    // Gols Fora
+    'fora0Gols':          'foraMaisDeZero',
+    'fora1Gol':           'foraNaoUm',
+    'fora2Gols':          'foraNaoDois',
+    'fora3Gols':          'foraNaoTres',
+    'fora4Gols':          'foraNaoQuatro',
 };
 
 let numPreviousHours = 1;
 
 /**
- * Pega a hora atual do sistema e adiciona 3 horas (fuso horário dos dados)
+ * Pega a hora atual de Londres (fuso correto dos dados).
+ * Substitui a lógica antiga de +3h que era imprecisa.
  */
-function getHoraComFuso() {
+function getHoraLondres() {
     const agora = new Date();
-    const horaLocal = agora.getHours();
-    const horaComFuso = (horaLocal + 3) % 24;
-    return horaComFuso;
+    // Londres: UTC+0 no inverno, UTC+1 no verão (BST)
+    // Usando Intl para pegar a hora local de Londres corretamente
+    const londonTime = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/London',
+        hour: 'numeric',
+        hour12: false
+    }).format(agora);
+    return parseInt(londonTime, 10);
 }
 
 /**
- * Pega a data ajustada considerando o fuso horário
+ * Pega a data atual de Londres.
  */
-function getDataComFuso() {
+function getDataLondres() {
     const agora = new Date();
-    const horaLocal = agora.getHours();
-    
-    // Se adicionar 3 horas passar para o dia seguinte
-    if (horaLocal >= 21) {
-        const dataFutura = new Date(agora);
-        dataFutura.setDate(dataFutura.getDate() + 1);
-        return dataFutura;
-    }
-    
-    return agora;
+    const londonDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/London'
+    }).format(agora); // formato YYYY-MM-DD
+    return londonDate;
+}
+
+/**
+ * Retorna data de Londres menos N dias no formato YYYY-MM-DD.
+ */
+function subtrairDias(dateStr, dias) {
+    const d = new Date(dateStr + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() - dias);
+    return d.toISOString().split('T')[0];
 }
 
 /**
  * Verifica se um resultado de jogo atende a um mercado específico.
+ * ft  = placar FT  ex: "2 x 1"
+ * ht  = placar HT  ex: "1 x 0"  (usado nos mercados de 2º tempo)
  */
-function checkMarket(ftScore, market) {
+function checkMarket(ftScore, market, htScore) {
     if (!ftScore || !ftScore.includes('x')) return false;
-    const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
-    const totalGols = golsCasa + golsFora;
+
+    const [golsCasaFT, golsForaFT] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+    const totalGolsFT = golsCasaFT + golsForaFT;
+
+    // Gols do 2º tempo = FT - HT
+    let golsCasa2T = golsCasaFT;
+    let golsFora2T = golsForaFT;
+    if (htScore && htScore.includes('x')) {
+        const [hCasa, hFora] = htScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+        golsCasa2T = golsCasaFT - hCasa;
+        golsFora2T = golsForaFT - hFora;
+    }
+    const total2T = golsCasa2T + golsFora2T;
+
     switch (market) {
-        case 'ambasMarcam': return golsCasa > 0 && golsFora > 0;
-        case 'ambasNaoMarcam': return golsCasa === 0 || golsFora === 0;
-        case 'casaVence': return golsCasa > golsFora;
-        case 'foraVence': return golsFora > golsCasa;
-        case 'empate': return golsCasa === golsFora;
-        case 'over1.5': return totalGols > 1.5;
-        case 'under1.5': return totalGols < 1.5;
-        case 'over2.5': return totalGols > 2.5;
-        case 'under2.5': return totalGols < 2.5;
-        case 'over3.5': return totalGols > 3.5;
-        case 'under3.5': return totalGols < 3.5;
-        case 'over5': return totalGols >= 5;
-        case 'empateOuFora': return golsCasa <= golsFora;
-        case 'empateOuCasa': return golsCasa >= golsFora;
-        case 'casaOuFora': return golsCasa !== golsFora;
+        // Ambas
+        case 'ambasMarcam':        return golsCasaFT > 0 && golsForaFT > 0;
+        case 'ambasNaoMarcam':     return golsCasaFT === 0 || golsForaFT === 0;
+
+        // Resultado FT
+        case 'casaVence':          return golsCasaFT > golsForaFT;
+        case 'foraVence':          return golsForaFT > golsCasaFT;
+        case 'empate':             return golsCasaFT === golsForaFT;
+        case 'empateOuFora':       return golsCasaFT <= golsForaFT;
+        case 'empateOuCasa':       return golsCasaFT >= golsForaFT;
+        case 'casaOuFora':         return golsCasaFT !== golsForaFT;
+
+        // Over FT
+        case 'over0.5':            return totalGolsFT > 0.5;
+        case 'over1.5':            return totalGolsFT > 1.5;
+        case 'over2.5':            return totalGolsFT > 2.5;
+        case 'over3.5':            return totalGolsFT > 3.5;
+        case 'over5':              return totalGolsFT >= 5;
+
+        // Under FT
+        case 'under0.5':           return totalGolsFT < 0.5;
+        case 'under1.5':           return totalGolsFT < 1.5;
+        case 'under2.5':           return totalGolsFT < 2.5;
+        case 'under3.5':           return totalGolsFT < 3.5;
+
+        // Gols Exatos FT
+        case 'exato0':             return totalGolsFT === 0;
+        case 'exato1':             return totalGolsFT === 1;
+        case 'exato2':             return totalGolsFT === 2;
+        case 'exato3':             return totalGolsFT === 3;
+        case 'exato4':             return totalGolsFT === 4;
+
+        // Opostos de Gols Exatos FT
+        case 'naoExato0':          return totalGolsFT !== 0;
+        case 'naoExato1':          return totalGolsFT !== 1;
+        case 'naoExato2':          return totalGolsFT !== 2;
+        case 'naoExato3':          return totalGolsFT !== 3;
+        case 'naoExato4':          return totalGolsFT !== 4;
+
+        // Gols Exatos 2º Tempo
+        case 'exato2t0':           return total2T === 0;
+        case 'exato2t1':           return total2T === 1;
+        case 'exato2t2':           return total2T === 2;
+        case 'exato2t3':           return total2T === 3;
+        case 'exato2t4':           return total2T === 4;
+
+        // Opostos de Gols Exatos 2º Tempo
+        case 'naoExato2t0':        return total2T !== 0;
+        case 'naoExato2t1':        return total2T !== 1;
+        case 'naoExato2t2':        return total2T !== 2;
+        case 'naoExato2t3':        return total2T !== 3;
+        case 'naoExato2t4':        return total2T !== 4;
+
+        // Gols Casa (exatos)
+        case 'casa0Gols':          return golsCasaFT === 0;
+        case 'casa1Gol':           return golsCasaFT === 1;
+        case 'casa2Gols':          return golsCasaFT === 2;
+        case 'casa3Gols':          return golsCasaFT === 3;
+        case 'casa4Gols':          return golsCasaFT === 4;
+
+        // Opostos Gols Casa
+        case 'casaMaisDeZero':     return golsCasaFT > 0;
+        case 'casaNaoUm':          return golsCasaFT !== 1;
+        case 'casaNaoDois':        return golsCasaFT !== 2;
+        case 'casaNaoTres':        return golsCasaFT !== 3;
+        case 'casaNaoQuatro':      return golsCasaFT !== 4;
+
+        // Gols Fora (exatos)
+        case 'fora0Gols':          return golsForaFT === 0;
+        case 'fora1Gol':           return golsForaFT === 1;
+        case 'fora2Gols':          return golsForaFT === 2;
+        case 'fora3Gols':          return golsForaFT === 3;
+        case 'fora4Gols':          return golsForaFT === 4;
+
+        // Opostos Gols Fora
+        case 'foraMaisDeZero':     return golsForaFT > 0;
+        case 'foraNaoUm':          return golsForaFT !== 1;
+        case 'foraNaoDois':        return golsForaFT !== 2;
+        case 'foraNaoTres':        return golsForaFT !== 3;
+        case 'foraNaoQuatro':      return golsForaFT !== 4;
+
         default: return false;
     }
 }
@@ -5427,39 +5562,38 @@ async function fetchAndUpdateData() {
             return;
         }
 
-        // Usar a hora com fuso horário ajustado (+3 horas)
-        const horaAtualComFuso = getHoraComFuso();
-        const dataAtualComFuso = getDataComFuso();
+        // ✅ Hora e data corretas de Londres (sem +3h fixo)
+        const horaAtual = getHoraLondres();
+        const dataAtual = getDataLondres();
 
         let timeSlots = [];
-        let currentDate = new Date(dataAtualComFuso);
-        let currentHour = horaAtualComFuso;
+        let currentDateStr = dataAtual;
+        let currentHour = horaAtual;
 
-        for (let i = 0; i <= numPreviousHours; i++) { // inclui atual + anteriores
-            timeSlots.push({
-                date: currentDate.toISOString().split('T')[0],
-                hour: currentHour
-            });
-
+        for (let i = 0; i <= numPreviousHours; i++) {
+            timeSlots.push({ date: currentDateStr, hour: currentHour });
             currentHour--;
             if (currentHour < 0) {
                 currentHour = 23;
-                currentDate.setDate(currentDate.getDate() - 1);
+                currentDateStr = subtrairDias(currentDateStr, 1);
             }
         }
 
-        console.log(`Time slots (com fuso +3h): ${JSON.stringify(timeSlots)}`);
+        console.log(`Time slots (Londres): ${JSON.stringify(timeSlots)}`);
 
         // Filtrar jogos por slot de tempo
         const jogosPorSlot = timeSlots.map(slot =>
-            resultados.filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
+            resultados.filter(jogo => {
+                const jogoData = jogo.data ? jogo.data.split('T')[0] : jogo.data;
+                return jogoData === slot.date && jogo.hora === slot.hour;
+            }).slice(0, 20)
         );
 
         console.log(`Jogos encontrados por slot: ${jogosPorSlot.map(j => j.length).join(', ')}`);
 
         // Atualizar HTML apenas se necessário
         const trContainer = document.getElementById('trBlocks');
-        if (!trContainer.children.length || trContainer.dataset.horaAtual != horaAtualComFuso || trContainer.dataset.numPrevious != numPreviousHours) {
+        if (!trContainer.children.length || trContainer.dataset.horaAtual != horaAtual || trContainer.dataset.numPrevious != numPreviousHours) {
             let tableHtml = `<th style="position: sticky;left: 0;z-index: 10;background-color: #1f2129;color: #d1d5db;font-weight: 600;padding: 7px;text-align: center;border-right: 1px solid #555;font-size: 12px;line-height: 1.25;background-color: #292d36;">QDT</th>`;
             
             for (let i = 0; i < blocosDeMinutos.length; i++) {
@@ -5469,28 +5603,26 @@ async function fetchAndUpdateData() {
             tableHtml += createControlsHtml();
             
             trContainer.innerHTML = tableHtml;
-            trContainer.dataset.horaAtual = horaAtualComFuso;
+            trContainer.dataset.horaAtual = horaAtual;
             trContainer.dataset.numPrevious = numPreviousHours;
 
-            // Re-anexar event listeners após recriar HTML
             attachControlListeners();
         }
 
         const selectedMarket = document.getElementById('seletorResultado').value;
-        const counterMarket = counterMarketMap[selectedMarket];
+        const counterMarket = counterMarketMap[selectedMarket] ?? null;
 
         blocosDeMinutos.forEach((minutosDoBloco, index) => {
             timeSlots.forEach((slot, slotIdx) => {
                 const jogos = jogosPorSlot[slotIdx];
                 const stats = calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket);
 
-                // Atualizar elementos
-                const golsEl = document.getElementById(`gols-${index}-${slotIdx}`);
-                const hitsEl = document.getElementById(`hits-${index}-${slotIdx}`);
+                const golsEl        = document.getElementById(`gols-${index}-${slotIdx}`);
+                const hitsEl        = document.getElementById(`hits-${index}-${slotIdx}`);
                 const counterHitsEl = document.getElementById(`counter-hits-${index}-${slotIdx}`);
 
-                if (golsEl) golsEl.innerText = stats.totalGols;
-                if (hitsEl) hitsEl.innerText = stats.marketHits;
+                if (golsEl)        golsEl.innerText        = stats.totalGols;
+                if (hitsEl)        hitsEl.innerText        = stats.marketHits;
                 if (counterHitsEl) counterHitsEl.innerText = stats.counterMarketHits;
             });
         });
@@ -5505,10 +5637,13 @@ function calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
     const jogosDoBloco = jogos.filter(j => minutosDoBloco.includes(j.minuto));
     
     for (const jogo of jogosDoBloco) {
+        if (!jogo.ft || !jogo.ft.includes('x')) continue;
         const [golsCasa, golsFora] = jogo.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
         stats.totalGols += golsCasa + golsFora;
-        if (checkMarket(jogo.ft, selectedMarket)) stats.marketHits++;
-        if (counterMarket && checkMarket(jogo.ft, counterMarket)) stats.counterMarketHits++;
+
+        // Passa o HT para calcular mercados de 2º tempo
+        if (checkMarket(jogo.ft, selectedMarket, jogo.ht))  stats.marketHits++;
+        if (counterMarket && checkMarket(jogo.ft, counterMarket, jogo.ht)) stats.counterMarketHits++;
     }
     return stats;
 }
@@ -5516,7 +5651,7 @@ function calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
 function attachControlListeners() {
     const decreaseBtn = document.getElementById('decrease-hours');
     const increaseBtn = document.getElementById('increase-hours');
-    const numSpan = document.getElementById('num-previous');
+    const numSpan     = document.getElementById('num-previous');
 
     if (numSpan) numSpan.innerText = numPreviousHours;
 
@@ -5549,280 +5684,6 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
-</script>
-
-<script>
-    // --- LÓGICA DO ACORDEÃO ---
-    function toggleAccordion(buttonElement) {
-        const content = buttonElement.nextElementSibling;
-        content.classList.toggle('active');
-    }
-
-    // --- LÓGICA DO RANKING RÁPIDO ---
-    document.addEventListener('DOMContentLoaded', async () => {
-        const marketSelector = document.getElementById('marketSelector');
-        const rankingContainer = document.getElementById('rankingContainer');
-        
-        // Variável para armazenar os dados dos jogos depois de buscá-los uma única vez.
-        let allGames = [];
-
-        // 1. BUSCA OS DADOS DA API APENAS UMA VEZ, AO CARREGAR A PÁGINA.
-        try {
-            // Supondo que ROTAS_API.resultados(LIGA_ATUAL) retorna a URL correta.
-            const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-            if (!response.ok) {
-                throw new Error(`Erro na API: ${response.statusText}`);
-            }
-            allGames = await response.json(); // Armazena os dados na variável
-        } catch (error) {
-            rankingContainer.innerHTML = `<p style="color: red;">Falha ao carregar os dados iniciais: ${error.message}</p>`;
-            return; // Interrompe a execução se a busca inicial falhar
-        }
-
-        // 2. FUNÇÃO QUE APENAS PROCESSA OS DADOS JÁ CARREGADOS.
-        //    (Removemos o 'async' e a busca 'fetch' de dentro dela)
-        function updateRanking() {
-            const selectedMarket = marketSelector.value;
-            rankingContainer.innerHTML = '<p style="color: #1fac89; text-align: center; font-size: 16px; margin: 20px 0;">Analisando dados, por favor aguarde...</p>';
-
-            try {
-                // Pega apenas as 480 entradas mais recentes dos dados já carregados
-                const games = allGames.slice(0, 480);
-                const teamStats = {};
-
-                games.forEach(game => {
-                    const { time_a, time_b, ft } = game;
-                    if (!ft || !ft.includes(' x ')) return;
-
-                    const [golsA, golsB] = ft.split(' x ').map(Number);
-                    const totalGols = golsA + golsB;
-
-                    [time_a, time_b].forEach(team => {
-                        if (!teamStats[team]) {
-                            teamStats[team] = { name: team, totalGames: 0, marketCount: 0 };
-                        }
-                    });
-
-                    teamStats[time_a].totalGames++;
-                    teamStats[time_b].totalGames++;
-                    
-                    let marketOccurred = false;
-                    switch (selectedMarket) {
-                        case 'ambasMarcam':     marketOccurred = golsA > 0 && golsB > 0; break;
-                        case 'ambasNaoMarcam':  marketOccurred = golsA === 0 || golsB === 0; break;
-                        case 'empate':          marketOccurred = golsA === golsB; break;
-                        case 'over1.5':         marketOccurred = totalGols > 1; break;
-                        case 'under1.5':        marketOccurred = totalGols < 2; break;
-                        case 'over2.5':         marketOccurred = totalGols > 2; break;
-                        case 'under2.5':        marketOccurred = totalGols < 3; break;
-                        case 'over3.5':         marketOccurred = totalGols > 3; break;
-                        case 'under3.5':        marketOccurred = totalGols < 4; break;
-                        case 'over5':           marketOccurred = totalGols >= 5; break;
-                    }
-                    
-                    if (marketOccurred) {
-                        teamStats[time_a].marketCount++;
-                        teamStats[time_b].marketCount++;
-                    }
-                    
-                    if (selectedMarket === 'casaVence' && golsA > golsB) {
-                        teamStats[time_a].marketCount++;
-                    }
-                    if (selectedMarket === 'foraVence' && golsB > golsA) {
-                        teamStats[time_b].marketCount++;
-                    }
-                });
-
-                const statsArray = Object.values(teamStats).map(team => ({
-                    ...team,
-                    percentage: team.totalGames > 0 ? ((team.marketCount / team.totalGames) * 100).toFixed(1) : 0
-                }));
-
-                statsArray.sort((a, b) => b.marketCount - a.marketCount || b.percentage - a.percentage);
-
-                const top10 = statsArray.slice(0, 10);
-                renderTable(top10);
-
-            } catch (error) {
-                // Este 'catch' agora pega erros de processamento, não de busca
-                rankingContainer.innerHTML = `<p style="color: red;">Erro ao processar os dados: ${error.message}</p>`;
-                console.error(error);
-            }
-        }
-
-        // Função para desenhar a tabela no HTML com CSS melhorado
-        function renderTable(data) {
-            if (data.length === 0) {
-                rankingContainer.innerHTML = '<p style="color: #ffffff; text-align: center; font-size: 16px; margin: 20px 0;">Nenhum dado encontrado para este mercado.</p>';
-                return;
-            }
-            
-            let tableHTML = `
-                <div style="overflow-x: auto; margin: 20px 0; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
-                    <table style="
-                        width: 100%; 
-                        border-collapse: collapse; 
-                        background: linear-gradient(135deg, #1c1f26 0%, #242831 50%, #2a2d35 100%);
-                        border-radius: 12px;
-                        overflow: hidden;
-                        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-                    ">
-                        <thead>
-                            <tr style="background: linear-gradient(135deg, #1fac89 0%, #17956f 100%); box-shadow: 0 2px 10px rgba(31, 172, 137, 0.3);">
-                                <th style="
-                                    padding: 16px 12px; 
-                                    text-align: center; 
-                                    color: #ffffff; 
-                                    font-weight: 700; 
-                                    font-size: 14px;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.5px;
-                                    border: none;
-                                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-                                ">Pos.</th>
-                                <th style="
-                                    padding: 16px 12px; 
-                                    text-align: left; 
-                                    color: #ffffff; 
-                                    font-weight: 700; 
-                                    font-size: 14px;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.5px;
-                                    border: none;
-                                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-                                ">Time</th>
-                                <th style="
-                                    padding: 16px 12px; 
-                                    text-align: center; 
-                                    color: #ffffff; 
-                                    font-weight: 700; 
-                                    font-size: 14px;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.5px;
-                                    border: none;
-                                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-                                ">Ocorrências</th>
-                                <th style="
-                                    padding: 16px 12px; 
-                                    text-align: center; 
-                                    color: #ffffff; 
-                                    font-weight: 700; 
-                                    font-size: 14px;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.5px;
-                                    border: none;
-                                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-                                ">Jogos</th>
-                                <th style="
-                                    padding: 16px 12px; 
-                                    text-align: center; 
-                                    color: #ffffff; 
-                                    font-weight: 700; 
-                                    font-size: 14px;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.5px;
-                                    border: none;
-                                    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-                                ">%</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            data.forEach((team, index) => {
-                // Cores diferentes para as primeiras posições
-                let positionColor = '#1fac89';
-                let bgColor = 'rgba(255, 255, 255, 0.03)';
-                let hoverBg = 'rgba(31, 172, 137, 0.08)';
-                
-                if (index === 0) {
-                    positionColor = '#ffd700'; // Ouro para 1º lugar
-                    bgColor = 'rgba(255, 215, 0, 0.08)';
-                    hoverBg = 'rgba(255, 215, 0, 0.15)';
-                } else if (index === 1) {
-                    positionColor = '#cd7f32'; // Bronze para 3º lugar
-                    bgColor = 'rgba(205, 127, 50, 0.08)';
-                    hoverBg = 'rgba(205, 127, 50, 0.15)';
-                } else if (index === 2) {
-                    positionColor = '#c0c0c0'; // Prata para 2º lugar
-                    bgColor = 'rgba(192, 192, 192, 0.08)';
-                    hoverBg = 'rgba(192, 192, 192, 0.15)';
-                }
-
-                tableHTML += `
-                    <tr style="
-                        background: ${bgColor}; 
-                        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-                        transition: all 0.3s ease;
-                    " 
-                    onmouseover="this.style.background='${hoverBg}'; this.style.transform='translateX(4px)'" 
-                    onmouseout="this.style.background='${bgColor}'; this.style.transform='translateX(0)'">
-                        <td style="
-                            padding: 16px 12px; 
-                            text-align: center; 
-                            color: ${positionColor}; 
-                            font-weight: 700; 
-                            font-size: 16px;
-                            border: none;
-                            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-                        ">${index + 1}º</td>
-                        <td style="
-                            padding: 16px 12px; 
-                            text-align: left; 
-                            color: #ffffff; 
-                            font-weight: 600; 
-                            font-size: 15px;
-                            border: none;
-                            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-                        ">${team.name}</td>
-                        <td style="
-                            padding: 16px 12px; 
-                            text-align: center; 
-                            color: #1fac89; 
-                            font-weight: 600; 
-                            font-size: 15px;
-                            border: none;
-                            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-                        ">${team.marketCount}</td>
-                        <td style="
-                            padding: 16px 12px; 
-                            text-align: center; 
-                            color: #b0b3c1; 
-                            font-weight: 500; 
-                            font-size: 15px;
-                            border: none;
-                            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-                        ">${team.totalGames}</td>
-                        <td style="
-                            padding: 16px 12px; 
-                            text-align: center; 
-                            color: #ffffff; 
-                            font-weight: 700; 
-                            font-size: 16px;
-                            border: none;
-                            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-                            background: linear-gradient(135deg, rgba(31, 172, 137, 0.2) 0%, rgba(23, 149, 111, 0.2) 100%);
-                            border-radius: 8px;
-                        ">${team.percentage}%</td>
-                    </tr>
-                `;
-            });
-
-            tableHTML += `
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            rankingContainer.innerHTML = tableHTML;
-        }
-
-        // Adiciona o evento que dispara a atualização quando o seletor muda
-        marketSelector.addEventListener('change', updateRanking);
-
-        // 3. CHAMA A FUNÇÃO PELA PRIMEIRA VEZ PARA CARREGAR O MERCADO PADRÃO
-        //    (Agora funciona, pois os dados já estão na variável 'allGames')
-        updateRanking();
-    });
 </script>
 
     <script>
