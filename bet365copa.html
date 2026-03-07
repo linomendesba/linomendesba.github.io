@@ -5112,7 +5112,7 @@ loadNextGamesForMinutes();
 </script>
 
 <script>
-      // --- CONFIGURAÇÕES ---
+// --- CONFIGURAÇÕES ---
     const API_URL = ROTAS_API.resultados(LIGA_ATUAL);
     const UPDATE_INTERVAL = 3000; // 3 segundos
 
@@ -5126,66 +5126,201 @@ loadNextGamesForMinutes();
 
 // --- MAPEAMENTO DE MERCADOS OPOSTOS ---
 const counterMarketMap = {
-    'ambasMarcam': 'ambasNaoMarcam', 'ambasNaoMarcam': 'ambasMarcam',
-    'over1.5': 'under1.5', 'under1.5': 'over1.5',
-    'over2.5': 'under2.5', 'under2.5': 'over2.5',
-    'over3.5': 'under3.5', 'under3.5': 'over3.5',
-    'casaVence': 'empateOuFora', 'foraVence': 'empateOuCasa',
-    'empate': 'casaOuFora', 'over5': null
+    // Ambas
+    'ambasMarcam':        'ambasNaoMarcam',
+    'ambasNaoMarcam':     'ambasMarcam',
+
+    // Resultado FT
+    'casaVence':          'empateOuFora',
+    'empateOuFora':       'casaVence',
+    'foraVence':          'empateOuCasa',
+    'empateOuCasa':       'foraVence',
+    'empate':             'casaOuFora',
+    'casaOuFora':         'empate',
+
+    // Over
+    'over0.5':            'under0.5',
+    'over1.5':            'under1.5',
+    'over2.5':            'under2.5',
+    'over3.5':            'under3.5',
+    'over5':              null,
+
+    // Under
+    'under0.5':           'over0.5',
+    'under1.5':           'over1.5',
+    'under2.5':           'over2.5',
+    'under3.5':           'over3.5',
+
+    // Gols Exatos FT (oposto = qualquer outro placar de gols totais)
+    'exato0':             'naoExato0',
+    'exato1':             'naoExato1',
+    'exato2':             'naoExato2',
+    'exato3':             'naoExato3',
+    'exato4':             'naoExato4',
+
+    // Gols Exatos 2º Tempo
+    'exato2t0':           'naoExato2t0',
+    'exato2t1':           'naoExato2t1',
+    'exato2t2':           'naoExato2t2',
+    'exato2t3':           'naoExato2t3',
+    'exato2t4':           'naoExato2t4',
+
+    // Gols Casa
+    'casa0Gols':          'casaMaisDeZero',
+    'casa1Gol':           'casaNaoUm',
+    'casa2Gols':          'casaNaoDois',
+    'casa3Gols':          'casaNaoTres',
+    'casa4Gols':          'casaNaoQuatro',
+
+    // Gols Fora
+    'fora0Gols':          'foraMaisDeZero',
+    'fora1Gol':           'foraNaoUm',
+    'fora2Gols':          'foraNaoDois',
+    'fora3Gols':          'foraNaoTres',
+    'fora4Gols':          'foraNaoQuatro',
 };
 
 let numPreviousHours = 1;
 
 /**
- * Pega a hora atual do sistema e adiciona 3 horas (fuso horário dos dados)
+ * Pega a hora atual de Londres (fuso correto dos dados).
+ * Substitui a lógica antiga de +3h que era imprecisa.
  */
-function getHoraComFuso() {
+function getHoraLondres() {
     const agora = new Date();
-    const horaLocal = agora.getHours();
-    const horaComFuso = (horaLocal + 3) % 24;
-    return horaComFuso;
+    // Londres: UTC+0 no inverno, UTC+1 no verão (BST)
+    // Usando Intl para pegar a hora local de Londres corretamente
+    const londonTime = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/London',
+        hour: 'numeric',
+        hour12: false
+    }).format(agora);
+    return parseInt(londonTime, 10);
 }
 
 /**
- * Pega a data ajustada considerando o fuso horário
+ * Pega a data atual de Londres.
  */
-function getDataComFuso() {
+function getDataLondres() {
     const agora = new Date();
-    const horaLocal = agora.getHours();
-    
-    // Se adicionar 3 horas passar para o dia seguinte
-    if (horaLocal >= 21) {
-        const dataFutura = new Date(agora);
-        dataFutura.setDate(dataFutura.getDate() + 1);
-        return dataFutura;
-    }
-    
-    return agora;
+    const londonDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/London'
+    }).format(agora); // formato YYYY-MM-DD
+    return londonDate;
+}
+
+/**
+ * Retorna data de Londres menos N dias no formato YYYY-MM-DD.
+ */
+function subtrairDias(dateStr, dias) {
+    const d = new Date(dateStr + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() - dias);
+    return d.toISOString().split('T')[0];
 }
 
 /**
  * Verifica se um resultado de jogo atende a um mercado específico.
+ * ft  = placar FT  ex: "2 x 1"
+ * ht  = placar HT  ex: "1 x 0"  (usado nos mercados de 2º tempo)
  */
-function checkMarket(ftScore, market) {
+function checkMarket(ftScore, market, htScore) {
     if (!ftScore || !ftScore.includes('x')) return false;
-    const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
-    const totalGols = golsCasa + golsFora;
+
+    const [golsCasaFT, golsForaFT] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+    const totalGolsFT = golsCasaFT + golsForaFT;
+
+    // Gols do 2º tempo = FT - HT
+    let golsCasa2T = golsCasaFT;
+    let golsFora2T = golsForaFT;
+    if (htScore && htScore.includes('x')) {
+        const [hCasa, hFora] = htScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+        golsCasa2T = golsCasaFT - hCasa;
+        golsFora2T = golsForaFT - hFora;
+    }
+    const total2T = golsCasa2T + golsFora2T;
+
     switch (market) {
-        case 'ambasMarcam': return golsCasa > 0 && golsFora > 0;
-        case 'ambasNaoMarcam': return golsCasa === 0 || golsFora === 0;
-        case 'casaVence': return golsCasa > golsFora;
-        case 'foraVence': return golsFora > golsCasa;
-        case 'empate': return golsCasa === golsFora;
-        case 'over1.5': return totalGols > 1.5;
-        case 'under1.5': return totalGols < 1.5;
-        case 'over2.5': return totalGols > 2.5;
-        case 'under2.5': return totalGols < 2.5;
-        case 'over3.5': return totalGols > 3.5;
-        case 'under3.5': return totalGols < 3.5;
-        case 'over5': return totalGols >= 5;
-        case 'empateOuFora': return golsCasa <= golsFora;
-        case 'empateOuCasa': return golsCasa >= golsFora;
-        case 'casaOuFora': return golsCasa !== golsFora;
+        // Ambas
+        case 'ambasMarcam':        return golsCasaFT > 0 && golsForaFT > 0;
+        case 'ambasNaoMarcam':     return golsCasaFT === 0 || golsForaFT === 0;
+
+        // Resultado FT
+        case 'casaVence':          return golsCasaFT > golsForaFT;
+        case 'foraVence':          return golsForaFT > golsCasaFT;
+        case 'empate':             return golsCasaFT === golsForaFT;
+        case 'empateOuFora':       return golsCasaFT <= golsForaFT;
+        case 'empateOuCasa':       return golsCasaFT >= golsForaFT;
+        case 'casaOuFora':         return golsCasaFT !== golsForaFT;
+
+        // Over FT
+        case 'over0.5':            return totalGolsFT > 0.5;
+        case 'over1.5':            return totalGolsFT > 1.5;
+        case 'over2.5':            return totalGolsFT > 2.5;
+        case 'over3.5':            return totalGolsFT > 3.5;
+        case 'over5':              return totalGolsFT >= 5;
+
+        // Under FT
+        case 'under0.5':           return totalGolsFT < 0.5;
+        case 'under1.5':           return totalGolsFT < 1.5;
+        case 'under2.5':           return totalGolsFT < 2.5;
+        case 'under3.5':           return totalGolsFT < 3.5;
+
+        // Gols Exatos FT
+        case 'exato0':             return totalGolsFT === 0;
+        case 'exato1':             return totalGolsFT === 1;
+        case 'exato2':             return totalGolsFT === 2;
+        case 'exato3':             return totalGolsFT === 3;
+        case 'exato4':             return totalGolsFT === 4;
+
+        // Opostos de Gols Exatos FT
+        case 'naoExato0':          return totalGolsFT !== 0;
+        case 'naoExato1':          return totalGolsFT !== 1;
+        case 'naoExato2':          return totalGolsFT !== 2;
+        case 'naoExato3':          return totalGolsFT !== 3;
+        case 'naoExato4':          return totalGolsFT !== 4;
+
+        // Gols Exatos 2º Tempo
+        case 'exato2t0':           return total2T === 0;
+        case 'exato2t1':           return total2T === 1;
+        case 'exato2t2':           return total2T === 2;
+        case 'exato2t3':           return total2T === 3;
+        case 'exato2t4':           return total2T === 4;
+
+        // Opostos de Gols Exatos 2º Tempo
+        case 'naoExato2t0':        return total2T !== 0;
+        case 'naoExato2t1':        return total2T !== 1;
+        case 'naoExato2t2':        return total2T !== 2;
+        case 'naoExato2t3':        return total2T !== 3;
+        case 'naoExato2t4':        return total2T !== 4;
+
+        // Gols Casa (exatos)
+        case 'casa0Gols':          return golsCasaFT === 0;
+        case 'casa1Gol':           return golsCasaFT === 1;
+        case 'casa2Gols':          return golsCasaFT === 2;
+        case 'casa3Gols':          return golsCasaFT === 3;
+        case 'casa4Gols':          return golsCasaFT === 4;
+
+        // Opostos Gols Casa
+        case 'casaMaisDeZero':     return golsCasaFT > 0;
+        case 'casaNaoUm':          return golsCasaFT !== 1;
+        case 'casaNaoDois':        return golsCasaFT !== 2;
+        case 'casaNaoTres':        return golsCasaFT !== 3;
+        case 'casaNaoQuatro':      return golsCasaFT !== 4;
+
+        // Gols Fora (exatos)
+        case 'fora0Gols':          return golsForaFT === 0;
+        case 'fora1Gol':           return golsForaFT === 1;
+        case 'fora2Gols':          return golsForaFT === 2;
+        case 'fora3Gols':          return golsForaFT === 3;
+        case 'fora4Gols':          return golsForaFT === 4;
+
+        // Opostos Gols Fora
+        case 'foraMaisDeZero':     return golsForaFT > 0;
+        case 'foraNaoUm':          return golsForaFT !== 1;
+        case 'foraNaoDois':        return golsForaFT !== 2;
+        case 'foraNaoTres':        return golsForaFT !== 3;
+        case 'foraNaoQuatro':      return golsForaFT !== 4;
+
         default: return false;
     }
 }
@@ -5267,39 +5402,38 @@ async function fetchAndUpdateData() {
             return;
         }
 
-        // Usar a hora com fuso horário ajustado (+3 horas)
-        const horaAtualComFuso = getHoraComFuso();
-        const dataAtualComFuso = getDataComFuso();
+        // ✅ Hora e data corretas de Londres (sem +3h fixo)
+        const horaAtual = getHoraLondres();
+        const dataAtual = getDataLondres();
 
         let timeSlots = [];
-        let currentDate = new Date(dataAtualComFuso);
-        let currentHour = horaAtualComFuso;
+        let currentDateStr = dataAtual;
+        let currentHour = horaAtual;
 
-        for (let i = 0; i <= numPreviousHours; i++) { // inclui atual + anteriores
-            timeSlots.push({
-                date: currentDate.toISOString().split('T')[0],
-                hour: currentHour
-            });
-
+        for (let i = 0; i <= numPreviousHours; i++) {
+            timeSlots.push({ date: currentDateStr, hour: currentHour });
             currentHour--;
             if (currentHour < 0) {
                 currentHour = 23;
-                currentDate.setDate(currentDate.getDate() - 1);
+                currentDateStr = subtrairDias(currentDateStr, 1);
             }
         }
 
-        console.log(`Time slots (com fuso +3h): ${JSON.stringify(timeSlots)}`);
+        console.log(`Time slots (Londres): ${JSON.stringify(timeSlots)}`);
 
         // Filtrar jogos por slot de tempo
         const jogosPorSlot = timeSlots.map(slot =>
-            resultados.filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
+            resultados.filter(jogo => {
+                const jogoData = jogo.data ? jogo.data.split('T')[0] : jogo.data;
+                return jogoData === slot.date && jogo.hora === slot.hour;
+            }).slice(0, 20)
         );
 
         console.log(`Jogos encontrados por slot: ${jogosPorSlot.map(j => j.length).join(', ')}`);
 
         // Atualizar HTML apenas se necessário
         const trContainer = document.getElementById('trBlocks');
-        if (!trContainer.children.length || trContainer.dataset.horaAtual != horaAtualComFuso || trContainer.dataset.numPrevious != numPreviousHours) {
+        if (!trContainer.children.length || trContainer.dataset.horaAtual != horaAtual || trContainer.dataset.numPrevious != numPreviousHours) {
             let tableHtml = `<th style="position: sticky;left: 0;z-index: 10;background-color: #1f2129;color: #d1d5db;font-weight: 600;padding: 7px;text-align: center;border-right: 1px solid #555;font-size: 12px;line-height: 1.25;background-color: #292d36;">QDT</th>`;
             
             for (let i = 0; i < blocosDeMinutos.length; i++) {
@@ -5309,28 +5443,26 @@ async function fetchAndUpdateData() {
             tableHtml += createControlsHtml();
             
             trContainer.innerHTML = tableHtml;
-            trContainer.dataset.horaAtual = horaAtualComFuso;
+            trContainer.dataset.horaAtual = horaAtual;
             trContainer.dataset.numPrevious = numPreviousHours;
 
-            // Re-anexar event listeners após recriar HTML
             attachControlListeners();
         }
 
         const selectedMarket = document.getElementById('seletorResultado').value;
-        const counterMarket = counterMarketMap[selectedMarket];
+        const counterMarket = counterMarketMap[selectedMarket] ?? null;
 
         blocosDeMinutos.forEach((minutosDoBloco, index) => {
             timeSlots.forEach((slot, slotIdx) => {
                 const jogos = jogosPorSlot[slotIdx];
                 const stats = calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket);
 
-                // Atualizar elementos
-                const golsEl = document.getElementById(`gols-${index}-${slotIdx}`);
-                const hitsEl = document.getElementById(`hits-${index}-${slotIdx}`);
+                const golsEl        = document.getElementById(`gols-${index}-${slotIdx}`);
+                const hitsEl        = document.getElementById(`hits-${index}-${slotIdx}`);
                 const counterHitsEl = document.getElementById(`counter-hits-${index}-${slotIdx}`);
 
-                if (golsEl) golsEl.innerText = stats.totalGols;
-                if (hitsEl) hitsEl.innerText = stats.marketHits;
+                if (golsEl)        golsEl.innerText        = stats.totalGols;
+                if (hitsEl)        hitsEl.innerText        = stats.marketHits;
                 if (counterHitsEl) counterHitsEl.innerText = stats.counterMarketHits;
             });
         });
@@ -5345,10 +5477,13 @@ function calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
     const jogosDoBloco = jogos.filter(j => minutosDoBloco.includes(j.minuto));
     
     for (const jogo of jogosDoBloco) {
+        if (!jogo.ft || !jogo.ft.includes('x')) continue;
         const [golsCasa, golsFora] = jogo.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
         stats.totalGols += golsCasa + golsFora;
-        if (checkMarket(jogo.ft, selectedMarket)) stats.marketHits++;
-        if (counterMarket && checkMarket(jogo.ft, counterMarket)) stats.counterMarketHits++;
+
+        // Passa o HT para calcular mercados de 2º tempo
+        if (checkMarket(jogo.ft, selectedMarket, jogo.ht))  stats.marketHits++;
+        if (counterMarket && checkMarket(jogo.ft, counterMarket, jogo.ht)) stats.counterMarketHits++;
     }
     return stats;
 }
@@ -5356,7 +5491,7 @@ function calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
 function attachControlListeners() {
     const decreaseBtn = document.getElementById('decrease-hours');
     const increaseBtn = document.getElementById('increase-hours');
-    const numSpan = document.getElementById('num-previous');
+    const numSpan     = document.getElementById('num-previous');
 
     if (numSpan) numSpan.innerText = numPreviousHours;
 
