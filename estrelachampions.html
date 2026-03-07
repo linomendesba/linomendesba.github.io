@@ -5274,14 +5274,46 @@ loadNextGamesForMinutes();
     [45, 48, 51, 54, 57]  // Bloco 4
     ];
 
-    // --- MAPEAMENTO DE MERCADOS OPOSTOS ---
+   // --- MAPEAMENTO DE MERCADOS OPOSTOS ---
     const counterMarketMap = {
-        'ambasMarcam': 'ambasNaoMarcam', 'ambasNaoMarcam': 'ambasMarcam',
-        'over1.5': 'under1.5', 'under1.5': 'over1.5',
-        'over2.5': 'under2.5', 'under2.5': 'over2.5',
-        'over3.5': 'under3.5', 'under3.5': 'over3.5',
-        'casaVence': 'empateOuFora', 'foraVence': 'empateOuCasa',
-        'empate': 'casaOuFora', 'over5': null
+        'ambasMarcam':    'ambasNaoMarcam',
+        'ambasNaoMarcam': 'ambasMarcam',
+        'casaVence':      'empateOuFora',
+        'foraVence':      'empateOuCasa',
+        'empate':         'casaOuFora',
+        'over0.5':        'under0.5',
+        'under0.5':       'over0.5',
+        'over1.5':        'under1.5',
+        'under1.5':       'over1.5',
+        'over2.5':        'under2.5',
+        'under2.5':       'over2.5',
+        'over3.5':        'under3.5',
+        'under3.5':       'over3.5',
+        'over5':          null,
+        // Exatos FT — oposto é qualquer outro total
+        'exato0': null,
+        'exato1': null,
+        'exato2': null,
+        'exato3': null,
+        'exato4': null,
+        // Exatos 2º Tempo
+        'exato2t0': null,
+        'exato2t1': null,
+        'exato2t2': null,
+        'exato2t3': null,
+        'exato2t4': null,
+        // Gols Casa
+        'casa0Gols': null,
+        'casa1Gol':  null,
+        'casa2Gols': null,
+        'casa3Gols': null,
+        'casa4Gols': null,
+        // Gols Fora
+        'fora0Gols': null,
+        'fora1Gol':  null,
+        'fora2Gols': null,
+        'fora3Gols': null,
+        'fora4Gols': null,
     };
 
     let numPreviousHours = 1;
@@ -5289,26 +5321,64 @@ loadNextGamesForMinutes();
     /**
      * Verifica se um resultado de jogo atende a um mercado específico.
      */
-    function checkMarket(ftScore, market) {
+    function checkMarket(ftScore, htScore, market) {
         if (!ftScore || !ftScore.includes('x')) return false;
         const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
         const totalGols = golsCasa + golsFora;
+
+        // Calcular 2º tempo
+        let golsCasa2T = 0, golsFora2T = 0;
+        if (htScore && htScore.includes('x')) {
+            const [htCasa, htFora] = htScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+            golsCasa2T = Math.max(0, golsCasa - htCasa);
+            golsFora2T = Math.max(0, golsFora - htFora);
+        }
+        const total2T = golsCasa2T + golsFora2T;
+
         switch (market) {
-            case 'ambasMarcam': return golsCasa > 0 && golsFora > 0;
+            case 'ambasMarcam':    return golsCasa > 0 && golsFora > 0;
             case 'ambasNaoMarcam': return golsCasa === 0 || golsFora === 0;
-            case 'casaVence': return golsCasa > golsFora;
-            case 'foraVence': return golsFora > golsCasa;
-            case 'empate': return golsCasa === golsFora;
-            case 'over1.5': return totalGols > 1.5;
+            case 'casaVence':      return golsCasa > golsFora;
+            case 'foraVence':      return golsFora > golsCasa;
+            case 'empate':         return golsCasa === golsFora;
+            case 'empateOuFora':   return golsCasa <= golsFora;
+            case 'empateOuCasa':   return golsCasa >= golsFora;
+            case 'casaOuFora':     return golsCasa !== golsFora;
+            // Over
+            case 'over0.5':  return totalGols > 0.5;
+            case 'over1.5':  return totalGols > 1.5;
+            case 'over2.5':  return totalGols > 2.5;
+            case 'over3.5':  return totalGols > 3.5;
+            case 'over5':    return totalGols >= 5;
+            // Under
+            case 'under0.5': return totalGols < 0.5;
             case 'under1.5': return totalGols < 1.5;
-            case 'over2.5': return totalGols > 2.5;
             case 'under2.5': return totalGols < 2.5;
-            case 'over3.5': return totalGols > 3.5;
             case 'under3.5': return totalGols < 3.5;
-            case 'over5': return totalGols >= 5;
-            case 'empateOuFora': return golsCasa <= golsFora;
-            case 'empateOuCasa': return golsCasa >= golsFora;
-            case 'casaOuFora': return golsCasa !== golsFora;
+            // Exatos FT
+            case 'exato0':   return totalGols === 0;
+            case 'exato1':   return totalGols === 1;
+            case 'exato2':   return totalGols === 2;
+            case 'exato3':   return totalGols === 3;
+            case 'exato4':   return totalGols === 4;
+            // Exatos 2º Tempo
+            case 'exato2t0': return total2T === 0;
+            case 'exato2t1': return total2T === 1;
+            case 'exato2t2': return total2T === 2;
+            case 'exato2t3': return total2T === 3;
+            case 'exato2t4': return total2T === 4;
+            // Gols Casa
+            case 'casa0Gols': return golsCasa === 0;
+            case 'casa1Gol':  return golsCasa === 1;
+            case 'casa2Gols': return golsCasa === 2;
+            case 'casa3Gols': return golsCasa === 3;
+            case 'casa4Gols': return golsCasa === 4;
+            // Gols Fora
+            case 'fora0Gols': return golsFora === 0;
+            case 'fora1Gol':  return golsFora === 1;
+            case 'fora2Gols': return golsFora === 2;
+            case 'fora3Gols': return golsFora === 3;
+            case 'fora4Gols': return golsFora === 4;
             default: return false;
         }
     }
@@ -5398,7 +5468,6 @@ loadNextGamesForMinutes();
                 return;
             }
 
-            // Usar a data e hora atuais do sistema
             const agora = new Date();
             const horaAtualNumero = agora.getHours();
 
@@ -5406,12 +5475,11 @@ loadNextGamesForMinutes();
             let currentDate = new Date(agora);
             let currentHour = horaAtualNumero;
 
-            for (let i = 0; i <= numPreviousHours; i++) { // inclui atual + anteriores
+            for (let i = 0; i <= numPreviousHours; i++) {
                 timeSlots.push({
                     date: currentDate.toISOString().split('T')[0],
                     hour: currentHour
                 });
-
                 currentHour--;
                 if (currentHour < 0) {
                     currentHour = 23;
@@ -5419,31 +5487,24 @@ loadNextGamesForMinutes();
                 }
             }
 
-            console.log(`Time slots: ${JSON.stringify(timeSlots)}`);
-
-            // Filtrar jogos por slot de tempo
             const jogosPorSlot = timeSlots.map(slot =>
                 resultados.filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
             );
 
-            console.log(`Jogos encontrados por slot: ${jogosPorSlot.map(j => j.length).join(', ')}`);
-
-            // Atualizar HTML apenas se necessário
             const trContainer = document.getElementById('trBlocks');
             if (!trContainer.children.length || trContainer.dataset.horaAtual != horaAtualNumero || trContainer.dataset.numPrevious != numPreviousHours) {
                 let tableHtml = `<th style="position: sticky;left: 0;z-index: 10;background-color: #1f2129;color: #d1d5db;font-weight: 600;padding: 7px;text-align: center;border-right: 1px solid #555;font-size: 12px;line-height: 1.25;background-color: #292d36;">QDT</th>`;
-                
+
                 for (let i = 0; i < blocosDeMinutos.length; i++) {
                     tableHtml += createBlocoHtml(i, timeSlots);
                 }
 
                 tableHtml += createControlsHtml();
-                
+
                 trContainer.innerHTML = tableHtml;
                 trContainer.dataset.horaAtual = horaAtualNumero;
                 trContainer.dataset.numPrevious = numPreviousHours;
 
-                // Re-anexar event listeners após recriar HTML
                 attachControlListeners();
             }
 
@@ -5455,13 +5516,12 @@ loadNextGamesForMinutes();
                     const jogos = jogosPorSlot[slotIdx];
                     const stats = calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket);
 
-                    // Atualizar elementos
-                    const golsEl = document.getElementById(`gols-${index}-${slotIdx}`);
-                    const hitsEl = document.getElementById(`hits-${index}-${slotIdx}`);
+                    const golsEl        = document.getElementById(`gols-${index}-${slotIdx}`);
+                    const hitsEl        = document.getElementById(`hits-${index}-${slotIdx}`);
                     const counterHitsEl = document.getElementById(`counter-hits-${index}-${slotIdx}`);
 
-                    if (golsEl) golsEl.innerText = stats.totalGols;
-                    if (hitsEl) hitsEl.innerText = stats.marketHits;
+                    if (golsEl)        golsEl.innerText        = stats.totalGols;
+                    if (hitsEl)        hitsEl.innerText        = stats.marketHits;
                     if (counterHitsEl) counterHitsEl.innerText = stats.counterMarketHits;
                 });
             });
@@ -5474,12 +5534,12 @@ loadNextGamesForMinutes();
     function calcularStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
         const stats = { totalGols: 0, marketHits: 0, counterMarketHits: 0 };
         const jogosDoBloco = jogos.filter(j => minutosDoBloco.includes(j.minuto));
-        
+
         for (const jogo of jogosDoBloco) {
             const [golsCasa, golsFora] = jogo.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
             stats.totalGols += golsCasa + golsFora;
-            if (checkMarket(jogo.ft, selectedMarket)) stats.marketHits++;
-            if (counterMarket && checkMarket(jogo.ft, counterMarket)) stats.counterMarketHits++;
+            if (checkMarket(jogo.ft, jogo.ht, selectedMarket))  stats.marketHits++;
+            if (counterMarket && checkMarket(jogo.ft, jogo.ht, counterMarket)) stats.counterMarketHits++;
         }
         return stats;
     }
@@ -5487,7 +5547,7 @@ loadNextGamesForMinutes();
     function attachControlListeners() {
         const decreaseBtn = document.getElementById('decrease-hours');
         const increaseBtn = document.getElementById('increase-hours');
-        const numSpan = document.getElementById('num-previous');
+        const numSpan     = document.getElementById('num-previous');
 
         if (numSpan) numSpan.innerText = numPreviousHours;
 
@@ -5510,16 +5570,196 @@ loadNextGamesForMinutes();
         }
     }
 
-    /**
-     * Inicializa a aplicação.
-     */
     function init() {
         document.getElementById('seletorResultado').addEventListener('change', fetchAndUpdateData);
-        fetchAndUpdateData(); 
+        fetchAndUpdateData();
         setInterval(fetchAndUpdateData, UPDATE_INTERVAL);
     }
 
     document.addEventListener('DOMContentLoaded', init);
+</script>
+
+<script>
+    // --- LÓGICA DO ACORDEÃO ---
+    function toggleAccordion(buttonElement) {
+        const content = buttonElement.nextElementSibling;
+        content.classList.toggle('active');
+    }
+
+    // --- LÓGICA DO RANKING RÁPIDO ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        const marketSelector    = document.getElementById('marketSelector');
+        const rankingContainer  = document.getElementById('rankingContainer');
+
+        let allGames = [];
+
+        try {
+            const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+            if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`);
+            allGames = await response.json();
+        } catch (error) {
+            rankingContainer.innerHTML = `<p style="color: red;">Falha ao carregar os dados iniciais: ${error.message}</p>`;
+            return;
+        }
+
+        function updateRanking() {
+            const selectedMarket = marketSelector.value;
+            rankingContainer.innerHTML = '<p style="color: #1fac89; text-align: center; font-size: 16px; margin: 20px 0;">Analisando dados, por favor aguarde...</p>';
+
+            try {
+                const games     = allGames.slice(0, 480);
+                const teamStats = {};
+
+                games.forEach(game => {
+                    const { time_a, time_b, ft, ht } = game;
+                    if (!ft || !ft.includes(' x ')) return;
+
+                    const [golsA, golsB] = ft.split(' x ').map(Number);
+                    const totalGols = golsA + golsB;
+
+                    [time_a, time_b].forEach(team => {
+                        if (!teamStats[team]) {
+                            teamStats[team] = { name: team, totalGames: 0, marketCount: 0 };
+                        }
+                    });
+
+                    teamStats[time_a].totalGames++;
+                    teamStats[time_b].totalGames++;
+
+                    // Calcular 2º tempo para mercados que precisam
+                    let golsA2T = 0, golsB2T = 0;
+                    if (ht && ht.includes(' x ')) {
+                        const [htA, htB] = ht.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+                        golsA2T = Math.max(0, golsA - htA);
+                        golsB2T = Math.max(0, golsB - htB);
+                    }
+                    const total2T = golsA2T + golsB2T;
+
+                    let marketOccurred = false;
+                    switch (selectedMarket) {
+                        case 'ambasMarcam':    marketOccurred = golsA > 0 && golsB > 0; break;
+                        case 'ambasNaoMarcam': marketOccurred = golsA === 0 || golsB === 0; break;
+                        case 'empate':         marketOccurred = golsA === golsB; break;
+                        case 'over0.5':        marketOccurred = totalGols > 0.5; break;
+                        case 'over1.5':        marketOccurred = totalGols > 1.5; break;
+                        case 'over2.5':        marketOccurred = totalGols > 2.5; break;
+                        case 'over3.5':        marketOccurred = totalGols > 3.5; break;
+                        case 'over5':          marketOccurred = totalGols >= 5; break;
+                        case 'under0.5':       marketOccurred = totalGols < 0.5; break;
+                        case 'under1.5':       marketOccurred = totalGols < 1.5; break;
+                        case 'under2.5':       marketOccurred = totalGols < 2.5; break;
+                        case 'under3.5':       marketOccurred = totalGols < 3.5; break;
+                        case 'exato0':         marketOccurred = totalGols === 0; break;
+                        case 'exato1':         marketOccurred = totalGols === 1; break;
+                        case 'exato2':         marketOccurred = totalGols === 2; break;
+                        case 'exato3':         marketOccurred = totalGols === 3; break;
+                        case 'exato4':         marketOccurred = totalGols === 4; break;
+                        case 'exato2t0':       marketOccurred = total2T === 0; break;
+                        case 'exato2t1':       marketOccurred = total2T === 1; break;
+                        case 'exato2t2':       marketOccurred = total2T === 2; break;
+                        case 'exato2t3':       marketOccurred = total2T === 3; break;
+                        case 'exato2t4':       marketOccurred = total2T === 4; break;
+                        case 'casa0Gols':      marketOccurred = golsA === 0; break;
+                        case 'casa1Gol':       marketOccurred = golsA === 1; break;
+                        case 'casa2Gols':      marketOccurred = golsA === 2; break;
+                        case 'casa3Gols':      marketOccurred = golsA === 3; break;
+                        case 'casa4Gols':      marketOccurred = golsA === 4; break;
+                        case 'fora0Gols':      marketOccurred = golsB === 0; break;
+                        case 'fora1Gol':       marketOccurred = golsB === 1; break;
+                        case 'fora2Gols':      marketOccurred = golsB === 2; break;
+                        case 'fora3Gols':      marketOccurred = golsB === 3; break;
+                        case 'fora4Gols':      marketOccurred = golsB === 4; break;
+                    }
+
+                    // casaVence e foraVence tratados separadamente (só conta para um time)
+                    if (selectedMarket === 'casaVence' && golsA > golsB) {
+                        teamStats[time_a].marketCount++;
+                        return;
+                    }
+                    if (selectedMarket === 'foraVence' && golsB > golsA) {
+                        teamStats[time_b].marketCount++;
+                        return;
+                    }
+
+                    if (marketOccurred) {
+                        teamStats[time_a].marketCount++;
+                        teamStats[time_b].marketCount++;
+                    }
+                });
+
+                const statsArray = Object.values(teamStats).map(team => ({
+                    ...team,
+                    percentage: team.totalGames > 0 ? ((team.marketCount / team.totalGames) * 100).toFixed(1) : 0
+                }));
+
+                statsArray.sort((a, b) => b.marketCount - a.marketCount || b.percentage - a.percentage);
+
+                const top10 = statsArray.slice(0, 10);
+                renderTable(top10);
+
+            } catch (error) {
+                rankingContainer.innerHTML = `<p style="color: red;">Erro ao processar os dados: ${error.message}</p>`;
+                console.error(error);
+            }
+        }
+
+        function renderTable(data) {
+            if (data.length === 0) {
+                rankingContainer.innerHTML = '<p style="color: #ffffff; text-align: center; font-size: 16px; margin: 20px 0;">Nenhum dado encontrado para este mercado.</p>';
+                return;
+            }
+
+            let tableHTML = `
+                <div style="overflow-x: auto; margin: 20px 0; border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
+                    <table style="
+                        width: 100%;
+                        border-collapse: collapse;
+                        background: linear-gradient(135deg, #1c1f26 0%, #242831 50%, #2a2d35 100%);
+                        border-radius: 12px;
+                        overflow: hidden;
+                        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+                    ">
+                        <thead>
+                            <tr style="background: linear-gradient(135deg, #1fac89 0%, #17956f 100%); box-shadow: 0 2px 10px rgba(31, 172, 137, 0.3);">
+                                <th style="padding: 16px 12px; text-align: center; color: #ffffff; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">Pos.</th>
+                                <th style="padding: 16px 12px; text-align: left;   color: #ffffff; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">Time</th>
+                                <th style="padding: 16px 12px; text-align: center; color: #ffffff; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">Ocorrências</th>
+                                <th style="padding: 16px 12px; text-align: center; color: #ffffff; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">Jogos</th>
+                                <th style="padding: 16px 12px; text-align: center; color: #ffffff; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; border: none; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">%</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            data.forEach((team, index) => {
+                let positionColor = '#1fac89';
+                let bgColor   = 'rgba(255, 255, 255, 0.03)';
+                let hoverBg   = 'rgba(31, 172, 137, 0.08)';
+
+                if (index === 0) { positionColor = '#ffd700'; bgColor = 'rgba(255,215,0,0.08)';   hoverBg = 'rgba(255,215,0,0.15)'; }
+                else if (index === 1) { positionColor = '#cd7f32'; bgColor = 'rgba(205,127,50,0.08)'; hoverBg = 'rgba(205,127,50,0.15)'; }
+                else if (index === 2) { positionColor = '#c0c0c0'; bgColor = 'rgba(192,192,192,0.08)'; hoverBg = 'rgba(192,192,192,0.15)'; }
+
+                tableHTML += `
+                    <tr style="background: ${bgColor}; border-bottom: 1px solid rgba(255,255,255,0.08); transition: all 0.3s ease;"
+                        onmouseover="this.style.background='${hoverBg}'; this.style.transform='translateX(4px)'"
+                        onmouseout="this.style.background='${bgColor}'; this.style.transform='translateX(0)'">
+                        <td style="padding: 16px 12px; text-align: center; color: ${positionColor}; font-weight: 700; font-size: 16px; border: none; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">${index + 1}º</td>
+                        <td style="padding: 16px 12px; text-align: left;   color: #ffffff; font-weight: 600; font-size: 15px; border: none; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">${team.name}</td>
+                        <td style="padding: 16px 12px; text-align: center; color: #1fac89; font-weight: 600; font-size: 15px; border: none; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">${team.marketCount}</td>
+                        <td style="padding: 16px 12px; text-align: center; color: #b0b3c1; font-weight: 500; font-size: 15px; border: none; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">${team.totalGames}</td>
+                        <td style="padding: 16px 12px; text-align: center; color: #ffffff; font-weight: 700; font-size: 16px; border: none; text-shadow: 0 1px 2px rgba(0,0,0,0.3); background: linear-gradient(135deg, rgba(31,172,137,0.2) 0%, rgba(23,149,111,0.2) 100%); border-radius: 8px;">${team.percentage}%</td>
+                    </tr>
+                `;
+            });
+
+            tableHTML += `</tbody></table></div>`;
+            rankingContainer.innerHTML = tableHTML;
+        }
+
+        marketSelector.addEventListener('change', updateRanking);
+        updateRanking();
+    });
 </script>
 
 <script>
