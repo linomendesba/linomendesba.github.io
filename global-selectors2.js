@@ -17,7 +17,16 @@ if (allowedPages.includes(currentPage)) {
     "avancado-betano",
     "ligas365",
     "avancado-bet365",
-    "redes"
+    "redes",
+    // Elementos do MACD/RSI — gerenciados pelo histomacd.js
+    "histomacdMarketSelector",
+    "histomacdPointsSelector",
+    "histomacdAverageSelector",
+    "histomacdMacdFast",
+    "histomacdMacdSlow",
+    "histomacdMacdSignal",
+    "histomacdRsiPeriod",
+    "histomacdShowRSI"
   ];
 
   // Verifica se é o acordeão específico que deve ser salvo
