@@ -6364,14 +6364,18 @@ console.info = function() {};
     <script>
 const HISTOMACD_DATA_URL = 'https://betstat.site/resultados/kiron/England';
 
-// ─── Detecta nome da liga pela URL (para salvar config separada por página) ──
+// ─── Detecta nome da liga pela URL ────────────────────────────────────────
 function histomacdGetLeagueKey() {
-    const path = window.location.pathname;
-    const match = path.match(/kiron(england|italy|spain)/i);
-    return match ? match[0].toLowerCase() : 'kirondefault';
+    const path = window.location.pathname.toLowerCase();
+    if (path.indexOf('england') !== -1) return 'histomacd_england';
+    if (path.indexOf('italy')   !== -1) return 'histomacd_italy';
+    if (path.indexOf('spain')   !== -1) return 'histomacd_spain';
+    const parts = path.replace(/\/$/, '').split('/');
+    const last  = parts[parts.length - 1] || 'default';
+    return 'histomacd_' + last;
 }
 
-// ─── Variáveis globais ─────────────────────────────────────────────────────
+// ─── Variáveis globais com padrões ────────────────────────────────────────
 let histomacdNumPoints          = 30;
 let histomacdAveragePoints      = 19;
 const histomacdLeagues          = ['Copa'];
@@ -6383,15 +6387,37 @@ let histomacdMacdSignal         = 9;
 let histomacdRsiPeriod          = 14;
 let histomacdShowRSI            = true;
 let histomacdIndicatorCharts    = {};
-// Padrão: 'under2.5' = valor do select que mapeia internamente para 'over25'
+// 'under2.5' é o value do <select> que mapeia para over25 internamente
 let histomacdSelectedMarket     = 'under2.5';
 let histomacdLastDataHash       = null;
-let histomacdLastUpdateTime     = null;
 
-// ─── Configurações salvas no localStorage por liga ────────────────────────
+// ─── Carrega variáveis do localStorage IMEDIATAMENTE ao carregar o script ─
+// Feito fora do DOMContentLoaded para que as variáveis já estejam prontas
+// antes mesmo de o gráfico ser criado.
+(function histomacdInitVars() {
+    const key   = 'histomacdChartSettings_' + histomacdGetLeagueKey();
+    const saved = localStorage.getItem(key);
+    if (!saved) return; // sem setting salva → mantém os padrões acima
+
+    try {
+        const s = JSON.parse(saved);
+        if (s.selectedMarket !== undefined) histomacdSelectedMarket = s.selectedMarket;
+        if (s.numPoints      !== undefined) histomacdNumPoints      = parseInt(s.numPoints,     10) || 30;
+        if (s.averagePoints  !== undefined) histomacdAveragePoints  = parseInt(s.averagePoints, 10) || 19;
+        if (s.macdFast       !== undefined) histomacdMacdFast       = parseInt(s.macdFast,      10) || 12;
+        if (s.macdSlow       !== undefined) histomacdMacdSlow       = parseInt(s.macdSlow,      10) || 26;
+        if (s.macdSignal     !== undefined) histomacdMacdSignal     = parseInt(s.macdSignal,    10) || 9;
+        if (s.rsiPeriod      !== undefined) histomacdRsiPeriod      = parseInt(s.rsiPeriod,     10) || 14;
+        if (s.showRSI        !== undefined) histomacdShowRSI        = !!s.showRSI;
+    } catch (e) {
+        console.warn('[histomacd] Erro ao carregar settings, usando padrões:', e);
+    }
+})();
+
+// ─── Salva configurações no localStorage ─────────────────────────────────
 function histomacdSaveSettings() {
     const key = 'histomacdChartSettings_' + histomacdGetLeagueKey();
-    const settings = {
+    localStorage.setItem(key, JSON.stringify({
         selectedMarket: histomacdSelectedMarket,
         numPoints:      histomacdNumPoints,
         averagePoints:  histomacdAveragePoints,
@@ -6400,50 +6426,17 @@ function histomacdSaveSettings() {
         macdSignal:     histomacdMacdSignal,
         rsiPeriod:      histomacdRsiPeriod,
         showRSI:        histomacdShowRSI
-    };
-    localStorage.setItem(key, JSON.stringify(settings));
+    }));
 }
 
-function histomacdLoadSettings() {
-    const key   = 'histomacdChartSettings_' + histomacdGetLeagueKey();
-    const saved = localStorage.getItem(key);
-
-    // ── Padrões ──
-    // 'under2.5' é o valor do <select> que representa Over 2.5 (mapeamento invertido no HTML)
-    histomacdSelectedMarket = 'under2.5';
-    histomacdNumPoints      = 30;
-    histomacdAveragePoints  = 19;
-    histomacdMacdFast       = 12;
-    histomacdMacdSlow       = 26;
-    histomacdMacdSignal     = 9;
-    histomacdRsiPeriod      = 14;
-    histomacdShowRSI        = true;
-
-    if (saved) {
-        try {
-            const settings = JSON.parse(saved);
-
-            const marketSelector = document.getElementById('histomacdMarketSelector');
-            const marketExists = marketSelector
-                ? Array.from(marketSelector.options).some(o => o.value === settings.selectedMarket)
-                : false;
-
-            histomacdSelectedMarket = marketExists ? settings.selectedMarket : 'under2.5';
-            histomacdNumPoints      = parseInt(settings.numPoints,     10) || 30;
-            histomacdAveragePoints  = parseInt(settings.averagePoints, 10) || 19;
-            histomacdMacdFast       = parseInt(settings.macdFast,      10) || 12;
-            histomacdMacdSlow       = parseInt(settings.macdSlow,      10) || 26;
-            histomacdMacdSignal     = parseInt(settings.macdSignal,    10) || 9;
-            histomacdRsiPeriod      = parseInt(settings.rsiPeriod,     10) || 14;
-            histomacdShowRSI        = settings.showRSI !== undefined ? settings.showRSI : true;
-        } catch (e) {
-            console.warn('Erro ao carregar settings salvas, usando padrões.', e);
-        }
-    }
-
-    // ── Aplica nos elementos DOM ──
+// ─── Aplica variáveis nos elementos DOM (chamado no DOMContentLoaded) ─────
+function histomacdApplySettingsToDom() {
     const marketSelector = document.getElementById('histomacdMarketSelector');
     if (marketSelector) {
+        // Garante que o valor salvo existe como opção; senão usa o padrão
+        const exists = Array.from(marketSelector.options).some(o => o.value === histomacdSelectedMarket);
+        if (!exists) histomacdSelectedMarket = 'under2.5';
+        marketSelector.value = histomacdSelectedMarket;
         Array.from(marketSelector.options).forEach(opt => {
             opt.selected = (opt.value === histomacdSelectedMarket);
         });
@@ -6460,50 +6453,35 @@ function histomacdLoadSettings() {
 
 // ─── Mapeamento: valor do select → chave interna ──────────────────────────
 const histomacdMarketKeys = {
-    // Ambas (labels invertidos no HTML)
     ambasMarcam:        'ambasNao',
     ambasNaoMarcam:     'ambasSim',
-
-    // Resultado FT (labels invertidos no HTML)
     casaVence:          'foraVence',
     foraVence:          'casaVence',
     empate:             'empate',
-
-    // Over FT (labels mostram Under no HTML)
     'over0.5':          'under05',
     'over1.5':          'under15',
     'over2.5':          'under25',
     'over3.5':          'under35',
     over5:              'under45',
-
-    // Under FT (labels mostram Over no HTML)
     'under0.5':         'over05',
     'under1.5':         'over15',
     'under2.5':         'over25',
     'under3.5':         'over35',
-
-    // Gols Exatos FT
     exato0:             'gol0',
     exato1:             'gol1',
     exato2:             'gol2',
     exato3:             'gol3',
     exato4:             'gol4',
-
-    // Gols Exatos 2º Tempo
     exato2t0:           'gol2t0',
     exato2t1:           'gol2t1',
     exato2t2:           'gol2t2',
     exato2t3:           'gol2t3',
     exato2t4:           'gol2t4',
-
-    // Gols Casa
     casa0Gols:          'casa0',
     casa1Gol:           'casa1',
     casa2Gols:          'casa2',
     casa3Gols:          'casa3',
     casa4Gols:          'casa4',
-
-    // Gols Fora
     fora0Gols:          'fora0',
     fora1Gol:           'fora1',
     fora2Gols:          'fora2',
@@ -6611,7 +6589,6 @@ function histomacdVerificarCondicao(ftHome, ftAway, st2Home, st2Away, marketKey)
 }
 
 // ─── Indicadores técnicos ─────────────────────────────────────────────────
-
 function histomacdCalculateEMA(data, period) {
     const k   = 2 / (period + 1);
     const ema = [data[0]];
@@ -6679,7 +6656,6 @@ function histomacdProcessApiData(data, league) {
         return { labels: [] };
     }
 
-    // Mais recente primeiro
     const sortedData = [...data].sort((a, b) => {
         const dateA = new Date(a.data), dateB = new Date(b.data);
         if (dateA.getTime() !== dateB.getTime()) return dateB - dateA;
@@ -6733,7 +6709,6 @@ function histomacdProcessApiData(data, league) {
         series[mk] = pontos;
     });
 
-    // Labels usando hora local
     const labels = [];
     const blocoMaisAntigo = blocos[totalBlocos - 1];
     const mRef = blocoMaisAntigo[blocoMaisAntigo.length - 1];
@@ -6791,6 +6766,19 @@ function histomacdGetIndicatorData(league, market) {
 function histomacdHistColor(val, prev) {
     if (val >= 0) return val >= prev ? 'rgba(0, 255, 136, 0.95)' : 'rgba(0, 255, 136, 0.45)';
     return val <= prev ? 'rgba(255, 72, 72, 0.95)' : 'rgba(255, 72, 72, 0.45)';
+}
+
+// ─── RSI scale ────────────────────────────────────────────────────────────
+function histomacdRsiScaleConfig() {
+    return {
+        type:     'linear',
+        position: 'right',
+        min: 0,
+        max: 100,
+        title: { display: true, text: 'RSI', color: '#9C27B0', font: { size: 12, weight: 'bold' } },
+        ticks: { color: '#aaa' },
+        grid:  { color: '#222', drawBorder: true }
+    };
 }
 
 // ─── Criar gráfico de indicadores ─────────────────────────────────────────
@@ -6924,18 +6912,6 @@ function histomacdCreateIndicatorChart(ctx, labels, indicatorData, league) {
     }
 }
 
-function histomacdRsiScaleConfig() {
-    return {
-        type:     'linear',
-        position: 'right',
-        min: 0,
-        max: 100,
-        title: { display: true, text: 'RSI', color: '#9C27B0', font: { size: 12, weight: 'bold' } },
-        ticks: { color: '#aaa' },
-        grid:  { color: '#222', drawBorder: true }
-    };
-}
-
 // ─── Atualizar gráfico de indicadores (sem recriar) ───────────────────────
 function histomacdUpdateIndicatorChart(league) {
     if (!histomacdIndicatorCharts[league]) {
@@ -6984,7 +6960,6 @@ function histomacdUpdateIndicatorChart(league) {
     }
 
     chart.update('none');
-    console.log(`Gráfico atualizado para ${league} — mercado: ${marketLabel}`);
 }
 
 // ─── Buscar dados e atualizar gráficos ────────────────────────────────────
@@ -7037,8 +7012,9 @@ function histomacdUpdateCharts() {
 
 // ─── Inicialização e eventos ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    // Carrega as configurações salvas para esta liga ANTES de qualquer coisa
-    histomacdLoadSettings();
+    // Variáveis já foram carregadas do localStorage no topo do script.
+    // Aqui apenas espelhamos os valores nos elementos DOM.
+    histomacdApplySettingsToDom();
 
     const updateAll  = () => histomacdLeagues.forEach(l => histomacdUpdateIndicatorChart(l));
     const refetchAll = () => {
