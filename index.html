@@ -2768,10 +2768,9 @@ window.addEventListener('load', _atualizarBlocoPercentuais);
     </script>
 
     <script>
-      async function fetchResults() {
+async function fetchResults() {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         const data = await response.json();
-
         return data.slice(-480).reverse();
       }
 
@@ -2781,65 +2780,72 @@ window.addEventListener('load', _atualizarBlocoPercentuais);
 
         data.forEach((game) => {
           const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
+          const total = scoreA + scoreB;
 
-          switch (market) {
-            case "ambasMarcam":
-              if (scoreA > 0 && scoreB > 0) greens++;
-              else reds++;
-              break;
-            case "ambasNaoMarcam":
-              if (scoreA === 0 || scoreB === 0) greens++;
-              else reds++;
-              break;
-            case "casaVence":
-              if (scoreA > scoreB) greens++;
-              else reds++;
-              break;
-            case "foraVence":
-              if (scoreA < scoreB) greens++;
-              else reds++;
-              break;
-            case "empate":
-              if (scoreA === scoreB) greens++;
-              else reds++;
-              break;
-            case "over1.5":
-              if (scoreA + scoreB > 1.5) greens++;
-              else reds++;
-              break;
-            case "under1.5":
-              if (scoreA + scoreB <= 1.5) greens++;
-              else reds++;
-              break;
-            case "over2.5":
-              if (scoreA + scoreB > 2.5) greens++;
-              else reds++;
-              break;
-            case "under2.5":
-              if (scoreA + scoreB <= 2.5) greens++;
-              else reds++;
-              break;
-            case "over3.5":
-              if (scoreA + scoreB > 3.5) greens++;
-              else reds++;
-              break;
-            case "under3.5":
-              if (scoreA + scoreB <= 3.5) greens++;
-              else reds++;
-              break;
-            case "over5":
-              if (scoreA + scoreB > 5) greens++;
-              else reds++;
-              break;
-            default:
-              break;
+          // Calcular 2º tempo
+          let scoreA2T = 0, scoreB2T = 0;
+          if (game.ht && game.ht.includes(' x ')) {
+            const [htA, htB] = game.ht.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+            scoreA2T = Math.max(0, scoreA - htA);
+            scoreB2T = Math.max(0, scoreB - htB);
           }
+          const total2T = scoreA2T + scoreB2T;
+
+          let hit = false;
+          switch (market) {
+            // Ambas
+            case "ambasMarcam":    hit = scoreA > 0 && scoreB > 0; break;
+            case "ambasNaoMarcam": hit = scoreA === 0 || scoreB === 0; break;
+            // Resultado
+            case "casaVence":      hit = scoreA > scoreB; break;
+            case "foraVence":      hit = scoreA < scoreB; break;
+            case "empate":         hit = scoreA === scoreB; break;
+            // Over
+            case "over0.5":        hit = total > 0.5; break;
+            case "over1.5":        hit = total > 1.5; break;
+            case "over2.5":        hit = total > 2.5; break;
+            case "over3.5":        hit = total > 3.5; break;
+            case "over5":          hit = total >= 5; break;
+            // Under
+            case "under0.5":       hit = total < 0.5; break;
+            case "under1.5":       hit = total < 1.5; break;
+            case "under2.5":       hit = total < 2.5; break;
+            case "under3.5":       hit = total < 3.5; break;
+            // Exatos FT
+            case "exato0":         hit = total === 0; break;
+            case "exato1":         hit = total === 1; break;
+            case "exato2":         hit = total === 2; break;
+            case "exato3":         hit = total === 3; break;
+            case "exato4":         hit = total === 4; break;
+            // Exatos 2º Tempo
+            case "exato2t0":       hit = total2T === 0; break;
+            case "exato2t1":       hit = total2T === 1; break;
+            case "exato2t2":       hit = total2T === 2; break;
+            case "exato2t3":       hit = total2T === 3; break;
+            case "exato2t4":       hit = total2T === 4; break;
+            // Gols Casa
+            case "casa0Gols":      hit = scoreA === 0; break;
+            case "casa1Gol":       hit = scoreA === 1; break;
+            case "casa2Gols":      hit = scoreA === 2; break;
+            case "casa3Gols":      hit = scoreA === 3; break;
+            case "casa4Gols":      hit = scoreA === 4; break;
+            // Gols Fora
+            case "fora0Gols":      hit = scoreB === 0; break;
+            case "fora1Gol":       hit = scoreB === 1; break;
+            case "fora2Gols":      hit = scoreB === 2; break;
+            case "fora3Gols":      hit = scoreB === 3; break;
+            case "fora4Gols":      hit = scoreB === 4; break;
+            default: break;
+          }
+
+          if (hit) greens++;
+          else reds++;
         });
 
-        const total = greens + reds;
+        const totalGames = greens + reds;
         return {
-          greens: ((greens / total) * 100).toFixed(1),
-          reds: ((reds / total) * 100).toFixed(1),
+          greens: ((greens / totalGames) * 100).toFixed(1),
+          reds:   ((reds   / totalGames) * 100).toFixed(1),
         };
       }
 
@@ -2850,12 +2856,8 @@ window.addEventListener('load', _atualizarBlocoPercentuais);
           const games = await fetchResults();
           const percentages = calculatePercentage(games, market);
 
-          document.getElementById(
-            "greenPercentage"
-          ).innerText = `Greens: ${percentages.greens}%`;
-          document.getElementById(
-            "redPercentage"
-          ).innerText = `Reds: ${percentages.reds}%`;
+          document.getElementById("greenPercentage").innerText = `Greens: ${percentages.greens}%`;
+          document.getElementById("redPercentage").innerText   = `Reds: ${percentages.reds}%`;
         });
 
       window.addEventListener("load", async () => {
@@ -2863,20 +2865,9 @@ window.addEventListener('load', _atualizarBlocoPercentuais);
         const games = await fetchResults();
         const percentages = calculatePercentage(games, market);
 
-        document.getElementById(
-          "greenPercentage"
-        ).innerText = `Greens: ${percentages.greens}%`;
-        document.getElementById(
-          "redPercentage"
-        ).innerText = `Reds: ${percentages.reds}%`;
+        document.getElementById("greenPercentage").innerText = `Greens: ${percentages.greens}%`;
+        document.getElementById("redPercentage").innerText   = `Reds: ${percentages.reds}%`;
       });
-
-      async function fetchResults() {
-        const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-        const data = await response.json();
-
-        return data.slice(-240).reverse();
-      }
 
       function calculateGoalStats(data) {
         let totalGols = 0;
@@ -2888,10 +2879,7 @@ window.addEventListener('load', _atualizarBlocoPercentuais);
         });
 
         const mediaGolsHora = (totalGols / totalHorasJogadas).toFixed(2);
-        return {
-          totalGols,
-          mediaGolsHora,
-        };
+        return { totalGols, mediaGolsHora };
       }
 
       document
@@ -2900,24 +2888,16 @@ window.addEventListener('load', _atualizarBlocoPercentuais);
           const games = await fetchResults();
           const stats = calculateGoalStats(games);
 
-          document.getElementById(
-            "totalGols"
-          ).innerText = `Gols: ${stats.totalGols}`;
-          document.getElementById(
-            "mediaGolsHora"
-          ).innerText = `Gols/Hora: ${stats.mediaGolsHora}`;
+          document.getElementById("totalGols").innerText    = `Gols: ${stats.totalGols}`;
+          document.getElementById("mediaGolsHora").innerText = `Gols/Hora: ${stats.mediaGolsHora}`;
         });
 
       window.addEventListener("load", async () => {
         const games = await fetchResults();
         const stats = calculateGoalStats(games);
 
-        document.getElementById(
-          "totalGols"
-        ).innerText = `Gols: ${stats.totalGols}`;
-        document.getElementById(
-          "mediaGolsHora"
-        ).innerText = `Gols/Hora: ${stats.mediaGolsHora}`;
+        document.getElementById("totalGols").innerText    = `Gols: ${stats.totalGols}`;
+        document.getElementById("mediaGolsHora").innerText = `Gols/Hora: ${stats.mediaGolsHora}`;
       });
     </script>
 
