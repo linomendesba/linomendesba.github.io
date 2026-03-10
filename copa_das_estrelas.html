@@ -1433,11 +1433,29 @@ function findOddsNoIndex(idx,{data,hora,minuto,time_a,time_b}){
   const dt=formatDateToDDMMYYYY(data), hor=normalizarHorario(hora,minuto);
   return idx.get(`${dt}|${hor}|${tA}|${tB}`)||idx.get(`${hor}|${tA}|${tB}`)||idx.get(`${hor}|${tA}`)||idx.get(`${hor}|${tB}`)||null;
 }
-function findOddsProximoNoIndex(idx,{time,team_home,team_visit}){
-  const tm={"peixe":"boca"};
-  const tA=normalizeString(tm[team_home?.toLowerCase()]||team_home), tB=normalizeString(tm[team_visit?.toLowerCase()]||team_visit);
-  const hor=normalizarHorarioStr(time);
-  return idx.get(`${hor}|${tA}|${tB}`)||idx.get(`${hor}|${tA}`)||idx.get(`${hor}|${tB}`)||null;
+function findOddsProximoNoIndex(idx, {time, team_home, team_visit}) {
+  const tm = {"peixe": "boca"};
+  const tA = normalizeString(tm[team_home?.toLowerCase()] || team_home);
+  const tB = normalizeString(tm[team_visit?.toLowerCase()] || team_visit);
+
+  const parts = (time || "").split(":");
+  const h  = parseInt(parts[0]) || 0;
+  const mn = parseInt(parts[1]) || 0;
+
+  const minNorm = minutosFixos.reduce((p, c) =>
+    Math.abs(c - mn) < Math.abs(p - mn) ? c : p
+  );
+
+  // Tenta hora exata, -1h e +1h
+  for (const delta of [0, -1, 1]) {
+    const hAjust = ((h + delta) + 24) % 24;
+    const hor = `${hAjust.toString().padStart(2,"0")}:${minNorm.toString().padStart(2,"0")}`;
+    const found = idx.get(`${hor}|${tA}|${tB}`)
+               || idx.get(`${hor}|${tA}`)
+               || idx.get(`${hor}|${tB}`);
+    if (found) return found;
+  }
+  return null;
 }
 
 // ─── MAP DE ODDS POR MERCADO ──────────────────────────────────────────────────
