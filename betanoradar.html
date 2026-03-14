@@ -1067,6 +1067,11 @@
   var alertInterval = null;
   var notifiedKeys = {};
 
+  var apiBaseUrl = 'https://betstat.site/resultados';
+  var PROXIMITY = 5;
+  var alertInterval = null;
+  var notifiedKeys = {};
+
   function getSelectors() {
     var market = document.getElementById('searchedMarket')
       ? document.getElementById('searchedMarket').value : 'over2.5';
@@ -1083,7 +1088,16 @@
     return data.map(function(item) {
       var parts = item.ft.split(' x ').map(Number);
       var h = parts[0], a = parts[1];
-      return { league: league, h: h, a: a, total: h + a };
+      var hora = item.hora != null ? String(item.hora).padStart(2,'0') : '--';
+      var min  = item.minuto != null ? String(item.minuto).padStart(2,'0') : '--';
+      return {
+        league: league,
+        h: h, a: a, total: h + a,
+        ft: item.ft,
+        timeA: item.time_a || '',
+        timeB: item.time_b || '',
+        horario: hora + ':' + min
+      };
     });
   }
 
@@ -1138,7 +1152,7 @@
     return decodeURIComponent(l).replace(/\b\w/g, function(c){ return c.toUpperCase(); });
   }
 
-  function showAlert(leagueRaw, market, currentPct, targetPct, rank) {
+  function showAlert(leagueRaw, market, currentPct, targetPct, rank, lastGame) {
     var key = leagueRaw + '_' + market + '_' + rank + '_' + Math.floor(currentPct);
     if (notifiedKeys[key]) return;
     notifiedKeys[key] = true;
@@ -1164,8 +1178,21 @@
       'pointer-events:auto',
       'cursor:pointer',
       'animation:alertSlideIn 0.35s ease',
-      'min-width:270px'
+      'min-width:280px'
     ].join(';');
+
+    var gameInfo = '';
+    if (lastGame) {
+      gameInfo = [
+        '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #333;">',
+          '<span style="font-size:11px;color:#888;">último jogo detectado</span><br>',
+          '<span style="color:#fff;font-weight:600;">' + lastGame.timeA + ' x ' + lastGame.timeB + '</span>',
+          '<span style="color:#aaa;font-size:12px;"> — </span>',
+          '<span style="color:#7ed6b0;font-weight:600;">' + lastGame.ft + '</span>',
+          '<span style="color:#888;font-size:11px;"> às ' + lastGame.horario + '</span>',
+        '</div>'
+      ].join('');
+    }
 
     el.innerHTML = [
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">',
@@ -1183,7 +1210,8 @@
         '<span style="color:#7ed6b0;font-weight:600;">' + currentPct.toFixed(1) + '%</span>',
         '<span style="color:#bbb;font-size:12px;"> → Zona: </span>',
         '<span style="color:#f1c40f;font-weight:600;">' + targetPct + '%</span>',
-      '</div>'
+      '</div>',
+      gameInfo
     ].join('');
 
     el.querySelector('[data-close]').addEventListener('click', function(e) {
@@ -1261,9 +1289,12 @@
       }, 0);
       var currentPct = count / sel.linesToSum * 100;
 
+      // último jogo da liga para exibir no alerta
+      var lastGame = leagueRows[leagueRows.length - 1] || null;
+
       top3.forEach(function(zone, rank) {
         if (Math.abs(currentPct - zone.pct) <= PROXIMITY) {
-          showAlert(leagues[j], sel.market, currentPct, zone.pct, rank);
+          showAlert(leagues[j], sel.market, currentPct, zone.pct, rank, lastGame);
         }
       });
     }
