@@ -542,11 +542,6 @@
 
   var apiBaseUrl = 'https://betstat.site/resultados/bet365';
   var PROXIMITY = 5;
-  var alertInterval = null;
-  var notifiedKeys = {};
-
-  var apiBaseUrl = 'https://betstat.site/resultados';
-  var PROXIMITY = 5;
   var DISMISS_MS = 15000;
   var alertInterval = null;
   var notifiedKeys = {};
@@ -567,15 +562,22 @@
     return data.map(function(item) {
       var parts = item.ft.split(' x ').map(Number);
       var h = parts[0], a = parts[1];
-      var hora = item.hora != null ? String(item.hora).padStart(2,'0') : '--';
-      var min  = item.minuto != null ? String(item.minuto).padStart(2,'0') : '--';
+
+      // Converte horário da Inglaterra (UTC+0) para Brasil (UTC-3): subtrai 3 horas
+      var hora = item.hora != null ? item.hora : 0;
+      var min  = item.minuto != null ? item.minuto : 0;
+      var totalMin = hora * 60 + min - 180; // -180 min = -3 horas
+      if (totalMin < 0) totalMin += 1440;   // se passou da meia-noite, volta 24h
+      var horaBR = Math.floor(totalMin / 60) % 24;
+      var minBR  = totalMin % 60;
+
       return {
         league: league,
         h: h, a: a, total: h + a,
         ft: item.ft,
         timeA: item.time_a || '',
         timeB: item.time_b || '',
-        horario: hora + ':' + min
+        horario: String(horaBR).padStart(2,'0') + ':' + String(minBR).padStart(2,'0')
       };
     });
   }
@@ -669,7 +671,7 @@
           '<span style="color:#fff;font-weight:600;">' + lastGame.timeA + ' x ' + lastGame.timeB + '</span>',
           '<span style="color:#aaa;font-size:12px;"> — </span>',
           '<span style="color:#7ed6b0;font-weight:600;">' + lastGame.ft + '</span>',
-          '<span style="color:#888;font-size:11px;"> às ' + lastGame.horario + '</span>',
+          '<span style="color:#888;font-size:11px;"> às ' + lastGame.horario + ' (BR)</span>',
         '</div>'
       ].join('');
     }
