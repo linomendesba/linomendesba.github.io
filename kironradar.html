@@ -527,6 +527,246 @@
 
     </div><!-- end page-wrapper -->
 
+    <div id="alert-panel" style="position:fixed;bottom:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:10px;max-width:340px;pointer-events:none;"></div>
+
+    <script>
+(function() {
+
+  var leagues = [
+    'England',
+    'Italy',
+    'Spain'
+  ];
+
+  var apiBaseUrl = 'https://betstat.site/resultados/kiron';
+  var PROXIMITY = 5;
+  var alertInterval = null;
+  var notifiedKeys = {};
+
+  function getSelectors() {
+    var market = document.getElementById('searchedMarket')
+      ? document.getElementById('searchedMarket').value : 'over2.5';
+    var timeRange = document.getElementById('timeRange');
+    var numberOfGames = timeRange
+      ? parseInt(timeRange.options[timeRange.selectedIndex].getAttribute('data-games'))
+      : 100;
+    var linesToSum = document.getElementById('linesToSum')
+      ? parseInt(document.getElementById('linesToSum').value) : 10;
+    return { market: market, numberOfGames: numberOfGames, linesToSum: linesToSum };
+  }
+
+  function parseData(data, league) {
+    return data.map(function(item) {
+      var parts = item.ft.split(' x ').map(Number);
+      var h = parts[0], a = parts[1];
+      return { league: league, h: h, a: a, total: h + a };
+    });
+  }
+
+  function checkMkt(market, h, a, t) {
+    switch (market) {
+      case 'casaVence':  return h > a ? 1 : 0;
+      case 'empate':     return h === a ? 1 : 0;
+      case 'foraVence':  return a > h ? 1 : 0;
+      case 'ambasSim':   return h > 0 && a > 0 ? 1 : 0;
+      case 'ambasNao':   return h === 0 || a === 0 ? 1 : 0;
+      case 'over1.5':    return t > 1.5 ? 1 : 0;
+      case 'over2.5':    return t > 2.5 ? 1 : 0;
+      case 'over3.5':    return t > 3.5 ? 1 : 0;
+      case 'under1.5':   return t < 1.5 ? 1 : 0;
+      case 'under2.5':   return t < 2.5 ? 1 : 0;
+      case 'under3.5':   return t < 3.5 ? 1 : 0;
+      case 'zeroGolsExatos':   return t === 0 ? 1 : 0;
+      case 'umGolExato':       return t === 1 ? 1 : 0;
+      case 'doisGolsExatos':   return t === 2 ? 1 : 0;
+      case 'tresGolsExatos':   return t === 3 ? 1 : 0;
+      case 'quatroGolsExatos': return t === 4 ? 1 : 0;
+      case 'cincoOuMaisGols':  return t >= 5 ? 1 : 0;
+      case 'placar0x0': return h===0&&a===0?1:0;
+      case 'placar1x0': return h===1&&a===0?1:0;
+      case 'placar2x0': return h===2&&a===0?1:0;
+      case 'placar3x0': return h===3&&a===0?1:0;
+      case 'placar2x1': return h===2&&a===1?1:0;
+      case 'placar3x1': return h===3&&a===1?1:0;
+      case 'placar3x2': return h===3&&a===2?1:0;
+      case 'placar4x0': return h===4&&a===0?1:0;
+      case 'placar4x1': return h===4&&a===1?1:0;
+      default: return 0;
+    }
+  }
+
+  function formatMkt(m) {
+    var map = {
+      casaVence:'Casa Vence',empate:'Empate',foraVence:'Fora Vence',
+      ambasSim:'Ambas Sim',ambasNao:'Ambas Nao',
+      'over1.5':'Over 1.5','over2.5':'Over 2.5','over3.5':'Over 3.5',
+      'under1.5':'Under 1.5','under2.5':'Under 2.5','under3.5':'Under 3.5',
+      zeroGolsExatos:'0 Gol Exato',umGolExato:'1 Gol Exato',
+      doisGolsExatos:'2 Gols Exatos',tresGolsExatos:'3 Gols Exatos',
+      quatroGolsExatos:'4 Gols Exatos',cincoOuMaisGols:'5+ Gols',
+      placar0x0:'0x0',placar1x0:'1x0',placar2x0:'2x0',placar3x0:'3x0',
+      placar2x1:'2x1',placar3x1:'3x1',placar3x2:'3x2',placar4x0:'4x0',placar4x1:'4x1'
+    };
+    return map[m] || m;
+  }
+
+  function leagueName(l) {
+    return decodeURIComponent(l).replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  }
+
+  function showAlert(leagueRaw, market, currentPct, targetPct, rank) {
+    var key = leagueRaw + '_' + market + '_' + rank + '_' + Math.floor(currentPct);
+    if (notifiedKeys[key]) return;
+    notifiedKeys[key] = true;
+
+    var panel = document.getElementById('alert-panel');
+    if (!panel) return;
+
+    var icons = ['🥇','🥈','🥉'];
+    var medal = icons[rank] || '🎯';
+    var league = leagueName(leagueRaw);
+    var mkt = formatMkt(market);
+
+    var el = document.createElement('div');
+    el.style.cssText = [
+      'background:#1a1a2e',
+      'border:1.5px solid #f1c40f',
+      'border-radius:10px',
+      'padding:12px 14px',
+      'font-family:system-ui,sans-serif',
+      'font-size:13px',
+      'color:#fff',
+      'box-shadow:0 4px 20px rgba(0,0,0,0.6)',
+      'pointer-events:auto',
+      'cursor:pointer',
+      'animation:alertSlideIn 0.35s ease',
+      'min-width:270px'
+    ].join(';');
+
+    el.innerHTML = [
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">',
+        '<span style="font-size:18px;">' + medal + '</span>',
+        '<span style="font-weight:600;font-size:13.5px;color:#f1c40f;">Alerta de Zona!</span>',
+        '<span style="margin-left:auto;font-size:11px;color:#aaa;cursor:pointer;" data-close="1">✕</span>',
+      '</div>',
+      '<div style="color:#eee;line-height:1.6;">',
+        '<span style="color:#7ed6b0;font-weight:600;">' + league + '</span>',
+        ' próxima da ',
+        '<span style="color:#f1c40f;font-weight:600;">' + (rank+1) + 'ª melhor zona</span><br>',
+        '<span style="font-size:12px;color:#bbb;">Mercado: </span>',
+        '<span style="color:#f8c97a;">' + mkt + '</span><br>',
+        '<span style="font-size:12px;color:#bbb;">Atual: </span>',
+        '<span style="color:#7ed6b0;font-weight:600;">' + currentPct.toFixed(1) + '%</span>',
+        '<span style="color:#bbb;font-size:12px;"> → Zona: </span>',
+        '<span style="color:#f1c40f;font-weight:600;">' + targetPct + '%</span>',
+      '</div>'
+    ].join('');
+
+    el.querySelector('[data-close]').addEventListener('click', function(e) {
+      e.stopPropagation();
+      el.remove();
+    });
+
+    setTimeout(function() {
+      if (el.parentNode) {
+        el.style.transition = 'opacity 0.5s';
+        el.style.opacity = '0';
+        setTimeout(function() { el.remove(); }, 500);
+      }
+    }, 15000);
+
+    panel.appendChild(el);
+    if (panel.children.length > 6) panel.removeChild(panel.children[0]);
+  }
+
+  async function fetchLeague(league, sel) {
+    try {
+      var resp = await fetch(apiBaseUrl + '/' + league);
+      if (!resp.ok) return null;
+      var data = await resp.json();
+      if (!data.length) return null;
+      return parseData(data, league).slice(-sel.numberOfGames);
+    } catch(e) { return null; }
+  }
+
+  function computeTop3Zones(allData, market, linesToSum) {
+    var groups = {};
+    allData.forEach(function(row, i) {
+      if (i >= linesToSum - 1) {
+        var slice = allData.slice(i - linesToSum + 1, i + 1);
+        var sum = slice.reduce(function(s,r){
+          return s + checkMkt(market, r.h, r.a, r.total);
+        }, 0);
+        var pct = Math.round(sum / linesToSum * 100);
+        if (!groups[pct]) groups[pct] = { hits: 0, total: 0 };
+        groups[pct].total++;
+        if (i + 1 < allData.length &&
+            checkMkt(market, allData[i+1].h, allData[i+1].a, allData[i+1].total) === 1) {
+          groups[pct].hits++;
+        }
+      }
+    });
+    return Object.entries(groups)
+      .filter(function(e){ return e[1].total >= 3; })
+      .map(function(e){ return { pct: parseInt(e[0]), rate: e[1].hits/e[1].total*100 }; })
+      .sort(function(a,b){ return b.rate - a.rate; })
+      .slice(0, 3);
+  }
+
+  async function runAlertCheck() {
+    var sel = getSelectors();
+    var allCombined = [];
+
+    for (var i = 0; i < leagues.length; i++) {
+      var rows = await fetchLeague(leagues[i], sel);
+      if (rows) allCombined = allCombined.concat(rows);
+    }
+
+    if (allCombined.length < sel.linesToSum * 2) return;
+
+    var top3 = computeTop3Zones(allCombined, sel.market, sel.linesToSum);
+    if (!top3.length) return;
+
+    for (var j = 0; j < leagues.length; j++) {
+      var leagueRows = await fetchLeague(leagues[j], sel);
+      if (!leagueRows || leagueRows.length < sel.linesToSum) continue;
+
+      var recent = leagueRows.slice(-sel.linesToSum);
+      var count = recent.reduce(function(s,r){
+        return s + checkMkt(sel.market, r.h, r.a, r.total);
+      }, 0);
+      var currentPct = count / sel.linesToSum * 100;
+
+      top3.forEach(function(zone, rank) {
+        if (Math.abs(currentPct - zone.pct) <= PROXIMITY) {
+          showAlert(leagues[j], sel.market, currentPct, zone.pct, rank);
+        }
+      });
+    }
+  }
+
+  var style = document.createElement('style');
+  style.textContent = '@keyframes alertSlideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}';
+  document.head.appendChild(style);
+
+  function startAlerts() {
+    clearInterval(alertInterval);
+    notifiedKeys = {};
+    runAlertCheck();
+    alertInterval = setInterval(runAlertCheck, 30000);
+  }
+
+  window.addEventListener('load', function() {
+    startAlerts();
+    ['selectedLeague','searchedMarket','timeRange','linesToSum','verifyLines'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('change', startAlerts);
+    });
+  });
+
+})();
+</script>
+
     <script>
 
     const leagues = [
