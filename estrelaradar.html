@@ -558,7 +558,9 @@
       : 100;
     var linesToSum = document.getElementById('linesToSum')
       ? parseInt(document.getElementById('linesToSum').value) : 10;
-    return { market: market, numberOfGames: numberOfGames, linesToSum: linesToSum };
+    var verifyLines = document.getElementById('verifyLines')
+      ? parseInt(document.getElementById('verifyLines').value) : 3;
+    return { market: market, numberOfGames: numberOfGames, linesToSum: linesToSum, verifyLines: verifyLines };
   }
 
   function parseData(data, league) {
@@ -735,27 +737,37 @@
     } catch(e) { return null; }
   }
 
-  function computeTop3Zones(allData, market, linesToSum) {
+  function computeTop3Zones(allData, market, linesToSum, verifyLines) {
     var groups = {};
+
     allData.forEach(function(row, i) {
       if (i >= linesToSum - 1) {
         var slice = allData.slice(i - linesToSum + 1, i + 1);
-        var sum = slice.reduce(function(s,r){
+        var sum = slice.reduce(function(s, r) {
           return s + checkMkt(market, r.h, r.a, r.total);
         }, 0);
         var pct = Math.round(sum / linesToSum * 100);
-        if (!groups[pct]) groups[pct] = { hits: 0, total: 0 };
-        groups[pct].total++;
-        if (i + 1 < allData.length &&
-            checkMkt(market, allData[i+1].h, allData[i+1].a, allData[i+1].total) === 1) {
-          groups[pct].hits++;
-        }
+
+        if (!groups[pct]) groups[pct] = { greens: 0, occurrences: 0 };
+        groups[pct].occurrences++;
+
+        var nextRows = allData.slice(i + 1, i + 1 + verifyLines);
+        var hasGreen = nextRows.some(function(r) {
+          return checkMkt(market, r.h, r.a, r.total) === 1;
+        });
+        if (hasGreen) groups[pct].greens++;
       }
     });
+
     return Object.entries(groups)
-      .filter(function(e){ return e[1].total >= 3; })
-      .map(function(e){ return { pct: parseInt(e[0]), rate: e[1].hits/e[1].total*100 }; })
-      .sort(function(a,b){ return b.rate - a.rate; })
+      .filter(function(e) { return e[1].occurrences >= 3; })
+      .map(function(e) {
+        return {
+          pct: parseInt(e[0]),
+          rate: e[1].greens / e[1].occurrences * 100
+        };
+      })
+      .sort(function(a, b) { return b.rate - a.rate; })
       .slice(0, 3);
   }
 
@@ -770,7 +782,7 @@
 
     if (allCombined.length < sel.linesToSum * 2) return;
 
-    var top3 = computeTop3Zones(allCombined, sel.market, sel.linesToSum);
+    var top3 = computeTop3Zones(allCombined, sel.market, sel.linesToSum, sel.verifyLines);
     if (!top3.length) return;
 
     for (var j = 0; j < leagues.length; j++) {
@@ -778,7 +790,7 @@
       if (!leagueRows || leagueRows.length < sel.linesToSum) continue;
 
       var recent = leagueRows.slice(-sel.linesToSum);
-      var count = recent.reduce(function(s,r){
+      var count = recent.reduce(function(s, r) {
         return s + checkMkt(sel.market, r.h, r.a, r.total);
       }, 0);
       var currentPct = count / sel.linesToSum * 100;
