@@ -1986,7 +1986,7 @@ let chartData = {};
 let _tabVisible = !document.hidden;
 document.addEventListener('visibilitychange', () => {
     _tabVisible = !document.hidden;
-    if (_tabVisible) updateCharts();
+    if (_tabVisible) updateCharts(); // atualiza imediatamente ao voltar
 });
 
 // ─── PERSISTÊNCIA DOS DATASETS VISÍVEIS ─────────────────────────────
@@ -2099,6 +2099,7 @@ const htmlLegendPlugin = {
                     border: 1px solid rgba(255,255,255,0.22);
                     background: rgba(255,255,255,0.08);
                     color: #e0e0e0;
+                    
                     white-space: nowrap;
                 }
                 .leg-btn:hover {
@@ -2132,6 +2133,7 @@ const htmlLegendPlugin = {
                     color: #e0e0e0;
                     background: rgba(255,255,255,0.06);
                     border: 1px solid rgba(255,255,255,0.10);
+                    
                     white-space: nowrap;
                 }
                 .leg-item:hover {
@@ -2153,6 +2155,7 @@ const htmlLegendPlugin = {
                     width: 9px; height: 9px;
                     border-radius: 50%;
                     flex-shrink: 0;
+                    
                 }
                 .leg-item:hover .leg-dot { transform: scale(1.3); }
             `;
@@ -2172,12 +2175,14 @@ const htmlLegendPlugin = {
         const container = document.getElementById('legenda-customizada');
         if (!container) return;
 
+        // Mapa label → hidden
         const hiddenMap = {};
         chart.data.datasets.forEach((ds, i) => {
             if (!ds.label.includes(' MA'))
                 hiddenMap[ds.label] = !!chart.getDatasetMeta(i).hidden;
         });
 
+        // Já construído → só sincroniza classes direto da fonte de verdade
         if (container.dataset.built === '1') {
             container.querySelectorAll('.leg-item[data-label]').forEach(pill => {
                 const lbl = pill.dataset.label;
@@ -2186,6 +2191,8 @@ const htmlLegendPlugin = {
             return;
         }
 
+        // ── Primeira construção — layout totalmente horizontal ───────
+        // Botões mostrar/ocultar
         const btnShow = document.createElement('button');
         btnShow.className = 'leg-btn';
         btnShow.textContent = '✦ Mostrar todos';
@@ -2198,7 +2205,9 @@ const htmlLegendPlugin = {
         btnHide.addEventListener('click', () => _toggleAllDatasets(chart, false));
         container.appendChild(btnHide);
 
+        // Grupos inline: separador de texto + pills na mesma linha
         LEGEND_GROUPS.forEach(group => {
+            // Separador de categoria inline
             const sep = document.createElement('span');
             sep.className = 'leg-separator';
             sep.textContent = group.title;
@@ -2251,6 +2260,7 @@ const htmlLegendPlugin = {
     }
 };
 
+// ─── HELPER: mostrar/ocultar todos ───────────────────────────────────
 function _toggleAllDatasets(chart, visible) {
     Object.keys(statsChartVisibleDatasets).forEach(label => {
         statsChartVisibleDatasets[label] = visible;
@@ -2638,9 +2648,11 @@ const linhaDraggablePlugin={
 /* ═══════════════════════════════════════════════════════════════════
    CRIAÇÃO DO GRÁFICO
 ═══════════════════════════════════════════════════════════════════ */
+// Desativa animações globalmente
 Chart.defaults.animation.duration = 0;
 
 function createStatsChart(ctx, labels, data, league) {
+    // Usa DATASET_COLORS como fonte única de verdade — sem duplicação
     const datasetConfigs = Object.entries(labelToKey).map(([label, key]) => ({
         label, key, color: DATASET_COLORS[label] || '#888'
     }));
@@ -2691,31 +2703,8 @@ function createStatsChart(ctx, labels, data, league) {
                 linhaAtual:{enabled:true}
             },
             scales:{
-                x:{
-                    title:{display:true,text:'',color:'#1fad8b',font:{size:14}},
-                    ticks:{display:false},
-                    grid:{display:false}
-                },
-                y:{
-                    title:{display:true,text:'',color:'#1fad8b',font:{size:14}},
-                    beginAtZero:false,
-                    // ── FIX: força ticks exatamente de 5 em 5% ──────────
-                    afterBuildTicks(axis) {
-                        const min = Math.floor(axis.min / 5) * 5;
-                        const max = Math.ceil(axis.max / 5) * 5;
-                        axis.ticks = [];
-                        for (let v = min; v <= max; v += 5) {
-                            axis.ticks.push({ value: v });
-                        }
-                    },
-                    // ────────────────────────────────────────────────────
-                    ticks:{
-                        color:'#b0b0b0',
-                        callback: value => value + '%'
-                    },
-                    grid:{color:'rgba(255,255,255,0.3)',lineWidth:0.5},
-                    afterFit:s=>{s.paddingTop=20;}
-                }
+                x:{title:{display:true,text:'',color:'#1fad8b',font:{size:14}},ticks:{display:false},grid:{display:false}},
+                y:{title:{display:true,text:'',color:'#1fad8b',font:{size:14}},beginAtZero:false,ticks:{color:'#b0b0b0',stepSize:5},grid:{color:'rgba(255,255,255,0.3)',lineWidth:0.5},afterFit:s=>{s.paddingTop=20;}}
             }
         },
         plugins:[fibonacciLinesPlugin,linhaAtualPlugin,linhaDraggablePlugin,htmlLegendPlugin]
@@ -2726,7 +2715,7 @@ function createStatsChart(ctx, labels, data, league) {
    UPDATE / CONTROLES
 ═══════════════════════════════════════════════════════════════════ */
 function updateCharts() {
-    if (!_tabVisible) return;
+    if (!_tabVisible) return; // não faz fetch com aba oculta
     const ts=new Date().getTime();
     leagues.forEach(league=>{
         fetch(ROTAS_API.resultados(LIGA_ATUAL)+`?timestamp=${ts}`)
@@ -2861,9 +2850,8 @@ function calculateGoalStats(data){
         const[A,B]=g.ft.split(' x ').map(Number);
         return a+A+B;
     },0);
-    // ── FIX: base corrigida para 30 jogos/hora ──────────────────────
-    const horasEquivalentes = data.length / 30;
-    // ────────────────────────────────────────────────────────────────
+    // Média dinâmica baseada no tamanho real da amostra (12 jogos/hora)
+    const horasEquivalentes = data.length / 12;
     return { totalGols, mediaGolsHora: (totalGols / horasEquivalentes).toFixed(2) };
 }
 
