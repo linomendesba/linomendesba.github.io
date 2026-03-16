@@ -1974,8 +1974,8 @@ if(_mo){
 /* ═══════════════════════════════════════════════════════════════════
    VARIÁVEIS GLOBAIS
 ═══════════════════════════════════════════════════════════════════ */
-let numPoints = 20;
-let averagePoints = 19;
+let numPoints = 30;
+let averagePoints = 29;
 let showFibonacciLines = false;
 let showMovingAverages = false;
 const leagues = ['Copa'];
@@ -1986,16 +1986,16 @@ let chartData = {};
 let _tabVisible = !document.hidden;
 document.addEventListener('visibilitychange', () => {
     _tabVisible = !document.hidden;
-    if (_tabVisible) updateCharts();
+    if (_tabVisible) updateCharts(); // atualiza imediatamente ao voltar
 });
 
 // ─── PERSISTÊNCIA DOS DATASETS VISÍVEIS ─────────────────────────────
 const VISIBLE_DATASETS_KEY = 'meu_grafico:visibleDatasets';
 
 const defaultStatsChartVisibleDatasets = {
-    'Ambas Sim': true,  'Ambas Não': false,
+    'Ambas Sim': false,  'Ambas Não': false,
     'Casa Vence': false, 'Empate': false, 'Fora Vence': false,
-    'Over 0.5': false, 'Over 1.5': false, 'Over 2.5': false, 'Over 3.5': false, 'Over 5+': false,
+    'Over 0.5': false, 'Over 1.5': false, 'Over 2.5': true, 'Over 3.5': false, 'Over 5+': false,
     'Under 0.5': false, 'Under 1.5': false, 'Under 2.5': false, 'Under 3.5': false,
     '0 Gol Exato': false, '1 Gol Exato': false, '2 Gols Exatos': false,
     '3 Gols Exatos': false, '4 Gols Exatos': false, '5 Gols Exatos': false,
@@ -2505,6 +2505,41 @@ function updateStatsChart(chart, newData) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   PLUGIN: LINHAS HORIZONTAIS FIXAS DE 5 EM 5%
+═══════════════════════════════════════════════════════════════════ */
+const gridLines5Plugin = {
+    id: 'gridLines5',
+    afterDraw(chart) {
+        const ctx=chart.ctx, yS=chart.scales.y;
+        if(!yS||!chart.chartArea) return;
+        const {left,right,top,bottom}=chart.chartArea;
+        // Passo exato para 30 jogos: 100/30 = 3.333...%
+        const step = 100 / 30;
+        ctx.save();
+        ctx.font='9px Arial';
+        ctx.textAlign='right';
+        ctx.textBaseline='middle';
+        // Começa do 0 e vai até 100 em passos de 100/30
+        for (let i = 0; i <= 30; i++) {
+            const v = i * step;
+            if (v < yS.min - step || v > yS.max + step) continue;
+            const yPx = yS.getPixelForValue(v);
+            if (yPx < top || yPx > bottom) continue;
+            ctx.strokeStyle='rgba(255,255,255,0.15)';
+            ctx.lineWidth=0.5;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(left, yPx);
+            ctx.lineTo(right, yPx);
+            ctx.stroke();
+            ctx.fillStyle='rgba(180,180,180,0.55)';
+            ctx.fillText(v.toFixed(1) + '%', left - 4, yPx);
+        }
+        ctx.restore();
+    }
+};
+
+/* ═══════════════════════════════════════════════════════════════════
    PLUGIN: FIBONACCI
 ═══════════════════════════════════════════════════════════════════ */
 const fibonacciLinesPlugin = {
@@ -2693,10 +2728,16 @@ function createStatsChart(ctx, labels, data, league) {
             },
             scales:{
                 x:{title:{display:true,text:'',color:'#1fad8b',font:{size:14}},ticks:{display:false},grid:{display:false}},
-                y:{title:{display:true,text:'',color:'#1fad8b',font:{size:14}},beginAtZero:false,ticks:{color:'#b0b0b0',stepSize:5},grid:{color:'rgba(255,255,255,0.3)',lineWidth:0.5},afterFit:s=>{s.paddingTop=20;}}
+                y:{
+                    title:{display:true,text:'',color:'#1fad8b',font:{size:14}},
+                    beginAtZero:false,
+                    ticks:{display:false},
+                    grid:{display:false},
+                    afterFit:s=>{s.paddingTop=20;}
+                }
             }
         },
-        plugins:[fibonacciLinesPlugin,linhaAtualPlugin,linhaDraggablePlugin,htmlLegendPlugin]
+        plugins:[gridLines5Plugin,fibonacciLinesPlugin,linhaAtualPlugin,linhaDraggablePlugin,htmlLegendPlugin]
     });
 }
 
@@ -2755,27 +2796,16 @@ document.getElementById('linhaAtualToggle').addEventListener('change',function()
     });
 });
 
-// ─── FIX: botão Add Linha — painel sempre visível acima de tudo ──────
-document.getElementById('btnLinhaTools').addEventListener('click', e => {
+document.getElementById('btnLinhaTools').addEventListener('click',e=>{
     e.stopPropagation();
-    const p = document.getElementById('linhaToolsPanel');
-    if (p.style.display === 'none' || p.style.display === '') {
-        const btn = e.currentTarget.getBoundingClientRect();
-        p.style.top  = (btn.bottom + window.scrollY + 6) + 'px';
-        p.style.left = (btn.left  + window.scrollX) + 'px';
-        p.style.display = 'block';
-    } else {
-        p.style.display = 'none';
-    }
+    const p=document.getElementById('linhaToolsPanel');
+    p.style.display=p.style.display==='none'?'block':'none';
 });
-document.addEventListener('click', () => {
-    const p = document.getElementById('linhaToolsPanel');
-    if (p) p.style.display = 'none';
-});
-document.getElementById('linhaToolsPanel').addEventListener('click', e => e.stopPropagation());
+document.addEventListener('click',()=>{const p=document.getElementById('linhaToolsPanel');if(p)p.style.display='none';});
+document.getElementById('linhaToolsPanel').addEventListener('click',e=>e.stopPropagation());
 
-window.onload = updateCharts;
-setInterval(updateCharts, 3000);
+window.onload=updateCharts;
+setInterval(updateCharts,3000);
 
 /* ═══════════════════════════════════════════════════════════════════
    SEGUNDO BLOCO: PERCENTUAIS E GOLS
@@ -2850,7 +2880,8 @@ function calculateGoalStats(data){
         const[A,B]=g.ft.split(' x ').map(Number);
         return a+A+B;
     },0);
-    const horasEquivalentes = data.length / 12;
+    // 30 jogos por hora para Kiron
+    const horasEquivalentes = data.length / 30;
     return { totalGols, mediaGolsHora: (totalGols / horasEquivalentes).toFixed(2) };
 }
 
@@ -2867,6 +2898,46 @@ async function _atualizarBlocoPercentuais() {
 
 document.getElementById('seletorResultado').addEventListener('change', _atualizarBlocoPercentuais);
 window.addEventListener('load', _atualizarBlocoPercentuais);
+
+/* ═══════════════════════════════════════════════════════════════════
+   TERCEIRO BLOCO: STATS COM SELETOR DE HORAS
+═══════════════════════════════════════════════════════════════════ */
+async function fetchResults() {
+    const horas = parseInt(document.getElementById('seletorHoras').value, 10) || 6;
+    const jogos = horas * 30; // 30 jogos por hora — Kiron
+    const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+    const data = await response.json();
+    return data.slice(-jogos).reverse();
+}
+
+function calculateGoalStats(data) {
+    let totalGols = 0;
+    data.forEach((game) => {
+        if (!game.ft?.includes(' x ')) return;
+        const [scoreA, scoreB] = game.ft.split(' x ').map(Number);
+        totalGols += scoreA + scoreB;
+    });
+    const horasSelecionadas = parseInt(document.getElementById('seletorHoras').value, 10) || 6;
+    const mediaGolsHora = (totalGols / horasSelecionadas).toFixed(2);
+    return { totalGols, mediaGolsHora };
+}
+
+async function updateAllStats() {
+    const market = document.getElementById('seletorResultado').value;
+    const games  = await fetchResults();
+
+    const percentages = calculatePercentage(games, market);
+    document.getElementById('greenPercentage').innerText = `Greens: ${percentages.greens}%`;
+    document.getElementById('redPercentage').innerText   = `Reds: ${percentages.reds}%`;
+
+    const stats = calculateGoalStats(games);
+    document.getElementById('totalGols').innerText     = `Gols: ${stats.totalGols}`;
+    document.getElementById('mediaGolsHora').innerText = `Gols/Hora: ${stats.mediaGolsHora}`;
+}
+
+document.getElementById('seletorResultado').addEventListener('change', updateAllStats);
+document.getElementById('seletorHoras').addEventListener('change', updateAllStats);
+window.addEventListener('load', updateAllStats);
     </script>
 
     <script>
