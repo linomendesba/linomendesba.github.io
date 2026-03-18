@@ -13,6 +13,7 @@ function redirecionar(select) {
     url === "https://t.me/betstatautobot" ||
     url === "https://t.me/tip_zera" ||
     url === "https://t.me/+grZB16eZ9ZJkNjVh" ||
+    url === "https://www.betstat.site/guias.html" ||
     url === "https://youtu.be/oRqi3RvH8zE" ||
     url === "blog.html" ||
     url === "gestao.html" ||
