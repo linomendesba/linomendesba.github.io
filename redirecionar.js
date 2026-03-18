@@ -10,6 +10,7 @@ function redirecionar(select) {
     url === "https://t.me/betstatgraphicbot" ||
     url === "https://t.me/+v8-Zj8xsnec0ZGMx" ||
     url === "https://t.me/+BxTdgAR89hAxMDAx" ||
+    url === "https://t.me/betstatautobot" ||
     url === "https://t.me/tip_zera" ||
     url === "https://t.me/+grZB16eZ9ZJkNjVh" ||
     url === "https://youtu.be/oRqi3RvH8zE" ||
