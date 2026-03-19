@@ -484,7 +484,7 @@
 
 
 <!-- ═══════════════════════════════════════════════════════
-     ACORDEON 3: MERCADOS (gráfico Copa)
+     ACORDEON: MERCADOS (gráfico Copa)
 ═══════════════════════════════════════════════════════ -->
 <div class="accordion-item">
     <button class="accordion-button" onclick="toggleAccordion(this)">▼ Gráfico Mercados ▲</button>
@@ -538,6 +538,12 @@
                 <div class="checkbox-container">
                     <input type="checkbox" id="movingAveragesToggle">
                     <label for="movingAveragesToggle">Ativar Médias Móveis</label>
+                </div>
+
+                <!-- ✅ NOVO: Checkbox Rótulos -->
+                <div class="checkbox-container">
+                    <input type="checkbox" id="rotulosToggle" checked>
+                    <label for="rotulosToggle">Rótulos</label>
                 </div>
 
                 <label class="linha-atual-toggle">
@@ -2041,6 +2047,7 @@ let numPoints = 20;
 let averagePoints = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
+let showRotulos = true;                          // ← NOVO: controla rótulos
 const leagues = ['Copa'];
 const chartInstances = {};
 let chartData = {};
@@ -2049,7 +2056,7 @@ let chartData = {};
 let _tabVisible = !document.hidden;
 document.addEventListener('visibilitychange', () => {
     _tabVisible = !document.hidden;
-    if (_tabVisible) updateCharts(); // atualiza imediatamente ao voltar
+    if (_tabVisible) updateCharts();
 });
 
 // ─── PERSISTÊNCIA DOS DATASETS VISÍVEIS ─────────────────────────────
@@ -2066,6 +2073,7 @@ const defaultStatsChartVisibleDatasets = {
     'Casa 0 Gols': false, 'Casa 1 Gol': false, 'Casa 2 Gols': false, 'Casa 3 Gols': false, 'Casa 4 Gols': false,
     'Fora 0 Gols': false, 'Fora 1 Gol': false, 'Fora 2 Gols': false, 'Fora 3 Gols': false, 'Fora 4 Gols': false,
     'Gols FT': false,
+    'Gols HT': false,                            // ← NOVO
     '0x0': false, '1x0': false, '2x0': false, '3x0': false,
     '2x1': false, '3x1': false, '3x2': false, '4x0': false, '4x1': false,
     '0x0 HT': false
@@ -2079,44 +2087,49 @@ function _loadVisibleDatasets() {
     } catch { return { ...defaultStatsChartVisibleDatasets }; }
 }
 function _saveVisibleDatasets(obj) {
-    try {
-        localStorage.setItem(VISIBLE_DATASETS_KEY, JSON.stringify(obj));
-    } catch (e) {
-        console.warn('Não foi possível salvar preferências da legenda:', e);
-    }
+    try { localStorage.setItem(VISIBLE_DATASETS_KEY, JSON.stringify(obj)); }
+    catch (e) { console.warn('Não foi possível salvar preferências da legenda:', e); }
 }
 let statsChartVisibleDatasets = _loadVisibleDatasets();
 
 // ─── MAPA DE LABELS → CHAVES DE DADOS ────────────────────────────────
 const labelToKey = {
-    'Gols FT':'golsFT','Casa Vence':'casaVence','Empate':'empate','Fora Vence':'foraVence',
-    'Ambas Sim':'ambasSim','Ambas Não':'ambasNao',
-    'Over 0.5':'over05','Over 1.5':'over15','Over 2.5':'over25','Over 3.5':'over35','Over 5+':'over5',
-    'Under 0.5':'under05','Under 1.5':'under15','Under 2.5':'under25','Under 3.5':'under35',
-    '0 Gol Exato':'gol0','1 Gol Exato':'gol1','2 Gols Exatos':'gol2',
-    '3 Gols Exatos':'gol3','4 Gols Exatos':'gol4','5 Gols Exatos':'gol5',
-    '0 Gol 2T':'gol2t0','1 Gol 2T':'gol2t1','2 Gols 2T':'gol2t2','3 Gols 2T':'gol2t3','4 Gols 2T':'gol2t4',
-    'Casa 0 Gols':'casa0','Casa 1 Gol':'casa1','Casa 2 Gols':'casa2','Casa 3 Gols':'casa3','Casa 4 Gols':'casa4',
-    'Fora 0 Gols':'fora0','Fora 1 Gol':'fora1','Fora 2 Gols':'fora2','Fora 3 Gols':'fora3','Fora 4 Gols':'fora4',
-    '0x0':'placar0x0','1x0':'placar1x0','2x0':'placar2x0','3x0':'placar3x0',
-    '2x1':'placar2x1','3x1':'placar3x1','3x2':'placar3x2','4x0':'placar4x0','4x1':'placar4x1',
-    '0x0 HT':'placarHT0x0'
+    'Gols FT':       'golsFT',
+    'Gols HT':       'golsHT',                   // ← NOVO
+    'Casa Vence':    'casaVence',   'Empate':     'empate',     'Fora Vence':  'foraVence',
+    'Ambas Sim':     'ambasSim',    'Ambas Não':  'ambasNao',
+    'Over 0.5':      'over05',      'Over 1.5':   'over15',     'Over 2.5':    'over25',
+    'Over 3.5':      'over35',      'Over 5+':    'over5',
+    'Under 0.5':     'under05',     'Under 1.5':  'under15',    'Under 2.5':   'under25',    'Under 3.5':  'under35',
+    '0 Gol Exato':   'gol0',        '1 Gol Exato':'gol1',       '2 Gols Exatos':'gol2',
+    '3 Gols Exatos': 'gol3',        '4 Gols Exatos':'gol4',     '5 Gols Exatos':'gol5',
+    '0 Gol 2T':      'gol2t0',      '1 Gol 2T':  'gol2t1',     '2 Gols 2T':   'gol2t2',    '3 Gols 2T':  'gol2t3',   '4 Gols 2T': 'gol2t4',
+    'Casa 0 Gols':   'casa0',       'Casa 1 Gol': 'casa1',      'Casa 2 Gols': 'casa2',      'Casa 3 Gols':'casa3',    'Casa 4 Gols':'casa4',
+    'Fora 0 Gols':   'fora0',       'Fora 1 Gol': 'fora1',      'Fora 2 Gols': 'fora2',      'Fora 3 Gols':'fora3',    'Fora 4 Gols':'fora4',
+    '0x0':           'placar0x0',   '1x0':        'placar1x0',  '2x0':         'placar2x0',  '3x0':        'placar3x0',
+    '2x1':           'placar2x1',   '3x1':        'placar3x1',  '3x2':         'placar3x2',  '4x0':        'placar4x0', '4x1':'placar4x1',
+    '0x0 HT':        'placarHT0x0'
 };
 
-// ─── CORES CENTRALIZADAS — única fonte de verdade ────────────────────
+// ─── DATASETS QUE USAM QUANTIDADE (gols) EM VEZ DE PORCENTAGEM ───────
+// Estes exibem "g" em vez de "%" nos badges e rótulos
+const QUANTITY_LABELS = new Set(['Gols FT', 'Gols HT']);
+
+// ─── CORES CENTRALIZADAS ─────────────────────────────────────────────
 const DATASET_COLORS = {
-    'Ambas Sim':'#B0BEC5','Ambas Não':'#F44336',
-    'Casa Vence':'#AB47BC','Empate':'#78909C','Fora Vence':'#2196F3',
-    'Over 0.5':'#80DEEA','Over 1.5':'#26A69A','Over 2.5':'#FFEB3B','Over 3.5':'#00BCD4','Over 5+':'#FF7043',
-    'Under 0.5':'#A5D6A7','Under 1.5':'#388E3C','Under 2.5':'#FF9800','Under 3.5':'#F06292',
-    '0 Gol Exato':'#D81B60','1 Gol Exato':'#8E24AA','2 Gols Exatos':'#A0522D',
-    '3 Gols Exatos':'#546E7A','4 Gols Exatos':'#FFB300','5 Gols Exatos':'#00897B',
-    '0 Gol 2T':'#CE93D8','1 Gol 2T':'#BA68C8','2 Gols 2T':'#9C27B0','3 Gols 2T':'#7B1FA2','4 Gols 2T':'#4A148C',
-    'Casa 0 Gols':'#FFCCBC','Casa 1 Gol':'#FF8A65','Casa 2 Gols':'#FF5722','Casa 3 Gols':'#E64A19','Casa 4 Gols':'#BF360C',
-    'Fora 0 Gols':'#B3E5FC','Fora 1 Gol':'#4FC3F7','Fora 2 Gols':'#0288D1','Fora 3 Gols':'#01579B','Fora 4 Gols':'#002F6C',
-    'Gols FT':'#1E88E5',
-    '0x0':'#E91E63','1x0':'#9C27B0','2x0':'#673AB7','3x0':'#3F51B5',
-    '2x1':'#009688','3x1':'#4CAF50','3x2':'#8BC34A','4x0':'#CDDC39','4x1':'#FFC107',
+    'Ambas Sim':'#B0BEC5',    'Ambas Não':'#F44336',
+    'Casa Vence':'#AB47BC',   'Empate':'#78909C',        'Fora Vence':'#2196F3',
+    'Over 0.5':'#80DEEA',     'Over 1.5':'#26A69A',      'Over 2.5':'#FFEB3B',    'Over 3.5':'#00BCD4',  'Over 5+':'#FF7043',
+    'Under 0.5':'#A5D6A7',    'Under 1.5':'#388E3C',     'Under 2.5':'#FF9800',   'Under 3.5':'#F06292',
+    '0 Gol Exato':'#D81B60',  '1 Gol Exato':'#8E24AA',   '2 Gols Exatos':'#A0522D',
+    '3 Gols Exatos':'#546E7A','4 Gols Exatos':'#FFB300',  '5 Gols Exatos':'#00897B',
+    '0 Gol 2T':'#CE93D8',     '1 Gol 2T':'#BA68C8',      '2 Gols 2T':'#9C27B0',  '3 Gols 2T':'#7B1FA2', '4 Gols 2T':'#4A148C',
+    'Casa 0 Gols':'#FFCCBC',  'Casa 1 Gol':'#FF8A65',    'Casa 2 Gols':'#FF5722', 'Casa 3 Gols':'#E64A19','Casa 4 Gols':'#BF360C',
+    'Fora 0 Gols':'#B3E5FC',  'Fora 1 Gol':'#4FC3F7',    'Fora 2 Gols':'#0288D1', 'Fora 3 Gols':'#01579B','Fora 4 Gols':'#002F6C',
+    'Gols FT':'#FFFF00',                                  // ← cor igual ao GolsPlus
+    'Gols HT':'#26A69A',                                  // ← NOVO
+    '0x0':'#E91E63',  '1x0':'#9C27B0',  '2x0':'#673AB7', '3x0':'#3F51B5',
+    '2x1':'#009688',  '3x1':'#4CAF50',  '3x2':'#8BC34A', '4x0':'#CDDC39',  '4x1':'#FFC107',
     '0x0 HT':'#FF6090'
 };
 
@@ -2131,7 +2144,7 @@ const LEGEND_GROUPS = [
     { title: 'Casa',        labels: ['Casa 0 Gols','Casa 1 Gol','Casa 2 Gols','Casa 3 Gols','Casa 4 Gols'] },
     { title: 'Fora',        labels: ['Fora 0 Gols','Fora 1 Gol','Fora 2 Gols','Fora 3 Gols','Fora 4 Gols'] },
     { title: 'Placares',    labels: ['0x0','1x0','2x0','3x0','2x1','3x1','3x2','4x0','4x1','0x0 HT'] },
-    { title: 'Geral',       labels: ['Gols FT'] }
+    { title: 'Geral',       labels: ['Gols FT', 'Gols HT'] }   // ← Gols HT adicionado ao grupo Geral
 ];
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2153,73 +2166,37 @@ const htmlLegendPlugin = {
                     gap: 5px 5px;
                 }
                 .leg-btn {
-                    font-size: 0.72em;
-                    font-weight: 600;
-                    padding: 3px 10px;
-                    border-radius: 20px;
-                    cursor: pointer;
-                    user-select: none;
+                    font-size: 0.72em; font-weight: 600;
+                    padding: 3px 10px; border-radius: 20px;
+                    cursor: pointer; user-select: none;
                     border: 1px solid rgba(255,255,255,0.22);
                     background: rgba(255,255,255,0.08);
-                    color: #e0e0e0;
-                    
-                    white-space: nowrap;
+                    color: #e0e0e0; white-space: nowrap;
                 }
-                .leg-btn:hover {
-                    background: rgba(255,255,255,0.18);
-                    border-color: rgba(255,255,255,0.4);
-                }
+                .leg-btn:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.4); }
                 .leg-separator {
-                    display: inline-flex;
-                    align-items: center;
-                    font-size: 0.65em;
-                    font-weight: 700;
-                    letter-spacing: 0.06em;
-                    text-transform: uppercase;
-                    color: rgba(255,255,255,0.28);
-                    padding: 0 4px 0 6px;
-                    white-space: nowrap;
-                    border-left: 1px solid rgba(255,255,255,0.12);
-                    height: 18px;
-                    margin-left: 2px;
+                    display: inline-flex; align-items: center;
+                    font-size: 0.65em; font-weight: 700;
+                    letter-spacing: 0.06em; text-transform: uppercase;
+                    color: rgba(255,255,255,0.28); padding: 0 4px 0 6px;
+                    white-space: nowrap; border-left: 1px solid rgba(255,255,255,0.12);
+                    height: 18px; margin-left: 2px;
                 }
                 .leg-item {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 5px;
-                    padding: 3px 10px 3px 7px;
-                    border-radius: 20px;
-                    cursor: pointer;
-                    user-select: none;
-                    font-size: 0.75em;
-                    font-weight: 500;
-                    color: #e0e0e0;
+                    display: inline-flex; align-items: center; gap: 5px;
+                    padding: 3px 10px 3px 7px; border-radius: 20px;
+                    cursor: pointer; user-select: none;
+                    font-size: 0.75em; font-weight: 500; color: #e0e0e0;
                     background: rgba(255,255,255,0.06);
-                    border: 1px solid rgba(255,255,255,0.10);
-                    
-                    white-space: nowrap;
+                    border: 1px solid rgba(255,255,255,0.10); white-space: nowrap;
                 }
-                .leg-item:hover {
-                    background: rgba(255,255,255,0.13);
-                    border-color: rgba(255,255,255,0.28);
-                }
+                .leg-item:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.28); }
                 .leg-item.leg-hidden {
-                    opacity: 0.28;
-                    text-decoration: line-through;
-                    background: rgba(255,255,255,0.02);
-                    border-color: transparent;
+                    opacity: 0.28; text-decoration: line-through;
+                    background: rgba(255,255,255,0.02); border-color: transparent;
                 }
-                .leg-item.leg-hidden:hover {
-                    opacity: 0.65;
-                    background: rgba(255,255,255,0.09);
-                    border-color: rgba(255,255,255,0.20);
-                }
-                .leg-dot {
-                    width: 9px; height: 9px;
-                    border-radius: 50%;
-                    flex-shrink: 0;
-                    
-                }
+                .leg-item.leg-hidden:hover { opacity: 0.65; background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.20); }
+                .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
                 .leg-item:hover .leg-dot { transform: scale(1.3); }
             `;
             document.head.appendChild(style);
@@ -2238,14 +2215,12 @@ const htmlLegendPlugin = {
         const container = document.getElementById('legenda-customizada');
         if (!container) return;
 
-        // Mapa label → hidden
         const hiddenMap = {};
         chart.data.datasets.forEach((ds, i) => {
             if (!ds.label.includes(' MA'))
                 hiddenMap[ds.label] = !!chart.getDatasetMeta(i).hidden;
         });
 
-        // Já construído → só sincroniza classes direto da fonte de verdade
         if (container.dataset.built === '1') {
             container.querySelectorAll('.leg-item[data-label]').forEach(pill => {
                 const lbl = pill.dataset.label;
@@ -2254,8 +2229,6 @@ const htmlLegendPlugin = {
             return;
         }
 
-        // ── Primeira construção — layout totalmente horizontal ───────
-        // Botões mostrar/ocultar
         const btnShow = document.createElement('button');
         btnShow.className = 'leg-btn';
         btnShow.textContent = '✦ Mostrar todos';
@@ -2268,9 +2241,7 @@ const htmlLegendPlugin = {
         btnHide.addEventListener('click', () => _toggleAllDatasets(chart, false));
         container.appendChild(btnHide);
 
-        // Grupos inline: separador de texto + pills na mesma linha
         LEGEND_GROUPS.forEach(group => {
-            // Separador de categoria inline
             const sep = document.createElement('span');
             sep.className = 'leg-separator';
             sep.textContent = group.title;
@@ -2304,7 +2275,6 @@ const htmlLegendPlugin = {
                     meta.hidden = !meta.hidden;
                     statsChartVisibleDatasets[labelText] = nowVisible;
                     _saveVisibleDatasets(statsChartVisibleDatasets);
-
                     pill.classList.toggle('leg-hidden', !nowVisible);
 
                     chart.data.datasets.forEach((ds, dsIdx) => {
@@ -2342,7 +2312,6 @@ function _toggleAllDatasets(chart, visible) {
             pill.classList.toggle('leg-hidden', !visible);
         });
     }
-
     chart.update();
 }
 
@@ -2370,6 +2339,12 @@ function computeMA(dataArray, period) {
     });
 }
 
+// Retorna se um label usa unidade de gols (quantidade) ou porcentagem
+function _isQuantityLabel(label) {
+    const main = label.includes(' - ') ? label.split(' - ')[0] : label;
+    return QUANTITY_LABELS.has(main);
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    PROCESSAMENTO DE DADOS
 ═══════════════════════════════════════════════════════════════════ */
@@ -2384,6 +2359,7 @@ function processApiData(data, league) {
     chartData[league] = slicedData;
 
     let labels=[];
+    // Porcentagem
     let golsFT=[],casaVence=[],empate=[],foraVence=[],ambasSim=[],ambasNao=[];
     let over05=[],over15=[],over25=[],over35=[],over5=[];
     let under05=[],under15=[],under25=[],under35=[];
@@ -2394,7 +2370,10 @@ function processApiData(data, league) {
     let placar0x0=[],placar1x0=[],placar2x0=[],placar3x0=[];
     let placar2x1=[],placar3x1=[],placar3x2=[],placar4x0=[],placar4x1=[];
     let placarHT0x0=[];
+    // ← NOVO: quantidade de gols HT acumulada
+    let golsHT=[];
 
+    // Cores dos pontos
     let golsFTColors=[],casaVenceColors=[],empateColors=[],foraVenceColors=[],ambasSimColors=[],ambasNaoColors=[];
     let over05Colors=[],over15Colors=[],over25Colors=[],over35Colors=[],over5Colors=[];
     let under05Colors=[],under15Colors=[],under25Colors=[],under35Colors=[];
@@ -2405,8 +2384,9 @@ function processApiData(data, league) {
     let placar0x0Colors=[],placar1x0Colors=[],placar2x0Colors=[],placar3x0Colors=[];
     let placar2x1Colors=[],placar3x1Colors=[],placar3x2Colors=[],placar4x0Colors=[],placar4x1Colors=[];
     let placarHT0x0Colors=[];
+    let golsHTColors=[];                              // ← NOVO
 
-    const green='#00FF00',red='#FF0000',golsFTLineColor='#1E88E5',transparent='transparent';
+    const green='#00FF00', red='#FF0000', transparent='transparent';
 
     const allData=[
         golsFT,casaVence,empate,foraVence,ambasSim,ambasNao,
@@ -2418,7 +2398,8 @@ function processApiData(data, league) {
         fora0,fora1,fora2,fora3,fora4,
         placar0x0,placar1x0,placar2x0,placar3x0,
         placar2x1,placar3x1,placar3x2,placar4x0,placar4x1,
-        placarHT0x0
+        placarHT0x0,
+        golsHT                                        // ← NOVO
     ];
     const allColors=[
         golsFTColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,
@@ -2430,7 +2411,8 @@ function processApiData(data, league) {
         fora0Colors,fora1Colors,fora2Colors,fora3Colors,fora4Colors,
         placar0x0Colors,placar1x0Colors,placar2x0Colors,placar3x0Colors,
         placar2x1Colors,placar3x1Colors,placar3x2Colors,placar4x0Colors,placar4x1Colors,
-        placarHT0x0Colors
+        placarHT0x0Colors,
+        golsHTColors                                  // ← NOVO
     ];
 
     function hasGap(p,c) {
@@ -2441,7 +2423,8 @@ function processApiData(data, league) {
 
     for (let i = averagePoints; i < slicedData.length; i++) {
         let s={
-            golsFT:0,casaVence:0,empate:0,foraVence:0,ambasSim:0,ambasNao:0,
+            golsFT:0,golsHT:0,                        // ← golsHT adicionado aqui
+            casaVence:0,empate:0,foraVence:0,ambasSim:0,ambasNao:0,
             over05:0,over15:0,over25:0,over35:0,over5:0,
             under05:0,under15:0,under25:0,under35:0,
             gol0:0,gol1:0,gol2:0,gol3:0,gol4:0,gol5:0,
@@ -2462,8 +2445,10 @@ function processApiData(data, league) {
             }
             let ft=[0,0]; if(m.ft?.includes(' x ')) ft=m.ft.split(' x ').map(Number);
             let ht=[0,0]; if(m.ht?.includes(' x ')) ht=m.ht.split(' x ').map(Number);
-            const tg=ft[0]+ft[1], tg2t=(ft[0]-ht[0])+(ft[1]-ht[1]);
-            s.golsFT+=tg; s.casaVence+=ft[0]>ft[1]?1:0; s.empate+=ft[0]===ft[1]?1:0; s.foraVence+=ft[0]<ft[1]?1:0;
+            const tg=ft[0]+ft[1], tgHT=ht[0]+ht[1], tg2t=(ft[0]-ht[0])+(ft[1]-ht[1]);
+            s.golsFT+=tg;
+            s.golsHT+=tgHT;                           // ← NOVO: acumula gols HT
+            s.casaVence+=ft[0]>ft[1]?1:0; s.empate+=ft[0]===ft[1]?1:0; s.foraVence+=ft[0]<ft[1]?1:0;
             s.ambasSim+=ft[0]>0&&ft[1]>0?1:0; s.ambasNao+=ft[0]===0||ft[1]===0?1:0;
             s.over05+=tg>0.5?1:0; s.over15+=tg>1.5?1:0; s.over25+=tg>2.5?1:0; s.over35+=tg>3.5?1:0; s.over5+=tg>=5?1:0;
             s.under05+=tg<=0.5?1:0; s.under15+=tg<1.5?1:0; s.under25+=tg<2.5?1:0; s.under35+=tg<3.5?1:0;
@@ -2485,7 +2470,11 @@ function processApiData(data, league) {
         const tg=ft[0]+ft[1], tg2t=(ft[0]-ht[0])+(ft[1]-ht[1]);
         const avg=s.valid||1;
 
-        golsFT.push(s.golsFT/avg*100);       golsFTColors.push(golsFTLineColor);
+        // ── Gols FT e HT agora em QUANTIDADE (sem *100/avg) ──────────
+        golsFT.push(s.golsFT);         golsFTColors.push(DATASET_COLORS['Gols FT']);
+        golsHT.push(s.golsHT);         golsHTColors.push(DATASET_COLORS['Gols HT']);  // ← NOVO
+
+        // ── Demais datasets continuam em porcentagem ──────────────────
         casaVence.push(s.casaVence/avg*100);  casaVenceColors.push(ft[0]>ft[1]?green:red);
         empate.push(s.empate/avg*100);        empateColors.push(ft[0]===ft[1]?green:red);
         foraVence.push(s.foraVence/avg*100);  foraVenceColors.push(ft[0]<ft[1]?green:red);
@@ -2534,33 +2523,35 @@ function processApiData(data, league) {
     }
 
     const result = {
-        labels,golsFT,casaVence,empate,foraVence,ambasSim,ambasNao,
-        over05,over15,over25,over35,over5,
-        under05,under15,under25,under35,
-        gol0,gol1,gol2,gol3,gol4,gol5,
-        gol2t0,gol2t1,gol2t2,gol2t3,gol2t4,
-        casa0,casa1,casa2,casa3,casa4,
-        fora0,fora1,fora2,fora3,fora4,
-        placar0x0,placar1x0,placar2x0,placar3x0,
-        placar2x1,placar3x1,placar3x2,placar4x0,placar4x1,
+        labels, golsFT, golsHT,                       // ← golsHT adicionado
+        casaVence, empate, foraVence, ambasSim, ambasNao,
+        over05, over15, over25, over35, over5,
+        under05, under15, under25, under35,
+        gol0, gol1, gol2, gol3, gol4, gol5,
+        gol2t0, gol2t1, gol2t2, gol2t3, gol2t4,
+        casa0, casa1, casa2, casa3, casa4,
+        fora0, fora1, fora2, fora3, fora4,
+        placar0x0, placar1x0, placar2x0, placar3x0,
+        placar2x1, placar3x1, placar3x2, placar4x0, placar4x1,
         placarHT0x0,
-        golsFTColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,
-        over05Colors,over15Colors,over25Colors,over35Colors,over5Colors,
-        under05Colors,under15Colors,under25Colors,under35Colors,
-        gol0Colors,gol1Colors,gol2Colors,gol3Colors,gol4Colors,gol5Colors,
-        gol2t0Colors,gol2t1Colors,gol2t2Colors,gol2t3Colors,gol2t4Colors,
-        casa0Colors,casa1Colors,casa2Colors,casa3Colors,casa4Colors,
-        fora0Colors,fora1Colors,fora2Colors,fora3Colors,fora4Colors,
-        placar0x0Colors,placar1x0Colors,placar2x0Colors,placar3x0Colors,
-        placar2x1Colors,placar3x1Colors,placar3x2Colors,placar4x0Colors,placar4x1Colors,
+        golsFTColors, golsHTColors,                    // ← golsHTColors adicionado
+        casaVenceColors, empateColors, foraVenceColors, ambasSimColors, ambasNaoColors,
+        over05Colors, over15Colors, over25Colors, over35Colors, over5Colors,
+        under05Colors, under15Colors, under25Colors, under35Colors,
+        gol0Colors, gol1Colors, gol2Colors, gol3Colors, gol4Colors, gol5Colors,
+        gol2t0Colors, gol2t1Colors, gol2t2Colors, gol2t3Colors, gol2t4Colors,
+        casa0Colors, casa1Colors, casa2Colors, casa3Colors, casa4Colors,
+        fora0Colors, fora1Colors, fora2Colors, fora3Colors, fora4Colors,
+        placar0x0Colors, placar1x0Colors, placar2x0Colors, placar3x0Colors,
+        placar2x1Colors, placar3x1Colors, placar3x2Colors, placar4x0Colors, placar4x1Colors,
         placarHT0x0Colors
     };
 
-    const shortPeriod=5,longPeriod=20;
-    Object.keys(labelToKey).forEach(label=>{
-        const key=labelToKey[label];
-        result[key+'Short']=computeMA(result[key],shortPeriod);
-        result[key+'Long'] =computeMA(result[key],longPeriod);
+    const shortPeriod=5, longPeriod=20;
+    Object.keys(labelToKey).forEach(label => {
+        const key = labelToKey[label];
+        result[key+'Short'] = computeMA(result[key], shortPeriod);
+        result[key+'Long']  = computeMA(result[key], longPeriod);
     });
     return result;
 }
@@ -2583,19 +2574,53 @@ const fibonacciLinesPlugin = {
     id: 'fibonacciLines',
     afterDraw(chart) {
         if (!showFibonacciLines) return;
-        const ctx=chart.ctx,yAxis=chart.scales.y; if(!yAxis)return;
+        const ctx=chart.ctx, yAxis=chart.scales.y; if(!yAxis)return;
         const fibLevels=[0,23.6,38.2,50,61.8,100];
-        const {left,right}=chart.chartArea,range=yAxis.max-yAxis.min;
+        const {left,right}=chart.chartArea, range=yAxis.max-yAxis.min;
         ctx.save();
-        fibLevels.forEach((lvl,i)=>{
+        fibLevels.forEach((lvl,i) => {
             const y=yAxis.getPixelForValue(yAxis.min+(lvl/100)*range);
-            ctx.beginPath();ctx.setLineDash([5,5]);ctx.moveTo(left,y);ctx.lineTo(right,y);
-            ctx.strokeStyle='rgba(0,255,0,0.5)';ctx.lineWidth=1;ctx.stroke();ctx.setLineDash([]);
-            ctx.fillStyle='rgba(0,255,0,0.85)';ctx.font='10px Arial';
-            ctx.textAlign='left';ctx.textBaseline='middle';
-            ctx.fillText(`${fibLevels[i]}%`,right+52,y-(i===0?-8:0));
+            ctx.beginPath(); ctx.setLineDash([5,5]); ctx.moveTo(left,y); ctx.lineTo(right,y);
+            ctx.strokeStyle='rgba(0,255,0,0.5)'; ctx.lineWidth=1; ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle='rgba(0,255,0,0.85)'; ctx.font='10px Arial';
+            ctx.textAlign='left'; ctx.textBaseline='middle';
+            ctx.fillText(`${fibLevels[i]}%`, right+52, y-(i===0?-8:0));
         });
         ctx.restore();
+    }
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   PLUGIN: RÓTULOS ACIMA DOS PONTOS  ← NOVO
+═══════════════════════════════════════════════════════════════════ */
+const rotulosPlugin = {
+    id: 'rotulos',
+    afterDatasetsDraw(chart) {
+        if (!showRotulos) return;
+        const { ctx, chartArea } = chart;
+        if (!chartArea) return;
+
+        chart.data.datasets.forEach((ds, i) => {
+            // Ignora MAs
+            if (!ds.label || ds.label.includes(' - ')) return;
+            if (!chart.isDatasetVisible(i)) return;
+            const meta = chart.getDatasetMeta(i);
+            const isQty = _isQuantityLabel(ds.label);
+            meta.data.forEach((point, j) => {
+                const val = ds.data[j];
+                if (val === null || val === undefined) return;
+                const text = isQty
+                    ? (Number.isInteger(val) ? String(val) : val.toFixed(1))
+                    : val.toFixed(1) + '%';
+                ctx.save();
+                ctx.font = 'bold 9px Arial, sans-serif';
+                ctx.fillStyle = ds.borderColor || '#fff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(text, point.x, point.y - 5);
+                ctx.restore();
+            });
+        });
     }
 };
 
@@ -2604,40 +2629,43 @@ const fibonacciLinesPlugin = {
 ═══════════════════════════════════════════════════════════════════ */
 const linhaAtualPlugin = {
     id: 'linhaAtual',
-    afterDraw(chart,args,opts) {
+    afterDraw(chart, args, opts) {
         const cfg=(opts?.enabled!==undefined)?opts:(chart.options?.plugins?.linhaAtual??{});
         if (cfg.enabled===false) return;
         const {ctx,chartArea,scales}=chart; if(!chartArea||!scales.y)return;
-        const yS=scales.y,{left,right,top,bottom}=chartArea,padX=5,BAD_H=18;
+        const yS=scales.y, {left,right,top,bottom}=chartArea, padX=5, BAD_H=18;
         const entries=[];
-        chart.data.datasets.forEach((d,i)=>{
-            if(!d.label||d.label.includes(' MA')||!chart.isDatasetVisible(i))return;
+        chart.data.datasets.forEach((d,i) => {
+            if (!d.label || d.label.includes(' - ') || !chart.isDatasetVisible(i)) return;
             const arr=d.data; if(!arr?.length)return;
             let yVal=null;
-            for(let j=arr.length-1;j>=0;j--){const v=arr[j];if(v!==null&&v!==undefined&&isFinite(v)){yVal=v;break;}}
-            if(yVal===null)return;
+            for (let j=arr.length-1;j>=0;j--) { const v=arr[j]; if(v!==null&&v!==undefined&&isFinite(v)){yVal=v;break;} }
+            if (yVal===null) return;
             const yPx=yS.getPixelForValue(yVal);
-            if(!isFinite(yPx)||yPx<top||yPx>bottom)return;
-            entries.push({yVal,yPx,color:d.borderColor||'#fff'});
+            if (!isFinite(yPx)||yPx<top||yPx>bottom) return;
+            entries.push({ yVal, yPx, color: d.borderColor||'#fff', isQty: _isQuantityLabel(d.label) });
         });
-        if(!entries.length)return;
+        if (!entries.length) return;
         entries.sort((a,b)=>a.yPx-b.yPx);
-        for(let i=1;i<entries.length;i++){
-            const prev=entries[i-1],curr=entries[i];
+        for (let i=1;i<entries.length;i++) {
+            const prev=entries[i-1], curr=entries[i];
             curr.badgeY=(curr.yPx-(prev.badgeY??prev.yPx)<BAD_H+2)?(prev.badgeY??prev.yPx)+BAD_H+2:curr.yPx;
-            if(i===1)prev.badgeY=prev.badgeY??prev.yPx;
+            if (i===1) prev.badgeY=prev.badgeY??prev.yPx;
         }
-        if(entries.length===1)entries[0].badgeY=entries[0].yPx;
-        entries.forEach(({yVal,yPx,badgeY,color})=>{
+        if (entries.length===1) entries[0].badgeY=entries[0].yPx;
+        entries.forEach(({yVal, yPx, badgeY, color, isQty}) => {
             ctx.save();
-            ctx.strokeStyle=color;ctx.lineWidth=1.2;ctx.setLineDash([6,4]);
-            ctx.beginPath();ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();ctx.setLineDash([]);
-            const text=yVal.toFixed(1)+'%';
-            ctx.font='bold 10px Arial,sans-serif';ctx.textBaseline='middle';ctx.textAlign='left';
-            const bw=Math.ceil(ctx.measureText(text).width)+padX*2,bx=right+4,by=badgeY-BAD_H/2;
-            ctx.fillStyle='rgba(10,12,20,0.95)';ctx.strokeStyle=color;ctx.lineWidth=1.2;
-            ctx.fillRect(bx,by,bw,BAD_H);ctx.strokeRect(bx,by,bw,BAD_H);
-            ctx.fillStyle=color;ctx.fillText(text,bx+padX,badgeY);
+            ctx.strokeStyle=color; ctx.lineWidth=1.2; ctx.setLineDash([6,4]);
+            ctx.beginPath(); ctx.moveTo(left,yPx); ctx.lineTo(right,yPx); ctx.stroke(); ctx.setLineDash([]);
+            // ← Badge exibe "g" para gols e "%" para porcentagem
+            const text = isQty
+                ? (Number.isInteger(yVal) ? `${yVal} g` : `${yVal.toFixed(1)} g`)
+                : yVal.toFixed(1)+'%';
+            ctx.font='bold 10px Arial,sans-serif'; ctx.textBaseline='middle'; ctx.textAlign='left';
+            const bw=Math.ceil(ctx.measureText(text).width)+padX*2, bx=right+4, by=badgeY-BAD_H/2;
+            ctx.fillStyle='rgba(10,12,20,0.95)'; ctx.strokeStyle=color; ctx.lineWidth=1.2;
+            ctx.fillRect(bx,by,bw,BAD_H); ctx.strokeRect(bx,by,bw,BAD_H);
+            ctx.fillStyle=color; ctx.fillText(text,bx+padX,badgeY);
             ctx.restore();
         });
     }
@@ -2656,22 +2684,22 @@ const linhaDraggablePlugin={
     id:'linhaDraggable',
     afterInit(chart){
         const canvas=chart.canvas;
-        chart.dragLines=_loadDragLines();chart._selectedDragLine=-1;
-        const HIT_PX=8;let draggingIdx=-1;
+        chart.dragLines=_loadDragLines(); chart._selectedDragLine=-1;
+        const HIT_PX=8; let draggingIdx=-1;
         const getYS=()=>chart.scales.y;
         const getEvtY=evt=>{const r=canvas.getBoundingClientRect();return((evt.touches&&evt.touches[0]?.clientY)??evt.clientY??0)-r.top;};
         const nearestLine=pxY=>{
-            const yS=getYS();if(!yS||!chart.chartArea)return -1;
-            const{top,bottom}=chart.chartArea;let best=-1,bestDist=Infinity;
+            const yS=getYS(); if(!yS||!chart.chartArea)return -1;
+            const{top,bottom}=chart.chartArea; let best=-1,bestDist=Infinity;
             (chart.dragLines||[]).forEach((l,i)=>{const ly=yS.getPixelForValue(l.y);if(ly<top||ly>bottom)return;const d=Math.abs(ly-pxY);if(d<bestDist&&d<=HIT_PX){bestDist=d;best=i;}});
             return best;
         };
         chart.addDragLine=(color='#1fcc59')=>{
             if((chart.dragLines||[]).length>=MAX_DRAG_LINES){alert(`Máximo de ${MAX_DRAG_LINES} linhas!`);return;}
-            const yS=getYS();if(!yS)return;
+            const yS=getYS(); if(!yS)return;
             chart.dragLines.push({y:Math.round((yS.min+yS.max)/2),color,dragging:false});
             chart._selectedDragLine=chart.dragLines.length-1;
-            _saveDragLines(chart.dragLines);_atualizarContador(chart.dragLines);chart.update();
+            _saveDragLines(chart.dragLines); _atualizarContador(chart.dragLines); chart.update();
         };
         chart.deleteDragLine=()=>{const idx=chart._selectedDragLine;if(idx>=0&&idx<(chart.dragLines||[]).length){chart.dragLines.splice(idx,1);chart._selectedDragLine=-1;_saveDragLines(chart.dragLines);_atualizarContador(chart.dragLines);chart.update();}};
         chart.clearDragLines=()=>{chart.dragLines=[];chart._selectedDragLine=-1;_saveDragLines(chart.dragLines);_atualizarContador(chart.dragLines);chart.update();};
@@ -2681,28 +2709,30 @@ const linhaDraggablePlugin={
         const startDrag=evt=>{const pxY=getEvtY(evt),idx=nearestLine(pxY);if(idx>=0){if(evt.cancelable)evt.preventDefault();draggingIdx=idx;chart.dragLines[idx].dragging=true;chart._selectedDragLine=idx;}else{chart._selectedDragLine=-1;}chart.update();};
         const moveDrag=evt=>{if(draggingIdx<0)return;if(evt.cancelable)evt.preventDefault();const yS=getYS();if(!yS)return;let v=yS.getValueForPixel(getEvtY(evt));v=Math.max(yS.min,Math.min(yS.max,Math.round(v*10)/10));chart.dragLines[draggingIdx].y=v;chart.update('none');};
         const stopDrag=()=>{if(draggingIdx>=0){if(chart.dragLines[draggingIdx])chart.dragLines[draggingIdx].dragging=false;_saveDragLines(chart.dragLines);}draggingIdx=-1;};
-        canvas.addEventListener('mousedown',startDrag);canvas.addEventListener('mousemove',moveDrag);canvas.addEventListener('mouseleave',stopDrag);window.addEventListener('mouseup',stopDrag);
-        canvas.addEventListener('touchstart',startDrag,{passive:false});canvas.addEventListener('touchmove',moveDrag,{passive:false});canvas.addEventListener('touchend',stopDrag,{passive:true});canvas.addEventListener('touchcancel',stopDrag,{passive:true});
+        canvas.addEventListener('mousedown',startDrag); canvas.addEventListener('mousemove',moveDrag); canvas.addEventListener('mouseleave',stopDrag); window.addEventListener('mouseup',stopDrag);
+        canvas.addEventListener('touchstart',startDrag,{passive:false}); canvas.addEventListener('touchmove',moveDrag,{passive:false}); canvas.addEventListener('touchend',stopDrag,{passive:true}); canvas.addEventListener('touchcancel',stopDrag,{passive:true});
         window.addEventListener('keydown',e=>{if(e.key==='Delete'||e.key==='Backspace'){const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.deleteDragLine();}});
         _atualizarContador(chart.dragLines);
     },
     afterDatasetsDraw(chart){
-        const yS=chart.scales.y,lines=chart.dragLines||[];
+        const yS=chart.scales.y, lines=chart.dragLines||[];
         if(!yS||!lines.length||!chart.chartArea)return;
         const{ctx,chartArea:{left,right}}=chart;
         lines.forEach((l,idx)=>{
-            const yPx=yS.getPixelForValue(l.y);if(!Number.isFinite(yPx))return;
+            const yPx=yS.getPixelForValue(l.y); if(!Number.isFinite(yPx))return;
             const isSel=idx===chart._selectedDragLine;
             ctx.save();
-            ctx.beginPath();ctx.setLineDash(isSel?[4,2]:[]);ctx.lineWidth=isSel?1.8:1.2;ctx.strokeStyle=l.color||'#1fcc59';
-            ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();ctx.setLineDash([]);
+            ctx.beginPath(); ctx.setLineDash(isSel?[4,2]:[]); ctx.lineWidth=isSel?1.8:1.2; ctx.strokeStyle=l.color||'#1fcc59';
+            ctx.moveTo(left,yPx); ctx.lineTo(right,yPx); ctx.stroke(); ctx.setLineDash([]);
             if(isSel){ctx.beginPath();ctx.arc(left+10,yPx,4,0,Math.PI*2);ctx.fillStyle=l.color||'#1fcc59';ctx.fill();}
-            const text=l.y.toFixed(1)+'%';ctx.font=isSel?'bold 11px Arial,sans-serif':'10px Arial,sans-serif';
-            ctx.textBaseline='middle';ctx.textAlign='left';
+            // ← Badge da linha arrastável sem unidade fixa (valor neutro)
+            const text=l.y.toFixed(1);
+            ctx.font=isSel?'bold 11px Arial,sans-serif':'10px Arial,sans-serif';
+            ctx.textBaseline='middle'; ctx.textAlign='left';
             const padX=5,boxW=Math.ceil(ctx.measureText(text).width)+padX*2,boxH=16,bx=right+4,by=yPx-boxH/2;
-            ctx.fillStyle='rgba(10,12,20,0.95)';ctx.fillRect(bx,by,boxW,boxH);
-            ctx.strokeStyle=l.color||'#1fcc59';ctx.lineWidth=isSel?1.5:1;ctx.strokeRect(bx,by,boxW,boxH);
-            ctx.fillStyle=l.color||'#1fcc59';ctx.fillText(text,bx+padX,yPx);
+            ctx.fillStyle='rgba(10,12,20,0.95)'; ctx.fillRect(bx,by,boxW,boxH);
+            ctx.strokeStyle=l.color||'#1fcc59'; ctx.lineWidth=isSel?1.5:1; ctx.strokeRect(bx,by,boxW,boxH);
+            ctx.fillStyle=l.color||'#1fcc59'; ctx.fillText(text,bx+padX,yPx);
             ctx.restore();
         });
     }
@@ -2711,66 +2741,88 @@ const linhaDraggablePlugin={
 /* ═══════════════════════════════════════════════════════════════════
    CRIAÇÃO DO GRÁFICO
 ═══════════════════════════════════════════════════════════════════ */
-// Desativa animações globalmente
 Chart.defaults.animation.duration = 0;
 
 function createStatsChart(ctx, labels, data, league) {
-    // Usa DATASET_COLORS como fonte única de verdade — sem duplicação
     const datasetConfigs = Object.entries(labelToKey).map(([label, key]) => ({
         label, key, color: DATASET_COLORS[label] || '#888'
     }));
 
-    const datasets=[],shortColor='#00FF00',longColor='#FF0000';
-    datasetConfigs.forEach(cfg=>{
+    const datasets=[], shortColor='#00FF00', longColor='#FF0000';
+    datasetConfigs.forEach(cfg => {
         datasets.push({
-            label:cfg.label, data:data[cfg.key],
-            borderColor:cfg.color, backgroundColor:cfg.color,
-            pointBackgroundColor:data[cfg.key+'Colors'],
-            pointBorderColor:'rgba(0,0,0,0)', pointBorderWidth:0,
-            borderWidth:2, pointRadius:3, pointHoverRadius:4,
-            fill:false,
-            hidden:!statsChartVisibleDatasets[cfg.label]
+            label:                cfg.label,
+            data:                 data[cfg.key],
+            borderColor:          cfg.color,
+            backgroundColor:      cfg.color,
+            pointBackgroundColor: data[cfg.key+'Colors'],
+            pointBorderColor:     'rgba(0,0,0,0)',
+            pointBorderWidth:     0,
+            borderWidth:          2,
+            pointRadius:          3,
+            pointHoverRadius:     4,
+            fill:                 false,
+            hidden:               !statsChartVisibleDatasets[cfg.label]
         });
         datasets.push({label:cfg.label+' - Short MA',data:data[cfg.key+'Short'],borderColor:shortColor,backgroundColor:'transparent',tension:0,borderWidth:2,pointRadius:0,fill:false,borderDash:[5,5],borderDashOffset:0,hidden:!showMovingAverages||!statsChartVisibleDatasets[cfg.label]});
         datasets.push({label:cfg.label+' - Long MA', data:data[cfg.key+'Long'], borderColor:longColor, backgroundColor:'transparent',tension:0,borderWidth:2,pointRadius:0,fill:false,borderDash:[5,5],borderDashOffset:0,hidden:!showMovingAverages||!statsChartVisibleDatasets[cfg.label]});
     });
 
-    return new Chart(ctx,{
-        type:'line',
-        data:{labels,datasets},
-        options:{
-            responsive:true,
-            maintainAspectRatio:false,
-            animation: { duration: 0 },
-            layout:{padding:{top:30,right:80}},
-            plugins:{
-                legend:{
-                    display:false,
-                    labels:{
-                        color:'#e0e0e0',font:{size:12},
-                        filter:item=>!item.text.includes(' MA'),
-                        generateLabels:Chart.defaults.plugins.legend.labels.generateLabels
+    return new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive:          true,
+            maintainAspectRatio: false,
+            animation:           { duration: 0 },
+            layout:              { padding: { top: 30, right: 80 } },
+            plugins: {
+                legend: {
+                    display: false,
+                    labels: {
+                        color: '#e0e0e0', font: { size: 12 },
+                        filter: item => !item.text.includes(' MA'),
+                        generateLabels: Chart.defaults.plugins.legend.labels.generateLabels
                     }
                 },
-                tooltip:{
-                    enabled:true,
-                    backgroundColor:'rgba(0,0,0,0.8)',
-                    titleColor:'#1fad8b',bodyColor:'#e0e0e0',
-                    borderColor:'#1fad8b',borderWidth:1,
-                    callbacks:{
-                        title:items=>{const m=chartData[league][items[0].dataIndex+averagePoints];return `${m.hora}:${m.minuto.toString().padStart(2,'0')}`;},
-                        label:ctx=>{const v=ctx.parsed.y;return v!==null?`${ctx.dataset.label}: ${v.toFixed(2)}%`:'';},
-                        afterBody:items=>{const m=chartData[league][items[0].dataIndex+averagePoints];return `FT: ${m.ft||'N/A'}  HT: ${m.ht||'N/A'}`;}
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleColor: '#1fad8b', bodyColor: '#e0e0e0',
+                    borderColor: '#1fad8b', borderWidth: 1,
+                    callbacks: {
+                        title: items => {
+                            const m=chartData[league][items[0].dataIndex+averagePoints];
+                            return `${m.hora}:${m.minuto.toString().padStart(2,'0')}`;
+                        },
+                        label: ctx => {
+                            if (ctx.dataset.label.includes(' - ')) return null;
+                            const v=ctx.parsed.y;
+                            if (v===null) return '';
+                            // ← Tooltip mostra "g" para gols e "%" para porcentagem
+                            return _isQuantityLabel(ctx.dataset.label)
+                                ? `${ctx.dataset.label}: ${Number.isInteger(v)?v:v.toFixed(1)} g`
+                                : `${ctx.dataset.label}: ${v.toFixed(2)}%`;
+                        },
+                        afterBody: items => {
+                            const m=chartData[league][items[0].dataIndex+averagePoints];
+                            return `FT: ${m.ft||'N/A'}  HT: ${m.ht||'N/A'}`;
+                        }
                     }
                 },
-                linhaAtual:{enabled:true}
+                linhaAtual: { enabled: true }
             },
-            scales:{
-                x:{title:{display:true,text:'',color:'#1fad8b',font:{size:14}},ticks:{display:false},grid:{display:false}},
-                y:{title:{display:true,text:'',color:'#1fad8b',font:{size:14}},beginAtZero:false,ticks:{color:'#b0b0b0',stepSize:5},grid:{color:'rgba(255,255,255,0.3)',lineWidth:0.5},afterFit:s=>{s.paddingTop=20;}}
+            scales: {
+                x: { ticks: { display: false }, grid: { display: false } },
+                y: {
+                    beginAtZero: false,
+                    ticks:  { color: '#b0b0b0', stepSize: 5 },
+                    grid:   { color: 'rgba(255,255,255,0.3)', lineWidth: 0.5 },
+                    afterFit: s => { s.paddingTop = 20; }
+                }
             }
         },
-        plugins:[fibonacciLinesPlugin,linhaAtualPlugin,linhaDraggablePlugin,htmlLegendPlugin]
+        plugins: [fibonacciLinesPlugin, rotulosPlugin, linhaAtualPlugin, linhaDraggablePlugin, htmlLegendPlugin]
     });
 }
 
@@ -2778,35 +2830,35 @@ function createStatsChart(ctx, labels, data, league) {
    UPDATE / CONTROLES
 ═══════════════════════════════════════════════════════════════════ */
 function updateCharts() {
-    if (!_tabVisible) return; // não faz fetch com aba oculta
+    if (!_tabVisible) return;
     const ts=new Date().getTime();
-    leagues.forEach(league=>{
+    leagues.forEach(league => {
         fetch(ROTAS_API.resultados(LIGA_ATUAL)+`?timestamp=${ts}`)
-            .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
-            .then(data=>{
+            .then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
+            .then(data => {
                 const pd=processApiData(data,league);
-                const canvas=document.getElementById(league);if(!canvas)return;
-                if(!chartInstances[league]){
+                const canvas=document.getElementById(league); if(!canvas)return;
+                if (!chartInstances[league]) {
                     chartInstances[league]=createStatsChart(canvas.getContext('2d'),pd.labels,pd,league);
-                }else{
+                } else {
                     updateStatsChart(chartInstances[league],pd);
                 }
             })
-            .catch(e=>console.error(`Erro ${league}:`,e));
+            .catch(e => console.error(`Erro ${league}:`,e));
     });
 }
 
-function toggleFibonacciLines(){
+function toggleFibonacciLines() {
     showFibonacciLines=document.getElementById('fibonacciToggle').checked;
-    leagues.forEach(l=>{if(chartInstances[l])chartInstances[l].update();});
+    leagues.forEach(l=>{ if(chartInstances[l]) chartInstances[l].update(); });
 }
 
-function toggleMovingAverages(){
+function toggleMovingAverages() {
     showMovingAverages=document.getElementById('movingAveragesToggle').checked;
-    leagues.forEach(l=>{
-        const ci=chartInstances[l];if(!ci)return;
-        ci.data.datasets.forEach((ds,idx)=>{
-            if(ds.label.includes(' - ')){
+    leagues.forEach(l => {
+        const ci=chartInstances[l]; if(!ci)return;
+        ci.data.datasets.forEach((ds,idx) => {
+            if (ds.label.includes(' - ')) {
                 const main=ds.label.split(' - ')[0];
                 ci.getDatasetMeta(idx).hidden=!showMovingAverages||!statsChartVisibleDatasets[main];
             }
@@ -2815,35 +2867,40 @@ function toggleMovingAverages(){
     });
 }
 
-document.querySelectorAll('.accordion-header').forEach(h=>h.addEventListener('click',()=>h.nextElementSibling.classList.toggle('active')));
-document.getElementById('pointsSelector').addEventListener('change',e=>{numPoints=parseInt(e.target.value,10);updateCharts();});
-document.getElementById('averageSelector').addEventListener('change',e=>{averagePoints=parseInt(e.target.value,10);updateCharts();});
-document.getElementById('fibonacciToggle').addEventListener('change',toggleFibonacciLines);
-document.getElementById('movingAveragesToggle').addEventListener('change',toggleMovingAverages);
+document.getElementById('pointsSelector').addEventListener('change', e => { numPoints=parseInt(e.target.value,10); updateCharts(); });
+document.getElementById('averageSelector').addEventListener('change', e => { averagePoints=parseInt(e.target.value,10); updateCharts(); });
+document.getElementById('fibonacciToggle').addEventListener('change', toggleFibonacciLines);
+document.getElementById('movingAveragesToggle').addEventListener('change', toggleMovingAverages);
 
-document.getElementById('linhaAtualToggle').addEventListener('change',function(){
-    leagues.forEach(l=>{
-        const ci=chartInstances[l];if(!ci)return;
+// ← NOVO: toggle de rótulos
+document.getElementById('rotulosToggle').addEventListener('change', function() {
+    showRotulos = this.checked;
+    leagues.forEach(l => { if(chartInstances[l]) chartInstances[l].update(); });
+});
+
+document.getElementById('linhaAtualToggle').addEventListener('change', function() {
+    leagues.forEach(l => {
+        const ci=chartInstances[l]; if(!ci)return;
         ci.options.plugins.linhaAtual.enabled=this.checked;
         ci.update('active');
     });
 });
 
-document.getElementById('btnLinhaTools').addEventListener('click',e=>{
+document.getElementById('btnLinhaTools').addEventListener('click', e => {
     e.stopPropagation();
     const p=document.getElementById('linhaToolsPanel');
     p.style.display=p.style.display==='none'?'block':'none';
 });
-document.addEventListener('click',()=>{const p=document.getElementById('linhaToolsPanel');if(p)p.style.display='none';});
-document.getElementById('linhaToolsPanel').addEventListener('click',e=>e.stopPropagation());
+document.addEventListener('click', () => { const p=document.getElementById('linhaToolsPanel'); if(p) p.style.display='none'; });
+document.getElementById('linhaToolsPanel').addEventListener('click', e => e.stopPropagation());
 
-window.onload=updateCharts;
-setInterval(updateCharts,3000);
+window.onload = updateCharts;
+setInterval(updateCharts, 3000);
 
 /* ═══════════════════════════════════════════════════════════════════
    SEGUNDO BLOCO: PERCENTUAIS E GOLS
 ═══════════════════════════════════════════════════════════════════ */
-async function fetchResults(){
+async function fetchResults() {
     try {
         const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -2854,14 +2911,14 @@ async function fetchResults(){
     }
 }
 
-function calculatePercentage(data,market){
-    let greens=0,reds=0;
-    data.forEach(game=>{
+function calculatePercentage(data, market) {
+    let greens=0, reds=0;
+    data.forEach(game => {
         if (!game.ft?.includes(' x ')) return;
-        const[scoreA,scoreB]=game.ft.split(' x ').map(Number);
+        const [scoreA,scoreB]=game.ft.split(' x ').map(Number);
         const tg=scoreA+scoreB;
-        let htA=0,htB=0;
-        if(game.ht?.includes(' x '))[htA,htB]=game.ht.split(' x ').map(Number);
+        let htA=0, htB=0;
+        if (game.ht?.includes(' x ')) [htA,htB]=game.ht.split(' x ').map(Number);
         const tg2t=(scoreA-htA)+(scoreB-htB);
         switch(market){
             case 'ambasMarcam':    scoreA>0&&scoreB>0?greens++:reds++;break;
@@ -2898,28 +2955,27 @@ function calculatePercentage(data,market){
             case 'fora2Gols': scoreB===2?greens++:reds++;break;
             case 'fora3Gols': scoreB===3?greens++:reds++;break;
             case 'fora4Gols': scoreB===4?greens++:reds++;break;
-            default:break;
+            default: break;
         }
     });
     const total=greens+reds;
-    if (!total) return { greens: '0.0', reds: '0.0' };
-    return{greens:((greens/total)*100).toFixed(1),reds:((reds/total)*100).toFixed(1)};
+    if (!total) return { greens:'0.0', reds:'0.0' };
+    return { greens:((greens/total)*100).toFixed(1), reds:((reds/total)*100).toFixed(1) };
 }
 
-function calculateGoalStats(data){
-    if (!data.length) return { totalGols: 0, mediaGolsHora: '0.00' };
-    const totalGols=data.reduce((a,g)=>{
+function calculateGoalStats(data) {
+    if (!data.length) return { totalGols:0, mediaGolsHora:'0.00' };
+    const totalGols=data.reduce((a,g) => {
         if (!g.ft?.includes(' x ')) return a;
-        const[A,B]=g.ft.split(' x ').map(Number);
+        const [A,B]=g.ft.split(' x ').map(Number);
         return a+A+B;
-    },0);
-    // Média dinâmica baseada no tamanho real da amostra (12 jogos/hora)
-    const horasEquivalentes = data.length / 12;
-    return { totalGols, mediaGolsHora: (totalGols / horasEquivalentes).toFixed(2) };
+    }, 0);
+    const horasEquivalentes=data.length/12;
+    return { totalGols, mediaGolsHora:(totalGols/horasEquivalentes).toFixed(2) };
 }
 
 async function _atualizarBlocoPercentuais() {
-    const games = await fetchResults();
+    const games=await fetchResults();
     if (!games.length) return;
     const p=calculatePercentage(games, document.getElementById('seletorResultado').value);
     const s=calculateGoalStats(games);
