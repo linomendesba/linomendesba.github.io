@@ -572,10 +572,330 @@
 
 <!-- ═══════════════════════════════════════════════════════
      ACORDEON: MODO TRADER (Mercados + MACD sincronizados)
+     UI inspirada no Caramelo.bet — mantendo CSS/lógica próprios
 ═══════════════════════════════════════════════════════ -->
 
 <style>
-/* Painel flutuante Add Linha */
+/* ── MODO TRADER: Wrapper principal ──────────────────── */
+.trader-chart * { box-sizing: border-box; }
+
+/* ── TOPBAR / CONTROLS ───────────────────────────────── */
+.trader-chart .trader-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 8px 10px;
+    background: #1a1d2e;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 0;
+}
+
+.trader-chart .trader-controls label {
+    font-size: 12px;
+    color: #9ca3af;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.trader-chart .trader-controls select,
+.trader-chart .trader-controls input[type="number"] {
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid #374151;
+    background: #1e1e1e;
+    color: #1fcc59;
+    outline: none;
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+
+.trader-chart .trader-controls select:focus,
+.trader-chart .trader-controls input[type="number"]:focus {
+    border-color: #1fcc59;
+    box-shadow: 0 0 0 1px #1fcc59;
+}
+
+/* ── SWITCH GRID (toggles estilo Caramelo) ───────────── */
+.trader-chart .trader-switch-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 4px 8px;
+    border-radius: 10px;
+    background: #2b2b2b;
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+.trader-chart .trader-sw-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    padding: 2px 4px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+.trader-chart .trader-sw-item:hover { background: rgba(255,255,255,0.04); }
+.trader-chart .trader-sw-text {
+    font-size: 11px;
+    font-weight: 500;
+    color: #d1d5db;
+    letter-spacing: 0.1px;
+}
+.trader-chart .trader-sw-item > input {
+    position: absolute; opacity: 0; width: 1px; height: 1px;
+}
+.trader-chart .trader-sw-track {
+    width: 28px; height: 14px;
+    border-radius: 999px;
+    background: #2a2d36;
+    border: 1px solid rgba(255,255,255,0.18);
+    position: relative;
+    flex: 0 0 auto;
+    transition: background 0.18s ease, border-color 0.18s ease;
+}
+.trader-chart .trader-sw-track::after {
+    content: "";
+    width: 10px; height: 10px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    position: absolute;
+    top: 50%; left: 2px;
+    transform: translateY(-50%);
+    transition: left 0.18s ease, background 0.18s ease;
+}
+.trader-chart .trader-sw-item > input:checked + .trader-sw-track {
+    background: rgba(31,204,89,0.28);
+    border-color: rgba(31,204,89,0.60);
+    box-shadow: 0 0 0 2px rgba(31,204,89,0.14);
+}
+.trader-chart .trader-sw-item > input:checked + .trader-sw-track::after {
+    left: 16px;
+    background: #1fcc59;
+    box-shadow: 0 0 6px rgba(31,204,89,0.35);
+}
+
+/* ── BOTÕES DE AÇÃO (Legenda, Anotar, Linha, Config) ─── */
+.trader-chart .trader-btn {
+    padding: 5px 12px;
+    border-radius: 7px;
+    border: 1px solid #4b5563;
+    background: transparent;
+    color: #9ca3af;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+.trader-chart .trader-btn:hover {
+    background: rgba(255,255,255,0.06);
+    color: #e5e7eb;
+    border-color: #6b7280;
+}
+.trader-chart .trader-btn-legenda {
+    border-color: #16a34a;
+    color: #1fcc59;
+}
+.trader-chart .trader-btn-legenda:hover {
+    background: #1fcc59;
+    color: #000;
+}
+
+/* ── SEPARADOR VERTICAL ──────────────────────────────── */
+.trader-chart .trader-sep {
+    width: 1px;
+    align-self: stretch;
+    background: rgba(255,255,255,0.12);
+    margin: 0 2px;
+}
+
+/* ── PAINEL FLUTUANTE (Linha / Config) ───────────────── */
+.trader-chart .trader-floating-wrap {
+    position: relative;
+    display: inline-flex;
+}
+.trader-floating-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 9999;
+    background: #151821;
+    border: 1px solid #262b3a;
+    border-radius: 12px;
+    padding: 14px 16px;
+    min-width: 220px;
+    max-width: 300px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.75);
+    flex-direction: column;
+    gap: 7px;
+}
+.trader-floating-panel.aberto { display: flex; }
+
+/* Config panel */
+.trader-config-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 9999;
+    background: #151821;
+    border: 1px solid #262b3a;
+    border-radius: 12px;
+    padding: 14px 16px;
+    min-width: 260px;
+    max-width: 310px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.75);
+}
+.trader-config-panel.aberto { display: block; }
+
+.trader-config-panel .cp-title {
+    font-size: 13px; font-weight: 600;
+    color: #f9fafb; margin-bottom: 2px;
+}
+.trader-config-panel .cp-sub {
+    font-size: 11px; color: #9ca3af; margin-bottom: 10px;
+}
+.trader-config-panel .cp-section {
+    margin-top: 10px; padding-top: 8px;
+    border-top: 1px solid rgba(148,163,184,0.18);
+}
+.trader-config-panel .cp-section:first-of-type { border-top: none; padding-top: 4px; }
+.trader-config-panel .cp-section-title {
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: #6b7280; margin-bottom: 6px;
+}
+.trader-config-panel .cp-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    gap: 8px; margin-bottom: 5px;
+}
+.trader-config-panel .cp-row label {
+    font-size: 12px; color: #e5e7eb; margin: 0;
+}
+.trader-config-panel .cp-row input[type="number"],
+.trader-config-panel .cp-row select {
+    width: 85px; padding: 4px 6px;
+    border-radius: 6px; border: 1px solid #374151;
+    background: #111827; color: #1fcc59;
+    font-size: 12px; text-align: center;
+    outline: none; transition: all 0.15s ease;
+}
+.trader-config-panel .cp-row input:focus,
+.trader-config-panel .cp-row select:focus {
+    border-color: #1fcc59; box-shadow: 0 0 0 1px #1fcc59; background: #020617;
+}
+.trader-config-panel .cp-btn-reset {
+    margin-top: 10px; width: 100%;
+    border-radius: 9999px; border: none;
+    padding: 6px 10px; font-size: 12px; font-weight: 600;
+    background: #22c55e; color: #020617;
+    cursor: pointer; transition: all 0.15s ease;
+    box-shadow: 0 4px 12px rgba(34,197,94,0.35);
+}
+.trader-config-panel .cp-btn-reset:hover { background: #16a34a; transform: translateY(-1px); }
+
+/* Height controls */
+.cp-height-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.cp-height-controls { display: inline-flex; align-items: center; gap: 4px; }
+.cp-btn-h {
+    width: 24px; height: 24px; border-radius: 9999px;
+    border: 1px solid #374151; background: #020617;
+    color: #e5e7eb; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.12s ease;
+}
+.cp-btn-h:hover { background: #111827; border-color: #1fcc59; }
+.cp-input-h {
+    width: 60px; padding: 3px 4px;
+    border-radius: 6px; border: 1px solid #374151;
+    background: #111827; color: #9ca3af;
+    font-size: 11px; text-align: center; outline: none;
+}
+
+/* Painel linha (cores/botões) */
+.trader-floating-panel .fp-counter { font-size: 11px; color: #9ca3af; text-align: center; }
+.trader-floating-panel .fp-sep { height: 1px; background: rgba(255,255,255,0.08); }
+.trader-floating-panel .fp-color-row { display: flex; align-items: center; gap: 8px; }
+.trader-floating-panel .fp-color-row label { font-size: 11px; color: #ccc; margin: 0; }
+.trader-floating-panel .fp-btn {
+    width: 100%; padding: 5px 8px; border-radius: 6px;
+    font-size: 12px; cursor: pointer; text-align: left;
+    border: 1px solid transparent; background: rgba(255,255,255,0.05);
+    color: #e5e7eb; transition: all 0.12s ease;
+}
+.trader-floating-panel .fp-btn-green { border-color: rgba(31,204,89,0.5); color: #1fcc59; }
+.trader-floating-panel .fp-btn-green:hover { background: rgba(31,204,89,0.15); }
+.trader-floating-panel .fp-btn-yellow { border-color: rgba(234,179,8,0.5); color: #facc15; }
+.trader-floating-panel .fp-btn-yellow:hover { background: rgba(234,179,8,0.15); }
+.trader-floating-panel .fp-btn-red { border-color: rgba(239,68,68,0.5); color: #f87171; }
+.trader-floating-panel .fp-btn-red:hover { background: rgba(239,68,68,0.15); }
+
+/* ── LEGENDA DINÂMICA ────────────────────────────────── */
+.trader-chart #traderLegendaDinamica {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #16181f;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+.trader-chart #traderLegendaDinamica.legenda-oculta { display: none; }
+
+.trader-chart .trader-leg-bloco {
+    display: flex; flex-direction: column;
+    background: #2b2b2b; border-radius: 6px;
+    padding: 3px 5px; min-width: 130px; flex-shrink: 0;
+}
+.trader-chart .trader-leg-titulo {
+    font-size: 10px; font-weight: 700;
+    color: #1fcc59; margin-bottom: 2px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 1px; text-align: center;
+}
+.trader-chart .trader-leg-itens {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: 2px 4px;
+}
+.trader-chart .trader-leg-item {
+    display: flex; align-items: center; gap: 3px;
+    cursor: pointer; padding: 1px 3px;
+    border-radius: 4px; background: #2b2b2b;
+    transition: all 0.15s ease;
+}
+.trader-chart .trader-leg-item.ativo { opacity: 1; box-shadow: 0 0 3px rgba(255,255,255,0.2); }
+.trader-chart .trader-leg-item.inativo { opacity: 0.35; }
+.trader-chart .trader-leg-circulo {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.trader-chart .trader-leg-item span {
+    font-size: 9px; color: #fff; white-space: nowrap;
+}
+
+/* ── CANVAS WRAPPERS ─────────────────────────────────── */
+.trader-chart .trader-canvas-wrap {
+    position: relative; width: 100%;
+    background: linear-gradient(180deg, #0c0c0d, #1b1f24);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+}
+.trader-chart .trader-canvas-wrap canvas {
+    display: block; width: 100%; height: 100%;
+}
+
+/* ── LINHA FLUTUANTE LEGADO (compatibilidade) ────────── */
 #traderLinhaToolsPanel {
     display: none;
     position: fixed;
@@ -590,15 +910,9 @@
     gap: 7px;
 }
 #traderLinhaToolsPanel.aberto { display: flex; }
-#traderLinhaToolsPanel .contador-linhas {
-    font-size: 0.75em; color: #aaa; text-align: center;
-}
-#traderLinhaToolsPanel .separador-panel {
-    height: 1px; background: rgba(255,255,255,0.10); margin: 2px 0;
-}
-#traderLinhaColorRow {
-    display: flex; align-items: center; gap: 8px;
-}
+#traderLinhaToolsPanel .contador-linhas { font-size: 0.75em; color: #aaa; text-align: center; }
+#traderLinhaToolsPanel .separador-panel { height: 1px; background: rgba(255,255,255,0.10); margin: 2px 0; }
+#traderLinhaColorRow { display: flex; align-items: center; gap: 8px; }
 #traderLinhaColorRow label { font-size: 0.78em; color: #ccc; margin: 0; }
 </style>
 
@@ -606,289 +920,241 @@
     <button class="accordion-button" onclick="toggleAccordion(this)">▼ Modo Trader ▲</button>
     <div class="accordion-content">
 
-        <div class="chart-container">
-            <div style="width:100%;">
+        <div class="trader-chart">
 
-                <!-- ── LINHA 1: gráfico ── -->
-                <div class="control-panel" style="flex-wrap:wrap;gap:8px 14px;margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.10);">
+            <!-- ── BARRA DE CONTROLES ── -->
+            <div class="trader-controls">
 
-                    <div class="histomacd-control-group">
-                        <label class="histomacd-control-label">Mercado</label>
-                        <select id="traderMarketSelector" class="histomacd-select">
-                            <optgroup label="── Gols ──">
-                                <option value="golsFT">Gols FT</option>
-                                <option value="golsHT">Gols HT</option>
-                            </optgroup>
-                            <optgroup label="── Ambas Marcam ──">
-                                <option value="ambasMarcam" selected>Ambas Sim</option>
-                                <option value="ambasNaoMarcam">Ambas Não</option>
-                            </optgroup>
-                            <optgroup label="── Resultado FT ──">
-                                <option value="casaVence">Casa Vence</option>
-                                <option value="empate">Empate</option>
-                                <option value="foraVence">Fora Vence</option>
-                            </optgroup>
-                            <optgroup label="── Over ──">
-                                <option value="over0.5">Over 0.5</option>
-                                <option value="over1.5">Over 1.5</option>
-                                <option value="over2.5">Over 2.5</option>
-                                <option value="over3.5">Over 3.5</option>
-                                <option value="over5">Over 5+</option>
-                            </optgroup>
-                            <optgroup label="── Under ──">
-                                <option value="under0.5">Under 0.5</option>
-                                <option value="under1.5">Under 1.5</option>
-                                <option value="under2.5">Under 2.5</option>
-                                <option value="under3.5">Under 3.5</option>
-                            </optgroup>
-                            <optgroup label="── Gols Exatos FT ──">
-                                <option value="exato0">0 Gol</option>
-                                <option value="exato1">1 Gol</option>
-                                <option value="exato2">2 Gols</option>
-                                <option value="exato3">3 Gols</option>
-                                <option value="exato4">4 Gols</option>
-                            </optgroup>
-                            <optgroup label="── Gols Exatos 2T ──">
-                                <option value="exato2t0">0 gol / 2T</option>
-                                <option value="exato2t1">1 gol / 2T</option>
-                                <option value="exato2t2">2 gols / 2T</option>
-                                <option value="exato2t3">3 gols / 2T</option>
-                                <option value="exato2t4">4 gols / 2T</option>
-                            </optgroup>
-                            <optgroup label="── Casa ──">
-                                <option value="casa0Gols">Casa 0 Gols</option>
-                                <option value="casa1Gol">Casa 1 Gol</option>
-                                <option value="casa2Gols">Casa 2 Gols</option>
-                                <option value="casa3Gols">Casa 3 Gols</option>
-                                <option value="casa4Gols">Casa 4 Gols</option>
-                            </optgroup>
-                            <optgroup label="── Fora ──">
-                                <option value="fora0Gols">Fora 0 Gols</option>
-                                <option value="fora1Gol">Fora 1 Gol</option>
-                                <option value="fora2Gols">Fora 2 Gols</option>
-                                <option value="fora3Gols">Fora 3 Gols</option>
-                                <option value="fora4Gols">Fora 4 Gols</option>
-                            </optgroup>
-                            <optgroup label="── Placares ──">
-                                <option value="placar0x0">0x0</option>
-                                <option value="placar1x0">1x0</option>
-                                <option value="placar2x0">2x0</option>
-                                <option value="placar3x0">3x0</option>
-                                <option value="placar2x1">2x1</option>
-                                <option value="placar3x1">3x1</option>
-                                <option value="placar3x2">3x2</option>
-                                <option value="placar4x0">4x0</option>
-                                <option value="placar4x1">4x1</option>
-                                <option value="placarHT0x0">0x0 HT</option>
-                            </optgroup>
-                        </select>
-                    </div>
+                <!-- Mercado -->
+                <label for="traderMarketSelector">Mercado</label>
+                <select id="traderMarketSelector">
+                    <optgroup label="── Gols ──">
+                        <option value="golsFT">Gols FT</option>
+                        <option value="golsHT">Gols HT</option>
+                    </optgroup>
+                    <optgroup label="── Ambas Marcam ──">
+                        <option value="ambasMarcam" selected>Ambas Sim</option>
+                        <option value="ambasNaoMarcam">Ambas Não</option>
+                    </optgroup>
+                    <optgroup label="── Resultado FT ──">
+                        <option value="casaVence">Casa Vence</option>
+                        <option value="empate">Empate</option>
+                        <option value="foraVence">Fora Vence</option>
+                    </optgroup>
+                    <optgroup label="── Over ──">
+                        <option value="over0.5">Over 0.5</option>
+                        <option value="over1.5">Over 1.5</option>
+                        <option value="over2.5">Over 2.5</option>
+                        <option value="over3.5">Over 3.5</option>
+                        <option value="over5">Over 5+</option>
+                    </optgroup>
+                    <optgroup label="── Under ──">
+                        <option value="under0.5">Under 0.5</option>
+                        <option value="under1.5">Under 1.5</option>
+                        <option value="under2.5">Under 2.5</option>
+                        <option value="under3.5">Under 3.5</option>
+                    </optgroup>
+                    <optgroup label="── Gols Exatos FT ──">
+                        <option value="exato0">0 Gol</option>
+                        <option value="exato1">1 Gol</option>
+                        <option value="exato2">2 Gols</option>
+                        <option value="exato3">3 Gols</option>
+                        <option value="exato4">4 Gols</option>
+                    </optgroup>
+                    <optgroup label="── Gols Exatos 2T ──">
+                        <option value="exato2t0">0 gol / 2T</option>
+                        <option value="exato2t1">1 gol / 2T</option>
+                        <option value="exato2t2">2 gols / 2T</option>
+                        <option value="exato2t3">3 gols / 2T</option>
+                        <option value="exato2t4">4 gols / 2T</option>
+                    </optgroup>
+                    <optgroup label="── Casa ──">
+                        <option value="casa0Gols">Casa 0 Gols</option>
+                        <option value="casa1Gol">Casa 1 Gol</option>
+                        <option value="casa2Gols">Casa 2 Gols</option>
+                        <option value="casa3Gols">Casa 3 Gols</option>
+                        <option value="casa4Gols">Casa 4 Gols</option>
+                    </optgroup>
+                    <optgroup label="── Fora ──">
+                        <option value="fora0Gols">Fora 0 Gols</option>
+                        <option value="fora1Gol">Fora 1 Gol</option>
+                        <option value="fora2Gols">Fora 2 Gols</option>
+                        <option value="fora3Gols">Fora 3 Gols</option>
+                        <option value="fora4Gols">Fora 4 Gols</option>
+                    </optgroup>
+                    <optgroup label="── Placares ──">
+                        <option value="placar0x0">0x0</option>
+                        <option value="placar1x0">1x0</option>
+                        <option value="placar2x0">2x0</option>
+                        <option value="placar3x0">3x0</option>
+                        <option value="placar2x1">2x1</option>
+                        <option value="placar3x1">3x1</option>
+                        <option value="placar3x2">3x2</option>
+                        <option value="placar4x0">4x0</option>
+                        <option value="placar4x1">4x1</option>
+                        <option value="placarHT0x0">0x0 HT</option>
+                    </optgroup>
+                </select>
 
-                    <div>
-                        <label for="traderPointsSelector" style="font-size:0.75em;color:#aaa;display:block;margin-bottom:3px;">Período</label>
-                        <select id="traderPointsSelector">
-                            <option value="20">1 Hora</option>
-                            <option value="40">2 Horas</option>
-                            <option value="60">3 Horas</option>
-                            <option value="80">4 Horas</option>
-                            <option value="100">5 Horas</option>
-                            <option value="120">6 Horas</option>
-                            <option value="140">7 Horas</option>
-                            <option value="160">8 Horas</option>
-                            <option value="180">9 Horas</option>
-                            <option value="200">10 Horas</option>
-                            <option value="220">11 Horas</option>
-                            <option value="240">12 Horas</option>
-                            <option value="480">24 Horas</option>
-                            <option value="960">48 Horas</option>
-                            <option value="1440">72 Horas</option>
-                        </select>
-                    </div>
+                <!-- Período -->
+                <label for="traderPointsSelector">Período</label>
+                <select id="traderPointsSelector">
+                    <option value="20">1 Hora</option>
+                    <option value="40">2 Horas</option>
+                    <option value="60">3 Horas</option>
+                    <option value="80">4 Horas</option>
+                    <option value="100">5 Horas</option>
+                    <option value="120">6 Horas</option>
+                    <option value="140">7 Horas</option>
+                    <option value="160">8 Horas</option>
+                    <option value="180">9 Horas</option>
+                    <option value="200">10 Horas</option>
+                    <option value="240">12 Horas</option>
+                    <option value="480">24 Horas</option>
+                    <option value="960">48 Horas</option>
+                </select>
 
-                    <div>
-                        <label for="traderAverageSelector" style="font-size:0.75em;color:#aaa;display:block;margin-bottom:3px;">Base Média</label>
-                        <select id="traderAverageSelector">
-                            <option value="19">Base 20</option>
-                            <option value="39">Base 40</option>
-                            <option value="59">Base 60</option>
-                            <option value="79">Base 80</option>
-                            <option value="99">Base 100</option>
-                            <option value="119">Base 120</option>
-                        </select>
-                    </div>
+                <!-- Base Média -->
+                <label for="traderAverageSelector">Base</label>
+                <select id="traderAverageSelector">
+                    <option value="19">Base 20</option>
+                    <option value="39">Base 40</option>
+                    <option value="59">Base 60</option>
+                    <option value="79">Base 80</option>
+                    <option value="99">Base 100</option>
+                    <option value="119">Base 120</option>
+                </select>
 
-                    <div style="width:1px;background:rgba(255,255,255,0.15);align-self:stretch;margin:0 4px;"></div>
+                <div class="trader-sep"></div>
 
-                    <div class="checkbox-container">
-                        <input type="checkbox" id="traderFibonacciToggle">
-                        <label for="traderFibonacciToggle">Fibonacci</label>
-                    </div>
-                    <div class="checkbox-container">
-                        <input type="checkbox" id="traderMovingAveragesToggle">
-                        <label for="traderMovingAveragesToggle">Médias Móveis</label>
-                    </div>
-                    <div class="checkbox-container">
-                        <input type="checkbox" id="traderRotulosToggle" checked>
-                        <label for="traderRotulosToggle">Rótulos</label>
-                    </div>
-                    <div class="checkbox-container">
-                        <input type="checkbox" id="traderLinhaAtualToggle" checked>
-                        <label for="traderLinhaAtualToggle">Linha Atual</label>
-                    </div>
+                <!-- Switch toggles estilo Caramelo -->
+                <div class="trader-switch-grid">
+                    <label class="trader-sw-item">
+                        <input id="traderFibonacciToggle" type="checkbox">
+                        <span class="trader-sw-track"></span>
+                        <span class="trader-sw-text">Fibonacci</span>
+                    </label>
+                    <label class="trader-sw-item">
+                        <input id="traderMovingAveragesToggle" type="checkbox">
+                        <span class="trader-sw-track"></span>
+                        <span class="trader-sw-text">Médias</span>
+                    </label>
+                    <label class="trader-sw-item">
+                        <input id="traderRotulosToggle" type="checkbox" checked>
+                        <span class="trader-sw-track"></span>
+                        <span class="trader-sw-text">Rótulos</span>
+                    </label>
+                    <label class="trader-sw-item">
+                        <input id="traderLinhaAtualToggle" type="checkbox" checked>
+                        <span class="trader-sw-track"></span>
+                        <span class="trader-sw-text">Linha Atual</span>
+                    </label>
+                    <label class="trader-sw-item">
+                        <input id="traderShowRSI" type="checkbox" checked>
+                        <span class="trader-sw-track"></span>
+                        <span class="trader-sw-text">RSI</span>
+                    </label>
+                </div>
 
-                    <div style="width:1px;background:rgba(255,255,255,0.15);align-self:stretch;margin:0 4px;"></div>
+                <div class="trader-sep"></div>
 
-                    <!-- Botão Add Linha — painel flutuante via JS -->
-                    <button id="traderBtnLinhaTools">Add Linha</button>
+                <!-- Botão Legenda ON/OFF -->
+                <button id="traderBtnLegenda" class="trader-btn trader-btn-legenda">Legenda: ON</button>
 
-                </div><!-- /linha 1 -->
+                <!-- Botão Linha (painel flutuante) -->
+                <div class="trader-floating-wrap">
+                    <button id="traderBtnLinhaTools" class="trader-btn">📏 Linha</button>
+                    <div id="traderLinhaPanelNovo" class="trader-floating-panel">
+                        <div class="fp-counter" id="traderContadorLinhas">0 / 6 linhas</div>
+                        <div class="fp-sep"></div>
+                        <div class="fp-color-row">
+                            <label>Cor:</label>
+                            <input id="traderLineColorPicker" type="color" value="#1fcc59"
+                                style="width:36px;height:26px;cursor:pointer;border:none;background:none;">
+                        </div>
+                        <button class="fp-btn fp-btn-green" onclick="window.traderAdicionarLinha()">➕ Adicionar</button>
+                        <div class="fp-sep"></div>
+                        <button class="fp-btn fp-btn-yellow" onclick="window.traderDeletarLinha()">🗑 Selecionada</button>
+                        <button class="fp-btn fp-btn-red" onclick="window.traderLimparLinhas()">🧹 Todas</button>
+                    </div>
+                </div>
 
-                <!-- ── LINHA 2: MACD ── -->
-                <div class="control-panel" style="flex-wrap:wrap;gap:8px 14px;margin-bottom:8px;">
-                    <div class="histomacd-control-group">
-                        <label for="traderMacdFast" class="histomacd-control-label">MACD Rápido</label>
-                        <input type="number" id="traderMacdFast" class="histomacd-input-number" value="12" min="1" max="50">
-                    </div>
-                    <div class="histomacd-control-group">
-                        <label for="traderMacdSlow" class="histomacd-control-label">MACD Lento</label>
-                        <input type="number" id="traderMacdSlow" class="histomacd-input-number" value="26" min="1" max="100">
-                    </div>
-                    <div class="histomacd-control-group">
-                        <label for="traderMacdSignal" class="histomacd-control-label">MACD Sinal</label>
-                        <input type="number" id="traderMacdSignal" class="histomacd-input-number" value="9" min="1" max="50">
-                    </div>
-                    <div class="histomacd-control-group">
-                        <label for="traderRsiPeriod" class="histomacd-control-label">Período RSI</label>
-                        <input type="number" id="traderRsiPeriod" class="histomacd-input-number" value="14" min="1" max="50">
-                    </div>
-                    <div class="histomacd-control-group">
-                        <div class="histomacd-checkbox-group">
-                            <input type="checkbox" id="traderShowRSI" class="histomacd-checkbox" checked>
-                            <label for="traderShowRSI" class="histomacd-checkbox-label">Exibir RSI</label>
+                <!-- Botão Config (painel flutuante) -->
+                <div class="trader-floating-wrap">
+                    <button id="traderBtnConfig" class="trader-btn">⚙️ Config</button>
+                    <div id="traderConfigPanel" class="trader-config-panel">
+                        <div class="cp-title">Configurações do gráfico</div>
+                        <div class="cp-sub">Ajuste indicadores e layout do painel.</div>
+
+                        <div class="cp-section">
+                            <div class="cp-section-title">MACD</div>
+                            <div class="cp-row">
+                                <label for="traderMacdFast">MACD Rápido</label>
+                                <input type="number" id="traderMacdFast" value="12" min="1" max="50">
+                            </div>
+                            <div class="cp-row">
+                                <label for="traderMacdSlow">MACD Lento</label>
+                                <input type="number" id="traderMacdSlow" value="26" min="1" max="100">
+                            </div>
+                            <div class="cp-row">
+                                <label for="traderMacdSignal">MACD Sinal</label>
+                                <input type="number" id="traderMacdSignal" value="9" min="1" max="50">
+                            </div>
+                        </div>
+
+                        <div class="cp-section">
+                            <div class="cp-section-title">RSI</div>
+                            <div class="cp-row">
+                                <label for="traderRsiPeriod">Período RSI</label>
+                                <input type="number" id="traderRsiPeriod" value="14" min="1" max="50">
+                            </div>
+                        </div>
+
+                        <button class="cp-btn-reset" id="traderBtnResetConfig">↺ Restaurar padrão</button>
+
+                        <div class="cp-section">
+                            <div class="cp-section-title">Altura dos gráficos</div>
+                            <div class="cp-height-row">
+                                <label style="font-size:11px;color:#e5e7eb;">Mercados</label>
+                                <div class="cp-height-controls">
+                                    <button class="cp-btn-h" id="traderAltPrincipalMenos">−</button>
+                                    <input class="cp-input-h" id="traderAltPrincipal" type="number" min="200" max="600" step="20" value="360">
+                                    <button class="cp-btn-h" id="traderAltPrincipalMais">+</button>
+                                </div>
+                            </div>
+                            <div class="cp-height-row">
+                                <label style="font-size:11px;color:#e5e7eb;">MACD</label>
+                                <div class="cp-height-controls">
+                                    <button class="cp-btn-h" id="traderAltMacdMenos">−</button>
+                                    <input class="cp-input-h" id="traderAltMacd" type="number" min="80" max="400" step="20" value="230">
+                                    <button class="cp-btn-h" id="traderAltMacdMais">+</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div><!-- /linha 2 -->
-
-                <!-- ── GRÁFICO MERCADOS (apenas o dataset selecionado) ── -->
-                <div style="position:relative;height:360px;">
-                    <canvas id="traderMercadosCanvas" style="width:100%;height:100%;"></canvas>
                 </div>
 
-                <!-- ── GRÁFICO MACD (colado abaixo, mesma largura) ── -->
-                <div style="position:relative;height:230px;margin-top:3px;">
-                    <canvas id="traderMacdCanvas" style="width:100%;height:100%;"></canvas>
-                </div>
+            </div><!-- /trader-controls -->
 
+            <!-- ── LEGENDA DINÂMICA ── -->
+            <div id="traderLegendaDinamica">
+                <!-- preenchida pelo JS -->
             </div>
-        </div>
 
-        <!-- Painel flutuante Add Linha (fora do accordion para position:fixed funcionar) -->
-        <div id="traderLinhaToolsPanel">
-            <div class="contador-linhas" id="traderContadorLinhas">0 / 6 linhas</div>
-            <div id="traderLinhaColorRow">
-                <label>Cor:</label>
-                <input id="traderLineColorPicker" type="color" value="#1fcc59" style="width:36px;height:26px;cursor:pointer;border:none;background:none;">
+            <!-- ── GRÁFICO MERCADOS ── -->
+            <div class="trader-canvas-wrap" id="traderMercadosWrap" style="height:360px;">
+                <canvas id="traderMercadosCanvas"></canvas>
             </div>
-            <button class="btn-linha green" onclick="window.traderAdicionarLinha()">➕ Adicionar</button>
-            <div class="separador-panel"></div>
-            <button class="btn-linha yellow" onclick="window.traderDeletarLinha()">🗑 Selecionada</button>
-            <button class="btn-linha red"   onclick="window.traderLimparLinhas()">🧹 Todas</button>
-        </div>
+
+            <!-- ── GRÁFICO MACD ── -->
+            <div class="trader-canvas-wrap" id="traderMacdWrap" style="height:230px;margin-top:3px;">
+                <canvas id="traderMacdCanvas"></canvas>
+            </div>
+
+        </div><!-- /trader-chart -->
 
     </div><!-- /accordion-content -->
 </div><!-- /accordion-item -->
-
-
-  <div id="errorMessage" class="error-message" style="display: none;"></div>
-  <div class="seletor-container">
-    <div class="seletor-mostrar-times">
-      <select id="mostrarTimes">
-        <option value="nao" selected>Ver Times:Não</option>
-        <option value="sim">Ver Times:Sim</option>
-      </select>
-    </div>
-
-    <div class="seletor-mostrar-ht">
-      <select id="mostrarHT">
-        <option value="nao" selected>Ver HT:Não</option>
-        <option value="sim">Ver HT:Sim</option>
-      </select>
-    </div>
-
-    <div class="seletor-horas">
-      <select id="seletorHoras">
-        <option value="3">Horas:3</option>
-        <option value="6"selected>Horas:6</option>
-        <option value="12">Horas:12</option>
-        <option value="24">Horas:24</option>
-        <option value="48">Horas:48</option>
-        <option value="72">Horas:72</option>
-      </select>
-    </div>
-
-<div class="seletor-resultado">
-  <select id="seletorResultado">
-
-    <optgroup label="── Ambas Marcam ──">
-      <option value="ambasMarcam" selected>Ambas Sim</option>
-      <option value="ambasNaoMarcam">Ambas Não</option>
-    </optgroup>
-
-    <optgroup label="── Resultado FT ──">
-      <option value="casaVence">Casa Vence</option>
-      <option value="empate">Empate FT</option>
-      <option value="foraVence">Fora Vence</option>
-    </optgroup>
-
-    <optgroup label="── Over ──">
-      <option value="over0.5">Over 0.5</option>
-      <option value="over1.5">Over 1.5</option>
-      <option value="over2.5">Over 2.5</option>
-      <option value="over3.5">Over 3.5</option>
-      <option value="over5">Over 5+</option>
-    </optgroup>
-
-    <optgroup label="── Under ──">
-      <option value="under0.5">Under 0.5</option>
-      <option value="under1.5">Under 1.5</option>
-      <option value="under2.5">Under 2.5</option>
-      <option value="under3.5">Under 3.5</option>
-    </optgroup>
-
-    <optgroup label="── Gols Exatos FT ──">
-      <option value="exato0">0 Gol</option>
-      <option value="exato1">1 Gol</option>
-      <option value="exato2">2 Gols</option>
-      <option value="exato3">3 Gols</option>
-      <option value="exato4">4 Gols</option>
-    </optgroup>
-
-    <optgroup label="── Gols Exatos 2º Tempo ──">
-      <option value="exato2t0">0 gol / 2° tempo</option>
-      <option value="exato2t1">1 gol / 2° tempo</option>
-      <option value="exato2t2">2 gols / 2° tempo</option>
-      <option value="exato2t3">3 gols / 2° tempo</option>
-      <option value="exato2t4">4 gols / 2° tempo</option>
-    </optgroup>
-
-    <optgroup label="── Total de Gols — Casa ──">
-      <option value="casa0Gols">Casa 0 Gols</option>
-      <option value="casa1Gol">Casa 1 Gol</option>
-      <option value="casa2Gols">Casa 2 Gols</option>
-      <option value="casa3Gols">Casa 3 Gols</option>
-      <option value="casa4Gols">Casa 4 Gols</option>
-    </optgroup>
-
-    <optgroup label="── Total de Gols — Fora ──">
-      <option value="fora0Gols">Fora 0 Gols</option>
-      <option value="fora1Gol">Fora 1 Gol</option>
-      <option value="fora2Gols">Fora 2 Gols</option>
-      <option value="fora3Gols">Fora 3 Gols</option>
-      <option value="fora4Gols">Fora 4 Gols</option>
-    </optgroup>
-
-  </select>
-</div>
 
     <div class="seletor-ver-odds">
       <select id="mostrarOdds">
@@ -7256,10 +7522,8 @@ console.info = function() {};
     <script>
 /* ═══════════════════════════════════════════════════════════════════
    MODO TRADER — Gráfico Mercados + MACD sincronizados
-   • Sem legenda de pills — zero conflito com outros gráficos da página
-   • Gráfico mostra SOMENTE o mercado selecionado
-   • Add Linha: painel flutuante posicionado próximo ao botão
-   • Prefixo "trader" em tudo — não conflita com outros scripts
+   UI inspirada no Caramelo.bet — mantendo lógica/CSS próprios
+   Prefixo "trader" em tudo — sem conflito com outros scripts
 ═══════════════════════════════════════════════════════════════════ */
 
 /* ── VARIÁVEIS GLOBAIS ──────────────────────────────────────────── */
@@ -7339,8 +7603,6 @@ function _traderSyncDOM() {
 /* ══════════════════════════════════════════════════════════════════
    MAPEAMENTOS
 ══════════════════════════════════════════════════════════════════ */
-
-// valor do <select> → chave nos dados processados do gráfico de mercados
 const TRADER_SELECT_TO_KEY = {
     'golsFT':'golsFT','golsHT':'golsHT',
     'ambasMarcam':'ambasSim','ambasNaoMarcam':'ambasNao',
@@ -7356,7 +7618,6 @@ const TRADER_SELECT_TO_KEY = {
     'placar4x0':'placar4x0','placar4x1':'placar4x1','placarHT0x0':'placarHT0x0'
 };
 
-// valor do <select> → chave nas séries MACD
 const TRADER_SELECT_TO_MACD = {
     'golsFT':'golsFT','golsHT':'golsHT',
     'ambasMarcam':'ambasSim','ambasNaoMarcam':'ambasNao',
@@ -7372,7 +7633,6 @@ const TRADER_SELECT_TO_MACD = {
     'placar4x0':'placar4x0','placar4x1':'placar4x1','placarHT0x0':'placarHT0x0'
 };
 
-// label legível do mercado (usado no título do MACD)
 const TRADER_SELECT_LABEL = {
     'golsFT':'Gols FT','golsHT':'Gols HT',
     'ambasMarcam':'Ambas Sim','ambasNaoMarcam':'Ambas Não',
@@ -7384,14 +7644,11 @@ const TRADER_SELECT_LABEL = {
     'casa0Gols':'Casa 0','casa1Gol':'Casa 1','casa2Gols':'Casa 2','casa3Gols':'Casa 3','casa4Gols':'Casa 4',
     'fora0Gols':'Fora 0','fora1Gol':'Fora 1','fora2Gols':'Fora 2','fora3Gols':'Fora 3','fora4Gols':'Fora 4',
     'placar0x0':'0x0','placar1x0':'1x0','placar2x0':'2x0','placar3x0':'3x0',
-    'placar2x1':'2x1','placar3x1':'3x1','placar3x2':'3x2',
-    'placar4x0':'4x0','placar4x1':'4x1','placarHT0x0':'0x0 HT'
+    'placar2x1':'2x1','placar3x1':'3x1','placar3x2':'3x2','placar4x0':'4x0','placar4x1':'4x1','placarHT0x0':'0x0 HT'
 };
 
-// datasets de quantidade (gols) — exibem "g" no badge da Linha Atual
 const TRADER_QTY_KEYS = new Set(['golsFT','golsHT']);
 
-// cor de cada mercado no gráfico
 const TRADER_COLORS = {
     'Ambas Sim':'#B0BEC5','Ambas Não':'#F44336',
     'Casa Vence':'#AB47BC','Empate':'#78909C','Fora Vence':'#2196F3',
@@ -7407,7 +7664,6 @@ const TRADER_COLORS = {
     '2x1':'#009688','3x1':'#4CAF50','3x2':'#8BC34A','4x0':'#CDDC39','4x1':'#FFC107','0x0 HT':'#FF6090'
 };
 
-// label do gráfico → chave nos dados processados
 const TRADER_LABEL_TO_KEY = {
     'Gols FT':'golsFT','Gols HT':'golsHT',
     'Casa Vence':'casaVence','Empate':'empate','Fora Vence':'foraVence',
@@ -7424,13 +7680,26 @@ const TRADER_LABEL_TO_KEY = {
     '0x0 HT':'placarHT0x0'
 };
 
+/* Grupos para a legenda dinâmica (mesmos do Caramelo) */
+const TRADER_LEGENDA_GRUPOS = [
+    { titulo: 'Overs',      items: ['Over 0.5','Over 1.5','Over 2.5','Over 3.5','Over 5+'] },
+    { titulo: 'Unders',     items: ['Under 0.5','Under 1.5','Under 2.5','Under 3.5'] },
+    { titulo: 'Indicadores',items: ['Gols FT','Gols HT'] },
+    { titulo: 'Ambas Marcam', items: ['Ambas Sim','Ambas Não'] },
+    { titulo: 'Gols Exatos FT', items: ['0 Gol Exato','1 Gol Exato','2 Gols Exatos','3 Gols Exatos','4 Gols Exatos'] },
+    { titulo: 'Gols Exatos 2T', items: ['0 Gol 2T','1 Gol 2T','2 Gols 2T','3 Gols 2T','4 Gols 2T'] },
+    { titulo: 'Resultados', items: ['Casa Vence','Empate','Fora Vence'] },
+    { titulo: 'Gols (Casa)', items: ['Casa 0 Gols','Casa 1 Gol','Casa 2 Gols','Casa 3 Gols','Casa 4 Gols'] },
+    { titulo: 'Gols (Fora)', items: ['Fora 0 Gols','Fora 1 Gol','Fora 2 Gols','Fora 3 Gols','Fora 4 Gols'] },
+    { titulo: 'Placares',   items: ['0x0','1x0','2x0','3x0','2x1','3x1','3x2','4x0','4x1','0x0 HT'] },
+];
+
 /* ── Retorna o label do mercado selecionado ──────────────────────── */
 function _traderSelLabel() {
     const key = TRADER_SELECT_TO_KEY[traderSelectedMarket];
     return Object.keys(TRADER_LABEL_TO_KEY).find(l => TRADER_LABEL_TO_KEY[l] === key) || '';
 }
 
-/* ── Retorna a cor do mercado selecionado ───────────────────────── */
 function _traderSelColor() {
     return TRADER_COLORS[_traderSelLabel()] || '#B0BEC5';
 }
@@ -7458,6 +7727,69 @@ function _traderHashData(data) {
     if (!Array.isArray(data) || !data.length) return '';
     const l = data[data.length - 1];
     return `${data.length}-${l.id}-${l.ft}`;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   LEGENDA DINÂMICA
+══════════════════════════════════════════════════════════════════ */
+function traderBuildLegenda() {
+    const container = document.getElementById('traderLegendaDinamica');
+    if (!container) return;
+    container.innerHTML = '';
+
+    TRADER_LEGENDA_GRUPOS.forEach(grupo => {
+        const bloco = document.createElement('div');
+        bloco.className = 'trader-leg-bloco';
+
+        const titulo = document.createElement('div');
+        titulo.className = 'trader-leg-titulo';
+        titulo.textContent = grupo.titulo;
+        bloco.appendChild(titulo);
+
+        const itens = document.createElement('div');
+        itens.className = 'trader-leg-itens';
+        itens.style.gridTemplateColumns = `repeat(${Math.min(2, grupo.items.length)}, auto)`;
+
+        grupo.items.forEach(label => {
+            const key = TRADER_LABEL_TO_KEY[label];
+            const cor = TRADER_COLORS[label] || '#aaa';
+            const selKey = TRADER_SELECT_TO_KEY[traderSelectedMarket];
+            const isAtivo = key === selKey;
+
+            const item = document.createElement('div');
+            item.className = `trader-leg-item ${isAtivo ? 'ativo' : 'inativo'}`;
+            item.title = label;
+
+            const circulo = document.createElement('span');
+            circulo.className = 'trader-leg-circulo';
+            circulo.style.backgroundColor = cor;
+
+            const txt = document.createElement('span');
+            txt.textContent = label.toUpperCase();
+
+            item.appendChild(circulo);
+            item.appendChild(txt);
+
+            // Clique — muda o mercado selecionado
+            item.addEventListener('click', () => {
+                // encontra qual select value corresponde a este label
+                const found = Object.entries(TRADER_SELECT_TO_KEY).find(([,v]) => v === key);
+                if (!found) return;
+                traderSelectedMarket = found[0];
+                traderSaveSettings();
+                const sel = document.getElementById('traderMarketSelector');
+                if (sel) sel.value = traderSelectedMarket;
+                traderRebuildMercadosDatasets();
+                traderUpdateMacdChart();
+                traderBuildLegenda(); // atualiza destaque
+            });
+
+            itens.appendChild(item);
+        });
+
+        bloco.appendChild(itens);
+        container.appendChild(bloco);
+    });
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -7704,7 +8036,7 @@ const traderFibPlugin={id:'traderFib',afterDraw(chart){
     ctx.restore();
 }};
 
-// Rótulos — apenas inteiro arredondado
+// Rótulos
 const traderRotulosPlugin={id:'traderRotulos',afterDatasetsDraw(chart){
     if(!traderShowRotulos)return;
     const{ctx,chartArea}=chart;if(!chartArea)return;
@@ -7798,16 +8130,13 @@ const traderDragPlugin={
 
 /* ══════════════════════════════════════════════════════════════════
    CRIAR / ATUALIZAR GRÁFICO DE MERCADOS
-   • Cria UM dataset: somente o mercado selecionado
-   • Sem legenda de pills
 ══════════════════════════════════════════════════════════════════ */
 function _traderBuildDatasets(pd) {
     const selKey   = TRADER_SELECT_TO_KEY[traderSelectedMarket];
     const selLabel = _traderSelLabel();
     const color    = _traderSelColor();
-    const SHORT    = '#00FF00', LONG = '#FF0000';
-
-    const ds = [
+    const SHORT = '#00FF00', LONG = '#FF0000';
+    return [
         {
             label: selLabel, data: pd[selKey] || [],
             borderColor: color, backgroundColor: color,
@@ -7818,7 +8147,6 @@ function _traderBuildDatasets(pd) {
         { label: selLabel+' - Short MA', data: pd[selKey+'Short']||[], borderColor:SHORT, backgroundColor:'transparent', tension:0, borderWidth:2, pointRadius:0, fill:false, borderDash:[5,5], hidden:!traderShowMovingAvg },
         { label: selLabel+' - Long MA',  data: pd[selKey+'Long'] ||[], borderColor:LONG,  backgroundColor:'transparent', tension:0, borderWidth:2, pointRadius:0, fill:false, borderDash:[5,5], hidden:!traderShowMovingAvg }
     ];
-    return ds;
 }
 
 function traderCreateMercadosChart(ctx, pd) {
@@ -7854,13 +8182,12 @@ function traderCreateMercadosChart(ctx, pd) {
     });
 }
 
-// Quando muda o mercado: reconstrói os datasets com o novo selecionado
 function traderRebuildMercadosDatasets() {
     if (!traderChartInstance || !traderProcessedData.labels) return;
-    const newDs = _traderBuildDatasets(traderProcessedData);
-    traderChartInstance.data.datasets = newDs;
+    traderChartInstance.data.datasets = _traderBuildDatasets(traderProcessedData);
     traderChartInstance.data.labels   = traderProcessedData.labels;
     traderChartInstance.update();
+    traderBuildLegenda();
 }
 
 function traderUpdateMercadosChart(pd) {
@@ -7870,7 +8197,6 @@ function traderUpdateMercadosChart(pd) {
     const color = _traderSelColor();
     const ds = traderChartInstance.data.datasets;
     traderChartInstance.data.labels = pd.labels;
-    // ds[0] = principal, ds[1] = Short MA, ds[2] = Long MA
     if (ds[0]) { ds[0].label=selLabel; ds[0].data=pd[selKey]||[]; ds[0].borderColor=color; ds[0].backgroundColor=color; ds[0].pointBackgroundColor=pd[selKey+'Colors']||pd[selKey+'C']||color; }
     if (ds[1]) { ds[1].label=selLabel+' - Short MA'; ds[1].data=pd[selKey+'Short']||[]; ds[1].hidden=!traderShowMovingAvg; }
     if (ds[2]) { ds[2].label=selLabel+' - Long MA';  ds[2].data=pd[selKey+'Long'] ||[]; ds[2].hidden=!traderShowMovingAvg; }
@@ -7897,7 +8223,7 @@ function traderCreateMacdChart(ctx, labels, ind) {
         'y-macd':{type:'linear',position:'left',ticks:{color:'#aaa'},grid:{color:'rgba(255,255,255,0.04)',lineWidth:0.5},title:{display:true,text:`MACD (${mktLabel})`,color:'#aaa',font:{size:11}}}
     };
     if(traderShowRSI)scales['y-rsi']=_traderRsiScale();
-    return new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},scales,plugins:{legend:{display:true,labels:{color:'#fff',padding:10,font:{size:11}}},tooltip:{backgroundColor:'rgba(0,0,0,0.8)',titleColor:'#1fad8b',bodyColor:'#e0e0e0',borderColor:'#1fad8b',borderWidth:1,padding:12,displayColors:true,callbacks:{title:ctx=>'Horário: '+ctx[0].label,label:function(context){let l=(context.dataset.label||'')+': ';if(context.parsed.y!==null){l+=context.parsed.y.toFixed(2);if(context.dataset.yAxisID==='y-rsi'){if(context.parsed.y>70)l+=' (Sobrecompra)';else if(context.parsed.y<30)l+=' (Sobrevenda)';}}return l;}}}}}});
+    return new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},scales,plugins:{legend:{display:true,labels:{color:'#fff',padding:10,font:{size:11}}},tooltip:{backgroundColor:'rgba(0,0,0,0.8)',titleColor:'#1fad8b',bodyColor:'#e0e0e0',borderColor:'#1fad8b',borderWidth:1,padding:12,displayColors:true,callbacks:{title:ctx=>'Horário: '+ctx[0].label,label:function(context){let l=(context.dataset.label||'')+': ';if(context.parsed.y!==null){l+=context.parsed.y.toFixed(2);if(context.dataset.yAxisID==='y-rsi'){if(context.parsed.y>70)l+=' (Sobrecompra)';else if(context.parsed.y<30)l+=' (Sobrevenda)';}}return l;}}}}}}); 
 }
 
 function traderUpdateMacdChart() {
@@ -7943,6 +8269,7 @@ function traderUpdate() {
 
             if (!traderChartInstance) {
                 traderChartInstance = traderCreateMercadosChart(canvasMkt.getContext('2d'), pd);
+                traderBuildLegenda();
             } else {
                 traderUpdateMercadosChart(pd);
             }
@@ -7963,24 +8290,31 @@ function _traderDestroyCharts() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   PAINEL FLUTUANTE ADD LINHA
+   PAINÉIS FLUTUANTES — Linha e Config
 ══════════════════════════════════════════════════════════════════ */
-function _traderToggleLinhaPanel(e) {
+function _traderTogglePanel(btnId, panelId, e) {
     e.stopPropagation();
-    const btn   = document.getElementById('traderBtnLinhaTools');
-    const panel = document.getElementById('traderLinhaToolsPanel');
-    if (!panel || !btn) return;
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    // fecha todos os outros painéis abertos
+    document.querySelectorAll('.trader-floating-panel.aberto, .trader-config-panel.aberto').forEach(p => {
+        if (p.id !== panelId) p.classList.remove('aberto');
+    });
+    panel.classList.toggle('aberto');
+}
 
-    const isOpen = panel.classList.contains('aberto');
-    if (isOpen) {
-        panel.classList.remove('aberto');
-        return;
-    }
-    // Posiciona abaixo do botão
-    const rect = btn.getBoundingClientRect();
-    panel.style.top  = (rect.bottom + window.scrollY + 6) + 'px';
-    panel.style.left = rect.left + 'px';
-    panel.classList.add('aberto');
+/* ══════════════════════════════════════════════════════════════════
+   ALTURA DOS GRÁFICOS
+══════════════════════════════════════════════════════════════════ */
+function _traderSetAlturas() {
+    const hPrinc = parseInt(document.getElementById('traderAltPrincipal')?.value || '360', 10);
+    const hMacd  = parseInt(document.getElementById('traderAltMacd')?.value || '230', 10);
+    const wPrinc = document.getElementById('traderMercadosWrap');
+    const wMacd  = document.getElementById('traderMacdWrap');
+    if (wPrinc) wPrinc.style.height = hPrinc + 'px';
+    if (wMacd)  wMacd.style.height  = hMacd  + 'px';
+    traderChartInstance?.resize();
+    traderMacdInstance?.resize();
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -7988,27 +8322,31 @@ function _traderToggleLinhaPanel(e) {
 ══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
     traderLoadSettings();
+    traderBuildLegenda();
 
+    // ── Mercado ──
     document.getElementById('traderMarketSelector')?.addEventListener('change', function() {
         traderSelectedMarket = this.value;
         traderSaveSettings();
-        // Reconstrói somente o dataset selecionado
         traderRebuildMercadosDatasets();
         traderUpdateMacdChart();
     });
 
+    // ── Período ──
     document.getElementById('traderPointsSelector')?.addEventListener('change', function() {
         traderNumPoints = parseInt(this.value, 10);
         traderSaveSettings();
         traderLastHash = null; _traderDestroyCharts(); traderUpdate();
     });
 
+    // ── Base Média ──
     document.getElementById('traderAverageSelector')?.addEventListener('change', function() {
         traderAveragePoints = parseInt(this.value, 10);
         traderSaveSettings();
         traderLastHash = null; _traderDestroyCharts(); traderUpdate();
     });
 
+    // ── Switches ──
     document.getElementById('traderFibonacciToggle')?.addEventListener('change', function() {
         traderShowFibonacci = this.checked; traderSaveSettings(); traderChartInstance?.update();
     });
@@ -8030,21 +8368,76 @@ document.addEventListener('DOMContentLoaded', () => {
         traderShowLinhaAtual = this.checked; traderSaveSettings(); traderChartInstance?.update('active');
     });
 
-    document.getElementById('traderMacdFast')?.addEventListener('change', function() { traderMacdFast = parseInt(this.value,10)||12; traderSaveSettings(); traderUpdateMacdChart(); });
-    document.getElementById('traderMacdSlow')?.addEventListener('change', function() { traderMacdSlow = parseInt(this.value,10)||26; traderSaveSettings(); traderUpdateMacdChart(); });
-    document.getElementById('traderMacdSignal')?.addEventListener('change', function() { traderMacdSignal = parseInt(this.value,10)||9; traderSaveSettings(); traderUpdateMacdChart(); });
-    document.getElementById('traderRsiPeriod')?.addEventListener('change', function() { traderRsiPeriod = parseInt(this.value,10)||14; traderSaveSettings(); traderUpdateMacdChart(); });
-    document.getElementById('traderShowRSI')?.addEventListener('change', function() { traderShowRSI = this.checked; traderSaveSettings(); traderUpdateMacdChart(); });
+    document.getElementById('traderShowRSI')?.addEventListener('change', function() {
+        traderShowRSI = this.checked; traderSaveSettings(); traderUpdateMacdChart();
+    });
 
-    // Painel flutuante Add Linha
-    document.getElementById('traderBtnLinhaTools')?.addEventListener('click', _traderToggleLinhaPanel);
-    document.addEventListener('click', e => {
-        const panel = document.getElementById('traderLinhaToolsPanel');
-        if (panel && !panel.contains(e.target) && e.target.id !== 'traderBtnLinhaTools') {
-            panel.classList.remove('aberto');
+    // ── Config inputs ──
+    document.getElementById('traderMacdFast')?.addEventListener('change',   function() { traderMacdFast   = parseInt(this.value,10)||12; traderSaveSettings(); traderUpdateMacdChart(); });
+    document.getElementById('traderMacdSlow')?.addEventListener('change',   function() { traderMacdSlow   = parseInt(this.value,10)||26; traderSaveSettings(); traderUpdateMacdChart(); });
+    document.getElementById('traderMacdSignal')?.addEventListener('change', function() { traderMacdSignal = parseInt(this.value,10)||9;  traderSaveSettings(); traderUpdateMacdChart(); });
+    document.getElementById('traderRsiPeriod')?.addEventListener('change',  function() { traderRsiPeriod  = parseInt(this.value,10)||14; traderSaveSettings(); traderUpdateMacdChart(); });
+
+    // ── Botão Restaurar padrão ──
+    document.getElementById('traderBtnResetConfig')?.addEventListener('click', () => {
+        traderMacdFast=12; traderMacdSlow=26; traderMacdSignal=9; traderRsiPeriod=14;
+        _traderSyncDOM(); traderSaveSettings(); traderUpdateMacdChart();
+    });
+
+    // ── Botão Legenda ON/OFF ──
+    document.getElementById('traderBtnLegenda')?.addEventListener('click', function() {
+        const leg = document.getElementById('traderLegendaDinamica');
+        if (!leg) return;
+        const oculta = leg.classList.toggle('legenda-oculta');
+        this.textContent = oculta ? 'Legenda: OFF' : 'Legenda: ON';
+        if (oculta) {
+            this.style.borderColor = '#6b7280'; this.style.color = '#6b7280';
+        } else {
+            this.style.borderColor = ''; this.style.color = '';
         }
     });
-    document.getElementById('traderLinhaToolsPanel')?.addEventListener('click', e => e.stopPropagation());
+
+    // ── Botão Linha (painel flutuante) ──
+    document.getElementById('traderBtnLinhaTools')?.addEventListener('click', function(e) {
+        _traderTogglePanel('traderBtnLinhaTools', 'traderLinhaPanelNovo', e);
+    });
+
+    // ── Botão Config (painel flutuante) ──
+    document.getElementById('traderBtnConfig')?.addEventListener('click', function(e) {
+        _traderTogglePanel('traderBtnConfig', 'traderConfigPanel', e);
+    });
+
+    // ── Altura dos gráficos ──
+    document.getElementById('traderAltPrincipalMenos')?.addEventListener('click', () => {
+        const el = document.getElementById('traderAltPrincipal');
+        if (el) { el.value = Math.max(200, parseInt(el.value)-20); _traderSetAlturas(); }
+    });
+    document.getElementById('traderAltPrincipalMais')?.addEventListener('click', () => {
+        const el = document.getElementById('traderAltPrincipal');
+        if (el) { el.value = Math.min(600, parseInt(el.value)+20); _traderSetAlturas(); }
+    });
+    document.getElementById('traderAltMacdMenos')?.addEventListener('click', () => {
+        const el = document.getElementById('traderAltMacd');
+        if (el) { el.value = Math.max(80, parseInt(el.value)-20); _traderSetAlturas(); }
+    });
+    document.getElementById('traderAltMacdMais')?.addEventListener('click', () => {
+        const el = document.getElementById('traderAltMacd');
+        if (el) { el.value = Math.min(400, parseInt(el.value)+20); _traderSetAlturas(); }
+    });
+    document.getElementById('traderAltPrincipal')?.addEventListener('change', _traderSetAlturas);
+    document.getElementById('traderAltMacd')?.addEventListener('change', _traderSetAlturas);
+
+    // ── Fecha painéis ao clicar fora ──
+    document.addEventListener('click', e => {
+        const panel1 = document.getElementById('traderLinhaPanelNovo');
+        const panel2 = document.getElementById('traderConfigPanel');
+        const btn1   = document.getElementById('traderBtnLinhaTools');
+        const btn2   = document.getElementById('traderBtnConfig');
+        if (panel1 && !panel1.contains(e.target) && e.target !== btn1) panel1.classList.remove('aberto');
+        if (panel2 && !panel2.contains(e.target) && e.target !== btn2) panel2.classList.remove('aberto');
+    });
+    document.getElementById('traderLinhaPanelNovo')?.addEventListener('click', e => e.stopPropagation());
+    document.getElementById('traderConfigPanel')?.addEventListener('click', e => e.stopPropagation());
 
     traderUpdate();
 });
