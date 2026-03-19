@@ -307,6 +307,12 @@
                     <span>Rótulos</span>
                 </label>
 
+                    <!-- ← NOVO: checkbox médias móveis -->
+                <label class="checkbox-container">
+                    <input type="checkbox" id="movingAveragesToggleGolsPlus">
+                    <span>Médias Móveis</span>
+                </label>
+
                 <label class="linha-atual-toggle">
                     <input type="checkbox" id="linhaAtualToggleGolsPlus" checked>
                      Linha Atual
@@ -3424,6 +3430,7 @@ let golsPlusChart;
 let numPointsGolsPlus     = 20;
 let averagePointsGolsPlus = 19;
 let showFibonacciLinesGolsPlus = false;
+let showMovingAveragesGolsPlus = false;   // ← NOVO
 let chartDataGolsPlus = {};
 
 // ─── PERSISTÊNCIA DOS DATASETS VISÍVEIS ─────────────────
@@ -3535,9 +3542,8 @@ const htmlLegendPluginGolsPlus = {
 
         const items = chart.options.plugins.legend.labels
             .generateLabels(chart)
-            .filter(item => item.text !== 'Equilíbrio');
+            .filter(item => item.text !== 'Equilíbrio' && !item.text.includes(' - '));
 
-        // Só sincroniza classes se já construiu
         if (container.children.length === items.length) {
             Array.from(container.children).forEach((el, i) => {
                 el.classList.toggle('leg-hidden', items[i].hidden);
@@ -3545,7 +3551,6 @@ const htmlLegendPluginGolsPlus = {
             return;
         }
 
-        // Primeira construção
         container.innerHTML = '';
         items.forEach(item => {
             const pill = document.createElement('div');
@@ -3564,17 +3569,25 @@ const htmlLegendPluginGolsPlus = {
             pill.appendChild(lbl);
 
             pill.addEventListener('click', () => {
-                const idx = chart.data.datasets.findIndex(ds => ds.label === item.text);
-                if (idx < 0) return;
+                const mainIdx = chart.data.datasets.findIndex(ds => ds.label === item.text);
+                if (mainIdx < 0) return;
 
-                const meta       = chart.getDatasetMeta(idx);
+                const meta       = chart.getDatasetMeta(mainIdx);
                 const nowVisible = meta.hidden; // será true após toggle
 
                 meta.hidden = !meta.hidden;
                 statsChartVisibleDatasetsGolsPlus[item.text] = nowVisible;
                 _saveVisibleGolsPlus(statsChartVisibleDatasetsGolsPlus);
-
                 pill.classList.toggle('leg-hidden', !nowVisible);
+
+                // Sincroniza as MAs do dataset
+                chart.data.datasets.forEach((ds, dsIdx) => {
+                    if (ds.label.startsWith(item.text + ' - ')) {
+                        chart.getDatasetMeta(dsIdx).hidden =
+                            !showMovingAveragesGolsPlus || !nowVisible;
+                    }
+                });
+
                 chart.update('active');
             });
 
@@ -3600,10 +3613,6 @@ function getKeyFromLabelGolsPlus(label) {
     return labelToKeyGolsPlus[label];
 }
 
-/**
- * Parseia o placar HT.
- * Se for "OUT" (3+ gols), retorna 3 como valor conservador.
- */
 function parseHtScore(htStr) {
     if (!htStr) return 0;
     if (htStr === 'OUT') return 3;
@@ -3614,6 +3623,17 @@ function parseHtScore(htStr) {
         }
     }
     return 0;
+}
+
+// ─── MÉDIA MÓVEL SIMPLES ─────────────────────────────────
+function computeMAGolsPlus(arr, period) {
+    return arr.map((_, i) => {
+        let sum = 0, count = 0;
+        for (let j = Math.max(0, i - period + 1); j <= i; j++) {
+            if (arr[j] !== null && arr[j] !== undefined) { sum += arr[j]; count++; }
+        }
+        return count > 0 ? sum / count : null;
+    });
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -3659,7 +3679,7 @@ function processApiDataGolsPlus(data) {
             casaSum += ft[0];
             visSum  += ft[1];
             htSum   += htTotal;
-            stSum   += Math.max(0, ftTotal - htTotal); // gols só do 2T
+            stSum   += Math.max(0, ftTotal - htTotal);
         }
 
         const m = sliced[i];
@@ -3675,7 +3695,23 @@ function processApiDataGolsPlus(data) {
     const avgFT   = validFT.length ? validFT.reduce((a, b) => a + b, 0) / validFT.length : 0;
     const equilibrio = new Array(labels.length).fill(avgFT);
 
-    return { labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, gols2T, equilibrio };
+    // ── Médias Móveis: Short = 5, Long = 20 ──────────────
+    const SHORT = 5, LONG = 20;
+    return {
+        labels, golsFT, golsFTCasa, golsFTVisitante, golsHT, gols2T, equilibrio,
+        // Short MAs
+        golsFTShort:           computeMAGolsPlus(golsFT,           SHORT),
+        golsFTCasaShort:       computeMAGolsPlus(golsFTCasa,       SHORT),
+        golsFTVisitanteShort:  computeMAGolsPlus(golsFTVisitante,  SHORT),
+        golsHTShort:           computeMAGolsPlus(golsHT,           SHORT),
+        gols2TShort:           computeMAGolsPlus(gols2T,           SHORT),
+        // Long MAs
+        golsFTLong:            computeMAGolsPlus(golsFT,           LONG),
+        golsFTCasaLong:        computeMAGolsPlus(golsFTCasa,       LONG),
+        golsFTVisitanteLong:   computeMAGolsPlus(golsFTVisitante,  LONG),
+        golsHTLong:            computeMAGolsPlus(golsHT,           LONG),
+        gols2TLong:            computeMAGolsPlus(gols2T,           LONG)
+    };
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -3718,7 +3754,8 @@ const rotulosPluginGolsPlus = {
         if (!chartArea) return;
 
         chart.data.datasets.forEach((ds, i) => {
-            if (!ds.label || ds.label === 'Equilíbrio') return;
+            // Não desenha rótulo em MA nem em Equilíbrio
+            if (!ds.label || ds.label === 'Equilíbrio' || ds.label.includes(' - ')) return;
             if (!chart.isDatasetVisible(i)) return;
             const meta = chart.getDatasetMeta(i);
             meta.data.forEach((point, j) => {
@@ -3739,7 +3776,6 @@ const rotulosPluginGolsPlus = {
 
 /* ═══════════════════════════════════════════════════════
    PLUGIN: LINHA ATUAL
-   Uma linha tracejada por dataset visível, na cor do dataset
 ═══════════════════════════════════════════════════════ */
 const linhaAtualPluginGolsPlus = {
     id: 'linhaAtualGolsPlus',
@@ -3757,7 +3793,8 @@ const linhaAtualPluginGolsPlus = {
 
         const entries = [];
         chart.data.datasets.forEach((d, i) => {
-            if (!d.label || d.label === 'Equilíbrio') return;
+            // Ignora MAs e Equilíbrio na linha atual
+            if (!d.label || d.label === 'Equilíbrio' || d.label.includes(' - ')) return;
             if (!chart.isDatasetVisible(i)) return;
             const arr = d.data;
             if (!arr?.length) return;
@@ -3776,7 +3813,6 @@ const linhaAtualPluginGolsPlus = {
 
         if (!entries.length) return;
 
-        // Anti-colisão
         entries.sort((a, b) => a.yPx - b.yPx);
         entries.forEach((e, i) => {
             e.badgeY = i === 0 ? e.yPx
@@ -3971,6 +4007,18 @@ function updateStatsChartGolsPlus(chart, newData) {
     chart.data.labels = newData.labels;
     chart.data.datasets.forEach(ds => {
         if (ds.label === 'Equilíbrio') { ds.data = newData.equilibrio; return; }
+
+        if (ds.label.includes(' - ')) {
+            // MA dataset: "Gols FT - Short MA" ou "Gols FT - Long MA"
+            const [mainLabel, maPart] = ds.label.split(' - ');
+            const baseKey = labelToKeyGolsPlus[mainLabel];
+            if (baseKey) {
+                const suffix = maPart.startsWith('Short') ? 'Short' : 'Long';
+                ds.data = newData[baseKey + suffix] || [];
+            }
+            return;
+        }
+
         const key = getKeyFromLabelGolsPlus(ds.label);
         if (key) ds.data = newData[key];
     });
@@ -3989,9 +4037,14 @@ function createStatsChartGolsPlus(ctx, labels, data) {
         { label: 'Gols 2T',           color: '#FF9800', key: 'gols2T' }
     ];
 
+    // Cores fixas para as linhas de MA (igual ao grafico_gols.js)
+    const SHORT_MA_COLOR = '#00FF00';
+    const LONG_MA_COLOR  = '#FF0000';
+
     const datasets = [];
 
     configs.forEach(cfg => {
+        // ── Dataset principal ──────────────────────────────
         datasets.push({
             label:                cfg.label,
             data:                 data[cfg.key],
@@ -4005,9 +4058,37 @@ function createStatsChartGolsPlus(ctx, labels, data) {
             fill:                 false,
             hidden:               !statsChartVisibleDatasetsGolsPlus[cfg.label]
         });
+
+        // ── Short MA (5 períodos) ──────────────────────────
+        datasets.push({
+            label:           cfg.label + ' - Short MA',
+            data:            data[cfg.key + 'Short'] || [],
+            borderColor:     SHORT_MA_COLOR,
+            backgroundColor: 'transparent',
+            tension:         0,
+            borderWidth:     1.5,
+            pointRadius:     0,
+            fill:            false,
+            borderDash:      [5, 5],
+            hidden:          !showMovingAveragesGolsPlus || !statsChartVisibleDatasetsGolsPlus[cfg.label]
+        });
+
+        // ── Long MA (20 períodos) ──────────────────────────
+        datasets.push({
+            label:           cfg.label + ' - Long MA',
+            data:            data[cfg.key + 'Long'] || [],
+            borderColor:     LONG_MA_COLOR,
+            backgroundColor: 'transparent',
+            tension:         0,
+            borderWidth:     1.5,
+            pointRadius:     0,
+            fill:            false,
+            borderDash:      [5, 5],
+            hidden:          !showMovingAveragesGolsPlus || !statsChartVisibleDatasetsGolsPlus[cfg.label]
+        });
     });
 
-    // Equilíbrio
+    // Equilíbrio (sem MAs)
     datasets.push({
         label:           'Equilíbrio',
         data:            data.equilibrio,
@@ -4034,7 +4115,8 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                     labels: {
                         color: '#e0e0e0',
                         font:  { size: 12 },
-                        filter: item => item.text !== 'Equilíbrio',
+                        // Filtra MAs e Equilíbrio da legenda interna do Chart.js
+                        filter: item => item.text !== 'Equilíbrio' && !item.text.includes(' - '),
                         generateLabels: Chart.defaults.plugins.legend.labels.generateLabels
                     }
                 },
@@ -4052,6 +4134,8 @@ function createStatsChartGolsPlus(ctx, labels, data) {
                             return m ? `${m.hora}:${m.minuto.toString().padStart(2, '0')}` : '';
                         },
                         label(ctx) {
+                            // Oculta MAs do tooltip
+                            if (ctx.dataset.label.includes(' - ')) return null;
                             const lbl = ctx.dataset.label, val = ctx.parsed.y;
                             return lbl === 'Equilíbrio'
                                 ? `${lbl}: ${val.toFixed(2)} gols (média)`
@@ -4136,6 +4220,28 @@ document.getElementById('linhaAtualToggleGolsPlus').addEventListener('change', f
     golsPlusChart.options.plugins.linhaAtualGolsPlus.enabled = this.checked;
     golsPlusChart.update();
 });
+
+// ── Toggle Médias Móveis — conecta ao checkbox do HTML ───────────────
+// O HTML já tem o checkbox id="movingAveragesToggle" (do gráfico principal).
+// Para o golsplus usar um checkbox próprio, adicione no seu HTML:
+//   <input type="checkbox" id="movingAveragesToggleGolsPlus">
+// Se preferir reusar o mesmo checkbox global, troque o id abaixo.
+(function () {
+    const elMA = document.getElementById('movingAveragesToggleGolsPlus');
+    if (!elMA) return; // nenhum checkbox encontrado, MA fica oculta por padrão
+    elMA.addEventListener('change', function () {
+        showMovingAveragesGolsPlus = this.checked;
+        if (!golsPlusChart) return;
+        golsPlusChart.data.datasets.forEach((ds, idx) => {
+            if (ds.label.includes(' - ')) {
+                const mainLabel = ds.label.split(' - ')[0];
+                golsPlusChart.getDatasetMeta(idx).hidden =
+                    !showMovingAveragesGolsPlus || !statsChartVisibleDatasetsGolsPlus[mainLabel];
+            }
+        });
+        golsPlusChart.update();
+    });
+})();
 
 // Painel Linha
 document.getElementById('btnLinhaToolsGolsPlus').addEventListener('click', function (e) {
