@@ -620,7 +620,7 @@
     </div>
 
     <script>
-      let oddStats = {};
+let oddStats = {};
       let matchDetails = {};
       let selectedOdd = null;
       let currentOddsData = [];
@@ -674,13 +674,11 @@
         const offsetStart = parseInt(document.getElementById('offset-select2').value);
 
         try {
-          // Busca resultados e odds em paralelo; proximos é opcional (não falha se der erro)
           const [resResults, resOdds] = await Promise.all([fetch(resultsUrl), fetch(oddsUrl)]);
           if (!resResults.ok || !resOdds.ok) throw new Error('HTTP error');
           const resultsData = await resResults.json();
           const oddsData = await resOdds.json();
 
-          // Tenta buscar proximos jogos; se falhar usa array vazio
           let proximosData = [];
           try {
             const resProximos = await fetch(proximosUrl);
@@ -698,7 +696,6 @@
           renderOddCards(currentMarket);
           updateStatsBar(currentMarket);
 
-          // Passa proximos + oddsData para cruzamento de odds
           renderProximosJogos(proximosData, oddsData, currentMarket);
 
           document.getElementById('match-details').style.display = 'none';
@@ -712,47 +709,36 @@
         await loadData();
       }
 
-      // ── buildResultsMap: tripla indexação para garantir o cruzamento ──
-      // Chaves geradas: "home|away|YYYY-MM-DD" (exato), "home|away" (sem data), "away|home" (invertido)
       function buildResultsMap(resultsData) {
-        // map principal: chave -> ft
-        // mapByTeams: "home|away" -> array de { dateKey, ft } (todos os jogos desses times)
         const map = {};
         const mapByTeams = {};
 
         resultsData.forEach(result => {
-          // Extrai o placar de múltiplos formatos possíveis
           const ftRaw = result.ft || result.placar || result.score || '';
           const ft    = parseFt(ftRaw);
 
-          // Nomes dos times — tenta vários campos
           const homeRaw = result.time_a  || result.time_casa      || result.home  || result.team_home  || '';
           const awayRaw = result.time_b  || result.time_visitante  || result.away  || result.team_visit || '';
           const homeN   = normalizeTeamName(homeRaw);
           const awayN   = normalizeTeamName(awayRaw);
 
-          // Data do resultado — suporta "DD/MM/YYYY, HH:MM", "DD/MM/YYYY", ISO e timestamp
           let dateKey = '';
           try {
             const rawData = result.data || result.data_jogo || result.date || '';
             if (rawData.includes('/')) {
-              // "DD/MM/YYYY, HH:MM" ou "DD/MM/YYYY"
               const datePart = rawData.split(',')[0].trim();
               const [d, m, y] = datePart.split('/');
               dateKey = y + '-' + m.padStart(2,'0') + '-' + d.padStart(2,'0');
             } else if (rawData.includes('T') || rawData.includes('-')) {
-              // ISO "2025-08-21T12:31:00.000Z" — extrai só a data sem conversão TZ
               dateKey = rawData.split('T')[0].substring(0,10);
             }
           } catch(e) {}
 
-          // Índice 1: exato com data
           if (dateKey) {
             map[homeN + '|' + awayN + '|' + dateKey] = ft;
-            map[awayN + '|' + homeN + '|' + dateKey] = ft; // invertido (segurança)
+            map[awayN + '|' + homeN + '|' + dateKey] = ft;
           }
 
-          // Índice 2: só por times (sem data) — para fallback
           const teamKey = homeN + '|' + awayN;
           if (!mapByTeams[teamKey]) mapByTeams[teamKey] = [];
           mapByTeams[teamKey].push({ dateKey, ft });
@@ -762,35 +748,28 @@
           mapByTeams[teamKeyInv].push({ dateKey, ft });
         });
 
-        // Expõe mapByTeams como propriedade do map para uso no lookup
         map.__byTeams = mapByTeams;
         return map;
       }
 
-      // Normaliza o placar para "G x G" independente do formato original
       function parseFt(ft) {
         if (!ft) return null;
         ft = String(ft).trim();
-        // "1 x 0", "1x0", "1-0", "1:0", "1 - 0"
         const m = ft.match(/(\d+)\s*[x\-:]\s*(\d+)/);
         if (m) return m[1] + ' x ' + m[2];
-        return ft; // devolve como está se não reconhecer
+        return ft;
       }
 
-      // Lookup robusto: exato com data → ±1 dia → só times (mais recente) → null
       function lookupResult(resultsMap, homeTeam, awayTeam, dateKey) {
         const homeN = normalizeTeamName(homeTeam);
         const awayN = normalizeTeamName(awayTeam);
 
-        // 1. Exato
         const exact = resultsMap[homeN + '|' + awayN + '|' + dateKey];
         if (exact) return exact;
 
-        // 2. Invertido (segurança — times trocados entre endpoints)
         const inv = resultsMap[awayN + '|' + homeN + '|' + dateKey];
         if (inv) return inv;
 
-        // 3. ±1 dia (diferença de fuso)
         try {
           const base = new Date(dateKey + 'T12:00:00');
           for (const delta of [-1, 1]) {
@@ -805,11 +784,9 @@
           }
         } catch(e) {}
 
-        // 4. Só por times, sem data — pega o mais recente disponível
         const byTeams = resultsMap.__byTeams || {};
         const candidates = byTeams[homeN + '|' + awayN] || byTeams[awayN + '|' + homeN] || [];
         if (candidates.length > 0) {
-          // ordena pelo dateKey mais próximo da data do jogo
           const sorted = candidates.slice().sort((a, b) => {
             const da = Math.abs(new Date(a.dateKey) - new Date(dateKey));
             const db = Math.abs(new Date(b.dateKey) - new Date(dateKey));
@@ -818,7 +795,7 @@
           if (sorted[0].ft) return sorted[0].ft;
         }
 
-        return null; // não encontrou
+        return null;
       }
 
       function parseCaptureDate(match) {
@@ -856,24 +833,22 @@
 
         const matchData = [];
         let hasGreen  = false;
-        let hasResult = false; // ao menos um resultado encontrado
+        let hasResult = false;
 
         for (let offset = offsetStart; offset < offsetStart + offsetLimit; offset++) {
           const index = currentIndex + offset;
           if (index >= 0 && index < matches.length) {
-            const match    = matches[index];
+            const match     = matches[index];
             const gameStart = parseGameDate(match.inicio_jogo);
 
             const year  = gameStart.getFullYear();
             const month = (gameStart.getMonth() + 1).toString().padStart(2, '0');
             const day   = gameStart.getDate().toString().padStart(2, '0');
-            const formattedDate = day + '/' + month;
+            // dateKey usado apenas para lookup — NÃO vai para o display
             const dateKey = year + '-' + month + '-' + day;
 
-            // Lookup robusto em 4 camadas
             const ftFound = lookupResult(resultsMap, match.time_casa, match.time_visitante, dateKey);
 
-            // Só computa se encontrou resultado real
             let gameStatus = 'N/A';
             let ftDisplay  = '?';
             if (ftFound) {
@@ -890,16 +865,15 @@
 
             const oddField = marketToOdd[market];
             const oddValue = match[oddField] || 'N/A';
-            matchData.push(formattedDate + '|' + match.time_casa + '|' + ftDisplay + '|' + match.time_visitante + '|' + oddValue + '|' + gameStatus);
+            // SEM data no payload — apenas: casa|placar|visitante|odd|status
+            matchData.push(match.time_casa + '|' + ftDisplay + '|' + match.time_visitante + '|' + oddValue + '|' + gameStatus);
           }
         }
 
-        // Só conta greens se ao menos um resultado foi encontrado (evita falso Red)
         const className = hasGreen ? 'highlight-green' : hasResult ? 'highlight-red' : '';
         matchDetails[key].push({ data: matchData.join('||'), className });
         if (hasGreen) oddStats[key].greens++;
 
-        // Se nenhum resultado encontrado, não incrementa games (descarta entrada sem dados)
         if (!hasResult) oddStats[key].games--;
       }
 
@@ -1028,13 +1002,13 @@
             li.className = detail.className;
             const entries = detail.data.split('||');
             entries.forEach(entry => {
-              const [date, homeTeam, ft, awayTeam, oddVal, status] = entry.split('|');
+              // SEM data: casa|placar|visitante|odd|status
+              const [homeTeam, ft, awayTeam, oddVal, status] = entry.split('|');
               const scoreMatch = ft.match(/(\d+ x \d+)/);
               const score = scoreMatch ? scoreMatch[0] : ft;
               const matchDiv = document.createElement('div');
               matchDiv.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1';
               matchDiv.innerHTML = `
-                <span class="detail-date">${date}</span>
                 <span class="detail-teams">
                   <span class="detail-team">${homeTeam}</span>
                   <span class="detail-score">${score}</span>
@@ -1059,10 +1033,6 @@
         detailsDiv.scrollIntoView({ behavior: 'smooth' });
       }
 
-      // ── PROXIMOS JOGOS — exibe apenas a odd do mercado selecionado ──
-      // ── PROXIMOS JOGOS ──
-      // Cruza o endpoint /proximos (team_home, team_visit, start_time)
-      // com o histórico de odds para obter a odd do mercado selecionado.
       function renderProximosJogos(proximosData, oddsData, market) {
         const lista = document.getElementById('lista-proximos-jogos');
         lista.innerHTML = '';
@@ -1075,8 +1045,6 @@
         const oddField    = marketToOdd[market];
         const marketLabel = MARKET_LABELS[market] || market;
 
-        // 1. Monta índice de odds: "normalHome|normalAway|YYYY-MM-DD" -> registro
-        // Percorre de trás para frente para ficar com o mais recente em caso de duplicata
         const oddsIndex = {};
         for (let i = oddsData.length - 1; i >= 0; i--) {
           const o = oddsData[i];
@@ -1090,13 +1058,10 @@
           if (!oddsIndex[ik]) oddsIndex[ik] = o;
         }
 
-        // 2. Top 5 odds do ranking para destacar jogos relevantes
         const sortedOdds = getSortedOdds();
         const topOddKeys = sortedOdds.slice(0, 5).map(o => o.key);
 
-        // 3. Renderiza cada próximo jogo
         proximosData.forEach(function(jogo) {
-          // Horario
           var time = jogo.time || '--:--';
           if (!jogo.time && jogo.start_time) {
             try {
@@ -1108,7 +1073,6 @@
           var homeTeam = jogo.team_home  || jogo.time_casa      || '';
           var awayTeam = jogo.team_visit || jogo.time_visitante  || '';
 
-          // Data do jogo para o cruzamento
           var yr2, mo2, dy2;
           if (jogo.start_time) {
             var d2 = new Date(jogo.start_time);
@@ -1121,13 +1085,11 @@
           }
           var dateKey2 = yr2 + '-' + mo2 + '-' + dy2;
 
-          // Cruzamento exato por times + data
           var oddsEntry = null;
           var exactKey = normalizeTeamName(homeTeam) + '|' + normalizeTeamName(awayTeam) + '|' + dateKey2;
           if (oddsIndex[exactKey]) {
             oddsEntry = oddsIndex[exactKey];
           } else {
-            // Fallback: só por times (ignora data), pega o mais recente
             var partialKey = normalizeTeamName(homeTeam) + '|' + normalizeTeamName(awayTeam) + '|';
             var foundKey = Object.keys(oddsIndex).find(function(k) { return k.indexOf(partialKey) === 0; });
             if (foundKey) oddsEntry = oddsIndex[foundKey];
