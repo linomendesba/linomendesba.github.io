@@ -333,6 +333,7 @@
 
 
 
+
 <!-- ═══════════════════════════════════════════════════════
      ACORDEON 3: MERCADOS (gráfico Copa)
 ═══════════════════════════════════════════════════════ -->
@@ -875,7 +876,7 @@
     <div id="resultDisplay">
       <div id="totalGols">0</div>
       <div id="mediaGolsHora">0</div>
-      <h4 class="custom-color">Brasileirão</h4>
+      <h4 class="custom-color">Brasileião</h4>
     </div>
 
     <div id="resultDisplay">
@@ -4371,6 +4372,518 @@ document.getElementById('linhaToolsPanelGolsPlus').addEventListener('click', e =
 
 window.addEventListener('load', updateChartsGolsPlus);
 setInterval(updateChartsGolsPlus, 3000);
+    </script>
+
+
+<script>
+  fetch('header.html')
+    .then(response => response.text())
+    .then(data => {
+      document.getElementById('header').innerHTML = data;
+    });
+</script>
+<script src="redirecionar.js"></script>
+
+
+<script>
+// Removido redeclaração de selectedTeam1, selectedTeam2, selectedTeamHomeDisplay, selectedTeamVisitDisplay
+function removeAccents(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+async function carregarJogos() {
+    try {
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+        const jogos = await response.json();
+        console.log("Jogos carregados da API_URL:", jogos);
+        return jogos;
+    } catch (error) {
+        console.error("Erro ao carregar dados da API_URL:", error);
+        return [];
+    }
+}
+
+async function loadNextGamesForMinutes() {
+    console.log("Iniciando atualização dos próximos jogos...");
+    try {
+        const response = await fetch(NEXT_GAMES_API);
+        if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+        const data = await response.json();
+        console.log("Resposta completa da NEXT_GAMES_API:", data);
+
+        // Verifica a estrutura da resposta e extrai os jogos
+        const games = Array.isArray(data.data) ? data.data.slice(0, 6) : 
+                      Array.isArray(data) ? data.slice(0, 6) : [];
+        console.log("Jogos processados para exibição:", games);
+
+        const container = document.getElementById("nextGamesMinutesContainer");
+
+        // Salva os times selecionados antes de recarregar os cards
+        const previouslySelectedTeam1 = selectedTeam1;
+        const previouslySelectedTeam2 = selectedTeam2;
+
+        // Recria os cards, preservando acentos nos nomes exibidos
+        if (games.length > 0) {
+            container.innerHTML = games.map(game => `
+                <div class="game-card" data-home="${removeAccents(game.team_home)}" data-visit="${removeAccents(game.team_visit)}" onclick="selectGameForMinutes(this, '${removeAccents(game.team_home)}', '${removeAccents(game.team_visit)}', '${game.team_home}', '${game.team_visit}')">
+                    <div class="game-time">${game.time || 'Hora não informada'}</div>
+                    <div class="game-teams">
+                        <span class="team-home">${game.team_home || 'Time A'}</span>
+                        <span class="vs">vs</span>
+                        <span class="team-visit">${game.team_visit || 'Time B'}</span>
+                    </div>
+                </div>
+            `).join("");
+        } else {
+            container.innerHTML = `<div class="game-card">Nenhum jogo disponível no momento</div>`;
+            console.warn("Nenhum jogo disponível na resposta da API.");
+        }
+
+        // Restaura a seleção com base nos times previamente selecionados
+        const cards = container.querySelectorAll('.game-card');
+        let cardToSelect = null;
+
+        if (previouslySelectedTeam1 && previouslySelectedTeam2) {
+            cards.forEach(card => {
+                const home = card.getAttribute('data-home');
+                const visit = card.getAttribute('data-visit');
+                if (home === previouslySelectedTeam1 && visit === previouslySelectedTeam2) {
+                    cardToSelect = card;
+                }
+            });
+        }
+
+        // Aplica a classe 'selected' ao card correspondente
+        if (cardToSelect) {
+            cardToSelect.classList.add('selected');
+            selectedTeam1 = cardToSelect.getAttribute('data-home');
+            selectedTeam2 = cardToSelect.getAttribute('data-visit');
+            if (!selectedTeamHomeDisplay || !selectedTeamVisitDisplay) {
+                selectedTeamHomeDisplay = cardToSelect.querySelector('.team-home').innerText;
+                selectedTeamVisitDisplay = cardToSelect.querySelector('.team-visit').innerText;
+                document.getElementById("team1Title").innerText = selectedTeamHomeDisplay;
+                document.getElementById("team2Title").innerText = selectedTeamVisitDisplay;
+            }
+        } else if (previouslySelectedTeam1 && previouslySelectedTeam2) {
+            // Mantém a seleção anterior se o jogo não estiver na lista
+            selectedTeam1 = previouslySelectedTeam1;
+            selectedTeam2 = previouslySelectedTeam2;
+        } else if (cards.length > 0 && cards[0].getAttribute('data-home')) {
+            // Seleciona o primeiro card se não houver seleção anterior
+            cardToSelect = cards[0];
+            cardToSelect.classList.add('selected');
+            selectedTeam1 = cardToSelect.getAttribute('data-home');
+            selectedTeam2 = cardToSelect.getAttribute('data-visit');
+            selectedTeamHomeDisplay = cardToSelect.querySelector('.team-home').innerText;
+            selectedTeamVisitDisplay = cardToSelect.querySelector('.team-visit').innerText;
+            document.getElementById("team1Title").innerText = selectedTeamHomeDisplay;
+            document.getElementById("team2Title").innerText = selectedTeamVisitDisplay;
+        }
+
+        // Atualiza as tabelas se houver times selecionados
+        if (selectedTeam1 && selectedTeam2) {
+            console.log("Atualizando tabelas para:", selectedTeam1, selectedTeam2);
+            await analisar();
+        } else {
+            console.log("Nenhum time selecionado para atualizar tabelas");
+        }
+    } catch (error) {
+        console.error("Erro ao carregar próximos jogos para minutos:", error);
+        const container = document.getElementById("nextGamesMinutesContainer");
+        container.innerHTML = `<div class="game-card">Erro ao carregar jogos: ${error.message}</div>`;
+        // Mantém as tabelas com a última seleção válida
+        if (selectedTeam1 && selectedTeam2) {
+            console.log("Mantendo tabelas com seleção anterior:", selectedTeam1, selectedTeam2);
+            await analisar();
+        }
+    }
+}
+
+window.selectGameForMinutes = function(card, teamHome, teamVisit, teamHomeDisplay, teamVisitDisplay) {
+    document.querySelectorAll('#nextGamesMinutesContainer .game-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedTeam1 = teamHome;
+    selectedTeam2 = teamVisit;
+    selectedTeamHomeDisplay = teamHomeDisplay;
+    selectedTeamVisitDisplay = teamVisitDisplay;
+    document.getElementById("team1Title").innerText = teamHomeDisplay;
+    document.getElementById("team2Title").innerText = teamVisitDisplay;
+    console.log("Jogo selecionado:", teamHome, teamVisit);
+    analisar();
+};
+
+function analisarMercados(jogos, timeSelecionado) {
+    const analise = {};
+
+    jogos.forEach((jogo) => {
+        const timeA = removeAccents(jogo.time_a);
+        const timeB = removeAccents(jogo.time_b);
+        if (timeA === timeSelecionado || timeB === timeSelecionado) {
+            const minuto = jogo.minuto;
+            const ftGols = jogo.ft ? jogo.ft.split(" x ").map(Number) : [0, 0];
+            const timeAGols = ftGols[0];
+            const timeBGols = ftGols[1];
+            const totalGols = timeAGols + timeBGols;
+
+            if (!analise[minuto]) {
+                analise[minuto] = {
+                    ambasMarcamSim: 0,
+                    ambasMarcamNao: 0,
+                    over15: 0,
+                    under15: 0,
+                    over25: 0,
+                    under25: 0,
+                    over35: 0,
+                    under35: 0,
+                    casa: 0,
+                    fora: 0,
+                    empate: 0,
+                    total: 0,
+                };
+            }
+
+            analise[minuto].total += 1;
+
+            if (timeAGols > 0 && timeBGols > 0) analise[minuto].ambasMarcamSim += 1;
+            if (timeAGols === 0 || timeBGols === 0) analise[minuto].ambasMarcamNao += 1;
+
+            if (totalGols > 1.5) analise[minuto].over15 += 1;
+            if (totalGols <= 1.5) analise[minuto].under15 += 1;
+
+            if (totalGols > 2.5) analise[minuto].over25 += 1;
+            if (totalGols <= 2.5) analise[minuto].under25 += 1;
+
+            if (totalGols > 3.5) analise[minuto].over35 += 1;
+            if (totalGols <= 3.5) analise[minuto].under35 += 1;
+
+            if (timeAGols > timeBGols) analise[minuto].casa += 1;
+            if (timeBGols > timeAGols) analise[minuto].fora += 1;
+            if (timeAGols === timeBGols) analise[minuto].empate += 1;
+        }
+    });
+
+    return analise;
+}
+
+function gerarTabela(analise, tableId, teamName) {
+    const table = document.getElementById(tableId);
+    const tbody = table.querySelector("tbody");
+    const thead = table.querySelector("thead tr");
+
+    tbody.innerHTML = "";
+    thead.innerHTML = "<th>Mercado</th>";
+
+    const minutos = Object.keys(analise).sort((a, b) => Number(a) - Number(b));
+    minutos.forEach((minuto) => {
+        const th = document.createElement("th");
+        th.innerText = minuto;
+        thead.appendChild(th);
+    });
+
+    const mercados = [
+        { class: "mercado-ambas-marcam", label: "Ambas", yes: "ambasMarcamSim", no: "ambasMarcamNao" },
+        { class: "mercado-over15", label: "1.5", over: "over15", under: "under15" },
+        { class: "mercado-over25", label: "2.5", over: "over25", under: "under25" },
+        { class: "mercado-over35", label: "3.5", over: "over35", under: "under35" },
+        { class: "mercado-resultado", label: "C/F/E", casa: "casa", fora: "fora", empate: "empate" },
+    ];
+
+    mercados.forEach((mercado) => {
+        const tr = document.createElement("tr");
+        tr.classList.add(mercado.class);
+
+        const td = document.createElement("td");
+        td.classList.add("mercado-header");
+        td.innerText = mercado.label;
+        tr.appendChild(td);
+
+        minutos.forEach((minuto) => {
+            const td = document.createElement("td");
+            const dados = analise[minuto] || { total: 0 };
+            let texto = "";
+
+            if (mercado.yes && mercado.no) {
+                const simPercent = dados[mercado.yes] && dados.total ? (dados[mercado.yes] / dados.total) * 100 : 0;
+                const naoPercent = dados[mercado.no] && dados.total ? (dados[mercado.no] / dados.total) * 100 : 0;
+                texto = `S:${simPercent.toFixed(0)}%\nN:${naoPercent.toFixed(0)}%`;
+            }
+
+            if (mercado.over && mercado.under) {
+                const overPercent = dados[mercado.over] && dados.total ? (dados[mercado.over] / dados.total) * 100 : 0;
+                const underPercent = dados[mercado.under] && dados.total ? (dados[mercado.under] / dados.total) * 100 : 0;
+                texto = `O:${overPercent.toFixed(0)}%\nU:${underPercent.toFixed(0)}%`;
+            }
+
+            if (mercado.casa && mercado.fora && mercado.empate) {
+                const casaPercent = dados[mercado.casa] && dados.total ? (dados[mercado.casa] / dados.total) * 100 : 0;
+                const foraPercent = dados[mercado.fora] && dados.total ? (dados[mercado.fora] / dados.total) * 100 : 0;
+                const empatePercent = dados[mercado.empate] && dados.total ? (dados[mercado.empate] / dados.total) * 100 : 0;
+                texto = `C:${casaPercent.toFixed(0)}%\nF:${foraPercent.toFixed(0)}%\nE:${empatePercent.toFixed(0)}%`;
+            }
+
+            td.innerHTML = texto.replace(/\n/g, "<br>");
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+}
+
+async function analisar() {
+    if (!selectedTeam1 || !selectedTeam2) {
+        console.log("Nenhum time selecionado, pulando análise");
+        return;
+    }
+
+    const jogos = await carregarJogos();
+
+    // Analisa os dados para o Time 1
+    const analiseTeam1 = analisarMercados(jogos, selectedTeam1);
+    gerarTabela(analiseTeam1, "team1-tabela-resultados", selectedTeam1);
+
+    // Analisa os dados para o Time 2
+    const analiseTeam2 = analisarMercados(jogos, selectedTeam2);
+    gerarTabela(analiseTeam2, "team2-tabela-resultados", selectedTeam2);
+    console.log("Tabelas atualizadas para:", selectedTeam1, selectedTeam2);
+}
+
+// Inicialização
+loadNextGamesForMinutes();
+const updateInterval = setInterval(async () => {
+    console.log("Executando atualização periódica dos jogos...");
+    await loadNextGamesForMinutes();
+}, 15000);
+    </script>
+
+    <script>
+async function fetchChartData() {
+  try {
+    const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar dados: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Erro ao obter os dados:", error);
+    return [];
+  }
+}
+
+const ctxGols = document.getElementById("golsChart").getContext("2d");
+
+const golsChartData = {
+  labels: [],
+  datasets: [
+    {
+      label: "Gols Barra",
+      data: [],
+      backgroundColor: "rgba(255, 255, 0, 0.5)",
+      borderColor: "rgba(255, 255, 0, 1)",
+      borderWidth: 2,
+    },
+  ],
+};
+
+const golsChart = new Chart(ctxGols, {
+  type: "bar",
+  data: golsChartData,
+  options: {
+    scales: {
+      y: {
+        position: "right",
+        min: 0,
+        max: 8,
+        beginAtZero: true,
+        ticks: {
+          stepSize: 1,
+          color: "white",
+        },
+        grid: {
+          color: "rgba(255, 255, 255, 0.3)",
+          drawBorder: false,
+        },
+      },
+      x: {
+        grid: { color: "rgba(0, 0, 0, 0)" },
+        ticks: {
+          color: "white",
+          display: false,
+        },
+      },
+    },
+    responsive: true,
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          filter: function (legendItem, chart) {
+            // 👇 Não mostra "Gols Barra" na legenda
+            return legendItem.text !== "Gols Barra";
+          },
+        },
+      },
+      tooltip: {
+        enabled: true,
+        callbacks: {
+          title: (context) => `Hora: ${context[0].label}`,
+          label: (context) => {
+            const index = context.dataIndex;
+            const placar = golsChart.lastData?.[index]?.ft || "N/A";
+            return `Placar: ${placar}`;
+          },
+        },
+      },
+      annotation: {
+        annotations: {
+          maxLine: {
+            type: "line",
+            yMin: 8,
+            yMax: 8,
+            borderColor: "red",
+            borderWidth: 2,
+            label: {
+              content: "Máximo: 8 Gols",
+              enabled: true,
+              position: "end",
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
+
+function isOrdered(data) {
+  for (let i = 1; i < data.length; i++) {
+    const currentDate = new Date(data[i].data);
+    const previousDate = new Date(data[i - 1].data);
+
+    if (currentDate < previousDate) return false;
+    if (currentDate.getTime() === previousDate.getTime()) {
+      if (
+        data[i].hora < data[i - 1].hora ||
+        (data[i].hora === data[i - 1].hora && data[i].minuto < data[i - 1].minuto)
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function removeDuplicates(data) {
+  const uniqueGames = new Set();
+  return data.filter((item) => {
+    const gameKey = `${item.data}-${item.hora}-${item.minuto}-${item.ft}`;
+    if (uniqueGames.has(gameKey)) return false;
+    uniqueGames.add(gameKey);
+    return true;
+  });
+}
+
+function getBarColor(goals) {
+  const floorGoals = Math.floor(goals); // Handle any non-integer cases, though goals are typically integers.
+  let background, border;
+
+  switch (floorGoals) {
+    case 0:
+      background = 'rgba(255, 0, 0, 0.5)'; // Red
+      border = 'rgba(255, 0, 0, 1)';
+      break;
+    case 1:
+      background = 'rgba(0, 0, 255, 0.5)'; // Blue
+      border = 'rgba(0, 0, 255, 1)';
+      break;
+    case 2:
+      background = 'rgba(255, 255, 255, 0.5)'; // White (may need adjustment if background is light; consider 'rgba(220, 220, 220, 0.5)' for better visibility if needed)
+      border = 'rgba(255, 255, 255, 1)';
+      break;
+    case 3:
+      background = 'rgba(0, 128, 0, 0.5)'; // Green (darker shade for distinction from yellow)
+      border = 'rgba(0, 128, 0, 1)';
+      break;
+    case 4:
+      background = 'rgba(255, 255, 0, 0.5)'; // Yellow
+      border = 'rgba(255, 255, 0, 1)';
+      break;
+    case 5:
+      background = 'rgba(200, 162, 200, 0.5)'; // Lilac (light purple)
+      border = 'rgba(200, 162, 200, 1)';
+      break;
+    case 6:
+      background = 'rgba(128, 0, 128, 0.5)'; // Purple (darker for distinction from lilac)
+      border = 'rgba(128, 0, 128, 1)';
+      break;
+    case 7:
+      background = 'rgba(255, 165, 0, 0.5)'; // Orange (distinct from yellow/red)
+      border = 'rgba(255, 165, 0, 1)';
+      break;
+    case 8:
+      background = 'rgba(0, 255, 255, 0.5)'; // Cyan (distinct blue-green)
+      border = 'rgba(0, 255, 255, 1)';
+      break;
+    default:
+      background = 'rgba(128, 128, 128, 0.5)'; // Gray fallback for >8 or errors
+      border = 'rgba(128, 128, 128, 1)';
+      break;
+  }
+
+  return { background, border };
+}
+
+async function updateGolsChart() {
+  const fetchedData = await fetchChartData();
+  const uniqueData = removeDuplicates(fetchedData);
+
+  if (!isOrdered(uniqueData)) {
+    uniqueData.sort((a, b) => {
+      const dateA = new Date(a.data);
+      const dateB = new Date(b.data);
+      if (dateA < dateB) return -1;
+      if (dateA > dateB) return 1;
+      if (a.hora < b.hora) return -1;
+      if (a.hora > b.hora) return 1;
+      return a.minuto - b.minuto;
+    });
+  }
+
+  const selectedPoints = parseInt(document.getElementById('pointsSelectorGolsPlus').value) || 160;
+  const lastData = uniqueData.slice(-selectedPoints);
+  golsChart.lastData = lastData;
+
+  const labels = lastData.map((item) => {
+    const hora = item.hora.toString().padStart(2, "0");
+    const minuto = item.minuto.toString().padStart(2, "0");
+    return `${hora}:${minuto}`;
+  });
+
+  const somaGolsData = lastData.map((item) => {
+    const [golsA, golsB] = item.ft.split(" x ").map(Number);
+    if (isNaN(golsA) || isNaN(golsB)) {
+      console.error(`Erro ao processar placar: ${item.ft}`);
+      return 0.1;
+    }
+    return golsA + golsB || 0.5;
+  });
+
+  const backgroundColors = somaGolsData.map(goals => getBarColor(goals).background);
+  const borderColors = somaGolsData.map(goals => getBarColor(goals).border);
+
+  golsChart.data.labels = labels;
+  golsChart.data.datasets[0].data = somaGolsData;
+  golsChart.data.datasets[0].backgroundColor = backgroundColors;
+  golsChart.data.datasets[0].borderColor = borderColors;
+  golsChart.update();
+}
+
+// Adiciona listener para atualizar o gráfico quando o seletor mudar
+document.getElementById('pointsSelectorGolsPlus').addEventListener('change', updateGolsChart);
+
+setInterval(updateGolsChart, 5000);
+updateGolsChart();
 
 </script>
    
@@ -5039,7 +5552,7 @@ loadNextGamesForMinutes();
     [45, 48, 51, 54, 57]  // Bloco 4
     ];
 
-    // --- MAPEAMENTO DE MERCADOS OPOSTOS ---
+   // --- MAPEAMENTO DE MERCADOS OPOSTOS ---
     const counterMarketMap = {
         'ambasMarcam':    'ambasNaoMarcam',
         'ambasNaoMarcam': 'ambasMarcam',
@@ -5345,7 +5858,7 @@ loadNextGamesForMinutes();
 </script>
 
 <script>
- // --- LÓGICA DO ACORDEÃO ---
+// --- LÓGICA DO ACORDEÃO ---
 function toggleAccordion(buttonElement) {
     const content = buttonElement.nextElementSibling;
     content.classList.toggle('active');
@@ -6280,14 +6793,6 @@ console.info = function() {};
 
 
 
-<script>
-  fetch('header.html')
-    .then(response => response.text())
-    .then(data => {
-      document.getElementById('header').innerHTML = data;
-    });
-</script>
-
     <script>
 /* ═══════════════════════════════════════════════════════════════════
    MODO TRADER v5 
@@ -6915,7 +7420,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 setInterval(traderUpdate,3000);
     </script>
 
-    <script>
+        <script>
         /* ═══════════════════════════════════════════════════════════════
    TRADER STATE v1 — Liga 20 jogos
    Salva e restaura: seletores, toggles, acordeão
@@ -7075,7 +7580,6 @@ setInterval(traderUpdate,3000);
     }
 })();
     </script>
-<script src="redirecionar.js"></script>
 
     <script src="marcador.js"></script>
 
