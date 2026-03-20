@@ -1056,13 +1056,13 @@
                                 <label>
                                     <span class="mt-mm-dot green"></span>MM1 Periodo
                                 </label>
-                                <input type="number" id="traderMM1Period" value="10" min="2" max="200">
+                                <input type="number" id="traderMM1Period" value="9" min="2" max="200">
                             </div>
                             <div class="mt-cfg-row">
                                 <label>
                                     <span class="mt-mm-dot red"></span>MM2 Periodo
                                 </label>
-                                <input type="number" id="traderMM2Period" value="20" min="2" max="200">
+                                <input type="number" id="traderMM2Period" value="21" min="2" max="200">
                             </div>
                         </div>
 
@@ -7452,8 +7452,8 @@ let traderMacdFast       = 12;
 let traderMacdSlow       = 26;
 let traderMacdSignal     = 9;
 let traderRsiPeriod      = 14;
-let traderMM1Period      = 10;
-let traderMM2Period      = 20;
+let traderMM1Period      = 9;
+let traderMM2Period      = 21;
 let traderSelectedMarket = 'ambasMarcam';
 let traderChartInstance  = null;
 let traderMacdInstance   = null;
@@ -7499,8 +7499,8 @@ function traderLoadSettings() {
         traderMacdSlow       = s.macdSlow   || 26;
         traderMacdSignal     = s.macdSignal || 9;
         traderRsiPeriod      = s.rsiPeriod  || 14;
-        traderMM1Period      = s.mm1        || 10;
-        traderMM2Period      = s.mm2        || 20;
+        traderMM1Period      = s.mm1        || 9;
+        traderMM2Period      = s.mm2        || 21;
         _traderSyncDOM();
     } catch {}
 }
@@ -8199,6 +8199,31 @@ function traderUpdateMacdChart(){
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   ATUALIZAR APENAS AS MEDIAS MOVEIS — sem recriar grafico, sem piscar
+══════════════════════════════════════════════════════════════════ */
+function _traderUpdateMAs() {
+    if(!traderChartInstance || !traderProcessedData.labels) return;
+    const selKey   = TRADER_SELECT_TO_KEY[traderSelectedMarket];
+    const selLabel = _traderSelLabel();
+    const serie    = traderProcessedData[selKey] || [];
+
+    /* recalcula com os novos periodos */
+    const newShort = traderComputeMA(serie, traderMM1Period);
+    const newLong  = traderComputeMA(serie, traderMM2Period);
+
+    /* persiste no cache para que traderUpdateMercadosChart use os valores corretos depois */
+    traderProcessedData[selKey+'Short'] = newShort;
+    traderProcessedData[selKey+'Long']  = newLong;
+
+    const ds = traderChartInstance.data.datasets;
+    if(ds[1]){ ds[1].label = `${selLabel} - MM${traderMM1Period}`; ds[1].data = newShort; }
+    if(ds[2]){ ds[2].label = `${selLabel} - MM${traderMM2Period}`; ds[2].data = newLong;  }
+
+    /* 'none' = sem animacao, zero pisca */
+    traderChartInstance.update('none');
+}
+
+/* ══════════════════════════════════════════════════════════════════
    FETCH + ATUALIZACAO PRINCIPAL
 ══════════════════════════════════════════════════════════════════ */
 function traderUpdate(){
@@ -8303,23 +8328,25 @@ document.addEventListener('DOMContentLoaded', () => {
         traderCongestaoQtd=parseInt(this.value,10)||2; traderSaveSettings(); traderChartInstance?.update();
     });
 
-    /* ── MM1 e MM2 ── */
+    /* ── MM1 e MM2 — atualiza apenas as linhas, sem recriar grafico ── */
     document.getElementById('traderMM1Period')?.addEventListener('change', function(){
-        traderMM1Period=parseInt(this.value,10)||10;
+        traderMM1Period = parseInt(this.value,10) || 9;
         traderSaveSettings();
-        traderLastHash=null; _traderDestroyCharts(); traderUpdate();
+        _traderUpdateMAs();
     });
     document.getElementById('traderMM2Period')?.addEventListener('change', function(){
-        traderMM2Period=parseInt(this.value,10)||20;
+        traderMM2Period = parseInt(this.value,10) || 21;
         traderSaveSettings();
-        traderLastHash=null; _traderDestroyCharts(); traderUpdate();
+        _traderUpdateMAs();
     });
 
     document.getElementById('traderBtnResetConfig')?.addEventListener('click', ()=>{
-        traderMacdFast=12;traderMacdSlow=26;traderMacdSignal=9;traderRsiPeriod=14;traderCongestaoQtd=2;
-        traderMM1Period=10;traderMM2Period=20;
+        traderMacdFast=12; traderMacdSlow=26; traderMacdSignal=9; traderRsiPeriod=14; traderCongestaoQtd=2;
+        traderMM1Period=9;  traderMM2Period=21;
         _traderSyncDOM(); traderSaveSettings();
-        traderLastHash=null; _traderDestroyCharts(); traderUpdate();
+        _traderUpdateMAs();
+        traderUpdateMacdChart();
+        traderChartInstance?.update();
     });
     document.getElementById('traderBtnLinhaTools')?.addEventListener('click', e=>_mtTogglePanel('mtLinhaPainel',e));
     document.getElementById('traderBtnConfig')?.addEventListener('click',     e=>_mtTogglePanel('mtConfigPainel',e));
