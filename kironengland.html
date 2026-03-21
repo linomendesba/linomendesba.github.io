@@ -7042,18 +7042,14 @@ function traderAtualizarGrafico(){
     let pontosSelecionado=[];
     let mm1=[],mm2=[],maxValor=0,minValor=0,contagem={},maisFrequentes=[];
 
-    /* ── Modo Fixa: sempre renderiza tipoLinha como série principal.
-       Modo Livre: renderiza todos os tipos visíveis na legenda.
-       Em ambos os casos, tipoLinha é sempre calculado para alimentar
-       MM, RSI, MACD e topo/fundo. ── */
-    const tiposSecundarios = modoFixo
-        ? []
-        : Object.keys(TRADER_CORES).filter(t => traderVisibilidade[t] && t !== tipoLinha);
+    /* ── Modo Fixa ON : linha branca visível, sem coloridas.
+       Modo Fixa OFF: linha branca SOME, apenas coloridas da legenda.
+       pontosSelecionado sempre calculado (alimenta MM, RSI, MACD). ── */
 
-    /* Sempre calcula a série do tipoLinha (série principal branca) */
+    /* Calcula sempre a série do tipoLinha para MM/RSI/MACD/topo/fundo */
     {
-        const tipo = tipoLinha;
-        const bR = blocos[blocos.length-1];
+        const tipo=tipoLinha;
+        const bR=blocos[blocos.length-1];
         let pts;
         if(tipo==='Total Gols (FT)'||tipo==='Gols Casa (FT)'||tipo==='Gols Fora (FT)'){
             const getFn=tipo==='Gols Casa (FT)'?j=>j.casa:tipo==='Gols Fora (FT)'?j=>j.fora:j=>j.casa+j.fora;
@@ -7066,23 +7062,24 @@ function traderAtualizarGrafico(){
             for(let b=totalBlocos-2;b>=0;b--)for(let i=29;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipo),r=traderVerificarCondicao(blocos[b+1][i],tipo);pts.push(pts[pts.length-1]+(a&&!r?(100/30):(!a&&r?-(100/30):0)));}
         }
         pontosSelecionado=pts;
-
-        /* Cores dos pontos da série principal */
-        const pointBg=[],pointBorder=[];
-        for(let b=totalBlocos-2;b>=0;b--)for(let i=29;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipoLinha),r=traderVerificarCondicao(blocos[b+1][i],tipoLinha);if(a&&r){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}else if(!a&&!r){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}}
-        pointBg.unshift('#1e1e1e');pointBorder.unshift('rgb(204,204,204)');
-
-        datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pts,borderColor:'#fff',borderWidth:2.3,pointRadius:2.3,pointHoverRadius:2,pointBackgroundColor:pointBg,pointBorderColor:pointBorder,fill:false,tension:0.1,order:0,_tipo:tipoLinha,_showPointLabels:mostrarNumeros});
-
         mm1=traderCalcMM(pts,periodoMM1);
         mm2=traderCalcMM(pts,periodoMM2);
         maxValor=Math.max(...pts);
         minValor=Math.min(...pts);
         pts.forEach(v=>{const a=Math.round(v);contagem[a]=(contagem[a]||0)+1;});
         maisFrequentes=Object.entries(contagem).sort((a,b)=>b[1]-a[1]).slice(0,linhasCongestao).map(e=>parseFloat(e[0]));
+
+        /* Só adiciona a linha branca ao gráfico se Fixa=ON */
+        if(modoFixo){
+            const pointBg=[],pointBorder=[];
+            for(let b=totalBlocos-2;b>=0;b--)for(let i=29;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipoLinha),r=traderVerificarCondicao(blocos[b+1][i],tipoLinha);if(a&&r){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}else if(!a&&!r){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}}
+            pointBg.unshift('#1e1e1e');pointBorder.unshift('rgb(204,204,204)');
+            datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pts,borderColor:'#fff',borderWidth:2.3,pointRadius:2.3,pointHoverRadius:2,pointBackgroundColor:pointBg,pointBorderColor:pointBorder,fill:false,tension:0.1,order:0,_tipo:tipoLinha,_showPointLabels:mostrarNumeros});
+        }
     }
 
-    /* Séries secundárias — apenas no modo Livre */
+    /* Séries coloridas — apenas no modo Livre (Fixa OFF), todos os visíveis na legenda */
+    const tiposSecundarios=modoFixo?[]:Object.keys(TRADER_CORES).filter(t=>traderVisibilidade[t]);
     for(const tipo of tiposSecundarios){
         const bR=blocos[blocos.length-1];
         let pts;
