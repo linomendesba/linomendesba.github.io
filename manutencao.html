@@ -6321,27 +6321,28 @@ function traderAtualizarGrafico(){
     const canvasMkt=document.getElementById('traderMercadosCanvas');if(!canvasMkt)return;
 
     /* ── Posicionador custom: evita colar nas bordas esquerda/direita e afasta mais do cursor ── */
-    if(!Chart.Tooltip.positioners.seguirLonge){
-        Chart.Tooltip.positioners.seguirLonge=function(els,pos){
-            if(!els||!els.length)return{x:0,y:0};
-            const chart=this.chart;
-            const {left,right,top,bottom}=chart.chartArea;
-            const OFFSET_X=22, OFFSET_Y=16, MARGIN=8;
-            const ttW=this.width||180;
-            const ttH=this.height||80;
-            let x=pos.x+OFFSET_X;
-            let y=pos.y-OFFSET_Y;
-            /* Não colar na borda direita */
-            if(x+ttW>right-MARGIN)x=pos.x-OFFSET_X-ttW;
-            /* Não colar na borda esquerda */
-            if(x<left+MARGIN)x=left+MARGIN;
-            /* Não sair pelo topo */
-            if(y<top+MARGIN)y=top+MARGIN;
-            /* Não sair pela base */
-            if(y+ttH>bottom-MARGIN)y=bottom-ttH-MARGIN;
-            return{x,y};
-        };
-    }
+    /* Ancora no elemento ativo, inverte lado automaticamente nas bordas */
+    Chart.Tooltip.positioners.seguirLonge=function(els){
+        if(!els||!els.length)return false;
+        const chart=this.chart;
+        const area=chart?.chartArea;
+        if(!chart||!area)return false;
+        const el=els[0].element;
+        const baseX=el.x;
+        const baseY=el.y;
+        const ttW=this.width||200;
+        const ttH=this.height||100;
+        const DX=35;
+        const pad=12;
+        let x,al;
+        if(baseX+DX+ttW<=area.right-pad){x=baseX+DX;al='left';}
+        else{x=baseX-DX-ttW;al='right';}
+        x=Math.max(area.left+pad,Math.min(x,area.right-ttW-pad));
+        let y=baseY;
+        y=Math.max(area.top+pad,Math.min(y,area.bottom-ttH-pad));
+        try{chart.options.plugins.tooltip.xAlign=al;chart.options.plugins.tooltip.yAlign='top';}catch{}
+        return{x,y};
+    };
 
     TRADER_CHART=new Chart(canvasMkt.getContext('2d'),{
         type:'line',
@@ -6635,7 +6636,26 @@ function _traderWireCrosshair(){
 }
 
 function _traderSetAlturas(){const hP=parseInt(document.getElementById('traderAltPrincipal')?.value||'270',10);const hM=parseInt(document.getElementById('traderAltMacd')?.value||'135',10);const wP=document.getElementById('traderMercadosWrap');const wM=document.getElementById('traderMacdWrap');if(wP)wP.style.height=hP+'px';if(wM)wM.style.height=hM+'px';TRADER_CHART?.resize();TRADER_MACD_CHART?.resize();}
-function _traderTogglePanel(id,e){e.stopPropagation();const p=document.getElementById(id);if(!p)return;document.querySelectorAll('.mt-fp.on,.mt-cfg.on').forEach(x=>{if(x.id!==id)x.classList.remove('on');});p.classList.toggle('on');}
+function _traderTogglePanel(id,e){
+    e.stopPropagation();
+    const p=document.getElementById(id);if(!p)return;
+    document.querySelectorAll('.mt-fp.on,.mt-cfg.on').forEach(x=>{if(x.id!==id)x.classList.remove('on');});
+    const wasOn=p.classList.contains('on');
+    p.classList.toggle('on');
+    if(!wasOn){
+        /* Posiciona o painel fixo abaixo do botao que o abriu */
+        const btn=e.currentTarget;
+        const br=btn.getBoundingClientRect();
+        p.style.top=(br.bottom+5)+'px';
+        /* Alinha pela direita do botao, garantindo que nao saia da janela */
+        const pw=p.offsetWidth||250;
+        let left=br.right-pw;
+        if(left<8)left=8;
+        if(left+pw>window.innerWidth-8)left=window.innerWidth-pw-8;
+        p.style.left=left+'px';
+        p.style.right='';
+    }
+}
 
 let _traderLastHash=null;
 async function traderUpdate(){
@@ -6673,6 +6693,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('traderBtnLinhaTools')?.addEventListener('click',e=>_traderTogglePanel('mtLinhaPainel',e));
     document.getElementById('traderBtnConfig')?.addEventListener('click',e=>_traderTogglePanel('mtConfigPainel',e));
     document.addEventListener('click',e=>{[['mtLinhaPainel','traderBtnLinhaTools'],['mtConfigPainel','traderBtnConfig']].forEach(([pid,bid])=>{const p=document.getElementById(pid);if(p&&!p.contains(e.target)&&e.target.id!==bid)p.classList.remove('on');});});
+    /* Fecha paineis se a pagina for scrollada (evita painel flutuante desalinhado) */
+    window.addEventListener('scroll',()=>{document.querySelectorAll('.mt-fp.on,.mt-cfg.on').forEach(p=>p.classList.remove('on'));},{passive:true});
     ['mtLinhaPainel','mtConfigPainel'].forEach(id=>document.getElementById(id)?.addEventListener('click',e=>e.stopPropagation()));
     window.addEventListener('keydown',e=>{if((e.key==='Delete'||e.key==='Backspace')&&document.activeElement===document.body)window.traderDeletarLinha?.();});
 
