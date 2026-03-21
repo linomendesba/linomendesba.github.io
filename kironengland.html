@@ -7013,35 +7013,6 @@ function traderSetHighlight(tipo=null){
     TRADER_CHART.update('none');
 }
 
-/* ════════════════════════════════════════════════════════════
-   FUNÇÃO CENTRAL: calcula série de pontos para um tipo
-   Usa blocos de 30 e calcula pct real por bloco (0-100%)
-   ════════════════════════════════════════════════════════════ */
-function _traderCalcSerie(tipo, blocos, totalBlocos){
-    /* A série vai do bloco mais antigo (índice 0) ao mais recente (totalBlocos-1).
-       Construímos da esquerda para a direita para que o gráfico fique na ordem
-       cronológica correta (mais antigo → mais recente). */
-    const pts=[];
-
-    if(tipo==='Total Gols (FT)'||tipo==='Gols Casa (FT)'||tipo==='Gols Fora (FT)'){
-        const getFn=tipo==='Gols Casa (FT)'?j=>j.casa:tipo==='Gols Fora (FT)'?j=>j.fora:j=>j.casa+j.fora;
-        for(let b=0;b<totalBlocos;b++){
-            const bloco=blocos[b];
-            const med=bloco.reduce((s,j)=>s+getFn(j),0)/bloco.length;
-            pts.push(med*30);
-        }
-    } else {
-        for(let b=0;b<totalBlocos;b++){
-            const bloco=blocos[b];
-            const cond=bloco.filter(j=>traderVerificarCondicao(j,tipo)).length;
-            pts.push(cond/bloco.length*100);
-        }
-    }
-
-    /* Inverte para que o ponto [0] seja o mais recente (igual ao layout do gráfico) */
-    return pts.reverse();
-}
-
 function traderAtualizarGrafico(){
     if(!TRADER_RESULTADOS.length)return;
     traderSaveCfg();
@@ -7063,88 +7034,71 @@ function traderAtualizarGrafico(){
     const tipoLinha=tipoFT||tipoHT||'over25';
 
     const usados=TRADER_RESULTADOS.slice(0,qtd);
-    /* Blocos de 30 — índice 0 = bloco mais antigo, último = mais recente */
-    const totalBlocos=Math.floor(usados.length/30);
-    if(!totalBlocos)return;
-    /* Monta os blocos do mais antigo ao mais recente */
-    const jogosOrdenados=[...usados].reverse(); // mais antigos primeiro
-    const blocos=[];
-    for(let i=0;i<totalBlocos;i++)blocos.push(jogosOrdenados.slice(i*30,i*30+30));
+    const blocos=[],totalBlocos=Math.floor(usados.length/30);
+    for(let i=0;i<totalBlocos;i++)blocos.push(usados.slice(i*30,i*30+30));
+    if(!blocos.length)return;
 
     const datasets=[];
     let pontosSelecionado=[];
     let mm1=[],mm2=[],maxValor=0,minValor=0,contagem={},maisFrequentes=[];
 
-    /* No modo Fixa, sempre calcula a série do tipoLinha (mesmo que não esteja na legenda).
-       No modo Livre, calcula apenas os tipos visíveis na legenda. */
-    const tiposParaRenderizar=modoFixo
-        ? [tipoLinha]
-        : Object.keys(TRADER_CORES).filter(t=>traderVisibilidade[t]);
+    /* ── Modo Fixa: sempre renderiza tipoLinha como série principal.
+       Modo Livre: renderiza todos os tipos visíveis na legenda.
+       Em ambos os casos, tipoLinha é sempre calculado para alimentar
+       MM, RSI, MACD e topo/fundo. ── */
+    const tiposSecundarios = modoFixo
+        ? []
+        : Object.keys(TRADER_CORES).filter(t => traderVisibilidade[t] && t !== tipoLinha);
 
-    for(const tipo of tiposParaRenderizar){
-        const pts=_traderCalcSerie(tipo,blocos,totalBlocos);
-
-        if(tipo===tipoLinha){
-            /* Série principal — branca + pontos coloridos */
-            pontosSelecionado=pts;
-            /* Cores dos pontos: verde se condição mantida, vermelho se perdida, neutro se mudou */
-            const bR=blocos[blocos.length-1]; // bloco mais recente
-            const pointBg=[],pointBorder=[];
-            /* pts[0] = mais recente → mapeamos de trás para frente nos blocos */
-            const bCron=[...blocos].reverse(); // [0]=mais recente
-            for(let b=0;b<bCron.length;b++){
-                const bloco=bCron[b];
-                const prev=bCron[b+1]||null;
-                for(let i=bloco.length-1;i>=0;i--){
-                    const aAtual=traderVerificarCondicao(bloco[i],tipoLinha);
-                    const aAnterior=prev?traderVerificarCondicao(prev[i]||prev[prev.length-1],tipoLinha):null;
-                    if(aAnterior===null){pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}
-                    else if(aAtual&&aAnterior){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}
-                    else if(!aAtual&&!aAnterior){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}
-                    else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}
-                }
-            }
-            /* Ajusta tamanho ao número de pontos */
-            while(pointBg.length<pts.length){pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}
-            const pBg=pointBg.slice(0,pts.length);
-            const pBr=pointBorder.slice(0,pts.length);
-
-            datasets.push({
-                label:tipoLinha.replace(/_/g,' ').toUpperCase(),
-                data:pts,
-                borderColor:'#fff',borderWidth:2.3,
-                pointRadius:2.3,pointHoverRadius:2,
-                pointBackgroundColor:pBg,pointBorderColor:pBr,
-                fill:false,tension:0.1,order:0,
-                _tipo:tipoLinha,_showPointLabels:mostrarNumeros
-            });
-
-            mm1=traderCalcMM(pts,periodoMM1);
-            mm2=traderCalcMM(pts,periodoMM2);
-            maxValor=Math.max(...pts);
-            minValor=Math.min(...pts);
-            pts.forEach(v=>{const a=Math.round(v);contagem[a]=(contagem[a]||0)+1;});
-            maisFrequentes=Object.entries(contagem).sort((a,b)=>b[1]-a[1]).slice(0,linhasCongestao).map(e=>parseFloat(e[0]));
+    /* Sempre calcula a série do tipoLinha (série principal branca) */
+    {
+        const tipo = tipoLinha;
+        const bR = blocos[blocos.length-1];
+        let pts;
+        if(tipo==='Total Gols (FT)'||tipo==='Gols Casa (FT)'||tipo==='Gols Fora (FT)'){
+            const getFn=tipo==='Gols Casa (FT)'?j=>j.casa:tipo==='Gols Fora (FT)'?j=>j.fora:j=>j.casa+j.fora;
+            const med=bR.reduce((s,j)=>s+getFn(j),0)/bR.length;
+            pts=[med*30];
+            for(let b=totalBlocos-2;b>=0;b--)for(let i=29;i>=0;i--){const a=blocos[b][i],ref=blocos[b+1][i];if(!a||!ref)continue;pts.push(pts[pts.length-1]+(getFn(a)-getFn(ref)));}
         } else {
-            /* Séries secundárias (modo Livre) */
-            let cor=TRADER_CORES[tipo]||'#888';
-            if(cor.toLowerCase()==='#ffff00')cor='#C6B74E';
-            datasets.push({
-                label:tipo.replace(/_/g,' ').toUpperCase(),
-                data:pts,
-                borderColor:cor,borderWidth:1.5,
-                pointRadius:2,pointHoverRadius:4,
-                pointBackgroundColor:'#1e1e1e',pointBorderColor:cor,
-                fill:false,tension:0.1,order:1,
-                _tipo:tipo,_showPointLabels:mostrarNumeros
-            });
+            const totalCond=bR.filter(j=>traderVerificarCondicao(j,tipo)).length;
+            pts=[totalCond/bR.length*100];
+            for(let b=totalBlocos-2;b>=0;b--)for(let i=29;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipo),r=traderVerificarCondicao(blocos[b+1][i],tipo);pts.push(pts[pts.length-1]+(a&&!r?(100/30):(!a&&r?-(100/30):0)));}
         }
+        pontosSelecionado=pts;
+
+        /* Cores dos pontos da série principal */
+        const pointBg=[],pointBorder=[];
+        for(let b=totalBlocos-2;b>=0;b--)for(let i=29;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipoLinha),r=traderVerificarCondicao(blocos[b+1][i],tipoLinha);if(a&&r){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}else if(!a&&!r){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}}
+        pointBg.unshift('#1e1e1e');pointBorder.unshift('rgb(204,204,204)');
+
+        datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pts,borderColor:'#fff',borderWidth:2.3,pointRadius:2.3,pointHoverRadius:2,pointBackgroundColor:pointBg,pointBorderColor:pointBorder,fill:false,tension:0.1,order:0,_tipo:tipoLinha,_showPointLabels:mostrarNumeros});
+
+        mm1=traderCalcMM(pts,periodoMM1);
+        mm2=traderCalcMM(pts,periodoMM2);
+        maxValor=Math.max(...pts);
+        minValor=Math.min(...pts);
+        pts.forEach(v=>{const a=Math.round(v);contagem[a]=(contagem[a]||0)+1;});
+        maisFrequentes=Object.entries(contagem).sort((a,b)=>b[1]-a[1]).slice(0,linhasCongestao).map(e=>parseFloat(e[0]));
     }
 
-    /* No modo Fixa, se tipoLinha não está nos tipos renderizados ainda (não deve acontecer),
-       garante que pontosSelecionado está preenchido */
-    if(modoFixo&&!pontosSelecionado.length){
-        pontosSelecionado=_traderCalcSerie(tipoLinha,blocos,totalBlocos);
+    /* Séries secundárias — apenas no modo Livre */
+    for(const tipo of tiposSecundarios){
+        const bR=blocos[blocos.length-1];
+        let pts;
+        if(tipo==='Total Gols (FT)'||tipo==='Gols Casa (FT)'||tipo==='Gols Fora (FT)'){
+            const getFn=tipo==='Gols Casa (FT)'?j=>j.casa:tipo==='Gols Fora (FT)'?j=>j.fora:j=>j.casa+j.fora;
+            const med=bR.reduce((s,j)=>s+getFn(j),0)/bR.length;
+            pts=[med*30];
+            for(let b=totalBlocos-2;b>=0;b--)for(let i=29;i>=0;i--){const a=blocos[b][i],ref=blocos[b+1][i];if(!a||!ref)continue;pts.push(pts[pts.length-1]+(getFn(a)-getFn(ref)));}
+        } else {
+            const totalCond=bR.filter(j=>traderVerificarCondicao(j,tipo)).length;
+            pts=[totalCond/bR.length*100];
+            for(let b=totalBlocos-2;b>=0;b--)for(let i=29;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipo),r=traderVerificarCondicao(blocos[b+1][i],tipo);pts.push(pts[pts.length-1]+(a&&!r?(100/30):(!a&&r?-(100/30):0)));}
+        }
+        let cor=TRADER_CORES[tipo]||'#888';
+        if(cor.toLowerCase()==='#ffff00')cor='#C6B74E';
+        datasets.push({label:tipo.replace(/_/g,' ').toUpperCase(),data:pts,borderColor:cor,borderWidth:1.5,pointRadius:2,pointHoverRadius:4,pointBackgroundColor:'#1e1e1e',pointBorderColor:cor,fill:false,tension:0.1,order:1,_tipo:tipo,_showPointLabels:mostrarNumeros});
     }
 
     if(mostrarRSI&&pontosSelecionado.length>0){
@@ -7157,16 +7111,8 @@ function traderAtualizarGrafico(){
         datasets.push({label:`MM(${periodoMM2})`,data:mm2,borderColor:'#FF0000',borderWidth:1.3,borderDash:[2,4],pointRadius:0,fill:false,tension:0.1,_tipo:'mm'});
     }
 
-    /* Labels: do mais recente para o mais antigo (igual ao layout original) */
     const labelsSeq=[];const jogosSeq=[];
-    const blocosInv=[...blocos].reverse(); // [0]=mais recente
-    for(let b=0;b<blocosInv.length;b++){
-        const bloco=blocosInv[b];
-        /* Pega o jogo representativo do bloco (último = mais recente dentro do bloco) */
-        const rep=bloco[bloco.length-1];
-        labelsSeq.push(rep?`${String(rep.hora).padStart(2,'0')}:${String(rep.minuto).padStart(2,'0')}`:'');
-        jogosSeq.push(rep||null);
-    }
+    if(blocos.length>0){const bR=blocos[blocos.length-1],last=bR[bR.length-1];labelsSeq.push(last?`${String(last.hora).padStart(2,'0')}:${String(last.minuto).padStart(2,'0')}`:'');jogosSeq.push(last||null);for(let b=totalBlocos-2;b>=0;b--)for(let i=29;i>=0;i--){const m=blocos[b][i];labelsSeq.push(m?`${String(m.hora).padStart(2,'0')}:${String(m.minuto).padStart(2,'0')}`:'');jogosSeq.push(m||null);}}
     window.__traderJogosSeq=jogosSeq;
 
     const scales={
@@ -7182,13 +7128,10 @@ function traderAtualizarGrafico(){
         [[maxValor,'rgba(76,175,80,0.7)','Topo',-14],[minValor,'rgba(229,115,115,0.7)','Fundo',14]].forEach(([val,cor,label,yAdj])=>{
             const yPx=yS.getPixelForValue(val);
             if(!isFinite(yPx)||yPx<chartArea.top||yPx>chartArea.bottom)return;
-            ctx.save();
-            ctx.beginPath();ctx.setLineDash([6,6]);ctx.lineWidth=1;ctx.strokeStyle=cor;
+            ctx.save();ctx.beginPath();ctx.setLineDash([6,6]);ctx.lineWidth=1;ctx.strokeStyle=cor;
             ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();ctx.setLineDash([]);
-            ctx.font='bold 11px JetBrains Mono,monospace';ctx.fillStyle=cor;
-            ctx.textBaseline='middle';ctx.textAlign='left';
-            ctx.fillText(label,right+4,yPx+yAdj);
-            ctx.restore();
+            ctx.font='bold 11px JetBrains Mono,monospace';ctx.fillStyle=cor;ctx.textBaseline='middle';ctx.textAlign='left';
+            ctx.fillText(label,right+4,yPx+yAdj);ctx.restore();
         });
     }};
 
@@ -7199,17 +7142,13 @@ function traderAtualizarGrafico(){
         maisFrequentes.forEach(nivel=>{
             const yPx=yS.getPixelForValue(nivel);
             if(!isFinite(yPx)||yPx<chartArea.top||yPx>chartArea.bottom)return;
-            ctx.save();
-            ctx.beginPath();ctx.setLineDash([4,4]);ctx.lineWidth=1;ctx.strokeStyle='rgba(255,215,0,0.9)';
+            ctx.save();ctx.beginPath();ctx.setLineDash([4,4]);ctx.lineWidth=1;ctx.strokeStyle='rgba(255,215,0,0.9)';
             ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();ctx.setLineDash([]);
-            const txt=nivel.toFixed(0)+'%';
-            ctx.font='bold 9px JetBrains Mono,monospace';
+            const txt=nivel.toFixed(0)+'%';ctx.font='bold 9px JetBrains Mono,monospace';
             const bw=ctx.measureText(txt).width+8;
             ctx.fillStyle='rgba(255,215,0,0.15)';ctx.fillRect(right+2,yPx-7,bw,14);
             ctx.strokeStyle='rgba(255,215,0,0.5)';ctx.lineWidth=1;ctx.strokeRect(right+2,yPx-7,bw,14);
-            ctx.fillStyle='rgba(255,215,0,0.9)';ctx.textBaseline='middle';ctx.textAlign='left';
-            ctx.fillText(txt,right+6,yPx);
-            ctx.restore();
+            ctx.fillStyle='rgba(255,215,0,0.9)';ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillText(txt,right+6,yPx);ctx.restore();
         });
     }};
 
@@ -7223,8 +7162,7 @@ function traderAtualizarGrafico(){
     const canvasMkt=document.getElementById('traderMercadosCanvas');if(!canvasMkt)return;
 
     TRADER_CHART=new Chart(canvasMkt.getContext('2d'),{
-        type:'line',
-        data:{labels:labelsSeq,datasets},
+        type:'line',data:{labels:labelsSeq,datasets},
         options:{
             responsive:true,maintainAspectRatio:false,animation:false,
             interaction:{mode:'index',intersect:false},
@@ -7249,39 +7187,25 @@ function traderAtualizarGrafico(){
 const TRADER_DRAG_KEY='traderDrag:v5_30';
 let _traderDragLines=[];
 
-function _traderLoadDrag(){
-    try{const a=JSON.parse(localStorage.getItem(TRADER_DRAG_KEY)||'[]');_traderDragLines=Array.isArray(a)?a.map(l=>({y:Number(l.y),color:l.color||'#f7bc00',dragging:false})):[];}
-    catch{_traderDragLines=[];}
-}
+function _traderLoadDrag(){try{const a=JSON.parse(localStorage.getItem(TRADER_DRAG_KEY)||'[]');_traderDragLines=Array.isArray(a)?a.map(l=>({y:Number(l.y),color:l.color||'#f7bc00',dragging:false})):[];}catch{_traderDragLines=[];}}
 function _traderSaveDrag(){try{localStorage.setItem(TRADER_DRAG_KEY,JSON.stringify(_traderDragLines.map(l=>({y:l.y,color:l.color}))));}catch{}}
 function _traderUpdateDragCounter(){const el=document.getElementById('traderContadorLinhas');if(el)el.textContent=`${_traderDragLines.length} / 6 linhas`;}
 
 const _traderDraggablePlugin={
     id:'traderDrag',
     afterDatasetsDraw(chart){
-        const yS=chart.scales.y;
-        if(!yS||!_traderDragLines.length||!chart.chartArea)return;
-        const{ctx,chartArea}=chart;
-        const{left,right}=chartArea;
+        const yS=chart.scales.y;if(!yS||!_traderDragLines.length||!chart.chartArea)return;
+        const{ctx,chartArea}=chart;const{left,right}=chartArea;
         _traderDragLines.forEach((l,idx)=>{
-            const yPx=yS.getPixelForValue(l.y);
-            if(!Number.isFinite(yPx))return;
-            ctx.save();
-            const isSel=idx===chart._traderSelectedLine;
-            ctx.beginPath();
-            ctx.setLineDash(isSel?[4,2]:[]);
-            ctx.lineWidth=isSel?1.2:0.6;
-            ctx.strokeStyle=l.color||'#f7bc00';
-            ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();
-            ctx.setLineDash([]);
-            const label=String(Math.round(l.y));
-            ctx.font='10px JetBrains Mono,monospace';ctx.textBaseline='middle';
-            const padX=4,textW=ctx.measureText(label).width,boxW=textW+padX*2,boxH=14;
-            const bx=right+8,by=yPx-boxH/2;
+            const yPx=yS.getPixelForValue(l.y);if(!Number.isFinite(yPx))return;
+            ctx.save();const isSel=idx===chart._traderSelectedLine;
+            ctx.beginPath();ctx.setLineDash(isSel?[4,2]:[]);ctx.lineWidth=isSel?1.2:0.6;ctx.strokeStyle=l.color||'#f7bc00';
+            ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();ctx.setLineDash([]);
+            const label=String(Math.round(l.y));ctx.font='10px JetBrains Mono,monospace';ctx.textBaseline='middle';
+            const padX=4,textW=ctx.measureText(label).width,boxW=textW+padX*2,boxH=14;const bx=right+8,by=yPx-boxH/2;
             ctx.fillStyle='rgba(15,23,42,0.95)';ctx.fillRect(bx,by,boxW,boxH);
             ctx.strokeStyle=l.color||'#f7bc00';ctx.lineWidth=1;ctx.strokeRect(bx,by,boxW,boxH);
-            ctx.fillStyle=l.color||'#f7bc00';ctx.fillText(label,bx+padX,yPx);
-            ctx.restore();
+            ctx.fillStyle=l.color||'#f7bc00';ctx.fillText(label,bx+padX,yPx);ctx.restore();
         });
     }
 };
@@ -7306,27 +7230,20 @@ window.traderAdicionarLinha=function(){
     if(_traderDragLines.length>=6)return;
     const color=document.getElementById('traderLineColorPicker')?.value||'#f7bc00';
     if(!TRADER_CHART)return;
-    const yS=TRADER_CHART.scales.y;
-    const mid=yS?Math.round((yS.min+yS.max)/2):50;
+    const yS=TRADER_CHART.scales.y;const mid=yS?Math.round((yS.min+yS.max)/2):50;
     _traderDragLines.push({y:mid,color,dragging:false});
     TRADER_CHART._traderSelectedLine=_traderDragLines.length-1;
-    _traderSaveDrag();_traderUpdateDragCounter();
-    TRADER_CHART.update('none');
+    _traderSaveDrag();_traderUpdateDragCounter();TRADER_CHART.update('none');
 };
 window.traderDeletarLinha=function(){
-    if(!TRADER_CHART)return;
-    const sel=TRADER_CHART._traderSelectedLine;
+    if(!TRADER_CHART)return;const sel=TRADER_CHART._traderSelectedLine;
     if(sel<0||sel>=_traderDragLines.length)return;
-    _traderDragLines.splice(sel,1);
-    TRADER_CHART._traderSelectedLine=-1;
-    _traderSaveDrag();_traderUpdateDragCounter();
-    TRADER_CHART.update('none');
+    _traderDragLines.splice(sel,1);TRADER_CHART._traderSelectedLine=-1;
+    _traderSaveDrag();_traderUpdateDragCounter();TRADER_CHART.update('none');
 };
 window.traderLimparLinhas=function(){
-    _traderDragLines=[];
-    if(TRADER_CHART)TRADER_CHART._traderSelectedLine=-1;
-    _traderSaveDrag();_traderUpdateDragCounter();
-    TRADER_CHART?.update('none');
+    _traderDragLines=[];if(TRADER_CHART)TRADER_CHART._traderSelectedLine=-1;
+    _traderSaveDrag();_traderUpdateDragCounter();TRADER_CHART?.update('none');
 };
 
 function traderAtualizarMACD(pontos,labels){
@@ -7417,7 +7334,6 @@ document.addEventListener('DOMContentLoaded',()=>{
         this.classList.toggle('off',oculta);
         _traderSaveUI();
     });
-
     document.getElementById('traderBtnLinhaTools')?.addEventListener('click',e=>_traderTogglePanel('mtLinhaPainel',e));
     document.getElementById('traderBtnConfig')?.addEventListener('click',e=>_traderTogglePanel('mtConfigPainel',e));
     document.addEventListener('click',e=>{[['mtLinhaPainel','traderBtnLinhaTools'],['mtConfigPainel','traderBtnConfig']].forEach(([pid,bid])=>{const p=document.getElementById(pid);if(p&&!p.contains(e.target)&&e.target.id!==bid)p.classList.remove('on');});});
