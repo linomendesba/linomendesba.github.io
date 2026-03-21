@@ -6411,10 +6411,71 @@ let TRADER_MACD_CHART = null;
 let traderVisibilidade = {};
 const TRADER_VIS_KEY = 'traderVis:v5';
 const TRADER_CFG_KEY = 'traderCfg:v5';
+/* ── NOVAS CHAVES DE PERSISTÊNCIA ── */
+const TRADER_UI_KEY  = 'traderUI:v5';   // legenda ON/OFF + acordeão aberto/fechado
 
 function _traderDefaultVis(){const v={};Object.keys(TRADER_CORES).forEach(t=>v[t]=false);v['over25']=true;return v;}
 function traderLoadVis(){try{const raw=sessionStorage.getItem(TRADER_VIS_KEY);const saved=raw?JSON.parse(raw):{};traderVisibilidade=Object.assign(_traderDefaultVis(),saved);}catch{traderVisibilidade=_traderDefaultVis();}}
 function traderSaveVis(){try{sessionStorage.setItem(TRADER_VIS_KEY,JSON.stringify(traderVisibilidade));}catch{}}
+
+/* ── UI STATE: legenda + acordeão ── */
+function _traderLoadUI(){
+    try{
+        const raw=localStorage.getItem(TRADER_UI_KEY);
+        if(!raw)return;
+        const s=JSON.parse(raw);
+
+        /* Legenda */
+        if(s.legendaOculta!==undefined){
+            const box=document.getElementById('traderLegendaDinamica');
+            const btn=document.getElementById('traderBtnLegenda');
+            if(box){
+                if(s.legendaOculta){
+                    box.classList.add('oculta');
+                    if(btn){btn.textContent='Legenda: OFF';btn.classList.add('off');}
+                } else {
+                    box.classList.remove('oculta');
+                    if(btn){btn.textContent='Legenda: ON';btn.classList.remove('off');}
+                }
+            }
+        }
+
+        /* Acordeão */
+        if(s.acordeaoAberto!==undefined){
+            /* Localiza o accordion-item que contém o data-mtrader */
+            const mtraderEl=document.querySelector('[data-mtrader]');
+            if(mtraderEl){
+                const content=mtraderEl.closest('.accordion-content');
+                const item=content?.closest('.accordion-item');
+                if(content&&item){
+                    if(s.acordeaoAberto){
+                        content.style.display='block';
+                        const btn=item.querySelector('.accordion-button');
+                        if(btn)btn.classList.add('active');
+                    } else {
+                        content.style.display='none';
+                        const btn=item.querySelector('.accordion-button');
+                        if(btn)btn.classList.remove('active');
+                    }
+                }
+            }
+        }
+    }catch{}
+}
+
+function _traderSaveUI(){
+    try{
+        const box=document.getElementById('traderLegendaDinamica');
+        const legendaOculta=box?box.classList.contains('oculta'):false;
+
+        const mtraderEl=document.querySelector('[data-mtrader]');
+        const content=mtraderEl?.closest('.accordion-content');
+        /* Se o display não for 'none' considera aberto */
+        const acordeaoAberto=content?getComputedStyle(content).display!=='none':true;
+
+        localStorage.setItem(TRADER_UI_KEY,JSON.stringify({legendaOculta,acordeaoAberto}));
+    }catch{}
+}
 
 function traderLoadCfg(){
     try{
@@ -6432,6 +6493,8 @@ function traderLoadCfg(){
         _c('traderShowRSI',s.showRsi!==undefined?s.showRsi:false);
         _c('traderExibirPorcentoToggle',s.pct!==undefined?s.pct:true);
         _c('traderLinhaAtualToggle',s.la!==undefined?s.la:true);
+        /* Aplica alturas imediatamente após carregar os valores */
+        _traderSetAlturas();
     }catch{}
 }
 function traderSaveCfg(){
@@ -6926,29 +6989,38 @@ if(!Chart.Tooltip.positioners.seguirLonge){Chart.Tooltip.positioners.seguirLonge
 
 document.addEventListener('DOMContentLoaded',()=>{
     traderLoadVis();traderLoadCfg();_traderLoadDrag();_traderUpdateDragCounter();
+
+    /* ── Restaura estado da UI (legenda + acordeão) após montar o DOM ── */
+    _traderLoadUI();
+
     const triggerUpdate=()=>{traderSaveCfg();traderAtualizarGrafico();};
     document.getElementById('traderNumJogosSelector')?.addEventListener('change',()=>{_traderLastHash=null;traderUpdate();});
     document.getElementById('traderLinhaFTSelector')?.addEventListener('change',()=>{const ht=document.getElementById('traderLinhaHTSelector');if(document.getElementById('traderLinhaFTSelector').value&&ht)ht.value='';triggerUpdate();});
     document.getElementById('traderLinhaHTSelector')?.addEventListener('change',()=>{const ft=document.getElementById('traderLinhaFTSelector');if(document.getElementById('traderLinhaHTSelector').value&&ft)ft.value='';triggerUpdate();});
     ['traderModoFixoToggle','traderMovingAveragesToggle','traderTopoFundoToggle','traderCongestaoToggle','traderShowRSI','traderExibirPorcentoToggle','traderLinhaAtualToggle'].forEach(id=>document.getElementById(id)?.addEventListener('change',triggerUpdate));
     ['traderCongestaoQtd','traderMM1Period','traderMM2Period','traderMacdFast','traderMacdSlow','traderMacdSignal','traderRsiPeriod'].forEach(id=>document.getElementById(id)?.addEventListener('change',triggerUpdate));
-    document.getElementById('traderAltPrincipalMenos')?.addEventListener('click',()=>{const el=document.getElementById('traderAltPrincipal');if(el){el.value=Math.max(200,parseInt(el.value)-10);_traderSetAlturas();}});
-    document.getElementById('traderAltPrincipalMais')?.addEventListener('click',()=>{const el=document.getElementById('traderAltPrincipal');if(el){el.value=Math.min(600,parseInt(el.value)+10);_traderSetAlturas();}});
-    document.getElementById('traderAltMacdMenos')?.addEventListener('click',()=>{const el=document.getElementById('traderAltMacd');if(el){el.value=Math.max(80,parseInt(el.value)-10);_traderSetAlturas();}});
-    document.getElementById('traderAltMacdMais')?.addEventListener('click',()=>{const el=document.getElementById('traderAltMacd');if(el){el.value=Math.min(400,parseInt(el.value)+10);_traderSetAlturas();}});
-    document.getElementById('traderAltPrincipal')?.addEventListener('change',_traderSetAlturas);
-    document.getElementById('traderAltMacd')?.addEventListener('change',_traderSetAlturas);
+    document.getElementById('traderAltPrincipalMenos')?.addEventListener('click',()=>{const el=document.getElementById('traderAltPrincipal');if(el){el.value=Math.max(200,parseInt(el.value)-10);_traderSetAlturas();traderSaveCfg();}});
+    document.getElementById('traderAltPrincipalMais')?.addEventListener('click',()=>{const el=document.getElementById('traderAltPrincipal');if(el){el.value=Math.min(600,parseInt(el.value)+10);_traderSetAlturas();traderSaveCfg();}});
+    document.getElementById('traderAltMacdMenos')?.addEventListener('click',()=>{const el=document.getElementById('traderAltMacd');if(el){el.value=Math.max(80,parseInt(el.value)-10);_traderSetAlturas();traderSaveCfg();}});
+    document.getElementById('traderAltMacdMais')?.addEventListener('click',()=>{const el=document.getElementById('traderAltMacd');if(el){el.value=Math.min(400,parseInt(el.value)+10);_traderSetAlturas();traderSaveCfg();}});
+    document.getElementById('traderAltPrincipal')?.addEventListener('change',()=>{_traderSetAlturas();traderSaveCfg();});
+    document.getElementById('traderAltMacd')?.addEventListener('change',()=>{_traderSetAlturas();traderSaveCfg();});
+
+    /* ── Botão Legenda: salva estado ao clicar ── */
     document.getElementById('traderBtnLegenda')?.addEventListener('click',function(){
         const box=document.getElementById('traderLegendaDinamica');if(!box)return;
         const oculta=box.classList.toggle('oculta');
         this.textContent=oculta?'Legenda: OFF':'Legenda: ON';
         this.classList.toggle('off',oculta);
+        _traderSaveUI(); /* <── persiste */
     });
+
     document.getElementById('traderBtnLinhaTools')?.addEventListener('click',e=>_traderTogglePanel('mtLinhaPainel',e));
     document.getElementById('traderBtnConfig')?.addEventListener('click',e=>_traderTogglePanel('mtConfigPainel',e));
     document.addEventListener('click',e=>{[['mtLinhaPainel','traderBtnLinhaTools'],['mtConfigPainel','traderBtnConfig']].forEach(([pid,bid])=>{const p=document.getElementById(pid);if(p&&!p.contains(e.target)&&e.target.id!==bid)p.classList.remove('on');});});
     ['mtLinhaPainel','mtConfigPainel'].forEach(id=>document.getElementById(id)?.addEventListener('click',e=>e.stopPropagation()));
     window.addEventListener('keydown',e=>{if((e.key==='Delete'||e.key==='Backspace')&&document.activeElement===document.body)window.traderDeletarLinha?.();});
+
     document.getElementById('traderBtnResetConfig')?.addEventListener('click',()=>{
         const _s=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v;};
         const _c=(id,v)=>{const e=document.getElementById(id);if(e)e.checked=v;};
@@ -6957,8 +7029,23 @@ document.addEventListener('DOMContentLoaded',()=>{
         _s('traderAltPrincipal',TRADER_PADRAO.alturaPrincipalPx);_s('traderAltMacd',TRADER_PADRAO.alturaMACDPx);
         _c('traderModoFixoToggle',true);_c('traderMovingAveragesToggle',true);_c('traderTopoFundoToggle',true);_c('traderCongestaoToggle',true);
         _c('traderShowRSI',false);_c('traderExibirPorcentoToggle',true);_c('traderLinhaAtualToggle',true);
-        _traderSetAlturas();traderAtualizarGrafico();
+        _traderSetAlturas();traderSaveCfg();traderAtualizarGrafico();
     });
+
+    /* ── Persiste estado do acordeão quando o usuário abre/fecha ── */
+    const mtraderEl=document.querySelector('[data-mtrader]');
+    if(mtraderEl){
+        const accordionBtn=mtraderEl.closest('.accordion-content')?.closest('.accordion-item')?.querySelector('.accordion-button');
+        if(accordionBtn){
+            const origOnclick=accordionBtn.onclick;
+            accordionBtn.onclick=function(e){
+                if(origOnclick)origOnclick.call(this,e);
+                /* Aguarda o DOM aplicar o novo estado antes de salvar */
+                setTimeout(_traderSaveUI,50);
+            };
+        }
+    }
+
     traderCriarLegenda();traderUpdate();
 });
 
