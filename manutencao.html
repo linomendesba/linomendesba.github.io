@@ -6176,30 +6176,29 @@ function traderAtualizarGrafico(){
 
     const tiposParaRenderizar=modoFixo?[tipoLinha]:Object.keys(TRADER_CORES).filter(t=>traderVisibilidade[t]);
 
-    /* ── Função genérica para calcular pontos de indicador numérico (rolling delta) ── */
+    /* ── Função genérica para calcular pontos de indicador numérico (delta bruto de gols) ── */
     function calcPtsIndicador(blocos, totalBlocos, getFn){
         const bR=blocos[blocos.length-1];
         const med=bR.reduce((s,j)=>s+getFn(j),0)/bR.length;
         const pts=[med*20];
-        for(let b=totalBlocos-2;b>=0;b--)for(let i=19;i>=0;i--){const a=blocos[b][i],ref=blocos[b+1][i];if(!a||!ref)continue;pts.push(pts[pts.length-1]+(getFn(a)-getFn(ref)));}
+        for(let b=totalBlocos-2;b>=0;b--)for(let i=19;i>=0;i--){const a=blocos[b][i],ref=blocos[b+1][i];if(!a||!ref)continue;const d=getFn(a)-getFn(ref);pts.push(pts[pts.length-1]+d);}
         return pts;
     }
+
+    const TIPOS_GOLS=['Total Gols (FT)','Total Gols (HT)','Gols Casa (FT)','Gols Fora (FT)'];
 
     for(const tipo of tiposParaRenderizar){
         const bR=blocos[blocos.length-1];
         let pts;
+        const isIndicador=TIPOS_GOLS.includes(tipo);
 
         if(tipo==='Total Gols (FT)'){
-            /* Linha branca sem pontos coloridos — usa a média rolante */
             pts=calcPtsIndicador(blocos,totalBlocos,j=>j.casa+j.fora);
         } else if(tipo==='Total Gols (HT)'){
-            /* HT — média dos gols HT por bloco, independente do FT */
             pts=calcPtsIndicador(blocos,totalBlocos,j=>(j.casa_ht??0)+(j.fora_ht??0));
         } else if(tipo==='Gols Casa (FT)'){
-            /* Gols da equipe da casa — cálculo independente */
             pts=calcPtsIndicador(blocos,totalBlocos,j=>j.casa);
         } else if(tipo==='Gols Fora (FT)'){
-            /* Gols da equipe de fora — cálculo independente */
             pts=calcPtsIndicador(blocos,totalBlocos,j=>j.fora);
         } else {
             const totalCond=bR.filter(j=>traderVerificarCondicao(j,tipo)).length;
@@ -6207,17 +6206,14 @@ function traderAtualizarGrafico(){
             for(let b=totalBlocos-2;b>=0;b--)for(let i=19;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipo),r=traderVerificarCondicao(blocos[b+1][i],tipo);pts.push(pts[pts.length-1]+(a&&!r?5:(!a&&r?-5:0)));}
         }
 
-        /* Tipos indicadores numéricos — renderizam como linha simples (sem pontos coloridos) */
-        const isIndicador=['Total Gols (FT)','Total Gols (HT)','Gols Casa (FT)','Gols Fora (FT)'].includes(tipo);
-
         if(tipo===tipoLinha&&(modoFixo||traderVisibilidade[tipoLinha])){
             pontosSelecionado=pts;
         } else {
             let cor=TRADER_CORES[tipo]||'#888';
             if(cor.toLowerCase()==='#ffff00')cor='#C6B74E';
             if(isIndicador){
-                /* Linha com bolinhas coloridas para indicadores numéricos */
-                datasets.push({label:tipo.replace(/_/g,' ').toUpperCase(),data:pts,borderColor:cor,borderWidth:1.8,pointRadius:2.5,pointHoverRadius:5,pointBackgroundColor:cor,pointBorderColor:cor,fill:false,tension:0.2,order:1,_tipo:tipo,_showPointLabels:false});
+                /* Indicadores de gols: bolinhas neutras (fundo escuro, borda da cor da linha) — igual ao Caramelo */
+                datasets.push({label:tipo.replace(/_/g,' ').toUpperCase(),data:pts,borderColor:cor,borderWidth:1.8,pointRadius:2,pointHoverRadius:4,pointBackgroundColor:'#1e1e1e',pointBorderColor:cor,fill:false,tension:0.1,order:1,_tipo:tipo});
             } else {
                 datasets.push({label:tipo.replace(/_/g,' ').toUpperCase(),data:pts,borderColor:cor,borderWidth:1.5,pointRadius:2,pointHoverRadius:4,pointBackgroundColor:'#1e1e1e',pointBorderColor:cor,fill:false,tension:0.1,order:1,_tipo:tipo,_showPointLabels:mostrarNumeros});
             }
@@ -6225,11 +6221,13 @@ function traderAtualizarGrafico(){
     }
 
     if(pontosSelecionado.length>0){
-        const isIndicadorSel=['Total Gols (FT)','Total Gols (HT)','Gols Casa (FT)','Gols Fora (FT)'].includes(tipoLinha);
+        const isIndicadorSel=TIPOS_GOLS.includes(tipoLinha);
 
         if(isIndicadorSel){
-            /* Linha branca com bolinhas para indicadores numéricos */
-            datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pontosSelecionado,borderColor:'#fff',borderWidth:2.3,pointRadius:3,pointHoverRadius:6,pointBackgroundColor:'#fff',pointBorderColor:'#fff',fill:false,tension:0.2,order:0,_tipo:tipoLinha,_showPointLabels:false});
+            /* Linha selecionada de gols: bolinhas neutras (não verde/vermelho, pois não é boolean) — igual ao Caramelo */
+            const ptBg=new Array(pontosSelecionado.length).fill('#1e1e1e');
+            const ptBd=new Array(pontosSelecionado.length).fill('rgb(204,204,204)');
+            datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pontosSelecionado,borderColor:'#fff',borderWidth:2.3,pointRadius:2,pointHoverRadius:4,pointBackgroundColor:ptBg,pointBorderColor:ptBd,fill:false,tension:0.1,order:0,_tipo:tipoLinha});
         } else {
             const pointBg=[],pointBorder=[];
             for(let b=totalBlocos-2;b>=0;b--)for(let i=19;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipoLinha),r=traderVerificarCondicao(blocos[b+1][i],tipoLinha);if(a&&r){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}else if(!a&&!r){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}}
