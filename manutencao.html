@@ -887,7 +887,7 @@
 <script src="disableChartAnimations.js"></script>
 
 <script>
-    // ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // TABELA + QUADRANTES INTEGRADO
 // Quadrantes embutidos acima da tabela, controlados por checkbox (estado salvo)
 // Seleção de time e odd nos próximos confrontos incluída
@@ -1088,7 +1088,9 @@ let qdDadosCache = null; // cache de dados para não buscar duas vezes
 const QD_CHECKBOX_KEY = "quadrantesAtivos";
 
 function qdCheckboxAtivo() {
-  return localStorage.getItem(QD_CHECKBOX_KEY) !== "0";
+  // Se nunca foi salvo, padrão é DESATIVADO (não pisca na primeira carga)
+  const val = localStorage.getItem(QD_CHECKBOX_KEY);
+  return val === "1";
 }
 
 function qdSalvarCheckbox(ativo) {
@@ -1161,15 +1163,9 @@ function qdCalcStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
   return stats;
 }
 
-// Gera 5 <th> individuais para um bloco — um por minuto do bloco
-// A célula central (minuto índice 2 dentro do bloco) recebe o conteúdo visível
-// As demais ficam vazias mas com a mesma classe de fundo do quadrante
 function qdCreateBlocoThs(index, timeSlots) {
-  const qIdx  = index % 4;   // classe qd-0…qd-3 igual à tabela
+  const qIdx        = index % 4;
   const isFirstBloco = index === 0;
-  const borderLeft   = isFirstBloco ? '' : 'border-left:3px solid rgba(255,255,255,0.35);';
-
-  // Monta o conteúdo que vai na célula central do bloco
   let innerHtml = '';
   timeSlots.forEach((slot, slotIdx) => {
     const isCurrent       = slotIdx === 0;
@@ -1185,13 +1181,13 @@ function qdCreateBlocoThs(index, timeSlots) {
     const hitTextColor    = isCurrent ? '#018b06' : '#6ee7b7';
     const counterBgColor  = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)';
     const counterTextColor= isCurrent ? '#be0e02' : '#fda4af';
-    const label           = isCurrent
-      ? `Hora Atual: ${slot.hour.toString().padStart(2,'0')}`
-      : `Hora Anterior ${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
+    const labelTxt        = isCurrent
+      ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
+      : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
 
     innerHtml += `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;${mtStyle}white-space:nowrap;">
-        <span style="color:${labelColor};font-weight:${labelWeight};font-size:${labelSize};">${label}</span>
+        <span id="qd-label-${index}-${slotIdx}" style="color:${labelColor};font-weight:${labelWeight};font-size:${labelSize};">${labelTxt}</span>
         <div style="display:flex;align-items:center;gap:0.25rem;">
           <span style="display:inline-flex;align-items:center;gap:0.2rem;padding:0.1rem 0.3rem;border-radius:0.3rem;border:1px solid ${golsBorderColor};background-color:${golsBgColor};color:${golsTextColor};white-space:nowrap;" title="Total de Gols">
             <span style="font-size:10px;line-height:13px;">⚽</span>
@@ -1208,11 +1204,94 @@ function qdCreateBlocoThs(index, timeSlots) {
         </div>
       </div>`;
   });
-
-  // Gera 5 th — conteúdo vai no th com colspan=5, os outros 4 ficam com width=0
-  // Na prática a melhor forma de alinhar é usar colspan=5 numa única th que abrange o bloco
-  // mas inserida na MESMA tabela — o alinhamento vem automaticamente.
   return `<th colspan="5" class="qd-bloco-th qd-${qIdx}" style="padding:0.4rem 0.5rem;text-align:left;font-size:12px;line-height:1.2;${isFirstBloco ? '' : 'border-left:3px solid rgba(255,255,255,0.35);'}">${innerHtml}</th>`;
+}
+
+// ─── Calcula qual bloco está ao vivo agora ────────────────────────────────────
+function qdBlocoAtual() {
+  const minAtual = new Date().getMinutes();
+  for (let i = 0; i < blocosDeMinutos.length; i++) {
+    const mins = blocosDeMinutos[i];
+    if (minAtual >= mins[0] && minAtual <= mins[mins.length - 1] + 2) return i;
+  }
+  // Entre blocos — retorna o próximo
+  for (let i = 0; i < blocosDeMinutos.length; i++) {
+    if (minAtual < blocosDeMinutos[i][0]) return i;
+  }
+  return 0; // volta ao início (minuto 58+ → bloco 0 da próxima hora)
+}
+
+function qdNomeBlocoLabel(blocoIdx) {
+  const mins = blocosDeMinutos[blocoIdx];
+  return `Q${blocoIdx + 1} (${mins[0]}-${mins[mins.length - 1]})`;
+}
+
+// Atualiza apenas o indicador "AO VIVO" nas células do bloco ativo
+function qdAtualizarIndicadorAoVivo() {
+  const blocoAtivo = qdBlocoAtual();
+  document.querySelectorAll(".qd-bloco-th").forEach((th, i) => {
+    const badge = th.querySelector(".qd-live-badge");
+    const wasAtivo = th.classList.contains("qd-bloco-ativo");
+    const isAtivo  = (i === blocoAtivo);
+
+    th.classList.toggle("qd-bloco-ativo", isAtivo);
+
+    if (isAtivo && !badge) {
+      const b = document.createElement("span");
+      b.className = "qd-live-badge";
+      b.innerHTML = `<span class="qd-live-dot"></span>Q${i+1}`;
+      // Insere antes da primeira div de conteúdo, dentro da primeira linha
+      const firstDiv = th.querySelector("div");
+      if (firstDiv) firstDiv.insertBefore(b, firstDiv.firstChild);
+      else th.insertBefore(b, th.firstChild);
+    } else if (!isAtivo && badge) {
+      badge.remove();
+    }
+  });
+}
+
+// Atualiza só os números e labels de hora sem recriar a estrutura
+function qdRenderTabelaValores(resultados) {
+  if (!qdCheckboxAtivo()) return;
+  if (!document.querySelector("#trQuadrantes")) return;
+
+  const agora = new Date();
+  const horaAtualNumero = agora.getHours();
+  let timeSlots = [];
+  let currentDate = new Date(agora);
+  let currentHour = horaAtualNumero;
+  for (let i = 0; i <= qdNumPreviousHours; i++) {
+    timeSlots.push({ date: currentDate.toISOString().split('T')[0], hour: currentHour });
+    currentHour--;
+    if (currentHour < 0) { currentHour = 23; currentDate.setDate(currentDate.getDate() - 1); }
+  }
+  const jogosPorSlot = timeSlots.map(slot =>
+    (resultados||[]).filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
+  );
+  // Atualiza labels de hora
+  timeSlots.forEach((slot, slotIdx) => {
+    for (let i = 0; i < blocosDeMinutos.length; i++) {
+      const labelEl = document.getElementById(`qd-label-${i}-${slotIdx}`);
+      if (labelEl) {
+        labelEl.textContent = slotIdx === 0
+          ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
+          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
+      }
+    }
+  });
+  const selectedMarket = document.querySelector('#seletorResultado')?.value || 'over2.5';
+  const counterMarket  = counterMarketMap[selectedMarket];
+  blocosDeMinutos.forEach((minutosDoBloco, index) => {
+    timeSlots.forEach((slot, slotIdx) => {
+      const stats = qdCalcStats(jogosPorSlot[slotIdx], minutosDoBloco, selectedMarket, counterMarket);
+      const golsEl    = document.getElementById(`qd-gols-${index}-${slotIdx}`);
+      const hitsEl    = document.getElementById(`qd-hits-${index}-${slotIdx}`);
+      const counterEl = document.getElementById(`qd-counter-${index}-${slotIdx}`);
+      if (golsEl)    golsEl.innerText    = stats.totalGols;
+      if (hitsEl)    hitsEl.innerText    = stats.marketHits;
+      if (counterEl) counterEl.innerText = stats.counterMarketHits;
+    });
+  });
 }
 
 function qdRenderTabela(resultados) {
@@ -1236,39 +1315,27 @@ function qdRenderTabela(resultados) {
     (resultados||[]).filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
   );
 
-  const horaKey = `${horaAtualNumero}_${qdNumPreviousHours}`;
+  // Só recria a estrutura quando qdNumPreviousHours muda (não a cada hora)
+  const structKey = `${qdNumPreviousHours}`;
 
-  // Obtém ou cria o tr dos quadrantes no thead
   let trQD = thead.querySelector("#trQuadrantes");
-  if (!trQD || trQD.dataset.horaKey !== horaKey) {
+  if (!trQD || trQD.dataset.structKey !== structKey) {
     if (trQD) trQD.remove();
     trQD = document.createElement("tr");
     trQD.id = "trQuadrantes";
-    trQD.dataset.horaKey = horaKey;
+    trQD.dataset.structKey = structKey;
 
-    // Monta todo o HTML interno de uma vez para evitar o bug do innerHTML +=
     let trHtml = "";
-
-    // th selector (coluna checkbox)
     trHtml += `<th style="position:sticky;left:0;z-index:10;background-color:#292d36;"></th>`;
-
-    // th QDT com botões +/-
     trHtml += `<th style="background-color:#292d36;color:#d1d5db;font-weight:700;text-align:center;font-size:11px;padding:4px 6px;white-space:nowrap;">QDT<br><div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:3px;"><button id="qd-decrease" class="blocos-button" style="line-height:1;padding:1px 6px;">-</button><span id="qd-num-prev" style="color:white;font-size:11px;">${qdNumPreviousHours}</span><button id="qd-increase" class="blocos-button" style="line-height:1;padding:1px 6px;">+</button></div></th>`;
-
-    // 4 blocos × colspan=5
     for (let i = 0; i < blocosDeMinutos.length; i++) {
       trHtml += qdCreateBlocoThs(i, timeSlots);
     }
-
-    // 3 colunas finais (gols, acertos, %)
     trHtml += `<th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th>`;
-
     trQD.innerHTML = trHtml;
 
-    // Insere como PRIMEIRA linha do thead para ficar acima de tudo
     thead.insertBefore(trQD, thead.firstChild);
 
-    // Listeners dos botões +/- (agora o trQD já está no DOM)
     trQD.querySelector("#qd-decrease")?.addEventListener("click", () => {
       if (qdNumPreviousHours > 0) { qdNumPreviousHours--; qdAtualizarComCache(); }
     });
@@ -1277,10 +1344,21 @@ function qdRenderTabela(resultados) {
     });
   }
 
-  // Atualiza apenas os valores numéricos (sem recriar a estrutura)
+  // Sempre atualiza labels de hora (sem recriar a estrutura)
+  timeSlots.forEach((slot, slotIdx) => {
+    for (let i = 0; i < blocosDeMinutos.length; i++) {
+      const labelEl = document.getElementById(`qd-label-${i}-${slotIdx}`);
+      if (labelEl) {
+        labelEl.textContent = slotIdx === 0
+          ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
+          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
+      }
+    }
+  });
+
+  // Atualiza valores numéricos
   const selectedMarket = document.querySelector('#seletorResultado')?.value || 'over2.5';
   const counterMarket  = counterMarketMap[selectedMarket];
-
   blocosDeMinutos.forEach((minutosDoBloco, index) => {
     timeSlots.forEach((slot, slotIdx) => {
       const stats = qdCalcStats(jogosPorSlot[slotIdx], minutosDoBloco, selectedMarket, counterMarket);
@@ -1292,10 +1370,12 @@ function qdRenderTabela(resultados) {
       if (counterEl) counterEl.innerText = stats.counterMarketHits;
     });
   });
+
+  qdAtualizarIndicadorAoVivo();
 }
 
 function qdAtualizarComCache() {
-  // Remove o tr para forçar recriação com novo horaKey (hora mudou ou numPreviousHours mudou)
+  // Remove o tr para forçar recriação (numPreviousHours mudou — estrutura precisa mudar)
   const trQD = document.querySelector("#trQuadrantes");
   if (trQD) trQD.remove();
   qdRenderTabela(qdDadosCache);
@@ -1421,6 +1501,28 @@ function garantirCheckboxQuadrantes() {
     .qd-bloco-th.qd-1 { background-color: #232b3e !important; }
     .qd-bloco-th.qd-2 { background-color: #1a1f30 !important; }
     .qd-bloco-th.qd-3 { background-color: #20283b !important; }
+
+    /* Bloco ao vivo — destaque na linha de quadrantes */
+    .qd-bloco-th.qd-bloco-ativo {
+      background-color: rgba(31,172,137,0.18) !important;
+      box-shadow: inset 0 0 0 2px rgba(31,172,137,0.55);
+    }
+    .qd-live-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: rgba(31,172,137,0.22); color: #1fac89;
+      border: 1px solid rgba(31,172,137,0.5); border-radius: 4px;
+      font-size: 9px; font-weight: 700; padding: 1px 4px;
+      margin-right: 4px; white-space: nowrap; vertical-align: middle;
+    }
+    .qd-live-dot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      background: #1fac89;
+      animation: qdLivePulse 1.2s ease-in-out infinite;
+    }
+    @keyframes qdLivePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.7); }
+    }
 
     #coluna-stats { display:flex; flex-wrap:wrap; gap:5px; padding:5px 8px; margin-bottom:4px; }
     #coluna-stats:empty { display:none; }
@@ -1765,7 +1867,7 @@ function computeStatsFromDOM() {
     const ft=placarEl.getAttribute("data-score-ft")||"";
     const ht=placarEl.getAttribute("data-score-ht")||"";
     const oddEl=placarEl.querySelector(".odds");
-    const oddTxt=oddEl?oddEl.textContent.trim():"";
+    const oddTxt=oddEl?oddEl.textContent.trim().replace(/^@/,""):"";
     const timeSpans=Array.from(placarEl.querySelectorAll(".time-casa,.time-fora")).map(s=>s.getAttribute("data-full-time")).filter(Boolean);
     for(const v of Estado.placarFTSelecionados) if(ft===v){const s=statsFT.get(v);if(s){acerto?s.green++:s.red++;}break;}
     for(const v of Estado.placarHTSelecionados) if(ht===v){const s=statsHT.get(v);if(s){acerto?s.green++:s.red++;}break;}
@@ -1817,9 +1919,17 @@ function aplicarHighlights() {
       });
     }
     if(oddEl){
-      const oddTxt=oddEl.textContent.trim();
+      // oddsSelecionadas guarda sem @ (ex: "2.05")
+      // .odds e .placar-futuro-odd exibem com @ (ex: "@2.05")
+      const rawTxt  = oddEl.textContent.trim();
+      const oddTxt  = rawTxt.startsWith("@") ? rawTxt.slice(1) : rawTxt;
       for(const val of Estado.oddsSelecionadas){
-        if(oddTxt===val){const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,val,"odd");oddEl.style.setProperty("--sel-color",cor.bg);oddEl.classList.add("odd-selecionada");break;}
+        if(oddTxt===val){
+          const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,val,"odd");
+          oddEl.style.setProperty("--sel-color",cor.bg);
+          oddEl.classList.add("odd-selecionada");
+          break;
+        }
       }
     }
   });
@@ -2090,8 +2200,15 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const tabelaBody = tabela.querySelector("tbody");
   let thead = tabela.querySelector("thead");
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
-  // thead.innerHTML = "" apaga o trQuadrantes também — será recriado por qdRenderTabela no final
+
+  // ── Salva e reinsere trQuadrantes para evitar piscar ──
+  const _trQDSalvo = thead.querySelector("#trQuadrantes");
+  if (_trQDSalvo) _trQDSalvo.remove(); // remove temporariamente antes de limpar
   thead.innerHTML = "";
+  // Reinsere imediatamente se existia e está ativo
+  if (_trQDSalvo && qdCheckboxAtivo()) {
+    thead.appendChild(_trQDSalvo);
+  }
 
   const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
   trPercentual.appendChild(document.createElement("th"));
@@ -2213,7 +2330,11 @@ function criarTabela(dados, oddsData, proximosJogos) {
     Estado.toggleSelecao("timesSelecionados",val); aplicarHighlights();
   }
   function handleOddClick(e) {
-    e.stopPropagation(); Estado.toggleSelecao("oddsSelecionadas",e.currentTarget.textContent.trim()); aplicarHighlights();
+    e.stopPropagation();
+    // Salva sem @ para ser consistente com os próximos confrontos
+    const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
+    if (!txt || txt === "N/A") return;
+    Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
   }
   // Handler para times/odd nos próximos confrontos
   function handleTimeClickFuturo(e) {
@@ -2302,10 +2423,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
     }
     if(mostrarOdds){
       const oel=placar.querySelector(".odds");
-      if(oel&&Estado.oddsSelecionadas.includes(oel.textContent.trim())){
-        const val=oel.textContent.trim();
-        const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,val,"odd");
-        oel.style.setProperty("--sel-color",cor.bg); oel.classList.add("odd-selecionada");
+      if(oel){
+        const oddNorm=oel.textContent.trim().replace(/^@/,"");
+        if(Estado.oddsSelecionadas.includes(oddNorm)){
+          const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,oddNorm,"odd");
+          oel.style.setProperty("--sel-color",cor.bg); oel.classList.add("odd-selecionada");
+        }
       }
     }
 
@@ -2424,9 +2547,18 @@ function criarTabela(dados, oddsData, proximosJogos) {
   atualizarCheckboxStreak(); calcularStreakMaximo();
   iniciarObserverStreak();
 
-  // Atualiza quadrantes com os dados já carregados (sem nova chamada à API)
+  // Quadrantes: o trQD já foi reinserido no início da função se existia.
+  // Se não existia ainda (primeira carga), cria agora.
   qdDadosCache = dados;
-  qdRenderTabela(dados);
+  const _trQDAtual = thead.querySelector("#trQuadrantes");
+  if (_trQDAtual) {
+    // Já está no DOM — só atualiza valores e indicador
+    qdRenderTabelaValores(dados);
+    qdAtualizarIndicadorAoVivo();
+  } else if (qdCheckboxAtivo()) {
+    // Primeira vez com checkbox ativo — cria
+    qdRenderTabela(dados);
+  }
 }
 
 // ─── OBSERVER: re-aplica streak automaticamente ───────────────────────────────
@@ -2464,8 +2596,10 @@ async function buscarDados() {
     garantirPainelCores(); sincronizarPainelCores();
     atualizarCheckboxStreak(); calcularStreakMaximo();
     iniciarObserverStreak();
-    // Atualiza quadrantes mesmo com dados inalterados (a hora pode ter mudado)
-    qdRenderTabela(dados);
+    // Dados inalterados: só atualiza valores e indicador ao vivo (sem recriar estrutura)
+    qdDadosCache = dados;
+    qdRenderTabelaValores(dados);
+    qdAtualizarIndicadorAoVivo();
     return;
   }
   criarTabela(dados,oddsData,proximosJogos);
@@ -2493,8 +2627,8 @@ if(_sh)  _sh.addEventListener("change", ()=>{
 if(_sr)  _sr.addEventListener("change", ()=>{ 
   Estado.forcarRerender();
   buscarDados();
-  // Atualiza quadrantes ao trocar mercado
-  if(qdCheckboxAtivo()) qdRenderTabela(qdDadosCache);
+  // Atualiza quadrantes ao trocar mercado (só valores, sem recriar estrutura)
+  if(qdCheckboxAtivo()) qdRenderTabelaValores(qdDadosCache);
 });
 
 if(_stp) _stp.addEventListener("change",()=>{ 
