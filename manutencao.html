@@ -182,12 +182,6 @@
     </div>
   </div>
 
-  <div class="seletor-quadrantes">
-      <label id="lbl-quadrantes-toggle" class="alerta-toggle-label" style="cursor:pointer;">
-        <input type="checkbox" id="cb-quadrantes-toggle">Quadrantes
-      </label>
-    </div>
-
 <div class="cardsligasbetano-container">
     <div class="cardsligasbetano-card" onclick="window.location.href='euro.html'">
         <h3>Euro</h3>
@@ -893,8 +887,10 @@
 <script src="disableChartAnimations.js"></script>
 
 <script>
-// ═══════════════════════════════════════════════════════════════════════════════
-// TABELA + QUADRANTES INTEGRADO — versão CORRIGIDA
+        // ═══════════════════════════════════════════════════════════════════════════════
+// TABELA + QUADRANTES INTEGRADO
+// Quadrantes embutidos acima da tabela, controlados por checkbox (estado salvo)
+// Seleção de time e odd nos próximos confrontos incluída
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const minutosFixos = [
@@ -1054,7 +1050,7 @@ function restaurarHorasSeletor() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// QUADRANTES
+// QUADRANTES — lógica integrada
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const blocosDeMinutos = [
@@ -1065,58 +1061,43 @@ const blocosDeMinutos = [
 ];
 
 const counterMarketMap = {
-  'ambasMarcam':'ambasNaoMarcam','ambasNaoMarcam':'ambasMarcam',
-  'casaVence':'empateOuFora','foraVence':'empateOuCasa','empate':'casaOuFora',
-  'over0.5':'under0.5','under0.5':'over0.5','over1.5':'under1.5','under1.5':'over1.5',
-  'over2.5':'under2.5','under2.5':'over2.5','over3.5':'under3.5','under3.5':'over3.5',
-  'over5':null,
-  'exato0':null,'exato1':null,'exato2':null,'exato3':null,'exato4':null,
-  'exato2t0':null,'exato2t1':null,'exato2t2':null,'exato2t3':null,'exato2t4':null,
-  'casa0Gols':null,'casa1Gol':null,'casa2Gols':null,'casa3Gols':null,'casa4Gols':null,
-  'fora0Gols':null,'fora1Gol':null,'fora2Gols':null,'fora3Gols':null,'fora4Gols':null,
+  'ambasMarcam':    'ambasNaoMarcam',
+  'ambasNaoMarcam': 'ambasMarcam',
+  'casaVence':      'empateOuFora',
+  'foraVence':      'empateOuCasa',
+  'empate':         'casaOuFora',
+  'over0.5':        'under0.5',
+  'under0.5':       'over0.5',
+  'over1.5':        'under1.5',
+  'under1.5':       'over1.5',
+  'over2.5':        'under2.5',
+  'under2.5':       'over2.5',
+  'over3.5':        'under3.5',
+  'under3.5':       'over3.5',
+  'over5':          null,
+  'exato0': null, 'exato1': null, 'exato2': null, 'exato3': null, 'exato4': null,
+  'exato2t0': null, 'exato2t1': null, 'exato2t2': null, 'exato2t3': null, 'exato2t4': null,
+  'casa0Gols': null, 'casa1Gol': null, 'casa2Gols': null, 'casa3Gols': null, 'casa4Gols': null,
+  'fora0Gols': null, 'fora1Gol': null, 'fora2Gols': null, 'fora3Gols': null, 'fora4Gols': null,
 };
 
 let qdNumPreviousHours = 1;
-let qdDadosCache = null;
+let qdDadosCache = null; // cache de dados para não buscar duas vezes
 
+// ─── KEY DO CHECKBOX DOS QUADRANTES ──────────────────────────────────────────
 const QD_CHECKBOX_KEY = "quadrantesAtivos";
-function qdCheckboxAtivo() { return localStorage.getItem(QD_CHECKBOX_KEY) === "1"; }
-function qdSalvarCheckbox(ativo) { localStorage.setItem(QD_CHECKBOX_KEY, ativo ? "1" : "0"); }
 
-// ─── Conecta o checkbox dos quadrantes (chamado uma vez, logo que o DOM existe) ──
-function _qdConectarCheckbox() {
-  const cb  = document.getElementById("cb-quadrantes-toggle");
-  const lbl = document.getElementById("lbl-quadrantes-toggle");
-  if (!cb || cb._qdWired) return;
-
-  cb.checked = qdCheckboxAtivo();
-  if (cb.checked) lbl?.classList.add("alerta-ativo");
-
-  cb.addEventListener("change", function () {
-    lbl?.classList.toggle("alerta-ativo", this.checked);
-    qdSalvarCheckbox(this.checked);
-    if (this.checked) {
-      if (qdDadosCache) {
-        qdRenderTabela(qdDadosCache);
-        qdAplicarSeparadorTabela(true);
-      }
-    } else {
-      const trQD = document.querySelector("#trQuadrantes");
-      if (trQD) trQD.style.display = "none";
-      qdAplicarSeparadorTabela(false);
-    }
-  });
-
-  cb._qdWired = true;
+function qdCheckboxAtivo() {
+  // Se nunca foi salvo, padrão é DESATIVADO (não pisca na primeira carga)
+  const val = localStorage.getItem(QD_CHECKBOX_KEY);
+  return val === "1";
 }
 
-// Tenta conectar imediatamente; se o DOM ainda não estiver pronto, aguarda
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", _qdConectarCheckbox);
-} else {
-  _qdConectarCheckbox();
+function qdSalvarCheckbox(ativo) {
+  localStorage.setItem(QD_CHECKBOX_KEY, ativo ? "1" : "0");
 }
 
+// ─── checkMarket para quadrantes ─────────────────────────────────────────────
 function qdCheckMarket(ftScore, htScore, market) {
   if (!ftScore || !ftScore.includes('x')) return false;
   const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
@@ -1182,70 +1163,86 @@ function qdCalcStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
   return stats;
 }
 
-// ─── CSS LIMPO — só emojis + números coloridos, sem bordas/fundos ─────────────
 function qdCreateBlocoThs(index, timeSlots) {
-  const qIdx         = index % 4;
+  const qIdx        = index % 4;
   const isFirstBloco = index === 0;
   let innerHtml = '';
-
   timeSlots.forEach((slot, slotIdx) => {
-    const isCurrent   = slotIdx === 0;
-    const labelColor  = isCurrent ? '#cbd5e1' : '#475569';
-    const labelWeight = isCurrent ? '600' : '400';
-    const labelSize   = isCurrent ? '11px' : '10px';
-    const mtStyle     = slotIdx > 0 ? 'margin-top:0.35rem;' : '';
-    const golsColor    = isCurrent ? '#94a3b8' : '#3a4a5a';
-    const hitsColor    = isCurrent ? '#4ade80' : '#1a5c32';
-    const counterColor = isCurrent ? '#f87171' : '#7f1d1d';
-    const labelTxt     = slotIdx === 0
+    const isCurrent       = slotIdx === 0;
+    const labelColor      = isCurrent ? '#e5e7eb' : '#9ca3af';
+    const labelWeight     = isCurrent ? '600' : '400';
+    const labelSize       = isCurrent ? '11px' : '10px';
+    const mtStyle         = slotIdx > 0 ? 'margin-top:0.25rem;' : '';
+    const golsBorderColor = isCurrent ? 'rgba(75,85,99,0.6)' : 'rgba(55,65,81,0.6)';
+    const golsBgColor     = isCurrent ? 'rgba(75,85,99,0.1)' : 'rgba(55,65,81,0.1)';
+    const golsTextColor   = isCurrent ? '#e5e7eb' : '#d1d5db';
+    const hitBorderColor  = isCurrent ? '#3a3f4b' : 'rgba(4,120,87,0.6)';
+    const hitBgColor      = isCurrent ? 'rgba(1,139,6,0.1)' : 'rgb(41,45,54)';
+    const hitTextColor    = isCurrent ? '#018b06' : '#6ee7b7';
+    const counterBgColor  = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)';
+    const counterTextColor= isCurrent ? '#be0e02' : '#fda4af';
+    const labelTxt        = isCurrent
       ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
       : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
 
     innerHtml += `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;${mtStyle}white-space:nowrap;">
         <span id="qd-label-${index}-${slotIdx}" style="color:${labelColor};font-weight:${labelWeight};font-size:${labelSize};">${labelTxt}</span>
-        <div style="display:flex;align-items:center;gap:0.4rem;">
-          <span style="display:inline-flex;align-items:center;gap:0.15rem;color:${golsColor};" title="Gols">
-            <span style="font-size:10px;line-height:1;">⚽</span>
-            <strong id="qd-gols-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
-          </span>
-          <span style="display:inline-flex;align-items:center;gap:0.15rem;color:${hitsColor};" title="Acertos">
-            <span style="font-size:10px;line-height:1;">✅</span>
-            <strong id="qd-hits-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
-          </span>
-          <span style="display:inline-flex;align-items:center;gap:0.15rem;color:${counterColor};" title="Erros">
-            <span style="font-size:10px;line-height:1;">❌</span>
-            <strong id="qd-counter-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
-          </span>
+        <div style="display:flex;align-items:center;gap:0.25rem;">
+<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Gols">
+  <span style="font-size:10px;line-height:1;">⚽</span>
+  <strong id="qd-gols-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
+</span>
+
+<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Acertos">
+  <span style="font-size:10px;line-height:1;">✅</span>
+  <strong id="qd-hits-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
+</span>
+
+<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Erros">
+  <span style="font-size:10px;line-height:1;">❌</span>
+  <strong id="qd-counter-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
+</span>
         </div>
       </div>`;
   });
-
-  return `<th colspan="5" class="qd-bloco-th qd-${qIdx}" style="padding:0.4rem 0.5rem;text-align:left;font-size:12px;line-height:1.2;${isFirstBloco ? '' : 'border-left:2px solid rgba(255,255,255,0.07);'}">${innerHtml}</th>`;
+  return `<th colspan="5" class="qd-bloco-th qd-${qIdx}" style="padding:0.4rem 0.5rem;text-align:left;font-size:12px;line-height:1.2;${isFirstBloco ? '' : 'border-left:3px solid rgba(255,255,255,0.35);'}">${innerHtml}</th>`;
 }
 
+// ─── Calcula qual bloco está ao vivo agora ────────────────────────────────────
 function qdBlocoAtual() {
   const minAtual = new Date().getMinutes();
   for (let i = 0; i < blocosDeMinutos.length; i++) {
     const mins = blocosDeMinutos[i];
     if (minAtual >= mins[0] && minAtual <= mins[mins.length - 1] + 2) return i;
   }
+  // Entre blocos — retorna o próximo
   for (let i = 0; i < blocosDeMinutos.length; i++) {
     if (minAtual < blocosDeMinutos[i][0]) return i;
   }
-  return 0;
+  return 0; // volta ao início (minuto 58+ → bloco 0 da próxima hora)
 }
 
+function qdNomeBlocoLabel(blocoIdx) {
+  const mins = blocosDeMinutos[blocoIdx];
+  return `Q${blocoIdx + 1} (${mins[0]}-${mins[mins.length - 1]})`;
+}
+
+// Atualiza apenas o indicador "AO VIVO" nas células do bloco ativo
 function qdAtualizarIndicadorAoVivo() {
   const blocoAtivo = qdBlocoAtual();
   document.querySelectorAll(".qd-bloco-th").forEach((th, i) => {
-    const badge   = th.querySelector(".qd-live-badge");
-    const isAtivo = (i === blocoAtivo);
+    const badge = th.querySelector(".qd-live-badge");
+    const wasAtivo = th.classList.contains("qd-bloco-ativo");
+    const isAtivo  = (i === blocoAtivo);
+
     th.classList.toggle("qd-bloco-ativo", isAtivo);
+
     if (isAtivo && !badge) {
       const b = document.createElement("span");
       b.className = "qd-live-badge";
       b.innerHTML = `<span class="qd-live-dot"></span>Q${i+1}`;
+      // Insere antes da primeira div de conteúdo, dentro da primeira linha
       const firstDiv = th.querySelector("div");
       if (firstDiv) firstDiv.insertBefore(b, firstDiv.firstChild);
       else th.insertBefore(b, th.firstChild);
@@ -1255,6 +1252,7 @@ function qdAtualizarIndicadorAoVivo() {
   });
 }
 
+// Atualiza só os números e labels de hora sem recriar a estrutura
 function qdRenderTabelaValores(resultados) {
   if (!qdCheckboxAtivo()) return;
   if (!document.querySelector("#trQuadrantes")) return;
@@ -1272,13 +1270,14 @@ function qdRenderTabelaValores(resultados) {
   const jogosPorSlot = timeSlots.map(slot =>
     (resultados||[]).filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
   );
+  // Atualiza labels de hora
   timeSlots.forEach((slot, slotIdx) => {
     for (let i = 0; i < blocosDeMinutos.length; i++) {
       const labelEl = document.getElementById(`qd-label-${i}-${slotIdx}`);
       if (labelEl) {
         labelEl.textContent = slotIdx === 0
           ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
-          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'00')}`;
+          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
       }
     }
   });
@@ -1318,9 +1317,10 @@ function qdRenderTabela(resultados) {
     (resultados||[]).filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
   );
 
+  // Só recria a estrutura quando qdNumPreviousHours muda (não a cada hora)
   const structKey = `${qdNumPreviousHours}`;
-  let trQD = thead.querySelector("#trQuadrantes");
 
+  let trQD = thead.querySelector("#trQuadrantes");
   if (!trQD || trQD.dataset.structKey !== structKey) {
     if (trQD) trQD.remove();
     trQD = document.createElement("tr");
@@ -1328,15 +1328,14 @@ function qdRenderTabela(resultados) {
     trQD.dataset.structKey = structKey;
 
     let trHtml = "";
-    trHtml += `<th style="position:sticky;left:0;z-index:10;background-color:#1a1f2e;"></th>`;
-    trHtml += `<th style="background-color:#1a1f2e;color:#94a3b8;font-weight:700;text-align:center;font-size:11px;padding:4px 6px;white-space:nowrap;">QDT<br><div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:3px;"><button id="qd-decrease" class="blocos-button" style="line-height:1;padding:1px 6px;">-</button><span id="qd-num-prev" style="color:white;font-size:11px;">${qdNumPreviousHours}</span><button id="qd-increase" class="blocos-button" style="line-height:1;padding:1px 6px;">+</button></div></th>`;
+    trHtml += `<th style="position:sticky;left:0;z-index:10;background-color:#292d36;"></th>`;
+    trHtml += `<th style="background-color:#292d36;color:#d1d5db;font-weight:700;text-align:center;font-size:11px;padding:4px 6px;white-space:nowrap;">QDT<br><div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:3px;"><button id="qd-decrease" class="blocos-button" style="line-height:1;padding:1px 6px;">-</button><span id="qd-num-prev" style="color:white;font-size:11px;">${qdNumPreviousHours}</span><button id="qd-increase" class="blocos-button" style="line-height:1;padding:1px 6px;">+</button></div></th>`;
     for (let i = 0; i < blocosDeMinutos.length; i++) {
       trHtml += qdCreateBlocoThs(i, timeSlots);
     }
-    trHtml += `<th style="background-color:#1a1f2e;"></th><th style="background-color:#1a1f2e;"></th><th style="background-color:#1a1f2e;"></th>`;
+    trHtml += `<th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th>`;
     trQD.innerHTML = trHtml;
 
-    // ← CORREÇÃO CRÍTICA: insertBefore garante que fica como PRIMEIRA linha do thead
     thead.insertBefore(trQD, thead.firstChild);
 
     trQD.querySelector("#qd-decrease")?.addEventListener("click", () => {
@@ -1347,17 +1346,19 @@ function qdRenderTabela(resultados) {
     });
   }
 
+  // Sempre atualiza labels de hora (sem recriar a estrutura)
   timeSlots.forEach((slot, slotIdx) => {
     for (let i = 0; i < blocosDeMinutos.length; i++) {
       const labelEl = document.getElementById(`qd-label-${i}-${slotIdx}`);
       if (labelEl) {
         labelEl.textContent = slotIdx === 0
           ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
-          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'00')}`;
+          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
       }
     }
   });
 
+  // Atualiza valores numéricos
   const selectedMarket = document.querySelector('#seletorResultado')?.value || 'over2.5';
   const counterMarket  = counterMarketMap[selectedMarket];
   blocosDeMinutos.forEach((minutosDoBloco, index) => {
@@ -1376,16 +1377,20 @@ function qdRenderTabela(resultados) {
 }
 
 function qdAtualizarComCache() {
+  // Remove o tr para forçar recriação (numPreviousHours mudou — estrutura precisa mudar)
   const trQD = document.querySelector("#trQuadrantes");
   if (trQD) trQD.remove();
   qdRenderTabela(qdDadosCache);
 }
 
+// Sem wrapper externo — os quadrantes ficam no thead da tabela principal.
+// Esta função só garante que não existe o wrapper antigo caso o código tenha sido atualizado.
 function garantirQuadrantesWrapper() {
   const old = document.getElementById("quadrantes-wrapper");
   if (old) old.remove();
 }
 
+// ─── TOGGLE VISIBILIDADE DOS QUADRANTES ───────────────────────────────────────
 function qdToggle(ativo) {
   qdSalvarCheckbox(ativo);
   const trQD = document.querySelector("#trQuadrantes");
@@ -1397,6 +1402,7 @@ function qdToggle(ativo) {
   qdAplicarSeparadorTabela(ativo);
 }
 
+// Aplica/remove a classe quadrant-border nas células da tabela principal
 function qdAplicarSeparadorTabela(ativo) {
   if (ativo) {
     document.querySelectorAll(".minute-header").forEach((th, i) => {
@@ -1413,14 +1419,29 @@ function qdAplicarSeparadorTabela(ativo) {
   }
 }
 
-// ─── garantirCheckboxQuadrantes: agora só sincroniza o estado visual ──────────
+// ─── CHECKBOX DOS QUADRANTES ──────────────────────────────────────────────────
 function garantirCheckboxQuadrantes() {
-  _qdConectarCheckbox(); // tenta conectar se ainda não foi
-  const cb  = document.getElementById("cb-quadrantes-toggle");
-  const lbl = document.getElementById("lbl-quadrantes-toggle");
-  if (!cb) return;
+  if (document.getElementById("lbl-quadrantes-toggle")) return;
+
+  const painel = document.getElementById("painel-cores");
+  if (!painel) return; // painel ainda não criado, será chamado novamente
+
+  const lbl = document.createElement("label");
+  lbl.id = "lbl-quadrantes-toggle";
+  lbl.className = "alerta-toggle-label";
+  lbl.style.cssText = "margin-left:6px;";
+  lbl.innerHTML = `<input type="checkbox" id="cb-quadrantes-toggle"> 🔲 Quadrantes`;
+
+  const cb = lbl.querySelector("#cb-quadrantes-toggle");
   cb.checked = qdCheckboxAtivo();
-  lbl?.classList.toggle("alerta-ativo", cb.checked);
+  if (cb.checked) lbl.classList.add("alerta-ativo");
+
+  cb.addEventListener("change", function () {
+    lbl.classList.toggle("alerta-ativo", this.checked);
+    qdToggle(this.checked);
+  });
+
+  painel.appendChild(lbl);
 }
 
 // ─── INJEÇÃO DE ESTILOS ───────────────────────────────────────────────────────
@@ -1452,10 +1473,10 @@ function garantirCheckboxQuadrantes() {
     .minute-header { cursor:pointer; user-select:none; font-size:0.82em; font-weight:700; }
     .minute-header:hover { filter: brightness(1.6) !important; }
 
-    .qd-0 { background-color: #1c2133 !important; }
-    .qd-1 { background-color: #1e2639 !important; }
-    .qd-2 { background-color: #1a1f30 !important; }
-    .qd-3 { background-color: #1d2437 !important; }
+    .qd-0 { background-color: #1c2133 !important; box-shadow: inset 0 -2px 0 0 #374060; }
+    .qd-1 { background-color: #232b3e !important; box-shadow: inset 0 -2px 0 0 #455070; }
+    .qd-2 { background-color: #1a1f30 !important; box-shadow: inset 0 -2px 0 0 #303858; }
+    .qd-3 { background-color: #20283b !important; box-shadow: inset 0 -2px 0 0 #3d4868; }
 
     .qd-cell-0 { background-color: rgba(55,64,96,0.10) !important; }
     .qd-cell-1 { background-color: rgba(69,80,112,0.16) !important; }
@@ -1476,12 +1497,14 @@ function garantirCheckboxQuadrantes() {
 
     td.quadrant-border, th.quadrant-border { border-left: 3px solid rgba(255,255,255,0.35) !important; }
 
+    /* Linha dos quadrantes no thead da tabela principal */
     .qd-bloco-th { vertical-align: top; }
     .qd-bloco-th.qd-0 { background-color: #1c2133 !important; }
-    .qd-bloco-th.qd-1 { background-color: #1e2639 !important; }
+    .qd-bloco-th.qd-1 { background-color: #232b3e !important; }
     .qd-bloco-th.qd-2 { background-color: #1a1f30 !important; }
-    .qd-bloco-th.qd-3 { background-color: #1d2437 !important; }
+    .qd-bloco-th.qd-3 { background-color: #20283b !important; }
 
+    /* Bloco ao vivo — destaque na linha de quadrantes */
     .qd-bloco-th.qd-bloco-ativo {
       background-color: rgba(31,172,137,0.18) !important;
       box-shadow: inset 0 0 0 2px rgba(31,172,137,0.55);
@@ -1544,7 +1567,9 @@ function garantirCheckboxQuadrantes() {
     .th-icon { display:inline-flex; align-items:center; justify-content:center; vertical-align:middle; }
     .th-icon svg { display:block; }
 
-    #painel-cores { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    #painel-cores {
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
     .pc-title { font-size:0.82em; font-weight:600; color:#aaa; }
     #painel-cores label { display:flex; align-items:center; gap:6px; font-size:0.82em; color:#ccc; cursor:pointer; }
     #painel-cores input[type="color"] { width:28px; height:22px; border:none; border-radius:4px; cursor:pointer; padding:0; background:none; }
@@ -1552,7 +1577,8 @@ function garantirCheckboxQuadrantes() {
       display:inline-flex; align-items:center; gap:5px;
       padding:4px 12px; background:rgba(255,255,255,0.06);
       border:1px solid rgba(255,255,255,0.15); border-radius:7px;
-      cursor:pointer; color:#ccc; font-size:0.82em; transition:background 0.15s;
+      cursor:pointer; color:#ccc; font-size:0.82em;
+      transition:background 0.15s;
     }
     .btn-reset-cores:hover { background:rgba(255,255,255,0.12); }
 
@@ -1565,7 +1591,8 @@ function garantirCheckboxQuadrantes() {
     .streak-alerta {
       animation: streakPulse 1.8s ease-in-out infinite;
       z-index: 2; position: relative;
-      outline: 2px solid rgba(255,220,0,0.6); outline-offset: -2px;
+      outline: 2px solid rgba(255,220,0,0.6);
+      outline-offset: -2px;
     }
     .alerta-toggle-label {
       display: inline-flex; align-items: center; gap: 6px;
@@ -1581,13 +1608,23 @@ function garantirCheckboxQuadrantes() {
       display:inline-flex; align-items:center; gap:5px;
       padding:4px 14px; background:#1a6e2e;
       border:1px solid #2d9e46; border-radius:7px;
-      cursor:pointer; color:#fff; font-size:0.9em; font-weight:600; transition:background 0.15s;
+      cursor:pointer; color:#fff; font-size:0.9em; font-weight:600;
+      transition:background 0.15s;
     }
     .btn-aplicar-cores:hover { background:#237a36; }
 
-    .placar-futuro .time-casa, .placar-futuro .time-fora { cursor: pointer; transition: opacity 0.15s; }
-    .placar-futuro .time-casa:hover, .placar-futuro .time-fora:hover { opacity: 0.75; }
-    .placar-futuro .placar-futuro-odd { cursor: pointer; transition: opacity 0.15s; }
+    /* Odd e time clicáveis nos próximos confrontos */
+    .placar-futuro .time-casa,
+    .placar-futuro .time-fora {
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .placar-futuro .time-casa:hover,
+    .placar-futuro .time-fora:hover { opacity: 0.75; }
+    .placar-futuro .placar-futuro-odd {
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
     .placar-futuro .placar-futuro-odd:hover { opacity: 0.7; }
   `;
   document.head.appendChild(style);
@@ -1610,12 +1647,16 @@ function showToast(msg) {
 function calcularStreakMaximo() {
   const tbody = document.querySelector("#tabelaResultados tbody");
   if (!tbody) return;
+
   document.querySelectorAll(".streak-alerta").forEach(el => el.classList.remove("streak-alerta"));
+
   const alertaAtivo = localStorage.getItem("alertaStreakAtivo") === "1";
   if (!alertaAtivo) return;
+
   const rows = Array.from(tbody.querySelectorAll("tr"));
   const numCols = minutosFixos.length;
   const jogos = [];
+
   for (let r = rows.length - 1; r >= 0; r--) {
     const row = rows[r];
     for (let colIdx = 0; colIdx < numCols; colIdx++) {
@@ -1625,13 +1666,18 @@ function calcularStreakMaximo() {
       if (tipo === "acerto" || tipo === "erro") { jogos.push({ tipo, cel }); }
     }
   }
+
   if (jogos.length < 2) return;
+
   let atualLen = 0;
   for (let i = jogos.length - 1; i >= 0; i--) {
     if (jogos[i].tipo === "erro") atualLen++;
     else break;
   }
-  let maxLen = 0, bestStart = -1, bestEnd = -1, curLen = 0, curStart = -1;
+
+  let maxLen = 0, bestStart = -1, bestEnd = -1;
+  let curLen = 0, curStart = -1;
+
   for (let i = 0; i < jogos.length; i++) {
     if (jogos[i].tipo === "erro") {
       if (curLen === 0) curStart = i;
@@ -1639,7 +1685,9 @@ function calcularStreakMaximo() {
       if (curLen >= maxLen) { maxLen = curLen; bestStart = curStart; bestEnd = i; }
     } else { curLen = 0; curStart = -1; }
   }
+
   if (maxLen < 3) { atualizarBadgeStreak(0, atualLen); return; }
+
   for (let i = bestStart; i <= bestEnd; i++) { jogos[i].cel.classList.add("streak-alerta"); }
   atualizarBadgeStreak(maxLen, atualLen);
 }
@@ -1673,6 +1721,7 @@ function atualizarCheckboxStreak() {
   lbl.classList.toggle("alerta-ativo", ativo);
 }
 
+// ─── APLICA CORES NAS CÉLULAS ─────────────────────────────────────────────────
 function aplicarCoresCelulas() {
   document.querySelectorAll("td[data-resultado]").forEach(cel => {
     const tipo = cel.getAttribute("data-resultado");
@@ -1720,6 +1769,7 @@ function garantirPainelCores() {
   if (tabela && tabela.parentNode) tabela.parentNode.insertBefore(el, tabela.nextSibling);
   else document.body.appendChild(el);
 
+  // Adiciona o checkbox dos quadrantes ao painel de cores
   garantirCheckboxQuadrantes();
 }
 
@@ -1834,6 +1884,7 @@ function computeStatsFromDOM() {
   criarOuObterPainel(); atualizarStatsSelecao(unif);
 }
 
+// ─── HIGHLIGHTS ───────────────────────────────────────────────────────────────
 function aplicarHighlights() {
   const mostrarOdds = document.querySelector("#mostrarOdds")?.value==="sim";
   document.querySelectorAll(".placar").forEach(placar => {
@@ -1870,6 +1921,8 @@ function aplicarHighlights() {
       });
     }
     if(oddEl){
+      // oddsSelecionadas guarda sem @ (ex: "2.05")
+      // .odds e .placar-futuro-odd exibem com @ (ex: "@2.05")
       const rawTxt  = oddEl.textContent.trim();
       const oddTxt  = rawTxt.startsWith("@") ? rawTxt.slice(1) : rawTxt;
       for(const val of Estado.oddsSelecionadas){
@@ -1886,6 +1939,7 @@ function aplicarHighlights() {
   computeStatsFromDOM();
 }
 
+// ─── SELEÇÃO DE COLUNAS ───────────────────────────────────────────────────────
 function toggleColuna(minuto) {
   const lista=Estado.colunasSelecionadas, idx=lista.indexOf(minuto);
   if(idx!==-1) lista.splice(idx,1); else lista.push(minuto);
@@ -1939,6 +1993,7 @@ function atualizarColunaStats() {
   el.appendChild(tag);
 }
 
+// ─── UTILITÁRIOS ──────────────────────────────────────────────────────────────
 function showErrorMessage(m){const e=document.getElementById("errorMessage");if(!e)return;e.textContent=m;e.style.display="block";}
 function hideErrorMessage(){const e=document.getElementById("errorMessage");if(!e)return;e.textContent="";e.style.display="none";}
 function normalizeString(s){if(!s)return"";return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
@@ -1949,6 +2004,7 @@ function normalizarHorarioStr(h){if(!h)return h;const[hr,mn]=h.split(":").map(Nu
 function abbreviateTeamName(n){if(!n)return"";const w=n.trim().split(" ");if(w.length>1)return w.map(x=>x.charAt(0).toUpperCase()).join("")+w[w.length-1].slice(0,3).toLowerCase();return n.length>5?n.slice(0,5).toUpperCase():n.toUpperCase();}
 function calculateGoalStats(linhas){const tot=linhas.reduce((a,r)=>a+parseInt(r.children[r.children.length-3].textContent||0),0);return{totalGols:tot,mediaGolsHora:linhas.length>0?(tot/linhas.length).toFixed(2):0};}
 
+// ─── INDEX DE ODDS ────────────────────────────────────────────────────────────
 function indexarOdds(oddsData) {
   const tm = {"peixe": "boca"};
   const map = new Map();
@@ -1991,31 +2047,57 @@ function findOddsProximoNoIndex(idx, {time, team_home, team_visit}) {
   return null;
 }
 
+// ─── MAP DE ODDS POR MERCADO ──────────────────────────────────────────────────
 function getOddValue(odds, res) {
   const m = {
-    ambasMarcam:"odds_ambas_marcam_sim",ambasNaoMarcam:"odds_ambas_marcam_nao",
-    casaVence:"odds_casa_vence",foraVence:"odds_visitante_vence",empate:"odds_empate",
-    "over0.5":"odds_mais_0_5","over1.5":"odds_mais_1_5","over2.5":"odds_mais_2_5","over3.5":"odds_mais_3_5",
-    over5:"odds_mais_5_gols","under0.5":"odds_menos_0_5","under1.5":"odds_menos_1_5",
-    "under2.5":"odds_menos_2_5","under3.5":"odds_menos_3_5",
-    exato0:"odds_exato_0_gols",exato1:"odds_exato_1_gol",exato2:"odds_exato_2_gols",
-    exato3:"odds_exato_3_gols",exato4:"odds_exato_4_gols",
-    exato2t0:"odds_2t_0_gols",exato2t1:"odds_2t_1_gol",exato2t2:"odds_2t_2_gols",
-    exato2t3:"odds_2t_3_gols",exato2t4:"odds_2t_4_gols",
-    casa0Gols:"odds_casa_0_gols",casa1Gol:"odds_casa_1_gol",casa2Gols:"odds_casa_2_gols",
-    casa3Gols:"odds_casa_3_gols",casa4Gols:"odds_casa_4_gols",
-    fora0Gols:"odds_fora_0_gols",fora1Gol:"odds_fora_1_gol",fora2Gols:"odds_fora_2_gols",
-    fora3Gols:"odds_fora_3_gols",fora4Gols:"odds_fora_4_gols",
+    ambasMarcam:    "odds_ambas_marcam_sim",
+    ambasNaoMarcam: "odds_ambas_marcam_nao",
+    casaVence:      "odds_casa_vence",
+    foraVence:      "odds_visitante_vence",
+    empate:         "odds_empate",
+    "over0.5":      "odds_mais_0_5",
+    "over1.5":      "odds_mais_1_5",
+    "over2.5":      "odds_mais_2_5",
+    "over3.5":      "odds_mais_3_5",
+    over5:          "odds_mais_5_gols",
+    "under0.5":     "odds_menos_0_5",
+    "under1.5":     "odds_menos_1_5",
+    "under2.5":     "odds_menos_2_5",
+    "under3.5":     "odds_menos_3_5",
+    exato0:         "odds_exato_0_gols",
+    exato1:         "odds_exato_1_gol",
+    exato2:         "odds_exato_2_gols",
+    exato3:         "odds_exato_3_gols",
+    exato4:         "odds_exato_4_gols",
+    exato2t0:       "odds_2t_0_gols",
+    exato2t1:       "odds_2t_1_gol",
+    exato2t2:       "odds_2t_2_gols",
+    exato2t3:       "odds_2t_3_gols",
+    exato2t4:       "odds_2t_4_gols",
+    casa0Gols:      "odds_casa_0_gols",
+    casa1Gol:       "odds_casa_1_gol",
+    casa2Gols:      "odds_casa_2_gols",
+    casa3Gols:      "odds_casa_3_gols",
+    casa4Gols:      "odds_casa_4_gols",
+    fora0Gols:      "odds_fora_0_gols",
+    fora1Gol:       "odds_fora_1_gol",
+    fora2Gols:      "odds_fora_2_gols",
+    fora3Gols:      "odds_fora_3_gols",
+    fora4Gols:      "odds_fora_4_gols",
   };
   return odds ? odds[m[res]] || "N/A" : "N/A";
 }
 
+// ─── FETCH ────────────────────────────────────────────────────────────────────
 async function fetchOdds() {
   try {
     const r = await fetch(ROTAS_API.odds(LIGA_ATUAL));
     if (!r.ok) throw new Error();
     return await r.json();
-  } catch(e) { console.error("Erro odds:", e); return []; }
+  } catch(e) {
+    console.error("Erro odds:", e);
+    return [];
+  }
 }
 
 async function fetchProximosJogos() {
@@ -2024,9 +2106,13 @@ async function fetchProximosJogos() {
     if (!r.ok) throw new Error();
     const j = await r.json();
     return j.sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
-  } catch(e) { console.error("Erro próximos:", e); return []; }
+  } catch(e) {
+    console.error("Erro próximos:", e);
+    return [];
+  }
 }
 
+// ─── SELECTED ROWS ────────────────────────────────────────────────────────────
 function updateSelectedRows(){
   let sel=document.getElementById("selectedRowsContainer");
   const mainTable=document.getElementById("tabelaResultados");
@@ -2055,12 +2141,14 @@ function updateSelectedRows(){
   });
 }
 
+// ─── HELPER: cria th com SVG ──────────────────────────────────────────────────
 function createIconTh(svgKey, title) {
   const th = document.createElement("th"); th.title = title||"";
   const wrap = document.createElement("span"); wrap.className = "th-icon";
   wrap.innerHTML = SVG_ICONS[svgKey]||""; th.appendChild(wrap); return th;
 }
 
+// ─── LÓGICA DE ACERTO POR MERCADO ────────────────────────────────────────────
 function verificarAcerto(selRes, rA, rB, htA, htB) {
   const tg  = rA + rB;
   const tg2 = (typeof htA === "number" && typeof htB === "number") ? (rA - htA) + (rB - htB) : null;
@@ -2070,19 +2158,35 @@ function verificarAcerto(selRes, rA, rB, htA, htB) {
     case "casaVence": return rA > rB;
     case "foraVence": return rB > rA;
     case "empate":    return rA === rB;
-    case "over0.5": return tg > 0.5; case "over1.5": return tg > 1.5;
-    case "over2.5": return tg > 2.5; case "over3.5": return tg > 3.5; case "over5": return tg >= 5;
-    case "under0.5": return tg <= 0.5; case "under1.5": return tg <= 1.5;
-    case "under2.5": return tg <= 2.5; case "under3.5": return tg <= 3.5;
-    case "exato0": return tg === 0; case "exato1": return tg === 1; case "exato2": return tg === 2;
-    case "exato3": return tg === 3; case "exato4": return tg === 4;
-    case "exato2t0": return tg2 !== null && tg2 === 0; case "exato2t1": return tg2 !== null && tg2 === 1;
-    case "exato2t2": return tg2 !== null && tg2 === 2; case "exato2t3": return tg2 !== null && tg2 === 3;
+    case "over0.5": return tg > 0.5;
+    case "over1.5": return tg > 1.5;
+    case "over2.5": return tg > 2.5;
+    case "over3.5": return tg > 3.5;
+    case "over5":   return tg >= 5;
+    case "under0.5": return tg <= 0.5;
+    case "under1.5": return tg <= 1.5;
+    case "under2.5": return tg <= 2.5;
+    case "under3.5": return tg <= 3.5;
+    case "exato0": return tg === 0;
+    case "exato1": return tg === 1;
+    case "exato2": return tg === 2;
+    case "exato3": return tg === 3;
+    case "exato4": return tg === 4;
+    case "exato2t0": return tg2 !== null && tg2 === 0;
+    case "exato2t1": return tg2 !== null && tg2 === 1;
+    case "exato2t2": return tg2 !== null && tg2 === 2;
+    case "exato2t3": return tg2 !== null && tg2 === 3;
     case "exato2t4": return tg2 !== null && tg2 === 4;
-    case "casa0Gols": return rA === 0; case "casa1Gol": return rA === 1; case "casa2Gols": return rA === 2;
-    case "casa3Gols": return rA === 3; case "casa4Gols": return rA === 4;
-    case "fora0Gols": return rB === 0; case "fora1Gol": return rB === 1; case "fora2Gols": return rB === 2;
-    case "fora3Gols": return rB === 3; case "fora4Gols": return rB === 4;
+    case "casa0Gols": return rA === 0;
+    case "casa1Gol":  return rA === 1;
+    case "casa2Gols": return rA === 2;
+    case "casa3Gols": return rA === 3;
+    case "casa4Gols": return rA === 4;
+    case "fora0Gols": return rB === 0;
+    case "fora1Gol":  return rB === 1;
+    case "fora2Gols": return rB === 2;
+    case "fora3Gols": return rB === 3;
+    case "fora4Gols": return rB === 4;
     default: return false;
   }
 }
@@ -2090,6 +2194,8 @@ function verificarAcerto(selRes, rA, rB, htA, htB) {
 // ─── CRIAÇÃO DA TABELA ────────────────────────────────────────────────────────
 function criarTabela(dados, oddsData, proximosJogos) {
   criarOuObterPainel();
+
+  // Garante wrapper dos quadrantes antes da tabela principal
   garantirQuadrantesWrapper();
 
   const tabela = document.getElementById("tabelaResultados");
@@ -2097,7 +2203,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
   let thead = tabela.querySelector("thead");
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
 
+  // ── Salva e reinsere trQuadrantes para evitar piscar ──
+  const _trQDSalvo = thead.querySelector("#trQuadrantes");
+  if (_trQDSalvo) _trQDSalvo.remove(); // remove temporariamente antes de limpar
   thead.innerHTML = "";
+  // Reinsere imediatamente se existia e está ativo
+  if (_trQDSalvo && qdCheckboxAtivo()) {
+    thead.appendChild(_trQDSalvo);
+  }
 
   const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
   trPercentual.appendChild(document.createElement("th"));
@@ -2199,6 +2312,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     mapeamentoChaveLinha[chave]=tr;
   });
 
+  // ── Handlers ──────────────────────────────────────────────────────────────
   function handleFTClick(e) {
     if(e.target.classList.contains("time-casa")||e.target.classList.contains("time-fora")) return;
     if(e.target.classList.contains("ht-span")||e.target.closest(".ht-span")) return;
@@ -2219,10 +2333,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
   }
   function handleOddClick(e) {
     e.stopPropagation();
+    // Salva sem @ para ser consistente com os próximos confrontos
     const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
     if (!txt || txt === "N/A") return;
     Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
   }
+  // Handler para times/odd nos próximos confrontos
   function handleTimeClickFuturo(e) {
     e.stopPropagation();
     const val = e.currentTarget.getAttribute("data-full-time"); if(!val) return;
@@ -2230,11 +2346,13 @@ function criarTabela(dados, oddsData, proximosJogos) {
   }
   function handleOddClickFuturo(e) {
     e.stopPropagation();
+    // Remove o "@" antes de salvar
     const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
     if (!txt || txt === "N/A") return;
     Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
   }
 
+  // ── Processa dados ─────────────────────────────────────────────────────────
   const totalGolsPorColuna    = Array(minutosFixos.length).fill(0);
   const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
   const processedMatches      = new Set();
@@ -2287,6 +2405,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     cel.appendChild(placar);
     processedMatches.add(mk);
 
+    // Highlights iniciais
     if(Estado.placarFTSelecionados.includes(placarFT)){
       const cor=Estado.getCorSelecao(Estado.placarFTSelecionados,placarFT,"ft");
       const ftSpan=placarTexto.querySelector(".ft-span");
@@ -2318,19 +2437,24 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const placarAtual = tipoPlacar==="ft" ? placarFT : placarHT;
     const [rA, rB] = placarAtual.split(" x ").map(n => parseInt(n) || 0);
     const tg = rA + rB;
+
     let htA = null, htB = null;
     if (placarHT && placarFT) {
       const htParts = placarHT.split(" x ").map(n => parseInt(n) || 0);
       htA = htParts[0]; htB = htParts[1];
     }
+
     const acerto = verificarAcerto(selRes, rA, rB, htA, htB);
+
     cel.setAttribute("data-resultado", acerto ? "acerto" : "erro");
     cel.style.setProperty("background-color", acerto ? Estado.corGreen : Estado.corRed, "important");
+
     if(acerto){linha.children[linha.children.length-2].textContent=parseInt(linha.children[linha.children.length-2].textContent)+1;totalAcertosPorColuna[idx]++;}
     linha.children[linha.children.length-3].textContent=parseInt(linha.children[linha.children.length-3].textContent)+tg;
     totalGolsPorColuna[idx]+=tg;
   });
 
+  // ── Próximos jogos ─────────────────────────────────────────────────────────
   proximosComHoras.forEach(jogo=>{
     const dataStr=jogo.captured_date?jogo.captured_date.split("/").reverse().join("-"):jogo.date.toISOString().split("T")[0];
     const chave=`${dataStr}-${jogo.hora}`, linha=mapeamentoChaveLinha[chave];
@@ -2343,6 +2467,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
     const placar=document.createElement("div"); placar.className="placar placar-futuro";
     placar.setAttribute("data-time-a",jogo.team_home); placar.setAttribute("data-time-b",jogo.team_visit);
+
     const placarTexto=document.createElement("div"); placarTexto.className="placar-texto";
     if(mostrarTimes) {
       placarTexto.innerHTML=`<span class="time-casa" style="cursor:pointer" data-full-time="${jogo.team_home}">${abbreviateTeamName(jogo.team_home)}</span><br><span class="time-fora" style="cursor:pointer" data-full-time="${jogo.team_visit}">${abbreviateTeamName(jogo.team_visit)}</span>`;
@@ -2350,11 +2475,15 @@ function criarTabela(dados, oddsData, proximosJogos) {
       placarTexto.innerHTML=`${abbreviateTeamName(jogo.team_home)}<br>${abbreviateTeamName(jogo.team_visit)}`;
     }
     placar.appendChild(placarTexto);
+
     const oddsP=findOddsProximoNoIndex(oddsIndex,jogo);
     const oddVal=getOddValue(oddsP,selRes);
+
     if(oddVal && oddVal!=="N/A") {
       const oddDiv=Object.assign(document.createElement("div"),{className:"placar-futuro-odd",textContent:`@${oddVal}`});
+      // Odd clicável nos próximos confrontos
       oddDiv.addEventListener("click", handleOddClickFuturo);
+      // Restore seleção se já estava selecionada
       if(Estado.oddsSelecionadas.includes(oddVal)) {
         const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,oddVal,"odd");
         oddDiv.style.setProperty("--sel-color",cor.bg);
@@ -2362,11 +2491,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
       }
       placar.appendChild(oddDiv);
     }
+
+    // Times clicáveis nos próximos confrontos
     if(mostrarTimes){
       const timeCasa = placar.querySelector(".time-casa");
       const timeFora = placar.querySelector(".time-fora");
       timeCasa?.addEventListener("click", handleTimeClickFuturo);
       timeFora?.addEventListener("click", handleTimeClickFuturo);
+      // Restore seleção
       [timeCasa, timeFora].forEach(span => {
         if (!span) return;
         const ft2 = span.getAttribute("data-full-time");
@@ -2377,6 +2509,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
         }
       });
     }
+
     const tooltip=document.createElement("span"); tooltip.className="tooltip";
     tooltip.innerHTML=`<span class="times">${jogo.team_home} vs ${jogo.team_visit}</span>${oddVal&&oddVal!=="N/A"?`<span class="odd-tooltip">@${oddVal}</span>`:""}`;
     placar.appendChild(tooltip);
@@ -2384,6 +2517,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     processedMatches.add(mk);
   });
 
+  // ── Footer totais ──────────────────────────────────────────────────────────
   totalGolsPorColuna.forEach(t=>trTotalGols.appendChild(Object.assign(document.createElement("td"),{className:"total-goals",textContent:t})));
   totalAcertosPorColuna.forEach(t=>trAcertosMercado.appendChild(Object.assign(document.createElement("td"),{className:"market-hits",textContent:t})));
   for(let i=0;i<3;i++){trTotalGols.appendChild(document.createElement("td"));trAcertosMercado.appendChild(document.createElement("td"));}
@@ -2415,18 +2549,21 @@ function criarTabela(dados, oddsData, proximosJogos) {
   atualizarCheckboxStreak(); calcularStreakMaximo();
   iniciarObserverStreak();
 
-  // ── QUADRANTES: cache primeiro, depois render ─────────────────────────────
+  // Quadrantes: o trQD já foi reinserido no início da função se existia.
+  // Se não existia ainda (primeira carga), cria agora.
   qdDadosCache = dados;
-  if (qdCheckboxAtivo()) {
-    if (thead.querySelector("#trQuadrantes")) {
-      qdRenderTabelaValores(dados);
-      qdAtualizarIndicadorAoVivo();
-    } else {
-      qdRenderTabela(dados);
-    }
+  const _trQDAtual = thead.querySelector("#trQuadrantes");
+  if (_trQDAtual) {
+    // Já está no DOM — só atualiza valores e indicador
+    qdRenderTabelaValores(dados);
+    qdAtualizarIndicadorAoVivo();
+  } else if (qdCheckboxAtivo()) {
+    // Primeira vez com checkbox ativo — cria
+    qdRenderTabela(dados);
   }
 }
 
+// ─── OBSERVER: re-aplica streak automaticamente ───────────────────────────────
 let _streakDebounceTimer = null;
 function iniciarObserverStreak() {
   const tabela = document.getElementById("tabelaResultados");
@@ -2443,10 +2580,6 @@ function iniciarObserverStreak() {
 async function buscarDados() {
   hideErrorMessage();
   restaurarHorasSeletor();
-
-  // Conecta o checkbox SEMPRE que buscarDados rodar (segurança extra)
-  _qdConectarCheckbox();
-
   const ligaAtual=typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default";
   Estado.recarregarChaves();
   if(Estado._ultimaLigaRenderizada!==ligaAtual){Estado.forcarRerender();Estado._ultimaLigaRenderizada=ligaAtual;_ultimaLigaHorasRestauradas=null;}
@@ -2457,14 +2590,16 @@ async function buscarDados() {
   try{proximosJogos=await fetchProximosJogos();}catch(e){showErrorMessage(`Erro próximos: ${e.message}`);}
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
 
+  // Salva cache dos dados para os quadrantes
   qdDadosCache = dados;
 
   if(!Estado.dadosMudaram(dados,oddsData,proximosJogos)){
-    console.log("Dados inalterados.");
-    computeStatsFromDOM(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
+    console.log("Dados inalterados."); computeStatsFromDOM(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
     garantirPainelCores(); sincronizarPainelCores();
     atualizarCheckboxStreak(); calcularStreakMaximo();
     iniciarObserverStreak();
+    // Dados inalterados: só atualiza valores e indicador ao vivo (sem recriar estrutura)
+    qdDadosCache = dados;
     qdRenderTabelaValores(dados);
     qdAtualizarIndicadorAoVivo();
     return;
@@ -2485,33 +2620,51 @@ const _mt=document.querySelector("#mostrarTimes");
 const _mht=document.querySelector("#mostrarHT");
 const _mo=document.querySelector("#mostrarOdds");
 
-if(_sh)  _sh.addEventListener("change", ()=>{
-  localStorage.setItem(Estado._horasKey(), _sh.value);
+if(_sh)  _sh.addEventListener("change", ()=>{ 
+  localStorage.setItem(Estado._horasKey(), _sh.value); 
   Estado.forcarRerender();
-  buscarDados();
+  buscarDados(); 
 });
-if(_sr)  _sr.addEventListener("change", ()=>{
+
+if(_sr)  _sr.addEventListener("change", ()=>{ 
   Estado.forcarRerender();
   buscarDados();
+  // Atualiza quadrantes ao trocar mercado (só valores, sem recriar estrutura)
   if(qdCheckboxAtivo()) qdRenderTabelaValores(qdDadosCache);
 });
-if(_stp) _stp.addEventListener("change",()=>{ Estado.forcarRerender(); buscarDados(); });
+
+if(_stp) _stp.addEventListener("change",()=>{ 
+  Estado.forcarRerender();
+  buscarDados(); 
+});
+
 if(_mt){
   _mt.addEventListener("change",()=>{
-    if(_mt.value!=="sim") Estado.limparSelecoes(["timesSelecionados"]);
-    Estado.forcarRerender(); buscarDados();
+    if(_mt.value!=="sim"){
+      Estado.limparSelecoes(["timesSelecionados"]);
+    }
+    Estado.forcarRerender();
+    buscarDados();
   });
 }
+
 if(_mht){
   _mht.addEventListener("change",()=>{
-    if(_mht.value!=="sim") Estado.limparSelecoes(["placarHTSelecionados"]);
-    Estado.forcarRerender(); buscarDados();
+    if(_mht.value!=="sim"){
+      Estado.limparSelecoes(["placarHTSelecionados"]);
+    }
+    Estado.forcarRerender();
+    buscarDados();
   });
 }
+
 if(_mo){
   _mo.addEventListener("change",()=>{
-    if(_mo.value!=="sim") Estado.limparSelecoes(["oddsSelecionadas"]);
-    Estado.forcarRerender(); buscarDados();
+    if(_mo.value!=="sim"){
+      Estado.limparSelecoes(["oddsSelecionadas"]);
+    }
+    Estado.forcarRerender();
+    buscarDados();
   });
 }
 </script>
