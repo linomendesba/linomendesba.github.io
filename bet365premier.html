@@ -426,6 +426,7 @@
         <div data-mtrader>
 
             <!-- ── BARRA DE CONTROLES ── -->
+            <div class="mt-bar-wrap">
             <div class="mt-bar">
 
                 <span class="mt-lbl">Qtd. Jogos</span>
@@ -569,6 +570,11 @@
                         <span class="mt-sw-track"></span>
                         <span class="mt-sw-txt">Congestão</span>
                     </label>
+                    <label class="mt-sw">
+                        <input id="traderShowXLabels" type="checkbox" checked>
+                        <span class="mt-sw-track"></span>
+                        <span class="mt-sw-txt">Hora</span>
+                    </label>
                 </div>
 
                 <div class="mt-sep"></div>
@@ -630,6 +636,18 @@
                             <div class="mt-cfg-row"><label>RSI Período</label><input type="number" id="traderRsiPeriod" value="14" min="1" max="50"></div>
                         </div>
 
+                        <div class="mt-cfg-sec">
+                            <div class="mt-cfg-sec-ttl">Tooltip</div>
+                            <div class="mt-cfg-row">
+                                <label>Tamanho da Fonte</label>
+                                <div class="mt-hc">
+                                    <button class="mt-hb" id="traderTooltipFontMenos">-</button>
+                                    <input class="mt-hi" id="traderTooltipFontSize" type="number" min="8" max="20" step="1" value="11">
+                                    <button class="mt-hb" id="traderTooltipFontMais">+</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <button class="mt-rst" id="traderBtnResetConfig">Restaurar padrão</button>
 
                         <div class="mt-cfg-sec">
@@ -655,13 +673,12 @@
                 </div>
 
             </div><!-- /mt-bar -->
+            </div><!-- /mt-bar-wrap -->
 
             <!-- Grafico Principal -->
             <div class="mt-cw" id="traderMercadosWrap" style="height:270px;">
                 <canvas id="traderMercadosCanvas"></canvas>
             </div>
-
-            <div class="mt-div"></div>
 
             <!-- Grafico MACD -->
             <div class="mt-cw" id="traderMacdWrap" style="height:135px;">
@@ -5998,20 +6015,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
 
-    <script>
-/* ═══════════════════════════════════════════════════════════════════
+<script>
+    /* ═══════════════════════════════════════════════════════════════════
    MODO TRADER v5 
 ═══════════════════════════════════════════════════════════════════ */
 
 const TRADER_PADRAO = {
     linhasCongestao:2,periodoMM1:9,periodoMM2:21,rsiPeriodo:14,
-    macdRapida:9,macdLenta:21,macdSinal:8,alturaPrincipalPx:270,alturaMACDPx:135
+    macdRapida:9,macdLenta:21,macdSinal:8,alturaPrincipalPx:270,alturaMACDPx:135,
+    tooltipFontSize:11
 };
 
 const TRADER_CORES = {
     'over05':'#FF073A','over15':'#00FF7F','over25':'#FFD700','over35':'#FF5F1F',
     'under05':'#DA00FF','under15':'#FF69B4','under25':'#39FF14','under35':'#00FFFF',
     'Total Gols (FT)':'#00FFAA','Gols Casa (FT)':'#FFB300','Gols Fora (FT)':'#9B59B6',
+    'Total Gols (HT)':'#22D3EE',
     'ambas sim':'#7FFF00','ambas nao':'#FF00FF',
     'casa marca':'#1E90FF','fora marca':'#FF4500',
     'casa nao marca':'#22D3EE','fora nao marca':'#FBBF24',
@@ -6036,7 +6055,7 @@ const TRADER_CORES = {
 const TRADER_GRUPOS = {
     'Overs':['over05','over15','over25','over35'],
     'Unders':['under05','under15','under25','under35'],
-    'Indicadores':['Total Gols (FT)','Gols Casa (FT)','Gols Fora (FT)'],
+    'Indicadores':['Total Gols (FT)','Total Gols (HT)','Gols Casa (FT)','Gols Fora (FT)'],
     'Ambas Marcam':['ambas sim','ambas nao','casa marca','casa nao marca','fora marca','fora nao marca'],
     'Gols Exatos HT':['ht 0 gol','ht 1 gol','ht 2 gols','ht 3+ gols','ht under','ht over'],
     'Gols Exatos 2\u00ba Tempo':['st 0 gol','st 1 gol','st 2 gols','st 3 gols','st 4 gols'],
@@ -6053,13 +6072,17 @@ const TRADER_SEL_TO_TIPO = {
     'under0.5':'under05','under1.5':'under15','under2.5':'under25','under3.5':'under35',
     'ambasMarcam':'ambas sim','ambasNaoMarcam':'ambas nao',
     'casaVence':'casa ft','empate':'empate ft','foraVence':'fora ft',
-    'golsFT':'Total Gols (FT)','casaVenceFT':'Gols Casa (FT)','foraVenceFT':'Gols Fora (FT)',
+    /* FT indicators — each maps to its own distinct type */
+    'golsFT':'Total Gols (FT)',
+    'golsFTCasa':'Gols Casa (FT)',
+    'golsFTFora':'Gols Fora (FT)',
     'exato0':'0 gol','exato1':'1 gol','exato2':'2 gols','exato3':'3 gols','exato4':'4 gols',
     'exato2t0':'st 0 gol','exato2t1':'st 1 gol','exato2t2':'st 2 gols','exato2t3':'st 3 gols','exato2t4':'st 4 gols',
     'casa0Gols':'casa 0','casa1Gol':'casa 1','casa2Gols':'casa 2','casa3Gols':'casa 3','casa4Gols':'casa 4',
     'fora0Gols':'fora 0','fora1Gol':'fora 1','fora2Gols':'fora 2','fora3Gols':'fora 3','fora4Gols':'fora 4',
     'casaHT':'casa ht','empateHT':'empate ht','foraHT':'fora ht',
-    'golsHT':'Total Gols (FT)',
+    /* HT total goals — separate type from FT */
+    'golsHT':'Total Gols (HT)',
     'ht0Gol':'ht 0 gol','ht1Gol':'ht 1 gol','ht2Gols':'ht 2 gols','ht3Gols':'ht 3+ gols',
     'placarHT0x0':'ht 0x0','placarHT1x0':'ht 1x0','placarHT0x1':'ht 0x1',
     'placarHT1x1':'ht 1x1','placarHT2x0':'ht 2x0','placarHT0x2':'ht 0x2',
@@ -6071,21 +6094,18 @@ let TRADER_MACD_CHART = null;
 let traderVisibilidade = {};
 const TRADER_VIS_KEY = 'traderVis:v5';
 const TRADER_CFG_KEY = 'traderCfg:v5';
-/* ── NOVAS CHAVES DE PERSISTÊNCIA ── */
-const TRADER_UI_KEY  = 'traderUI:v5';   // legenda ON/OFF + acordeão aberto/fechado
+const TRADER_UI_KEY  = 'traderUI:v5';
 
 function _traderDefaultVis(){const v={};Object.keys(TRADER_CORES).forEach(t=>v[t]=false);v['over25']=true;return v;}
 function traderLoadVis(){try{const raw=sessionStorage.getItem(TRADER_VIS_KEY);const saved=raw?JSON.parse(raw):{};traderVisibilidade=Object.assign(_traderDefaultVis(),saved);}catch{traderVisibilidade=_traderDefaultVis();}}
 function traderSaveVis(){try{sessionStorage.setItem(TRADER_VIS_KEY,JSON.stringify(traderVisibilidade));}catch{}}
 
-/* ── UI STATE: legenda + acordeão ── */
 function _traderLoadUI(){
     try{
         const raw=localStorage.getItem(TRADER_UI_KEY);
         if(!raw)return;
         const s=JSON.parse(raw);
 
-        /* Legenda */
         if(s.legendaOculta!==undefined){
             const box=document.getElementById('traderLegendaDinamica');
             const btn=document.getElementById('traderBtnLegenda');
@@ -6100,9 +6120,7 @@ function _traderLoadUI(){
             }
         }
 
-        /* Acordeão */
         if(s.acordeaoAberto!==undefined){
-            /* Localiza o accordion-item que contém o data-mtrader */
             const mtraderEl=document.querySelector('[data-mtrader]');
             if(mtraderEl){
                 const content=mtraderEl.closest('.accordion-content');
@@ -6127,12 +6145,9 @@ function _traderSaveUI(){
     try{
         const box=document.getElementById('traderLegendaDinamica');
         const legendaOculta=box?box.classList.contains('oculta'):false;
-
         const mtraderEl=document.querySelector('[data-mtrader]');
         const content=mtraderEl?.closest('.accordion-content');
-        /* Se o display não for 'none' considera aberto */
         const acordeaoAberto=content?getComputedStyle(content).display!=='none':true;
-
         localStorage.setItem(TRADER_UI_KEY,JSON.stringify({legendaOculta,acordeaoAberto}));
     }catch{}
 }
@@ -6146,6 +6161,7 @@ function traderLoadCfg(){
         _s('traderCongestaoQtd',s.cong);_s('traderMM1Period',s.mm1);_s('traderMM2Period',s.mm2);
         _s('traderMacdFast',s.macdR);_s('traderMacdSlow',s.macdL);_s('traderMacdSignal',s.macdS);
         _s('traderRsiPeriod',s.rsi);_s('traderAltPrincipal',s.hPrin);_s('traderAltMacd',s.hMacd);
+        _s('traderTooltipFontSize',s.ttFs);
         _c('traderModoFixoToggle',s.fixo!==undefined?s.fixo:true);
         _c('traderMovingAveragesToggle',s.mm!==undefined?s.mm:true);
         _c('traderTopoFundoToggle',s.topo!==undefined?s.topo:true);
@@ -6153,10 +6169,11 @@ function traderLoadCfg(){
         _c('traderShowRSI',s.showRsi!==undefined?s.showRsi:false);
         _c('traderExibirPorcentoToggle',s.pct!==undefined?s.pct:true);
         _c('traderLinhaAtualToggle',s.la!==undefined?s.la:true);
-        /* Aplica alturas imediatamente após carregar os valores */
+        _c('traderShowXLabels',s.showX!==undefined?s.showX:true);
         _traderSetAlturas();
     }catch{}
 }
+
 function traderSaveCfg(){
     try{
         const _g=id=>{const e=document.getElementById(id);return e?e.value:undefined;};
@@ -6166,9 +6183,11 @@ function traderSaveCfg(){
             cong:_g('traderCongestaoQtd'),mm1:_g('traderMM1Period'),mm2:_g('traderMM2Period'),
             macdR:_g('traderMacdFast'),macdL:_g('traderMacdSlow'),macdS:_g('traderMacdSignal'),
             rsi:_g('traderRsiPeriod'),hPrin:_g('traderAltPrincipal'),hMacd:_g('traderAltMacd'),
+            ttFs:_g('traderTooltipFontSize'),
             fixo:_gc('traderModoFixoToggle'),mm:_gc('traderMovingAveragesToggle'),
             topo:_gc('traderTopoFundoToggle'),cg:_gc('traderCongestaoToggle'),
             showRsi:_gc('traderShowRSI'),pct:_gc('traderExibirPorcentoToggle'),la:_gc('traderLinhaAtualToggle'),
+            showX:_gc('traderShowXLabels'),
         }));
     }catch{}
 }
@@ -6272,6 +6291,18 @@ function traderSetHighlight(tipo=null){
     TRADER_CHART.update('none');
 }
 
+/* ── helper: encontra o jogo do mesmo minuto mas 1 hora antes ── */
+function _traderJogoHoraAnterior(jogosSeq, idx){
+    const ref=jogosSeq[idx];
+    if(!ref)return null;
+    const alvo={hora:ref.hora-1,minuto:ref.minuto};
+    for(let k=0;k<jogosSeq.length;k++){
+        const j=jogosSeq[k];
+        if(j&&j.hora===alvo.hora&&j.minuto===alvo.minuto)return j;
+    }
+    return null;
+}
+
 function traderAtualizarGrafico(){
     if(!TRADER_RESULTADOS.length)return;
     traderSaveCfg();
@@ -6286,13 +6317,14 @@ function traderAtualizarGrafico(){
     const mostrarLinhaAtual=document.getElementById('traderLinhaAtualToggle')?.checked??true;
     const modoFixo=document.getElementById('traderModoFixoToggle')?.checked??true;
     const mostrarRSI=document.getElementById('traderShowRSI')?.checked??false;
+    const mostrarXLabels=document.getElementById('traderShowXLabels')?.checked??true;
+    const tooltipFontSize=parseInt(document.getElementById('traderTooltipFontSize')?.value||String(TRADER_PADRAO.tooltipFontSize));
     const selFTVal=document.getElementById('traderLinhaFTSelector')?.value||'';
     const selHTVal=document.getElementById('traderLinhaHTSelector')?.value||'';
     const tipoFT=TRADER_SEL_TO_TIPO[selFTVal]||'';
     const tipoHT=TRADER_SEL_TO_TIPO[selHTVal]||'';
     const tipoLinha=tipoFT||tipoHT||'over25';
 
- 
     if(!modoFixo&&!traderVisibilidade[tipoLinha]){
         if(document.getElementById('traderMovingAveragesToggle'))document.getElementById('traderMovingAveragesToggle').checked=false;
         if(document.getElementById('traderTopoFundoToggle'))document.getElementById('traderTopoFundoToggle').checked=false;
@@ -6310,45 +6342,72 @@ function traderAtualizarGrafico(){
 
     const tiposParaRenderizar=modoFixo?[tipoLinha]:Object.keys(TRADER_CORES).filter(t=>traderVisibilidade[t]);
 
+    /* ── Função genérica para calcular pontos de indicador numérico (delta bruto de gols) ── */
+    function calcPtsIndicador(blocos, totalBlocos, getFn){
+        const bR=blocos[blocos.length-1];
+        const med=bR.reduce((s,j)=>s+getFn(j),0)/bR.length;
+        const pts=[med*20];
+        for(let b=totalBlocos-2;b>=0;b--)for(let i=19;i>=0;i--){const a=blocos[b][i],ref=blocos[b+1][i];if(!a||!ref)continue;const d=getFn(a)-getFn(ref);pts.push(pts[pts.length-1]+d);}
+        return pts;
+    }
+
+    const TIPOS_GOLS=['Total Gols (FT)','Total Gols (HT)','Gols Casa (FT)','Gols Fora (FT)'];
+
     for(const tipo of tiposParaRenderizar){
         const bR=blocos[blocos.length-1];
         let pts;
+        const isIndicador=TIPOS_GOLS.includes(tipo);
 
-        if(tipo==='Total Gols (FT)'||tipo==='Gols Casa (FT)'||tipo==='Gols Fora (FT)'){
-            const getFn=tipo==='Gols Casa (FT)'?j=>j.casa:tipo==='Gols Fora (FT)'?j=>j.fora:j=>j.casa+j.fora;
-            const med=bR.reduce((s,j)=>s+getFn(j),0)/bR.length;
-            pts=[med*20];
-            for(let b=totalBlocos-2;b>=0;b--)for(let i=19;i>=0;i--){const a=blocos[b][i],ref=blocos[b+1][i];if(!a||!ref)continue;pts.push(pts[pts.length-1]+(getFn(a)-getFn(ref)));}
+        if(tipo==='Total Gols (FT)'){
+            pts=calcPtsIndicador(blocos,totalBlocos,j=>j.casa+j.fora);
+        } else if(tipo==='Total Gols (HT)'){
+            pts=calcPtsIndicador(blocos,totalBlocos,j=>(j.casa_ht??0)+(j.fora_ht??0));
+        } else if(tipo==='Gols Casa (FT)'){
+            pts=calcPtsIndicador(blocos,totalBlocos,j=>j.casa);
+        } else if(tipo==='Gols Fora (FT)'){
+            pts=calcPtsIndicador(blocos,totalBlocos,j=>j.fora);
         } else {
             const totalCond=bR.filter(j=>traderVerificarCondicao(j,tipo)).length;
             pts=[totalCond/bR.length*100];
             for(let b=totalBlocos-2;b>=0;b--)for(let i=19;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipo),r=traderVerificarCondicao(blocos[b+1][i],tipo);pts.push(pts[pts.length-1]+(a&&!r?5:(!a&&r?-5:0)));}
         }
 
-
         if(tipo===tipoLinha&&(modoFixo||traderVisibilidade[tipoLinha])){
             pontosSelecionado=pts;
         } else {
             let cor=TRADER_CORES[tipo]||'#888';
             if(cor.toLowerCase()==='#ffff00')cor='#C6B74E';
-            datasets.push({label:tipo.replace(/_/g,' ').toUpperCase(),data:pts,borderColor:cor,borderWidth:1.5,pointRadius:2,pointHoverRadius:4,pointBackgroundColor:'#1e1e1e',pointBorderColor:cor,fill:false,tension:0.1,order:1,_tipo:tipo,_showPointLabels:mostrarNumeros});
+            if(isIndicador){
+                /* Indicadores de gols: bolinhas neutras (fundo escuro, borda da cor da linha) — igual ao Caramelo */
+                datasets.push({label:tipo.replace(/_/g,' ').toUpperCase(),data:pts,borderColor:cor,borderWidth:1.8,pointRadius:2,pointHoverRadius:4,pointBackgroundColor:'#1e1e1e',pointBorderColor:cor,fill:false,tension:0.1,order:1,_tipo:tipo,_isGols:true,_showPointLabels:mostrarNumeros});
+            } else {
+                datasets.push({label:tipo.replace(/_/g,' ').toUpperCase(),data:pts,borderColor:cor,borderWidth:1.5,pointRadius:2,pointHoverRadius:4,pointBackgroundColor:'#1e1e1e',pointBorderColor:cor,fill:false,tension:0.1,order:1,_tipo:tipo,_showPointLabels:mostrarNumeros});
+            }
         }
     }
 
     if(pontosSelecionado.length>0){
-        const pointBg=[],pointBorder=[];
-        for(let b=totalBlocos-2;b>=0;b--)for(let i=19;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipoLinha),r=traderVerificarCondicao(blocos[b+1][i],tipoLinha);if(a&&r){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}else if(!a&&!r){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}}
-        pointBg.unshift('#1e1e1e');pointBorder.unshift('rgb(204,204,204)');
-        datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pontosSelecionado,borderColor:'#fff',borderWidth:2.3,pointRadius:2.3,pointHoverRadius:2,pointBackgroundColor:pointBg,pointBorderColor:pointBorder,fill:false,tension:0.1,order:0,_tipo:tipoLinha,_showPointLabels:mostrarNumeros});
+        const isIndicadorSel=TIPOS_GOLS.includes(tipoLinha);
+
+        if(isIndicadorSel){
+            /* Linha selecionada de gols: bolinhas neutras (não verde/vermelho, pois não é boolean) — igual ao Caramelo */
+            const ptBg=new Array(pontosSelecionado.length).fill('#1e1e1e');
+            const ptBd=new Array(pontosSelecionado.length).fill('rgb(204,204,204)');
+            datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pontosSelecionado,borderColor:'#fff',borderWidth:2.3,pointRadius:2,pointHoverRadius:4,pointBackgroundColor:ptBg,pointBorderColor:ptBd,fill:false,tension:0.1,order:0,_tipo:tipoLinha,_isGols:true,_showPointLabels:mostrarNumeros});
+        } else {
+            const pointBg=[],pointBorder=[];
+            for(let b=totalBlocos-2;b>=0;b--)for(let i=19;i>=0;i--){const a=traderVerificarCondicao(blocos[b][i],tipoLinha),r=traderVerificarCondicao(blocos[b+1][i],tipoLinha);if(a&&r){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}else if(!a&&!r){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}}
+            pointBg.unshift('#1e1e1e');pointBorder.unshift('rgb(204,204,204)');
+            datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pontosSelecionado,borderColor:'#fff',borderWidth:2.3,pointRadius:2.3,pointHoverRadius:2,pointBackgroundColor:pointBg,pointBorderColor:pointBorder,fill:false,tension:0.1,order:0,_tipo:tipoLinha,_showPointLabels:mostrarNumeros});
+        }
+
         mm1=traderCalcMM(pontosSelecionado,periodoMM1);
         mm2=traderCalcMM(pontosSelecionado,periodoMM2);
         maxValor=Math.max(...pontosSelecionado);
         minValor=Math.min(...pontosSelecionado);
         pontosSelecionado.forEach(v=>{const a=Math.round(v);contagem[a]=(contagem[a]||0)+1;});
         maisFrequentes=Object.entries(contagem).sort((a,b)=>b[1]-a[1]).slice(0,linhasCongestao).map(e=>parseFloat(e[0]));
-
     }
-
 
     if(mostrarRSI&&pontosSelecionado.length>0){
         const rsiP=parseInt(document.getElementById('traderRsiPeriod')?.value||'14');
@@ -6364,16 +6423,18 @@ function traderAtualizarGrafico(){
     if(blocos.length>0){const bR=blocos[blocos.length-1],last=bR[bR.length-1];labelsSeq.push(last?`${String(last.hora).padStart(2,'0')}:${String(last.minuto).padStart(2,'0')}`:'');jogosSeq.push(last||null);for(let b=totalBlocos-2;b>=0;b--)for(let i=19;i>=0;i--){const m=blocos[b][i];labelsSeq.push(m?`${String(m.hora).padStart(2,'0')}:${String(m.minuto).padStart(2,'0')}`:'');jogosSeq.push(m||null);}}
     window.__traderJogosSeq=jogosSeq;
 
-
     const scales={
-        x:{ticks:{color:'#aaa',maxRotation:0,autoSkip:true,maxTicksLimit:30},grid:{color:'rgba(255,255,255,0.04)',lineWidth:0.5}},
+        x:{
+            ticks:{
+                color:'#aaa',maxRotation:0,autoSkip:true,maxTicksLimit:30,
+                display:mostrarXLabels
+            },
+            grid:{color:'rgba(255,255,255,0.04)',lineWidth:0.5}
+        },
         y:{ticks:{color:'#aaa',stepSize:5,padding:10},grid:{color:'rgba(255,255,255,0.04)',lineWidth:0.5},beginAtZero:false},
         rsi:{position:'left',min:0,max:100,grid:{drawOnChartArea:false},ticks:{color:'yellow',mirror:false,stepSize:10,padding:1},weight:0}
     };
 
-    /* topo/fundo e congestão desenhados como canvas plugins — sem depender de chartjs-plugin-annotation */
-
-    /* ── TOPO/FUNDO: 2 linhas horizontais no máximo e mínimo da série principal ── */
     const topoFundoPlugin={id:'tTF',afterDraw(chart){
         if(!mostrarTopoFundo||pontosSelecionado.length===0)return;
         const{ctx,chartArea,scales}=chart;if(!chartArea||!scales.y)return;
@@ -6391,7 +6452,6 @@ function traderAtualizarGrafico(){
         });
     }};
 
-    /* ── CONGESTÃO: N linhas horizontais nos valores mais frequentes ── */
     const congestaoPlugin={id:'tCong',afterDraw(chart){
         if(!mostrarCongestao||maisFrequentes.length===0)return;
         const{ctx,chartArea,scales}=chart;if(!chartArea||!scales.y)return;
@@ -6413,14 +6473,38 @@ function traderAtualizarGrafico(){
         });
     }};
 
-    const rotulosPlugin={id:'tRot',afterDatasetsDraw(chart){if(!mostrarNumeros)return;chart.data.datasets.forEach((ds,i)=>{if(!ds._showPointLabels||ds._tipo==='mm'||ds._tipo==='rsi'||!chart.isDatasetVisible(i))return;const meta=chart.getDatasetMeta(i);const{ctx,chartArea}=chart;if(!chartArea)return;meta.data.forEach((pt,j)=>{const val=ds.data[j];if(val===null||val===undefined)return;ctx.save();ctx.font='bold 9px JetBrains Mono,monospace';ctx.fillStyle=typeof ds.borderColor==='string'?ds.borderColor:'#fff';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(String(Math.round(val)),pt.x,pt.y-4);ctx.restore();});});}};
+    const rotulosPlugin={id:'tRot',afterDatasetsDraw(chart){if(!mostrarNumeros)return;chart.data.datasets.forEach((ds,i)=>{if(!ds._showPointLabels||ds._tipo==='mm'||ds._tipo==='rsi'||!chart.isDatasetVisible(i))return;const meta=chart.getDatasetMeta(i);const{ctx,chartArea}=chart;if(!chartArea)return;meta.data.forEach((pt,j)=>{const val=ds.data[j];if(val===null||val===undefined)return;ctx.save();ctx.font='bold 9px JetBrains Mono,monospace';ctx.fillStyle=typeof ds.borderColor==='string'?ds.borderColor:'#fff';ctx.textAlign='center';ctx.textBaseline='bottom';const txt=String(Math.round(val));ctx.fillText(txt,pt.x,pt.y-4);ctx.restore();});});}};
 
-    const linhaAtualPlugin={id:'tLA',afterDraw(chart){if(!mostrarLinhaAtual)return;const{ctx,chartArea,scales}=chart;if(!chartArea||!scales.y)return;const yS=scales.y,{left,right,top,bottom}=chartArea,PAD=5,H=16;const entries=[];chart.data.datasets.forEach((ds,i)=>{if(ds._tipo==='mm'||ds._tipo==='rsi'||!chart.isDatasetVisible(i))return;const arr=ds.data;if(!arr?.length)return;let last=null;for(let k=arr.length-1;k>=0;k--){if(arr[k]!==null&&arr[k]!==undefined&&isFinite(arr[k])){last=arr[k];break;}}if(last===null)return;const yPx=yS.getPixelForValue(last);if(!isFinite(yPx)||yPx<top||yPx>bottom)return;entries.push({y:yPx,val:last,color:typeof ds.borderColor==='string'?ds.borderColor:'#fff'});});entries.sort((a,b)=>a.y-b.y);const placed=[];ctx.save();entries.forEach(({y,val,color})=>{ctx.beginPath();ctx.setLineDash([4,4]);ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.strokeStyle=color;ctx.lineWidth=0.7;ctx.globalAlpha=0.5;ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;let ly=y;if(placed.some(py=>Math.abs(py-ly)<H+PAD)){const cl=placed.reduce((best,py)=>Math.abs(py-y)<Math.abs(best-y)?py:best,placed[0]||y);ly=cl+(H+PAD);}placed.push(ly);const txt=Math.round(val)+'%';const tw=ctx.measureText?ctx.measureText(txt).width:24;const bx=right+2,bw=tw+8;ctx.fillStyle='rgba(8,9,15,0.9)';ctx.fillRect(bx,ly-H/2,bw,H);ctx.strokeStyle=color;ctx.lineWidth=1;ctx.strokeRect(bx,ly-H/2,bw,H);ctx.fillStyle=color;ctx.font='bold 9px JetBrains Mono,monospace';ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillText(txt,bx+4,ly);});ctx.restore();}};
+    const linhaAtualPlugin={id:'tLA',afterDraw(chart){if(!mostrarLinhaAtual)return;const{ctx,chartArea,scales}=chart;if(!chartArea||!scales.y)return;const yS=scales.y,{left,right,top,bottom}=chartArea,PAD=5,H=16;const entries=[];chart.data.datasets.forEach((ds,i)=>{if(ds._tipo==='mm'||ds._tipo==='rsi'||!chart.isDatasetVisible(i))return;const arr=ds.data;if(!arr?.length)return;let last=null;for(let k=arr.length-1;k>=0;k--){if(arr[k]!==null&&arr[k]!==undefined&&isFinite(arr[k])){last=arr[k];break;}}if(last===null)return;const yPx=yS.getPixelForValue(last);if(!isFinite(yPx)||yPx<top||yPx>bottom)return;entries.push({y:yPx,val:last,color:typeof ds.borderColor==='string'?ds.borderColor:'#fff',isGols:!!ds._isGols});});entries.sort((a,b)=>a.y-b.y);const placed=[];ctx.save();entries.forEach(({y,val,color,isGols})=>{ctx.beginPath();ctx.setLineDash([4,4]);ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.strokeStyle=color;ctx.lineWidth=0.7;ctx.globalAlpha=0.5;ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;let ly=y;if(placed.some(py=>Math.abs(py-ly)<H+PAD)){const cl=placed.reduce((best,py)=>Math.abs(py-y)<Math.abs(best-y)?py:best,placed[0]||y);ly=cl+(H+PAD);}placed.push(ly);const txt=String(Math.round(val));const tw=ctx.measureText?ctx.measureText(txt).width:24;const bx=right+2,bw=tw+8;ctx.fillStyle='rgba(8,9,15,0.9)';ctx.fillRect(bx,ly-H/2,bw,H);ctx.strokeStyle=color;ctx.lineWidth=1;ctx.strokeRect(bx,ly-H/2,bw,H);ctx.fillStyle=color;ctx.font='bold 9px JetBrains Mono,monospace';ctx.textBaseline='middle';ctx.textAlign='left';ctx.fillText(txt,bx+4,ly);});ctx.restore();}};
 
     const crosshairPlugin={id:'tCH',afterDraw(chart){if(window._traderCHIdx==null)return;const{ctx,chartArea,scales}=chart;if(!chartArea||!scales.x)return;const x=scales.x.getPixelForValue(window._traderCHIdx);if(!isFinite(x)||x<chartArea.left||x>chartArea.right)return;ctx.save();ctx.beginPath();ctx.moveTo(x,chartArea.top);ctx.lineTo(x,chartArea.bottom);ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1;ctx.stroke();ctx.restore();}};
 
     if(TRADER_CHART)TRADER_CHART.destroy();
     const canvasMkt=document.getElementById('traderMercadosCanvas');if(!canvasMkt)return;
+
+    /* ── Posicionador custom: evita colar nas bordas esquerda/direita e afasta mais do cursor ── */
+    /* Ancora no elemento ativo, inverte lado automaticamente nas bordas */
+    Chart.Tooltip.positioners.seguirLonge=function(els){
+        if(!els||!els.length)return false;
+        const chart=this.chart;
+        const area=chart?.chartArea;
+        if(!chart||!area)return false;
+        const el=els[0].element;
+        const baseX=el.x;
+        const baseY=el.y;
+        const ttW=this.width||200;
+        const ttH=this.height||100;
+        const DX=35;
+        const pad=12;
+        let x,al;
+        if(baseX-DX-ttW>=area.left+pad){x=baseX-DX-ttW;al='right';}
+        else{x=baseX+DX;al='left';}
+        x=Math.max(area.left+pad,Math.min(x,area.right-ttW-pad));
+        let y=baseY;
+        y=Math.max(area.top+pad,Math.min(y,area.bottom-ttH-pad));
+        try{chart.options.plugins.tooltip.xAlign=al;chart.options.plugins.tooltip.yAlign='top';}catch{}
+        return{x,y};
+    };
 
     TRADER_CHART=new Chart(canvasMkt.getContext('2d'),{
         type:'line',
@@ -6431,8 +6515,46 @@ function traderAtualizarGrafico(){
             layout:{padding:{right:52}},
             plugins:{
                 legend:{display:false},
-                tooltip:{enabled:true,mode:'index',intersect:false,position:'seguirLonge',xAlign:'right',yAlign:'bottom',backgroundColor:'rgba(2,6,23,0.95)',titleColor:'#e5e7eb',bodyColor:'#e5e7eb',borderColor:'rgba(31,204,89,0.18)',borderWidth:0.8,padding:3,cornerRadius:6,caretPadding:0,caretSize:0,displayColors:false,titleFont:{size:9,weight:'600'},bodyFont:{size:9,weight:'500'},callbacks:{title:items=>{const it=items?.[0];const idx=it?.dataIndex??null;const hora=it?.label??'';const j=Number.isInteger(idx)?window.__traderJogosSeq?.[idx]:null;const linhas=[];if(hora)linhas.push(hora);const jogo=(j?.jogo_str||'').trim();if(jogo)linhas.push(jogo);const ft=j?.ft_str?`FT: ${j.ft_str}`:'';const ht=j?.ht_raw?`HT: ${j.ht_raw}`:'';const placar=[ft,ht].filter(Boolean).join('  |  ');if(placar)linhas.push(placar);return linhas.length?linhas:'';}},},
-                /* annotation plugin removido — topo/fundo e congestão via canvas plugins abaixo */
+                tooltip:{
+                    enabled:true,mode:'index',intersect:false,
+                    position:'seguirLonge',
+                    xAlign:'left',yAlign:'top',
+                    backgroundColor:'rgba(2,6,23,0.96)',
+                    titleColor:'#e5e7eb',bodyColor:'#c8cdd8',
+                    borderColor:'rgba(31,204,89,0.22)',borderWidth:1,
+                    padding:{x:10,y:8},cornerRadius:7,
+                    caretPadding:0,caretSize:0,displayColors:false,
+                    titleFont:{size:tooltipFontSize,weight:'700',family:"'Roboto Mono','Courier New',monospace"},
+                    bodyFont:{size:tooltipFontSize-1,weight:'500',family:"'Roboto Mono','Courier New',monospace"},
+                    callbacks:{
+                        title:items=>{
+                            const it=items?.[0];
+                            const idx=it?.dataIndex??null;
+                            const hora=it?.label??'';
+                            const j=Number.isInteger(idx)?window.__traderJogosSeq?.[idx]:null;
+                            const linhas=[];
+                            if(hora)linhas.push(hora);
+                            const jogo=(j?.jogo_str||'').trim();
+                            if(jogo)linhas.push(jogo);
+                            const ft=j?.ft_str?`FT: ${j.ft_str}`:'';
+                            const ht=j?.ht_raw?`HT: ${j.ht_raw}`:'';
+                            const placar=[ft,ht].filter(Boolean).join('  |  ');
+                            if(placar)linhas.push(placar);
+                            /* Placar da mesma hora/minuto 1 hora antes */
+                            if(Number.isInteger(idx)&&window.__traderJogosSeq){
+                                const jAntes=_traderJogoHoraAnterior(window.__traderJogosSeq,idx);
+                                if(jAntes){
+                                    const ftA=jAntes.ft_str?`FT: ${jAntes.ft_str}`:'';
+                                    const htA=jAntes.ht_raw?`HT: ${jAntes.ht_raw}`:'';
+                                    const placarA=[ftA,htA].filter(Boolean).join(' | ');
+                                    const horaA=`${String(jAntes.hora).padStart(2,'0')}:${String(jAntes.minuto).padStart(2,'0')}`;
+                                    if(placarA)linhas.push(`\u2190 ${horaA} ${placarA}`);
+                                }
+                            }
+                            return linhas.length?linhas:'';
+                        }
+                    }
+                },
                 tRot:{},tLA:{},tCH:{}
             },
             scales
@@ -6442,10 +6564,9 @@ function traderAtualizarGrafico(){
 
     _traderSetAlturas();
     window.traderChart=TRADER_CHART;
-    /* Após criar o chart, inicializa as linhas arrastáveis no canvas */
     _traderInitDrag(TRADER_CHART);
 
-    traderAtualizarMACD(pontosSelecionado,labelsSeq);
+    traderAtualizarMACD(pontosSelecionado,labelsSeq,mostrarXLabels,tooltipFontSize);
     _traderWireCrosshair();
 }
 
@@ -6459,7 +6580,6 @@ function _traderLoadDrag(){
 function _traderSaveDrag(){try{localStorage.setItem(TRADER_DRAG_KEY,JSON.stringify(_traderDragLines.map(l=>({y:l.y,color:l.color}))));}catch{}}
 function _traderUpdateDragCounter(){const el=document.getElementById('traderContadorLinhas');if(el)el.textContent=`${_traderDragLines.length} / 6 linhas`;}
 
-/* Plugin só desenha — eventos ficam no canvas (initDrag) */
 const _traderDraggablePlugin={
     id:'traderDrag',
     afterDatasetsDraw(chart){
@@ -6478,7 +6598,6 @@ const _traderDraggablePlugin={
             ctx.strokeStyle=l.color||'#00e5a0';
             ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();
             ctx.setLineDash([]);
-            /* etiqueta */
             const label=String(Math.round(l.y));
             ctx.font='10px JetBrains Mono,monospace';ctx.textBaseline='middle';
             const padX=4,textW=ctx.measureText(label).width,boxW=textW+padX*2,boxH=14;
@@ -6493,7 +6612,6 @@ const _traderDraggablePlugin={
 
 function _traderInitDrag(chart){
     const canvas=chart.canvas;
-    /* Remove listeners antigos se existirem */
     if(canvas.__tdDown)canvas.removeEventListener('mousedown',canvas.__tdDown);
     if(canvas.__tdMove)canvas.removeEventListener('mousemove',canvas.__tdMove);
     if(canvas.__tdUp)canvas.removeEventListener('mouseup',canvas.__tdUp);
@@ -6583,7 +6701,7 @@ window.traderLimparLinhas=function(){
     TRADER_CHART?.update('none');
 };
 
-function traderAtualizarMACD(pontos,labels){
+function traderAtualizarMACD(pontos,labels,mostrarXLabels=true,tooltipFontSize=11){
     const canvasMacd=document.getElementById('traderMacdCanvas');if(!canvasMacd)return;
     if(!pontos||!pontos.length)return;
     const r=parseInt(document.getElementById('traderMacdFast')?.value||'9');
@@ -6606,12 +6724,55 @@ function traderAtualizarMACD(pontos,labels){
             layout:{padding:{left:30,right:30,top:0,bottom:0}},
             plugins:{
                 legend:{display:false},
-                tooltip:{enabled:true,mode:'index',intersect:false,position:'seguirLonge',xAlign:'right',yAlign:'bottom',backgroundColor:'rgba(2,6,23,0.95)',titleColor:'#e5e7eb',bodyColor:'#e5e7eb',borderColor:'rgba(31,204,89,0.18)',borderWidth:0.8,padding:3,cornerRadius:6,caretPadding:0,caretSize:0,displayColors:false,titleFont:{size:9,weight:'600'},bodyFont:{size:9,weight:'500'},callbacks:{title:items=>{const it=items?.[0];const idx=it?.dataIndex??null;const hora=it?.label??'';const j=Number.isInteger(idx)?window.__traderJogosSeq?.[idx]:null;const linhas=[];if(hora)linhas.push(hora);const jogo=(j?.jogo_str||'').trim();if(jogo)linhas.push(jogo);const ft=j?.ft_str?`FT: ${j.ft_str}`:'';const ht=j?.ht_raw?`HT: ${j.ht_raw}`:'';const placar=[ft,ht].filter(Boolean).join('  |  ');if(placar)linhas.push(placar);return linhas.length?linhas:'';},label:c=>{const v=c.parsed.y;if(v==null)return'';return`${c.dataset.label}: ${v.toFixed(3)}`;}}},
+                tooltip:{
+                    enabled:true,mode:'index',intersect:false,
+                    position:'seguirLonge',
+                    xAlign:'left',yAlign:'top',
+                    backgroundColor:'rgba(2,6,23,0.96)',
+                    titleColor:'#e5e7eb',bodyColor:'#c8cdd8',
+                    borderColor:'rgba(31,204,89,0.22)',borderWidth:1,
+                    padding:{x:10,y:8},cornerRadius:7,
+                    caretPadding:0,caretSize:0,displayColors:false,
+                    titleFont:{size:tooltipFontSize,weight:'700',family:"'Roboto Mono','Courier New',monospace"},
+                    bodyFont:{size:tooltipFontSize-1,weight:'500',family:"'Roboto Mono','Courier New',monospace"},
+                    callbacks:{
+                        title:items=>{
+                            const it=items?.[0];
+                            const idx=it?.dataIndex??null;
+                            const hora=it?.label??'';
+                            const j=Number.isInteger(idx)?window.__traderJogosSeq?.[idx]:null;
+                            const linhas=[];
+                            if(hora)linhas.push(hora);
+                            const jogo=(j?.jogo_str||'').trim();
+                            if(jogo)linhas.push(jogo);
+                            const ft=j?.ft_str?`FT: ${j.ft_str}`:'';
+                            const ht=j?.ht_raw?`HT: ${j.ht_raw}`:'';
+                            const placar=[ft,ht].filter(Boolean).join('  |  ');
+                            if(placar)linhas.push(placar);
+                            /* Placar da mesma hora/minuto 1 hora antes */
+                            if(Number.isInteger(idx)&&window.__traderJogosSeq){
+                                const jAntes=_traderJogoHoraAnterior(window.__traderJogosSeq,idx);
+                                if(jAntes){
+                                    const ftA=jAntes.ft_str?`FT: ${jAntes.ft_str}`:'';
+                                    const htA=jAntes.ht_raw?`HT: ${jAntes.ht_raw}`:'';
+                                    const placarA=[ftA,htA].filter(Boolean).join(' | ');
+                                    const horaA=`${String(jAntes.hora).padStart(2,'0')}:${String(jAntes.minuto).padStart(2,'0')}`;
+                                    if(placarA)linhas.push(`\u2190 ${horaA} ${placarA}`);
+                                }
+                            }
+                            return linhas.length?linhas:'';
+                        },
+                        label:c=>{const v=c.parsed.y;if(v==null)return'';return`${c.dataset.label}: ${v.toFixed(3)}`;}
+                    }
+                },
                 tCH2:{}
             },
             scales:{
                 y:{ticks:{color:'#aaa'},grid:{color:'rgba(255,255,255,0.04)',lineWidth:0.5}},
-                x:{ticks:{color:'#aaa'},grid:{color:'rgba(255,255,255,0.04)',lineWidth:0.5}}
+                x:{
+                    ticks:{color:'#aaa',display:mostrarXLabels},
+                    grid:{color:'rgba(255,255,255,0.04)',lineWidth:0.5}
+                }
             }
         },
         plugins:[ch2,_traderVerticalHoverPlugin]
@@ -6637,7 +6798,26 @@ function _traderWireCrosshair(){
 }
 
 function _traderSetAlturas(){const hP=parseInt(document.getElementById('traderAltPrincipal')?.value||'270',10);const hM=parseInt(document.getElementById('traderAltMacd')?.value||'135',10);const wP=document.getElementById('traderMercadosWrap');const wM=document.getElementById('traderMacdWrap');if(wP)wP.style.height=hP+'px';if(wM)wM.style.height=hM+'px';TRADER_CHART?.resize();TRADER_MACD_CHART?.resize();}
-function _traderTogglePanel(id,e){e.stopPropagation();const p=document.getElementById(id);if(!p)return;document.querySelectorAll('.mt-fp.on,.mt-cfg.on').forEach(x=>{if(x.id!==id)x.classList.remove('on');});p.classList.toggle('on');}
+function _traderTogglePanel(id,e){
+    e.stopPropagation();
+    const p=document.getElementById(id);if(!p)return;
+    document.querySelectorAll('.mt-fp.on,.mt-cfg.on').forEach(x=>{if(x.id!==id)x.classList.remove('on');});
+    const wasOn=p.classList.contains('on');
+    p.classList.toggle('on');
+    if(!wasOn){
+        /* Posiciona o painel fixo abaixo do botao que o abriu */
+        const btn=e.currentTarget;
+        const br=btn.getBoundingClientRect();
+        p.style.top=(br.bottom+5)+'px';
+        /* Alinha pela direita do botao, garantindo que nao saia da janela */
+        const pw=p.offsetWidth||250;
+        let left=br.right-pw;
+        if(left<8)left=8;
+        if(left+pw>window.innerWidth-8)left=window.innerWidth-pw-8;
+        p.style.left=left+'px';
+        p.style.right='';
+    }
+}
 
 let _traderLastHash=null;
 async function traderUpdate(){
@@ -6645,39 +6825,38 @@ async function traderUpdate(){
     catch(e){console.error('[Trader]',e);}
 }
 
-if(!Chart.Tooltip.positioners.seguirLonge){Chart.Tooltip.positioners.seguirLonge=function(els,pos){if(!els||!els.length)return{x:0,y:0};return{x:pos.x+12,y:pos.y-12};};}
-
 document.addEventListener('DOMContentLoaded',()=>{
     traderLoadVis();traderLoadCfg();_traderLoadDrag();_traderUpdateDragCounter();
-
-    /* ── Restaura estado da UI (legenda + acordeão) após montar o DOM ── */
     _traderLoadUI();
 
     const triggerUpdate=()=>{traderSaveCfg();traderAtualizarGrafico();};
     document.getElementById('traderNumJogosSelector')?.addEventListener('change',()=>{_traderLastHash=null;traderUpdate();});
     document.getElementById('traderLinhaFTSelector')?.addEventListener('change',()=>{const ht=document.getElementById('traderLinhaHTSelector');if(document.getElementById('traderLinhaFTSelector').value&&ht)ht.value='';triggerUpdate();});
     document.getElementById('traderLinhaHTSelector')?.addEventListener('change',()=>{const ft=document.getElementById('traderLinhaFTSelector');if(document.getElementById('traderLinhaHTSelector').value&&ft)ft.value='';triggerUpdate();});
-    ['traderModoFixoToggle','traderMovingAveragesToggle','traderTopoFundoToggle','traderCongestaoToggle','traderShowRSI','traderExibirPorcentoToggle','traderLinhaAtualToggle'].forEach(id=>document.getElementById(id)?.addEventListener('change',triggerUpdate));
-    ['traderCongestaoQtd','traderMM1Period','traderMM2Period','traderMacdFast','traderMacdSlow','traderMacdSignal','traderRsiPeriod'].forEach(id=>document.getElementById(id)?.addEventListener('change',triggerUpdate));
+    ['traderModoFixoToggle','traderMovingAveragesToggle','traderTopoFundoToggle','traderCongestaoToggle','traderShowRSI','traderExibirPorcentoToggle','traderLinhaAtualToggle','traderShowXLabels'].forEach(id=>document.getElementById(id)?.addEventListener('change',triggerUpdate));
+    ['traderCongestaoQtd','traderMM1Period','traderMM2Period','traderMacdFast','traderMacdSlow','traderMacdSignal','traderRsiPeriod','traderTooltipFontSize'].forEach(id=>document.getElementById(id)?.addEventListener('change',triggerUpdate));
     document.getElementById('traderAltPrincipalMenos')?.addEventListener('click',()=>{const el=document.getElementById('traderAltPrincipal');if(el){el.value=Math.max(200,parseInt(el.value)-10);_traderSetAlturas();traderSaveCfg();}});
     document.getElementById('traderAltPrincipalMais')?.addEventListener('click',()=>{const el=document.getElementById('traderAltPrincipal');if(el){el.value=Math.min(600,parseInt(el.value)+10);_traderSetAlturas();traderSaveCfg();}});
     document.getElementById('traderAltMacdMenos')?.addEventListener('click',()=>{const el=document.getElementById('traderAltMacd');if(el){el.value=Math.max(80,parseInt(el.value)-10);_traderSetAlturas();traderSaveCfg();}});
     document.getElementById('traderAltMacdMais')?.addEventListener('click',()=>{const el=document.getElementById('traderAltMacd');if(el){el.value=Math.min(400,parseInt(el.value)+10);_traderSetAlturas();traderSaveCfg();}});
     document.getElementById('traderAltPrincipal')?.addEventListener('change',()=>{_traderSetAlturas();traderSaveCfg();});
     document.getElementById('traderAltMacd')?.addEventListener('change',()=>{_traderSetAlturas();traderSaveCfg();});
+    document.getElementById('traderTooltipFontMenos')?.addEventListener('click',()=>{const el=document.getElementById('traderTooltipFontSize');if(el){el.value=Math.max(8,parseInt(el.value)-1);traderSaveCfg();traderAtualizarGrafico();}});
+    document.getElementById('traderTooltipFontMais')?.addEventListener('click',()=>{const el=document.getElementById('traderTooltipFontSize');if(el){el.value=Math.min(20,parseInt(el.value)+1);traderSaveCfg();traderAtualizarGrafico();}});
 
-    /* ── Botão Legenda: salva estado ao clicar ── */
     document.getElementById('traderBtnLegenda')?.addEventListener('click',function(){
         const box=document.getElementById('traderLegendaDinamica');if(!box)return;
         const oculta=box.classList.toggle('oculta');
         this.textContent=oculta?'Legenda: OFF':'Legenda: ON';
         this.classList.toggle('off',oculta);
-        _traderSaveUI(); /* <── persiste */
+        _traderSaveUI();
     });
 
     document.getElementById('traderBtnLinhaTools')?.addEventListener('click',e=>_traderTogglePanel('mtLinhaPainel',e));
     document.getElementById('traderBtnConfig')?.addEventListener('click',e=>_traderTogglePanel('mtConfigPainel',e));
     document.addEventListener('click',e=>{[['mtLinhaPainel','traderBtnLinhaTools'],['mtConfigPainel','traderBtnConfig']].forEach(([pid,bid])=>{const p=document.getElementById(pid);if(p&&!p.contains(e.target)&&e.target.id!==bid)p.classList.remove('on');});});
+    /* Fecha paineis se a pagina for scrollada (evita painel flutuante desalinhado) */
+    window.addEventListener('scroll',()=>{document.querySelectorAll('.mt-fp.on,.mt-cfg.on').forEach(p=>p.classList.remove('on'));},{passive:true});
     ['mtLinhaPainel','mtConfigPainel'].forEach(id=>document.getElementById(id)?.addEventListener('click',e=>e.stopPropagation()));
     window.addEventListener('keydown',e=>{if((e.key==='Delete'||e.key==='Backspace')&&document.activeElement===document.body)window.traderDeletarLinha?.();});
 
@@ -6687,12 +6866,12 @@ document.addEventListener('DOMContentLoaded',()=>{
         _s('traderCongestaoQtd',TRADER_PADRAO.linhasCongestao);_s('traderMM1Period',TRADER_PADRAO.periodoMM1);_s('traderMM2Period',TRADER_PADRAO.periodoMM2);
         _s('traderRsiPeriod',TRADER_PADRAO.rsiPeriodo);_s('traderMacdFast',TRADER_PADRAO.macdRapida);_s('traderMacdSlow',TRADER_PADRAO.macdLenta);_s('traderMacdSignal',TRADER_PADRAO.macdSinal);
         _s('traderAltPrincipal',TRADER_PADRAO.alturaPrincipalPx);_s('traderAltMacd',TRADER_PADRAO.alturaMACDPx);
+        _s('traderTooltipFontSize',TRADER_PADRAO.tooltipFontSize);
         _c('traderModoFixoToggle',true);_c('traderMovingAveragesToggle',true);_c('traderTopoFundoToggle',true);_c('traderCongestaoToggle',true);
-        _c('traderShowRSI',false);_c('traderExibirPorcentoToggle',true);_c('traderLinhaAtualToggle',true);
+        _c('traderShowRSI',false);_c('traderExibirPorcentoToggle',true);_c('traderLinhaAtualToggle',true);_c('traderShowXLabels',true);
         _traderSetAlturas();traderSaveCfg();traderAtualizarGrafico();
     });
 
-    /* ── Persiste estado do acordeão quando o usuário abre/fecha ── */
     const mtraderEl=document.querySelector('[data-mtrader]');
     if(mtraderEl){
         const accordionBtn=mtraderEl.closest('.accordion-content')?.closest('.accordion-item')?.querySelector('.accordion-button');
@@ -6700,7 +6879,6 @@ document.addEventListener('DOMContentLoaded',()=>{
             const origOnclick=accordionBtn.onclick;
             accordionBtn.onclick=function(e){
                 if(origOnclick)origOnclick.call(this,e);
-                /* Aguarda o DOM aplicar o novo estado antes de salvar */
                 setTimeout(_traderSaveUI,50);
             };
         }
@@ -6710,7 +6888,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 setInterval(traderUpdate,3000);
-    </script>
+</script>
 
 
 
