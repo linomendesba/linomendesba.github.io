@@ -2203,14 +2203,10 @@ function criarTabela(dados, oddsData, proximosJogos) {
   let thead = tabela.querySelector("thead");
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
 
-  // ── Salva e reinsere trQuadrantes para evitar piscar ──
+  // ── Limpa o thead para reconstrução (trQD será reinserido por qdRenderTabela no final) ──
   const _trQDSalvo = thead.querySelector("#trQuadrantes");
-  if (_trQDSalvo) _trQDSalvo.remove(); // remove temporariamente antes de limpar
+  if (_trQDSalvo) _trQDSalvo.remove();
   thead.innerHTML = "";
-  // Reinsere imediatamente se existia e está ativo (no início do thead)
-  if (_trQDSalvo && qdCheckboxAtivo()) {
-    thead.insertBefore(_trQDSalvo, thead.firstChild);
-  }
 
   const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
   trPercentual.appendChild(document.createElement("th"));
@@ -2544,23 +2540,18 @@ function criarTabela(dados, oddsData, proximosJogos) {
   document.getElementById("totalGols").textContent=`Gols: ${statsEl.totalGols}`;
   document.getElementById("mediaGolsHora").textContent=`Médias: ${statsEl.mediaGolsHora}`;
 
+  // Quadrantes: renderiza ANTES de updateSelectedRows para garantir que o
+  // trQD esteja no thead desde o início. qdRenderTabela já tem lógica interna
+  // para não recriar a estrutura desnecessariamente (checa structKey).
+  qdDadosCache = dados;
+  if (qdCheckboxAtivo()) {
+    qdRenderTabela(dados);
+  }
+
   criarOuObterPainel(); aplicarHighlights(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
   garantirPainelCores(); sincronizarPainelCores();
   atualizarCheckboxStreak(); calcularStreakMaximo();
   iniciarObserverStreak();
-
-  // Quadrantes: o trQD já foi reinserido no início da função se existia.
-  // Se não existia ainda (primeira carga), cria agora.
-  qdDadosCache = dados;
-  const _trQDAtual = thead.querySelector("#trQuadrantes");
-  if (_trQDAtual) {
-    // Já está no DOM — só atualiza valores e indicador
-    qdRenderTabelaValores(dados);
-    qdAtualizarIndicadorAoVivo();
-  } else if (qdCheckboxAtivo()) {
-    // Primeira vez com checkbox ativo — cria
-    qdRenderTabela(dados);
-  }
 }
 
 // ─── OBSERVER: re-aplica streak automaticamente ───────────────────────────────
