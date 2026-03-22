@@ -911,6 +911,21 @@ function dateToLocalStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
+// ─── HORA DE LONDRES (para sincronizar com dados da Bet365) ──────────────────
+function getAgoraLondres() {
+  const agora = new Date();
+  const londonStr = agora.toLocaleString("en-GB", { timeZone: "Europe/London",
+    year:"numeric", month:"2-digit", day:"2-digit",
+    hour:"2-digit", minute:"2-digit", second:"2-digit", hour12: false });
+  const [datePart, timePart] = londonStr.split(", ");
+  const [day, month, year]   = datePart.split("/").map(Number);
+  const [hour]               = timePart.split(":").map(Number);
+  return {
+    hora: hour,
+    date: `${year}-${month.toString().padStart(2,"0")}-${day.toString().padStart(2,"0")}`
+  };
+}
+
 const COR_GREEN_PADRAO = "#018b06";
 const COR_RED_PADRAO   = "#be0e02";
 
@@ -1050,6 +1065,7 @@ function restaurarHorasSeletor() {
         [32, 35, 38, 41, 44], // Bloco 3
         [47, 50, 53, 56, 59]  // Bloco 4
     ];
+
 
 const counterMarketMap = {
   'ambasMarcam':    'ambasNaoMarcam',
@@ -1248,15 +1264,14 @@ function qdRenderTabelaValores(resultados) {
   if (!qdCheckboxAtivo()) return;
   if (!document.querySelector("#trQuadrantes")) return;
 
-  const agora = new Date();
-  const horaAtualNumero = agora.getHours();
+  const { hora: horaAtualNumero, date: dateAtual } = getAgoraLondres();
   let timeSlots = [];
-  let currentDate = new Date(agora);
+  let currentDate = new Date(dateAtual + "T12:00:00Z");
   let currentHour = horaAtualNumero;
   for (let i = 0; i <= qdNumPreviousHours; i++) {
     timeSlots.push({ date: currentDate.toISOString().split('T')[0], hour: currentHour });
     currentHour--;
-    if (currentHour < 0) { currentHour = 23; currentDate.setDate(currentDate.getDate() - 1); }
+    if (currentHour < 0) { currentHour = 23; currentDate.setUTCDate(currentDate.getUTCDate() - 1); }
   }
   const jogosPorSlot = timeSlots.map(slot =>
     (resultados||[]).filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
@@ -1293,15 +1308,14 @@ function qdRenderTabela(resultados) {
   const thead = document.querySelector("#tabelaResultados thead");
   if (!thead) return;
 
-  const agora = new Date();
-  const horaAtualNumero = agora.getHours();
+  const { hora: horaAtualNumero, date: dateAtual } = getAgoraLondres();
   let timeSlots = [];
-  let currentDate = new Date(agora);
+  let currentDate = new Date(dateAtual + "T12:00:00Z");
   let currentHour = horaAtualNumero;
   for (let i = 0; i <= qdNumPreviousHours; i++) {
     timeSlots.push({ date: currentDate.toISOString().split('T')[0], hour: currentHour });
     currentHour--;
-    if (currentHour < 0) { currentHour = 23; currentDate.setDate(currentDate.getDate() - 1); }
+    if (currentHour < 0) { currentHour = 23; currentDate.setUTCDate(currentDate.getUTCDate() - 1); }
   }
 
   const jogosPorSlot = timeSlots.map(slot =>
