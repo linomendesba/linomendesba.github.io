@@ -156,12 +156,6 @@
   </select>
 </div>
 
-<div class="seletor-quadrantes">
-      <label id="lbl-quadrantes-toggle" class="alerta-toggle-label" style="cursor:pointer;">
-        <input type="checkbox" id="cb-quadrantes-toggle"> 🔲 Quadrantes
-      </label>
-    </div>
-
     <div class="seletor-ver-odds">
       <select id="mostrarOdds">
         <option value="nao">Ver Odds:Não</option>
@@ -187,6 +181,12 @@
       <div id="redPercentage">Reds: 67.5%</div>
     </div>
   </div>
+
+  <div class="seletor-quadrantes">
+      <label id="lbl-quadrantes-toggle" class="alerta-toggle-label" style="cursor:pointer;">
+        <input type="checkbox" id="cb-quadrantes-toggle"> 🔲 Quadrantes
+      </label>
+    </div>
 
 <div class="cardsligasbetano-container">
     <div class="cardsligasbetano-card" onclick="window.location.href='euro.html'">
@@ -2559,6 +2559,26 @@ function iniciarObserverStreak() {
 async function buscarDados() {
   hideErrorMessage();
   restaurarHorasSeletor();
+
+  // ── Garante checkbox conectado SEMPRE antes de qualquer coisa ──
+  const _cb = document.getElementById("cb-quadrantes-toggle");
+  const _lbl = document.getElementById("lbl-quadrantes-toggle");
+  if (_cb && !_cb._qdWired) {
+    _cb.checked = qdCheckboxAtivo();
+    if (_cb.checked) _lbl?.classList.add("alerta-ativo");
+    _cb.addEventListener("change", function () {
+      _lbl?.classList.toggle("alerta-ativo", this.checked);
+      qdSalvarCheckbox(this.checked);
+      if (this.checked && qdDadosCache) {
+        qdRenderTabela(qdDadosCache);
+        qdAplicarSeparadorTabela(true);
+      } else {
+        qdToggle(this.checked);
+      }
+    });
+    _cb._qdWired = true;
+  }
+
   const ligaAtual=typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default";
   Estado.recarregarChaves();
   if(Estado._ultimaLigaRenderizada!==ligaAtual){Estado.forcarRerender();Estado._ultimaLigaRenderizada=ligaAtual;_ultimaLigaHorasRestauradas=null;}
@@ -2569,16 +2589,14 @@ async function buscarDados() {
   try{proximosJogos=await fetchProximosJogos();}catch(e){showErrorMessage(`Erro próximos: ${e.message}`);}
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
 
-  // Salva cache dos dados para os quadrantes
   qdDadosCache = dados;
 
   if(!Estado.dadosMudaram(dados,oddsData,proximosJogos)){
-    console.log("Dados inalterados."); computeStatsFromDOM(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
+    console.log("Dados inalterados.");
+    computeStatsFromDOM(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
     garantirPainelCores(); sincronizarPainelCores();
     atualizarCheckboxStreak(); calcularStreakMaximo();
     iniciarObserverStreak();
-    // Dados inalterados: só atualiza valores e indicador ao vivo (sem recriar estrutura)
-    qdDadosCache = dados;
     qdRenderTabelaValores(dados);
     qdAtualizarIndicadorAoVivo();
     return;
