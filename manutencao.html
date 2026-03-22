@@ -1166,45 +1166,25 @@ function qdCalcStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
 function qdCreateBlocoThs(index, timeSlots) {
   const qIdx        = index % 4;
   const isFirstBloco = index === 0;
+  const borderStyle  = isFirstBloco ? '' : 'border-left:3px solid rgba(255,255,255,0.18);';
   let innerHtml = '';
-  timeSlots.forEach((slot, slotIdx) => {
-    const isCurrent       = slotIdx === 0;
-    const labelColor      = isCurrent ? '#e5e7eb' : '#9ca3af';
-    const labelWeight     = isCurrent ? '600' : '400';
-    const labelSize       = isCurrent ? '11px' : '10px';
-    const mtStyle         = slotIdx > 0 ? 'margin-top:0.25rem;' : '';
-    const golsBorderColor = isCurrent ? 'rgba(75,85,99,0.6)' : 'rgba(55,65,81,0.6)';
-    const golsBgColor     = isCurrent ? 'rgba(75,85,99,0.1)' : 'rgba(55,65,81,0.1)';
-    const golsTextColor   = isCurrent ? '#e5e7eb' : '#d1d5db';
-    const hitBorderColor  = isCurrent ? '#3a3f4b' : 'rgba(4,120,87,0.6)';
-    const hitBgColor      = isCurrent ? 'rgba(1,139,6,0.1)' : 'rgb(41,45,54)';
-    const hitTextColor    = isCurrent ? '#018b06' : '#6ee7b7';
-    const counterBgColor  = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)';
-    const counterTextColor= isCurrent ? '#be0e02' : '#fda4af';
-    const labelTxt        = isCurrent
-      ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
-      : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
 
-    innerHtml += `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;${mtStyle}white-space:nowrap;">
-        <span id="qd-label-${index}-${slotIdx}" style="color:${labelColor};font-weight:${labelWeight};font-size:${labelSize};">${labelTxt}</span>
-        <div style="display:flex;align-items:center;gap:0.25rem;">
-          <span style="display:inline-flex;align-items:center;gap:0.2rem;padding:0.1rem 0.3rem;border-radius:0.3rem;border:1px solid ${golsBorderColor};background-color:${golsBgColor};color:${golsTextColor};white-space:nowrap;" title="Total de Gols">
-            <span style="font-size:10px;line-height:13px;">⚽</span>
-            <strong id="qd-gols-${index}-${slotIdx}" style="font-size:11px;line-height:13px;">0</strong>
-          </span>
-          <span style="display:inline-flex;align-items:center;gap:0.2rem;padding:0.1rem 0.3rem;border-radius:0.3rem;border:1px solid ${hitBorderColor};background-color:${hitBgColor};color:${hitTextColor};white-space:nowrap;" title="Mercado">
-            <span style="font-size:10px;line-height:13px;">✅</span>
-            <strong id="qd-hits-${index}-${slotIdx}" style="font-size:11px;line-height:13px;">0</strong>
-          </span>
-          <span style="display:inline-flex;align-items:center;gap:0.2rem;padding:0.1rem 0.3rem;border-radius:0.3rem;border:1px solid #3a3f4b;background-color:${counterBgColor};color:${counterTextColor};white-space:nowrap;" title="Contrário">
-            <span style="font-size:10px;line-height:13px;">❌</span>
-            <strong id="qd-counter-${index}-${slotIdx}" style="font-size:11px;line-height:13px;">0</strong>
-          </span>
-        </div>
-      </div>`;
+  timeSlots.forEach((slot, slotIdx) => {
+    const isCurrent = slotIdx === 0;
+    const rowClass  = isCurrent ? 'qd-hora-row qd-hora-atual' : 'qd-hora-row qd-hora-ant';
+    const labelTxt  = isCurrent
+      ? `H.${slot.hour.toString().padStart(2,'0')}`
+      : `‑${slotIdx}h`;
+
+    innerHtml += `<div class="${rowClass}">
+      <span id="qd-label-${index}-${slotIdx}" class="qd-hora-label">${labelTxt}</span>
+      <span class="qd-chip qd-chip-gols" title="Gols">⚽<strong id="qd-gols-${index}-${slotIdx}">0</strong></span>
+      <span class="qd-chip qd-chip-hits" title="Acertos">✓<strong id="qd-hits-${index}-${slotIdx}">0</strong></span>
+      <span class="qd-chip qd-chip-miss" title="Erros">✗<strong id="qd-counter-${index}-${slotIdx}">0</strong></span>
+    </div>`;
   });
-  return `<th colspan="5" class="qd-bloco-th qd-${qIdx}" style="padding:0.4rem 0.5rem;text-align:left;font-size:12px;line-height:1.2;${isFirstBloco ? '' : 'border-left:3px solid rgba(255,255,255,0.35);'}">${innerHtml}</th>`;
+
+  return `<th colspan="5" class="qd-bloco-th qd-${qIdx}" style="${borderStyle}">${innerHtml}</th>`;
 }
 
 // ─── Calcula qual bloco está ao vivo agora ────────────────────────────────────
@@ -1230,19 +1210,16 @@ function qdNomeBlocoLabel(blocoIdx) {
 function qdAtualizarIndicadorAoVivo() {
   const blocoAtivo = qdBlocoAtual();
   document.querySelectorAll(".qd-bloco-th").forEach((th, i) => {
-    const badge = th.querySelector(".qd-live-badge");
-    const wasAtivo = th.classList.contains("qd-bloco-ativo");
-    const isAtivo  = (i === blocoAtivo);
-
+    const badge   = th.querySelector(".qd-live-badge");
+    const isAtivo = (i === blocoAtivo);
     th.classList.toggle("qd-bloco-ativo", isAtivo);
-
     if (isAtivo && !badge) {
       const b = document.createElement("span");
       b.className = "qd-live-badge";
       b.innerHTML = `<span class="qd-live-dot"></span>Q${i+1}`;
-      // Insere antes da primeira div de conteúdo, dentro da primeira linha
-      const firstDiv = th.querySelector("div");
-      if (firstDiv) firstDiv.insertBefore(b, firstDiv.firstChild);
+      // Insere antes do label da primeira hora-row
+      const firstLabel = th.querySelector(".qd-hora-label");
+      if (firstLabel) firstLabel.parentNode.insertBefore(b, firstLabel);
       else th.insertBefore(b, th.firstChild);
     } else if (!isAtivo && badge) {
       badge.remove();
@@ -1274,8 +1251,8 @@ function qdRenderTabelaValores(resultados) {
       const labelEl = document.getElementById(`qd-label-${i}-${slotIdx}`);
       if (labelEl) {
         labelEl.textContent = slotIdx === 0
-          ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
-          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
+          ? `H.${slot.hour.toString().padStart(2,'0')}`
+          : `‑${slotIdx}h`;
       }
     }
   });
@@ -1350,8 +1327,8 @@ function qdRenderTabela(resultados) {
       const labelEl = document.getElementById(`qd-label-${i}-${slotIdx}`);
       if (labelEl) {
         labelEl.textContent = slotIdx === 0
-          ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
-          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
+          ? `H.${slot.hour.toString().padStart(2,'0')}`
+          : `‑${slotIdx}h`;
       }
     }
   });
@@ -1495,33 +1472,99 @@ function garantirCheckboxQuadrantes() {
 
     td.quadrant-border, th.quadrant-border { border-left: 3px solid rgba(255,255,255,0.35) !important; }
 
-    /* Linha dos quadrantes no thead da tabela principal */
-    .qd-bloco-th { vertical-align: top; }
-    .qd-bloco-th.qd-0 { background-color: #1c2133 !important; }
-    .qd-bloco-th.qd-1 { background-color: #232b3e !important; }
-    .qd-bloco-th.qd-2 { background-color: #1a1f30 !important; }
-    .qd-bloco-th.qd-3 { background-color: #20283b !important; }
-
-    /* Bloco ao vivo — destaque na linha de quadrantes */
-    .qd-bloco-th.qd-bloco-ativo {
-      background-color: rgba(31,172,137,0.18) !important;
-      box-shadow: inset 0 0 0 2px rgba(31,172,137,0.55);
+    /* ══ LINHA DE QUADRANTES ══════════════════════════════════════════════ */
+    #trQuadrantes th {
+      padding: 0 !important;
+      border-bottom: 2px solid rgba(255,255,255,0.06);
     }
+    #trQuadrantes th:nth-child(2) {
+      background: #181b25 !important;
+      padding: 5px 6px !important;
+    }
+
+    /* Célula de cada bloco */
+    .qd-bloco-th {
+      vertical-align: middle !important;
+      padding: 4px 8px !important;
+    }
+    .qd-bloco-th.qd-0 { background: #181c28 !important; }
+    .qd-bloco-th.qd-1 { background: #1c2133 !important; }
+    .qd-bloco-th.qd-2 { background: #181c28 !important; }
+    .qd-bloco-th.qd-3 { background: #1c2133 !important; }
+
+    /* Bloco ativo — destaque verde limpo */
+    .qd-bloco-th.qd-bloco-ativo {
+      background: rgba(31,172,137,0.10) !important;
+      border-bottom: 2px solid rgba(31,172,137,0.7) !important;
+    }
+
+    /* Linha de cada hora dentro do bloco */
+    .qd-hora-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .qd-hora-row + .qd-hora-row {
+      margin-top: 3px;
+      padding-top: 3px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* Label de hora */
+    .qd-hora-label {
+      font-size: 9px;
+      font-weight: 700;
+      width: 26px;
+      flex-shrink: 0;
+      letter-spacing: 0.2px;
+    }
+    .qd-hora-atual .qd-hora-label { color: #cbd5e1; }
+    .qd-hora-ant   .qd-hora-label { color: #4b5563; }
+
+    /* Chips de stat — compactos */
+    .qd-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      min-width: 26px;
+      justify-content: center;
+      line-height: 1.3;
+    }
+    .qd-chip strong { font-size: 10px; font-weight: 700; }
+
+    /* Hora atual — cores normais */
+    .qd-hora-atual .qd-chip-gols { background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.25); color: #a5b4fc; }
+    .qd-hora-atual .qd-chip-hits { background: rgba(1,139,6,0.12);    border-color: rgba(1,139,6,0.30);   color: #4ade80; }
+    .qd-hora-atual .qd-chip-miss { background: rgba(190,14,2,0.12);   border-color: rgba(190,14,2,0.30);  color: #f87171; }
+
+    /* Horas anteriores — muito mais suaves */
+    .qd-hora-ant .qd-chip-gols { background: transparent; border-color: rgba(99,102,241,0.12); color: #4b5563; }
+    .qd-hora-ant .qd-chip-hits { background: transparent; border-color: rgba(1,139,6,0.12);    color: #374151; }
+    .qd-hora-ant .qd-chip-miss { background: transparent; border-color: rgba(190,14,2,0.12);   color: #374151; }
+
+    /* Badge ao vivo — minúsculo */
     .qd-live-badge {
       display: inline-flex; align-items: center; gap: 3px;
-      background: rgba(31,172,137,0.22); color: #1fac89;
-      border: 1px solid rgba(31,172,137,0.5); border-radius: 4px;
-      font-size: 9px; font-weight: 700; padding: 1px 4px;
-      margin-right: 4px; white-space: nowrap; vertical-align: middle;
+      background: rgba(31,172,137,0.15); color: #1fac89;
+      border: 1px solid rgba(31,172,137,0.35); border-radius: 3px;
+      font-size: 8px; font-weight: 800; padding: 0 3px;
+      letter-spacing: 0.3px; text-transform: uppercase;
+      margin-right: 2px; flex-shrink: 0;
     }
     .qd-live-dot {
-      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-      background: #1fac89;
+      width: 4px; height: 4px; border-radius: 50%;
+      background: #1fac89; flex-shrink: 0;
       animation: qdLivePulse 1.2s ease-in-out infinite;
     }
     @keyframes qdLivePulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: 0.4; transform: scale(0.7); }
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.25; }
     }
 
     #coluna-stats { display:flex; flex-wrap:wrap; gap:5px; padding:5px 8px; margin-bottom:4px; }
@@ -2201,14 +2244,11 @@ function criarTabela(dados, oddsData, proximosJogos) {
   let thead = tabela.querySelector("thead");
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
 
-  // ── Salva e reinsere trQuadrantes para evitar piscar ──
+  // ── Salva o trQuadrantes antes de limpar o thead ──
   const _trQDSalvo = thead.querySelector("#trQuadrantes");
-  if (_trQDSalvo) _trQDSalvo.remove(); // remove temporariamente antes de limpar
+  if (_trQDSalvo) _trQDSalvo.remove();
   thead.innerHTML = "";
-  // Reinsere imediatamente se existia e está ativo
-  if (_trQDSalvo && qdCheckboxAtivo()) {
-    thead.appendChild(_trQDSalvo);
-  }
+  // Não reinsere aqui — será inserido no final, depois de tudo construído
 
   const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
   trPercentual.appendChild(document.createElement("th"));
@@ -2547,19 +2587,21 @@ function criarTabela(dados, oddsData, proximosJogos) {
   atualizarCheckboxStreak(); calcularStreakMaximo();
   iniciarObserverStreak();
 
-  // Quadrantes: o trQD já foi reinserido no início da função se existia.
-  // Se não existia ainda (primeira carga), cria agora.
+  // Quadrantes — sempre após garantirPainelCores (que cria o checkbox e sincroniza o estado)
   qdDadosCache = dados;
-  const _trQDAtual = thead.querySelector("#trQuadrantes");
-  if (_trQDAtual) {
-    // Já está no DOM — só atualiza valores e indicador
-    qdRenderTabelaValores(dados);
-    qdAtualizarIndicadorAoVivo();
-  } else if (qdCheckboxAtivo()) {
-    // Primeira vez com checkbox ativo — cria
-    qdRenderTabela(dados);
+  if (qdCheckboxAtivo()) {
+    if (_trQDSalvo) {
+      // Re-insere no topo sem recriar — sem piscar
+      thead.insertBefore(_trQDSalvo, thead.firstChild);
+      qdRenderTabelaValores(dados);
+      qdAtualizarIndicadorAoVivo();
+    } else {
+      // Primeira carga com checkbox salvo como ativo
+      qdRenderTabela(dados);
+    }
+    qdAplicarSeparadorTabela(true);
   }
-}
+} // fim criarTabela
 
 // ─── OBSERVER: re-aplica streak automaticamente ───────────────────────────────
 let _streakDebounceTimer = null;
