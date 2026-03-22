@@ -887,7 +887,7 @@
 <script src="disableChartAnimations.js"></script>
 
 <script>
-    // ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // TABELA + QUADRANTES INTEGRADO
 // Quadrantes embutidos acima da tabela, controlados por checkbox (estado salvo)
 // Seleção de time e odd nos próximos confrontos incluída
@@ -2203,8 +2203,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
   let thead = tabela.querySelector("thead");
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
 
-  // ── Limpa o thead — trQD será recriado por qdRenderTabela no final ──
+  // ── Salva e reinsere trQuadrantes para evitar piscar ──
+  const _trQDSalvo = thead.querySelector("#trQuadrantes");
+  if (_trQDSalvo) _trQDSalvo.remove(); // remove temporariamente antes de limpar
   thead.innerHTML = "";
+  // Reinsere imediatamente se existia e está ativo
+  if (_trQDSalvo && qdCheckboxAtivo()) {
+    thead.appendChild(_trQDSalvo);
+  }
 
   const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
   trPercentual.appendChild(document.createElement("th"));
@@ -2543,9 +2549,18 @@ function criarTabela(dados, oddsData, proximosJogos) {
   atualizarCheckboxStreak(); calcularStreakMaximo();
   iniciarObserverStreak();
 
-  // Quadrantes — renderiza/atualiza após a tabela estar pronta
+  // Quadrantes: o trQD já foi reinserido no início da função se existia.
+  // Se não existia ainda (primeira carga), cria agora.
   qdDadosCache = dados;
-  if (qdCheckboxAtivo()) qdRenderTabela(dados);
+  const _trQDAtual = thead.querySelector("#trQuadrantes");
+  if (_trQDAtual) {
+    // Já está no DOM — só atualiza valores e indicador
+    qdRenderTabelaValores(dados);
+    qdAtualizarIndicadorAoVivo();
+  } else if (qdCheckboxAtivo()) {
+    // Primeira vez com checkbox ativo — cria
+    qdRenderTabela(dados);
+  }
 }
 
 // ─── OBSERVER: re-aplica streak automaticamente ───────────────────────────────
@@ -2569,10 +2584,17 @@ async function buscarDados() {
   Estado.recarregarChaves();
   if(Estado._ultimaLigaRenderizada!==ligaAtual){Estado.forcarRerender();Estado._ultimaLigaRenderizada=ligaAtual;_ultimaLigaHorasRestauradas=null;}
   let dados=[],oddsData=[],proximosJogos=[];
-  try{const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));if(!r.ok)throw new Error(`${r.status}`);dados=await r.json();}
-  catch(e){console.error("Erro resultados:",e);showErrorMessage(`Erro ao carregar resultados: ${e.message}`);}
-  try{oddsData=await fetchOdds();}catch(e){showErrorMessage(`Erro odds: ${e.message}`);}
-  try{proximosJogos=await fetchProximosJogos();}catch(e){showErrorMessage(`Erro próximos: ${e.message}`);}
+  const [resD,resO,resP] = await Promise.allSettled([
+    fetch(ROTAS_API.resultados(LIGA_ATUAL)).then(r=>{if(!r.ok)throw new Error(`${r.status}`);return r.json();}),
+    fetchOdds(),
+    fetchProximosJogos()
+  ]);
+  if(resD.status==="fulfilled") dados=resD.value;
+  else{console.error("Erro resultados:",resD.reason);showErrorMessage(`Erro ao carregar resultados: ${resD.reason?.message}`);}
+  if(resO.status==="fulfilled") oddsData=resO.value;
+  else showErrorMessage(`Erro odds: ${resO.reason?.message}`);
+  if(resP.status==="fulfilled") proximosJogos=resP.value;
+  else showErrorMessage(`Erro próximos: ${resP.reason?.message}`);
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
 
   // Salva cache dos dados para os quadrantes
@@ -2583,20 +2605,13 @@ async function buscarDados() {
     garantirPainelCores(); sincronizarPainelCores();
     atualizarCheckboxStreak(); calcularStreakMaximo();
     iniciarObserverStreak();
+    // Dados inalterados: só atualiza valores e indicador ao vivo (sem recriar estrutura)
     qdDadosCache = dados;
-    // Usa qdRenderTabela (não só qdRenderTabelaValores) para garantir que o trQD
-    // seja criado caso não exista (ex: após reload com checkbox ativo)
-    if (qdCheckboxAtivo()) qdRenderTabela(dados);
-    else qdAtualizarIndicadorAoVivo();
+    qdRenderTabelaValores(dados);
+    qdAtualizarIndicadorAoVivo();
     return;
   }
   criarTabela(dados,oddsData,proximosJogos);
-  // Segurança: garante trQD no DOM após renderização completa
-  if (qdCheckboxAtivo()) {
-    setTimeout(() => {
-      if (!document.querySelector("#trQuadrantes")) qdRenderTabela(qdDadosCache);
-    }, 50);
-  }
 }
 
 buscarDados();
