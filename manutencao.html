@@ -1423,22 +1423,6 @@ function qdAplicarSeparadorTabela(ativo) {
   }
 }
 
-// ─── CHECKBOX DOS QUADRANTES ──────────────────────────────────────────────────
-function garantirCheckboxQuadrantes() {
-  const cb  = document.getElementById("cb-quadrantes-toggle");
-  const lbl = document.getElementById("lbl-quadrantes-toggle");
-  if (!cb || cb._qdWired) return; // já conectado ou não existe
-
-  cb.checked = qdCheckboxAtivo();
-  if (cb.checked) lbl?.classList.add("alerta-ativo");
-
-  cb.addEventListener("change", function () {
-    lbl?.classList.toggle("alerta-ativo", this.checked);
-    qdToggle(this.checked);
-  });
-
-  cb._qdWired = true; // marca como conectado para não duplicar
-}
 
 // ─── INJEÇÃO DE ESTILOS ───────────────────────────────────────────────────────
 (function injectStyles() {
@@ -2548,16 +2532,13 @@ if (_trQDSalvo && qdCheckboxAtivo()) {
   // Quadrantes: o trQD já foi reinserido no início da função se existia.
   // Se não existia ainda (primeira carga), cria agora.
 qdDadosCache = dados;
-  garantirCheckboxQuadrantes(); // conecta o evento no checkbox do HTML
   if (qdCheckboxAtivo()) {
-    setTimeout(() => {
-      if (document.querySelector("#tabelaResultados thead #trQuadrantes")) {
-        qdRenderTabelaValores(qdDadosCache);
-        qdAtualizarIndicadorAoVivo();
-      } else {
-        qdRenderTabela(qdDadosCache);
-      }
-    }, 0);
+    if (thead.querySelector("#trQuadrantes")) {
+      qdRenderTabelaValores(dados);
+      qdAtualizarIndicadorAoVivo();
+    } else {
+      qdRenderTabela(dados);
+    }
   }
 }
 
@@ -6919,6 +6900,36 @@ setInterval(traderUpdate,3000);
   window.addEventListener('beforeunload', () => {
     sessionStorage.setItem(scrollKey, window.scrollY);
   });
+  // ─── INICIALIZA CHECKBOX DOS QUADRANTES (executa assim que o DOM estiver pronto) ───
+(function inicializarCheckboxQuadrantes() {
+  function conectar() {
+    const cb  = document.getElementById("cb-quadrantes-toggle");
+    const lbl = document.getElementById("lbl-quadrantes-toggle");
+    if (!cb || cb._qdWired) return;
+
+    cb.checked = qdCheckboxAtivo();
+    if (cb.checked) lbl?.classList.add("alerta-ativo");
+
+    cb.addEventListener("change", function () {
+      lbl?.classList.toggle("alerta-ativo", this.checked);
+      qdSalvarCheckbox(this.checked);
+      if (this.checked && qdDadosCache) {
+        qdRenderTabela(qdDadosCache);
+        qdAplicarSeparadorTabela(true);
+      } else {
+        qdToggle(this.checked);
+      }
+    });
+
+    cb._qdWired = true;
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", conectar);
+  } else {
+    conectar();
+  }
+})();
 </script>
 
 
