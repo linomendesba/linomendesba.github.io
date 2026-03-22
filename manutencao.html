@@ -2203,9 +2203,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   let thead = tabela.querySelector("thead");
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
 
-  // ── Limpa o thead para reconstrução (trQD será reinserido por qdRenderTabela no final) ──
-  const _trQDSalvo = thead.querySelector("#trQuadrantes");
-  if (_trQDSalvo) _trQDSalvo.remove();
+  // ── Limpa o thead — trQD será recriado por qdRenderTabela no final ──
   thead.innerHTML = "";
 
   const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
@@ -2540,18 +2538,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
   document.getElementById("totalGols").textContent=`Gols: ${statsEl.totalGols}`;
   document.getElementById("mediaGolsHora").textContent=`Médias: ${statsEl.mediaGolsHora}`;
 
-  // Quadrantes: renderiza ANTES de updateSelectedRows para garantir que o
-  // trQD esteja no thead desde o início. qdRenderTabela já tem lógica interna
-  // para não recriar a estrutura desnecessariamente (checa structKey).
-  qdDadosCache = dados;
-  if (qdCheckboxAtivo()) {
-    qdRenderTabela(dados);
-  }
-
   criarOuObterPainel(); aplicarHighlights(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
   garantirPainelCores(); sincronizarPainelCores();
   atualizarCheckboxStreak(); calcularStreakMaximo();
   iniciarObserverStreak();
+
+  // Quadrantes — renderiza/atualiza após a tabela estar pronta
+  qdDadosCache = dados;
+  if (qdCheckboxAtivo()) qdRenderTabela(dados);
 }
 
 // ─── OBSERVER: re-aplica streak automaticamente ───────────────────────────────
@@ -2589,13 +2583,20 @@ async function buscarDados() {
     garantirPainelCores(); sincronizarPainelCores();
     atualizarCheckboxStreak(); calcularStreakMaximo();
     iniciarObserverStreak();
-    // Dados inalterados: só atualiza valores e indicador ao vivo (sem recriar estrutura)
     qdDadosCache = dados;
-    qdRenderTabelaValores(dados);
-    qdAtualizarIndicadorAoVivo();
+    // Usa qdRenderTabela (não só qdRenderTabelaValores) para garantir que o trQD
+    // seja criado caso não exista (ex: após reload com checkbox ativo)
+    if (qdCheckboxAtivo()) qdRenderTabela(dados);
+    else qdAtualizarIndicadorAoVivo();
     return;
   }
   criarTabela(dados,oddsData,proximosJogos);
+  // Segurança: garante trQD no DOM após renderização completa
+  if (qdCheckboxAtivo()) {
+    setTimeout(() => {
+      if (!document.querySelector("#trQuadrantes")) qdRenderTabela(qdDadosCache);
+    }, 50);
+  }
 }
 
 buscarDados();
