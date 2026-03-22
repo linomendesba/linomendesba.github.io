@@ -1161,10 +1161,18 @@ function qdCalcStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
   return stats;
 }
 
-function qdCreateBlocoHtml(index, timeSlots) {
-  let html = `<th colspan="5" style="color:#d1d5db;font-weight:600;padding:0.5rem;border-left:1px solid #1fac89;text-align:center;font-size:13px;line-height:1.25;">`;
+// Gera 5 <th> individuais para um bloco — um por minuto do bloco
+// A célula central (minuto índice 2 dentro do bloco) recebe o conteúdo visível
+// As demais ficam vazias mas com a mesma classe de fundo do quadrante
+function qdCreateBlocoThs(index, timeSlots) {
+  const qIdx  = index % 4;   // classe qd-0…qd-3 igual à tabela
+  const isFirstBloco = index === 0;
+  const borderLeft   = isFirstBloco ? '' : 'border-left:3px solid rgba(255,255,255,0.35);';
+
+  // Monta o conteúdo que vai na célula central do bloco
+  let innerHtml = '';
   timeSlots.forEach((slot, slotIdx) => {
-    const isCurrent = slotIdx === 0;
+    const isCurrent       = slotIdx === 0;
     const labelColor      = isCurrent ? '#e5e7eb' : '#9ca3af';
     const labelWeight     = isCurrent ? '600' : '400';
     const labelSize       = isCurrent ? '11px' : '10px';
@@ -1177,36 +1185,41 @@ function qdCreateBlocoHtml(index, timeSlots) {
     const hitTextColor    = isCurrent ? '#018b06' : '#6ee7b7';
     const counterBgColor  = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)';
     const counterTextColor= isCurrent ? '#be0e02' : '#fda4af';
-    const label = isCurrent
+    const label           = isCurrent
       ? `Hora Atual: ${slot.hour.toString().padStart(2,'0')}`
       : `Hora Anterior ${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
 
-    html += `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;${mtStyle}">
+    innerHtml += `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;${mtStyle}white-space:nowrap;">
         <span style="color:${labelColor};font-weight:${labelWeight};font-size:${labelSize};">${label}</span>
-        <div style="display:flex;align-items:center;gap:0.375rem;">
-          <span style="display:inline-flex;align-items:center;gap:0.25rem;padding:0.125rem 0.375rem;border-radius:0.375rem;border:1px solid ${golsBorderColor};background-color:${golsBgColor};color:${golsTextColor};white-space:nowrap;" title="Total de Gols">
-            <span style="font-size:11px;line-height:14px;">⚽</span>
-            <strong id="qd-gols-${index}-${slotIdx}" style="font-size:12px;line-height:14px;">0</strong>
+        <div style="display:flex;align-items:center;gap:0.25rem;">
+          <span style="display:inline-flex;align-items:center;gap:0.2rem;padding:0.1rem 0.3rem;border-radius:0.3rem;border:1px solid ${golsBorderColor};background-color:${golsBgColor};color:${golsTextColor};white-space:nowrap;" title="Total de Gols">
+            <span style="font-size:10px;line-height:13px;">⚽</span>
+            <strong id="qd-gols-${index}-${slotIdx}" style="font-size:11px;line-height:13px;">0</strong>
           </span>
-          <span style="display:inline-flex;align-items:center;gap:0.25rem;padding:0.125rem 0.375rem;border-radius:0.375rem;border:1px solid ${hitBorderColor};background-color:${hitBgColor};color:${hitTextColor};white-space:nowrap;" title="Mercado Selecionado">
-            <span style="font-size:11px;line-height:14px;">✅</span>
-            <strong id="qd-hits-${index}-${slotIdx}" style="font-size:12px;line-height:14px;">0</strong>
+          <span style="display:inline-flex;align-items:center;gap:0.2rem;padding:0.1rem 0.3rem;border-radius:0.3rem;border:1px solid ${hitBorderColor};background-color:${hitBgColor};color:${hitTextColor};white-space:nowrap;" title="Mercado">
+            <span style="font-size:10px;line-height:13px;">✅</span>
+            <strong id="qd-hits-${index}-${slotIdx}" style="font-size:11px;line-height:13px;">0</strong>
           </span>
-          <span style="display:inline-flex;align-items:center;gap:0.25rem;padding:0.125rem 0.375rem;border-radius:0.375rem;border:1px solid #3a3f4b;background-color:${counterBgColor};color:${counterTextColor};white-space:nowrap;" title="Mercado Contrário">
-            <span style="font-size:11px;line-height:14px;">❌</span>
-            <strong id="qd-counter-${index}-${slotIdx}" style="font-size:12px;line-height:14px;">0</strong>
+          <span style="display:inline-flex;align-items:center;gap:0.2rem;padding:0.1rem 0.3rem;border-radius:0.3rem;border:1px solid #3a3f4b;background-color:${counterBgColor};color:${counterTextColor};white-space:nowrap;" title="Contrário">
+            <span style="font-size:10px;line-height:13px;">❌</span>
+            <strong id="qd-counter-${index}-${slotIdx}" style="font-size:11px;line-height:13px;">0</strong>
           </span>
         </div>
       </div>`;
   });
-  html += `</th>`;
-  return html;
+
+  // Gera 5 th — conteúdo vai no th com colspan=5, os outros 4 ficam com width=0
+  // Na prática a melhor forma de alinhar é usar colspan=5 numa única th que abrange o bloco
+  // mas inserida na MESMA tabela — o alinhamento vem automaticamente.
+  return `<th colspan="5" class="qd-bloco-th qd-${qIdx}" style="padding:0.4rem 0.5rem;text-align:left;font-size:12px;line-height:1.2;${isFirstBloco ? '' : 'border-left:3px solid rgba(255,255,255,0.35);'}">${innerHtml}</th>`;
 }
 
 function qdRenderTabela(resultados) {
-  const wrapper = document.getElementById("quadrantes-wrapper");
-  if (!wrapper || !qdCheckboxAtivo()) return;
+  if (!qdCheckboxAtivo()) return;
+
+  const thead = document.querySelector("#tabelaResultados thead");
+  if (!thead) return;
 
   const agora = new Date();
   const horaAtualNumero = agora.getHours();
@@ -1223,36 +1236,48 @@ function qdRenderTabela(resultados) {
     (resultados||[]).filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, 20)
   );
 
-  const table = wrapper.querySelector("#blocos-table");
-  const trContainer = table.querySelector("#trBlocks");
   const horaKey = `${horaAtualNumero}_${qdNumPreviousHours}`;
 
-  if (trContainer.dataset.horaKey !== horaKey) {
-    let tableHtml = `<th style="position:sticky;left:0;z-index:10;background-color:#292d36;color:#d1d5db;font-weight:600;padding:7px;text-align:center;border-right:1px solid #555;font-size:12px;line-height:1.25;">QDT</th>`;
-    for (let i = 0; i < blocosDeMinutos.length; i++) {
-      tableHtml += qdCreateBlocoHtml(i, timeSlots);
-    }
-    // controles +/-
-    tableHtml += `
-      <th style="color:#d1d5db;font-weight:600;padding:0rem 19px;border-left:1px solid #2596be;text-align:center;">
-        <div style="display:flex;align-items:center;justify-content:center;gap:1rem;">
-          <button id="qd-decrease" class="blocos-button">-</button>
-          <span id="qd-num-prev" style="color:white;font-size:12px;">${qdNumPreviousHours}</span>
-          <button id="qd-increase" class="blocos-button">+</button>
-        </div>
-      </th>`;
-    trContainer.innerHTML = tableHtml;
-    trContainer.dataset.horaKey = horaKey;
+  // Obtém ou cria o tr dos quadrantes no thead
+  let trQD = thead.querySelector("#trQuadrantes");
+  if (!trQD || trQD.dataset.horaKey !== horaKey) {
+    if (trQD) trQD.remove();
+    trQD = document.createElement("tr");
+    trQD.id = "trQuadrantes";
+    trQD.dataset.horaKey = horaKey;
 
-    // listeners dos botões +/-
-    document.getElementById("qd-decrease")?.addEventListener("click", () => {
+    // Monta todo o HTML interno de uma vez para evitar o bug do innerHTML +=
+    let trHtml = "";
+
+    // th selector (coluna checkbox)
+    trHtml += `<th style="position:sticky;left:0;z-index:10;background-color:#292d36;"></th>`;
+
+    // th QDT com botões +/-
+    trHtml += `<th style="background-color:#292d36;color:#d1d5db;font-weight:700;text-align:center;font-size:11px;padding:4px 6px;white-space:nowrap;">QDT<br><div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:3px;"><button id="qd-decrease" class="blocos-button" style="line-height:1;padding:1px 6px;">-</button><span id="qd-num-prev" style="color:white;font-size:11px;">${qdNumPreviousHours}</span><button id="qd-increase" class="blocos-button" style="line-height:1;padding:1px 6px;">+</button></div></th>`;
+
+    // 4 blocos × colspan=5
+    for (let i = 0; i < blocosDeMinutos.length; i++) {
+      trHtml += qdCreateBlocoThs(i, timeSlots);
+    }
+
+    // 3 colunas finais (gols, acertos, %)
+    trHtml += `<th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th>`;
+
+    trQD.innerHTML = trHtml;
+
+    // Insere como PRIMEIRA linha do thead para ficar acima de tudo
+    thead.insertBefore(trQD, thead.firstChild);
+
+    // Listeners dos botões +/- (agora o trQD já está no DOM)
+    trQD.querySelector("#qd-decrease")?.addEventListener("click", () => {
       if (qdNumPreviousHours > 0) { qdNumPreviousHours--; qdAtualizarComCache(); }
     });
-    document.getElementById("qd-increase")?.addEventListener("click", () => {
+    trQD.querySelector("#qd-increase")?.addEventListener("click", () => {
       qdNumPreviousHours++; qdAtualizarComCache();
     });
   }
 
+  // Atualiza apenas os valores numéricos (sem recriar a estrutura)
   const selectedMarket = document.querySelector('#seletorResultado')?.value || 'over2.5';
   const counterMarket  = counterMarketMap[selectedMarket];
 
@@ -1270,40 +1295,29 @@ function qdRenderTabela(resultados) {
 }
 
 function qdAtualizarComCache() {
-  const numSpan = document.getElementById("qd-num-prev");
-  if (numSpan) numSpan.innerText = qdNumPreviousHours;
+  // Remove o tr para forçar recriação com novo horaKey (hora mudou ou numPreviousHours mudou)
+  const trQD = document.querySelector("#trQuadrantes");
+  if (trQD) trQD.remove();
   qdRenderTabela(qdDadosCache);
 }
 
-// ─── WRAPPER DOS QUADRANTES ───────────────────────────────────────────────────
+// Sem wrapper externo — os quadrantes ficam no thead da tabela principal.
+// Esta função só garante que não existe o wrapper antigo caso o código tenha sido atualizado.
 function garantirQuadrantesWrapper() {
-  if (document.getElementById("quadrantes-wrapper")) return;
-  const wrapper = document.createElement("div");
-  wrapper.id = "quadrantes-wrapper";
-  wrapper.style.cssText = "overflow-x:auto;margin-bottom:10px;";
-  wrapper.innerHTML = `
-    <table id="blocos-table" style="border-collapse:collapse;width:100%">
-      <thead><tr id="trBlocks"></tr></thead>
-    </table>`;
-  const tabela = document.getElementById("tabelaResultados");
-  const selCont = document.getElementById("selectedRowsContainer");
-  const anchor  = selCont || tabela;
-  if (anchor) anchor.parentNode.insertBefore(wrapper, anchor);
-
-  // Aplica visibilidade conforme estado salvo
-  wrapper.style.display = qdCheckboxAtivo() ? "" : "none";
+  const old = document.getElementById("quadrantes-wrapper");
+  if (old) old.remove();
 }
 
 // ─── TOGGLE VISIBILIDADE DOS QUADRANTES ───────────────────────────────────────
 function qdToggle(ativo) {
   qdSalvarCheckbox(ativo);
-  const wrapper = document.getElementById("quadrantes-wrapper");
-  if (wrapper) wrapper.style.display = ativo ? "" : "none";
-
-  // Borda separadora nas colunas da tabela
+  const trQD = document.querySelector("#trQuadrantes");
+  if (trQD) {
+    trQD.style.display = ativo ? "" : "none";
+  } else if (ativo && qdDadosCache) {
+    qdRenderTabela(qdDadosCache);
+  }
   qdAplicarSeparadorTabela(ativo);
-
-  if (ativo && qdDadosCache) qdRenderTabela(qdDadosCache);
 }
 
 // Aplica/remove a classe quadrant-border nas células da tabela principal
@@ -1400,6 +1414,13 @@ function garantirCheckboxQuadrantes() {
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(3) { filter: none; }
 
     td.quadrant-border, th.quadrant-border { border-left: 3px solid rgba(255,255,255,0.35) !important; }
+
+    /* Linha dos quadrantes no thead da tabela principal */
+    .qd-bloco-th { vertical-align: top; }
+    .qd-bloco-th.qd-0 { background-color: #1c2133 !important; }
+    .qd-bloco-th.qd-1 { background-color: #232b3e !important; }
+    .qd-bloco-th.qd-2 { background-color: #1a1f30 !important; }
+    .qd-bloco-th.qd-3 { background-color: #20283b !important; }
 
     #coluna-stats { display:flex; flex-wrap:wrap; gap:5px; padding:5px 8px; margin-bottom:4px; }
     #coluna-stats:empty { display:none; }
@@ -2069,6 +2090,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const tabelaBody = tabela.querySelector("tbody");
   let thead = tabela.querySelector("thead");
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
+  // thead.innerHTML = "" apaga o trQuadrantes também — será recriado por qdRenderTabela no final
   thead.innerHTML = "";
 
   const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
