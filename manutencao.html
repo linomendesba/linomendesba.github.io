@@ -470,7 +470,22 @@
 </div><!-- /accordion-item -->
 
 
+<div class="setup-panel">
+    <div id="setupBar" class="setup-bar"></div>
+    <button id="btnAddSetup" class="setup-add-btn">＋ Novo Setup</button>
+</div>
 
+<div id="setupModal" class="setup-modal-overlay" style="display:none;">
+    <div class="setup-modal-box">
+        <h3>Criar Setup</h3>
+        <input id="setupModalName" type="text" placeholder="Nome do setup..." maxlength="30">
+        <div id="setupModalMarkets" class="setup-modal-markets"></div>
+        <div class="setup-modal-actions">
+            <button onclick="_saveNewSetup()">✔ Salvar</button>
+            <button onclick="_closeCreateSetupModal()">✕ Cancelar</button>
+        </div>
+    </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════
      ACORDEON 3: MERCADOS (gráfico Copa)
@@ -2656,6 +2671,9 @@ if(_mo){
     </script>
 
     <script>
+
+
+
 /* ═══════════════════════════════════════════════════════════════════
    VARIÁVEIS GLOBAIS
 ═══════════════════════════════════════════════════════════════════ */
@@ -2671,8 +2689,369 @@ let chartData = {};
 let _tabVisible = !document.hidden;
 document.addEventListener('visibilitychange', () => {
     _tabVisible = !document.hidden;
-    if (_tabVisible) updateCharts(); // atualiza imediatamente ao voltar
+    if (_tabVisible) updateCharts();
 });
+
+/* ═══════════════════════════════════════════════════════════════════
+   SISTEMA DE SETUPS
+   - "Padrão" é fixo, não pode ser deletado
+   - Usuário cria/deleta setups personalizados
+   - Cada setup define quais mercados ficam visíveis
+   - Tudo salvo em localStorage
+═══════════════════════════════════════════════════════════════════ */
+const SETUPS_KEY = 'meu_grafico:setups';
+const ACTIVE_SETUP_KEY = 'meu_grafico:activeSetup';
+
+// Setup padrão fixo — sempre existirá
+const DEFAULT_SETUP = {
+    id: '__default__',
+    name: 'Padrão',
+    markets: { 'Ambas Sim': true, 'Over 2.5': true, 'Gols FT': true }
+};
+
+function _loadSetups() {
+    try {
+        const raw = localStorage.getItem(SETUPS_KEY);
+        if (!raw) return [];
+        return JSON.parse(raw);
+    } catch { return []; }
+}
+
+function _saveSetups(setups) {
+    try {
+        localStorage.setItem(SETUPS_KEY, JSON.stringify(setups));
+    } catch(e) { console.warn('Erro ao salvar setups:', e); }
+}
+
+function _loadActiveSetupId() {
+    return localStorage.getItem(ACTIVE_SETUP_KEY) || '__default__';
+}
+
+function _saveActiveSetupId(id) {
+    localStorage.setItem(ACTIVE_SETUP_KEY, id);
+}
+
+function _getAllSetups() {
+    // Padrão sempre primeiro
+    return [DEFAULT_SETUP, ..._loadSetups()];
+}
+
+function _getActiveSetup() {
+    const id = _loadActiveSetupId();
+    const all = _getAllSetups();
+    return all.find(s => s.id === id) || DEFAULT_SETUP;
+}
+
+// Aplica um setup ao gráfico (atualiza statsChartVisibleDatasets e redesenha)
+function _applySetup(setup) {
+    // Reseta tudo para false
+    Object.keys(statsChartVisibleDatasets).forEach(k => {
+        statsChartVisibleDatasets[k] = false;
+    });
+    // Ativa só os mercados do setup
+    Object.entries(setup.markets).forEach(([k, v]) => {
+        if (k in statsChartVisibleDatasets) statsChartVisibleDatasets[k] = v;
+    });
+    _saveVisibleDatasets(statsChartVisibleDatasets);
+    _saveActiveSetupId(setup.id);
+
+    // Atualiza gráfico
+    leagues.forEach(l => {
+        const ci = chartInstances[l];
+        if (!ci) return;
+        ci.data.datasets.forEach((ds, idx) => {
+            const mainLabel = ds.label.includes(' - ') ? ds.label.split(' - ')[0] : ds.label;
+            const visible = statsChartVisibleDatasets[mainLabel] || false;
+            ci.getDatasetMeta(idx).hidden = ds.label.includes(' - ')
+                ? !showMovingAverages || !visible
+                : !visible;
+        });
+        ci.update();
+    });
+
+    // Atualiza UI da legenda
+    const container = document.getElementById('legenda-customizada');
+    if (container) {
+        container.querySelectorAll('.leg-item[data-label]').forEach(pill => {
+            pill.classList.toggle('leg-hidden', !statsChartVisibleDatasets[pill.dataset.label]);
+        });
+    }
+
+    // Atualiza UI dos botões de setup
+    _renderSetupButtons();
+}
+
+// Renderiza a barra de setups no DOM
+function _renderSetupButtons() {
+    const bar = document.getElementById('setupBar');
+    if (!bar) return;
+    bar.innerHTML = '';
+
+    const activeId = _loadActiveSetupId();
+    const allSetups = _getAllSetups();
+
+    allSetups.forEach(setup => {
+        const wrap = document.createElement('div');
+        wrap.className = 'setup-item';
+
+        const btn = document.createElement('button');
+        btn.className = 'setup-btn' + (setup.id === activeId ? ' setup-btn-active' : '');
+        btn.textContent = setup.name;
+        btn.title = Object.keys(setup.markets).filter(k => setup.markets[k]).join(', ') || 'Nenhum mercado';
+        btn.addEventListener('click', () => _applySetup(setup));
+        wrap.appendChild(btn);
+
+        // Botão deletar — não aparece no setup padrão
+        if (setup.id !== '__default__') {
+            const del = document.createElement('button');
+            del.className = 'setup-del';
+            del.textContent = '✕';
+            del.title = 'Remover setup';
+            del.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!confirm(`Remover setup "${setup.name}"?`)) return;
+                const setups = _loadSetups().filter(s => s.id !== setup.id);
+                _saveSetups(setups);
+                // Se era o ativo, volta pro padrão
+                if (_loadActiveSetupId() === setup.id) _applySetup(DEFAULT_SETUP);
+                else _renderSetupButtons();
+            });
+            wrap.appendChild(del);
+        }
+
+        bar.appendChild(wrap);
+    });
+}
+
+// Abre modal para criar novo setup
+function _openCreateSetupModal() {
+    const modal = document.getElementById('setupModal');
+    if (!modal) return;
+
+    // Preenche checkboxes com mercados atuais
+    const checkContainer = document.getElementById('setupModalMarkets');
+    checkContainer.innerHTML = '';
+    Object.keys(defaultStatsChartVisibleDatasets).forEach(label => {
+        const id = 'sm_' + label.replace(/\s/g,'_');
+        const row = document.createElement('label');
+        row.className = 'setup-modal-row';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.id = id;
+        cb.value = label;
+        // Pré-seleciona os ativos no setup atual
+        cb.checked = !!statsChartVisibleDatasets[label];
+        const dot = document.createElement('span');
+        dot.className = 'setup-modal-dot';
+        dot.style.background = DATASET_COLORS[label] || '#888';
+        const txt = document.createElement('span');
+        txt.textContent = label;
+        row.appendChild(cb);
+        row.appendChild(dot);
+        row.appendChild(txt);
+        checkContainer.appendChild(row);
+    });
+
+    document.getElementById('setupModalName').value = '';
+    modal.style.display = 'flex';
+}
+
+function _closeCreateSetupModal() {
+    const modal = document.getElementById('setupModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function _saveNewSetup() {
+    const name = document.getElementById('setupModalName').value.trim();
+    if (!name) { alert('Digite um nome para o setup.'); return; }
+
+    const markets = {};
+    document.querySelectorAll('#setupModalMarkets input[type=checkbox]').forEach(cb => {
+        markets[cb.value] = cb.checked;
+    });
+
+    const newSetup = {
+        id: 'setup_' + Date.now(),
+        name,
+        markets
+    };
+
+    const setups = _loadSetups();
+    setups.push(newSetup);
+    _saveSetups(setups);
+    _closeCreateSetupModal();
+    _applySetup(newSetup);
+}
+
+/* ─── HTML DO PAINEL DE SETUPS (insira no seu HTML) ────────────────
+   Coloque este bloco ACIMA do chart-container, dentro do accordion-content:
+
+   <div class="setup-panel">
+       <div id="setupBar" class="setup-bar"></div>
+       <button id="btnAddSetup" class="setup-add-btn">＋ Novo Setup</button>
+   </div>
+
+   <div id="setupModal" class="setup-modal-overlay" style="display:none;">
+       <div class="setup-modal-box">
+           <h3>Criar Setup</h3>
+           <input id="setupModalName" type="text" placeholder="Nome do setup..." maxlength="30">
+           <div id="setupModalMarkets" class="setup-modal-markets"></div>
+           <div class="setup-modal-actions">
+               <button onclick="_saveNewSetup()">✔ Salvar</button>
+               <button onclick="_closeCreateSetupModal()">✕ Cancelar</button>
+           </div>
+       </div>
+   </div>
+─── */
+
+/* ─── CSS DOS SETUPS (insira no seu <style>) ────────────────────────
+
+.setup-panel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 6px 4px;
+    flex-wrap: wrap;
+}
+.setup-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1;
+}
+.setup-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+.setup-btn {
+    padding: 4px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.22);
+    background: rgba(255,255,255,0.07);
+    color: #e0e0e0;
+    font-size: 0.78em;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, border-color 0.2s;
+}
+.setup-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.4); }
+.setup-btn-active {
+    background: rgba(31,204,89,0.18) !important;
+    border-color: #1fcc59 !important;
+    color: #1fcc59 !important;
+}
+.setup-del {
+    background: transparent;
+    border: none;
+    color: rgba(255,80,80,0.7);
+    cursor: pointer;
+    font-size: 0.72em;
+    padding: 2px 4px;
+    border-radius: 50%;
+    line-height: 1;
+    transition: color 0.2s;
+}
+.setup-del:hover { color: #ff5050; }
+.setup-add-btn {
+    padding: 4px 14px;
+    border-radius: 20px;
+    border: 1px dashed rgba(255,255,255,0.3);
+    background: transparent;
+    color: #b0b0b0;
+    font-size: 0.78em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color 0.2s, color 0.2s;
+}
+.setup-add-btn:hover { border-color: #1fcc59; color: #1fcc59; }
+
+.setup-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.setup-modal-box {
+    background: #1a1d2e;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    padding: 24px 20px 20px;
+    width: min(480px, 92vw);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.setup-modal-box h3 {
+    margin: 0;
+    color: #1fcc59;
+    font-size: 1em;
+    letter-spacing: 0.05em;
+}
+.setup-modal-box input[type=text] {
+    width: 100%;
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06);
+    color: #e0e0e0;
+    font-size: 0.9em;
+    box-sizing: border-box;
+}
+.setup-modal-markets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 10px;
+    overflow-y: auto;
+    max-height: 340px;
+    padding-right: 4px;
+}
+.setup-modal-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78em;
+    color: #c0c0c0;
+    cursor: pointer;
+    padding: 3px 4px;
+    border-radius: 6px;
+    user-select: none;
+}
+.setup-modal-row:hover { background: rgba(255,255,255,0.06); }
+.setup-modal-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.setup-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+.setup-modal-actions button {
+    padding: 6px 18px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+    font-size: 0.82em;
+    font-weight: 600;
+}
+.setup-modal-actions button:first-child {
+    background: rgba(31,204,89,0.15);
+    color: #1fcc59;
+    border-color: #1fcc59;
+}
+.setup-modal-actions button:last-child {
+    background: rgba(255,80,80,0.1);
+    color: #ff6060;
+    border-color: rgba(255,80,80,0.4);
+}
+
+─── */
 
 // ─── PERSISTÊNCIA DOS DATASETS VISÍVEIS ─────────────────────────────
 const VISIBLE_DATASETS_KEY = 'meu_grafico:visibleDatasets';
@@ -2680,14 +3059,14 @@ const VISIBLE_DATASETS_KEY = 'meu_grafico:visibleDatasets';
 const defaultStatsChartVisibleDatasets = {
     'Ambas Sim': true,  'Ambas Não': false,
     'Casa Vence': false, 'Empate': false, 'Fora Vence': false,
-    'Over 0.5': false, 'Over 1.5': false, 'Over 2.5': false, 'Over 3.5': false, 'Over 5+': false,
+    'Over 0.5': false, 'Over 1.5': false, 'Over 2.5': true, 'Over 3.5': false, 'Over 5+': false,
     'Under 0.5': false, 'Under 1.5': false, 'Under 2.5': false, 'Under 3.5': false,
     '0 Gol Exato': false, '1 Gol Exato': false, '2 Gols Exatos': false,
     '3 Gols Exatos': false, '4 Gols Exatos': false, '5 Gols Exatos': false,
     '0 Gol 2T': false, '1 Gol 2T': false, '2 Gols 2T': false, '3 Gols 2T': false, '4 Gols 2T': false,
     'Casa 0 Gols': false, 'Casa 1 Gol': false, 'Casa 2 Gols': false, 'Casa 3 Gols': false, 'Casa 4 Gols': false,
     'Fora 0 Gols': false, 'Fora 1 Gol': false, 'Fora 2 Gols': false, 'Fora 3 Gols': false, 'Fora 4 Gols': false,
-    'Gols FT': false,
+    'Gols FT': true,
     '0x0': false, '1x0': false, '2x0': false, '3x0': false,
     '2x1': false, '3x1': false, '3x2': false, '4x0': false, '4x1': false,
     '0x0 HT': false
@@ -2736,7 +3115,7 @@ const DATASET_COLORS = {
     '0 Gol 2T':'#CE93D8','1 Gol 2T':'#BA68C8','2 Gols 2T':'#9C27B0','3 Gols 2T':'#7B1FA2','4 Gols 2T':'#4A148C',
     'Casa 0 Gols':'#FFCCBC','Casa 1 Gol':'#FF8A65','Casa 2 Gols':'#FF5722','Casa 3 Gols':'#E64A19','Casa 4 Gols':'#BF360C',
     'Fora 0 Gols':'#B3E5FC','Fora 1 Gol':'#4FC3F7','Fora 2 Gols':'#0288D1','Fora 3 Gols':'#01579B','Fora 4 Gols':'#002F6C',
-    'Gols FT':'#1E88E5',
+    'Gols FT':'#FFFF00',
     '0x0':'#E91E63','1x0':'#9C27B0','2x0':'#673AB7','3x0':'#3F51B5',
     '2x1':'#009688','3x1':'#4CAF50','3x2':'#8BC34A','4x0':'#CDDC39','4x1':'#FFC107',
     '0x0 HT':'#FF6090'
@@ -2775,73 +3154,40 @@ const htmlLegendPlugin = {
                     gap: 5px 5px;
                 }
                 .leg-btn {
-                    font-size: 0.72em;
-                    font-weight: 600;
-                    padding: 3px 10px;
-                    border-radius: 20px;
-                    cursor: pointer;
-                    user-select: none;
+                    font-size: 0.72em; font-weight: 600;
+                    padding: 3px 10px; border-radius: 20px;
+                    cursor: pointer; user-select: none;
                     border: 1px solid rgba(255,255,255,0.22);
                     background: rgba(255,255,255,0.08);
-                    color: #e0e0e0;
-                    
-                    white-space: nowrap;
+                    color: #e0e0e0; white-space: nowrap;
                 }
-                .leg-btn:hover {
-                    background: rgba(255,255,255,0.18);
-                    border-color: rgba(255,255,255,0.4);
-                }
+                .leg-btn:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.4); }
                 .leg-separator {
-                    display: inline-flex;
-                    align-items: center;
-                    font-size: 0.65em;
-                    font-weight: 700;
-                    letter-spacing: 0.06em;
-                    text-transform: uppercase;
-                    color: rgba(255,255,255,0.28);
-                    padding: 0 4px 0 6px;
-                    white-space: nowrap;
-                    border-left: 1px solid rgba(255,255,255,0.12);
-                    height: 18px;
-                    margin-left: 2px;
+                    display: inline-flex; align-items: center;
+                    font-size: 0.65em; font-weight: 700;
+                    letter-spacing: 0.06em; text-transform: uppercase;
+                    color: rgba(255,255,255,0.28); padding: 0 4px 0 6px;
+                    white-space: nowrap; border-left: 1px solid rgba(255,255,255,0.12);
+                    height: 18px; margin-left: 2px;
                 }
                 .leg-item {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 5px;
-                    padding: 3px 10px 3px 7px;
-                    border-radius: 20px;
-                    cursor: pointer;
-                    user-select: none;
-                    font-size: 0.75em;
-                    font-weight: 500;
-                    color: #e0e0e0;
+                    display: inline-flex; align-items: center; gap: 5px;
+                    padding: 3px 10px 3px 7px; border-radius: 20px;
+                    cursor: pointer; user-select: none;
+                    font-size: 0.75em; font-weight: 500; color: #e0e0e0;
                     background: rgba(255,255,255,0.06);
-                    border: 1px solid rgba(255,255,255,0.10);
-                    
-                    white-space: nowrap;
+                    border: 1px solid rgba(255,255,255,0.10); white-space: nowrap;
                 }
-                .leg-item:hover {
-                    background: rgba(255,255,255,0.13);
-                    border-color: rgba(255,255,255,0.28);
-                }
+                .leg-item:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.28); }
                 .leg-item.leg-hidden {
-                    opacity: 0.28;
-                    text-decoration: line-through;
-                    background: rgba(255,255,255,0.02);
-                    border-color: transparent;
+                    opacity: 0.28; text-decoration: line-through;
+                    background: rgba(255,255,255,0.02); border-color: transparent;
                 }
                 .leg-item.leg-hidden:hover {
-                    opacity: 0.65;
-                    background: rgba(255,255,255,0.09);
+                    opacity: 0.65; background: rgba(255,255,255,0.09);
                     border-color: rgba(255,255,255,0.20);
                 }
-                .leg-dot {
-                    width: 9px; height: 9px;
-                    border-radius: 50%;
-                    flex-shrink: 0;
-                    
-                }
+                .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
                 .leg-item:hover .leg-dot { transform: scale(1.3); }
             `;
             document.head.appendChild(style);
@@ -2860,14 +3206,6 @@ const htmlLegendPlugin = {
         const container = document.getElementById('legenda-customizada');
         if (!container) return;
 
-        // Mapa label → hidden
-        const hiddenMap = {};
-        chart.data.datasets.forEach((ds, i) => {
-            if (!ds.label.includes(' MA'))
-                hiddenMap[ds.label] = !!chart.getDatasetMeta(i).hidden;
-        });
-
-        // Já construído → só sincroniza classes direto da fonte de verdade
         if (container.dataset.built === '1') {
             container.querySelectorAll('.leg-item[data-label]').forEach(pill => {
                 const lbl = pill.dataset.label;
@@ -2876,8 +3214,7 @@ const htmlLegendPlugin = {
             return;
         }
 
-        // ── Primeira construção — layout totalmente horizontal ───────
-        // Botões mostrar/ocultar
+        // Primeira construção
         const btnShow = document.createElement('button');
         btnShow.className = 'leg-btn';
         btnShow.textContent = '✦ Mostrar todos';
@@ -2890,9 +3227,7 @@ const htmlLegendPlugin = {
         btnHide.addEventListener('click', () => _toggleAllDatasets(chart, false));
         container.appendChild(btnHide);
 
-        // Grupos inline: separador de texto + pills na mesma linha
         LEGEND_GROUPS.forEach(group => {
-            // Separador de categoria inline
             const sep = document.createElement('span');
             sep.className = 'leg-separator';
             sep.textContent = group.title;
@@ -2993,7 +3328,37 @@ function computeMA(dataArray, period) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   UTILITÁRIO: parseia HT igual ao grafico_de_gols
+   "OUT" = 3+ gols no HT → retorna [1,2] ou [2,1] ou [3,0] etc.
+   Para o placar HT 0x0, usamos a string direto.
+   Para gols HT (soma), usamos parseHtScoreTotal.
+═══════════════════════════════════════════════════════════════════ */
+function parseHtScoreTotal(htStr) {
+    if (!htStr) return 0;
+    if (htStr === 'OUT') return 3; // conservador: 3 gols
+    if (htStr.includes(' x ')) {
+        const parts = htStr.split(' x ').map(Number);
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]))
+            return parts[0] + parts[1];
+    }
+    return 0;
+}
+
+function parseHtParts(htStr) {
+    if (!htStr || htStr === 'OUT') return null; // OUT não permite placar exato
+    if (htStr.includes(' x ')) {
+        const parts = htStr.split(' x ').map(Number);
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]))
+            return parts;
+    }
+    return null;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    PROCESSAMENTO DE DADOS
+   Gols FT: soma real de gols (não percentual) — lógica do grafico_de_gols
+   Gols HT (placar 0x0 HT): usa parseHtParts p/ tratar OUT corretamente
+   Todos os outros mercados: percentual (mantido igual)
 ═══════════════════════════════════════════════════════════════════ */
 function processApiData(data, league) {
     const sortedData = [...data].sort((a, b) => {
@@ -3028,7 +3393,7 @@ function processApiData(data, league) {
     let placar2x1Colors=[],placar3x1Colors=[],placar3x2Colors=[],placar4x0Colors=[],placar4x1Colors=[];
     let placarHT0x0Colors=[];
 
-    const green='#00FF00',red='#FF0000',golsFTLineColor='#1E88E5',transparent='transparent';
+    const green='#00FF00', red='#FF0000', transparent='transparent';
 
     const allData=[
         golsFT,casaVence,empate,foraVence,ambasSim,ambasNao,
@@ -3062,8 +3427,11 @@ function processApiData(data, league) {
     }
 
     for (let i = averagePoints; i < slicedData.length; i++) {
+        // Acumuladores
+        // golsFT agora é soma de gols (igual ao grafico_de_gols)
         let s={
-            golsFT:0,casaVence:0,empate:0,foraVence:0,ambasSim:0,ambasNao:0,
+            golsFT:0,   // soma de gols totais
+            casaVence:0,empate:0,foraVence:0,ambasSim:0,ambasNao:0,
             over05:0,over15:0,over25:0,over35:0,over5:0,
             under05:0,under15:0,under25:0,under35:0,
             gol0:0,gol1:0,gol2:0,gol3:0,gol4:0,gol5:0,
@@ -3082,32 +3450,65 @@ function processApiData(data, league) {
                 allColors.forEach(a=>a.push(transparent));
                 continue;
             }
-            let ft=[0,0]; if(m.ft?.includes(' x ')) ft=m.ft.split(' x ').map(Number);
-            let ht=[0,0]; if(m.ht?.includes(' x ')) ht=m.ht.split(' x ').map(Number);
-            const tg=ft[0]+ft[1], tg2t=(ft[0]-ht[0])+(ft[1]-ht[1]);
-            s.golsFT+=tg; s.casaVence+=ft[0]>ft[1]?1:0; s.empate+=ft[0]===ft[1]?1:0; s.foraVence+=ft[0]<ft[1]?1:0;
-            s.ambasSim+=ft[0]>0&&ft[1]>0?1:0; s.ambasNao+=ft[0]===0||ft[1]===0?1:0;
-            s.over05+=tg>0.5?1:0; s.over15+=tg>1.5?1:0; s.over25+=tg>2.5?1:0; s.over35+=tg>3.5?1:0; s.over5+=tg>=5?1:0;
-            s.under05+=tg<=0.5?1:0; s.under15+=tg<1.5?1:0; s.under25+=tg<2.5?1:0; s.under35+=tg<3.5?1:0;
-            s.gol0+=tg===0?1:0; s.gol1+=tg===1?1:0; s.gol2+=tg===2?1:0; s.gol3+=tg===3?1:0; s.gol4+=tg===4?1:0; s.gol5+=tg===5?1:0;
-            s.gol2t0+=tg2t===0?1:0; s.gol2t1+=tg2t===1?1:0; s.gol2t2+=tg2t===2?1:0; s.gol2t3+=tg2t===3?1:0; s.gol2t4+=tg2t===4?1:0;
-            s.casa0+=ft[0]===0?1:0; s.casa1+=ft[0]===1?1:0; s.casa2+=ft[0]===2?1:0; s.casa3+=ft[0]===3?1:0; s.casa4+=ft[0]===4?1:0;
-            s.fora0+=ft[1]===0?1:0; s.fora1+=ft[1]===1?1:0; s.fora2+=ft[1]===2?1:0; s.fora3+=ft[1]===3?1:0; s.fora4+=ft[1]===4?1:0;
-            s.p0x0+=ft[0]===0&&ft[1]===0?1:0; s.p1x0+=ft[0]===1&&ft[1]===0?1:0; s.p2x0+=ft[0]===2&&ft[1]===0?1:0;
-            s.p3x0+=ft[0]===3&&ft[1]===0?1:0; s.p2x1+=ft[0]===2&&ft[1]===1?1:0; s.p3x1+=ft[0]===3&&ft[1]===1?1:0;
-            s.p3x2+=ft[0]===3&&ft[1]===2?1:0; s.p4x0+=ft[0]===4&&ft[1]===0?1:0; s.p4x1+=ft[0]===4&&ft[1]===1?1:0;
-            s.ht0x0+=ht[0]===0&&ht[1]===0?1:0;
+
+            let ft=[0,0];
+            if(m.ft?.includes(' x ')) ft=m.ft.split(' x ').map(Number);
+
+            // HT: usa parseHtScoreTotal para soma de gols (trata OUT)
+            // e parseHtParts para placar exato (OUT = não conta 0x0)
+            const htTotal = parseHtScoreTotal(m.ht);
+            const htParts = parseHtParts(m.ht); // null se OUT ou inválido
+
+            const tg  = ft[0]+ft[1];
+            // Gols 2T: total FT menos total HT real
+            const tg2t = Math.max(0, tg - htTotal);
+
+            s.golsFT  += tg; // soma real de gols (não percentual)
+            s.casaVence += ft[0]>ft[1]?1:0;
+            s.empate    += ft[0]===ft[1]?1:0;
+            s.foraVence += ft[0]<ft[1]?1:0;
+            s.ambasSim  += ft[0]>0&&ft[1]>0?1:0;
+            s.ambasNao  += ft[0]===0||ft[1]===0?1:0;
+            s.over05+=tg>0.5?1:0; s.over15+=tg>1.5?1:0; s.over25+=tg>2.5?1:0;
+            s.over35+=tg>3.5?1:0; s.over5+=tg>=5?1:0;
+            s.under05+=tg<=0.5?1:0; s.under15+=tg<1.5?1:0;
+            s.under25+=tg<2.5?1:0; s.under35+=tg<3.5?1:0;
+            s.gol0+=tg===0?1:0; s.gol1+=tg===1?1:0; s.gol2+=tg===2?1:0;
+            s.gol3+=tg===3?1:0; s.gol4+=tg===4?1:0; s.gol5+=tg===5?1:0;
+            s.gol2t0+=tg2t===0?1:0; s.gol2t1+=tg2t===1?1:0; s.gol2t2+=tg2t===2?1:0;
+            s.gol2t3+=tg2t===3?1:0; s.gol2t4+=tg2t===4?1:0;
+            s.casa0+=ft[0]===0?1:0; s.casa1+=ft[0]===1?1:0; s.casa2+=ft[0]===2?1:0;
+            s.casa3+=ft[0]===3?1:0; s.casa4+=ft[0]===4?1:0;
+            s.fora0+=ft[1]===0?1:0; s.fora1+=ft[1]===1?1:0; s.fora2+=ft[1]===2?1:0;
+            s.fora3+=ft[1]===3?1:0; s.fora4+=ft[1]===4?1:0;
+            s.p0x0+=ft[0]===0&&ft[1]===0?1:0;
+            s.p1x0+=ft[0]===1&&ft[1]===0?1:0;
+            s.p2x0+=ft[0]===2&&ft[1]===0?1:0;
+            s.p3x0+=ft[0]===3&&ft[1]===0?1:0;
+            s.p2x1+=ft[0]===2&&ft[1]===1?1:0;
+            s.p3x1+=ft[0]===3&&ft[1]===1?1:0;
+            s.p3x2+=ft[0]===3&&ft[1]===2?1:0;
+            s.p4x0+=ft[0]===4&&ft[1]===0?1:0;
+            s.p4x1+=ft[0]===4&&ft[1]===1?1:0;
+            // HT 0x0: só conta se não for OUT (htParts não null e ambos 0)
+            s.ht0x0 += (htParts && htParts[0]===0 && htParts[1]===0) ? 1 : 0;
             s.valid++;
         }
 
         const m=slicedData[i];
         labels.push(`${m.hora}:${m.minuto.toString().padStart(2,'0')}`);
+
         let ft=[0,0]; if(m.ft?.includes(' x ')) ft=m.ft.split(' x ').map(Number);
-        let ht=[0,0]; if(m.ht?.includes(' x ')) ht=m.ht.split(' x ').map(Number);
-        const tg=ft[0]+ft[1], tg2t=(ft[0]-ht[0])+(ft[1]-ht[1]);
+        const htTotal = parseHtScoreTotal(m.ht);
+        const htParts = parseHtParts(m.ht);
+        const tg=ft[0]+ft[1];
+        const tg2t=Math.max(0, tg - htTotal);
         const avg=s.valid||1;
 
-        golsFT.push(s.golsFT/avg*100);       golsFTColors.push(golsFTLineColor);
+        // Gols FT: valor absoluto (soma de gols), não percentual — igual ao grafico_de_gols
+        golsFT.push(s.golsFT);
+        golsFTColors.push('#FFFF00'); // cor fixa amarela
+
         casaVence.push(s.casaVence/avg*100);  casaVenceColors.push(ft[0]>ft[1]?green:red);
         empate.push(s.empate/avg*100);        empateColors.push(ft[0]===ft[1]?green:red);
         foraVence.push(s.foraVence/avg*100);  foraVenceColors.push(ft[0]<ft[1]?green:red);
@@ -3152,7 +3553,9 @@ function processApiData(data, league) {
         placar3x2.push(s.p3x2/avg*100); placar3x2Colors.push(ft[0]===3&&ft[1]===2?green:red);
         placar4x0.push(s.p4x0/avg*100); placar4x0Colors.push(ft[0]===4&&ft[1]===0?green:red);
         placar4x1.push(s.p4x1/avg*100); placar4x1Colors.push(ft[0]===4&&ft[1]===1?green:red);
-        placarHT0x0.push(s.ht0x0/avg*100); placarHT0x0Colors.push(ht[0]===0&&ht[1]===0?green:red);
+        // 0x0 HT: percentual, mas só conta jogos onde HT não é OUT
+        placarHT0x0.push(s.ht0x0/avg*100);
+        placarHT0x0Colors.push((htParts && htParts[0]===0 && htParts[1]===0)?green:red);
     }
 
     const result = {
@@ -3254,7 +3657,8 @@ const linhaAtualPlugin = {
             ctx.save();
             ctx.strokeStyle=color;ctx.lineWidth=1.2;ctx.setLineDash([6,4]);
             ctx.beginPath();ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();ctx.setLineDash([]);
-            const text=yVal.toFixed(1)+'%';
+            // Gols FT: mostra valor absoluto (gols), outros: percentual
+            const text = (yVal % 1 === 0 && yVal > 10) ? yVal.toFixed(0)+' g' : yVal.toFixed(1)+'%';
             ctx.font='bold 10px Arial,sans-serif';ctx.textBaseline='middle';ctx.textAlign='left';
             const bw=Math.ceil(ctx.measureText(text).width)+padX*2,bx=right+4,by=badgeY-BAD_H/2;
             ctx.fillStyle='rgba(10,12,20,0.95)';ctx.strokeStyle=color;ctx.lineWidth=1.2;
@@ -3310,21 +3714,28 @@ const linhaDraggablePlugin={
     },
     afterDatasetsDraw(chart){
         const yS=chart.scales.y,lines=chart.dragLines||[];
-        if(!yS||!lines.length||!chart.chartArea)return;
-        const{ctx,chartArea:{left,right}}=chart;
-        lines.forEach((l,idx)=>{
-            const yPx=yS.getPixelForValue(l.y);if(!Number.isFinite(yPx))return;
-            const isSel=idx===chart._selectedDragLine;
+        if(!lines.length||!chart.chartArea)return;
+        const ctx=chart.ctx,{left,right,top,bottom}=chart.chartArea,PAD=5,BH=16;
+        lines.forEach((l,i)=>{
+            const yPx=yS.getPixelForValue(l.y);
+            if(!isFinite(yPx)||yPx<top||yPx>bottom)return;
+            const isSel=i===chart._selectedDragLine;
             ctx.save();
-            ctx.beginPath();ctx.setLineDash(isSel?[4,2]:[]);ctx.lineWidth=isSel?1.8:1.2;ctx.strokeStyle=l.color||'#1fcc59';
-            ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();ctx.setLineDash([]);
-            if(isSel){ctx.beginPath();ctx.arc(left+10,yPx,4,0,Math.PI*2);ctx.fillStyle=l.color||'#1fcc59';ctx.fill();}
-            const text=l.y.toFixed(1)+'%';ctx.font=isSel?'bold 11px Arial,sans-serif':'10px Arial,sans-serif';
+            ctx.strokeStyle=l.color||'#1fcc59';ctx.lineWidth=isSel?2:1.5;
+            if(!isSel)ctx.setLineDash([8,4]);
+            ctx.beginPath();ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();
+            ctx.setLineDash([]);
+            const text=l.y.toFixed(1);
+            ctx.font=`bold 10px Arial,sans-serif`;
             ctx.textBaseline='middle';ctx.textAlign='left';
-            const padX=5,boxW=Math.ceil(ctx.measureText(text).width)+padX*2,boxH=16,bx=right+4,by=yPx-boxH/2;
-            ctx.fillStyle='rgba(10,12,20,0.95)';ctx.fillRect(bx,by,boxW,boxH);
-            ctx.strokeStyle=l.color||'#1fcc59';ctx.lineWidth=isSel?1.5:1;ctx.strokeRect(bx,by,boxW,boxH);
-            ctx.fillStyle=l.color||'#1fcc59';ctx.fillText(text,bx+padX,yPx);
+            const bw=Math.ceil(ctx.measureText(text).width)+PAD*2;
+            const bx=right+4,by=yPx-BH/2;
+            ctx.fillStyle='rgba(10,12,20,0.95)';
+            ctx.fillRect(bx,by,bw,BH);
+            ctx.strokeStyle=l.color||'#1fcc59';ctx.lineWidth=isSel?1.5:1;
+            ctx.strokeRect(bx,by,bw,BH);
+            ctx.fillStyle=l.color||'#1fcc59';
+            ctx.fillText(text,bx+PAD,yPx);
             ctx.restore();
         });
     }
@@ -3333,11 +3744,9 @@ const linhaDraggablePlugin={
 /* ═══════════════════════════════════════════════════════════════════
    CRIAÇÃO DO GRÁFICO
 ═══════════════════════════════════════════════════════════════════ */
-// Desativa animações globalmente
 Chart.defaults.animation.duration = 0;
 
 function createStatsChart(ctx, labels, data, league) {
-    // Usa DATASET_COLORS como fonte única de verdade — sem duplicação
     const datasetConfigs = Object.entries(labelToKey).map(([label, key]) => ({
         label, key, color: DATASET_COLORS[label] || '#888'
     }));
@@ -3363,7 +3772,7 @@ function createStatsChart(ctx, labels, data, league) {
         options:{
             responsive:true,
             maintainAspectRatio:false,
-            animation: { duration: 0 },
+            animation:{duration:0},
             layout:{padding:{top:30,right:80}},
             plugins:{
                 legend:{
@@ -3381,7 +3790,13 @@ function createStatsChart(ctx, labels, data, league) {
                     borderColor:'#1fad8b',borderWidth:1,
                     callbacks:{
                         title:items=>{const m=chartData[league][items[0].dataIndex+averagePoints];return `${m.hora}:${m.minuto.toString().padStart(2,'0')}`;},
-                        label:ctx=>{const v=ctx.parsed.y;return v!==null?`${ctx.dataset.label}: ${v.toFixed(2)}%`:'';},
+                        label:ctx=>{
+                            const v=ctx.parsed.y;
+                            if (v===null) return '';
+                            // Gols FT: mostra valor absoluto
+                            if (ctx.dataset.label==='Gols FT') return `Gols FT: ${v} gols`;
+                            return `${ctx.dataset.label}: ${v.toFixed(2)}%`;
+                        },
                         afterBody:items=>{const m=chartData[league][items[0].dataIndex+averagePoints];return `FT: ${m.ft||'N/A'}  HT: ${m.ht||'N/A'}`;}
                     }
                 },
@@ -3400,7 +3815,7 @@ function createStatsChart(ctx, labels, data, league) {
    UPDATE / CONTROLES
 ═══════════════════════════════════════════════════════════════════ */
 function updateCharts() {
-    if (!_tabVisible) return; // não faz fetch com aba oculta
+    if (!_tabVisible) return;
     const ts=new Date().getTime();
     leagues.forEach(league=>{
         fetch(ROTAS_API.resultados(LIGA_ATUAL)+`?timestamp=${ts}`)
@@ -3410,6 +3825,8 @@ function updateCharts() {
                 const canvas=document.getElementById(league);if(!canvas)return;
                 if(!chartInstances[league]){
                     chartInstances[league]=createStatsChart(canvas.getContext('2d'),pd.labels,pd,league);
+                    // Após criar o gráfico, aplica o setup ativo salvo
+                    _applySetup(_getActiveSetup());
                 }else{
                     updateStatsChart(chartInstances[league],pd);
                 }
@@ -3459,100 +3876,14 @@ document.getElementById('btnLinhaTools').addEventListener('click',e=>{
 document.addEventListener('click',()=>{const p=document.getElementById('linhaToolsPanel');if(p)p.style.display='none';});
 document.getElementById('linhaToolsPanel').addEventListener('click',e=>e.stopPropagation());
 
-window.onload=updateCharts;
-setInterval(updateCharts,3000);
+// ─── SETUP: botão adicionar ──────────────────────────────────────────
+document.getElementById('btnAddSetup')?.addEventListener('click', _openCreateSetupModal);
 
-/* ═══════════════════════════════════════════════════════════════════
-   SEGUNDO BLOCO: PERCENTUAIS E GOLS
-═══════════════════════════════════════════════════════════════════ */
-async function fetchResults(){
-    try {
-        const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return (await r.json()).slice(-240).reverse();
-    } catch(e) {
-        console.error('Erro ao buscar resultados:', e);
-        return [];
-    }
-}
-
-function calculatePercentage(data,market){
-    let greens=0,reds=0;
-    data.forEach(game=>{
-        if (!game.ft?.includes(' x ')) return;
-        const[scoreA,scoreB]=game.ft.split(' x ').map(Number);
-        const tg=scoreA+scoreB;
-        let htA=0,htB=0;
-        if(game.ht?.includes(' x '))[htA,htB]=game.ht.split(' x ').map(Number);
-        const tg2t=(scoreA-htA)+(scoreB-htB);
-        switch(market){
-            case 'ambasMarcam':    scoreA>0&&scoreB>0?greens++:reds++;break;
-            case 'ambasNaoMarcam': scoreA===0||scoreB===0?greens++:reds++;break;
-            case 'casaVence':      scoreA>scoreB?greens++:reds++;break;
-            case 'foraVence':      scoreA<scoreB?greens++:reds++;break;
-            case 'empate':         scoreA===scoreB?greens++:reds++;break;
-            case 'over0.5':  tg>0.5?greens++:reds++;break;
-            case 'over1.5':  tg>1.5?greens++:reds++;break;
-            case 'over2.5':  tg>2.5?greens++:reds++;break;
-            case 'over3.5':  tg>3.5?greens++:reds++;break;
-            case 'over5':    tg>=5?greens++:reds++;break;
-            case 'under0.5': tg<=0.5?greens++:reds++;break;
-            case 'under1.5': tg<1.5?greens++:reds++;break;
-            case 'under2.5': tg<2.5?greens++:reds++;break;
-            case 'under3.5': tg<3.5?greens++:reds++;break;
-            case 'exato0': tg===0?greens++:reds++;break;
-            case 'exato1': tg===1?greens++:reds++;break;
-            case 'exato2': tg===2?greens++:reds++;break;
-            case 'exato3': tg===3?greens++:reds++;break;
-            case 'exato4': tg===4?greens++:reds++;break;
-            case 'exato2t0': tg2t===0?greens++:reds++;break;
-            case 'exato2t1': tg2t===1?greens++:reds++;break;
-            case 'exato2t2': tg2t===2?greens++:reds++;break;
-            case 'exato2t3': tg2t===3?greens++:reds++;break;
-            case 'exato2t4': tg2t===4?greens++:reds++;break;
-            case 'casa0Gols': scoreA===0?greens++:reds++;break;
-            case 'casa1Gol':  scoreA===1?greens++:reds++;break;
-            case 'casa2Gols': scoreA===2?greens++:reds++;break;
-            case 'casa3Gols': scoreA===3?greens++:reds++;break;
-            case 'casa4Gols': scoreA===4?greens++:reds++;break;
-            case 'fora0Gols': scoreB===0?greens++:reds++;break;
-            case 'fora1Gol':  scoreB===1?greens++:reds++;break;
-            case 'fora2Gols': scoreB===2?greens++:reds++;break;
-            case 'fora3Gols': scoreB===3?greens++:reds++;break;
-            case 'fora4Gols': scoreB===4?greens++:reds++;break;
-            default:break;
-        }
-    });
-    const total=greens+reds;
-    if (!total) return { greens: '0.0', reds: '0.0' };
-    return{greens:((greens/total)*100).toFixed(1),reds:((reds/total)*100).toFixed(1)};
-}
-
-function calculateGoalStats(data){
-    if (!data.length) return { totalGols: 0, mediaGolsHora: '0.00' };
-    const totalGols=data.reduce((a,g)=>{
-        if (!g.ft?.includes(' x ')) return a;
-        const[A,B]=g.ft.split(' x ').map(Number);
-        return a+A+B;
-    },0);
-    // Média dinâmica baseada no tamanho real da amostra (12 jogos/hora)
-    const horasEquivalentes = data.length / 12;
-    return { totalGols, mediaGolsHora: (totalGols / horasEquivalentes).toFixed(2) };
-}
-
-async function _atualizarBlocoPercentuais() {
-    const games = await fetchResults();
-    if (!games.length) return;
-    const p=calculatePercentage(games, document.getElementById('seletorResultado').value);
-    const s=calculateGoalStats(games);
-    document.getElementById('greenPercentage').innerText=`Greens: ${p.greens}%`;
-    document.getElementById('redPercentage').innerText=`Reds: ${p.reds}%`;
-    document.getElementById('totalGols').innerText=`Gols: ${s.totalGols}`;
-    document.getElementById('mediaGolsHora').innerText=`Gols/Hora: ${s.mediaGolsHora}`;
-}
-
-document.getElementById('seletorResultado').addEventListener('change', _atualizarBlocoPercentuais);
-window.addEventListener('load', _atualizarBlocoPercentuais);
+window.onload = () => {
+    updateCharts();
+    _renderSetupButtons();
+};
+setInterval(updateCharts, 3000);
     </script>
 
     <script>
