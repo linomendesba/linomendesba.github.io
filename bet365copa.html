@@ -7329,6 +7329,109 @@ setInterval(traderUpdate,3000);
     })();
 </script>
 
+<script>
+    // ====================== CÁLCULO GREEN / RED COM SELETOR DE HORAS ======================
+
+// Função que busca todos os resultados
+async function fetchResults() {
+    const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+    const data = await response.json();
+    return data;                    // retorna todos os jogos (sem slice aqui)
+}
+
+// Função principal que calcula Green e Red
+function calculatePercentage(data, market, horas) {
+    // Cada hora = 20 jogos
+    const quantidadeJogos = horas * 20;
+
+    // Pega apenas os últimos X jogos (de acordo com as horas selecionadas)
+    const jogosFiltrados = data.slice(-quantidadeJogos);
+
+    let greens = 0;
+    let reds = 0;
+
+    jogosFiltrados.forEach((game) => {
+        const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
+
+        switch (market) {
+            case "ambasMarcam":
+                (scoreA > 0 && scoreB > 0) ? greens++ : reds++;
+                break;
+            case "ambasNaoMarcam":
+                (scoreA === 0 || scoreB === 0) ? greens++ : reds++;
+                break;
+            case "casaVence":
+                (scoreA > scoreB) ? greens++ : reds++;
+                break;
+            case "foraVence":
+                (scoreA < scoreB) ? greens++ : reds++;
+                break;
+            case "empate":
+                (scoreA === scoreB) ? greens++ : reds++;
+                break;
+            case "over1.5":
+                (scoreA + scoreB > 1.5) ? greens++ : reds++;
+                break;
+            case "under1.5":
+                (scoreA + scoreB <= 1.5) ? greens++ : reds++;
+                break;
+            case "over2.5":
+                (scoreA + scoreB > 2.5) ? greens++ : reds++;
+                break;
+            case "under2.5":
+                (scoreA + scoreB <= 2.5) ? greens++ : reds++;
+                break;
+            case "over3.5":
+                (scoreA + scoreB > 3.5) ? greens++ : reds++;
+                break;
+            case "under3.5":
+                (scoreA + scoreB <= 3.5) ? greens++ : reds++;
+                break;
+            case "over5":
+                (scoreA + scoreB > 5) ? greens++ : reds++;
+                break;
+            default:
+                break;
+        }
+    });
+
+    const total = greens + reds || 1; // evita divisão por zero
+
+    return {
+        greens: ((greens / total) * 100).toFixed(1),
+        reds:   ((reds   / total) * 100).toFixed(1),
+        totalJogos: jogosFiltrados.length
+    };
+}
+
+// ====================== ATUALIZAR AO MUDAR O SELETOR ======================
+
+document.getElementById("seletorHoras").addEventListener("change", async () => {
+    await atualizarPercentuais();
+});
+
+// Função que atualiza os textos na tela
+async function atualizarPercentuais() {
+    const market = document.getElementById("seletorResultado").value;
+    const horas  = parseInt(document.getElementById("seletorHoras").value);
+
+    const todosJogos = await fetchResults();
+    const resultado  = calculatePercentage(todosJogos, market, horas);
+
+    document.getElementById("greenPercentage").innerText = `Greens: ${resultado.greens}%`;
+    document.getElementById("redPercentage").innerText   = `Reds: ${resultado.reds}%`;
+
+    // Opcional: mostrar quantos jogos foram usados
+    // console.log(`Calculado com base em ${resultado.totalJogos} jogos (${horas} horas)`);
+}
+
+// ====================== CARREGAR AO ABRIR A PÁGINA ======================
+
+window.addEventListener("load", async () => {
+    await atualizarPercentuais();
+});
+</script>
+
 
 
 <script src="marcador.js"></script>
