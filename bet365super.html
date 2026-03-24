@@ -316,14 +316,13 @@
     </div>
 </div>
 
-    <div class="accordion-item">
-      <button class="accordion-button" onclick="toggleAccordion(this)">▼ Ver Confrontos ▲</button>
-      <div class="accordion-content">
-          <div class="next-games-container" id="nextGamesContainer"></div>
-          <div class="container" id="mainContainer"></div>
-      </div>
+<div class="accordion-item">
+  <button class="accordion-button" onclick="toggleAccordion(this)">▼ Ver Confrontos ▲</button>
+  <div class="accordion-content">
+    <div id="nextGamesContainer"></div>
+    <div id="mainContainer"></div>
   </div>
-
+</div>
 
   <div class="accordion-item">
     <button class="accordion-button tabelas-maximas-button" onclick="toggleAccordion(this)" data-title="Tabelas de Máximas">
@@ -3943,453 +3942,362 @@ setInterval(updateCharts,3000);
 </script>
 
 
-    <script>
-let lastResults = [];
-    let selectedGame = null;
-    let isComparisonMode = false;
-    let autoUpdateInterval = null;
-
-    function toggleAccordion(button) {
-      const content = button.nextElementSibling;
-      const isOpen = content.style.display === "block";
-      content.style.display = isOpen ? "none" : "block";
-      button.innerHTML = isOpen ? "▼ Próximos Confrontos ▲" : "▲ Próximos Confrontos ▼";
+ <script>
+(function() {
+ 
+  /* ─────────────────────────────────────────
+     ESTILOS INLINE EXCLUSIVOS DESTE MÓDULO
+  ───────────────────────────────────────── */
+  const UID = "cfr_"; // prefixo para evitar conflito com outras regras
+ 
+  const css = `
+    .${UID}games { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+ 
+    .${UID}gc {
+      flex:1 1 155px; min-width:145px;
+      background:rgba(255,255,255,0.04);
+      border:0.5px solid rgba(255,255,255,0.08);
+      border-radius:8px; padding:9px 12px;
+      cursor:pointer; transition:border-color .15s, background .15s;
     }
-
-    async function loadNextGames() {
-      try {
-        const response = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
-        if (!response.ok) throw new Error(`Erro na requisição: ${response.status}`);
-        const games = await response.json();
-        const selectedGames = games.slice(0, 6);
-
-        const container = document.getElementById("nextGamesContainer");
-        container.innerHTML = selectedGames.map(game => `
-          <div class="game-card" data-home="${game.team_home}" data-visit="${game.team_visit}">
-            <div class="game-time">${game.time}</div>
-            <div class="game-teams">
-              <span class="team-home">${game.team_home}</span>
-              <span class="vs">vs</span>
-              <span class="team-visit">${game.team_visit}</span>
+    .${UID}gc:hover { border-color:rgba(255,255,255,0.18); background:rgba(255,255,255,0.07); }
+    .${UID}gc.${UID}sel { border-color:#3b82f6; background:rgba(59,130,246,0.1); }
+ 
+    .${UID}gtime { font-size:11px; color:#6b7280; margin-bottom:4px; }
+    .${UID}gteams {
+      font-size:12px; font-weight:500; color:#e5e7eb;
+      display:flex; align-items:center; gap:5px; justify-content:center; text-align:center;
+    }
+    .${UID}vs { font-size:10px; color:#4b5563; }
+ 
+    .${UID}panel {
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:10px;
+    }
+    @media(max-width:680px){ .${UID}panel{ grid-template-columns:1fr; } }
+ 
+    .${UID}card {
+      background:rgba(255,255,255,0.03);
+      border:0.5px solid rgba(255,255,255,0.08);
+      border-radius:10px; padding:14px;
+    }
+ 
+    .${UID}ctitle {
+      font-size:10px; font-weight:600; letter-spacing:.07em;
+      text-transform:uppercase; color:#6b7280; margin-bottom:12px;
+    }
+ 
+    .${UID}apr { font-size:26px; font-weight:700; color:#f3f4f6; line-height:1; }
+    .${UID}aprlbl { font-size:10px; color:#6b7280; margin-top:2px; margin-bottom:10px; }
+ 
+    .${UID}prow { display:flex; align-items:center; gap:7px; margin-bottom:4px; }
+    .${UID}plbl { font-size:10px; font-weight:700; width:12px; text-align:center; }
+    .${UID}ptrack {
+      flex:1; height:4px; border-radius:2px;
+      background:rgba(255,255,255,0.06); overflow:hidden;
+    }
+    .${UID}pfill { height:100%; border-radius:2px; transition:width .3s; }
+    .${UID}pval { font-size:11px; color:#9ca3af; width:20px; text-align:right; }
+ 
+    .${UID}mgrid { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:10px; }
+    .${UID}ms {
+      background:rgba(255,255,255,0.03);
+      border:0.5px solid rgba(255,255,255,0.07);
+      border-radius:6px; padding:6px 8px;
+    }
+    .${UID}msl { font-size:10px; color:#6b7280; margin-bottom:1px; }
+    .${UID}msv { font-size:13px; font-weight:600; color:#e5e7eb; }
+ 
+    .${UID}forma { display:flex; gap:4px; margin-top:10px; }
+    .${UID}fp {
+      width:22px; height:22px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:10px; font-weight:700;
+    }
+    .${UID}fV { background:rgba(34,197,94,.18); color:#22c55e; }
+    .${UID}fE { background:rgba(245,158,11,.18); color:#f59e0b; }
+    .${UID}fD { background:rgba(239,68,68,.18); color:#ef4444; }
+ 
+    .${UID}triolbls {
+      display:flex; justify-content:space-between; margin-bottom:6px;
+    }
+    .${UID}tlbl { font-size:11px; color:#9ca3af; }
+    .${UID}tlbl b { color:#f3f4f6; font-weight:600; }
+ 
+    .${UID}triobar {
+      display:flex; border-radius:4px; overflow:hidden; height:6px; margin-bottom:12px;
+    }
+    .${UID}tseg { transition:flex .4s; }
+ 
+    .${UID}avg { text-align:center; margin-bottom:12px; }
+    .${UID}avgn { font-size:24px; font-weight:700; color:#f3f4f6; line-height:1; }
+    .${UID}avgl { font-size:10px; color:#6b7280; margin-top:2px; }
+ 
+    .${UID}div { height:0.5px; background:rgba(255,255,255,0.07); margin:10px 0; }
+ 
+    .${UID}mrow {
+      display:flex; align-items:center;
+      justify-content:space-between; margin-bottom:5px;
+    }
+    .${UID}mlbl { font-size:11px; color:#9ca3af; }
+    .${UID}mchips { display:flex; gap:5px; }
+    .${UID}chip {
+      font-size:10px; font-weight:600;
+      padding:2px 8px; border-radius:20px; border:0.5px solid;
+    }
+    .${UID}chi { border-color:rgba(34,197,94,.35); color:#22c55e; background:rgba(34,197,94,.08); }
+    .${UID}clo { border-color:rgba(255,255,255,.08); color:#6b7280; background:transparent; }
+ 
+    .${UID}empty {
+      grid-column:1/-1; text-align:center;
+      color:#4b5563; font-size:12px; padding:32px 0;
+    }
+  `;
+ 
+  // injeta o <style> com escopo único
+  if (!document.getElementById(UID + "style")) {
+    const tag = document.createElement("style");
+    tag.id = UID + "style";
+    tag.textContent = css;
+    document.head.appendChild(tag);
+  }
+ 
+  /* ─────────────────────────────────────────
+     LÓGICA
+  ───────────────────────────────────────── */
+  let isComparisonMode = false;
+  let autoUpdateInterval = null;
+  let lastResults = [];
+ 
+  function toggleAccordion(button) {
+    const content = button.nextElementSibling;
+    const isOpen = content.style.display === "block";
+    content.style.display = isOpen ? "none" : "block";
+    button.innerHTML = isOpen ? "▼ Ver Confrontos ▲" : "▲ Ver Confrontos ▼";
+  }
+ 
+  function calcStats(matches, teamName) {
+    let w=0,d=0,l=0,gf=0,ga=0,cs=0,fts=0,form=[];
+    matches.filter(m=>m.time_a===teamName||m.time_b===teamName).forEach(m=>{
+      const [a,b]=m.ft.split(" x ").map(Number);
+      const scored=m.time_a===teamName?a:b, conceded=m.time_a===teamName?b:a;
+      gf+=scored; ga+=conceded;
+      if(conceded===0) cs++;
+      if(scored===0) fts++;
+      if(scored>conceded){w++;form.unshift("V");}
+      else if(scored<conceded){l++;form.unshift("D");}
+      else{d++;form.unshift("E");}
+    });
+    return {w,d,l,gf,ga,cs,fts,form:form.slice(0,5),total:w+d+l};
+  }
+ 
+  function calcH2H(matches, teamA, teamB) {
+    const c=matches.filter(m=>(m.time_a===teamA&&m.time_b===teamB)||(m.time_a===teamB&&m.time_b===teamA));
+    let wA=0,wB=0,dr=0,ambasSim=0,o15=0,o25=0,o35=0,totG=0,casa=0,fora=0;
+    c.forEach(m=>{
+      const [a,b]=m.ft.split(" x ").map(Number), tot=a+b;
+      totG+=tot;
+      if(a>b){casa++;m.time_a===teamA?wA++:wB++;}
+      else if(a<b){fora++;m.time_a===teamA?wB++:wA++;}
+      else dr++;
+      if(a>0&&b>0) ambasSim++;
+      if(tot>1.5) o15++;
+      if(tot>2.5) o25++;
+      if(tot>3.5) o35++;
+    });
+    const n=c.length||1;
+    return {wA,wB,dr,ambasSim,ambasNao:c.length-ambasSim,
+            o15,u15:c.length-o15,o25,u25:c.length-o25,o35,u35:c.length-o35,
+            mediaGols:(totG/n).toFixed(2),total:c.length,casa,fora};
+  }
+ 
+  function pct(a,t){return t?Math.round((a/t)*100):0;}
+ 
+  function chip(a,b,la,lb){
+    const hiA=a>=b;
+    return `<span class="${UID}chip ${hiA?UID+'chi':UID+'clo'}">${la} ${a}</span>
+            <span class="${UID}chip ${!hiA?UID+'chi':UID+'clo'}">${lb} ${b}</span>`;
+  }
+ 
+  function renderTeam(title, matches, teamName) {
+    const s=calcStats(matches,teamName);
+    const apr=s.total?((s.w/s.total)*100).toFixed(1):"0.0";
+    const mx=Math.max(s.w,s.d,s.l)||1;
+    const avgGF=s.total?(s.gf/s.total).toFixed(1):"0";
+    const avgGA=s.total?(s.ga/s.total).toFixed(1):"0";
+    const formaHTML=s.form.map(r=>`<span class="${UID}fp ${UID}f${r}">${r}</span>`).join("");
+ 
+    return `
+    <div class="${UID}card">
+      <div class="${UID}ctitle">${title}</div>
+      <div class="${UID}apr">${apr}%</div>
+      <div class="${UID}aprlbl">aproveitamento · ${s.total} jogos</div>
+ 
+      <div class="${UID}prow">
+        <span class="${UID}plbl" style="color:#22c55e">V</span>
+        <div class="${UID}ptrack"><div class="${UID}pfill" style="width:${pct(s.w,mx)}%;background:#22c55e"></div></div>
+        <span class="${UID}pval">${s.w}</span>
+      </div>
+      <div class="${UID}prow">
+        <span class="${UID}plbl" style="color:#f59e0b">E</span>
+        <div class="${UID}ptrack"><div class="${UID}pfill" style="width:${pct(s.d,mx)}%;background:#f59e0b"></div></div>
+        <span class="${UID}pval">${s.d}</span>
+      </div>
+      <div class="${UID}prow">
+        <span class="${UID}plbl" style="color:#ef4444">D</span>
+        <div class="${UID}ptrack"><div class="${UID}pfill" style="width:${pct(s.l,mx)}%;background:#ef4444"></div></div>
+        <span class="${UID}pval">${s.l}</span>
+      </div>
+ 
+      <div class="${UID}mgrid">
+        <div class="${UID}ms"><div class="${UID}msl">Gols/jogo</div><div class="${UID}msv">${avgGF}</div></div>
+        <div class="${UID}ms"><div class="${UID}msl">Sofridos/jogo</div><div class="${UID}msv">${avgGA}</div></div>
+        <div class="${UID}ms"><div class="${UID}msl">Clean sheets</div><div class="${UID}msv">${s.cs}</div></div>
+        <div class="${UID}ms"><div class="${UID}msl">Sem marcar</div><div class="${UID}msv">${s.fts}</div></div>
+      </div>
+ 
+      <div class="${UID}forma">${formaHTML}</div>
+    </div>`;
+  }
+ 
+  function renderH2H(matches, teamA, teamB) {
+    const h=calcH2H(matches,teamA,teamB);
+    const tot=h.total||1;
+ 
+    return `
+    <div class="${UID}card">
+      <div class="${UID}ctitle">H2H · ${h.total} jogos</div>
+ 
+      <div class="${UID}triolbls">
+        <div class="${UID}tlbl"><b>${h.wA}</b> ${teamA}</div>
+        <div class="${UID}tlbl" style="text-align:center"><b>${h.dr}</b> Emp.</div>
+        <div class="${UID}tlbl" style="text-align:right"><b>${h.wB}</b> ${teamB}</div>
+      </div>
+      <div class="${UID}triobar">
+        <div class="${UID}tseg" style="flex:${h.wA||.1};background:#3b82f6"></div>
+        <div class="${UID}tseg" style="flex:${h.dr||.1};background:#f59e0b"></div>
+        <div class="${UID}tseg" style="flex:${h.wB||.1};background:#ef4444"></div>
+      </div>
+ 
+      <div class="${UID}avg">
+        <div class="${UID}avgn">${h.mediaGols}</div>
+        <div class="${UID}avgl">média de gols por jogo</div>
+      </div>
+ 
+      <div class="${UID}div"></div>
+ 
+      <div class="${UID}mrow">
+        <span class="${UID}mlbl">Ambas marcam</span>
+        <div class="${UID}mchips">${chip(h.ambasSim,h.ambasNao,'Sim','Não')}</div>
+      </div>
+      <div class="${UID}mrow">
+        <span class="${UID}mlbl">Over / Under 1.5</span>
+        <div class="${UID}mchips">${chip(h.o15,h.u15,'O','U')}</div>
+      </div>
+      <div class="${UID}mrow">
+        <span class="${UID}mlbl">Over / Under 2.5</span>
+        <div class="${UID}mchips">${chip(h.o25,h.u25,'O','U')}</div>
+      </div>
+      <div class="${UID}mrow">
+        <span class="${UID}mlbl">Over / Under 3.5</span>
+        <div class="${UID}mchips">${chip(h.o35,h.u35,'O','U')}</div>
+      </div>
+ 
+      <div class="${UID}div"></div>
+ 
+      <div class="${UID}mrow">
+        <span class="${UID}mlbl">Casa vence</span>
+        <div class="${UID}mchips">
+          <span class="${UID}chip ${h.casa>=h.fora?UID+'chi':UID+'clo'}">${h.casa}</span>
+        </div>
+      </div>
+      <div class="${UID}mrow">
+        <span class="${UID}mlbl">Fora vence</span>
+        <div class="${UID}mchips">
+          <span class="${UID}chip ${h.fora>h.casa?UID+'chi':UID+'clo'}">${h.fora}</span>
+        </div>
+      </div>
+    </div>`;
+  }
+ 
+  function renderPanel(results, teamA, teamB) {
+    document.getElementById("mainContainer").innerHTML = `
+      <div class="${UID}panel">
+        ${renderTeam(teamA + " — geral", results, teamA)}
+        ${renderH2H(results, teamA, teamB)}
+        ${renderTeam(teamB + " — geral", results, teamB)}
+      </div>`;
+  }
+ 
+  /* ─── carrega próximos jogos ─── */
+  async function loadNextGames() {
+    try {
+      const response = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
+      if (!response.ok) throw new Error(response.status);
+      const games = await response.json();
+ 
+      const container = document.getElementById("nextGamesContainer");
+      container.innerHTML = `<div class="${UID}games">` +
+        games.slice(0,6).map(g => `
+          <div class="${UID}gc" data-home="${g.team_home}" data-visit="${g.team_visit}">
+            <div class="${UID}gtime">${g.time}</div>
+            <div class="${UID}gteams">
+              <span>${g.team_home}</span>
+              <span class="${UID}vs">vs</span>
+              <span>${g.team_visit}</span>
             </div>
-          </div>
-        `).join("");
-
-        container.addEventListener("click", (event) => {
-          const card = event.target.closest(".game-card");
-          if (card) {
-            const teamHome = card.dataset.home;
-            const teamVisit = card.dataset.visit;
-            selectGame(card, teamHome, teamVisit);
-          }
+          </div>`).join("") + `</div>`;
+ 
+      container.addEventListener("click", e => {
+        const card = e.target.closest(`.${UID}gc`);
+        if (!card) return;
+        document.querySelectorAll(`.${UID}gc`).forEach(c=>c.classList.remove(UID+"sel"));
+        card.classList.add(UID+"sel");
+        obterResultados(card.dataset.home, card.dataset.visit);
+      });
+    } catch(err) { console.error("Erro próximos jogos:", err); }
+  }
+ 
+  async function obterResultados(teamA, teamB) {
+    try {
+      const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+      if (!response.ok) throw new Error(response.status);
+      const results = await response.json();
+      renderPanel(results, teamA, teamB);
+      isComparisonMode = true;
+      clearInterval(autoUpdateInterval);
+    } catch(err) { console.error("Erro resultados:", err); }
+  }
+ 
+  async function fetchAndUpdateResults() {
+    if (isComparisonMode) return;
+    try {
+      const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+      if (!response.ok) throw new Error(response.status);
+      const newResults = await response.json();
+      if (JSON.stringify(newResults) !== JSON.stringify(lastResults)) {
+        lastResults = newResults;
+        const sorted = [...newResults].sort((a,b)=>{
+          const da=new Date(a.data), db=new Date(b.data);
+          return db-da||b.hora-a.hora||b.minuto-a.minuto;
         });
-      } catch (error) {
-        console.error("Erro ao carregar próximos jogos:", error);
+        const latest = sorted[0];
+        renderPanel(sorted, latest.time_a, latest.time_b);
       }
-    }
-
-    function selectGame(card, teamHome, teamVisit) {
-      document.querySelectorAll(".game-card").forEach(c => c.classList.remove("selected"));
-      card.classList.add("selected");
-      selectedGame = { teamHome, teamVisit };
-      obterResultados(teamHome, teamVisit);
-    }
-
-    function formatDateTime(dateStr, hora, minuto) {
-      const date = new Date(dateStr);
-      return `${String(date.getDate()).padStart(2, "0")}/${String(
-        date.getMonth() + 1
-      ).padStart(2, "0")}/${date.getFullYear()} ${String(hora).padStart(
-        2,
-        "0"
-      )}:${String(minuto).padStart(2, "0")}`;
-    }
-
-    function calculateTeamStats(matches, teamName) {
-      let stats = {
-        wins: 0,
-        draws: 0,
-        losses: 0,
-        goalsFor: 0,
-        goalsAgainst: 0,
-        cleanSheets: 0,
-        failedToScore: 0,
-        form: [],
-        streak: { type: "", count: 0 }
-      };
-
-      matches.forEach((match) => {
-        const isHome = match.time_a === teamName;
-        const [goalsHome, goalsAway] = match.ft.split(" x ").map(Number);
-        const goalsScored = isHome ? goalsHome : goalsAway;
-        const goalsConceded = isHome ? goalsAway : goalsHome;
-
-        let result;
-        if (goalsScored > goalsConceded) {
-          stats.wins++;
-          result = "V";
-        } else if (goalsScored < goalsConceded) {
-          stats.losses++;
-          result = "D";
-        } else {
-          stats.draws++;
-          result = "E";
-        }
-
-        stats.goalsFor += goalsScored;
-        stats.goalsAgainst += goalsConceded;
-
-        if (goalsConceded === 0) stats.cleanSheets++;
-        if (goalsScored === 0) stats.failedToScore++;
-
-        stats.form.unshift(result);
-      });
-
-      let currentStreak = 1;
-      const lastResult = stats.form[0];
-      for (let i = 1; i < stats.form.length; i++) {
-        if (stats.form[i] === lastResult) {
-          currentStreak++;
-        } else {
-          break;
-        }
-      }
-      stats.streak = {
-        type: lastResult,
-        count: currentStreak
-      };
-
-      stats.form = stats.form.slice(0, 5);
-      return stats;
-    }
-
-    function createTeamSection(title, matches, teamName) {
-      const stats = calculateTeamStats(
-        matches.filter(
-          (match) => match.time_a === teamName || match.time_b === teamName
-        ),
-        teamName
-      );
-
-      const totalMatches = stats.wins + stats.draws + stats.losses;
-      const winRate = totalMatches > 0 ? ((stats.wins / totalMatches) * 100).toFixed(1) : 0;
-
-      return `
-        <div class="section">
-          <div class="section-header">${title}</div>
-          <div class="stats-container">
-            <div class="stats-row">
-              <span class="stats-label">Aproveitamento (FT):</span>
-              <span class="stats-value">${winRate}%</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">V-E-D (FT):</span>
-              <span class="stats-value">${stats.wins}-${stats.draws}-${stats.losses}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Gols (FT):</span>
-              <span class="stats-value">Marcados: ${stats.goalsFor} | Sofridos: ${stats.goalsAgainst}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Sem sofrer gols (FT):</span>
-              <span class="stats-value">${stats.cleanSheets}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Sem marcar gols (FT):</span>
-              <span class="stats-value">${stats.failedToScore}</span>
-            </div>
-          </div>
-          <div class="match-container">
-            ${matches
-              .filter(
-                (match) => match.time_a === teamName || match.time_b === teamName
-              )
-              .slice(0, 15)
-              .map(
-                (match) => `
-                <div class="match-row">
-                  <div class="match-date">${formatDateTime(
-                    match.data,
-                    match.hora,
-                    match.minuto
-                  )}</div>
-                  <div class="match-teams">
-                    <span>${match.time_a}</span>
-                    <span class="score">${match.ft}</span>
-                    <span>${match.time_b}</span>
-                  </div>
-                  <div class="result-indicator ${getResultIndicator(
-                    match.ft,
-                    match.time_a,
-                    match.time_b,
-                    teamName
-                  )}"></div>
-                </div>
-              `
-              )
-              .join("")}
-          </div>
-        </div>
-      `;
-    }
-
-    function createConfrontosSection(matches, teamA, teamB) {
-      const confrontos = matches.filter(
-        (match) =>
-          (match.time_a === teamA && match.time_b === teamB) ||
-          (match.time_a === teamB && match.time_b === teamA)
-      );
-
-      let stats = {
-        totalJogos: confrontos.length,
-        vitoriasPrimeiro: 0,
-        vitoriasSegundo: 0,
-        empates: 0,
-        golsPrimeiro: 0,
-        golsSegundo: 0,
-        ambasSim: 0,
-        ambasNao: 0,
-        over15: 0,
-        under15: 0,
-        over25: 0,
-        under25: 0,
-        over35: 0,
-        under35: 0,
-        casaVence: 0,
-        foraVence: 0
-      };
-
-      confrontos.forEach((match) => {
-        const [goalsA, goalsB] = match.ft.split(" x ").map(Number);
-
-        if (match.time_a === teamA) {
-          stats.golsPrimeiro += goalsA;
-          stats.golsSegundo += goalsB;
-        } else {
-          stats.golsPrimeiro += goalsB;
-          stats.golsSegundo += goalsA;
-        }
-
-        if (goalsA > goalsB) {
-          stats.casaVence++;
-          if (match.time_a === teamA) stats.vitoriasPrimeiro++;
-          else stats.vitoriasSegundo++;
-        } else if (goalsA < goalsB) {
-          stats.foraVence++;
-          if (match.time_a === teamA) stats.vitoriasSegundo++;
-          else stats.vitoriasPrimeiro++;
-        } else {
-          stats.empates++;
-        }
-
-        if (goalsA > 0 && goalsB > 0) stats.ambasSim++;
-        else stats.ambasNao++;
-
-        const totalGoals = goalsA + goalsB;
-        if (totalGoals > 1.5) stats.over15++;
-        else stats.under15++;
-        if (totalGoals > 2.5) stats.over25++;
-        else stats.under25++;
-        if (totalGoals > 3.5) stats.over35++;
-        else stats.under35++;
-      });
-
-      const mediaGols =
-        (stats.golsPrimeiro + stats.golsSegundo) / stats.totalJogos || 0;
-
-      const suggestedMarkets = suggestMarkets(stats);
-
-      return `
-        <div class="section">
-          <div class="section-header">Confrontos Diretos</div>
-          <div class="stats-container">
-            <div class="stats-row">
-              <span class="stats-label">Total de jogos:</span>
-              <span class="stats-value">${stats.totalJogos}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Vitórias ${teamA} (FT):</span>
-              <span class="stats-value">${stats.vitoriasPrimeiro}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Empates (FT):</span>
-              <span class="stats-value">${stats.empates}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Vitórias ${teamB} (FT):</span>
-              <span class="stats-value">${stats.vitoriasSegundo}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Média de gols por partida (FT):</span>
-              <span class="stats-value">${mediaGols.toFixed(2)}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Casa vence (FT):</span>
-              <span class="stats-value">${stats.casaVence}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Fora vence (FT):</span>
-              <span class="stats-value">${stats.foraVence}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Ambas as equipes marcam (Sim) (FT):</span>
-              <span class="stats-value">${stats.ambasSim}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Ambas as equipes marcam (Não) (FT):</span>
-              <span class="stats-value">${stats.ambasNao}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Over 1.5 (FT):</span>
-              <span class="stats-value">${stats.over15}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Under 1.5 (FT):</span>
-              <span class="stats-value">${stats.under15}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Over 2.5 (FT):</span>
-              <span class="stats-value">${stats.over25}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Under 2.5 (FT):</span>
-              <span class="stats-value">${stats.under25}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Over 3.5 (FT):</span>
-              <span class="stats-value">${stats.over35}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Under 3.5 (FT):</span>
-              <span class="stats-value">${stats.under35}</span>
-            </div>
-            <div class="stats-row">
-              <span class="stats-label">Sugestões de mercado (FT):</span>
-              <span class="stats-value" style="color: #ffc107;">${suggestedMarkets.ft.join(", ")}</span>
-            </div>
-          </div>
-          ${confrontos
-            .slice(0, 5)
-            .map(
-              (match) => `
-              <div class="match-row">
-                <div class="match-date">${formatDateTime(
-                  match.data,
-                  match.hora,
-                  match.minuto
-                )}</div>
-                <div class="match-teams">
-                  <span>${match.time_a}</span>
-                  <span class="score">${match.ft}</span>
-                  <span>${match.time_b}</span>
-                </div>
-              </div>
-            `
-            )
-            .join("")}
-        </div>
-      `;
-    }
-
-    function suggestMarkets(stats) {
-      const markets = { ft: [] };
-
-      if (stats.ambasSim > stats.ambasNao) {
-        markets.ft.push("Ambas(Sim)");
-      } else {
-        markets.ft.push("Ambas(Não)");
-      }
-
-      if (stats.over25 > stats.under25) {
-        markets.ft.push("Over 2.5");
-      } else {
-        markets.ft.push("Under 2.5");
-      }
-
-      if (stats.casaVence > stats.foraVence) {
-        markets.ft.push("Casa Vence");
-      } else if (stats.foraVence > stats.casaVence) {
-        markets.ft.push("Fora Vence");
-      } else {
-        markets.ft.push("Empate");
-      }
-
-      return markets;
-    }
-
-    function getResultIndicator(score, teamA, teamB, targetTeam) {
-      const [goalsA, goalsB] = score.split(" x ").map(Number);
-      if (targetTeam === teamA) {
-        if (goalsA > goalsB) return "win";
-        if (goalsA < goalsB) return "loss";
-      } else if (targetTeam === teamB) {
-        if (goalsB > goalsA) return "win";
-        if (goalsB < goalsA) return "loss";
-      }
-      return "draw";
-    }
-
-    async function obterResultados(teamA, teamB) {
-      try {
-        const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-        if (!response.ok) throw new Error(`Erro na requisição: ${response.status}`);
-        const newResults = await response.json();
-
-        const container = document.getElementById("mainContainer");
-        container.innerHTML = `
-          ${createTeamSection(`${teamA} Geral`, newResults, teamA)}
-          ${createConfrontosSection(newResults, teamA, teamB)}
-          ${createTeamSection(`${teamB} Geral`, newResults, teamB)}
-        `;
-
-        isComparisonMode = true;
-        clearInterval(autoUpdateInterval);
-      } catch (error) {
-        console.error("Erro ao buscar resultados:", error);
-      }
-    }
-
-    async function fetchAndUpdateResults() {
-      if (isComparisonMode) return;
-
-      try {
-        const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-        if (!response.ok) throw new Error(`Erro na requisição: ${response.status}`);
-        const newResults = await response.json();
-
-        if (JSON.stringify(newResults) !== JSON.stringify(lastResults)) {
-          lastResults = newResults;
-
-          const sortedResults = newResults.sort((a, b) => {
-            const dateA = new Date(a.data);
-            const dateB = new Date(b.data);
-            return dateB - dateA || b.hora - a.hora || b.minuto - a.minuto;
-          });
-
-          const latestMatch = sortedResults[0];
-          const teamA = latestMatch.time_a;
-          const teamB = latestMatch.time_b;
-
-          const container = document.getElementById("mainContainer");
-          container.innerHTML = `
-            ${createTeamSection(`${teamA} Geral`, sortedResults, teamA)}
-            ${createConfrontosSection(sortedResults, teamA, teamB)}
-            ${createTeamSection(`${teamB} Geral`, sortedResults, teamB)}
-          `;
-        }
-      } catch (error) {
-        console.error("Erro ao buscar resultados:", error);
-      }
-    }
-
-    async function updateAll() {
-      await loadNextGames();
-      await fetchAndUpdateResults();
-    }
-
-    updateAll();
-    autoUpdateInterval = setInterval(updateAll, 15000);
-    </script>
+    } catch(err) { console.error("Erro auto-update:", err); }
+  }
+ 
+  async function updateAll() {
+    await loadNextGames();
+    await fetchAndUpdateResults();
+  }
+ 
+  updateAll();
+  autoUpdateInterval = setInterval(updateAll, 15000);
+ 
+})();
+</script>
 
     <script>
 /* ═══════════════════════════════════════════════════════
