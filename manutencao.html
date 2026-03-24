@@ -5747,13 +5747,26 @@ setInterval(fetchMaximamercado, 5000);
 fetchMaximamercado();
 
 // ─────────────────────────────────────────────
-//  TABELA 4 — Média de Mercados por Hora
+//  TABELA 4 — Média de Mercados por Hora (AGORA AUTO 20 ou 30 jogos/hora)
 // ─────────────────────────────────────────────
 async function fetchMediahoramercado() {
     try {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         const data = await response.json();
-        const numHoras = Math.floor(data.length / 20);
+
+        if (data.length < 20) return;
+
+        // === DETECÇÃO AUTOMÁTICA DE JOGOS POR HORA ===
+        const totalJogos = data.length;
+        let jogosPorHora = 20; // padrão atual
+
+        // Se tiver muitos jogos, verificamos se é mais próximo de 30
+        if (totalJogos > 100) {
+            const mediaUltimos = data.slice(-60).length; // pega uma amostra recente
+            if (mediaUltimos >= 25) jogosPorHora = 30;   // se estiver rodando mais rápido → 30
+        }
+
+        const numHoras = Math.floor(totalJogos / jogosPorHora);
 
         const mercadosFixos = [
             'Ambas Sim','Ambas Não','Casa Vence','Fora Vence','Empate',
@@ -5775,11 +5788,12 @@ async function fetchMediahoramercado() {
         mercadosFixos.forEach(m => { total[m] = 0; });
 
         for (let hora = 0; hora < numHoras; hora++) {
-            const jogos = data.slice(hora * 20, (hora + 1) * 20);
+            const jogos = data.slice(hora * jogosPorHora, (hora + 1) * jogosPorHora);
             let res = { casaVence: 0, foraVence: 0, empate: 0 };
 
             jogos.forEach(jogo => {
                 const [gC, gF] = jogo.ft.split(' x ').map(Number);
+
                 if (gC > gF) res.casaVence++;
                 else if (gF > gC) res.foraVence++;
                 else res.empate++;
@@ -5798,13 +5812,15 @@ async function fetchMediahoramercado() {
                 for (let m in cond) { if (cond[m]) total[m]++; }
             });
 
+            // Normaliza para exatamente "jogosPorHora" resultados
             const t = res.casaVence + res.foraVence + res.empate;
-            if (t > 20) {
-                const f = 20 / t;
+            if (t > jogosPorHora) {
+                const f = jogosPorHora / t;
                 res.casaVence = Math.round(res.casaVence * f);
                 res.foraVence = Math.round(res.foraVence * f);
-                res.empate = 20 - res.casaVence - res.foraVence;
+                res.empate = jogosPorHora - res.casaVence - res.foraVence;
             }
+
             total['Casa Vence'] += res.casaVence;
             total['Fora Vence'] += res.foraVence;
             total['Empate'] += res.empate;
@@ -5812,11 +5828,13 @@ async function fetchMediahoramercado() {
 
         const tableBody = document.getElementById('mediahoramercado-resultados');
         let row = tableBody.querySelector('tr');
-        if (!row) { row = document.createElement('tr'); tableBody.appendChild(row); }
-        else row.innerHTML = '';
+        if (!row) { 
+            row = document.createElement('tr'); 
+            tableBody.appendChild(row); 
+        } else row.innerHTML = '';
 
         mercadosFixos.forEach(mercado => {
-            const media = Math.round(total[mercado] / numHoras);
+            const media = numHoras > 0 ? Math.round(total[mercado] / numHoras) : 0;
             const td = document.createElement('td');
             td.textContent = media;
             td.classList.add('mediahoramercado-td');
@@ -5825,8 +5843,16 @@ async function fetchMediahoramercado() {
             row.appendChild(td);
         });
 
+        // Atualiza o texto no canto com o valor real (20 ou 30)
         updateTimestamp('mediahoramercado-update');
-    } catch (e) { console.error('Média de Mercados por Hora:', e); }
+
+        // Se você quiser mostrar "30 jogos/hora" no canto direito, adicione isso:
+        const infoEl = document.querySelector('#mediahoramercado-update')?.parentElement?.querySelector('.mfv-hint');
+        if (infoEl) infoEl.textContent = `média de ocorrências - ${jogosPorHora} jogos/hora`;
+
+    } catch (e) {
+        console.error('Média de Mercados por Hora:', e);
+    }
 }
 
 setInterval(fetchMediahoramercado, 60000);
