@@ -9,37 +9,29 @@
  * COMO USAR:
  *   Adicione no final do <body>, antes de </body>:
  *   <script src="accordion-reorder.js"></script>
- *
- *   Se quiser uma chave diferente por página (para não misturar
- *   a ordem entre páginas diferentes), altere STORAGE_KEY abaixo.
  * ─────────────────────────────────────────────────────────────
  */
 
 (function () {
   'use strict';
 
-  /* ── Configurações ─────────────────────────────────────── */
-
-  // Chave no localStorage — use uma por página se necessário,
-  // ex: 'betstat_order_euro', 'betstat_order_brasileirao', etc.
   const STORAGE_KEY = 'betstat_accordion_order_' + location.pathname;
 
-  // Cor dos botões (combina com o verde do BetStat)
   const COR_BOTAO        = '#1fac89';
   const COR_BOTAO_HV     = '#17876c';
   const COR_DESABILITADO = '#2a3a40';
 
-  /* ── Estilos injetados ─────────────────────────────────── */
+  /* ── Estilos ───────────────────────────────────────────── */
   const style = document.createElement('style');
   style.textContent = `
-    /* Esconde o container ANTES de aplicar a ordem salva,
-       evitando o "flash" da ordem padrão aparecendo primeiro */
-    .acc-reorder-pending {
+    #acc-reorder-container {
+      display: contents;
+    }
+    #acc-reorder-container.acc-pending {
       visibility: hidden;
       pointer-events: none;
     }
-    /* Revelação suave depois que a ordem é aplicada */
-    .acc-reorder-ready {
+    #acc-reorder-container.acc-ready {
       visibility: visible;
       animation: accFadeIn 0.15s ease;
     }
@@ -59,7 +51,7 @@
       z-index: 10;
     }
     .acc-reorder-btn {
-      background: ${COR_BOTAO};
+      background: #1fac89;
       color: #fff;
       border: none;
       border-radius: 4px;
@@ -76,94 +68,95 @@
       flex-shrink: 0;
     }
     .acc-reorder-btn:hover:not(:disabled) {
-      background: ${COR_BOTAO_HV};
+      background: #17876c;
     }
     .acc-reorder-btn:disabled {
-      background: ${COR_DESABILITADO};
+      background: #2a3a40;
       cursor: not-allowed;
       opacity: 0.5;
     }
-    /* Pequena animação ao mover */
     .acc-reorder-moving {
       transition: transform 0.18s ease;
       transform: scale(1.01);
-      box-shadow: 0 0 0 2px ${COR_BOTAO};
+      box-shadow: 0 0 0 2px #1fac89;
       border-radius: 4px;
     }
   `;
   document.head.appendChild(style);
 
-  /* ── Inicialização (aguarda DOM) ───────────────────────── */
+  /* ── Init ──────────────────────────────────────────────── */
   function init() {
-    const container = encontrarContainer();
-    if (!container) return;
+    const items = Array.from(document.querySelectorAll('.accordion-item'));
+    if (items.length < 2) return;
 
-    // Esconde o container imediatamente se houver ordem salva,
-    // para não piscar a ordem padrão antes de reordenar
+    /*
+     * SOLUÇÃO DO BUG:
+     * Os accordion-item ficam direto no <body> (sem wrapper).
+     * Usar appendChild no body joga tudo pro final, depois do rodapé.
+     * A correção: criamos um <div id="acc-reorder-container"> com
+     * display:contents (totalmente transparente pro layout) e
+     * movemos todos os accordion-item pra dentro dele, no lugar certo.
+     * Agora o insertBefore/appendChild opera só dentro do wrapper,
+     * nunca saindo da posição original na página.
+     */
+    const wrapper = document.createElement('div');
+    wrapper.id = 'acc-reorder-container';
+
+    // Insere o wrapper no lugar exato do primeiro accordion-item
+    items[0].parentNode.insertBefore(wrapper, items[0]);
+
+    // Move todos os accordion-item para dentro do wrapper
+    items.forEach(item => wrapper.appendChild(item));
+
+    // Se tem ordem salva, esconde pra não piscar durante a reordenação
     const temOrdemSalva = !!localStorage.getItem(STORAGE_KEY);
-    if (temOrdemSalva) {
-      container.classList.add('acc-reorder-pending');
-    }
+    if (temOrdemSalva) wrapper.classList.add('acc-pending');
 
-    // Envolve cada item para facilitar o posicionamento dos botões
-    const items = Array.from(container.querySelectorAll(':scope > .accordion-item'));
-    if (items.length < 2) {
-      container.classList.remove('acc-reorder-pending');
-      return; // nada a reordenar
-    }
-
-    // Garante IDs estáveis baseados no texto do botão
+    // Atribui IDs estáveis baseados no texto do botão
     items.forEach((item, i) => {
       if (!item.dataset.reorderId) {
         const btn = item.querySelector('.accordion-button');
-        const label = btn ? btn.textContent.trim().replace(/[^a-zA-Z0-9À-ú]/g, '_').substring(0, 40) : 'item_' + i;
+        const label = btn
+          ? btn.textContent.trim().replace(/[^a-zA-Z0-9\u00C0-\u00FF]/g, '_').substring(0, 40)
+          : 'item_' + i;
         item.dataset.reorderId = label || 'item_' + i;
       }
       item.classList.add('acc-reorder-wrap');
+      adicionarControles(item, wrapper);
     });
 
-    // Insere os controles ▲ ▼ em cada item
-    items.forEach(item => adicionarControles(item, container));
+    // Restaura a ordem salva
+    restaurarOrdem(wrapper);
 
-    // Restaura a ordem salva (ainda invisível)
-    restaurarOrdem(container);
+    // Atualiza estado dos botões
+    atualizarEstadoBotoes(wrapper);
 
-    // Atualiza estado dos botões (primeiro/último não podem subir/descer)
-    atualizarEstadoBotoes(container);
-
-    // Revela o container com a ordem correta já aplicada
-    container.classList.remove('acc-reorder-pending');
-    container.classList.add('acc-reorder-ready');
+    // Revela com fade suave
+    wrapper.classList.remove('acc-pending');
+    wrapper.classList.add('acc-ready');
   }
 
-  /* ── Encontra o container pai dos accordion-items ──────── */
-  function encontrarContainer() {
-    // Pega o primeiro accordion-item e usa o pai como container
-    const primeiro = document.querySelector('.accordion-item');
-    return primeiro ? primeiro.parentElement : null;
-  }
-
-  /* ── Adiciona botões ▲ ▼ ao item ──────────────────────── */
-  function adicionarControles(item, container) {
+  /* ── Botões ▲ ▼ ────────────────────────────────────────── */
+  function adicionarControles(item, wrapper) {
     const wrap = document.createElement('div');
     wrap.className = 'acc-reorder-controls';
 
     const btnUp = document.createElement('button');
     btnUp.className = 'acc-reorder-btn acc-btn-up';
     btnUp.title = 'Mover para cima';
-    btnUp.innerHTML = '▲';
-    btnUp.addEventListener('click', function (e) {
+    btnUp.innerHTML = '&#9650;';
+    btnUp.addEventListener('click', function(e) {
       e.stopPropagation();
-      moverItem(item, container, -1);
+      moverItem(item, wrapper, -1);
     });
 
     const btnDown = document.createElement('button');
     btnDown.className = 'acc-reorder-btn acc-btn-down';
     btnDown.title = 'Mover para baixo';
-    btnDown.innerHTML = '▼';
-    btnDown.addEventListener('click', function (e) {
+    btnDown.innerHTML = '&#9660;';
+    btnDown.addEventListener('click', function(e) {
       e.stopPropagation();
-      moverItem(item, container, +1);
+      moverItem(item, wrapper, +1);
     });
 
     wrap.appendChild(btnUp);
@@ -171,85 +164,77 @@
     item.appendChild(wrap);
   }
 
-  /* ── Move o item -1 (cima) ou +1 (baixo) ──────────────── */
-  function moverItem(item, container, direcao) {
-    const items = Array.from(container.querySelectorAll(':scope > .accordion-item'));
+  /* ── Mover ─────────────────────────────────────────────── */
+  function moverItem(item, wrapper, direcao) {
+    const items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
     const idx = items.indexOf(item);
     const novoIdx = idx + direcao;
-
     if (novoIdx < 0 || novoIdx >= items.length) return;
 
-    // Animação rápida
     item.classList.add('acc-reorder-moving');
-    setTimeout(() => item.classList.remove('acc-reorder-moving'), 200);
+    setTimeout(function() { item.classList.remove('acc-reorder-moving'); }, 200);
 
     if (direcao === -1) {
-      // Mover para cima: insere antes do anterior
-      container.insertBefore(item, items[novoIdx]);
+      wrapper.insertBefore(item, items[novoIdx]);
     } else {
-      // Mover para baixo: insere depois do próximo
-      const ref = items[novoIdx].nextSibling;
-      container.insertBefore(item, ref);
+      wrapper.insertBefore(item, items[novoIdx].nextSibling);
     }
 
-    salvarOrdem(container);
-    atualizarEstadoBotoes(container);
+    salvarOrdem(wrapper);
+    atualizarEstadoBotoes(wrapper);
   }
 
-  /* ── Salva a ordem atual no localStorage ──────────────── */
-  function salvarOrdem(container) {
-    const items = Array.from(container.querySelectorAll(':scope > .accordion-item'));
-    const ordem = items.map(item => item.dataset.reorderId);
+  /* ── Salvar ────────────────────────────────────────────── */
+  function salvarOrdem(wrapper) {
+    const items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    const ordem = items.map(function(item) { return item.dataset.reorderId; });
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(ordem));
     } catch (e) {
-      // localStorage pode estar bloqueado em alguns navegadores
-      console.warn('[accordion-reorder] Não foi possível salvar no localStorage.', e);
+      console.warn('[accordion-reorder] localStorage indisponível.', e);
     }
   }
 
-  /* ── Restaura a ordem salva ────────────────────────────── */
-  function restaurarOrdem(container) {
-    let ordemSalva;
+  /* ── Restaurar ─────────────────────────────────────────── */
+  function restaurarOrdem(wrapper) {
+    var ordemSalva;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       ordemSalva = JSON.parse(raw);
-    } catch (e) {
-      return;
-    }
+    } catch (e) { return; }
 
     if (!Array.isArray(ordemSalva) || ordemSalva.length === 0) return;
 
-    const items = Array.from(container.querySelectorAll(':scope > .accordion-item'));
-    const mapa = {};
-    items.forEach(item => { mapa[item.dataset.reorderId] = item; });
+    var items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    var mapa = {};
+    items.forEach(function(item) { mapa[item.dataset.reorderId] = item; });
 
-    // Reinsere na ordem salva; itens novos (não na lista salva) ficam no final
-    const novosOuExtras = items.filter(item => !ordemSalva.includes(item.dataset.reorderId));
-
-    ordemSalva.forEach(id => {
-      if (mapa[id]) container.appendChild(mapa[id]);
+    var extras = items.filter(function(item) {
+      return !ordemSalva.includes(item.dataset.reorderId);
     });
-    novosOuExtras.forEach(item => container.appendChild(item));
+
+    ordemSalva.forEach(function(id) {
+      if (mapa[id]) wrapper.appendChild(mapa[id]);
+    });
+    extras.forEach(function(item) { wrapper.appendChild(item); });
   }
 
-  /* ── Desabilita botões no topo e na base ───────────────── */
-  function atualizarEstadoBotoes(container) {
-    const items = Array.from(container.querySelectorAll(':scope > .accordion-item'));
-    items.forEach((item, i) => {
-      const btnUp   = item.querySelector('.acc-btn-up');
-      const btnDown = item.querySelector('.acc-btn-down');
-      if (btnUp)   btnUp.disabled   = (i === 0);
-      if (btnDown) btnDown.disabled = (i === items.length - 1);
+  /* ── Estado dos botões ─────────────────────────────────── */
+  function atualizarEstadoBotoes(wrapper) {
+    var items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    items.forEach(function(item, i) {
+      var up   = item.querySelector('.acc-btn-up');
+      var down = item.querySelector('.acc-btn-down');
+      if (up)   up.disabled   = (i === 0);
+      if (down) down.disabled = (i === items.length - 1);
     });
   }
 
-  /* ── Aguarda o DOM estar pronto ────────────────────────── */
+  /* ── Aguarda DOM ───────────────────────────────────────── */
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
-    // DOM já pronto (script carregado no final do body)
     init();
   }
 
