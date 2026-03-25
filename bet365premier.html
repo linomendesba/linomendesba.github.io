@@ -5401,6 +5401,8 @@ console.log = function() {};
 console.debug = function() {};
 console.info = function() {};
     </script>
+
+
 <script>
 // --- LÓGICA DO ACORDEÃO ---
 function toggleAccordion(buttonElement) {
@@ -5417,40 +5419,118 @@ document.addEventListener('DOMContentLoaded', async () => {
     const topNSelector     = document.getElementById('topNSelector');
     const sortSelector     = document.getElementById('sortSelector');
 
-    const STORAGE_KEY = 'rankingConfig';
-    let allGames = [];
-    let debounceTimer = null;
+    const STORAGE_KEY    = 'rankingConfig';
+    const HOURS_OPTIONS  = [12, 24, 48];
+    let allGames         = [];
+    let debounceTimer    = null;
+
+    // ─── SELETOR DE HORAS (injetado por JS antes do rankingContainer) ────────
+    const hoursWrapper = document.createElement('div');
+    hoursWrapper.id    = 'rkHoursWrapper';
+    hoursWrapper.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 8px;
+    `;
+
+    const hoursLabel = document.createElement('span');
+    hoursLabel.textContent  = 'Período:';
+    hoursLabel.style.cssText = `
+        font-size: 10px;
+        font-weight: 600;
+        color: #7a9e8a;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin-right: 4px;
+    `;
+    hoursWrapper.appendChild(hoursLabel);
+
+    HOURS_OPTIONS.forEach(h => {
+        const btn = document.createElement('button');
+        btn.textContent   = `${h}h`;
+        btn.dataset.hours = h;
+        btn.style.cssText = `
+            padding: 3px 9px;
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 3px;
+            border: 1px solid #2a3d30;
+            background: transparent;
+            color: #7a9e8a;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+            letter-spacing: 0.3px;
+        `;
+        btn.addEventListener('mouseenter', () => {
+            if (!btn.classList.contains('rk-hours-active')) {
+                btn.style.background  = 'rgba(255,255,255,0.05)';
+                btn.style.color       = '#aacfbc';
+            }
+        });
+        btn.addEventListener('mouseleave', () => {
+            if (!btn.classList.contains('rk-hours-active')) {
+                btn.style.background  = 'transparent';
+                btn.style.color       = '#7a9e8a';
+                btn.style.borderColor = '#2a3d30';
+            }
+        });
+        btn.addEventListener('click', () => {
+            setActiveHour(h);
+            scheduleUpdate();
+        });
+        hoursWrapper.appendChild(btn);
+    });
+
+    rankingContainer.parentNode.insertBefore(hoursWrapper, rankingContainer);
+
+    function setActiveHour(h) {
+        hoursWrapper.querySelectorAll('button').forEach(btn => {
+            const isActive = parseInt(btn.dataset.hours) === h;
+            btn.classList.toggle('rk-hours-active', isActive);
+            btn.style.background  = isActive ? 'rgba(31,172,137,0.15)' : 'transparent';
+            btn.style.color       = isActive ? '#3ecfa3'               : '#7a9e8a';
+            btn.style.borderColor = isActive ? '#2d9e76'               : '#2a3d30';
+        });
+    }
+
+    function getActiveHour() {
+        const active = hoursWrapper.querySelector('.rk-hours-active');
+        return active ? parseInt(active.dataset.hours) : 24;
+    }
 
     // ─── SALVAR configurações no localStorage ───────────────────────────────
     function saveConfig() {
-        const config = {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
             market  : marketSelector.value,
             minGames: minGamesSlider.value,
             topN    : topNSelector.value,
-            sortBy  : sortSelector.value
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+            sortBy  : sortSelector.value,
+            hours   : getActiveHour()
+        }));
     }
 
     // ─── CARREGAR configurações salvas ──────────────────────────────────────
     function loadConfig() {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (!saved) return;
+            if (!saved) { setActiveHour(24); return; }
 
             const config = JSON.parse(saved);
-
             if (config.market)   marketSelector.value  = config.market;
             if (config.minGames) {
-                minGamesSlider.value  = config.minGames;
+                minGamesSlider.value      = config.minGames;
                 minGamesValue.textContent = config.minGames;
             }
-            if (config.topN)   topNSelector.value  = config.topN;
-            if (config.sortBy) sortSelector.value  = config.sortBy;
+            if (config.topN)   topNSelector.value = config.topN;
+            if (config.sortBy) sortSelector.value = config.sortBy;
+
+            const savedHours = HOURS_OPTIONS.includes(config.hours) ? config.hours : 24;
+            setActiveHour(savedHours);
 
         } catch (e) {
-            // Se o JSON estiver corrompido, ignora silenciosamente
             localStorage.removeItem(STORAGE_KEY);
+            setActiveHour(24);
         }
     }
 
@@ -5466,10 +5546,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         scheduleUpdate();
     });
     marketSelector.addEventListener('change', scheduleUpdate);
-    topNSelector.addEventListener('change', scheduleUpdate);
-    sortSelector.addEventListener('change', scheduleUpdate);
+    topNSelector.addEventListener('change',   scheduleUpdate);
+    sortSelector.addEventListener('change',   scheduleUpdate);
 
-    // ─── Carrega config salva antes de buscar dados ──────────────────────────
     loadConfig();
 
     // ─── Busca dados da API ──────────────────────────────────────────────────
@@ -5478,8 +5557,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`);
         allGames = await response.json();
     } catch (error) {
-        rankingContainer.innerHTML = `<p style="color: red;">Falha ao carregar os dados iniciais: ${error.message}</p>`;
+        rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Falha ao carregar os dados: ${error.message}</p>`;
         return;
+    }
+
+    // ─── FILTRAR POR HORAS usando campo "data" ISO ───────────────────────────
+    // Ordena todos os jogos do mais recente para o mais antigo,
+    // pega o timestamp do jogo mais recente como referência,
+    // e filtra tudo que está dentro da janela de N horas a partir daí.
+    function filterByHours(games, hours) {
+        // Jogos com data válida
+        const comData = games.filter(g => g.data);
+        if (comData.length === 0) return games; // sem campo data: retorna tudo
+
+        // Ordena decrescente (mais recente primeiro)
+        const sorted = [...comData].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+        // Referência: timestamp do jogo mais recente
+        const newest  = new Date(sorted[0].data).getTime();
+        const cutoff  = newest - hours * 60 * 60 * 1000;
+
+        return sorted.filter(g => new Date(g.data).getTime() >= cutoff);
     }
 
     // ─── PROCESSAR RANKING ───────────────────────────────────────────────────
@@ -5488,28 +5586,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         const minGames       = parseInt(minGamesSlider.value, 10);
         const topN           = parseInt(topNSelector.value, 10);
         const sortBy         = sortSelector.value;
+        const hours          = getActiveHour();
 
+        // Aplica filtro de horas
+        const games = filterByHours(allGames, hours);
+
+        // Skeleton loader compacto
         rankingContainer.innerHTML = `
-            <div style="display: flex; flex-direction: column; gap: 10px; padding: 20px 0;">
+            <style>
+                @keyframes skeletonPulse {
+                    0%   { opacity: 0.35; }
+                    100% { opacity: 0.7;  }
+                }
+            </style>
+            <div style="padding:8px 0;">
                 ${[...Array(5)].map(() => `
                     <div style="
-                        height: 52px;
-                        border-radius: 8px;
-                        background: linear-gradient(90deg, rgba(31,172,137,0.08) 0%, rgba(255,255,255,0.03) 60%);
-                        animation: skeletonPulse 1.4s ease-in-out infinite alternate;
+                        height: 36px;
+                        margin-bottom: 4px;
+                        border-radius: 4px;
+                        background: rgba(255,255,255,0.06);
+                        animation: skeletonPulse 1.2s ease-in-out infinite alternate;
                     "></div>
                 `).join('')}
             </div>
-            <style>
-                @keyframes skeletonPulse {
-                    from { opacity: 0.4; }
-                    to   { opacity: 1;   }
-                }
-            </style>
         `;
 
         try {
-            const games     = allGames.slice(0, 480);
             const teamStats = {};
 
             games.forEach(game => {
@@ -5537,7 +5640,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 const total2T = golsA2T + golsB2T;
 
-                // casaVence e foraVence: só conta para um time
                 if (selectedMarket === 'casaVence' && golsA > golsB) {
                     teamStats[time_a].marketCount++;
                     return;
@@ -5589,7 +5691,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
 
-            // Filtro mínimo de jogos + calcular %
             const statsArray = Object.values(teamStats)
                 .filter(team => team.totalGames >= minGames)
                 .map(team => ({
@@ -5599,7 +5700,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         : 0
                 }));
 
-            // Ordenação configurável
+            if (statsArray.length === 0) {
+                rankingContainer.innerHTML = `<p style="color:#888;text-align:center;padding:20px;font-size:13px;">Nenhum time com jogos suficientes nas últimas ${hours}h para este mercado.</p>`;
+                return;
+            }
+
             if (sortBy === 'percentual') {
                 statsArray.sort((a, b) => b.percentage - a.percentage || b.marketCount - a.marketCount);
             } else {
@@ -5609,87 +5714,127 @@ document.addEventListener('DOMContentLoaded', async () => {
             renderTable(statsArray.slice(0, topN));
 
         } catch (error) {
-            rankingContainer.innerHTML = `<p style="color: red;">Erro ao processar os dados: ${error.message}</p>`;
+            rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Erro ao processar os dados: ${error.message}</p>`;
             console.error(error);
         }
     }
 
-    // ─── BADGE por percentual ────────────────────────────────────────────────
-    function badgeStyle(pct) {
-        if (pct >= 70) return { bg: 'rgba(31,172,137,0.25)',  color: '#1fac89',  label: '↑ Alto'  };
-        if (pct >= 40) return { bg: 'rgba(255,193,7,0.20)',   color: '#ffc107',  label: '→ Médio' };
-        return             { bg: 'rgba(220,53,69,0.20)',   color: '#ff6b6b',  label: '↓ Baixo' };
+    // ─── COR da badge por percentual ────────────────────────────────────────
+    function badgeInfo(pct) {
+        if (pct >= 70) return { color: '#3ecfa3', label: '↑ Alto'  };
+        if (pct >= 40) return { color: '#c8a84b', label: '→ Médio' };
+        return             { color: '#a05050', label: '↓ Baixo' };
     }
 
     // ─── RENDERIZAR TABELA ───────────────────────────────────────────────────
     function renderTable(data) {
         if (data.length === 0) {
-            rankingContainer.innerHTML = '<p style="color: #ffffff; text-align: center; font-size: 16px; margin: 20px 0;">Nenhum dado encontrado para este mercado.</p>';
+            rankingContainer.innerHTML = '<p style="color:#888;text-align:center;padding:20px;font-size:13px;">Nenhum dado encontrado para este mercado.</p>';
             return;
         }
 
-        const maxPct = Math.max(...data.map(t => t.percentage), 1);
+        const maxPct    = Math.max(...data.map(t => t.percentage), 1);
+        const posColors = ['#b8962e', '#7a7a7a', '#7a5230'];
 
-        let tableHTML = `
-            <div style="overflow-x: auto; margin: 20px 0; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
-                <table style="
-                    width: 100%;
-                    border-collapse: collapse;
-                    background: linear-gradient(135deg, #1c1f26 0%, #242831 50%, #2a2d35 100%);
-                    border-radius: 12px;
-                    overflow: hidden;
-                    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
-                ">
+        let html = `
+            <style>
+                .rk-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                .rk-table thead tr {
+                    background: #1a2620;
+                    border-bottom: 2px solid #2a3d30;
+                }
+                .rk-table th {
+                    padding: 8px 10px;
+                    color: #7a9e8a;
+                    font-weight: 600;
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.6px;
+                    white-space: nowrap;
+                    border: none;
+                }
+                .rk-table th:first-child  { text-align: center; width: 40px; }
+                .rk-table th:nth-child(2) { text-align: left; }
+                .rk-table th:nth-child(3),
+                .rk-table th:nth-child(4) { text-align: center; width: 72px; }
+                .rk-table th:last-child   { text-align: left; min-width: 140px; }
+
+                .rk-table tbody tr {
+                    border-bottom: 1px solid rgba(255,255,255,0.04);
+                    transition: background 0.15s;
+                }
+                .rk-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+
+                .rk-table td {
+                    padding: 7px 10px;
+                    border: none;
+                    vertical-align: middle;
+                }
+
+                .rk-pos   { text-align: center; font-weight: 700; font-size: 12px; width: 40px; }
+                .rk-name  { color: #d4d8dc; font-weight: 500; font-size: 13px; }
+                .rk-occ   { text-align: center; color: #3ecfa3; font-weight: 600; font-size: 13px; }
+                .rk-games { text-align: center; color: #606878; font-size: 12px; }
+
+                .rk-bar-wrap  { display: flex; align-items: center; gap: 7px; }
+                .rk-bar-track { flex: 1; height: 5px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
+                .rk-bar-fill  { height: 100%; border-radius: 99px; transition: width 0.35s ease; }
+
+                .rk-pct {
+                    font-size: 12px; font-weight: 700;
+                    white-space: nowrap; min-width: 36px;
+                    text-align: right; color: #c0c4cc;
+                }
+                .rk-badge {
+                    font-size: 10px; font-weight: 600;
+                    padding: 1px 6px; border-radius: 3px;
+                    white-space: nowrap; letter-spacing: 0.2px;
+                }
+            </style>
+
+            <div style="overflow-x:auto;margin:0;">
+                <table class="rk-table">
                     <thead>
-                        <tr style="background: linear-gradient(135deg, #1fac89 0%, #17956f 100%); box-shadow: 0 2px 10px rgba(31,172,137,0.3);">
-                            <th style="padding: 16px 12px; text-align: center; color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Pos.</th>
-                            <th style="padding: 16px 12px; text-align: left;   color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Time</th>
-                            <th style="padding: 16px 12px; text-align: center; color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Ocorrências</th>
-                            <th style="padding: 16px 12px; text-align: center; color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border: none;">Jogos</th>
-                            <th style="padding: 16px 12px; text-align: center; color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border: none; min-width: 160px;">%</th>
+                        <tr>
+                            <th>Pos.</th>
+                            <th>Time</th>
+                            <th>Ocorr.</th>
+                            <th>Jogos</th>
+                            <th>%</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
 
         data.forEach((team, index) => {
-            let positionColor = '#1fac89';
-            let bgColor = 'rgba(255,255,255,0.03)';
-            let hoverBg = 'rgba(31,172,137,0.08)';
+            const posColor = posColors[index] || '#4a5260';
+            const badge    = badgeInfo(team.percentage);
+            const barW     = ((team.percentage / maxPct) * 100).toFixed(1);
+            const barColor = team.percentage >= 70 ? '#2d9e76'
+                           : team.percentage >= 40 ? '#a07c2a'
+                           : '#7a3535';
 
-            if (index === 0) { positionColor = '#ffd700'; bgColor = 'rgba(255,215,0,0.08)';    hoverBg = 'rgba(255,215,0,0.15)'; }
-            else if (index === 1) { positionColor = '#c0c0c0'; bgColor = 'rgba(192,192,192,0.08)'; hoverBg = 'rgba(192,192,192,0.15)'; }
-            else if (index === 2) { positionColor = '#cd7f32'; bgColor = 'rgba(205,127,50,0.08)';  hoverBg = 'rgba(205,127,50,0.15)'; }
-
-            const badge    = badgeStyle(team.percentage);
-            const barWidth = ((team.percentage / maxPct) * 100).toFixed(1);
-            const barColor = team.percentage >= 70 ? '#1fac89' : team.percentage >= 40 ? '#ffc107' : '#ff6b6b';
-
-            tableHTML += `
-                <tr style="background: ${bgColor}; border-bottom: 1px solid rgba(255,255,255,0.08); transition: all 0.3s ease;"
-                    onmouseover="this.style.background='${hoverBg}'; this.style.transform='translateX(4px)'"
-                    onmouseout="this.style.background='${bgColor}'; this.style.transform='translateX(0)'">
-
-                    <td style="padding: 16px 12px; text-align: center; color: ${positionColor}; font-weight: 700; font-size: 16px; border: none; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">${index + 1}º</td>
-                    <td style="padding: 16px 12px; text-align: left; color: #ffffff; font-weight: 600; font-size: 15px; border: none;">${team.name}</td>
-                    <td style="padding: 16px 12px; text-align: center; color: #1fac89; font-weight: 600; font-size: 15px; border: none;">${team.marketCount}</td>
-                    <td style="padding: 16px 12px; text-align: center; color: #b0b3c1; font-weight: 500; font-size: 15px; border: none;">${team.totalGames}</td>
-
-                    <td style="padding: 12px 12px; border: none; min-width: 160px;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="flex: 1; background: rgba(255,255,255,0.08); border-radius: 99px; height: 8px; overflow: hidden;">
-                                <div style="width: ${barWidth}%; height: 100%; background: linear-gradient(90deg, ${barColor}, ${barColor}cc); border-radius: 99px; transition: width 0.4s ease;"></div>
+            html += `
+                <tr>
+                    <td class="rk-pos" style="color:${posColor};">${index + 1}º</td>
+                    <td class="rk-name">${team.name}</td>
+                    <td class="rk-occ">${team.marketCount}</td>
+                    <td class="rk-games">${team.totalGames}</td>
+                    <td>
+                        <div class="rk-bar-wrap">
+                            <div class="rk-bar-track">
+                                <div class="rk-bar-fill" style="width:${barW}%;background:${barColor};"></div>
                             </div>
-                            <span style="color: #ffffff; font-weight: 700; font-size: 14px; white-space: nowrap; min-width: 38px; text-align: right;">${team.percentage}%</span>
-                            <span style="background: ${badge.bg}; color: ${badge.color}; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 99px; white-space: nowrap; border: 1px solid ${badge.color}44; letter-spacing: 0.3px;">${badge.label}</span>
+                            <span class="rk-pct">${team.percentage}%</span>
+                            <span class="rk-badge" style="color:${badge.color};background:${badge.color}18;">${badge.label}</span>
                         </div>
                     </td>
                 </tr>
             `;
         });
 
-        tableHTML += `</tbody></table></div>`;
-        rankingContainer.innerHTML = tableHTML;
+        html += `</tbody></table></div>`;
+        rankingContainer.innerHTML = html;
     }
 
     updateRanking();
