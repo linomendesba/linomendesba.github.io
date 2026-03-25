@@ -25,13 +25,28 @@
   const STORAGE_KEY = 'betstat_accordion_order_' + location.pathname;
 
   // Cor dos botões (combina com o verde do BetStat)
-  const COR_BOTAO     = '#1fac89';
-  const COR_BOTAO_HV  = '#17876c';
+  const COR_BOTAO        = '#1fac89';
+  const COR_BOTAO_HV     = '#17876c';
   const COR_DESABILITADO = '#2a3a40';
 
   /* ── Estilos injetados ─────────────────────────────────── */
   const style = document.createElement('style');
   style.textContent = `
+    /* Esconde o container ANTES de aplicar a ordem salva,
+       evitando o "flash" da ordem padrão aparecendo primeiro */
+    .acc-reorder-pending {
+      visibility: hidden;
+      pointer-events: none;
+    }
+    /* Revelação suave depois que a ordem é aplicada */
+    .acc-reorder-ready {
+      visibility: visible;
+      animation: accFadeIn 0.15s ease;
+    }
+    @keyframes accFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
     .acc-reorder-wrap {
       position: relative;
     }
@@ -83,9 +98,19 @@
     const container = encontrarContainer();
     if (!container) return;
 
+    // Esconde o container imediatamente se houver ordem salva,
+    // para não piscar a ordem padrão antes de reordenar
+    const temOrdemSalva = !!localStorage.getItem(STORAGE_KEY);
+    if (temOrdemSalva) {
+      container.classList.add('acc-reorder-pending');
+    }
+
     // Envolve cada item para facilitar o posicionamento dos botões
     const items = Array.from(container.querySelectorAll(':scope > .accordion-item'));
-    if (items.length < 2) return; // nada a reordenar
+    if (items.length < 2) {
+      container.classList.remove('acc-reorder-pending');
+      return; // nada a reordenar
+    }
 
     // Garante IDs estáveis baseados no texto do botão
     items.forEach((item, i) => {
@@ -100,11 +125,15 @@
     // Insere os controles ▲ ▼ em cada item
     items.forEach(item => adicionarControles(item, container));
 
-    // Restaura a ordem salva
+    // Restaura a ordem salva (ainda invisível)
     restaurarOrdem(container);
 
     // Atualiza estado dos botões (primeiro/último não podem subir/descer)
     atualizarEstadoBotoes(container);
+
+    // Revela o container com a ordem correta já aplicada
+    container.classList.remove('acc-reorder-pending');
+    container.classList.add('acc-reorder-ready');
   }
 
   /* ── Encontra o container pai dos accordion-items ──────── */
