@@ -15,7 +15,7 @@
 (function () {
   'use strict';
 
-  const STORAGE_KEY = 'betstat_accordion_order_' + location.pathname;
+const STORAGE_KEY = 'betstat_accordion_order_global';
 
   const COR_BOTAO        = '#1fac89';
   const COR_BOTAO_HV     = '#17876c';
