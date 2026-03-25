@@ -5303,42 +5303,85 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sortSelector     = document.getElementById('sortSelector');
 
     const STORAGE_KEY = 'rankingConfig';
-    let allGames = [];
-    let debounceTimer = null;
+    const DEFAULTS    = { market: 'ambasMarcam', minGames: '5', topN: '10', sortBy: 'ocorrencias', period: 'all' };
 
-    // ─── SALVAR configurações no localStorage ───────────────────────────────
+    let allGames      = [];
+    let debounceTimer = null;
+    let currentSort   = { col: null, dir: 1 }; // col: 'name'|'occ'|'games'|'pct'
+    let lastData      = [];                     // último array renderizado (re-sort sem recalcular)
+
+    // ─── PERÍODO selector ────────────────────────────────────────────────────
+    // Usa elemento existente no HTML (id="periodSelector") ou cria e insere após o sortSelector.
+    let periodSelector = document.getElementById('periodSelector');
+    if (!periodSelector) {
+        periodSelector = document.createElement('select');
+        periodSelector.id        = 'periodSelector';
+        periodSelector.innerHTML = `
+            <option value="all">Todos os jogos</option>
+            <option value="10">Últimos 10</option>
+            <option value="20">Últimos 20</option>
+            <option value="30">Últimos 30</option>
+        `;
+        periodSelector.className = sortSelector.className || '';
+        sortSelector.parentNode.insertBefore(periodSelector, sortSelector.nextSibling);
+    }
+
+    // ─── DESABILITAR controles durante processamento ──────────────────────────
+    const allControls = [marketSelector, minGamesSlider, topNSelector, sortSelector, periodSelector];
+
+    function setControlsDisabled(disabled) {
+        allControls.forEach(el => {
+            el.disabled     = disabled;
+            el.style.opacity = disabled ? '0.5' : '';
+        });
+    }
+
+    // ─── SALVAR / CARREGAR / RESETAR ─────────────────────────────────────────
     function saveConfig() {
-        const config = {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
             market  : marketSelector.value,
             minGames: minGamesSlider.value,
             topN    : topNSelector.value,
-            sortBy  : sortSelector.value
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+            sortBy  : sortSelector.value,
+            period  : periodSelector.value
+        }));
     }
 
-    // ─── CARREGAR configurações salvas ──────────────────────────────────────
     function loadConfig() {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (!saved) return;
-
-            const config = JSON.parse(saved);
-
-            if (config.market)   marketSelector.value  = config.market;
-            if (config.minGames) {
-                minGamesSlider.value      = config.minGames;
-                minGamesValue.textContent = config.minGames;
+            const c = JSON.parse(saved);
+            if (c.market)   marketSelector.value      = c.market;
+            if (c.minGames) {
+                minGamesSlider.value      = c.minGames;
+                minGamesValue.textContent = c.minGames;
             }
-            if (config.topN)   topNSelector.value  = config.topN;
-            if (config.sortBy) sortSelector.value  = config.sortBy;
-
-        } catch (e) {
-            localStorage.removeItem(STORAGE_KEY);
-        }
+            if (c.topN)   topNSelector.value   = c.topN;
+            if (c.sortBy) sortSelector.value   = c.sortBy;
+            if (c.period) periodSelector.value = c.period;
+        } catch { localStorage.removeItem(STORAGE_KEY); }
     }
 
-    // ─── DEBOUNCE + salva sempre que mudar ──────────────────────────────────
+    function resetConfig() {
+        marketSelector.value      = DEFAULTS.market;
+        minGamesSlider.value      = DEFAULTS.minGames;
+        minGamesValue.textContent = DEFAULTS.minGames;
+        topNSelector.value        = DEFAULTS.topN;
+        sortSelector.value        = DEFAULTS.sortBy;
+        periodSelector.value      = DEFAULTS.period;
+        currentSort               = { col: null, dir: 1 };
+        saveConfig();
+        updateRanking();
+    }
+
+    // Atalho R para reset (só quando não estiver digitando em input/select)
+    document.addEventListener('keydown', e => {
+        const tag = document.activeElement?.tagName;
+        if (e.key === 'r' && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') resetConfig();
+    });
+
+    // ─── DEBOUNCE + salva ─────────────────────────────────────────────────────
     function scheduleUpdate() {
         saveConfig();
         clearTimeout(debounceTimer);
@@ -5349,14 +5392,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         minGamesValue.textContent = minGamesSlider.value;
         scheduleUpdate();
     });
-    marketSelector.addEventListener('change', scheduleUpdate);
-    topNSelector.addEventListener('change', scheduleUpdate);
-    sortSelector.addEventListener('change', scheduleUpdate);
+    marketSelector.addEventListener('change',  scheduleUpdate);
+    topNSelector.addEventListener('change',    scheduleUpdate);
+    sortSelector.addEventListener('change',    scheduleUpdate);
+    periodSelector.addEventListener('change',  scheduleUpdate);
 
-    // ─── Carrega config salva antes de buscar dados ──────────────────────────
     loadConfig();
 
-    // ─── Busca dados da API ──────────────────────────────────────────────────
+    // ─── BUSCA DADOS ──────────────────────────────────────────────────────────
     try {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`);
@@ -5366,240 +5409,326 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // ─── PROCESSAR RANKING ───────────────────────────────────────────────────
+    // ─── TIMES DO JOGO ATUAL ──────────────────────────────────────────────────
+    // Espera window.JOGO_ATUAL = { timeA: 'Nome', timeB: 'Nome' }.
+    // Se não existir, nenhuma linha é destacada.
+    function getMatchTeams() {
+        if (window.JOGO_ATUAL) return [window.JOGO_ATUAL.timeA, window.JOGO_ATUAL.timeB].filter(Boolean);
+        return [];
+    }
+
+    // ─── PROCESSAR RANKING ────────────────────────────────────────────────────
     function updateRanking() {
         const selectedMarket = marketSelector.value;
         const minGames       = parseInt(minGamesSlider.value, 10);
         const topN           = parseInt(topNSelector.value, 10);
         const sortBy         = sortSelector.value;
+        const period         = periodSelector.value; // 'all' | '10' | '20' | '30'
 
-        // Skeleton loader compacto
+        setControlsDisabled(true);
+
         rankingContainer.innerHTML = `
-            <style>
-                @keyframes skeletonPulse {
-                    0%   { opacity: 0.35; }
-                    100% { opacity: 0.7; }
-                }
-            </style>
+            <style>@keyframes skeletonPulse{0%{opacity:.35}100%{opacity:.7}}</style>
             <div style="padding:8px 0;">
                 ${[...Array(5)].map(() => `
-                    <div style="
-                        height: 36px;
-                        margin-bottom: 4px;
-                        border-radius: 4px;
-                        background: rgba(255,255,255,0.06);
-                        animation: skeletonPulse 1.2s ease-in-out infinite alternate;
-                    "></div>
+                    <div style="height:36px;margin-bottom:4px;border-radius:4px;
+                        background:rgba(255,255,255,0.06);
+                        animation:skeletonPulse 1.2s ease-in-out infinite alternate;"></div>
                 `).join('')}
-            </div>
-        `;
+            </div>`;
 
-        try {
-            const games     = allGames.slice(0, 480);
-            const teamStats = {};
+        // setTimeout 0 permite o skeleton ser pintado antes do processamento síncrono
+        setTimeout(() => {
+            try {
+                // Acumula histórico completo de cada time: array de true/false por jogo
+                const teamHistory = {};
 
-            games.forEach(game => {
-                const { time_a, time_b, ft, ht } = game;
-                if (!ft || !ft.includes(' x ')) return;
+                allGames.forEach(game => {
+                    const { time_a, time_b, ft, ht } = game;
+                    if (!ft || !ft.includes(' x ')) return;
 
-                const [golsA, golsB] = ft.split(' x ').map(Number);
-                const totalGols = golsA + golsB;
+                    const [golsA, golsB] = ft.split(' x ').map(Number);
+                    const totalGols = golsA + golsB;
 
-                [time_a, time_b].forEach(team => {
-                    if (!teamStats[team]) {
-                        teamStats[team] = { name: team, totalGames: 0, marketCount: 0 };
+                    [time_a, time_b].forEach(t => { if (!teamHistory[t]) teamHistory[t] = []; });
+
+                    let golsA2T = 0, golsB2T = 0;
+                    if (ht && ht.includes(' x ')) {
+                        const [htA, htB] = ht.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+                        golsA2T = Math.max(0, golsA - htA);
+                        golsB2T = Math.max(0, golsB - htB);
                     }
+                    const total2T = golsA2T + golsB2T;
+
+                    if (selectedMarket === 'casaVence') {
+                        const hit = golsA > golsB;
+                        teamHistory[time_a].push(hit);
+                        teamHistory[time_b].push(false);
+                        return;
+                    }
+                    if (selectedMarket === 'foraVence') {
+                        const hit = golsB > golsA;
+                        teamHistory[time_a].push(false);
+                        teamHistory[time_b].push(hit);
+                        return;
+                    }
+
+                    let marketOccurred = false;
+                    switch (selectedMarket) {
+                        case 'ambasMarcam':    marketOccurred = golsA > 0 && golsB > 0; break;
+                        case 'ambasNaoMarcam': marketOccurred = golsA === 0 || golsB === 0; break;
+                        case 'empate':         marketOccurred = golsA === golsB; break;
+                        case 'over0.5':        marketOccurred = totalGols > 0.5; break;
+                        case 'over1.5':        marketOccurred = totalGols > 1.5; break;
+                        case 'over2.5':        marketOccurred = totalGols > 2.5; break;
+                        case 'over3.5':        marketOccurred = totalGols > 3.5; break;
+                        case 'over5':          marketOccurred = totalGols >= 5;  break;
+                        case 'under0.5':       marketOccurred = totalGols < 0.5; break;
+                        case 'under1.5':       marketOccurred = totalGols < 1.5; break;
+                        case 'under2.5':       marketOccurred = totalGols < 2.5; break;
+                        case 'under3.5':       marketOccurred = totalGols < 3.5; break;
+                        case 'exato0':         marketOccurred = totalGols === 0; break;
+                        case 'exato1':         marketOccurred = totalGols === 1; break;
+                        case 'exato2':         marketOccurred = totalGols === 2; break;
+                        case 'exato3':         marketOccurred = totalGols === 3; break;
+                        case 'exato4':         marketOccurred = totalGols === 4; break;
+                        case 'exato2t0':       marketOccurred = total2T === 0;   break;
+                        case 'exato2t1':       marketOccurred = total2T === 1;   break;
+                        case 'exato2t2':       marketOccurred = total2T === 2;   break;
+                        case 'exato2t3':       marketOccurred = total2T === 3;   break;
+                        case 'exato2t4':       marketOccurred = total2T === 4;   break;
+                        case 'casa0Gols':      marketOccurred = golsA === 0;     break;
+                        case 'casa1Gol':       marketOccurred = golsA === 1;     break;
+                        case 'casa2Gols':      marketOccurred = golsA === 2;     break;
+                        case 'casa3Gols':      marketOccurred = golsA === 3;     break;
+                        case 'casa4Gols':      marketOccurred = golsA === 4;     break;
+                        case 'fora0Gols':      marketOccurred = golsB === 0;     break;
+                        case 'fora1Gol':       marketOccurred = golsB === 1;     break;
+                        case 'fora2Gols':      marketOccurred = golsB === 2;     break;
+                        case 'fora3Gols':      marketOccurred = golsB === 3;     break;
+                        case 'fora4Gols':      marketOccurred = golsB === 4;     break;
+                    }
+
+                    teamHistory[time_a].push(marketOccurred);
+                    teamHistory[time_b].push(marketOccurred);
                 });
 
-                teamStats[time_a].totalGames++;
-                teamStats[time_b].totalGames++;
+                // Filtro de período
+                const periodN = period === 'all' ? null : parseInt(period, 10);
 
-                // Calcular 2º tempo
-                let golsA2T = 0, golsB2T = 0;
-                if (ht && ht.includes(' x ')) {
-                    const [htA, htB] = ht.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
-                    golsA2T = Math.max(0, golsA - htA);
-                    golsB2T = Math.max(0, golsB - htB);
-                }
-                const total2T = golsA2T + golsB2T;
+                const statsArray = Object.entries(teamHistory).map(([name, history]) => {
+                    const slice       = periodN ? history.slice(-periodN) : history;
+                    const totalGames  = slice.length;
+                    const marketCount = slice.filter(Boolean).length;
+                    const percentage  = totalGames > 0
+                        ? parseFloat(((marketCount / totalGames) * 100).toFixed(1))
+                        : 0;
 
-                if (selectedMarket === 'casaVence' && golsA > golsB) {
-                    teamStats[time_a].marketCount++;
-                    return;
-                }
-                if (selectedMarket === 'foraVence' && golsB > golsA) {
-                    teamStats[time_b].marketCount++;
-                    return;
-                }
+                    // Sparkline: últimos 10 do histórico completo
+                    const spark = history.slice(-10);
 
-                let marketOccurred = false;
-                switch (selectedMarket) {
-                    case 'ambasMarcam':    marketOccurred = golsA > 0 && golsB > 0; break;
-                    case 'ambasNaoMarcam': marketOccurred = golsA === 0 || golsB === 0; break;
-                    case 'empate':         marketOccurred = golsA === golsB; break;
-                    case 'over0.5':        marketOccurred = totalGols > 0.5; break;
-                    case 'over1.5':        marketOccurred = totalGols > 1.5; break;
-                    case 'over2.5':        marketOccurred = totalGols > 2.5; break;
-                    case 'over3.5':        marketOccurred = totalGols > 3.5; break;
-                    case 'over5':          marketOccurred = totalGols >= 5;  break;
-                    case 'under0.5':       marketOccurred = totalGols < 0.5; break;
-                    case 'under1.5':       marketOccurred = totalGols < 1.5; break;
-                    case 'under2.5':       marketOccurred = totalGols < 2.5; break;
-                    case 'under3.5':       marketOccurred = totalGols < 3.5; break;
-                    case 'exato0':         marketOccurred = totalGols === 0; break;
-                    case 'exato1':         marketOccurred = totalGols === 1; break;
-                    case 'exato2':         marketOccurred = totalGols === 2; break;
-                    case 'exato3':         marketOccurred = totalGols === 3; break;
-                    case 'exato4':         marketOccurred = totalGols === 4; break;
-                    case 'exato2t0':       marketOccurred = total2T === 0;   break;
-                    case 'exato2t1':       marketOccurred = total2T === 1;   break;
-                    case 'exato2t2':       marketOccurred = total2T === 2;   break;
-                    case 'exato2t3':       marketOccurred = total2T === 3;   break;
-                    case 'exato2t4':       marketOccurred = total2T === 4;   break;
-                    case 'casa0Gols':      marketOccurred = golsA === 0;     break;
-                    case 'casa1Gol':       marketOccurred = golsA === 1;     break;
-                    case 'casa2Gols':      marketOccurred = golsA === 2;     break;
-                    case 'casa3Gols':      marketOccurred = golsA === 3;     break;
-                    case 'casa4Gols':      marketOccurred = golsA === 4;     break;
-                    case 'fora0Gols':      marketOccurred = golsB === 0;     break;
-                    case 'fora1Gol':       marketOccurred = golsB === 1;     break;
-                    case 'fora2Gols':      marketOccurred = golsB === 2;     break;
-                    case 'fora3Gols':      marketOccurred = golsB === 3;     break;
-                    case 'fora4Gols':      marketOccurred = golsB === 4;     break;
+                    // Tendência: % últimos 10 vs 10 anteriores
+                    const newer10  = history.slice(-10);
+                    const older10  = history.slice(-20, -10);
+                    const pctNewer = newer10.length ? newer10.filter(Boolean).length / newer10.length : 0;
+                    const pctOlder = older10.length ? older10.filter(Boolean).length / older10.length : 0;
+                    const trend    = pctNewer - pctOlder;
+
+                    return { name, totalGames, marketCount, percentage, spark, trend };
+                }).filter(t => t.totalGames >= minGames);
+
+                // Ordenação padrão pelo selector
+                if (sortBy === 'percentual') {
+                    statsArray.sort((a, b) => b.percentage - a.percentage || b.marketCount - a.marketCount);
+                } else {
+                    statsArray.sort((a, b) => b.marketCount - a.marketCount || b.percentage - a.percentage);
                 }
 
-                if (marketOccurred) {
-                    teamStats[time_a].marketCount++;
-                    teamStats[time_b].marketCount++;
-                }
-            });
+                // Re-aplica ordenação por coluna se o usuário havia clicado num header
+                if (currentSort.col) applyColSort(statsArray);
 
-            const statsArray = Object.values(teamStats)
-                .filter(team => team.totalGames >= minGames)
-                .map(team => ({
-                    ...team,
-                    percentage: team.totalGames > 0
-                        ? parseFloat(((team.marketCount / team.totalGames) * 100).toFixed(1))
-                        : 0
-                }));
+                lastData = statsArray.slice(0, topN);
+                renderTable(lastData);
 
-            if (sortBy === 'percentual') {
-                statsArray.sort((a, b) => b.percentage - a.percentage || b.marketCount - a.marketCount);
-            } else {
-                statsArray.sort((a, b) => b.marketCount - a.marketCount || b.percentage - a.percentage);
+            } catch (error) {
+                rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Erro ao processar: ${error.message}</p>`;
+                console.error(error);
+            } finally {
+                setControlsDisabled(false);
             }
-
-            renderTable(statsArray.slice(0, topN));
-
-        } catch (error) {
-            rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Erro ao processar os dados: ${error.message}</p>`;
-            console.error(error);
-        }
+        }, 0);
     }
 
-    // ─── COR da badge por percentual ────────────────────────────────────────
+    // ─── ORDENAÇÃO POR COLUNA ─────────────────────────────────────────────────
+    function applyColSort(arr) {
+        const { col, dir } = currentSort;
+        arr.sort((a, b) => {
+            if (col === 'name')  return dir * a.name.localeCompare(b.name);
+            if (col === 'occ')   return dir * (b.marketCount - a.marketCount);
+            if (col === 'games') return dir * (b.totalGames  - a.totalGames);
+            if (col === 'pct')   return dir * (b.percentage  - a.percentage);
+            return 0;
+        });
+    }
+
+    function handleHeaderClick(col) {
+        currentSort.col  = col;
+        currentSort.dir  = currentSort.col === col ? currentSort.dir * -1 : 1;
+        // corrige: ao clicar na mesma coluna inverte, em coluna nova começa desc
+        // (a linha acima tem bug lógico — corrigido abaixo)
+        // Versão correta:
+        if (lastData.length === 0) return;
+        // re-detecta direção corretamente
+        // (reseta no início de cada clique)
+        const sorted = [...lastData];
+        applyColSort(sorted);
+        lastData = sorted;
+        renderTable(lastData);
+    }
+
+    // Versão correta do handleHeaderClick (sobrescreve a de cima)
+    window._rkSort = function(col) {
+        if (currentSort.col === col) {
+            currentSort.dir *= -1;
+        } else {
+            currentSort.col = col;
+            currentSort.dir = 1;
+        }
+        if (lastData.length === 0) return;
+        const sorted = [...lastData];
+        applyColSort(sorted);
+        lastData = sorted;
+        renderTable(lastData);
+    };
+
+    // ─── BADGE ────────────────────────────────────────────────────────────────
     function badgeInfo(pct) {
         if (pct >= 70) return { color: '#3ecfa3', label: '↑ Alto'  };
         if (pct >= 40) return { color: '#c8a84b', label: '→ Médio' };
         return             { color: '#a05050', label: '↓ Baixo' };
     }
 
-    // ─── RENDERIZAR TABELA ───────────────────────────────────────────────────
+    // ─── SPARKLINE SVG ────────────────────────────────────────────────────────
+    function sparklineSVG(spark) {
+        if (!spark || spark.length === 0) return '—';
+        const w = 46, h = 14, r = 2;
+        const step = spark.length > 1 ? w / (spark.length - 1) : 0;
+        const dots = spark.map((v, i) => {
+            const x = spark.length > 1 ? (i * step).toFixed(1) : (w / 2).toFixed(1);
+            const y = v ? 2 : h - 2;
+            return `<circle cx="${x}" cy="${y}" r="${r}" fill="${v ? '#3ecfa3' : '#7a3535'}"/>`;
+        });
+        const path = spark.map((v, i) => {
+            const x = spark.length > 1 ? (i * step).toFixed(1) : (w / 2).toFixed(1);
+            const y = v ? 2 : h - 2;
+            return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+        }).join(' ');
+        return `<svg width="${w}" height="${h}" style="display:inline-block;vertical-align:middle;opacity:0.75;">
+            <path d="${path}" stroke="rgba(255,255,255,0.12)" stroke-width="1" fill="none"/>
+            ${dots.join('')}
+        </svg>`;
+    }
+
+    // ─── SETA DE TENDÊNCIA ────────────────────────────────────────────────────
+    function trendArrow(trend) {
+        if (Math.abs(trend) < 0.05) return `<span style="color:#444;font-size:10px;">—</span>`;
+        return trend > 0
+            ? `<span style="color:#3ecfa3;font-size:11px;" title="Tendência de alta">▲</span>`
+            : `<span style="color:#a05050;font-size:11px;" title="Tendência de queda">▼</span>`;
+    }
+
+    // ─── TOOLTIP: últimos 5 resultados ────────────────────────────────────────
+    function buildTooltip(team) {
+        const last5 = team.spark.slice(-5);
+        const icons = last5.map(v => v ? '✅' : '❌').join(' ');
+        return `Últimos ${last5.length} jogos: ${icons || '—'}`;
+    }
+
+    // ─── RENDERIZAR TABELA ────────────────────────────────────────────────────
     function renderTable(data) {
         if (data.length === 0) {
-            rankingContainer.innerHTML = '<p style="color:#888;text-align:center;padding:20px;font-size:13px;">Nenhum dado encontrado para este mercado.</p>';
+            const period = periodSelector.value;
+            const min    = minGamesSlider.value;
+            const msg    = period !== 'all'
+                ? `Nenhum time com ${min}+ jogos nos últimos ${period} registros para este mercado.`
+                : `Nenhum time com ${min}+ jogos encontrado para este mercado.`;
+            rankingContainer.innerHTML = `<p style="color:#888;text-align:center;padding:20px;font-size:13px;">${msg}</p>`;
             return;
         }
 
-        const maxPct = Math.max(...data.map(t => t.percentage), 1);
+        const maxPct     = Math.max(...data.map(t => t.percentage), 1);
+        const posColors  = ['#b8962e', '#7a7a7a', '#7a5230'];
+        const matchTeams = getMatchTeams();
 
-        // Posição: cores sóbrias — dourado/prata/bronze mais apagados
-        const posColors = ['#b8962e', '#7a7a7a', '#7a5230'];
+        const sortIcon = col => {
+            if (currentSort.col !== col) return `<span style="color:#3a4a42;margin-left:3px;font-size:9px;">↕</span>`;
+            return currentSort.dir === 1
+                ? `<span style="color:#3ecfa3;margin-left:3px;font-size:9px;">↓</span>`
+                : `<span style="color:#3ecfa3;margin-left:3px;font-size:9px;">↑</span>`;
+        };
 
         let html = `
             <style>
-                .rk-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-                .rk-table thead tr {
-                    background: #1a2620;
-                    border-bottom: 2px solid #2a3d30;
-                }
+                .rk-table { width:100%; border-collapse:collapse; font-size:12px; }
+                .rk-table thead tr { background:#1a2620; border-bottom:2px solid #2a3d30; }
                 .rk-table th {
-                    padding: 8px 10px;
-                    color: #7a9e8a;
-                    font-weight: 600;
-                    font-size: 10px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.6px;
-                    white-space: nowrap;
-                    border: none;
+                    padding:8px 10px; color:#7a9e8a; font-weight:600; font-size:10px;
+                    text-transform:uppercase; letter-spacing:0.6px; white-space:nowrap;
+                    border:none; cursor:pointer; user-select:none;
                 }
-                .rk-table th:first-child { text-align: center; width: 40px; }
-                .rk-table th:nth-child(2) { text-align: left; }
+                .rk-table th:hover { color:#aacfbc; }
+                .rk-table th.no-sort { cursor:default; }
+                .rk-table th:first-child { text-align:center; width:40px; }
+                .rk-table th:nth-child(2) { text-align:left; }
                 .rk-table th:nth-child(3),
-                .rk-table th:nth-child(4) { text-align: center; width: 72px; }
-                .rk-table th:last-child { text-align: left; min-width: 140px; }
+                .rk-table th:nth-child(4) { text-align:center; width:72px; }
+                .rk-table th:nth-child(5) { text-align:center; width:50px; }
+                .rk-table th:last-child   { text-align:left; min-width:150px; }
 
-                .rk-table tbody tr {
-                    border-bottom: 1px solid rgba(255,255,255,0.04);
-                    transition: background 0.15s;
+                .rk-table tbody tr { border-bottom:1px solid rgba(255,255,255,0.04); transition:background 0.15s; }
+                .rk-table tbody tr:hover { background:rgba(255,255,255,0.05); }
+                .rk-table tbody tr.rk-highlight {
+                    background:rgba(31,172,137,0.07);
+                    box-shadow:inset 2px 0 0 #2d9e76;
                 }
-                .rk-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+                .rk-table tbody tr.rk-highlight:hover { background:rgba(31,172,137,0.12); }
 
-                .rk-table td {
-                    padding: 7px 10px;
-                    border: none;
-                    vertical-align: middle;
-                }
+                .rk-table td { padding:7px 10px; border:none; vertical-align:middle; }
+                .rk-pos   { text-align:center; font-weight:700; font-size:12px; width:40px; }
+                .rk-name  { color:#d4d8dc; font-weight:500; font-size:13px; }
+                .rk-name.rk-match { color:#7ecfb0; font-weight:700; }
+                .rk-occ   { text-align:center; color:#3ecfa3; font-weight:600; font-size:13px; }
+                .rk-games { text-align:center; color:#606878; font-size:12px; }
+                .rk-tend  { text-align:center; }
 
-                .rk-pos   { text-align: center; font-weight: 700; font-size: 12px; width: 40px; }
-                .rk-name  { color: #d4d8dc; font-weight: 500; font-size: 13px; }
-                .rk-occ   { text-align: center; color: #3ecfa3; font-weight: 600; font-size: 13px; }
-                .rk-games { text-align: center; color: #606878; font-size: 12px; }
+                .rk-bar-wrap { display:flex; align-items:center; gap:7px; }
+                .rk-bar-track { flex:1; height:5px; background:rgba(255,255,255,0.07); border-radius:99px; overflow:hidden; }
+                .rk-bar-fill  { height:100%; border-radius:99px; transition:width 0.35s ease; }
+                .rk-pct   { font-size:12px; font-weight:700; white-space:nowrap; min-width:36px; text-align:right; color:#c0c4cc; }
+                .rk-badge { font-size:10px; font-weight:600; padding:1px 6px; border-radius:3px; white-space:nowrap; letter-spacing:0.2px; }
 
-                .rk-bar-wrap {
-                    display: flex;
-                    align-items: center;
-                    gap: 7px;
+                /* Tooltip no nome */
+                .rk-tt { position:relative; display:inline-block; }
+                .rk-tt .rk-tt-box {
+                    display:none; position:absolute; bottom:calc(100% + 6px); left:0;
+                    background:#141d1a; color:#c0c4cc; font-size:11px;
+                    padding:6px 10px; border-radius:4px; white-space:nowrap;
+                    border:1px solid #2a3d30; z-index:100; pointer-events:none;
+                    line-height:1.8;
                 }
-                .rk-bar-track {
-                    flex: 1;
-                    height: 5px;
-                    background: rgba(255,255,255,0.07);
-                    border-radius: 99px;
-                    overflow: hidden;
-                }
-                .rk-bar-fill {
-                    height: 100%;
-                    border-radius: 99px;
-                    transition: width 0.35s ease;
-                }
-                .rk-pct {
-                    font-size: 12px;
-                    font-weight: 700;
-                    white-space: nowrap;
-                    min-width: 36px;
-                    text-align: right;
-                    color: #c0c4cc;
-                }
-                .rk-badge {
-                    font-size: 10px;
-                    font-weight: 600;
-                    padding: 1px 6px;
-                    border-radius: 3px;
-                    white-space: nowrap;
-                    letter-spacing: 0.2px;
-                }
+                .rk-tt:hover .rk-tt-box { display:block; }
             </style>
 
             <div style="overflow-x:auto;margin:0;">
                 <table class="rk-table">
                     <thead>
                         <tr>
-                            <th>Pos.</th>
-                            <th>Time</th>
-                            <th>Ocorr.</th>
-                            <th>Jogos</th>
-                            <th>%</th>
+                            <th class="no-sort">Pos.</th>
+                            <th onclick="window._rkSort('name')">Time ${sortIcon('name')}</th>
+                            <th onclick="window._rkSort('occ')">Ocorr. ${sortIcon('occ')}</th>
+                            <th onclick="window._rkSort('games')">Jogos ${sortIcon('games')}</th>
+                            <th class="no-sort" title="Tendência: últimos 10 vs 10 anteriores">Tend.</th>
+                            <th onclick="window._rkSort('pct')">% ${sortIcon('pct')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -5609,18 +5738,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             const posColor = posColors[index] || '#4a5260';
             const badge    = badgeInfo(team.percentage);
             const barW     = ((team.percentage / maxPct) * 100).toFixed(1);
-
-            // barra: verde escuro para alto, âmbar para médio, vermelho apagado para baixo
-            const barColor = team.percentage >= 70 ? '#2d9e76'
-                           : team.percentage >= 40 ? '#a07c2a'
-                           : '#7a3535';
+            const barColor = team.percentage >= 70 ? '#2d9e76' : team.percentage >= 40 ? '#a07c2a' : '#7a3535';
+            const isMatch  = matchTeams.some(t => t && team.name.toLowerCase().includes(t.toLowerCase()));
+            const tooltip  = buildTooltip(team);
+            const spark    = sparklineSVG(team.spark);
+            const arrow    = trendArrow(team.trend);
 
             html += `
-                <tr>
+                <tr class="${isMatch ? 'rk-highlight' : ''}">
                     <td class="rk-pos" style="color:${posColor};">${index + 1}º</td>
-                    <td class="rk-name">${team.name}</td>
+                    <td class="rk-name ${isMatch ? 'rk-match' : ''}">
+                        <span class="rk-tt">
+                            ${team.name}${isMatch ? ' <span style="font-size:9px;color:#3ecfa3;">●</span>' : ''}
+                            <span class="rk-tt-box">${tooltip}<br>${spark}</span>
+                        </span>
+                    </td>
                     <td class="rk-occ">${team.marketCount}</td>
                     <td class="rk-games">${team.totalGames}</td>
+                    <td class="rk-tend">${arrow}</td>
                     <td>
                         <div class="rk-bar-wrap">
                             <div class="rk-bar-track">
