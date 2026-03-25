@@ -5302,39 +5302,118 @@ document.addEventListener('DOMContentLoaded', async () => {
     const topNSelector     = document.getElementById('topNSelector');
     const sortSelector     = document.getElementById('sortSelector');
 
-    const STORAGE_KEY = 'rankingConfig';
-    let allGames = [];
-    let debounceTimer = null;
+    const STORAGE_KEY    = 'rankingConfig';
+    const HOURS_OPTIONS  = [6, 12, 24, 48];
+    let allGames         = [];
+    let debounceTimer    = null;
+
+    // ─── SELETOR DE HORAS (injetado por JS antes do rankingContainer) ────────
+    const hoursWrapper = document.createElement('div');
+    hoursWrapper.id    = 'rkHoursWrapper';
+    hoursWrapper.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 8px;
+    `;
+
+    const hoursLabel = document.createElement('span');
+    hoursLabel.textContent  = 'Período:';
+    hoursLabel.style.cssText = `
+        font-size: 10px;
+        font-weight: 600;
+        color: #7a9e8a;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin-right: 4px;
+    `;
+    hoursWrapper.appendChild(hoursLabel);
+
+    HOURS_OPTIONS.forEach(h => {
+        const btn = document.createElement('button');
+        btn.textContent   = `${h}h`;
+        btn.dataset.hours = h;
+        btn.style.cssText = `
+            padding: 3px 9px;
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 3px;
+            border: 1px solid #2a3d30;
+            background: transparent;
+            color: #7a9e8a;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+            letter-spacing: 0.3px;
+        `;
+        btn.addEventListener('mouseenter', () => {
+            if (!btn.classList.contains('rk-hours-active')) {
+                btn.style.background  = 'rgba(255,255,255,0.05)';
+                btn.style.color       = '#aacfbc';
+            }
+        });
+        btn.addEventListener('mouseleave', () => {
+            if (!btn.classList.contains('rk-hours-active')) {
+                btn.style.background  = 'transparent';
+                btn.style.color       = '#7a9e8a';
+                btn.style.borderColor = '#2a3d30';
+            }
+        });
+        btn.addEventListener('click', () => {
+            setActiveHour(h);
+            scheduleUpdate();
+        });
+        hoursWrapper.appendChild(btn);
+    });
+
+    rankingContainer.parentNode.insertBefore(hoursWrapper, rankingContainer);
+
+    function setActiveHour(h) {
+        hoursWrapper.querySelectorAll('button').forEach(btn => {
+            const isActive = parseInt(btn.dataset.hours) === h;
+            btn.classList.toggle('rk-hours-active', isActive);
+            btn.style.background  = isActive ? 'rgba(31,172,137,0.15)' : 'transparent';
+            btn.style.color       = isActive ? '#3ecfa3'               : '#7a9e8a';
+            btn.style.borderColor = isActive ? '#2d9e76'               : '#2a3d30';
+        });
+    }
+
+    function getActiveHour() {
+        const active = hoursWrapper.querySelector('.rk-hours-active');
+        return active ? parseInt(active.dataset.hours) : 24;
+    }
 
     // ─── SALVAR configurações no localStorage ───────────────────────────────
     function saveConfig() {
-        const config = {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
             market  : marketSelector.value,
             minGames: minGamesSlider.value,
             topN    : topNSelector.value,
-            sortBy  : sortSelector.value
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+            sortBy  : sortSelector.value,
+            hours   : getActiveHour()
+        }));
     }
 
     // ─── CARREGAR configurações salvas ──────────────────────────────────────
     function loadConfig() {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (!saved) return;
+            if (!saved) { setActiveHour(24); return; }
 
             const config = JSON.parse(saved);
-
             if (config.market)   marketSelector.value  = config.market;
             if (config.minGames) {
                 minGamesSlider.value      = config.minGames;
                 minGamesValue.textContent = config.minGames;
             }
-            if (config.topN)   topNSelector.value  = config.topN;
-            if (config.sortBy) sortSelector.value  = config.sortBy;
+            if (config.topN)   topNSelector.value = config.topN;
+            if (config.sortBy) sortSelector.value = config.sortBy;
+
+            const savedHours = HOURS_OPTIONS.includes(config.hours) ? config.hours : 24;
+            setActiveHour(savedHours);
 
         } catch (e) {
             localStorage.removeItem(STORAGE_KEY);
+            setActiveHour(24);
         }
     }
 
@@ -5350,10 +5429,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         scheduleUpdate();
     });
     marketSelector.addEventListener('change', scheduleUpdate);
-    topNSelector.addEventListener('change', scheduleUpdate);
-    sortSelector.addEventListener('change', scheduleUpdate);
+    topNSelector.addEventListener('change',   scheduleUpdate);
+    sortSelector.addEventListener('change',   scheduleUpdate);
 
-    // ─── Carrega config salva antes de buscar dados ──────────────────────────
     loadConfig();
 
     // ─── Busca dados da API ──────────────────────────────────────────────────
@@ -5366,19 +5444,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // ─── FILTRAR POR HORAS usando campo "data" ISO ───────────────────────────
+    // Ordena todos os jogos do mais recente para o mais antigo,
+    // pega o timestamp do jogo mais recente como referência,
+    // e filtra tudo que está dentro da janela de N horas a partir daí.
+    function filterByHours(games, hours) {
+        // Jogos com data válida
+        const comData = games.filter(g => g.data);
+        if (comData.length === 0) return games; // sem campo data: retorna tudo
+
+        // Ordena decrescente (mais recente primeiro)
+        const sorted = [...comData].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+        // Referência: timestamp do jogo mais recente
+        const newest  = new Date(sorted[0].data).getTime();
+        const cutoff  = newest - hours * 60 * 60 * 1000;
+
+        return sorted.filter(g => new Date(g.data).getTime() >= cutoff);
+    }
+
     // ─── PROCESSAR RANKING ───────────────────────────────────────────────────
     function updateRanking() {
         const selectedMarket = marketSelector.value;
         const minGames       = parseInt(minGamesSlider.value, 10);
         const topN           = parseInt(topNSelector.value, 10);
         const sortBy         = sortSelector.value;
+        const hours          = getActiveHour();
+
+        // Aplica filtro de horas
+        const games = filterByHours(allGames, hours);
 
         // Skeleton loader compacto
         rankingContainer.innerHTML = `
             <style>
                 @keyframes skeletonPulse {
                     0%   { opacity: 0.35; }
-                    100% { opacity: 0.7; }
+                    100% { opacity: 0.7;  }
                 }
             </style>
             <div style="padding:8px 0;">
@@ -5395,7 +5496,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
 
         try {
-            const games     = allGames.slice(0, 480);
             const teamStats = {};
 
             games.forEach(game => {
@@ -5483,6 +5583,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         : 0
                 }));
 
+            if (statsArray.length === 0) {
+                rankingContainer.innerHTML = `<p style="color:#888;text-align:center;padding:20px;font-size:13px;">Nenhum time com jogos suficientes nas últimas ${hours}h para este mercado.</p>`;
+                return;
+            }
+
             if (sortBy === 'percentual') {
                 statsArray.sort((a, b) => b.percentage - a.percentage || b.marketCount - a.marketCount);
             } else {
@@ -5511,9 +5616,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const maxPct = Math.max(...data.map(t => t.percentage), 1);
-
-        // Posição: cores sóbrias — dourado/prata/bronze mais apagados
+        const maxPct    = Math.max(...data.map(t => t.percentage), 1);
         const posColors = ['#b8962e', '#7a7a7a', '#7a5230'];
 
         let html = `
@@ -5533,11 +5636,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     white-space: nowrap;
                     border: none;
                 }
-                .rk-table th:first-child { text-align: center; width: 40px; }
+                .rk-table th:first-child  { text-align: center; width: 40px; }
                 .rk-table th:nth-child(2) { text-align: left; }
                 .rk-table th:nth-child(3),
                 .rk-table th:nth-child(4) { text-align: center; width: 72px; }
-                .rk-table th:last-child { text-align: left; min-width: 140px; }
+                .rk-table th:last-child   { text-align: left; min-width: 140px; }
 
                 .rk-table tbody tr {
                     border-bottom: 1px solid rgba(255,255,255,0.04);
@@ -5556,38 +5659,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .rk-occ   { text-align: center; color: #3ecfa3; font-weight: 600; font-size: 13px; }
                 .rk-games { text-align: center; color: #606878; font-size: 12px; }
 
-                .rk-bar-wrap {
-                    display: flex;
-                    align-items: center;
-                    gap: 7px;
-                }
-                .rk-bar-track {
-                    flex: 1;
-                    height: 5px;
-                    background: rgba(255,255,255,0.07);
-                    border-radius: 99px;
-                    overflow: hidden;
-                }
-                .rk-bar-fill {
-                    height: 100%;
-                    border-radius: 99px;
-                    transition: width 0.35s ease;
-                }
+                .rk-bar-wrap  { display: flex; align-items: center; gap: 7px; }
+                .rk-bar-track { flex: 1; height: 5px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
+                .rk-bar-fill  { height: 100%; border-radius: 99px; transition: width 0.35s ease; }
+
                 .rk-pct {
-                    font-size: 12px;
-                    font-weight: 700;
-                    white-space: nowrap;
-                    min-width: 36px;
-                    text-align: right;
-                    color: #c0c4cc;
+                    font-size: 12px; font-weight: 700;
+                    white-space: nowrap; min-width: 36px;
+                    text-align: right; color: #c0c4cc;
                 }
                 .rk-badge {
-                    font-size: 10px;
-                    font-weight: 600;
-                    padding: 1px 6px;
-                    border-radius: 3px;
-                    white-space: nowrap;
-                    letter-spacing: 0.2px;
+                    font-size: 10px; font-weight: 600;
+                    padding: 1px 6px; border-radius: 3px;
+                    white-space: nowrap; letter-spacing: 0.2px;
                 }
             </style>
 
@@ -5609,8 +5693,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const posColor = posColors[index] || '#4a5260';
             const badge    = badgeInfo(team.percentage);
             const barW     = ((team.percentage / maxPct) * 100).toFixed(1);
-
-            // barra: verde escuro para alto, âmbar para médio, vermelho apagado para baixo
             const barColor = team.percentage >= 70 ? '#2d9e76'
                            : team.percentage >= 40 ? '#a07c2a'
                            : '#7a3535';
