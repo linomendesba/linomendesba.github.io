@@ -4745,8 +4745,7 @@ async function fetchMaximaplacar() {
         const recentData = data.slice(-480);
         const placaresFixos = [
             '2 x 0','2 x 1','0 x 0','0 x 2','1 x 2','0 x 1','1 x 0','1 x 1',
-            '2 x 2','3 x 1','4 x 0','0 x 3','3 x 0','4 x 1','2 x 3','2 x 4',
-            '1 x 3','3 x 2','4 x 2','0 x 4'
+            '2 x 2','3 x 1','4 x 0'
         ];
 
         const headerRow = document.getElementById('maximaplacar-header');
@@ -4821,7 +4820,7 @@ fetchMaximaplacar();
                 placarCounts[p] = (placarCounts[p] || 0) + 1;
             });
 
-            const sorted = Object.entries(placarCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+            const sorted = Object.entries(placarCounts).sort((a, b) => b[1] - a[1]).slice(0, 12);
 
             const headerRow = document.getElementById('placarrepet-header');
             if (headerRow.children.length === 0) {
@@ -4938,26 +4937,13 @@ setInterval(fetchMaximamercado, 5000);
 fetchMaximamercado();
 
 // ─────────────────────────────────────────────
-//  TABELA 4 — Média de Mercados por Hora (AGORA AUTO 20 ou 30 jogos/hora)
+//  TABELA 4 — Média de Mercados por Hora
 // ─────────────────────────────────────────────
 async function fetchMediahoramercado() {
     try {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         const data = await response.json();
-
-        if (data.length < 20) return;
-
-        // === DETECÇÃO AUTOMÁTICA DE JOGOS POR HORA ===
-        const totalJogos = data.length;
-        let jogosPorHora = 20; // padrão atual
-
-        // Se tiver muitos jogos, verificamos se é mais próximo de 30
-        if (totalJogos > 100) {
-            const mediaUltimos = data.slice(-60).length; // pega uma amostra recente
-            if (mediaUltimos >= 25) jogosPorHora = 30;   // se estiver rodando mais rápido → 30
-        }
-
-        const numHoras = Math.floor(totalJogos / jogosPorHora);
+        const numHoras = Math.floor(data.length / 20);
 
         const mercadosFixos = [
             'Ambas Sim','Ambas Não','Casa Vence','Fora Vence','Empate',
@@ -4979,12 +4965,11 @@ async function fetchMediahoramercado() {
         mercadosFixos.forEach(m => { total[m] = 0; });
 
         for (let hora = 0; hora < numHoras; hora++) {
-            const jogos = data.slice(hora * jogosPorHora, (hora + 1) * jogosPorHora);
+            const jogos = data.slice(hora * 20, (hora + 1) * 20);
             let res = { casaVence: 0, foraVence: 0, empate: 0 };
 
             jogos.forEach(jogo => {
                 const [gC, gF] = jogo.ft.split(' x ').map(Number);
-
                 if (gC > gF) res.casaVence++;
                 else if (gF > gC) res.foraVence++;
                 else res.empate++;
@@ -5003,15 +4988,13 @@ async function fetchMediahoramercado() {
                 for (let m in cond) { if (cond[m]) total[m]++; }
             });
 
-            // Normaliza para exatamente "jogosPorHora" resultados
             const t = res.casaVence + res.foraVence + res.empate;
-            if (t > jogosPorHora) {
-                const f = jogosPorHora / t;
+            if (t > 20) {
+                const f = 20 / t;
                 res.casaVence = Math.round(res.casaVence * f);
                 res.foraVence = Math.round(res.foraVence * f);
-                res.empate = jogosPorHora - res.casaVence - res.foraVence;
+                res.empate = 20 - res.casaVence - res.foraVence;
             }
-
             total['Casa Vence'] += res.casaVence;
             total['Fora Vence'] += res.foraVence;
             total['Empate'] += res.empate;
@@ -5019,13 +5002,11 @@ async function fetchMediahoramercado() {
 
         const tableBody = document.getElementById('mediahoramercado-resultados');
         let row = tableBody.querySelector('tr');
-        if (!row) { 
-            row = document.createElement('tr'); 
-            tableBody.appendChild(row); 
-        } else row.innerHTML = '';
+        if (!row) { row = document.createElement('tr'); tableBody.appendChild(row); }
+        else row.innerHTML = '';
 
         mercadosFixos.forEach(mercado => {
-            const media = numHoras > 0 ? Math.round(total[mercado] / numHoras) : 0;
+            const media = Math.round(total[mercado] / numHoras);
             const td = document.createElement('td');
             td.textContent = media;
             td.classList.add('mediahoramercado-td');
@@ -5034,21 +5015,12 @@ async function fetchMediahoramercado() {
             row.appendChild(td);
         });
 
-        // Atualiza o texto no canto com o valor real (20 ou 30)
         updateTimestamp('mediahoramercado-update');
-
-        // Se você quiser mostrar "30 jogos/hora" no canto direito, adicione isso:
-        const infoEl = document.querySelector('#mediahoramercado-update')?.parentElement?.querySelector('.mfv-hint');
-        if (infoEl) infoEl.textContent = `média de ocorrências - ${jogosPorHora} jogos/hora`;
-
-    } catch (e) {
-        console.error('Média de Mercados por Hora:', e);
-    }
+    } catch (e) { console.error('Média de Mercados por Hora:', e); }
 }
 
 setInterval(fetchMediahoramercado, 60000);
 fetchMediahoramercado();
-
 </script>
 
 <script>
