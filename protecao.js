@@ -169,6 +169,103 @@
   };
 
 
+  // ============================================================
+  // 9. BLOQUEIA CLIQUE DO MEIO DO MOUSE
+  //    Impede abrir links em nova aba pelo botão do meio,
+  //    contornando proteções de navegação.
+  // ============================================================
+  document.addEventListener("auxclick", function (e) {
+    if (e.button === 1) e.preventDefault();
+  });
+
+
+  // ============================================================
+  // 10. EXPIRAÇÃO POR INATIVIDADE
+  //     Se o usuário ficar 10 minutos sem nenhuma interação,
+  //     a página é limpa — impede scrapers rodando em segundo plano.
+  // ============================================================
+  const INATIVIDADE_MS = 10 * 60 * 1000; // 10 minutos
+  let _timerInatividade = null;
+  let _paginaExpirada = false;
+
+  function _resetarInatividade() {
+    if (_paginaExpirada) return;
+    clearTimeout(_timerInatividade);
+    _timerInatividade = setTimeout(() => {
+      _paginaExpirada = true;
+      document.body.innerHTML = `
+        <div style="
+          display:flex;flex-direction:column;align-items:center;
+          justify-content:center;height:100vh;background:#0a0f14;
+          color:#1fac89;font-family:sans-serif;text-align:center;gap:16px;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1fac89" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12,6 12,12 16,14"/>
+          </svg>
+          <h2 style="margin:0;color:#fff;">Sessão expirada</h2>
+          <p style="margin:0;color:#aaa;font-size:14px;">Recarregue a página para continuar.</p>
+          <button onclick="location.reload()" style="
+            margin-top:8px;padding:10px 24px;background:#1fac89;color:#000;
+            border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">
+            Recarregar
+          </button>
+        </div>`;
+    }, INATIVIDADE_MS);
+  }
+
+  ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
+    window.addEventListener(evt, _resetarInatividade, { passive: true });
+  });
+
+  _resetarInatividade(); // inicia o timer
+
+
+  // ============================================================
+  // 11. DETECÇÃO DE VELOCIDADE SUSPEITA DE REQUISIÇÕES
+  //     Mais de 10 fetches em menos de 2 segundos é padrão
+  //     de script, não de humano. Bloqueia e limpa a página.
+  // ============================================================
+  const _janelaSuspeita = 2000; // 2 segundos
+  const _maxRapidas     = 10;
+  let _requisicoesRapidas = [];
+
+  function _checarVelocidade() {
+    const agora = Date.now();
+    _requisicoesRapidas = _requisicoesRapidas.filter(ts => agora - ts < _janelaSuspeita);
+    _requisicoesRapidas.push(agora);
+
+    if (_requisicoesRapidas.length > _maxRapidas) {
+      _bloqueado = true;
+      document.body.innerHTML = `
+        <div style="
+          display:flex;flex-direction:column;align-items:center;
+          justify-content:center;height:100vh;background:#0a0f14;
+          color:#1fac89;font-family:sans-serif;text-align:center;gap:16px;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1fac89" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <h2 style="margin:0;color:#fff;">Acesso bloqueado</h2>
+          <p style="margin:0;color:#aaa;font-size:14px;">Comportamento suspeito detectado.</p>
+        </div>`;
+      throw new Error('Comportamento suspeito detectado.');
+    }
+  }
+
+  // Integra a verificação de velocidade no interceptador de fetch existente
+  const _fetchComVelocidade = window.fetch.bind(window);
+  window.fetch = async function (url, opcoes = {}) {
+    const ehInterna = typeof url === 'string' && (
+      url.includes('/api/') ||
+      url.includes('betstat') ||
+      url.startsWith('/')
+    );
+    if (ehInterna) _checarVelocidade();
+    return _fetchComVelocidade(url, opcoes);
+  };
+
+
   console.log('[BetStat] Proteções ativas ✓');
 
 })();
