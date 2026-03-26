@@ -1154,50 +1154,17 @@ function qdCheckMarket(ftScore, htScore, market) {
   }
 }
 
-  function calcStats(matches, teamName) {
-    let w=0,d=0,l=0,gf=0,ga=0,cs=0,fts=0,form=[];
-    let over15=0,over25=0,over35=0,btts=0;
-    
-    // Mantendo EXATAMENTE a estrutura original do seu código
-    matches.filter(m=>m.time_a===teamName||m.time_b===teamName).forEach(m=>{
-      const [a,b]=m.ft.split(" x ").map(Number);
-      const scored=m.time_a===teamName?a:b, conceded=m.time_a===teamName?b:a;
-      const totalGoals = a+b;
-      
-      gf+=scored; ga+=conceded;
-      if(conceded===0) cs++;
-      if(scored===0) fts++;
-      
-      // Cálculos novos (adicionais - não interferem nos originais)
-      if(totalGoals>1.5) over15++;
-      if(totalGoals>2.5) over25++;
-      if(totalGoals>3.5) over35++;
-      if(a>0 && b>0) btts++;
-      
-      // LÓGICA ORIGINAL DO FORM PRESERVADA EXATAMENTE IGUAL
-      if(scored>conceded){w++;form.unshift("V");}
-      else if(scored<conceded){l++;form.unshift("D");}
-      else{d++;form.unshift("E");}
-    });
-    
-    const total = w+d+l;
-    
-    return {
-      w,d,l,gf,ga,cs,fts,
-      form:form.slice(0,5),
-      total,
-      // Novas propriedades para sugestões (adicionadas depois das originais)
-      avgGF: total ? (gf/total).toFixed(2) : "0",
-      avgGA: total ? (ga/total).toFixed(2) : "0",
-      over15: total ? (over15/total) : 0,
-      over25: total ? (over25/total) : 0,
-      over35: total ? (over35/total) : 0,
-      bttsRate: total ? (btts/total) : 0,
-      winRate: total ? (w/total) : 0,
-      drawRate: total ? (d/total) : 0,
-      loseRate: total ? (l/total) : 0
-    };
+function qdCalcStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
+  const stats = { totalGols: 0, marketHits: 0, counterMarketHits: 0 };
+  const jogosDoBloco = jogos.filter(j => minutosDoBloco.includes(j.minuto));
+  for (const jogo of jogosDoBloco) {
+    const [golsCasa, golsFora] = jogo.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+    stats.totalGols += golsCasa + golsFora;
+    if (qdCheckMarket(jogo.ft, jogo.ht, selectedMarket)) stats.marketHits++;
+    if (counterMarket && qdCheckMarket(jogo.ft, jogo.ht, counterMarket)) stats.counterMarketHits++;
   }
+  return stats;
+}
 
 function qdCreateBlocoThs(index, timeSlots) {
   const qIdx        = index % 4;
