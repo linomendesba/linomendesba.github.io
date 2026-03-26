@@ -5433,12 +5433,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const map = {};
         if (!Array.isArray(oddsData)) return map;
         oddsData.forEach(j => {
-            const { time_a, time_b, odd_home, odd_draw, odd_away } = j;
-            if (!time_a || !time_b) return;
-            const oH = parseFloat(odd_home), oD = parseFloat(odd_draw), oA = parseFloat(odd_away);
+            // Suporta tanto o formato antigo (time_a/time_b/odd_home...)
+            // quanto o formato atual da API (time_casa/time_visitante/odds_casa_vence...)
+            const timeCasa = j.time_casa || j.time_a;
+            const timeFora = j.time_visitante || j.time_b;
+            if (!timeCasa || !timeFora) return;
+            const oH = parseFloat(j.odds_casa_vence    || j.odd_home);
+            const oD = parseFloat(j.odds_empate        || j.odd_draw);
+            const oA = parseFloat(j.odds_visitante_vence || j.odd_away);
             if (isNaN(oH) || isNaN(oD) || isNaN(oA)) return;
-            if (!map[time_a]) map[time_a] = { oddCasa:oH, oddEmpate:oD, oddFora:oA, adversario:time_b, mando:'casa' };
-            if (!map[time_b]) map[time_b] = { oddCasa:oH, oddEmpate:oD, oddFora:oA, adversario:time_a, mando:'fora' };
+            if (!map[timeCasa]) map[timeCasa] = { oddCasa:oH, oddEmpate:oD, oddFora:oA, adversario:timeFora, mando:'casa' };
+            if (!map[timeFora]) map[timeFora] = { oddCasa:oH, oddEmpate:oD, oddFora:oA, adversario:timeCasa, mando:'fora' };
         });
         return map;
     }
@@ -5465,35 +5470,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
  
     // ── Filtro por horas ─────────────────────────────────────────────────────
-    // CORREÇÃO: usa Date.now() como âncora (não o jogo mais recente).
-    // Usa parser robusto para suportar formatos como "DD/MM/YYYY HH:MM",
-    // "YYYY-MM-DD HH:MM:SS", ISO 8601, etc. — garantindo que 6h e 12h
-    // funcionem corretamente independente do formato retornado pela API.
-    function parseDate(str) {
-        if (!str) return null;
-        // Já é um número (timestamp)
-        if (typeof str === 'number') return new Date(str);
-        // Tenta ISO / padrão nativo primeiro
-        const d = new Date(str);
-        if (!isNaN(d.getTime())) return d;
-        // Formato BR: DD/MM/YYYY HH:MM ou DD/MM/YYYY
-        const brMatch = str.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
-        if (brMatch) {
-            const [, dd, mm, yyyy, hh='0', mi='0', ss='0'] = brMatch;
-            return new Date(`${yyyy}-${mm}-${dd}T${hh.padStart(2,'0')}:${mi.padStart(2,'0')}:${ss.padStart(2,'0')}`);
-        }
-        // Formato com espaço: YYYY-MM-DD HH:MM:SS
-        const spMatch = str.match(/^(\d{4}-\d{2}-\d{2})\s(\d{2}:\d{2}(?::\d{2})?)/);
-        if (spMatch) return new Date(`${spMatch[1]}T${spMatch[2]}`);
-        return null;
-    }
+    // Âncora = jogo mais recente da API.
+    // Isso garante que 6h e 12h sempre retornem dados relativos ao que
+    // está na API, independente do horário atual do servidor/browser.
     function filterByHours(games, hours) {
         const comData = games.filter(g => g.data);
         if (!comData.length) return games;
-        const cutoff = Date.now() - hours * 3600000;
+        const timestamps = comData.map(g => new Date(g.data).getTime()).filter(t => !isNaN(t));
+        if (!timestamps.length) return games;
+        const maxTs  = Math.max(...timestamps);
+        const cutoff = maxTs - hours * 3600000;
         return comData.filter(g => {
-            const d = parseDate(g.data);
-            return d && d.getTime() >= cutoff;
+            const t = new Date(g.data).getTime();
+            return !isNaN(t) && t >= cutoff;
         });
     }
  
