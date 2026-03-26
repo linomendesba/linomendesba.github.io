@@ -5294,7 +5294,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const HOURS_OPTIONS    = [12, 24, 48];
     const AUTO_REFRESH_MS  = 3 * 60 * 1000; // 3 minutos
     let allGames           = [];
-    let allOdds            = [];
     let debounceTimer      = null;
     let autoRefreshTimer   = null;
     let modoAtual          = 'ambos';
@@ -5394,18 +5393,9 @@ document.addEventListener('DOMContentLoaded', async () => {
  
     // ── Fetch dados (reutilizável para auto-refresh) ─────────────────────────
     async function fetchData() {
-        const [resR, resO] = await Promise.allSettled([
-            fetch(ROTAS_API.resultados(LIGA_ATUAL)),
-            fetch(ROTAS_API.odds(LIGA_ATUAL))
-        ]);
-        if (resR.status === 'fulfilled' && resR.value.ok) {
-            allGames = await resR.value.json();
-        } else {
-            throw new Error('Falha ao carregar resultados');
-        }
-        if (resO.status === 'fulfilled' && resO.value.ok) {
-            try { allOdds = await resO.value.json(); } catch(_) { allOdds = []; }
-        }
+        const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+        if (!res.ok) throw new Error('Falha ao carregar resultados');
+        allGames = await res.json();
     }
  
     // Carga inicial
@@ -5427,61 +5417,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         autoRefreshTimer = setTimeout(autoRefresh, AUTO_REFRESH_MS);
     }
     autoRefreshTimer = setTimeout(autoRefresh, AUTO_REFRESH_MS);
- 
-    // ── Mapa de odds: time → todas as odds disponíveis + adversario + mando ──
-    function buildOddsMap(oddsData) {
-        const map = {};
-        if (!Array.isArray(oddsData)) return map;
-        oddsData.forEach(j => {
-            const timeCasa = j.time_casa || j.time_a;
-            const timeFora = j.time_visitante || j.time_b;
-            if (!timeCasa || !timeFora) return;
-            const oH  = parseFloat(j.odds_casa_vence      || j.odd_home)  || null;
-            const oD  = parseFloat(j.odds_empate           || j.odd_draw)  || null;
-            const oA  = parseFloat(j.odds_visitante_vence  || j.odd_away)  || null;
-            const oAM = parseFloat(j.odds_ambas_marcam_sim)  || null;
-            const oAN = parseFloat(j.odds_ambas_marcam_nao) || null;
-            const oO05= parseFloat(j.odds_mais_0_5)  || null;
-            const oO15= parseFloat(j.odds_mais_1_5)  || null;
-            const oO25= parseFloat(j.odds_mais_2_5)  || null;
-            const oO35= parseFloat(j.odds_mais_3_5)  || null;
-            const oO5 = parseFloat(j.odds_mais_5_gols) || null;
-            const oU05= parseFloat(j.odds_menos_0_5) || null;
-            const oU15= parseFloat(j.odds_menos_1_5) || null;
-            const oU25= parseFloat(j.odds_menos_2_5) || null;
-            const oU35= parseFloat(j.odds_menos_3_5) || null;
-            const base = {
-                oddCasa:oH, oddEmpate:oD, oddFora:oA,
-                oddAmbasSim:oAM, oddAmbasNao:oAN,
-                oddOver05:oO05, oddOver15:oO15, oddOver25:oO25, oddOver35:oO35, oddOver5:oO5,
-                oddUnder05:oU05, oddUnder15:oU15, oddUnder25:oU25, oddUnder35:oU35
-            };
-            if (!map[timeCasa]) map[timeCasa] = { ...base, adversario:timeFora, mando:'casa' };
-            if (!map[timeFora]) map[timeFora] = { ...base, adversario:timeCasa, mando:'fora' };
-        });
-        return map;
-    }
- 
-    // ── Calcular Peso de Mercado a partir das odds ───────────────────────────
-    function calcPeso(entry, mando) {
-        if (!entry) return null;
-        const { oddCasa:oH, oddEmpate:oD, oddFora:oA } = entry;
-        const soma = 1/oH + 1/oD + 1/oA;
-        const pCn  = (1/oH)/soma, pDn = (1/oD)/soma, pAn = (1/oA)/soma;
-        const deseq = Math.max(pCn, pDn, pAn) - 1/3;
- 
-        let pesoH2H, pesoBASE;
-        if      (deseq < 0.10)  { pesoH2H=0.40; pesoBASE=0.60; }
-        else if (deseq <= 0.25) { pesoH2H=0.30; pesoBASE=0.70; }
-        else                    { pesoH2H=0.20; pesoBASE=0.80; }
- 
-        const tipo = deseq < 0.10 ? 'Equil.' : deseq <= 0.25 ? 'Médio' : 'Deseq.';
-        return {
-            pesoBASE, pesoH2H, tipo, deseq: deseq.toFixed(3),
-            oddCasa: oH.toFixed(2), oddEmpate: oD.toFixed(2), oddFora: oA.toFixed(2),
-            oddTime: (mando==='casa' ? oH : oA).toFixed(2)
-        };
-    }
  
     // ── Filtro por horas ─────────────────────────────────────────────────────
     // Âncora = jogo mais recente da API (não Date.now()).
@@ -5530,7 +5465,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const sortBy   = sortSelector.value;
         const hours    = getActiveHour();
         const games    = filterByHours(allGames, hours);
-        const oddsMap  = buildOddsMap(allOdds);
  
         // Skeleton só na primeira carga ou quando o usuário muda filtros
         if (!silent) {
@@ -5673,13 +5607,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const idxOf = jogos > 0 ? (gCtx / jogos).toFixed(2) : '0.00';
                 const pct   = jogos > 0 ? parseFloat(((ocorr / jogos) * 100).toFixed(1)) : 0;
  
-                const entry = oddsMap[t.name] || null;
-                const peso  = calcPeso(entry, entry?.mando);
- 
                 return {
                     name: t.name, pontos, jogos, ocorr, pct,
-                    gp, gc, sg, idxOf, forma: t.forma,
-                    entry, mando: entry?.mando, adversario: entry?.adversario, peso
+                    gp, gc, sg, idxOf, forma: t.forma
                 };
             }).filter(t => t.jogos >= minGames);
  
@@ -5703,7 +5633,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (silent && newKey === lastTableData) return; // sem mudança, não toca no DOM
             lastTableData = newKey;
  
-            renderTable(sliced, selectedMarket);
+            renderTable(sliced);
  
         } catch(err) {
             if (!silent) {
@@ -5714,7 +5644,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
  
     // ── Renderizar Tabela ───────────────────────────────────────────────────
-    function renderTable(data, selectedMarket) {
+    function renderTable(data) {
         if (!data.length) {
             rankingContainer.innerHTML = '<p style="color:#888;text-align:center;padding:20px;font-size:13px;">Nenhum dado encontrado.</p>';
             return;
@@ -5723,12 +5653,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const maxPct    = Math.max(...data.map(t=>t.pct), 1);
         const posColors = ['#b8962e','#7a7a7a','#7a5230'];
         const modoLabel = modoAtual==='casa' ? '🏠 Casa' : modoAtual==='fora' ? '✈ Fora' : 'Casa/Fora';
-        const temOdds   = data.some(t => t.peso !== null);
  
         let html = `
         <style>
             .rk3-wrap  { overflow-x:auto; }
-            .rk3-tbl   { width:100%; border-collapse:collapse; font-size:12px; min-width:${temOdds?'1000':'800'}px; }
+            .rk3-tbl   { width:100%; border-collapse:collapse; font-size:12px; min-width:800px; }
             .rk3-tbl thead tr { background:#1a2028; border-bottom:2px solid #4f72ff; }
             .rk3-tbl th {
                 padding:10px 8px; color:#9fb0c5; font-weight:600; font-size:10px;
@@ -5766,34 +5695,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             <th title="Percentual de ocorrência do mercado">% Merc.</th>
             <th title="Índice Ofensivo: (GP+GC)/J no contexto">Índice Ofensivo</th>
             <th>Forma</th>
-            ${temOdds ? `<th title="Odd do mercado selecionado no próximo jogo">Odd Mercado</th><th title="Peso de Mercado calculado">Peso Merc.</th>` : ''}
             <th>Status</th>
         </tr></thead>
         <tbody>`;
- 
-        // ── Helpers para odd dinâmica por mercado ───────────────────────────
-        function getOddMercado(t, market) {
-            const e = t.entry;
-            if (!e) return null;
-            const isCasa = t.mando === 'casa';
-            switch(market) {
-                case 'casaVence':      return { odd: isCasa ? e.oddCasa  : e.oddFora,  label: isCasa ? 'Vence em casa' : 'Vence fora' };
-                case 'foraVence':      return { odd: isCasa ? e.oddFora  : e.oddCasa,  label: isCasa ? 'Vence fora' : 'Vence em casa' };
-                case 'empate':         return { odd: e.oddEmpate,    label: 'Empate' };
-                case 'ambasMarcam':    return { odd: e.oddAmbasSim,  label: 'Ambas Sim' };
-                case 'ambasNaoMarcam': return { odd: e.oddAmbasNao,  label: 'Ambas Não' };
-                case 'over0.5':        return { odd: e.oddOver05,    label: 'Over 0.5' };
-                case 'over1.5':        return { odd: e.oddOver15,    label: 'Over 1.5' };
-                case 'over2.5':        return { odd: e.oddOver25,    label: 'Over 2.5' };
-                case 'over3.5':        return { odd: e.oddOver35,    label: 'Over 3.5' };
-                case 'over5':          return { odd: e.oddOver5,     label: 'Over 5+' };
-                case 'under0.5':       return { odd: e.oddUnder05,   label: 'Under 0.5' };
-                case 'under1.5':       return { odd: e.oddUnder15,   label: 'Under 1.5' };
-                case 'under2.5':       return { odd: e.oddUnder25,   label: 'Under 2.5' };
-                case 'under3.5':       return { odd: e.oddUnder35,   label: 'Under 3.5' };
-                default:               return { odd: isCasa ? e.oddCasa : e.oddFora, label: isCasa ? 'Casa Vence' : 'Fora Vence' };
-            }
-        }
  
         data.forEach((t, i) => {
             const posColor = posColors[i] || '#4a5260';
@@ -5806,33 +5710,6 @@ document.addEventListener('DOMContentLoaded', async () => {
  
             const sgColor = t.sg > 0 ? '#1ec97f' : t.sg < 0 ? '#ef5b5b' : '#9fb0c5';
             const sgText  = t.sg > 0 ? `+${t.sg}` : `${t.sg}`;
- 
-            let oddsCell = '', pesoCell = '';
-            if (temOdds) {
-                if (t.peso && t.entry) {
-                    const p   = t.peso;
-                    const om  = getOddMercado(t, selectedMarket);
-                    const oddVal = om && om.odd ? parseFloat(om.odd).toFixed(2) : null;
- 
-                    if (oddVal) {
-                        const oddColor = parseFloat(oddVal) < 2.0 ? '#3ecfa3'
-                                       : parseFloat(oddVal) < 3.0 ? '#f0b84b' : '#ef5b5b';
-                        oddsCell = `<b style="color:${oddColor};font-size:13px;">${oddVal}</b>
-                                    <br><span style="font-size:10px;color:#4a5870;">vs ${t.adversario||'?'}</span>`;
-                    } else {
-                        oddsCell = `<span style="color:#3a4455;">—</span>
-                                    <br><span style="font-size:10px;color:#4a5870;">vs ${t.adversario||'?'}</span>`;
-                    }
- 
-                    const pColor = p.tipo==='Equil.' ? '#72b0ff' : p.tipo==='Médio' ? '#f0b84b' : '#ef5b5b';
-                    pesoCell = `<span style="font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;
-                                    background:${pColor}22;color:${pColor};border:1px solid ${pColor}44;">${p.tipo}</span>
-                                <br><span style="font-size:10px;color:#7a9e8a;">B:${(p.pesoBASE*100).toFixed(0)}% H:${(p.pesoH2H*100).toFixed(0)}%</span>`;
-                } else {
-                    oddsCell = '<span style="color:#3a4455;">—</span>';
-                    pesoCell = '<span style="color:#3a4455;">—</span>';
-                }
-            }
  
             html += `
             <tr>
@@ -5850,7 +5727,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </td>
                 <td style="color:#b8a0ff;font-weight:700;">${t.idxOf}</td>
                 <td class="rk3-forma">${formaHtml}</td>
-                ${temOdds ? `<td style="line-height:1.7;font-size:11px;">${oddsCell}</td><td style="line-height:1.7;">${pesoCell}</td>` : ''}
                 <td><span class="rk3-badge rk3-${t.statusCls}">${t.status}</span></td>
             </tr>`;
         });
@@ -5864,7 +5740,6 @@ document.addEventListener('DOMContentLoaded', async () => {
  
 })();
 </script>
-
 
 
 <script>
