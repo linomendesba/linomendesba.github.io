@@ -48,11 +48,16 @@
   const _baseW = window.outerWidth  - window.innerWidth;
   const _baseH = window.outerHeight - window.innerHeight;
   const DEVTOOLS_THRESHOLD = 200;
+  const _zoomBase = window.devicePixelRatio || 1;
 
   let _devtoolsAberto = false;
   let _bloqueado = false;
 
   function _checarDevTools() {
+    // Se o usuário mudou o zoom, a diferença outer/inner fica enganosa — ignora
+    const zoomAtual = window.devicePixelRatio || 1;
+    if (Math.abs(zoomAtual - _zoomBase) > 0.05) return;
+
     const diffW = (window.outerWidth  - window.innerWidth)  - _baseW;
     const diffH = (window.outerHeight - window.innerHeight) - _baseH;
     _devtoolsAberto = diffW > DEVTOOLS_THRESHOLD || diffH > DEVTOOLS_THRESHOLD;
