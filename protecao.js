@@ -226,7 +226,7 @@
   //     de script, não de humano. Bloqueia e limpa a página.
   // ============================================================
   const _janelaSuspeita = 2000; // 2 segundos
-  const _maxRapidas     = 10;
+  const _maxRapidas     = 30;
   let _requisicoesRapidas = [];
 
   function _checarVelocidade() {
