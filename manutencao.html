@@ -276,37 +276,9 @@
                 </div>
             </div>
  
-            <!-- Linha 3: Peso de Mercado (odds + H2H) -->
-            <div style="margin-top:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px 12px;">
-                <div style="font-size:11px;font-weight:700;color:#1fac89;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🎯 Módulo Peso de Mercado</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;align-items:end;">
-                    <div>
-                        <label style="display:block;font-size:10px;color:#7a9e8a;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;">Odd Casa</label>
-                        <input type="number" id="oddCasa" min="1.01" step="0.01" placeholder="ex: 1.80"
-                            style="width:100%;background:#1a2620;border:1px solid #2a3d30;border-radius:5px;color:#fff;padding:6px 8px;font-size:13px;">
-                    </div>
-                    <div>
-                        <label style="display:block;font-size:10px;color:#7a9e8a;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;">Odd Empate</label>
-                        <input type="number" id="oddEmpate" min="1.01" step="0.01" placeholder="ex: 3.40"
-                            style="width:100%;background:#1a2620;border:1px solid #2a3d30;border-radius:5px;color:#fff;padding:6px 8px;font-size:13px;">
-                    </div>
-                    <div>
-                        <label style="display:block;font-size:10px;color:#7a9e8a;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;">Odd Visitante</label>
-                        <input type="number" id="oddFora" min="1.01" step="0.01" placeholder="ex: 4.20"
-                            style="width:100%;background:#1a2620;border:1px solid #2a3d30;border-radius:5px;color:#fff;padding:6px 8px;font-size:13px;">
-                    </div>
-                    <div>
-                        <label style="display:block;font-size:10px;color:#7a9e8a;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;">% H2H Over</label>
-                        <input type="number" id="h2hPct" min="0" max="100" step="1" placeholder="ex: 60"
-                            style="width:100%;background:#1a2620;border:1px solid #2a3d30;border-radius:5px;color:#fff;padding:6px 8px;font-size:13px;">
-                    </div>
-                </div>
-                <div id="pesoMercadoResult" style="margin-top:8px;font-size:12px;color:#9fb0c5;min-height:18px;"></div>
-            </div>
- 
         </div>
  
-        <!-- Seletor de horas + abas Casa/Fora serão injetados por JS -->
+        <!-- Topbar: Período + Abas Casa/Fora (injetados por JS) -->
         <div id="rkTopBar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:10px 0 6px;"></div>
  
         <div id="rankingContainer">
@@ -5304,14 +5276,11 @@ loadNextGamesForMinutes();
 <script>
 (function () {
  
-// ─── ACCORDION ──────────────────────────────────────────────────────────────
 function toggleAccordion(buttonElement) {
-    const content = buttonElement.nextElementSibling;
-    content.classList.toggle('active');
+    buttonElement.nextElementSibling.classList.toggle('active');
 }
 window.toggleAccordion = toggleAccordion;
  
-// ─── INICIALIZA AO CARREGAR DOM ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
  
     const marketSelector   = document.getElementById('marketSelector');
@@ -5325,18 +5294,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const STORAGE_KEY   = 'rankingConfig';
     const HOURS_OPTIONS = [12, 24, 48];
     let allGames        = [];
+    let allOdds         = [];
     let debounceTimer   = null;
+    let modoAtual       = 'ambos';
  
-    // ── Modo (casa/fora/ambos) ──────────────────────────────────────────────
-    let modoAtual = 'ambos'; // 'casa' | 'fora' | 'ambos'
- 
-    // ─── CONSTRUIR TOPBAR (horas + abas) ────────────────────────────────────
- 
-    // Seletor de horas
+    // ── Topbar: horas + abas ────────────────────────────────────────────────
     const hoursWrapper = document.createElement('div');
-    hoursWrapper.id    = 'rkHoursWrapper';
     hoursWrapper.style.cssText = 'display:inline-flex;align-items:center;gap:4px;';
- 
     const hoursLabel = document.createElement('span');
     hoursLabel.textContent = 'Período:';
     hoursLabel.style.cssText = 'font-size:10px;font-weight:600;color:#7a9e8a;text-transform:uppercase;letter-spacing:.6px;margin-right:4px;';
@@ -5346,22 +5310,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const btn = document.createElement('button');
         btn.textContent   = `${h}h`;
         btn.dataset.hours = h;
-        btn.style.cssText = 'padding:3px 9px;font-size:10px;font-weight:600;border-radius:3px;border:1px solid #2a3d30;background:transparent;color:#7a9e8a;cursor:pointer;transition:background .15s,color .15s,border-color .15s;letter-spacing:.3px;';
-        btn.addEventListener('mouseenter', () => { if (!btn.classList.contains('rk-hours-active')) { btn.style.background='rgba(255,255,255,.05)'; btn.style.color='#aacfbc'; }});
-        btn.addEventListener('mouseleave', () => { if (!btn.classList.contains('rk-hours-active')) { btn.style.background='transparent'; btn.style.color='#7a9e8a'; btn.style.borderColor='#2a3d30'; }});
+        btn.style.cssText = 'padding:3px 9px;font-size:10px;font-weight:600;border-radius:3px;border:1px solid #2a3d30;background:transparent;color:#7a9e8a;cursor:pointer;transition:all .15s;letter-spacing:.3px;';
+        btn.addEventListener('mouseenter', () => { if (!btn.classList.contains('rk-h-on')) { btn.style.background='rgba(255,255,255,.05)'; btn.style.color='#aacfbc'; }});
+        btn.addEventListener('mouseleave', () => { if (!btn.classList.contains('rk-h-on')) { btn.style.background='transparent'; btn.style.color='#7a9e8a'; btn.style.borderColor='#2a3d30'; }});
         btn.addEventListener('click', () => { setActiveHour(h); scheduleUpdate(); });
         hoursWrapper.appendChild(btn);
     });
  
-    // Abas Casa / Fora / Casa+Fora
     const abasWrapper = document.createElement('div');
     abasWrapper.style.cssText = 'display:inline-flex;align-items:center;gap:4px;';
- 
-    [['ambos','Casa/Fora'],['casa','Casa '],['fora','Fora']].forEach(([val, label]) => {
+    [['ambos','Casa/Fora'],['casa','🏠 Casa'],['fora','✈ Fora']].forEach(([val, label]) => {
         const btn = document.createElement('button');
         btn.textContent  = label;
         btn.dataset.modo = val;
-        btn.style.cssText = 'padding:3px 10px;font-size:10px;font-weight:600;border-radius:3px;border:1px solid #2a3d30;background:transparent;color:#7a9e8a;cursor:pointer;transition:background .15s,color .15s,border-color .15s;letter-spacing:.3px;';
+        btn.style.cssText = 'padding:3px 10px;font-size:10px;font-weight:600;border-radius:3px;border:1px solid #2a3d30;background:transparent;color:#7a9e8a;cursor:pointer;transition:all .15s;letter-spacing:.3px;';
         btn.addEventListener('click', () => { setActiveModo(val); scheduleUpdate(); });
         abasWrapper.appendChild(btn);
     });
@@ -5369,18 +5331,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     topBar.appendChild(hoursWrapper);
     topBar.appendChild(abasWrapper);
  
-    // ─── HELPERS ATIVO ──────────────────────────────────────────────────────
+    // ── Helpers ─────────────────────────────────────────────────────────────
     function setActiveHour(h) {
         hoursWrapper.querySelectorAll('button').forEach(b => {
             const on = parseInt(b.dataset.hours) === h;
-            b.classList.toggle('rk-hours-active', on);
+            b.classList.toggle('rk-h-on', on);
             b.style.background  = on ? 'rgba(31,172,137,.15)' : 'transparent';
             b.style.color       = on ? '#3ecfa3' : '#7a9e8a';
             b.style.borderColor = on ? '#2d9e76' : '#2a3d30';
         });
     }
     function getActiveHour() {
-        const a = hoursWrapper.querySelector('.rk-hours-active');
+        const a = hoursWrapper.querySelector('.rk-h-on');
         return a ? parseInt(a.dataset.hours) : 24;
     }
     function setActiveModo(modo) {
@@ -5393,56 +5355,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
  
-    // ─── PESO DE MERCADO ────────────────────────────────────────────────────
-    const oddCasaEl   = document.getElementById('oddCasa');
-    const oddEmpEl    = document.getElementById('oddEmpate');
-    const oddForaEl   = document.getElementById('oddFora');
-    const h2hPctEl    = document.getElementById('h2hPct');
-    const pesoResult  = document.getElementById('pesoMercadoResult');
- 
-    function calcPesoMercado() {
-        const oC = parseFloat(oddCasaEl.value);
-        const oE = parseFloat(oddEmpEl.value);
-        const oF = parseFloat(oddForaEl.value);
-        const h2h = parseFloat(h2hPctEl.value);
- 
-        if (!oC || !oE || !oF || isNaN(h2h)) { pesoResult.textContent = ''; return null; }
- 
-        const pC = 1/oC, pE = 1/oE, pF = 1/oF;
-        const soma = pC + pE + pF;
-        const pCn  = pC/soma, pEn = pE/soma, pFn = pF/soma;
-        const max  = Math.max(pCn, pEn, pFn);
-        const deseq = max - 1/3;
- 
-        let pesoBASE, pesoH2H;
-        if (deseq < 0.10)       { pesoH2H = 0.40; pesoBASE = 0.60; }
-        else if (deseq <= 0.25) { pesoH2H = 0.30; pesoBASE = 0.70; }
-        else                    { pesoH2H = 0.20; pesoBASE = 0.80; }
- 
-        const tipo = deseq < 0.10 ? 'Equilibrado' : deseq <= 0.25 ? 'Médio' : 'Desequilibrado';
-        pesoResult.innerHTML =
-            `<span style="color:#72b0ff;font-weight:700;">Jogo ${tipo}</span> — ` +
-            `Deseq: <b style="color:#f0b84b">${(deseq*100).toFixed(1)}%</b> | ` +
-            `Peso Base: <b style="color:#3ecfa3">${(pesoBASE*100).toFixed(0)}%</b> · ` +
-            `Peso H2H: <b style="color:#9b8fff">${(pesoH2H*100).toFixed(0)}%</b>` +
-            (isNaN(h2h) ? '' : ` | <b>Total Ajustado H2H=${h2h}%</b>`);
- 
-        return { pesoH2H, pesoBASE, h2hPct: h2h, deseq, tipo };
-    }
- 
-    [oddCasaEl, oddEmpEl, oddForaEl, h2hPctEl].forEach(el => {
-        el.addEventListener('input', calcPesoMercado);
-    });
- 
-    // ─── PERSISTÊNCIA ───────────────────────────────────────────────────────
+    // ── Persistência ────────────────────────────────────────────────────────
     function saveConfig() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            market  : marketSelector.value,
-            minGames: minGamesSlider.value,
-            topN    : topNSelector.value,
-            sortBy  : sortSelector.value,
-            hours   : getActiveHour(),
-            modo    : modoAtual
+            market: marketSelector.value, minGames: minGamesSlider.value,
+            topN: topNSelector.value, sortBy: sortSelector.value,
+            hours: getActiveHour(), modo: modoAtual
         }));
     }
     function loadConfig() {
@@ -5450,10 +5368,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (!saved) { setActiveHour(24); setActiveModo('ambos'); return; }
             const c = JSON.parse(saved);
-            if (c.market)   marketSelector.value  = c.market;
+            if (c.market)   marketSelector.value = c.market;
             if (c.minGames) { minGamesSlider.value = c.minGames; minGamesValue.textContent = c.minGames; }
-            if (c.topN)     topNSelector.value  = c.topN;
-            if (c.sortBy)   sortSelector.value  = c.sortBy;
+            if (c.topN)     topNSelector.value = c.topN;
+            if (c.sortBy)   sortSelector.value = c.sortBy;
             setActiveHour(HOURS_OPTIONS.includes(c.hours) ? c.hours : 24);
             setActiveModo(c.modo || 'ambos');
         } catch(e) { localStorage.removeItem(STORAGE_KEY); setActiveHour(24); setActiveModo('ambos'); }
@@ -5472,216 +5390,252 @@ document.addEventListener('DOMContentLoaded', async () => {
  
     loadConfig();
  
-    // ─── FETCH ──────────────────────────────────────────────────────────────
+    // ── Fetch resultados + odds em paralelo ─────────────────────────────────
     try {
-        const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-        if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`);
-        allGames = await response.json();
+        const [resR, resO] = await Promise.allSettled([
+            fetch(ROTAS_API.resultados(LIGA_ATUAL)),
+            fetch(ROTAS_API.odds(LIGA_ATUAL))
+        ]);
+ 
+        if (resR.status === 'fulfilled' && resR.value.ok) {
+            allGames = await resR.value.json();
+        } else {
+            throw new Error('Falha ao carregar resultados');
+        }
+        if (resO.status === 'fulfilled' && resO.value.ok) {
+            try { allOdds = await resO.value.json(); } catch(_) { allOdds = []; }
+        }
+ 
     } catch (error) {
-        rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Falha ao carregar os dados: ${error.message}</p>`;
+        rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Falha: ${error.message}</p>`;
         return;
     }
  
-    // ─── FILTRAR POR HORAS ───────────────────────────────────────────────────
+    // ── Mapa de odds: time → { oddCasa, oddEmpate, oddFora, adversario, mando } ─
+    function buildOddsMap(oddsData) {
+        const map = {};
+        if (!Array.isArray(oddsData)) return map;
+        oddsData.forEach(j => {
+            const { time_a, time_b, odd_home, odd_draw, odd_away } = j;
+            if (!time_a || !time_b) return;
+            const oH = parseFloat(odd_home), oD = parseFloat(odd_draw), oA = parseFloat(odd_away);
+            if (isNaN(oH) || isNaN(oD) || isNaN(oA)) return;
+            if (!map[time_a]) map[time_a] = { oddCasa:oH, oddEmpate:oD, oddFora:oA, adversario:time_b, mando:'casa' };
+            if (!map[time_b]) map[time_b] = { oddCasa:oH, oddEmpate:oD, oddFora:oA, adversario:time_a, mando:'fora' };
+        });
+        return map;
+    }
+ 
+    // ── Calcular Peso de Mercado a partir das odds ───────────────────────────
+    function calcPeso(entry, mando) {
+        if (!entry) return null;
+        const { oddCasa:oH, oddEmpate:oD, oddFora:oA } = entry;
+        const soma = 1/oH + 1/oD + 1/oA;
+        const pCn  = (1/oH)/soma, pDn = (1/oD)/soma, pAn = (1/oA)/soma;
+        const deseq = Math.max(pCn, pDn, pAn) - 1/3;
+ 
+        let pesoH2H, pesoBASE;
+        if      (deseq < 0.10)  { pesoH2H=0.40; pesoBASE=0.60; }
+        else if (deseq <= 0.25) { pesoH2H=0.30; pesoBASE=0.70; }
+        else                    { pesoH2H=0.20; pesoBASE=0.80; }
+ 
+        const tipo = deseq < 0.10 ? 'Equil.' : deseq <= 0.25 ? 'Médio' : 'Deseq.';
+        return {
+            pesoBASE, pesoH2H, tipo, deseq: deseq.toFixed(3),
+            oddCasa: oH.toFixed(2), oddEmpate: oD.toFixed(2), oddFora: oA.toFixed(2),
+            oddTime: (mando==='casa' ? oH : oA).toFixed(2)
+        };
+    }
+ 
+    // ── Filtro por horas ────────────────────────────────────────────────────
     function filterByHours(games, hours) {
         const comData = games.filter(g => g.data);
         if (!comData.length) return games;
         const sorted = [...comData].sort((a,b) => new Date(b.data)-new Date(a.data));
         const newest = new Date(sorted[0].data).getTime();
-        const cutoff = newest - hours*3600000;
-        return sorted.filter(g => new Date(g.data).getTime() >= cutoff);
+        return sorted.filter(g => new Date(g.data).getTime() >= newest - hours*3600000);
     }
  
-    // ─── PROCESSAR RANKING ───────────────────────────────────────────────────
+    // ── Status RELATIVO: distribui Elite/Médio/Fraco por quartis ────────────
+    // Score = 60% pct + 40% idxOf (ambos normalizados)
+    // Top 25% → Elite · Meio 50% → Médio · Bottom 25% → Fraco
+    function calcStatusRelativo(arr) {
+        if (!arr.length) return;
+        const maxPct = Math.max(...arr.map(t=>t.pct), 1);
+        const maxIdx = Math.max(...arr.map(t=>parseFloat(t.idxOf)), 1);
+ 
+        arr.forEach(t => {
+            t._score = (t.pct/maxPct)*0.6 + (parseFloat(t.idxOf)/maxIdx)*0.4;
+        });
+ 
+        // ordena scores para achar limiares de quartil
+        const sorted = [...arr].sort((a,b)=>b._score-a._score);
+        const q1 = sorted[Math.max(0, Math.ceil(sorted.length*0.25)-1)]._score;
+        const q3 = sorted[Math.min(sorted.length-1, Math.ceil(sorted.length*0.75)-1)]._score;
+ 
+        arr.forEach(t => {
+            if      (t._score >= q1) { t.status='🚀 Elite'; t.statusCls='elite'; }
+            else if (t._score >= q3) { t.status='⚠ Médio';  t.statusCls='medio'; }
+            else                     { t.status='❌ Fraco';  t.statusCls='fraco'; }
+        });
+    }
+ 
+    // ── Processar Ranking ───────────────────────────────────────────────────
     function updateRanking() {
         const selectedMarket = marketSelector.value;
-        const minGames       = parseInt(minGamesSlider.value, 10);
-        const topN           = parseInt(topNSelector.value, 10);
-        const sortBy         = sortSelector.value;
-        const hours          = getActiveHour();
-        const games          = filterByHours(allGames, hours);
+        const minGames = parseInt(minGamesSlider.value, 10);
+        const topN     = parseInt(topNSelector.value, 10);
+        const sortBy   = sortSelector.value;
+        const hours    = getActiveHour();
+        const games    = filterByHours(allGames, hours);
+        const oddsMap  = buildOddsMap(allOdds);
  
         // Skeleton
         rankingContainer.innerHTML = `
-            <style>@keyframes skeletonPulse{0%{opacity:.35}100%{opacity:.7}}</style>
+            <style>@keyframes rkSk{0%{opacity:.35}100%{opacity:.7}}</style>
             <div style="padding:8px 0;">${[...Array(5)].map(()=>
-                `<div style="height:36px;margin-bottom:4px;border-radius:4px;background:rgba(255,255,255,.06);animation:skeletonPulse 1.2s ease-in-out infinite alternate;"></div>`
+                `<div style="height:36px;margin-bottom:4px;border-radius:4px;background:rgba(255,255,255,.06);animation:rkSk 1.2s ease-in-out infinite alternate;"></div>`
             ).join('')}</div>`;
  
         try {
-            // teamStats: { name, totalGames, casaGames, foraGames,
-            //   marketCount, casaMarket, foraMarket,
-            //   gpTotal, gcTotal, gpCasa, gcCasa, gpFora, gcFora }
-            const teamStats = {};
+            const ts = {}; // teamStats
  
-            function initTeam(name) {
-                if (!teamStats[name]) teamStats[name] = {
-                    name, totalGames:0, casaGames:0, foraGames:0,
+            function init(name) {
+                if (!ts[name]) ts[name] = {
+                    name,
+                    totalGames:0, casaGames:0, foraGames:0,
                     marketCount:0, casaMarket:0, foraMarket:0,
-                    gpTotal:0, gcTotal:0,
-                    gpCasa:0,  gcCasa:0,
-                    gpFora:0,  gcFora:0,
-                    forma: []
+                    gpTotal:0, gcTotal:0, gpCasa:0, gcCasa:0, gpFora:0, gcFora:0,
+                    forma:[]
                 };
             }
  
             games.forEach(game => {
                 const { time_a, time_b, ft, ht } = game;
                 if (!ft || !ft.includes(' x ')) return;
- 
                 const [gA, gB] = ft.split(' x ').map(Number);
                 if (isNaN(gA) || isNaN(gB)) return;
-                const totalGols = gA + gB;
+                const tot = gA+gB;
  
-                initTeam(time_a);
-                initTeam(time_b);
+                init(time_a); init(time_b);
  
-                // gols
-                teamStats[time_a].gpTotal += gA; teamStats[time_a].gcTotal += gB;
-                teamStats[time_b].gpTotal += gB; teamStats[time_b].gcTotal += gA;
-                teamStats[time_a].gpCasa  += gA; teamStats[time_a].gcCasa  += gB;
-                teamStats[time_b].gpFora  += gB; teamStats[time_b].gcFora  += gA;
+                ts[time_a].gpTotal+=gA; ts[time_a].gcTotal+=gB; ts[time_a].gpCasa+=gA; ts[time_a].gcCasa+=gB;
+                ts[time_b].gpTotal+=gB; ts[time_b].gcTotal+=gA; ts[time_b].gpFora+=gB; ts[time_b].gcFora+=gA;
+                ts[time_a].totalGames++; ts[time_a].casaGames++;
+                ts[time_b].totalGames++; ts[time_b].foraGames++;
  
-                // contagem de jogos
-                teamStats[time_a].totalGames++; teamStats[time_a].casaGames++;
-                teamStats[time_b].totalGames++; teamStats[time_b].foraGames++;
+                const rA = gA>gB?'V':gA===gB?'E':'D';
+                const rB = gB>gA?'V':gA===gB?'E':'D';
+                if (ts[time_a].forma.length<5) ts[time_a].forma.push(rA);
+                if (ts[time_b].forma.length<5) ts[time_b].forma.push(rB);
  
-                // forma (últimos 5 resultados)
-                const resA = gA > gB ? 'V' : gA === gB ? 'E' : 'D';
-                const resB = gB > gA ? 'V' : gA === gB ? 'E' : 'D';
-                if (teamStats[time_a].forma.length < 5) teamStats[time_a].forma.push(resA);
-                if (teamStats[time_b].forma.length < 5) teamStats[time_b].forma.push(resB);
- 
-                // 2º tempo
-                let gA2T=0, gB2T=0;
+                let gA2=0, gB2=0;
                 if (ht && ht.includes(' x ')) {
                     const [htA,htB] = ht.split(' x ').map(Number).map(n=>isNaN(n)?0:n);
-                    gA2T = Math.max(0, gA-htA); gB2T = Math.max(0, gB-htB);
+                    gA2=Math.max(0,gA-htA); gB2=Math.max(0,gB-htB);
                 }
-                const t2T = gA2T+gB2T;
+                const t2T = gA2+gB2;
  
-                // verificar ocorrência de mercado
-                let occurred = false;
+                // mercados onde só 1 time conta
+                if (selectedMarket==='casaVence' && gA>gB) { ts[time_a].marketCount++; ts[time_a].casaMarket++; return; }
+                if (selectedMarket==='foraVence' && gB>gA) { ts[time_b].marketCount++; ts[time_b].foraMarket++; return; }
  
-                if      (selectedMarket==='casaVence'     && gA > gB)                 { occurred=true; teamStats[time_a].marketCount++; teamStats[time_a].casaMarket++; return; }
-                else if (selectedMarket==='foraVence'     && gB > gA)                 { occurred=true; teamStats[time_b].marketCount++; teamStats[time_b].foraMarket++; return; }
- 
+                let ok=false;
                 switch(selectedMarket){
-                    case 'ambasMarcam':    occurred = gA>0 && gB>0;          break;
-                    case 'ambasNaoMarcam': occurred = gA===0 || gB===0;      break;
-                    case 'empate':         occurred = gA===gB;               break;
-                    case 'over0.5':        occurred = totalGols>0.5;         break;
-                    case 'over1.5':        occurred = totalGols>1.5;         break;
-                    case 'over2.5':        occurred = totalGols>2.5;         break;
-                    case 'over3.5':        occurred = totalGols>3.5;         break;
-                    case 'over5':          occurred = totalGols>=5;          break;
-                    case 'under0.5':       occurred = totalGols<0.5;         break;
-                    case 'under1.5':       occurred = totalGols<1.5;         break;
-                    case 'under2.5':       occurred = totalGols<2.5;         break;
-                    case 'under3.5':       occurred = totalGols<3.5;         break;
-                    case 'exato0':         occurred = totalGols===0;         break;
-                    case 'exato1':         occurred = totalGols===1;         break;
-                    case 'exato2':         occurred = totalGols===2;         break;
-                    case 'exato3':         occurred = totalGols===3;         break;
-                    case 'exato4':         occurred = totalGols===4;         break;
-                    case 'exato2t0':       occurred = t2T===0;               break;
-                    case 'exato2t1':       occurred = t2T===1;               break;
-                    case 'exato2t2':       occurred = t2T===2;               break;
-                    case 'exato2t3':       occurred = t2T===3;               break;
-                    case 'exato2t4':       occurred = t2T===4;               break;
-                    case 'casa0Gols':      occurred = gA===0;                break;
-                    case 'casa1Gol':       occurred = gA===1;                break;
-                    case 'casa2Gols':      occurred = gA===2;                break;
-                    case 'casa3Gols':      occurred = gA===3;                break;
-                    case 'casa4Gols':      occurred = gA===4;                break;
-                    case 'fora0Gols':      occurred = gB===0;                break;
-                    case 'fora1Gol':       occurred = gB===1;                break;
-                    case 'fora2Gols':      occurred = gB===2;                break;
-                    case 'fora3Gols':      occurred = gB===3;                break;
-                    case 'fora4Gols':      occurred = gB===4;                break;
+                    case 'ambasMarcam':    ok=gA>0&&gB>0;     break;
+                    case 'ambasNaoMarcam': ok=gA===0||gB===0; break;
+                    case 'empate':         ok=gA===gB;        break;
+                    case 'over0.5':        ok=tot>0.5;        break;
+                    case 'over1.5':        ok=tot>1.5;        break;
+                    case 'over2.5':        ok=tot>2.5;        break;
+                    case 'over3.5':        ok=tot>3.5;        break;
+                    case 'over5':          ok=tot>=5;         break;
+                    case 'under0.5':       ok=tot<0.5;        break;
+                    case 'under1.5':       ok=tot<1.5;        break;
+                    case 'under2.5':       ok=tot<2.5;        break;
+                    case 'under3.5':       ok=tot<3.5;        break;
+                    case 'exato0':         ok=tot===0;        break;
+                    case 'exato1':         ok=tot===1;        break;
+                    case 'exato2':         ok=tot===2;        break;
+                    case 'exato3':         ok=tot===3;        break;
+                    case 'exato4':         ok=tot===4;        break;
+                    case 'exato2t0':       ok=t2T===0;        break;
+                    case 'exato2t1':       ok=t2T===1;        break;
+                    case 'exato2t2':       ok=t2T===2;        break;
+                    case 'exato2t3':       ok=t2T===3;        break;
+                    case 'exato2t4':       ok=t2T===4;        break;
+                    case 'casa0Gols':      ok=gA===0;         break;
+                    case 'casa1Gol':       ok=gA===1;         break;
+                    case 'casa2Gols':      ok=gA===2;         break;
+                    case 'casa3Gols':      ok=gA===3;         break;
+                    case 'casa4Gols':      ok=gA===4;         break;
+                    case 'fora0Gols':      ok=gB===0;         break;
+                    case 'fora1Gol':       ok=gB===1;         break;
+                    case 'fora2Gols':      ok=gB===2;         break;
+                    case 'fora3Gols':      ok=gB===3;         break;
+                    case 'fora4Gols':      ok=gB===4;         break;
                 }
- 
-                if (occurred) {
-                    teamStats[time_a].marketCount++; teamStats[time_a].casaMarket++;
-                    teamStats[time_b].marketCount++; teamStats[time_b].foraMarket++;
-                }
+                if (ok) { ts[time_a].marketCount++; ts[time_a].casaMarket++; ts[time_b].marketCount++; ts[time_b].foraMarket++; }
             });
  
-            // ── Filtrar por modo (casa/fora/ambos) e calcular métricas ─────
-            let statsArray = Object.values(teamStats).map(t => {
-                let jogos, ocorr, gpJ, gcJ, gpJC, gcJC, gpJF, gcJF;
+            // Montar array com métricas por modo
+            let arr = Object.values(ts).map(t => {
+                let jogos, ocorr, gpJ, gcJ, gCtx;
  
-                if (modoAtual === 'casa') {
-                    jogos = t.casaGames;
-                    ocorr = t.casaMarket;
-                    gpJ   = t.casaGames  > 0 ? (t.gpCasa/t.casaGames).toFixed(2) : '—';
-                    gcJ   = t.casaGames  > 0 ? (t.gcCasa/t.casaGames).toFixed(2) : '—';
-                } else if (modoAtual === 'fora') {
-                    jogos = t.foraGames;
-                    ocorr = t.foraMarket;
-                    gpJ   = t.foraGames  > 0 ? (t.gpFora/t.foraGames).toFixed(2) : '—';
-                    gcJ   = t.foraGames  > 0 ? (t.gcFora/t.foraGames).toFixed(2) : '—';
+                if (modoAtual==='casa') {
+                    jogos=t.casaGames; ocorr=t.casaMarket;
+                    gpJ=jogos>0?(t.gpCasa/jogos).toFixed(2):'—';
+                    gcJ=jogos>0?(t.gcCasa/jogos).toFixed(2):'—';
+                    gCtx=t.gpCasa+t.gcCasa;
+                } else if (modoAtual==='fora') {
+                    jogos=t.foraGames; ocorr=t.foraMarket;
+                    gpJ=jogos>0?(t.gpFora/jogos).toFixed(2):'—';
+                    gcJ=jogos>0?(t.gcFora/jogos).toFixed(2):'—';
+                    gCtx=t.gpFora+t.gcFora;
                 } else {
-                    jogos = t.totalGames;
-                    ocorr = t.marketCount;
-                    gpJ   = t.totalGames > 0 ? (t.gpTotal/t.totalGames).toFixed(2) : '—';
-                    gcJ   = t.totalGames > 0 ? (t.gcTotal/t.totalGames).toFixed(2) : '—';
+                    jogos=t.totalGames; ocorr=t.marketCount;
+                    gpJ=jogos>0?(t.gpTotal/jogos).toFixed(2):'—';
+                    gcJ=jogos>0?(t.gcTotal/jogos).toFixed(2):'—';
+                    gCtx=t.gpTotal+t.gcTotal;
                 }
  
-                // Força Ofensiva Casa e Fora (GP/jogo em cada contexto)
-                const forcaCasa = t.casaGames > 0 ? t.gpCasa/t.casaGames : 0;
-                const forcaFora = t.foraGames > 0 ? t.gpFora/t.foraGames : 0;
+                const fOCasa = t.casaGames>0 ? (t.gpCasa/t.casaGames).toFixed(2) : '—';
+                const fOFora = t.foraGames>0 ? (t.gpFora/t.foraGames).toFixed(2) : '—';
+                const idxOf  = jogos>0 ? (gCtx/jogos).toFixed(2) : '0.00';
+                const pct    = jogos>0 ? parseFloat(((ocorr/jogos)*100).toFixed(1)) : 0;
  
-                // Expectativa base = média ponderada ofensiva
-                const expBase = (forcaCasa + forcaFora) / 2;
- 
-                // Índice Ofensivo = (GP + GC) / jogos → representa ritmo de gols
-                const idxOf = jogos > 0 ? ((
-                    (modoAtual==='casa' ? t.gpCasa+t.gcCasa :
-                     modoAtual==='fora' ? t.gpFora+t.gcFora :
-                     t.gpTotal+t.gcTotal)
-                ) / jogos).toFixed(2) : '0.00';
- 
-                const pct = jogos > 0 ? parseFloat(((ocorr/jogos)*100).toFixed(1)) : 0;
- 
-                // Status
-                let status, statusCls;
-                if (pct >= 40 || parseFloat(idxOf) >= 3.0) { status='🚀 Elite'; statusCls='elite'; }
-                else if (pct >= 25 || parseFloat(idxOf) >= 2.3) { status='⚠ Médio'; statusCls='medio'; }
-                else { status='❌ Fraco'; statusCls='fraco'; }
+                const entry = oddsMap[t.name] || null;
+                const peso  = calcPeso(entry, entry?.mando);
  
                 return {
                     name:t.name, jogos, ocorr, pct,
-                    gpJ, gcJ,
-                    forcaCasa: forcaCasa.toFixed(2),
-                    forcaFora: forcaFora.toFixed(2),
-                    expBase: expBase.toFixed(2),
-                    idxOf,
-                    forma: t.forma,
-                    status, statusCls,
-                    gpTotal:t.gpTotal, gcTotal:t.gcTotal
+                    gpJ, gcJ, fOCasa, fOFora, idxOf, forma:t.forma,
+                    entry, mando:entry?.mando, adversario:entry?.adversario, peso
                 };
             }).filter(t => t.jogos >= minGames);
  
-            if (!statsArray.length) {
+            if (!arr.length) {
                 rankingContainer.innerHTML = `<p style="color:#888;text-align:center;padding:20px;font-size:13px;">Nenhum time com jogos suficientes nas últimas ${hours}h.</p>`;
                 return;
             }
  
-            // ordenar
-            if      (sortBy==='percentual')      statsArray.sort((a,b)=>b.pct-a.pct||b.ocorr-a.ocorr);
-            else if (sortBy==='indiceOfensivo')   statsArray.sort((a,b)=>parseFloat(b.idxOf)-parseFloat(a.idxOf)||b.pct-a.pct);
-            else                                  statsArray.sort((a,b)=>b.ocorr-a.ocorr||b.pct-a.pct);
+            // Status relativo ao conjunto exibido
+            calcStatusRelativo(arr);
  
-            renderTable(statsArray.slice(0, topN));
+            // Ordenar
+            if      (sortBy==='percentual')    arr.sort((a,b)=>b.pct-a.pct||b.ocorr-a.ocorr);
+            else if (sortBy==='indiceOfensivo') arr.sort((a,b)=>parseFloat(b.idxOf)-parseFloat(a.idxOf)||b.pct-a.pct);
+            else                               arr.sort((a,b)=>b.ocorr-a.ocorr||b.pct-a.pct);
  
-        } catch(error) {
-            rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Erro: ${error.message}</p>`;
-            console.error(error);
+            renderTable(arr.slice(0, topN));
+ 
+        } catch(err) {
+            rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Erro: ${err.message}</p>`;
+            console.error(err);
         }
     }
  
-    // ─── RENDERIZAR TABELA ───────────────────────────────────────────────────
+    // ── Renderizar Tabela ───────────────────────────────────────────────────
     function renderTable(data) {
         if (!data.length) {
             rankingContainer.innerHTML = '<p style="color:#888;text-align:center;padding:20px;font-size:13px;">Nenhum dado encontrado.</p>';
@@ -5690,84 +5644,107 @@ document.addEventListener('DOMContentLoaded', async () => {
  
         const maxPct    = Math.max(...data.map(t=>t.pct), 1);
         const posColors = ['#b8962e','#7a7a7a','#7a5230'];
- 
-        // Rótulo da aba ativa para o cabeçalho
-        const modoLabel = modoAtual==='casa' ? 'Casa' : modoAtual==='fora' ? 'Fora' : 'Casa/Fora';
+        const modoLabel = modoAtual==='casa' ? '🏠 Casa' : modoAtual==='fora' ? '✈ Fora' : 'Casa/Fora';
+        const temOdds   = data.some(t => t.peso !== null);
  
         let html = `
         <style>
-            .rkv2-wrap   { overflow-x:auto; margin:0; }
-            .rkv2-table  { width:100%; border-collapse:collapse; font-size:12px; min-width:820px; }
-            .rkv2-table thead tr { background:#1a2028; border-bottom:2px solid #4f72ff; }
-            .rkv2-table th {
+            .rk3-wrap  { overflow-x:auto; }
+            .rk3-tbl   { width:100%; border-collapse:collapse; font-size:12px; min-width:${temOdds?'1060':'840'}px; }
+            .rk3-tbl thead tr { background:#1a2028; border-bottom:2px solid #4f72ff; }
+            .rk3-tbl th {
                 padding:10px 8px; color:#9fb0c5; font-weight:600; font-size:10px;
                 text-transform:uppercase; letter-spacing:.5px; white-space:nowrap;
                 text-align:center; position:sticky; top:0; background:#1a2028;
             }
-            .rkv2-table th.left { text-align:left; }
-            .rkv2-table td {
+            .rk3-tbl td {
                 padding:9px 8px; vertical-align:middle; text-align:center;
                 border-bottom:1px solid #36404d; border-right:1px solid #36404d;
             }
-            .rkv2-table tbody tr:nth-child(odd)  { background:rgba(255,255,255,.02); }
-            .rkv2-table tbody tr:hover           { background:rgba(79,114,255,.08); }
-            .rkv2-td-team { text-align:left!important; font-weight:700; font-size:13px; white-space:nowrap; }
-            .rkv2-bar     { width:90px; height:7px; border-radius:999px; background:#394453; margin:0 auto 4px; overflow:hidden; }
-            .rkv2-fill    { height:100%; background:linear-gradient(90deg,#4f72ff,#72b0ff); }
-            .rkv2-forma   { letter-spacing:1px; font-size:11px; }
-            .rkv2-forma .fV { color:#1ec97f; }
-            .rkv2-forma .fE { color:#f0b84b; }
-            .rkv2-forma .fD { color:#ef5b5b; }
-            .rkv2-status  { display:inline-block; min-width:72px; padding:4px 8px; border-radius:999px; font-weight:700; font-size:11px; }
-            .rkv2-elite   { background:rgba(30,201,127,.14); color:#8ff1c3; border:1px solid rgba(30,201,127,.35); }
-            .rkv2-medio   { background:rgba(240,184,75,.14);  color:#ffd98a; border:1px solid rgba(240,184,75,.35); }
-            .rkv2-fraco   { background:rgba(239,91,91,.14);   color:#ff9b9b; border:1px solid rgba(239,91,91,.35); }
-            .rkv2-pos-num { font-weight:700; font-size:13px; }
+            .rk3-tbl tbody tr:nth-child(odd) { background:rgba(255,255,255,.02); }
+            .rk3-tbl tbody tr:hover          { background:rgba(79,114,255,.08); }
+            .rk3-team  { text-align:left!important; font-weight:700; font-size:13px; white-space:nowrap; }
+            .rk3-bar   { width:80px; height:7px; border-radius:999px; background:#394453; margin:0 auto 4px; overflow:hidden; }
+            .rk3-fill  { height:100%; }
+            .rk3-forma { letter-spacing:1px; font-size:11px; }
+            .rk3-forma .fV { color:#1ec97f; }
+            .rk3-forma .fE { color:#f0b84b; }
+            .rk3-forma .fD { color:#ef5b5b; }
+            .rk3-badge { display:inline-block; min-width:70px; padding:4px 8px; border-radius:999px; font-weight:700; font-size:11px; white-space:nowrap; }
+            .rk3-elite { background:rgba(30,201,127,.14); color:#8ff1c3; border:1px solid rgba(30,201,127,.35); }
+            .rk3-medio { background:rgba(240,184,75,.14);  color:#ffd98a; border:1px solid rgba(240,184,75,.35); }
+            .rk3-fraco { background:rgba(239,91,91,.14);   color:#ff9b9b; border:1px solid rgba(239,91,91,.35); }
         </style>
-        <div class="rkv2-wrap">
-        <table class="rkv2-table">
-            <thead>
-                <tr>
-                    <th style="width:36px;">#</th>
-                    <th class="left">Equipe</th>
-                    <th>J (${modoLabel})</th>
-                    <th>Ocorr.</th>
-                    <th>% Merc.</th>
-                    <th title="Gols Marcados por jogo">GP/J</th>
-                    <th title="Gols Concedidos por jogo">GC/J</th>
-                    <th title="Força Ofensiva em Casa">F.Of.Casa</th>
-                    <th title="Força Ofensiva Fora">F.Of.Fora</th>
-                    <th title="Índice de Gols (GP+GC)/J">Idx Gols</th>
-                    <th>Forma</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-        `;
+        <div class="rk3-wrap"><table class="rk3-tbl">
+        <thead><tr>
+            <th style="width:32px;">#</th>
+            <th style="text-align:left;">Equipe</th>
+            <th title="Jogos no modo selecionado">J (${modoLabel})</th>
+            <th>Ocorr.</th>
+            <th>% Merc.</th>
+            <th title="Gols marcados por jogo (contexto)">GP/J</th>
+            <th title="Gols concedidos por jogo (contexto)">GC/J</th>
+            <th title="Força Ofensiva em Casa">F.Of.🏠</th>
+            <th title="Força Ofensiva Fora">F.Of.✈</th>
+            <th title="(GP+GC)/J no contexto">Idx Gols</th>
+            <th>Forma</th>
+            ${temOdds ? '<th title="Odds próximo jogo (Casa · Emp · Fora)">Odds (C·E·F)</th><th title="Peso de Mercado calculado">Peso Merc.</th>' : ''}
+            <th>Status</th>
+        </tr></thead>
+        <tbody>`;
  
-        data.forEach((team, i) => {
+        data.forEach((t, i) => {
             const posColor = posColors[i] || '#4a5260';
-            const barW     = ((team.pct / maxPct)*100).toFixed(1);
-            const barColor = team.pct>=50 ? '#2d9e76' : team.pct>=30 ? '#a07c2a' : '#7a3535';
-            const formaHtml = (team.forma||[]).map(r=>`<span class="f${r}">${r}</span>`).join('');
+            const barW     = ((t.pct/maxPct)*100).toFixed(1);
+            // cor da barra relativa ao max do conjunto visível
+            const barColor = t.pct >= maxPct*0.75 ? '#1c8f60'
+                           : t.pct >= maxPct*0.50 ? '#2d9e76'
+                           : t.pct >= maxPct*0.25 ? '#a07c2a' : '#7a3535';
+ 
+            const formaHtml = (t.forma||[]).map(r=>`<span class="f${r}">${r}</span>`).join('');
+ 
+            let oddsCell = '', pesoCell = '';
+            if (temOdds) {
+                if (t.peso) {
+                    const p = t.peso;
+                    const isCasa = t.mando === 'casa';
+                    const oc = isCasa
+                        ? `<b style="color:#3ecfa3;font-size:12px;">${p.oddCasa}</b>`
+                        : `<span style="color:#9fb0c5;">${p.oddCasa}</span>`;
+                    const oa = !isCasa
+                        ? `<b style="color:#f0b84b;font-size:12px;">${p.oddFora}</b>`
+                        : `<span style="color:#9fb0c5;">${p.oddFora}</span>`;
+                    oddsCell = `${oc} · <span style="color:#7a9e8a;">${p.oddEmpate}</span> · ${oa}
+                                <br><span style="font-size:10px;color:#4a5870;">vs ${t.adversario||'?'}</span>`;
+ 
+                    const pColor = p.tipo==='Equil.' ? '#72b0ff' : p.tipo==='Médio' ? '#f0b84b' : '#ef5b5b';
+                    pesoCell = `<span style="font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;
+                                    background:${pColor}22;color:${pColor};border:1px solid ${pColor}44;">${p.tipo}</span>
+                                <br><span style="font-size:10px;color:#7a9e8a;">B:${(p.pesoBASE*100).toFixed(0)}% H:${(p.pesoH2H*100).toFixed(0)}%</span>`;
+                } else {
+                    oddsCell = '<span style="color:#3a4455;">—</span>';
+                    pesoCell = '<span style="color:#3a4455;">—</span>';
+                }
+            }
  
             html += `
             <tr>
-                <td><span class="rkv2-pos-num" style="color:${posColor};">${i+1}º</span></td>
-                <td class="rkv2-td-team">${team.name}</td>
-                <td style="color:#9fb0c5;">${team.jogos}</td>
-                <td style="color:#3ecfa3;font-weight:700;font-size:13px;">${team.ocorr}</td>
+                <td><span style="font-weight:700;font-size:13px;color:${posColor};">${i+1}º</span></td>
+                <td class="rk3-team">${t.name}</td>
+                <td style="color:#9fb0c5;">${t.jogos}</td>
+                <td style="color:#3ecfa3;font-weight:700;font-size:13px;">${t.ocorr}</td>
                 <td>
-                    <div class="rkv2-bar"><div class="rkv2-fill" style="width:${barW}%;background:${barColor};"></div></div>
-                    <span style="font-size:12px;font-weight:700;color:#c0c4cc;">${team.pct}%</span>
+                    <div class="rk3-bar"><div class="rk3-fill" style="width:${barW}%;background:${barColor};"></div></div>
+                    <span style="font-size:12px;font-weight:700;color:#c0c4cc;">${t.pct}%</span>
                 </td>
-                <td style="color:#72b0ff;font-weight:600;">${team.gpJ}</td>
-                <td style="color:#ef5b5b;font-weight:600;">${team.gcJ}</td>
-                <td style="color:#3ecfa3;">${team.forcaCasa}</td>
-                <td style="color:#f0b84b;">${team.forcaFora}</td>
-                <td style="color:#b8a0ff;font-weight:700;">${team.idxOf}</td>
-                <td class="rkv2-forma">${formaHtml}</td>
-                <td><span class="rkv2-status rkv2-${team.statusCls}">${team.status}</span></td>
+                <td style="color:#72b0ff;font-weight:600;">${t.gpJ}</td>
+                <td style="color:#ef5b5b;font-weight:600;">${t.gcJ}</td>
+                <td style="color:#3ecfa3;">${t.fOCasa}</td>
+                <td style="color:#f0b84b;">${t.fOFora}</td>
+                <td style="color:#b8a0ff;font-weight:700;">${t.idxOf}</td>
+                <td class="rk3-forma">${formaHtml}</td>
+                ${temOdds ? `<td style="line-height:1.7;font-size:11px;">${oddsCell}</td><td style="line-height:1.7;">${pesoCell}</td>` : ''}
+                <td><span class="rk3-badge rk3-${t.statusCls}">${t.status}</span></td>
             </tr>`;
         });
  
