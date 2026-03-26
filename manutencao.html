@@ -4497,18 +4497,9 @@ setInterval(updateCharts,3000);
       const games = await response.json();
  
       const container = document.getElementById("nextGamesContainer");
-      if (!container) return;
-      
-      // Preserva o jogo selecionado atualmente (se houver)
-      const currentSelected = document.querySelector(`.${UID}gc.${UID}sel`);
-      const currentHome = currentSelected ? currentSelected.dataset.home : null;
-      const currentVisit = currentSelected ? currentSelected.dataset.visit : null;
-      
       container.innerHTML = `<div class="${UID}games">` +
         games.slice(0,6).map(g => `
-          <div class="${UID}gc ${(g.team_home===currentHome && g.team_visit===currentVisit) ? UID+'sel' : ''}" 
-               data-home="${g.team_home}" 
-               data-visit="${g.team_visit}">
+          <div class="${UID}gc" data-home="${g.team_home}" data-visit="${g.team_visit}">
             <div class="${UID}gtime">${g.time}</div>
             <div class="${UID}gteams">
               <span>${g.team_home}</span>
@@ -4517,18 +4508,13 @@ setInterval(updateCharts,3000);
             </div>
           </div>`).join("") + `</div>`;
  
-      // Readiciona o event listener (pois o HTML foi recriado)
-      const gamesContainer = container.querySelector(`.${UID}games`);
-      if (gamesContainer) {
-        gamesContainer.addEventListener("click", e => {
-          const card = e.target.closest(`.${UID}gc`);
-          if (!card) return;
-          document.querySelectorAll(`.${UID}gc`).forEach(c=>c.classList.remove(UID+"sel"));
-          card.classList.add(UID+"sel");
-          isComparisonMode = true; // Ativa modo comparação
-          obterResultados(card.dataset.home, card.dataset.visit);
-        });
-      }
+      container.addEventListener("click", e => {
+        const card = e.target.closest(`.${UID}gc`);
+        if (!card) return;
+        document.querySelectorAll(`.${UID}gc`).forEach(c=>c.classList.remove(UID+"sel"));
+        card.classList.add(UID+"sel");
+        obterResultados(card.dataset.home, card.dataset.visit);
+      });
     } catch(err) { console.error("Erro próximos jogos:", err); }
   }
  
@@ -4538,59 +4524,33 @@ setInterval(updateCharts,3000);
       if (!response.ok) throw new Error(response.status);
       const results = await response.json();
       renderPanel(results, teamA, teamB);
-      isComparisonMode = true; // Garante que o modo comparação está ativo
-      // NÃO limpa mais o intervalo! Deixa o timer rodando.
+      isComparisonMode = true;
+      clearInterval(autoUpdateInterval);
     } catch(err) { console.error("Erro resultados:", err); }
   }
  
   async function fetchAndUpdateResults() {
+    if (isComparisonMode) return;
     try {
       const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
       if (!response.ok) throw new Error(response.status);
       const newResults = await response.json();
-      
-      // Só atualiza o painel se NÃO estiver em modo comparação
-      if (!isComparisonMode) {
-        // Verifica se realmente mudou (comparação simples de tamanho e último item)
-        const hasChanged = !lastResults || 
-                          newResults.length !== lastResults.length ||
-                          (newResults[0] && lastResults[0] && 
-                           (newResults[0].ft !== lastResults[0].ft || 
-                            newResults[0].time_a !== lastResults[0].time_a));
-        
-        if (hasChanged) {
-          lastResults = newResults;
-          const sorted = [...newResults].sort((a,b)=>{
-            const da=new Date(a.data), db=new Date(b.data);
-            return db-da||b.hora-a.hora||b.minuto-a.minuto;
-          });
-          const latest = sorted[0];
-          if (latest) {
-            renderPanel(sorted, latest.time_a, latest.time_b);
-          }
-        }
+      if (JSON.stringify(newResults) !== JSON.stringify(lastResults)) {
+        lastResults = newResults;
+        const sorted = [...newResults].sort((a,b)=>{
+          const da=new Date(a.data), db=new Date(b.data);
+          return db-da||b.hora-a.hora||b.minuto-a.minuto;
+        });
+        const latest = sorted[0];
+        renderPanel(sorted, latest.time_a, latest.time_b);
       }
     } catch(err) { console.error("Erro auto-update:", err); }
   }
  
   async function updateAll() {
-    // Sempre atualiza a lista de jogos (independente do modo)
     await loadNextGames();
-    // Só atualiza o painel de resultados se não estiver em modo comparação
     await fetchAndUpdateResults();
   }
- 
-  // Inicialização
-  updateAll();
-  autoUpdateInterval = setInterval(updateAll, 15000);
-  
-  // Opcional: Botão para voltar ao modo automático (útil se quiser sair da comparação)
-  // Você pode chamar isso de um botão "Voltar ao Jogo Atual" se quiser
-  window.resetToLiveMode = function() {
-    isComparisonMode = false;
-    lastResults = []; // Força atualização imediata
-    fetchAndUpdateResults();
-  };
  
   updateAll();
   autoUpdateInterval = setInterval(updateAll, 15000);
