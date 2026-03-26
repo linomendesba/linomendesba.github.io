@@ -5291,7 +5291,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const topBar           = document.getElementById('rkTopBar');
  
     const STORAGE_KEY      = 'rankingConfig';
-    const GAMES_OPTIONS    = [100, 200, 400, 500];
+    // Mapeamento visual (horas) → quantidade de jogos (≈20 jogos/hora)
+    const HOURS_OPTIONS    = [
+        { label: '6h',  games: 120  },
+        { label: '12h', games: 240  },
+        { label: '24h', games: 480  },
+        { label: '48h', games: 960  },
+    ];
     const AUTO_REFRESH_MS  = 3 * 60 * 1000; // 3 minutos
     let allGames           = [];
     let debounceTimer      = null;
@@ -5299,22 +5305,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     let modoAtual          = 'ambos';
     let lastTableData      = null; // cache para evitar piscar
  
-    // ── Topbar: quantidade de jogos + abas ─────────────────────────────────
+    // ── Topbar: período (visual) + abas ────────────────────────────────────
     const hoursWrapper = document.createElement('div');
     hoursWrapper.style.cssText = 'display:inline-flex;align-items:center;gap:4px;';
     const hoursLabel = document.createElement('span');
-    hoursLabel.textContent = 'Últimos jogos:';
+    hoursLabel.textContent = 'Período:';
     hoursLabel.style.cssText = 'font-size:10px;font-weight:600;color:#7a9e8a;text-transform:uppercase;letter-spacing:.6px;margin-right:4px;';
     hoursWrapper.appendChild(hoursLabel);
  
-    GAMES_OPTIONS.forEach(n => {
+    HOURS_OPTIONS.forEach(({ label, games }) => {
         const btn = document.createElement('button');
-        btn.textContent   = `${n}`;
-        btn.dataset.games = n;
+        btn.textContent    = label;
+        btn.dataset.games  = games;
         btn.style.cssText = 'padding:3px 9px;font-size:10px;font-weight:600;border-radius:3px;border:1px solid #2a3d30;background:transparent;color:#7a9e8a;cursor:pointer;transition:all .15s;letter-spacing:.3px;';
         btn.addEventListener('mouseenter', () => { if (!btn.classList.contains('rk-h-on')) { btn.style.background='rgba(255,255,255,.05)'; btn.style.color='#aacfbc'; }});
         btn.addEventListener('mouseleave', () => { if (!btn.classList.contains('rk-h-on')) { btn.style.background='transparent'; btn.style.color='#7a9e8a'; btn.style.borderColor='#2a3d30'; }});
-        btn.addEventListener('click', () => { setActiveGames(n); scheduleUpdate(); });
+        btn.addEventListener('click', () => { setActiveGames(games); scheduleUpdate(); });
         hoursWrapper.appendChild(btn);
     });
  
@@ -5344,7 +5350,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     function getActiveGames() {
         const a = hoursWrapper.querySelector('.rk-h-on');
-        return a ? parseInt(a.dataset.games) : 200;
+        return a ? parseInt(a.dataset.games) : 240;
     }
     function setActiveModo(modo) {
         modoAtual = modo;
@@ -5367,15 +5373,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     function loadConfig() {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (!saved) { setActiveGames(200); setActiveModo('ambos'); return; }
+            if (!saved) { setActiveGames(240); setActiveModo('ambos'); return; }
             const c = JSON.parse(saved);
             if (c.market)   marketSelector.value = c.market;
             if (c.minGames) { minGamesSlider.value = c.minGames; minGamesValue.textContent = c.minGames; }
             if (c.topN)     topNSelector.value = c.topN;
             if (c.sortBy)   sortSelector.value = c.sortBy;
-            setActiveGames(GAMES_OPTIONS.includes(Number(c.games)) ? Number(c.games) : 200);
+            const validGames = HOURS_OPTIONS.map(o => o.games);
+            setActiveGames(validGames.includes(Number(c.games)) ? Number(c.games) : 240);
             setActiveModo(c.modo || 'ambos');
-        } catch(e) { localStorage.removeItem(STORAGE_KEY); setActiveGames(200); setActiveModo('ambos'); }
+        } catch(e) { localStorage.removeItem(STORAGE_KEY); setActiveGames(240); setActiveModo('ambos'); }
     }
  
     function scheduleUpdate() {
