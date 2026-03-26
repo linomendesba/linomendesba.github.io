@@ -26,16 +26,15 @@
     if (e.ctrlKey && e.shiftKey && e.key === "J")         { e.preventDefault(); }
     if (e.ctrlKey && e.shiftKey && e.key === "C")         { e.preventDefault(); }
     if (e.ctrlKey && e.key === "u")                       { e.preventDefault(); }
-    // Cópia
-    if (e.ctrlKey && e.key === "c")                       { e.preventDefault(); }
+    // Salvar e imprimir
+    if (e.ctrlKey && e.key === "s")                       { e.preventDefault(); }
+    if (e.ctrlKey && e.key === "p")                       { e.preventDefault(); }
   });
 
 
   // ============================================================
-  // 3. BLOQUEIA CÓPIA E SELEÇÃO DE TEXTO
+  // 3. IMPEDE ARRASTAR ELEMENTOS
   // ============================================================
-  document.addEventListener("copy",        function (e) { e.preventDefault(); });
-  document.addEventListener("selectstart", function (e) { e.preventDefault(); });
   document.addEventListener("dragstart",   function (e) { e.preventDefault(); });
 
 
