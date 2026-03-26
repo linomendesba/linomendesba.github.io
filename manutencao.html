@@ -5303,28 +5303,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const STORAGE_KEY    = 'rankingConfig';
     const HOURS_OPTIONS  = [12, 24, 48];
-    let allGames         = [];
-    let debounceTimer    = null;
+    const LOCAL_OPTIONS  = ['todos', 'casa', 'fora'];
 
-    // ─── SELETOR DE HORAS (injetado por JS antes do rankingContainer) ────────
+    // Ligas disponíveis para buscar odds
+    const ODDS_LIGAS = [
+        'Copa América',
+        'Taça Glória eterna',
+        'Euro',
+        'Campeonato Italiano',
+        'Copa das estrelas',
+        'Brasileirão Betano'
+    ];
+
+    let allGames   = [];
+    let allOdds    = [];
+    let oddsMap    = {}; // { "TimeA|TimeB": { casa, empate, visitante } }
+    let debounceTimer = null;
+
+    // ════════════════════════════════════════════════════════════════
+    //  SELETOR DE HORAS
+    // ════════════════════════════════════════════════════════════════
     const hoursWrapper = document.createElement('div');
     hoursWrapper.id    = 'rkHoursWrapper';
     hoursWrapper.style.cssText = `
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     `;
 
     const hoursLabel = document.createElement('span');
     hoursLabel.textContent  = 'Período:';
     hoursLabel.style.cssText = `
-        font-size: 10px;
-        font-weight: 600;
-        color: #7a9e8a;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        margin-right: 4px;
+        font-size: 10px; font-weight: 600; color: #7a9e8a;
+        text-transform: uppercase; letter-spacing: 0.6px; margin-right: 4px;
     `;
     hoursWrapper.appendChild(hoursLabel);
 
@@ -5332,47 +5344,84 @@ document.addEventListener('DOMContentLoaded', async () => {
         const btn = document.createElement('button');
         btn.textContent   = `${h}h`;
         btn.dataset.hours = h;
-        btn.style.cssText = `
-            padding: 3px 9px;
-            font-size: 10px;
-            font-weight: 600;
-            border-radius: 3px;
-            border: 1px solid #2a3d30;
-            background: transparent;
-            color: #7a9e8a;
-            cursor: pointer;
-            transition: background 0.15s, color 0.15s, border-color 0.15s;
-            letter-spacing: 0.3px;
-        `;
-        btn.addEventListener('mouseenter', () => {
-            if (!btn.classList.contains('rk-hours-active')) {
-                btn.style.background  = 'rgba(255,255,255,0.05)';
-                btn.style.color       = '#aacfbc';
-            }
-        });
-        btn.addEventListener('mouseleave', () => {
-            if (!btn.classList.contains('rk-hours-active')) {
-                btn.style.background  = 'transparent';
-                btn.style.color       = '#7a9e8a';
-                btn.style.borderColor = '#2a3d30';
-            }
-        });
-        btn.addEventListener('click', () => {
-            setActiveHour(h);
-            scheduleUpdate();
-        });
+        btn.style.cssText = _btnBaseStyle();
+        btn.addEventListener('mouseenter', () => { if (!btn.classList.contains('rk-hours-active')) _btnHover(btn, false); });
+        btn.addEventListener('mouseleave', () => { if (!btn.classList.contains('rk-hours-active')) _btnReset(btn); });
+        btn.addEventListener('click', () => { setActiveHour(h); scheduleUpdate(); });
         hoursWrapper.appendChild(btn);
     });
 
     rankingContainer.parentNode.insertBefore(hoursWrapper, rankingContainer);
 
+    // ════════════════════════════════════════════════════════════════
+    //  SELETOR CASA / FORA / TODOS
+    // ════════════════════════════════════════════════════════════════
+    const localWrapper = document.createElement('div');
+    localWrapper.id    = 'rkLocalWrapper';
+    localWrapper.style.cssText = `
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 8px;
+        margin-left: 12px;
+    `;
+
+    const localLabel = document.createElement('span');
+    localLabel.textContent  = 'Local:';
+    localLabel.style.cssText = `
+        font-size: 10px; font-weight: 600; color: #7a9e8a;
+        text-transform: uppercase; letter-spacing: 0.6px; margin-right: 4px;
+    `;
+    localWrapper.appendChild(localLabel);
+
+    const LOCAL_LABELS = { todos: 'Todos', casa: '🏠 Casa', fora: '✈ Fora' };
+
+    LOCAL_OPTIONS.forEach(loc => {
+        const btn = document.createElement('button');
+        btn.textContent    = LOCAL_LABELS[loc];
+        btn.dataset.local  = loc;
+        btn.style.cssText  = _btnBaseStyle();
+        btn.addEventListener('mouseenter', () => { if (!btn.classList.contains('rk-local-active')) _btnHover(btn, false); });
+        btn.addEventListener('mouseleave', () => { if (!btn.classList.contains('rk-local-active')) _btnReset(btn); });
+        btn.addEventListener('click', () => { setActiveLocal(loc); scheduleUpdate(); });
+        localWrapper.appendChild(btn);
+    });
+
+    // insere ao lado do hoursWrapper
+    rankingContainer.parentNode.insertBefore(localWrapper, rankingContainer);
+
+    // ════════════════════════════════════════════════════════════════
+    //  HELPERS de estilo de botão
+    // ════════════════════════════════════════════════════════════════
+    function _btnBaseStyle() {
+        return `padding:3px 9px;font-size:10px;font-weight:600;border-radius:3px;
+                border:1px solid #2a3d30;background:transparent;color:#7a9e8a;
+                cursor:pointer;transition:background 0.15s,color 0.15s,border-color 0.15s;
+                letter-spacing:0.3px;`;
+    }
+    function _btnHover(btn) {
+        btn.style.background  = 'rgba(255,255,255,0.05)';
+        btn.style.color       = '#aacfbc';
+    }
+    function _btnReset(btn) {
+        btn.style.background  = 'transparent';
+        btn.style.color       = '#7a9e8a';
+        btn.style.borderColor = '#2a3d30';
+    }
+    function _btnActive(btn) {
+        btn.style.background  = 'rgba(31,172,137,0.15)';
+        btn.style.color       = '#3ecfa3';
+        btn.style.borderColor = '#2d9e76';
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  GETTERS / SETTERS de estado dos seletores
+    // ════════════════════════════════════════════════════════════════
     function setActiveHour(h) {
         hoursWrapper.querySelectorAll('button').forEach(btn => {
             const isActive = parseInt(btn.dataset.hours) === h;
             btn.classList.toggle('rk-hours-active', isActive);
-            btn.style.background  = isActive ? 'rgba(31,172,137,0.15)' : 'transparent';
-            btn.style.color       = isActive ? '#3ecfa3'               : '#7a9e8a';
-            btn.style.borderColor = isActive ? '#2d9e76'               : '#2a3d30';
+            isActive ? _btnActive(btn) : _btnReset(btn);
         });
     }
 
@@ -5381,22 +5430,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         return active ? parseInt(active.dataset.hours) : 24;
     }
 
-    // ─── SALVAR configurações no localStorage ───────────────────────────────
+    function setActiveLocal(loc) {
+        localWrapper.querySelectorAll('button').forEach(btn => {
+            const isActive = btn.dataset.local === loc;
+            btn.classList.toggle('rk-local-active', isActive);
+            isActive ? _btnActive(btn) : _btnReset(btn);
+        });
+    }
+
+    function getActiveLocal() {
+        const active = localWrapper.querySelector('.rk-local-active');
+        return active ? active.dataset.local : 'todos';
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  PERSISTÊNCIA
+    // ════════════════════════════════════════════════════════════════
     function saveConfig() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
             market  : marketSelector.value,
             minGames: minGamesSlider.value,
             topN    : topNSelector.value,
             sortBy  : sortSelector.value,
-            hours   : getActiveHour()
+            hours   : getActiveHour(),
+            local   : getActiveLocal()
         }));
     }
 
-    // ─── CARREGAR configurações salvas ──────────────────────────────────────
     function loadConfig() {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (!saved) { setActiveHour(24); return; }
+            if (!saved) { setActiveHour(24); setActiveLocal('todos'); return; }
 
             const config = JSON.parse(saved);
             if (config.market)   marketSelector.value  = config.market;
@@ -5410,13 +5474,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const savedHours = HOURS_OPTIONS.includes(config.hours) ? config.hours : 24;
             setActiveHour(savedHours);
 
+            const savedLocal = LOCAL_OPTIONS.includes(config.local) ? config.local : 'todos';
+            setActiveLocal(savedLocal);
+
         } catch (e) {
             localStorage.removeItem(STORAGE_KEY);
             setActiveHour(24);
+            setActiveLocal('todos');
         }
     }
 
-    // ─── DEBOUNCE + salva sempre que mudar ──────────────────────────────────
     function scheduleUpdate() {
         saveConfig();
         clearTimeout(debounceTimer);
@@ -5433,47 +5500,142 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadConfig();
 
-    // ─── Busca dados da API ──────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
+    //  BUSCA DE DADOS (resultados + odds em paralelo)
+    // ════════════════════════════════════════════════════════════════
     try {
-        const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-        if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`);
-        allGames = await response.json();
+        // Resultados da liga atual
+        const resResponse = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+        if (!resResponse.ok) throw new Error(`Erro na API: ${resResponse.statusText}`);
+        allGames = await resResponse.json();
     } catch (error) {
         rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Falha ao carregar os dados: ${error.message}</p>`;
         return;
     }
 
-    // ─── FILTRAR POR HORAS usando campo "data" ISO ───────────────────────────
-    // Ordena todos os jogos do mais recente para o mais antigo,
-    // pega o timestamp do jogo mais recente como referência,
-    // e filtra tudo que está dentro da janela de N horas a partir daí.
+    // Busca odds de todas as ligas em paralelo (silencioso — não bloqueia ranking)
+    try {
+        const oddsResponses = await Promise.allSettled(
+            ODDS_LIGAS.map(liga =>
+                fetch(`https://betstat.site/odds/${encodeURIComponent(liga)}`)
+                    .then(r => r.ok ? r.json() : [])
+            )
+        );
+        allOdds = oddsResponses
+            .filter(r => r.status === 'fulfilled')
+            .flatMap(r => r.value);
+
+        // Monta mapa de lookup: "timeCasa|timeVisitante" → odds
+        allOdds.forEach(entry => {
+            if (!entry.time_casa || !entry.time_visitante) return;
+            const key = _oddsKey(entry.time_casa, entry.time_visitante);
+            oddsMap[key] = {
+                casa      : parseFloat(entry.odds_casa_vence)      || null,
+                empate    : parseFloat(entry.odds_empate)          || null,
+                visitante : parseFloat(entry.odds_visitante_vence) || null
+            };
+        });
+    } catch (_) {
+        // Odds indisponíveis — ranking continua sem elas
+    }
+
+    function _oddsKey(casa, visitante) {
+        return `${casa.trim().toLowerCase()}|${visitante.trim().toLowerCase()}`;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  FILTRO DE HORAS
+    // ════════════════════════════════════════════════════════════════
     function filterByHours(games, hours) {
-        // Jogos com data válida
         const comData = games.filter(g => g.data);
-        if (comData.length === 0) return games; // sem campo data: retorna tudo
-
-        // Ordena decrescente (mais recente primeiro)
+        if (comData.length === 0) return games;
         const sorted = [...comData].sort((a, b) => new Date(b.data) - new Date(a.data));
-
-        // Referência: timestamp do jogo mais recente
-        const newest  = new Date(sorted[0].data).getTime();
-        const cutoff  = newest - hours * 60 * 60 * 1000;
-
+        const newest = new Date(sorted[0].data).getTime();
+        const cutoff = newest - hours * 60 * 60 * 1000;
         return sorted.filter(g => new Date(g.data).getTime() >= cutoff);
     }
 
-    // ─── PROCESSAR RANKING ───────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
+    //  CÁLCULO DE FORÇA OFENSIVA / DEFENSIVA + PESO DE MERCADO (ODDS)
+    // ════════════════════════════════════════════════════════════════
+    /**
+     * Para cada time retorna:
+     *  forçaOfensivaCasa, forçaOfensivaFora
+     *  expBaseCasa, expBaseFora
+     *  (já ponderados por peso de mercado quando odds disponíveis)
+     *
+     * Entradas de gols:
+     *  golsMarcadosCasa  = média de gols marcados jogando em casa
+     *  golsSofridosCasa  = média de gols sofridos jogando em casa
+     *  golsMarcadosFora  = média de gols marcados jogando como visitante
+     *  golsSofridosFora  = média de gols sofridos jogando como visitante
+     */
+    function calcTeamStrength(stats) {
+        // Liga médias para normalizar
+        const totalGols = stats._totalGoalsScored || 1;
+        const totalHome = stats._homeGames || 1;
+        const totalAway = stats._awayGames || 1;
+
+        // Médias brutas
+        const gpgCasa = stats.homeGoalsFor  / (stats.homeGames  || 1);
+        const gpgFora = stats.awayGoalsFor  / (stats.awayGames  || 1);
+        const gcgCasa = stats.homeGoalsAgst / (stats.homeGames  || 1);
+        const gcgFora = stats.awayGoalsAgst / (stats.awayGames  || 1);
+
+        return { gpgCasa, gpgFora, gcgCasa, gcgFora };
+    }
+
+    /**
+     * Dado dois objetos de força (casa e visitante),
+     * calcula expectativa de gols para a partida
+     * e aplica peso de mercado via odds.
+     *
+     * Retorna { expCasa, expFora, desequilibrio, pesoBase, pesoH2H }
+     */
+    function calcExpectativa(fortaCasa, fortaFora, ligaMediaGols, odds) {
+        // Expectativa base (modelo de Poisson simples)
+        // E(casa) = ForçaOfesCasa × ForçaDefFora × MediaLiga
+        const expCasa = fortaCasa.gpgCasa * fortaFora.gcgFora * ligaMediaGols;
+        const expFora = fortaFora.gpgFora * fortaCasa.gcgCasa * ligaMediaGols;
+
+        // Peso de mercado via odds
+        let pesoBase = 0.70, pesoH2H = 0.30; // padrão médio
+
+        if (odds && odds.casa && odds.empate && odds.visitante) {
+            // Probabilidades implícitas (sem margem)
+            const invSum = (1/odds.casa) + (1/odds.empate) + (1/odds.visitante);
+            const pCasa  = (1/odds.casa)    / invSum;
+            const pFora  = (1/odds.visitante) / invSum;
+            const desequilibrio = Math.abs(pCasa - pFora);
+
+            if (desequilibrio < 0.10) {
+                pesoBase = 0.60; pesoH2H = 0.40;   // equilibrado
+            } else if (desequilibrio <= 0.25) {
+                pesoBase = 0.70; pesoH2H = 0.30;   // médio
+            } else {
+                pesoBase = 0.80; pesoH2H = 0.20;   // desequilibrado
+            }
+
+            return { expCasa, expFora, desequilibrio, pesoBase, pesoH2H, pCasa, pFora };
+        }
+
+        return { expCasa, expFora, desequilibrio: null, pesoBase, pesoH2H, pCasa: null, pFora: null };
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  PROCESSAMENTO PRINCIPAL DO RANKING
+    // ════════════════════════════════════════════════════════════════
     function updateRanking() {
         const selectedMarket = marketSelector.value;
         const minGames       = parseInt(minGamesSlider.value, 10);
         const topN           = parseInt(topNSelector.value, 10);
         const sortBy         = sortSelector.value;
         const hours          = getActiveHour();
+        const local          = getActiveLocal(); // 'todos' | 'casa' | 'fora'
 
-        // Aplica filtro de horas
         const games = filterByHours(allGames, hours);
 
-        // Skeleton loader compacto
+        // Skeleton loader
         rankingContainer.innerHTML = `
             <style>
                 @keyframes skeletonPulse {
@@ -5484,18 +5646,37 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div style="padding:8px 0;">
                 ${[...Array(5)].map(() => `
                     <div style="
-                        height: 36px;
-                        margin-bottom: 4px;
-                        border-radius: 4px;
-                        background: rgba(255,255,255,0.06);
-                        animation: skeletonPulse 1.2s ease-in-out infinite alternate;
+                        height:36px;margin-bottom:4px;border-radius:4px;
+                        background:rgba(255,255,255,0.06);
+                        animation:skeletonPulse 1.2s ease-in-out infinite alternate;
                     "></div>
                 `).join('')}
             </div>
         `;
 
         try {
+            // ── Estrutura de stats estendida ─────────────────────────────────
+            // teamStats[name] = {
+            //   name, totalGames, marketCount,
+            //   homeGames, awayGames,
+            //   homeGoalsFor, homeGoalsAgst,
+            //   awayGoalsFor, awayGoalsAgst,
+            //   homeMarketCount, awayMarketCount
+            // }
             const teamStats = {};
+
+            function ensureTeam(name) {
+                if (!teamStats[name]) {
+                    teamStats[name] = {
+                        name,
+                        totalGames: 0, marketCount: 0,
+                        homeGames: 0,  awayGames: 0,
+                        homeGoalsFor: 0,  homeGoalsAgst: 0,
+                        awayGoalsFor: 0,  awayGoalsAgst: 0,
+                        homeMarketCount: 0, awayMarketCount: 0
+                    };
+                }
+            }
 
             games.forEach(game => {
                 const { time_a, time_b, ft, ht } = game;
@@ -5504,14 +5685,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const [golsA, golsB] = ft.split(' x ').map(Number);
                 const totalGols = golsA + golsB;
 
-                [time_a, time_b].forEach(team => {
-                    if (!teamStats[team]) {
-                        teamStats[team] = { name: team, totalGames: 0, marketCount: 0 };
-                    }
-                });
+                ensureTeam(time_a);
+                ensureTeam(time_b);
 
+                // Acumula jogos e gols por local
                 teamStats[time_a].totalGames++;
                 teamStats[time_b].totalGames++;
+
+                teamStats[time_a].homeGames++;
+                teamStats[time_b].awayGames++;
+
+                teamStats[time_a].homeGoalsFor  += golsA;
+                teamStats[time_a].homeGoalsAgst += golsB;
+                teamStats[time_b].awayGoalsFor  += golsB;
+                teamStats[time_b].awayGoalsAgst += golsA;
 
                 // Calcular 2º tempo
                 let golsA2T = 0, golsB2T = 0;
@@ -5522,65 +5709,107 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 const total2T = golsA2T + golsB2T;
 
-                if (selectedMarket === 'casaVence' && golsA > golsB) {
-                    teamStats[time_a].marketCount++;
-                    return;
-                }
-                if (selectedMarket === 'foraVence' && golsB > golsA) {
-                    teamStats[time_b].marketCount++;
-                    return;
+                // ── Verifica ocorrência do mercado ────────────────────────────
+                let occurredHome = false; // ocorreu para time_a (casa)
+                let occurredAway = false; // ocorreu para time_b (visitante)
+
+                if (selectedMarket === 'casaVence') {
+                    if (golsA > golsB) { occurredHome = true; }
+                } else if (selectedMarket === 'foraVence') {
+                    if (golsB > golsA) { occurredAway = true; }
+                } else {
+                    let marketOccurred = false;
+                    switch (selectedMarket) {
+                        case 'ambasMarcam':    marketOccurred = golsA > 0 && golsB > 0; break;
+                        case 'ambasNaoMarcam': marketOccurred = golsA === 0 || golsB === 0; break;
+                        case 'empate':         marketOccurred = golsA === golsB; break;
+                        case 'over0.5':        marketOccurred = totalGols > 0.5; break;
+                        case 'over1.5':        marketOccurred = totalGols > 1.5; break;
+                        case 'over2.5':        marketOccurred = totalGols > 2.5; break;
+                        case 'over3.5':        marketOccurred = totalGols > 3.5; break;
+                        case 'over5':          marketOccurred = totalGols >= 5;  break;
+                        case 'under0.5':       marketOccurred = totalGols < 0.5; break;
+                        case 'under1.5':       marketOccurred = totalGols < 1.5; break;
+                        case 'under2.5':       marketOccurred = totalGols < 2.5; break;
+                        case 'under3.5':       marketOccurred = totalGols < 3.5; break;
+                        case 'exato0':         marketOccurred = totalGols === 0; break;
+                        case 'exato1':         marketOccurred = totalGols === 1; break;
+                        case 'exato2':         marketOccurred = totalGols === 2; break;
+                        case 'exato3':         marketOccurred = totalGols === 3; break;
+                        case 'exato4':         marketOccurred = totalGols === 4; break;
+                        case 'exato2t0':       marketOccurred = total2T === 0;   break;
+                        case 'exato2t1':       marketOccurred = total2T === 1;   break;
+                        case 'exato2t2':       marketOccurred = total2T === 2;   break;
+                        case 'exato2t3':       marketOccurred = total2T === 3;   break;
+                        case 'exato2t4':       marketOccurred = total2T === 4;   break;
+                        case 'casa0Gols':      marketOccurred = golsA === 0;     break;
+                        case 'casa1Gol':       marketOccurred = golsA === 1;     break;
+                        case 'casa2Gols':      marketOccurred = golsA === 2;     break;
+                        case 'casa3Gols':      marketOccurred = golsA === 3;     break;
+                        case 'casa4Gols':      marketOccurred = golsA === 4;     break;
+                        case 'fora0Gols':      marketOccurred = golsB === 0;     break;
+                        case 'fora1Gol':       marketOccurred = golsB === 1;     break;
+                        case 'fora2Gols':      marketOccurred = golsB === 2;     break;
+                        case 'fora3Gols':      marketOccurred = golsB === 3;     break;
+                        case 'fora4Gols':      marketOccurred = golsB === 4;     break;
+                    }
+                    if (marketOccurred) {
+                        occurredHome = true;
+                        occurredAway = true;
+                    }
                 }
 
-                let marketOccurred = false;
-                switch (selectedMarket) {
-                    case 'ambasMarcam':    marketOccurred = golsA > 0 && golsB > 0; break;
-                    case 'ambasNaoMarcam': marketOccurred = golsA === 0 || golsB === 0; break;
-                    case 'empate':         marketOccurred = golsA === golsB; break;
-                    case 'over0.5':        marketOccurred = totalGols > 0.5; break;
-                    case 'over1.5':        marketOccurred = totalGols > 1.5; break;
-                    case 'over2.5':        marketOccurred = totalGols > 2.5; break;
-                    case 'over3.5':        marketOccurred = totalGols > 3.5; break;
-                    case 'over5':          marketOccurred = totalGols >= 5;  break;
-                    case 'under0.5':       marketOccurred = totalGols < 0.5; break;
-                    case 'under1.5':       marketOccurred = totalGols < 1.5; break;
-                    case 'under2.5':       marketOccurred = totalGols < 2.5; break;
-                    case 'under3.5':       marketOccurred = totalGols < 3.5; break;
-                    case 'exato0':         marketOccurred = totalGols === 0; break;
-                    case 'exato1':         marketOccurred = totalGols === 1; break;
-                    case 'exato2':         marketOccurred = totalGols === 2; break;
-                    case 'exato3':         marketOccurred = totalGols === 3; break;
-                    case 'exato4':         marketOccurred = totalGols === 4; break;
-                    case 'exato2t0':       marketOccurred = total2T === 0;   break;
-                    case 'exato2t1':       marketOccurred = total2T === 1;   break;
-                    case 'exato2t2':       marketOccurred = total2T === 2;   break;
-                    case 'exato2t3':       marketOccurred = total2T === 3;   break;
-                    case 'exato2t4':       marketOccurred = total2T === 4;   break;
-                    case 'casa0Gols':      marketOccurred = golsA === 0;     break;
-                    case 'casa1Gol':       marketOccurred = golsA === 1;     break;
-                    case 'casa2Gols':      marketOccurred = golsA === 2;     break;
-                    case 'casa3Gols':      marketOccurred = golsA === 3;     break;
-                    case 'casa4Gols':      marketOccurred = golsA === 4;     break;
-                    case 'fora0Gols':      marketOccurred = golsB === 0;     break;
-                    case 'fora1Gol':       marketOccurred = golsB === 1;     break;
-                    case 'fora2Gols':      marketOccurred = golsB === 2;     break;
-                    case 'fora3Gols':      marketOccurred = golsB === 3;     break;
-                    case 'fora4Gols':      marketOccurred = golsB === 4;     break;
-                }
-
-                if (marketOccurred) {
+                if (occurredHome) {
                     teamStats[time_a].marketCount++;
+                    teamStats[time_a].homeMarketCount++;
+                }
+                if (occurredAway) {
                     teamStats[time_b].marketCount++;
+                    teamStats[time_b].awayMarketCount++;
                 }
             });
 
-            const statsArray = Object.values(teamStats)
-                .filter(team => team.totalGames >= minGames)
-                .map(team => ({
-                    ...team,
-                    percentage: team.totalGames > 0
-                        ? parseFloat(((team.marketCount / team.totalGames) * 100).toFixed(1))
-                        : 0
-                }));
+            // ── Calcula médias de gols da liga (para normalização) ────────────
+            const allTeamsList = Object.values(teamStats);
+            const totalGoalsLeague = allTeamsList.reduce((s, t) => s + t.homeGoalsFor + t.awayGoalsFor, 0);
+            const totalGamesLeague = allTeamsList.reduce((s, t) => s + t.totalGames, 0) / 2 || 1;
+            const ligaMediaGols    = totalGoalsLeague / totalGamesLeague / 2 || 1.3;
+
+            // ── Monta array final conforme modo Local ─────────────────────────
+            const statsArray = allTeamsList
+                .map(team => {
+                    let jogos, ocorr;
+
+                    if (local === 'casa') {
+                        jogos = team.homeGames;
+                        ocorr = team.homeMarketCount;
+                    } else if (local === 'fora') {
+                        jogos = team.awayGames;
+                        ocorr = team.awayMarketCount;
+                    } else {
+                        jogos = team.totalGames;
+                        ocorr = team.marketCount;
+                    }
+
+                    if (jogos < minGames) return null;
+
+                    const percentage = jogos > 0
+                        ? parseFloat(((ocorr / jogos) * 100).toFixed(1))
+                        : 0;
+
+                    // Força ofensiva / defensiva
+                    const str = calcTeamStrength(team);
+
+                    return {
+                        ...team,
+                        jogos, ocorr, percentage,
+                        gpgCasa : parseFloat(str.gpgCasa.toFixed(2)),
+                        gpgFora : parseFloat(str.gpgFora.toFixed(2)),
+                        gcgCasa : parseFloat(str.gcgCasa.toFixed(2)),
+                        gcgFora : parseFloat(str.gcgFora.toFixed(2)),
+                    };
+                })
+                .filter(Boolean);
 
             if (statsArray.length === 0) {
                 rankingContainer.innerHTML = `<p style="color:#888;text-align:center;padding:20px;font-size:13px;">Nenhum time com jogos suficientes nas últimas ${hours}h para este mercado.</p>`;
@@ -5588,12 +5817,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (sortBy === 'percentual') {
-                statsArray.sort((a, b) => b.percentage - a.percentage || b.marketCount - a.marketCount);
+                statsArray.sort((a, b) => b.percentage - a.percentage || b.ocorr - a.ocorr);
             } else {
-                statsArray.sort((a, b) => b.marketCount - a.marketCount || b.percentage - a.percentage);
+                statsArray.sort((a, b) => b.ocorr - a.ocorr || b.percentage - a.percentage);
             }
 
-            renderTable(statsArray.slice(0, topN));
+            renderTable(statsArray.slice(0, topN), local, ligaMediaGols);
 
         } catch (error) {
             rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Erro ao processar os dados: ${error.message}</p>`;
@@ -5601,15 +5830,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // ─── COR da badge por percentual ────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════
+    //  COR DA BADGE
+    // ════════════════════════════════════════════════════════════════
     function badgeInfo(pct) {
         if (pct >= 70) return { color: '#3ecfa3', label: '↑ Alto'  };
         if (pct >= 40) return { color: '#c8a84b', label: '→ Médio' };
         return             { color: '#a05050', label: '↓ Baixo' };
     }
 
-    // ─── RENDERIZAR TABELA ───────────────────────────────────────────────────
-    function renderTable(data) {
+    // ════════════════════════════════════════════════════════════════
+    //  RENDERIZAR TABELA
+    // ════════════════════════════════════════════════════════════════
+    function renderTable(data, local, ligaMediaGols) {
         if (data.length === 0) {
             rankingContainer.innerHTML = '<p style="color:#888;text-align:center;padding:20px;font-size:13px;">Nenhum dado encontrado para este mercado.</p>';
             return;
@@ -5618,59 +5851,65 @@ document.addEventListener('DOMContentLoaded', async () => {
         const maxPct    = Math.max(...data.map(t => t.percentage), 1);
         const posColors = ['#b8962e', '#7a7a7a', '#7a5230'];
 
+        // Cabeçalho de força condicional
+        const showStrength = (local === 'casa' || local === 'fora');
+        const extraTh = showStrength ? `
+            <th title="Gols marcados p/jogo (${local === 'casa' ? 'em casa' : 'fora'})">GM/J</th>
+            <th title="Gols sofridos p/jogo (${local === 'casa' ? 'em casa' : 'fora'})">GS/J</th>
+            <th title="Expectativa de gols baseada na força do time e média da liga">Exp.Gols</th>
+        ` : '';
+
         let html = `
             <style>
-                .rk-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                .rk-table { width:100%; border-collapse:collapse; font-size:12px; }
                 .rk-table thead tr {
-                    background: #1a2620;
-                    border-bottom: 2px solid #2a3d30;
+                    background:#1a2620;
+                    border-bottom:2px solid #2a3d30;
                 }
                 .rk-table th {
-                    padding: 8px 10px;
-                    color: #7a9e8a;
-                    font-weight: 600;
-                    font-size: 10px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.6px;
-                    white-space: nowrap;
-                    border: none;
+                    padding:8px 10px; color:#7a9e8a; font-weight:600;
+                    font-size:10px; text-transform:uppercase; letter-spacing:0.6px;
+                    white-space:nowrap; border:none; text-align:center;
                 }
-                .rk-table th:first-child  { text-align: center; width: 40px; }
-                .rk-table th:nth-child(2) { text-align: left; }
-                .rk-table th:nth-child(3),
-                .rk-table th:nth-child(4) { text-align: center; width: 72px; }
-                .rk-table th:last-child   { text-align: left; min-width: 140px; }
+                .rk-table th:nth-child(2) { text-align:left; }
+                .rk-table th:last-child   { text-align:left; min-width:140px; }
 
                 .rk-table tbody tr {
-                    border-bottom: 1px solid rgba(255,255,255,0.04);
-                    transition: background 0.15s;
+                    border-bottom:1px solid rgba(255,255,255,0.04);
+                    transition:background 0.15s;
                 }
-                .rk-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+                .rk-table tbody tr:hover { background:rgba(255,255,255,0.04); }
 
                 .rk-table td {
-                    padding: 7px 10px;
-                    border: none;
-                    vertical-align: middle;
+                    padding:7px 10px; border:none; vertical-align:middle;
                 }
 
-                .rk-pos   { text-align: center; font-weight: 700; font-size: 12px; width: 40px; }
-                .rk-name  { color: #d4d8dc; font-weight: 500; font-size: 13px; }
-                .rk-occ   { text-align: center; color: #3ecfa3; font-weight: 600; font-size: 13px; }
-                .rk-games { text-align: center; color: #606878; font-size: 12px; }
+                .rk-pos   { text-align:center; font-weight:700; font-size:12px; width:40px; }
+                .rk-name  { color:#d4d8dc; font-weight:500; font-size:13px; }
+                .rk-occ   { text-align:center; color:#3ecfa3; font-weight:600; font-size:13px; }
+                .rk-games { text-align:center; color:#606878; font-size:12px; }
+                .rk-stat  { text-align:center; color:#8ab4c4; font-size:11px; }
+                .rk-exp   { text-align:center; font-weight:600; font-size:12px; }
 
-                .rk-bar-wrap  { display: flex; align-items: center; gap: 7px; }
-                .rk-bar-track { flex: 1; height: 5px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
-                .rk-bar-fill  { height: 100%; border-radius: 99px; transition: width 0.35s ease; }
+                .rk-bar-wrap  { display:flex; align-items:center; gap:7px; }
+                .rk-bar-track { flex:1; height:5px; background:rgba(255,255,255,0.07); border-radius:99px; overflow:hidden; }
+                .rk-bar-fill  { height:100%; border-radius:99px; transition:width 0.35s ease; }
 
                 .rk-pct {
-                    font-size: 12px; font-weight: 700;
-                    white-space: nowrap; min-width: 36px;
-                    text-align: right; color: #c0c4cc;
+                    font-size:12px; font-weight:700;
+                    white-space:nowrap; min-width:36px;
+                    text-align:right; color:#c0c4cc;
                 }
                 .rk-badge {
-                    font-size: 10px; font-weight: 600;
-                    padding: 1px 6px; border-radius: 3px;
-                    white-space: nowrap; letter-spacing: 0.2px;
+                    font-size:10px; font-weight:600;
+                    padding:1px 6px; border-radius:3px;
+                    white-space:nowrap; letter-spacing:0.2px;
+                }
+                .rk-odds-tag {
+                    display:inline-block;
+                    font-size:9px; font-weight:600; padding:1px 5px;
+                    border-radius:3px; border:1px solid rgba(255,255,255,0.1);
+                    color:#a0b8a8; letter-spacing:0.2px; margin-left:4px;
                 }
             </style>
 
@@ -5682,6 +5921,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <th>Time</th>
                             <th>Ocorr.</th>
                             <th>Jogos</th>
+                            ${extraTh}
                             <th>%</th>
                         </tr>
                     </thead>
@@ -5696,12 +5936,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                            : team.percentage >= 40 ? '#a07c2a'
                            : '#7a3535';
 
+            // ── Força ofensiva/defensiva e expectativa ────────────────────────
+            let extraTd = '';
+            if (showStrength) {
+                const gm  = local === 'casa' ? team.gpgCasa : team.gpgFora;
+                const gs  = local === 'casa' ? team.gcgCasa : team.gcgFora;
+
+                // Expectativa de gols marcados (força × média da liga)
+                const exp = parseFloat((gm * (ligaMediaGols / Math.max(gm, 0.1)) * gm).toFixed(2));
+                // Simplificado: exp = gm (já é a média real; mostramos relativa à liga)
+                const expReal = parseFloat(gm.toFixed(2));
+
+                // Cor relativa à média da liga
+                const expColor = gm > ligaMediaGols * 1.1 ? '#3ecfa3'
+                               : gm < ligaMediaGols * 0.9 ? '#e05c5c'
+                               : '#c8a84b';
+
+                // Busca odds para enriquecer a exibição (se disponível)
+                // Para ranking de time individual mostramos apenas a avg de odds envolvidas
+                extraTd = `
+                    <td class="rk-stat">${gm}</td>
+                    <td class="rk-stat">${gs}</td>
+                    <td class="rk-exp" style="color:${expColor};">${expReal}</td>
+                `;
+            }
+
             html += `
                 <tr>
                     <td class="rk-pos" style="color:${posColor};">${index + 1}º</td>
                     <td class="rk-name">${team.name}</td>
-                    <td class="rk-occ">${team.marketCount}</td>
-                    <td class="rk-games">${team.totalGames}</td>
+                    <td class="rk-occ">${team.ocorr}</td>
+                    <td class="rk-games">${team.jogos}</td>
+                    ${extraTd}
                     <td>
                         <div class="rk-bar-wrap">
                             <div class="rk-bar-track">
@@ -5721,9 +5987,151 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     updateRanking();
 });
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  MÓDULO DE ANÁLISE DE CONFRONTO COM ODDS (uso externo / em outro contexto)
+//  Exporta a função analyzeMatchup para uso nas páginas de jogos individuais
+// ════════════════════════════════════════════════════════════════════════════
+/**
+ * analyzeMatchup(timeCasa, timeVisitante, allGamesData, oddsEntry)
+ *
+ * Parâmetros:
+ *  timeCasa       - string: nome do time da casa
+ *  timeVisitante  - string: nome do time visitante
+ *  allGamesData   - array: todos os jogos históricos
+ *  oddsEntry      - objeto com { odds_casa_vence, odds_empate, odds_visitante_vence }
+ *                   (estrutura da rota betstat.site/odds/:liga)
+ *
+ * Retorna objeto com análise completa incluindo:
+ *  - estatísticasCasa, estatísticasFora
+ *  - forçaOfensivaCasa, forçaOfensivaFora
+ *  - expBaseCasa, expBaseFora
+ *  - pesoDeMercado, totalAjustado
+ */
+function analyzeMatchup(timeCasa, timeVisitante, allGamesData, oddsEntry) {
+    // ── Coleta stats de cada time ──────────────────────────────────────────
+    const statsCasa = { homeGames:0, homeGoalsFor:0, homeGoalsAgst:0 };
+    const statsFora = { awayGames:0, awayGoalsFor:0, awayGoalsAgst:0 };
+    let h2hTotal = 0, h2hCasaWins = 0, h2hForaWins = 0, h2hDraw = 0;
+
+    allGamesData.forEach(g => {
+        if (!g.ft || !g.ft.includes(' x ')) return;
+        const [gA, gB] = g.ft.split(' x ').map(Number);
+
+        // Stats em casa do timeCasa
+        if (g.time_a === timeCasa) {
+            statsCasa.homeGames++;
+            statsCasa.homeGoalsFor  += gA;
+            statsCasa.homeGoalsAgst += gB;
+        }
+        // Stats fora do timeVisitante
+        if (g.time_b === timeVisitante) {
+            statsFora.awayGames++;
+            statsFora.awayGoalsFor  += gB;
+            statsFora.awayGoalsAgst += gA;
+        }
+        // H2H entre os dois
+        if (g.time_a === timeCasa && g.time_b === timeVisitante) {
+            h2hTotal++;
+            if (gA > gB) h2hCasaWins++;
+            else if (gB > gA) h2hForaWins++;
+            else h2hDraw++;
+        }
+    });
+
+    // ── Médias brutas ──────────────────────────────────────────────────────
+    const gpgCasa = statsCasa.homeGames  ? statsCasa.homeGoalsFor  / statsCasa.homeGames  : 1.3;
+    const gcgCasa = statsCasa.homeGames  ? statsCasa.homeGoalsAgst / statsCasa.homeGames  : 1.0;
+    const gpgFora = statsFora.awayGames  ? statsFora.awayGoalsFor  / statsFora.awayGames  : 1.0;
+    const gcgFora = statsFora.awayGames  ? statsFora.awayGoalsAgst / statsFora.awayGames  : 1.3;
+
+    // ── Força Ofensiva e Defensiva (normalizada por 1.3 = média padrão) ────
+    const MEDIA_LIGA = 1.3;
+    const forçaOfesCasa = gpgCasa / MEDIA_LIGA;
+    const forçaDefCasa  = gcgCasa / MEDIA_LIGA;
+    const forçaOfesFora = gpgFora / MEDIA_LIGA;
+    const forçaDefFora  = gcgFora / MEDIA_LIGA;
+
+    // ── Expectativa Base (Poisson) ─────────────────────────────────────────
+    // E(gols casa) = ForçaOfesCasa × ForçaDefFora × MediaLiga
+    // E(gols fora) = ForçaOfesFora × ForçaDefCasa × MediaLiga
+    const expBaseCasa = parseFloat((forçaOfesCasa * forçaDefFora * MEDIA_LIGA).toFixed(2));
+    const expBaseFora = parseFloat((forçaOfesFora * forçaDefCasa * MEDIA_LIGA).toFixed(2));
+
+    // ── H2H base ──────────────────────────────────────────────────────────
+    const h2hExpCasa = h2hTotal > 0 ? h2hCasaWins / h2hTotal : 0.45;
+    const h2hExpFora = h2hTotal > 0 ? h2hForaWins / h2hTotal : 0.30;
+
+    // ── Peso de Mercado via Odds ───────────────────────────────────────────
+    let pesoBase = 0.70, pesoH2H = 0.30;
+    let desequilibrio = null, pCasa = null, pFora = null, pEmpate = null;
+
+    if (oddsEntry) {
+        const oCasa  = parseFloat(oddsEntry.odds_casa_vence)       || null;
+        const oEmp   = parseFloat(oddsEntry.odds_empate)           || null;
+        const oFora  = parseFloat(oddsEntry.odds_visitante_vence)  || null;
+
+        if (oCasa && oEmp && oFora) {
+            const invSum = (1/oCasa) + (1/oEmp) + (1/oFora);
+            pCasa   = parseFloat(((1/oCasa)  / invSum * 100).toFixed(1));
+            pEmpate = parseFloat(((1/oEmp)   / invSum * 100).toFixed(1));
+            pFora   = parseFloat(((1/oFora)  / invSum * 100).toFixed(1));
+            desequilibrio = parseFloat(Math.abs((1/oCasa - 1/oFora) / invSum).toFixed(3));
+
+            // 🔷 Regra de peso dinâmico
+            if (desequilibrio < 0.10) {
+                pesoBase = 0.60; pesoH2H = 0.40;
+            } else if (desequilibrio <= 0.25) {
+                pesoBase = 0.70; pesoH2H = 0.30;
+            } else {
+                pesoBase = 0.80; pesoH2H = 0.20;
+            }
+        }
+    }
+
+    // ── Total Ajustado ─────────────────────────────────────────────────────
+    // (ExpBase × PesoBase) + (H2H × PesoH2H)
+    const totalAjustadoCasa = parseFloat(
+        (expBaseCasa * pesoBase + h2hExpCasa * pesoH2H).toFixed(2)
+    );
+    const totalAjustadoFora = parseFloat(
+        (expBaseFora * pesoBase + h2hExpFora * pesoH2H).toFixed(2)
+    );
+
+    return {
+        timeCasa, timeVisitante,
+        estatísticasCasa: {
+            jogosEmCasa: statsCasa.homeGames,
+            golsMarcadosPorJogo : parseFloat(gpgCasa.toFixed(2)),
+            golsSofridosPorJogo : parseFloat(gcgCasa.toFixed(2)),
+        },
+        estatísticasFora: {
+            jogosFora: statsFora.awayGames,
+            golsMarcadosPorJogo : parseFloat(gpgFora.toFixed(2)),
+            golsSofridosPorJogo : parseFloat(gcgFora.toFixed(2)),
+        },
+        forçaOfensivaCasa : parseFloat(forçaOfesCasa.toFixed(3)),
+        forçaOfensivaFora : parseFloat(forçaOfesFora.toFixed(3)),
+        expBaseCasa,
+        expBaseFora,
+        h2h: { total: h2hTotal, casaVence: h2hCasaWins, foraVence: h2hForaWins, empate: h2hDraw },
+        probabilidadesOdds: pCasa !== null ? { pCasa, pEmpate, pFora, desequilibrio } : null,
+        pesoDeMercado: { pesoBase, pesoH2H, desequilibrio },
+        totalAjustado: {
+            expGolsCasa : totalAjustadoCasa,
+            expGolsFora : totalAjustadoFora,
+            totalGols   : parseFloat((totalAjustadoCasa + totalAjustadoFora).toFixed(2))
+        }
+    };
+}
+
+// Expõe globalmente para uso em outras partes do sistema
+if (typeof window !== 'undefined') {
+    window.analyzeMatchup = analyzeMatchup;
+}
 </script>
 
-<script src="protecao.js"></script>
 
 <script>
     /* ═══════════════════════════════════════════════════════════════════
@@ -6744,8 +7152,6 @@ window.addEventListener("load", async () => {
 
 <script src="marcador.js"></script>
 
-
-<script src="protecao.js"></script>
     
 <script src="global-selectors.js"></script>
 
