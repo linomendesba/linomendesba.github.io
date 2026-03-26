@@ -256,7 +256,6 @@
                         <option value="5">Top 5</option>
                         <option value="10" selected>Top 10</option>
                         <option value="20">Top 20</option>
-                        <option value="50">Top 50</option>
                     </select>
                 </div>
                 <div>
@@ -5291,12 +5290,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sortSelector     = document.getElementById('sortSelector');
     const topBar           = document.getElementById('rkTopBar');
  
-    const STORAGE_KEY   = 'rankingConfig';
-    const HOURS_OPTIONS = [12, 24, 48];
-    let allGames        = [];
-    let allOdds         = [];
-    let debounceTimer   = null;
-    let modoAtual       = 'ambos';
+    const STORAGE_KEY      = 'rankingConfig';
+    const HOURS_OPTIONS    = [12, 24, 48];
+    const AUTO_REFRESH_MS  = 3 * 60 * 1000; // 3 minutos
+    let allGames           = [];
+    let allOdds            = [];
+    let debounceTimer      = null;
+    let autoRefreshTimer   = null;
+    let modoAtual          = 'ambos';
+    let lastTableData      = null; // cache para evitar piscar
  
     // ── Topbar: horas + abas ────────────────────────────────────────────────
     const hoursWrapper = document.createElement('div');
@@ -5390,13 +5392,12 @@ document.addEventListener('DOMContentLoaded', async () => {
  
     loadConfig();
  
-    // ── Fetch resultados + odds em paralelo ─────────────────────────────────
-    try {
+    // ── Fetch dados (reutilizável para auto-refresh) ─────────────────────────
+    async function fetchData() {
         const [resR, resO] = await Promise.allSettled([
             fetch(ROTAS_API.resultados(LIGA_ATUAL)),
             fetch(ROTAS_API.odds(LIGA_ATUAL))
         ]);
- 
         if (resR.status === 'fulfilled' && resR.value.ok) {
             allGames = await resR.value.json();
         } else {
@@ -5405,11 +5406,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (resO.status === 'fulfilled' && resO.value.ok) {
             try { allOdds = await resO.value.json(); } catch(_) { allOdds = []; }
         }
+    }
  
+    // Carga inicial
+    try {
+        await fetchData();
     } catch (error) {
         rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Falha: ${error.message}</p>`;
         return;
     }
+ 
+    // ── Auto-refresh a cada 3 min: busca novos dados e re-renderiza SEM piscar ─
+    // Só substitui o innerHTML se os dados realmente mudaram (comparação JSON)
+    async function autoRefresh() {
+        try {
+            await fetchData();
+            // Recalcula silenciosamente; renderTable só atualiza se dados mudaram
+            updateRanking(/* silent= */ true);
+        } catch(_) { /* falha silenciosa no refresh automático */ }
+        autoRefreshTimer = setTimeout(autoRefresh, AUTO_REFRESH_MS);
+    }
+    autoRefreshTimer = setTimeout(autoRefresh, AUTO_REFRESH_MS);
  
     // ── Mapa de odds: time → { oddCasa, oddEmpate, oddFora, adversario, mando } ─
     function buildOddsMap(oddsData) {
@@ -5447,13 +5464,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
     }
  
-    // ── Filtro por horas ────────────────────────────────────────────────────
+    // ── Filtro por horas ─────────────────────────────────────────────────────
+    // CORREÇÃO: usa Date.now() como âncora (não o jogo mais recente).
+    // Usar o jogo mais recente causava discrepância: se a API retornava jogos
+    // com datas futuras ou adiantadas, a janela deslizava junto e excluía
+    // jogos que deveriam estar no período selecionado.
     function filterByHours(games, hours) {
         const comData = games.filter(g => g.data);
         if (!comData.length) return games;
-        const sorted = [...comData].sort((a,b) => new Date(b.data)-new Date(a.data));
-        const newest = new Date(sorted[0].data).getTime();
-        return sorted.filter(g => new Date(g.data).getTime() >= newest - hours*3600000);
+        const cutoff = Date.now() - hours * 3600000;
+        return comData.filter(g => new Date(g.data).getTime() >= cutoff);
     }
  
     // ── Status RELATIVO: distribui Elite/Médio/Fraco por quartis ────────────
@@ -5468,7 +5488,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             t._score = (t.pct/maxPct)*0.6 + (parseFloat(t.idxOf)/maxIdx)*0.4;
         });
  
-        // ordena scores para achar limiares de quartil
         const sorted = [...arr].sort((a,b)=>b._score-a._score);
         const q1 = sorted[Math.max(0, Math.ceil(sorted.length*0.25)-1)]._score;
         const q3 = sorted[Math.min(sorted.length-1, Math.ceil(sorted.length*0.75)-1)]._score;
@@ -5481,7 +5500,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
  
     // ── Processar Ranking ───────────────────────────────────────────────────
-    function updateRanking() {
+    // silent=true → não exibe skeleton, só re-renderiza se dados mudaram
+    function updateRanking(silent = false) {
         const selectedMarket = marketSelector.value;
         const minGames = parseInt(minGamesSlider.value, 10);
         const topN     = parseInt(topNSelector.value, 10);
@@ -5490,12 +5510,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const games    = filterByHours(allGames, hours);
         const oddsMap  = buildOddsMap(allOdds);
  
-        // Skeleton
-        rankingContainer.innerHTML = `
-            <style>@keyframes rkSk{0%{opacity:.35}100%{opacity:.7}}</style>
-            <div style="padding:8px 0;">${[...Array(5)].map(()=>
-                `<div style="height:36px;margin-bottom:4px;border-radius:4px;background:rgba(255,255,255,.06);animation:rkSk 1.2s ease-in-out infinite alternate;"></div>`
-            ).join('')}</div>`;
+        // Skeleton só na primeira carga ou quando o usuário muda filtros
+        if (!silent) {
+            rankingContainer.innerHTML = `
+                <style>@keyframes rkSk{0%{opacity:.35}100%{opacity:.7}}</style>
+                <div style="padding:8px 0;">${[...Array(5)].map(()=>
+                    `<div style="height:36px;margin-bottom:4px;border-radius:4px;background:rgba(255,255,255,.06);animation:rkSk 1.2s ease-in-out infinite alternate;"></div>`
+                ).join('')}</div>`;
+        }
  
         try {
             const ts = {}; // teamStats
@@ -5506,6 +5528,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     totalGames:0, casaGames:0, foraGames:0,
                     marketCount:0, casaMarket:0, foraMarket:0,
                     gpTotal:0, gcTotal:0, gpCasa:0, gcCasa:0, gpFora:0, gcFora:0,
+                    vitorias:0, empates:0, derrotas:0,
+                    vitCasa:0, empCasa:0, derCasa:0,
+                    vitFora:0, empFora:0, derFora:0,
                     forma:[]
                 };
             }
@@ -5515,32 +5540,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!ft || !ft.includes(' x ')) return;
                 const [gA, gB] = ft.split(' x ').map(Number);
                 if (isNaN(gA) || isNaN(gB)) return;
-                const tot = gA+gB;
+                const tot = gA + gB;
  
                 init(time_a); init(time_b);
  
+                // Gols
                 ts[time_a].gpTotal+=gA; ts[time_a].gcTotal+=gB; ts[time_a].gpCasa+=gA; ts[time_a].gcCasa+=gB;
                 ts[time_b].gpTotal+=gB; ts[time_b].gcTotal+=gA; ts[time_b].gpFora+=gB; ts[time_b].gcFora+=gA;
+ 
+                // Jogos
                 ts[time_a].totalGames++; ts[time_a].casaGames++;
                 ts[time_b].totalGames++; ts[time_b].foraGames++;
  
+                // Pontos — 3 vitória | 1 empate | 0 derrota
+                if (gA > gB) {
+                    ts[time_a].vitorias++;  ts[time_a].vitCasa++;
+                    ts[time_b].derrotas++;  ts[time_b].derFora++;
+                } else if (gA === gB) {
+                    ts[time_a].empates++;   ts[time_a].empCasa++;
+                    ts[time_b].empates++;   ts[time_b].empFora++;
+                } else {
+                    ts[time_a].derrotas++;  ts[time_a].derCasa++;
+                    ts[time_b].vitorias++;  ts[time_b].vitFora++;
+                }
+ 
+                // Forma (últimos 5)
                 const rA = gA>gB?'V':gA===gB?'E':'D';
                 const rB = gB>gA?'V':gA===gB?'E':'D';
                 if (ts[time_a].forma.length<5) ts[time_a].forma.push(rA);
                 if (ts[time_b].forma.length<5) ts[time_b].forma.push(rB);
  
+                // 2º tempo
                 let gA2=0, gB2=0;
                 if (ht && ht.includes(' x ')) {
                     const [htA,htB] = ht.split(' x ').map(Number).map(n=>isNaN(n)?0:n);
                     gA2=Math.max(0,gA-htA); gB2=Math.max(0,gB-htB);
                 }
-                const t2T = gA2+gB2;
+                const t2T = gA2 + gB2;
  
-                // mercados onde só 1 time conta
+                // Mercados onde só 1 time conta
                 if (selectedMarket==='casaVence' && gA>gB) { ts[time_a].marketCount++; ts[time_a].casaMarket++; return; }
                 if (selectedMarket==='foraVence' && gB>gA) { ts[time_b].marketCount++; ts[time_b].foraMarket++; return; }
  
-                let ok=false;
+                let ok = false;
                 switch(selectedMarket){
                     case 'ambasMarcam':    ok=gA>0&&gB>0;     break;
                     case 'ambasNaoMarcam': ok=gA===0||gB===0; break;
@@ -5578,40 +5620,42 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (ok) { ts[time_a].marketCount++; ts[time_a].casaMarket++; ts[time_b].marketCount++; ts[time_b].foraMarket++; }
             });
  
-            // Montar array com métricas por modo
-            // ── ALTERAÇÃO PRINCIPAL: GP e GC agora são totais absolutos, não média ──
+            // ── Montar array com métricas por modo ──────────────────────────
             let arr = Object.values(ts).map(t => {
-                let jogos, ocorr, gp, gc, gCtx;
+                let jogos, ocorr, gp, gc, gCtx, pontos;
  
                 if (modoAtual==='casa') {
-                    jogos = t.casaGames;
-                    ocorr = t.casaMarket;
-                    gp    = t.gpCasa;          // ← total absoluto (era média gpCasa/jogos)
-                    gc    = t.gcCasa;          // ← total absoluto (era média gcCasa/jogos)
-                    gCtx  = t.gpCasa + t.gcCasa;
+                    jogos  = t.casaGames;
+                    ocorr  = t.casaMarket;
+                    gp     = t.gpCasa;
+                    gc     = t.gcCasa;
+                    gCtx   = t.gpCasa + t.gcCasa;
+                    pontos = t.vitCasa * 3 + t.empCasa;
                 } else if (modoAtual==='fora') {
-                    jogos = t.foraGames;
-                    ocorr = t.foraMarket;
-                    gp    = t.gpFora;          // ← total absoluto
-                    gc    = t.gcFora;          // ← total absoluto
-                    gCtx  = t.gpFora + t.gcFora;
+                    jogos  = t.foraGames;
+                    ocorr  = t.foraMarket;
+                    gp     = t.gpFora;
+                    gc     = t.gcFora;
+                    gCtx   = t.gpFora + t.gcFora;
+                    pontos = t.vitFora * 3 + t.empFora;
                 } else {
-                    jogos = t.totalGames;
-                    ocorr = t.marketCount;
-                    gp    = t.gpTotal;         // ← total absoluto
-                    gc    = t.gcTotal;         // ← total absoluto
-                    gCtx  = t.gpTotal + t.gcTotal;
+                    jogos  = t.totalGames;
+                    ocorr  = t.marketCount;
+                    gp     = t.gpTotal;
+                    gc     = t.gcTotal;
+                    gCtx   = t.gpTotal + t.gcTotal;
+                    pontos = t.vitorias * 3 + t.empates;
                 }
  
-                const sg    = gp - gc;                                                   // Saldo de Gols
-                const idxOf = jogos > 0 ? (gCtx / jogos).toFixed(2) : '0.00';          // Índice Ofensivo = (GP+GC)/J
+                const sg    = gp - gc;
+                const idxOf = jogos > 0 ? (gCtx / jogos).toFixed(2) : '0.00';
                 const pct   = jogos > 0 ? parseFloat(((ocorr / jogos) * 100).toFixed(1)) : 0;
  
                 const entry = oddsMap[t.name] || null;
                 const peso  = calcPeso(entry, entry?.mando);
  
                 return {
-                    name: t.name, jogos, ocorr, pct,
+                    name: t.name, pontos, jogos, ocorr, pct,
                     gp, gc, sg, idxOf, forma: t.forma,
                     entry, mando: entry?.mando, adversario: entry?.adversario, peso
                 };
@@ -5630,10 +5674,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             else if (sortBy==='indiceOfensivo') arr.sort((a,b)=>parseFloat(b.idxOf)-parseFloat(a.idxOf)||b.pct-a.pct);
             else                               arr.sort((a,b)=>b.ocorr-a.ocorr||b.pct-a.pct);
  
-            renderTable(arr.slice(0, topN));
+            const sliced = arr.slice(0, topN);
+ 
+            // ── Anti-piscar: só re-renderiza se os dados mudaram ────────────
+            const newKey = JSON.stringify(sliced.map(t=>[t.name,t.pontos,t.jogos,t.gp,t.gc,t.ocorr,t.pct,t.idxOf,t.status,t.forma.join('')]));
+            if (silent && newKey === lastTableData) return; // sem mudança, não toca no DOM
+            lastTableData = newKey;
+ 
+            renderTable(sliced);
  
         } catch(err) {
-            rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Erro: ${err.message}</p>`;
+            if (!silent) {
+                rankingContainer.innerHTML = `<p style="color:#e05c5c;text-align:center;padding:16px;font-size:13px;">Erro: ${err.message}</p>`;
+            }
             console.error(err);
         }
     }
@@ -5653,7 +5706,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let html = `
         <style>
             .rk3-wrap  { overflow-x:auto; }
-            .rk3-tbl   { width:100%; border-collapse:collapse; font-size:12px; min-width:${temOdds?'980':'780'}px; }
+            .rk3-tbl   { width:100%; border-collapse:collapse; font-size:12px; min-width:${temOdds?'1000':'800'}px; }
             .rk3-tbl thead tr { background:#1a2028; border-bottom:2px solid #4f72ff; }
             .rk3-tbl th {
                 padding:10px 8px; color:#9fb0c5; font-weight:600; font-size:10px;
@@ -5682,6 +5735,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <thead><tr>
             <th style="width:32px;">#</th>
             <th style="text-align:left;">Equipe</th>
+            <th title="Pontos acumulados no período (V=3, E=1, D=0)">P</th>
             <th title="Jogos no modo selecionado">J (${modoLabel})</th>
             <th title="Gols marcados pelo time (total absoluto)">GP</th>
             <th title="Gols concedidos pelo time (total absoluto)">GC</th>
@@ -5704,7 +5758,6 @@ document.addEventListener('DOMContentLoaded', async () => {
  
             const formaHtml = (t.forma||[]).map(r=>`<span class="f${r}">${r}</span>`).join('');
  
-            // Cor do Saldo de Gols: verde se positivo, vermelho se negativo, neutro se zero
             const sgColor = t.sg > 0 ? '#1ec97f' : t.sg < 0 ? '#ef5b5b' : '#9fb0c5';
             const sgText  = t.sg > 0 ? `+${t.sg}` : `${t.sg}`;
  
@@ -5736,6 +5789,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <tr>
                 <td><span style="font-weight:700;font-size:13px;color:${posColor};">${i+1}º</span></td>
                 <td class="rk3-team">${t.name}</td>
+                <td style="color:#e9eef5;font-weight:700;">${t.pontos}</td>
                 <td style="color:#9fb0c5;">${t.jogos}</td>
                 <td style="color:#72b0ff;font-weight:600;">${t.gp}</td>
                 <td style="color:#ef5b5b;font-weight:600;">${t.gc}</td>
