@@ -3910,8 +3910,97 @@ setInterval(updateCharts,3000);
       display:grid;
       grid-template-columns:1fr 1fr 1fr;
       gap:10px;
+      margin-bottom:10px;
     }
     @media(max-width:680px){ .${UID}panel{ grid-template-columns:1fr; } }
+ 
+    .${UID}suggestions {
+      grid-column:1/-1;
+      background:linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(34,197,94,0.08) 100%);
+      border:1px solid rgba(59,130,246,0.25);
+      border-radius:12px; 
+      padding:18px;
+      margin-top:8px;
+    }
+ 
+    .${UID}sugTitle {
+      font-size:13px; font-weight:700; color:#f3f4f6;
+      margin-bottom:14px; display:flex; align-items:center; gap:8px;
+      text-transform:uppercase; letter-spacing:0.05em;
+    }
+    .${UID}sugTitle::before {
+      content:"⚡"; font-size:16px; filter:drop-shadow(0 0 8px rgba(59,130,246,0.6));
+    }
+ 
+    .${UID}sugGrid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+      gap:10px;
+    }
+ 
+    .${UID}sugCard {
+      background:rgba(0,0,0,0.25);
+      border:0.5px solid rgba(255,255,255,0.1);
+      border-radius:8px; padding:12px;
+      transition:transform 0.2s, border-color 0.2s;
+    }
+    .${UID}sugCard:hover {
+      transform:translateY(-2px);
+      border-color:rgba(255,255,255,0.2);
+    }
+ 
+    .${UID}sugHeader {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:8px;
+    }
+    .${UID}sugType {
+      font-size:11px; font-weight:600; color:#9ca3af;
+      text-transform:uppercase; letter-spacing:0.03em;
+    }
+    .${UID}sugConf {
+      font-size:10px; font-weight:700; padding:3px 8px;
+      border-radius:12px; text-transform:uppercase;
+    }
+    .${UID}confHigh { background:rgba(34,197,94,0.2); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
+    .${UID}confMed { background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
+    .${UID}confLow { background:rgba(239,68,68,0.2); color:#ef4444; border:1px solid rgba(239,68,68,0.3); }
+ 
+    .${UID}sugMain {
+      display:flex; align-items:center; gap:12px; margin-bottom:10px;
+    }
+    .${UID}sugPick {
+      font-size:18px; font-weight:700; color:#f3f4f6; flex:1;
+    }
+    .${UID}sugOdds {
+      font-size:20px; font-weight:800;
+      background:linear-gradient(135deg, #3b82f6, #22c55e);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    }
+ 
+    .${UID}sugStats {
+      display:flex; gap:12px; font-size:11px; color:#6b7280;
+      border-top:1px solid rgba(255,255,255,0.05); padding-top:8px;
+    }
+    .${UID}sugStat { display:flex; align-items:center; gap:4px; }
+    .${UID}sugStat b { color:#9ca3af; font-weight:600; }
+ 
+    .${UID}probBar {
+      height:4px; background:rgba(255,255,255,0.1); border-radius:2px;
+      margin-top:6px; overflow:hidden;
+    }
+    .${UID}probFill {
+      height:100%; border-radius:2px;
+      background:linear-gradient(90deg, #3b82f6, #22c55e);
+      transition:width 0.6s ease;
+    }
+ 
+    .${UID}comboBadge {
+      display:inline-flex; align-items:center; gap:6px;
+      background:rgba(139,92,246,0.15); color:#a78bfa;
+      border:1px solid rgba(139,92,246,0.3); border-radius:6px;
+      padding:6px 12px; font-size:11px; font-weight:600;
+      margin-top:12px;
+    }
  
     .${UID}card {
       background:rgba(255,255,255,0.03);
@@ -4014,26 +4103,50 @@ setInterval(updateCharts,3000);
   }
  
   function calcStats(matches, teamName) {
-    let w=0,d=0,l=0,gf=0,ga=0,cs=0,fts=0,form=[];
-    matches.filter(m=>m.time_a===teamName||m.time_b===teamName).forEach(m=>{
+    let w=0,d=0,l=0,gf=0,ga=0,cs=0,fts=0,form=[],over15=0,over25=0,over35=0,btts=0;
+    const teamMatches = matches.filter(m=>m.time_a===teamName||m.time_b===teamName);
+    
+    teamMatches.forEach(m=>{
       const [a,b]=m.ft.split(" x ").map(Number);
       const scored=m.time_a===teamName?a:b, conceded=m.time_a===teamName?b:a;
+      const totalGoals = a+b;
+      
       gf+=scored; ga+=conceded;
       if(conceded===0) cs++;
       if(scored===0) fts++;
+      if(totalGoals>1.5) over15++;
+      if(totalGoals>2.5) over25++;
+      if(totalGoals>3.5) over35++;
+      if(a>0 && b>0) btts++;
+      
       if(scored>conceded){w++;form.unshift("V");}
       else if(scored<conceded){l++;form.unshift("D");}
       else{d++;form.unshift("E");}
     });
-    return {w,d,l,gf,ga,cs,fts,form:form.slice(0,5),total:w+d+l};
+    
+    const total = w+d+l;
+    return {
+      w,d,l,gf,ga,cs,fts,form:form.slice(0,5),total,
+      avgGF: total ? (gf/total).toFixed(2) : "0",
+      avgGA: total ? (ga/total).toFixed(2) : "0",
+      over15: total ? (over15/total) : 0,
+      over25: total ? (over25/total) : 0,
+      over35: total ? (over35/total) : 0,
+      bttsRate: total ? (btts/total) : 0,
+      winRate: total ? (w/total) : 0,
+      drawRate: total ? (d/total) : 0,
+      loseRate: total ? (l/total) : 0
+    };
   }
  
   function calcH2H(matches, teamA, teamB) {
     const c=matches.filter(m=>(m.time_a===teamA&&m.time_b===teamB)||(m.time_a===teamB&&m.time_b===teamA));
-    let wA=0,wB=0,dr=0,ambasSim=0,o15=0,o25=0,o35=0,totG=0,casa=0,fora=0;
+    let wA=0,wB=0,dr=0,ambasSim=0,o15=0,o25=0,o35=0,totG=0,casa=0,fora=0,over5=0;
+    
     c.forEach(m=>{
       const [a,b]=m.ft.split(" x ").map(Number), tot=a+b;
       totG+=tot;
+      if(tot>=5) over5++;
       if(a>b){casa++;m.time_a===teamA?wA++:wB++;}
       else if(a<b){fora++;m.time_a===teamA?wB++:wA++;}
       else dr++;
@@ -4042,10 +4155,203 @@ setInterval(updateCharts,3000);
       if(tot>2.5) o25++;
       if(tot>3.5) o35++;
     });
+    
     const n=c.length||1;
-    return {wA,wB,dr,ambasSim,ambasNao:c.length-ambasSim,
-            o15,u15:c.length-o15,o25,u25:c.length-o25,o35,u35:c.length-o35,
-            mediaGols:(totG/n).toFixed(2),total:c.length,casa,fora};
+    return {
+      wA,wB,dr,ambasSim,ambasNao:c.length-ambasSim,
+      o15,u15:c.length-o15,o25,u25:c.length-o25,o35,u35:c.length-o35,o5:over5,u5:c.length-over5,
+      mediaGols:(totG/n).toFixed(2),total:c.length,casa,fora,
+      bttsRate: c.length ? (ambasSim/c.length) : 0,
+      over25Rate: c.length ? (o25/c.length) : 0,
+      over15Rate: c.length ? (o15/c.length) : 0,
+      over35Rate: c.length ? (o35/c.length) : 0,
+      homeWinRate: c.length ? (casa/c.length) : 0,
+      awayWinRate: c.length ? (fora/c.length) : 0,
+      drawRate: c.length ? (dr/c.length) : 0
+    };
+  }
+ 
+  /* ─── NOVO: CÁLCULO DE PROBABILIDADES E SUGESTÕES ─── */
+  function calculateAllProbabilities(teamA, teamB, h2h) {
+    const totalA = teamA.total || 1;
+    const totalB = teamB.total || 1;
+    const totalH2H = h2h.total || 1;
+    
+    // Pesos para cálculo (H2H tem mais peso em confrontos diretos)
+    const wGeral = 0.35;
+    const wH2H = 0.45;
+    const wForma = 0.20;
+    
+    // Probabilidades de Resultado (1X2)
+    const probHome = (
+      (teamA.winRate * wGeral) + 
+      (teamB.loseRate * wGeral * 0.8) + 
+      (h2h.homeWinRate * wH2H) +
+      (teamA.form.filter(f=>f==="V").length / Math.max(teamA.form.length,1) * wForma)
+    );
+    
+    const probDraw = (
+      (teamA.drawRate * wGeral) + 
+      (teamB.drawRate * wGeral) + 
+      (h2h.drawRate * wH2H) +
+      (teamA.form.filter(f=>f==="E").length / Math.max(teamA.form.length,1) * wForma * 0.5) +
+      (teamB.form.filter(f=>f==="E").length / Math.max(teamB.form.length,1) * wForma * 0.5)
+    );
+    
+    const probAway = (
+      (teamB.winRate * wGeral) + 
+      (teamA.loseRate * wGeral * 0.8) + 
+      (h2h.awayWinRate * wH2H) +
+      (teamB.form.filter(f=>f==="V").length / Math.max(teamB.form.length,1) * wForma)
+    );
+    
+    // Normalizar para 100%
+    const totalProb = probHome + probDraw + probAway;
+    const pHome = (probHome / totalProb) * 100;
+    const pDraw = (probDraw / totalProb) * 100;
+    const pAway = (probAway / totalProb) * 100;
+    
+    // Probabilidades de Gols (Poisson simplificado + histórico)
+    const expectedGoals = (
+      (parseFloat(teamA.avgGF) + parseFloat(teamB.avgGA)) / 2 +
+      (parseFloat(teamB.avgGF) + parseFloat(teamA.avgGA)) / 2 +
+      parseFloat(h2h.mediaGols)
+    ) / 3;
+    
+    // Cálculo de Over/Under baseado na média esperada e histórico
+    const pOver15 = (teamA.over15 + teamB.over15 + h2h.over15Rate*3) / 5 * 100;
+    const pOver25 = (teamA.over25 + teamB.over25 + h2h.over25Rate*3) / 5 * 100;
+    const pOver35 = (teamA.over35 + teamB.over35 + h2h.over35Rate*3) / 5 * 100;
+    const pOver5 = Math.min(pOver35 * 0.4, 15); // Estimativa conservadora para 5+
+    
+    // Probabilidade Ambas Marcam
+    const pBTTS = (
+      ((1 - (teamA.cs/totalA)) + (1 - (teamB.cs/totalB)) + (h2h.bttsRate * 3)) / 5 * 100
+    );
+    
+    return {
+      result: { home: pHome, draw: pDraw, away: pAway },
+      goals: {
+        over15: Math.min(pOver15, 95),
+        under15: 100 - Math.min(pOver15, 95),
+        over25: Math.min(pOver25, 90),
+        under25: 100 - Math.min(pOver25, 90),
+        over35: Math.min(pOver35, 80),
+        under35: 100 - Math.min(pOver35, 80),
+        over5: pOver5,
+        expectedGoals: expectedGoals.toFixed(2)
+      },
+      btts: { yes: Math.min(pBTTS, 85), no: 100 - Math.min(pBTTS, 85) }
+    };
+  }
+ 
+  function generateSuggestions(probs) {
+    const suggestions = [];
+    const addSug = (type, pick, prob, details, odds = null) => {
+      let confidence = 'low';
+      if(prob >= 70) confidence = 'high';
+      else if(prob >= 55) confidence = 'medium';
+      
+      // Calcular odds justas (aproximadas)
+      const fairOdds = odds || (100 / prob).toFixed(2);
+      
+      suggestions.push({
+        type, pick, prob: prob.toFixed(1), confidence, 
+        details, odds: fairOdds,
+        value: prob * (fairOdds / 100) // Índice de valor
+      });
+    };
+    
+    // Análise de Resultado
+    if(probs.result.home > 50) addSug('Resultado', 'Casa Vence', probs.result.home, `Probabilidade: ${probs.result.home.toFixed(1)}%`);
+    if(probs.result.away > 45) addSug('Resultado', 'Fora Vence', probs.result.away, `Probabilidade: ${probs.result.away.toFixed(1)}%`);
+    if(probs.result.draw > 30) addSug('Resultado', 'Empate', probs.result.draw, `Probabilidade: ${probs.result.draw.toFixed(1)}%`);
+    
+    // Análise de Gols - Priorizar Over 2.5 se média alta
+    if(probs.goals.over25 > 60) {
+      addSug('Gols', 'Over 2.5', probs.goals.over25, `Média esperada: ${probs.goals.expectedGoals} gols/jogo`);
+    } else if(probs.goals.under25 > 60) {
+      addSug('Gols', 'Under 2.5', probs.goals.under25, 'Jogo tendendo a poucos gols');
+    }
+    
+    if(probs.goals.over15 > 75) {
+      addSug('Gols', 'Over 1.5', probs.goals.over15, 'Seguro para jogos abertos');
+    }
+    
+    if(probs.goals.over35 > 45) {
+      addSug('Gols', 'Over 3.5', probs.goals.over35, 'Alto potencial de gols');
+    }
+    
+    if(probs.goals.over5 > 15) {
+      addSug('Gols', 'Over 5.0', probs.goals.over5, 'Possibilidade de goleada');
+    }
+    
+    // Ambas Marcam
+    if(probs.btts.yes > 60) {
+      addSug('Ambas Marcam', 'Sim', probs.btts.yes, 'Ambos têm bom ataque/defesa frágil');
+    } else if(probs.btts.no > 60) {
+      addSug('Ambas Marcam', 'Não', probs.btts.no, 'Um dos times não deve marcar');
+    }
+    
+    // Sugestões combinadas (Combo)
+    if(probs.result.home > 55 && probs.goals.over25 > 55) {
+      addSug('Combo', 'Casa + Over 2.5', (probs.result.home + probs.goals.over25)/2, 'Casa vence com jogo movimentado');
+    }
+    if(probs.btts.yes > 60 && probs.goals.over25 > 60) {
+      addSug('Combo', 'Ambas + Over 2.5', (probs.btts.yes + probs.goals.over25)/2, 'Jogo aberto com gols dos dois lados');
+    }
+    if(probs.result.home > 50 && probs.btts.no > 55) {
+      addSug('Combo', 'Casa + Ambas Não', (probs.result.home + probs.btts.no)/2, 'Vitória da casa sem sofrer gols');
+    }
+    
+    // Ordenar por confiança (probabilidade)
+    return suggestions.sort((a,b) => b.prob - a.prob).slice(0,6);
+  }
+ 
+  function renderSuggestions(suggestions) {
+    if(!suggestions.length) return '';
+    
+    const getConfClass = (c) => {
+      if(c==='high') return UID+'confHigh';
+      if(c==='medium') return UID+'confMed';
+      return UID+'confLow';
+    };
+    
+    const getConfText = (c) => {
+      if(c==='high') return 'Alta Confiança';
+      if(c==='medium') return 'Média Confiança';
+      return 'Risco Moderado';
+    };
+    
+    return `
+    <div class="${UID}suggestions">
+      <div class="${UID}sugTitle">Sugestões de Entrada Baseadas em Dados</div>
+      <div class="${UID}sugGrid">
+        ${suggestions.map(s => `
+          <div class="${UID}sugCard">
+            <div class="${UID}sugHeader">
+              <span class="${UID}sugType">${s.type}</span>
+              <span class="${UID}sugConf ${getConfClass(s.confidence)}">${getConfText(s.confidence)}</span>
+            </div>
+            <div class="${UID}sugMain">
+              <div class="${UID}sugPick">${s.pick}</div>
+              <div class="${UID}sugOdds">${s.odds}</div>
+            </div>
+            <div class="${UID}probBar">
+              <div class="${UID}probFill" style="width:${s.prob}%"></div>
+            </div>
+            <div class="${UID}sugStats">
+              <span class="${UID}sugStat"><b>Prob:</b> ${s.prob}%</span>
+              <span class="${UID}sugStat"><b>Valor:</b> ${s.value.toFixed(2)}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="${UID}comboBadge">
+        <span>💡</span>
+        <span>Dica: Combine mercados com alta correlação (ex: Over 2.5 + Ambas Sim)</span>
+      </div>
+    </div>`;
   }
  
   function pct(a,t){return t?Math.round((a/t)*100):0;}
@@ -4158,11 +4464,20 @@ setInterval(updateCharts,3000);
   }
  
   function renderPanel(results, teamA, teamB) {
+    const statsA = calcStats(results, teamA);
+    const statsB = calcStats(results, teamB);
+    const h2h = calcH2H(results, teamA, teamB);
+    
+    // Calcular probabilidades e gerar sugestões
+    const probabilities = calculateAllProbabilities(statsA, statsB, h2h);
+    const suggestions = generateSuggestions(probabilities);
+    
     document.getElementById("mainContainer").innerHTML = `
       <div class="${UID}panel">
         ${renderTeam(teamA + " — geral", results, teamA)}
         ${renderH2H(results, teamA, teamB)}
         ${renderTeam(teamB + " — geral", results, teamB)}
+        ${renderSuggestions(suggestions)}
       </div>`;
   }
  
