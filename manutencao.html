@@ -5428,22 +5428,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     autoRefreshTimer = setTimeout(autoRefresh, AUTO_REFRESH_MS);
  
-    // ── Mapa de odds: time → { oddCasa, oddEmpate, oddFora, adversario, mando } ─
+    // ── Mapa de odds: time → todas as odds disponíveis + adversario + mando ──
     function buildOddsMap(oddsData) {
         const map = {};
         if (!Array.isArray(oddsData)) return map;
         oddsData.forEach(j => {
-            // Suporta tanto o formato antigo (time_a/time_b/odd_home...)
-            // quanto o formato atual da API (time_casa/time_visitante/odds_casa_vence...)
             const timeCasa = j.time_casa || j.time_a;
             const timeFora = j.time_visitante || j.time_b;
             if (!timeCasa || !timeFora) return;
-            const oH = parseFloat(j.odds_casa_vence    || j.odd_home);
-            const oD = parseFloat(j.odds_empate        || j.odd_draw);
-            const oA = parseFloat(j.odds_visitante_vence || j.odd_away);
-            if (isNaN(oH) || isNaN(oD) || isNaN(oA)) return;
-            if (!map[timeCasa]) map[timeCasa] = { oddCasa:oH, oddEmpate:oD, oddFora:oA, adversario:timeFora, mando:'casa' };
-            if (!map[timeFora]) map[timeFora] = { oddCasa:oH, oddEmpate:oD, oddFora:oA, adversario:timeCasa, mando:'fora' };
+            const oH  = parseFloat(j.odds_casa_vence      || j.odd_home)  || null;
+            const oD  = parseFloat(j.odds_empate           || j.odd_draw)  || null;
+            const oA  = parseFloat(j.odds_visitante_vence  || j.odd_away)  || null;
+            const oAM = parseFloat(j.odds_ambas_marcam_sim)  || null;
+            const oAN = parseFloat(j.odds_ambas_marcam_nao) || null;
+            const oO05= parseFloat(j.odds_mais_0_5)  || null;
+            const oO15= parseFloat(j.odds_mais_1_5)  || null;
+            const oO25= parseFloat(j.odds_mais_2_5)  || null;
+            const oO35= parseFloat(j.odds_mais_3_5)  || null;
+            const oO5 = parseFloat(j.odds_mais_5_gols) || null;
+            const oU05= parseFloat(j.odds_menos_0_5) || null;
+            const oU15= parseFloat(j.odds_menos_1_5) || null;
+            const oU25= parseFloat(j.odds_menos_2_5) || null;
+            const oU35= parseFloat(j.odds_menos_3_5) || null;
+            const base = {
+                oddCasa:oH, oddEmpate:oD, oddFora:oA,
+                oddAmbasSim:oAM, oddAmbasNao:oAN,
+                oddOver05:oO05, oddOver15:oO15, oddOver25:oO25, oddOver35:oO35, oddOver5:oO5,
+                oddUnder05:oU05, oddUnder15:oU15, oddUnder25:oU25, oddUnder35:oU35
+            };
+            if (!map[timeCasa]) map[timeCasa] = { ...base, adversario:timeFora, mando:'casa' };
+            if (!map[timeFora]) map[timeFora] = { ...base, adversario:timeCasa, mando:'fora' };
         });
         return map;
     }
@@ -5470,9 +5484,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
  
     // ── Filtro por horas ─────────────────────────────────────────────────────
-    // Âncora = jogo mais recente da API.
-    // Isso garante que 6h e 12h sempre retornem dados relativos ao que
-    // está na API, independente do horário atual do servidor/browser.
+    // Âncora = jogo mais recente da API (não Date.now()).
     function filterByHours(games, hours) {
         const comData = games.filter(g => g.data);
         if (!comData.length) return games;
@@ -5691,7 +5703,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (silent && newKey === lastTableData) return; // sem mudança, não toca no DOM
             lastTableData = newKey;
  
-            renderTable(sliced);
+            renderTable(sliced, selectedMarket);
  
         } catch(err) {
             if (!silent) {
@@ -5702,7 +5714,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
  
     // ── Renderizar Tabela ───────────────────────────────────────────────────
-    function renderTable(data) {
+    function renderTable(data, selectedMarket) {
         if (!data.length) {
             rankingContainer.innerHTML = '<p style="color:#888;text-align:center;padding:20px;font-size:13px;">Nenhum dado encontrado.</p>';
             return;
@@ -5754,10 +5766,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             <th title="Percentual de ocorrência do mercado">% Merc.</th>
             <th title="Índice Ofensivo: (GP+GC)/J no contexto">Índice Ofensivo</th>
             <th>Forma</th>
-            ${temOdds ? '<th title="Odds próximo jogo (Casa · Emp · Fora)">Odds (C·E·F)</th><th title="Peso de Mercado calculado">Peso Merc.</th>' : ''}
+            ${temOdds ? `<th title="Odd do mercado selecionado no próximo jogo">Odd Mercado</th><th title="Peso de Mercado calculado">Peso Merc.</th>` : ''}
             <th>Status</th>
         </tr></thead>
         <tbody>`;
+ 
+        // ── Helpers para odd dinâmica por mercado ───────────────────────────
+        function getOddMercado(t, market) {
+            const e = t.entry;
+            if (!e) return null;
+            const isCasa = t.mando === 'casa';
+            switch(market) {
+                case 'casaVence':      return { odd: isCasa ? e.oddCasa  : e.oddFora,  label: isCasa ? 'Vence em casa' : 'Vence fora' };
+                case 'foraVence':      return { odd: isCasa ? e.oddFora  : e.oddCasa,  label: isCasa ? 'Vence fora' : 'Vence em casa' };
+                case 'empate':         return { odd: e.oddEmpate,    label: 'Empate' };
+                case 'ambasMarcam':    return { odd: e.oddAmbasSim,  label: 'Ambas Sim' };
+                case 'ambasNaoMarcam': return { odd: e.oddAmbasNao,  label: 'Ambas Não' };
+                case 'over0.5':        return { odd: e.oddOver05,    label: 'Over 0.5' };
+                case 'over1.5':        return { odd: e.oddOver15,    label: 'Over 1.5' };
+                case 'over2.5':        return { odd: e.oddOver25,    label: 'Over 2.5' };
+                case 'over3.5':        return { odd: e.oddOver35,    label: 'Over 3.5' };
+                case 'over5':          return { odd: e.oddOver5,     label: 'Over 5+' };
+                case 'under0.5':       return { odd: e.oddUnder05,   label: 'Under 0.5' };
+                case 'under1.5':       return { odd: e.oddUnder15,   label: 'Under 1.5' };
+                case 'under2.5':       return { odd: e.oddUnder25,   label: 'Under 2.5' };
+                case 'under3.5':       return { odd: e.oddUnder35,   label: 'Under 3.5' };
+                default:               return { odd: isCasa ? e.oddCasa : e.oddFora, label: isCasa ? 'Casa Vence' : 'Fora Vence' };
+            }
+        }
  
         data.forEach((t, i) => {
             const posColor = posColors[i] || '#4a5260';
@@ -5773,17 +5809,20 @@ document.addEventListener('DOMContentLoaded', async () => {
  
             let oddsCell = '', pesoCell = '';
             if (temOdds) {
-                if (t.peso) {
-                    const p = t.peso;
-                    const isCasa = t.mando === 'casa';
-                    const oc = isCasa
-                        ? `<b style="color:#3ecfa3;font-size:12px;">${p.oddCasa}</b>`
-                        : `<span style="color:#9fb0c5;">${p.oddCasa}</span>`;
-                    const oa = !isCasa
-                        ? `<b style="color:#f0b84b;font-size:12px;">${p.oddFora}</b>`
-                        : `<span style="color:#9fb0c5;">${p.oddFora}</span>`;
-                    oddsCell = `${oc} · <span style="color:#7a9e8a;">${p.oddEmpate}</span> · ${oa}
-                                <br><span style="font-size:10px;color:#4a5870;">vs ${t.adversario||'?'}</span>`;
+                if (t.peso && t.entry) {
+                    const p   = t.peso;
+                    const om  = getOddMercado(t, selectedMarket);
+                    const oddVal = om && om.odd ? parseFloat(om.odd).toFixed(2) : null;
+ 
+                    if (oddVal) {
+                        const oddColor = parseFloat(oddVal) < 2.0 ? '#3ecfa3'
+                                       : parseFloat(oddVal) < 3.0 ? '#f0b84b' : '#ef5b5b';
+                        oddsCell = `<b style="color:${oddColor};font-size:13px;">${oddVal}</b>
+                                    <br><span style="font-size:10px;color:#4a5870;">vs ${t.adversario||'?'}</span>`;
+                    } else {
+                        oddsCell = `<span style="color:#3a4455;">—</span>
+                                    <br><span style="font-size:10px;color:#4a5870;">vs ${t.adversario||'?'}</span>`;
+                    }
  
                     const pColor = p.tipo==='Equil.' ? '#72b0ff' : p.tipo==='Médio' ? '#f0b84b' : '#ef5b5b';
                     pesoCell = `<span style="font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;
