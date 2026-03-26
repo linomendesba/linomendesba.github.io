@@ -5291,7 +5291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const topBar           = document.getElementById('rkTopBar');
  
     const STORAGE_KEY      = 'rankingConfig';
-    const HOURS_OPTIONS    = [12, 24, 48];
+    const HOURS_OPTIONS    = [6, 12, 24, 48];
     const AUTO_REFRESH_MS  = 3 * 60 * 1000; // 3 minutos
     let allGames           = [];
     let allOdds            = [];
@@ -5374,7 +5374,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (c.minGames) { minGamesSlider.value = c.minGames; minGamesValue.textContent = c.minGames; }
             if (c.topN)     topNSelector.value = c.topN;
             if (c.sortBy)   sortSelector.value = c.sortBy;
-            setActiveHour(HOURS_OPTIONS.includes(c.hours) ? c.hours : 24);
+            setActiveHour(HOURS_OPTIONS.includes(Number(c.hours)) ? Number(c.hours) : 24);
             setActiveModo(c.modo || 'ambos');
         } catch(e) { localStorage.removeItem(STORAGE_KEY); setActiveHour(24); setActiveModo('ambos'); }
     }
@@ -5466,14 +5466,35 @@ document.addEventListener('DOMContentLoaded', async () => {
  
     // ── Filtro por horas ─────────────────────────────────────────────────────
     // CORREÇÃO: usa Date.now() como âncora (não o jogo mais recente).
-    // Usar o jogo mais recente causava discrepância: se a API retornava jogos
-    // com datas futuras ou adiantadas, a janela deslizava junto e excluía
-    // jogos que deveriam estar no período selecionado.
+    // Usa parser robusto para suportar formatos como "DD/MM/YYYY HH:MM",
+    // "YYYY-MM-DD HH:MM:SS", ISO 8601, etc. — garantindo que 6h e 12h
+    // funcionem corretamente independente do formato retornado pela API.
+    function parseDate(str) {
+        if (!str) return null;
+        // Já é um número (timestamp)
+        if (typeof str === 'number') return new Date(str);
+        // Tenta ISO / padrão nativo primeiro
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) return d;
+        // Formato BR: DD/MM/YYYY HH:MM ou DD/MM/YYYY
+        const brMatch = str.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+        if (brMatch) {
+            const [, dd, mm, yyyy, hh='0', mi='0', ss='0'] = brMatch;
+            return new Date(`${yyyy}-${mm}-${dd}T${hh.padStart(2,'0')}:${mi.padStart(2,'0')}:${ss.padStart(2,'0')}`);
+        }
+        // Formato com espaço: YYYY-MM-DD HH:MM:SS
+        const spMatch = str.match(/^(\d{4}-\d{2}-\d{2})\s(\d{2}:\d{2}(?::\d{2})?)/);
+        if (spMatch) return new Date(`${spMatch[1]}T${spMatch[2]}`);
+        return null;
+    }
     function filterByHours(games, hours) {
         const comData = games.filter(g => g.data);
         if (!comData.length) return games;
         const cutoff = Date.now() - hours * 3600000;
-        return comData.filter(g => new Date(g.data).getTime() >= cutoff);
+        return comData.filter(g => {
+            const d = parseDate(g.data);
+            return d && d.getTime() >= cutoff;
+        });
     }
  
     // ── Status RELATIVO: distribui Elite/Médio/Fraco por quartis ────────────
