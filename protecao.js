@@ -17,16 +17,14 @@
   // ============================================================
   // 2. BLOQUEIA ATALHOS DE TECLADO
   //    DevTools: F12, Ctrl+Shift+I/J/C, Ctrl+U
-  //    Cópia: Ctrl+C
+  //    Salvar e imprimir: Ctrl+S, Ctrl+P
   // ============================================================
   document.addEventListener("keydown", function (e) {
-    // Abre DevTools
     if (e.key === "F12")                                  { e.preventDefault(); }
     if (e.ctrlKey && e.shiftKey && e.key === "I")         { e.preventDefault(); }
     if (e.ctrlKey && e.shiftKey && e.key === "J")         { e.preventDefault(); }
     if (e.ctrlKey && e.shiftKey && e.key === "C")         { e.preventDefault(); }
     if (e.ctrlKey && e.key === "u")                       { e.preventDefault(); }
-    // Salvar e imprimir
     if (e.ctrlKey && e.key === "s")                       { e.preventDefault(); }
     if (e.ctrlKey && e.key === "p")                       { e.preventDefault(); }
   });
@@ -35,40 +33,44 @@
   // ============================================================
   // 3. IMPEDE ARRASTAR ELEMENTOS
   // ============================================================
-  document.addEventListener("dragstart",   function (e) { e.preventDefault(); });
+  document.addEventListener("dragstart", function (e) { e.preventDefault(); });
 
 
-// ============================================================
-// 4. DETECÇÃO DE DEVTOOLS POR TAMANHO DE JANELA (CORRIGIDA)
-// ============================================================
-const DEVTOOLS_THRESHOLD = 200;
-let _baseW = window.outerWidth  - window.innerWidth;
-let _baseH = window.outerHeight - window.innerHeight;
-let _zoomBase = window.devicePixelRatio || 1;
-let _devtoolsAberto = false;
-let _bloqueado = false;
-const _isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  // ============================================================
+  // 4. DETECÇÃO DE DEVTOOLS POR TAMANHO DE JANELA (CORRIGIDA)
+  //
+  //  - Em mobile a detecção é desativada (barras nativas do SO
+  //    causam falsos positivos inevitáveis).
+  //  - Em desktop recalibra a base quando o zoom muda, evitando
+  //    falsos positivos por Ctrl+/-.
+  // ============================================================
+  const DEVTOOLS_THRESHOLD = 200;
+  let _baseW    = window.outerWidth  - window.innerWidth;
+  let _baseH    = window.outerHeight - window.innerHeight;
+  let _zoomBase = window.devicePixelRatio || 1;
+  let _devtoolsAberto = false;
+  let _bloqueado      = false; // única declaração — usada em todo o script
+  const _isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
-function _checarDevTools() {
-  // Em mobile, essa detecção é muito imprecisa — desativa
-  if (_isMobile) return;
+  function _checarDevTools() {
+    if (_isMobile) return; // mobile: desativa completamente
 
-  const zoomAtual = window.devicePixelRatio || 1;
-  if (Math.abs(zoomAtual - _zoomBase) > 0.05) {
-    // Zoom mudou: recalibra a base e sai
-    _baseW = window.outerWidth  - window.innerWidth;
-    _baseH = window.outerHeight - window.innerHeight;
-    _zoomBase = zoomAtual;
-    return;
+    const zoomAtual = window.devicePixelRatio || 1;
+    if (Math.abs(zoomAtual - _zoomBase) > 0.05) {
+      // Zoom mudou: recalibra a base e sai sem disparar bloqueio
+      _baseW    = window.outerWidth  - window.innerWidth;
+      _baseH    = window.outerHeight - window.innerHeight;
+      _zoomBase = zoomAtual;
+      return;
+    }
+
+    const diffW = (window.outerWidth  - window.innerWidth)  - _baseW;
+    const diffH = (window.outerHeight - window.innerHeight) - _baseH;
+    _devtoolsAberto = diffW > DEVTOOLS_THRESHOLD || diffH > DEVTOOLS_THRESHOLD;
   }
 
-  const diffW = (window.outerWidth  - window.innerWidth)  - _baseW;
-  const diffH = (window.outerHeight - window.innerHeight) - _baseH;
-  _devtoolsAberto = diffW > DEVTOOLS_THRESHOLD || diffH > DEVTOOLS_THRESHOLD;
-}
-
-window.addEventListener('resize', _checarDevTools, { passive: true });
-setInterval(_checarDevTools, 500);
+  window.addEventListener('resize', _checarDevTools, { passive: true });
+  setInterval(_checarDevTools, 500);
 
 
   // ============================================================
@@ -100,7 +102,7 @@ setInterval(_checarDevTools, 500);
   //    Scrapers headless não geram eventos naturais.
   // ============================================================
   let _humanoConfirmado = false;
-  let _humanoResolve = null;
+  let _humanoResolve    = null;
 
   const _humanoPromise = new Promise((resolve) => { _humanoResolve = resolve; });
 
@@ -119,9 +121,7 @@ setInterval(_checarDevTools, 500);
   // ============================================================
   // 7. RATE LIMITING NO FRONTEND
   //
-  //  Seu app faz ~200 requisições/min em uso normal
-  //  (9 setIntervals + 19 pontos de fetch).
-  //  Limite de 300/min: usuário legítimo nunca atinge,
+  //  Limite de 300 req/min: usuário legítimo nunca atinge,
   //  script em loop abusivo é barrado rapidamente.
   // ============================================================
   const _rateLimit = {
@@ -143,14 +143,44 @@ setInterval(_checarDevTools, 500);
 
 
   // ============================================================
-  // 8. INTERCEPTADOR DE FETCH
-  //    Aplica detecção humana + rate limit em toda requisição
-  //    interna automaticamente. CDNs e externos passam livre.
+  // 8. INTERCEPTADOR ÚNICO DE FETCH
+  //    Unifica: detecção humana + velocidade suspeita + rate limit.
+  //    O fetch é sobrescrito UMA única vez — sem cadeia frágil.
+  //    CDNs e requisições externas passam sem restrição.
   // ============================================================
   const _fetchOriginal = window.fetch.bind(window);
 
-  window.fetch = async function (url, opcoes = {}) {
+  // — Controle de velocidade suspeita —
+  const _janelaSuspeita   = 2000; // ms
+  const _maxRapidas       = 30;
+  let   _requisicoesRapidas = [];
 
+  function _checarVelocidade() {
+    const agora = Date.now();
+    _requisicoesRapidas = _requisicoesRapidas.filter(ts => agora - ts < _janelaSuspeita);
+    _requisicoesRapidas.push(agora);
+
+    if (_requisicoesRapidas.length > _maxRapidas) {
+      _bloqueado = true;
+      document.body.innerHTML = `
+        <div style="
+          display:flex;flex-direction:column;align-items:center;
+          justify-content:center;height:100vh;background:#0a0f14;
+          color:#1fac89;font-family:sans-serif;text-align:center;gap:16px;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1fac89" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <h2 style="margin:0;color:#fff;">Acesso bloqueado</h2>
+          <p style="margin:0;color:#aaa;font-size:14px;">Comportamento suspeito detectado.</p>
+        </div>`;
+      throw new Error('Comportamento suspeito detectado.');
+    }
+  }
+
+  // — Interceptador —
+  window.fetch = async function (url, opcoes = {}) {
     const ehInterna = typeof url === 'string' && (
       url.includes('/api/') ||
       url.includes('betstat') ||
@@ -159,7 +189,10 @@ setInterval(_checarDevTools, 500);
 
     if (!ehInterna) return _fetchOriginal(url, opcoes);
 
-    // Aguarda interação humana (máx 8s)
+    // 1. Velocidade suspeita (síncrono — lança antes de qualquer await)
+    _checarVelocidade();
+
+    // 2. Confirmação humana (máx 8s)
     const confirmado = await Promise.race([
       _humanoPromise,
       new Promise(r => setTimeout(() => r(false), 8000))
@@ -170,6 +203,7 @@ setInterval(_checarDevTools, 500);
       throw new Error('Interação humana necessária.');
     }
 
+    // 3. Rate limit
     if (!_rateLimit.podeFazerRequisicao()) {
       throw new Error('Muitas requisições. Aguarde alguns segundos.');
     }
@@ -180,8 +214,7 @@ setInterval(_checarDevTools, 500);
 
   // ============================================================
   // 9. BLOQUEIA CLIQUE DO MEIO DO MOUSE
-  //    Impede abrir links em nova aba pelo botão do meio,
-  //    contornando proteções de navegação.
+  //    Impede abrir links em nova aba pelo botão do meio.
   // ============================================================
   document.addEventListener("auxclick", function (e) {
     if (e.button === 1) e.preventDefault();
@@ -190,12 +223,12 @@ setInterval(_checarDevTools, 500);
 
   // ============================================================
   // 10. EXPIRAÇÃO POR INATIVIDADE
-  //     Se o usuário ficar 10 minutos sem nenhuma interação,
-  //     a página é limpa — impede scrapers rodando em segundo plano.
+  //     10 minutos sem interação → página limpa.
+  //     Impede scrapers rodando em segundo plano.
   // ============================================================
-  const INATIVIDADE_MS = 10 * 60 * 1000; // 10 minutos
+  const INATIVIDADE_MS = 10 * 60 * 1000;
   let _timerInatividade = null;
-  let _paginaExpirada = false;
+  let _paginaExpirada   = false;
 
   function _resetarInatividade() {
     if (_paginaExpirada) return;
@@ -227,52 +260,6 @@ setInterval(_checarDevTools, 500);
   });
 
   _resetarInatividade(); // inicia o timer
-
-
-  // ============================================================
-  // 11. DETECÇÃO DE VELOCIDADE SUSPEITA DE REQUISIÇÕES
-  //     Mais de 10 fetches em menos de 2 segundos é padrão
-  //     de script, não de humano. Bloqueia e limpa a página.
-  // ============================================================
-  const _janelaSuspeita = 2000; // 2 segundos
-  const _maxRapidas     = 30;
-  let _requisicoesRapidas = [];
-
-  function _checarVelocidade() {
-    const agora = Date.now();
-    _requisicoesRapidas = _requisicoesRapidas.filter(ts => agora - ts < _janelaSuspeita);
-    _requisicoesRapidas.push(agora);
-
-    if (_requisicoesRapidas.length > _maxRapidas) {
-      _bloqueado = true;
-      document.body.innerHTML = `
-        <div style="
-          display:flex;flex-direction:column;align-items:center;
-          justify-content:center;height:100vh;background:#0a0f14;
-          color:#1fac89;font-family:sans-serif;text-align:center;gap:16px;">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1fac89" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <h2 style="margin:0;color:#fff;">Acesso bloqueado</h2>
-          <p style="margin:0;color:#aaa;font-size:14px;">Comportamento suspeito detectado.</p>
-        </div>`;
-      throw new Error('Comportamento suspeito detectado.');
-    }
-  }
-
-  // Integra a verificação de velocidade no interceptador de fetch existente
-  const _fetchComVelocidade = window.fetch.bind(window);
-  window.fetch = async function (url, opcoes = {}) {
-    const ehInterna = typeof url === 'string' && (
-      url.includes('/api/') ||
-      url.includes('betstat') ||
-      url.startsWith('/')
-    );
-    if (ehInterna) _checarVelocidade();
-    return _fetchComVelocidade(url, opcoes);
-  };
 
 
   console.log('[BetStat] Proteções ativas ✓');
