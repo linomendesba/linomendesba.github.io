@@ -129,10 +129,10 @@ onAuthStateChanged(auth, async (user) => {
   // Configura monitoramento para detectar sessões em outros dispositivos
   unsubscribeDeviceMonitor = setupDeviceMonitor(user);
   
-const path = window.location.pathname;
-if (path === "/auth.html" || path === "/" || path === "") {
-    window.location.href = "/home.html";
-}
+  // Se estamos na página de auth mas o usuário está logado, redireciona para a página principal
+  if (window.location.href.includes("auth.html")) {
+    window.location.href = "/home.html"; // Ajuste para sua página principal
+  }
 });
 
 // Função de login para a página de autenticação
