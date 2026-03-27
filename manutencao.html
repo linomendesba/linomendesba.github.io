@@ -4118,37 +4118,41 @@ setInterval(updateCharts,3000);
   }
 
   /*
-   * calcStats — alinhado com o ranking de 20 jogos:
-   * Forma cresce cronologicamente com .push().
-   * .slice(-5) pega os 5 últimos (mais recente por último), igual ao ranking.
+   * calcStats — idêntico ao ranking de 20 jogos:
+   * filterByCount já inverteu: matches[0] = jogo mais recente.
+   * forEach percorre do mais recente ao mais antigo.
+   * forma.push() + limite "if forma.length < 5" = exatamente como o ranking.
+   * Resultado: forma[0]=mais recente, forma[4]=mais antigo (igual ao ranking).
    * Suporta modo: "ambos" | "casa" | "fora"
    */
   function calcStats(matches, teamName, modo) {
     modo = modo || "ambos";
     let w=0,d=0,l=0,gf=0,ga=0,cs=0,fts=0,forma=[];
-    matches
-      .filter(m => {
-        if (m.time_a===teamName) return modo==="ambos" || modo==="casa";
-        if (m.time_b===teamName) return modo==="ambos" || modo==="fora";
-        return false;
-      })
-      .forEach(m => {
-        if (!m.ft||!m.ft.includes(" x ")) return;
-        const [a,b] = m.ft.split(" x ").map(Number);
-        if (isNaN(a)||isNaN(b)) return;
-        const scored   = m.time_a===teamName ? a : b;
-        const conceded = m.time_a===teamName ? b : a;
-        gf+=scored; ga+=conceded;
-        if (conceded===0) cs++;
-        if (scored===0)   fts++;
-        if      (scored>conceded) { w++; forma.push("V"); }
-        else if (scored<conceded) { l++; forma.push("D"); }
-        else                      { d++; forma.push("E"); }
-      });
-    const total = w+d+l;
+    matches.forEach(m => {
+      const isHome = m.time_a === teamName;
+      const isAway = m.time_b === teamName;
+      if (!isHome && !isAway) return;
+      if (modo === "casa" && !isHome) return;
+      if (modo === "fora" && !isAway) return;
+      if (!m.ft || !m.ft.includes(" x ")) return;
+      const [a,b] = m.ft.split(" x ").map(Number);
+      if (isNaN(a) || isNaN(b)) return;
+      const scored   = isHome ? a : b;
+      const conceded = isHome ? b : a;
+      gf += scored; ga += conceded;
+      if (conceded === 0) cs++;
+      if (scored === 0)   fts++;
+      const r = scored > conceded ? "V" : scored < conceded ? "D" : "E";
+      if (r === "V") w++;
+      else if (r === "D") l++;
+      else d++;
+      // Igual ao ranking: limita a 5 durante o push (mais recente primeiro)
+      if (forma.length < 5) forma.push(r);
+    });
+    const total = w + d + l;
     return {
       w, d, l, gf, ga, cs, fts,
-      forma: forma.slice(-5),   // 5 mais recentes, mais antigo=índice0
+      forma,   // forma[0]=mais recente, igual ao ranking de 20 jogos
       total,
       idxOf: total ? ((gf+ga)/total).toFixed(2) : "0.00"
     };
@@ -4376,7 +4380,7 @@ setInterval(updateCharts,3000);
     // Casa vence + Under 3.5
     const pCombo_Casa_U35 = Math.round((pCasa/100)*(pU35/100)*100);
 
-    // ── Perfil dos times ──
+    // ── Perfil dos times (mantido para cálculo de pA/pB, usado internamente) ──
     function perfil(idx, apr){
       if (idx>=3.5)           return "explosivo";
       if (idx>=2.5&&apr>=55)  return "forte";
@@ -4384,40 +4388,7 @@ setInterval(updateCharts,3000);
       if (idx<1.8)            return "travado";
       return "medio";
     }
-    const pA=perfil(idxA,aprA), pB=perfil(idxB,aprB);
-
-    // ── Tags e leitura ──
-    let tags=[], linhas=[];
-    if (idxA>=3.5&&idxB>=3.5){
-      tags=[{t:"Over 3.5 Forte",c:"tag-green"},{t:"Over 5+ Possível",c:"tag-blue"},{t:"Ambas Sim",c:"tag-green"}];
-      linhas=[`<strong>${teamA}</strong> e <strong>${teamB}</strong> — perfis explosivos.`,
-              `xG: Casa <strong>${xgA}</strong> · Fora <strong>${xgB}</strong> · Total <strong>${xgTot}</strong>.`,
-              `Over 3.5 é o cenário mais provável.`];
-    } else if (pA==="forte"&&(pB==="fraco"||pB==="travado")){
-      tags=[{t:"Casa Vence",c:"tag-blue"},{t:"Under 3.5",c:"tag-yellow"}];
-      linhas=[`<strong>${teamA}</strong> favorita sólida. <strong>${teamB}</strong> com baixo poder ofensivo.`,
-              `xG: Casa <strong>${xgA}</strong> · Fora <strong>${xgB}</strong>.`,
-              `Placar controlado esperado.`];
-    } else if ((pA==="fraco"||pA==="travado")&&pB==="forte"){
-      tags=[{t:"Zebra / Fora Vence",c:"tag-red"},{t:"Over 2.5",c:"tag-green"}];
-      linhas=[`<strong>${teamB}</strong> fora muito superior.`,
-              `xG: Casa <strong>${xgA}</strong> · Fora <strong>${xgB}</strong>.`,
-              `Zebra viável. Over 2.5 como oportunidade.`];
-    } else if ((pA==="travado"||pA==="fraco")&&(pB==="travado"||pB==="fraco")){
-      tags=[{t:"Under 2.5 Forte",c:"tag-yellow"},{t:"Under 1.5",c:"tag-purple"},{t:"Ambas Não",c:"tag-red"}];
-      linhas=[`Ambas as equipes com perfil defensivo/travado.`,
-              `xG: Casa <strong>${xgA}</strong> · Fora <strong>${xgB}</strong>.`,
-              `Jogo com poucos gols esperado.`];
-    } else if (idxA>=3.5||idxB>=3.5){
-      tags=[{t:"Over 2.5",c:"tag-green"},{t:"Ambas Sim",c:"tag-green"}];
-      linhas=[`${idxA>=3.5?teamA:teamB} com perfil explosivo.`,
-              `xG: Casa <strong>${xgA}</strong> · Fora <strong>${xgB}</strong> · Total <strong>${xgTot}</strong>.`,
-              `Over 2.5 e Ambas Marcam como mercados principais.`];
-    } else {
-      tags=[{t:"Over 2.5",c:"tag-blue"}];
-      linhas=[`Confronto equilibrado entre <strong>${teamA}</strong> e <strong>${teamB}</strong>.`,
-              `xG: Casa <strong>${xgA}</strong> · Fora <strong>${xgB}</strong>.`];
-    }
+    const pA=perfil(idxA,aprA), pB=perfil(idxB,aprB); // eslint-disable-line no-unused-vars
 
     /* ── Odds ── */
     let oddsHtml="", favTxt="";
@@ -4437,8 +4408,8 @@ setInterval(updateCharts,3000);
         <div class="${UID}afav">${favTxt}</div>`;
     }
 
-    const tagsHtml    = tags.map(t=>`<span class="${UID}atag ${UID}${t.c}">${t.t}</span>`).join("");
-    const leituraHtml = linhas.map(l=>`<div class="${UID}alinha">• ${l}</div>`).join("");
+    const tagsHtml    = ""; // removido
+    const leituraHtml = ""; // removido
 
     /* ── Helpers de cor por probabilidade ── */
     function clsSug(p){ return p>=60?"sug-hi":p>=40?"sug-med":"sug-lo"; }
@@ -4465,15 +4436,14 @@ setInterval(updateCharts,3000);
 
     return `
     <div class="${UID}analise" id="${UID}analise_block">
-      <div class="${UID}atitle">👉 Leitura do Confronto</div>
       <div class="${UID}ainner">
+
+        <!-- Coluna esquerda: cabeçalho + odds + métricas xG -->
         <div>
+          <div class="${UID}atitle">👉 Leitura do Confronto</div>
           <div class="${UID}aheader">${teamA} x ${teamB}</div>
           ${gameTime?`<div class="${UID}atime">${gameTime}</div>`:""}
           ${oddsHtml}
-          <div>${tagsHtml}</div>
-          <div class="${UID}aleitura">${leituraHtml}</div>
-
           <!-- Métricas xG -->
           <div class="${UID}amercados" style="margin-top:8px;">
             <div class="${UID}amitem"><div class="${UID}aml">xG Casa</div><div class="${UID}amv ${UID}amv-blue">${xgA}</div></div>
@@ -4489,16 +4459,14 @@ setInterval(updateCharts,3000);
           </div>
         </div>
 
-        <!-- Sugestões de mercados com probabilidades -->
+        <!-- Coluna direita: sugestões de mercados com probabilidades -->
         <div>
           <div class="${UID}sugtitle">📈 O que pode acontecer</div>
           <div class="${UID}sugrid">
-            <!-- Resultado -->
             ${sugItem("🏠 Casa vence ("+teamA+")", pCasa)}
             ${sugItem("🤝 Empate", pEmp)}
             ${sugItem("✈ Fora vence ("+teamB+")", pFora)}
             <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,.06);margin:2px 0;"></div>
-            <!-- Over/Under -->
             ${sugItem("Over 1.5", pO15)}
             ${sugItem("Under 1.5", pU15)}
             ${sugItem("Over 2.5", pO25)}
@@ -4507,15 +4475,14 @@ setInterval(updateCharts,3000);
             ${sugItem("Under 3.5", pU35)}
             ${sugItem("Over 5+", pO5)}
             <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,.06);margin:2px 0;"></div>
-            <!-- Ambas -->
             ${sugItem("Ambas marcam (Sim)", pAmbasSim)}
             ${sugItem("Ambas marcam (Não)", pAmbasNao)}
-            <!-- Combos -->
             ${pCombo_Amb_O25>=35?comboItem("Ambas Sim + Over 2.5", pCombo_Amb_O25):""}
             ${pCombo_Amb_O35>=25?comboItem("Ambas Sim + Over 3.5", pCombo_Amb_O35):""}
             ${pCombo_Casa_U35>=35?comboItem(teamA+" vence + Under 3.5", pCombo_Casa_U35):""}
           </div>
         </div>
+
       </div>
     </div>`;
   }
