@@ -3997,37 +3997,37 @@ setInterval(updateCharts,3000);
       grid-column:1/-1;
       background:rgba(59,130,246,0.05);
       border:0.5px solid rgba(59,130,246,0.18);
-      border-radius:10px; padding:12px 16px;
+      border-radius:10px; padding:7px 12px;
     }
     .${UID}atoprow {
-      display:flex; align-items:center; flex-wrap:wrap; gap:14px;
-      margin-bottom:10px; padding-bottom:10px;
+      display:flex; align-items:center; flex-wrap:wrap; gap:8px;
+      margin-bottom:6px; padding-bottom:6px;
       border-bottom:0.5px solid rgba(255,255,255,0.07);
     }
     .${UID}atitle {
-      font-size:10px; font-weight:700; letter-spacing:.08em;
-      text-transform:uppercase; color:#60a5fa; margin-bottom:2px;
+      font-size:9px; font-weight:700; letter-spacing:.08em;
+      text-transform:uppercase; color:#60a5fa; margin-bottom:1px;
     }
-    .${UID}aheader { font-size:14px; font-weight:700; color:#f3f4f6; line-height:1.2; }
-    .${UID}atime   { font-size:11px; color:#6b7280; margin-top:1px; }
-    .${UID}aodds { display:flex; gap:6px; flex-wrap:wrap; }
+    .${UID}aheader { font-size:13px; font-weight:700; color:#f3f4f6; line-height:1.1; }
+    .${UID}atime   { font-size:10px; color:#6b7280; margin-top:1px; }
+    .${UID}aodds { display:flex; gap:4px; flex-wrap:wrap; }
     .${UID}aodd {
       background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.1);
-      border-radius:6px; padding:5px 14px; text-align:center;
+      border-radius:6px; padding:3px 10px; text-align:center;
     }
-    .${UID}aol { font-size:9px; color:#6b7280; display:block; }
-    .${UID}aov { font-size:14px; font-weight:700; color:#e5e7eb; display:block; }
-    .${UID}afav { font-size:11px; color:#f59e0b; font-weight:600; }
+    .${UID}aol { font-size:8px; color:#6b7280; display:block; }
+    .${UID}aov { font-size:13px; font-weight:700; color:#e5e7eb; display:block; }
+    .${UID}afav { font-size:10px; color:#f59e0b; font-weight:600; }
 
     /* Sugestões — grade de mercados com probabilidades */
     .${UID}sugtitle {
-      font-size:10px; font-weight:700; letter-spacing:.08em;
-      text-transform:uppercase; color:#a78bfa; margin-bottom:8px;
+      font-size:9px; font-weight:700; letter-spacing:.08em;
+      text-transform:uppercase; color:#a78bfa; margin-bottom:5px;
     }
-    .${UID}sugrid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+    .${UID}sugrid { display:grid; grid-template-columns:1fr 1fr; gap:3px; }
     .${UID}sugitem {
       background:rgba(255,255,255,0.03); border:0.5px solid rgba(255,255,255,0.07);
-      border-radius:6px; padding:6px 10px;
+      border-radius:6px; padding:4px 8px;
       display:flex; align-items:center; justify-content:space-between;
     }
     .${UID}sugitem.${UID}sug-hi  { background:rgba(34,197,94,.06);  border-color:rgba(34,197,94,.25); }
@@ -4073,12 +4073,23 @@ setInterval(updateCharts,3000);
   let currentTeamA       = null;
   let currentTeamB       = null;
   let currentGameTime    = null;
-  let nGamesAtual        = 240;
   let hoursWrap          = null;
 
+  /* ─── Persistência localStorage ─── */
+  const STORE_KEY = UID + "prefs";
+  function loadPrefs() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch(e) { return {}; }
+  }
+  function savePrefs(obj) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ ...loadPrefs(), ...obj })); } catch(e) {}
+  }
+  const _prefs = loadPrefs();
+
+  let nGamesAtual = _prefs.nGames || 240;
+
   // Modo casa/fora para os cards individuais (igual ao ranking 20 jogos)
-  let modoTimeA = "ambos"; // "ambos" | "casa" | "fora"
-  let modoTimeB = "ambos";
+  let modoTimeA = _prefs.modoA || "ambos"; // "ambos" | "casa" | "fora"
+  let modoTimeB = _prefs.modoB || "ambos";
 
   /* ─── filterByCount ─── */
   function filterByCount(games, n) {
@@ -4231,8 +4242,8 @@ setInterval(updateCharts,3000);
         if (!btn) return;
         const novoModo = btn.dataset.modo;
         const key      = btn.dataset.modokey;
-        if (key==="A") modoTimeA=novoModo;
-        else           modoTimeB=novoModo;
+        if (key==="A") { modoTimeA=novoModo; savePrefs({modoA:novoModo}); }
+        else           { modoTimeB=novoModo; savePrefs({modoB:novoModo}); }
         card.innerHTML = buildHTML(novoModo);
         // Re-renderiza análise com novos modos
         const analiseEl = document.getElementById(UID+"analise_block");
@@ -4458,11 +4469,13 @@ setInterval(updateCharts,3000);
       btn.textContent=label;
       btn.dataset.games=games;
       btn.className=UID+"hbtn";
-      if(i===1) btn.classList.add(UID+"hon");
+      if(games===nGamesAtual) btn.classList.add(UID+"hon");
+      else if(nGamesAtual===240&&i===1&&!HOURS_OPTIONS.some(o=>o.games===nGamesAtual)) btn.classList.add(UID+"hon");
       btn.addEventListener("click",()=>{
         wrap.querySelectorAll("button").forEach(b=>b.classList.remove(UID+"hon"));
         btn.classList.add(UID+"hon");
         nGamesAtual=games;
+        savePrefs({nGames:games});
         if(isComparisonMode&&currentTeamA&&currentResultados.length)
           renderPanel(currentResultados,currentTeamA,currentTeamB,currentOddsData,currentGameTime);
       });
