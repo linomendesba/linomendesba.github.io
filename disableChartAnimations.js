@@ -1,1 +1,121 @@
-function a0_0xe6fe(_0x55bd80,_0x1f4c5b){_0x55bd80=_0x55bd80-0xcb;const _0x3109f6=a0_0x1ed1();let _0x4abb1e=_0x3109f6[_0x55bd80];if(a0_0xe6fe['pJDbju']===undefined){var _0x25ab46=function(_0x1c616b){const _0x5840a3='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x52d519='',_0x3fa3cb='',_0x406ed1=_0x52d519+_0x25ab46;for(let _0x2c2679=0x0,_0x36be1b,_0x282ff2,_0x2a3b44=0x0;_0x282ff2=_0x1c616b['charAt'](_0x2a3b44++);~_0x282ff2&&(_0x36be1b=_0x2c2679%0x4?_0x36be1b*0x40+_0x282ff2:_0x282ff2,_0x2c2679++%0x4)?_0x52d519+=_0x406ed1['charCodeAt'](_0x2a3b44+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x36be1b>>(-0x2*_0x2c2679&0x6)):_0x2c2679:0x0){_0x282ff2=_0x5840a3['indexOf'](_0x282ff2);}for(let _0x1a41fe=0x0,_0x20b9f4=_0x52d519['length'];_0x1a41fe<_0x20b9f4;_0x1a41fe++){_0x3fa3cb+='%'+('00'+_0x52d519['charCodeAt'](_0x1a41fe)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x3fa3cb);};a0_0xe6fe['hKtpEF']=_0x25ab46,a0_0xe6fe['bZmfnX']={},a0_0xe6fe['pJDbju']=!![];}const _0x1ed174=_0x3109f6[0x0],_0xe6feff=_0x55bd80+_0x1ed174,_0xa79692=a0_0xe6fe['bZmfnX'][_0xe6feff];if(!_0xa79692){const _0x4362a5=function(_0x3dbc37){this['kEVOvx']=_0x3dbc37,this['SocMwq']=[0x1,0x0,0x0],this['bTWikX']=function(){return'newState';},this['yRDAzM']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['gJJqxK']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x4362a5['prototype']['oWUfRN']=function(){const _0x5c3484=new RegExp(this['yRDAzM']+this['gJJqxK']),_0x24c00c=_0x5c3484['test'](this['bTWikX']['toString']())?--this['SocMwq'][0x1]:--this['SocMwq'][0x0];return this['rYoOxk'](_0x24c00c);},_0x4362a5['prototype']['rYoOxk']=function(_0x3b87f9){if(!Boolean(~_0x3b87f9))return _0x3b87f9;return this['eSefqF'](this['kEVOvx']);},_0x4362a5['prototype']['eSefqF']=function(_0x4207d8){for(let _0x5799b3=0x0,_0x24155b=this['SocMwq']['length'];_0x5799b3<_0x24155b;_0x5799b3++){this['SocMwq']['push'](Math['round'](Math['random']())),_0x24155b=this['SocMwq']['length'];}return _0x4207d8(this['SocMwq'][0x0]);},new _0x4362a5(a0_0xe6fe)['oWUfRN'](),_0x4abb1e=a0_0xe6fe['hKtpEF'](_0x4abb1e),a0_0xe6fe['bZmfnX'][_0xe6feff]=_0x4abb1e;}else _0x4abb1e=_0xa79692;return _0x4abb1e;}function a0_0x1ed1(){const _0x561331=['mJKXnvHiBxLhBW','ntC0mdC3y25gwevu','Dw5KzwzPBMvK','mtaXotuWAwrWCLrI','q2HHCNq','ndGYmJm0ze9owe91','mvrQsNbOua','kcGOlISPkYKRksSK','Bw9Kzq','yxbWBhK','nte1ntG5zvzREhLd','q2HHCNqUANmGyw5PBwf0Aw9UCYbKAxnHyMXLzcbNBg9IywXSEq','ofbAru1puW','rxjYBYbHBYbKzxnHyMLSAxrHCIbHBMLTyCoNW7vLCYbKBYbdAgfYDc5QCZO','Aw5KzxG','DxbKyxrL','Dg9VBhrPCa','Aw50zxjHy3rPB24','mtiXrxr3zufZ','Dg9tDhjPBMC','BgvNzw5K','Bg9Hza','DhjHBNnPDgLVBNm','zxjYB3i','mtC0mMvkrvjZra','CgX1z2LUCW','mJr6AuXiteS','C2vHCMnO','ywrKrxzLBNrmAxn0zw5LCG','ndC3mfrqu1jwtq','Bg9HzgLUzW','mti2mtjhtKLbzuO','zgvMyxvSDhm','B3b0Aw9UCW','Aw50zxjZzwn0','yw5PBwf0Aw9UCW','ndiXmZHgv3PfqNO','CMvHzhLtDgf0zq','yw5PBwf0Aw9U'];a0_0x1ed1=function(){return _0x561331;};return a0_0x1ed1();}(function(_0x189707,_0x562107){const _0x404b15=a0_0xe6fe,_0x37d2e1=_0x189707();while(!![]){try{const _0x390ccf=-parseInt(_0x404b15(0xea))/0x1*(parseInt(_0x404b15(0xe9))/0x2)+parseInt(_0x404b15(0xee))/0x3*(parseInt(_0x404b15(0xf0))/0x4)+parseInt(_0x404b15(0xe4))/0x5*(parseInt(_0x404b15(0xda))/0x6)+-parseInt(_0x404b15(0xe5))/0x7+parseInt(_0x404b15(0xd7))/0x8*(parseInt(_0x404b15(0xe1))/0x9)+-parseInt(_0x404b15(0xe7))/0xa*(parseInt(_0x404b15(0xcf))/0xb)+parseInt(_0x404b15(0xdc))/0xc*(-parseInt(_0x404b15(0xd5))/0xd);if(_0x390ccf===_0x562107)break;else _0x37d2e1['push'](_0x37d2e1['shift']());}catch(_0x2574dd){_0x37d2e1['push'](_0x37d2e1['shift']());}}}(a0_0x1ed1,0x3bd9e),(function(){const _0x3d81c8=a0_0xe6fe,_0x2c2679=(function(){let _0x1a41fe=!![];return function(_0x20b9f4,_0x4362a5){const _0x3dbc37=_0x1a41fe?function(){const _0x5bda40=a0_0xe6fe;if(_0x4362a5){const _0x5c3484=_0x4362a5[_0x5bda40(0xed)](_0x20b9f4,arguments);return _0x4362a5=null,_0x5c3484;}}:function(){};return _0x1a41fe=![],_0x3dbc37;};}());'use strict';let _0x36be1b=![];function _0x282ff2(){const _0x47f3f3=a0_0xe6fe;if(typeof Chart!==_0x47f3f3(0xe6)&&!_0x36be1b)_0x2a3b44(),_0x36be1b=!![];else!_0x36be1b&&setTimeout(_0x282ff2,0x64);}function _0x2a3b44(){const _0x22325f=a0_0xe6fe,_0x24c00c=_0x2c2679(this,function(){const _0x41796f=a0_0xe6fe;return _0x24c00c['toString']()[_0x41796f(0xd8)]('(((.+)+)+)+$')[_0x41796f(0xd0)]()['constructor'](_0x24c00c)[_0x41796f(0xd8)](_0x41796f(0xeb));});_0x24c00c();try{Chart[_0x22325f(0xdd)][_0x22325f(0xe3)]=![],Chart['defaults'][_0x22325f(0xe0)]=![];Chart['defaults'][_0x22325f(0xd6)]&&(Chart['defaults'][_0x22325f(0xd6)][_0x22325f(0xcd)]&&(Chart['defaults'][_0x22325f(0xd6)][_0x22325f(0xcd)]['animation']=![]),Chart[_0x22325f(0xdd)][_0x22325f(0xd6)][_0x22325f(0xd1)]&&(Chart['defaults'][_0x22325f(0xd6)][_0x22325f(0xd1)][_0x22325f(0xe3)]=![]));const _0x3b87f9=Chart;window[_0x22325f(0xe8)]=function(_0x4207d8,_0x5799b3){const _0x3f8404=_0x22325f;if(_0x5799b3){if(!_0x5799b3['options'])_0x5799b3[_0x3f8404(0xde)]={};_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xe3)]=![],_0x5799b3['options'][_0x3f8404(0xe0)]=![],_0x5799b3['options'][_0x3f8404(0xd3)]={'active':{'animation':{'duration':0x0}},'resize':{'animation':{'duration':0x0}},'show':{'animation':{'duration':0x0}},'hide':{'animation':{'duration':0x0}}};if(!_0x5799b3[_0x3f8404(0xde)]['plugins'])_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xd6)]={};!_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xd6)][_0x3f8404(0xcd)]&&(_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xd6)][_0x3f8404(0xcd)]={}),_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xd6)][_0x3f8404(0xcd)]['animation']=![],!_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xd6)][_0x3f8404(0xd1)]&&(_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xd6)][_0x3f8404(0xd1)]={}),_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xd6)][_0x3f8404(0xd1)]['animation']=![],!_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xce)]&&(_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xce)]={}),_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xce)][_0x3f8404(0xdf)]=![],_0x5799b3[_0x3f8404(0xde)][_0x3f8404(0xce)][_0x3f8404(0xec)]=_0x3f8404(0xcb);}const _0x24155b=new _0x3b87f9(_0x4207d8,_0x5799b3),_0x5748d4=_0x24155b[_0x3f8404(0xcc)];return _0x24155b['update']=function(_0x37c925){return _0x5748d4['call'](this,_0x37c925||'none');},_0x24155b;},Object['setPrototypeOf'](window[_0x22325f(0xe8)],_0x3b87f9);for(let _0x50f96d in _0x3b87f9){_0x3b87f9['hasOwnProperty'](_0x50f96d)&&(window[_0x22325f(0xe8)][_0x50f96d]=_0x3b87f9[_0x50f96d]);}console['log'](_0x22325f(0xef));}catch(_0x5ebb98){console[_0x22325f(0xd4)](_0x22325f(0xf1),_0x5ebb98);}}typeof Chart!==_0x3d81c8(0xe6)?_0x2a3b44():(document[_0x3d81c8(0xe2)]===_0x3d81c8(0xdb)?document[_0x3d81c8(0xd9)]('DOMContentLoaded',_0x282ff2):_0x282ff2(),window[_0x3d81c8(0xd9)](_0x3d81c8(0xd2),_0x282ff2));}()));
+/**
+ * disableChartAnimations.js
+ * Script para desabilitar animações em todos os gráficos Chart.js
+ * Para usar: <script src="disableChartAnimations.js"></script>
+ */
+
+(function() {
+    'use strict';
+    
+    let isInitialized = false;
+    
+    function waitForChart() {
+        if (typeof Chart !== 'undefined' && !isInitialized) {
+            initializeNoAnimations();
+            isInitialized = true;
+        } else if (!isInitialized) {
+            setTimeout(waitForChart, 100);
+        }
+    }
+    
+    function initializeNoAnimations() {
+        try {
+            // Configurações globais padrão do Chart.js
+            Chart.defaults.animation = false;
+            Chart.defaults.animations = false;
+            
+            // Configurar plugins globalmente
+            if (Chart.defaults.plugins) {
+                if (Chart.defaults.plugins.tooltip) {
+                    Chart.defaults.plugins.tooltip.animation = false;
+                }
+                if (Chart.defaults.plugins.legend) {
+                    Chart.defaults.plugins.legend.animation = false;
+                }
+            }
+            
+            // Interceptar criação de novos gráficos
+            const OriginalChart = Chart;
+            
+            window.Chart = function(ctx, config) {
+                if (config) {
+                    // Garantir que options existe
+                    if (!config.options) config.options = {};
+                    
+                    // Desabilitar animações
+                    config.options.animation = false;
+                    config.options.animations = false;
+                    
+                    // Desabilitar transições
+                    config.options.transitions = {
+                        active: { animation: { duration: 0 }},
+                        resize: { animation: { duration: 0 }},
+                        show: { animation: { duration: 0 }},
+                        hide: { animation: { duration: 0 }}
+                    };
+                    
+                    // Configurar plugins
+                    if (!config.options.plugins) config.options.plugins = {};
+                    
+                    if (!config.options.plugins.tooltip) {
+                        config.options.plugins.tooltip = {};
+                    }
+                    config.options.plugins.tooltip.animation = false;
+                    
+                    if (!config.options.plugins.legend) {
+                        config.options.plugins.legend = {};
+                    }
+                    config.options.plugins.legend.animation = false;
+                    
+                    // Otimizar interações para performance
+                    if (!config.options.interaction) {
+                        config.options.interaction = {};
+                    }
+                    config.options.interaction.intersect = false;
+                    config.options.interaction.mode = 'index';
+                }
+                
+                // Criar instância do gráfico
+                const chartInstance = new OriginalChart(ctx, config);
+                
+                // Interceptar update para remover animações
+                const originalUpdate = chartInstance.update;
+                chartInstance.update = function(mode) {
+                    return originalUpdate.call(this, mode || 'none');
+                };
+                
+                return chartInstance;
+            };
+            
+            // Preservar funcionalidades do Chart original
+            Object.setPrototypeOf(window.Chart, OriginalChart);
+            for (let key in OriginalChart) {
+                if (OriginalChart.hasOwnProperty(key)) {
+                    window.Chart[key] = OriginalChart[key];
+                }
+            }
+            
+            console.log('Chart.js animations disabled globally');
+            
+        } catch (error) {
+            console.error('Erro ao desabilitar animações do Chart.js:', error);
+        }
+    }
+    
+    // Múltiplos pontos de inicialização para garantir execução
+    if (typeof Chart !== 'undefined') {
+        // Chart.js já carregado
+        initializeNoAnimations();
+    } else {
+        // Aguardar carregamento
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', waitForChart);
+        } else {
+            waitForChart();
+        }
+        
+        // Fallback adicional
+        window.addEventListener('load', waitForChart);
+    }
+    
+})();
