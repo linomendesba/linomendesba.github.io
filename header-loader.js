@@ -7,6 +7,7 @@
   const MAPEAMENTO_CASAS = {
     // BETANO
     'index.html': 'betano',
+    'manutencao': 'betano',
     'euro.html': 'betano',
     'copa_america.html': 'betano',
     'copa_das_estrelas.html': 'betano',
