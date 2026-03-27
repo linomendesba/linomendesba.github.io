@@ -3899,6 +3899,14 @@ setInterval(updateCharts,3000);
       font-size:10px; font-weight:600; color:#7a9e8a;
       text-transform:uppercase; letter-spacing:.6px; margin-right:2px;
     }
+    .${UID}tabsbtn {
+      padding:3px 10px; font-size:10px; font-weight:600; border-radius:3px;
+      border:1px solid #2a3d30; background:transparent; color:#7a9e8a;
+      cursor:pointer; transition:all .15s; letter-spacing:.3px;
+    }
+    .${UID}tabsbtn.${UID}tabon {
+      background:rgba(79,114,255,.18); color:#72b0ff; border-color:#4f72ff;
+    }
 
     .${UID}games { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
     .${UID}gc {
@@ -3927,7 +3935,16 @@ setInterval(updateCharts,3000);
     }
     .${UID}ctitle {
       font-size:10px; font-weight:600; letter-spacing:.07em;
-      text-transform:uppercase; color:#6b7280; margin-bottom:10px;
+      text-transform:uppercase; color:#6b7280; margin-bottom:6px;
+    }
+    .${UID}modotabs { display:flex; gap:4px; margin-bottom:10px; }
+    .${UID}mtab {
+      padding:2px 8px; font-size:9px; font-weight:700; border-radius:3px;
+      border:0.5px solid #2a3d30; background:transparent; color:#7a9e8a;
+      cursor:pointer; transition:all .15s;
+    }
+    .${UID}mtab.${UID}mton {
+      background:rgba(79,114,255,.18); color:#72b0ff; border-color:#4f72ff;
     }
     .${UID}apr { font-size:26px; font-weight:700; color:#f3f4f6; line-height:1; }
     .${UID}aprlbl { font-size:10px; color:#6b7280; margin-top:2px; margin-bottom:8px; }
@@ -3975,7 +3992,7 @@ setInterval(updateCharts,3000);
     .${UID}chi { border-color:rgba(34,197,94,.35); color:#22c55e; background:rgba(34,197,94,.08); }
     .${UID}clo { border-color:rgba(255,255,255,.08); color:#6b7280; background:transparent; }
 
-    /* Analise compacta 2 colunas */
+    /* Analise expandida */
     .${UID}analise {
       grid-column:1/-1;
       background:rgba(59,130,246,0.05);
@@ -4015,6 +4032,40 @@ setInterval(updateCharts,3000);
     .${UID}aleitura strong { color:#f3f4f6; }
     .${UID}alinha { margin-bottom:3px; }
 
+    /* Sugestões — grade de mercados com probabilidades */
+    .${UID}sugtitle {
+      font-size:10px; font-weight:700; letter-spacing:.08em;
+      text-transform:uppercase; color:#a78bfa; margin:10px 0 6px;
+    }
+    .${UID}sugrid { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+    .${UID}sugitem {
+      background:rgba(255,255,255,0.03); border:0.5px solid rgba(255,255,255,0.07);
+      border-radius:6px; padding:5px 8px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .${UID}sugitem.${UID}sug-hi {
+      background:rgba(34,197,94,.06); border-color:rgba(34,197,94,.25);
+    }
+    .${UID}sugitem.${UID}sug-med {
+      background:rgba(245,158,11,.05); border-color:rgba(245,158,11,.2);
+    }
+    .${UID}sugitem.${UID}sug-lo {
+      background:rgba(239,68,68,.04); border-color:rgba(239,68,68,.12);
+    }
+    .${UID}suglbl { font-size:10px; color:#9ca3af; }
+    .${UID}sugpct { font-size:12px; font-weight:700; }
+    .${UID}sugpct-hi  { color:#22c55e; }
+    .${UID}sugpct-med { color:#f59e0b; }
+    .${UID}sugpct-lo  { color:#ef4444; }
+    .${UID}sugcombo {
+      grid-column:1/-1;
+      background:rgba(167,139,250,.06); border:0.5px solid rgba(167,139,250,.25);
+      border-radius:6px; padding:5px 8px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .${UID}sugcombolbl { font-size:10px; color:#a78bfa; font-weight:600; }
+    .${UID}sugcombopct { font-size:12px; font-weight:700; color:#a78bfa; }
+
     .${UID}amercados { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
     .${UID}amitem {
       background:rgba(255,255,255,0.03); border:0.5px solid rgba(255,255,255,0.07);
@@ -4037,12 +4088,12 @@ setInterval(updateCharts,3000);
     document.head.appendChild(tag);
   }
 
+  // Sem 72h conforme solicitado
   const HOURS_OPTIONS = [
     { label:"6h",  games:120  },
     { label:"12h", games:240  },
     { label:"24h", games:480  },
     { label:"48h", games:960  },
-    { label:"72h", games:1440 },
   ];
 
   let isComparisonMode   = false;
@@ -4056,6 +4107,10 @@ setInterval(updateCharts,3000);
   let nGamesAtual        = 240;
   let hoursWrap          = null;
 
+  // Modo casa/fora para os cards individuais (igual ao ranking 20 jogos)
+  let modoTimeA = "ambos"; // "ambos" | "casa" | "fora"
+  let modoTimeB = "ambos";
+
   /* ─── filterByCount ─── */
   function filterByCount(games, n) {
     if (!games.length) return games;
@@ -4063,15 +4118,20 @@ setInterval(updateCharts,3000);
   }
 
   /*
-   * calcStats — alinhado com o ranking:
-   * USA .push() (não .unshift) → forma cresce cronologicamente.
-   * .slice(-5) pega os 5 últimos na ordem correta (mais recente por último),
-   * igual ao que o ranking exibe.
+   * calcStats — alinhado com o ranking de 20 jogos:
+   * Forma cresce cronologicamente com .push().
+   * .slice(-5) pega os 5 últimos (mais recente por último), igual ao ranking.
+   * Suporta modo: "ambos" | "casa" | "fora"
    */
-  function calcStats(matches, teamName) {
-    let w=0,d=0,l=0,gf=0,ga=0,cs=0,fts=0,form=[];
+  function calcStats(matches, teamName, modo) {
+    modo = modo || "ambos";
+    let w=0,d=0,l=0,gf=0,ga=0,cs=0,fts=0,forma=[];
     matches
-      .filter(m => m.time_a===teamName || m.time_b===teamName)
+      .filter(m => {
+        if (m.time_a===teamName) return modo==="ambos" || modo==="casa";
+        if (m.time_b===teamName) return modo==="ambos" || modo==="fora";
+        return false;
+      })
       .forEach(m => {
         if (!m.ft||!m.ft.includes(" x ")) return;
         const [a,b] = m.ft.split(" x ").map(Number);
@@ -4081,14 +4141,14 @@ setInterval(updateCharts,3000);
         gf+=scored; ga+=conceded;
         if (conceded===0) cs++;
         if (scored===0)   fts++;
-        if      (scored>conceded) { w++; form.push("V"); }
-        else if (scored<conceded) { l++; form.push("D"); }
-        else                      { d++; form.push("E"); }
+        if      (scored>conceded) { w++; forma.push("V"); }
+        else if (scored<conceded) { l++; forma.push("D"); }
+        else                      { d++; forma.push("E"); }
       });
     const total = w+d+l;
     return {
       w, d, l, gf, ga, cs, fts,
-      form: form.slice(-5),           // 5 mais recentes, mais antigo=índice0
+      forma: forma.slice(-5),   // 5 mais recentes, mais antigo=índice0
       total,
       idxOf: total ? ((gf+ga)/total).toFixed(2) : "0.00"
     };
@@ -4133,16 +4193,31 @@ setInterval(updateCharts,3000);
             <span class="${UID}chip ${!hiA?UID+"chi":UID+"clo"}">${lb} ${b}</span>`;
   }
 
-  function renderTeam(title, matches, teamName) {
-    const s   = calcStats(filterByCount(matches, nGamesAtual), teamName);
-    const apr = s.total?((s.w/s.total)*100).toFixed(1):"0.0";
-    const mx  = Math.max(s.w,s.d,s.l)||1;
-    const formaHTML = s.form.map(r=>`<span class="${UID}fp ${UID}f${r}">${r}</span>`).join("");
-    return `
-    <div class="${UID}card">
+  /* ─── renderTeam com seletor Casa/Fora (igual ao ranking 20 jogos) ─── */
+  function renderTeam(title, matches, teamName, modoInicial, modoKey) {
+    const modos = [
+      {val:"ambos", lbl:"Casa/Fora"},
+      {val:"casa",  lbl:"🏠 Casa"},
+      {val:"fora",  lbl:"✈ Fora"}
+    ];
+
+    function buildHTML(modo) {
+      const s   = calcStats(filterByCount(matches, nGamesAtual), teamName, modo);
+      const apr = s.total?((s.w/s.total)*100).toFixed(1):"0.0";
+      const mx  = Math.max(s.w,s.d,s.l)||1;
+      const formaHTML = s.forma.map(r=>`<span class="${UID}fp ${UID}f${r}">${r}</span>`).join("");
+      const modoLabel = modo==="casa"?"🏠 Casa":modo==="fora"?"✈ Fora":"Casa/Fora";
+
+      const tabsHTML = modos.map(m=>
+        `<button class="${UID}mtab${m.val===modo?" "+UID+"mton":""}"
+           data-modo="${m.val}" data-modokey="${modoKey}">${m.lbl}</button>`
+      ).join("");
+
+      return `
       <div class="${UID}ctitle">${title}</div>
+      <div class="${UID}modotabs">${tabsHTML}</div>
       <div class="${UID}apr">${apr}%</div>
-      <div class="${UID}aprlbl">aproveitamento · ${s.total} jogos</div>
+      <div class="${UID}aprlbl">aproveitamento · ${s.total} jogos (${modoLabel})</div>
       <div class="${UID}prow">
         <span class="${UID}plbl" style="color:#22c55e">V</span>
         <div class="${UID}ptrack"><div class="${UID}pfill" style="width:${pct(s.w,mx)}%;background:#22c55e"></div></div>
@@ -4168,8 +4243,36 @@ setInterval(updateCharts,3000);
           <div class="${UID}msv" style="color:#a78bfa">${s.idxOf}</div>
         </div>
       </div>
-      <div class="${UID}forma">${formaHTML}</div>
-    </div>`;
+      <div class="${UID}forma">${formaHTML}</div>`;
+    }
+
+    const cardId = UID+"card_"+modoKey;
+    const html = `<div class="${UID}card" id="${cardId}">${buildHTML(modoInicial)}</div>`;
+
+    // Após inserção, delegar evento nos tabs
+    setTimeout(()=>{
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      card.addEventListener("click", e=>{
+        const btn = e.target.closest(`.${UID}mtab`);
+        if (!btn) return;
+        const novoModo = btn.dataset.modo;
+        const key      = btn.dataset.modokey;
+        if (key==="A") modoTimeA=novoModo;
+        else           modoTimeB=novoModo;
+        card.innerHTML = buildHTML(novoModo);
+        // Re-renderiza análise com novos modos
+        const analiseEl = document.getElementById(UID+"analise_block");
+        if (analiseEl && currentTeamA) {
+          analiseEl.outerHTML = renderAnalise(
+            currentResultados, currentTeamA, currentTeamB,
+            currentOddsData, currentGameTime
+          );
+        }
+      });
+    }, 0);
+
+    return html;
   }
 
   function renderH2H(matches, teamA, teamB) {
@@ -4210,32 +4313,70 @@ setInterval(updateCharts,3000);
     </div>`;
   }
 
+  /* ─── renderAnalise com sugestões completas ─── */
   function renderAnalise(results, teamA, teamB, odds, gameTime) {
     const filt = filterByCount(results, nGamesAtual);
-    const sA   = calcStats(filt, teamA);
-    const sB   = calcStats(filt, teamB);
-    const h    = calcH2H(filt, teamA, teamB);
 
-    const avgGFA = sA.total?(sA.gf/sA.total):0;
-    const avgGAA = sA.total?(sA.ga/sA.total):0;
-    const avgGFB = sB.total?(sB.gf/sB.total):0;
-    const avgGAB = sB.total?(sB.ga/sB.total):0;
+    // Stats individuais respeitando modo casa/fora
+    const sA_geral = calcStats(filt, teamA, "ambos");
+    const sB_geral = calcStats(filt, teamB, "ambos");
+    const sA_ctx   = calcStats(filt, teamA, modoTimeA); // modo do card A
+    const sB_ctx   = calcStats(filt, teamB, modoTimeB); // modo do card B
+    const h        = calcH2H(filt, teamA, teamB);
+
+    // xG usando stats contextuais (casa/fora do time)
+    const avgGFA = sA_ctx.total?(sA_ctx.gf/sA_ctx.total):0;
+    const avgGAA = sA_ctx.total?(sA_ctx.ga/sA_ctx.total):0;
+    const avgGFB = sB_ctx.total?(sB_ctx.gf/sB_ctx.total):0;
+    const avgGAB = sB_ctx.total?(sB_ctx.ga/sB_ctx.total):0;
     const xgA   = ((avgGFA+avgGAB)/2).toFixed(2);
     const xgB   = ((avgGFB+avgGAA)/2).toFixed(2);
     const xgTot = (parseFloat(xgA)+parseFloat(xgB)).toFixed(2);
 
-    const pctH2H = h.total?((h.ambasSim/h.total)*100):0;
-    const pctA   = sA.total?(((sA.total-sA.fts)/sA.total)*100):0;
-    const pctB   = sB.total?(((sB.total-sB.fts)/sB.total)*100):0;
-    const pctAmb = ((pctH2H+pctA+pctB)/3).toFixed(0);
-    const pctO25 = h.total?((h.o25/h.total)*100).toFixed(0):"0";
-    const pctO35 = h.total?((h.o35/h.total)*100).toFixed(0):"0";
+    const idxA = parseFloat(sA_geral.idxOf);
+    const idxB = parseFloat(sB_geral.idxOf);
+    const aprA = sA_geral.total?((sA_geral.w/sA_geral.total)*100):0;
+    const aprB = sB_geral.total?((sB_geral.w/sB_geral.total)*100):0;
 
-    const aprA=sA.total?((sA.w/sA.total)*100):0;
-    const aprB=sB.total?((sB.w/sB.total)*100):0;
-    const idxA=parseFloat(sA.idxOf);
-    const idxB=parseFloat(sB.idxOf);
+    // ── Probabilidades de resultado (baseado em aproveitamento + H2H) ──
+    const h2h_total = h.total || 1;
+    const pctCasaH2H   = (h.wA / h2h_total) * 100;
+    const pctEmpH2H    = (h.dr / h2h_total) * 100;
+    const pctForaH2H   = (h.wB / h2h_total) * 100;
 
+    // Pondera 60% aproveitamento geral + 40% H2H
+    const rawCasa = aprA * 0.6 + pctCasaH2H * 0.4;
+    const rawEmp  = ((100-aprA-aprA*0.3) + (100-aprB-aprB*0.3)) / 2 * 0.4 + pctEmpH2H * 0.6;
+    const rawFora = aprB * 0.6 + pctForaH2H * 0.4;
+    const rawSum  = rawCasa + rawEmp + rawFora || 1;
+    const pCasa = Math.round((rawCasa/rawSum)*100);
+    const pEmp  = Math.round((rawEmp /rawSum)*100);
+    const pFora = Math.round((rawFora/rawSum)*100);
+
+    // ── Probabilidades de mercados de gols ──
+    const n_h2h = h.total || 1;
+    const pO15 = Math.round((h.o15/n_h2h)*100);
+    const pU15 = 100 - pO15;
+    const pO25 = Math.round((h.o25/n_h2h)*100);
+    const pU25 = 100 - pO25;
+    const pO35 = Math.round((h.o35/n_h2h)*100);
+    const pU35 = 100 - pO35;
+    const pO5  = Math.round((h.o5 /n_h2h)*100);
+
+    // Ambas sim/não — média de 3 fontes: H2H + % times que marcam
+    const pctH2HAmb  = h.total?((h.ambasSim/h.total)*100):0;
+    const pctAMarca  = sA_geral.total?(((sA_geral.total-sA_geral.fts)/sA_geral.total)*100):0;
+    const pctBMarca  = sB_geral.total?(((sB_geral.total-sB_geral.fts)/sB_geral.total)*100):0;
+    const pAmbasSim  = Math.round((pctH2HAmb + pctAMarca + pctBMarca) / 3);
+    const pAmbasNao  = 100 - pAmbasSim;
+
+    // Combos: Ambas Sim + Over 2.5 / Over 3.5
+    const pCombo_Amb_O25 = Math.round((pAmbasSim/100)*(pO25/100)*100);
+    const pCombo_Amb_O35 = Math.round((pAmbasSim/100)*(pO35/100)*100);
+    // Casa vence + Under 3.5
+    const pCombo_Casa_U35 = Math.round((pCasa/100)*(pU35/100)*100);
+
+    // ── Perfil dos times ──
     function perfil(idx, apr){
       if (idx>=3.5)           return "explosivo";
       if (idx>=2.5&&apr>=55)  return "forte";
@@ -4245,6 +4386,7 @@ setInterval(updateCharts,3000);
     }
     const pA=perfil(idxA,aprA), pB=perfil(idxB,aprB);
 
+    // ── Tags e leitura ──
     let tags=[], linhas=[];
     if (idxA>=3.5&&idxB>=3.5){
       tags=[{t:"Over 3.5 Forte",c:"tag-green"},{t:"Over 5+ Possível",c:"tag-blue"},{t:"Ambas Sim",c:"tag-green"}];
@@ -4252,7 +4394,7 @@ setInterval(updateCharts,3000);
               `xG: Casa <strong>${xgA}</strong> · Fora <strong>${xgB}</strong> · Total <strong>${xgTot}</strong>.`,
               `Over 3.5 é o cenário mais provável.`];
     } else if (pA==="forte"&&(pB==="fraco"||pB==="travado")){
-      tags=[{t:"Casa Vence",c:"tag-blue"},{t:"2x0 / 2x1",c:"tag-green"},{t:"Under 3.5",c:"tag-yellow"}];
+      tags=[{t:"Casa Vence",c:"tag-blue"},{t:"Under 3.5",c:"tag-yellow"}];
       linhas=[`<strong>${teamA}</strong> favorita sólida. <strong>${teamB}</strong> com baixo poder ofensivo.`,
               `xG: Casa <strong>${xgA}</strong> · Fora <strong>${xgB}</strong>.`,
               `Placar controlado esperado.`];
@@ -4277,7 +4419,7 @@ setInterval(updateCharts,3000);
               `xG: Casa <strong>${xgA}</strong> · Fora <strong>${xgB}</strong>.`];
     }
 
-    /* odds — apenas 1x2, sem Over 3.5 */
+    /* ── Odds ── */
     let oddsHtml="", favTxt="";
     if (odds){
       const oc=parseFloat(odds.odds_casa_vence||99);
@@ -4295,16 +4437,34 @@ setInterval(updateCharts,3000);
         <div class="${UID}afav">${favTxt}</div>`;
     }
 
-    const tagsHtml   = tags.map(t=>`<span class="${UID}atag ${UID}${t.c}">${t.t}</span>`).join("");
-    const leituraHtml= linhas.map(l=>`<div class="${UID}alinha">• ${l}</div>`).join("");
+    const tagsHtml    = tags.map(t=>`<span class="${UID}atag ${UID}${t.c}">${t.t}</span>`).join("");
+    const leituraHtml = linhas.map(l=>`<div class="${UID}alinha">• ${l}</div>`).join("");
 
-    const amvAmb=parseInt(pctAmb)>=60?"amv-green":"amv-red";
-    const amvO25=parseInt(pctO25)>=60?"amv-green":"amv-yellow";
-    const amvO35=parseInt(pctO35)>=50?"amv-green":"amv-yellow";
+    /* ── Helpers de cor por probabilidade ── */
+    function clsSug(p){ return p>=60?"sug-hi":p>=40?"sug-med":"sug-lo"; }
+    function clsPct(p){ return p>=60?"sugpct-hi":p>=40?"sugpct-med":"sugpct-lo"; }
+
+    function sugItem(lbl, p){
+      return `<div class="${UID}sugitem ${UID}${clsSug(p)}">
+        <span class="${UID}suglbl">${lbl}</span>
+        <span class="${UID}sugpct ${UID}${clsPct(p)}">${p}%</span>
+      </div>`;
+    }
+
+    function comboItem(lbl, p){
+      return `<div class="${UID}sugcombo">
+        <span class="${UID}sugcombolbl">⚡ ${lbl}</span>
+        <span class="${UID}sugcombopct">${p}%</span>
+      </div>`;
+    }
+
     const amvTot=parseFloat(xgTot)>=3?"amv-green":"amv-yellow";
+    const amvAmb=pAmbasSim>=60?"amv-green":"amv-red";
+    const amvO25=pO25>=60?"amv-green":"amv-yellow";
+    const amvO35=pO35>=50?"amv-green":"amv-yellow";
 
     return `
-    <div class="${UID}analise">
+    <div class="${UID}analise" id="${UID}analise_block">
       <div class="${UID}atitle">👉 Leitura do Confronto</div>
       <div class="${UID}ainner">
         <div>
@@ -4313,19 +4473,47 @@ setInterval(updateCharts,3000);
           ${oddsHtml}
           <div>${tagsHtml}</div>
           <div class="${UID}aleitura">${leituraHtml}</div>
-        </div>
-        <div>
-          <div class="${UID}amercados">
+
+          <!-- Métricas xG -->
+          <div class="${UID}amercados" style="margin-top:8px;">
             <div class="${UID}amitem"><div class="${UID}aml">xG Casa</div><div class="${UID}amv ${UID}amv-blue">${xgA}</div></div>
             <div class="${UID}amitem"><div class="${UID}aml">xG Fora</div><div class="${UID}amv ${UID}amv-blue">${xgB}</div></div>
             <div class="${UID}amitem"><div class="${UID}aml">Total xG</div><div class="${UID}amv ${UID}${amvTot}">${xgTot}</div></div>
-            <div class="${UID}amitem"><div class="${UID}aml">Ambas %</div><div class="${UID}amv ${UID}${amvAmb}">${pctAmb}%</div></div>
-            <div class="${UID}amitem"><div class="${UID}aml">H2H Over 2.5</div><div class="${UID}amv ${UID}${amvO25}">${pctO25}%</div></div>
-            <div class="${UID}amitem"><div class="${UID}aml">H2H Over 3.5</div><div class="${UID}amv ${UID}${amvO35}">${pctO35}%</div></div>
+            <div class="${UID}amitem"><div class="${UID}aml">Ambas %</div><div class="${UID}amv ${UID}${amvAmb}">${pAmbasSim}%</div></div>
+            <div class="${UID}amitem"><div class="${UID}aml">H2H Over 2.5</div><div class="${UID}amv ${UID}${amvO25}">${pO25}%</div></div>
+            <div class="${UID}amitem"><div class="${UID}aml">H2H Over 3.5</div><div class="${UID}amv ${UID}${amvO35}">${pO35}%</div></div>
             ${odds?`
             <div class="${UID}amitem"><div class="${UID}aml">Ambas Sim</div><div class="${UID}amv ${UID}amv-yellow">@${parseFloat(odds.odds_ambas_marcam_sim||99).toFixed(2)}</div></div>
             <div class="${UID}amitem"><div class="${UID}aml">Ambas Não</div><div class="${UID}amv ${UID}amv-yellow">@${parseFloat(odds.odds_ambas_marcam_nao||99).toFixed(2)}</div></div>
             `:""}
+          </div>
+        </div>
+
+        <!-- Sugestões de mercados com probabilidades -->
+        <div>
+          <div class="${UID}sugtitle">📈 O que pode acontecer</div>
+          <div class="${UID}sugrid">
+            <!-- Resultado -->
+            ${sugItem("🏠 Casa vence ("+teamA+")", pCasa)}
+            ${sugItem("🤝 Empate", pEmp)}
+            ${sugItem("✈ Fora vence ("+teamB+")", pFora)}
+            <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,.06);margin:2px 0;"></div>
+            <!-- Over/Under -->
+            ${sugItem("Over 1.5", pO15)}
+            ${sugItem("Under 1.5", pU15)}
+            ${sugItem("Over 2.5", pO25)}
+            ${sugItem("Under 2.5", pU25)}
+            ${sugItem("Over 3.5", pO35)}
+            ${sugItem("Under 3.5", pU35)}
+            ${sugItem("Over 5+", pO5)}
+            <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,.06);margin:2px 0;"></div>
+            <!-- Ambas -->
+            ${sugItem("Ambas marcam (Sim)", pAmbasSim)}
+            ${sugItem("Ambas marcam (Não)", pAmbasNao)}
+            <!-- Combos -->
+            ${pCombo_Amb_O25>=35?comboItem("Ambas Sim + Over 2.5", pCombo_Amb_O25):""}
+            ${pCombo_Amb_O35>=25?comboItem("Ambas Sim + Over 3.5", pCombo_Amb_O35):""}
+            ${pCombo_Casa_U35>=35?comboItem(teamA+" vence + Under 3.5", pCombo_Casa_U35):""}
           </div>
         </div>
       </div>
@@ -4335,9 +4523,9 @@ setInterval(updateCharts,3000);
   function renderPanel(results, teamA, teamB, odds, gameTime) {
     document.getElementById("mainContainer").innerHTML = `
       <div class="${UID}panel">
-        ${renderTeam(teamA+" — geral", results, teamA)}
+        ${renderTeam(teamA+" — geral", results, teamA, modoTimeA, "A")}
         ${renderH2H(results, teamA, teamB)}
-        ${renderTeam(teamB+" — geral", results, teamB)}
+        ${renderTeam(teamB+" — geral", results, teamB, modoTimeB, "B")}
         ${renderAnalise(results, teamA, teamB, odds, gameTime)}
       </div>`;
   }
@@ -4399,6 +4587,8 @@ setInterval(updateCharts,3000);
         if(!card) return;
         container.querySelectorAll(`.${UID}gc`).forEach(c=>c.classList.remove(UID+"sel"));
         card.classList.add(UID+"sel");
+        // Reseta modos ao trocar de jogo
+        modoTimeA="ambos"; modoTimeB="ambos";
         obterResultados(card.dataset.home,card.dataset.visit,card.dataset.time);
       });
     } catch(err){ console.error("Erro próximos jogos:",err); }
