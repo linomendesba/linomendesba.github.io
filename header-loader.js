@@ -39,12 +39,10 @@
     const caminho = window.location.pathname.toLowerCase();
     const nomeArquivo = caminho.split('/').pop();
     
-    // Busca no mapeamento
     if (MAPEAMENTO_CASAS[nomeArquivo]) {
       return MAPEAMENTO_CASAS[nomeArquivo];
     }
     
-    // Fallback: detecta pelo localStorage ou padrão betano
     return localStorage.getItem('casaSelecionada') || 'betano';
   }
 
@@ -60,10 +58,8 @@
       return;
     }
 
-    // Salva a casa atual no localStorage
     localStorage.setItem('casaSelecionada', casa);
 
-    // Carrega o header apropriado
     const headerFile = `header-${casa}.html`;
     
     fetch(headerFile)
@@ -79,7 +75,6 @@
       })
       .catch(error => {
         console.error('Erro ao carregar header:', error);
-        // Fallback: tenta carregar header padrão
         headerDiv.innerHTML = '<p style="color: red; padding: 20px;">Erro ao carregar menu de navegação.</p>';
       });
   }
@@ -92,3 +87,23 @@
   }
 
 })();
+
+
+// 🔥 FUNÇÕES GLOBAIS (ESSENCIAL PRA FUNCIONAR)
+
+window.redirecionar = function(select) {
+  const url = select.value;
+  if (url) {
+    window.location.href = url;
+  }
+};
+
+window.voltarHome = function() {
+  window.location.href = '/home';
+};
+
+window.logout = function() {
+  localStorage.clear();
+  sessionStorage.clear();
+  window.location.href = '/auth.html';
+};
