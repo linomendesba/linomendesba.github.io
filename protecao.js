@@ -38,33 +38,37 @@
   document.addEventListener("dragstart",   function (e) { e.preventDefault(); });
 
 
-  // ============================================================
-  // 4. DETECÇÃO DE DEVTOOLS POR TAMANHO DE JANELA
-  //
-  //  Mede a diferença outer/inner no carregamento como base.
-  //  Só dispara se a diferença CRESCER além de 200px — zoom
-  //  não causa esse crescimento, abrir DevTools na lateral sim.
-  // ============================================================
-  const _baseW = window.outerWidth  - window.innerWidth;
-  const _baseH = window.outerHeight - window.innerHeight;
-  const DEVTOOLS_THRESHOLD = 200;
-  const _zoomBase = window.devicePixelRatio || 1;
+// ============================================================
+// 4. DETECÇÃO DE DEVTOOLS POR TAMANHO DE JANELA (CORRIGIDA)
+// ============================================================
+const DEVTOOLS_THRESHOLD = 200;
+let _baseW = window.outerWidth  - window.innerWidth;
+let _baseH = window.outerHeight - window.innerHeight;
+let _zoomBase = window.devicePixelRatio || 1;
+let _devtoolsAberto = false;
+let _bloqueado = false;
+const _isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
-  let _devtoolsAberto = false;
-  let _bloqueado = false;
+function _checarDevTools() {
+  // Em mobile, essa detecção é muito imprecisa — desativa
+  if (_isMobile) return;
 
-  function _checarDevTools() {
-    // Se o usuário mudou o zoom, a diferença outer/inner fica enganosa — ignora
-    const zoomAtual = window.devicePixelRatio || 1;
-    if (Math.abs(zoomAtual - _zoomBase) > 0.05) return;
-
-    const diffW = (window.outerWidth  - window.innerWidth)  - _baseW;
-    const diffH = (window.outerHeight - window.innerHeight) - _baseH;
-    _devtoolsAberto = diffW > DEVTOOLS_THRESHOLD || diffH > DEVTOOLS_THRESHOLD;
+  const zoomAtual = window.devicePixelRatio || 1;
+  if (Math.abs(zoomAtual - _zoomBase) > 0.05) {
+    // Zoom mudou: recalibra a base e sai
+    _baseW = window.outerWidth  - window.innerWidth;
+    _baseH = window.outerHeight - window.innerHeight;
+    _zoomBase = zoomAtual;
+    return;
   }
 
-  window.addEventListener('resize', _checarDevTools, { passive: true });
-  setInterval(_checarDevTools, 500);
+  const diffW = (window.outerWidth  - window.innerWidth)  - _baseW;
+  const diffH = (window.outerHeight - window.innerHeight) - _baseH;
+  _devtoolsAberto = diffW > DEVTOOLS_THRESHOLD || diffH > DEVTOOLS_THRESHOLD;
+}
+
+window.addEventListener('resize', _checarDevTools, { passive: true });
+setInterval(_checarDevTools, 500);
 
 
   // ============================================================
