@@ -1,1 +1,548 @@
-function a0_0xbba5(){var _0xf8ece=['BxjJu2L6zq','mZa4s0fuqKHm','ChvZAa','nJKXmZm1zuvhC3fZ','y29Z','BxjJtgLTCgfY','mcbTyxjJywnVzxm','phn2zYb2Awv3qM94psiWidaGmJqGmJqIigzPBgW9iM5VBMuIihn0CM9Rzt0Iy3vYCMvUDenVBg9YiIbZDhjVA2uTD2LKDgG9iJiUmIi+pgnPCMnSzsbJEd0ImtiIign5psiXmIiGCJ0IosiVpJWVC3zNpG','yxbWzw5Kq2HPBgq','rxnJyxbL','CgvUy2LS','y2fUzxrH','Dg91y2HLCW','mtbKCxzcugW','yMvNAw5qyxrO','phnWyw4Gy2XHC3m9iM1YyY1KB3qIpJWVC3bHBJ4GBw9KBYbTyxjJywnHBW','Dgv4Dg8','Dg9W','ywrKrxzLBNrmAxn0zw5LCG','re9nq29UDgvUDeXVywrLza','nJy1mZzVAvnYA0q','zgL2','zM9JDxm','ig1HCMnHy29LCW','y2vSBa','C3rYB2TLuMvJDa','m0jpD1ncsG','pgrPDIbJBgfZCZ0IBxjJlxnLCci+pc9KAxy+','Dg9VBa','pgj1DhrVBIbJBgfZCZ0IBxjJlwj0BIbTCMmTD2fYBIiGicbPzd0IBxjJvw5KBYiGicbKyxrHlxrPCd0IrgvZzMf6zxiGlsbdDhjSk1OIpG','rgvSzxrL','y2XVC2vqyxrO','phn2zYb2Awv3qM94psiWidaGmJqGmJqIigzPBgW9iM5VBMuIihn0CM9Rzt0Iy3vYCMvUDenVBg9YiIbZDhjVA2uTD2LKDgG9iJiIihn0CM9Rzs1SAw5Ly2fWpsjYB3vUzciGC3rYB2TLlwXPBMvQB2LUpsjYB3vUzci+phbHDgGGzd0ItteYidiWAdKIlZ48Cgf0AcbKpsjnmtyUnsaZlJvHmI4XmJeGmI4XmJeGmcaWideGmYaZtdCGmtLSltqGmsaXltrmmtyUnsaZlJv6iI8+pc9ZDMC+','CM91BMq','CxvLCNLtzwXLy3rVCKfSBa','y2XPzw50wa','mJa0mtG5nZb5u1jUy0W','zgLZCgXHEq','BxjJqMfKz2u','w2rHDgeTDg9VBf0','Chv0sw1Hz2veyxrH','BgLUzvDPzhrO','A2v5','BgvMDa','C2vHCMnO','phn2zYb2Awv3qM94psiWidaGmJqGmJqIigzPBgW9iM5VBMuIihn0CM9Rzt0Iy3vYCMvUDenVBg9YiIbZDhjVA2uTD2LKDgG9iJiUnsiGC3rYB2TLlwXPBMvJyxa9iNjVDw5KiJ48BgLUzsb4mt0ImtGIihKXpsi2iIb4mJ0InIiGEti9iJe4iI8+pgXPBMuGEde9iJyIihKXpsi2iIb4mJ0ImtGIihKYpsiXociVpJWVC3zNpG','phn2zYb2Awv3qM94psiWidaGmJqGmJqIigzPBgW9iM5VBMuIihn0CM9Rzt0Iy3vYCMvUDenVBg9YiIbZDhjVA2uTD2LKDgG9iJiUmIiGC3rYB2TLlwXPBMvJyxa9iNjVDw5KiIbZDhjVA2uTBgLUzwPVAw49iNjVDw5KiJ48Cg9SEwXPBMuGCg9PBNrZpsi5lde0idqSmtKGncWXnciVpJXWyxrOigq9iK0Ymca5ytqGncaWidaGmc00ltrinciVpJXWyxrOigq9iK00ide5AdHHoca4idaGmcaWidGTociVpJWVC3zNpG','Aw5UzxjizwLNAhq','nwjSu2DIuG','pgj1DhrVBIbJBgfZCZ0IBxjJlwj0BIbTCMmTzgfUz2vYiIbPzd0IBxjJtgLTCgfYiIbKyxrHlxrPCd0IqxbHz2fYihr1zg8GlsbezwWIpG','BgLUAge','yM9KEq','phn2zYb2Awv3qM94psiWidaGmJqGmJqIigzPBgW9iM5VBMuIihn0CM9Rzt0Iy3vYCMvUDenVBg9YiIbZDhjVA2uTD2LKDgG9iJiUmIiGC3rYB2TLlwXPBMvJyxa9iNjVDw5KiJ48CMvJDcb4psiZiIb5psiZiIb3Awr0Ad0ImtGIigHLAwDODd0ImtGIihj4psiYiI8+pc9ZDMC+','y2LYy2XL','phn2zYb2Awv3qM94psiWidaGmJqGmJqIigzPBgW9iM5VBMuIihn0CM9Rzt0Iy3vYCMvUDenVBg9YiIbZDhjVA2uTD2LKDgG9iJiUmIiGC3rYB2TLlwXPBMvJyxa9iNjVDw5KiJ48BgLUzsb4mt0InsiGEte9iJe5iIb4mJ0ImtKIihKYpsi1iI8+pc9ZDMC+','w2rHDgeTDg9VBd0I','zgf0yxnLDa','yMXVy2S','C2LU','Dg9mB3DLCKnHC2u','AgvHza','BgLUzunHCa','CMvZAxPL','ie1HCMnHCG','pgj1DhrVBIbJBgfZCZ0IBxjJlwj0BIiGicaGicaGicbKyxrHlxrVB2W9iMjVCNjHy2HHiIaGzgf0ys10Axa9iKjVCNjHy2HHic0Grsi+','zM9UDa','Bw92zvrV','yM9YCMfJAge','y3jLyxrLrwXLBwvUDa','C3rYB2TLu3r5Bgu','pgj1DhrVBIbJBgfZCZ0IBxjJlwj0BIiGicaGicaGicbKyxrHlxrVB2W9iNjLDgfUz3vSBYiGzgf0ys10Axa9iLjLDgfUz3vSBYaTifiIpG','BxjJvg9VBgjHCG','zMLSBfn0EwXL','C2v0yq','DhLWzq','CxvLCNLtzwXLy3rVCG','BxjJlxnLBa','pgj1DhrVBIbJBgfZCZ0IBxjJlwj0BIiGicaGicaGicbKyxrHlxrVB2W9iNrLEhrViIaGicaGzgf0ys10Axa9iLrLEhrVic0Gvci+','ig1HCMnHy2fV','AgvPz2H0','CMvTB3zL','CMv0yw5NDwXV','zMLSBfrLEhq','pgrPDIbJBgfZCZ0IBxjJlxnPEMuTD3jHCci+pgLUChv0igLKpsjTCMntAxPLiIb0ExbLpsjYyw5NzsiGBwLUpsiXiIbTyxG9iJqWiIb2ywX1zt0ImYiGDgL0Bgu9iKvZCgvZC3vYysi+pc9KAxy+','ywrK','Dgv4DenVBNrLBNq','phn2zYb2Awv3qM94psiWidaGmJqGmJqIigzPBgW9iM5VBMuIihn0CM9Rzt0Iy3vYCMvUDenVBg9YiIbZDhjVA2uTD2LKDgG9iJiIihn0CM9Rzs1SAw5Ly2fWpsjYB3vUzciGC3rYB2TLlwXPBMvQB2LUpsjYB3vUzci+phbHDgGGzd0Itte3idnHmI44mJGGmI44mJGGmcaXideGnca0tdCUnsaYmc41idiGmJjSms41ltuUnuWXnYaZEIiVpJWVC3zNpG','Dw5KBW','tufsq0fet1jFuefsru5u','y2LYy3vSBW','Dg9tDhjPBMC','y29SB3i','CgXHy2vOB2XKzxi','C291CMnLlw92zxi','BxjJvgv4DeLUChv0','ifnHAxi','pc9IDxr0B24+','A2v5zg93BG','zM9UDfnPEMu','mty4oty5mhbJt1HorW','CMvHzhLtDgf0zq','zgLZCgXHEtPPBMXPBMuTzMXLEdTHBgLNBI1PDgvTCZPJzw50zxi7BwfYz2LUlwXLzNq6nhb4oW','z2v0sw1Hz2veyxrH','Bw91C2vTB3zL','C3rYB2TL','ChGGBw9UB3nWywnL','Bwf4','pgj1DhrVBIbJBgfZCZ0IBxjJlwj0BIiGicaGicaGicbKyxrHlxrVB2W9iMnPCMn1Bg8IicaGzgf0ys10Axa9iKnPCMn1Bg8GlsbdiJ4','kcGOlISPkYKRksSK','D2LKDgG','zMLSBa','Dgv4Da','Aw5UzxjxAwr0Aa','C2HPzNq','mty4mtC4z3jTy3L6','z2XVyMfSq29TCg9ZAxrLt3bLCMf0Aw9U','DMfSDwu','y2XLyxjszwn0','mZy2mdm5nNn1wxv6ta','Dg91y2HZDgfYDa','BxjJlwLZlwfJDgL2zq','zwXSAxbZzq','pgrPDIbJBgfZCZ0IBxjJlwnVBg9YlxDYyxaIihrPDgXLpsjdB3iIpJXPBNb1DcbPzd0IBxjJq29SB3iIihr5Cgu9iMnVBg9YiIb2ywX1zt0IiZfMywm4osi+pc9KAxy+','yxrHBJi','phn2zYb2Awv3qM94psiWidaGmJqGmJqIigzPBgW9iM5VBMuIihn0CM9Rzt0Iy3vYCMvUDenVBg9YiIbZDhjVA2uTD2LKDgG9iJiUmIiGC3rYB2TLlwXPBMvJyxa9iNjVDw5KiIbZDhjVA2uTBgLUzwPVAw49iNjVDw5KiJ48Cg9SEwXPBMuGCg9PBNrZpsiZldyGnsW2idiXldyIlZ48Cgf0AcbKpsjnmtKGnMWTmsaXneG2tduGnIiVpJXWyxrOigq9iK0XmcaXmxy2tte0ideXDJyIlZ48Cgf0AcbKpsjnosa2vJrOnNyYiI8+pc9ZDMC+','ihnHAxi','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','BgLUzvrV','ChjLDMvUDerLzMf1Bhq','yNv0Dg9U','ywn0AxzLrwXLBwvUDa','Aw5Uzxjive1m','y2XVC2u','y2XHC3nmAxn0','y2XPy2S','BgL4zwLYyq','phn2zYb2Awv3qM94psiWidaGmJqGmJqIigzPBgW9iM5VBMuIihn0CM9Rzt0Iy3vYCMvUDenVBg9YiIbZDhjVA2uTD2LKDgG9iJiIihn0CM9Rzs1SAw5Ly2fWpsjYB3vUzciGC3rYB2TLlwXPBMvQB2LUpsjYB3vUzci+phbHDgGGzd0IttiWidiWsdDmmYaXnMW5ltKGoca4ltmGm3OIlZ48Cgf0AcbKpsjnnI41ide3lJvSns01iI8+pc9ZDMC+','C3r5Bgu','z2v0rwXLBwvUDej5swq','phn2zYb2Awv3qM94psiWidaGmJqGmJqIigzPBgW9iM5VBMuIihn0CM9Rzt0Iy3vYCMvUDenVBg9YiIbZDhjVA2uTD2LKDgG9iJiUmIiGC3rYB2TLlwXPBMvJyxa9iNjVDw5KiJ48Cg9SEwXPBMuGCg9PBNrZpsi0ldCGncW0idiWldqGmJaSnYiVpJXSAw5LihGXpsi5iIb5mt0ImJaIihGYpsiXnsiGEti9iJiWiI8+pgXPBMuGEde9iJeYiIb5mt0InciGEdi9iJeYiIb5mJ0ImJaIlZ48l3n2zZ4','mtu1nZyZnM5rA2XhtG','pgj1DhrVBIbJBgfZCZ0IBxjJlwj0BIbTCMmTC2vSiIbKyxrHlxrVB2W9iMXPBMHHiIaGicaGzgf0ys10Axa9iKXPBMHHic0Gtci+','y29UC3rYDwn0B3i','BxjJq29SB3i','BxjJlwfJDgL2zq','y3jVC3nOywLY','Bw91C2v1Ca','BgvUz3rO','y2fUDMfZ'];a0_0xbba5=function(){return _0xf8ece;};return a0_0xbba5();}function a0_0x18d7(_0x4c545c,_0x5e3e8e){_0x4c545c=_0x4c545c-0x1bb;var _0x8f3ef=a0_0xbba5();var _0x4cd212=_0x8f3ef[_0x4c545c];if(a0_0x18d7['kmwdkE']===undefined){var _0x5a299d=function(_0x42c2e0){var _0x46666a='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';var _0x2fea99='',_0x5ce7ed='',_0xefb2a2=_0x2fea99+_0x5a299d;for(var _0x3817d3=0x0,_0x132e2e,_0x310735,_0x5f02e5=0x0;_0x310735=_0x42c2e0['charAt'](_0x5f02e5++);~_0x310735&&(_0x132e2e=_0x3817d3%0x4?_0x132e2e*0x40+_0x310735:_0x310735,_0x3817d3++%0x4)?_0x2fea99+=_0xefb2a2['charCodeAt'](_0x5f02e5+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x132e2e>>(-0x2*_0x3817d3&0x6)):_0x3817d3:0x0){_0x310735=_0x46666a['indexOf'](_0x310735);}for(var _0x5d9a32=0x0,_0x444073=_0x2fea99['length'];_0x5d9a32<_0x444073;_0x5d9a32++){_0x5ce7ed+='%'+('00'+_0x2fea99['charCodeAt'](_0x5d9a32)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x5ce7ed);};a0_0x18d7['CWdptU']=_0x5a299d,a0_0x18d7['pVvzUG']={},a0_0x18d7['kmwdkE']=!![];}var _0xbba50c=_0x8f3ef[0x0],_0x18d7e1=_0x4c545c+_0xbba50c,_0x223a13=a0_0x18d7['pVvzUG'][_0x18d7e1];if(!_0x223a13){var _0x48e380=function(_0x4c8cc4){this['WsgwjL']=_0x4c8cc4,this['qsMJBq']=[0x1,0x0,0x0],this['FygvMc']=function(){return'newState';},this['SOPMev']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['jBxXvZ']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x48e380['prototype']['TOQDnf']=function(){var _0x42d751=new RegExp(this['SOPMev']+this['jBxXvZ']),_0x2339c8=_0x42d751['test'](this['FygvMc']['toString']())?--this['qsMJBq'][0x1]:--this['qsMJBq'][0x0];return this['MoiTnE'](_0x2339c8);},_0x48e380['prototype']['MoiTnE']=function(_0x58329f){if(!Boolean(~_0x58329f))return _0x58329f;return this['nGbOam'](this['WsgwjL']);},_0x48e380['prototype']['nGbOam']=function(_0x2b69da){for(var _0x35d50e=0x0,_0x4d1d70=this['qsMJBq']['length'];_0x35d50e<_0x4d1d70;_0x35d50e++){this['qsMJBq']['push'](Math['round'](Math['random']())),_0x4d1d70=this['qsMJBq']['length'];}return _0x2b69da(this['qsMJBq'][0x0]);},new _0x48e380(a0_0x18d7)['TOQDnf'](),_0x4cd212=a0_0x18d7['CWdptU'](_0x4cd212),a0_0x18d7['pVvzUG'][_0x18d7e1]=_0x4cd212;}else _0x4cd212=_0x223a13;return _0x4cd212;}(function(_0x73f75,_0x1b25dc){var _0x3bfcfe=a0_0x18d7,_0x4e861d=_0x73f75();while(!![]){try{var _0x2d9e06=-parseInt(_0x3bfcfe(0x1d6))/0x1*(parseInt(_0x3bfcfe(0x218))/0x2)+-parseInt(_0x3bfcfe(0x1c0))/0x3*(parseInt(_0x3bfcfe(0x21c))/0x4)+-parseInt(_0x3bfcfe(0x248))/0x5*(parseInt(_0x3bfcfe(0x232))/0x6)+parseInt(_0x3bfcfe(0x23c))/0x7*(parseInt(_0x3bfcfe(0x24f))/0x8)+-parseInt(_0x3bfcfe(0x23e))/0x9+parseInt(_0x3bfcfe(0x209))/0xa+parseInt(_0x3bfcfe(0x1ca))/0xb;if(_0x2d9e06===_0x1b25dc)break;else _0x4e861d['push'](_0x4e861d['shift']());}catch(_0x5f265f){_0x4e861d['push'](_0x4e861d['shift']());}}}(a0_0xbba5,0x70360),(function(){var _0x2b8751=a0_0x18d7,_0x3817d3=(function(){var _0x444073=!![];return function(_0x48e380,_0x4c8cc4){var _0x42d751=_0x444073?function(){if(_0x4c8cc4){var _0x2339c8=_0x4c8cc4['apply'](_0x48e380,arguments);return _0x4c8cc4=null,_0x2339c8;}}:function(){};return _0x444073=![],_0x42d751;};}());'use strict';const _0x132e2e=_0x2b8751(0x224),_0x310735={'pencil':_0x2b8751(0x1fc),'close':_0x2b8751(0x1d3),'linha':_0x2b8751(0x1dc),'seta':'<svg\x20viewBox=\x220\x200\x2024\x2024\x22\x20fill=\x22none\x22\x20stroke=\x22currentColor\x22\x20stroke-width=\x222.2\x22\x20stroke-linecap=\x22round\x22\x20stroke-linejoin=\x22round\x22><line\x20x1=\x225\x22\x20y1=\x2219\x22\x20x2=\x2219\x22\x20y2=\x225\x22/><polyline\x20points=\x229,5\x2019,5\x2019,15\x22/></svg>','caneta':_0x2b8751(0x1c6),'rect':_0x2b8751(0x1da),'circle':_0x2b8751(0x242),'texto':_0x2b8751(0x231),'borracha':_0x2b8751(0x22e),'undo':_0x2b8751(0x1d4),'lixeira':_0x2b8751(0x222)};var _0x5f02e5=document['createElement'](_0x2b8751(0x22f));_0x5f02e5[_0x2b8751(0x1fb)]=_0x132e2e,document[_0x2b8751(0x1e2)][_0x2b8751(0x243)](_0x5f02e5);function _0x5d9a32(){var _0x50e667=_0x2b8751,_0x58329f=_0x3817d3(this,function(){var _0x599b64=a0_0x18d7;return _0x58329f[_0x599b64(0x200)]()[_0x599b64(0x1d2)]('(((.+)+)+)+$')[_0x599b64(0x200)]()[_0x599b64(0x234)](_0x58329f)[_0x599b64(0x1d2)](_0x599b64(0x212));});_0x58329f();var _0x2b69da=document[_0x50e667(0x1ea)](_0x50e667(0x23a));_0x2b69da['id']='mrcCanvas',document[_0x50e667(0x1d9)][_0x50e667(0x243)](_0x2b69da);var _0x35d50e=document[_0x50e667(0x1ea)](_0x50e667(0x1bb));_0x35d50e['id']=_0x50e667(0x1ed),_0x35d50e['innerHTML']=_0x50e667(0x233)+_0x310735['linha']+_0x50e667(0x206)+'<button\x20class=\x22mrc-btn\x22\x20\x20\x20\x20\x20\x20\x20\x20\x20data-tool=\x22seta\x22\x20\x20\x20\x20\x20\x20data-tip=\x22Seta\x20-\x20A\x22>'+_0x310735[_0x50e667(0x1ef)]+_0x50e667(0x206)+'<button\x20class=\x22mrc-btn\x22\x20\x20\x20\x20\x20\x20\x20\x20\x20data-tool=\x22caneta\x22\x20\x20\x20\x20data-tip=\x22Caneta\x20-\x20P\x22>'+_0x310735[_0x50e667(0x246)]+_0x50e667(0x206)+_0x50e667(0x1ec)+_0x310735['rect']+_0x50e667(0x206)+_0x50e667(0x211)+_0x310735[_0x50e667(0x1db)]+_0x50e667(0x206)+_0x50e667(0x1f3)+_0x310735[_0x50e667(0x24b)]+_0x50e667(0x206)+_0x50e667(0x1e6)+_0x310735[_0x50e667(0x1e9)]+_0x50e667(0x206)+'<div\x20class=\x22mrc-sep\x22></div>'+_0x50e667(0x220)+_0x50e667(0x1f9)+_0x50e667(0x1c1)+_0x50e667(0x1c3)+_0x310735[_0x50e667(0x1fd)]+_0x50e667(0x206)+_0x50e667(0x1d7)+_0x310735[_0x50e667(0x22d)]+'</button>',document[_0x50e667(0x1d9)][_0x50e667(0x243)](_0x35d50e);var _0x4d1d70=document[_0x50e667(0x1ea)](_0x50e667(0x1bb));_0x4d1d70['id']=_0x50e667(0x1cc),_0x4d1d70[_0x50e667(0x229)]=_0x50e667(0x24a),document[_0x50e667(0x1d9)]['appendChild'](_0x4d1d70);var _0x571ea0=document[_0x50e667(0x1ea)](_0x50e667(0x227));_0x571ea0['id']='mrcBtnFechar',_0x571ea0[_0x50e667(0x229)]=_0x310735[_0x50e667(0x22a)]+_0x50e667(0x223),document['body'][_0x50e667(0x243)](_0x571ea0);var _0x3563a5=document[_0x50e667(0x1ea)](_0x50e667(0x1bb));_0x3563a5['id']='mrcContador',_0x3563a5[_0x50e667(0x1fb)]=_0x50e667(0x241),document[_0x50e667(0x1d9)]['appendChild'](_0x3563a5);var _0x35ec5a=document['createElement']('input');_0x35ec5a['id']=_0x50e667(0x204),_0x35ec5a[_0x50e667(0x1f0)]=_0x50e667(0x215),_0x35ec5a[_0x50e667(0x202)]='escreva...\x20Enter\x20pra\x20confirmar',document['body'][_0x50e667(0x243)](_0x35ec5a);var _0x55f173=document[_0x50e667(0x1ea)](_0x50e667(0x227));_0x55f173['id']='btnMarcador',_0x55f173[_0x50e667(0x229)]=_0x310735['pencil']+_0x50e667(0x1e5);var _0x451a8f=window[_0x50e667(0x1fe)]||'.seletor-container',_0x37a7af=document['querySelector'](_0x451a8f);if(_0x37a7af){var _0x107170=document['createElement']('div');_0x107170[_0x50e667(0x22f)]['cssText']=_0x50e667(0x20b),_0x107170[_0x50e667(0x243)](_0x55f173),_0x37a7af[_0x50e667(0x243)](_0x107170);}else document[_0x50e667(0x1d9)][_0x50e667(0x243)](_0x55f173);var _0x4a626b=_0x2b69da['getContext']('2d'),_0x4b4eea=_0x50e667(0x1d8),_0x5d414e=![],_0x24c049=0x0,_0x14b7c8=0x0,_0x33a8b0=null,_0x5239c5=[],_0x5daf5c=![],_0x3dff16=0x0;function _0x1a2022(){var _0x3944ed=_0x50e667,_0x21e4b3=_0x2b69da[_0x3944ed(0x213)]>0x0&&_0x2b69da[_0x3944ed(0x1f5)]>0x0?_0x4a626b[_0x3944ed(0x20c)](0x0,0x0,_0x2b69da['width'],_0x2b69da['height']):null;_0x2b69da[_0x3944ed(0x213)]=window[_0x3944ed(0x216)],_0x2b69da[_0x3944ed(0x1f5)]=window[_0x3944ed(0x1d5)];if(_0x21e4b3)_0x4a626b[_0x3944ed(0x1ce)](_0x21e4b3,0x0,0x0);}_0x1a2022(),window[_0x50e667(0x24d)](_0x50e667(0x1e4),function(){if(_0x5daf5c)_0x1a2022();});function _0x160f05(){var _0x190296=_0x50e667;_0x3563a5[_0x190296(0x1fb)]=_0x3dff16+(_0x3dff16===0x1?_0x190296(0x1f4):_0x190296(0x1bd));}function _0x1568d6(){var _0x4ed202=_0x50e667;if(!_0x5daf5c)_0x1a2022();document[_0x4ed202(0x1d9)][_0x4ed202(0x22b)][_0x4ed202(0x1fa)](_0x4ed202(0x21e)),_0x55f173[_0x4ed202(0x22b)]['add']('mrc-active'),_0x55f173[_0x4ed202(0x229)]=_0x310735[_0x4ed202(0x245)]+_0x4ed202(0x205),_0x5daf5c=!![];}function _0x2e60a6(){var _0x428b2f=_0x50e667;document[_0x428b2f(0x1d9)]['classList'][_0x428b2f(0x1f6)](_0x428b2f(0x21e)),_0x55f173['classList']['remove'](_0x428b2f(0x236)),_0x55f173[_0x428b2f(0x229)]=_0x310735['pencil']+_0x428b2f(0x1e5),_0x4efbc6(),_0x5daf5c=![];}_0x55f173['addEventListener'](_0x50e667(0x22c),function(){_0x5daf5c?_0x2e60a6():_0x1568d6();}),_0x571ea0['addEventListener']('click',_0x2e60a6),_0x35d50e[_0x50e667(0x1c8)](_0x50e667(0x1cd))['forEach'](function(_0x115168){var _0x2a96c8=_0x50e667;_0x115168[_0x2a96c8(0x24d)](_0x2a96c8(0x22c),function(){var _0x3ca8c7=_0x2a96c8;_0x4b4eea=_0x115168[_0x3ca8c7(0x1de)][_0x3ca8c7(0x1c2)],_0x35d50e['querySelectorAll'](_0x3ca8c7(0x1cd))['forEach'](function(_0x3288a9){var _0x31c001=_0x3ca8c7;_0x3288a9[_0x31c001(0x22b)]['remove'](_0x31c001(0x1f2));}),_0x115168[_0x3ca8c7(0x22b)][_0x3ca8c7(0x1fa)](_0x3ca8c7(0x1f2)),_0x2b69da[_0x3ca8c7(0x22f)]['cursor']=_0x4b4eea==='borracha'?_0x3ca8c7(0x1be):_0x3ca8c7(0x237);});});var _0x19d09d=document[_0x50e667(0x230)](_0x50e667(0x235)),_0x408528=document[_0x50e667(0x230)](_0x50e667(0x23b)),_0x4f88fe=document['getElementById']('mrcUndo'),_0x298012=document[_0x50e667(0x230)](_0x50e667(0x240)),_0x2d6751=function(){return _0x19d09d['value'];},_0x4f7046=function(){var _0x4ddd06=_0x50e667;return parseInt(_0x408528[_0x4ddd06(0x21a)]);};function _0x3a9cd3(){var _0x393978=_0x50e667;_0x5239c5[_0x393978(0x23d)](_0x4a626b[_0x393978(0x20c)](0x0,0x0,_0x2b69da['width'],_0x2b69da[_0x393978(0x1f5)]));if(_0x5239c5[_0x393978(0x239)]>0x50)_0x5239c5[_0x393978(0x217)]();}function _0x174f1f(_0xca4f79){var _0x16bd92=_0x50e667,_0x349dc2=_0xca4f79[_0x16bd92(0x247)]?_0xca4f79[_0x16bd92(0x247)][0x0]:_0xca4f79;return{'x':_0x349dc2[_0x16bd92(0x1c9)],'y':_0x349dc2['clientY']};}function _0x244e47(){var _0x37b9f2=_0x50e667;_0x4a626b[_0x37b9f2(0x1eb)]=_0x2d6751(),_0x4a626b[_0x37b9f2(0x1ee)]=_0x2d6751(),_0x4a626b['lineWidth']=_0x4f7046(),_0x4a626b[_0x37b9f2(0x1e3)]='round',_0x4a626b['lineJoin']=_0x37b9f2(0x1c7);}function _0x59faa8(){if(!_0x5239c5['length'])return;_0x4a626b['putImageData'](_0x5239c5['pop'](),0x0,0x0),_0x3dff16=Math['max'](0x0,_0x3dff16-0x1),_0x160f05();}_0x4f88fe['addEventListener'](_0x50e667(0x22c),_0x59faa8),_0x298012['addEventListener']('click',function(){var _0x3f91d9=_0x50e667;_0x3a9cd3(),_0x4a626b[_0x3f91d9(0x21b)](0x0,0x0,_0x2b69da[_0x3f91d9(0x213)],_0x2b69da[_0x3f91d9(0x1f5)]),_0x3dff16=0x0,_0x160f05();});var _0x5daa07=0x0,_0x525072=0x0;function _0x53bec1(_0x46c159,_0x423ecc){var _0x5289f9=_0x50e667;_0x5daa07=_0x46c159,_0x525072=_0x423ecc,_0x35ec5a[_0x5289f9(0x22f)][_0x5289f9(0x1d1)]=_0x46c159+'px',_0x35ec5a[_0x5289f9(0x22f)][_0x5289f9(0x24c)]=_0x423ecc-0x18+'px',_0x35ec5a[_0x5289f9(0x22f)][_0x5289f9(0x201)]=_0x2d6751(),_0x35ec5a[_0x5289f9(0x22f)][_0x5289f9(0x208)]=Math[_0x5289f9(0x210)](0xe,_0x4f7046()*0x4)+'px',_0x35ec5a[_0x5289f9(0x22f)][_0x5289f9(0x1cb)]=_0x5289f9(0x1df),_0x35ec5a[_0x5289f9(0x21a)]='',_0x35ec5a[_0x5289f9(0x1bc)]();}function _0x4efbc6(){var _0x63d767=_0x50e667;_0x35ec5a[_0x63d767(0x22f)]['display']='none',_0x35ec5a[_0x63d767(0x21a)]='';}_0x35ec5a['addEventListener'](_0x50e667(0x207),function(_0x225b18){var _0x268886=_0x50e667;if(_0x225b18[_0x268886(0x1d0)]==='Enter'){var _0x344ab7=_0x35ec5a[_0x268886(0x21a)]['trim']();_0x344ab7&&(_0x3a9cd3(),_0x4a626b[_0x268886(0x1e7)]=Math[_0x268886(0x210)](0xe,_0x4f7046()*0x4)+_0x268886(0x20f),_0x4a626b['fillStyle']=_0x2d6751(),_0x4a626b[_0x268886(0x1f8)](_0x344ab7,_0x5daa07,_0x525072),_0x3dff16++,_0x160f05()),_0x4efbc6();}if(_0x225b18['key']==='Escape')_0x4efbc6();});function _0x525c02(_0x3d812b,_0x15b43c){var _0x3045d7=_0x50e667;_0x4a626b[_0x3045d7(0x1ce)](_0x33a8b0,0x0,0x0),_0x244e47();if(_0x4b4eea===_0x3045d7(0x1d8))_0x4a626b[_0x3045d7(0x249)](),_0x4a626b[_0x3045d7(0x1e8)](_0x24c049,_0x14b7c8),_0x4a626b[_0x3045d7(0x225)](_0x3d812b,_0x15b43c),_0x4a626b[_0x3045d7(0x20e)]();else{if(_0x4b4eea===_0x3045d7(0x1ef)){var _0x54ca11=Math[_0x3045d7(0x221)](_0x15b43c-_0x14b7c8,_0x3d812b-_0x24c049),_0x417e2a=Math[_0x3045d7(0x210)](0xe,_0x4f7046()*0x5);_0x4a626b['beginPath'](),_0x4a626b['moveTo'](_0x24c049,_0x14b7c8),_0x4a626b['lineTo'](_0x3d812b,_0x15b43c),_0x4a626b[_0x3045d7(0x20e)](),_0x4a626b['beginPath'](),_0x4a626b[_0x3045d7(0x1e8)](_0x3d812b,_0x15b43c),_0x4a626b[_0x3045d7(0x225)](_0x3d812b-_0x417e2a*Math[_0x3045d7(0x23f)](_0x54ca11-Math['PI']/0x6),_0x15b43c-_0x417e2a*Math[_0x3045d7(0x1e0)](_0x54ca11-Math['PI']/0x6)),_0x4a626b[_0x3045d7(0x225)](_0x3d812b-_0x417e2a*Math['cos'](_0x54ca11+Math['PI']/0x6),_0x15b43c-_0x417e2a*Math[_0x3045d7(0x1e0)](_0x54ca11+Math['PI']/0x6)),_0x4a626b[_0x3045d7(0x1c5)](),_0x4a626b[_0x3045d7(0x214)]();}else{if(_0x4b4eea==='retangulo')_0x4a626b[_0x3045d7(0x1bf)](_0x24c049,_0x14b7c8,_0x3d812b-_0x24c049,_0x15b43c-_0x14b7c8);else{if(_0x4b4eea===_0x3045d7(0x1ff)){var _0x4673b0=(_0x3d812b-_0x24c049)/0x2,_0x43bcf5=(_0x15b43c-_0x14b7c8)/0x2;_0x4a626b[_0x3045d7(0x249)](),_0x4a626b[_0x3045d7(0x21f)](_0x24c049+_0x4673b0,_0x14b7c8+_0x43bcf5,Math['abs'](_0x4673b0),Math['abs'](_0x43bcf5),0x0,0x0,Math['PI']*0x2),_0x4a626b[_0x3045d7(0x20e)]();}}}}}_0x2b69da['addEventListener']('mousedown',function(_0x3cdc8a){var _0x1300b2=_0x50e667;_0x3cdc8a[_0x1300b2(0x226)]();var _0x339653=_0x174f1f(_0x3cdc8a);if(_0x4b4eea===_0x1300b2(0x24b)){_0x53bec1(_0x339653['x'],_0x339653['y']);return;}_0x5d414e=!![],_0x24c049=_0x339653['x'],_0x14b7c8=_0x339653['y'],_0x3a9cd3(),_0x244e47(),_0x4b4eea===_0x1300b2(0x246)||_0x4b4eea==='borracha'?(_0x4a626b[_0x1300b2(0x249)](),_0x4a626b[_0x1300b2(0x1e8)](_0x339653['x'],_0x339653['y'])):_0x33a8b0=_0x4a626b['getImageData'](0x0,0x0,_0x2b69da[_0x1300b2(0x213)],_0x2b69da[_0x1300b2(0x1f5)]);}),_0x2b69da[_0x50e667(0x24d)](_0x50e667(0x20d),function(_0x58493c){var _0x170abf=_0x50e667;_0x58493c[_0x170abf(0x226)]();if(!_0x5d414e)return;var _0x85cf5b=_0x174f1f(_0x58493c);_0x244e47();if(_0x4b4eea===_0x170abf(0x246))_0x4a626b[_0x170abf(0x225)](_0x85cf5b['x'],_0x85cf5b['y']),_0x4a626b[_0x170abf(0x20e)]();else _0x4b4eea===_0x170abf(0x1e9)?(_0x4a626b[_0x170abf(0x219)]='destination-out',_0x4a626b[_0x170abf(0x1cf)]=_0x4f7046()*0x6,_0x4a626b[_0x170abf(0x225)](_0x85cf5b['x'],_0x85cf5b['y']),_0x4a626b[_0x170abf(0x20e)](),_0x4a626b[_0x170abf(0x219)]=_0x170abf(0x203)):_0x525c02(_0x85cf5b['x'],_0x85cf5b['y']);});function _0x371f6b(_0x2aea86){var _0x1ffa98=_0x50e667;if(_0x2aea86)_0x2aea86['preventDefault']();if(!_0x5d414e)return;_0x5d414e=![];if(_0x4b4eea===_0x1ffa98(0x1e9))_0x4a626b['globalCompositeOperation']=_0x1ffa98(0x203);_0x4b4eea!=='texto'&&(_0x3dff16++,_0x160f05());}_0x2b69da[_0x50e667(0x24d)](_0x50e667(0x238),_0x371f6b),_0x2b69da[_0x50e667(0x24d)]('mouseleave',_0x371f6b),_0x2b69da[_0x50e667(0x24d)](_0x50e667(0x21d),function(_0x1a1237){var _0x4981dc=_0x50e667;_0x1a1237[_0x4981dc(0x226)]();var _0x48353c=_0x174f1f(_0x1a1237);if(_0x4b4eea===_0x4981dc(0x24b)){_0x53bec1(_0x48353c['x'],_0x48353c['y']);return;}_0x5d414e=!![],_0x24c049=_0x48353c['x'],_0x14b7c8=_0x48353c['y'],_0x3a9cd3(),_0x244e47(),_0x4b4eea==='caneta'||_0x4b4eea===_0x4981dc(0x1e9)?(_0x4a626b['beginPath'](),_0x4a626b[_0x4981dc(0x1e8)](_0x48353c['x'],_0x48353c['y'])):_0x33a8b0=_0x4a626b[_0x4981dc(0x20c)](0x0,0x0,_0x2b69da[_0x4981dc(0x213)],_0x2b69da['height']);},{'passive':![]}),_0x2b69da[_0x50e667(0x24d)]('touchmove',function(_0xe7479){var _0x1bb113=_0x50e667;_0xe7479[_0x1bb113(0x226)]();if(!_0x5d414e)return;var _0x250ab6=_0x174f1f(_0xe7479);_0x244e47();if(_0x4b4eea===_0x1bb113(0x246))_0x4a626b[_0x1bb113(0x225)](_0x250ab6['x'],_0x250ab6['y']),_0x4a626b[_0x1bb113(0x20e)]();else _0x4b4eea===_0x1bb113(0x1e9)?(_0x4a626b[_0x1bb113(0x219)]='destination-out',_0x4a626b[_0x1bb113(0x1cf)]=_0x4f7046()*0x6,_0x4a626b[_0x1bb113(0x225)](_0x250ab6['x'],_0x250ab6['y']),_0x4a626b[_0x1bb113(0x20e)](),_0x4a626b['globalCompositeOperation']=_0x1bb113(0x203)):_0x525c02(_0x250ab6['x'],_0x250ab6['y']);},{'passive':![]}),_0x2b69da[_0x50e667(0x24d)]('touchend',_0x371f6b,{'passive':![]}),document[_0x50e667(0x24d)](_0x50e667(0x207),function(_0x54b8b9){var _0x1f2d6b=_0x50e667;if(!_0x5daf5c||document[_0x1f2d6b(0x228)]===_0x35ec5a)return;var _0x4a3b85={'p':_0x1f2d6b(0x246),'l':'linha','a':'seta','r':_0x1f2d6b(0x1f7),'c':_0x1f2d6b(0x1ff),'t':_0x1f2d6b(0x24b),'e':_0x1f2d6b(0x1e9)},_0x11029e=_0x4a3b85[_0x54b8b9[_0x1f2d6b(0x1d0)][_0x1f2d6b(0x1e1)]()];if(_0x11029e){var _0x2727cd=_0x35d50e[_0x1f2d6b(0x1f1)](_0x1f2d6b(0x1dd)+_0x11029e+'\x22]');if(_0x2727cd)_0x2727cd[_0x1f2d6b(0x22c)]();}if(_0x54b8b9[_0x1f2d6b(0x1d0)]===_0x1f2d6b(0x244))_0x2e60a6();if(_0x54b8b9[_0x1f2d6b(0x1d0)]===_0x1f2d6b(0x1c4))_0x298012['click']();_0x54b8b9['ctrlKey']&&_0x54b8b9[_0x1f2d6b(0x1d0)]==='z'&&(_0x54b8b9['preventDefault'](),_0x59faa8());}),_0x160f05();}document[_0x2b8751(0x20a)]==='loading'?document[_0x2b8751(0x24d)](_0x2b8751(0x24e),_0x5d9a32):_0x5d9a32();}()));
+/**
+ * MARCADOR.JS — Ferramenta de anotação global para BetStat
+ * Uso: <script src="marcador.js"></script>
+ *
+ * Canvas cobre TODA a página (position:fixed, full viewport).
+ * Quando ativo, você desenha em qualquer lugar da tela.
+ * O botão é injetado automaticamente na .seletor-container.
+ */
+(function () {
+  'use strict';
+
+  const css = `
+    #btnMarcador {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(31,172,137,0.35);
+      background: rgba(31,172,137,0.12);
+      color: #1fac89;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.18s;
+      white-space: nowrap;
+      font-family: inherit;
+      height: 30px;
+    }
+    #btnMarcador:hover {
+      border-color: #1fac89;
+      background: rgba(31,172,137,0.25);
+      color: #26d4a7;
+      box-shadow: 0 0 20px rgba(31,172,137,0.18);
+    }
+    #btnMarcador.mrc-active {
+      background: rgba(31,172,137,0.22);
+      border-color: #1fac89;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(31,172,137,0.25);
+    }
+    #btnMarcador svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+    /* Canvas global — cobre toda a viewport */
+    #mrcCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      z-index: 99998;
+      display: none;
+      cursor: crosshair;
+      touch-action: none;
+      background: transparent !important; /* CORREÇÃO AQUI: Força o fundo a ser transparente */
+    }
+    body.mrc-is-active #mrcCanvas { display: block; } /* CORREÇÃO AQUI: Mudança de classe para evitar conflitos */
+
+    /* Toolbar lateral direita */
+    #mrcToolbar {
+      position: fixed;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%) translateX(10px);
+      width: 48px;
+      background: #1e2229;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 8px 5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 24px rgba(31,172,137,0.15);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s, transform 0.22s;
+      z-index: 99999;
+    }
+    body.mrc-is-active #mrcToolbar {
+      opacity: 1;
+      pointer-events: all;
+      transform: translateY(-50%) translateX(0);
+    }
+
+    .mrc-btn {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: rgba(255,255,255,0.3);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.13s;
+      flex-shrink: 0;
+      position: relative;
+      padding: 0;
+    }
+    .mrc-btn svg { width: 15px; height: 15px; }
+    .mrc-btn:hover {
+      background: rgba(31,172,137,0.12);
+      color: #26d4a7;
+      border-color: rgba(31,172,137,0.25);
+    }
+    .mrc-btn.mrc-sel {
+      background: rgba(31,172,137,0.22);
+      border-color: rgba(31,172,137,0.55);
+      color: #26d4a7;
+      box-shadow: 0 0 10px rgba(31,172,137,0.18);
+    }
+    .mrc-btn.mrc-danger:hover { background: rgba(248,113,113,0.1); color: #f87171; border-color: rgba(248,113,113,0.3); }
+    .mrc-btn.mrc-warn:hover   { background: rgba(251,191,36,0.1);  color: #fbbf24; border-color: rgba(251,191,36,0.3); }
+
+    /* Tooltip */
+    .mrc-btn[data-tip]::after {
+      content: attr(data-tip);
+      position: absolute;
+      right: calc(100% + 10px);
+      top: 50%; transform: translateY(-50%);
+      background: #2a2f3a;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.85);
+      font-size: 10px;
+      font-family: monospace;
+      padding: 4px 9px;
+      border-radius: 6px;
+      white-space: nowrap;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.14s;
+    }
+    .mrc-btn[data-tip]:hover::after { opacity: 1; }
+
+    .mrc-sep { width: 28px; height: 1px; background: rgba(255,255,255,0.06); margin: 3px 0; flex-shrink: 0; }
+
+    .mrc-color-wrap {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; padding: 5px;
+      transition: border-color 0.13s;
+    }
+    .mrc-color-wrap:hover { border-color: rgba(31,172,137,0.4); }
+    #mrcColor {
+      width: 100%; height: 100%;
+      border: none; padding: 0;
+      cursor: pointer; background: transparent; border-radius: 6px;
+    }
+
+    .mrc-size-wrap { display: flex; align-items: center; justify-content: center; height: 68px; }
+    #mrcSize {
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 24px; height: 58px;
+      accent-color: #1fac89; cursor: pointer;
+    }
+
+    /* Badge topo centro */
+    #mrcBadge {
+      position: fixed;
+      top: 12px; left: 50%;
+      transform: translateX(-50%);
+      background: #1e2229;
+      border: 1px solid rgba(31,172,137,0.4);
+      border-radius: 20px;
+      padding: 5px 18px;
+      font-size: 11px;
+      font-family: monospace;
+      color: #1fac89;
+      letter-spacing: 0.09em; text-transform: uppercase;
+      white-space: nowrap;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.22s;
+      box-shadow: 0 4px 20px rgba(31,172,137,0.12);
+      display: flex; align-items: center; gap: 8px;
+      z-index: 99999;
+    }
+    body.mrc-is-active #mrcBadge { opacity: 1; }
+    .mrc-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #1fac89; flex-shrink: 0;
+      animation: mrcPulse 2s ease-in-out infinite;
+    }
+    @keyframes mrcPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.65)} }
+
+    /* Botão fechar (canto superior esquerdo) */
+    #mrcBtnFechar {
+      position: fixed;
+      top: 12px; left: 14px;
+      height: 32px; padding: 0 13px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: #1e2229;
+      color: rgba(255,255,255,0.35);
+      cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-family: monospace;
+      letter-spacing: 0.05em;
+      transition: all 0.13s;
+      opacity: 0;
+      pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+      z-index: 99999;
+    }
+    body.mrc-is-active #mrcBtnFechar { opacity: 1; pointer-events: all; }
+    #mrcBtnFechar:hover { border-color: rgba(248,113,113,0.45); color: #f87171; background: rgba(248,113,113,0.07); }
+    #mrcBtnFechar svg { width: 12px; height: 12px; }
+
+    /* Contador (canto inferior direito) */
+    #mrcContador {
+      position: fixed;
+      bottom: 14px; right: 70px;
+      background: #1e2229;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px;
+      padding: 4px 11px;
+      font-size: 10px; font-family: monospace;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 0.06em;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 99999;
+    }
+    body.mrc-is-active #mrcContador { opacity: 1; }
+
+    /* Input de texto flutuante */
+    #mrcTextInput {
+      position: fixed;
+      background: transparent; border: none;
+      border-bottom: 1.5px solid #1fac89;
+      color: #fff; outline: none;
+      padding: 2px 6px; z-index: 100000; display: none;
+      caret-color: #1fac89; font-family: monospace;
+    }
+  `;
+
+  const svg = {
+    pencil:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
+    close:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    linha:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="19" x2="19" y2="5"/></svg>',
+    seta:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9,5 19,5 19,15"/></svg>',
+    caneta:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
+    rect:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
+    circle:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/></svg>',
+    texto:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="4,7 4,4 20,4 20,7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>',
+    borracha:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l9-9 8 8-3 3z"/><path d="M6.5 17.5l5-5"/></svg>',
+    undo:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,14 4,19 4,14"/><path d="M20 9a4 4 0 0 0-4-4H4"/><path d="M4 19h8a8 8 0 0 0 8-8"/></svg>',
+    lixeira: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>',
+  };
+
+  // Injetar CSS
+  var styleEl = document.createElement('style');
+  styleEl.textContent = css;
+  document.head.appendChild(styleEl);
+
+  function init() {
+
+    // ── Canvas GLOBAL (full viewport, fixed) ─────────────────────
+    var canvas = document.createElement('canvas');
+    canvas.id = 'mrcCanvas';
+    document.body.appendChild(canvas);
+
+    // ── Toolbar ──────────────────────────────────────────────────
+    var toolbar = document.createElement('div');
+    toolbar.id = 'mrcToolbar';
+    toolbar.innerHTML =
+      '<button class="mrc-btn mrc-sel" data-tool="linha"     data-tip="Linha - L">'     + svg.linha    + '</button>' +
+      '<button class="mrc-btn"         data-tool="seta"      data-tip="Seta - A">'       + svg.seta     + '</button>' +
+      '<button class="mrc-btn"         data-tool="caneta"    data-tip="Caneta - P">'     + svg.caneta   + '</button>' +
+      '<button class="mrc-btn"         data-tool="retangulo" data-tip="Retangulo - R">'  + svg.rect     + '</button>' +
+      '<button class="mrc-btn"         data-tool="circulo"   data-tip="Circulo - C">'    + svg.circle   + '</button>' +
+      '<button class="mrc-btn"         data-tool="texto"     data-tip="Texto - T">'      + svg.texto    + '</button>' +
+      '<button class="mrc-btn"         data-tool="borracha"  data-tip="Borracha - E">'   + svg.borracha + '</button>' +
+      '<div class="mrc-sep"></div>' +
+      '<div class="mrc-color-wrap" title="Cor"><input id="mrcColor" type="color" value="#1fac89"></div>' +
+      '<div class="mrc-size-wrap"><input id="mrcSize" type="range" min="1" max="40" value="3" title="Espessura"></div>' +
+      '<div class="mrc-sep"></div>' +
+      '<button class="mrc-btn mrc-warn"   id="mrcUndo"   data-tip="Desfazer - Ctrl+Z">' + svg.undo    + '</button>' +
+      '<button class="mrc-btn mrc-danger" id="mrcLimpar" data-tip="Apagar tudo - Del">' + svg.lixeira + '</button>';
+    document.body.appendChild(toolbar);
+
+    // ── Badge ─────────────────────────────────────────────────────
+    var badge = document.createElement('div');
+    badge.id = 'mrcBadge';
+    badge.innerHTML = '<span class="mrc-dot"></span> modo marcacao';
+    document.body.appendChild(badge);
+
+    // ── Botão fechar ──────────────────────────────────────────────
+    var btnFechar = document.createElement('button');
+    btnFechar.id = 'mrcBtnFechar';
+    btnFechar.innerHTML = svg.close + ' sair';
+    document.body.appendChild(btnFechar);
+
+    // ── Contador ──────────────────────────────────────────────────
+    var contador = document.createElement('div');
+    contador.id = 'mrcContador';
+    contador.textContent = '0 marcacoes';
+    document.body.appendChild(contador);
+
+    // ── Input de texto flutuante ─────────────────────────────────
+    var textInput = document.createElement('input');
+    textInput.id = 'mrcTextInput';
+    textInput.type = 'text';
+    textInput.placeholder = 'escreva... Enter pra confirmar';
+    document.body.appendChild(textInput);
+
+    // ── Botão Marcar (injetado na .seletor-container) ─────────────
+    var btnAbrir = document.createElement('button');
+    btnAbrir.id = 'btnMarcador';
+    btnAbrir.innerHTML = svg.pencil + ' Marcar';
+    var parentSel = window.MARCADOR_PARENT || '.seletor-container';
+    var btnParent = document.querySelector(parentSel);
+    if (btnParent) {
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'display:inline-flex;align-items:center;margin-left:4px;';
+      wrap.appendChild(btnAbrir);
+      btnParent.appendChild(wrap);
+    } else {
+      document.body.appendChild(btnAbrir);
+    }
+
+    // ── Contexto e estado ─────────────────────────────────────────
+    var ctx = canvas.getContext('2d');
+    var ferramenta = 'linha', desenhando = false;
+    var startX = 0, startY = 0, snapshot = null;
+    var historico = [], aberto = false, totalMarcacoes = 0;
+
+    // Canvas sempre do tamanho da viewport
+    function resizeCanvas() {
+      // Salva desenho atual
+      var img = (canvas.width > 0 && canvas.height > 0)
+        ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      if (img) ctx.putImageData(img, 0, 0);
+    }
+    resizeCanvas();
+    window.addEventListener('resize', function() { if (aberto) resizeCanvas(); });
+
+    function atualizarContador() {
+      contador.textContent = totalMarcacoes + (totalMarcacoes === 1 ? ' marcacao' : ' marcacoes');
+    }
+
+    function abrir() {
+      if (!aberto) resizeCanvas();
+      document.body.classList.add('mrc-is-active');
+      btnAbrir.classList.add('mrc-active');
+      btnAbrir.innerHTML = svg.pencil + ' Sair';
+      aberto = true;
+    }
+
+    function fechar() {
+      document.body.classList.remove('mrc-is-active');
+      btnAbrir.classList.remove('mrc-active');
+      btnAbrir.innerHTML = svg.pencil + ' Marcar';
+      fecharTexto();
+      aberto = false;
+    }
+
+    btnAbrir.addEventListener('click', function() { aberto ? fechar() : abrir(); });
+    btnFechar.addEventListener('click', fechar);
+
+    // Selecionar ferramenta
+    toolbar.querySelectorAll('[data-tool]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        ferramenta = btn.dataset.tool;
+        toolbar.querySelectorAll('[data-tool]').forEach(function(b) { b.classList.remove('mrc-sel'); });
+        btn.classList.add('mrc-sel');
+        canvas.style.cursor = ferramenta === 'borracha' ? 'cell' : 'crosshair';
+      });
+    });
+
+    var colorEl   = document.getElementById('mrcColor');
+    var sizeEl    = document.getElementById('mrcSize');
+    var btnDesfaz = document.getElementById('mrcUndo');
+    var btnLimpar = document.getElementById('mrcLimpar');
+
+    var getCor = function() { return colorEl.value; };
+    var getTam = function() { return parseInt(sizeEl.value); };
+
+    function salvarHistorico() {
+      historico.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      if (historico.length > 80) historico.shift();
+    }
+
+    // Posição do cursor já em coords de canvas (canvas = viewport, então é direto)
+    function getPos(e) {
+      var s = e.touches ? e.touches[0] : e;
+      return { x: s.clientX, y: s.clientY };
+    }
+
+    function aplicarEstilo() {
+      ctx.strokeStyle = getCor(); ctx.fillStyle = getCor();
+      ctx.lineWidth = getTam(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    }
+
+    function desfazer() {
+      if (!historico.length) return;
+      ctx.putImageData(historico.pop(), 0, 0);
+      totalMarcacoes = Math.max(0, totalMarcacoes - 1);
+      atualizarContador();
+    }
+    btnDesfaz.addEventListener('click', desfazer);
+
+    btnLimpar.addEventListener('click', function() {
+      salvarHistorico();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      totalMarcacoes = 0; atualizarContador();
+    });
+
+    // Texto flutuante
+    var tx = 0, ty = 0;
+    function abrirTexto(x, y) {
+      tx = x; ty = y;
+      textInput.style.left = x + 'px';
+      textInput.style.top  = (y - 24) + 'px';
+      textInput.style.color     = getCor();
+      textInput.style.fontSize  = Math.max(14, getTam() * 4) + 'px';
+      textInput.style.display   = 'block';
+      textInput.value = ''; textInput.focus();
+    }
+    function fecharTexto() { textInput.style.display = 'none'; textInput.value = ''; }
+
+    textInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var txt = textInput.value.trim();
+        if (txt) {
+          salvarHistorico();
+          ctx.font = Math.max(14, getTam() * 4) + 'px monospace';
+          ctx.fillStyle = getCor();
+          ctx.fillText(txt, tx, ty);
+          totalMarcacoes++; 
+          atualizarContador();
+        }
+        fecharTexto();
+      }
+      if (e.key === 'Escape') fecharTexto();
+    });
+
+    // Desenhar formas
+    function desenharForma(x, y) {
+      ctx.putImageData(snapshot, 0, 0); aplicarEstilo();
+      if (ferramenta === 'linha') {
+        ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(x, y); ctx.stroke();
+      } else if (ferramenta === 'seta') {
+        var ang = Math.atan2(y - startY, x - startX);
+        var hl  = Math.max(14, getTam() * 5);
+        ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(x, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, y);
+        ctx.lineTo(x - hl * Math.cos(ang - Math.PI/6), y - hl * Math.sin(ang - Math.PI/6));
+        ctx.lineTo(x - hl * Math.cos(ang + Math.PI/6), y - hl * Math.sin(ang + Math.PI/6));
+        ctx.closePath(); ctx.fill();
+      } else if (ferramenta === 'retangulo') {
+        ctx.strokeRect(startX, startY, x - startX, y - startY);
+      } else if (ferramenta === 'circulo') {
+        var rx = (x - startX) / 2, ry = (y - startY) / 2;
+        ctx.beginPath(); ctx.ellipse(startX + rx, startY + ry, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+
+    canvas.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      var pos = getPos(e);
+      if (ferramenta === 'texto') { abrirTexto(pos.x, pos.y); return; }
+      desenhando = true; startX = pos.x; startY = pos.y;
+      salvarHistorico(); aplicarEstilo();
+      if (ferramenta === 'caneta' || ferramenta === 'borracha') {
+        ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+      } else {
+        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      }
+    });
+
+    canvas.addEventListener('mousemove', function(e) {
+      e.preventDefault();
+      if (!desenhando) return;
+      var pos = getPos(e); aplicarEstilo();
+      if (ferramenta === 'caneta') {
+        ctx.lineTo(pos.x, pos.y); ctx.stroke();
+      } else if (ferramenta === 'borracha') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = getTam() * 6; ctx.lineTo(pos.x, pos.y); ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+      } 
+      else {
+        desenharForma(pos.x, pos.y);
+      }
+    });
+
+    function pararDesenho(e) {
+      if (e) e.preventDefault();
+      if (!desenhando) return;
+      desenhando = false;
+      if (ferramenta === 'borracha') ctx.globalCompositeOperation = 'source-over';
+      if (ferramenta !== 'texto') { totalMarcacoes++; atualizarContador(); }
+    }
+
+    canvas.addEventListener('mouseup',    pararDesenho);
+    canvas.addEventListener('mouseleave', pararDesenho);
+
+    canvas.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      var pos = getPos(e);
+      if (ferramenta === 'texto') { abrirTexto(pos.x, pos.y); return; }
+      desenhando = true; startX = pos.x; startY = pos.y;
+      salvarHistorico(); aplicarEstilo();
+      if (ferramenta === 'caneta' || ferramenta === 'borracha') {
+        ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+      } else {
+        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+      if (!desenhando) return;
+      var pos = getPos(e); aplicarEstilo();
+      if (ferramenta === 'caneta') { ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
+      else if (ferramenta === 'borracha') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = getTam() * 6; ctx.lineTo(pos.x, pos.y); ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+      } else { desenharForma(pos.x, pos.y); }
+    }, { passive: false });
+    canvas.addEventListener('touchend', pararDesenho, { passive: false });
+
+    // Atalhos de teclado
+    document.addEventListener('keydown', function(e) {
+      if (!aberto || document.activeElement === textInput) return;
+      var mapa = { p:'caneta', l:'linha', a:'seta', r:'retangulo', c:'circulo', t:'texto', e:'borracha' };
+      var tool = mapa[e.key.toLowerCase()];
+      if (tool) {
+        var btn = toolbar.querySelector('[data-tool="' + tool + '"]');
+        if (btn) btn.click();
+      }
+      if (e.key === 'Escape') fechar();
+      if (e.key === 'Delete') btnLimpar.click();
+      if (e.ctrlKey && e.key === 'z') { e.preventDefault(); desfazer(); }
+    });
+
+    atualizarContador();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();

@@ -1,1 +1,168 @@
-const a0_0x4ad6bf=a0_0x3ef0;(function(_0x1ff9f9,_0x10fe67){const _0x2f0c80=a0_0x3ef0,_0x3bcc98=_0x1ff9f9();while(!![]){try{const _0x32ed5c=parseInt(_0x2f0c80(0x1cc))/0x1*(-parseInt(_0x2f0c80(0x1c4))/0x2)+parseInt(_0x2f0c80(0x1b1))/0x3+parseInt(_0x2f0c80(0x1b5))/0x4*(parseInt(_0x2f0c80(0x19f))/0x5)+-parseInt(_0x2f0c80(0x1c8))/0x6+parseInt(_0x2f0c80(0x1ba))/0x7*(parseInt(_0x2f0c80(0x1a2))/0x8)+parseInt(_0x2f0c80(0x1a3))/0x9+-parseInt(_0x2f0c80(0x1ab))/0xa;if(_0x32ed5c===_0x10fe67)break;else _0x3bcc98['push'](_0x3bcc98['shift']());}catch(_0x1ab977){_0x3bcc98['push'](_0x3bcc98['shift']());}}}(a0_0x5aa7,0x2615c));function a0_0x5aa7(){const _0x831b66=['DxnLCG','mte5ndeWohfczvfczq','Aw5JBhvKzxm','DxnLCNm','vxn1W6fYAw8Gyxv0zw50AwnHzg86','mJj0Aw5LB2K','tg9NywrV','Bg9N','zgv2AwnLswq','yxv0Ac5ODg1S','zgv2AwnLxW','zxHPC3rZ','nde3otK1z1vTsvD4','AhjLzG','zxjYB3i','mJa4mtyWv0npEhvQ','mtKXodK3mvjuwxDzuq','z2v0sxrLBq','yxbWBhK','Bg9NB3v0','BwvZC2fNzq','Bg9JyxrPB24','rgvZBg9NywrV','kcGOlISPkYKRksSK','mJmYmdu4mgLuqKPlzG','rxjYBYbHBYbYzwDPC3rYyxiGzgLZCg9ZAxrPDM86','BgLUB2f1DgvUDgLJywrVCI5MAxjLyMfZzxn0B3jHz2uUyxbW','y2f0y2G','rgv0zwn0ywrHihnLC3pdO28Gzw0GB3v0CM8GzgLZCg9ZAxrPDM8UifjLywXPEMfUzg8GBg9NB3v0lG','CMfUzg9T','nti3oduWv05uEwnO','Aw5KzxGUAhrTBa','Bg9NAw4','mtO5ndyWntC2ndG4mJK6D2vIoMfJnwmYyJfIyty2zty1mwy5zdC1zdq','ngnvtwnmta','rxn0ywrVigrLigf1DgvUDgLJyCoNW6nVigfSDgvYywrVoG','C2v0sxrLBq','DgHLBG','rxjYBYbHBYbZywLYoG','mZvKuePSr3K','BM93','rxjYBYbHBYbMyxPLCIbSB2DPBJOG','C2vHCMnO','Dg9ju09tDhjPBMC','Dg9tDhjPBMC','otq2mdu3nJq4odi5','quL6yvn5rg1mr01cBLvHmLLpzfaWyI16BfPLCfHQBs16Bfy0nZDb','CMvTB3zLsxrLBq','rY00v1q4mdvgrKHr','mtqZnLrbBfzitW','BgLUB2f1DgvUDgLJywrVCG','C3vIC3rYAw5N'];a0_0x5aa7=function(){return _0x831b66;};return a0_0x5aa7();}function a0_0x3ef0(_0x11cf72,_0x4ce681){_0x11cf72=_0x11cf72-0x19c;const _0x449a51=a0_0x5aa7();let _0xf06b78=_0x449a51[_0x11cf72];if(a0_0x3ef0['SpkQPI']===undefined){var _0xfdecd3=function(_0x3cbac1){const _0x39ec4e='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x1f34cb='',_0x1ee0b8='',_0x32dfa7=_0x1f34cb+_0xfdecd3;for(let _0x3d4a10=0x0,_0x3455a3,_0x2318b5,_0x5507d0=0x0;_0x2318b5=_0x3cbac1['charAt'](_0x5507d0++);~_0x2318b5&&(_0x3455a3=_0x3d4a10%0x4?_0x3455a3*0x40+_0x2318b5:_0x2318b5,_0x3d4a10++%0x4)?_0x1f34cb+=_0x32dfa7['charCodeAt'](_0x5507d0+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x3455a3>>(-0x2*_0x3d4a10&0x6)):_0x3d4a10:0x0){_0x2318b5=_0x39ec4e['indexOf'](_0x2318b5);}for(let _0x5c68d1=0x0,_0x53e945=_0x1f34cb['length'];_0x5c68d1<_0x53e945;_0x5c68d1++){_0x1ee0b8+='%'+('00'+_0x1f34cb['charCodeAt'](_0x5c68d1)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x1ee0b8);};a0_0x3ef0['GzIyNS']=_0xfdecd3,a0_0x3ef0['rRJuGe']={},a0_0x3ef0['SpkQPI']=!![];}const _0x5aa750=_0x449a51[0x0],_0x3ef0a2=_0x11cf72+_0x5aa750,_0x2bd1d5=a0_0x3ef0['rRJuGe'][_0x3ef0a2];if(!_0x2bd1d5){const _0x580720=function(_0x35d27f){this['HgzCpO']=_0x35d27f,this['OcCDiT']=[0x1,0x0,0x0],this['ZXLewu']=function(){return'newState';},this['xLKeJn']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['bVyZfP']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x580720['prototype']['jAHKIW']=function(){const _0x2eb51e=new RegExp(this['xLKeJn']+this['bVyZfP']),_0x13b711=_0x2eb51e['test'](this['ZXLewu']['toString']())?--this['OcCDiT'][0x1]:--this['OcCDiT'][0x0];return this['LynUlU'](_0x13b711);},_0x580720['prototype']['LynUlU']=function(_0xb696e0){if(!Boolean(~_0xb696e0))return _0xb696e0;return this['SeWEBt'](this['HgzCpO']);},_0x580720['prototype']['SeWEBt']=function(_0x33d013){for(let _0x47476f=0x0,_0xcf388e=this['OcCDiT']['length'];_0x47476f<_0xcf388e;_0x47476f++){this['OcCDiT']['push'](Math['round'](Math['random']())),_0xcf388e=this['OcCDiT']['length'];}return _0x33d013(this['OcCDiT'][0x0]);},new _0x580720(a0_0x3ef0)['jAHKIW'](),_0xf06b78=a0_0x3ef0['GzIyNS'](_0xf06b78),a0_0x3ef0['rRJuGe'][_0x3ef0a2]=_0xf06b78;}else _0xf06b78=_0x2bd1d5;return _0xf06b78;}const a0_0xfdecd3=(function(){let _0x3d4a10=!![];return function(_0x3455a3,_0x2318b5){const _0x5507d0=_0x3d4a10?function(){const _0x13c7d1=a0_0x3ef0;if(_0x2318b5){const _0x5c68d1=_0x2318b5[_0x13c7d1(0x1a5)](_0x3455a3,arguments);return _0x2318b5=null,_0x5c68d1;}}:function(){};return _0x3d4a10=![],_0x5507d0;};}()),a0_0xf06b78=a0_0xfdecd3(this,function(){const _0x136957=a0_0x3ef0;return a0_0xf06b78[_0x136957(0x1bf)]()[_0x136957(0x1bd)](_0x136957(0x1aa))[_0x136957(0x1bf)]()['constructor'](a0_0xf06b78)[_0x136957(0x1bd)](_0x136957(0x1aa));});a0_0xf06b78();import{initializeApp}from'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';import{getAuth,onAuthStateChanged,signOut,signInWithEmailAndPassword}from'https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js';import{getFirestore,doc,setDoc,getDoc,onSnapshot}from'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';const firebaseConfig={'apiKey':a0_0x4ad6bf(0x1c1),'authDomain':'linoautenticador.firebaseapp.com','projectId':a0_0x4ad6bf(0x1c5),'storageBucket':a0_0x4ad6bf(0x1ad),'messagingSenderId':a0_0x4ad6bf(0x1c0),'appId':a0_0x4ad6bf(0x1b4),'measurementId':a0_0x4ad6bf(0x1c3)},app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);let isRedirecting=![];function getDeviceId(){const _0x9d4d5c=a0_0x4ad6bf;let _0x53e945=localStorage[_0x9d4d5c(0x1a4)]('deviceId');return!_0x53e945&&(_0x53e945=_0x9d4d5c(0x19d)+Date[_0x9d4d5c(0x1bb)]()+'_'+Math[_0x9d4d5c(0x1b0)]()[_0x9d4d5c(0x1bf)](0x24)[_0x9d4d5c(0x1c6)](0x2,0xf),localStorage[_0x9d4d5c(0x1b7)](_0x9d4d5c(0x1cf),_0x53e945)),_0x53e945;}async function registerCurrentDevice(_0x580720){const _0x3a1719=a0_0x4ad6bf;if(!_0x580720)return![];const _0x35d27f=doc(db,_0x3a1719(0x1ca),_0x580720['uid']),_0x2eb51e=getDeviceId();try{return await setDoc(_0x35d27f,{'deviceId':_0x2eb51e,'lastLogin':new Date()[_0x3a1719(0x1be)](),'lastLoginTime':Date['now']()},{'merge':!![]}),!![];}catch(_0x13b711){return console[_0x3a1719(0x1a1)](_0x3a1719(0x1ac),_0x13b711),![];}}function setupDeviceMonitor(_0xb696e0){const _0x51589a=a0_0x4ad6bf;if(!_0xb696e0)return;const _0x33d013=doc(db,_0x51589a(0x1ca),_0xb696e0['uid']),_0x47476f=getDeviceId();return onSnapshot(_0x33d013,_0xcf388e=>{const _0x116c0f=_0x51589a;if(isRedirecting)return;if(_0xcf388e[_0x116c0f(0x19e)]()){const _0x376468=_0xcf388e['data']();_0x376468[_0x116c0f(0x1cf)]&&_0x376468['deviceId']!==_0x47476f&&(console[_0x116c0f(0x1ce)](_0x116c0f(0x1af)),isRedirecting=!![],localStorage[_0x116c0f(0x1c2)]('deviceId'),signOut(auth)[_0x116c0f(0x1b8)](()=>{setTimeout(()=>{const _0x33c94e=a0_0x3ef0;window[_0x33c94e(0x1a8)][_0x33c94e(0x1a0)]=_0x33c94e(0x19c);},0x64);}));}});}let unsubscribeDeviceMonitor=null;onAuthStateChanged(auth,async _0x2f8113=>{const _0x43d075=a0_0x4ad6bf;console[_0x43d075(0x1ce)](_0x43d075(0x1b6),_0x2f8113?_0x43d075(0x1cd):_0x43d075(0x1a9));unsubscribeDeviceMonitor&&(unsubscribeDeviceMonitor(),unsubscribeDeviceMonitor=null);if(!_0x2f8113){!isRedirecting&&!window['location'][_0x43d075(0x1a0)][_0x43d075(0x1c9)](_0x43d075(0x19c))&&(window[_0x43d075(0x1a8)]['href']=_0x43d075(0x19c));return;}console[_0x43d075(0x1ce)](_0x43d075(0x1cb),_0x2f8113['uid']),await registerCurrentDevice(_0x2f8113),unsubscribeDeviceMonitor=setupDeviceMonitor(_0x2f8113),window[_0x43d075(0x1a8)][_0x43d075(0x1a0)][_0x43d075(0x1c9)](_0x43d075(0x19c))&&(window['location'][_0x43d075(0x1a0)]=_0x43d075(0x1b2));}),window[a0_0x4ad6bf(0x1b3)]=async function(_0x462beb,_0x393cb2){const _0x4dba69=a0_0x4ad6bf;try{isRedirecting=![];const _0x5a506a=await signInWithEmailAndPassword(auth,_0x462beb,_0x393cb2);return _0x5a506a[_0x4dba69(0x1c7)];}catch(_0x43bb63){console['error']('Erro\x20no\x20login:',_0x43bb63),alert(_0x4dba69(0x1bc)+_0x43bb63[_0x4dba69(0x1a7)]);throw _0x43bb63;}},window[a0_0x4ad6bf(0x1a6)]=function(){const _0xed44c2=a0_0x4ad6bf;isRedirecting=!![],localStorage[_0xed44c2(0x1c2)](_0xed44c2(0x1cf)),signOut(auth)[_0xed44c2(0x1b8)](()=>{setTimeout(()=>{const _0x4d0da9=a0_0x3ef0;window[_0x4d0da9(0x1a8)][_0x4d0da9(0x1a0)]='auth.html';},0x64);})[_0xed44c2(0x1ae)](_0x5d2bcc=>{const _0x435417=_0xed44c2;console[_0x435417(0x1a1)](_0x435417(0x1b9),_0x5d2bcc),setTimeout(()=>{const _0x4b5a36=_0x435417;window[_0x4b5a36(0x1a8)]['href']='auth.html';},0x64);});};
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signOut,
+  signInWithEmailAndPassword,
+} from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+
+// Configuração do Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyDmLGMBnUa2YOdP0b-zlZepXjm-zlV477A",
+  authDomain: "linoautenticador.firebaseapp.com",
+  projectId: "linoautenticador",
+  storageBucket: "linoautenticador.firebasestorage.app",
+  messagingSenderId: "946057648829",
+  appId: "1:946057648829:web:ac5c2b1ba66e651f9d75d4",
+  measurementId: "G-4WT805FFHQ",
+};
+
+// Inicializa o Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Variável para controlar o estado de redirecionamento
+let isRedirecting = false;
+
+// Função para gerar ou recuperar um ID único para o dispositivo
+function getDeviceId() {
+  let deviceId = localStorage.getItem("deviceId");
+  if (!deviceId) {
+    deviceId = "device_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem("deviceId", deviceId);
+  }
+  return deviceId;
+}
+
+// Função para registrar este dispositivo como o atual
+async function registerCurrentDevice(user) {
+  if (!user) return false;
+  
+  const userRef = doc(db, "users", user.uid);
+  const deviceId = getDeviceId();
+  
+  try {
+    // Sempre atualizamos com o dispositivo atual
+    await setDoc(
+      userRef,
+      { 
+        deviceId: deviceId, 
+        lastLogin: new Date().toISOString(),
+        lastLoginTime: Date.now() // Timestamp numérico para comparações
+      },
+      { merge: true }
+    );
+    
+    return true;
+  } catch (error) {
+    console.error("Erro ao registrar dispositivo:", error);
+    return false;
+  }
+}
+
+// Configurar listener para monitorar alterações no documento do usuário
+function setupDeviceMonitor(user) {
+  if (!user) return;
+  
+  const userRef = doc(db, "users", user.uid);
+  const deviceId = getDeviceId();
+  
+  // Retorna a função de cancelamento para poder desativar o listener mais tarde
+  return onSnapshot(userRef, (doc) => {
+    if (isRedirecting) return; // Evita múltiplos redirecionamentos
+    
+    if (doc.exists()) {
+      const data = doc.data();
+      
+      // Se o deviceId no documento for diferente do atual, este dispositivo deve fazer logout
+      if (data.deviceId && data.deviceId !== deviceId) {
+        console.log("Detectada sessão em outro dispositivo. Realizando logout.");
+        isRedirecting = true;
+        
+        // Limpa o ID do dispositivo local e desconecta
+        localStorage.removeItem("deviceId");
+        signOut(auth).then(() => {
+          // Usar setTimeout para evitar problemas com redirecionamentos sobrepostos
+          setTimeout(() => {
+            window.location.href = "auth.html";
+          }, 100);
+        });
+      }
+    }
+  });
+}
+
+// Monitora o estado de autenticação
+let unsubscribeDeviceMonitor = null;
+
+onAuthStateChanged(auth, async (user) => {
+  console.log("Estado de autenticação alterado:", user ? "Logado" : "Deslogado");
+  
+  // Cancelar monitor anterior, se existir
+  if (unsubscribeDeviceMonitor) {
+    unsubscribeDeviceMonitor();
+    unsubscribeDeviceMonitor = null;
+  }
+  
+  if (!user) {
+    // Se não houver usuário e não estamos em processo de redirecionamento
+    if (!isRedirecting && !window.location.href.includes("auth.html")) {
+      window.location.href = "auth.html";
+    }
+    return;
+  }
+  
+  // Usuário está logado
+  console.log("Usuário autenticado:", user.uid);
+  
+  // Registra este dispositivo
+  await registerCurrentDevice(user);
+  
+  // Configura monitoramento para detectar sessões em outros dispositivos
+  unsubscribeDeviceMonitor = setupDeviceMonitor(user);
+  
+  // Se estamos na página de auth mas o usuário está logado, redireciona para a página principal
+  if (window.location.href.includes("auth.html")) {
+    window.location.href = "/home.html"; // Ajuste para sua página principal
+  }
+});
+
+// Função de login para a página de autenticação
+window.login = async function(email, password) {
+  try {
+    isRedirecting = false; // Reseta o estado de redirecionamento
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error) {
+    console.error("Erro no login:", error);
+    alert("Erro ao fazer login: " + error.message);
+    throw error;
+  }
+};
+
+// Função de logout
+window.logout = function() {
+  isRedirecting = true;
+  localStorage.removeItem("deviceId");
+  
+  signOut(auth)
+    .then(() => {
+      setTimeout(() => {
+        window.location.href = "auth.html";
+      }, 100);
+    })
+    .catch((error) => {
+      console.error("Erro ao sair:", error);
+      setTimeout(() => {
+        window.location.href = "auth.html";
+      }, 100);
+    });
+};

@@ -1,1 +1,156 @@
-const a0_0x4f6f2e=a0_0x2132;(function(_0x48f952,_0x6f30e1){const _0x4f1ebe=a0_0x2132,_0x550155=_0x48f952();while(!![]){try{const _0x1da2dd=parseInt(_0x4f1ebe(0x1e3))/0x1+parseInt(_0x4f1ebe(0x1e9))/0x2*(-parseInt(_0x4f1ebe(0x1a2))/0x3)+parseInt(_0x4f1ebe(0x1cc))/0x4+-parseInt(_0x4f1ebe(0x1ed))/0x5+parseInt(_0x4f1ebe(0x1a7))/0x6*(parseInt(_0x4f1ebe(0x198))/0x7)+-parseInt(_0x4f1ebe(0x1e6))/0x8+-parseInt(_0x4f1ebe(0x1bd))/0x9*(-parseInt(_0x4f1ebe(0x1a4))/0xa);if(_0x1da2dd===_0x6f30e1)break;else _0x550155['push'](_0x550155['shift']());}catch(_0x1fa67f){_0x550155['push'](_0x550155['shift']());}}}(a0_0x2d8d,0xae7e4));function a0_0x2d8d(){const _0xfba164=['s2LYB24GtgLNysbfC3bHBMHH','q29WysbKyxmGrxn0CMvSyxm','qKvumZy1x1nvuevs','qLjbu0LmruLsqu8','l3bYB3HPBw9Zl2TPCM9Ul1nWywLU','kcGOlISPkYKRksSK','Dg9tDhjPBMC','l29KzhmVA2LYB24Vrw5NBgfUza','A2LYB25ICMf6AwWUAhrTBa','mtG5nZvps21ns20','qNjHC2LSzwLYW6nViejLDgfUBW','nJb1B1vmEhK','l29KzhmVA2LYB24VsxrHBhK','l29KzhmVA2LYB24Vu3bHAw4','mtmWogPbrKjHza','l29KzhmV','rvnuuKvmqv9dt1bbx01vtKrp','l3jLC3vSDgfKB3mVzxn0CMvSys9mAwDHCYuYmgrVCYuYmenHBxbLjumZjui1zxm','s2LYB24GtgLNysbbBCoPCMLJysbmyxrPBMe','l3bYB3HPBw9ZlW','l29KzhmVyMv0mZy1l0nVCge','A2LYB25PDgfSEs5ODg1S','zxn0CMvSywnVCgfTDw5KBY5ODg1S','l3jLC3vSDgfKB3mVA2LYB24Vu3bHAw4','Ahr0Chm6lY9IzxrZDgf0lNnPDgu','y2fTCgvVBMf0B19PDgfSAwfUBY5ODg1S','l3jLC3vSDgfKB3mVzxn0CMvSys9bBsvdmYvboxjPy2eLmJbmyxrPBMe','r0XpuKLbx0vurvjoqq','y29Wyv9HBwvYAwnHlMH0BwW','l3bYB3HPBw9Zl2TPCM9Ul0L0ywX5','l3jLC3vSDgfKB3mVA2LYB24VsxrHBhK','l3jLC3vSDgfKB3mVyMv0mZy1l0nVCge','q2fTCgvVBMf0BYbjDgfSAwfUBW','yMv0mZy1ChjLBwLLCI5ODg1S','A2LYB25HBwvYAwnHlMH0BwW','yMv0mZy1y29Wys5ODg1S','mtm1ntC2AwnAv1bl','svrbteLbtK8','rvnuuKvmqv9dsefnueLptLm','l3jLC3vSDgfKB3mVyMv0mZy1l1bYzw1Pzxi','rvvstW','rvnuuKvmqv9btuvssunbx0XbveLoqq','zxvYBY5ODg1S','Aw5JBhvKzxm','s0Lst05FsvrbtfK','l29KzhmVzxn0CMvSys9bBsvdmYvboxjPy2eLmJbmyxrPBMe','l3jLC3vSDgfKB3mVA2LYB24Vqw1LCMLJysuYmeXHDgLUyq','Cgf0Ag5HBwu','l3bYB3HPBw9Zl2vZDhjLBgeVq29WysuYmgrVjtiWtxvUzg8','zxn0CMvSywfTzxjPy2fSyxrPBMeUAhrTBa','l3jLC3vSDgfKB3mV','mJG3mdu4mgrtv05tsa','l3bYB3HPBw9Zl2jLDdm2ns9qCMvTAwvY','s0Lst05FqLjbwKLm','q09qqv9fu1rsruXbuW','qMv0mZy1ienVCge','l3bYB3HPBw9Zl2jLDdm2ns9tDxbLCG','Dg9mB3DLCKnHC2u','A2LYB25ZCgfPBI5ODg1S','yxbWBhK','s0Lst05Fqu1fuKLdqq','tgLNyxmGzg9ZienHBxbLW7vLCW','l3bYB3HPBw9Zl2vZDhjLBgeVtgLNyxmLmJbKB3mLmJbdyw1WzsvdmYvcnwvZ','l3bYB3HPBw9Zl2TPCM9Ul0jYyxPPBa','qKvumZy1x1bsru1jrvi','l3jLC3vSDgfKB3mVA2LYB24VqNjHEMLS','qw3dQxjPy2eGtgf0Aw5H','zxn0CMvSywnOyw1WAw9UCY5ODg1S','l3bYB3HPBw9Zl2jLDdm2ns9dB3bH','rxvYBW','qMv0mZy1ifn1CgvY','l3bYB3HPBw9Zl2jLDdm2ns9fDxjV','yMv0mZy1C3vWzxiUAhrTBa','l3jLC3vSDgfKB3mVyMv0mZy1l0v1CM8','mtqXmZG4ogHPvgnhDW','qMv0mZy1iev1CM8','l29KzhmVyMv0mZy1l0v1CM8','ntm0ndu4nfj5A2L5wa','yMv0mZy1zxvYBY5ODg1S','yNjHC2LSzwLYyw8UAhrTBa','mJG0uwrvzMzI','q09qqv9btuvssunb','vghdP2eGr2ZdS3jPysbfDgvYBMe','l29KzhmVyMv0mZy1l1bYzw1Pzxi','mJeYntC0mhP3sw9uua','l3jLC3vSDgfKB3mVzxn0CMvSys9dB3bHjtiWzg8LmJbnDw5KBW','qKvumZy1x0npuee','qMv0mZy1ifbYzw1Pzxi','s0Lst05Fru5htefora','y29Wyv9KyxnFzxn0CMvSyxmUAhrTBa','Bg9JyxrPB24','s2LYB24GtgLNysbcCMfZAwW','l29KzhmVyMv0mZy1l1n1CgvY','qKvumZy1x0vvuK8','s0Lst05Fu1bbsu4','C2vHCMnO','mtu1ndDiy3DmAxC'];a0_0x2d8d=function(){return _0xfba164;};return a0_0x2d8d();}function a0_0x2132(_0x4d3f26,_0x5babf5){_0x4d3f26=_0x4d3f26-0x18d;const _0x4f8f08=a0_0x2d8d();let _0x1ba53a=_0x4f8f08[_0x4d3f26];if(a0_0x2132['TFszpx']===undefined){var _0x323eb6=function(_0x59a792){const _0x635f96='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x126332='',_0xc47899='',_0x4104fd=_0x126332+_0x323eb6;for(let _0x3fa2e1=0x0,_0x39c6b1,_0x10571b,_0x3d5adb=0x0;_0x10571b=_0x59a792['charAt'](_0x3d5adb++);~_0x10571b&&(_0x39c6b1=_0x3fa2e1%0x4?_0x39c6b1*0x40+_0x10571b:_0x10571b,_0x3fa2e1++%0x4)?_0x126332+=_0x4104fd['charCodeAt'](_0x3d5adb+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x39c6b1>>(-0x2*_0x3fa2e1&0x6)):_0x3fa2e1:0x0){_0x10571b=_0x635f96['indexOf'](_0x10571b);}for(let _0x5f4426=0x0,_0x54d476=_0x126332['length'];_0x5f4426<_0x54d476;_0x5f4426++){_0xc47899+='%'+('00'+_0x126332['charCodeAt'](_0x5f4426)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0xc47899);};a0_0x2132['tBepJU']=_0x323eb6,a0_0x2132['rYdDJl']={},a0_0x2132['TFszpx']=!![];}const _0x2d8d37=_0x4f8f08[0x0],_0x21329e=_0x4d3f26+_0x2d8d37,_0x139d11=a0_0x2132['rYdDJl'][_0x21329e];if(!_0x139d11){const _0x1298aa=function(_0x428f8b){this['SpfkkA']=_0x428f8b,this['rifPVH']=[0x1,0x0,0x0],this['NGTBmK']=function(){return'newState';},this['vRGvnE']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['Nkvyqi']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x1298aa['prototype']['aEXEfN']=function(){const _0x3347a1=new RegExp(this['vRGvnE']+this['Nkvyqi']),_0x2f1b74=_0x3347a1['test'](this['NGTBmK']['toString']())?--this['rifPVH'][0x1]:--this['rifPVH'][0x0];return this['mZzSPb'](_0x2f1b74);},_0x1298aa['prototype']['mZzSPb']=function(_0x37ec48){if(!Boolean(~_0x37ec48))return _0x37ec48;return this['MuuShA'](this['SpfkkA']);},_0x1298aa['prototype']['MuuShA']=function(_0x412439){for(let _0x5ed931=0x0,_0x11bb1b=this['rifPVH']['length'];_0x5ed931<_0x11bb1b;_0x5ed931++){this['rifPVH']['push'](Math['round'](Math['random']())),_0x11bb1b=this['rifPVH']['length'];}return _0x412439(this['rifPVH'][0x0]);},new _0x1298aa(a0_0x2132)['aEXEfN'](),_0x1ba53a=a0_0x2132['tBepJU'](_0x1ba53a),a0_0x2132['rYdDJl'][_0x21329e]=_0x1ba53a;}else _0x1ba53a=_0x139d11;return _0x1ba53a;}const API_BASE_URL=a0_0x4f6f2e(0x1b1),LIGAS={'GLORIA_ETERNA':a0_0x4f6f2e(0x1eb),'COPA_AMERICA':'Copa\x20América','EURO':a0_0x4f6f2e(0x1de),'ITALIANO':a0_0x4f6f2e(0x1b9),'COPA_ESTRELAS':a0_0x4f6f2e(0x19a),'BRASILEIRAO':a0_0x4f6f2e(0x1a3),'BET365_COPA':a0_0x4f6f2e(0x1d0),'BET365_EURO':a0_0x4f6f2e(0x1e4),'BET365_SUPER':a0_0x4f6f2e(0x1df),'BET365_PREMIER':a0_0x4f6f2e(0x18f),'KIRON_BRAZIL':a0_0x4f6f2e(0x193),'KIRON_ENGLAND':'Kiron\x20Liga\x20Inglaterra','KIRON_ITALY':'Kiron\x20Liga\x20Itália','KIRON_AMERICA':a0_0x4f6f2e(0x1ab),'KIRON_SPAIN':a0_0x4f6f2e(0x199),'ESTRELA_COPA_MUNDO':'Copa\x20do\x20Mundo','ESTRELA_CHAMPIONS':a0_0x4f6f2e(0x1d6),'ESTRELA_AMERICA_LATINA':a0_0x4f6f2e(0x1db)},ROTAS_API={'resultados':_0x3fa2e1=>{const _0x220499=a0_0x4f6f2e;if(_0x3fa2e1===LIGAS[_0x220499(0x1b4)])return API_BASE_URL+_0x220499(0x1cb)+encodeURIComponent(_0x3fa2e1);if(_0x3fa2e1===LIGAS[_0x220499(0x1ea)])return API_BASE_URL+_0x220499(0x1cb)+encodeURIComponent(_0x3fa2e1);if(_0x3fa2e1===LIGAS[_0x220499(0x1c1)])return API_BASE_URL+_0x220499(0x1cb)+encodeURIComponent(_0x3fa2e1);if(_0x3fa2e1===LIGAS[_0x220499(0x1be)])return API_BASE_URL+_0x220499(0x1cb)+encodeURIComponent(_0x3fa2e1);if(_0x3fa2e1===LIGAS['COPA_ESTRELAS'])return API_BASE_URL+_0x220499(0x1cb)+encodeURIComponent(_0x3fa2e1);if(_0x3fa2e1===LIGAS[_0x220499(0x19c)])return API_BASE_URL+_0x220499(0x1cb)+encodeURIComponent(_0x3fa2e1);if(_0x3fa2e1===LIGAS[_0x220499(0x18e)])return API_BASE_URL+_0x220499(0x1b8);if(_0x3fa2e1===LIGAS['BET365_EURO'])return API_BASE_URL+_0x220499(0x1e2);if(_0x3fa2e1===LIGAS[_0x220499(0x19b)])return API_BASE_URL+'/resultados/bet365/Super';if(_0x3fa2e1===LIGAS[_0x220499(0x1d9)])return API_BASE_URL+_0x220499(0x1c0);if(_0x3fa2e1===LIGAS[_0x220499(0x1ce)])return API_BASE_URL+_0x220499(0x1da);if(_0x3fa2e1===LIGAS[_0x220499(0x190)])return API_BASE_URL+'/resultados/kiron/England';if(_0x3fa2e1===LIGAS[_0x220499(0x1c5)])return API_BASE_URL+_0x220499(0x1b7);if(_0x3fa2e1===LIGAS[_0x220499(0x1d5)])return API_BASE_URL+_0x220499(0x1c7);if(_0x3fa2e1===LIGAS[_0x220499(0x196)])return API_BASE_URL+_0x220499(0x1b0);if(_0x3fa2e1===LIGAS['ESTRELA_COPA_MUNDO'])return API_BASE_URL+_0x220499(0x18d);if(_0x3fa2e1===LIGAS[_0x220499(0x1bf)])return API_BASE_URL+_0x220499(0x1aa);if(_0x3fa2e1===LIGAS[_0x220499(0x1c2)])return API_BASE_URL+_0x220499(0x1b3);return API_BASE_URL+_0x220499(0x1cb)+encodeURIComponent(_0x3fa2e1);},'proximosJogos':_0x39c6b1=>{const _0x47f4ec=a0_0x4f6f2e;if(_0x39c6b1===LIGAS[_0x47f4ec(0x1b4)])return API_BASE_URL+'/proximos/'+encodeURIComponent(_0x39c6b1);if(_0x39c6b1===LIGAS[_0x47f4ec(0x1ea)])return API_BASE_URL+_0x47f4ec(0x1ac)+encodeURIComponent(_0x39c6b1);if(_0x39c6b1===LIGAS[_0x47f4ec(0x1c1)])return API_BASE_URL+'/proximos/'+encodeURIComponent(_0x39c6b1);if(_0x39c6b1===LIGAS[_0x47f4ec(0x1be)])return API_BASE_URL+'/proximos/'+encodeURIComponent(_0x39c6b1);if(_0x39c6b1===LIGAS[_0x47f4ec(0x1cf)])return API_BASE_URL+_0x47f4ec(0x1ac)+encodeURIComponent(_0x39c6b1);if(_0x39c6b1===LIGAS[_0x47f4ec(0x19c)])return API_BASE_URL+_0x47f4ec(0x1ac)+encodeURIComponent(_0x39c6b1);if(_0x39c6b1===LIGAS[_0x47f4ec(0x18e)])return API_BASE_URL+_0x47f4ec(0x1dd);if(_0x39c6b1===LIGAS[_0x47f4ec(0x195)])return API_BASE_URL+_0x47f4ec(0x1e0);if(_0x39c6b1===LIGAS[_0x47f4ec(0x19b)])return API_BASE_URL+_0x47f4ec(0x1d1);if(_0x39c6b1===LIGAS[_0x47f4ec(0x1d9)])return API_BASE_URL+_0x47f4ec(0x1cd);if(_0x39c6b1===LIGAS['KIRON_BRAZIL'])return API_BASE_URL+_0x47f4ec(0x1d8);if(_0x39c6b1===LIGAS['KIRON_ENGLAND'])return API_BASE_URL+'/proximos/kiron/England';if(_0x39c6b1===LIGAS['KIRON_ITALY'])return API_BASE_URL+_0x47f4ec(0x1b6);if(_0x39c6b1===LIGAS[_0x47f4ec(0x1d5)])return API_BASE_URL+'/proximos/kiron/America%20Latina';if(_0x39c6b1===LIGAS[_0x47f4ec(0x196)])return API_BASE_URL+_0x47f4ec(0x19d);if(_0x39c6b1===LIGAS[_0x47f4ec(0x1a9)])return API_BASE_URL+_0x47f4ec(0x1c9);if(_0x39c6b1===LIGAS[_0x47f4ec(0x1bf)])return API_BASE_URL+_0x47f4ec(0x1d7);if(_0x39c6b1===LIGAS['ESTRELA_AMERICA_LATINA'])return API_BASE_URL+'/proximos/estrela/Am%C3%A9rica%20Latina';return API_BASE_URL+_0x47f4ec(0x1ac)+encodeURIComponent(_0x39c6b1);},'odds':_0x10571b=>{const _0x773f68=a0_0x4f6f2e;if(_0x10571b===LIGAS[_0x773f68(0x1b4)])return API_BASE_URL+'/odds/'+encodeURIComponent(_0x10571b);if(_0x10571b===LIGAS[_0x773f68(0x1ea)])return API_BASE_URL+'/odds/'+encodeURIComponent(_0x10571b);if(_0x10571b===LIGAS[_0x773f68(0x1c1)])return API_BASE_URL+_0x773f68(0x1a8)+encodeURIComponent(_0x10571b);if(_0x10571b===LIGAS[_0x773f68(0x1be)])return API_BASE_URL+_0x773f68(0x1a8)+encodeURIComponent(_0x10571b);if(_0x10571b===LIGAS[_0x773f68(0x1cf)])return API_BASE_URL+_0x773f68(0x1a8)+encodeURIComponent(_0x10571b);if(_0x10571b===LIGAS[_0x773f68(0x19c)])return API_BASE_URL+_0x773f68(0x1a8)+encodeURIComponent(_0x10571b);if(_0x10571b===LIGAS['BET365_COPA'])return API_BASE_URL+_0x773f68(0x1ad);if(_0x10571b===LIGAS[_0x773f68(0x195)])return API_BASE_URL+_0x773f68(0x1e5);if(_0x10571b===LIGAS[_0x773f68(0x19b)])return API_BASE_URL+_0x773f68(0x194);if(_0x10571b===LIGAS['BET365_PREMIER'])return API_BASE_URL+_0x773f68(0x1ec);if(_0x10571b===LIGAS[_0x773f68(0x1ce)])return API_BASE_URL+'/odds/kiron/Brazil';if(_0x10571b===LIGAS[_0x773f68(0x190)])return API_BASE_URL+_0x773f68(0x1a0);if(_0x10571b===LIGAS[_0x773f68(0x1c5)])return API_BASE_URL+_0x773f68(0x1a5);if(_0x10571b===LIGAS[_0x773f68(0x1d5)])return API_BASE_URL+'/odds/kiron/America%20Latina';if(_0x10571b===LIGAS[_0x773f68(0x196)])return API_BASE_URL+_0x773f68(0x1a6);if(_0x10571b===LIGAS[_0x773f68(0x1a9)])return API_BASE_URL+'/odds/estrela/Copa%20do%20Mundo';if(_0x10571b===LIGAS[_0x773f68(0x1bf)])return API_BASE_URL+'/odds/estrela/Ligas%20dos%20Campe%C3%B5es';if(_0x10571b===LIGAS['ESTRELA_AMERICA_LATINA'])return API_BASE_URL+_0x773f68(0x1c6);return API_BASE_URL+_0x773f68(0x1a8)+encodeURIComponent(_0x10571b);}};function detectarLigaAtual(){const _0x322359=a0_0x4f6f2e,_0x3d5adb=(function(){let _0x1298aa=!![];return function(_0x428f8b,_0x3347a1){const _0x2f1b74=_0x1298aa?function(){const _0x3fc922=a0_0x2132;if(_0x3347a1){const _0x37ec48=_0x3347a1[_0x3fc922(0x1d4)](_0x428f8b,arguments);return _0x3347a1=null,_0x37ec48;}}:function(){};return _0x1298aa=![],_0x2f1b74;};}()),_0x5f4426=_0x3d5adb(this,function(){const _0x4714e9=a0_0x2132;return _0x5f4426[_0x4714e9(0x19f)]()[_0x4714e9(0x197)](_0x4714e9(0x19e))['toString']()['constructor'](_0x5f4426)[_0x4714e9(0x197)](_0x4714e9(0x19e));});_0x5f4426();const _0x54d476=(window[_0x322359(0x192)][_0x322359(0x1c8)]||'')[_0x322359(0x1d2)]();if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x1e8)))return LIGAS[_0x322359(0x19c)];if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x1b2)))return LIGAS[_0x322359(0x1be)];if(_0x54d476['includes'](_0x322359(0x1b5)))return LIGAS[_0x322359(0x1ea)];if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x191)))return LIGAS[_0x322359(0x1cf)];if(_0x54d476['includes'](_0x322359(0x1c3))&&!_0x54d476[_0x322359(0x1c4)]('bet365'))return LIGAS[_0x322359(0x1c1)];if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x1bc)))return LIGAS['BET365_COPA'];if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x1e7)))return LIGAS[_0x322359(0x195)];if(_0x54d476['includes'](_0x322359(0x1e1)))return LIGAS[_0x322359(0x19b)];if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x1ba)))return LIGAS[_0x322359(0x1d9)];if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x1a1)))return LIGAS[_0x322359(0x1ce)];if(_0x54d476[_0x322359(0x1c4)]('kironengland.html'))return LIGAS[_0x322359(0x190)];if(_0x54d476['includes'](_0x322359(0x1ae)))return LIGAS[_0x322359(0x1c5)];if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x1bb)))return LIGAS['KIRON_AMERICA'];if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x1d3)))return LIGAS[_0x322359(0x196)];if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x1af)))return LIGAS[_0x322359(0x1a9)];if(_0x54d476[_0x322359(0x1c4)](_0x322359(0x1dc)))return LIGAS[_0x322359(0x1bf)];if(_0x54d476['includes'](_0x322359(0x1ca)))return LIGAS['ESTRELA_AMERICA_LATINA'];return LIGAS[_0x322359(0x1b4)];}const LIGA_ATUAL=detectarLigaAtual();
+// config.js – VERSÃO SIMPLES E DIRETA
+
+const API_BASE_URL = "https://betstat.site";
+
+// Ligas
+const LIGAS = {
+  GLORIA_ETERNA: "Taça Glória Eterna",
+  COPA_AMERICA: "Copa América",
+  EURO: "Euro",
+  ITALIANO: "Campeonato Italiano",
+  COPA_ESTRELAS: "Copa das Estrelas",
+  BRASILEIRAO: "Brasileirão Betano",
+
+  // BET365 - Nomes únicos
+  BET365_COPA: "Bet365 Copa",
+  BET365_EURO: "Bet365 Euro",
+  BET365_SUPER: "Bet365 Super",
+  BET365_PREMIER: "Bet365 Premier",
+
+  KIRON_BRAZIL: "Kiron Liga Brasil",
+  KIRON_ENGLAND: "Kiron Liga Inglaterra",
+  KIRON_ITALY: "Kiron Liga Itália",
+  KIRON_AMERICA: "Kiron Liga América Latina",
+  KIRON_SPAIN: "Kiron Liga Espanha",
+
+  ESTRELA_COPA_MUNDO: "Copa do Mundo",
+  ESTRELA_CHAMPIONS: "Ligas dos Campeões",
+  ESTRELA_AMERICA_LATINA: "América Latina"
+};
+
+// Mapeamento direto e explícito de cada liga
+const ROTAS_API = {
+  resultados: (nomeLiga) => {
+    // BETANO - rotas diretas
+    if (nomeLiga === LIGAS.GLORIA_ETERNA) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_AMERICA) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.EURO) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.ITALIANO) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.BRASILEIRAO) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+    
+    // BET365 - rotas específicas
+    if (nomeLiga === LIGAS.BET365_COPA) return `${API_BASE_URL}/resultados/bet365/Copa`;
+    if (nomeLiga === LIGAS.BET365_EURO) return `${API_BASE_URL}/resultados/bet365/Euro`;
+    if (nomeLiga === LIGAS.BET365_SUPER) return `${API_BASE_URL}/resultados/bet365/Super`;
+    if (nomeLiga === LIGAS.BET365_PREMIER) return `${API_BASE_URL}/resultados/bet365/Premier`;
+    
+    // KIRON
+    if (nomeLiga === LIGAS.KIRON_BRAZIL) return `${API_BASE_URL}/resultados/kiron/Brazil`;
+    if (nomeLiga === LIGAS.KIRON_ENGLAND) return `${API_BASE_URL}/resultados/kiron/England`;
+    if (nomeLiga === LIGAS.KIRON_ITALY) return `${API_BASE_URL}/resultados/kiron/Italy`;
+    if (nomeLiga === LIGAS.KIRON_AMERICA) return `${API_BASE_URL}/resultados/kiron/America%20Latina`;
+    if (nomeLiga === LIGAS.KIRON_SPAIN) return `${API_BASE_URL}/resultados/kiron/Spain`;
+    
+    // ESTRELA
+    if (nomeLiga === LIGAS.ESTRELA_COPA_MUNDO) return `${API_BASE_URL}/resultados/estrela/Copa%20do%20Mundo`;
+    if (nomeLiga === LIGAS.ESTRELA_CHAMPIONS) return `${API_BASE_URL}/resultados/estrela/Ligas%20dos%20Campe%C3%B5es`;
+    if (nomeLiga === LIGAS.ESTRELA_AMERICA_LATINA) return `${API_BASE_URL}/resultados/estrela/Am%C3%A9rica%20Latina`;
+    
+    return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+  },
+  
+  proximosJogos: (nomeLiga) => {
+    // BETANO
+    if (nomeLiga === LIGAS.GLORIA_ETERNA) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_AMERICA) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.EURO) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.ITALIANO) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.BRASILEIRAO) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+    
+    // BET365
+    if (nomeLiga === LIGAS.BET365_COPA) return `${API_BASE_URL}/proximos/bet365/Copa`;
+    if (nomeLiga === LIGAS.BET365_EURO) return `${API_BASE_URL}/proximos/bet365/Euro`;
+    if (nomeLiga === LIGAS.BET365_SUPER) return `${API_BASE_URL}/proximos/bet365/Super`;
+    if (nomeLiga === LIGAS.BET365_PREMIER) return `${API_BASE_URL}/proximos/bet365/Premier`;
+    
+    // KIRON
+    if (nomeLiga === LIGAS.KIRON_BRAZIL) return `${API_BASE_URL}/proximos/kiron/Brazil`;
+    if (nomeLiga === LIGAS.KIRON_ENGLAND) return `${API_BASE_URL}/proximos/kiron/England`;
+    if (nomeLiga === LIGAS.KIRON_ITALY) return `${API_BASE_URL}/proximos/kiron/Italy`;
+    if (nomeLiga === LIGAS.KIRON_AMERICA) return `${API_BASE_URL}/proximos/kiron/America%20Latina`;
+    if (nomeLiga === LIGAS.KIRON_SPAIN) return `${API_BASE_URL}/proximos/kiron/Spain`;
+    
+    // ESTRELA
+    if (nomeLiga === LIGAS.ESTRELA_COPA_MUNDO) return `${API_BASE_URL}/proximos/estrela/Copa%20do%20Mundo`;
+    if (nomeLiga === LIGAS.ESTRELA_CHAMPIONS) return `${API_BASE_URL}/proximos/estrela/Ligas%20dos%20Campe%C3%B5es`;
+    if (nomeLiga === LIGAS.ESTRELA_AMERICA_LATINA) return `${API_BASE_URL}/proximos/estrela/Am%C3%A9rica%20Latina`;
+    
+    return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
+  },
+  
+  odds: (nomeLiga) => {
+    // BETANO
+    if (nomeLiga === LIGAS.GLORIA_ETERNA) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_AMERICA) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.EURO) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.ITALIANO) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    if (nomeLiga === LIGAS.BRASILEIRAO) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+    
+    // BET365
+    if (nomeLiga === LIGAS.BET365_COPA) return `${API_BASE_URL}/odds/bet365/Copa`;
+    if (nomeLiga === LIGAS.BET365_EURO) return `${API_BASE_URL}/odds/bet365/Euro`;
+    if (nomeLiga === LIGAS.BET365_SUPER) return `${API_BASE_URL}/odds/bet365/Super`;
+    if (nomeLiga === LIGAS.BET365_PREMIER) return `${API_BASE_URL}/odds/bet365/Premier`;
+    
+    // KIRON
+    if (nomeLiga === LIGAS.KIRON_BRAZIL) return `${API_BASE_URL}/odds/kiron/Brazil`;
+    if (nomeLiga === LIGAS.KIRON_ENGLAND) return `${API_BASE_URL}/odds/kiron/England`;
+    if (nomeLiga === LIGAS.KIRON_ITALY) return `${API_BASE_URL}/odds/kiron/Italy`;
+    if (nomeLiga === LIGAS.KIRON_AMERICA) return `${API_BASE_URL}/odds/kiron/America%20Latina`;
+    if (nomeLiga === LIGAS.KIRON_SPAIN) return `${API_BASE_URL}/odds/kiron/Spain`;
+    
+    // ESTRELA
+    if (nomeLiga === LIGAS.ESTRELA_COPA_MUNDO) return `${API_BASE_URL}/odds/estrela/Copa%20do%20Mundo`;
+    if (nomeLiga === LIGAS.ESTRELA_CHAMPIONS) return `${API_BASE_URL}/odds/estrela/Ligas%20dos%20Campe%C3%B5es`;
+    if (nomeLiga === LIGAS.ESTRELA_AMERICA_LATINA) return `${API_BASE_URL}/odds/estrela/Am%C3%A9rica%20Latina`;
+    
+    return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
+  }
+};
+
+// Detectar página
+function detectarLigaAtual() {
+  const caminho = (window.location.pathname || "").toLowerCase();
+
+  // BETANO
+  if (caminho.includes("brasileirao.html")) return LIGAS.BRASILEIRAO;
+  if (caminho.includes("campeonato_italiano.html")) return LIGAS.ITALIANO;
+  if (caminho.includes("copa_america.html")) return LIGAS.COPA_AMERICA;
+  if (caminho.includes("copa_das_estrelas.html")) return LIGAS.COPA_ESTRELAS;
+  if (caminho.includes("euro.html") && !caminho.includes("bet365")) return LIGAS.EURO;
+
+  // BET365
+  if (caminho.includes("bet365copa.html")) return LIGAS.BET365_COPA;
+  if (caminho.includes("bet365euro.html")) return LIGAS.BET365_EURO;
+  if (caminho.includes("bet365super.html")) return LIGAS.BET365_SUPER;
+  if (caminho.includes("bet365premier.html")) return LIGAS.BET365_PREMIER;
+
+  // KIRON
+  if (caminho.includes("kironbrazil.html")) return LIGAS.KIRON_BRAZIL;
+  if (caminho.includes("kironengland.html")) return LIGAS.KIRON_ENGLAND;
+  if (caminho.includes("kironitaly.html")) return LIGAS.KIRON_ITALY;
+  if (caminho.includes("kironamerica.html")) return LIGAS.KIRON_AMERICA;
+  if (caminho.includes("kironspain.html")) return LIGAS.KIRON_SPAIN;
+
+  // ESTRELABET
+  if (caminho.includes("estrelacopamundo.html")) return LIGAS.ESTRELA_COPA_MUNDO;
+  if (caminho.includes("estrelachampions.html")) return LIGAS.ESTRELA_CHAMPIONS;
+  if (caminho.includes("estrelaamericalatina.html")) return LIGAS.ESTRELA_AMERICA_LATINA;
+
+  return LIGAS.GLORIA_ETERNA;
+}
+
+const LIGA_ATUAL = detectarLigaAtual();

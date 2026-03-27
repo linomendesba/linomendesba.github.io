@@ -1,1 +1,241 @@
-function a0_0x2370(_0x3b7255,_0x3ee3bc){_0x3b7255=_0x3b7255-0x132;const _0x29c6f7=a0_0x5258();let _0x59e002=_0x29c6f7[_0x3b7255];if(a0_0x2370['PYcvyA']===undefined){var _0x16e8b2=function(_0x134eed){const _0xad3dc0='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x46d272='',_0x5bb81e='',_0x50490a=_0x46d272+_0x16e8b2;for(let _0x30c871=0x0,_0x458f1e,_0x2e47e1,_0x4b717f=0x0;_0x2e47e1=_0x134eed['charAt'](_0x4b717f++);~_0x2e47e1&&(_0x458f1e=_0x30c871%0x4?_0x458f1e*0x40+_0x2e47e1:_0x2e47e1,_0x30c871++%0x4)?_0x46d272+=_0x50490a['charCodeAt'](_0x4b717f+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x458f1e>>(-0x2*_0x30c871&0x6)):_0x30c871:0x0){_0x2e47e1=_0xad3dc0['indexOf'](_0x2e47e1);}for(let _0x1b2e00=0x0,_0x3f3edd=_0x46d272['length'];_0x1b2e00<_0x3f3edd;_0x1b2e00++){_0x5bb81e+='%'+('00'+_0x46d272['charCodeAt'](_0x1b2e00)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x5bb81e);};a0_0x2370['RRqAHg']=_0x16e8b2,a0_0x2370['UXTLpd']={},a0_0x2370['PYcvyA']=!![];}const _0x525803=_0x29c6f7[0x0],_0x2370c3=_0x3b7255+_0x525803,_0xf4246d=a0_0x2370['UXTLpd'][_0x2370c3];if(!_0xf4246d){const _0x11de9e=function(_0x357ece){this['LsZbHF']=_0x357ece,this['CrYIwo']=[0x1,0x0,0x0],this['pCWSVE']=function(){return'newState';},this['vULWjf']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['vnvmJj']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x11de9e['prototype']['zolfjL']=function(){const _0x2a46c5=new RegExp(this['vULWjf']+this['vnvmJj']),_0x15a574=_0x2a46c5['test'](this['pCWSVE']['toString']())?--this['CrYIwo'][0x1]:--this['CrYIwo'][0x0];return this['zyUstF'](_0x15a574);},_0x11de9e['prototype']['zyUstF']=function(_0x1aabe4){if(!Boolean(~_0x1aabe4))return _0x1aabe4;return this['nABBMa'](this['LsZbHF']);},_0x11de9e['prototype']['nABBMa']=function(_0x3cf3ce){for(let _0xc8d617=0x0,_0x44dec5=this['CrYIwo']['length'];_0xc8d617<_0x44dec5;_0xc8d617++){this['CrYIwo']['push'](Math['round'](Math['random']())),_0x44dec5=this['CrYIwo']['length'];}return _0x3cf3ce(this['CrYIwo'][0x0]);},new _0x11de9e(a0_0x2370)['zolfjL'](),_0x59e002=a0_0x2370['RRqAHg'](_0x59e002),a0_0x2370['UXTLpd'][_0x2370c3]=_0x59e002;}else _0x59e002=_0xf4246d;return _0x59e002;}(function(_0x5bffca,_0x29c174){const _0x1b791b=a0_0x2370,_0x512893=_0x5bffca();while(!![]){try{const _0x1638d4=-parseInt(_0x1b791b(0x13e))/0x1*(-parseInt(_0x1b791b(0x14c))/0x2)+-parseInt(_0x1b791b(0x15f))/0x3+parseInt(_0x1b791b(0x150))/0x4+parseInt(_0x1b791b(0x139))/0x5+parseInt(_0x1b791b(0x136))/0x6+parseInt(_0x1b791b(0x16d))/0x7*(-parseInt(_0x1b791b(0x13d))/0x8)+-parseInt(_0x1b791b(0x144))/0x9;if(_0x1638d4===_0x29c174)break;else _0x512893['push'](_0x512893['shift']());}catch(_0xbc04a7){_0x512893['push'](_0x512893['shift']());}}}(a0_0x5258,0x85007),(function(){const _0x24a53b=a0_0x2370,_0x30c871=(function(){let _0xc8d617=!![];return function(_0x44dec5,_0x1b7955){const _0x1c2476=_0xc8d617?function(){const _0x27abc1=a0_0x2370;if(_0x1b7955){const _0x37f546=_0x1b7955[_0x27abc1(0x147)](_0x44dec5,arguments);return _0x1b7955=null,_0x37f546;}}:function(){};return _0xc8d617=![],_0x1c2476;};}());'use strict';const _0x458f1e=_0x24a53b(0x145),_0x2e47e1=_0x24a53b(0x135),_0x4b717f=_0x24a53b(0x16b),_0x1b2e00=_0x24a53b(0x133),_0x3f3edd=document['createElement']('style');_0x3f3edd['textContent']='\x0a\x20\x20\x20\x20#acc-reorder-container\x20{\x0a\x20\x20\x20\x20\x20\x20display:\x20contents;\x0a\x20\x20\x20\x20}\x0a\x20\x20\x20\x20#acc-reorder-container.acc-pending\x20{\x0a\x20\x20\x20\x20\x20\x20visibility:\x20hidden;\x0a\x20\x20\x20\x20\x20\x20pointer-events:\x20none;\x0a\x20\x20\x20\x20}\x0a\x20\x20\x20\x20#acc-reorder-container.acc-ready\x20{\x0a\x20\x20\x20\x20\x20\x20visibility:\x20visible;\x0a\x20\x20\x20\x20\x20\x20animation:\x20accFadeIn\x200.15s\x20ease;\x0a\x20\x20\x20\x20}\x0a\x20\x20\x20\x20@keyframes\x20accFadeIn\x20{\x0a\x20\x20\x20\x20\x20\x20from\x20{\x20opacity:\x200;\x20}\x0a\x20\x20\x20\x20\x20\x20to\x20\x20\x20{\x20opacity:\x201;\x20}\x0a\x20\x20\x20\x20}\x0a\x20\x20\x20\x20.acc-reorder-wrap\x20{\x0a\x20\x20\x20\x20\x20\x20position:\x20relative;\x0a\x20\x20\x20\x20}\x0a\x20\x20\x20\x20.acc-reorder-controls\x20{\x0a\x20\x20\x20\x20\x20\x20display:\x20flex;\x0a\x20\x20\x20\x20\x20\x20gap:\x204px;\x0a\x20\x20\x20\x20\x20\x20position:\x20absolute;\x0a\x20\x20\x20\x20\x20\x20top:\x206px;\x0a\x20\x20\x20\x20\x20\x20right:\x206px;\x0a\x20\x20\x20\x20\x20\x20z-index:\x2010;\x0a\x20\x20\x20\x20}\x0a\x20\x20\x20\x20.acc-reorder-btn\x20{\x0a\x20\x20\x20\x20\x20\x20background:\x20#1fac89;\x0a\x20\x20\x20\x20\x20\x20color:\x20#fff;\x0a\x20\x20\x20\x20\x20\x20border:\x20none;\x0a\x20\x20\x20\x20\x20\x20border-radius:\x204px;\x0a\x20\x20\x20\x20\x20\x20width:\x2026px;\x0a\x20\x20\x20\x20\x20\x20height:\x2026px;\x0a\x20\x20\x20\x20\x20\x20font-size:\x2014px;\x0a\x20\x20\x20\x20\x20\x20line-height:\x201;\x0a\x20\x20\x20\x20\x20\x20cursor:\x20pointer;\x0a\x20\x20\x20\x20\x20\x20display:\x20flex;\x0a\x20\x20\x20\x20\x20\x20align-items:\x20center;\x0a\x20\x20\x20\x20\x20\x20justify-content:\x20center;\x0a\x20\x20\x20\x20\x20\x20transition:\x20background\x200.15s,\x20opacity\x200.15s;\x0a\x20\x20\x20\x20\x20\x20padding:\x200;\x0a\x20\x20\x20\x20\x20\x20flex-shrink:\x200;\x0a\x20\x20\x20\x20}\x0a\x20\x20\x20\x20.acc-reorder-btn:hover:not(:disabled)\x20{\x0a\x20\x20\x20\x20\x20\x20background:\x20#17876c;\x0a\x20\x20\x20\x20}\x0a\x20\x20\x20\x20.acc-reorder-btn:disabled\x20{\x0a\x20\x20\x20\x20\x20\x20background:\x20#2a3a40;\x0a\x20\x20\x20\x20\x20\x20cursor:\x20not-allowed;\x0a\x20\x20\x20\x20\x20\x20opacity:\x200.5;\x0a\x20\x20\x20\x20}\x0a\x20\x20\x20\x20.acc-reorder-moving\x20{\x0a\x20\x20\x20\x20\x20\x20transition:\x20transform\x200.18s\x20ease;\x0a\x20\x20\x20\x20\x20\x20transform:\x20scale(1.01);\x0a\x20\x20\x20\x20\x20\x20box-shadow:\x200\x200\x200\x202px\x20#1fac89;\x0a\x20\x20\x20\x20\x20\x20border-radius:\x204px;\x0a\x20\x20\x20\x20}\x0a\x20\x20',document[_0x24a53b(0x159)][_0x24a53b(0x16f)](_0x3f3edd);function _0x11de9e(){const _0x4e2ec8=_0x24a53b,_0x509525=_0x30c871(this,function(){const _0x1dc737=a0_0x2370;return _0x509525[_0x1dc737(0x137)]()['search'](_0x1dc737(0x160))[_0x1dc737(0x137)]()[_0x1dc737(0x169)](_0x509525)[_0x1dc737(0x162)](_0x1dc737(0x160));});_0x509525();const _0x488611=Array['from'](document[_0x4e2ec8(0x13a)](_0x4e2ec8(0x16a)));if(_0x488611[_0x4e2ec8(0x170)]<0x2)return;const _0x371575=document[_0x4e2ec8(0x146)](_0x4e2ec8(0x154));_0x371575['id']=_0x4e2ec8(0x174),_0x488611[0x0]['parentNode'][_0x4e2ec8(0x157)](_0x371575,_0x488611[0x0]),_0x488611[_0x4e2ec8(0x156)](_0x23543a=>_0x371575[_0x4e2ec8(0x16f)](_0x23543a));const _0x270877=!!localStorage[_0x4e2ec8(0x16c)](_0x458f1e);if(_0x270877)_0x371575['classList'][_0x4e2ec8(0x163)](_0x4e2ec8(0x152));_0x488611['forEach']((_0x2ff269,_0xc42693)=>{const _0x421503=_0x4e2ec8;if(!_0x2ff269[_0x421503(0x14b)][_0x421503(0x176)]){const _0x30baa9=_0x2ff269['querySelector'](_0x421503(0x14e)),_0x1980ca=_0x30baa9?_0x30baa9[_0x421503(0x141)]['trim']()[_0x421503(0x15b)](/[^a-zA-Z0-9\u00C0-\u00FF]/g,'_')[_0x421503(0x15a)](0x0,0x28):_0x421503(0x161)+_0xc42693;_0x2ff269[_0x421503(0x14b)][_0x421503(0x176)]=_0x1980ca||'item_'+_0xc42693;}_0x2ff269[_0x421503(0x151)][_0x421503(0x163)](_0x421503(0x143)),_0x357ece(_0x2ff269,_0x371575);}),_0x1aabe4(_0x371575),_0x3cf3ce(_0x371575),_0x371575['classList']['remove']('acc-pending'),_0x371575[_0x4e2ec8(0x151)][_0x4e2ec8(0x163)](_0x4e2ec8(0x132));}function _0x357ece(_0x3e4822,_0x433dff){const _0x46c00f=_0x24a53b,_0x31fcdc=document[_0x46c00f(0x146)](_0x46c00f(0x154));_0x31fcdc[_0x46c00f(0x14f)]=_0x46c00f(0x172);const _0x3372fc=document[_0x46c00f(0x146)]('button');_0x3372fc['className']=_0x46c00f(0x171),_0x3372fc[_0x46c00f(0x14d)]='Mover\x20para\x20cima',_0x3372fc['innerHTML']='&#9650;',_0x3372fc[_0x46c00f(0x149)](_0x46c00f(0x148),function(_0x46c183){const _0x597d3f=_0x46c00f;_0x46c183[_0x597d3f(0x164)](),_0x2a46c5(_0x3e4822,_0x433dff,-0x1);});const _0xf21204=document['createElement'](_0x46c00f(0x14a));_0xf21204[_0x46c00f(0x14f)]=_0x46c00f(0x155),_0xf21204[_0x46c00f(0x14d)]=_0x46c00f(0x165),_0xf21204[_0x46c00f(0x167)]=_0x46c00f(0x168),_0xf21204[_0x46c00f(0x149)](_0x46c00f(0x148),function(_0x164ccd){const _0x266692=_0x46c00f;_0x164ccd[_0x266692(0x164)](),_0x2a46c5(_0x3e4822,_0x433dff,+0x1);}),_0x31fcdc[_0x46c00f(0x16f)](_0x3372fc),_0x31fcdc[_0x46c00f(0x16f)](_0xf21204),_0x3e4822[_0x46c00f(0x16f)](_0x31fcdc);}function _0x2a46c5(_0x3ef832,_0x9417b6,_0x38c71a){const _0x2f2b09=_0x24a53b,_0x548b67=Array[_0x2f2b09(0x15c)](_0x9417b6[_0x2f2b09(0x13a)](':scope\x20>\x20.accordion-item')),_0x13dfca=_0x548b67['indexOf'](_0x3ef832),_0x475f3e=_0x13dfca+_0x38c71a;if(_0x475f3e<0x0||_0x475f3e>=_0x548b67[_0x2f2b09(0x170)])return;_0x3ef832[_0x2f2b09(0x151)][_0x2f2b09(0x163)](_0x2f2b09(0x13c)),setTimeout(function(){const _0x5b3d73=_0x2f2b09;_0x3ef832['classList'][_0x5b3d73(0x153)](_0x5b3d73(0x13c));},0xc8),_0x38c71a===-0x1?_0x9417b6['insertBefore'](_0x3ef832,_0x548b67[_0x475f3e]):_0x9417b6[_0x2f2b09(0x157)](_0x3ef832,_0x548b67[_0x475f3e][_0x2f2b09(0x166)]),_0x15a574(_0x9417b6),_0x3cf3ce(_0x9417b6);}function _0x15a574(_0x367ff0){const _0x23f96b=_0x24a53b,_0x40d04e=Array[_0x23f96b(0x15c)](_0x367ff0['querySelectorAll'](_0x23f96b(0x15d))),_0x125d10=_0x40d04e['map'](function(_0x362b93){return _0x362b93['dataset']['reorderId'];});try{localStorage[_0x23f96b(0x140)](_0x458f1e,JSON['stringify'](_0x125d10));}catch(_0x3031e6){console[_0x23f96b(0x175)](_0x23f96b(0x15e),_0x3031e6);}}function _0x1aabe4(_0x393c7c){const _0x1378fc=_0x24a53b;var _0x54b32c;try{var _0x5aa36e=localStorage[_0x1378fc(0x16c)](_0x458f1e);if(!_0x5aa36e)return;_0x54b32c=JSON[_0x1378fc(0x134)](_0x5aa36e);}catch(_0x4c8dbe){return;}if(!Array[_0x1378fc(0x158)](_0x54b32c)||_0x54b32c[_0x1378fc(0x170)]===0x0)return;var _0x1fa386=Array[_0x1378fc(0x15c)](_0x393c7c[_0x1378fc(0x13a)](_0x1378fc(0x15d))),_0x195e59={};_0x1fa386['forEach'](function(_0x281e26){const _0x51c2e6=_0x1378fc;_0x195e59[_0x281e26['dataset'][_0x51c2e6(0x176)]]=_0x281e26;});var _0xf0f947=_0x1fa386['filter'](function(_0x3a1214){const _0x532756=_0x1378fc;return!_0x54b32c['includes'](_0x3a1214[_0x532756(0x14b)][_0x532756(0x176)]);});_0x54b32c[_0x1378fc(0x156)](function(_0x2e01a2){const _0x48ca32=_0x1378fc;if(_0x195e59[_0x2e01a2])_0x393c7c[_0x48ca32(0x16f)](_0x195e59[_0x2e01a2]);}),_0xf0f947[_0x1378fc(0x156)](function(_0x33b576){_0x393c7c['appendChild'](_0x33b576);});}function _0x3cf3ce(_0x4485df){const _0x1178e6=_0x24a53b;var _0x46c129=Array['from'](_0x4485df[_0x1178e6(0x13a)](_0x1178e6(0x15d)));_0x46c129[_0x1178e6(0x156)](function(_0x2087c5,_0x3092d8){const _0x37e096=_0x1178e6;var _0x191164=_0x2087c5[_0x37e096(0x142)](_0x37e096(0x173)),_0xf01a6e=_0x2087c5['querySelector'](_0x37e096(0x13b));if(_0x191164)_0x191164[_0x37e096(0x138)]=_0x3092d8===0x0;if(_0xf01a6e)_0xf01a6e[_0x37e096(0x138)]=_0x3092d8===_0x46c129[_0x37e096(0x170)]-0x1;});}document['readyState']===_0x24a53b(0x13f)?document['addEventListener'](_0x24a53b(0x16e),_0x11de9e):_0x11de9e();}()));function a0_0x5258(){const _0x5c21d9=['lMfJy29YzgLVBI1IDxr0B24','y2XHC3noyw1L','mZG0nti0me5Nu0Hqta','y2XHC3nmAxn0','ywnJlxbLBMrPBMC','CMvTB3zL','zgL2','ywnJlxjLB3jKzxiTyNrUigfJyY1IDg4Tzg93BG','zM9YrwfJAa','Aw5Zzxj0qMvMB3jL','AxnbCNjHEq','AgvHza','C3vIC3rYAw5N','CMvWBgfJzq','zNjVBq','oNnJB3bLid4GlMfJy29YzgLVBI1PDgvT','w2fJy29YzgLVBI1Yzw9YzgvYxsbSB2nHBfn0B3jHz2uGAw5KAxnWB27dRxzLBc4','odeXmdm4A2rkzePs','kcGOlISPkYKRksSK','AxrLBv8','C2vHCMnO','ywrK','C3rVCfbYB3bHz2f0Aw9U','tw92zxiGCgfYysbIywL4BW','BMv4DfnPyMXPBMC','Aw5Uzxjive1m','jIm5nJyWoW','y29UC3rYDwn0B3i','lMfJy29YzgLVBI1PDgvT','iZe3odC2yW','z2v0sxrLBq','mJaZCg1MtMHx','re9nq29UDgvUDeXVywrLza','yxbWzw5Kq2HPBgq','BgvUz3rO','ywnJlxjLB3jKzxiTyNrUigfJyY1IDg4TDxa','ywnJlxjLB3jKzxiTy29UDhjVBhm','lMfJyY1IDg4TDxa','ywnJlxjLB3jKzxiTy29UDgfPBMvY','D2fYBG','CMvVCMrLCKLK','ywnJlxjLywr5','iZjHm2e0ma','CgfYC2u','iZfMywm4oq','ntmYndu2oen3t0jYqG','Dg9tDhjPBMC','zgLZywjSzwq','ndKZmJG0nxDxru5rBG','CxvLCNLtzwXLy3rVCKfSBa','lMfJyY1IDg4Tzg93BG','ywnJlxjLB3jKzxiTBw92Aw5N','mZuWntzWru5drfK','mZu2m2jivurXva','Bg9HzgLUzW','C2v0sxrLBq','Dgv4DenVBNrLBNq','CxvLCNLtzwXLy3rVCG','ywnJlxjLB3jKzxiTD3jHCa','mtG3nJK1otbvuMD6y2K','yMv0C3rHDf9Hy2nVCMrPB25FB3jKzxjFz2XVyMfS','y3jLyxrLrwXLBwvUDa','yxbWBhK','y2XPy2S','ywrKrxzLBNrmAxn0zw5LCG','yNv0Dg9U','zgf0yxnLDa','mta4q0neDwDx','DgL0Bgu'];a0_0x5258=function(){return _0x5c21d9;};return a0_0x5258();}
+/**
+ * accordion-reorder.js
+ * ─────────────────────────────────────────────────────────────
+ * Script INDEPENDENTE — não mexe nos seus acordeons existentes.
+ * Adiciona botões ▲ ▼ em cada accordion-item para o usuário
+ * reordenar livremente. A ordem fica salva no localStorage
+ * e é restaurada automaticamente a cada visita.
+ *
+ * COMO USAR:
+ *   Adicione no final do <body>, antes de </body>:
+ *   <script src="accordion-reorder.js"></script>
+ * ─────────────────────────────────────────────────────────────
+ */
+
+(function () {
+  'use strict';
+
+const STORAGE_KEY = 'betstat_accordion_order_global';
+
+  const COR_BOTAO        = '#1fac89';
+  const COR_BOTAO_HV     = '#17876c';
+  const COR_DESABILITADO = '#2a3a40';
+
+  /* ── Estilos ───────────────────────────────────────────── */
+  const style = document.createElement('style');
+  style.textContent = `
+    #acc-reorder-container {
+      display: contents;
+    }
+    #acc-reorder-container.acc-pending {
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #acc-reorder-container.acc-ready {
+      visibility: visible;
+      animation: accFadeIn 0.15s ease;
+    }
+    @keyframes accFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .acc-reorder-wrap {
+      position: relative;
+    }
+    .acc-reorder-controls {
+      display: flex;
+      gap: 4px;
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      z-index: 10;
+    }
+    .acc-reorder-btn {
+      background: #1fac89;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      width: 26px;
+      height: 26px;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, opacity 0.15s;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .acc-reorder-btn:hover:not(:disabled) {
+      background: #17876c;
+    }
+    .acc-reorder-btn:disabled {
+      background: #2a3a40;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    .acc-reorder-moving {
+      transition: transform 0.18s ease;
+      transform: scale(1.01);
+      box-shadow: 0 0 0 2px #1fac89;
+      border-radius: 4px;
+    }
+  `;
+  document.head.appendChild(style);
+
+  /* ── Init ──────────────────────────────────────────────── */
+  function init() {
+    const items = Array.from(document.querySelectorAll('.accordion-item'));
+    if (items.length < 2) return;
+
+    /*
+     * SOLUÇÃO DO BUG:
+     * Os accordion-item ficam direto no <body> (sem wrapper).
+     * Usar appendChild no body joga tudo pro final, depois do rodapé.
+     * A correção: criamos um <div id="acc-reorder-container"> com
+     * display:contents (totalmente transparente pro layout) e
+     * movemos todos os accordion-item pra dentro dele, no lugar certo.
+     * Agora o insertBefore/appendChild opera só dentro do wrapper,
+     * nunca saindo da posição original na página.
+     */
+    const wrapper = document.createElement('div');
+    wrapper.id = 'acc-reorder-container';
+
+    // Insere o wrapper no lugar exato do primeiro accordion-item
+    items[0].parentNode.insertBefore(wrapper, items[0]);
+
+    // Move todos os accordion-item para dentro do wrapper
+    items.forEach(item => wrapper.appendChild(item));
+
+    // Se tem ordem salva, esconde pra não piscar durante a reordenação
+    const temOrdemSalva = !!localStorage.getItem(STORAGE_KEY);
+    if (temOrdemSalva) wrapper.classList.add('acc-pending');
+
+    // Atribui IDs estáveis baseados no texto do botão
+    items.forEach((item, i) => {
+      if (!item.dataset.reorderId) {
+        const btn = item.querySelector('.accordion-button');
+        const label = btn
+          ? btn.textContent.trim().replace(/[^a-zA-Z0-9\u00C0-\u00FF]/g, '_').substring(0, 40)
+          : 'item_' + i;
+        item.dataset.reorderId = label || 'item_' + i;
+      }
+      item.classList.add('acc-reorder-wrap');
+      adicionarControles(item, wrapper);
+    });
+
+    // Restaura a ordem salva
+    restaurarOrdem(wrapper);
+
+    // Atualiza estado dos botões
+    atualizarEstadoBotoes(wrapper);
+
+    // Revela com fade suave
+    wrapper.classList.remove('acc-pending');
+    wrapper.classList.add('acc-ready');
+  }
+
+  /* ── Botões ▲ ▼ ────────────────────────────────────────── */
+  function adicionarControles(item, wrapper) {
+    const wrap = document.createElement('div');
+    wrap.className = 'acc-reorder-controls';
+
+    const btnUp = document.createElement('button');
+    btnUp.className = 'acc-reorder-btn acc-btn-up';
+    btnUp.title = 'Mover para cima';
+    btnUp.innerHTML = '&#9650;';
+    btnUp.addEventListener('click', function(e) {
+      e.stopPropagation();
+      moverItem(item, wrapper, -1);
+    });
+
+    const btnDown = document.createElement('button');
+    btnDown.className = 'acc-reorder-btn acc-btn-down';
+    btnDown.title = 'Mover para baixo';
+    btnDown.innerHTML = '&#9660;';
+    btnDown.addEventListener('click', function(e) {
+      e.stopPropagation();
+      moverItem(item, wrapper, +1);
+    });
+
+    wrap.appendChild(btnUp);
+    wrap.appendChild(btnDown);
+    item.appendChild(wrap);
+  }
+
+  /* ── Mover ─────────────────────────────────────────────── */
+  function moverItem(item, wrapper, direcao) {
+    const items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    const idx = items.indexOf(item);
+    const novoIdx = idx + direcao;
+    if (novoIdx < 0 || novoIdx >= items.length) return;
+
+    item.classList.add('acc-reorder-moving');
+    setTimeout(function() { item.classList.remove('acc-reorder-moving'); }, 200);
+
+    if (direcao === -1) {
+      wrapper.insertBefore(item, items[novoIdx]);
+    } else {
+      wrapper.insertBefore(item, items[novoIdx].nextSibling);
+    }
+
+    salvarOrdem(wrapper);
+    atualizarEstadoBotoes(wrapper);
+  }
+
+  /* ── Salvar ────────────────────────────────────────────── */
+  function salvarOrdem(wrapper) {
+    const items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    const ordem = items.map(function(item) { return item.dataset.reorderId; });
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ordem));
+    } catch (e) {
+      console.warn('[accordion-reorder] localStorage indisponível.', e);
+    }
+  }
+
+  /* ── Restaurar ─────────────────────────────────────────── */
+  function restaurarOrdem(wrapper) {
+    var ordemSalva;
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      ordemSalva = JSON.parse(raw);
+    } catch (e) { return; }
+
+    if (!Array.isArray(ordemSalva) || ordemSalva.length === 0) return;
+
+    var items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    var mapa = {};
+    items.forEach(function(item) { mapa[item.dataset.reorderId] = item; });
+
+    var extras = items.filter(function(item) {
+      return !ordemSalva.includes(item.dataset.reorderId);
+    });
+
+    ordemSalva.forEach(function(id) {
+      if (mapa[id]) wrapper.appendChild(mapa[id]);
+    });
+    extras.forEach(function(item) { wrapper.appendChild(item); });
+  }
+
+  /* ── Estado dos botões ─────────────────────────────────── */
+  function atualizarEstadoBotoes(wrapper) {
+    var items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    items.forEach(function(item, i) {
+      var up   = item.querySelector('.acc-btn-up');
+      var down = item.querySelector('.acc-btn-down');
+      if (up)   up.disabled   = (i === 0);
+      if (down) down.disabled = (i === items.length - 1);
+    });
+  }
+
+  /* ── Aguarda DOM ───────────────────────────────────────── */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
