@@ -60,7 +60,7 @@
 
     localStorage.setItem('casaSelecionada', casa);
 
-    const headerFile = `header-${casa}.html`;
+const headerFile = `/header-${casa}.html`;
     
     fetch(headerFile)
       .then(response => {
