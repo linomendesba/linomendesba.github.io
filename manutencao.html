@@ -7237,10 +7237,7 @@ window.addEventListener("load", async () => {
   ];
 
   const MAX_SLOTS = 5;
-  const LS_KEY    = 'bsFavToolsV6';
-  
-  // Token secreto para autenticação (pode ser dinâmico/timestamp)
-  const AUTH_TOKEN = 'betstat2024_secure_token_' + new Date().toISOString().split('T')[0];
+  const LS_KEY    = 'bsFavToolsV5';
 
   /* ── localStorage ────────────────────────────────────────────── */
   function loadState() {
@@ -7430,42 +7427,6 @@ window.addEventListener("load", async () => {
     return sel;
   }
 
-  /* ── Função para enviar autorização ao iframe ───────────────── */
-  function authorizeIframe(frame) {
-    // Aguarda o iframe carregar e envia mensagem de autorização
-    const sendAuth = () => {
-      try {
-        // Envia token de autorização
-        frame.contentWindow.postMessage({ 
-          action: 'authorizedLoad', 
-          token: AUTH_TOKEN,
-          timestamp: Date.now(),
-          origin: 'betstat-parent'
-        }, '*'); // Use '*' ou especifique o domínio exato
-        
-        console.log('[BsFav] Autorização enviada ao iframe');
-      } catch(e) {
-        console.warn('[BsFav] Erro ao enviar autorização:', e);
-      }
-    };
-    
-    // Tenta enviar imediatamente e também após load
-    sendAuth();
-    frame.addEventListener('load', sendAuth);
-    
-    // Envia periodicamente para garantir (caso o iframe recarregue)
-    const authInterval = setInterval(() => {
-      if (!frame.isConnected) {
-        clearInterval(authInterval);
-        return;
-      }
-      sendAuth();
-    }, 2000);
-    
-    // Para de enviar após 10 segundos
-    setTimeout(() => clearInterval(authInterval), 10000);
-  }
-
   /* ── Cria um acordeão favorito ───────────────────────────────── */
   function createToolAccordion(idx, slotData) {
     const { url, open } = slotData;
@@ -7554,8 +7515,22 @@ window.addEventListener("load", async () => {
       titleSpan.textContent = labelByUrl(chosen);
       frame.src = chosen;
       
-      // Inicia autorização contínua
-      authorizeIframe(frame);
+      // Injeta script para remover header após carregar
+      frame.onload = function() {
+        try {
+          const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+          const header = iframeDoc.querySelector('#header');
+          if (header) {
+            header.style.display = 'none';
+            header.style.visibility = 'hidden';
+            header.style.height = '0';
+            header.style.overflow = 'hidden';
+          }
+        } catch(e) {
+          // Cross-origin pode bloquear, tenta via postMessage como fallback
+          frame.contentWindow.postMessage({ action: 'hideHeader' }, '*');
+        }
+      };
     });
 
     toolbar.append(casaSel, toolSel, applyBtn);
@@ -7565,9 +7540,22 @@ window.addEventListener("load", async () => {
     frame.src = (open && url) ? url : 'about:blank';
     frame.setAttribute('allowfullscreen', '');
     
-    // Script para autorização e hide header quando carrega
+    // Script para esconder header quando carrega
     if (open && url) {
-      authorizeIframe(frame);
+      frame.onload = function() {
+        try {
+          const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+          const header = iframeDoc.querySelector('#header');
+          if (header) {
+            header.style.display = 'none';
+            header.style.visibility = 'hidden';
+            header.style.height = '0';
+            header.style.overflow = 'hidden';
+          }
+        } catch(e) {
+          frame.contentWindow.postMessage({ action: 'hideHeader' }, '*');
+        }
+      };
     }
 
     content.append(toolbar, frame);
@@ -7584,7 +7572,21 @@ window.addEventListener("load", async () => {
         const blank = frame.src === 'about:blank' || frame.src === window.location.href;
         if (cur && blank) {
           frame.src = cur;
-          authorizeIframe(frame);
+          // Reaplica script de hide header
+          frame.onload = function() {
+            try {
+              const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+              const header = iframeDoc.querySelector('#header');
+              if (header) {
+                header.style.display = 'none';
+                header.style.visibility = 'hidden';
+                header.style.height = '0';
+                header.style.overflow = 'hidden';
+              }
+            } catch(e) {
+              frame.contentWindow.postMessage({ action: 'hideHeader' }, '*');
+            }
+          };
         }
       }
 
