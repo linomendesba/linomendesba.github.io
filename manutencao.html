@@ -7130,9 +7130,11 @@ window.addEventListener("load", async () => {
     (function () {
  
   /* ── CATÁLOGO COMPLETO ───────────────────────────────────────── */
+  // casa: chave usada para filtrar (deve bater com detectCasa())
   const CATALOGO = [
     {
       group: "🟢 Bet365",
+      casa: "bet365",
       tools: [
         { label: "Pré Live",        url: "https://www.betstat.site/bet365pre.html" },
         { label: "Fluxo",           url: "https://www.betstat.site/365fluxo.html" },
@@ -7156,6 +7158,7 @@ window.addEventListener("load", async () => {
     },
     {
       group: "🔵 Betano",
+      casa: "betano",
       tools: [
         { label: "Pré Live",        url: "https://www.betstat.site/betanopre.html" },
         { label: "Fluxo",           url: "https://www.betstat.site/fluxo.html" },
@@ -7179,6 +7182,7 @@ window.addEventListener("load", async () => {
     },
     {
       group: "⭐ EstrelaBet",
+      casa: "estrelabet",
       tools: [
         { label: "Pré Live",        url: "https://www.betstat.site/estrelapre.html" },
         { label: "Fluxo",           url: "https://www.betstat.site/estrelafluxo.html" },
@@ -7202,6 +7206,7 @@ window.addEventListener("load", async () => {
     },
     {
       group: "🟠 Kiron",
+      casa: "kiron",
       tools: [
         { label: "Pré Live",        url: "https://www.betstat.site/kironpre.html" },
         { label: "Fluxo",           url: "https://www.betstat.site/kironfluxo.html" },
@@ -7225,6 +7230,7 @@ window.addEventListener("load", async () => {
     },
     {
       group: "🛠️ Extras",
+      casa: "extras",
       tools: [
         { label: "Guias",           url: "https://www.betstat.site/guias.html" },
         { label: "Ao Vivo",         url: "https://www.betstat.site/live.html" },
@@ -7237,7 +7243,51 @@ window.addEventListener("load", async () => {
   ];
  
   const MAX_SLOTS = 5;
-  const LS_KEY    = 'bsFavToolsV2';
+  const LS_KEY    = 'bsFavToolsV3';
+ 
+  /* ── Detecta a casa de apostas da página atual ───────────────── */
+  // Estratégia 1: verifica qual header foi incluído no DOM
+  // Estratégia 2: analisa o pathname da URL
+  function detectCasa() {
+    const path = (window.location.pathname + window.location.href).toLowerCase();
+ 
+    // pelo header incluído (elemento mais confiável)
+    if (document.querySelector('[data-casa]')) {
+      return document.querySelector('[data-casa]').dataset.casa;
+    }
+ 
+    // pelo pathname / URL
+    if (path.includes('bet365') || path.includes('365')) return 'bet365';
+    if (path.includes('kiron'))                            return 'kiron';
+    if (path.includes('estrela'))                          return 'estrelabet';
+    if (path.includes('betano'))                           return 'betano';
+ 
+    // Tenta pelo texto do header carregado dinamicamente
+    const headerEl = document.getElementById('header');
+    if (headerEl) {
+      const txt = headerEl.innerHTML.toLowerCase();
+      if (txt.includes('bet365') || txt.includes('ligas bet365')) return 'bet365';
+      if (txt.includes('kiron')  || txt.includes('ligas kiron'))  return 'kiron';
+      if (txt.includes('estrela'))                                  return 'estrelabet';
+      if (txt.includes('betano'))                                   return 'betano';
+    }
+ 
+    return null; // não identificou — mostra tudo
+  }
+ 
+  /* ── Monta o catálogo filtrado para o select ─────────────────── */
+  // Se casa detectada: grupo da casa vem PRIMEIRO (destacado), depois Extras
+  // Se não detectou: mostra tudo
+  function getCatalogoOrdenado(casa) {
+    if (!casa) return CATALOGO;
+ 
+    const minha   = CATALOGO.filter(c => c.casa === casa);
+    const extras  = CATALOGO.filter(c => c.casa === 'extras');
+    const outros  = CATALOGO.filter(c => c.casa !== casa && c.casa !== 'extras');
+ 
+    // ordem: casa atual → outros → extras
+    return [...minha, ...outros, ...extras];
+  }
  
   /* ── localStorage helpers ────────────────────────────────────── */
   function loadState() {
@@ -7251,7 +7301,7 @@ window.addEventListener("load", async () => {
     localStorage.setItem(LS_KEY, JSON.stringify(s));
   }
  
-  /* ── Busca label ─────────────────────────────────────────────── */
+  /* ── Label pelo URL ──────────────────────────────────────────── */
   function labelByUrl(url) {
     for (const cat of CATALOGO) {
       const t = cat.tools.find(t => t.url === url);
@@ -7262,11 +7312,19 @@ window.addEventListener("load", async () => {
  
   /* ── CSS ─────────────────────────────────────────────────────── */
   const CSS = `
-  #bsFavWrapper { margin-bottom: 6px; }
+  /* wrapper raiz — flex column: botão add NO TOPO, acordeões abaixo */
+  #bsFavWrapper {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 6px;
+    gap: 4px;
+  }
  
-  /* botão adicionar */
-  #bsFavAddWrapper { margin-bottom: 4px; }
-  #bsFavAddWrapper .bsfav-add-btn {
+  /* botão adicionar — SEMPRE primeiro filho (order: -1 garante topo) */
+  #bsFavAddWrapper {
+    order: -1;
+  }
+  .bsfav-add-btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
     width: 100%; padding: 9px 14px;
     background: linear-gradient(135deg, rgba(251,191,36,.09), rgba(251,191,36,.03));
@@ -7275,17 +7333,24 @@ window.addEventListener("load", async () => {
     border-radius: 8px; cursor: pointer; letter-spacing: .3px;
     transition: background .2s, border-color .2s;
   }
-  #bsFavAddWrapper .bsfav-add-btn:hover {
+  .bsfav-add-btn:hover {
     background: linear-gradient(135deg, rgba(251,191,36,.17), rgba(251,191,36,.07));
     border-color: rgba(251,191,36,.65);
   }
-  #bsFavAddWrapper .bsfav-add-btn:disabled {
-    opacity: .35; cursor: not-allowed;
+  .bsfav-add-btn:disabled { opacity: .35; cursor: not-allowed; }
+ 
+  /* badge da casa detectada no botão */
+  .bsfav-casa-badge {
+    font-size: 11px; font-weight: 500; opacity: .75;
+    background: rgba(251,191,36,.15);
+    border: 1px solid rgba(251,191,36,.25);
+    border-radius: 4px; padding: 1px 6px; margin-left: 4px;
   }
  
-  /* acordeão individual de ferramenta */
-  .bsfav-item { margin-bottom: 4px; }
- 
+  /* acordeão individual */
+  .bsfav-item {
+    order: 1; /* garante que ficam sempre ABAIXO do botão add */
+  }
   .bsfav-item-btn {
     display: flex; align-items: center; gap: 8px;
     width: 100%; padding: 9px 12px;
@@ -7301,7 +7366,8 @@ window.addEventListener("load", async () => {
   }
   .bsfav-item-btn.is-open {
     border-radius: 8px 8px 0 0;
-    border-color: rgba(34,197,94,.38);
+    border-color: rgba(34,197,94,.4);
+    background: linear-gradient(135deg, rgba(34,197,94,.12), rgba(34,197,94,.04));
   }
  
   .bsfav-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -7332,7 +7398,7 @@ window.addEventListener("load", async () => {
   }
   .bsfav-content.open { display: block; }
  
-  /* barra de escolha de ferramenta */
+  /* barra de escolha */
   .bsfav-toolbar {
     display: flex; align-items: center; gap: 7px;
     padding: 8px 10px;
@@ -7346,6 +7412,12 @@ window.addEventListener("load", async () => {
     padding: 5px 9px; font-size: 12px; cursor: pointer;
   }
   .bsfav-toolbar select:focus { outline: none; border-color: rgba(34,197,94,.55); }
+ 
+  /* destaque visual no optgroup da casa atual */
+  .bsfav-toolbar select optgroup.bsfav-casa-atual {
+    color: #4ade80;
+    font-weight: 700;
+  }
  
   .bsfav-apply-btn {
     padding: 5px 13px;
@@ -7366,18 +7438,23 @@ window.addEventListener("load", async () => {
   }
   `;
  
-  /* ── Constrói <select> com catálogo ──────────────────────────── */
-  function buildSelect(selectedUrl) {
+  /* ── Constrói <select> com catálogo ordenado ─────────────────── */
+  function buildSelect(selectedUrl, casa) {
+    const catalogoOrdenado = getCatalogoOrdenado(casa);
     const sel = document.createElement('select');
-    const ph  = document.createElement('option');
+ 
+    const ph = document.createElement('option');
     ph.value = ''; ph.textContent = 'Escolha uma ferramenta…';
     ph.disabled = true;
     if (!selectedUrl) ph.selected = true;
     sel.appendChild(ph);
  
-    CATALOGO.forEach(cat => {
+    catalogoOrdenado.forEach(cat => {
       const og = document.createElement('optgroup');
-      og.label = cat.group;
+      // marca visualmente o grupo da casa atual
+      og.label = (cat.casa === casa) ? `★ ${cat.group} (desta página)` : cat.group;
+      if (cat.casa === casa) og.classList.add('bsfav-casa-atual');
+ 
       cat.tools.forEach(t => {
         const o = document.createElement('option');
         o.value = t.url; o.textContent = t.label;
@@ -7389,14 +7466,14 @@ window.addEventListener("load", async () => {
     return sel;
   }
  
-  /* ── Cria um acordeão de ferramenta (por índice) ─────────────── */
-  function createToolAccordion(idx, slotData) {
+  /* ── Cria um acordeão de ferramenta ──────────────────────────── */
+  function createToolAccordion(idx, slotData, casa) {
     const { url, open } = slotData;
  
     const item = document.createElement('div');
     item.className = 'bsfav-item accordion-item';
  
-    /* — botão header — */
+    /* header */
     const btn = document.createElement('button');
     btn.className = 'bsfav-item-btn accordion-button' + (open ? ' is-open' : '');
  
@@ -7412,7 +7489,7 @@ window.addEventListener("load", async () => {
       const st = loadState();
       st.slots.splice(idx, 1);
       saveState(st);
-      rebuildAll();
+      rebuildAll(casa);
     });
  
     const chevron = document.createElement('span');
@@ -7421,16 +7498,16 @@ window.addEventListener("load", async () => {
  
     btn.append(titleSpan, removeBtn, chevron);
  
-    /* — conteúdo — */
+    /* conteúdo */
     const content = document.createElement('div');
     content.className = 'bsfav-content' + (open ? ' open' : '');
  
     /* toolbar */
-    const toolbar  = document.createElement('div');
+    const toolbar = document.createElement('div');
     toolbar.className = 'bsfav-toolbar';
  
-    const sel       = buildSelect(url);
-    const applyBtn  = document.createElement('button');
+    const sel      = buildSelect(url, casa);
+    const applyBtn = document.createElement('button');
     applyBtn.className = 'bsfav-apply-btn';
     applyBtn.textContent = 'Carregar';
  
@@ -7446,7 +7523,7 @@ window.addEventListener("load", async () => {
  
     toolbar.append(sel, applyBtn);
  
-    /* iframe — só carrega quando aberto */
+    /* iframe lazy */
     const frame = document.createElement('iframe');
     frame.className = 'bsfav-frame';
     frame.src = (open && url) ? url : 'about:blank';
@@ -7460,13 +7537,11 @@ window.addEventListener("load", async () => {
       const isOpen = content.classList.toggle('open');
       btn.classList.toggle('is-open', isOpen);
  
-      // lazy-load do iframe
       if (isOpen) {
         const st = loadState();
-        const currentUrl = st.slots[idx]?.url;
-        if (currentUrl && (frame.src === 'about:blank' || frame.src === window.location.href)) {
-          frame.src = currentUrl;
-        }
+        const cur = st.slots[idx]?.url;
+        const blank = frame.src === 'about:blank' || frame.src === window.location.href;
+        if (cur && blank) frame.src = cur;
       }
  
       const st = loadState();
@@ -7477,8 +7552,8 @@ window.addEventListener("load", async () => {
     return item;
   }
  
-  /* ── Reconstrói todos os acordeões do wrapper ────────────────── */
-  function rebuildAll() {
+  /* ── Reconstrói todos os acordeões ──────────────────────────── */
+  function rebuildAll(casa) {
     const wrapper    = document.getElementById('bsFavWrapper');
     const addWrapper = document.getElementById('bsFavAddWrapper');
     if (!wrapper || !addWrapper) return;
@@ -7488,9 +7563,9 @@ window.addEventListener("load", async () => {
  
     const state = loadState();
  
+    // Insere acordeões — com flexbox order:1 eles ficam ABAIXO do botão add (order:-1)
     state.slots.forEach((slot, i) => {
-      const acc = createToolAccordion(i, slot);
-      wrapper.insertBefore(acc, addWrapper);
+      wrapper.appendChild(createToolAccordion(i, slot, casa));
     });
  
     // Atualiza botão adicionar
@@ -7498,17 +7573,30 @@ window.addEventListener("load", async () => {
     if (addBtn) {
       const atMax = state.slots.length >= MAX_SLOTS;
       addBtn.disabled = atMax;
-      addBtn.textContent = atMax
-        ? `✦ Máximo de ${MAX_SLOTS} ferramentas atingido`
-        : '＋ Adicionar Ferramenta';
+ 
+      // Limpa e reconstrói conteúdo do botão
+      addBtn.innerHTML = '';
+      const txt = document.createTextNode(
+        atMax ? `✦ Máximo de ${MAX_SLOTS} ferramentas atingido` : '＋ Adicionar Ferramenta'
+      );
+      addBtn.appendChild(txt);
+ 
+      if (!atMax && casa) {
+        const badge = document.createElement('span');
+        badge.className = 'bsfav-casa-badge';
+        const nomes = { bet365: 'Bet365', betano: 'Betano', estrelabet: 'EstrelaBet', kiron: 'Kiron' };
+        badge.textContent = nomes[casa] || casa;
+        addBtn.appendChild(badge);
+      }
     }
   }
  
   /* ── Monta estrutura raiz ────────────────────────────────────── */
-  function buildRoot() {
+  function buildRoot(casa) {
     const wrapper = document.createElement('div');
     wrapper.id = 'bsFavWrapper';
  
+    // Botão add com order:-1 (CSS) — sempre fica no topo via flexbox
     const addWrapper = document.createElement('div');
     addWrapper.id = 'bsFavAddWrapper';
  
@@ -7520,7 +7608,7 @@ window.addEventListener("load", async () => {
       if (st.slots.length >= MAX_SLOTS) return;
       st.slots.push({ url: '', open: true });
       saveState(st);
-      rebuildAll();
+      rebuildAll(casa);
     });
  
     addWrapper.appendChild(addBtn);
@@ -7540,9 +7628,21 @@ window.addEventListener("load", async () => {
       return;
     }
  
-    const root = buildRoot();
+    const casa = detectCasa();
+    const root = buildRoot(casa);
     firstAccordion.parentNode.insertBefore(root, firstAccordion);
-    rebuildAll();
+    rebuildAll(casa);
+ 
+    // Re-detecta casa se o header for carregado de forma assíncrona
+    const headerEl = document.getElementById('header');
+    if (headerEl && headerEl.innerHTML.trim() === '') {
+      const obs = new MutationObserver(() => {
+        const casaDetectada = detectCasa();
+        rebuildAll(casaDetectada);
+        obs.disconnect();
+      });
+      obs.observe(headerEl, { childList: true, subtree: true });
+    }
   }
  
   document.readyState === 'loading'
