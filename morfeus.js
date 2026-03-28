@@ -1,1 +1,936 @@
-const a0_0x4d01a4=a0_0xbf54;function a0_0x2456(){const _0x57c18b=['Dg9tDhjPBMC','DgfYz2v0','z3jLzw5qzxjJzw50ywDL','mc4W','C3r5Bgu','cGOZlIbquSotweLnt1mGnIbdt05guK9ove9toGO','cI0Gt2jZzxj2yCoNW7vLCYbKBYbvC3xdOxjPBZOG','Aw1Hz2uTC3rHDhvZ','BgLNyxmTz3jVDxa','CMvHzefZrgf0yvvsta','qNjHC2LS','mJuYq2zvsvL0','Dgv4DenVBNrLBNq','otGZnJq5mgDzz0PxDW','zM9YrwfJAa','ig1PBNv0BYHZksbHBNrLCYbKzsbNzxjHCIb1BweGBM92ysbHBSoHBgLZzs4','B2jZzxj2ywnHBW','lMj0BI5Hy3rPDMu','Dw5KzxiYlJu','mZC1mtiZnMzjsgz3wG','C3rHDhvZ','q29WysbKyxmGrxn0CMvSyxm','zg9PC0DVBhnfEgf0B3m','Dw5KzxiXlJu','CMvKDwnL','vM9JW6OGyxrPBMDPDsbVigXPBwL0zsbKzsa2igfUW6fSAxnLCYbWB3iGzgLHlIbqB3iGzMf2B3iSihzVBhrLigfTyw5OW6mU','B2nJDxjYzw5Jzxm','yw1Iyxnoyw9nyxjJyw0','muTRtwr5DG','yNv0Dg9U','z3jLzw4','CgvYAw9KBY1NCM91Ca','BwfYA2v0qw5HBhLZAxm','cGPjtLnuuLxdH8ovrvmGreuGqu7dGuXju0uGkfnvqsbuqvjfrKePoGOXlIaGu3vHig1PC3pdO28GW6KGy29Uzwn0yxiGyxmGAw5MB3jTyCoNW7vLCYbHy2LTys4ktSoJBYbWCM9JzxnZzsbKywrVCYbICNv0B3mSigfWzw5HCYbPBNrLCNbYzxrLig9ZihjLC3vSDgfKB3mGCxvLigv1igzVCM5Ly2KUcJiUicbbBMfSAxnLig9Zicjut1aGmtuGuefeuSovrvmIlGPjzgvUDgLMAxf1zsbXDwfPCYb0W6PTig8GBwfPB3iGCgvYy2vUDhvHBcbKzsbHy2vYDg8GkhbLCMnLBNr1ywWPiguGDw0GBSo6BwvYBYbZW7nSAwrVigrLig9JB3jYW6PUy2LHCY4kugfKCSo1zxmGy29TideWmcuGzguGywnLCNrViguGCg91y2fZig9JB3jYW6PUy2LHCYbZW6nVihbYB21PC3nVCMvZlcbTyxmGzguGywX0BYbYAxnJBY4kmY4Gie9IC2vYDMuGB3mGiLbsW5nysu1puYa2ienptKzst05ut1mIlIbwzxjPzMLXDwuGC2uGywXNDw0GzgvZC2vZigPVz29ZigvUDM9SDMuGDgLTzxmGCxvLigvZDmoJBYbIzw0GCg9ZAwnPB25Hzg9Zig5Vicjsqu5lsu5hierfifrjtuvtiI4knc4GienYDxPLigfZigLUzM9YBwhdP8o1zxm6ieeGB3bVCNr1BMLKywrLigrLig1HAw9YihzHBg9YigfJB250zwnLihf1yw5KBYb1BsbWywrYW6nVigzVCNrLigfWB250ysbWyxjHihvTigrVCYbWCSoZEgLTB3mGy29UzNjVBNrVCYbfigvZC2uGy29UzNjVBNrVigvUDM9SDMuGDgLTzxmGy29TigjVBsbKzxnLBxbLBMHVigHPC3tdS3jPy28GBM8GBwvYy2fKBY4kns4GifnLihvTysbPBwfNzw0GzM9PigzVCM5Ly2LKysWGy29UC2LKzxjLihf1zsbLBgeGCg9KzsbJB250zxiGAw5MB3jTyCoNW7vLCYb2Axn1ywLZignVBxbSzw1LBNrHCMvZicHJB21VigvZDgf0W61ZDgLJyxmGB3uGz3ldOwzPy29ZksbLig1LBMnPB25Lihf1zsbLBgeGzM9PignVBNnPzgvY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','qNjHC2LSzwLYW6nViejLDgfUBW','lsbjBwfNzw0GzM9YBMvJAwrHoIbvBweGAw1Hz2vTigzVAsbLBNzPywrHihbHCMeGyw7dOwXPC2uGywrPy2LVBMfSlG','BgLNyq','mtu5ntK1r0zlzeHJ','rxjYBYbHBYbIDxnJyxiGzgfKB3mGzgeGqvbjoG','yxbWBgLJyxrPB24VAMf2yxnJCMLWDa','CMvZDwX0lwnVBNrHAw5LCG','ig7dO28Gzw5JB250CMfKyq','Dg9ju09tDhjPBMC','zgfKB3ndCNu','q2fZysa','CgvYy2vUDgfNzq','y3vYCMvUDfbLCMnLBNrHz2u','BwfYDgLUz2fSzs1NCM91Ca','Dw1hB2XfEgf0BW','yxbWBgLJyxrPB24VANnVBG','l3jLC3vSDgfKB3mV','Dgv4Da','DgLTzv9H','yw5HBhLZAxnvC2fNzq','mtzKvuPVAMG','uMLZy28GzwXLDMfKBW','B3zLCJmUnq','pgrPDIbJBgfZCZ0IzxjYB3iIpGOGicaGicaGicaGicaGicaGicaGidXZDhjVBMC+rxjYBZO8l3n0CM9UzZ4G','ChvZAa','Dg90ywXhCMvLBNm','igPVz29Z','cI0Grxn0CMf0W6LNAweGtwfYDgLUz2fSztOG','tMvUAhvTigfYCxvPDM8GC2vSzwnPB25Hzg8','BM9Uzq','nJK3ntzYr0jIEKy','ug9YigzHDM9YlcbHz3vHCMrLia','tMvUAhvT','z2v0rwXLBwvUDej5swq','nJyWmJq3EffMB3HP','Aw5JBhvKzxm','iJOkug9Yy2vUDgfNzw0Gqxr1ywW6ia','rxn0CMvSywjLDa','q29WysbbBCoPCMLJyq','A2v5CW','nJKYotiWDeXeDNLp','y2LUy29pDu1HAxnhB2XZ','pgrPDIbJBgfZCZ0IC3bPBM5LCIi+pc9KAxy+ifbYB2nLC3nHBMrVlI4U','BwfYA2v0q291BNq','zgf0yq','zMLSzxm','CMvK','BgvUz3rO','zxjYB3i','u3bHAw4','Dg90ywXszwrZ','yMXVy2S','ywXS','BwLUDxrV','z3jLzw5Z','BwvYy2fKB3mTz3jVDxa','C2vHCMnO','y29UDgfPBNm','y2HHBMDL','zgf0zq','B3zLCJiUnq','zM9YyvzLBMnL','BgLNyxm','y2fZyvzLBMnL','ANnVBG','kcGOlISPkYKRksSK','4P2mievYCM8GBMeGqw7dOwXPC2u','cI0Gvg90ywWGzguGAM9NB3mGyw5HBgLZywrVCZOG','zxHHy3qY','C3jJ','rxnWyw5Oyq','CM91BMq','sw5NBgf0zxjYyq','y2XHC3noyw1L','mtbTquHtA0e','iIaOvg9WideWktOk','CMvTB3zL','Aw1Hz2uTChjLDMLLDW','zxHHy3q0','rxvYBW','yMv0C3nVBG','ihGG','Aw5Uzxjive1m','C29YDa','igPVz29ZlI4Upc9KAxy+','sxrHBhK','BwvZC2fNzq','Dg90ywXhyw1LCW','DgHLBG','zxHHy3qZ','yw5HBhL6zq','CxvHDhjVr29SC0v4yxrVCW','Dg9gAxHLza','Aw1Hz2uTDxbSB2fK','iJOk','rxjYBYbUBYbWCM9JzxnZBYbKzsbHBSoHBgLZztO','Cgf0Aa','C29Tzq','Dg9mB3DLCKnHC2u','ug9YigzHDM9YlcbZzwXLy2LVBMuGq2fZysWGtgLNysWGtwvYy2fKBYbLifbLCSoTB2rVigrLiefUW6fSAxnLlG','mJe3rgnpCfvp','cI0GtwvYy2fKBZOG','BwvYy2fKBW','C2XPy2u','zgLZCgXHEq','nJa0mZGZtKPPvKzp','zMLSDgvY','rxjYBYbUBYb3B3jRzxiGzguGyw7dOwXPC2u','B3zLCJeUnq','Ahr0Chm6lY9Nzw5LCMf0AxzLBgfUz3vHz2uUz29Vz2XLyxbPCY5JB20VDJfIzxrHl21VzgvSCY9Nzw1PBMKTmI4WlwzSyxnOoMDLBMvYyxrLq29UDgvUDa','y2fZyxmTz3jVDxa','lMj0BI1Nzw5LCMf0zq','ywrKrxzLBNrmAxn0zw5LCG','yw1Iyxnoyw8','tw9KzxjHzgeGy2HHBMnL','BwfW','qwX0ysbJAgfUy2uGzguGzMfSAge','AxngAw5PDgu','C3bSAxq','DhjPBq','CgfKCM9LC0vUy29UDhjHzg9Z','Cg9ZDe1LC3nHz2u','CMvZDwX0','cI0GtgLNytOG','qwX0ysbJAgfUy2uGzguGywnLCNrV','BgfZDefUywX5C2LZ','Aw1Hz2vT','A2LYB24','pgjYpJXICJ4kicaGicaGicaGicaGicaGicaGica8C3rYB25NpKnHDxnHCYbWB3nZW612zwLZoJWVC3rYB25NpIbgywXOysbUysbVCgvYyCoNW6nVlGPbDhvHBgL6zsbHihddOwDPBMeGzsb0zw50zsbVDxrYysb2zxOGBwfPCYb0yxjKzs4kicaGicaGicaGicaGicaGidWVzgL2pG','cGPjtKzpuK1bW4FdLuvtifbsW4KTufjpq0vtu0feqvm6cGOXlIbsqu5lsu5hierfifrjtuvtifbbuKeGtYbnrvjdqurpici','l3bYB3HPBw9ZlW','ywn0AxzL','C2HPzNq','DhjLC0DVBhnfEgf0B3m','mta4ody5nKHqs09vyW','C3rYAw5NAwz5','DMfSDwu','mtmYmdGXm2vgCgr2ra','ywrK','yxbWzw5Kq2HPBgq','Ag9Yyq','Dw5KzxiZlJu','mtq0odeYue1Jwvn4','lMj0BI1NCMLK','zgf0yxnLDa','cIaGicaGicaGC2vSzI5VBM1LC3nHz2uGpsaOzsKGpt4GEWOGicaGicaGicaGicbJB25ZDcbWid0Gzs5KyxrHoWPPzIaOixaGFhWGCc5JBwqGit09icDHBMfSExPLjYKGCMv0DxjUoWOGicaGicaGicaGicbJB25ZDcbYzxmGpsbHBMfSExPLqwXSkhaUCgf5Bg9HzcK7cIaGicaGicaGicaGihnLBgyUCg9ZDe1LC3nHz2uOEYbVAZOGDhj1zsWGAwq6ihaUAwqSihjLC3vSDdOGCMvZih0PoWOGicaGicaGih07cMz1BMn0Aw9UigvUDw1LCMf0zunVBwjVCYH0B2SPEWOGicaGicaGicaGicbPzIH0B2SUBgvUz3rOpt09msKGCMv0DxjUihrVA1SWxs5TyxaODd0+w3rDktSkicaGicaGicaGicaGAwyODg9RlMXLBMD0Ad09ptiPEYbJB25ZDcbVDxq9w107cMzVCIHJB25ZDcbHig9MihrVA1SWxsKGzM9YkgnVBNn0igiGB2yGDg9RwZfDksbVDxqUChvZAcHBysXIxsK7ihjLDhvYBIbVDxq7cN0kicaGicaGicaGicaGAwyODg9RlMXLBMD0Ad09ptmPEYbJB25ZDcbVDxq9w107cMzVCIHJB25ZDcbHig9MihrVA1SWxsKGzM9YkgnVBNn0igiGB2yGDg9RwZfDksbMB3iOy29UC3qGyYbVzIb0B2TBmL0Pig91Dc5WDxnOkfTHlgiSy10PoYbYzxr1CM4GB3v0oWP9cIaGicaGicaGicaGignVBNn0ig91Dd1BxsXJDxi9w107cIHMDw5JDgLVBIbYzwmOAsL7igLMkgK9pt10B2SUBgvUz3rOkxSGB3v0lNb1C2GOy3vYlNnSAwnLkcKPoYbYzxr1CM47ih0GzM9YkgnVBNn0ihqGB2yGDg9Rw2LDkxSGy3vYlNb1C2GODcK7ihjLyYHPkZePoYbJDxiUCg9WkcK7ih0GFsKOmcK7cIaGicaGicaGicaGihjLDhvYBIbVDxq7cN0kicaGicaGicbMDw5JDgLVBIbNzxrpzMzZzxrZqNLuAxbVkhqPEWOGicaGicaGicaGicbPzIH0pt09jZeNksbYzxr1CM4GwZbDoWPPzIH0pt09jZiNksbYzxr1CM4GwZaSmv07cIaGicaGicaGicaGigLMkhq9pt0NmYCPihjLDhvYBIbBmcWXldjDoWOGicaGicaGicaGicbPzIH0pt09jZfFChvSyv8XjYKGCMv0DxjUifSWldjDoWOGicaGicaGicaGicbPzIH0pt09jZfFChvSyv8Xx3b1BgfFmsCPihjLDhvYBIbBmcWYldrDoWOGicaGicaGicaGicbYzxr1CM4GwZaSmv07cN0kicaGicaGicbMDw5JDgLVBIb0B2TLBNneB0PVz28OysXIlhrVDgfSlg1HBMrHBNrLlhzPC2L0yw50zsL7cIaGicaGicaGicaGignVBNn0ihqGpsbUzxCGu2v0kcK7cNqUywrKkgaKE2f9lsr7yN1GktSkicaGicaGicaGicaGDc5HzgqOysa+idaGjIyGyIa+idaGpYaNyw1IyxnnyxjJyw0NidOGj2fTyMfZtMfVtwfYy2fTjYK7cNqUywrKkgeGpIbIid8Gj2nHC2fwzw5JzsCGoIaOysa8igiGpYaNzM9YyvzLBMnLjYa6icDLBxbHDguNksK7cIaGicaGicaGicaGigLMicH0B3rHBca+psaYksb0lMfKzcGNB3zLCJeUnsCPoWPPzIaODg90ywWGpcaYksb0lMfKzcGNDw5KzxiXlJuNktSkicaGicaGicaGicaGAwyGkhrVDgfSid49idmPihqUywrKkcDVDMvYmI41jYK7igLMicH0B3rHBca8idmPihqUywrKkcD1BMrLCJiUnsCPoWOGicaGicaGicaGicbPzIaODg90ywWGpJ0GncKGDc5HzgqOj292zxiZlJuNktSkAwyGkhrVDgfSidWGncKGDc5HzgqOj3vUzgvYmY41jYK7cIaGicaGicaGicaGigLMicH0B3rHBca+psa1ksb0lMfKzcGNB3zLCJuNktSkicaGicaGicaGicaGAwyGkhrVDgfSid09psaXksb0lMfKzcGNzxHHy3qXjYK7cIaGicaGicaGicaGigLMicH0B3rHBca9pt0GmIKGDc5HzgqOj2v4ywn0mICPoWPPzIaODg90ywWGpt09idmPihqUywrKkcDLEgfJDdmNktSkicaGicaGicaGicaGAwyGkhrVDgfSid09psa0ksb0lMfKzcGNzxHHy3q0jYK7cIaGicaGicaGicaGigLMicHTyw5Kyw50zsKGDc5HzgqOBwfUzgfUDguUDg9mB3DLCKnHC2uOksK7cIaGicaGicaGicaGigLMicH2AxnPDgfUDguPihqUywrKkhzPC2L0yw50zs50B0XVD2vYq2fZzsGPktSkicaGicaGicaGicaGCMv0DxjUiefYCMf5lMzYB20ODcK7cN0kicaGicaGicbMDw5JDgLVBIbPC0DYzwvUrM9YtwfYA2v0kg0SysXIlhrVDgfSkxSkicaGicaGicaGicaGAwyGkg0Gpt09icDHBwjHC01HCMnHBsCPihjLDhvYBIbHid4GmcaMjIbIid4GmdSkAwyGkg0Gpt09icDHBwjHC05HB01HCMnHBsCPihjLDhvYBIbHid09psaWihX8igiGpt09ida7cIaGicaGicaGicaGigLMicHTid09psaNy2fZyvzLBMnLjYKGCMv0DxjUigeGpIbIoWPPzIaOBsa9pt0Gj2zVCMfwzw5JzsCPihjLDhvYBIbHidWGyJSkicaGicaGicaGicaGAwyGkg0Gpt09icDLBxbHDguNksbYzxr1CM4Gysa9pt0GyJSkAwyGkg0Gpt09icDVDMvYms41jYKGCMv0DxjUihrVDgfSid49idi7cIaGicaGicaGicaGigLMicHTid09psaNDw5KzxiXlJuNksbYzxr1CM4GDg90ywWGpcaYoWPPzIaOBsa9pt0Gj292zxiYlJuNksbYzxr1CM4GDg90ywWGpJ0GmZSkicaGicaGicaGicaGAwyGkg0Gpt09icD1BMrLCJiUnsCPihjLDhvYBIb0B3rHBca8idm7cMLMicHTid09psaNB3zLCJmUnsCPihjLDhvYBIb0B3rHBca+psa0oWOGicaGicaGicaGicbPzIaOBsa9pt0Gj3vUzgvYmY41jYKGCMv0DxjUihrVDgfSidWGndSkAwyGkg0Gpt09icDVDMvYnsCPihjLDhvYBIb0B3rHBca+psa1oWOGicaGicaGicaGicbPzIaOBsa9pt0Gj2v4ywn0msCPihjLDhvYBIb0B3rHBca9pt0GmtSkAwyGkg0Gpt09icDLEgfJDdiNksbYzxr1CM4GDg90ywWGpt09idi7cIaGicaGicaGicaGigLMicHTid09psaNzxHHy3qZjYKGCMv0DxjUihrVDgfSid09psaZoWPPzIaOBsa9pt0Gj2v4ywn0ncCPihjLDhvYBIb0B3rHBca9pt0GndSkicaGicaGicaGicaGCMv0DxjUigzHBhnLoWP9cIaGicaGicaGzNvUy3rPB24Gyw5HBgLZyxjbDxrVugfKCM9LCYHKywrVCYX0AxbVlhrPCM9Zlg1HCMTLDcXPBMLJAw8SzMLTkxSkicaGicaGicaGicaGy29UC3qGCMvZpvTDoWPJB25ZDcbVzMzZpwDLDe9MzNnLDhncEvrPCg8ODgLWBYK7ignVBNn0igXHC3q9B2zMC1TVzMzZlMXLBMD0Ac0XxtSkicaGicaGicaGicaGzM9YkgXLDcbWpwLUAwnPBZTWpd1MAw07CcSRkxSkicaGicaGicaGicaGicaGignVBNn0ignVBwi9E307cMnVBNn0ig5Lzwq9kgXHC3qRmsKRCcT0AxjVCZSGAwyOzgfKB3mUBgvUz3rOpg5LzwqPignVBNrPBNvLoWOGicaGicaGicaGicaGicaGzM9YkgXLDcbPpta7AtW9zgfKB3mUBgvUz3rOlw5Lzwq7AsSRkxSkicaGicaGicaGicaGicaGicaGicbJB25ZDcb0B2S9w107cMzVCIHJB25ZDcbVig9Mig9MzNmPEWOGicaGicaGicaGicaGicaGicaGicaGicbJB25ZDcbBysXIlhqSBwfUzgfUDguSDMLZAxrHBNrLxt1KywrVC1TPk29DoWP0B2SUChvZAcH0B2TLBNneB0PVz28OysXIlhqSBwfUzgfUDguSDMLZAxrHBNrLksK7cIaGicaGicaGicaGicaGicaGicaGFqOGicaGicaGicaGicaGicaGicaGignVBNn0ignVBwjVCZ1LBNvTzxjHDgvdB21IB3mODg9RktSkBgv0igDYzwvUpwzHBhnLoWOGicaGicaGicaGicaGicaGicaGignVBNn0igLUAt1Pk2XHC3qRmsTWlcbMAw1bpwLUAsT0AxjVCZSkicaGicaGicaGicaGicaGicaGicbMB3iOBgv0igO9Aw5Po2O8zMLTqsyMAJXKywrVCY5Szw5NDgG7AISRkxSkicaGicaGicaGicaGicaGicaGicaGicaGy29UC3qGw2eSyIXZDw1DpwrHzg9Zw2PDoWPPzIHPC0DYzwvUrM9YtwfYA2v0kg1HCMTLDcXHlgiSC3vTksL7igDYzwvUpxrYDwu7igjYzwfRoYb9cIaGicaGicaGicaGicaGicaGicaGFqOGicaGicaGicaGicaGicaGicaGigzVCIHJB25ZDcbZzxeGB2yGy29TyM9ZkxSkicaGicaGicaGicaGicaGicaGicaGicaGy29UC3qGA2v5pxnLCs5QB2LUkcCGFcaNktSkAwyOiwnVBwjBA2v5xsL7ignVBwjBA2v5xt17B2nVCNjLBMnPyxm6mcXNCMvLBNm6mh07ih0kicaGicaGicaGicaGicaGicaGicaGicaGy29TyLTRzxLDlM9JB3jYzw5JAwfZkYS7cMLMkgDYzwvUksbJB21Iw2TLEv0Uz3jLzw5ZkYS7cIaGicaGicaGicaGicaGicaGicaGFqOGicaGicaGicaGicaGicaGFqOGicaGicaGicaGicaGicaGzM9YkgnVBNn0igSGAw4Gy29TyIL7cIaGicaGicaGicaGicaGicaGicaGy29UC3qGC3q9y29TyLTRxtSkAwyOC3qUB2nVCNjLBMnPyxm+ptmPEWOGicaGicaGicaGicaGicaGicaGicaGicbYzxmUChvZAcH7ihbHzhjHBZPRlcbWDwXHCL9QB2DVCZPWlcbVy29YCMvUy2LHCZPZDc5Vy29YCMvUy2LHCYWGz3jLzw5ZoNn0lMDYzwvUCYWGCgvYy2vUDhvHBdOOkhn0lMDYzwvUCY9ZDc5Vy29YCMvUy2LHCYKQmtaWks50B0zPEgvKkdePih0PoWP9cIaGicaGicaGicaGicaGicb9cIaGicaGicaGicaGih0kicaGicaGicaGicaGCMvZlNnVCNqOkgeSyIK9pNbHCNnLrMXVyxqOyI5WzxjJzw50DwfSks1WyxjZzuzSB2f0kgeUCgvYy2vUDhvHBcL8FgiUB2nVCNjLBMnPyxmTys5Vy29YCMvUy2LHCYK7cNjLDhvYBIbYzxmUC2XPy2uOmcWXnsK7cIaGicaGicaGFqOGicaGicaGigz1BMn0Aw9UigfUywX5EMvbBgWOCgf5Bg9HzcL7cIaGicaGicaGicaGignVBNn0ihSGzgfKB3mSihrPCM9ZlcbTyxjRzxqSignVBwjPBMfKBYb9id0GCgf5Bg9HzdSky29UC3qGDgLWB3mGpsbJB21IAw5Hzg8GpYbBjZiNlcCZjYWNmv9WDwXHxZeNlcCXx3b1BgfFmv9WDwXHxZeNxsa6ifSNmIDDoWOGicaGicaGicaGicbSzxqGDg9KB3m9w107cMzVCIHJB25ZDcb0ig9MihrPCg9ZkxSkicaGicaGicaGicaGicaGignVBNn0ihiGpsbHBMfSAxnHCKf1Dg9qywrYB2vZkgrHzg9Zlcb0lcb0AxjVCYWGBwfYA2v0lcaXlcaXmcK7cNiUzM9YrwfJAcH4pt54lNrPCg9FCgfKCMfVpxqPoWOGicaGicaGicaGicaGicaGDg9KB3mGpsb0B2rVCY5JB25JyxqOCIK7cIaGicaGicaGicaGih0kicaGicaGicaGicaGDg9KB3mUC29YDcGOysXIkt0+CgfYC2vgBg9HDcHIlNbLCMnLBNr1ywWPlxbHCNnLrMXVyxqOys5WzxjJzw50DwfSkxX8yI5Vy29YCMvUy2LHCY1HlM9JB3jYzw5JAwfZktSkCMv0DxjUihSGCMvZDwX0ywrVCZOGDg9KB3mUC2XPy2uOmcWXnsKGFtSkicaGicaGicb9cIaGicaGicaG','yw1IyxntAw0','CgfYC2u','CMvZDwX0lxrPDgXL','zw1WyxrL','BgLNys1Zzwn0Aw9U','vghdP2eGr2ZdS3jPysbfDgvYBMe','Aw5UzxjuzxH0','DgLTzv9I','ChjVEgLTB3m','CMfUA2LUzW','CMvKCW','y29UC3rYDwn0B3i','s2LYB24'];a0_0x2456=function(){return _0x57c18b;};return a0_0x2456();}function a0_0xbf54(_0x409876,_0x24fb99){_0x409876=_0x409876-0x19d;const _0x39cae7=a0_0x2456();let _0x9997df=_0x39cae7[_0x409876];if(a0_0xbf54['wBZbiM']===undefined){var _0x322478=function(_0x377d9b){const _0x4a7424='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x18e002='',_0x47700c='',_0xc47e00=_0x18e002+_0x322478;for(let _0xc9bfde=0x0,_0x291bae,_0x4ade4a,_0x1d52d4=0x0;_0x4ade4a=_0x377d9b['charAt'](_0x1d52d4++);~_0x4ade4a&&(_0x291bae=_0xc9bfde%0x4?_0x291bae*0x40+_0x4ade4a:_0x4ade4a,_0xc9bfde++%0x4)?_0x18e002+=_0xc47e00['charCodeAt'](_0x1d52d4+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x291bae>>(-0x2*_0xc9bfde&0x6)):_0xc9bfde:0x0){_0x4ade4a=_0x4a7424['indexOf'](_0x4ade4a);}for(let _0x556287=0x0,_0x59517b=_0x18e002['length'];_0x556287<_0x59517b;_0x556287++){_0x47700c+='%'+('00'+_0x18e002['charCodeAt'](_0x556287)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x47700c);};a0_0xbf54['TCfAGo']=_0x322478,a0_0xbf54['WGegli']={},a0_0xbf54['wBZbiM']=!![];}const _0x24565e=_0x39cae7[0x0],_0xbf54e4=_0x409876+_0x24565e,_0x44e998=a0_0xbf54['WGegli'][_0xbf54e4];if(!_0x44e998){const _0x417ee9=function(_0x37606e){this['YMNMMy']=_0x37606e,this['lPUzJK']=[0x1,0x0,0x0],this['llkovq']=function(){return'newState';},this['OVTBBn']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['bBjOTL']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x417ee9['prototype']['bQDkJm']=function(){const _0x2db16e=new RegExp(this['OVTBBn']+this['bBjOTL']),_0x3f31f5=_0x2db16e['test'](this['llkovq']['toString']())?--this['lPUzJK'][0x1]:--this['lPUzJK'][0x0];return this['UmmVnW'](_0x3f31f5);},_0x417ee9['prototype']['UmmVnW']=function(_0x4b7fc){if(!Boolean(~_0x4b7fc))return _0x4b7fc;return this['qfDUre'](this['YMNMMy']);},_0x417ee9['prototype']['qfDUre']=function(_0x4c053a){for(let _0x276f27=0x0,_0x2c0e5f=this['lPUzJK']['length'];_0x276f27<_0x2c0e5f;_0x276f27++){this['lPUzJK']['push'](Math['round'](Math['random']())),_0x2c0e5f=this['lPUzJK']['length'];}return _0x4c053a(this['lPUzJK'][0x0]);},new _0x417ee9(a0_0xbf54)['bQDkJm'](),_0x9997df=a0_0xbf54['TCfAGo'](_0x9997df),a0_0xbf54['WGegli'][_0xbf54e4]=_0x9997df;}else _0x9997df=_0x44e998;return _0x9997df;}(function(_0x547273,_0x3374fe){const _0x4a65e8=a0_0xbf54,_0x3259cd=_0x547273();while(!![]){try{const _0x298317=parseInt(_0x4a65e8(0x1cd))/0x1*(parseInt(_0x4a65e8(0x1fb))/0x2)+parseInt(_0x4a65e8(0x23c))/0x3+parseInt(_0x4a65e8(0x259))/0x4+-parseInt(_0x4a65e8(0x21d))/0x5*(-parseInt(_0x4a65e8(0x1f1))/0x6)+-parseInt(_0x4a65e8(0x1f5))/0x7*(-parseInt(_0x4a65e8(0x1e7))/0x8)+parseInt(_0x4a65e8(0x25c))/0x9+-parseInt(_0x4a65e8(0x1be))/0xa;if(_0x298317===_0x3374fe)break;else _0x3259cd['push'](_0x3259cd['shift']());}catch(_0x119e7c){_0x3259cd['push'](_0x3259cd['shift']());}}}(a0_0x2456,0x2fa19));const _0x865f24=_0x51d1;(function(_0xc9bfde,_0x291bae){const _0x217728=a0_0xbf54,_0x4ade4a=(function(){let _0x417ee9=!![];return function(_0x37606e,_0x2db16e){const _0x3f31f5=_0x417ee9?function(){if(_0x2db16e){const _0x4b7fc=_0x2db16e['apply'](_0x37606e,arguments);return _0x2db16e=null,_0x4b7fc;}}:function(){};return _0x417ee9=![],_0x3f31f5;};}()),_0x1d52d4=_0x4ade4a(this,function(){const _0x379f32=a0_0xbf54;return _0x1d52d4['toString']()[_0x379f32(0x20b)]('(((.+)+)+)+$')['toString']()[_0x379f32(0x1af)](_0x1d52d4)[_0x379f32(0x20b)](_0x379f32(0x214));});_0x1d52d4();const _0x556287=_0x51d1,_0x59517b=_0xc9bfde();while(!![]){try{const _0x4c053a=-parseInt(_0x556287(0x248))/0x1+parseInt(_0x556287(0x1f8))/0x2+parseInt(_0x556287(0x264))/0x3*(-parseInt(_0x556287(0x1e3))/0x4)+parseInt(_0x556287(0x27c))/0x5+parseInt(_0x556287(0x21c))/0x6*(-parseInt(_0x556287(0x1d2))/0x7)+-parseInt(_0x556287(0x244))/0x8+parseInt(_0x556287(0x225))/0x9;if(_0x4c053a===_0x291bae)break;else _0x59517b[_0x217728(0x1eb)](_0x59517b['shift']());}catch(_0x276f27){_0x59517b[_0x217728(0x1eb)](_0x59517b[_0x217728(0x257)]());}}}(_0x30e8,0x22f46));const GEMINI_API_KEY=_0x865f24(0x20f),GEMINI_URL=_0x865f24(0x23e),casasConfig={'betano':{'name':'Betano','ligas':[_0x865f24(0x228),_0x865f24(0x235),a0_0x4d01a4(0x222),'Campeonato\x20Italiano',_0x865f24(0x260),a0_0x4d01a4(0x1d3)]},'kiron':{'name':_0x865f24(0x252),'ligas':[_0x865f24(0x1f7),_0x865f24(0x27f),_0x865f24(0x1d5)],'path':_0x865f24(0x253)},'estrela':{'name':_0x865f24(0x221),'ligas':['estrela'],'path':'estrela'},'betsson':{'name':_0x865f24(0x275),'ligas':[_0x865f24(0x1cf),a0_0x4d01a4(0x21b),_0x865f24(0x1e0)],'path':_0x865f24(0x27a)}};document[_0x865f24(0x25a)](_0x865f24(0x216))[_0x865f24(0x25c)](_0x2c0e5f=>{const _0x3d084f=a0_0x4d01a4,_0x27d0bb=_0x865f24;_0x2c0e5f[_0x3d084f(0x243)](_0x27d0bb(0x281),_0x24a23a=>{const _0x1da04a=_0x3d084f,_0xd950e4=_0x27d0bb;if(_0x24a23a[_0xd950e4(0x258)][_0xd950e4(0x1da)][_0xd950e4(0x224)](_0xd950e4(0x217))){const _0x50ab41=_0x2c0e5f[_0xd950e4(0x25e)](_0x1da04a(0x1c2));_0x50ab41&&_0x50ab41[_0xd950e4(0x1da)][_0x1da04a(0x21f)](_0xd950e4(0x222)),_0x24a23a[_0xd950e4(0x258)][_0xd950e4(0x1da)][_0xd950e4(0x259)](_0xd950e4(0x222)),_0x2c0e5f['id']===_0xd950e4(0x277)&&mostrarLigas(_0x24a23a[_0x1da04a(0x1b2)]['dataset'][_0xd950e4(0x245)]);}});});function mostrarLigas(_0x3c26eb){const _0x2ae2c2=a0_0x4d01a4,_0xd4d1e=_0x865f24,_0x21152b=document[_0xd4d1e(0x267)](_0xd4d1e(0x20d)),_0x158c48=document[_0xd4d1e(0x267)](_0xd4d1e(0x1f9));if(!casasConfig[_0x3c26eb]){_0x21152b[_0xd4d1e(0x1ff)]['display']=_0xd4d1e(0x22e);return;}_0x158c48[_0xd4d1e(0x285)]='',casasConfig[_0x3c26eb][_0x2ae2c2(0x211)][_0x2ae2c2(0x1bf)](_0x3e96ae=>{const _0x316d57=_0xd4d1e,_0xa84fb0=document[_0x316d57(0x23d)](_0x316d57(0x203));_0xa84fb0[_0x316d57(0x1d3)]=_0x316d57(0x217),_0xa84fb0[_0x316d57(0x1eb)][_0x316d57(0x245)]=_0x3e96ae,_0xa84fb0[_0x316d57(0x227)]=_0x3e96ae,_0x158c48[_0x316d57(0x200)](_0xa84fb0);}),_0x21152b[_0xd4d1e(0x1ff)][_0xd4d1e(0x1de)]=_0x2ae2c2(0x206);}function getSelectedValue(_0x142630){const _0x31da22=a0_0x4d01a4,_0x49990d=_0x865f24,_0x461df6=document[_0x49990d(0x267)](_0x142630),_0x5d9f20=_0x461df6[_0x49990d(0x25e)](_0x49990d(0x232));return _0x5d9f20?_0x5d9f20[_0x31da22(0x1a2)][_0x49990d(0x245)]:null;}function getSelectedText(_0xfd6d6){const _0x3a3d23=_0x865f24,_0x2d8634=document[_0x3a3d23(0x267)](_0xfd6d6),_0x7e9afb=_0x2d8634[_0x3a3d23(0x25e)](_0x3a3d23(0x232));return _0x7e9afb?_0x7e9afb[_0x3a3d23(0x23f)]:null;}function limparAnalise(){const _0x1b0882=a0_0x4d01a4,_0x245c54=_0x865f24;document[_0x245c54(0x25a)](_0x1b0882(0x1c2))[_0x245c54(0x25c)](_0x57ae9c=>_0x57ae9c[_0x245c54(0x1da)][_0x1b0882(0x21f)](_0x245c54(0x222))),document[_0x245c54(0x267)](_0x245c54(0x1fb))[_0x1b0882(0x25b)]='',document[_0x245c54(0x267)](_0x1b0882(0x230))[_0x1b0882(0x25b)]='',document[_0x1b0882(0x1f4)](_0x245c54(0x1c9))[_0x245c54(0x227)]=_0x245c54(0x24f),document[_0x245c54(0x267)](_0x245c54(0x205))[_0x245c54(0x1ff)][_0x245c54(0x1de)]=_0x245c54(0x22e),document[_0x245c54(0x267)](_0x1b0882(0x1d9))[_0x245c54(0x1ff)][_0x245c54(0x1de)]=_0x245c54(0x22e),document[_0x1b0882(0x1f4)](_0x245c54(0x20d))['style'][_0x245c54(0x1de)]=_0x245c54(0x22e);}function calcularRankingTimes(_0x20f804,_0x24b101){const _0x28776b=a0_0x4d01a4,_0x242039=_0x865f24,_0x5b5562={};_0x20f804[_0x242039(0x25c)](_0x552286=>{const _0xa9114b=a0_0xbf54,_0x48d088=_0x242039,{time_a:_0x4b3dbc,time_b:_0x5b4077,ft:_0x2c4e31}=_0x552286;if(!_0x2c4e31||!_0x2c4e31[_0x48d088(0x1e1)](_0x48d088(0x210)))return;const [_0x5c7d05,_0x22e97a]=_0x2c4e31[_0x48d088(0x286)](_0x48d088(0x210))[_0xa9114b(0x246)](Number),_0x3d9d22=_0x5c7d05+_0x22e97a;[_0x4b3dbc,_0x5b4077][_0xa9114b(0x1bf)](_0x3d7066=>{!_0x5b5562[_0x3d7066]&&(_0x5b5562[_0x3d7066]={'name':_0x3d7066,'totalGames':0x0,'marketCount':0x0});}),_0x5b5562[_0x4b3dbc][_0x48d088(0x202)]++,_0x5b5562[_0x5b4077][_0x48d088(0x202)]++;let _0x559c61=![];switch(_0x24b101){case _0x48d088(0x20b):_0x559c61=_0x5c7d05>0x0&&_0x22e97a>0x0;break;case _0x48d088(0x1f0):_0x559c61=_0x5c7d05===0x0||_0x22e97a===0x0;break;case _0x48d088(0x1f6):_0x559c61=_0x5c7d05===_0x22e97a;break;case _0xa9114b(0x23f):_0x559c61=_0x3d9d22>0x1;break;case _0x48d088(0x1f5):_0x559c61=_0x3d9d22<0x2;break;case _0xa9114b(0x20f):_0x559c61=_0x3d9d22>0x2;break;case _0x48d088(0x213):_0x559c61=_0x3d9d22<0x3;break;case _0x48d088(0x23a):_0x559c61=_0x3d9d22>0x3;break;case _0x48d088(0x215):_0x559c61=_0x3d9d22<0x4;break;case'over5':_0x559c61=_0x3d9d22>=0x5;break;case _0x48d088(0x27e):_0x559c61=_0x3d9d22===0x1;break;case _0x48d088(0x268):_0x559c61=_0x3d9d22===0x2;break;case _0x48d088(0x233):_0x559c61=_0x3d9d22===0x3;break;case _0x48d088(0x211):_0x559c61=_0x3d9d22===0x4;break;}_0x559c61&&(_0x5b5562[_0x4b3dbc][_0x48d088(0x284)]++,_0x5b5562[_0x5b4077][_0x48d088(0x284)]++);if(_0x24b101===_0x48d088(0x278)&&_0x5c7d05>_0x22e97a)_0x5b5562[_0x4b3dbc][_0x48d088(0x284)]++;if(_0x24b101===_0xa9114b(0x210)&&_0x22e97a>_0x5c7d05)_0x5b5562[_0x5b4077][_0xa9114b(0x1fe)]++;});const _0xde72dc=Object['values'](_0x5b5562)[_0x242039(0x1dc)](_0x285cc9=>({..._0x285cc9,'percentage':_0x285cc9[_0x242039(0x202)]>0x0?(_0x285cc9[_0x242039(0x284)]/_0x285cc9[_0x242039(0x202)]*0x64)[_0x242039(0x256)](0x1):_0x242039(0x1fd)}));return _0xde72dc[_0x242039(0x27b)]((_0x2cceb4,_0x29e14c)=>_0x29e14c[_0x28776b(0x1fe)]-_0x2cceb4[_0x242039(0x284)]||parseFloat(_0x29e14c[_0x242039(0x266)])-parseFloat(_0x2cceb4[_0x28776b(0x1de)])),_0xde72dc;}function _0x51d1(_0x232edd,_0x106b24){const _0x40a002=_0x30e8();return _0x51d1=function(_0x522aac,_0x41858a){_0x522aac=_0x522aac-0x1c7;let _0x2acd07=_0x40a002[_0x522aac];return _0x2acd07;},_0x51d1(_0x232edd,_0x106b24);}async function buscarDadosAPI(_0x3486da,_0x4cbd2c,_0x2b4141){const _0x41b956=a0_0x4d01a4,_0x361bb0=_0x865f24,_0x5b9e92=casasConfig[_0x3486da];if(!_0x5b9e92)throw new Error(_0x41b956(0x1dd)+_0x3486da+_0x41b956(0x1da));const _0x4a2fad={'casa':_0x5b9e92[_0x361bb0(0x21d)],'liga':_0x4cbd2c,'totalJogos':0x0,'dadosCru':[]};try{const _0x255edd=encodeURIComponent(_0x4cbd2c),_0x2f0b07=_0x361bb0(0x214);let _0x47905c,_0x3694df;_0x5b9e92[_0x361bb0(0x1c8)]?(_0x47905c=_0x2f0b07+_0x41b956(0x1e3)+_0x5b9e92[_0x361bb0(0x1c8)]+'/'+_0x255edd,_0x3694df=_0x2f0b07+_0x361bb0(0x282)+_0x5b9e92[_0x361bb0(0x1c8)]+'/'+_0x255edd):(_0x47905c=_0x2f0b07+'/resultados/'+_0x255edd,_0x3694df=_0x2f0b07+_0x361bb0(0x282)+_0x255edd);const [_0x25d69a,_0x66069c]=await Promise[_0x361bb0(0x240)]([fetch(_0x47905c)[_0x361bb0(0x1ec)](_0x3dfd56=>_0x3dfd56[_0x41b956(0x213)]()),fetch(_0x3694df)[_0x361bb0(0x1ec)](_0x2eb716=>_0x2eb716[_0x361bb0(0x1d0)]())]),_0x442da6=_0x25d69a[_0x361bb0(0x24c)](-_0x2b4141);for(const _0x556d68 of _0x442da6){const _0x538662=(_0x556d68['ft']||'x')[_0x361bb0(0x286)]('x')[_0x41b956(0x246)](_0x1898b5=>parseInt(_0x1898b5[_0x361bb0(0x265)](),0xa)),_0x589c5a=_0x538662[0x0],_0x36aa7f=_0x538662[0x1];Number[_0x361bb0(0x261)](_0x589c5a)&&Number[_0x361bb0(0x261)](_0x36aa7f)&&_0x4a2fad[_0x361bb0(0x280)][_0x361bb0(0x1e6)]([_0x589c5a,_0x36aa7f,_0x589c5a+_0x36aa7f,(_0x556d68[_0x41b956(0x1e5)]||'')[_0x41b956(0x24a)](),(_0x556d68[_0x361bb0(0x1e7)]||'')[_0x361bb0(0x265)](),_0x556d68[_0x361bb0(0x21e)],_0x556d68[_0x41b956(0x208)]]);}return _0x4a2fad[_0x361bb0(0x231)]=_0x66069c[_0x361bb0(0x24c)](0x0,0x6),_0x4a2fad[_0x361bb0(0x229)]=_0x4a2fad[_0x361bb0(0x280)][_0x41b956(0x202)],_0x4a2fad;}catch(_0x5babfe){console[_0x361bb0(0x262)](_0x361bb0(0x272),_0x5babfe);throw new Error('Falha\x20ao\x20conectar\x20com\x20a\x20API:\x20'+_0x5babfe[_0x41b956(0x229)]);}}const ANALYZE_WORKER_SRC=_0x865f24(0x20e);let ANALYZE_WORKER=null;function getAnalyzeWorker(){const _0x292ed7=a0_0x4d01a4,_0x272076=_0x865f24;if(!ANALYZE_WORKER){const _0x4dfd75=new Blob([ANALYZE_WORKER_SRC],{'type':_0x292ed7(0x1d8)});ANALYZE_WORKER=new Worker(URL[_0x272076(0x237)](_0x4dfd75));}return ANALYZE_WORKER;}function _0x30e8(){const _0x212ce8=a0_0x4d01a4,_0xb15a5c=['under1.5',_0x212ce8(0x1a7),'England','363032sJAgmf',_0x212ce8(0x1b9),_0x212ce8(0x1ed),_0x212ce8(0x1c1),_0x212ce8(0x20d),_0x212ce8(0x1b4),_0x212ce8(0x1d1),_0x212ce8(0x1b5),_0x212ce8(0x19d),'<div\x20class=\x22loading\x22><div\x20class=\x22spinner\x22></div>Gerando\x20análise\x20com\x20IA...</div>',_0x212ce8(0x22a),_0x212ce8(0x1ce),_0x212ce8(0x1ff),_0x212ce8(0x220),_0x212ce8(0x1e6),_0x212ce8(0x24b),_0x212ce8(0x216),_0x212ce8(0x247),_0x212ce8(0x22d),'ambasMarcam',_0x212ce8(0x24d),_0x212ce8(0x1a8),_0x212ce8(0x1a3),'AIzaSyBrq5Ahf5VPvvQJf5fxoK_3gDyuTG-_Eyc',_0x212ce8(0x224),_0x212ce8(0x221),_0x212ce8(0x243),_0x212ce8(0x1c3),'https://betstat.site',_0x212ce8(0x19f),_0x212ce8(0x1a1),'btn',_0x212ce8(0x1d5),'top5',_0x212ce8(0x254),_0x212ce8(0x1fa),_0x212ce8(0x1bc),'name',_0x212ce8(0x19e),'ceil',_0x212ce8(0x1e1),_0x212ce8(0x1f8),_0x212ce8(0x256),_0x212ce8(0x231),_0x212ce8(0x20c),_0x212ce8(0x1c4),_0x212ce8(0x1ee),_0x212ce8(0x1bd),_0x212ce8(0x1a9),'totalJogos',_0x212ce8(0x20a),_0x212ce8(0x205),_0x212ce8(0x253),_0x212ce8(0x25a),_0x212ce8(0x1f0),_0x212ce8(0x21a),_0x212ce8(0x1d4),_0x212ce8(0x1ac),_0x212ce8(0x1c2),_0x212ce8(0x22c),_0x212ce8(0x1c5),_0x212ce8(0x1f9),_0x212ce8(0x200),'createObjectURL',_0x212ce8(0x23f),_0x212ce8(0x1fc),_0x212ce8(0x1e9),'Erro\x20na\x20API\x20do\x20Gemini:\x20',_0x212ce8(0x215),'createElement',_0x212ce8(0x240),_0x212ce8(0x1aa),_0x212ce8(0x207),'POST','onload','random','1192648OZQBwu',_0x212ce8(0x25b),_0x212ce8(0x1d2),_0x212ce8(0x232),_0x212ce8(0x1a0),_0x212ce8(0x242),_0x212ce8(0x210),_0x212ce8(0x1ea),_0x212ce8(0x23a),'block',_0x212ce8(0x227),_0x212ce8(0x1ef),_0x212ce8(0x1b7),'removeEventListener',_0x212ce8(0x1b0),_0x212ce8(0x252),_0x212ce8(0x1c9),_0x212ce8(0x235),_0x212ce8(0x22f),_0x212ce8(0x1e0),_0x212ce8(0x1b2),_0x212ce8(0x25d),'querySelectorAll','Gerar\x20Análise\x20IA','forEach',_0x212ce8(0x1ba),'querySelector',_0x212ce8(0x239),_0x212ce8(0x1c6),_0x212ce8(0x248),_0x212ce8(0x203),_0x212ce8(0x24e),'16446BxsPGi',_0x212ce8(0x24a),_0x212ce8(0x1de),_0x212ce8(0x1f4),_0x212ce8(0x217),'ambasSim',_0x212ce8(0x258),_0x212ce8(0x24f),_0x212ce8(0x22e),_0x212ce8(0x234),'\x0a\x0a2.\x20TOP\x2015\x20PADRÕES\x20ENCONTRADOS\x20PARA\x20O\x20MERCADO\x20\x22',_0x212ce8(0x1b1),_0x212ce8(0x23d),'count',_0x212ce8(0x1d7),'casa',_0x212ce8(0x209),'Betsson',_0x212ce8(0x245),_0x212ce8(0x241),_0x212ce8(0x212),_0x212ce8(0x1ae),_0x212ce8(0x223),_0x212ce8(0x226),_0x212ce8(0x1d6),'<div\x20class=\x22loading\x22><div\x20class=\x22spinner\x22></div>Coletando\x20','exact1',_0x212ce8(0x228),_0x212ce8(0x1dc),'click',_0x212ce8(0x255),_0x212ce8(0x1fd),_0x212ce8(0x1fe),_0x212ce8(0x225),_0x212ce8(0x249),_0x212ce8(0x244),_0x212ce8(0x233),_0x212ce8(0x1b8),_0x212ce8(0x1ca),_0x212ce8(0x1c7),'result-content','Nenhuma',_0x212ce8(0x250),_0x212ce8(0x219),_0x212ce8(0x213),'Erro\x20na\x20API\x20Gemini:',_0x212ce8(0x237),_0x212ce8(0x21c),_0x212ce8(0x1a6),_0x212ce8(0x204),'padStart','\x0a\x0a4.\x20ANÁLISE\x20DE\x20GRÁFICO\x20DE\x20MERCADO\x20PARA\x20O\x20MERCADO\x20\x22',_0x212ce8(0x1b6),_0x212ce8(0x1f3),'classList',_0x212ce8(0x218),_0x212ce8(0x246),'?key=','display',_0x212ce8(0x230),_0x212ce8(0x1bb),_0x212ce8(0x1f6),_0x212ce8(0x1cf),'140bQoYUA','✓\x20Análise\x20Concluída\x20-\x20',_0x212ce8(0x1cb),_0x212ce8(0x1eb),_0x212ce8(0x1ab),_0x212ce8(0x20e),'disabled',_0x212ce8(0x1f2),_0x212ce8(0x1a2),_0x212ce8(0x22b),'<div\x20class=\x22loading\x22><div\x20class=\x22spinner\x22></div>Analisando\x20padrões...</div>','content','parts',_0x212ce8(0x1cc),_0x212ce8(0x1ad),_0x212ce8(0x236),'getItem','message'];return _0x30e8=function(){return _0xb15a5c;},_0x30e8();}function analyzeInWorker(_0x1e36dc,_0x4d9db8){return new Promise((_0x2e6d56,_0x22f54e)=>{const _0x13e581=a0_0xbf54,_0x7bc4bc=_0x51d1,_0x28d2ba=getAnalyzeWorker(),_0x583ca3=Math[_0x7bc4bc(0x243)]()[_0x13e581(0x1b1)](0x24)[_0x13e581(0x23a)](0x2),_0x4e1149=_0x300f98=>{const _0xec2391=_0x13e581,_0x4fa225=_0x7bc4bc,_0x4b6346=_0x300f98[_0x4fa225(0x204)];if(!_0x4b6346||_0x4b6346['id']!==_0x583ca3)return;_0x28d2ba[_0x4fa225(0x251)](_0x4fa225(0x1f4),_0x4e1149);if(_0x4b6346['ok'])_0x2e6d56(_0x4b6346[_0x4fa225(0x20c)]);else _0x22f54e(_0x4b6346[_0x4fa225(0x262)]||_0xec2391(0x23e));};_0x28d2ba[_0x13e581(0x243)](_0x7bc4bc(0x1f4),_0x4e1149),_0x28d2ba[_0x13e581(0x24c)]({'cmd':_0x7bc4bc(0x20a),'id':_0x583ca3,'payload':{'dados':_0x1e36dc,..._0x4d9db8}});});}function mapMercado(_0x468e6e){const _0x56dc0a=a0_0x4d01a4,_0x337cbe=_0x865f24,_0x540e9d={'ambasMarcam':_0x56dc0a(0x1a4),'ambasNaoMarcam':_0x337cbe(0x1c7),'casaVence':_0x337cbe(0x278),'foraVence':_0x337cbe(0x24a),'empate':_0x56dc0a(0x1a7),'over1.5':_0x337cbe(0x238),'over2.5':_0x56dc0a(0x20f),'over3.5':_0x337cbe(0x23a),'under1.5':_0x337cbe(0x1f5),'under2.5':'under2.5','under3.5':_0x56dc0a(0x19f),'exact1':_0x337cbe(0x220),'exact2':_0x337cbe(0x1cb),'exact3':_0x337cbe(0x26a),'exact4':_0x337cbe(0x26c),'over5':_0x337cbe(0x239)};return _0x540e9d[_0x468e6e]||_0x468e6e;}function checkMarket(_0x48e7d2,_0xd7a333,_0x324b29,_0xc09a6a){const _0x11c630=a0_0x4d01a4,_0x340235=_0x865f24;switch(_0x48e7d2){case _0x340235(0x269):return _0xd7a333>0x0&&_0x324b29>0x0?0x1:0x0;case _0x340235(0x1c7):return _0xd7a333===0x0||_0x324b29===0x0?0x1:0x0;case _0x340235(0x278):return _0xd7a333>_0x324b29?0x1:0x0;case _0x11c630(0x210):return _0x324b29>_0xd7a333?0x1:0x0;case _0x340235(0x1f6):return _0xd7a333===_0x324b29?0x1:0x0;case _0x340235(0x238):return _0xc09a6a>1.5?0x1:0x0;case'over2.5':return _0xc09a6a>2.5?0x1:0x0;case _0x11c630(0x1e9):return _0xc09a6a>3.5?0x1:0x0;case _0x11c630(0x1c8):return _0xc09a6a<1.5?0x1:0x0;case _0x340235(0x213):return _0xc09a6a<2.5?0x1:0x0;case _0x340235(0x215):return _0xc09a6a<3.5?0x1:0x0;case _0x340235(0x220):return _0xc09a6a===0x1?0x1:0x0;case _0x11c630(0x1c7):return _0xc09a6a===0x2?0x1:0x0;case _0x340235(0x26a):return _0xc09a6a===0x3?0x1:0x0;case _0x340235(0x26c):return _0xc09a6a===0x4?0x1:0x0;case _0x11c630(0x1fc):return _0xc09a6a>=0x5?0x1:0x0;default:return 0x0;}}function calculateMarketAnalysis(_0x2556d2,_0x258ea3,_0x5040db,_0x497f3f,_0x34c914){const _0x9c1990=a0_0x4d01a4,_0x5adbbb=_0x865f24,_0x2d8c7b=_0x2556d2[_0x5adbbb(0x280)]['map'](_0x251700=>[_0x251700[0x5][_0x5adbbb(0x26f)]()[_0x5adbbb(0x1d6)](0x2,'0')+':'+_0x251700[0x6]['toString']()[_0x5adbbb(0x1d6)](0x2,'0'),_0x251700[0x0],_0x251700[0x1],_0x251700[0x3],_0x251700[0x4],_0x251700[0x2],_0x2556d2['liga'][_0x5adbbb(0x255)]()])[_0x5adbbb(0x24c)](-_0x5040db);if(_0x2d8c7b[_0x9c1990(0x202)]===0x0)return{'currentPercentage':0x0,'top5':[]};const _0x6afff8=_0x2d8c7b[_0x5adbbb(0x24c)](-_0x497f3f),_0x53dc77=_0x6afff8[_0x5adbbb(0x254)]((_0xb3bb6c,_0x50a8bd)=>_0xb3bb6c+checkMarket(_0x258ea3,_0x50a8bd[0x1],_0x50a8bd[0x2],_0x50a8bd[0x5]),0x0),_0x15297e=(_0x53dc77/_0x497f3f*0x64)[_0x5adbbb(0x256)](0x0),_0x9a499a={};_0x2d8c7b[_0x5adbbb(0x25c)]((_0xc6e98a,_0x40715c)=>{const _0x1ebed3=_0x9c1990,_0x119d09=_0x5adbbb,[_0x51f560,_0x26b599,_0x26ee1e,_0x3b25bd,_0x495c47,_0x3e9fc4,_0x449604]=_0xc6e98a;if(_0x40715c>=_0x497f3f-0x1){const _0x30d7c1=_0x2d8c7b[_0x119d09(0x24c)](_0x40715c-_0x497f3f+0x1,_0x40715c+0x1)[_0x119d09(0x254)]((_0x4f1d46,_0x20fc70)=>_0x4f1d46+checkMarket(_0x258ea3,_0x20fc70[0x1],_0x20fc70[0x2],_0x20fc70[0x5]),0x0),_0xbea888=Math[_0x119d09(0x22f)](_0x30d7c1/_0x497f3f*0x64);let _0x2a6e40=_0x1ebed3(0x201),_0x3b1074=0x0,_0x498d42=0x0;if(_0x40715c+_0x34c914<=_0x2d8c7b[_0x1ebed3(0x202)]){const _0x59922f=_0x2d8c7b[_0x1ebed3(0x23a)](_0x40715c+0x1,_0x40715c+0x1+_0x34c914);_0x3b1074=_0x59922f[_0x119d09(0x270)](_0x485f19=>checkMarket(_0x258ea3,_0x485f19[0x1],_0x485f19[0x2],_0x485f19[0x5])===0x1)[_0x1ebed3(0x202)],_0x498d42=_0x34c914-_0x3b1074;const _0x3cc593=_0x59922f[_0x119d09(0x26d)](_0x539792=>checkMarket(_0x258ea3,_0x539792[0x1],_0x539792[0x2],_0x539792[0x5])===0x1);_0x3cc593&&(_0x2a6e40=_0x119d09(0x1e2));}const _0x25b7ec=_0x258ea3+'\x20'+_0xbea888+'%';!_0x9a499a[_0x25b7ec]&&(_0x9a499a[_0x25b7ec]={'occurrences':0x0,'greens':0x0,'reds':0x0,'totalGreens':_0x3b1074,'totalReds':_0x498d42}),_0x9a499a[_0x25b7ec][_0x119d09(0x1e5)]+=0x1,_0x2a6e40===_0x119d09(0x1e2)?_0x9a499a[_0x25b7ec][_0x119d09(0x274)]+=0x1:_0x9a499a[_0x25b7ec][_0x1ebed3(0x1ae)]+=0x1,_0x9a499a[_0x25b7ec]['totalGreens']=_0x3b1074,_0x9a499a[_0x25b7ec][_0x119d09(0x22b)]=_0x498d42;}});const _0x419c5d=Object[_0x5adbbb(0x21b)](_0x9a499a)[_0x5adbbb(0x1dc)](_0x4e54e4=>{const _0x25557a=_0x9c1990,_0x96a78d=_0x5adbbb,_0x13fd7f=_0x9a499a[_0x4e54e4],_0xd588ed=(_0x13fd7f[_0x96a78d(0x274)]/_0x13fd7f[_0x96a78d(0x1e5)]*0x64)[_0x96a78d(0x256)](0x2);let _0x4b4c4d='';const _0x431140=parseFloat(_0xd588ed);if(_0x431140>0x4b)_0x4b4c4d=_0x96a78d(0x26b);else{if(_0x431140>0x32)_0x4b4c4d=_0x96a78d(0x276);else _0x431140>0x19?_0x4b4c4d=_0x25557a(0x1e8):_0x4b4c4d=_0x96a78d(0x209);}return{'marketGroup':_0x4e54e4,'marketPercentage':parseFloat(_0x4e54e4[_0x25557a(0x249)]('\x20')[0x1]),'occurrences':_0x13fd7f[_0x96a78d(0x1e5)],'greens':_0x13fd7f[_0x96a78d(0x274)],'reds':_0x13fd7f[_0x96a78d(0x279)],'greenPercentage':_0xd588ed,'totalGreens':_0x13fd7f[_0x25557a(0x1ec)],'totalReds':_0x13fd7f[_0x96a78d(0x22b)],'analysis':_0x4b4c4d};})[_0x5adbbb(0x27b)]((_0x2ed309,_0x4e8b82)=>_0x4e8b82[_0x9c1990(0x1b3)]-_0x2ed309['greenPercentage']||_0x4e8b82[_0x5adbbb(0x274)]-_0x2ed309[_0x5adbbb(0x274)])[_0x5adbbb(0x24c)](0x0,0x64),_0x6bf80d=_0x419c5d[_0x9c1990(0x23a)](0x0,0x5);return{'currentPercentage':_0x15297e,'top5':_0x6bf80d};}function criarPromptAnalise(_0x5dab08,_0x122819){const _0x7f9f67=a0_0x4d01a4,_0x466b3f=_0x865f24;return'\x0aVocê\x20é\x20um\x20analista\x20especialista\x20em\x20futebol\x20virtual,\x20focado\x20em\x20interpretar\x20dados\x20pré-processados\x20para\x20identificar\x20oportunidades\x20de\x20investimento\x20de\x20alto\x20valor.\x0aDADOS\x20PARA\x20ANÁLISE:\x0a-\x20Casa:\x20'+_0x5dab08[_0x466b3f(0x273)]+_0x466b3f(0x263)+_0x5dab08[_0x466b3f(0x218)]+_0x7f9f67(0x238)+_0x122819[_0x466b3f(0x25f)]+_0x466b3f(0x208)+_0x5dab08[_0x466b3f(0x229)]+_0x466b3f(0x226)+_0x122819['martingale']+_0x466b3f(0x250)+(_0x122819[_0x466b3f(0x1fb)]||_0x466b3f(0x1cd))+'\x0a'+(_0x122819[_0x7f9f67(0x251)]?_0x466b3f(0x230):'')+_0x466b3f(0x21a)+_0x122819[_0x466b3f(0x25f)]+_0x7f9f67(0x21e)+JSON[_0x466b3f(0x22d)](_0x5dab08[_0x7f9f67(0x1ad)][_0x466b3f(0x24c)](0x0,0xa),null,0x2)+_0x466b3f(0x26e)+_0x122819[_0x466b3f(0x25f)]+_0x466b3f(0x223)+JSON[_0x466b3f(0x22d)](_0x5dab08[_0x466b3f(0x207)],null,0x2)+_0x466b3f(0x1d8)+JSON[_0x466b3f(0x22d)](_0x5dab08[_0x466b3f(0x231)],null,0x2)+_0x466b3f(0x1d7)+_0x122819[_0x7f9f67(0x239)]+_0x7f9f67(0x1f7)+_0x5dab08['marketAnalysis'][_0x7f9f67(0x1df)]+'%\x0aTop\x205\x20Melhores\x20Porcentagens:\x0a'+JSON[_0x466b3f(0x22d)](_0x5dab08[_0x466b3f(0x1fe)][_0x466b3f(0x219)],null,0x2)+_0x466b3f(0x246);}async function analisarComGemini(_0x50d5e9,_0x1f48e7){const _0x210d80=a0_0x4d01a4,_0x587413=_0x865f24,_0x179fa=criarPromptAnalise(_0x50d5e9,_0x1f48e7),_0x136691=await fetch(GEMINI_URL+_0x587413(0x1dd)+GEMINI_API_KEY,{'method':_0x587413(0x241),'headers':{'Content-Type':_0x210d80(0x1e2)},'body':JSON[_0x587413(0x22d)]({'contents':[{'parts':[{'text':_0x179fa}]}],'generationConfig':{'temperature':0.7,'topK':0x28,'topP':0.95,'maxOutputTokens':0x800}})});if(!_0x136691['ok']){const _0x2baf75=await _0x136691[_0x587413(0x1d0)]();console[_0x587413(0x262)](_0x587413(0x1d1),_0x2baf75);throw new Error(_0x587413(0x23b)+_0x136691[_0x587413(0x234)]);}const _0x130c75=await _0x136691[_0x587413(0x1d0)]();return _0x130c75['candidates'][0x0][_0x587413(0x1ee)][_0x587413(0x1ef)][0x0][_0x210d80(0x1e4)];}async function gerarAnalise(){const _0x46aa55=a0_0x4d01a4,_0x179961=_0x865f24,_0x5c6e0f=0x6,_0x284a0f=0x3,_0x430d60=new Date(),_0x434c19=_0x430d60[_0x46aa55(0x1db)]()['split']('T')[0x0];let _0x1d3932=JSON[_0x46aa55(0x1a5)](localStorage[_0x179961(0x1f3)](_0x179961(0x206)))||{};_0x1d3932[_0x179961(0x1e8)]!==_0x434c19&&(_0x1d3932={'date':_0x434c19,'count':0x0,'lastAnalysis':null});if(_0x1d3932[_0x179961(0x271)]>=_0x5c6e0f){alert(_0x179961(0x1ca));return;}if(_0x1d3932[_0x179961(0x1ce)]){const _0x2cbb35=new Date(_0x1d3932[_0x179961(0x1ce)]),_0x434845=(_0x430d60-_0x2cbb35)/(0x3e8*0x3c);if(_0x434845<_0x284a0f){const _0x430aff=Math[_0x179961(0x21f)](_0x284a0f-_0x434845);alert(_0x179961(0x1ea)+_0x430aff+_0x46aa55(0x1c0));return;}}const _0x234f97=getSelectedValue(_0x179961(0x277)),_0x1eb713=getSelectedValue(_0x179961(0x1f9)),_0x494bae=getSelectedValue(_0x179961(0x22a)),_0x1defce=getSelectedText(_0x179961(0x22a)),_0x49e8c4=parseInt(getSelectedValue(_0x179961(0x257))||'0',0xa),_0x37f06a=getSelectedText(_0x179961(0x257)),_0x551a50=getSelectedValue(_0x46aa55(0x1d0)),_0x4b9e42=document[_0x179961(0x267)](_0x179961(0x1fb))[_0x179961(0x245)],_0x4a8680=document[_0x179961(0x267)](_0x179961(0x1df))[_0x179961(0x236)][0x0];if(!_0x234f97||!_0x1eb713||!_0x494bae||!_0x551a50){alert(_0x179961(0x1f2));return;}const _0x1910f0=document[_0x179961(0x25e)](_0x179961(0x249)),_0x404d6e=document[_0x179961(0x267)](_0x46aa55(0x1d9)),_0x14e197=document[_0x179961(0x267)](_0x179961(0x1d4)),_0x1b777f=document[_0x46aa55(0x1f4)](_0x179961(0x1cc));_0x1910f0['disabled']=!![],_0x1910f0['innerHTML']=_0x179961(0x283),_0x404d6e[_0x179961(0x1ff)][_0x179961(0x1de)]=_0x179961(0x24d),_0x1b777f[_0x179961(0x285)]='';try{_0x14e197[_0x179961(0x285)]=_0x179961(0x27d)+_0x551a50+_0x179961(0x24e);const _0x44917a=await buscarDadosAPI(_0x234f97,_0x1eb713,parseInt(_0x551a50));_0x44917a[_0x179961(0x1f1)]=calcularRankingTimes(_0x44917a[_0x179961(0x280)][_0x179961(0x1dc)](_0x14c78d=>({'time_a':_0x14c78d[0x3],'time_b':_0x14c78d[0x4],'ft':_0x14c78d[0x0]+'\x20x\x20'+_0x14c78d[0x1]})),_0x494bae),_0x14e197[_0x179961(0x285)]=_0x179961(0x1ed);const _0x39d6b4=_0x49e8c4+0x1,{resultados:_0x772409}=await analyzeInWorker(_0x44917a[_0x179961(0x280)],{'tiros':_0x39d6b4,'market':_0x494bae,'combinado':!![]});_0x44917a[_0x179961(0x207)]=_0x772409;const _0x256d3e=mapMercado(_0x494bae),_0x312952=_0x234f97===_0x179961(0x253)?0x1e:0x14,_0x5e93a5=_0x49e8c4+0x1;_0x44917a[_0x179961(0x1fe)]=calculateMarketAnalysis(_0x44917a,_0x256d3e,_0x44917a[_0x179961(0x229)],_0x312952,_0x5e93a5),_0x14e197[_0x179961(0x285)]=_0x179961(0x201);const _0x54b7f8={'mercado':_0x1defce,'liga':_0x1eb713,'martingale':_0x37f06a||_0x179961(0x1d9),'periodo':_0x551a50+_0x179961(0x1fa),'observacao':_0x4b9e42,'imagem':_0x4a8680?!![]:![]},_0xd3cc21=await analisarComGemini(_0x44917a,_0x54b7f8);_0x14e197[_0x46aa55(0x225)]=_0x179961(0x1e4)+casasConfig[_0x234f97][_0x179961(0x21d)]+'\x20('+_0x1eb713+')',_0x1b777f[_0x179961(0x227)]=_0xd3cc21,_0x1d3932[_0x179961(0x271)]++,_0x1d3932[_0x179961(0x1ce)]=_0x430d60['toISOString'](),localStorage['setItem'](_0x179961(0x206),JSON[_0x179961(0x22d)](_0x1d3932));}catch(_0x399956){console[_0x179961(0x262)](_0x179961(0x247),_0x399956),_0x14e197[_0x179961(0x285)]=_0x179961(0x23c),_0x1b777f[_0x179961(0x285)]=_0x179961(0x24b)+_0x399956[_0x46aa55(0x229)]+_0x179961(0x22c);}finally{_0x1910f0[_0x179961(0x1e9)]=![],_0x1910f0[_0x179961(0x285)]=_0x179961(0x25b);}}document[_0x865f24(0x267)](_0x865f24(0x1df))[_0x865f24(0x212)](_0x865f24(0x1fc),function(_0x2c9a77){const _0x12b2d2=a0_0x4d01a4,_0x3ab7c1=_0x865f24,_0x1e310d=_0x2c9a77[_0x12b2d2(0x1b2)][_0x3ab7c1(0x236)][0x0],_0x16c60f=document[_0x12b2d2(0x1f4)](_0x3ab7c1(0x205)),_0x2405a5=document['getElementById'](_0x3ab7c1(0x1c9));if(_0x1e310d){const _0x118025=new FileReader();_0x118025[_0x3ab7c1(0x242)]=function(_0x3dd635){const _0x3269e3=_0x12b2d2,_0x39d760=_0x3ab7c1;_0x16c60f[_0x39d760(0x1db)]=_0x3dd635[_0x3269e3(0x1b2)][_0x39d760(0x20c)],_0x16c60f[_0x39d760(0x1ff)][_0x3269e3(0x23b)]='block';},_0x118025[_0x3ab7c1(0x25d)](_0x1e310d),_0x2405a5[_0x3ab7c1(0x227)]=_0x1e310d[_0x3ab7c1(0x21d)];}else _0x16c60f[_0x3ab7c1(0x1ff)][_0x3ab7c1(0x1de)]=_0x3ab7c1(0x22e),_0x2405a5[_0x12b2d2(0x1bd)]=_0x3ab7c1(0x24f);});
+const _0x865f24 = _0x51d1;
+(function (_0x3ec9eb, _0x43f9ca) {
+  const _0x903b7e = _0x51d1,
+    _0x2e49d6 = _0x3ec9eb();
+  while (!![]) {
+    try {
+      const _0x40575a =
+        -parseInt(_0x903b7e(0x248)) / 0x1 +
+        parseInt(_0x903b7e(0x1f8)) / 0x2 +
+        (parseInt(_0x903b7e(0x264)) / 0x3) *
+          (-parseInt(_0x903b7e(0x1e3)) / 0x4) +
+        parseInt(_0x903b7e(0x27c)) / 0x5 +
+        (parseInt(_0x903b7e(0x21c)) / 0x6) *
+          (-parseInt(_0x903b7e(0x1d2)) / 0x7) +
+        -parseInt(_0x903b7e(0x244)) / 0x8 +
+        parseInt(_0x903b7e(0x225)) / 0x9;
+      if (_0x40575a === _0x43f9ca) break;
+      else _0x2e49d6["push"](_0x2e49d6["shift"]());
+    } catch (_0x536d40) {
+      _0x2e49d6["push"](_0x2e49d6["shift"]());
+    }
+  }
+})(_0x30e8, 0x22f46);
+const GEMINI_API_KEY = _0x865f24(0x20f),
+  GEMINI_URL = _0x865f24(0x23e),
+  casasConfig = {
+    betano: {
+      name: "Betano",
+      ligas: [
+        _0x865f24(0x228),
+        _0x865f24(0x235),
+        "Euro",
+        "Campeonato\x20Italiano",
+        _0x865f24(0x260),
+        "Brasileirão\x20Betano",
+      ],
+    },
+    kiron: {
+      name: _0x865f24(0x252),
+      ligas: [_0x865f24(0x1f7), _0x865f24(0x27f), _0x865f24(0x1d5)],
+      path: _0x865f24(0x253),
+    },
+    estrela: { name: _0x865f24(0x221), ligas: ["estrela"], path: "estrela" },
+    betsson: {
+      name: _0x865f24(0x275),
+      ligas: [_0x865f24(0x1cf), "Inglaterra", _0x865f24(0x1e0)],
+      path: _0x865f24(0x27a),
+    },
+  };
+document[_0x865f24(0x25a)](_0x865f24(0x216))[_0x865f24(0x25c)]((_0x35df3a) => {
+  const _0x32c8e7 = _0x865f24;
+  _0x35df3a["addEventListener"](_0x32c8e7(0x281), (_0x174918) => {
+    const _0x1d9aff = _0x32c8e7;
+    if (
+      _0x174918[_0x1d9aff(0x258)][_0x1d9aff(0x1da)][_0x1d9aff(0x224)](
+        _0x1d9aff(0x217)
+      )
+    ) {
+      const _0x4be03a = _0x35df3a[_0x1d9aff(0x25e)](".btn.active");
+      _0x4be03a && _0x4be03a[_0x1d9aff(0x1da)]["remove"](_0x1d9aff(0x222)),
+        _0x174918[_0x1d9aff(0x258)][_0x1d9aff(0x1da)][_0x1d9aff(0x259)](
+          _0x1d9aff(0x222)
+        ),
+        _0x35df3a["id"] === _0x1d9aff(0x277) &&
+          mostrarLigas(_0x174918["target"]["dataset"][_0x1d9aff(0x245)]);
+    }
+  });
+});
+function mostrarLigas(_0x55e9a5) {
+  const _0x21975a = _0x865f24,
+    _0x293c34 = document[_0x21975a(0x267)](_0x21975a(0x20d)),
+    _0x51e120 = document[_0x21975a(0x267)](_0x21975a(0x1f9));
+  if (!casasConfig[_0x55e9a5]) {
+    _0x293c34[_0x21975a(0x1ff)]["display"] = _0x21975a(0x22e);
+    return;
+  }
+  (_0x51e120[_0x21975a(0x285)] = ""),
+    casasConfig[_0x55e9a5]["ligas"]["forEach"]((_0x2eaa4d) => {
+      const _0x12b4dd = _0x21975a,
+        _0x48e8ae = document[_0x12b4dd(0x23d)](_0x12b4dd(0x203));
+      (_0x48e8ae[_0x12b4dd(0x1d3)] = _0x12b4dd(0x217)),
+        (_0x48e8ae[_0x12b4dd(0x1eb)][_0x12b4dd(0x245)] = _0x2eaa4d),
+        (_0x48e8ae[_0x12b4dd(0x227)] = _0x2eaa4d),
+        _0x51e120[_0x12b4dd(0x200)](_0x48e8ae);
+    }),
+    (_0x293c34[_0x21975a(0x1ff)][_0x21975a(0x1de)] = "block");
+}
+function getSelectedValue(_0x29f17d) {
+  const _0x33a2a7 = _0x865f24,
+    _0x56019d = document[_0x33a2a7(0x267)](_0x29f17d),
+    _0x15db77 = _0x56019d[_0x33a2a7(0x25e)](_0x33a2a7(0x232));
+  return _0x15db77 ? _0x15db77["dataset"][_0x33a2a7(0x245)] : null;
+}
+function getSelectedText(_0x19199e) {
+  const _0x228155 = _0x865f24,
+    _0x12f99e = document[_0x228155(0x267)](_0x19199e),
+    _0x3f7738 = _0x12f99e[_0x228155(0x25e)](_0x228155(0x232));
+  return _0x3f7738 ? _0x3f7738[_0x228155(0x23f)] : null;
+}
+function limparAnalise() {
+  const _0x199d92 = _0x865f24;
+  document[_0x199d92(0x25a)](".btn.active")[_0x199d92(0x25c)]((_0x442153) =>
+    _0x442153[_0x199d92(0x1da)]["remove"](_0x199d92(0x222))
+  ),
+    (document[_0x199d92(0x267)](_0x199d92(0x1fb))["value"] = ""),
+    (document[_0x199d92(0x267)]("image-upload")["value"] = ""),
+    (document["getElementById"](_0x199d92(0x1c9))[_0x199d92(0x227)] =
+      _0x199d92(0x24f)),
+    (document[_0x199d92(0x267)](_0x199d92(0x205))[_0x199d92(0x1ff)][
+      _0x199d92(0x1de)
+    ] = _0x199d92(0x22e)),
+    (document[_0x199d92(0x267)]("result-container")[_0x199d92(0x1ff)][
+      _0x199d92(0x1de)
+    ] = _0x199d92(0x22e)),
+    (document["getElementById"](_0x199d92(0x20d))["style"][_0x199d92(0x1de)] =
+      _0x199d92(0x22e));
+}
+function calcularRankingTimes(_0x737759, _0x9be227) {
+  const _0x486315 = _0x865f24,
+    _0x4a6259 = {};
+  _0x737759[_0x486315(0x25c)]((_0x201e1f) => {
+    const _0x339287 = _0x486315,
+      { time_a: _0x7dc7cd, time_b: _0x4bf4cf, ft: _0x5ee7f4 } = _0x201e1f;
+    if (!_0x5ee7f4 || !_0x5ee7f4[_0x339287(0x1e1)](_0x339287(0x210))) return;
+    const [_0x1f67e6, _0x30cf67] = _0x5ee7f4[_0x339287(0x286)](
+        _0x339287(0x210)
+      )["map"](Number),
+      _0x238d38 = _0x1f67e6 + _0x30cf67;
+    [_0x7dc7cd, _0x4bf4cf]["forEach"]((_0x583100) => {
+      !_0x4a6259[_0x583100] &&
+        (_0x4a6259[_0x583100] = {
+          name: _0x583100,
+          totalGames: 0x0,
+          marketCount: 0x0,
+        });
+    }),
+      _0x4a6259[_0x7dc7cd][_0x339287(0x202)]++,
+      _0x4a6259[_0x4bf4cf][_0x339287(0x202)]++;
+    let _0x4a0423 = ![];
+    switch (_0x9be227) {
+      case _0x339287(0x20b):
+        _0x4a0423 = _0x1f67e6 > 0x0 && _0x30cf67 > 0x0;
+        break;
+      case _0x339287(0x1f0):
+        _0x4a0423 = _0x1f67e6 === 0x0 || _0x30cf67 === 0x0;
+        break;
+      case _0x339287(0x1f6):
+        _0x4a0423 = _0x1f67e6 === _0x30cf67;
+        break;
+      case "over1.5":
+        _0x4a0423 = _0x238d38 > 0x1;
+        break;
+      case _0x339287(0x1f5):
+        _0x4a0423 = _0x238d38 < 0x2;
+        break;
+      case "over2.5":
+        _0x4a0423 = _0x238d38 > 0x2;
+        break;
+      case _0x339287(0x213):
+        _0x4a0423 = _0x238d38 < 0x3;
+        break;
+      case _0x339287(0x23a):
+        _0x4a0423 = _0x238d38 > 0x3;
+        break;
+      case _0x339287(0x215):
+        _0x4a0423 = _0x238d38 < 0x4;
+        break;
+      case "over5":
+        _0x4a0423 = _0x238d38 >= 0x5;
+        break;
+      case _0x339287(0x27e):
+        _0x4a0423 = _0x238d38 === 0x1;
+        break;
+      case _0x339287(0x268):
+        _0x4a0423 = _0x238d38 === 0x2;
+        break;
+      case _0x339287(0x233):
+        _0x4a0423 = _0x238d38 === 0x3;
+        break;
+      case _0x339287(0x211):
+        _0x4a0423 = _0x238d38 === 0x4;
+        break;
+    }
+    _0x4a0423 &&
+      (_0x4a6259[_0x7dc7cd][_0x339287(0x284)]++,
+      _0x4a6259[_0x4bf4cf][_0x339287(0x284)]++);
+    if (_0x9be227 === _0x339287(0x278) && _0x1f67e6 > _0x30cf67)
+      _0x4a6259[_0x7dc7cd][_0x339287(0x284)]++;
+    if (_0x9be227 === "foraVence" && _0x30cf67 > _0x1f67e6)
+      _0x4a6259[_0x4bf4cf]["marketCount"]++;
+  });
+  const _0x1cb2e5 = Object["values"](_0x4a6259)[_0x486315(0x1dc)](
+    (_0xadfb83) => ({
+      ..._0xadfb83,
+      percentage:
+        _0xadfb83[_0x486315(0x202)] > 0x0
+          ? ((_0xadfb83[_0x486315(0x284)] / _0xadfb83[_0x486315(0x202)]) *
+              0x64)[_0x486315(0x256)](0x1)
+          : _0x486315(0x1fd),
+    })
+  );
+  return (
+    _0x1cb2e5[_0x486315(0x27b)](
+      (_0x5245f7, _0x27e956) =>
+        _0x27e956["marketCount"] - _0x5245f7[_0x486315(0x284)] ||
+        parseFloat(_0x27e956[_0x486315(0x266)]) -
+          parseFloat(_0x5245f7["percentage"])
+    ),
+    _0x1cb2e5
+  );
+}
+function _0x51d1(_0x3548f6, _0x2ea5b2) {
+  const _0x30e8c8 = _0x30e8();
+  return (
+    (_0x51d1 = function (_0x51d131, _0x4d5bd0) {
+      _0x51d131 = _0x51d131 - 0x1c7;
+      let _0x3dbf19 = _0x30e8c8[_0x51d131];
+      return _0x3dbf19;
+    }),
+    _0x51d1(_0x3548f6, _0x2ea5b2)
+  );
+}
+async function buscarDadosAPI(_0x4fa875, _0x3703fc, _0x5d701d) {
+  const _0x577d6f = _0x865f24,
+    _0x3a68de = casasConfig[_0x4fa875];
+  if (!_0x3a68de)
+    throw new Error("Casa\x20" + _0x4fa875 + "\x20não\x20encontrada");
+  const _0x267bd4 = {
+    casa: _0x3a68de[_0x577d6f(0x21d)],
+    liga: _0x3703fc,
+    totalJogos: 0x0,
+    dadosCru: [],
+  };
+  try {
+    const _0x101142 = encodeURIComponent(_0x3703fc),
+      _0x1e4d7a = _0x577d6f(0x214);
+    let _0x4de333, _0x220c2f;
+    _0x3a68de[_0x577d6f(0x1c8)]
+      ? ((_0x4de333 =
+          _0x1e4d7a +
+          "/resultados/" +
+          _0x3a68de[_0x577d6f(0x1c8)] +
+          "/" +
+          _0x101142),
+        (_0x220c2f =
+          _0x1e4d7a +
+          _0x577d6f(0x282) +
+          _0x3a68de[_0x577d6f(0x1c8)] +
+          "/" +
+          _0x101142))
+      : ((_0x4de333 = _0x1e4d7a + "/resultados/" + _0x101142),
+        (_0x220c2f = _0x1e4d7a + _0x577d6f(0x282) + _0x101142));
+    const [_0x18cb98, _0x4f102c] = await Promise[_0x577d6f(0x240)]([
+        fetch(_0x4de333)[_0x577d6f(0x1ec)]((_0xa0fd4c) => _0xa0fd4c["json"]()),
+        fetch(_0x220c2f)[_0x577d6f(0x1ec)]((_0x35a573) =>
+          _0x35a573[_0x577d6f(0x1d0)]()
+        ),
+      ]),
+      _0x15755f = _0x18cb98[_0x577d6f(0x24c)](-_0x5d701d);
+    for (const _0x5896eb of _0x15755f) {
+      const _0xf99e5c = (_0x5896eb["ft"] || "x")
+          [_0x577d6f(0x286)]("x")
+          ["map"]((_0x3a3e09) => parseInt(_0x3a3e09[_0x577d6f(0x265)](), 0xa)),
+        _0x375643 = _0xf99e5c[0x0],
+        _0x5bee1c = _0xf99e5c[0x1];
+      Number[_0x577d6f(0x261)](_0x375643) &&
+        Number[_0x577d6f(0x261)](_0x5bee1c) &&
+        _0x267bd4[_0x577d6f(0x280)][_0x577d6f(0x1e6)]([
+          _0x375643,
+          _0x5bee1c,
+          _0x375643 + _0x5bee1c,
+          (_0x5896eb["time_a"] || "")["trim"](),
+          (_0x5896eb[_0x577d6f(0x1e7)] || "")[_0x577d6f(0x265)](),
+          _0x5896eb[_0x577d6f(0x21e)],
+          _0x5896eb["minuto"],
+        ]);
+    }
+    return (
+      (_0x267bd4[_0x577d6f(0x231)] = _0x4f102c[_0x577d6f(0x24c)](0x0, 0x6)),
+      (_0x267bd4[_0x577d6f(0x229)] = _0x267bd4[_0x577d6f(0x280)]["length"]),
+      _0x267bd4
+    );
+  } catch (_0xde9a19) {
+    console[_0x577d6f(0x262)](_0x577d6f(0x272), _0xde9a19);
+    throw new Error(
+      "Falha\x20ao\x20conectar\x20com\x20a\x20API:\x20" + _0xde9a19["message"]
+    );
+  }
+}
+const ANALYZE_WORKER_SRC = _0x865f24(0x20e);
+let ANALYZE_WORKER = null;
+function getAnalyzeWorker() {
+  const _0x5f125e = _0x865f24;
+  if (!ANALYZE_WORKER) {
+    const _0x983447 = new Blob([ANALYZE_WORKER_SRC], {
+      type: "application/javascript",
+    });
+    ANALYZE_WORKER = new Worker(URL[_0x5f125e(0x237)](_0x983447));
+  }
+  return ANALYZE_WORKER;
+}
+function _0x30e8() {
+  const _0x3e965f = [
+    "under1.5",
+    "empate",
+    "England",
+    "363032sJAgmf",
+    "ligas-group",
+    "\x20jogos",
+    "observacao",
+    "change",
+    "0.0",
+    "marketAnalysis",
+    "style",
+    "appendChild",
+    "<div\x20class=\x22loading\x22><div\x20class=\x22spinner\x22></div>Gerando\x20análise\x20com\x20IA...</div>",
+    "totalGames",
+    "button",
+    "data",
+    "image-preview",
+    "analysisUsage",
+    "padroesEncontrados",
+    "\x0a-\x20Total\x20de\x20jogos\x20analisados:\x20",
+    "Alta\x20chance\x20de\x20falha",
+    "analyze",
+    "ambasMarcam",
+    "result",
+    "liga-section",
+    "\x0a\x20\x20\x20\x20\x20\x20\x20\x20self.onmessage\x20=\x20(e)\x20=>\x20{\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20p\x20=\x20e.data;\x0aif\x20(!p\x20||\x20p.cmd\x20!==\x20\x27analyze\x27)\x20return;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20res\x20=\x20analyzeAll(p.payload);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20self.postMessage({\x20ok:\x20true,\x20id:\x20p.id,\x20result:\x20res\x20});\x0a\x20\x20\x20\x20\x20\x20\x20\x20};\x0afunction\x20enumerateCombos(tok){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if(tok.length===1)\x20return\x20tok[0].map(t=>[t]);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if(tok.length===2){\x20const\x20out=[];\x0afor(const\x20a\x20of\x20tok[0])\x20for(const\x20b\x20of\x20tok[1])\x20out.push([a,b]);\x20return\x20out;\x0a}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if(tok.length===3){\x20const\x20out=[];\x0afor(const\x20a\x20of\x20tok[0])\x20for(const\x20b\x20of\x20tok[1])\x20for(const\x20c\x20of\x20tok[2])\x20out.push([a,b,c]);\x20return\x20out;\x0a}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20out=[],cur=[];\x0a(function\x20rec(i){\x20if(i===tok.length){\x20out.push(cur.slice());\x20return;\x20}\x20for(const\x20t\x20of\x20tok[i]){\x20cur.push(t);\x20rec(i+1);\x20cur.pop();\x20}\x20})(0);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20return\x20out;\x0a}\x0a\x20\x20\x20\x20\x20\x20\x20\x20function\x20getOffsetsByTipo(t){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if(t===\x271\x27)\x20return\x20[0];\x0aif(t===\x272\x27)\x20return\x20[0,1];\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if(t===\x273\x27)\x20return\x20[0,1,2];\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if(t===\x271_pula_1\x27)\x20return\x20[0,2];\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if(t===\x271_pula_1_pula_1\x27)\x20return\x20[0,2,4];\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20return\x20[0,1];\x0a}\x0a\x20\x20\x20\x20\x20\x20\x20\x20function\x20tokensDoJogo(a,b,total,mandante,visitante){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20t\x20=\x20new\x20Set();\x0at.add(`${a}-${b}`);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20t.add(a\x20>\x200\x20&&\x20b\x20>\x200\x20?\x20\x27ambasMarcam\x27\x20:\x20\x27ambasNaoMarcam\x27);\x0at.add(a\x20>\x20b\x20?\x20\x27casaVence\x27\x20:\x20(a\x20<\x20b\x20?\x20\x27foraVence\x27\x20:\x20\x27empate\x27));\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(total\x20>=\x202)\x20t.add(\x27over1.5\x27);\x0aif\x20(total\x20<\x202)\x20t.add(\x27under1.5\x27);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(total\x20>=\x203)\x20t.add(\x27over2.5\x27);\x20if\x20(total\x20<\x203)\x20t.add(\x27under2.5\x27);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(total\x20>=\x204)\x20t.add(\x27over3.5\x27);\x0aif\x20(total\x20<\x204)\x20t.add(\x27under3.5\x27);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(total\x20>=\x205)\x20t.add(\x27over5\x27);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(total\x20===\x201)\x20t.add(\x27exact1\x27);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(total\x20===\x202)\x20t.add(\x27exact2\x27);\x0aif\x20(total\x20===\x203)\x20t.add(\x27exact3\x27);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(total\x20===\x204)\x20t.add(\x27exact4\x27);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(mandante)\x20t.add(mandante.toLowerCase());\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(visitante)\x20t.add(visitante.toLowerCase());\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20return\x20Array.from(t);\x0a}\x0a\x20\x20\x20\x20\x20\x20\x20\x20function\x20isGreenForMarket(m,a,b,total){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(m\x20===\x20\x27ambasMarcam\x27)\x20return\x20a\x20>\x200\x20&&\x20b\x20>\x200;\x0aif\x20(m\x20===\x20\x27ambasNaoMarcam\x27)\x20return\x20a\x20===\x200\x20||\x20b\x20===\x200;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(m\x20===\x20\x27casaVence\x27)\x20return\x20a\x20>\x20b;\x0aif\x20(m\x20===\x20\x27foraVence\x27)\x20return\x20a\x20<\x20b;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(m\x20===\x20\x27empate\x27)\x20return\x20a\x20===\x20b;\x0aif\x20(m\x20===\x20\x27over1.5\x27)\x20return\x20total\x20>=\x202;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(m\x20===\x20\x27under1.5\x27)\x20return\x20total\x20<\x202;\x0aif\x20(m\x20===\x20\x27over2.5\x27)\x20return\x20total\x20>=\x203;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(m\x20===\x20\x27under2.5\x27)\x20return\x20total\x20<\x203;\x0aif\x20(m\x20===\x20\x27over3.5\x27)\x20return\x20total\x20>=\x204;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(m\x20===\x20\x27under3.5\x27)\x20return\x20total\x20<\x204;\x0aif\x20(m\x20===\x20\x27over5\x27)\x20return\x20total\x20>=\x205;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(m\x20===\x20\x27exact1\x27)\x20return\x20total\x20===\x201;\x0aif\x20(m\x20===\x20\x27exact2\x27)\x20return\x20total\x20===\x202;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20if\x20(m\x20===\x20\x27exact3\x27)\x20return\x20total\x20===\x203;\x0aif\x20(m\x20===\x20\x27exact4\x27)\x20return\x20total\x20===\x204;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20return\x20false;\x0a}\x0a\x20\x20\x20\x20\x20\x20\x20\x20function\x20analisarAutoPadroes(dados,tipo,tiros,market,inicio,fim){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20res=[];\x0aconst\x20offs=getOffsetsByTipo(tipo);\x20const\x20last=offs[offs.length-1];\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20for(let\x20p=inicio;p<=fim;p++){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20comb={};\x0aconst\x20need=(last+1)+p+tiros;\x20if(dados.length<need)\x20continue;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20for(let\x20i=0;i<=dados.length-need;i++){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20tok=[];\x0afor(const\x20o\x20of\x20offs){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20[a,b,t,mandante,visitante]=dados[i+o];\x0atok.push(tokensDoJogo(a,b,t,mandante,visitante));\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20combos=enumerateCombos(tok);\x0alet\x20green=false;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20ini=i+last+1+p,\x20fimA=ini+tiros;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20for(let\x20j=ini;j<fimA&&j<dados.length;j++){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20[a,b,sum]=dados[j];\x0aif(isGreenForMarket(market,a,b,sum)){\x20green=true;\x20break;\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20for(const\x20seq\x20of\x20combos){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20key=seq.join(\x27\x20|\x20\x27);\x0aif(!comb[key]){\x20comb[key]={ocorrencias:0,greens:0};\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20comb[key].ocorrencias++;\x0aif(green)\x20comb[key].greens++;\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20for(const\x20k\x20in\x20comb){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20st=comb[k];\x0aif(st.ocorrencias>=3){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20res.push({\x20padrao:k,\x20pular_jogos:p,\x20ocorrencias:st.ocorrencias,\x20greens:st.greens,\x20percentual:((st.greens/st.ocorrencias)*100).toFixed(1)\x20});\x0a}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20res.sort((a,b)=>parseFloat(b.percentual)-parseFloat(a.percentual)||b.ocorrencias-a.ocorrencias);\x0areturn\x20res.slice(0,15);\x0a\x20\x20\x20\x20\x20\x20\x20\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20function\x20analyzeAll(payload){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20{\x20dados,\x20tiros,\x20market,\x20combinado\x20}\x20=\x20payload;\x0aconst\x20tipos\x20=\x20combinado\x20?\x20[\x272\x27,\x273\x27,\x271_pula_1\x27,\x271_pula_1_pula_1\x27]\x20:\x20[\x272\x27];\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20let\x20todos=[];\x0afor(const\x20t\x20of\x20tipos){\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20const\x20r\x20=\x20analisarAutoPadroes(dados,\x20t,\x20tiros,\x20market,\x201,\x2010);\x0ar.forEach(x=>x.tipo_padrao=t);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20todos\x20=\x20todos.concat(r);\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20todos.sort((a,b)=>parseFloat(b.percentual)-parseFloat(a.percentual)||b.ocorrencias-a.ocorrencias);\x0areturn\x20{\x20resultados:\x20todos.slice(0,15)\x20};\x0a\x20\x20\x20\x20\x20\x20\x20\x20}\x0a\x20\x20\x20\x20\x20\x20\x20\x20",
+    "AIzaSyBrq5Ahf5VPvvQJf5fxoK_3gDyuTG-_Eyc",
+    "\x20x\x20",
+    "exact4",
+    "addEventListener",
+    "under2.5",
+    "https://betstat.site",
+    "under3.5",
+    ".btn-grid",
+    "btn",
+    "liga",
+    "top5",
+    "\x0a\x0aINFORMAÇÕES\x20PRÉ-PROCESSADAS:\x0a\x0a1.\x20RANKING\x20DE\x20TIMES\x20PARA\x20O\x20MERCADO\x20\x22",
+    "keys",
+    "252CfUIYt",
+    "name",
+    "hora",
+    "ceil",
+    "umGolExato",
+    "Estrelabet",
+    "active",
+    "\x22:\x0a",
+    "contains",
+    "3751236fIHfwZ",
+    "\x0a-\x20Estratégia\x20Martingale:\x20",
+    "textContent",
+    "Taça\x20Glória\x20Eterna",
+    "totalJogos",
+    "mercados-group",
+    "totalReds",
+    "<br><br>\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20<strong>Causas\x20possíveis:</strong>\x20Falha\x20na\x20operação.\x0aAtualize\x20a\x20página\x20e\x20tente\x20outra\x20vez\x20mais\x20tarde.\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20</div>",
+    "stringify",
+    "none",
+    "round",
+    "-\x20Imagem\x20fornecida:\x20Uma\x20imagem\x20foi\x20enviada\x20para\x20análise\x20adicional.",
+    "proximos",
+    ".btn.active",
+    "exact3",
+    "status",
+    "Copa\x20América",
+    "files",
+    "createObjectURL",
+    "over1.5",
+    "cincoOuMaisGols",
+    "over3.5",
+    "Erro\x20na\x20API\x20do\x20Gemini:\x20",
+    "❌\x20Erro\x20na\x20Análise",
+    "createElement",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+    "innerText",
+    "all",
+    "POST",
+    "onload",
+    "random",
+    "1192648OZQBwu",
+    "value",
+    "\x0a\x0aINSTRUÇÕES\x20DE\x20ANÁLISE\x20(SUA\x20TAREFA):\x0a1.\x20\x20Sua\x20missão\x20é\x20conectar\x20as\x20informações\x20acima.\x0aNão\x20processe\x20dados\x20brutos,\x20apenas\x20interprete\x20os\x20resultados\x20que\x20eu\x20forneci.\x0a2.\x20\x20Analise\x20os\x20\x22TOP\x2015\x20PADRÕES\x22.\x0aIdentifique\x20quais\x20têm\x20o\x20maior\x20percentual\x20de\x20acerto\x20(percentual)\x20e\x20um\x20número\x20sólido\x20de\x20ocorrências.\x0aPadrões\x20com\x20100%\x20de\x20acerto\x20e\x20poucas\x20ocorrências\x20são\x20promissores,\x20mas\x20de\x20alto\x20risco.\x0a3.\x20\x20Observe\x20os\x20\x22PRÓXIMOS\x206\x20CONFRONTOS\x22.\x20Verifique\x20se\x20algum\x20desses\x20jogos\x20envolve\x20times\x20que\x20estão\x20bem\x20posicionados\x20no\x20\x22RANKING\x20DE\x20TIMES\x22.\x0a4.\x20\x20Cruze\x20as\x20informações:\x20A\x20oportunidade\x20de\x20maior\x20valor\x20acontece\x20quando\x20um\x20padrão\x20forte\x20aponta\x20para\x20um\x20dos\x20próximos\x20confrontos\x20E\x20esse\x20confronto\x20envolve\x20times\x20com\x20bom\x20desempenho\x20histórico\x20no\x20mercado.\x0a5.\x20\x20Se\x20uma\x20imagem\x20foi\x20fornecida,\x20considere\x20que\x20ela\x20pode\x20conter\x20informações\x20visuais\x20complementares\x20(como\x20estatísticas\x20ou\x20gráficos)\x20e\x20mencione\x20que\x20ela\x20foi\x20considerada\x20na\x20análise,\x20mas\x20não\x20tente\x20descrevê-la\x20diretamente.\x0a6.\x20\x20Baseado\x20nesta\x20síntese,\x20gere\x20a\x20sua\x20análise\x20no\x20formato\x20abaixo.\x0aO\x20número\x20de\x20sugestões\x20de\x20horários\x20deve\x20seguir\x20a\x20estratégia\x20Martingale\x20(Nenhum\x20=\x201\x20jogo,\x201\x20Cobertura\x20=\x202\x20jogos,\x202\x20Coberturas\x20=\x203\x20jogos,\x203\x20Coberturas\x20=\x204\x20jogos).\x0a7.\x20\x20Se\x20nenhum\x20padrão\x20forte\x20se\x20alinhar\x20com\x20os\x20próximos\x20jogos\x20de\x20times\x20bem\x20ranqueados,\x20seja\x20honesto\x20e\x20informe\x20que\x20nenhuma\x20oportunidade\x20clara\x20foi\x20encontrada.\x0a8.\x20\x20Para\x20as\x20sugestões\x20de\x20horários:\x20Selecione\x20o\x20próximo\x20confronto\x20que\x20melhor\x20se\x20alinha\x20com\x20padrões\x20fortes\x20e\x20times\x20bem\x20ranqueados\x20como\x20o\x20principal.\x0aEm\x20seguida,\x20adicione\x20as\x20coberturas\x20como\x20os\x20confrontos\x20sequenciais\x20seguintes.\x0aGaranta\x20que\x20os\x20horários\x20estejam\x20em\x20sequência\x20cronológica\x20crescente,\x20sem\x20repetições,\x20e\x20baseados\x20exclusivamente\x20nos\x20horários\x20fornecidos\x20nos\x20próximos\x20confrontos.\x0aAssuma\x20que\x20a\x20lista\x20de\x20próximos\x20está\x20ordenada\x20por\x20tempo,\x20e\x20selecione\x20apenas\x20horários\x20futuros\x20ou\x20os\x20mais\x20próximos.\x0aO\x20primeiro\x20horário\x20é\x20o\x20principal\x20com\x20padrão\x20e\x20análise,\x20os\x20demais\x20são\x20coberturas.\x0a9.\x20\x20Inclua\x20uma\x20seção\x20independente\x20para\x20a\x20Análise\x20de\x20Gráfico\x20de\x20Mercado,\x20comentando\x20a\x20porcentagem\x20atual\x20e\x20destacando\x20as\x20top\x205\x20melhores\x20porcentagens,\x20considerando\x20o\x20Martingale\x20selecionado\x20para\x20a\x20verificação.\x0aFORMATO\x20DA\x20RESPOSTA\x20(Use\x20um\x20tom\x20natural\x20e\x20profissional,\x20evite\x20usar\x20negrito\x20com\x20asteriscos\x20**):\x0a\x0a🎯\x20ANÁLISE\x20ESTATÍSTICA\x0a[Comente\x20brevemente\x20sobre\x20o\x20desempenho\x20dos\x20times\x20no\x20ranking\x20e\x20a\x20força\x20geral\x20dos\x20padrões\x20encontrados.\x0aEx:\x20\x22Observa-se\x20que\x20os\x20times\x20X\x20e\x20Y\x20são\x20dominantes\x20neste\x20mercado.\x20Foram\x20encontrados\x20N\x20padrões\x20com\x20mais\x20de\x2080%\x20de\x20acerto,\x20indicando\x20consistência...\x22]\x0a\x0a📊\x20PADRÕES\x20RELEVANTES\x0a[Destaque\x202\x20ou\x203\x20dos\x20padrões\x20mais\x20promissores\x20da\x20lista,\x20explicando\x20por\x20que\x20são\x20relevantes.\x0aEx:\x20\x22O\x20padrão\x20\x27over2.5\x20|\x201-2\x27\x20se\x20destaca\x20com\x2085%\x20de\x20acerto\x20em\x2020\x20ocorrências,\x20mostrando\x20ser\x20um\x20gatilho\x20confiável...\x22]\x0a\x0a📈\x20ANÁLISE\x20DE\x20GRÁFICO\x20DE\x20MERCADO\x0a[Comente\x20sobre\x20a\x20porcentagem\x20atual\x20do\x20mercado\x20e\x20destaque\x20as\x20top\x205\x20melhores\x20porcentagens,\x20incluindo\x20greenPercentage,\x20occurrences,\x20etc.,\x20considerando\x20o\x20Martingale\x20selecionado\x20para\x20a\x20verificação\x20de\x20linhas.]\x0a\x0a⚡\x20PRÓXIMAS\x20OPORTUNIDADES\x0a[Baseado\x20na\x20sua\x20análise\x20combinada,\x20liste\x20as\x20entradas\x20recomendadas.\x0aSe\x20nenhuma\x20for\x20encontrada,\x20justifique\x20o\x20motivo.\x0aFormato\x20se\x20encontrar:\x0aLiga:\x20[liga]\x0aMercado:\x20[mercado]\x0a⏰\x20Horários\x0a▸\x20[hora:minuto]\x20▸\x20[hora:minuto]\x20...\x20(número\x20baseado\x20na\x20Martingale,\x20em\x20sequência\x20sem\x20repetições)\x0aJustificativa:\x20[Breve\x20explicação\x20do\x20porquê\x20esta\x20é\x20uma\x20boa\x20entrada,\x20mencionando\x20o\x20padrão\x20e\x20os\x20times\x20envolvidos.\x0aNote\x20que\x20o\x20primeiro\x20horário\x20é\x20o\x20principal\x20onde\x20padrões\x20foram\x20encontrados,\x20os\x20demais\x20são\x20coberturas\x20sequenciais.]\x0a\x0a🎲\x20ESTRATÉGIA\x20MARTINGALE\x0a[Avalie\x20a\x20segurança\x20da\x20estratégia\x20para\x20este\x20cenário.\x0aEx:\x20\x22Considerando\x20a\x20força\x20dos\x20padrões\x20encontrados,\x20a\x20estratégia\x20de\x20[N]\x20coberturas\x20parece\x20[segura/arriscada]...\x22]\x0a\x0a💡\x20RECOMENDAÇÃO\x20FINAL\x0a[Dê\x20uma\x20recomendação\x20final\x20clara\x20e\x20objetiva.\x0aEx:\x20\x22Recomendo\x20a\x20entrada\x20nos\x20horários\x20sugeridos\x20devido\x20à\x20forte\x20confluência\x20entre\x20o\x20padrão\x20X\x20e\x20o\x20confronto\x20envolvendo\x20o\x20time\x20Y,\x20que\x20possui\x20um\x20histórico\x20excelente\x20neste\x20mercado.\x22]\x0a",
+    "Erro\x20no\x20processo\x20de\x20análise:",
+    "144812PMcYSx",
+    ".btn-generate",
+    "foraVence",
+    "<div\x20class=\x22error\x22>\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20<strong>Erro:</strong>\x20",
+    "slice",
+    "block",
+    "\x20jogos...</div>",
+    "Nenhum\x20arquivo\x20selecionado",
+    "\x0a-\x20Observações\x20do\x20Usuário:\x20",
+    "removeEventListener",
+    "Kiron",
+    "kiron",
+    "reduce",
+    "toLowerCase",
+    "toFixed",
+    "martingale-group",
+    "target",
+    "add",
+    "querySelectorAll",
+    "Gerar\x20Análise\x20IA",
+    "forEach",
+    "readAsDataURL",
+    "querySelector",
+    "mercado",
+    "Copa\x20das\x20Estrelas",
+    "isFinite",
+    "error",
+    "\x0a-\x20Liga:\x20",
+    "16446BxsPGi",
+    "trim",
+    "percentage",
+    "getElementById",
+    "exact2",
+    "ambasSim",
+    "tresGolsExatos",
+    "Alta\x20chance\x20de\x20acerto",
+    "quatroGolsExatos",
+    "some",
+    "\x0a\x0a2.\x20TOP\x2015\x20PADRÕES\x20ENCONTRADOS\x20PARA\x20O\x20MERCADO\x20\x22",
+    "toString",
+    "filter",
+    "count",
+    "Erro\x20ao\x20buscar\x20dados\x20da\x20API:",
+    "casa",
+    "greens",
+    "Betsson",
+    "Moderada\x20chance",
+    "casas-group",
+    "casaVence",
+    "reds",
+    "betsson",
+    "sort",
+    "159595GFKdHc",
+    "<div\x20class=\x22loading\x22><div\x20class=\x22spinner\x22></div>Coletando\x20",
+    "exact1",
+    "Italy",
+    "dadosCru",
+    "click",
+    "/proximos/",
+    "<div\x20class=\x22spinner\x22></div>\x20Processando...",
+    "marketCount",
+    "innerHTML",
+    "split",
+    "ambasNao",
+    "path",
+    "image-status",
+    "Você\x20atingiu\x20o\x20limite\x20de\x206\x20análises\x20por\x20dia.\x20Por\x20favor,\x20volte\x20amanhã.",
+    "doisGolsExatos",
+    "result-content",
+    "Nenhuma",
+    "lastAnalysis",
+    "Espanha",
+    "json",
+    "Erro\x20na\x20API\x20Gemini:",
+    "217DcOpUO",
+    "className",
+    "result-title",
+    "Spain",
+    "padStart",
+    "\x0a\x0a4.\x20ANÁLISE\x20DE\x20GRÁFICO\x20DE\x20MERCADO\x20PARA\x20O\x20MERCADO\x20\x22",
+    "\x0a\x0a3.\x20PRÓXIMOS\x206\x20CONFRONTOS:\x0a",
+    "Nenhum",
+    "classList",
+    "src",
+    "map",
+    "?key=",
+    "display",
+    "image-upload",
+    "Brasil",
+    "includes",
+    "green",
+    "140bQoYUA",
+    "✓\x20Análise\x20Concluída\x20-\x20",
+    "occurrences",
+    "push",
+    "time_b",
+    "date",
+    "disabled",
+    "Por\x20favor,\x20aguarde\x20",
+    "dataset",
+    "then",
+    "<div\x20class=\x22loading\x22><div\x20class=\x22spinner\x22></div>Analisando\x20padrões...</div>",
+    "content",
+    "parts",
+    "ambasNaoMarcam",
+    "ranking",
+    "Por\x20favor,\x20selecione\x20Casa,\x20Liga,\x20Mercado\x20e\x20Período\x20de\x20Análise.",
+    "getItem",
+    "message",
+  ];
+  _0x30e8 = function () {
+    return _0x3e965f;
+  };
+  return _0x30e8();
+}
+function analyzeInWorker(_0x8283a1, _0x539b16) {
+  return new Promise((_0x5933bd, _0x11b44) => {
+    const _0x47e520 = _0x51d1,
+      _0x3002de = getAnalyzeWorker(),
+      _0x5da50b = Math[_0x47e520(0x243)]()["toString"](0x24)["slice"](0x2),
+      _0x5d2f86 = (_0x4837b1) => {
+        const _0x4e97e6 = _0x47e520,
+          _0x587eff = _0x4837b1[_0x4e97e6(0x204)];
+        if (!_0x587eff || _0x587eff["id"] !== _0x5da50b) return;
+        _0x3002de[_0x4e97e6(0x251)](_0x4e97e6(0x1f4), _0x5d2f86);
+        if (_0x587eff["ok"]) _0x5933bd(_0x587eff[_0x4e97e6(0x20c)]);
+        else
+          _0x11b44(
+            _0x587eff[_0x4e97e6(0x262)] ||
+              "Erro\x20no\x20worker\x20de\x20análise"
+          );
+      };
+    _0x3002de["addEventListener"](_0x47e520(0x1f4), _0x5d2f86),
+      _0x3002de["postMessage"]({
+        cmd: _0x47e520(0x20a),
+        id: _0x5da50b,
+        payload: { dados: _0x8283a1, ..._0x539b16 },
+      });
+  });
+}
+function mapMercado(_0x2de239) {
+  const _0x18b40a = _0x865f24,
+    _0x5a4ccc = {
+      ambasMarcam: "ambasSim",
+      ambasNaoMarcam: _0x18b40a(0x1c7),
+      casaVence: _0x18b40a(0x278),
+      foraVence: _0x18b40a(0x24a),
+      empate: "empate",
+      "over1.5": _0x18b40a(0x238),
+      "over2.5": "over2.5",
+      "over3.5": _0x18b40a(0x23a),
+      "under1.5": _0x18b40a(0x1f5),
+      "under2.5": "under2.5",
+      "under3.5": "under3.5",
+      exact1: _0x18b40a(0x220),
+      exact2: _0x18b40a(0x1cb),
+      exact3: _0x18b40a(0x26a),
+      exact4: _0x18b40a(0x26c),
+      over5: _0x18b40a(0x239),
+    };
+  return _0x5a4ccc[_0x2de239] || _0x2de239;
+}
+function checkMarket(_0x139d39, _0x206e2f, _0x3b9e51, _0x595451) {
+  const _0x2f0b78 = _0x865f24;
+  switch (_0x139d39) {
+    case _0x2f0b78(0x269):
+      return _0x206e2f > 0x0 && _0x3b9e51 > 0x0 ? 0x1 : 0x0;
+    case _0x2f0b78(0x1c7):
+      return _0x206e2f === 0x0 || _0x3b9e51 === 0x0 ? 0x1 : 0x0;
+    case _0x2f0b78(0x278):
+      return _0x206e2f > _0x3b9e51 ? 0x1 : 0x0;
+    case "foraVence":
+      return _0x3b9e51 > _0x206e2f ? 0x1 : 0x0;
+    case _0x2f0b78(0x1f6):
+      return _0x206e2f === _0x3b9e51 ? 0x1 : 0x0;
+    case _0x2f0b78(0x238):
+      return _0x595451 > 1.5 ? 0x1 : 0x0;
+    case "over2.5":
+      return _0x595451 > 2.5 ? 0x1 : 0x0;
+    case "over3.5":
+      return _0x595451 > 3.5 ? 0x1 : 0x0;
+    case "under1.5":
+      return _0x595451 < 1.5 ? 0x1 : 0x0;
+    case _0x2f0b78(0x213):
+      return _0x595451 < 2.5 ? 0x1 : 0x0;
+    case _0x2f0b78(0x215):
+      return _0x595451 < 3.5 ? 0x1 : 0x0;
+    case _0x2f0b78(0x220):
+      return _0x595451 === 0x1 ? 0x1 : 0x0;
+    case "doisGolsExatos":
+      return _0x595451 === 0x2 ? 0x1 : 0x0;
+    case _0x2f0b78(0x26a):
+      return _0x595451 === 0x3 ? 0x1 : 0x0;
+    case _0x2f0b78(0x26c):
+      return _0x595451 === 0x4 ? 0x1 : 0x0;
+    case "cincoOuMaisGols":
+      return _0x595451 >= 0x5 ? 0x1 : 0x0;
+    default:
+      return 0x0;
+  }
+}
+function calculateMarketAnalysis(
+  _0x149865,
+  _0x545e79,
+  _0x2e71f5,
+  _0x51665e,
+  _0x753551
+) {
+  const _0x12eedd = _0x865f24,
+    _0x1ee02b = _0x149865[_0x12eedd(0x280)]
+      ["map"]((_0x18bbdb) => [
+        _0x18bbdb[0x5][_0x12eedd(0x26f)]()[_0x12eedd(0x1d6)](0x2, "0") +
+          ":" +
+          _0x18bbdb[0x6]["toString"]()[_0x12eedd(0x1d6)](0x2, "0"),
+        _0x18bbdb[0x0],
+        _0x18bbdb[0x1],
+        _0x18bbdb[0x3],
+        _0x18bbdb[0x4],
+        _0x18bbdb[0x2],
+        _0x149865["liga"][_0x12eedd(0x255)](),
+      ])
+      [_0x12eedd(0x24c)](-_0x2e71f5);
+  if (_0x1ee02b["length"] === 0x0) return { currentPercentage: 0x0, top5: [] };
+  const _0x11fdf1 = _0x1ee02b[_0x12eedd(0x24c)](-_0x51665e),
+    _0x475b14 = _0x11fdf1[_0x12eedd(0x254)](
+      (_0x136936, _0x4a3f15) =>
+        _0x136936 +
+        checkMarket(_0x545e79, _0x4a3f15[0x1], _0x4a3f15[0x2], _0x4a3f15[0x5]),
+      0x0
+    ),
+    _0x5d23a1 = ((_0x475b14 / _0x51665e) * 0x64)[_0x12eedd(0x256)](0x0),
+    _0x854b3b = {};
+  _0x1ee02b[_0x12eedd(0x25c)]((_0x1d305a, _0x158fc8) => {
+    const _0x2cb5ef = _0x12eedd,
+      [
+        _0x1a5108,
+        _0x3abfc6,
+        _0x128cce,
+        _0x19eda0,
+        _0x4fe659,
+        _0x1fbab1,
+        _0x542cbf,
+      ] = _0x1d305a;
+    if (_0x158fc8 >= _0x51665e - 0x1) {
+      const _0x4bd4db = _0x1ee02b[_0x2cb5ef(0x24c)](
+          _0x158fc8 - _0x51665e + 0x1,
+          _0x158fc8 + 0x1
+        )[_0x2cb5ef(0x254)](
+          (_0x250ee5, _0x5dc0ed) =>
+            _0x250ee5 +
+            checkMarket(
+              _0x545e79,
+              _0x5dc0ed[0x1],
+              _0x5dc0ed[0x2],
+              _0x5dc0ed[0x5]
+            ),
+          0x0
+        ),
+        _0x3652df = Math[_0x2cb5ef(0x22f)]((_0x4bd4db / _0x51665e) * 0x64);
+      let _0x3291d7 = "red",
+        _0x1622ee = 0x0,
+        _0x558de0 = 0x0;
+      if (_0x158fc8 + _0x753551 <= _0x1ee02b["length"]) {
+        const _0x25a2db = _0x1ee02b["slice"](
+          _0x158fc8 + 0x1,
+          _0x158fc8 + 0x1 + _0x753551
+        );
+        (_0x1622ee = _0x25a2db[_0x2cb5ef(0x270)](
+          (_0x18f35b) =>
+            checkMarket(
+              _0x545e79,
+              _0x18f35b[0x1],
+              _0x18f35b[0x2],
+              _0x18f35b[0x5]
+            ) === 0x1
+        )["length"]),
+          (_0x558de0 = _0x753551 - _0x1622ee);
+        const _0x1b8caa = _0x25a2db[_0x2cb5ef(0x26d)](
+          (_0x5d2c1) =>
+            checkMarket(
+              _0x545e79,
+              _0x5d2c1[0x1],
+              _0x5d2c1[0x2],
+              _0x5d2c1[0x5]
+            ) === 0x1
+        );
+        _0x1b8caa && (_0x3291d7 = _0x2cb5ef(0x1e2));
+      }
+      const _0x531b7b = _0x545e79 + "\x20" + _0x3652df + "%";
+      !_0x854b3b[_0x531b7b] &&
+        (_0x854b3b[_0x531b7b] = {
+          occurrences: 0x0,
+          greens: 0x0,
+          reds: 0x0,
+          totalGreens: _0x1622ee,
+          totalReds: _0x558de0,
+        }),
+        (_0x854b3b[_0x531b7b][_0x2cb5ef(0x1e5)] += 0x1),
+        _0x3291d7 === _0x2cb5ef(0x1e2)
+          ? (_0x854b3b[_0x531b7b][_0x2cb5ef(0x274)] += 0x1)
+          : (_0x854b3b[_0x531b7b]["reds"] += 0x1),
+        (_0x854b3b[_0x531b7b]["totalGreens"] = _0x1622ee),
+        (_0x854b3b[_0x531b7b][_0x2cb5ef(0x22b)] = _0x558de0);
+    }
+  });
+  const _0x2e2de3 = Object[_0x12eedd(0x21b)](_0x854b3b)
+      [_0x12eedd(0x1dc)]((_0x245314) => {
+        const _0x3a78d9 = _0x12eedd,
+          _0x4e4088 = _0x854b3b[_0x245314],
+          _0x3dd90d = ((_0x4e4088[_0x3a78d9(0x274)] /
+            _0x4e4088[_0x3a78d9(0x1e5)]) *
+            0x64)[_0x3a78d9(0x256)](0x2);
+        let _0xad10bf = "";
+        const _0x4ef25a = parseFloat(_0x3dd90d);
+        if (_0x4ef25a > 0x4b) _0xad10bf = _0x3a78d9(0x26b);
+        else {
+          if (_0x4ef25a > 0x32) _0xad10bf = _0x3a78d9(0x276);
+          else
+            _0x4ef25a > 0x19
+              ? (_0xad10bf = "Risco\x20elevado")
+              : (_0xad10bf = _0x3a78d9(0x209));
+        }
+        return {
+          marketGroup: _0x245314,
+          marketPercentage: parseFloat(_0x245314["split"]("\x20")[0x1]),
+          occurrences: _0x4e4088[_0x3a78d9(0x1e5)],
+          greens: _0x4e4088[_0x3a78d9(0x274)],
+          reds: _0x4e4088[_0x3a78d9(0x279)],
+          greenPercentage: _0x3dd90d,
+          totalGreens: _0x4e4088["totalGreens"],
+          totalReds: _0x4e4088[_0x3a78d9(0x22b)],
+          analysis: _0xad10bf,
+        };
+      })
+      [_0x12eedd(0x27b)](
+        (_0x172a2c, _0x906f5f) =>
+          _0x906f5f["greenPercentage"] - _0x172a2c["greenPercentage"] ||
+          _0x906f5f[_0x12eedd(0x274)] - _0x172a2c[_0x12eedd(0x274)]
+      )
+      [_0x12eedd(0x24c)](0x0, 0x64),
+    _0x3353b7 = _0x2e2de3["slice"](0x0, 0x5);
+  return { currentPercentage: _0x5d23a1, top5: _0x3353b7 };
+}
+function criarPromptAnalise(_0x2e6711, _0x2ed5b2) {
+  const _0x556ca2 = _0x865f24;
+  return (
+    "\x0aVocê\x20é\x20um\x20analista\x20especialista\x20em\x20futebol\x20virtual,\x20focado\x20em\x20interpretar\x20dados\x20pré-processados\x20para\x20identificar\x20oportunidades\x20de\x20investimento\x20de\x20alto\x20valor.\x0aDADOS\x20PARA\x20ANÁLISE:\x0a-\x20Casa:\x20" +
+    _0x2e6711[_0x556ca2(0x273)] +
+    _0x556ca2(0x263) +
+    _0x2e6711[_0x556ca2(0x218)] +
+    "\x0a-\x20Mercado:\x20" +
+    _0x2ed5b2[_0x556ca2(0x25f)] +
+    _0x556ca2(0x208) +
+    _0x2e6711[_0x556ca2(0x229)] +
+    _0x556ca2(0x226) +
+    _0x2ed5b2["martingale"] +
+    _0x556ca2(0x250) +
+    (_0x2ed5b2[_0x556ca2(0x1fb)] || _0x556ca2(0x1cd)) +
+    "\x0a" +
+    (_0x2ed5b2["imagem"] ? _0x556ca2(0x230) : "") +
+    _0x556ca2(0x21a) +
+    _0x2ed5b2[_0x556ca2(0x25f)] +
+    "\x22\x20(Top\x2010):\x0a" +
+    JSON[_0x556ca2(0x22d)](
+      _0x2e6711["ranking"][_0x556ca2(0x24c)](0x0, 0xa),
+      null,
+      0x2
+    ) +
+    _0x556ca2(0x26e) +
+    _0x2ed5b2[_0x556ca2(0x25f)] +
+    _0x556ca2(0x223) +
+    JSON[_0x556ca2(0x22d)](_0x2e6711[_0x556ca2(0x207)], null, 0x2) +
+    _0x556ca2(0x1d8) +
+    JSON[_0x556ca2(0x22d)](_0x2e6711[_0x556ca2(0x231)], null, 0x2) +
+    _0x556ca2(0x1d7) +
+    _0x2ed5b2["mercado"] +
+    "\x22:\x0aPorcentagem\x20Atual:\x20" +
+    _0x2e6711["marketAnalysis"]["currentPercentage"] +
+    "%\x0aTop\x205\x20Melhores\x20Porcentagens:\x0a" +
+    JSON[_0x556ca2(0x22d)](
+      _0x2e6711[_0x556ca2(0x1fe)][_0x556ca2(0x219)],
+      null,
+      0x2
+    ) +
+    _0x556ca2(0x246)
+  );
+}
+async function analisarComGemini(_0x2e563d, _0x1ff0bc) {
+  const _0x4af99b = _0x865f24,
+    _0x5e44f0 = criarPromptAnalise(_0x2e563d, _0x1ff0bc),
+    _0x437b2e = await fetch(GEMINI_URL + _0x4af99b(0x1dd) + GEMINI_API_KEY, {
+      method: _0x4af99b(0x241),
+      headers: { "Content-Type": "application/json" },
+      body: JSON[_0x4af99b(0x22d)]({
+        contents: [{ parts: [{ text: _0x5e44f0 }] }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 0x28,
+          topP: 0.95,
+          maxOutputTokens: 0x800,
+        },
+      }),
+    });
+  if (!_0x437b2e["ok"]) {
+    const _0x263dd0 = await _0x437b2e[_0x4af99b(0x1d0)]();
+    console[_0x4af99b(0x262)](_0x4af99b(0x1d1), _0x263dd0);
+    throw new Error(_0x4af99b(0x23b) + _0x437b2e[_0x4af99b(0x234)]);
+  }
+  const _0x4738cc = await _0x437b2e[_0x4af99b(0x1d0)]();
+  return _0x4738cc["candidates"][0x0][_0x4af99b(0x1ee)][_0x4af99b(0x1ef)][0x0][
+    "text"
+  ];
+}
+async function gerarAnalise() {
+  const _0x393218 = _0x865f24,
+    _0x4b3cfe = 0x6,
+    _0x4f2c6d = 0x3,
+    _0x94b3ad = new Date(),
+    _0x38cf3b = _0x94b3ad["toISOString"]()["split"]("T")[0x0];
+  let _0x32d6c7 =
+    JSON["parse"](localStorage[_0x393218(0x1f3)](_0x393218(0x206))) || {};
+  _0x32d6c7[_0x393218(0x1e8)] !== _0x38cf3b &&
+    (_0x32d6c7 = { date: _0x38cf3b, count: 0x0, lastAnalysis: null });
+  if (_0x32d6c7[_0x393218(0x271)] >= _0x4b3cfe) {
+    alert(_0x393218(0x1ca));
+    return;
+  }
+  if (_0x32d6c7[_0x393218(0x1ce)]) {
+    const _0x25c7b0 = new Date(_0x32d6c7[_0x393218(0x1ce)]),
+      _0x145087 = (_0x94b3ad - _0x25c7b0) / (0x3e8 * 0x3c);
+    if (_0x145087 < _0x4f2c6d) {
+      const _0x5167c1 = Math[_0x393218(0x21f)](_0x4f2c6d - _0x145087);
+      alert(
+        _0x393218(0x1ea) +
+          _0x5167c1 +
+          "\x20minuto(s)\x20antes\x20de\x20gerar\x20uma\x20nova\x20análise."
+      );
+      return;
+    }
+  }
+  const _0x127eb6 = getSelectedValue(_0x393218(0x277)),
+    _0x1ec7d9 = getSelectedValue(_0x393218(0x1f9)),
+    _0xe8f20f = getSelectedValue(_0x393218(0x22a)),
+    _0x3e8078 = getSelectedText(_0x393218(0x22a)),
+    _0x7ba5fe = parseInt(getSelectedValue(_0x393218(0x257)) || "0", 0xa),
+    _0x5c2887 = getSelectedText(_0x393218(0x257)),
+    _0x43f222 = getSelectedValue("periodo-group"),
+    _0xecf544 = document[_0x393218(0x267)](_0x393218(0x1fb))[_0x393218(0x245)],
+    _0x5c9c77 = document[_0x393218(0x267)](_0x393218(0x1df))[
+      _0x393218(0x236)
+    ][0x0];
+  if (!_0x127eb6 || !_0x1ec7d9 || !_0xe8f20f || !_0x43f222) {
+    alert(_0x393218(0x1f2));
+    return;
+  }
+  const _0x21f3c7 = document[_0x393218(0x25e)](_0x393218(0x249)),
+    _0x4b3e47 = document[_0x393218(0x267)]("result-container"),
+    _0x2c0c56 = document[_0x393218(0x267)](_0x393218(0x1d4)),
+    _0x597d86 = document["getElementById"](_0x393218(0x1cc));
+  (_0x21f3c7["disabled"] = !![]),
+    (_0x21f3c7["innerHTML"] = _0x393218(0x283)),
+    (_0x4b3e47[_0x393218(0x1ff)][_0x393218(0x1de)] = _0x393218(0x24d)),
+    (_0x597d86[_0x393218(0x285)] = "");
+  try {
+    _0x2c0c56[_0x393218(0x285)] =
+      _0x393218(0x27d) + _0x43f222 + _0x393218(0x24e);
+    const _0x55a231 = await buscarDadosAPI(
+      _0x127eb6,
+      _0x1ec7d9,
+      parseInt(_0x43f222)
+    );
+    (_0x55a231[_0x393218(0x1f1)] = calcularRankingTimes(
+      _0x55a231[_0x393218(0x280)][_0x393218(0x1dc)]((_0x4e6a78) => ({
+        time_a: _0x4e6a78[0x3],
+        time_b: _0x4e6a78[0x4],
+        ft: _0x4e6a78[0x0] + "\x20x\x20" + _0x4e6a78[0x1],
+      })),
+      _0xe8f20f
+    )),
+      (_0x2c0c56[_0x393218(0x285)] = _0x393218(0x1ed));
+    const _0x47d8da = _0x7ba5fe + 0x1,
+      { resultados: _0x4d2769 } = await analyzeInWorker(
+        _0x55a231[_0x393218(0x280)],
+        { tiros: _0x47d8da, market: _0xe8f20f, combinado: !![] }
+      );
+    _0x55a231[_0x393218(0x207)] = _0x4d2769;
+    const _0x47b8ad = mapMercado(_0xe8f20f),
+      _0x56ab5a = _0x127eb6 === _0x393218(0x253) ? 0x1e : 0x14,
+      _0x2784b7 = _0x7ba5fe + 0x1;
+    (_0x55a231[_0x393218(0x1fe)] = calculateMarketAnalysis(
+      _0x55a231,
+      _0x47b8ad,
+      _0x55a231[_0x393218(0x229)],
+      _0x56ab5a,
+      _0x2784b7
+    )),
+      (_0x2c0c56[_0x393218(0x285)] = _0x393218(0x201));
+    const _0x2cf45c = {
+        mercado: _0x3e8078,
+        liga: _0x1ec7d9,
+        martingale: _0x5c2887 || _0x393218(0x1d9),
+        periodo: _0x43f222 + _0x393218(0x1fa),
+        observacao: _0xecf544,
+        imagem: _0x5c9c77 ? !![] : ![],
+      },
+      _0x2b5c46 = await analisarComGemini(_0x55a231, _0x2cf45c);
+    (_0x2c0c56["innerHTML"] =
+      _0x393218(0x1e4) +
+      casasConfig[_0x127eb6][_0x393218(0x21d)] +
+      "\x20(" +
+      _0x1ec7d9 +
+      ")"),
+      (_0x597d86[_0x393218(0x227)] = _0x2b5c46),
+      _0x32d6c7[_0x393218(0x271)]++,
+      (_0x32d6c7[_0x393218(0x1ce)] = _0x94b3ad["toISOString"]()),
+      localStorage["setItem"](
+        _0x393218(0x206),
+        JSON[_0x393218(0x22d)](_0x32d6c7)
+      );
+  } catch (_0x7a9eac) {
+    console[_0x393218(0x262)](_0x393218(0x247), _0x7a9eac),
+      (_0x2c0c56[_0x393218(0x285)] = _0x393218(0x23c)),
+      (_0x597d86[_0x393218(0x285)] =
+        _0x393218(0x24b) + _0x7a9eac["message"] + _0x393218(0x22c));
+  } finally {
+    (_0x21f3c7[_0x393218(0x1e9)] = ![]),
+      (_0x21f3c7[_0x393218(0x285)] = _0x393218(0x25b));
+  }
+}
+document[_0x865f24(0x267)](_0x865f24(0x1df))[_0x865f24(0x212)](
+  _0x865f24(0x1fc),
+  function (_0x5193f7) {
+    const _0x22e37a = _0x865f24,
+      _0x52e2b3 = _0x5193f7["target"][_0x22e37a(0x236)][0x0],
+      _0xbf1842 = document["getElementById"](_0x22e37a(0x205)),
+      _0x3f9a9e = document["getElementById"](_0x22e37a(0x1c9));
+    if (_0x52e2b3) {
+      const _0x35e692 = new FileReader();
+      (_0x35e692[_0x22e37a(0x242)] = function (_0xd1813d) {
+        const _0x13329a = _0x22e37a;
+        (_0xbf1842[_0x13329a(0x1db)] = _0xd1813d["target"][_0x13329a(0x20c)]),
+          (_0xbf1842[_0x13329a(0x1ff)]["display"] = "block");
+      }),
+        _0x35e692[_0x22e37a(0x25d)](_0x52e2b3),
+        (_0x3f9a9e[_0x22e37a(0x227)] = _0x52e2b3[_0x22e37a(0x21d)]);
+    } else
+      (_0xbf1842[_0x22e37a(0x1ff)][_0x22e37a(0x1de)] = _0x22e37a(0x22e)),
+        (_0x3f9a9e["textContent"] = _0x22e37a(0x24f));
+  }
+);

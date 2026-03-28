@@ -1,1 +1,219 @@
-const a0_0x44d65e=a0_0x46be;function a0_0x46be(_0x2e56ec,_0x1e19c5){_0x2e56ec=_0x2e56ec-0x156;const _0x413fde=a0_0x43bc();let _0x4856f5=_0x413fde[_0x2e56ec];if(a0_0x46be['GcuOJK']===undefined){var _0xb44684=function(_0x1d88e3){const _0x3fa6ad='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x7ee7ec='',_0xecdf10='',_0x52165d=_0x7ee7ec+_0xb44684;for(let _0x3586eb=0x0,_0x5d4315,_0x156190,_0x249014=0x0;_0x156190=_0x1d88e3['charAt'](_0x249014++);~_0x156190&&(_0x5d4315=_0x3586eb%0x4?_0x5d4315*0x40+_0x156190:_0x156190,_0x3586eb++%0x4)?_0x7ee7ec+=_0x52165d['charCodeAt'](_0x249014+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x5d4315>>(-0x2*_0x3586eb&0x6)):_0x3586eb:0x0){_0x156190=_0x3fa6ad['indexOf'](_0x156190);}for(let _0x4dbe97=0x0,_0x23f6f1=_0x7ee7ec['length'];_0x4dbe97<_0x23f6f1;_0x4dbe97++){_0xecdf10+='%'+('00'+_0x7ee7ec['charCodeAt'](_0x4dbe97)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0xecdf10);};a0_0x46be['TTRWni']=_0xb44684,a0_0x46be['xjTkpD']={},a0_0x46be['GcuOJK']=!![];}const _0x43bcd8=_0x413fde[0x0],_0x46be30=_0x2e56ec+_0x43bcd8,_0x6e2783=a0_0x46be['xjTkpD'][_0x46be30];if(!_0x6e2783){const _0x1740af=function(_0x10d873){this['ZZZbon']=_0x10d873,this['tYFdBA']=[0x1,0x0,0x0],this['cijScA']=function(){return'newState';},this['jeYVSV']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['ydFCHQ']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x1740af['prototype']['TjAkHk']=function(){const _0x47b351=new RegExp(this['jeYVSV']+this['ydFCHQ']),_0x1b3d83=_0x47b351['test'](this['cijScA']['toString']())?--this['tYFdBA'][0x1]:--this['tYFdBA'][0x0];return this['jypNkp'](_0x1b3d83);},_0x1740af['prototype']['jypNkp']=function(_0x352460){if(!Boolean(~_0x352460))return _0x352460;return this['rjXcvE'](this['ZZZbon']);},_0x1740af['prototype']['rjXcvE']=function(_0x1d5cd6){for(let _0x1ea131=0x0,_0x135469=this['tYFdBA']['length'];_0x1ea131<_0x135469;_0x1ea131++){this['tYFdBA']['push'](Math['round'](Math['random']())),_0x135469=this['tYFdBA']['length'];}return _0x1d5cd6(this['tYFdBA'][0x0]);},new _0x1740af(a0_0x46be)['TjAkHk'](),_0x4856f5=a0_0x46be['TTRWni'](_0x4856f5),a0_0x46be['xjTkpD'][_0x46be30]=_0x4856f5;}else _0x4856f5=_0x6e2783;return _0x4856f5;}(function(_0x3576b3,_0x815f2b){const _0x4480d5=a0_0x46be,_0x49cb94=_0x3576b3();while(!![]){try{const _0x5d2b3f=-parseInt(_0x4480d5(0x16a))/0x1+-parseInt(_0x4480d5(0x180))/0x2+parseInt(_0x4480d5(0x177))/0x3*(-parseInt(_0x4480d5(0x16f))/0x4)+parseInt(_0x4480d5(0x172))/0x5*(-parseInt(_0x4480d5(0x179))/0x6)+-parseInt(_0x4480d5(0x15e))/0x7*(-parseInt(_0x4480d5(0x183))/0x8)+parseInt(_0x4480d5(0x159))/0x9+parseInt(_0x4480d5(0x162))/0xa*(parseInt(_0x4480d5(0x15d))/0xb);if(_0x5d2b3f===_0x815f2b)break;else _0x49cb94['push'](_0x49cb94['shift']());}catch(_0x487e4d){_0x49cb94['push'](_0x49cb94['shift']());}}}(a0_0x43bc,0x37510));const a0_0xb44684=(function(){let _0x3586eb=!![];return function(_0x5d4315,_0x156190){const _0x249014=_0x3586eb?function(){const _0x415a0d=a0_0x46be;if(_0x156190){const _0x4dbe97=_0x156190[_0x415a0d(0x16e)](_0x5d4315,arguments);return _0x156190=null,_0x4dbe97;}}:function(){};return _0x3586eb=![],_0x249014;};}()),a0_0x4856f5=a0_0xb44684(this,function(){const _0x7a5e4d=a0_0x46be;return a0_0x4856f5[_0x7a5e4d(0x171)]()[_0x7a5e4d(0x167)]('(((.+)+)+)+$')[_0x7a5e4d(0x171)]()['constructor'](a0_0x4856f5)[_0x7a5e4d(0x167)]('(((.+)+)+)+$');});a0_0x4856f5();const excludedSelectors=[a0_0x44d65e(0x189),a0_0x44d65e(0x187),a0_0x44d65e(0x168),a0_0x44d65e(0x17a),a0_0x44d65e(0x176)],ACCORDION_KEYS={'Gráfico\x20Gols':a0_0x44d65e(0x17e),'Gráfico\x20MACD/RSI':a0_0x44d65e(0x156),'Gráfico\x20Mercados':a0_0x44d65e(0x15f)};function getAccordionKey(_0x23f6f1){const _0x3b7ae2=a0_0x44d65e,_0x1740af=_0x23f6f1[_0x3b7ae2(0x169)]||'';for(const [_0x10d873,_0x47b351]of Object[_0x3b7ae2(0x161)](ACCORDION_KEYS)){if(_0x1740af[_0x3b7ae2(0x182)](_0x10d873))return _0x47b351;}return null;}function isTargetAccordion(_0x1b3d83){return getAccordionKey(_0x1b3d83)!==null;}function getParentAccordionBtn(_0x352460){const _0x147a0c=a0_0x44d65e;return _0x352460['closest'](_0x147a0c(0x186))?.['previousElementSibling']??null;}function toggleAccordion(_0x1d5cd6){const _0x303fd9=a0_0x44d65e,_0x1ea131=_0x1d5cd6[_0x303fd9(0x163)];_0x1ea131['style'][_0x303fd9(0x18f)]===_0x303fd9(0x181)||_0x1ea131[_0x303fd9(0x16b)][_0x303fd9(0x18f)]===''?(_0x1ea131[_0x303fd9(0x16b)]['display']=_0x303fd9(0x164),_0x1d5cd6[_0x303fd9(0x169)]=_0x1d5cd6[_0x303fd9(0x169)][_0x303fd9(0x18c)]('▼','▲')):(_0x1ea131[_0x303fd9(0x16b)][_0x303fd9(0x18f)]=_0x303fd9(0x181),_0x1d5cd6[_0x303fd9(0x169)]=_0x1d5cd6[_0x303fd9(0x169)][_0x303fd9(0x18c)]('▲','▼'));if(!isTargetAccordion(_0x1d5cd6))return;saveAccordionState(_0x1d5cd6),_0x1ea131[_0x303fd9(0x165)]('select,\x20input[type=\x27checkbox\x27],\x20input[type=\x27number\x27]')[_0x303fd9(0x166)](_0x135469=>{if(!excludedSelectors['includes'](_0x135469['id']))saveSelection(_0x135469['id']);});}function saveAccordionState(_0x558a04){const _0x185f09=a0_0x44d65e,_0x284e8e=getAccordionKey(_0x558a04);if(!_0x284e8e)return;const _0x1b6f38=_0x558a04[_0x185f09(0x163)]?.[_0x185f09(0x16b)]['display']!==_0x185f09(0x181);localStorage[_0x185f09(0x18d)](_0x284e8e,_0x1b6f38);}function restoreAccordionState(){document['querySelectorAll']('.accordion-button')['forEach'](_0x58ea84=>{const _0x72a00b=a0_0x46be,_0x3eac53=getAccordionKey(_0x58ea84);if(!_0x3eac53)return;const _0x1b4da1=localStorage[_0x72a00b(0x175)](_0x3eac53);if(_0x1b4da1===null)return;const _0x2895cd=_0x58ea84[_0x72a00b(0x163)];if(!_0x2895cd)return;_0x1b4da1==='true'?(_0x2895cd[_0x72a00b(0x16b)][_0x72a00b(0x18f)]='block',_0x58ea84[_0x72a00b(0x169)]=_0x58ea84[_0x72a00b(0x169)][_0x72a00b(0x18c)]('▼','▲')):(_0x2895cd[_0x72a00b(0x16b)][_0x72a00b(0x18f)]=_0x72a00b(0x181),_0x58ea84[_0x72a00b(0x169)]=_0x58ea84[_0x72a00b(0x169)]['replace']('▲','▼'));});}function saveSelection(_0x19754d){const _0xe1c009=a0_0x44d65e,_0x3a54d0=document[_0xe1c009(0x157)](_0x19754d);if(!_0x3a54d0||excludedSelectors['includes'](_0x19754d)||!_0x19754d)return;_0x3a54d0['type']===_0xe1c009(0x17d)?localStorage['setItem'](_0x19754d,_0x3a54d0['checked']):localStorage[_0xe1c009(0x18d)](_0x19754d,_0x3a54d0[_0xe1c009(0x15c)]);}function a0_0x43bc(){const _0x458975=['ntjdueXVq3m','DgfNtMfTzq','Dg9tDhjPBMC','mJi1mdGWnvLHruLUvG','zgLZCgf0y2HfDMvUDa','C2f2zvnLBgvJDgLVBIGN','z2v0sxrLBq','CMvKzxm','ndiZmdzuEwjbyKi','B25JBgLJAW','nKHurNLxDq','yxzHBMnHzg8TyMv0mZy1','Aw5WDxrBDhLWzt0Ny2HLy2TIB3GNxq','re9nq29UDgvUDeXVywrLza','y2HLy2TIB3G','ywnJB3jKAw9Ux2DYywzPy29Fz29SCW','C2vSzwn0lcbPBNb1DfT0ExbLpsDJAgvJA2jVEcDDlcbPBNb1DfT0ExbLpsDUDw1IzxiNxq','ndCXntC0BeHqy0TL','BM9Uzq','Aw5JBhvKzxm','mtm2B1bXAxnR','z2v0qxr0CMLIDxrL','B25JAgfUz2u','lMfJy29YzgLVBI1JB250zw50','yxzHBMnHzg8TyMv0yw5V','lMfJy29YzgLVBI1IDxr0B24','BgLNyxm','jYK7ia','AgfZqxr0CMLIDxrL','CMvWBgfJzq','C2v0sxrLBq','DMfSDwvZ','zgLZCgXHEq','ywnJB3jKAw9Ux2DYywzPy29FBwfJza','z2v0rwXLBwvUDej5swq','C2v0qxr0CMLIDxrL','mtGWote0nhzwrerSAW','C2vSzwn0','CMvTB3zLsxrLBq','DMfSDwu','otC4odGWmufbEgzNBa','mtaWnteZD2LnD0j4','ywnJB3jKAw9Ux2DYywzPy29FBwvYy2fKB3m','y2HHBMDL','zw50CMLLCW','mtbLD29eAuu','BMv4DevSzw1LBNrtAwjSAw5N','yMXVy2S','CxvLCNLtzwXLy3rVCKfSBa','zM9YrwfJAa','C2vHCMnO','BgLNyxmZnJu','Dgv4DenVBNrLBNq','mJm5mtyWD2TNC0n4','C3r5Bgu','Aw5WDxrBDhLWzt0NBNvTyMvYj10','ywrKrxzLBNrmAxn0zw5LCG','yxbWBhK'];a0_0x43bc=function(){return _0x458975;};return a0_0x43bc();}function restoreSelections(){const _0x29eb15=a0_0x44d65e;document[_0x29eb15(0x165)](_0x29eb15(0x15a))['forEach'](_0x58ab86=>{const _0x2562d7=_0x29eb15;if(excludedSelectors[_0x2562d7(0x182)](_0x58ab86['id']))return;const _0x6b2641=localStorage[_0x2562d7(0x175)](_0x58ab86['id']);if(_0x6b2641===null)return;_0x58ab86[_0x2562d7(0x15c)]=_0x6b2641,_0x58ab86[_0x2562d7(0x173)](new Event(_0x2562d7(0x160),{'bubbles':!![]}));if(_0x58ab86[_0x2562d7(0x185)])_0x58ab86[_0x2562d7(0x185)]();}),document[_0x29eb15(0x165)](_0x29eb15(0x17b))[_0x29eb15(0x166)](_0x65a835=>{const _0x137ca7=_0x29eb15;if(excludedSelectors[_0x137ca7(0x182)](_0x65a835['id']))return;const _0x183548=localStorage[_0x137ca7(0x175)](_0x65a835['id']);if(_0x183548===null)return;_0x65a835['checked']=_0x183548==='true',_0x65a835[_0x137ca7(0x173)](new Event(_0x137ca7(0x160),{'bubbles':!![]}));if(_0x65a835[_0x137ca7(0x185)])_0x65a835[_0x137ca7(0x185)]();}),document[_0x29eb15(0x165)](_0x29eb15(0x16c))['forEach'](_0x5229fc=>{const _0x4fb8b6=_0x29eb15;if(excludedSelectors[_0x4fb8b6(0x182)](_0x5229fc['id']))return;const _0x33c3cf=localStorage[_0x4fb8b6(0x175)](_0x5229fc['id']);if(_0x33c3cf===null)return;_0x5229fc[_0x4fb8b6(0x15c)]=_0x33c3cf,_0x5229fc[_0x4fb8b6(0x173)](new Event(_0x4fb8b6(0x160),{'bubbles':!![]}));if(_0x5229fc['onchange'])_0x5229fc[_0x4fb8b6(0x185)]();});}function setupSelectors(){const _0x465082=a0_0x44d65e,_0x185ede=_0x465082(0x17f);document['querySelectorAll'](_0x185ede)[_0x465082(0x166)](_0x5ac1a2=>{const _0x23b75a=_0x465082;if(excludedSelectors[_0x23b75a(0x182)](_0x5ac1a2['id']))return;const _0xaa357e=getParentAccordionBtn(_0x5ac1a2),_0x21f03d=_0xaa357e&&isTargetAccordion(_0xaa357e);if(_0xaa357e&&!_0x21f03d)return;if(_0x5ac1a2[_0x23b75a(0x170)]==='SELECT'&&_0x5ac1a2[_0x23b75a(0x18b)]('onclick')&&_0x5ac1a2[_0x23b75a(0x184)](_0x23b75a(0x178))[_0x23b75a(0x182)]('redirecionar')){const _0x208549=_0x5ac1a2[_0x23b75a(0x184)]('onclick');_0x5ac1a2[_0x23b75a(0x158)](_0x23b75a(0x178),_0x23b75a(0x174)+_0x5ac1a2['id']+_0x23b75a(0x18a)+_0x208549);return;}_0x5ac1a2[_0x23b75a(0x16d)](_0x23b75a(0x160),()=>{saveSelection(_0x5ac1a2['id']);if(_0x21f03d)saveAccordionState(_0xaa357e);});});}function saveAllSelections(){const _0x24eb42=a0_0x44d65e,_0x1c9652=_0x24eb42(0x17f);document['querySelectorAll'](_0x1c9652)[_0x24eb42(0x166)](_0xf9154b=>{if(excludedSelectors['includes'](_0xf9154b['id'])||!_0xf9154b['id'])return;const _0x267304=getParentAccordionBtn(_0xf9154b),_0x562683=!_0x267304||isTargetAccordion(_0x267304);if(_0x562683)saveSelection(_0xf9154b['id']);}),document['querySelectorAll'](_0x24eb42(0x188))[_0x24eb42(0x166)](_0x2d30ee=>{saveAccordionState(_0x2d30ee);});}function clearSavedData(){const _0x4bb524=a0_0x44d65e,_0x38452f='select,\x20input[type=\x27checkbox\x27],\x20input[type=\x27number\x27]';document[_0x4bb524(0x165)](_0x38452f)[_0x4bb524(0x166)](_0x55bc3f=>{const _0x1de52a=_0x4bb524;if(!excludedSelectors[_0x1de52a(0x182)](_0x55bc3f['id'])&&_0x55bc3f['id'])localStorage[_0x1de52a(0x15b)](_0x55bc3f['id']);}),Object[_0x4bb524(0x18e)](ACCORDION_KEYS)[_0x4bb524(0x166)](_0x22744f=>localStorage[_0x4bb524(0x15b)](_0x22744f));}window[a0_0x44d65e(0x16d)](a0_0x44d65e(0x17c),()=>{restoreAccordionState(),setTimeout(()=>{restoreSelections(),setupSelectors();},0x64);}),window[a0_0x44d65e(0x16d)]('beforeunload',saveAllSelections);
+// ═══════════════════════════════════════════════════════
+//  SELETORES EXCLUÍDOS DO SAVE
+// ═══════════════════════════════════════════════════════
+const excludedSelectors = [
+    "ligas",
+    "avancado-betano",
+    "ligas365",
+    "avancado-bet365",
+    "redes"
+];
+
+// ═══════════════════════════════════════════════════════
+//  ACORDEONS GERENCIADOS
+//  Chave localStorage ← trecho do texto do botão
+//  Ajuste aqui se renomear algum acordeon
+// ═══════════════════════════════════════════════════════
+const ACCORDION_KEYS = {
+    "Gráfico Gols":      "accordion_grafico_gols",
+    "Gráfico MACD/RSI":  "accordion_grafico_macd",
+    "Gráfico Mercados": "accordion_grafico_mercados"
+};
+
+// ─── helpers ───────────────────────────────────────────
+function getAccordionKey(btn) {
+    const text = btn.textContent || "";
+    for (const [label, key] of Object.entries(ACCORDION_KEYS)) {
+        if (text.includes(label)) return key;
+    }
+    return null;
+}
+
+function isTargetAccordion(btn) {
+    return getAccordionKey(btn) !== null;
+}
+
+// Retorna o botão-acordeon pai de um elemento (ou null)
+function getParentAccordionBtn(el) {
+    return el.closest(".accordion-content")?.previousElementSibling ?? null;
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOGGLE — abre/fecha e persiste estado
+// ═══════════════════════════════════════════════════════
+function toggleAccordion(btn) {
+    const content = btn.nextElementSibling;
+
+    if (content.style.display === "none" || content.style.display === "") {
+        content.style.display = "block";
+        btn.textContent = btn.textContent.replace("▼", "▲");
+    } else {
+        content.style.display = "none";
+        btn.textContent = btn.textContent.replace("▲", "▼");
+    }
+
+    if (!isTargetAccordion(btn)) return;
+
+    saveAccordionState(btn);
+
+    // Persiste todos os controles do acordeon ao abrir/fechar
+    content.querySelectorAll("select, input[type='checkbox'], input[type='number']")
+        .forEach(el => { if (!excludedSelectors.includes(el.id)) saveSelection(el.id); });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SAVE / RESTORE — estado aberto/fechado dos acordeons
+// ═══════════════════════════════════════════════════════
+function saveAccordionState(btn) {
+    const key = getAccordionKey(btn);
+    if (!key) return;
+    const isOpen = btn.nextElementSibling?.style.display !== "none";
+    localStorage.setItem(key, isOpen);
+}
+
+function restoreAccordionState() {
+    document.querySelectorAll(".accordion-button").forEach(btn => {
+        const key = getAccordionKey(btn);
+        if (!key) return;
+
+        const saved = localStorage.getItem(key);
+        if (saved === null) return;
+
+        const content = btn.nextElementSibling;
+        if (!content) return;
+
+        if (saved === "true") {
+            content.style.display = "block";
+            btn.textContent = btn.textContent.replace("▼", "▲");
+        } else {
+            content.style.display = "none";
+            btn.textContent = btn.textContent.replace("▲", "▼");
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SAVE / RESTORE — valores de controles individuais
+//  Suporta: select | checkbox | number input
+// ═══════════════════════════════════════════════════════
+function saveSelection(id) {
+    const el = document.getElementById(id);
+    if (!el || excludedSelectors.includes(id) || !id) return;
+
+    if (el.type === "checkbox") {
+        localStorage.setItem(id, el.checked);
+    } else {
+        // select e input[type=number] tratados igual
+        localStorage.setItem(id, el.value);
+    }
+}
+
+function restoreSelections() {
+    // selects
+    document.querySelectorAll("select").forEach(sel => {
+        if (excludedSelectors.includes(sel.id)) return;
+        const saved = localStorage.getItem(sel.id);
+        if (saved === null) return;
+        sel.value = saved;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+        if (sel.onchange) sel.onchange();
+    });
+
+    // checkboxes
+    document.querySelectorAll("input[type='checkbox']").forEach(cb => {
+        if (excludedSelectors.includes(cb.id)) return;
+        const saved = localStorage.getItem(cb.id);
+        if (saved === null) return;
+        cb.checked = saved === "true";
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+        if (cb.onchange) cb.onchange();
+    });
+
+    // number inputs (MACD, RSI, etc.)
+    document.querySelectorAll("input[type='number']").forEach(inp => {
+        if (excludedSelectors.includes(inp.id)) return;
+        const saved = localStorage.getItem(inp.id);
+        if (saved === null) return;
+        inp.value = saved;
+        inp.dispatchEvent(new Event("change", { bubbles: true }));
+        if (inp.onchange) inp.onchange();
+    });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SETUP — listeners automáticos em todos os controles
+//  dos 3 acordeons alvo
+// ═══════════════════════════════════════════════════════
+function setupSelectors() {
+    const selector = "select, input[type='checkbox'], input[type='number']";
+
+    document.querySelectorAll(selector).forEach(el => {
+        if (excludedSelectors.includes(el.id)) return;
+
+        const accordionBtn = getParentAccordionBtn(el);
+        const inTarget     = accordionBtn && isTargetAccordion(accordionBtn);
+
+        // Ignora controles que estão em acordeons NÃO gerenciados
+        if (accordionBtn && !inTarget) return;
+
+        // Selects com redirecionamento: salva antes de navegar
+        if (
+            el.tagName === "SELECT" &&
+            el.hasAttribute("onclick") &&
+            el.getAttribute("onclick").includes("redirecionar")
+        ) {
+            const orig = el.getAttribute("onclick");
+            el.setAttribute("onclick", `saveSelection('${el.id}'); ${orig}`);
+            return;
+        }
+
+        // Evento padrão para todos os outros controles
+        el.addEventListener("change", () => {
+            saveSelection(el.id);
+            if (inTarget) saveAccordionState(accordionBtn);
+        });
+    });
+}
+
+// ═══════════════════════════════════════════════════════
+//  SAVE ALL — snapshot completo antes de fechar a aba
+// ═══════════════════════════════════════════════════════
+function saveAllSelections() {
+    const selector = "select, input[type='checkbox'], input[type='number']";
+
+    document.querySelectorAll(selector).forEach(el => {
+        if (excludedSelectors.includes(el.id) || !el.id) return;
+        const btn      = getParentAccordionBtn(el);
+        const inTarget = !btn || isTargetAccordion(btn);
+        if (inTarget) saveSelection(el.id);
+    });
+
+    document.querySelectorAll(".accordion-button").forEach(btn => {
+        saveAccordionState(btn); // salva apenas os que têm chave definida
+    });
+}
+
+// ═══════════════════════════════════════════════════════
+//  CLEAR — limpa localStorage (debug / reset)
+// ═══════════════════════════════════════════════════════
+function clearSavedData() {
+    const selector = "select, input[type='checkbox'], input[type='number']";
+    document.querySelectorAll(selector).forEach(el => {
+        if (!excludedSelectors.includes(el.id) && el.id) localStorage.removeItem(el.id);
+    });
+    Object.values(ACCORDION_KEYS).forEach(key => localStorage.removeItem(key));
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener("DOMContentLoaded", () => {
+    restoreAccordionState();
+    setTimeout(() => {
+        restoreSelections();
+        setupSelectors();
+    }, 100);
+});
+
+window.addEventListener("beforeunload", saveAllSelections);
+
