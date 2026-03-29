@@ -190,12 +190,12 @@
   <div class="accordion-content" style="display:none;">
  
     <!-- Topbar: Periodo + Mercado -->
-    <div id="ppTopbar" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07);">
-      <span style="font-size:10px;font-weight:700;color:#7a9e8a;text-transform:uppercase;letter-spacing:.6px;">Periodo:</span>
+    <div id="ppTopbar" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding:8px 0;border-bottom:1px solid var(--pp-line,#2e3a47);">
+      <span class="pp-topbar-label">Periodo:</span>
       <div id="ppHoursBtns" style="display:inline-flex;gap:4px;"></div>
       <div style="width:1px;height:18px;background:rgba(255,255,255,.1);margin:0 4px;"></div>
-      <span style="font-size:10px;font-weight:700;color:#7a9e8a;text-transform:uppercase;letter-spacing:.6px;">Mercado:</span>
-      <select id="ppMarketSelector" style="background:#111820;color:#e8f0f8;border:1px solid #2e3a47;border-radius:6px;padding:4px 10px;font-size:12px;outline:none;min-width:190px;">
+      <span class="pp-topbar-label">Mercado:</span>
+      <select id="ppMarketSelector" class="pp-select">
         <optgroup label="Ambas Marcam">
           <option value="ambasMarcam" selected>Ambas Marcam Sim</option>
           <option value="ambasNaoMarcam">Ambas Marcam Nao</option>
@@ -250,14 +250,14 @@
     </div>
  
     <!-- Proximos confrontos -->
-    <p style="font-size:10px;font-weight:700;color:#7a9e8a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Proximos confrontos</p>
+    <p class="pp-section-title">Proximos confrontos</p>
     <div id="ppGamesContainer" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <span style="color:#4b5563;font-size:12px;padding:8px 0;">Carregando...</span>
+      <span style="color:var(--pp-muted,#7a92a8);font-size:12px;padding:8px 0;">Carregando...</span>
     </div>
  
     <!-- Analise (injetada ao clicar) -->
     <div id="ppAnalysisWrap">
-      <span style="color:#4b5563;font-size:12px;">Selecione um confronto acima para gerar a analise.</span>
+      <span class="pp-placeholder">Selecione um confronto acima para gerar a analise.</span>
     </div>
  
   </div><!-- /accordion-content -->
@@ -7222,31 +7222,399 @@ window.addEventListener("load", async () => {
   <script>
 (function () {
  
+  /* ══════════════════════════════════════════════════
+     CSS INJETADO — estilo identico ao Preditor
+  ══════════════════════════════════════════════════ */
+  (function ppInjectCSS(){
+    if(document.getElementById('pp-styles')) return;
+    const s = document.createElement('style');
+    s.id = 'pp-styles';
+    s.textContent = `
+      /* ── Variaveis (herda do host se ja existirem) ── */
+      :root {
+        --pp-bg:      #181d24;
+        --pp-panel:   #1e2530;
+        --pp-panel2:  #151b22;
+        --pp-line:    #2e3a47;
+        --pp-text:    #e8f0f8;
+        --pp-muted:   #7a92a8;
+        --pp-blue:    #4d78ff;
+        --pp-green:   #22c983;
+        --pp-yellow:  #f4be4d;
+        --pp-red:     #ef6262;
+        --pp-purple:  #a78bfa;
+      }
+ 
+      /* ── Utilitarios de texto ── */
+      .pp-topbar-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--pp-muted);
+        text-transform: uppercase;
+        letter-spacing: .6px;
+      }
+      .pp-section-title {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--pp-muted);
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 6px;
+      }
+      .pp-placeholder {
+        color: var(--pp-muted);
+        font-size: 13px;
+        line-height: 1.6;
+        padding: 8px 0;
+      }
+ 
+      /* ── Select (identico ao preditor) ── */
+      .pp-select {
+        background: var(--pp-panel2);
+        color: var(--pp-text);
+        border: 1px solid var(--pp-line);
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 13px;
+        outline: none;
+        cursor: pointer;
+        transition: border-color .15s, background .15s;
+        min-width: 200px;
+      }
+      .pp-select:focus { border-color: var(--pp-blue); }
+      .pp-select option[disabled] { color: #555; font-style: italic; }
+ 
+      /* ── Botoes de periodo ── */
+      .pp-period-btn {
+        padding: 5px 11px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 6px;
+        border: 1px solid var(--pp-line);
+        background: var(--pp-panel2);
+        color: var(--pp-muted);
+        cursor: pointer;
+        transition: all .15s;
+        letter-spacing: .3px;
+      }
+      .pp-period-btn:hover { background: #252f3c; border-color: #4d6080; }
+      .pp-period-btn.pp-period-on {
+        background: rgba(77,120,255,.15);
+        color: var(--pp-blue);
+        border-color: var(--pp-blue);
+      }
+ 
+      /* ── Cards de jogo ── */
+      .pp-games { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+      .pp-gc {
+        flex: 1 1 155px;
+        min-width: 145px;
+        background: var(--pp-panel);
+        border: 1px solid var(--pp-line);
+        border-radius: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+        transition: border-color .15s, background .15s;
+        text-align: center;
+      }
+      .pp-gc:hover { border-color: #4d6080; background: #252f3c; }
+      .pp-gc.pp-sel { border-color: var(--pp-blue); background: rgba(77,120,255,.1); }
+      .pp-gt { font-size: 10px; color: var(--pp-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .3px; }
+      .pp-gteams {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--pp-text);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        justify-content: center;
+      }
+      .pp-vs { font-size: 10px; color: var(--pp-muted); font-weight: 400; }
+ 
+      /* ── Grid principal 3 colunas ── */
+      .pp-panel-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+      }
+      @media(max-width:800px) { .pp-panel-grid { grid-template-columns: 1fr; } }
+ 
+      /* ── Card base (herda .panel do preditor) ── */
+      .pp-card {
+        background: var(--pp-panel);
+        border: 1px solid var(--pp-line);
+        border-radius: 12px;
+        padding: 14px;
+      }
+      .pp-ctitle {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        color: var(--pp-muted);
+        margin-bottom: 8px;
+      }
+ 
+      /* ── Tabs modo (Casa / Fora / Ambos) ── */
+      .pp-mtabs { display: flex; gap: 5px; margin-bottom: 10px; }
+      .pp-mtab {
+        padding: 4px 10px;
+        font-size: 10px;
+        font-weight: 700;
+        border-radius: 6px;
+        border: 1px solid var(--pp-line);
+        background: var(--pp-panel2);
+        color: var(--pp-muted);
+        cursor: pointer;
+        transition: all .15s;
+      }
+      .pp-mtab:hover { background: #252f3c; border-color: #4d6080; }
+      .pp-mtab.pp-mton {
+        background: rgba(77,120,255,.15);
+        color: var(--pp-blue);
+        border-color: var(--pp-blue);
+      }
+ 
+      /* ── Aproveitamento ── */
+      .pp-apr { font-size: 26px; font-weight: 700; color: var(--pp-text); line-height: 1; }
+      .pp-aprlbl { font-size: 11px; color: var(--pp-muted); margin-top: 2px; margin-bottom: 8px; }
+ 
+      /* ── Barras VED ── */
+      .pp-prow { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+      .pp-plbl { font-size: 11px; font-weight: 700; width: 12px; text-align: center; }
+      .pp-ptrack { flex: 1; height: 5px; border-radius: 999px; background: #2a3540; overflow: hidden; }
+      .pp-pfill  { height: 100%; border-radius: 999px; transition: width .3s; }
+      .pp-pval   { font-size: 11px; color: var(--pp-muted); width: 20px; text-align: right; }
+ 
+      /* ── Mini grid stats ── */
+      .pp-mgrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+        margin-top: 10px;
+      }
+      .pp-ms {
+        background: var(--pp-panel2);
+        border: 1px solid var(--pp-line);
+        border-radius: 8px;
+        padding: 6px 10px;
+      }
+      .pp-msl { font-size: 10px; color: var(--pp-muted); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 2px; }
+      .pp-msv { font-size: 13px; font-weight: 700; color: var(--pp-text); }
+ 
+      /* ── Forma ── */
+      .pp-forma { display: flex; gap: 4px; margin-top: 10px; }
+      .pp-fp {
+        width: 22px; height: 22px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 9px; font-weight: 700;
+      }
+      .pp-fV { background: rgba(34,201,131,.15); color: var(--pp-green); }
+      .pp-fE { background: rgba(244,190,77,.15);  color: var(--pp-yellow); }
+      .pp-fD { background: rgba(239,98,98,.15);   color: var(--pp-red); }
+ 
+      /* ── H2H trio ── */
+      .pp-triolbls { display: flex; justify-content: space-between; margin-bottom: 5px; }
+      .pp-tlbl { font-size: 11px; color: var(--pp-muted); }
+      .pp-tlbl b { color: var(--pp-text); font-weight: 700; }
+      .pp-triobar { display: flex; border-radius: 4px; overflow: hidden; height: 5px; margin-bottom: 12px; }
+      .pp-tseg { transition: flex .4s; }
+ 
+      /* ── Media gols ── */
+      .pp-avg { text-align: center; margin-bottom: 10px; }
+      .pp-avgn { font-size: 22px; font-weight: 700; color: var(--pp-text); line-height: 1; }
+      .pp-avgl { font-size: 10px; color: var(--pp-muted); margin-top: 2px; text-transform: uppercase; letter-spacing: .3px; }
+ 
+      /* ── Divider ── */
+      .pp-div { height: 1px; background: var(--pp-line); margin: 8px 0; }
+ 
+      /* ── Linhas H2H ── */
+      .pp-mrow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+      .pp-mlbl { font-size: 12px; color: var(--pp-muted); }
+      .pp-mchips { display: flex; gap: 4px; }
+      .pp-chip {
+        font-size: 10px; font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid;
+      }
+      .pp-chi { border-color: rgba(34,201,131,.35); color: var(--pp-green); background: rgba(34,201,131,.08); }
+      .pp-clo { border-color: var(--pp-line); color: var(--pp-muted); background: transparent; }
+ 
+      /* ══ ANALISE (grid-column full) ══ */
+      .pp-analise {
+        grid-column: 1 / -1;
+        background: var(--pp-panel);
+        border: 1px solid var(--pp-line);
+        border-radius: 12px;
+        padding: 16px;
+      }
+ 
+      /* toprow analise */
+      .pp-atoprow {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--pp-line);
+      }
+      .pp-atitle {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--pp-muted);
+        margin-bottom: 2px;
+      }
+      .pp-aheader { font-size: 16px; font-weight: 700; color: var(--pp-text); line-height: 1.2; }
+      .pp-atime   { font-size: 11px; color: var(--pp-muted); margin-top: 2px; }
+ 
+      /* odds */
+      .pp-aodds { display: flex; gap: 5px; flex-wrap: wrap; }
+      .pp-aodd {
+        background: var(--pp-panel2);
+        border: 1px solid var(--pp-line);
+        border-radius: 8px;
+        padding: 5px 12px;
+        text-align: center;
+      }
+      .pp-aol { font-size: 9px; color: var(--pp-muted); display: block; text-transform: uppercase; letter-spacing: .3px; }
+      .pp-aov { font-size: 14px; font-weight: 700; color: var(--pp-text); display: block; }
+ 
+      /* lambda strip */
+      .pp-lstrip { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+      .pp-lmb {
+        flex: 1 1 70px;
+        background: var(--pp-panel2);
+        border: 1px solid var(--pp-line);
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+      }
+      .pp-lmbv { font-size: 18px; font-weight: 700; line-height: 1; }
+      .pp-lmbl { font-size: 10px; color: var(--pp-muted); text-transform: uppercase; letter-spacing: .3px; margin-top: 3px; }
+ 
+      /* mercado destaque (market-result do preditor) */
+      .pp-mkthigh {
+        background: var(--pp-panel2);
+        border: 1px solid var(--pp-line);
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+      }
+      .pp-mkthname {
+        font-size: 11px; font-weight: 700;
+        color: var(--pp-muted);
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 10px;
+      }
+      .pp-mkthprob { font-size: 32px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+      .pp-mkthsub  { font-size: 12px; color: var(--pp-muted); margin-bottom: 10px; }
+      .pp-mktbar   { height: 6px; border-radius: 999px; background: #2a3540; overflow: hidden; margin-bottom: 8px; }
+      .pp-mktfill  { height: 100%; border-radius: 999px; transition: width .4s; }
+ 
+      /* badge leitura (identico ao preditor) */
+      .pp-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .pp-bforte { background: rgba(34,201,131,.15); color: #8ff5cc; }
+      .pp-bmod   { background: rgba(244,190,77,.15);  color: #ffe49a; }
+      .pp-bfraco { background: rgba(239,98,98,.15);   color: #ffa6a6; }
+ 
+      /* visao rapida mercados (qm grid) */
+      .pp-sugtitle {
+        font-size: 10px; font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--pp-muted);
+        margin-bottom: 6px;
+      }
+      .pp-sugrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        margin-bottom: 10px;
+      }
+      .pp-sugitem {
+        background: var(--pp-panel2);
+        border: 1px solid var(--pp-line);
+        border-radius: 8px;
+        padding: 6px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: border-color .15s;
+      }
+      .pp-sugitem:hover { border-color: #4d6080; }
+      .pp-suglbl { font-size: 12px; color: var(--pp-muted); }
+      .pp-sugpct { font-size: 14px; font-weight: 700; }
+      .pp-sphi  { color: var(--pp-green); }
+      .pp-spmed { color: var(--pp-yellow); }
+      .pp-splo  { color: var(--pp-red); }
+ 
+      /* placares (score-grid do preditor) */
+      .pp-scores {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+      }
+      .pp-sbox {
+        background: var(--pp-panel2);
+        border: 1px solid var(--pp-line);
+        border-radius: 8px;
+        padding: 6px 4px;
+        text-align: center;
+      }
+      .pp-sp { font-size: 13px; font-weight: 700; color: var(--pp-text); }
+      .pp-sv { font-size: 10px; color: var(--pp-muted); margin-top: 2px; }
+ 
+      /* skeleton */
+      @keyframes ppSk { 0%{opacity:.3} 100%{opacity:.65} }
+      .pp-skel {
+        height: 32px;
+        margin-bottom: 7px;
+        border-radius: 8px;
+        background: var(--pp-panel);
+        border: 1px solid var(--pp-line);
+        animation: ppSk 1.2s ease-in-out infinite alternate;
+      }
+    `;
+    document.head.appendChild(s);
+  })();
+ 
   /* ════════════════════════════════════════════
-     CONFIGURE SUAS ROTAS AQUI (já usa ROTAS_API e LIGA_ATUAL do seu config.js)
+     CONFIGURE SUAS ROTAS AQUI
   ════════════════════════════════════════════ */
  
-  const PP_STORE     = 'ppPrefs';
-  const PP_HOURS     = [
+  const PP_STORE   = 'ppPrefs';
+  const PP_HOURS   = [
     { label:'6h',  games:120 },
     { label:'12h', games:240 },
     { label:'24h', games:480 },
     { label:'48h', games:960 },
   ];
-  const PP_AUTO_MS   = 3 * 60 * 1000;
+  const PP_AUTO_MS = 3 * 60 * 1000;
  
   /* ── estado ── */
-  let ppResults    = [];
-  let ppNGames     = 240;
-  let ppModoA      = 'ambos';
-  let ppModoB      = 'ambos';
-  let ppTeamA      = null;
-  let ppTeamB      = null;
-  let ppGameTime   = null;
-  let ppOdds       = null;
-  let ppLastGKey   = '';
-  let ppAutoTimer  = null;
-  let ppInCmp      = false;
+  let ppResults   = [];
+  let ppNGames    = 240;
+  let ppModoA     = 'ambos';
+  let ppModoB     = 'ambos';
+  let ppTeamA     = null;
+  let ppTeamB     = null;
+  let ppGameTime  = null;
+  let ppOdds      = null;
+  let ppLastGKey  = '';
+  let ppAutoTimer = null;
+  let ppInCmp     = false;
  
   const ppMkt  = () => document.getElementById('ppMarketSelector');
   const ppWrap = () => document.getElementById('ppAnalysisWrap');
@@ -7269,16 +7637,12 @@ window.addEventListener("load", async () => {
     const btn = document.createElement('button');
     btn.textContent   = label;
     btn.dataset.games = games;
-    btn.style.cssText = 'padding:3px 9px;font-size:10px;font-weight:600;border-radius:3px;border:1px solid #2a3d30;background:transparent;color:#7a9e8a;cursor:pointer;transition:all .15s;letter-spacing:.3px;';
-    if(games === ppNGames){ btn.style.background='rgba(31,172,137,.15)'; btn.style.color='#3ecfa3'; btn.style.borderColor='#2d9e76'; btn.dataset.on='1'; }
+    btn.className     = 'pp-period-btn' + (games === ppNGames ? ' pp-period-on' : '');
     btn.addEventListener('click', () => {
       ppNGames = games;
       ppSave({nGames: games});
       ppHoursEl.querySelectorAll('button').forEach(b => {
-        const on = parseInt(b.dataset.games) === games;
-        b.style.background  = on ? 'rgba(31,172,137,.15)' : 'transparent';
-        b.style.color       = on ? '#3ecfa3' : '#7a9e8a';
-        b.style.borderColor = on ? '#2d9e76' : '#2a3d30';
+        b.classList.toggle('pp-period-on', parseInt(b.dataset.games) === games);
       });
       if(ppTeamA) ppRenderAll();
     });
@@ -7392,132 +7756,58 @@ window.addEventListener("load", async () => {
  
   function pct(a,t){ return t?Math.round((a/t)*100):0; }
  
-  /* ════ CSS injetado uma vez ════ */
-  (function ppInjectCSS(){
-    if(document.getElementById('pp-styles')) return;
-    const s=document.createElement('style'); s.id='pp-styles';
-    s.textContent=`
-      .pp-games{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
-      .pp-gc{flex:1 1 155px;min-width:145px;background:rgba(255,255,255,.04);border:.5px solid rgba(255,255,255,.08);border-radius:8px;padding:9px 12px;cursor:pointer;transition:border-color .15s,background .15s;}
-      .pp-gc:hover{border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.07);}
-      .pp-gc.pp-sel{border-color:#3b82f6;background:rgba(59,130,246,.1);}
-      .pp-gt{font-size:11px;color:#6b7280;margin-bottom:4px;}
-      .pp-gteams{font-size:12px;font-weight:600;color:#e5e7eb;display:flex;align-items:center;gap:5px;justify-content:center;text-align:center;}
-      .pp-vs{font-size:10px;color:#4b5563;}
-      .pp-panel{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
-      @media(max-width:680px){.pp-panel{grid-template-columns:1fr;}}
-      .pp-card{background:rgba(255,255,255,.03);border:.5px solid rgba(255,255,255,.08);border-radius:10px;padding:14px;}
-      .pp-ctitle{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;margin-bottom:6px;}
-      .pp-mtabs{display:flex;gap:4px;margin-bottom:10px;}
-      .pp-mtab{padding:2px 8px;font-size:9px;font-weight:700;border-radius:3px;border:.5px solid #2a3d30;background:transparent;color:#7a9e8a;cursor:pointer;transition:all .15s;}
-      .pp-mtab.pp-mton{background:rgba(79,114,255,.18);color:#72b0ff;border-color:#4f72ff;}
-      .pp-apr{font-size:26px;font-weight:700;color:#f3f4f6;line-height:1;}
-      .pp-aprlbl{font-size:10px;color:#6b7280;margin-top:2px;margin-bottom:8px;}
-      .pp-prow{display:flex;align-items:center;gap:7px;margin-bottom:4px;}
-      .pp-plbl{font-size:10px;font-weight:700;width:12px;text-align:center;}
-      .pp-ptrack{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.06);overflow:hidden;}
-      .pp-pfill{height:100%;border-radius:2px;transition:width .3s;}
-      .pp-pval{font-size:11px;color:#9ca3af;width:20px;text-align:right;}
-      .pp-mgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:8px;}
-      .pp-ms{background:rgba(255,255,255,.03);border:.5px solid rgba(255,255,255,.07);border-radius:6px;padding:5px 8px;}
-      .pp-msl{font-size:9px;color:#6b7280;margin-bottom:1px;}
-      .pp-msv{font-size:12px;font-weight:600;color:#e5e7eb;}
-      .pp-forma{display:flex;gap:4px;margin-top:8px;}
-      .pp-fp{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
-      .pp-fV{background:rgba(34,197,94,.18);color:#22c55e;}
-      .pp-fE{background:rgba(245,158,11,.18);color:#f59e0b;}
-      .pp-fD{background:rgba(239,68,68,.18);color:#ef4444;}
-      .pp-triolbls{display:flex;justify-content:space-between;margin-bottom:5px;}
-      .pp-tlbl{font-size:11px;color:#9ca3af;}
-      .pp-tlbl b{color:#f3f4f6;font-weight:600;}
-      .pp-triobar{display:flex;border-radius:4px;overflow:hidden;height:5px;margin-bottom:10px;}
-      .pp-tseg{transition:flex .4s;}
-      .pp-avg{text-align:center;margin-bottom:10px;}
-      .pp-avgn{font-size:22px;font-weight:700;color:#f3f4f6;line-height:1;}
-      .pp-avgl{font-size:10px;color:#6b7280;margin-top:2px;}
-      .pp-div{height:.5px;background:rgba(255,255,255,.07);margin:8px 0;}
-      .pp-mrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-      .pp-mlbl{font-size:11px;color:#9ca3af;}
-      .pp-mchips{display:flex;gap:4px;}
-      .pp-chip{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;border:.5px solid;}
-      .pp-chi{border-color:rgba(34,197,94,.35);color:#22c55e;background:rgba(34,197,94,.08);}
-      .pp-clo{border-color:rgba(255,255,255,.08);color:#6b7280;background:transparent;}
-      .pp-analise{grid-column:1/-1;background:rgba(59,130,246,.05);border:.5px solid rgba(59,130,246,.18);border-radius:10px;padding:8px 12px;}
-      .pp-atoprow{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:.5px solid rgba(255,255,255,.07);}
-      .pp-atitle{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#60a5fa;margin-bottom:1px;}
-      .pp-aheader{font-size:13px;font-weight:700;color:#f3f4f6;line-height:1.2;}
-      .pp-atime{font-size:10px;color:#6b7280;margin-top:1px;}
-      .pp-aodds{display:flex;gap:4px;flex-wrap:wrap;}
-      .pp-aodd{background:rgba(255,255,255,.05);border:.5px solid rgba(255,255,255,.1);border-radius:6px;padding:3px 10px;text-align:center;}
-      .pp-aol{font-size:8px;color:#6b7280;display:block;}
-      .pp-aov{font-size:13px;font-weight:700;color:#e5e7eb;display:block;}
-      .pp-lstrip{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
-      .pp-lmb{flex:1 1 80px;background:rgba(0,0,0,.3);border:.5px solid rgba(255,255,255,.07);border-radius:8px;padding:8px;text-align:center;}
-      .pp-lmbv{font-size:18px;font-weight:700;line-height:1;}
-      .pp-lmbl{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.3px;margin-top:3px;}
-      .pp-mkthigh{background:rgba(0,0,0,.3);border:.5px solid rgba(255,255,255,.07);border-radius:8px;padding:12px;margin-bottom:10px;}
-      .pp-mkthname{font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;}
-      .pp-mkthprob{font-size:32px;font-weight:700;line-height:1;margin-bottom:2px;}
-      .pp-mkthsub{font-size:12px;color:#6b7280;margin-bottom:8px;}
-      .pp-mktbar{height:5px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin-bottom:6px;}
-      .pp-mktfill{height:100%;border-radius:999px;transition:width .4s;}
-      .pp-badge{display:inline-block;padding:3px 8px;border-radius:5px;font-size:11px;font-weight:700;}
-      .pp-bforte{background:rgba(34,201,131,.15);color:#8ff5cc;}
-      .pp-bmod{background:rgba(244,190,77,.15);color:#ffe49a;}
-      .pp-bfraco{background:rgba(239,98,98,.15);color:#ffa6a6;}
-      .pp-sugtitle{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#a78bfa;margin-bottom:5px;}
-      .pp-sugrid{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:8px;}
-      .pp-sugitem{background:rgba(255,255,255,.03);border:.5px solid rgba(255,255,255,.07);border-radius:6px;padding:4px 8px;display:flex;align-items:center;justify-content:space-between;}
-      .pp-shi{background:rgba(34,197,94,.06);border-color:rgba(34,197,94,.25);}
-      .pp-smed{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.2);}
-      .pp-slo{background:rgba(239,68,68,.04);border-color:rgba(239,68,68,.12);}
-      .pp-suglbl{font-size:11px;color:#9ca3af;}
-      .pp-sugpct{font-size:13px;font-weight:700;}
-      .pp-sphi{color:#22c55e;}.pp-spmed{color:#f59e0b;}.pp-splo{color:#ef4444;}
-      .pp-scores{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;}
-      .pp-sbox{background:rgba(0,0,0,.3);border:.5px solid rgba(255,255,255,.07);border-radius:6px;padding:5px 4px;text-align:center;}
-      .pp-sp{font-size:13px;font-weight:700;}.pp-sv{font-size:10px;color:#6b7280;margin-top:1px;}
-      @keyframes ppSk{0%{opacity:.35}100%{opacity:.7}}
-      .pp-skel{height:30px;margin-bottom:6px;border-radius:5px;background:rgba(255,255,255,.06);animation:ppSk 1.2s ease-in-out infinite alternate;}
-    `;
-    document.head.appendChild(s);
-  })();
- 
   /* ════ RENDER TEAM CARD ════ */
   function ppRenderTeam(title, matches, teamName, modoAtual, modoKey){
     function build(modo){
-      const s=ppCalcStats(ppFilter(matches,ppNGames),teamName,modo);
-      const apr=s.total?((s.w/s.total)*100).toFixed(1):'0.0';
-      const mx=Math.max(s.w,s.d,s.l)||1;
-      const modoLbl=modo==='casa'?'Casa':modo==='fora'?'Fora':'Casa/Fora';
-      const formaHTML=s.forma.map(r=>`<span class="pp-fp pp-f${r}">${r}</span>`).join('');
-      const tabs=['ambos','casa','fora'].map(v=>`<button class="pp-mtab${v===modo?' pp-mton':''}" data-modo="${v}" data-key="${modoKey}">${v==='ambos'?'Casa/Fora':v==='casa'?'Casa':'Fora'}</button>`).join('');
+      const s = ppCalcStats(ppFilter(matches,ppNGames), teamName, modo);
+      const apr = s.total ? ((s.w/s.total)*100).toFixed(1) : '0.0';
+      const mx  = Math.max(s.w,s.d,s.l)||1;
+      const modoLbl = modo==='casa'?'Casa':modo==='fora'?'Fora':'Casa/Fora';
+      const formaHTML = s.forma.map(r=>`<span class="pp-fp pp-f${r}">${r}</span>`).join('');
+      const tabs = ['ambos','casa','fora'].map(v=>
+        `<button class="pp-mtab${v===modo?' pp-mton':''}" data-modo="${v}" data-key="${modoKey}">${v==='ambos'?'Casa/Fora':v==='casa'?'Casa':'Fora'}</button>`
+      ).join('');
       return `
         <div class="pp-ctitle">${title}</div>
         <div class="pp-mtabs">${tabs}</div>
         <div class="pp-apr">${apr}%</div>
-        <div class="pp-aprlbl">aproveitamento · ${s.total} jogos (${modoLbl})</div>
-        <div class="pp-prow"><span class="pp-plbl" style="color:#22c55e">V</span><div class="pp-ptrack"><div class="pp-pfill" style="width:${pct(s.w,mx)}%;background:#22c55e"></div></div><span class="pp-pval">${s.w}</span></div>
-        <div class="pp-prow"><span class="pp-plbl" style="color:#f59e0b">E</span><div class="pp-ptrack"><div class="pp-pfill" style="width:${pct(s.d,mx)}%;background:#f59e0b"></div></div><span class="pp-pval">${s.d}</span></div>
-        <div class="pp-prow"><span class="pp-plbl" style="color:#ef4444">D</span><div class="pp-ptrack"><div class="pp-pfill" style="width:${pct(s.l,mx)}%;background:#ef4444"></div></div><span class="pp-pval">${s.l}</span></div>
+        <div class="pp-aprlbl">aproveitamento &middot; ${s.total} jogos (${modoLbl})</div>
+        <div class="pp-prow">
+          <span class="pp-plbl" style="color:#22c983">V</span>
+          <div class="pp-ptrack"><div class="pp-pfill" style="width:${pct(s.w,mx)}%;background:#22c983"></div></div>
+          <span class="pp-pval">${s.w}</span>
+        </div>
+        <div class="pp-prow">
+          <span class="pp-plbl" style="color:#f4be4d">E</span>
+          <div class="pp-ptrack"><div class="pp-pfill" style="width:${pct(s.d,mx)}%;background:#f4be4d"></div></div>
+          <span class="pp-pval">${s.d}</span>
+        </div>
+        <div class="pp-prow">
+          <span class="pp-plbl" style="color:#ef6262">D</span>
+          <div class="pp-ptrack"><div class="pp-pfill" style="width:${pct(s.l,mx)}%;background:#ef6262"></div></div>
+          <span class="pp-pval">${s.l}</span>
+        </div>
         <div class="pp-mgrid">
           <div class="pp-ms"><div class="pp-msl">Gols Pro</div><div class="pp-msv">${s.gf}</div></div>
           <div class="pp-ms"><div class="pp-msl">Gols Sofridos</div><div class="pp-msv">${s.ga}</div></div>
           <div class="pp-ms"><div class="pp-msl">Clean Sheets</div><div class="pp-msv">${s.cs}</div></div>
           <div class="pp-ms"><div class="pp-msl">Sem Marcar</div><div class="pp-msv">${s.fts}</div></div>
-          <div class="pp-ms" style="grid-column:1/-1"><div class="pp-msl">Indice Ofensivo</div><div class="pp-msv" style="color:#a78bfa">${s.idxOf.toFixed(2)}</div></div>
+          <div class="pp-ms" style="grid-column:1/-1">
+            <div class="pp-msl">Indice Ofensivo</div>
+            <div class="pp-msv" style="color:var(--pp-purple)">${s.idxOf.toFixed(2)}</div>
+          </div>
         </div>
         <div class="pp-forma">${formaHTML}</div>`;
     }
-    const id='pp_card_'+modoKey;
+    const id = 'pp_card_' + modoKey;
     setTimeout(()=>{
-      const el=document.getElementById(id); if(!el) return;
-      el.addEventListener('click',e=>{
-        const btn=e.target.closest('.pp-mtab'); if(!btn) return;
-        const nm=btn.dataset.modo, key=btn.dataset.key;
+      const el = document.getElementById(id); if(!el) return;
+      el.addEventListener('click', e => {
+        const btn = e.target.closest('.pp-mtab'); if(!btn) return;
+        const nm = btn.dataset.modo, key = btn.dataset.key;
         if(key==='A'){ppModoA=nm;ppSave({modoA:nm});}else{ppModoB=nm;ppSave({modoB:nm});}
-        el.innerHTML=build(nm);
-        const ab=document.getElementById('pp_analise'); if(ab) ab.outerHTML=ppBuildAnalise();
+        el.innerHTML = build(nm);
+        const ab = document.getElementById('pp_analise'); if(ab) ab.outerHTML = ppBuildAnalise();
       });
     },0);
     return `<div class="pp-card" id="${id}">${build(modoAtual)}</div>`;
@@ -7525,22 +7815,27 @@ window.addEventListener("load", async () => {
  
   /* ════ H2H ════ */
   function ppRenderH2H(matches, teamA, teamB){
-    const h=ppCalcH2H(ppFilter(matches,ppNGames),teamA,teamB);
-    function chip(a,b,la,lb){return `<span class="pp-chip ${a>=b?'pp-chi':'pp-clo'}">${la} ${a}</span><span class="pp-chip ${b>a?'pp-chi':'pp-clo'}">${lb} ${b}</span>`;}
+    const h = ppCalcH2H(ppFilter(matches,ppNGames), teamA, teamB);
+    function chip(a,b,la,lb){
+      return `<span class="pp-chip ${a>=b?'pp-chi':'pp-clo'}">${la} ${a}</span><span class="pp-chip ${b>a?'pp-chi':'pp-clo'}">${lb} ${b}</span>`;
+    }
     return `
     <div class="pp-card">
-      <div class="pp-ctitle">H2H · ${h.total} jogos</div>
+      <div class="pp-ctitle">H2H &middot; ${h.total} jogos</div>
       <div class="pp-triolbls">
         <div class="pp-tlbl"><b>${h.wA}</b> ${teamA}</div>
         <div class="pp-tlbl" style="text-align:center"><b>${h.dr}</b> Emp.</div>
         <div class="pp-tlbl" style="text-align:right"><b>${h.wB}</b> ${teamB}</div>
       </div>
       <div class="pp-triobar">
-        <div class="pp-tseg" style="flex:${h.wA||.1};background:#3b82f6"></div>
-        <div class="pp-tseg" style="flex:${h.dr||.1};background:#f59e0b"></div>
-        <div class="pp-tseg" style="flex:${h.wB||.1};background:#ef4444"></div>
+        <div class="pp-tseg" style="flex:${h.wA||.1};background:var(--pp-blue)"></div>
+        <div class="pp-tseg" style="flex:${h.dr||.1};background:var(--pp-yellow)"></div>
+        <div class="pp-tseg" style="flex:${h.wB||.1};background:var(--pp-red)"></div>
       </div>
-      <div class="pp-avg"><div class="pp-avgn">${h.mediaGols}</div><div class="pp-avgl">media de gols/jogo</div></div>
+      <div class="pp-avg">
+        <div class="pp-avgn">${h.mediaGols}</div>
+        <div class="pp-avgl">media de gols / jogo</div>
+      </div>
       <div class="pp-div"></div>
       <div class="pp-mrow"><span class="pp-mlbl">Ambas marcam</span><div class="pp-mchips">${chip(h.ambasSim,h.ambasNao,'Sim','Nao')}</div></div>
       <div class="pp-mrow"><span class="pp-mlbl">Over / Under 1.5</span><div class="pp-mchips">${chip(h.o15,h.u15,'O','U')}</div></div>
@@ -7555,45 +7850,53 @@ window.addEventListener("load", async () => {
  
   /* ════ ANALISE POISSON ════ */
   function ppBuildAnalise(){
-    const filt=ppFilter(ppResults,ppNGames);
-    const sA=ppCalcStats(filt,ppTeamA,ppModoA);
-    const sB=ppCalcStats(filt,ppTeamB,ppModoB);
-    const lC=((sA.total?sA.gf/sA.total:0)+(sB.total?sB.ga/sB.total:0))/2;
-    const lF=((sB.total?sB.gf/sB.total:0)+(sA.total?sA.ga/sA.total:0))/2;
-    const lT=lC+lF, sig=Math.sqrt(lT), ie=lT+sig;
-    const mkt=ppMkt()?.value||'over2.5';
-    const prob=ppCalcMkt(mkt,lC,lF), pct100=prob*100;
-    const mktLabel=PP_MKT_LABELS[mkt]||mkt;
+    const filt = ppFilter(ppResults, ppNGames);
+    const sA   = ppCalcStats(filt, ppTeamA, ppModoA);
+    const sB   = ppCalcStats(filt, ppTeamB, ppModoB);
+    const lC   = ((sA.total?sA.gf/sA.total:0)+(sB.total?sB.ga/sB.total:0))/2;
+    const lF   = ((sB.total?sB.gf/sB.total:0)+(sA.total?sA.ga/sA.total:0))/2;
+    const lT   = lC+lF, sig=Math.sqrt(lT), ie=lT+sig;
+    const mkt  = ppMkt()?.value||'over2.5';
+    const prob = ppCalcMkt(mkt,lC,lF), pct100=prob*100;
+    const mktLabel = PP_MKT_LABELS[mkt]||mkt;
  
-    function leitBadge(p){ if(p>=50)return['Forte','pp-bforte']; if(p>=30)return['Moderado','pp-bmod']; return['Fraco','pp-bfraco']; }
-    function barClr(p){ if(p>=50)return'#22c983'; if(p>=30)return'#f4be4d'; return'#ef6262'; }
-    function sugCls(p){ return p>=60?'pp-shi':p>=40?'pp-smed':'pp-slo'; }
-    function sugPctCls(p){ return p>=60?'pp-sphi':p>=40?'pp-spmed':'pp-splo'; }
-    function sugItem(lbl,p){ return `<div class="pp-sugitem ${sugCls(p)}"><span class="pp-suglbl">${lbl}</span><span class="pp-sugpct ${sugPctCls(p)}">${p.toFixed(1)}%</span></div>`; }
+    function barClr(p){ return p>=50?'#22c983':p>=30?'#f4be4d':'#ef6262'; }
+    function leitBadge(p){ return p>=50?['Forte','pp-bforte']:p>=30?['Moderado','pp-bmod']:['Fraco','pp-bfraco']; }
+    function sugCls(p){ return p>=60?'pp-sphi':p>=40?'pp-spmed':'pp-splo'; }
+    function sugItem(lbl,p){
+      return `<div class="pp-sugitem">
+        <span class="pp-suglbl">${lbl}</span>
+        <b class="pp-sugpct ${sugCls(p)}">${p.toFixed(1)}%</b>
+      </div>`;
+    }
  
-    const [lbTxt,lbCls]=leitBadge(pct100);
-    const bc=barClr(pct100);
+    const [lbTxt,lbCls] = leitBadge(pct100);
+    const bc = barClr(pct100);
  
-    const pCV=ppCalcMkt('casaVence',lC,lF)*100;
-    const pEmp=ppCalcMkt('empate',lC,lF)*100;
-    const pFV=ppCalcMkt('foraVence',lC,lF)*100;
-    const pO15=ppCalcMkt('over1.5',lC,lF)*100;
-    const pO25=ppCalcMkt('over2.5',lC,lF)*100;
-    const pO35=ppCalcMkt('over3.5',lC,lF)*100;
-    const pU25=ppCalcMkt('under2.5',lC,lF)*100;
-    const pAmb=ppCalcMkt('ambasMarcam',lC,lF)*100;
+    const pCV  = ppCalcMkt('casaVence',lC,lF)*100;
+    const pEmp = ppCalcMkt('empate',lC,lF)*100;
+    const pFV  = ppCalcMkt('foraVence',lC,lF)*100;
+    const pO15 = ppCalcMkt('over1.5',lC,lF)*100;
+    const pO25 = ppCalcMkt('over2.5',lC,lF)*100;
+    const pO35 = ppCalcMkt('over3.5',lC,lF)*100;
+    const pU25 = ppCalcMkt('under2.5',lC,lF)*100;
+    const pAmb = ppCalcMkt('ambasMarcam',lC,lF)*100;
  
     const scores=[];
     for(let gc=0;gc<=6;gc++) for(let gf=0;gf<=6;gf++) scores.push({p:gc,q:gf,v:ppPoisson(gc,lC)*ppPoisson(gf,lF)});
     scores.sort((a,b)=>b.v-a.v);
-    const scoresHTML=scores.slice(0,5).map(s=>`<div class="pp-sbox"><div class="pp-sp">${s.p}x${s.q}</div><div class="pp-sv">${(s.v*100).toFixed(1)}%</div></div>`).join('');
+    const scoresHTML = scores.slice(0,5).map(s=>`
+      <div class="pp-sbox">
+        <div class="pp-sp">${s.p}x${s.q}</div>
+        <div class="pp-sv">${(s.v*100).toFixed(1)}%</div>
+      </div>`).join('');
  
-    let oddsHTML='';
+    let oddsHTML = '';
     if(ppOdds){
-      const oc=parseFloat(ppOdds.odds_casa_vence||99).toFixed(2);
-      const oe=parseFloat(ppOdds.odds_empate||99).toFixed(2);
-      const of=parseFloat(ppOdds.odds_visitante_vence||99).toFixed(2);
-      oddsHTML=`<div class="pp-aodds">
+      const oc = parseFloat(ppOdds.odds_casa_vence||99).toFixed(2);
+      const oe = parseFloat(ppOdds.odds_empate||99).toFixed(2);
+      const of = parseFloat(ppOdds.odds_visitante_vence||99).toFixed(2);
+      oddsHTML = `<div class="pp-aodds">
         <div class="pp-aodd"><span class="pp-aol">Casa</span><span class="pp-aov">${oc}</span></div>
         <div class="pp-aodd"><span class="pp-aol">Empate</span><span class="pp-aov">${oe}</span></div>
         <div class="pp-aodd"><span class="pp-aol">Fora</span><span class="pp-aov">${of}</span></div>
@@ -7603,54 +7906,58 @@ window.addEventListener("load", async () => {
     return `<div class="pp-analise" id="pp_analise">
       <div class="pp-atoprow">
         <div>
-          <div class="pp-atitle">Leitura do Confronto</div>
-          <div class="pp-aheader">${ppTeamA} x ${ppTeamB}</div>
+          <div class="pp-atitle">&#127358; Leitura do Confronto</div>
+          <div class="pp-aheader">${ppTeamA} <span style="color:var(--pp-muted);font-weight:400">vs</span> ${ppTeamB}</div>
           ${ppGameTime?`<div class="pp-atime">${ppGameTime}</div>`:''}
         </div>
         ${oddsHTML}
       </div>
+ 
       <div class="pp-lstrip">
-        <div class="pp-lmb"><div class="pp-lmbv" style="color:#4d9fff">${lC.toFixed(2)}</div><div class="pp-lmbl">lambda Casa</div></div>
-        <div class="pp-lmb"><div class="pp-lmbv" style="color:#ef6262">${lF.toFixed(2)}</div><div class="pp-lmbl">lambda Fora</div></div>
-        <div class="pp-lmb"><div class="pp-lmbv">${lT.toFixed(2)}</div><div class="pp-lmbl">lambda Total</div></div>
-        <div class="pp-lmb"><div class="pp-lmbv" style="color:#6b7280">${sig.toFixed(2)}</div><div class="pp-lmbl">Desvio</div></div>
-        <div class="pp-lmb"><div class="pp-lmbv" style="color:#a78bfa">${ie.toFixed(2)}</div><div class="pp-lmbl">IE</div></div>
+        <div class="pp-lmb"><div class="pp-lmbv" style="color:var(--pp-blue)">${lC.toFixed(2)}</div><div class="pp-lmbl">&#955; Casa</div></div>
+        <div class="pp-lmb"><div class="pp-lmbv" style="color:var(--pp-red)">${lF.toFixed(2)}</div><div class="pp-lmbl">&#955; Fora</div></div>
+        <div class="pp-lmb"><div class="pp-lmbv">${lT.toFixed(2)}</div><div class="pp-lmbl">&#955; Total</div></div>
+        <div class="pp-lmb"><div class="pp-lmbv" style="color:var(--pp-muted)">${sig.toFixed(2)}</div><div class="pp-lmbl">Desvio &#963;</div></div>
+        <div class="pp-lmb"><div class="pp-lmbv" style="color:var(--pp-purple)">${ie.toFixed(2)}</div><div class="pp-lmbl">IE</div></div>
       </div>
+ 
       <div class="pp-mkthigh">
-        <div class="pp-mkthname">Mercado selecionado</div>
+        <div class="pp-mkthname">&#127919; Mercado selecionado</div>
         <div class="pp-mkthprob" style="color:${bc}">${pct100.toFixed(2)}%</div>
         <div class="pp-mkthsub">${mktLabel}</div>
         <div class="pp-mktbar"><div class="pp-mktfill" style="width:${Math.min(pct100,100)}%;background:${bc}"></div></div>
         <span class="pp-badge ${lbCls}">${lbTxt}</span>
       </div>
-      <div class="pp-sugtitle">Previsao de mercado (Poisson)</div>
+ 
+      <div class="pp-sugtitle">&#128202; Visao rapida dos mercados</div>
       <div class="pp-sugrid">
         ${sugItem('Casa vence ('+ppTeamA+')',pCV)}
         ${sugItem('Fora vence ('+ppTeamB+')',pFV)}
         ${sugItem('Empate',pEmp)}
-        <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,.06);"></div>
+        <div style="grid-column:1/-1;height:1px;background:var(--pp-line);"></div>
         ${sugItem('Over 1.5',pO15)}
         ${sugItem('Over 2.5',pO25)}
         ${sugItem('Over 3.5',pO35)}
         ${sugItem('Under 2.5',pU25)}
-        <div style="grid-column:1/-1;height:1px;background:rgba(255,255,255,.06);"></div>
+        <div style="grid-column:1/-1;height:1px;background:var(--pp-line);"></div>
         ${sugItem('Ambas Marcam Sim',pAmb)}
         ${sugItem('Ambas Marcam Nao',100-pAmb)}
       </div>
-      <div class="pp-sugtitle">Placares mais provaveis</div>
+ 
+      <div class="pp-sugtitle">&#127942; Placares mais provaveis</div>
       <div class="pp-scores">${scoresHTML}</div>
     </div>`;
   }
  
   /* ════ RENDER ALL ════ */
   function ppRenderAll(){
-    const wrap=ppWrap(); if(!wrap||!ppTeamA) return;
-    const filt=ppFilter(ppResults,ppNGames);
-    wrap.innerHTML=`
-      <div class="pp-panel">
-        ${ppRenderTeam(ppTeamA+' — geral',filt,ppTeamA,ppModoA,'A')}
-        ${ppRenderH2H(filt,ppTeamA,ppTeamB)}
-        ${ppRenderTeam(ppTeamB+' — geral',filt,ppTeamB,ppModoB,'B')}
+    const wrap = ppWrap(); if(!wrap||!ppTeamA) return;
+    const filt = ppFilter(ppResults, ppNGames);
+    wrap.innerHTML = `
+      <div class="pp-panel-grid">
+        ${ppRenderTeam(ppTeamA+' — geral', filt, ppTeamA, ppModoA, 'A')}
+        ${ppRenderH2H(filt, ppTeamA, ppTeamB)}
+        ${ppRenderTeam(ppTeamB+' — geral', filt, ppTeamB, ppModoB, 'B')}
         ${ppBuildAnalise()}
       </div>`;
   }
@@ -7658,51 +7965,57 @@ window.addEventListener("load", async () => {
   /* ════ PROXIMOS JOGOS ════ */
   async function ppLoadGames(){
     try{
-      const res=await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
+      const res = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
       if(!res.ok) throw new Error(res.status);
-      const games=await res.json();
-      const slice=games.slice(0,8);
-      const newKey=JSON.stringify(slice.map(g=>g.match_id||(g.team_home+g.team_visit+g.time)));
+      const games = await res.json();
+      const slice = games.slice(0,8);
+      const newKey = JSON.stringify(slice.map(g=>g.match_id||(g.team_home+g.team_visit+g.time)));
       if(newKey===ppLastGKey) return;
-      ppLastGKey=newKey;
-      const container=ppGC(); if(!container) return;
-      const selHome=container.querySelector('.pp-gc.pp-sel')?.dataset.home||null;
-      const selVisit=container.querySelector('.pp-gc.pp-sel')?.dataset.visit||null;
-      container.innerHTML='<div class="pp-games">'+slice.map(g=>{
-        const sel=g.team_home===selHome&&g.team_visit===selVisit;
+      ppLastGKey = newKey;
+      const container = ppGC(); if(!container) return;
+      const selHome  = container.querySelector('.pp-gc.pp-sel')?.dataset.home||null;
+      const selVisit = container.querySelector('.pp-gc.pp-sel')?.dataset.visit||null;
+      container.innerHTML = '<div class="pp-games">' + slice.map(g => {
+        const sel = g.team_home===selHome && g.team_visit===selVisit;
         return `<div class="pp-gc${sel?' pp-sel':''}" data-home="${g.team_home}" data-visit="${g.team_visit}" data-time="${g.time||''}">
           <div class="pp-gt">${g.time||''}</div>
-          <div class="pp-gteams"><span>${g.team_home}</span><span class="pp-vs">vs</span><span>${g.team_visit}</span></div>
+          <div class="pp-gteams">
+            <span>${g.team_home}</span>
+            <span class="pp-vs">vs</span>
+            <span>${g.team_visit}</span>
+          </div>
         </div>`;
-      }).join('')+'</div>';
-      container.addEventListener('click',e=>{
-        const card=e.target.closest('.pp-gc'); if(!card) return;
+      }).join('') + '</div>';
+      container.addEventListener('click', e => {
+        const card = e.target.closest('.pp-gc'); if(!card) return;
         container.querySelectorAll('.pp-gc').forEach(c=>c.classList.remove('pp-sel'));
         card.classList.add('pp-sel');
         ppModoA='ambos'; ppModoB='ambos';
-        ppSelectGame(card.dataset.home,card.dataset.visit,card.dataset.time);
+        ppSelectGame(card.dataset.home, card.dataset.visit, card.dataset.time);
       });
-    }catch(err){ console.error('[Preditor] proximos jogos:',err); }
+    }catch(err){ console.error('[Preditor] proximos jogos:', err); }
   }
  
   /* ════ SELECIONAR JOGO ════ */
   async function ppSelectGame(teamA, teamB, gameTime){
     ppTeamA=teamA; ppTeamB=teamB; ppGameTime=gameTime; ppOdds=null; ppInCmp=true;
-    const wrap=ppWrap(); if(!wrap) return;
-    wrap.innerHTML='<div style="padding:8px 0">'+'<div class="pp-skel"></div>'.repeat(4)+'</div>';
+    const wrap = ppWrap(); if(!wrap) return;
+    wrap.innerHTML = '<div style="padding:8px 0">' + '<div class="pp-skel"></div>'.repeat(4) + '</div>';
     try{
-      const [resR,oddsR]=await Promise.allSettled([
+      const [resR, oddsR] = await Promise.allSettled([
         fetch(ROTAS_API.resultados(LIGA_ATUAL)),
         fetch(ROTAS_API.odds(LIGA_ATUAL)),
       ]);
-      if(resR.status==='fulfilled'&&resR.value.ok) ppResults=await resR.value.json();
+      if(resR.status==='fulfilled'&&resR.value.ok)  ppResults = await resR.value.json();
       if(oddsR.status==='fulfilled'&&oddsR.value.ok){
-        const arr=await oddsR.value.json();
-        ppOdds=arr.find(o=>(o.time_casa===teamA&&o.time_visitante===teamB)||(o.time_casa===teamB&&o.time_visitante===teamA))||null;
+        const arr = await oddsR.value.json();
+        ppOdds = arr.find(o=>(o.time_casa===teamA&&o.time_visitante===teamB)||(o.time_casa===teamB&&o.time_visitante===teamA))||null;
       }
       ppRenderAll();
       clearInterval(ppAutoTimer);
-    }catch(err){ wrap.innerHTML=`<p style="color:#ef6262;font-size:12px;padding:8px;">Erro: ${err.message}</p>`; }
+    }catch(err){
+      wrap.innerHTML = `<p style="color:var(--pp-red);font-size:12px;padding:8px;">Erro: ${err.message}</p>`;
+    }
   }
  
   /* ════ INIT ════ */
@@ -7710,7 +8023,10 @@ window.addEventListener("load", async () => {
     try{ const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL)); if(r.ok) ppResults=await r.json(); }catch(_){}
     await ppLoadGames();
     setInterval(ppLoadGames, 60000);
-    setInterval(async()=>{ if(ppInCmp) return; try{ const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL)); if(r.ok) ppResults=await r.json(); }catch(_){} }, PP_AUTO_MS);
+    setInterval(async()=>{
+      if(ppInCmp) return;
+      try{ const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL)); if(r.ok) ppResults=await r.json(); }catch(_){}
+    }, PP_AUTO_MS);
   })();
  
 })();
