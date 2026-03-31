@@ -139,40 +139,6 @@
             box-shadow: 0 0 10px rgba(35, 134, 54, 0.4);
         }
         
-        /* BOTÃO EXPORTAR */
-        .export-btn {
-            background: #1f6feb;
-            color: #ffffff;
-            border: 1px solid #388bfd;
-            padding: 10px 24px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 700;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .export-btn:hover {
-            background: #388bfd;
-            border-color: #58a6ff;
-            box-shadow: 0 0 15px rgba(31, 111, 235, 0.4);
-            transform: translateY(-1px);
-        }
-        
-        .export-btn:active {
-            transform: translateY(0);
-        }
-        
-        .export-btn::before {
-            content: "💾";
-            font-size: 14px;
-        }
-        
         .hour-select {
             background: #21262d;
             color: #f0f6fc;
@@ -409,7 +375,7 @@
         <tbody id="resultsBody"></tbody>
     </table>
 
-    <!-- NOVA SEÇÃO: MINUTOS 100% COM SELETOR DE HORA E EXPORTAÇÃO -->
+    <!-- NOVA SEÇÃO: MINUTOS 100% COM SELETOR DE HORA -->
     <div class="percent100-section">
         <div class="percent100-title">Minutos com 100% de Aproveitamento</div>
         
@@ -433,11 +399,6 @@
                     </select>
                 </div>
             </div>
-            
-            <div class="control-group">
-                <span class="control-label">Exportar</span>
-                <button class="export-btn" onclick="exportToTxt()">Salvar em TXT</button>
-            </div>
         </div>
         
         <div id="percent100Container" class="percent100-grid">
@@ -450,7 +411,6 @@
     let percent100Mode = 'current'; // 'current' ou 'all'
     let hourMode = 'all'; // 'all', 'current', 'specific'
     let specificHour = null;
-    let lastCalculatedResults = []; // Armazena últimos resultados para exportação
     
     const leaguesList = [
         { value: "Copa%20Am%C3%A9rica", name: "Copa América" },
@@ -471,6 +431,7 @@
             option.textContent = `${String(h).padStart(2, '0')}:00 - ${String(h).padStart(2, '0')}:59`;
             select.appendChild(option);
         }
+        // Define hora atual como padrão
         const now = new Date();
         select.value = String(now.getHours()).padStart(2, '0');
     }
@@ -486,10 +447,12 @@
         hourMode = mode;
         const specificSelect = document.getElementById('specificHourSelect');
         
+        // Atualiza botões
         document.getElementById('btnAllHours').classList.toggle('active', mode === 'all');
         document.getElementById('btnCurrentHourFilter').classList.toggle('active', mode === 'current');
         document.getElementById('btnSpecificHour').classList.toggle('active', mode === 'specific');
         
+        // Mostra/esconde seletor de hora específica
         specificSelect.style.display = mode === 'specific' ? 'block' : 'none';
         
         if (mode === 'specific' && !specificHour) {
@@ -650,6 +613,7 @@
             });
         }
 
+        // Se tem hora alvo, calcula apenas ela. Senão, calcula todas.
         const hoursToCalc = targetHour ? [targetHour] : Array.from({length: 24}, (_, i) => String(i).padStart(2, '0'));
 
         hoursToCalc.forEach(hh => {
@@ -684,6 +648,7 @@
             });
         });
 
+        // Extrair minutos com 100%
         const percent100Minutes = [];
         hoursToCalc.forEach(hh => {
             uniqueMinutes.forEach(m => {
@@ -698,9 +663,7 @@
         return {
             minutes: percent100Minutes.sort(),
             count: percent100Minutes.length,
-            targetHour: targetHour,
-            totalHours: hoursToCalc.length,
-            numDays: numDays
+            targetHour: targetHour
         };
     }
 
@@ -709,6 +672,7 @@
         const market = document.getElementById("marketSelect").value;
         const gales = parseInt(document.getElementById("rangeSelect").value, 10);
         
+        // Determina qual hora usar
         let targetHour = null;
         if (hourMode === 'current') {
             targetHour = String(new Date().getHours()).padStart(2, '0');
@@ -717,8 +681,6 @@
         }
 
         container.innerHTML = '<div class="percent100-loading">Analisando dados...</div>';
-
-        lastCalculatedResults = []; // Limpa resultados anteriores
 
         if (percent100Mode === 'current') {
             const currentLeague = document.getElementById("leagueSelect").value;
@@ -730,10 +692,6 @@
             }
 
             const result = calculateLeaguePercent100(cachedData[currentLeague], market, gales, targetHour);
-            lastCalculatedResults.push({
-                leagueName: currentLeagueName,
-                ...result
-            });
             
             container.innerHTML = '';
             const column = createPercent100Column(currentLeagueName, result.minutes, result.count, targetHour);
@@ -743,7 +701,7 @@
             const leaguesToFetch = leaguesList.filter(l => !cachedData[l.value]);
             
             if (leaguesToFetch.length > 0) {
-                const fetchPromises = leaguesList.map(l => 
+                const fetchPromises = leaguesToFetch.map(l => 
                     fetch(`https://betstat.site/resultados/${l.value}`)
                         .then(r => r.json())
                         .then(data => { cachedData[l.value] = data; })
@@ -759,10 +717,6 @@
             leaguesList.forEach(league => {
                 if (cachedData[league.value]) {
                     const result = calculateLeaguePercent100(cachedData[league.value], market, gales, targetHour);
-                    lastCalculatedResults.push({
-                        leagueName: league.name,
-                        ...result
-                    });
                     const column = createPercent100Column(league.name, result.minutes, result.count, targetHour);
                     container.appendChild(column);
                     hasAnyData = true;
@@ -803,6 +757,7 @@
         
         column.appendChild(list);
         
+        // Adiciona estatísticas
         const stats = document.createElement('div');
         stats.className = 'percent100-stats';
         stats.innerHTML = `<span class="percent100-count">${count}</span> minuto${count !== 1 ? 's' : ''} 100%`;
@@ -812,109 +767,6 @@
         column.appendChild(stats);
         
         return column;
-    }
-
-    // FUNÇÃO DE EXPORTAÇÃO PARA TXT
-    function exportToTxt() {
-        if (lastCalculatedResults.length === 0) {
-            alert('Nenhum dado para exportar. Carregue os dados primeiro.');
-            return;
-        }
-
-        const market = document.getElementById("marketSelect");
-        const marketText = market.options[market.selectedIndex].text;
-        const gales = document.getElementById("rangeSelect").value;
-        
-        let targetHour = null;
-        let hourFilterText = "Todas as horas";
-        if (hourMode === 'current') {
-            targetHour = String(new Date().getHours()).padStart(2, '0');
-            hourFilterText = `Hora atual (${targetHour}h)`;
-        } else if (hourMode === 'specific') {
-            targetHour = specificHour || String(new Date().getHours()).padStart(2, '0');
-            hourFilterText = `Hora específica (${targetHour}h)`;
-        }
-
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('pt-BR');
-        const timeStr = now.toLocaleTimeString('pt-BR');
-
-        let content = `╔══════════════════════════════════════════════════════════════════╗\n`;
-        content += `║         BETSTAT - MINUTOS 100% DE APROVEITAMENTO                 ║\n`;
-        content += `╚══════════════════════════════════════════════════════════════════╝\n\n`;
-        
-        content += `📅 Data de exportação: ${dateStr} às ${timeStr}\n`;
-        content += `🎯 Mercado: ${marketText}\n`;
-        content += `🔄 Gales configurados: ${gales}\n`;
-        content += `⏰ Filtro de hora: ${hourFilterText}\n`;
-        content += `📊 Modo: ${percent100Mode === 'current' ? 'Liga Atual' : 'Todas as Ligas'}\n`;
-        content += `\n${'═'.repeat(70)}\n\n`;
-
-        let totalMinutes = 0;
-
-        lastCalculatedResults.forEach((result, index) => {
-            content += `🏆 ${result.leagueName.toUpperCase()}\n`;
-            content += `${'─'.repeat(50)}\n`;
-            content += `📈 Estatísticas: ${result.count} minuto(s) 100% | ${result.numDays} dia(s) de dados\n`;
-            
-            if (result.targetHour) {
-                content += `⏱️  Hora analisada: ${result.targetHour}h\n`;
-            } else {
-                content += `⏱️  Horas analisadas: 24h (completo)\n`;
-            }
-            
-            content += `\n✅ MINUTOS COM 100%:\n`;
-            
-            if (result.minutes.length === 0) {
-                content += `   (Nenhum minuto com 100% de aproveitamento)\n`;
-            } else {
-                // Formata em colunas para melhor visualização
-                const cols = 4;
-                for (let i = 0; i < result.minutes.length; i += cols) {
-                    const row = result.minutes.slice(i, i + cols);
-                    content += `   ${row.map(m => m.padEnd(8)).join('  ')}\n`;
-                }
-                totalMinutes += result.minutes.length;
-            }
-            
-            if (index < lastCalculatedResults.length - 1) {
-                content += `\n${'─'.repeat(50)}\n\n`;
-            } else {
-                content += `\n${'═'.repeat(70)}\n`;
-            }
-        });
-
-        content += `\n📊 RESUMO GERAL:\n`;
-        content += `   Total de ligas analisadas: ${lastCalculatedResults.length}\n`;
-        content += `   Total de minutos 100%: ${totalMinutes}\n`;
-        content += `\n💡 Gerado por BetStat - Plataforma de Análise para Apostas Esportivas\n`;
-
-        // Cria o blob e faz o download [^9^][^12^]
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = url;
-        
-        // Nome do arquivo com timestamp
-        const timestamp = now.toISOString().slice(0, 19).replace(/:/g, '-');
-        const modePrefix = percent100Mode === 'current' ? 'liga-atual' : 'todas-ligas';
-        link.download = `BetStat-100percent-${modePrefix}-${timestamp}.txt`;
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        // Feedback visual
-        const btn = document.querySelector('.export-btn');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '✓ Exportado!';
-        btn.style.background = '#238636';
-        setTimeout(() => {
-            btn.innerHTML = originalText;
-            btn.style.background = '';
-        }, 2000);
     }
 
     function processApiData(data) {
