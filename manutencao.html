@@ -98,6 +98,7 @@
     <optgroup label="── Ambas Marcam ──">
       <option value="ambasMarcam" selected>Ambas Sim</option>
       <option value="ambasNaoMarcam">Ambas Não</option>
+      <option value="viradinha">Viradinha</option>
     </optgroup>
 
     <optgroup label="── Resultado FT ──">
@@ -897,7 +898,7 @@
 
 <script src="disableChartAnimations.js"></script>
 
-    <script>
+<script>
 const minutosFixos = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
@@ -908,6 +909,7 @@ const MERCADO_THRESHOLD = {
   casaVence:      Math.round((8  / 20) * 100),
   foraVence:      Math.round((7  / 20) * 100),
   empate:         Math.round((5  / 20) * 100),
+  viradinha:      Math.round((3  / 20) * 100),
   "over0.5":      Math.round((17 / 20) * 100),
   "over1.5":      Math.round((14 / 20) * 100),
   "over2.5":      Math.round((8  / 20) * 100),
@@ -942,6 +944,15 @@ const SVG_ICONS = {
   reset: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1,4 1,10 7,10"/><path d="M3.51,15a9,9,0,1,0,.49-3.63"/></svg>`,
 };
 
+// ─── HELPER: nome normalizado da liga atual ───────────────────────────────────
+function getLigaKey() {
+  const h4 = document.querySelector("h4.custom-color");
+  if (h4 && h4.textContent.trim()) {
+    return h4.textContent.trim().toLowerCase().replace(/\s+/g, "_");
+  }
+  return typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "default";
+}
+
 // ─── ESTADO CENTRALIZADO ──────────────────────────────────────────────────────
 const Estado = {
   placarFTSelecionados: [],
@@ -957,37 +968,42 @@ const Estado = {
   corGreen: COR_GREEN_PADRAO,
   corRed:   COR_RED_PADRAO,
 
-  _chavesKey()  { return `selectedChaves_${typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default"}`; },
-  _colunasKey() { return `colunasSelecionadas_${typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default"}`; },
-  _horasKey() {
-    const h4 = document.querySelector("h4.custom-color");
-    const ligaNome = h4 ? h4.textContent.trim().toLowerCase().replace(/\s+/g,"_") : (typeof LIGA_ATUAL!=="undefined" ? LIGA_ATUAL : "default");
-    return `seletorHoras_${ligaNome}`;
-  },
+  // ── Chaves isoladas por liga ──────────────────────────────────────────────
+  _placarFTKey()  { return `placarFTSelecionados_${getLigaKey()}`; },
+  _placarHTKey()  { return `placarHTSelecionados_${getLigaKey()}`; },
+  _timesKey()     { return `timesSelecionados_${getLigaKey()}`; },
+  _oddsKey()      { return `oddsSelecionadas_${getLigaKey()}`; },
+  _chavesKey()    { return `selectedChaves_${getLigaKey()}`; },
+  _colunasKey()   { return `colunasSelecionadas_${getLigaKey()}`; },
+  _horasKey()     { return `seletorHoras_${getLigaKey()}`; },
 
   carregar() {
+    const ligaKey = getLigaKey();
+    // Placar FT — chave por liga, com fallback legado global
     const legFT = JSON.parse(localStorage.getItem("placarSelecionados")) || [];
-    this.placarFTSelecionados = JSON.parse(localStorage.getItem("placarFTSelecionados")) || legFT;
-    this.placarHTSelecionados = JSON.parse(localStorage.getItem("placarHTSelecionados")) || [];
-    this.timesSelecionados    = JSON.parse(localStorage.getItem("timesSelecionados"))    || [];
-    this.oddsSelecionadas     = JSON.parse(localStorage.getItem("oddsSelecionadas"))     || [];
-    this.selectedChaves       = JSON.parse(localStorage.getItem(this._chavesKey()))      || [];
-    this.colunasSelecionadas  = JSON.parse(localStorage.getItem(this._colunasKey()))     || [];
+    const legFTGlobal = JSON.parse(localStorage.getItem("placarFTSelecionados")) || legFT;
+    this.placarFTSelecionados = JSON.parse(localStorage.getItem(this._placarFTKey())) || [];
+    this.placarHTSelecionados = JSON.parse(localStorage.getItem(this._placarHTKey())) || [];
+    this.timesSelecionados    = JSON.parse(localStorage.getItem(this._timesKey()))    || [];
+    this.oddsSelecionadas     = JSON.parse(localStorage.getItem(this._oddsKey()))     || [];
+    this.selectedChaves       = JSON.parse(localStorage.getItem(this._chavesKey()))   || [];
+    this.colunasSelecionadas  = JSON.parse(localStorage.getItem(this._colunasKey()))  || [];
     this.corGreen = localStorage.getItem("corGreen") || COR_GREEN_PADRAO;
     this.corRed   = localStorage.getItem("corRed")   || COR_RED_PADRAO;
     this.placarHTSelecionados = this.placarHTSelecionados
       .map(v => v.replace(/^(__ht__|_ht_|ht:)/i, "").trim())
       .filter(v => v.length > 0);
+    // Remove chaves legadas globais para não vazar entre ligas
     ["placarSelecionado","timeSelecionado","oddSelecionada"].forEach(k => localStorage.removeItem(k));
   },
 
   salvar() {
-    localStorage.setItem("placarFTSelecionados", JSON.stringify(this.placarFTSelecionados));
-    localStorage.setItem("placarHTSelecionados", JSON.stringify(this.placarHTSelecionados));
-    localStorage.setItem("timesSelecionados",    JSON.stringify(this.timesSelecionados));
-    localStorage.setItem("oddsSelecionadas",     JSON.stringify(this.oddsSelecionadas));
-    localStorage.setItem(this._chavesKey(),      JSON.stringify(this.selectedChaves));
-    localStorage.setItem(this._colunasKey(),     JSON.stringify(this.colunasSelecionadas));
+    localStorage.setItem(this._placarFTKey(), JSON.stringify(this.placarFTSelecionados));
+    localStorage.setItem(this._placarHTKey(), JSON.stringify(this.placarHTSelecionados));
+    localStorage.setItem(this._timesKey(),    JSON.stringify(this.timesSelecionados));
+    localStorage.setItem(this._oddsKey(),     JSON.stringify(this.oddsSelecionadas));
+    localStorage.setItem(this._chavesKey(),   JSON.stringify(this.selectedChaves));
+    localStorage.setItem(this._colunasKey(),  JSON.stringify(this.colunasSelecionadas));
     localStorage.setItem("corGreen", this.corGreen);
     localStorage.setItem("corRed",   this.corRed);
     const elH = document.querySelector("#seletorHoras");
@@ -1071,6 +1087,7 @@ const counterMarketMap = {
   'casaVence':      'empateOuFora',
   'foraVence':      'empateOuCasa',
   'empate':         'casaOuFora',
+  'viradinha':      null,
   'over0.5':        'under0.5',
   'under0.5':       'over0.5',
   'over1.5':        'under1.5',
@@ -1107,9 +1124,10 @@ function qdCheckMarket(ftScore, htScore, market) {
   if (!ftScore || !ftScore.includes('x')) return false;
   const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
   const totalGols = golsCasa + golsFora;
-  let golsCasa2T = 0, golsFora2T = 0;
+  let golsCasaHT = 0, golsForaHT = 0, golsCasa2T = 0, golsFora2T = 0;
   if (htScore && htScore.includes('x')) {
     const [htCasa, htFora] = htScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+    golsCasaHT = htCasa; golsForaHT = htFora;
     golsCasa2T = Math.max(0, golsCasa - htCasa);
     golsFora2T = Math.max(0, golsFora - htFora);
   }
@@ -1120,6 +1138,15 @@ function qdCheckMarket(ftScore, htScore, market) {
     case 'casaVence':      return golsCasa > golsFora;
     case 'foraVence':      return golsFora > golsCasa;
     case 'empate':         return golsCasa === golsFora;
+    case 'viradinha':      {
+      // Viradinha: quem venceu no HT perde no FT
+      // Casa venceu HT mas perdeu FT, OU Fora venceu HT mas perdeu FT
+      const casaVenceuHT = golsCasaHT > golsForaHT;
+      const foraVenceuHT = golsForaHT > golsCasaHT;
+      const casaPerdeuFT = golsCasa < golsFora;
+      const foraPerdeuFT = golsFora < golsCasa;
+      return (casaVenceuHT && casaPerdeuFT) || (foraVenceuHT && foraPerdeuFT);
+    }
     case 'empateOuFora':   return golsCasa <= golsFora;
     case 'empateOuCasa':   return golsCasa >= golsFora;
     case 'casaOuFora':     return golsCasa !== golsFora;
@@ -1282,7 +1309,7 @@ function qdRenderTabelaValores(resultados) {
       if (labelEl) {
         labelEl.textContent = slotIdx === 0
           ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
-          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
+          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'00')}`;
       }
     }
   });
@@ -1299,6 +1326,8 @@ function qdRenderTabelaValores(resultados) {
       if (counterEl) counterEl.innerText = stats.counterMarketHits;
     });
   });
+  // Sempre re-aplica o destaque do bloco ativo após atualizar valores
+  qdAtualizarIndicadorAoVivo();
 }
 
 function qdRenderTabela(resultados) {
@@ -1378,6 +1407,7 @@ function qdRenderTabela(resultados) {
     });
   });
 
+  // Sempre re-aplica o destaque do bloco ativo após renderizar
   qdAtualizarIndicadorAoVivo();
 }
 
@@ -1399,10 +1429,17 @@ function garantirQuadrantesWrapper() {
 function qdToggle(ativo) {
   qdSalvarCheckbox(ativo);
   const trQD = document.querySelector("#trQuadrantes");
-  if (trQD) {
-    trQD.style.display = ativo ? "" : "none";
-  } else if (ativo && qdDadosCache) {
-    qdRenderTabela(qdDadosCache);
+  if (ativo) {
+    // Ativo: mostra se existe, senão renderiza
+    if (trQD) {
+      trQD.style.display = "";
+      qdAtualizarIndicadorAoVivo();
+    } else if (qdDadosCache) {
+      qdRenderTabela(qdDadosCache);
+    }
+  } else {
+    // Desativado: REMOVE o trQD completamente para não reaparecer ao trocar liga
+    if (trQD) trQD.remove();
   }
   qdAplicarSeparadorTabela(ativo);
 }
@@ -1840,22 +1877,29 @@ function atualizarStatsSelecao(statsMap) {
 }
 
 function atualizarIndicadorSelecao() {
-  const el = criarOuObterIndicador(); el.innerHTML = "";
-  const temSel = Estado.placarFTSelecionados.length+Estado.placarHTSelecionados.length+Estado.timesSelecionados.length+Estado.oddsSelecionadas.length;
-  if (temSel===0) { const s=criarOuObterStats(); if(s) s.innerHTML=""; }
+  const indicator = criarOuObterIndicador(); if (!indicator) return;
+  indicator.innerHTML = "";
   const grupos = [
-    {lista:Estado.placarFTSelecionados, chave:"placarFTSelecionados", prefixo:"FT",   paleta:CORES_PLACAR_FT},
-    {lista:Estado.placarHTSelecionados, chave:"placarHTSelecionados", prefixo:"HT",   paleta:CORES_PLACAR_HT},
-    {lista:Estado.timesSelecionados,    chave:"timesSelecionados",    prefixo:"Time", paleta:CORES_TIME},
-    {lista:Estado.oddsSelecionadas,     chave:"oddsSelecionadas",     prefixo:"Odd",  paleta:CORES_ODD},
+    { lista: Estado.placarFTSelecionados, tipo: "ft",   label: "FT",   paleta: CORES_PLACAR_FT },
+    { lista: Estado.placarHTSelecionados, tipo: "ht",   label: "HT",   paleta: CORES_PLACAR_HT },
+    { lista: Estado.timesSelecionados,    tipo: "time", label: "Time", paleta: CORES_TIME },
+    { lista: Estado.oddsSelecionadas,     tipo: "odd",  label: "Odd",  paleta: CORES_ODD },
   ];
-  grupos.forEach(({lista,chave,prefixo,paleta})=>{
-    lista.forEach((val,i)=>{
-      const tag=document.createElement("span"); tag.className="sel-tag";
-      tag.style.cssText=`background:${paleta[i%paleta.length]};color:#000;border-color:${paleta[i%paleta.length]}`;
-      tag.innerHTML=`${prefixo}: ${val} <span class="sel-remove" title="Remover">✕</span>`;
-      tag.querySelector(".sel-remove").addEventListener("click",()=>{Estado.toggleSelecao(chave,val);aplicarHighlights();});
-      el.appendChild(tag);
+  grupos.forEach(({ lista, tipo, label, paleta }) => {
+    lista.forEach((val, i) => {
+      const cor = paleta[i % paleta.length];
+      const tag = document.createElement("span"); tag.className = "sel-tag";
+      tag.style.cssText = `background:${cor};border-color:${cor};color:#000;`;
+      const displayVal = val.replace(/^[★✦⊕]ht[★✦⊕]/, "");
+      tag.innerHTML = `<span>${label}: ${displayVal}</span><span class="sel-remove" title="Remover">✕</span>`;
+      tag.querySelector(".sel-remove").addEventListener("click", () => {
+        Estado.toggleSelecao(
+          tipo==="ft"?"placarFTSelecionados":tipo==="ht"?"placarHTSelecionados":tipo==="time"?"timesSelecionados":"oddsSelecionadas",
+          val
+        );
+        aplicarHighlights();
+      });
+      indicator.appendChild(tag);
     });
   });
 }
@@ -1926,8 +1970,6 @@ function aplicarHighlights() {
       });
     }
     if(oddEl){
-      // oddsSelecionadas guarda sem @ (ex: "2.05")
-      // .odds e .placar-futuro-odd exibem com @ (ex: "@2.05")
       const rawTxt  = oddEl.textContent.trim();
       const oddTxt  = rawTxt.startsWith("@") ? rawTxt.slice(1) : rawTxt;
       for(const val of Estado.oddsSelecionadas){
@@ -2060,6 +2102,7 @@ function getOddValue(odds, res) {
     casaVence:      "odds_casa_vence",
     foraVence:      "odds_visitante_vence",
     empate:         "odds_empate",
+    viradinha:      null,
     "over0.5":      "odds_mais_0_5",
     "over1.5":      "odds_mais_1_5",
     "over2.5":      "odds_mais_2_5",
@@ -2090,6 +2133,7 @@ function getOddValue(odds, res) {
     fora3Gols:      "odds_fora_3_gols",
     fora4Gols:      "odds_fora_4_gols",
   };
+  if (!m[res]) return "N/A";
   return odds ? odds[m[res]] || "N/A" : "N/A";
 }
 
@@ -2163,6 +2207,16 @@ function verificarAcerto(selRes, rA, rB, htA, htB) {
     case "casaVence": return rA > rB;
     case "foraVence": return rB > rA;
     case "empate":    return rA === rB;
+    case "viradinha": {
+      // Requer dados de HT
+      if (typeof htA !== "number" || typeof htB !== "number") return false;
+      // Quem venceu no HT perde no FT
+      const casaVenceuHT = htA > htB;
+      const foraVenceuHT = htB > htA;
+      const casaPerdeuFT = rA < rB;
+      const foraPerdeuFT = rB < rA;
+      return (casaVenceuHT && casaPerdeuFT) || (foraVenceuHT && foraPerdeuFT);
+    }
     case "over0.5": return tg > 0.5;
     case "over1.5": return tg > 1.5;
     case "over2.5": return tg > 2.5;
@@ -2209,7 +2263,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
 
   // ── Limpa o thead e insere trQD IMEDIATAMENTE como 1ª linha ──
-  // Feito aqui, antes de trPercentual/trMinutos, garante ordem correta sempre.
   thead.innerHTML = "";
   if (qdCheckboxAtivo()) {
     qdRenderTabela(dados);
@@ -2336,12 +2389,10 @@ function criarTabela(dados, oddsData, proximosJogos) {
   }
   function handleOddClick(e) {
     e.stopPropagation();
-    // Salva sem @ para ser consistente com os próximos confrontos
     const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
     if (!txt || txt === "N/A") return;
     Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
   }
-  // Handler para times/odd nos próximos confrontos
   function handleTimeClickFuturo(e) {
     e.stopPropagation();
     const val = e.currentTarget.getAttribute("data-full-time"); if(!val) return;
@@ -2349,7 +2400,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
   }
   function handleOddClickFuturo(e) {
     e.stopPropagation();
-    // Remove o "@" antes de salvar
     const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
     if (!txt || txt === "N/A") return;
     Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
@@ -2484,9 +2534,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
     if(oddVal && oddVal!=="N/A") {
       const oddDiv=Object.assign(document.createElement("div"),{className:"placar-futuro-odd",textContent:`@${oddVal}`});
-      // Odd clicável nos próximos confrontos
       oddDiv.addEventListener("click", handleOddClickFuturo);
-      // Restore seleção se já estava selecionada
       if(Estado.oddsSelecionadas.includes(oddVal)) {
         const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,oddVal,"odd");
         oddDiv.style.setProperty("--sel-color",cor.bg);
@@ -2495,13 +2543,11 @@ function criarTabela(dados, oddsData, proximosJogos) {
       placar.appendChild(oddDiv);
     }
 
-    // Times clicáveis nos próximos confrontos
     if(mostrarTimes){
       const timeCasa = placar.querySelector(".time-casa");
       const timeFora = placar.querySelector(".time-fora");
       timeCasa?.addEventListener("click", handleTimeClickFuturo);
       timeFora?.addEventListener("click", handleTimeClickFuturo);
-      // Restore seleção
       [timeCasa, timeFora].forEach(span => {
         if (!span) return;
         const ft2 = span.getAttribute("data-full-time");
@@ -2574,9 +2620,15 @@ function iniciarObserverStreak() {
 async function buscarDados() {
   hideErrorMessage();
   restaurarHorasSeletor();
-  const ligaAtual=typeof LIGA_ATUAL!=="undefined"?LIGA_ATUAL:"default";
+  const ligaAtual = getLigaKey();
   Estado.recarregarChaves();
-  if(Estado._ultimaLigaRenderizada!==ligaAtual){Estado.forcarRerender();Estado._ultimaLigaRenderizada=ligaAtual;_ultimaLigaHorasRestauradas=null;}
+  if (Estado._ultimaLigaRenderizada !== ligaAtual) {
+    Estado.forcarRerender();
+    Estado._ultimaLigaRenderizada = ligaAtual;
+    _ultimaLigaHorasRestauradas = null;
+    // Troca de liga: recarrega todas as seleções isoladas por liga
+    Estado.carregar();
+  }
   let dados=[],oddsData=[],proximosJogos=[];
   try{const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));if(!r.ok)throw new Error(`${r.status}`);dados=await r.json();}
   catch(e){console.error("Erro resultados:",e);showErrorMessage(`Erro ao carregar resultados: ${e.message}`);}
@@ -2593,8 +2645,6 @@ async function buscarDados() {
     atualizarCheckboxStreak(); calcularStreakMaximo();
     iniciarObserverStreak();
     qdDadosCache = dados;
-    // Usa qdRenderTabela (não só qdRenderTabelaValores) para garantir que o trQD
-    // seja criado caso não exista (ex: após reload com checkbox ativo)
     if (qdCheckboxAtivo()) qdRenderTabela(dados);
     else qdAtualizarIndicadorAoVivo();
     return;
