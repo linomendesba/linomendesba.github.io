@@ -245,62 +245,39 @@
     }
 
     /*
-     * Extrai a chave de "dia" de um registro.
-     * Usa o campo `data` (ISO string) e extrai apenas YYYY-MM-DD.
-     * Fallback: infere o dia pela posição na lista dividida por gamesPerHour.
+     * Extrai a chave de dia de um registro a partir do campo `data` (ISO string).
+     * Retorna "YYYY-MM-DD".
      */
-    function getDayKey(game, index, gamesPerHour) {
+    function getDayKey(game) {
         const dateField = game.data || game.date || game.dia || game.day
             || game.created_at || game.timestamp || game.dt;
-
-        if (dateField) {
-            const s = String(dateField);
-            // Timestamp numérico em segundos ou ms
-            if (/^\d{10,}$/.test(s)) {
-                return new Date(parseInt(s) * (s.length === 10 ? 1000 : 1))
-                    .toISOString().slice(0, 10);
-            }
-            // ISO string ou similar — pega só YYYY-MM-DD
-            return s.slice(0, 10);
+        if (!dateField) return null;
+        const s = String(dateField);
+        if (/^\d{10,}$/.test(s)) {
+            return new Date(parseInt(s) * (s.length === 10 ? 1000 : 1))
+                .toISOString().slice(0, 10);
         }
-
-        // Fallback posicional
-        return String(Math.floor(index / gamesPerHour));
+        return s.slice(0, 10);
     }
 
-    function processApiData(data) {
+    function processApiData(rawData) {
         const market = document.getElementById("marketSelect").value;
         const gales  = parseInt(document.getElementById("rangeSelect").value, 10);
+
+        // Usa apenas os últimos 2400 registros (5 dias × 24h × 20 jogos/hora)
+        const data = rawData.slice(-2400);
 
         // Minutos únicos desta liga
         const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
         const numMins = uniqueMinutes.length;
 
-        // Número de jogos por hora (= número de minutos únicos)
-        const gamesPerHour = numMins;
+        // Dias distintos presentes nos 2400 jogos, em ordem cronológica
+        const daySet = new Set();
+        data.forEach(g => { const dk = getDayKey(g); if (dk) daySet.add(dk); });
+        const sortedDays = [...daySet].sort();
+        const numDays = sortedDays.length;
 
-        /*
-         * ── DIAS: sempre usar os 5 dias mais recentes disponíveis ──
-         *
-         * Coleta todos os dayKeys distintos do dataset, ordena-os,
-         * e seleciona os últimos 5 (mais recentes).
-         * Todos os cálculos de total/green usam APENAS esses 5 dias.
-         * Slots que não possuem dado para algum desses dias são ignorados
-         * naquele dia específico — o denominador reflete quantos dos 5 dias
-         * têm dado para aquele slot (máx 5).
-         */
-        const allDayKeys = new Set();
-        data.forEach((game, idx) => {
-            allDayKeys.add(getDayKey(game, idx, gamesPerHour));
-        });
-        const sortedAllDays = [...allDayKeys].sort(); // ordem cronológica
-        // Pega os 5 dias mais recentes (ou menos, se não houver 5)
-        const TARGET_DAYS = 5;
-        const sortedDays = sortedAllDays.slice(-TARGET_DAYS);
-        const numDays = sortedDays.length; // 5 na maioria dos casos
-        const daySet5 = new Set(sortedDays);
-
-        // slotMap[hh][mm][dayKey] = game  (apenas para os 5 dias selecionados)
+        // slotMap[hh][mm][dayKey] = game
         const slotMap = {};
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
@@ -310,15 +287,12 @@
             });
         }
 
-        data.forEach((game, idx) => {
-            const dk = getDayKey(game, idx, gamesPerHour);
-            // Descarta jogos que não pertencem aos 5 dias selecionados
-            if (!daySet5.has(dk)) return;
-
+        data.forEach(game => {
+            const dk = getDayKey(game);
+            if (!dk) return;
             const hh = String(game.hora).padStart(2, '0');
             const mm = String(game.minuto).padStart(2, '0');
             if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
-                // Se já existe um jogo para esse dia nesse slot, mantém o último
                 slotMap[hh][mm][dk] = game;
             }
         });
@@ -336,27 +310,15 @@
         uniqueMinutes.forEach(m => { totals[String(m).padStart(2, '0')] = { total: 0, green: 0 }; });
 
         /*
-         * ── LÓGICA DE GALES POR DIA (base sempre = 5 dias) ──
+         * ── LÓGICA DE GALES POR DIA (base = 5 dias / 2400 jogos) ──
          *
-         * Para cada hora H e cada minuto base M (índice minIdx):
-         *   Para cada dia D nos sortedDays (os 5 dias selecionados):
+         * Para cada hora H e cada minuto base M:
+         *   Para cada dia D nos sortedDays (máx 5):
+         *     Se não existe jogo para H:M:D → pula
+         *     total[H][M]++ (máx 5 — 100% = 5/5)
          *
-         *     Se não existe jogo para H:M:D → pula (slot incompleto nesse dia)
-         *     total[H][M]++  (máx 5)
-         *
-         *     Tentativas de martingale:
-         *       attempt 0 → jogo do slot H : uniqueMinutes[minIdx+0] : D  (tiro seco)
-         *       attempt 1 → jogo do slot H : uniqueMinutes[minIdx+1] : D  (1º gale)
-         *       attempt 2 → jogo do slot H : uniqueMinutes[minIdx+2] : D  (2º gale)
-         *       ...
-         *
-         *     O índice do minuto avança linearmente (sem circular).
-         *     Se o índice ultrapassar o último minuto, para (sem mais jogos na hora).
-         *
-         *     Se qualquer tentativa for green → green[H][M]++
-         *
-         * Com isso, cada célula mostra X/Y onde Y ≤ 5 (dias com dados para aquele slot).
-         * Quando todos os 5 dias têm dado → Y = 5 e 100% = 5/5.
+         *     Tentativas de martingale avançam linearmente pelos próximos
+         *     minutos da mesma hora/dia. Se qualquer tentativa for green → green++
          */
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
