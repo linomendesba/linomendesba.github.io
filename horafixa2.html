@@ -139,6 +139,40 @@
             box-shadow: 0 0 10px rgba(35, 134, 54, 0.4);
         }
         
+        /* BOTÃO EXPORTAR LISTA LIMPA */
+        .export-list-btn {
+            background: #1f6feb;
+            color: #ffffff;
+            border: 1px solid #388bfd;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .export-list-btn:hover {
+            background: #388bfd;
+            border-color: #58a6ff;
+            box-shadow: 0 0 15px rgba(31, 111, 235, 0.4);
+            transform: translateY(-1px);
+        }
+        
+        .export-list-btn:active {
+            transform: translateY(0);
+        }
+        
+        .export-list-btn::before {
+            content: "📥";
+            font-size: 14px;
+        }
+        
         .hour-select {
             background: #21262d;
             color: #f0f6fc;
@@ -170,11 +204,37 @@
             padding: 15px;
             border: 2px solid #30363d;
             transition: transform 0.2s, border-color 0.2s;
+            position: relative;
         }
         
         .percent100-column:hover {
             transform: translateY(-2px);
             border-color: #58a6ff;
+        }
+        
+        /* BOTÃO EXPORTAR INDIVIDUAL POR LIGA */
+        .export-column-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #58a6ff;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .export-column-btn:hover {
+            background: #1f6feb;
+            color: white;
+            border-color: #388bfd;
         }
         
         .percent100-league-name {
@@ -192,6 +252,7 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
+            padding-right: 30px;
         }
         
         .percent100-league-name::before {
@@ -375,7 +436,7 @@
         <tbody id="resultsBody"></tbody>
     </table>
 
-    <!-- NOVA SEÇÃO: MINUTOS 100% COM SELETOR DE HORA -->
+    <!-- SEÇÃO MINUTOS 100% COM EXPORTAÇÃO -->
     <div class="percent100-section">
         <div class="percent100-title">Minutos com 100% de Aproveitamento</div>
         
@@ -399,6 +460,11 @@
                     </select>
                 </div>
             </div>
+            
+            <div class="control-group">
+                <span class="control-label">Exportar Lista</span>
+                <button class="export-list-btn" onclick="exportAllLists()">Baixar TXT</button>
+            </div>
         </div>
         
         <div id="percent100Container" class="percent100-grid">
@@ -408,10 +474,11 @@
 
 <script>
     let cachedData = {};
-    let percent100Mode = 'current'; // 'current' ou 'all'
-    let hourMode = 'all'; // 'all', 'current', 'specific'
+    let percent100Mode = 'current';
+    let hourMode = 'all';
     let specificHour = null;
-    
+    let lastCalculatedResults = [];
+
     const leaguesList = [
         { value: "Copa%20Am%C3%A9rica", name: "Copa América" },
         { value: "Ta%C3%A7a%20Gl%C3%B3ria%20eterna", name: "Clássicos da América" },
@@ -421,7 +488,6 @@
         { value: "Brasileir%C3%A3o%20Betano", name: "Brasileirão Betano" }
     ];
 
-    // Inicializa o seletor de horas específicas
     function initHourSelect() {
         const select = document.getElementById('specificHourSelect');
         select.innerHTML = '';
@@ -431,7 +497,6 @@
             option.textContent = `${String(h).padStart(2, '0')}:00 - ${String(h).padStart(2, '0')}:59`;
             select.appendChild(option);
         }
-        // Define hora atual como padrão
         const now = new Date();
         select.value = String(now.getHours()).padStart(2, '0');
     }
@@ -447,12 +512,10 @@
         hourMode = mode;
         const specificSelect = document.getElementById('specificHourSelect');
         
-        // Atualiza botões
         document.getElementById('btnAllHours').classList.toggle('active', mode === 'all');
         document.getElementById('btnCurrentHourFilter').classList.toggle('active', mode === 'current');
         document.getElementById('btnSpecificHour').classList.toggle('active', mode === 'specific');
         
-        // Mostra/esconde seletor de hora específica
         specificSelect.style.display = mode === 'specific' ? 'block' : 'none';
         
         if (mode === 'specific' && !specificHour) {
@@ -613,7 +676,6 @@
             });
         }
 
-        // Se tem hora alvo, calcula apenas ela. Senão, calcula todas.
         const hoursToCalc = targetHour ? [targetHour] : Array.from({length: 24}, (_, i) => String(i).padStart(2, '0'));
 
         hoursToCalc.forEach(hh => {
@@ -648,7 +710,6 @@
             });
         });
 
-        // Extrair minutos com 100%
         const percent100Minutes = [];
         hoursToCalc.forEach(hh => {
             uniqueMinutes.forEach(m => {
@@ -663,7 +724,9 @@
         return {
             minutes: percent100Minutes.sort(),
             count: percent100Minutes.length,
-            targetHour: targetHour
+            targetHour: targetHour,
+            totalHours: hoursToCalc.length,
+            numDays: numDays
         };
     }
 
@@ -672,7 +735,6 @@
         const market = document.getElementById("marketSelect").value;
         const gales = parseInt(document.getElementById("rangeSelect").value, 10);
         
-        // Determina qual hora usar
         let targetHour = null;
         if (hourMode === 'current') {
             targetHour = String(new Date().getHours()).padStart(2, '0');
@@ -681,6 +743,7 @@
         }
 
         container.innerHTML = '<div class="percent100-loading">Analisando dados...</div>';
+        lastCalculatedResults = [];
 
         if (percent100Mode === 'current') {
             const currentLeague = document.getElementById("leagueSelect").value;
@@ -692,32 +755,40 @@
             }
 
             const result = calculateLeaguePercent100(cachedData[currentLeague], market, gales, targetHour);
+            const leagueData = {
+                leagueName: currentLeagueName,
+                leagueValue: currentLeague,
+                ...result
+            };
+            lastCalculatedResults.push(leagueData);
             
             container.innerHTML = '';
-            const column = createPercent100Column(currentLeagueName, result.minutes, result.count, targetHour);
+            const column = createPercent100Column(leagueData, 0);
             container.appendChild(column);
             
         } else {
-            const leaguesToFetch = leaguesList.filter(l => !cachedData[l.value]);
+            const fetchPromises = leaguesList.map(l => 
+                fetch(`https://betstat.site/resultados/${l.value}`)
+                    .then(r => r.json())
+                    .then(data => { cachedData[l.value] = data; })
+                    .catch(() => { cachedData[l.value] = null; })
+            );
             
-            if (leaguesToFetch.length > 0) {
-                const fetchPromises = leaguesToFetch.map(l => 
-                    fetch(`https://betstat.site/resultados/${l.value}`)
-                        .then(r => r.json())
-                        .then(data => { cachedData[l.value] = data; })
-                        .catch(() => { cachedData[l.value] = null; })
-                );
-                
-                await Promise.all(fetchPromises);
-            }
+            await Promise.all(fetchPromises);
 
             container.innerHTML = '';
             let hasAnyData = false;
             
-            leaguesList.forEach(league => {
+            leaguesList.forEach((league, index) => {
                 if (cachedData[league.value]) {
                     const result = calculateLeaguePercent100(cachedData[league.value], market, gales, targetHour);
-                    const column = createPercent100Column(league.name, result.minutes, result.count, targetHour);
+                    const leagueData = {
+                        leagueName: league.name,
+                        leagueValue: league.value,
+                        ...result
+                    };
+                    lastCalculatedResults.push(leagueData);
+                    const column = createPercent100Column(leagueData, index);
                     container.appendChild(column);
                     hasAnyData = true;
                 }
@@ -729,25 +800,35 @@
         }
     }
 
-    function createPercent100Column(leagueName, minutes, count, targetHour) {
+    function createPercent100Column(leagueData, index) {
         const column = document.createElement('div');
         column.className = 'percent100-column';
         
+        // Botão exportar individual
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'export-column-btn';
+        exportBtn.innerHTML = '💾';
+        exportBtn.title = 'Exportar esta lista';
+        exportBtn.onclick = () => exportSingleList(index);
+        column.appendChild(exportBtn);
+        
         const title = document.createElement('div');
         title.className = 'percent100-league-name';
-        title.textContent = leagueName;
+        title.textContent = leagueData.leagueName;
         column.appendChild(title);
         
         const list = document.createElement('ul');
         list.className = 'percent100-list';
         
-        if (minutes.length === 0) {
+        if (leagueData.minutes.length === 0) {
             const empty = document.createElement('li');
             empty.className = 'percent100-empty';
-            empty.textContent = targetHour ? `Nenhum minuto 100% na hora ${targetHour}` : 'Nenhum minuto 100% encontrado';
+            empty.textContent = leagueData.targetHour ? 
+                `Nenhum minuto 100% na hora ${leagueData.targetHour}` : 
+                'Nenhum minuto 100% encontrado';
             list.appendChild(empty);
         } else {
-            minutes.forEach(time => {
+            leagueData.minutes.forEach(time => {
                 const item = document.createElement('li');
                 item.className = 'percent100-item';
                 item.textContent = time;
@@ -757,16 +838,124 @@
         
         column.appendChild(list);
         
-        // Adiciona estatísticas
         const stats = document.createElement('div');
         stats.className = 'percent100-stats';
-        stats.innerHTML = `<span class="percent100-count">${count}</span> minuto${count !== 1 ? 's' : ''} 100%`;
-        if (targetHour) {
-            stats.innerHTML += ` <span style="color: #58a6ff;">(@ ${targetHour}h)</span>`;
+        stats.innerHTML = `<span class="percent100-count">${leagueData.count}</span> minuto${leagueData.count !== 1 ? 's' : ''} 100%`;
+        if (leagueData.targetHour) {
+            stats.innerHTML += ` <span style="color: #58a6ff;">(@ ${leagueData.targetHour}h)</span>`;
         }
         column.appendChild(stats);
         
         return column;
+    }
+
+    // EXPORTAR LISTA INDIVIDUAL (uma liga específica)
+    function exportSingleList(index) {
+        const data = lastCalculatedResults[index];
+        if (!data || data.minutes.length === 0) {
+            alert('Nenhum minuto 100% para exportar nesta liga.');
+            return;
+        }
+
+        // Cria conteúdo LIMPO - apenas os minutos, um por linha
+        let content = data.minutes.join('\n');
+        
+        // Nome do arquivo simples
+        const safeName = data.leagueName.replace(/[^a-zA-Z0-9]/g, '-');
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        const filename = `${safeName}-100percent-${timestamp}.txt`;
+        
+        downloadTxt(content, filename);
+        
+        // Feedback
+        showExportFeedback(document.querySelectorAll('.export-column-btn')[index]);
+    }
+
+    // EXPORTAR TODAS AS LISTAS (botão principal)
+    function exportAllLists() {
+        if (lastCalculatedResults.length === 0) {
+            alert('Nenhuma lista para exportar. Gere os dados primeiro.');
+            return;
+        }
+
+        const market = document.getElementById("marketSelect");
+        const marketText = market.options[market.selectedIndex].text;
+        const gales = document.getElementById("rangeSelect").value;
+        
+        let targetHour = null;
+        let hourFilterText = "Todas";
+        if (hourMode === 'current') {
+            targetHour = String(new Date().getHours()).padStart(2, '0');
+            hourFilterText = `Hora${targetHour}`;
+        } else if (hourMode === 'specific') {
+            targetHour = specificHour || String(new Date().getHours()).padStart(2, '0');
+            hourFilterText = `Hora${targetHour}`;
+        }
+
+        // Se for apenas uma liga, exporta lista limpa direto
+        if (lastCalculatedResults.length === 1) {
+            const data = lastCalculatedResults[0];
+            if (data.minutes.length === 0) {
+                alert('Nenhum minuto 100% para exportar.');
+                return;
+            }
+            
+            let content = data.minutes.join('\n');
+            const safeName = data.leagueName.replace(/[^a-zA-Z0-9]/g, '-');
+            const filename = `${safeName}-${marketText.replace(/\s+/g, '-')}-${hourFilterText}-G${gales}.txt`;
+            downloadTxt(content, filename);
+            showExportFeedback(document.querySelector('.export-list-btn'));
+            return;
+        }
+
+        // Se forem múltiplas ligas, cria arquivo com separadores
+        let content = '';
+        lastCalculatedResults.forEach((data, index) => {
+            if (data.minutes.length > 0) {
+                content += `=== ${data.leagueName} ===\n`;
+                content += data.minutes.join('\n');
+                content += '\n\n';
+            }
+        });
+
+        if (content === '') {
+            alert('Nenhum minuto 100% encontrado nas ligas analisadas.');
+            return;
+        }
+
+        const filename = `Todas-Ligas-${marketText.replace(/\s+/g, '-')}-${hourFilterText}-G${gales}.txt`;
+        downloadTxt(content, filename);
+        showExportFeedback(document.querySelector('.export-list-btn'));
+    }
+
+    // FUNÇÃO AUXILIAR PARA DOWNLOAD
+    function downloadTxt(content, filename) {
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    // FEEDBACK VISUAL DO BOTÃO
+    function showExportFeedback(btn) {
+        if (!btn) return;
+        const originalHTML = btn.innerHTML;
+        const originalBg = btn.style.background;
+        
+        btn.innerHTML = '✓';
+        btn.style.background = '#238636';
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.style.background = originalBg;
+        }, 1500);
     }
 
     function processApiData(data) {
@@ -775,7 +964,6 @@
 
         const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
         const numMins = uniqueMinutes.length;
-        const uniqueHours = [...new Set(data.map(g => parseInt(g.hora, 10)))].sort((a, b) => a - b);
 
         const gamesPerHour = numMins;
 
