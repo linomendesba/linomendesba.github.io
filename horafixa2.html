@@ -264,18 +264,22 @@
         const market = document.getElementById("marketSelect").value;
         const gales  = parseInt(document.getElementById("rangeSelect").value, 10);
 
-        // Usa apenas os últimos 2400 registros (5 dias × 24h × 20 jogos/hora)
-        const data = rawData.slice(-2400);
+        // Passo 1: descobre todos os dias distintos presentes na API, em ordem cronológica
+        const allDayKeys = new Set();
+        rawData.forEach(g => { const dk = getDayKey(g); if (dk) allDayKeys.add(dk); });
+        const sortedAllDays = [...allDayKeys].sort();
+
+        // Passo 2: seleciona os 5 dias mais recentes
+        const sortedDays = sortedAllDays.slice(-5);
+        const numDays = sortedDays.length;
+        const validDays = new Set(sortedDays);
+
+        // Passo 3: filtra apenas jogos que pertencem a esses 5 dias
+        const data = rawData.filter(g => validDays.has(getDayKey(g)));
 
         // Minutos únicos desta liga
         const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
         const numMins = uniqueMinutes.length;
-
-        // Dias distintos presentes nos 2400 jogos, em ordem cronológica
-        const daySet = new Set();
-        data.forEach(g => { const dk = getDayKey(g); if (dk) daySet.add(dk); });
-        const sortedDays = [...daySet].sort();
-        const numDays = sortedDays.length;
 
         // slotMap[hh][mm][dayKey] = game
         const slotMap = {};
@@ -289,7 +293,7 @@
 
         data.forEach(game => {
             const dk = getDayKey(game);
-            if (!dk) return;
+            if (!dk || !validDays.has(dk)) return;
             const hh = String(game.hora).padStart(2, '0');
             const mm = String(game.minuto).padStart(2, '0');
             if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
