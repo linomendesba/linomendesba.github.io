@@ -56,6 +56,99 @@
         }
         .legend-item { display: flex; align-items: center; gap: 4px; }
         .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+        /* Estilos para a lista de minutos 100% */
+        .perfect-minutes-container {
+            margin: 20px auto;
+            max-width: 1200px;
+            padding: 0 15px;
+        }
+
+        .perfect-minutes-header {
+            background: linear-gradient(135deg, #6a0dad 0%, #8b24d8 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+            font-size: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .perfect-minutes-header .count-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .perfect-minutes-content {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 20px;
+            min-height: 60px;
+        }
+
+        .perfect-minutes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .minute-item {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+            border: 2px solid #6a0dad;
+            border-radius: 8px;
+            padding: 12px 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .minute-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(106, 13, 173, 0.4);
+            border-color: #8b24d8;
+        }
+
+        .minute-item .hour {
+            font-size: 24px;
+            font-weight: 600;
+            color: #6a0dad;
+            margin-bottom: 4px;
+        }
+
+        .minute-item .minute {
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .no-perfect-minutes {
+            text-align: center;
+            color: #777;
+            padding: 30px 20px;
+            font-size: 14px;
+        }
+
+        .no-perfect-minutes .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .perfect-minutes-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            }
+            
+            .minute-item .hour {
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
 
@@ -164,6 +257,20 @@
         <tbody id="resultsBody"></tbody>
     </table>
 
+    <!-- Nova seção: Lista de minutos com 100% -->
+    <div class="perfect-minutes-container">
+        <div class="perfect-minutes-header">
+            <span>⭐ Minutos com 100% de Assertividade</span>
+            <span class="count-badge" id="perfectCount">0</span>
+        </div>
+        <div class="perfect-minutes-content" id="perfectMinutesContent">
+            <div class="no-perfect-minutes">
+                <div class="icon">🔍</div>
+                <div>Nenhum minuto com 100% encontrado para os filtros selecionados</div>
+            </div>
+        </div>
+    </div>
+
 <script>
     let cachedData = {};
 
@@ -188,126 +295,74 @@
             .catch(err => { console.error(err); showLoading(false); alert("Erro ao buscar dados da API."); });
     }
 
-    function parseScore(s) {
-        if (!s || typeof s !== 'string') return [0, 0];
-        const p = s.split('x').map(v => parseInt(v.trim(), 10) || 0);
-        return p.length === 2 ? p : [0, 0];
-    }
-
     function checkMarket(game, market) {
-        const [g1, g2] = parseScore(game.ft);
-        const [h1, h2] = parseScore(game.ht);
-        const st1 = g1 - h1, st2 = g2 - h2;
-        const tot = g1 + g2;
+        const golsCasa = game.golsCasa;
+        const golsFora = game.golsFora;
+        const total = golsCasa + golsFora;
+
+        const gols2t = (game.segundotempo || "").trim();
+        const [casa2t = 0, fora2t = 0] = gols2t ? gols2t.split("-").map(Number) : [0, 0];
+
         switch (market) {
-            case "ambasMarcam":    return g1 > 0 && g2 > 0;
-            case "ambasNaoMarcam": return g1 === 0 || g2 === 0;
-            case "casaVence":      return g1 > g2;
-            case "empate":         return g1 === g2;
-            case "foraVence":      return g1 < g2;
-            case "over0.5":        return tot > 0;
-            case "over1.5":        return tot > 1;
-            case "over2.5":        return tot > 2;
-            case "over3.5":        return tot > 3;
-            case "over5":          return tot > 4;
-            case "under0.5":       return tot < 1;
-            case "under1.5":       return tot < 2;
-            case "under2.5":       return tot < 3;
-            case "under3.5":       return tot < 4;
-            case "exato0":         return tot === 0;
-            case "exato1":         return tot === 1;
-            case "exato2":         return tot === 2;
-            case "exato3":         return tot === 3;
-            case "exato4":         return tot === 4;
-            case "exato2t0":       return (st1 + st2) === 0;
-            case "exato2t1":       return (st1 + st2) === 1;
-            case "exato2t2":       return (st1 + st2) === 2;
-            case "exato2t3":       return (st1 + st2) === 3;
-            case "exato2t4":       return (st1 + st2) === 4;
-            case "casa0Gols":      return g1 === 0;
-            case "casa1Gol":       return g1 === 1;
-            case "casa2Gols":      return g1 === 2;
-            case "casa3Gols":      return g1 === 3;
-            case "casa4Gols":      return g1 === 4;
-            case "fora0Gols":      return g2 === 0;
-            case "fora1Gol":       return g2 === 1;
-            case "fora2Gols":      return g2 === 2;
-            case "fora3Gols":      return g2 === 3;
-            case "fora4Gols":      return g2 === 4;
-            // legados
-            case "ambas":          return g1 > 0 && g2 > 0;
-            case "ambasnao":       return g1 === 0 || g2 === 0;
-            case "casa":           return g1 > g2;
-            case "fora":           return g1 < g2;
-            case "cincog":         return tot > 4;
+            case "ambasMarcam": return golsCasa > 0 && golsFora > 0;
+            case "ambasNaoMarcam": return golsCasa === 0 || golsFora === 0;
+            case "casaVence": return golsCasa > golsFora;
+            case "empate": return golsCasa === golsFora;
+            case "foraVence": return golsFora > golsCasa;
+            case "over0.5": return total >= 1;
+            case "over1.5": return total >= 2;
+            case "over2.5": return total >= 3;
+            case "over3.5": return total >= 4;
+            case "over5": return total >= 6;
+            case "under0.5": return total <= 0;
+            case "under1.5": return total <= 1;
+            case "under2.5": return total <= 2;
+            case "under3.5": return total <= 3;
+            case "exato0": return total === 0;
+            case "exato1": return total === 1;
+            case "exato2": return total === 2;
+            case "exato3": return total === 3;
+            case "exato4": return total === 4;
+            case "exato2t0": return (casa2t + fora2t) === 0;
+            case "exato2t1": return (casa2t + fora2t) === 1;
+            case "exato2t2": return (casa2t + fora2t) === 2;
+            case "exato2t3": return (casa2t + fora2t) === 3;
+            case "exato2t4": return (casa2t + fora2t) === 4;
+            case "casa0Gols": return golsCasa === 0;
+            case "casa1Gol": return golsCasa === 1;
+            case "casa2Gols": return golsCasa === 2;
+            case "casa3Gols": return golsCasa === 3;
+            case "casa4Gols": return golsCasa === 4;
+            case "fora0Gols": return golsFora === 0;
+            case "fora1Gol": return golsFora === 1;
+            case "fora2Gols": return golsFora === 2;
+            case "fora3Gols": return golsFora === 3;
+            case "fora4Gols": return golsFora === 4;
             default: return false;
         }
     }
 
-    /*
-     * Extrai a chave de "dia" de um registro.
-     * Tenta vários campos possíveis: data, date, dia, day, created_at, timestamp.
-     * Se nenhum existir, usa o índice do registro dividido pelo número de jogos por hora (20)
-     * para inferir o dia com base na posição na lista.
-     */
-    function getDayKey(game, index, gamesPerHour) {
-        // Tenta campo de data explícito (vários nomes possíveis)
-        const dateField = game.data || game.date || game.dia || game.day
-            || game.created_at || game.timestamp || game.dt;
-
-        if (dateField) {
-            // Normaliza: pega só a parte de data (YYYY-MM-DD ou DD/MM/YYYY etc.)
-            const s = String(dateField);
-            // Se for timestamp numérico, converte
-            if (/^\d{10,}$/.test(s)) {
-                return new Date(parseInt(s) * (s.length === 10 ? 1000 : 1))
-                    .toISOString().slice(0, 10);
-            }
-            // Pega os primeiros 10 chars (data sem hora)
-            return s.slice(0, 10);
-        }
-
-        // Fallback: infere o dia pela posição na lista.
-        // A API retorna os dados em ordem cronológica.
-        // Cada "ciclo completo" de hora+minutos = gamesPerHour registros.
-        // Em 5 dias, o mesmo slot (hora, minuto) aparece 5 vezes.
-        // Usamos Math.floor(index / gamesPerHour) como proxy de dia.
-        return String(Math.floor(index / gamesPerHour));
+    function getDayKey(game, idx, gamesPerHour) {
+        return String(Math.floor(idx / gamesPerHour));
     }
 
     function processApiData(data) {
         const market = document.getElementById("marketSelect").value;
-        const gales  = parseInt(document.getElementById("rangeSelect").value, 10);
+        const gales = parseInt(document.getElementById("rangeSelect").value, 10);
 
-        // Minutos únicos desta liga
-        const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
+        const minutesSet = new Set();
+        data.forEach(g => minutesSet.add(g.minuto));
+        const uniqueMinutes = [...minutesSet].sort((a, b) => a - b);
         const numMins = uniqueMinutes.length;
+        const gamesPerHour = numMins;
 
-        // Horas únicas
-        const uniqueHours = [...new Set(data.map(g => parseInt(g.hora, 10)))].sort((a, b) => a - b);
-
-        /*
-         * ── ESTRUTURA DE DADOS ──
-         *
-         * Queremos: slotMap[hora][minuto] = { [diaKey]: game }
-         *
-         * Cada slot (hora, minuto) deve ter EXATAMENTE 1 jogo por dia.
-         * O diaKey é extraído do campo de data do registro.
-         *
-         * Se não existir campo de data, inferimos o dia pela posição
-         * do registro na lista ordenada cronologicamente.
-         */
-        const gamesPerHour = numMins; // 1 jogo por minuto por hora
-
-        // Descobre os dias disponíveis (em ordem)
         const daySet = new Set();
         data.forEach((game, idx) => {
             daySet.add(getDayKey(game, idx, gamesPerHour));
         });
         const sortedDays = [...daySet].sort();
-        const numDays = sortedDays.length; // deve ser 5
+        const numDays = sortedDays.length;
 
-        // slotMap[hh][mm][dayKey] = game
         const slotMap = {};
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
@@ -322,12 +377,10 @@
             const mm = String(game.minuto).padStart(2, '0');
             const dk = getDayKey(game, idx, gamesPerHour);
             if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
-                // Se já existe um jogo para esse dia nesse slot, mantém o último
                 slotMap[hh][mm][dk] = game;
             }
         });
 
-        // Matrizes de resultado
         const result = {};
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
@@ -339,30 +392,6 @@
         const totals = {};
         uniqueMinutes.forEach(m => { totals[String(m).padStart(2, '0')] = { total: 0, green: 0 }; });
 
-        /*
-         * ── LÓGICA DE GALES POR DIA ──
-         *
-         * Para cada hora H e cada minuto base M (índice minIdx):
-         *   Para cada dia D nos sortedDays:
-         *
-         *     Se não existe jogo para H:M:D → pula (slot incompleto)
-         *     total[H][M]++
-         *
-         *     Tentativas de martingale:
-         *       attempt 0 → jogo do slot H : uniqueMinutes[minIdx+0] : D  (tiro seco)
-         *       attempt 1 → jogo do slot H : uniqueMinutes[minIdx+1] : D  (1º gale)
-         *       attempt 2 → jogo do slot H : uniqueMinutes[minIdx+2] : D  (2º gale)
-         *       ...
-         *
-         *     O índice do minuto avança linearmente (sem circular),
-         *     pois um gale avança para o PRÓXIMO jogo em sequência na hora.
-         *     Se o índice ultrapassar o último minuto, para (não tem mais jogos nessa hora).
-         *
-         *     Se qualquer tentativa for green → green[H][M]++
-         *
-         * Com isso, cada célula mostra X/Y onde Y = número de dias com dados
-         * para aquele slot (máx 5).
-         */
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
 
@@ -370,9 +399,8 @@
                 const bm = String(baseMin).padStart(2, '0');
 
                 sortedDays.forEach(dayKey => {
-                    // Verifica se o slot base existe neste dia
                     const baseGame = slotMap[hh][bm][dayKey];
-                    if (!baseGame) return; // sem dado para este dia
+                    if (!baseGame) return;
 
                     result[hh][bm].total += 1;
                     totals[bm].total += 1;
@@ -380,12 +408,12 @@
                     let green = false;
 
                     for (let attempt = 0; attempt < gales && !green; attempt++) {
-                        const targetMinIdx = minIdx + attempt; // linear, sem circular
-                        if (targetMinIdx >= numMins) break;    // sem mais minutos na hora
+                        const targetMinIdx = minIdx + attempt;
+                        if (targetMinIdx >= numMins) break;
 
                         const tm = String(uniqueMinutes[targetMinIdx]).padStart(2, '0');
                         const targetGame = slotMap[hh][tm][dayKey];
-                        if (!targetGame) continue; // sem dado para este minuto+dia
+                        if (!targetGame) continue;
 
                         if (checkMarket(targetGame, market)) {
                             green = true;
@@ -401,6 +429,7 @@
         }
 
         displayTable(result, uniqueMinutes, totals, numDays);
+        displayPerfectMinutes(result, uniqueMinutes);
     }
 
     function pct(slot) {
@@ -439,7 +468,6 @@
         document.getElementById("tableHeader").innerHTML = headerHTML;
         document.getElementById("currentHourHeader").innerHTML = headerHTML;
 
-        // Linha hora atual
         const curBody = document.getElementById("currentHourBody");
         curBody.innerHTML = "";
         const curRow = document.createElement("tr");
@@ -451,7 +479,6 @@
         });
         curBody.appendChild(curRow);
 
-        // Tabela principal (23h → 00h)
         const body = document.getElementById("resultsBody");
         body.innerHTML = "";
         for (let h = 23; h >= 0; h--) {
@@ -466,7 +493,6 @@
             body.appendChild(row);
         }
 
-        // Linha de totais
         const totalRow = document.createElement("tr");
         totalRow.className = "total-row";
         const tLabel = document.createElement("th");
@@ -476,6 +502,48 @@
             totalRow.appendChild(makeCell(totals[String(m).padStart(2, '0')]));
         });
         body.appendChild(totalRow);
+    }
+
+    function displayPerfectMinutes(result, uniqueMinutes) {
+        const perfectMinutes = [];
+
+        // Percorre todas as horas e minutos para encontrar 100%
+        for (let h = 0; h < 24; h++) {
+            const hh = String(h).padStart(2, '0');
+            uniqueMinutes.forEach(m => {
+                const mm = String(m).padStart(2, '0');
+                const slot = result[hh][mm];
+                const p = pct(slot);
+                
+                // Se tiver dados e for 100%, adiciona à lista
+                if (slot.total > 0 && p >= 100) {
+                    perfectMinutes.push({ hour: hh, minute: mm });
+                }
+            });
+        }
+
+        const contentDiv = document.getElementById("perfectMinutesContent");
+        const countBadge = document.getElementById("perfectCount");
+        
+        countBadge.textContent = perfectMinutes.length;
+
+        if (perfectMinutes.length === 0) {
+            contentDiv.innerHTML = `
+                <div class="no-perfect-minutes">
+                    <div class="icon">🔍</div>
+                    <div>Nenhum minuto com 100% encontrado para os filtros selecionados</div>
+                </div>
+            `;
+        } else {
+            const gridHTML = perfectMinutes.map(item => `
+                <div class="minute-item">
+                    <div class="hour">${item.hour}:${item.minute}</div>
+                    <div class="minute">100%</div>
+                </div>
+            `).join('');
+
+            contentDiv.innerHTML = `<div class="perfect-minutes-grid">${gridHTML}</div>`;
+        }
     }
 
     window.onload = handleSelectionChange;
