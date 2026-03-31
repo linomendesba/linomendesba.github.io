@@ -248,34 +248,57 @@
      * Extrai a chave de dia de um registro a partir do campo `data` (ISO string).
      * Retorna "YYYY-MM-DD".
      */
+    /*
+     * Converte o campo `data` (ISO UTC) para chave de dia no fuso de Brasília (UTC-3).
+     * Ex: "2025-08-14T02:00:00.000Z" → hora local = 23h do dia 13 → "2025-08-13"
+     * Usa os campos `hora` e `minuto` do próprio jogo (que já estão em horário local)
+     * para reconstruir a data local corretamente.
+     */
     function getDayKey(game) {
         const dateField = game.data || game.date || game.dia || game.day
             || game.created_at || game.timestamp || game.dt;
         if (!dateField) return null;
+
+        // Se o jogo tem hora e data, reconstrói a data local a partir do timestamp UTC
+        // aplicando o offset de Brasília (UTC-3 = -180 min)
         const s = String(dateField);
+        let ms;
         if (/^\d{10,}$/.test(s)) {
-            return new Date(parseInt(s) * (s.length === 10 ? 1000 : 1))
-                .toISOString().slice(0, 10);
+            ms = parseInt(s) * (s.length === 10 ? 1000 : 1);
+        } else {
+            ms = new Date(s).getTime();
         }
-        return s.slice(0, 10);
+        if (isNaN(ms)) return s.slice(0, 10); // fallback
+
+        // Ajusta para UTC-3 (Brasília)
+        const BRT_OFFSET = -3 * 60; // minutos
+        const localMs = ms + BRT_OFFSET * 60 * 1000;
+        return new Date(localMs).toISOString().slice(0, 10);
     }
 
     function processApiData(rawData) {
         const market = document.getElementById("marketSelect").value;
         const gales  = parseInt(document.getElementById("rangeSelect").value, 10);
 
-        // Passo 1: descobre todos os dias distintos presentes na API, em ordem cronológica
+        // Passo 1: descobre todos os dias distintos (em horário de Brasília), em ordem cronológica
         const allDayKeys = new Set();
         rawData.forEach(g => { const dk = getDayKey(g); if (dk) allDayKeys.add(dk); });
         const sortedAllDays = [...allDayKeys].sort();
+
+        // DEBUG — remova após confirmar
+        console.log('[BetStat] Dias detectados na API:', sortedAllDays);
+        console.log('[BetStat] Total de jogos na API:', rawData.length);
 
         // Passo 2: seleciona os 5 dias mais recentes
         const sortedDays = sortedAllDays.slice(-5);
         const numDays = sortedDays.length;
         const validDays = new Set(sortedDays);
 
+        console.log('[BetStat] 5 dias usados no cálculo:', sortedDays);
+
         // Passo 3: filtra apenas jogos que pertencem a esses 5 dias
         const data = rawData.filter(g => validDays.has(getDayKey(g)));
+        console.log('[BetStat] Jogos após filtro dos 5 dias:', data.length);
 
         // Minutos únicos desta liga
         const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
@@ -446,6 +469,5 @@
 
 <script src="header-loader.js"></script>
 <script src="redirecionar.js"></script>
-<script src="app.utils.min.js"></script>
 </body>
 </html>
