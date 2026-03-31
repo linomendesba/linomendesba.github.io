@@ -56,16 +56,6 @@
         }
         .legend-item { display: flex; align-items: center; gap: 4px; }
         .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
-
-        /* Cores modo Gols */
-        .gols-0  { background-color: #0a0a2e !important; color: #aaa; }
-        .gols-1  { background-color: #1a3a6e !important; color: #fff; }
-        .gols-3  { background-color: #1a6a9a !important; color: #fff; }
-        .gols-5  { background-color: #1a9a4a !important; color: #fff; }
-        .gols-7  { background-color: #66cc00 !important; color: #111; }
-        .gols-9  { background-color: #cccc00 !important; color: #111; }
-        .gols-11 { background-color: #e67e00 !important; color: #fff; }
-        .gols-14 { background-color: #cc2200 !important; color: #fff; }
     </style>
 </head>
 
@@ -138,12 +128,6 @@
             </optgroup>
         </select>
 
-        <label for="modeSelect">Modo:</label>
-        <select id="modeSelect" onchange="handleSelectionChange()">
-            <option value="mercado" selected>Mercados</option>
-            <option value="gols">Volume de Gols</option>
-        </select>
-
         <label for="rangeSelect">Gales:</label>
         <select id="rangeSelect" onchange="handleSelectionChange()">
             <option value="1">01</option>
@@ -154,8 +138,8 @@
         </select>
     </div>
 
-    <!-- Legenda Mercados -->
-    <div class="legend-bar" id="legendMercado">
+    <!-- Legenda -->
+    <div class="legend-bar">
         <span style="color:#aaa; margin-right:2px;">Legenda:</span>
         <div class="legend-item"><div class="legend-dot" style="background:#6a0dad"></div><span>100%</span></div>
         <div class="legend-item"><div class="legend-dot" style="background:#1a7a1a"></div><span>90-99%</span></div>
@@ -165,18 +149,6 @@
         <div class="legend-item"><div class="legend-dot" style="background:#e67e00"></div><span>50-59%</span></div>
         <div class="legend-item"><div class="legend-dot" style="background:#cc4400"></div><span>40-49%</span></div>
         <div class="legend-item"><div class="legend-dot" style="background:#990000"></div><span>&lt;40%</span></div>
-    </div>
-    <!-- Legenda Gols -->
-    <div class="legend-bar" id="legendGols" style="display:none;">
-        <span style="color:#aaa; margin-right:2px;">Volume de Gols:</span>
-        <div class="legend-item"><div class="legend-dot" style="background:#0a0a2e"></div><span>0</span></div>
-        <div class="legend-item"><div class="legend-dot" style="background:#1a3a6e"></div><span>1-2</span></div>
-        <div class="legend-item"><div class="legend-dot" style="background:#1a6a9a"></div><span>3-4</span></div>
-        <div class="legend-item"><div class="legend-dot" style="background:#1a9a4a"></div><span>5-6</span></div>
-        <div class="legend-item"><div class="legend-dot" style="background:#66cc00"></div><span>7-8</span></div>
-        <div class="legend-item"><div class="legend-dot" style="background:#cccc00"></div><span>9-10</span></div>
-        <div class="legend-item"><div class="legend-dot" style="background:#e67e00"></div><span>11-13</span></div>
-        <div class="legend-item"><div class="legend-dot" style="background:#cc2200"></div><span>14+</span></div>
     </div>
 
     <div id="loading" class="loading" style="display:none;">Carregando dados...</div>
@@ -303,160 +275,132 @@
         return String(Math.floor(index / gamesPerHour));
     }
 
-    function getDayKey(game, index, gamesPerHour) {
-        const dateField = game.data || game.date || game.dia || game.day
-            || game.created_at || game.timestamp || game.dt;
-        if (dateField) {
-            const s = String(dateField);
-            if (/^\d{10,}$/.test(s)) {
-                return new Date(parseInt(s) * (s.length === 10 ? 1000 : 1))
-                    .toISOString().slice(0, 10);
-            }
-            return s.slice(0, 10);
-        }
-        return String(Math.floor(index / gamesPerHour));
-    }
+    function processApiData(data) {
+        const market = document.getElementById("marketSelect").value;
+        const gales  = parseInt(document.getElementById("rangeSelect").value, 10);
 
-    function buildSlotMap(data, uniqueMinutes, sortedDays) {
-        const gamesPerHour = uniqueMinutes.length;
+        // Minutos únicos desta liga
+        const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
+        const numMins = uniqueMinutes.length;
+
+        // Horas únicas
+        const uniqueHours = [...new Set(data.map(g => parseInt(g.hora, 10)))].sort((a, b) => a - b);
+
+        /*
+         * ── ESTRUTURA DE DADOS ──
+         *
+         * Queremos: slotMap[hora][minuto] = { [diaKey]: game }
+         *
+         * Cada slot (hora, minuto) deve ter EXATAMENTE 1 jogo por dia.
+         * O diaKey é extraído do campo de data do registro.
+         *
+         * Se não existir campo de data, inferimos o dia pela posição
+         * do registro na lista ordenada cronologicamente.
+         */
+        const gamesPerHour = numMins; // 1 jogo por minuto por hora
+
+        // Descobre os dias disponíveis (em ordem)
+        const daySet = new Set();
+        data.forEach((game, idx) => {
+            daySet.add(getDayKey(game, idx, gamesPerHour));
+        });
+        const sortedDays = [...daySet].sort();
+        const numDays = sortedDays.length; // deve ser 5
+
+        // slotMap[hh][mm][dayKey] = game
         const slotMap = {};
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
             slotMap[hh] = {};
-            uniqueMinutes.forEach(m => { slotMap[hh][String(m).padStart(2, '0')] = {}; });
+            uniqueMinutes.forEach(m => {
+                slotMap[hh][String(m).padStart(2, '0')] = {};
+            });
         }
+
         data.forEach((game, idx) => {
-            const dk = getDayKey(game, idx, gamesPerHour);
-            if (!sortedDays.includes(dk)) return;
             const hh = String(game.hora).padStart(2, '0');
             const mm = String(game.minuto).padStart(2, '0');
+            const dk = getDayKey(game, idx, gamesPerHour);
             if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
+                // Se já existe um jogo para esse dia nesse slot, mantém o último
                 slotMap[hh][mm][dk] = game;
             }
         });
-        return slotMap;
-    }
 
-    function processApiData(data) {
-        const mode    = document.getElementById("modeSelect").value;
-        const market  = document.getElementById("marketSelect").value;
-        const gales   = parseInt(document.getElementById("rangeSelect").value, 10);
-
-        // Mostra/oculta seletor de mercado e legendas conforme modo
-        document.getElementById("marketSelect").closest("label") &&
-            (document.getElementById("marketSelect").parentElement.style.display = mode === "gols" ? "none" : "");
-        document.querySelector('label[for="marketSelect"]') &&
-            (document.querySelector('label[for="marketSelect"]').style.display = mode === "gols" ? "none" : "");
-        document.getElementById("legendMercado").style.display = mode === "gols" ? "none" : "";
-        document.getElementById("legendGols").style.display    = mode === "gols" ? ""     : "none";
-
-        const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
-        const numMins = uniqueMinutes.length;
-        const gamesPerHour = numMins;
-
-        const allDayKeys = new Set();
-        data.forEach((g, i) => allDayKeys.add(getDayKey(g, i, gamesPerHour)));
-        const sortedDays = [...allDayKeys].sort().slice(-5);
-        const numDays = sortedDays.length;
-
-        const slotMap = buildSlotMap(data, uniqueMinutes, sortedDays);
-
-        if (mode === "gols") {
-            processGols(data, uniqueMinutes, numMins, sortedDays, numDays, slotMap, gales);
-        } else {
-            processMercado(data, uniqueMinutes, numMins, sortedDays, numDays, slotMap, gales, market);
-        }
-    }
-
-    /* ── MODO MERCADOS ── */
-    function processMercado(data, uniqueMinutes, numMins, sortedDays, numDays, slotMap, gales, market) {
+        // Matrizes de resultado
         const result = {};
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
             result[hh] = {};
-            uniqueMinutes.forEach(m => { result[hh][String(m).padStart(2, '0')] = { total: 0, green: 0 }; });
+            uniqueMinutes.forEach(m => {
+                result[hh][String(m).padStart(2, '0')] = { total: 0, green: 0 };
+            });
         }
         const totals = {};
         uniqueMinutes.forEach(m => { totals[String(m).padStart(2, '0')] = { total: 0, green: 0 }; });
 
+        /*
+         * ── LÓGICA DE GALES POR DIA ──
+         *
+         * Para cada hora H e cada minuto base M (índice minIdx):
+         *   Para cada dia D nos sortedDays:
+         *
+         *     Se não existe jogo para H:M:D → pula (slot incompleto)
+         *     total[H][M]++
+         *
+         *     Tentativas de martingale:
+         *       attempt 0 → jogo do slot H : uniqueMinutes[minIdx+0] : D  (tiro seco)
+         *       attempt 1 → jogo do slot H : uniqueMinutes[minIdx+1] : D  (1º gale)
+         *       attempt 2 → jogo do slot H : uniqueMinutes[minIdx+2] : D  (2º gale)
+         *       ...
+         *
+         *     O índice do minuto avança linearmente (sem circular),
+         *     pois um gale avança para o PRÓXIMO jogo em sequência na hora.
+         *     Se o índice ultrapassar o último minuto, para (não tem mais jogos nessa hora).
+         *
+         *     Se qualquer tentativa for green → green[H][M]++
+         *
+         * Com isso, cada célula mostra X/Y onde Y = número de dias com dados
+         * para aquele slot (máx 5).
+         */
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
+
             uniqueMinutes.forEach((baseMin, minIdx) => {
                 const bm = String(baseMin).padStart(2, '0');
+
                 sortedDays.forEach(dayKey => {
-                    if (!slotMap[hh][bm][dayKey]) return;
-                    result[hh][bm].total++;
-                    totals[bm].total++;
+                    // Verifica se o slot base existe neste dia
+                    const baseGame = slotMap[hh][bm][dayKey];
+                    if (!baseGame) return; // sem dado para este dia
+
+                    result[hh][bm].total += 1;
+                    totals[bm].total += 1;
+
                     let green = false;
-                    for (let a = 0; a < gales && !green; a++) {
-                        const ti = minIdx + a;
-                        if (ti >= numMins) break;
-                        const tm = String(uniqueMinutes[ti]).padStart(2, '0');
-                        const tg = slotMap[hh][tm][dayKey];
-                        if (tg && checkMarket(tg, market)) green = true;
+
+                    for (let attempt = 0; attempt < gales && !green; attempt++) {
+                        const targetMinIdx = minIdx + attempt; // linear, sem circular
+                        if (targetMinIdx >= numMins) break;    // sem mais minutos na hora
+
+                        const tm = String(uniqueMinutes[targetMinIdx]).padStart(2, '0');
+                        const targetGame = slotMap[hh][tm][dayKey];
+                        if (!targetGame) continue; // sem dado para este minuto+dia
+
+                        if (checkMarket(targetGame, market)) {
+                            green = true;
+                        }
                     }
-                    if (green) { result[hh][bm].green++; totals[bm].green++; }
-                });
-            });
-        }
-        displayTable(result, uniqueMinutes, totals, numDays, "mercado");
-    }
 
-    /* ── MODO GOLS ── */
-    function getGoals(game) {
-        const [g1, g2] = parseScore(game.ft);
-        return g1 + g2;
-    }
-
-    function processGols(data, uniqueMinutes, numMins, sortedDays, numDays, slotMap, gales) {
-        // result[hh][mm] = { totalGols: number, count: number }
-        const result = {};
-        for (let h = 0; h < 24; h++) {
-            const hh = String(h).padStart(2, '0');
-            result[hh] = {};
-            uniqueMinutes.forEach(m => { result[hh][String(m).padStart(2, '0')] = { totalGols: 0, count: 0 }; });
-        }
-        const totals = {};
-        uniqueMinutes.forEach(m => { totals[String(m).padStart(2, '0')] = { totalGols: 0, count: 0 }; });
-
-        for (let h = 0; h < 24; h++) {
-            const hh = String(h).padStart(2, '0');
-            uniqueMinutes.forEach((baseMin, minIdx) => {
-                const bm = String(baseMin).padStart(2, '0');
-                sortedDays.forEach(dayKey => {
-                    if (!slotMap[hh][bm][dayKey]) return;
-                    // Soma gols dos N próximos minutos (gales)
-                    let somaGols = 0;
-                    let jogosContados = 0;
-                    for (let a = 0; a < gales; a++) {
-                        const ti = minIdx + a;
-                        if (ti >= numMins) break;
-                        const tm = String(uniqueMinutes[ti]).padStart(2, '0');
-                        const tg = slotMap[hh][tm][dayKey];
-                        if (tg) { somaGols += getGoals(tg); jogosContados++; }
-                    }
-                    if (jogosContados > 0) {
-                        result[hh][bm].totalGols += somaGols;
-                        result[hh][bm].count++;
-                        totals[bm].totalGols += somaGols;
-                        totals[bm].count++;
+                    if (green) {
+                        result[hh][bm].green += 1;
+                        totals[bm].green += 1;
                     }
                 });
             });
         }
-        displayTable(result, uniqueMinutes, totals, numDays, "gols");
-    }
 
-    /* ── CORES GOLS ── */
-    function golsClass(media) {
-        if (media >= 14)  return "gols-14";
-        if (media >= 11)  return "gols-11";
-        if (media >= 9)   return "gols-9";
-        if (media >= 7)   return "gols-7";
-        if (media >= 5)   return "gols-5";
-        if (media >= 3)   return "gols-3";
-        if (media >= 1)   return "gols-1";
-        return "gols-0";
+        displayTable(result, uniqueMinutes, totals, numDays);
     }
 
     function pct(slot) {
@@ -474,27 +418,20 @@
         return "percent-0-40";
     }
 
-    function makeCell(slot, tag = "td", mode = "mercado") {
+    function makeCell(slot, tag = "td") {
+        const p = pct(slot);
         const el = document.createElement(tag);
-        if (mode === "gols") {
-            const media = slot.count > 0 ? slot.totalGols / slot.count : 0;
-            el.textContent = media.toFixed(1);
-            el.className = golsClass(media);
-        } else {
-            const p = pct(slot);
-            el.textContent = Math.round(p) + "%";
-            el.className = cellClass(p);
-        }
+        el.textContent = Math.round(p) + "%";
+        el.className = cellClass(p);
         return el;
     }
 
-    function displayTable(result, uniqueMinutes, totals, numDays, mode = "mercado") {
+    function displayTable(result, uniqueMinutes, totals, numDays) {
         const now = new Date();
         const currentHour = String(now.getHours()).padStart(2, '0');
-        const modeLabel = mode === "gols" ? "Média de Gols" : "Mercados";
 
         document.getElementById("currentHourLabel").textContent =
-            `Hora atual: ${currentHour}h — ${numDays} dias — ${modeLabel}`;
+            `Hora atual: ${currentHour}h — ${numDays} dias de dados`;
 
         const headerHTML = "<tr><th>H</th>" +
             uniqueMinutes.map(m => `<th>${String(m).padStart(2, '0')}</th>`).join("") +
@@ -510,7 +447,7 @@
         curHCell.textContent = currentHour;
         curRow.appendChild(curHCell);
         uniqueMinutes.forEach(m => {
-            curRow.appendChild(makeCell(result[currentHour][String(m).padStart(2, '0')], "td", mode));
+            curRow.appendChild(makeCell(result[currentHour][String(m).padStart(2, '0')]));
         });
         curBody.appendChild(curRow);
 
@@ -524,7 +461,7 @@
             hCell.textContent = hh;
             row.appendChild(hCell);
             uniqueMinutes.forEach(m => {
-                row.appendChild(makeCell(result[hh][String(m).padStart(2, '0')], "td", mode));
+                row.appendChild(makeCell(result[hh][String(m).padStart(2, '0')]));
             });
             body.appendChild(row);
         }
@@ -533,10 +470,10 @@
         const totalRow = document.createElement("tr");
         totalRow.className = "total-row";
         const tLabel = document.createElement("th");
-        tLabel.textContent = mode === "gols" ? "Gols" : "%";
+        tLabel.textContent = "%";
         totalRow.appendChild(tLabel);
         uniqueMinutes.forEach(m => {
-            totalRow.appendChild(makeCell(totals[String(m).padStart(2, '0')], "td", mode));
+            totalRow.appendChild(makeCell(totals[String(m).padStart(2, '0')]));
         });
         body.appendChild(totalRow);
     }
