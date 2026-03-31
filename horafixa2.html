@@ -245,64 +245,67 @@
     }
 
     /*
-     * Extrai a chave de dia de um registro a partir do campo `data` (ISO string).
-     * Retorna "YYYY-MM-DD".
+     * Extrai a chave de "dia" de um registro.
+     * Tenta vários campos possíveis: data, date, dia, day, created_at, timestamp.
+     * Se nenhum existir, usa o índice do registro dividido pelo número de jogos por hora (20)
+     * para inferir o dia com base na posição na lista.
      */
-    /*
-     * Converte o campo `data` (ISO UTC) para chave de dia no fuso de Brasília (UTC-3).
-     * Ex: "2025-08-14T02:00:00.000Z" → hora local = 23h do dia 13 → "2025-08-13"
-     * Usa os campos `hora` e `minuto` do próprio jogo (que já estão em horário local)
-     * para reconstruir a data local corretamente.
-     */
-    function getDayKey(game) {
+    function getDayKey(game, index, gamesPerHour) {
+        // Tenta campo de data explícito (vários nomes possíveis)
         const dateField = game.data || game.date || game.dia || game.day
             || game.created_at || game.timestamp || game.dt;
-        if (!dateField) return null;
 
-        // Se o jogo tem hora e data, reconstrói a data local a partir do timestamp UTC
-        // aplicando o offset de Brasília (UTC-3 = -180 min)
-        const s = String(dateField);
-        let ms;
-        if (/^\d{10,}$/.test(s)) {
-            ms = parseInt(s) * (s.length === 10 ? 1000 : 1);
-        } else {
-            ms = new Date(s).getTime();
+        if (dateField) {
+            // Normaliza: pega só a parte de data (YYYY-MM-DD ou DD/MM/YYYY etc.)
+            const s = String(dateField);
+            // Se for timestamp numérico, converte
+            if (/^\d{10,}$/.test(s)) {
+                return new Date(parseInt(s) * (s.length === 10 ? 1000 : 1))
+                    .toISOString().slice(0, 10);
+            }
+            // Pega os primeiros 10 chars (data sem hora)
+            return s.slice(0, 10);
         }
-        if (isNaN(ms)) return s.slice(0, 10); // fallback
 
-        // Ajusta para UTC-3 (Brasília)
-        const BRT_OFFSET = -3 * 60; // minutos
-        const localMs = ms + BRT_OFFSET * 60 * 1000;
-        return new Date(localMs).toISOString().slice(0, 10);
+        // Fallback: infere o dia pela posição na lista.
+        // A API retorna os dados em ordem cronológica.
+        // Cada "ciclo completo" de hora+minutos = gamesPerHour registros.
+        // Em 5 dias, o mesmo slot (hora, minuto) aparece 5 vezes.
+        // Usamos Math.floor(index / gamesPerHour) como proxy de dia.
+        return String(Math.floor(index / gamesPerHour));
     }
 
-    function processApiData(rawData) {
+    function processApiData(data) {
         const market = document.getElementById("marketSelect").value;
         const gales  = parseInt(document.getElementById("rangeSelect").value, 10);
-
-        // Passo 1: descobre todos os dias distintos (em horário de Brasília), em ordem cronológica
-        const allDayKeys = new Set();
-        rawData.forEach(g => { const dk = getDayKey(g); if (dk) allDayKeys.add(dk); });
-        const sortedAllDays = [...allDayKeys].sort();
-
-        // DEBUG — remova após confirmar
-        console.log('[BetStat] Dias detectados na API:', sortedAllDays);
-        console.log('[BetStat] Total de jogos na API:', rawData.length);
-
-        // Passo 2: seleciona os 5 dias mais recentes
-        const sortedDays = sortedAllDays.slice(-5);
-        const numDays = sortedDays.length;
-        const validDays = new Set(sortedDays);
-
-        console.log('[BetStat] 5 dias usados no cálculo:', sortedDays);
-
-        // Passo 3: filtra apenas jogos que pertencem a esses 5 dias
-        const data = rawData.filter(g => validDays.has(getDayKey(g)));
-        console.log('[BetStat] Jogos após filtro dos 5 dias:', data.length);
 
         // Minutos únicos desta liga
         const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
         const numMins = uniqueMinutes.length;
+
+        // Horas únicas
+        const uniqueHours = [...new Set(data.map(g => parseInt(g.hora, 10)))].sort((a, b) => a - b);
+
+        /*
+         * ── ESTRUTURA DE DADOS ──
+         *
+         * Queremos: slotMap[hora][minuto] = { [diaKey]: game }
+         *
+         * Cada slot (hora, minuto) deve ter EXATAMENTE 1 jogo por dia.
+         * O diaKey é extraído do campo de data do registro.
+         *
+         * Se não existir campo de data, inferimos o dia pela posição
+         * do registro na lista ordenada cronologicamente.
+         */
+        const gamesPerHour = numMins; // 1 jogo por minuto por hora
+
+        // Descobre os dias disponíveis (em ordem)
+        const daySet = new Set();
+        data.forEach((game, idx) => {
+            daySet.add(getDayKey(game, idx, gamesPerHour));
+        });
+        const sortedDays = [...daySet].sort();
+        const numDays = sortedDays.length; // deve ser 5
 
         // slotMap[hh][mm][dayKey] = game
         const slotMap = {};
@@ -314,12 +317,12 @@
             });
         }
 
-        data.forEach(game => {
-            const dk = getDayKey(game);
-            if (!dk || !validDays.has(dk)) return;
+        data.forEach((game, idx) => {
             const hh = String(game.hora).padStart(2, '0');
             const mm = String(game.minuto).padStart(2, '0');
+            const dk = getDayKey(game, idx, gamesPerHour);
             if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
+                // Se já existe um jogo para esse dia nesse slot, mantém o último
                 slotMap[hh][mm][dk] = game;
             }
         });
@@ -337,15 +340,28 @@
         uniqueMinutes.forEach(m => { totals[String(m).padStart(2, '0')] = { total: 0, green: 0 }; });
 
         /*
-         * ── LÓGICA DE GALES POR DIA (base = 5 dias / 2400 jogos) ──
+         * ── LÓGICA DE GALES POR DIA ──
          *
-         * Para cada hora H e cada minuto base M:
-         *   Para cada dia D nos sortedDays (máx 5):
-         *     Se não existe jogo para H:M:D → pula
-         *     total[H][M]++ (máx 5 — 100% = 5/5)
+         * Para cada hora H e cada minuto base M (índice minIdx):
+         *   Para cada dia D nos sortedDays:
          *
-         *     Tentativas de martingale avançam linearmente pelos próximos
-         *     minutos da mesma hora/dia. Se qualquer tentativa for green → green++
+         *     Se não existe jogo para H:M:D → pula (slot incompleto)
+         *     total[H][M]++
+         *
+         *     Tentativas de martingale:
+         *       attempt 0 → jogo do slot H : uniqueMinutes[minIdx+0] : D  (tiro seco)
+         *       attempt 1 → jogo do slot H : uniqueMinutes[minIdx+1] : D  (1º gale)
+         *       attempt 2 → jogo do slot H : uniqueMinutes[minIdx+2] : D  (2º gale)
+         *       ...
+         *
+         *     O índice do minuto avança linearmente (sem circular),
+         *     pois um gale avança para o PRÓXIMO jogo em sequência na hora.
+         *     Se o índice ultrapassar o último minuto, para (não tem mais jogos nessa hora).
+         *
+         *     Se qualquer tentativa for green → green[H][M]++
+         *
+         * Com isso, cada célula mostra X/Y onde Y = número de dias com dados
+         * para aquele slot (máx 5).
          */
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
@@ -356,7 +372,7 @@
                 sortedDays.forEach(dayKey => {
                     // Verifica se o slot base existe neste dia
                     const baseGame = slotMap[hh][bm][dayKey];
-                    if (!baseGame) return; // sem dado para este dia → não conta
+                    if (!baseGame) return; // sem dado para este dia
 
                     result[hh][bm].total += 1;
                     totals[bm].total += 1;
@@ -405,10 +421,8 @@
     function makeCell(slot, tag = "td") {
         const p = pct(slot);
         const el = document.createElement(tag);
-        el.innerHTML = Math.round(p) + "%" +
-            `<span class="sample-badge">${slot.green}/${slot.total}</span>`;
+        el.textContent = Math.round(p) + "%";
         el.className = cellClass(p);
-        el.title = `${slot.green} greens de ${slot.total} dias (${p.toFixed(1)}%)`;
         return el;
     }
 
@@ -469,5 +483,6 @@
 
 <script src="header-loader.js"></script>
 <script src="redirecionar.js"></script>
+<script src="app.utils.min.js"></script>
 </body>
 </html>
