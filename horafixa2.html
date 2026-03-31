@@ -56,6 +56,121 @@
         }
         .legend-item { display: flex; align-items: center; gap: 4px; }
         .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+        /* NOVOS ESTILOS PARA A LISTA 100% */
+        .percent100-section {
+            margin-top: 30px;
+            padding: 15px;
+            background: #1a1a2e;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        
+        .percent100-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 15px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .percent100-title::before {
+            content: "📊";
+        }
+        
+        .percent100-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .percent100-column {
+            background: #16213e;
+            border-radius: 6px;
+            padding: 10px;
+            min-width: 120px;
+        }
+        
+        .percent100-league-name {
+            font-size: 13px;
+            font-weight: bold;
+            color: #6a0dad;
+            text-align: center;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .percent100-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .percent100-item {
+            font-size: 12px;
+            color: #ccc;
+            padding: 4px 0;
+            text-align: center;
+            border-bottom: 1px solid #222;
+        }
+        
+        .percent100-item:last-child {
+            border-bottom: none;
+        }
+        
+        .percent100-item.dash {
+            color: #555;
+        }
+        
+        .percent100-empty {
+            color: #555;
+            text-align: center;
+            font-size: 12px;
+            padding: 10px 0;
+        }
+        
+        .percent100-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .percent100-btn {
+            background: #6a0dad;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        
+        .percent100-btn:hover {
+            background: #8a2be2;
+        }
+        
+        .percent100-btn.active {
+            background: #2eb82e;
+        }
+        
+        .percent100-loading {
+            text-align: center;
+            color: #aaa;
+            font-size: 12px;
+            padding: 20px;
+        }
     </style>
 </head>
 
@@ -164,8 +279,40 @@
         <tbody id="resultsBody"></tbody>
     </table>
 
+    <!-- NOVA SEÇÃO: MINUTOS 100% -->
+    <div class="percent100-section">
+        <div class="percent100-title">Minutos com 100% de Aproveitamento</div>
+        
+        <div class="percent100-controls">
+            <button class="percent100-btn" id="btnCurrentLeague" onclick="togglePercent100Mode('current')">Liga Atual</button>
+            <button class="percent100-btn" id="btnAllLeagues" onclick="togglePercent100Mode('all')">Todas as Ligas</button>
+        </div>
+        
+        <div id="percent100Container" class="percent100-grid">
+            <!-- Conteúdo gerado dinamicamente -->
+        </div>
+    </div>
+
 <script>
     let cachedData = {};
+    let percent100Mode = 'current'; // 'current' ou 'all'
+    let allLeaguesData = {}; // Cache para todas as ligas quando em modo 'all'
+
+    const leaguesList = [
+        { value: "Copa%20Am%C3%A9rica", name: "Copa América" },
+        { value: "Ta%C3%A7a%20Gl%C3%B3ria%20eterna", name: "Clássicos da América" },
+        { value: "Euro", name: "Euro" },
+        { value: "Campeonato%20Italiano", name: "Campeonato Italiano" },
+        { value: "Copa%20das%20estrelas", name: "Copa das Estrelas" },
+        { value: "Brasileir%C3%A3o%20Betano", name: "Brasileirão Betano" }
+    ];
+
+    function togglePercent100Mode(mode) {
+        percent100Mode = mode;
+        document.getElementById('btnCurrentLeague').classList.toggle('active', mode === 'current');
+        document.getElementById('btnAllLeagues').classList.toggle('active', mode === 'all');
+        updatePercent100Display();
+    }
 
     function handleSelectionChange() {
         const league = document.getElementById("leagueSelect").value;
@@ -173,6 +320,11 @@
             processApiData(cachedData[league]);
         } else {
             fetchApiData(league);
+        }
+        
+        // Se estiver em modo 'all', atualiza também
+        if (percent100Mode === 'all') {
+            updatePercent100Display();
         }
     }
 
@@ -184,7 +336,15 @@
         showLoading(true);
         fetch(`https://betstat.site/resultados/${league}`)
             .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-            .then(data => { cachedData[league] = data; processApiData(data); showLoading(false); })
+            .then(data => { 
+                cachedData[league] = data; 
+                processApiData(data); 
+                showLoading(false); 
+                // Atualiza a seção 100% após carregar dados
+                if (percent100Mode === 'current') {
+                    updatePercent100Display();
+                }
+            })
             .catch(err => { console.error(err); showLoading(false); alert("Erro ao buscar dados da API."); });
     }
 
@@ -244,70 +404,35 @@
         }
     }
 
-    /*
-     * Extrai a chave de "dia" de um registro.
-     * Tenta vários campos possíveis: data, date, dia, day, created_at, timestamp.
-     * Se nenhum existir, usa o índice do registro dividido pelo número de jogos por hora (20)
-     * para inferir o dia com base na posição na lista.
-     */
     function getDayKey(game, index, gamesPerHour) {
-        // Tenta campo de data explícito (vários nomes possíveis)
         const dateField = game.data || game.date || game.dia || game.day
             || game.created_at || game.timestamp || game.dt;
 
         if (dateField) {
-            // Normaliza: pega só a parte de data (YYYY-MM-DD ou DD/MM/YYYY etc.)
             const s = String(dateField);
-            // Se for timestamp numérico, converte
             if (/^\d{10,}$/.test(s)) {
                 return new Date(parseInt(s) * (s.length === 10 ? 1000 : 1))
                     .toISOString().slice(0, 10);
             }
-            // Pega os primeiros 10 chars (data sem hora)
             return s.slice(0, 10);
         }
 
-        // Fallback: infere o dia pela posição na lista.
-        // A API retorna os dados em ordem cronológica.
-        // Cada "ciclo completo" de hora+minutos = gamesPerHour registros.
-        // Em 5 dias, o mesmo slot (hora, minuto) aparece 5 vezes.
-        // Usamos Math.floor(index / gamesPerHour) como proxy de dia.
         return String(Math.floor(index / gamesPerHour));
     }
 
-    function processApiData(data) {
-        const market = document.getElementById("marketSelect").value;
-        const gales  = parseInt(document.getElementById("rangeSelect").value, 10);
-
-        // Minutos únicos desta liga
+    // Função para calcular percentuais de uma liga específica
+    function calculateLeaguePercent100(data, market, gales) {
         const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
         const numMins = uniqueMinutes.length;
+        const gamesPerHour = numMins;
 
-        // Horas únicas
-        const uniqueHours = [...new Set(data.map(g => parseInt(g.hora, 10)))].sort((a, b) => a - b);
-
-        /*
-         * ── ESTRUTURA DE DADOS ──
-         *
-         * Queremos: slotMap[hora][minuto] = { [diaKey]: game }
-         *
-         * Cada slot (hora, minuto) deve ter EXATAMENTE 1 jogo por dia.
-         * O diaKey é extraído do campo de data do registro.
-         *
-         * Se não existir campo de data, inferimos o dia pela posição
-         * do registro na lista ordenada cronologicamente.
-         */
-        const gamesPerHour = numMins; // 1 jogo por minuto por hora
-
-        // Descobre os dias disponíveis (em ordem)
         const daySet = new Set();
         data.forEach((game, idx) => {
             daySet.add(getDayKey(game, idx, gamesPerHour));
         });
         const sortedDays = [...daySet].sort();
-        const numDays = sortedDays.length; // deve ser 5
+        const numDays = sortedDays.length;
 
-        // slotMap[hh][mm][dayKey] = game
         const slotMap = {};
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
@@ -322,12 +447,199 @@
             const mm = String(game.minuto).padStart(2, '0');
             const dk = getDayKey(game, idx, gamesPerHour);
             if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
-                // Se já existe um jogo para esse dia nesse slot, mantém o último
                 slotMap[hh][mm][dk] = game;
             }
         });
 
-        // Matrizes de resultado
+        const result = {};
+        for (let h = 0; h < 24; h++) {
+            const hh = String(h).padStart(2, '0');
+            result[hh] = {};
+            uniqueMinutes.forEach(m => {
+                result[hh][String(m).padStart(2, '0')] = { total: 0, green: 0 };
+            });
+        }
+
+        for (let h = 0; h < 24; h++) {
+            const hh = String(h).padStart(2, '0');
+
+            uniqueMinutes.forEach((baseMin, minIdx) => {
+                const bm = String(baseMin).padStart(2, '0');
+
+                sortedDays.forEach(dayKey => {
+                    const baseGame = slotMap[hh][bm][dayKey];
+                    if (!baseGame) return;
+
+                    result[hh][bm].total += 1;
+
+                    let green = false;
+
+                    for (let attempt = 0; attempt < gales && !green; attempt++) {
+                        const targetMinIdx = minIdx + attempt;
+                        if (targetMinIdx >= numMins) break;
+
+                        const tm = String(uniqueMinutes[targetMinIdx]).padStart(2, '0');
+                        const targetGame = slotMap[hh][tm][dayKey];
+                        if (!targetGame) continue;
+
+                        if (checkMarket(targetGame, market)) {
+                            green = true;
+                        }
+                    }
+
+                    if (green) {
+                        result[hh][bm].green += 1;
+                    }
+                });
+            });
+        }
+
+        // Extrair minutos com 100%
+        const percent100Minutes = [];
+        for (let h = 0; h < 24; h++) {
+            const hh = String(h).padStart(2, '0');
+            uniqueMinutes.forEach(m => {
+                const mm = String(m).padStart(2, '0');
+                const slot = result[hh][mm];
+                if (slot.total > 0 && slot.green === slot.total) {
+                    percent100Minutes.push(`${hh}:${mm}`);
+                }
+            });
+        }
+
+        return percent100Minutes.sort();
+    }
+
+    async function updatePercent100Display() {
+        const container = document.getElementById('percent100Container');
+        const market = document.getElementById("marketSelect").value;
+        const gales = parseInt(document.getElementById("rangeSelect").value, 10);
+
+        container.innerHTML = '<div class="percent100-loading">Carregando...</div>';
+
+        if (percent100Mode === 'current') {
+            // Modo liga atual
+            const currentLeague = document.getElementById("leagueSelect").value;
+            const currentLeagueName = leaguesList.find(l => l.value === currentLeague)?.name || currentLeague;
+            
+            if (!cachedData[currentLeague]) {
+                container.innerHTML = '<div class="percent100-empty">Selecione uma liga primeiro</div>';
+                return;
+            }
+
+            const minutes = calculateLeaguePercent100(cachedData[currentLeague], market, gales);
+            
+            container.innerHTML = '';
+            const column = createPercent100Column(currentLeagueName, minutes);
+            container.appendChild(column);
+            
+        } else {
+            // Modo todas as ligas
+            const leaguesToFetch = leaguesList.filter(l => !cachedData[l.value]);
+            
+            // Busca ligas que ainda não estão em cache
+            if (leaguesToFetch.length > 0) {
+                const fetchPromises = leaguesToFetch.map(l => 
+                    fetch(`https://betstat.site/resultados/${l.value}`)
+                        .then(r => r.json())
+                        .then(data => { cachedData[l.value] = data; })
+                        .catch(() => { cachedData[l.value] = null; })
+                );
+                
+                await Promise.all(fetchPromises);
+            }
+
+            // Calcula para todas as ligas
+            container.innerHTML = '';
+            let hasAnyData = false;
+            
+            leaguesList.forEach(league => {
+                if (cachedData[league.value]) {
+                    const minutes = calculateLeaguePercent100(cachedData[league.value], market, gales);
+                    const column = createPercent100Column(league.name, minutes);
+                    container.appendChild(column);
+                    hasAnyData = true;
+                }
+            });
+
+            if (!hasAnyData) {
+                container.innerHTML = '<div class="percent100-empty">Nenhuma liga disponível</div>';
+            }
+        }
+    }
+
+    function createPercent100Column(leagueName, minutes) {
+        const column = document.createElement('div');
+        column.className = 'percent100-column';
+        
+        const title = document.createElement('div');
+        title.className = 'percent100-league-name';
+        title.textContent = `📊 ${leagueName}`;
+        column.appendChild(title);
+        
+        const list = document.createElement('ul');
+        list.className = 'percent100-list';
+        
+        if (minutes.length === 0) {
+            const empty = document.createElement('li');
+            empty.className = 'percent100-empty';
+            empty.textContent = '—';
+            list.appendChild(empty);
+        } else {
+            // Preenche com traços para igualar o tamanho máximo entre colunas
+            const maxItems = Math.max(minutes.length, 1);
+            for (let i = 0; i < maxItems; i++) {
+                const item = document.createElement('li');
+                item.className = 'percent100-item';
+                if (i < minutes.length) {
+                    item.textContent = minutes[i];
+                } else {
+                    item.className += ' dash';
+                    item.textContent = '—';
+                }
+                list.appendChild(item);
+            }
+        }
+        
+        column.appendChild(list);
+        return column;
+    }
+
+    function processApiData(data) {
+        const market = document.getElementById("marketSelect").value;
+        const gales  = parseInt(document.getElementById("rangeSelect").value, 10);
+
+        const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
+        const numMins = uniqueMinutes.length;
+        const uniqueHours = [...new Set(data.map(g => parseInt(g.hora, 10)))].sort((a, b) => a - b);
+
+        const gamesPerHour = numMins;
+
+        const daySet = new Set();
+        data.forEach((game, idx) => {
+            daySet.add(getDayKey(game, idx, gamesPerHour));
+        });
+        const sortedDays = [...daySet].sort();
+        const numDays = sortedDays.length;
+
+        const slotMap = {};
+        for (let h = 0; h < 24; h++) {
+            const hh = String(h).padStart(2, '0');
+            slotMap[hh] = {};
+            uniqueMinutes.forEach(m => {
+                slotMap[hh][String(m).padStart(2, '0')] = {};
+            });
+        }
+
+        data.forEach((game, idx) => {
+            const hh = String(game.hora).padStart(2, '0');
+            const mm = String(game.minuto).padStart(2, '0');
+            const dk = getDayKey(game, idx, gamesPerHour);
+            if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
+                slotMap[hh][mm][dk] = game;
+            }
+        });
+
         const result = {};
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
@@ -339,30 +651,6 @@
         const totals = {};
         uniqueMinutes.forEach(m => { totals[String(m).padStart(2, '0')] = { total: 0, green: 0 }; });
 
-        /*
-         * ── LÓGICA DE GALES POR DIA ──
-         *
-         * Para cada hora H e cada minuto base M (índice minIdx):
-         *   Para cada dia D nos sortedDays:
-         *
-         *     Se não existe jogo para H:M:D → pula (slot incompleto)
-         *     total[H][M]++
-         *
-         *     Tentativas de martingale:
-         *       attempt 0 → jogo do slot H : uniqueMinutes[minIdx+0] : D  (tiro seco)
-         *       attempt 1 → jogo do slot H : uniqueMinutes[minIdx+1] : D  (1º gale)
-         *       attempt 2 → jogo do slot H : uniqueMinutes[minIdx+2] : D  (2º gale)
-         *       ...
-         *
-         *     O índice do minuto avança linearmente (sem circular),
-         *     pois um gale avança para o PRÓXIMO jogo em sequência na hora.
-         *     Se o índice ultrapassar o último minuto, para (não tem mais jogos nessa hora).
-         *
-         *     Se qualquer tentativa for green → green[H][M]++
-         *
-         * Com isso, cada célula mostra X/Y onde Y = número de dias com dados
-         * para aquele slot (máx 5).
-         */
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
 
@@ -370,9 +658,8 @@
                 const bm = String(baseMin).padStart(2, '0');
 
                 sortedDays.forEach(dayKey => {
-                    // Verifica se o slot base existe neste dia
                     const baseGame = slotMap[hh][bm][dayKey];
-                    if (!baseGame) return; // sem dado para este dia
+                    if (!baseGame) return;
 
                     result[hh][bm].total += 1;
                     totals[bm].total += 1;
@@ -380,12 +667,12 @@
                     let green = false;
 
                     for (let attempt = 0; attempt < gales && !green; attempt++) {
-                        const targetMinIdx = minIdx + attempt; // linear, sem circular
-                        if (targetMinIdx >= numMins) break;    // sem mais minutos na hora
+                        const targetMinIdx = minIdx + attempt;
+                        if (targetMinIdx >= numMins) break;
 
                         const tm = String(uniqueMinutes[targetMinIdx]).padStart(2, '0');
                         const targetGame = slotMap[hh][tm][dayKey];
-                        if (!targetGame) continue; // sem dado para este minuto+dia
+                        if (!targetGame) continue;
 
                         if (checkMarket(targetGame, market)) {
                             green = true;
@@ -439,7 +726,6 @@
         document.getElementById("tableHeader").innerHTML = headerHTML;
         document.getElementById("currentHourHeader").innerHTML = headerHTML;
 
-        // Linha hora atual
         const curBody = document.getElementById("currentHourBody");
         curBody.innerHTML = "";
         const curRow = document.createElement("tr");
@@ -451,7 +737,6 @@
         });
         curBody.appendChild(curRow);
 
-        // Tabela principal (23h → 00h)
         const body = document.getElementById("resultsBody");
         body.innerHTML = "";
         for (let h = 23; h >= 0; h--) {
@@ -466,7 +751,6 @@
             body.appendChild(row);
         }
 
-        // Linha de totais
         const totalRow = document.createElement("tr");
         totalRow.className = "total-row";
         const tLabel = document.createElement("th");
@@ -478,7 +762,10 @@
         body.appendChild(totalRow);
     }
 
-    window.onload = handleSelectionChange;
+    window.onload = function() {
+        handleSelectionChange();
+        togglePercent100Mode('current'); // Inicializa em modo liga atual
+    };
 </script>
 
 <script src="header-loader.js"></script>
