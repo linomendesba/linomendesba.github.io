@@ -9,7 +9,6 @@
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
     <title>BetStat</title>
     <meta name="description" content="Transforme suas apostas com BetStat - a única plataforma especializada em futebol virtual Betano." />
-    <meta name="keywords" content="BetStat, apostas esportivas, futebol virtual, Betano, estatísticas apostas" />
     <meta property="og:title" content="BetStat | Plataforma de Análise para Apostas Esportivas" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.betstat.site/payment.html" />
@@ -27,7 +26,6 @@
     <style>
         .logo2 { width: 60px; height: auto; }
 
-        /* Mini badge com green/total abaixo da porcentagem */
         .sample-badge {
             display: block;
             font-size: 9px;
@@ -38,10 +36,8 @@
             letter-spacing: 0.3px;
         }
 
-        /* Tooltip nativo */
         td[title] { cursor: default; }
 
-        /* Label hora atual */
         .current-hour-label {
             font-size: 11px;
             color: #aaa;
@@ -50,7 +46,6 @@
             font-style: italic;
         }
 
-        /* Legenda */
         .legend-bar {
             display: flex;
             align-items: center;
@@ -59,17 +54,8 @@
             padding: 6px 8px 10px;
             font-size: 11px;
         }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .legend-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 3px;
-            flex-shrink: 0;
-        }
+        .legend-item { display: flex; align-items: center; gap: 4px; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
     </style>
 </head>
 
@@ -152,7 +138,7 @@
         </select>
     </div>
 
-    <!-- Legenda de cores -->
+    <!-- Legenda -->
     <div class="legend-bar">
         <span style="color:#aaa; margin-right:2px;">Legenda:</span>
         <div class="legend-item"><div class="legend-dot" style="background:#6a0dad"></div><span>100%</span></div>
@@ -167,14 +153,12 @@
 
     <div id="loading" class="loading" style="display:none;">Carregando dados...</div>
 
-    <!-- Hora atual -->
     <div class="current-hour-label" id="currentHourLabel"></div>
     <table id="currentHourTable">
         <thead id="currentHourHeader"></thead>
         <tbody id="currentHourBody"></tbody>
     </table>
 
-    <!-- Tabela principal -->
     <table id="resultsTable">
         <thead id="tableHeader"></thead>
         <tbody id="resultsBody"></tbody>
@@ -260,37 +244,90 @@
         }
     }
 
+    /*
+     * Extrai a chave de "dia" de um registro.
+     * Tenta vários campos possíveis: data, date, dia, day, created_at, timestamp.
+     * Se nenhum existir, usa o índice do registro dividido pelo número de jogos por hora (20)
+     * para inferir o dia com base na posição na lista.
+     */
+    function getDayKey(game, index, gamesPerHour) {
+        // Tenta campo de data explícito (vários nomes possíveis)
+        const dateField = game.data || game.date || game.dia || game.day
+            || game.created_at || game.timestamp || game.dt;
+
+        if (dateField) {
+            // Normaliza: pega só a parte de data (YYYY-MM-DD ou DD/MM/YYYY etc.)
+            const s = String(dateField);
+            // Se for timestamp numérico, converte
+            if (/^\d{10,}$/.test(s)) {
+                return new Date(parseInt(s) * (s.length === 10 ? 1000 : 1))
+                    .toISOString().slice(0, 10);
+            }
+            // Pega os primeiros 10 chars (data sem hora)
+            return s.slice(0, 10);
+        }
+
+        // Fallback: infere o dia pela posição na lista.
+        // A API retorna os dados em ordem cronológica.
+        // Cada "ciclo completo" de hora+minutos = gamesPerHour registros.
+        // Em 5 dias, o mesmo slot (hora, minuto) aparece 5 vezes.
+        // Usamos Math.floor(index / gamesPerHour) como proxy de dia.
+        return String(Math.floor(index / gamesPerHour));
+    }
+
     function processApiData(data) {
         const market = document.getElementById("marketSelect").value;
         const gales  = parseInt(document.getElementById("rangeSelect").value, 10);
 
-        // Usa todos os dados da API (já são os últimos 5 dias)
-        const allData = data;
-
-        // Minutos únicos desta liga (ex: [2, 5, 8, 11, ...])
-        const uniqueMinutes = [...new Set(allData.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
+        // Minutos únicos desta liga
+        const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
         const numMins = uniqueMinutes.length;
 
+        // Horas únicas
+        const uniqueHours = [...new Set(data.map(g => parseInt(g.hora, 10)))].sort((a, b) => a - b);
+
         /*
-         * ── CONSTRUÇÃO DO MAPA DE SLOTS ──
+         * ── ESTRUTURA DE DADOS ──
          *
-         * slotMap[hora][minuto] = array de jogos em ORDEM CRONOLÓGICA
-         * (mesma ordem que chegaram da API).
+         * Queremos: slotMap[hora][minuto] = { [diaKey]: game }
          *
-         * Cada posição do array representa uma "rodada" daquele slot.
-         * Ex: slotMap["08"]["02"][0] = 1ª vez que a hora 08 min 02 apareceu
-         *     slotMap["08"]["02"][1] = 2ª vez (no dia seguinte), etc.
+         * Cada slot (hora, minuto) deve ter EXATAMENTE 1 jogo por dia.
+         * O diaKey é extraído do campo de data do registro.
+         *
+         * Se não existir campo de data, inferimos o dia pela posição
+         * do registro na lista ordenada cronologicamente.
          */
+        const gamesPerHour = numMins; // 1 jogo por minuto por hora
+
+        // Descobre os dias disponíveis (em ordem)
+        const daySet = new Set();
+        data.forEach((game, idx) => {
+            daySet.add(getDayKey(game, idx, gamesPerHour));
+        });
+        const sortedDays = [...daySet].sort();
+        const numDays = sortedDays.length; // deve ser 5
+
+        // slotMap[hh][mm][dayKey] = game
         const slotMap = {};
-        allData.forEach(game => {
-            const h = String(game.hora).padStart(2, '0');
-            const m = String(game.minuto).padStart(2, '0');
-            if (!slotMap[h]) slotMap[h] = {};
-            if (!slotMap[h][m]) slotMap[h][m] = [];
-            slotMap[h][m].push(game);
+        for (let h = 0; h < 24; h++) {
+            const hh = String(h).padStart(2, '0');
+            slotMap[hh] = {};
+            uniqueMinutes.forEach(m => {
+                slotMap[hh][String(m).padStart(2, '0')] = {};
+            });
+        }
+
+        data.forEach((game, idx) => {
+            const hh = String(game.hora).padStart(2, '0');
+            const mm = String(game.minuto).padStart(2, '0');
+            const dk = getDayKey(game, idx, gamesPerHour);
+            if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
+                // Se já existe um jogo para esse dia nesse slot, mantém o último
+                slotMap[hh][mm][dk] = game;
+            }
         });
 
-        // Inicializar matrizes de resultado
+        // Matrizes de resultado
         const result = {};
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
@@ -303,51 +340,52 @@
         uniqueMinutes.forEach(m => { totals[String(m).padStart(2, '0')] = { total: 0, green: 0 }; });
 
         /*
-         * ── LÓGICA DE GALES (CORRIGIDA) ──
+         * ── LÓGICA DE GALES POR DIA ──
          *
          * Para cada hora H e cada minuto base M (índice minIdx):
-         *   Para cada "rodada" R (ocorrência cronológica do slot H:M):
+         *   Para cada dia D nos sortedDays:
          *
+         *     Se não existe jogo para H:M:D → pula (slot incompleto)
          *     total[H][M]++
          *
-         *     Tentativas de gale (0 até gales-1):
-         *       attempt 0 → checa o jogo R do slot H:M          ← tiro seco
-         *       attempt 1 → checa o jogo R do slot H:próxMinuto ← 1º gale
-         *       attempt 2 → checa o jogo R do slot H:próx+1     ← 2º gale
+         *     Tentativas de martingale:
+         *       attempt 0 → jogo do slot H : uniqueMinutes[minIdx+0] : D  (tiro seco)
+         *       attempt 1 → jogo do slot H : uniqueMinutes[minIdx+1] : D  (1º gale)
+         *       attempt 2 → jogo do slot H : uniqueMinutes[minIdx+2] : D  (2º gale)
          *       ...
          *
-         *     "Próximo minuto" = uniqueMinutes[(minIdx + attempt) % numMins]
+         *     O índice do minuto avança linearmente (sem circular),
+         *     pois um gale avança para o PRÓXIMO jogo em sequência na hora.
+         *     Se o índice ultrapassar o último minuto, para (não tem mais jogos nessa hora).
          *
-         *     Se em qualquer tentativa o mercado bater → green[H][M]++
+         *     Se qualquer tentativa for green → green[H][M]++
          *
-         * Isso replica exatamente o comportamento de martingale:
-         *   1 gale = só o jogo do minuto base
-         *   2 gales = jogo base + próximo minuto da liga
-         *   3 gales = base + 2 próximos, etc.
+         * Com isso, cada célula mostra X/Y onde Y = número de dias com dados
+         * para aquele slot (máx 5).
          */
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
-            if (!slotMap[hh]) continue;
 
             uniqueMinutes.forEach((baseMin, minIdx) => {
                 const bm = String(baseMin).padStart(2, '0');
-                const baseSlot = slotMap[hh][bm];
-                if (!baseSlot || baseSlot.length === 0) return;
 
-                baseSlot.forEach((_, roundIdx) => {
+                sortedDays.forEach(dayKey => {
+                    // Verifica se o slot base existe neste dia
+                    const baseGame = slotMap[hh][bm][dayKey];
+                    if (!baseGame) return; // sem dado para este dia
+
                     result[hh][bm].total += 1;
                     totals[bm].total += 1;
 
                     let green = false;
 
                     for (let attempt = 0; attempt < gales && !green; attempt++) {
-                        const targetMinIdx = (minIdx + attempt) % numMins;
-                        const tm = String(uniqueMinutes[targetMinIdx]).padStart(2, '0');
-                        const targetSlot = slotMap[hh][tm];
-                        if (!targetSlot || targetSlot.length === 0) continue;
+                        const targetMinIdx = minIdx + attempt; // linear, sem circular
+                        if (targetMinIdx >= numMins) break;    // sem mais minutos na hora
 
-                        // Mesma rodada no slot alvo; usa última se não existir
-                        const targetGame = targetSlot[roundIdx] ?? targetSlot[targetSlot.length - 1];
+                        const tm = String(uniqueMinutes[targetMinIdx]).padStart(2, '0');
+                        const targetGame = slotMap[hh][tm][dayKey];
+                        if (!targetGame) continue; // sem dado para este minuto+dia
 
                         if (checkMarket(targetGame, market)) {
                             green = true;
@@ -362,10 +400,9 @@
             });
         }
 
-        displayTable(result, uniqueMinutes, totals);
+        displayTable(result, uniqueMinutes, totals, numDays);
     }
 
-    // ── Helpers de renderização ──
     function pct(slot) {
         return slot.total > 0 ? (slot.green / slot.total) * 100 : 0;
     }
@@ -387,16 +424,16 @@
         el.innerHTML = Math.round(p) + "%" +
             `<span class="sample-badge">${slot.green}/${slot.total}</span>`;
         el.className = cellClass(p);
-        el.title = `${slot.green} greens de ${slot.total} rodadas (${p.toFixed(1)}%)`;
+        el.title = `${slot.green} greens de ${slot.total} dias (${p.toFixed(1)}%)`;
         return el;
     }
 
-    function displayTable(result, uniqueMinutes, totals) {
+    function displayTable(result, uniqueMinutes, totals, numDays) {
         const now = new Date();
         const currentHour = String(now.getHours()).padStart(2, '0');
 
         document.getElementById("currentHourLabel").textContent =
-            `Hora atual: ${currentHour}h — dados dos últimos 5 dias`;
+            `Hora atual: ${currentHour}h — ${numDays} dias de dados`;
 
         const headerHTML = "<tr><th>H</th>" +
             uniqueMinutes.map(m => `<th>${String(m).padStart(2, '0')}</th>`).join("") +
@@ -404,7 +441,7 @@
         document.getElementById("tableHeader").innerHTML = headerHTML;
         document.getElementById("currentHourHeader").innerHTML = headerHTML;
 
-        // ── Linha da hora atual ──
+        // Linha hora atual
         const curBody = document.getElementById("currentHourBody");
         curBody.innerHTML = "";
         const curRow = document.createElement("tr");
@@ -416,25 +453,22 @@
         });
         curBody.appendChild(curRow);
 
-        // ── Tabela principal (23h → 00h) ──
+        // Tabela principal (23h → 00h)
         const body = document.getElementById("resultsBody");
         body.innerHTML = "";
-
         for (let h = 23; h >= 0; h--) {
             const hh = String(h).padStart(2, '0');
             const row = document.createElement("tr");
-
             const hCell = document.createElement("td");
             hCell.textContent = hh;
             row.appendChild(hCell);
-
             uniqueMinutes.forEach(m => {
                 row.appendChild(makeCell(result[hh][String(m).padStart(2, '0')]));
             });
             body.appendChild(row);
         }
 
-        // ── Linha de totais ──
+        // Linha de totais
         const totalRow = document.createElement("tr");
         totalRow.className = "total-row";
         const tLabel = document.createElement("th");
