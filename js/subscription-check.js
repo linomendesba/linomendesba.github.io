@@ -22,13 +22,15 @@ const firebaseConfig = {
   appId:             "1:946057648829:web:ac5c2b1ba66e651f9d75d4",
 };
 
+// ── ENDEREÇO DA SUA API ──────────────────────────────────────────────────
+const API_BASE = 'http://145.223.92.222:3001/api/assinantes';
+
 // Se true, redireciona para auth.html quando assinatura vencida
 const BLOQUEAR_SE_VENCIDO = true;
 
 const auth = getAuth(initializeApp(firebaseConfig));
 
 async function buscarAssinatura(email) {
-  // Cache de 5 min para não bater no PHP a cada página
   const CACHE_KEY = 'betsub_' + email;
   const cached = sessionStorage.getItem(CACHE_KEY);
   if (cached) {
@@ -36,8 +38,11 @@ async function buscarAssinatura(email) {
     if (Date.now() - ts < 5 * 60 * 1000) return data;
   }
   try {
-    const r = await fetch(`/assinatura.php?email=${encodeURIComponent(email)}`);
+    const r = await fetch(`${API_BASE}/email/${encodeURIComponent(email)}`);
+    if (!r.ok) return null;
     const data = await r.json();
+    // adapta o formato para o renderInfo
+    data.encontrado = true;
     sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
     return data;
   } catch {
