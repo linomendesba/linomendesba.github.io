@@ -6760,19 +6760,11 @@ function traderAtualizarGrafico(){
     const tiposParaRenderizar=modoFixo?[tipoLinha]:Object.keys(TRADER_CORES).filter(t=>traderVisibilidade[t]);
 
     /* ── Função genérica para calcular pontos de indicador numérico (delta bruto de gols) ── */
-    /* ── Helper: busca jogo pelo minuto real dentro de um bloco ──
-       Evita desalinhamento quando um bloco tem 19 jogos (minuto faltante). */
-    function _tBIdx(bloco, minAlvo){
-        if(!bloco)return null;
-        for(let k=0;k<bloco.length;k++){if(bloco[k]&&bloco[k].minuto===minAlvo)return bloco[k];}
-        return null;
-    }
-
     function calcPtsIndicador(blocos, totalBlocos, getFn){
         const bR=blocos[blocos.length-1];
         const med=bR.reduce((s,j)=>s+getFn(j),0)/bR.length;
         const pts=[med*20];
-        for(let b=totalBlocos-2;b>=0;b--)for(let i=blocos[b].length-1;i>=0;i--){const a=blocos[b][i];if(!a)continue;const ref=_tBIdx(blocos[b+1],a.minuto);if(!ref)continue;const d=getFn(a)-getFn(ref);pts.push(pts[pts.length-1]+d);}
+        for(let b=totalBlocos-2;b>=0;b--){const nSlots=Math.max(blocos[b].length,blocos[b+1].length);for(let i=nSlots-1;i>=0;i--){const a=blocos[b][i],ref=blocos[b+1][i];if(!a||!ref)continue;const d=getFn(a)-getFn(ref);pts.push(pts[pts.length-1]+d);}}
         return pts;
     }
 
@@ -6794,7 +6786,7 @@ function traderAtualizarGrafico(){
         } else {
             const totalCond=bR.filter(j=>traderVerificarCondicao(j,tipo)).length;
             pts=[totalCond/bR.length*100];
-            for(let b=totalBlocos-2;b>=0;b--)for(let i=blocos[b].length-1;i>=0;i--){const jA=blocos[b][i];if(!jA)continue;const jR=_tBIdx(blocos[b+1],jA.minuto);if(!jR)continue;const a=traderVerificarCondicao(jA,tipo),r=traderVerificarCondicao(jR,tipo);pts.push(pts[pts.length-1]+(a&&!r?5:(!a&&r?-5:0)));}
+            for(let b=totalBlocos-2;b>=0;b--){const nSlots=Math.max(blocos[b].length,blocos[b+1].length);for(let i=nSlots-1;i>=0;i--){const jA=blocos[b][i],jR=blocos[b+1][i];if(!jA||!jR)continue;const a=traderVerificarCondicao(jA,tipo),r=traderVerificarCondicao(jR,tipo);pts.push(pts[pts.length-1]+(a&&!r?5:(!a&&r?-5:0)));}}
         }
 
         if(tipo===tipoLinha&&(modoFixo||traderVisibilidade[tipoLinha])){
@@ -6821,7 +6813,7 @@ function traderAtualizarGrafico(){
             datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pontosSelecionado,borderColor:'#fff',borderWidth:2.3,pointRadius:2,pointHoverRadius:4,pointBackgroundColor:ptBg,pointBorderColor:ptBd,fill:false,tension:0.1,order:0,_tipo:tipoLinha,_isGols:true,_showPointLabels:mostrarNumeros});
         } else {
             const pointBg=[],pointBorder=[];
-            for(let b=totalBlocos-2;b>=0;b--)for(let i=blocos[b].length-1;i>=0;i--){const jA=blocos[b][i];if(!jA)continue;const jR=_tBIdx(blocos[b+1],jA.minuto);if(!jR)continue;const a=traderVerificarCondicao(jA,tipoLinha),r=traderVerificarCondicao(jR,tipoLinha);if(a&&r){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}else if(!a&&!r){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}}
+            for(let b=totalBlocos-2;b>=0;b--){const nSlots=Math.max(blocos[b].length,blocos[b+1].length);for(let i=nSlots-1;i>=0;i--){const jA=blocos[b][i],jR=blocos[b+1][i];if(!jA||!jR)continue;const a=traderVerificarCondicao(jA,tipoLinha),r=traderVerificarCondicao(jR,tipoLinha);if(a&&r){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}else if(!a&&!r){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}}}
             pointBg.unshift('#1e1e1e');pointBorder.unshift('rgb(204,204,204)');
             datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pontosSelecionado,borderColor:'#fff',borderWidth:2.3,pointRadius:2.3,pointHoverRadius:2,pointBackgroundColor:pointBg,pointBorderColor:pointBorder,fill:false,tension:0.1,order:0,_tipo:tipoLinha,_showPointLabels:mostrarNumeros});
         }
