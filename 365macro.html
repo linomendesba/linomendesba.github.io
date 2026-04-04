@@ -359,6 +359,7 @@
     restoreLeagueSelect();
     restorePointsSelect();
     syncTb();
+    ensureDefaultSetup();
     renderSetupBar(); updCtr();
     const act = activeSetup();
     if(act && act.id) applySetup(act);
@@ -666,10 +667,16 @@
   function processData(raw) {
     const limited=raw.slice(-nPts), hd={};
     limited.forEach(g=>{
-      const gd=new Date(g.data);
-      const fd=`${String(gd.getDate()).padStart(2,'0')}/${String(gd.getMonth()+1).padStart(2,'0')}`;
-      const hr=String(parseInt(String(g.hora).trim().split(':')[0],10));
-      const k=`${fd} ${hr}`;
+      // Parseia data manualmente para evitar erros de timezone do browser
+      const datePart = String(g.data).split('T')[0];
+      const _dp = datePart.split('-');
+      const fd = `${_dp[2]}/${_dp[1]}`;
+      // Usa hora completa como chave para não juntar meias-horas diferentes
+      // Label exibido usa só o inteiro da hora
+      const horaStr = String(g.hora).trim();
+      const hr = String(parseInt(horaStr.split(':')[0], 10));
+      // Chave de agrupamento: data + hora completa (ex: "04/04 08:00:00")
+      const k=`${fd} ${horaStr}`;
       if(!hd[k]) hd[k]={am:0,anm:0,o05:0,o15:0,o25:0,o35:0,u05:0,u15:0,u25:0,u35:0,gft:0,ght:0,m5:0,cv:0,fv:0,em:0,n:0,
         ex0:0,ex1:0,ex2:0,ex3:0,ex4:0,ex2t0:0,ex2t1:0,ex2t2:0,ex2t3:0,ex2t4:0,
         ca0:0,ca1:0,ca2:0,ca3:0,ca4:0,fo0:0,fo1:0,fo2:0,fo3:0,fo4:0,
@@ -711,7 +718,7 @@
       c_casa0Gols:[],c_casa1Gol:[],c_casa2Gols:[],c_casa3Gols:[],c_casa4Gols:[],
       c_fora0Gols:[],c_fora1Gol:[],c_fora2Gols:[],c_fora3Gols:[],c_fora4Gols:[]};
     sorted.forEach(k=>{const d=hd[k],g=d.n;if(!g)return;
-      const hr=k.split(' ')[1]; R.labels.push(hr+'h'); R.gamesPerHour.push(g);
+      const hrRaw=k.split(' ')[1]; const hrLabel=String(parseInt(hrRaw.split(':')[0],10)); R.labels.push(hrLabel+'h'); R.gamesPerHour.push(g);
       R.ambasMarcam.push(d.am/g*100);R.ambasnaoMarcam.push(d.anm/g*100);
       R.over05.push(d.o05/g*100);R.over15.push(d.o15/g*100);R.over25.push(d.o25/g*100);R.over35.push(d.o35/g*100);
       R.under05.push(d.u05/g*100);R.under15.push(d.u15/g*100);R.under25.push(d.u25/g*100);R.under35.push(d.u35/g*100);
@@ -871,6 +878,22 @@
   document.getElementById('pointsSelector').addEventListener('change',function(e){nPts=parseInt(e.target.value);save();updateCharts();});
   document.getElementById('averageSelector').addEventListener('change',function(e){avgPts=parseInt(e.target.value);save();});
 
+  /* ═══ SETUP PADRÃO ══════════════════════════════════════════════════ */
+  // Mercados padrão exibidos quando não há nenhum setup criado
+  const DEFAULT_MARKETS = ['Ambas Marcam','Over 0.5','Over 1.5','Over 2.5','Over 3.5','Under 2.5','Casa Vence','Empate','Fora Vence','Gols FT'];
+
+  function ensureDefaultSetup() {
+    const arr = loadSetups();
+    if(arr.length === 0) {
+      const ns = {id:'s_default', name:'Padrão', markets: DEFAULT_MARKETS, colors: {}};
+      saveSetups([ns]);
+      saveActId(ns.id);
+      // Liga todos os mercados padrão no VIS
+      Object.keys(CORES).forEach(l => VIS[l] = DEFAULT_MARKETS.includes(l));
+      _s(lsVis(currentHouse), VIS);
+    }
+  }
+
   /* ═══ INIT ══════════════════════════════════════════════════════════ */
   window.addEventListener('DOMContentLoaded',function(){
     // Carrega estado da casa salva
@@ -886,6 +909,10 @@
     restoreLeagueSelect();
     restorePointsSelect();
     syncTb();
+
+    // Garante que existe ao menos um setup padrão
+    ensureDefaultSetup();
+
     renderSetupBar(); updCtr();
     const act=activeSetup();
     if(act&&act.id) applySetup(act);
