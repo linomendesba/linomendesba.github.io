@@ -209,7 +209,7 @@
     </div>
   </div>
 
-  <script>
+<script>
   /* ═══ CONSTANTS ═══════════════════════════════════════════════════ */
   const LS       = 'macro_v3';
   const LS_VIS   = 'macro_v3_vis';
@@ -284,12 +284,27 @@
   const allSetups   = ()=>loadSetups();
   const activeSetup = ()=>allSetups().find(s=>s.id===loadActId())||loadSetups()[0]||{id:null,name:'',markets:[],colors:{},showEq:false};
 
-  function applySetup(s) {
+  function applySetup(s, forceReset) {
     if(!s) return;
+    const prevId = loadActId();
     saveActId(s.id);
     const mkts = s.markets||[];
-    Object.keys(CORES).forEach(l=>VIS[l]=mkts.includes(l));
-    _s(LS_VIS,VIS);
+    if(forceReset || prevId !== s.id) {
+      // setup diferente do atual: inicializa VIS com base nos mercados do setup
+      // mas preserva estado individual salvo no LS_VIS para este setup
+      const saved = _g(LS_VIS + '_' + s.id, null);
+      if(saved) {
+        // restaura o estado individual salvo para este setup
+        Object.keys(CORES).forEach(l => VIS[l] = mkts.includes(l) ? (saved[l] !== undefined ? saved[l] : true) : false);
+      } else {
+        // primeira vez com este setup: liga todos os mercados do setup
+        Object.keys(CORES).forEach(l => VIS[l] = mkts.includes(l));
+      }
+    } else {
+      // mesmo setup: preserva VIS atual, apenas garante que mercados fora do setup fiquem off
+      Object.keys(CORES).forEach(l => { if(!mkts.includes(l)) VIS[l] = false; });
+    }
+    _s(LS_VIS, VIS);
     renderSetupBar(); renderLines();
     if(chart) applyVis();
   }
@@ -392,7 +407,7 @@
       const dot=document.createElement('span'); dot.className='mdot'; dot.style.background=color;
       const tx=document.createElement('span'); tx.textContent=lbl;
       t.appendChild(dot); t.appendChild(tx);
-      t.onclick=()=>{ VIS[lbl]=!VIS[lbl]; _s(LS_VIS,VIS); renderLines(); if(chart) applyVis(); };
+      t.onclick=()=>{ VIS[lbl]=!VIS[lbl]; _s(LS_VIS,VIS); _s(LS_VIS+'_'+s.id,VIS); renderLines(); if(chart) applyVis(); };
       panel.appendChild(t);
     });
   }
