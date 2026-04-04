@@ -306,28 +306,37 @@
   </div>
 
   <script>
-    let currentCampeonato = 'Euro';
-    let numPoints = 200;
-    let averagePoints = 20;
-    let selectedMarket = 'ambasMarcam';
+    const LS = 'betstat_macro_v1';
+    function loadState() {
+      try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch(e) { return {}; }
+    }
+    function saveState() {
+      try {
+        localStorage.setItem(LS, JSON.stringify({
+          campeonato: currentCampeonato,
+          numPoints, averagePoints, selectedMarket,
+          visibleDatasets: statsChartVisibleDatasets
+        }));
+      } catch(e) {}
+    }
+
+    const _state = loadState();
+    let currentCampeonato = _state.campeonato || 'Euro';
+    let numPoints         = _state.numPoints  || 200;
+    let averagePoints     = _state.averagePoints || 20;
+    let selectedMarket    = _state.selectedMarket || 'ambasMarcam';
     let statsChart = null;
 
-    let statsChartVisibleDatasets = {
-      'Ambas Marcam': true,
-      'Ambas não Marcam': false,
-      'Over 1.5': false,
-      'Over 2.5': true,
-      'Over 3.5': false,
-      'Under 1.5': false,
-      'Under 2.5': false,
-      'Under 3.5': false,
-      'Gols FT': false,
-      'Gols HT': false,
-      '5+': false,
-      'Casa Vence': false,
-      'Fora Vence': false,
-      'Equilíbrio': true
+    const _defaultVisible = {
+      'Ambas Marcam': true,  'Ambas não Marcam': false,
+      'Over 1.5': false,     'Over 2.5': true,
+      'Over 3.5': false,     'Under 1.5': false,
+      'Under 2.5': false,    'Under 3.5': false,
+      'Gols FT': false,      'Gols HT': false,
+      '5+': false,           'Casa Vence': false,
+      'Fora Vence': false,   'Equilíbrio': true
     };
+    let statsChartVisibleDatasets = Object.assign({}, _defaultVisible, _state.visibleDatasets || {});
 
     function fetchAPIData(campeonato) {
       return fetch(`https://betstat.site/resultados/${campeonato}`)
@@ -358,7 +367,9 @@
       limitedData.forEach(game => {
         const gameDate = new Date(game.data);
         const formattedDate = `${gameDate.getDate()}/${gameDate.getMonth() + 1}`;
-        const hour = game.hora;
+        // Normaliza hora: aceita "14", "14:00", "14:30", 14 — pega só o número inteiro da hora
+        const rawHora = String(game.hora).trim();
+        const hour = String(parseInt(rawHora.split(':')[0], 10));
         const hourKey = `${formattedDate} ${hour}`;
 
         if (!hourData[hourKey]) {
@@ -560,6 +571,7 @@
                 const meta = ci.getDatasetMeta(dataset);
                 meta.hidden = !meta.hidden;
                 statsChartVisibleDatasets[legendItem.text] = !meta.hidden;
+                saveState();
                 ci.update();
               }
             },
@@ -707,25 +719,42 @@
 
     document.getElementById('campeonatoSelector').addEventListener('change', function(e) {
       currentCampeonato = e.target.value;
-      updateCharts();
+      saveState(); updateCharts();
     });
 
     document.getElementById('pointsSelector').addEventListener('change', function(e) {
       numPoints = parseInt(e.target.value);
-      updateCharts();
+      saveState(); updateCharts();
     });
 
     document.getElementById('averageSelector').addEventListener('change', function(e) {
       averagePoints = parseInt(e.target.value);
-      updateCharts();
+      saveState(); updateCharts();
     });
 
     document.getElementById('marketAverageSelector').addEventListener('change', function() {
       selectedMarket = this.value;
-      updateCharts();
+      saveState(); updateCharts();
     });
 
     window.addEventListener('DOMContentLoaded', function() {
+      // Restaura selects para os valores salvos
+      const cs = document.getElementById('campeonatoSelector');
+      const ps = document.getElementById('pointsSelector');
+      const ms = document.getElementById('marketAverageSelector');
+
+      // campeonato
+      const csOpt = Array.from(cs.options).find(o => o.value === currentCampeonato);
+      if (csOpt) cs.value = currentCampeonato;
+
+      // pontos
+      const psOpt = Array.from(ps.options).find(o => parseInt(o.value) === numPoints);
+      if (psOpt) ps.value = numPoints;
+
+      // mercado equilíbrio
+      const msOpt = Array.from(ms.options).find(o => o.value === selectedMarket);
+      if (msOpt) ms.value = selectedMarket;
+
       updateCharts();
     });
   </script>
