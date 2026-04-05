@@ -1,1 +1,162 @@
-function a0_0x4702(){const _0x5a9ed0=['rxjYBYbUBYbSB2DPBJO','z2v0sxrLBq','otq2mdu3nJq4odi5','rgv0zwn0ywrHihnLC3pdO28Gzw0GB3v0CM8GzgLZCg9ZAxrPDM8UifjLywXPEMfUzg8GBg9NB3v0lG','rxjYBYbHBYbYzwDPC3rYyxiGzgLZCg9ZAxrPDM86','zgv2AwnLxW','zxHPC3rZ','zxjYB3i','DhjHy2u','yMLUza','mtq2ndiYoxPfv255yG','yxbWBhK','CMvTB3zLsxrLBq','BM93','DwLK','yxv0Ac5ODg1S','rgvZBg9NywrV','x19WCM90B19F','Bg9NB3v0','DxnLCNm','mti1mdqYndbjr01lt2i','nJm1ndu0mhrWswXmra','Dg9tDhjPBMC','tg9NywrV','CMv0DxjUicHMDw5JDgLVBIGPia','mtO5ndyWntC2ndG4mJK6D2vIoMfJnwmYyJfIyty2zty1mwy5zdC1zdq','y2f0y2G','Aw5MBW','l2HVBwuUAhrTBa','DxnLCG','C2vHCMnO','Dg9ju09tDhjPBMC','Aw5JBhvKzxm','ndmWmZK2r2XNC0ri','BwvZC2fNzq','zgf0yq','rxn0ywrVigrLigf1DgvUDgLJyCoNW6nVigfSDgvYywrVoG','AhjLzG','nZjJvvnMD1e','Bg9JyxrPB24','mZe1mK92D2rTrq','vxn1W6fYAw8Gyxv0zw50AwnHzg86','mJmYnZvgCg1XCKG','rY00v1q4mdvgrKHr','Bg9NAw4','mJDiBujwq1y','CMfUzg9T','y29UC3rYDwn0B3i','C3vIC3rYAw5N','DgHLBG','nZm1nZm1CfzcBuHM','ndqWotK1y0vyENDN','D2fYBG','y29UC29Szq','Bg9N','BgLUB2f1DgvUDgLJywrVCI5MAxjLyMfZzxn0B3jHz2uUyxbW','rxjYBYbHBYbZywLYoG','zgv2AwnLswq'];a0_0x4702=function(){return _0x5a9ed0;};return a0_0x4702();}const a0_0x43c698=a0_0xe99e;(function(_0x431cbe,_0x4575cc){const _0x3cef0c=a0_0xe99e,_0x23f0b0=_0x431cbe();while(!![]){try{const _0x1c4422=parseInt(_0x3cef0c(0x128))/0x1+-parseInt(_0x3cef0c(0x13f))/0x2+-parseInt(_0x3cef0c(0x150))/0x3+-parseInt(_0x3cef0c(0x133))/0x4+-parseInt(_0x3cef0c(0x151))/0x5*(parseInt(_0x3cef0c(0x144))/0x6)+-parseInt(_0x3cef0c(0x148))/0x7*(parseInt(_0x3cef0c(0x146))/0x8)+parseInt(_0x3cef0c(0x14b))/0x9*(parseInt(_0x3cef0c(0x132))/0xa);if(_0x1c4422===_0x4575cc)break;else _0x23f0b0['push'](_0x23f0b0['shift']());}catch(_0x3b1b12){_0x23f0b0['push'](_0x23f0b0['shift']());}}}(a0_0x4702,0xc2d21));const a0_0x36cf40=(function(){let _0x5c6177=!![];return function(_0x85074d,_0x5b75e4){const _0x27fc66=_0x5c6177?function(){const _0x58818a=a0_0xe99e;if(_0x5b75e4){const _0x4daf79=_0x5b75e4[_0x58818a(0x129)](_0x85074d,arguments);return _0x5b75e4=null,_0x4daf79;}}:function(){};return _0x5c6177=![],_0x27fc66;};}()),a0_0x3522e4=a0_0x36cf40(this,function(){const _0x39721f=a0_0xe99e;return a0_0x3522e4[_0x39721f(0x134)]()[_0x39721f(0x13c)]('(((.+)+)+)+$')[_0x39721f(0x134)]()[_0x39721f(0x14d)](a0_0x3522e4)[_0x39721f(0x13c)]('(((.+)+)+)+$');});a0_0x3522e4();const a0_0x10c0ff=(function(){let _0x27013e=!![];return function(_0xc088f9,_0x4b585c){const _0x358a12=_0x27013e?function(){if(_0x4b585c){const _0x17e305=_0x4b585c['apply'](_0xc088f9,arguments);return _0x4b585c=null,_0x17e305;}}:function(){};return _0x27013e=![],_0x358a12;};}()),a0_0x1d6e57=a0_0x10c0ff(this,function(){const _0x13c794=a0_0xe99e;let _0x164a18;try{const _0x2f6aa7=Function(_0x13c794(0x136)+'{}.constructor(\x22return\x20this\x22)(\x20)'+');');_0x164a18=_0x2f6aa7();}catch(_0xe558e){_0x164a18=window;}const _0x55d781=_0x164a18['console']=_0x164a18[_0x13c794(0x153)]||{},_0x3588b0=[_0x13c794(0x154),_0x13c794(0x152),_0x13c794(0x139),_0x13c794(0x125),'exception','table',_0x13c794(0x126)];for(let _0x57cf0d=0x0;_0x57cf0d<_0x3588b0['length'];_0x57cf0d++){const _0x42d19a=a0_0x10c0ff[_0x13c794(0x14d)]['prototype'][_0x13c794(0x127)](a0_0x10c0ff),_0xcce74=_0x3588b0[_0x57cf0d],_0x3f570a=_0x55d781[_0xcce74]||_0x42d19a;_0x42d19a[_0x13c794(0x12f)]=a0_0x10c0ff['bind'](a0_0x10c0ff),_0x42d19a['toString']=_0x3f570a['toString']['bind'](_0x3f570a),_0x55d781[_0xcce74]=_0x42d19a;}});a0_0x1d6e57();import{initializeApp}from'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';import{getAuth,onAuthStateChanged,signOut,signInWithEmailAndPassword}from'https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js';import{getFirestore,doc,setDoc,getDoc,onSnapshot}from'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';const firebaseConfig={'apiKey':'AIzaSyDmLGMBnUa2YOdP0b-zlZepXjm-zlV477A','authDomain':'linoautenticador.firebaseapp.com','projectId':'linoautenticador','storageBucket':a0_0x43c698(0x155),'messagingSenderId':a0_0x43c698(0x120),'appId':a0_0x43c698(0x137),'measurementId':a0_0x43c698(0x149)},app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);let isRedirecting=![];function getDeviceId(){const _0x10652a=a0_0x43c698;let _0x5d1121=localStorage[_0x10652a(0x11f)]('deviceId');return!_0x5d1121&&(_0x5d1121=_0x10652a(0x123)+Date[_0x10652a(0x12b)]()+'_'+Math[_0x10652a(0x14c)]()[_0x10652a(0x134)](0x24)[_0x10652a(0x14e)](0x2,0xf),localStorage['setItem'](_0x10652a(0x11d),_0x5d1121)),_0x5d1121;}async function registerCurrentDevice(_0x3a7583){const _0x3a9429=a0_0x43c698;if(!_0x3a7583)return![];const _0x1cddff=doc(db,_0x3a9429(0x131),_0x3a7583[_0x3a9429(0x12c)]),_0x3e267a=getDeviceId();try{return await setDoc(_0x1cddff,{'deviceId':_0x3e267a,'lastLogin':new Date()[_0x3a9429(0x13d)](),'lastLoginTime':Date[_0x3a9429(0x12b)]()},{'merge':!![]}),!![];}catch(_0x206370){return console[_0x3a9429(0x125)](_0x3a9429(0x122),_0x206370),![];}}function a0_0xe99e(_0xd19325,_0x416270){_0xd19325=_0xd19325-0x11d;const _0x4c4fbe=a0_0x4702();let _0x1d6e57=_0x4c4fbe[_0xd19325];if(a0_0xe99e['PlHiZn']===undefined){var _0x10c0ff=function(_0x36cf40){const _0x470273='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0xe99e75='',_0x1eca94='',_0x90c4ff=_0xe99e75+_0x10c0ff;for(let _0x198e71=0x0,_0x540a97,_0x50280d,_0x36f644=0x0;_0x50280d=_0x36cf40['charAt'](_0x36f644++);~_0x50280d&&(_0x540a97=_0x198e71%0x4?_0x540a97*0x40+_0x50280d:_0x50280d,_0x198e71++%0x4)?_0xe99e75+=_0x90c4ff['charCodeAt'](_0x36f644+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x540a97>>(-0x2*_0x198e71&0x6)):_0x198e71:0x0){_0x50280d=_0x470273['indexOf'](_0x50280d);}for(let _0x5c6177=0x0,_0x85074d=_0xe99e75['length'];_0x5c6177<_0x85074d;_0x5c6177++){_0x1eca94+='%'+('00'+_0xe99e75['charCodeAt'](_0x5c6177)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x1eca94);};a0_0xe99e['hjlnYu']=_0x10c0ff,a0_0xe99e['nNGJEG']={},a0_0xe99e['PlHiZn']=!![];}const _0x1f27bc=_0x4c4fbe[0x0],_0x2214e4=_0xd19325+_0x1f27bc,_0x3522e4=a0_0xe99e['nNGJEG'][_0x2214e4];if(!_0x3522e4){const _0x5b75e4=function(_0x27fc66){this['xDZlbb']=_0x27fc66,this['oJHKyf']=[0x1,0x0,0x0],this['ddQLGY']=function(){return'newState';},this['ptvQNL']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['biCJRJ']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x5b75e4['prototype']['iMlXpz']=function(){const _0x4daf79=new RegExp(this['ptvQNL']+this['biCJRJ']),_0x27013e=_0x4daf79['test'](this['ddQLGY']['toString']())?--this['oJHKyf'][0x1]:--this['oJHKyf'][0x0];return this['ivmAeB'](_0x27013e);},_0x5b75e4['prototype']['ivmAeB']=function(_0xc088f9){if(!Boolean(~_0xc088f9))return _0xc088f9;return this['NytdZh'](this['xDZlbb']);},_0x5b75e4['prototype']['NytdZh']=function(_0x4b585c){for(let _0x358a12=0x0,_0x17e305=this['oJHKyf']['length'];_0x358a12<_0x17e305;_0x358a12++){this['oJHKyf']['push'](Math['round'](Math['random']())),_0x17e305=this['oJHKyf']['length'];}return _0x4b585c(this['oJHKyf'][0x0]);},new _0x5b75e4(a0_0xe99e)['iMlXpz'](),_0x1d6e57=a0_0xe99e['hjlnYu'](_0x1d6e57),a0_0xe99e['nNGJEG'][_0x2214e4]=_0x1d6e57;}else _0x1d6e57=_0x3522e4;return _0x1d6e57;}function setupDeviceMonitor(_0x590d91){const _0x419c4b=a0_0x43c698;if(!_0x590d91)return;const _0x4864e6=doc(db,_0x419c4b(0x131),_0x590d91[_0x419c4b(0x12c)]),_0x2fee72=getDeviceId();return onSnapshot(_0x4864e6,_0x3a3171=>{const _0x392fe6=_0x419c4b;if(isRedirecting)return;if(_0x3a3171[_0x392fe6(0x124)]()){const _0x1f458d=_0x3a3171[_0x392fe6(0x141)]();_0x1f458d[_0x392fe6(0x11d)]&&_0x1f458d[_0x392fe6(0x11d)]!==_0x2fee72&&(console[_0x392fe6(0x154)](_0x392fe6(0x121)),isRedirecting=!![],localStorage['removeItem'](_0x392fe6(0x11d)),signOut(auth)[_0x392fe6(0x14f)](()=>{setTimeout(()=>{const _0x194fe7=a0_0xe99e;window[_0x194fe7(0x145)]['href']='auth.html';},0x64);}));}});}let unsubscribeDeviceMonitor=null;onAuthStateChanged(auth,async _0x6ff706=>{const _0x2ab1a4=a0_0x43c698;console[_0x2ab1a4(0x154)](_0x2ab1a4(0x142),_0x6ff706?_0x2ab1a4(0x135):_0x2ab1a4(0x12e));unsubscribeDeviceMonitor&&(unsubscribeDeviceMonitor(),unsubscribeDeviceMonitor=null);if(!_0x6ff706){!isRedirecting&&!window['location'][_0x2ab1a4(0x143)][_0x2ab1a4(0x13e)]('auth.html')&&(window[_0x2ab1a4(0x145)][_0x2ab1a4(0x143)]=_0x2ab1a4(0x12d));return;}console[_0x2ab1a4(0x154)](_0x2ab1a4(0x147),_0x6ff706['uid']),await registerCurrentDevice(_0x6ff706),unsubscribeDeviceMonitor=setupDeviceMonitor(_0x6ff706),window[_0x2ab1a4(0x145)][_0x2ab1a4(0x143)][_0x2ab1a4(0x13e)](_0x2ab1a4(0x12d))&&(window[_0x2ab1a4(0x145)][_0x2ab1a4(0x143)]=_0x2ab1a4(0x13a));}),window[a0_0x43c698(0x14a)]=async function(_0x162b17,_0x12af0b){const _0x32ab81=a0_0x43c698;try{isRedirecting=![];const _0x4d20a4=await signInWithEmailAndPassword(auth,_0x162b17,_0x12af0b);return _0x4d20a4[_0x32ab81(0x13b)];}catch(_0x32407e){console[_0x32ab81(0x125)](_0x32ab81(0x11e),_0x32407e),alert('Erro\x20ao\x20fazer\x20login:\x20'+_0x32407e[_0x32ab81(0x140)]);throw _0x32407e;}},window[a0_0x43c698(0x130)]=function(){const _0x285080=a0_0x43c698;isRedirecting=!![],localStorage[_0x285080(0x12a)](_0x285080(0x11d)),signOut(auth)['then'](()=>{setTimeout(()=>{const _0x48c6f8=a0_0xe99e;window[_0x48c6f8(0x145)][_0x48c6f8(0x143)]=_0x48c6f8(0x12d);},0x64);})[_0x285080(0x138)](_0x3229e9=>{const _0x5a1e69=_0x285080;console[_0x5a1e69(0x125)](_0x5a1e69(0x156),_0x3229e9),setTimeout(()=>{const _0x5e63b5=_0x5a1e69;window[_0x5e63b5(0x145)][_0x5e63b5(0x143)]='auth.html';},0x64);});};
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signOut,
+  signInWithEmailAndPassword,
+} from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
+
+// ✅ LINHA 1: Importa o script de assinatura
+import "./subscription-info.js";
+
+// Configuração do Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyDmLGMBnUa2YOdP0b-zlZepXjm-zlV477A",
+  authDomain: "linoautenticador.firebaseapp.com",
+  projectId: "linoautenticador",
+  storageBucket: "linoautenticador.firebasestorage.app",
+  messagingSenderId: "946057648829",
+  appId: "1:946057648829:web:ac5c2b1ba66e651f9d75d4",
+  measurementId: "G-4WT805FFHQ",
+};
+
+// Inicializa o Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Variável para controlar o estado de redirecionamento
+let isRedirecting = false;
+
+// Função para gerar ou recuperar um ID único para o dispositivo
+function getDeviceId() {
+  let deviceId = localStorage.getItem("deviceId");
+  if (!deviceId) {
+    deviceId = "device_" + Date.now() + "_" + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem("deviceId", deviceId);
+  }
+  return deviceId;
+}
+
+// Função para registrar este dispositivo como o atual
+async function registerCurrentDevice(user) {
+  if (!user) return false;
+  
+  const userRef = doc(db, "users", user.uid);
+  const deviceId = getDeviceId();
+  
+  try {
+    await setDoc(
+      userRef,
+      { 
+        deviceId: deviceId, 
+        lastLogin: new Date().toISOString(),
+        lastLoginTime: Date.now()
+      },
+      { merge: true }
+    );
+    
+    return true;
+  } catch (error) {
+    console.error("Erro ao registrar dispositivo:", error);
+    return false;
+  }
+}
+
+// Configurar listener para monitorar alterações no documento do usuário
+function setupDeviceMonitor(user) {
+  if (!user) return;
+  
+  const userRef = doc(db, "users", user.uid);
+  const deviceId = getDeviceId();
+  
+  return onSnapshot(userRef, (doc) => {
+    if (isRedirecting) return;
+    
+    if (doc.exists()) {
+      const data = doc.data();
+      
+      if (data.deviceId && data.deviceId !== deviceId) {
+        console.log("Detectada sessão em outro dispositivo. Realizando logout.");
+        isRedirecting = true;
+        
+        localStorage.removeItem("deviceId");
+        signOut(auth).then(() => {
+          setTimeout(() => {
+            window.location.href = "auth.html";
+          }, 100);
+        });
+      }
+    }
+  });
+}
+
+// Monitora o estado de autenticação
+let unsubscribeDeviceMonitor = null;
+
+onAuthStateChanged(auth, async (user) => {
+  console.log("Estado de autenticação alterado:", user ? "Logado" : "Deslogado");
+  
+  if (unsubscribeDeviceMonitor) {
+    unsubscribeDeviceMonitor();
+    unsubscribeDeviceMonitor = null;
+  }
+  
+  if (!user) {
+    if (!isRedirecting && !window.location.href.includes("auth.html")) {
+      window.location.href = "auth.html";
+    }
+    return;
+  }
+  
+  console.log("Usuário autenticado:", user.uid);
+  
+  await registerCurrentDevice(user);
+  unsubscribeDeviceMonitor = setupDeviceMonitor(user);
+
+  // ✅ LINHA 2: Carrega e exibe os dados de assinatura do usuário logado
+  initSubscriptionInfo(user.email);
+  
+  if (window.location.href.includes("auth.html")) {
+    window.location.href = "/home.html";
+  }
+});
+
+// Função de login para a página de autenticação
+window.login = async function(email, password) {
+  try {
+    isRedirecting = false;
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error) {
+    console.error("Erro no login:", error);
+    alert("Erro ao fazer login: " + error.message);
+    throw error;
+  }
+};
+
+// Função de logout
+window.logout = function() {
+  isRedirecting = true;
+  localStorage.removeItem("deviceId");
+  
+  signOut(auth)
+    .then(() => {
+      setTimeout(() => {
+        window.location.href = "auth.html";
+      }, 100);
+    })
+    .catch((error) => {
+      console.error("Erro ao sair:", error);
+      setTimeout(() => {
+        window.location.href = "auth.html";
+      }, 100);
+    });
+};
