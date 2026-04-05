@@ -9,14 +9,9 @@ import {
   getFirestore,
   doc,
   setDoc,
-  getDoc,
   onSnapshot
 } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js";
 
-// ✅ LINHA 1: Importa o script de assinatura
-import "./subscription-info.js";
-
-// Configuração do Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDmLGMBnUa2YOdP0b-zlZepXjm-zlV477A",
   authDomain: "linoautenticador.firebaseapp.com",
@@ -27,15 +22,15 @@ const firebaseConfig = {
   measurementId: "G-4WT805FFHQ",
 };
 
-// Inicializa o Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Variável para controlar o estado de redirecionamento
+// ✅ Expõe o auth globalmente para o subscription-info.js conseguir acessar
+window._firebaseAuth = auth;
+
 let isRedirecting = false;
 
-// Função para gerar ou recuperar um ID único para o dispositivo
 function getDeviceId() {
   let deviceId = localStorage.getItem("deviceId");
   if (!deviceId) {
@@ -45,24 +40,20 @@ function getDeviceId() {
   return deviceId;
 }
 
-// Função para registrar este dispositivo como o atual
 async function registerCurrentDevice(user) {
   if (!user) return false;
-  
   const userRef = doc(db, "users", user.uid);
   const deviceId = getDeviceId();
-  
   try {
     await setDoc(
       userRef,
-      { 
-        deviceId: deviceId, 
+      {
+        deviceId: deviceId,
         lastLogin: new Date().toISOString(),
         lastLoginTime: Date.now()
       },
       { merge: true }
     );
-    
     return true;
   } catch (error) {
     console.error("Erro ao registrar dispositivo:", error);
@@ -70,67 +61,53 @@ async function registerCurrentDevice(user) {
   }
 }
 
-// Configurar listener para monitorar alterações no documento do usuário
 function setupDeviceMonitor(user) {
   if (!user) return;
-  
   const userRef = doc(db, "users", user.uid);
   const deviceId = getDeviceId();
-  
   return onSnapshot(userRef, (doc) => {
     if (isRedirecting) return;
-    
     if (doc.exists()) {
       const data = doc.data();
-      
       if (data.deviceId && data.deviceId !== deviceId) {
         console.log("Detectada sessão em outro dispositivo. Realizando logout.");
         isRedirecting = true;
-        
         localStorage.removeItem("deviceId");
         signOut(auth).then(() => {
-          setTimeout(() => {
-            window.location.href = "auth.html";
-          }, 100);
+          setTimeout(() => { window.location.href = "auth.html"; }, 100);
         });
       }
     }
   });
 }
 
-// Monitora o estado de autenticação
 let unsubscribeDeviceMonitor = null;
 
 onAuthStateChanged(auth, async (user) => {
   console.log("Estado de autenticação alterado:", user ? "Logado" : "Deslogado");
-  
+
   if (unsubscribeDeviceMonitor) {
     unsubscribeDeviceMonitor();
     unsubscribeDeviceMonitor = null;
   }
-  
+
   if (!user) {
     if (!isRedirecting && !window.location.href.includes("auth.html")) {
       window.location.href = "auth.html";
     }
     return;
   }
-  
+
   console.log("Usuário autenticado:", user.uid);
-  
   await registerCurrentDevice(user);
   unsubscribeDeviceMonitor = setupDeviceMonitor(user);
 
-  // ✅ LINHA 2: Carrega e exibe os dados de assinatura do usuário logado
-  initSubscriptionInfo(user.email);
-  
   if (window.location.href.includes("auth.html")) {
     window.location.href = "/home.html";
   }
 });
 
-// Função de login para a página de autenticação
-window.login = async function(email, password) {
+window.login = async function (email, password) {
   try {
     isRedirecting = false;
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -142,21 +119,10 @@ window.login = async function(email, password) {
   }
 };
 
-// Função de logout
-window.logout = function() {
+window.logout = function () {
   isRedirecting = true;
   localStorage.removeItem("deviceId");
-  
   signOut(auth)
-    .then(() => {
-      setTimeout(() => {
-        window.location.href = "auth.html";
-      }, 100);
-    })
-    .catch((error) => {
-      console.error("Erro ao sair:", error);
-      setTimeout(() => {
-        window.location.href = "auth.html";
-      }, 100);
-    });
+    .then(() => { setTimeout(() => { window.location.href = "auth.html"; }, 100); })
+    .catch(() => { setTimeout(() => { window.location.href = "auth.html"; }, 100); });
 };
