@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BetStat — Gerenciador</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #080c10;
+    --bg2: #0d1117;
+    --bg3: #111820;
+    --border: rgba(255,255,255,0.06);
+    --border-green: rgba(34,197,94,0.3);
+    --border-red: rgba(239,68,68,0.3);
+    --border-yellow: rgba(234,179,8,0.3);
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.12);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.12);
+    --yellow: #eab308;
+    --yellow-dim: rgba(234,179,8,0.12);
+    --text: #e2e8f0;
+    --text-dim: #64748b;
+    --text-mid: #94a3b8;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Sora', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .top-bar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .top-bar-left { display: flex; align-items: center; gap: 12px; }
+
+  .top-bar-logo {
+    font-size: 16px; font-weight: 700;
+    color: var(--green); letter-spacing: -0.5px;
+  }
+
+  .top-bar-subtitle {
+    font-size: 11px; color: var(--text-dim);
+    font-family: var(--mono);
+    padding: 2px 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  .content { padding: 32px; max-width: 1200px; margin: 0 auto; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .stat-value { font-size: 32px; font-weight: 700; font-family: var(--mono); line-height: 1; }
+  .stat-card.total .stat-value { color: var(--text); }
+  .stat-card.ativos .stat-value { color: var(--green); }
+  .stat-card.alerta .stat-value { color: var(--yellow); }
+
+  .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .stat-card.total .stat-icon { background: rgba(255,255,255,0.05); }
+  .stat-card.ativos .stat-icon { background: var(--green-dim); }
+  .stat-card.alerta .stat-icon { background: var(--yellow-dim); }
+
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
+  }
+
+  .search-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 14px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    outline: none;
+    width: 280px;
+    transition: border-color 0.2s;
+  }
+
+  .search-box:focus { border-color: var(--border-green); }
+  .search-box::placeholder { color: var(--text-dim); }
+
+  .btn {
+    display: flex; align-items: center; gap: 7px;
+    padding: 9px 18px; border-radius: 8px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none;
+    font-family: var(--sans); transition: all 0.2s;
+  }
+
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover { opacity: 0.85; }
+
+  .section-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px; font-weight: 600;
+    margin-bottom: 16px;
+  }
+
+  .badge {
+    font-family: var(--mono); font-size: 11px;
+    padding: 2px 8px; border-radius: 20px; font-weight: 700;
+  }
+
+  .badge-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--border-yellow); }
+  .badge-green  { background: var(--green-dim);  color: var(--green);  border: 1px solid var(--border-green); }
+  .badge-red    { background: var(--red-dim);    color: var(--red);    border: 1px solid var(--border-red); }
+
+  .clients-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px; margin-bottom: 32px;
+  }
+
+  .client-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .client-card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-1px); }
+  .client-card.alerta { border-color: var(--border-yellow); }
+  .client-card.vencido { border-color: var(--border-red); }
+
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+  .card-name { font-size: 15px; font-weight: 700; color: var(--text); }
+  .card-email { font-size: 11px; color: var(--text-dim); font-family: var(--mono); margin-top: 2px; }
+
+  .status-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; font-family: var(--mono); }
+  .status-ativo  { background: var(--green-dim);  color: var(--green);  border: 1px solid var(--border-green); }
+  .status-alerta { background: var(--yellow-dim); color: var(--yellow); border: 1px solid var(--border-yellow); }
+  .status-vencido{ background: var(--red-dim);    color: var(--red);    border: 1px solid var(--border-red); }
+
+  .card-dias { font-size: 28px; font-weight: 700; font-family: var(--mono); line-height: 1; margin-bottom: 2px; }
+  .card-dias.verde   { color: var(--green); }
+  .card-dias.amarelo { color: var(--yellow); }
+  .card-dias.vermelho{ color: var(--red); }
+  .card-dias-label { font-size: 10px; color: var(--text-dim); }
+
+  .card-info-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.6px; }
+  .card-info-value { font-size: 12px; font-family: var(--mono); color: var(--text-mid); }
+
+  .card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+  .card-actions-bottom { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; }
+
+  .card-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px; border-radius: 7px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border);
+    background: transparent; color: var(--text-mid);
+    font-family: var(--sans); transition: all 0.2s;
+  }
+
+  .card-btn:hover        { border-color: rgba(255,255,255,0.15); color: var(--text); }
+  .card-btn.renovar:hover{ border-color: var(--border-green); color: var(--green); }
+  .card-btn.editar:hover { border-color: rgba(99,102,241,0.4); color: #818cf8; }
+  .card-btn.deletar      { border-color: transparent; }
+  .card-btn.deletar:hover{ border-color: var(--border-red); color: var(--red); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px; width: 440px; max-width: 95vw;
+    transform: translateY(20px); transition: transform 0.2s;
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 24px; }
+  .modal-fields { display: flex; flex-direction: column; gap: 16px; }
+  .modal-field { display: flex; flex-direction: column; gap: 6px; }
+
+  .modal-field label {
+    font-size: 11px; font-weight: 600;
+    color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px;
+  }
+
+  .modal-field input {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    color: var(--text); font-family: var(--mono);
+    font-size: 13px; outline: none; transition: border-color 0.2s;
+  }
+
+  .modal-field input:focus { border-color: var(--border-green); }
+
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+  .modal-cancel {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); padding: 10px 20px;
+    border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: var(--sans); transition: all 0.2s;
+  }
+
+  .modal-cancel:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+
+  .modal-save {
+    background: var(--green); color: #000; border: none;
+    padding: 10px 24px; border-radius: 8px;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; font-family: var(--sans); transition: opacity 0.2s;
+  }
+
+  .modal-save:hover { opacity: 0.85; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 999;
+    background: var(--bg2); border: 1px solid var(--border-green);
+    border-radius: 10px; padding: 14px 20px;
+    font-size: 13px; font-weight: 600; color: var(--green);
+    transform: translateY(80px); opacity: 0;
+    transition: all 0.3s; pointer-events: none;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.error { border-color: var(--border-red); color: var(--red); }
+
+  .loading-text { text-align: center; padding: 60px; color: var(--text-dim); font-size: 13px; font-family: var(--mono); }
+  .empty { text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px; }
+
+  @keyframes piscar { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .client-card.alerta .card-dias { animation: piscar 1.5s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="top-bar-left">
+    <img src="img/logo.png" alt="BetStat" style="height:36px;object-fit:contain;"/>
+    <span class="top-bar-subtitle">Gerenciador de Assinaturas</span>
+  </div>
+</div>
+
+<div class="content">
+  <div class="stats-grid">
+    <div class="stat-card total">
+      <div><div class="stat-label">Total de Clientes</div><div class="stat-value" id="stat-total">–</div></div>
+      <div class="stat-icon">👥</div>
+    </div>
+    <div class="stat-card ativos">
+      <div><div class="stat-label">Clientes Ativos</div><div class="stat-value" id="stat-ativos">–</div></div>
+      <div class="stat-icon">✅</div>
+    </div>
+    <div class="stat-card alerta">
+      <div><div class="stat-label">Vencendo em Breve</div><div class="stat-value" id="stat-alerta">–</div></div>
+      <div class="stat-icon">⚠️</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input class="search-box" type="text" placeholder="🔍  Buscar por nome ou email..." oninput="filtrar(this.value)"/>
+    <button class="btn btn-green" onclick="abrirModal()">＋ Novo Cliente</button>
+  </div>
+
+  <div id="lista-container">
+    <div class="loading-text">Carregando clientes...</div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Novo Cliente</div>
+    <div class="modal-fields">
+      <input type="hidden" id="modal-id"/>
+      <div class="modal-field"><label>Nome</label><input type="text" id="modal-nome" placeholder="Nome do cliente"/></div>
+      <div class="modal-field"><label>Email</label><input type="email" id="modal-email" placeholder="email@exemplo.com"/></div>
+      <div class="modal-field"><label>Data de Início</label><input type="date" id="modal-data"/></div>
+      <div class="modal-field"><label>Meses Pagos</label><input type="number" id="modal-meses" placeholder="1" min="1" max="24"/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="modal-save" onclick="salvarCliente()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = "https://pxhmwhswhqvaaohhuqmj.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4aG13aHN3aHF2YWFvaGh1cW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMwNDE1MTgsImV4cCI6MjA2ODYxNzUxOH0.9zaDX79OClGfsjBxsNRi1plZLXXryMkRn6efFZvqDvw";
+
+  let todosClientes = [];
+
+  async function supabase(method, path, body) {
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+      method,
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': method === 'POST' ? 'return=representation' : ''
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (!res.ok) throw new Error('Erro ' + res.status);
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  function calcVenc(start, meses) {
+    if (!start) return null;
+    const d = new Date(start);
+    d.setMonth(d.getMonth() + (meses || 1));
+    return d;
+  }
+
+  function diasRestantes(venc) {
+    if (!venc) return null;
+    return Math.ceil((venc - new Date()) / 86400000);
+  }
+
+  function fmtData(d) {
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function fmtDataInput(d) {
+    return new Date(d).toISOString().split('T')[0];
+  }
+
+  async function carregarClientes() {
+    try {
+      todosClientes = await supabase('GET', 'clients?select=*&order=created_at.desc');
+      renderLista(todosClientes);
+    } catch(e) {
+      document.getElementById('lista-container').innerHTML = '<div class="loading-text">Erro ao carregar.</div>';
+    }
+  }
+
+  function filtrar(q) {
+    const lower = q.toLowerCase();
+    renderLista(todosClientes.filter(c =>
+      c.name?.toLowerCase().includes(lower) || c.email?.toLowerCase().includes(lower)
+    ));
+  }
+
+  function renderLista(clientes) {
+    let ativos = 0, alertas = 0, vencidos = 0;
+    const alertaList = [], ativoList = [], vencidoList = [];
+
+    clientes.forEach(c => {
+      const venc = calcVenc(c.start_date, c.months_paid);
+      const dias = diasRestantes(venc);
+      if (dias === null || dias < 0) { vencidos++; vencidoList.push({...c, venc, dias}); }
+      else if (dias <= 5)            { alertas++;  alertaList.push({...c, venc, dias}); }
+      else                           { ativos++;   ativoList.push({...c, venc, dias}); }
+    });
+
+    document.getElementById('stat-total').textContent = clientes.length;
+    document.getElementById('stat-ativos').textContent = ativos;
+    document.getElementById('stat-alerta').textContent = alertas;
+
+    let html = '';
+
+    if (alertaList.length) {
+      html += `<div class="section-title">⚠️ Vencendo em Breve <span class="badge badge-yellow">${alertaList.length}</span></div>`;
+      html += '<div class="clients-grid">' + alertaList.map(c => cardHTML(c, 'alerta')).join('') + '</div>';
+    }
+    if (vencidoList.length) {
+      html += `<div class="section-title">🔴 Vencidos <span class="badge badge-red">${vencidoList.length}</span></div>`;
+      html += '<div class="clients-grid">' + vencidoList.map(c => cardHTML(c, 'vencido')).join('') + '</div>';
+    }
+    if (ativoList.length) {
+      html += `<div class="section-title">✅ Clientes Ativos <span class="badge badge-green">${ativoList.length}</span></div>`;
+      html += '<div class="clients-grid">' + ativoList.map(c => cardHTML(c, 'ativo')).join('') + '</div>';
+    }
+    if (!clientes.length) html = '<div class="empty">Nenhum cliente encontrado.</div>';
+
+    document.getElementById('lista-container').innerHTML = html;
+  }
+
+  function cardHTML(c, tipo) {
+    const dias = c.dias;
+    const diasClass = tipo === 'vencido' ? 'vermelho' : tipo === 'alerta' ? 'amarelo' : 'verde';
+    const statusClass = tipo === 'vencido' ? 'status-vencido' : tipo === 'alerta' ? 'status-alerta' : 'status-ativo';
+    const statusTexto = tipo === 'vencido' ? 'Vencido' : tipo === 'alerta' ? 'Vence em breve' : 'Ativo';
+    const vencFmt = c.venc ? fmtData(c.venc) : '–';
+    const inicioFmt = c.start_date ? fmtData(new Date(c.start_date)) : '–';
+    const diasNum = dias !== null && dias < 0 ? Math.abs(dias) : dias ?? '–';
+    const diasLabel = dias !== null && dias < 0 ? 'dias vencido' : 'dias restantes';
+
+    return `
+      <div class="client-card ${tipo}">
+        <div class="card-top">
+          <div>
+            <div class="card-name">${c.name || '–'}</div>
+            <div class="card-email">${c.email || '–'}</div>
+          </div>
+          <span class="status-badge ${statusClass}">${statusTexto}</span>
+        </div>
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px;">
+          <div>
+            <div class="card-dias ${diasClass}">${diasNum}</div>
+            <div class="card-dias-label">${diasLabel}</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="card-info-label">Vencimento</div>
+            <div class="card-info-value">${vencFmt}</div>
+            <div class="card-info-label" style="margin-top:6px;">Início</div>
+            <div class="card-info-value">${inicioFmt}</div>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="card-btn renovar" onclick="renovar('${c.id}', ${c.months_paid || 1})">🔄 Renovar</button>
+          <button class="card-btn editar" onclick="abrirEditar('${c.id}')">✏️ Editar</button>
+        </div>
+        <div class="card-actions-bottom">
+          <button class="card-btn" onclick="copiarEmail('${c.email}')">📋 Copiar Email</button>
+          <button class="card-btn deletar" onclick="deletarCliente('${c.id}', '${c.name}')">🗑️</button>
+        </div>
+      </div>`;
+  }
+
+  function abrirModal() {
+    document.getElementById('modal-title').textContent = 'Novo Cliente';
+    document.getElementById('modal-id').value = '';
+    document.getElementById('modal-nome').value = '';
+    document.getElementById('modal-email').value = '';
+    document.getElementById('modal-data').value = new Date().toISOString().split('T')[0];
+    document.getElementById('modal-meses').value = '1';
+    document.getElementById('modal').classList.add('open');
+  }
+
+  function abrirEditar(id) {
+    const c = todosClientes.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('modal-title').textContent = 'Editar Cliente';
+    document.getElementById('modal-id').value = c.id;
+    document.getElementById('modal-nome').value = c.name || '';
+    document.getElementById('modal-email').value = c.email || '';
+    document.getElementById('modal-data').value = c.start_date ? fmtDataInput(c.start_date) : '';
+    document.getElementById('modal-meses').value = c.months_paid || 1;
+    document.getElementById('modal').classList.add('open');
+  }
+
+  function fecharModal() { document.getElementById('modal').classList.remove('open'); }
+
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) fecharModal();
+  });
+
+  async function salvarCliente() {
+    const id    = document.getElementById('modal-id').value;
+    const nome  = document.getElementById('modal-nome').value.trim();
+    const email = document.getElementById('modal-email').value.trim();
+    const data  = document.getElementById('modal-data').value;
+    const meses = parseInt(document.getElementById('modal-meses').value) || 1;
+
+    if (!nome || !email) { toast('Preencha nome e email!', true); return; }
+
+    const body = { name: nome, email, start_date: data || null, months_paid: meses };
+
+    try {
+      if (id) {
+        await supabase('PATCH', `clients?id=eq.${id}`, body);
+        toast('Cliente atualizado! ✅');
+      } else {
+        await supabase('POST', 'clients', body);
+        toast('Cliente adicionado! ✅');
+      }
+      fecharModal();
+      await carregarClientes();
+    } catch(e) { toast('Erro ao salvar!', true); }
+  }
+
+  async function renovar(id, mesesAtual) {
+    try {
+      const c = todosClientes.find(x => x.id === id);
+      const venc = calcVenc(c.start_date, c.months_paid);
+      const hoje = new Date();
+      const novaBase = venc && venc > hoje ? venc : hoje;
+      await supabase('PATCH', `clients?id=eq.${id}`, {
+        start_date: novaBase.toISOString().split('T')[0],
+        months_paid: mesesAtual
+      });
+      toast('Renovado por ' + mesesAtual + ' mês(es)! ✅');
+      await carregarClientes();
+    } catch(e) { toast('Erro ao renovar!', true); }
+  }
+
+  async function deletarCliente(id, nome) {
+    if (!confirm(`Deletar "${nome}"?`)) return;
+    try {
+      await supabase('DELETE', `clients?id=eq.${id}`);
+      toast('Cliente removido!');
+      await carregarClientes();
+    } catch(e) { toast('Erro ao deletar!', true); }
+  }
+
+  function copiarEmail(email) {
+    navigator.clipboard.writeText(email).then(() => toast('Email copiado! 📋'));
+  }
+
+  function toast(msg, erro = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast' + (erro ? ' error' : '');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  carregarClientes();
+</script>
+</body>
+</html>
