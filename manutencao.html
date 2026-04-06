@@ -1286,10 +1286,23 @@ function qdRenderTabelaValores(resultados) {
   if (!qdCheckboxAtivo()) return;
   if (!document.querySelector("#trQuadrantes")) return;
 
-  const agora = new Date();
-  const horaAtualNumero = agora.getHours();
+  // Usa a hora do dado mais recente; fallback para hora do sistema
+  let horaAtualNumero, dataAtual;
+  if (resultados && resultados.length > 0) {
+    const mais_recente = resultados.reduce((a, b) => {
+      const tA = new Date(`${a.data.split('T')[0]}T${a.hora.toString().padStart(2,'0')}:00:00`).getTime();
+      const tB = new Date(`${b.data.split('T')[0]}T${b.hora.toString().padStart(2,'0')}:00:00`).getTime();
+      return tB > tA ? b : a;
+    });
+    horaAtualNumero = mais_recente.hora;
+    dataAtual = new Date(mais_recente.data.split('T')[0] + 'T12:00:00');
+  } else {
+    const agora = new Date();
+    horaAtualNumero = agora.getHours();
+    dataAtual = agora;
+  }
   let timeSlots = [];
-  let currentDate = new Date(agora);
+  let currentDate = new Date(dataAtual);
   let currentHour = horaAtualNumero;
   for (let i = 0; i <= qdNumPreviousHours; i++) {
     timeSlots.push({ date: currentDate.toISOString().split('T')[0], hour: currentHour });
@@ -1333,10 +1346,24 @@ function qdRenderTabela(resultados) {
   const thead = document.querySelector("#tabelaResultados thead");
   if (!thead) return;
 
-  const agora = new Date();
-  const horaAtualNumero = agora.getHours();
+  // Usa a hora do dado mais recente nos resultados; fallback para hora do sistema
+  let horaAtualNumero, dataAtual;
+  if (resultados && resultados.length > 0) {
+    const mais_recente = resultados.reduce((a, b) => {
+      const tA = new Date(`${a.data.split('T')[0]}T${a.hora.toString().padStart(2,'0')}:00:00`).getTime();
+      const tB = new Date(`${b.data.split('T')[0]}T${b.hora.toString().padStart(2,'0')}:00:00`).getTime();
+      return tB > tA ? b : a;
+    });
+    horaAtualNumero = mais_recente.hora;
+    dataAtual = new Date(mais_recente.data.split('T')[0] + 'T12:00:00');
+  } else {
+    const agora = new Date();
+    horaAtualNumero = agora.getHours();
+    dataAtual = agora;
+  }
+
   let timeSlots = [];
-  let currentDate = new Date(agora);
+  let currentDate = new Date(dataAtual);
   let currentHour = horaAtualNumero;
   for (let i = 0; i <= qdNumPreviousHours; i++) {
     timeSlots.push({ date: currentDate.toISOString().split('T')[0], hour: currentHour });
@@ -1526,18 +1553,12 @@ function garantirCheckboxQuadrantes() {
 
     #tabelaResultados.tem-coluna-selecionada td:not(.coluna-selecionada)             { filter: brightness(0.45); }
     #tabelaResultados.tem-coluna-selecionada th.minute-header:not(.coluna-selecionada) { filter: brightness(0.45); }
-    #tabelaResultados.tem-coluna-selecionada th.minute-footer:not(.coluna-selecionada) { filter: brightness(0.45); }
     #tabelaResultados.tem-coluna-selecionada td.coluna-selecionada                   { filter: none; }
     #tabelaResultados.tem-coluna-selecionada th.coluna-selecionada                   { filter: none; background: rgba(255,255,255,0.2) !important; }
     #tabelaResultados.tem-coluna-selecionada td:first-child,
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(1),
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(2),
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(3) { filter: none; }
-
-    /* Ocultar colunas da direita no tfoot também */
-    .stats-header-oculto #tabelaResultados tfoot th:nth-last-child(1),
-    .stats-header-oculto #tabelaResultados tfoot th:nth-last-child(2),
-    .stats-header-oculto #tabelaResultados tfoot th:nth-last-child(3) { display: none !important; }
 
     td.quadrant-border, th.quadrant-border { border-left: 3px solid rgba(255,255,255,0.35) !important; }
 
@@ -1657,56 +1678,6 @@ function garantirCheckboxQuadrantes() {
     }
     .btn-aplicar-cores:hover { background:#237a36; }
 
-    /* ── Colunas da direita (gols, acertos, %) mais compactas ── */
-    #tabelaResultados td:nth-last-child(1),
-    #tabelaResultados td:nth-last-child(2),
-    #tabelaResultados td:nth-last-child(3) {
-      width: 26px !important; min-width: 26px !important; max-width: 32px !important;
-      padding: 2px 2px !important; font-size: 0.72em !important; text-align:center;
-      white-space: nowrap; overflow: hidden;
-    }
-    /* Cabeçalhos das colunas à direita (ícones de gols/acertos/%) */
-    #tabelaResultados thead tr:not(#trQuadrantes) th:nth-last-child(1),
-    #tabelaResultados thead tr:not(#trQuadrantes) th:nth-last-child(2),
-    #tabelaResultados thead tr:not(#trQuadrantes) th:nth-last-child(3) {
-      width: 26px !important; min-width: 26px !important; max-width: 32px !important;
-      padding: 2px 2px !important;
-    }
-    /* Linhas de % / gols / acertos no cabeçalho — mais finas */
-    #linhaPercentual th, #linhaTotalGols th, #linhaAcertosMercado th {
-      padding: 1px 2px !important; font-size: 0.7em !important; line-height: 1.1;
-      height: 14px !important;
-    }
-    /* Ocultar linhas de stats de cabeçalho quando checkbox desmarcado */
-    .stats-header-oculto #linhaPercentual,
-    .stats-header-oculto #linhaTotalGols,
-    .stats-header-oculto #linhaAcertosMercado { display: none !important; }
-    /* Ocultar colunas da direita quando checkbox desmarcado */
-    .stats-header-oculto #tabelaResultados td:nth-last-child(1),
-    .stats-header-oculto #tabelaResultados td:nth-last-child(2),
-    .stats-header-oculto #tabelaResultados td:nth-last-child(3),
-    .stats-header-oculto #tabelaResultados thead th:nth-last-child(1),
-    .stats-header-oculto #tabelaResultados thead th:nth-last-child(2),
-    .stats-header-oculto #tabelaResultados thead th:nth-last-child(3) { display: none !important; }
-    /* Label do toggle de stats */
-    #lbl-stats-toggle { margin-left: 6px; }
-
-    /* ── Linha de minutos no rodapé da tabela ── */
-    #linhaMinutosFooter th {
-      font-size: 0.75em; font-weight: 700; color: #9ca3af;
-      padding: 2px 1px; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);
-      background: transparent;
-    }
-    #linhaMinutosFooter th.minute-footer { cursor: pointer; user-select: none; }
-    #linhaMinutosFooter th.minute-footer:hover { filter: brightness(1.6) !important; }
-
-    /* ── Célula de hora: número em cima + checkbox embaixo ── */
-    .hora-cel {
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 2px; padding: 2px 3px !important;
-    }
-    .hora-cel .hora-num { font-size: 0.9em; font-weight: 700; line-height: 1; }
-    .hora-cel .row-selector { width: 12px; height: 12px; cursor: pointer; margin: 0; accent-color: #4ade80; }
     /* Odd e time clicáveis nos próximos confrontos */
     .placar-futuro .time-casa,
     .placar-futuro .time-fora {
@@ -1844,10 +1815,6 @@ function garantirPainelCores() {
       <input type="checkbox" id="cb-streak-alerta">
       ⚡ Alerta máx. consecutivo
     </label>
-    <label class="alerta-toggle-label" id="lbl-stats-toggle">
-      <input type="checkbox" id="cb-stats-toggle">
-      📊 %/Gols/Mercado
-    </label>
   `;
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
   el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
@@ -1856,18 +1823,6 @@ function garantirPainelCores() {
     localStorage.setItem("alertaStreakAtivo", this.checked ? "1" : "0");
     atualizarCheckboxStreak(); calcularStreakMaximo();
     if (!this.checked) atualizarBadgeStreak(0, 0);
-  });
-  // Stats toggle (% / Gols / Mercado)
-  const cbStats = el.querySelector("#cb-stats-toggle");
-  const statsAtivo = localStorage.getItem("statsColunasAtivo") !== "0";
-  cbStats.checked = statsAtivo;
-  const lblStats = el.querySelector("#lbl-stats-toggle");
-  lblStats.classList.toggle("alerta-ativo", statsAtivo);
-  aplicarVisibilidadeStats(statsAtivo);
-  cbStats.addEventListener("change", function() {
-    localStorage.setItem("statsColunasAtivo", this.checked ? "1" : "0");
-    lblStats.classList.toggle("alerta-ativo", this.checked);
-    aplicarVisibilidadeStats(this.checked);
   });
   el.querySelector("#btn-reset-cores").addEventListener("click", () => {
     Estado.corGreen = COR_GREEN_PADRAO; Estado.corRed = COR_RED_PADRAO; Estado.salvar();
@@ -1883,31 +1838,12 @@ function garantirPainelCores() {
   garantirCheckboxQuadrantes();
 }
 
-function aplicarVisibilidadeStats(ativo) {
-  const tabela = document.getElementById("tabelaResultados");
-  if (tabela) tabela.classList.toggle("stats-header-oculto", !ativo);
-  // Aplica também ao container da tabela caso exista
-  const wrap = tabela?.closest(".table-wrapper") || tabela?.parentElement;
-  if (wrap && wrap !== tabela) wrap.classList.toggle("stats-header-oculto", !ativo);
-}
-
-function sincronizarCheckboxStats() {
-  const cb  = document.getElementById("cb-stats-toggle");
-  const lbl = document.getElementById("lbl-stats-toggle");
-  if (!cb || !lbl) return;
-  const ativo = localStorage.getItem("statsColunasAtivo") !== "0";
-  cb.checked = ativo;
-  lbl.classList.toggle("alerta-ativo", ativo);
-  aplicarVisibilidadeStats(ativo);
-}
-
 function sincronizarPainelCores() {
   const ig = document.getElementById("input-cor-green");
   const ir = document.getElementById("input-cor-red");
   if (ig) ig.value = Estado.corGreen;
   if (ir) ir.value = Estado.corRed;
   aplicarCoresCelulas();
-  sincronizarCheckboxStats();
 }
 
 // ─── PAINEL DE SELEÇÕES ───────────────────────────────────────────────────────
@@ -2083,7 +2019,7 @@ function aplicarColunaHighlights() {
   const tabela=document.getElementById("tabelaResultados");
   const temSel=Estado.colunasSelecionadas.length>0;
   if(tabela) tabela.classList.toggle("tem-coluna-selecionada",temSel);
-  document.querySelectorAll(".minute-header, .minute-footer").forEach(th=>{
+  document.querySelectorAll(".minute-header").forEach(th=>{
     const min=parseInt(th.textContent.trim());
     th.classList.toggle("coluna-selecionada",Estado.colunasSelecionadas.includes(min));
   });
@@ -2096,7 +2032,7 @@ function aplicarColunaHighlights() {
     });
   });
   if (qdCheckboxAtivo()) {
-    document.querySelectorAll(".minute-header, .minute-footer").forEach((th,i)=>{th.classList.toggle("quadrant-border",i>0&&i%5===0);});
+    document.querySelectorAll(".minute-header").forEach((th,i)=>{th.classList.toggle("quadrant-border",i>0&&i%5===0);});
   }
 }
 function atualizarColunaStats() {
@@ -2255,7 +2191,6 @@ function updateSelectedRows(){
   if(!sel&&mainTable){
     sel=document.createElement("table"); sel.id="selectedRowsContainer"; sel.className=mainTable.className; sel.style.cssText="width:100%;margin-bottom:10px";
     const thead=mainTable.querySelector("thead").cloneNode(true);
-    const tr=thead.querySelector("tr"); if(tr?.firstChild?.className==="selector-header") tr.removeChild(tr.firstChild);
     sel.appendChild(thead); sel.appendChild(document.createElement("tbody"));
     mainTable.parentNode.insertBefore(sel,mainTable);
   }
@@ -2272,9 +2207,8 @@ function updateSelectedRows(){
   ord.forEach(chave=>{
     const row=document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`); if(!row) return;
     const clone=row.cloneNode(true);
-    // O checkbox agora está dentro da célula de hora — só o esconde no clone
-    const cbClone = clone.querySelector(".row-selector");
-    if (cbClone) cbClone.style.display = "none";
+    // Oculta o checkbox no clone (está dentro da célula de hora)
+    const cbClone=clone.querySelector(".row-selector"); if(cbClone) cbClone.style.display="none";
     tbody.appendChild(clone);
   });
 }
@@ -2358,18 +2292,20 @@ function criarTabela(dados, oddsData, proximosJogos) {
   }
 
   const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
+  trPercentual.appendChild(document.createElement("th"));
   trPercentual.appendChild(createIconTh("chart","% Acerto por coluna"));
 
   const trTotalGols = document.createElement("tr"); trTotalGols.id="linhaTotalGols";
+  trTotalGols.appendChild(document.createElement("th"));
   trTotalGols.appendChild(createIconTh("ball","Gols por coluna"));
 
   const trAcertosMercado = document.createElement("tr"); trAcertosMercado.id="linhaAcertosMercado";
+  trAcertosMercado.appendChild(document.createElement("th"));
   trAcertosMercado.appendChild(createIconTh("check","Acertos por coluna"));
 
   thead.append(trPercentual, trTotalGols, trAcertosMercado);
 
   const trMinutos = document.createElement("tr");
-  // Sem coluna separada de selector — checkbox fica dentro da célula de hora
   trMinutos.appendChild(createIconTh("clock","Hora"));
 
   minutosFixos.forEach((m, i) => {
@@ -2429,14 +2365,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
   horasUnicas.forEach(item=>{
     const chave=`${item.data}-${item.hora}`;
     const tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
-    // ── Célula de hora: número em cima + checkbox em baixo (sem coluna separada) ──
-    const tdHora = document.createElement("td");
-    tdHora.className = "hora-cel";
-    const horaSpan = document.createElement("span");
-    horaSpan.className = "hora-num";
-    horaSpan.textContent = item.hora.toString().padStart(2,"0");
-    tdHora.appendChild(horaSpan);
-    const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
+    // Checkbox + hora na mesma célula (sem coluna extra)
+    const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;padding:2px 4px;line-height:1.3;";
+    tdHora.innerHTML=`<div style="font-weight:700;font-size:0.9em;">${item.hora.toString().padStart(2,"0")}</div>`;
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector";
+    cb.style.cssText="display:block;margin:1px auto 0;width:11px;height:11px;cursor:pointer;accent-color:#4ade80;";
+    cb.checked=Estado.selectedChaves.includes(chave);
     cb.addEventListener("change",function(){
       if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
       else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
@@ -2689,29 +2623,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
   atualizarCheckboxStreak(); calcularStreakMaximo();
   iniciarObserverStreak();
 
-  // ── Linha de minutos no FOOTER (tfoot) ────────────────────────────────────
-  let tfoot = tabela.querySelector("tfoot");
-  if (!tfoot) { tfoot = document.createElement("tfoot"); tabela.appendChild(tfoot); }
-  tfoot.innerHTML = "";
-  const trMinutosFooter = document.createElement("tr");
-  trMinutosFooter.id = "linhaMinutosFooter";
-  const thHoraFoot = document.createElement("th");
-  thHoraFoot.innerHTML = SVG_ICONS.clock || "H";
-  trMinutosFooter.appendChild(thHoraFoot);
-  minutosFixos.forEach((m, i) => {
-    const th = document.createElement("th");
-    th.className = "minute-footer minute-header";
-    th.textContent = m;
-    const qIdx = Math.floor(i/5)%4;
-    th.classList.add(`qd-${qIdx}`);
-    if (qdCheckboxAtivo() && i > 0 && i % 5 === 0) th.classList.add("quadrant-border");
-    if (Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
-    th.addEventListener("click", () => toggleColuna(m));
-    trMinutosFooter.appendChild(th);
-  });
-  [createIconTh("ball","Gols"),createIconTh("check","Acertos"),createIconTh("trend","% Linha")].forEach(th=>trMinutosFooter.appendChild(th));
-  tfoot.appendChild(trMinutosFooter);
-
   // Quadrantes — atualiza dados (estrutura já foi inserida no início, só atualiza valores)
   qdDadosCache = dados;
   if (qdCheckboxAtivo()) qdRenderTabelaValores(dados);
@@ -2740,9 +2651,8 @@ async function buscarDados() {
     Estado.forcarRerender();
     Estado._ultimaLigaRenderizada = ligaAtual;
     _ultimaLigaHorasRestauradas = null;
-    // Troca de liga: recarrega todas as seleções isoladas por liga
     Estado.carregar();
-    // Troca de liga: remove trQuadrantes antigo para forçar recriação com novo contexto
+    // Troca de liga: remove quadrante antigo para forçar recriação com dados corretos
     const trQDold = document.querySelector("#trQuadrantes");
     if (trQDold) trQDold.remove();
   }
