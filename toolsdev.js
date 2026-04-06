@@ -1,1 +1,585 @@
-function _0x2048(){const t=["open","sfav-apply","site/365pl","ZeYgU","gmKKU",".35; curso","rcent.html","EavEx","ramenta","r { margin","radius: 3p","s: center;","ime","over {\n   ","div","macro.html",",255,.12);","VhlSi","quadrantes","child","[BsFav] Ne","nsform: up","ine-height"," transitio","label",": 120px;\n ","addEventLi",".06); bord","awGcF","  backgrou","uyzwf","doroddstar","trim","includes","ById","acar.html","sGIGd","global","ckground: ","MFygd","site/365lo","scatime.ht"," gap: 7px;",",68,68,.3)","DXlim","fluxo.html","qjJIL","on.html","fav-chevro","ificacaoki",": #94a3b8;","btn:hover ","strela.htm","V5_","-transform","cro.html","ap: 8px;\n ","ity: 0.35;","eight: 25p","cxXkY","ng: .5px;\n","    box-si","header-bet","e;\n  }\n  .","VODDF","size: 12px","OZSIf","  text-tra","Bet365","\n    paddi","UZdGq","aKKEf","Buscador D","tqyme","mdqem","bsfav-casa","bsfav-appl","cao.html","ron.html","ay: flex; ","YCeOb","xPLfy","MqzES","RWrWO","er-box;\n  ","HVrqj","HgxXt","vUfJY","rBWNx","v-add-btn:","   border-","9;\n    bor","llLpL","kiron","x; font-si","bar","{\n    flex","location","GBWqh","setItem","m-btn.is-o","GSadJ","lapre.html","a.html","; }\n\n  .bs","d rgba(239","yySHz","creen","\n    color","KYwAI","WilLw","YSPpG","r: not-all","site/mult3","form: rota","3f;\n    co","ximas.html","site/guias","  }\n\n  .bs","EVybC","betano","ce: nowrap","site/LigaS","dding: 5px","Gestão Ban","iqhTO","site/busca",";\n    disp","ound .2s, ","r-radius: ","65.html","iLBtp","erflow: hi","CMlNi","EyYpy","site/macro","SynRG","getElement","fav-conten","opre.html","ing: 0;\n  "," { display","Porcentage","Kiron","r: #e2e8f0","ofwhc","jUMvO","\n    flex-","oradar.htm","OKYUW","⭐ Nova Fer","header-est","-title { f","QmbEu","Container","ound: rgba","PBrxy","n-bottom: "," opacity: ","Guias","HAJkN","GkMUP","nd: #1a1d2"," › ","getItem","oZDfn","5pre.html","h: 100%; m","omKJy","GolsPró"," min-width","site/quadr","wrgvL","forEach","LLxkZ","sfDiO","YoSWP","pre.html","ove-btn","2,128,.4);","fAVHb","site/maxim","v-toolbar ","#1a1d24;\n ","vpBMU","KdGbx","n.html","hideHeader","4;\n  }\n","url","jNSBU",".bsfav-rem","site/365ra","createElem","QXfsS","zTbvv","frNuq",": uppercas","0px; color","onload","laradar.ht","rder-radiu","at.html","setAttribu"," font-weig","slots","lay: block","    cursor","uelo","ve-btn","2px 8px; l","lex: 1; ov","id rgba(25","contentDoc","xtrIe","    backgr","site/calcu","selected",": 1;\n    b","365","rReys",": 0.4; cur","; letter-s","egomR","npCRl","iron.html","zrmCL"," 114)\n    ","FhssG","cxDFK","nd: #2e313","ze: 12px; ","Walker","8188; font","Buscador P","dortime.ht"," #f87171;\n","site/365st","select:foc","xo.html","nextNode","x-sizing: ",": 1.5;\n   ","disabled {","length","ing: 4px 1","html","ntagembeta","toLowerCas","site/365go","scolha a c","background","ano","lacar","bRHHQ","Axicg","wDjel","select","r.html","EyIJo","vtyPk","uJhDg","site/class","DOMContent","site/betan","fVwIP","find","QjAxq","rm .2s;\n  ","btn","or: rgba(2","ba(255,255","55,255,.06","header .na","SxPxU","casa…","nfronto.ht","select opt","4px;\n    b","classList","querySelec","kground: #","ico","hYctq","us { outli","y-btn","QnPnE","button","Pré Live","QQEoC","DxJHb","ORFwo","hidden","EBiPd","100%; padd","er-radius:","LigaStat","HFTrF","e.html","  .bsfav-a","style"," .bsfav-it",": 100%; pa","RPJeN","\n    borde","x solid rg"," cursor: n","doroddkiro","btn {\n    ","Radar Gráf","apply-btn ","-btn {\n   ","dow","nk: 0;\n   ","NrZDY","zZCSd","qakbX","reVVh","ius: 3px 3","ot-allowed","warn","in-height:","3px; curso","WlGQz","; backgrou","r: 1px sol","KhgPL","createTree","3AoOimO","ofixo.html","1077104XbmEiM","2s;\n    bo","-items: ce","d: #32363f","-select","ifJBL","MultiLiga","5,255,255,","textConten","OMhGs","1943908lzcUIa","ntagemstar","x dashed r"," backgroun","fkDSE","no.html",": pointer;","RnxbC"," encontrad","Buscador T","uxo.html","ntagemkiro","rder: none","mcQpo"," flex-shri","Tgwac","JFSWH","zing: bord",": left;\n  ",",.3); }\n  "," is-open","idujc","xcxYk","ne: none; ","site/365qu","izAIstar.h","    color:","ystMI","#24645a;\n ","ron","8,68,.6);\n","is-open","color: #c8","1px solid ","JspYj","2281736xTkolQ"," { opacity","NiITt","-btn","gb(101 105"," open","change","EstrelaBet",";\n    colo",".bsfav-too","askiron.ht","loading",": block; }","display: f","dar.html","UHjNQ","target",": flex; al","bsFavTools","und: #3236","pply-btn:h","site/porce"," 620px; bo","al/"," pointer; ","f0;\n  }\n  ","site/365pr","site/365od","x;\n    bac","upBSk","CMmHz"," #2a2d35;\n","JFhHW","UGHCo","lTYSw","site/gols."," ferrament",": 12px; \n ","sMJRu","Máximas","＋ Adiciona","argin-bott","NLxCP","site/kiron","JRNqe"," .bsfav-co","KgZYf","DciPU","swZiS","{\n    widt","(239,68,68","src","    border","ByOFy","bsfav-chev","ign-items:","n: transfo","10px; }\n\n ","te(180deg)","bsfav-fram","v-seletor ","-size: 11p","ySMAv","pnOyL","overflow","bsFavSlots","   width: ","3px; font-","dorodd.htm","e; overflo","  border: ","appendChil","-item-btn.","otips.html","ight: 600;"," #2a2d35; ","DVNeP","tter-spaci","lafixo.htm","site/fluxo","Loaded","   display","v-item-btn","option","etter-spac","fav-remove","nt-size: 1","XDYlZ","zQmrI",".bsfav-ite","\n    width","Quadrantes","fzCPS","FjPax","cursor: po","llowed; }\n","r: pointer","d: transpa","push","Ydsyn","stopPropag","site/live.","om: 10px; ",":hover {\n ","0px; }\n  .","jBwNG","8,.7);\n   ","parse","ebFrQ","ackground:","nFyMf","aestrela.h","CtGKz","2px;\n  }\n "," #c8cdd8; ","ar select ","-remove-bt","none","splay: non",".accordion","Morpheus I","text-align","tBNpr","250019TangXx","site/multk","Gerador Ti","dCaaX","visibility","laquadrant","ht: 600; l","px 0 0;\n  "," gap: 6px;","rgba(239,6","duelo.html","✕ Remover","vUvRk","site/365fl","labuscador","TAMOM","ent"," border-ra","XxHVI","\n  .bsfav-","transition","laprojecoe","ing: 7px 1","iframe","nodeValue","betano.htm","gMMHz","case;\n  }\n","#header","{\n    bord","abetano.ht","lafluxo.ht","tuAWk"," 14px;\n   ","NxDZQ","color: #7a","pen {\n    ","sfav-chevr","dius: 3px;","ng: 6px 10","align-item","   backgro","closest","ify-conten","insertBefo","olor: rgba","site/fixok","bottom: 1p","t {\n    di","8); color:","bsFavAddWr",": all .2s;","Syoyp","ion:first-","tor","LocalizAI","as atingid","fAxVR","izAIkiron.","dortimekir","55,255,255","4057554GwAwAR","11841444FPnzIg","NlvZm","LZbyR","t: center;","tat.html"," }\n  .bsfa","value","; transiti","cXfxW",");\n    bor","Calc Dutch","x; font-we","GvAKn","YftLK","GNVwZ","Carregar","border-rad","tools","rgba(255,2",": 1px soli","estrela","s: 0 0 3px","Projeções","height","VbpjM","ansition: ","55,255,.3)",",255,.15);","3px solid ","w: hidden;","radar.html","bsfav-add-","site/bet36",";\n    bord","yCmei","nhum .acco","estrelabet","lsKdn","cro","; font-wei","span","FPtuA","t:disabled","cLHoP","toggle","group","  transiti","qzJzr",".html","pacing: .5","head","CpwNG","ladora.htm","splice","rdion-item","s;\n    let","d: rgba(23","ERsRm","bsfav-remo","NBGBX","ng: 4px 9p","jKNbj","Primeiro e","nter; just","site/golse","ojecoes.ht","ne;\n    bo","5clasifica","calizAI.ht","isArray","SHOW_COMME","-item","em-btn {\n ","etano.html","site/estre","obuscador.","apper","readyState","ation","der-left-c","cdd8;\n    ","bet365","border-box","mpUTr","MPhxv","lbar selec","rapper { m","6px;\n    h","lamacro.ht","-btn:disab","lor: #e2e8","\n    displ","site/365bu","px;\n    ba","Buscador O","(74,222,12","ds.html","zSUOT","header-kir","5JrGATq","Ao Vivo","led { opac","TkWdN","UQphA","s.html","lamult.htm","allowfulls","contentWin","Fluxo","disabled","tml","\n  #bsFavW",",.2); bord","pbWlO","buscador.h","ext-transf","nYJtO","ferramenta","postMessag","click","2a2d35;\n  ","\n\n  .bsfav","wrap: wrap","XTmwx","er-color: ","border: 1p","ls.html","JIaIc","className","display","relabet","uTfDM","Hora Fixa","JkKqJ","{\n    padd","XZBUn","-toolbar {","site/golsk","wqRKI","wLMZL","GlauL","}\n\n  #bsFa"," color: #e","XzbVw"," 3px;\n    ","sor: not-a","mHYCT",",255,.05);","append","bsfav-item","2720970HOAzgk","or .2s; le","er-top: no","}\n  .bsfav","n {\n    fo","tqqUX","documentEl","tWUKZ","qhqnu","w.betstat.","projecao.h","der-left: ","bsfav-tool","BciEH"," 3px; font","Escolha a ","Rjtax","bsfav-cont","r Ferramen","asa…","✦ Máximo d","zHmSx","ção","site/365co","RrLfu","qDEtP","fav-frame ","stener","rgba(74,22","inter;\n   ",";\n  }\n  .b","site/multb","site/local","tatkiron.h","WuTox","2e8f0;\n  }","is-open .b","yQPzQ","mKVRE","lex; align","uAMEW","Gráfico Ma"," padding: ","site/morfe",": #1e2128;","document",".bsfav-add","k: 0;\n    ","flex-shrin","parentNode","ter-spacin","lastat.htm","on: all .2","ificacao.h","ght: 600;\n","confronto.",";\n    text","sqqCA","owed; }\n\n ","on { trans","percase;\n ","er-color ."," white-spa","DTxwx","https://ww","ZLzkx","about:blan","isUyb"," center; g","nUaKt","href","-overflow:","CNQRn","vBiqT","vczRd","site/centr","rent;\n    ","ument",": #c8cdd8;"," font-size","orm: upper","aGMbY","-size: 12p","bsfav-titl","laduelo.ht","cacao.html","dds","site/365fi","laclassifi","on: backgr","vAddWrappe","nTeCi","CwMsr","🛠️ Extras","AxXur","antesgols.","tJsec","izAI.html","OAxFA","innerHTML","x; cursor:","nVJeb","dortimesta","ement","Classifica","border-col","sfav-toolb","g: .3px; t","em { margi","Betano","ntent.open"," ellipsis;","dden; text","VGSUV","IEUyJ","hLmwI","zdZRv","site/365ma","NngVU","vGOdW","NsJgG","IvycW","stringify","gestao.htm","\n    margi","rdcPu","pnpnU","px;\n    tr","-bottom: 1"," .2s, bord","site/365po","n:hover {\n","YCBKI","9,68,68,.0"];return(_0x2048=function(){return t})()}function _0xbe45(t,e){t-=443;return _0x2048()[t]}(function(t,e){const n=_0xbe45,r=_0x2048();for(;;)try{if(487129===-parseInt(n(830))/1+parseInt(n(672))/2*(parseInt(n(660))/3)+-parseInt(n(662))/4+-parseInt(n(991))/5*(-parseInt(n(891))/6)+parseInt(n(1042))/7+parseInt(n(707))/8+-parseInt(n(892))/9)break;r.push(r.shift())}catch(t){r.push(r.shift())}})(),function(){const t=_0xbe45,e={EyIJo:t(1238)+t(551),Axicg:t(973),npCRl:t(1238)+t(584),lsKdn:t(452),OAxFA:t(483)+t(1022),RPJeN:t(928),mcQpo:t(990)+"on",rBWNx:t(1269),tqqUX:t(605)+t(767)+t(609)+t(883)+t(1195),YSPpG:t(551),HVrqj:t(912),cxXkY:t(1213),WilLw:t(482)+t(1184),hYctq:t(790),QmbEu:function(t,e){return t===e},FPtuA:t(589),JspYj:t(1251)+t(666),nVJeb:t(1057)+t(607),VbpjM:t(1054)+t(666),HFTrF:t(1057)+t(1009)+"…",JFhHW:t(954)+t(582)+t(1061),JIaIc:function(t){return t()},yQPzQ:function(t,e){return t(e)},GSadJ:function(t){return t()},OZSIf:function(t,e,n){return t(e,n)},KdGbx:t(858),fVwIP:t(824),qzJzr:t(624),vpBMU:t(519),ofwhc:t(523)+t(510),XTmwx:t(1176),QnPnE:t(703),NngVU:function(t,e){return t===e},JkKqJ:t(1108)+"k",ifJBL:function(t,e){return t&&e},tqyme:function(t,e){return t||e},EVybC:t(1190),RWrWO:t(1041),qhqnu:t(619),FhssG:function(t,e){return t+e},vGOdW:t(1041)+t(710),DxJHb:t(692),Ydsyn:t(932),llLpL:t(1125)+"e",VhlSi:t(950)+t(541),frNuq:t(841),OKYUW:t(1011),jBwNG:t(761)+t(701),isUyb:t(1059)+t(846),WlGQz:t(712),mKVRE:t(1054)+t(1271),jNSBU:function(t,e,n){return t(e,n)},XzbVw:t(1252)+t(617),JRNqe:t(907),mpUTr:t(713),HAJkN:t(853),fzCPS:t(766)+"e",ebFrQ:function(t,e){return t&&e},PBrxy:t(998)+t(1283),XZBUn:t(772)+t(486),DTxwx:function(t,e,n){return t(e,n)},upBSk:function(t){return t()},CpwNG:t(1088)+t(710),UGHCo:function(t,e){return t>=e},KgZYf:t(747)+t(1060)+"ta",jKNbj:function(t,e){return t>=e},GBWqh:t(632),uTfDM:t(826)+t(963),yCmei:t(1196)+t(927)+t(946)+t(680)+"o.",oZDfn:t(880)+t(968),bRHHQ:t(923)+t(601),iLBtp:function(t){return t()},nFyMf:function(t){return t()},ERsRm:t(1244),LZbyR:t(620),YftLK:t(1106)+t(1051)+t(924)+t(498),sMJRu:t(1e3),vUfJY:t(1106)+t(1051)+t(843)+t(682),xPLfy:t(746),zSUOT:t(1106)+t(1051)+t(1159)+t(448),GvAKn:t(501),UZdGq:t(1106)+t(1051)+t(581)+t(1018),tBNpr:t(1024),QQEoC:t(1106)+t(1051)+t(1129)+t(571),UHjNQ:t(628),NrZDY:t(1106)+t(1051)+t(569)+t(534),ByOFy:t(668),YCeOb:t(1106)+t(1051)+t(445)+t(462),jUMvO:t(885),wDjel:t(1106)+t(1051)+t(1216)+t(960)+"ml",CwMsr:t(914),DXlim:t(1106)+t(1051)+t(733)+t(957)+"ml",VODDF:t(798),YCBKI:t(1106)+t(1051)+t(696)+t(1279),Tgwac:t(474)+"m",TkWdN:t(1106)+t(1051)+t(1172)+t(1182),fkDSE:t(1146)+t(1064),EavEx:t(1106)+t(1051)+t(924)+t(959)+t(1253),zrmCL:t(1083)+t(930),vczRd:t(1106)+t(1051)+t(1159)+t(1231),dCaaX:t(641)+t(614),MFygd:t(1106)+t(1051)+t(524)+t(721),ZLzkx:t(986)+t(1128),TAMOM:t(1106)+t(1051)+t(734)+t(988),sGIGd:t(681)+t(1188),RrLfu:t(1106)+t(1051)+t(984)+t(1217)+"ml",XDYlZ:t(566)+t(585),swZiS:t(1106)+t(1051)+t(1178)+t(1211),Syoyp:t(1248)+t(540),aGMbY:t(1106)+t(1051)+t(1065)+t(608)+"ml",GlauL:t(1151),DVNeP:t(1106)+t(1051)+t(596)+t(471),QXfsS:t(1106)+t(1051)+t(786)+t(940),qjJIL:t(1106)+t(1051)+t(513)+t(860)+"ml",NBGBX:t(1106)+t(1051)+t(742)+t(578),IEUyJ:t(1106)+t(1051)+t(596)+t(661),nUaKt:t(1106)+t(1051)+t(454)+t(896),CtGKz:t(1106)+t(1051)+t(1073)+t(965),cLHoP:t(1106)+t(1051)+t(1074)+t(1139),CMlNi:t(1106)+t(1051)+t(596)+t(780),sfDiO:t(1106)+t(1051)+t(503)+t(1137)+t(578),awGcF:t(1106)+t(1051)+t(728)+t(579)+t(677),tJsec:t(1106)+t(1051)+t(594)+t(1095)+t(1002),EBiPd:t(1106)+t(1051)+t(467)+t(855)+"l",FjPax:t(1106)+t(1051)+t(596)+t(480)+"l",tWUKZ:t(1106)+t(1051)+t(458)+t(775)+"l",uJhDg:t(1106)+t(1051)+t(458)+t(567)+"ml",CMmHz:t(1106)+t(1051)+t(596)+t(967)+t(578),gmKKU:t(1106)+t(1051)+t(458)+t(1097)+t(578),xtrIe:t(714),rReys:t(1106)+t(1051)+t(966)+t(1278),JFSWH:t(1106)+t(1051)+t(966)+t(861)+"ml",LLxkZ:t(1106)+t(1051)+t(513)+t(818)+t(1002),SynRG:t(1106)+t(1051)+t(956)+t(1228)+"l",iqhTO:t(1106)+t(1051)+t(966)+t(785)+"l",ySMAv:t(1106)+t(1051)+t(966)+t(1093)+"l",KYwAI:t(1106)+t(1051)+t(966)+t(997)+"l",cXfxW:t(1106)+t(1051)+t(1074)+t(697)+t(1002),QjAxq:t(1106)+t(1051)+t(966)+t(851)+t(996),YoSWP:t(1106)+t(1051)+t(966)+t(835)+t(630),aKKEf:t(1106)+t(1051)+t(728)+t(673)+t(940),mdqem:t(1106)+t(1051)+t(966)+t(1130)+t(1127),MqzES:t(1106)+t(1051)+t(966)+t(980)+"ml",HgxXt:t(1106)+t(1051)+t(966)+t(532)+"ml",vBiqT:t(1106)+t(1051)+t(458)+t(1207)+t(940),egomR:t(1106)+t(1051)+t(458)+t(1144)+t(590),wrgvL:t(1106)+t(1051)+t(966)+t(844)+t(940),NLxCP:t(1106)+t(1051)+t(966)+t(1126)+"ml",rdcPu:t(475),vtyPk:t(1106)+t(1051)+t(750)+t(509),mHYCT:t(1106)+t(1051)+t(750)+t(1221),qakbX:t(1106)+t(1051)+t(513)+t(717)+"ml",lTYSw:t(1106)+t(1051)+t(1029)+t(557),NsJgG:t(1106)+t(1051)+t(876)+t(557),DciPU:t(1106)+t(1051)+t(454)+t(1075)+t(1002),OMhGs:t(1106)+t(1051)+t(831)+t(557),NxDZQ:t(1106)+t(1051)+t(1074)+t(888)+t(578),sqqCA:t(1106)+t(1051)+t(750)+t(1052)+t(1002),zdZRv:t(1106)+t(1051)+t(750)+t(1194)+t(940),reVVh:t(1106)+t(1051)+t(728)+t(683)+t(518),pbWlO:t(1106)+t(1051)+t(594)+t(1225)+t(1254),xcxYk:t(1106)+t(1051)+t(750)+t(1191),qDEtP:t(1106)+t(1051)+t(750)+t(922),EyYpy:t(1106)+t(1051)+t(458)+t(639)+t(518),fAVHb:t(1106)+t(1051)+t(458)+t(889)+t(1223),MPhxv:t(1106)+t(1051)+t(750)+t(1006)+t(1002),IvycW:t(1106)+t(1051)+t(750)+t(840),pnpnU:t(1135),XxHVI:t(491),yySHz:t(1106)+t(1051)+t(449)+t(940),UQphA:t(992),wLMZL:t(1106)+t(1051)+t(808)+t(578),Rjtax:t(902),AxXur:t(1106)+t(1051)+t(548)+t(944)+"l",RnxbC:t(827)+"A",NiITt:t(1106)+t(1051)+t(1085)+"us",SxPxU:t(832)+"p",cxDFK:t(1106)+t(1051)+t(1117)+t(730),pnOyL:t(456)+"ca",zHmSx:t(1165)+"l",fAxVR:t(718),CNQRn:t(595)+t(787)};const n=e[t(817)]((function(){const n=t,r=document[n(659)+n(564)](document[n(1048)+n(1145)],NodeFilter[n(962)+"NT"]);let o;for(;o=r[n(572)]();){const t=o[n(854)][n(1208)]()[n(580)+"e"]();if(t[n(1209)](e[n(591)]))return e[n(587)];if(t[n(1209)](e[n(556)]))return e[n(929)];if(t[n(1209)](e[n(1140)]))return e[n(635)];if(t[n(1209)](e[n(685)]))return e[n(1264)]}const l=document[n(612)+n(884)](e[n(1047)]);if(l){const t=l[n(670)+"t"][n(580)+"e"]();if(t[n(1209)](e[n(587)]))return e[n(587)];if(t[n(1209)](e[n(929)]))return e[n(929)];if(t[n(1209)](e[n(635)]))return e[n(635)];if(t[n(1209)](e[n(1264)]))return e[n(1264)]}const a=window[n(1273)][n(1112)][n(580)+"e"]();return a[n(1209)](e[n(587)])||a[n(1209)](e[n(443)])?e[n(587)]:a[n(1209)](e[n(929)])?e[n(929)]:a[n(1209)](e[n(1261)])?e[n(635)]:a[n(1209)](e[n(1264)])?e[n(1264)]:e[n(1235)]})),r=t(725)+t(1229)+n,o=[{group:e[t(949)],tools:[{label:e[t(894)],url:e[t(905)]},{label:e[t(745)],url:e[t(1263)]},{label:e[t(1257)],url:e[t(989)]},{label:e[t(904)],url:e[t(1246)]},{label:e[t(829)],url:e[t(621)]},{label:e[t(722)],url:e[t(646)]},{label:e[t(760)],url:e[t(1256)]},{label:e[t(478)],url:e[t(588)]},{label:e[t(1134)],url:e[t(1220)]},{label:e[t(1240)],url:e[t(1174)]},{label:e[t(687)],url:e[t(994)]},{label:e[t(676)],url:e[t(1183)]},{label:e[t(558)],url:e[t(1116)]},{label:e[t(833)],url:e[t(1215)]},{label:e[t(1107)],url:e[t(845)]},{label:e[t(1212)],url:e[t(1066)]},{label:e[t(794)],url:e[t(755)]},{label:e[t(882)],url:e[t(1123)]}]},{group:e[t(1032)],tools:[{label:e[t(894)],url:e[t(783)]},{label:e[t(745)],url:e[t(526)]},{label:e[t(1257)],url:e[t(1222)]},{label:e[t(904)],url:e[t(951)]},{label:e[t(829)],url:e[t(1156)]},{label:e[t(722)],url:e[t(1111)]},{label:e[t(760)],url:e[t(819)]},{label:e[t(478)],url:e[t(935)]},{label:e[t(1134)],url:e[t(465)]},{label:e[t(1240)],url:e[t(507)]},{label:e[t(687)],url:e[t(1204)]},{label:e[t(676)],url:e[t(1138)]},{label:e[t(558)],url:e[t(625)]},{label:e[t(833)],url:e[t(800)]},{label:e[t(1107)],url:e[t(1049)]},{label:e[t(1212)],url:e[t(593)]},{label:e[t(794)],url:e[t(737)]},{label:e[t(882)],url:e[t(1180)]}]},{group:e[t(546)],tools:[{label:e[t(894)],url:e[t(552)]},{label:e[t(745)],url:e[t(688)]},{label:e[t(1257)],url:e[t(506)]},{label:e[t(904)],url:e[t(468)]},{label:e[t(829)],url:e[t(457)]},{label:e[t(722)],url:e[t(769)]},{label:e[t(760)],url:e[t(1285)]},{label:e[t(478)],url:e[t(900)]},{label:e[t(1134)],url:e[t(599)]},{label:e[t(1240)],url:e[t(508)]},{label:e[t(687)],url:e[t(1247)]},{label:e[t(676)],url:e[t(1250)]},{label:e[t(558)],url:e[t(1258)]},{label:e[t(833)],url:e[t(1262)]},{label:e[t(1107)],url:e[t(1115)]},{label:e[t(1212)],url:e[t(555)]},{label:e[t(794)],url:e[t(504)]},{label:e[t(882)],url:e[t(749)]}]},{group:e[t(1167)],tools:[{label:e[t(894)],url:e[t(592)]},{label:e[t(745)],url:e[t(1038)]},{label:e[t(1257)],url:e[t(648)]},{label:e[t(904)],url:e[t(741)]},{label:e[t(829)],url:e[t(1162)]},{label:e[t(722)],url:e[t(754)]},{label:e[t(760)],url:e[t(671)]},{label:e[t(478)],url:e[t(864)]},{label:e[t(1134)],url:e[t(1099)]},{label:e[t(1240)],url:e[t(1158)]},{label:e[t(687)],url:e[t(649)]},{label:e[t(676)],url:e[t(1005)]},{label:e[t(558)],url:e[t(694)]},{label:e[t(833)],url:e[t(1067)]},{label:e[t(1107)],url:e[t(466)]},{label:e[t(1212)],url:e[t(512)]},{label:e[t(794)],url:e[t(976)]},{label:e[t(882)],url:e[t(1163)]}]},{group:e[t(1168)],tools:[{label:e[t(848)],url:e[t(1282)]},{label:e[t(995)],url:e[t(1031)]},{label:e[t(1058)],url:e[t(1136)]},{label:e[t(679)],url:e[t(709)]},{label:e[t(606)],url:e[t(561)]},{label:e[t(770)],url:e[t(1063)]}]}],l=5;function a(){const e=t;try{const t=JSON[e(814)](localStorage[e(496)](r));if(t&&Array[e(961)](t[e(537)]))return t}catch{}return{slots:[]}}function s(e){const n=t;localStorage[n(1275)](r,JSON[n(1164)](e))}function i(n){const r=t;for(const t of o){const e=t[r(909)][r(598)]((t=>t[r(521)]===n));if(e)return t[r(937)]+r(495)+e[r(1200)]}return e[r(1286)]}const c=t(1003)+t(978)+t(748)+t(809)+t(1033)+t(1132)+t(1185)+t(1170)+t(811)+t(923)+t(640)+t(720)+t(1081)+t(664)+t(955)+t(873)+t(895)+t(838)+t(797)+t(634)+t(455)+t(863)+t(675)+t(804)+t(1118)+t(1017)+t(674)+t(711)+t(559)+t(865)+t(565)+t(1124)+t(903)+t(781)+t(636)+t(461)+t(654)+t(803)+t(554)+t(941)+t(1169)+t(917)+t(583)+t(1171)+t(1103)+t(663)+t(573)+t(974)+t(1098)+t(1230)+t(529)+t(1239)+t(923)+t(1227)+t(859)+t(1016)+t(700)+t(897)+t(1265)+t(575)+t(490)+t(1181)+t(444)+t(1100)+t(633)+t(1150)+t(489)+t(764)+t(633)+t(964)+t(788)+t(724)+t(762)+t(1110)+t(1232)+t(773)+t(626)+t(852)+t(979)+t(1234)+t(735)+t(613)+t(1012)+t(777)+t(705)+t(910)+t(604)+t(901)+t(1053)+t(920)+t(1070)+t(511)+t(1284)+t(1120)+t(1121)+t(744)+t(1266)+t(1186)+t(1142)+t(731)+(t(828)+t(690)+t(938)+t(1131)+t(460)+t(1147)+t(1043)+t(784)+t(1236)+t(1237)+t(689)+t(1260)+t(1243)+t(1197)+t(1102)+t(897)+t(789)+t(810)+t(871)+t(726)+t(447)+t(982)+t(732)+t(796)+t(1276)+t(866)+t(908)+t(650)+t(837)+t(1205)+t(562)+t(1267)+t(971)+t(875)+t(987)+t(813)+t(1034)+t(1077)+t(1013)+t(484)+t(543)+t(464)+t(1154)+t(1113)+t(1153)+t(1104)+t(453)+t(1280)+t(1224)+t(1046)+t(793)+t(530)+t(1226)+t(686)+t(645)+t(1199)+t(763)+t(600)+t(1045)+t(779)+t(1078)+t(867)+t(1101)+t(446)+t(765)+t(1280)+t(792)+t(643)+t(1084)+t(542)+t(1198)+t(574)+t(675)+t(948)+t(1175)+t(879)+t(568)+t(759)+t(911)+t(1281)+t(1219)+t(925)+t(627)+t(1056)+t(768)+t(1142)+t(731)+t(1090)+t(1089)+t(850)+t(881)+t(536)+t(836)+t(791)+t(472)+t(1045)+t(823)+t(1173)+t(547)+t(487))+(t(757)+t(1004)+t(1016)+t(839)+t(702)+t(450)+t(470)+t(878)+t(825)+t(776)+t(921)+t(636)+t(657)+t(544)+t(669)+t(1203)+t(1044)+t(958)+t(533)+t(913)+t(1036)+t(583)+t(1086)+t(1166)+t(489)+t(820)+t(752)+t(1152)+t(473)+t(719)+t(1013)+t(1028)+t(983)+t(1255)+t(870)+t(1187)+t(1218)+t(1245)+t(869)+t(985)+t(1214)+t(515)+t(1266)+t(877)+t(637)+t(603)+t(1039)+t(479)+t(1014)+t(1072)+t(1148)+t(822)+t(1272)+t(550)+t(816)+t(782)+t(704)+t(972)+t(1017)+t(637)+t(603)+t(1192)+t(847)+t(868)+t(1245)+t(952)+t(1270)+t(563)+t(801)+t(1071)+t(502)+t(1201)+t(897)+t(514)+t(570)+t(616)+t(695)+t(1147)+t(602)+t(890)+t(691)+t(716)+t(977)+t(934)+t(708)+t(553)+t(1037)+t(802)+t(849)+t(642)+t(1026)+t(577)+t(610)+t(816)+t(738)+t(698)+t(821)+t(1017)+t(637)+t(603))+(t(919)+t(636)+t(461)+t(774)+t(1241)+t(931)+t(1096)+t(539)+t(678)+t(1104)+t(453)+t(899)+t(1094)+t(947)+t(1092)+t(1149)+t(1007)+t(1122)+t(857)+t(631)+t(727)+t(1189)+t(675)+t(665)+t(925)+t(1016)+t(910)+t(918)+t(715)+t(476)+t(1072)+t(1177)+t(981)+t(993)+t(1233)+t(638)+t(651)+t(1280)+t(1068)+t(756)+t(499)+t(653)+t(729)+t(684)+t(459)+t(538)+t(656)+t(494)+t(520));function u(n){const r=t,l=document[r(525)+r(846)](e[r(933)]);l[r(1020)]=e[r(706)];const a=document[r(525)+r(846)](e[r(615)]);return a[r(898)]="",a[r(670)+"t"]=e[r(1143)],a[r(1001)]=!0,n||(a[r(549)]=!0),l[r(778)+"d"](a),o[r(505)]((t=>{const o=r,a=document[o(525)+o(846)](e[o(615)]);a[o(898)]=t[o(937)],a[o(670)+"t"]=t[o(937)],e[o(485)](t[o(937)],n)&&(a[o(549)]=!0),l[o(778)+"d"](a)})),l}function b(n,r){const l=t,a={WuTox:e[l(615)],BciEH:function(t,n){return e[l(485)](t,n)}},s=document[l(525)+l(846)](e[l(933)]);s[l(1020)]=e[l(916)];const i=document[l(525)+l(846)](e[l(615)]);if(i[l(898)]="",i[l(670)+"t"]=n?e[l(629)]:e[l(739)],i[l(1001)]=!0,r||(i[l(549)]=!0),s[l(778)+"d"](i),n){const t=o[l(598)]((t=>t[l(937)]===n));t&&t[l(909)][l(505)]((t=>{const e=l,n=document[e(525)+e(846)](a[e(1076)]);n[e(898)]=t[e(521)],n[e(670)+"t"]=t[e(1200)],a[e(1055)](t[e(521)],r)&&(n[e(549)]=!0),s[e(778)+"d"](n)}))}return s[l(1001)]=!n,s}function d(n,r){const l=t,c={uyzwf:function(t){return e[_0xbe45(1277)](t)},omKJy:function(t,n){return e[_0xbe45(1079)](t,n)},hLmwI:function(t,n,r){return e[_0xbe45(1242)](t,n,r)},vUvRk:e[l(517)],zZCSd:e[l(597)],KhgPL:e[l(939)],VGSUV:e[l(516)],GkMUP:e[l(477)],NlvZm:e[l(1015)],nTeCi:e[l(618)],uAMEW:function(t,n){return e[l(1160)](t,n)},nYJtO:e[l(1025)],gMMHz:function(t,n){return e[l(667)](t,n)}},{url:d,open:f}=r;let p="",x=e[l(1249)](d,"");if(d)for(const t of o){if(t[l(909)][l(598)]((t=>t[l(521)]===d))){p=t[l(937)];break}}const h=document[l(525)+l(846)](e[l(451)]);h[l(1020)]=e[l(1259)];const g=document[l(525)+l(846)](e[l(1050)]);g[l(1020)]=e[l(560)](e[l(1161)],f?e[l(622)]:"");const v=document[l(525)+l(846)](e[l(806)]);v[l(1020)]=e[l(1268)],v[l(670)+"t"]=d?e[l(1079)](i,d):e[l(1286)];const y=document[l(525)+l(846)](e[l(1050)]);y[l(1020)]=e[l(1193)],y[l(670)+"t"]=e[l(528)],y[l(1202)+l(1069)](e[l(481)],(t=>{const e=l;t[e(807)+e(970)]();const r=c[e(1206)](a);r[e(537)][e(945)](n,1),c[e(500)](s,r),c[e(1206)](m)}));const w=document[l(525)+l(846)](e[l(806)]);w[l(1020)]=e[l(812)],w[l(670)+"t"]="▼",g[l(1040)](v,y,w);const k=document[l(525)+l(846)](e[l(451)]);k[l(1020)]=e[l(560)](e[l(1109)],f?e[l(655)]:"");const z=document[l(525)+l(846)](e[l(451)]);z[l(1020)]=e[l(1080)];const G=e[l(1079)](u,p),M=e[l(522)](b,p,x),N=document[l(525)+l(846)](e[l(1050)]);N[l(1020)]=e[l(1035)],N[l(670)+"t"]=e[l(751)],N[l(1001)]=!x,G[l(1202)+l(1069)](e[l(975)],(()=>{const t=l,e=G[t(898)],n=c[t(1157)](b,e,"");M[t(1141)]=n[t(1141)],M[t(1001)]=!e,N[t(1001)]=!0})),M[l(1202)+l(1069)](e[l(975)],(()=>{const t=l;N[t(1001)]=!M[t(898)]})),N[l(1202)+l(1069)](e[l(481)],(()=>{const t=l,r=M[t(898)];if(!r)return;const o=e[t(1019)](a);o[t(537)][n][t(521)]=r,e[t(1079)](s,o),v[t(670)+"t"]=e[t(1079)](i,r),I[t(758)]=r,I[t(531)]=function(){const e=t;try{const t=(I[e(545)+e(1119)]||I[e(999)+e(644)][e(1087)])[e(612)+e(884)](c[e(842)]);t&&(t[e(632)][e(1021)]=c[e(647)],t[e(632)][e(834)]=c[e(658)],t[e(632)][e(915)]="0",t[e(632)][e(771)]=c[e(658)])}catch(t){I[e(999)+e(644)][e(1010)+"e"]({action:c[e(1155)]},"*")}}})),z[l(1040)](G,M,N);const I=document[l(525)+l(846)](e[l(492)]);return I[l(1020)]=e[l(799)],I[l(758)]=e[l(815)](f,d)?d:e[l(1025)],I[l(535)+"te"](e[l(488)],""),e[l(667)](f,d)&&(I[l(531)]=function(){const t=l;try{const e=(I[t(545)+t(1119)]||I[t(999)+t(644)][t(1087)])[t(612)+t(884)](c[t(842)]);e&&(e[t(632)][t(1021)]=c[t(647)],e[t(632)][t(834)]=c[t(658)],e[t(632)][t(915)]="0",e[t(632)][t(771)]=c[t(658)])}catch(e){I[t(999)+t(644)][t(1010)+"e"]({action:c[t(1155)]},"*")}}),k[l(1040)](z,I),g[l(1202)+l(1069)](e[l(481)],(t=>{const e=l,r={ZeYgU:c[e(842)],zTbvv:c[e(647)],idujc:c[e(658)],tuAWk:c[e(1155)]};if(t[e(723)][e(872)](c[e(493)]))return;const o=k[e(611)][e(936)](c[e(893)]);if(g[e(611)][e(936)](c[e(1133)],o),o){const t=c[e(1206)](a),o=t[e(537)][n]?.[e(521)],l=c[e(1082)](I[e(758)],c[e(1008)])||c[e(1082)](I[e(758)],window[e(1273)][e(1112)]);c[e(856)](o,l)&&(I[e(758)]=o,I[e(531)]=function(){const t=e;try{const e=(I[t(545)+t(1119)]||I[t(999)+t(644)][t(1087)])[t(612)+t(884)](r[t(1179)]);e&&(e[t(632)][t(1021)]=r[t(527)],e[t(632)][t(834)]=r[t(693)],e[t(632)][t(915)]="0",e[t(632)][t(771)]=r[t(693)])}catch(e){I[t(999)+t(644)][t(1010)+"e"]({action:r[t(862)]},"*")}})}const i=c[e(1206)](a);i[e(537)][n]&&(i[e(537)][n][e(1176)]=o,c[e(500)](s,i))})),h[l(1040)](g,k),h}function f(){const n=t;return document[n(469)+n(1210)](e[n(1027)])}function m(){const n=t,r={GNVwZ:function(t,n,r){return e[_0xbe45(1105)](t,n,r)}},o=e[n(1277)](f);if(!o)return;o[n(1141)]="";const s=e[n(736)](a);s[n(537)][n(505)](((t,e)=>{const l=n;o[l(778)+"d"](r[l(906)](d,e,t))}));const i=document[n(612)+n(884)](e[n(943)]);if(i){const t=e[n(740)](s[n(537)][n(576)],l);i[n(1001)]=t,i[n(670)+"t"]=t?n(1062)+"e "+l+(n(743)+n(886))+"o":e[n(753)]}}function p(){const n=t,r={ORFwo:function(t){return e[_0xbe45(736)](t)},ystMI:function(t,n){return e[_0xbe45(953)](t,n)},zQmrI:function(t,n){return e[_0xbe45(1079)](t,n)},wqRKI:function(t){return e[_0xbe45(736)](t)}},o=document[n(525)+n(846)](e[n(1274)]);o[n(670)+"t"]=c,document[n(942)][n(778)+"d"](o);const i=document[n(612)+n(884)](e[n(1023)]);if(!i)return void console[n(652)](e[n(926)]);const u=i[n(1091)],b=document[n(525)+n(846)](e[n(451)]);b.id=e[n(497)];const d=document[n(525)+n(846)](e[n(1050)]);d[n(1020)]=e[n(586)],d[n(670)+"t"]=e[n(753)],d[n(1202)+n(1069)](e[n(481)],(()=>{const t=n,e=r[t(623)](a);r[t(699)](e[t(537)][t(576)],l)||(e[t(537)][t(805)]({url:"",open:!0}),r[t(795)](s,e),r[t(1030)](m))})),b[n(778)+"d"](d);const f=document[n(525)+n(846)](e[n(451)]);f.id=e[n(1027)],u[n(874)+"re"](b,i),u[n(874)+"re"](f,i),e[n(463)](m)}e[t(1160)](document[t(969)],e[t(887)])?document[t(1202)+t(1069)](e[t(1114)],p):e[t(1019)](p)}();
+
+(function () {
+
+  /* ── DETECTA CASA ATUAL ──────────────────────────────────────── */
+  function detectarCasa() {
+    // 1. Tenta pelo comentário do header incluído na página
+    const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_COMMENT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const txt = node.nodeValue.trim().toLowerCase();
+      if (txt.includes('header-bet365'))    return 'bet365';
+      if (txt.includes('header-betano'))    return 'betano';
+      if (txt.includes('header-estrelabet')) return 'estrelabet';
+      if (txt.includes('header-kiron'))     return 'kiron';
+    }
+
+    // 2. Fallback: texto do primeiro select de ligas no header
+    const ligas = document.querySelector('header .nav-seletor select option:first-child');
+    if (ligas) {
+      const t = ligas.textContent.toLowerCase();
+      if (t.includes('bet365'))     return 'bet365';
+      if (t.includes('betano'))     return 'betano';
+      if (t.includes('estrelabet')) return 'estrelabet';
+      if (t.includes('kiron'))      return 'kiron';
+    }
+
+    // 3. Fallback: URL da página atual
+    const url = window.location.href.toLowerCase();
+    if (url.includes('bet365') || url.includes('365')) return 'bet365';
+    if (url.includes('betano'))                         return 'betano';
+    if (url.includes('estrela'))                        return 'estrelabet';
+    if (url.includes('kiron'))                          return 'kiron';
+
+    return 'global'; // segurança
+  }
+
+  const CASA_ATUAL = detectarCasa();
+  const LS_KEY     = `bsFavToolsV5_${CASA_ATUAL}`;   // ← chave isolada por casa
+
+  /* ── CATÁLOGO COMPLETO ───────────────────────────────────────── */
+  const CATALOGO = [
+    {
+      group: "Bet365",
+      tools: [
+        { label: "Pré Live",        url: "https://www.betstat.site/bet365pre.html" },
+        { label: "Fluxo",           url: "https://www.betstat.site/365fluxo.html" },
+        { label: "Máximas",         url: "https://www.betstat.site/365maximas.html" },
+        { label: "GolsPró",         url: "https://www.betstat.site/365gols.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/365fixo.html" },
+        { label: "LigaStat",        url: "https://www.betstat.site/365stat.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/mult365.html" },
+        { label: "LocalizAI",       url: "https://www.betstat.site/365localizAI.html" },
+        { label: "Projeções",       url: "https://www.betstat.site/365projecoes.html" },
+        { label: "Quadrantes",      url: "https://www.betstat.site/365qua.html" },
+        { label: "Porcentagem",     url: "https://www.betstat.site/365porcent.html" },
+        { label: "Classificação",   url: "https://www.betstat.site/bet365clasificacao.html" },
+        { label: "Gráfico Macro",   url: "https://www.betstat.site/365macro.html" },
+        { label: "Radar Gráfico",   url: "https://www.betstat.site/365radar.html" },
+        { label: "Buscador Odds",   url: "https://www.betstat.site/365odds.html" },
+        { label: "Buscador Time",   url: "https://www.betstat.site/365buscatime.html" },
+        { label: "Buscador Placar", url: "https://www.betstat.site/365placar.html" },
+        { label: "Buscador Duelo",  url: "https://www.betstat.site/365confronto.html" },
+      ]
+    },
+    {
+      group: "Betano",
+      tools: [
+        { label: "Pré Live",        url: "https://www.betstat.site/betanopre.html" },
+        { label: "Fluxo",           url: "https://www.betstat.site/fluxo.html" },
+        { label: "Máximas",         url: "https://www.betstat.site/maximabetano.html" },
+        { label: "GolsPró",         url: "https://www.betstat.site/gols.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/betanofixo.html" },
+        { label: "LigaStat",        url: "https://www.betstat.site/LigaStat.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/multbetano.html" },
+        { label: "LocalizAI",       url: "https://www.betstat.site/localizAI.html" },
+        { label: "Projeções",       url: "https://www.betstat.site/betanotips.html" },
+        { label: "Quadrantes",      url: "https://www.betstat.site/quadrantesgols.html" },
+        { label: "Porcentagem",     url: "https://www.betstat.site/porcentagembetano.html" },
+        { label: "Classificação",   url: "https://www.betstat.site/classificacao.html" },
+        { label: "Gráfico Macro",   url: "https://www.betstat.site/macrobetano.html" },
+        { label: "Radar Gráfico",   url: "https://www.betstat.site/betanoradar.html" },
+        { label: "Buscador Odds",   url: "https://www.betstat.site/buscadorodd.html" },
+        { label: "Buscador Time",   url: "https://www.betstat.site/buscadortime.html" },
+        { label: "Buscador Placar", url: "https://www.betstat.site/betanobuscador.html" },
+        { label: "Buscador Duelo",  url: "https://www.betstat.site/buscaconfronto.html" },
+      ]
+    },
+    {
+      group: "EstrelaBet",
+      tools: [
+        { label: "Pré Live",        url: "https://www.betstat.site/estrelapre.html" },
+        { label: "Fluxo",           url: "https://www.betstat.site/estrelafluxo.html" },
+        { label: "Máximas",         url: "https://www.betstat.site/maximaestrela.html" },
+        { label: "GolsPró",         url: "https://www.betstat.site/golsestrela.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/estrelafixo.html" },
+        { label: "LigaStat",        url: "https://www.betstat.site/estrelastat.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/estrelamult.html" },
+        { label: "LocalizAI",       url: "https://www.betstat.site/localizAIstar.html" },
+        { label: "Projeções",       url: "https://www.betstat.site/estrelaprojecoes.html" },
+        { label: "Quadrantes",      url: "https://www.betstat.site/estrelaquadrante.html" },
+        { label: "Porcentagem",     url: "https://www.betstat.site/porcentagemstar.html" },
+        { label: "Classificação",   url: "https://www.betstat.site/estrelaclassificacao.html" },
+        { label: "Gráfico Macro",   url: "https://www.betstat.site/estrelamacro.html" },
+        { label: "Radar Gráfico",   url: "https://www.betstat.site/estrelaradar.html" },
+        { label: "Buscador Odds",   url: "https://www.betstat.site/buscadoroddstar.html" },
+        { label: "Buscador Time",   url: "https://www.betstat.site/buscadortimestar.html" },
+        { label: "Buscador Placar", url: "https://www.betstat.site/estrelabuscador.html" },
+        { label: "Buscador Duelo",  url: "https://www.betstat.site/estreladuelo.html" },
+      ]
+    },
+    {
+      group: "Kiron",
+      tools: [
+        { label: "Pré Live",        url: "https://www.betstat.site/kironpre.html" },
+        { label: "Fluxo",           url: "https://www.betstat.site/kironfluxo.html" },
+        { label: "Máximas",         url: "https://www.betstat.site/maximaskiron.html" },
+        { label: "GolsPró",         url: "https://www.betstat.site/golskiron.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/fixokiron.html" },
+        { label: "LigaStat",        url: "https://www.betstat.site/LigaStatkiron.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/multkiron.html" },
+        { label: "LocalizAI",       url: "https://www.betstat.site/localizAIkiron.html" },
+        { label: "Projeções",       url: "https://www.betstat.site/kironprojecao.html" },
+        { label: "Quadrantes",      url: "https://www.betstat.site/kironquadrantes.html" },
+        { label: "Porcentagem",     url: "https://www.betstat.site/porcentagemkiron.html" },
+        { label: "Classificação",   url: "https://www.betstat.site/classificacaokiron.html" },
+        { label: "Gráfico Macro",   url: "https://www.betstat.site/kironmacro.html" },
+        { label: "Radar Gráfico",   url: "https://www.betstat.site/kironradar.html" },
+        { label: "Buscador Odds",   url: "https://www.betstat.site/buscadoroddkiron.html" },
+        { label: "Buscador Time",   url: "https://www.betstat.site/buscadortimekiron.html" },
+        { label: "Buscador Placar", url: "https://www.betstat.site/kironbuscador.html" },
+        { label: "Buscador Duelo",  url: "https://www.betstat.site/kironduelo.html" },
+      ]
+    },
+    {
+      group: "🛠️ Extras",
+      tools: [
+        { label: "Guias",           url: "https://www.betstat.site/guias.html" },
+        { label: "Ao Vivo",         url: "https://www.betstat.site/live.html" },
+        { label: "Calc Dutch",      url: "https://www.betstat.site/calculadora.html" },
+        { label: "Morpheus IA",     url: "https://www.betstat.site/morfeus" },
+        { label: "Gerador Tip",     url: "https://www.betstat.site/central/" },
+        { label: "Gestão Banca",    url: "gestao.html" },
+      ]
+    }
+  ];
+
+  const MAX_SLOTS = 5;
+
+  /* ── localStorage ────────────────────────────────────────────── */
+  function loadState() {
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_KEY));
+      if (s && Array.isArray(s.slots)) return s;
+    } catch {}
+    return { slots: [] };
+  }
+  function saveState(s) { localStorage.setItem(LS_KEY, JSON.stringify(s)); }
+
+  /* ── Label pelo URL ──────────────────────────────────────────── */
+  function labelByUrl(url) {
+    for (const cat of CATALOGO) {
+      const t = cat.tools.find(t => t.url === url);
+      if (t) return `${cat.group} › ${t.label}`;
+    }
+    return '⭐ Nova Ferramenta';
+  }
+
+  /* ── CSS ─────────────────────────────────────────────────────── */
+const CSS = `
+  #bsFavWrapper { margin-bottom: 10px; }
+
+  #bsFavAddWrapper { margin-bottom: 10px; }
+  .bsfav-add-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; padding: 5px 14px;
+    background: transparent;
+    border: 1px dashed rgb(101 105 114)
+    color: #7a8188; font-size: 12px; font-weight: 600;
+    border-radius: 3px; cursor: pointer; letter-spacing: .5px;
+    transition: background .2s, border-color .2s;
+    box-sizing: border-box;
+    text-transform: uppercase;
+  }
+  .bsfav-add-btn:hover {
+    border-color: #24645a;
+  }
+  .bsfav-add-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  .bsfav-item { margin-bottom: 10px; }
+
+.bsfav-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 16px;
+  background: #2a2d35;
+  border: 1px solid rgba(255,255,255,.06);
+  border-left: 3px solid rgba(74,222,128,.4);
+  color: #c8cdd8;
+  font-size: 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .2s, border-color .2s;
+  letter-spacing: .5px;
+  box-sizing: border-box;
+  text-transform: uppercase;
+}
+  .bsfav-item-btn:hover {
+    background: #32363f;
+    color: #e2e8f0;
+  }
+  .bsfav-item-btn.is-open {
+    border-radius: 3px 3px 0 0;
+    background: #2e3139;
+    border-left-color: rgba(74,222,128,.7);
+    color: #e2e8f0;
+  }
+
+  .bsfav-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .bsfav-chevron {
+    font-size: 10px; color: #94a3b8; flex-shrink: 0;
+    transition: transform .2s;
+  }
+  .bsfav-item-btn.is-open .bsfav-chevron { transform: rotate(180deg); }
+
+  .bsfav-remove-btn {
+    padding: 2px 8px; line-height: 1.5;
+    background: rgba(239,68,68,.08); color: #f87171;
+    border: 1px solid rgba(239,68,68,.3);
+    border-radius: 3px; font-size: 11px; cursor: pointer; flex-shrink: 0;
+    transition: all .2s; font-weight: 600; letter-spacing: 0;
+  }
+  .bsfav-remove-btn:hover {
+    background: rgba(239,68,68,.2); border-color: rgba(239,68,68,.6);
+  }
+
+  .bsfav-content {
+    display: none; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.06); border-top: none;
+    border-radius: 0 0 3px 3px;
+    background: #1e2128;
+    margin-bottom: 2px;
+  }
+  .bsfav-content.open { display: block; }
+
+  .bsfav-toolbar {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 10px;
+    background: #1a1d24;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+    flex-wrap: wrap;
+  }
+  .bsfav-toolbar select {
+    flex: 1;
+    background: #2a2d35; color: #c8cdd8;
+    border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
+    padding: 4px 9px; font-size: 12px; cursor: pointer;
+    min-width: 120px;
+  }
+  .bsfav-toolbar select:focus { outline: none; border-color: rgba(255,255,255,.3); }
+  .bsfav-toolbar select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .bsfav-apply-btn {
+    padding: 4px 14px;
+    background: #2a2d35;
+    color: #c8cdd8; border: 1px solid rgba(255,255,255,.15);
+    border-radius: 3px; font-size: 12px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; transition: all .2s;
+    letter-spacing: .3px; text-transform: uppercase;
+  }
+  .bsfav-apply-btn:hover {
+    background: #32363f;
+    border-color: rgba(255,255,255,.3);
+    color: #e2e8f0;
+  }
+  .bsfav-apply-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .bsfav-frame {
+    width: 100%; min-height: 620px; border: none;
+    display: block; background: #1a1d24;
+  }
+`;
+
+  /* ── Cria selects de casa e ferramenta ───────────────────────── */
+  function buildCasaSelect(selectedGroup) {
+    const sel = document.createElement('select');
+    sel.className = 'bsfav-casa-select';
+    
+    const ph = document.createElement('option');
+    ph.value = ''; 
+    ph.textContent = 'Escolha a casa…';
+    ph.disabled = true;
+    if (!selectedGroup) ph.selected = true;
+    sel.appendChild(ph);
+
+    CATALOGO.forEach(cat => {
+      const o = document.createElement('option');
+      o.value = cat.group;
+      o.textContent = cat.group;
+      if (cat.group === selectedGroup) o.selected = true;
+      sel.appendChild(o);
+    });
+    
+    return sel;
+  }
+
+  function buildToolSelect(casaGroup, selectedUrl) {
+    const sel = document.createElement('select');
+    sel.className = 'bsfav-tool-select';
+    
+    const ph = document.createElement('option');
+    ph.value = ''; 
+    ph.textContent = casaGroup ? 'Escolha a ferramenta…' : 'Primeiro escolha a casa…';
+    ph.disabled = true;
+    if (!selectedUrl) ph.selected = true;
+    sel.appendChild(ph);
+
+    if (casaGroup) {
+      const casa = CATALOGO.find(c => c.group === casaGroup);
+      if (casa) {
+        casa.tools.forEach(t => {
+          const o = document.createElement('option');
+          o.value = t.url; 
+          o.textContent = t.label;
+          if (t.url === selectedUrl) o.selected = true;
+          sel.appendChild(o);
+        });
+      }
+    }
+    
+    sel.disabled = !casaGroup;
+    return sel;
+  }
+
+  /* ── Cria um acordeão favorito ───────────────────────────────── */
+  function createToolAccordion(idx, slotData) {
+    const { url, open } = slotData;
+    
+    // Extrai casa e ferramenta do URL se existir
+    let selectedCasa = '';
+    let selectedToolUrl = url || '';
+    
+    if (url) {
+      for (const cat of CATALOGO) {
+        const tool = cat.tools.find(t => t.url === url);
+        if (tool) {
+          selectedCasa = cat.group;
+          break;
+        }
+      }
+    }
+
+    const item = document.createElement('div');
+    item.className = 'bsfav-item';
+
+    /* header */
+    const btn = document.createElement('button');
+    btn.className = 'bsfav-item-btn' + (open ? ' is-open' : '');
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'bsfav-title';
+    titleSpan.textContent = url ? labelByUrl(url) : '⭐ Nova Ferramenta';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'bsfav-remove-btn';
+    removeBtn.textContent = '✕ Remover';
+    removeBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const st = loadState();
+      st.slots.splice(idx, 1);
+      saveState(st);
+      rebuildSlots();
+    });
+
+    const chevron = document.createElement('span');
+    chevron.className = 'bsfav-chevron';
+    chevron.textContent = '▼';
+
+    btn.append(titleSpan, removeBtn, chevron);
+
+    /* conteúdo */
+    const content = document.createElement('div');
+    content.className = 'bsfav-content' + (open ? ' open' : '');
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'bsfav-toolbar';
+
+    // Select de casa
+    const casaSel = buildCasaSelect(selectedCasa);
+    // Select de ferramenta
+    const toolSel = buildToolSelect(selectedCasa, selectedToolUrl);
+    // Botão carregar
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'bsfav-apply-btn';
+    applyBtn.textContent = 'Carregar';
+    applyBtn.disabled = !selectedToolUrl;
+
+    // Evento: quando muda a casa, atualiza ferramentas
+    casaSel.addEventListener('change', () => {
+      const novaCasa = casaSel.value;
+      // Reconstrói select de ferramentas
+      const novoToolSel = buildToolSelect(novaCasa, '');
+      toolSel.innerHTML = novoToolSel.innerHTML;
+      toolSel.disabled = !novaCasa;
+      applyBtn.disabled = true;
+    });
+
+    // Evento: quando escolhe ferramenta, habilita botão
+    toolSel.addEventListener('change', () => {
+      applyBtn.disabled = !toolSel.value;
+    });
+
+    // Evento: carregar ferramenta
+    applyBtn.addEventListener('click', () => {
+      const chosen = toolSel.value;
+      if (!chosen) return;
+      const st = loadState();
+      st.slots[idx].url = chosen;
+      saveState(st);
+      titleSpan.textContent = labelByUrl(chosen);
+      frame.src = chosen;
+      
+      // Injeta script para remover header após carregar
+      frame.onload = function() {
+        try {
+          const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+          const header = iframeDoc.querySelector('#header');
+          if (header) {
+            header.style.display = 'none';
+            header.style.visibility = 'hidden';
+            header.style.height = '0';
+            header.style.overflow = 'hidden';
+          }
+        } catch(e) {
+          // Cross-origin pode bloquear, tenta via postMessage como fallback
+          frame.contentWindow.postMessage({ action: 'hideHeader' }, '*');
+        }
+      };
+    });
+
+    toolbar.append(casaSel, toolSel, applyBtn);
+
+    const frame = document.createElement('iframe');
+    frame.className = 'bsfav-frame';
+    frame.src = (open && url) ? url : 'about:blank';
+    frame.setAttribute('allowfullscreen', '');
+    
+    // Script para esconder header quando carrega
+    if (open && url) {
+      frame.onload = function() {
+        try {
+          const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+          const header = iframeDoc.querySelector('#header');
+          if (header) {
+            header.style.display = 'none';
+            header.style.visibility = 'hidden';
+            header.style.height = '0';
+            header.style.overflow = 'hidden';
+          }
+        } catch(e) {
+          frame.contentWindow.postMessage({ action: 'hideHeader' }, '*');
+        }
+      };
+    }
+
+    content.append(toolbar, frame);
+
+    /* toggle */
+    btn.addEventListener('click', e => {
+      if (e.target.closest('.bsfav-remove-btn')) return;
+      const isOpen = content.classList.toggle('open');
+      btn.classList.toggle('is-open', isOpen);
+
+      if (isOpen) {
+        const st  = loadState();
+        const cur = st.slots[idx]?.url;
+        const blank = frame.src === 'about:blank' || frame.src === window.location.href;
+        if (cur && blank) {
+          frame.src = cur;
+          // Reaplica script de hide header
+          frame.onload = function() {
+            try {
+              const iframeDoc = frame.contentDocument || frame.contentWindow.document;
+              const header = iframeDoc.querySelector('#header');
+              if (header) {
+                header.style.display = 'none';
+                header.style.visibility = 'hidden';
+                header.style.height = '0';
+                header.style.overflow = 'hidden';
+              }
+            } catch(e) {
+              frame.contentWindow.postMessage({ action: 'hideHeader' }, '*');
+            }
+          };
+        }
+      }
+
+      const st = loadState();
+      if (st.slots[idx]) { st.slots[idx].open = isOpen; saveState(st); }
+    });
+
+    item.append(btn, content);
+    return item;
+  }
+
+  /* ── Referência ao container de slots ───────────────────────── */
+  function getSlotsContainer() {
+    return document.getElementById('bsFavSlotsContainer');
+  }
+
+  /* ── Reconstrói apenas os slots favoritos ────────────────────── */
+  function rebuildSlots() {
+    const container = getSlotsContainer();
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const state = loadState();
+    state.slots.forEach((slot, i) => {
+      container.appendChild(createToolAccordion(i, slot));
+    });
+
+    // Atualiza botão adicionar
+    const addBtn = document.querySelector('.bsfav-add-btn');
+    if (addBtn) {
+      const atMax = state.slots.length >= MAX_SLOTS;
+      addBtn.disabled = atMax;
+      addBtn.textContent = atMax
+        ? `✦ Máximo de ${MAX_SLOTS} ferramentas atingido`
+        : '＋ Adicionar Ferramenta';
+    }
+  }
+
+  /* ── Init ────────────────────────────────────────────────────── */
+  function init() {
+    // CSS
+    const style = document.createElement('style');
+    style.textContent = CSS;
+    document.head.appendChild(style);
+
+    // Ponto de ancoragem: primeiro accordion-item fixo
+    const firstFixed = document.querySelector('.accordion-item');
+    if (!firstFixed) {
+      console.warn('[BsFav] Nenhum .accordion-item encontrado.');
+      return;
+    }
+
+    const parent = firstFixed.parentNode;
+
+    /* 1. Botão adicionar */
+    const addWrapper = document.createElement('div');
+    addWrapper.id = 'bsFavAddWrapper';
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'bsfav-add-btn';
+    addBtn.textContent = '＋ Adicionar Ferramenta';
+    addBtn.addEventListener('click', () => {
+      const st = loadState();
+      if (st.slots.length >= MAX_SLOTS) return;
+      st.slots.push({ url: '', open: true });
+      saveState(st);
+      rebuildSlots();
+    });
+
+    addWrapper.appendChild(addBtn);
+
+    /* 2. Container dos slots favoritos */
+    const slotsContainer = document.createElement('div');
+    slotsContainer.id = 'bsFavSlotsContainer';
+
+    /* Insere na ordem: addWrapper → slotsContainer → firstFixed */
+    parent.insertBefore(addWrapper,      firstFixed);
+    parent.insertBefore(slotsContainer,  firstFixed);
+
+    rebuildSlots();
+  }
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', init)
+    : init();
+
+})();
