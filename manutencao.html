@@ -1701,28 +1701,13 @@ function garantirCheckboxQuadrantes() {
     #linhaMinutosFooter th.minute-footer { cursor: pointer; user-select: none; }
     #linhaMinutosFooter th.minute-footer:hover { filter: brightness(1.6) !important; }
 
-    /* ── Seletor de hora inline na célula de hora ── */
+    /* ── Célula de hora: número em cima + checkbox embaixo ── */
     .hora-cel {
-      position: relative; cursor: pointer; user-select: none;
       display: flex; flex-direction: column; align-items: center;
       justify-content: center; gap: 2px; padding: 2px 3px !important;
     }
     .hora-cel .hora-num { font-size: 0.9em; font-weight: 700; line-height: 1; }
     .hora-cel .row-selector { width: 12px; height: 12px; cursor: pointer; margin: 0; accent-color: #4ade80; }
-    .hora-cel .hora-dropdown {
-      display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
-      z-index: 999; background: #1e2433; border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 6px; padding: 4px 0; min-width: 90px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.5); max-height: 220px; overflow-y: auto;
-    }
-    .hora-cel.hora-open .hora-dropdown { display: block; }
-    .hora-dropdown-item {
-      padding: 4px 14px; font-size: 0.82em; color: #ccc; cursor: pointer; white-space: nowrap;
-      text-align: center;
-    }
-    .hora-dropdown-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
-    .hora-dropdown-item.hora-selected { color: #4ade80; font-weight: 700; }
-
     /* Odd e time clicáveis nos próximos confrontos */
     .placar-futuro .time-casa,
     .placar-futuro .time-fora {
@@ -2448,47 +2433,17 @@ function criarTabela(dados, oddsData, proximosJogos) {
     // ── Célula de hora: número em cima + checkbox em baixo (sem coluna separada) ──
     const tdHora = document.createElement("td");
     tdHora.className = "hora-cel";
-    // Número da hora
     const horaSpan = document.createElement("span");
     horaSpan.className = "hora-num";
     horaSpan.textContent = item.hora.toString().padStart(2,"0");
     tdHora.appendChild(horaSpan);
-    // Checkbox de seleção de linha
     const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
     cb.addEventListener("change",function(){
       if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
       else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
       Estado.salvar();updateSelectedRows();
     });
-    cb.addEventListener("click", e => e.stopPropagation()); // não abre dropdown
     tdHora.appendChild(cb);
-    tr.appendChild(tdHora);
-    const horaDropdown = document.createElement("div");
-    horaDropdown.className = "hora-dropdown";
-    [1,2,3,4,5,6,8,10,12,16,20,24].forEach(n => {
-      const div = document.createElement("div");
-      div.className = "hora-dropdown-item" + (n === horasSel ? " hora-selected" : "");
-      div.textContent = `${n} hora${n>1?"s":""}`;
-      div.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const sh = document.querySelector("#seletorHoras");
-        if (sh && sh.value != n) {
-          sh.value = n;
-          localStorage.setItem(Estado._horasKey(), n);
-          Estado.forcarRerender();
-          buscarDados();
-        }
-        tdHora.classList.remove("hora-open");
-      });
-      horaDropdown.appendChild(div);
-    });
-    tdHora.appendChild(horaDropdown);
-    tdHora.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const wasOpen = tdHora.classList.contains("hora-open");
-      document.querySelectorAll(".hora-cel.hora-open").forEach(el => el.classList.remove("hora-open"));
-      if (!wasOpen) tdHora.classList.add("hora-open");
-    });
     tr.appendChild(tdHora);
     minutosFixos.forEach((m,i)=>{
       const td=document.createElement("td");
@@ -2757,14 +2712,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
   [createIconTh("ball","Gols"),createIconTh("check","Acertos"),createIconTh("trend","% Linha")].forEach(th=>trMinutosFooter.appendChild(th));
   tfoot.appendChild(trMinutosFooter);
-
-  // ── Fechar hora-dropdown ao clicar fora ───────────────────────────────────
-  if (!tabela._horaDropdownListener) {
-    tabela._horaDropdownListener = true;
-    document.addEventListener("click", () => {
-      document.querySelectorAll(".hora-cel.hora-open").forEach(el => el.classList.remove("hora-open"));
-    });
-  }
 
   // Quadrantes — atualiza dados (estrutura já foi inserida no início, só atualiza valores)
   qdDadosCache = dados;
