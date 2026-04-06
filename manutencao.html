@@ -1103,6 +1103,24 @@ const counterMarketMap = {
 let qdNumPreviousHours = 1;
 let qdDadosCache = null; // cache de dados para não buscar duas vezes
 
+// ─── Obtém hora e data do registro mais recente nos dados ─────────────────────
+function qdGetHoraAtual(resultados) {
+  if (resultados && resultados.length > 0) {
+    // Ordena pelo timestamp mais recente
+    const sorted = [...resultados].sort((a, b) => {
+      const tA = new Date(`${a.data.split('T')[0]}T${a.hora.toString().padStart(2,'0')}:${(a.minuto||0).toString().padStart(2,'00')}:00`).getTime();
+      const tB = new Date(`${b.data.split('T')[0]}T${b.hora.toString().padStart(2,'0')}:${(b.minuto||0).toString().padStart(2,'00')}:00`).getTime();
+      return tB - tA;
+    });
+    const rec = sorted[0];
+    const dateStr = rec.data.includes('T') ? rec.data.split('T')[0] : rec.data.split('/').reverse().join('-');
+    return { hora: rec.hora, dateStr };
+  }
+  // Fallback para hora do sistema
+  const now = new Date();
+  return { hora: now.getHours(), dateStr: now.toISOString().split('T')[0] };
+}
+
 // ─── KEY DO CHECKBOX DOS QUADRANTES ──────────────────────────────────────────
 const QD_CHECKBOX_KEY = "quadrantesAtivos";
 
@@ -1286,23 +1304,9 @@ function qdRenderTabelaValores(resultados) {
   if (!qdCheckboxAtivo()) return;
   if (!document.querySelector("#trQuadrantes")) return;
 
-  // Usa a hora do dado mais recente; fallback para hora do sistema
-  let horaAtualNumero, dataAtual;
-  if (resultados && resultados.length > 0) {
-    const mais_recente = resultados.reduce((a, b) => {
-      const tA = new Date(`${a.data.split('T')[0]}T${a.hora.toString().padStart(2,'0')}:00:00`).getTime();
-      const tB = new Date(`${b.data.split('T')[0]}T${b.hora.toString().padStart(2,'0')}:00:00`).getTime();
-      return tB > tA ? b : a;
-    });
-    horaAtualNumero = mais_recente.hora;
-    dataAtual = new Date(mais_recente.data.split('T')[0] + 'T12:00:00');
-  } else {
-    const agora = new Date();
-    horaAtualNumero = agora.getHours();
-    dataAtual = agora;
-  }
+  const { hora: horaAtualNumero, dateStr: dataAtualStr } = qdGetHoraAtual(resultados);
   let timeSlots = [];
-  let currentDate = new Date(dataAtual);
+  let currentDate = new Date(dataAtualStr + 'T12:00:00');
   let currentHour = horaAtualNumero;
   for (let i = 0; i <= qdNumPreviousHours; i++) {
     timeSlots.push({ date: currentDate.toISOString().split('T')[0], hour: currentHour });
@@ -1346,24 +1350,9 @@ function qdRenderTabela(resultados) {
   const thead = document.querySelector("#tabelaResultados thead");
   if (!thead) return;
 
-  // Usa a hora do dado mais recente nos resultados; fallback para hora do sistema
-  let horaAtualNumero, dataAtual;
-  if (resultados && resultados.length > 0) {
-    const mais_recente = resultados.reduce((a, b) => {
-      const tA = new Date(`${a.data.split('T')[0]}T${a.hora.toString().padStart(2,'0')}:00:00`).getTime();
-      const tB = new Date(`${b.data.split('T')[0]}T${b.hora.toString().padStart(2,'0')}:00:00`).getTime();
-      return tB > tA ? b : a;
-    });
-    horaAtualNumero = mais_recente.hora;
-    dataAtual = new Date(mais_recente.data.split('T')[0] + 'T12:00:00');
-  } else {
-    const agora = new Date();
-    horaAtualNumero = agora.getHours();
-    dataAtual = agora;
-  }
-
+  const { hora: horaAtualNumero, dateStr: dataAtualStr } = qdGetHoraAtual(resultados);
   let timeSlots = [];
-  let currentDate = new Date(dataAtual);
+  let currentDate = new Date(dataAtualStr + 'T12:00:00');
   let currentHour = horaAtualNumero;
   for (let i = 0; i <= qdNumPreviousHours; i++) {
     timeSlots.push({ date: currentDate.toISOString().split('T')[0], hour: currentHour });
@@ -1386,7 +1375,7 @@ function qdRenderTabela(resultados) {
     trQD.dataset.structKey = structKey;
 
     let trHtml = "";
-    trHtml += `<th style="position:sticky;left:0;z-index:10;background-color:#292d36;"></th>`;
+    trHtml += `<th style="position:sticky;left:0;z-index:10;background-color:#292d36;width:36px;min-width:36px;"></th>`;
     trHtml += `<th style="background-color:#292d36;color:#d1d5db;font-weight:700;text-align:center;font-size:11px;padding:4px 6px;white-space:nowrap;">QDT<br><div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:3px;"><button id="qd-decrease" class="blocos-button" style="line-height:1;padding:1px 6px;">-</button><span id="qd-num-prev" style="color:white;font-size:11px;">${qdNumPreviousHours}</span><button id="qd-increase" class="blocos-button" style="line-height:1;padding:1px 6px;">+</button></div></th>`;
     for (let i = 0; i < blocosDeMinutos.length; i++) {
       trHtml += qdCreateBlocoThs(i, timeSlots);
@@ -1556,6 +1545,7 @@ function garantirCheckboxQuadrantes() {
     #tabelaResultados.tem-coluna-selecionada td.coluna-selecionada                   { filter: none; }
     #tabelaResultados.tem-coluna-selecionada th.coluna-selecionada                   { filter: none; background: rgba(255,255,255,0.2) !important; }
     #tabelaResultados.tem-coluna-selecionada td:first-child,
+    #tabelaResultados.tem-coluna-selecionada td:nth-child(2),
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(1),
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(2),
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(3) { filter: none; }
@@ -1691,6 +1681,28 @@ function garantirCheckboxQuadrantes() {
       transition: opacity 0.15s;
     }
     .placar-futuro .placar-futuro-odd:hover { opacity: 0.7; }
+
+    /* Colunas direitas (gols/acertos/%) — mais finas */
+    .col-direita-stats { width:22px !important; min-width:22px !important; max-width:26px !important; padding:2px 3px !important; font-size:0.78em !important; text-align:center; }
+    .col-direita-pct   { width:34px !important; min-width:34px !important; max-width:38px !important; padding:2px 3px !important; font-size:0.78em !important; text-align:center; }
+    .col-direita-th    { font-size:0.7em !important; padding:2px 2px !important; }
+    /* Header rows das stats (%, gols, acertos por coluna) mais baixos */
+    #linhaPercentual th, #linhaTotalGols th, #linhaAcertosMercado th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
+    /* Ocultar colunas direitas quando checkbox desativado */
+    .stats-laterais-ocultas .col-direita-stats,
+    .stats-laterais-ocultas .col-direita-pct,
+    .stats-laterais-ocultas #th-gols-linha,
+    .stats-laterais-ocultas #th-acertos-linha,
+    .stats-laterais-ocultas #th-pct-linha,
+    .stats-laterais-ocultas #linhaPercentual td:last-child,
+    .stats-laterais-ocultas #linhaPercentual td:nth-last-child(2),
+    .stats-laterais-ocultas #linhaPercentual td:nth-last-child(3),
+    .stats-laterais-ocultas #linhaTotalGols td:last-child,
+    .stats-laterais-ocultas #linhaTotalGols td:nth-last-child(2),
+    .stats-laterais-ocultas #linhaTotalGols td:nth-last-child(3),
+    .stats-laterais-ocultas #linhaAcertosMercado td:last-child,
+    .stats-laterais-ocultas #linhaAcertosMercado td:nth-last-child(2),
+    .stats-laterais-ocultas #linhaAcertosMercado td:nth-last-child(3) { display:none !important; }
   `;
   document.head.appendChild(style);
 
@@ -1725,7 +1737,7 @@ function calcularStreakMaximo() {
   for (let r = rows.length - 1; r >= 0; r--) {
     const row = rows[r];
     for (let colIdx = 0; colIdx < numCols; colIdx++) {
-      const cel = row.cells[1 + colIdx];
+      const cel = row.cells[2 + colIdx];
       if (!cel) continue;
       const tipo = cel.getAttribute("data-resultado");
       if (tipo === "acerto" || tipo === "erro") { jogos.push({ tipo, cel }); }
@@ -1815,6 +1827,10 @@ function garantirPainelCores() {
       <input type="checkbox" id="cb-streak-alerta">
       ⚡ Alerta máx. consecutivo
     </label>
+    <label class="alerta-toggle-label" id="lbl-stats-laterais">
+      <input type="checkbox" id="cb-stats-laterais" checked>
+      📊 Gols/Acertos/%
+    </label>
   `;
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
   el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
@@ -1824,6 +1840,13 @@ function garantirPainelCores() {
     atualizarCheckboxStreak(); calcularStreakMaximo();
     if (!this.checked) atualizarBadgeStreak(0, 0);
   });
+  el.querySelector("#cb-stats-laterais").addEventListener("change", function() {
+    localStorage.setItem("statsLateraisOcultas", this.checked ? "0" : "1");
+    aplicarEstadoStatsLaterais();
+  });
+  // Restaura estado salvo do checkbox de stats
+  const statsOcultas = localStorage.getItem("statsLateraisOcultas") === "1";
+  el.querySelector("#cb-stats-laterais").checked = !statsOcultas;
   el.querySelector("#btn-reset-cores").addEventListener("click", () => {
     Estado.corGreen = COR_GREEN_PADRAO; Estado.corRed = COR_RED_PADRAO; Estado.salvar();
     el.querySelector("#input-cor-green").value = COR_GREEN_PADRAO;
@@ -1844,6 +1867,7 @@ function sincronizarPainelCores() {
   if (ig) ig.value = Estado.corGreen;
   if (ir) ir.value = Estado.corRed;
   aplicarCoresCelulas();
+  aplicarEstadoStatsLaterais();
 }
 
 // ─── PAINEL DE SELEÇÕES ───────────────────────────────────────────────────────
@@ -2025,7 +2049,7 @@ function aplicarColunaHighlights() {
   });
   document.querySelectorAll("#tabelaResultados tbody tr").forEach(row=>{
     Array.from(row.cells).forEach((cell,i)=>{
-      if(i<1||i>=1+minutosFixos.length) return;
+      if(i<2||i>=2+minutosFixos.length) return;
       const colIdx=i-2;
       cell.classList.toggle("coluna-selecionada",Estado.colunasSelecionadas.includes(minutosFixos[colIdx]));
       if (qdCheckboxAtivo()) cell.classList.toggle("quadrant-border",colIdx>0&&colIdx%5===0);
@@ -2049,7 +2073,7 @@ function atualizarColunaStats() {
   colOrd.forEach(min=>{
     const colIdx=minutosFixos.indexOf(min); if(colIdx===-1) return;
     document.querySelectorAll("#tabelaResultados tbody tr").forEach(row=>{
-      const cell=row.cells[1+colIdx]; if(!cell) return;
+      const cell=row.cells[2+colIdx]; if(!cell) return;
       const tipo=cell.getAttribute("data-resultado");
       if(tipo==="acerto") greenTotal++; else if(tipo==="erro") redTotal++;
     });
@@ -2191,6 +2215,8 @@ function updateSelectedRows(){
   if(!sel&&mainTable){
     sel=document.createElement("table"); sel.id="selectedRowsContainer"; sel.className=mainTable.className; sel.style.cssText="width:100%;margin-bottom:10px";
     const thead=mainTable.querySelector("thead").cloneNode(true);
+    // Remove linha de quadrantes do clone se existir
+    thead.querySelector("#trQuadrantes")?.remove();
     sel.appendChild(thead); sel.appendChild(document.createElement("tbody"));
     mainTable.parentNode.insertBefore(sel,mainTable);
   }
@@ -2207,8 +2233,6 @@ function updateSelectedRows(){
   ord.forEach(chave=>{
     const row=document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`); if(!row) return;
     const clone=row.cloneNode(true);
-    // Oculta o checkbox no clone (está dentro da célula de hora)
-    const cbClone=clone.querySelector(".row-selector"); if(cbClone) cbClone.style.display="none";
     tbody.appendChild(clone);
   });
 }
@@ -2292,21 +2316,22 @@ function criarTabela(dados, oddsData, proximosJogos) {
   }
 
   const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
-  trPercentual.appendChild(document.createElement("th"));
   trPercentual.appendChild(createIconTh("chart","% Acerto por coluna"));
 
   const trTotalGols = document.createElement("tr"); trTotalGols.id="linhaTotalGols";
-  trTotalGols.appendChild(document.createElement("th"));
   trTotalGols.appendChild(createIconTh("ball","Gols por coluna"));
 
   const trAcertosMercado = document.createElement("tr"); trAcertosMercado.id="linhaAcertosMercado";
-  trAcertosMercado.appendChild(document.createElement("th"));
   trAcertosMercado.appendChild(createIconTh("check","Acertos por coluna"));
 
   thead.append(trPercentual, trTotalGols, trAcertosMercado);
 
   const trMinutos = document.createElement("tr");
-  trMinutos.appendChild(createIconTh("clock","Hora"));
+  // Coluna única de hora (sem th separado de seleção)
+  const thHora = document.createElement("th"); thHora.title="Hora";
+  const wrapH = document.createElement("span"); wrapH.className="th-icon"; wrapH.innerHTML=SVG_ICONS["clock"]||"";
+  thHora.appendChild(wrapH); thHora.style.cssText="width:36px;min-width:36px;";
+  trMinutos.appendChild(thHora);
 
   minutosFixos.forEach((m, i) => {
     const th = document.createElement("th"); th.className="minute-header"; th.textContent=m;
@@ -2317,7 +2342,11 @@ function criarTabela(dados, oddsData, proximosJogos) {
     th.addEventListener("click", ()=>toggleColuna(m));
     trMinutos.appendChild(th);
   });
-  [createIconTh("ball","Gols"),createIconTh("check","Acertos"),createIconTh("trend","% Linha")].forEach(th=>trMinutos.appendChild(th));
+  // Colunas direitas: gols, acertos, % — com IDs para ocultar/mostrar
+  const thGolsLinha = createIconTh("ball","Gols"); thGolsLinha.id="th-gols-linha"; thGolsLinha.style.cssText="width:22px;min-width:22px;max-width:22px;padding:2px;";
+  const thAcertosLinha = createIconTh("check","Acertos"); thAcertosLinha.id="th-acertos-linha"; thAcertosLinha.style.cssText="width:22px;min-width:22px;max-width:22px;padding:2px;";
+  const thPctLinha = createIconTh("trend","% Linha"); thPctLinha.id="th-pct-linha"; thPctLinha.style.cssText="width:34px;min-width:34px;max-width:38px;padding:2px;";
+  [thGolsLinha,thAcertosLinha,thPctLinha].forEach(th=>trMinutos.appendChild(th));
   thead.appendChild(trMinutos);
   tabelaBody.innerHTML = "";
 
@@ -2365,18 +2394,17 @@ function criarTabela(dados, oddsData, proximosJogos) {
   horasUnicas.forEach(item=>{
     const chave=`${item.data}-${item.hora}`;
     const tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
-    // Checkbox + hora na mesma célula (sem coluna extra)
-    const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;padding:2px 4px;line-height:1.3;";
-    tdHora.innerHTML=`<div style="font-weight:700;font-size:0.9em;">${item.hora.toString().padStart(2,"0")}</div>`;
-    const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector";
-    cb.style.cssText="display:block;margin:1px auto 0;width:11px;height:11px;cursor:pointer;accent-color:#4ade80;";
-    cb.checked=Estado.selectedChaves.includes(chave);
+    // Checkbox embutido na célula de hora
+    const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 4px;";
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
+    cb.style.cssText="display:block;margin:0 auto 1px auto;width:12px;height:12px;cursor:pointer;accent-color:#4ade80;";
     cb.addEventListener("change",function(){
       if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
       else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
       Estado.salvar();updateSelectedRows();
     });
-    tdHora.appendChild(cb);
+    const horaSpan=document.createElement("span"); horaSpan.textContent=item.hora.toString().padStart(2,"0"); horaSpan.style.cssText="font-size:0.85em;font-weight:700;color:#e5e7eb;";
+    tdHora.appendChild(cb); tdHora.appendChild(horaSpan);
     tr.appendChild(tdHora);
     minutosFixos.forEach((m,i)=>{
       const td=document.createElement("td");
@@ -2386,9 +2414,10 @@ function criarTabela(dados, oddsData, proximosJogos) {
       if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
       tr.appendChild(td);
     });
-    tr.appendChild(Object.assign(document.createElement("td"),{textContent:"0"}));
-    tr.appendChild(Object.assign(document.createElement("td"),{textContent:"0"}));
-    tr.appendChild(Object.assign(document.createElement("td"),{textContent:"0%"}));
+    const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-direita-stats"});
+    const tdAcertos = Object.assign(document.createElement("td"),{textContent:"0",className:"col-direita-stats"});
+    const tdPct = Object.assign(document.createElement("td"),{textContent:"0%",className:"col-direita-pct"});
+    tr.appendChild(tdGols); tr.appendChild(tdAcertos); tr.appendChild(tdPct);
     tabelaBody.appendChild(tr);
     mapeamentoChaveLinha[chave]=tr;
   });
@@ -2441,7 +2470,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const mk=`${dado.time_a}|${dado.time_b}|${chave}|${minNorm}`;
     if(!linha||processedMatches.has(mk)) return;
     const idx=minutosFixos.indexOf(minNorm); if(idx===-1) return;
-    const cel=linha.children[1+idx]; if(cel.querySelector(".placar")) return;
+    const cel=linha.children[2+idx]; if(cel.querySelector(".placar")) return;
 
     const placarFT=dado.ft, placarHT=dado.ht;
     const primary=tipoPlacar==="ft"?placarFT:placarHT;
@@ -2541,7 +2570,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const jaTemRes=dados.some(d=>{const dd=getDateStr(d.data);return normalizeString(d.time_a)===normalizeString(jogo.team_home)&&normalizeString(d.time_b)===normalizeString(jogo.team_visit)&&dd===dataStr&&d.hora===jogo.hora&&d.minuto===jogo.minuto;});
     if(jaTemRes) return;
     const idx=minutosFixos.indexOf(jogo.minuto); if(idx===-1) return;
-    const cel=linha.children[1+idx]; if(cel.querySelector(".placar")) return;
+    const cel=linha.children[2+idx]; if(cel.querySelector(".placar")) return;
 
     const placar=document.createElement("div"); placar.className="placar placar-futuro";
     placar.setAttribute("data-time-a",jogo.team_home); placar.setAttribute("data-time-b",jogo.team_visit);
@@ -2598,14 +2627,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   const todasLinhas=Array.from(tabelaBody.querySelectorAll("tr"));
   todasLinhas.forEach(row=>{
-    const total=Array.from(row.cells).slice(1,-3).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
+    const total=Array.from(row.cells).slice(2,-3).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
     const acertos=parseInt(row.children[row.children.length-2].textContent);
     const pct=total>0?Math.floor((acertos/total)*100):0;
     const pctCell=row.children[row.children.length-1]; pctCell.textContent=`${pct}%`;
     const _t=getThreshold(selRes); pctCell.classList.toggle("porcentagem-verde",pct>=_t); pctCell.classList.toggle("porcentagem-branca",pct<_t);
   });
   const totMercadoCol=Array(minutosFixos.length).fill(0);
-  todasLinhas.forEach(row=>{Array.from(row.cells).slice(1,-3).forEach((c,i)=>{if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro"))totMercadoCol[i]++;});});
+  todasLinhas.forEach(row=>{Array.from(row.cells).slice(2,-3).forEach((c,i)=>{if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro"))totMercadoCol[i]++;});});
   totMercadoCol.forEach((tot,i)=>{
     const pct=tot>0?Math.floor((totalAcertosPorColuna[i]/tot)*100):0;
     const cell=document.createElement("td"); cell.textContent=`${pct}%`;
@@ -2623,9 +2652,43 @@ function criarTabela(dados, oddsData, proximosJogos) {
   atualizarCheckboxStreak(); calcularStreakMaximo();
   iniciarObserverStreak();
 
+  // ── Linha de minutos no rodapé (repete os minutos embaixo da tabela) ────────
+  let tfoot = tabela.querySelector("tfoot");
+  if (!tfoot) { tfoot = document.createElement("tfoot"); tabela.appendChild(tfoot); }
+  tfoot.innerHTML = "";
+  const trFootMinutos = document.createElement("tr");
+  const thFootHora = document.createElement("th"); thFootHora.style.cssText="width:36px;min-width:36px;text-align:center;font-size:0.7em;color:#9ca3af;padding:2px;";
+  thFootHora.innerHTML=SVG_ICONS["clock"]||""; trFootMinutos.appendChild(thFootHora);
+  minutosFixos.forEach((m,i)=>{
+    const th=document.createElement("th"); th.className="minute-header"; th.textContent=m;
+    const qIdx=Math.floor(i/5)%4; th.classList.add(`qd-${qIdx}`);
+    if(qdCheckboxAtivo()&&i>0&&i%5===0) th.classList.add("quadrant-border");
+    if(Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
+    th.addEventListener("click",()=>toggleColuna(m));
+    trFootMinutos.appendChild(th);
+  });
+  const thFG=document.createElement("th"); thFG.id="th-foot-gols"; thFG.style.cssText="width:22px;min-width:22px;padding:2px;"; thFG.innerHTML=SVG_ICONS["ball"]||""; trFootMinutos.appendChild(thFG);
+  const thFA=document.createElement("th"); thFA.id="th-foot-acertos"; thFA.style.cssText="width:22px;min-width:22px;padding:2px;"; thFA.innerHTML=SVG_ICONS["check"]||""; trFootMinutos.appendChild(thFA);
+  const thFP=document.createElement("th"); thFP.id="th-foot-pct"; thFP.style.cssText="width:34px;min-width:34px;padding:2px;"; thFP.innerHTML=SVG_ICONS["trend"]||""; trFootMinutos.appendChild(thFP);
+  tfoot.appendChild(trFootMinutos);
+
+  aplicarEstadoStatsLaterais();
+
   // Quadrantes — atualiza dados (estrutura já foi inserida no início, só atualiza valores)
   qdDadosCache = dados;
   if (qdCheckboxAtivo()) qdRenderTabelaValores(dados);
+}
+
+// ─── TOGGLE STATS LATERAIS ────────────────────────────────────────────────────
+function aplicarEstadoStatsLaterais() {
+  const ocultas = localStorage.getItem("statsLateraisOcultas") === "1";
+  const tabela = document.getElementById("tabelaResultados");
+  if (tabela) tabela.classList.toggle("stats-laterais-ocultas", ocultas);
+  const selRows = document.getElementById("selectedRowsContainer");
+  if (selRows) selRows.classList.toggle("stats-laterais-ocultas", ocultas);
+  // Atualiza checkbox se o painel já existir
+  const cb = document.getElementById("cb-stats-laterais");
+  if (cb) cb.checked = !ocultas;
 }
 
 // ─── OBSERVER: re-aplica streak automaticamente ───────────────────────────────
@@ -2651,10 +2714,11 @@ async function buscarDados() {
     Estado.forcarRerender();
     Estado._ultimaLigaRenderizada = ligaAtual;
     _ultimaLigaHorasRestauradas = null;
+    // Troca de liga: recarrega todas as seleções isoladas por liga
     Estado.carregar();
-    // Troca de liga: remove quadrante antigo para forçar recriação com dados corretos
-    const trQDold = document.querySelector("#trQuadrantes");
-    if (trQDold) trQDold.remove();
+    // Remove trQD antigo para forçar recriação com nova liga
+    const trQDantigo = document.querySelector("#trQuadrantes");
+    if (trQDantigo) trQDantigo.remove();
   }
   let dados=[],oddsData=[],proximosJogos=[];
   try{const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));if(!r.ok)throw new Error(`${r.status}`);dados=await r.json();}
@@ -2674,6 +2738,7 @@ async function buscarDados() {
     qdDadosCache = dados;
     if (qdCheckboxAtivo()) qdRenderTabela(dados);
     else qdAtualizarIndicadorAoVivo();
+    aplicarEstadoStatsLaterais();
     return;
   }
   criarTabela(dados,oddsData,proximosJogos);
@@ -6217,6 +6282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 })();
 </script>
+
 
 
 <script src="toolsdev.js"></script>
