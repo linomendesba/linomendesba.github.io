@@ -1,20 +1,17 @@
-
 (function () {
 
   /* ── DETECTA CASA ATUAL ──────────────────────────────────────── */
   function detectarCasa() {
-    // 1. Tenta pelo comentário do header incluído na página
     const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_COMMENT);
     let node;
     while ((node = walker.nextNode())) {
       const txt = node.nodeValue.trim().toLowerCase();
-      if (txt.includes('header-bet365'))    return 'bet365';
-      if (txt.includes('header-betano'))    return 'betano';
+      if (txt.includes('header-bet365'))     return 'bet365';
+      if (txt.includes('header-betano'))     return 'betano';
       if (txt.includes('header-estrelabet')) return 'estrelabet';
-      if (txt.includes('header-kiron'))     return 'kiron';
+      if (txt.includes('header-kiron'))      return 'kiron';
     }
 
-    // 2. Fallback: texto do primeiro select de ligas no header
     const ligas = document.querySelector('header .nav-seletor select option:first-child');
     if (ligas) {
       const t = ligas.textContent.toLowerCase();
@@ -24,18 +21,17 @@
       if (t.includes('kiron'))      return 'kiron';
     }
 
-    // 3. Fallback: URL da página atual
     const url = window.location.href.toLowerCase();
     if (url.includes('bet365') || url.includes('365')) return 'bet365';
     if (url.includes('betano'))                         return 'betano';
     if (url.includes('estrela'))                        return 'estrelabet';
     if (url.includes('kiron'))                          return 'kiron';
 
-    return 'global'; // segurança
+    return 'global';
   }
 
   const CASA_ATUAL = detectarCasa();
-  const LS_KEY     = `bsFavToolsV5_${CASA_ATUAL}`;   // ← chave isolada por casa
+  const LS_KEY     = `bsFavToolsV5_${CASA_ATUAL}`;
 
   /* ── CATÁLOGO COMPLETO ───────────────────────────────────────── */
   const CATALOGO = [
@@ -165,151 +161,194 @@
     return '⭐ Nova Ferramenta';
   }
 
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap');
+  /* ── CSS ─────────────────────────────────────────────────────── */
+  const CSS = `
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap');
 
-  #bsFavWrapper { margin-bottom: 10px; font-family: 'Roboto', sans-serif; }
+    #bsFavWrapper    { margin-bottom: 10px; font-family: 'Roboto', Arial, sans-serif; }
+    #bsFavAddWrapper { margin-bottom: 6px; }
 
-#bsFavAddWrapper { 
-  margin-bottom: 10px; 
-}
+    /* ── Botão Adicionar — idêntico ao .accordion-button da página ── */
+    .bsfav-add-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 16px;
+      background: linear-gradient(90deg, #292d36 0%, #2a2c34 100%);
+      border: none;
+      border-bottom: 1px solid transparent;
+      color: #7a8494;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 0;
+      transition: color .2s, background .2s, border-color .2s;
+      box-sizing: border-box;
+    }
+    .bsfav-add-btn:hover {
+      color: #b0bec5;
+      background: linear-gradient(90deg, #2e3240 0%, #2f3140 100%);
+      border-bottom-color: rgba(255,255,255,.06);
+    }
+    .bsfav-add-btn:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
 
-.bsfav-add-btn {
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  gap: 6px;
-  width: 100%; 
-  padding: 7px 14px;
-  background: transparent;
+    /* ── Item wrapper ── */
+    .bsfav-item { margin-bottom: 6px; }
 
-  border: 1px dashed rgba(109,120,133,.5);
-  color: #6d7885;
+    /* ── Botão do acordeão favorito — idêntico ao .accordion-button ── */
+    .bsfav-item-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 16px;
+      background: linear-gradient(90deg, #292d36 0%, #2a2c34 100%);
+      border: none;
+      border-bottom: 1px solid transparent;
+      border-left: 3px solid rgba(74,222,128,.45);
+      color: #7a8494;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      text-align: left;
+      border-radius: 0;
+      transition: color .2s, background .2s, border-color .2s;
+      box-sizing: border-box;
+    }
+    .bsfav-item-btn:hover {
+      color: #b0bec5;
+      background: linear-gradient(90deg, #2e3240 0%, #2f3140 100%);
+      border-bottom-color: rgba(255,255,255,.06);
+    }
+    .bsfav-item-btn.is-open {
+      color: #c8cdd8;
+      background: linear-gradient(90deg, #2e3240 0%, #2f3140 100%);
+      border-bottom-color: rgba(255,255,255,.06);
+      border-left-color: rgba(74,222,128,.8);
+    }
 
-  font-family: 'Roboto', sans-serif;
-  font-size: 12px; 
-  font-weight: 600;
-  border-radius: 3px; 
-  cursor: pointer; 
-  letter-spacing: .5px;
-  transition: background .2s, border-color .2s;
-  box-sizing: border-box;
-  text-transform: uppercase;
-}
+    .bsfav-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-.bsfav-add-btn:hover {
-  background: rgba(109,120,133,.12);
-  border-color: #6d7885;
-  color: #aab4bf;
-}
-  .bsfav-add-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .bsfav-chevron {
+      font-size: 9px;
+      color: #7a8494;
+      flex-shrink: 0;
+      transition: transform .2s;
+    }
+    .bsfav-item-btn.is-open .bsfav-chevron { transform: rotate(180deg); }
 
-  .bsfav-item { margin-bottom: 10px; }
+    /* ── Botão remover ── */
+    .bsfav-remove-btn {
+      padding: 2px 8px;
+      line-height: 1.5;
+      background: rgba(239,68,68,.08);
+      color: #f87171;
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-weight: 700;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all .2s;
+    }
+    .bsfav-remove-btn:hover {
+      background: rgba(239,68,68,.2);
+      border-color: rgba(239,68,68,.6);
+    }
 
-  .bsfav-item-btn {
-    display: flex; align-items: center; gap: 8px;
-    width: 100%; padding: 7px 16px;
-    background: #2a2d35;
-    border: 1px solid rgba(255,255,255,.06);
-    border-left: 3px solid rgba(74,222,128,.4);
-    color: #c8cdd8;
-    font-family: 'Roboto', sans-serif;
-    font-size: 12px; font-weight: 600;
-    border-radius: 3px; cursor: pointer; text-align: left;
-    transition: background .2s, border-color .2s; letter-spacing: .5px;
-    box-sizing: border-box;
-    text-transform: uppercase;
-  }
-  .bsfav-item-btn:hover {
-    background: #32363f;
-    color: #e2e8f0;
-  }
-  .bsfav-item-btn.is-open {
-    border-radius: 3px 3px 0 0;
-    background: #2e3139;
-    border-left-color: rgba(74,222,128,.7);
-    color: #e2e8f0;
-  }
+    /* ── Conteúdo expandido ── */
+    .bsfav-content {
+      display: none;
+      overflow: hidden;
+      background: #1e2128;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      margin-bottom: 2px;
+    }
+    .bsfav-content.open { display: block; }
 
-  .bsfav-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* ── Toolbar interna ── */
+    .bsfav-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      background: #1a1d24;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      flex-wrap: wrap;
+    }
+    .bsfav-toolbar select {
+      flex: 1;
+      background: #2a2d35;
+      color: #c8cdd8;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 3px;
+      padding: 4px 9px;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-size: 11px;
+      cursor: pointer;
+      min-width: 120px;
+    }
+    .bsfav-toolbar select:focus   { outline: none; border-color: rgba(255,255,255,.3); }
+    .bsfav-toolbar select:disabled { opacity: .4; cursor: not-allowed; }
 
-  .bsfav-chevron {
-    font-size: 10px; color: #94a3b8; flex-shrink: 0;
-    transition: transform .2s;
-  }
-  .bsfav-item-btn.is-open .bsfav-chevron { transform: rotate(180deg); }
+    .bsfav-apply-btn {
+      padding: 4px 14px;
+      background: #2a2d35;
+      color: #c8cdd8;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 3px;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .2s;
+    }
+    .bsfav-apply-btn:hover {
+      background: #32363f;
+      border-color: rgba(255,255,255,.3);
+      color: #e2e8f0;
+    }
+    .bsfav-apply-btn:disabled { opacity: .35; cursor: not-allowed; }
 
-  .bsfav-remove-btn {
-    padding: 2px 8px; line-height: 1.5;
-    background: rgba(239,68,68,.08); color: #f87171;
-    border: 1px solid rgba(239,68,68,.3);
-    border-radius: 3px; font-size: 11px; cursor: pointer; flex-shrink: 0;
-    transition: all .2s;
-    font-family: 'Roboto', sans-serif;
-    font-weight: 600; letter-spacing: 0;
-  }
-  .bsfav-remove-btn:hover {
-    background: rgba(239,68,68,.2); border-color: rgba(239,68,68,.6);
-  }
-
-  .bsfav-content {
-    display: none; overflow: hidden;
-    border: 1px solid rgba(255,255,255,.06); border-top: none;
-    border-radius: 0 0 3px 3px;
-    background: #1e2128;
-    margin-bottom: 2px;
-  }
-  .bsfav-content.open { display: block; }
-
-  .bsfav-toolbar {
-    display: flex; align-items: center; gap: 7px;
-    padding: 6px 10px;
-    background: #1a1d24;
-    border-bottom: 1px solid rgba(255,255,255,.05);
-    flex-wrap: wrap;
-  }
-  .bsfav-toolbar select {
-    flex: 1;
-    background: #2a2d35; color: #c8cdd8;
-    border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
-    padding: 4px 9px;
-    font-family: 'Roboto', sans-serif;
-    font-size: 12px; cursor: pointer;
-    min-width: 120px;
-  }
-  .bsfav-toolbar select:focus { outline: none; border-color: rgba(255,255,255,.3); }
-  .bsfav-toolbar select:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .bsfav-apply-btn {
-    padding: 4px 14px;
-    background: #2a2d35;
-    color: #c8cdd8; border: 1px solid rgba(255,255,255,.15);
-    border-radius: 3px;
-    font-family: 'Roboto', sans-serif;
-    font-size: 12px; font-weight: 600;
-    cursor: pointer; white-space: nowrap; transition: all .2s;
-    letter-spacing: .3px; text-transform: uppercase;
-  }
-  .bsfav-apply-btn:hover {
-    background: #32363f;
-    border-color: rgba(255,255,255,.3);
-    color: #e2e8f0;
-  }
-  .bsfav-apply-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-
-  .bsfav-frame {
-    width: 100%; min-height: 620px; border: none;
-    display: block; background: #1a1d24;
-  }
-`;
+    /* ── iframe ── */
+    .bsfav-frame {
+      width: 100%;
+      min-height: 620px;
+      border: none;
+      display: block;
+      background: #1a1d24;
+    }
+  `;
 
   /* ── Cria selects de casa e ferramenta ───────────────────────── */
   function buildCasaSelect(selectedGroup) {
     const sel = document.createElement('select');
     sel.className = 'bsfav-casa-select';
-    
+
     const ph = document.createElement('option');
-    ph.value = ''; 
+    ph.value = '';
     ph.textContent = 'Escolha a casa…';
     ph.disabled = true;
     if (!selectedGroup) ph.selected = true;
@@ -322,16 +361,16 @@ const CSS = `
       if (cat.group === selectedGroup) o.selected = true;
       sel.appendChild(o);
     });
-    
+
     return sel;
   }
 
   function buildToolSelect(casaGroup, selectedUrl) {
     const sel = document.createElement('select');
     sel.className = 'bsfav-tool-select';
-    
+
     const ph = document.createElement('option');
-    ph.value = ''; 
+    ph.value = '';
     ph.textContent = casaGroup ? 'Escolha a ferramenta…' : 'Primeiro escolha a casa…';
     ph.disabled = true;
     if (!selectedUrl) ph.selected = true;
@@ -342,14 +381,14 @@ const CSS = `
       if (casa) {
         casa.tools.forEach(t => {
           const o = document.createElement('option');
-          o.value = t.url; 
+          o.value = t.url;
           o.textContent = t.label;
           if (t.url === selectedUrl) o.selected = true;
           sel.appendChild(o);
         });
       }
     }
-    
+
     sel.disabled = !casaGroup;
     return sel;
   }
@@ -357,15 +396,13 @@ const CSS = `
   /* ── Cria um acordeão favorito ───────────────────────────────── */
   function createToolAccordion(idx, slotData) {
     const { url, open } = slotData;
-    
-    // Extrai casa e ferramenta do URL se existir
-    let selectedCasa = '';
+
+    let selectedCasa    = '';
     let selectedToolUrl = url || '';
-    
+
     if (url) {
       for (const cat of CATALOGO) {
-        const tool = cat.tools.find(t => t.url === url);
-        if (tool) {
+        if (cat.tools.find(t => t.url === url)) {
           selectedCasa = cat.group;
           break;
         }
@@ -407,32 +444,34 @@ const CSS = `
     const toolbar = document.createElement('div');
     toolbar.className = 'bsfav-toolbar';
 
-    // Select de casa
-    const casaSel = buildCasaSelect(selectedCasa);
-    // Select de ferramenta
-    const toolSel = buildToolSelect(selectedCasa, selectedToolUrl);
-    // Botão carregar
+    const casaSel  = buildCasaSelect(selectedCasa);
+    const toolSel  = buildToolSelect(selectedCasa, selectedToolUrl);
     const applyBtn = document.createElement('button');
-    applyBtn.className = 'bsfav-apply-btn';
+    applyBtn.className   = 'bsfav-apply-btn';
     applyBtn.textContent = 'Carregar';
-    applyBtn.disabled = !selectedToolUrl;
+    applyBtn.disabled    = !selectedToolUrl;
 
-    // Evento: quando muda a casa, atualiza ferramentas
     casaSel.addEventListener('change', () => {
-      const novaCasa = casaSel.value;
-      // Reconstrói select de ferramentas
-      const novoToolSel = buildToolSelect(novaCasa, '');
+      const novoToolSel = buildToolSelect(casaSel.value, '');
       toolSel.innerHTML = novoToolSel.innerHTML;
-      toolSel.disabled = !novaCasa;
+      toolSel.disabled  = !casaSel.value;
       applyBtn.disabled = true;
     });
 
-    // Evento: quando escolhe ferramenta, habilita botão
     toolSel.addEventListener('change', () => {
       applyBtn.disabled = !toolSel.value;
     });
 
-    // Evento: carregar ferramenta
+    const hideHeader = (fr) => {
+      try {
+        const doc = fr.contentDocument || fr.contentWindow.document;
+        const h   = doc.querySelector('#header');
+        if (h) { h.style.cssText = 'display:none!important;height:0;overflow:hidden'; }
+      } catch {
+        fr.contentWindow.postMessage({ action: 'hideHeader' }, '*');
+      }
+    };
+
     applyBtn.addEventListener('click', () => {
       const chosen = toolSel.value;
       if (!chosen) return;
@@ -440,50 +479,17 @@ const CSS = `
       st.slots[idx].url = chosen;
       saveState(st);
       titleSpan.textContent = labelByUrl(chosen);
-      frame.src = chosen;
-      
-      // Injeta script para remover header após carregar
-      frame.onload = function() {
-        try {
-          const iframeDoc = frame.contentDocument || frame.contentWindow.document;
-          const header = iframeDoc.querySelector('#header');
-          if (header) {
-            header.style.display = 'none';
-            header.style.visibility = 'hidden';
-            header.style.height = '0';
-            header.style.overflow = 'hidden';
-          }
-        } catch(e) {
-          // Cross-origin pode bloquear, tenta via postMessage como fallback
-          frame.contentWindow.postMessage({ action: 'hideHeader' }, '*');
-        }
-      };
+      frame.src    = chosen;
+      frame.onload = () => hideHeader(frame);
     });
 
     toolbar.append(casaSel, toolSel, applyBtn);
 
     const frame = document.createElement('iframe');
     frame.className = 'bsfav-frame';
-    frame.src = (open && url) ? url : 'about:blank';
+    frame.src       = (open && url) ? url : 'about:blank';
     frame.setAttribute('allowfullscreen', '');
-    
-    // Script para esconder header quando carrega
-    if (open && url) {
-      frame.onload = function() {
-        try {
-          const iframeDoc = frame.contentDocument || frame.contentWindow.document;
-          const header = iframeDoc.querySelector('#header');
-          if (header) {
-            header.style.display = 'none';
-            header.style.visibility = 'hidden';
-            header.style.height = '0';
-            header.style.overflow = 'hidden';
-          }
-        } catch(e) {
-          frame.contentWindow.postMessage({ action: 'hideHeader' }, '*');
-        }
-      };
-    }
+    if (open && url) frame.onload = () => hideHeader(frame);
 
     content.append(toolbar, frame);
 
@@ -498,22 +504,8 @@ const CSS = `
         const cur = st.slots[idx]?.url;
         const blank = frame.src === 'about:blank' || frame.src === window.location.href;
         if (cur && blank) {
-          frame.src = cur;
-          // Reaplica script de hide header
-          frame.onload = function() {
-            try {
-              const iframeDoc = frame.contentDocument || frame.contentWindow.document;
-              const header = iframeDoc.querySelector('#header');
-              if (header) {
-                header.style.display = 'none';
-                header.style.visibility = 'hidden';
-                header.style.height = '0';
-                header.style.overflow = 'hidden';
-              }
-            } catch(e) {
-              frame.contentWindow.postMessage({ action: 'hideHeader' }, '*');
-            }
-          };
+          frame.src    = cur;
+          frame.onload = () => hideHeader(frame);
         }
       }
 
@@ -542,11 +534,10 @@ const CSS = `
       container.appendChild(createToolAccordion(i, slot));
     });
 
-    // Atualiza botão adicionar
     const addBtn = document.querySelector('.bsfav-add-btn');
     if (addBtn) {
       const atMax = state.slots.length >= MAX_SLOTS;
-      addBtn.disabled = atMax;
+      addBtn.disabled    = atMax;
       addBtn.textContent = atMax
         ? `✦ Máximo de ${MAX_SLOTS} ferramentas atingido`
         : '＋ Adicionar Ferramenta';
@@ -555,12 +546,10 @@ const CSS = `
 
   /* ── Init ────────────────────────────────────────────────────── */
   function init() {
-    // CSS
     const style = document.createElement('style');
     style.textContent = CSS;
     document.head.appendChild(style);
 
-    // Ponto de ancoragem: primeiro accordion-item fixo
     const firstFixed = document.querySelector('.accordion-item');
     if (!firstFixed) {
       console.warn('[BsFav] Nenhum .accordion-item encontrado.');
@@ -569,12 +558,11 @@ const CSS = `
 
     const parent = firstFixed.parentNode;
 
-    /* 1. Botão adicionar */
     const addWrapper = document.createElement('div');
     addWrapper.id = 'bsFavAddWrapper';
 
     const addBtn = document.createElement('button');
-    addBtn.className = 'bsfav-add-btn';
+    addBtn.className   = 'bsfav-add-btn';
     addBtn.textContent = '＋ Adicionar Ferramenta';
     addBtn.addEventListener('click', () => {
       const st = loadState();
@@ -586,13 +574,11 @@ const CSS = `
 
     addWrapper.appendChild(addBtn);
 
-    /* 2. Container dos slots favoritos */
     const slotsContainer = document.createElement('div');
     slotsContainer.id = 'bsFavSlotsContainer';
 
-    /* Insere na ordem: addWrapper → slotsContainer → firstFixed */
-    parent.insertBefore(addWrapper,      firstFixed);
-    parent.insertBefore(slotsContainer,  firstFixed);
+    parent.insertBefore(addWrapper,     firstFixed);
+    parent.insertBefore(slotsContainer, firstFixed);
 
     rebuildSlots();
   }
