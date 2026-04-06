@@ -170,34 +170,33 @@
 
     /* ── Botão Adicionar — idêntico ao .accordion-button da página ── */
     .bsfav-add-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      width: 100%;
-      padding: 10px 16px;
-      background: linear-gradient(90deg, #292d36 0%, #2a2c34 100%);
-      border: none;
-      border-bottom: 1px solid transparent;
-      color: #7a8494;
-      font-family: 'Roboto', Arial, sans-serif;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      cursor: pointer;
-      border-radius: 0;
-      transition: color .2s, background .2s, border-color .2s;
-      box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 16px;
+    background: transparent;                          /* sem fundo */
+    border: 1px dashed rgba(109,120,133,.5);          /* borda traçada */
+    color: #6d7885;
+    font-family: 'Roboto', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: color .2s, background .2s, border-color .2s;
+    box-sizing: border-box;
     }
     .bsfav-add-btn:hover {
-      color: #b0bec5;
-      background: linear-gradient(90deg, #2e3240 0%, #2f3140 100%);
-      border-bottom-color: rgba(255,255,255,.06);
+    background: rgba(109,120,133,.12);
+    border-color: #6d7885;
+    color: #aab4bf;
     }
     .bsfav-add-btn:disabled {
-      opacity: .4;
-      cursor: not-allowed;
+    opacity: .4;
+    cursor: not-allowed;
     }
 
     /* ── Item wrapper ── */
