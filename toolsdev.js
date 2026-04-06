@@ -175,7 +175,7 @@
     justify-content: center;
     gap: 10px;
     width: 100%;
-    padding: 10px 16px;
+    padding: 7px 16px;
     background: transparent;                          /* sem fundo */
     border: 1px dashed rgba(109,120,133,.5);          /* borda traçada */
     color: #6d7885;
@@ -208,7 +208,7 @@
       align-items: center;
       gap: 10px;
       width: 100%;
-      padding: 10px 16px;
+      padding: 6px 16px;
       background: linear-gradient(90deg, #292d36 0%, #2a2c34 100%);
       border: none;
       border-bottom: 1px solid transparent;
