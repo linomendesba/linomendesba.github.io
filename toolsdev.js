@@ -169,44 +169,53 @@
 const CSS = `
   #bsFavWrapper { margin-bottom: 10px; }
 
-  #bsFavAddWrapper { margin-bottom: 10px; }
-  .bsfav-add-btn {
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    width: 100%; padding: 5px 14px;
-    background: transparent;
-    border: 1px dashed rgb(101 105 114)
-    color: #7a8188; font-size: 12px; font-weight: 600;
-    border-radius: 3px; cursor: pointer; letter-spacing: .5px;
-    transition: background .2s, border-color .2s;
-    box-sizing: border-box;
-    text-transform: uppercase;
-  }
-  .bsfav-add-btn:hover {
-    border-color: #24645a;
-  }
+#bsFavAddWrapper { 
+  margin-bottom: 10px; 
+}
+
+.bsfav-add-btn {
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  gap: 6px;
+  width: 100%; 
+  padding: 7px 14px;
+  background: transparent;
+
+  border: 1px dashed rgba(109,120,133,.5); /* antes amarelo */
+  color: #6d7885;
+
+  font-size: 12px; 
+  font-weight: 600;
+  border-radius: 3px; 
+  cursor: pointer; 
+  letter-spacing: .5px;
+  transition: background .2s, border-color .2s;
+  box-sizing: border-box;
+  text-transform: uppercase;
+}
+
+.bsfav-add-btn:hover {
+  background: rgba(109,120,133,.12);
+  border-color: #6d7885;
+  color: #aab4bf;
+}
   .bsfav-add-btn:disabled { opacity: .35; cursor: not-allowed; }
 
   .bsfav-item { margin-bottom: 10px; }
 
-.bsfav-item-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 16px;
-  background: #2a2d35;
-  border: 1px solid rgba(255,255,255,.06);
-  border-left: 3px solid rgba(74,222,128,.4);
-  color: #c8cdd8;
-  font-size: 12px;
-  border-radius: 3px;
-  cursor: pointer;
-  text-align: left;
-  transition: background .2s, border-color .2s;
-  letter-spacing: .5px;
-  box-sizing: border-box;
-  text-transform: uppercase;
-}
+  .bsfav-item-btn {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; padding: 7px 16px;
+    background: #2a2d35;
+    border: 1px solid rgba(255,255,255,.06);
+    border-left: 3px solid rgba(74,222,128,.4);
+    color: #c8cdd8; font-size: 12px; font-weight: 600;
+    border-radius: 3px; cursor: pointer; text-align: left;
+    transition: background .2s, border-color .2s; letter-spacing: .5px;
+    box-sizing: border-box;
+    text-transform: uppercase;
+  }
   .bsfav-item-btn:hover {
     background: #32363f;
     color: #e2e8f0;
