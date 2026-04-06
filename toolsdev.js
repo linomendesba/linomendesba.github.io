@@ -165,9 +165,10 @@
     return '⭐ Nova Ferramenta';
   }
 
-  /* ── CSS ─────────────────────────────────────────────────────── */
 const CSS = `
-  #bsFavWrapper { margin-bottom: 10px; }
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap');
+
+  #bsFavWrapper { margin-bottom: 10px; font-family: 'Roboto', sans-serif; }
 
 #bsFavAddWrapper { 
   margin-bottom: 10px; 
@@ -182,9 +183,10 @@ const CSS = `
   padding: 7px 14px;
   background: transparent;
 
-  border: 1px dashed rgba(109,120,133,.5); /* antes amarelo */
+  border: 1px dashed rgba(109,120,133,.5);
   color: #6d7885;
 
+  font-family: 'Roboto', sans-serif;
   font-size: 12px; 
   font-weight: 600;
   border-radius: 3px; 
@@ -210,7 +212,9 @@ const CSS = `
     background: #2a2d35;
     border: 1px solid rgba(255,255,255,.06);
     border-left: 3px solid rgba(74,222,128,.4);
-    color: #c8cdd8; font-size: 12px; font-weight: 600;
+    color: #c8cdd8;
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px; font-weight: 600;
     border-radius: 3px; cursor: pointer; text-align: left;
     transition: background .2s, border-color .2s; letter-spacing: .5px;
     box-sizing: border-box;
@@ -240,7 +244,9 @@ const CSS = `
     background: rgba(239,68,68,.08); color: #f87171;
     border: 1px solid rgba(239,68,68,.3);
     border-radius: 3px; font-size: 11px; cursor: pointer; flex-shrink: 0;
-    transition: all .2s; font-weight: 600; letter-spacing: 0;
+    transition: all .2s;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 600; letter-spacing: 0;
   }
   .bsfav-remove-btn:hover {
     background: rgba(239,68,68,.2); border-color: rgba(239,68,68,.6);
@@ -266,7 +272,9 @@ const CSS = `
     flex: 1;
     background: #2a2d35; color: #c8cdd8;
     border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
-    padding: 4px 9px; font-size: 12px; cursor: pointer;
+    padding: 4px 9px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px; cursor: pointer;
     min-width: 120px;
   }
   .bsfav-toolbar select:focus { outline: none; border-color: rgba(255,255,255,.3); }
@@ -276,7 +284,9 @@ const CSS = `
     padding: 4px 14px;
     background: #2a2d35;
     color: #c8cdd8; border: 1px solid rgba(255,255,255,.15);
-    border-radius: 3px; font-size: 12px; font-weight: 600;
+    border-radius: 3px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 12px; font-weight: 600;
     cursor: pointer; white-space: nowrap; transition: all .2s;
     letter-spacing: .3px; text-transform: uppercase;
   }
