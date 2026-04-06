@@ -1702,7 +1702,13 @@ function garantirCheckboxQuadrantes() {
     #linhaMinutosFooter th.minute-footer:hover { filter: brightness(1.6) !important; }
 
     /* ── Seletor de hora inline na célula de hora ── */
-    .hora-cel { position: relative; cursor: pointer; user-select: none; }
+    .hora-cel {
+      position: relative; cursor: pointer; user-select: none;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 2px; padding: 2px 3px !important;
+    }
+    .hora-cel .hora-num { font-size: 0.9em; font-weight: 700; line-height: 1; }
+    .hora-cel .row-selector { width: 12px; height: 12px; cursor: pointer; margin: 0; accent-color: #4ade80; }
     .hora-cel .hora-dropdown {
       display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
       z-index: 999; background: #1e2433; border: 1px solid rgba(255,255,255,0.2);
@@ -2282,7 +2288,9 @@ function updateSelectedRows(){
   ord.forEach(chave=>{
     const row=document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`); if(!row) return;
     const clone=row.cloneNode(true);
-    if(clone.firstChild?.className==="row-selector") clone.removeChild(clone.firstChild);
+    // O checkbox agora está dentro da célula de hora — só o esconde no clone
+    const cbClone = clone.querySelector(".row-selector");
+    if (cbClone) cbClone.style.display = "none";
     tbody.appendChild(clone);
   });
 }
@@ -2366,22 +2374,18 @@ function criarTabela(dados, oddsData, proximosJogos) {
   }
 
   const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
-  trPercentual.appendChild(document.createElement("th"));
   trPercentual.appendChild(createIconTh("chart","% Acerto por coluna"));
 
   const trTotalGols = document.createElement("tr"); trTotalGols.id="linhaTotalGols";
-  trTotalGols.appendChild(document.createElement("th"));
   trTotalGols.appendChild(createIconTh("ball","Gols por coluna"));
 
   const trAcertosMercado = document.createElement("tr"); trAcertosMercado.id="linhaAcertosMercado";
-  trAcertosMercado.appendChild(document.createElement("th"));
   trAcertosMercado.appendChild(createIconTh("check","Acertos por coluna"));
 
   thead.append(trPercentual, trTotalGols, trAcertosMercado);
 
   const trMinutos = document.createElement("tr");
-  const thSel = Object.assign(document.createElement("th"),{className:"selector-header"}); thSel.style.width="30px";
-  trMinutos.appendChild(thSel);
+  // Sem coluna separada de selector — checkbox fica dentro da célula de hora
   trMinutos.appendChild(createIconTh("clock","Hora"));
 
   minutosFixos.forEach((m, i) => {
@@ -2441,18 +2445,24 @@ function criarTabela(dados, oddsData, proximosJogos) {
   horasUnicas.forEach(item=>{
     const chave=`${item.data}-${item.hora}`;
     const tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
-    const tdSel=document.createElement("td");
+    // ── Célula de hora: número em cima + checkbox em baixo (sem coluna separada) ──
+    const tdHora = document.createElement("td");
+    tdHora.className = "hora-cel";
+    // Número da hora
+    const horaSpan = document.createElement("span");
+    horaSpan.className = "hora-num";
+    horaSpan.textContent = item.hora.toString().padStart(2,"0");
+    tdHora.appendChild(horaSpan);
+    // Checkbox de seleção de linha
     const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
     cb.addEventListener("change",function(){
       if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
       else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
       Estado.salvar();updateSelectedRows();
     });
-    tdSel.appendChild(cb); tr.appendChild(tdSel);
-    // ── Célula de hora com dropdown inline para selecionar quantas horas mostrar ──
-    const tdHora = document.createElement("td");
-    tdHora.className = "hora-cel";
-    tdHora.textContent = item.hora.toString().padStart(2,"0");
+    cb.addEventListener("click", e => e.stopPropagation()); // não abre dropdown
+    tdHora.appendChild(cb);
+    tr.appendChild(tdHora);
     const horaDropdown = document.createElement("div");
     horaDropdown.className = "hora-dropdown";
     [1,2,3,4,5,6,8,10,12,16,20,24].forEach(n => {
@@ -2731,7 +2741,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
   tfoot.innerHTML = "";
   const trMinutosFooter = document.createElement("tr");
   trMinutosFooter.id = "linhaMinutosFooter";
-  trMinutosFooter.appendChild(document.createElement("th")); // selector col
   const thHoraFoot = document.createElement("th");
   thHoraFoot.innerHTML = SVG_ICONS.clock || "H";
   trMinutosFooter.appendChild(thHoraFoot);
