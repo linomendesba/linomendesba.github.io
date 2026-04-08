@@ -1115,6 +1115,10 @@ async function rodarAnalise() {
     }
   }
 
+  // Remove sinais expirados e re-renderiza sinais sem piscar
+  limparSinaisExpirados();
+  renderSinais();
+
   const agora = new Date();
   const ts = `${pad(agora.getHours())}:${pad(agora.getMinutes())}:${pad(agora.getSeconds())}`;
   const bar = document.getElementById('last-update-bar');
@@ -1130,32 +1134,42 @@ function pad(n) { return String(n).padStart(2,'0'); }
 function renderPanelLoading(ligas) {
   const panel = document.getElementById('panel-analises');
 
-  if (!panel.querySelector('.analysis-grid')) {
-    panel.innerHTML = `
-      <div style="margin-bottom:0.85rem;">
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:0.6rem;">
-          <div class="col-header">⚙ Padrão</div>
-          <div class="col-header">💰 Ranking Odd</div>
-          <div class="col-header">📈 Mercado</div>
-          <div class="col-header">ℹ Info Gerais</div>
-        </div>
+  // Remove empty-state se existir
+  const empty = panel.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  // Cria o cabeçalho de colunas uma única vez
+  if (!panel.querySelector('.col-headers-row')) {
+    const hdr = document.createElement('div');
+    hdr.className = 'col-headers-row';
+    hdr.style.marginBottom = '0.85rem';
+    hdr.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:0.6rem;">
+        <div class="col-header">⚙ Padrão</div>
+        <div class="col-header">💰 Ranking Odd</div>
+        <div class="col-header">📈 Mercado</div>
+        <div class="col-header">ℹ Info Gerais</div>
+      </div>`;
+    panel.insertBefore(hdr, panel.firstChild);
+  }
+
+  // Adiciona apenas ligas que ainda não têm linha no DOM
+  ligas.forEach(liga => {
+    const sid = sanitId(liga);
+    if (document.getElementById(`row-liga-${sid}`)) return; // já existe, não pisca
+    const row = document.createElement('div');
+    row.id = `row-liga-${sid}`;
+    row.style.marginBottom = '1.25rem';
+    row.innerHTML = `
+      <div style="font-size:0.68rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:0.45rem;padding:0.35rem 0.7rem;background:var(--card2);border-radius:5px;border:1px solid var(--border2);">
+        ⚽ ${liga.toUpperCase()}
+      </div>
+      <div class="analysis-grid" id="grid-${sid}">
+        ${[0,1,2,3].map(() => `<div class="league-block"><div class="loading-block"><div class="spin"></div><span>Carregando...</span></div></div>`).join('')}
       </div>
     `;
-    ligas.forEach(liga => {
-      const row = document.createElement('div');
-      row.id = `row-liga-${sanitId(liga)}`;
-      row.style.marginBottom = '1.25rem';
-      row.innerHTML = `
-        <div style="font-size:0.68rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:0.45rem;padding:0.35rem 0.7rem;background:var(--card2);border-radius:5px;border:1px solid var(--border2);">
-          ⚽ ${liga.toUpperCase()}
-        </div>
-        <div class="analysis-grid" id="grid-${sanitId(liga)}">
-          ${[0,1,2,3].map(() => `<div class="league-block"><div class="loading-block"><div class="spin"></div><span>Carregando...</span></div></div>`).join('')}
-        </div>
-      `;
-      panel.appendChild(row);
-    });
-  }
+    panel.appendChild(row);
+  });
 }
 
 function sanitId(str) { return str.replace(/[^a-zA-Z0-9]/g, '_'); }
@@ -1320,21 +1334,92 @@ function mercadoLabel(v) {
 /* =====================================================
    SINAIS
 ===================================================== */
+
+/* Converte "HH:MM" para minutos desde meia-noite para comparação */
+function horarioParaMinutos(h) {
+  if (!h || !h.includes(':')) return -1;
+  const [hh, mm] = h.split(':').map(Number);
+  return hh * 60 + mm;
+}
+
+/* Remove sinais ativos cujos horários já passaram (todos os jogos do sinal no passado) */
+function limparSinaisExpirados() {
+  const agora = new Date();
+  const agoraMin = agora.getHours() * 60 + agora.getMinutes();
+  const antes = sinaisAtivos.length;
+  sinaisAtivos = sinaisAtivos.filter(s => {
+    // Mantém se ao menos um jogo ainda não passou (tolerância de 5min após o horário)
+    return s.jogos.some(j => {
+      const m = horarioParaMinutos(j.horario);
+      return m === -1 || m > agoraMin - 5;
+    });
+  });
+  if (sinaisAtivos.length !== antes) {
+    salvarSinais();
+    return true; // houve mudança
+  }
+  return false;
+}
+
+/* Verifica se dois conjuntos de horários têm sobreposição */
+function horariosTemConflito(horariosA, horariosB) {
+  const setA = new Set(horariosA);
+  return horariosB.some(h => setA.has(h));
+}
+
 function checarSinal(dados, liga, casa, mercadoV, martCob) {
   const padroes  = dados.padroesEncontrados || [];
-  const proximos = (dados.proximos || []).slice(0,6);
+  // Filtra apenas próximos jogos que ainda não passaram
+  const agora = new Date();
+  const agoraMin = agora.getHours() * 60 + agora.getMinutes();
+  const proximos = (dados.proximos || [])
+    .filter(j => {
+      const m = horarioParaMinutos(j.horario);
+      return m === -1 || m > agoraMin - 2; // tolerância 2 min
+    })
+    .slice(0, 8);
+
   const maiorAcerto = padroes[0] ? parseFloat(padroes[0].percentual) : 0;
-  const pct      = parseInt(dados.marketAnalysis ? dados.marketAnalysis.currentPercentage : 0);
+  const pct = parseInt(dados.marketAnalysis ? dados.marketAnalysis.currentPercentage : 0);
 
   if (maiorAcerto < 70 || !proximos.length) return;
 
-  const tiros   = martCob + 1;
+  const tiros      = martCob + 1;
   const candidatos = proximos.slice(0, tiros);
-  const horarios = candidatos.map(j => j.horario);
+  const horarios   = candidatos.map(j => j.horario);
 
+  // Chave exata para evitar duplicata perfeita
   const chave = `${casa}|${liga}|${mercadoV}|${horarios.join(',')}`;
-  const jaExiste = sinaisAtivos.some(s => s.chave === chave) || sinaisUsados.some(s => s.chave === chave);
-  if (jaExiste) return;
+  const jaExisteExato = sinaisAtivos.some(s => s.chave === chave) || sinaisUsados.some(s => s.chave === chave);
+  if (jaExisteExato) return;
+
+  const temOddTop5 = candidatos.some(j => {
+    const o = buscarOddsJogo(dados.oddsIndex, j.time_a||'', j.time_b||'');
+    const odd = getOddDoMercado(o, mercadoV);
+    return odd && dados.top5Odds && dados.top5Odds.has(odd.toFixed(2));
+  });
+  const novoScore = calcularScoreConfianca(
+    maiorAcerto, pct, temOddTop5,
+    padroes.filter(p => parseFloat(p.percentual) >= 70).length,
+    padroes.length
+  ).score;
+
+  // Verifica conflito de horários com sinais ativos existentes (mesma casa+mercado)
+  const conflitante = sinaisAtivos.find(s =>
+    s.casa === (casasConfig[casa] ? casasConfig[casa].name : casa) &&
+    s.mercado === mercadoLabel(mercadoV) &&
+    horariosTemConflito(horarios, s.jogos.map(j => j.horario))
+  );
+
+  if (conflitante) {
+    // Mantém apenas o de maior score
+    if (novoScore > conflitante.score) {
+      // Remove o conflitante e adiciona o novo
+      sinaisAtivos = sinaisAtivos.filter(s => s.id !== conflitante.id);
+    } else {
+      return; // conflitante é melhor, descarta o novo
+    }
+  }
 
   const casaConfig = casasConfig[casa];
   const sinal = {
@@ -1344,15 +1429,8 @@ function checarSinal(dados, liga, casa, mercadoV, martCob) {
     liga,
     mercado: mercadoLabel(mercadoV),
     acerto:  padroes[0].percentual,
-    score: (() => {
-      const temOddTop5 = candidatos.some(j => {
-        const o = buscarOddsJogo(dados.oddsIndex, j.time_a||'', j.time_b||'');
-        const odd = getOddDoMercado(o, mercadoV);
-        return odd && dados.top5Odds && dados.top5Odds.has(odd.toFixed(2));
-      });
-      return calcularScoreConfianca(maiorAcerto, pct, temOddTop5, padroes.filter(p=>parseFloat(p.percentual)>=70).length, padroes.length).score;
-    })(),
-    jogos: candidatos.map(j => ({
+    score:   novoScore,
+    jogos:   candidatos.map(j => ({
       horario: j.horario,
       time_a:  j.time_a,
       time_b:  j.time_b,
@@ -1362,13 +1440,13 @@ function checarSinal(dados, liga, casa, mercadoV, martCob) {
         return odd ? odd.toFixed(2) : null;
       })()
     })),
-    ts: new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }),
-    resultado: null  // null = aguardando, 'green' ou 'red'
+    ts:        new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }),
+    resultado: null,   // null | 'green' | 'red'
+    greenMinuto: null  // preenchido quando GREEN é marcado
   };
 
   sinaisAtivos.push(sinal);
   salvarSinais();
-  renderSinais();
 }
 
 function marcarUsado(id) {
@@ -1384,6 +1462,8 @@ function desmarcarUsado(id) {
   const idx = sinaisUsados.findIndex(s => s.id === id);
   if (idx === -1) return;
   const sinal = sinaisUsados.splice(idx, 1)[0];
+  sinal.resultado = null;
+  sinal.greenMinuto = null;
   sinaisAtivos.unshift(sinal);
   salvarSinais();
   renderSinais();
@@ -1393,30 +1473,74 @@ function desmarcarUsado(id) {
 function marcarResultado(id, resultado) {
   const sinal = sinaisUsados.find(s => s.id === id);
   if (!sinal) return;
-  // Toggle: se clicar no mesmo, remove
-  sinal.resultado = sinal.resultado === resultado ? null : resultado;
+  if (sinal.resultado === resultado) {
+    sinal.resultado = null;
+    sinal.greenMinuto = null;
+  } else {
+    sinal.resultado = resultado;
+    // Registra o horário do primeiro jogo do sinal como referência do minuto
+    if (resultado === 'green' && sinal.jogos.length > 0) {
+      sinal.greenMinuto = sinal.jogos[0].horario;
+    } else {
+      sinal.greenMinuto = null;
+    }
+  }
   salvarSinais();
   renderSinais();
 }
 
+/* ─── renderSinais: diff para não piscar ─── */
 function renderSinais() {
-  const listaAtivos = document.getElementById('sinais-ativos-list');
-  const listaUsados = document.getElementById('sinais-usados-list');
-
   document.getElementById('sinais-badge').textContent = sinaisAtivos.length;
   document.getElementById('usados-badge').textContent = sinaisUsados.length;
+  _renderLista('sinais-ativos-list', sinaisAtivos, false, `<div class="empty-state"><div class="icon">📡</div><p>Nenhum sinal gerado ainda.<br>Inicie a análise para receber sugestões automáticas.</p></div>`);
+  _renderLista('sinais-usados-list', sinaisUsados, true,  `<div class="empty-state"><div class="icon">✅</div><p>Nenhum sinal marcado como usado.</p></div>`);
+}
 
-  if (!sinaisAtivos.length) {
-    listaAtivos.innerHTML = `<div class="empty-state"><div class="icon">📡</div><p>Nenhum sinal gerado ainda.<br>Inicie a análise para receber sugestões automáticas.</p></div>`;
-  } else {
-    listaAtivos.innerHTML = sinaisAtivos.map(s => renderSinalCard(s, false)).join('');
+function _renderLista(containerId, lista, isUsado, emptyHtml) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (!lista.length) {
+    if (!container.querySelector('.empty-state')) container.innerHTML = emptyHtml;
+    return;
   }
 
-  if (!sinaisUsados.length) {
-    listaUsados.innerHTML = `<div class="empty-state"><div class="icon">✅</div><p>Nenhum sinal marcado como usado.</p></div>`;
-  } else {
-    listaUsados.innerHTML = sinaisUsados.map(s => renderSinalCard(s, true)).join('');
-  }
+  // IDs atuais no DOM
+  const idsNoDOM = new Set([...container.querySelectorAll('[data-sinal-id]')].map(el => Number(el.dataset.sinalId)));
+  const idsNovos = new Set(lista.map(s => s.id));
+
+  // Remove cards que não existem mais
+  container.querySelectorAll('[data-sinal-id]').forEach(el => {
+    if (!idsNovos.has(Number(el.dataset.sinalId))) el.remove();
+  });
+
+  // Remove empty-state se havia
+  const empty = container.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  // Insere ou atualiza cada card
+  lista.forEach((s, idx) => {
+    const html = renderSinalCard(s, isUsado);
+    const existing = container.querySelector(`[data-sinal-id="${s.id}"]`);
+    if (existing) {
+      // Atualiza apenas se conteúdo mudou (evita piscar)
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const newEl = tmp.firstElementChild;
+      if (existing.innerHTML !== newEl.innerHTML) {
+        existing.innerHTML = newEl.innerHTML;
+      }
+    } else {
+      // Insere na posição correta
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const newEl = tmp.firstElementChild;
+      const ref = container.children[idx];
+      if (ref) container.insertBefore(newEl, ref);
+      else container.appendChild(newEl);
+    }
+  });
 }
 
 function renderSinalCard(s, isUsado) {
@@ -1429,12 +1553,15 @@ function renderSinalCard(s, isUsado) {
     ? `<div class="signal-select used" onclick="desmarcarUsado(${s.id})" title="Remover dos usados">✓</div>`
     : `<div class="signal-select" onclick="marcarUsado(${s.id})" title="Marcar como usado"></div>`;
 
-  // Botões GREEN/RED só aparecem nos sinais usados
   let resultadoHtml = '';
   if (isUsado) {
     if (s.resultado) {
-      resultadoHtml = `<div style="margin-top:0.45rem;"><span class="result-pill ${s.resultado}">${s.resultado === 'green' ? '✓ GREEN' : '✗ RED'}</span>
-        <button onclick="marcarResultado(${s.id}, '${s.resultado}')" style="margin-left:0.5rem;background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.7rem;">remover</button>
+      const greenMinutoHtml = (s.resultado === 'green' && s.greenMinuto)
+        ? ` <span style="color:var(--muted);font-size:0.68rem;font-family:'Roboto Mono',monospace;">às ${s.greenMinuto}</span>`
+        : '';
+      resultadoHtml = `<div style="margin-top:0.45rem;display:flex;align-items:center;gap:0.5rem;">
+        <span class="result-pill ${s.resultado}">${s.resultado === 'green' ? '✓ GREEN' : '✗ RED'}${greenMinutoHtml}</span>
+        <button onclick="marcarResultado(${s.id}, '${s.resultado}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.68rem;padding:0;">remover</button>
       </div>`;
     } else {
       resultadoHtml = `<div class="result-btns">
@@ -1445,7 +1572,7 @@ function renderSinalCard(s, isUsado) {
   }
 
   return `
-    <div class="signal-card ${isUsado ? 'is-used' : 'fade-in'}">
+    <div class="signal-card ${isUsado ? 'is-used' : ''}" data-sinal-id="${s.id}">
       ${checkHtml}
       <div class="signal-body">
         <div class="signal-header">
