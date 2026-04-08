@@ -1,0 +1,1678 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+  <title>BetStat — Morfeus</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --green: #00ff88;
+      --green-dim: #00cc6a;
+      --green-dark: #00994f;
+      --green-glow: rgba(0,255,136,0.18);
+      --green-glow2: rgba(0,255,136,0.06);
+      --bg: #080c12;
+      --bg2: #0d1219;
+      --bg3: #111820;
+      --card: #131b25;
+      --card2: #182030;
+      --border: rgba(0,255,136,0.15);
+      --border2: rgba(0,255,136,0.08);
+      --muted: #4a6070;
+      --text: #c8dde8;
+      --white: #e8f4f8;
+      --red: #ff4466;
+      --yellow: #ffcc00;
+      --orange: #ff8800;
+      --blue: #00aaff;
+      --cyan: #00eeff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── GRID BG ─── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper { position: relative; z-index: 1; }
+
+    /* ─── HEADER ─── */
+    .top-bar {
+      background: linear-gradient(90deg, var(--bg2), var(--card));
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .logo {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 900;
+      color: var(--green);
+      letter-spacing: 4px;
+      text-shadow: 0 0 20px var(--green);
+    }
+
+    .logo span { color: var(--white); }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: all 0.3s;
+      box-shadow: 0 0 0 0 transparent;
+    }
+    .status-dot.running {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      animation: pulse-dot 1s infinite;
+    }
+    @keyframes pulse-dot {
+      0%,100% { box-shadow: 0 0 10px var(--green); }
+      50% { box-shadow: 0 0 20px var(--green), 0 0 40px var(--green-dim); }
+    }
+
+    #status-label { color: var(--muted); font-size: 0.8rem; letter-spacing: 1px; }
+    #status-label.running { color: var(--green); }
+
+    #next-scan {
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-family: 'Orbitron', sans-serif;
+    }
+    #next-scan.running { color: var(--cyan); }
+
+    /* ─── MAIN LAYOUT ─── */
+    .main {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 0;
+      min-height: calc(100vh - 54px);
+    }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      background: var(--bg2);
+      border-right: 1px solid var(--border2);
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .s-block {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+
+    .s-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 3px;
+      color: var(--green);
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .s-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ─── CONTROL BUTTONS (START/STOP/RESET) ─── */
+    .ctrl-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .ctrl-btn {
+      padding: 0.75rem 0.5rem;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+
+    .btn-start {
+      background: linear-gradient(135deg, var(--green-dark), var(--green-dim));
+      color: #000;
+      border: 1px solid var(--green);
+      box-shadow: 0 0 12px var(--green-glow);
+    }
+    .btn-start:hover { box-shadow: 0 0 20px var(--green); transform: translateY(-1px); }
+    .btn-start:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-stop {
+      background: rgba(255,68,102,0.12);
+      color: var(--red);
+      border: 1px solid rgba(255,68,102,0.4);
+    }
+    .btn-stop:hover { background: rgba(255,68,102,0.2); transform: translateY(-1px); }
+    .btn-stop:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-reset {
+      background: rgba(255,204,0,0.1);
+      color: var(--yellow);
+      border: 1px solid rgba(255,204,0,0.3);
+    }
+    .btn-reset:hover { background: rgba(255,204,0,0.18); transform: translateY(-1px); }
+
+    /* ─── SELECTOR BUTTONS ─── */
+    .sel-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+
+    .sel-btn {
+      padding: 0.4rem 0.75rem;
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      background: var(--bg3);
+      color: var(--muted);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.5px;
+    }
+    .sel-btn:hover { border-color: var(--green); color: var(--text); }
+    .sel-btn.active {
+      background: var(--green-glow2);
+      border-color: var(--green);
+      color: var(--green);
+      box-shadow: 0 0 8px var(--green-glow);
+    }
+
+    .all-btn {
+      padding: 0.4rem 0.75rem;
+      border: 1px solid rgba(0,238,255,0.3);
+      border-radius: 6px;
+      background: rgba(0,238,255,0.05);
+      color: var(--cyan);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 1px;
+    }
+    .all-btn:hover { background: rgba(0,238,255,0.12); }
+    .all-btn.active {
+      background: rgba(0,238,255,0.15);
+      box-shadow: 0 0 8px rgba(0,238,255,0.3);
+    }
+
+    /* ─── LEAGUES MULTI SELECT ─── */
+    .liga-check {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .liga-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid var(--border2);
+      background: var(--bg3);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      user-select: none;
+    }
+    .liga-item:hover { border-color: var(--green); color: var(--text); }
+    .liga-item.checked {
+      border-color: var(--green);
+      background: var(--green-glow2);
+      color: var(--white);
+    }
+    .liga-item .chk {
+      width: 14px; height: 14px;
+      border: 1.5px solid var(--muted);
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+      font-size: 0.7rem;
+    }
+    .liga-item.checked .chk {
+      background: var(--green);
+      border-color: var(--green);
+      color: #000;
+    }
+
+    /* ─── CONTENT AREA ─── */
+    .content {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ─── TABS ─── */
+    .tab-bar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border2);
+      display: flex;
+      align-items: center;
+      gap: 0;
+      padding: 0 1.5rem;
+      overflow-x: auto;
+    }
+
+    .tab {
+      padding: 0.85rem 1.5rem;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.62rem;
+      letter-spacing: 2px;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      white-space: nowrap;
+      position: relative;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--green);
+      border-bottom-color: var(--green);
+    }
+    .tab .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      border-radius: 9px;
+      background: var(--green-dark);
+      color: #000;
+      font-size: 0.6rem;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+
+    /* ─── ANÁLISES PANEL ─── */
+    .panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+    }
+
+    /* ─── ANALYSIS GRID (4 columns) ─── */
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    @media (max-width: 1400px) {
+      .analysis-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .col-header {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.6rem;
+      letter-spacing: 3px;
+      color: var(--cyan);
+      text-transform: uppercase;
+      padding: 0.5rem 0;
+      margin-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .col-icon { font-size: 1rem; }
+
+    /* ─── LEAGUE BLOCK ─── */
+    .league-block {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      margin-bottom: 1.25rem;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .league-block:hover { border-color: var(--border); }
+
+    .league-header {
+      background: var(--card2);
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border2);
+    }
+    .league-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--white);
+    }
+    .league-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .league-body { padding: 1rem; }
+
+    /* ─── DATA CELLS ─── */
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid var(--border2);
+      font-size: 0.85rem;
+    }
+    .data-row:last-child { border-bottom: none; }
+    .data-label { color: var(--muted); font-size: 0.78rem; }
+    .data-val { font-weight: 700; color: var(--white); }
+    .data-val.green { color: var(--green); }
+    .data-val.red { color: var(--red); }
+    .data-val.yellow { color: var(--yellow); }
+    .data-val.orange { color: var(--orange); }
+
+    /* Score badge */
+    .score-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 900;
+      border: 2px solid;
+      flex-shrink: 0;
+    }
+    .score-high { border-color: var(--green); color: var(--green); background: rgba(0,255,136,0.1); }
+    .score-med  { border-color: var(--yellow); color: var(--yellow); background: rgba(255,204,0,0.08); }
+    .score-low  { border-color: var(--red); color: var(--red); background: rgba(255,68,102,0.08); }
+
+    /* Pattern tags */
+    .pattern-tag {
+      display: inline-block;
+      background: rgba(0,255,136,0.08);
+      border: 1px solid rgba(0,255,136,0.2);
+      border-radius: 4px;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.72rem;
+      color: var(--green);
+      margin: 2px;
+      font-weight: 600;
+    }
+    .pattern-tag.med { background: rgba(255,204,0,0.07); border-color: rgba(255,204,0,0.2); color: var(--yellow); }
+    .pattern-tag.low { background: rgba(255,136,0,0.07); border-color: rgba(255,136,0,0.2); color: var(--orange); }
+
+    /* Rank item */
+    .rank-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0;
+      font-size: 0.8rem;
+      border-bottom: 1px solid var(--border2);
+    }
+    .rank-item:last-child { border-bottom: none; }
+    .rank-num { color: var(--muted); width: 18px; font-size: 0.72rem; }
+    .rank-name { flex: 1; color: var(--text); font-weight: 600; }
+    .rank-pct { font-family: 'Orbitron', sans-serif; font-size: 0.72rem; }
+    .rank-bar-wrap { width: 60px; background: var(--bg3); height: 4px; border-radius: 2px; }
+    .rank-bar { height: 100%; border-radius: 2px; background: var(--green); }
+
+    /* Next games */
+    .game-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.3rem 0;
+      font-size: 0.8rem;
+      border-bottom: 1px solid var(--border2);
+    }
+    .game-row:last-child { border-bottom: none; }
+    .game-time { font-family: 'Orbitron', sans-serif; font-size: 0.68rem; color: var(--cyan); }
+    .game-teams { color: var(--text); font-size: 0.78rem; }
+    .game-odd { color: var(--yellow); font-weight: 700; font-size: 0.78rem; }
+    .game-star { color: var(--green); font-size: 0.8rem; }
+
+    /* Market bar */
+    .market-bar-wrap {
+      margin-top: 0.5rem;
+      background: var(--bg3);
+      border-radius: 4px;
+      height: 6px;
+      overflow: hidden;
+    }
+    .market-bar {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s ease;
+    }
+
+    /* Streak pill */
+    .streak-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .streak-green { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+    .streak-red   { background: rgba(255,68,102,0.12); color: var(--red);   border: 1px solid rgba(255,68,102,0.3); }
+
+    /* Loading state */
+    .loading-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .spin {
+      width: 28px; height: 28px;
+      border: 2px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.4; }
+    .empty-state p { font-size: 0.9rem; line-height: 1.8; }
+    .empty-state strong { color: var(--green); }
+
+    /* Error state */
+    .error-block {
+      background: rgba(255,68,102,0.08);
+      border: 1px solid rgba(255,68,102,0.3);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.82rem;
+      color: var(--red);
+      margin-bottom: 0.75rem;
+    }
+
+    /* ─── SIGNALS SECTION ─── */
+    .signals-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .signal-card {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      transition: border-color 0.2s;
+    }
+    .signal-card:hover { border-color: var(--border); }
+
+    .signal-select {
+      width: 20px; height: 20px;
+      border: 2px solid var(--muted);
+      border-radius: 5px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+      transition: all 0.2s;
+      font-size: 0.75rem;
+    }
+    .signal-select.used {
+      background: var(--green-dark);
+      border-color: var(--green);
+      color: #000;
+    }
+
+    .signal-body { flex: 1; }
+    .signal-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+    }
+    .signal-house {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.6rem;
+      color: var(--cyan);
+      letter-spacing: 1px;
+    }
+    .signal-sep { color: var(--border); }
+    .signal-league {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--white);
+    }
+    .signal-market {
+      font-size: 0.78rem;
+      color: var(--green);
+      font-weight: 600;
+    }
+    .signal-games {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+      line-height: 1.6;
+    }
+    .signal-time {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.65rem;
+      color: var(--yellow);
+      font-weight: 700;
+    }
+
+    .signal-card.is-used {
+      opacity: 0.55;
+      border-color: rgba(0,255,136,0.2);
+      background: rgba(0,255,136,0.03);
+    }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--green-dark); }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeSlide 0.35s ease-out both; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; }
+      .sidebar { border-right: none; border-bottom: 1px solid var(--border2); }
+      .analysis-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ─── TIMESTAMP ─── */
+    .last-update {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.58rem;
+      color: var(--muted);
+      letter-spacing: 1px;
+      padding: 0.5rem 1.5rem;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border2);
+    }
+    .last-update.has-data { color: var(--green-dim); }
+
+    /* casa icon */
+    .casa-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="logo">BET<span>STAT</span> <span style="font-size:0.7rem;color:var(--muted);font-weight:400;">MORFEUS</span></div>
+    <div class="status-bar">
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-label">PARADO</span>
+      </div>
+      <span id="next-scan">—</span>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- CONTROLES -->
+      <div class="s-block">
+        <div class="s-title">Controle</div>
+        <div class="ctrl-btns">
+          <button class="ctrl-btn btn-start" id="btn-start" onclick="startBot()">▶ START</button>
+          <button class="ctrl-btn btn-stop"  id="btn-stop"  onclick="stopBot()"  disabled>■ STOP</button>
+          <button class="ctrl-btn btn-reset" onclick="resetBot()">↺ RESET</button>
+        </div>
+      </div>
+
+      <!-- CASA -->
+      <div class="s-block">
+        <div class="s-title">Casa</div>
+        <div class="sel-grid" id="casas-group">
+          <button class="sel-btn" data-value="betano">Betano</button>
+          <button class="sel-btn" data-value="kiron">Kiron</button>
+          <button class="sel-btn" data-value="estrela">EstrelaBet</button>
+          <button class="sel-btn" data-value="bet365">Bet365</button>
+        </div>
+      </div>
+
+      <!-- LIGAS -->
+      <div class="s-block" id="liga-section" style="display:none;">
+        <div class="s-title">Ligas</div>
+        <button class="all-btn" id="all-ligas-btn" onclick="toggleAllLigas()" style="width:100%;margin-bottom:0.6rem;">SELECIONAR TODAS</button>
+        <div class="liga-check" id="ligas-group"></div>
+      </div>
+
+      <!-- MERCADO -->
+      <div class="s-block">
+        <div class="s-title">Mercado</div>
+        <div class="sel-grid" id="mercados-group">
+          <button class="sel-btn" data-value="casaVence">Casa Vence</button>
+          <button class="sel-btn" data-value="foraVence">Fora Vence</button>
+          <button class="sel-btn" data-value="empate">Empate</button>
+          <button class="sel-btn" data-value="over1.5">Over 1.5</button>
+          <button class="sel-btn" data-value="over2.5">Over 2.5</button>
+          <button class="sel-btn" data-value="over3.5">Over 3.5</button>
+          <button class="sel-btn" data-value="under1.5">Under 1.5</button>
+          <button class="sel-btn" data-value="under2.5">Under 2.5</button>
+          <button class="sel-btn" data-value="under3.5">Under 3.5</button>
+          <button class="sel-btn" data-value="ambasMarcam">Ambas Sim</button>
+          <button class="sel-btn" data-value="ambasNaoMarcam">Ambas Não</button>
+          <button class="sel-btn" data-value="over5">5+ Gols</button>
+          <button class="sel-btn" data-value="exact1">1 Gol</button>
+          <button class="sel-btn" data-value="exact2">2 Gols</button>
+          <button class="sel-btn" data-value="exact3">3 Gols</button>
+          <button class="sel-btn" data-value="exact4">4 Gols</button>
+        </div>
+      </div>
+
+      <!-- MARTINGALE -->
+      <div class="s-block">
+        <div class="s-title">Martingale</div>
+        <div class="sel-grid" id="martingale-group">
+          <button class="sel-btn" data-value="0">Nenhum</button>
+          <button class="sel-btn" data-value="1">1 Cob.</button>
+          <button class="sel-btn" data-value="2">2 Cob.</button>
+          <button class="sel-btn" data-value="3">3 Cob.</button>
+        </div>
+      </div>
+
+      <!-- PERÍODO -->
+      <div class="s-block">
+        <div class="s-title">Período</div>
+        <div class="sel-grid" id="periodo-group">
+          <button class="sel-btn" data-value="120">6h</button>
+          <button class="sel-btn" data-value="240">12h</button>
+          <button class="sel-btn" data-value="480">24h</button>
+          <button class="sel-btn" data-value="960">48h</button>
+          <button class="sel-btn" data-value="1440">72h</button>
+        </div>
+      </div>
+
+    </div><!-- /sidebar -->
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- TAB BAR -->
+      <div class="tab-bar">
+        <div class="tab active" data-tab="analises" onclick="switchTab('analises')">ANÁLISES</div>
+        <div class="tab" data-tab="sinais" onclick="switchTab('sinais')">
+          SINAIS ATIVOS <span class="badge" id="sinais-badge">0</span>
+        </div>
+        <div class="tab" data-tab="usados" onclick="switchTab('usados')">
+          SINAIS USADOS <span class="badge" id="usados-badge" style="background:var(--muted);">0</span>
+        </div>
+      </div>
+
+      <!-- LAST UPDATE -->
+      <div class="last-update" id="last-update-bar">Aguardando primeira análise...</div>
+
+      <!-- PANELS -->
+      <div class="panel" id="panel-analises">
+        <div class="empty-state">
+          <div class="icon">🤖</div>
+          <p>Configure a <strong>casa</strong>, <strong>ligas</strong>, <strong>mercado</strong> e <strong>período</strong>.<br>
+          Depois pressione <strong>START</strong> para iniciar a análise automática.<br>
+          <span style="font-size:0.78rem;color:var(--muted);">A cada 1 minuto os dados são atualizados automaticamente.</span></p>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-sinais" style="display:none;">
+        <div class="signals-wrap" id="sinais-ativos-list">
+          <div class="empty-state">
+            <div class="icon">📡</div>
+            <p>Nenhum sinal gerado ainda.<br>Inicie a análise para receber sugestões automáticas.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-usados" style="display:none;">
+        <div class="signals-wrap" id="sinais-usados-list">
+          <div class="empty-state">
+            <div class="icon">✅</div>
+            <p>Nenhum sinal marcado como usado ainda.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+
+  </div><!-- /main -->
+</div>
+
+<script>
+/* =====================================================
+   CONFIGURAÇÃO DAS CASAS
+===================================================== */
+const casasConfig = {
+  'betano': { name:'Betano', ligas:['Taça Glória Eterna','Copa América','Euro','Campeonato Italiano','Copa das Estrelas','Brasileirão Betano'] },
+  'kiron':  { name:'Kiron',  ligas:['England','Italy','Spain'], path:'kiron' },
+  'estrela':{ name:'EstrelaBet', ligas:['Copa do Mundo','Ligas dos Campeões','América Latina'], path:'estrela' },
+  'bet365': { name:'Bet365', ligas:['Copa','Euro','Super','Premier'], path:'bet365' }
+};
+
+/* =====================================================
+   ESTADO GLOBAL
+===================================================== */
+let botRunning = false;
+let botInterval = null;
+let countdownInterval = null;
+let nextRunAt = null;
+const INTERVAL_MS = 60 * 1000; // 1 minuto
+
+// Resultados de análise por liga
+let resultsByLiga = {}; // { liga: { data, ts } }
+
+// Sinais: ativos e usados (persistidos no localStorage)
+let sinaisAtivos = [];
+let sinaisUsados = [];
+
+/* =====================================================
+   localStorage HELPERS
+===================================================== */
+function salvarConfig() {
+  const cfg = {
+    casa:      getSelVal('casas-group'),
+    mercado:   getSelVal('mercados-group'),
+    martingale:getSelVal('martingale-group'),
+    periodo:   getSelVal('periodo-group'),
+    ligas:     getLigasSelecionadas()
+  };
+  localStorage.setItem('morfeus_cfg', JSON.stringify(cfg));
+}
+
+function carregarConfig() {
+  const raw = localStorage.getItem('morfeus_cfg');
+  if (!raw) return;
+  const cfg = JSON.parse(raw);
+  if (cfg.casa) {
+    const btn = document.querySelector(`#casas-group .sel-btn[data-value="${cfg.casa}"]`);
+    if (btn) { btn.click(); }
+  }
+  // mercado, martingale, periodo restaurados após DOM estar pronto
+  setTimeout(() => {
+    ['mercados-group','martingale-group','periodo-group'].forEach(gid => {
+      const key = gid.replace('-group','');
+      const val = cfg[key] || cfg.mercado || cfg.martingale || cfg.periodo;
+      // mais direto:
+    });
+    if (cfg.mercado) {
+      const b = document.querySelector(`#mercados-group .sel-btn[data-value="${cfg.mercado}"]`);
+      if (b) setActive('mercados-group', b);
+    }
+    if (cfg.martingale !== undefined) {
+      const b = document.querySelector(`#martingale-group .sel-btn[data-value="${cfg.martingale}"]`);
+      if (b) setActive('martingale-group', b);
+    }
+    if (cfg.periodo) {
+      const b = document.querySelector(`#periodo-group .sel-btn[data-value="${cfg.periodo}"]`);
+      if (b) setActive('periodo-group', b);
+    }
+    if (cfg.ligas && cfg.ligas.length) {
+      // restaurar ligas selecionadas
+      document.querySelectorAll('.liga-item').forEach(el => {
+        const v = el.dataset.liga;
+        if (cfg.ligas.includes(v)) el.classList.add('checked');
+        else el.classList.remove('checked');
+        el.querySelector('.chk').textContent = el.classList.contains('checked') ? '✓' : '';
+      });
+      updateAllLigasBtn();
+    }
+  }, 100);
+}
+
+function salvarSinais() {
+  localStorage.setItem('morfeus_sinais_ativos', JSON.stringify(sinaisAtivos));
+  localStorage.setItem('morfeus_sinais_usados', JSON.stringify(sinaisUsados));
+}
+
+function carregarSinais() {
+  const a = localStorage.getItem('morfeus_sinais_ativos');
+  const u = localStorage.getItem('morfeus_sinais_usados');
+  sinaisAtivos = a ? JSON.parse(a) : [];
+  sinaisUsados = u ? JSON.parse(u) : [];
+  renderSinais();
+}
+
+/* =====================================================
+   SELECTOR HELPERS
+===================================================== */
+function getSelVal(groupId) {
+  const el = document.getElementById(groupId);
+  if (!el) return null;
+  const active = el.querySelector('.sel-btn.active');
+  return active ? active.dataset.value : null;
+}
+
+function setActive(groupId, btn) {
+  document.querySelectorAll(`#${groupId} .sel-btn`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+document.querySelectorAll('.sel-grid').forEach(g => {
+  g.addEventListener('click', e => {
+    const btn = e.target.closest('.sel-btn');
+    if (!btn) return;
+    setActive(g.id, btn);
+    if (g.id === 'casas-group') mostrarLigas(btn.dataset.value);
+    salvarConfig();
+  });
+});
+
+/* =====================================================
+   LIGAS
+===================================================== */
+function mostrarLigas(casa) {
+  const sec = document.getElementById('liga-section');
+  const grp = document.getElementById('ligas-group');
+  if (!casasConfig[casa]) { sec.style.display = 'none'; return; }
+  grp.innerHTML = '';
+  casasConfig[casa].ligas.forEach(liga => {
+    const val = typeof liga === 'object' ? liga.value : liga;
+    const name = typeof liga === 'object' ? liga.name : liga;
+    const item = document.createElement('div');
+    item.className = 'liga-item checked';
+    item.dataset.liga = val;
+    item.innerHTML = `<div class="chk">✓</div><span>${name}</span>`;
+    item.addEventListener('click', () => {
+      item.classList.toggle('checked');
+      item.querySelector('.chk').textContent = item.classList.contains('checked') ? '✓' : '';
+      updateAllLigasBtn();
+      salvarConfig();
+    });
+    grp.appendChild(item);
+  });
+  sec.style.display = 'block';
+  updateAllLigasBtn();
+}
+
+function getLigasSelecionadas() {
+  return Array.from(document.querySelectorAll('.liga-item.checked')).map(el => el.dataset.liga);
+}
+
+function toggleAllLigas() {
+  const items = document.querySelectorAll('.liga-item');
+  const allChecked = Array.from(items).every(i => i.classList.contains('checked'));
+  items.forEach(i => {
+    if (allChecked) { i.classList.remove('checked'); i.querySelector('.chk').textContent = ''; }
+    else            { i.classList.add('checked');    i.querySelector('.chk').textContent = '✓'; }
+  });
+  updateAllLigasBtn();
+  salvarConfig();
+}
+
+function updateAllLigasBtn() {
+  const items = document.querySelectorAll('.liga-item');
+  const btn = document.getElementById('all-ligas-btn');
+  if (!btn) return;
+  const allChecked = Array.from(items).every(i => i.classList.contains('checked'));
+  btn.classList.toggle('active', allChecked);
+  btn.textContent = allChecked ? '✓ TODAS SELECIONADAS' : 'SELECIONAR TODAS';
+}
+
+/* =====================================================
+   TABS
+===================================================== */
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('panel-analises').style.display = tab === 'analises' ? 'block' : 'none';
+  document.getElementById('panel-sinais').style.display   = tab === 'sinais'   ? 'block' : 'none';
+  document.getElementById('panel-usados').style.display   = tab === 'usados'   ? 'block' : 'none';
+}
+
+/* =====================================================
+   BOT CONTROL
+===================================================== */
+function startBot() {
+  const casa    = getSelVal('casas-group');
+  const mercado = getSelVal('mercados-group');
+  const periodo = getSelVal('periodo-group');
+  const ligas   = getLigasSelecionadas();
+
+  if (!casa || !mercado || !periodo) {
+    alert('Selecione Casa, Mercado e Período antes de iniciar.');
+    return;
+  }
+  if (!ligas.length) {
+    alert('Selecione pelo menos uma liga.');
+    return;
+  }
+
+  botRunning = true;
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-stop').disabled  = false;
+  document.getElementById('status-dot').classList.add('running');
+  document.getElementById('status-label').textContent = 'RODANDO';
+  document.getElementById('status-label').classList.add('running');
+
+  // Roda imediatamente e depois a cada 1 min
+  rodarAnalise();
+  botInterval = setInterval(rodarAnalise, INTERVAL_MS);
+  iniciarCountdown();
+}
+
+function stopBot() {
+  botRunning = false;
+  clearInterval(botInterval);
+  clearInterval(countdownInterval);
+  botInterval = null;
+  nextRunAt = null;
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled  = true;
+  document.getElementById('status-dot').classList.remove('running');
+  document.getElementById('status-label').textContent = 'PARADO';
+  document.getElementById('status-label').classList.remove('running');
+  document.getElementById('next-scan').textContent = '—';
+  document.getElementById('next-scan').classList.remove('running');
+}
+
+function resetBot() {
+  stopBot();
+  resultsByLiga = {};
+  sinaisAtivos = [];
+  sinaisUsados = [];
+  salvarSinais();
+  document.getElementById('panel-analises').innerHTML = `<div class="empty-state"><div class="icon">🤖</div><p>Configure e pressione <strong>START</strong>.</p></div>`;
+  renderSinais();
+  document.getElementById('last-update-bar').textContent = 'Aguardando primeira análise...';
+  document.getElementById('last-update-bar').classList.remove('has-data');
+}
+
+function iniciarCountdown() {
+  clearInterval(countdownInterval);
+  nextRunAt = Date.now() + INTERVAL_MS;
+  const el = document.getElementById('next-scan');
+  el.classList.add('running');
+  countdownInterval = setInterval(() => {
+    if (!botRunning) return;
+    const diff = Math.max(0, Math.ceil((nextRunAt - Date.now()) / 1000));
+    el.textContent = `PRÓXIMO: ${diff}s`;
+    if (diff <= 0) nextRunAt = Date.now() + INTERVAL_MS;
+  }, 500);
+}
+
+/* =====================================================
+   CACHE
+===================================================== */
+const _cache = new Map();
+const CACHE_TTL = 55 * 1000;
+
+async function fetchCache(url) {
+  const c = _cache.get(url);
+  if (c && Date.now() - c.ts < CACHE_TTL) return c.data;
+  const data = await fetch(url).then(r => r.json());
+  _cache.set(url, { ts: Date.now(), data });
+  return data;
+}
+
+/* =====================================================
+   ANÁLISE — RUNNER PRINCIPAL
+===================================================== */
+async function rodarAnalise() {
+  if (!botRunning) return;
+  nextRunAt = Date.now() + INTERVAL_MS;
+
+  const casa      = getSelVal('casas-group');
+  const mercadoV  = getSelVal('mercados-group');
+  const martCob   = parseInt(getSelVal('martingale-group') || '0', 10);
+  const periodo   = parseInt(getSelVal('periodo-group') || '480', 10);
+  const ligas     = getLigasSelecionadas();
+
+  if (!casa || !mercadoV || !ligas.length) return;
+
+  // Renderiza painel com loading para cada liga
+  renderPanelLoading(ligas);
+
+  // Analisa cada liga
+  for (const liga of ligas) {
+    if (!botRunning) break;
+    try {
+      const dados = await buscarDadosAPI(casa, liga, periodo);
+      dados.ranking = calcularRankingTimes(
+        dados.dadosCru.map(j => ({ time_a:j[3], time_b:j[4], ft:`${j[0]} x ${j[1]}` })),
+        mercadoV
+      );
+      dados.streak = calcularStreak(dados.dadosCru, mercadoV);
+
+      const tiros = martCob + 1;
+      const workerResult = await analyzeInWorker(dados.dadosCru, { tiros, market: mercadoV, combinado: true });
+      dados.padroesEncontrados = workerResult.resultados;
+
+      const { rankingExato, rankingFaixas, top5Odds, top3Faixas } = calcularRankingOdds(dados, mercadoV);
+      dados.rankingExato = rankingExato; dados.rankingFaixas = rankingFaixas;
+      dados.top5Odds = top5Odds; dados.top3Faixas = top3Faixas;
+
+      const sm = mapMercado(mercadoV);
+      const linesToSum = casa === 'kiron' ? 30 : 20;
+      dados.marketAnalysis = calculateMarketAnalysis(dados, sm, dados.totalJogos, linesToSum, martCob+1);
+
+      resultsByLiga[liga] = { dados, mercadoV, martCob, ts: Date.now() };
+
+      // Verifica sinal
+      checarSinal(dados, liga, casa, mercadoV, martCob);
+
+      // Atualiza bloco dessa liga no painel
+      atualizarBlocoLiga(liga);
+
+    } catch (err) {
+      resultsByLiga[liga] = { erro: err.message, ts: Date.now() };
+      atualizarBlocoLiga(liga);
+    }
+  }
+
+  const agora = new Date();
+  const ts = `${pad(agora.getHours())}:${pad(agora.getMinutes())}:${pad(agora.getSeconds())}`;
+  const bar = document.getElementById('last-update-bar');
+  bar.textContent = `Última atualização: ${ts} — ${ligas.length} liga(s) analisada(s)`;
+  bar.classList.add('has-data');
+}
+
+function pad(n) { return String(n).padStart(2,'0'); }
+
+/* =====================================================
+   RENDER PANEL
+===================================================== */
+function renderPanelLoading(ligas) {
+  const panel = document.getElementById('panel-analises');
+
+  // Se não tem nenhum bloco ainda, cria estrutura
+  if (!panel.querySelector('.analysis-grid')) {
+    panel.innerHTML = `
+      <div style="margin-bottom:1rem;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:0.75rem;">
+          <div class="col-header"><span class="col-icon">⚙️</span> Padrão</div>
+          <div class="col-header"><span class="col-icon">💰</span> Ranking Odd</div>
+          <div class="col-header"><span class="col-icon">📈</span> Gráfico</div>
+          <div class="col-header"><span class="col-icon">ℹ️</span> Info Gerais</div>
+        </div>
+      </div>
+    `;
+    ligas.forEach(liga => {
+      const row = document.createElement('div');
+      row.id = `row-liga-${sanitId(liga)}`;
+      row.style.marginBottom = '1.5rem';
+      row.innerHTML = `
+        <div style="font-family:'Orbitron',sans-serif;font-size:0.62rem;letter-spacing:3px;color:var(--white);margin-bottom:0.5rem;padding:0.4rem 0.75rem;background:var(--card2);border-radius:6px;border:1px solid var(--border2);">
+          ⚽ ${liga.toUpperCase()}
+        </div>
+        <div class="analysis-grid" id="grid-${sanitId(liga)}">
+          ${[0,1,2,3].map(() => `<div class="league-block"><div class="loading-block"><div class="spin"></div><span>Carregando...</span></div></div>`).join('')}
+        </div>
+      `;
+      panel.appendChild(row);
+    });
+  } else {
+    // Já existe — apenas troca blocos existentes não presentes por loading
+    ligas.forEach(liga => {
+      const grid = document.getElementById(`grid-${sanitId(liga)}`);
+      if (grid && !resultsByLiga[liga]) {
+        grid.querySelectorAll('.league-block').forEach(b => {
+          if (!b.querySelector('.loading-block')) return;
+        });
+      }
+    });
+  }
+}
+
+function sanitId(str) { return str.replace(/[^a-zA-Z0-9]/g, '_'); }
+
+function atualizarBlocoLiga(liga) {
+  const grid = document.getElementById(`grid-${sanitId(liga)}`);
+  if (!grid) return;
+
+  const res = resultsByLiga[liga];
+
+  if (res.erro) {
+    grid.innerHTML = `<div class="league-block" style="grid-column:1/-1;"><div class="error-block">Erro: ${res.erro}</div></div>`;
+    return;
+  }
+
+  const { dados, mercadoV, martCob } = res;
+  const mercadoText = mercadoLabel(mercadoV);
+
+  // --- COL 1: PADRÃO ---
+  const padroes = dados.padroesEncontrados || [];
+  const top3    = padroes.slice(0,3);
+  const streak  = dados.streak;
+  const maiorAcerto = padroes[0] ? parseFloat(padroes[0].percentual) : 0;
+
+  let col1 = `<div class="league-body">`;
+  if (!top3.length) {
+    col1 += `<div style="color:var(--muted);font-size:0.82rem;">Nenhum padrão encontrado.</div>`;
+  } else {
+    top3.forEach((p, i) => {
+      const pct = parseFloat(p.percentual);
+      const cls = pct >= 90 ? '' : pct >= 70 ? 'med' : 'low';
+      col1 += `<div class="data-row">
+        <span class="data-label">#${i+1} ${pct >= 90 ? '⭐' : pct >= 70 ? '✅' : '🟡'}</span>
+        <span class="data-val">${p.percentual}%</span>
+      </div>
+      <div style="margin-bottom:0.4rem;"><span class="pattern-tag ${cls}">${truncate(p.padrao, 40)}</span></div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:0.6rem;">${p.greens}/${p.ocorrencias} ocorrências · ${p.pular_jogos}j salto</div>`;
+    });
+  }
+  if (streak && streak.contagem > 0) {
+    const sc = streak.tipo === 'green' ? 'streak-green' : 'streak-red';
+    col1 += `<div style="margin-top:0.5rem;"><span class="streak-pill ${sc}">${streak.tipo === 'green' ? '✅' : '❌'} ${streak.contagem}x ${streak.tipo.toUpperCase()}</span></div>`;
+  }
+  col1 += `</div>`;
+
+  // --- COL 2: RANKING ODD ---
+  const rankF = (dados.rankingFaixas || []).filter(f => f.jogos > 0).slice(0, 6);
+  let col2 = `<div class="league-body">`;
+  if (!rankF.length) {
+    col2 += `<div style="color:var(--muted);font-size:0.82rem;">Sem dados de odds.</div>`;
+  } else {
+    rankF.forEach((f, i) => {
+      const isTop = dados.top3Faixas && dados.top3Faixas.has(f.label);
+      const pct   = parseInt(f.pct);
+      const barColor = pct >= 70 ? 'var(--green)' : pct >= 50 ? 'var(--yellow)' : 'var(--orange)';
+      col2 += `<div class="data-row">
+        <span class="data-label">${isTop ? '⭐' : ''} ${f.label}</span>
+        <span class="data-val ${pct >= 70 ? 'green' : pct >= 50 ? 'yellow' : 'orange'}">${f.pct}%</span>
+      </div>
+      <div class="rank-bar-wrap" style="width:100%;margin-bottom:0.35rem;">
+        <div class="rank-bar" style="width:${f.pct}%;background:${barColor};"></div>
+      </div>`;
+    });
+  }
+  col2 += `</div>`;
+
+  // --- COL 3: GRÁFICO (mercado) ---
+  const pct   = parseInt(dados.marketAnalysis ? dados.marketAnalysis.currentPercentage : 0);
+  const top5m = dados.marketAnalysis ? dados.marketAnalysis.top5 : [];
+  const barColor3 = pct >= 70 ? 'var(--green)' : pct >= 50 ? 'var(--yellow)' : pct >= 30 ? 'var(--orange)' : 'var(--red)';
+  const tempLabel = pct >= 70 ? '🔥 Aquecido' : pct >= 50 ? '🟡 Moderado' : pct >= 30 ? '🟠 Frio' : '❄️ Muito Frio';
+
+  let col3 = `<div class="league-body">
+    <div class="data-row">
+      <span class="data-label">${mercadoText}</span>
+      <span class="data-val" style="color:${barColor3};">${pct}%</span>
+    </div>
+    <div class="market-bar-wrap"><div class="market-bar" style="width:${pct}%;background:${barColor3};"></div></div>
+    <div style="font-size:0.75rem;color:var(--muted);margin:0.5rem 0;">${tempLabel}</div>`;
+  if (top5m.length) {
+    col3 += `<div style="font-size:0.72rem;color:var(--muted);margin-bottom:0.3rem;font-family:'Orbitron',sans-serif;letter-spacing:1px;">TOP FAIXAS</div>`;
+    top5m.slice(0,3).forEach((item, i) => {
+      const gp = parseFloat(item.greenPercentage);
+      col3 += `<div class="data-row">
+        <span class="data-label">${i+1}. ${item.marketGroup}</span>
+        <span class="data-val ${gp >= 70 ? 'green' : gp >= 50 ? 'yellow' : 'orange'}">${item.greenPercentage}%</span>
+      </div>`;
+    });
+  }
+  col3 += `</div>`;
+
+  // --- COL 4: INFO GERAIS ---
+  const ranking = dados.ranking || [];
+  const top5t   = ranking.slice(0,5);
+  const proximos = (dados.proximos || []).slice(0,6);
+  const temOddTop5 = proximos.some(j => {
+    const o = buscarOddsJogo(dados.oddsIndex, j.time_a||'', j.time_b||'');
+    const odd = getOddDoMercado(o, mercadoV);
+    return odd && dados.top5Odds && dados.top5Odds.has(odd.toFixed(2));
+  });
+  const { score } = calcularScoreConfianca(maiorAcerto, pct, temOddTop5, padroes.filter(p=>parseFloat(p.percentual)>=70).length, padroes.length);
+  const scoreCls  = score >= 65 ? 'score-high' : score >= 45 ? 'score-med' : 'score-low';
+
+  let col4 = `<div class="league-body">
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
+      <div class="score-badge ${scoreCls}">${score}</div>
+      <div>
+        <div style="font-size:0.72rem;color:var(--muted);">Score Confiança</div>
+        <div style="font-size:0.8rem;font-weight:700;color:${score>=65?'var(--green)':score>=45?'var(--yellow)':'var(--red)'};">
+          ${score>=80?'ALTÍSSIMA':score>=65?'ALTA':score>=50?'MODERADA':score>=35?'BAIXA':'MUITO BAIXA'}
+        </div>
+      </div>
+    </div>
+    <div style="font-size:0.72rem;color:var(--muted);font-family:'Orbitron',sans-serif;letter-spacing:1px;margin-bottom:0.4rem;">TOP TIMES</div>`;
+  top5t.slice(0,4).forEach((t, i) => {
+    const pBar = Math.min(100, parseFloat(t.percentage));
+    col4 += `<div class="rank-item">
+      <span class="rank-num">${i+1}</span>
+      <span class="rank-name">${t.name}</span>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${pBar}%;"></div></div>
+      <span class="rank-pct" style="color:${pBar>=70?'var(--green)':pBar>=50?'var(--yellow)':'var(--orange)'};">${t.percentage}%</span>
+    </div>`;
+  });
+
+  if (proximos.length) {
+    col4 += `<div style="font-size:0.72rem;color:var(--muted);font-family:'Orbitron',sans-serif;letter-spacing:1px;margin:0.75rem 0 0.4rem;">PRÓXIMOS (${proximos.length})</div>`;
+    proximos.forEach(j => {
+      const oddsJ = buscarOddsJogo(dados.oddsIndex, j.time_a||'', j.time_b||'');
+      const odd   = getOddDoMercado(oddsJ, mercadoV);
+      const isTop = odd && dados.top5Odds && dados.top5Odds.has(odd.toFixed(2));
+      col4 += `<div class="game-row">
+        <span class="game-time">${j.horario}</span>
+        <span class="game-teams">${(j.time_a||'').substring(0,8)} x ${(j.time_b||'').substring(0,8)}</span>
+        ${odd ? `<span class="game-odd">${odd.toFixed(2)}</span>` : ''}
+        ${isTop ? '<span class="game-star">⭐</span>' : ''}
+      </div>`;
+    });
+  }
+  col4 += `</div>`;
+
+  // Monta os 4 cards
+  grid.innerHTML = `
+    <div class="league-block fade-in">${col1}</div>
+    <div class="league-block fade-in" style="animation-delay:0.05s;">${col2}</div>
+    <div class="league-block fade-in" style="animation-delay:0.1s;">${col3}</div>
+    <div class="league-block fade-in" style="animation-delay:0.15s;">${col4}</div>
+  `;
+}
+
+function truncate(str, n) { return str.length > n ? str.slice(0,n)+'…' : str; }
+
+function mercadoLabel(v) {
+  const map = {
+    casaVence:'Casa Vence', foraVence:'Fora Vence', empate:'Empate',
+    'over1.5':'Over 1.5', 'over2.5':'Over 2.5', 'over3.5':'Over 3.5',
+    'under1.5':'Under 1.5', 'under2.5':'Under 2.5', 'under3.5':'Under 3.5',
+    ambasMarcam:'Ambas Sim', ambasNaoMarcam:'Ambas Não', over5:'5+ Gols',
+    exact1:'1 Gol', exact2:'2 Gols', exact3:'3 Gols', exact4:'4 Gols'
+  };
+  return map[v] || v;
+}
+
+/* =====================================================
+   SINAIS
+===================================================== */
+function checarSinal(dados, liga, casa, mercadoV, martCob) {
+  const padroes  = dados.padroesEncontrados || [];
+  const proximos = (dados.proximos || []).slice(0,6);
+  const maiorAcerto = padroes[0] ? parseFloat(padroes[0].percentual) : 0;
+  const pct      = parseInt(dados.marketAnalysis ? dados.marketAnalysis.currentPercentage : 0);
+
+  if (maiorAcerto < 70 || !proximos.length) return;
+
+  const tiros   = martCob + 1;
+  const candidatos = proximos.slice(0, tiros);
+  const horarios = candidatos.map(j => j.horario);
+
+  // Chave única para evitar duplicado
+  const chave = `${casa}|${liga}|${mercadoV}|${horarios.join(',')}`;
+  const jaExiste = sinaisAtivos.some(s => s.chave === chave) || sinaisUsados.some(s => s.chave === chave);
+  if (jaExiste) return;
+
+  const casaConfig = casasConfig[casa];
+  const sinal = {
+    id:     Date.now() + Math.random(),
+    chave,
+    casa:   casaConfig ? casaConfig.name : casa,
+    liga,
+    mercado: mercadoLabel(mercadoV),
+    acerto:  padroes[0].percentual,
+    score:   (() => {
+      const temOddTop5 = candidatos.some(j => {
+        const o = buscarOddsJogo(dados.oddsIndex, j.time_a||'', j.time_b||'');
+        const odd = getOddDoMercado(o, mercadoV);
+        return odd && dados.top5Odds && dados.top5Odds.has(odd.toFixed(2));
+      });
+      return calcularScoreConfianca(maiorAcerto, pct, temOddTop5, padroes.filter(p=>parseFloat(p.percentual)>=70).length, padroes.length).score;
+    })(),
+    jogos:  candidatos.map(j => ({
+      horario: j.horario,
+      time_a:  j.time_a,
+      time_b:  j.time_b,
+      odd:     (() => {
+        const o = buscarOddsJogo(dados.oddsIndex, j.time_a||'', j.time_b||'');
+        const odd = getOddDoMercado(o, mercadoV);
+        return odd ? odd.toFixed(2) : null;
+      })()
+    })),
+    ts: new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })
+  };
+
+  sinaisAtivos.push(sinal);
+  salvarSinais();
+  renderSinais();
+}
+
+function marcarUsado(id) {
+  const idx = sinaisAtivos.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const sinal = sinaisAtivos.splice(idx, 1)[0];
+  sinaisUsados.unshift(sinal);
+  salvarSinais();
+  renderSinais();
+  // volta para aba usados se veio de ativos
+}
+
+function desmarcarUsado(id) {
+  const idx = sinaisUsados.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const sinal = sinaisUsados.splice(idx, 1)[0];
+  sinaisAtivos.unshift(sinal);
+  salvarSinais();
+  renderSinais();
+}
+
+function renderSinais() {
+  const listaAtivos = document.getElementById('sinais-ativos-list');
+  const listaUsados = document.getElementById('sinais-usados-list');
+
+  // Badges
+  document.getElementById('sinais-badge').textContent = sinaisAtivos.length;
+  document.getElementById('usados-badge').textContent = sinaisUsados.length;
+
+  // Ativos
+  if (!sinaisAtivos.length) {
+    listaAtivos.innerHTML = `<div class="empty-state"><div class="icon">📡</div><p>Nenhum sinal gerado ainda.<br>Inicie a análise para receber sugestões automáticas.</p></div>`;
+  } else {
+    listaAtivos.innerHTML = sinaisAtivos.map(s => renderSinalCard(s, false)).join('');
+  }
+
+  // Usados
+  if (!sinaisUsados.length) {
+    listaUsados.innerHTML = `<div class="empty-state"><div class="icon">✅</div><p>Nenhum sinal marcado como usado.</p></div>`;
+  } else {
+    listaUsados.innerHTML = sinaisUsados.map(s => renderSinalCard(s, true)).join('');
+  }
+}
+
+function renderSinalCard(s, isUsado) {
+  const scoreCls = s.score >= 65 ? 'var(--green)' : s.score >= 45 ? 'var(--yellow)' : 'var(--red)';
+  const jogosHtml = s.jogos.map(j =>
+    `<div>▸ <span class="signal-time">${j.horario}</span> — ${j.time_a} vs ${j.time_b}${j.odd ? ` <span style="color:var(--yellow);">@ ${j.odd}</span>` : ''}</div>`
+  ).join('');
+
+  const checkHtml = isUsado
+    ? `<div class="signal-select used" onclick="desmarcarUsado(${s.id})">✓</div>`
+    : `<div class="signal-select" onclick="marcarUsado(${s.id})"></div>`;
+
+  return `
+    <div class="signal-card ${isUsado ? 'is-used' : 'fade-in'}">
+      ${checkHtml}
+      <div class="signal-body">
+        <div class="signal-header">
+          <span class="signal-house">⚽ ${s.casa}</span>
+          <span class="signal-sep">›</span>
+          <span class="signal-league">${s.liga}</span>
+          <span class="signal-sep">›</span>
+          <span class="signal-market">${s.mercado}</span>
+          <span style="margin-left:auto;font-family:'Orbitron',sans-serif;font-size:0.6rem;color:${scoreCls};">${s.score}/100</span>
+        </div>
+        <div class="signal-games">${jogosHtml}</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:0.4rem;">Acerto padrão: ${s.acerto}% · Gerado: ${s.ts}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* =====================================================
+   API
+===================================================== */
+async function buscarDadosAPI(casa, liga, numJogos) {
+  const config = casasConfig[casa];
+  if (!config) throw new Error(`Casa ${casa} não encontrada`);
+  const ligaEncoded = encodeURIComponent(liga);
+  const base   = 'https://betstat.site';
+  const prefix = config.path ? `/${config.path}` : '';
+  const [resultados, proximos, oddsRaw] = await Promise.all([
+    fetchCache(`${base}/resultados${prefix}/${ligaEncoded}`),
+    fetchCache(`${base}/proximos${prefix}/${ligaEncoded}`),
+    fetchCache(`${base}/odds${prefix}/${ligaEncoded}`).catch(() => [])
+  ]);
+  const dadosCompletos = { casa: config.name, liga, totalJogos: 0, dadosCru: [] };
+  resultados.slice(-numJogos).forEach(jogo => {
+    const parts = (jogo.ft||'x').split('x').map(s => parseInt(s.trim(),10));
+    const a=parts[0], b=parts[1];
+    if (Number.isFinite(a)&&Number.isFinite(b))
+      dadosCompletos.dadosCru.push([a,b,a+b,(jogo.time_a||'').trim(),(jogo.time_b||'').trim(),jogo.hora,jogo.minuto]);
+  });
+  dadosCompletos.proximos = proximos.slice(0,8).map(j => {
+    const ts = j.time||''; let hora=0,minuto=0;
+    if (ts.includes(':')){ const p=ts.split(':'); hora=parseInt(p[0],10)||0; minuto=parseInt(p[1],10)||0; }
+    return { time_a:(j.team_home||'').trim(), time_b:(j.team_visit||'').trim(), horario:ts, hora, minuto, liga:j.league||liga, id:j.id, event_id:j.event_id };
+  });
+  const oddsIndex={};
+  if (Array.isArray(oddsRaw)) oddsRaw.forEach(o => {
+    const key=`${(o.time_casa||'').trim().toLowerCase()}|${(o.time_visitante||'').trim().toLowerCase()}`;
+    oddsIndex[key]={ horario:o.horario||'', time_casa:(o.time_casa||'').trim(), time_visitante:(o.time_visitante||'').trim(),
+      casaVence:parseFloat(o.odds_casa_vence)||null, visitanteVence:parseFloat(o.odds_visitante_vence)||null, empate:parseFloat(o.odds_empate)||null,
+      ambasSim:parseFloat(o.odds_ambas_marcam_sim)||null, ambasNao:parseFloat(o.odds_ambas_marcam_nao)||null,
+      over1_5:parseFloat(o.odds_mais_1_5)||null, under1_5:parseFloat(o.odds_menos_1_5)||null,
+      over2_5:parseFloat(o.odds_mais_2_5)||null, under2_5:parseFloat(o.odds_menos_2_5)||null,
+      over3_5:parseFloat(o.odds_mais_3_5)||null, under3_5:parseFloat(o.odds_menos_3_5)||null,
+      over5:parseFloat(o.odds_mais_5_gols)||null };
+  });
+  dadosCompletos.oddsIndex=oddsIndex; dadosCompletos.oddsRaw=Array.isArray(oddsRaw)?oddsRaw:[];
+  dadosCompletos.oddsDisponiveis=Object.keys(oddsIndex).length>0;
+  dadosCompletos.totalJogos=dadosCompletos.dadosCru.length;
+  return dadosCompletos;
+}
+
+/* =====================================================
+   FUNÇÕES DE ANÁLISE (mantidas do original)
+===================================================== */
+function calcularRankingTimes(games, mercado) {
+  const stats={};
+  games.forEach(({time_a,time_b,ft}) => {
+    if(!ft||!ft.includes(' x '))return;
+    const [golsA,golsB]=ft.split(' x ').map(Number), total=golsA+golsB;
+    [time_a,time_b].forEach(t => { if(!stats[t])stats[t]={name:t,totalGames:0,marketCount:0}; });
+    stats[time_a].totalGames++; stats[time_b].totalGames++;
+    if(isGreenForMercado(mercado,golsA,golsB,total)){stats[time_a].marketCount++;stats[time_b].marketCount++;}
+  });
+  return Object.values(stats).map(t=>({...t,percentage:t.totalGames>0?((t.marketCount/t.totalGames)*100).toFixed(1):'0.0'}))
+    .sort((a,b)=>b.marketCount-a.marketCount||parseFloat(b.percentage)-parseFloat(a.percentage));
+}
+
+function calcularStreak(dadosCru, mercado) {
+  if(!dadosCru||!dadosCru.length)return{tipo:'neutro',contagem:0};
+  const ultimo=dadosCru[dadosCru.length-1];
+  const tipoUltimo=isGreenForMercado(mercado,ultimo[0],ultimo[1],ultimo[2])?'green':'red';
+  let contagem=1;
+  for(let i=dadosCru.length-2;i>=0;i--){const[a,b,t]=dadosCru[i];if((isGreenForMercado(mercado,a,b,t)?'green':'red')===tipoUltimo)contagem++;else break;}
+  return{tipo:tipoUltimo,contagem};
+}
+
+function calcularScoreConfianca(maiorAcerto,pctMercado,temOddTop5,qtdPadroesBons,totalPadroes) {
+  const p1=Math.min(maiorAcerto,100)*0.40, p2=Math.min(pctMercado,100)*0.25, p3=temOddTop5?20:0;
+  const volPct=totalPadroes>0?(qtdPadroesBons/totalPadroes)*100:0, p4=Math.min(volPct,100)*0.15;
+  return{score:Math.round(p1+p2+p3+p4)};
+}
+
+const FAIXAS_ODDS=[
+  {label:'1.01–1.30',min:1.01,max:1.30},{label:'1.31–1.50',min:1.31,max:1.50},{label:'1.51–1.70',min:1.51,max:1.70},
+  {label:'1.71–1.90',min:1.71,max:1.90},{label:'1.91–2.10',min:1.91,max:2.10},{label:'2.11–2.30',min:2.11,max:2.30},
+  {label:'2.31–2.60',min:2.31,max:2.60},{label:'2.61–3.00',min:2.61,max:3.00},{label:'3.01–3.50',min:3.01,max:3.50},
+  {label:'3.51–4.50',min:3.51,max:4.50},{label:'4.51–9.99',min:4.51,max:9.99},{label:'10.00+',min:10.0,max:Infinity}
+];
+function getFaixaOdd(odd){return FAIXAS_ODDS.find(f=>odd>=f.min&&odd<=f.max)||null;}
+function getOddFieldName(v){return({ambasMarcam:'ambasSim',ambasNaoMarcam:'ambasNao',casaVence:'casaVence',foraVence:'visitanteVence',empate:'empate','over1.5':'over1_5','under1.5':'under1_5','over2.5':'over2_5','under2.5':'under2_5','over3.5':'over3_5','under3.5':'under3_5',over5:'over5'})[v]||null;}
+function oddFieldToRawKey(f){return({casaVence:'casa_vence',visitanteVence:'visitante_vence',empate:'empate',ambasSim:'ambas_marcam_sim',ambasNao:'ambas_marcam_nao',over1_5:'mais_1_5',under1_5:'menos_1_5',over2_5:'mais_2_5',under2_5:'menos_2_5',over3_5:'mais_3_5',under3_5:'menos_3_5',over5:'mais_5_gols'})[f]||f;}
+function isGreenForMercado(m,a,b,t){
+  switch(m){
+    case'ambasMarcam':return a>0&&b>0;case'ambasNaoMarcam':return a===0||b===0;
+    case'casaVence':return a>b;case'foraVence':return b>a;case'empate':return a===b;
+    case'over1.5':return t>=2;case'under1.5':return t<2;case'over2.5':return t>=3;case'under2.5':return t<3;
+    case'over3.5':return t>=4;case'under3.5':return t<4;case'over5':return t>=5;
+    case'exact1':return t===1;case'exact2':return t===2;case'exact3':return t===3;case'exact4':return t===4;
+    default:return false;
+  }
+}
+
+function calcularRankingOdds(dados,mercadoValue){
+  const{dadosCru,oddsRaw,oddsIndex}=dados;
+  const oddField=getOddFieldName(mercadoValue);
+  if(!oddField||!oddsRaw||!oddsRaw.length)return{rankingExato:[],rankingFaixas:[],top5Odds:new Set(),top3Faixas:new Set()};
+  const rawKey=`odds_${oddFieldToRawKey(oddField)}`;
+  const oddStats={};
+  oddsRaw.forEach(o=>{
+    const odd=parseFloat(o[rawKey]||0); if(!odd||odd<=0)return;
+    const oddKey=odd.toFixed(2),taKey=(o.time_casa||'').trim().toLowerCase(),tbKey=(o.time_visitante||'').trim().toLowerCase();
+    const resultado=dadosCru.find(j=>{const jA=(j[3]||'').toLowerCase().trim(),jB=(j[4]||'').toLowerCase().trim();return(jA===taKey&&jB===tbKey)||(jA===tbKey&&jB===taKey);});
+    if(!oddStats[oddKey])oddStats[oddKey]={odd,jogos:0,greens:0};
+    oddStats[oddKey].jogos++;
+    if(resultado&&isGreenForMercado(mercadoValue,resultado[0],resultado[1],resultado[2]))oddStats[oddKey].greens++;
+  });
+  const temCruzamento=Object.values(oddStats).some(s=>s.greens>0||s.jogos>1);
+  if(!temCruzamento){
+    const oddsDisp=oddsRaw.map(o=>parseFloat(o[rawKey])).filter(v=>v>0);
+    if(oddsDisp.length>0){
+      oddsDisp.sort((a,b)=>a-b);const mediana=oddsDisp[Math.floor(oddsDisp.length/2)];const key=mediana.toFixed(2);
+      dadosCru.forEach(j=>{const[a,b,t]=j;if(!oddStats[key])oddStats[key]={odd:mediana,jogos:0,greens:0};oddStats[key].jogos++;if(isGreenForMercado(mercadoValue,a,b,t))oddStats[key].greens++;});
+    }
+  }
+  const rankingExato=Object.values(oddStats).filter(s=>s.jogos>=1).map(s=>({odd:s.odd,jogos:s.jogos,greens:s.greens,pct:((s.greens/s.jogos)*100).toFixed(0)})).sort((a,b)=>parseFloat(b.pct)-parseFloat(a.pct)||b.greens-a.greens||b.jogos-a.jogos);
+  const top5Odds=new Set(rankingExato.slice(0,5).map(r=>r.odd.toFixed(2)));
+  const faixaStats={};
+  FAIXAS_ODDS.forEach(f=>{faixaStats[f.label]={label:f.label,min:f.min,max:f.max,jogos:0,greens:0};});
+  oddsRaw.forEach(o=>{
+    const odd=parseFloat(o[rawKey]||0); if(!odd||odd<=0)return;
+    const faixa=getFaixaOdd(odd); if(!faixa)return;
+    const taKey=(o.time_casa||'').trim().toLowerCase(),tbKey=(o.time_visitante||'').trim().toLowerCase();
+    const resultado=dadosCru.find(j=>{const jA=(j[3]||'').toLowerCase().trim(),jB=(j[4]||'').toLowerCase().trim();return(jA===taKey&&jB===tbKey)||(jA===tbKey&&jB===taKey);});
+    faixaStats[faixa.label].jogos++;
+    if(resultado&&isGreenForMercado(mercadoValue,resultado[0],resultado[1],resultado[2]))faixaStats[faixa.label].greens++;
+  });
+  const rankingFaixas=Object.values(faixaStats).map(f=>({...f,pct:f.jogos>0?((f.greens/f.jogos)*100).toFixed(0):'0'})).sort((a,b)=>parseFloat(b.pct)-parseFloat(a.pct)||b.greens-a.greens);
+  const top3Faixas=new Set(rankingFaixas.filter(f=>f.jogos>0).slice(0,3).map(f=>f.label));
+  return{rankingExato,rankingFaixas,top5Odds,top3Faixas};
+}
+
+function getOddNaFaixaTop(odd,top3Faixas){const f=getFaixaOdd(odd);return f?top3Faixas.has(f.label):false;}
+
+function mapMercado(v){return({ambasMarcam:'ambasSim',ambasNaoMarcam:'ambasNao',casaVence:'casaVence',foraVence:'foraVence',empate:'empate','over1.5':'over1.5','over2.5':'over2.5','over3.5':'over3.5','under1.5':'under1.5','under2.5':'under2.5','under3.5':'under3.5',exact1:'umGolExato',exact2:'doisGolsExatos',exact3:'tresGolsExatos',exact4:'quatroGolsExatos',over5:'cincoOuMaisGols'})[v]||v;}
+
+function checkMarket(m,hg,ag,tg){
+  switch(m){case'ambasSim':return hg>0&&ag>0?1:0;case'ambasNao':return hg===0||ag===0?1:0;case'casaVence':return hg>ag?1:0;case'foraVence':return ag>hg?1:0;case'empate':return hg===ag?1:0;case'over1.5':return tg>1.5?1:0;case'over2.5':return tg>2.5?1:0;case'over3.5':return tg>3.5?1:0;case'under1.5':return tg<1.5?1:0;case'under2.5':return tg<2.5?1:0;case'under3.5':return tg<3.5?1:0;case'umGolExato':return tg===1?1:0;case'doisGolsExatos':return tg===2?1:0;case'tresGolsExatos':return tg===3?1:0;case'quatroGolsExatos':return tg===4?1:0;case'cincoOuMaisGols':return tg>=5?1:0;default:return 0;}
+}
+
+function calculateMarketAnalysis(dados,sm,numJogos,linesToSum,verifyLines){
+  const cd=dados.dadosCru.map(i=>[`${String(i[5]).padStart(2,'0')}:${String(i[6]).padStart(2,'0')}`,i[0],i[1],i[3],i[4],i[2],dados.liga.toLowerCase()]).slice(-numJogos);
+  if(!cd.length)return{currentPercentage:0,top5:[]};
+  const recent=cd.slice(-linesToSum);
+  const curCount=recent.reduce((s,r)=>s+checkMarket(sm,r[1],r[2],r[5]),0);
+  const currentPercentage=(curCount/linesToSum*100).toFixed(0);
+  const groups={};
+  cd.forEach((row,i)=>{
+    if(i<linesToSum-1)return;
+    const sum=cd.slice(i-linesToSum+1,i+1).reduce((s,r)=>s+checkMarket(sm,r[1],r[2],r[5]),0);
+    const pct=Math.round(sum/linesToSum*100);
+    let result='red';
+    if(i+verifyLines<=cd.length){const next=cd.slice(i+1,i+1+verifyLines);if(next.some(r=>checkMarket(sm,r[1],r[2],r[5])===1))result='green';}
+    const key=`${sm} ${pct}%`;
+    if(!groups[key])groups[key]={occurrences:0,greens:0,reds:0};
+    groups[key].occurrences++;result==='green'?groups[key].greens++:groups[key].reds++;
+  });
+  const sorted=Object.keys(groups).map(key=>{const g=groups[key];const gp=(g.greens/g.occurrences*100).toFixed(2);const pn=parseFloat(gp);return{marketGroup:key,marketPercentage:parseFloat(key.split(' ')[1]),occurrences:g.occurrences,greens:g.greens,reds:g.reds,greenPercentage:gp,analysis:pn>75?'Alta chance':pn>50?'Moderada':pn>25?'Risco':'Alta chance de falha'};}).sort((a,b)=>b.greenPercentage-a.greenPercentage||b.greens-a.greens);
+  return{currentPercentage,top5:sorted.slice(0,5)};
+}
+
+function getOddDoMercado(oddsJogo,mercadoValue){if(!oddsJogo)return null;const f=getOddFieldName(mercadoValue);return f?(oddsJogo[f]||null):null;}
+function buscarOddsJogo(oddsIndex,timeA,timeB){if(!oddsIndex)return null;const kf=`${timeA.toLowerCase()}|${timeB.toLowerCase()}`;const kr=`${timeB.toLowerCase()}|${timeA.toLowerCase()}`;return oddsIndex[kf]||oddsIndex[kr]||null;}
+
+/* =====================================================
+   WEB WORKER
+===================================================== */
+const WORKER_SRC=`self.onmessage=(e)=>{const p=e.data;if(!p||p.cmd!=='analyze')return;self.postMessage({ok:true,id:p.id,result:analyzeAll(p.payload)});};function enumerateCombos(tok){if(tok.length===1)return tok[0].map(t=>[t]);if(tok.length===2){const o=[];for(const a of tok[0])for(const b of tok[1])o.push([a,b]);return o;}if(tok.length===3){const o=[];for(const a of tok[0])for(const b of tok[1])for(const c of tok[2])o.push([a,b,c]);return o;}const out=[],cur=[];(function rec(i){if(i===tok.length){out.push(cur.slice());return;}for(const t of tok[i]){cur.push(t);rec(i+1);cur.pop();}})(0);return out;}function getOffsets(t){if(t==='1')return[0];if(t==='2')return[0,1];if(t==='3')return[0,1,2];if(t==='1_pula_1')return[0,2];if(t==='1_pula_1_pula_1')return[0,2,4];return[0,1];}function tokens(a,b,total,man,vis){const t=new Set();t.add(\`\${a}-\${b}\`);t.add(a>0&&b>0?'ambasMarcam':'ambasNaoMarcam');t.add(a>b?'casaVence':a<b?'foraVence':'empate');if(total>=2)t.add('over1.5');if(total<2)t.add('under1.5');if(total>=3)t.add('over2.5');if(total<3)t.add('under2.5');if(total>=4)t.add('over3.5');if(total<4)t.add('under3.5');if(total>=5)t.add('over5');if(total===1)t.add('exact1');if(total===2)t.add('exact2');if(total===3)t.add('exact3');if(total===4)t.add('exact4');if(man)t.add(man.toLowerCase());if(vis)t.add(vis.toLowerCase());return Array.from(t);}function isGreen(m,a,b,total){if(m==='ambasMarcam')return a>0&&b>0;if(m==='ambasNaoMarcam')return a===0||b===0;if(m==='casaVence')return a>b;if(m==='foraVence')return a<b;if(m==='empate')return a===b;if(m==='over1.5')return total>=2;if(m==='under1.5')return total<2;if(m==='over2.5')return total>=3;if(m==='under2.5')return total<3;if(m==='over3.5')return total>=4;if(m==='under3.5')return total<4;if(m==='over5')return total>=5;if(m==='exact1')return total===1;if(m==='exact2')return total===2;if(m==='exact3')return total===3;if(m==='exact4')return total===4;return false;}function analisar(dados,tipo,tiros,market,ini,fim){const res=[];const offs=getOffsets(tipo);const last=offs[offs.length-1];for(let p=ini;p<=fim;p++){const comb={};const need=(last+1)+p+tiros;if(dados.length<need)continue;for(let i=0;i<=dados.length-need;i++){const tok=[];for(const o of offs){const[a,b,t,man,vis]=dados[i+o];tok.push(tokens(a,b,t,man,vis));}const combos=enumerateCombos(tok);let green=false;const st=i+last+1+p,end=st+tiros;for(let j=st;j<end&&j<dados.length;j++){const[a,b,s]=dados[j];if(isGreen(market,a,b,s)){green=true;break;}}for(const seq of combos){const key=seq.join(' | ');if(!comb[key])comb[key]={ocorrencias:0,greens:0};comb[key].ocorrencias++;if(green)comb[key].greens++;}}for(const k in comb){const s=comb[k];if(s.ocorrencias>=3)res.push({padrao:k,pular_jogos:p,ocorrencias:s.ocorrencias,greens:s.greens,percentual:((s.greens/s.ocorrencias)*100).toFixed(1)});}}res.sort((a,b)=>parseFloat(b.percentual)-parseFloat(a.percentual)||b.ocorrencias-a.ocorrencias);return res.slice(0,15);}function analyzeAll(payload){const{dados,tiros,market,combinado}=payload;const tipos=combinado?['2','3','1_pula_1','1_pula_1_pula_1']:['2'];let todos=[];for(const t of tipos){const r=analisar(dados,t,tiros,market,1,10);r.forEach(x=>x.tipo_padrao=t);todos=todos.concat(r);}todos.sort((a,b)=>parseFloat(b.percentual)-parseFloat(a.percentual)||b.ocorrencias-a.ocorrencias);return{resultados:todos.slice(0,15)};}`;
+
+let _WORKER=null;
+function getWorker(){if(!_WORKER){const b=new Blob([WORKER_SRC],{type:'application/javascript'});_WORKER=new Worker(URL.createObjectURL(b));}return _WORKER;}
+function analyzeInWorker(dados,opts){return new Promise((resolve,reject)=>{const w=getWorker();const id=Math.random().toString(36).slice(2);const fn=ev=>{const msg=ev.data;if(!msg||msg.id!==id)return;w.removeEventListener('message',fn);msg.ok?resolve(msg.result):reject(msg.error||'Erro no worker');};w.addEventListener('message',fn);w.postMessage({cmd:'analyze',id,payload:{dados,...opts}});});}
+
+/* =====================================================
+   INIT
+===================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+  carregarSinais();
+  carregarConfig();
+});
+</script>
+
+<script>
+  fetch('header.html').then(r=>r.text()).then(d=>{ document.getElementById('header')&&(document.getElementById('header').innerHTML=d); }).catch(()=>{});
+</script>
+<script src="redirecionar.js" onerror="void(0)"></script>
+</body>
+</html>
