@@ -351,7 +351,71 @@ details#logbox summary:hover{color:var(--text2)}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:#383c58}
 
-/* ─ DIREÇÃO indicator separador ─ */
+/* ─ COUNTDOWN BAR ─ */
+#refresh-bar{
+  height:2px;background:var(--bg3);position:relative;overflow:hidden;flex-shrink:0;
+}
+#refresh-progress{
+  height:100%;background:var(--accent2);
+  transition:width 1s linear;
+  width:100%;
+}
+
+/* ─ CARD EXPANDÍVEL ─ */
+.bpc{cursor:pointer;transition:border-color .15s,background .15s}
+.bpc:hover{border-color:var(--border2)}
+.bpc-detail{
+  display:none;margin-top:8px;padding-top:7px;
+  border-top:1px solid var(--border);
+  animation:fadeIn .15s ease;
+}
+.bpc.expanded .bpc-detail{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.bpc-detalhe-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:6px;
+}
+.bpc-detalhe-item{
+  background:var(--bg1);border-radius:4px;padding:4px 5px;text-align:center;
+  border:1px solid var(--border);
+}
+.bpc-detalhe-lbl{font-size:8px;color:var(--text3);letter-spacing:.3px;margin-bottom:2px}
+.bpc-detalhe-val{font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--text2)}
+.bpc-detalhe-val.alto{color:var(--green)}.bpc-detalhe-val.baixo{color:var(--red)}
+
+/* ─ ODDS BADGE NO CARD ─ */
+.bpc-odds-row{
+  display:flex;gap:4px;margin-top:5px;flex-wrap:wrap;
+}
+.bpc-odd-chip{
+  font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:4px;padding:2px 6px;color:var(--text2);
+  display:flex;align-items:center;gap:3px;
+}
+.bpc-odd-chip span{font-size:8px;color:var(--text3);font-weight:400}
+
+/* ─ STREAK BADGE ─ */
+.bpc-streak{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;
+  margin-left:auto;
+}
+.bpc-streak.hot{background:rgba(39,174,96,.12);color:var(--green);border:1px solid rgba(39,174,96,.2)}
+.bpc-streak.cold{background:rgba(192,64,78,.12);color:var(--red);border:1px solid rgba(192,64,78,.2)}
+.bpc-streak.neutral{background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
+
+/* ─ FORMA BAR (últimos 5 resultados) ─ */
+.bpc-forma{display:flex;gap:2px;align-items:center;margin-top:5px}
+.bpc-forma-dot{
+  width:14px;height:14px;border-radius:3px;
+  font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.bpc-forma-dot.v{background:rgba(39,174,96,.18);color:var(--green)}
+.bpc-forma-dot.x{background:rgba(212,170,16,.15);color:var(--yellow)}
+.bpc-forma-dot.d{background:rgba(192,64,78,.15);color:var(--red)}
+.bpc-forma-lbl{font-size:8px;color:var(--text3);margin-left:3px}
+
 .sep{color:var(--border2);margin:0 2px}
 
 /* ─ Responsive ctrl wrap ─ */
@@ -436,6 +500,9 @@ details#logbox summary:hover{color:var(--text2)}
     </div>
 
   </div>
+
+  <!-- BARRA COUNTDOWN ATUALIZAÇÃO -->
+  <div id="refresh-bar"><div id="refresh-progress"></div></div>
 
   <!-- MAIN -->
   <div id="main">
@@ -535,7 +602,7 @@ const CASAS = {
       euro:    {nome:'Euro Cup',  res:'https://betstat.site/resultados/bet365/Euro',    prox:'https://betstat.site/proximos/bet365/Euro',    odds:'https://betstat.site/odds/bet365/Euro'},
       copa:    {nome:'Copa',      res:'https://betstat.site/resultados/bet365/Copa',    prox:'https://betstat.site/proximos/bet365/Copa',    odds:'https://betstat.site/odds/bet365/Copa'},
       premier: {nome:'Premier',   res:'https://betstat.site/resultados/bet365/Premier', prox:'https://betstat.site/proximos/bet365/Premier', odds:'https://betstat.site/odds/bet365/Premier'},
-      super:   {nome:'Super', res:'https://betstat.site/resultados/bet365/Super',   prox:'https://betstat.site/proximos/bet365/Super',   odds:'https://betstat.site/odds/bet365/Super'},
+      super:   {nome:'Champions', res:'https://betstat.site/resultados/bet365/Super',   prox:'https://betstat.site/proximos/bet365/Super',   odds:'https://betstat.site/odds/bet365/Super'},
     }
   },
   kiron: {
@@ -696,6 +763,7 @@ let smartModoFiltro = 0;
 let smartMinAcerto  = 0;
 let _smartCount   = 0;
 let _salvarTimer  = null;
+let _refreshTs    = Date.now();
 
 // ══════════════════════════════════════════════════════════════════
 //  LOG
@@ -774,6 +842,33 @@ function labelDirecao(mkt, dir) {
 function pesosAtivos(liga, mkt, modo) {
   return pesosMkt[liga]?.[mkt]?.[modo] || PESOS_PADRAO;
 }
+
+// Retorna sequência atual de over/under do mercado
+function calcularStreak(hist, mkt) {
+  if (!hist || hist.length < 2) return null;
+  const ul = [...hist].reverse();
+  let cnt = 0, tipo = null;
+  for (const j of ul) {
+    if (j[mkt] === null || j[mkt] === undefined) continue;
+    if (tipo === null) { tipo = j[mkt]; cnt = 1; }
+    else if (j[mkt] === tipo) cnt++;
+    else break;
+  }
+  if (cnt < 2) return null;
+  return { cnt, tipo }; // tipo=true=over, false=under
+}
+
+// Retorna últimos N resultados como array de 'v'/'x'/'d' (casa/empate/visit)
+function calcularForma(hist, tc, n=5) {
+  if (!hist || !hist.length) return [];
+  return hist.slice(-n).map(j => {
+    if (j.gc === null) return null;
+    if (j.tc === tc) return j.gc > j.gf ? 'v' : j.gc === j.gf ? 'x' : 'd';
+    if (j.tf === tc) return j.gf > j.gc ? 'v' : j.gc === j.gf ? 'x' : 'd';
+    return null;
+  }).filter(Boolean);
+}
+
 
 // ══════════════════════════════════════════════════════════════════
 //  LIMIARES
@@ -1246,7 +1341,65 @@ function renderizarCards() {
     const apBadge=limCard.origem==='aprendido'?`<span style="font-size:8px;color:#44aacc;margin-left:2px">⚡</span>`:'';
     const rangeAtual=getRangeOtimo(key,mkt,modoCards,side);
     const noRange=rangeAtual&&scoreSide>=rangeAtual.low&&scoreSide<=rangeAtual.high;
-    const modoBadge=modoCards===1?'':modoCards===2?`<span class="bpc-modo-badge m2">2T</span>`:`<span class="bpc-modo-badge m3">3T</span>`;
+    const modoBadge=modoCards===1?'':modoCards===2?`<span class="bpc-modo-badge m2">2 Tiros</span>`:`<span class="bpc-modo-badge m3">3 Tiros</span>`;
+
+    // Streak
+    const streak = calcularStreak(hist, mkt);
+    let streakHtml = '';
+    if (streak && streak.cnt >= 3) {
+      const isHot = (streak.tipo && side==='over') || (!streak.tipo && side==='under');
+      const cls = isHot ? 'hot' : 'cold';
+      const emoji = isHot ? '🔥' : '🧊';
+      const label = streak.tipo ? `+${streak.cnt}× mais` : `+${streak.cnt}× menos`;
+      streakHtml = `<span class="bpc-streak ${cls}">${emoji} ${label}</span>`;
+    }
+
+    // Forma do time da casa (últimos 5 resultados no histórico)
+    const formaTC = calcularForma(hist, jogo.tc, 5);
+    let formaHtml = '';
+    if (formaTC.length >= 3) {
+      const dots = formaTC.map(r => `<span class="bpc-forma-dot ${r}">${r==='v'?'V':r==='x'?'E':'D'}</span>`).join('');
+      formaHtml = `<div class="bpc-forma">${dots}<span class="bpc-forma-lbl">forma</span></div>`;
+    }
+
+    // Odds badge
+    const odds = getOdds(key, jogo.tc, jogo.tf);
+    let oddsHtml = '';
+    if (odds) {
+      const oddsMap = {
+        over15:'odds.over15', over25:'odds.over25', over35:'odds.over35', btts:'odds.btts'
+      };
+      const oddsVal = mkt==='over15'?odds.over15:mkt==='over25'?odds.over25:mkt==='over35'?odds.over35:mkt==='btts'?odds.btts:null;
+      const chips = [];
+      if (oddsVal) chips.push(`<span class="bpc-odd-chip"><span>${labelDirecao(mkt,true).split(' ')[0]}</span>${oddsVal.toFixed(2)}</span>`);
+      if (odds.casa && mkt !== 'res1x2') chips.push(`<span class="bpc-odd-chip"><span>Casa</span>${odds.casa.toFixed(2)}</span>`);
+      if (odds.empate && mkt !== 'res1x2') chips.push(`<span class="bpc-odd-chip"><span>Emp.</span>${odds.empate.toFixed(2)}</span>`);
+      if (odds.fora && mkt !== 'res1x2') chips.push(`<span class="bpc-odd-chip"><span>Fora</span>${odds.fora.toFixed(2)}</span>`);
+      if (chips.length) oddsHtml = `<div class="bpc-odds-row">${chips.join('')}</div>`;
+    }
+
+    // Detalhe expansível (componentes do score)
+    const d = res.d || {};
+    const detItems = [
+      {lbl:'Geral', val: d.geral ? parseFloat(d.geral) : null},
+      {lbl:'Recente', val: d.recente ? parseFloat(d.recente) : null},
+      {lbl:'Confronto', val: d.h2h ? parseFloat(d.h2h) : null},
+      {lbl:'Intervalo', val: d.ht ? parseFloat(d.ht) : null},
+      {lbl:'Ciclo', val: d.posicao ? parseFloat(d.posicao) : null},
+      {lbl:'Times', val: d.times ? parseFloat(d.times) : null},
+    ].filter(x=>x.val!==null);
+    const detHtml = detItems.length ? `
+      <div class="bpc-detail">
+        <div class="bpc-detalhe-grid">
+          ${detItems.map(x=>{
+            const cls = x.val>=60?'alto':x.val<=35?'baixo':'';
+            return `<div class="bpc-detalhe-item"><div class="bpc-detalhe-lbl">${x.lbl}</div><div class="bpc-detalhe-val ${cls}">${x.val.toFixed(0)}%</div></div>`;
+          }).join('')}
+        </div>
+        ${formaHtml}
+        ${oddsHtml}
+      </div>` : '';
+
     total++;
     let tirosHtml='';
     if(modoCards>1&&tirosData.length>1){
@@ -1260,7 +1413,7 @@ function renderizarCards() {
       });
       tirosHtml+=`<div class="bpc-recup-info">Prob. verde ≥1 = ${scoreSide}%</div></div>`;
     }
-    html+=`<div class="bpc ${confC}">
+    html+=`<div class="bpc ${confC}" onclick="this.classList.toggle('expanded')">
       <div class="bpc-header-row">
         <span class="bpc-liga-inline">${ligaNome}</span>
         <span class="bpc-dot">·</span>
@@ -1268,6 +1421,7 @@ function renderizarCards() {
         <span class="bpc-dot">·</span>
         <span class="bpc-seq-inline">#${idx+1}</span>
         ${modoBadge}
+        ${streakHtml}
       </div>
       <div class="bpc-barrow">
         <div class="bpc-bg"><div class="bpc-fill" style="width:${barW}%"></div></div>
@@ -1275,8 +1429,9 @@ function renderizarCards() {
       </div>
       <div class="bpc-times">${jogo.tc} × ${jogo.tf}</div>
       <div class="bpc-direcao ${dirCls}">${direcao}</div>
-      ${noRange?`<div class="bpc-smart-row">🎖 Range ${rangeAtual.low.toFixed(0)}–${rangeAtual.high.toFixed(0)}% · ${rangeAtual.rate.toFixed(0)}% acerto (${rangeAtual.n} am)</div>`:''}
+      ${noRange?`<div class="bpc-smart-row">🎖 Intervalo ${rangeAtual.low.toFixed(0)}–${rangeAtual.high.toFixed(0)}% · ${rangeAtual.rate.toFixed(0)}% acerto (${rangeAtual.n} am)</div>`:''}
       ${tirosHtml}
+      ${detHtml}
     </div>`;
   });
 
@@ -1706,6 +1861,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('rbtn')?.addEventListener('click',()=>{
     const btn=document.getElementById('rbtn');
     btn.textContent='⏳';
+    _refreshTs = Date.now();
     buscarTudo();
     setTimeout(()=>{btn.textContent='↺';},4000);
   });
@@ -1718,11 +1874,28 @@ document.addEventListener('DOMContentLoaded', () => {
     log(`Intervalos init: ${totalC} amostras`, 'smart');
   }
   buscarTudo();
-  setInterval(buscarTudo, CFG.intervaloFetch);
+
+  // Countdown bar de atualização
+  _refreshTs = Date.now();
+  function atualizarCountdown() {
+    const prog = document.getElementById('refresh-progress');
+    if (!prog) return;
+    const elapsed = Date.now() - _refreshTs;
+    const pct = Math.max(0, 100 - (elapsed / CFG.intervaloFetch) * 100);
+    prog.style.width = pct + '%';
+    prog.style.background = pct > 50 ? 'var(--accent2)' : pct > 20 ? 'var(--yellow)' : 'var(--red)';
+  }
+  setInterval(atualizarCountdown, 1000);
+
+  setInterval(()=>{
+    _refreshTs = Date.now();
+    buscarTudo();
+  }, CFG.intervaloFetch);
   setInterval(renderizar, 15000);
   log(`BetStat Preditor iniciado [${CASAS[casaAtiva].nome}] — ${Object.keys(LIGAS).length} ligas`, 'ok');
 });
 </script>
+
 <script>
   fetch('header.html')
     .then(response => response.text())
