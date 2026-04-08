@@ -1117,6 +1117,8 @@ async function rodarAnalise() {
 
   // Remove sinais expirados e re-renderiza sinais sem piscar
   limparSinaisExpirados();
+  // Verifica automaticamente resultado (green/red) nos sinais usados
+  verificarResultadosAutomaticos();
   renderSinais();
 
   const agora = new Date();
@@ -1342,21 +1344,23 @@ function horarioParaMinutos(h) {
   return hh * 60 + mm;
 }
 
-/* Remove sinais ativos cujos horários já passaram (todos os jogos do sinal no passado) */
+/* Remove sinais ativos cujos horários já passaram (o ÚLTIMO jogo do sinal passou) */
 function limparSinaisExpirados() {
   const agora = new Date();
   const agoraMin = agora.getHours() * 60 + agora.getMinutes();
   const antes = sinaisAtivos.length;
   sinaisAtivos = sinaisAtivos.filter(s => {
-    // Mantém se ao menos um jogo ainda não passou (tolerância de 5min após o horário)
-    return s.jogos.some(j => {
+    // Pega o horário mais tarde entre todos os jogos do sinal
+    const maxMin = s.jogos.reduce((acc, j) => {
       const m = horarioParaMinutos(j.horario);
-      return m === -1 || m > agoraMin - 5;
-    });
+      return m > acc ? m : acc;
+    }, -1);
+    // Remove somente quando o último jogo passou há mais de 10 minutos (tolerância para resultado)
+    return maxMin === -1 || maxMin > agoraMin - 10;
   });
   if (sinaisAtivos.length !== antes) {
     salvarSinais();
-    return true; // houve mudança
+    return true;
   }
   return false;
 }
@@ -1476,9 +1480,10 @@ function marcarResultado(id, resultado) {
   if (sinal.resultado === resultado) {
     sinal.resultado = null;
     sinal.greenMinuto = null;
+    sinal.autoResultado = false;
   } else {
     sinal.resultado = resultado;
-    // Registra o horário do primeiro jogo do sinal como referência do minuto
+    sinal.autoResultado = false;
     if (resultado === 'green' && sinal.jogos.length > 0) {
       sinal.greenMinuto = sinal.jogos[0].horario;
     } else {
@@ -1487,6 +1492,94 @@ function marcarResultado(id, resultado) {
   }
   salvarSinais();
   renderSinais();
+}
+
+/* Verifica automaticamente o resultado dos sinais usados sem resultado */
+function verificarResultadosAutomaticos() {
+  let houveMudanca = false;
+  const agora = new Date();
+  const agoraMin = agora.getHours() * 60 + agora.getMinutes();
+
+  sinaisUsados.forEach(sinal => {
+    if (sinal.resultado) return; // já tem resultado, não sobrescreve
+
+    // Só verifica quando o horário do último jogo já passou
+    const maxMin = sinal.jogos.reduce((acc, j) => {
+      const m = horarioParaMinutos(j.horario);
+      return m > acc ? m : acc;
+    }, -1);
+    if (maxMin === -1 || agoraMin < maxMin + 2) return; // aguarda 2min após último jogo
+
+    // Busca liga e casa para obter dados reais
+    const casaKey = Object.keys(casasConfig).find(k => casasConfig[k].name === sinal.casa) || sinal.casa;
+    const resLiga = resultsByLiga[sinal.liga];
+    if (!resLiga || resLiga.erro) return;
+
+    const { dados, mercadoV } = resLiga;
+    const dadosCru = dados.dadosCru || [];
+    const sm = mapMercado(mercadoV || sinal.mercado);
+
+    // Para cada jogo do sinal, procura o resultado real nos dados crus
+    let greenEncontrado = false;
+    let greenMinuto = null;
+
+    for (const jogo of sinal.jogos) {
+      const timeA = (jogo.time_a || '').trim().toLowerCase();
+      const timeB = (jogo.time_b || '').trim().toLowerCase();
+
+      // Encontra o jogo nos dados crus pelo horário + times
+      const resultadoReal = dadosCru.find(j => {
+        const ja = (j[3] || '').toLowerCase().trim();
+        const jb = (j[4] || '').toLowerCase().trim();
+        const hh = String(j[5] || '').padStart(2,'0');
+        const mm = String(j[6] || '').padStart(2,'0');
+        const horaJogo = `${hh}:${mm}`;
+        const mesmoTime = (ja === timeA && jb === timeB) || (ja === timeB && jb === timeA);
+        const mesmoHorario = horaJogo === jogo.horario;
+        return mesmoTime && mesmoHorario;
+      });
+
+      if (resultadoReal) {
+        const [a, b, t] = resultadoReal;
+        if (checkMarket(sm, a, b, t) === 1) {
+          greenEncontrado = true;
+          greenMinuto = jogo.horario;
+          break;
+        }
+      }
+    }
+
+    // Se achamos todos os jogos e nenhum foi green, é red
+    const todosEncontrados = sinal.jogos.every(jogo => {
+      const timeA = (jogo.time_a || '').trim().toLowerCase();
+      const timeB = (jogo.time_b || '').trim().toLowerCase();
+      return dadosCru.some(j => {
+        const ja = (j[3] || '').toLowerCase().trim();
+        const jb = (j[4] || '').toLowerCase().trim();
+        const hh = String(j[5] || '').padStart(2,'0');
+        const mm = String(j[6] || '').padStart(2,'0');
+        const horaJogo = `${hh}:${mm}`;
+        return ((ja === timeA && jb === timeB) || (ja === timeB && jb === timeA)) && horaJogo === jogo.horario;
+      });
+    });
+
+    if (greenEncontrado) {
+      sinal.resultado = 'green';
+      sinal.greenMinuto = greenMinuto;
+      sinal.autoResultado = true;
+      houveMudanca = true;
+    } else if (todosEncontrados) {
+      sinal.resultado = 'red';
+      sinal.greenMinuto = null;
+      sinal.autoResultado = true;
+      houveMudanca = true;
+    }
+  });
+
+  if (houveMudanca) {
+    salvarSinais();
+    renderSinais();
+  }
 }
 
 /* ─── renderSinais: diff para não piscar ─── */
@@ -1559,8 +1652,11 @@ function renderSinalCard(s, isUsado) {
       const greenMinutoHtml = (s.resultado === 'green' && s.greenMinuto)
         ? ` <span style="color:var(--muted);font-size:0.68rem;font-family:'Roboto Mono',monospace;">às ${s.greenMinuto}</span>`
         : '';
-      resultadoHtml = `<div style="margin-top:0.45rem;display:flex;align-items:center;gap:0.5rem;">
-        <span class="result-pill ${s.resultado}">${s.resultado === 'green' ? '✓ GREEN' : '✗ RED'}${greenMinutoHtml}</span>
+      const autoTag = s.autoResultado
+        ? `<span style="font-size:0.62rem;color:var(--muted);background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:0.1rem 0.35rem;margin-left:0.3rem;">AUTO</span>`
+        : '';
+      resultadoHtml = `<div style="margin-top:0.45rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+        <span class="result-pill ${s.resultado}">${s.resultado === 'green' ? '✓ GREEN' : '✗ RED'}${greenMinutoHtml}${autoTag}</span>
         <button onclick="marcarResultado(${s.id}, '${s.resultado}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.68rem;padding:0;">remover</button>
       </div>`;
     } else {
