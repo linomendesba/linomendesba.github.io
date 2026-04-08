@@ -1355,8 +1355,8 @@ function limparSinaisExpirados() {
       const m = horarioParaMinutos(j.horario);
       return m > acc ? m : acc;
     }, -1);
-    // Remove somente quando o último jogo passou há mais de 10 minutos (tolerância para resultado)
-    return maxMin === -1 || maxMin > agoraMin - 10;
+    // Remove quando o último jogo passou há mais de 3 minutos
+    return maxMin === -1 || maxMin > agoraMin - 3;
   });
   if (sinaisAtivos.length !== antes) {
     salvarSinais();
@@ -1371,15 +1371,18 @@ function horariosTemConflito(horariosA, horariosB) {
   return horariosB.some(h => setA.has(h));
 }
 
+const ANTECEDENCIA_MIN = 3; // minutos minimos antes do 1o jogo para emitir sinal
+
 function checarSinal(dados, liga, casa, mercadoV, martCob) {
   const padroes  = dados.padroesEncontrados || [];
-  // Filtra apenas próximos jogos que ainda não passaram
-  const agora = new Date();
+  const agora    = new Date();
   const agoraMin = agora.getHours() * 60 + agora.getMinutes();
+
+  // So considera jogos que ainda tem pelo menos ANTECEDENCIA_MIN minutos no futuro
   const proximos = (dados.proximos || [])
     .filter(j => {
       const m = horarioParaMinutos(j.horario);
-      return m === -1 || m > agoraMin - 2; // tolerância 2 min
+      return m === -1 || m > agoraMin + ANTECEDENCIA_MIN;
     })
     .slice(0, 8);
 
@@ -1391,6 +1394,10 @@ function checarSinal(dados, liga, casa, mercadoV, martCob) {
   const tiros      = martCob + 1;
   const candidatos = proximos.slice(0, tiros);
   const horarios   = candidatos.map(j => j.horario);
+
+  // Antecedencia real em minutos ate o 1o jogo
+  const primeiroJogoMin  = horarioParaMinutos(candidatos[0].horario);
+  const antecedenciaReal = primeiroJogoMin !== -1 ? primeiroJogoMin - agoraMin : 999;
 
   // Chave exata para evitar duplicata perfeita
   const chave = `${casa}|${liga}|${mercadoV}|${horarios.join(',')}`;
@@ -1408,7 +1415,7 @@ function checarSinal(dados, liga, casa, mercadoV, martCob) {
     padroes.length
   ).score;
 
-  // Verifica conflito de horários com sinais ativos existentes (mesma casa+mercado)
+  // Verifica conflito de horarios com sinais ativos (mesma casa+mercado)
   const conflitante = sinaisAtivos.find(s =>
     s.casa === (casasConfig[casa] ? casasConfig[casa].name : casa) &&
     s.mercado === mercadoLabel(mercadoV) &&
@@ -1416,25 +1423,26 @@ function checarSinal(dados, liga, casa, mercadoV, martCob) {
   );
 
   if (conflitante) {
-    // Mantém apenas o de maior score
-    if (novoScore > conflitante.score) {
-      // Remove o conflitante e adiciona o novo
+    // Prefere maior score; empate: prefere maior antecedencia
+    const conflitanteAntec = conflitante.antecedencia || 0;
+    if (novoScore > conflitante.score || (novoScore === conflitante.score && antecedenciaReal > conflitanteAntec)) {
       sinaisAtivos = sinaisAtivos.filter(s => s.id !== conflitante.id);
     } else {
-      return; // conflitante é melhor, descarta o novo
+      return;
     }
   }
 
   const casaConfig = casasConfig[casa];
   const sinal = {
-    id:      Date.now() + Math.random(),
+    id:           Date.now() + Math.random(),
     chave,
-    casa:    casaConfig ? casaConfig.name : casa,
+    casa:         casaConfig ? casaConfig.name : casa,
     liga,
-    mercado: mercadoLabel(mercadoV),
-    acerto:  padroes[0].percentual,
-    score:   novoScore,
-    jogos:   candidatos.map(j => ({
+    mercado:      mercadoLabel(mercadoV),
+    acerto:       padroes[0].percentual,
+    score:        novoScore,
+    antecedencia: antecedenciaReal,
+    jogos:        candidatos.map(j => ({
       horario: j.horario,
       time_a:  j.time_a,
       time_b:  j.time_b,
@@ -1444,9 +1452,9 @@ function checarSinal(dados, liga, casa, mercadoV, martCob) {
         return odd ? odd.toFixed(2) : null;
       })()
     })),
-    ts:        new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }),
-    resultado: null,   // null | 'green' | 'red'
-    greenMinuto: null  // preenchido quando GREEN é marcado
+    ts:           new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }),
+    resultado:    null,
+    greenMinuto:  null
   };
 
   sinaisAtivos.push(sinal);
@@ -1494,86 +1502,122 @@ function marcarResultado(id, resultado) {
   renderSinais();
 }
 
-/* Verifica automaticamente o resultado dos sinais usados sem resultado */
+/* Resolve o mercadoV a partir do label armazenado no sinal */
+function mercadoLabelParaValue(label) {
+  const map = {
+    'Casa Vence':'casaVence','Fora Vence':'foraVence','Empate':'empate',
+    'Over 1.5':'over1.5','Over 2.5':'over2.5','Over 3.5':'over3.5',
+    'Under 1.5':'under1.5','Under 2.5':'under2.5','Under 3.5':'under3.5',
+    'Ambas Sim':'ambasMarcam','Ambas Não':'ambasNaoMarcam','5+ Gols':'over5',
+    '1 Gol':'exact1','2 Gols':'exact2','3 Gols':'exact3','4 Gols':'exact4'
+  };
+  return map[label] || label;
+}
+
+/* Checa o resultado de um sinal contra os dados crus disponíveis */
+function _checarResultadoSinal(sinal) {
+  const maxMin = sinal.jogos.reduce((acc, j) => {
+    const m = horarioParaMinutos(j.horario);
+    return m > acc ? m : acc;
+  }, -1);
+  const agora = new Date();
+  const agoraMin = agora.getHours() * 60 + agora.getMinutes();
+  // Aguarda até 2min após o último jogo para resultado aparecer na API
+  if (maxMin === -1 || agoraMin < maxMin + 2) return null;
+
+  const resLiga = resultsByLiga[sinal.liga];
+  if (!resLiga || resLiga.erro) return null;
+
+  const { dados, mercadoV: mvDados } = resLiga;
+  const dadosCru = dados.dadosCru || [];
+  // Usa o mercado do contexto da liga, ou resolve pelo label do sinal
+  const mv = mvDados || mercadoLabelParaValue(sinal.mercado);
+  const sm = mapMercado(mv);
+
+  let greenEncontrado = false;
+  let greenMinuto = null;
+
+  for (const jogo of sinal.jogos) {
+    const timeA = (jogo.time_a || '').trim().toLowerCase();
+    const timeB = (jogo.time_b || '').trim().toLowerCase();
+    const resultadoReal = dadosCru.find(j => {
+      const ja = (j[3] || '').toLowerCase().trim();
+      const jb = (j[4] || '').toLowerCase().trim();
+      const hh = String(j[5] || '').padStart(2,'0');
+      const mm = String(j[6] || '').padStart(2,'0');
+      const horaJogo = `${hh}:${mm}`;
+      return ((ja === timeA && jb === timeB) || (ja === timeB && jb === timeA)) && horaJogo === jogo.horario;
+    });
+    if (resultadoReal) {
+      const [a, b, t] = resultadoReal;
+      if (checkMarket(sm, a, b, t) === 1) {
+        greenEncontrado = true;
+        greenMinuto = jogo.horario;
+        break;
+      }
+    }
+  }
+
+  if (greenEncontrado) return { resultado: 'green', greenMinuto };
+
+  // Só marca RED quando todos os jogos do sinal já têm resultado na API
+  const todosEncontrados = sinal.jogos.every(jogo => {
+    const timeA = (jogo.time_a || '').trim().toLowerCase();
+    const timeB = (jogo.time_b || '').trim().toLowerCase();
+    return dadosCru.some(j => {
+      const ja = (j[3] || '').toLowerCase().trim();
+      const jb = (j[4] || '').toLowerCase().trim();
+      const hh = String(j[5] || '').padStart(2,'0');
+      const mm = String(j[6] || '').padStart(2,'0');
+      const horaJogo = `${hh}:${mm}`;
+      return ((ja === timeA && jb === timeB) || (ja === timeB && jb === timeA)) && horaJogo === jogo.horario;
+    });
+  });
+
+  if (todosEncontrados) return { resultado: 'red', greenMinuto: null };
+  return null;
+}
+
+/* Verifica automaticamente resultados:
+   - Sinais usados sem resultado
+   - Sinais ativos expirados (move para usados com resultado já marcado) */
 function verificarResultadosAutomaticos() {
   let houveMudanca = false;
   const agora = new Date();
   const agoraMin = agora.getHours() * 60 + agora.getMinutes();
 
+  // 1) Sinais usados sem resultado
   sinaisUsados.forEach(sinal => {
-    if (sinal.resultado) return; // já tem resultado, não sobrescreve
+    if (sinal.resultado) return;
+    const res = _checarResultadoSinal(sinal);
+    if (res) {
+      sinal.resultado    = res.resultado;
+      sinal.greenMinuto  = res.greenMinuto;
+      sinal.autoResultado = true;
+      houveMudanca = true;
+    }
+  });
 
-    // Só verifica quando o horário do último jogo já passou
-    const maxMin = sinal.jogos.reduce((acc, j) => {
+  // 2) Sinais ativos cujo último jogo já passou — move para usados e tenta marcar resultado
+  const ativosParaMover = [];
+  sinaisAtivos = sinaisAtivos.filter(s => {
+    const maxMin = s.jogos.reduce((acc, j) => {
       const m = horarioParaMinutos(j.horario);
       return m > acc ? m : acc;
     }, -1);
-    if (maxMin === -1 || agoraMin < maxMin + 2) return; // aguarda 2min após último jogo
-
-    // Busca liga e casa para obter dados reais
-    const casaKey = Object.keys(casasConfig).find(k => casasConfig[k].name === sinal.casa) || sinal.casa;
-    const resLiga = resultsByLiga[sinal.liga];
-    if (!resLiga || resLiga.erro) return;
-
-    const { dados, mercadoV } = resLiga;
-    const dadosCru = dados.dadosCru || [];
-    const sm = mapMercado(mercadoV || sinal.mercado);
-
-    // Para cada jogo do sinal, procura o resultado real nos dados crus
-    let greenEncontrado = false;
-    let greenMinuto = null;
-
-    for (const jogo of sinal.jogos) {
-      const timeA = (jogo.time_a || '').trim().toLowerCase();
-      const timeB = (jogo.time_b || '').trim().toLowerCase();
-
-      // Encontra o jogo nos dados crus pelo horário + times
-      const resultadoReal = dadosCru.find(j => {
-        const ja = (j[3] || '').toLowerCase().trim();
-        const jb = (j[4] || '').toLowerCase().trim();
-        const hh = String(j[5] || '').padStart(2,'0');
-        const mm = String(j[6] || '').padStart(2,'0');
-        const horaJogo = `${hh}:${mm}`;
-        const mesmoTime = (ja === timeA && jb === timeB) || (ja === timeB && jb === timeA);
-        const mesmoHorario = horaJogo === jogo.horario;
-        return mesmoTime && mesmoHorario;
-      });
-
-      if (resultadoReal) {
-        const [a, b, t] = resultadoReal;
-        if (checkMarket(sm, a, b, t) === 1) {
-          greenEncontrado = true;
-          greenMinuto = jogo.horario;
-          break;
-        }
-      }
+    const expirou = maxMin !== -1 && agoraMin >= maxMin + 3;
+    if (expirou) { ativosParaMover.push(s); return false; }
+    return true;
+  });
+  ativosParaMover.forEach(s => {
+    const res = _checarResultadoSinal(s);
+    if (res) {
+      s.resultado     = res.resultado;
+      s.greenMinuto   = res.greenMinuto;
+      s.autoResultado = true;
     }
-
-    // Se achamos todos os jogos e nenhum foi green, é red
-    const todosEncontrados = sinal.jogos.every(jogo => {
-      const timeA = (jogo.time_a || '').trim().toLowerCase();
-      const timeB = (jogo.time_b || '').trim().toLowerCase();
-      return dadosCru.some(j => {
-        const ja = (j[3] || '').toLowerCase().trim();
-        const jb = (j[4] || '').toLowerCase().trim();
-        const hh = String(j[5] || '').padStart(2,'0');
-        const mm = String(j[6] || '').padStart(2,'0');
-        const horaJogo = `${hh}:${mm}`;
-        return ((ja === timeA && jb === timeB) || (ja === timeB && jb === timeA)) && horaJogo === jogo.horario;
-      });
-    });
-
-    if (greenEncontrado) {
-      sinal.resultado = 'green';
-      sinal.greenMinuto = greenMinuto;
-      sinal.autoResultado = true;
-      houveMudanca = true;
-    } else if (todosEncontrados) {
-      sinal.resultado = 'red';
-      sinal.greenMinuto = null;
-      sinal.autoResultado = true;
-      houveMudanca = true;
-    }
+    sinaisUsados.unshift(s);
+    houveMudanca = true;
   });
 
   if (houveMudanca) {
@@ -1680,7 +1724,12 @@ function renderSinalCard(s, isUsado) {
           <span style="margin-left:auto;font-family:'Roboto Mono',monospace;font-size:0.68rem;color:${scoreCls};font-weight:600;">${s.score}/100</span>
         </div>
         <div class="signal-games">${jogosHtml}</div>
-        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.35rem;">Acerto padrão: ${s.acerto}% · Gerado: ${s.ts}</div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.35rem;">
+          Acerto padrão: ${s.acerto}% · Gerado: ${s.ts}
+          ${s.antecedencia !== undefined && s.antecedencia < 999
+            ? ` · <span style="color:${s.antecedencia >= 10 ? 'var(--accent)' : s.antecedencia >= 5 ? 'var(--yellow)' : 'var(--orange)'};">⏱ ${s.antecedencia}min antes</span>`
+            : ''}
+        </div>
         ${resultadoHtml}
       </div>
     </div>
