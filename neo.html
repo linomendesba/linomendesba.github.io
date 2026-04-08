@@ -816,11 +816,72 @@
    CONFIGURAÇÃO DAS CASAS
 ===================================================== */
 const casasConfig = {
-  'betano': { name:'Betano', ligas:['Taça Glória Eterna','Copa América','Euro','Campeonato Italiano','Copa das Estrelas','Brasileirão Betano'] },
-  'kiron':  { name:'Kiron',  ligas:['England','Italy','Spain'], path:'kiron' },
+  'betano': { name:'Betano',     ligas:['Taça Glória Eterna','Copa América','Euro','Campeonato Italiano','Copa das Estrelas','Brasileirão Betano'] },
+  'kiron':  { name:'Kiron',      ligas:['England','Italy','Spain'], path:'kiron' },
   'estrela':{ name:'EstrelaBet', ligas:['Copa do Mundo','Ligas dos Campeões','América Latina'], path:'estrela' },
-  'bet365': { name:'Bet365', ligas:['Copa','Euro','Super','Premier'], path:'bet365' }
+  'bet365': { name:'Bet365',     ligas:['Copa','Euro','Super','Premier'], path:'bet365', autoOffset: true }
+  // autoOffset: o offset é calculado automaticamente comparando o horário da API com o horário BR
 };
+
+/* Cache de offsets detectados automaticamente por casa { casaKey: offsetMin } */
+const _offsetCache = {};
+
+/* Detecta automaticamente o offset (em minutos) entre o horário da API e o horário BR.
+   Lógica: os minutos dos jogos (ex: :07, :11) são os mesmos em qualquer fuso —
+   só as horas diferem. Então comparamos apenas a parte dos minutos para alinhar
+   e calculamos quantas horas de diferença existe.
+   Ex: API diz 22:07, BR são 19:07 → minutos batem, horas diferem em 3 → offset = +180min */
+function detectarOffset(casaKey, proximos) {
+  const cfg = casasConfig[casaKey];
+  if (!cfg || !cfg.autoOffset) return;
+  if (!proximos || !proximos.length) return;
+
+  const agora   = new Date();
+  const horaBR  = agora.getHours();
+  const minBR   = agora.getMinutes();
+
+  // Coleta os horários dos próximos jogos e tira a média das horas
+  // (os minutos são iguais nos dois fusos, só as horas diferem)
+  let somaHoras = 0, count = 0;
+  for (const j of proximos) {
+    const h = j.horario || '';
+    if (!h.includes(':')) continue;
+    const [hh] = h.split(':').map(Number);
+    somaHoras += hh;
+    count++;
+    if (count >= 3) break; // 3 amostras são suficientes
+  }
+  if (!count) return;
+
+  const horaMediaAPI = somaHoras / count;
+  // Diferença em horas entre a API e o BR, arredondada para inteiro
+  // Usamos somente a parte inteira da hora para não depender de quando os jogos estão
+  // A lógica é: offset = round(horaAPI - horaBR), limitado a ±12h
+  let diffHoras = Math.round(horaMediaAPI - horaBR);
+  // Corrige quando passa da meia-noite (ex: API = 01:xx, BR = 22:xx → diff real = +3h)
+  if (diffHoras < -12) diffHoras += 24;
+  if (diffHoras >  12) diffHoras -= 24;
+
+  const novoOffset = diffHoras * 60;
+  if (_offsetCache[casaKey] !== novoOffset) {
+    _offsetCache[casaKey] = novoOffset;
+    console.log('[Morfeus] Offset ' + casaKey + ' detectado: ' + (novoOffset >= 0 ? '+' : '') + (novoOffset/60) + 'h');
+  }
+}
+
+/* Retorna o "agora" em minutos no fuso horário usado pela casa */
+function agoraMinCasa(casaKey) {
+  const agora = new Date();
+  const base = agora.getHours() * 60 + agora.getMinutes();
+  const offset = _offsetCache[casaKey] || 0;
+  return base + offset;
+}
+
+/* Mesmo helper mas recebendo o nome da casa (ex: "Bet365") */
+function agoraMinCasaNome(casaNome) {
+  const key = Object.keys(casasConfig).find(k => casasConfig[k].name === casaNome);
+  return key ? agoraMinCasa(key) : (new Date().getHours() * 60 + new Date().getMinutes());
+}
 
 /* =====================================================
    ESTADO GLOBAL
@@ -1106,6 +1167,8 @@ async function rodarAnalise() {
 
       resultsByLiga[liga] = { dados, mercadoV, martCob, ts: Date.now() };
 
+      // Detecta automaticamente o offset de fuso da casa com base nos próximos jogos
+      detectarOffset(casa, dados.proximos);
       checarSinal(dados, liga, casa, mercadoV, martCob);
       atualizarBlocoLiga(liga);
 
@@ -1115,9 +1178,7 @@ async function rodarAnalise() {
     }
   }
 
-  // Remove sinais expirados e re-renderiza sinais sem piscar
-  limparSinaisExpirados();
-  // Verifica automaticamente resultado (green/red) nos sinais usados
+  // Verifica resultados, move expirados e renderiza
   verificarResultadosAutomaticos();
   renderSinais();
 
@@ -1345,25 +1406,8 @@ function horarioParaMinutos(h) {
 }
 
 /* Remove sinais ativos cujos horários já passaram (o ÚLTIMO jogo do sinal passou) */
-function limparSinaisExpirados() {
-  const agora = new Date();
-  const agoraMin = agora.getHours() * 60 + agora.getMinutes();
-  const antes = sinaisAtivos.length;
-  sinaisAtivos = sinaisAtivos.filter(s => {
-    // Pega o horário mais tarde entre todos os jogos do sinal
-    const maxMin = s.jogos.reduce((acc, j) => {
-      const m = horarioParaMinutos(j.horario);
-      return m > acc ? m : acc;
-    }, -1);
-    // Remove quando o último jogo passou há mais de 3 minutos
-    return maxMin === -1 || maxMin > agoraMin - 3;
-  });
-  if (sinaisAtivos.length !== antes) {
-    salvarSinais();
-    return true;
-  }
-  return false;
-}
+// limparSinaisExpirados — lógica unificada em verificarResultadosAutomaticos
+function limparSinaisExpirados() { return false; }
 
 /* Verifica se dois conjuntos de horários têm sobreposição */
 function horariosTemConflito(horariosA, horariosB) {
@@ -1375,8 +1419,8 @@ const ANTECEDENCIA_MIN = 3; // minutos minimos antes do 1o jogo para emitir sina
 
 function checarSinal(dados, liga, casa, mercadoV, martCob) {
   const padroes  = dados.padroesEncontrados || [];
-  const agora    = new Date();
-  const agoraMin = agora.getHours() * 60 + agora.getMinutes();
+  // Usa o horário no fuso da casa (Bet365 = UK, demais = BR)
+  const agoraMin = agoraMinCasa(casa);
 
   // So considera jogos que ainda tem pelo menos ANTECEDENCIA_MIN minutos no futuro
   const proximos = (dados.proximos || [])
@@ -1514,15 +1558,17 @@ function mercadoLabelParaValue(label) {
   return map[label] || label;
 }
 
-/* Checa o resultado de um sinal contra os dados crus disponíveis */
+/* Tenta obter resultado de um sinal nos dados crus. Retorna {resultado, greenMinuto} ou null */
 function _checarResultadoSinal(sinal) {
+  // Usa o fuso correto da casa para comparar com os horários da API
+  const agoraMin = agoraMinCasaNome(sinal.casa);
+
   const maxMin = sinal.jogos.reduce((acc, j) => {
     const m = horarioParaMinutos(j.horario);
     return m > acc ? m : acc;
   }, -1);
-  const agora = new Date();
-  const agoraMin = agora.getHours() * 60 + agora.getMinutes();
-  // Aguarda até 2min após o último jogo para resultado aparecer na API
+
+  // Aguarda 2 min após o último jogo para resultado aparecer na API
   if (maxMin === -1 || agoraMin < maxMin + 2) return null;
 
   const resLiga = resultsByLiga[sinal.liga];
@@ -1530,7 +1576,6 @@ function _checarResultadoSinal(sinal) {
 
   const { dados, mercadoV: mvDados } = resLiga;
   const dadosCru = dados.dadosCru || [];
-  // Usa o mercado do contexto da liga, ou resolve pelo label do sinal
   const mv = mvDados || mercadoLabelParaValue(sinal.mercado);
   const sm = mapMercado(mv);
 
@@ -1560,7 +1605,7 @@ function _checarResultadoSinal(sinal) {
 
   if (greenEncontrado) return { resultado: 'green', greenMinuto };
 
-  // Só marca RED quando todos os jogos do sinal já têm resultado na API
+  // RED só quando todos os jogos já têm resultado na API
   const todosEncontrados = sinal.jogos.every(jogo => {
     const timeA = (jogo.time_a || '').trim().toLowerCase();
     const timeB = (jogo.time_b || '').trim().toLowerCase();
@@ -1578,52 +1623,47 @@ function _checarResultadoSinal(sinal) {
   return null;
 }
 
-/* Verifica automaticamente resultados:
-   - Sinais usados sem resultado
-   - Sinais ativos expirados (move para usados com resultado já marcado) */
+/* Unifica: expirar ativos + marcar resultado automático */
 function verificarResultadosAutomaticos() {
   let houveMudanca = false;
-  const agora = new Date();
-  const agoraMin = agora.getHours() * 60 + agora.getMinutes();
 
-  // 1) Sinais usados sem resultado
-  sinaisUsados.forEach(sinal => {
-    if (sinal.resultado) return;
-    const res = _checarResultadoSinal(sinal);
-    if (res) {
-      sinal.resultado    = res.resultado;
-      sinal.greenMinuto  = res.greenMinuto;
-      sinal.autoResultado = true;
-      houveMudanca = true;
-    }
-  });
-
-  // 2) Sinais ativos cujo último jogo já passou — move para usados e tenta marcar resultado
-  const ativosParaMover = [];
-  sinaisAtivos = sinaisAtivos.filter(s => {
+  // ── Sinais ativos: move para usados quando último jogo passou há ≥3 min ──
+  const ativosFiltrados = [];
+  for (const s of sinaisAtivos) {
+    const agoraMin = agoraMinCasaNome(s.casa); // fuso correto por casa
     const maxMin = s.jogos.reduce((acc, j) => {
       const m = horarioParaMinutos(j.horario);
       return m > acc ? m : acc;
     }, -1);
     const expirou = maxMin !== -1 && agoraMin >= maxMin + 3;
-    if (expirou) { ativosParaMover.push(s); return false; }
-    return true;
-  });
-  ativosParaMover.forEach(s => {
-    const res = _checarResultadoSinal(s);
-    if (res) {
-      s.resultado     = res.resultado;
-      s.greenMinuto   = res.greenMinuto;
-      s.autoResultado = true;
+    if (expirou) {
+      const res = _checarResultadoSinal(s);
+      if (res) {
+        s.resultado     = res.resultado;
+        s.greenMinuto   = res.greenMinuto;
+        s.autoResultado = true;
+      }
+      sinaisUsados.unshift(s);
+      houveMudanca = true;
+    } else {
+      ativosFiltrados.push(s);
     }
-    sinaisUsados.unshift(s);
-    houveMudanca = true;
+  }
+  sinaisAtivos = ativosFiltrados;
+
+  // ── Sinais usados sem resultado: tenta marcar ──
+  sinaisUsados.forEach(sinal => {
+    if (sinal.resultado) return;
+    const res = _checarResultadoSinal(sinal);
+    if (res) {
+      sinal.resultado     = res.resultado;
+      sinal.greenMinuto   = res.greenMinuto;
+      sinal.autoResultado = true;
+      houveMudanca = true;
+    }
   });
 
-  if (houveMudanca) {
-    salvarSinais();
-    renderSinais();
-  }
+  if (houveMudanca) salvarSinais();
 }
 
 /* ─── renderSinais: diff para não piscar ─── */
@@ -1727,7 +1767,14 @@ function renderSinalCard(s, isUsado) {
         <div style="font-size:0.7rem;color:var(--muted);margin-top:0.35rem;">
           Acerto padrão: ${s.acerto}% · Gerado: ${s.ts}
           ${s.antecedencia !== undefined && s.antecedencia < 999
-            ? ` · <span style="color:${s.antecedencia >= 10 ? 'var(--accent)' : s.antecedencia >= 5 ? 'var(--yellow)' : 'var(--orange)'};">⏱ ${s.antecedencia}min antes</span>`
+            ? (() => {
+                const ant = s.antecedencia;
+                const cor = ant >= 10 ? 'var(--accent)' : ant >= 5 ? 'var(--yellow)' : 'var(--orange)';
+                const txt = ant >= 60
+                  ? `${Math.floor(ant/60)}h${ant%60>0 ? (ant%60)+'min' : ''} antes`
+                  : `${ant}min antes`;
+                return ` · <span style="color:${cor};">⏱ ${txt}</span>`;
+              })()
             : ''}
         </div>
         ${resultadoHtml}
