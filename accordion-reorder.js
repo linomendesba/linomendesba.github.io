@@ -1,1 +1,241 @@
-function a0_0xf630(_0x26b9a4,_0x41bc1d){_0x26b9a4=_0x26b9a4-0x1e4;const _0x53e5da=a0_0x5ded();let _0x39572e=_0x53e5da[_0x26b9a4];if(a0_0xf630['kZPYKV']===undefined){var _0x4c63a2=function(_0x323405){const _0x318f99='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x5a5bac='',_0x338361='',_0x748c25=_0x5a5bac+_0x4c63a2;for(let _0x2cd35a=0x0,_0x498b24,_0x203b7a,_0x314802=0x0;_0x203b7a=_0x323405['charAt'](_0x314802++);~_0x203b7a&&(_0x498b24=_0x2cd35a%0x4?_0x498b24*0x40+_0x203b7a:_0x203b7a,_0x2cd35a++%0x4)?_0x5a5bac+=_0x748c25['charCodeAt'](_0x314802+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x498b24>>(-0x2*_0x2cd35a&0x6)):_0x2cd35a:0x0){_0x203b7a=_0x318f99['indexOf'](_0x203b7a);}for(let _0x527d53=0x0,_0x4a194c=_0x5a5bac['length'];_0x527d53<_0x4a194c;_0x527d53++){_0x338361+='%'+('00'+_0x5a5bac['charCodeAt'](_0x527d53)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x338361);};a0_0xf630['wrwFyT']=_0x4c63a2,a0_0xf630['WpjhsA']={},a0_0xf630['kZPYKV']=!![];}const _0x5ded35=_0x53e5da[0x0],_0xf630b4=_0x26b9a4+_0x5ded35,_0x1f7f48=a0_0xf630['WpjhsA'][_0xf630b4];if(!_0x1f7f48){const _0x24e830=function(_0x359ebd){this['tGkjNo']=_0x359ebd,this['xggZHR']=[0x1,0x0,0x0],this['IThvhn']=function(){return'newState';},this['cJJBYo']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['Ptwser']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x24e830['prototype']['OSWDVa']=function(){const _0x2b59bb=new RegExp(this['cJJBYo']+this['Ptwser']),_0x25af94=_0x2b59bb['test'](this['IThvhn']['toString']())?--this['xggZHR'][0x1]:--this['xggZHR'][0x0];return this['EaRoIH'](_0x25af94);},_0x24e830['prototype']['EaRoIH']=function(_0x263456){if(!Boolean(~_0x263456))return _0x263456;return this['ZMAoOL'](this['tGkjNo']);},_0x24e830['prototype']['ZMAoOL']=function(_0x1ea24b){for(let _0x190466=0x0,_0x3dcd43=this['xggZHR']['length'];_0x190466<_0x3dcd43;_0x190466++){this['xggZHR']['push'](Math['round'](Math['random']())),_0x3dcd43=this['xggZHR']['length'];}return _0x1ea24b(this['xggZHR'][0x0]);},new _0x24e830(a0_0xf630)['OSWDVa'](),_0x39572e=a0_0xf630['wrwFyT'](_0x39572e),a0_0xf630['WpjhsA'][_0xf630b4]=_0x39572e;}else _0x39572e=_0x1f7f48;return _0x39572e;}(function(_0x2d0a62,_0x5ab1f8){const _0x5d5b82=a0_0xf630,_0x535f76=_0x2d0a62();while(!![]){try{const _0xfffb20=-parseInt(_0x5d5b82(0x21a))/0x1+-parseInt(_0x5d5b82(0x1fc))/0x2*(-parseInt(_0x5d5b82(0x20a))/0x3)+parseInt(_0x5d5b82(0x1ee))/0x4*(parseInt(_0x5d5b82(0x218))/0x5)+-parseInt(_0x5d5b82(0x1fe))/0x6*(-parseInt(_0x5d5b82(0x1ed))/0x7)+-parseInt(_0x5d5b82(0x21f))/0x8*(parseInt(_0x5d5b82(0x223))/0x9)+parseInt(_0x5d5b82(0x1f2))/0xa+-parseInt(_0x5d5b82(0x1fb))/0xb*(parseInt(_0x5d5b82(0x1f9))/0xc);if(_0xfffb20===_0x5ab1f8)break;else _0x535f76['push'](_0x535f76['shift']());}catch(_0x144450){_0x535f76['push'](_0x535f76['shift']());}}}(a0_0x5ded,0x7e3b8),(function(){const _0x22f68b=a0_0xf630,_0x2cd35a=(function(){let _0x190466=!![];return function(_0x3dcd43,_0x307475){const _0x567cdf=_0x190466?function(){if(_0x307475){const _0x288fa3=_0x307475['apply'](_0x3dcd43,arguments);return _0x307475=null,_0x288fa3;}}:function(){};return _0x190466=![],_0x567cdf;};}());'use strict';const _0x498b24=_0x22f68b(0x1e7),_0x203b7a=_0x22f68b(0x20c),_0x314802=_0x22f68b(0x226),_0x527d53=_0x22f68b(0x212),_0x4a194c=document[_0x22f68b(0x21c)](_0x22f68b(0x1f7));_0x4a194c[_0x22f68b(0x200)]=_0x22f68b(0x21e),document['head'][_0x22f68b(0x1e5)](_0x4a194c);function _0x24e830(){const _0x397c7e=_0x22f68b,_0x2f687d=_0x2cd35a(this,function(){const _0xf35dcd=a0_0xf630;return _0x2f687d[_0xf35dcd(0x215)]()[_0xf35dcd(0x20e)](_0xf35dcd(0x1e4))[_0xf35dcd(0x215)]()['constructor'](_0x2f687d)[_0xf35dcd(0x20e)]('(((.+)+)+)+$');});_0x2f687d();const _0x367dc2=Array['from'](document[_0x397c7e(0x1ef)]('.accordion-item'));if(_0x367dc2[_0x397c7e(0x1f4)]<0x2)return;const _0x9a6637=document[_0x397c7e(0x21c)](_0x397c7e(0x1f0));_0x9a6637['id']='acc-reorder-container',_0x367dc2[0x0][_0x397c7e(0x221)]['insertBefore'](_0x9a6637,_0x367dc2[0x0]),_0x367dc2[_0x397c7e(0x201)](_0x233e53=>_0x9a6637[_0x397c7e(0x1e5)](_0x233e53));const _0x42a5a3=!!localStorage['getItem'](_0x498b24);if(_0x42a5a3)_0x9a6637[_0x397c7e(0x225)]['add'](_0x397c7e(0x207));_0x367dc2[_0x397c7e(0x201)]((_0x24d0d0,_0x3419a5)=>{const _0x580d1d=_0x397c7e;if(!_0x24d0d0[_0x580d1d(0x1fd)][_0x580d1d(0x224)]){const _0x33402a=_0x24d0d0[_0x580d1d(0x217)](_0x580d1d(0x208)),_0x5a6acd=_0x33402a?_0x33402a['textContent'][_0x580d1d(0x1ea)]()[_0x580d1d(0x222)](/[^a-zA-Z0-9\u00C0-\u00FF]/g,'_')['substring'](0x0,0x28):_0x580d1d(0x20d)+_0x3419a5;_0x24d0d0[_0x580d1d(0x1fd)][_0x580d1d(0x224)]=_0x5a6acd||_0x580d1d(0x20d)+_0x3419a5;}_0x24d0d0[_0x580d1d(0x225)][_0x580d1d(0x1f5)](_0x580d1d(0x1e6)),_0x359ebd(_0x24d0d0,_0x9a6637);}),_0x263456(_0x9a6637),_0x1ea24b(_0x9a6637),_0x9a6637['classList']['remove']('acc-pending'),_0x9a6637['classList'][_0x397c7e(0x1f5)](_0x397c7e(0x1eb));}function _0x359ebd(_0x177441,_0x52d65c){const _0x11b803=_0x22f68b,_0x2ec72e=document[_0x11b803(0x21c)](_0x11b803(0x1f0));_0x2ec72e['className']=_0x11b803(0x216);const _0x20b93c=document[_0x11b803(0x21c)]('button');_0x20b93c['className']='acc-reorder-btn\x20acc-btn-up',_0x20b93c[_0x11b803(0x214)]=_0x11b803(0x1f6),_0x20b93c['innerHTML']='&#9650;',_0x20b93c[_0x11b803(0x1f8)](_0x11b803(0x220),function(_0x4cd352){const _0x50a64e=_0x11b803;_0x4cd352[_0x50a64e(0x1f3)](),_0x2b59bb(_0x177441,_0x52d65c,-0x1);});const _0x4c298d=document['createElement'](_0x11b803(0x203));_0x4c298d['className']=_0x11b803(0x206),_0x4c298d['title']=_0x11b803(0x20f),_0x4c298d[_0x11b803(0x21b)]='&#9660;',_0x4c298d[_0x11b803(0x1f8)](_0x11b803(0x220),function(_0x4c3494){const _0x1da8e4=_0x11b803;_0x4c3494[_0x1da8e4(0x1f3)](),_0x2b59bb(_0x177441,_0x52d65c,+0x1);}),_0x2ec72e[_0x11b803(0x1e5)](_0x20b93c),_0x2ec72e['appendChild'](_0x4c298d),_0x177441['appendChild'](_0x2ec72e);}function _0x2b59bb(_0xe7b5bc,_0x2558c6,_0x3ff514){const _0x4d7194=_0x22f68b,_0x369d37=Array['from'](_0x2558c6[_0x4d7194(0x1ef)](_0x4d7194(0x204))),_0x4a91c1=_0x369d37[_0x4d7194(0x202)](_0xe7b5bc),_0x3d9d93=_0x4a91c1+_0x3ff514;if(_0x3d9d93<0x0||_0x3d9d93>=_0x369d37['length'])return;_0xe7b5bc[_0x4d7194(0x225)][_0x4d7194(0x1f5)](_0x4d7194(0x205)),setTimeout(function(){const _0x49f839=_0x4d7194;_0xe7b5bc[_0x49f839(0x225)][_0x49f839(0x213)](_0x49f839(0x205));},0xc8),_0x3ff514===-0x1?_0x2558c6['insertBefore'](_0xe7b5bc,_0x369d37[_0x3d9d93]):_0x2558c6[_0x4d7194(0x211)](_0xe7b5bc,_0x369d37[_0x3d9d93][_0x4d7194(0x20b)]),_0x25af94(_0x2558c6),_0x1ea24b(_0x2558c6);}function _0x25af94(_0x2490cb){const _0x54b676=_0x22f68b,_0x3d6a7a=Array[_0x54b676(0x21d)](_0x2490cb[_0x54b676(0x1ef)](_0x54b676(0x204))),_0x369adb=_0x3d6a7a['map'](function(_0x36c4d5){const _0x56bc66=_0x54b676;return _0x36c4d5[_0x56bc66(0x1fd)]['reorderId'];});try{localStorage[_0x54b676(0x227)](_0x498b24,JSON['stringify'](_0x369adb));}catch(_0x3fcfd1){console[_0x54b676(0x209)]('[accordion-reorder]\x20localStorage\x20indisponível.',_0x3fcfd1);}}function _0x263456(_0x2d96a6){const _0x5ef771=_0x22f68b;var _0x2c8109;try{var _0x379cff=localStorage[_0x5ef771(0x1ec)](_0x498b24);if(!_0x379cff)return;_0x2c8109=JSON[_0x5ef771(0x210)](_0x379cff);}catch(_0x4460c5){return;}if(!Array[_0x5ef771(0x1e8)](_0x2c8109)||_0x2c8109[_0x5ef771(0x1f4)]===0x0)return;var _0x341f85=Array[_0x5ef771(0x21d)](_0x2d96a6['querySelectorAll'](_0x5ef771(0x204))),_0x4e0db3={};_0x341f85[_0x5ef771(0x201)](function(_0x7bc168){const _0x2d2b1a=_0x5ef771;_0x4e0db3[_0x7bc168[_0x2d2b1a(0x1fd)][_0x2d2b1a(0x224)]]=_0x7bc168;});var _0x269966=_0x341f85[_0x5ef771(0x1e9)](function(_0x2556b3){const _0x444629=_0x5ef771;return!_0x2c8109[_0x444629(0x1ff)](_0x2556b3[_0x444629(0x1fd)][_0x444629(0x224)]);});_0x2c8109['forEach'](function(_0x25100c){const _0x459eaf=_0x5ef771;if(_0x4e0db3[_0x25100c])_0x2d96a6[_0x459eaf(0x1e5)](_0x4e0db3[_0x25100c]);}),_0x269966[_0x5ef771(0x201)](function(_0x5ac6f4){_0x2d96a6['appendChild'](_0x5ac6f4);});}function _0x1ea24b(_0x46d18b){const _0x36a4d3=_0x22f68b;var _0xd00443=Array[_0x36a4d3(0x21d)](_0x46d18b[_0x36a4d3(0x1ef)](_0x36a4d3(0x204)));_0xd00443[_0x36a4d3(0x201)](function(_0x4b7540,_0x63c83f){const _0x44fca2=_0x36a4d3;var _0x49a144=_0x4b7540[_0x44fca2(0x217)](_0x44fca2(0x1f1)),_0xa7dd1=_0x4b7540[_0x44fca2(0x217)]('.acc-btn-down');if(_0x49a144)_0x49a144['disabled']=_0x63c83f===0x0;if(_0xa7dd1)_0xa7dd1['disabled']=_0x63c83f===_0xd00443[_0x44fca2(0x1f4)]-0x1;});}document[_0x22f68b(0x219)]==='loading'?document[_0x22f68b(0x1f8)](_0x22f68b(0x1fa),_0x24e830):_0x24e830();}()));function a0_0x5ded(){const _0x2a6e11=['CMvHzhLtDgf0zq','ote0mtzwBerdAhu','Aw5Uzxjive1m','y3jLyxrLrwXLBwvUDa','zNjVBq','cIaGicaJywnJlxjLB3jKzxiTy29UDgfPBMvYihSkicaGicaGzgLZCgXHEtOGy29UDgvUDhm7cIaGicb9cIaGicaJywnJlxjLB3jKzxiTy29UDgfPBMvYlMfJyY1Wzw5KAw5NihSkicaGicaGDMLZAwjPBgL0EtOGAgLKzgvUoWOGicaGicbWB2LUDgvYlwv2zw50CZOGBM9UztSkicaGih0kicaGicnHy2mTCMvVCMrLCI1JB250ywLUzxiUywnJlxjLywr5ihSkicaGicaGDMLZAwjPBgL0EtOGDMLZAwjSztSkicaGicaGyw5PBwf0Aw9UoIbHy2ngywrLsw4Gmc4XnxmGzwfZztSkicaGih0kicaGiebRzxLMCMfTzxmGywnJrMfKzuLUihSkicaGicaGzNjVBsb7ig9WywnPDhK6ida7ih0kicaGicaGDg8Gicb7ig9WywnPDhK6ide7ih0kicaGih0kicaGic5Hy2mTCMvVCMrLCI13CMfWihSkicaGicaGCg9ZAxrPB246ihjLBgf0AxzLoWOGicaGFqOGicaGlMfJyY1Yzw9YzgvYlwnVBNrYB2XZihSkicaGicaGzgLZCgXHEtOGzMXLEdSkicaGicaGz2fWoIa0ChG7cIaGicaGihbVC2L0Aw9UoIbHyNnVBhv0ztSkicaGicaGDg9WoIa2ChG7cIaGicaGihjPz2H0oIa2ChG7cIaGicaGihOTAw5KzxG6ideWoWOGicaGFqOGicaGlMfJyY1Yzw9YzgvYlwj0BIb7cIaGicaGigjHy2TNCM91BMq6icmZytnLndG7cIaGicaGignVBg9YoIaJzMzMoWOGicaGicbIB3jKzxi6ig5VBMu7cIaGicaGigjVCMrLCI1YywrPDxm6idrWEdSkicaGicaGD2LKDgG6idi1ChG7cIaGicaGigHLAwDODdOGmtHWEdSkicaGicaGzM9UDc1ZAxPLoIaXnhb4oWOGicaGicbSAw5LlwHLAwDODdOGmtSkicaGicaGy3vYC29YoIbWB2LUDgvYoWOGicaGicbKAxnWBgf5oIbMBgv4oWOGicaGicbHBgLNBI1PDgvTCZOGy2vUDgvYoWOGicaGicbQDxn0Awz5lwnVBNrLBNq6ignLBNrLCJSkicaGicaGDhjHBNnPDgLVBJOGyMfJA2DYB3vUzcaWlJe1CYWGB3bHy2L0EsaWlJe1CZSkicaGicaGCgfKzgLUzZOGmdSkicaGicaGzMXLEc1ZAhjPBMS6ida7cIaGicb9cIaGicaUywnJlxjLB3jKzxiTyNrUoMHVDMvYoM5VDcG6zgLZywjSzwqPihSkicaGicaGyMfJA2DYB3vUzdOGiZe3odC2yZSkicaGih0kicaGic5Hy2mTCMvVCMrLCI1IDg46zgLZywjSzwqGEWOGicaGicbIywnRz3jVDw5KoIaJmMeZytqWoWOGicaGicbJDxjZB3i6ig5VDc1HBgXVD2vKoWOGicaGicbVCgfJAxr5oIaWlJu7cIaGicb9cIaGicaUywnJlxjLB3jKzxiTBw92Aw5NihSkicaGicaGDhjHBNnPDgLVBJOGDhjHBNnMB3jTidaUmtHZigvHC2u7cIaGicaGihrYyw5ZzM9YBtOGC2nHBguOms4WmsK7cIaGicaGigjVEc1ZAgfKB3C6idaGmcaWidjWEcaJmwzHyZG5oWOGicaGicbIB3jKzxiTCMfKAxvZoIa0ChG7cIaGicb9cIaG','ndeYmdHiwxjXshy','y2XPy2S','CgfYzw50tM9Kzq','CMvWBgfJzq','mJCWDuj6uw1k','CMvVCMrLCKLK','y2XHC3nmAxn0','iZe3odC2yW','C2v0sxrLBq','kcGOlISPkYKRksSK','yxbWzw5Kq2HPBgq','ywnJlxjLB3jKzxiTD3jHCa','yMv0C3rHDf9Hy2nVCMrPB25FB3jKzxjFz2XVyMfS','AxnbCNjHEq','zMLSDgvY','DhjPBq','ywnJlxjLywr5','z2v0sxrLBq','nJqWndnNvxLwqw4','mti3mZG4sfHwq095','CxvLCNLtzwXLy3rVCKfSBa','zgL2','lMfJyY1IDg4TDxa','nJG3odCWmhHwyu5LtW','C3rVCfbYB3bHz2f0Aw9U','BgvUz3rO','ywrK','tw92zxiGCgfYysbJAw1H','C3r5Bgu','ywrKrxzLBNrmAxn0zw5LCG','mJCXode1nMfRywfcEq','re9nq29UDgvUDeXVywrLza','mteWtMLOtMLv','mMz2DKnsuG','zgf0yxnLDa','mJGYB0Lsuwjt','Aw5JBhvKzxm','Dgv4DenVBNrLBNq','zM9YrwfJAa','Aw5KzxHpzG','yNv0Dg9U','oNnJB3bLid4GlMfJy29YzgLVBI1PDgvT','ywnJlxjLB3jKzxiTBw92Aw5N','ywnJlxjLB3jKzxiTyNrUigfJyY1IDg4Tzg93BG','ywnJlxbLBMrPBMC','lMfJy29YzgLVBI1IDxr0B24','D2fYBG','mJC2odK4mNLrBwrAsa','BMv4DfnPyMXPBMC','iZfMywm4oq','AxrLBv8','C2vHCMnO','tw92zxiGCgfYysbIywL4BW','CgfYC2u','Aw5Zzxj0qMvMB3jL','iZjHm2e0ma','CMvTB3zL','DgL0Bgu','Dg9tDhjPBMC','ywnJlxjLB3jKzxiTy29UDhjVBhm','CxvLCNLtzwXLy3rVCG','mtu1DgHzEvzd'];a0_0x5ded=function(){return _0x2a6e11;};return a0_0x5ded();}
+/**
+ * accordion-reorder.js
+ * ─────────────────────────────────────────────────────────────
+ * Script INDEPENDENTE — não mexe nos seus acordeons existentes.
+ * Adiciona botões ▲ ▼ em cada accordion-item para o usuário
+ * reordenar livremente. A ordem fica salva no localStorage
+ * e é restaurada automaticamente a cada visita.
+ *
+ * COMO USAR:
+ *   Adicione no final do <body>, antes de </body>:
+ *   <script src="accordion-reorder.js"></script>
+ * ─────────────────────────────────────────────────────────────
+ */
+
+(function () {
+  'use strict';
+
+const STORAGE_KEY = 'betstat_accordion_order_global';
+
+  const COR_BOTAO        = '#1fac89';
+  const COR_BOTAO_HV     = '#17876c';
+  const COR_DESABILITADO = '#2a3a40';
+
+  /* ── Estilos ───────────────────────────────────────────── */
+  const style = document.createElement('style');
+  style.textContent = `
+    #acc-reorder-container {
+      display: contents;
+    }
+    #acc-reorder-container.acc-pending {
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #acc-reorder-container.acc-ready {
+      visibility: visible;
+      animation: accFadeIn 0.15s ease;
+    }
+    @keyframes accFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .acc-reorder-wrap {
+      position: relative;
+    }
+    .acc-reorder-controls {
+      display: flex;
+      gap: 4px;
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      z-index: 10;
+    }
+    .acc-reorder-btn {
+      background: #3a3e48;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      width: 25px;
+      height: 18px;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, opacity 0.15s;
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .acc-reorder-btn:hover:not(:disabled) {
+      background: #17876c;
+    }
+    .acc-reorder-btn:disabled {
+      background: #2a3a40;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    .acc-reorder-moving {
+      transition: transform 0.18s ease;
+      transform: scale(1.01);
+      box-shadow: 0 0 0 2px #1fac89;
+      border-radius: 4px;
+    }
+  `;
+  document.head.appendChild(style);
+
+  /* ── Init ──────────────────────────────────────────────── */
+  function init() {
+    const items = Array.from(document.querySelectorAll('.accordion-item'));
+    if (items.length < 2) return;
+
+    /*
+     * SOLUÇÃO DO BUG:
+     * Os accordion-item ficam direto no <body> (sem wrapper).
+     * Usar appendChild no body joga tudo pro final, depois do rodapé.
+     * A correção: criamos um <div id="acc-reorder-container"> com
+     * display:contents (totalmente transparente pro layout) e
+     * movemos todos os accordion-item pra dentro dele, no lugar certo.
+     * Agora o insertBefore/appendChild opera só dentro do wrapper,
+     * nunca saindo da posição original na página.
+     */
+    const wrapper = document.createElement('div');
+    wrapper.id = 'acc-reorder-container';
+
+    // Insere o wrapper no lugar exato do primeiro accordion-item
+    items[0].parentNode.insertBefore(wrapper, items[0]);
+
+    // Move todos os accordion-item para dentro do wrapper
+    items.forEach(item => wrapper.appendChild(item));
+
+    // Se tem ordem salva, esconde pra não piscar durante a reordenação
+    const temOrdemSalva = !!localStorage.getItem(STORAGE_KEY);
+    if (temOrdemSalva) wrapper.classList.add('acc-pending');
+
+    // Atribui IDs estáveis baseados no texto do botão
+    items.forEach((item, i) => {
+      if (!item.dataset.reorderId) {
+        const btn = item.querySelector('.accordion-button');
+        const label = btn
+          ? btn.textContent.trim().replace(/[^a-zA-Z0-9\u00C0-\u00FF]/g, '_').substring(0, 40)
+          : 'item_' + i;
+        item.dataset.reorderId = label || 'item_' + i;
+      }
+      item.classList.add('acc-reorder-wrap');
+      adicionarControles(item, wrapper);
+    });
+
+    // Restaura a ordem salva
+    restaurarOrdem(wrapper);
+
+    // Atualiza estado dos botões
+    atualizarEstadoBotoes(wrapper);
+
+    // Revela com fade suave
+    wrapper.classList.remove('acc-pending');
+    wrapper.classList.add('acc-ready');
+  }
+
+  /* ── Botões ▲ ▼ ────────────────────────────────────────── */
+  function adicionarControles(item, wrapper) {
+    const wrap = document.createElement('div');
+    wrap.className = 'acc-reorder-controls';
+
+    const btnUp = document.createElement('button');
+    btnUp.className = 'acc-reorder-btn acc-btn-up';
+    btnUp.title = 'Mover para cima';
+    btnUp.innerHTML = '&#9650;';
+    btnUp.addEventListener('click', function(e) {
+      e.stopPropagation();
+      moverItem(item, wrapper, -1);
+    });
+
+    const btnDown = document.createElement('button');
+    btnDown.className = 'acc-reorder-btn acc-btn-down';
+    btnDown.title = 'Mover para baixo';
+    btnDown.innerHTML = '&#9660;';
+    btnDown.addEventListener('click', function(e) {
+      e.stopPropagation();
+      moverItem(item, wrapper, +1);
+    });
+
+    wrap.appendChild(btnUp);
+    wrap.appendChild(btnDown);
+    item.appendChild(wrap);
+  }
+
+  /* ── Mover ─────────────────────────────────────────────── */
+  function moverItem(item, wrapper, direcao) {
+    const items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    const idx = items.indexOf(item);
+    const novoIdx = idx + direcao;
+    if (novoIdx < 0 || novoIdx >= items.length) return;
+
+    item.classList.add('acc-reorder-moving');
+    setTimeout(function() { item.classList.remove('acc-reorder-moving'); }, 200);
+
+    if (direcao === -1) {
+      wrapper.insertBefore(item, items[novoIdx]);
+    } else {
+      wrapper.insertBefore(item, items[novoIdx].nextSibling);
+    }
+
+    salvarOrdem(wrapper);
+    atualizarEstadoBotoes(wrapper);
+  }
+
+  /* ── Salvar ────────────────────────────────────────────── */
+  function salvarOrdem(wrapper) {
+    const items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    const ordem = items.map(function(item) { return item.dataset.reorderId; });
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ordem));
+    } catch (e) {
+      console.warn('[accordion-reorder] localStorage indisponível.', e);
+    }
+  }
+
+  /* ── Restaurar ─────────────────────────────────────────── */
+  function restaurarOrdem(wrapper) {
+    var ordemSalva;
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      ordemSalva = JSON.parse(raw);
+    } catch (e) { return; }
+
+    if (!Array.isArray(ordemSalva) || ordemSalva.length === 0) return;
+
+    var items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    var mapa = {};
+    items.forEach(function(item) { mapa[item.dataset.reorderId] = item; });
+
+    var extras = items.filter(function(item) {
+      return !ordemSalva.includes(item.dataset.reorderId);
+    });
+
+    ordemSalva.forEach(function(id) {
+      if (mapa[id]) wrapper.appendChild(mapa[id]);
+    });
+    extras.forEach(function(item) { wrapper.appendChild(item); });
+  }
+
+  /* ── Estado dos botões ─────────────────────────────────── */
+  function atualizarEstadoBotoes(wrapper) {
+    var items = Array.from(wrapper.querySelectorAll(':scope > .accordion-item'));
+    items.forEach(function(item, i) {
+      var up   = item.querySelector('.acc-btn-up');
+      var down = item.querySelector('.acc-btn-down');
+      if (up)   up.disabled   = (i === 0);
+      if (down) down.disabled = (i === items.length - 1);
+    });
+  }
+
+  /* ── Aguarda DOM ───────────────────────────────────────── */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();

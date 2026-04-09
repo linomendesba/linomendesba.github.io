@@ -1,1 +1,159 @@
-const a0_0x41a64f=a0_0xdb52;(function(_0x2748d4,_0xd4b8af){const _0x3a90f3=a0_0xdb52,_0x5697c1=_0x2748d4();while(!![]){try{const _0x14a14e=-parseInt(_0x3a90f3(0xd2))/0x1*(-parseInt(_0x3a90f3(0xd4))/0x2)+parseInt(_0x3a90f3(0xc0))/0x3*(parseInt(_0x3a90f3(0xdc))/0x4)+-parseInt(_0x3a90f3(0xc4))/0x5*(-parseInt(_0x3a90f3(0xc3))/0x6)+parseInt(_0x3a90f3(0xd0))/0x7+-parseInt(_0x3a90f3(0xd1))/0x8*(-parseInt(_0x3a90f3(0xc7))/0x9)+parseInt(_0x3a90f3(0xb2))/0xa*(-parseInt(_0x3a90f3(0xbd))/0xb)+-parseInt(_0x3a90f3(0xc6))/0xc;if(_0x14a14e===_0xd4b8af)break;else _0x5697c1['push'](_0x5697c1['shift']());}catch(_0x5eb0ef){_0x5697c1['push'](_0x5697c1['shift']());}}}(a0_0x231e,0x26f35));function a0_0xdb52(_0xc1f2c6,_0x1c573d){_0xc1f2c6=_0xc1f2c6-0xa1;const _0x3ab42a=a0_0x231e();let _0x4b17dc=_0x3ab42a[_0xc1f2c6];if(a0_0xdb52['JmrAYq']===undefined){var _0x442fc5=function(_0x3880c9){const _0x559521='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x1a735d='',_0x3bc22b='',_0x22752b=_0x1a735d+_0x442fc5;for(let _0x55debc=0x0,_0x32c146,_0x111efe,_0x3d281f=0x0;_0x111efe=_0x3880c9['charAt'](_0x3d281f++);~_0x111efe&&(_0x32c146=_0x55debc%0x4?_0x32c146*0x40+_0x111efe:_0x111efe,_0x55debc++%0x4)?_0x1a735d+=_0x22752b['charCodeAt'](_0x3d281f+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x32c146>>(-0x2*_0x55debc&0x6)):_0x55debc:0x0){_0x111efe=_0x559521['indexOf'](_0x111efe);}for(let _0x34e9c6=0x0,_0xa57e2c=_0x1a735d['length'];_0x34e9c6<_0xa57e2c;_0x34e9c6++){_0x3bc22b+='%'+('00'+_0x1a735d['charCodeAt'](_0x34e9c6)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x3bc22b);};a0_0xdb52['uIvBiF']=_0x442fc5,a0_0xdb52['kQShvO']={},a0_0xdb52['JmrAYq']=!![];}const _0x231ecd=_0x3ab42a[0x0],_0xdb52d1=_0xc1f2c6+_0x231ecd,_0x28ebbb=a0_0xdb52['kQShvO'][_0xdb52d1];if(!_0x28ebbb){const _0xef079a=function(_0x8e1987){this['mjagZS']=_0x8e1987,this['oXPaXx']=[0x1,0x0,0x0],this['mUxTtz']=function(){return'newState';},this['EdlkPy']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['PpnMOG']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0xef079a['prototype']['sHzGOf']=function(){const _0x5e9899=new RegExp(this['EdlkPy']+this['PpnMOG']),_0x234d0d=_0x5e9899['test'](this['mUxTtz']['toString']())?--this['oXPaXx'][0x1]:--this['oXPaXx'][0x0];return this['vtnyip'](_0x234d0d);},_0xef079a['prototype']['vtnyip']=function(_0x1a1e6f){if(!Boolean(~_0x1a1e6f))return _0x1a1e6f;return this['PsYVqe'](this['mjagZS']);},_0xef079a['prototype']['PsYVqe']=function(_0x2be306){for(let _0x5ea0db=0x0,_0x3b7ba9=this['oXPaXx']['length'];_0x5ea0db<_0x3b7ba9;_0x5ea0db++){this['oXPaXx']['push'](Math['round'](Math['random']())),_0x3b7ba9=this['oXPaXx']['length'];}return _0x2be306(this['oXPaXx'][0x0]);},new _0xef079a(a0_0xdb52)['sHzGOf'](),_0x4b17dc=a0_0xdb52['uIvBiF'](_0x4b17dc),a0_0xdb52['kQShvO'][_0xdb52d1]=_0x4b17dc;}else _0x4b17dc=_0x28ebbb;return _0x4b17dc;}function a0_0x231e(){const _0xfca519=['Cg9W','nZu5zMH1zK9z','y2HLy2TLza','ywrKrxzLBNrmAxn0zw5LCG','m2f0BNrdtW','zM9YrwfJAa','AgLZDg9TywnKqxzLCMfNzvnLBgvJDg9Y','mtG2otzls2XVBeW','nZbwrevJwgu','Aw5Uzxjive1m','odKYmdmYmfrguLrMrG','mJm0nZCXm1vitgLPva','AgLZDg9TywnKug9PBNrZu2vSzwn0B3i','C2vSzwn0lcbPBNb1DfT0ExbLpsjJAgvJA2jVEcjD','zNjVBq','z2v0sxrLBq','BM9Uzq','Dg9tDhjPBMC','CMvWBgfJzq','yxzHBMnHzg8TyMv0mZy1','mJe5mtKWm1rSEgLkDq','ohzYwMzguG','munUzennyq','yxbWBhK','ntaZmJe4tLH5DMvm','AgLZDg9TywnKu2HVD1jtsq','C2v0sxrLBq','re9nq29UDgvUDeXVywrLza','BMv4DevSzw1LBNrtAwjSAw5N','A2LYB25ZCgfPBI5ODg1S','zgLZCgXHEq','C29Tzq','mJu4nJuYzLrfwNLP','CMvKzxm','yMvMB3jLDw5SB2fK','ywnJB3jKAw9UxW','C2vSzwn0','BgLNyxmZnJu','kcGOlISPkYKRksSK','DhLWzq','A2LYB25PDgfSEs5ODg1S','zgLZCgf0y2HfDMvUDa','C2vHCMnO','Aw5JBhvKzxm','AgLZDg9TywnKtwfJzezHC3q','lMfJy29YzgLVBI1IDxr0B24','y2HHBMDL','AgLZDg9TywnKtwfJzfnSB3C','yMXVy2S','C3r5Bgu','Bg9JyxrPB24','Dg9Nz2XLqwnJB3jKAw9U','DMfSDwu','ndq5mgfhuuL4Cq','AgLZDg9TywnKuNnPugvYAw9K','CxvLCNLtzwXLy3rVCKfSBa','Aw5WDxrBDhLWzt0Iy2HLy2TIB3GIxq','A2LYB25LBMDSyw5KlMH0BwW','yxzHBMnHzg8TyMv0yw5V','AgLZDg9TywnKtwfJzfnPz25HBa','y29UC3rYDwn0B3i','y2HLy2TIB3G','Cgf0Ag5HBwu'];a0_0x231e=function(){return _0xfca519;};return a0_0x231e();}const a0_0x442fc5=(function(){let _0x55debc=!![];return function(_0x32c146,_0x111efe){const _0x3d281f=_0x55debc?function(){const _0xb4e183=a0_0xdb52;if(_0x111efe){const _0x34e9c6=_0x111efe[_0xb4e183(0xd3)](_0x32c146,arguments);return _0x111efe=null,_0x34e9c6;}}:function(){};return _0x55debc=![],_0x3d281f;};}()),a0_0x4b17dc=a0_0x442fc5(this,function(){const _0x204201=a0_0xdb52;return a0_0x4b17dc[_0x204201(0xcd)]()[_0x204201(0xa7)]('(((.+)+)+)+$')[_0x204201(0xcd)]()[_0x204201(0xb9)](a0_0x4b17dc)['search'](_0x204201(0xa3));});a0_0x4b17dc();const allowedPages=[a0_0x41a64f(0xb6),a0_0x41a64f(0xa5),a0_0x41a64f(0xd9)],currentPage=window[a0_0x41a64f(0xaf)][a0_0x41a64f(0xbb)]['split']('/')[a0_0x41a64f(0xbc)]();if(allowedPages[a0_0x41a64f(0xa8)](currentPage)){const PREFIX=currentPage+'_',excludedSelectors=['ligas',a0_0x41a64f(0xb7),a0_0x41a64f(0xa2),a0_0x41a64f(0xcf),a0_0x41a64f(0xdd),'histomacdMarketSelector',a0_0x41a64f(0xc8),a0_0x41a64f(0xc2),a0_0x41a64f(0xa9),a0_0x41a64f(0xac),a0_0x41a64f(0xb8),a0_0x41a64f(0xb3),a0_0x41a64f(0xd5)];function getAccordionKey(_0xa57e2c){const _0x20eafa=a0_0x41a64f,_0xef079a=Array[_0x20eafa(0xca)](document['querySelectorAll'](_0x20eafa(0xaa))),_0x8e1987=_0xef079a['indexOf'](_0xa57e2c);return PREFIX+_0x20eafa(0xdf)+_0x8e1987;}function saveAccordionState(_0x5e9899){const _0x32a7b3=a0_0x41a64f,_0x234d0d=_0x5e9899[_0x32a7b3(0xd8)];if(!_0x234d0d)return;const _0x1a1e6f=_0x234d0d[_0x32a7b3(0xae)][_0x32a7b3(0xda)]===_0x32a7b3(0xad);localStorage[_0x32a7b3(0xd6)](getAccordionKey(_0x5e9899),_0x1a1e6f?'1':'0');}function restoreAccordionStates(){const _0x1ee977=a0_0x41a64f;document[_0x1ee977(0xb4)](_0x1ee977(0xaa))[_0x1ee977(0xc1)](_0x2be306=>{const _0x4fe91c=_0x1ee977,_0x5ea0db=getAccordionKey(_0x2be306),_0x3b7ba9=localStorage[_0x4fe91c(0xcb)](_0x5ea0db);if(_0x3b7ba9===null)return;const _0x284bbd=_0x2be306[_0x4fe91c(0xd8)];if(!_0x284bbd)return;const _0x5c5d09=_0x3b7ba9==='1';_0x284bbd[_0x4fe91c(0xae)]['display']=_0x5c5d09?_0x4fe91c(0xad):_0x4fe91c(0xcc),_0x5c5d09?_0x2be306['innerHTML']=_0x2be306[_0x4fe91c(0xc5)][_0x4fe91c(0xce)](/▼/g,'▲'):_0x2be306[_0x4fe91c(0xc5)]=_0x2be306[_0x4fe91c(0xc5)][_0x4fe91c(0xce)](/▲/g,'▼');});}function toggleAccordion(_0x1326ac){const _0x377f1e=a0_0x41a64f,_0x30d974=_0x1326ac['nextElementSibling'];if(!_0x30d974)return;const _0xb7cc21=_0x30d974[_0x377f1e(0xae)]['display']===_0x377f1e(0xad);_0x30d974[_0x377f1e(0xae)][_0x377f1e(0xda)]=_0xb7cc21?_0x377f1e(0xcc):_0x377f1e(0xad),_0xb7cc21?_0x1326ac[_0x377f1e(0xc5)]=_0x1326ac[_0x377f1e(0xc5)][_0x377f1e(0xce)](/▲/g,'▼'):_0x1326ac[_0x377f1e(0xc5)]=_0x1326ac[_0x377f1e(0xc5)]['replace'](/▼/g,'▲'),saveAccordionState(_0x1326ac);}window[a0_0x41a64f(0xb0)]=toggleAccordion;function saveElement(_0x574c56){const _0x2a4bf7=a0_0x41a64f;if(!_0x574c56||!_0x574c56['id']||excludedSelectors[_0x2a4bf7(0xa8)](_0x574c56['id']))return;const _0x4d8e41=PREFIX+_0x574c56['id'];_0x574c56[_0x2a4bf7(0xa4)]===_0x2a4bf7(0xba)?localStorage[_0x2a4bf7(0xd6)](_0x4d8e41,_0x574c56[_0x2a4bf7(0xbe)]?'1':'0'):localStorage[_0x2a4bf7(0xd6)](_0x4d8e41,_0x574c56[_0x2a4bf7(0xb1)]);}function restoreSelections(){const _0x3a58e5=a0_0x41a64f;document[_0x3a58e5(0xb4)](_0x3a58e5(0xa1))['forEach'](_0x460396=>{const _0x8cef00=_0x3a58e5;if(!_0x460396['id']||excludedSelectors[_0x8cef00(0xa8)](_0x460396['id']))return;const _0x50bbdc=localStorage[_0x8cef00(0xcb)](PREFIX+_0x460396['id']);if(_0x50bbdc===null)return;const _0x87c8b3=Array[_0x8cef00(0xca)](_0x460396['options'])[_0x8cef00(0xdb)](_0x11e57b=>_0x11e57b[_0x8cef00(0xb1)]===_0x50bbdc);if(!_0x87c8b3)return;_0x460396[_0x8cef00(0xb1)]=_0x50bbdc,_0x460396[_0x8cef00(0xa6)](new Event(_0x8cef00(0xab),{'bubbles':!![]}));}),document[_0x3a58e5(0xb4)](_0x3a58e5(0xb5))[_0x3a58e5(0xc1)](_0x204d22=>{const _0x566660=_0x3a58e5;if(!_0x204d22['id']||excludedSelectors[_0x566660(0xa8)](_0x204d22['id']))return;const _0x1e0184=localStorage[_0x566660(0xcb)](PREFIX+_0x204d22['id']);if(_0x1e0184===null)return;const _0x4c687b=_0x1e0184==='1';_0x204d22[_0x566660(0xbe)]!==_0x4c687b&&(_0x204d22['checked']=_0x4c687b,_0x204d22['dispatchEvent'](new Event(_0x566660(0xab),{'bubbles':!![]})));});}function setupAutoSave(){const _0x150fe3=a0_0x41a64f;document['querySelectorAll'](_0x150fe3(0xa1))[_0x150fe3(0xc1)](_0x3c8bd7=>{const _0x120f71=_0x150fe3;if(!_0x3c8bd7['id']||excludedSelectors['includes'](_0x3c8bd7['id']))return;_0x3c8bd7[_0x120f71(0xbf)]('change',()=>saveElement(_0x3c8bd7));}),document[_0x150fe3(0xb4)](_0x150fe3(0xb5))[_0x150fe3(0xc1)](_0x1a074f=>{const _0x25977a=_0x150fe3;if(!_0x1a074f['id']||excludedSelectors[_0x25977a(0xa8)](_0x1a074f['id']))return;_0x1a074f[_0x25977a(0xbf)](_0x25977a(0xab),()=>saveElement(_0x1a074f));});}function saveAll(){const _0x15ed19=a0_0x41a64f;document['querySelectorAll'](_0x15ed19(0xc9))[_0x15ed19(0xc1)](_0x43af87=>saveElement(_0x43af87)),document[_0x15ed19(0xb4)](_0x15ed19(0xaa))[_0x15ed19(0xc1)](_0x21bae0=>saveAccordionState(_0x21bae0));}window['addEventListener'](a0_0x41a64f(0xd7),()=>{restoreAccordionStates(),setTimeout(()=>{restoreSelections(),setupAutoSave();},0x96);}),window[a0_0x41a64f(0xbf)](a0_0x41a64f(0xde),saveAll);}
+// ─── marcador.js ─────────────────────────────────────────────────────────────
+// Salva e restaura:
+//   1. Estado aberto/fechado de TODOS os acordeões
+//   2. Valores de selects e checkboxes da página
+//   3. Ignora elementos do MACD/RSI (gerenciados pelo histomacd.js)
+// Ativo apenas nas páginas listadas em allowedPages
+// ─────────────────────────────────────────────────────────────────────────────
+
+const allowedPages = [
+  "kironengland.html",
+  "kironitaly.html",
+  "kironspain.html"
+];
+
+const currentPage = window.location.pathname.split('/').pop();
+
+if (allowedPages.includes(currentPage)) {
+
+  const PREFIX = currentPage + '_';
+
+  // IDs que NÃO devem ser salvos por este script
+  const excludedSelectors = [
+    "ligas",
+    "avancado-betano",
+    "ligas365",
+    "avancado-bet365",
+    "redes",
+    // Elementos do MACD/RSI — gerenciados pelo histomacd.js
+    "histomacdMarketSelector",
+    "histomacdPointsSelector",
+    "histomacdAverageSelector",
+    "histomacdMacdFast",
+    "histomacdMacdSlow",
+    "histomacdMacdSignal",
+    "histomacdRsiPeriod",
+    "histomacdShowRSI"
+  ];
+
+  // ─── ACORDEÕES ──────────────────────────────────────────────────────────────
+
+  function getAccordionKey(buttonEl) {
+    const buttons = Array.from(document.querySelectorAll('.accordion-button'));
+    const idx = buttons.indexOf(buttonEl);
+    return PREFIX + 'accordion_' + idx;
+  }
+
+  function saveAccordionState(buttonEl) {
+    const content = buttonEl.nextElementSibling;
+    if (!content) return;
+    const isOpen = content.style.display === 'block';
+    localStorage.setItem(getAccordionKey(buttonEl), isOpen ? '1' : '0');
+  }
+
+  function restoreAccordionStates() {
+    document.querySelectorAll('.accordion-button').forEach(btn => {
+      const key = getAccordionKey(btn);
+      const saved = localStorage.getItem(key);
+      if (saved === null) return;
+
+      const content = btn.nextElementSibling;
+      if (!content) return;
+
+      const isOpen = saved === '1';
+      content.style.display = isOpen ? 'block' : 'none';
+
+      if (isOpen) {
+        btn.innerHTML = btn.innerHTML.replace(/▼/g, '▲');
+      } else {
+        btn.innerHTML = btn.innerHTML.replace(/▲/g, '▼');
+      }
+    });
+  }
+
+  // ─── TOGGLE ACORDEÃO ────────────────────────────────────────────────────────
+  // Substitui todas as versões de toggleAccordion da página
+
+  function toggleAccordion(buttonEl) {
+    const content = buttonEl.nextElementSibling;
+    if (!content) return;
+
+    const isOpen = content.style.display === 'block';
+    content.style.display = isOpen ? 'none' : 'block';
+
+    if (isOpen) {
+      buttonEl.innerHTML = buttonEl.innerHTML.replace(/▲/g, '▼');
+    } else {
+      buttonEl.innerHTML = buttonEl.innerHTML.replace(/▼/g, '▲');
+    }
+
+    saveAccordionState(buttonEl);
+  }
+
+  window.toggleAccordion = toggleAccordion;
+
+  // ─── SELECTS E CHECKBOXES ───────────────────────────────────────────────────
+
+  function saveElement(el) {
+    if (!el || !el.id || excludedSelectors.includes(el.id)) return;
+    const key = PREFIX + el.id;
+    if (el.type === 'checkbox') {
+      localStorage.setItem(key, el.checked ? '1' : '0');
+    } else {
+      localStorage.setItem(key, el.value);
+    }
+  }
+
+  function restoreSelections() {
+    document.querySelectorAll('select').forEach(sel => {
+      if (!sel.id || excludedSelectors.includes(sel.id)) return;
+      const saved = localStorage.getItem(PREFIX + sel.id);
+      if (saved === null) return;
+      const exists = Array.from(sel.options).some(o => o.value === saved);
+      if (!exists) return;
+      sel.value = saved;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      if (!cb.id || excludedSelectors.includes(cb.id)) return;
+      const saved = localStorage.getItem(PREFIX + cb.id);
+      if (saved === null) return;
+      const shouldBeChecked = saved === '1';
+      if (cb.checked !== shouldBeChecked) {
+        cb.checked = shouldBeChecked;
+        cb.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  }
+
+  function setupAutoSave() {
+    document.querySelectorAll('select').forEach(sel => {
+      if (!sel.id || excludedSelectors.includes(sel.id)) return;
+      sel.addEventListener('change', () => saveElement(sel));
+    });
+
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      if (!cb.id || excludedSelectors.includes(cb.id)) return;
+      cb.addEventListener('change', () => saveElement(cb));
+    });
+  }
+
+  function saveAll() {
+    document.querySelectorAll('select, input[type="checkbox"]').forEach(el => saveElement(el));
+    document.querySelectorAll('.accordion-button').forEach(btn => saveAccordionState(btn));
+  }
+
+  // ─── INIT ───────────────────────────────────────────────────────────────────
+
+  window.addEventListener('DOMContentLoaded', () => {
+    restoreAccordionStates();
+    setTimeout(() => {
+      restoreSelections();
+      setupAutoSave();
+    }, 150);
+  });
+
+  window.addEventListener('beforeunload', saveAll);
+
+} // fim do bloco condicional
