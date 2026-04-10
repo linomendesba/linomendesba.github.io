@@ -415,6 +415,11 @@
     <div id="ligas-wrapper"></div>
   </div>
 
+  <!-- Botão Global de Download -->
+  <div id="global-download-section" style="display:none;padding:12px;background:#22252e;border:1px solid #2e3240;border-radius:8px;margin-bottom:16px;margin-top:8px;">
+    <button id="btn-download-global" style="padding:8px 16px;background:#6b7280;color:#fff;border:none;border-radius:5px;font-weight:600;font-size:0.85em;cursor:pointer;transition:all 0.2s;">⬇ BAIXAR TODAS AS LIGAS</button>
+  </div>
+
   <!-- Container das tabelas por liga -->
   <div id="ligas-container"></div>
 
@@ -1359,26 +1364,33 @@
   // ═══════════════════════════════════════════════════════════════════════════
   function renderGalesAnalyzer(key) {
     const el=document.getElementById(`gales-analyzer-${key}`);if(!el)return;
+    
+    // Não limpa se já tem resultados - persiste na tela
+    const existingResults=el.querySelector(`#gales-results-${key}`);
+    if(existingResults)return;
+    
     el.innerHTML="";
     
     const cfg=CASAS_CONFIG[casaAtual]?.ligas[key];if(!cfg)return;
     
     // Container principal
     const container=document.createElement("div");
-    container.style.cssText="padding:14px;background:#22252e;border-radius:8px;margin-top:16px;border:1px solid #2e3240;";
+    container.style.cssText="padding:12px;background:#22252e;border-radius:8px;margin-top:16px;border:1px solid #2e3240;";
     
-    // ── Seletor de Gales (DROPDOWN) ──
-    const galesDiv=document.createElement("div");
-    galesDiv.style.cssText="margin-bottom:12px;display:flex;align-items:flex-end;gap:10px;";
+    // ── Linha de Controles ──
+    const controlsRow=document.createElement("div");
+    controlsRow.style.cssText="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;";
     
+    // Label Gales
     const galesLabel=document.createElement("label");
     galesLabel.textContent="Gales:";
-    galesLabel.style.cssText="font-size:0.85em;color:#9ca3af;font-weight:500;margin:0;";
-    galesDiv.appendChild(galesLabel);
+    galesLabel.style.cssText="font-size:0.85em;color:#9ca3af;font-weight:500;margin:0;white-space:nowrap;";
+    controlsRow.appendChild(galesLabel);
     
+    // Select Gales
     const galesSelect=document.createElement("select");
     galesSelect.id=`gale-select-${key}`;
-    galesSelect.style.cssText="background:#2a2d38;color:#d1d5db;border:1px solid #3a3f50;border-radius:5px;padding:6px 10px;font-size:0.85em;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;min-width:120px;transition:border-color 0.15s;";
+    galesSelect.style.cssText="background:#2a2d38;color:#d1d5db;border:1px solid #3a3f50;border-radius:5px;padding:6px 10px;font-size:0.85em;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;min-width:110px;transition:border-color 0.15s;";
     
     const opts=[
       {val:1,txt:"1 Gale"},
@@ -1398,20 +1410,52 @@
     galesSelect.addEventListener("mouseenter",()=>{galesSelect.style.borderColor="#5a6070";});
     galesSelect.addEventListener("mouseleave",()=>{galesSelect.style.borderColor="#3a3f50";});
     
-    galesDiv.appendChild(galesSelect);
+    controlsRow.appendChild(galesSelect);
     
-    // ── Botão Analisar ──
+    // Botão Analisar/Fechar
     const btnAnalisar=document.createElement("button");
+    btnAnalisar.id=`btn-analisar-${key}`;
     btnAnalisar.textContent="ANALISAR";
-    btnAnalisar.style.cssText="padding:6px 14px;background:#00e676;color:#000;border:none;border-radius:5px;font-weight:600;font-size:0.85em;cursor:pointer;transition:all 0.2s;";
+    btnAnalisar.style.cssText="padding:6px 14px;background:#00e676;color:#000;border:none;border-radius:5px;font-weight:600;font-size:0.85em;cursor:pointer;transition:all 0.2s;white-space:nowrap;";
     btnAnalisar.addEventListener("mouseenter",()=>{btnAnalisar.style.background="#00d564";});
     btnAnalisar.addEventListener("mouseleave",()=>{btnAnalisar.style.background="#00e676";});
     btnAnalisar.addEventListener("click",()=>{
-      executarAnalisadorGales(key);
+      const isOpen=btnAnalisar.textContent==="FECHAR";
+      if(isOpen){
+        // Fechar análise
+        document.getElementById(`gales-results-${key}`).innerHTML="";
+        delete document.getElementById(`gales-results-${key}`).dataset.resultados;
+        delete document.getElementById(`gales-results-${key}`).dataset.numGales;
+        btnAnalisar.textContent="ANALISAR";
+        verificarMostrarBotaoGlobal();
+      } else {
+        // Executar análise
+        executarAnalisadorGales(key);
+        btnAnalisar.textContent="FECHAR";
+      }
     });
     
-    galesDiv.appendChild(btnAnalisar);
-    container.appendChild(galesDiv);
+    controlsRow.appendChild(btnAnalisar);
+    
+    // Espaço flex
+    const spacer=document.createElement("div");
+    spacer.style.cssText="flex:1;";
+    controlsRow.appendChild(spacer);
+    
+    // Botão Download Txt (só aparece se houver resultados)
+    const btnDownload=document.createElement("button");
+    btnDownload.id=`btn-download-${key}`;
+    btnDownload.textContent="⬇ BAIXAR TXT";
+    btnDownload.style.cssText="padding:6px 12px;background:#6b7280;color:#fff;border:none;border-radius:5px;font-weight:600;font-size:0.85em;cursor:pointer;transition:all 0.2s;display:none;white-space:nowrap;";
+    btnDownload.addEventListener("mouseenter",()=>{btnDownload.style.background="#5a6070";});
+    btnDownload.addEventListener("mouseleave",()=>{btnDownload.style.background="#6b7280";});
+    btnDownload.addEventListener("click",()=>{
+      baixarResultadosTxt(key,cfg.nome);
+    });
+    
+    controlsRow.appendChild(btnDownload);
+    
+    container.appendChild(controlsRow);
     
     // ── Container de Resultados ──
     const resultsDiv=document.createElement("div");
@@ -1430,9 +1474,6 @@
     // Pega gales selecionado
     const galeSelect=document.getElementById(`gale-select-${key}`);
     const galeSelecionado=parseInt(galeSelect.value);
-    
-    // Pega a hora atual (já está filtrada na tabela)
-    const horaAtual_val=horaAtual;
     
     // Gera combinações SEQUENCIAIS apenas para o tipo selecionado
     const combinacoes=[];
@@ -1492,6 +1533,12 @@
       }
     });
     
+    // Mostra/esconde botão download
+    const btnDownload=document.getElementById(`btn-download-${key}`);
+    if(btnDownload){
+      btnDownload.style.display=resultados.length>0?"inline-block":"none";
+    }
+    
     renderGalesResultados(key,resultados,galeSelecionado);
   }
   
@@ -1502,13 +1549,13 @@
     if(resultados.length===0){
       const msg=document.createElement("div");
       msg.textContent="❌ Nenhuma combinação com 100% encontrada";
-      msg.style.cssText="padding:10px;background:#1a1a2e;border:1px solid #3a3f50;border-radius:6px;color:#9ca3af;font-size:0.85em;";
+      msg.style.cssText="padding:10px;background:#1a1a2e;border:1px solid #3a3f50;border-radius:6px;color:#9ca3af;font-size:0.85em;margin-top:8px;";
       el.appendChild(msg);
       return;
     }
     
     const container=document.createElement("div");
-    container.style.cssText="display:flex;flex-direction:column;gap:8px;";
+    container.style.cssText="display:flex;flex-direction:column;gap:8px;margin-top:8px;";
     
     // Título do resultado
     const titulo=document.createElement("h5");
@@ -1547,6 +1594,91 @@
     
     container.appendChild(lista);
     el.appendChild(container);
+    
+    // Armazena resultados para download
+    el.dataset.resultados=JSON.stringify(resultados);
+    el.dataset.numGales=numGales;
+    
+    // Mostra botão global se houver algum resultado em alguma liga
+    verificarMostrarBotaoGlobal();
+  }
+  
+  function verificarMostrarBotaoGlobal() {
+    let temResultados=false;
+    ligasAtivas.forEach(key=>{
+      const resultsEl=document.getElementById(`gales-results-${key}`);
+      if(resultsEl?.dataset.resultados){
+        temResultados=true;
+      }
+    });
+    
+    const globalSection=document.getElementById("global-download-section");
+    if(globalSection){
+      globalSection.style.display=temResultados?"block":"none";
+    }
+  }
+  
+  function baixarResultadosTxt(key,ligaNome) {
+    const resultsEl=document.getElementById(`gales-results-${key}`);if(!resultsEl)return;
+    const resultadosStr=resultsEl.dataset.resultados;if(!resultadosStr)return;
+    
+    const resultados=JSON.parse(resultadosStr);
+    const numGales=resultsEl.dataset.numGales;
+    
+    let texto=`ANÁLISE DE GALES - ${ligaNome.toUpperCase()}\n`;
+    texto+=`Tipo: ${numGales} Gale${numGales>1?"s":""}\n`;
+    texto+=`Data: ${new Date().toLocaleDateString("pt-BR")}\n`;
+    texto+=`Hora Análise: ${new Date().toLocaleTimeString("pt-BR")}\n`;
+    texto+=`\n${"=".repeat(50)}\n\n`;
+    
+    resultados.forEach(({combo,gT,total})=>{
+      texto+=`${combo.join(" + ")} - ${gT}/${total} (100%)\n`;
+    });
+    
+    const blob=new Blob([texto],{type:"text/plain;charset=utf-8"});
+    const link=document.createElement("a");
+    link.href=URL.createObjectURL(blob);
+    link.download=`gales_${numGales}g_${ligaNome.toLowerCase().replace(/\s+/g,"_")}_${new Date().getTime()}.txt`;
+    link.click();
+  }
+  
+  function baixarTodasAsLigasTxt() {
+    let textoGeral=`ANÁLISE DE GALES - TODAS AS LIGAS\n`;
+    textoGeral+=`Data: ${new Date().toLocaleDateString("pt-BR")}\n`;
+    textoGeral+=`Hora: ${new Date().toLocaleTimeString("pt-BR")}\n`;
+    textoGeral+=`\n${"=".repeat(60)}\n\n`;
+    
+    let temDados=false;
+    
+    ligasAtivas.forEach(key=>{
+      const cfg=CASAS_CONFIG[casaAtual]?.ligas[key];if(!cfg)return;
+      const resultsEl=document.getElementById(`gales-results-${key}`);if(!resultsEl)return;
+      const resultadosStr=resultsEl.dataset.resultados;if(!resultadosStr)return;
+      
+      temDados=true;
+      const resultados=JSON.parse(resultadosStr);
+      const numGales=resultsEl.dataset.numGales;
+      
+      textoGeral+=`📌 ${cfg.nome.toUpperCase()}\n`;
+      textoGeral+=`   Tipo: ${numGales} Gale${numGales>1?"s":""}\n\n`;
+      
+      resultados.forEach(({combo,gT,total})=>{
+        textoGeral+=`   ${combo.join(" + ")} - ${gT}/${total} (100%)\n`;
+      });
+      
+      textoGeral+=`\n${"-".repeat(60)}\n\n`;
+    });
+    
+    if(!temDados){
+      alert("Nenhuma análise com resultados para salvar!");
+      return;
+    }
+    
+    const blob=new Blob([textoGeral],{type:"text/plain;charset=utf-8"});
+    const link=document.createElement("a");
+    link.href=URL.createObjectURL(blob);
+    link.download=`gales_todas_ligas_${new Date().getTime()}.txt`;
+    link.click();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1640,6 +1772,9 @@
 
     // Polling 5s por liga ativa
     setInterval(() => { if (!document.hidden) dispararBusca(); }, 5000);
+    
+    // Listener botão download global
+    document.getElementById("btn-download-global").addEventListener("click",baixarTodasAsLigasTxt);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
