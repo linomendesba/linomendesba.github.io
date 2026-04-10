@@ -1355,7 +1355,7 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ANALISADOR AUTOMÁTICO DE GALES COM SELETORES
+  // ANALISADOR AUTOMÁTICO DE GALES
   // ═══════════════════════════════════════════════════════════════════════════
   function renderGalesAnalyzer(key) {
     const el=document.getElementById(`gales-analyzer-${key}`);if(!el)return;
@@ -1367,48 +1367,13 @@
     const container=document.createElement("div");
     container.style.cssText="padding:14px;background:#22252e;border-radius:8px;margin-top:16px;border:1px solid #2e3240;";
     
-    // ── Seletor de Horas ──
-    const horasDiv=document.createElement("div");
-    horasDiv.style.cssText="margin-bottom:12px;";
-    
-    const horasLabel=document.createElement("label");
-    horasLabel.textContent="Horas:";
-    horasLabel.style.cssText="display:block;font-size:0.85em;color:#9ca3af;margin-bottom:6px;font-weight:500;";
-    horasDiv.appendChild(horasLabel);
-    
-    const horasContainer=document.createElement("div");
-    horasContainer.style.cssText="display:flex;flex-wrap:wrap;gap:8px;";
-    horasDiv.appendChild(horasContainer);
-    
-    // Gera checkboxes de horas (0-23)
-    for(let h=0;h<24;h++){
-      const label=document.createElement("label");
-      label.style.cssText="display:flex;align-items:center;gap:4px;font-size:0.8em;color:#d1d5db;cursor:pointer;";
-      
-      const chk=document.createElement("input");
-      chk.type="checkbox";
-      chk.className=`hora-chk-${key}`;
-      chk.value=h;
-      chk.checked=h===horaAtual;
-      chk.style.cssText="cursor:pointer;";
-      
-      const txt=document.createElement("span");
-      txt.textContent=h.toString().padStart(2,"0")+":00";
-      
-      label.appendChild(chk);
-      label.appendChild(txt);
-      horasContainer.appendChild(label);
-    }
-    
-    container.appendChild(horasDiv);
-    
     // ── Seletor de Gales (DROPDOWN) ──
     const galesDiv=document.createElement("div");
-    galesDiv.style.cssText="margin-bottom:12px;";
+    galesDiv.style.cssText="margin-bottom:12px;display:flex;align-items:flex-end;gap:10px;";
     
     const galesLabel=document.createElement("label");
     galesLabel.textContent="Gales:";
-    galesLabel.style.cssText="display:block;font-size:0.85em;color:#9ca3af;margin-bottom:6px;font-weight:500;";
+    galesLabel.style.cssText="font-size:0.85em;color:#9ca3af;font-weight:500;margin:0;";
     galesDiv.appendChild(galesLabel);
     
     const galesSelect=document.createElement("select");
@@ -1434,28 +1399,24 @@
     galesSelect.addEventListener("mouseleave",()=>{galesSelect.style.borderColor="#3a3f50";});
     
     galesDiv.appendChild(galesSelect);
-    container.appendChild(galesDiv);
     
     // ── Botão Analisar ──
-    const btnDiv=document.createElement("div");
-    btnDiv.style.cssText="margin-bottom:14px;";
-    
     const btnAnalisar=document.createElement("button");
     btnAnalisar.textContent="ANALISAR";
-    btnAnalisar.style.cssText="padding:8px 16px;background:#00e676;color:#000;border:none;border-radius:6px;font-weight:600;font-size:0.85em;cursor:pointer;transition:all 0.2s;";
+    btnAnalisar.style.cssText="padding:6px 14px;background:#00e676;color:#000;border:none;border-radius:5px;font-weight:600;font-size:0.85em;cursor:pointer;transition:all 0.2s;";
     btnAnalisar.addEventListener("mouseenter",()=>{btnAnalisar.style.background="#00d564";});
     btnAnalisar.addEventListener("mouseleave",()=>{btnAnalisar.style.background="#00e676";});
     btnAnalisar.addEventListener("click",()=>{
       executarAnalisadorGales(key);
     });
     
-    btnDiv.appendChild(btnAnalisar);
-    container.appendChild(btnDiv);
+    galesDiv.appendChild(btnAnalisar);
+    container.appendChild(galesDiv);
     
     // ── Container de Resultados ──
     const resultsDiv=document.createElement("div");
     resultsDiv.id=`gales-results-${key}`;
-    resultsDiv.style.cssText="min-height:60px;";
+    resultsDiv.style.cssText="min-height:40px;";
     container.appendChild(resultsDiv);
     
     el.appendChild(container);
@@ -1466,20 +1427,12 @@
     const cfg=CASAS_CONFIG[casaAtual]?.ligas[key];if(!cfg)return;
     const mF=cfg.minutosFixos;
     
-    // Pega horas selecionadas
-    const horasSelecionadas=[];
-    document.querySelectorAll(`.hora-chk-${key}:checked`).forEach(chk=>{
-      horasSelecionadas.push(parseInt(chk.value));
-    });
-    
-    // Pega gales selecionado (agora é só um)
+    // Pega gales selecionado
     const galeSelect=document.getElementById(`gale-select-${key}`);
     const galeSelecionado=parseInt(galeSelect.value);
     
-    if(horasSelecionadas.length===0){
-      alert("Selecione pelo menos uma hora!");
-      return;
-    }
+    // Pega a hora atual (já está filtrada na tabela)
+    const horaAtual_val=horaAtual;
     
     // Gera combinações SEQUENCIAIS apenas para o tipo selecionado
     const combinacoes=[];
@@ -1504,19 +1457,17 @@
       }
     }
     
-    // Analisa cada combinação APENAS nas horas selecionadas
+    // Analisa cada combinação - TODAS as linhas da tabela (já estão filtradas por hora)
     const resultados=[];
     
     combinacoes.forEach(combo=>{
       let gT=0, rT=0;
+      
+      // Pega todas as linhas de dados da tabela
       tabela.querySelectorAll("tbody tr").forEach(row=>{
-        // Pega a hora dessa linha
-        const tdData=row.cells[1];if(!tdData)return;
-        const horaStr=tdData.textContent;
-        const horaDaLinha=parseInt(horaStr.match(/\d+(?=:)/)?.[0]||"-1");
-        
-        // Só conta se a hora da linha está nas selecionadas
-        if(!horasSelecionadas.includes(horaDaLinha))return;
+        // Ignora linhas vazias ou sem dados
+        if(row.classList.contains("sem-dados"))return;
+        if(!row.cells[2])return;
         
         // Verifica a sequência de minutos
         let temGreen=false;
@@ -1526,6 +1477,7 @@
           const bg=c.style.backgroundColor;
           if(bg==="rgb(1, 139, 6)") temGreen=true;
         });
+        
         if(temGreen) gT++;
         else rT++;
       });
@@ -1549,8 +1501,8 @@
     
     if(resultados.length===0){
       const msg=document.createElement("div");
-      msg.textContent="❌ Nenhuma combinação com 100% encontrada para os critérios selecionados";
-      msg.style.cssText="padding:12px;background:#1a1a2e;border:1px solid #3a3f50;border-radius:6px;color:#9ca3af;font-size:0.85em;";
+      msg.textContent="❌ Nenhuma combinação com 100% encontrada";
+      msg.style.cssText="padding:10px;background:#1a1a2e;border:1px solid #3a3f50;border-radius:6px;color:#9ca3af;font-size:0.85em;";
       el.appendChild(msg);
       return;
     }
@@ -1561,7 +1513,7 @@
     // Título do resultado
     const titulo=document.createElement("h5");
     titulo.textContent=`${numGales} Gale${numGales>1?"s":""}`;
-    titulo.style.cssText="margin:0 0 10px 0;font-size:0.9em;color:#00e676;letter-spacing:0.05em;text-transform:uppercase;font-weight:600;";
+    titulo.style.cssText="margin:0 0 8px 0;font-size:0.9em;color:#00e676;letter-spacing:0.05em;text-transform:uppercase;font-weight:600;";
     container.appendChild(titulo);
     
     const lista=document.createElement("div");
