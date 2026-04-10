@@ -65,8 +65,8 @@
       white-space: nowrap;
     }
     .liga-chip.ativo {
-      background: #4f46e5;
-      border-color: #818cf8;
+      background: #4a5568;
+      border-color: #9ca3af;
       color: #fff;
     }
     .liga-chip:hover { border-color: #818cf8; }
@@ -74,7 +74,7 @@
     /* badge hora */
     #badge-hora {
       padding: 4px 14px;
-      background: #7c3aed;
+      background: #4a5568;
       border-radius: 8px;
       font-weight: bold;
       font-size: 0.92em;
@@ -94,7 +94,7 @@
     .liga-box h4 {
       margin: 0 0 10px 0;
       font-size: 0.9em;
-      color: #a78bfa;
+      color: #9ca3af;
       letter-spacing: 0.04em;
     }
     .seletor-container {
@@ -138,11 +138,11 @@
     /* minutos nos headers */
     th.minute-header {
       font-size: 0.75em;
-      color: #818cf8;
+      color: #9ca3af;
       cursor: pointer;
       transition: background 0.12s;
     }
-    th.minute-header:hover { background: rgba(129,140,248,0.18); }
+    th.minute-header:hover { background: rgba(156,163,175,0.18); }
     th.minute-header.col-sel { background: rgba(255,255,255,0.14)!important; color: #fff!important; }
     .quadrant-border { border-left: 2px solid rgba(255,255,255,0.28)!important; }
 
@@ -174,10 +174,10 @@
     .tooltip .times { color: #a78bfa; display: block; }
     .tooltip .placares { color: #e0e0e0; display: block; }
     .tooltip .placarHT { color: #9ca3af; }
-    .tooltip .odd-tooltip { color: #f0c040; font-weight: bold; display: block; }
+    .tooltip .odd-tooltip { color: #ffffff; font-weight: bold; display: block; }
     .placar-futuro { opacity: 0.55; }
-    .placar-futuro-odd { font-size: 0.68em; color: #f0c040; font-weight: bold; margin-top: 1px; }
-    .odds { font-size: 0.68em; color: #f0c040; cursor: pointer; }
+    .placar-futuro-odd { font-size: 0.68em; color: #ffffff; font-weight: bold; margin-top: 1px; }
+    .odds { font-size: 0.68em; color: #ffffff; cursor: pointer; }
 
     /* % verde/branca */
     .porcentagem-verde  { color: #00e676!important; font-weight: bold; }
@@ -383,6 +383,17 @@
       <select id="sel-odds">
         <option value="nao">Não</option>
         <option value="sim" selected>Sim</option>
+      </select>
+    </div>
+
+    <!-- Seletor de Dias -->
+    <div>
+      <label>Dias:</label>
+      <select id="sel-dias">
+        <option value="5" selected>5 dias</option>
+        <option value="7">7 dias</option>
+        <option value="10">10 dias</option>
+        <option value="15">15 dias</option>
       </select>
     </div>
 
@@ -650,6 +661,7 @@
   const ligasAtivas = new Set(); // keys de ligas ativas (exibidas)
   let casaAtual = localStorage.getItem("hf_casa") || "betano";
   let horaAtual = parseInt(localStorage.getItem("hf_hora") ?? new Date().getHours());
+  let diasAtual = parseInt(localStorage.getItem("hf_dias") || "5");
   let cachesDados = {}; // chave → { dados, odds, proximos }
   const _busy = {};
 
@@ -1090,56 +1102,6 @@
       if(mostOdds){ const oel=placar.querySelector(".odds"); if(oel){ const ot=oel.textContent.trim(); for(const val of estado.oddsSelecionadas){ if(ot===val){ const s=mSO.get(val);if(s){acerto?s.green++:s.red++;} break; } } } }
     });
 
-    // Próximos jogos
-    proximosFiltrados.forEach(jogo => {
-      const ds = jogo.captured_date
-        ? jogo.captured_date.split("/").reverse().join("-")
-        : new Date(jogo.start_time).toISOString().split("T")[0];
-      const linha = mapeamento[ds];
-      const parts = (jogo.time||"00:00").split(":");
-      const minNorm = normMinuto(parseInt(parts[1])||0, mF);
-      const mk = `${jogo.team_home}|${jogo.team_visit}|${ds}|${minNorm}`;
-      if (!linha || processedMatches.has(mk)) return;
-
-      const jaTemResultado = dadosFiltrados.some(d =>
-        normalizeStr(d.time_a)===normalizeStr(jogo.team_home) &&
-        normalizeStr(d.time_b)===normalizeStr(jogo.team_visit) &&
-        getDateStr(d.data)===ds && normMinuto(d.minuto, mF)===minNorm
-      );
-      if (jaTemResultado) return;
-
-      const idx = mF.indexOf(minNorm); if (idx === -1) return;
-      const cel = linha.children[2 + idx]; if (cel.querySelector(".placar")) return;
-
-      const placar = document.createElement("div"); placar.className = "placar placar-futuro";
-      placar.setAttribute("data-time-a", jogo.team_home); placar.setAttribute("data-time-b", jogo.team_visit);
-
-      const tA = abrevTime(jogo.team_home), tB = abrevTime(jogo.team_visit);
-      const pt = document.createElement("div"); pt.className = "placar-texto";
-      if (mostTimes) {
-        pt.innerHTML = `<span class="time-casa" style="cursor:pointer" data-full-time="${jogo.team_home}">${tA}</span><br><span class="time-fora" style="cursor:pointer" data-full-time="${jogo.team_visit}">${tB}</span>`;
-      } else {
-        pt.innerHTML = `${tA}<br>${tB}`;
-      }
-      placar.appendChild(pt);
-
-      const oddsProx = findOddsProx(oddsIndex, jogo, mF);
-      const ovp = getOddValue(oddsProx, mercado);
-      if (ovp && ovp !== "N/A") {
-        placar.appendChild(Object.assign(document.createElement("div"), {className:"placar-futuro-odd", textContent:`@${ovp}`}));
-      }
-      placar.addEventListener("click", onPlacarClick);
-      if (mostTimes) {
-        pt.querySelector(".time-casa")?.addEventListener("click", onTimeClick);
-        pt.querySelector(".time-fora")?.addEventListener("click", onTimeClick);
-      }
-      const tooltip = document.createElement("span"); tooltip.className = "tooltip";
-      tooltip.innerHTML = `<span class="times">${jogo.team_home} vs ${jogo.team_visit}</span>${ovp&&ovp!=="N/A"?`<span class="odd-tooltip">@${ovp}</span>`:""}`;
-      placar.appendChild(tooltip);
-      cel.appendChild(placar); processedMatches.add(mk);
-
-      [".time-casa",".time-fora"].forEach(sel=>{ const sp=placar.querySelector(sel); if(!sp)return; const ft2=sp.getAttribute("data-full-time"); for(const val of estado.timesSelecionados){ if(ft2===val){ const cor=estado.corSel(estado.timesSelecionados,val,"time"); sp.style.setProperty("--sel-color",cor.bg); sp.classList.add("time-nome-selecionado"); break; } } });
-    });
 
     // ── Totais thead ────────────────────────────────────────────────────────
     totalGolsPorColuna.forEach(t => trTotalGols.appendChild(Object.assign(document.createElement("td"),{className:"total-goals",textContent:t})));
@@ -1440,6 +1402,9 @@
     // Define casa no select
     document.getElementById("sel-casa").value = casaAtual;
 
+    // Define dias no select
+    document.getElementById("sel-dias").value = diasAtual;
+
     // Carrega ligas ativas salvas
     carregarLigasAtivas();
 
@@ -1476,6 +1441,16 @@
     horaAtual = parseInt(this.value);
     localStorage.setItem("hf_hora", horaAtual);
     updateBadgeHora();
+    // Re-renderiza com cache (sem novo fetch)
+    ligasAtivas.forEach(key => {
+      if (estados[key]) estados[key].forcarRerender();
+    });
+    rerenderComCache();
+  });
+
+  document.getElementById("sel-dias").addEventListener("change", function() {
+    diasAtual = parseInt(this.value);
+    localStorage.setItem("hf_dias", diasAtual);
     // Re-renderiza com cache (sem novo fetch)
     ligasAtivas.forEach(key => {
       if (estados[key]) estados[key].forcarRerender();
