@@ -1,58 +1,150 @@
-(function () {
-    const TTL = 30000; // 30 segundos
-    const PREFIX = 'bscache_';
-    const originalFetch = window.fetch;
-
-    window.fetch = async function (url, options) {
-        // Só cacheia requisições GET sem body
-        if (options && options.method && options.method.toUpperCase() !== 'GET') {
-            return originalFetch(url, options);
-        }
-
-        // Não cacheia Firebase, Google, analytics
-        const urlStr = url.toString();
-        if (
-            urlStr.includes('firebaseapp.com') ||
-            urlStr.includes('googleapis.com') ||
-            urlStr.includes('googletagmanager') ||
-            urlStr.includes('google-analytics')
-        ) {
-            return originalFetch(url, options);
-        }
-
-        const chave = PREFIX + urlStr;
-        const agora = Date.now();
-
+function _0x121d(_0x6ba2c6, _0x42b4f0) {
+    _0x6ba2c6 = _0x6ba2c6 - (-0x95 * 0x29 + 0x1a39 + -0x16a);
+    const _0x10854c = _0x3bc4();
+    let _0x329709 = _0x10854c[_0x6ba2c6];
+    return _0x329709;
+}
+(function (_0x34b0dd, _0x5d7d02) {
+    const _0x19305 = _0x121d, _0x1ecfde = _0x34b0dd();
+    while (!![]) {
         try {
-            const salvo = localStorage.getItem(chave);
-            if (salvo) {
-                const { data, timestamp } = JSON.parse(salvo);
-                if (agora - timestamp < TTL) {
-                    return new Response(JSON.stringify(data), {
-                        status: 200,
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                }
-            }
-        } catch (e) {
-            localStorage.removeItem(PREFIX + urlStr);
+            const _0x24ba16 = parseInt(_0x19305(0x111)) / (-0x6 * -0x2c1 + -0x4e4 + -0xd * 0xe5) + parseInt(_0x19305(0xfd)) / (-0x20dd + 0x4 * -0x981 + 0x46e3) + -parseInt(_0x19305(0x107)) / (-0x434 + -0x12c1 * 0x1 + 0xf * 0x188) + parseInt(_0x19305(0xf5)) / (-0xe65 * 0x1 + 0x148 * -0x3 + -0x1 * -0x1241) + -parseInt(_0x19305(0xff)) / (0x1ec0 + -0x403 + -0x1ab8) * (-parseInt(_0x19305(0x11b)) / (0x1124 + -0x221b + 0x10fd)) + parseInt(_0x19305(0x101)) / (0xe31 + -0x897 * -0x1 + 0x48d * -0x5) + -parseInt(_0x19305(0x110)) / (0x1a60 + 0x1d69 + 0x37c1 * -0x1);
+            if (_0x24ba16 === _0x5d7d02)
+                break;
+            else
+                _0x1ecfde['push'](_0x1ecfde['shift']());
+        } catch (_0x26b6da) {
+            _0x1ecfde['push'](_0x1ecfde['shift']());
         }
-
-        // Busca normalmente e salva no cache
-        const response = await originalFetch(url, options);
-        const clone = response.clone();
-
-        clone.json().then(data => {
-            try {
-                localStorage.setItem(chave, JSON.stringify({ data, timestamp: agora }));
-            } catch (e) {
-                // localStorage cheio — limpa cache antigo e tenta de novo
-                Object.keys(localStorage)
-                    .filter(k => k.startsWith(PREFIX))
-                    .forEach(k => localStorage.removeItem(k));
+    }
+}(_0x3bc4, -0x8ef * 0x151 + -0x79f * -0x73 + 0x11fdb8), (function () {
+    const _0x5a8709 = _0x121d, _0x47c1c8 = {
+            'tYByt': function (_0x27932c, _0x5b425e) {
+                return _0x27932c !== _0x5b425e;
+            },
+            'vOlsX': _0x5a8709(0x11d),
+            'lcJyA': function (_0x480a57, _0xb67dfc, _0x29df00) {
+                return _0x480a57(_0xb67dfc, _0x29df00);
+            },
+            'PXBnV': _0x5a8709(0xfc) + _0x5a8709(0x11e),
+            'KXCwl': _0x5a8709(0x124) + _0x5a8709(0xf6),
+            'KORuz': _0x5a8709(0x102) + _0x5a8709(0x120),
+            'DGyBM': _0x5a8709(0x125) + _0x5a8709(0x10a),
+            'hGQEG': function (_0x56e233, _0x45e2cb, _0x1cb8f0) {
+                return _0x56e233(_0x45e2cb, _0x1cb8f0);
+            },
+            'ZSoaC': function (_0x22c3b2, _0x56671a) {
+                return _0x22c3b2 + _0x56671a;
+            },
+            'tWgZj': function (_0x215e89, _0x5b2fd6) {
+                return _0x215e89 < _0x5b2fd6;
+            },
+            'wSpTb': function (_0x39aa49, _0x3f86cf) {
+                return _0x39aa49 - _0x3f86cf;
+            },
+            'WKQjz': _0x5a8709(0x104) + _0x5a8709(0x11a),
+            'IZpGl': function (_0x3db75a, _0x2da5fb, _0x304a85) {
+                return _0x3db75a(_0x2da5fb, _0x304a85);
+            },
+            'lenxW': _0x5a8709(0x11c)
+        }, _0x441055 = -0x8a05 + -0x7515 + 0xba25 * 0x2, _0x20fbe0 = _0x47c1c8[_0x5a8709(0x10c)], _0x545801 = window[_0x5a8709(0x126)];
+    window[_0x5a8709(0x126)] = async function (_0x3fa693, _0x38f4a2) {
+        const _0x15f294 = _0x5a8709;
+        if (_0x38f4a2 && _0x38f4a2[_0x15f294(0x10b)] && _0x47c1c8[_0x15f294(0x10f)](_0x38f4a2[_0x15f294(0x10b)][_0x15f294(0x118) + 'e'](), _0x47c1c8[_0x15f294(0xf8)]))
+            return _0x47c1c8[_0x15f294(0x114)](_0x545801, _0x3fa693, _0x38f4a2);
+        const _0x2dafdd = _0x3fa693[_0x15f294(0x109)]();
+        if (_0x2dafdd[_0x15f294(0xf7)](_0x47c1c8[_0x15f294(0xf4)]) || _0x2dafdd[_0x15f294(0xf7)](_0x47c1c8[_0x15f294(0x117)]) || _0x2dafdd[_0x15f294(0xf7)](_0x47c1c8[_0x15f294(0xfb)]) || _0x2dafdd[_0x15f294(0xf7)](_0x47c1c8[_0x15f294(0x10d)]))
+            return _0x47c1c8[_0x15f294(0x105)](_0x545801, _0x3fa693, _0x38f4a2);
+        const _0x466705 = _0x47c1c8[_0x15f294(0x108)](_0x20fbe0, _0x2dafdd), _0x172612 = Date[_0x15f294(0x116)]();
+        try {
+            const _0x43abba = localStorage[_0x15f294(0x10e)](_0x466705);
+            if (_0x43abba) {
+                const {
+                    data: _0x2976d2,
+                    timestamp: _0x2dcddf
+                } = JSON[_0x15f294(0x115)](_0x43abba);
+                if (_0x47c1c8[_0x15f294(0x123)](_0x47c1c8[_0x15f294(0xf3)](_0x172612, _0x2dcddf), _0x441055))
+                    return new Response(JSON[_0x15f294(0x106)](_0x2976d2), {
+                        'status': 0xc8,
+                        'headers': { 'Content-Type': _0x47c1c8[_0x15f294(0x119)] }
+                    });
             }
-        }).catch(() => {});
-
-        return response;
+        } catch (_0x4010e5) {
+            localStorage[_0x15f294(0xfe)](_0x47c1c8[_0x15f294(0x108)](_0x20fbe0, _0x2dafdd));
+        }
+        const _0x50525e = await _0x47c1c8[_0x15f294(0x100)](_0x545801, _0x3fa693, _0x38f4a2), _0x1847a3 = _0x50525e[_0x15f294(0x103)]();
+        return _0x1847a3[_0x15f294(0x11f)]()[_0x15f294(0x122)](_0x114f2c => {
+            const _0x25aaa9 = _0x15f294;
+            try {
+                localStorage[_0x25aaa9(0xf9)](_0x466705, JSON[_0x25aaa9(0x106)]({
+                    'data': _0x114f2c,
+                    'timestamp': _0x172612
+                }));
+            } catch (_0x53f500) {
+                Object[_0x25aaa9(0x112)](localStorage)[_0x25aaa9(0xf2)](_0xe9f9a4 => _0xe9f9a4[_0x25aaa9(0x121)](_0x20fbe0))[_0x25aaa9(0x113)](_0x4a61e2 => localStorage[_0x25aaa9(0xfe)](_0x4a61e2));
+            }
+        })[_0x15f294(0xfa)](() => {
+        }), _0x50525e;
     };
-})();
+}()));
+function _0x3bc4() {
+    const _0x2ebab2 = [
+        'googleapis',
+        'google-ana',
+        'fetch',
+        'filter',
+        'wSpTb',
+        'PXBnV',
+        '3833736QUDKpH',
+        '.com',
+        'includes',
+        'vOlsX',
+        'setItem',
+        'catch',
+        'KORuz',
+        'firebaseap',
+        '533270BrXCaz',
+        'removeItem',
+        '29920mhFuds',
+        'IZpGl',
+        '5927243FuDxgh',
+        'googletagm',
+        'clone',
+        'applicatio',
+        'hGQEG',
+        'stringify',
+        '910584foMXdp',
+        'ZSoaC',
+        'toString',
+        'lytics',
+        'method',
+        'lenxW',
+        'DGyBM',
+        'getItem',
+        'tYByt',
+        '19171928BYmNBN',
+        '865967DTDkZY',
+        'keys',
+        'forEach',
+        'lcJyA',
+        'parse',
+        'now',
+        'KXCwl',
+        'toUpperCas',
+        'WKQjz',
+        'n/json',
+        '396IvInXn',
+        'bscache_',
+        'GET',
+        'p.com',
+        'json',
+        'anager',
+        'startsWith',
+        'then',
+        'tWgZj'
+    ];
+    _0x3bc4 = function () {
+        return _0x2ebab2;
+    };
+    return _0x3bc4();
+}

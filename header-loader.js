@@ -1,373 +1,461 @@
-// header-loader.js - Carrega o header correto baseado na casa de apostas
-
-(function() {
-  'use strict';
-
-  const MAPEAMENTO_CASAS = {
-
-    // ═══════════════════════════════
-    // BETANO
-    // ═══════════════════════════════
-    'index': 'betano',
-    'index.html': 'betano',
-    'euro': 'betano',
-    'euro.html': 'betano',
-    'copa_america': 'betano',
-    'copa_america.html': 'betano',
-    'copa_das_estrelas': 'betano',
-    'copa_das_estrelas.html': 'betano',
-    'brasileirao': 'betano',
-    'brasileirao.html': 'betano',
-    'campeonato_italiano': 'betano',
-    'campeonato_italiano.html': 'betano',
-    'manutencao': 'betano',
-    'manutencao.html': 'betano',
-    'betanopre': 'betano',
-    'betanopre.html': 'betano',
-    'fluxo': 'betano',
-    'fluxo.html': 'betano',
-    'maximabetano': 'betano',
-    'maximabetano.html': 'betano',
-    'ranking': 'betano',
-    'ranking.html': 'betano',
-    'equipes': 'betano',
-    'equipes.html': 'betano',
-    'palpites': 'betano',
-    'palpites.html': 'betano',
-    'gols': 'betano',
-    'gols.html': 'betano',
-    'betanobar': 'betano',
-    'betanobar.html': 'betano',
-    'betanofixo': 'betano',
-    'betanofixo.html': 'betano',
-    'ligastat': 'betano',
-    'ligastat.html': 'betano',
-    'multbetano': 'betano',
-    'multbetano.html': 'betano',
-    'localizai': 'betano',
-    'localizai.html': 'betano',
-    'timeminuto': 'betano',
-    'timeminuto.html': 'betano',
-    'betanotips': 'betano',
-    'betanotips.html': 'betano',
-    'simulador': 'betano',
-    'simulador.html': 'betano',
-    'porcentagembetano': 'betano',
-    'porcentagembetano.html': 'betano',
-    'classificacao': 'betano',
-    'classificacao.html': 'betano',
-    'sequencia': 'betano',
-    'sequencia.html': 'betano',
-    'betanofiboexato': 'betano',
-    'betanofiboexato.html': 'betano',
-    'betanofiboht': 'betano',
-    'betanofiboht.html': 'betano',
-    'graficosgols': 'betano',
-    'graficosgols.html': 'betano',
-    'graficoodd': 'betano',
-    'graficoodd.html': 'betano',
-    'graficotime': 'betano',
-    'graficotime.html': 'betano',
-    'macrobetano': 'betano',
-    'macrobetano.html': 'betano',
-    'quadrantesgols': 'betano',
-    'quadrantesgols.html': 'betano',
-    'betanoradar': 'betano',
-    'day.html': 'betano',
-    'betanoradar.html': 'betano',
-    'buscadorodd': 'betano',
-    'buscadorodd.html': 'betano',
-    'buscadortime': 'betano',
-    'buscadortime.html': 'betano',
-    'betanobuscador': 'betano',
-    'betanobuscador.html': 'betano',
-    'buscaconfronto': 'betano',
-    'buscaconfronto.html': 'betano',
-    'manutencao.html': 'betano',
-    'tv': 'betano',
-
-    // ═══════════════════════════════
-    // BET365
-    // ═══════════════════════════════
-    'bet365copa': 'bet365',
-    'day.html': 'bet365',
-    'bet365copa.html': 'bet365',
-    'bet365premier': 'bet365',
-    'bet365premier.html': 'bet365',
-    'bet365super': 'bet365',
-    'bet365super.html': 'bet365',
-    'bet365euro': 'bet365',
-    'bet365euro.html': 'bet365',
-    'bet365pre': 'bet365',
-    'bet365pre.html': 'bet365',
-    'mult365': 'bet365',
-    'mult365.html': 'bet365',
-    '365localizai': 'bet365',
-    '365localizai.html': 'bet365',
-    '365fluxo': 'bet365',
-    '365fluxo.html': 'bet365',
-    '365maximas': 'bet365',
-    '365maximas.html': 'bet365',
-    '365raking': 'bet365',
-    '365raking.html': 'bet365',
-    '365equipes': 'bet365',
-    '365equipes.html': 'bet365',
-    '365palpites': 'bet365',
-    '365palpites.html': 'bet365',
-    '365gols': 'bet365',
-    '365gols.html': 'bet365',
-    '365bar': 'bet365',
-    '365bar.html': 'bet365',
-    '365fixo': 'bet365',
-    '365fixo.html': 'bet365',
-    '365stat': 'bet365',
-    '365stat.html': 'bet365',
-    '365timeminuto': 'bet365',
-    '365timeminuto.html': 'bet365',
-    '365projecoes': 'bet365',
-    '365projecoes.html': 'bet365',
-    '365porcent': 'bet365',
-    '365porcent.html': 'bet365',
-    'bet365clasificacao': 'bet365',
-    'bet365clasificacao.html': 'bet365',
-    '365sequencia': 'bet365',
-    '365sequencia.html': 'bet365',
-    '365radar': 'bet365',
-    '365radar.html': 'bet365',
-    '365ft': 'bet365',
-    '365ft.html': 'bet365',
-    '365ht': 'bet365',
-    '365ht.html': 'bet365',
-    '365gf': 'bet365',
-    '365gf.html': 'bet365',
-    '365gratime': 'bet365',
-    '365gratime.html': 'bet365',
-    '365macro': 'bet365',
-    '365macro.html': 'bet365',
-    '365qua': 'bet365',
-    '365qua.html': 'bet365',
-    '365buscatime': 'bet365',
-    '365buscatime.html': 'bet365',
-    '365placar': 'bet365',
-    '365placar.html': 'bet365',
-    '365odds': 'bet365',
-    '365odds.html': 'bet365',
-    '365confronto': 'bet365',
-    '365confronto.html': 'bet365',
-
-    // ═══════════════════════════════
-    // KIRON
-    // ═══════════════════════════════
-    'kironengland': 'kiron',
-    'day.html': 'kiron',
-    'kironengland.html': 'kiron',
-    'kironitaly': 'kiron',
-    'kironitaly.html': 'kiron',
-    'kironspain': 'kiron',
-    'kironspain.html': 'kiron',
-    'kironbrazil': 'kiron',
-    'kironbrazil.html': 'kiron',
-    'kironamerica': 'kiron',
-    'kironamerica.html': 'kiron',
-    'kironpre': 'kiron',
-    'kironpre.html': 'kiron',
-    'tvkiron': 'kiron',
-    'kironfluxo': 'kiron',
-    'kironfluxo.html': 'kiron',
-    'maximaskiron': 'kiron',
-    'maximaskiron.html': 'kiron',
-    'rankingkiron': 'kiron',
-    'rankingkiron.html': 'kiron',
-    'kironequipes': 'kiron',
-    'kironequipes.html': 'kiron',
-    'kironpalpites': 'kiron',
-    'kironpalpites.html': 'kiron',
-    'golskiron': 'kiron',
-    'golskiron.html': 'kiron',
-    'kironbar': 'kiron',
-    'kironbar.html': 'kiron',
-    'fixokiron': 'kiron',
-    'fixokiron.html': 'kiron',
-    'ligastatkiron': 'kiron',
-    'ligastatkiron.html': 'kiron',
-    'multkiron': 'kiron',
-    'multkiron.html': 'kiron',
-    'localizaikiron': 'kiron',
-    'localizaikiron.html': 'kiron',
-    'kironminuto': 'kiron',
-    'kironminuto.html': 'kiron',
-    'kironprojecao': 'kiron',
-    'kironprojecao.html': 'kiron',
-    'porcentagemkiron': 'kiron',
-    'porcentagemkiron.html': 'kiron',
-    'classificacaokiron': 'kiron',
-    'classificacaokiron.html': 'kiron',
-    'kironsequencia': 'kiron',
-    'kironsequencia.html': 'kiron',
-    'kirongf': 'kiron',
-    'kirongf.html': 'kiron',
-    'kironft': 'kiron',
-    'kironft.html': 'kiron',
-    'kironht': 'kiron',
-    'kironht.html': 'kiron',
-    'kirongraficoood': 'kiron',
-    'kirongraficoood.html': 'kiron',
-    'kirongraficotime': 'kiron',
-    'kirongraficotime.html': 'kiron',
-    'kironmacro': 'kiron',
-    'kironmacro.html': 'kiron',
-    'kironquadrantes': 'kiron',
-    'kironquadrantes.html': 'kiron',
-    'kironradar': 'kiron',
-    'kironradar.html': 'kiron',
-    'buscadoroddkiron': 'kiron',
-    'buscadoroddkiron.html': 'kiron',
-    'buscadortimekiron': 'kiron',
-    'buscadortimekiron.html': 'kiron',
-    'kironbuscador': 'kiron',
-    'kironbuscador.html': 'kiron',
-    'kironduelo': 'kiron',
-    'kironduelo.html': 'kiron',
-
-    // ═══════════════════════════════
-    // ESTRELABET
-    // ═══════════════════════════════
-    'estrelachampions': 'estrelabet',
-    'day.html': 'estrelabet',
-    'estrelachampions.html': 'estrelabet',
-    'estrelacopamundo': 'estrelabet',
-    'estrelacopamundo.html': 'estrelabet',
-    'estrelaamericalatina': 'estrelabet',
-    'estrelaamericalatina.html': 'estrelabet',
-    'estrelapre': 'estrelabet',
-    'estrelapre.html': 'estrelabet',
-    'estrelafluxo': 'estrelabet',
-    'estrelafluxo.html': 'estrelabet',
-    'estrelatv': 'estrelabet',
-    'estrelatv.html': 'estrelabet',
-    'golsestrela': 'estrelabet',
-    'golsestrela.html': 'estrelabet',
-    'estrelabar': 'estrelabet',
-    'estrelabar.html': 'estrelabet',
-    'maximaestrela': 'estrelabet',
-    'maximaestrela.html': 'estrelabet',
-    'estrelaequipes': 'estrelabet',
-    'estrelaequipes.html': 'estrelabet',
-    'rankingestrela': 'estrelabet',
-    'rankingestrela.html': 'estrelabet',
-    'estrelamult': 'estrelabet',
-    'estrelamult.html': 'estrelabet',
-    'estrelapalpites': 'estrelabet',
-    'estrelapalpites.html': 'estrelabet',
-    'estrelastat': 'estrelabet',
-    'estrelastat.html': 'estrelabet',
-    'localizaistar': 'estrelabet',
-    'localizaistar.html': 'estrelabet',
-    'estrelaprojecoes': 'estrelabet',
-    'estrelaprojecoes.html': 'estrelabet',
-    'estrelafixo': 'estrelabet',
-    'estrelafixo.html': 'estrelabet',
-    'estrelaodds': 'estrelabet',
-    'estrelaodds.html': 'estrelabet',
-    'estrelaft': 'estrelabet',
-    'estrelaft.html': 'estrelabet',
-    'estrelagf': 'estrelabet',
-    'estrelagf.html': 'estrelabet',
-    'estrelaght': 'estrelabet',
-    'estrelaght.html': 'estrelabet',
-    'estrelasimulador': 'estrelabet',
-    'estrelasimulador.html': 'estrelabet',
-    'estrelasequencia': 'estrelabet',
-    'estrelasequencia.html': 'estrelabet',
-    'estrelaquadrante': 'estrelabet',
-    'estrelaquadrante.html': 'estrelabet',
-    'porcentagemstar': 'estrelabet',
-    'porcentagemstar.html': 'estrelabet',
-    'estrelaclassificacao': 'estrelabet',
-    'estrelaclassificacao.html': 'estrelabet',
-    'estrelatimeminuto': 'estrelabet',
-    'estrelatimeminuto.html': 'estrelabet',
-    'estrelamacro': 'estrelabet',
-    'estrelamacro.html': 'estrelabet',
-    'estrelaclassifica': 'estrelabet',
-    'estrelaclassifica.html': 'estrelabet',
-    'estrelaradar': 'estrelabet',
-    'estrelaradar.html': 'estrelabet',
-    'buscadoroddstar': 'estrelabet',
-    'buscadoroddstar.html': 'estrelabet',
-    'estreladuelo': 'estrelabet',
-    'estreladuelo.html': 'estrelabet',
-    'buscadortimestar': 'estrelabet',
-    'buscadortimestar.html': 'estrelabet',
-    'estrelabuscador': 'estrelabet',
-    'estrelabuscador.html': 'estrelabet',
-
-  };
-
-  function detectarCasa() {
-    const caminho = window.location.pathname.toLowerCase();
-    // Remove barra final e pega o último segmento
-    let nomeArquivo = caminho.replace(/\/$/, '').split('/').pop();
-    // Remove extensão .html se tiver
-    const semExtensao = nomeArquivo.replace('.html', '');
-
-    // Tenta primeiro com extensão, depois sem
-    if (MAPEAMENTO_CASAS[nomeArquivo]) return MAPEAMENTO_CASAS[nomeArquivo];
-    if (MAPEAMENTO_CASAS[semExtensao]) return MAPEAMENTO_CASAS[semExtensao];
-
-    // Fallback: localStorage ou betano
-    return localStorage.getItem('casaSelecionada') || 'betano';
-  }
-
-  function carregarHeader() {
-    const headerDiv = document.getElementById('header');
-
-    if (!headerDiv) {
-      console.error('Elemento #header não encontrado!');
-      return;
+const _0x144444 = _0x52ca;
+function _0x377a() {
+    const _0x2e9fbe = [
+        'xgcyj',
+        'YVerW',
+        'value',
+        'utEgk',
+        'replace',
+        'voltarHome',
+        'fglHo',
+        'loading',
+        'location',
+        '28FGCpor',
+        'IgFKr',
+        'casaSeleci',
+        '778779Lxpmso',
+        'error',
+        'eFQci',
+        'split',
+        'r\x20menu\x20de\x20',
+        '/home',
+        'estrelabet',
+        '3241130reUnHg',
+        'setItem',
+        '91233xGVxFv',
+        '2Zssama',
+        'bet365',
+        '3155076NPrNXU',
+        'uNiFe',
+        'betano',
+        '/header-',
+        'color:red;',
+        'catch',
+        '487413Owjiok',
+        'aZwEt',
+        'then',
+        'stener',
+        'text',
+        'eathZ',
+        'Erro\x20ao\x20ca',
+        '776GPcWUv',
+        'rregar\x20hea',
+        'pop',
+        'Loaded',
+        '7039380gTEvsI',
+        'kiron',
+        '✅\x20Header\x20\x22',
+        'getElement',
+        'cMHJa',
+        'DOMContent',
+        'px;\x22>Erro\x20',
+        '.html',
+        'sso!',
+        'der:',
+        '\x20encontrad',
+        'padding:20',
+        '\x22\x20carregad',
+        'addEventLi',
+        'header\x20não',
+        'toLowerCas',
+        'RLerL',
+        'o\x20com\x20suce',
+        'log',
+        'redirecion',
+        'onada',
+        'ao\x20carrega',
+        'SWHBN',
+        'ById',
+        'ppeZT',
+        'der:\x20',
+        'apiAZ',
+        'pathname',
+        'readyState',
+        '<p\x20style=\x22',
+        'header',
+        'nNzhB',
+        'getItem',
+        'uYUFK',
+        '33fyPIDe',
+        'status',
+        '20JiRQge',
+        '</p>',
+        'innerHTML',
+        '1665978MHhOTJ',
+        'href',
+        'navegação.',
+        'Elemento\x20#'
+    ];
+    _0x377a = function () {
+        return _0x2e9fbe;
+    };
+    return _0x377a();
+}
+function _0x52ca(_0x230cc7, _0x240966) {
+    _0x230cc7 = _0x230cc7 - (0x2cd * -0xb + 0x2086 + -0x3 * 0x2e);
+    const _0x1d172a = _0x377a();
+    let _0x30411b = _0x1d172a[_0x230cc7];
+    return _0x30411b;
+}
+(function (_0x4494fd, _0x59a41d) {
+    const _0x18e7fb = _0x52ca, _0x4ea69c = _0x4494fd();
+    while (!![]) {
+        try {
+            const _0x4e4e3a = parseInt(_0x18e7fb(0x176)) / (-0x1 * 0x4a3 + 0x1d92 + 0x1 * -0x18ee) * (parseInt(_0x18e7fb(0x180)) / (0xf4d + -0x11fc + 0xd * 0x35)) + parseInt(_0x18e7fb(0x134)) / (-0xbb0 + 0x15 * -0x7 + 0x1 * 0xc46) * (-parseInt(_0x18e7fb(0x163)) / (-0x2697 + -0xb * 0x30d + 0x2 * 0x2415)) + parseInt(_0x18e7fb(0x17d)) / (-0xd * 0x1d8 + -0x101b + 0x2818) + parseInt(_0x18e7fb(0x166)) / (0x1 * -0x745 + 0x249c + 0x5 * -0x5dd) * (parseInt(_0x18e7fb(0x173)) / (0x2083 * 0x1 + 0x4e + -0x20ca)) + -parseInt(_0x18e7fb(0x13b)) / (0x1f8b + 0x1f * 0x7f + -0x1 * 0x2ee4) * (parseInt(_0x18e7fb(0x17f)) / (0x25c4 + 0x149b + -0x3a56)) + parseInt(_0x18e7fb(0x13f)) / (-0x3a4 + -0x15b8 + 0x1966 * 0x1) + parseInt(_0x18e7fb(0x161)) / (-0xe * 0x211 + 0x92b * -0x3 + 0x387a) * (-parseInt(_0x18e7fb(0x12e)) / (-0x101d + -0x197 + 0x11c0));
+            if (_0x4e4e3a === _0x59a41d)
+                break;
+            else
+                _0x4ea69c['push'](_0x4ea69c['shift']());
+        } catch (_0x213d03) {
+            _0x4ea69c['push'](_0x4ea69c['shift']());
+        }
     }
-
-    const casa = detectarCasa();
-    localStorage.setItem('casaSelecionada', casa);
-
-    const headerFile = `/header-${casa}.html`;
-
-    fetch(headerFile)
-      .then(response => {
-        if (!response.ok) throw new Error(`Erro ao carregar header: ${response.status}`);
-        return response.text();
-      })
-      .then(html => {
-        headerDiv.innerHTML = html;
-        console.log(`✅ Header "${casa}" carregado com sucesso!`);
-      })
-      .catch(error => {
-        console.error('Erro ao carregar header:', error);
-        headerDiv.innerHTML = '<p style="color:red;padding:20px;">Erro ao carregar menu de navegação.</p>';
-      });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', carregarHeader);
-  } else {
-    carregarHeader();
-  }
-
-})();
-
-
-// ═══════════════════════════════════════
-// FUNÇÕES GLOBAIS
-// ═══════════════════════════════════════
-
-window.redirecionar = function(select) {
-  const url = select.value;
-  if (url) window.location.href = url;
-};
-
-window.voltarHome = function() {
-  window.location.href = '/home';
-};
-
-// ⚠️ window.logout é gerenciado pelo auth.js via Firebase signOut
-// Não redefinir aqui para não sobrescrever o logout do Firebase
+}(_0x377a, -0x58597 + -0xfd13d + 0x1f5df2), (function () {
+    'use strict';
+    const _0x402fc3 = _0x52ca, _0x32bf53 = {
+            'apiAZ': _0x402fc3(0x146),
+            'utEgk': _0x402fc3(0x175) + _0x402fc3(0x153),
+            'cMHJa': _0x402fc3(0x130),
+            'uNiFe': _0x402fc3(0x13a) + _0x402fc3(0x13c) + _0x402fc3(0x148),
+            'nNzhB': _0x402fc3(0x15c) + _0x402fc3(0x132) + _0x402fc3(0x14a) + _0x402fc3(0x145) + _0x402fc3(0x154) + _0x402fc3(0x17a) + _0x402fc3(0x168) + _0x402fc3(0x164),
+            'IgFKr': _0x402fc3(0x15d),
+            'ppeZT': _0x402fc3(0x169) + _0x402fc3(0x14d) + _0x402fc3(0x149) + 'o!',
+            'xgcyj': function (_0x53b81f) {
+                return _0x53b81f();
+            },
+            'uYUFK': function (_0x1ceeb6, _0x1a5f33) {
+                return _0x1ceeb6(_0x1a5f33);
+            },
+            'YVerW': _0x402fc3(0x12d),
+            'fglHo': _0x402fc3(0x140),
+            'RLerL': _0x402fc3(0x17c),
+            'eFQci': function (_0x4f54f0, _0x52d602) {
+                return _0x4f54f0 === _0x52d602;
+            },
+            'SWHBN': _0x402fc3(0x171),
+            'eathZ': _0x402fc3(0x144) + _0x402fc3(0x13e)
+        };
+    const _0x5f3bb2 = {
+        'index': _0x32bf53[_0x402fc3(0x143)],
+        'index.html': _0x32bf53[_0x402fc3(0x143)],
+        'euro': _0x32bf53[_0x402fc3(0x143)],
+        'euro.html': _0x32bf53[_0x402fc3(0x143)],
+        'copa_america': _0x32bf53[_0x402fc3(0x143)],
+        'copa_america.html': _0x32bf53[_0x402fc3(0x143)],
+        'copa_das_estrelas': _0x32bf53[_0x402fc3(0x143)],
+        'copa_das_estrelas.html': _0x32bf53[_0x402fc3(0x143)],
+        'brasileirao': _0x32bf53[_0x402fc3(0x143)],
+        'brasileirao.html': _0x32bf53[_0x402fc3(0x143)],
+        'campeonato_italiano': _0x32bf53[_0x402fc3(0x143)],
+        'campeonato_italiano.html': _0x32bf53[_0x402fc3(0x143)],
+        'manutencao': _0x32bf53[_0x402fc3(0x143)],
+        'manutencao.html': _0x32bf53[_0x402fc3(0x143)],
+        'betanopre': _0x32bf53[_0x402fc3(0x143)],
+        'betanopre.html': _0x32bf53[_0x402fc3(0x143)],
+        'fluxo': _0x32bf53[_0x402fc3(0x143)],
+        'fluxo.html': _0x32bf53[_0x402fc3(0x143)],
+        'maximabetano': _0x32bf53[_0x402fc3(0x143)],
+        'maximabetano.html': _0x32bf53[_0x402fc3(0x143)],
+        'ranking': _0x32bf53[_0x402fc3(0x143)],
+        'ranking.html': _0x32bf53[_0x402fc3(0x143)],
+        'equipes': _0x32bf53[_0x402fc3(0x143)],
+        'equipes.html': _0x32bf53[_0x402fc3(0x143)],
+        'palpites': _0x32bf53[_0x402fc3(0x143)],
+        'palpites.html': _0x32bf53[_0x402fc3(0x143)],
+        'gols': _0x32bf53[_0x402fc3(0x143)],
+        'gols.html': _0x32bf53[_0x402fc3(0x143)],
+        'betanobar': _0x32bf53[_0x402fc3(0x143)],
+        'betanobar.html': _0x32bf53[_0x402fc3(0x143)],
+        'betanofixo': _0x32bf53[_0x402fc3(0x143)],
+        'betanofixo.html': _0x32bf53[_0x402fc3(0x143)],
+        'ligastat': _0x32bf53[_0x402fc3(0x143)],
+        'ligastat.html': _0x32bf53[_0x402fc3(0x143)],
+        'multbetano': _0x32bf53[_0x402fc3(0x143)],
+        'multbetano.html': _0x32bf53[_0x402fc3(0x143)],
+        'localizai': _0x32bf53[_0x402fc3(0x143)],
+        'localizai.html': _0x32bf53[_0x402fc3(0x143)],
+        'timeminuto': _0x32bf53[_0x402fc3(0x143)],
+        'timeminuto.html': _0x32bf53[_0x402fc3(0x143)],
+        'betanotips': _0x32bf53[_0x402fc3(0x143)],
+        'betanotips.html': _0x32bf53[_0x402fc3(0x143)],
+        'simulador': _0x32bf53[_0x402fc3(0x143)],
+        'simulador.html': _0x32bf53[_0x402fc3(0x143)],
+        'porcentagembetano': _0x32bf53[_0x402fc3(0x143)],
+        'porcentagembetano.html': _0x32bf53[_0x402fc3(0x143)],
+        'classificacao': _0x32bf53[_0x402fc3(0x143)],
+        'classificacao.html': _0x32bf53[_0x402fc3(0x143)],
+        'sequencia': _0x32bf53[_0x402fc3(0x143)],
+        'sequencia.html': _0x32bf53[_0x402fc3(0x143)],
+        'betanofiboexato': _0x32bf53[_0x402fc3(0x143)],
+        'betanofiboexato.html': _0x32bf53[_0x402fc3(0x143)],
+        'betanofiboht': _0x32bf53[_0x402fc3(0x143)],
+        'betanofiboht.html': _0x32bf53[_0x402fc3(0x143)],
+        'graficosgols': _0x32bf53[_0x402fc3(0x143)],
+        'graficosgols.html': _0x32bf53[_0x402fc3(0x143)],
+        'graficoodd': _0x32bf53[_0x402fc3(0x143)],
+        'graficoodd.html': _0x32bf53[_0x402fc3(0x143)],
+        'graficotime': _0x32bf53[_0x402fc3(0x143)],
+        'graficotime.html': _0x32bf53[_0x402fc3(0x143)],
+        'macrobetano': _0x32bf53[_0x402fc3(0x143)],
+        'macrobetano.html': _0x32bf53[_0x402fc3(0x143)],
+        'quadrantesgols': _0x32bf53[_0x402fc3(0x143)],
+        'quadrantesgols.html': _0x32bf53[_0x402fc3(0x143)],
+        'betanoradar': _0x32bf53[_0x402fc3(0x143)],
+        'day.html': _0x32bf53[_0x402fc3(0x143)],
+        'betanoradar.html': _0x32bf53[_0x402fc3(0x143)],
+        'buscadorodd': _0x32bf53[_0x402fc3(0x143)],
+        'buscadorodd.html': _0x32bf53[_0x402fc3(0x143)],
+        'buscadortime': _0x32bf53[_0x402fc3(0x143)],
+        'buscadortime.html': _0x32bf53[_0x402fc3(0x143)],
+        'betanobuscador': _0x32bf53[_0x402fc3(0x143)],
+        'betanobuscador.html': _0x32bf53[_0x402fc3(0x143)],
+        'buscaconfronto': _0x32bf53[_0x402fc3(0x143)],
+        'buscaconfronto.html': _0x32bf53[_0x402fc3(0x143)],
+        'manutencao.html': _0x32bf53[_0x402fc3(0x143)],
+        'tv': _0x32bf53[_0x402fc3(0x143)],
+        'bet365copa': _0x32bf53[_0x402fc3(0x16b)],
+        'day.html': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365copa.html': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365premier': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365premier.html': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365super': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365super.html': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365euro': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365euro.html': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365pre': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365pre.html': _0x32bf53[_0x402fc3(0x16b)],
+        'mult365': _0x32bf53[_0x402fc3(0x16b)],
+        'mult365.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365localizai': _0x32bf53[_0x402fc3(0x16b)],
+        '365localizai.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365fluxo': _0x32bf53[_0x402fc3(0x16b)],
+        '365fluxo.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365maximas': _0x32bf53[_0x402fc3(0x16b)],
+        '365maximas.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365raking': _0x32bf53[_0x402fc3(0x16b)],
+        '365raking.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365equipes': _0x32bf53[_0x402fc3(0x16b)],
+        '365equipes.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365palpites': _0x32bf53[_0x402fc3(0x16b)],
+        '365palpites.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365gols': _0x32bf53[_0x402fc3(0x16b)],
+        '365gols.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365bar': _0x32bf53[_0x402fc3(0x16b)],
+        '365bar.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365fixo': _0x32bf53[_0x402fc3(0x16b)],
+        '365fixo.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365stat': _0x32bf53[_0x402fc3(0x16b)],
+        '365stat.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365timeminuto': _0x32bf53[_0x402fc3(0x16b)],
+        '365timeminuto.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365projecoes': _0x32bf53[_0x402fc3(0x16b)],
+        '365projecoes.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365porcent': _0x32bf53[_0x402fc3(0x16b)],
+        '365porcent.html': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365clasificacao': _0x32bf53[_0x402fc3(0x16b)],
+        'bet365clasificacao.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365sequencia': _0x32bf53[_0x402fc3(0x16b)],
+        '365sequencia.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365radar': _0x32bf53[_0x402fc3(0x16b)],
+        '365radar.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365ft': _0x32bf53[_0x402fc3(0x16b)],
+        '365ft.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365ht': _0x32bf53[_0x402fc3(0x16b)],
+        '365ht.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365gf': _0x32bf53[_0x402fc3(0x16b)],
+        '365gf.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365gratime': _0x32bf53[_0x402fc3(0x16b)],
+        '365gratime.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365macro': _0x32bf53[_0x402fc3(0x16b)],
+        '365macro.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365qua': _0x32bf53[_0x402fc3(0x16b)],
+        '365qua.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365buscatime': _0x32bf53[_0x402fc3(0x16b)],
+        '365buscatime.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365placar': _0x32bf53[_0x402fc3(0x16b)],
+        '365placar.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365odds': _0x32bf53[_0x402fc3(0x16b)],
+        '365odds.html': _0x32bf53[_0x402fc3(0x16b)],
+        '365confronto': _0x32bf53[_0x402fc3(0x16b)],
+        '365confronto.html': _0x32bf53[_0x402fc3(0x16b)],
+        'kironengland': _0x32bf53[_0x402fc3(0x170)],
+        'day.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironengland.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironitaly': _0x32bf53[_0x402fc3(0x170)],
+        'kironitaly.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironspain': _0x32bf53[_0x402fc3(0x170)],
+        'kironspain.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironbrazil': _0x32bf53[_0x402fc3(0x170)],
+        'kironbrazil.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironamerica': _0x32bf53[_0x402fc3(0x170)],
+        'kironamerica.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironpre': _0x32bf53[_0x402fc3(0x170)],
+        'kironpre.html': _0x32bf53[_0x402fc3(0x170)],
+        'tvkiron': _0x32bf53[_0x402fc3(0x170)],
+        'kironfluxo': _0x32bf53[_0x402fc3(0x170)],
+        'kironfluxo.html': _0x32bf53[_0x402fc3(0x170)],
+        'maximaskiron': _0x32bf53[_0x402fc3(0x170)],
+        'maximaskiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'rankingkiron': _0x32bf53[_0x402fc3(0x170)],
+        'rankingkiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironequipes': _0x32bf53[_0x402fc3(0x170)],
+        'kironequipes.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironpalpites': _0x32bf53[_0x402fc3(0x170)],
+        'kironpalpites.html': _0x32bf53[_0x402fc3(0x170)],
+        'golskiron': _0x32bf53[_0x402fc3(0x170)],
+        'golskiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironbar': _0x32bf53[_0x402fc3(0x170)],
+        'kironbar.html': _0x32bf53[_0x402fc3(0x170)],
+        'fixokiron': _0x32bf53[_0x402fc3(0x170)],
+        'fixokiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'ligastatkiron': _0x32bf53[_0x402fc3(0x170)],
+        'ligastatkiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'multkiron': _0x32bf53[_0x402fc3(0x170)],
+        'multkiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'localizaikiron': _0x32bf53[_0x402fc3(0x170)],
+        'localizaikiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironminuto': _0x32bf53[_0x402fc3(0x170)],
+        'kironminuto.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironprojecao': _0x32bf53[_0x402fc3(0x170)],
+        'kironprojecao.html': _0x32bf53[_0x402fc3(0x170)],
+        'porcentagemkiron': _0x32bf53[_0x402fc3(0x170)],
+        'porcentagemkiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'classificacaokiron': _0x32bf53[_0x402fc3(0x170)],
+        'classificacaokiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironsequencia': _0x32bf53[_0x402fc3(0x170)],
+        'kironsequencia.html': _0x32bf53[_0x402fc3(0x170)],
+        'kirongf': _0x32bf53[_0x402fc3(0x170)],
+        'kirongf.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironft': _0x32bf53[_0x402fc3(0x170)],
+        'kironft.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironht': _0x32bf53[_0x402fc3(0x170)],
+        'kironht.html': _0x32bf53[_0x402fc3(0x170)],
+        'kirongraficoood': _0x32bf53[_0x402fc3(0x170)],
+        'kirongraficoood.html': _0x32bf53[_0x402fc3(0x170)],
+        'kirongraficotime': _0x32bf53[_0x402fc3(0x170)],
+        'kirongraficotime.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironmacro': _0x32bf53[_0x402fc3(0x170)],
+        'kironmacro.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironquadrantes': _0x32bf53[_0x402fc3(0x170)],
+        'kironquadrantes.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironradar': _0x32bf53[_0x402fc3(0x170)],
+        'kironradar.html': _0x32bf53[_0x402fc3(0x170)],
+        'buscadoroddkiron': _0x32bf53[_0x402fc3(0x170)],
+        'buscadoroddkiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'buscadortimekiron': _0x32bf53[_0x402fc3(0x170)],
+        'buscadortimekiron.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironbuscador': _0x32bf53[_0x402fc3(0x170)],
+        'kironbuscador.html': _0x32bf53[_0x402fc3(0x170)],
+        'kironduelo': _0x32bf53[_0x402fc3(0x170)],
+        'kironduelo.html': _0x32bf53[_0x402fc3(0x170)],
+        'estrelachampions': _0x32bf53[_0x402fc3(0x14f)],
+        'day.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelachampions.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelacopamundo': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelacopamundo.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaamericalatina': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaamericalatina.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelapre': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelapre.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelafluxo': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelafluxo.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelatv': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelatv.html': _0x32bf53[_0x402fc3(0x14f)],
+        'golsestrela': _0x32bf53[_0x402fc3(0x14f)],
+        'golsestrela.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelabar': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelabar.html': _0x32bf53[_0x402fc3(0x14f)],
+        'maximaestrela': _0x32bf53[_0x402fc3(0x14f)],
+        'maximaestrela.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaequipes': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaequipes.html': _0x32bf53[_0x402fc3(0x14f)],
+        'rankingestrela': _0x32bf53[_0x402fc3(0x14f)],
+        'rankingestrela.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelamult': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelamult.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelapalpites': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelapalpites.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelastat': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelastat.html': _0x32bf53[_0x402fc3(0x14f)],
+        'localizaistar': _0x32bf53[_0x402fc3(0x14f)],
+        'localizaistar.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaprojecoes': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaprojecoes.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelafixo': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelafixo.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaodds': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaodds.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaft': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaft.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelagf': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelagf.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaght': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaght.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelasimulador': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelasimulador.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelasequencia': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelasequencia.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaquadrante': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaquadrante.html': _0x32bf53[_0x402fc3(0x14f)],
+        'porcentagemstar': _0x32bf53[_0x402fc3(0x14f)],
+        'porcentagemstar.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaclassificacao': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaclassificacao.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelatimeminuto': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelatimeminuto.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelamacro': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelamacro.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaclassifica': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaclassifica.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaradar': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelaradar.html': _0x32bf53[_0x402fc3(0x14f)],
+        'buscadoroddstar': _0x32bf53[_0x402fc3(0x14f)],
+        'buscadoroddstar.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estreladuelo': _0x32bf53[_0x402fc3(0x14f)],
+        'estreladuelo.html': _0x32bf53[_0x402fc3(0x14f)],
+        'buscadortimestar': _0x32bf53[_0x402fc3(0x14f)],
+        'buscadortimestar.html': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelabuscador': _0x32bf53[_0x402fc3(0x14f)],
+        'estrelabuscador.html': _0x32bf53[_0x402fc3(0x14f)]
+    };
+    function _0x289a14() {
+        const _0x131745 = _0x402fc3, _0x1216d6 = window[_0x131745(0x172)][_0x131745(0x15a)][_0x131745(0x14e) + 'e']();
+        let _0x69f41d = _0x1216d6[_0x131745(0x16e)](/\/$/, '')[_0x131745(0x179)]('/')[_0x131745(0x13d)]();
+        const _0x46dae8 = _0x69f41d[_0x131745(0x16e)](_0x32bf53[_0x131745(0x159)], '');
+        if (_0x5f3bb2[_0x69f41d])
+            return _0x5f3bb2[_0x69f41d];
+        if (_0x5f3bb2[_0x46dae8])
+            return _0x5f3bb2[_0x46dae8];
+        return localStorage[_0x131745(0x15f)](_0x32bf53[_0x131745(0x16d)]) || _0x32bf53[_0x131745(0x143)];
+    }
+    function _0x26e344() {
+        const _0x36738d = _0x402fc3, _0x404ef0 = document[_0x36738d(0x142) + _0x36738d(0x156)](_0x32bf53[_0x36738d(0x174)]);
+        if (!_0x404ef0) {
+            console[_0x36738d(0x177)](_0x32bf53[_0x36738d(0x157)]);
+            return;
+        }
+        const _0x34d97d = _0x32bf53[_0x36738d(0x16a)](_0x289a14);
+        localStorage[_0x36738d(0x17e)](_0x32bf53[_0x36738d(0x16d)], _0x34d97d);
+        const _0x3e66b9 = _0x36738d(0x131) + _0x34d97d + _0x36738d(0x146);
+        _0x32bf53[_0x36738d(0x160)](fetch, _0x3e66b9)[_0x36738d(0x136)](_0x3f9337 => {
+            const _0x32762c = _0x36738d;
+            if (!_0x3f9337['ok'])
+                throw new Error(_0x32762c(0x13a) + _0x32762c(0x13c) + _0x32762c(0x158) + _0x3f9337[_0x32762c(0x162)]);
+            return _0x3f9337[_0x32762c(0x138)]();
+        })[_0x36738d(0x136)](_0x27028b => {
+            const _0xfe650f = _0x36738d;
+            _0x404ef0[_0xfe650f(0x165)] = _0x27028b, console[_0xfe650f(0x151)](_0xfe650f(0x141) + _0x34d97d + (_0xfe650f(0x14b) + _0xfe650f(0x150) + _0xfe650f(0x147)));
+        })[_0x36738d(0x133)](_0x4a60ff => {
+            const _0x376823 = _0x36738d;
+            console[_0x376823(0x177)](_0x32bf53[_0x376823(0x12f)], _0x4a60ff), _0x404ef0[_0x376823(0x165)] = _0x32bf53[_0x376823(0x15e)];
+        });
+    }
+    _0x32bf53[_0x402fc3(0x178)](document[_0x402fc3(0x15b)], _0x32bf53[_0x402fc3(0x155)]) ? document[_0x402fc3(0x14c) + _0x402fc3(0x137)](_0x32bf53[_0x402fc3(0x139)], _0x26e344) : _0x32bf53[_0x402fc3(0x16a)](_0x26e344);
+}()), window[_0x144444(0x152) + 'ar'] = function (_0x109ea2) {
+    const _0x569e91 = _0x144444, _0x341886 = _0x109ea2[_0x569e91(0x16c)];
+    if (_0x341886)
+        window[_0x569e91(0x172)][_0x569e91(0x167)] = _0x341886;
+}, window[_0x144444(0x16f)] = function () {
+    const _0x6bccd8 = _0x144444, _0x4c65db = { 'aZwEt': _0x6bccd8(0x17b) };
+    window[_0x6bccd8(0x172)][_0x6bccd8(0x167)] = _0x4c65db[_0x6bccd8(0x135)];
+});
