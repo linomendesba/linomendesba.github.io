@@ -1510,17 +1510,34 @@
         if(row.classList.contains("sem-dados"))return;
         if(!row.cells[2])return;
         
-        // Verifica a sequência de minutos
-        let temGreen=false;
+        // Verifica se a linha tem ao menos uma célula com dado real (não futuro, não vazia)
+        // A linha só entra na contagem se TODOS os minutos do combo têm dado real passado
+        let temDadoReal=false;
         combo.forEach(m=>{
           const i=mF.indexOf(m);if(i===-1)return;
           const c=row.cells[2+i];if(!c)return;
+          // Célula com dado real: tem .placar mas NÃO tem .placar-futuro
+          const placarReal=c.querySelector(".placar:not(.placar-futuro)");
+          if(placarReal) temDadoReal=true;
+        });
+        if(!temDadoReal)return;
+        
+        // Verifica a sequência de minutos - apenas células com dados reais
+        let temGreen=false, temRed=false;
+        combo.forEach(m=>{
+          const i=mF.indexOf(m);if(i===-1)return;
+          const c=row.cells[2+i];if(!c)return;
+          // Só considera células com placar real (não futuro)
+          const placarReal=c.querySelector(".placar:not(.placar-futuro)");
+          if(!placarReal)return;
           const bg=c.style.backgroundColor;
           if(bg==="rgb(1, 139, 6)") temGreen=true;
+          else if(bg==="rgb(190, 14, 2)") temRed=true;
         });
         
+        // Só conta se tiver dado real (verde ou vermelho)
         if(temGreen) gT++;
-        else rT++;
+        else if(temRed) rT++;
       });
       
       const total=gT+rT;
@@ -1624,8 +1641,10 @@
     
     const resultados=JSON.parse(resultadosStr);
     const numGales=resultsEl.dataset.numGales;
+    const casaNome=CASAS_CONFIG[casaAtual]?.nome||casaAtual;
     
     let texto=`Lista 100%\n`;
+    texto+=`Casa: ${casaNome}\n`;
     texto+=`Tipo: ${numGales} Gale${numGales>1?"s":""}\n`;
     texto+=`Data: ${new Date().toLocaleDateString("pt-BR")}\n`;
     texto+=`${"=".repeat(50)}\n\n`;
@@ -1639,12 +1658,14 @@
     const blob=new Blob([texto],{type:"text/plain;charset=utf-8"});
     const link=document.createElement("a");
     link.href=URL.createObjectURL(blob);
-    link.download=`gales_${numGales}g_${ligaNome.toLowerCase().replace(/\s+/g,"_")}_${new Date().getTime()}.txt`;
+    link.download=`gales_${numGales}g_${casaNome.toLowerCase().replace(/\s+/g,"_")}_${ligaNome.toLowerCase().replace(/\s+/g,"_")}_${new Date().getTime()}.txt`;
     link.click();
   }
   
   function baixarTodasAsLigasTxt() {
+    const casaNome=CASAS_CONFIG[casaAtual]?.nome||casaAtual;
     let textoGeral=`Lista 100%\n`;
+    textoGeral+=`Casa: ${casaNome}\n`;
     textoGeral+=`Data: ${new Date().toLocaleDateString("pt-BR")}\n`;
     textoGeral+=`${"=".repeat(50)}\n\n`;
     
@@ -1678,7 +1699,7 @@
     const blob=new Blob([textoGeral],{type:"text/plain;charset=utf-8"});
     const link=document.createElement("a");
     link.href=URL.createObjectURL(blob);
-    link.download=`gales_todas_ligas_${new Date().getTime()}.txt`;
+    link.download=`gales_todas_ligas_${casaNome.toLowerCase().replace(/\s+/g,"_")}_${new Date().getTime()}.txt`;
     link.click();
   }
 
