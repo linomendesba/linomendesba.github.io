@@ -863,6 +863,11 @@
       colst.id = `colstats-${key}`; colst.className = "coluna-stats-liga";
       box.appendChild(colst);
 
+      // Analisador de Gales
+      const galesAnalyzer = document.createElement("div");
+      galesAnalyzer.id = `gales-analyzer-${key}`; galesAnalyzer.className = "gales-analyzer-liga";
+      box.appendChild(galesAnalyzer);
+
       // tabela
       const tabela = document.createElement("table");
       tabela.id = `tabela-${key}`; tabela.className = "tabela-liga";
@@ -1186,6 +1191,7 @@
     });
     atualizarIndicador(key);
     computeStatsFromDOM(key);
+    analisarGales(key);
   }
 
   function extrairPlacarFromEl(placarEl) {
@@ -1349,6 +1355,145 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // ANALISADOR AUTOMÁTICO DE GALES
+  // ═══════════════════════════════════════════════════════════════════════════
+  function analisarGales(key) {
+    const tabela=document.getElementById(`tabela-${key}`);if(!tabela)return;
+    const cfg=CASAS_CONFIG[casaAtual]?.ligas[key];if(!cfg)return;
+    const mF=cfg.minutosFixos;
+    
+    // Gera todas as combinações possíveis de 1 a 4 minutos
+    const combinacoes={1:[],2:[],3:[],4:[]};
+    
+    // 1 Gale (1 minuto)
+    mF.forEach(m=>{combinacoes[1].push([m]);});
+    
+    // 2 Gales (2 minutos)
+    for(let i=0;i<mF.length-1;i++){
+      for(let j=i+1;j<mF.length;j++){
+        combinacoes[2].push([mF[i],mF[j]]);
+      }
+    }
+    
+    // 3 Gales (3 minutos)
+    for(let i=0;i<mF.length-2;i++){
+      for(let j=i+1;j<mF.length-1;j++){
+        for(let k=j+1;k<mF.length;k++){
+          combinacoes[3].push([mF[i],mF[j],mF[k]]);
+        }
+      }
+    }
+    
+    // 4 Gales (4 minutos)
+    for(let i=0;i<mF.length-3;i++){
+      for(let j=i+1;j<mF.length-2;j++){
+        for(let k=j+1;k<mF.length-1;k++){
+          for(let l=k+1;l<mF.length;l++){
+            combinacoes[4].push([mF[i],mF[j],mF[k],mF[l]]);
+          }
+        }
+      }
+    }
+    
+    // Analisa cada combinação
+    const resultados={1:[],2:[],3:[],4:[]};
+    
+    Object.keys(combinacoes).forEach(numGales=>{
+      combinacoes[numGales].forEach(combo=>{
+        let gT=0, rT=0;
+        tabela.querySelectorAll("tbody tr").forEach(row=>{
+          let temGreen=false;
+          combo.forEach(m=>{
+            const i=mF.indexOf(m);if(i===-1)return;
+            const c=row.cells[2+i];if(!c)return;
+            const bg=c.style.backgroundColor;
+            if(bg==="rgb(1, 139, 6)") temGreen=true;
+          });
+          if(temGreen) gT++;
+          else rT++;
+        });
+        
+        const total=gT+rT;
+        if(total>0){
+          const pct=Math.round((gT/total)*100);
+          // Mostra APENAS 100%
+          if(pct===100){
+            resultados[numGales].push({combo,gT,rT,total,pct});
+          }
+        }
+      });
+    });
+    
+    renderGalesAnalyser(key,resultados);
+  }
+  
+  function renderGalesAnalyser(key,resultados) {
+    const el=document.getElementById(`gales-analyzer-${key}`);if(!el)return;
+    el.innerHTML="";
+    
+    const container=document.createElement("div");
+    container.className="gales-container";
+    container.style.cssText="display:flex;gap:16px;flex-wrap:wrap;padding:14px;background:#22252e;border-radius:8px;margin-top:16px;";
+    
+    // Seletores de Gales
+    [1,2,3,4].forEach(numGales=>{
+      const resultList=resultados[numGales]||[];
+      const temResultados=resultList.length>0;
+      
+      const secao=document.createElement("div");
+      secao.className="gales-secao";
+      secao.style.cssText="flex:1;min-width:200px;";
+      
+      const titulo=document.createElement("h5");
+      titulo.textContent=`${numGales} Gale${numGales>1?"s":""}`;
+      titulo.style.cssText="margin:0 0 10px 0;font-size:0.9em;color:#9ca3af;letter-spacing:0.05em;text-transform:uppercase;";
+      secao.appendChild(titulo);
+      
+      if(!temResultados){
+        const msg=document.createElement("div");
+        msg.textContent="Nenhuma combinação com 100%";
+        msg.style.cssText="font-size:0.85em;color:#6b7280;font-style:italic;padding:8px;background:#1a1a2e;border-radius:4px;";
+        secao.appendChild(msg);
+      } else {
+        const lista=document.createElement("div");
+        lista.style.cssText="display:flex;flex-direction:column;gap:6px;";
+        
+        resultList.forEach(({combo,gT,rT,total,pct})=>{
+          const item=document.createElement("div");
+          item.className="gales-item";
+          item.style.cssText="padding:8px 12px;background:#1a1a2e;border:1px solid #3a3f50;border-radius:6px;cursor:pointer;transition:all 0.2s;";
+          item.innerHTML=`
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <span style="font-weight:600;color:#e5e7eb;">${combo.join(" + ")}</span>
+              <span style="color:#00e676;font-weight:bold;font-size:0.9em;">${pct}%</span>
+            </div>
+            <div style="font-size:0.75em;color:#9ca3af;margin-top:4px;">${gT}✔ ${rT}✘ (${total}×)</div>
+          `;
+          
+          item.addEventListener("mouseenter",()=>{item.style.borderColor="#6b7280";item.style.background="#252a38";});
+          item.addEventListener("mouseleave",()=>{item.style.borderColor="#3a3f50";item.style.background="#1a1a2e";});
+          item.addEventListener("click",()=>{
+            // Seleciona automaticamente essas colunas
+            const estado=estados[key];if(!estado)return;
+            estado.colunasSelecionadas=combo.slice();
+            estado.salvar();
+            aplicarColunas(key);
+            atualizarColunaStats(key);
+          });
+          
+          lista.appendChild(item);
+        });
+        
+        secao.appendChild(lista);
+      }
+      
+      container.appendChild(secao);
+    });
+    
+    el.appendChild(container);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // LINHAS SELECIONADAS
   // ═══════════════════════════════════════════════════════════════════════════
   function updateSelectedRows(key) {
@@ -1392,7 +1537,7 @@
       cachesDados[key] = { dados, oddsData, proximos };
 
       if (!estado.dadosMudaram(dados, oddsData, proximos)) {
-        computeStatsFromDOM(key); updateSelectedRows(key); aplicarColunas(key); atualizarColunaStats(key);
+        computeStatsFromDOM(key); updateSelectedRows(key); aplicarColunas(key); atualizarColunaStats(key); analisarGales(key);
         return;
       }
       criarTabela(dados, oddsData, proximos, key);
