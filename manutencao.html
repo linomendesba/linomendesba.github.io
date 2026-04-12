@@ -6109,12 +6109,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     function atualizarIconesOlho() {
         const selecionados = getTimesSelecionados();
         rankingContainer.querySelectorAll('.rk-eye-btn').forEach(btn => {
-            const nome = btn.dataset.time;
+            const nome  = btn.dataset.time;
             const ativo = selecionados.includes(nome);
-            btn.style.opacity   = ativo ? '1'    : '0.3';
-            btn.style.color     = ativo ? '#3ecfa3' : '#9fb0c5';
-            btn.style.filter    = ativo ? 'drop-shadow(0 0 4px #3ecfa3)' : 'none';
-            btn.title           = ativo ? 'Clique para desmarcar na tabela' : 'Clique para filtrar na tabela';
+            const svg   = btn.querySelector('svg');
+            if (svg) {
+                svg.setAttribute('stroke', ativo ? '#3ecfa3' : '#6a7d90');
+                svg.style.opacity = ativo ? '1' : '0.5';
+            }
+            btn.style.background   = ativo ? 'rgba(62,207,163,.1)' : 'none';
+            btn.style.borderColor  = ativo ? 'rgba(62,207,163,.4)' : 'transparent';
+            btn.dataset.tip        = ativo ? 'Desmarcar na tabela' : 'Filtrar na tabela';
         });
     }
 
@@ -6348,20 +6352,62 @@ document.addEventListener('DOMContentLoaded', async () => {
             .rk3-fraco { background:rgba(239,91,91,.14);   color:#ff9b9b; border:1px solid rgba(239,91,91,.35); }
 
             /* ── Botão olho ── */
-            .rk-eye-btn {
-                background: none;
-                border: none;
-                cursor: pointer;
-                font-size: 14px;
-                line-height: 1;
-                padding: 0 0 0 6px;
-                vertical-align: middle;
-                transition: opacity .15s, filter .15s, color .15s;
-                user-select: none;
-                flex-shrink: 0;
+            .rk-name-wrap {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                position: relative;
             }
-            .rk-eye-btn:hover { opacity: 1 !important; filter: drop-shadow(0 0 5px #3ecfa3) !important; }
-            .rk-name-wrap { display:inline-flex; align-items:center; gap:0; }
+            .rk-eye-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 22px;
+                height: 22px;
+                background: none;
+                border: 1px solid transparent;
+                border-radius: 5px;
+                cursor: pointer;
+                padding: 0;
+                flex-shrink: 0;
+                transition: background .15s, border-color .15s, transform .12s;
+                position: relative;
+            }
+            .rk-eye-btn svg {
+                transition: stroke .15s, opacity .15s;
+                display: block;
+            }
+            .rk-eye-btn:hover {
+                background: rgba(62,207,163,.12);
+                border-color: rgba(62,207,163,.35);
+                transform: scale(1.15);
+            }
+            .rk-eye-btn:hover svg {
+                stroke: #3ecfa3 !important;
+                opacity: 1 !important;
+            }
+            .rk-eye-btn:active { transform: scale(.95); }
+            .rk-eye-btn::after {
+                content: attr(data-tip);
+                position: absolute;
+                left: 50%;
+                bottom: calc(100% + 6px);
+                transform: translateX(-50%);
+                background: #1a2028;
+                color: #c8d8e8;
+                font-size: 10px;
+                font-weight: 500;
+                white-space: nowrap;
+                padding: 4px 8px;
+                border-radius: 4px;
+                border: 1px solid #36404d;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity .15s;
+                z-index: 999;
+                letter-spacing: .3px;
+            }
+            .rk-eye-btn:hover::after { opacity: 1; }
         </style>
         <div class="rk3-wrap"><table class="rk3-tbl">
         <thead><tr>
@@ -6394,12 +6440,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Estado do botão olho — ativo se o time já está selecionado na tabela
             const ativo      = selecionados.includes(t.name);
-            const eyeOpacity = ativo ? '1'       : '0.3';
-            const eyeColor   = ativo ? '#3ecfa3' : '#9fb0c5';
-            const eyeFilter  = ativo ? 'drop-shadow(0 0 4px #3ecfa3)' : 'none';
-            const eyeTitle   = ativo ? 'Clique para desmarcar na tabela' : 'Clique para filtrar na tabela';
-            // Usa data-time com escape HTML seguro via atributo
+            const eyeStroke  = ativo ? '#3ecfa3' : '#6a7d90';
+            const eyeOpacity = ativo ? '1'       : '0.5';
+            const eyeBorder  = ativo ? 'rgba(62,207,163,.4)' : 'transparent';
+            const eyeBg      = ativo ? 'rgba(62,207,163,.1)' : 'none';
+            const eyeTip     = ativo ? 'Desmarcar na tabela' : 'Filtrar na tabela';
             const safeName   = t.name.replace(/"/g, '&quot;');
+            // SVG olho inline — stroke controlado por variável, sem emoji
+            const eyeSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${eyeStroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:${eyeOpacity};transition:stroke .15s,opacity .15s;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
             html += `
             <tr>
@@ -6410,9 +6458,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <button
                             class="rk-eye-btn"
                             data-time="${safeName}"
-                            title="${eyeTitle}"
-                            style="opacity:${eyeOpacity};color:${eyeColor};filter:${eyeFilter};"
-                        >👁</button>
+                            data-tip="${eyeTip}"
+                            style="background:${eyeBg};border-color:${eyeBorder};"
+                        >${eyeSvg}</button>
                     </span>
                 </td>
                 <td style="color:#e9eef5;font-weight:700;">${t.pontos}</td>
