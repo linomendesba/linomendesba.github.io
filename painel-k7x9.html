@@ -329,6 +329,7 @@
       <input type="hidden" id="modal-id"/>
       <div class="modal-field"><label>Nome</label><input type="text" id="modal-nome" placeholder="Nome do cliente"/></div>
       <div class="modal-field"><label>Email</label><input type="email" id="modal-email" placeholder="email@exemplo.com"/></div>
+      <div class="modal-field" id="modal-senha-field"><label>Senha</label><input type="password" id="modal-senha" placeholder="Mínimo 6 caracteres"/></div>
       <div class="modal-field"><label>Data de Início</label><input type="date" id="modal-data"/></div>
       <div class="modal-field"><label>Meses Pagos</label><input type="number" id="modal-meses" placeholder="1" min="1" max="24"/></div>
     </div>
@@ -422,10 +423,6 @@
 
   // ── SUPABASE via servidor admin ──
   async function supabase(method, path, body) {
-    // Converte path do Supabase para rota do nosso servidor
-    // "clients?id=eq.X" → DELETE /clientes/X  |  PATCH /clientes/X
-    // "clients?select=*..." → GET /clientes
-    // "clients" (POST) → POST /clientes
     let url, fetchMethod = method;
 
     if (method === 'GET') {
@@ -445,9 +442,13 @@
       headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
       body: body ? JSON.stringify(body) : undefined
     });
-    if (!res.ok) throw new Error('Erro ' + res.status);
     const text = await res.text();
-    return text ? JSON.parse(text) : null;
+    const json = text ? JSON.parse(text) : null;
+    if (!res.ok) {
+      const msg = json?.error || ('Erro ' + res.status);
+      throw new Error(msg);
+    }
+    return json;
   }
 
   // ── DATAS ──
@@ -706,6 +707,8 @@
     document.getElementById('modal-id').value = '';
     document.getElementById('modal-nome').value = '';
     document.getElementById('modal-email').value = '';
+    document.getElementById('modal-senha').value = '';
+    document.getElementById('modal-senha-field').style.display = 'flex';
     document.getElementById('modal-data').value = new Date().toISOString().split('T')[0];
     document.getElementById('modal-meses').value = '1';
     document.getElementById('modal-cliente').classList.add('open');
@@ -718,6 +721,8 @@
     document.getElementById('modal-id').value = c.id;
     document.getElementById('modal-nome').value = c.name || '';
     document.getElementById('modal-email').value = c.email || '';
+    document.getElementById('modal-senha').value = '';
+    document.getElementById('modal-senha-field').style.display = 'none'; // edição não altera senha
     document.getElementById('modal-data').value = c.start_date ? fmtDataInput(c.start_date) : '';
     document.getElementById('modal-meses').value = c.months_paid || 1;
     document.getElementById('modal-cliente').classList.add('open');
@@ -727,16 +732,29 @@
     const id    = document.getElementById('modal-id').value;
     const nome  = document.getElementById('modal-nome').value.trim();
     const email = document.getElementById('modal-email').value.trim();
+    const senha = document.getElementById('modal-senha').value;
     const data  = document.getElementById('modal-data').value;
     const meses = parseInt(document.getElementById('modal-meses').value) || 1;
     if (!nome || !email) { toast('Preencha nome e email!', true); return; }
-    const body = { name:nome, email, start_date:data||null, months_paid:meses };
+    if (!id && !senha) { toast('Informe a senha do cliente!', true); return; }
+    if (!id && senha.length < 6) { toast('Senha precisa ter mínimo 6 caracteres!', true); return; }
+
+    const body = { name: nome, email, start_date: data || null, months_paid: meses };
+    if (!id) body.password = senha; // só envia senha em novo cliente
+
     try {
-      if (id) { await supabase('PATCH', `clients?id=eq.${id}`, body); toast('Atualizado! ✅'); }
-      else     { await supabase('POST', 'clients', body); toast('Cliente adicionado! ✅'); }
+      if (id) {
+        await supabase('PATCH', `clients?id=eq.${id}`, body);
+        toast('Atualizado! ✅');
+      } else {
+        await supabase('POST', 'clients', body);
+        toast('Cliente criado no Firebase e Supabase! ✅');
+      }
       fecharModal('modal-cliente');
       await carregarClientes();
-    } catch(e) { toast('Erro ao salvar!', true); }
+    } catch(e) {
+      toast(e.message || 'Erro ao salvar!', true);
+    }
   }
 
   // ── MODAL RENOVAR ──
