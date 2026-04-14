@@ -2013,7 +2013,6 @@
   }
 
   // Verifica resultado de um combo usando o CACHE DE DADOS (não o DOM)
-  // Replica exatamente a lógica de analisarGalesParaHora, isolada por hora
   function verificarComboNoCache(key, combo, horaAlvo) {
     const cfg = CASAS_CONFIG[casaAtual]?.ligas[key];
     if (!cfg) return null;
@@ -2023,11 +2022,9 @@
     const mercado = document.getElementById("sel-mercado").value;
     const tipoPlacar = document.getElementById("sel-tipo-placar").value;
 
-    // Filtra dados pela hora do bloco (não pela hora selecionada na tela)
     const dados = filtrarPorHora(cache.dados, horaAlvo);
     if (dados.length === 0) return null;
 
-    // Monta mapa dataStr → Map<minNorm, bool(acerto)> — igual ao analisarGalesParaHora
     const datasSet = new Set();
     dados.forEach(d => datasSet.add(getDateStr(d.data)));
     const datasUnicas = Array.from(datasSet).sort((a, b) => b.localeCompare(a));
@@ -2051,20 +2048,17 @@
       minMap.set(minNorm, calcAcerto(parts[0], parts[1], mercado));
     });
 
-    // Analisa o combo específico
     let gT = 0, rT = 0;
     mapaDatas.forEach(minMap => {
       let temDadoReal = false;
       combo.forEach(m => { if (minMap.has(m)) temDadoReal = true; });
       if (!temDadoReal) return;
-
       let temGreen = false, temRed = false;
       combo.forEach(m => {
         if (!minMap.has(m)) return;
         if (minMap.get(m)) temGreen = true;
         else temRed = true;
       });
-
       if (temGreen) gT++;
       else if (temRed) rT++;
     });
@@ -2074,105 +2068,270 @@
     return { gT, rT, total };
   }
 
+  // Dados globais da conferência atual (para download)
+  let _dadosConferenciaAtual = null;
+
   function analisarListaCarregada(texto) {
     const blocos = parsearListaTxt(texto);
     const container = document.getElementById("resultado-analise-lista");
     container.innerHTML = "";
+    _dadosConferenciaAtual = null;
 
     if (blocos.length === 0) {
       container.innerHTML = `<div style="color:#9ca3af;font-size:0.82em;">Nenhum bloco encontrado no arquivo. Verifique se é um TXT gerado pelo BetStat.</div>`;
       return;
     }
 
-    let algumResultado = false;
-
+    // ── Agrupa blocos por liga ────────────────────────────────────────────────
+    const porLiga = new Map(); // nomeLiga → [ { hora, tipo, mercado, combos, key } ]
     blocos.forEach(bloco => {
       const key = encontrarKeyPorNome(bloco.liga);
-
-      const blocoEl = document.createElement("div");
-      blocoEl.style.cssText = "background:#1a1a2e;border:1px solid #2e3240;border-radius:8px;padding:12px;margin-bottom:10px;";
-
-      // Cabeçalho do bloco
-      const header = document.createElement("div");
-      header.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;";
-      header.innerHTML = `
-        <span style="font-weight:700;color:#e5e7eb;font-size:0.88em;">🏆 ${bloco.liga}</span>
-        <span style="color:#6b7280;font-size:0.75em;">⏰ ${bloco.hora != null ? bloco.hora.toString().padStart(2,"0")+":00" : "?"}</span>
-        <span style="color:#6b7280;font-size:0.75em;">· ${bloco.tipo ? bloco.tipo+" Gale"+(bloco.tipo>1?"s":"") : "?"}</span>
-        ${bloco.mercado ? `<span style="color:#6b7280;font-size:0.75em;">· ✅ ${bloco.mercado}</span>` : ""}
-        ${!key ? `<span style="background:#7f1d1d;color:#fca5a5;font-size:0.72em;padding:2px 8px;border-radius:4px;">Liga não encontrada na casa atual</span>` : ""}
-        ${key && !cachesDados[key] ? `<span style="background:#7f1d1d;color:#fca5a5;font-size:0.72em;padding:2px 8px;border-radius:4px;">Liga não carregada — ative-a</span>` : ""}
-      `;
-      blocoEl.appendChild(header);
-
-      if (!key) {
-        blocoEl.appendChild(Object.assign(document.createElement("div"), {
-          style: "color:#9ca3af;font-size:0.78em;",
-          textContent: "Troque para a casa correta e recarregue o arquivo."
-        }));
-        container.appendChild(blocoEl);
-        return;
-      }
-
-      // Verifica cada combo usando o cache (independente da hora selecionada na tela)
-      const lista = document.createElement("div");
-      lista.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;";
-
-      let totalG = 0, totalR = 0, semDados = 0;
-
-      bloco.combos.forEach(combo => {
-        const res = verificarComboNoCache(key, combo, bloco.hora);
-        const item = document.createElement("div");
-        item.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;font-size:0.82em;";
-
-        const comboStr = combo.join(" - ");
-
-        if (!res) {
-          // Sem dados para essa hora/combo no cache
-          item.style.background = "#1e2030";
-          item.style.border = "1px solid #3a3f50";
-          item.innerHTML = `<span style="color:#6b7280;">➡️ ${comboStr}</span><span style="color:#4b5563;font-size:0.8em;margin-left:6px;">sem dados</span>`;
-          semDados++;
-        } else if (res.gT === res.total) {
-          // 100% verde
-          item.style.background = "#052e16";
-          item.style.border = "1px solid #00e676";
-          item.innerHTML = `<span style="color:#e5e7eb;font-weight:600;">➡️ ${comboStr}</span><span style="color:#00e676;font-weight:700;margin-left:8px;">✅</span><span style="color:#4ade80;font-size:0.78em;margin-left:4px;">${res.gT}/${res.total}</span>`;
-          totalG++;
-        } else if (res.rT === res.total) {
-          // 100% vermelho
-          item.style.background = "#2d0a0a";
-          item.style.border = "1px solid #ff5555";
-          item.innerHTML = `<span style="color:#e5e7eb;font-weight:600;">➡️ ${comboStr}</span><span style="color:#ff5555;font-weight:700;margin-left:8px;">❌</span><span style="color:#f87171;font-size:0.78em;margin-left:4px;">${res.gT}/${res.total}</span>`;
-          totalR++;
-        } else {
-          // Parcial
-          const pct = Math.round((res.gT / res.total) * 100);
-          item.style.background = "#1a1400";
-          item.style.border = "1px solid #f59e0b";
-          item.innerHTML = `<span style="color:#e5e7eb;font-weight:600;">➡️ ${comboStr}</span><span style="color:#f59e0b;font-weight:700;margin-left:8px;">⚡</span><span style="color:#fbbf24;font-size:0.78em;margin-left:4px;">${res.gT}/${res.total} (${pct}%)</span>`;
-        }
-
-        lista.appendChild(item);
-        algumResultado = true;
-      });
-
-      blocoEl.appendChild(lista);
-
-      // Resumo do bloco
-      if (bloco.combos.length > 0 && (totalG + totalR) > 0) {
-        const resumo = document.createElement("div");
-        resumo.style.cssText = "margin-top:8px;font-size:0.78em;color:#9ca3af;";
-        resumo.innerHTML = `Resumo: <span style="color:#00e676;font-weight:600;">${totalG} ✅</span> · <span style="color:#ff5555;font-weight:600;">${totalR} ❌</span>${semDados>0?` · <span style="color:#6b7280;">${semDados} sem dados</span>`:""}`;
-        blocoEl.appendChild(resumo);
-      }
-
-      container.appendChild(blocoEl);
+      if (!porLiga.has(bloco.liga)) porLiga.set(bloco.liga, { key, horas: [] });
+      porLiga.get(bloco.liga).horas.push(bloco);
     });
 
-    if (!algumResultado) {
-      container.innerHTML += `<div style="color:#9ca3af;font-size:0.82em;margin-top:6px;">Nenhum combo pôde ser verificado — certifique-se que as ligas do arquivo estão ativas e carregadas.</div>`;
-    }
+    // ── Processa resultados de cada bloco ─────────────────────────────────────
+    const ligasProcessadas = []; // { nome, key, horas: [ { hora, combosResultado[] } ] }
+
+    porLiga.forEach(({ key, horas }, nomeLiga => {
+      const horasProcessadas = [];
+      horas.sort((a, b) => (a.hora ?? 0) - (b.hora ?? 0));
+      horas.forEach(bloco => {
+        const combosResultado = bloco.combos.map(combo => {
+          const res = key ? verificarComboNoCache(key, combo, bloco.hora) : null;
+          return { combo, res };
+        });
+        horasProcessadas.push({ hora: bloco.hora, tipo: bloco.tipo, mercado: bloco.mercado, combosResultado });
+      });
+      ligasProcessadas.push({ nome: nomeLiga, key, horas: horasProcessadas });
+    });
+
+    // Guarda para download
+    _dadosConferenciaAtual = ligasProcessadas;
+
+    // ── Barra de navegação por liga ───────────────────────────────────────────
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = "background:#1a1d26;border:1px solid #2e3240;border-radius:10px;overflow:hidden;margin-bottom:10px;";
+
+    // Tabs de ligas
+    const tabBar = document.createElement("div");
+    tabBar.style.cssText = "display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid #2e3240;background:#16181f;";
+
+    // Painel de conteúdo
+    const painelWrapper = document.createElement("div");
+    painelWrapper.style.cssText = "padding:14px;";
+
+    // Botão download conferência
+    const barraAcoes = document.createElement("div");
+    barraAcoes.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid #2e3240;background:#16181f;";
+    barraAcoes.innerHTML = `
+      <span style="font-size:0.73em;color:#6b7280;flex:1;">${ligasProcessadas.length} liga(s) · ${blocos.length} hora(s)</span>
+      <button id="btn-baixar-conferencia" style="padding:4px 14px;background:#7c3aed;color:#fff;border:none;border-radius:5px;font-size:0.78em;font-weight:600;cursor:pointer;transition:background 0.2s;white-space:nowrap;">⬇ Baixar conferência</button>
+    `;
+
+    let tabAtiva = null;
+
+    ligasProcessadas.forEach(({ nome, key, horas }, idx) => {
+      // Conta greens/reds globais da liga
+      let totalG = 0, totalR = 0, totalSD = 0;
+      horas.forEach(h => h.combosResultado.forEach(({ res }) => {
+        if (!res) { totalSD++; }
+        else if (res.gT === res.total) totalG++;
+        else if (res.rT === res.total) totalR++;
+      }));
+
+      // Badge cor da tab
+      let badgeColor = "#6b7280";
+      if (totalR > 0) badgeColor = "#ef4444";
+      else if (totalG > 0) badgeColor = "#00e676";
+
+      // Tab button
+      const tab = document.createElement("button");
+      tab.style.cssText = `padding:8px 14px;background:transparent;border:none;border-bottom:2px solid transparent;color:#9ca3af;font-size:0.8em;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.15s;display:flex;align-items:center;gap:6px;`;
+      tab.dataset.ligaIdx = idx;
+
+      const badge = document.createElement("span");
+      badge.style.cssText = `display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;font-size:0.75em;font-weight:700;background:${badgeColor}22;color:${badgeColor};border:1px solid ${badgeColor}55;`;
+      badge.textContent = totalR > 0 ? `${totalR}❌` : totalG > 0 ? `${totalG}✅` : "–";
+
+      tab.appendChild(document.createTextNode(nome));
+      tab.appendChild(badge);
+
+      if (!key || !cachesDados[key]) {
+        const warn = document.createElement("span");
+        warn.style.cssText = "font-size:0.68em;color:#f59e0b;";
+        warn.textContent = "⚠";
+        tab.appendChild(warn);
+      }
+
+      // Painel desta liga
+      const painel = document.createElement("div");
+      painel.dataset.ligaIdx = idx;
+      painel.style.display = "none";
+
+      if (!key) {
+        painel.innerHTML = `<div style="color:#9ca3af;font-size:0.82em;padding:8px 0;">Liga "<b style="color:#e5e7eb">${nome}</b>" não encontrada na casa atual. Troque para a casa correta.</div>`;
+      } else if (!cachesDados[key]) {
+        painel.innerHTML = `<div style="color:#f59e0b;font-size:0.82em;padding:8px 0;">Liga não carregada — ative-a nas ligas acima e aguarde carregar.</div>`;
+      } else {
+        // Horas como accordion dentro do painel
+        horas.forEach(({ hora, tipo, mercado: merc, combosResultado }) => {
+          const horaStr = hora != null ? hora.toString().padStart(2,"0")+":00" : "?";
+
+          // Conta por hora
+          let hG = 0, hR = 0, hParcial = 0, hSD = 0;
+          combosResultado.forEach(({ res }) => {
+            if (!res) hSD++;
+            else if (res.gT === res.total) hG++;
+            else if (res.rT === res.total) hR++;
+            else hParcial++;
+          });
+
+          const horaBlock = document.createElement("div");
+          horaBlock.style.cssText = "border:1px solid #2e3240;border-radius:7px;margin-bottom:8px;overflow:hidden;";
+
+          // Header da hora (clicável)
+          const horaHeader = document.createElement("div");
+          horaHeader.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px 12px;background:#1e2130;cursor:pointer;user-select:none;";
+
+          let corHora = "#6b7280";
+          if (hR > 0) corHora = "#ef4444";
+          else if (hParcial > 0) corHora = "#f59e0b";
+          else if (hG > 0) corHora = "#00e676";
+
+          horaHeader.innerHTML = `
+            <span style="font-weight:700;color:${corHora};font-size:0.85em;">⏰ ${horaStr}</span>
+            <span style="color:#6b7280;font-size:0.72em;">· ${tipo ?? "?"} Gale${(tipo??1)>1?"s":""}</span>
+            ${merc ? `<span style="color:#6b7280;font-size:0.72em;">· ${merc}</span>` : ""}
+            <span style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+              ${hG > 0 ? `<span style="color:#00e676;font-size:0.75em;font-weight:700;">${hG}✅</span>` : ""}
+              ${hR > 0 ? `<span style="color:#ef4444;font-size:0.75em;font-weight:700;">${hR}❌</span>` : ""}
+              ${hParcial > 0 ? `<span style="color:#f59e0b;font-size:0.75em;font-weight:700;">${hParcial}⚡</span>` : ""}
+              ${hSD > 0 ? `<span style="color:#4b5563;font-size:0.75em;">${hSD} s/d</span>` : ""}
+              <span class="hora-chevron" style="color:#6b7280;font-size:0.75em;transition:transform 0.2s;">▼</span>
+            </span>
+          `;
+
+          const horaBody = document.createElement("div");
+          horaBody.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;background:#1a1d26;";
+          horaBody.style.display = "none"; // fechado por padrão
+
+          combosResultado.forEach(({ combo, res }) => {
+            const comboStr = combo.join(" - ");
+            const item = document.createElement("div");
+            item.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 11px;border-radius:5px;font-size:0.81em;";
+
+            if (!res) {
+              item.style.cssText += "background:#1e2030;border:1px solid #3a3f50;";
+              item.innerHTML = `<span style="color:#6b7280;">➡️ ${comboStr}</span><span style="color:#4b5563;font-size:0.78em;margin-left:4px;">sem dados</span>`;
+            } else if (res.gT === res.total) {
+              item.style.cssText += "background:#052e16;border:1px solid #00e676;";
+              item.innerHTML = `<span style="color:#e5e7eb;font-weight:600;">➡️ ${comboStr}</span><span style="color:#00e676;font-weight:700;margin-left:8px;">✅</span><span style="color:#4ade80;font-size:0.76em;margin-left:4px;">${res.gT}/${res.total}</span>`;
+            } else if (res.rT === res.total) {
+              item.style.cssText += "background:#2d0a0a;border:1px solid #ff5555;";
+              item.innerHTML = `<span style="color:#e5e7eb;font-weight:600;">➡️ ${comboStr}</span><span style="color:#ff5555;font-weight:700;margin-left:8px;">❌</span><span style="color:#f87171;font-size:0.76em;margin-left:4px;">${res.gT}/${res.total}</span>`;
+            } else {
+              const pct = Math.round((res.gT / res.total) * 100);
+              item.style.cssText += "background:#1a1400;border:1px solid #f59e0b;";
+              item.innerHTML = `<span style="color:#e5e7eb;font-weight:600;">➡️ ${comboStr}</span><span style="color:#f59e0b;font-weight:700;margin-left:8px;">⚡</span><span style="color:#fbbf24;font-size:0.76em;margin-left:4px;">${res.gT}/${res.total} (${pct}%)</span>`;
+            }
+            horaBody.appendChild(item);
+          });
+
+          // Toggle hora
+          horaHeader.addEventListener("click", () => {
+            const aberto = horaBody.style.display !== "none";
+            horaBody.style.display = aberto ? "none" : "flex";
+            const chev = horaHeader.querySelector(".hora-chevron");
+            if (chev) chev.style.transform = aberto ? "" : "rotate(180deg)";
+          });
+
+          horaBlock.appendChild(horaHeader);
+          horaBlock.appendChild(horaBody);
+          painel.appendChild(horaBlock);
+        });
+      }
+
+      // Toggle tab
+      tab.addEventListener("click", () => {
+        // Desativa todas
+        tabBar.querySelectorAll("button").forEach(b => {
+          b.style.borderBottomColor = "transparent";
+          b.style.color = "#9ca3af";
+          b.style.background = "transparent";
+        });
+        painelWrapper.querySelectorAll("[data-liga-idx]").forEach(p => p.style.display = "none");
+
+        // Ativa esta
+        tab.style.borderBottomColor = "#6366f1";
+        tab.style.color = "#e5e7eb";
+        tab.style.background = "#1a1d26";
+        painel.style.display = "block";
+        tabAtiva = idx;
+      });
+
+      tabBar.appendChild(tab);
+      painelWrapper.appendChild(painel);
+
+      // Abre a primeira aba automaticamente
+      if (idx === 0) {
+        setTimeout(() => tab.click(), 0);
+      }
+    });
+
+    wrapper.appendChild(tabBar);
+    wrapper.appendChild(painelWrapper);
+    wrapper.appendChild(barraAcoes);
+    container.appendChild(wrapper);
+
+    // Listener botão download conferência
+    document.getElementById("btn-baixar-conferencia")?.addEventListener("click", baixarConferenciaAtual);
+  }
+
+  function baixarConferenciaAtual() {
+    if (!_dadosConferenciaAtual) return;
+    const casaNome = CASAS_CONFIG[casaAtual]?.nome || casaAtual;
+    const selMercado = document.getElementById("sel-mercado");
+    const mercadoLabel = selMercado?.options[selMercado.selectedIndex]?.text || "";
+    const data = new Date().toLocaleDateString("pt-BR");
+
+    let txt = `Conferência de Lista — BetStat\n`;
+    txt += `Casa: ${casaNome}\n`;
+    txt += `Data: ${data}\n`;
+    txt += `Mercado: ${mercadoLabel}\n`;
+    txt += `${"=".repeat(50)}\n\n`;
+
+    _dadosConferenciaAtual.forEach(({ nome, key, horas }) => {
+      txt += `🏆 Liga: ${nome}\n`;
+      if (!key || !cachesDados[key]) {
+        txt += `  ⚠ Liga não carregada\n\n`;
+        return;
+      }
+      horas.forEach(({ hora, tipo, mercado: merc, combosResultado }) => {
+        const horaStr = hora != null ? hora.toString().padStart(2,"0")+":00" : "?";
+        txt += `\n  ⏰ ${horaStr} · ${tipo ?? "?"} Gale${(tipo??1)>1?"s":""} · ${merc || ""}\n`;
+        combosResultado.forEach(({ combo, res }) => {
+          const comboStr = combo.join(" - ");
+          if (!res) {
+            txt += `    ➡️ ${comboStr}  [sem dados]\n`;
+          } else if (res.gT === res.total) {
+            txt += `    ✅ ${comboStr}  ${res.gT}/${res.total} (100%)\n`;
+          } else if (res.rT === res.total) {
+            txt += `    ❌ ${comboStr}  ${res.gT}/${res.total} (0% RED)\n`;
+          } else {
+            const pct = Math.round((res.gT / res.total) * 100);
+            txt += `    ⚡ ${comboStr}  ${res.gT}/${res.total} (${pct}%)\n`;
+          }
+        });
+      });
+      txt += `\n${"-".repeat(50)}\n\n`;
+    });
+
+    const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `conferencia_${casaNome.toLowerCase().replace(/\s+/g,"_")}_${new Date().getTime()}.txt`;
+    link.click();
   }
 
   function limparAnaliseLista() {
