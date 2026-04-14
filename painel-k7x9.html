@@ -42,7 +42,7 @@
   .content { padding:32px; max-width:1200px; margin:0 auto; }
 
   /* STATS */
-  .stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:32px; }
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px; }
   .stat-card {
     background:var(--bg2); border:1px solid var(--border);
     border-radius:12px; padding:20px 24px;
@@ -56,11 +56,13 @@
   .stat-card.total .stat-value { color:var(--text); }
   .stat-card.ativos .stat-value { color:var(--green); }
   .stat-card.alerta .stat-value { color:var(--yellow); }
+  .stat-card.vencidos .stat-value { color:var(--red); }
   .stat-hint { font-size:10px; color:var(--text-dim); margin-top:4px; }
   .stat-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
   .stat-card.total .stat-icon { background:rgba(255,255,255,0.05); }
   .stat-card.ativos .stat-icon { background:var(--green-dim); }
   .stat-card.alerta .stat-icon { background:var(--yellow-dim); }
+  .stat-card.vencidos .stat-icon { background:var(--red-dim); }
 
   /* TOOLBAR */
   .toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; gap:12px; flex-wrap:wrap; }
@@ -132,7 +134,7 @@
   .card-info-value { font-size:12px; font-family:var(--mono); color:var(--text-mid); }
 
   .card-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .card-actions-bottom { display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:8px; }
+  .card-actions-bottom { display:grid; grid-template-columns:1fr 1fr auto; gap:8px; margin-top:8px; }
 
   .card-btn {
     display:flex; align-items:center; justify-content:center; gap:6px;
@@ -171,6 +173,11 @@
     font-family:var(--mono); font-size:13px; outline:none; transition:border-color 0.2s;
   }
   .modal-field input:focus, .modal-field select:focus { border-color:var(--border-green); }
+  /* Validação visual do campo Meses Pagos */
+  .modal-field input[type="number"]:out-of-range {
+    border-color: var(--red);
+    background: var(--red-dim);
+  }
   .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; }
   .modal-cancel {
     background:transparent; border:1px solid var(--border); color:var(--text-dim);
@@ -348,7 +355,7 @@
 </div>
 
 <div class="content">
-  <!-- STATS clicáveis para filtrar -->
+  <!-- STATS clicáveis para filtrar (agora com 4º card de Vencidos) -->
   <div class="stats-grid">
     <div class="stat-card total" onclick="filtrarPorTipo('todos')" id="stat-card-todos">
       <div>
@@ -373,6 +380,14 @@
         <div class="stat-hint">clique para filtrar</div>
       </div>
       <div class="stat-icon">⚠️</div>
+    </div>
+    <div class="stat-card vencidos" onclick="filtrarPorTipo('vencido')" id="stat-card-vencido">
+      <div>
+        <div class="stat-label">Clientes Vencidos</div>
+        <div class="stat-value" id="stat-vencidos">–</div>
+        <div class="stat-hint">clique para filtrar</div>
+      </div>
+      <div class="stat-icon">🔴</div>
     </div>
   </div>
 
@@ -469,22 +484,62 @@
   const FIREBASE_URL = API_URL;
   const FIREBASE_KEY = ADMIN_KEY;
 
-  // Cache de status firebase por email para não chamar a API toda hora
-  const fbCache = {};
+  // Cache do Firebase agora com TTL de 2 minutos
+  const fbCache = {}; // { email: { status: boolean|null, timestamp: number } }
 
+  // Helper para atualizar a UI do Firebase (usado em batch, single e toggle)
+  function atualizarFirebaseUI(id, ativo) {
+    const dot = document.getElementById(`fb-dot-${id}`);
+    const txt = document.getElementById(`fb-txt-${id}`);
+    const btn = document.getElementById(`fb-btn-${id}`);
+    if (!dot || !txt || !btn) return;
+    if (ativo === null) {
+      dot.className = 'firebase-dot loading';
+      txt.textContent = 'Firebase: sem registro';
+      btn.textContent = '–';
+      btn.className = 'firebase-btn';
+      btn.disabled = true;
+    } else if (ativo) {
+      dot.className = 'firebase-dot ativo';
+      txt.textContent = 'Firebase: Ativo';
+      btn.textContent = 'Desativar';
+      btn.className = 'firebase-btn desativar';
+      btn.disabled = false;
+    } else {
+      dot.className = 'firebase-dot inativo';
+      txt.textContent = 'Firebase: Bloqueado';
+      btn.textContent = 'Ativar';
+      btn.className = 'firebase-btn ativar';
+      btn.disabled = false;
+    }
+  }
+
+  // Status Firebase com cache + TTL (2 minutos)
   async function fbStatus(email) {
-    if (fbCache[email] !== undefined) return fbCache[email];
+    const now = Date.now();
+    const cached = fbCache[email];
+    if (cached && now - cached.timestamp < 120000) {
+      return cached.status;
+    }
     try {
       const res = await fetch(`${FIREBASE_URL}/firebase/status?email=${encodeURIComponent(email)}`, {
         headers: { 'x-admin-key': FIREBASE_KEY }
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        fbCache[email] = { status: null, timestamp: now };
+        return null;
+      }
       const data = await res.json();
-      fbCache[email] = data.disabled === false; // true = ativo no firebase
-      return fbCache[email];
-    } catch { return null; }
+      const status = data.disabled === false;
+      fbCache[email] = { status, timestamp: now };
+      return status;
+    } catch {
+      fbCache[email] = { status: null, timestamp: now };
+      return null;
+    }
   }
 
+  // Toggle Firebase (atualiza cache com TTL)
   async function fbToggle(email, desativar) {
     const res = await fetch(`${FIREBASE_URL}/firebase/toggle`, {
       method: 'POST',
@@ -492,8 +547,26 @@
       body: JSON.stringify({ email, disabled: desativar })
     });
     if (!res.ok) throw new Error('Erro Firebase');
-    delete fbCache[email]; // limpa cache
+    const ativo = !desativar;
+    fbCache[email] = { status: ativo, timestamp: Date.now() };
     return await res.json();
+  }
+
+  // NOVO: Batch status Firebase (otimiza quando há muitos clientes)
+  // Se o endpoint ainda não existir no backend, o código cai automaticamente no fallback individual
+  async function fbStatusBatch(emails) {
+    if (!emails.length) return {};
+    try {
+      const res = await fetch(`${FIREBASE_URL}/firebase/status-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': FIREBASE_KEY },
+        body: JSON.stringify({ emails })
+      });
+      if (!res.ok) throw new Error('Batch failed');
+      return await res.json(); // esperado: { "email1": true, "email2": false, ... } onde true = ativo
+    } catch {
+      return {}; // fallback será usado
+    }
   }
 
   let todosClientes = [];
@@ -565,7 +638,13 @@
       aplicarFiltros();
       atualizarHorario();
     } catch(e) {
-      document.getElementById('lista-container').innerHTML = '<div class="loading-text">Erro ao carregar.</div>';
+      let msg = 'Erro ao carregar.';
+      if (!navigator.onLine || (e.message && (e.message.includes('fetch') || e.message.includes('Failed to fetch')))) {
+        msg = 'Sem internet ou servidor betstat.site offline. Verifique sua conexão.';
+      } else {
+        msg = 'Servidor offline ou erro na API. Tente novamente.';
+      }
+      document.getElementById('lista-container').innerHTML = `<div class="loading-text" style="color:var(--red);">${msg}</div>`;
     }
   }
 
@@ -642,6 +721,7 @@
     document.getElementById('stat-total').textContent = todos.length;
     document.getElementById('stat-ativos').textContent = ativos;
     document.getElementById('stat-alerta').textContent = alertas;
+    document.getElementById('stat-vencidos').textContent = vencidos; // novo card
 
     if (!clientes.length) {
       document.getElementById('lista-container').innerHTML = '<div class="empty">Nenhum cliente encontrado.</div>';
@@ -660,7 +740,7 @@
       html += '<div class="clients-grid">' + alertaList.map(c => cardHTML(c)).join('') + '</div>';
     }
 
-    // Vencidos: bloco separado e colapsável
+    // Vencidos: bloco separado + botão de renovar em massa
     if (vencidoList.length) {
       html += `
         <div class="vencidos-section">
@@ -669,7 +749,10 @@
               🔴 Vencidos
               <span class="badge badge-red">${vencidoList.length}</span>
             </div>
-            <span class="vencidos-toggle ${vencidosAberto ? 'open' : ''}" id="vencidos-arrow">▼</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button onclick="event.stopImmediatePropagation();renovarTodosVencidos()" class="btn btn-green" style="font-size:12px;padding:4px 12px;height:30px;">🔄 Renovar todos</button>
+              <span class="vencidos-toggle ${vencidosAberto ? 'open' : ''}" id="vencidos-arrow">▼</span>
+            </div>
           </div>
           <div class="vencidos-body ${vencidosAberto ? '' : 'collapsed'}" id="vencidos-body">
             <div class="clients-grid">${vencidoList.map(c => cardHTML(c)).join('')}</div>
@@ -684,7 +767,7 @@
 
     document.getElementById('lista-container').innerHTML = html;
 
-    // Carrega status Firebase para todos os cards visíveis
+    // Carrega status Firebase (agora com batch + TTL)
     carregarStatusFirebase(clientes);
   }
 
@@ -706,6 +789,7 @@
     const diasNum = c.dias !== null && c.dias < 0 ? Math.abs(c.dias) : c.dias ?? '–';
     const diasLabel = c.dias !== null && c.dias < 0 ? 'dias vencido' : 'dias restantes';
     const emailSafe = c.email ? c.email.replace(/'/g,"\\'") : '';
+    const nameSafe = (c.name || '').replace(/'/g,"\\'");
 
     return `
       <div class="client-card ${tipo}" id="card-${c.id}">
@@ -733,7 +817,8 @@
           <button class="card-btn editar"  onclick="abrirEditar('${c.id}')">✏️ Editar</button>
         </div>
         <div class="card-actions-bottom">
-          <button class="card-btn" onclick="copiarEmail('${c.email}')">📋 Copiar Email</button>
+          <button class="card-btn" onclick="copiarEmail('${emailSafe}')">📋 Email</button>
+          <button class="card-btn" onclick="copiarAvisoWhats('${nameSafe}','${emailSafe}',${c.dias ?? 0})">📱 WhatsApp</button>
           <button class="card-btn deletar" onclick="abrirDeletar('${c.id}','${(c.name||'').replace(/'/g,"\\'")}')">🗑️</button>
         </div>
         <div class="firebase-row" id="fb-row-${c.id}">
@@ -746,33 +831,49 @@
       </div>`;
   }
 
-  // Carrega status firebase para todos os cards visíveis após render
+  // Carrega status Firebase (batch + TTL + fallback automático)
   async function carregarStatusFirebase(clientes) {
+    const now = Date.now();
+    const emailsToFetch = [];
+    const emailToIdMap = {};
+
     for (const c of clientes) {
       if (!c.email) continue;
-      const ativo = await fbStatus(c.email);
+      emailToIdMap[c.email] = c.id;
+
+      const cached = fbCache[c.email];
+      if (cached && now - cached.timestamp < 120000) {
+        atualizarFirebaseUI(c.id, cached.status);
+        continue;
+      }
+
+      emailsToFetch.push(c.email);
+      // mostra loading enquanto espera o batch
       const dot = document.getElementById(`fb-dot-${c.id}`);
-      const txt = document.getElementById(`fb-txt-${c.id}`);
-      const btn = document.getElementById(`fb-btn-${c.id}`);
-      if (!dot) continue;
-      if (ativo === null) {
-        dot.className = 'firebase-dot loading';
-        txt.textContent = 'Firebase: sem registro';
-        btn.textContent = '–';
-        btn.className = 'firebase-btn';
-        btn.disabled = true;
-      } else if (ativo) {
-        dot.className = 'firebase-dot ativo';
-        txt.textContent = 'Firebase: Ativo';
-        btn.textContent = 'Desativar';
-        btn.className = 'firebase-btn desativar';
-        btn.disabled = false;
-      } else {
-        dot.className = 'firebase-dot inativo';
-        txt.textContent = 'Firebase: Bloqueado';
-        btn.textContent = 'Ativar';
-        btn.className = 'firebase-btn ativar';
-        btn.disabled = false;
+      if (dot) dot.className = 'firebase-dot loading';
+    }
+
+    if (emailsToFetch.length === 0) return;
+
+    // Tenta batch primeiro
+    let batchData = await fbStatusBatch(emailsToFetch);
+
+    if (Object.keys(batchData).length > 0) {
+      // sucesso no batch
+      for (const email of emailsToFetch) {
+        if (batchData[email] !== undefined) {
+          const ativo = batchData[email];
+          fbCache[email] = { status: ativo, timestamp: now };
+          const id = emailToIdMap[email];
+          atualizarFirebaseUI(id, ativo);
+        }
+      }
+    } else {
+      // fallback: individual (mantém comportamento antigo)
+      for (const email of emailsToFetch) {
+        const id = emailToIdMap[email];
+        const ativo = await fbStatus(email);
+        atualizarFirebaseUI(id, ativo);
       }
     }
   }
@@ -788,11 +889,7 @@
     try {
       await fbToggle(email, desativar);
       const ativo = !desativar;
-      dot.className = `firebase-dot ${ativo ? 'ativo' : 'inativo'}`;
-      txt.textContent = `Firebase: ${ativo ? 'Ativo' : 'Bloqueado'}`;
-      btn.textContent = ativo ? 'Desativar' : 'Ativar';
-      btn.className = `firebase-btn ${ativo ? 'desativar' : 'ativar'}`;
-      btn.disabled = false;
+      atualizarFirebaseUI(id, ativo);
       toast(`Firebase ${ativo ? 'ativado ✅' : 'desativado 🔴'}`);
     } catch(e) {
       dot.className = 'firebase-dot loading';
@@ -824,7 +921,7 @@
     document.getElementById('modal-nome').value = c.name || '';
     document.getElementById('modal-email').value = c.email || '';
     document.getElementById('modal-senha').value = '';
-    document.getElementById('modal-senha-field').style.display = 'none'; // edição não altera senha
+    document.getElementById('modal-senha-field').style.display = 'none';
     document.getElementById('modal-data').value = c.start_date ? fmtDataInput(c.start_date) : '';
     document.getElementById('modal-meses').value = c.months_paid || 1;
     document.getElementById('modal-cliente').classList.add('open');
@@ -842,7 +939,7 @@
     if (!id && senha.length < 6) { toast('Senha precisa ter mínimo 6 caracteres!', true); return; }
 
     const body = { name: nome, email, start_date: data || null, months_paid: meses };
-    if (!id) body.password = senha; // só envia senha em novo cliente
+    if (!id) body.password = senha;
 
     try {
       if (id) {
@@ -890,12 +987,11 @@
         months_paid: mesSelecionado
       });
 
-      // Se o cliente estiver bloqueado no Firebase, reativa automaticamente
       if (c.email) {
         try {
           const fbAtivo = await fbStatus(c.email);
           if (fbAtivo === false) {
-            await fbToggle(c.email, false); // false = habilitar
+            await fbToggle(c.email, false);
             toast(`Renovado por ${mesSelecionado} mês(es) e Firebase reativado! ✅`);
           } else {
             toast(`Renovado por ${mesSelecionado} mês(es)! ✅`);
@@ -910,6 +1006,34 @@
       fecharModal('modal-renovar');
       await carregarClientes();
     } catch(e) { toast('Erro ao renovar!', true); }
+  }
+
+  // ── RENOVAR TODOS VENCIDOS EM MASSA (novo) ──
+  async function renovarTodosVencidos() {
+    const vencidos = todosClientes.filter(c => getTipo(c.dias) === 'vencido');
+    if (!vencidos.length) return;
+    if (!confirm(`Renovar TODOS os ${vencidos.length} clientes vencidos por 1 mês cada?\n\nEsta ação não pode ser desfeita.`)) return;
+
+    let sucessos = 0;
+    for (const c of vencidos) {
+      try {
+        const hoje = new Date();
+        const novaBase = c.venc && c.venc > hoje ? c.venc : hoje;
+        await supabase('PATCH', `clients?id=eq.${c.id}`, {
+          start_date: novaBase.toISOString().split('T')[0],
+          months_paid: 1
+        });
+
+        if (c.email) {
+          const fbAtivo = await fbStatus(c.email);
+          if (fbAtivo === false) await fbToggle(c.email, false);
+        }
+        sucessos++;
+      } catch(e) {}
+    }
+
+    toast(`${sucessos} de ${vencidos.length} vencidos renovados por 1 mês! ✅`);
+    await carregarClientes();
   }
 
   // ── MODAL DELETAR ──
@@ -938,6 +1062,23 @@
 
   function copiarEmail(email) {
     navigator.clipboard.writeText(email).then(() => toast('Email copiado! 📋'));
+  }
+
+  // Novo: copiar mensagem pronta de aviso para WhatsApp (prático, sem precisar de número no banco)
+  function copiarAvisoWhats(nome, email, dias) {
+    const diasAbs = Math.abs(dias);
+    let statusTxt = '';
+    if (dias < 0) {
+      statusTxt = `venceu há ${diasAbs} dia${diasAbs !== 1 ? 's' : ''}`;
+    } else if (dias <= 5) {
+      statusTxt = `vence em ${diasAbs} dia${diasAbs !== 1 ? 's' : ''}`;
+    } else {
+      statusTxt = 'está ativa';
+    }
+    const msg = `Olá ${nome || 'cliente'}! 👋\n\nSua assinatura do BetStat ${statusTxt}.\n\nPor favor, renove para continuar acessando as estatísticas!\n\nQualquer dúvida é só me chamar aqui.\n\nObrigado!`;
+    navigator.clipboard.writeText(msg).then(() => {
+      toast('✅ Mensagem de aviso copiada! Cole no WhatsApp do cliente.');
+    }).catch(() => toast('Erro ao copiar mensagem', true));
   }
 
   function toast(msg, erro=false) {
