@@ -2012,46 +2012,64 @@
     return null;
   }
 
-  // Verifica resultado de um combo na tabela renderizada
-  function verificarComboNaTabela(key, combo, horaAlvo) {
-    const tabela = document.getElementById(`tabela-${key}`);
-    if (!tabela) return null;
+  // Verifica resultado de um combo usando o CACHE DE DADOS (não o DOM)
+  // Replica exatamente a lógica de analisarGalesParaHora, isolada por hora
+  function verificarComboNoCache(key, combo, horaAlvo) {
     const cfg = CASAS_CONFIG[casaAtual]?.ligas[key];
     if (!cfg) return null;
+    const cache = cachesDados[key];
+    if (!cache) return null;
     const mF = cfg.minutosFixos;
+    const mercado = document.getElementById("sel-mercado").value;
+    const tipoPlacar = document.getElementById("sel-tipo-placar").value;
 
-    let gT = 0, rT = 0, total = 0;
+    // Filtra dados pela hora do bloco (não pela hora selecionada na tela)
+    const dados = filtrarPorHora(cache.dados, horaAlvo);
+    if (dados.length === 0) return null;
 
-    tabela.querySelectorAll("tbody tr").forEach(row => {
-      if (row.classList.contains("sem-dados")) return;
-      if (!row.cells[2]) return;
+    // Monta mapa dataStr → Map<minNorm, bool(acerto)> — igual ao analisarGalesParaHora
+    const datasSet = new Set();
+    dados.forEach(d => datasSet.add(getDateStr(d.data)));
+    const datasUnicas = Array.from(datasSet).sort((a, b) => b.localeCompare(a));
 
-      // Verifica se a linha tem dado real em todos os minutos do combo
+    const mapaDatas = new Map();
+    datasUnicas.forEach(ds => mapaDatas.set(ds, new Map()));
+
+    const processados = new Set();
+    dados.forEach(dado => {
+      const ds = getDateStr(dado.data);
+      const minNorm = normMinuto(dado.minuto, mF);
+      const mk = `${dado.time_a}|${dado.time_b}|${ds}|${minNorm}`;
+      if (processados.has(mk)) return;
+      processados.add(mk);
+      const minMap = mapaDatas.get(ds);
+      if (!minMap || minMap.has(minNorm)) return;
+      const scoreStr = tipoPlacar === "ht" ? dado.ht : dado.ft;
+      if (!scoreStr) return;
+      const parts = scoreStr.split(" x ").map(n => parseInt(n));
+      if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return;
+      minMap.set(minNorm, calcAcerto(parts[0], parts[1], mercado));
+    });
+
+    // Analisa o combo específico
+    let gT = 0, rT = 0;
+    mapaDatas.forEach(minMap => {
       let temDadoReal = false;
-      combo.forEach(m => {
-        const i = mF.indexOf(m); if (i === -1) return;
-        const c = row.cells[2 + i]; if (!c) return;
-        if (c.querySelector(".placar:not(.placar-futuro)")) temDadoReal = true;
-      });
+      combo.forEach(m => { if (minMap.has(m)) temDadoReal = true; });
       if (!temDadoReal) return;
 
       let temGreen = false, temRed = false;
       combo.forEach(m => {
-        const i = mF.indexOf(m); if (i === -1) return;
-        const c = row.cells[2 + i]; if (!c) return;
-        if (!c.querySelector(".placar:not(.placar-futuro)")) return;
-        const bg = c.style.backgroundColor;
-        if (bg === "rgb(1, 139, 6)") temGreen = true;
-        else if (bg === "rgb(190, 14, 2)") temRed = true;
+        if (!minMap.has(m)) return;
+        if (minMap.get(m)) temGreen = true;
+        else temRed = true;
       });
 
-      if (temGreen || temRed) {
-        total++;
-        if (temGreen) gT++;
-        else rT++;
-      }
+      if (temGreen) gT++;
+      else if (temRed) rT++;
     });
 
+    const total = gT + rT;
     if (total === 0) return null;
     return { gT, rT, total };
   }
@@ -2083,6 +2101,7 @@
         <span style="color:#6b7280;font-size:0.75em;">· ${bloco.tipo ? bloco.tipo+" Gale"+(bloco.tipo>1?"s":"") : "?"}</span>
         ${bloco.mercado ? `<span style="color:#6b7280;font-size:0.75em;">· ✅ ${bloco.mercado}</span>` : ""}
         ${!key ? `<span style="background:#7f1d1d;color:#fca5a5;font-size:0.72em;padding:2px 8px;border-radius:4px;">Liga não encontrada na casa atual</span>` : ""}
+        ${key && !cachesDados[key] ? `<span style="background:#7f1d1d;color:#fca5a5;font-size:0.72em;padding:2px 8px;border-radius:4px;">Liga não carregada — ative-a</span>` : ""}
       `;
       blocoEl.appendChild(header);
 
@@ -2095,21 +2114,21 @@
         return;
       }
 
-      // Verifica cada combo
+      // Verifica cada combo usando o cache (independente da hora selecionada na tela)
       const lista = document.createElement("div");
       lista.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;";
 
       let totalG = 0, totalR = 0, semDados = 0;
 
       bloco.combos.forEach(combo => {
-        const res = verificarComboNaTabela(key, combo, bloco.hora);
+        const res = verificarComboNoCache(key, combo, bloco.hora);
         const item = document.createElement("div");
         item.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;font-size:0.82em;";
 
         const comboStr = combo.join(" - ");
 
         if (!res) {
-          // Sem dados (futuro ou não encontrado)
+          // Sem dados para essa hora/combo no cache
           item.style.background = "#1e2030";
           item.style.border = "1px solid #3a3f50";
           item.innerHTML = `<span style="color:#6b7280;">➡️ ${comboStr}</span><span style="color:#4b5563;font-size:0.8em;margin-left:6px;">sem dados</span>`;
@@ -2152,7 +2171,7 @@
     });
 
     if (!algumResultado) {
-      container.innerHTML += `<div style="color:#9ca3af;font-size:0.82em;margin-top:6px;">Nenhum combo pôde ser verificado — os dados desta hora podem não estar carregados ainda.</div>`;
+      container.innerHTML += `<div style="color:#9ca3af;font-size:0.82em;margin-top:6px;">Nenhum combo pôde ser verificado — certifique-se que as ligas do arquivo estão ativas e carregadas.</div>`;
     }
   }
 
