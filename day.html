@@ -1482,10 +1482,9 @@
       
       const total=gT+rT;
       if(total>0){
-        const pct=Math.round((gT/total)*100);
-        // Mostra APENAS 100%
-        if(pct===100){
-          resultados.push({combo,gT,rT,total,pct});
+        // Filtra ESTRITAMENTE 100% — gT deve ser igual ao total
+        if(gT===total){
+          resultados.push({combo,gT,rT,total,pct:100});
         }
       }
     });
@@ -1658,9 +1657,8 @@
     const mercado = selMercado.value;
     const tipoPlacar = document.getElementById("sel-tipo-placar").value;
 
-    // Pega numGales do primeiro analisador visível, ou default 2
-    const selGaleAberto = document.querySelector(`[id^="gale-select-"]`);
-    const numGales = selGaleAberto ? parseInt(selGaleAberto.value) : 2;
+    // Lê do seletor global de gales
+    const numGales = parseInt(document.getElementById("sel-gales-global").value);
 
     let textoGeral = `Lista 100% — Todas as Horas\n`;
     textoGeral += `Casa: ${casaNome}\n`;
@@ -1671,21 +1669,25 @@
 
     let blocos = 0;
 
-    // Função que espelha exatamente a lógica do DOM:
-    // percorre linha por linha (por data), coluna por coluna (por minuto)
-    // e verifica a cor da célula → verde (#018b06) ou vermelho (#be0e02)
-    // MAS aqui fazemos no dado bruto (sem DOM), replicando o calcAcerto
+    // Replica EXATAMENTE a lógica do executarAnalisadorGales (que opera no DOM)
+    // mas usando os dados do cache, sem depender de células renderizadas
     function analisarGalesParaHora(cache, cfg, hora, numG) {
       const mF = cfg.minutosFixos;
       const dados = filtrarPorHora(cache.dados, hora);
       if (dados.length === 0) return [];
 
-      // Monta estrutura igual ao DOM:
-      // por data → Map<minutoNormalizado, {acerto: bool}>
-      // Ignora duplicatas iguais ao DOM (processedMatches)
-      const mapaDatas = new Map(); // dataStr → Map<minNorm, bool (acerto)>
-      const processados = new Set();
+      // === Passo 1: monta a mesma estrutura que criarTabela monta no DOM ===
+      // datasUnicas → ordenadas mais recente primeiro (como no DOM)
+      const datasSet = new Set();
+      dados.forEach(d => datasSet.add(getDateStr(d.data)));
+      const datasUnicas = Array.from(datasSet).sort((a, b) => b.localeCompare(a));
 
+      // Para cada data, cria um Map<minNorm, bool(acerto)>
+      // replicando: processedMatches (só o primeiro dado por minuto por data entra)
+      const mapaDatas = new Map(); // dataStr → Map<minNorm, bool>
+      datasUnicas.forEach(ds => mapaDatas.set(ds, new Map()));
+
+      const processados = new Set();
       dados.forEach(dado => {
         const ds = getDateStr(dado.data);
         const minNorm = normMinuto(dado.minuto, mF);
@@ -1693,22 +1695,20 @@
         if (processados.has(mk)) return;
         processados.add(mk);
 
-        if (!mapaDatas.has(ds)) mapaDatas.set(ds, new Map());
+        const minMap = mapaDatas.get(ds);
+        if (!minMap) return;
+        // Replica: só insere se célula ainda vazia (primeiro que chega)
+        if (minMap.has(minNorm)) return;
 
-        // Replica: usa ft ou ht conforme tipoPlacar
         const scoreStr = tipoPlacar === "ht" ? dado.ht : dado.ft;
         if (!scoreStr) return;
         const parts = scoreStr.split(" x ").map(n => parseInt(n));
         if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return;
 
-        const acerto = calcAcerto(parts[0], parts[1], mercado);
-        // Replica lógica: só insere se a célula ainda não tem dado (primeiro que chega)
-        if (!mapaDatas.get(ds).has(minNorm)) {
-          mapaDatas.get(ds).set(minNorm, acerto);
-        }
+        minMap.set(minNorm, calcAcerto(parts[0], parts[1], mercado));
       });
 
-      // Gera combinações sequenciais
+      // === Passo 2: gera combinações sequenciais (igual ao DOM) ===
       const combinacoes = [];
       if (numG === 1) {
         mF.forEach(m => combinacoes.push([m]));
@@ -1720,17 +1720,21 @@
         for (let i = 0; i < mF.length - 3; i++) combinacoes.push([mF[i], mF[i+1], mF[i+2], mF[i+3]]);
       }
 
+      // === Passo 3: analisa cada combo — réplica EXATA do executarAnalisadorGales ===
       const resultados = [];
 
       combinacoes.forEach(combo => {
         let gT = 0, rT = 0;
 
+        // Cada entrada do mapaDatas = uma linha (dia) da tabela
         mapaDatas.forEach(minMap => {
-          // Pelo menos um minuto do combo deve ter dado real
-          let temDadoReal = combo.some(m => minMap.has(m));
+          // Replica: verifica se linha tem ao menos UMA célula com dado real no combo
+          let temDadoReal = false;
+          combo.forEach(m => { if (minMap.has(m)) temDadoReal = true; });
           if (!temDadoReal) return;
 
-          // Replica DOM: temGreen se qualquer célula do combo é verde, temRed se vermelha
+          // Replica: temGreen se qualquer minuto do combo é verde (acerto=true)
+          //          temRed   se qualquer minuto do combo é vermelho (acerto=false)
           let temGreen = false, temRed = false;
           combo.forEach(m => {
             if (!minMap.has(m)) return;
@@ -1738,12 +1742,14 @@
             else temRed = true;
           });
 
-          if (temGreen) gT++;
-          else if (temRed) rT++;
+          // Replica: só conta se tem dado real (verde OU vermelho)
+          if (temGreen) gT++;       // linha conta como GREEN (tem ao menos 1 acerto)
+          else if (temRed) rT++;    // linha conta como RED (todos vermelhos)
         });
 
         const total = gT + rT;
-        if (total > 0 && Math.round((gT / total) * 100) === 100) {
+        // Filtra ESTRITAMENTE 100% — gT deve ser IGUAL ao total (nenhum rT)
+        if (total > 0 && gT === total) {
           resultados.push({ combo, gT, total });
         }
       });
