@@ -1733,6 +1733,7 @@
 
   // ═══════════════════════════════════════════════════════════════════════════
   // BAIXAR TODAS AS HORAS (0h–23h) para todas as ligas ativas
+  // Replica exatamente a lógica do executarAnalisadorGales mas por hora
   // ═══════════════════════════════════════════════════════════════════════════
   async function baixarTodasAsHorasTxt() {
     const btn = document.getElementById("btn-download-todas-horas");
@@ -1747,9 +1748,12 @@
     const casaNome = CASAS_CONFIG[casaAtual]?.nome || casaAtual;
     const selMercado = document.getElementById("sel-mercado");
     const mercadoLabel = selMercado?.options[selMercado.selectedIndex]?.text || "";
-    const selGale = document.querySelector(`[id^="gale-select-"]`);
-    // pega gales do primeiro analisador aberto, ou default 2
-    const numGales = selGale ? parseInt(selGale.value) : 2;
+    const mercado = selMercado.value;
+    const tipoPlacar = document.getElementById("sel-tipo-placar").value;
+
+    // Pega numGales do primeiro analisador visível, ou default 2
+    const selGaleAberto = document.querySelector(`[id^="gale-select-"]`);
+    const numGales = selGaleAberto ? parseInt(selGaleAberto.value) : 2;
 
     let textoGeral = `Lista 100% — Todas as Horas\n`;
     textoGeral += `Casa: ${casaNome}\n`;
@@ -1758,87 +1762,98 @@
     textoGeral += `Gales: ${numGales}\n`;
     textoGeral += `${"=".repeat(50)}\n\n`;
 
-    const horasTotal = 24;
     let blocos = 0;
 
-    for (let hora = 0; hora < horasTotal; hora++) {
+    // Função que espelha exatamente a lógica do DOM:
+    // percorre linha por linha (por data), coluna por coluna (por minuto)
+    // e verifica a cor da célula → verde (#018b06) ou vermelho (#be0e02)
+    // MAS aqui fazemos no dado bruto (sem DOM), replicando o calcAcerto
+    function analisarGalesParaHora(cache, cfg, hora, numG) {
+      const mF = cfg.minutosFixos;
+      const dados = filtrarPorHora(cache.dados, hora);
+      if (dados.length === 0) return [];
+
+      // Monta estrutura igual ao DOM:
+      // por data → Map<minutoNormalizado, {acerto: bool}>
+      // Ignora duplicatas iguais ao DOM (processedMatches)
+      const mapaDatas = new Map(); // dataStr → Map<minNorm, bool (acerto)>
+      const processados = new Set();
+
+      dados.forEach(dado => {
+        const ds = getDateStr(dado.data);
+        const minNorm = normMinuto(dado.minuto, mF);
+        const mk = `${dado.time_a}|${dado.time_b}|${ds}|${minNorm}`;
+        if (processados.has(mk)) return;
+        processados.add(mk);
+
+        if (!mapaDatas.has(ds)) mapaDatas.set(ds, new Map());
+
+        // Replica: usa ft ou ht conforme tipoPlacar
+        const scoreStr = tipoPlacar === "ht" ? dado.ht : dado.ft;
+        if (!scoreStr) return;
+        const parts = scoreStr.split(" x ").map(n => parseInt(n));
+        if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return;
+
+        const acerto = calcAcerto(parts[0], parts[1], mercado);
+        // Replica lógica: só insere se a célula ainda não tem dado (primeiro que chega)
+        if (!mapaDatas.get(ds).has(minNorm)) {
+          mapaDatas.get(ds).set(minNorm, acerto);
+        }
+      });
+
+      // Gera combinações sequenciais
+      const combinacoes = [];
+      if (numG === 1) {
+        mF.forEach(m => combinacoes.push([m]));
+      } else if (numG === 2) {
+        for (let i = 0; i < mF.length - 1; i++) combinacoes.push([mF[i], mF[i+1]]);
+      } else if (numG === 3) {
+        for (let i = 0; i < mF.length - 2; i++) combinacoes.push([mF[i], mF[i+1], mF[i+2]]);
+      } else if (numG === 4) {
+        for (let i = 0; i < mF.length - 3; i++) combinacoes.push([mF[i], mF[i+1], mF[i+2], mF[i+3]]);
+      }
+
+      const resultados = [];
+
+      combinacoes.forEach(combo => {
+        let gT = 0, rT = 0;
+
+        mapaDatas.forEach(minMap => {
+          // Pelo menos um minuto do combo deve ter dado real
+          let temDadoReal = combo.some(m => minMap.has(m));
+          if (!temDadoReal) return;
+
+          // Replica DOM: temGreen se qualquer célula do combo é verde, temRed se vermelha
+          let temGreen = false, temRed = false;
+          combo.forEach(m => {
+            if (!minMap.has(m)) return;
+            if (minMap.get(m)) temGreen = true;
+            else temRed = true;
+          });
+
+          if (temGreen) gT++;
+          else if (temRed) rT++;
+        });
+
+        const total = gT + rT;
+        if (total > 0 && Math.round((gT / total) * 100) === 100) {
+          resultados.push({ combo, gT, total });
+        }
+      });
+
+      return resultados;
+    }
+
+    for (let hora = 0; hora < 24; hora++) {
       statusEl.textContent = `Analisando ${hora.toString().padStart(2,"0")}:00…`;
 
-      // Para cada liga ativa, executa a análise nessa hora
       for (const key of ligasAtivas) {
         const cfg = CASAS_CONFIG[casaAtual]?.ligas[key];
         if (!cfg) continue;
         const cache = cachesDados[key];
         if (!cache) continue;
 
-        const mF = cfg.minutosFixos;
-
-        // Filtra dados para essa hora específica
-        const dadosHora = filtrarPorHora(cache.dados, hora);
-        if (dadosHora.length === 0) continue;
-
-        // Gera combinações de acordo com numGales
-        const combinacoes = [];
-        if (numGales === 1) {
-          mF.forEach(m => combinacoes.push([m]));
-        } else if (numGales === 2) {
-          for (let i = 0; i < mF.length - 1; i++) combinacoes.push([mF[i], mF[i+1]]);
-        } else if (numGales === 3) {
-          for (let i = 0; i < mF.length - 2; i++) combinacoes.push([mF[i], mF[i+1], mF[i+2]]);
-        } else if (numGales === 4) {
-          for (let i = 0; i < mF.length - 3; i++) combinacoes.push([mF[i], mF[i+1], mF[i+2], mF[i+3]]);
-        }
-
-        // Analisa sobre os dados (sem depender do DOM — usa cache.dados diretamente)
-        const mercado = document.getElementById("sel-mercado").value;
-        const tipoPlacar = document.getElementById("sel-tipo-placar").value;
-        const resultadosHora = [];
-
-        combinacoes.forEach(combo => {
-          // Agrupa dados por data+minuto → placar
-          // Monta mapa: dataStr → Map<minuto, {gols_a,gols_b}>
-          const mapaDatas = new Map();
-          dadosHora.forEach(d => {
-            const ds = getDateStr(d.data);
-            if (!mapaDatas.has(ds)) mapaDatas.set(ds, new Map());
-            const minNorm = normMinuto(d.minuto, mF);
-            // usa ft ou ht conforme seletor
-            let ga, gb;
-            if (tipoPlacar === "ht") {
-              ga = d.gols_a_ht ?? d.gols_a;
-              gb = d.gols_b_ht ?? d.gols_b;
-            } else {
-              ga = d.gols_a;
-              gb = d.gols_b;
-            }
-            mapaDatas.get(ds).set(minNorm, { ga: parseInt(ga)||0, gb: parseInt(gb)||0 });
-          });
-
-          let gT = 0, rT = 0;
-          mapaDatas.forEach(minMap => {
-            // Todos os minutos do combo precisam ter dado real
-            const temTodos = combo.every(m => minMap.has(m));
-            if (!temTodos) return;
-
-            let temGreen = false, temRed = false;
-            combo.forEach(m => {
-              const entry = minMap.get(m);
-              if (!entry) return;
-              const acertou = calcAcerto(entry.ga, entry.gb, mercado);
-              if (acertou) temGreen = true;
-              else temRed = true;
-            });
-
-            if (temGreen) gT++;
-            else if (temRed) rT++;
-          });
-
-          const total = gT + rT;
-          if (total > 0) {
-            const pct = Math.round((gT / total) * 100);
-            if (pct === 100) resultadosHora.push({ combo, gT, total });
-          }
-        });
+        const resultadosHora = analisarGalesParaHora(cache, cfg, hora, numGales);
 
         if (resultadosHora.length > 0) {
           textoGeral += `🏆 Liga: ${cfg.nome}\n`;
@@ -1853,21 +1868,22 @@
         }
       }
 
-      // yield para não travar a UI
+      // yield para não travar a UI a cada hora
       await new Promise(r => setTimeout(r, 0));
     }
 
     btn.disabled = false;
     btn.style.opacity = "1";
     spinner.style.display = "none";
+    statusEl.style.display = "inline";
 
     if (blocos === 0) {
       statusEl.textContent = "Nenhuma combinação 100% encontrada em nenhuma hora.";
       return;
     }
 
-    statusEl.textContent = `${blocos} bloco(s) encontrado(s). Baixando…`;
-    setTimeout(() => { statusEl.style.display = "none"; }, 4000);
+    statusEl.textContent = `✅ ${blocos} bloco(s) encontrado(s). Baixando…`;
+    setTimeout(() => { statusEl.style.display = "none"; }, 5000);
 
     const blob = new Blob([textoGeral], { type: "text/plain;charset=utf-8" });
     const link = document.createElement("a");
