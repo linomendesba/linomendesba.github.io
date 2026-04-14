@@ -415,9 +415,28 @@
     <div id="ligas-wrapper"></div>
   </div>
 
+  <!-- Analisador de Lista Salva -->
+  <div id="analisador-lista-section" style="padding:12px;background:#22252e;border:1px solid #2e3240;border-radius:8px;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:0.78em;color:#9ca3af;font-weight:500;white-space:nowrap;">📂 Analisar lista salva:</span>
+      <label for="input-lista-arquivo" style="padding:5px 12px;background:#2a2d38;color:#d1d5db;border:1px solid #3a3f50;border-radius:5px;font-size:0.82em;cursor:pointer;white-space:nowrap;transition:border-color 0.15s;" onmouseover="this.style.borderColor='#5a6070'" onmouseout="this.style.borderColor='#3a3f50'">
+        📄 Carregar TXT
+      </label>
+      <input type="file" id="input-lista-arquivo" accept=".txt" style="display:none;">
+      <span id="lista-arquivo-nome" style="font-size:0.78em;color:#6b7280;font-style:italic;"></span>
+      <button id="btn-limpar-analise-lista" style="display:none;padding:4px 10px;background:transparent;color:#6b7280;border:1px solid #3a3f50;border-radius:4px;font-size:0.75em;cursor:pointer;" onclick="limparAnaliseLista()">✕ Limpar</button>
+    </div>
+    <div id="resultado-analise-lista" style="margin-top:10px;"></div>
+  </div>
+
   <!-- Botão Global de Download -->
-  <div id="global-download-section" style="display:none;padding:12px;background:#22252e;border:1px solid #2e3240;border-radius:8px;margin-bottom:16px;margin-top:8px;">
+  <div id="global-download-section" style="display:none;padding:12px;background:#22252e;border:1px solid #2e3240;border-radius:8px;margin-bottom:16px;margin-top:8px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
     <button id="btn-download-global" style="padding:8px 16px;background:#6b7280;color:#fff;border:none;border-radius:5px;font-weight:600;font-size:0.85em;cursor:pointer;transition:all 0.2s;">⬇ BAIXAR TODAS AS LIGAS</button>
+    <button id="btn-download-todas-horas" style="padding:8px 16px;background:#7c3aed;color:#fff;border:none;border-radius:5px;font-weight:600;font-size:0.85em;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:6px;">
+      <span>⬇ BAIXAR TODAS AS HORAS</span>
+      <span id="btn-todas-horas-spinner" style="display:none;font-size:0.8em;opacity:0.8;">⏳ gerando...</span>
+    </button>
+    <span id="todas-horas-status" style="font-size:0.78em;color:#9ca3af;display:none;"></span>
   </div>
 
   <!-- Container das tabelas por liga -->
@@ -1631,7 +1650,10 @@
     
     const globalSection=document.getElementById("global-download-section");
     if(globalSection){
-      globalSection.style.display=temResultados?"block":"none";
+      // Sempre mostra a seção (pelo menos o botão de todas as horas)
+      globalSection.style.display="flex";
+      const btnGlobal=document.getElementById("btn-download-global");
+      if(btnGlobal) btnGlobal.style.display=temResultados?"inline-block":"none";
     }
   }
   
@@ -1710,8 +1732,152 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // LINHAS SELECIONADAS
+  // BAIXAR TODAS AS HORAS (0h–23h) para todas as ligas ativas
   // ═══════════════════════════════════════════════════════════════════════════
+  async function baixarTodasAsHorasTxt() {
+    const btn = document.getElementById("btn-download-todas-horas");
+    const spinner = document.getElementById("btn-todas-horas-spinner");
+    const statusEl = document.getElementById("todas-horas-status");
+
+    btn.disabled = true;
+    btn.style.opacity = "0.7";
+    spinner.style.display = "inline";
+    statusEl.style.display = "inline";
+
+    const casaNome = CASAS_CONFIG[casaAtual]?.nome || casaAtual;
+    const selMercado = document.getElementById("sel-mercado");
+    const mercadoLabel = selMercado?.options[selMercado.selectedIndex]?.text || "";
+    const selGale = document.querySelector(`[id^="gale-select-"]`);
+    // pega gales do primeiro analisador aberto, ou default 2
+    const numGales = selGale ? parseInt(selGale.value) : 2;
+
+    let textoGeral = `Lista 100% — Todas as Horas\n`;
+    textoGeral += `Casa: ${casaNome}\n`;
+    textoGeral += `Data: ${new Date().toLocaleDateString("pt-BR")}\n`;
+    textoGeral += `Mercado: ${mercadoLabel}\n`;
+    textoGeral += `Gales: ${numGales}\n`;
+    textoGeral += `${"=".repeat(50)}\n\n`;
+
+    const horasTotal = 24;
+    let blocos = 0;
+
+    for (let hora = 0; hora < horasTotal; hora++) {
+      statusEl.textContent = `Analisando ${hora.toString().padStart(2,"0")}:00…`;
+
+      // Para cada liga ativa, executa a análise nessa hora
+      for (const key of ligasAtivas) {
+        const cfg = CASAS_CONFIG[casaAtual]?.ligas[key];
+        if (!cfg) continue;
+        const cache = cachesDados[key];
+        if (!cache) continue;
+
+        const mF = cfg.minutosFixos;
+
+        // Filtra dados para essa hora específica
+        const dadosHora = filtrarPorHora(cache.dados, hora);
+        if (dadosHora.length === 0) continue;
+
+        // Gera combinações de acordo com numGales
+        const combinacoes = [];
+        if (numGales === 1) {
+          mF.forEach(m => combinacoes.push([m]));
+        } else if (numGales === 2) {
+          for (let i = 0; i < mF.length - 1; i++) combinacoes.push([mF[i], mF[i+1]]);
+        } else if (numGales === 3) {
+          for (let i = 0; i < mF.length - 2; i++) combinacoes.push([mF[i], mF[i+1], mF[i+2]]);
+        } else if (numGales === 4) {
+          for (let i = 0; i < mF.length - 3; i++) combinacoes.push([mF[i], mF[i+1], mF[i+2], mF[i+3]]);
+        }
+
+        // Analisa sobre os dados (sem depender do DOM — usa cache.dados diretamente)
+        const mercado = document.getElementById("sel-mercado").value;
+        const tipoPlacar = document.getElementById("sel-tipo-placar").value;
+        const resultadosHora = [];
+
+        combinacoes.forEach(combo => {
+          // Agrupa dados por data+minuto → placar
+          // Monta mapa: dataStr → Map<minuto, {gols_a,gols_b}>
+          const mapaDatas = new Map();
+          dadosHora.forEach(d => {
+            const ds = getDateStr(d.data);
+            if (!mapaDatas.has(ds)) mapaDatas.set(ds, new Map());
+            const minNorm = normMinuto(d.minuto, mF);
+            // usa ft ou ht conforme seletor
+            let ga, gb;
+            if (tipoPlacar === "ht") {
+              ga = d.gols_a_ht ?? d.gols_a;
+              gb = d.gols_b_ht ?? d.gols_b;
+            } else {
+              ga = d.gols_a;
+              gb = d.gols_b;
+            }
+            mapaDatas.get(ds).set(minNorm, { ga: parseInt(ga)||0, gb: parseInt(gb)||0 });
+          });
+
+          let gT = 0, rT = 0;
+          mapaDatas.forEach(minMap => {
+            // Todos os minutos do combo precisam ter dado real
+            const temTodos = combo.every(m => minMap.has(m));
+            if (!temTodos) return;
+
+            let temGreen = false, temRed = false;
+            combo.forEach(m => {
+              const entry = minMap.get(m);
+              if (!entry) return;
+              const acertou = calcAcerto(entry.ga, entry.gb, mercado);
+              if (acertou) temGreen = true;
+              else temRed = true;
+            });
+
+            if (temGreen) gT++;
+            else if (temRed) rT++;
+          });
+
+          const total = gT + rT;
+          if (total > 0) {
+            const pct = Math.round((gT / total) * 100);
+            if (pct === 100) resultadosHora.push({ combo, gT, total });
+          }
+        });
+
+        if (resultadosHora.length > 0) {
+          textoGeral += `🏆 Liga: ${cfg.nome}\n`;
+          textoGeral += `⏰ Hora: ${hora.toString().padStart(2,"0")}:00\n`;
+          textoGeral += `Tipo: ${numGales} Gale${numGales > 1 ? "s" : ""}\n`;
+          textoGeral += `✅ ${mercadoLabel}\n\n`;
+          resultadosHora.forEach(({ combo }) => {
+            textoGeral += `➡️ ${combo.join(" - ")}\n`;
+          });
+          textoGeral += `\n${"-".repeat(50)}\n\n`;
+          blocos++;
+        }
+      }
+
+      // yield para não travar a UI
+      await new Promise(r => setTimeout(r, 0));
+    }
+
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    spinner.style.display = "none";
+
+    if (blocos === 0) {
+      statusEl.textContent = "Nenhuma combinação 100% encontrada em nenhuma hora.";
+      return;
+    }
+
+    statusEl.textContent = `${blocos} bloco(s) encontrado(s). Baixando…`;
+    setTimeout(() => { statusEl.style.display = "none"; }, 4000);
+
+    const blob = new Blob([textoGeral], { type: "text/plain;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    const dataStr = new Date().toLocaleDateString("pt-BR").replace(/\//g, "-");
+    link.download = `lista_todas_horas_${casaNome.toLowerCase().replace(/\s+/g,"_")}_${numGales}g_${dataStr}.txt`;
+    link.click();
+  }
+
+
   function updateSelectedRows(key) {
     const estado=estados[key];if(!estado)return;
     const mainTable=document.getElementById(`tabela-${key}`);
@@ -1803,6 +1969,10 @@
     
     // Listener botão download global
     document.getElementById("btn-download-global").addEventListener("click",baixarTodasAsLigasTxt);
+    // Listener botão download todas as horas
+    document.getElementById("btn-download-todas-horas").addEventListener("click",baixarTodasAsHorasTxt);
+    // Mostra seção logo no init
+    verificarMostrarBotaoGlobal();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1857,6 +2027,212 @@
       ligasAtivas.forEach(k => { if(estados[k]) estados[k].forcarRerender(); });
       rerenderComCache();
     });
+  });
+
+  init();
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ANALISADOR DE LISTA SALVA
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Parser do TXT gerado pelo sistema
+  function parsearListaTxt(texto) {
+    const blocos = [];
+    // Divide por separador de liga (linha com 🏆)
+    const linhas = texto.split("\n").map(l => l.trim()).filter(l => l);
+
+    let blocoAtual = null;
+
+    for (const linha of linhas) {
+      if (linha.startsWith("🏆 Liga:")) {
+        if (blocoAtual) blocos.push(blocoAtual);
+        blocoAtual = { liga: linha.replace("🏆 Liga:", "").trim(), hora: null, tipo: null, mercado: null, combos: [] };
+      } else if (blocoAtual) {
+        if (linha.startsWith("⏰ Hora:")) {
+          blocoAtual.hora = parseInt(linha.replace("⏰ Hora:", "").trim().split(":")[0]);
+        } else if (linha.startsWith("Tipo:")) {
+          blocoAtual.tipo = parseInt(linha.replace("Tipo:", "").trim()[0]);
+        } else if (linha.startsWith("✅")) {
+          blocoAtual.mercado = linha.replace("✅", "").trim();
+        } else if (linha.startsWith("➡️")) {
+          const partes = linha.replace("➡️", "").trim().split("-").map(p => parseInt(p.trim())).filter(n => !isNaN(n));
+          if (partes.length > 0) blocoAtual.combos.push(partes);
+        }
+      }
+    }
+    if (blocoAtual) blocos.push(blocoAtual);
+    return blocos;
+  }
+
+  // Encontra a key da liga pelo nome
+  function encontrarKeyPorNome(nomeLiga) {
+    const casa = CASAS_CONFIG[casaAtual];
+    if (!casa) return null;
+    for (const [key, cfg] of Object.entries(casa.ligas)) {
+      if (cfg.nome.toLowerCase().trim() === nomeLiga.toLowerCase().trim()) return key;
+    }
+    return null;
+  }
+
+  // Verifica resultado de um combo na tabela renderizada
+  function verificarComboNaTabela(key, combo, horaAlvo) {
+    const tabela = document.getElementById(`tabela-${key}`);
+    if (!tabela) return null;
+    const cfg = CASAS_CONFIG[casaAtual]?.ligas[key];
+    if (!cfg) return null;
+    const mF = cfg.minutosFixos;
+
+    let gT = 0, rT = 0, total = 0;
+
+    tabela.querySelectorAll("tbody tr").forEach(row => {
+      if (row.classList.contains("sem-dados")) return;
+      if (!row.cells[2]) return;
+
+      // Verifica se a linha tem dado real em todos os minutos do combo
+      let temDadoReal = false;
+      combo.forEach(m => {
+        const i = mF.indexOf(m); if (i === -1) return;
+        const c = row.cells[2 + i]; if (!c) return;
+        if (c.querySelector(".placar:not(.placar-futuro)")) temDadoReal = true;
+      });
+      if (!temDadoReal) return;
+
+      let temGreen = false, temRed = false;
+      combo.forEach(m => {
+        const i = mF.indexOf(m); if (i === -1) return;
+        const c = row.cells[2 + i]; if (!c) return;
+        if (!c.querySelector(".placar:not(.placar-futuro)")) return;
+        const bg = c.style.backgroundColor;
+        if (bg === "rgb(1, 139, 6)") temGreen = true;
+        else if (bg === "rgb(190, 14, 2)") temRed = true;
+      });
+
+      if (temGreen || temRed) {
+        total++;
+        if (temGreen) gT++;
+        else rT++;
+      }
+    });
+
+    if (total === 0) return null;
+    return { gT, rT, total };
+  }
+
+  function analisarListaCarregada(texto) {
+    const blocos = parsearListaTxt(texto);
+    const container = document.getElementById("resultado-analise-lista");
+    container.innerHTML = "";
+
+    if (blocos.length === 0) {
+      container.innerHTML = `<div style="color:#9ca3af;font-size:0.82em;">Nenhum bloco encontrado no arquivo. Verifique se é um TXT gerado pelo BetStat.</div>`;
+      return;
+    }
+
+    let algumResultado = false;
+
+    blocos.forEach(bloco => {
+      const key = encontrarKeyPorNome(bloco.liga);
+
+      const blocoEl = document.createElement("div");
+      blocoEl.style.cssText = "background:#1a1a2e;border:1px solid #2e3240;border-radius:8px;padding:12px;margin-bottom:10px;";
+
+      // Cabeçalho do bloco
+      const header = document.createElement("div");
+      header.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;";
+      header.innerHTML = `
+        <span style="font-weight:700;color:#e5e7eb;font-size:0.88em;">🏆 ${bloco.liga}</span>
+        <span style="color:#6b7280;font-size:0.75em;">⏰ ${bloco.hora != null ? bloco.hora.toString().padStart(2,"0")+":00" : "?"}</span>
+        <span style="color:#6b7280;font-size:0.75em;">· ${bloco.tipo ? bloco.tipo+" Gale"+(bloco.tipo>1?"s":"") : "?"}</span>
+        ${bloco.mercado ? `<span style="color:#6b7280;font-size:0.75em;">· ✅ ${bloco.mercado}</span>` : ""}
+        ${!key ? `<span style="background:#7f1d1d;color:#fca5a5;font-size:0.72em;padding:2px 8px;border-radius:4px;">Liga não encontrada na casa atual</span>` : ""}
+      `;
+      blocoEl.appendChild(header);
+
+      if (!key) {
+        blocoEl.appendChild(Object.assign(document.createElement("div"), {
+          style: "color:#9ca3af;font-size:0.78em;",
+          textContent: "Troque para a casa correta e recarregue o arquivo."
+        }));
+        container.appendChild(blocoEl);
+        return;
+      }
+
+      // Verifica cada combo
+      const lista = document.createElement("div");
+      lista.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;";
+
+      let totalG = 0, totalR = 0, semDados = 0;
+
+      bloco.combos.forEach(combo => {
+        const res = verificarComboNaTabela(key, combo, bloco.hora);
+        const item = document.createElement("div");
+        item.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;font-size:0.82em;";
+
+        const comboStr = combo.join(" - ");
+
+        if (!res) {
+          // Sem dados (futuro ou não encontrado)
+          item.style.background = "#1e2030";
+          item.style.border = "1px solid #3a3f50";
+          item.innerHTML = `<span style="color:#6b7280;">➡️ ${comboStr}</span><span style="color:#4b5563;font-size:0.8em;margin-left:6px;">sem dados</span>`;
+          semDados++;
+        } else if (res.gT === res.total) {
+          // 100% verde
+          item.style.background = "#052e16";
+          item.style.border = "1px solid #00e676";
+          item.innerHTML = `<span style="color:#e5e7eb;font-weight:600;">➡️ ${comboStr}</span><span style="color:#00e676;font-weight:700;margin-left:8px;">✅</span><span style="color:#4ade80;font-size:0.78em;margin-left:4px;">${res.gT}/${res.total}</span>`;
+          totalG++;
+        } else if (res.rT === res.total) {
+          // 100% vermelho
+          item.style.background = "#2d0a0a";
+          item.style.border = "1px solid #ff5555";
+          item.innerHTML = `<span style="color:#e5e7eb;font-weight:600;">➡️ ${comboStr}</span><span style="color:#ff5555;font-weight:700;margin-left:8px;">❌</span><span style="color:#f87171;font-size:0.78em;margin-left:4px;">${res.gT}/${res.total}</span>`;
+          totalR++;
+        } else {
+          // Parcial
+          const pct = Math.round((res.gT / res.total) * 100);
+          item.style.background = "#1a1400";
+          item.style.border = "1px solid #f59e0b";
+          item.innerHTML = `<span style="color:#e5e7eb;font-weight:600;">➡️ ${comboStr}</span><span style="color:#f59e0b;font-weight:700;margin-left:8px;">⚡</span><span style="color:#fbbf24;font-size:0.78em;margin-left:4px;">${res.gT}/${res.total} (${pct}%)</span>`;
+        }
+
+        lista.appendChild(item);
+        algumResultado = true;
+      });
+
+      blocoEl.appendChild(lista);
+
+      // Resumo do bloco
+      if (bloco.combos.length > 0 && (totalG + totalR) > 0) {
+        const resumo = document.createElement("div");
+        resumo.style.cssText = "margin-top:8px;font-size:0.78em;color:#9ca3af;";
+        resumo.innerHTML = `Resumo: <span style="color:#00e676;font-weight:600;">${totalG} ✅</span> · <span style="color:#ff5555;font-weight:600;">${totalR} ❌</span>${semDados>0?` · <span style="color:#6b7280;">${semDados} sem dados</span>`:""}`;
+        blocoEl.appendChild(resumo);
+      }
+
+      container.appendChild(blocoEl);
+    });
+
+    if (!algumResultado) {
+      container.innerHTML += `<div style="color:#9ca3af;font-size:0.82em;margin-top:6px;">Nenhum combo pôde ser verificado — os dados desta hora podem não estar carregados ainda.</div>`;
+    }
+  }
+
+  function limparAnaliseLista() {
+    document.getElementById("resultado-analise-lista").innerHTML = "";
+    document.getElementById("lista-arquivo-nome").textContent = "";
+    document.getElementById("input-lista-arquivo").value = "";
+    document.getElementById("btn-limpar-analise-lista").style.display = "none";
+  }
+
+  document.getElementById("input-lista-arquivo").addEventListener("change", function() {
+    const file = this.files[0];
+    if (!file) return;
+    document.getElementById("lista-arquivo-nome").textContent = file.name;
+    document.getElementById("btn-limpar-analise-lista").style.display = "inline-block";
+    const reader = new FileReader();
+    reader.onload = e => analisarListaCarregada(e.target.result);
+    reader.readAsText(file, "utf-8");
   });
 
   init();
