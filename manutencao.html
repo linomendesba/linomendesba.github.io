@@ -2952,9 +2952,9 @@ const DATASET_COLORS = {
     '0x0':'#E91E63','1x0':'#9C27B0','2x0':'#673AB7','3x0':'#3F51B5',
     '2x1':'#009688','3x1':'#4CAF50','3x2':'#8BC34A',
     '4x0':'#CDDC39','4x1':'#FFC107',
-    '0x1':'#00BCD4','0x2':'#03A9F4','1x2':'#2196F3',
-    '0x3':'#1E88E5','1x3':'#1976D2','2x3':'#1565C0',
-    '0x4':'#0D47A1','1x4':'#0B3C91',
+    '0x1':'#FF6090','0x2':'#D81B60','1x2':'#43A047',
+    '0x3':'#F4511E','1x3':'#8E24AA','2x3':'#FDD835',
+    '0x4':'#546E7A','1x4':'#00897B',
     '0x0 HT':'#FF6090','0x1 HT':'#D81B60','1x0 HT':'#43A047',
     '1x1 HT':'#F4511E','0x2 HT':'#8E24AA','2x0 HT':'#FDD835',
     'OUT HT':'#546E7A',
@@ -2973,8 +2973,7 @@ const MARKET_GROUPS = [
     { title:'Gols 2T',     labels:['0 Gol 2T','1 Gol 2T','2 Gols 2T','3 Gols 2T','4 Gols 2T'] },
     { title:'Casa',        labels:['Casa 0 Gols','Casa 1 Gol','Casa 2 Gols','Casa 3 Gols','Casa 4 Gols'] },
     { title:'Fora',        labels:['Fora 0 Gols','Fora 1 Gol','Fora 2 Gols','Fora 3 Gols','Fora 4 Gols'] },
-    { title:'Placares FT', labels:['0x0','1x0','2x0','3x0','2x1','3x1','3x2','4x0','4x1',
-    '0x1','0x2','1x2','0x3','1x3','2x3','0x4','1x4'] },
+    { title:'Placares FT', labels:['0x0','1x0','2x0','3x0','2x1','3x1','3x2','4x0','4x1','0x1','0x2','1x2','0x3','1x3','2x3','0x4','1x4'] },
     { title:'Placar HT',   labels:['0x0 HT','0x1 HT','1x0 HT','1x1 HT','0x2 HT','2x0 HT','OUT HT'] },
     { title:'Resultado HT',labels:['Casa HT','Empate HT','Fora HT'] },
     { title:'Over/Under HT',labels:['OverHT','UnderHT'] },
@@ -2992,19 +2991,30 @@ function _lsSet(key, val) {
     try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   ESTADO POR SETUP
+   Cada setup guarda: markets, colors, horas, base,
+   fibonacci, mediasMoveis, linhaAtual, dragLines, labels
+═══════════════════════════════════════════════════════════════════ */
+const SETUP_PADRAO = {
+    id: '__padrao__',
+    name: 'Padrão',
+    markets: ['Ambas Sim', 'Over 2.5', 'Gols FT'],
+    colors: {},
+    horas: 160, base: 19,
+    fibonacci: false, mediasMoveis: false,
+    linhaAtual: true, labels: false,
+    dragLines: []
+};
 
 function _loadCustomSetups()    { return _ls(SETUPS_KEY, []); }
 function _saveCustomSetups(arr) { _lsSet(SETUPS_KEY, arr); }
-function _loadActiveId() {
-    return _ls(ACTIVE_SETUP_KEY, null);
-}
+function _loadActiveId()        { return _ls(ACTIVE_SETUP_KEY, '__padrao__'); }
 function _saveActiveId(id)      { _lsSet(ACTIVE_SETUP_KEY, id); }
-function _getAllSetups() {
-    return _loadCustomSetups();
-}
-function _getActiveSetup() {
+function _getAllSetups()         { return [SETUP_PADRAO, ..._loadCustomSetups()]; }
+function _getActiveSetup()      {
     const id = _loadActiveId();
-    return _getAllSetups().find(s => s.id === id) || null;
+    return _getAllSetups().find(s => s.id === id) || SETUP_PADRAO;
 }
 function _marketColor(setup, label) {
     return (setup.colors && setup.colors[label]) || DATASET_COLORS[label] || '#888';
@@ -3061,7 +3071,11 @@ function _captureControlsToSetup(setup) {
 
 /* ── APLICA SETUP ── */
 function _applySetup(setup) {
-    if (!setup) return;
+    // Salva estado do setup anterior antes de trocar
+    const prevSetup = _getActiveSetup();
+    if (prevSetup.id !== setup.id) {
+        _captureControlsToSetup(prevSetup);
+    }
 
     _saveActiveId(setup.id);
 
@@ -3469,14 +3483,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('setupModal')?.addEventListener('click', function(e) {
         if (e.target === this) _closeSetupModal();
     });
-
-    const setups = _getAllSetups();
-const activeId = _loadActiveId();
-
-if (setups.length > 0) {
-    const active = setups.find(s => s.id === activeId) || setups[0];
-    _applySetup(active);
-}
 
     // Restaura estado do acordeão
     const accordionOpen = _ls(ACCORDION_KEY, true);
@@ -3893,16 +3899,12 @@ function processApiData(data, league) {
     let casa0=[],casa1=[],casa2=[],casa3=[],casa4=[];
     let fora0=[],fora1=[],fora2=[],fora3=[],fora4=[];
     let placar0x0=[],placar1x0=[],placar2x0=[],placar3x0=[];
-    let placar2x1=[],placar3x1=[],placar3x2=[],placar4x0=[],placar4x1=[],placarHT0x0=[];
+    let placar2x1=[],placar3x1=[],placar3x2=[],placar4x0=[],placar4x1=[];
+    let placar0x1=[],placar0x2=[],placar1x2=[],placar0x3=[],placar1x3=[],placar2x3=[],placar0x4=[],placar1x4=[];
+    let placarHT0x0=[];
     let placarHT0x1=[],placarHT1x0=[],placarHT1x1=[],placarHT0x2=[],placarHT2x0=[],placarHTOut=[];
     let overHT=[],underHT=[],casaHT=[],empateHT=[],foraHT=[];
     let viradinha=[];
-    let placar0x1=[],placar0x2=[],placar1x2=[];
-    let placar0x3=[],placar1x3=[],placar2x3=[];
-    let placar0x4=[],placar1x4=[];
-    let placar0x1Colors=[],placar0x2Colors=[],placar1x2Colors=[];
-    let placar0x3Colors=[],placar1x3Colors=[],placar2x3Colors=[];
-    let placar0x4Colors=[],placar1x4Colors=[];
     let golsFTColors=[],golsHTColors=[],casaVenceColors=[],empateColors=[],foraVenceColors=[],ambasSimColors=[],ambasNaoColors=[];
     let over05Colors=[],over15Colors=[],over25Colors=[],over35Colors=[],over5Colors=[];
     let under05Colors=[],under15Colors=[],under25Colors=[],under35Colors=[];
@@ -3911,13 +3913,15 @@ function processApiData(data, league) {
     let casa0Colors=[],casa1Colors=[],casa2Colors=[],casa3Colors=[],casa4Colors=[];
     let fora0Colors=[],fora1Colors=[],fora2Colors=[],fora3Colors=[],fora4Colors=[];
     let placar0x0Colors=[],placar1x0Colors=[],placar2x0Colors=[],placar3x0Colors=[];
-    let placar2x1Colors=[],placar3x1Colors=[],placar3x2Colors=[],placar4x0Colors=[],placar4x1Colors=[],placarHT0x0Colors=[];
+    let placar2x1Colors=[],placar3x1Colors=[],placar3x2Colors=[],placar4x0Colors=[],placar4x1Colors=[];
+    let placar0x1Colors=[],placar0x2Colors=[],placar1x2Colors=[],placar0x3Colors=[],placar1x3Colors=[],placar2x3Colors=[],placar0x4Colors=[],placar1x4Colors=[];
+    let placarHT0x0Colors=[];
     let placarHT0x1Colors=[],placarHT1x0Colors=[],placarHT1x1Colors=[],placarHT0x2Colors=[],placarHT2x0Colors=[],placarHTOutColors=[];
     let overHTColors=[],underHTColors=[],casaHTColors=[],empateHTColors=[],foraHTColors=[];
     let viradinhaColors=[];
 
-    const allData=[golsFT,golsHT,casaVence,empate,foraVence,ambasSim,ambasNao,over05,over15,over25,over35,over5,under05,under15,under25,under35,gol0,gol1,gol2,gol3,gol4,gol5,gol2t0,gol2t1,gol2t2,gol2t3,gol2t4,casa0,casa1,casa2,casa3,casa4,fora0,fora1,fora2,fora3,fora4,placar0x0,placar1x0,placar2x0,placar3x0,placar2x1,placar3x1,placar3x2,placar4x0,placar4x1,placarHT0x0,placarHT0x1,placarHT1x0,placarHT1x1,placarHT0x2,placarHT2x0,placarHTOut,overHT,underHT,casaHT,empateHT,foraHT,viradinha];
-    const allColors=[golsFTColors,golsHTColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,over05Colors,over15Colors,over25Colors,over35Colors,over5Colors,under05Colors,under15Colors,under25Colors,under35Colors,gol0Colors,gol1Colors,gol2Colors,gol3Colors,gol4Colors,gol5Colors,gol2t0Colors,gol2t1Colors,gol2t2Colors,gol2t3Colors,gol2t4Colors,casa0Colors,casa1Colors,casa2Colors,casa3Colors,casa4Colors,fora0Colors,fora1Colors,fora2Colors,fora3Colors,fora4Colors,placar0x0Colors,placar1x0Colors,placar2x0Colors,placar3x0Colors,placar2x1Colors,placar3x1Colors,placar3x2Colors,placar4x0Colors,placar4x1Colors,placarHT0x0Colors,placarHT0x1Colors,placarHT1x0Colors,placarHT1x1Colors,placarHT0x2Colors,placarHT2x0Colors,placarHTOutColors,overHTColors,underHTColors,casaHTColors,empateHTColors,foraHTColors,viradinhaColors];
+    const allData=[golsFT,golsHT,casaVence,empate,foraVence,ambasSim,ambasNao,over05,over15,over25,over35,over5,under05,under15,under25,under35,gol0,gol1,gol2,gol3,gol4,gol5,gol2t0,gol2t1,gol2t2,gol2t3,gol2t4,casa0,casa1,casa2,casa3,casa4,fora0,fora1,fora2,fora3,fora4,placar0x0,placar1x0,placar2x0,placar3x0,placar2x1,placar3x1,placar3x2,placar4x0,placar4x1,placar0x1,placar0x2,placar1x2,placar0x3,placar1x3,placar2x3,placar0x4,placar1x4,placarHT0x0,placarHT0x1,placarHT1x0,placarHT1x1,placarHT0x2,placarHT2x0,placarHTOut,overHT,underHT,casaHT,empateHT,foraHT,viradinha];
+    const allColors=[golsFTColors,golsHTColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,over05Colors,over15Colors,over25Colors,over35Colors,over5Colors,under05Colors,under15Colors,under25Colors,under35Colors,gol0Colors,gol1Colors,gol2Colors,gol3Colors,gol4Colors,gol5Colors,gol2t0Colors,gol2t1Colors,gol2t2Colors,gol2t3Colors,gol2t4Colors,casa0Colors,casa1Colors,casa2Colors,casa3Colors,casa4Colors,fora0Colors,fora1Colors,fora2Colors,fora3Colors,fora4Colors,placar0x0Colors,placar1x0Colors,placar2x0Colors,placar3x0Colors,placar2x1Colors,placar3x1Colors,placar3x2Colors,placar4x0Colors,placar4x1Colors,placar0x1Colors,placar0x2Colors,placar1x2Colors,placar0x3Colors,placar1x3Colors,placar2x3Colors,placar0x4Colors,placar1x4Colors,placarHT0x0Colors,placarHT0x1Colors,placarHT1x0Colors,placarHT1x1Colors,placarHT0x2Colors,placarHT2x0Colors,placarHTOutColors,overHTColors,underHTColors,casaHTColors,empateHTColors,foraHTColors,viradinhaColors];
 
     const green='#00FF00',red='#FF0000';
     // janela em minutos reais: averagePoints jogos * 3 min por jogo
@@ -3929,7 +3933,7 @@ function processApiData(data, league) {
         const mAtual = slicedData[i];
         const tsAtual = toAbsMin(mAtual);
 
-        let s={golsFT:0,golsHT:0,casaVence:0,empate:0,foraVence:0,ambasSim:0,ambasNao:0,over05:0,over15:0,over25:0,over35:0,over5:0,under05:0,under15:0,under25:0,under35:0,gol0:0,gol1:0,gol2:0,gol3:0,gol4:0,gol5:0,gol2t0:0,gol2t1:0,gol2t2:0,gol2t3:0,gol2t4:0,casa0:0,casa1:0,casa2:0,casa3:0,casa4:0,fora0:0,fora1:0,fora2:0,fora3:0,fora4:0,p0x0:0,p1x0:0,p2x0:0,p3x0:0,p2x1:0,p3x1:0,p3x2:0,p4x0:0,p4x1:0,ht0x0:0,ht0x1:0,ht1x0:0,ht1x1:0,ht0x2:0,ht2x0:0,htOut:0,overHT:0,underHT:0,casaHT:0,empateHT:0,foraHT:0,viradinha:0,valid:0};
+        let s={golsFT:0,golsHT:0,casaVence:0,empate:0,foraVence:0,ambasSim:0,ambasNao:0,over05:0,over15:0,over25:0,over35:0,over5:0,under05:0,under15:0,under25:0,under35:0,gol0:0,gol1:0,gol2:0,gol3:0,gol4:0,gol5:0,gol2t0:0,gol2t1:0,gol2t2:0,gol2t3:0,gol2t4:0,casa0:0,casa1:0,casa2:0,casa3:0,casa4:0,fora0:0,fora1:0,fora2:0,fora3:0,fora4:0,p0x0:0,p1x0:0,p2x0:0,p3x0:0,p2x1:0,p3x1:0,p3x2:0,p4x0:0,p4x1:0,p0x1:0,p0x2:0,p1x2:0,p0x3:0,p1x3:0,p2x3:0,p0x4:0,p1x4:0,ht0x0:0,ht0x1:0,ht1x0:0,ht1x1:0,ht0x2:0,ht2x0:0,htOut:0,overHT:0,underHT:0,casaHT:0,empateHT:0,foraHT:0,viradinha:0,valid:0};
 
         for(let j=i;j>=0;j--){
             const mj=slicedData[j];
@@ -3951,20 +3955,15 @@ function processApiData(data, league) {
             s.p0x0+=ft[0]===0&&ft[1]===0?1:0;s.p1x0+=ft[0]===1&&ft[1]===0?1:0;s.p2x0+=ft[0]===2&&ft[1]===0?1:0;
             s.p3x0+=ft[0]===3&&ft[1]===0?1:0;s.p2x1+=ft[0]===2&&ft[1]===1?1:0;s.p3x1+=ft[0]===3&&ft[1]===1?1:0;
             s.p3x2+=ft[0]===3&&ft[1]===2?1:0;s.p4x0+=ft[0]===4&&ft[1]===0?1:0;s.p4x1+=ft[0]===4&&ft[1]===1?1:0;
+            s.p0x1+=ft[0]===0&&ft[1]===1?1:0;s.p0x2+=ft[0]===0&&ft[1]===2?1:0;s.p1x2+=ft[0]===1&&ft[1]===2?1:0;
+            s.p0x3+=ft[0]===0&&ft[1]===3?1:0;s.p1x3+=ft[0]===1&&ft[1]===3?1:0;s.p2x3+=ft[0]===2&&ft[1]===3?1:0;
+            s.p0x4+=ft[0]===0&&ft[1]===4?1:0;s.p1x4+=ft[0]===1&&ft[1]===4?1:0;
             s.ht0x0+=(htParts&&htParts[0]===0&&htParts[1]===0)?1:0;
             s.ht0x1+=(htParts&&htParts[0]===0&&htParts[1]===1)?1:0;
             s.ht1x0+=(htParts&&htParts[0]===1&&htParts[1]===0)?1:0;
             s.ht1x1+=(htParts&&htParts[0]===1&&htParts[1]===1)?1:0;
             s.ht0x2+=(htParts&&htParts[0]===0&&htParts[1]===2)?1:0;
             s.ht2x0+=(htParts&&htParts[0]===2&&htParts[1]===0)?1:0;
-            s.p0x1+=ft[0]===0&&ft[1]===1?1:0;
-            s.p0x2+=ft[0]===0&&ft[1]===2?1:0;
-            s.p1x2+=ft[0]===1&&ft[1]===2?1:0;
-            s.p0x3+=ft[0]===0&&ft[1]===3?1:0;
-            s.p1x3+=ft[0]===1&&ft[1]===3?1:0;
-            s.p2x3+=ft[0]===2&&ft[1]===3?1:0;
-            s.p0x4+=ft[0]===0&&ft[1]===4?1:0;
-            s.p1x4+=ft[0]===1&&ft[1]===4?1:0;
             s.htOut+=(m.ht==='OUT')?1:0;
             if(htTotal>=2)s.overHT++;else s.underHT++;
             if(htParts){if(htParts[0]>htParts[1])s.casaHT++;else if(htParts[0]<htParts[1])s.foraHT++;else s.empateHT++;}
@@ -4032,11 +4031,9 @@ function processApiData(data, league) {
         placar0x1.push(s.p0x1/avg*100);placar0x1Colors.push(ft[0]===0&&ft[1]===1?green:red);
         placar0x2.push(s.p0x2/avg*100);placar0x2Colors.push(ft[0]===0&&ft[1]===2?green:red);
         placar1x2.push(s.p1x2/avg*100);placar1x2Colors.push(ft[0]===1&&ft[1]===2?green:red);
-
         placar0x3.push(s.p0x3/avg*100);placar0x3Colors.push(ft[0]===0&&ft[1]===3?green:red);
         placar1x3.push(s.p1x3/avg*100);placar1x3Colors.push(ft[0]===1&&ft[1]===3?green:red);
         placar2x3.push(s.p2x3/avg*100);placar2x3Colors.push(ft[0]===2&&ft[1]===3?green:red);
-
         placar0x4.push(s.p0x4/avg*100);placar0x4Colors.push(ft[0]===0&&ft[1]===4?green:red);
         placar1x4.push(s.p1x4/avg*100);placar1x4Colors.push(ft[0]===1&&ft[1]===4?green:red);
         placarHT0x0.push(s.ht0x0/avg*100);
@@ -4076,6 +4073,7 @@ function processApiData(data, league) {
         gol0,gol1,gol2,gol3,gol4,gol5,gol2t0,gol2t1,gol2t2,gol2t3,gol2t4,
         casa0,casa1,casa2,casa3,casa4,fora0,fora1,fora2,fora3,fora4,
         placar0x0,placar1x0,placar2x0,placar3x0,placar2x1,placar3x1,placar3x2,placar4x0,placar4x1,
+        placar0x1,placar0x2,placar1x2,placar0x3,placar1x3,placar2x3,placar0x4,placar1x4,
         placarHT0x0,placarHT0x1,placarHT1x0,placarHT1x1,placarHT0x2,placarHT2x0,placarHTOut,
         overHT,underHT,casaHT,empateHT,foraHT,viradinha,
         golsFTColors,golsHTColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,
@@ -4083,6 +4081,7 @@ function processApiData(data, league) {
         gol0Colors,gol1Colors,gol2Colors,gol3Colors,gol4Colors,gol5Colors,gol2t0Colors,gol2t1Colors,gol2t2Colors,gol2t3Colors,gol2t4Colors,
         casa0Colors,casa1Colors,casa2Colors,casa3Colors,casa4Colors,fora0Colors,fora1Colors,fora2Colors,fora3Colors,fora4Colors,
         placar0x0Colors,placar1x0Colors,placar2x0Colors,placar3x0Colors,placar2x1Colors,placar3x1Colors,placar3x2Colors,placar4x0Colors,placar4x1Colors,
+        placar0x1Colors,placar0x2Colors,placar1x2Colors,placar0x3Colors,placar1x3Colors,placar2x3Colors,placar0x4Colors,placar1x4Colors,
         placarHT0x0Colors,placarHT0x1Colors,placarHT1x0Colors,placarHT1x1Colors,placarHT0x2Colors,placarHT2x0Colors,placarHTOutColors,
         overHTColors,underHTColors,casaHTColors,empateHTColors,foraHTColors,viradinhaColors
     };
