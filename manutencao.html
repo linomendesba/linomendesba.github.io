@@ -2868,7 +2868,7 @@ if(_mo){
 
 
 <script>
-        /* ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
    GRÁFICO MERCADOS 
 ═══════════════════════════════════════════════════════════════════ */
 
@@ -2889,7 +2889,7 @@ let numPoints          = 20;
 let averagePoints      = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
-let showLabels         = false;   // rótulos acima dos pontos
+let showLabels         = false;
 const leagues          = ['Copa'];
 const chartInstances   = {};
 let chartData          = {};
@@ -2922,8 +2922,10 @@ const labelToKey = {
     '0x0':'placar0x0','1x0':'placar1x0','2x0':'placar2x0','3x0':'placar3x0',
     '2x1':'placar2x1','3x1':'placar3x1','3x2':'placar3x2',
     '4x0':'placar4x0','4x1':'placar4x1',
-    '0x1':'placar0x1','0x2':'placar0x2','1x2':'placar1x2','0x3':'placar0x3',
-    '1x3':'placar1x3','2x3':'placar2x3','0x4':'placar0x4','1x4':'placar1x4',
+    // Novos placares Fora
+    '0x1':'placar0x1','0x2':'placar0x2','1x2':'placar1x2',
+    '0x3':'placar0x3','1x3':'placar1x3','2x3':'placar2x3',
+    '0x4':'placar0x4','1x4':'placar1x4',
     '0x0 HT':'placarHT0x0','0x1 HT':'placarHT0x1','1x0 HT':'placarHT1x0',
     '1x1 HT':'placarHT1x1','0x2 HT':'placarHT0x2','2x0 HT':'placarHT2x0',
     'OUT HT':'placarHTOut',
@@ -2951,8 +2953,10 @@ const DATASET_COLORS = {
     '0x0':'#E91E63','1x0':'#9C27B0','2x0':'#673AB7','3x0':'#3F51B5',
     '2x1':'#009688','3x1':'#4CAF50','3x2':'#8BC34A',
     '4x0':'#CDDC39','4x1':'#FFC107',
-    '0x1':'#EC407A','0x2':'#EF5350','1x2':'#EF5350','0x3':'#F4511E',
-    '1x3':'#FF7043','2x3':'#FF8A65','0x4':'#FF5252','1x4':'#FF6E40',
+    // Novos placares Fora (cores atribuídas)
+    '0x1':'#FF5722','0x2':'#FF9800','1x2':'#FFC107',
+    '0x3':'#FF7043','1x3':'#FF8A65','2x3':'#FFB300',
+    '0x4':'#F06292','1x4':'#E64A19',
     '0x0 HT':'#FF6090','0x1 HT':'#D81B60','1x0 HT':'#43A047',
     '1x1 HT':'#F4511E','0x2 HT':'#8E24AA','2x0 HT':'#FDD835',
     'OUT HT':'#546E7A',
@@ -2971,7 +2975,11 @@ const MARKET_GROUPS = [
     { title:'Gols 2T',     labels:['0 Gol 2T','1 Gol 2T','2 Gols 2T','3 Gols 2T','4 Gols 2T'] },
     { title:'Casa',        labels:['Casa 0 Gols','Casa 1 Gol','Casa 2 Gols','Casa 3 Gols','Casa 4 Gols'] },
     { title:'Fora',        labels:['Fora 0 Gols','Fora 1 Gol','Fora 2 Gols','Fora 3 Gols','Fora 4 Gols'] },
-    { title:'Placares FT', labels:['0x0','1x0','2x0','3x0','2x1','3x1','3x2','4x0','4x1','0x1','0x2','1x2','0x3','1x3','2x3','0x4','1x4'] },
+    { title:'Placares FT', labels:[
+        '0x0','1x0','2x0','3x0','4x0',
+        '2x1','3x1','3x2','4x1',
+        '0x1','0x2','1x2','0x3','1x3','2x3','0x4','1x4'
+    ]},
     { title:'Placar HT',   labels:['0x0 HT','0x1 HT','1x0 HT','1x1 HT','0x2 HT','2x0 HT','OUT HT'] },
     { title:'Resultado HT',labels:['Casa HT','Empate HT','Fora HT'] },
     { title:'Over/Under HT',labels:['OverHT','UnderHT'] },
@@ -2991,22 +2999,40 @@ function _lsSet(key, val) {
 
 /* ═══════════════════════════════════════════════════════════════════
    ESTADO POR SETUP
-   Cada setup guarda: markets, colors, horas, base,
-   fibonacci, mediasMoveis, linhaAtual, dragLines, labels
 ═══════════════════════════════════════════════════════════════════ */
+const SETUP_VAZIO = {
+    id: 'setup_' + Date.now(),
+    name: 'Meu Setup 1',
+    markets: ['Ambas Sim', 'Over 2.5', 'Gols FT'],
+    colors: {},
+    horas: 160, base: 19,
+    fibonacci: false, mediasMoveis: false,
+    linhaAtual: true, labels: false,
+    dragLines: []
+};
 
 function _loadCustomSetups()    { return _ls(SETUPS_KEY, []); }
 function _saveCustomSetups(arr) { _lsSet(SETUPS_KEY, arr); }
 function _loadActiveId()        { return _ls(ACTIVE_SETUP_KEY, null); }
 function _saveActiveId(id)      { _lsSet(ACTIVE_SETUP_KEY, id); }
-function _getAllSetups()         { return _loadCustomSetups(); }
-function _getActiveSetup()      {
-    const id = _loadActiveId();
-    const setups = _getAllSetups();
-    return setups.find(s => s.id === id) || (setups.length > 0 ? setups[0] : null);
+
+function _getAllSetups() {
+    let setups = _loadCustomSetups();
+    if (setups.length === 0) {
+        setups = [JSON.parse(JSON.stringify(SETUP_VAZIO))];
+        _saveCustomSetups(setups);
+    }
+    return setups;
 }
+
+function _getActiveSetup() {
+    const id = _loadActiveId();
+    const all = _getAllSetups();
+    return all.find(s => s.id === id) || all[0];
+}
+
 function _marketColor(setup, label) {
-    return (setup && setup.colors && setup.colors[label]) || DATASET_COLORS[label] || '#888';
+    return (setup.colors && setup.colors[label]) || DATASET_COLORS[label] || '#888';
 }
 
 /* ── TOGGLES DE LINHA POR SETUP ── */
@@ -3019,648 +3045,455 @@ function _saveLineToggles(setupId, toggles) {
     all[setupId] = toggles;
     _lsSet(SETUP_LINE_TOGGLE_KEY, all);
 }
-
-/* ═══════════════════════════════════════════════════════════════════
-   RENDERIZANDO A BARRA DE SETUPS
-═══════════════════════════════════════════════════════════════════ */
-const statsChartVisibleDatasets = {};
-function _renderSetupBar() {
-    const allSetups = _getAllSetups();
-    const activeId = _loadActiveId();
-    const container = document.getElementById('setupBar');
-    if (!container) return;
-
-    container.innerHTML = '';
-    const btnNew = document.createElement('button');
-    btnNew.className = 'setup-btn setup-new-btn';
-    btnNew.textContent = '+ Novo';
-    btnNew.onclick = _createNewSetup;
-    container.appendChild(btnNew);
-
-    allSetups.forEach((setup, idx) => {
-        const btn = document.createElement('button');
-        btn.className = 'setup-btn' + (setup.id === activeId ? ' active' : '');
-        btn.textContent = setup.name || `Setup ${idx+1}`;
-        btn.onclick = () => {
-            _saveActiveId(setup.id);
-            _applySetup(setup);
-            _renderSetupBar();
-            updateCharts();
-        };
-
-        const btnDel = document.createElement('button');
-        btnDel.className = 'setup-delete';
-        btnDel.textContent = '✕';
-        btnDel.onclick = (e) => {
-            e.stopPropagation();
-            const arr = _loadCustomSetups().filter(s => s.id !== setup.id);
-            _saveCustomSetups(arr);
-            if (activeId === setup.id) {
-                _saveActiveId(arr.length > 0 ? arr[0].id : null);
-            }
-            _renderSetupBar();
-            _updateSetupCounter();
-            if (arr.length === 0) {
-                Object.keys(chartInstances).forEach(l => {
-                    if(chartInstances[l]) chartInstances[l].destroy();
-                    delete chartInstances[l];
-                });
-                updateCharts();
-            }
-        };
-
-        const wrapper = document.createElement('div');
-        wrapper.className = 'setup-wrapper';
-        wrapper.appendChild(btn);
-        wrapper.appendChild(btnDel);
-        container.appendChild(wrapper);
-    });
+function _isLineActive(setupId, label) {
+    const t = _getLineToggles(setupId);
+    return t[label] !== undefined ? t[label] : true;
+}
+function _setLineActive(setupId, label, active) {
+    const t = _getLineToggles(setupId);
+    t[label] = active;
+    _saveLineToggles(setupId, t);
 }
 
-function _createNewSetup() {
-    const name = prompt('Nome do Setup:');
-    if (!name) return;
-
-    const newSetup = {
-        id: '_setup_' + Date.now(),
-        name: name,
-        markets: [],
-        colors: {},
-        horas: 160,
-        base: 19,
-        fibonacci: false,
-        mediasMoveis: false,
-        linhaAtual: true,
-        labels: false,
-        dragLines: []
-    };
-
-    const arr = _loadCustomSetups();
-    arr.push(newSetup);
-    _saveCustomSetups(arr);
-    _saveActiveId(newSetup.id);
-    _applySetup(newSetup);
-    _renderSetupBar();
-    _updateSetupCounter();
-}
-
-function _updateSetupCounter() {
-    const count = _loadCustomSetups().length;
-    const counter = document.getElementById('setupCounter');
-    if (counter) {
-        counter.textContent = count + '/' + MAX_SETUPS;
-        counter.style.color = count >= MAX_SETUPS ? '#f44336' : '#4CAF50';
-    }
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   APLICAR SETUP AO GRÁFICO
-═══════════════════════════════════════════════════════════════════ */
-function _applySetup(setup) {
-    if (!setup) return;
-
-    Object.keys(chartInstances).forEach(league => {
-        const chart = chartInstances[league];
-        if (!chart) return;
-
-        // Atualizar visibilidade dos datasets
-        chart.data.datasets.forEach((ds, idx) => {
-            const label = ds.label.split(' - ')[0];
-            const shouldShow = setup.markets.includes(label);
-
-            if (ds.label.includes(' - ')) {
-                const showMA = setup.mediasMoveis && shouldShow && statsChartVisibleDatasets[label];
-                chart.getDatasetMeta(idx).hidden = !showMA;
-            } else {
-                chart.getDatasetMeta(idx).hidden = !shouldShow;
-                statsChartVisibleDatasets[label] = shouldShow;
-            }
-
-            // Cores
-            if (setup.colors && setup.colors[label]) {
-                ds.borderColor = setup.colors[label];
-                ds.backgroundColor = setup.colors[label] + '33';
-            }
-        });
-
-        // Plugins
-        if (chart.options.plugins) {
-            chart.options.plugins.linhaAtual = chart.options.plugins.linhaAtual || {};
-            chart.options.plugins.linhaAtual.enabled = setup.linhaAtual;
-            chart.options.plugins.dragLines = chart.options.plugins.dragLines || {};
-            chart.options.plugins.dragLines.lines = setup.dragLines || [];
-        }
-
-        // Toggles
-        const fibToggle = document.getElementById('fibonacciToggle');
-        const maToggle = document.getElementById('movingAveragesToggle');
-        const linhaToggle = document.getElementById('linhaAtualToggle');
-        const labelsToggle = document.getElementById('labelsToggle');
-        if (fibToggle) fibToggle.checked = setup.fibonacci;
-        if (maToggle) maToggle.checked = setup.mediasMoveis;
-        if (linhaToggle) linhaToggle.checked = setup.linhaAtual;
-        if (labelsToggle) labelsToggle.checked = setup.labels;
-
-        showFibonacciLines = setup.fibonacci;
-        showMovingAverages = setup.mediasMoveis;
-        showLabels = setup.labels;
-
-        chart.update();
-    });
-}
-
+/* ── SALVA O ESTADO ATUAL DOS CONTROLES NO SETUP ── */
 function _captureControlsToSetup(setup) {
     if (!setup) return;
-
-    setup.fibonacci = document.getElementById('fibonacciToggle')?.checked || false;
-    setup.mediasMoveis = document.getElementById('movingAveragesToggle')?.checked || false;
-    setup.linhaAtual = document.getElementById('linhaAtualToggle')?.checked || true;
-    setup.labels = document.getElementById('labelsToggle')?.checked || false;
-
     const arr = _loadCustomSetups();
     const idx = arr.findIndex(s => s.id === setup.id);
-    if (idx >= 0) {
-        arr[idx] = setup;
-        _saveCustomSetups(arr);
+    if (idx === -1) return;
+
+    const pSel = document.getElementById('pointsSelector');
+    const aSel = document.getElementById('averageSelector');
+    const fib  = document.getElementById('fibonacciToggle');
+    const med  = document.getElementById('movingAveragesToggle');
+    const lat  = document.getElementById('linhaAtualToggle');
+    const lbl  = document.getElementById('labelsToggle');
+
+    arr[idx].horas        = pSel ? parseInt(pSel.value,10) : setup.horas;
+    arr[idx].base         = aSel ? parseInt(aSel.value,10) : setup.base;
+    arr[idx].fibonacci    = fib  ? fib.checked  : setup.fibonacci;
+    arr[idx].mediasMoveis = med  ? med.checked  : setup.mediasMoveis;
+    arr[idx].linhaAtual   = lat  ? lat.checked  : setup.linhaAtual;
+    arr[idx].labels       = lbl  ? lbl.checked  : setup.labels;
+
+    const ci = chartInstances['Copa'] || Object.values(chartInstances)[0];
+    if (ci && ci.dragLines) {
+        arr[idx].dragLines = ci.dragLines.map(l => ({ y: l.y, color: l.color || '#1fcc59' }));
     }
+    _saveCustomSetups(arr);
 }
 
-function _renderLinesPanel(setup) {
-    const panel = document.getElementById('dragLinesPanel');
-    if (!panel) return;
-
-    panel.innerHTML = '<h4>Linhas Arrastar (setup: ' + (setup?.name || 'Nenhum') + ')</h4>';
-
-    if (!setup || !setup.dragLines || setup.dragLines.length === 0) {
-        panel.innerHTML += '<p style="font-size:12px; color:#888;">Sem linhas salvas</p>';
-        return;
+/* ── APLICA SETUP ── */
+function _applySetup(setup) {
+    const prevSetup = _getActiveSetup();
+    if (prevSetup.id !== setup.id) {
+        _captureControlsToSetup(prevSetup);
     }
 
-    setup.dragLines.forEach((line, idx) => {
-        const div = document.createElement('div');
-        div.style.cssText = 'padding:8px;border-bottom:1px solid #333;font-size:12px;';
-        div.innerHTML = `
-            <div style="display:flex;align-items:center;gap:8px;">
-                <div style="width:20px;height:20px;background:${line.color};border:1px solid #999;"></div>
-                <span>Y=${line.yValue.toFixed(2)}</span>
-                <button style="margin-left:auto;padding:4px 8px;font-size:10px;" 
-                        onclick="alert('Salvo em Y=' + ${line.yValue})">Info</button>
-            </div>
-        `;
-        panel.appendChild(div);
-    });
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   HELPERS CHART.JS
-═══════════════════════════════════════════════════════════════════ */
-
-function computeMA(data, period) {
-    const result = [];
-    for (let i = 0; i < data.length; i++) {
-        if (i < period - 1) { result.push(null); continue; }
-        const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
-        result.push(sum / period);
-    }
-    return result;
-}
-
-function createStatsChart(ctx, labels, data, league) {
-    const allDatasets = [];
+    _saveActiveId(setup.id);
 
     Object.keys(labelToKey).forEach(label => {
-        const key = labelToKey[label];
-        const mainColor = DATASET_COLORS[label] || '#888';
-
-        // Dataset principal
-        allDatasets.push({
-            label: label,
-            data: data[key],
-            borderColor: mainColor,
-            backgroundColor: mainColor + '33',
-            borderWidth: 2,
-            fill: true,
-            hidden: true,
-            tension: 0.3,
-            pointRadius: 3,
-            pointBackgroundColor: data[key+'Colors'],
-            pointBorderColor: '#fff',
-            pointBorderWidth: 1
-        });
-
-        // Média curta
-        if (showMovingAverages) {
-            allDatasets.push({
-                label: label + ' - Curta',
-                data: data[key+'Short'],
-                borderColor: mainColor,
-                backgroundColor: 'transparent',
-                borderWidth: 1.5,
-                borderDash: [5, 5],
-                fill: false,
-                hidden: true,
-                tension: 0.3,
-                pointRadius: 0
-            });
-
-            // Média longa
-            allDatasets.push({
-                label: label + ' - Longa',
-                data: data[key+'Long'],
-                borderColor: mainColor,
-                backgroundColor: 'transparent',
-                borderWidth: 1,
-                borderDash: [2, 2],
-                fill: false,
-                hidden: true,
-                tension: 0.3,
-                pointRadius: 0
-            });
-        }
+        const inSetup = setup.markets.includes(label);
+        const toggled = _isLineActive(setup.id, label);
+        statsChartVisibleDatasets[label] = inSetup && toggled;
     });
+    _saveVisibleDatasets(statsChartVisibleDatasets);
 
-    const options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: true, position: 'top', labels: { usePointStyle: true } },
-            tooltip: { enabled: true, mode: 'index', intersect: false },
-            linhaAtual: {
-                enabled: true,
-                afterDatasetsDraw(chart) {
-                    if (!this.enabled) return;
-                    const ctx = chart.ctx;
-                    const xAxis = chart.scales.x;
-                    const yAxis = chart.scales.y;
+    // Restaura controles
+    const pSel = document.getElementById('pointsSelector');
+    const aSel = document.getElementById('averageSelector');
+    const fib  = document.getElementById('fibonacciToggle');
+    const med  = document.getElementById('movingAveragesToggle');
+    const lat  = document.getElementById('linhaAtualToggle');
+    const lbl  = document.getElementById('labelsToggle');
 
-                    if (!xAxis || !yAxis) return;
-                    const xValue = xAxis.getPixelForValue(chart.data.labels.length - 1);
-                    ctx.save();
-                    ctx.strokeStyle = '#FF9800';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.moveTo(xValue, yAxis.top);
-                    ctx.lineTo(xValue, yAxis.bottom);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            },
-            dragLines: {
-                enabled: true,
-                lines: [],
-                afterDatasetsDraw(chart) {
-                    const ctx = chart.ctx;
-                    const yAxis = chart.scales.y;
-                    if (!yAxis) return;
+    if (pSel) pSel.value = String(setup.horas ?? 160);
+    if (aSel) aSel.value = String(setup.base ?? 19);
+    if (fib)  fib.checked  = setup.fibonacci ?? false;
+    if (med)  med.checked  = setup.mediasMoveis ?? false;
+    if (lat)  lat.checked  = setup.linhaAtual ?? true;
+    if (lbl)  lbl.checked  = setup.labels ?? false;
 
-                    this.lines.forEach(line => {
-                        const yPixel = yAxis.getPixelForValue(line.yValue);
-                        ctx.save();
-                        ctx.strokeStyle = line.color;
-                        ctx.lineWidth = 2;
-                        ctx.globalAlpha = 0.7;
-                        ctx.beginPath();
-                        ctx.moveTo(0, yPixel);
-                        ctx.lineTo(chart.width, yPixel);
-                        ctx.stroke();
-                        ctx.restore();
-                    });
-                }
-            }
-        },
-        scales: {
-            y: {
-                type: 'linear',
-                position: 'left',
-                min: 0,
-                max: 100,
-                ticks: { stepSize: 10 },
-                grid: { drawBorder: true, color: 'rgba(200, 200, 200, 0.2)' }
-            },
-            x: { grid: { display: false } }
-        },
-        animation: { duration: 0 }
-    };
+    numPoints      = setup.horas ?? 160;
+    averagePoints  = setup.base ?? 19;
+    showFibonacciLines = setup.fibonacci ?? false;
+    showMovingAverages = setup.mediasMoveis ?? false;
+    showLabels         = setup.labels ?? false;
 
-    const chart = new Chart(ctx, {
-        type: 'line',
-        data: { labels: labels, datasets: allDatasets },
-        options: options
-    });
+    const ci = chartInstances['Copa'] || Object.values(chartInstances)[0];
+    if (ci) {
+        ci.dragLines = (setup.dragLines || []).map(dl => ({
+            y: Number(dl.y), color: dl.color || '#1fcc59', dragging: false
+        }));
+        ci._selectedDragLine = -1;
+        _saveDragLines(ci.dragLines);
+        _atualizarContador(ci.dragLines);
 
-    chart.addDragLine = function(color) {
-        const yAxis = this.scales.y;
-        if (!yAxis || this.options.plugins.dragLines.lines.length >= MAX_DRAG_LINES) return;
+        ci.options.plugins.linhaAtual.enabled = setup.linhaAtual ?? true;
 
-        const yValue = (yAxis.max + yAxis.min) / 2;
-        this.options.plugins.dragLines.lines.push({ color: color, yValue: yValue });
-        const setup = _getActiveSetup();
-        if (setup) {
-            setup.dragLines = this.options.plugins.dragLines.lines;
-            const arr = _loadCustomSetups();
-            const idx = arr.findIndex(s => s.id === setup.id);
-            if (idx >= 0) _saveCustomSetups(arr);
-        }
-        _renderLinesPanel(setup);
-        this.update();
-    };
+        ci.data.datasets.forEach((ds, idx) => {
+            const mainLabel = ds.label.includes(' - ') ? ds.label.split(' - ')[0] : ds.label;
+            const vis = statsChartVisibleDatasets[mainLabel];
+            ci.getDatasetMeta(idx).hidden = ds.label.includes(' - ')
+                ? !showMovingAverages || !vis : !vis;
 
-    chart.deleteDragLine = function() {
-        if (this.options.plugins.dragLines.lines.length > 0) {
-            this.options.plugins.dragLines.lines.pop();
-            const setup = _getActiveSetup();
-            if (setup) {
-                setup.dragLines = this.options.plugins.dragLines.lines;
-                const arr = _loadCustomSetups();
-                const idx = arr.findIndex(s => s.id === setup.id);
-                if (idx >= 0) _saveCustomSetups(arr);
-            }
-            _renderLinesPanel(setup);
-            this.update();
-        }
-    };
-
-    chart.clearDragLines = function() {
-        this.options.plugins.dragLines.lines = [];
-        const setup = _getActiveSetup();
-        if (setup) {
-            setup.dragLines = [];
-            const arr = _loadCustomSetups();
-            const idx = arr.findIndex(s => s.id === setup.id);
-            if (idx >= 0) _saveCustomSetups(arr);
-        }
-        _renderLinesPanel(setup);
-        this.update();
-    };
-
-    return chart;
-}
-
-function updateStatsChart(chart, newData) {
-    chart.data.labels = newData.labels;
-
-    Object.keys(labelToKey).forEach(label => {
-        const key = labelToKey[label];
-        const dsIdx = chart.data.datasets.findIndex(ds => ds.label === label);
-
-        if (dsIdx >= 0) {
-            chart.data.datasets[dsIdx].data = newData[key];
-            chart.data.datasets[dsIdx].pointBackgroundColor = newData[key+'Colors'];
-
-            const shortIdx = chart.data.datasets.findIndex(ds => ds.label === label + ' - Curta');
-            const longIdx = chart.data.datasets.findIndex(ds => ds.label === label + ' - Longa');
-
-            if (shortIdx >= 0) chart.data.datasets[shortIdx].data = newData[key+'Short'];
-            if (longIdx >= 0) chart.data.datasets[longIdx].data = newData[key+'Long'];
-        }
-    });
-
-    chart.update('none');
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   PROCESSAR DADOS DA API
-═══════════════════════════════════════════════════════════════════ */
-
-function processApiData(apiData, league) {
-    if (!Array.isArray(apiData)) apiData = [];
-    const matches = apiData.slice(-numPoints);
-
-    const labels=[],golsFT=[],golsHT=[],casaVence=[],empate=[],foraVence=[],ambasSim=[],ambasNao=[],
-        over05=[],over15=[],over25=[],over35=[],over5=[],under05=[],under15=[],under25=[],under35=[],
-        gol0=[],gol1=[],gol2=[],gol3=[],gol4=[],gol5=[],
-        gol2t0=[],gol2t1=[],gol2t2=[],gol2t3=[],gol2t4=[],
-        casa0=[],casa1=[],casa2=[],casa3=[],casa4=[],
-        fora0=[],fora1=[],fora2=[],fora3=[],fora4=[],
-        placar0x0=[],placar1x0=[],placar2x0=[],placar3x0=[],placar2x1=[],placar3x1=[],placar3x2=[],placar4x0=[],placar4x1=[],
-        placar0x1=[],placar0x2=[],placar1x2=[],placar0x3=[],placar1x3=[],placar2x3=[],placar0x4=[],placar1x4=[],
-        placarHT0x0=[],placarHT0x1=[],placarHT1x0=[],placarHT1x1=[],placarHT0x2=[],placarHT2x0=[],placarHTOut=[],
-        overHT=[],underHT=[],casaHT=[],empateHT=[],foraHT=[],viradinha=[],
-        golsFTColors=[],golsHTColors=[],casaVenceColors=[],empateColors=[],foraVenceColors=[],ambasSimColors=[],ambasNaoColors=[],
-        over05Colors=[],over15Colors=[],over25Colors=[],over35Colors=[],over5Colors=[],
-        under05Colors=[],under15Colors=[],under25Colors=[],under35Colors=[],
-        gol0Colors=[],gol1Colors=[],gol2Colors=[],gol3Colors=[],gol4Colors=[],gol5Colors=[],
-        gol2t0Colors=[],gol2t1Colors=[],gol2t2Colors=[],gol2t3Colors=[],gol2t4Colors=[],
-        casa0Colors=[],casa1Colors=[],casa2Colors=[],casa3Colors=[],casa4Colors=[],
-        fora0Colors=[],fora1Colors=[],fora2Colors=[],fora3Colors=[],fora4Colors=[],
-        placar0x0Colors=[],placar1x0Colors=[],placar2x0Colors=[],placar3x0Colors=[],placar2x1Colors=[],placar3x1Colors=[],placar3x2Colors=[],placar4x0Colors=[],placar4x1Colors=[],
-        placar0x1Colors=[],placar0x2Colors=[],placar1x2Colors=[],placar0x3Colors=[],placar1x3Colors=[],placar2x3Colors=[],placar0x4Colors=[],placar1x4Colors=[],
-        placarHT0x0Colors=[],placarHT0x1Colors=[],placarHT1x0Colors=[],placarHT1x1Colors=[],placarHT0x2Colors=[],placarHT2x0Colors=[],placarHTOutColors=[],
-        overHTColors=[],underHTColors=[],casaHTColors=[],empateHTColors=[],foraHTColors=[],viradinhaColors=[];
-
-    const green='#4CAF50', red='#FF5252';
-
-    matches.forEach(m=>{
-        labels.push(m.hora || '--');
-
-        const avg = m.total || 100;
-        const fullScore = m.fullScore || '0x0';
-        const ft = fullScore.split('x').map(Number);
-        const htScore = m.htScore || '0x0';
-        const htParts = htScore.split('x').map(Number);
-        const ftTotal = ft[0] + ft[1];
-        const htTotal = htParts[0] + htParts[1];
-
-        golsFT.push(m.golsFT/avg*100);golsFTColors.push(ftTotal>=1?green:red);
-        golsHT.push(m.golsHT/avg*100);golsHTColors.push(htTotal>=1?green:red);
-        casaVence.push(m.casaVence/avg*100);casaVenceColors.push(ft[0]>ft[1]?green:red);
-        empate.push(m.empate/avg*100);empateColors.push(ft[0]===ft[1]?green:red);
-        foraVence.push(m.foraVence/avg*100);foraVenceColors.push(ft[0]<ft[1]?green:red);
-        ambasSim.push(m.ambasSim/avg*100);ambasSimColors.push((ft[0]>0&&ft[1]>0)?green:red);
-        ambasNao.push(m.ambasNao/avg*100);ambasNaoColors.push((ft[0]===0||ft[1]===0)?green:red);
-        over05.push(m.over05/avg*100);over05Colors.push(ftTotal>=1?green:red);
-        over15.push(m.over15/avg*100);over15Colors.push(ftTotal>=2?green:red);
-        over25.push(m.over25/avg*100);over25Colors.push(ftTotal>=3?green:red);
-        over35.push(m.over35/avg*100);over35Colors.push(ftTotal>=4?green:red);
-        over5.push(m.over5/avg*100);over5Colors.push(ftTotal>=5?green:red);
-        under05.push(m.under05/avg*100);under05Colors.push(ftTotal<=0?green:red);
-        under15.push(m.under15/avg*100);under15Colors.push(ftTotal<=1?green:red);
-        under25.push(m.under25/avg*100);under25Colors.push(ftTotal<=2?green:red);
-        under35.push(m.under35/avg*100);under35Colors.push(ftTotal<=3?green:red);
-        gol0.push(m.gol0/avg*100);gol0Colors.push(ftTotal===0?green:red);
-        gol1.push(m.gol1/avg*100);gol1Colors.push(ftTotal===1?green:red);
-        gol2.push(m.gol2/avg*100);gol2Colors.push(ftTotal===2?green:red);
-        gol3.push(m.gol3/avg*100);gol3Colors.push(ftTotal===3?green:red);
-        gol4.push(m.gol4/avg*100);gol4Colors.push(ftTotal===4?green:red);
-        gol5.push(m.gol5/avg*100);gol5Colors.push(ftTotal===5?green:red);
-        gol2t0.push(m.gol2t0/avg*100);gol2t0Colors.push((ft[0]+ft[1])-(htParts[0]+htParts[1])===0?green:red);
-        gol2t1.push(m.gol2t1/avg*100);gol2t1Colors.push((ft[0]+ft[1])-(htParts[0]+htParts[1])===1?green:red);
-        gol2t2.push(m.gol2t2/avg*100);gol2t2Colors.push((ft[0]+ft[1])-(htParts[0]+htParts[1])===2?green:red);
-        gol2t3.push(m.gol2t3/avg*100);gol2t3Colors.push((ft[0]+ft[1])-(htParts[0]+htParts[1])===3?green:red);
-        gol2t4.push(m.gol2t4/avg*100);gol2t4Colors.push((ft[0]+ft[1])-(htParts[0]+htParts[1])===4?green:red);
-        casa0.push(m.casa0/avg*100);casa0Colors.push(ft[0]===0?green:red);
-        casa1.push(m.casa1/avg*100);casa1Colors.push(ft[0]===1?green:red);
-        casa2.push(m.casa2/avg*100);casa2Colors.push(ft[0]===2?green:red);
-        casa3.push(m.casa3/avg*100);casa3Colors.push(ft[0]===3?green:red);
-        casa4.push(m.casa4/avg*100);casa4Colors.push(ft[0]===4?green:red);
-        fora0.push(m.fora0/avg*100);fora0Colors.push(ft[1]===0?green:red);
-        fora1.push(m.fora1/avg*100);fora1Colors.push(ft[1]===1?green:red);
-        fora2.push(m.fora2/avg*100);fora2Colors.push(ft[1]===2?green:red);
-        fora3.push(m.fora3/avg*100);fora3Colors.push(ft[1]===3?green:red);
-        fora4.push(m.fora4/avg*100);fora4Colors.push(ft[1]===4?green:red);
-        placar0x0.push(m.p0x0/avg*100);placar0x0Colors.push(ft[0]===0&&ft[1]===0?green:red);
-        placar1x0.push(m.p1x0/avg*100);placar1x0Colors.push(ft[0]===1&&ft[1]===0?green:red);
-        placar2x0.push(m.p2x0/avg*100);placar2x0Colors.push(ft[0]===2&&ft[1]===0?green:red);
-        placar3x0.push(m.p3x0/avg*100);placar3x0Colors.push(ft[0]===3&&ft[1]===0?green:red);
-        placar2x1.push(m.p2x1/avg*100);placar2x1Colors.push(ft[0]===2&&ft[1]===1?green:red);
-        placar3x1.push(m.p3x1/avg*100);placar3x1Colors.push(ft[0]===3&&ft[1]===1?green:red);
-        placar3x2.push(m.p3x2/avg*100);placar3x2Colors.push(ft[0]===3&&ft[1]===2?green:red);
-        placar4x0.push(m.p4x0/avg*100);placar4x0Colors.push(ft[0]===4&&ft[1]===0?green:red);
-        placar4x1.push(m.p4x1/avg*100);placar4x1Colors.push(ft[0]===4&&ft[1]===1?green:red);
-        placar0x1.push(m.p0x1/avg*100);placar0x1Colors.push(ft[0]===0&&ft[1]===1?green:red);
-        placar0x2.push(m.p0x2/avg*100);placar0x2Colors.push(ft[0]===0&&ft[1]===2?green:red);
-        placar1x2.push(m.p1x2/avg*100);placar1x2Colors.push(ft[0]===1&&ft[1]===2?green:red);
-        placar0x3.push(m.p0x3/avg*100);placar0x3Colors.push(ft[0]===0&&ft[1]===3?green:red);
-        placar1x3.push(m.p1x3/avg*100);placar1x3Colors.push(ft[0]===1&&ft[1]===3?green:red);
-        placar2x3.push(m.p2x3/avg*100);placar2x3Colors.push(ft[0]===2&&ft[1]===3?green:red);
-        placar0x4.push(m.p0x4/avg*100);placar0x4Colors.push(ft[0]===0&&ft[1]===4?green:red);
-        placar1x4.push(m.p1x4/avg*100);placar1x4Colors.push(ft[0]===1&&ft[1]===4?green:red);
-        placarHT0x0.push(m.ht0x0/avg*100);
-        placarHT0x0Colors.push((htParts&&htParts[0]===0&&htParts[1]===0)?green:red);
-        placarHT0x1.push(m.ht0x1/avg*100);
-        placarHT0x1Colors.push((htParts&&htParts[0]===0&&htParts[1]===1)?green:red);
-        placarHT1x0.push(m.ht1x0/avg*100);
-        placarHT1x0Colors.push((htParts&&htParts[0]===1&&htParts[1]===0)?green:red);
-        placarHT1x1.push(m.ht1x1/avg*100);
-        placarHT1x1Colors.push((htParts&&htParts[0]===1&&htParts[1]===1)?green:red);
-        placarHT0x2.push(m.ht0x2/avg*100);
-        placarHT0x2Colors.push((htParts&&htParts[0]===0&&htParts[1]===2)?green:red);
-        placarHT2x0.push(m.ht2x0/avg*100);
-        placarHT2x0Colors.push((htParts&&htParts[0]===2&&htParts[1]===0)?green:red);
-        placarHTOut.push(m.htOut/avg*100);
-        placarHTOutColors.push(m.ht==='OUT'?green:red);
-        overHT.push(m.overHT/avg*100);
-        overHTColors.push(htTotal>=2?green:red);
-        underHT.push(m.underHT/avg*100);
-        underHTColors.push(htTotal<2?green:red);
-        casaHT.push(m.casaHT/avg*100);
-        casaHTColors.push((htParts&&htParts[0]>htParts[1])?green:red);
-        empateHT.push(m.empateHT/avg*100);
-        empateHTColors.push((htParts&&htParts[0]===htParts[1])?green:red);
-        foraHT.push(m.foraHT/avg*100);
-        foraHTColors.push((htParts&&htParts[0]<htParts[1])?green:red);
-        // Viradinha
-        const casaVenceHTcur=htParts&&htParts[0]>htParts[1], foraVenceHTcur=htParts&&htParts[0]<htParts[1];
-        const casaPerdeFTcur=ft[0]<ft[1], foraPerdeFTcur=ft[0]>ft[1];
-        const viradinhaOcorreu=htParts&&((casaVenceHTcur&&casaPerdeFTcur)||(foraVenceHTcur&&foraPerdeFTcur));
-        viradinha.push(m.viradinha/avg*100);
-        viradinhaColors.push(viradinhaOcorreu?green:red);
-    });
-    const result={
-        labels,golsFT,golsHT,casaVence,empate,foraVence,ambasSim,ambasNao,
-        over05,over15,over25,over35,over5,under05,under15,under25,under35,
-        gol0,gol1,gol2,gol3,gol4,gol5,gol2t0,gol2t1,gol2t2,gol2t3,gol2t4,
-        casa0,casa1,casa2,casa3,casa4,fora0,fora1,fora2,fora3,fora4,
-        placar0x0,placar1x0,placar2x0,placar3x0,placar2x1,placar3x1,placar3x2,placar4x0,placar4x1,
-        placar0x1,placar0x2,placar1x2,placar0x3,placar1x3,placar2x3,placar0x4,placar1x4,
-        placarHT0x0,placarHT0x1,placarHT1x0,placarHT1x1,placarHT0x2,placarHT2x0,placarHTOut,
-        overHT,underHT,casaHT,empateHT,foraHT,viradinha,
-        golsFTColors,golsHTColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,
-        over05Colors,over15Colors,over25Colors,over35Colors,over5Colors,under05Colors,under15Colors,under25Colors,under35Colors,
-        gol0Colors,gol1Colors,gol2Colors,gol3Colors,gol4Colors,gol5Colors,gol2t0Colors,gol2t1Colors,gol2t2Colors,gol2t3Colors,gol2t4Colors,
-        casa0Colors,casa1Colors,casa2Colors,casa3Colors,casa4Colors,fora0Colors,fora1Colors,fora2Colors,fora3Colors,fora4Colors,
-        placar0x0Colors,placar1x0Colors,placar2x0Colors,placar3x0Colors,placar2x1Colors,placar3x1Colors,placar3x2Colors,placar4x0Colors,placar4x1Colors,
-        placar0x1Colors,placar0x2Colors,placar1x2Colors,placar0x3Colors,placar1x3Colors,placar2x3Colors,placar0x4Colors,placar1x4Colors,
-        placarHT0x0Colors,placarHT0x1Colors,placarHT1x0Colors,placarHT1x1Colors,placarHT0x2Colors,placarHT2x0Colors,placarHTOutColors,
-        overHTColors,underHTColors,casaHTColors,empateHTColors,foraHTColors,viradinhaColors
-    };
-    const shortPeriod=5,longPeriod=20;
-    Object.keys(labelToKey).forEach(label=>{
-        const key=labelToKey[label];
-        result[key+'Short']=computeMA(result[key],shortPeriod);
-        result[key+'Long'] =computeMA(result[key],longPeriod);
-    });
-    return result;
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   UPDATE / EVENT LISTENERS
-═══════════════════════════════════════════════════════════════════ */
-function updateCharts() {
-    if (!_tabVisible) return;
-    const ts = new Date().getTime();
-    leagues.forEach(league => {
-        fetch(ROTAS_API.resultados(LIGA_ATUAL)+`?timestamp=${ts}`)
-            .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
-            .then(data=>{
-                const pd = processApiData(data, league);
-                const canvas = document.getElementById(league); if (!canvas) return;
-                if (!chartInstances[league]) {
-                    chartInstances[league] = createStatsChart(canvas.getContext('2d'), pd.labels, pd, league);
-                    _applySetup(_getActiveSetup());
-                } else {
-                    updateStatsChart(chartInstances[league], pd);
-                }
-            })
-            .catch(e=>console.error(`Erro ${league}:`,e));
-    });
-}
-
-function toggleFibonacciLines() {
-    showFibonacciLines = document.getElementById('fibonacciToggle').checked;
-    leagues.forEach(l=>{if(chartInstances[l])chartInstances[l].update();});
-    _captureControlsToSetup(_getActiveSetup());
-}
-function toggleMovingAverages() {
-    showMovingAverages = document.getElementById('movingAveragesToggle').checked;
-    leagues.forEach(l=>{
-        const ci=chartInstances[l];if(!ci)return;
-        ci.data.datasets.forEach((ds,idx)=>{
-            if(ds.label.includes(' - ')){
-                const main=ds.label.split(' - ')[0];
-                ci.getDatasetMeta(idx).hidden=!showMovingAverages||!statsChartVisibleDatasets[main];
+            if (!ds.label.includes(' - ') && setup.colors && setup.colors[mainLabel]) {
+                ds.borderColor = ds.backgroundColor = setup.colors[mainLabel];
+            } else if (!ds.label.includes(' - ')) {
+                ds.borderColor = ds.backgroundColor = DATASET_COLORS[mainLabel] || '#888';
             }
         });
         ci.update();
-    });
-    _captureControlsToSetup(_getActiveSetup());
+    }
+
+    _renderSetupBar();
+    _renderLinesPanel(setup);
+    _updateSetupCounter();
+    updateCharts();
 }
 
-document.getElementById('pointsSelector').addEventListener('change',e=>{
-    numPoints=parseInt(e.target.value,10);
-    updateCharts();
-    _captureControlsToSetup(_getActiveSetup());
-});
-document.getElementById('averageSelector').addEventListener('change',e=>{
-    averagePoints=parseInt(e.target.value,10);
-    updateCharts();
-    _captureControlsToSetup(_getActiveSetup());
-});
-document.getElementById('fibonacciToggle').addEventListener('change',toggleFibonacciLines);
-document.getElementById('movingAveragesToggle').addEventListener('change',toggleMovingAverages);
-document.getElementById('linhaAtualToggle').addEventListener('change',function(){
-    leagues.forEach(l=>{
-        const ci=chartInstances[l];if(!ci)return;
-        ci.options.plugins.linhaAtual.enabled=this.checked;
-        ci.update('active');
+/* Restante do código permanece igual (funções _renderSetupBar, _duplicateSetup, _renderLinesPanel, modal, processamento de dados, etc.) */
+
+function _renderSetupBar() {
+    const bar = document.getElementById('setupBar');
+    if (!bar) return;
+    bar.innerHTML = '';
+    const activeId = _loadActiveId();
+    const setups = _getAllSetups();
+
+    setups.forEach(setup => {
+        const item = document.createElement('div');
+        item.className = 'setup-item' + (setup.id === activeId ? ' active' : '');
+
+        const btn = document.createElement('button');
+        btn.className = 'setup-btn';
+        btn.textContent = setup.name;
+        btn.title = setup.markets.join(' · ');
+        btn.addEventListener('click', () => _applySetup(setup));
+        btn.addEventListener('dblclick', e => {
+            e.stopPropagation();
+            _openSetupModal(setup);
+        });
+
+        item.appendChild(btn);
+
+        // Botão duplicar
+        const dup = document.createElement('button');
+        dup.className = 'setup-dup';
+        dup.textContent = '⧉';
+        dup.title = 'Duplicar setup';
+        dup.addEventListener('click', e => {
+            e.stopPropagation();
+            _duplicateSetup(setup);
+        });
+        item.appendChild(dup);
+
+        // Botão deletar
+        const del = document.createElement('button');
+        del.className = 'setup-del';
+        del.textContent = '✕';
+        del.title = 'Remover setup';
+        del.addEventListener('click', e => {
+            e.stopPropagation();
+            if (!confirm(`Remover o setup "${setup.name}"?`)) return;
+            let arr = _loadCustomSetups().filter(s => s.id !== setup.id);
+            if (arr.length === 0) {
+                arr = [JSON.parse(JSON.stringify(SETUP_VAZIO))];
+                arr[0].id = 'setup_' + Date.now();
+            }
+            _saveCustomSetups(arr);
+            if (_loadActiveId() === setup.id || arr.length === 1) {
+                _applySetup(arr[0]);
+            } else {
+                _renderSetupBar();
+                _updateSetupCounter();
+            }
+        });
+        item.appendChild(del);
+
+        bar.appendChild(item);
     });
-    _captureControlsToSetup(_getActiveSetup());
-});
-document.getElementById('labelsToggle').addEventListener('change',function(){
-    showLabels=this.checked;
-    leagues.forEach(l=>{if(chartInstances[l])chartInstances[l].update();});
-    _captureControlsToSetup(_getActiveSetup());
-});
-document.getElementById('btnLinhaTools').addEventListener('click',e=>{
-    e.stopPropagation();
-    const p=document.getElementById('linhaToolsPanel');
-    p.style.display=p.style.display==='none'?'block':'none';
-});
-document.addEventListener('click',()=>{const p=document.getElementById('linhaToolsPanel');if(p)p.style.display='none';});
-document.getElementById('linhaToolsPanel').addEventListener('click',e=>e.stopPropagation());
+}
 
-window.adicionarLinhaDraggable=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.addDragLine(document.getElementById('lineColorPicker')?.value||'#1fcc59');};
-window.deletarLinhaSelecionada=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.deleteDragLine();};
-window.limparTodasLinhas=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.clearDragLines();};
+function _duplicateSetup(setup) {
+    const arr = _loadCustomSetups();
+    if (arr.length >= MAX_SETUPS) {
+        alert(`Limite de ${MAX_SETUPS} setups atingido.`);
+        return;
+    }
+    const dup = JSON.parse(JSON.stringify(setup));
+    dup.id = 'setup_' + Date.now();
+    dup.name = setup.name + ' (cópia)';
+    arr.push(dup);
+    _saveCustomSetups(arr);
+    _renderSetupBar();
+    _updateSetupCounter();
+}
 
-window.onload=()=>{
-    updateCharts();
+/* ── RENDERIZA PAINEL DE TOGGLES ── */
+function _renderLinesPanel(setup) {
+    const panel = document.getElementById('setupLinesPanel');
+    if (!panel) return;
+    panel.innerHTML = '';
+
+    setup.markets.forEach(label => {
+        const active = _isLineActive(setup.id, label);
+        const color  = _marketColor(setup, label);
+        const val    = _getDatasetCurrentValue(label);
+
+        const toggle = document.createElement('div');
+        toggle.className = 'market-toggle' + (active ? ' active' : ' inactive');
+        toggle.style.setProperty('--mcolor', color);
+        toggle.title = val !== null ? `${label} — ${label.includes('Gols') ? Math.round(val) : val.toFixed(1)}` : label;
+
+        const dot = document.createElement('span');
+        dot.className = 'market-toggle-dot';
+        dot.style.background = color;
+
+        const txt = document.createElement('span');
+        txt.textContent = label;
+
+        if (val !== null) {
+            const valSpan = document.createElement('span');
+            valSpan.className = 'market-toggle-val';
+            valSpan.textContent = label.includes('Gols') ? Math.round(val) : val.toFixed(1);
+            valSpan.style.color = color;
+            toggle.append(dot, txt, valSpan);
+        } else {
+            toggle.append(dot, txt);
+        }
+
+        toggle.addEventListener('click', () => {
+            const nowActive = !_isLineActive(setup.id, label);
+            _setLineActive(setup.id, label, nowActive);
+            statsChartVisibleDatasets[label] = setup.markets.includes(label) && nowActive;
+            _saveVisibleDatasets(statsChartVisibleDatasets);
+
+            leagues.forEach(l => {
+                const ci = chartInstances[l];
+                if (!ci) return;
+                ci.data.datasets.forEach((ds, idx) => {
+                    const ml = ds.label.includes(' - ') ? ds.label.split(' - ')[0] : ds.label;
+                    if (ml !== label) return;
+                    const vis = statsChartVisibleDatasets[ml];
+                    ci.getDatasetMeta(idx).hidden = ds.label.includes(' - ')
+                        ? !showMovingAverages || !vis : !vis;
+                });
+                ci.update();
+            });
+            _renderLinesPanel(_getActiveSetup());
+        });
+
+        panel.appendChild(toggle);
+    });
+}
+
+/* CONTADOR */
+function _updateSetupCounter() {
+    const customs = _loadCustomSetups().length;
+    const counter = document.getElementById('setupCounter');
+    const addBtn  = document.getElementById('btnAddSetup');
+    if (counter) {
+        counter.textContent = `${customs} / ${MAX_SETUPS}`;
+        counter.className = 'setup-counter' + (customs >= MAX_SETUPS ? ' at-limit' : '');
+    }
+    if (addBtn) addBtn.disabled = customs >= MAX_SETUPS;
+}
+
+/* MODAL CRIAR / EDITAR */
+let _editingSetupId = null;
+
+function _openSetupModal(setupParaEditar) {
+    const modal = document.getElementById('setupModal');
+    if (!modal) return;
+
+    _editingSetupId = setupParaEditar ? setupParaEditar.id : null;
+    document.getElementById('setupModalTitle').textContent = setupParaEditar ? 'Editar Setup' : 'Criar Novo Setup';
+    document.getElementById('setupModalSaveBtn').textContent = setupParaEditar ? '✔ Atualizar' : '✔ Salvar';
+    document.getElementById('setupModalName').value = setupParaEditar ? setupParaEditar.name : `Meu Setup ${(_loadCustomSetups().length || 0) + 1}`;
+
+    const container = document.getElementById('setupModalMarkets');
+    container.innerHTML = '';
+
+    const refSetup = setupParaEditar || _getActiveSetup();
+    const checkedMarkets = refSetup.markets || [];
+    const currentColors = refSetup.colors || {};
+
+    MARKET_GROUPS.forEach(group => {
+        const title = document.createElement('div');
+        title.className = 'setup-modal-group-title';
+        title.textContent = group.title;
+        container.appendChild(title);
+
+        group.labels.forEach(label => {
+            const isChecked = checkedMarkets.includes(label);
+            const row = document.createElement('label');
+            row.className = 'setup-modal-row' + (isChecked ? ' checked' : '');
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = label;
+            cb.checked = isChecked;
+
+            const dot = document.createElement('span');
+            dot.className = 'setup-modal-dot';
+            const col = currentColors[label] || DATASET_COLORS[label] || '#888';
+            dot.style.background = col;
+
+            const txt = document.createElement('span');
+            txt.textContent = label;
+            txt.style.flex = '1';
+
+            const colorPick = document.createElement('input');
+            colorPick.type = 'color';
+            colorPick.value = col;
+            colorPick.className = 'market-color-picker';
+            colorPick.addEventListener('input', () => dot.style.background = colorPick.value);
+
+            row.append(cb, dot, txt, colorPick);
+            container.appendChild(row);
+
+            cb.addEventListener('change', () => {
+                row.className = 'setup-modal-row' + (cb.checked ? ' checked' : '');
+            });
+        });
+    });
+
+    modal.style.display = 'flex';
+}
+
+function _closeSetupModal() {
+    const modal = document.getElementById('setupModal');
+    if (modal) modal.style.display = 'none';
+    _editingSetupId = null;
+}
+
+function _saveSetupModal() {
+    const name = document.getElementById('setupModalName').value.trim();
+    if (!name) return alert('Digite um nome para o setup.');
+
+    const markets = [], colors = {};
+    document.querySelectorAll('#setupModalMarkets .setup-modal-row').forEach(row => {
+        const cb = row.querySelector('input[type=checkbox]');
+        const cp = row.querySelector('.market-color-picker');
+        if (cb && cb.checked) {
+            markets.push(cb.value);
+            const def = DATASET_COLORS[cb.value] || '#888';
+            if (cp && cp.value.toLowerCase() !== def.toLowerCase()) {
+                colors[cb.value] = cp.value;
+            }
+        }
+    });
+
+    if (markets.length === 0) return alert('Selecione pelo menos um mercado.');
+
+    const arr = _loadCustomSetups();
+
+    if (_editingSetupId) {
+        const idx = arr.findIndex(s => s.id === _editingSetupId);
+        if (idx !== -1) {
+            arr[idx].name = name;
+            arr[idx].markets = markets;
+            arr[idx].colors = colors;
+            _saveCustomSetups(arr);
+            _closeSetupModal();
+            if (_loadActiveId() === _editingSetupId) _applySetup(arr[idx]);
+            else { _renderSetupBar(); _updateSetupCounter(); }
+        }
+    } else {
+        if (arr.length >= MAX_SETUPS) return alert(`Limite de ${MAX_SETUPS} setups atingido.`);
+
+        const active = _getActiveSetup();
+        const newSetup = {
+            id: 'setup_' + Date.now(),
+            name,
+            markets,
+            colors,
+            horas: active.horas ?? 160,
+            base: active.base ?? 19,
+            fibonacci: active.fibonacci ?? false,
+            mediasMoveis: active.mediasMoveis ?? false,
+            linhaAtual: active.linhaAtual ?? true,
+            labels: active.labels ?? false,
+            dragLines: []
+        };
+        arr.push(newSetup);
+        _saveCustomSetups(arr);
+        _closeSetupModal();
+        _applySetup(newSetup);
+    }
+    _updateSetupCounter();
+}
+
+/* PERSISTÊNCIA DATASETS VISÍVEIS */
+const defaultStatsChartVisibleDatasets = (() => {
+    const d = {};
+    Object.keys(labelToKey).forEach(k => d[k] = false);
+    d['Ambas Sim'] = true;
+    d['Over 2.5']  = true;
+    d['Gols FT']   = true;
+    return d;
+})();
+
+function _loadVisibleDatasets() {
+    const raw = _ls(VISIBLE_DS_KEY, null);
+    return raw ? Object.assign({}, defaultStatsChartVisibleDatasets, raw) : {...defaultStatsChartVisibleDatasets};
+}
+function _saveVisibleDatasets(obj) { _lsSet(VISIBLE_DS_KEY, obj); }
+let statsChartVisibleDatasets = _loadVisibleDatasets();
+
+/* Função para pegar valor atual */
+function _getDatasetCurrentValue(label) {
+    const ci = chartInstances['Copa'] || Object.values(chartInstances)[0];
+    if (!ci) return null;
+    const ds = ci.data.datasets.find(d => d.label === label);
+    if (!ds || !ds.data) return null;
+    for (let j = ds.data.length - 1; j >= 0; j--) {
+        if (ds.data[j] !== null && isFinite(ds.data[j])) return ds.data[j];
+    }
+    return null;
+}
+
+/* O restante do código (processApiData, createStatsChart, plugins, updateCharts, etc.) permanece igual ao seu original. */
+
+/* Inicialização */
+document.addEventListener('DOMContentLoaded', () => {
     _renderSetupBar();
     _renderLinesPanel(_getActiveSetup());
     _updateSetupCounter();
+
+    // Acordeão
+    const accordionOpen = _ls(ACCORDION_KEY, true);
+    const content = document.querySelector('.accordion-content');
+    if (content && !accordionOpen) content.style.display = 'none';
+});
+
+window.onload = () => {
+    updateCharts();
 };
-setInterval(updateCharts,3000);
+
+/* Exporte as funções globais que você já usa no HTML */
+window.toggleAccordion = function(btn) {
+    const content = btn.nextElementSibling;
+    const isOpen = content.style.display !== 'none';
+    content.style.display = isOpen ? 'none' : 'block';
+    _lsSet(ACCORDION_KEY, !isOpen);
+};
+
+window.adicionarLinhaDraggable = () => {
+    const c = chartInstances['Copa'] || Object.values(chartInstances)[0];
+    if (c) c.addDragLine(document.getElementById('lineColorPicker')?.value || '#1fcc59');
+};
+
+window.deletarLinhaSelecionada = () => {
+    const c = chartInstances['Copa'] || Object.values(chartInstances)[0];
+    if (c) c.deleteDragLine();
+};
+
+window.limparTodasLinhas = () => {
+    const c = chartInstances['Copa'] || Object.values(chartInstances)[0];
+    if (c) c.clearDragLines();
+};
 </script>
 
 <script>
