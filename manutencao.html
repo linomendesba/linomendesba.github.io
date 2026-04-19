@@ -542,40 +542,6 @@
         <!-- ══ PAINEL DE TOGGLES DE LINHA ══ -->
         <div id="setupLinesPanel" class="setup-lines-panel"></div>
 
-        <!-- ══ GRÁFICO GOLS INDIVIDUAL (integrado) ══ -->
-        <div class="chart-container" style="margin-top:8px;">
-            <div class="canvas-wrapper" style="position:relative;">
-                <canvas id="GolsIndividual" width="1080" height="320" style="max-height:320px;"></canvas>
-            </div>
-
-            <!-- controles do gráfico de gols -->
-            <div class="control-panel">
-                <div>
-                    <label for="golsPointsSelector"></label>
-                    <select id="golsPointsSelector">
-                        <option value="20">1 Hora</option>
-                        <option value="40">2 Horas</option>
-                        <option value="60">3 Horas</option>
-                        <option value="80">4 Horas</option>
-                        <option value="100">5 Horas</option>
-                        <option value="120">6 Horas</option>
-                        <option value="140">7 Horas</option>
-                        <option value="160" selected>8 Horas</option>
-                        <option value="200">10 Horas</option>
-                        <option value="480">24 Horas</option>
-                    </select>
-                </div>
-                <label class="linha-atual-toggle">
-                    <input type="checkbox" id="golsZonasToggle" checked>
-                    Zonas
-                </label>
-                <label class="linha-atual-toggle">
-                    <input type="checkbox" id="golsMaToggle">
-                    Média Móvel
-                </label>
-            </div>
-        </div>
-
     </div><!-- /accordion-content -->
 </div><!-- /accordion-item -->
 
@@ -2934,13 +2900,9 @@ let averagePoints      = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
 let showLabels         = false;
-let showZonas          = false;   // toggle zonas gráfico principal
-let golsNumPoints      = 160;     // pontos gráfico gols individual
-let showGolsZonas      = true;    // toggle zonas gráfico gols
-let showGolsMa         = false;   // toggle MA gráfico gols
+let showZonas          = false;
 const leagues          = ['Copa'];
 const chartInstances   = {};
-let chartGolsInstance  = null;    // instância do gráfico gols
 let chartData          = {};
 
 let _tabVisible = !document.hidden;
@@ -2953,7 +2915,7 @@ document.addEventListener('visibilitychange', () => {
    MAPA LABEL → CHAVE
 ─────────────────────────────────────────── */
 const labelToKey = {
-    'Gols FT':'golsFT','Gols HT':'golsHT',
+    'Gols FT':'golsFT','Gols HT':'golsHT','Gols Individual':'golsInd',
     'Casa Vence':'casaVence','Empate':'empate','Fora Vence':'foraVence',
     'Ambas Sim':'ambasSim','Ambas Não':'ambasNao',
     'Over 0.5':'over05','Over 1.5':'over15','Over 2.5':'over25',
@@ -2983,7 +2945,7 @@ const labelToKey = {
 };
 
 const DATASET_COLORS = {
-    'Gols FT':'#FFFF00','Gols HT':'#26A69A',
+    'Gols FT':'#FFFF00','Gols HT':'#26A69A','Gols Individual':'#FFFFFF',
     'Ambas Sim':'#B0BEC5','Ambas Não':'#F44336',
     'Casa Vence':'#AB47BC','Empate':'#78909C','Fora Vence':'#2196F3',
     'Over 0.5':'#80DEEA','Over 1.5':'#26C6DA','Over 2.5':'#FFEB3B',
@@ -3013,7 +2975,7 @@ const DATASET_COLORS = {
 };
 
 const MARKET_GROUPS = [
-    { title:'Geral',       labels:['Gols FT','Gols HT'] },
+    { title:'Geral',       labels:['Gols FT','Gols HT','Gols Individual'] },
     { title:'Resultado',   labels:['Casa Vence','Empate','Fora Vence'] },
     { title:'Ambas',       labels:['Ambas Sim','Ambas Não'] },
     { title:'Over',        labels:['Over 0.5','Over 1.5','Over 2.5','Over 3.5','Over 5+'] },
@@ -3312,7 +3274,7 @@ function _renderLinesPanel(setup) {
 
         let tooltipText = label;
         if (val !== null) {
-            const isGols = label === 'Gols FT' || label === 'Gols HT';
+            const isGols = label === 'Gols FT' || label === 'Gols HT' || label === 'Gols Individual';
             tooltipText += ' — ' + (isGols ? Math.round(val) + ' gols' : val.toFixed(1));
         }
 
@@ -3332,7 +3294,7 @@ function _renderLinesPanel(setup) {
         if (val !== null) {
             const valSpan = document.createElement('span');
             valSpan.className = 'market-toggle-val';
-            const isGols = label === 'Gols FT' || label === 'Gols HT';
+            const isGols = label === 'Gols FT' || label === 'Gols HT' || label === 'Gols Individual';
             valSpan.textContent = isGols ? Math.round(val) : val.toFixed(1);
             valSpan.style.color = color;
             toggle.appendChild(dot);
@@ -3755,7 +3717,7 @@ const linhaAtualPlugin = {
             ctx.strokeStyle=color; ctx.lineWidth=1.2; ctx.setLineDash([6,4]);
             ctx.beginPath(); ctx.moveTo(left,yPx); ctx.lineTo(right,yPx);
             ctx.stroke(); ctx.setLineDash([]);
-            const isGols = label==='Gols FT'||label==='Gols HT';
+            const isGols = label==='Gols FT'||label==='Gols HT'||label==='Gols Individual';
             const text = isGols ? String(Math.round(yVal)) : yVal.toFixed(1);
             ctx.font = 'bold 10px Arial,sans-serif';
             ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
@@ -3896,75 +3858,6 @@ const linhaDraggablePlugin = {
    PLUGIN — ZONAS GRÁFICO GOLS INDIVIDUAL
    Baseado no estilo BetStat: faixas de pressão por quantidade de gols
 ═══════════════════════════════════════════════════════════════════ */
-const golsZonasPlugin = {
-    id: 'golsZonas',
-    beforeDatasetsDraw(chart) {
-        if (!showGolsZonas) return;
-        const {ctx, chartArea, scales} = chart;
-        if (!chartArea || !scales.y) return;
-        const yS = scales.y;
-        const {left, right} = chartArea;
-
-        // Calcula min/max real dos dados do dataset principal
-        const ds0 = chart.data.datasets[0];
-        const vals = (ds0?.data || []).filter(v => v !== null && isFinite(v));
-        const dataMin = vals.length ? Math.min(...vals) : yS.min;
-        const dataMax = vals.length ? Math.max(...vals) : yS.max;
-        const range   = dataMax - dataMin || 1;
-
-        // Zonas dinâmicas: divide o range real em 5 faixas proporcionais
-        const t1 = dataMin + range * 0.2;  // 20% — fundo
-        const t2 = dataMin + range * 0.4;  // 40%
-        const t3 = dataMin + range * 0.6;  // 60% — meio
-        const t4 = dataMin + range * 0.8;  // 80%
-
-        const zonas = [
-            { min: t4,     max: yS.max,  color: 'rgba(30,  180, 80,  0.18)', label: 'Topo',       labelColor:'rgba(50,200,80,0.7)' },
-            { min: t3,     max: t4,      color: 'rgba(60,  140, 220, 0.14)', label: 'Alta',        labelColor:'rgba(80,160,240,0.7)' },
-            { min: t2,     max: t3,      color: 'rgba(200, 180, 30,  0.12)', label: 'Neutra',      labelColor:'rgba(220,200,50,0.7)' },
-            { min: t1,     max: t2,      color: 'rgba(220, 120, 20,  0.12)', label: 'Baixa',       labelColor:'rgba(240,140,30,0.7)' },
-            { min: yS.min, max: t1,      color: 'rgba(220, 40,  40,  0.15)', label: 'Fundo',       labelColor:'rgba(230,60,60,0.7)' },
-        ];
-
-        ctx.save();
-        zonas.forEach(z => {
-            const yTop    = yS.getPixelForValue(Math.min(z.max, yS.max));
-            const yBottom = yS.getPixelForValue(Math.max(z.min, yS.min));
-            if (yBottom <= yTop) return;
-            ctx.fillStyle = z.color;
-            ctx.fillRect(left, yTop, right - left, yBottom - yTop);
-
-            ctx.fillStyle = z.labelColor;
-            ctx.font = '10px Arial,sans-serif';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(z.label, right - 4, (yTop + yBottom) / 2);
-        });
-
-        // Linha de equilíbrio (média entre min e max reais)
-        const midVal = (dataMin + dataMax) / 2;
-        const eqY = yS.getPixelForValue(midVal);
-        if (eqY >= chartArea.top && eqY <= chartArea.bottom) {
-            ctx.beginPath();
-            ctx.setLineDash([8, 5]);
-            ctx.moveTo(left, eqY);
-            ctx.lineTo(right, eqY);
-            ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            ctx.fillStyle = 'rgba(255,255,255,0.45)';
-            ctx.font = '9px Arial,sans-serif';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText('Médio', right - 4, eqY - 2);
-        }
-
-        ctx.restore();
-    }
-};
-
 /* ═══════════════════════════════════════════════════════════════════
    CRIAÇÃO DO GRÁFICO PRINCIPAL
 ═══════════════════════════════════════════════════════════════════ */
@@ -3978,6 +3871,7 @@ function createStatsChart(ctx, labels, data, league) {
     Object.entries(labelToKey).forEach(([label]) => {
         const key   = labelToKey[label];
         const color = _marketColor(activeSetup, label);
+        const isGolsInd = label === 'Gols Individual';
         datasets.push({
             label, data:data[key],
             borderColor:color, backgroundColor:color,
@@ -3985,6 +3879,7 @@ function createStatsChart(ctx, labels, data, league) {
             pointBorderColor:'rgba(0,0,0,0)', pointBorderWidth:0,
             borderWidth:2, pointRadius:3, pointHoverRadius:4,
             fill:false,
+            yAxisID: isGolsInd ? 'y2' : 'y',
             hidden:!statsChartVisibleDatasets[label]
         });
         // ── Médias móveis SUAVES (tension:0.4) sem tracejado ──
@@ -3993,6 +3888,7 @@ function createStatsChart(ctx, labels, data, league) {
             borderColor:shortColor, backgroundColor:'transparent',
             tension:0.4, borderWidth:2, pointRadius:0,
             fill:false,
+            yAxisID: isGolsInd ? 'y2' : 'y',
             hidden:!showMovingAverages||!statsChartVisibleDatasets[label]
         });
         datasets.push({
@@ -4000,6 +3896,7 @@ function createStatsChart(ctx, labels, data, league) {
             borderColor:longColor, backgroundColor:'transparent',
             tension:0.4, borderWidth:2, pointRadius:0,
             fill:false,
+            yAxisID: isGolsInd ? 'y2' : 'y',
             hidden:!showMovingAverages||!statsChartVisibleDatasets[label]
         });
     });
@@ -4017,7 +3914,7 @@ function createStatsChart(ctx, labels, data, league) {
                     borderColor:'#1fad8b', borderWidth:1,
                     callbacks:{
                         title:items=>{const sd=chartData[league];const m=sd[Math.max(0,sd.length-numPoints)+items[0].dataIndex];return m?`${m.hora}:${m.minuto.toString().padStart(2,'0')}`:'';},
-                        label:ctx=>{const v=ctx.parsed.y;if(v===null)return '';const isGols=ctx.dataset.label==='Gols FT'||ctx.dataset.label==='Gols HT';return isGols?`${ctx.dataset.label}: ${v} gols`:`${ctx.dataset.label}: ${v.toFixed(2)}%`;},
+                        label:ctx=>{const v=ctx.parsed.y;if(v===null)return '';const isGols=ctx.dataset.label==='Gols FT'||ctx.dataset.label==='Gols HT'||ctx.dataset.label==='Gols Individual';return isGols?`${ctx.dataset.label}: ${v} gols`:`${ctx.dataset.label}: ${v.toFixed(2)}%`;},
                         afterBody:items=>{const sd=chartData[league];const m=sd[Math.max(0,sd.length-numPoints)+items[0].dataIndex];return m?`FT: ${m.ft||'N/A'}  HT: ${m.ht||'N/A'}`:'';},
                     }
                 },
@@ -4025,7 +3922,8 @@ function createStatsChart(ctx, labels, data, league) {
             },
             scales:{
                 x:{ticks:{display:false},grid:{display:false}},
-                y:{beginAtZero:false,ticks:{color:'#b0b0b0',stepSize:5},grid:{color:'rgba(255,255,255,0.3)',lineWidth:0.5},afterFit:s=>{s.paddingTop=20;}}
+                y:{beginAtZero:false,ticks:{color:'#b0b0b0',stepSize:5},grid:{color:'rgba(255,255,255,0.3)',lineWidth:0.5},afterFit:s=>{s.paddingTop=20;}},
+                y2:{position:'right',beginAtZero:true,min:0,max:10,ticks:{color:'rgba(255,255,255,0.35)',stepSize:1,precision:0},grid:{display:false},afterFit:s=>{s.width=40;}}
             }
         },
         plugins:[zonasPlugin,fibonacciLinesPlugin,linhaAtualPlugin,linhaDraggablePlugin,rotulosPlugin]
@@ -4044,127 +3942,8 @@ function updateStatsChart(chart, newData) {
     _renderLinesPanel(_getActiveSetup());
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   CRIAÇÃO DO GRÁFICO GOLS INDIVIDUAL
-═══════════════════════════════════════════════════════════════════ */
-function createGolsChart(canvas, rawData) {
-    const ctx = canvas.getContext('2d');
 
-    const sliced = rawData.slice(-golsNumPoints);
-    const labels  = sliced.map(m => `${m.hora}:${m.minuto.toString().padStart(2,'0')}`);
-    const values  = sliced.map(m => {
-        let ft = [0,0];
-        if (m.ft?.includes(' x ')) ft = m.ft.split(' x ').map(Number);
-        return ft[0] + ft[1];
-    });
-    const pointColors = values.map(v => {
-        if (v >= 5) return '#2ecc71';
-        if (v >= 3) return '#3498db';
-        if (v === 2) return '#f1c40f';
-        if (v === 1) return '#e67e22';
-        return '#e74c3c';
-    });
 
-    const maData = computeMA(values, 10);
-
-    const datasets = [
-        {
-            label: 'Gols por Partida',
-            data: values,
-            borderColor: '#ffffff',
-            backgroundColor: 'rgba(255,255,255,0.05)',
-            pointBackgroundColor: pointColors,
-            pointBorderColor: 'rgba(0,0,0,0)',
-            borderWidth: 2,
-            pointRadius: 3,
-            pointHoverRadius: 4,
-            fill: false,
-            tension: 0
-        },
-        {
-            label: 'Média Móvel (10)',
-            data: maData,
-            borderColor: '#2ecc71',
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            pointRadius: 0,
-            fill: false,
-            tension: 0.4,   // suave, sem tracejado
-            hidden: !showGolsMa
-        }
-    ];
-
-    return new Chart(ctx, {
-        type: 'line',
-        data: { labels, datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 0 },
-            layout: { padding: { top: 10, right: 60 } },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    enabled: true,
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    titleColor: '#1fad8b',
-                    bodyColor: '#e0e0e0',
-                    borderColor: '#1fad8b',
-                    borderWidth: 1,
-                    callbacks: {
-                        label: ctx => {
-                            if (ctx.dataset.label.includes('Média')) return `Média: ${ctx.parsed.y.toFixed(1)}`;
-                            const raw = sliced[ctx.dataIndex];
-                            return `Gols: ${ctx.parsed.y} (${raw?.ft || 'N/A'})`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: { ticks: { display: false }, grid: { display: false } },
-                y: {
-                    beginAtZero: true,
-                    ticks: { color: '#b0b0b0', stepSize: 1, precision: 0 },
-                    grid: { color: 'rgba(255,255,255,0.15)', lineWidth: 0.5 },
-                    afterFit: s => { s.paddingTop = 10; }
-                }
-            }
-        },
-        plugins: [golsZonasPlugin]
-    });
-}
-
-function updateGolsChart(rawData) {
-    const canvas = document.getElementById('GolsIndividual');
-    if (!canvas) return;
-
-    const sliced = rawData.slice(-golsNumPoints);
-    const labels  = sliced.map(m => `${m.hora}:${m.minuto.toString().padStart(2,'0')}`);
-    const values  = sliced.map(m => {
-        let ft = [0,0];
-        if (m.ft?.includes(' x ')) ft = m.ft.split(' x ').map(Number);
-        return ft[0] + ft[1];
-    });
-    const pointColors = values.map(v => {
-        if (v >= 5) return '#2ecc71';
-        if (v >= 3) return '#3498db';
-        if (v === 2) return '#f1c40f';
-        if (v === 1) return '#e67e22';
-        return '#e74c3c';
-    });
-    const maData = computeMA(values, 10);
-
-    if (!chartGolsInstance) {
-        chartGolsInstance = createGolsChart(canvas, rawData);
-    } else {
-        chartGolsInstance.data.labels = labels;
-        chartGolsInstance.data.datasets[0].data   = values;
-        chartGolsInstance.data.datasets[0].pointBackgroundColor = pointColors;
-        chartGolsInstance.data.datasets[1].data   = maData;
-        chartGolsInstance.data.datasets[1].hidden = !showGolsMa;
-        chartGolsInstance.update();
-    }
-}
 
 /* ═══════════════════════════════════════════════════════════════════
    PROCESSAMENTO DE DADOS
@@ -4182,7 +3961,7 @@ function processApiData(data, league) {
     function toAbsMin(m) { return m.hora*60 + m.minuto; }
 
     const labels=[];
-    let golsFT=[],golsHT=[],casaVence=[],empate=[],foraVence=[],ambasSim=[],ambasNao=[];
+    let golsFT=[],golsHT=[],golsInd=[],casaVence=[],empate=[],foraVence=[],ambasSim=[],ambasNao=[];
     let over05=[],over15=[],over25=[],over35=[],over5=[];
     let under05=[],under15=[],under25=[],under35=[];
     let gol0=[],gol1=[],gol2=[],gol3=[],gol4=[],gol5=[];
@@ -4194,7 +3973,7 @@ function processApiData(data, league) {
     let placarHT0x0=[],placarHT0x1=[],placarHT1x0=[],placarHT1x1=[],placarHT0x2=[],placarHT2x0=[],placarHTOut=[];
     let overHT=[],underHT=[],casaHT=[],empateHT=[],foraHT=[],viradinha=[];
 
-    let golsFTColors=[],golsHTColors=[],casaVenceColors=[],empateColors=[],foraVenceColors=[],ambasSimColors=[],ambasNaoColors=[];
+    let golsFTColors=[],golsHTColors=[],golsIndColors=[],casaVenceColors=[],empateColors=[],foraVenceColors=[],ambasSimColors=[],ambasNaoColors=[];
     let over05Colors=[],over15Colors=[],over25Colors=[],over35Colors=[],over5Colors=[];
     let under05Colors=[],under15Colors=[],under25Colors=[],under35Colors=[];
     let gol0Colors=[],gol1Colors=[],gol2Colors=[],gol3Colors=[],gol4Colors=[],gol5Colors=[];
@@ -4264,6 +4043,10 @@ function processApiData(data, league) {
         const tg=ft[0]+ft[1],tg2t=Math.max(0,tg-htTotal),avg=s.valid||1;
         golsFT.push(s.golsFT);golsFTColors.push('#FFFF00');
         golsHT.push(s.golsHT);golsHTColors.push('#26A69A');
+        // Gols Individual: gols da partida atual (não acumulado), com cor por faixa
+        const golsIndVal = tg;
+        const golsIndColor = golsIndVal>=5?'#2ecc71':golsIndVal>=3?'#3498db':golsIndVal===2?'#f1c40f':golsIndVal===1?'#e67e22':'#e74c3c';
+        golsInd.push(golsIndVal);golsIndColors.push(golsIndColor);
         casaVence.push(s.casaVence/avg*100);casaVenceColors.push(ft[0]>ft[1]?green:red);
         empate.push(s.empate/avg*100);empateColors.push(ft[0]===ft[1]?green:red);
         foraVence.push(s.foraVence/avg*100);foraVenceColors.push(ft[0]<ft[1]?green:red);
@@ -4334,7 +4117,7 @@ function processApiData(data, league) {
         viradinha.push(s.viradinha/avg*100);viradinhaColors.push(viradinhaOcorreu?green:red);
     }
     const result={
-        labels,golsFT,golsHT,casaVence,empate,foraVence,ambasSim,ambasNao,
+        labels,golsFT,golsHT,golsInd,casaVence,empate,foraVence,ambasSim,ambasNao,
         over05,over15,over25,over35,over5,under05,under15,under25,under35,
         gol0,gol1,gol2,gol3,gol4,gol5,gol2t0,gol2t1,gol2t2,gol2t3,gol2t4,
         casa0,casa1,casa2,casa3,casa4,fora0,fora1,fora2,fora3,fora4,
@@ -4342,7 +4125,7 @@ function processApiData(data, league) {
         placar0x1,placar0x2,placar1x2,placar0x3,placar1x3,placar2x3,placar0x4,placar1x4,
         placarHT0x0,placarHT0x1,placarHT1x0,placarHT1x1,placarHT0x2,placarHT2x0,placarHTOut,
         overHT,underHT,casaHT,empateHT,foraHT,viradinha,
-        golsFTColors,golsHTColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,
+        golsFTColors,golsHTColors,golsIndColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,
         over05Colors,over15Colors,over25Colors,over35Colors,over5Colors,under05Colors,under15Colors,under25Colors,under35Colors,
         gol0Colors,gol1Colors,gol2Colors,gol3Colors,gol4Colors,gol5Colors,gol2t0Colors,gol2t1Colors,gol2t2Colors,gol2t3Colors,gol2t4Colors,
         casa0Colors,casa1Colors,casa2Colors,casa3Colors,casa4Colors,fora0Colors,fora1Colors,fora2Colors,fora3Colors,fora4Colors,
@@ -4378,8 +4161,6 @@ function updateCharts() {
                 } else {
                     updateStatsChart(chartInstances[league], pd);
                 }
-                // Atualiza gráfico de gols com os mesmos dados brutos
-                updateGolsChart(chartData[league] || []);
             })
             .catch(e=>console.error(`Erro ${league}:`,e));
     });
@@ -4449,26 +4230,6 @@ document.getElementById('linhaToolsPanel').addEventListener('click',e=>e.stopPro
 window.adicionarLinhaDraggable=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.addDragLine(document.getElementById('lineColorPicker')?.value||'#1fcc59');};
 window.deletarLinhaSelecionada=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.deleteDragLine();};
 window.limparTodasLinhas=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.clearDragLines();};
-
-/* ── CONTROLES GRÁFICO GOLS ── */
-document.getElementById('golsPointsSelector')?.addEventListener('change',e=>{
-    golsNumPoints=parseInt(e.target.value,10);
-    const league='Copa';
-    if(chartData[league]) updateGolsChart(chartData[league]);
-});
-document.getElementById('golsZonasToggle')?.addEventListener('change',function(){
-    showGolsZonas=this.checked;
-    if(chartGolsInstance)chartGolsInstance.update();
-});
-document.getElementById('golsMaToggle')?.addEventListener('change',function(){
-    showGolsMa=this.checked;
-    if(chartGolsInstance){
-        const meta=chartGolsInstance.getDatasetMeta(1);
-        // força visibilidade via hidden no dataset
-        chartGolsInstance.data.datasets[1].hidden=!showGolsMa;
-        chartGolsInstance.update();
-    }
-});
 
 window.onload=()=>{
     updateCharts();
