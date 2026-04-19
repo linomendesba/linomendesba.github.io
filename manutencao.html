@@ -443,7 +443,6 @@
 </div>
 
 <!-- ── ACORDEON ── -->
-<!-- ── ACORDEON ── -->
 <div class="accordion-item">
     <button class="accordion-button" onclick="toggleAccordion(this)">▼ Gráfico Mercados ▲</button>
     <div class="accordion-content">
@@ -543,18 +542,8 @@
         <!-- ══ PAINEL DE TOGGLES DE LINHA ══ -->
         <div id="setupLinesPanel" class="setup-lines-panel"></div>
 
-    </div><!-- /accordion-content -->
-</div><!-- /accordion-item -->
-
-
-<!-- ══════════════════════════════════════════════════════════════
-     GRÁFICO GOLS INDIVIDUAL (novo)
-══════════════════════════════════════════════════════════════════ -->
-<div class="accordion-item">
-    <button class="accordion-button" onclick="toggleAccordion(this)">▼ Gráfico Gols Individual ▲</button>
-    <div class="accordion-content">
-
-        <div class="chart-container">
+        <!-- ══ GRÁFICO GOLS INDIVIDUAL (integrado) ══ -->
+        <div class="chart-container" style="margin-top:8px;">
             <div class="canvas-wrapper" style="position:relative;">
                 <canvas id="GolsIndividual" width="1080" height="320" style="max-height:320px;"></canvas>
             </div>
@@ -587,8 +576,8 @@
             </div>
         </div>
 
-    </div>
-</div>
+    </div><!-- /accordion-content -->
+</div><!-- /accordion-item -->
 
 <!-- ═══════════════════════════════════════════════════════
      MODO TRADER v5 
@@ -3916,13 +3905,25 @@ const golsZonasPlugin = {
         const yS = scales.y;
         const {left, right} = chartArea;
 
-        // Zonas baseadas na quantidade de gols por partida
+        // Calcula min/max real dos dados do dataset principal
+        const ds0 = chart.data.datasets[0];
+        const vals = (ds0?.data || []).filter(v => v !== null && isFinite(v));
+        const dataMin = vals.length ? Math.min(...vals) : yS.min;
+        const dataMax = vals.length ? Math.max(...vals) : yS.max;
+        const range   = dataMax - dataMin || 1;
+
+        // Zonas dinâmicas: divide o range real em 5 faixas proporcionais
+        const t1 = dataMin + range * 0.2;  // 20% — fundo
+        const t2 = dataMin + range * 0.4;  // 40%
+        const t3 = dataMin + range * 0.6;  // 60% — meio
+        const t4 = dataMin + range * 0.8;  // 80%
+
         const zonas = [
-            { min: 5,      max: yS.max, color: 'rgba(30,  180, 80,  0.18)', label: 'Alta (5+)',    labelColor:'rgba(50,200,80,0.7)' },
-            { min: 3,      max: 5,      color: 'rgba(60,  140, 220, 0.14)', label: 'Média-Alta',    labelColor:'rgba(80,160,240,0.7)' },
-            { min: 2,      max: 3,      color: 'rgba(200, 180, 30,  0.12)', label: 'Neutra',        labelColor:'rgba(220,200,50,0.7)' },
-            { min: 1,      max: 2,      color: 'rgba(220, 120, 20,  0.12)', label: 'Média-Baixa',   labelColor:'rgba(240,140,30,0.7)' },
-            { min: yS.min, max: 1,      color: 'rgba(220, 40,  40,  0.15)', label: 'Baixa (0)',     labelColor:'rgba(230,60,60,0.7)' },
+            { min: t4,     max: yS.max,  color: 'rgba(30,  180, 80,  0.18)', label: 'Topo',       labelColor:'rgba(50,200,80,0.7)' },
+            { min: t3,     max: t4,      color: 'rgba(60,  140, 220, 0.14)', label: 'Alta',        labelColor:'rgba(80,160,240,0.7)' },
+            { min: t2,     max: t3,      color: 'rgba(200, 180, 30,  0.12)', label: 'Neutra',      labelColor:'rgba(220,200,50,0.7)' },
+            { min: t1,     max: t2,      color: 'rgba(220, 120, 20,  0.12)', label: 'Baixa',       labelColor:'rgba(240,140,30,0.7)' },
+            { min: yS.min, max: t1,      color: 'rgba(220, 40,  40,  0.15)', label: 'Fundo',       labelColor:'rgba(230,60,60,0.7)' },
         ];
 
         ctx.save();
@@ -3940,8 +3941,9 @@ const golsZonasPlugin = {
             ctx.fillText(z.label, right - 4, (yTop + yBottom) / 2);
         });
 
-        // Linha de equilíbrio (2 gols)
-        const eqY = yS.getPixelForValue(2);
+        // Linha de equilíbrio (média entre min e max reais)
+        const midVal = (dataMin + dataMax) / 2;
+        const eqY = yS.getPixelForValue(midVal);
         if (eqY >= chartArea.top && eqY <= chartArea.bottom) {
             ctx.beginPath();
             ctx.setLineDash([8, 5]);
@@ -3956,7 +3958,7 @@ const golsZonasPlugin = {
             ctx.font = '9px Arial,sans-serif';
             ctx.textAlign = 'right';
             ctx.textBaseline = 'bottom';
-            ctx.fillText('Equilíbrio', right - 4, eqY - 2);
+            ctx.fillText('Médio', right - 4, eqY - 2);
         }
 
         ctx.restore();
@@ -4069,13 +4071,13 @@ function createGolsChart(canvas, rawData) {
         {
             label: 'Gols por Partida',
             data: values,
-            borderColor: '#e74c3c',
-            backgroundColor: 'rgba(231,76,60,0.08)',
+            borderColor: '#ffffff',
+            backgroundColor: 'rgba(255,255,255,0.05)',
             pointBackgroundColor: pointColors,
             pointBorderColor: 'rgba(0,0,0,0)',
             borderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 6,
+            pointRadius: 3,
+            pointHoverRadius: 4,
             fill: false,
             tension: 0
         },
