@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rank de Âncora</title>
+<title>BetStat</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
@@ -413,7 +413,7 @@
 <body>
 
 <header>
-  <div class="logo">⬡ Rank de Âncora</div>
+  <div class="logo">⬡ Âncora</div>
   <div class="divider"></div>
 
   <div class="selectors">
@@ -722,47 +722,35 @@ function processResults(results) {
   const filter = document.getElementById('filter-select').value;
   teams = {};
 
-  // Garante ordem cronológica (mais antigo → mais recente)
-  // A API pode retornar em qualquer ordem
-  const sorted = [...results].sort((a, b) => {
-    const da = new Date(a.data || a.start_time || a.created_at || 0);
-    const db = new Date(b.data || b.start_time || b.created_at || 0);
-    return da - db;
-  });
-
-  // 1ª passada: conta jogos de todos os times
-  sorted.forEach(r => {
+  results.forEach((r, idx) => {
     const ft = parseScore(r.ft);
+    const ht = parseScore(r.ht);
     if (!ft) return;
+
     const tA = r.time_a || r.team_home || '';
     const tB = r.time_b || r.team_visit || '';
-    if (tA) { ensureTeam(tA); teams[tA].games++; }
-    if (tB) { ensureTeam(tB); teams[tB].games++; }
-  });
 
-  // 2ª passada: aplica ancoragem (igual ao original: -1, 0, +1)
-  sorted.forEach((r, idx) => {
-    const ft = parseScore(r.ft);
-    if (!ft) return;
+    // sempre conta jogo
+    ensureTeam(tA);
+    ensureTeam(tB);
+    teams[tA].games++;
+    teams[tB].games++;
 
-    const ht = parseScore(r.ht);
     const d = {
       g1: ft.a, g2: ft.b,
       h1: ht ? ht.a : 0, h2: ht ? ht.b : 0,
-      outHt: (r.ht === 'OUT' || r.ht === 'out')
+      outHt: r.ht === 'OUT' || r.ht === 'out'
     };
 
     if (matchFilter(d, filter)) {
+      // ancoragem: -1, 0, +1
       for (let i = -1; i <= 1; i++) {
-        const neighbor = sorted[idx + i];
+        const neighbor = results[idx + i];
         if (!neighbor) continue;
-        const ftN = parseScore(neighbor.ft);
-        if (!ftN) continue; // só conta vizinhos com resultado válido
         const nA = neighbor.time_a || neighbor.team_home || '';
         const nB = neighbor.time_b || neighbor.team_visit || '';
-        const dateRef = r.data ? r.data.slice(0,10) : (r.captured_date || '');
-        if (nA) addPoints(nA, dateRef, neighbor, 1);
-        if (nB) addPoints(nB, dateRef, neighbor, 1);
+        addPoints(nA, r, neighbor, 1);
+        addPoints(nB, r, neighbor, 1);
       }
     }
   });
@@ -772,13 +760,14 @@ function ensureTeam(name) {
   if (!teams[name]) teams[name] = { games: 0, points: 0, details: [] };
 }
 
-function addPoints(name, dateRef, row, pts) {
+function addPoints(name, mainRow, row, pts) {
   ensureTeam(name);
   teams[name].points += pts;
-  const opp = (row.time_a || row.team_home || '') === name
-    ? (row.time_b  || row.team_visit || '')
-    : (row.time_a  || row.team_home  || '');
-  teams[name].details.push({ date: dateRef, opponent: opp, points: pts });
+  const dateStr = mainRow.data ? mainRow.data.slice(0,10) : (mainRow.captured_date||'');
+  const opp = (row.time_a||row.team_home||'') === name
+    ? (row.time_b||row.team_visit||'')
+    : (row.time_a||row.team_home||'');
+  teams[name].details.push({ date: dateStr, opponent: opp, points: pts });
 }
 
 // ══════════════════════════════════════════════
