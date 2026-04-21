@@ -794,34 +794,60 @@ function processResults(resArr) {
 // Encontra linhas a partir da meia-noite (transição de 23:xx para 00:xx)
 function getRowsFromMidnight(lines) {
   let startIndex = 0;
+  
+  // Procura pela transição de 23:xx para 00:xx
   for (let i = 1; i < lines.length; i++) {
     const currentTime = extractHour(lines[i]);
     const previousTime = extractHour(lines[i - 1]);
     
-    const currentHour = currentTime ? parseInt(currentTime.split(':')[0], 10) : -1;
-    const previousHour = previousTime ? parseInt(previousTime.split(':')[0], 10) : -1;
+    if (!currentTime || !previousTime) continue;
+    
+    const currentHour = parseInt(currentTime.split(':')[0], 10);
+    const previousHour = parseInt(previousTime.split(':')[0], 10);
+    
+    console.log(`[${i}] Hora anterior: ${previousTime} (${previousHour}h), Hora atual: ${currentTime} (${currentHour}h)`);
     
     // Detecta transição de 23:xx para 00:xx
     if (previousHour === 23 && currentHour === 0) {
+      console.log(`✓ Encontrada transição de meia-noite no índice ${i}`);
       startIndex = i;
       break;
     }
   }
+  
+  // Se não encontrou transição, retorna TODAS as linhas (modo fallback)
+  if (startIndex === 0) {
+    console.log('⚠ Não encontrada transição de meia-noite. Usando todas as linhas.');
+  }
+  
   return lines.slice(startIndex);
 }
 
 // Extrai hora do objeto (compatível com múltiplos formatos)
 function extractHour(row) {
+  let timeStr = '';
+  
+  // Format ISO: "2026-04-19T03:00:00.000Z"
   if (row.data && typeof row.data === 'string' && row.data.includes('T')) {
-    return row.data.split('T')[1]?.slice(0, 5) || '';
+    timeStr = row.data.split('T')[1]; // pega "03:00:00.000Z"
+    if (timeStr) return timeStr.slice(0, 5); // retorna "03:00"
   }
-  if (row.start_time && typeof row.start_time === 'string') {
-    if (row.start_time.includes('T')) return row.start_time.split('T')[1]?.slice(0, 5) || '';
-    if (row.start_time.includes(' ')) return row.start_time.split(' ')[1]?.slice(0, 5) || '';
-    if (row.start_time.length >= 5) return row.start_time.slice(0, 5);
+  
+  // start_time similar
+  if (row.start_time && typeof row.start_time === 'string' && row.start_time.includes('T')) {
+    timeStr = row.start_time.split('T')[1];
+    if (timeStr) return timeStr.slice(0, 5);
   }
-  if (row.hora && typeof row.hora === 'string') return row.hora.slice(0, 5);
-  if (row.time && typeof row.time === 'string') return row.time.slice(0, 5);
+  
+  // Campo direto de hora
+  if (row.hora !== undefined && row.hora !== null) {
+    return String(row.hora).padStart(2, '0') + ':00';
+  }
+  
+  if (row.time && typeof row.time === 'string') {
+    return row.time.slice(0, 5);
+  }
+  
   return '';
 }
 
