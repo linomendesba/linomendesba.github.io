@@ -674,7 +674,7 @@ function processResults(resArr) {
   const filterOption = document.getElementById('filter-select').value;
   
   // Filtra apenas linhas com dados válidos
-  const validRows = resArr.filter(r => r && (r.time_a || r.team_home));
+  const validRows = resArr.filter(r => r && (r.time_a || r.team_home || r.time_home));
   
   // Pega as últimas 481 linhas
   const recentRows = validRows.slice(-481);
@@ -685,12 +685,17 @@ function processResults(resArr) {
   teams = {};
 
   rowsFromMidnight.forEach((row, index) => {
-    const g1 = parseFloat(row.g1 || row.gol_a || row.goal_home || 0);
-    const g2 = parseFloat(row.g2 || row.gol_b || row.goal_visit || 0);
-    const h1 = parseFloat(row.h1 || row.ht_a || 0);
-    const h2 = parseFloat(row.h2 || row.ht_b || 0);
-    const team1 = row.time_a || row.team_home || '';
-    const team2 = row.time_b || row.team_visit || '';
+    // Tenta vários nomes de campo para gols
+    const g1 = parseFloat(row.g1 || row.gol_a || row.goal_home || row.gols_casa || row.goals_home || 0);
+    const g2 = parseFloat(row.g2 || row.gol_b || row.goal_visit || row.gols_fora || row.goals_away || 0);
+    const h1 = parseFloat(row.h1 || row.ht_a || row.ht_gols_a || row.ht_goals_home || 0);
+    const h2 = parseFloat(row.h2 || row.ht_b || row.ht_gols_b || row.ht_goals_away || 0);
+    
+    // Tenta vários nomes para times
+    const team1 = row.time_a || row.team_home || row.team1 || row.home || '';
+    const team2 = row.time_b || row.team_visit || row.team2 || row.away || '';
+
+    if (!team1 || !team2) return; // Skip se não tem times
 
     // Incrementa jogos para ambos os times
     incrementGamesOnly(teams, team1);
@@ -702,10 +707,10 @@ function processResults(resArr) {
       g2: g2,
       h1: h1,
       h2: h2,
-      outHt: row.outHt || (row.ht_status === 'OUT'),
+      outHt: row.outHt || row.out_ht || (row.ht_status === 'OUT'),
       time_a: team1,
       time_b: team2,
-      date: row.data || row.start_time || ''
+      date: row.data || row.start_time || row.date || ''
     };
 
     // Verifica se atende ao filtro
@@ -714,14 +719,16 @@ function processResults(resArr) {
       for (let i = -1; i <= 1; i++) {
         if (rowsFromMidnight[index + i]) {
           const windowRow = rowsFromMidnight[index + i];
-          const wTeam1 = windowRow.time_a || windowRow.team_home || '';
-          const wTeam2 = windowRow.time_b || windowRow.team_visit || '';
-          addPointsToTeam(teams, wTeam1, windowRow, 1);
-          addPointsToTeam(teams, wTeam2, windowRow, 1);
+          const wTeam1 = windowRow.time_a || windowRow.team_home || windowRow.team1 || windowRow.home || '';
+          const wTeam2 = windowRow.time_b || windowRow.team_visit || windowRow.team2 || windowRow.away || '';
+          if (wTeam1) addPointsToTeam(teams, wTeam1, windowRow, 1);
+          if (wTeam2) addPointsToTeam(teams, wTeam2, windowRow, 1);
         }
       }
     }
   });
+  
+  console.log('Teams processados:', teams);
 }
 
 // Encontra linhas a partir da meia-noite (transição de 23:xx para 00:xx)
@@ -745,18 +752,16 @@ function getRowsFromMidnight(lines) {
 
 // Extrai hora do objeto (compatível com múltiplos formatos)
 function extractHour(row) {
-  if (row.data && row.data.includes('T')) {
+  if (row.data && typeof row.data === 'string' && row.data.includes('T')) {
     return row.data.split('T')[1]?.slice(0, 5) || '';
   }
-  if (row.start_time) {
-    return row.start_time.slice(11, 16);
+  if (row.start_time && typeof row.start_time === 'string') {
+    if (row.start_time.includes('T')) return row.start_time.split('T')[1]?.slice(0, 5) || '';
+    if (row.start_time.includes(' ')) return row.start_time.split(' ')[1]?.slice(0, 5) || '';
+    if (row.start_time.length >= 5) return row.start_time.slice(0, 5);
   }
-  if (row.hora) {
-    return row.hora;
-  }
-  if (row.time) {
-    return row.time;
-  }
+  if (row.hora && typeof row.hora === 'string') return row.hora.slice(0, 5);
+  if (row.time && typeof row.time === 'string') return row.time.slice(0, 5);
   return '';
 }
 
@@ -769,13 +774,23 @@ function addPointsToTeam(teams, name, row, pts) {
   if (!teams[name]) teams[name] = { games: 0, points: 0, details: [] };
   teams[name].points += pts;
   
-  const dateStr = row.data 
-    ? row.data.slice(0, 10) 
-    : (row.captured_date || row.start_time?.slice(0, 10) || '');
+  // Extrai data
+  let dateStr = '';
+  if (row.data) {
+    dateStr = row.data.includes('T') ? row.data.slice(0, 10) : row.data;
+  } else if (row.start_time) {
+    dateStr = row.start_time.slice(0, 10);
+  } else if (row.captured_date) {
+    dateStr = row.captured_date;
+  }
   
-  const opponent = (row.time_a || row.team_home) === name
-    ? (row.time_b || row.team_visit || '')
-    : (row.time_a || row.team_home || '');
+  // Identifica adversário
+  const team1 = row.time_a || row.team_home || '';
+  const team2 = row.time_b || row.team_visit || '';
+  const opponent = team1 === name ? team2 : team1;
+  
+  // Log para debug
+  console.log(`Adicionando ponto para ${name} vs ${opponent}`, { dateStr, pts });
   
   teams[name].details.push({ date: dateStr, opponent: opponent, points: pts });
 }
@@ -1013,15 +1028,33 @@ function sortTable(col) {
 // ══════════════════════════════════════════════
 function openModal(name) {
   const data = teams[name];
-  if (!data) return;
+  if (!data) {
+    console.error('Time não encontrado:', name);
+    return;
+  }
+  
+  console.log('Abrindo modal para:', name, data);
+  
   document.getElementById('modal-team-name').textContent = name;
   const tbody = document.getElementById('modal-body');
   tbody.innerHTML = '';
-  data.details.forEach(g => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${g.date}</td><td>${g.opponent}</td><td style="font-family:var(--mono);color:var(--green)">${g.points}</td>`;
-    tbody.appendChild(tr);
-  });
+  
+  if (!data.details || data.details.length === 0) {
+    const emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = '<td colspan="3" style="text-align:center; color:var(--muted);">Sem detalhes de pontos</td>';
+    tbody.appendChild(emptyRow);
+  } else {
+    data.details.forEach(g => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-size:11px">${g.date}</td>
+        <td>${g.opponent}</td>
+        <td style="font-family:var(--mono);color:var(--green);text-align:center">${g.points}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  
   document.getElementById('modal-overlay').classList.add('open');
 }
 
