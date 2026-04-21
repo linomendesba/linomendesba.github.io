@@ -7211,26 +7211,24 @@ function analAtualizarGrafico(){
     const tiposParaRenderizar=modoFixo?[tipoLinha]:Object.keys(ANAL_CORES).filter(t=>analVisibilidade[t]);
  
     function calcPtsIndicador(blocos,totalBlocos,getFn){
-        const bR=blocos[blocos.length-1];
-        const med=bR.reduce((s,j)=>s+getFn(j),0)/bR.length;
-        const pts=[med*20];
-        for(let b=totalBlocos-2;b>=0;b--){
-            const mapa=new Map();
-            blocos[b+1].forEach(j=>{
-                const key=j.absMin!=null?j.absMin:((j.hora||0)*60+(j.minuto||0));
-                mapa.set(key,j);
-            });
-            for(let i=blocos[b].length-1;i>=0;i--){
-                const a=blocos[b][i];
-                if(!a)continue;
-                const key=a.absMin!=null?a.absMin:((a.hora||0)*60+(a.minuto||0));
-                const ref=mapa.get(key);
-                if(!ref)continue;
-                const d=getFn(a)-getFn(ref);
-                pts.push(pts[pts.length-1]+d);
+        const pts=[];
+        /* Itera de trás pra frente sobre os blocos (mais antigo primeiro no array) */
+        for(let b=totalBlocos-1;b>=0;b--){
+            const bloco=blocos[b];
+            if(!bloco||!bloco.length)continue;
+            for(let i=0;i<bloco.length;i++){
+                const jogo=bloco[i];
+                if(!jogo)continue;
+                const val=getFn(jogo);
+                if(pts.length===0){
+                    pts.push(val);
+                } else {
+                    const ultimoPt=pts[pts.length-1];
+                    pts.push(ultimoPt+val);
+                }
             }
         }
-        return pts;
+        return pts.length>0?pts:[0];
     }
  
     const TIPOS_GOLS=['Total Gols (FT)','Total Gols (HT)','Gols Casa (FT)','Gols Fora (FT)'];
@@ -7244,24 +7242,24 @@ function analAtualizarGrafico(){
         else if(tipo==='Gols Casa (FT)'){pts=calcPtsIndicador(blocos,totalBlocos,j=>j.casa);}
         else if(tipo==='Gols Fora (FT)'){pts=calcPtsIndicador(blocos,totalBlocos,j=>j.fora);}
         else{
-            const totalCond=bR.filter(j=>analVerificarCondicao(j,tipo)).length;
-            pts=[totalCond/bR.length*100];
-            for(let b=totalBlocos-2;b>=0;b--){
-                const mapa=new Map();
-                blocos[b+1].forEach(j=>{
-                    const key=j.absMin!=null?j.absMin:((j.hora||0)*60+(j.minuto||0));
-                    mapa.set(key,j);
-                });
-                for(let i=blocos[b].length-1;i>=0;i--){
-                    const jA=blocos[b][i];
-                    if(!jA)continue;
-                    const key=jA.absMin!=null?jA.absMin:((jA.hora||0)*60+(jA.minuto||0));
-                    const jR=mapa.get(key);
-                    if(!jR)continue;
-                    const a=analVerificarCondicao(jA,tipo),r=analVerificarCondicao(jR,tipo);
-                    pts.push(pts[pts.length-1]+(a&&!r?5:(!a&&r?-5:0)));
+            pts=[];
+            /* Itera sobre todos os blocos de trás pra frente */
+            for(let b=totalBlocos-1;b>=0;b--){
+                const bloco=blocos[b];
+                if(!bloco||!bloco.length)continue;
+                for(let i=0;i<bloco.length;i++){
+                    const jogo=bloco[i];
+                    if(!jogo)continue;
+                    const cumpre=analVerificarCondicao(jogo,tipo)?1:0;
+                    if(pts.length===0){
+                        pts.push(cumpre?5:0);
+                    } else {
+                        const ultimoPt=pts[pts.length-1];
+                        pts.push(ultimoPt+(cumpre?5:-5));
+                    }
                 }
             }
+            if(pts.length===0)pts=[0];
         }
         if(tipo===tipoLinha&&(modoFixo||analVisibilidade[tipoLinha])){
             let pontosSelecionado_tmp=pts;
@@ -7293,24 +7291,24 @@ function analAtualizarGrafico(){
             else if(tipoLinha==='Gols Casa (FT)')pontosSelecionado=calcPtsIndicador(blocos,totalBlocos,j=>j.casa);
             else if(tipoLinha==='Gols Fora (FT)')pontosSelecionado=calcPtsIndicador(blocos,totalBlocos,j=>j.fora);
         } else {
-            const totalCond2=bR2.filter(j=>analVerificarCondicao(j,tipoLinha)).length;
-            pontosSelecionado=[totalCond2/bR2.length*100];
-            for(let b=totalBlocos-2;b>=0;b--){
-                const mapa=new Map();
-                blocos[b+1].forEach(j=>{
-                    const key=j.absMin!=null?j.absMin:((j.hora||0)*60+(j.minuto||0));
-                    mapa.set(key,j);
-                });
-                for(let i=blocos[b].length-1;i>=0;i--){
-                    const jA=blocos[b][i];
-                    if(!jA)continue;
-                    const key=jA.absMin!=null?jA.absMin:((jA.hora||0)*60+(jA.minuto||0));
-                    const jR=mapa.get(key);
-                    if(!jR)continue;
-                    const a=analVerificarCondicao(jA,tipoLinha),r=analVerificarCondicao(jR,tipoLinha);
-                    pontosSelecionado.push(pontosSelecionado[pontosSelecionado.length-1]+(a&&!r?5:(!a&&r?-5:0)));
+            pontosSelecionado=[];
+            /* Itera sobre todos os blocos */
+            for(let b=totalBlocos-1;b>=0;b--){
+                const bloco=blocos[b];
+                if(!bloco||!bloco.length)continue;
+                for(let i=0;i<bloco.length;i++){
+                    const jogo=bloco[i];
+                    if(!jogo)continue;
+                    const cumpre=analVerificarCondicao(jogo,tipoLinha)?1:0;
+                    if(pontosSelecionado.length===0){
+                        pontosSelecionado.push(cumpre?5:0);
+                    } else {
+                        const ultimoPt=pontosSelecionado[pontosSelecionado.length-1];
+                        pontosSelecionado.push(ultimoPt+(cumpre?5:-5));
+                    }
                 }
             }
+            if(pontosSelecionado.length===0)pontosSelecionado=[0];
         }
     }
  
