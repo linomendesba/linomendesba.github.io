@@ -298,29 +298,51 @@
   .card-meta {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-family: var(--mono);
     font-size: 10px;
     color: var(--muted);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    gap: 8px;
   }
 
-  .card-league { font-weight: 600; }
-  .card-time { text-align: right; }
+  .card-league { 
+    font-weight: 600;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-time { 
+    text-align: right;
+    flex-shrink: 0;
+    font-weight: 600;
+    color: var(--accent);
+  }
 
   .card-teams {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     align-items: center;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 500;
   }
 
   .vs-sep {
     color: var(--muted);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10px;
+    flex-shrink: 0;
   }
 
-  .home, .visit { flex: 1; }
+  .home, .visit { 
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   /* ── MODAL ── */
   .modal-overlay {
@@ -595,8 +617,14 @@ function loadPrefs() {
 }
 
 // ══════════════════════════════════════════════
-// FILTER LOGIC
+// PARSE SCORES
 // ══════════════════════════════════════════════
+function parseScore(scoreStr) {
+  if (!scoreStr || typeof scoreStr !== 'string') return { g1: 0, g2: 0 };
+  const parts = scoreStr.trim().split('x').map(s => parseInt(s.trim()));
+  if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) return { g1: 0, g2: 0 };
+  return { g1: parts[0], g2: parts[1] };
+}
 function matchFilter(d, filter) {
   const g1  = d.g1 || 0;   // gols casa FT
   const g2  = d.g2 || 0;   // gols fora FT
@@ -685,11 +713,14 @@ function processResults(resArr) {
   teams = {};
 
   rowsFromMidnight.forEach((row, index) => {
-    // Tenta vários nomes de campo para gols
-    const g1 = parseFloat(row.g1 || row.gol_a || row.goal_home || row.gols_casa || row.goals_home || 0);
-    const g2 = parseFloat(row.g2 || row.gol_b || row.goal_visit || row.gols_fora || row.goals_away || 0);
-    const h1 = parseFloat(row.h1 || row.ht_a || row.ht_gols_a || row.ht_goals_home || 0);
-    const h2 = parseFloat(row.h2 || row.ht_b || row.ht_gols_b || row.ht_goals_away || 0);
+    // Parse de FT e HT (formato "X x Y")
+    const ftScore = parseScore(row.ft || row.score);
+    const htScore = parseScore(row.ht);
+    
+    const g1 = ftScore.g1;
+    const g2 = ftScore.g2;
+    const h1 = htScore.g1;
+    const h2 = htScore.g2;
     
     // Tenta vários nomes para times
     const team1 = row.time_a || row.team_home || row.team1 || row.home || '';
@@ -707,7 +738,7 @@ function processResults(resArr) {
       g2: g2,
       h1: h1,
       h2: h2,
-      outHt: row.outHt || row.out_ht || (row.ht_status === 'OUT'),
+      outHt: row.outHt || row.out_ht || false,
       time_a: team1,
       time_b: team2,
       date: row.data || row.start_time || row.date || ''
@@ -946,7 +977,7 @@ function renderNextMatches(proximos) {
         </div>
         <div class="card-teams">
           <span class="home"></span>
-          <span class="vs-sep">×</span>
+          <span class="vs-sep">vs</span>
           <span class="visit"></span>
         </div>
       `;
