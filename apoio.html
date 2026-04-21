@@ -797,11 +797,13 @@ function processResults(resArr) {
   console.log('Teams processados:', teams);
 }
 
-// Encontra linhas a partir da meia-noite (transição de 23:xx para 00:xx)
+// Encontra linhas a partir da meia-noite (quando volta para novo dia)
+// Como os dados estão invertidos (recentes primeiro), procura por hora AUMENTANDO
 function getRowsFromMidnight(lines) {
   let startIndex = 0;
   
-  // Procura pela transição de 23:xx para 00:xx
+  // Procura pela mudança de dia: quando a hora AUMENTA (ex: 03:xx → 23:xx do dia anterior)
+  // Isso indica que passamos de um dia para o outro
   for (let i = 1; i < lines.length; i++) {
     const currentTime = extractHour(lines[i]);
     const previousTime = extractHour(lines[i - 1]);
@@ -813,17 +815,18 @@ function getRowsFromMidnight(lines) {
     
     console.log(`[${i}] Hora anterior: ${previousTime} (${previousHour}h), Hora atual: ${currentTime} (${currentHour}h)`);
     
-    // Detecta transição de 23:xx para 00:xx
-    if (previousHour === 23 && currentHour === 0) {
-      console.log(`✓ Encontrada transição de meia-noite no índice ${i}`);
+    // Detecta mudança de dia: hora aumentou significativamente (ex: 01:xx para 23:xx)
+    // Isso significa que voltamos para o dia anterior
+    if (previousHour < currentHour && (currentHour - previousHour) > 10) {
+      console.log(`✓ Encontrada mudança de dia no índice ${i} - voltando para dia anterior`);
       startIndex = i;
       break;
     }
   }
   
-  // Se não encontrou transição, retorna TODAS as linhas (modo fallback)
+  // Se não encontrou mudança de dia, retorna TODAS as linhas (modo fallback)
   if (startIndex === 0) {
-    console.log('⚠ Não encontrada transição de meia-noite. Usando todas as linhas.');
+    console.log('⚠ Não encontrada mudança de dia. Usando todas as linhas do dia atual.');
   }
   
   return lines.slice(startIndex);
