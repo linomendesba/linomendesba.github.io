@@ -7211,24 +7211,19 @@ function analAtualizarGrafico(){
     const tiposParaRenderizar=modoFixo?[tipoLinha]:Object.keys(ANAL_CORES).filter(t=>analVisibilidade[t]);
  
     function calcPtsIndicador(blocos,totalBlocos,getFn){
-        const pts=[];
-        /* Itera de trás pra frente sobre os blocos (mais antigo primeiro no array) */
-        for(let b=totalBlocos-1;b>=0;b--){
-            const bloco=blocos[b];
-            if(!bloco||!bloco.length)continue;
-            for(let i=0;i<bloco.length;i++){
-                const jogo=bloco[i];
-                if(!jogo)continue;
-                const val=getFn(jogo);
-                if(pts.length===0){
-                    pts.push(val);
-                } else {
-                    const ultimoPt=pts[pts.length-1];
-                    pts.push(ultimoPt+val);
-                }
+        const blocoMaisRecente=blocos[blocos.length-1];
+        const med=blocoMaisRecente.reduce((s,j)=>s+getFn(j),0)/blocoMaisRecente.length;
+        const pts=[med*20];
+        for(let b=totalBlocos-2;b>=0;b--){
+            for(let i=19;i>=0;i--){
+                const atual=blocos[b][i];
+                const ref=blocos[b+1][i];
+                if(!atual||!ref)continue;
+                const d=getFn(atual)-getFn(ref);
+                pts.push(pts[pts.length-1]+d);
             }
         }
-        return pts.length>0?pts:[0];
+        return pts;
     }
  
     const TIPOS_GOLS=['Total Gols (FT)','Total Gols (HT)','Gols Casa (FT)','Gols Fora (FT)'];
@@ -7242,24 +7237,22 @@ function analAtualizarGrafico(){
         else if(tipo==='Gols Casa (FT)'){pts=calcPtsIndicador(blocos,totalBlocos,j=>j.casa);}
         else if(tipo==='Gols Fora (FT)'){pts=calcPtsIndicador(blocos,totalBlocos,j=>j.fora);}
         else{
-            pts=[];
-            /* Itera sobre todos os blocos de trás pra frente */
-            for(let b=totalBlocos-1;b>=0;b--){
-                const bloco=blocos[b];
-                if(!bloco||!bloco.length)continue;
-                for(let i=0;i<bloco.length;i++){
-                    const jogo=bloco[i];
-                    if(!jogo)continue;
-                    const cumpre=analVerificarCondicao(jogo,tipo)?1:0;
-                    if(pts.length===0){
-                        pts.push(cumpre?5:0);
-                    } else {
-                        const ultimoPt=pts[pts.length-1];
-                        pts.push(ultimoPt+(cumpre?5:-5));
-                    }
+            const blocoMaisRecente=blocos[blocos.length-1];
+            const totalCond=blocoMaisRecente.filter(j=>analVerificarCondicao(j,tipo)).length;
+            pts=[totalCond/blocoMaisRecente.length*100];
+            for(let b=totalBlocos-2;b>=0;b--){
+                for(let i=19;i>=0;i--){
+                    const atual=blocos[b][i];
+                    const ref=blocos[b+1][i];
+                    if(!atual||!ref)continue;
+                    const a=analVerificarCondicao(atual,tipo);
+                    const r=analVerificarCondicao(ref,tipo);
+                    let delta=0;
+                    if(a&&!r)delta=5;
+                    else if(!a&&r)delta=-5;
+                    pts.push(pts[pts.length-1]+delta);
                 }
             }
-            if(pts.length===0)pts=[0];
         }
         if(tipo===tipoLinha&&(modoFixo||analVisibilidade[tipoLinha])){
             let pontosSelecionado_tmp=pts;
@@ -7291,24 +7284,22 @@ function analAtualizarGrafico(){
             else if(tipoLinha==='Gols Casa (FT)')pontosSelecionado=calcPtsIndicador(blocos,totalBlocos,j=>j.casa);
             else if(tipoLinha==='Gols Fora (FT)')pontosSelecionado=calcPtsIndicador(blocos,totalBlocos,j=>j.fora);
         } else {
-            pontosSelecionado=[];
-            /* Itera sobre todos os blocos */
-            for(let b=totalBlocos-1;b>=0;b--){
-                const bloco=blocos[b];
-                if(!bloco||!bloco.length)continue;
-                for(let i=0;i<bloco.length;i++){
-                    const jogo=bloco[i];
-                    if(!jogo)continue;
-                    const cumpre=analVerificarCondicao(jogo,tipoLinha)?1:0;
-                    if(pontosSelecionado.length===0){
-                        pontosSelecionado.push(cumpre?5:0);
-                    } else {
-                        const ultimoPt=pontosSelecionado[pontosSelecionado.length-1];
-                        pontosSelecionado.push(ultimoPt+(cumpre?5:-5));
-                    }
+            const blocoMaisRecente=blocos[blocos.length-1];
+            const totalCond2=blocoMaisRecente.filter(j=>analVerificarCondicao(j,tipoLinha)).length;
+            pontosSelecionado=[totalCond2/blocoMaisRecente.length*100];
+            for(let b=totalBlocos-2;b>=0;b--){
+                for(let i=19;i>=0;i--){
+                    const atual=blocos[b][i];
+                    const ref=blocos[b+1][i];
+                    if(!atual||!ref)continue;
+                    const a=analVerificarCondicao(atual,tipoLinha);
+                    const r=analVerificarCondicao(ref,tipoLinha);
+                    let delta=0;
+                    if(a&&!r)delta=5;
+                    else if(!a&&r)delta=-5;
+                    pontosSelecionado.push(pontosSelecionado[pontosSelecionado.length-1]+delta);
                 }
             }
-            if(pontosSelecionado.length===0)pontosSelecionado=[0];
         }
     }
  
