@@ -526,6 +526,7 @@
     },
     bet365: {
       nome: "Bet365",
+      offsetHora: 4, // dados em UK time (BST = Brasília + 4h no horário de verão)
       ligas: {
         copa: {
           nome: "Copa",
@@ -803,8 +804,11 @@
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // DOM – inicializar hora select
+  // Converte hora BR para o fuso da casa (ex: bet365 usa UK time = BR + 4h)
+  function getHoraCasa(horaBR) {
+    const offset = CASAS_CONFIG[casaAtual]?.offsetHora || 0;
+    return (horaBR + offset) % 24;
+  }
   // ═══════════════════════════════════════════════════════════════════════════
   function initHoraSelect() {
     const sel = document.getElementById("sel-hora");
@@ -950,6 +954,7 @@
     if (!tabela) return;
 
     const hora = horaAtual;
+    const horaCasa = getHoraCasa(hora); // hora convertida para o fuso da casa (ex: bet365 = BR+4)
 
     // Globais de seletor
     const mercado    = document.getElementById("sel-mercado").value;
@@ -959,9 +964,9 @@
     const mostOdds   = document.getElementById("sel-odds").value === "sim";
     const thresh     = getThreshold(mercado, jph);
 
-    // Filtra por hora
-    const dadosFiltrados   = filtrarPorHora(dados, hora);
-    const proximosFiltrados= filtrarProximosPorHora(proximosJogos, hora);
+    // Filtra por hora — usa horaCasa pois os dados da casa podem estar em outro fuso
+    const dadosFiltrados   = filtrarPorHora(dados, horaCasa);
+    const proximosFiltrados= filtrarProximosPorHora(proximosJogos, horaCasa);
 
     // ── thead ───────────────────────────────────────────────────────────────
     const thead = tabela.querySelector("thead");
@@ -1026,26 +1031,27 @@
     const todasDatasOrdenadas = Array.from(datasSet).sort((a, b) => b.localeCompare(a));
 
     // ── Filtro de dias ──────────────────────────────────────────────────────
-    // Hoje no formato YYYY-MM-DD (local)
+    // "Hoje" do ponto de vista dos dados da casa (pode ser amanhã no BR se houver offset)
     const hoje = new Date();
-    const hojeStr = `${hoje.getFullYear()}-${(hoje.getMonth()+1).toString().padStart(2,"0")}-${hoje.getDate().toString().padStart(2,"0")}`;
-    const horaHojeAtual = hoje.getHours();
+    const horaHojeAtual = hoje.getHours(); // hora BR atual
+    const hojeNoCasa = new Date(hoje.getTime() + (CASAS_CONFIG[casaAtual]?.offsetHora || 0) * 3600000);
+    const hojeStr = `${hojeNoCasa.getFullYear()}-${(hojeNoCasa.getMonth()+1).toString().padStart(2,"0")}-${hojeNoCasa.getDate().toString().padStart(2,"0")}`;
 
     // Separamos hoje dos dias históricos
     const datasPassadas = todasDatasOrdenadas.filter(d => d < hojeStr);
     const temHoje = todasDatasOrdenadas.includes(hojeStr);
 
-    // Se a hora selecionada <= hora atual → hoje tem dados e CONTA como 1 dos N dias
-    // Portanto os dias históricos = diasAtual - 1
-    // Se a hora ainda não chegou hoje → não conta hoje, pega N dias históricos
+    // Hoje só entra na tabela se a hora selecionada (BR) === hora atual BR (está acontecendo agora)
+    // Se a hora já passou hoje, hoje não entra → só N dias históricos completos
+    // Se a hora está acontecendo agora → N dias históricos + hoje = N+1 linhas
     let datasUnicas;
-    if (temHoje && hora <= horaHojeAtual) {
-      const historicoSlice = datasPassadas.slice(0, diasAtual - 1);
-      datasUnicas = [hojeStr, ...historicoSlice];
+    if (temHoje && hora === horaHojeAtual) {
+      // Hora em andamento: mostra hoje + N dias históricos completos
+      datasUnicas = [hojeStr, ...datasPassadas.slice(0, diasAtual)];
     } else {
+      // Hora já encerrada (ou futura): só os N dias históricos
       datasUnicas = datasPassadas.slice(0, diasAtual);
     }
-    // Garante ordem mais recente primeiro
     datasUnicas.sort((a, b) => b.localeCompare(a));
 
     const mapeamento = {}; // dataStr → tr
@@ -1701,26 +1707,28 @@
 
     // Replica EXATAMENTE a lógica do executarAnalisadorGales (que opera no DOM)
     // mas usando os dados do cache, sem depender de células renderizadas
-    function analisarGalesParaHora(cache, cfg, hora, numG) {
+    function analisarGalesParaHora(cache, cfg, horaBR, numG) {
       const mF = cfg.minutosFixos;
-      const dados = filtrarPorHora(cache.dados, hora);
+      const offset = CASAS_CONFIG[casaAtual]?.offsetHora || 0;
+      const horaCasa = (horaBR + offset) % 24; // hora no fuso da casa
+      const dados = filtrarPorHora(cache.dados, horaCasa);
       if (dados.length === 0) return [];
 
       // === Passo 1: monta a mesma estrutura que criarTabela monta no DOM ===
-      // datasUnicas → ordenadas mais recente primeiro (como no DOM)
       const datasSet = new Set();
       dados.forEach(d => datasSet.add(getDateStr(d.data)));
       const todasDatasOrdenadas = Array.from(datasSet).sort((a, b) => b.localeCompare(a));
 
-      // Aplica filtro de dias idêntico ao criarTabela
+      // Aplica filtro de dias idêntico ao criarTabela (offset também na data)
       const hojeRef = new Date();
-      const hojeRefStr = `${hojeRef.getFullYear()}-${(hojeRef.getMonth()+1).toString().padStart(2,"0")}-${hojeRef.getDate().toString().padStart(2,"0")}`;
-      const horaHojeRef = hojeRef.getHours();
+      const horaHojeRef = hojeRef.getHours(); // hora BR atual
+      const hojeRefNoCasa = new Date(hojeRef.getTime() + offset * 3600000);
+      const hojeRefStr = `${hojeRefNoCasa.getFullYear()}-${(hojeRefNoCasa.getMonth()+1).toString().padStart(2,"0")}-${hojeRefNoCasa.getDate().toString().padStart(2,"0")}`;
       const datasPassadasRef = todasDatasOrdenadas.filter(d => d < hojeRefStr);
       const temHojeRef = todasDatasOrdenadas.includes(hojeRefStr);
       let datasUnicas;
-      if (temHojeRef && hora <= horaHojeRef) {
-        datasUnicas = [hojeRefStr, ...datasPassadasRef.slice(0, diasAtual - 1)];
+      if (temHojeRef && horaBR === horaHojeRef) {
+        datasUnicas = [hojeRefStr, ...datasPassadasRef.slice(0, diasAtual)];
       } else {
         datasUnicas = datasPassadasRef.slice(0, diasAtual);
       }
@@ -2074,23 +2082,26 @@
     const mF = cfg.minutosFixos;
     const mercado = document.getElementById("sel-mercado").value;
     const tipoPlacar = document.getElementById("sel-tipo-placar").value;
+    const offset = CASAS_CONFIG[casaAtual]?.offsetHora || 0;
+    const horaAlvoCasa = (horaAlvo + offset) % 24; // converte hora BR para fuso da casa
 
-    const dados = filtrarPorHora(cache.dados, horaAlvo);
+    const dados = filtrarPorHora(cache.dados, horaAlvoCasa);
     if (dados.length === 0) return null;
 
     const datasSet = new Set();
     dados.forEach(d => datasSet.add(getDateStr(d.data)));
     const todasDatasOrd = Array.from(datasSet).sort((a, b) => b.localeCompare(a));
 
-    // Aplica filtro de dias idêntico ao criarTabela
+    // Aplica filtro de dias idêntico ao criarTabela (com offset na data)
     const hojeVer = new Date();
-    const hojeVerStr = `${hojeVer.getFullYear()}-${(hojeVer.getMonth()+1).toString().padStart(2,"0")}-${hojeVer.getDate().toString().padStart(2,"0")}`;
-    const horaHojeVer = hojeVer.getHours();
+    const horaHojeVer = hojeVer.getHours(); // hora BR atual
+    const hojeVerNoCasa = new Date(hojeVer.getTime() + offset * 3600000);
+    const hojeVerStr = `${hojeVerNoCasa.getFullYear()}-${(hojeVerNoCasa.getMonth()+1).toString().padStart(2,"0")}-${hojeVerNoCasa.getDate().toString().padStart(2,"0")}`;
     const datasPassVer = todasDatasOrd.filter(d => d < hojeVerStr);
     const temHojeVer = todasDatasOrd.includes(hojeVerStr);
     let datasUnicas;
-    if (temHojeVer && horaAlvo <= horaHojeVer) {
-      datasUnicas = [hojeVerStr, ...datasPassVer.slice(0, diasAtual - 1)];
+    if (temHojeVer && horaAlvo === horaHojeVer) {
+      datasUnicas = [hojeVerStr, ...datasPassVer.slice(0, diasAtual)];
     } else {
       datasUnicas = datasPassVer.slice(0, diasAtual);
     }
