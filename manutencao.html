@@ -1728,12 +1728,20 @@ function garantirCheckboxQuadrantes() {
     }
     .btn-aplicar-cores:hover { background:#166534; color:#bbf7d0; }
 
-    /* Ranking top5 — sombra amarela no nome do time nos próximos confrontos (não conflita com color/background) */
+    /* Top5: span sempre existe; rk-time-hidden oculta quando Ver Times=Não */
+    .rk-time-hidden { font-size: 0 !important; line-height: 0 !important; }
     .placar-futuro .time-casa.rk-top5-nome,
     .placar-futuro .time-fora.rk-top5-nome {
       font-weight: 800 !important;
       text-shadow: 0 0 6px #FACC15, 0 0 12px #FACC15, 0 0 2px #FACC15 !important;
     }
+    /* Ver Times=Não + Top5: revela nome em amarelo */
+    .placar-futuro .rk-time-hidden.rk-top5-nome {
+      font-size: inherit !important; line-height: inherit !important;
+    }
+    /* Fallback extra: borda no confronto quando Ver Times=Não */
+    .placar-futuro[data-rk-top5-a] { border-left: 2px solid #FACC15 !important; }
+    .placar-futuro[data-rk-top5-b] { border-right: 2px solid #FACC15 !important; }
 
     /* Odd e time clicáveis nos próximos confrontos */
     .placar-futuro .time-casa,
@@ -2669,11 +2677,10 @@ function criarTabela(dados, oddsData, proximosJogos) {
     placar.setAttribute("data-time-a",jogo.team_home); placar.setAttribute("data-time-b",jogo.team_visit);
 
     const placarTexto=document.createElement("div"); placarTexto.className="placar-texto";
-    if(mostrarTimes) {
-      placarTexto.innerHTML=`<span class="time-casa" style="cursor:pointer" data-full-time="${jogo.team_home}">${abbreviateTeamName(jogo.team_home)}</span><br><span class="time-fora" style="cursor:pointer" data-full-time="${jogo.team_visit}">${abbreviateTeamName(jogo.team_visit)}</span>`;
-    } else {
-      placarTexto.innerHTML=`${abbreviateTeamName(jogo.team_home)}<br>${abbreviateTeamName(jogo.team_visit)}`;
-    }
+    // Spans sempre criados com data-full-time para o Top5 funcionar sem Ver Times
+    const tcCls = mostrarTimes ? 'time-casa" style="cursor:pointer' : 'time-casa rk-time-hidden';
+    const tfCls = mostrarTimes ? 'time-fora" style="cursor:pointer' : 'time-fora rk-time-hidden';
+    placarTexto.innerHTML=`<span class="${tcCls}" data-full-time="${jogo.team_home}">${abbreviateTeamName(jogo.team_home)}</span><br><span class="${tfCls}" data-full-time="${jogo.team_visit}">${abbreviateTeamName(jogo.team_visit)}</span>`;
     placar.appendChild(placarTexto);
 
     const oddsP=findOddsProximoNoIndex(oddsIndex,jogo);
@@ -2867,27 +2874,42 @@ function rkCalcularTop5(dados, nJogos) {
   );
 }
 
+function rkLerTop5DoDOM() {
+  // Lê os top 5 diretamente da tabela do ranking já renderizada no DOM
+  // Os nomes ficam em: #rankingContainer .rk3-tbl tbody tr .rk3-team .rk-name-wrap span:first-child
+  const nomes = new Set();
+  const linhas = document.querySelectorAll("#rankingContainer .rk3-tbl tbody tr");
+  linhas.forEach((tr, i) => {
+    if (i >= 5) return;
+    const span = tr.querySelector(".rk3-team .rk-name-wrap span:first-child");
+    if (span && span.textContent.trim()) nomes.add(span.textContent.trim());
+  });
+  return nomes;
+}
+
 function rkAplicarDestaque() {
   rkLimparDestaque();
-  if (!qdDadosCache || !qdDadosCache.length) return;
-  const horasSel = parseInt(document.querySelector("#seletorHoras")?.value || 12);
-  const top5 = rkCalcularTop5(qdDadosCache, horasSel * 20);
+  const top5 = rkLerTop5DoDOM();
+  if (!top5.size) return;
   document.querySelectorAll(".placar-futuro").forEach(placar => {
     [".time-casa", ".time-fora"].forEach(sel => {
       const span = placar.querySelector(sel);
       if (!span) return;
       const nome = span.getAttribute("data-full-time");
-      if (top5.has(nome)) span.classList.add("rk-top5-nome");
+      if (nome && top5.has(nome)) span.classList.add("rk-top5-nome");
     });
-    // Quando mostrarTimes está desativado, usa data-time-a/b do próprio div
+    // Fallback quando Ver Times=Não: usa data-time-a/b
     const tA = placar.getAttribute("data-time-a");
     const tB = placar.getAttribute("data-time-b");
-    // Tenta também sem span (fallback — não faz nada, os spans cuidam disso)
+    if (tA && top5.has(tA)) placar.setAttribute("data-rk-top5-a","1");
+    if (tB && top5.has(tB)) placar.setAttribute("data-rk-top5-b","1");
   });
 }
 
 function rkLimparDestaque() {
   document.querySelectorAll(".rk-top5-nome").forEach(el => el.classList.remove("rk-top5-nome"));
+  document.querySelectorAll(".placar-futuro[data-rk-top5-a]").forEach(el => el.removeAttribute("data-rk-top5-a"));
+  document.querySelectorAll(".placar-futuro[data-rk-top5-b]").forEach(el => el.removeAttribute("data-rk-top5-b"));
 }
 
 function rkSincronizar() {
