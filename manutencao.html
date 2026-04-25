@@ -1765,11 +1765,11 @@ function garantirCheckboxQuadrantes() {
 
     /* ── FEATURE 1: Indicador de tendência por coluna ── */
     .trend-indicator {
-      display: block; font-size: 10px; font-weight: 900;
-      line-height: 1; margin-top: 1px; text-align: center;
+      display: inline; font-size: 9px; font-weight: 900;
+      margin-left: 1px; vertical-align: baseline; line-height: 1;
     }
-    .trend-up   { color: #4ade80; text-shadow: 0 0 4px rgba(74,222,128,0.5); }
-    .trend-down { color: #f87171; text-shadow: 0 0 4px rgba(248,113,113,0.5); }
+    .trend-up   { color: #4ade80; }
+    .trend-down { color: #f87171; }
     .trend-flat { color: #6b7280; }
 
     /* ── FEATURE 2: Highlight da hora atual ── */
@@ -1799,15 +1799,7 @@ function garantirCheckboxQuadrantes() {
       white-space: nowrap; line-height: 1.3;
     }
 
-    /* ── FEATURE 3: Contador regressivo nos próximos confrontos ── */
-    .countdown-timer {
-      font-size: 8px; font-weight: 700; color: #fbbf24;
-      background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3);
-      border-radius: 3px; padding: 1px 3px; margin-top: 2px;
-      display: block; text-align: center; font-variant-numeric: tabular-nums;
-      letter-spacing: 0.03em; line-height: 1.3;
-    }
-    .countdown-timer.iminente { color: #f87171; background: rgba(248,113,113,0.15); border-color: rgba(248,113,113,0.4); animation: qdLivePulse 0.8s ease-in-out infinite; }
+    /* ── FEATURE 3: (removido) ── */
 
     /* ── FEATURE 5: Heatmap de intensidade por coluna ── */
     td[data-resultado="acerto"].heat-low  { filter: brightness(0.55) saturate(0.7); }
@@ -2531,63 +2523,87 @@ function criarTabela(dados, oddsData, proximosJogos) {
   let thead = tabela.querySelector("thead");
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
 
-  // ── Limpa o thead e insere trQD IMEDIATAMENTE como 1ª linha ──
-  thead.innerHTML = "";
-  if (qdCheckboxAtivo()) {
-    qdRenderTabela(dados);
-  }
-
-  const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
-  trPercentual.appendChild(createIconTh("chart","% Acerto por coluna"));
-
-  const trTotalGols = document.createElement("tr"); trTotalGols.id="linhaTotalGols";
-  trTotalGols.appendChild(createIconTh("ball","Gols por coluna"));
-
-  const trAcertosMercado = document.createElement("tr"); trAcertosMercado.id="linhaAcertosMercado";
-  trAcertosMercado.appendChild(createIconTh("check","Acertos por coluna"));
-
-  thead.append(trPercentual, trTotalGols, trAcertosMercado);
-
-  const trMinutos = document.createElement("tr");
-  // Coluna única de hora (sem th separado de seleção)
-  const thHora = document.createElement("th"); thHora.title="Hora";
-  const wrapH = document.createElement("span"); wrapH.className="th-icon"; wrapH.innerHTML=SVG_ICONS["clock"]||"";
-  thHora.appendChild(wrapH); thHora.style.cssText="width:36px;min-width:36px;";
-  trMinutos.appendChild(thHora);
-
-  minutosFixos.forEach((m, i) => {
-    const th = document.createElement("th"); th.className="minute-header"; th.textContent=m;
-    const qIdx = Math.floor(i/5)%4;
-    th.classList.add(`qd-${qIdx}`);
-    if (qdCheckboxAtivo() && i>0 && i%5===0) th.classList.add("quadrant-border");
-    if (Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
-    th.addEventListener("click", ()=>toggleColuna(m));
-    trMinutos.appendChild(th);
-  });
-  // Colunas direitas: gols, acertos, % — com IDs para ocultar/mostrar
-  const thGolsLinha = createIconTh("ball","Gols"); thGolsLinha.id="th-gols-linha"; thGolsLinha.style.cssText="width:22px;min-width:22px;max-width:22px;padding:2px;";
-  const thAcertosLinha = createIconTh("check","Acertos"); thAcertosLinha.id="th-acertos-linha"; thAcertosLinha.style.cssText="width:22px;min-width:22px;max-width:22px;padding:2px;";
-  const thPctLinha = createIconTh("trend","% Linha"); thPctLinha.id="th-pct-linha"; thPctLinha.style.cssText="width:34px;min-width:34px;max-width:38px;padding:2px;";
-  [thGolsLinha,thAcertosLinha,thPctLinha].forEach(th=>trMinutos.appendChild(th));
-  thead.appendChild(trMinutos);
-  tabelaBody.innerHTML = "";
-
-  const seletorHoras      = document.querySelector("#seletorHoras");
-  const seletorResultado  = document.querySelector("#seletorResultado");
-  const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
-  const mostrarTimesEl    = document.querySelector("#mostrarTimes");
-  const mostrarHTEl       = document.querySelector("#mostrarHT");
-  const mostrarOddsEl     = document.querySelector("#mostrarOdds");
-  if (!seletorHoras||!seletorResultado||!seletorTipoPlacar||!mostrarTimesEl||!mostrarHTEl||!mostrarOddsEl) {
+  // ── Verificar se a estrutura pode ser reutilizada (anti-piscar) ───────────
+  const seletorHoras0      = document.querySelector("#seletorHoras");
+  const seletorResultado0  = document.querySelector("#seletorResultado");
+  const seletorTipoPlacar0 = document.querySelector("#seletorTipoPlacar");
+  const mostrarTimesEl0    = document.querySelector("#mostrarTimes");
+  const mostrarHTEl0       = document.querySelector("#mostrarHT");
+  const mostrarOddsEl0     = document.querySelector("#mostrarOdds");
+  if (!seletorHoras0||!seletorResultado0||!seletorTipoPlacar0||!mostrarTimesEl0||!mostrarHTEl0||!mostrarOddsEl0) {
     showErrorMessage("Erro interno: Seletores não encontrados."); return;
   }
-  const mostrarTimes = mostrarTimesEl.value==="sim";
-  const mostrarOdds  = mostrarOddsEl.value==="sim";
-  const mostrarHT    = mostrarHTEl.value==="sim";
-  const horasSel     = parseInt(seletorHoras.value)||12;
-  const selRes       = seletorResultado.value;
-  const tipoPlacar   = seletorTipoPlacar.value;
+  const _mostrarTimes = mostrarTimesEl0.value==="sim";
+  const _mostrarOdds  = mostrarOddsEl0.value==="sim";
+  const _mostrarHT    = mostrarHTEl0.value==="sim";
+  const _horasSel     = parseInt(seletorHoras0.value)||12;
+  const _selRes       = seletorResultado0.value;
+  const _tipoPlacar   = seletorTipoPlacar0.value;
+
+  // Chave de configuração — se mudou, força rebuild completo
+  const configKey = `${_horasSel}|${_selRes}|${_tipoPlacar}|${_mostrarTimes}|${_mostrarHT}|${_mostrarOdds}`;
+  const configKeyAnterior = tabela.getAttribute("data-config-key");
+  const podeReutilizar = configKey === configKeyAnterior && tabelaBody.children.length > 0;
+
+  if (!podeReutilizar) {
+    // Rebuild completo: limpa thead e body
+    thead.innerHTML = "";
+    tabelaBody.innerHTML = "";
+    tabela.setAttribute("data-config-key", configKey);
+    if (qdCheckboxAtivo()) qdRenderTabela(dados);
+  } else {
+    // Reutiliza estrutura — apenas quadrantes e dados novos serão inseridos
+    if (qdCheckboxAtivo()) qdRenderTabela(dados);
+  }
+
+  // ── Variáveis de configuração (já lidas acima como _mostrarTimes etc.) ───────
+  const mostrarTimes = _mostrarTimes;
+  const mostrarOdds  = _mostrarOdds;
+  const mostrarHT    = _mostrarHT;
+  const horasSel     = _horasSel;
+  const selRes       = _selRes;
+  const tipoPlacar   = _tipoPlacar;
   const oddsIndex    = indexarOdds(oddsData);
+
+  // ── Construção do thead (só se rebuild completo) ─────────────────────────────
+  let trPercentual, trTotalGols, trAcertosMercado;
+  if (!podeReutilizar) {
+    trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
+    trPercentual.appendChild(createIconTh("chart","% Acerto por coluna"));
+
+    trTotalGols = document.createElement("tr"); trTotalGols.id="linhaTotalGols";
+    trTotalGols.appendChild(createIconTh("ball","Gols por coluna"));
+
+    trAcertosMercado = document.createElement("tr"); trAcertosMercado.id="linhaAcertosMercado";
+    trAcertosMercado.appendChild(createIconTh("check","Acertos por coluna"));
+
+    thead.append(trPercentual, trTotalGols, trAcertosMercado);
+
+    const trMinutos = document.createElement("tr");
+    const thHora = document.createElement("th"); thHora.title="Hora";
+    const wrapH = document.createElement("span"); wrapH.className="th-icon"; wrapH.innerHTML=SVG_ICONS["clock"]||"";
+    thHora.appendChild(wrapH); thHora.style.cssText="width:36px;min-width:36px;";
+    trMinutos.appendChild(thHora);
+
+    minutosFixos.forEach((m, i) => {
+      const th = document.createElement("th"); th.className="minute-header"; th.textContent=m;
+      const qIdx = Math.floor(i/5)%4;
+      th.classList.add(`qd-${qIdx}`);
+      if (qdCheckboxAtivo() && i>0 && i%5===0) th.classList.add("quadrant-border");
+      if (Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
+      th.addEventListener("click", ()=>toggleColuna(m));
+      trMinutos.appendChild(th);
+    });
+    const thGolsLinha = createIconTh("ball","Gols"); thGolsLinha.id="th-gols-linha"; thGolsLinha.style.cssText="width:22px;min-width:22px;max-width:22px;padding:2px;";
+    const thAcertosLinha = createIconTh("check","Acertos"); thAcertosLinha.id="th-acertos-linha"; thAcertosLinha.style.cssText="width:22px;min-width:22px;max-width:22px;padding:2px;";
+    const thPctLinha = createIconTh("trend","% Linha"); thPctLinha.id="th-pct-linha"; thPctLinha.style.cssText="width:34px;min-width:34px;max-width:38px;padding:2px;";
+    [thGolsLinha,thAcertosLinha,thPctLinha].forEach(th=>trMinutos.appendChild(th));
+    thead.appendChild(trMinutos);
+  } else {
+    trPercentual    = document.getElementById("linhaPercentual");
+    trTotalGols     = document.getElementById("linhaTotalGols");
+    trAcertosMercado= document.getElementById("linhaAcertosMercado");
+  }
 
   dados.sort((a,b)=>{
     const tA=new Date(`${getDateStr(a.data)}T${a.hora.toString().padStart(2,"0")}:${a.minuto.toString().padStart(2,"0")}:00`).getTime();
@@ -2601,53 +2617,76 @@ function criarTabela(dados, oddsData, proximosJogos) {
     return{...j,date:new Date(j.start_time),hora:h,minuto:closest,team_visitante:j.team_visit};
   }).sort((a,b)=>new Date(b.start_time)-new Date(a.start_time));
 
-  // Horas dos próximos jogos (futuras) — entram sempre, fora do limite do seletor
   const horasFuturasSet=new Set();
   proximosComHoras.forEach(j=>{
     const ds=j.captured_date?j.captured_date.split("/").reverse().join("-"):j.date.toISOString().split("T")[0];
     horasFuturasSet.add(JSON.stringify({hora:j.hora,timestamp:new Date(`${ds}T${j.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
   });
-  // Horas com dados reais — respeitam o limite do seletor
   const horasDadosSet=new Set();
   dados.forEach(d=>{
     const ds=getDateStr(d.data);
     horasDadosSet.add(JSON.stringify({hora:d.hora,timestamp:new Date(`${ds}T${d.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
   });
   const horasDadosLimitadas=Array.from(horasDadosSet).map(s=>JSON.parse(s)).sort((a,b)=>b.timestamp-a.timestamp).slice(0,horasSel);
-  // Merge: futuras que não conflitem com dados já presentes + dados limitados
   const chavesDados=new Set(horasDadosLimitadas.map(h=>`${h.data}-${h.hora}`));
   const horasFuturasFiltradas=Array.from(horasFuturasSet).map(s=>JSON.parse(s)).filter(h=>!chavesDados.has(`${h.data}-${h.hora}`));
   const horasUnicas=[...horasFuturasFiltradas,...horasDadosLimitadas].sort((a,b)=>b.timestamp-a.timestamp);
   const mapeamentoChaveLinha={};
 
+  // ── Diff de linhas: reutiliza existentes, cria só as novas, remove as que saíram ─
+  const linhasExistentes = new Map();
+  Array.from(tabelaBody.querySelectorAll("tr[data-chave]")).forEach(tr => {
+    linhasExistentes.set(tr.getAttribute("data-chave"), tr);
+  });
+  const chavesNovas = new Set(horasUnicas.map(item => `${item.data}-${item.hora}`));
+
+  // Remove linhas que não estão mais no conjunto atual
+  linhasExistentes.forEach((tr, chave) => {
+    if (!chavesNovas.has(chave)) tr.remove();
+  });
+
+  // Cria ou reutiliza linhas, reordena no DOM
   horasUnicas.forEach(item=>{
     const chave=`${item.data}-${item.hora}`;
-    const tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
-    // Checkbox embutido na célula de hora
-    const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 4px;";
-    const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
-    cb.style.cssText="display:block;margin:0 auto 1px auto;width:12px;height:12px;cursor:pointer;accent-color:#4ade80;";
-    cb.addEventListener("change",function(){
-      if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
-      else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
-      Estado.salvar();updateSelectedRows();
-    });
-    const horaSpan=document.createElement("span"); horaSpan.textContent=item.hora.toString().padStart(2,"0"); horaSpan.style.cssText="font-size:0.85em;font-weight:700;color:#e5e7eb;";
-    tdHora.appendChild(cb); tdHora.appendChild(horaSpan);
-    tr.appendChild(tdHora);
-    minutosFixos.forEach((m,i)=>{
-      const td=document.createElement("td");
-      const qIdx=Math.floor(i/5)%4;
-      td.classList.add(`qd-cell-${qIdx}`);
-      if(qdCheckboxAtivo() && i>0 && i%5===0) td.classList.add("quadrant-border");
-      if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
-      tr.appendChild(td);
-    });
-    const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-direita-stats"});
-    const tdAcertos = Object.assign(document.createElement("td"),{textContent:"0",className:"col-direita-stats"});
-    const tdPct = Object.assign(document.createElement("td"),{textContent:"0%",className:"col-direita-pct"});
-    tr.appendChild(tdGols); tr.appendChild(tdAcertos); tr.appendChild(tdPct);
-    tabelaBody.appendChild(tr);
+    let tr = linhasExistentes.get(chave);
+
+    if (!tr) {
+      // Linha nova — cria do zero
+      tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
+      const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 4px;";
+      const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
+      cb.style.cssText="display:block;margin:0 auto 1px auto;width:12px;height:12px;cursor:pointer;accent-color:#4ade80;";
+      cb.addEventListener("change",function(){
+        if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
+        else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
+        Estado.salvar();updateSelectedRows();
+      });
+      const horaSpan=document.createElement("span"); horaSpan.textContent=item.hora.toString().padStart(2,"0"); horaSpan.style.cssText="font-size:0.85em;font-weight:700;color:#e5e7eb;";
+      tdHora.appendChild(cb); tdHora.appendChild(horaSpan);
+      tr.appendChild(tdHora);
+      minutosFixos.forEach((m,i)=>{
+        const td=document.createElement("td");
+        const qIdx=Math.floor(i/5)%4;
+        td.classList.add(`qd-cell-${qIdx}`);
+        if(qdCheckboxAtivo() && i>0 && i%5===0) td.classList.add("quadrant-border");
+        if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
+        tr.appendChild(td);
+      });
+      const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-direita-stats"});
+      const tdAcertos = Object.assign(document.createElement("td"),{textContent:"0",className:"col-direita-stats"});
+      const tdPct = Object.assign(document.createElement("td"),{textContent:"0%",className:"col-direita-pct"});
+      tr.appendChild(tdGols); tr.appendChild(tdAcertos); tr.appendChild(tdPct);
+      tabelaBody.appendChild(tr);
+    } else {
+      // Linha existente — garante que está no final (reordenação)
+      tabelaBody.appendChild(tr);
+      // Reseta contadores laterais para recomputar
+      const cells = tr.cells;
+      cells[cells.length-3].textContent = "0";
+      cells[cells.length-2].textContent = "0";
+      cells[cells.length-1].textContent = "0%";
+    }
+
     mapeamentoChaveLinha[chave]=tr;
   });
 
@@ -2804,10 +2843,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const placar=document.createElement("div"); placar.className="placar placar-futuro";
     placar.setAttribute("data-time-a",jogo.team_home); placar.setAttribute("data-time-b",jogo.team_visit);
     // Feature 3: guarda timestamp para o contador regressivo na célula pai
-    if (jogo.start_time) {
-      cel.setAttribute("data-start-time", new Date(jogo.start_time).getTime());
-    }
-
     const placarTexto=document.createElement("div"); placarTexto.className="placar-texto";
     if(mostrarTimes) {
       placarTexto.innerHTML=`<span class="time-casa" style="cursor:pointer" data-full-time="${jogo.team_home}">${abbreviateTeamName(jogo.team_home)}</span><span class="time-fora" style="cursor:pointer" data-full-time="${jogo.team_visit}">${abbreviateTeamName(jogo.team_visit)}</span>`;
@@ -2829,14 +2864,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
         oddDiv.classList.add("odd-selecionada");
       }
       placar.appendChild(oddDiv);
-    }
-
-    // Feature 3: contador regressivo
-    if (jogo.start_time) {
-      const timerSpan = document.createElement("span");
-      timerSpan.className = "countdown-timer";
-      timerSpan.textContent = "--:--";
-      placar.appendChild(timerSpan);
     }
 
     if(mostrarTimes){
@@ -3060,11 +3087,15 @@ function rkSincronizar() {
 // ═══════════════════════════════════════════════════════════════════════════════
 function calcularTendenciaColunas() {
   const linhas = Array.from(document.querySelectorAll("#tabelaResultados tbody tr"));
-  const selRes = document.querySelector("#seletorResultado")?.value || "";
-  const thresh = getThreshold(selRes);
+  const allMinHeaders = Array.from(document.querySelectorAll("#tabelaResultados thead .minute-header"));
 
   minutosFixos.forEach((m, colIdx) => {
-    // Coleta % por linha para essa coluna (só linhas com resultado real)
+    const targetTh = allMinHeaders[colIdx]; if (!targetTh) return;
+
+    // Remove seta anterior
+    targetTh.querySelector(".trend-indicator")?.remove();
+
+    // Coleta resultado por linha para essa coluna
     const pctsLinha = [];
     linhas.forEach(row => {
       const cel = row.cells[1 + colIdx]; if (!cel) return;
@@ -3073,22 +3104,11 @@ function calcularTendenciaColunas() {
       pctsLinha.push(tipo === "acerto" ? 1 : 0);
     });
 
-    // Precisa de ao menos 6 amostras para comparar 3x3
-    const th = document.querySelector(`#linhaPercentual th:nth-child(${colIdx + 2}), #linhaPercentual td:nth-child(${colIdx + 2})`);
-    const minTh = document.querySelector(`tr:not([id]) .minute-header:nth-of-type(${colIdx + 1})`);
-
-    // Pega todos os .minute-header no trMinutos (thead) excluindo o tfoot
-    const allMinHeaders = Array.from(document.querySelectorAll("#tabelaResultados thead .minute-header"));
-    const targetTh = allMinHeaders[colIdx];
-    if (!targetTh) return;
-
-    // Remove badge anterior
-    targetTh.querySelector(".trend-indicator")?.remove();
-
     if (pctsLinha.length < 4) return;
 
-    const recentes = pctsLinha.slice(0, Math.min(3, Math.floor(pctsLinha.length / 2)));
-    const anteriores = pctsLinha.slice(recentes.length, recentes.length * 2);
+    const metade = Math.min(3, Math.floor(pctsLinha.length / 2));
+    const recentes   = pctsLinha.slice(0, metade);
+    const anteriores = pctsLinha.slice(metade, metade * 2);
     if (!anteriores.length) return;
 
     const mediaRec = recentes.reduce((a,b)=>a+b,0) / recentes.length;
@@ -3097,11 +3117,14 @@ function calcularTendenciaColunas() {
 
     const span = document.createElement("span");
     span.className = "trend-indicator";
-    if (diff > 0.1)       { span.textContent = "↑"; span.classList.add("trend-up"); span.title = `Tendência de alta (${(mediaRec*100).toFixed(0)}% vs ${(mediaAnt*100).toFixed(0)}%)`; }
-    else if (diff < -0.1) { span.textContent = "↓"; span.classList.add("trend-down"); span.title = `Tendência de queda (${(mediaRec*100).toFixed(0)}% vs ${(mediaAnt*100).toFixed(0)}%)`; }
-    else                  { span.textContent = "→"; span.classList.add("trend-flat"); span.title = `Estável (${(mediaRec*100).toFixed(0)}% vs ${(mediaAnt*100).toFixed(0)}%)`; }
+    if (diff > 0.1)       { span.textContent = "↑"; span.classList.add("trend-up");   span.title = `Alta: ${(mediaRec*100).toFixed(0)}% vs ${(mediaAnt*100).toFixed(0)}%`; }
+    else if (diff < -0.1) { span.textContent = "↓"; span.classList.add("trend-down"); span.title = `Queda: ${(mediaRec*100).toFixed(0)}% vs ${(mediaAnt*100).toFixed(0)}%`; }
+    else                  { span.textContent = "→"; span.classList.add("trend-flat"); span.title = `Estável: ${(mediaRec*100).toFixed(0)}% vs ${(mediaAnt*100).toFixed(0)}%`; }
 
-    targetTh.appendChild(span);
+    // Insere ANTES do .placar-badge (se existir), logo após o texto do número
+    const badge = targetTh.querySelector(".placar-badge");
+    if (badge) targetTh.insertBefore(span, badge);
+    else targetTh.appendChild(span);
   });
 }
 
@@ -3215,37 +3238,59 @@ function aplicarHeatmapColunas() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// FEATURE 6 — Placar mais frequente por coluna (badge no header)
+// FEATURE 6 — Mercado mais frequente por coluna (badge no header)
+// Mostra qual resultado (acerto/erro do mercado selecionado) domina a coluna
+// com o placar FT mais comum entre os acertos
 // ═══════════════════════════════════════════════════════════════════════════════
-function exibirPlacarMaisFrequentePorColuna() {
+function exibirMercadoMaisFrequentePorColuna() {
   const linhas = Array.from(document.querySelectorAll("#tabelaResultados tbody tr"));
   const allMinHeaders = Array.from(document.querySelectorAll("#tabelaResultados thead .minute-header"));
+  const selRes = document.querySelector("#seletorResultado")?.value || "";
+  const thresh = getThreshold(selRes);
+
+  // Mapa de label curto por mercado
+  const LABELS = {
+    ambasMarcam: "Amb✔", ambasNaoMarcam: "Amb✘",
+    casaVence: "Casa", foraVence: "Fora", empate: "Emp", viradinha: "Vir",
+    "over0.5": "O0.5", "over1.5": "O1.5", "over2.5": "O2.5", "over3.5": "O3.5", over5: "O5",
+    "under0.5": "U0.5", "under1.5": "U1.5", "under2.5": "U2.5", "under3.5": "U3.5",
+    exato0: "0G", exato1: "1G", exato2: "2G", exato3: "3G", exato4: "4G",
+    exato2t0: "2T0", exato2t1: "2T1", exato2t2: "2T2", exato2t3: "2T3", exato2t4: "2T4",
+    casa0Gols: "C0", casa1Gol: "C1", casa2Gols: "C2", casa3Gols: "C3", casa4Gols: "C4",
+    fora0Gols: "F0", fora1Gol: "F1", fora2Gols: "F2", fora3Gols: "F3", fora4Gols: "F4",
+  };
+  const label = LABELS[selRes] || selRes.slice(0, 5);
 
   minutosFixos.forEach((m, colIdx) => {
     const th = allMinHeaders[colIdx]; if (!th) return;
     th.querySelector(".placar-badge")?.remove();
 
-    const freq = {};
-    let total = 0;
+    let acertos = 0, erros = 0;
+    const freqFT = {};
     linhas.forEach(row => {
       const cel = row.cells[1 + colIdx]; if (!cel) return;
-      const placarEl = cel.querySelector(".placar:not(.placar-futuro)"); if (!placarEl) return;
-      const ft = placarEl.getAttribute("data-score-ft"); if (!ft) return;
-      freq[ft] = (freq[ft] || 0) + 1;
-      total++;
+      const tipo = cel.getAttribute("data-resultado"); if (!tipo) return;
+      if (tipo === "acerto") {
+        acertos++;
+        const placarEl = cel.querySelector(".placar:not(.placar-futuro)");
+        const ft = placarEl?.getAttribute("data-score-ft");
+        if (ft) freqFT[ft] = (freqFT[ft] || 0) + 1;
+      } else if (tipo === "erro") { erros++; }
     });
 
+    const total = acertos + erros;
     if (total === 0) return;
-    const topPlacar = Object.entries(freq).sort((a,b) => b[1]-a[1])[0];
-    if (!topPlacar) return;
+    const pct = Math.round((acertos / total) * 100);
 
-    const [placar, count] = topPlacar;
-    const pct = Math.round((count / total) * 100);
+    // Placar FT mais comum entre os acertos
+    const topFT = Object.entries(freqFT).sort((a, b) => b[1] - a[1])[0];
+    const ftLabel = topFT ? topFT[0] : "";
 
     const badge = document.createElement("span");
     badge.className = "placar-badge";
-    badge.title = `Placar mais frequente nessa coluna`;
-    badge.innerHTML = `${placar}<span class="placar-badge-pct">${pct}%</span>`;
+    badge.title = `${label}: ${acertos}✔ ${erros}✘ de ${total} jogos`;
+    const isGreen = pct >= thresh;
+    badge.innerHTML = `<span style="color:${isGreen ? "#4ade80" : "#f87171"}">${pct}%</span>${ftLabel ? `<span style="color:#9ca3af;font-size:6px"> ${ftLabel}</span>` : ""}`;
     th.appendChild(badge);
   });
 }
@@ -3255,8 +3300,7 @@ function aplicarFeaturesPos() {
   calcularTendenciaColunas();
   destacarHoraAtual();
   aplicarHeatmapColunas();
-  exibirPlacarMaisFrequentePorColuna();
-  iniciarContadoresRegressivos();
+  exibirMercadoMaisFrequentePorColuna();
 }
 
 buscarDados();
