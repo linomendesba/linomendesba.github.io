@@ -2473,16 +2473,23 @@ function criarTabela(dados, oddsData, proximosJogos) {
     return{...j,date:new Date(j.start_time),hora:h,minuto:closest,team_visitante:j.team_visit};
   }).sort((a,b)=>new Date(b.start_time)-new Date(a.start_time));
 
-  const horasSet=new Set();
+  // Horas dos próximos jogos (futuras) — entram sempre, fora do limite do seletor
+  const horasFuturasSet=new Set();
   proximosComHoras.forEach(j=>{
     const ds=j.captured_date?j.captured_date.split("/").reverse().join("-"):j.date.toISOString().split("T")[0];
-    horasSet.add(JSON.stringify({hora:j.hora,timestamp:new Date(`${ds}T${j.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
+    horasFuturasSet.add(JSON.stringify({hora:j.hora,timestamp:new Date(`${ds}T${j.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
   });
+  // Horas com dados reais — respeitam o limite do seletor
+  const horasDadosSet=new Set();
   dados.forEach(d=>{
     const ds=getDateStr(d.data);
-    horasSet.add(JSON.stringify({hora:d.hora,timestamp:new Date(`${ds}T${d.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
+    horasDadosSet.add(JSON.stringify({hora:d.hora,timestamp:new Date(`${ds}T${d.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
   });
-  const horasUnicas=Array.from(horasSet).map(s=>JSON.parse(s)).sort((a,b)=>b.timestamp-a.timestamp).slice(0,horasSel);
+  const horasDadosLimitadas=Array.from(horasDadosSet).map(s=>JSON.parse(s)).sort((a,b)=>b.timestamp-a.timestamp).slice(0,horasSel);
+  // Merge: futuras que não conflitem com dados já presentes + dados limitados
+  const chavesDados=new Set(horasDadosLimitadas.map(h=>`${h.data}-${h.hora}`));
+  const horasFuturasFiltradas=Array.from(horasFuturasSet).map(s=>JSON.parse(s)).filter(h=>!chavesDados.has(`${h.data}-${h.hora}`));
+  const horasUnicas=[...horasFuturasFiltradas,...horasDadosLimitadas].sort((a,b)=>b.timestamp-a.timestamp);
   const mapeamentoChaveLinha={};
 
   horasUnicas.forEach(item=>{
