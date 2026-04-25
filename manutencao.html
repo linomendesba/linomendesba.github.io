@@ -1728,10 +1728,9 @@ function garantirCheckboxQuadrantes() {
     }
     .btn-aplicar-cores:hover { background:#166534; color:#bbf7d0; }
 
-    /* Ranking interno — destaque top5 amarelo só nos próximos confrontos */
-    .placar-futuro.rk-top5 .placar-texto { outline: 2px solid #FACC15 !important; outline-offset: -2px; border-radius: 2px; }
-    .placar-futuro.rk-top5 .time-casa,
-    .placar-futuro.rk-top5 .time-fora { color: #FACC15 !important; font-weight: 800 !important; }
+    /* Ranking top5 — só nome do time fica amarelo nos próximos confrontos */
+    .placar-futuro .time-casa.rk-top5-nome,
+    .placar-futuro .time-fora.rk-top5-nome { color: #FACC15 !important; font-weight: 800 !important; }
 
     /* Odd e time clicáveis nos próximos confrontos */
     .placar-futuro .time-casa,
@@ -1917,16 +1916,15 @@ function garantirPainelCores() {
   const statsOcultas = localStorage.getItem("statsLateraisOcultas") === "1";
   el.querySelector("#cb-stats-laterais").checked = !statsOcultas;
 
-  // Checkbox Ranking Top5
+  // Checkbox Ranking Top 5
   const rkCb = el.querySelector("#cb-ranking-top5");
   if (rkCb) {
-    const rkAtivo = localStorage.getItem("rankingTop5Ativo") === "1";
-    rkCb.checked = rkAtivo;
-    if (rkAtivo) rkAplicarDestaque();
+    const rkOn = localStorage.getItem("rankingTop5Ativo") === "1";
+    rkCb.checked = rkOn;
+    if (rkOn) rkAplicarDestaque();
     rkCb.addEventListener("change", function() {
       localStorage.setItem("rankingTop5Ativo", this.checked ? "1" : "0");
-      if (this.checked) rkAplicarDestaque();
-      else rkLimparDestaque();
+      if (this.checked) rkAplicarDestaque(); else rkLimparDestaque();
     });
   }
   el.querySelector("#btn-reset-cores").addEventListener("click", () => {
@@ -2150,21 +2148,31 @@ function atualizarColunaStats() {
     else{const t=document.getElementById("tabelaResultados");if(t)t.parentNode.insertBefore(el,t);}
   }
   el.innerHTML=""; if(Estado.colunasSelecionadas.length===0) return;
-  let greenTotal=0,redTotal=0;
+
+  // Lógica por SEQUÊNCIA: se algum minuto da seleção é green → GREEN; se só red → RED
   const colOrd=[...Estado.colunasSelecionadas].sort((a,b)=>minutosFixos.indexOf(a)-minutosFixos.indexOf(b));
-  colOrd.forEach(min=>{
-    const colIdx=minutosFixos.indexOf(min); if(colIdx===-1) return;
-    document.querySelectorAll("#tabelaResultados tbody tr").forEach(row=>{
+  let gT=0, rT=0;
+  document.querySelectorAll("#tabelaResultados tbody tr").forEach(row=>{
+    let temGreen=false, temRed=false;
+    colOrd.forEach(min=>{
+      const colIdx=minutosFixos.indexOf(min); if(colIdx===-1) return;
       const cell=row.cells[1+colIdx]; if(!cell) return;
+      // Só conta células com placar real (não futuro)
+      const placarReal=cell.querySelector(".placar:not(.placar-futuro)");
+      if(!placarReal) return;
       const tipo=cell.getAttribute("data-resultado");
-      if(tipo==="acerto") greenTotal++; else if(tipo==="erro") redTotal++;
+      if(tipo==="acerto") temGreen=true;
+      else if(tipo==="erro") temRed=true;
     });
+    if(temGreen) gT++;
+    else if(temRed) rT++;
   });
-  const total=greenTotal+redTotal; if(total===0) return;
-  const pct=Math.round((greenTotal/total)*100);
+
+  const total=gT+rT; if(total===0) return;
+  const pct=Math.round((gT/total)*100);
   const thresh=getThreshold(document.querySelector("#seletorResultado")?.value||"");
   const tag=document.createElement("div"); tag.className="col-stat-tag";
-  tag.innerHTML=`<span class="col-min">min ${colOrd.join(", ")}</span><span style="color:#aaa;font-size:0.85em">${total}×</span><span class="col-g">${greenTotal}✔</span><span class="col-r">${redTotal}✘</span><span class="col-pct ${pct>=thresh?"col-stat-verde":"col-stat-branca"}">${pct}%</span><span class="col-remove" title="Limpar">✕</span>`;
+  tag.innerHTML=`<span class="col-min">min ${colOrd.join(", ")}</span><span style="color:#aaa;font-size:0.85em">${total}×</span><span class="col-g">${gT}✔</span><span class="col-r">${rT}✘</span><span class="col-pct ${pct>=thresh?"col-stat-verde":"col-stat-branca"}">${pct}%</span><span class="col-remove" title="Limpar">✕</span>`;
   tag.querySelector(".col-remove").addEventListener("click",()=>{Estado.colunasSelecionadas.length=0;Estado.salvar();aplicarColunaHighlights();atualizarColunaStats();});
   el.appendChild(tag);
 }
@@ -2760,7 +2768,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   qdDadosCache = dados;
   if (qdCheckboxAtivo()) qdRenderTabelaValores(dados);
 
-  // Ranking top5 — re-aplica destaque amarelo nos próximos confrontos
+  // Ranking top5 — destaca nome dos times nos próximos confrontos
   rkSincronizar();
 }
 
@@ -2831,52 +2839,57 @@ async function buscarDados() {
 }
 
 // ─── RANKING TOP5 INTERNO ─────────────────────────────────────────────────────
-// Calcula ranking internamente e destaca top5 amarelo só nos próximos confrontos
+// Calcula ranking por pontos com os dados carregados e destaca APENAS o nome
+// do time (span.time-casa / span.time-fora) nos próximos confrontos (.placar-futuro)
 
-function rkCalcular(dados, nJogos) {
-  const amostra = dados.slice(0, nJogos);
+function rkCalcularTop5(dados, nJogos) {
   const ts = {};
-  amostra.forEach(d => {
+  dados.slice(0, nJogos).forEach(d => {
     const { time_a, time_b, ft } = d;
     if (!ft || !ft.includes(" x ")) return;
     const [gA, gB] = ft.split(" x ").map(Number);
     if (isNaN(gA) || isNaN(gB)) return;
-    [time_a, time_b].forEach(n => { if (!ts[n]) ts[n] = { pts:0, j:0, gp:0, gc:0 }; });
-    ts[time_a].j++; ts[time_a].gp+=gA; ts[time_a].gc+=gB;
-    ts[time_b].j++; ts[time_b].gp+=gB; ts[time_b].gc+=gA;
-    if (gA>gB)       { ts[time_a].pts+=3; }
-    else if(gA===gB) { ts[time_a].pts+=1; ts[time_b].pts+=1; }
-    else             { ts[time_b].pts+=3; }
+    [time_a, time_b].forEach(n => { if (!ts[n]) ts[n] = { pts:0, gp:0, gc:0 }; });
+    ts[time_a].gp += gA; ts[time_a].gc += gB;
+    ts[time_b].gp += gB; ts[time_b].gc += gA;
+    if      (gA > gB) { ts[time_a].pts += 3; }
+    else if (gA === gB) { ts[time_a].pts += 1; ts[time_b].pts += 1; }
+    else                { ts[time_b].pts += 3; }
   });
-  return Object.entries(ts)
-    .map(([nome,t])=>({ nome, ...t, sg: t.gp-t.gc }))
-    .sort((a,b)=>b.pts-a.pts||b.sg-a.sg||b.gp-a.gp)
-    .slice(0,5)
-    .map(t=>t.nome);
+  return new Set(
+    Object.entries(ts)
+      .sort(([,a],[,b]) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp)
+      .slice(0, 5)
+      .map(([nome]) => nome)
+  );
 }
 
 function rkAplicarDestaque() {
   rkLimparDestaque();
-  const dados = qdDadosCache;
-  if (!dados || !dados.length) return;
+  if (!qdDadosCache || !qdDadosCache.length) return;
   const horasSel = parseInt(document.querySelector("#seletorHoras")?.value || 12);
-  const top5 = new Set(rkCalcular(dados, horasSel * 20));
+  const top5 = rkCalcularTop5(qdDadosCache, horasSel * 20);
   document.querySelectorAll(".placar-futuro").forEach(placar => {
-    const a = placar.getAttribute("data-time-a");
-    const b = placar.getAttribute("data-time-b");
-    if (top5.has(a) || top5.has(b)) placar.classList.add("rk-top5");
+    [".time-casa", ".time-fora"].forEach(sel => {
+      const span = placar.querySelector(sel);
+      if (!span) return;
+      const nome = span.getAttribute("data-full-time");
+      if (top5.has(nome)) span.classList.add("rk-top5-nome");
+    });
+    // Quando mostrarTimes está desativado, usa data-time-a/b do próprio div
+    const tA = placar.getAttribute("data-time-a");
+    const tB = placar.getAttribute("data-time-b");
+    // Tenta também sem span (fallback — não faz nada, os spans cuidam disso)
   });
 }
 
 function rkLimparDestaque() {
-  document.querySelectorAll(".placar-futuro.rk-top5").forEach(el => el.classList.remove("rk-top5"));
+  document.querySelectorAll(".rk-top5-nome").forEach(el => el.classList.remove("rk-top5-nome"));
 }
 
-// Re-aplica destaque após a tabela ser recriada (chamado no final de criarTabela)
 function rkSincronizar() {
   if (localStorage.getItem("rankingTop5Ativo") === "1") {
-    // Pequeno delay para garantir que os elementos .placar-futuro já existem no DOM
-    setTimeout(rkAplicarDestaque, 100);
+    setTimeout(rkAplicarDestaque, 120);
   }
 }
 
