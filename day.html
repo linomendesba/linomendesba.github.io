@@ -526,7 +526,6 @@
     },
     bet365: {
       nome: "Bet365",
-      offsetHora: 4, // dados em UK time (BST = Brasília + 4h no horário de verão)
       ligas: {
         copa: {
           nome: "Copa",
@@ -1023,31 +1022,8 @@
       datasSet.add(ds);
     });
 
-    // Ordena: mais recente primeiro
-    const todasDatasOrdenadas = Array.from(datasSet).sort((a, b) => b.localeCompare(a));
-
-    // ── Filtro de dias ──────────────────────────────────────────────────────
-    const agora = new Date();
-    const hojeStr = `${agora.getFullYear()}-${(agora.getMonth()+1).toString().padStart(2,"0")}-${agora.getDate().toString().padStart(2,"0")}`;
-    // Hora atual no fuso da casa (offset só para comparar se está acontecendo agora)
-    const offsetCasa = CASAS_CONFIG[casaAtual]?.offsetHora || 0;
-    const horaAtualNaCasa = (agora.getHours() + offsetCasa) % 24;
-
-    // Datas históricas = tudo até hoje inclusive, limitado a diasAtual
-    const datasHistoricas = todasDatasOrdenadas.filter(d => d <= hojeStr).slice(0, diasAtual);
-
-    // Se a hora selecionada está acontecendo AGORA na casa → hoje entra como linha extra
-    // (além dos N dias históricos que já incluem hoje como dia completo)
-    // Caso contrário (hora já passou ou ainda não chegou) → só os N dias históricos
-    let datasUnicas;
-    const hojeJaEstaNoHistorico = datasHistoricas.includes(hojeStr);
-    if (!hojeJaEstaNoHistorico && hora === horaAtualNaCasa) {
-      // Hoje não tem dados históricos ainda mas a hora está rolando → adiciona hoje
-      datasUnicas = [hojeStr, ...datasHistoricas];
-    } else {
-      datasUnicas = datasHistoricas;
-    }
-    datasUnicas.sort((a, b) => b.localeCompare(a));
+    // Ordena: mais recente primeiro, limita a diasAtual dias
+    const datasUnicas = Array.from(datasSet).sort((a, b) => b.localeCompare(a)).slice(0, diasAtual);
 
     const mapeamento = {}; // dataStr → tr
     datasUnicas.forEach(dataStr => {
@@ -1708,23 +1684,11 @@
       if (dados.length === 0) return [];
 
       // === Passo 1: monta a mesma estrutura que criarTabela monta no DOM ===
+      // datasUnicas → ordenadas mais recente primeiro (como no DOM)
       const datasSet = new Set();
       dados.forEach(d => datasSet.add(getDateStr(d.data)));
-      const todasDatasOrd = Array.from(datasSet).sort((a, b) => b.localeCompare(a));
-
-      // Filtro de dias idêntico ao criarTabela
-      const agoraG = new Date();
-      const hojeStrG = `${agoraG.getFullYear()}-${(agoraG.getMonth()+1).toString().padStart(2,"0")}-${agoraG.getDate().toString().padStart(2,"0")}`;
-      const offsetG = CASAS_CONFIG[casaAtual]?.offsetHora || 0;
-      const horaAtualCasaG = (agoraG.getHours() + offsetG) % 24;
-      const datasHistG = todasDatasOrd.filter(d => d <= hojeStrG).slice(0, diasAtual);
-      let datasUnicas;
-      if (!datasHistG.includes(hojeStrG) && hora === horaAtualCasaG) {
-        datasUnicas = [hojeStrG, ...datasHistG];
-      } else {
-        datasUnicas = datasHistG;
-      }
-      datasUnicas.sort((a, b) => b.localeCompare(a));
+      // datasUnicas → ordenadas mais recente primeiro, limitadas a diasAtual dias
+      const datasUnicas = Array.from(datasSet).sort((a, b) => b.localeCompare(a)).slice(0, diasAtual);
 
       // Para cada data, cria um Map<minNorm, bool(acerto)>
       // replicando: processedMatches (só o primeiro dado por minuto por data entra)
@@ -2080,21 +2044,7 @@
 
     const datasSet = new Set();
     dados.forEach(d => datasSet.add(getDateStr(d.data)));
-    const todasDatasOrdV = Array.from(datasSet).sort((a, b) => b.localeCompare(a));
-
-    // Filtro de dias idêntico ao criarTabela
-    const agoraV = new Date();
-    const hojeStrV = `${agoraV.getFullYear()}-${(agoraV.getMonth()+1).toString().padStart(2,"0")}-${agoraV.getDate().toString().padStart(2,"0")}`;
-    const offsetV = CASAS_CONFIG[casaAtual]?.offsetHora || 0;
-    const horaAtualCasaV = (agoraV.getHours() + offsetV) % 24;
-    const datasHistV = todasDatasOrdV.filter(d => d <= hojeStrV).slice(0, diasAtual);
-    let datasUnicas;
-    if (!datasHistV.includes(hojeStrV) && horaAlvo === horaAtualCasaV) {
-      datasUnicas = [hojeStrV, ...datasHistV];
-    } else {
-      datasUnicas = datasHistV;
-    }
-    datasUnicas.sort((a, b) => b.localeCompare(a));
+    const datasUnicas = Array.from(datasSet).sort((a, b) => b.localeCompare(a)).slice(0, diasAtual);
 
     const mapaDatas = new Map();
     datasUnicas.forEach(ds => mapaDatas.set(ds, new Map()));
