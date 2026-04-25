@@ -1654,6 +1654,11 @@ function garantirCheckboxQuadrantes() {
     .col-stat-tag .col-remove { cursor:pointer; opacity:0.6; margin-left:2px; }
     .col-stat-tag .col-remove:hover { opacity:1; }
     .odd-tooltip { color:#f0c040; font-weight:bold; margin-top:3px; display:block; }
+    /* Tooltip: nomes dos times em amarelo igual à odd */
+    .tooltip .times { color:#f0c040 !important; font-weight:bold; }
+    /* Hover nos nomes dos times nas células normais */
+    .placar .time-casa:hover,
+    .placar .time-fora:hover { color:#f0c040 !important; opacity:1 !important; }
 
     #selecao-indicator { display:flex; flex-wrap:wrap; gap:6px; padding:6px 8px; margin-bottom:6px; }
     #selecao-indicator:empty { display:none; }
@@ -2199,21 +2204,23 @@ function atualizarColunaStats() {
   }
   el.innerHTML=""; if(Estado.colunasSelecionadas.length===0) return;
 
-  // Lógica por SEQUÊNCIA: se algum minuto da seleção é green → GREEN; se só red → RED
+  // Lógica por SEQUÊNCIA: só conta linhas onde TODAS as colunas selecionadas têm resultado real
   const colOrd=[...Estado.colunasSelecionadas].sort((a,b)=>minutosFixos.indexOf(a)-minutosFixos.indexOf(b));
   let gT=0, rT=0;
   document.querySelectorAll("#tabelaResultados tbody tr").forEach(row=>{
-    let temGreen=false, temRed=false;
+    let temGreen=false, temRed=false, todasComResultado=true;
     colOrd.forEach(min=>{
       const colIdx=minutosFixos.indexOf(min); if(colIdx===-1) return;
-      const cell=row.cells[1+colIdx]; if(!cell) return;
+      const cell=row.cells[1+colIdx]; if(!cell) { todasComResultado=false; return; }
       // Só conta células com placar real (não futuro)
       const placarReal=cell.querySelector(".placar:not(.placar-futuro)");
-      if(!placarReal) return;
+      if(!placarReal) { todasComResultado=false; return; }
       const tipo=cell.getAttribute("data-resultado");
       if(tipo==="acerto") temGreen=true;
       else if(tipo==="erro") temRed=true;
     });
+    // Ignora linhas onde alguma coluna selecionada ainda não tem resultado
+    if(!todasComResultado) return;
     if(temGreen) gT++;
     else if(temRed) rT++;
   });
@@ -2859,6 +2866,12 @@ function iniciarObserverStreak() {
 }
 
 // ─── BUSCA COM DIFF ───────────────────────────────────────────────────────────
+// Cache global para evitar re-fetches desnecessários ao trocar Times/HT/Odds
+let _cacheOddsData = [];
+let _cacheProximosJogos = [];
+let _cacheResultados = [];
+let _renderizandoRapido = false; // flag: true quando ativado por toggle visual
+
 async function buscarDados() {
   hideErrorMessage();
   restaurarHorasSeletor();
@@ -2868,20 +2881,34 @@ async function buscarDados() {
     Estado.forcarRerender();
     Estado._ultimaLigaRenderizada = ligaAtual;
     _ultimaLigaHorasRestauradas = null;
-    // Troca de liga: recarrega todas as seleções isoladas por liga
+    // Troca de liga: limpa caches e recarrega seleções
+    _cacheResultados = []; _cacheOddsData = []; _cacheProximosJogos = [];
     Estado.carregar();
-    // Remove trQD antigo para forçar recriação com nova liga
     const trQDantigo = document.querySelector("#trQuadrantes");
     if (trQDantigo) trQDantigo.remove();
   }
   let dados=[],oddsData=[],proximosJogos=[];
-  try{const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));if(!r.ok)throw new Error(`${r.status}`);dados=await r.json();}
-  catch(e){console.error("Erro resultados:",e);showErrorMessage(`Erro ao carregar resultados: ${e.message}`);}
-  try{oddsData=await fetchOdds();}catch(e){showErrorMessage(`Erro odds: ${e.message}`);}
-  try{proximosJogos=await fetchProximosJogos();}catch(e){showErrorMessage(`Erro próximos: ${e.message}`);}
+
+  // Se é re-render visual (toggle de Times/HT/Odds) e temos cache, reutiliza sem fetch
+  if (_renderizandoRapido && _cacheResultados.length > 0) {
+    _renderizandoRapido = false;
+    dados = _cacheResultados;
+    oddsData = _cacheOddsData;
+    proximosJogos = _cacheProximosJogos;
+  } else {
+    _renderizandoRapido = false;
+    try{const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));if(!r.ok)throw new Error(`${r.status}`);dados=await r.json();}
+    catch(e){console.error("Erro resultados:",e);showErrorMessage(`Erro ao carregar resultados: ${e.message}`);}
+    try{oddsData=await fetchOdds();}catch(e){showErrorMessage(`Erro odds: ${e.message}`);}
+    try{proximosJogos=await fetchProximosJogos();}catch(e){showErrorMessage(`Erro próximos: ${e.message}`);}
+    // Atualiza caches
+    if(dados.length>0) _cacheResultados=dados;
+    _cacheOddsData=oddsData; _cacheProximosJogos=proximosJogos;
+  }
+
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
 
-  // Salva cache dos dados para os quadrantes
+  // Salva cache dos dados para os quadrantes e re-render rápido
   qdDadosCache = dados;
 
   if(!Estado.dadosMudaram(dados,oddsData,proximosJogos)){
@@ -2889,7 +2916,6 @@ async function buscarDados() {
     garantirPainelCores(); sincronizarPainelCores();
     atualizarCheckboxStreak(); calcularStreakMaximo();
     iniciarObserverStreak();
-    qdDadosCache = dados;
     if (qdCheckboxAtivo()) qdRenderTabela(dados);
     else qdAtualizarIndicadorAoVivo();
     aplicarEstadoStatsLaterais();
@@ -3025,13 +3051,22 @@ if(_stp) _stp.addEventListener("change",()=>{
   buscarDados(); 
 });
 
+// ─── RENDERIZAÇÃO RÁPIDA (sem fetch) ──────────────────────────────────────────
+// Usa dados em cache para re-renderizar sem buscar novamente da API
+function renderizarRapido() {
+  if (_cacheResultados.length > 0) {
+    _renderizandoRapido = true; // sinaliza para buscarDados reutilizar cache
+  }
+  Estado.forcarRerender();
+  buscarDados();
+}
+
 if(_mt){
   _mt.addEventListener("change",()=>{
     if(_mt.value!=="sim"){
       Estado.limparSelecoes(["timesSelecionados"]);
     }
-    Estado.forcarRerender();
-    buscarDados();
+    renderizarRapido();
   });
 }
 
@@ -3040,8 +3075,7 @@ if(_mht){
     if(_mht.value!=="sim"){
       Estado.limparSelecoes(["placarHTSelecionados"]);
     }
-    Estado.forcarRerender();
-    buscarDados();
+    renderizarRapido();
   });
 }
 
@@ -3050,8 +3084,7 @@ if(_mo){
     if(_mo.value!=="sim"){
       Estado.limparSelecoes(["oddsSelecionadas"]);
     }
-    Estado.forcarRerender();
-    buscarDados();
+    renderizarRapido();
   });
 }
   </script>
