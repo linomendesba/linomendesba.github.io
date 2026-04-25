@@ -1728,15 +1728,12 @@ function garantirCheckboxQuadrantes() {
     }
     .btn-aplicar-cores:hover { background:#166534; color:#bbf7d0; }
 
-    /* Ranking top5 — sombra amarela (não conflita com color/background de outros estilos) */
+    /* Ranking top5 — sombra amarela no nome do time nos próximos confrontos (não conflita com color/background) */
     .placar-futuro .time-casa.rk-top5-nome,
     .placar-futuro .time-fora.rk-top5-nome {
       font-weight: 800 !important;
       text-shadow: 0 0 6px #FACC15, 0 0 12px #FACC15, 0 0 2px #FACC15 !important;
     }
-    /* Fallback quando "Ver Times" está desativado: borda lateral amarela no confronto */
-    .placar-futuro[data-rk-casa] { border-left: 2px solid rgba(250,204,21,0.6) !important; }
-    .placar-futuro[data-rk-fora] { border-right: 2px solid rgba(250,204,21,0.6) !important; }
 
     /* Odd e time clicáveis nos próximos confrontos */
     .placar-futuro .time-casa,
@@ -2844,67 +2841,53 @@ async function buscarDados() {
   criarTabela(dados,oddsData,proximosJogos);
 }
 
-// ─── RANKING TOP5 — usa o ranking externo (window.rkTop5Atual) ───────────────
-// O ranking.txt expõe window.rkTop5Atual com o Set dos top 5 já calculados
-// com toda a lógica correta (mercado, modo casa/fora, período).
-// Funciona com ou sem "Ver Times" ativo.
+// ─── RANKING TOP5 INTERNO ─────────────────────────────────────────────────────
+// Calcula ranking por pontos com os dados carregados e destaca APENAS o nome
+// do time (span.time-casa / span.time-fora) nos próximos confrontos (.placar-futuro)
 
-function rkObterTop5() {
-  // Prioridade 1: ranking externo já calculado com lógica completa
-  if (window.rkTop5Atual instanceof Set && window.rkTop5Atual.size > 0) {
-    return window.rkTop5Atual;
-  }
-  // Prioridade 2: fallback interno por pontos (quando ranking não carregou ainda)
-  if (!qdDadosCache || !qdDadosCache.length) return new Set();
-  const horasSel = parseInt(document.querySelector("#seletorHoras")?.value || 12);
-  const nJogos = horasSel * 20;
+function rkCalcularTop5(dados, nJogos) {
   const ts = {};
-  qdDadosCache.slice(-nJogos).forEach(d => {
+  dados.slice(0, nJogos).forEach(d => {
     const { time_a, time_b, ft } = d;
     if (!ft || !ft.includes(" x ")) return;
     const [gA, gB] = ft.split(" x ").map(Number);
     if (isNaN(gA) || isNaN(gB)) return;
-    [time_a, time_b].forEach(n => { if (!ts[n]) ts[n] = { pts:0, sg:0, gp:0 }; });
-    ts[time_a].gp += gA; ts[time_b].gp += gB;
-    ts[time_a].sg += gA - gB; ts[time_b].sg += gB - gA;
+    [time_a, time_b].forEach(n => { if (!ts[n]) ts[n] = { pts:0, gp:0, gc:0 }; });
+    ts[time_a].gp += gA; ts[time_a].gc += gB;
+    ts[time_b].gp += gB; ts[time_b].gc += gA;
     if      (gA > gB) { ts[time_a].pts += 3; }
     else if (gA === gB) { ts[time_a].pts += 1; ts[time_b].pts += 1; }
-    else               { ts[time_b].pts += 3; }
+    else                { ts[time_b].pts += 3; }
   });
   return new Set(
     Object.entries(ts)
-      .sort(([,a],[,b]) => b.pts - a.pts || b.sg - a.sg || b.gp - a.gp)
-      .slice(0, 5).map(([nome]) => nome)
+      .sort(([,a],[,b]) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp)
+      .slice(0, 5)
+      .map(([nome]) => nome)
   );
 }
 
 function rkAplicarDestaque() {
   rkLimparDestaque();
-  const top5 = rkObterTop5();
-  if (!top5.size) return;
-
+  if (!qdDadosCache || !qdDadosCache.length) return;
+  const horasSel = parseInt(document.querySelector("#seletorHoras")?.value || 12);
+  const top5 = rkCalcularTop5(qdDadosCache, horasSel * 20);
   document.querySelectorAll(".placar-futuro").forEach(placar => {
-    // Via span (quando "Ver Times" está ativo)
     [".time-casa", ".time-fora"].forEach(sel => {
       const span = placar.querySelector(sel);
       if (!span) return;
-      const nome = span.getAttribute("data-full-time") || span.textContent.trim();
-      if (nome && top5.has(nome)) span.classList.add("rk-top5-nome");
+      const nome = span.getAttribute("data-full-time");
+      if (top5.has(nome)) span.classList.add("rk-top5-nome");
     });
-    // Fallback via data-time-a/b (quando "Ver Times" está desativado)
+    // Quando mostrarTimes está desativado, usa data-time-a/b do próprio div
     const tA = placar.getAttribute("data-time-a");
     const tB = placar.getAttribute("data-time-b");
-    if (tA && top5.has(tA)) placar.setAttribute("data-rk-casa", "1");
-    else placar.removeAttribute("data-rk-casa");
-    if (tB && top5.has(tB)) placar.setAttribute("data-rk-fora", "1");
-    else placar.removeAttribute("data-rk-fora");
+    // Tenta também sem span (fallback — não faz nada, os spans cuidam disso)
   });
 }
 
 function rkLimparDestaque() {
   document.querySelectorAll(".rk-top5-nome").forEach(el => el.classList.remove("rk-top5-nome"));
-  document.querySelectorAll(".placar-futuro[data-rk-casa]").forEach(el => el.removeAttribute("data-rk-casa"));
-  document.querySelectorAll(".placar-futuro[data-rk-fora]").forEach(el => el.removeAttribute("data-rk-fora"));
 }
 
 function rkSincronizar() {
