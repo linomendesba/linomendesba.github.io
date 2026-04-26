@@ -1,758 +1,748 @@
-const _0x2b88ec = _0xa0e8;
-function _0xa0e8(_0xe2b694, _0x3b9e41) {
-    _0xe2b694 = _0xe2b694 - (-0xd0d * -0x1 + 0x115 * -0x3 + -0x1 * 0x85a);
-    const _0x33cc86 = _0x3c54();
-    let _0x2a75de = _0x33cc86[_0xe2b694];
-    return _0x2a75de;
+function _0x590a(_0x3e7dab, _0x12567a) {
+    _0x3e7dab = _0x3e7dab - (0x113 * 0x3 + -0x43 * -0x13 + -0x666);
+    const _0x25902e = _0x3c74();
+    let _0x5e4c7e = _0x25902e[_0x3e7dab];
+    return _0x5e4c7e;
 }
-(function (_0x446281, _0x3a479d) {
-    const _0x1160d0 = _0xa0e8, _0x43c268 = _0x446281();
+const _0x4eed3f = _0x590a;
+(function (_0x3cade4, _0xa32e30) {
+    const _0x1ff507 = _0x590a, _0x2dbb78 = _0x3cade4();
     while (!![]) {
         try {
-            const _0x48054b = -parseInt(_0x1160d0(0x1df)) / (-0x3bb * -0x2 + 0x673 * -0x4 + 0xf * 0x139) * (-parseInt(_0x1160d0(0x18d)) / (0x1 * -0x1831 + 0x19d8 + 0x1a5 * -0x1)) + parseInt(_0x1160d0(0x232)) / (-0x1d0d + -0xcb4 + 0x29c4) + -parseInt(_0x1160d0(0x236)) / (-0x20f9 + 0x17f1 + 0x243 * 0x4) * (-parseInt(_0x1160d0(0x1bd)) / (0x1 * 0x53 + 0x258b + -0x25d9)) + -parseInt(_0x1160d0(0x21f)) / (-0x13d4 + 0xd34 + 0x6a6) * (-parseInt(_0x1160d0(0x21e)) / (-0x1a65 + 0xc * 0x140 + 0xb6c)) + -parseInt(_0x1160d0(0x1e3)) / (-0xeee + -0x80 + 0xf76) * (-parseInt(_0x1160d0(0x196)) / (0xdc1 * 0x2 + 0x9d * -0x37 + 0x642)) + -parseInt(_0x1160d0(0x23b)) / (0x10a * 0x3 + 0x89 * -0x1f + 0xd83) * (-parseInt(_0x1160d0(0x180)) / (-0x4 * -0x911 + -0x31 * -0x2d + -0x2cd6 * 0x1)) + parseInt(_0x1160d0(0x220)) / (-0x1d6b + -0x2e5 + -0x1b4 * -0x13) * (-parseInt(_0x1160d0(0x19f)) / (-0x1061 + -0x1 * 0xfec + 0x205a));
-            if (_0x48054b === _0x3a479d)
+            const _0x155191 = parseInt(_0x1ff507(0x1fd)) / (-0x1621 + -0x16da + 0x2cfc) * (parseInt(_0x1ff507(0x221)) / (0x9 * 0x1f2 + -0x1 * -0x23e1 + 0x3 * -0x11cb)) + parseInt(_0x1ff507(0x238)) / (0x3 * -0xbb4 + 0x277 * -0x2 + 0x280d) * (-parseInt(_0x1ff507(0x2a5)) / (-0x2100 + 0x8d + 0x2077)) + -parseInt(_0x1ff507(0x227)) / (0x18f9 + -0xf97 + -0x95d) + -parseInt(_0x1ff507(0x215)) / (0x18d + -0x17d + -0x5 * 0x2) * (-parseInt(_0x1ff507(0x266)) / (0x111 * 0xd + -0x1 * -0xf08 + 0xa * -0x2e3)) + parseInt(_0x1ff507(0x2a2)) / (0x5e3 + -0x240b + 0x1e30) * (-parseInt(_0x1ff507(0x2d0)) / (0xc0b + -0xebb * 0x1 + 0x2b9)) + -parseInt(_0x1ff507(0x270)) / (-0x1933 * -0x1 + 0x1b52 + -0x1 * 0x347b) + parseInt(_0x1ff507(0x286)) / (0x1 * 0x148d + 0xa9 * 0x36 + -0x3828);
+            if (_0x155191 === _0xa32e30)
                 break;
             else
-                _0x43c268['push'](_0x43c268['shift']());
-        } catch (_0x4d3c8e) {
-            _0x43c268['push'](_0x43c268['shift']());
+                _0x2dbb78['push'](_0x2dbb78['shift']());
+        } catch (_0xd71deb) {
+            _0x2dbb78['push'](_0x2dbb78['shift']());
         }
     }
-}(_0x3c54, -0x1 * 0xdaec + -0x2ae55 * 0x1 + 0x3 * 0x1f1f3));
-const API_BASE_URL = _0x2b88ec(0x1e5) + _0x2b88ec(0x18f), API_SECRET = _0x2b88ec(0x17b) + _0x2b88ec(0x25d) + _0x2b88ec(0x1a3) + _0x2b88ec(0x26f) + _0x2b88ec(0x285) + _0x2b88ec(0x1cd) + _0x2b88ec(0x1cb);
+}(_0x3c74, 0x754f9 + -0x9620 + -0x1 * 0x2a119));
+const API_BASE_URL = _0x4eed3f(0x249) + _0x4eed3f(0x26e), API_SECRET = _0x4eed3f(0x209) + _0x4eed3f(0x279) + _0x4eed3f(0x2de) + _0x4eed3f(0x21f) + _0x4eed3f(0x254) + _0x4eed3f(0x2ca) + _0x4eed3f(0x244);
 let _sessionToken = null, _tokenTimer = null, _tokenPromise = null;
-const _fetchOriginal = window[_0x2b88ec(0x1ac)][_0x2b88ec(0x207)](window);
-function _0x3c54() {
-    const _0x34c449 = [
-        'KIRON_ENGL',
-        'AApIV',
-        'novar\x20toke',
-        '34cc1f39c3',
-        'NPwHE',
-        'gNnVR',
-        'gfYcb',
-        '/auth/toke',
-        'GFoUs',
-        'lUsYe',
-        's/bet365/S',
-        '%C3%A9rica',
-        'fetch',
-        'KIRON_AMER',
-        'aly',
-        'pa%20do%20',
-        'Mundo',
-        's/bet365/E',
-        'estrela/Co',
-        'zZTfa',
-        'EURO',
-        '.html',
-        'MIER',
-        'hZmpT',
-        '0|11|6',
-        'and',
-        'n,\x20tentand',
-        'toLowerCas',
-        's/bet365/P',
-        '125xbqOPA',
-        '\x20Inglaterr',
-        'COPA_AMERI',
-        '|14|7|17|5',
-        'cBEfg',
-        '11|12|9|8|',
-        '/odds/kiro',
-        'HJKPB',
-        'atina',
-        'ITALIANO',
-        'copa_das_e',
-        'mctBw',
-        'token',
-        '65/Copa',
-        '0817',
-        'BET365_PRE',
-        '65ef2b387c',
-        '16|7|11|9|',
-        'nazPw',
-        'rbrxQ',
-        'Bet365\x20Pre',
-        'FwgyN',
-        'njJGG',
-        '%B5es',
-        'r.html',
-        'ela/Am%C3%',
-        'Ligas\x20dos\x20',
-        'n/Brazil',
-        'ESTRELA_AM',
-        'nd.html',
-        'KIRON_ITAL',
-        'azil',
-        'kiron/Spai',
-        'headers',
-        '2WXZmtU',
-        'NzpSx',
-        'ain',
-        'hTUtd',
-        '1521776rocpVx',
-        'MMZTZ',
-        'https://be',
-        'brasileira',
-        '\x20Italiano',
-        'Euro',
-        '65/Super',
-        'kironengla',
-        'copa_ameri',
-        'AMPIONS',
-        'keCIt',
-        'Erro\x20ao\x20re',
-        's/kiron/Br',
-        'estrelacop',
-        'kironspain',
-        'pathname',
-        '/odds/',
-        '|5|3|6|2|1',
-        'warn',
-        'kiron/Engl',
-        'uper',
-        'ubuGH',
-        'bet365/Pre',
-        'kironbrazi',
-        'OygdA',
-        'ier.html',
-        'ca%20Latin',
-        'Copa\x20das\x20E',
-        'Bet365\x20Cop',
-        'Brasileirã',
-        'mzouj',
-        's%20Campe%',
-        'mier',
-        'kiron/Braz',
-        'QtejY',
-        'estrela/Li',
-        'bind',
-        '/proximos/',
-        's/kiron/Am',
-        'EuKAR',
-        'KLfOl',
-        'n/Spain',
-        '\x20América\x20L',
-        'C3%B5es',
-        'tina',
-        'ERICA_LATI',
-        'ZrRxo',
-        'estrelaame',
-        'Copa\x20Améri',
-        'KIRON_SPAI',
-        'a\x20Eterna',
-        'o\x20Betano',
-        'HeAAT',
-        'uzsAh',
-        '15|17|8|10',
-        'piYAu',
-        's/bet365/C',
-        'split',
-        'bet365euro',
-        '164178hjwIaQ',
-        '48PUrQdw',
-        '60nvUdDf',
-        'A9rica%20L',
-        'NsuEZ',
-        '20dos%20Ca',
-        'o.html',
-        'mYVvP',
-        'tTwFj',
-        'campeonato',
-        'location',
-        'BET365_COP',
-        'bet365supe',
-        's/kiron/En',
-        'Feeis',
-        'BET365_EUR',
-        'ICA',
-        'AND',
-        'nyARH',
-        '%20Latina',
-        '472656FSHyJt',
-        'COPA_ESTRE',
-        'qWoNF',
-        'LAS',
-        '6676hVrNmq',
-        'nVmIZ',
-        'nBKKa',
-        'bet365/Eur',
-        'strelas.ht',
-        '40HCrZUy',
-        'OOndX',
-        'RNA',
-        'estrelacha',
-        'ZDvQE',
-        '3|4|6|16|1',
-        'Campeões',
-        'ricalatina',
-        'ca.html',
-        'kironameri',
-        '20Campe%C3',
-        'now',
-        'América\x20La',
-        '1|18|12|15',
-        'NpWqI',
-        'chJxd',
-        'ela/Ligas%',
-        'BRASILEIRA',
-        'bet365/Sup',
-        'includes',
-        'strelas',
-        'FdChF',
-        'kiron/Amer',
-        '|4|10|9|8|',
-        'ESTRELA_CO',
-        'PA_MUNDO',
-        'remier',
-        '_italiano.',
-        'ExjUy',
-        'StabU',
-        '16|3|2|13|',
-        'qwZaE',
-        '65/Euro',
-        'OkkIG',
-        '4061c318b2',
-        'wiqTc',
-        'MDnnJ',
-        '20Mundo',
-        'oqlYb',
-        'bet365',
-        'Copa\x20do\x20Mu',
-        '2|13|18|14',
-        '5|1|10',
-        'ESTRELA_CH',
-        '/odds/bet3',
-        'Tqvvp',
-        's/kiron/It',
-        'xctmj',
-        '20Latina',
-        'euro.html',
-        'FZbhl',
-        'o\x20em\x2030s..',
-        '66e7f25bd8',
-        'fAqyA',
-        'KIRON_BRAZ',
-        'mpions.htm',
-        '\x20Espanha',
-        'ndo',
-        'bet365copa',
-        'enSXo',
-        'Bet365\x20Sup',
-        'BET365_SUP',
-        'kironitaly',
-        'mpe%C3%B5e',
-        'ica%20Lati',
-        'opa',
-        '4|13|18|7|',
-        'ihWHJ',
-        'Am%C3%A9ri',
-        '0|5|2|17|1',
-        '/resultado',
-        'VolQz',
-        'TdVev',
-        'mIfkD',
-        '2d392dfa96',
-        'ozrCu',
-        'ZWXxL',
-        's/kiron/Sp',
-        's/estrela/',
-        'gas%20dos%',
-        'Campeonato',
-        '65/Premier',
-        'n/America%',
-        '|1|4|0',
-        'Kiron\x20Liga',
-        'uro',
-        'etPeQ',
-        'Ligas%20do',
-        '982cc60d79',
-        'gland',
-        'estrela/Am',
-        '/odds/estr',
-        'kiron/Ital',
-        '1518sUTMPe',
-        'expiresAt',
-        '\x20Itália',
-        'Taça\x20Glóri',
-        'json',
-        'AXqyZ',
-        '0do%20Mund',
-        'amundo.htm',
-        'ela/Copa%2',
-        'html',
-        'PTvqO',
-        'rqhvp',
-        'dKIZQ',
-        '214862xOEvQZ',
-        'n/Italy',
-        'tstat.site',
-        'xlNfN',
-        'GLORIA_ETE',
-        'Bet365\x20Eur',
-        '\x20Brasil',
-        'XRATy',
-        'SXlaj',
-        '9VbCKgM',
-        'Copa%20do%',
-        'bet365prem',
-        'AjKWg',
-        'thGIw',
-        'erica%20La',
-        'bet365/Cop',
-        'n/England',
-        'l.html',
-        '1668849CPmrIN'
-    ];
-    _0x3c54 = function () {
-        return _0x34c449;
-    };
-    return _0x3c54();
-}
+const _fetchOriginal = window[_0x4eed3f(0x2ac)][_0x4eed3f(0x2df)](window);
 async function _renovarToken() {
-    const _0x475d81 = _0x2b88ec, _0xd29059 = {
-            'nyARH': function (_0x13c0ae) {
-                return _0x13c0ae();
+    const _0x35cb78 = _0x4eed3f, _0x1aeac5 = {
+            'SvIIe': function (_0x104b4f) {
+                return _0x104b4f();
             },
-            'cBEfg': function (_0x185994) {
-                return _0x185994();
+            'YNNnQ': function (_0x1791a2) {
+                return _0x1791a2();
             },
-            'Tqvvp': function (_0x1f64bc, _0x3ffb7c, _0x25fbad) {
-                return _0x1f64bc(_0x3ffb7c, _0x25fbad);
+            'BPCiV': function (_0x4bdda7, _0x133a06, _0x4fe4de) {
+                return _0x4bdda7(_0x133a06, _0x4fe4de);
             },
-            'nBKKa': function (_0xfd02fa, _0x3843c9) {
-                return _0xfd02fa - _0x3843c9;
+            'CmDiA': function (_0x255850, _0x3eccc1) {
+                return _0x255850 - _0x3eccc1;
             },
-            'ZWXxL': function (_0x26d9c3, _0x326ead) {
-                return _0x26d9c3(_0x326ead);
+            'nTpFy': function (_0x47260d, _0x392a1f) {
+                return _0x47260d - _0x392a1f;
             },
-            'EuKAR': function (_0x4e4818, _0x1e5630, _0x5c2680) {
-                return _0x4e4818(_0x1e5630, _0x5c2680);
+            'yGMOF': function (_0x2da21e, _0x40b911) {
+                return _0x2da21e(_0x40b911);
             },
-            'piYAu': _0x475d81(0x1ee) + _0x475d81(0x1a2) + _0x475d81(0x1ba) + _0x475d81(0x26e) + '.',
-            'ExjUy': function (_0x607b89, _0x3746f6, _0x5d526d) {
-                return _0x607b89(_0x3746f6, _0x5d526d);
+            'LvyIF': function (_0x2ca8de, _0x2ae5ef, _0x5ec491) {
+                return _0x2ca8de(_0x2ae5ef, _0x5ec491);
+            },
+            'DSBqJ': _0x35cb78(0x1eb) + _0x35cb78(0x26f) + _0x35cb78(0x241) + _0x35cb78(0x2d9) + '.',
+            'FeNRO': function (_0x199fd8, _0x5e6c72, _0x4ec4cc) {
+                return _0x199fd8(_0x5e6c72, _0x4ec4cc);
             }
         };
     try {
-        const _0x3b18f5 = await _0xd29059[_0x475d81(0x268)](_fetchOriginal, API_BASE_URL + (_0x475d81(0x1a7) + 'n'), { 'headers': { 'x-api-secret': API_SECRET } }), _0x396170 = await _0x3b18f5[_0x475d81(0x184)]();
-        _sessionToken = _0x396170[_0x475d81(0x1c9)];
-        const _0x26f0b5 = _0xd29059[_0x475d81(0x238)](_0xd29059[_0x475d81(0x238)](_0x396170[_0x475d81(0x181)], Date[_0x475d81(0x246)]()), -0x13df + 0x6d + -0x88a2 * -0x1);
-        _0xd29059[_0x475d81(0x287)](clearTimeout, _tokenTimer), _tokenTimer = _0xd29059[_0x475d81(0x20a)](setTimeout, () => {
-            const _0x3d8c6e = _0x475d81;
-            _tokenPromise = _0xd29059[_0x3d8c6e(0x230)](_renovarToken);
-        }, _0x26f0b5);
-    } catch (_0x39e2bf) {
-        console[_0x475d81(0x1f5)](_0xd29059[_0x475d81(0x21a)]), _tokenTimer = _0xd29059[_0x475d81(0x257)](setTimeout, () => {
-            const _0x1fc66f = _0x475d81;
-            _tokenPromise = _0xd29059[_0x1fc66f(0x1c1)](_renovarToken);
-        }, 0x2 * -0x565 + 0x6c1e + 0x13dc);
+        const _0x4ab991 = await _0x1aeac5[_0x35cb78(0x2bd)](_fetchOriginal, API_BASE_URL + (_0x35cb78(0x1e1) + 'n'), { 'headers': { 'x-api-secret': API_SECRET } }), _0x1050b6 = await _0x4ab991[_0x35cb78(0x22c)]();
+        _sessionToken = _0x1050b6[_0x35cb78(0x210)];
+        const _0x19403a = _0x1aeac5[_0x35cb78(0x1fe)](_0x1aeac5[_0x35cb78(0x1cc)](_0x1050b6[_0x35cb78(0x284)], Date[_0x35cb78(0x1ed)]()), 0x285a * -0x5 + -0xbaf6 + 0x1f9e8);
+        _0x1aeac5[_0x35cb78(0x282)](clearTimeout, _tokenTimer), _tokenTimer = _0x1aeac5[_0x35cb78(0x2d1)](setTimeout, () => {
+            const _0x12f616 = _0x35cb78;
+            _tokenPromise = _0x1aeac5[_0x12f616(0x21a)](_renovarToken);
+        }, _0x19403a);
+    } catch (_0x276e24) {
+        console[_0x35cb78(0x234)](_0x1aeac5[_0x35cb78(0x250)]), _tokenTimer = _0x1aeac5[_0x35cb78(0x2d4)](setTimeout, () => {
+            const _0x17cabc = _0x35cb78;
+            _tokenPromise = _0x1aeac5[_0x17cabc(0x299)](_renovarToken);
+        }, 0x89 * -0x9b + -0xb051 + 0x17874);
     }
 }
-_tokenPromise = _renovarToken(), window[_0x2b88ec(0x1ac)] = async function (_0x31a43c, _0x155d07 = {}) {
-    const _0x40c4bc = _0x2b88ec, _0x259355 = {
-            'hTUtd': function (_0x5c20e6, _0x133061, _0x225c70) {
-                return _0x5c20e6(_0x133061, _0x225c70);
+function _0x3c74() {
+    const _0x21b0c6 = [
+        '\x20Itália',
+        'hmqyC',
+        'XWipq',
+        'ESTRELA_CH',
+        '17|6|0|7|3',
+        'gas%20dos%',
+        'estrela/Am',
+        'copa_das_e',
+        '65/Premier',
+        '982cc60d79',
+        'strelas',
+        'dowoM',
+        '65/Copa',
+        '9|12|15|7|',
+        'bet365/Sup',
+        'DTryv',
+        'token',
+        '|11|2|6|5|',
+        'bet365/Pre',
+        'COPA_AMERI',
+        'urtlj',
+        '2465082xBDXvx',
+        '/proximos/',
+        'remier',
+        'o.html',
+        'BET365_COP',
+        'SvIIe',
+        '/resultado',
+        'LZXLG',
+        'KIRON_SPAI',
+        'r.html',
+        '66e7f25bd8',
+        'campeonato',
+        '162478CUeycS',
+        'bet365/Cop',
+        's/bet365/C',
+        'n/Spain',
+        '20Mundo',
+        'ERICA_LATI',
+        '2205845KGSViM',
+        'BET365_PRE',
+        'pathname',
+        'COPA_ESTRE',
+        'hpqJy',
+        'json',
+        '17|3|1',
+        'euro.html',
+        'JKCjQ',
+        'BET365_EUR',
+        '\x20Italiano',
+        'IRULF',
+        'BET365_SUP',
+        'warn',
+        '/odds/estr',
+        'AND',
+        '|14|12|13|',
+        '30318uyVAJM',
+        's/kiron/Am',
+        'pa%20do%20',
+        'tcFvD',
+        '\x20América\x20L',
+        'Taça\x20Glóri',
+        '%B5es',
+        'atina',
+        'bet365supe',
+        'n,\x20tentand',
+        'wJEAU',
+        'Copa\x20das\x20E',
+        '0817',
+        'uro',
+        'uIDrj',
+        'and',
+        'estrelacha',
+        'https://be',
+        'Bet365\x20Pre',
+        'kiron/Spai',
+        '65/Super',
+        's/kiron/It',
+        'bet365',
+        '20dos%20Ca',
+        'DSBqJ',
+        'EURO',
+        's/bet365/E',
+        'SnLcU',
+        '2d392dfa96',
+        'kironitaly',
+        'CMtnY',
+        'NEIzb',
+        'EgBll',
+        'a\x20Eterna',
+        'erica%20La',
+        'KIRON_BRAZ',
+        '8|13|0',
+        'XkNqk',
+        'ITALIANO',
+        '16|10|12|9',
+        'LAS',
+        'gland',
+        'A9rica%20L',
+        'amundo.htm',
+        '11|16|2|10',
+        'Bet365\x20Sup',
+        '7JoJCjU',
+        '20Latina',
+        's/estrela/',
+        'mjAWH',
+        '1|18|8',
+        '15|16|9|1|',
+        '18|13|4|8|',
+        'split',
+        'tstat.site',
+        'novar\x20toke',
+        '2888190FRQLqC',
+        'brasileira',
+        'VYCMh',
+        'tina',
+        's/kiron/Br',
+        'headers',
+        'Kiron\x20Liga',
+        'América\x20La',
+        'ZEYsc',
+        '4061c318b2',
+        'toLowerCas',
+        'RKrFx',
+        'pNQRu',
+        'kironengla',
+        'KIRON_AMER',
+        '\x20Brasil',
+        'ier.html',
+        'cCcCl',
+        'yGMOF',
+        'MIER',
+        'expiresAt',
+        'vSncs',
+        '5385963lDlAgI',
+        'GhWcX',
+        'BRASILEIRA',
+        '5|2|4|10|1',
+        '.html',
+        '|14|3|6|4|',
+        '\x20Espanha',
+        'ca.html',
+        'ricalatina',
+        'KIRON_ITAL',
+        'kironameri',
+        'Brasileirã',
+        'n/America%',
+        'mpe%C3%B5e',
+        '1|5|17|18|',
+        'Copa\x20Améri',
+        'YGNQd',
+        'Campeonato',
+        'KIRON_ENGL',
+        'YNNnQ',
+        'nd.html',
+        'IZSBM',
+        'kiron/Engl',
+        'HsCwF',
+        'pjPzf',
+        'tooPV',
+        'GLORIA_ETE',
+        'tvBKP',
+        '8BMCkyJ',
+        '%C3%A9rica',
+        '/odds/',
+        '44gHVgFl',
+        '%20Latina',
+        'ndo',
+        'kironspain',
+        'CqhQq',
+        'dQBVJ',
+        '20Campe%C3',
+        'fetch',
+        'ela/Ligas%',
+        's/bet365/S',
+        'Ligas\x20dos\x20',
+        'BfrgS',
+        'PpNtJ',
+        'azil',
+        'qHhWI',
+        'hCjSH',
+        'xAwUJ',
+        'kiron/Amer',
+        '65/Euro',
+        'fHvxr',
+        '0|15|14|7|',
+        '_italiano.',
+        'ca%20Latin',
+        'l.html',
+        'BPCiV',
+        'mier',
+        'kiron/Ital',
+        'uper',
+        'PA_MUNDO',
+        'DIPBb',
+        'nQtiJ',
+        'KWpxy',
+        '/odds/bet3',
+        's/kiron/Sp',
+        'Euro',
+        'Mundo',
+        's%20Campe%',
+        '65ef2b387c',
+        'html',
+        'bIDAe',
+        'o\x20Betano',
+        'Am%C3%A9ri',
+        'fFBfC',
+        '299547wlyMzM',
+        'LvyIF',
+        '\x20Inglaterr',
+        'aly',
+        'FeNRO',
+        'ela/Am%C3%',
+        'estrelacop',
+        'n/Brazil',
+        'RNA',
+        'o\x20em\x2030s..',
+        'bet365prem',
+        'ESTRELA_CO',
+        'bet365copa',
+        'n/England',
+        '34cc1f39c3',
+        'bind',
+        'nTpFy',
+        'estrelaame',
+        'Bet365\x20Eur',
+        'nFyXs',
+        'ICA',
+        'strelas.ht',
+        '0do%20Mund',
+        'copa_ameri',
+        'Copa%20do%',
+        'Bet365\x20Cop',
+        'yZDim',
+        'xAyxG',
+        's/kiron/En',
+        'QuJjU',
+        'ica%20Lati',
+        'AMPIONS',
+        'location',
+        'mpions.htm',
+        'estrela/Co',
+        '/odds/kiro',
+        'Ligas%20do',
+        '/auth/toke',
+        'ktYJL',
+        'CyOYV',
+        'PCRoH',
+        'ela/Copa%2',
+        'C3%B5es',
+        'includes',
+        'fxFjM',
+        'kironbrazi',
+        'opa',
+        'Erro\x20ao\x20re',
+        's/bet365/P',
+        'now',
+        'IvGar',
+        'fBzpw',
+        'kiron/Braz',
+        'ESTRELA_AM',
+        'bet365euro',
+        'estrela/Li',
+        'Copa\x20do\x20Mu',
+        'FDIkb',
+        'n/Italy',
+        'rUgyn',
+        'qYWZz',
+        'ooydw',
+        'Campeões',
+        'ain',
+        'bet365/Eur',
+        '3nxUQkz',
+        'CmDiA',
+        'KtdQF'
+    ];
+    _0x3c74 = function () {
+        return _0x21b0c6;
+    };
+    return _0x3c74();
+}
+_tokenPromise = _renovarToken(), window[_0x4eed3f(0x2ac)] = async function (_0x933ed8, _0x38fc65 = {}) {
+    const _0x590349 = _0x4eed3f, _0x291469 = {
+            'hCjSH': function (_0x1571d6, _0x39f2c5, _0x34abb0) {
+                return _0x1571d6(_0x39f2c5, _0x34abb0);
             }
         };
     if (!_sessionToken)
         await _tokenPromise;
-    return _0x155d07[_0x40c4bc(0x1de)] = {
-        ..._0x155d07[_0x40c4bc(0x1de)],
+    return _0x38fc65[_0x590349(0x275)] = {
+        ..._0x38fc65[_0x590349(0x275)],
         'x-session-token': _sessionToken
-    }, _0x259355[_0x40c4bc(0x1e2)](_fetchOriginal, _0x31a43c, _0x155d07);
+    }, _0x291469[_0x590349(0x2b4)](_fetchOriginal, _0x933ed8, _0x38fc65);
 };
 const LIGAS = {
-        'GLORIA_ETERNA': _0x2b88ec(0x183) + _0x2b88ec(0x215),
-        'COPA_AMERICA': _0x2b88ec(0x213) + 'ca',
-        'EURO': _0x2b88ec(0x1e8),
-        'ITALIANO': _0x2b88ec(0x28b) + _0x2b88ec(0x1e7),
-        'COPA_ESTRELAS': _0x2b88ec(0x1fe) + _0x2b88ec(0x24f),
-        'BRASILEIRAO': _0x2b88ec(0x200) + _0x2b88ec(0x216),
-        'BET365_COPA': _0x2b88ec(0x1ff) + 'a',
-        'BET365_EURO': _0x2b88ec(0x192) + 'o',
-        'BET365_SUPER': _0x2b88ec(0x277) + 'er',
-        'BET365_PREMIER': _0x2b88ec(0x1d1) + _0x2b88ec(0x203),
-        'KIRON_BRAZIL': _0x2b88ec(0x177) + _0x2b88ec(0x193),
-        'KIRON_ENGLAND': _0x2b88ec(0x177) + _0x2b88ec(0x1be) + 'a',
-        'KIRON_ITALY': _0x2b88ec(0x177) + _0x2b88ec(0x182),
-        'KIRON_AMERICA': _0x2b88ec(0x177) + _0x2b88ec(0x20d) + _0x2b88ec(0x1c5),
-        'KIRON_SPAIN': _0x2b88ec(0x177) + _0x2b88ec(0x273),
-        'ESTRELA_COPA_MUNDO': _0x2b88ec(0x263) + _0x2b88ec(0x274),
-        'ESTRELA_CHAMPIONS': _0x2b88ec(0x1d7) + _0x2b88ec(0x241),
-        'ESTRELA_AMERICA_LATINA': _0x2b88ec(0x247) + _0x2b88ec(0x20f)
+        'GLORIA_ETERNA': _0x4eed3f(0x23d) + _0x4eed3f(0x259),
+        'COPA_AMERICA': _0x4eed3f(0x295) + 'ca',
+        'EURO': _0x4eed3f(0x2c7),
+        'ITALIANO': _0x4eed3f(0x297) + _0x4eed3f(0x231),
+        'COPA_ESTRELAS': _0x4eed3f(0x243) + _0x4eed3f(0x20a),
+        'BRASILEIRAO': _0x4eed3f(0x291) + _0x4eed3f(0x2cd),
+        'BET365_COPA': _0x4eed3f(0x1d5) + 'a',
+        'BET365_EURO': _0x4eed3f(0x1ce) + 'o',
+        'BET365_SUPER': _0x4eed3f(0x265) + 'er',
+        'BET365_PREMIER': _0x4eed3f(0x24a) + _0x4eed3f(0x2be),
+        'KIRON_BRAZIL': _0x4eed3f(0x276) + _0x4eed3f(0x27f),
+        'KIRON_ENGLAND': _0x4eed3f(0x276) + _0x4eed3f(0x2d2) + 'a',
+        'KIRON_ITALY': _0x4eed3f(0x276) + _0x4eed3f(0x200),
+        'KIRON_AMERICA': _0x4eed3f(0x276) + _0x4eed3f(0x23c) + _0x4eed3f(0x23f),
+        'KIRON_SPAIN': _0x4eed3f(0x276) + _0x4eed3f(0x28c),
+        'ESTRELA_COPA_MUNDO': _0x4eed3f(0x1f4) + _0x4eed3f(0x2a7),
+        'ESTRELA_CHAMPIONS': _0x4eed3f(0x2af) + _0x4eed3f(0x1fa),
+        'ESTRELA_AMERICA_LATINA': _0x4eed3f(0x277) + _0x4eed3f(0x273)
     }, ROTAS_API = {
-        'resultados': _0x3e70b3 => {
-            const _0x12aaf3 = _0x2b88ec, _0x2a5486 = {
-                    'nazPw': _0x12aaf3(0x1c2) + _0x12aaf3(0x280) + _0x12aaf3(0x27d) + _0x12aaf3(0x240) + _0x12aaf3(0x265),
-                    'keCIt': function (_0x69c874, _0x492448) {
-                        return _0x69c874 === _0x492448;
+        'resultados': _0x2d6882 => {
+            const _0x178712 = _0x4eed3f, _0x28b766 = {
+                    'SnLcU': _0x178712(0x204) + _0x178712(0x237) + _0x178712(0x26b) + _0x178712(0x289) + _0x178712(0x26a),
+                    'mjAWH': function (_0xdbf9e7, _0x5a5b25) {
+                        return _0xdbf9e7 === _0x5a5b25;
                     },
-                    'rbrxQ': function (_0x2110db, _0x5d3a54) {
-                        return _0x2110db(_0x5d3a54);
+                    'CMtnY': function (_0x516361, _0x4b2892) {
+                        return _0x516361(_0x4b2892);
                     },
-                    'AjKWg': function (_0x18ff0d, _0x55b470) {
-                        return _0x18ff0d === _0x55b470;
+                    'nQtiJ': function (_0x329ea8, _0x426753) {
+                        return _0x329ea8 === _0x426753;
                     },
-                    'HeAAT': function (_0x7a70a4, _0xc78d59) {
-                        return _0x7a70a4 === _0xc78d59;
+                    'IvGar': function (_0xff39dd, _0xa27d4b) {
+                        return _0xff39dd(_0xa27d4b);
                     },
-                    'ihWHJ': function (_0x172617, _0x563625) {
-                        return _0x172617 === _0x563625;
+                    'cCcCl': function (_0x48d1bc, _0x4baccd) {
+                        return _0x48d1bc === _0x4baccd;
                     },
-                    'SXlaj': function (_0x537887, _0x383bf8) {
-                        return _0x537887(_0x383bf8);
+                    'RKrFx': function (_0x310274, _0x4bb113) {
+                        return _0x310274 === _0x4bb113;
                     },
-                    'ubuGH': function (_0x2bd04b, _0x245d2e) {
-                        return _0x2bd04b === _0x245d2e;
+                    'XkNqk': function (_0x4c7f7b, _0x3561f3) {
+                        return _0x4c7f7b === _0x3561f3;
                     },
-                    'mYVvP': function (_0x2cb802, _0x5b633d) {
-                        return _0x2cb802(_0x5b633d);
+                    'rUgyn': function (_0xa170b1, _0x3953e8) {
+                        return _0xa170b1 === _0x3953e8;
                     },
-                    'hZmpT': function (_0x48dcb2, _0x1c97e4) {
-                        return _0x48dcb2(_0x1c97e4);
+                    'wJEAU': function (_0x29d194, _0x1eb3be) {
+                        return _0x29d194 === _0x1eb3be;
                     },
-                    'mIfkD': function (_0x348463, _0x4f371f) {
-                        return _0x348463 === _0x4f371f;
-                    },
-                    'KLfOl': function (_0x210a49, _0x1c1040) {
-                        return _0x210a49 === _0x1c1040;
-                    },
-                    'PTvqO': function (_0xd71dbb, _0x5a47f6) {
-                        return _0xd71dbb(_0x5a47f6);
-                    },
-                    'etPeQ': function (_0xd7b2c6, _0x3ff954) {
-                        return _0xd7b2c6 === _0x3ff954;
-                    },
-                    'ZrRxo': function (_0x33334f, _0x3c768e) {
-                        return _0x33334f === _0x3c768e;
-                    },
-                    'Feeis': function (_0x16eb00, _0x153e73) {
-                        return _0x16eb00 === _0x153e73;
-                    },
-                    'AXqyZ': function (_0x5bd463, _0xdda10b) {
-                        return _0x5bd463 === _0xdda10b;
-                    },
-                    'tTwFj': function (_0x4212dc, _0x4e5a64) {
-                        return _0x4212dc === _0x4e5a64;
+                    'ZEYsc': function (_0x39bf22, _0x5be388) {
+                        return _0x39bf22 === _0x5be388;
                     }
-                }, _0x4e26c2 = _0x2a5486[_0x12aaf3(0x1cf)][_0x12aaf3(0x21c)]('|');
-            let _0x32bb62 = 0x1b * -0x92 + 0x472 + 0xaf4;
+                }, _0x3eaf99 = _0x28b766[_0x178712(0x253)][_0x178712(0x26d)]('|');
+            let _0x54c4ee = -0x1ab1 + -0x23d0 + 0x3e81;
             while (!![]) {
-                switch (_0x4e26c2[_0x32bb62++]) {
+                switch (_0x3eaf99[_0x54c4ee++]) {
                 case '0':
-                    if (_0x2a5486[_0x12aaf3(0x1ed)](_0x3e70b3, LIGAS[_0x12aaf3(0x233) + _0x12aaf3(0x235)]))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + 's/') + _0x2a5486[_0x12aaf3(0x1d0)](encodeURIComponent, _0x3e70b3);
+                    if (_0x28b766[_0x178712(0x269)](_0x2d6882, LIGAS[_0x178712(0x251)]))
+                        return API_BASE_URL + (_0x178712(0x21b) + 's/') + _0x28b766[_0x178712(0x256)](encodeURIComponent, _0x2d6882);
                     continue;
                 case '1':
-                    if (_0x2a5486[_0x12aaf3(0x199)](_0x3e70b3, LIGAS[_0x12aaf3(0x1d9) + _0x12aaf3(0x210) + 'NA']))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x289) + _0x12aaf3(0x27f) + _0x12aaf3(0x1fd) + 'a');
+                    if (_0x28b766[_0x178712(0x269)](_0x2d6882, LIGAS[_0x178712(0x298) + _0x178712(0x236)]))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x1d8) + _0x178712(0x261));
                     continue;
                 case '2':
-                    if (_0x2a5486[_0x12aaf3(0x1ed)](_0x3e70b3, LIGAS[_0x12aaf3(0x229) + 'A']))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x21b) + _0x12aaf3(0x27c));
+                    if (_0x28b766[_0x178712(0x269)](_0x2d6882, LIGAS[_0x178712(0x27e) + _0x178712(0x1d0)]))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x239) + _0x178712(0x25a) + _0x178712(0x273));
                     continue;
                 case '3':
-                    if (_0x2a5486[_0x12aaf3(0x217)](_0x3e70b3, LIGAS[_0x12aaf3(0x1db) + 'Y']))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x269) + _0x12aaf3(0x1ae));
+                    if (_0x28b766[_0x178712(0x269)](_0x2d6882, LIGAS[_0x178712(0x22a) + _0x178712(0x260)]))
+                        return API_BASE_URL + (_0x178712(0x21b) + 's/') + _0x28b766[_0x178712(0x256)](encodeURIComponent, _0x2d6882);
                     continue;
                 case '4':
-                    if (_0x2a5486[_0x12aaf3(0x199)](_0x3e70b3, LIGAS[_0x12aaf3(0x1ad) + _0x12aaf3(0x22e)]))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x209) + _0x12aaf3(0x19b) + _0x12aaf3(0x20f));
+                    if (_0x28b766[_0x178712(0x269)](_0x2d6882, LIGAS[_0x178712(0x21d) + 'N']))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x2c6) + _0x178712(0x1fb));
                     continue;
                 case '5':
-                    if (_0x2a5486[_0x12aaf3(0x27e)](_0x3e70b3, LIGAS[_0x12aaf3(0x24c) + 'O']))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + 's/') + _0x2a5486[_0x12aaf3(0x195)](encodeURIComponent, _0x3e70b3);
+                    if (_0x28b766[_0x178712(0x269)](_0x2d6882, LIGAS[_0x178712(0x28f) + 'Y']))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x24d) + _0x178712(0x2d3));
                     continue;
                 case '6':
-                    if (_0x2a5486[_0x12aaf3(0x1f8)](_0x3e70b3, LIGAS[_0x12aaf3(0x214) + 'N']))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x288) + _0x12aaf3(0x1e1));
+                    if (_0x28b766[_0x178712(0x2c3)](_0x2d6882, LIGAS[_0x178712(0x213) + 'CA']))
+                        return API_BASE_URL + (_0x178712(0x21b) + 's/') + _0x28b766[_0x178712(0x256)](encodeURIComponent, _0x2d6882);
                     continue;
                 case '7':
-                    if (_0x2a5486[_0x12aaf3(0x199)](_0x3e70b3, LIGAS[_0x12aaf3(0x1a0) + _0x12aaf3(0x22f)]))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x22b) + _0x12aaf3(0x17c));
+                    if (_0x28b766[_0x178712(0x269)](_0x2d6882, LIGAS[_0x178712(0x25e)]))
+                        return API_BASE_URL + (_0x178712(0x21b) + 's/') + _0x28b766[_0x178712(0x256)](encodeURIComponent, _0x2d6882);
                     continue;
                 case '8':
-                    if (_0x2a5486[_0x12aaf3(0x1f8)](_0x3e70b3, LIGAS[_0x12aaf3(0x1c6)]))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + 's/') + _0x2a5486[_0x12aaf3(0x225)](encodeURIComponent, _0x3e70b3);
-                    continue;
+                    return API_BASE_URL + (_0x178712(0x21b) + 's/') + _0x28b766[_0x178712(0x1ee)](encodeURIComponent, _0x2d6882);
                 case '9':
-                    if (_0x2a5486[_0x12aaf3(0x217)](_0x3e70b3, LIGAS[_0x12aaf3(0x1b4)]))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + 's/') + _0x2a5486[_0x12aaf3(0x195)](encodeURIComponent, _0x3e70b3);
+                    if (_0x28b766[_0x178712(0x281)](_0x2d6882, LIGAS[_0x178712(0x25b) + 'IL']))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x274) + _0x178712(0x2b2));
                     continue;
                 case '10':
-                    return API_BASE_URL + (_0x12aaf3(0x281) + 's/') + _0x2a5486[_0x12aaf3(0x1b7)](encodeURIComponent, _0x3e70b3);
+                    if (_0x28b766[_0x178712(0x27b)](_0x2d6882, LIGAS[_0x178712(0x2db) + _0x178712(0x2c1)]))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x268) + _0x178712(0x1d4) + _0x178712(0x225));
+                    continue;
                 case '11':
-                    if (_0x2a5486[_0x12aaf3(0x284)](_0x3e70b3, LIGAS[_0x12aaf3(0x191) + _0x12aaf3(0x23d)]))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + 's/') + _0x2a5486[_0x12aaf3(0x225)](encodeURIComponent, _0x3e70b3);
+                    if (_0x28b766[_0x178712(0x25d)](_0x2d6882, LIGAS[_0x178712(0x203) + _0x178712(0x1db)]))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x268) + _0x178712(0x1e0) + _0x178712(0x2c9) + _0x178712(0x1e6));
                     continue;
                 case '12':
-                    if (_0x2a5486[_0x12aaf3(0x20b)](_0x3e70b3, LIGAS[_0x12aaf3(0x1bf) + 'CA']))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + 's/') + _0x2a5486[_0x12aaf3(0x18a)](encodeURIComponent, _0x3e70b3);
+                    if (_0x28b766[_0x178712(0x1f7)](_0x2d6882, LIGAS[_0x178712(0x219) + 'A']))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x223) + _0x178712(0x1ea));
                     continue;
                 case '13':
-                    if (_0x2a5486[_0x12aaf3(0x179)](_0x3e70b3, LIGAS[_0x12aaf3(0x1cc) + _0x12aaf3(0x1b6)]))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x1bc) + _0x12aaf3(0x255));
+                    if (_0x28b766[_0x178712(0x242)](_0x2d6882, LIGAS[_0x178712(0x230) + 'O']))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x252) + _0x178712(0x245));
                     continue;
                 case '14':
-                    if (_0x2a5486[_0x12aaf3(0x1f8)](_0x3e70b3, LIGAS[_0x12aaf3(0x278) + 'ER']))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x1aa) + _0x12aaf3(0x1f7));
+                    if (_0x28b766[_0x178712(0x278)](_0x2d6882, LIGAS[_0x178712(0x288) + 'O']))
+                        return API_BASE_URL + (_0x178712(0x21b) + 's/') + _0x28b766[_0x178712(0x1ee)](encodeURIComponent, _0x2d6882);
                     continue;
                 case '15':
-                    if (_0x2a5486[_0x12aaf3(0x211)](_0x3e70b3, LIGAS[_0x12aaf3(0x266) + _0x12aaf3(0x1ec)]))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x289) + _0x12aaf3(0x17a) + _0x12aaf3(0x202) + _0x12aaf3(0x20e));
+                    if (_0x28b766[_0x178712(0x278)](_0x2d6882, LIGAS[_0x178712(0x233) + 'ER']))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x2ae) + _0x178712(0x2c0));
                     continue;
                 case '16':
-                    if (_0x2a5486[_0x12aaf3(0x22c)](_0x3e70b3, LIGAS[_0x12aaf3(0x253) + _0x12aaf3(0x254)]))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x289) + _0x12aaf3(0x197) + _0x12aaf3(0x260));
+                    if (_0x28b766[_0x178712(0x269)](_0x2d6882, LIGAS[_0x178712(0x228) + _0x178712(0x283)]))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x1ec) + _0x178712(0x217));
                     continue;
                 case '17':
-                    if (_0x2a5486[_0x12aaf3(0x185)](_0x3e70b3, LIGAS[_0x12aaf3(0x22d) + 'O']))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x1b1) + _0x12aaf3(0x178));
+                    if (_0x28b766[_0x178712(0x27b)](_0x2d6882, LIGAS[_0x178712(0x2a0) + _0x178712(0x2d8)]))
+                        return API_BASE_URL + (_0x178712(0x21b) + 's/') + _0x28b766[_0x178712(0x1ee)](encodeURIComponent, _0x2d6882);
                     continue;
                 case '18':
-                    if (_0x2a5486[_0x12aaf3(0x226)](_0x3e70b3, LIGAS[_0x12aaf3(0x271) + 'IL']))
-                        return API_BASE_URL + (_0x12aaf3(0x281) + _0x12aaf3(0x1ef) + _0x12aaf3(0x1dc));
+                    if (_0x28b766[_0x178712(0x242)](_0x2d6882, LIGAS[_0x178712(0x1f1) + _0x178712(0x226) + 'NA']))
+                        return API_BASE_URL + (_0x178712(0x21b) + _0x178712(0x268) + _0x178712(0x2ce) + _0x178712(0x2bb) + 'a');
                     continue;
                 }
                 break;
             }
         },
-        'proximosJogos': _0x24ffbf => {
-            const _0x110431 = _0x2b88ec, _0x174496 = {
-                    'wiqTc': _0x110431(0x1ce) + _0x110431(0x219) + _0x110431(0x1f4) + _0x110431(0x264) + _0x110431(0x176),
-                    'NsuEZ': function (_0x59078b, _0x4a3248) {
-                        return _0x59078b(_0x4a3248);
+        'proximosJogos': _0x5cd06d => {
+            const _0x3aa601 = _0x4eed3f, _0xe36d0b = {
+                    'urtlj': _0x3aa601(0x264) + _0x3aa601(0x28b) + _0x3aa601(0x20d) + _0x3aa601(0x294) + _0x3aa601(0x25c),
+                    'XWipq': function (_0x44e2d7, _0x50406c) {
+                        return _0x44e2d7(_0x50406c);
                     },
-                    'njJGG': function (_0x28968f, _0x488534) {
-                        return _0x28968f === _0x488534;
+                    'ktYJL': function (_0x4be61a, _0x7ddaf0) {
+                        return _0x4be61a === _0x7ddaf0;
                     },
-                    'GFoUs': function (_0x304c26, _0x3f9ee7) {
-                        return _0x304c26 === _0x3f9ee7;
+                    'hmqyC': function (_0x1bad34, _0x10dc0b) {
+                        return _0x1bad34(_0x10dc0b);
                     },
-                    'FdChF': function (_0x1130b4, _0x5c9a7e) {
-                        return _0x1130b4 === _0x5c9a7e;
+                    'pjPzf': function (_0x501d39, _0x4d055a) {
+                        return _0x501d39 === _0x4d055a;
                     },
-                    'MDnnJ': function (_0x389bc1, _0x146dee) {
-                        return _0x389bc1(_0x146dee);
+                    'IZSBM': function (_0x2a6082, _0x17e6b2) {
+                        return _0x2a6082 === _0x17e6b2;
                     },
-                    'FZbhl': function (_0x3a6820, _0x524462) {
-                        return _0x3a6820 === _0x524462;
+                    'ooydw': function (_0x173adf, _0x42a8d2) {
+                        return _0x173adf === _0x42a8d2;
                     },
-                    'oqlYb': function (_0x16dcf7, _0x1491aa) {
-                        return _0x16dcf7 === _0x1491aa;
+                    'JKCjQ': function (_0x35a76c, _0xbfb771) {
+                        return _0x35a76c === _0xbfb771;
                     },
-                    'XRATy': function (_0x22ce3a, _0x2dec2c) {
-                        return _0x22ce3a === _0x2dec2c;
+                    'dowoM': function (_0x37b965, _0x2b6db2) {
+                        return _0x37b965(_0x2b6db2);
                     },
-                    'qWoNF': function (_0x1f29b4, _0xfac8d2) {
-                        return _0x1f29b4 === _0xfac8d2;
+                    'tcFvD': function (_0x1dcff7, _0x2fee21) {
+                        return _0x1dcff7(_0x2fee21);
                     },
-                    'NpWqI': function (_0x5360bd, _0x5b276b) {
-                        return _0x5360bd === _0x5b276b;
+                    'PpNtJ': function (_0x377065, _0x28a2f4) {
+                        return _0x377065 === _0x28a2f4;
                     },
-                    'OygdA': function (_0x198890, _0x5d438a) {
-                        return _0x198890 === _0x5d438a;
+                    'VYCMh': function (_0x13c423, _0x219f51) {
+                        return _0x13c423 === _0x219f51;
                     },
-                    'QtejY': function (_0x512ce6, _0x2f0954) {
-                        return _0x512ce6 === _0x2f0954;
+                    'uIDrj': function (_0x1ed235, _0xb761a) {
+                        return _0x1ed235 === _0xb761a;
+                    },
+                    'DTryv': function (_0x609804, _0x696747) {
+                        return _0x609804 === _0x696747;
+                    },
+                    'GhWcX': function (_0x20ece8, _0x210cd) {
+                        return _0x20ece8(_0x210cd);
                     }
-                }, _0x583fd4 = _0x174496[_0x110431(0x25e)][_0x110431(0x21c)]('|');
-            let _0x33eb19 = -0x1 * -0x2284 + 0x1d * -0x2e + -0x1d4e;
+                }, _0x3aca0f = _0xe36d0b[_0x3aa601(0x214)][_0x3aa601(0x26d)]('|');
+            let _0x2ad09e = -0xd41 + -0x1f32 + 0x2c73;
             while (!![]) {
-                switch (_0x583fd4[_0x33eb19++]) {
+                switch (_0x3aca0f[_0x2ad09e++]) {
                 case '0':
-                    return API_BASE_URL + _0x110431(0x208) + _0x174496[_0x110431(0x222)](encodeURIComponent, _0x24ffbf);
+                    return API_BASE_URL + _0x3aa601(0x216) + _0xe36d0b[_0x3aa601(0x202)](encodeURIComponent, _0x5cd06d);
                 case '1':
-                    if (_0x174496[_0x110431(0x1d3)](_0x24ffbf, LIGAS[_0x110431(0x266) + _0x110431(0x1ec)]))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x206) + _0x110431(0x28a) + _0x110431(0x245) + _0x110431(0x1d4));
+                    if (_0xe36d0b[_0x3aa601(0x1e2)](_0x5cd06d, LIGAS[_0x3aa601(0x28f) + 'Y']))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x2bf) + 'y');
                     continue;
                 case '2':
-                    if (_0x174496[_0x110431(0x1d3)](_0x24ffbf, LIGAS[_0x110431(0x1a0) + _0x110431(0x22f)]))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x1f6) + _0x110431(0x1b9));
+                    if (_0xe36d0b[_0x3aa601(0x1e2)](_0x5cd06d, LIGAS[_0x3aa601(0x251)]))
+                        return API_BASE_URL + _0x3aa601(0x216) + _0xe36d0b[_0x3aa601(0x201)](encodeURIComponent, _0x5cd06d);
                     continue;
                 case '3':
-                    if (_0x174496[_0x110431(0x1d3)](_0x24ffbf, LIGAS[_0x110431(0x1cc) + _0x110431(0x1b6)]))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x1f9) + _0x110431(0x203));
+                    if (_0xe36d0b[_0x3aa601(0x1e2)](_0x5cd06d, LIGAS[_0x3aa601(0x288) + 'O']))
+                        return API_BASE_URL + _0x3aa601(0x216) + _0xe36d0b[_0x3aa601(0x201)](encodeURIComponent, _0x5cd06d);
                     continue;
                 case '4':
-                    if (_0x174496[_0x110431(0x1d3)](_0x24ffbf, LIGAS[_0x110431(0x1d9) + _0x110431(0x210) + 'NA']))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x17d) + _0x110431(0x1ab) + _0x110431(0x231));
+                    if (_0xe36d0b[_0x3aa601(0x1e2)](_0x5cd06d, LIGAS[_0x3aa601(0x230) + 'O']))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x1fc) + 'o');
                     continue;
                 case '5':
-                    if (_0x174496[_0x110431(0x1a8)](_0x24ffbf, LIGAS[_0x110431(0x278) + 'ER']))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x24d) + 'er');
+                    if (_0xe36d0b[_0x3aa601(0x29e)](_0x5cd06d, LIGAS[_0x3aa601(0x27e) + _0x3aa601(0x1d0)]))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x2b6) + _0x3aa601(0x1da) + 'na');
                     continue;
                 case '6':
-                    if (_0x174496[_0x110431(0x250)](_0x24ffbf, LIGAS[_0x110431(0x271) + 'IL']))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x204) + 'il');
+                    if (_0xe36d0b[_0x3aa601(0x1e2)](_0x5cd06d, LIGAS[_0x3aa601(0x219) + 'A']))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x222) + 'a');
                     continue;
                 case '7':
-                    if (_0x174496[_0x110431(0x250)](_0x24ffbf, LIGAS[_0x110431(0x1bf) + 'CA']))
-                        return API_BASE_URL + _0x110431(0x208) + _0x174496[_0x110431(0x25f)](encodeURIComponent, _0x24ffbf);
+                    if (_0xe36d0b[_0x3aa601(0x29e)](_0x5cd06d, LIGAS[_0x3aa601(0x298) + _0x3aa601(0x236)]))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x29c) + _0x3aa601(0x247));
                     continue;
                 case '8':
-                    if (_0x174496[_0x110431(0x1a8)](_0x24ffbf, LIGAS[_0x110431(0x229) + 'A']))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x19c) + 'a');
+                    if (_0xe36d0b[_0x3aa601(0x29b)](_0x5cd06d, LIGAS[_0x3aa601(0x203) + _0x3aa601(0x1db)]))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x1f3) + _0x3aa601(0x205) + _0x3aa601(0x2ab) + _0x3aa601(0x23e));
                     continue;
                 case '9':
-                    if (_0x174496[_0x110431(0x26d)](_0x24ffbf, LIGAS[_0x110431(0x1c6)]))
-                        return API_BASE_URL + _0x110431(0x208) + _0x174496[_0x110431(0x222)](encodeURIComponent, _0x24ffbf);
+                    if (_0xe36d0b[_0x3aa601(0x1f9)](_0x5cd06d, LIGAS[_0x3aa601(0x233) + 'ER']))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x20e) + 'er');
                     continue;
                 case '10':
-                    if (_0x174496[_0x110431(0x261)](_0x24ffbf, LIGAS[_0x110431(0x22d) + 'O']))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x239) + 'o');
+                    if (_0xe36d0b[_0x3aa601(0x22f)](_0x5cd06d, LIGAS[_0x3aa601(0x25e)]))
+                        return API_BASE_URL + _0x3aa601(0x216) + _0xe36d0b[_0x3aa601(0x20b)](encodeURIComponent, _0x5cd06d);
                     continue;
                 case '11':
-                    if (_0x174496[_0x110431(0x1d3)](_0x24ffbf, LIGAS[_0x110431(0x1b4)]))
-                        return API_BASE_URL + _0x110431(0x208) + _0x174496[_0x110431(0x222)](encodeURIComponent, _0x24ffbf);
+                    if (_0xe36d0b[_0x3aa601(0x1e2)](_0x5cd06d, LIGAS[_0x3aa601(0x2a0) + _0x3aa601(0x2d8)]))
+                        return API_BASE_URL + _0x3aa601(0x216) + _0xe36d0b[_0x3aa601(0x23b)](encodeURIComponent, _0x5cd06d);
                     continue;
                 case '12':
-                    if (_0x174496[_0x110431(0x261)](_0x24ffbf, LIGAS[_0x110431(0x1db) + 'Y']))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x17f) + 'y');
+                    if (_0xe36d0b[_0x3aa601(0x2b1)](_0x5cd06d, LIGAS[_0x3aa601(0x228) + _0x3aa601(0x283)]))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x212) + _0x3aa601(0x2be));
                     continue;
                 case '13':
-                    if (_0x174496[_0x110431(0x1a8)](_0x24ffbf, LIGAS[_0x110431(0x1ad) + _0x110431(0x22e)]))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x251) + _0x110431(0x27b) + 'na');
+                    if (_0xe36d0b[_0x3aa601(0x272)](_0x5cd06d, LIGAS[_0x3aa601(0x1f1) + _0x3aa601(0x226) + 'NA']))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x206) + _0x3aa601(0x2a3) + _0x3aa601(0x2a6));
                     continue;
                 case '14':
-                    if (_0x174496[_0x110431(0x194)](_0x24ffbf, LIGAS[_0x110431(0x253) + _0x110431(0x254)]))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x1b2) + _0x110431(0x1af) + _0x110431(0x1b0));
+                    if (_0xe36d0b[_0x3aa601(0x29e)](_0x5cd06d, LIGAS[_0x3aa601(0x22a) + _0x3aa601(0x260)]))
+                        return API_BASE_URL + _0x3aa601(0x216) + _0xe36d0b[_0x3aa601(0x20b)](encodeURIComponent, _0x5cd06d);
                     continue;
                 case '15':
-                    if (_0x174496[_0x110431(0x234)](_0x24ffbf, LIGAS[_0x110431(0x233) + _0x110431(0x235)]))
-                        return API_BASE_URL + _0x110431(0x208) + _0x174496[_0x110431(0x25f)](encodeURIComponent, _0x24ffbf);
+                    if (_0xe36d0b[_0x3aa601(0x246)](_0x5cd06d, LIGAS[_0x3aa601(0x25b) + 'IL']))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x1f0) + 'il');
                     continue;
                 case '16':
-                    if (_0x174496[_0x110431(0x249)](_0x24ffbf, LIGAS[_0x110431(0x191) + _0x110431(0x23d)]))
-                        return API_BASE_URL + _0x110431(0x208) + _0x174496[_0x110431(0x222)](encodeURIComponent, _0x24ffbf);
+                    if (_0xe36d0b[_0x3aa601(0x20f)](_0x5cd06d, LIGAS[_0x3aa601(0x213) + 'CA']))
+                        return API_BASE_URL + _0x3aa601(0x216) + _0xe36d0b[_0x3aa601(0x287)](encodeURIComponent, _0x5cd06d);
                     continue;
                 case '17':
-                    if (_0x174496[_0x110431(0x1fb)](_0x24ffbf, LIGAS[_0x110431(0x24c) + 'O']))
-                        return API_BASE_URL + _0x110431(0x208) + _0x174496[_0x110431(0x222)](encodeURIComponent, _0x24ffbf);
+                    if (_0xe36d0b[_0x3aa601(0x22f)](_0x5cd06d, LIGAS[_0x3aa601(0x21d) + 'N']))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x24b) + 'n');
                     continue;
                 case '18':
-                    if (_0x174496[_0x110431(0x205)](_0x24ffbf, LIGAS[_0x110431(0x214) + 'N']))
-                        return API_BASE_URL + (_0x110431(0x208) + _0x110431(0x1dd) + 'n');
+                    if (_0xe36d0b[_0x3aa601(0x20f)](_0x5cd06d, LIGAS[_0x3aa601(0x2db) + _0x3aa601(0x2c1)]))
+                        return API_BASE_URL + (_0x3aa601(0x216) + _0x3aa601(0x1de) + _0x3aa601(0x23a) + _0x3aa601(0x2c8));
                     continue;
                 }
                 break;
             }
         },
-        'odds': _0x26ce55 => {
-            const _0x3e4eaa = _0x2b88ec, _0x198f41 = {
-                    'zZTfa': _0x3e4eaa(0x259) + _0x3e4eaa(0x248) + _0x3e4eaa(0x1c0) + _0x3e4eaa(0x252) + _0x3e4eaa(0x1b8),
-                    'enSXo': function (_0x32b625, _0x188d9a) {
-                        return _0x32b625 === _0x188d9a;
+        'odds': _0x1d22f6 => {
+            const _0x1a76d4 = _0x4eed3f, _0x5a24c1 = {
+                    'fHvxr': _0x1a76d4(0x25f) + _0x1a76d4(0x211) + _0x1a76d4(0x2b9) + _0x1a76d4(0x26c) + _0x1a76d4(0x22d),
+                    'BfrgS': function (_0x55cff6, _0x55cd63) {
+                        return _0x55cff6 === _0x55cd63;
                     },
-                    'gNnVR': function (_0x226962, _0x3e25e3) {
-                        return _0x226962(_0x3e25e3);
+                    'pNQRu': function (_0x513390, _0x2c7cbf) {
+                        return _0x513390(_0x2c7cbf);
                     },
-                    'xctmj': function (_0x1ee1dc, _0x43ff09) {
-                        return _0x1ee1dc === _0x43ff09;
+                    'dQBVJ': function (_0x220220, _0x3f0eb4) {
+                        return _0x220220 === _0x3f0eb4;
                     },
-                    'VolQz': function (_0x40bd34, _0xa62977) {
-                        return _0x40bd34 === _0xa62977;
+                    'LZXLG': function (_0x52b303, _0x46f5a0) {
+                        return _0x52b303 === _0x46f5a0;
                     },
-                    'MMZTZ': function (_0x496843, _0x839a63) {
-                        return _0x496843(_0x839a63);
+                    'fxFjM': function (_0x27786c, _0x50cbc7) {
+                        return _0x27786c === _0x50cbc7;
                     },
-                    'fAqyA': function (_0x4d03aa, _0x22c5de) {
-                        return _0x4d03aa === _0x22c5de;
+                    'fBzpw': function (_0x32d6c9, _0x5e5632) {
+                        return _0x32d6c9(_0x5e5632);
                     },
-                    'dKIZQ': function (_0x28e392, _0x313dc6) {
-                        return _0x28e392 === _0x313dc6;
+                    'KtdQF': function (_0x3adebd, _0x1f037d) {
+                        return _0x3adebd === _0x1f037d;
                     },
-                    'chJxd': function (_0xeca749, _0x238b97) {
-                        return _0xeca749 === _0x238b97;
+                    'HsCwF': function (_0x127a76, _0x5d9f5e) {
+                        return _0x127a76(_0x5d9f5e);
                     },
-                    'ozrCu': function (_0x297f3d, _0x93d854) {
-                        return _0x297f3d === _0x93d854;
+                    'QuJjU': function (_0x5c9d51, _0x1fa02b) {
+                        return _0x5c9d51(_0x1fa02b);
                     },
-                    'qwZaE': function (_0x5c4b22, _0x2acc17) {
-                        return _0x5c4b22 === _0x2acc17;
+                    'qHhWI': function (_0x383ff5, _0x4fea84) {
+                        return _0x383ff5 === _0x4fea84;
                     },
-                    'OkkIG': function (_0x1ebad5, _0x151fe6) {
-                        return _0x1ebad5 === _0x151fe6;
+                    'xAyxG': function (_0x2c449d, _0x130a0b) {
+                        return _0x2c449d === _0x130a0b;
+                    },
+                    'PCRoH': function (_0x1b7027, _0x18bfd2) {
+                        return _0x1b7027 === _0x18bfd2;
+                    },
+                    'hpqJy': function (_0x3e785a, _0x4574d3) {
+                        return _0x3e785a === _0x4574d3;
                     }
-                }, _0x388c67 = _0x198f41[_0x3e4eaa(0x1b3)][_0x3e4eaa(0x21c)]('|');
-            let _0x780744 = 0x82c + -0x5b2 + 0x27a * -0x1;
+                }, _0x3e39a5 = _0x5a24c1[_0x1a76d4(0x2b8)][_0x1a76d4(0x26d)]('|');
+            let _0x4c561a = -0x1f2 + 0x1 * -0x1891 + 0x1a83;
             while (!![]) {
-                switch (_0x388c67[_0x780744++]) {
+                switch (_0x3e39a5[_0x4c561a++]) {
                 case '0':
-                    if (_0x198f41[_0x3e4eaa(0x276)](_0x26ce55, LIGAS[_0x3e4eaa(0x266) + _0x3e4eaa(0x1ec)]))
-                        return API_BASE_URL + (_0x3e4eaa(0x17e) + _0x3e4eaa(0x24b) + _0x3e4eaa(0x223) + _0x3e4eaa(0x27a) + 's');
+                    if (_0x5a24c1[_0x1a76d4(0x2b0)](_0x1d22f6, LIGAS[_0x1a76d4(0x233) + 'ER']))
+                        return API_BASE_URL + (_0x1a76d4(0x2c5) + _0x1a76d4(0x24c));
                     continue;
                 case '1':
-                    if (_0x198f41[_0x3e4eaa(0x276)](_0x26ce55, LIGAS[_0x3e4eaa(0x233) + _0x3e4eaa(0x235)]))
-                        return API_BASE_URL + _0x3e4eaa(0x1f3) + _0x198f41[_0x3e4eaa(0x1a5)](encodeURIComponent, _0x26ce55);
-                    continue;
+                    return API_BASE_URL + _0x1a76d4(0x2a4) + _0x5a24c1[_0x1a76d4(0x27c)](encodeURIComponent, _0x1d22f6);
                 case '2':
-                    if (_0x198f41[_0x3e4eaa(0x276)](_0x26ce55, LIGAS[_0x3e4eaa(0x1b4)]))
-                        return API_BASE_URL + _0x3e4eaa(0x1f3) + _0x198f41[_0x3e4eaa(0x1a5)](encodeURIComponent, _0x26ce55);
+                    if (_0x5a24c1[_0x1a76d4(0x2aa)](_0x1d22f6, LIGAS[_0x1a76d4(0x288) + 'O']))
+                        return API_BASE_URL + _0x1a76d4(0x2a4) + _0x5a24c1[_0x1a76d4(0x27c)](encodeURIComponent, _0x1d22f6);
                     continue;
                 case '3':
-                    if (_0x198f41[_0x3e4eaa(0x276)](_0x26ce55, LIGAS[_0x3e4eaa(0x1bf) + 'CA']))
-                        return API_BASE_URL + _0x3e4eaa(0x1f3) + _0x198f41[_0x3e4eaa(0x1a5)](encodeURIComponent, _0x26ce55);
+                    if (_0x5a24c1[_0x1a76d4(0x2aa)](_0x1d22f6, LIGAS[_0x1a76d4(0x1f1) + _0x1a76d4(0x226) + 'NA']))
+                        return API_BASE_URL + (_0x1a76d4(0x235) + _0x1a76d4(0x2d5) + _0x1a76d4(0x262) + _0x1a76d4(0x23f));
                     continue;
                 case '4':
-                    if (_0x198f41[_0x3e4eaa(0x26a)](_0x26ce55, LIGAS[_0x3e4eaa(0x1db) + 'Y']))
-                        return API_BASE_URL + (_0x3e4eaa(0x1c3) + _0x3e4eaa(0x18e));
+                    if (_0x5a24c1[_0x1a76d4(0x21c)](_0x1d22f6, LIGAS[_0x1a76d4(0x21d) + 'N']))
+                        return API_BASE_URL + (_0x1a76d4(0x1df) + _0x1a76d4(0x224));
                     continue;
                 case '5':
-                    if (_0x198f41[_0x3e4eaa(0x282)](_0x26ce55, LIGAS[_0x3e4eaa(0x1a0) + _0x3e4eaa(0x22f)]))
-                        return API_BASE_URL + (_0x3e4eaa(0x1c3) + _0x3e4eaa(0x19d));
+                    if (_0x5a24c1[_0x1a76d4(0x2b0)](_0x1d22f6, LIGAS[_0x1a76d4(0x230) + 'O']))
+                        return API_BASE_URL + (_0x1a76d4(0x2c5) + _0x1a76d4(0x2b7));
                     continue;
                 case '6':
-                    return API_BASE_URL + _0x3e4eaa(0x1f3) + _0x198f41[_0x3e4eaa(0x1e4)](encodeURIComponent, _0x26ce55);
+                    if (_0x5a24c1[_0x1a76d4(0x21c)](_0x1d22f6, LIGAS[_0x1a76d4(0x219) + 'A']))
+                        return API_BASE_URL + (_0x1a76d4(0x2c5) + _0x1a76d4(0x20c));
+                    continue;
                 case '7':
-                    if (_0x198f41[_0x3e4eaa(0x270)](_0x26ce55, LIGAS[_0x3e4eaa(0x1cc) + _0x3e4eaa(0x1b6)]))
-                        return API_BASE_URL + (_0x3e4eaa(0x267) + _0x3e4eaa(0x174));
+                    if (_0x5a24c1[_0x1a76d4(0x21c)](_0x1d22f6, LIGAS[_0x1a76d4(0x298) + _0x1a76d4(0x236)]))
+                        return API_BASE_URL + (_0x1a76d4(0x1df) + _0x1a76d4(0x2dd));
                     continue;
                 case '8':
-                    if (_0x198f41[_0x3e4eaa(0x270)](_0x26ce55, LIGAS[_0x3e4eaa(0x253) + _0x3e4eaa(0x254)]))
-                        return API_BASE_URL + (_0x3e4eaa(0x17e) + _0x3e4eaa(0x188) + _0x3e4eaa(0x186) + 'o');
+                    if (_0x5a24c1[_0x1a76d4(0x21c)](_0x1d22f6, LIGAS[_0x1a76d4(0x2db) + _0x1a76d4(0x2c1)]))
+                        return API_BASE_URL + (_0x1a76d4(0x235) + _0x1a76d4(0x1e5) + _0x1a76d4(0x1d2) + 'o');
                     continue;
                 case '9':
-                    if (_0x198f41[_0x3e4eaa(0x26a)](_0x26ce55, LIGAS[_0x3e4eaa(0x214) + 'N']))
-                        return API_BASE_URL + (_0x3e4eaa(0x1c3) + _0x3e4eaa(0x20c));
+                    if (_0x5a24c1[_0x1a76d4(0x1e8)](_0x1d22f6, LIGAS[_0x1a76d4(0x25e)]))
+                        return API_BASE_URL + _0x1a76d4(0x2a4) + _0x5a24c1[_0x1a76d4(0x1ef)](encodeURIComponent, _0x1d22f6);
                     continue;
                 case '10':
-                    if (_0x198f41[_0x3e4eaa(0x18c)](_0x26ce55, LIGAS[_0x3e4eaa(0x1ad) + _0x3e4eaa(0x22e)]))
-                        return API_BASE_URL + (_0x3e4eaa(0x1c3) + _0x3e4eaa(0x175) + _0x3e4eaa(0x26b));
+                    if (_0x5a24c1[_0x1a76d4(0x1ff)](_0x1d22f6, LIGAS[_0x1a76d4(0x213) + 'CA']))
+                        return API_BASE_URL + _0x1a76d4(0x2a4) + _0x5a24c1[_0x1a76d4(0x1ef)](encodeURIComponent, _0x1d22f6);
                     continue;
                 case '11':
-                    if (_0x198f41[_0x3e4eaa(0x24a)](_0x26ce55, LIGAS[_0x3e4eaa(0x1d9) + _0x3e4eaa(0x210) + 'NA']))
-                        return API_BASE_URL + (_0x3e4eaa(0x17e) + _0x3e4eaa(0x1d6) + _0x3e4eaa(0x221) + _0x3e4eaa(0x1c5));
+                    if (_0x5a24c1[_0x1a76d4(0x2b0)](_0x1d22f6, LIGAS[_0x1a76d4(0x22a) + _0x1a76d4(0x260)]))
+                        return API_BASE_URL + _0x1a76d4(0x2a4) + _0x5a24c1[_0x1a76d4(0x29d)](encodeURIComponent, _0x1d22f6);
                     continue;
                 case '12':
-                    if (_0x198f41[_0x3e4eaa(0x26a)](_0x26ce55, LIGAS[_0x3e4eaa(0x229) + 'A']))
-                        return API_BASE_URL + (_0x3e4eaa(0x267) + _0x3e4eaa(0x1ca));
+                    if (_0x5a24c1[_0x1a76d4(0x1ff)](_0x1d22f6, LIGAS[_0x1a76d4(0x251)]))
+                        return API_BASE_URL + _0x1a76d4(0x2a4) + _0x5a24c1[_0x1a76d4(0x1d9)](encodeURIComponent, _0x1d22f6);
                     continue;
                 case '13':
-                    if (_0x198f41[_0x3e4eaa(0x26a)](_0x26ce55, LIGAS[_0x3e4eaa(0x1c6)]))
-                        return API_BASE_URL + _0x3e4eaa(0x1f3) + _0x198f41[_0x3e4eaa(0x1e4)](encodeURIComponent, _0x26ce55);
+                    if (_0x5a24c1[_0x1a76d4(0x21c)](_0x1d22f6, LIGAS[_0x1a76d4(0x27e) + _0x1a76d4(0x1d0)]))
+                        return API_BASE_URL + (_0x1a76d4(0x1df) + _0x1a76d4(0x292) + _0x1a76d4(0x267));
                     continue;
                 case '14':
-                    if (_0x198f41[_0x3e4eaa(0x286)](_0x26ce55, LIGAS[_0x3e4eaa(0x278) + 'ER']))
-                        return API_BASE_URL + (_0x3e4eaa(0x267) + _0x3e4eaa(0x1e9));
+                    if (_0x5a24c1[_0x1a76d4(0x2b3)](_0x1d22f6, LIGAS[_0x1a76d4(0x25b) + 'IL']))
+                        return API_BASE_URL + (_0x1a76d4(0x1df) + _0x1a76d4(0x2d7));
                     continue;
                 case '15':
-                    if (_0x198f41[_0x3e4eaa(0x25a)](_0x26ce55, LIGAS[_0x3e4eaa(0x22d) + 'O']))
-                        return API_BASE_URL + (_0x3e4eaa(0x267) + _0x3e4eaa(0x25b));
+                    if (_0x5a24c1[_0x1a76d4(0x1d7)](_0x1d22f6, LIGAS[_0x1a76d4(0x228) + _0x1a76d4(0x283)]))
+                        return API_BASE_URL + (_0x1a76d4(0x2c5) + _0x1a76d4(0x208));
                     continue;
                 case '16':
-                    if (_0x198f41[_0x3e4eaa(0x25c)](_0x26ce55, LIGAS[_0x3e4eaa(0x191) + _0x3e4eaa(0x23d)]))
-                        return API_BASE_URL + _0x3e4eaa(0x1f3) + _0x198f41[_0x3e4eaa(0x1e4)](encodeURIComponent, _0x26ce55);
+                    if (_0x5a24c1[_0x1a76d4(0x1ff)](_0x1d22f6, LIGAS[_0x1a76d4(0x2a0) + _0x1a76d4(0x2d8)]))
+                        return API_BASE_URL + _0x1a76d4(0x2a4) + _0x5a24c1[_0x1a76d4(0x1ef)](encodeURIComponent, _0x1d22f6);
                     continue;
                 case '17':
-                    if (_0x198f41[_0x3e4eaa(0x270)](_0x26ce55, LIGAS[_0x3e4eaa(0x271) + 'IL']))
-                        return API_BASE_URL + (_0x3e4eaa(0x1c3) + _0x3e4eaa(0x1d8));
+                    if (_0x5a24c1[_0x1a76d4(0x1e4)](_0x1d22f6, LIGAS[_0x1a76d4(0x203) + _0x1a76d4(0x1db)]))
+                        return API_BASE_URL + (_0x1a76d4(0x235) + _0x1a76d4(0x2ad) + _0x1a76d4(0x24f) + _0x1a76d4(0x293) + 's');
                     continue;
                 case '18':
-                    if (_0x198f41[_0x3e4eaa(0x24a)](_0x26ce55, LIGAS[_0x3e4eaa(0x24c) + 'O']))
-                        return API_BASE_URL + _0x3e4eaa(0x1f3) + _0x198f41[_0x3e4eaa(0x1a5)](encodeURIComponent, _0x26ce55);
+                    if (_0x5a24c1[_0x1a76d4(0x22b)](_0x1d22f6, LIGAS[_0x1a76d4(0x28f) + 'Y']))
+                        return API_BASE_URL + (_0x1a76d4(0x1df) + _0x1a76d4(0x1f6));
                     continue;
                 }
                 break;
@@ -760,60 +750,60 @@ const LIGAS = {
         }
     };
 function detectarLigaAtual() {
-    const _0x5dadfb = _0x2b88ec, _0x503eb9 = {
-            'TdVev': _0x5dadfb(0x1e6) + _0x5dadfb(0x224),
-            'NzpSx': _0x5dadfb(0x227) + _0x5dadfb(0x256) + _0x5dadfb(0x189),
-            'OOndX': _0x5dadfb(0x1eb) + _0x5dadfb(0x243),
-            'ZDvQE': _0x5dadfb(0x1c7) + _0x5dadfb(0x23a) + 'ml',
-            'NPwHE': _0x5dadfb(0x26c),
-            'rqhvp': _0x5dadfb(0x262),
-            'uzsAh': _0x5dadfb(0x275) + _0x5dadfb(0x1b5),
-            'mctBw': _0x5dadfb(0x21d) + _0x5dadfb(0x1b5),
-            'AApIV': _0x5dadfb(0x22a) + _0x5dadfb(0x1d5),
-            'thGIw': _0x5dadfb(0x198) + _0x5dadfb(0x1fc),
-            'FwgyN': _0x5dadfb(0x1fa) + _0x5dadfb(0x19e),
-            'nVmIZ': _0x5dadfb(0x1ea) + _0x5dadfb(0x1da),
-            'lUsYe': _0x5dadfb(0x279) + _0x5dadfb(0x1b5),
-            'HJKPB': _0x5dadfb(0x244) + _0x5dadfb(0x243),
-            'StabU': _0x5dadfb(0x1f1) + _0x5dadfb(0x1b5),
-            'xlNfN': _0x5dadfb(0x1f0) + _0x5dadfb(0x187) + 'l',
-            'mzouj': _0x5dadfb(0x23e) + _0x5dadfb(0x272) + 'l',
-            'gfYcb': _0x5dadfb(0x212) + _0x5dadfb(0x242) + _0x5dadfb(0x1b5)
-        }, _0x18acee = (window[_0x5dadfb(0x228)][_0x5dadfb(0x1f2)] || '')[_0x5dadfb(0x1bb) + 'e']();
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x283)]))
-        return LIGAS[_0x5dadfb(0x24c) + 'O'];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x1e0)]))
-        return LIGAS[_0x5dadfb(0x1c6)];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x23c)]))
-        return LIGAS[_0x5dadfb(0x1bf) + 'CA'];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x23f)]))
-        return LIGAS[_0x5dadfb(0x233) + _0x5dadfb(0x235)];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x1a4)]) && !_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x18b)]))
-        return LIGAS[_0x5dadfb(0x1b4)];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x218)]))
-        return LIGAS[_0x5dadfb(0x229) + 'A'];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x1c8)]))
-        return LIGAS[_0x5dadfb(0x22d) + 'O'];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x1a1)]))
-        return LIGAS[_0x5dadfb(0x278) + 'ER'];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x19a)]))
-        return LIGAS[_0x5dadfb(0x1cc) + _0x5dadfb(0x1b6)];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x1d2)]))
-        return LIGAS[_0x5dadfb(0x271) + 'IL'];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x237)]))
-        return LIGAS[_0x5dadfb(0x1a0) + _0x5dadfb(0x22f)];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x1a9)]))
-        return LIGAS[_0x5dadfb(0x1db) + 'Y'];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x1c4)]))
-        return LIGAS[_0x5dadfb(0x1ad) + _0x5dadfb(0x22e)];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x258)]))
-        return LIGAS[_0x5dadfb(0x214) + 'N'];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x190)]))
-        return LIGAS[_0x5dadfb(0x253) + _0x5dadfb(0x254)];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x201)]))
-        return LIGAS[_0x5dadfb(0x266) + _0x5dadfb(0x1ec)];
-    if (_0x18acee[_0x5dadfb(0x24e)](_0x503eb9[_0x5dadfb(0x1a6)]))
-        return LIGAS[_0x5dadfb(0x1d9) + _0x5dadfb(0x210) + 'NA'];
-    return LIGAS[_0x5dadfb(0x191) + _0x5dadfb(0x23d)];
+    const _0x54df2e = _0x4eed3f, _0x4d3e43 = {
+            'bIDAe': _0x54df2e(0x271) + _0x54df2e(0x218),
+            'DIPBb': _0x54df2e(0x220) + _0x54df2e(0x2ba) + _0x54df2e(0x2cb),
+            'CqhQq': _0x54df2e(0x1d3) + _0x54df2e(0x28d),
+            'EgBll': _0x54df2e(0x207) + _0x54df2e(0x1d1) + 'ml',
+            'FDIkb': _0x54df2e(0x22e),
+            'NEIzb': _0x54df2e(0x24e),
+            'fFBfC': _0x54df2e(0x2dc) + _0x54df2e(0x28a),
+            'qYWZz': _0x54df2e(0x1f2) + _0x54df2e(0x28a),
+            'KWpxy': _0x54df2e(0x240) + _0x54df2e(0x21e),
+            'xAwUJ': _0x54df2e(0x2da) + _0x54df2e(0x280),
+            'vSncs': _0x54df2e(0x1e9) + _0x54df2e(0x2bc),
+            'tvBKP': _0x54df2e(0x27d) + _0x54df2e(0x29a),
+            'YGNQd': _0x54df2e(0x255) + _0x54df2e(0x28a),
+            'tooPV': _0x54df2e(0x290) + _0x54df2e(0x28d),
+            'nFyXs': _0x54df2e(0x2a8) + _0x54df2e(0x28a),
+            'CyOYV': _0x54df2e(0x2d6) + _0x54df2e(0x263) + 'l',
+            'IRULF': _0x54df2e(0x248) + _0x54df2e(0x1dd) + 'l',
+            'yZDim': _0x54df2e(0x1cd) + _0x54df2e(0x28e) + _0x54df2e(0x28a)
+        }, _0x394577 = (window[_0x54df2e(0x1dc)][_0x54df2e(0x229)] || '')[_0x54df2e(0x27a) + 'e']();
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x2cc)]))
+        return LIGAS[_0x54df2e(0x288) + 'O'];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x2c2)]))
+        return LIGAS[_0x54df2e(0x25e)];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x2a9)]))
+        return LIGAS[_0x54df2e(0x213) + 'CA'];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x258)]))
+        return LIGAS[_0x54df2e(0x22a) + _0x54df2e(0x260)];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x1f5)]) && !_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x257)]))
+        return LIGAS[_0x54df2e(0x251)];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x2cf)]))
+        return LIGAS[_0x54df2e(0x219) + 'A'];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x1f8)]))
+        return LIGAS[_0x54df2e(0x230) + 'O'];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x2c4)]))
+        return LIGAS[_0x54df2e(0x233) + 'ER'];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x2b5)]))
+        return LIGAS[_0x54df2e(0x228) + _0x54df2e(0x283)];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x285)]))
+        return LIGAS[_0x54df2e(0x25b) + 'IL'];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x2a1)]))
+        return LIGAS[_0x54df2e(0x298) + _0x54df2e(0x236)];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x296)]))
+        return LIGAS[_0x54df2e(0x28f) + 'Y'];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x29f)]))
+        return LIGAS[_0x54df2e(0x27e) + _0x54df2e(0x1d0)];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x1cf)]))
+        return LIGAS[_0x54df2e(0x21d) + 'N'];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x1e3)]))
+        return LIGAS[_0x54df2e(0x2db) + _0x54df2e(0x2c1)];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x232)]))
+        return LIGAS[_0x54df2e(0x203) + _0x54df2e(0x1db)];
+    if (_0x394577[_0x54df2e(0x1e7)](_0x4d3e43[_0x54df2e(0x1d6)]))
+        return LIGAS[_0x54df2e(0x1f1) + _0x54df2e(0x226) + 'NA'];
+    return LIGAS[_0x54df2e(0x2a0) + _0x54df2e(0x2d8)];
 }
 const LIGA_ATUAL = detectarLigaAtual();
