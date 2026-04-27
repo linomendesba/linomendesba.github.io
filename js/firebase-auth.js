@@ -28,7 +28,7 @@ const db = getFirestore(app);
 
 let isRedirecting = false;
 
-const SERVER_URL = "http://145.223.92.222:5001";
+const SERVER_URL = "https://betstat.site";
 
 // ─── SUPABASE ────────────────────────────────────────────
 const SUPABASE_URL = "https://pxhmwhswhqvaaohhuqmj.supabase.co";
