@@ -303,23 +303,23 @@
     <div class="placeholder">Carregando...</div>
   </div>
 
-  <script>
+<script>
   // ─────────────────────────────────────────────────────────────
   //  PERSIST helpers
   // ─────────────────────────────────────────────────────────────
   const STORE_KEY = "lat_prefs_v1";
-
+ 
   function loadPrefs() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   }
-
+ 
   function savePrefs(obj) {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  CONFIG
   // ─────────────────────────────────────────────────────────────
@@ -360,16 +360,16 @@
       ]
     }
   };
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  STATE  (restored from localStorage)
   // ─────────────────────────────────────────────────────────────
   const prefs = loadPrefs();
-
+ 
   let currentHouse    = prefs.house    || "betano";
   let activeLeagueKey = prefs.league   || null;
   const charts        = {};
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  DOM
   // ─────────────────────────────────────────────────────────────
@@ -379,23 +379,23 @@
   const reloadBtn   = document.getElementById("reloadBtn");
   const limitSelect = document.getElementById("limitSelect");
   const statusBar   = document.getElementById("statusBar");
-
+ 
   // Apply saved limit
   if (prefs.limit) {
     const opt = [...limitSelect.options].find(o => o.value === String(prefs.limit));
     if (opt) opt.selected = true;
   }
-
+ 
   // Apply saved house button
   houseTabs.querySelectorAll(".ht").forEach(b => {
     b.classList.toggle("on", b.dataset.house === currentHouse);
   });
-
+ 
   function setStatus(msg, show) {
     statusBar.textContent = msg || "";
     statusBar.classList.toggle("hidden", !show);
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  SCORE PARSE
   // ─────────────────────────────────────────────────────────────
@@ -408,7 +408,7 @@
     if (!isFinite(h) || !isFinite(a)) return null;
     return { total: h + a };
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  STATS LOGIC
   // ─────────────────────────────────────────────────────────────
@@ -417,21 +417,21 @@
     for (let i = 0; i < n; i++) b.push(games.slice(i * 20, i * 20 + 20));
     return b;
   }
-
+ 
   function topRuns(series, t) {
     const runs = []; let c = 0;
     for (const v of series) { if (v === t) c++; else { if (c) runs.push(c); c = 0; } }
     if (c) runs.push(c);
     return runs.sort((a, b) => b - a).slice(0, 3);
   }
-
+ 
   function currentRun(series) {
     if (!series.length) return { type: null, count: 0, label: "Sem sequencia" };
     const last = series[series.length - 1]; let c = 0;
     for (let i = series.length - 1; i >= 0 && series[i] === last; i--) c++;
     return { type: last, count: c, label: last === 1 ? `+1: ${c} seguidas` : `-1: ${c} seguidas` };
   }
-
+ 
   function calcStats(blocks, base) {
     const empty = { acumulado: [0], validCount: 0, plusCount: 0, minusCount: 0, top3Plus: [], top3Minus: [], run: { type: null, count: 0, label: "Sem sequencia" } };
     if (!blocks.length) return empty;
@@ -449,7 +449,7 @@
     }
     return { acumulado: acc, validCount: d.length, plusCount: d.filter(v => v === 1).length, minusCount: d.filter(v => v === -1).length, top3Plus: topRuns(d, 1), top3Minus: topRuns(d, -1), run: currentRun(d) };
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  FETCH
   // ─────────────────────────────────────────────────────────────
@@ -458,11 +458,21 @@
     if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
     const json = await res.json();
     const raw  = Array.isArray(json) ? json : (json.data || json.resultados || []);
-    const games = raw.map(i => parseFT(i.ft)).filter(Boolean).slice(0, limit);
+ 
+    // Ordena do mais recente para o mais antigo: data desc, hora desc, minuto desc
+    const sorted = [...raw].sort((a, b) => {
+      const da = new Date(a.data || 0), db = new Date(b.data || 0);
+      if (da.getTime() !== db.getTime()) return db - da;
+      if ((b.hora ?? 0) !== (a.hora ?? 0)) return (b.hora ?? 0) - (a.hora ?? 0);
+      return (b.minuto ?? 0) - (a.minuto ?? 0);
+    });
+ 
+    // Pega os N mais recentes e converte
+    const games = sorted.slice(0, limit).map(i => parseFT(i.ft)).filter(Boolean);
     const blocks = buildBlocks(games);
     return { league, totalGames: games.length, under: calcStats(blocks, "under"), over: calcStats(blocks, "over") };
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  CHART
   // ─────────────────────────────────────────────────────────────
@@ -502,7 +512,7 @@
       }
     });
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  HTML BUILDERS
   // ─────────────────────────────────────────────────────────────
@@ -510,33 +520,33 @@
     if (!arr.length) return `<span class="pill pill-m">—</span>`;
     return arr.map(n => `<span class="pill ${cls}">${n}</span>`).join("");
   }
-
+ 
   function seqHTML(run) {
     if (!run || !run.count) return `<div class="seq-strip neu"><div class="ss-label">Sequencia atual</div>Sem leitura</div>`;
     const cls = run.type === 1 ? "pos" : "neg";
     return `<div class="seq-strip ${cls}"><div class="ss-label">Sequencia atual</div>${run.label}</div>`;
   }
-
+ 
   function modeHTML(key, mode, s) {
     const id      = `ch-${key}-${mode}`;
     const saldo   = s.acumulado[s.acumulado.length - 1] ?? 0;
     const saldoCls = saldo > 0 ? "nv-p" : saldo < 0 ? "nv-n" : "nv-w";
     const modeCls  = mode === "under" ? "mode-under" : "mode-over";
     const modeText = mode === "under" ? "Under 2.5" : "Over 2.5";
-
+ 
     return `
       <div class="mode-col ${modeCls}">
         <div class="mode-label"><span class="mode-dot"></span>${modeText}</div>
-
+ 
         <div class="nums">
           <div class="num-box"><div class="nb-label">Validas</div><div class="nb-val nv-w">${s.validCount}</div></div>
           <div class="num-box"><div class="nb-label">+1 Mantem</div><div class="nb-val nv-g">${s.plusCount}</div></div>
           <div class="num-box"><div class="nb-label">-1 Quebra</div><div class="nb-val nv-r">${s.minusCount}</div></div>
           <div class="num-box"><div class="nb-label">Saldo</div><div class="nb-val ${saldoCls}">${saldo}</div></div>
         </div>
-
+ 
         ${seqHTML(s.run)}
-
+ 
         <div class="runs">
           <div class="run-group rg-plus">
             <div class="rg-label">Maiores seq. +1</div>
@@ -547,13 +557,13 @@
             <div class="pills">${pillsHTML(s.top3Minus, "pill-r")}</div>
           </div>
         </div>
-
+ 
         <div class="chart-label">Acumulado</div>
         <div class="chart-wrap"><canvas id="${id}"></canvas></div>
       </div>
     `;
   }
-
+ 
   function cardHTML(d) {
     return `
       <div class="lcard">
@@ -568,7 +578,7 @@
       </div>
     `;
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  LEAGUE BAR
   // ─────────────────────────────────────────────────────────────
@@ -579,7 +589,7 @@
       `<button class="lt ${l.key === activeLeagueKey ? 'on' : ''}" data-key="${l.key}">${l.title}</button>`
     ).join("");
     leagueBar.innerHTML = allBtn + tabs;
-
+ 
     leagueBar.querySelectorAll(".lt").forEach(b => {
       b.addEventListener("click", () => {
         activeLeagueKey = b.dataset.key === "__all__" ? null : b.dataset.key;
@@ -589,32 +599,32 @@
       });
     });
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  RENDER ALL
   // ─────────────────────────────────────────────────────────────
   let renderToken = 0;
-
+ 
   async function renderAll(showLoading) {
     const token  = ++renderToken;
     const limit  = parseInt(limitSelect.value, 10) || 100;
     const leagues = HOUSES[currentHouse].leagues.filter(l =>
       activeLeagueKey === null || l.key === activeLeagueKey
     );
-
+ 
     // Destroy all existing charts before wiping the DOM
     Object.keys(charts).forEach(k => { try { charts[k].destroy(); } catch {} delete charts[k]; });
-
+ 
     if (showLoading) leaguesGrid.innerHTML = `<div class="placeholder">Carregando...</div>`;
     setStatus("", false);
-
+ 
     const results = await Promise.allSettled(leagues.map(l => fetchLeague(l, limit)));
-
+ 
     // If a newer render started while we were fetching, bail out
     if (token !== renderToken) return;
-
+ 
     const cards = [], queue = [], errs = [];
-
+ 
     for (const r of results) {
       if (r.status === "fulfilled") {
         cards.push(cardHTML(r.value));
@@ -624,15 +634,15 @@
         errs.push(r.reason?.message || "Erro");
       }
     }
-
+ 
     leaguesGrid.innerHTML = cards.length
       ? cards.join("")
       : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
-
+ 
     queue.forEach(q => renderChart(q.id, q.acc, q.mode));
     if (errs.length) setStatus(errs.join(" · "), true);
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  HOUSE TABS
   // ─────────────────────────────────────────────────────────────
@@ -647,20 +657,20 @@
       renderAll(true);
     });
   });
-
+ 
   limitSelect.addEventListener("change", () => {
     savePrefs({ ...loadPrefs(), limit: limitSelect.value });
     renderAll(true);
   });
-
+ 
   reloadBtn.addEventListener("click", () => renderAll(true));
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  WEB SOCKET
   // ─────────────────────────────────────────────────────────────
   const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
   let ws, backoff = 1000, hbTimer = null, hbWait = null, lastSoft = 0, softTimer = null, wsRunning = false;
-
+ 
   function safeRender() {
     if (wsRunning) return;
     wsRunning = true;
@@ -669,13 +679,13 @@
       .catch(() => {})
       .finally(() => setTimeout(() => { wsRunning = false; setStatus("", false); }, 800));
   }
-
+ 
   function softReload() {
     const now = Date.now(), wait = Math.max(250, lastSoft + 1200 - now);
     clearTimeout(softTimer);
     softTimer = setTimeout(() => { lastSoft = Date.now(); safeRender(); }, wait);
   }
-
+ 
   function startHB() {
     stopHB();
     hbTimer = setInterval(() => {
@@ -686,12 +696,12 @@
       } catch {}
     }, 25000);
   }
-
+ 
   function stopHB() {
     if (hbTimer) clearInterval(hbTimer), hbTimer = null;
     if (hbWait)  clearTimeout(hbWait),  hbWait  = null;
   }
-
+ 
   function connectWS() {
     try { if (ws) ws.close(); } catch {}
     ws = new WebSocket(WS_URL);
@@ -711,14 +721,14 @@
     ws.onclose = () => { stopHB(); setTimeout(connectWS, backoff); backoff = Math.min(backoff * 2, 10000); };
     ws.onerror = () => { try { ws.close(); } catch {} };
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  INIT
   // ─────────────────────────────────────────────────────────────
   buildLeagueBar();
   renderAll(true);
   connectWS();
-
+ 
   // Re-busca a cada 3s igual ao Caramelo — sempre com dados mais recentes
   let _tabVisible = !document.hidden;
   document.addEventListener("visibilitychange", () => {
