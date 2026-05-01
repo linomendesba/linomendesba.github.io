@@ -458,6 +458,7 @@
     if (!canvas) return;
     if (charts[id]) charts[id].destroy();
     const color = mode === "under" ? "#3ddc84" : "#60a5fa";
+    const ptSize = acc.length > 60 ? 2 : 3;
     charts[id] = new Chart(canvas.getContext("2d"), {
       type: "line",
       data: {
@@ -465,12 +466,12 @@
         datasets: [{
           data: acc,
           borderColor: color,
-          borderWidth: 2,
-          pointRadius: acc.length > 80 ? 2 : 5,
-          pointHoverRadius: 7,
+          borderWidth: 1.5,
+          pointRadius: ptSize,
+          pointHoverRadius: ptSize + 2,
           pointBackgroundColor: acc.map((v, i) => i === 0 ? "#5a6272" : v >= acc[i-1] ? "#3ddc84" : "#ff6b6b"),
           pointBorderColor: acc.map((v, i) => i === 0 ? "#5a6272" : v >= acc[i-1] ? "#3ddc84" : "#ff6b6b"),
-          pointBorderWidth: 1,
+          pointBorderWidth: 0,
           fill: false,
           tension: 0.1
         }]
@@ -579,16 +580,26 @@
   // ─────────────────────────────────────────────────────────────
   //  RENDER ALL
   // ─────────────────────────────────────────────────────────────
+  let renderToken = 0;
+
   async function renderAll(showLoading) {
-    const limit   = parseInt(limitSelect.value, 10) || 100;
+    const token  = ++renderToken;
+    const limit  = parseInt(limitSelect.value, 10) || 100;
     const leagues = HOUSES[currentHouse].leagues.filter(l =>
       activeLeagueKey === null || l.key === activeLeagueKey
     );
+
+    // Destroy all existing charts before wiping the DOM
+    Object.keys(charts).forEach(k => { try { charts[k].destroy(); } catch {} delete charts[k]; });
 
     if (showLoading) leaguesGrid.innerHTML = `<div class="placeholder">Carregando...</div>`;
     setStatus("", false);
 
     const results = await Promise.allSettled(leagues.map(l => fetchLeague(l, limit)));
+
+    // If a newer render started while we were fetching, bail out
+    if (token !== renderToken) return;
+
     const cards = [], queue = [], errs = [];
 
     for (const r of results) {
