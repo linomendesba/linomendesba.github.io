@@ -1,0 +1,2033 @@
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+  <title>BetStat</title>
+  <meta name="description" content="BetStat Macro — análise de mercados por hora em futebol virtual." />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="BetStat" />
+  <script type="module" src="js/firebase-auth.js"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date()); gtag('config', 'G-4WT805FFHQ');
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --accent: #4ade80;
+      --accent-dim: #22c55e;
+      --accent-dark: #16a34a;
+      --accent-bg: rgba(74,222,128,0.08);
+      --accent-border: rgba(74,222,128,0.20);
+      --bg:    #0f1117;
+      --bg2:   #141720;
+      --bg3:   #1a1e2b;
+      --card:  #1e2230;
+      --card2: #232840;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.04);
+      --muted:  #5a6480;
+      --text:   #a8b2cc;
+      --white:  #e2e8f0;
+      --red:    #f87171;
+      --yellow: #facc15;
+      --orange: #fb923c;
+      --blue:   #60a5fa;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-size: 14px;
+    }
+
+    .wrapper { position: relative; z-index: 1; }
+
+    /* ─── HEADER ─── */
+    .top-bar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.75rem;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo img {
+      height: 32px;
+      display: block;
+    }
+
+    .logo-fallback {
+      font-family: 'Roboto', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: 1px;
+    }
+    .logo-fallback span { color: var(--accent); }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .status-dot.running { background: var(--accent); }
+
+    #status-label { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.5px; }
+    #status-label.running { color: var(--accent); }
+
+    #next-scan {
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-family: 'Roboto Mono', monospace;
+    }
+    #next-scan.running { color: var(--white); }
+
+    /* ─── MAIN LAYOUT ─── */
+    .main {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: calc(100vh - 52px);
+    }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      padding: 1.25rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .s-block {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .s-title {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 0.85rem;
+    }
+
+    /* ─── CONTROL BUTTONS ─── */
+    .ctrl-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.4rem;
+    }
+
+    .ctrl-btn {
+      padding: 0.6rem 0.4rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg3);
+      font-family: 'Roboto', sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .btn-start {
+      background: var(--accent-dark);
+      color: #fff;
+      border-color: var(--accent-dark);
+    }
+    .btn-start:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+    .btn-start:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-stop {
+      color: var(--red);
+      border-color: rgba(248,113,113,0.25);
+    }
+    .btn-stop:hover { background: rgba(248,113,113,0.1); }
+    .btn-stop:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-reset {
+      color: var(--yellow);
+      border-color: rgba(250,204,21,0.2);
+    }
+    .btn-reset:hover { background: rgba(250,204,21,0.08); }
+
+    /* ─── SELECTOR BUTTONS ─── */
+    .sel-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .sel-btn {
+      padding: 0.35rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--bg3);
+      color: var(--muted);
+      font-family: 'Roboto', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .sel-btn:hover { border-color: rgba(255,255,255,0.15); color: var(--text); }
+    .sel-btn.active {
+      background: var(--accent-bg);
+      border-color: var(--accent-border);
+      color: var(--accent);
+    }
+
+    .all-btn {
+      padding: 0.35rem 0.65rem;
+      border: 1px solid rgba(96,165,250,0.2);
+      border-radius: 5px;
+      background: rgba(96,165,250,0.05);
+      color: var(--blue);
+      font-family: 'Roboto', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .all-btn:hover { background: rgba(96,165,250,0.1); }
+    .all-btn.active { background: rgba(96,165,250,0.12); }
+
+    /* ─── LEAGUES ─── */
+    .liga-check { display: flex; flex-direction: column; gap: 0.3rem; }
+    .liga-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.35rem 0.55rem;
+      border-radius: 5px;
+      border: 1px solid var(--border2);
+      background: var(--bg3);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--muted);
+      user-select: none;
+    }
+    .liga-item:hover { border-color: rgba(255,255,255,0.1); color: var(--text); }
+    .liga-item.checked {
+      border-color: var(--accent-border);
+      background: var(--accent-bg);
+      color: var(--white);
+    }
+    .liga-item .chk {
+      width: 13px; height: 13px;
+      border: 1.5px solid var(--muted);
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+      font-size: 0.65rem;
+    }
+    .liga-item.checked .chk {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+    }
+
+    /* ─── CONTENT ─── */
+    .content {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ─── TABS ─── */
+    .tab-bar {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 1.5rem;
+      overflow-x: auto;
+    }
+
+    .tab {
+      padding: 0.85rem 1.25rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--white); border-bottom-color: var(--accent); }
+    .tab .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 8px;
+      background: var(--accent-dark);
+      color: #fff;
+      font-size: 0.6rem;
+      font-weight: 700;
+      margin-left: 5px;
+    }
+
+    /* ─── PANEL ─── */
+    .panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem;
+    }
+
+    /* ─── ANALYSIS GRID ─── */
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 1400px) {
+      .analysis-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .col-header {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      padding: 0.4rem 0;
+      margin-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    /* ─── LEAGUE BLOCK ─── */
+    .league-block {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .league-header {
+      background: var(--card2);
+      padding: 0.5rem 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border2);
+    }
+    .league-name {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--white);
+      text-transform: uppercase;
+    }
+    .league-meta { font-size: 0.72rem; color: var(--muted); }
+    .league-body { padding: 0.85rem; }
+
+    /* ─── DATA CELLS ─── */
+    .data-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.28rem 0;
+      border-bottom: 1px solid var(--border2);
+      font-size: 0.82rem;
+    }
+    .data-row:last-child { border-bottom: none; }
+    .data-label { color: var(--muted); font-size: 0.75rem; }
+    .data-val { font-weight: 600; color: var(--white); }
+    .data-val.green { color: var(--accent); }
+    .data-val.red   { color: var(--red); }
+    .data-val.yellow { color: var(--yellow); }
+    .data-val.orange { color: var(--orange); }
+
+    /* Score badge */
+    .score-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      font-family: 'Roboto Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border: 2px solid;
+      flex-shrink: 0;
+    }
+    .score-high { border-color: var(--accent); color: var(--accent); background: rgba(74,222,128,0.08); }
+    .score-med  { border-color: var(--yellow); color: var(--yellow); background: rgba(250,204,21,0.07); }
+    .score-low  { border-color: var(--red); color: var(--red); background: rgba(248,113,113,0.07); }
+
+    /* Pattern tags */
+    .pattern-tag {
+      display: inline-block;
+      background: rgba(74,222,128,0.07);
+      border: 1px solid rgba(74,222,128,0.18);
+      border-radius: 4px;
+      padding: 0.18rem 0.45rem;
+      font-size: 0.7rem;
+      color: var(--accent);
+      margin: 2px;
+      font-weight: 500;
+    }
+    .pattern-tag.med { background: rgba(250,204,21,0.06); border-color: rgba(250,204,21,0.18); color: var(--yellow); }
+    .pattern-tag.low { background: rgba(251,146,60,0.06); border-color: rgba(251,146,60,0.18); color: var(--orange); }
+
+    /* Rank item */
+    .rank-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.28rem 0;
+      font-size: 0.78rem;
+      border-bottom: 1px solid var(--border2);
+    }
+    .rank-item:last-child { border-bottom: none; }
+    .rank-num { color: var(--muted); width: 16px; font-size: 0.7rem; }
+    .rank-name { flex: 1; color: var(--text); font-weight: 500; }
+    .rank-pct { font-family: 'Roboto Mono', monospace; font-size: 0.7rem; }
+    .rank-bar-wrap { width: 55px; background: var(--bg3); height: 3px; border-radius: 2px; }
+    .rank-bar { height: 100%; border-radius: 2px; background: var(--accent); }
+
+    /* Next games */
+    .game-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.28rem 0;
+      font-size: 0.78rem;
+      border-bottom: 1px solid var(--border2);
+    }
+    .game-row:last-child { border-bottom: none; }
+    .game-time { font-family: 'Roboto Mono', monospace; font-size: 0.68rem; color: var(--blue); }
+    .game-teams { color: var(--text); font-size: 0.76rem; }
+    .game-odd { color: var(--yellow); font-weight: 600; font-size: 0.76rem; }
+    .game-star { color: var(--accent); font-size: 0.78rem; }
+
+    /* Market bar */
+    .market-bar-wrap {
+      margin-top: 0.4rem;
+      background: var(--bg3);
+      border-radius: 3px;
+      height: 5px;
+      overflow: hidden;
+    }
+    .market-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.8s ease;
+    }
+
+    /* Streak pill */
+    .streak-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.18rem 0.55rem;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .streak-green { background: rgba(74,222,128,0.10); color: var(--accent); border: 1px solid rgba(74,222,128,0.22); }
+    .streak-red   { background: rgba(248,113,113,0.08); color: var(--red);   border: 1px solid rgba(248,113,113,0.22); }
+
+    /* Loading */
+    .loading-block {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.6rem; padding: 1.75rem; color: var(--muted); font-size: 0.82rem;
+    }
+    .spin {
+      width: 24px; height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 3.5rem 2rem; color: var(--muted); }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.35; }
+    .empty-state p { font-size: 0.85rem; line-height: 1.85; }
+    .empty-state strong { color: var(--white); font-weight: 600; }
+
+    /* Error */
+    .error-block {
+      background: rgba(248,113,113,0.07);
+      border: 1px solid rgba(248,113,113,0.22);
+      border-radius: 6px;
+      padding: 0.65rem 0.9rem;
+      font-size: 0.8rem;
+      color: var(--red);
+      margin-bottom: 0.65rem;
+    }
+
+    /* ─── SIGNALS SECTION ─── */
+    .signals-wrap { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    .signal-card {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      padding: 0.9rem 1.1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.9rem;
+      transition: border-color 0.15s;
+    }
+    .signal-card:hover { border-color: var(--border); }
+
+    .signal-select {
+      width: 18px; height: 18px;
+      border: 1.5px solid var(--muted);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+      transition: all 0.15s;
+      font-size: 0.7rem;
+    }
+    .signal-select.used {
+      background: var(--accent-dark);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .signal-body { flex: 1; }
+    .signal-header {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-bottom: 0.4rem;
+      flex-wrap: wrap;
+    }
+    .signal-house {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--blue);
+      letter-spacing: 0.5px;
+    }
+    .signal-sep { color: var(--border); }
+    .signal-league {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--white);
+    }
+    .signal-market {
+      font-size: 0.76rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .signal-games {
+      font-size: 0.76rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+      line-height: 1.7;
+    }
+    .signal-time {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--yellow);
+      font-weight: 500;
+    }
+
+    .signal-card.is-used {
+      opacity: 0.55;
+    }
+
+    /* ─── RESULTADO GREEN/RED nos sinais usados ─── */
+    .result-btns {
+      display: flex;
+      gap: 0.35rem;
+      margin-top: 0.5rem;
+    }
+    .result-btn {
+      padding: 0.22rem 0.65rem;
+      border-radius: 4px;
+      border: 1.5px solid;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      background: transparent;
+      transition: all 0.15s;
+    }
+    .result-btn.green-btn {
+      border-color: rgba(74,222,128,0.4);
+      color: var(--accent);
+    }
+    .result-btn.green-btn:hover, .result-btn.green-btn.selected {
+      background: rgba(74,222,128,0.15);
+      border-color: var(--accent);
+    }
+    .result-btn.red-btn {
+      border-color: rgba(248,113,113,0.4);
+      color: var(--red);
+    }
+    .result-btn.red-btn:hover, .result-btn.red-btn.selected {
+      background: rgba(248,113,113,0.15);
+      border-color: var(--red);
+    }
+
+    .result-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.18rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-top: 0.4rem;
+    }
+    .result-pill.green { background: rgba(74,222,128,0.12); color: var(--accent); border: 1px solid rgba(74,222,128,0.25); }
+    .result-pill.red   { background: rgba(248,113,113,0.10); color: var(--red);   border: 1px solid rgba(248,113,113,0.25); }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeSlide 0.3s ease-out both; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; }
+      .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+      .analysis-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ─── LAST UPDATE ─── */
+    .last-update {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      padding: 0.45rem 1.5rem;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+    .last-update.has-data { color: var(--accent-dim); }
+
+    .casa-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="logo">
+      <img src="img/logo.png" alt="Logo" onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block';" />
+      <div id="logo-fallback" class="logo-fallback" style="display:none;">BET<span>STAT</span> <span style="font-size:0.75rem;color:var(--muted);font-weight:400;">MORFEUS</span></div>
+    </div>
+    <div class="status-bar">
+      <div style="display:flex;align-items:center;gap:0.45rem;">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-label">PARADO</span>
+      </div>
+      <span id="next-scan">—</span>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- CONTROLES -->
+      <div class="s-block">
+        <div class="s-title">Controle</div>
+        <div class="ctrl-btns">
+          <button class="ctrl-btn btn-start" id="btn-start" onclick="startBot()">▶ START</button>
+          <button class="ctrl-btn btn-stop"  id="btn-stop"  onclick="stopBot()"  disabled>■ STOP</button>
+          <button class="ctrl-btn btn-reset" onclick="resetBot()">↺ RESET</button>
+        </div>
+      </div>
+
+      <!-- CASA -->
+      <div class="s-block">
+        <div class="s-title">Casa</div>
+        <div class="sel-grid" id="casas-group">
+          <button class="sel-btn" data-value="betano">Betano</button>
+          <button class="sel-btn" data-value="kiron">Kiron</button>
+          <button class="sel-btn" data-value="estrela">EstrelaBet</button>
+          <button class="sel-btn" data-value="bet365">Bet365</button>
+        </div>
+      </div>
+
+      <!-- LIGAS -->
+      <div class="s-block" id="liga-section" style="display:none;">
+        <div class="s-title">Ligas</div>
+        <button class="all-btn" id="all-ligas-btn" onclick="toggleAllLigas()" style="width:100%;margin-bottom:0.5rem;">SELECIONAR TODAS</button>
+        <div class="liga-check" id="ligas-group"></div>
+      </div>
+
+      <!-- MERCADO -->
+      <div class="s-block">
+        <div class="s-title">Mercado</div>
+        <div class="sel-grid" id="mercados-group">
+          <button class="sel-btn" data-value="casaVence">Casa Vence</button>
+          <button class="sel-btn" data-value="foraVence">Fora Vence</button>
+          <button class="sel-btn" data-value="empate">Empate</button>
+          <button class="sel-btn" data-value="over1.5">Over 1.5</button>
+          <button class="sel-btn" data-value="over2.5">Over 2.5</button>
+          <button class="sel-btn" data-value="over3.5">Over 3.5</button>
+          <button class="sel-btn" data-value="under1.5">Under 1.5</button>
+          <button class="sel-btn" data-value="under2.5">Under 2.5</button>
+          <button class="sel-btn" data-value="under3.5">Under 3.5</button>
+          <button class="sel-btn" data-value="ambasMarcam">Ambas Sim</button>
+          <button class="sel-btn" data-value="ambasNaoMarcam">Ambas Não</button>
+          <button class="sel-btn" data-value="over5">5+ Gols</button>
+          <button class="sel-btn" data-value="exact1">1 Gol</button>
+          <button class="sel-btn" data-value="exact2">2 Gols</button>
+          <button class="sel-btn" data-value="exact3">3 Gols</button>
+          <button class="sel-btn" data-value="exact4">4 Gols</button>
+        </div>
+      </div>
+
+      <!-- MARTINGALE -->
+      <div class="s-block">
+        <div class="s-title">Martingale</div>
+        <div class="sel-grid" id="martingale-group">
+          <button class="sel-btn" data-value="0">Nenhum</button>
+          <button class="sel-btn" data-value="1">1 Cob.</button>
+          <button class="sel-btn" data-value="2">2 Cob.</button>
+          <button class="sel-btn" data-value="3">3 Cob.</button>
+        </div>
+      </div>
+
+      <!-- PERÍODO -->
+      <div class="s-block">
+        <div class="s-title">Período</div>
+        <div class="sel-grid" id="periodo-group">
+          <button class="sel-btn" data-value="120">6h</button>
+          <button class="sel-btn" data-value="240">12h</button>
+          <button class="sel-btn" data-value="480">24h</button>
+          <button class="sel-btn" data-value="960">48h</button>
+          <button class="sel-btn" data-value="1440">72h</button>
+        </div>
+      </div>
+
+    </div><!-- /sidebar -->
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- TAB BAR -->
+      <div class="tab-bar">
+        <div class="tab active" data-tab="analises" onclick="switchTab('analises')">Análises</div>
+        <div class="tab" data-tab="sinais" onclick="switchTab('sinais')">
+          Sinais Ativos <span class="badge" id="sinais-badge">0</span>
+        </div>
+        <div class="tab" data-tab="usados" onclick="switchTab('usados')">
+          Sinais Usados <span class="badge" id="usados-badge" style="background:var(--muted);">0</span>
+        </div>
+      </div>
+
+      <!-- LAST UPDATE -->
+      <div class="last-update" id="last-update-bar">Aguardando primeira análise...</div>
+
+      <!-- PANELS -->
+      <div class="panel" id="panel-analises">
+        <div class="empty-state">
+          <div class="icon">🤖</div>
+          <p>Configure a <strong>casa</strong>, <strong>ligas</strong>, <strong>mercado</strong> e <strong>período</strong>.<br>
+          Depois pressione <strong>START</strong> para iniciar a análise automática.<br>
+          <span style="font-size:0.78rem;color:var(--muted);">A cada 1 minuto os dados são atualizados automaticamente.</span></p>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-sinais" style="display:none;">
+        <div class="signals-wrap" id="sinais-ativos-list">
+          <div class="empty-state">
+            <div class="icon">📡</div>
+            <p>Nenhum sinal gerado ainda.<br>Inicie a análise para receber sugestões automáticas.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-usados" style="display:none;">
+        <div class="signals-wrap" id="sinais-usados-list">
+          <div class="empty-state">
+            <div class="icon">✅</div>
+            <p>Nenhum sinal marcado como usado ainda.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+
+  </div><!-- /main -->
+</div>
+
+<script>
+/* =====================================================
+   CONFIGURAÇÃO DAS CASAS
+===================================================== */
+const casasConfig = {
+  'betano': { name:'Betano',     ligas:['Taça Glória Eterna','Copa América','Euro','Campeonato Italiano','Copa das Estrelas','Brasileirão Betano'] },
+  'kiron':  { name:'Kiron',      ligas:['England','Italy','Spain'], path:'kiron' },
+  'estrela':{ name:'EstrelaBet', ligas:['Copa do Mundo','Ligas dos Campeões','América Latina'], path:'estrela' },
+  'bet365': { name:'Bet365',     ligas:['Copa','Euro','Super','Premier'], path:'bet365', autoOffset: true }
+};
+
+/* Cache de offsets detectados automaticamente por casa { casaKey: offsetMin } */
+const _offsetCache = {};
+
+function detectarOffset(casaKey, proximos) {
+  const cfg = casasConfig[casaKey];
+  if (!cfg || !cfg.autoOffset) return;
+  if (!proximos || !proximos.length) return;
+  const agora  = new Date();
+  const horaBR = agora.getHours();
+  let somaHoras = 0, count = 0;
+  for (const j of proximos) {
+    const h = j.horario || '';
+    if (!h.includes(':')) continue;
+    const [hh] = h.split(':').map(Number);
+    somaHoras += hh;
+    count++;
+    if (count >= 3) break;
+  }
+  if (!count) return;
+  const horaMediaAPI = somaHoras / count;
+  let diffHoras = Math.round(horaMediaAPI - horaBR);
+  if (diffHoras < -12) diffHoras += 24;
+  if (diffHoras >  12) diffHoras -= 24;
+  const novoOffset = diffHoras * 60;
+  if (_offsetCache[casaKey] !== novoOffset) {
+    _offsetCache[casaKey] = novoOffset;
+    console.log('[Morfeus] Offset ' + casaKey + ' detectado: ' + (novoOffset >= 0 ? '+' : '') + (novoOffset/60) + 'h');
+  }
+}
+
+function agoraMinCasa(casaKey) {
+  const agora = new Date();
+  const base = agora.getHours() * 60 + agora.getMinutes();
+  const offset = _offsetCache[casaKey] || 0;
+  return base + offset;
+}
+
+function agoraMinCasaNome(casaNome) {
+  const key = Object.keys(casasConfig).find(k => casasConfig[k].name === casaNome);
+  return key ? agoraMinCasa(key) : (new Date().getHours() * 60 + new Date().getMinutes());
+}
+
+/* =====================================================
+   ESTADO GLOBAL
+===================================================== */
+let botRunning = false;
+let botInterval = null;
+let countdownInterval = null;
+let nextRunAt = null;
+const INTERVAL_MS = 60 * 1000;
+
+let resultsByLiga = {};
+let sinaisAtivos = [];
+let sinaisUsados = [];
+let sinaisExcluidos = []; /* IDs permanentemente excluídos */
+
+/* =====================================================
+   CACHE DE API — melhorado
+   - TTL por tipo de endpoint
+   - deduplicação de requisições em voo (in-flight)
+   - limpeza automática de entradas expiradas
+===================================================== */
+const _cache = new Map();
+const _inFlight = new Map(); /* evita requisições paralelas para a mesma URL */
+
+const CACHE_TTL = {
+  resultados: 55 * 1000,   /* resultados mudam a cada ~1 min */
+  proximos:   30 * 1000,   /* próximos jogos mudam com mais frequência */
+  odds:       90 * 1000    /* odds são mais estáveis */
+};
+
+function _ttlParaUrl(url) {
+  if (url.includes('/resultados')) return CACHE_TTL.resultados;
+  if (url.includes('/proximos'))   return CACHE_TTL.proximos;
+  if (url.includes('/odds'))       return CACHE_TTL.odds;
+  return CACHE_TTL.resultados;
+}
+
+async function fetchCache(url) {
+  const agora = Date.now();
+  const ttl   = _ttlParaUrl(url);
+  const c     = _cache.get(url);
+  if (c && agora - c.ts < ttl) return c.data;
+
+  /* Se já existe uma requisição em andamento para esta URL, aguarda ela */
+  if (_inFlight.has(url)) return _inFlight.get(url);
+
+  const promise = fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      _cache.set(url, { ts: Date.now(), data });
+      _inFlight.delete(url);
+      return data;
+    })
+    .catch(err => {
+      _inFlight.delete(url);
+      throw err;
+    });
+
+  _inFlight.set(url, promise);
+  return promise;
+}
+
+/* Limpa entradas de cache expiradas — chamado a cada ciclo de análise */
+function limparCacheExpirado() {
+  const agora = Date.now();
+  for (const [url, entry] of _cache.entries()) {
+    const ttl = _ttlParaUrl(url);
+    if (agora - entry.ts > ttl * 3) _cache.delete(url); /* guarda até 3x o TTL */
+  }
+}
+
+/* =====================================================
+   localStorage HELPERS
+===================================================== */
+function salvarConfig() {
+  const cfg = {
+    casa:      getSelVal('casas-group'),
+    mercado:   getSelVal('mercados-group'),
+    martingale:getSelVal('martingale-group'),
+    periodo:   getSelVal('periodo-group'),
+    ligas:     getLigasSelecionadas()
+  };
+  localStorage.setItem('morfeus_cfg', JSON.stringify(cfg));
+}
+
+function carregarConfig() {
+  const raw = localStorage.getItem('morfeus_cfg');
+  if (!raw) return;
+  const cfg = JSON.parse(raw);
+  if (cfg.casa) {
+    const btn = document.querySelector(`#casas-group .sel-btn[data-value="${cfg.casa}"]`);
+    if (btn) { btn.click(); }
+  }
+  setTimeout(() => {
+    if (cfg.mercado) {
+      const b = document.querySelector(`#mercados-group .sel-btn[data-value="${cfg.mercado}"]`);
+      if (b) setActive('mercados-group', b);
+    }
+    if (cfg.martingale !== undefined) {
+      const b = document.querySelector(`#martingale-group .sel-btn[data-value="${cfg.martingale}"]`);
+      if (b) setActive('martingale-group', b);
+    }
+    if (cfg.periodo) {
+      const b = document.querySelector(`#periodo-group .sel-btn[data-value="${cfg.periodo}"]`);
+      if (b) setActive('periodo-group', b);
+    }
+    if (cfg.ligas && cfg.ligas.length) {
+      document.querySelectorAll('.liga-item').forEach(el => {
+        const v = el.dataset.liga;
+        if (cfg.ligas.includes(v)) el.classList.add('checked');
+        else el.classList.remove('checked');
+        el.querySelector('.chk').textContent = el.classList.contains('checked') ? '✓' : '';
+      });
+      updateAllLigasBtn();
+    }
+  }, 100);
+}
+
+function salvarSinais() {
+  localStorage.setItem('morfeus_sinais_ativos', JSON.stringify(sinaisAtivos));
+  localStorage.setItem('morfeus_sinais_usados', JSON.stringify(sinaisUsados));
+  localStorage.setItem('morfeus_sinais_excluidos', JSON.stringify(sinaisExcluidos));
+}
+
+function carregarSinais() {
+  const a = localStorage.getItem('morfeus_sinais_ativos');
+  const u = localStorage.getItem('morfeus_sinais_usados');
+  const e = localStorage.getItem('morfeus_sinais_excluidos');
+  sinaisAtivos   = a ? JSON.parse(a) : [];
+  sinaisUsados   = u ? JSON.parse(u) : [];
+  sinaisExcluidos = e ? JSON.parse(e) : [];
+  renderSinais();
+}
+
+/* =====================================================
+   SELECTOR HELPERS
+===================================================== */
+function getSelVal(groupId) {
+  const el = document.getElementById(groupId);
+  if (!el) return null;
+  const active = el.querySelector('.sel-btn.active');
+  return active ? active.dataset.value : null;
+}
+
+function setActive(groupId, btn) {
+  document.querySelectorAll(`#${groupId} .sel-btn`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+document.querySelectorAll('.sel-grid').forEach(g => {
+  g.addEventListener('click', e => {
+    const btn = e.target.closest('.sel-btn');
+    if (!btn) return;
+    setActive(g.id, btn);
+    if (g.id === 'casas-group') mostrarLigas(btn.dataset.value);
+    salvarConfig();
+  });
+});
+
+/* =====================================================
+   LIGAS
+===================================================== */
+function mostrarLigas(casa) {
+  const sec = document.getElementById('liga-section');
+  const grp = document.getElementById('ligas-group');
+  if (!casasConfig[casa]) { sec.style.display = 'none'; return; }
+  grp.innerHTML = '';
+  casasConfig[casa].ligas.forEach(liga => {
+    const val  = typeof liga === 'object' ? liga.value : liga;
+    const name = typeof liga === 'object' ? liga.name  : liga;
+    const item = document.createElement('div');
+    item.className = 'liga-item checked';
+    item.dataset.liga = val;
+    item.innerHTML = `<div class="chk">✓</div><span>${name}</span>`;
+    item.addEventListener('click', () => {
+      item.classList.toggle('checked');
+      item.querySelector('.chk').textContent = item.classList.contains('checked') ? '✓' : '';
+      updateAllLigasBtn();
+      salvarConfig();
+    });
+    grp.appendChild(item);
+  });
+  sec.style.display = 'block';
+  updateAllLigasBtn();
+}
+
+function getLigasSelecionadas() {
+  return Array.from(document.querySelectorAll('.liga-item.checked')).map(el => el.dataset.liga);
+}
+
+function toggleAllLigas() {
+  const items = document.querySelectorAll('.liga-item');
+  const allChecked = Array.from(items).every(i => i.classList.contains('checked'));
+  items.forEach(i => {
+    if (allChecked) { i.classList.remove('checked'); i.querySelector('.chk').textContent = ''; }
+    else            { i.classList.add('checked');    i.querySelector('.chk').textContent = '✓'; }
+  });
+  updateAllLigasBtn();
+  salvarConfig();
+}
+
+function updateAllLigasBtn() {
+  const items = document.querySelectorAll('.liga-item');
+  const btn   = document.getElementById('all-ligas-btn');
+  if (!btn) return;
+  const allChecked = Array.from(items).every(i => i.classList.contains('checked'));
+  btn.classList.toggle('active', allChecked);
+  btn.textContent = allChecked ? '✓ TODAS SELECIONADAS' : 'SELECIONAR TODAS';
+}
+
+/* =====================================================
+   TABS
+===================================================== */
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('panel-analises').style.display = tab === 'analises' ? 'block' : 'none';
+  document.getElementById('panel-sinais').style.display   = tab === 'sinais'   ? 'block' : 'none';
+  document.getElementById('panel-usados').style.display   = tab === 'usados'   ? 'block' : 'none';
+}
+
+/* =====================================================
+   BOT CONTROL
+===================================================== */
+function startBot() {
+  const casa    = getSelVal('casas-group');
+  const mercado = getSelVal('mercados-group');
+  const periodo = getSelVal('periodo-group');
+  const ligas   = getLigasSelecionadas();
+
+  if (!casa || !mercado || !periodo) {
+    alert('Selecione Casa, Mercado e Período antes de iniciar.');
+    return;
+  }
+  if (!ligas.length) {
+    alert('Selecione pelo menos uma liga.');
+    return;
+  }
+
+  botRunning = true;
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-stop').disabled  = false;
+  document.getElementById('status-dot').classList.add('running');
+  document.getElementById('status-label').textContent = 'RODANDO';
+  document.getElementById('status-label').classList.add('running');
+
+  rodarAnalise();
+  botInterval = setInterval(rodarAnalise, INTERVAL_MS);
+  iniciarCountdown();
+}
+
+function stopBot() {
+  botRunning = false;
+  clearInterval(botInterval);
+  clearInterval(countdownInterval);
+  botInterval = null;
+  nextRunAt   = null;
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled  = true;
+  document.getElementById('status-dot').classList.remove('running');
+  document.getElementById('status-label').textContent = 'PARADO';
+  document.getElementById('status-label').classList.remove('running');
+  document.getElementById('next-scan').textContent = '—';
+  document.getElementById('next-scan').classList.remove('running');
+}
+
+function resetBot() {
+  stopBot();
+  resultsByLiga = {};
+  sinaisAtivos  = [];
+  sinaisUsados  = [];
+  /* sinaisExcluidos é mantido intencionalmente — são exclusões permanentes */
+  salvarSinais();
+  document.getElementById('panel-analises').innerHTML = `<div class="empty-state"><div class="icon">🤖</div><p>Configure e pressione <strong>START</strong>.</p></div>`;
+  renderSinais();
+  document.getElementById('last-update-bar').textContent = 'Aguardando primeira análise...';
+  document.getElementById('last-update-bar').classList.remove('has-data');
+}
+
+function iniciarCountdown() {
+  clearInterval(countdownInterval);
+  nextRunAt = Date.now() + INTERVAL_MS;
+  const el  = document.getElementById('next-scan');
+  el.classList.add('running');
+  countdownInterval = setInterval(() => {
+    if (!botRunning) return;
+    const diff = Math.max(0, Math.ceil((nextRunAt - Date.now()) / 1000));
+    el.textContent = `PRÓXIMO: ${diff}s`;
+    if (diff <= 0) nextRunAt = Date.now() + INTERVAL_MS;
+  }, 500);
+}
+
+/* =====================================================
+   ANÁLISE — RUNNER PRINCIPAL
+===================================================== */
+async function rodarAnalise() {
+  if (!botRunning) return;
+  nextRunAt = Date.now() + INTERVAL_MS;
+
+  const casa     = getSelVal('casas-group');
+  const mercadoV = getSelVal('mercados-group');
+  const martCob  = parseInt(getSelVal('martingale-group') || '0', 10);
+  const periodo  = parseInt(getSelVal('periodo-group')    || '480', 10);
+  const ligas    = getLigasSelecionadas();
+
+  if (!casa || !mercadoV || !ligas.length) return;
+
+  /* Limpa cache expirado uma vez por ciclo */
+  limparCacheExpirado();
+
+  renderPanelLoading(ligas);
+
+  for (const liga of ligas) {
+    if (!botRunning) break;
+    try {
+      const dados = await buscarDadosAPI(casa, liga, periodo);
+      dados.ranking = calcularRankingTimes(
+        dados.dadosCru.map(j => ({ time_a:j[3], time_b:j[4], ft:`${j[0]} x ${j[1]}` })),
+        mercadoV
+      );
+      dados.streak = calcularStreak(dados.dadosCru, mercadoV);
+
+      const tiros = martCob + 1;
+      const workerResult = await analyzeInWorker(dados.dadosCru, { tiros, market: mercadoV, combinado: true });
+      dados.padroesEncontrados = workerResult.resultados;
+
+      const { rankingExato, rankingFaixas, top5Odds, top3Faixas } = calcularRankingOdds(dados, mercadoV);
+      dados.rankingExato = rankingExato; dados.rankingFaixas = rankingFaixas;
+      dados.top5Odds = top5Odds; dados.top3Faixas = top3Faixas;
+
+      const sm = mapMercado(mercadoV);
+      const linesToSum = casa === 'kiron' ? 30 : 20;
+      dados.marketAnalysis = calculateMarketAnalysis(dados, sm, dados.totalJogos, linesToSum, martCob+1);
+
+      resultsByLiga[liga] = { dados, mercadoV, martCob, ts: Date.now() };
+
+      detectarOffset(casa, dados.proximos);
+      checarSinal(dados, liga, casa, mercadoV, martCob);
+      atualizarBlocoLiga(liga);
+
+    } catch (err) {
+      resultsByLiga[liga] = { erro: err.message, ts: Date.now() };
+      atualizarBlocoLiga(liga);
+    }
+  }
+
+  verificarResultadosAutomaticos();
+  renderSinais();
+
+  const agora = new Date();
+  const ts    = `${pad(agora.getHours())}:${pad(agora.getMinutes())}:${pad(agora.getSeconds())}`;
+  const bar   = document.getElementById('last-update-bar');
+  bar.textContent = `Última atualização: ${ts} — ${ligas.length} liga(s) analisada(s)`;
+  bar.classList.add('has-data');
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+/* =====================================================
+   RENDER PANEL
+===================================================== */
+function renderPanelLoading(ligas) {
+  const panel = document.getElementById('panel-analises');
+  const empty = panel.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  if (!panel.querySelector('.col-headers-row')) {
+    const hdr = document.createElement('div');
+    hdr.className = 'col-headers-row';
+    hdr.style.marginBottom = '0.85rem';
+    hdr.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:0.6rem;">
+        <div class="col-header">⚙ Padrão</div>
+        <div class="col-header">💰 Ranking Odd</div>
+        <div class="col-header">📈 Mercado</div>
+        <div class="col-header">ℹ Info Gerais</div>
+      </div>`;
+    panel.insertBefore(hdr, panel.firstChild);
+  }
+
+  ligas.forEach(liga => {
+    const sid = sanitId(liga);
+    if (document.getElementById(`row-liga-${sid}`)) return;
+    const row = document.createElement('div');
+    row.id    = `row-liga-${sid}`;
+    row.style.marginBottom = '1.25rem';
+    row.innerHTML = `
+      <div style="font-size:0.68rem;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:0.45rem;padding:0.35rem 0.7rem;background:var(--card2);border-radius:5px;border:1px solid var(--border2);">
+        ⚽ ${liga.toUpperCase()}
+      </div>
+      <div class="analysis-grid" id="grid-${sid}">
+        ${[0,1,2,3].map(() => `<div class="league-block"><div class="loading-block"><div class="spin"></div><span>Carregando...</span></div></div>`).join('')}
+      </div>
+    `;
+    panel.appendChild(row);
+  });
+}
+
+function sanitId(str) { return str.replace(/[^a-zA-Z0-9]/g, '_'); }
+
+function atualizarBlocoLiga(liga) {
+  const grid = document.getElementById(`grid-${sanitId(liga)}`);
+  if (!grid) return;
+
+  const res = resultsByLiga[liga];
+
+  if (res.erro) {
+    grid.innerHTML = `<div class="league-block" style="grid-column:1/-1;"><div class="error-block">Erro: ${res.erro}</div></div>`;
+    return;
+  }
+
+  const { dados, mercadoV, martCob } = res;
+  const mercadoText = mercadoLabel(mercadoV);
+
+  /* --- COL 1: PADRÃO --- */
+  const padroes = dados.padroesEncontrados || [];
+  const top3    = padroes.slice(0, 3);
+  const streak  = dados.streak;
+  const maiorAcerto = padroes[0] ? parseFloat(padroes[0].percentual) : 0;
+
+  let col1 = `<div class="league-body">`;
+  if (!top3.length) {
+    col1 += `<div style="color:var(--muted);font-size:0.8rem;">Nenhum padrão encontrado.</div>`;
+  } else {
+    top3.forEach((p, i) => {
+      const pct = parseFloat(p.percentual);
+      const cls = pct >= 90 ? '' : pct >= 70 ? 'med' : 'low';
+      col1 += `<div class="data-row">
+        <span class="data-label">#${i+1} ${pct >= 90 ? '⭐' : pct >= 70 ? '✅' : '🟡'}</span>
+        <span class="data-val">${p.percentual}%</span>
+      </div>
+      <div style="margin-bottom:0.35rem;"><span class="pattern-tag ${cls}">${truncate(p.padrao, 40)}</span></div>
+      <div style="font-size:0.7rem;color:var(--muted);margin-bottom:0.5rem;">${p.greens}/${p.ocorrencias} ocorrências · ${p.pular_jogos}j salto</div>`;
+    });
+  }
+  if (streak && streak.contagem > 0) {
+    const sc = streak.tipo === 'green' ? 'streak-green' : 'streak-red';
+    col1 += `<div style="margin-top:0.5rem;"><span class="streak-pill ${sc}">${streak.tipo === 'green' ? '✅' : '❌'} ${streak.contagem}x ${streak.tipo.toUpperCase()}</span></div>`;
+  }
+  col1 += `</div>`;
+
+  /* --- COL 2: RANKING ODD --- */
+  const rankF = (dados.rankingFaixas || []).filter(f => f.jogos > 0).slice(0, 6);
+  let col2 = `<div class="league-body">`;
+  if (!rankF.length) {
+    col2 += `<div style="color:var(--muted);font-size:0.8rem;">Sem dados de odds.</div>`;
+  } else {
+    rankF.forEach((f, i) => {
+      const isTop    = dados.top3Faixas && dados.top3Faixas.has(f.label);
+      const pct      = parseInt(f.pct);
+      const barColor = pct >= 70 ? 'var(--accent)' : pct >= 50 ? 'var(--yellow)' : 'var(--orange)';
+      col2 += `<div class="data-row">
+        <span class="data-label">${isTop ? '⭐' : ''} ${f.label}</span>
+        <span class="data-val ${pct >= 70 ? 'green' : pct >= 50 ? 'yellow' : 'orange'}">${f.pct}%</span>
+      </div>
+      <div class="rank-bar-wrap" style="width:100%;margin-bottom:0.3rem;">
+        <div class="rank-bar" style="width:${f.pct}%;background:${barColor};"></div>
+      </div>`;
+    });
+  }
+  col2 += `</div>`;
+
+  /* --- COL 3: MERCADO --- */
+  const pct       = parseInt(dados.marketAnalysis ? dados.marketAnalysis.currentPercentage : 0);
+  const top5m     = dados.marketAnalysis ? dados.marketAnalysis.top5 : [];
+  const barColor3 = pct >= 70 ? 'var(--accent)' : pct >= 50 ? 'var(--yellow)' : pct >= 30 ? 'var(--orange)' : 'var(--red)';
+  const tempLabel = pct >= 70 ? '🔥 Aquecido' : pct >= 50 ? '🟡 Moderado' : pct >= 30 ? '🟠 Frio' : '❄️ Muito Frio';
+
+  let col3 = `<div class="league-body">
+    <div class="data-row">
+      <span class="data-label">${mercadoText}</span>
+      <span class="data-val" style="color:${barColor3};">${pct}%</span>
+    </div>
+    <div class="market-bar-wrap"><div class="market-bar" style="width:${pct}%;background:${barColor3};"></div></div>
+    <div style="font-size:0.73rem;color:var(--muted);margin:0.45rem 0;">${tempLabel}</div>`;
+  if (top5m.length) {
+    col3 += `<div style="font-size:0.65rem;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:0.3rem;">Top Faixas</div>`;
+    top5m.slice(0, 3).forEach((item, i) => {
+      const gp = parseFloat(item.greenPercentage);
+      col3 += `<div class="data-row">
+        <span class="data-label">${i+1}. ${item.marketGroup}</span>
+        <span class="data-val ${gp >= 70 ? 'green' : gp >= 50 ? 'yellow' : 'orange'}">${item.greenPercentage}%</span>
+      </div>`;
+    });
+  }
+  col3 += `</div>`;
+
+  /* --- COL 4: INFO GERAIS --- */
+  const ranking  = dados.ranking || [];
+  const top5t    = ranking.slice(0, 5);
+  const proximos = (dados.proximos || []).slice(0, 6);
+  const temOddTop5 = proximos.some(j => {
+    const o   = buscarOddsJogo(dados.oddsIndex, j.time_a || '', j.time_b || '');
+    const odd = getOddDoMercado(o, mercadoV);
+    return odd && dados.top5Odds && dados.top5Odds.has(odd.toFixed(2));
+  });
+  const { score } = calcularScoreConfianca(maiorAcerto, pct, temOddTop5, padroes.filter(p => parseFloat(p.percentual) >= 70).length, padroes.length);
+  const scoreCls  = score >= 65 ? 'score-high' : score >= 45 ? 'score-med' : 'score-low';
+
+  let col4 = `<div class="league-body">
+    <div style="display:flex;align-items:center;gap:0.65rem;margin-bottom:0.65rem;">
+      <div class="score-badge ${scoreCls}">${score}</div>
+      <div>
+        <div style="font-size:0.7rem;color:var(--muted);">Score Confiança</div>
+        <div style="font-size:0.78rem;font-weight:700;color:${score>=65?'var(--accent)':score>=45?'var(--yellow)':'var(--red)'};">
+          ${score>=80?'ALTÍSSIMA':score>=65?'ALTA':score>=50?'MODERADA':score>=35?'BAIXA':'MUITO BAIXA'}
+        </div>
+      </div>
+    </div>
+    <div style="font-size:0.65rem;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:0.4rem;">Top Times</div>`;
+  top5t.slice(0, 4).forEach((t, i) => {
+    const pBar = Math.min(100, parseFloat(t.percentage));
+    col4 += `<div class="rank-item">
+      <span class="rank-num">${i+1}</span>
+      <span class="rank-name">${t.name}</span>
+      <div class="rank-bar-wrap"><div class="rank-bar" style="width:${pBar}%;"></div></div>
+      <span class="rank-pct" style="color:${pBar>=70?'var(--accent)':pBar>=50?'var(--yellow)':'var(--orange)'};">${t.percentage}%</span>
+    </div>`;
+  });
+
+  if (proximos.length) {
+    col4 += `<div style="font-size:0.65rem;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin:0.65rem 0 0.35rem;">Próximos (${proximos.length})</div>`;
+    proximos.forEach(j => {
+      const oddsJ = buscarOddsJogo(dados.oddsIndex, j.time_a || '', j.time_b || '');
+      const odd   = getOddDoMercado(oddsJ, mercadoV);
+      const isTop = odd && dados.top5Odds && dados.top5Odds.has(odd.toFixed(2));
+      col4 += `<div class="game-row">
+        <span class="game-time">${j.horario}</span>
+        <span class="game-teams">${(j.time_a||'').substring(0,8)} x ${(j.time_b||'').substring(0,8)}</span>
+        ${odd   ? `<span class="game-odd">${odd.toFixed(2)}</span>` : ''}
+        ${isTop ? '<span class="game-star">⭐</span>' : ''}
+      </div>`;
+    });
+  }
+  col4 += `</div>`;
+
+  grid.innerHTML = `
+    <div class="league-block fade-in">${col1}</div>
+    <div class="league-block fade-in" style="animation-delay:0.05s;">${col2}</div>
+    <div class="league-block fade-in" style="animation-delay:0.1s;">${col3}</div>
+    <div class="league-block fade-in" style="animation-delay:0.15s;">${col4}</div>
+  `;
+}
+
+function truncate(str, n) { return str.length > n ? str.slice(0, n) + '…' : str; }
+
+function mercadoLabel(v) {
+  const map = {
+    casaVence:'Casa Vence', foraVence:'Fora Vence', empate:'Empate',
+    'over1.5':'Over 1.5', 'over2.5':'Over 2.5', 'over3.5':'Over 3.5',
+    'under1.5':'Under 1.5', 'under2.5':'Under 2.5', 'under3.5':'Under 3.5',
+    ambasMarcam:'Ambas Sim', ambasNaoMarcam:'Ambas Não', over5:'5+ Gols',
+    exact1:'1 Gol', exact2:'2 Gols', exact3:'3 Gols', exact4:'4 Gols'
+  };
+  return map[v] || v;
+}
+
+/* =====================================================
+   SINAIS
+===================================================== */
+function horarioParaMinutos(h) {
+  if (!h || !h.includes(':')) return -1;
+  const [hh, mm] = h.split(':').map(Number);
+  return hh * 60 + mm;
+}
+
+function limparSinaisExpirados() { return false; }
+
+function horariosTemConflito(horariosA, horariosB) {
+  const setA = new Set(horariosA);
+  return horariosB.some(h => setA.has(h));
+}
+
+const ANTECEDENCIA_MIN = 3;
+
+function checarSinal(dados, liga, casa, mercadoV, martCob) {
+  const padroes  = dados.padroesEncontrados || [];
+  const agoraMin = agoraMinCasa(casa);
+
+  const proximos = (dados.proximos || [])
+    .filter(j => {
+      const m = horarioParaMinutos(j.horario);
+      return m === -1 || m > agoraMin + ANTECEDENCIA_MIN;
+    })
+    .slice(0, 8);
+
+  const maiorAcerto = padroes[0] ? parseFloat(padroes[0].percentual) : 0;
+  const pct = parseInt(dados.marketAnalysis ? dados.marketAnalysis.currentPercentage : 0);
+
+  if (maiorAcerto < 70 || !proximos.length) return;
+
+  const tiros      = martCob + 1;
+  const candidatos = proximos.slice(0, tiros);
+  const horarios   = candidatos.map(j => j.horario);
+
+  const primeiroJogoMin  = horarioParaMinutos(candidatos[0].horario);
+  const antecedenciaReal = primeiroJogoMin !== -1 ? primeiroJogoMin - agoraMin : 999;
+
+  const chave = `${casa}|${liga}|${mercadoV}|${horarios.join(',')}`;
+
+  /* Verifica também se a chave foi excluída permanentemente */
+  const jaExisteExato = sinaisAtivos.some(s => s.chave === chave)
+    || sinaisUsados.some(s => s.chave === chave)
+    || sinaisExcluidos.includes(chave);
+  if (jaExisteExato) return;
+
+  const temOddTop5 = candidatos.some(j => {
+    const o   = buscarOddsJogo(dados.oddsIndex, j.time_a || '', j.time_b || '');
+    const odd = getOddDoMercado(o, mercadoV);
+    return odd && dados.top5Odds && dados.top5Odds.has(odd.toFixed(2));
+  });
+  const novoScore = calcularScoreConfianca(
+    maiorAcerto, pct, temOddTop5,
+    padroes.filter(p => parseFloat(p.percentual) >= 70).length,
+    padroes.length
+  ).score;
+
+  const conflitante = sinaisAtivos.find(s =>
+    s.casa === (casasConfig[casa] ? casasConfig[casa].name : casa) &&
+    s.mercado === mercadoLabel(mercadoV) &&
+    horariosTemConflito(horarios, s.jogos.map(j => j.horario))
+  );
+
+  if (conflitante) {
+    const conflitanteAntec = conflitante.antecedencia || 0;
+    if (novoScore > conflitante.score || (novoScore === conflitante.score && antecedenciaReal > conflitanteAntec)) {
+      sinaisAtivos = sinaisAtivos.filter(s => s.id !== conflitante.id);
+    } else {
+      return;
+    }
+  }
+
+  const casaConfig = casasConfig[casa];
+  const sinal = {
+    id:           Date.now() + Math.random(),
+    chave,
+    casa:         casaConfig ? casaConfig.name : casa,
+    liga,
+    mercado:      mercadoLabel(mercadoV),
+    acerto:       padroes[0].percentual,
+    score:        novoScore,
+    antecedencia: antecedenciaReal,
+    jogos:        candidatos.map(j => ({
+      horario: j.horario,
+      time_a:  j.time_a,
+      time_b:  j.time_b,
+      odd: (() => {
+        const o   = buscarOddsJogo(dados.oddsIndex, j.time_a || '', j.time_b || '');
+        const odd = getOddDoMercado(o, mercadoV);
+        return odd ? odd.toFixed(2) : null;
+      })()
+    })),
+    ts:        new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }),
+    resultado: null,
+    greenMinuto: null
+  };
+
+  sinaisAtivos.push(sinal);
+  salvarSinais();
+}
+
+function marcarUsado(id) {
+  const idx = sinaisAtivos.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const sinal = sinaisAtivos.splice(idx, 1)[0];
+  sinaisUsados.unshift(sinal);
+  salvarSinais();
+  renderSinais();
+}
+
+function desmarcarUsado(id) {
+  const idx = sinaisUsados.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const sinal = sinaisUsados.splice(idx, 1)[0];
+  sinal.resultado  = null;
+  sinal.greenMinuto = null;
+  sinaisAtivos.unshift(sinal);
+  salvarSinais();
+  renderSinais();
+}
+
+/* ─── NOVO: Exclui permanentemente um sinal dos usados ─── */
+function excluirSinalPermanente(id) {
+  const idx = sinaisUsados.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const sinal = sinaisUsados.splice(idx, 1)[0];
+  /* Guarda a chave para impedir que o sinal seja recriado */
+  if (sinal.chave && !sinaisExcluidos.includes(sinal.chave)) {
+    sinaisExcluidos.push(sinal.chave);
+    /* Mantém no máximo 500 chaves excluídas para não inflar o localStorage */
+    if (sinaisExcluidos.length > 500) sinaisExcluidos.splice(0, sinaisExcluidos.length - 500);
+  }
+  salvarSinais();
+  renderSinais();
+}
+
+function marcarResultado(id, resultado) {
+  const sinal = sinaisUsados.find(s => s.id === id);
+  if (!sinal) return;
+  if (sinal.resultado === resultado) {
+    sinal.resultado    = null;
+    sinal.greenMinuto  = null;
+    sinal.autoResultado = false;
+  } else {
+    sinal.resultado    = resultado;
+    sinal.autoResultado = false;
+    if (resultado === 'green' && sinal.jogos.length > 0) {
+      sinal.greenMinuto = sinal.jogos[0].horario;
+    } else {
+      sinal.greenMinuto = null;
+    }
+  }
+  salvarSinais();
+  renderSinais();
+}
+
+function mercadoLabelParaValue(label) {
+  const map = {
+    'Casa Vence':'casaVence','Fora Vence':'foraVence','Empate':'empate',
+    'Over 1.5':'over1.5','Over 2.5':'over2.5','Over 3.5':'over3.5',
+    'Under 1.5':'under1.5','Under 2.5':'under2.5','Under 3.5':'under3.5',
+    'Ambas Sim':'ambasMarcam','Ambas Não':'ambasNaoMarcam','5+ Gols':'over5',
+    '1 Gol':'exact1','2 Gols':'exact2','3 Gols':'exact3','4 Gols':'exact4'
+  };
+  return map[label] || label;
+}
+
+function _checarResultadoSinal(sinal) {
+  const agoraMin = agoraMinCasaNome(sinal.casa);
+  const maxMin   = sinal.jogos.reduce((acc, j) => {
+    const m = horarioParaMinutos(j.horario);
+    return m > acc ? m : acc;
+  }, -1);
+  if (maxMin === -1 || agoraMin < maxMin + 2) return null;
+
+  const resLiga = resultsByLiga[sinal.liga];
+  if (!resLiga || resLiga.erro) return null;
+
+  const { dados, mercadoV: mvDados } = resLiga;
+  const dadosCru = dados.dadosCru || [];
+  const mv = mvDados || mercadoLabelParaValue(sinal.mercado);
+  const sm = mapMercado(mv);
+
+  let greenEncontrado = false;
+  let greenMinuto     = null;
+
+  for (const jogo of sinal.jogos) {
+    const timeA = (jogo.time_a || '').trim().toLowerCase();
+    const timeB = (jogo.time_b || '').trim().toLowerCase();
+    const resultadoReal = dadosCru.find(j => {
+      const ja    = (j[3] || '').toLowerCase().trim();
+      const jb    = (j[4] || '').toLowerCase().trim();
+      const hh    = String(j[5] || '').padStart(2, '0');
+      const mm    = String(j[6] || '').padStart(2, '0');
+      const horaJogo = `${hh}:${mm}`;
+      return ((ja === timeA && jb === timeB) || (ja === timeB && jb === timeA)) && horaJogo === jogo.horario;
+    });
+    if (resultadoReal) {
+      const [a, b, t] = resultadoReal;
+      if (checkMarket(sm, a, b, t) === 1) {
+        greenEncontrado = true;
+        greenMinuto     = jogo.horario;
+        break;
+      }
+    }
+  }
+
+  if (greenEncontrado) return { resultado: 'green', greenMinuto };
+
+  const todosEncontrados = sinal.jogos.every(jogo => {
+    const timeA = (jogo.time_a || '').trim().toLowerCase();
+    const timeB = (jogo.time_b || '').trim().toLowerCase();
+    return dadosCru.some(j => {
+      const ja    = (j[3] || '').toLowerCase().trim();
+      const jb    = (j[4] || '').toLowerCase().trim();
+      const hh    = String(j[5] || '').padStart(2, '0');
+      const mm    = String(j[6] || '').padStart(2, '0');
+      const horaJogo = `${hh}:${mm}`;
+      return ((ja === timeA && jb === timeB) || (ja === timeB && jb === timeA)) && horaJogo === jogo.horario;
+    });
+  });
+
+  if (todosEncontrados) return { resultado: 'red', greenMinuto: null };
+  return null;
+}
+
+function verificarResultadosAutomaticos() {
+  let houveMudanca = false;
+
+  const ativosFiltrados = [];
+  for (const s of sinaisAtivos) {
+    const agoraMin = agoraMinCasaNome(s.casa);
+    const maxMin   = s.jogos.reduce((acc, j) => {
+      const m = horarioParaMinutos(j.horario);
+      return m > acc ? m : acc;
+    }, -1);
+    const expirou = maxMin !== -1 && agoraMin >= maxMin + 3;
+    if (expirou) {
+      const res = _checarResultadoSinal(s);
+      if (res) {
+        s.resultado     = res.resultado;
+        s.greenMinuto   = res.greenMinuto;
+        s.autoResultado = true;
+      }
+      sinaisUsados.unshift(s);
+      houveMudanca = true;
+    } else {
+      ativosFiltrados.push(s);
+    }
+  }
+  sinaisAtivos = ativosFiltrados;
+
+  sinaisUsados.forEach(sinal => {
+    if (sinal.resultado) return;
+    const res = _checarResultadoSinal(sinal);
+    if (res) {
+      sinal.resultado     = res.resultado;
+      sinal.greenMinuto   = res.greenMinuto;
+      sinal.autoResultado = true;
+      houveMudanca        = true;
+    }
+  });
+
+  if (houveMudanca) salvarSinais();
+}
+
+/* ─── renderSinais: diff para não piscar ─── */
+function renderSinais() {
+  document.getElementById('sinais-badge').textContent = sinaisAtivos.length;
+  document.getElementById('usados-badge').textContent = sinaisUsados.length;
+  _renderLista('sinais-ativos-list', sinaisAtivos, false, `<div class="empty-state"><div class="icon">📡</div><p>Nenhum sinal gerado ainda.<br>Inicie a análise para receber sugestões automáticas.</p></div>`);
+  _renderLista('sinais-usados-list', sinaisUsados, true,  `<div class="empty-state"><div class="icon">✅</div><p>Nenhum sinal marcado como usado.</p></div>`);
+}
+
+function _renderLista(containerId, lista, isUsado, emptyHtml) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (!lista.length) {
+    if (!container.querySelector('.empty-state')) container.innerHTML = emptyHtml;
+    return;
+  }
+
+  const idsNoDOM = new Set([...container.querySelectorAll('[data-sinal-id]')].map(el => Number(el.dataset.sinalId)));
+  const idsNovos = new Set(lista.map(s => s.id));
+
+  container.querySelectorAll('[data-sinal-id]').forEach(el => {
+    if (!idsNovos.has(Number(el.dataset.sinalId))) el.remove();
+  });
+
+  const empty = container.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  lista.forEach((s, idx) => {
+    const html     = renderSinalCard(s, isUsado);
+    const existing = container.querySelector(`[data-sinal-id="${s.id}"]`);
+    if (existing) {
+      const tmp  = document.createElement('div');
+      tmp.innerHTML = html;
+      const newEl = tmp.firstElementChild;
+      if (existing.innerHTML !== newEl.innerHTML) {
+        existing.innerHTML = newEl.innerHTML;
+      }
+    } else {
+      const tmp  = document.createElement('div');
+      tmp.innerHTML = html;
+      const newEl = tmp.firstElementChild;
+      const ref  = container.children[idx];
+      if (ref) container.insertBefore(newEl, ref);
+      else container.appendChild(newEl);
+    }
+  });
+}
+
+function renderSinalCard(s, isUsado) {
+  const scoreCls = s.score >= 65 ? 'var(--accent)' : s.score >= 45 ? 'var(--yellow)' : 'var(--red)';
+  const jogosHtml = s.jogos.map(j =>
+    `<div>▸ <span class="signal-time">${j.horario}</span> — ${j.time_a} vs ${j.time_b}${j.odd ? ` <span style="color:var(--yellow);">@ ${j.odd}</span>` : ''}</div>`
+  ).join('');
+
+  const checkHtml = isUsado
+    ? `<div class="signal-select used" onclick="desmarcarUsado(${s.id})" title="Remover dos usados">✓</div>`
+    : `<div class="signal-select" onclick="marcarUsado(${s.id})" title="Marcar como usado"></div>`;
+
+  let resultadoHtml = '';
+  if (isUsado) {
+    if (s.resultado) {
+      const greenMinutoHtml = (s.resultado === 'green' && s.greenMinuto)
+        ? ` <span style="color:var(--muted);font-size:0.68rem;font-family:'Roboto Mono',monospace;">às ${s.greenMinuto}</span>`
+        : '';
+      const autoTag = s.autoResultado
+        ? `<span style="font-size:0.62rem;color:var(--muted);background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:0.1rem 0.35rem;margin-left:0.3rem;">AUTO</span>`
+        : '';
+      resultadoHtml = `<div style="margin-top:0.45rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+        <span class="result-pill ${s.resultado}">${s.resultado === 'green' ? '✓ GREEN' : '✗ RED'}${greenMinutoHtml}${autoTag}</span>
+        <button onclick="marcarResultado(${s.id}, '${s.resultado}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.68rem;padding:0;">remover</button>
+      </div>`;
+    } else {
+      resultadoHtml = `<div class="result-btns">
+        <button class="result-btn green-btn" onclick="marcarResultado(${s.id}, 'green')">✓ GREEN</button>
+        <button class="result-btn red-btn"   onclick="marcarResultado(${s.id}, 'red')">✗ RED</button>
+      </div>`;
+    }
+
+    /* ─── Botão de exclusão permanente (apenas em sinais usados) ─── */
+    resultadoHtml += `
+      <div style="margin-top:0.45rem;border-top:1px solid var(--border2);padding-top:0.4rem;">
+        <button
+          onclick="excluirSinalPermanente(${s.id})"
+          title="Excluir permanentemente — este sinal não voltará mais"
+          style="background:none;border:1px solid var(--red,#c0392b);color:var(--red,#c0392b);cursor:pointer;font-size:0.68rem;padding:0.2rem 0.6rem;border-radius:4px;opacity:0.75;transition:opacity 0.15s;"
+          onmouseover="this.style.opacity='1'"
+          onmouseout="this.style.opacity='0.75'">
+          🗑 Excluir permanentemente
+        </button>
+      </div>`;
+  }
+
+  return `
+    <div class="signal-card ${isUsado ? 'is-used' : ''}" data-sinal-id="${s.id}">
+      ${checkHtml}
+      <div class="signal-body">
+        <div class="signal-header">
+          <span class="signal-house">${s.casa}</span>
+          <span class="signal-sep">›</span>
+          <span class="signal-league">${s.liga}</span>
+          <span class="signal-sep">›</span>
+          <span class="signal-market">${s.mercado}</span>
+          <span style="margin-left:auto;font-family:'Roboto Mono',monospace;font-size:0.68rem;color:${scoreCls};font-weight:600;">${s.score}/100</span>
+        </div>
+        <div class="signal-games">${jogosHtml}</div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.35rem;">
+          Acerto padrão: ${s.acerto}% · Gerado: ${s.ts}
+          ${s.antecedencia !== undefined && s.antecedencia < 999
+            ? (() => {
+                const ant = s.antecedencia;
+                const cor = ant >= 10 ? 'var(--accent)' : ant >= 5 ? 'var(--yellow)' : 'var(--orange)';
+                const txt = ant >= 60
+                  ? `${Math.floor(ant/60)}h${ant%60>0 ? (ant%60)+'min' : ''} antes`
+                  : `${ant}min antes`;
+                return ` · <span style="color:${cor};">⏱ ${txt}</span>`;
+              })()
+            : ''}
+        </div>
+        ${resultadoHtml}
+      </div>
+    </div>
+  `;
+}
+
+/* =====================================================
+   API
+===================================================== */
+async function buscarDadosAPI(casa, liga, numJogos) {
+  const config = casasConfig[casa];
+  if (!config) throw new Error(`Casa ${casa} não encontrada`);
+  const ligaEncoded = encodeURIComponent(liga);
+  const base   = 'https://betstat.site';
+  const prefix = config.path ? `/${config.path}` : '';
+  const [resultados, proximos, oddsRaw] = await Promise.all([
+    fetchCache(`${base}/resultados${prefix}/${ligaEncoded}`),
+    fetchCache(`${base}/proximos${prefix}/${ligaEncoded}`),
+    fetchCache(`${base}/odds${prefix}/${ligaEncoded}`).catch(() => [])
+  ]);
+  const dadosCompletos = { casa: config.name, liga, totalJogos: 0, dadosCru: [] };
+  resultados.slice(-numJogos).forEach(jogo => {
+    const parts = (jogo.ft||'x').split('x').map(s => parseInt(s.trim(),10));
+    const a = parts[0], b = parts[1];
+    if (Number.isFinite(a) && Number.isFinite(b))
+      dadosCompletos.dadosCru.push([a,b,a+b,(jogo.time_a||'').trim(),(jogo.time_b||'').trim(),jogo.hora,jogo.minuto]);
+  });
+  dadosCompletos.proximos = proximos.slice(0,8).map(j => {
+    const ts = j.time||''; let hora=0,minuto=0;
+    if (ts.includes(':')){ const p=ts.split(':'); hora=parseInt(p[0],10)||0; minuto=parseInt(p[1],10)||0; }
+    return { time_a:(j.team_home||'').trim(), time_b:(j.team_visit||'').trim(), horario:ts, hora, minuto, liga:j.league||liga, id:j.id, event_id:j.event_id };
+  });
+  const oddsIndex = {};
+  if (Array.isArray(oddsRaw)) oddsRaw.forEach(o => {
+    const key = `${(o.time_casa||'').trim().toLowerCase()}|${(o.time_visitante||'').trim().toLowerCase()}`;
+    oddsIndex[key] = { horario:o.horario||'', time_casa:(o.time_casa||'').trim(), time_visitante:(o.time_visitante||'').trim(),
+      casaVence:parseFloat(o.odds_casa_vence)||null, visitanteVence:parseFloat(o.odds_visitante_vence)||null, empate:parseFloat(o.odds_empate)||null,
+      ambasSim:parseFloat(o.odds_ambas_marcam_sim)||null, ambasNao:parseFloat(o.odds_ambas_marcam_nao)||null,
+      over1_5:parseFloat(o.odds_mais_1_5)||null, under1_5:parseFloat(o.odds_menos_1_5)||null,
+      over2_5:parseFloat(o.odds_mais_2_5)||null, under2_5:parseFloat(o.odds_menos_2_5)||null,
+      over3_5:parseFloat(o.odds_mais_3_5)||null, under3_5:parseFloat(o.odds_menos_3_5)||null,
+      over5:parseFloat(o.odds_mais_5_gols)||null };
+  });
+  dadosCompletos.oddsIndex = oddsIndex; dadosCompletos.oddsRaw = Array.isArray(oddsRaw) ? oddsRaw : [];
+  dadosCompletos.oddsDisponiveis = Object.keys(oddsIndex).length > 0;
+  dadosCompletos.totalJogos = dadosCompletos.dadosCru.length;
+  return dadosCompletos;
+}
+
+/* =====================================================
+   ANÁLISE
+===================================================== */
+function calcularRankingTimes(games, mercado) {
+  const stats = {};
+  games.forEach(({time_a, time_b, ft}) => {
+    if (!ft || !ft.includes(' x ')) return;
+    const [golsA, golsB] = ft.split(' x ').map(Number), total = golsA + golsB;
+    [time_a, time_b].forEach(t => { if (!stats[t]) stats[t] = {name:t,totalGames:0,marketCount:0}; });
+    stats[time_a].totalGames++; stats[time_b].totalGames++;
+    if (isGreenForMercado(mercado, golsA, golsB, total)) { stats[time_a].marketCount++; stats[time_b].marketCount++; }
+  });
+  return Object.values(stats).map(t => ({...t,percentage:t.totalGames>0?((t.marketCount/t.totalGames)*100).toFixed(1):'0.0'}))
+    .sort((a,b) => b.marketCount-a.marketCount || parseFloat(b.percentage)-parseFloat(a.percentage));
+}
+
+function calcularStreak(dadosCru, mercado) {
+  if (!dadosCru || !dadosCru.length) return {tipo:'neutro',contagem:0};
+  const ultimo = dadosCru[dadosCru.length-1];
+  const tipoUltimo = isGreenForMercado(mercado,ultimo[0],ultimo[1],ultimo[2]) ? 'green' : 'red';
+  let contagem = 1;
+  for (let i = dadosCru.length-2; i >= 0; i--) {
+    const [a,b,t] = dadosCru[i];
+    if ((isGreenForMercado(mercado,a,b,t) ? 'green' : 'red') === tipoUltimo) contagem++;
+    else break;
+  }
+  return {tipo:tipoUltimo,contagem};
+}
+
+function calcularScoreConfianca(maiorAcerto, pctMercado, temOddTop5, qtdPadroesBons, totalPadroes) {
+  const p1 = Math.min(maiorAcerto,100)*0.40, p2 = Math.min(pctMercado,100)*0.25, p3 = temOddTop5?20:0;
+  const volPct = totalPadroes>0?(qtdPadroesBons/totalPadroes)*100:0, p4 = Math.min(volPct,100)*0.15;
+  return {score: Math.round(p1+p2+p3+p4)};
+}
+
+const FAIXAS_ODDS = [
+  {label:'1.01–1.30',min:1.01,max:1.30},{label:'1.31–1.50',min:1.31,max:1.50},{label:'1.51–1.70',min:1.51,max:1.70},
+  {label:'1.71–1.90',min:1.71,max:1.90},{label:'1.91–2.10',min:1.91,max:2.10},{label:'2.11–2.30',min:2.11,max:2.30},
+  {label:'2.31–2.60',min:2.31,max:2.60},{label:'2.61–3.00',min:2.61,max:3.00},{label:'3.01–3.50',min:3.01,max:3.50},
+  {label:'3.51–4.50',min:3.51,max:4.50},{label:'4.51–9.99',min:4.51,max:9.99},{label:'10.00+',min:10.0,max:Infinity}
+];
+function getFaixaOdd(odd) { return FAIXAS_ODDS.find(f => odd >= f.min && odd <= f.max) || null; }
+function getOddFieldName(v) { return ({ambasMarcam:'ambasSim',ambasNaoMarcam:'ambasNao',casaVence:'casaVence',foraVence:'visitanteVence',empate:'empate','over1.5':'over1_5','under1.5':'under1_5','over2.5':'over2_5','under2.5':'under2_5','over3.5':'over3_5','under3.5':'under3_5',over5:'over5'})[v] || null; }
+function oddFieldToRawKey(f) { return ({casaVence:'casa_vence',visitanteVence:'visitante_vence',empate:'empate',ambasSim:'ambas_marcam_sim',ambasNao:'ambas_marcam_nao',over1_5:'mais_1_5',under1_5:'menos_1_5',over2_5:'mais_2_5',under2_5:'menos_2_5',over3_5:'mais_3_5',under3_5:'menos_3_5',over5:'mais_5_gols'})[f] || f; }
+function isGreenForMercado(m,a,b,t) {
+  switch(m) {
+    case'ambasMarcam':return a>0&&b>0; case'ambasNaoMarcam':return a===0||b===0;
+    case'casaVence':return a>b; case'foraVence':return b>a; case'empate':return a===b;
+    case'over1.5':return t>=2; case'under1.5':return t<2; case'over2.5':return t>=3; case'under2.5':return t<3;
+    case'over3.5':return t>=4; case'under3.5':return t<4; case'over5':return t>=5;
+    case'exact1':return t===1; case'exact2':return t===2; case'exact3':return t===3; case'exact4':return t===4;
+    default:return false;
+  }
+}
+
+function calcularRankingOdds(dados, mercadoValue) {
+  const {dadosCru, oddsRaw, oddsIndex} = dados;
+  const oddField = getOddFieldName(mercadoValue);
+  if (!oddField || !oddsRaw || !oddsRaw.length) return {rankingExato:[],rankingFaixas:[],top5Odds:new Set(),top3Faixas:new Set()};
+  const rawKey = `odds_${oddFieldToRawKey(oddField)}`;
+  const oddStats = {};
+  oddsRaw.forEach(o => {
+    const odd = parseFloat(o[rawKey]||0); if (!odd||odd<=0) return;
+    const oddKey = odd.toFixed(2), taKey = (o.time_casa||'').trim().toLowerCase(), tbKey = (o.time_visitante||'').trim().toLowerCase();
+    const resultado = dadosCru.find(j => { const jA=(j[3]||'').toLowerCase().trim(),jB=(j[4]||'').toLowerCase().trim(); return(jA===taKey&&jB===tbKey)||(jA===tbKey&&jB===taKey); });
+    if (!oddStats[oddKey]) oddStats[oddKey] = {odd,jogos:0,greens:0};
+    oddStats[oddKey].jogos++;
+    if (resultado && isGreenForMercado(mercadoValue,resultado[0],resultado[1],resultado[2])) oddStats[oddKey].greens++;
+  });
+  const temCruzamento = Object.values(oddStats).some(s => s.greens>0 || s.jogos>1);
+  if (!temCruzamento) {
+    const oddsDisp = oddsRaw.map(o => parseFloat(o[rawKey])).filter(v => v>0);
+    if (oddsDisp.length>0) {
+      oddsDisp.sort((a,b) => a-b); const mediana = oddsDisp[Math.floor(oddsDisp.length/2)]; const key = mediana.toFixed(2);
+      dadosCru.forEach(j => { const [a,b,t]=j; if (!oddStats[key]) oddStats[key]={odd:mediana,jogos:0,greens:0}; oddStats[key].jogos++; if (isGreenForMercado(mercadoValue,a,b,t)) oddStats[key].greens++; });
+    }
+  }
+  const rankingExato = Object.values(oddStats).filter(s => s.jogos>=1).map(s => ({odd:s.odd,jogos:s.jogos,greens:s.greens,pct:((s.greens/s.jogos)*100).toFixed(0)})).sort((a,b) => parseFloat(b.pct)-parseFloat(a.pct)||b.greens-a.greens||b.jogos-a.jogos);
+  const top5Odds = new Set(rankingExato.slice(0,5).map(r => r.odd.toFixed(2)));
+  const faixaStats = {};
+  FAIXAS_ODDS.forEach(f => { faixaStats[f.label] = {label:f.label,min:f.min,max:f.max,jogos:0,greens:0}; });
+  oddsRaw.forEach(o => {
+    const odd = parseFloat(o[rawKey]||0); if (!odd||odd<=0) return;
+    const faixa = getFaixaOdd(odd); if (!faixa) return;
+    const taKey = (o.time_casa||'').trim().toLowerCase(), tbKey = (o.time_visitante||'').trim().toLowerCase();
+    const resultado = dadosCru.find(j => { const jA=(j[3]||'').toLowerCase().trim(),jB=(j[4]||'').toLowerCase().trim(); return(jA===taKey&&jB===tbKey)||(jA===tbKey&&jB===taKey); });
+    faixaStats[faixa.label].jogos++;
+    if (resultado && isGreenForMercado(mercadoValue,resultado[0],resultado[1],resultado[2])) faixaStats[faixa.label].greens++;
+  });
+  const rankingFaixas = Object.values(faixaStats).map(f => ({...f,pct:f.jogos>0?((f.greens/f.jogos)*100).toFixed(0):'0'})).sort((a,b) => parseFloat(b.pct)-parseFloat(a.pct)||b.greens-a.greens);
+  const top3Faixas = new Set(rankingFaixas.filter(f => f.jogos>0).slice(0,3).map(f => f.label));
+  return {rankingExato,rankingFaixas,top5Odds,top3Faixas};
+}
+
+function getOddNaFaixaTop(odd, top3Faixas) { const f = getFaixaOdd(odd); return f ? top3Faixas.has(f.label) : false; }
+
+function mapMercado(v) { return ({ambasMarcam:'ambasSim',ambasNaoMarcam:'ambasNao',casaVence:'casaVence',foraVence:'foraVence',empate:'empate','over1.5':'over1.5','over2.5':'over2.5','over3.5':'over3.5','under1.5':'under1.5','under2.5':'under2.5','under3.5':'under3.5',exact1:'umGolExato',exact2:'doisGolsExatos',exact3:'tresGolsExatos',exact4:'quatroGolsExatos',over5:'cincoOuMaisGols'})[v] || v; }
+
+function checkMarket(m,hg,ag,tg) {
+  switch(m) { case'ambasSim':return hg>0&&ag>0?1:0; case'ambasNao':return hg===0||ag===0?1:0; case'casaVence':return hg>ag?1:0; case'foraVence':return ag>hg?1:0; case'empate':return hg===ag?1:0; case'over1.5':return tg>1.5?1:0; case'over2.5':return tg>2.5?1:0; case'over3.5':return tg>3.5?1:0; case'under1.5':return tg<1.5?1:0; case'under2.5':return tg<2.5?1:0; case'under3.5':return tg<3.5?1:0; case'umGolExato':return tg===1?1:0; case'doisGolsExatos':return tg===2?1:0; case'tresGolsExatos':return tg===3?1:0; case'quatroGolsExatos':return tg===4?1:0; case'cincoOuMaisGols':return tg>=5?1:0; default:return 0; }
+}
+
+function calculateMarketAnalysis(dados, sm, numJogos, linesToSum, verifyLines) {
+  const cd = dados.dadosCru.map(i => [`${String(i[5]).padStart(2,'0')}:${String(i[6]).padStart(2,'0')}`,i[0],i[1],i[3],i[4],i[2],dados.liga.toLowerCase()]).slice(-numJogos);
+  if (!cd.length) return {currentPercentage:0,top5:[]};
+  const recent     = cd.slice(-linesToSum);
+  const curCount   = recent.reduce((s,r) => s+checkMarket(sm,r[1],r[2],r[5]),0);
+  const currentPercentage = (curCount/linesToSum*100).toFixed(0);
+  const groups = {};
+  cd.forEach((row,i) => {
+    if (i<linesToSum-1) return;
+    const sum = cd.slice(i-linesToSum+1,i+1).reduce((s,r) => s+checkMarket(sm,r[1],r[2],r[5]),0);
+    const pct = Math.round(sum/linesToSum*100);
+    let result = 'red';
+    if (i+verifyLines<=cd.length) { const next=cd.slice(i+1,i+1+verifyLines); if (next.some(r => checkMarket(sm,r[1],r[2],r[5])===1)) result='green'; }
+    const key = `${sm} ${pct}%`;
+    if (!groups[key]) groups[key] = {occurrences:0,greens:0,reds:0};
+    groups[key].occurrences++; result==='green' ? groups[key].greens++ : groups[key].reds++;
+  });
+  const sorted = Object.keys(groups).map(key => { const g=groups[key]; const gp=(g.greens/g.occurrences*100).toFixed(2); const pn=parseFloat(gp); return {marketGroup:key,marketPercentage:parseFloat(key.split(' ')[1]),occurrences:g.occurrences,greens:g.greens,reds:g.reds,greenPercentage:gp,analysis:pn>75?'Alta chance':pn>50?'Moderada':pn>25?'Risco':'Alta chance de falha'}; }).sort((a,b) => b.greenPercentage-a.greenPercentage||b.greens-a.greens);
+  return {currentPercentage, top5:sorted.slice(0,5)};
+}
+
+function getOddDoMercado(oddsJogo, mercadoValue) { if (!oddsJogo) return null; const f = getOddFieldName(mercadoValue); return f ? (oddsJogo[f]||null) : null; }
+function buscarOddsJogo(oddsIndex, timeA, timeB) { if (!oddsIndex) return null; const kf=`${timeA.toLowerCase()}|${timeB.toLowerCase()}`; const kr=`${timeB.toLowerCase()}|${timeA.toLowerCase()}`; return oddsIndex[kf]||oddsIndex[kr]||null; }
+
+/* =====================================================
+   WEB WORKER
+===================================================== */
+const WORKER_SRC = `self.onmessage=(e)=>{const p=e.data;if(!p||p.cmd!=='analyze')return;self.postMessage({ok:true,id:p.id,result:analyzeAll(p.payload)});};function enumerateCombos(tok){if(tok.length===1)return tok[0].map(t=>[t]);if(tok.length===2){const o=[];for(const a of tok[0])for(const b of tok[1])o.push([a,b]);return o;}if(tok.length===3){const o=[];for(const a of tok[0])for(const b of tok[1])for(const c of tok[2])o.push([a,b,c]);return o;}const out=[],cur=[];(function rec(i){if(i===tok.length){out.push(cur.slice());return;}for(const t of tok[i]){cur.push(t);rec(i+1);cur.pop();}})(0);return out;}function getOffsets(t){if(t==='1')return[0];if(t==='2')return[0,1];if(t==='3')return[0,1,2];if(t==='1_pula_1')return[0,2];if(t==='1_pula_1_pula_1')return[0,2,4];return[0,1];}function tokens(a,b,total,man,vis){const t=new Set();t.add(\`\${a}-\${b}\`);t.add(a>0&&b>0?'ambasMarcam':'ambasNaoMarcam');t.add(a>b?'casaVence':a<b?'foraVence':'empate');if(total>=2)t.add('over1.5');if(total<2)t.add('under1.5');if(total>=3)t.add('over2.5');if(total<3)t.add('under2.5');if(total>=4)t.add('over3.5');if(total<4)t.add('under3.5');if(total>=5)t.add('over5');if(total===1)t.add('exact1');if(total===2)t.add('exact2');if(total===3)t.add('exact3');if(total===4)t.add('exact4');if(man)t.add(man.toLowerCase());if(vis)t.add(vis.toLowerCase());return Array.from(t);}function isGreen(m,a,b,total){if(m==='ambasMarcam')return a>0&&b>0;if(m==='ambasNaoMarcam')return a===0||b===0;if(m==='casaVence')return a>b;if(m==='foraVence')return a<b;if(m==='empate')return a===b;if(m==='over1.5')return total>=2;if(m==='under1.5')return total<2;if(m==='over2.5')return total>=3;if(m==='under2.5')return total<3;if(m==='over3.5')return total>=4;if(m==='under3.5')return total<4;if(m==='over5')return total>=5;if(m==='exact1')return total===1;if(m==='exact2')return total===2;if(m==='exact3')return total===3;if(m==='exact4')return total===4;return false;}function analisar(dados,tipo,tiros,market,ini,fim){const res=[];const offs=getOffsets(tipo);const last=offs[offs.length-1];for(let p=ini;p<=fim;p++){const comb={};const need=(last+1)+p+tiros;if(dados.length<need)continue;for(let i=0;i<=dados.length-need;i++){const tok=[];for(const o of offs){const[a,b,t,man,vis]=dados[i+o];tok.push(tokens(a,b,t,man,vis));}const combos=enumerateCombos(tok);let green=false;const st=i+last+1+p,end=st+tiros;for(let j=st;j<end&&j<dados.length;j++){const[a,b,s]=dados[j];if(isGreen(market,a,b,s)){green=true;break;}}for(const seq of combos){const key=seq.join(' | ');if(!comb[key])comb[key]={ocorrencias:0,greens:0};comb[key].ocorrencias++;if(green)comb[key].greens++;}}for(const k in comb){const s=comb[k];if(s.ocorrencias>=3)res.push({padrao:k,pular_jogos:p,ocorrencias:s.ocorrencias,greens:s.greens,percentual:((s.greens/s.ocorrencias)*100).toFixed(1)});}}res.sort((a,b)=>parseFloat(b.percentual)-parseFloat(a.percentual)||b.ocorrencias-a.ocorrencias);return res.slice(0,15);}function analyzeAll(payload){const{dados,tiros,market,combinado}=payload;const tipos=combinado?['2','3','1_pula_1','1_pula_1_pula_1']:['2'];let todos=[];for(const t of tipos){const r=analisar(dados,t,tiros,market,1,10);r.forEach(x=>x.tipo_padrao=t);todos=todos.concat(r);}todos.sort((a,b)=>parseFloat(b.percentual)-parseFloat(a.percentual)||b.ocorrencias-a.ocorrencias);return{resultados:todos.slice(0,15)};}`;
+
+let _WORKER = null;
+function getWorker() {
+  if (!_WORKER) { const b = new Blob([WORKER_SRC],{type:'application/javascript'}); _WORKER = new Worker(URL.createObjectURL(b)); }
+  return _WORKER;
+}
+function analyzeInWorker(dados, opts) {
+  return new Promise((resolve, reject) => {
+    const w  = getWorker();
+    const id = Math.random().toString(36).slice(2);
+    const fn = ev => {
+      const msg = ev.data;
+      if (!msg || msg.id !== id) return;
+      w.removeEventListener('message', fn);
+      msg.ok ? resolve(msg.result) : reject(msg.error || 'Erro no worker');
+    };
+    w.addEventListener('message', fn);
+    w.postMessage({cmd:'analyze', id, payload:{dados,...opts}});
+  });
+}
+
+/* =====================================================
+   INIT
+===================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+  carregarSinais();
+  carregarConfig();
+});
+</script>
+
+  <script src="app.utils.min.js"></script>
+
+<script>
+  fetch('header.html').then(r=>r.text()).then(d=>{ document.getElementById('header')&&(document.getElementById('header').innerHTML=d); }).catch(()=>{});
+</script>
+<script src="redirecionar.js" onerror="void(0)"></script>
+</body>
+</html>
