@@ -403,6 +403,7 @@ function savePrefs(obj) {
 
 // ═══════════════════════════════════════════════════════════════════
 //  PARSE RESULTADO
+//  Suporta: "2 x 1" (grafico_de_mercados), "2-1", "2x1" (legado)
 // ═══════════════════════════════════════════════════════════════════
 
 function parseResult(gameData) {
@@ -411,100 +412,97 @@ function parseResult(gameData) {
   let ft = gameData.ft || gameData.score || gameData.resultado || gameData.result;
   if (!ft) return null;
 
-  const clean = String(ft).replace(/\s/g, "").replace(/x/gi, "-");
-  const m = clean.match(/^(\d+)-(\d+)$/);
-  if (!m) return null;
+  const raw = String(ft).trim();
+  let h, a;
 
-  const h = parseInt(m[1], 10), a = parseInt(m[2], 10);
+  if (raw.includes(" x ")) {
+    // formato "2 x 1" (padrão do grafico_de_mercados)
+    const parts = raw.split(" x ");
+    h = parseInt(parts[0], 10);
+    a = parseInt(parts[1], 10);
+  } else {
+    // formato "2-1" ou "2x1" (legado)
+    const normalized = raw.replace(/\s/g, "").replace(/x/gi, "-");
+    const m = normalized.match(/^(\d+)-(\d+)$/);
+    if (!m) return null;
+    h = parseInt(m[1], 10);
+    a = parseInt(m[2], 10);
+  }
+
   if (!isFinite(h) || !isFinite(a)) return null;
 
-  let hora = gameData.hora ? String(gameData.hora).padStart(2, "0") : "—";
-  let minuto = gameData.minuto ? String(gameData.minuto).padStart(2, "0") : "—";
+  const hora   = gameData.hora   != null ? String(gameData.hora).padStart(2, "0")   : "—";
+  const minuto = gameData.minuto != null ? String(gameData.minuto).padStart(2, "0") : "—";
 
   return {
-    total: h + a,
-    hora: hora,
-    minuto: minuto,
-    isUnder: h + a < 3,
-    isOver: h + a > 2
+    total:   h + a,
+    hora,
+    minuto,
+    isUnder: h + a < 3,  // Under 2.5: 0, 1 ou 2 gols
+    isOver:  h + a > 2   // Over  2.5: 3+ gols
   };
 }
 
 // ═══════════════════════════════════════════════════════════════════
 //  CALCULAR GRÁFICO
+//
+//  Regras Under 2.5:
+//    prev Under + curr Under → sobe   ✅
+//    prev Under + curr Over  → desce  ❌
+//    prev Over  + curr Under → não mexe
+//    prev Over  + curr Over  → não mexe
+//
+//  Regras Over 2.5:
+//    prev Over  + curr Over  → sobe   ✅
+//    prev Over  + curr Under → desce  ❌
+//    prev Under + curr Over  → não mexe
+//    prev Under + curr Under → não mexe
 // ═══════════════════════════════════════════════════════════════════
 
 function calcGraphData(games) {
-  // Agrupa por minuto e pega apenas os 2 mais recentes
-  const gamesByMinuto = {};
-  for (const game of games) {
-    if (!gamesByMinuto[game.minuto]) {
-      gamesByMinuto[game.minuto] = [];
-    }
-    gamesByMinuto[game.minuto].push(game);
-  }
+  // Ordena cronologicamente: data → hora → minuto (igual ao grafico_de_mercados)
+  const sorted = [...games].sort((a, b) => {
+    const ha = parseInt(a.hora,   10) || 0;
+    const hb = parseInt(b.hora,   10) || 0;
+    const ma = parseInt(a.minuto, 10) || 0;
+    const mb = parseInt(b.minuto, 10) || 0;
+    return ha !== hb ? ha - hb : ma - mb;
+  });
 
-  // Ordena e limita a 2 por minuto
-  for (const minuto in gamesByMinuto) {
-    gamesByMinuto[minuto].sort((a, b) => parseInt(b.hora, 10) - parseInt(a.hora, 10));
-    gamesByMinuto[minuto] = gamesByMinuto[minuto].slice(0, 2);
-  }
-
-  const underPoints = [50]; // Começa no meio
-  const overPoints = [50];
+  const underPoints    = [50]; // começa no centro
+  const overPoints     = [50];
   const underGamesMeta = [null];
-  const overGamesMeta = [null];
+  const overGamesMeta  = [null];
 
-  // Processa cada minuto com seus 2 jogos
-  for (const minuto in gamesByMinuto) {
-    const pair = gamesByMinuto[minuto];
-    if (pair.length !== 2) continue;
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
 
-    const prev = pair[1]; // Mais antigo
-    const curr = pair[0]; // Mais recente
+    // ── UNDER 2.5 ──────────────────────────────────────────────────
+    const uLast = underPoints[underPoints.length - 1];
+    if      (prev.isUnder && curr.isUnder) underPoints.push(uLast + 1); // sobe
+    else if (prev.isUnder && curr.isOver)  underPoints.push(uLast - 1); // desce
+    else                                   underPoints.push(uLast);     // não mexe
 
-    // UNDER 2.5
-    if (prev.isUnder && curr.isUnder) {
-      underPoints.push(underPoints[underPoints.length - 1] + 1); // Sobe
-    } else if (prev.isUnder && curr.isOver) {
-      underPoints.push(underPoints[underPoints.length - 1] - 1); // Desce
-    } else {
-      underPoints.push(underPoints[underPoints.length - 1]); // Não mexe
-    }
+    // ── OVER 2.5 ───────────────────────────────────────────────────
+    const oLast = overPoints[overPoints.length - 1];
+    if      (prev.isOver && curr.isOver)   overPoints.push(oLast + 1);  // sobe
+    else if (prev.isOver && curr.isUnder)  overPoints.push(oLast - 1);  // desce
+    else                                   overPoints.push(oLast);      // não mexe
 
-    // OVER 2.5
-    if (prev.isOver && curr.isOver) {
-      overPoints.push(overPoints[overPoints.length - 1] + 1); // Sobe
-    } else if (prev.isOver && curr.isUnder) {
-      overPoints.push(overPoints[overPoints.length - 1] - 1); // Desce
-    } else {
-      overPoints.push(overPoints[overPoints.length - 1]); // Não mexe
-    }
-
-    // Armazena metadata
-    underGamesMeta.push({
-      hora: curr.hora,
-      minuto: curr.minuto,
-      total: curr.total,
+    // ── METADATA para tooltip ──────────────────────────────────────
+    const meta = {
+      hora:       curr.hora,
+      minuto:     curr.minuto,
+      total:      curr.total,
       prev_total: prev.total,
-      prev_hora: prev.hora
-    });
-
-    overGamesMeta.push({
-      hora: curr.hora,
-      minuto: curr.minuto,
-      total: curr.total,
-      prev_total: prev.total,
-      prev_hora: prev.hora
-    });
+      prev_hora:  prev.hora
+    };
+    underGamesMeta.push(meta);
+    overGamesMeta.push(meta);
   }
 
-  return {
-    underPoints,
-    overPoints,
-    underGamesMeta,
-    overGamesMeta
-  };
+  return { underPoints, overPoints, underGamesMeta, overGamesMeta };
 }
 
 // ═══════════════════════════════════════════════════════════════════
