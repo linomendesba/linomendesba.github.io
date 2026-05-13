@@ -416,12 +416,10 @@ function parseResult(gameData) {
   let h, a;
 
   if (raw.includes(" x ")) {
-    // formato "2 x 1" (padrão do grafico_de_mercados)
     const parts = raw.split(" x ");
     h = parseInt(parts[0], 10);
     a = parseInt(parts[1], 10);
   } else {
-    // formato "2-1" ou "2x1" (legado)
     const normalized = raw.replace(/\s/g, "").replace(/x/gi, "-");
     const m = normalized.match(/^(\d+)-(\d+)$/);
     if (!m) return null;
@@ -431,8 +429,8 @@ function parseResult(gameData) {
 
   if (!isFinite(h) || !isFinite(a)) return null;
 
-  const hora   = gameData.hora   != null ? String(gameData.hora).padStart(2, "0")   : "—";
-  const minuto = gameData.minuto != null ? String(gameData.minuto).padStart(2, "0") : "—";
+  const hora   = gameData.hora   != null ? parseInt(gameData.hora,   10) : null;
+  const minuto = gameData.minuto != null ? parseInt(gameData.minuto, 10) : null;
 
   return {
     total:   h + a,
@@ -446,57 +444,86 @@ function parseResult(gameData) {
 // ═══════════════════════════════════════════════════════════════════
 //  CALCULAR GRÁFICO
 //
+//  Agrupa jogos por slot (hora+minuto). Cada slot = 1 ponto no gráfico.
+//  Slot é classificado como Under se maioria dos jogos foi Under,
+//  Over se maioria foi Over. Em empate → Over (mais gols = Over).
+//
 //  Regras Under 2.5:
-//    prev Under + curr Under → sobe   ✅
-//    prev Under + curr Over  → desce  ❌
-//    prev Over  + curr Under → não mexe
-//    prev Over  + curr Over  → não mexe
+//    prev=Under  e  curr=Under  → sobe   ✅
+//    prev=Under  e  curr=Over   → desce  ❌
+//    prev=Over   →  qualquer    → não mexe
 //
 //  Regras Over 2.5:
-//    prev Over  + curr Over  → sobe   ✅
-//    prev Over  + curr Under → desce  ❌
-//    prev Under + curr Over  → não mexe
-//    prev Under + curr Under → não mexe
+//    prev=Over   e  curr=Over   → sobe   ✅
+//    prev=Over   e  curr=Under  → desce  ❌
+//    prev=Under  →  qualquer    → não mexe
 // ═══════════════════════════════════════════════════════════════════
 
 function calcGraphData(games) {
-  // Ordena cronologicamente: data → hora → minuto (igual ao grafico_de_mercados)
-  const sorted = [...games].sort((a, b) => {
-    const ha = parseInt(a.hora,   10) || 0;
-    const hb = parseInt(b.hora,   10) || 0;
-    const ma = parseInt(a.minuto, 10) || 0;
-    const mb = parseInt(b.minuto, 10) || 0;
-    return ha !== hb ? ha - hb : ma - mb;
-  });
+  // 1. Agrupa por slot hora+minuto
+  const slotMap = new Map();
 
-  const underPoints    = [50]; // começa no centro
+  for (const g of games) {
+    if (g.hora === null || g.minuto === null) continue;
+    const key = `${String(g.hora).padStart(2, "0")}:${String(g.minuto).padStart(2, "0")}`;
+    if (!slotMap.has(key)) {
+      slotMap.set(key, { hora: g.hora, minuto: g.minuto, unders: 0, overs: 0, count: 0, totals: [] });
+    }
+    const s = slotMap.get(key);
+    s.count++;
+    s.totals.push(g.total);
+    if (g.isUnder) s.unders++; else s.overs++;
+  }
+
+  // 2. Ordena slots cronologicamente
+  const slots = [...slotMap.values()].sort((a, b) =>
+    a.hora !== b.hora ? a.hora - b.hora : a.minuto - b.minuto
+  );
+
+  if (slots.length === 0) {
+    return { underPoints: [50], overPoints: [50], underGamesMeta: [null], overGamesMeta: [null] };
+  }
+
+  // 3. Classifica cada slot: Under se maioria Under, Over caso contrário (empate → Over)
+  function slotIsUnder(s) {
+    return s.unders > s.overs;
+  }
+
+  // 4. Monta pontos comparando slot[i-1] → slot[i]
+  const underPoints    = [50];
   const overPoints     = [50];
   const underGamesMeta = [null];
   const overGamesMeta  = [null];
 
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1];
-    const curr = sorted[i];
+  for (let i = 1; i < slots.length; i++) {
+    const prev = slots[i - 1];
+    const curr = slots[i];
 
-    // ── UNDER 2.5 ──────────────────────────────────────────────────
+    const prevUnder = slotIsUnder(prev);
+    const currUnder = slotIsUnder(curr);
+
+    // UNDER 2.5
     const uLast = underPoints[underPoints.length - 1];
-    if      (prev.isUnder && curr.isUnder) underPoints.push(uLast + 1); // sobe
-    else if (prev.isUnder && curr.isOver)  underPoints.push(uLast - 1); // desce
-    else                                   underPoints.push(uLast);     // não mexe
+    if      (prevUnder && currUnder)  underPoints.push(uLast + 1); // sobe
+    else if (prevUnder && !currUnder) underPoints.push(uLast - 1); // desce
+    else                              underPoints.push(uLast);     // não mexe (prev era Over)
 
-    // ── OVER 2.5 ───────────────────────────────────────────────────
+    // OVER 2.5
     const oLast = overPoints[overPoints.length - 1];
-    if      (prev.isOver && curr.isOver)   overPoints.push(oLast + 1);  // sobe
-    else if (prev.isOver && curr.isUnder)  overPoints.push(oLast - 1);  // desce
-    else                                   overPoints.push(oLast);      // não mexe
+    if      (!prevUnder && !currUnder) overPoints.push(oLast + 1); // sobe
+    else if (!prevUnder && currUnder)  overPoints.push(oLast - 1); // desce
+    else                               overPoints.push(oLast);     // não mexe (prev era Under)
 
-    // ── METADATA para tooltip ──────────────────────────────────────
+    // Metadata para tooltip
+    const avgTotal  = curr.totals.reduce((a, b) => a + b, 0) / curr.totals.length;
+    const prevAvg   = prev.totals.reduce((a, b) => a + b, 0) / prev.totals.length;
     const meta = {
-      hora:       curr.hora,
-      minuto:     curr.minuto,
-      total:      curr.total,
-      prev_total: prev.total,
-      prev_hora:  prev.hora
+      hora:       String(curr.hora).padStart(2, "0"),
+      minuto:     String(curr.minuto).padStart(2, "0"),
+      total:      avgTotal.toFixed(1),
+      prev_total: prevAvg.toFixed(1),
+      prev_hora:  String(prev.hora).padStart(2, "0"),
+      jogos:      curr.count
     };
     underGamesMeta.push(meta);
     overGamesMeta.push(meta);
@@ -559,8 +586,8 @@ function renderChart(id, points, gamesMeta, mode) {
               if (!context || !context.length) return "";
               const idx = context[0].dataIndex;
               const game = gamesMeta && gamesMeta[idx];
-              if (game && game.hora && game.minuto && game.hora !== "—") {
-                return `⏱️ ${game.hora}:${game.minuto}`;
+              if (game && game.hora !== undefined) {
+                return `⏱️ ${game.hora}:${game.minuto} (${game.jogos} jogo${game.jogos > 1 ? "s" : ""})`;
               }
               return "";
             },
@@ -568,7 +595,7 @@ function renderChart(id, points, gamesMeta, mode) {
               const idx = c.dataIndex;
               const game = gamesMeta && gamesMeta[idx];
               if (game) {
-                return `${game.hora}:${game.minuto} → ${game.total} gols (era ${game.prev_hora}:${game.minuto} → ${game.prev_total} gols)`;
+                return `Média gols: ${game.total} (slot anterior ${game.prev_hora}h → ${game.prev_total})`;
               }
               return `Valor: ${c.raw}`;
             }
@@ -609,7 +636,7 @@ function modeHTML(key, mode, currentValue) {
 
 function cardHTML(d, graphData) {
   const underValue = graphData.underPoints[graphData.underPoints.length - 1] ?? 50;
-  const overValue = graphData.overPoints[graphData.overPoints.length - 1] ?? 50;
+  const overValue  = graphData.overPoints[graphData.overPoints.length - 1]  ?? 50;
 
   return `
     <div class="lcard" data-league-key="${d.league.key}">
@@ -619,7 +646,7 @@ function cardHTML(d, graphData) {
       </div>
       <div class="lcard-cols">
         ${modeHTML(d.league.key, "under", underValue)}
-        ${modeHTML(d.league.key, "over", overValue)}
+        ${modeHTML(d.league.key, "over",  overValue)}
       </div>
     </div>
   `;
@@ -651,7 +678,7 @@ async function fetchLeague(league, limit) {
 
 function fingerprint(d) {
   const under = d.graphData.underPoints;
-  const over = d.graphData.overPoints;
+  const over  = d.graphData.overPoints;
   return [d.totalGames, under[under.length - 1], over[over.length - 1]].join("|");
 }
 
@@ -693,9 +720,7 @@ async function renderAll(fullReset) {
 
   if (fullReset) {
     Object.keys(charts).forEach(k => {
-      try {
-        charts[k].destroy();
-      } catch {}
+      try { charts[k].destroy(); } catch {}
       delete charts[k];
     });
     Object.keys(lastData).forEach(k => delete lastData[k]);
@@ -719,23 +744,22 @@ async function renderAll(fullReset) {
     return;
   }
 
-  const errs = [];
+  const errs     = [];
   const incoming = [];
 
   for (const r of results) {
-    if (r.status === "fulfilled") {
-      incoming.push(r.value);
-    } else {
-      errs.push(r.reason?.message || "Erro");
-    }
+    if (r.status === "fulfilled") incoming.push(r.value);
+    else errs.push(r.reason?.message || "Erro");
   }
 
   if (fullReset || !leaguesGrid.querySelector(".lcard")) {
-    leaguesGrid.innerHTML = incoming.length ? incoming.map(d => cardHTML(d, d.graphData)).join("") : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
+    leaguesGrid.innerHTML = incoming.length
+      ? incoming.map(d => cardHTML(d, d.graphData)).join("")
+      : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
 
     incoming.forEach(d => {
       renderChart(`ch-${d.league.key}-under`, d.graphData.underPoints, d.graphData.underGamesMeta, "under");
-      renderChart(`ch-${d.league.key}-over`, d.graphData.overPoints, d.graphData.overGamesMeta, "over");
+      renderChart(`ch-${d.league.key}-over`,  d.graphData.overPoints,  d.graphData.overGamesMeta,  "over");
       lastData[d.league.key] = fingerprint(d);
     });
   } else {
@@ -747,12 +771,7 @@ async function renderAll(fullReset) {
       const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
       if (existing) {
         [`ch-${d.league.key}-under`, `ch-${d.league.key}-over`].forEach(id => {
-          if (charts[id]) {
-            try {
-              charts[id].destroy();
-            } catch {}
-            delete charts[id];
-          }
+          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
         });
         existing.outerHTML = cardHTML(d, d.graphData);
       } else {
@@ -760,19 +779,14 @@ async function renderAll(fullReset) {
       }
 
       renderChart(`ch-${d.league.key}-under`, d.graphData.underPoints, d.graphData.underGamesMeta, "under");
-      renderChart(`ch-${d.league.key}-over`, d.graphData.overPoints, d.graphData.overGamesMeta, "over");
+      renderChart(`ch-${d.league.key}-over`,  d.graphData.overPoints,  d.graphData.overGamesMeta,  "over");
     });
 
     leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
       const key = el.dataset.leagueKey;
       if (!incoming.find(d => d.league.key === key)) {
         [`ch-${key}-under`, `ch-${key}-over`].forEach(id => {
-          if (charts[id]) {
-            try {
-              charts[id].destroy();
-            } catch {}
-            delete charts[id];
-          }
+          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
         });
         el.remove();
       }
@@ -822,55 +836,32 @@ function startHB() {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     try {
       ws.send(JSON.stringify({ type: "ping", t0: Date.now() }));
-      hbWait = setTimeout(() => {
-        try {
-          ws.close();
-        } catch {}
-      }, 12000);
+      hbWait = setTimeout(() => { try { ws.close(); } catch {} }, 12000);
     } catch {}
   }, 25000);
 }
 
 function stopHB() {
   if (hbTimer) clearInterval(hbTimer), (hbTimer = null);
-  if (hbWait) clearTimeout(hbWait), (hbWait = null);
+  if (hbWait)  clearTimeout(hbWait),   (hbWait  = null);
 }
 
 function connectWS() {
-  try {
-    if (ws) ws.close();
-  } catch {}
+  try { if (ws) ws.close(); } catch {}
   ws = new WebSocket(WS_URL);
   ws.onopen = () => {
     backoff = 1000;
     startHB();
     setStatus("Conectado", true);
     setTimeout(() => setStatus("", false), 1200);
-    try {
-      ws.send(JSON.stringify({ type: "versions:get" }));
-    } catch {}
+    try { ws.send(JSON.stringify({ type: "versions:get" })); } catch {}
   };
   ws.onmessage = ev => {
     let m;
-    try {
-      m = JSON.parse(ev.data);
-    } catch {
-      return;
-    }
-    if (m.type === "ping") {
-      try {
-        ws.send(JSON.stringify({ type: "pong" }));
-      } catch {}
-      return;
-    }
-    if (m.type === "pong") {
-      if (hbWait) clearTimeout(hbWait);
-      return;
-    }
-    if (["dados:update", "push:versions", "vers", "hint", "update"].includes(m.type)) {
-      renderAll(false);
-      return;
-    }
+    try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.type === "ping") { try { ws.send(JSON.stringify({ type: "pong" })); } catch {} return; }
+    if (m.type === "pong") { if (hbWait) clearTimeout(hbWait); return; }
+    if (["dados:update", "push:versions", "vers", "hint", "update"].includes(m.type)) { renderAll(false); return; }
     if (m.type === "all:reload") location.reload();
   };
   ws.onclose = () => {
@@ -878,11 +869,7 @@ function connectWS() {
     setTimeout(connectWS, backoff);
     backoff = Math.min(backoff * 2, 10000);
   };
-  ws.onerror = () => {
-    try {
-      ws.close();
-    } catch {}
-  };
+  ws.onerror = () => { try { ws.close(); } catch {} };
 }
 
 // ═══════════════════════════════════════════════════════════════════
