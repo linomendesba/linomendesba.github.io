@@ -305,20 +305,47 @@
 
 <script>
     // ═══════════════════════════════════════════════════════════════════
-//  SCRIPT SIMPLIFICADO - UNDER/OVER COM LÓGICA SIMPLES
+//  SCRIPT - 4 SELETORES COM OPÇÕES MUTUAMENTE EXCLUSIVAS
 // ═══════════════════════════════════════════════════════════════════
 
 // CONFIG
 const STORE_KEY = "flat_simple_prefs";
 const AUTO_REFRESH_MS = 5000; // ✅ 5 SEGUNDOS
 
-// ✅ MERCADOS DISPONÍVEIS
-const MERCADOS_DISPONIVEIS = {
-  under25: { nome: "Under 2.5",   key: "under25" },
-  over25:  { nome: "Over 2.5",    key: "over25"  },
-  over35:  { nome: "Over 3.5",    key: "over35"  },
-  casa:    { nome: "Casa Vence",  key: "casa"    },
-  fora:    { nome: "Fora Vence",  key: "fora"    }
+// ✅ 4 SELETORES COM OPÇÕES MUTUAMENTE EXCLUSIVAS
+const SELETORES = {
+  sel1: {
+    nome: "Lógica Geral",
+    options: [
+      { value: "ambasSim", label: "Ambas Marcam SIM", descricao: "Under 2.5 SIM E Over 2.5 SIM" },
+      { value: "ambasNao", label: "Ambas Marcam NÃO", descricao: "Under 2.5 NÃO E Over 2.5 NÃO" }
+    ],
+    default: "ambasSim"
+  },
+  sel2: {
+    nome: "Under/Over 2.5",
+    options: [
+      { value: "over25", label: "Over 2.5", descricao: "Total gols ≥ 3" },
+      { value: "under25", label: "Under 2.5", descricao: "Total gols ≤ 2" }
+    ],
+    default: "over25"
+  },
+  sel3: {
+    nome: "Under/Over 3.5",
+    options: [
+      { value: "over35", label: "Over 3.5", descricao: "Total gols ≥ 4" },
+      { value: "under35", label: "Under 3.5", descricao: "Total gols ≤ 3" }
+    ],
+    default: "over35"
+  },
+  sel4: {
+    nome: "Resultado",
+    options: [
+      { value: "casa", label: "Casa Vence", descricao: "Gols Casa > Gols Fora" },
+      { value: "fora", label: "Fora Vence", descricao: "Gols Fora > Gols Casa" }
+    ],
+    default: "casa"
+  }
 };
 
 const HOUSES = {
@@ -380,7 +407,14 @@ const prefs = (() => {
 
 let currentHouse    = prefs.house    || "betano";
 let activeLeagueKey = prefs.league   || null;
-let activeMercados  = prefs.mercados || ["under25", "over25"]; // ✅ PADRÃO: Under e Over 2.5
+
+// ✅ SELEÇÕES DOS 4 SELETORES
+let seletorValues = prefs.seletores || {
+  sel1: "ambasSim",
+  sel2: "over25",
+  sel3: "over35",
+  sel4: "casa"
+};
 
 const charts   = {};
 const lastData = {};
@@ -402,51 +436,55 @@ houseTabs.querySelectorAll(".ht").forEach(b => {
   b.classList.toggle("on", b.dataset.house === currentHouse);
 });
 
-// ✅ CRIAR SELETOR DE MERCADOS DINAMICAMENTE
-function buildMercadoBar() {
-  const mercadoContainer = document.getElementById("limitSelect").parentElement;
-  let mercadoBar = document.getElementById("mercadoBar");
+// ✅ CRIAR OS 4 SELETORES
+function buildSeletores() {
+  const limitContainer = limitSelect.parentElement;
+  let seletoresContainer = document.getElementById("seletoresContainer");
   
-  if (!mercadoBar) {
-    mercadoBar = document.createElement("div");
-    mercadoBar.id = "mercadoBar";
-    mercadoBar.style.cssText = "display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;";
-    mercadoContainer.parentElement.insertBefore(mercadoBar, mercadoContainer.nextSibling);
+  if (!seletoresContainer) {
+    seletoresContainer = document.createElement("div");
+    seletoresContainer.id = "seletoresContainer";
+    seletoresContainer.style.cssText = "display: grid; gap: 1rem; margin-top: 1rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));";
+    limitContainer.parentElement.insertBefore(seletoresContainer, limitContainer.nextSibling);
   }
   
-  mercadoBar.innerHTML = Object.values(MERCADOS_DISPONIVEIS)
-    .map(m => `
-      <button 
-        class="mt ${activeMercados.includes(m.key) ? "on" : ""}" 
-        data-key="${m.key}"
-        style="
-          padding: 0.4rem 0.8rem;
-          border: 2px solid #334155;
-          background: ${activeMercados.includes(m.key) ? '#2563eb' : '#1e293b'};
-          color: white;
-          border-radius: 0.4rem;
-          cursor: pointer;
-          font-size: 0.85rem;
-          font-weight: 600;
-          transition: all 0.2s;
-          border-color: ${activeMercados.includes(m.key) ? '#2563eb' : '#475569'};
-        "
-      >${m.nome}</button>
+  seletoresContainer.innerHTML = Object.entries(SELETORES).map(([selKey, sel]) => {
+    const radioId = `radio-${selKey}`;
+    const radioOptions = sel.options.map((opt, idx) => `
+      <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.4rem 0.5rem; border-radius: 0.3rem; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+        <input 
+          type="radio" 
+          name="${radioId}" 
+          value="${opt.value}"
+          ${seletorValues[selKey] === opt.value ? "checked" : ""}
+          style="cursor: pointer;"
+        />
+        <span style="font-size: 0.85rem; font-weight: 500;">${opt.label}</span>
+      </label>
     `).join("");
+    
+    return `
+      <div style="
+        border: 2px solid #334155;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        background: #1e293b;
+      ">
+        <div style="font-weight: 600; margin-bottom: 0.75rem; color: #f1f5f9; font-size: 0.95rem;">${sel.nome}</div>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          ${radioOptions}
+        </div>
+      </div>
+    `;
+  }).join("");
 
-  mercadoBar.querySelectorAll(".mt").forEach(b => {
-    b.addEventListener("click", () => {
-      const key = b.dataset.key;
-      if (activeMercados.includes(key)) {
-        activeMercados = activeMercados.filter(k => k !== key);
-      } else {
-        activeMercados.push(key);
-      }
-      if (activeMercados.length === 0) {
-        activeMercados = ["under25", "over25"];
-      }
-      savePrefs({ ...prefs, mercados: activeMercados });
-      buildMercadoBar();
+  // Adicionar listeners aos radios
+  seletoresContainer.querySelectorAll("input[type='radio']").forEach(radio => {
+    radio.addEventListener("change", (e) => {
+      const name = e.target.name;
+      const selKey = name.replace("radio-", "");
+      seletorValues[selKey] = e.target.value;
+      savePrefs({ ...prefs, seletores: seletorValues });
       Object.keys(lastData).forEach(k => delete lastData[k]);
       renderAll(true);
     });
@@ -463,7 +501,7 @@ function savePrefs(obj) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  PARSE RESULTADO - ✅ AGORA COM TODOS OS MERCADOS
+//  PARSE RESULTADO
 // ═══════════════════════════════════════════════════════════════════
 
 function parseResult(gameData) {
@@ -498,17 +536,34 @@ function parseResult(gameData) {
     total,
     hora,
     minuto,
-    // ✅ TODOS OS MERCADOS AQUI
-    isUnder25: total < 3,      // Under 2.5: ≤ 2 gols
-    isOver25:  total > 2,      // Over 2.5:  ≥ 3 gols
-    isOver35:  total > 3,      // Over 3.5:  ≥ 4 gols ✅ NOVO
-    isCasa:    h > a,          // Casa Vence ✅ NOVO
-    isFora:    a > h           // Fora Vence ✅ NOVO
+    // ✅ TODOS OS MERCADOS
+    isUnder25: total < 3,
+    isOver25:  total > 2,
+    isUnder35: total < 4,
+    isOver35:  total > 3,
+    isCasa: h > a,
+    isFora: a > h,
+    // Mercados compostos
+    isAmbasSim: (total < 3) && (total > 2),  // Under AND Over (impossível, sempre falso)
+    isAmbasNao: !(total < 3) && !(total > 2) // NÃO Under AND NÃO Over (impossível, sempre falso)
   };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  CALCULAR GRÁFICO - ✅ GENÉRICO PARA QUALQUER MERCADO
+//  OBTER MERCADO ATIVO
+// ═══════════════════════════════════════════════════════════════════
+
+function getActiveMercados() {
+  return [
+    seletorValues.sel1,
+    seletorValues.sel2,
+    seletorValues.sel3,
+    seletorValues.sel4
+  ];
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CALCULAR GRÁFICO
 // ═══════════════════════════════════════════════════════════════════
 
 function calcGraphData(games, mercadoKey) {
@@ -516,10 +571,13 @@ function calcGraphData(games, mercadoKey) {
     return { points: [], gamesMeta: [] };
   }
 
-  // ✅ MAPEIA CADA MERCADO À SUA PROPRIEDADE
+  // Mapa mercado → propriedade do game
   const marcadoMap = {
+    ambasSim: "isAmbasSim",
+    ambasNao: "isAmbasNao",
     under25: "isUnder25",
     over25:  "isOver25",
+    under35: "isUnder35",
     over35:  "isOver35",
     casa:    "isCasa",
     fora:    "isFora"
@@ -547,14 +605,12 @@ function calcGraphData(games, mercadoKey) {
     return s.sims > s.naos;
   }
 
-  // Ordena slots cronologicamente
   const slots = [...slotMap.values()].sort((a, b) =>
     a.hora !== b.hora ? a.hora - b.hora : a.minuto - b.minuto
   );
 
   const points    = [];
   const gamesMeta = [];
-
   let val = 50;
 
   for (const curr of slots) {
@@ -587,7 +643,7 @@ function calcGraphData(games, mercadoKey) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  RENDERIZAR CHART - ✅ CORES POR MERCADO
+//  RENDERIZAR CHART
 // ═══════════════════════════════════════════════════════════════════
 
 function renderChart(id, points, gamesMeta, mercadoKey) {
@@ -596,13 +652,15 @@ function renderChart(id, points, gamesMeta, mercadoKey) {
 
   if (charts[id]) charts[id].destroy();
 
-  // ✅ CORES DIFERENTES PARA CADA MERCADO
   const colorMap = {
-    under25: "#3ddc84",  // Verde
-    over25:  "#60a5fa",  // Azul
-    over35:  "#fbbf24",  // Amarelo
-    casa:    "#34d399",  // Verde claro
-    fora:    "#f87171"   // Vermelho
+    ambasSim: "#10b981",
+    ambasNao: "#ef4444",
+    under25: "#3ddc84",
+    over25:  "#60a5fa",
+    under35: "#fbbf24",
+    over35:  "#f87171",
+    casa:    "#34d399",
+    fora:    "#ec4899"
   };
   
   const color = colorMap[mercadoKey] || "#60a5fa";
@@ -674,31 +732,35 @@ function renderChart(id, points, gamesMeta, mercadoKey) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  HTML BUILDERS - ✅ RENDERIZA TODOS OS MERCADOS ATIVOS
+//  HTML BUILDERS
 // ═══════════════════════════════════════════════════════════════════
 
-function modeHTML(key, mercadoKey) {
+function modeHTML(key, mercadoKey, colorMap) {
   const id = `ch-${key}-${mercadoKey}`;
-  const m = MERCADOS_DISPONIVEIS[mercadoKey];
-  const colorMap = {
-    under25: "#3ddc84",
-    over25:  "#60a5fa",
-    over35:  "#fbbf24",
-    casa:    "#34d399",
-    fora:    "#f87171"
+  const labelMap = {
+    ambasSim: "Ambas Marcam SIM",
+    ambasNao: "Ambas Marcam NÃO",
+    under25: "Under 2.5",
+    over25: "Over 2.5",
+    under35: "Under 3.5",
+    over35: "Over 3.5",
+    casa: "Casa Vence",
+    fora: "Fora Vence"
   };
+  const label = labelMap[mercadoKey];
   return `
     <div class="mode-col" style="border-left: 3px solid ${colorMap[mercadoKey]};">
-      <div class="mode-label"><span class="mode-dot" style="background: ${colorMap[mercadoKey]};"></span>${m.nome}</div>
+      <div class="mode-label"><span class="mode-dot" style="background: ${colorMap[mercadoKey]};"></span>${label}</div>
       <div class="current-value">--</div>
       <div class="chart-wrap"><canvas id="${id}"></canvas></div>
     </div>
   `;
 }
 
-function cardHTML(d, mercadosData) {
+function cardHTML(d, colorMap) {
+  const activeMercados = getActiveMercados();
   const modesHTML = activeMercados
-    .map(mercadoKey => modeHTML(d.league.key, mercadoKey))
+    .map(mercadoKey => modeHTML(d.league.key, mercadoKey, colorMap))
     .join("");
 
   return `
@@ -726,7 +788,7 @@ async function fetchLeague(league, limit) {
   const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
   const games = raw.map(i => parseResult(i)).filter(Boolean).slice(0, limit);
 
-  // ✅ CALCULA PARA TODOS OS MERCADOS ATIVOS
+  const activeMercados = getActiveMercados();
   const mercadosData = {};
   activeMercados.forEach(k => {
     mercadosData[k] = calcGraphData(games, k);
@@ -736,12 +798,12 @@ async function fetchLeague(league, limit) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  FINGERPRINT - ✅ INCLUI TODOS OS MERCADOS
+//  FINGERPRINT
 // ═══════════════════════════════════════════════════════════════════
 
 function fingerprint(d) {
   const finger = [d.totalGames];
-  activeMercados.forEach(k => {
+  getActiveMercados().forEach(k => {
     const points = d.mercadosData[k].points;
     finger.push(points[points.length - 1]);
   });
@@ -816,13 +878,24 @@ async function renderAll(fullReset) {
     else errs.push(r.reason?.message || "Erro");
   }
 
+  const colorMap = {
+    ambasSim: "#10b981",
+    ambasNao: "#ef4444",
+    under25: "#3ddc84",
+    over25:  "#60a5fa",
+    under35: "#fbbf24",
+    over35:  "#f87171",
+    casa:    "#34d399",
+    fora:    "#ec4899"
+  };
+
   if (fullReset || !leaguesGrid.querySelector(".lcard")) {
     leaguesGrid.innerHTML = incoming.length
-      ? incoming.map(d => cardHTML(d, d.mercadosData)).join("")
+      ? incoming.map(d => cardHTML(d, colorMap)).join("")
       : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
 
     incoming.forEach(d => {
-      activeMercados.forEach(k => {
+      getActiveMercados().forEach(k => {
         renderChart(
           `ch-${d.league.key}-${k}`,
           d.mercadosData[k].points,
@@ -840,16 +913,16 @@ async function renderAll(fullReset) {
 
       const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
       if (existing) {
-        activeMercados.forEach(k => {
+        getActiveMercados().forEach(k => {
           const chartId = `ch-${d.league.key}-${k}`;
           if (charts[chartId]) { try { charts[chartId].destroy(); } catch {} delete charts[chartId]; }
         });
-        existing.outerHTML = cardHTML(d, d.mercadosData);
+        existing.outerHTML = cardHTML(d, colorMap);
       } else {
-        leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d, d.mercadosData));
+        leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d, colorMap));
       }
 
-      activeMercados.forEach(k => {
+      getActiveMercados().forEach(k => {
         renderChart(
           `ch-${d.league.key}-${k}`,
           d.mercadosData[k].points,
@@ -862,7 +935,7 @@ async function renderAll(fullReset) {
     leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
       const key = el.dataset.leagueKey;
       if (!incoming.find(d => d.league.key === key)) {
-        activeMercados.forEach(k => {
+        getActiveMercados().forEach(k => {
           const chartId = `ch-${key}-${k}`;
           if (charts[chartId]) { try { charts[chartId].destroy(); } catch {} delete charts[chartId]; }
         });
@@ -958,7 +1031,7 @@ function connectWS() {
 //  INIT
 // ═══════════════════════════════════════════════════════════════════
 
-buildMercadoBar(); // ✅ CRIA SELETOR
+buildSeletores();
 buildLeagueBar();
 renderAll(true);
 connectWS();
