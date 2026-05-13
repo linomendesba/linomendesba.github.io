@@ -367,20 +367,19 @@ const prefs = (() => {
   }
 })();
 
-let currentHouse = prefs.house || "betano";
+let currentHouse    = prefs.house  || "betano";
 let activeLeagueKey = prefs.league || null;
-const charts = {};
+const charts   = {};
 const lastData = {};
 
 // DOM
-const houseTabs = document.getElementById("houseTabs");
-const leagueBar = document.getElementById("leagueBar");
+const houseTabs   = document.getElementById("houseTabs");
+const leagueBar   = document.getElementById("leagueBar");
 const leaguesGrid = document.getElementById("leaguesGrid");
-const reloadBtn = document.getElementById("reloadBtn");
+const reloadBtn   = document.getElementById("reloadBtn");
 const limitSelect = document.getElementById("limitSelect");
-const statusBar = document.getElementById("statusBar");
+const statusBar   = document.getElementById("statusBar");
 
-// Apply saved preferences
 if (prefs.limit) {
   const opt = [...limitSelect.options].find(o => o.value === String(prefs.limit));
   if (opt) opt.selected = true;
@@ -396,9 +395,7 @@ function setStatus(msg, show) {
 }
 
 function savePrefs(obj) {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(obj));
-  } catch {}
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -436,31 +433,39 @@ function parseResult(gameData) {
     total:   h + a,
     hora,
     minuto,
-    isUnder: h + a < 3,  // Under 2.5: 0, 1 ou 2 gols
-    isOver:  h + a > 2   // Over  2.5: 3+ gols
+    isUnder: h + a < 3,
+    isOver:  h + a > 2
   };
 }
 
 // ═══════════════════════════════════════════════════════════════════
 //  CALCULAR GRÁFICO
 //
-//  Agrupa jogos por slot (hora+minuto). Cada slot = 1 ponto no gráfico.
-//  Slot é classificado como Under se maioria dos jogos foi Under,
-//  Over se maioria foi Over. Em empate → Over (mais gols = Over).
+//  Lógica correta:
+//    Para cada jogo em HH:MM, busca o jogo correspondente em (HH-1):MM
+//    (mesmo minuto, uma hora atrás) e compara os dois.
 //
-//  Regras Under 2.5:
+//  Under 2.5:
 //    prev=Under  e  curr=Under  → sobe   ✅
 //    prev=Under  e  curr=Over   → desce  ❌
 //    prev=Over   →  qualquer    → não mexe
 //
-//  Regras Over 2.5:
+//  Over 2.5:
 //    prev=Over   e  curr=Over   → sobe   ✅
 //    prev=Over   e  curr=Under  → desce  ❌
 //    prev=Under  →  qualquer    → não mexe
+//
+//  Os pontos são ordenados cronologicamente (hora+minuto).
+//  Só gera ponto para jogos que têm par na hora anterior.
 // ═══════════════════════════════════════════════════════════════════
 
 function calcGraphData(games) {
-  // 1. Agrupa por slot hora+minuto
+  if (!games.length) {
+    return { underPoints: [50], overPoints: [50], underGamesMeta: [null], overGamesMeta: [null] };
+  }
+
+  // Indexa por "HH:MM" para lookup rápido
+  // Se houver mais de 1 jogo no mesmo slot, usa a média (isUnder = maioria Under)
   const slotMap = new Map();
 
   for (const g of games) {
@@ -475,29 +480,28 @@ function calcGraphData(games) {
     if (g.isUnder) s.unders++; else s.overs++;
   }
 
-  // 2. Ordena slots cronologicamente
-  const slots = [...slotMap.values()].sort((a, b) =>
-    a.hora !== b.hora ? a.hora - b.hora : a.minuto - b.minuto
-  );
-
-  if (slots.length === 0) {
-    return { underPoints: [50], overPoints: [50], underGamesMeta: [null], overGamesMeta: [null] };
-  }
-
-  // 3. Classifica cada slot: Under se maioria Under, Over caso contrário (empate → Over)
+  // Classifica slot: Under se maioria Under, Over caso contrário
   function slotIsUnder(s) {
     return s.unders > s.overs;
   }
 
-  // 4. Monta pontos comparando slot[i-1] → slot[i]
+  // Ordena todos os slots cronologicamente
+  const slots = [...slotMap.values()].sort((a, b) =>
+    a.hora !== b.hora ? a.hora - b.hora : a.minuto - b.minuto
+  );
+
   const underPoints    = [50];
   const overPoints     = [50];
   const underGamesMeta = [null];
   const overGamesMeta  = [null];
 
-  for (let i = 1; i < slots.length; i++) {
-    const prev = slots[i - 1];
-    const curr = slots[i];
+  for (const curr of slots) {
+    // Busca o slot da hora anterior com o mesmo minuto: (HH-1):MM
+    const prevKey = `${String(curr.hora - 1).padStart(2, "0")}:${String(curr.minuto).padStart(2, "0")}`;
+    const prev = slotMap.get(prevKey);
+
+    // Só gera ponto se existir par na hora anterior
+    if (!prev) continue;
 
     const prevUnder = slotIsUnder(prev);
     const currUnder = slotIsUnder(curr);
@@ -515,14 +519,14 @@ function calcGraphData(games) {
     else                               overPoints.push(oLast);     // não mexe (prev era Under)
 
     // Metadata para tooltip
-    const avgTotal  = curr.totals.reduce((a, b) => a + b, 0) / curr.totals.length;
-    const prevAvg   = prev.totals.reduce((a, b) => a + b, 0) / prev.totals.length;
+    const avgCurr = curr.totals.reduce((a, b) => a + b, 0) / curr.totals.length;
+    const avgPrev = prev.totals.reduce((a, b) => a + b, 0) / prev.totals.length;
     const meta = {
       hora:       String(curr.hora).padStart(2, "0"),
       minuto:     String(curr.minuto).padStart(2, "0"),
-      total:      avgTotal.toFixed(1),
-      prev_total: prevAvg.toFixed(1),
+      total:      avgCurr.toFixed(1),
       prev_hora:  String(prev.hora).padStart(2, "0"),
+      prev_total: avgPrev.toFixed(1),
       jogos:      curr.count
     };
     underGamesMeta.push(meta);
@@ -542,31 +546,29 @@ function renderChart(id, points, gamesMeta, mode) {
 
   if (charts[id]) charts[id].destroy();
 
-  const color = mode === "under" ? "#3ddc84" : "#60a5fa";
+  const color  = mode === "under" ? "#3ddc84" : "#60a5fa";
   const ptSize = points.length > 60 ? 2 : 3;
 
   charts[id] = new Chart(canvas.getContext("2d"), {
     type: "line",
     data: {
       labels: points.map((_, i) => i),
-      datasets: [
-        {
-          data: points,
-          borderColor: color,
-          borderWidth: 2,
-          pointRadius: ptSize,
-          pointHoverRadius: ptSize + 2,
-          pointBackgroundColor: points.map((v, i) =>
-            i === 0 ? "#5a6272" : v > points[i - 1] ? "#3ddc84" : v < points[i - 1] ? "#ff6b6b" : "#5a6272"
-          ),
-          pointBorderColor: points.map((v, i) =>
-            i === 0 ? "#5a6272" : v > points[i - 1] ? "#3ddc84" : v < points[i - 1] ? "#ff6b6b" : "#5a6272"
-          ),
-          pointBorderWidth: 0,
-          fill: false,
-          tension: 0.2
-        }
-      ]
+      datasets: [{
+        data: points,
+        borderColor: color,
+        borderWidth: 2,
+        pointRadius: ptSize,
+        pointHoverRadius: ptSize + 2,
+        pointBackgroundColor: points.map((v, i) =>
+          i === 0 ? "#5a6272" : v > points[i-1] ? "#3ddc84" : v < points[i-1] ? "#ff6b6b" : "#5a6272"
+        ),
+        pointBorderColor: points.map((v, i) =>
+          i === 0 ? "#5a6272" : v > points[i-1] ? "#3ddc84" : v < points[i-1] ? "#ff6b6b" : "#5a6272"
+        ),
+        pointBorderWidth: 0,
+        fill: false,
+        tension: 0.2
+      }]
     },
     options: {
       responsive: true,
@@ -575,7 +577,7 @@ function renderChart(id, points, gamesMeta, mode) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: "rgba(0, 0, 0, 0.9)",
+          backgroundColor: "rgba(0,0,0,0.9)",
           padding: 12,
           cornerRadius: 8,
           titleFont: { size: 13, weight: "700" },
@@ -583,19 +585,17 @@ function renderChart(id, points, gamesMeta, mode) {
           displayColors: false,
           callbacks: {
             title: (context) => {
-              if (!context || !context.length) return "";
-              const idx = context[0].dataIndex;
-              const game = gamesMeta && gamesMeta[idx];
-              if (game && game.hora !== undefined) {
-                return `⏱️ ${game.hora}:${game.minuto} (${game.jogos} jogo${game.jogos > 1 ? "s" : ""})`;
+              if (!context?.length) return "";
+              const game = gamesMeta?.[context[0].dataIndex];
+              if (game?.hora != null) {
+                return `⏱️ ${game.hora}:${game.minuto} vs ${game.prev_hora}:${game.minuto} (${game.jogos} jogo${game.jogos > 1 ? "s" : ""})`;
               }
               return "";
             },
             label: (c) => {
-              const idx = c.dataIndex;
-              const game = gamesMeta && gamesMeta[idx];
+              const game = gamesMeta?.[c.dataIndex];
               if (game) {
-                return `Média gols: ${game.total} (slot anterior ${game.prev_hora}h → ${game.prev_total})`;
+                return `Agora: ${game.total} gols  |  1h atrás: ${game.prev_total} gols`;
               }
               return `Valor: ${c.raw}`;
             }
@@ -605,11 +605,11 @@ function renderChart(id, points, gamesMeta, mode) {
       scales: {
         x: {
           ticks: { color: "#3d4352", maxTicksLimit: 10, font: { family: "Roboto", size: 10 } },
-          grid: { color: "rgba(255,255,255,0.03)" }
+          grid:  { color: "rgba(255,255,255,0.03)" }
         },
         y: {
           ticks: { color: "#3d4352", font: { family: "Roboto", size: 10 } },
-          grid: { color: "rgba(255,255,255,0.04)" }
+          grid:  { color: "rgba(255,255,255,0.04)" }
         }
       }
     }
@@ -621,13 +621,12 @@ function renderChart(id, points, gamesMeta, mode) {
 // ═══════════════════════════════════════════════════════════════════
 
 function modeHTML(key, mode, currentValue) {
-  const id = `ch-${key}-${mode}`;
+  const id      = `ch-${key}-${mode}`;
   const modeCls = mode === "under" ? "mode-under" : "mode-over";
-  const modeText = mode === "under" ? "Under 2.5" : "Over 2.5";
-
+  const modeTxt = mode === "under" ? "Under 2.5"  : "Over 2.5";
   return `
     <div class="mode-col ${modeCls}">
-      <div class="mode-label"><span class="mode-dot"></span>${modeText}</div>
+      <div class="mode-label"><span class="mode-dot"></span>${modeTxt}</div>
       <div class="current-value">${currentValue}</div>
       <div class="chart-wrap"><canvas id="${id}"></canvas></div>
     </div>
@@ -636,8 +635,7 @@ function modeHTML(key, mode, currentValue) {
 
 function cardHTML(d, graphData) {
   const underValue = graphData.underPoints[graphData.underPoints.length - 1] ?? 50;
-  const overValue  = graphData.overPoints[graphData.overPoints.length - 1]  ?? 50;
-
+  const overValue  = graphData.overPoints[graphData.overPoints.length  - 1] ?? 50;
   return `
     <div class="lcard" data-league-key="${d.league.key}">
       <div class="lcard-head">
@@ -661,15 +659,11 @@ async function fetchLeague(league, limit) {
   if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
 
   const json = await res.json();
-  const raw = Array.isArray(json) ? json : json.data || json.resultados || [];
+  const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
   const games = raw.map(i => parseResult(i)).filter(Boolean).slice(0, limit);
   const graphData = calcGraphData(games);
 
-  return {
-    league,
-    totalGames: games.length,
-    graphData
-  };
+  return { league, totalGames: games.length, graphData };
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -688,8 +682,10 @@ function fingerprint(d) {
 
 function buildLeagueBar() {
   const leagues = HOUSES[currentHouse].leagues;
-  const allBtn = `<button class="lt ${activeLeagueKey === null ? "on" : ""}" data-key="__all__">Todas</button>`;
-  const tabs = leagues.map(l => `<button class="lt ${l.key === activeLeagueKey ? "on" : ""}" data-key="${l.key}">${l.title}</button>`).join("");
+  const allBtn  = `<button class="lt ${activeLeagueKey === null ? "on" : ""}" data-key="__all__">Todas</button>`;
+  const tabs    = leagues.map(l =>
+    `<button class="lt ${l.key === activeLeagueKey ? "on" : ""}" data-key="${l.key}">${l.title}</button>`
+  ).join("");
   leagueBar.innerHTML = allBtn + tabs;
 
   leagueBar.querySelectorAll(".lt").forEach(b => {
@@ -707,22 +703,21 @@ function buildLeagueBar() {
 //  RENDER ALL
 // ═══════════════════════════════════════════════════════════════════
 
-let renderToken = 0;
+let renderToken   = 0;
 let renderRunning = false;
 
 async function renderAll(fullReset) {
   if (renderRunning) return;
   renderRunning = true;
 
-  const token = ++renderToken;
-  const limit = parseInt(limitSelect.value, 10) || 100;
-  const leagues = HOUSES[currentHouse].leagues.filter(l => activeLeagueKey === null || l.key === activeLeagueKey);
+  const token   = ++renderToken;
+  const limit   = parseInt(limitSelect.value, 10) || 100;
+  const leagues = HOUSES[currentHouse].leagues.filter(l =>
+    activeLeagueKey === null || l.key === activeLeagueKey
+  );
 
   if (fullReset) {
-    Object.keys(charts).forEach(k => {
-      try { charts[k].destroy(); } catch {}
-      delete charts[k];
-    });
+    Object.keys(charts).forEach(k => { try { charts[k].destroy(); } catch {} delete charts[k]; });
     Object.keys(lastData).forEach(k => delete lastData[k]);
     leaguesGrid.innerHTML = `<div class="placeholder">Carregando...</div>`;
   }
@@ -739,10 +734,7 @@ async function renderAll(fullReset) {
     return;
   }
 
-  if (token !== renderToken) {
-    renderRunning = false;
-    return;
-  }
+  if (token !== renderToken) { renderRunning = false; return; }
 
   const errs     = [];
   const incoming = [];
@@ -805,7 +797,7 @@ houseTabs.querySelectorAll(".ht").forEach(b => {
   b.addEventListener("click", () => {
     houseTabs.querySelectorAll(".ht").forEach(x => x.classList.remove("on"));
     b.classList.add("on");
-    currentHouse = b.dataset.house;
+    currentHouse    = b.dataset.house;
     activeLeagueKey = null;
     savePrefs({ ...prefs, house: currentHouse, league: null });
     buildLeagueBar();
@@ -859,8 +851,8 @@ function connectWS() {
   ws.onmessage = ev => {
     let m;
     try { m = JSON.parse(ev.data); } catch { return; }
-    if (m.type === "ping") { try { ws.send(JSON.stringify({ type: "pong" })); } catch {} return; }
-    if (m.type === "pong") { if (hbWait) clearTimeout(hbWait); return; }
+    if (m.type === "ping")  { try { ws.send(JSON.stringify({ type: "pong" })); } catch {} return; }
+    if (m.type === "pong")  { if (hbWait) clearTimeout(hbWait); return; }
     if (["dados:update", "push:versions", "vers", "hint", "update"].includes(m.type)) { renderAll(false); return; }
     if (m.type === "all:reload") location.reload();
   };
