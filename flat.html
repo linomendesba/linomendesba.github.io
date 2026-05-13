@@ -423,26 +423,14 @@ function parseFT(gameData) {
   const h = parseInt(m[1], 10), a = parseInt(m[2], 10);
   if (!isFinite(h) || !isFinite(a)) return null;
   
-  // Extrai hora e minuto se disponível
-  let hora = null, minuto = null;
-  if (gameData.hora) {
-    const timeMatch = String(gameData.hora).match(/(\d{1,2}):(\d{2})/);
-    if (timeMatch) {
-      hora = timeMatch[1];
-      minuto = timeMatch[2];
-    }
-  } else if (gameData.time) {
-    const timeMatch = String(gameData.time).match(/(\d{1,2}):(\d{2})/);
-    if (timeMatch) {
-      hora = timeMatch[1];
-      minuto = timeMatch[2];
-    }
-  }
+  // Extrai hora e minuto (já vêm como números na estrutura)
+  let hora = gameData.hora ? String(gameData.hora).padStart(2, '0') : "—";
+  let minuto = gameData.minuto ? String(gameData.minuto).padStart(2, '0') : "—";
   
   return { 
     total: h + a, 
-    hora: hora || "—", 
-    minuto: minuto || "—"
+    hora: hora, 
+    minuto: minuto
   };
 }
 
@@ -567,20 +555,40 @@ function renderChart(id, acc, mode, gamesMeta) {
       plugins: {
         legend: { display: false },
         tooltip: { 
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          padding: 10,
-          cornerRadius: 6,
-          titleFont: { size: 12, weight: '600' },
-          bodyFont: { size: 11 },
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          padding: 12,
+          cornerRadius: 8,
+          titleFont: { size: 13, weight: '700' },
+          bodyFont: { size: 12 },
+          displayColors: false,
           callbacks: { 
-            title: () => '',
+            title: (context) => {
+              if (!context || !context.length) return '';
+              const idx = context[0].dataIndex;
+              const game = gamesMeta && gamesMeta[idx];
+              if (game && game.hora !== "—") {
+                return `⏱️ ${game.hora}:${game.minuto}`;
+              }
+              return '';
+            },
             label: (c) => {
               const idx = c.dataIndex;
               const game = gamesMeta && gamesMeta[idx];
-              if (game && game.hora && game.minuto) {
-                return `${game.hora}:${game.minuto} - Acumulado: ${c.raw} (Total: ${game.total})`;
+              let result = `Acumulado: ${c.raw}`;
+              if (game && game.total !== undefined) {
+                result += ` | Total de Gols: ${game.total}`;
               }
-              return `Acumulado: ${c.raw}`;
+              return result;
+            },
+            afterLabel: (c) => {
+              const idx = c.dataIndex;
+              const game = gamesMeta && gamesMeta[idx];
+              if (game && game.total < 3) {
+                return '(Under 2.5)';
+              } else if (game && game.total > 2) {
+                return '(Over 2.5)';
+              }
+              return '';
             }
           }
         }
