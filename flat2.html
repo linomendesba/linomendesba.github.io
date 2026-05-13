@@ -310,6 +310,17 @@
 
 // CONFIG
 const STORE_KEY = "flat_simple_prefs";
+const AUTO_REFRESH_MS = 5000; // ✅ 5 SEGUNDOS
+
+// ✅ MERCADOS DISPONÍVEIS
+const MERCADOS_DISPONIVEIS = {
+  under25: { nome: "Under 2.5",   key: "under25" },
+  over25:  { nome: "Over 2.5",    key: "over25"  },
+  over35:  { nome: "Over 3.5",    key: "over35"  },
+  casa:    { nome: "Casa Vence",  key: "casa"    },
+  fora:    { nome: "Fora Vence",  key: "fora"    }
+};
+
 const HOUSES = {
   betano: {
     label: "Betano",
@@ -367,8 +378,10 @@ const prefs = (() => {
   }
 })();
 
-let currentHouse    = prefs.house  || "betano";
-let activeLeagueKey = prefs.league || null;
+let currentHouse    = prefs.house    || "betano";
+let activeLeagueKey = prefs.league   || null;
+let activeMercados  = prefs.mercados || ["under25", "over25"]; // ✅ PADRÃO: Under e Over 2.5
+
 const charts   = {};
 const lastData = {};
 
@@ -389,6 +402,57 @@ houseTabs.querySelectorAll(".ht").forEach(b => {
   b.classList.toggle("on", b.dataset.house === currentHouse);
 });
 
+// ✅ CRIAR SELETOR DE MERCADOS DINAMICAMENTE
+function buildMercadoBar() {
+  const mercadoContainer = document.getElementById("limitSelect").parentElement;
+  let mercadoBar = document.getElementById("mercadoBar");
+  
+  if (!mercadoBar) {
+    mercadoBar = document.createElement("div");
+    mercadoBar.id = "mercadoBar";
+    mercadoBar.style.cssText = "display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;";
+    mercadoContainer.parentElement.insertBefore(mercadoBar, mercadoContainer.nextSibling);
+  }
+  
+  mercadoBar.innerHTML = Object.values(MERCADOS_DISPONIVEIS)
+    .map(m => `
+      <button 
+        class="mt ${activeMercados.includes(m.key) ? "on" : ""}" 
+        data-key="${m.key}"
+        style="
+          padding: 0.4rem 0.8rem;
+          border: 2px solid #334155;
+          background: ${activeMercados.includes(m.key) ? '#2563eb' : '#1e293b'};
+          color: white;
+          border-radius: 0.4rem;
+          cursor: pointer;
+          font-size: 0.85rem;
+          font-weight: 600;
+          transition: all 0.2s;
+          border-color: ${activeMercados.includes(m.key) ? '#2563eb' : '#475569'};
+        "
+      >${m.nome}</button>
+    `).join("");
+
+  mercadoBar.querySelectorAll(".mt").forEach(b => {
+    b.addEventListener("click", () => {
+      const key = b.dataset.key;
+      if (activeMercados.includes(key)) {
+        activeMercados = activeMercados.filter(k => k !== key);
+      } else {
+        activeMercados.push(key);
+      }
+      if (activeMercados.length === 0) {
+        activeMercados = ["under25", "over25"];
+      }
+      savePrefs({ ...prefs, mercados: activeMercados });
+      buildMercadoBar();
+      Object.keys(lastData).forEach(k => delete lastData[k]);
+      renderAll(true);
+    });
+  });
+}
+
 function setStatus(msg, show) {
   statusBar.textContent = msg || "";
   statusBar.classList.toggle("hidden", !show);
@@ -399,8 +463,7 @@ function savePrefs(obj) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  PARSE RESULTADO
-//  Suporta: "2 x 1" (grafico_de_mercados), "2-1", "2x1" (legado)
+//  PARSE RESULTADO - ✅ AGORA COM TODOS OS MERCADOS
 // ═══════════════════════════════════════════════════════════════════
 
 function parseResult(gameData) {
@@ -429,55 +492,59 @@ function parseResult(gameData) {
   const hora   = gameData.hora   != null ? parseInt(gameData.hora,   10) : null;
   const minuto = gameData.minuto != null ? parseInt(gameData.minuto, 10) : null;
 
+  const total = h + a;
+
   return {
-    total:   h + a,
+    total,
     hora,
     minuto,
-    isUnder: h + a < 3,
-    isOver:  h + a > 2
+    // ✅ TODOS OS MERCADOS AQUI
+    isUnder25: total < 3,      // Under 2.5: ≤ 2 gols
+    isOver25:  total > 2,      // Over 2.5:  ≥ 3 gols
+    isOver35:  total > 3,      // Over 3.5:  ≥ 4 gols ✅ NOVO
+    isCasa:    h > a,          // Casa Vence ✅ NOVO
+    isFora:    a > h           // Fora Vence ✅ NOVO
   };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  CALCULAR GRÁFICO
-//
-//  Compara jogo HH:MM com o jogo (HH-1):MM (mesmo minuto, 1h atrás).
-//
-//  UNDER 2.5 — só plota se prev=Under:
-//    prev=Under + curr=Under → sobe   ✅
-//    prev=Under + curr=Over  → desce  ❌
-//    prev=Over  → NÃO plota ponto
-//
-//  OVER 2.5 — só plota se prev=Over:
-//    prev=Over  + curr=Over  → sobe   ✅
-//    prev=Over  + curr=Under → desce  ❌
-//    prev=Under → NÃO plota ponto
+//  CALCULAR GRÁFICO - ✅ GENÉRICO PARA QUALQUER MERCADO
 // ═══════════════════════════════════════════════════════════════════
 
-function calcGraphData(games) {
+function calcGraphData(games, mercadoKey) {
   if (!games.length) {
-    return { underPoints: [], overPoints: [], underGamesMeta: [], overGamesMeta: [] };
+    return { points: [], gamesMeta: [] };
   }
 
+  // ✅ MAPEIA CADA MERCADO À SUA PROPRIEDADE
+  const marcadoMap = {
+    under25: "isUnder25",
+    over25:  "isOver25",
+    over35:  "isOver35",
+    casa:    "isCasa",
+    fora:    "isFora"
+  };
+  
+  const marcadoProp = marcadoMap[mercadoKey];
+  if (!marcadoProp) return { points: [], gamesMeta: [] };
+
   // Indexa slots por "HH:MM"
-  // Múltiplos jogos no mesmo slot → maioria define Under/Over
   const slotMap = new Map();
 
   for (const g of games) {
     if (g.hora === null || g.minuto === null) continue;
     const key = `${String(g.hora).padStart(2, "0")}:${String(g.minuto).padStart(2, "0")}`;
     if (!slotMap.has(key)) {
-      slotMap.set(key, { hora: g.hora, minuto: g.minuto, unders: 0, overs: 0, count: 0, totals: [] });
+      slotMap.set(key, { hora: g.hora, minuto: g.minuto, sims: 0, naos: 0, count: 0, totals: [] });
     }
     const s = slotMap.get(key);
     s.count++;
     s.totals.push(g.total);
-    if (g.isUnder) s.unders++; else s.overs++;
+    if (g[marcadoProp]) s.sims++; else s.naos++;
   }
 
-  // Under se maioria Under; empate → Over
-  function slotIsUnder(s) {
-    return s.unders > s.overs;
+  function slotIsSim(s) {
+    return s.sims > s.naos;
   }
 
   // Ordena slots cronologicamente
@@ -485,24 +552,18 @@ function calcGraphData(games) {
     a.hora !== b.hora ? a.hora - b.hora : a.minuto - b.minuto
   );
 
-  // Arrays separados para Under e Over — tamanhos podem diferir
-  // pois cada um só plota quando seu prev é do tipo certo
-  const underPoints    = [];
-  const overPoints     = [];
-  const underGamesMeta = [];
-  const overGamesMeta  = [];
+  const points    = [];
+  const gamesMeta = [];
 
-  // Valor acumulado atual de cada linha (começa em 50)
-  let uVal = 50;
-  let oVal = 50;
+  let val = 50;
 
   for (const curr of slots) {
     const prevKey = `${String(curr.hora - 1).padStart(2, "0")}:${String(curr.minuto).padStart(2, "0")}`;
     const prev = slotMap.get(prevKey);
-    if (!prev) continue; // sem par na hora anterior → ignora
+    if (!prev) continue;
 
-    const prevUnder = slotIsUnder(prev);
-    const currUnder = slotIsUnder(curr);
+    const prevSim = slotIsSim(prev);
+    const currSim = slotIsSim(curr);
 
     const avgCurr = curr.totals.reduce((a, b) => a + b, 0) / curr.totals.length;
     const avgPrev = prev.totals.reduce((a, b) => a + b, 0) / prev.totals.length;
@@ -515,37 +576,36 @@ function calcGraphData(games) {
       jogos:      curr.count
     };
 
-    // ── UNDER 2.5: só plota se prev era Under ──────────────────────
-    if (prevUnder) {
-      if (currUnder) uVal++; else uVal--;
-      underPoints.push(uVal);
-      underGamesMeta.push(meta);
+    if (prevSim) {
+      if (currSim) val++; else val--;
+      points.push(val);
+      gamesMeta.push(meta);
     }
-    // prev=Over → não plota ponto no gráfico Under
-
-    // ── OVER 2.5: só plota se prev era Over ────────────────────────
-    if (!prevUnder) {
-      if (!currUnder) oVal++; else oVal--;
-      overPoints.push(oVal);
-      overGamesMeta.push(meta);
-    }
-    // prev=Under → não plota ponto no gráfico Over
   }
 
-  return { underPoints, overPoints, underGamesMeta, overGamesMeta };
+  return { points, gamesMeta };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  RENDERIZAR CHART
+//  RENDERIZAR CHART - ✅ CORES POR MERCADO
 // ═══════════════════════════════════════════════════════════════════
 
-function renderChart(id, points, gamesMeta, mode) {
+function renderChart(id, points, gamesMeta, mercadoKey) {
   const canvas = document.getElementById(id);
   if (!canvas) return;
 
   if (charts[id]) charts[id].destroy();
 
-  const color  = mode === "under" ? "#3ddc84" : "#60a5fa";
+  // ✅ CORES DIFERENTES PARA CADA MERCADO
+  const colorMap = {
+    under25: "#3ddc84",  // Verde
+    over25:  "#60a5fa",  // Azul
+    over35:  "#fbbf24",  // Amarelo
+    casa:    "#34d399",  // Verde claro
+    fora:    "#f87171"   // Vermelho
+  };
+  
+  const color = colorMap[mercadoKey] || "#60a5fa";
   const ptSize = points.length > 60 ? 2 : 3;
 
   charts[id] = new Chart(canvas.getContext("2d"), {
@@ -614,25 +674,33 @@ function renderChart(id, points, gamesMeta, mode) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  HTML BUILDERS
+//  HTML BUILDERS - ✅ RENDERIZA TODOS OS MERCADOS ATIVOS
 // ═══════════════════════════════════════════════════════════════════
 
-function modeHTML(key, mode, currentValue) {
-  const id      = `ch-${key}-${mode}`;
-  const modeCls = mode === "under" ? "mode-under" : "mode-over";
-  const modeTxt = mode === "under" ? "Under 2.5"  : "Over 2.5";
+function modeHTML(key, mercadoKey) {
+  const id = `ch-${key}-${mercadoKey}`;
+  const m = MERCADOS_DISPONIVEIS[mercadoKey];
+  const colorMap = {
+    under25: "#3ddc84",
+    over25:  "#60a5fa",
+    over35:  "#fbbf24",
+    casa:    "#34d399",
+    fora:    "#f87171"
+  };
   return `
-    <div class="mode-col ${modeCls}">
-      <div class="mode-label"><span class="mode-dot"></span>${modeTxt}</div>
-      <div class="current-value">${currentValue}</div>
+    <div class="mode-col" style="border-left: 3px solid ${colorMap[mercadoKey]};">
+      <div class="mode-label"><span class="mode-dot" style="background: ${colorMap[mercadoKey]};"></span>${m.nome}</div>
+      <div class="current-value">--</div>
       <div class="chart-wrap"><canvas id="${id}"></canvas></div>
     </div>
   `;
 }
 
-function cardHTML(d, graphData) {
-  const underValue = graphData.underPoints[graphData.underPoints.length - 1] ?? 50;
-  const overValue  = graphData.overPoints[graphData.overPoints.length  - 1] ?? 50;
+function cardHTML(d, mercadosData) {
+  const modesHTML = activeMercados
+    .map(mercadoKey => modeHTML(d.league.key, mercadoKey))
+    .join("");
+
   return `
     <div class="lcard" data-league-key="${d.league.key}">
       <div class="lcard-head">
@@ -640,8 +708,7 @@ function cardHTML(d, graphData) {
         <span class="meta">${HOUSES[currentHouse].label} &mdash; ${d.totalGames} jogos</span>
       </div>
       <div class="lcard-cols">
-        ${modeHTML(d.league.key, "under", underValue)}
-        ${modeHTML(d.league.key, "over",  overValue)}
+        ${modesHTML}
       </div>
     </div>
   `;
@@ -658,19 +725,27 @@ async function fetchLeague(league, limit) {
   const json = await res.json();
   const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
   const games = raw.map(i => parseResult(i)).filter(Boolean).slice(0, limit);
-  const graphData = calcGraphData(games);
 
-  return { league, totalGames: games.length, graphData };
+  // ✅ CALCULA PARA TODOS OS MERCADOS ATIVOS
+  const mercadosData = {};
+  activeMercados.forEach(k => {
+    mercadosData[k] = calcGraphData(games, k);
+  });
+
+  return { league, totalGames: games.length, mercadosData };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  FINGERPRINT
+//  FINGERPRINT - ✅ INCLUI TODOS OS MERCADOS
 // ═══════════════════════════════════════════════════════════════════
 
 function fingerprint(d) {
-  const under = d.graphData.underPoints;
-  const over  = d.graphData.overPoints;
-  return [d.totalGames, under[under.length - 1], over[over.length - 1]].join("|");
+  const finger = [d.totalGames];
+  activeMercados.forEach(k => {
+    const points = d.mercadosData[k].points;
+    finger.push(points[points.length - 1]);
+  });
+  return finger.join("|");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -697,7 +772,7 @@ function buildLeagueBar() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  RENDER ALL
+//  RENDER ALL - ✅ 5 SEGUNDOS SEM PISCAR
 // ═══════════════════════════════════════════════════════════════════
 
 let renderToken   = 0;
@@ -743,12 +818,18 @@ async function renderAll(fullReset) {
 
   if (fullReset || !leaguesGrid.querySelector(".lcard")) {
     leaguesGrid.innerHTML = incoming.length
-      ? incoming.map(d => cardHTML(d, d.graphData)).join("")
+      ? incoming.map(d => cardHTML(d, d.mercadosData)).join("")
       : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
 
     incoming.forEach(d => {
-      renderChart(`ch-${d.league.key}-under`, d.graphData.underPoints, d.graphData.underGamesMeta, "under");
-      renderChart(`ch-${d.league.key}-over`,  d.graphData.overPoints,  d.graphData.overGamesMeta,  "over");
+      activeMercados.forEach(k => {
+        renderChart(
+          `ch-${d.league.key}-${k}`,
+          d.mercadosData[k].points,
+          d.mercadosData[k].gamesMeta,
+          k
+        );
+      });
       lastData[d.league.key] = fingerprint(d);
     });
   } else {
@@ -759,23 +840,31 @@ async function renderAll(fullReset) {
 
       const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
       if (existing) {
-        [`ch-${d.league.key}-under`, `ch-${d.league.key}-over`].forEach(id => {
-          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
+        activeMercados.forEach(k => {
+          const chartId = `ch-${d.league.key}-${k}`;
+          if (charts[chartId]) { try { charts[chartId].destroy(); } catch {} delete charts[chartId]; }
         });
-        existing.outerHTML = cardHTML(d, d.graphData);
+        existing.outerHTML = cardHTML(d, d.mercadosData);
       } else {
-        leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d, d.graphData));
+        leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d, d.mercadosData));
       }
 
-      renderChart(`ch-${d.league.key}-under`, d.graphData.underPoints, d.graphData.underGamesMeta, "under");
-      renderChart(`ch-${d.league.key}-over`,  d.graphData.overPoints,  d.graphData.overGamesMeta,  "over");
+      activeMercados.forEach(k => {
+        renderChart(
+          `ch-${d.league.key}-${k}`,
+          d.mercadosData[k].points,
+          d.mercadosData[k].gamesMeta,
+          k
+        );
+      });
     });
 
     leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
       const key = el.dataset.leagueKey;
       if (!incoming.find(d => d.league.key === key)) {
-        [`ch-${key}-under`, `ch-${key}-over`].forEach(id => {
-          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
+        activeMercados.forEach(k => {
+          const chartId = `ch-${key}-${k}`;
+          if (charts[chartId]) { try { charts[chartId].destroy(); } catch {} delete charts[chartId]; }
         });
         el.remove();
       }
@@ -811,10 +900,14 @@ limitSelect.addEventListener("change", () => {
 reloadBtn.addEventListener("click", () => renderAll(true));
 
 // ═══════════════════════════════════════════════════════════════════
-//  AUTO-REFRESH
+//  AUTO-REFRESH A CADA 5 SEGUNDOS - ✅ SEM PISCAR
 // ═══════════════════════════════════════════════════════════════════
 
-setInterval(() => renderAll(false), 3000);
+setInterval(() => renderAll(false), AUTO_REFRESH_MS);
+
+// ═══════════════════════════════════════════════════════════════════
+//  WEBSOCKET
+// ═══════════════════════════════════════════════════════════════════
 
 const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
 let ws, backoff = 1000, hbTimer = null, hbWait = null;
@@ -865,6 +958,7 @@ function connectWS() {
 //  INIT
 // ═══════════════════════════════════════════════════════════════════
 
+buildMercadoBar(); // ✅ CRIA SELETOR
 buildLeagueBar();
 renderAll(true);
 connectWS();
