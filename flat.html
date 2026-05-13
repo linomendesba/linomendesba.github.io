@@ -304,571 +304,503 @@
   </div>
 
 <script>
-    // ═══════════════════════════════════════════════════════════════════
-//  SCRIPT SIMPLIFICADO - UNDER/OVER COM LÓGICA SIMPLES
-// ═══════════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────
+  //  PERSIST helpers
+  // ─────────────────────────────────────────────────────────────
+  const STORE_KEY = "lat_prefs_v1";
 
-// CONFIG
-const STORE_KEY = "flat_simple_prefs";
-const HOUSES = {
-  betano: {
-    label: "Betano",
-    leagues: [
-      { key: "copa-america",        title: "Copa America",         resultados: "https://betstat.site/resultados/Copa%20Am%C3%A9rica" },
-      { key: "classicos-america",   title: "Classicos da America", resultados: "https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna" },
-      { key: "euro",                title: "Euro",                 resultados: "https://betstat.site/resultados/Euro" },
-      { key: "campeonato-italiano", title: "Camp. Italiano",       resultados: "https://betstat.site/resultados/Campeonato%20Italiano" },
-      { key: "copa-estrelas",       title: "Copa das Estrelas",    resultados: "https://betstat.site/resultados/Copa%20das%20estrelas" },
-      { key: "brasileirao",         title: "Brasileirao Betano",   resultados: "https://betstat.site/resultados/Brasileir%C3%A3o%20Betano" },
-    ]
-  },
-  betsson: {
-    label: "Betsson",
-    leagues: [
-      { key: "espanha",    title: "Espanha",    resultados: "https://betstat.site/resultados/betsson/Espanha" },
-      { key: "inglaterra", title: "Inglaterra", resultados: "https://betstat.site/resultados/betsson/Inglaterra" },
-      { key: "brasil",     title: "Brasil",     resultados: "https://betstat.site/resultados/betsson/Brasil" },
-    ]
-  },
-  kiron: {
-    label: "Kiron",
-    leagues: [
-      { key: "england", title: "England League", resultados: "https://betstat.site/resultados/kiron/England" },
-      { key: "italy",   title: "Italy League",   resultados: "https://betstat.site/resultados/kiron/Italy" },
-      { key: "spain",   title: "Spain League",   resultados: "https://betstat.site/resultados/kiron/Spain" },
-    ]
-  },
-  estrelabet: {
-    label: "Estrelabet",
-    leagues: [
-      { key: "copa-mundo",     title: "Copa do Mundo",      resultados: "https://betstat.site/resultados/estrela/Copa%20do%20Mundo" },
-      { key: "ligas-campeoes", title: "Ligas dos Campeoes", resultados: "https://betstat.site/resultados/estrela/Ligas%20dos%20Campe%C3%B5es" },
-      { key: "america-latina", title: "America Latina",     resultados: "https://betstat.site/resultados/estrela/Am%C3%A9rica%20Latina" },
-    ]
-  },
-  bet365: {
-    label: "Bet365",
-    leagues: [
-      { key: "b365-copa",    title: "Copa",    resultados: "https://betstat.site/resultados/bet365/Copa" },
-      { key: "b365-euro",    title: "Euro",    resultados: "https://betstat.site/resultados/bet365/Euro" },
-      { key: "b365-super",   title: "Super",   resultados: "https://betstat.site/resultados/bet365/Super" },
-      { key: "b365-premier", title: "Premier", resultados: "https://betstat.site/resultados/bet365/Premier" },
-    ]
-  }
-};
-
-// STATE
-const prefs = (() => {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-})();
-
-let currentHouse    = prefs.house  || "betano";
-let activeLeagueKey = prefs.league || null;
-const charts   = {};
-const lastData = {};
-
-// DOM
-const houseTabs   = document.getElementById("houseTabs");
-const leagueBar   = document.getElementById("leagueBar");
-const leaguesGrid = document.getElementById("leaguesGrid");
-const reloadBtn   = document.getElementById("reloadBtn");
-const limitSelect = document.getElementById("limitSelect");
-const statusBar   = document.getElementById("statusBar");
-
-if (prefs.limit) {
-  const opt = [...limitSelect.options].find(o => o.value === String(prefs.limit));
-  if (opt) opt.selected = true;
-}
-
-houseTabs.querySelectorAll(".ht").forEach(b => {
-  b.classList.toggle("on", b.dataset.house === currentHouse);
-});
-
-function setStatus(msg, show) {
-  statusBar.textContent = msg || "";
-  statusBar.classList.toggle("hidden", !show);
-}
-
-function savePrefs(obj) {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  PARSE RESULTADO
-//  Suporta: "2 x 1" (grafico_de_mercados), "2-1", "2x1" (legado)
-// ═══════════════════════════════════════════════════════════════════
-
-function parseResult(gameData) {
-  if (!gameData) return null;
-
-  let ft = gameData.ft || gameData.score || gameData.resultado || gameData.result;
-  if (!ft) return null;
-
-  const raw = String(ft).trim();
-  let h, a;
-
-  if (raw.includes(" x ")) {
-    const parts = raw.split(" x ");
-    h = parseInt(parts[0], 10);
-    a = parseInt(parts[1], 10);
-  } else {
-    const normalized = raw.replace(/\s/g, "").replace(/x/gi, "-");
-    const m = normalized.match(/^(\d+)-(\d+)$/);
-    if (!m) return null;
-    h = parseInt(m[1], 10);
-    a = parseInt(m[2], 10);
+  function loadPrefs() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
   }
 
-  if (!isFinite(h) || !isFinite(a)) return null;
-
-  const hora   = gameData.hora   != null ? parseInt(gameData.hora,   10) : null;
-  const minuto = gameData.minuto != null ? parseInt(gameData.minuto, 10) : null;
-
-  return {
-    total:   h + a,
-    hora,
-    minuto,
-    isUnder: h + a < 3,
-    isOver:  h + a > 2
-  };
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  CALCULAR GRÁFICO
-//
-//  Compara jogo HH:MM com o jogo (HH-1):MM (mesmo minuto, 1h atrás).
-//
-//  UNDER 2.5 — só plota se prev=Under:
-//    prev=Under + curr=Under → sobe   ✅
-//    prev=Under + curr=Over  → desce  ❌
-//    prev=Over  → NÃO plota ponto
-//
-//  OVER 2.5 — só plota se prev=Over:
-//    prev=Over  + curr=Over  → sobe   ✅
-//    prev=Over  + curr=Under → desce  ❌
-//    prev=Under → NÃO plota ponto
-// ═══════════════════════════════════════════════════════════════════
-
-function calcGraphData(games) {
-  if (!games.length) {
-    return { underPoints: [], overPoints: [], underGamesMeta: [], overGamesMeta: [] };
+  function savePrefs(obj) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
   }
 
-  // Indexa slots por "HH:MM"
-  // Múltiplos jogos no mesmo slot → maioria define Under/Over
-  const slotMap = new Map();
-
-  for (const g of games) {
-    if (g.hora === null || g.minuto === null) continue;
-    const key = `${String(g.hora).padStart(2, "0")}:${String(g.minuto).padStart(2, "0")}`;
-    if (!slotMap.has(key)) {
-      slotMap.set(key, { hora: g.hora, minuto: g.minuto, unders: 0, overs: 0, count: 0, totals: [] });
-    }
-    const s = slotMap.get(key);
-    s.count++;
-    s.totals.push(g.total);
-    if (g.isUnder) s.unders++; else s.overs++;
-  }
-
-  // Under se maioria Under; empate → Over
-  function slotIsUnder(s) {
-    return s.unders > s.overs;
-  }
-
-  // Ordena slots cronologicamente
-  const slots = [...slotMap.values()].sort((a, b) =>
-    a.hora !== b.hora ? a.hora - b.hora : a.minuto - b.minuto
-  );
-
-  // Arrays separados para Under e Over — tamanhos podem diferir
-  // pois cada um só plota quando seu prev é do tipo certo
-  const underPoints    = [];
-  const overPoints     = [];
-  const underGamesMeta = [];
-  const overGamesMeta  = [];
-
-  // Valor acumulado atual de cada linha (começa em 50)
-  let uVal = 50;
-  let oVal = 50;
-
-  for (const curr of slots) {
-    const prevKey = `${String(curr.hora - 1).padStart(2, "0")}:${String(curr.minuto).padStart(2, "0")}`;
-    const prev = slotMap.get(prevKey);
-    if (!prev) continue; // sem par na hora anterior → ignora
-
-    const prevUnder = slotIsUnder(prev);
-    const currUnder = slotIsUnder(curr);
-
-    const avgCurr = curr.totals.reduce((a, b) => a + b, 0) / curr.totals.length;
-    const avgPrev = prev.totals.reduce((a, b) => a + b, 0) / prev.totals.length;
-    const meta = {
-      hora:       String(curr.hora).padStart(2, "0"),
-      minuto:     String(curr.minuto).padStart(2, "0"),
-      total:      avgCurr.toFixed(1),
-      prev_hora:  String(prev.hora).padStart(2, "0"),
-      prev_total: avgPrev.toFixed(1),
-      jogos:      curr.count
-    };
-
-    // ── UNDER 2.5: só plota se prev era Under ──────────────────────
-    if (prevUnder) {
-      if (currUnder) uVal++; else uVal--;
-      underPoints.push(uVal);
-      underGamesMeta.push(meta);
-    }
-    // prev=Over → não plota ponto no gráfico Under
-
-    // ── OVER 2.5: só plota se prev era Over ────────────────────────
-    if (!prevUnder) {
-      if (!currUnder) oVal++; else oVal--;
-      overPoints.push(oVal);
-      overGamesMeta.push(meta);
-    }
-    // prev=Under → não plota ponto no gráfico Over
-  }
-
-  return { underPoints, overPoints, underGamesMeta, overGamesMeta };
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  RENDERIZAR CHART
-// ═══════════════════════════════════════════════════════════════════
-
-function renderChart(id, points, gamesMeta, mode) {
-  const canvas = document.getElementById(id);
-  if (!canvas) return;
-
-  if (charts[id]) charts[id].destroy();
-
-  const color  = mode === "under" ? "#3ddc84" : "#60a5fa";
-  const ptSize = points.length > 60 ? 2 : 3;
-
-  charts[id] = new Chart(canvas.getContext("2d"), {
-    type: "line",
-    data: {
-      labels: points.map((_, i) => i),
-      datasets: [{
-        data: points,
-        borderColor: color,
-        borderWidth: 2,
-        pointRadius: ptSize,
-        pointHoverRadius: ptSize + 2,
-        pointBackgroundColor: points.map((v, i) =>
-          i === 0 ? "#5a6272" : v > points[i-1] ? "#3ddc84" : v < points[i-1] ? "#ff6b6b" : "#5a6272"
-        ),
-        pointBorderColor: points.map((v, i) =>
-          i === 0 ? "#5a6272" : v > points[i-1] ? "#3ddc84" : v < points[i-1] ? "#ff6b6b" : "#5a6272"
-        ),
-        pointBorderWidth: 0,
-        fill: false,
-        tension: 0.2
-      }]
+  // ─────────────────────────────────────────────────────────────
+  //  CONFIG
+  // ─────────────────────────────────────────────────────────────
+  const HOUSES = {
+    betano: {
+      label: "Betano",
+      leagues: [
+        { key: "copa-america",        title: "Copa America",         resultados: "https://betstat.site/resultados/Copa%20Am%C3%A9rica" },
+        { key: "classicos-america",   title: "Classicos da America", resultados: "https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna" },
+        { key: "euro",                title: "Euro",                 resultados: "https://betstat.site/resultados/Euro" },
+        { key: "campeonato-italiano", title: "Camp. Italiano",       resultados: "https://betstat.site/resultados/Campeonato%20Italiano" },
+        { key: "copa-estrelas",       title: "Copa das Estrelas",    resultados: "https://betstat.site/resultados/Copa%20das%20estrelas" },
+        { key: "brasileirao",         title: "Brasileirao Betano",   resultados: "https://betstat.site/resultados/Brasileir%C3%A3o%20Betano" },
+      ]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: "rgba(0,0,0,0.9)",
-          padding: 12,
-          cornerRadius: 8,
-          titleFont: { size: 13, weight: "700" },
-          bodyFont: { size: 12 },
-          displayColors: false,
-          callbacks: {
-            title: (context) => {
-              if (!context?.length) return "";
-              const game = gamesMeta?.[context[0].dataIndex];
-              if (game?.hora != null) {
-                return `⏱️ ${game.hora}:${game.minuto} vs ${game.prev_hora}:${game.minuto} (${game.jogos} jogo${game.jogos > 1 ? "s" : ""})`;
-              }
-              return "";
-            },
-            label: (c) => {
-              const game = gamesMeta?.[c.dataIndex];
-              if (game) return `Agora: ${game.total} gols  |  1h atrás: ${game.prev_total} gols`;
-              return `Valor: ${c.raw}`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          ticks: { color: "#3d4352", maxTicksLimit: 10, font: { family: "Roboto", size: 10 } },
-          grid:  { color: "rgba(255,255,255,0.03)" }
-        },
-        y: {
-          ticks: { color: "#3d4352", font: { family: "Roboto", size: 10 } },
-          grid:  { color: "rgba(255,255,255,0.04)" }
-        }
+    betsson: {
+      label: "Betsson",
+      leagues: [
+        { key: "espanha",    title: "Espanha",    resultados: "https://betstat.site/resultados/betsson/Espanha" },
+        { key: "inglaterra", title: "Inglaterra", resultados: "https://betstat.site/resultados/betsson/Inglaterra" },
+        { key: "brasil",     title: "Brasil",     resultados: "https://betstat.site/resultados/betsson/Brasil" },
+      ]
+    },
+    kiron: {
+      label: "Kiron",
+      leagues: [
+        { key: "england", title: "England League", resultados: "https://betstat.site/resultados/kiron/England" },
+        { key: "italy",   title: "Italy League",   resultados: "https://betstat.site/resultados/kiron/Italy" },
+        { key: "spain",   title: "Spain League",   resultados: "https://betstat.site/resultados/kiron/Spain" },
+      ]
+    },
+    estrelabet: {
+      label: "Estrelabet",
+      leagues: [
+        { key: "copa-mundo",     title: "Copa do Mundo",      resultados: "https://betstat.site/resultados/estrela/Copa%20do%20Mundo" },
+        { key: "ligas-campeoes", title: "Ligas dos Campeoes", resultados: "https://betstat.site/resultados/estrela/Ligas%20dos%20Campe%C3%B5es" },
+        { key: "america-latina", title: "America Latina",     resultados: "https://betstat.site/resultados/estrela/Am%C3%A9rica%20Latina" },
+      ]
+    },
+    bet365: {
+      label: "Bet365",
+      leagues: [
+        { key: "b365-copa",    title: "Copa",    resultados: "https://betstat.site/resultados/bet365/Copa" },
+        { key: "b365-euro",    title: "Euro",    resultados: "https://betstat.site/resultados/bet365/Euro" },
+        { key: "b365-super",   title: "Super",   resultados: "https://betstat.site/resultados/bet365/Super" },
+        { key: "b365-premier", title: "Premier", resultados: "https://betstat.site/resultados/bet365/Premier" },
+      ]
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────
+  //  STATE  (restored from localStorage)
+  // ─────────────────────────────────────────────────────────────
+  const prefs = loadPrefs();
+
+  let currentHouse    = prefs.house    || "betano";
+  let activeLeagueKey = prefs.league   || null;
+  const charts        = {};
+
+  // Cache dos últimos dados renderizados por league key
+  // Usado para diff: só re-renderiza o que mudou
+  const lastData = {};
+
+  // ─────────────────────────────────────────────────────────────
+  //  DOM
+  // ─────────────────────────────────────────────────────────────
+  const houseTabs   = document.getElementById("houseTabs");
+  const leagueBar   = document.getElementById("leagueBar");
+  const leaguesGrid = document.getElementById("leaguesGrid");
+  const reloadBtn   = document.getElementById("reloadBtn");
+  const limitSelect = document.getElementById("limitSelect");
+  const statusBar   = document.getElementById("statusBar");
+
+  // Apply saved limit
+  if (prefs.limit) {
+    const opt = [...limitSelect.options].find(o => o.value === String(prefs.limit));
+    if (opt) opt.selected = true;
+  }
+
+  // Apply saved house button
+  houseTabs.querySelectorAll(".ht").forEach(b => {
+    b.classList.toggle("on", b.dataset.house === currentHouse);
+  });
+
+  function setStatus(msg, show) {
+    statusBar.textContent = msg || "";
+    statusBar.classList.toggle("hidden", !show);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  SCORE PARSE
+  // ─────────────────────────────────────────────────────────────
+  function parseFT(ft) {
+    if (!ft) return null;
+    const clean = String(ft).replace(/\s/g, "").replace(/x/gi, "-");
+    const m = clean.match(/^(\d+)-(\d+)$/);
+    if (!m) return null;
+    const h = parseInt(m[1], 10), a = parseInt(m[2], 10);
+    if (!isFinite(h) || !isFinite(a)) return null;
+    return { total: h + a };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  STATS LOGIC
+  // ─────────────────────────────────────────────────────────────
+  function buildBlocks(games) {
+    const b = [], n = Math.floor(games.length / 20);
+    for (let i = 0; i < n; i++) b.push(games.slice(i * 20, i * 20 + 20));
+    return b;
+  }
+
+  function topRuns(series, t) {
+    const runs = []; let c = 0;
+    for (const v of series) { if (v === t) c++; else { if (c) runs.push(c); c = 0; } }
+    if (c) runs.push(c);
+    return runs.sort((a, b) => b - a).slice(0, 3);
+  }
+
+  function currentRun(series) {
+    if (!series.length) return { type: null, count: 0, label: "Sem sequencia" };
+    const last = series[series.length - 1]; let c = 0;
+    for (let i = series.length - 1; i >= 0 && series[i] === last; i--) c++;
+    return { type: last, count: c, label: last === 1 ? `+1: ${c} seguidas` : `-1: ${c} seguidas` };
+  }
+
+  function calcStats(blocks, base) {
+    const empty = { acumulado: [0], validCount: 0, plusCount: 0, minusCount: 0, top3Plus: [], top3Minus: [], run: { type: null, count: 0, label: "Sem sequencia" } };
+    if (!blocks.length) return empty;
+    const d = [], acc = [0];
+    for (let b = blocks.length - 2; b >= 0; b--) {
+      for (let i = 19; i >= 0; i--) {
+        const cur = blocks[b]?.[i], ref = blocks[b + 1]?.[i];
+        if (!cur || !ref) continue;
+        const baseOk = base === "under" ? ref.total < 3 : ref.total > 2;
+        if (!baseOk) continue;
+        const ok    = base === "under" ? cur.total < 3 : cur.total > 2;
+        const delta = ok ? 1 : -1;
+        d.push(delta); acc.push(acc[acc.length - 1] + delta);
       }
     }
-  });
-}
+    return { acumulado: acc, validCount: d.length, plusCount: d.filter(v => v === 1).length, minusCount: d.filter(v => v === -1).length, top3Plus: topRuns(d, 1), top3Minus: topRuns(d, -1), run: currentRun(d) };
+  }
 
-// ═══════════════════════════════════════════════════════════════════
-//  HTML BUILDERS
-// ═══════════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────
+  //  FETCH
+  // ─────────────────────────────────────────────────────────────
+  async function fetchLeague(league, limit) {
+    const res = await fetch(league.resultados, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
+    const json = await res.json();
+    const raw  = Array.isArray(json) ? json : (json.data || json.resultados || []);
+    const games = raw.map(i => parseFT(i.ft)).filter(Boolean).slice(0, limit);
+    const blocks = buildBlocks(games);
+    return { league, totalGames: games.length, under: calcStats(blocks, "under"), over: calcStats(blocks, "over") };
+  }
 
-function modeHTML(key, mode, currentValue) {
-  const id      = `ch-${key}-${mode}`;
-  const modeCls = mode === "under" ? "mode-under" : "mode-over";
-  const modeTxt = mode === "under" ? "Under 2.5"  : "Over 2.5";
-  return `
-    <div class="mode-col ${modeCls}">
-      <div class="mode-label"><span class="mode-dot"></span>${modeTxt}</div>
-      <div class="current-value">${currentValue}</div>
-      <div class="chart-wrap"><canvas id="${id}"></canvas></div>
-    </div>
-  `;
-}
+  // ─────────────────────────────────────────────────────────────
+  //  CHART
+  // ─────────────────────────────────────────────────────────────
+  function renderChart(id, acc, mode) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    if (charts[id]) charts[id].destroy();
+    const color = mode === "under" ? "#3ddc84" : "#60a5fa";
+    const ptSize = acc.length > 60 ? 2 : 3;
+    charts[id] = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        labels: acc.map((_, i) => i),
+        datasets: [{
+          data: acc,
+          borderColor: color,
+          borderWidth: 1.5,
+          pointRadius: ptSize,
+          pointHoverRadius: ptSize + 2,
+          pointBackgroundColor: acc.map((v, i) => i === 0 ? "#5a6272" : v >= acc[i-1] ? "#3ddc84" : "#ff6b6b"),
+          pointBorderColor: acc.map((v, i) => i === 0 ? "#5a6272" : v >= acc[i-1] ? "#3ddc84" : "#ff6b6b"),
+          pointBorderWidth: 0,
+          fill: false,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => `Acumulado: ${c.raw}` } }
+        },
+        scales: {
+          x: { ticks: { color: "#3d4352", maxTicksLimit: 10, font: { family: "Roboto", size: 10 } }, grid: { color: "rgba(255,255,255,0.03)" } },
+          y: { ticks: { color: "#3d4352", font: { family: "Roboto", size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } }
+        }
+      }
+    });
+  }
 
-function cardHTML(d, graphData) {
-  const underValue = graphData.underPoints[graphData.underPoints.length - 1] ?? 50;
-  const overValue  = graphData.overPoints[graphData.overPoints.length  - 1] ?? 50;
-  return `
-    <div class="lcard" data-league-key="${d.league.key}">
-      <div class="lcard-head">
-        <h2>${d.league.title}</h2>
-        <span class="meta">${HOUSES[currentHouse].label} &mdash; ${d.totalGames} jogos</span>
+  // ─────────────────────────────────────────────────────────────
+  //  HTML BUILDERS
+  // ─────────────────────────────────────────────────────────────
+  function pillsHTML(arr, cls) {
+    if (!arr.length) return `<span class="pill pill-m">—</span>`;
+    return arr.map(n => `<span class="pill ${cls}">${n}</span>`).join("");
+  }
+
+  function seqHTML(run) {
+    if (!run || !run.count) return `<div class="seq-strip neu"><div class="ss-label">Sequencia atual</div>Sem leitura</div>`;
+    const cls = run.type === 1 ? "pos" : "neg";
+    return `<div class="seq-strip ${cls}"><div class="ss-label">Sequencia atual</div>${run.label}</div>`;
+  }
+
+  function modeHTML(key, mode, s) {
+    const id      = `ch-${key}-${mode}`;
+    const saldo   = s.acumulado[s.acumulado.length - 1] ?? 0;
+    const saldoCls = saldo > 0 ? "nv-p" : saldo < 0 ? "nv-n" : "nv-w";
+    const modeCls  = mode === "under" ? "mode-under" : "mode-over";
+    const modeText = mode === "under" ? "Under 2.5" : "Over 2.5";
+
+    return `
+      <div class="mode-col ${modeCls}">
+        <div class="mode-label"><span class="mode-dot"></span>${modeText}</div>
+
+        <div class="nums">
+          <div class="num-box"><div class="nb-label">Validas</div><div class="nb-val nv-w">${s.validCount}</div></div>
+          <div class="num-box"><div class="nb-label">+1 Mantem</div><div class="nb-val nv-g">${s.plusCount}</div></div>
+          <div class="num-box"><div class="nb-label">-1 Quebra</div><div class="nb-val nv-r">${s.minusCount}</div></div>
+          <div class="num-box"><div class="nb-label">Saldo</div><div class="nb-val ${saldoCls}">${saldo}</div></div>
+        </div>
+
+        ${seqHTML(s.run)}
+
+        <div class="runs">
+          <div class="run-group rg-plus">
+            <div class="rg-label">Maiores seq. +1</div>
+            <div class="pills">${pillsHTML(s.top3Plus, "pill-g")}</div>
+          </div>
+          <div class="run-group rg-minus">
+            <div class="rg-label">Maiores seq. -1</div>
+            <div class="pills">${pillsHTML(s.top3Minus, "pill-r")}</div>
+          </div>
+        </div>
+
+        <div class="chart-label">Acumulado</div>
+        <div class="chart-wrap"><canvas id="${id}"></canvas></div>
       </div>
-      <div class="lcard-cols">
-        ${modeHTML(d.league.key, "under", underValue)}
-        ${modeHTML(d.league.key, "over",  overValue)}
+    `;
+  }
+
+  function cardHTML(d) {
+    return `
+      <div class="lcard" data-league-key="${d.league.key}">
+        <div class="lcard-head">
+          <h2>${d.league.title}</h2>
+          <span class="meta">${HOUSES[currentHouse].label} &mdash; ${d.totalGames} jogos</span>
+        </div>
+        <div class="lcard-cols">
+          ${modeHTML(d.league.key, "under", d.under)}
+          ${modeHTML(d.league.key, "over",  d.over)}
+        </div>
       </div>
-    </div>
-  `;
-}
+    `;
+  }
 
-// ═══════════════════════════════════════════════════════════════════
-//  FETCH
-// ═══════════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────
+  //  FINGERPRINT — detecta se os dados realmente mudaram
+  // ─────────────────────────────────────────────────────────────
+  function fingerprint(d) {
+    const u = d.under, o = d.over;
+    return [
+      d.totalGames,
+      u.validCount, u.plusCount, u.minusCount,
+      u.acumulado[u.acumulado.length - 1],
+      u.run.type, u.run.count,
+      o.validCount, o.plusCount, o.minusCount,
+      o.acumulado[o.acumulado.length - 1],
+      o.run.type, o.run.count,
+    ].join("|");
+  }
 
-async function fetchLeague(league, limit) {
-  const res = await fetch(league.resultados, { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
+  // ─────────────────────────────────────────────────────────────
+  //  LEAGUE BAR
+  // ─────────────────────────────────────────────────────────────
+  function buildLeagueBar() {
+    const leagues = HOUSES[currentHouse].leagues;
+    const allBtn  = `<button class="lt ${activeLeagueKey === null ? 'on' : ''}" data-key="__all__">Todas</button>`;
+    const tabs    = leagues.map(l =>
+      `<button class="lt ${l.key === activeLeagueKey ? 'on' : ''}" data-key="${l.key}">${l.title}</button>`
+    ).join("");
+    leagueBar.innerHTML = allBtn + tabs;
 
-  const json = await res.json();
-  const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
-  const games = raw.map(i => parseResult(i)).filter(Boolean).slice(0, limit);
-  const graphData = calcGraphData(games);
+    leagueBar.querySelectorAll(".lt").forEach(b => {
+      b.addEventListener("click", () => {
+        activeLeagueKey = b.dataset.key === "__all__" ? null : b.dataset.key;
+        savePrefs({ ...loadPrefs(), league: activeLeagueKey });
+        buildLeagueBar();
+        // Ao trocar liga, limpa cache para forçar re-render completo
+        Object.keys(lastData).forEach(k => delete lastData[k]);
+        renderAll(true);
+      });
+    });
+  }
 
-  return { league, totalGames: games.length, graphData };
-}
+  // ─────────────────────────────────────────────────────────────
+  //  RENDER ALL  (com diff — não pisca)
+  // ─────────────────────────────────────────────────────────────
+  let renderToken = 0;
+  let renderRunning = false;
 
-// ═══════════════════════════════════════════════════════════════════
-//  FINGERPRINT
-// ═══════════════════════════════════════════════════════════════════
+  async function renderAll(fullReset) {
+    // Evita execuções paralelas
+    if (renderRunning) return;
+    renderRunning = true;
 
-function fingerprint(d) {
-  const under = d.graphData.underPoints;
-  const over  = d.graphData.overPoints;
-  return [d.totalGames, under[under.length - 1], over[over.length - 1]].join("|");
-}
+    const token  = ++renderToken;
+    const limit  = parseInt(limitSelect.value, 10) || 100;
+    const leagues = HOUSES[currentHouse].leagues.filter(l =>
+      activeLeagueKey === null || l.key === activeLeagueKey
+    );
 
-// ═══════════════════════════════════════════════════════════════════
-//  LEAGUE BAR
-// ═══════════════════════════════════════════════════════════════════
-
-function buildLeagueBar() {
-  const leagues = HOUSES[currentHouse].leagues;
-  const allBtn  = `<button class="lt ${activeLeagueKey === null ? "on" : ""}" data-key="__all__">Todas</button>`;
-  const tabs    = leagues.map(l =>
-    `<button class="lt ${l.key === activeLeagueKey ? "on" : ""}" data-key="${l.key}">${l.title}</button>`
-  ).join("");
-  leagueBar.innerHTML = allBtn + tabs;
-
-  leagueBar.querySelectorAll(".lt").forEach(b => {
-    b.addEventListener("click", () => {
-      activeLeagueKey = b.dataset.key === "__all__" ? null : b.dataset.key;
-      savePrefs({ ...prefs, league: activeLeagueKey });
-      buildLeagueBar();
+    if (fullReset) {
+      // Destrói charts e limpa DOM apenas no reset forçado (troca de casa/liga)
+      Object.keys(charts).forEach(k => { try { charts[k].destroy(); } catch {} delete charts[k]; });
       Object.keys(lastData).forEach(k => delete lastData[k]);
+      leaguesGrid.innerHTML = `<div class="placeholder">Carregando...</div>`;
+    }
+
+    setStatus("", false);
+
+    let results;
+    try {
+      results = await Promise.allSettled(leagues.map(l => fetchLeague(l, limit)));
+    } catch(e) {
+      renderRunning = false;
+      return;
+    }
+
+    // Se outro render começou enquanto buscávamos, descarta
+    if (token !== renderToken) { renderRunning = false; return; }
+
+    const errs = [];
+    const incoming = []; // dados novos
+
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        incoming.push(r.value);
+      } else {
+        errs.push(r.reason?.message || "Erro");
+      }
+    }
+
+    if (fullReset || !leaguesGrid.querySelector(".lcard")) {
+      // ── Primeiro render: monta tudo do zero ──
+      leaguesGrid.innerHTML = incoming.length
+        ? incoming.map(d => cardHTML(d)).join("")
+        : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
+
+      incoming.forEach(d => {
+        renderChart(`ch-${d.league.key}-under`, d.under.acumulado, "under");
+        renderChart(`ch-${d.league.key}-over`,  d.over.acumulado,  "over");
+        lastData[d.league.key] = fingerprint(d);
+      });
+    } else {
+      // ── Atualizações subsequentes: diff por liga ──
+      incoming.forEach(d => {
+        const fp = fingerprint(d);
+        if (lastData[d.league.key] === fp) return; // nada mudou, não mexe no DOM
+        lastData[d.league.key] = fp;
+
+        const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
+        if (existing) {
+          // Destrói apenas os charts deste card
+          [`ch-${d.league.key}-under`, `ch-${d.league.key}-over`].forEach(id => {
+            if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
+          });
+          // Substitui apenas este card (sem re-renderizar os outros)
+          existing.outerHTML = cardHTML(d);
+        } else {
+          // Card novo (não estava no DOM antes)
+          leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d));
+        }
+
+        // Redesenha os charts deste card
+        renderChart(`ch-${d.league.key}-under`, d.under.acumulado, "under");
+        renderChart(`ch-${d.league.key}-over`,  d.over.acumulado,  "over");
+      });
+
+      // Remove cards de ligas que já não estão na seleção atual
+      leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
+        const key = el.dataset.leagueKey;
+        if (!incoming.find(d => d.league.key === key)) {
+          [`ch-${key}-under`, `ch-${key}-over`].forEach(id => {
+            if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
+          });
+          el.remove();
+        }
+      });
+    }
+
+    if (errs.length) setStatus(errs.join(" · "), true);
+    renderRunning = false;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  HOUSE TABS
+  // ─────────────────────────────────────────────────────────────
+  houseTabs.querySelectorAll(".ht").forEach(b => {
+    b.addEventListener("click", () => {
+      houseTabs.querySelectorAll(".ht").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+      currentHouse    = b.dataset.house;
+      activeLeagueKey = null;
+      savePrefs({ ...loadPrefs(), house: currentHouse, league: null });
+      buildLeagueBar();
       renderAll(true);
     });
   });
-}
 
-// ═══════════════════════════════════════════════════════════════════
-//  RENDER ALL
-// ═══════════════════════════════════════════════════════════════════
-
-let renderToken   = 0;
-let renderRunning = false;
-
-async function renderAll(fullReset) {
-  if (renderRunning) return;
-  renderRunning = true;
-
-  const token   = ++renderToken;
-  const limit   = parseInt(limitSelect.value, 10) || 100;
-  const leagues = HOUSES[currentHouse].leagues.filter(l =>
-    activeLeagueKey === null || l.key === activeLeagueKey
-  );
-
-  if (fullReset) {
-    Object.keys(charts).forEach(k => { try { charts[k].destroy(); } catch {} delete charts[k]; });
-    Object.keys(lastData).forEach(k => delete lastData[k]);
-    leaguesGrid.innerHTML = `<div class="placeholder">Carregando...</div>`;
-  }
-
-  setStatus("", false);
-
-  let results;
-  try {
-    results = await Promise.allSettled(leagues.map(l => fetchLeague(l, limit)));
-  } catch (e) {
-    renderRunning = false;
-    setStatus("Erro na conexão", true);
-    setTimeout(() => setStatus("", false), 3000);
-    return;
-  }
-
-  if (token !== renderToken) { renderRunning = false; return; }
-
-  const errs     = [];
-  const incoming = [];
-
-  for (const r of results) {
-    if (r.status === "fulfilled") incoming.push(r.value);
-    else errs.push(r.reason?.message || "Erro");
-  }
-
-  if (fullReset || !leaguesGrid.querySelector(".lcard")) {
-    leaguesGrid.innerHTML = incoming.length
-      ? incoming.map(d => cardHTML(d, d.graphData)).join("")
-      : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
-
-    incoming.forEach(d => {
-      renderChart(`ch-${d.league.key}-under`, d.graphData.underPoints, d.graphData.underGamesMeta, "under");
-      renderChart(`ch-${d.league.key}-over`,  d.graphData.overPoints,  d.graphData.overGamesMeta,  "over");
-      lastData[d.league.key] = fingerprint(d);
-    });
-  } else {
-    incoming.forEach(d => {
-      const fp = fingerprint(d);
-      if (lastData[d.league.key] === fp) return;
-      lastData[d.league.key] = fp;
-
-      const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
-      if (existing) {
-        [`ch-${d.league.key}-under`, `ch-${d.league.key}-over`].forEach(id => {
-          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
-        });
-        existing.outerHTML = cardHTML(d, d.graphData);
-      } else {
-        leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d, d.graphData));
-      }
-
-      renderChart(`ch-${d.league.key}-under`, d.graphData.underPoints, d.graphData.underGamesMeta, "under");
-      renderChart(`ch-${d.league.key}-over`,  d.graphData.overPoints,  d.graphData.overGamesMeta,  "over");
-    });
-
-    leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
-      const key = el.dataset.leagueKey;
-      if (!incoming.find(d => d.league.key === key)) {
-        [`ch-${key}-under`, `ch-${key}-over`].forEach(id => {
-          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
-        });
-        el.remove();
-      }
-    });
-  }
-
-  if (errs.length) setStatus(errs.join(" · "), true);
-  renderRunning = false;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  HOUSE TABS
-// ═══════════════════════════════════════════════════════════════════
-
-houseTabs.querySelectorAll(".ht").forEach(b => {
-  b.addEventListener("click", () => {
-    houseTabs.querySelectorAll(".ht").forEach(x => x.classList.remove("on"));
-    b.classList.add("on");
-    currentHouse    = b.dataset.house;
-    activeLeagueKey = null;
-    savePrefs({ ...prefs, house: currentHouse, league: null });
-    buildLeagueBar();
+  limitSelect.addEventListener("change", () => {
+    savePrefs({ ...loadPrefs(), limit: limitSelect.value });
     renderAll(true);
   });
-});
 
-limitSelect.addEventListener("change", () => {
-  savePrefs({ ...prefs, limit: limitSelect.value });
-  Object.keys(lastData).forEach(k => delete lastData[k]);
-  renderAll(true);
-});
+  reloadBtn.addEventListener("click", () => renderAll(true));
 
-reloadBtn.addEventListener("click", () => renderAll(true));
+  // ─────────────────────────────────────────────────────────────
+  //  AUTO-REFRESH A CADA 5 SEGUNDOS (sem piscar)
+  // ─────────────────────────────────────────────────────────────
+  setInterval(() => renderAll(false), 5000);
 
-// ═══════════════════════════════════════════════════════════════════
-//  AUTO-REFRESH
-// ═══════════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────
+  //  WEB SOCKET (complementar ao intervalo)
+  // ─────────────────────────────────────────────────────────────
+  const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
+  let ws, backoff = 1000, hbTimer = null, hbWait = null;
 
-setInterval(() => renderAll(false), 3000);
-
-const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
-let ws, backoff = 1000, hbTimer = null, hbWait = null;
-
-function startHB() {
-  stopHB();
-  hbTimer = setInterval(() => {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    try {
-      ws.send(JSON.stringify({ type: "ping", t0: Date.now() }));
-      hbWait = setTimeout(() => { try { ws.close(); } catch {} }, 12000);
-    } catch {}
-  }, 25000);
-}
-
-function stopHB() {
-  if (hbTimer) clearInterval(hbTimer), (hbTimer = null);
-  if (hbWait)  clearTimeout(hbWait),   (hbWait  = null);
-}
-
-function connectWS() {
-  try { if (ws) ws.close(); } catch {}
-  ws = new WebSocket(WS_URL);
-  ws.onopen = () => {
-    backoff = 1000;
-    startHB();
-    setStatus("Conectado", true);
-    setTimeout(() => setStatus("", false), 1200);
-    try { ws.send(JSON.stringify({ type: "versions:get" })); } catch {}
-  };
-  ws.onmessage = ev => {
-    let m;
-    try { m = JSON.parse(ev.data); } catch { return; }
-    if (m.type === "ping")  { try { ws.send(JSON.stringify({ type: "pong" })); } catch {} return; }
-    if (m.type === "pong")  { if (hbWait) clearTimeout(hbWait); return; }
-    if (["dados:update", "push:versions", "vers", "hint", "update"].includes(m.type)) { renderAll(false); return; }
-    if (m.type === "all:reload") location.reload();
-  };
-  ws.onclose = () => {
+  function startHB() {
     stopHB();
-    setTimeout(connectWS, backoff);
-    backoff = Math.min(backoff * 2, 10000);
-  };
-  ws.onerror = () => { try { ws.close(); } catch {} };
-}
+    hbTimer = setInterval(() => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      try {
+        ws.send(JSON.stringify({ type: "ping", t0: Date.now() }));
+        hbWait = setTimeout(() => { try { ws.close(); } catch {} }, 12000);
+      } catch {}
+    }, 25000);
+  }
 
-// ═══════════════════════════════════════════════════════════════════
-//  INIT
-// ═══════════════════════════════════════════════════════════════════
+  function stopHB() {
+    if (hbTimer) clearInterval(hbTimer), hbTimer = null;
+    if (hbWait)  clearTimeout(hbWait),  hbWait  = null;
+  }
 
-buildLeagueBar();
-renderAll(true);
-connectWS();
-</script>
+  function connectWS() {
+    try { if (ws) ws.close(); } catch {}
+    ws = new WebSocket(WS_URL);
+    ws.onopen = () => {
+      backoff = 1000; startHB();
+      setStatus("Conectado", true);
+      setTimeout(() => setStatus("", false), 1200);
+      try { ws.send(JSON.stringify({ type: "versions:get" })); } catch {}
+    };
+    ws.onmessage = ev => {
+      let m; try { m = JSON.parse(ev.data); } catch { return; }
+      if (m.type === "ping")  { try { ws.send(JSON.stringify({ type: "pong" })); } catch {} return; }
+      if (m.type === "pong")  { if (hbWait) clearTimeout(hbWait); return; }
+      // WS avisa que há dados novos → dispara fetch imediato (sem piscar)
+      if (["dados:update","push:versions","vers","hint","update"].includes(m.type)) {
+        renderAll(false);
+        return;
+      }
+      if (m.type === "all:reload") location.reload();
+    };
+    ws.onclose = () => { stopHB(); setTimeout(connectWS, backoff); backoff = Math.min(backoff * 2, 10000); };
+    ws.onerror = () => { try { ws.close(); } catch {} };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  INIT
+  // ─────────────────────────────────────────────────────────────
+  buildLeagueBar();
+  renderAll(true);
+  connectWS();
+  </script>
 
 <script>
   fetch('header.html').then(r=>r.text()).then(d=>{document.getElementById('header').innerHTML=d;});
