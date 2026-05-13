@@ -441,31 +441,26 @@ function parseResult(gameData) {
 // ═══════════════════════════════════════════════════════════════════
 //  CALCULAR GRÁFICO
 //
-//  Lógica correta:
-//    Para cada jogo em HH:MM, busca o jogo correspondente em (HH-1):MM
-//    (mesmo minuto, uma hora atrás) e compara os dois.
+//  Compara jogo HH:MM com o jogo (HH-1):MM (mesmo minuto, 1h atrás).
 //
-//  Under 2.5:
-//    prev=Under  e  curr=Under  → sobe   ✅
-//    prev=Under  e  curr=Over   → desce  ❌
-//    prev=Over   →  qualquer    → não mexe
+//  UNDER 2.5 — só plota se prev=Under:
+//    prev=Under + curr=Under → sobe   ✅
+//    prev=Under + curr=Over  → desce  ❌
+//    prev=Over  → NÃO plota ponto
 //
-//  Over 2.5:
-//    prev=Over   e  curr=Over   → sobe   ✅
-//    prev=Over   e  curr=Under  → desce  ❌
-//    prev=Under  →  qualquer    → não mexe
-//
-//  Os pontos são ordenados cronologicamente (hora+minuto).
-//  Só gera ponto para jogos que têm par na hora anterior.
+//  OVER 2.5 — só plota se prev=Over:
+//    prev=Over  + curr=Over  → sobe   ✅
+//    prev=Over  + curr=Under → desce  ❌
+//    prev=Under → NÃO plota ponto
 // ═══════════════════════════════════════════════════════════════════
 
 function calcGraphData(games) {
   if (!games.length) {
-    return { underPoints: [50], overPoints: [50], underGamesMeta: [null], overGamesMeta: [null] };
+    return { underPoints: [], overPoints: [], underGamesMeta: [], overGamesMeta: [] };
   }
 
-  // Indexa por "HH:MM" para lookup rápido
-  // Se houver mais de 1 jogo no mesmo slot, usa a média (isUnder = maioria Under)
+  // Indexa slots por "HH:MM"
+  // Múltiplos jogos no mesmo slot → maioria define Under/Over
   const slotMap = new Map();
 
   for (const g of games) {
@@ -480,45 +475,35 @@ function calcGraphData(games) {
     if (g.isUnder) s.unders++; else s.overs++;
   }
 
-  // Classifica slot: Under se maioria Under, Over caso contrário
+  // Under se maioria Under; empate → Over
   function slotIsUnder(s) {
     return s.unders > s.overs;
   }
 
-  // Ordena todos os slots cronologicamente
+  // Ordena slots cronologicamente
   const slots = [...slotMap.values()].sort((a, b) =>
     a.hora !== b.hora ? a.hora - b.hora : a.minuto - b.minuto
   );
 
-  const underPoints    = [50];
-  const overPoints     = [50];
-  const underGamesMeta = [null];
-  const overGamesMeta  = [null];
+  // Arrays separados para Under e Over — tamanhos podem diferir
+  // pois cada um só plota quando seu prev é do tipo certo
+  const underPoints    = [];
+  const overPoints     = [];
+  const underGamesMeta = [];
+  const overGamesMeta  = [];
+
+  // Valor acumulado atual de cada linha (começa em 50)
+  let uVal = 50;
+  let oVal = 50;
 
   for (const curr of slots) {
-    // Busca o slot da hora anterior com o mesmo minuto: (HH-1):MM
     const prevKey = `${String(curr.hora - 1).padStart(2, "0")}:${String(curr.minuto).padStart(2, "0")}`;
     const prev = slotMap.get(prevKey);
-
-    // Só gera ponto se existir par na hora anterior
-    if (!prev) continue;
+    if (!prev) continue; // sem par na hora anterior → ignora
 
     const prevUnder = slotIsUnder(prev);
     const currUnder = slotIsUnder(curr);
 
-    // UNDER 2.5
-    const uLast = underPoints[underPoints.length - 1];
-    if      (prevUnder && currUnder)  underPoints.push(uLast + 1); // sobe
-    else if (prevUnder && !currUnder) underPoints.push(uLast - 1); // desce
-    else                              underPoints.push(uLast);     // não mexe (prev era Over)
-
-    // OVER 2.5
-    const oLast = overPoints[overPoints.length - 1];
-    if      (!prevUnder && !currUnder) overPoints.push(oLast + 1); // sobe
-    else if (!prevUnder && currUnder)  overPoints.push(oLast - 1); // desce
-    else                               overPoints.push(oLast);     // não mexe (prev era Under)
-
-    // Metadata para tooltip
     const avgCurr = curr.totals.reduce((a, b) => a + b, 0) / curr.totals.length;
     const avgPrev = prev.totals.reduce((a, b) => a + b, 0) / prev.totals.length;
     const meta = {
@@ -529,8 +514,22 @@ function calcGraphData(games) {
       prev_total: avgPrev.toFixed(1),
       jogos:      curr.count
     };
-    underGamesMeta.push(meta);
-    overGamesMeta.push(meta);
+
+    // ── UNDER 2.5: só plota se prev era Under ──────────────────────
+    if (prevUnder) {
+      if (currUnder) uVal++; else uVal--;
+      underPoints.push(uVal);
+      underGamesMeta.push(meta);
+    }
+    // prev=Over → não plota ponto no gráfico Under
+
+    // ── OVER 2.5: só plota se prev era Over ────────────────────────
+    if (!prevUnder) {
+      if (!currUnder) oVal++; else oVal--;
+      overPoints.push(oVal);
+      overGamesMeta.push(meta);
+    }
+    // prev=Under → não plota ponto no gráfico Over
   }
 
   return { underPoints, overPoints, underGamesMeta, overGamesMeta };
@@ -594,9 +593,7 @@ function renderChart(id, points, gamesMeta, mode) {
             },
             label: (c) => {
               const game = gamesMeta?.[c.dataIndex];
-              if (game) {
-                return `Agora: ${game.total} gols  |  1h atrás: ${game.prev_total} gols`;
-              }
+              if (game) return `Agora: ${game.total} gols  |  1h atrás: ${game.prev_total} gols`;
               return `Valor: ${c.raw}`;
             }
           }
