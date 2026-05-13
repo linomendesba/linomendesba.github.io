@@ -1,0 +1,905 @@
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+  <title>BetStat</title>
+  <meta name="description" content="BetStat Macro — análise de mercados por hora em futebol virtual." />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="BetStat" />
+  <script type="module" src="js/firebase-auth.js"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date()); gtag('config', 'G-4WT805FFHQ');
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:       #181b21;
+      --panel:    #1e2129;
+      --panel2:   #181b21;
+      --line:     rgba(255,255,255,0.06);
+      --line2:    rgba(255,255,255,0.10);
+      --green:    #3ddc84;
+      --green-bg: rgba(61,220,132,0.07);
+      --green-bd: rgba(61,220,132,0.18);
+      --red:      #ff6b6b;
+      --red-bg:   rgba(255,107,107,0.07);
+      --red-bd:   rgba(255,107,107,0.18);
+      --blue:     #60a5fa;
+      --gold:     #f0b429;
+      --t1:       #f0f2f5;
+      --t2:       #a0a8b4;
+      --t3:       #5a6272;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--t1);
+      font-family: 'Roboto', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ════ TOOLBAR ════ */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--line2);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .house-seg { display: flex; gap: 2px; }
+
+    .ht {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--t2); background: transparent;
+      border: 1px solid transparent; border-radius: 5px;
+      padding: 5px 13px; cursor: pointer; transition: all 0.13s;
+    }
+    .ht:hover { color: var(--t1); background: rgba(255,255,255,0.04); }
+    .ht.on { color: #181b21; background: #767e95; }
+
+    .toolbar-sep { width: 1px; height: 22px; background: var(--line2); margin: 0 4px; }
+
+    .t-label { font-size: 11px; font-weight: 500; color: var(--t2); white-space: nowrap; }
+
+    .t-select {
+      font-family: 'Roboto', sans-serif; font-size: 12px;
+      background: var(--panel); border: 1px solid var(--line2);
+      border-radius: 5px; color: var(--t1); padding: 5px 8px;
+      cursor: pointer; outline: none;
+    }
+    .t-select:focus { border-color: var(--green-bd); }
+
+    .t-btn {
+      font-family: 'Roboto', sans-serif; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      background: var(--panel); border: 1px solid var(--line2);
+      border-radius: 5px; color: var(--t1); padding: 5px 14px;
+      cursor: pointer; transition: all 0.13s;
+    }
+    .t-btn:hover { border-color: var(--green-bd); color: var(--green); }
+
+    /* ════ LEAGUE BAR ════ */
+    #leagueBar {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      padding: 8px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel2);
+    }
+
+    .lt {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--t3); background: transparent;
+      border: 1px solid transparent; border-radius: 4px;
+      padding: 4px 11px; cursor: pointer; transition: all 0.12s;
+    }
+    .lt:hover { color: var(--t2); border-color: var(--line2); }
+    .lt.on { color: #767e95; background: rgba(61,220,132,0.06); }
+
+    /* ════ STATUS ════ */
+    #statusBar {
+      margin: 12px 20px 0;
+      padding: 8px 14px; border-radius: 5px;
+      font-size: 11px; font-weight: 500;
+      background: rgba(240,180,41,0.08);
+      border: 1px solid rgba(240,180,41,0.22);
+      color: var(--gold);
+    }
+    #statusBar.hidden { display: none; }
+
+    /* ════ MAIN LIST ════ */
+    .league-list {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* ════ LEAGUE CARD ════ */
+    .lcard {
+      background: var(--panel);
+      border: 1px solid var(--line2);
+      border-radius: 10px;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    .lcard-head {
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .lcard-head h2 { font-size: 15px; font-weight: 700; color: var(--t1); }
+    .lcard-head .meta {
+      font-size: 10px; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.06em; color: var(--t3);
+    }
+
+    /* Under + Over side by side */
+    .lcard-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .mode-col { padding: 16px 18px; }
+    .mode-col:first-child { border-right: 1px solid var(--line); }
+
+    @media (max-width: 700px) {
+      .lcard-cols { grid-template-columns: 1fr; }
+      .mode-col:first-child { border-right: none; border-bottom: 1px solid var(--line); }
+    }
+
+    /* ════ MODE LABEL ════ */
+    .mode-label {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .mode-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .mode-under .mode-dot   { background: #5ee8a0; }
+    .mode-under .mode-label { color: #5ee8a0; }
+    .mode-over  .mode-dot   { background: #7db8fc; }
+    .mode-over  .mode-label { color: #7db8fc; }
+
+    /* ════ NUMS 2x2 ════ */
+    .nums {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .num-box {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 12px;
+    }
+    .nb-label {
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      color: var(--t3); margin-bottom: 5px;
+    }
+    .nb-val { font-size: 22px; font-weight: 900; line-height: 1; }
+    .nv-w { color: #d8dde6; }
+    .nv-g { color: #5ee8a0; }
+    .nv-r { color: #ff8585; }
+    .nv-p { color: #5ee8a0; }
+    .nv-n { color: #ff8585; }
+
+    /* ════ SEQ STRIP ════ */
+    .seq-strip {
+      border-radius: 5px; padding: 8px 12px;
+      margin-bottom: 10px;
+      font-size: 12px; font-weight: 700;
+    }
+    .ss-label {
+      font-size: 9px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      opacity: 0.5; margin-bottom: 3px;
+    }
+    .seq-strip.pos { background: rgba(61,220,132,0.06); border: 1px solid rgba(61,220,132,0.15); color: #5ee8a0; }
+    .seq-strip.neg { background: rgba(255,107,107,0.06); border: 1px solid rgba(255,107,107,0.15); color: #ff8585; }
+    .seq-strip.neu { background: rgba(255,255,255,0.02); border: 1px solid var(--line); color: var(--t2); }
+
+    /* ════ RUNS ════ */
+    .runs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .run-group { flex: 1; }
+    .rg-label {
+      font-size: 9px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;
+    }
+    .rg-plus  .rg-label { color: #5ee8a0; }
+    .rg-minus .rg-label { color: #ff8585; }
+
+    .pills { display: flex; flex-wrap: wrap; gap: 4px; }
+    .pill { font-size: 11px; font-weight: 700; border-radius: 3px; padding: 3px 8px; }
+    .pill-g { background: rgba(61,220,132,0.06); border: 1px solid rgba(61,220,132,0.15); color: #5ee8a0; }
+    .pill-r { background: rgba(255,107,107,0.06); border: 1px solid rgba(255,107,107,0.15); color: #ff8585; }
+    .pill-m { background: rgba(255,255,255,0.03); border: 1px solid var(--line); color: var(--t2); }
+
+    /* ════ CHART ════ */
+    .chart-label {
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--t3); margin-bottom: 6px;
+    }
+    .chart-wrap {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      height: 260px;
+      position: relative;
+    }
+    .chart-wrap canvas {
+      position: absolute; inset: 10px;
+      width: calc(100% - 20px) !important;
+      height: calc(100% - 20px) !important;
+    }
+
+    /* ════ PLACEHOLDER ════ */
+    .placeholder {
+      background: var(--panel); border: 1px solid var(--line2);
+      border-radius: 10px; padding: 48px;
+      text-align: center; font-size: 12px; font-weight: 500;
+      color: var(--t3); letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .placeholder.err { border-color: var(--red-bd); background: var(--red-bg); color: var(--red); }
+  </style>
+
+  <body>
+    <div id="header"></div>
+    <br>
+    <br>
+    <br>
+  <div class="toolbar">
+    <div class="house-seg" id="houseTabs">
+      <button class="ht" data-house="bet365">Bet365</button>
+      <button class="ht" data-house="betano">Betano</button>
+      <button class="ht" data-house="betsson">Betsson</button>
+      <button class="ht" data-house="kiron">Kiron</button>
+      <button class="ht" data-house="estrelabet">Estrelabet</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <span class="t-label">Jogos:</span>
+    <select id="limitSelect" class="t-select">
+      <option value="40">20</option>
+      <option value="60">40</option>
+      <option value="80">60</option>
+      <option value="100">80</option>
+      <option value="120">100</option>
+      <option value="160">140</option>
+      <option value="200">180</option>
+      <option value="320">300</option>
+    </select>
+    <button id="reloadBtn" class="t-btn">Recarregar</button>
+  </div>
+
+  <div id="leagueBar"></div>
+  <div id="statusBar" class="hidden"></div>
+  <div class="league-list" id="leaguesGrid">
+    <div class="placeholder">Carregando...</div>
+  </div>
+
+<script>
+    // ═══════════════════════════════════════════════════════════════════
+//  SCRIPT SIMPLIFICADO - UNDER/OVER COM LÓGICA SIMPLES
+// ═══════════════════════════════════════════════════════════════════
+
+// CONFIG
+const STORE_KEY = "flat_simple_prefs";
+const HOUSES = {
+  betano: {
+    label: "Betano",
+    leagues: [
+      { key: "copa-america",        title: "Copa America",         resultados: "https://betstat.site/resultados/Copa%20Am%C3%A9rica" },
+      { key: "classicos-america",   title: "Classicos da America", resultados: "https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna" },
+      { key: "euro",                title: "Euro",                 resultados: "https://betstat.site/resultados/Euro" },
+      { key: "campeonato-italiano", title: "Camp. Italiano",       resultados: "https://betstat.site/resultados/Campeonato%20Italiano" },
+      { key: "copa-estrelas",       title: "Copa das Estrelas",    resultados: "https://betstat.site/resultados/Copa%20das%20estrelas" },
+      { key: "brasileirao",         title: "Brasileirao Betano",   resultados: "https://betstat.site/resultados/Brasileir%C3%A3o%20Betano" },
+    ]
+  },
+  betsson: {
+    label: "Betsson",
+    leagues: [
+      { key: "espanha",    title: "Espanha",    resultados: "https://betstat.site/resultados/betsson/Espanha" },
+      { key: "inglaterra", title: "Inglaterra", resultados: "https://betstat.site/resultados/betsson/Inglaterra" },
+      { key: "brasil",     title: "Brasil",     resultados: "https://betstat.site/resultados/betsson/Brasil" },
+    ]
+  },
+  kiron: {
+    label: "Kiron",
+    leagues: [
+      { key: "england", title: "England League", resultados: "https://betstat.site/resultados/kiron/England" },
+      { key: "italy",   title: "Italy League",   resultados: "https://betstat.site/resultados/kiron/Italy" },
+      { key: "spain",   title: "Spain League",   resultados: "https://betstat.site/resultados/kiron/Spain" },
+    ]
+  },
+  estrelabet: {
+    label: "Estrelabet",
+    leagues: [
+      { key: "copa-mundo",     title: "Copa do Mundo",      resultados: "https://betstat.site/resultados/estrela/Copa%20do%20Mundo" },
+      { key: "ligas-campeoes", title: "Ligas dos Campeoes", resultados: "https://betstat.site/resultados/estrela/Ligas%20dos%20Campe%C3%B5es" },
+      { key: "america-latina", title: "America Latina",     resultados: "https://betstat.site/resultados/estrela/Am%C3%A9rica%20Latina" },
+    ]
+  },
+  bet365: {
+    label: "Bet365",
+    leagues: [
+      { key: "b365-copa",    title: "Copa",    resultados: "https://betstat.site/resultados/bet365/Copa" },
+      { key: "b365-euro",    title: "Euro",    resultados: "https://betstat.site/resultados/bet365/Euro" },
+      { key: "b365-super",   title: "Super",   resultados: "https://betstat.site/resultados/bet365/Super" },
+      { key: "b365-premier", title: "Premier", resultados: "https://betstat.site/resultados/bet365/Premier" },
+    ]
+  }
+};
+
+// STATE
+const prefs = (() => {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+})();
+
+let currentHouse = prefs.house || "betano";
+let activeLeagueKey = prefs.league || null;
+const charts = {};
+const lastData = {};
+
+// DOM
+const houseTabs = document.getElementById("houseTabs");
+const leagueBar = document.getElementById("leagueBar");
+const leaguesGrid = document.getElementById("leaguesGrid");
+const reloadBtn = document.getElementById("reloadBtn");
+const limitSelect = document.getElementById("limitSelect");
+const statusBar = document.getElementById("statusBar");
+
+// Apply saved preferences
+if (prefs.limit) {
+  const opt = [...limitSelect.options].find(o => o.value === String(prefs.limit));
+  if (opt) opt.selected = true;
+}
+
+houseTabs.querySelectorAll(".ht").forEach(b => {
+  b.classList.toggle("on", b.dataset.house === currentHouse);
+});
+
+function setStatus(msg, show) {
+  statusBar.textContent = msg || "";
+  statusBar.classList.toggle("hidden", !show);
+}
+
+function savePrefs(obj) {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(obj));
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PARSE RESULTADO
+// ═══════════════════════════════════════════════════════════════════
+
+function parseResult(gameData) {
+  if (!gameData) return null;
+
+  let ft = gameData.ft || gameData.score || gameData.resultado || gameData.result;
+  if (!ft) return null;
+
+  const clean = String(ft).replace(/\s/g, "").replace(/x/gi, "-");
+  const m = clean.match(/^(\d+)-(\d+)$/);
+  if (!m) return null;
+
+  const h = parseInt(m[1], 10), a = parseInt(m[2], 10);
+  if (!isFinite(h) || !isFinite(a)) return null;
+
+  let hora = gameData.hora ? String(gameData.hora).padStart(2, "0") : "—";
+  let minuto = gameData.minuto ? String(gameData.minuto).padStart(2, "0") : "—";
+
+  return {
+    total: h + a,
+    hora: hora,
+    minuto: minuto,
+    isUnder: h + a < 3,
+    isOver: h + a > 2
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CALCULAR GRÁFICO
+// ═══════════════════════════════════════════════════════════════════
+
+function calcGraphData(games) {
+  // Agrupa por minuto e pega apenas os 2 mais recentes
+  const gamesByMinuto = {};
+  for (const game of games) {
+    if (!gamesByMinuto[game.minuto]) {
+      gamesByMinuto[game.minuto] = [];
+    }
+    gamesByMinuto[game.minuto].push(game);
+  }
+
+  // Ordena e limita a 2 por minuto
+  for (const minuto in gamesByMinuto) {
+    gamesByMinuto[minuto].sort((a, b) => parseInt(b.hora, 10) - parseInt(a.hora, 10));
+    gamesByMinuto[minuto] = gamesByMinuto[minuto].slice(0, 2);
+  }
+
+  const underPoints = [50]; // Começa no meio
+  const overPoints = [50];
+  const underGamesMeta = [null];
+  const overGamesMeta = [null];
+
+  // Processa cada minuto com seus 2 jogos
+  for (const minuto in gamesByMinuto) {
+    const pair = gamesByMinuto[minuto];
+    if (pair.length !== 2) continue;
+
+    const prev = pair[1]; // Mais antigo
+    const curr = pair[0]; // Mais recente
+
+    // UNDER 2.5
+    if (prev.isUnder && curr.isUnder) {
+      underPoints.push(underPoints[underPoints.length - 1] + 1); // Sobe
+    } else if (prev.isUnder && curr.isOver) {
+      underPoints.push(underPoints[underPoints.length - 1] - 1); // Desce
+    } else {
+      underPoints.push(underPoints[underPoints.length - 1]); // Não mexe
+    }
+
+    // OVER 2.5
+    if (prev.isOver && curr.isOver) {
+      overPoints.push(overPoints[overPoints.length - 1] + 1); // Sobe
+    } else if (prev.isOver && curr.isUnder) {
+      overPoints.push(overPoints[overPoints.length - 1] - 1); // Desce
+    } else {
+      overPoints.push(overPoints[overPoints.length - 1]); // Não mexe
+    }
+
+    // Armazena metadata
+    underGamesMeta.push({
+      hora: curr.hora,
+      minuto: curr.minuto,
+      total: curr.total,
+      prev_total: prev.total,
+      prev_hora: prev.hora
+    });
+
+    overGamesMeta.push({
+      hora: curr.hora,
+      minuto: curr.minuto,
+      total: curr.total,
+      prev_total: prev.total,
+      prev_hora: prev.hora
+    });
+  }
+
+  return {
+    underPoints,
+    overPoints,
+    underGamesMeta,
+    overGamesMeta
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDERIZAR CHART
+// ═══════════════════════════════════════════════════════════════════
+
+function renderChart(id, points, gamesMeta, mode) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+
+  if (charts[id]) charts[id].destroy();
+
+  const color = mode === "under" ? "#3ddc84" : "#60a5fa";
+  const ptSize = points.length > 60 ? 2 : 3;
+
+  charts[id] = new Chart(canvas.getContext("2d"), {
+    type: "line",
+    data: {
+      labels: points.map((_, i) => i),
+      datasets: [
+        {
+          data: points,
+          borderColor: color,
+          borderWidth: 2,
+          pointRadius: ptSize,
+          pointHoverRadius: ptSize + 2,
+          pointBackgroundColor: points.map((v, i) =>
+            i === 0 ? "#5a6272" : v > points[i - 1] ? "#3ddc84" : v < points[i - 1] ? "#ff6b6b" : "#5a6272"
+          ),
+          pointBorderColor: points.map((v, i) =>
+            i === 0 ? "#5a6272" : v > points[i - 1] ? "#3ddc84" : v < points[i - 1] ? "#ff6b6b" : "#5a6272"
+          ),
+          pointBorderWidth: 0,
+          fill: false,
+          tension: 0.2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "rgba(0, 0, 0, 0.9)",
+          padding: 12,
+          cornerRadius: 8,
+          titleFont: { size: 13, weight: "700" },
+          bodyFont: { size: 12 },
+          displayColors: false,
+          callbacks: {
+            title: (context) => {
+              if (!context || !context.length) return "";
+              const idx = context[0].dataIndex;
+              const game = gamesMeta && gamesMeta[idx];
+              if (game && game.hora && game.minuto && game.hora !== "—") {
+                return `⏱️ ${game.hora}:${game.minuto}`;
+              }
+              return "";
+            },
+            label: (c) => {
+              const idx = c.dataIndex;
+              const game = gamesMeta && gamesMeta[idx];
+              if (game) {
+                return `${game.hora}:${game.minuto} → ${game.total} gols (era ${game.prev_hora}:${game.minuto} → ${game.prev_total} gols)`;
+              }
+              return `Valor: ${c.raw}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#3d4352", maxTicksLimit: 10, font: { family: "Roboto", size: 10 } },
+          grid: { color: "rgba(255,255,255,0.03)" }
+        },
+        y: {
+          ticks: { color: "#3d4352", font: { family: "Roboto", size: 10 } },
+          grid: { color: "rgba(255,255,255,0.04)" }
+        }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HTML BUILDERS
+// ═══════════════════════════════════════════════════════════════════
+
+function modeHTML(key, mode, currentValue) {
+  const id = `ch-${key}-${mode}`;
+  const modeCls = mode === "under" ? "mode-under" : "mode-over";
+  const modeText = mode === "under" ? "Under 2.5" : "Over 2.5";
+
+  return `
+    <div class="mode-col ${modeCls}">
+      <div class="mode-label"><span class="mode-dot"></span>${modeText}</div>
+      <div class="current-value">${currentValue}</div>
+      <div class="chart-wrap"><canvas id="${id}"></canvas></div>
+    </div>
+  `;
+}
+
+function cardHTML(d, graphData) {
+  const underValue = graphData.underPoints[graphData.underPoints.length - 1] ?? 50;
+  const overValue = graphData.overPoints[graphData.overPoints.length - 1] ?? 50;
+
+  return `
+    <div class="lcard" data-league-key="${d.league.key}">
+      <div class="lcard-head">
+        <h2>${d.league.title}</h2>
+        <span class="meta">${HOUSES[currentHouse].label} &mdash; ${d.totalGames} jogos</span>
+      </div>
+      <div class="lcard-cols">
+        ${modeHTML(d.league.key, "under", underValue)}
+        ${modeHTML(d.league.key, "over", overValue)}
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FETCH
+// ═══════════════════════════════════════════════════════════════════
+
+async function fetchLeague(league, limit) {
+  const res = await fetch(league.resultados, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
+
+  const json = await res.json();
+  const raw = Array.isArray(json) ? json : json.data || json.resultados || [];
+  const games = raw.map(i => parseResult(i)).filter(Boolean).slice(0, limit);
+  const graphData = calcGraphData(games);
+
+  return {
+    league,
+    totalGames: games.length,
+    graphData
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FINGERPRINT
+// ═══════════════════════════════════════════════════════════════════
+
+function fingerprint(d) {
+  const under = d.graphData.underPoints;
+  const over = d.graphData.overPoints;
+  return [d.totalGames, under[under.length - 1], over[over.length - 1]].join("|");
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  LEAGUE BAR
+// ═══════════════════════════════════════════════════════════════════
+
+function buildLeagueBar() {
+  const leagues = HOUSES[currentHouse].leagues;
+  const allBtn = `<button class="lt ${activeLeagueKey === null ? "on" : ""}" data-key="__all__">Todas</button>`;
+  const tabs = leagues.map(l => `<button class="lt ${l.key === activeLeagueKey ? "on" : ""}" data-key="${l.key}">${l.title}</button>`).join("");
+  leagueBar.innerHTML = allBtn + tabs;
+
+  leagueBar.querySelectorAll(".lt").forEach(b => {
+    b.addEventListener("click", () => {
+      activeLeagueKey = b.dataset.key === "__all__" ? null : b.dataset.key;
+      savePrefs({ ...prefs, league: activeLeagueKey });
+      buildLeagueBar();
+      Object.keys(lastData).forEach(k => delete lastData[k]);
+      renderAll(true);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER ALL
+// ═══════════════════════════════════════════════════════════════════
+
+let renderToken = 0;
+let renderRunning = false;
+
+async function renderAll(fullReset) {
+  if (renderRunning) return;
+  renderRunning = true;
+
+  const token = ++renderToken;
+  const limit = parseInt(limitSelect.value, 10) || 100;
+  const leagues = HOUSES[currentHouse].leagues.filter(l => activeLeagueKey === null || l.key === activeLeagueKey);
+
+  if (fullReset) {
+    Object.keys(charts).forEach(k => {
+      try {
+        charts[k].destroy();
+      } catch {}
+      delete charts[k];
+    });
+    Object.keys(lastData).forEach(k => delete lastData[k]);
+    leaguesGrid.innerHTML = `<div class="placeholder">Carregando...</div>`;
+  }
+
+  setStatus("", false);
+
+  let results;
+  try {
+    results = await Promise.allSettled(leagues.map(l => fetchLeague(l, limit)));
+  } catch (e) {
+    renderRunning = false;
+    setStatus("Erro na conexão", true);
+    setTimeout(() => setStatus("", false), 3000);
+    return;
+  }
+
+  if (token !== renderToken) {
+    renderRunning = false;
+    return;
+  }
+
+  const errs = [];
+  const incoming = [];
+
+  for (const r of results) {
+    if (r.status === "fulfilled") {
+      incoming.push(r.value);
+    } else {
+      errs.push(r.reason?.message || "Erro");
+    }
+  }
+
+  if (fullReset || !leaguesGrid.querySelector(".lcard")) {
+    leaguesGrid.innerHTML = incoming.length ? incoming.map(d => cardHTML(d, d.graphData)).join("") : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
+
+    incoming.forEach(d => {
+      renderChart(`ch-${d.league.key}-under`, d.graphData.underPoints, d.graphData.underGamesMeta, "under");
+      renderChart(`ch-${d.league.key}-over`, d.graphData.overPoints, d.graphData.overGamesMeta, "over");
+      lastData[d.league.key] = fingerprint(d);
+    });
+  } else {
+    incoming.forEach(d => {
+      const fp = fingerprint(d);
+      if (lastData[d.league.key] === fp) return;
+      lastData[d.league.key] = fp;
+
+      const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
+      if (existing) {
+        [`ch-${d.league.key}-under`, `ch-${d.league.key}-over`].forEach(id => {
+          if (charts[id]) {
+            try {
+              charts[id].destroy();
+            } catch {}
+            delete charts[id];
+          }
+        });
+        existing.outerHTML = cardHTML(d, d.graphData);
+      } else {
+        leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d, d.graphData));
+      }
+
+      renderChart(`ch-${d.league.key}-under`, d.graphData.underPoints, d.graphData.underGamesMeta, "under");
+      renderChart(`ch-${d.league.key}-over`, d.graphData.overPoints, d.graphData.overGamesMeta, "over");
+    });
+
+    leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
+      const key = el.dataset.leagueKey;
+      if (!incoming.find(d => d.league.key === key)) {
+        [`ch-${key}-under`, `ch-${key}-over`].forEach(id => {
+          if (charts[id]) {
+            try {
+              charts[id].destroy();
+            } catch {}
+            delete charts[id];
+          }
+        });
+        el.remove();
+      }
+    });
+  }
+
+  if (errs.length) setStatus(errs.join(" · "), true);
+  renderRunning = false;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HOUSE TABS
+// ═══════════════════════════════════════════════════════════════════
+
+houseTabs.querySelectorAll(".ht").forEach(b => {
+  b.addEventListener("click", () => {
+    houseTabs.querySelectorAll(".ht").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    currentHouse = b.dataset.house;
+    activeLeagueKey = null;
+    savePrefs({ ...prefs, house: currentHouse, league: null });
+    buildLeagueBar();
+    renderAll(true);
+  });
+});
+
+limitSelect.addEventListener("change", () => {
+  savePrefs({ ...prefs, limit: limitSelect.value });
+  Object.keys(lastData).forEach(k => delete lastData[k]);
+  renderAll(true);
+});
+
+reloadBtn.addEventListener("click", () => renderAll(true));
+
+// ═══════════════════════════════════════════════════════════════════
+//  AUTO-REFRESH
+// ═══════════════════════════════════════════════════════════════════
+
+setInterval(() => renderAll(false), 3000);
+
+const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
+let ws, backoff = 1000, hbTimer = null, hbWait = null;
+
+function startHB() {
+  stopHB();
+  hbTimer = setInterval(() => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    try {
+      ws.send(JSON.stringify({ type: "ping", t0: Date.now() }));
+      hbWait = setTimeout(() => {
+        try {
+          ws.close();
+        } catch {}
+      }, 12000);
+    } catch {}
+  }, 25000);
+}
+
+function stopHB() {
+  if (hbTimer) clearInterval(hbTimer), (hbTimer = null);
+  if (hbWait) clearTimeout(hbWait), (hbWait = null);
+}
+
+function connectWS() {
+  try {
+    if (ws) ws.close();
+  } catch {}
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    backoff = 1000;
+    startHB();
+    setStatus("Conectado", true);
+    setTimeout(() => setStatus("", false), 1200);
+    try {
+      ws.send(JSON.stringify({ type: "versions:get" }));
+    } catch {}
+  };
+  ws.onmessage = ev => {
+    let m;
+    try {
+      m = JSON.parse(ev.data);
+    } catch {
+      return;
+    }
+    if (m.type === "ping") {
+      try {
+        ws.send(JSON.stringify({ type: "pong" }));
+      } catch {}
+      return;
+    }
+    if (m.type === "pong") {
+      if (hbWait) clearTimeout(hbWait);
+      return;
+    }
+    if (["dados:update", "push:versions", "vers", "hint", "update"].includes(m.type)) {
+      renderAll(false);
+      return;
+    }
+    if (m.type === "all:reload") location.reload();
+  };
+  ws.onclose = () => {
+    stopHB();
+    setTimeout(connectWS, backoff);
+    backoff = Math.min(backoff * 2, 10000);
+  };
+  ws.onerror = () => {
+    try {
+      ws.close();
+    } catch {}
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+
+buildLeagueBar();
+renderAll(true);
+connectWS();
+</script>
+
+<script>
+  fetch('header.html').then(r=>r.text()).then(d=>{document.getElementById('header').innerHTML=d;});
+</script>
+<script src="redirecionar.js"></script>
+<script src="app.utils.min.js"></script>
+  </body>
+</html>
