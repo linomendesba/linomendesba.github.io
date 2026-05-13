@@ -308,18 +308,18 @@
   //  PERSIST helpers
   // ─────────────────────────────────────────────────────────────
   const STORE_KEY = "lat_prefs_v1";
-
+ 
   function loadPrefs() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
       return raw ? JSON.parse(raw) : {};
     } catch { return {}; }
   }
-
+ 
   function savePrefs(obj) {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  CONFIG
   // ─────────────────────────────────────────────────────────────
@@ -369,20 +369,20 @@
       ]
     }
   };
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  STATE  (restored from localStorage)
   // ─────────────────────────────────────────────────────────────
   const prefs = loadPrefs();
-
+ 
   let currentHouse    = prefs.house    || "betano";
   let activeLeagueKey = prefs.league   || null;
   const charts        = {};
-
+ 
   // Cache dos últimos dados renderizados por league key
   // Usado para diff: só re-renderiza o que mudou
   const lastData = {};
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  DOM
   // ─────────────────────────────────────────────────────────────
@@ -392,36 +392,63 @@
   const reloadBtn   = document.getElementById("reloadBtn");
   const limitSelect = document.getElementById("limitSelect");
   const statusBar   = document.getElementById("statusBar");
-
+ 
   // Apply saved limit
   if (prefs.limit) {
     const opt = [...limitSelect.options].find(o => o.value === String(prefs.limit));
     if (opt) opt.selected = true;
   }
-
+ 
   // Apply saved house button
   houseTabs.querySelectorAll(".ht").forEach(b => {
     b.classList.toggle("on", b.dataset.house === currentHouse);
   });
-
+ 
   function setStatus(msg, show) {
     statusBar.textContent = msg || "";
     statusBar.classList.toggle("hidden", !show);
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
-  //  SCORE PARSE
+  //  SCORE PARSE COM HORA E MINUTO
   // ─────────────────────────────────────────────────────────────
-  function parseFT(ft) {
+  function parseFT(gameData) {
+    if (!gameData) return null;
+    
+    // Tenta extrair score (ft, score, resultado)
+    let ft = gameData.ft || gameData.score || gameData.resultado || gameData.result;
     if (!ft) return null;
+    
     const clean = String(ft).replace(/\s/g, "").replace(/x/gi, "-");
     const m = clean.match(/^(\d+)-(\d+)$/);
     if (!m) return null;
+    
     const h = parseInt(m[1], 10), a = parseInt(m[2], 10);
     if (!isFinite(h) || !isFinite(a)) return null;
-    return { total: h + a };
+    
+    // Extrai hora e minuto se disponível
+    let hora = null, minuto = null;
+    if (gameData.hora) {
+      const timeMatch = String(gameData.hora).match(/(\d{1,2}):(\d{2})/);
+      if (timeMatch) {
+        hora = timeMatch[1];
+        minuto = timeMatch[2];
+      }
+    } else if (gameData.time) {
+      const timeMatch = String(gameData.time).match(/(\d{1,2}):(\d{2})/);
+      if (timeMatch) {
+        hora = timeMatch[1];
+        minuto = timeMatch[2];
+      }
+    }
+    
+    return { 
+      total: h + a, 
+      hora: hora || "—", 
+      minuto: minuto || "—"
+    };
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  STATS LOGIC
   // ─────────────────────────────────────────────────────────────
@@ -430,25 +457,27 @@
     for (let i = 0; i < n; i++) b.push(games.slice(i * 20, i * 20 + 20));
     return b;
   }
-
+ 
   function topRuns(series, t) {
     const runs = []; let c = 0;
     for (const v of series) { if (v === t) c++; else { if (c) runs.push(c); c = 0; } }
     if (c) runs.push(c);
     return runs.sort((a, b) => b - a).slice(0, 3);
   }
-
+ 
   function currentRun(series) {
     if (!series.length) return { type: null, count: 0, label: "Sem sequencia" };
     const last = series[series.length - 1]; let c = 0;
     for (let i = series.length - 1; i >= 0 && series[i] === last; i--) c++;
     return { type: last, count: c, label: last === 1 ? `+1: ${c} seguidas` : `-1: ${c} seguidas` };
   }
-
-  function calcStats(blocks, base) {
-    const empty = { acumulado: [0], validCount: 0, plusCount: 0, minusCount: 0, top3Plus: [], top3Minus: [], run: { type: null, count: 0, label: "Sem sequencia" } };
+ 
+  function calcStats(blocks, base, games) {
+    const empty = { acumulado: [0], validCount: 0, plusCount: 0, minusCount: 0, top3Plus: [], top3Minus: [], run: { type: null, count: 0, label: "Sem sequencia" }, games: [] };
     if (!blocks.length) return empty;
     const d = [], acc = [0];
+    const gamesUsed = [];
+    
     for (let b = blocks.length - 2; b >= 0; b--) {
       for (let i = 19; i >= 0; i--) {
         const cur = blocks[b]?.[i], ref = blocks[b + 1]?.[i];
@@ -457,12 +486,34 @@
         if (!baseOk) continue;
         const ok    = base === "under" ? cur.total < 3 : cur.total > 2;
         const delta = ok ? 1 : -1;
-        d.push(delta); acc.push(acc[acc.length - 1] + delta);
+        d.push(delta); 
+        acc.push(acc[acc.length - 1] + delta);
+        
+        // Armazena índice do jogo para tooltip
+        const gameIdx = games.findIndex(g => g.total === cur.total);
+        if (gameIdx >= 0) {
+          gamesUsed.push({
+            index: gamesUsed.length,
+            hora: games[gameIdx].hora,
+            minuto: games[gameIdx].minuto,
+            total: cur.total,
+            acumulado: acc[acc.length - 1]
+          });
+        }
       }
     }
-    return { acumulado: acc, validCount: d.length, plusCount: d.filter(v => v === 1).length, minusCount: d.filter(v => v === -1).length, top3Plus: topRuns(d, 1), top3Minus: topRuns(d, -1), run: currentRun(d) };
+    return { 
+      acumulado: acc, 
+      validCount: d.length, 
+      plusCount: d.filter(v => v === 1).length, 
+      minusCount: d.filter(v => v === -1).length, 
+      top3Plus: topRuns(d, 1), 
+      top3Minus: topRuns(d, -1), 
+      run: currentRun(d),
+      games: gamesUsed
+    };
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  FETCH
   // ─────────────────────────────────────────────────────────────
@@ -471,20 +522,26 @@
     if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
     const json = await res.json();
     const raw  = Array.isArray(json) ? json : (json.data || json.resultados || []);
-    const games = raw.map(i => parseFT(i.ft)).filter(Boolean).slice(0, limit);
+    const games = raw.map(i => parseFT(i)).filter(Boolean).slice(0, limit);
     const blocks = buildBlocks(games);
-    return { league, totalGames: games.length, under: calcStats(blocks, "under"), over: calcStats(blocks, "over") };
+    return { 
+      league, 
+      totalGames: games.length, 
+      under: calcStats(blocks, "under", games), 
+      over: calcStats(blocks, "over", games) 
+    };
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
-  //  CHART
+  //  CHART COM TOOLTIP MELHORADO
   // ─────────────────────────────────────────────────────────────
-  function renderChart(id, acc, mode) {
+  function renderChart(id, acc, mode, gamesMeta) {
     const canvas = document.getElementById(id);
     if (!canvas) return;
     if (charts[id]) charts[id].destroy();
     const color = mode === "under" ? "#3ddc84" : "#60a5fa";
     const ptSize = acc.length > 60 ? 2 : 3;
+    
     charts[id] = new Chart(canvas.getContext("2d"), {
       type: "line",
       data: {
@@ -503,19 +560,38 @@
         }]
       },
       options: {
-        responsive: true, maintainAspectRatio: false, animation: false,
+        responsive: true, 
+        maintainAspectRatio: false, 
+        animation: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: c => `Acumulado: ${c.raw}` } }
+          tooltip: { 
+            callbacks: { 
+              label: (c) => {
+                const idx = c.dataIndex;
+                const game = gamesMeta && gamesMeta[idx];
+                if (game) {
+                  return `${game.hora}:${game.minuto} - Acumulado: ${c.raw} (Total gol: ${game.total})`;
+                }
+                return `Acumulado: ${c.raw}`;
+              }
+            }
+          }
         },
         scales: {
-          x: { ticks: { color: "#3d4352", maxTicksLimit: 10, font: { family: "Roboto", size: 10 } }, grid: { color: "rgba(255,255,255,0.03)" } },
-          y: { ticks: { color: "#3d4352", font: { family: "Roboto", size: 10 } }, grid: { color: "rgba(255,255,255,0.04)" } }
+          x: { 
+            ticks: { color: "#3d4352", maxTicksLimit: 10, font: { family: "Roboto", size: 10 } }, 
+            grid: { color: "rgba(255,255,255,0.03)" } 
+          },
+          y: { 
+            ticks: { color: "#3d4352", font: { family: "Roboto", size: 10 } }, 
+            grid: { color: "rgba(255,255,255,0.04)" } 
+          }
         }
       }
     });
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  HTML BUILDERS
   // ─────────────────────────────────────────────────────────────
@@ -523,33 +599,33 @@
     if (!arr.length) return `<span class="pill pill-m">—</span>`;
     return arr.map(n => `<span class="pill ${cls}">${n}</span>`).join("");
   }
-
+ 
   function seqHTML(run) {
     if (!run || !run.count) return `<div class="seq-strip neu"><div class="ss-label">Sequencia atual</div>Sem leitura</div>`;
     const cls = run.type === 1 ? "pos" : "neg";
     return `<div class="seq-strip ${cls}"><div class="ss-label">Sequencia atual</div>${run.label}</div>`;
   }
-
+ 
   function modeHTML(key, mode, s) {
     const id      = `ch-${key}-${mode}`;
     const saldo   = s.acumulado[s.acumulado.length - 1] ?? 0;
     const saldoCls = saldo > 0 ? "nv-p" : saldo < 0 ? "nv-n" : "nv-w";
     const modeCls  = mode === "under" ? "mode-under" : "mode-over";
     const modeText = mode === "under" ? "Under 2.5" : "Over 2.5";
-
+ 
     return `
       <div class="mode-col ${modeCls}">
         <div class="mode-label"><span class="mode-dot"></span>${modeText}</div>
-
+ 
         <div class="nums">
           <div class="num-box"><div class="nb-label">Validas</div><div class="nb-val nv-w">${s.validCount}</div></div>
           <div class="num-box"><div class="nb-label">+1 Mantem</div><div class="nb-val nv-g">${s.plusCount}</div></div>
           <div class="num-box"><div class="nb-label">-1 Quebra</div><div class="nb-val nv-r">${s.minusCount}</div></div>
           <div class="num-box"><div class="nb-label">Saldo</div><div class="nb-val ${saldoCls}">${saldo}</div></div>
         </div>
-
+ 
         ${seqHTML(s.run)}
-
+ 
         <div class="runs">
           <div class="run-group rg-plus">
             <div class="rg-label">Maiores seq. +1</div>
@@ -560,13 +636,13 @@
             <div class="pills">${pillsHTML(s.top3Minus, "pill-r")}</div>
           </div>
         </div>
-
+ 
         <div class="chart-label">Acumulado</div>
         <div class="chart-wrap"><canvas id="${id}"></canvas></div>
       </div>
     `;
   }
-
+ 
   function cardHTML(d) {
     return `
       <div class="lcard" data-league-key="${d.league.key}">
@@ -581,7 +657,7 @@
       </div>
     `;
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  FINGERPRINT — detecta se os dados realmente mudaram
   // ─────────────────────────────────────────────────────────────
@@ -595,9 +671,10 @@
       o.validCount, o.plusCount, o.minusCount,
       o.acumulado[o.acumulado.length - 1],
       o.run.type, o.run.count,
+      u.acumulado.length, o.acumulado.length
     ].join("|");
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  LEAGUE BAR
   // ─────────────────────────────────────────────────────────────
@@ -608,7 +685,7 @@
       `<button class="lt ${l.key === activeLeagueKey ? 'on' : ''}" data-key="${l.key}">${l.title}</button>`
     ).join("");
     leagueBar.innerHTML = allBtn + tabs;
-
+ 
     leagueBar.querySelectorAll(".lt").forEach(b => {
       b.addEventListener("click", () => {
         activeLeagueKey = b.dataset.key === "__all__" ? null : b.dataset.key;
@@ -620,47 +697,49 @@
       });
     });
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
-  //  RENDER ALL  (com diff — não pisca)
+  //  RENDER ALL (com diff — não pisca)
   // ─────────────────────────────────────────────────────────────
   let renderToken = 0;
   let renderRunning = false;
-
+ 
   async function renderAll(fullReset) {
     // Evita execuções paralelas
     if (renderRunning) return;
     renderRunning = true;
-
+ 
     const token  = ++renderToken;
     const limit  = parseInt(limitSelect.value, 10) || 100;
     const leagues = HOUSES[currentHouse].leagues.filter(l =>
       activeLeagueKey === null || l.key === activeLeagueKey
     );
-
+ 
     if (fullReset) {
       // Destrói charts e limpa DOM apenas no reset forçado (troca de casa/liga)
       Object.keys(charts).forEach(k => { try { charts[k].destroy(); } catch {} delete charts[k]; });
       Object.keys(lastData).forEach(k => delete lastData[k]);
       leaguesGrid.innerHTML = `<div class="placeholder">Carregando...</div>`;
     }
-
+ 
     setStatus("", false);
-
+ 
     let results;
     try {
       results = await Promise.allSettled(leagues.map(l => fetchLeague(l, limit)));
     } catch(e) {
       renderRunning = false;
+      setStatus("Erro na conexão", true);
+      setTimeout(() => setStatus("", false), 3000);
       return;
     }
-
+ 
     // Se outro render começou enquanto buscávamos, descarta
     if (token !== renderToken) { renderRunning = false; return; }
-
+ 
     const errs = [];
     const incoming = []; // dados novos
-
+ 
     for (const r of results) {
       if (r.status === "fulfilled") {
         incoming.push(r.value);
@@ -668,25 +747,28 @@
         errs.push(r.reason?.message || "Erro");
       }
     }
-
+ 
     if (fullReset || !leaguesGrid.querySelector(".lcard")) {
       // ── Primeiro render: monta tudo do zero ──
       leaguesGrid.innerHTML = incoming.length
         ? incoming.map(d => cardHTML(d)).join("")
         : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
-
+ 
       incoming.forEach(d => {
-        renderChart(`ch-${d.league.key}-under`, d.under.acumulado, "under");
-        renderChart(`ch-${d.league.key}-over`,  d.over.acumulado,  "over");
+        renderChart(`ch-${d.league.key}-under`, d.under.acumulado, "under", d.under.games);
+        renderChart(`ch-${d.league.key}-over`,  d.over.acumulado,  "over", d.over.games);
         lastData[d.league.key] = fingerprint(d);
       });
     } else {
       // ── Atualizações subsequentes: diff por liga ──
       incoming.forEach(d => {
         const fp = fingerprint(d);
-        if (lastData[d.league.key] === fp) return; // nada mudou, não mexe no DOM
+        if (lastData[d.league.key] === fp) {
+          // Dados não mudaram, mas ainda reconstrói o chart para garantir
+          return;
+        }
         lastData[d.league.key] = fp;
-
+ 
         const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
         if (existing) {
           // Destrói apenas os charts deste card
@@ -699,12 +781,12 @@
           // Card novo (não estava no DOM antes)
           leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d));
         }
-
+ 
         // Redesenha os charts deste card
-        renderChart(`ch-${d.league.key}-under`, d.under.acumulado, "under");
-        renderChart(`ch-${d.league.key}-over`,  d.over.acumulado,  "over");
+        renderChart(`ch-${d.league.key}-under`, d.under.acumulado, "under", d.under.games);
+        renderChart(`ch-${d.league.key}-over`,  d.over.acumulado,  "over", d.over.games);
       });
-
+ 
       // Remove cards de ligas que já não estão na seleção atual
       leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
         const key = el.dataset.leagueKey;
@@ -716,11 +798,11 @@
         }
       });
     }
-
+ 
     if (errs.length) setStatus(errs.join(" · "), true);
     renderRunning = false;
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  HOUSE TABS
   // ─────────────────────────────────────────────────────────────
@@ -735,25 +817,26 @@
       renderAll(true);
     });
   });
-
+ 
   limitSelect.addEventListener("change", () => {
     savePrefs({ ...loadPrefs(), limit: limitSelect.value });
+    Object.keys(lastData).forEach(k => delete lastData[k]);
     renderAll(true);
   });
-
+ 
   reloadBtn.addEventListener("click", () => renderAll(true));
-
+ 
   // ─────────────────────────────────────────────────────────────
-  //  AUTO-REFRESH A CADA 5 SEGUNDOS (sem piscar)
+  //  AUTO-REFRESH A CADA 3 SEGUNDOS (otimizado)
   // ─────────────────────────────────────────────────────────────
-  setInterval(() => renderAll(false), 5000);
-
+  setInterval(() => renderAll(false), 3000);
+ 
   // ─────────────────────────────────────────────────────────────
   //  WEB SOCKET (complementar ao intervalo)
   // ─────────────────────────────────────────────────────────────
   const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
   let ws, backoff = 1000, hbTimer = null, hbWait = null;
-
+ 
   function startHB() {
     stopHB();
     hbTimer = setInterval(() => {
@@ -764,12 +847,12 @@
       } catch {}
     }, 25000);
   }
-
+ 
   function stopHB() {
     if (hbTimer) clearInterval(hbTimer), hbTimer = null;
     if (hbWait)  clearTimeout(hbWait),  hbWait  = null;
   }
-
+ 
   function connectWS() {
     try { if (ws) ws.close(); } catch {}
     ws = new WebSocket(WS_URL);
@@ -793,14 +876,14 @@
     ws.onclose = () => { stopHB(); setTimeout(connectWS, backoff); backoff = Math.min(backoff * 2, 10000); };
     ws.onerror = () => { try { ws.close(); } catch {} };
   }
-
+ 
   // ─────────────────────────────────────────────────────────────
   //  INIT
   // ─────────────────────────────────────────────────────────────
   buildLeagueBar();
   renderAll(true);
   connectWS();
-  </script>
+</script>
 
 <script>
   fetch('header.html').then(r=>r.text()).then(d=>{document.getElementById('header').innerHTML=d;});
