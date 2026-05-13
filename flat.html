@@ -459,29 +459,51 @@ function currentRun(series) {
 
 function calcStats(blocks, base, games) {
   const empty = { acumulado: [0], validCount: 0, plusCount: 0, minusCount: 0, top3Plus: [], top3Minus: [], run: { type: null, count: 0, label: "Sem sequencia" }, games: [] };
-  if (!blocks.length) return empty;
+  if (!games.length) return empty;
   
   const d = [], acc = [0];
   const gamesUsed = [null]; // Null para o ponto inicial (0,0)
   
-  for (let b = blocks.length - 2; b >= 0; b--) {
-    for (let i = 19; i >= 0; i--) {
-      const cur = blocks[b]?.[i], ref = blocks[b + 1]?.[i];
-      if (!cur || !ref) continue;
+  // Mapeia jogos por minuto (para comparação com hora anterior)
+  const gamesByMinuto = {};
+  for (const game of games) {
+    if (!gamesByMinuto[game.minuto]) {
+      gamesByMinuto[game.minuto] = [];
+    }
+    gamesByMinuto[game.minuto].push(game);
+  }
+  
+  // Ordena cada minuto por hora em ordem decrescente (mais recentes primeiro)
+  for (const minuto in gamesByMinuto) {
+    gamesByMinuto[minuto].sort((a, b) => {
+      return parseInt(b.hora, 10) - parseInt(a.hora, 10);
+    });
+  }
+  
+  // Processa cada minuto
+  for (const minuto in gamesByMinuto) {
+    const horasDoMinuto = gamesByMinuto[minuto];
+    
+    // Compara cada hora com a hora anterior (mesmo minuto)
+    for (let i = 0; i < horasDoMinuto.length - 1; i++) {
+      const cur = horasDoMinuto[i];  // Hora atual (mais recente)
+      const ref = horasDoMinuto[i + 1]; // Hora anterior (mesma minuto)
       
       const baseOk = base === "under" ? ref.total < 3 : ref.total > 2;
       if (!baseOk) continue;
       
-      const ok    = base === "under" ? cur.total < 3 : cur.total > 2;
+      const ok = base === "under" ? cur.total < 3 : cur.total > 2;
       const delta = ok ? 1 : -1;
-      d.push(delta); 
+      
+      d.push(delta);
       acc.push(acc[acc.length - 1] + delta);
       
-      // Armazena dados do jogo para tooltip (aligned com acumulado)
       gamesUsed.push({
         hora: cur.hora,
         minuto: cur.minuto,
         total: cur.total,
+        horaAnterior: ref.hora,
+        totalAnterior: ref.total,
         acumulado: acc[acc.length - 1]
       });
     }
@@ -509,13 +531,12 @@ async function fetchLeague(league, limit) {
   const json = await res.json();
   const raw  = Array.isArray(json) ? json : (json.data || json.resultados || []);
   const games = raw.map(i => parseFT(i)).filter(Boolean).slice(0, limit);
-  const blocks = buildBlocks(games);
   
   return { 
     league, 
     totalGames: games.length, 
-    under: calcStats(blocks, "under", games), 
-    over: calcStats(blocks, "over", games) 
+    under: calcStats(null, "under", games), 
+    over: calcStats(null, "over", games) 
   };
 }
 
@@ -576,7 +597,11 @@ function renderChart(id, acc, mode, gamesMeta) {
               const game = gamesMeta && gamesMeta[idx];
               let result = `Acumulado: ${c.raw}`;
               if (game && game.total !== undefined) {
-                result += ` | Total de Gols: ${game.total}`;
+                result = `${game.hora}:${game.minuto} → ${game.total} gols`;
+                if (game.horaAnterior && game.totalAnterior !== undefined) {
+                  result += ` (era ${game.horaAnterior}:${game.minuto} → ${game.totalAnterior} gols)`;
+                }
+                result += ` | Acumulado: ${c.raw}`;
               }
               return result;
             },
