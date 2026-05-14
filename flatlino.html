@@ -305,11 +305,29 @@
 
 <script>
     // ═══════════════════════════════════════════════════════════════════
-//  SCRIPT SIMPLIFICADO - UNDER/OVER COM LÓGICA SIMPLES
+//  SCRIPT SIMPLIFICADO - MÚLTIPLOS MERCADOS COM SELETOR
 // ═══════════════════════════════════════════════════════════════════
 
 // CONFIG
 const STORE_KEY = "flat_simple_prefs";
+const MARKETS_KEY = "flat_markets_selection";
+
+// Mercados disponíveis com suas configurações
+const AVAILABLE_MARKETS = {
+  "under2.5": { label: "Under 2.5", color: "#ff9800", icon: "📉" },
+  "over2.5":  { label: "Over 2.5",  color: "#2196f3", icon: "📈" },
+  "under3.5": { label: "Under 3.5", color: "#ff6f00", icon: "📉" },
+  "over3.5":  { label: "Over 3.5",  color: "#1565c0", icon: "📈" },
+  "casa":     { label: "Casa Vence", color: "#4caf50", icon: "🏠" },
+  "fora":     { label: "Fora Vence", color: "#f44336", icon: "✈️" },
+  "ambas-sim": { label: "Ambas Marcam Sim", color: "#9c27b0", icon: "⚽⚽" },
+  "ambas-nao": { label: "Ambas Marcam Não", color: "#607d8b", icon: "🔒" }
+};
+
+// Mercados selecionados por padrão
+const DEFAULT_MARKETS = ["under2.5", "over2.5"];
+
+// CONFIG CASAS
 const HOUSES = {
   betano: {
     label: "Betano",
@@ -369,12 +387,22 @@ const prefs = (() => {
 
 let currentHouse    = prefs.house  || "betano";
 let activeLeagueKey = prefs.league || null;
+let activeMarkets   = (() => {
+  try {
+    const raw = localStorage.getItem(MARKETS_KEY);
+    return raw ? JSON.parse(raw) : DEFAULT_MARKETS;
+  } catch {
+    return DEFAULT_MARKETS;
+  }
+})();
+
 const charts   = {};
 const lastData = {};
 
 // DOM
 const houseTabs   = document.getElementById("houseTabs");
 const leagueBar   = document.getElementById("leagueBar");
+const marketsBar  = document.getElementById("marketsBar");
 const leaguesGrid = document.getElementById("leaguesGrid");
 const reloadBtn   = document.getElementById("reloadBtn");
 const limitSelect = document.getElementById("limitSelect");
@@ -396,6 +424,10 @@ function setStatus(msg, show) {
 
 function savePrefs(obj) {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
+}
+
+function saveMarkets(markets) {
+  try { localStorage.setItem(MARKETS_KEY, JSON.stringify(markets)); } catch {}
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -428,124 +460,110 @@ function parseResult(gameData) {
 
   const hora   = gameData.hora   != null ? parseInt(gameData.hora,   10) : null;
   const minuto = gameData.minuto != null ? parseInt(gameData.minuto, 10) : null;
+  const total = h + a;
 
   return {
-    total:   h + a,
+    total,
     hora,
     minuto,
-    isUnder: h + a < 3,
-    isOver:  h + a > 2
+    // Under/Over 2.5
+    isUnder2: total < 3,
+    isOver2:  total > 2,
+    // Under/Over 3.5
+    isUnder3: total < 4,
+    isOver3:  total > 3,
+    // Resultado
+    casa:     h > a ? 1 : 0,
+    fora:     h < a ? 1 : 0,
+    empate:   h === a ? 1 : 0,
+    // Ambas
+    ambasSim: (h > 0 && a > 0) ? 1 : 0,
+    ambasNao: (h === 0 || a === 0) ? 1 : 0
   };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  CALCULAR GRÁFICO
-//
-//  Compara jogo HH:MM com o jogo (HH-1):MM (mesmo minuto, 1h atrás).
-//
-//  UNDER 2.5 — só plota se prev=Under:
-//    prev=Under + curr=Under → sobe   ✅
-//    prev=Under + curr=Over  → desce  ❌
-//    prev=Over  → NÃO plota ponto
-//
-//  OVER 2.5 — só plota se prev=Over:
-//    prev=Over  + curr=Over  → sobe   ✅
-//    prev=Over  + curr=Under → desce  ❌
-//    prev=Under → NÃO plota ponto
+//  CALCULAR GRÁFICO PARA MERCADO
 // ═══════════════════════════════════════════════════════════════════
 
-function calcGraphData(games) {
+function calcGraphDataForMarket(games, marketKey) {
   if (!games.length) {
-    return { underPoints: [], overPoints: [], underGamesMeta: [], overGamesMeta: [] };
+    return { points: [], meta: [] };
   }
 
-  // Indexa slots por "HH:MM"
-  // Múltiplos jogos no mesmo slot → maioria define Under/Over
   const slotMap = new Map();
 
+  // Mapear qual campo verificar baseado no mercado
+  const fieldMap = {
+    "under2.5": { field: "isUnder2", opposite: "isOver2" },
+    "over2.5":  { field: "isOver2", opposite: "isUnder2" },
+    "under3.5": { field: "isUnder3", opposite: "isOver3" },
+    "over3.5":  { field: "isOver3", opposite: "isUnder3" },
+    "casa":     { field: "casa", opposite: "fora" },
+    "fora":     { field: "fora", opposite: "casa" },
+    "ambas-sim": { field: "ambasSim", opposite: "ambasNao" },
+    "ambas-nao": { field: "ambasNao", opposite: "ambasSim" }
+  };
+
+  const { field, opposite } = fieldMap[marketKey];
+
+  // Indexar por hora:minuto
   for (const g of games) {
     if (g.hora === null || g.minuto === null) continue;
     const key = `${String(g.hora).padStart(2, "0")}:${String(g.minuto).padStart(2, "0")}`;
     if (!slotMap.has(key)) {
-      slotMap.set(key, { hora: g.hora, minuto: g.minuto, unders: 0, overs: 0, count: 0, totals: [] });
+      slotMap.set(key, { hora: g.hora, minuto: g.minuto, hits: 0, misses: 0, count: 0 });
     }
     const s = slotMap.get(key);
     s.count++;
-    s.totals.push(g.total);
-    if (g.isUnder) s.unders++; else s.overs++;
+    if (g[field]) s.hits++; else s.misses++;
   }
 
-  // Under se maioria Under; empate → Over
-  function slotIsUnder(s) {
-    return s.unders > s.overs;
+  function slotMatches(s) {
+    return s.hits > s.misses;
   }
 
-  // Ordena slots cronologicamente
   const slots = [...slotMap.values()].sort((a, b) =>
     a.hora !== b.hora ? a.hora - b.hora : a.minuto - b.minuto
   );
 
-  // Arrays separados para Under e Over — tamanhos podem diferir
-  // pois cada um só plota quando seu prev é do tipo certo
-  const underPoints    = [];
-  const overPoints     = [];
-  const underGamesMeta = [];
-  const overGamesMeta  = [];
-
-  // Valor acumulado atual de cada linha (começa em 50)
-  let uVal = 50;
-  let oVal = 50;
+  const points = [];
+  const meta = [];
+  let val = 50;
 
   for (const curr of slots) {
     const prevKey = `${String(curr.hora - 1).padStart(2, "0")}:${String(curr.minuto).padStart(2, "0")}`;
     const prev = slotMap.get(prevKey);
-    if (!prev) continue; // sem par na hora anterior → ignora
+    if (!prev) continue;
 
-    const prevUnder = slotIsUnder(prev);
-    const currUnder = slotIsUnder(curr);
+    const prevMatches = slotMatches(prev);
+    const currMatches = slotMatches(curr);
 
-    const avgCurr = curr.totals.reduce((a, b) => a + b, 0) / curr.totals.length;
-    const avgPrev = prev.totals.reduce((a, b) => a + b, 0) / prev.totals.length;
-    const meta = {
-      hora:       String(curr.hora).padStart(2, "0"),
-      minuto:     String(curr.minuto).padStart(2, "0"),
-      total:      avgCurr.toFixed(1),
-      prev_hora:  String(prev.hora).padStart(2, "0"),
-      prev_total: avgPrev.toFixed(1),
-      jogos:      curr.count
-    };
-
-    // ── UNDER 2.5: só plota se prev era Under ──────────────────────
-    if (prevUnder) {
-      if (currUnder) uVal++; else uVal--;
-      underPoints.push(uVal);
-      underGamesMeta.push(meta);
+    if (prevMatches) {
+      if (currMatches) val++; else val--;
+      points.push(val);
+      meta.push({
+        hora: String(curr.hora).padStart(2, "0"),
+        minuto: String(curr.minuto).padStart(2, "0"),
+        jogos: curr.count
+      });
     }
-    // prev=Over → não plota ponto no gráfico Under
-
-    // ── OVER 2.5: só plota se prev era Over ────────────────────────
-    if (!prevUnder) {
-      if (!currUnder) oVal++; else oVal--;
-      overPoints.push(oVal);
-      overGamesMeta.push(meta);
-    }
-    // prev=Under → não plota ponto no gráfico Over
   }
 
-  return { underPoints, overPoints, underGamesMeta, overGamesMeta };
+  return { points, meta };
 }
 
 // ═══════════════════════════════════════════════════════════════════
 //  RENDERIZAR CHART
 // ═══════════════════════════════════════════════════════════════════
 
-function renderChart(id, points, gamesMeta, mode) {
+function renderChart(id, points, meta, marketKey) {
   const canvas = document.getElementById(id);
   if (!canvas) return;
 
   if (charts[id]) charts[id].destroy();
 
-  const color  = mode === "under" ? "#3ddc84" : "#60a5fa";
+  const color  = AVAILABLE_MARKETS[marketKey].color;
   const ptSize = points.length > 60 ? 2 : 3;
 
   charts[id] = new Chart(canvas.getContext("2d"), {
@@ -585,15 +603,13 @@ function renderChart(id, points, gamesMeta, mode) {
           callbacks: {
             title: (context) => {
               if (!context?.length) return "";
-              const game = gamesMeta?.[context[0].dataIndex];
-              if (game?.hora != null) {
-                return `⏱️ ${game.hora}:${game.minuto} vs ${game.prev_hora}:${game.minuto} (${game.jogos} jogo${game.jogos > 1 ? "s" : ""})`;
+              const gameInfo = meta?.[context[0].dataIndex];
+              if (gameInfo?.hora != null) {
+                return `⏱️ ${gameInfo.hora}:${gameInfo.minuto} (${gameInfo.jogos} jogo${gameInfo.jogos > 1 ? "s" : ""})`;
               }
               return "";
             },
             label: (c) => {
-              const game = gamesMeta?.[c.dataIndex];
-              if (game) return `Agora: ${game.total} gols  |  1h atrás: ${game.prev_total} gols`;
               return `Valor: ${c.raw}`;
             }
           }
@@ -617,69 +633,69 @@ function renderChart(id, points, gamesMeta, mode) {
 //  HTML BUILDERS
 // ═══════════════════════════════════════════════════════════════════
 
-function modeHTML(key, mode, currentValue) {
-  const id      = `ch-${key}-${mode}`;
-  const modeCls = mode === "under" ? "mode-under" : "mode-over";
-  const modeTxt = mode === "under" ? "Under 2.5"  : "Over 2.5";
+function marketChartHTML(key, leagueKey, points) {
+  const market = AVAILABLE_MARKETS[key];
+  const currentValue = points[points.length - 1] ?? 50;
+  const id = `ch-${leagueKey}-${key}`;
   return `
-    <div class="mode-col ${modeCls}">
-      <div class="mode-label"><span class="mode-dot"></span>${modeTxt}</div>
-      <div class="current-value">${currentValue}</div>
-      <div class="chart-wrap"><canvas id="${id}"></canvas></div>
+    <div class="market-col" style="border-left: 4px solid ${market.color}; padding-left: 12px;">
+      <div class="market-header">
+        <span class="market-label">${market.icon} ${market.label}</span>
+        <span class="current-value" style="color: ${market.color};">${currentValue}</span>
+      </div>
+      <div class="chart-wrap"><canvas id="${id}" height="80"></canvas></div>
     </div>
   `;
 }
 
 function cardHTML(d, graphData) {
-  const underValue = graphData.underPoints[graphData.underPoints.length - 1] ?? 50;
-  const overValue  = graphData.overPoints[graphData.overPoints.length  - 1] ?? 50;
+  const chartsHTML = activeMarkets
+    .map(market => marketChartHTML(market, d.league.key, graphData[market].points))
+    .join("");
+
   return `
     <div class="lcard" data-league-key="${d.league.key}">
       <div class="lcard-head">
         <h2>${d.league.title}</h2>
         <span class="meta">${HOUSES[currentHouse].label} &mdash; ${d.totalGames} jogos</span>
       </div>
-      <div class="lcard-cols">
-        ${modeHTML(d.league.key, "under", underValue)}
-        ${modeHTML(d.league.key, "over",  overValue)}
+      <div class="markets-grid">
+        ${chartsHTML}
       </div>
     </div>
   `;
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  FETCH
+//  MARKETS SELECTOR BAR
 // ═══════════════════════════════════════════════════════════════════
 
-async function fetchLeague(league, limit) {
-  const res = await fetch(league.resultados, { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
+function buildMarketsBar() {
+  const buttons = Object.entries(AVAILABLE_MARKETS)
+    .map(([key, market]) => `
+      <button class="market-btn ${activeMarkets.includes(key) ? "active" : ""}" data-market="${key}" title="${market.label}">
+        ${market.icon} ${market.label}
+      </button>
+    `)
+    .join("");
 
-  const json = await res.json();
-  const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
-  
-  // CORREÇÃO: Ordena por data + hora + minuto, depois pega os ÚLTIMOS (mais recentes)
-  const sortedData = [...raw].sort((a, b) => {
-    const dA = new Date(a.data || 0), dB = new Date(b.data || 0);
-    if (dA.getTime() !== dB.getTime()) return dA - dB;
-    if (a.hora !== b.hora) return a.hora - b.hora;
-    return a.minuto - b.minuto;
+  marketsBar.innerHTML = buttons;
+
+  marketsBar.querySelectorAll(".market-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const market = btn.dataset.market;
+      const idx = activeMarkets.indexOf(market);
+      if (idx > -1) {
+        activeMarkets.splice(idx, 1);
+      } else {
+        activeMarkets.push(market);
+      }
+      saveMarkets(activeMarkets);
+      Object.keys(lastData).forEach(k => delete lastData[k]);
+      buildMarketsBar();
+      renderAll(true);
+    });
   });
-  
-  const games = sortedData.slice(-limit).map(i => parseResult(i)).filter(Boolean);
-  const graphData = calcGraphData(games);
-
-  return { league, totalGames: games.length, graphData };
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  FINGERPRINT
-// ═══════════════════════════════════════════════════════════════════
-
-function fingerprint(d) {
-  const under = d.graphData.underPoints;
-  const over  = d.graphData.overPoints;
-  return [d.totalGames, under[under.length - 1], over[over.length - 1]].join("|");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -703,6 +719,48 @@ function buildLeagueBar() {
       renderAll(true);
     });
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FETCH
+// ═══════════════════════════════════════════════════════════════════
+
+async function fetchLeague(league, limit) {
+  const res = await fetch(league.resultados, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
+
+  const json = await res.json();
+  const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
+  
+  // Ordena por data + hora + minuto
+  const sortedData = [...raw].sort((a, b) => {
+    const dA = new Date(a.data || 0), dB = new Date(b.data || 0);
+    if (dA.getTime() !== dB.getTime()) return dA - dB;
+    if (a.hora !== b.hora) return a.hora - b.hora;
+    return a.minuto - b.minuto;
+  });
+  
+  const games = sortedData.slice(-limit).map(i => parseResult(i)).filter(Boolean);
+  
+  // Calcula dados para todos os mercados
+  const graphData = {};
+  activeMarkets.forEach(market => {
+    graphData[market] = calcGraphDataForMarket(games, market);
+  });
+
+  return { league, totalGames: games.length, graphData };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FINGERPRINT
+// ═══════════════════════════════════════════════════════════════════
+
+function fingerprint(d) {
+  const fps = activeMarkets.map(m => {
+    const points = d.graphData[m].points;
+    return points[points.length - 1] || 50;
+  }).join("|");
+  return [d.totalGames, fps].join(":");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -756,8 +814,9 @@ async function renderAll(fullReset) {
       : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
 
     incoming.forEach(d => {
-      renderChart(`ch-${d.league.key}-under`, d.graphData.underPoints, d.graphData.underGamesMeta, "under");
-      renderChart(`ch-${d.league.key}-over`,  d.graphData.overPoints,  d.graphData.overGamesMeta,  "over");
+      activeMarkets.forEach(market => {
+        renderChart(`ch-${d.league.key}-${market}`, d.graphData[market].points, d.graphData[market].meta, market);
+      });
       lastData[d.league.key] = fingerprint(d);
     });
   } else {
@@ -768,7 +827,8 @@ async function renderAll(fullReset) {
 
       const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
       if (existing) {
-        [`ch-${d.league.key}-under`, `ch-${d.league.key}-over`].forEach(id => {
+        activeMarkets.forEach(market => {
+          const id = `ch-${d.league.key}-${market}`;
           if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
         });
         existing.outerHTML = cardHTML(d, d.graphData);
@@ -776,14 +836,16 @@ async function renderAll(fullReset) {
         leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d, d.graphData));
       }
 
-      renderChart(`ch-${d.league.key}-under`, d.graphData.underPoints, d.graphData.underGamesMeta, "under");
-      renderChart(`ch-${d.league.key}-over`,  d.graphData.overPoints,  d.graphData.overGamesMeta,  "over");
+      activeMarkets.forEach(market => {
+        renderChart(`ch-${d.league.key}-${market}`, d.graphData[market].points, d.graphData[market].meta, market);
+      });
     });
 
     leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
       const key = el.dataset.leagueKey;
       if (!incoming.find(d => d.league.key === key)) {
-        [`ch-${key}-under`, `ch-${key}-over`].forEach(id => {
+        activeMarkets.forEach(market => {
+          const id = `ch-${key}-${market}`;
           if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
         });
         el.remove();
@@ -874,6 +936,7 @@ function connectWS() {
 //  INIT
 // ═══════════════════════════════════════════════════════════════════
 
+buildMarketsBar();
 buildLeagueBar();
 renderAll(true);
 connectWS();
