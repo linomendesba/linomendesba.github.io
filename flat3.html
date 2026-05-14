@@ -1,0 +1,973 @@
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+  <title>BetStat</title>
+  <meta name="description" content="BetStat Macro — análise de mercados por hora em futebol virtual." />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="BetStat" />
+  <script type="module" src="js/firebase-auth.js"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date()); gtag('config', 'G-4WT805FFHQ');
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:       #181b21;
+      --panel:    #1e2129;
+      --panel2:   #181b21;
+      --line:     rgba(255,255,255,0.06);
+      --line2:    rgba(255,255,255,0.10);
+      --green:    #3ddc84;
+      --green-bg: rgba(61,220,132,0.07);
+      --green-bd: rgba(61,220,132,0.18);
+      --red:      #ff6b6b;
+      --red-bg:   rgba(255,107,107,0.07);
+      --red-bd:   rgba(255,107,107,0.18);
+      --blue:     #60a5fa;
+      --gold:     #f0b429;
+      --t1:       #f0f2f5;
+      --t2:       #a0a8b4;
+      --t3:       #5a6272;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--t1);
+      font-family: 'Roboto', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ════ TOOLBAR ════ */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--line2);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .house-seg { display: flex; gap: 2px; }
+
+    .ht {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--t2); background: transparent;
+      border: 1px solid transparent; border-radius: 5px;
+      padding: 5px 13px; cursor: pointer; transition: all 0.13s;
+    }
+    .ht:hover { color: var(--t1); background: rgba(255,255,255,0.04); }
+    .ht.on { color: #181b21; background: #767e95; }
+
+    .toolbar-sep { width: 1px; height: 22px; background: var(--line2); margin: 0 4px; }
+
+    .t-label { font-size: 11px; font-weight: 500; color: var(--t2); white-space: nowrap; }
+
+    .t-select {
+      font-family: 'Roboto', sans-serif; font-size: 12px;
+      background: var(--panel); border: 1px solid var(--line2);
+      border-radius: 5px; color: var(--t1); padding: 5px 8px;
+      cursor: pointer; outline: none;
+    }
+    .t-select:focus { border-color: var(--green-bd); }
+
+    .t-btn {
+      font-family: 'Roboto', sans-serif; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      background: var(--panel); border: 1px solid var(--line2);
+      border-radius: 5px; color: var(--t1); padding: 5px 14px;
+      cursor: pointer; transition: all 0.13s;
+    }
+    .t-btn:hover { border-color: var(--green-bd); color: var(--green); }
+
+    /* ════ MARKETS BAR ════ */
+    #marketsBar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 20px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--line2);
+    }
+
+    .mbar-label {
+      font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--t3); margin-right: 4px;
+      white-space: nowrap;
+    }
+
+    .market-group-btn {
+      display: flex; align-items: center; gap: 6px;
+      font-family: 'Roboto', sans-serif; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      background: var(--panel); border: 1px solid var(--line2);
+      border-radius: 6px; color: var(--t2);
+      padding: 5px 14px; cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .market-group-btn:hover {
+      color: var(--t1);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .market-group-btn.active {
+      color: #181b21;
+      border-color: transparent;
+    }
+    /* Cores por grupo */
+    .market-group-btn[data-group="ou25"].active  { background: #2979ff; }
+    .market-group-btn[data-group="ou35"].active  { background: #ff6f00; }
+    .market-group-btn[data-group="casafora"].active { background: #2e7d32; }
+    .market-group-btn[data-group="ambas"].active { background: #6a1b9a; }
+
+    .mgb-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .market-group-btn[data-group="ou25"]     .mgb-dot { background: #2979ff; }
+    .market-group-btn[data-group="ou35"]     .mgb-dot { background: #ff6f00; }
+    .market-group-btn[data-group="casafora"] .mgb-dot { background: #2e7d32; }
+    .market-group-btn[data-group="ambas"]    .mgb-dot { background: #6a1b9a; }
+    .market-group-btn.active .mgb-dot { background: rgba(0,0,0,0.3); }
+
+    /* ════ LEAGUE BAR ════ */
+    #leagueBar {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      padding: 8px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel2);
+    }
+
+    .lt {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      color: var(--t3); background: transparent;
+      border: 1px solid transparent; border-radius: 4px;
+      padding: 4px 11px; cursor: pointer; transition: all 0.12s;
+    }
+    .lt:hover { color: var(--t2); border-color: var(--line2); }
+    .lt.on { color: #767e95; background: rgba(61,220,132,0.06); }
+
+    /* ════ STATUS ════ */
+    #statusBar {
+      margin: 12px 20px 0;
+      padding: 8px 14px; border-radius: 5px;
+      font-size: 11px; font-weight: 500;
+      background: rgba(240,180,41,0.08);
+      border: 1px solid rgba(240,180,41,0.22);
+      color: var(--gold);
+    }
+    #statusBar.hidden { display: none; }
+
+    /* ════ MAIN LIST ════ */
+    .league-list {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* ════ LEAGUE CARD ════ */
+    .lcard {
+      background: var(--panel);
+      border: 1px solid var(--line2);
+      border-radius: 10px;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    .lcard-head {
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .lcard-head h2 { font-size: 15px; font-weight: 700; color: var(--t1); }
+    .lcard-head .meta {
+      font-size: 10px; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.06em; color: var(--t3);
+    }
+
+    /* ════ MARKETS GRID ════ */
+    .markets-grid {
+      display: grid;
+      gap: 0;
+    }
+
+    /* 1 mercado: 1 coluna, 2 mercados: 2 colunas */
+    .markets-grid.cols-1 { grid-template-columns: 1fr; }
+    .markets-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+
+    .market-col {
+      padding: 16px 18px;
+      border-right: 1px solid var(--line);
+    }
+    .market-col:last-child { border-right: none; }
+
+    @media (max-width: 700px) {
+      .markets-grid.cols-2 { grid-template-columns: 1fr; }
+      .market-col { border-right: none; border-bottom: 1px solid var(--line); }
+      .market-col:last-child { border-bottom: none; }
+    }
+
+    /* ════ MARKET HEADER ════ */
+    .market-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .market-label {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      color: var(--t2);
+      display: flex; align-items: center; gap: 5px;
+    }
+    .market-label .mlabel-dot {
+      width: 7px; height: 7px; border-radius: 50; display: inline-block; flex-shrink: 0;
+    }
+    .current-value {
+      font-size: 18px; font-weight: 900; line-height: 1;
+    }
+
+    /* ════ CHART ════ */
+    .chart-wrap {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      height: 200px;
+      position: relative;
+    }
+    .chart-wrap canvas {
+      position: absolute; inset: 10px;
+      width: calc(100% - 20px) !important;
+      height: calc(100% - 20px) !important;
+    }
+
+    /* ════ PLACEHOLDER ════ */
+    .placeholder {
+      background: var(--panel); border: 1px solid var(--line2);
+      border-radius: 10px; padding: 48px;
+      text-align: center; font-size: 12px; font-weight: 500;
+      color: var(--t3); letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .placeholder.err { border-color: var(--red-bd); background: var(--red-bg); color: var(--red); }
+  </style>
+
+  <body>
+    <div id="header"></div>
+    <br>
+    <br>
+    <br>
+  <div class="toolbar">
+    <div class="house-seg" id="houseTabs">
+      <button class="ht" data-house="bet365">Bet365</button>
+      <button class="ht" data-house="betano">Betano</button>
+      <button class="ht" data-house="betsson">Betsson</button>
+      <button class="ht" data-house="kiron">Kiron</button>
+      <button class="ht" data-house="estrelabet">Estrelabet</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <span class="t-label">Jogos:</span>
+    <select id="limitSelect" class="t-select">
+      <option value="40">20</option>
+      <option value="60">40</option>
+      <option value="80">60</option>
+      <option value="100">80</option>
+      <option value="120">100</option>
+      <option value="160">140</option>
+      <option value="200">180</option>
+      <option value="320">300</option>
+    </select>
+    <button id="reloadBtn" class="t-btn">Recarregar</button>
+  </div>
+
+  <!-- ════ BARRA DE SELEÇÃO DE MERCADOS ════ -->
+  <div id="marketsBar">
+    <span class="mbar-label">Mercado:</span>
+    <button class="market-group-btn active" data-group="ou25">
+      <span class="mgb-dot"></span>Over / Under 2.5
+    </button>
+    <button class="market-group-btn" data-group="ou35">
+      <span class="mgb-dot"></span>Over / Under 3.5
+    </button>
+    <button class="market-group-btn" data-group="casafora">
+      <span class="mgb-dot"></span>Casa / Fora
+    </button>
+    <button class="market-group-btn" data-group="ambas">
+      <span class="mgb-dot"></span>Ambas Marcam
+    </button>
+  </div>
+
+  <div id="leagueBar"></div>
+  <div id="statusBar" class="hidden"></div>
+  <div class="league-list" id="leaguesGrid">
+    <div class="placeholder">Carregando...</div>
+  </div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════════════
+
+const STORE_KEY   = "flat_simple_prefs";
+const MARKETS_KEY = "flat_markets_group";
+
+// Grupos de mercados — cada grupo contém 2 mercados que aparecem juntos
+const MARKET_GROUPS = {
+  "ou25": {
+    label: "Over / Under 2.5",
+    markets: ["under2.5", "over2.5"]
+  },
+  "ou35": {
+    label: "Over / Under 3.5",
+    markets: ["under3.5", "over3.5"]
+  },
+  "casafora": {
+    label: "Casa / Fora",
+    markets: ["casa", "fora"]
+  },
+  "ambas": {
+    label: "Ambas Marcam",
+    markets: ["ambas-sim", "ambas-nao"]
+  }
+};
+
+// Configuração visual de cada mercado individual
+const AVAILABLE_MARKETS = {
+  "under2.5":  { label: "Under 2.5",       color: "#5ee8a0", dot: "#5ee8a0" },
+  "over2.5":   { label: "Over 2.5",         color: "#60a5fa", dot: "#60a5fa" },
+  "under3.5":  { label: "Under 3.5",        color: "#ffa040", dot: "#ffa040" },
+  "over3.5":   { label: "Over 3.5",         color: "#4da6ff", dot: "#4da6ff" },
+  "casa":      { label: "Casa Vence",       color: "#4caf50", dot: "#4caf50" },
+  "fora":      { label: "Fora Vence",       color: "#ef5350", dot: "#ef5350" },
+  "ambas-sim": { label: "Ambas Marcam Sim", color: "#ce93d8", dot: "#ce93d8" },
+  "ambas-nao": { label: "Ambas Marcam Não", color: "#90a4ae", dot: "#90a4ae" }
+};
+
+// CONFIG CASAS
+const HOUSES = {
+  betano: {
+    label: "Betano",
+    leagues: [
+      { key: "copa-america",        title: "Copa America",         resultados: "https://betstat.site/resultados/Copa%20Am%C3%A9rica" },
+      { key: "classicos-america",   title: "Classicos da America", resultados: "https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna" },
+      { key: "euro",                title: "Euro",                 resultados: "https://betstat.site/resultados/Euro" },
+      { key: "campeonato-italiano", title: "Camp. Italiano",       resultados: "https://betstat.site/resultados/Campeonato%20Italiano" },
+      { key: "copa-estrelas",       title: "Copa das Estrelas",    resultados: "https://betstat.site/resultados/Copa%20das%20estrelas" },
+      { key: "brasileirao",         title: "Brasileirao Betano",   resultados: "https://betstat.site/resultados/Brasileir%C3%A3o%20Betano" },
+    ]
+  },
+  betsson: {
+    label: "Betsson",
+    leagues: [
+      { key: "espanha",    title: "Espanha",    resultados: "https://betstat.site/resultados/betsson/Espanha" },
+      { key: "inglaterra", title: "Inglaterra", resultados: "https://betstat.site/resultados/betsson/Inglaterra" },
+      { key: "brasil",     title: "Brasil",     resultados: "https://betstat.site/resultados/betsson/Brasil" },
+    ]
+  },
+  kiron: {
+    label: "Kiron",
+    leagues: [
+      { key: "england", title: "England League", resultados: "https://betstat.site/resultados/kiron/England" },
+      { key: "italy",   title: "Italy League",   resultados: "https://betstat.site/resultados/kiron/Italy" },
+      { key: "spain",   title: "Spain League",   resultados: "https://betstat.site/resultados/kiron/Spain" },
+    ]
+  },
+  estrelabet: {
+    label: "Estrelabet",
+    leagues: [
+      { key: "copa-mundo",     title: "Copa do Mundo",      resultados: "https://betstat.site/resultados/estrela/Copa%20do%20Mundo" },
+      { key: "ligas-campeoes", title: "Ligas dos Campeoes", resultados: "https://betstat.site/resultados/estrela/Ligas%20dos%20Campe%C3%B5es" },
+      { key: "america-latina", title: "America Latina",     resultados: "https://betstat.site/resultados/estrela/Am%C3%A9rica%20Latina" },
+    ]
+  },
+  bet365: {
+    label: "Bet365",
+    leagues: [
+      { key: "b365-copa",    title: "Copa",    resultados: "https://betstat.site/resultados/bet365/Copa" },
+      { key: "b365-euro",    title: "Euro",    resultados: "https://betstat.site/resultados/bet365/Euro" },
+      { key: "b365-super",   title: "Super",   resultados: "https://betstat.site/resultados/bet365/Super" },
+      { key: "b365-premier", title: "Premier", resultados: "https://betstat.site/resultados/bet365/Premier" },
+    ]
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+
+const prefs = (() => {
+  try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : {}; } catch { return {}; }
+})();
+
+let currentHouse    = prefs.house  || "betano";
+let activeLeagueKey = prefs.league || null;
+
+// Grupo ativo — por padrão ou25
+let activeGroup = (() => {
+  try { return localStorage.getItem(MARKETS_KEY) || "ou25"; } catch { return "ou25"; }
+})();
+
+// Mercados ativos = os 2 mercados do grupo selecionado
+let activeMarkets = MARKET_GROUPS[activeGroup].markets;
+
+const charts   = {};
+const lastData = {};
+
+// ═══════════════════════════════════════════════════════════════════
+//  DOM
+// ═══════════════════════════════════════════════════════════════════
+
+const houseTabs   = document.getElementById("houseTabs");
+const leagueBar   = document.getElementById("leagueBar");
+const marketsBar  = document.getElementById("marketsBar");
+const leaguesGrid = document.getElementById("leaguesGrid");
+const reloadBtn   = document.getElementById("reloadBtn");
+const limitSelect = document.getElementById("limitSelect");
+const statusBar   = document.getElementById("statusBar");
+
+if (prefs.limit) {
+  const opt = [...limitSelect.options].find(o => o.value === String(prefs.limit));
+  if (opt) opt.selected = true;
+}
+
+houseTabs.querySelectorAll(".ht").forEach(b => {
+  b.classList.toggle("on", b.dataset.house === currentHouse);
+});
+
+function setStatus(msg, show) {
+  statusBar.textContent = msg || "";
+  statusBar.classList.toggle("hidden", !show);
+}
+
+function savePrefs(obj) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
+}
+
+function saveGroup(group) {
+  try { localStorage.setItem(MARKETS_KEY, group); } catch {}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PARSE RESULTADO
+// ═══════════════════════════════════════════════════════════════════
+
+function parseResult(gameData) {
+  if (!gameData) return null;
+
+  let ft = gameData.ft || gameData.score || gameData.resultado || gameData.result;
+  if (!ft) return null;
+
+  const raw = String(ft).trim();
+  let h, a;
+
+  if (raw.includes(" x ")) {
+    const parts = raw.split(" x ");
+    h = parseInt(parts[0], 10);
+    a = parseInt(parts[1], 10);
+  } else {
+    const normalized = raw.replace(/\s/g, "").replace(/x/gi, "-");
+    const m = normalized.match(/^(\d+)-(\d+)$/);
+    if (!m) return null;
+    h = parseInt(m[1], 10);
+    a = parseInt(m[2], 10);
+  }
+
+  if (!isFinite(h) || !isFinite(a)) return null;
+
+  const hora   = gameData.hora   != null ? parseInt(gameData.hora,   10) : null;
+  const minuto = gameData.minuto != null ? parseInt(gameData.minuto, 10) : null;
+  const total  = h + a;
+
+  return {
+    total, hora, minuto,
+    isUnder2:  total < 3,
+    isOver2:   total > 2,
+    isUnder3:  total < 4,
+    isOver3:   total > 3,
+    casa:      h > a ? 1 : 0,
+    fora:      h < a ? 1 : 0,
+    empate:    h === a ? 1 : 0,
+    ambasSim:  (h > 0 && a > 0) ? 1 : 0,
+    ambasNao:  (h === 0 || a === 0) ? 1 : 0
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CALCULAR GRÁFICO PARA MERCADO
+//  Lógica: só plota ponto se prev=campo. Sobe se curr=campo, desce se não.
+// ═══════════════════════════════════════════════════════════════════
+
+function calcGraphDataForMarket(games, marketKey) {
+  if (!games.length) return { points: [], meta: [] };
+
+  const slotMap = new Map();
+
+  const fieldMap = {
+    "under2.5":  { field: "isUnder2",  opposite: "isOver2"   },
+    "over2.5":   { field: "isOver2",   opposite: "isUnder2"  },
+    "under3.5":  { field: "isUnder3",  opposite: "isOver3"   },
+    "over3.5":   { field: "isOver3",   opposite: "isUnder3"  },
+    "casa":      { field: "casa",      opposite: "fora"      },
+    "fora":      { field: "fora",      opposite: "casa"      },
+    "ambas-sim": { field: "ambasSim",  opposite: "ambasNao"  },
+    "ambas-nao": { field: "ambasNao",  opposite: "ambasSim"  }
+  };
+
+  const { field } = fieldMap[marketKey];
+
+  for (const g of games) {
+    if (g.hora === null || g.minuto === null) continue;
+    const key = `${String(g.hora).padStart(2,"0")}:${String(g.minuto).padStart(2,"0")}`;
+    if (!slotMap.has(key)) {
+      slotMap.set(key, { hora: g.hora, minuto: g.minuto, hits: 0, misses: 0, count: 0 });
+    }
+    const s = slotMap.get(key);
+    s.count++;
+    if (g[field]) s.hits++; else s.misses++;
+  }
+
+  function slotMatches(s) { return s.hits > s.misses; }
+
+  const slots = [...slotMap.values()].sort((a,b) =>
+    a.hora !== b.hora ? a.hora - b.hora : a.minuto - b.minuto
+  );
+
+  const points = [];
+  const meta   = [];
+  let val = 50;
+
+  for (const curr of slots) {
+    const prevKey = `${String(curr.hora - 1).padStart(2,"0")}:${String(curr.minuto).padStart(2,"0")}`;
+    const prev = slotMap.get(prevKey);
+    if (!prev) continue;
+
+    const prevMatches = slotMatches(prev);
+    const currMatches = slotMatches(curr);
+
+    // Só plota se prev=campo (lógica solicitada)
+    if (prevMatches) {
+      if (currMatches) val++; else val--;
+      points.push(val);
+      meta.push({
+        hora:   String(curr.hora).padStart(2,"0"),
+        minuto: String(curr.minuto).padStart(2,"0"),
+        jogos:  curr.count
+      });
+    }
+  }
+
+  return { points, meta };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDERIZAR CHART
+// ═══════════════════════════════════════════════════════════════════
+
+function renderChart(id, points, meta, marketKey) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+
+  if (charts[id]) charts[id].destroy();
+
+  const color  = AVAILABLE_MARKETS[marketKey].color;
+  const ptSize = points.length > 60 ? 2 : 3;
+
+  charts[id] = new Chart(canvas.getContext("2d"), {
+    type: "line",
+    data: {
+      labels: points.map((_, i) => i),
+      datasets: [{
+        data: points,
+        borderColor: color,
+        borderWidth: 2,
+        pointRadius: ptSize,
+        pointHoverRadius: ptSize + 2,
+        pointBackgroundColor: points.map((v, i) =>
+          i === 0 ? "#5a6272" : v > points[i-1] ? "#3ddc84" : v < points[i-1] ? "#ff6b6b" : "#5a6272"
+        ),
+        pointBorderColor: points.map((v, i) =>
+          i === 0 ? "#5a6272" : v > points[i-1] ? "#3ddc84" : v < points[i-1] ? "#ff6b6b" : "#5a6272"
+        ),
+        pointBorderWidth: 0,
+        fill: false,
+        tension: 0.2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "rgba(0,0,0,0.9)",
+          padding: 12,
+          cornerRadius: 8,
+          titleFont: { size: 13, weight: "700" },
+          bodyFont: { size: 12 },
+          displayColors: false,
+          callbacks: {
+            title: (context) => {
+              if (!context?.length) return "";
+              const gi = meta?.[context[0].dataIndex];
+              if (gi?.hora != null) return `⏱️ ${gi.hora}:${gi.minuto} (${gi.jogos} jogo${gi.jogos > 1 ? "s" : ""})`;
+              return "";
+            },
+            label: (c) => `Valor: ${c.raw}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#3d4352", maxTicksLimit: 10, font: { family: "Roboto", size: 10 } },
+          grid:  { color: "rgba(255,255,255,0.03)" }
+        },
+        y: {
+          ticks: { color: "#3d4352", font: { family: "Roboto", size: 10 } },
+          grid:  { color: "rgba(255,255,255,0.04)" }
+        }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HTML BUILDERS
+// ═══════════════════════════════════════════════════════════════════
+
+function marketChartHTML(key, leagueKey, points) {
+  const market = AVAILABLE_MARKETS[key];
+  const currentValue = points[points.length - 1] ?? 50;
+  const id = `ch-${leagueKey}-${key}`;
+  return `
+    <div class="market-col">
+      <div class="market-header">
+        <span class="market-label">
+          <span class="mlabel-dot" style="background:${market.dot};border-radius:50%;width:7px;height:7px;display:inline-block;"></span>
+          ${market.label}
+        </span>
+        <span class="current-value" style="color:${market.color};">${currentValue}</span>
+      </div>
+      <div class="chart-wrap"><canvas id="${id}" height="80"></canvas></div>
+    </div>
+  `;
+}
+
+function cardHTML(d, graphData) {
+  const cols = activeMarkets.length === 1 ? "cols-1" : "cols-2";
+  const chartsHTML = activeMarkets
+    .map(market => marketChartHTML(market, d.league.key, graphData[market].points))
+    .join("");
+
+  return `
+    <div class="lcard" data-league-key="${d.league.key}">
+      <div class="lcard-head">
+        <h2>${d.league.title}</h2>
+        <span class="meta">${HOUSES[currentHouse].label} &mdash; ${d.totalGames} jogos &mdash; ${MARKET_GROUPS[activeGroup].label}</span>
+      </div>
+      <div class="markets-grid ${cols}">
+        ${chartsHTML}
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MARKETS GROUP BAR
+// ═══════════════════════════════════════════════════════════════════
+
+function initMarketsBar() {
+  marketsBar.querySelectorAll(".market-group-btn").forEach(btn => {
+    // Sincroniza estado inicial
+    btn.classList.toggle("active", btn.dataset.group === activeGroup);
+
+    btn.addEventListener("click", () => {
+      const group = btn.dataset.group;
+      if (group === activeGroup) return; // já ativo, não faz nada
+
+      activeGroup   = group;
+      activeMarkets = MARKET_GROUPS[activeGroup].markets;
+      saveGroup(activeGroup);
+
+      // Atualiza visual dos botões
+      marketsBar.querySelectorAll(".market-group-btn").forEach(b => {
+        b.classList.toggle("active", b.dataset.group === activeGroup);
+      });
+
+      // Reconstrói tudo
+      Object.keys(lastData).forEach(k => delete lastData[k]);
+      renderAll(true);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  LEAGUE BAR
+// ═══════════════════════════════════════════════════════════════════
+
+function buildLeagueBar() {
+  const leagues = HOUSES[currentHouse].leagues;
+  const allBtn  = `<button class="lt ${activeLeagueKey === null ? "on" : ""}" data-key="__all__">Todas</button>`;
+  const tabs    = leagues.map(l =>
+    `<button class="lt ${l.key === activeLeagueKey ? "on" : ""}" data-key="${l.key}">${l.title}</button>`
+  ).join("");
+  leagueBar.innerHTML = allBtn + tabs;
+
+  leagueBar.querySelectorAll(".lt").forEach(b => {
+    b.addEventListener("click", () => {
+      activeLeagueKey = b.dataset.key === "__all__" ? null : b.dataset.key;
+      savePrefs({ ...prefs, league: activeLeagueKey });
+      buildLeagueBar();
+      Object.keys(lastData).forEach(k => delete lastData[k]);
+      renderAll(true);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FETCH
+// ═══════════════════════════════════════════════════════════════════
+
+async function fetchLeague(league, limit) {
+  const res = await fetch(league.resultados, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
+
+  const json = await res.json();
+  const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
+
+  const sortedData = [...raw].sort((a, b) => {
+    const dA = new Date(a.data || 0), dB = new Date(b.data || 0);
+    if (dA.getTime() !== dB.getTime()) return dA - dB;
+    if (a.hora !== b.hora) return a.hora - b.hora;
+    return a.minuto - b.minuto;
+  });
+
+  const games = sortedData.slice(-limit).map(i => parseResult(i)).filter(Boolean);
+
+  const graphData = {};
+  activeMarkets.forEach(market => {
+    graphData[market] = calcGraphDataForMarket(games, market);
+  });
+
+  return { league, totalGames: games.length, graphData };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FINGERPRINT
+// ═══════════════════════════════════════════════════════════════════
+
+function fingerprint(d) {
+  const fps = activeMarkets.map(m => {
+    const points = d.graphData[m].points;
+    return points[points.length - 1] || 50;
+  }).join("|");
+  return [d.totalGames, activeGroup, fps].join(":");
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER ALL
+// ═══════════════════════════════════════════════════════════════════
+
+let renderToken   = 0;
+let renderRunning = false;
+
+async function renderAll(fullReset) {
+  if (renderRunning) return;
+  renderRunning = true;
+
+  const token   = ++renderToken;
+  const limit   = parseInt(limitSelect.value, 10) || 100;
+  const leagues = HOUSES[currentHouse].leagues.filter(l =>
+    activeLeagueKey === null || l.key === activeLeagueKey
+  );
+
+  if (fullReset) {
+    Object.keys(charts).forEach(k => { try { charts[k].destroy(); } catch {} delete charts[k]; });
+    Object.keys(lastData).forEach(k => delete lastData[k]);
+    leaguesGrid.innerHTML = `<div class="placeholder">Carregando...</div>`;
+  }
+
+  setStatus("", false);
+
+  let results;
+  try {
+    results = await Promise.allSettled(leagues.map(l => fetchLeague(l, limit)));
+  } catch (e) {
+    renderRunning = false;
+    setStatus("Erro na conexão", true);
+    setTimeout(() => setStatus("", false), 3000);
+    return;
+  }
+
+  if (token !== renderToken) { renderRunning = false; return; }
+
+  const errs     = [];
+  const incoming = [];
+
+  for (const r of results) {
+    if (r.status === "fulfilled") incoming.push(r.value);
+    else errs.push(r.reason?.message || "Erro");
+  }
+
+  if (fullReset || !leaguesGrid.querySelector(".lcard")) {
+    leaguesGrid.innerHTML = incoming.length
+      ? incoming.map(d => cardHTML(d, d.graphData)).join("")
+      : `<div class="placeholder err">Nenhuma liga carregada.</div>`;
+
+    incoming.forEach(d => {
+      activeMarkets.forEach(market => {
+        renderChart(`ch-${d.league.key}-${market}`, d.graphData[market].points, d.graphData[market].meta, market);
+      });
+      lastData[d.league.key] = fingerprint(d);
+    });
+  } else {
+    incoming.forEach(d => {
+      const fp = fingerprint(d);
+      if (lastData[d.league.key] === fp) return;
+      lastData[d.league.key] = fp;
+
+      const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
+      if (existing) {
+        activeMarkets.forEach(market => {
+          const id = `ch-${d.league.key}-${market}`;
+          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
+        });
+        existing.outerHTML = cardHTML(d, d.graphData);
+      } else {
+        leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d, d.graphData));
+      }
+
+      activeMarkets.forEach(market => {
+        renderChart(`ch-${d.league.key}-${market}`, d.graphData[market].points, d.graphData[market].meta, market);
+      });
+    });
+
+    leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
+      const key = el.dataset.leagueKey;
+      if (!incoming.find(d => d.league.key === key)) {
+        activeMarkets.forEach(market => {
+          const id = `ch-${key}-${market}`;
+          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
+        });
+        el.remove();
+      }
+    });
+  }
+
+  if (errs.length) setStatus(errs.join(" · "), true);
+  renderRunning = false;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HOUSE TABS
+// ═══════════════════════════════════════════════════════════════════
+
+houseTabs.querySelectorAll(".ht").forEach(b => {
+  b.addEventListener("click", () => {
+    houseTabs.querySelectorAll(".ht").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    currentHouse    = b.dataset.house;
+    activeLeagueKey = null;
+    savePrefs({ ...prefs, house: currentHouse, league: null });
+    buildLeagueBar();
+    renderAll(true);
+  });
+});
+
+limitSelect.addEventListener("change", () => {
+  savePrefs({ ...prefs, limit: limitSelect.value });
+  Object.keys(lastData).forEach(k => delete lastData[k]);
+  renderAll(true);
+});
+
+reloadBtn.addEventListener("click", () => renderAll(true));
+
+// ═══════════════════════════════════════════════════════════════════
+//  AUTO-REFRESH
+// ═══════════════════════════════════════════════════════════════════
+
+setInterval(() => renderAll(false), 3000);
+
+const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
+let ws, backoff = 1000, hbTimer = null, hbWait = null;
+
+function startHB() {
+  stopHB();
+  hbTimer = setInterval(() => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    try {
+      ws.send(JSON.stringify({ type: "ping", t0: Date.now() }));
+      hbWait = setTimeout(() => { try { ws.close(); } catch {} }, 12000);
+    } catch {}
+  }, 25000);
+}
+
+function stopHB() {
+  if (hbTimer) clearInterval(hbTimer), (hbTimer = null);
+  if (hbWait)  clearTimeout(hbWait),   (hbWait  = null);
+}
+
+function connectWS() {
+  try { if (ws) ws.close(); } catch {}
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    backoff = 1000;
+    startHB();
+    setStatus("Conectado", true);
+    setTimeout(() => setStatus("", false), 1200);
+    try { ws.send(JSON.stringify({ type: "versions:get" })); } catch {}
+  };
+  ws.onmessage = ev => {
+    let m;
+    try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.type === "ping")  { try { ws.send(JSON.stringify({ type: "pong" })); } catch {} return; }
+    if (m.type === "pong")  { if (hbWait) clearTimeout(hbWait); return; }
+    if (["dados:update", "push:versions", "vers", "hint", "update"].includes(m.type)) { renderAll(false); return; }
+    if (m.type === "all:reload") location.reload();
+  };
+  ws.onclose = () => {
+    stopHB();
+    setTimeout(connectWS, backoff);
+    backoff = Math.min(backoff * 2, 10000);
+  };
+  ws.onerror = () => { try { ws.close(); } catch {} };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+
+initMarketsBar();
+buildLeagueBar();
+renderAll(true);
+connectWS();
+</script>
+
+<script>
+  fetch('header.html').then(r=>r.text()).then(d=>{document.getElementById('header').innerHTML=d;});
+</script>
+<script src="redirecionar.js"></script>
+<script src="app.utils.min.js"></script>
+  </body>
+</html>
