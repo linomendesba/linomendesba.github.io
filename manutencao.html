@@ -424,7 +424,7 @@
                 <label>Período</label>
                 <select id="hmSelPeriodo">
                     <option value="20">1h</option>
-                    <option value="40" selected>2h</option>
+                    <option value="40">2h</option>
                     <option value="60">3h</option>
                     <option value="80">4h</option>
                     <option value="120">6h</option>
@@ -437,7 +437,8 @@
                 <label>Base</label>
                 <select id="hmSelBase">
                     <option value="10">10</option>
-                    <option value="20" selected>20</option>
+                    <option value="20">20</option>
+                    <option value="30">30</option>
                     <option value="40">40</option>
                     <option value="60">60</option>
                     <option value="80">80</option>
@@ -446,7 +447,7 @@
             <div class="hm-ctrl-group">
                 <label>Valores</label>
                 <select id="hmSelVals">
-                    <option value="0" selected>Ocultos</option>
+                    <option value="0">Ocultos</option>
                     <option value="1">Visíveis</option>
                 </select>
             </div>
@@ -471,9 +472,6 @@
 
     </div>
 </div>
-
-<!-- Tooltip global (coloque fora do accordion, direto no body) -->
-<div class="hm-tooltip" id="hmTooltip"></div>
 
 <!-- ═══════════════════════════════════════════════════════════════════
      GRÁFICO MERCADOS — HTML
@@ -7658,7 +7656,7 @@ window.addEventListener("load", async () => {
     /* ════════════════════════════════════════════════════════
    HEATMAP MERCADOS — heatmap.js
    Depende de: ROTAS_API, LIGA_ATUAL (globais do projeto)
-   CSS injetado automaticamente — não precisa de nada externo.
+   CSS injetado automaticamente. Seletores salvos via localStorage.
 ════════════════════════════════════════════════════════ */
 
 /* ════════════════════════════════════════════════════════
@@ -7695,7 +7693,7 @@ window.addEventListener("load", async () => {
         .hm-row-label {
             font-size: 10px; color: #6a7a8a; white-space: nowrap;
             padding-right: 8px; text-align: right; vertical-align: middle;
-            min-width: 76px; font-family: monospace;
+            min-width: 82px; font-family: monospace;
         }
         .hm-col-label {
             font-size: 9px; color: #3a4555; text-align: center;
@@ -7754,20 +7752,52 @@ window.addEventListener("load", async () => {
    MERCADOS
 ════════════════════════════════════════════════ */
 const HM_MARKETS = [
-    { key: 'over25',    label: 'Over 2.5',   color: '#FFEB3B' },
-    { key: 'over35',    label: 'Over 3.5',   color: '#00BCD4' },
-    { key: 'under25',   label: 'Under 2.5',  color: '#FF9800' },
-    { key: 'under35',   label: 'Under 3.5',  color: '#F06292' },
-    { key: 'ambasSim',  label: 'Ambas Sim',  color: '#B0BEC5' },
-    { key: 'ambasNao',  label: 'Ambas Não',  color: '#F44336' },
-    { key: 'casaVence', label: 'Casa Vence', color: '#AB47BC' },
-    { key: 'foraVence', label: 'Fora Vence', color: '#2196F3' },
+    { key: 'over15',    label: 'Over 1.5',    color: '#69F0AE' },
+    { key: 'over25',    label: 'Over 2.5',    color: '#FFEB3B' },
+    { key: 'over35',    label: 'Over 3.5',    color: '#00BCD4' },
+    { key: 'over5',     label: '5+ Gols',     color: '#FF6D00' },
+    { key: 'under15',   label: 'Under 1.5',   color: '#B9F6CA' },
+    { key: 'under25',   label: 'Under 2.5',   color: '#FF9800' },
+    { key: 'under35',   label: 'Under 3.5',   color: '#F06292' },
+    { key: 'ambasSim',  label: 'Ambas Sim',   color: '#B0BEC5' },
+    { key: 'ambasNao',  label: 'Ambas Não',   color: '#F44336' },
+    { key: 'casaVence', label: 'Casa Vence',  color: '#AB47BC' },
+    { key: 'empate',    label: 'Empate',      color: '#78909C' },
+    { key: 'foraVence', label: 'Fora Vence',  color: '#2196F3' },
 ];
 
-/* ── estado ── */
+/* ════════════════════════════════════════════════════════
+   PERSISTÊNCIA — localStorage
+════════════════════════════════════════════════ */
+const HM_LS_KEY = 'heatmap_prefs';
+
+function hmSavePrefs() {
+    try {
+        localStorage.setItem(HM_LS_KEY, JSON.stringify({
+            numPts:   hmNumPts,
+            basePts:  hmBasePts,
+            showVals: hmShowVals,
+        }));
+    } catch(e) {}
+}
+
+function hmLoadPrefs() {
+    try {
+        const raw = localStorage.getItem(HM_LS_KEY);
+        if (!raw) return;
+        const p = JSON.parse(raw);
+        if (p.numPts  !== undefined) hmNumPts   = p.numPts;
+        if (p.basePts !== undefined) hmBasePts  = p.basePts;
+        if (p.showVals !== undefined) hmShowVals = p.showVals;
+    } catch(e) {}
+}
+
+/* ── estado (defaults — sobrescritos por hmLoadPrefs) ── */
 let hmNumPts   = 40;
 let hmBasePts  = 20;
 let hmShowVals = false;
+
+hmLoadPrefs(); // aplica prefs salvas antes de qualquer coisa
 
 let hmData    = null;
 let _hmTabVis = !document.hidden;
@@ -7780,6 +7810,18 @@ function toggleHmAccordion(btn) {
     const content = btn.nextElementSibling;
     const isOpen  = content.style.display !== 'none';
     content.style.display = isOpen ? 'none' : 'block';
+}
+
+/* ════════════════════════════════════════════════════════
+   SINCRONIZA SELETORES com prefs carregadas
+════════════════════════════════════════════════ */
+function hmSyncSelectors() {
+    const selPer  = document.getElementById('hmSelPeriodo');
+    const selBase = document.getElementById('hmSelBase');
+    const selVals = document.getElementById('hmSelVals');
+    if (selPer)  selPer.value  = String(hmNumPts);
+    if (selBase) selBase.value = String(hmBasePts);
+    if (selVals) selVals.value = hmShowVals ? '1' : '0';
 }
 
 /* ════════════════════════════════════════════════════════
@@ -7808,21 +7850,30 @@ function hmProcessData(raw) {
 
     for (let i = 0; i < slice.length; i++) {
         const ts = toMin(slice[i]);
-        let s = { over25:0, over35:0, under25:0, under35:0,
-                  ambasSim:0, ambasNao:0, casaVence:0, foraVence:0, n:0 };
+        let s = {
+            over15:0, over25:0, over35:0, over5:0,
+            under15:0, under25:0, under35:0,
+            ambasSim:0, ambasNao:0,
+            casaVence:0, empate:0, foraVence:0,
+            n:0
+        };
 
         for (let j = i; j >= 0; j--) {
             if (ts - toMin(slice[j]) > janela) break;
             let ft = [0, 0];
             if (slice[j].ft?.includes(' x ')) ft = slice[j].ft.split(' x ').map(Number);
             const tg = ft[0] + ft[1];
+            s.over15    += tg > 1.5 ? 1 : 0;
             s.over25    += tg > 2.5 ? 1 : 0;
             s.over35    += tg > 3.5 ? 1 : 0;
+            s.over5     += tg >= 5  ? 1 : 0;
+            s.under15   += tg < 1.5 ? 1 : 0;
             s.under25   += tg < 2.5 ? 1 : 0;
             s.under35   += tg < 3.5 ? 1 : 0;
             s.ambasSim  += ft[0] > 0 && ft[1] > 0 ? 1 : 0;
             s.ambasNao  += ft[0] === 0 || ft[1] === 0 ? 1 : 0;
             s.casaVence += ft[0] > ft[1] ? 1 : 0;
+            s.empate    += ft[0] === ft[1] ? 1 : 0;
             s.foraVence += ft[0] < ft[1] ? 1 : 0;
             s.n++;
         }
@@ -8044,14 +8095,18 @@ async function hmFetch() {
 
 /* ── controles + init ── */
 document.addEventListener('DOMContentLoaded', () => {
+    // sincroniza os selects com o que foi carregado do localStorage
+    hmSyncSelectors();
+
     document.getElementById('hmSelPeriodo')?.addEventListener('change', e => {
-        hmNumPts = +e.target.value; hmFetch();
+        hmNumPts = +e.target.value; hmSavePrefs(); hmFetch();
     });
     document.getElementById('hmSelBase')?.addEventListener('change', e => {
-        hmBasePts = +e.target.value; hmFetch();
+        hmBasePts = +e.target.value; hmSavePrefs(); hmFetch();
     });
     document.getElementById('hmSelVals')?.addEventListener('change', e => {
         hmShowVals = e.target.value === '1';
+        hmSavePrefs();
         document.querySelectorAll('.hm-cell-val').forEach(el => {
             el.style.display = hmShowVals ? 'block' : 'none';
         });
