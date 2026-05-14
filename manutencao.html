@@ -409,19 +409,23 @@
     </div>
 </div>
 
-<!-- ════════════════════════════════════════════
-     KAGI MERCADOS — cole onde quiser no HTML
-════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════════════════
+     HEATMAP MERCADOS — cole onde quiser no HTML
+     Requer: heatmap.js carregado na página
+             ROTAS_API e LIGA_ATUAL definidos globalmente
+════════════════════════════════════════════════════════ -->
 <div class="accordion-item">
-    <button class="accordion-button" onclick="toggleKagiAccordion(this)">▼ Kagi Mercados ▲</button>
-    <div class="accordion-content" id="kagiAccordionContent">
+    <button class="accordion-button" onclick="toggleHmAccordion(this)">▼ Heatmap Mercados ▲</button>
+    <div class="accordion-content" id="hmAccordionContent">
 
-        <div class="kagi-controls">
-            <div class="kagi-ctrl-group">
+        <!-- Controles -->
+        <div class="hm-controls">
+            <div class="hm-ctrl-group">
                 <label>Período</label>
-                <select id="kagiSelPeriodo">
-                    <option value="40">2h</option>
-                    <option value="60" selected>3h</option>
+                <select id="hmSelPeriodo">
+                    <option value="20">1h</option>
+                    <option value="40" selected>2h</option>
+                    <option value="60">3h</option>
                     <option value="80">4h</option>
                     <option value="120">6h</option>
                     <option value="160">8h</option>
@@ -429,37 +433,47 @@
                     <option value="480">24h</option>
                 </select>
             </div>
-            <div class="kagi-ctrl-group">
+            <div class="hm-ctrl-group">
                 <label>Base</label>
-                <select id="kagiSelBase">
+                <select id="hmSelBase">
+                    <option value="10">10</option>
                     <option value="20" selected>20</option>
                     <option value="40">40</option>
                     <option value="60">60</option>
                     <option value="80">80</option>
                 </select>
             </div>
-            <div class="kagi-ctrl-group">
-                <label>Reversão</label>
-                <select id="kagiSelRev">
-                    <option value="1">1%</option>
-                    <option value="2" selected>2%</option>
-                    <option value="3">3%</option>
-                    <option value="5">5%</option>
-                    <option value="8">8%</option>
+            <div class="hm-ctrl-group">
+                <label>Valores</label>
+                <select id="hmSelVals">
+                    <option value="0" selected>Ocultos</option>
+                    <option value="1">Visíveis</option>
                 </select>
             </div>
         </div>
 
-        <div class="kagi-legend" id="kagiLegend"></div>
-
-        <div class="kagi-wrap">
-            <canvas id="kagiCanvas"></canvas>
-            <div id="kagiTooltip"></div>
+        <!-- Tabela heatmap -->
+        <div class="hm-wrap">
+            <table class="hm-table" id="hmTable">
+                <tr><td style="padding:20px;color:#3a4050;font-size:11px;font-family:monospace">Aguardando dados...</td></tr>
+            </table>
         </div>
+
+        <!-- Legenda gradiente -->
+        <div class="hm-legend">
+            <span>Baixo</span>
+            <div class="hm-leg-bar" id="hmLegBar"></div>
+            <span>Alto</span>
+        </div>
+
+        <!-- Pills de resumo (último ponto) -->
+        <div class="hm-summary" id="hmSummary"></div>
 
     </div>
 </div>
 
+<!-- Tooltip global (coloque fora do accordion, direto no body) -->
+<div class="hm-tooltip" id="hmTooltip"></div>
 
 <!-- ═══════════════════════════════════════════════════════════════════
      GRÁFICO MERCADOS — HTML
@@ -7642,59 +7656,104 @@ window.addEventListener("load", async () => {
 
 <script>
     /* ════════════════════════════════════════════════════════
-   KAGI MERCADOS — kagi.js
+   HEATMAP MERCADOS — heatmap.js
    Depende de: ROTAS_API, LIGA_ATUAL (globais do projeto)
-   Cole o CSS abaixo no seu arquivo de estilos existente.
+   CSS injetado automaticamente — não precisa de nada externo.
+════════════════════════════════════════════════════════ */
 
-   ── CSS necessário ──────────────────────────────────────
-   .kagi-controls {
-     display: flex; flex-wrap: wrap; gap: 10px;
-     padding: 8px 0 4px;
-   }
-   .kagi-ctrl-group {
-     display: flex; align-items: center; gap: 6px;
-   }
-   .kagi-ctrl-group label {
-     font-size: 10px; color: #556; text-transform: uppercase;
-     letter-spacing: 1px;
-   }
-   .kagi-ctrl-group select {
-     background: #171b24; border: 1px solid #2a2f3e;
-     color: #9aa; font-size: 11px; padding: 4px 8px;
-     border-radius: 3px; cursor: pointer; outline: none;
-   }
-   .kagi-legend {
-     display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0;
-   }
-   .kagi-leg-item {
-     display: flex; align-items: center; gap: 5px;
-     font-size: 10px; cursor: pointer; padding: 3px 8px;
-     border-radius: 3px; border: 1px solid #1e2230;
-     transition: border-color .15s, opacity .15s;
-     user-select: none; opacity: .45;
-   }
-   .kagi-leg-item.active { opacity: 1; }
-   .kagi-leg-item .kagi-dot {
-     width: 10px; height: 3px; border-radius: 2px;
-   }
-   .kagi-wrap {
-     position: relative; width: 100%; height: 400px;
-   }
-   #kagiCanvas { display: block; width: 100%; height: 100%; }
-   #kagiTooltip {
-     position: absolute; pointer-events: none; display: none;
-     background: rgba(8,10,18,.93); border: 1px solid #2a3550;
-     border-radius: 4px; padding: 6px 10px;
-     font-size: 10px; line-height: 1.75; z-index: 10;
-   }
-   #kagiTooltip .ktt-time { color: #4af; font-weight: 700; margin-bottom: 2px; }
-   #kagiTooltip .ktt-row  { display: flex; justify-content: space-between; gap: 14px; }
-   ── fim CSS ─────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════
+   INJEÇÃO DE CSS
+════════════════════════════════════════════════ */
+(function hmInjectCSS() {
+    if (document.getElementById('hm-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'hm-styles';
+    style.textContent = `
+        .hm-controls {
+            display: flex; flex-wrap: wrap; gap: 10px;
+            padding: 8px 0 6px;
+        }
+        .hm-ctrl-group {
+            display: flex; align-items: center; gap: 6px;
+        }
+        .hm-ctrl-group label {
+            font-size: 10px; color: #556; text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .hm-ctrl-group select {
+            background: #171b24; border: 1px solid #2a2f3e;
+            color: #9aa; font-size: 11px; padding: 4px 8px;
+            border-radius: 3px; cursor: pointer; outline: none;
+        }
+        .hm-wrap {
+            position: relative; width: 100%; overflow-x: auto;
+        }
+        .hm-table {
+            border-collapse: separate; border-spacing: 2px;
+            min-width: 100%;
+        }
+        .hm-row-label {
+            font-size: 10px; color: #6a7a8a; white-space: nowrap;
+            padding-right: 8px; text-align: right; vertical-align: middle;
+            min-width: 76px; font-family: monospace;
+        }
+        .hm-col-label {
+            font-size: 9px; color: #3a4555; text-align: center;
+            padding-bottom: 4px; white-space: nowrap;
+            min-width: 26px; vertical-align: bottom;
+            font-family: monospace;
+        }
+        .hm-cell {
+            width: 26px; height: 26px; border-radius: 3px;
+            cursor: pointer; position: relative;
+            transition: transform .1s, outline .1s;
+        }
+        .hm-cell:hover {
+            transform: scale(1.18);
+            outline: 2px solid rgba(255,255,255,0.4);
+            z-index: 2;
+        }
+        .hm-cell-val {
+            font-size: 7px; font-weight: 600; text-align: center;
+            line-height: 26px; pointer-events: none; color: rgba(0,0,0,0.55);
+        }
+        .hm-legend {
+            display: flex; align-items: center; gap: 7px;
+            margin-top: 10px; font-size: 10px; color: #4a5568;
+        }
+        .hm-leg-bar {
+            display: flex; height: 8px; width: 100px;
+            border-radius: 4px; overflow: hidden; flex-shrink: 0;
+        }
+        .hm-leg-seg { flex: 1; }
+        .hm-tooltip {
+            position: fixed; pointer-events: none; display: none;
+            background: rgba(8,10,18,.95); border: 1px solid #2a3550;
+            border-radius: 5px; padding: 7px 11px;
+            font-size: 10px; line-height: 1.8; z-index: 9999;
+            font-family: monospace; min-width: 140px;
+        }
+        .hm-tt-time  { color: #4af; font-weight: 700; margin-bottom: 2px; }
+        .hm-tt-mkt   { font-size: 9px; opacity: .7; }
+        .hm-tt-val   { font-weight: 700; font-size: 13px; }
+        .hm-tt-trend { font-size: 9px; opacity: .6; margin-top: 2px; }
+        .hm-summary {
+            display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px;
+        }
+        .hm-pill {
+            font-size: 10px; padding: 3px 9px; border-radius: 10px;
+            border: 1px solid; white-space: nowrap; font-family: monospace;
+            cursor: default; transition: opacity .15s;
+        }
+        .hm-pill:hover { opacity: .75; }
+    `;
+    document.head.appendChild(style);
+})();
 
 /* ════════════════════════════════════════════════════════
    MERCADOS
 ════════════════════════════════════════════════ */
-const KAGI_MARKETS = [
+const HM_MARKETS = [
     { key: 'over25',    label: 'Over 2.5',   color: '#FFEB3B' },
     { key: 'over35',    label: 'Over 3.5',   color: '#00BCD4' },
     { key: 'under25',   label: 'Under 2.5',  color: '#FF9800' },
@@ -7706,20 +7765,18 @@ const KAGI_MARKETS = [
 ];
 
 /* ── estado ── */
-let kagiNumPts   = 60;
-let kagiBasePts  = 20;
-let kagiRevPct   = 2;
-const kagiVisible = {};
-KAGI_MARKETS.forEach(m => kagiVisible[m.key] = true);
+let hmNumPts   = 40;
+let hmBasePts  = 20;
+let hmShowVals = false;
 
-let kagiData     = null;   // { labels, series }
-let _kagiTabVis  = !document.hidden;
-document.addEventListener('visibilitychange', () => { _kagiTabVis = !document.hidden; });
+let hmData    = null;
+let _hmTabVis = !document.hidden;
+document.addEventListener('visibilitychange', () => { _hmTabVis = !document.hidden; });
 
 /* ════════════════════════════════════════════════════════
    ACORDEÃO
 ════════════════════════════════════════════════ */
-function toggleKagiAccordion(btn) {
+function toggleHmAccordion(btn) {
     const content = btn.nextElementSibling;
     const isOpen  = content.style.display !== 'none';
     content.style.display = isOpen ? 'none' : 'block';
@@ -7728,7 +7785,7 @@ function toggleKagiAccordion(btn) {
 /* ════════════════════════════════════════════════════════
    PROCESSAMENTO
 ════════════════════════════════════════════════ */
-function kagiProcessData(raw) {
+function hmProcessData(raw) {
     const sorted = [...raw].sort((a, b) => {
         const da = new Date(a.data), db = new Date(b.data);
         if (da - db !== 0) return da - db;
@@ -7741,12 +7798,12 @@ function kagiProcessData(raw) {
              + m.hora * 60 + m.minuto;
     }
 
-    const janela = kagiBasePts * 3;
-    const slice  = sorted.slice(-(kagiNumPts + Math.ceil(kagiBasePts * 3.5)));
-    const exA    = Math.max(0, slice.length - kagiNumPts);
+    const janela = hmBasePts * 3;
+    const slice  = sorted.slice(-(hmNumPts + Math.ceil(hmBasePts * 3.5)));
+    const exA    = Math.max(0, slice.length - hmNumPts);
 
     const series = {};
-    KAGI_MARKETS.forEach(m => series[m.key] = []);
+    HM_MARKETS.forEach(m => series[m.key] = []);
     const labels = [];
 
     for (let i = 0; i < slice.length; i++) {
@@ -7774,7 +7831,7 @@ function kagiProcessData(raw) {
         const avg = s.n || 1;
         const m   = slice[i];
         labels.push(`${m.hora}:${String(m.minuto).padStart(2,'0')}`);
-        KAGI_MARKETS.forEach(mk => {
+        HM_MARKETS.forEach(mk => {
             series[mk.key].push(Math.round((s[mk.key] / avg) * 1000) / 10);
         });
     }
@@ -7783,281 +7840,227 @@ function kagiProcessData(raw) {
 }
 
 /* ════════════════════════════════════════════════════════
-   ALGORITMO KAGI
+   HELPERS DE COR
 ════════════════════════════════════════════════ */
-function kagiSegments(values, revPct) {
-    const pts = [];
-    for (let i = 0; i < values.length; i++) {
-        if (values[i] !== null && isFinite(values[i])) pts.push({ i, v: values[i] });
+function _hmHex(hex) {
+    const n = parseInt(hex.replace('#',''), 16);
+    return [(n>>16)&255, (n>>8)&255, n&255];
+}
+
+function _hmCellBg(mk, pct) {
+    const [r,g,b] = _hmHex(mk.color);
+    const t = Math.max(0, Math.min(1, (pct - 10) / 80));
+    const a = 0.07 + t * 0.81;
+    return `rgba(${r},${g},${b},${a})`;
+}
+
+function _hmCellTc(pct, mk) {
+    const t = Math.max(0, Math.min(1, (pct - 10) / 80));
+    if (t > 0.52) {
+        const [r,g,b] = _hmHex(mk.color);
+        return `rgb(${Math.round(r*0.25)},${Math.round(g*0.25)},${Math.round(b*0.25)})`;
     }
-    if (pts.length < 2) return [];
+    return 'rgba(180,190,200,0.6)';
+}
 
-    const rev = revPct / 100;
-    // lastRev = nível de onde a reversão é medida (ponto de início da perna atual)
-    let dir = null, lastRev = pts[0].v, lastExt = pts[0].v, curY = pts[0].v;
-    const segs = [];
-    let s0 = { i: pts[0].i, y: curY };
-
-    const flush = (ei, ey, d, thick) => {
-        segs.push({ x0: s0.i, y0: s0.y, x1: ei, y1: ey, dir: d, thick });
-        s0 = { i: ei, y: ey };
-    };
-
-    for (let k = 1; k < pts.length; k++) {
-        curY = pts[k].v;
-        if (dir === null) {
-            if      (curY > pts[0].v) { dir = 'up';   lastExt = curY; lastRev = pts[0].v; }
-            else if (curY < pts[0].v) { dir = 'down'; lastExt = curY; lastRev = pts[0].v; }
-            continue;
-        }
-        if (dir === 'up') {
-            if (curY > lastExt) {
-                lastExt = curY;
-            } else if (curY <= lastRev - Math.abs(lastRev) * rev) {
-                // captura prevY antes do flush mover s0
-                const prevY = s0.y;
-                flush(pts[k].i, curY, 'up', prevY > lastRev);
-                lastRev = lastExt; lastExt = curY; dir = 'down';
-            }
-        } else {
-            if (curY < lastExt) {
-                lastExt = curY;
-            } else if (curY >= lastRev + Math.abs(lastRev) * rev) {
-                const prevY = s0.y;
-                flush(pts[k].i, curY, 'down', prevY < lastRev);
-                lastRev = lastExt; lastExt = curY; dir = 'up';
-            }
-        }
-    }
-
-    const last  = pts[pts.length - 1];
-    const thick = dir === 'up' ? last.v > lastRev : last.v < lastRev;
-    flush(last.i, last.v, dir || 'up', thick);
-    return segs;
+function _hmTrend(series, key) {
+    const arr = series[key];
+    if (!arr || arr.length < 2) return 0;
+    return arr[arr.length-1] - arr[arr.length-2];
 }
 
 /* ════════════════════════════════════════════════════════
    RENDER
 ════════════════════════════════════════════════ */
-function kagiRender() {
-    const canvas = document.getElementById('kagiCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const W   = canvas.parentElement.clientWidth  || 800;
-    const H   = canvas.parentElement.clientHeight || 400;
+function hmRender() {
+    const table = document.getElementById('hmTable');
+    if (!table) return;
 
-    canvas.width  = W * dpr;
-    canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-
-    if (!kagiData) {
-        ctx.fillStyle = '#3a4050';
-        ctx.font = '11px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('Aguardando dados...', W / 2, H / 2);
+    if (!hmData) {
+        table.innerHTML = '<tr><td style="padding:20px;color:#3a4050;font-size:11px;font-family:monospace">Aguardando dados...</td></tr>';
         return;
     }
 
-    const { labels, series } = kagiData;
-    const pad  = { top: 24, right: 80, bottom: 22, left: 46 };
-    const aW   = W - pad.left - pad.right;
-    const aH   = H - pad.top  - pad.bottom;
+    const { labels, series } = hmData;
     const nPts = labels.length;
+    if (!nPts) return;
 
-    /* min/max */
-    let allV = [];
-    KAGI_MARKETS.forEach(m => {
-        if (!kagiVisible[m.key]) return;
-        series[m.key].forEach(v => { if (isFinite(v)) allV.push(v); });
+    const step = Math.max(1, Math.floor(nPts / 10));
+
+    let html = '<thead><tr><th class="hm-row-label"></th>';
+    labels.forEach((lbl, i) => {
+        const show = i === 0 || i === nPts - 1 || (i % step === 0);
+        html += `<th class="hm-col-label">${show ? lbl : ''}</th>`;
     });
-    if (!allV.length) return;
+    html += '</tr></thead><tbody>';
 
-    let yMin = Math.min(...allV), yMax = Math.max(...allV);
-    const yP = Math.max((yMax - yMin) * 0.10, 2);
-    yMin -= yP; yMax += yP;
+    HM_MARKETS.forEach(mk => {
+        const vals  = series[mk.key];
+        const trend = _hmTrend(series, mk.key);
+        const icon  = trend > 0.5 ? '▲' : trend < -0.5 ? '▼' : '─';
+        const tc    = trend > 0.5 ? '#4caf50' : trend < -0.5 ? '#ef5350' : '#4a5568';
 
-    const toY = v => pad.top + aH - ((v - yMin) / (yMax - yMin)) * aH;
-    const toX = i => pad.left + (i / Math.max(nPts - 1, 1)) * aW;
+        html += `<tr>
+          <td class="hm-row-label" style="color:${mk.color}">
+            ${mk.label}
+            <span style="font-size:9px;color:${tc};margin-left:3px">${icon}</span>
+          </td>`;
 
-    /* grade */
-    ctx.save();
-    ctx.font = '9px monospace';
-    ctx.textAlign = 'right';
-    ctx.strokeStyle = 'rgba(255,255,255,0.045)';
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i <= 6; i++) {
-        const v = yMin + (i / 6) * (yMax - yMin);
-        const y = toY(v);
-        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + aW, y); ctx.stroke();
-        ctx.fillStyle = '#4a5568';
-        ctx.fillText(v.toFixed(1) + '%', pad.left - 4, y + 3);
-    }
-    ctx.restore();
-
-    /* labels X */
-    ctx.save();
-    ctx.font = '9px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#3a4555';
-    const xStep = Math.max(1, Math.ceil(nPts / 10));
-    for (let i = 0; i < nPts; i += xStep) {
-        ctx.fillText(labels[i], toX(i), H - pad.bottom + 13);
-    }
-    ctx.restore();
-
-    /* kagi por mercado */
-    KAGI_MARKETS.forEach(mk => {
-        if (!kagiVisible[mk.key]) return;
-        const segs = kagiSegments(series[mk.key], kagiRevPct);
-        if (!segs.length) return;
-
-        segs.forEach(seg => {
-            const x0 = toX(seg.x0), y0 = toY(seg.y0);
-            const x1 = toX(seg.x1), y1 = toY(seg.y1);
-
-            ctx.save();
-            if (seg.thick) {
-                ctx.strokeStyle = mk.color;
-                ctx.lineWidth   = 2.5;
-            } else {
-                const n = parseInt(mk.color.replace('#',''), 16);
-                const r = (n>>16)&0xff, g = (n>>8)&0xff, b = n&0xff;
-                ctx.strokeStyle = `rgba(${r},${g},${b},0.35)`;
-                ctx.lineWidth   = 1;
-            }
-            ctx.lineJoin = 'round';
-            ctx.lineCap  = 'round';
-            ctx.beginPath();
-            ctx.moveTo(x0, y0);
-            ctx.lineTo(x1, y0);   // horizontal de conexão
-            ctx.lineTo(x1, y1);   // vertical
-            ctx.stroke();
-            ctx.restore();
+        vals.forEach((v, i) => {
+            html += `<td class="hm-cell"
+              style="background:${_hmCellBg(mk,v)}"
+              data-mkt="${mk.label}"
+              data-color="${mk.color}"
+              data-time="${labels[i]}"
+              data-val="${v.toFixed(1)}"
+              data-key="${mk.key}"
+              data-idx="${i}">
+              <div class="hm-cell-val" style="color:${_hmCellTc(v,mk)};display:${hmShowVals?'block':'none'}">${Math.round(v)}</div>
+            </td>`;
         });
 
-        /* badge lateral */
-        const last = segs[segs.length - 1];
-        if (!last) return;
-        const py   = toY(last.y1);
-        const text = last.y1.toFixed(1) + '%';
-        ctx.save();
-        ctx.font = 'bold 9px monospace';
-        ctx.textAlign = 'left';
-        const tw = ctx.measureText(text).width + 10;
-        const bx = pad.left + aW + 3, by = py - 8;
-        ctx.fillStyle = 'rgba(10,12,20,0.92)';
-        ctx.fillRect(bx, by, tw, 16);
-        ctx.strokeStyle = mk.color; ctx.lineWidth = 1;
-        ctx.strokeRect(bx, by, tw, 16);
-        ctx.fillStyle = mk.color;
-        ctx.fillText(text, bx + 5, py + 4);
-        ctx.restore();
+        html += '</tr>';
+    });
+
+    html += '</tbody>';
+    table.innerHTML = html;
+
+    _hmBuildLegend();
+    _hmBuildSummary();
+    _hmAttachTooltip();
+}
+
+/* ════════════════════════════════════════════════════════
+   LEGENDA
+════════════════════════════════════════════════ */
+function _hmBuildLegend() {
+    const bar = document.getElementById('hmLegBar');
+    if (!bar) return;
+    bar.innerHTML = '';
+    for (let i = 0; i < 12; i++) {
+        const a = 0.07 + (i / 11) * 0.81;
+        const seg = document.createElement('div');
+        seg.className = 'hm-leg-seg';
+        seg.style.background = `rgba(255,200,60,${a})`;
+        bar.appendChild(seg);
+    }
+}
+
+/* ════════════════════════════════════════════════════════
+   PILLS DE RESUMO
+════════════════════════════════════════════════ */
+function _hmBuildSummary() {
+    const div = document.getElementById('hmSummary');
+    if (!div || !hmData) return;
+    div.innerHTML = '';
+
+    HM_MARKETS.forEach(mk => {
+        const arr = hmData.series[mk.key];
+        if (!arr || !arr.length) return;
+        const v     = arr[arr.length - 1];
+        const trend = _hmTrend(hmData.series, mk.key);
+        const icon  = trend > 0.5 ? ' ▲' : trend < -0.5 ? ' ▼' : '';
+        const [r,g,b] = _hmHex(mk.color);
+
+        const pill = document.createElement('div');
+        pill.className = 'hm-pill';
+        pill.style.borderColor = `rgba(${r},${g},${b},0.45)`;
+        pill.style.color       = mk.color;
+        pill.style.background  = `rgba(${r},${g},${b},0.08)`;
+        pill.textContent       = `${mk.label} ${v.toFixed(1)}%${icon}`;
+        div.appendChild(pill);
     });
 }
 
 /* ════════════════════════════════════════════════════════
    TOOLTIP
 ════════════════════════════════════════════════ */
-(function initKagiTooltip() {
-    document.addEventListener('DOMContentLoaded', () => {
-        const canvas  = document.getElementById('kagiCanvas');
-        const tooltip = document.getElementById('kagiTooltip');
-        if (!canvas || !tooltip) return;
+function _hmEnsureTooltip() {
+    if (document.getElementById('hmTooltip')) return;
+    const tt = document.createElement('div');
+    tt.id        = 'hmTooltip';
+    tt.className = 'hm-tooltip';
+    document.body.appendChild(tt);
+}
 
-        canvas.addEventListener('mousemove', evt => {
-            if (!kagiData) return;
-            const rect  = canvas.getBoundingClientRect();
-            const mx    = evt.clientX - rect.left;
-            const nPts  = kagiData.labels.length;
-            const padL  = 46, padR = 80;
-            const aW    = rect.width - padL - padR;
-            const frac  = (mx - padL) / aW;
-            const idx   = Math.max(0, Math.min(nPts - 1, Math.round(frac * (nPts - 1))));
+function _hmAttachTooltip() {
+    _hmEnsureTooltip();
+    const tt = document.getElementById('hmTooltip');
 
-            const rows = KAGI_MARKETS
-                .filter(m => kagiVisible[m.key])
-                .map(m => {
-                    const v = kagiData.series[m.key][idx];
-                    return `<div class="ktt-row">
-                        <span style="color:${m.color}">${m.label}</span>
-                        <span style="color:${m.color};font-weight:700">${isFinite(v) ? v.toFixed(1)+'%' : '—'}</span>
-                    </div>`;
-                }).join('');
+    document.querySelectorAll('.hm-cell').forEach(cell => {
+        cell.addEventListener('mouseenter', () => {
+            const v   = parseFloat(cell.dataset.val);
+            const idx = parseInt(cell.dataset.idx);
+            const arr = hmData?.series[cell.dataset.key];
 
-            tooltip.innerHTML = `<div class="ktt-time">${kagiData.labels[idx]}</div>${rows}`;
-            tooltip.style.display = 'block';
+            let trendTxt = '';
+            if (arr && idx > 0) {
+                const diff = v - arr[idx - 1];
+                trendTxt = diff > 0.1
+                    ? `▲ +${diff.toFixed(1)}% vs anterior`
+                    : diff < -0.1
+                    ? `▼ ${diff.toFixed(1)}% vs anterior`
+                    : `─ estável vs anterior`;
+            }
 
-            const tw = 155;
-            let tx = evt.clientX - rect.left + 14;
-            let ty = evt.clientY - rect.top - (tooltip.offsetHeight || 100) / 2;
-            if (tx + tw > rect.width - 5) tx = evt.clientX - rect.left - tw - 14;
-            if (ty < 4) ty = 4;
-            tooltip.style.left = tx + 'px';
-            tooltip.style.top  = ty + 'px';
+            tt.innerHTML = `
+                <div class="hm-tt-time">${cell.dataset.time}</div>
+                <div class="hm-tt-mkt" style="color:${cell.dataset.color}">${cell.dataset.mkt}</div>
+                <div class="hm-tt-val" style="color:${cell.dataset.color}">${v.toFixed(1)}%</div>
+                ${trendTxt ? `<div class="hm-tt-trend">${trendTxt}</div>` : ''}
+            `;
+            tt.style.display = 'block';
         });
 
-        canvas.addEventListener('mouseleave', () => {
-            tooltip.style.display = 'none';
+        cell.addEventListener('mousemove', e => {
+            let x = e.clientX + 14;
+            let y = e.clientY - 50;
+            if (x + 160 > window.innerWidth) x = e.clientX - 170;
+            if (y < 4) y = 4;
+            tt.style.left = x + 'px';
+            tt.style.top  = y + 'px';
         });
-    });
-})();
 
-/* ════════════════════════════════════════════════════════
-   LEGENDA
-════════════════════════════════════════════════ */
-function kagiRenderLegend() {
-    const leg = document.getElementById('kagiLegend');
-    if (!leg) return;
-    leg.innerHTML = '';
-    KAGI_MARKETS.forEach(m => {
-        const el = document.createElement('div');
-        el.className = 'kagi-leg-item' + (kagiVisible[m.key] ? ' active' : '');
-        el.style.borderColor = m.color;
-        el.style.color       = m.color;
-        el.innerHTML = `<span class="kagi-dot" style="background:${m.color}"></span>${m.label}`;
-        el.addEventListener('click', () => {
-            kagiVisible[m.key] = !kagiVisible[m.key];
-            el.classList.toggle('active');
-            kagiRender();
+        cell.addEventListener('mouseleave', () => {
+            tt.style.display = 'none';
         });
-        leg.appendChild(el);
     });
 }
 
 /* ════════════════════════════════════════════════════════
    FETCH + LOOP
 ════════════════════════════════════════════════ */
-async function kagiFetch() {
-    if (!_kagiTabVis) return;
+async function hmFetch() {
+    if (!_hmTabVis) return;
     try {
         const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + '?t=' + Date.now());
         if (!res.ok) throw new Error(res.status);
-        kagiData = kagiProcessData(await res.json());
-        kagiRender();
+        hmData = hmProcessData(await res.json());
+        hmRender();
     } catch(e) {
-        console.error('[Kagi]', e);
+        console.error('[Heatmap]', e);
     }
 }
 
-/* ── controles ── */
+/* ── controles + init ── */
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('kagiSelPeriodo')?.addEventListener('change', e => {
-        kagiNumPts = +e.target.value; kagiFetch();
+    document.getElementById('hmSelPeriodo')?.addEventListener('change', e => {
+        hmNumPts = +e.target.value; hmFetch();
     });
-    document.getElementById('kagiSelBase')?.addEventListener('change', e => {
-        kagiBasePts = +e.target.value; kagiFetch();
+    document.getElementById('hmSelBase')?.addEventListener('change', e => {
+        hmBasePts = +e.target.value; hmFetch();
     });
-    document.getElementById('kagiSelRev')?.addEventListener('change', e => {
-        kagiRevPct = +e.target.value; kagiFetch();
+    document.getElementById('hmSelVals')?.addEventListener('change', e => {
+        hmShowVals = e.target.value === '1';
+        document.querySelectorAll('.hm-cell-val').forEach(el => {
+            el.style.display = hmShowVals ? 'block' : 'none';
+        });
     });
 
-    window.addEventListener('resize', kagiRender);
+    window.addEventListener('resize', hmRender);
 
-    kagiRenderLegend();
-    kagiFetch();
-    setInterval(kagiFetch, 3000);
+    hmFetch();
+    setInterval(hmFetch, 3000);
 });
 </script>
 
