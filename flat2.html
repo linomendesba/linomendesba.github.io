@@ -313,7 +313,6 @@ const STORE_KEY = "flat_simple_prefs";
 const HOUSES = {
   betano: {
     label: "Betano",
-    timezone: "America/Sao_Paulo", // BRASIL
     leagues: [
       { key: "copa-america",        title: "Copa America",         resultados: "https://betstat.site/resultados/Copa%20Am%C3%A9rica" },
       { key: "classicos-america",   title: "Classicos da America", resultados: "https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna" },
@@ -325,7 +324,6 @@ const HOUSES = {
   },
   betsson: {
     label: "Betsson",
-    timezone: "America/Sao_Paulo", // BRASIL
     leagues: [
       { key: "espanha",    title: "Espanha",    resultados: "https://betstat.site/resultados/betsson/Espanha" },
       { key: "inglaterra", title: "Inglaterra", resultados: "https://betstat.site/resultados/betsson/Inglaterra" },
@@ -334,7 +332,6 @@ const HOUSES = {
   },
   kiron: {
     label: "Kiron",
-    timezone: "America/Sao_Paulo", // BRASIL
     leagues: [
       { key: "england", title: "England League", resultados: "https://betstat.site/resultados/kiron/England" },
       { key: "italy",   title: "Italy League",   resultados: "https://betstat.site/resultados/kiron/Italy" },
@@ -343,7 +340,6 @@ const HOUSES = {
   },
   estrelabet: {
     label: "Estrelabet",
-    timezone: "America/Sao_Paulo", // BRASIL
     leagues: [
       { key: "copa-mundo",     title: "Copa do Mundo",      resultados: "https://betstat.site/resultados/estrela/Copa%20do%20Mundo" },
       { key: "ligas-campeoes", title: "Ligas dos Campeoes", resultados: "https://betstat.site/resultados/estrela/Ligas%20dos%20Campe%C3%B5es" },
@@ -352,7 +348,6 @@ const HOUSES = {
   },
   bet365: {
     label: "Bet365",
-    timezone: "Europe/London", // INGLATERRA
     leagues: [
       { key: "b365-copa",    title: "Copa",    resultados: "https://betstat.site/resultados/bet365/Copa" },
       { key: "b365-euro",    title: "Euro",    resultados: "https://betstat.site/resultados/bet365/Euro" },
@@ -404,47 +399,6 @@ function savePrefs(obj) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  IDENTIFICAR HORA ATUAL E CONTAR PARA TRÁS
-// ═══════════════════════════════════════════════════════════════════
-
-function getCurrentHourInTimezone(tzName) {
-  const now = new Date();
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: tzName,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
-  const parts = formatter.formatToParts(now);
-  const hour = parseInt(parts.find(p => p.type === 'hour').value, 10);
-  const minute = parseInt(parts.find(p => p.type === 'minute').value, 10);
-  return { hour, minute, now };
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  ORDENAR DADOS POR DATA + HORA + MINUTO, DEPOIS PEGAR OS MAIS RECENTES
-// ═══════════════════════════════════════════════════════════════════
-
-function sortAndFilterGames(games, currentHouse) {
-  // Primeiro: ordena por data + hora + minuto
-  const sorted = [...games].sort((a, b) => {
-    // Se tem campo 'data', ordena por data primeiro
-    if (a.data && b.data) {
-      const dateA = new Date(a.data).getTime();
-      const dateB = new Date(b.data).getTime();
-      if (dateA !== dateB) return dateA - dateB;
-    }
-    // Depois por hora
-    if (a.hora !== b.hora) return a.hora - b.hora;
-    // Depois por minuto
-    return a.minuto - b.minuto;
-  });
-  
-  // Inverte para ficar do mais recente para o mais antigo
-  return sorted.reverse();
-}
-
-// ═══════════════════════════════════════════════════════════════════
 //  PARSE RESULTADO
 //  Suporta: "2 x 1" (grafico_de_mercados), "2-1", "2x1" (legado)
 // ═══════════════════════════════════════════════════════════════════
@@ -482,6 +436,26 @@ function parseResult(gameData) {
     isUnder: h + a < 3,
     isOver:  h + a > 2
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PROCESSAR API DATA - EXATAMENTE COMO grafico_de_mercados.txt
+//  Ordena por DATA + HORA + MINUTO, depois pega os ÚLTIMOS (mais recentes)
+// ═══════════════════════════════════════════════════════════════════
+
+function processApiData(data, limit) {
+  // Ordena por DATA (crescente), depois HORA, depois MINUTO
+  const sortedData = [...data].sort((a, b) => {
+    const dA = new Date(a.data), dB = new Date(b.data);
+    if (dA.getTime() !== dB.getTime()) return dA - dB;
+    if (a.hora !== b.hora) return a.hora - b.hora;
+    return a.minuto - b.minuto;
+  });
+
+  // Pega os ÚLTIMOS (mais recentes)
+  // slice(-limit) = últimos 'limit' elementos
+  const slicedData = sortedData.slice(-limit);
+  return slicedData;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -580,6 +554,121 @@ function calcGraphData(games) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  RENDER CHART
+// ═══════════════════════════════════════════════════════════════════
+
+function renderChart(canvasId, points, meta, type) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width = canvas.offsetWidth;
+  const height = canvas.height = canvas.offsetHeight;
+
+  // Background
+  ctx.fillStyle = "#0a0c14";
+  ctx.fillRect(0, 0, width, height);
+
+  if (!points.length) {
+    ctx.fillStyle = "#666";
+    ctx.font = "14px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Sem dados", width / 2, height / 2);
+    return;
+  }
+
+  const padding = 40;
+  const graphW = width - padding * 2;
+  const graphH = height - padding * 2;
+  const minY = Math.min(...points) - 1;
+  const maxY = Math.max(...points) + 1;
+  const rangeY = maxY - minY || 1;
+
+  // Helper: valor Y em pixel
+  const getY = (val) => height - padding - ((val - minY) / rangeY) * graphH;
+
+  // Grid lines
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 10; i++) {
+    const y = padding + (graphH / 10) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding, y);
+    ctx.lineTo(width - padding, y);
+    ctx.stroke();
+  }
+
+  // Linha central em 50
+  ctx.strokeStyle = "#666";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(padding, getY(50));
+  ctx.lineTo(width - padding, getY(50));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Cor da linha
+  const color = type === "under" ? "#ff9800" : "#2196f3";
+
+  // Desenha linha
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const x = padding + (graphW / Math.max(1, points.length - 1)) * i;
+    const y = getY(p);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Pontos
+  ctx.fillStyle = color;
+  points.forEach((p, i) => {
+    const x = padding + (graphW / Math.max(1, points.length - 1)) * i;
+    const y = getY(p);
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Labels
+  ctx.fillStyle = "#ccc";
+  ctx.font = "12px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("50", padding - 20, getY(50) + 4);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CARD HTML
+// ═══════════════════════════════════════════════════════════════════
+
+function cardHTML(d, graphData) {
+  const { league, totalGames } = d;
+  const { underPoints, overPoints } = graphData;
+  const uLast = underPoints[underPoints.length - 1] || "—";
+  const oLast = overPoints[overPoints.length - 1] || "—";
+
+  return `
+    <div class="lcard" data-league-key="${league.key}">
+      <h3>${league.title}</h3>
+      <p class="meta">${totalGames} jogos</p>
+      <div class="charts-row">
+        <div class="ch-wrapper">
+          <canvas id="ch-${league.key}-under"></canvas>
+          <span class="label-under">Under: ${uLast}</span>
+        </div>
+        <div class="ch-wrapper">
+          <canvas id="ch-${league.key}-over"></canvas>
+          <span class="label-over">Over: ${oLast}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  FETCH LEAGUE
 // ═══════════════════════════════════════════════════════════════════
 
@@ -589,16 +678,13 @@ async function fetchLeague(league, limit) {
 
   const json = await res.json();
   const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
+
+  // CORREÇÃO: Usar a mesma lógica do grafico_de_mercados
+  // Ordena por data+hora+minuto, depois pega os últimos (slice(-limit))
+  const sortedGames = processApiData(raw, limit);
   
-  // CORREÇÃO PRINCIPAL: Ordena por data + hora + minuto, depois inverte
-  const sortedAndFiltered = sortAndFilterGames(raw, currentHouse);
-  
-  // Pega apenas os limite mais recentes
-  const games = sortedAndFiltered
-    .map(i => parseResult(i))
-    .filter(Boolean)
-    .slice(0, limit);
-  
+  // Parse e calcula gráfico
+  const games = sortedGames.map(i => parseResult(i)).filter(Boolean);
   const graphData = calcGraphData(games);
 
   return { league, totalGames: games.length, graphData };
@@ -700,9 +786,6 @@ async function renderAll(fullReset) {
 
       const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
       if (existing) {
-        [`ch-${d.league.key}-under`, `ch-${d.league.key}-over`].forEach(id => {
-          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
-        });
         existing.outerHTML = cardHTML(d, d.graphData);
       } else {
         leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d, d.graphData));
@@ -715,9 +798,6 @@ async function renderAll(fullReset) {
     leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
       const key = el.dataset.leagueKey;
       if (!incoming.find(d => d.league.key === key)) {
-        [`ch-${key}-under`, `ch-${key}-over`].forEach(id => {
-          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
-        });
         el.remove();
       }
     });
