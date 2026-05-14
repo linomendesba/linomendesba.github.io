@@ -460,6 +460,7 @@
     </div>
 </div>
 
+
 <!-- ═══════════════════════════════════════════════════════════════════
      GRÁFICO MERCADOS — HTML
 ═══════════════════════════════════════════════════════════════════ -->
@@ -7792,6 +7793,7 @@ function kagiSegments(values, revPct) {
     if (pts.length < 2) return [];
 
     const rev = revPct / 100;
+    // lastRev = nível de onde a reversão é medida (ponto de início da perna atual)
     let dir = null, lastRev = pts[0].v, lastExt = pts[0].v, curY = pts[0].v;
     const segs = [];
     let s0 = { i: pts[0].i, y: curY };
@@ -7804,27 +7806,32 @@ function kagiSegments(values, revPct) {
     for (let k = 1; k < pts.length; k++) {
         curY = pts[k].v;
         if (dir === null) {
-            if      (curY > pts[0].v) { dir = 'up';   lastExt = curY; }
-            else if (curY < pts[0].v) { dir = 'down'; lastExt = curY; }
+            if      (curY > pts[0].v) { dir = 'up';   lastExt = curY; lastRev = pts[0].v; }
+            else if (curY < pts[0].v) { dir = 'down'; lastExt = curY; lastRev = pts[0].v; }
             continue;
         }
         if (dir === 'up') {
-            if (curY > lastExt) { lastExt = curY; }
-            else if (curY <= lastRev - Math.abs(lastRev) * rev) {
-                flush(pts[k].i, curY, 'up', s0.y > lastRev);
+            if (curY > lastExt) {
+                lastExt = curY;
+            } else if (curY <= lastRev - Math.abs(lastRev) * rev) {
+                // captura prevY antes do flush mover s0
+                const prevY = s0.y;
+                flush(pts[k].i, curY, 'up', prevY > lastRev);
                 lastRev = lastExt; lastExt = curY; dir = 'down';
             }
         } else {
-            if (curY < lastExt) { lastExt = curY; }
-            else if (curY >= lastRev + Math.abs(lastRev) * rev) {
-                flush(pts[k].i, curY, 'down', s0.y < lastRev);
+            if (curY < lastExt) {
+                lastExt = curY;
+            } else if (curY >= lastRev + Math.abs(lastRev) * rev) {
+                const prevY = s0.y;
+                flush(pts[k].i, curY, 'down', prevY < lastRev);
                 lastRev = lastExt; lastExt = curY; dir = 'up';
             }
         }
     }
 
     const last  = pts[pts.length - 1];
-    const thick = dir === 'up' ? curY > lastRev : curY < lastRev;
+    const thick = dir === 'up' ? last.v > lastRev : last.v < lastRev;
     flush(last.i, last.v, dir || 'up', thick);
     return segs;
 }
@@ -8043,7 +8050,7 @@ document.addEventListener('DOMContentLoaded', () => {
         kagiBasePts = +e.target.value; kagiFetch();
     });
     document.getElementById('kagiSelRev')?.addEventListener('change', e => {
-        kagiRevPct = +e.target.value; kagiRender();
+        kagiRevPct = +e.target.value; kagiFetch();
     });
 
     window.addEventListener('resize', kagiRender);
