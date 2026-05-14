@@ -328,6 +328,7 @@
 
 const STORE_KEY   = "flat_simple_prefs";
 const MARKETS_KEY = "flat_markets_group";
+const FLAT_OPT_KEY = "flat_chart_options";
 
 
 const MARKET_GROUPS = {
@@ -424,6 +425,18 @@ let activeGroup = (() => {
 
 let activeMarkets = MARKET_GROUPS[activeGroup].markets;
 
+// ── Opções de chart (fibonacci + linha atual) ──────────────────────────
+let chartOptions = (() => {
+  try {
+    const r = localStorage.getItem(FLAT_OPT_KEY);
+    return r ? JSON.parse(r) : { fibonacci: false, linhaAtual: true };
+  } catch { return { fibonacci: false, linhaAtual: true }; }
+})();
+
+function saveChartOptions() {
+  try { localStorage.setItem(FLAT_OPT_KEY, JSON.stringify(chartOptions)); } catch {}
+}
+
 const charts   = {};
 const lastData = {};
 
@@ -443,6 +456,164 @@ if (prefs.limit) {
 houseTabs.querySelectorAll(".ht").forEach(b => {
   b.classList.toggle("on", b.dataset.house === currentHouse);
 });
+
+// ── Injeta os toggles de Fibonacci e Linha Atual na barra de controles ──
+(function injectFlatToggles() {
+  // Tenta encontrar um container próximo ao marketsBar ou reloadBtn
+  const target = reloadBtn ? reloadBtn.parentElement : (marketsBar ? marketsBar.parentElement : null);
+  if (!target) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.id = "flatChartToggles";
+  wrapper.style.cssText = "display:inline-flex;align-items:center;gap:10px;margin-left:10px;";
+
+  // Toggle Fibonacci
+  const fibLabel = document.createElement("label");
+  fibLabel.style.cssText = "display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#9ca3af;user-select:none;";
+  const fibCb = document.createElement("input");
+  fibCb.type = "checkbox";
+  fibCb.id = "flatFibonacciToggle";
+  fibCb.checked = chartOptions.fibonacci;
+  fibCb.style.cssText = "cursor:pointer;accent-color:#00c853;";
+  fibCb.addEventListener("change", () => {
+    chartOptions.fibonacci = fibCb.checked;
+    saveChartOptions();
+    // Atualiza todos os charts
+    Object.values(charts).forEach(c => { try { c.update(); } catch {} });
+  });
+  const fibSpan = document.createElement("span");
+  fibSpan.textContent = "Fibonacci";
+  fibLabel.appendChild(fibCb);
+  fibLabel.appendChild(fibSpan);
+
+  // Toggle Linha Atual
+  const laLabel = document.createElement("label");
+  laLabel.style.cssText = "display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#9ca3af;user-select:none;";
+  const laCb = document.createElement("input");
+  laCb.type = "checkbox";
+  laCb.id = "flatLinhaAtualToggle";
+  laCb.checked = chartOptions.linhaAtual;
+  laCb.style.cssText = "cursor:pointer;accent-color:#1fac89;";
+  laCb.addEventListener("change", () => {
+    chartOptions.linhaAtual = laCb.checked;
+    saveChartOptions();
+    Object.values(charts).forEach(c => { try { c.update(); } catch {} });
+  });
+  const laSpan = document.createElement("span");
+  laSpan.textContent = "Linha Atual";
+  laLabel.appendChild(laCb);
+  laLabel.appendChild(laSpan);
+
+  wrapper.appendChild(fibLabel);
+  wrapper.appendChild(laLabel);
+
+  // Insere após o reloadBtn se existir, senão ao final do target
+  if (reloadBtn && reloadBtn.parentElement === target) {
+    reloadBtn.insertAdjacentElement("afterend", wrapper);
+  } else {
+    target.appendChild(wrapper);
+  }
+})();
+
+// ── Plugin: Linhas de Fibonacci ────────────────────────────────────────
+const flatFibonacciPlugin = {
+  id: "flatFibonacci",
+  afterDraw(chart) {
+    if (!chartOptions.fibonacci) return;
+    const { ctx, scales: { y } } = chart;
+    if (!y) return;
+    const { left, right } = chart.chartArea;
+    const range = y.max - y.min;
+    const levels = [0, 23.6, 38.2, 50, 61.8, 100];
+    ctx.save();
+    levels.forEach(lvl => {
+      const val = y.min + (lvl / 100) * range;
+      const px  = y.getPixelForValue(val);
+      ctx.beginPath();
+      ctx.setLineDash([5, 5]);
+      ctx.moveTo(left, px);
+      ctx.lineTo(right, px);
+      ctx.strokeStyle = "rgba(0,255,0,0.45)";
+      ctx.lineWidth   = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle    = "rgba(0,255,0,0.8)";
+      ctx.font         = "bold 9px Arial,sans-serif";
+      ctx.textAlign    = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${lvl}%`, right + 4, px);
+    });
+    ctx.restore();
+  }
+};
+
+// ── Plugin: Linha Atual (último valor de cada dataset visível) ──────────
+const flatLinhaAtualPlugin = {
+  id: "flatLinhaAtual",
+  afterDraw(chart) {
+    if (!chartOptions.linhaAtual) return;
+    const { ctx, chartArea, scales: { y } } = chart;
+    if (!chartArea || !y) return;
+    const { left, right, top, bottom } = chartArea;
+
+    const entries = [];
+    chart.data.datasets.forEach((ds, idx) => {
+      if (!chart.isDatasetVisible(idx)) return;
+      const data = ds.data;
+      if (!data || !data.length) return;
+      let last = null;
+      for (let i = data.length - 1; i >= 0; i--) {
+        if (data[i] != null && isFinite(data[i])) { last = data[i]; break; }
+      }
+      if (last === null) return;
+      const py = y.getPixelForValue(last);
+      if (!isFinite(py) || py < top || py > bottom) return;
+      entries.push({ val: last, py, color: ds.borderColor || "#fff" });
+    });
+
+    if (!entries.length) return;
+
+    // Evitar sobreposição de badges
+    entries.sort((a, b) => a.py - b.py);
+    const placed = [];
+    entries.forEach(e => {
+      let by = e.py;
+      placed.forEach(p => { if (Math.abs(p - by) < 20) by = p + 20; });
+      placed.push(by);
+      e.badgeY = by;
+    });
+
+    ctx.save();
+    entries.forEach(({ val, py, badgeY, color }) => {
+      // Linha tracejada
+      ctx.beginPath();
+      ctx.setLineDash([6, 4]);
+      ctx.moveTo(left, py);
+      ctx.lineTo(right, py);
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 1.1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Badge com o valor
+      const label = String(Math.round(val));
+      ctx.font = "bold 10px Arial,sans-serif";
+      const tw = ctx.measureText(label).width + 10;
+      const bx = right + 4;
+      const by2 = badgeY - 8;
+      ctx.fillStyle   = "rgba(10,12,20,0.92)";
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 1;
+      ctx.fillRect(bx, by2, tw, 16);
+      ctx.strokeRect(bx, by2, tw, 16);
+      ctx.fillStyle    = color;
+      ctx.textBaseline = "middle";
+      ctx.textAlign    = "left";
+      ctx.fillText(label, bx + 5, badgeY);
+    });
+    ctx.restore();
+  }
+};
 
 function setStatus(msg, show) {
   statusBar.textContent = msg || "";
@@ -538,7 +709,7 @@ function calcGraphDataForMarket(games, marketKey) {
   let val = 50;
 
   for (const curr of slots) {
-    const prevKey = `${String(curr.hora - 1).padStart(2,"0")}:${String(curr.minuto).padStart(2,"0")}`;
+    const prevKey = `${String(curr.hora - 1).padStart(2,"0")}:${String(curr.minuto).padStart(2,"00")}`;
     const prev = slotMap.get(prevKey);
     if (!prev) continue;
 
@@ -594,6 +765,9 @@ function renderChart(id, points, meta, marketKey) {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
+      layout: {
+        padding: { right: 48 }   // espaço para os badges da linha atual
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -612,7 +786,10 @@ function renderChart(id, points, meta, marketKey) {
             },
             label: (c) => `Valor: ${c.raw}`
           }
-        }
+        },
+        // Os plugins customizados são registrados globalmente abaixo
+        flatFibonacci:  {},
+        flatLinhaAtual: {}
       },
       scales: {
         x: {
@@ -624,7 +801,8 @@ function renderChart(id, points, meta, marketKey) {
           grid:  { color: "rgba(255,255,255,0.04)" }
         }
       }
-    }
+    },
+    plugins: [flatFibonacciPlugin, flatLinhaAtualPlugin]
   });
 }
 
