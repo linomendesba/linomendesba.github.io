@@ -439,26 +439,6 @@ function parseResult(gameData) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  PROCESSAR API DATA - EXATAMENTE COMO grafico_de_mercados.txt
-//  Ordena por DATA + HORA + MINUTO, depois pega os ÚLTIMOS (mais recentes)
-// ═══════════════════════════════════════════════════════════════════
-
-function processApiData(data, limit) {
-  // Ordena por DATA (crescente), depois HORA, depois MINUTO
-  const sortedData = [...data].sort((a, b) => {
-    const dA = new Date(a.data), dB = new Date(b.data);
-    if (dA.getTime() !== dB.getTime()) return dA - dB;
-    if (a.hora !== b.hora) return a.hora - b.hora;
-    return a.minuto - b.minuto;
-  });
-
-  // Pega os ÚLTIMOS (mais recentes)
-  // slice(-limit) = últimos 'limit' elementos
-  const slicedData = sortedData.slice(-limit);
-  return slicedData;
-}
-
-// ═══════════════════════════════════════════════════════════════════
 //  CALCULAR GRÁFICO
 //
 //  Compara jogo HH:MM com o jogo (HH-1):MM (mesmo minuto, 1h atrás).
@@ -541,135 +521,134 @@ function calcGraphData(games) {
       underPoints.push(uVal);
       underGamesMeta.push(meta);
     }
+    // prev=Over → não plota ponto no gráfico Under
 
-    // ── OVER 2.5: só plota se prev era Over ───────────────────────
-    if (prevUnder === false) { // prev é Over
-      if (currUnder === false) oVal++; else oVal--;
+    // ── OVER 2.5: só plota se prev era Over ────────────────────────
+    if (!prevUnder) {
+      if (!currUnder) oVal++; else oVal--;
       overPoints.push(oVal);
       overGamesMeta.push(meta);
     }
+    // prev=Under → não plota ponto no gráfico Over
   }
 
   return { underPoints, overPoints, underGamesMeta, overGamesMeta };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  RENDER CHART
+//  RENDERIZAR CHART
 // ═══════════════════════════════════════════════════════════════════
 
-function renderChart(canvasId, points, meta, type) {
-  const canvas = document.getElementById(canvasId);
+function renderChart(id, points, gamesMeta, mode) {
+  const canvas = document.getElementById(id);
   if (!canvas) return;
 
-  const ctx = canvas.getContext("2d");
-  const width = canvas.width = canvas.offsetWidth;
-  const height = canvas.height = canvas.offsetHeight;
+  if (charts[id]) charts[id].destroy();
 
-  // Background
-  ctx.fillStyle = "#0a0c14";
-  ctx.fillRect(0, 0, width, height);
+  const color  = mode === "under" ? "#3ddc84" : "#60a5fa";
+  const ptSize = points.length > 60 ? 2 : 3;
 
-  if (!points.length) {
-    ctx.fillStyle = "#666";
-    ctx.font = "14px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("Sem dados", width / 2, height / 2);
-    return;
-  }
-
-  const padding = 40;
-  const graphW = width - padding * 2;
-  const graphH = height - padding * 2;
-  const minY = Math.min(...points) - 1;
-  const maxY = Math.max(...points) + 1;
-  const rangeY = maxY - minY || 1;
-
-  // Helper: valor Y em pixel
-  const getY = (val) => height - padding - ((val - minY) / rangeY) * graphH;
-
-  // Grid lines
-  ctx.strokeStyle = "#333";
-  ctx.lineWidth = 0.5;
-  for (let i = 0; i <= 10; i++) {
-    const y = padding + (graphH / 10) * i;
-    ctx.beginPath();
-    ctx.moveTo(padding, y);
-    ctx.lineTo(width - padding, y);
-    ctx.stroke();
-  }
-
-  // Linha central em 50
-  ctx.strokeStyle = "#666";
-  ctx.lineWidth = 1;
-  ctx.setLineDash([5, 5]);
-  ctx.beginPath();
-  ctx.moveTo(padding, getY(50));
-  ctx.lineTo(width - padding, getY(50));
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Cor da linha
-  const color = type === "under" ? "#ff9800" : "#2196f3";
-
-  // Desenha linha
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  points.forEach((p, i) => {
-    const x = padding + (graphW / Math.max(1, points.length - 1)) * i;
-    const y = getY(p);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+  charts[id] = new Chart(canvas.getContext("2d"), {
+    type: "line",
+    data: {
+      labels: points.map((_, i) => i),
+      datasets: [{
+        data: points,
+        borderColor: color,
+        borderWidth: 2,
+        pointRadius: ptSize,
+        pointHoverRadius: ptSize + 2,
+        pointBackgroundColor: points.map((v, i) =>
+          i === 0 ? "#5a6272" : v > points[i-1] ? "#3ddc84" : v < points[i-1] ? "#ff6b6b" : "#5a6272"
+        ),
+        pointBorderColor: points.map((v, i) =>
+          i === 0 ? "#5a6272" : v > points[i-1] ? "#3ddc84" : v < points[i-1] ? "#ff6b6b" : "#5a6272"
+        ),
+        pointBorderWidth: 0,
+        fill: false,
+        tension: 0.2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "rgba(0,0,0,0.9)",
+          padding: 12,
+          cornerRadius: 8,
+          titleFont: { size: 13, weight: "700" },
+          bodyFont: { size: 12 },
+          displayColors: false,
+          callbacks: {
+            title: (context) => {
+              if (!context?.length) return "";
+              const game = gamesMeta?.[context[0].dataIndex];
+              if (game?.hora != null) {
+                return `⏱️ ${game.hora}:${game.minuto} vs ${game.prev_hora}:${game.minuto} (${game.jogos} jogo${game.jogos > 1 ? "s" : ""})`;
+              }
+              return "";
+            },
+            label: (c) => {
+              const game = gamesMeta?.[c.dataIndex];
+              if (game) return `Agora: ${game.total} gols  |  1h atrás: ${game.prev_total} gols`;
+              return `Valor: ${c.raw}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#3d4352", maxTicksLimit: 10, font: { family: "Roboto", size: 10 } },
+          grid:  { color: "rgba(255,255,255,0.03)" }
+        },
+        y: {
+          ticks: { color: "#3d4352", font: { family: "Roboto", size: 10 } },
+          grid:  { color: "rgba(255,255,255,0.04)" }
+        }
+      }
+    }
   });
-  ctx.stroke();
-
-  // Pontos
-  ctx.fillStyle = color;
-  points.forEach((p, i) => {
-    const x = padding + (graphW / Math.max(1, points.length - 1)) * i;
-    const y = getY(p);
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  // Labels
-  ctx.fillStyle = "#ccc";
-  ctx.font = "12px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("50", padding - 20, getY(50) + 4);
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  CARD HTML
+//  HTML BUILDERS
 // ═══════════════════════════════════════════════════════════════════
 
-function cardHTML(d, graphData) {
-  const { league, totalGames } = d;
-  const { underPoints, overPoints } = graphData;
-  const uLast = underPoints[underPoints.length - 1] || "—";
-  const oLast = overPoints[overPoints.length - 1] || "—";
-
+function modeHTML(key, mode, currentValue) {
+  const id      = `ch-${key}-${mode}`;
+  const modeCls = mode === "under" ? "mode-under" : "mode-over";
+  const modeTxt = mode === "under" ? "Under 2.5"  : "Over 2.5";
   return `
-    <div class="lcard" data-league-key="${league.key}">
-      <h3>${league.title}</h3>
-      <p class="meta">${totalGames} jogos</p>
-      <div class="charts-row">
-        <div class="ch-wrapper">
-          <canvas id="ch-${league.key}-under"></canvas>
-          <span class="label-under">Under: ${uLast}</span>
-        </div>
-        <div class="ch-wrapper">
-          <canvas id="ch-${league.key}-over"></canvas>
-          <span class="label-over">Over: ${oLast}</span>
-        </div>
+    <div class="mode-col ${modeCls}">
+      <div class="mode-label"><span class="mode-dot"></span>${modeTxt}</div>
+      <div class="current-value">${currentValue}</div>
+      <div class="chart-wrap"><canvas id="${id}"></canvas></div>
+    </div>
+  `;
+}
+
+function cardHTML(d, graphData) {
+  const underValue = graphData.underPoints[graphData.underPoints.length - 1] ?? 50;
+  const overValue  = graphData.overPoints[graphData.overPoints.length  - 1] ?? 50;
+  return `
+    <div class="lcard" data-league-key="${d.league.key}">
+      <div class="lcard-head">
+        <h2>${d.league.title}</h2>
+        <span class="meta">${HOUSES[currentHouse].label} &mdash; ${d.totalGames} jogos</span>
+      </div>
+      <div class="lcard-cols">
+        ${modeHTML(d.league.key, "under", underValue)}
+        ${modeHTML(d.league.key, "over",  overValue)}
       </div>
     </div>
   `;
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  FETCH LEAGUE
+//  FETCH
 // ═══════════════════════════════════════════════════════════════════
 
 async function fetchLeague(league, limit) {
@@ -678,13 +657,16 @@ async function fetchLeague(league, limit) {
 
   const json = await res.json();
   const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
-
-  // CORREÇÃO: Usar a mesma lógica do grafico_de_mercados
-  // Ordena por data+hora+minuto, depois pega os últimos (slice(-limit))
-  const sortedGames = processApiData(raw, limit);
   
-  // Parse e calcula gráfico
-  const games = sortedGames.map(i => parseResult(i)).filter(Boolean);
+  // CORREÇÃO: Ordena por data + hora + minuto, depois pega os ÚLTIMOS (mais recentes)
+  const sortedData = [...raw].sort((a, b) => {
+    const dA = new Date(a.data || 0), dB = new Date(b.data || 0);
+    if (dA.getTime() !== dB.getTime()) return dA - dB;
+    if (a.hora !== b.hora) return a.hora - b.hora;
+    return a.minuto - b.minuto;
+  });
+  
+  const games = sortedData.slice(-limit).map(i => parseResult(i)).filter(Boolean);
   const graphData = calcGraphData(games);
 
   return { league, totalGames: games.length, graphData };
@@ -786,6 +768,9 @@ async function renderAll(fullReset) {
 
       const existing = leaguesGrid.querySelector(`[data-league-key="${d.league.key}"]`);
       if (existing) {
+        [`ch-${d.league.key}-under`, `ch-${d.league.key}-over`].forEach(id => {
+          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
+        });
         existing.outerHTML = cardHTML(d, d.graphData);
       } else {
         leaguesGrid.insertAdjacentHTML("beforeend", cardHTML(d, d.graphData));
@@ -798,6 +783,9 @@ async function renderAll(fullReset) {
     leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
       const key = el.dataset.leagueKey;
       if (!incoming.find(d => d.league.key === key)) {
+        [`ch-${key}-under`, `ch-${key}-over`].forEach(id => {
+          if (charts[id]) { try { charts[id].destroy(); } catch {} delete charts[id]; }
+        });
         el.remove();
       }
     });
