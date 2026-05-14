@@ -313,6 +313,7 @@ const STORE_KEY = "flat_simple_prefs";
 const HOUSES = {
   betano: {
     label: "Betano",
+    timezone: "America/Sao_Paulo", // BRASIL
     leagues: [
       { key: "copa-america",        title: "Copa America",         resultados: "https://betstat.site/resultados/Copa%20Am%C3%A9rica" },
       { key: "classicos-america",   title: "Classicos da America", resultados: "https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna" },
@@ -324,6 +325,7 @@ const HOUSES = {
   },
   betsson: {
     label: "Betsson",
+    timezone: "America/Sao_Paulo", // BRASIL
     leagues: [
       { key: "espanha",    title: "Espanha",    resultados: "https://betstat.site/resultados/betsson/Espanha" },
       { key: "inglaterra", title: "Inglaterra", resultados: "https://betstat.site/resultados/betsson/Inglaterra" },
@@ -332,6 +334,7 @@ const HOUSES = {
   },
   kiron: {
     label: "Kiron",
+    timezone: "America/Sao_Paulo", // BRASIL
     leagues: [
       { key: "england", title: "England League", resultados: "https://betstat.site/resultados/kiron/England" },
       { key: "italy",   title: "Italy League",   resultados: "https://betstat.site/resultados/kiron/Italy" },
@@ -340,6 +343,7 @@ const HOUSES = {
   },
   estrelabet: {
     label: "Estrelabet",
+    timezone: "America/Sao_Paulo", // BRASIL
     leagues: [
       { key: "copa-mundo",     title: "Copa do Mundo",      resultados: "https://betstat.site/resultados/estrela/Copa%20do%20Mundo" },
       { key: "ligas-campeoes", title: "Ligas dos Campeoes", resultados: "https://betstat.site/resultados/estrela/Ligas%20dos%20Campe%C3%B5es" },
@@ -348,6 +352,7 @@ const HOUSES = {
   },
   bet365: {
     label: "Bet365",
+    timezone: "Europe/London", // INGLATERRA
     leagues: [
       { key: "b365-copa",    title: "Copa",    resultados: "https://betstat.site/resultados/bet365/Copa" },
       { key: "b365-euro",    title: "Euro",    resultados: "https://betstat.site/resultados/bet365/Euro" },
@@ -396,6 +401,47 @@ function setStatus(msg, show) {
 
 function savePrefs(obj) {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  IDENTIFICAR HORA ATUAL E CONTAR PARA TRÁS
+// ═══════════════════════════════════════════════════════════════════
+
+function getCurrentHourInTimezone(tzName) {
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: tzName,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(now);
+  const hour = parseInt(parts.find(p => p.type === 'hour').value, 10);
+  const minute = parseInt(parts.find(p => p.type === 'minute').value, 10);
+  return { hour, minute, now };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ORDENAR DADOS POR DATA + HORA + MINUTO, DEPOIS PEGAR OS MAIS RECENTES
+// ═══════════════════════════════════════════════════════════════════
+
+function sortAndFilterGames(games, currentHouse) {
+  // Primeiro: ordena por data + hora + minuto
+  const sorted = [...games].sort((a, b) => {
+    // Se tem campo 'data', ordena por data primeiro
+    if (a.data && b.data) {
+      const dateA = new Date(a.data).getTime();
+      const dateB = new Date(b.data).getTime();
+      if (dateA !== dateB) return dateA - dateB;
+    }
+    // Depois por hora
+    if (a.hora !== b.hora) return a.hora - b.hora;
+    // Depois por minuto
+    return a.minuto - b.minuto;
+  });
+  
+  // Inverte para ficar do mais recente para o mais antigo
+  return sorted.reverse();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -521,134 +567,20 @@ function calcGraphData(games) {
       underPoints.push(uVal);
       underGamesMeta.push(meta);
     }
-    // prev=Over → não plota ponto no gráfico Under
 
-    // ── OVER 2.5: só plota se prev era Over ────────────────────────
-    if (!prevUnder) {
-      if (!currUnder) oVal++; else oVal--;
+    // ── OVER 2.5: só plota se prev era Over ───────────────────────
+    if (prevUnder === false) { // prev é Over
+      if (currUnder === false) oVal++; else oVal--;
       overPoints.push(oVal);
       overGamesMeta.push(meta);
     }
-    // prev=Under → não plota ponto no gráfico Over
   }
 
   return { underPoints, overPoints, underGamesMeta, overGamesMeta };
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  RENDERIZAR CHART
-// ═══════════════════════════════════════════════════════════════════
-
-function renderChart(id, points, gamesMeta, mode) {
-  const canvas = document.getElementById(id);
-  if (!canvas) return;
-
-  if (charts[id]) charts[id].destroy();
-
-  const color  = mode === "under" ? "#3ddc84" : "#60a5fa";
-  const ptSize = points.length > 60 ? 2 : 3;
-
-  charts[id] = new Chart(canvas.getContext("2d"), {
-    type: "line",
-    data: {
-      labels: points.map((_, i) => i),
-      datasets: [{
-        data: points,
-        borderColor: color,
-        borderWidth: 2,
-        pointRadius: ptSize,
-        pointHoverRadius: ptSize + 2,
-        pointBackgroundColor: points.map((v, i) =>
-          i === 0 ? "#5a6272" : v > points[i-1] ? "#3ddc84" : v < points[i-1] ? "#ff6b6b" : "#5a6272"
-        ),
-        pointBorderColor: points.map((v, i) =>
-          i === 0 ? "#5a6272" : v > points[i-1] ? "#3ddc84" : v < points[i-1] ? "#ff6b6b" : "#5a6272"
-        ),
-        pointBorderWidth: 0,
-        fill: false,
-        tension: 0.2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: "rgba(0,0,0,0.9)",
-          padding: 12,
-          cornerRadius: 8,
-          titleFont: { size: 13, weight: "700" },
-          bodyFont: { size: 12 },
-          displayColors: false,
-          callbacks: {
-            title: (context) => {
-              if (!context?.length) return "";
-              const game = gamesMeta?.[context[0].dataIndex];
-              if (game?.hora != null) {
-                return `⏱️ ${game.hora}:${game.minuto} vs ${game.prev_hora}:${game.minuto} (${game.jogos} jogo${game.jogos > 1 ? "s" : ""})`;
-              }
-              return "";
-            },
-            label: (c) => {
-              const game = gamesMeta?.[c.dataIndex];
-              if (game) return `Agora: ${game.total} gols  |  1h atrás: ${game.prev_total} gols`;
-              return `Valor: ${c.raw}`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          ticks: { color: "#3d4352", maxTicksLimit: 10, font: { family: "Roboto", size: 10 } },
-          grid:  { color: "rgba(255,255,255,0.03)" }
-        },
-        y: {
-          ticks: { color: "#3d4352", font: { family: "Roboto", size: 10 } },
-          grid:  { color: "rgba(255,255,255,0.04)" }
-        }
-      }
-    }
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  HTML BUILDERS
-// ═══════════════════════════════════════════════════════════════════
-
-function modeHTML(key, mode, currentValue) {
-  const id      = `ch-${key}-${mode}`;
-  const modeCls = mode === "under" ? "mode-under" : "mode-over";
-  const modeTxt = mode === "under" ? "Under 2.5"  : "Over 2.5";
-  return `
-    <div class="mode-col ${modeCls}">
-      <div class="mode-label"><span class="mode-dot"></span>${modeTxt}</div>
-      <div class="current-value">${currentValue}</div>
-      <div class="chart-wrap"><canvas id="${id}"></canvas></div>
-    </div>
-  `;
-}
-
-function cardHTML(d, graphData) {
-  const underValue = graphData.underPoints[graphData.underPoints.length - 1] ?? 50;
-  const overValue  = graphData.overPoints[graphData.overPoints.length  - 1] ?? 50;
-  return `
-    <div class="lcard" data-league-key="${d.league.key}">
-      <div class="lcard-head">
-        <h2>${d.league.title}</h2>
-        <span class="meta">${HOUSES[currentHouse].label} &mdash; ${d.totalGames} jogos</span>
-      </div>
-      <div class="lcard-cols">
-        ${modeHTML(d.league.key, "under", underValue)}
-        ${modeHTML(d.league.key, "over",  overValue)}
-      </div>
-    </div>
-  `;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  FETCH
+//  FETCH LEAGUE
 // ═══════════════════════════════════════════════════════════════════
 
 async function fetchLeague(league, limit) {
@@ -657,7 +589,16 @@ async function fetchLeague(league, limit) {
 
   const json = await res.json();
   const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
-  const games = raw.map(i => parseResult(i)).filter(Boolean).slice(0, limit);
+  
+  // CORREÇÃO PRINCIPAL: Ordena por data + hora + minuto, depois inverte
+  const sortedAndFiltered = sortAndFilterGames(raw, currentHouse);
+  
+  // Pega apenas os limite mais recentes
+  const games = sortedAndFiltered
+    .map(i => parseResult(i))
+    .filter(Boolean)
+    .slice(0, limit);
+  
   const graphData = calcGraphData(games);
 
   return { league, totalGames: games.length, graphData };
