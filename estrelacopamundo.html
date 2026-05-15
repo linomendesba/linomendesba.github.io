@@ -8146,6 +8146,30 @@ window.addEventListener("load", async () => {
         }
         .hm-wrap {
             position: relative; width: 100%; overflow-x: auto;
+            /* SCROLLBAR ESTILIZADO */
+            scrollbar-width: thin;
+            scrollbar-color: #3a4a5c #0f1219;
+        }
+        /* Webkit scrollbar para Chrome/Safari/Edge */
+        .hm-wrap::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+            background: #0f1219;
+        }
+        .hm-wrap::-webkit-scrollbar-track {
+            background: #0f1219;
+            border-radius: 4px;
+        }
+        .hm-wrap::-webkit-scrollbar-thumb {
+            background: #3a4a5c;
+            border-radius: 4px;
+            border: 2px solid #0f1219;
+        }
+        .hm-wrap::-webkit-scrollbar-thumb:hover {
+            background: #4a6a8c;
+        }
+        .hm-wrap::-webkit-scrollbar-corner {
+            background: #0f1219;
         }
         .hm-table {
             border-collapse: separate; border-spacing: 2px;
@@ -8174,7 +8198,7 @@ window.addEventListener("load", async () => {
         }
         .hm-cell-val {
             font-size: 7px; font-weight: 600; text-align: center;
-            line-height: 26px; pointer-events: none; color: rgba(0,0,0,0.55);
+            line-height: 26px; pointer-events: none;
         }
         .hm-legend {
             display: flex; align-items: center; gap: 7px;
@@ -8210,21 +8234,21 @@ window.addEventListener("load", async () => {
 })();
 
 /* ════════════════════════════════════════════════════════
-   MERCADOS
+   MERCADOS — CORES DISTINTAS E VIBRANTES
 ════════════════════════════════════════════════ */
 const HM_MARKETS = [
-    { key: 'over15',    label: 'Over 1.5',    color: '#69F0AE' },
-    { key: 'over25',    label: 'Over 2.5',    color: '#FFEB3B' },
-    { key: 'over35',    label: 'Over 3.5',    color: '#00BCD4' },
-    { key: 'over5',     label: '5+ Gols',     color: '#FF6D00' },
-    { key: 'under15',   label: 'Under 1.5',   color: '#B9F6CA' },
-    { key: 'under25',   label: 'Under 2.5',   color: '#FF9800' },
-    { key: 'under35',   label: 'Under 3.5',   color: '#F06292' },
-    { key: 'ambasSim',  label: 'Ambas Sim',   color: '#B0BEC5' },
-    { key: 'ambasNao',  label: 'Ambas Não',   color: '#F44336' },
-    { key: 'casaVence', label: 'Casa Vence',  color: '#AB47BC' },
-    { key: 'empate',    label: 'Empate',      color: '#78909C' },
-    { key: 'foraVence', label: 'Fora Vence',  color: '#2196F3' },
+    { key: 'over15',    label: 'Over 1.5',    color: '#00FF7F' },   /* Spring Green */
+    { key: 'over25',    label: 'Over 2.5',    color: '#FFD700' },   /* Gold */
+    { key: 'over35',    label: 'Over 3.5',    color: '#00FFFF' },   /* Cyan */
+    { key: 'over5',     label: '5+ Gols',     color: '#FF4500' },   /* OrangeRed */
+    { key: 'under15',   label: 'Under 1.5',   color: '#32CD32' },   /* LimeGreen */
+    { key: 'under25',   label: 'Under 2.5',   color: '#FF8C00' },   /* DarkOrange */
+    { key: 'under35',   label: 'Under 3.5',   color: '#FF1493' },   /* DeepPink */
+    { key: 'ambasSim',  label: 'Ambas Sim',   color: '#E0E0E0' },   /* LightGray */
+    { key: 'ambasNao',  label: 'Ambas Não',   color: '#FF0000' },   /* Red */
+    { key: 'casaVence', label: 'Casa Vence',  color: '#9400D3' },   /* DarkViolet */
+    { key: 'empate',    label: 'Empate',      color: '#A9A9A9' },   /* DarkGray */
+    { key: 'foraVence', label: 'Fora Vence',  color: '#1E90FF' },   /* DodgerBlue */
 ];
 
 /* ════════════════════════════════════════════════════════
@@ -8258,7 +8282,7 @@ let hmNumPts   = 40;
 let hmBasePts  = 20;
 let hmShowVals = false;
 
-hmLoadPrefs(); // aplica prefs salvas antes de qualquer coisa
+hmLoadPrefs();
 
 let hmData    = null;
 let _hmTabVis = !document.hidden;
@@ -8352,27 +8376,39 @@ function hmProcessData(raw) {
 }
 
 /* ════════════════════════════════════════════════════════
-   HELPERS DE COR
+   HELPERS DE COR — OPACIDADE POR PERCENTIL (ranking)
 ════════════════════════════════════════════════ */
 function _hmHex(hex) {
     const n = parseInt(hex.replace('#',''), 16);
     return [(n>>16)&255, (n>>8)&255, n&255];
 }
 
-function _hmCellBg(mk, pct) {
+/* Calcula percentil de um valor dentro do array da linha */
+function _hmPercentile(val, arr) {
+    if (!arr || arr.length < 2) return 0.5;
+    const sorted = [...arr].sort((a, b) => a - b);
+    let count = 0;
+    for (let i = 0; i < sorted.length; i++) {
+        if (sorted[i] < val) count++;
+    }
+    return count / (sorted.length - 1);
+}
+
+/* Cor de fundo: usa percentil da linha, não valor absoluto */
+function _hmCellBg(mk, pct, percentile) {
     const [r,g,b] = _hmHex(mk.color);
-    const t = Math.max(0, Math.min(1, (pct - 10) / 80));
-    const a = 0.07 + t * 0.81;
+    /* percentil 0 = opaco fraco, percentil 1 = vibrante */
+    const a = 0.08 + percentile * 0.92;
     return `rgba(${r},${g},${b},${a})`;
 }
 
-function _hmCellTc(pct, mk) {
-    const t = Math.max(0, Math.min(1, (pct - 10) / 80));
-    if (t > 0.52) {
+/* Cor do texto: branco em células fracas, preto em células fortes */
+function _hmCellTc(pct, mk, percentile) {
+    if (percentile > 0.55) {
         const [r,g,b] = _hmHex(mk.color);
-        return `rgb(${Math.round(r*0.25)},${Math.round(g*0.25)},${Math.round(b*0.25)})`;
+        return `rgb(${Math.round(r*0.12)},${Math.round(g*0.12)},${Math.round(b*0.12)})`;
     }
-    return 'rgba(180,190,200,0.6)';
+    return 'rgba(240,245,255,0.85)';
 }
 
 function _hmTrend(series, key) {
@@ -8419,15 +8455,16 @@ function hmRender() {
           </td>`;
 
         vals.forEach((v, i) => {
+            const percentile = _hmPercentile(v, vals);
             html += `<td class="hm-cell"
-              style="background:${_hmCellBg(mk,v)}"
+              style="background:${_hmCellBg(mk,v,percentile)}"
               data-mkt="${mk.label}"
               data-color="${mk.color}"
               data-time="${labels[i]}"
               data-val="${v.toFixed(1)}"
               data-key="${mk.key}"
               data-idx="${i}">
-              <div class="hm-cell-val" style="color:${_hmCellTc(v,mk)};display:${hmShowVals?'block':'none'}">${Math.round(v)}</div>
+              <div class="hm-cell-val" style="color:${_hmCellTc(v,mk,percentile)};display:${hmShowVals?'block':'none'}">${Math.round(v)}</div>
             </td>`;
         });
 
@@ -8450,7 +8487,7 @@ function _hmBuildLegend() {
     if (!bar) return;
     bar.innerHTML = '';
     for (let i = 0; i < 12; i++) {
-        const a = 0.07 + (i / 11) * 0.81;
+        const a = 0.08 + (i / 11) * 0.92;
         const seg = document.createElement('div');
         seg.className = 'hm-leg-seg';
         seg.style.background = `rgba(255,200,60,${a})`;
@@ -8476,16 +8513,16 @@ function _hmBuildSummary() {
 
         const pill = document.createElement('div');
         pill.className = 'hm-pill';
-        pill.style.borderColor = `rgba(${r},${g},${b},0.45)`;
+        pill.style.borderColor = `rgba(${r},${g},${b},0.55)`;
         pill.style.color       = mk.color;
-        pill.style.background  = `rgba(${r},${g},${b},0.08)`;
+        pill.style.background  = `rgba(${r},${g},${b},0.12)`;
         pill.textContent       = `${mk.label} ${v.toFixed(1)}%${icon}`;
         div.appendChild(pill);
     });
 }
 
 /* ════════════════════════════════════════════════════════
-   TOOLTIP
+   TOOLTIP — DISTÂNCIA AUMENTADA DO MOUSE
 ════════════════════════════════════════════════ */
 function _hmEnsureTooltip() {
     if (document.getElementById('hmTooltip')) return;
@@ -8524,14 +8561,32 @@ function _hmAttachTooltip() {
             tt.style.display = 'block';
         });
 
-        cell.addEventListener('mousemove', e => {
-            let x = e.clientX + 14;
-            let y = e.clientY - 50;
-            if (x + 160 > window.innerWidth) x = e.clientX - 170;
-            if (y < 4) y = 4;
-            tt.style.left = x + 'px';
-            tt.style.top  = y + 'px';
-        });
+cell.addEventListener('mousemove', e => {
+    /* Tooltip mais distante do mouse */
+    let x = e.clientX + 60;
+    let y = e.clientY - 120;
+
+    const ttW = 170;
+    const ttH = 90;
+
+    /* Evita sair da tela à direita */
+    if (x + ttW > window.innerWidth) {
+        x = e.clientX - ttW - 14;
+    }
+
+    /* Evita sair da tela em cima */
+    if (y < 8) {
+        y = e.clientY + 18;
+    }
+
+    /* Evita sair da tela embaixo */
+    if (y + ttH > window.innerHeight) {
+        y = window.innerHeight - ttH - 8;
+    }
+
+    tt.style.left = x + 'px';
+    tt.style.top  = y + 'px';
+});
 
         cell.addEventListener('mouseleave', () => {
             tt.style.display = 'none';
@@ -8556,7 +8611,6 @@ async function hmFetch() {
 
 /* ── controles + init ── */
 document.addEventListener('DOMContentLoaded', () => {
-    // sincroniza os selects com o que foi carregado do localStorage
     hmSyncSelectors();
 
     document.getElementById('hmSelPeriodo')?.addEventListener('change', e => {
@@ -8578,7 +8632,6 @@ document.addEventListener('DOMContentLoaded', () => {
     hmFetch();
     setInterval(hmFetch, 3000);
 });
-
 </script>
 
 <script>
