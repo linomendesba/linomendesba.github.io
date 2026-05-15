@@ -409,66 +409,52 @@
     </div>
 </div>
 
-<!-- ════════════════════════════════════════════════════
-     RENKO MERCADOS — bloco HTML para colar no dashboard
-     Adicione <script src="renko.js"></script> no <head> ou
-     antes do </body>.
-════════════════════════════════════════════════════ -->
 <div class="accordion-item">
-    <button class="rk-accordion-btn" onclick="toggleRkAccordion(this)">
-        Renko Mercados
-    </button>
+    <button class="accordion-button" onclick="toggleRenkoAccordion(this)">▼ Renko Over/Under 2.5 ▲</button>
+    <div class="accordion-content" id="renkoAccordionContent">
 
-    <div style="display:none">
-
-        <!-- Controles superiores -->
+        <!-- Controles -->
         <div class="rk-controls">
             <div class="rk-ctrl-group">
-                <label>Bloco</label>
-                <select id="rkSelBlock">
-                    <option value="10">10 jogos</option>
-                    <option value="15">15 jogos</option>
-                    <option value="20" selected>20 jogos</option>
-                    <option value="30">30 jogos</option>
-                    <option value="40">40 jogos</option>
+                <label>Mercado</label>
+                <select id="rkSelMercado">
+                    <option value="over25">Over 2.5</option>
+                    <option value="over15">Over 1.5</option>
+                    <option value="over35">Over 3.5</option>
+                    <option value="ambas">Ambas Marcam</option>
                 </select>
             </div>
             <div class="rk-ctrl-group">
-                <label>Brick %</label>
-                <select id="rkSelBrick">
-                    <option value="1">1%</option>
-                    <option value="2">2%</option>
-                    <option value="3" selected>3%</option>
-                    <option value="5">5%</option>
-                    <option value="7">7%</option>
-                    <option value="10">10%</option>
+                <label>Janela</label>
+                <select id="rkSelJanela">
+                    <option value="60">60</option>
+                    <option value="100" selected>100</option>
+                    <option value="150">150</option>
+                    <option value="200">200</option>
+                    <option value="300">300</option>
                 </select>
+            </div>
+            <div class="rk-ctrl-group">
+                <label>Altura</label>
+                <button type="button" id="rkAlturaMenos" class="rk-btn-h">−</button>
+                <input id="rkAlturaInput" type="number" min="120" max="600" step="10" value="220" class="rk-altura-input">
+                <button type="button" id="rkAlturaMais" class="rk-btn-h">+</button>
             </div>
         </div>
 
-        <!-- Pills de mercado (toggle on/off) -->
-        <div class="rk-mkt-pills" id="rkMktPills"></div>
-
-        <!-- Canvas do gráfico -->
-        <div class="rk-wrap">
-            <canvas class="rk-canvas" id="rkCanvas"></canvas>
+        <!-- Canvas -->
+        <div class="rk-canvas-wrap" id="rkCanvasWrap">
+            <canvas id="rkCanvas"></canvas>
         </div>
 
-        <!-- Info bar: último valor + direção por mercado -->
-        <div class="rk-info-bar" id="rkInfoBar"></div>
+        <!-- Scrollbar -->
+        <input id="rkScroll" class="rk-scrollbar" type="range" min="0" max="0" value="0" step="1">
 
-        <!-- Legenda de direção -->
-        <div class="rk-dir-legend">
-            <span>
-                <div class="rk-dir-dot" style="background:rgba(74,222,128,0.75)"></div>
-                Brick de alta
-            </span>
-            <span>
-                <div class="rk-dir-dot" style="background:rgba(248,113,113,0.55)"></div>
-                Brick de baixa
-            </span>
-            <span style="color:#1e293b">— cada coluna = 1 brick (variação de <span id="rkBrickLbl">3</span>%)</span>
-        </div>
+        <!-- Info -->
+        <div id="rkInfo" class="rk-info">Aguardando dados...</div>
+
+        <!-- Pills de resumo -->
+        <div class="rk-summary" id="rkSummary"></div>
 
     </div>
 </div>
@@ -8185,9 +8171,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script>
     /* ════════════════════════════════════════════════════════
-   RENKO MERCADOS — renko.js  (BetStat)
-   Gráfico Renko de mercados esportivos por bloco de jogos
-   Identidade visual própria — dark indigo/cyan
+   RENKO OVER/UNDER — renko.js
 ════════════════════════════════════════════════════════ */
 
 (function rkInjectCSS() {
@@ -8195,144 +8179,88 @@ document.addEventListener('DOMContentLoaded', () => {
     const style = document.createElement('style');
     style.id = 'rk-styles';
     style.textContent = `
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
-
-        /* ── Acordeão ── */
-        .rk-accordion-btn {
-            width: 100%; background: none; border: none;
-            color: #7dd3fc; font-size: 11px; font-family: 'JetBrains Mono', monospace;
-            letter-spacing: 2px; text-transform: uppercase;
-            padding: 10px 0; cursor: pointer; text-align: left;
-            display: flex; align-items: center; gap: 8px;
-            border-top: 1px solid rgba(125,211,252,0.12);
-            margin-top: 6px;
-        }
-        .rk-accordion-btn::before {
-            content: '▸'; font-size: 10px; transition: transform .2s;
-        }
-        .rk-accordion-btn.open::before { transform: rotate(90deg); }
-
-        /* ── Controles ── */
         .rk-controls {
             display: flex; flex-wrap: wrap; gap: 10px;
-            padding: 10px 0 8px;
+            padding: 8px 0 6px;
         }
         .rk-ctrl-group {
             display: flex; align-items: center; gap: 6px;
         }
         .rk-ctrl-group label {
-            font-size: 9px; color: #475569;
-            font-family: 'JetBrains Mono', monospace;
-            text-transform: uppercase; letter-spacing: 1.5px;
+            font-size: 10px; color: #556; text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .rk-ctrl-group select {
-            background: #0d1117; border: 1px solid #1e293b;
-            color: #7dd3fc; font-size: 10px; font-family: 'JetBrains Mono', monospace;
-            padding: 4px 8px; border-radius: 3px; cursor: pointer; outline: none;
-            transition: border-color .15s;
+            background: #171b24; border: 1px solid #2a2f3e;
+            color: #9aa; font-size: 11px; padding: 4px 8px;
+            border-radius: 3px; cursor: pointer; outline: none;
         }
-        .rk-ctrl-group select:focus { border-color: #38bdf8; }
-
-        /* Botões de mercado */
-        .rk-mkt-pills {
-            display: flex; flex-wrap: wrap; gap: 5px;
-            padding: 6px 0 4px;
+        .rk-btn-h {
+            width: 24px; height: 24px; border-radius: 50%;
+            border: 1px solid #2a3550; background: #0d1117;
+            color: #cdd; cursor: pointer; font-size: 14px;
+            line-height: 1; padding: 0; display: flex;
+            align-items: center; justify-content: center;
         }
-        .rk-mkt-pill {
-            font-size: 9px; font-family: 'JetBrains Mono', monospace;
-            padding: 3px 9px; border-radius: 2px; cursor: pointer;
-            border: 1px solid; transition: all .15s;
-            user-select: none; letter-spacing: 0.5px;
+        .rk-btn-h:hover { border-color: #4af; color: #4af; }
+        .rk-altura-input {
+            width: 58px; height: 24px; text-align: center;
+            border-radius: 4px; border: 1px solid #2a3550;
+            background: #111827; color: #1fcc59;
+            font-size: 11px; outline: none;
         }
-        .rk-mkt-pill.active { opacity: 1; }
-        .rk-mkt-pill:not(.active) { opacity: 0.28; }
-
-        /* ── Canvas wrapper ── */
-        .rk-wrap {
+        .rk-canvas-wrap {
             position: relative; width: 100%;
-            border: 1px solid #0f172a;
-            border-radius: 4px; overflow: hidden;
-            background: #070a10;
+            background: linear-gradient(180deg, #0c0c0d, #1b1f24);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+            border-radius: 3px; overflow: hidden;
+            height: 220px; box-sizing: border-box;
         }
-        .rk-canvas {
-            display: block; width: 100%; cursor: crosshair;
+        .rk-canvas-wrap canvas {
+            display: block; width: 100% !important; height: 100% !important;
         }
-
-        /* ── Info bar abaixo do canvas ── */
-        .rk-info-bar {
-            display: flex; align-items: center; flex-wrap: wrap;
-            gap: 12px; padding: 6px 4px 0;
-            font-family: 'JetBrains Mono', monospace; font-size: 9px;
+        .rk-scrollbar {
+            width: 100%; margin-top: 8px;
+            accent-color: #1fcc59; cursor: grab;
         }
-        .rk-info-item { display: flex; align-items: center; gap: 4px; }
-        .rk-info-dot {
-            width: 7px; height: 7px; border-radius: 1px; flex-shrink: 0;
+        .rk-info {
+            margin-top: 4px; color: #3a4555;
+            font-size: 10px; text-align: center;
+            font-family: monospace;
         }
-        .rk-info-label { color: #334155; }
-        .rk-info-val   { color: #94a3b8; font-weight: 600; }
-
-        /* ── Tooltip ── */
-        .rk-tooltip {
-            position: fixed; pointer-events: none; display: none;
-            background: rgba(5,8,18,.97);
-            border: 1px solid rgba(56,189,248,0.2);
-            border-radius: 5px; padding: 8px 13px;
-            font-size: 10px; line-height: 1.9; z-index: 9999;
-            font-family: 'JetBrains Mono', monospace; min-width: 155px;
-            box-shadow: 0 4px 24px rgba(0,0,0,.7);
+        .rk-summary {
+            display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;
         }
-        .rk-tt-title { color: #38bdf8; font-weight: 700; font-size: 11px; margin-bottom: 3px; }
-        .rk-tt-row   { display: flex; justify-content: space-between; gap: 16px; }
-        .rk-tt-key   { color: #475569; }
-        .rk-tt-val   { font-weight: 700; }
-
-        /* ── Legenda de direção ── */
-        .rk-dir-legend {
-            display: flex; gap: 14px; padding: 8px 0 0;
-            font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #334155;
+        .rk-pill {
+            font-size: 10px; padding: 3px 9px; border-radius: 10px;
+            border: 1px solid; white-space: nowrap; font-family: monospace;
+            cursor: default;
         }
-        .rk-dir-legend span { display: flex; align-items: center; gap: 5px; }
-        .rk-dir-dot { width: 10px; height: 10px; border-radius: 1px; }
     `;
     document.head.appendChild(style);
 })();
 
 /* ════════════════════════════════════════════════════════
-   MERCADOS disponíveis
+   MERCADOS DISPONÍVEIS
 ════════════════════════════════════════════════════════ */
-const RK_MARKETS = [
-    { key: 'over15',    label: 'O1.5',   color: '#22d3ee' },
-    { key: 'over25',    label: 'O2.5',   color: '#facc15' },
-    { key: 'over35',    label: 'O3.5',   color: '#fb923c' },
-    { key: 'under15',   label: 'U1.5',   color: '#a3e635' },
-    { key: 'under25',   label: 'U2.5',   color: '#e879f9' },
-    { key: 'ambasSim',  label: 'A.Sim',  color: '#4ade80' },
-    { key: 'ambasNao',  label: 'A.Não',  color: '#f87171' },
-    { key: 'casaVence', label: 'Casa',   color: '#818cf8' },
-    { key: 'empate',    label: 'Emp',    color: '#94a3b8' },
-    { key: 'foraVence', label: 'Fora',   color: '#38bdf8' },
-];
+const RK_MERCADOS = {
+    over25:  { label: 'Over 2.5',      test: tg => tg >= 3,          cor: '#1fcc59', corN: '#ef4444' },
+    over15:  { label: 'Over 1.5',      test: tg => tg >= 2,          cor: '#00BCD4', corN: '#ef4444' },
+    over35:  { label: 'Over 3.5',      test: tg => tg >= 4,          cor: '#FFEB3B', corN: '#ef4444' },
+    ambas:   { label: 'Ambas Marcam',  test: (tg,c,f) => c>0&&f>0,  cor: '#B0BEC5', corN: '#ef4444' },
+};
 
 /* ════════════════════════════════════════════════════════
-   ESTADO
+   PERSISTÊNCIA
 ════════════════════════════════════════════════════════ */
-const RK_LS_KEY = 'betstat_renko_prefs';
-
-let rkBlockSize  = 20;   // jogos por bloco
-let rkBrickSize  = 3;    // variação % para novo brick
-let rkActiveMkts = new Set(RK_MARKETS.map(m => m.key));
-let rkRawData    = null;
-let rkChart      = null; // instância interna do renderer
-let _rkTabVis    = !document.hidden;
-
-document.addEventListener('visibilitychange', () => { _rkTabVis = !document.hidden; });
+const RK_LS_KEY = 'renko_prefs';
 
 function rkSavePrefs() {
     try {
         localStorage.setItem(RK_LS_KEY, JSON.stringify({
-            blockSize: rkBlockSize,
-            brickSize: rkBrickSize,
-            active: [...rkActiveMkts],
+            mercado: rkMercado,
+            janela:  rkJanela,
+            altura:  rkAltura,
         }));
     } catch(e) {}
 }
@@ -8342,376 +8270,280 @@ function rkLoadPrefs() {
         const raw = localStorage.getItem(RK_LS_KEY);
         if (!raw) return;
         const p = JSON.parse(raw);
-        if (p.blockSize) rkBlockSize = p.blockSize;
-        if (p.brickSize) rkBrickSize = p.brickSize;
-        if (Array.isArray(p.active)) rkActiveMkts = new Set(p.active);
+        if (p.mercado !== undefined) rkMercado = p.mercado;
+        if (p.janela  !== undefined) rkJanela  = p.janela;
+        if (p.altura  !== undefined) rkAltura  = p.altura;
     } catch(e) {}
 }
 
+/* ── estado ── */
+let rkMercado = 'over25';
+let rkJanela  = 100;
+let rkAltura  = 220;
+
 rkLoadPrefs();
 
+let _rkChart       = null;
+let _rkData        = null;       // dados brutos (array de jogos)
+let _rkInicioVis   = 0;
+let _rkTabVis      = !document.hidden;
+
+document.addEventListener('visibilitychange', () => { _rkTabVis = !document.hidden; });
+
 /* ════════════════════════════════════════════════════════
-   ALGORITMO RENKO
-   Entrada: array de % por bloco   →   série de bricks
+   ACORDEÃO
 ════════════════════════════════════════════════════════ */
-function buildRenkoSeries(pctArray, brickPct) {
-    if (!pctArray || pctArray.length < 2) return [];
-
-    const bricks = [];
-    let level  = pctArray[0];
-    let dir    = 0; // 0=sem definição, 1=alta, -1=baixa
-
-    for (let i = 1; i < pctArray.length; i++) {
-        const v = pctArray[i];
-        const delta = v - level;
-
-        if (dir >= 0 && delta >= brickPct) {
-            const n = Math.floor(delta / brickPct);
-            for (let k = 0; k < n; k++) {
-                const from = level + k * brickPct;
-                bricks.push({ from, to: from + brickPct, dir: 1, bloco: i });
-            }
-            level += n * brickPct;
-            dir = 1;
-        } else if (dir <= 0 && delta <= -brickPct) {
-            const n = Math.floor(-delta / brickPct);
-            for (let k = 0; k < n; k++) {
-                const from = level - k * brickPct;
-                bricks.push({ from, to: from - brickPct, dir: -1, bloco: i });
-            }
-            level -= n * brickPct;
-            dir = -1;
-        }
-        // reversão: 2x brickPct na direção contrária
-        else if (dir === 1 && delta <= -brickPct * 2) {
-            const n = Math.floor(-delta / brickPct);
-            for (let k = 0; k < n; k++) {
-                const from = level - k * brickPct;
-                bricks.push({ from, to: from - brickPct, dir: -1, bloco: i });
-            }
-            level -= n * brickPct;
-            dir = -1;
-        } else if (dir === -1 && delta >= brickPct * 2) {
-            const n = Math.floor(delta / brickPct);
-            for (let k = 0; k < n; k++) {
-                const from = level + k * brickPct;
-                bricks.push({ from, to: from + brickPct, dir: 1, bloco: i });
-            }
-            level += n * brickPct;
-            dir = 1;
-        }
-    }
-
-    return bricks;
+function toggleRenkoAccordion(btn) {
+    const content = btn.nextElementSibling;
+    const isOpen  = content.style.display !== 'none';
+    content.style.display = isOpen ? 'none' : 'block';
 }
 
 /* ════════════════════════════════════════════════════════
-   PROCESSA DADOS BRUTOS → % por bloco por mercado
+   SINCRONIZA SELETORES
 ════════════════════════════════════════════════════════ */
-function rkProcessData(raw) {
-    const sorted = [...raw].sort((a, b) => {
+function rkSyncSelectors() {
+    const selMkt    = document.getElementById('rkSelMercado');
+    const selJanela = document.getElementById('rkSelJanela');
+    const inputAlt  = document.getElementById('rkAlturaInput');
+    if (selMkt)    selMkt.value    = rkMercado;
+    if (selJanela) selJanela.value = String(rkJanela);
+    if (inputAlt)  inputAlt.value  = String(rkAltura);
+    rkAplicarAltura();
+}
+
+/* ════════════════════════════════════════════════════════
+   PROCESSAMENTO — converte jogos → série acumulada
+════════════════════════════════════════════════════════ */
+function rkProcessData(jogos) {
+    const mk = RK_MERCADOS[rkMercado] || RK_MERCADOS.over25;
+
+    // ordena cronologicamente (igual ao heatmap)
+    const sorted = [...jogos].sort((a, b) => {
         const da = new Date(a.data), db = new Date(b.data);
         if (da - db !== 0) return da - db;
         if (a.hora !== b.hora) return a.hora - b.hora;
         return a.minuto - b.minuto;
     });
 
-    // divide em blocos de rkBlockSize jogos
-    const blocks = [];
-    const blockLabels = [];
-    for (let i = 0; i + rkBlockSize <= sorted.length; i += rkBlockSize) {
-        const sl = sorted.slice(i, i + rkBlockSize);
-        blocks.push(sl);
-        const last = sl[sl.length - 1];
-        blockLabels.push(`${last.hora}:${String(last.minuto).padStart(2,'0')}`);
-    }
+    const pontos   = [];
+    const direcoes = [];
+    const placares = [];
+    const labels   = [];
 
-    if (blocks.length < 2) return null;
+    let acumulado = 0;
+    let wins = 0, total = 0;
 
-    // calcula % de cada mercado por bloco
-    const series = {};
-    RK_MARKETS.forEach(m => { series[m.key] = []; });
+    sorted.forEach((jogo, idx) => {
+        let ft = [0, 0];
+        if (jogo.ft?.includes(' x ')) ft = jogo.ft.split(' x ').map(Number);
+        const casa = ft[0], fora = ft[1];
+        const tg   = casa + fora;
 
-    blocks.forEach(sl => {
-        const n = sl.length || 1;
-        let s = { over15:0, over25:0, over35:0, under15:0, under25:0,
-                  ambasSim:0, ambasNao:0, casaVence:0, empate:0, foraVence:0 };
-        sl.forEach(j => {
-            let ft = [0, 0];
-            if (j.ft?.includes(' x ')) ft = j.ft.split(' x ').map(Number);
-            const tg = ft[0] + ft[1];
-            s.over15    += tg > 1.5 ? 1 : 0;
-            s.over25    += tg > 2.5 ? 1 : 0;
-            s.over35    += tg > 3.5 ? 1 : 0;
-            s.under15   += tg < 1.5 ? 1 : 0;
-            s.under25   += tg < 2.5 ? 1 : 0;
-            s.ambasSim  += ft[0] > 0 && ft[1] > 0 ? 1 : 0;
-            s.ambasNao  += ft[0] === 0 || ft[1] === 0 ? 1 : 0;
-            s.casaVence += ft[0] > ft[1] ? 1 : 0;
-            s.empate    += ft[0] === ft[1] ? 1 : 0;
-            s.foraVence += ft[0] < ft[1] ? 1 : 0;
-        });
-        RK_MARKETS.forEach(m => {
-            series[m.key].push((s[m.key] / n) * 100);
-        });
+        const hit      = mk.test(tg, casa, fora);
+        const direcao  = hit ? 1 : -1;
+        acumulado     += direcao;
+        if (hit) wins++;
+        total++;
+
+        pontos.push(acumulado);
+        direcoes.push(direcao);
+        placares.push(`${casa} x ${fora}`);
+        labels.push(`${jogo.hora}:${String(jogo.minuto).padStart(2,'0')}`);
     });
 
-    // gera bricks Renko por mercado
-    const renko = {};
-    RK_MARKETS.forEach(m => {
-        renko[m.key] = buildRenkoSeries(series[m.key], rkBrickSize);
-    });
-
-    return { blocks: blocks.length, blockLabels, series, renko };
+    return { pontos, direcoes, placares, labels, wins, total };
 }
 
 /* ════════════════════════════════════════════════════════
-   RENDERER CANVAS (SVG-like via Canvas 2D)
+   RENDER DO CHART
 ════════════════════════════════════════════════════════ */
 function rkRender() {
-    const canvas = document.getElementById('rkCanvas');
-    if (!canvas || !rkRawData) return;
+    const canvas  = document.getElementById('rkCanvas');
+    const scroll  = document.getElementById('rkScroll');
+    const info    = document.getElementById('rkInfo');
+    if (!canvas) return;
 
-    const { renko, series, blockLabels } = rkRawData;
-    const ctx    = canvas.getContext('2d');
-    const dpr    = window.devicePixelRatio || 1;
-    const W      = canvas.offsetWidth;
-    const H      = 340;
-
-    canvas.width  = W * dpr;
-    canvas.height = H * dpr;
-    canvas.style.height = H + 'px';
-    ctx.scale(dpr, dpr);
-
-    ctx.clearRect(0, 0, W, H);
-
-    // padding
-    const PAD_L = 44, PAD_R = 12, PAD_T = 14, PAD_B = 30;
-    const plotW = W - PAD_L - PAD_R;
-    const plotH = H - PAD_T - PAD_B;
-
-    // coleta todos bricks ativos para escala
-    let allVals = [];
-    RK_MARKETS.forEach(m => {
-        if (!rkActiveMkts.has(m.key)) return;
-        const bricks = renko[m.key] || [];
-        bricks.forEach(b => { allVals.push(b.from, b.to); });
-    });
-
-    if (!allVals.length) {
-        ctx.fillStyle = '#1e293b';
-        ctx.font = '11px JetBrains Mono, monospace';
-        ctx.fillText('Sem bricks suficientes. Reduza o Brick%', PAD_L + 10, H / 2);
+    if (!_rkData || !_rkData.length) {
+        if (info) info.textContent = 'Aguardando dados...';
         return;
     }
 
-    const vMin = Math.min(...allVals) - 2;
-    const vMax = Math.max(...allVals) + 2;
-    const vRange = vMax - vMin || 1;
+    const proc  = rkProcessData(_rkData);
+    const { pontos, direcoes, placares, labels, wins, total } = proc;
 
-    function yOf(v) { return PAD_T + plotH * (1 - (v - vMin) / vRange); }
-
-    // contar total de bricks para X
-    let maxBricks = 0;
-    RK_MARKETS.forEach(m => {
-        if (!rkActiveMkts.has(m.key)) return;
-        maxBricks = Math.max(maxBricks, (renko[m.key] || []).length);
-    });
-    if (maxBricks === 0) maxBricks = 1;
-
-    // ── grade ──
-    ctx.strokeStyle = 'rgba(30,41,59,0.8)';
-    ctx.lineWidth   = 0.5;
-    const gridLines = 6;
-    for (let i = 0; i <= gridLines; i++) {
-        const v = vMin + (vRange * i) / gridLines;
-        const y = yOf(v);
-        ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(PAD_L + plotW, y); ctx.stroke();
-
-        ctx.fillStyle = '#334155';
-        ctx.font = '8px JetBrains Mono, monospace';
-        ctx.textAlign = 'right';
-        ctx.fillText(v.toFixed(0) + '%', PAD_L - 4, y + 3);
+    if (!pontos.length) {
+        if (info) info.textContent = 'Sem jogos para exibir.';
+        return;
     }
 
-    // ── linha base 50% ──
-    const y50 = yOf(50);
-    if (y50 >= PAD_T && y50 <= PAD_T + plotH) {
-        ctx.strokeStyle = 'rgba(56,189,248,0.12)';
-        ctx.lineWidth   = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath(); ctx.moveTo(PAD_L, y50); ctx.lineTo(PAD_L + plotW, y50); ctx.stroke();
-        ctx.setLineDash([]);
+    const nTotal    = pontos.length;
+    const maxInicio = Math.max(0, nTotal - rkJanela);
+    _rkInicioVis    = Math.min(Math.max(0, _rkInicioVis), maxInicio);
+
+    if (scroll) {
+        scroll.min      = '0';
+        scroll.max      = String(maxInicio);
+        scroll.value    = String(_rkInicioVis);
+        scroll.disabled = maxInicio <= 0;
     }
 
-    // ── bricks ──
-    const brickW = Math.max(4, Math.min(18, plotW / maxBricks - 1));
+    const xMin = _rkInicioVis;
+    const xMax = Math.min(nTotal - 1, xMin + rkJanela - 1);
 
-    RK_MARKETS.forEach(m => {
-        if (!rkActiveMkts.has(m.key)) return;
-        const bricks = renko[m.key] || [];
+    if (info) {
+        info.textContent = `Exibindo ${xMin + 1}–${xMax + 1} de ${nTotal} jogos`;
+    }
 
-        bricks.forEach((b, xi) => {
-            const x  = PAD_L + (xi / maxBricks) * plotW;
-            const y1 = yOf(Math.max(b.from, b.to));
-            const y2 = yOf(Math.min(b.from, b.to));
-            const bH = Math.max(1, y2 - y1);
+    const mk = RK_MERCADOS[rkMercado] || RK_MERCADOS.over25;
 
-            const [r, g, bl_] = hexRgb(m.color);
-            const alpha = b.dir === 1 ? 0.82 : 0.55;
+    const ptColors = direcoes.map(d => d > 0 ? mk.cor : mk.corN);
 
-            ctx.fillStyle = `rgba(${r},${g},${bl_},${alpha})`;
-            ctx.fillRect(x, y1, brickW - 1, bH);
+    if (_rkChart) {
+        const ds = _rkChart.data.datasets[0];
+        _rkChart.data.labels      = labels;
+        ds.data                   = pontos;
+        ds._direcoes              = direcoes;
+        ds._placares              = placares;
+        ds.pointBackgroundColor   = ptColors;
+        ds.segment.borderColor    = segCtx => {
+            return segCtx.p1.parsed.y >= segCtx.p0.parsed.y ? mk.cor : mk.corN;
+        };
+        _rkChart.options.scales.x.min = xMin;
+        _rkChart.options.scales.x.max = xMax;
+        _rkChart.update('none');
+        _rkBuildSummary(wins, total, mk, pontos);
+        return;
+    }
 
-            // borda sutil
-            ctx.strokeStyle = `rgba(${r},${g},${bl_},0.3)`;
-            ctx.lineWidth = 0.5;
-            ctx.strokeRect(x, y1, brickW - 1, bH);
-        });
-    });
+    if (typeof Chart === 'undefined') {
+        console.error('[Renko] Chart.js não encontrado.');
+        return;
+    }
 
-    // ── eixo X (blocos) ──
-    ctx.fillStyle = '#334155';
-    ctx.font = '8px JetBrains Mono, monospace';
-    ctx.textAlign = 'center';
-    const step = Math.max(1, Math.floor(blockLabels.length / 8));
-    blockLabels.forEach((lbl, i) => {
-        if (i % step !== 0 && i !== blockLabels.length - 1) return;
-        const x = PAD_L + (i / Math.max(blockLabels.length - 1, 1)) * plotW;
-        ctx.fillText(lbl, x, H - 6);
-    });
-
-    // ── linha borda esquerda ──
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth   = 1;
-    ctx.beginPath(); ctx.moveTo(PAD_L, PAD_T); ctx.lineTo(PAD_L, PAD_T + plotH); ctx.stroke();
-
-    // salva dados para tooltip
-    canvas._rkBricks = {};
-    canvas._rkPlot   = { PAD_L, PAD_R, PAD_T, PAD_B, plotW, plotH, W, H, maxBricks, brickW, vMin, vRange };
-    RK_MARKETS.forEach(m => {
-        canvas._rkBricks[m.key] = renko[m.key] || [];
-    });
-
-    _rkBuildInfoBar();
-}
-
-/* ════════════════════════════════════════════════════════
-   INFO BAR
-════════════════════════════════════════════════════════ */
-function _rkBuildInfoBar() {
-    const bar = document.getElementById('rkInfoBar');
-    if (!bar || !rkRawData) return;
-    bar.innerHTML = '';
-
-    RK_MARKETS.forEach(m => {
-        if (!rkActiveMkts.has(m.key)) return;
-        const arr    = rkRawData.series[m.key];
-        const last   = arr[arr.length - 1];
-        const bricks = rkRawData.renko[m.key] || [];
-        const lastB  = bricks[bricks.length - 1];
-        const icon   = lastB ? (lastB.dir === 1 ? '▲' : '▼') : '─';
-        const iconC  = lastB ? (lastB.dir === 1 ? '#4ade80' : '#f87171') : '#475569';
-
-        const item = document.createElement('div');
-        item.className = 'rk-info-item';
-        item.innerHTML = `
-            <div class="rk-info-dot" style="background:${m.color}"></div>
-            <span class="rk-info-label">${m.label}</span>
-            <span class="rk-info-val" style="color:${m.color}">${last?.toFixed(1)}%</span>
-            <span style="color:${iconC};font-size:8px">${icon}</span>
-        `;
-        bar.appendChild(item);
-    });
-}
-
-/* ════════════════════════════════════════════════════════
-   TOOLTIP HOVER
-════════════════════════════════════════════════════════ */
-function _rkEnsureTooltip() {
-    if (document.getElementById('rkTooltip')) return;
-    const tt = document.createElement('div');
-    tt.id = 'rkTooltip'; tt.className = 'rk-tooltip';
-    document.body.appendChild(tt);
-}
-
-function _rkAttachTooltip() {
-    _rkEnsureTooltip();
-    const canvas = document.getElementById('rkCanvas');
-    const tt     = document.getElementById('rkTooltip');
-    if (!canvas || !tt) return;
-
-    canvas.addEventListener('mousemove', e => {
-        const rect = canvas.getBoundingClientRect();
-        const mx   = e.clientX - rect.left;
-        const my   = e.clientY - rect.top;
-        const p    = canvas._rkPlot;
-        if (!p) return;
-
-        let found = false;
-        const rows = [];
-
-        RK_MARKETS.forEach(m => {
-            if (!rkActiveMkts.has(m.key)) return;
-            const bricks = canvas._rkBricks?.[m.key] || [];
-            bricks.forEach((b, xi) => {
-                const x  = p.PAD_L + (xi / p.maxBricks) * p.plotW;
-                const bH_val = Math.abs(b.to - b.from);
-                const y1 = p.PAD_T + p.plotH * (1 - (Math.max(b.from,b.to) - p.vMin) / p.vRange);
-                const y2 = y1 + Math.max(1, p.plotH * bH_val / p.vRange);
-                if (mx >= x && mx <= x + p.brickW && my >= y1 && my <= y2) {
-                    found = true;
-                    rows.push({ m, b });
+    _rkChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: mk.label,
+                data: pontos,
+                _direcoes: direcoes,
+                _placares: placares,
+                borderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointBorderWidth: 1,
+                pointBorderColor: '#111827',
+                pointBackgroundColor: ptColors,
+                tension: 0,
+                fill: false,
+                segment: {
+                    borderColor: ctx => {
+                        return ctx.p1.parsed.y >= ctx.p0.parsed.y ? mk.cor : mk.corN;
+                    }
                 }
-            });
-        });
-
-        if (found) {
-            const b0 = rows[0];
-            let html = `<div class="rk-tt-title">Bloco #${b0.b.bloco}</div>`;
-            rows.forEach(({ m, b }) => {
-                const dirTxt = b.dir === 1 ? '<span style="color:#4ade80">▲ Alta</span>' : '<span style="color:#f87171">▼ Baixa</span>';
-                html += `<div class="rk-tt-row">
-                    <span class="rk-tt-key" style="color:${m.color}">${m.label}</span>
-                    <span class="rk-tt-val" style="color:${m.color}">${b.from.toFixed(1)}→${b.to.toFixed(1)}%</span>
-                    ${dirTxt}
-                </div>`;
-            });
-            tt.innerHTML = html;
-
-            let x = e.clientX + 15;
-            let y = e.clientY - 55;
-            if (x + 180 > window.innerWidth) x = e.clientX - 195;
-            if (y < 4) y = 4;
-            tt.style.left = x + 'px';
-            tt.style.top  = y + 'px';
-            tt.style.display = 'block';
-        } else {
-            tt.style.display = 'none';
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(8,10,18,.95)',
+                    borderColor: '#2a3550',
+                    borderWidth: 1,
+                    titleColor: '#4af',
+                    bodyColor: '#cdd',
+                    titleFont: { family: 'monospace', size: 11 },
+                    bodyFont:  { family: 'monospace', size: 10 },
+                    callbacks: {
+                        label: ctx => {
+                            const ds      = ctx.dataset;
+                            const dir     = ds._direcoes?.[ctx.dataIndex];
+                            const placar  = ds._placares?.[ctx.dataIndex] || '';
+                            const lado    = dir > 0
+                                ? `✔ ${mk.label} +1`
+                                : `✖ ${mk.label} -1`;
+                            return `${lado}  |  Acum: ${ctx.parsed.y}  |  ${placar}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    min: xMin,
+                    max: xMax,
+                    ticks: { color: '#3a4555', maxRotation: 0, autoSkip: true, font: { size: 9 } },
+                    grid:  { color: 'rgba(255,255,255,.04)' }
+                },
+                y: {
+                    ticks: { color: '#3a4555', stepSize: 1, font: { size: 9 } },
+                    grid:  { color: 'rgba(255,255,255,.05)' }
+                }
+            }
         }
     });
 
-    canvas.addEventListener('mouseleave', () => {
-        tt.style.display = 'none';
-    });
+    window._rkChart = _rkChart;
+    _rkBuildSummary(wins, total, mk, pontos);
 }
 
 /* ════════════════════════════════════════════════════════
-   UTILITÁRIO: hex → rgb
+   PILLS DE RESUMO
 ════════════════════════════════════════════════════════ */
-function hexRgb(hex) {
-    const n = parseInt(hex.replace('#',''), 16);
-    return [(n>>16)&255, (n>>8)&255, n&255];
+function _rkBuildSummary(wins, total, mk, pontos) {
+    const div = document.getElementById('rkSummary');
+    if (!div) return;
+
+    const losses  = total - wins;
+    const pct     = total ? ((wins / total) * 100).toFixed(1) : '0.0';
+    const acum    = pontos.length ? pontos[pontos.length - 1] : 0;
+    const acumCor = acum >= 0 ? mk.cor : mk.corN;
+
+    div.innerHTML = `
+        <div class="rk-pill" style="border-color:rgba(31,204,89,.4);color:${mk.cor};background:rgba(31,204,89,.07)">
+            ${mk.label}
+        </div>
+        <div class="rk-pill" style="border-color:rgba(31,204,89,.35);color:#1fcc59;background:rgba(31,204,89,.07)">
+            ✔ ${wins} Wins
+        </div>
+        <div class="rk-pill" style="border-color:rgba(239,68,68,.35);color:#ef4444;background:rgba(239,68,68,.07)">
+            ✖ ${losses} Losses
+        </div>
+        <div class="rk-pill" style="border-color:rgba(255,200,60,.35);color:#ffc83c;background:rgba(255,200,60,.07)">
+            ${pct}% Hit
+        </div>
+        <div class="rk-pill" style="border-color:rgba(74,170,255,.3);color:${acumCor};background:rgba(74,170,255,.06)">
+            Acum: ${acum > 0 ? '+' : ''}${acum}
+        </div>
+    `;
 }
 
 /* ════════════════════════════════════════════════════════
-   ACORDEÃO
+   ALTURA
 ════════════════════════════════════════════════════════ */
-function toggleRkAccordion(btn) {
-    const content = btn.nextElementSibling;
-    const isOpen  = content.style.display !== 'none';
-    content.style.display = isOpen ? 'none' : 'block';
-    btn.classList.toggle('open', !isOpen);
+function rkAplicarAltura() {
+    const wrap  = document.getElementById('rkCanvasWrap');
+    const input = document.getElementById('rkAlturaInput');
+    if (!wrap || !input) return;
+    const h = Math.min(600, Math.max(120, parseInt(input.value || '220', 10)));
+    input.value    = String(h);
+    rkAltura       = h;
+    wrap.style.height = `${h}px`;
+    rkSavePrefs();
+    if (_rkChart?.resize) _rkChart.resize();
+}
+
+/* ════════════════════════════════════════════════════════
+   DESTROY ao trocar mercado (recriar chart limpo)
+════════════════════════════════════════════════════════ */
+function _rkDestroyChart() {
+    if (_rkChart) { _rkChart.destroy(); _rkChart = null; window._rkChart = null; }
 }
 
 /* ════════════════════════════════════════════════════════
@@ -8722,8 +8554,7 @@ async function rkFetch() {
     try {
         const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + '?t=' + Date.now());
         if (!res.ok) throw new Error(res.status);
-        const json = await res.json();
-        rkRawData = rkProcessData(json);
+        _rkData = await res.json();
         rkRender();
     } catch(e) {
         console.error('[Renko]', e);
@@ -8731,61 +8562,50 @@ async function rkFetch() {
 }
 
 /* ════════════════════════════════════════════════════════
-   SINCRONIZA SELETORES
-════════════════════════════════════════════════════════ */
-function rkSyncSelectors() {
-    const selBlock = document.getElementById('rkSelBlock');
-    const selBrick = document.getElementById('rkSelBrick');
-    if (selBlock) selBlock.value = String(rkBlockSize);
-    if (selBrick) selBrick.value = String(rkBrickSize);
-}
-
-function _rkBuildPills() {
-    const wrap = document.getElementById('rkMktPills');
-    if (!wrap) return;
-    wrap.innerHTML = '';
-    RK_MARKETS.forEach(m => {
-        const [r,g,b] = hexRgb(m.color);
-        const pill = document.createElement('div');
-        pill.className   = 'rk-mkt-pill' + (rkActiveMkts.has(m.key) ? ' active' : '');
-        pill.textContent = m.label;
-        pill.style.borderColor  = `rgba(${r},${g},${b},0.55)`;
-        pill.style.color        = m.color;
-        pill.style.background   = `rgba(${r},${g},${b},0.08)`;
-        pill.addEventListener('click', () => {
-            if (rkActiveMkts.has(m.key)) {
-                if (rkActiveMkts.size <= 1) return; // mínimo 1 ativo
-                rkActiveMkts.delete(m.key);
-            } else {
-                rkActiveMkts.add(m.key);
-            }
-            pill.classList.toggle('active', rkActiveMkts.has(m.key));
-            rkSavePrefs();
-            rkRender();
-        });
-        wrap.appendChild(pill);
-    });
-}
-
-/* ════════════════════════════════════════════════════════
    INIT
 ════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
     rkSyncSelectors();
-    _rkBuildPills();
 
-    document.getElementById('rkSelBlock')?.addEventListener('change', e => {
-        rkBlockSize = +e.target.value; rkSavePrefs(); rkFetch();
-    });
-    document.getElementById('rkSelBrick')?.addEventListener('change', e => {
-        rkBrickSize = +e.target.value; rkSavePrefs(); rkFetch();
+    document.getElementById('rkSelMercado')?.addEventListener('change', e => {
+        rkMercado = e.target.value;
+        _rkDestroyChart();
+        rkSavePrefs();
+        rkRender();
     });
 
-    _rkAttachTooltip();
-    window.addEventListener('resize', rkRender);
+    document.getElementById('rkSelJanela')?.addEventListener('change', e => {
+        rkJanela = +e.target.value;
+        rkSavePrefs();
+        rkRender();
+    });
+
+    document.getElementById('rkAlturaInput')?.addEventListener('change', rkAplicarAltura);
+    document.getElementById('rkAlturaInput')?.addEventListener('input',  rkAplicarAltura);
+
+    document.getElementById('rkAlturaMenos')?.addEventListener('click', () => {
+        const inp = document.getElementById('rkAlturaInput');
+        if (!inp) return;
+        inp.value = String((parseInt(inp.value || '220', 10) || 220) - 10);
+        rkAplicarAltura();
+    });
+
+    document.getElementById('rkAlturaMais')?.addEventListener('click', () => {
+        const inp = document.getElementById('rkAlturaInput');
+        if (!inp) return;
+        inp.value = String((parseInt(inp.value || '220', 10) || 220) + 10);
+        rkAplicarAltura();
+    });
+
+    document.getElementById('rkScroll')?.addEventListener('input', e => {
+        _rkInicioVis = parseInt(e.target.value || '0', 10);
+        rkRender();
+    });
+
+    window.addEventListener('resize', () => { if (_rkChart) _rkChart.resize(); });
 
     rkFetch();
-    setInterval(rkFetch, 4000);
+    setInterval(rkFetch, 3000);
 });
 </script>
 
