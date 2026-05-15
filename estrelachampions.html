@@ -8790,7 +8790,7 @@ rkLoadPrefs();
 
 let _rkChart     = null;
 let _rkData      = null;
-let _rkInicioVis = 0;
+let _rkInicioVis = Infinity; // será ajustado para maxInicio no primeiro render
 let _rkTabVis    = !document.hidden;
 
 document.addEventListener('visibilitychange', () => { _rkTabVis = !document.hidden; });
@@ -8805,7 +8805,7 @@ function toggleRenkoAccordion(btn) {
     try { localStorage.setItem('renko_acordeao', isOpen ? '0' : '1'); } catch(e) {}
     // ao abrir: aguarda o browser pintar o layout e força resize do chart
     if (!isOpen && _rkChart) {
-        requestAnimationFrame(() => requestAnimationFrame(() => { _rkChart.resize(); }));
+        requestAnimationFrame(() => requestAnimationFrame(() => { rkFitCanvas(); }));
     }
 }
 
@@ -8966,7 +8966,7 @@ function rkRender() {
             }]
         },
         options: {
-            responsive: true,
+            responsive: false,
             maintainAspectRatio: false,
             animation: false,
             layout: { padding: { left: 0, right: 4, top: 6, bottom: 0 } },
@@ -9109,8 +9109,29 @@ function rkTrocarMercado(novoMkt) {
 }
 
 /* ════════════════════════════════════════════════════════
-   FETCH + LOOP
+   FIT CANVAS — sincroniza canvas com o wrap manualmente
+   (necessário porque responsive:false não auto-redimensiona)
 ════════════════════════════════════════════════════════ */
+function rkFitCanvas() {
+    const wrap = document.getElementById('rkCanvasWrap');
+    const canvas = document.getElementById('rkCanvas');
+    if (!wrap || !canvas || !_rkChart) return;
+
+    const content = document.getElementById('renkoAccordionContent');
+    // não faz nada se o acordeão está fechado
+    if (content && content.style.display === 'none') return;
+
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    if (!w || !h) return;
+
+    // só redimensiona se algo realmente mudou
+    if (canvas.width === w && canvas.height === h) return;
+
+    _rkChart.resize(w, h);
+}
+
+
 async function rkFetch() {
     if (!_rkTabVis) return;
     try {
@@ -9166,17 +9187,20 @@ document.addEventListener('DOMContentLoaded', () => {
         rkRender();
     });
 
-    window.addEventListener('resize', () => { if (_rkChart) _rkChart.resize(); });
+    window.addEventListener('resize', rkFitCanvas);
 
     // ao voltar à aba após inatividade o chart pode ter sumido — força resize + re-render
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden && _rkChart) {
             requestAnimationFrame(() => requestAnimationFrame(() => {
-                _rkChart.resize();
+                rkFitCanvas();
                 rkRender();
             }));
         }
     });
+
+    // watchdog: verifica a cada 2s se o canvas ainda tem as dimensões certas
+    setInterval(rkFitCanvas, 2000);
 
     rkFetch();
     setInterval(rkFetch, 3000);
