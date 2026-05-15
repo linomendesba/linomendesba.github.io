@@ -653,8 +653,11 @@ function parseResult(gameData) {
   const minuto = gameData.minuto != null ? parseInt(gameData.minuto, 10) : null;
   const total  = h + a;
 
+  // ── CORREÇÃO: captura a data do jogo para distinguir dias diferentes ──
+  const dataJogo = gameData.data ? String(gameData.data).split("T")[0] : null;
+
   return {
-    total, hora, minuto,
+    total, hora, minuto, dataJogo,
     isUnder2:  total < 3,
     isOver2:   total > 2,
     isUnder3:  total < 4,
@@ -667,29 +670,54 @@ function parseResult(gameData) {
   };
 }
 
+// ── CORREÇÃO: converte jogo em minutos absolutos (igual ao grafico_de_mercados)
+// Considera a data + hora + minuto, evitando colisão entre dias diferentes
+function toAbsMin(g) {
+  if (g.dataJogo) {
+    // Se há data disponível, usa ela para calcular o dia absoluto
+    const d = new Date(g.dataJogo);
+    if (!isNaN(d.getTime())) {
+      return Math.floor(d.getTime() / 86400000) * 1440 + g.hora * 60 + g.minuto;
+    }
+  }
+  // Fallback: apenas hora e minuto (comportamento antigo, quando não há data)
+  return g.hora * 60 + g.minuto;
+}
+
 function calcGraphDataForMarket(games, marketKey) {
   if (!games.length) return { points: [], meta: [] };
 
-  const slotMap = new Map();
-
   const fieldMap = {
-    "under2.5":  { field: "isUnder2",  opposite: "isOver2"   },
-    "over2.5":   { field: "isOver2",   opposite: "isUnder2"  },
-    "under3.5":  { field: "isUnder3",  opposite: "isOver3"   },
-    "over3.5":   { field: "isOver3",   opposite: "isUnder3"  },
-    "casa":      { field: "casa",      opposite: "fora"      },
-    "fora":      { field: "fora",      opposite: "casa"      },
-    "ambas-sim": { field: "ambasSim",  opposite: "ambasNao"  },
-    "ambas-nao": { field: "ambasNao",  opposite: "ambasSim"  }
+    "under2.5":  { field: "isUnder2" },
+    "over2.5":   { field: "isOver2"  },
+    "under3.5":  { field: "isUnder3" },
+    "over3.5":   { field: "isOver3"  },
+    "casa":      { field: "casa"     },
+    "fora":      { field: "fora"     },
+    "ambas-sim": { field: "ambasSim" },
+    "ambas-nao": { field: "ambasNao" }
   };
 
   const { field } = fieldMap[marketKey];
 
+  // ── CORREÇÃO: a chave do slot agora inclui a data para separar dias diferentes
+  // Formato: "YYYY-MM-DD|HH:MM"  (se não há data, usa apenas "HH:MM" como antes)
+  const slotMap = new Map();
+
   for (const g of games) {
     if (g.hora === null || g.minuto === null) continue;
-    const key = `${String(g.hora).padStart(2,"0")}:${String(g.minuto).padStart(2,"0")}`;
+    const hh = String(g.hora).padStart(2, "0");
+    const mm = String(g.minuto).padStart(2, "0");
+    const key = g.dataJogo ? `${g.dataJogo}|${hh}:${mm}` : `${hh}:${mm}`;
+
     if (!slotMap.has(key)) {
-      slotMap.set(key, { hora: g.hora, minuto: g.minuto, hits: 0, misses: 0, count: 0 });
+      slotMap.set(key, {
+        absMin: toAbsMin(g),
+        hora: g.hora,
+        minuto: g.minuto,
+        dataJogo: g.dataJogo || null,
+        hits: 0, misses: 0, count: 0
+      });
     }
     const s = slotMap.get(key);
     s.count++;
@@ -698,30 +726,31 @@ function calcGraphDataForMarket(games, marketKey) {
 
   function slotMatches(s) { return s.hits > s.misses; }
 
-  const slots = [...slotMap.values()].sort((a,b) =>
-    a.hora !== b.hora ? a.hora - b.hora : a.minuto - b.minuto
-  );
+  // ── CORREÇÃO: ordena os slots por timestamp absoluto (data + hora + minuto)
+  const slots = [...slotMap.values()].sort((a, b) => a.absMin - b.absMin);
 
   const points = [];
   const meta   = [];
   let val = 50;
 
-  for (const curr of slots) {
-    const prevKey = `${String(curr.hora - 1).padStart(2,"0")}:${String(curr.minuto).padStart(2,"00")}`;
-    const prev = slotMap.get(prevKey);
-    if (!prev) continue;
+  // ── CORREÇÃO: em vez de buscar "hora-1" (que quebra entre dias),
+  // compara com o slot imediatamente anterior na sequência ordenada.
+  // Isso funciona corretamente mesmo na virada do dia (ex: 23:56 → 00:03).
+  for (let i = 1; i < slots.length; i++) {
+    const curr = slots[i];
+    const prev = slots[i - 1];
 
     const prevMatches = slotMatches(prev);
     const currMatches = slotMatches(curr);
-
 
     if (prevMatches) {
       if (currMatches) val++; else val--;
       points.push(val);
       meta.push({
-        hora:   String(curr.hora).padStart(2,"0"),
-        minuto: String(curr.minuto).padStart(2,"0"),
-        jogos:  curr.count
+        hora:    String(curr.hora).padStart(2, "0"),
+        minuto:  String(curr.minuto).padStart(2, "0"),
+        jogos:   curr.count,
+        data:    curr.dataJogo || null
       });
     }
   }
@@ -764,7 +793,7 @@ function renderChart(id, points, meta, marketKey) {
       maintainAspectRatio: false,
       animation: false,
       layout: {
-        padding: { right: 48 }  
+        padding: { right: 48 }
       },
       plugins: {
         legend: { display: false },
@@ -779,7 +808,11 @@ function renderChart(id, points, meta, marketKey) {
             title: (context) => {
               if (!context?.length) return "";
               const gi = meta?.[context[0].dataIndex];
-              if (gi?.hora != null) return `⏱️ ${gi.hora}:${gi.minuto} (${gi.jogos} jogo${gi.jogos > 1 ? "s" : ""})`;
+              if (gi?.hora != null) {
+                // ── Exibe data no tooltip quando disponível
+                const dataStr = gi.data ? ` (${gi.data})` : "";
+                return `⏱️ ${gi.hora}:${gi.minuto}${dataStr} (${gi.jogos} jogo${gi.jogos > 1 ? "s" : ""})`;
+              }
               return "";
             },
             label: (c) => `Valor: ${c.raw}`
@@ -848,12 +881,11 @@ function initMarketsBar() {
 
     btn.addEventListener("click", () => {
       const group = btn.dataset.group;
-      if (group === activeGroup) return; 
+      if (group === activeGroup) return;
 
       activeGroup   = group;
       activeMarkets = MARKET_GROUPS[activeGroup].markets;
       saveGroup(activeGroup);
-
 
       marketsBar.querySelectorAll(".market-group-btn").forEach(b => {
         b.classList.toggle("active", b.dataset.group === activeGroup);
