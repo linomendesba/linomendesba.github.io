@@ -8171,7 +8171,7 @@ window.addEventListener("load", async () => {
         }
         .hm-cell-val {
             font-size: 7px; font-weight: 600; text-align: center;
-            line-height: 26px; pointer-events: none; color: rgba(0,0,0,0.55);
+            line-height: 26px; pointer-events: none;
         }
         .hm-legend {
             display: flex; align-items: center; gap: 7px;
@@ -8207,21 +8207,21 @@ window.addEventListener("load", async () => {
 })();
 
 /* ════════════════════════════════════════════════════════
-   MERCADOS — CORES DISTINTAS E ALTO CONTRASTE
+   MERCADOS — CORES DISTINTAS E VIBRANTES
 ════════════════════════════════════════════════ */
 const HM_MARKETS = [
-    { key: 'over15',    label: 'Over 1.5',    color: '#00FF7F' },   /* Spring Green - verde neon */
-    { key: 'over25',    label: 'Over 2.5',    color: '#FFD700' },   /* Gold - amarelo ouro */
-    { key: 'over35',    label: 'Over 3.5',    color: '#00FFFF' },   /* Cyan - ciano brilhante */
-    { key: 'over5',     label: '5+ Gols',     color: '#FF4500' },   /* OrangeRed - laranja vermelho */
-    { key: 'under15',   label: 'Under 1.5',   color: '#32CD32' },   /* LimeGreen - verde lima */
-    { key: 'under25',   label: 'Under 2.5',   color: '#FF8C00' },   /* DarkOrange - laranja escuro */
-    { key: 'under35',   label: 'Under 3.5',   color: '#FF1493' },   /* DeepPink - rosa forte */
-    { key: 'ambasSim',  label: 'Ambas Sim',   color: '#E0E0E0' },   /* Cinza claro */
-    { key: 'ambasNao',  label: 'Ambas Não',   color: '#FF0000' },   /* Red puro */
-    { key: 'casaVence', label: 'Casa Vence',  color: '#9400D3' },   /* DarkViolet - violeta */
-    { key: 'empate',    label: 'Empate',      color: '#A9A9A9' },   /* DarkGray - cinza médio */
-    { key: 'foraVence', label: 'Fora Vence',  color: '#1E90FF' },   /* DodgerBlue - azul vivo */
+    { key: 'over15',    label: 'Over 1.5',    color: '#00FF7F' },   /* Spring Green */
+    { key: 'over25',    label: 'Over 2.5',    color: '#FFD700' },   /* Gold */
+    { key: 'over35',    label: 'Over 3.5',    color: '#00FFFF' },   /* Cyan */
+    { key: 'over5',     label: '5+ Gols',     color: '#FF4500' },   /* OrangeRed */
+    { key: 'under15',   label: 'Under 1.5',   color: '#32CD32' },   /* LimeGreen */
+    { key: 'under25',   label: 'Under 2.5',   color: '#FF8C00' },   /* DarkOrange */
+    { key: 'under35',   label: 'Under 3.5',   color: '#FF1493' },   /* DeepPink */
+    { key: 'ambasSim',  label: 'Ambas Sim',   color: '#E0E0E0' },   /* LightGray */
+    { key: 'ambasNao',  label: 'Ambas Não',   color: '#FF0000' },   /* Red */
+    { key: 'casaVence', label: 'Casa Vence',  color: '#9400D3' },   /* DarkViolet */
+    { key: 'empate',    label: 'Empate',      color: '#A9A9A9' },   /* DarkGray */
+    { key: 'foraVence', label: 'Fora Vence',  color: '#1E90FF' },   /* DodgerBlue */
 ];
 
 /* ════════════════════════════════════════════════════════
@@ -8255,7 +8255,7 @@ let hmNumPts   = 40;
 let hmBasePts  = 20;
 let hmShowVals = false;
 
-hmLoadPrefs(); // aplica prefs salvas antes de qualquer coisa
+hmLoadPrefs();
 
 let hmData    = null;
 let _hmTabVis = !document.hidden;
@@ -8349,27 +8349,39 @@ function hmProcessData(raw) {
 }
 
 /* ════════════════════════════════════════════════════════
-   HELPERS DE COR — AJUSTADOS PARA MAIOR CONTRASTE
+   HELPERS DE COR — OPACIDADE POR PERCENTIL (ranking)
 ════════════════════════════════════════════════ */
 function _hmHex(hex) {
     const n = parseInt(hex.replace('#',''), 16);
     return [(n>>16)&255, (n>>8)&255, n&255];
 }
 
-function _hmCellBg(mk, pct) {
+/* Calcula percentil de um valor dentro do array da linha */
+function _hmPercentile(val, arr) {
+    if (!arr || arr.length < 2) return 0.5;
+    const sorted = [...arr].sort((a, b) => a - b);
+    let count = 0;
+    for (let i = 0; i < sorted.length; i++) {
+        if (sorted[i] < val) count++;
+    }
+    return count / (sorted.length - 1);
+}
+
+/* Cor de fundo: usa percentil da linha, não valor absoluto */
+function _hmCellBg(mk, pct, percentile) {
     const [r,g,b] = _hmHex(mk.color);
-    const t = Math.max(0, Math.min(1, (pct - 10) / 80));
-    const a = 0.12 + t * 0.88;  /* opacidade mínima maior para destacar mais */
+    /* percentil 0 = opaco fraco, percentil 1 = vibrante */
+    const a = 0.08 + percentile * 0.92;
     return `rgba(${r},${g},${b},${a})`;
 }
 
-function _hmCellTc(pct, mk) {
-    const t = Math.max(0, Math.min(1, (pct - 10) / 80));
-    if (t > 0.45) {
+/* Cor do texto: branco em células fracas, preto em células fortes */
+function _hmCellTc(pct, mk, percentile) {
+    if (percentile > 0.55) {
         const [r,g,b] = _hmHex(mk.color);
-        return `rgb(${Math.round(r*0.15)},${Math.round(g*0.15)},${Math.round(b*0.15)})`;
+        return `rgb(${Math.round(r*0.12)},${Math.round(g*0.12)},${Math.round(b*0.12)})`;
     }
-    return 'rgba(220,230,240,0.75)';
+    return 'rgba(240,245,255,0.85)';
 }
 
 function _hmTrend(series, key) {
@@ -8416,15 +8428,16 @@ function hmRender() {
           </td>`;
 
         vals.forEach((v, i) => {
+            const percentile = _hmPercentile(v, vals);
             html += `<td class="hm-cell"
-              style="background:${_hmCellBg(mk,v)}"
+              style="background:${_hmCellBg(mk,v,percentile)}"
               data-mkt="${mk.label}"
               data-color="${mk.color}"
               data-time="${labels[i]}"
               data-val="${v.toFixed(1)}"
               data-key="${mk.key}"
               data-idx="${i}">
-              <div class="hm-cell-val" style="color:${_hmCellTc(v,mk)};display:${hmShowVals?'block':'none'}">${Math.round(v)}</div>
+              <div class="hm-cell-val" style="color:${_hmCellTc(v,mk,percentile)};display:${hmShowVals?'block':'none'}">${Math.round(v)}</div>
             </td>`;
         });
 
@@ -8447,7 +8460,7 @@ function _hmBuildLegend() {
     if (!bar) return;
     bar.innerHTML = '';
     for (let i = 0; i < 12; i++) {
-        const a = 0.12 + (i / 11) * 0.88;
+        const a = 0.08 + (i / 11) * 0.92;
         const seg = document.createElement('div');
         seg.className = 'hm-leg-seg';
         seg.style.background = `rgba(255,200,60,${a})`;
@@ -8553,7 +8566,6 @@ async function hmFetch() {
 
 /* ── controles + init ── */
 document.addEventListener('DOMContentLoaded', () => {
-    // sincroniza os selects com o que foi carregado do localStorage
     hmSyncSelectors();
 
     document.getElementById('hmSelPeriodo')?.addEventListener('change', e => {
