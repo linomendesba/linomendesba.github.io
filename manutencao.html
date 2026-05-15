@@ -410,6 +410,75 @@
 </div>
 
 <div class="accordion-item">
+    <button class="accordion-button" onclick="toggleSRAccordion(this)">▼ Suporte &amp; Resistência ▲</button>
+    <div class="accordion-content" id="srAccordionContent">
+ 
+        <!-- Cabeçalho: título + badge mercado + badge nível atual -->
+        <div class="rk-header">
+            <div class="rk-header-left">
+                <span class="rk-title-icon">◈</span>
+                <span class="rk-title-text">S&amp;R</span>
+                <span class="rk-badge" id="srBadgeMercado">Over 2.5</span>
+            </div>
+            <div id="srNivelBadge"></div>
+        </div>
+ 
+        <!-- Controles: botões de mercado + separador + janela + altura -->
+        <div class="rk-controls">
+            <div class="rk-mkt-group" id="srMktGroup">
+                <button class="rk-mkt-btn active" data-mkt="over25">O2.5</button>
+                <button class="rk-mkt-btn" data-mkt="over15">O1.5</button>
+                <button class="rk-mkt-btn" data-mkt="over35">O3.5</button>
+                <button class="rk-mkt-btn" data-mkt="over05">O0.5</button>
+                <button class="rk-mkt-btn" data-mkt="ambas">Ambas</button>
+                <button class="rk-mkt-btn" data-mkt="casaVence">Casa</button>
+                <button class="rk-mkt-btn" data-mkt="foraVence">Fora</button>
+                <button class="rk-mkt-btn" data-mkt="empate">Empate</button>
+            </div>
+ 
+            <div class="rk-sep"></div>
+ 
+            <div class="rk-aux-controls">
+                <div class="rk-ctrl-group">
+                    <label>Janela</label>
+                    <select id="srSelJanela">
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="150">150</option>
+                        <option value="200">200</option>
+                        <option value="300">300</option>
+                    </select>
+                </div>
+                <div class="rk-ctrl-group">
+                    <label>Altura</label>
+                    <button type="button" id="srAlturaMenos" class="rk-btn-h">−</button>
+                    <input id="srAlturaInput" type="number" min="120" max="600" step="10" value="220" class="rk-altura-input">
+                    <button type="button" id="srAlturaMais" class="rk-btn-h">+</button>
+                </div>
+            </div>
+        </div>
+ 
+        <!-- Canvas com barra lateral colorida -->
+        <div class="rk-chart-outer">
+            <div class="rk-chart-bar" id="srChartBar"></div>
+            <div class="rk-canvas-wrap" id="srCanvasWrap" style="height:220px">
+                <canvas id="srCanvas"></canvas>
+            </div>
+        </div>
+ 
+        <!-- Scrollbar -->
+        <input id="srScroll" class="rk-scrollbar" type="range" min="0" max="0" value="0" step="1">
+ 
+        <!-- Footer: info de range + pills -->
+        <div class="rk-footer">
+            <div id="srInfo" class="rk-info">Aguardando dados...</div>
+            <div class="rk-summary" id="srSummary"></div>
+        </div>
+ 
+    </div>
+</div>
+
+<div class="accordion-item">
     <button class="accordion-button" onclick="toggleRenkoAccordion(this)">▼ Renko de Mercados ▲</button>
     <div class="accordion-content" id="renkoAccordionContent">
 
@@ -8776,6 +8845,566 @@ document.addEventListener('DOMContentLoaded', () => {
 
     rkFetch();
     setInterval(rkFetch, 3000);
+});
+</script>
+
+<script>
+/* ════════════════════════════════════════════════════════
+   SUPORTE & RESISTÊNCIA — sr.js
+════════════════════════════════════════════════════════ */
+ 
+(function srInjectCSS() {
+    if (document.getElementById('sr-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'sr-styles';
+    style.textContent = `
+        /* ── Badge de nível S&R ── */
+        .sr-nivel-badge {
+            font-size: 11px; font-weight: 700; font-family: monospace;
+            padding: 2px 10px; border-radius: 3px;
+            border: 1px solid; white-space: nowrap;
+        }
+        /* ── Linha de suporte/resistência no canvas (via plugin) ── */
+        .sr-line-label {
+            font-size: 9px; font-family: monospace;
+        }
+    `;
+    document.head.appendChild(style);
+})();
+ 
+/* ════════════════════════════════════════════════════════
+   MERCADOS (idêntico ao Renko)
+════════════════════════════════════════════════════════ */
+const SR_MERCADOS = {
+    over25:    { label: 'Over 2.5',   test: (tg,c,f) => tg >= 3,        cor: '#1fcc59', corN: '#ef4444' },
+    over15:    { label: 'Over 1.5',   test: (tg,c,f) => tg >= 2,        cor: '#00BCD4', corN: '#ef4444' },
+    over35:    { label: 'Over 3.5',   test: (tg,c,f) => tg >= 4,        cor: '#FFEB3B', corN: '#ef4444' },
+    over05:    { label: 'Over 0.5',   test: (tg,c,f) => tg >= 1,        cor: '#69F0AE', corN: '#ef4444' },
+    ambas:     { label: 'Ambas Sim',  test: (tg,c,f) => c > 0 && f > 0, cor: '#B0BEC5', corN: '#ef4444' },
+    casaVence: { label: 'Casa Vence', test: (tg,c,f) => c > f,          cor: '#AB47BC', corN: '#ef4444' },
+    foraVence: { label: 'Fora Vence', test: (tg,c,f) => f > c,          cor: '#2196F3', corN: '#ef4444' },
+    empate:    { label: 'Empate',     test: (tg,c,f) => c === f,        cor: '#78909C', corN: '#ef4444' },
+};
+ 
+/* ════════════════════════════════════════════════════════
+   PERSISTÊNCIA
+════════════════════════════════════════════════════════ */
+const SR_LS_KEY = 'sr_prefs';
+ 
+function srSavePrefs() {
+    try {
+        localStorage.setItem(SR_LS_KEY, JSON.stringify({
+            mercado: srMercado,
+            janela:  srJanela,
+            altura:  srAltura,
+        }));
+    } catch(e) {}
+}
+ 
+function srLoadPrefs() {
+    try {
+        const raw = localStorage.getItem(SR_LS_KEY);
+        if (!raw) return;
+        const p = JSON.parse(raw);
+        if (p.mercado !== undefined) srMercado = p.mercado;
+        if (p.janela  !== undefined) srJanela  = p.janela;
+        if (p.altura  !== undefined) srAltura  = p.altura;
+    } catch(e) {}
+}
+ 
+let srMercado = 'over25';
+let srJanela  = 100;
+let srAltura  = 220;
+ 
+srLoadPrefs();
+ 
+let _srChart     = null;
+let _srData      = null;
+let _srInicioVis = 0;
+let _srTabVis    = !document.hidden;
+ 
+document.addEventListener('visibilitychange', () => { _srTabVis = !document.hidden; });
+ 
+/* ════════════════════════════════════════════════════════
+   ACORDEÃO
+════════════════════════════════════════════════════════ */
+function toggleSRAccordion(btn) {
+    const content = btn.nextElementSibling;
+    const isOpen  = content.style.display !== 'none';
+    content.style.display = isOpen ? 'none' : 'block';
+    try { localStorage.setItem('sr_acordeao', isOpen ? '0' : '1'); } catch(e) {}
+}
+ 
+/* ════════════════════════════════════════════════════════
+   SYNC UI
+════════════════════════════════════════════════════════ */
+function srSyncUI() {
+    const selJ = document.getElementById('srSelJanela');
+    if (selJ) selJ.value = String(srJanela);
+ 
+    const inp = document.getElementById('srAlturaInput');
+    if (inp) inp.value = String(srAltura);
+    srAplicarAltura();
+ 
+    document.querySelectorAll('#srMktGroup .rk-mkt-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mkt === srMercado);
+    });
+ 
+    srAtualizarIdentidade();
+}
+ 
+function srAtualizarIdentidade() {
+    const mk     = SR_MERCADOS[srMercado] || SR_MERCADOS.over25;
+    const badge  = document.getElementById('srBadgeMercado');
+    const bar    = document.getElementById('srChartBar');
+    const scroll = document.getElementById('srScroll');
+ 
+    if (badge) {
+        badge.textContent       = mk.label;
+        badge.style.color       = mk.cor;
+        badge.style.borderColor = mk.cor + '55';
+        badge.style.background  = mk.cor + '18';
+    }
+    if (bar)    bar.style.background   = mk.cor + 'aa';
+    if (scroll) scroll.style.accentColor = mk.cor;
+}
+ 
+/* ════════════════════════════════════════════════════════
+   PROCESSAMENTO — Suporte & Resistência
+   
+   Lógica:
+   - Acumula sequência de wins (+1) e losses (-1) igual ao Renko
+   - Detecta SUPORTE: mínimo local (vale) — ponto onde o acumulado
+     para de cair e volta a subir (nível de preço que "segurou")
+   - Detecta RESISTÊNCIA: máximo local (topo) — ponto onde o
+     acumulado para de subir e começa a cair
+   - Marca cada ponto como: normal | suporte | resistência
+════════════════════════════════════════════════════════ */
+function srProcessData(jogos) {
+    const mk = SR_MERCADOS[srMercado] || SR_MERCADOS.over25;
+ 
+    const sorted = [...jogos].sort((a, b) => {
+        const da = new Date(a.data), db = new Date(b.data);
+        if (da - db !== 0) return da - db;
+        if (a.hora !== b.hora) return a.hora - b.hora;
+        return a.minuto - b.minuto;
+    });
+ 
+    const pontos    = [];
+    const direcoes  = [];
+    const placares  = [];
+    const labels    = [];
+    const tiposPt   = []; // 'normal' | 'suporte' | 'resistencia'
+    let acumulado   = 0;
+    let wins = 0, total = 0;
+ 
+    sorted.forEach(jogo => {
+        let ft = [0, 0];
+        if (jogo.ft?.includes(' x ')) ft = jogo.ft.split(' x ').map(Number);
+        const casa = ft[0], fora = ft[1];
+        const tg   = casa + fora;
+ 
+        const hit     = mk.test(tg, casa, fora);
+        const direcao = hit ? 1 : -1;
+        acumulado    += direcao;
+        if (hit) wins++;
+        total++;
+ 
+        pontos.push(acumulado);
+        direcoes.push(direcao);
+        placares.push(`${casa} x ${fora}`);
+        labels.push(`${jogo.hora}:${String(jogo.minuto).padStart(2,'0')}`);
+        tiposPt.push('normal');
+    });
+ 
+    /* Detecta topos (resistência) e vales (suporte) */
+    for (let i = 1; i < pontos.length - 1; i++) {
+        const prev = pontos[i - 1];
+        const cur  = pontos[i];
+        const next = pontos[i + 1];
+ 
+        if (cur > prev && cur > next) {
+            tiposPt[i] = 'resistencia'; // topo local
+        } else if (cur < prev && cur < next) {
+            tiposPt[i] = 'suporte';     // vale local
+        }
+    }
+ 
+    return { pontos, direcoes, placares, labels, tiposPt, wins, total };
+}
+ 
+/* ════════════════════════════════════════════════════════
+   RENDER
+════════════════════════════════════════════════════════ */
+function srRender() {
+    const canvas = document.getElementById('srCanvas');
+    const scroll = document.getElementById('srScroll');
+    const info   = document.getElementById('srInfo');
+    if (!canvas) return;
+ 
+    if (!_srData || !_srData.length) {
+        if (info) info.textContent = 'Aguardando dados...';
+        return;
+    }
+ 
+    const { pontos, direcoes, placares, labels, tiposPt, wins, total } = srProcessData(_srData);
+    if (!pontos.length) {
+        if (info) info.textContent = 'Sem jogos para exibir.';
+        return;
+    }
+ 
+    const mk        = SR_MERCADOS[srMercado] || SR_MERCADOS.over25;
+    const nTotal    = pontos.length;
+    const maxInicio = Math.max(0, nTotal - srJanela);
+    _srInicioVis    = Math.min(Math.max(0, _srInicioVis), maxInicio);
+ 
+    if (scroll) {
+        scroll.min      = '0';
+        scroll.max      = String(maxInicio);
+        scroll.value    = String(_srInicioVis);
+        scroll.disabled = maxInicio <= 0;
+    }
+ 
+    const xMin = _srInicioVis;
+    const xMax = Math.min(nTotal - 1, xMin + srJanela - 1);
+ 
+    if (info) info.textContent = `Exibindo ${xMin + 1}–${xMax + 1} de ${nTotal} jogos`;
+ 
+    /* Cores por tipo de ponto */
+    const ptColors = tiposPt.map(t => {
+        if (t === 'resistencia') return mk.corN;   // vermelho = resistência
+        if (t === 'suporte')     return mk.cor;     // verde    = suporte
+        return '#3a4a5a';                           // cinza    = normal
+    });
+ 
+    const ptRadius = tiposPt.map(t =>
+        (t === 'resistencia' || t === 'suporte') ? 5 : 2
+    );
+ 
+    const segColor = ctx =>
+        ctx.p1.parsed.y >= ctx.p0.parsed.y ? mk.cor + 'cc' : mk.corN + 'cc';
+ 
+    /* ── Plugin: desenha linhas horizontais de S/R visíveis ── */
+    const srLinesPlugin = {
+        id: 'srLines',
+        afterDraw(chart) {
+            const { ctx, scales: { x, y } } = chart;
+            const visibleTipos = tiposPt.slice(xMin, xMax + 1);
+            const visiblePts   = pontos.slice(xMin, xMax + 1);
+ 
+            /* Agrupa por nível: coleta suportes e resistências únicos */
+            const niveis = {};
+            visibleTipos.forEach((t, i) => {
+                if (t === 'normal') return;
+                const val = visiblePts[i];
+                if (!niveis[val]) niveis[val] = t;
+                else if (niveis[val] !== t) niveis[val] = 'ambos';
+            });
+ 
+            Object.entries(niveis).forEach(([val, tipo]) => {
+                const yPx = y.getPixelForValue(Number(val));
+                const cor  = tipo === 'suporte' ? mk.cor
+                           : tipo === 'resistencia' ? mk.corN
+                           : '#ffc83c';
+ 
+                ctx.save();
+                ctx.setLineDash([4, 4]);
+                ctx.lineWidth   = 1;
+                ctx.strokeStyle = cor + '66';
+                ctx.beginPath();
+                ctx.moveTo(x.left, yPx);
+                ctx.lineTo(x.right, yPx);
+                ctx.stroke();
+ 
+                /* Rótulo à direita */
+                ctx.setLineDash([]);
+                ctx.font         = '8px monospace';
+                ctx.fillStyle    = cor + 'cc';
+                ctx.textAlign    = 'right';
+                ctx.textBaseline = 'middle';
+                const label = tipo === 'suporte' ? 'SUP'
+                            : tipo === 'resistencia' ? 'RES' : 'S/R';
+                ctx.fillText(`${label} ${val}`, x.right - 2, yPx - 5);
+                ctx.restore();
+            });
+        }
+    };
+ 
+    /* ── Atualiza ou cria o chart ── */
+    if (_srChart) {
+        const ds = _srChart.data.datasets[0];
+        _srChart.data.labels       = labels;
+        ds.data                    = pontos;
+        ds._direcoes               = direcoes;
+        ds._placares               = placares;
+        ds._tiposPt                = tiposPt;
+        ds.pointBackgroundColor    = ptColors;
+        ds.pointRadius             = ptRadius;
+        ds.pointHoverRadius        = ptRadius.map(r => r + 2);
+        ds.segment.borderColor     = segColor;
+        _srChart.options.scales.x.min = xMin;
+        _srChart.options.scales.x.max = xMax;
+        _srChart.update('none');
+        _srBuildSummary(wins, total, mk, pontos, tiposPt);
+        _srBuildNivelBadge(pontos, tiposPt, mk);
+        return;
+    }
+ 
+    if (typeof Chart === 'undefined') {
+        console.error('[S&R] Chart.js não encontrado.');
+        return;
+    }
+ 
+    _srChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        plugins: [srLinesPlugin],
+        data: {
+            labels,
+            datasets: [{
+                label: mk.label,
+                data: pontos,
+                _direcoes: direcoes,
+                _placares: placares,
+                _tiposPt:  tiposPt,
+                borderWidth: 1.5,
+                pointRadius: ptRadius,
+                pointHoverRadius: ptRadius.map(r => r + 2),
+                pointBorderWidth: 1,
+                pointBorderColor: '#090b12',
+                pointBackgroundColor: ptColors,
+                tension: 0,
+                fill: false,
+                segment: { borderColor: segColor }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            layout: { padding: { left: 0, right: 48, top: 6, bottom: 0 } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(5,7,14,.97)',
+                    borderColor: '#151d30',
+                    borderWidth: 1,
+                    titleColor: '#4aafff',
+                    bodyColor: '#7a8a9a',
+                    titleFont: { family: 'monospace', size: 10 },
+                    bodyFont:  { family: 'monospace', size: 10 },
+                    padding: 8,
+                    callbacks: {
+                        label: ctx => {
+                            const ds     = ctx.dataset;
+                            const dir    = ds._direcoes?.[ctx.dataIndex];
+                            const placar = ds._placares?.[ctx.dataIndex] || '';
+                            const tipo   = ds._tiposPt?.[ctx.dataIndex] || 'normal';
+                            const icon   = dir > 0 ? '✔' : '✖';
+                            const nome   = dir > 0 ? mk.label : `Não ${mk.label}`;
+                            const sinal  = ctx.parsed.y > 0 ? '+' : '';
+                            const srTag  = tipo !== 'normal'
+                                ? ` ▸ ${tipo === 'suporte' ? '🟢 SUP' : '🔴 RES'}`
+                                : '';
+                            return `${icon} ${nome}  |  Acum ${sinal}${ctx.parsed.y}  |  ${placar}${srTag}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    min: xMin,
+                    max: xMax,
+                    ticks: {
+                        color: '#1e2a3a', maxRotation: 0, autoSkip: true,
+                        font: { size: 8, family: 'monospace' }
+                    },
+                    grid: { color: 'rgba(255,255,255,.025)' },
+                    border: { color: 'transparent' }
+                },
+                y: {
+                    ticks: {
+                        color: '#1e2a3a', stepSize: 1,
+                        font: { size: 8, family: 'monospace' }
+                    },
+                    grid: { color: 'rgba(255,255,255,.03)' },
+                    border: { color: 'transparent' }
+                }
+            }
+        }
+    });
+ 
+    window._srChart = _srChart;
+    _srBuildSummary(wins, total, mk, pontos, tiposPt);
+    _srBuildNivelBadge(pontos, tiposPt, mk);
+}
+ 
+/* ════════════════════════════════════════════════════════
+   BADGE DE NÍVEL ATUAL
+════════════════════════════════════════════════════════ */
+function _srBuildNivelBadge(pontos, tiposPt, mk) {
+    const div = document.getElementById('srNivelBadge');
+    if (!div || !pontos.length) return;
+ 
+    /* Último nível de suporte/resistência detectado */
+    let ultimoTipo = null, ultimoVal = null;
+    for (let i = tiposPt.length - 1; i >= 0; i--) {
+        if (tiposPt[i] !== 'normal') {
+            ultimoTipo = tiposPt[i];
+            ultimoVal  = pontos[i];
+            break;
+        }
+    }
+ 
+    if (!ultimoTipo) { div.innerHTML = ''; return; }
+ 
+    const cor   = ultimoTipo === 'suporte' ? mk.cor : mk.corN;
+    const label = ultimoTipo === 'suporte' ? `SUP ${ultimoVal}` : `RES ${ultimoVal}`;
+    div.innerHTML = `<span class="sr-nivel-badge" style="color:${cor};border-color:${cor}44;background:${cor}14">${label}</span>`;
+}
+ 
+/* ════════════════════════════════════════════════════════
+   PILLS DE RESUMO
+════════════════════════════════════════════════════════ */
+function _srBuildSummary(wins, total, mk, pontos, tiposPt) {
+    const div = document.getElementById('srSummary');
+    if (!div) return;
+ 
+    const losses  = total - wins;
+    const pct     = total ? ((wins / total) * 100).toFixed(1) : '0.0';
+    const nSup    = tiposPt.filter(t => t === 'suporte').length;
+    const nRes    = tiposPt.filter(t => t === 'resistencia').length;
+    const acum    = pontos[pontos.length - 1] ?? 0;
+    const sinal   = acum > 0 ? '+' : '';
+    const streak  = _srCalcStreak(pontos);
+ 
+    div.innerHTML = `
+        <span class="rk-pill" style="color:#1fcc59;border-color:#1fcc5935;background:#1fcc5912">✔ ${wins}</span>
+        <span class="rk-pill" style="color:#ef4444;border-color:#ef444435;background:#ef444412">✖ ${losses}</span>
+        <span class="rk-pill" style="color:#ffc83c;border-color:#ffc83c35;background:#ffc83c12">${pct}%</span>
+        <span class="rk-pill" style="color:${mk.cor};border-color:${mk.cor}35;background:${mk.cor}0f">${total} jogos</span>
+        <span class="rk-pill" style="color:#1fcc59;border-color:#1fcc5935;background:#1fcc5912">🟢 ${nSup} SUP</span>
+        <span class="rk-pill" style="color:#ef4444;border-color:#ef444435;background:#ef444412">🔴 ${nRes} RES</span>
+        <span class="rk-pill" style="color:${acum >= 0 ? mk.cor : mk.corN};border-color:${acum >= 0 ? mk.cor : mk.corN}35;background:${acum >= 0 ? mk.cor : mk.corN}0f">Acum ${sinal}${acum}</span>
+        ${streak.txt
+            ? `<span class="rk-pill" style="color:${streak.cor};border-color:${streak.cor}35;background:${streak.cor}12">${streak.txt}</span>`
+            : ''}
+    `;
+}
+ 
+/* Sequência atual */
+function _srCalcStreak(pontos) {
+    if (pontos.length < 2) return { txt: '', cor: '' };
+    const last = pontos[pontos.length - 1] > pontos[pontos.length - 2] ? 1 : -1;
+    let count = 1;
+    for (let i = pontos.length - 2; i > 0; i--) {
+        const dir = pontos[i] > pontos[i - 1] ? 1 : -1;
+        if (dir === last) count++;
+        else break;
+    }
+    if (count < 2) return { txt: '', cor: '' };
+    const cor = last > 0 ? '#1fcc59' : '#ef4444';
+    const txt = last > 0 ? `↑ Seq ${count}` : `↓ Seq ${count}`;
+    return { txt, cor };
+}
+ 
+/* ════════════════════════════════════════════════════════
+   ALTURA
+════════════════════════════════════════════════════════ */
+function srAplicarAltura() {
+    const wrap = document.getElementById('srCanvasWrap');
+    const inp  = document.getElementById('srAlturaInput');
+    if (!wrap || !inp) return;
+    const h = Math.min(600, Math.max(120, parseInt(inp.value || '220', 10)));
+    inp.value         = String(h);
+    srAltura          = h;
+    wrap.style.height = `${h}px`;
+    srSavePrefs();
+    if (_srChart?.resize) _srChart.resize();
+}
+ 
+/* ════════════════════════════════════════════════════════
+   TROCA DE MERCADO
+════════════════════════════════════════════════════════ */
+function _srDestroyChart() {
+    if (_srChart) { _srChart.destroy(); _srChart = null; window._srChart = null; }
+}
+ 
+function srTrocarMercado(novoMkt) {
+    if (!SR_MERCADOS[novoMkt]) return;
+    srMercado = novoMkt;
+    _srDestroyChart();
+    document.querySelectorAll('#srMktGroup .rk-mkt-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mkt === novoMkt);
+    });
+    srAtualizarIdentidade();
+    srSavePrefs();
+    srRender();
+}
+ 
+/* ════════════════════════════════════════════════════════
+   FETCH + LOOP
+════════════════════════════════════════════════════════ */
+async function srFetch() {
+    if (!_srTabVis) return;
+    try {
+        const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + '?t=' + Date.now());
+        if (!res.ok) throw new Error(res.status);
+        _srData = await res.json();
+        srRender();
+    } catch(e) {
+        console.error('[S&R]', e);
+    }
+}
+ 
+/* ════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+    // Restaura estado do acordeão
+    try {
+        const aberto  = localStorage.getItem('sr_acordeao') !== '0';
+        const content = document.getElementById('srAccordionContent');
+        if (content) content.style.display = aberto ? 'block' : 'none';
+    } catch(e) {}
+ 
+    srSyncUI();
+ 
+    document.getElementById('srMktGroup')?.addEventListener('click', e => {
+        const btn = e.target.closest('.rk-mkt-btn');
+        if (btn?.dataset.mkt) srTrocarMercado(btn.dataset.mkt);
+    });
+ 
+    document.getElementById('srSelJanela')?.addEventListener('change', e => {
+        srJanela = +e.target.value; srSavePrefs(); srRender();
+    });
+ 
+    document.getElementById('srAlturaInput')?.addEventListener('change', srAplicarAltura);
+    document.getElementById('srAlturaInput')?.addEventListener('input',  srAplicarAltura);
+ 
+    document.getElementById('srAlturaMenos')?.addEventListener('click', () => {
+        const inp = document.getElementById('srAlturaInput');
+        if (!inp) return;
+        inp.value = String(Math.max(120, (parseInt(inp.value || '220', 10) || 220) - 10));
+        srAplicarAltura();
+    });
+    document.getElementById('srAlturaMais')?.addEventListener('click', () => {
+        const inp = document.getElementById('srAlturaInput');
+        if (!inp) return;
+        inp.value = String(Math.min(600, (parseInt(inp.value || '220', 10) || 220) + 10));
+        srAplicarAltura();
+    });
+ 
+    document.getElementById('srScroll')?.addEventListener('input', e => {
+        _srInicioVis = parseInt(e.target.value || '0', 10);
+        srRender();
+    });
+ 
+    window.addEventListener('resize', () => { if (_srChart) _srChart.resize(); });
+ 
+    srFetch();
+    setInterval(srFetch, 3000);
 });
 </script>
 
