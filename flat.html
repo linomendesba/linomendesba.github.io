@@ -833,10 +833,69 @@ function renderChart(id, points, meta, marketKey) {
   });
 }
 
+// ── Calcula deltas (+1/-1) a partir dos points do flat ──
+function calcFlatStats(points) {
+  if (points.length < 2) return {
+    plusCount: 0, minusCount: 0, saldo: 0,
+    top3Plus: [], top3Minus: [],
+    run: { type: null, count: 0 }
+  };
+
+  // Deltas: +1 quando subiu, -1 quando desceu
+  const deltas = [];
+  for (let i = 1; i < points.length; i++) {
+    deltas.push(points[i] > points[i - 1] ? 1 : -1);
+  }
+
+  const plusCount  = deltas.filter(v => v === 1).length;
+  const minusCount = deltas.filter(v => v === -1).length;
+  const saldo      = (points[points.length - 1] ?? 50) - 50;
+
+  // Maiores sequências
+  function topRuns(series, t) {
+    const runs = []; let c = 0;
+    for (const v of series) { if (v === t) c++; else { if (c) runs.push(c); c = 0; } }
+    if (c) runs.push(c);
+    return runs.sort((a, b) => b - a).slice(0, 3);
+  }
+
+  // Sequência atual
+  const last = deltas[deltas.length - 1];
+  let runCount = 0;
+  for (let i = deltas.length - 1; i >= 0 && deltas[i] === last; i--) runCount++;
+
+  return {
+    plusCount,
+    minusCount,
+    saldo,
+    top3Plus:  topRuns(deltas, 1),
+    top3Minus: topRuns(deltas, -1),
+    run: { type: last, count: runCount }
+  };
+}
+
+function pillsHTML(arr, cls) {
+  if (!arr || !arr.length) return `<span class="pill pill-m">—</span>`;
+  return arr.map(n => `<span class="pill ${cls}">${n}</span>`).join("");
+}
+
 function marketChartHTML(key, leagueKey, points) {
   const market = AVAILABLE_MARKETS[key];
   const currentValue = points[points.length - 1] ?? 50;
   const id = `ch-${leagueKey}-${key}`;
+
+  const s = calcFlatStats(points);
+  const saldoCls = s.saldo > 0 ? "nv-p" : s.saldo < 0 ? "nv-n" : "nv-w";
+  const saldoStr = s.saldo > 0 ? `+${s.saldo}` : String(s.saldo);
+
+  // Sequência atual
+  let seqHTML = `<div class="seq-strip neu"><div class="ss-label">Sequência atual</div>Sem leitura</div>`;
+  if (s.run.count) {
+    const seqCls   = s.run.type === 1 ? "pos" : "neg";
+    const seqLabel = s.run.type === 1 ? `↑ Alta: ${s.run.count} seguidas` : `↓ Baixa: ${s.run.count} seguidas`;
+    seqHTML = `<div class="seq-strip ${seqCls}"><div class="ss-label">Sequência atual</div>${seqLabel}</div>`;
+  }
+
   return `
     <div class="market-col">
       <div class="market-header">
@@ -846,6 +905,26 @@ function marketChartHTML(key, leagueKey, points) {
         </span>
         <span class="current-value" style="color:${market.color};">${currentValue}</span>
       </div>
+
+      <div class="nums">
+        <div class="num-box"><div class="nb-label">↑ Alta</div><div class="nb-val nv-g">${s.plusCount}</div></div>
+        <div class="num-box"><div class="nb-label">↓ Baixa</div><div class="nb-val nv-r">${s.minusCount}</div></div>
+        <div class="num-box"><div class="nb-label">Saldo</div><div class="nb-val ${saldoCls}">${saldoStr}</div></div>
+      </div>
+
+      ${seqHTML}
+
+      <div class="runs">
+        <div class="run-group rg-plus">
+          <div class="rg-label">Maiores seq. ↑</div>
+          <div class="pills">${pillsHTML(s.top3Plus, "pill-g")}</div>
+        </div>
+        <div class="run-group rg-minus">
+          <div class="rg-label">Maiores seq. ↓</div>
+          <div class="pills">${pillsHTML(s.top3Minus, "pill-r")}</div>
+        </div>
+      </div>
+
       <div class="chart-wrap"><canvas id="${id}" height="80"></canvas></div>
     </div>
   `;
