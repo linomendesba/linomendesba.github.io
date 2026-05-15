@@ -410,51 +410,71 @@
 </div>
 
 <div class="accordion-item">
-    <button class="accordion-button" onclick="toggleRenkoAccordion(this)">▼ Renko Over/Under 2.5 ▲</button>
+    <button class="accordion-button" onclick="toggleRenkoAccordion(this)">▼ Renko de Mercados ▲</button>
     <div class="accordion-content" id="renkoAccordionContent">
 
-        <!-- Controles -->
+        <!-- Cabeçalho interno com título + badge mercado ativo -->
+        <div class="rk-header">
+            <div class="rk-header-left">
+                <span class="rk-title-icon">◈</span>
+                <span class="rk-title-text">Renko</span>
+                <span class="rk-badge" id="rkBadgeMercado">Over 2.5</span>
+            </div>
+            <div class="rk-header-right" id="rkAcumBadge"></div>
+        </div>
+
+        <!-- Barra de controles -->
         <div class="rk-controls">
-            <div class="rk-ctrl-group">
-                <label>Mercado</label>
-                <select id="rkSelMercado">
-                    <option value="over25">Over 2.5</option>
-                    <option value="over15">Over 1.5</option>
-                    <option value="over35">Over 3.5</option>
-                    <option value="ambas">Ambas Marcam</option>
-                </select>
+
+            <!-- Seletor de mercado como botões de grupo -->
+            <div class="rk-mkt-group" id="rkMktGroup">
+                <button class="rk-mkt-btn active" data-mkt="over25">O2.5</button>
+                <button class="rk-mkt-btn" data-mkt="over15">O1.5</button>
+                <button class="rk-mkt-btn" data-mkt="over35">O3.5</button>
+                <button class="rk-mkt-btn" data-mkt="over05">O0.5</button>
+                <button class="rk-mkt-btn" data-mkt="ambas">Ambas</button>
+                <button class="rk-mkt-btn" data-mkt="casaVence">Casa</button>
+                <button class="rk-mkt-btn" data-mkt="foraVence">Fora</button>
+                <button class="rk-mkt-btn" data-mkt="empate">Empate</button>
             </div>
-            <div class="rk-ctrl-group">
-                <label>Janela</label>
-                <select id="rkSelJanela">
-                    <option value="60">60</option>
-                    <option value="100" selected>100</option>
-                    <option value="150">150</option>
-                    <option value="200">200</option>
-                    <option value="300">300</option>
-                </select>
-            </div>
-            <div class="rk-ctrl-group">
-                <label>Altura</label>
-                <button type="button" id="rkAlturaMenos" class="rk-btn-h">−</button>
-                <input id="rkAlturaInput" type="number" min="120" max="600" step="10" value="220" class="rk-altura-input">
-                <button type="button" id="rkAlturaMais" class="rk-btn-h">+</button>
+
+            <!-- Controles auxiliares -->
+            <div class="rk-aux-controls">
+                <div class="rk-ctrl-group">
+                    <label>Janela</label>
+                    <select id="rkSelJanela">
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="150">150</option>
+                        <option value="200">200</option>
+                        <option value="300">300</option>
+                    </select>
+                </div>
+                <div class="rk-ctrl-group">
+                    <label>Altura</label>
+                    <button type="button" id="rkAlturaMenos" class="rk-btn-h">−</button>
+                    <input id="rkAlturaInput" type="number" min="120" max="600" step="10" value="220" class="rk-altura-input">
+                    <button type="button" id="rkAlturaMais" class="rk-btn-h">+</button>
+                </div>
             </div>
         </div>
 
-        <!-- Canvas -->
-        <div class="rk-canvas-wrap" id="rkCanvasWrap">
-            <canvas id="rkCanvas"></canvas>
+        <!-- Canvas com barra lateral colorida dinâmica -->
+        <div class="rk-chart-outer" id="rkChartOuter">
+            <div class="rk-chart-bar" id="rkChartBar"></div>
+            <div class="rk-canvas-wrap" id="rkCanvasWrap">
+                <canvas id="rkCanvas"></canvas>
+            </div>
         </div>
 
         <!-- Scrollbar -->
         <input id="rkScroll" class="rk-scrollbar" type="range" min="0" max="0" value="0" step="1">
 
-        <!-- Info -->
-        <div id="rkInfo" class="rk-info">Aguardando dados...</div>
-
-        <!-- Pills de resumo -->
-        <div class="rk-summary" id="rkSummary"></div>
+        <!-- Footer: info + pills -->
+        <div class="rk-footer">
+            <div id="rkInfo" class="rk-info">Aguardando dados...</div>
+            <div class="rk-summary" id="rkSummary"></div>
+        </div>
 
     </div>
 </div>
@@ -8171,7 +8191,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script>
     /* ════════════════════════════════════════════════════════
-   RENKO OVER/UNDER — renko.js
+   RENKO DE MERCADOS — renko.js
 ════════════════════════════════════════════════════════ */
 
 (function rkInjectCSS() {
@@ -8179,75 +8199,159 @@ document.addEventListener('DOMContentLoaded', () => {
     const style = document.createElement('style');
     style.id = 'rk-styles';
     style.textContent = `
+
+        /* ── Cabeçalho interno ── */
+        .rk-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 0 6px; gap: 8px;
+        }
+        .rk-header-left {
+            display: flex; align-items: center; gap: 7px;
+        }
+        .rk-title-icon {
+            font-size: 14px; color: #3a5a80; line-height: 1;
+        }
+        .rk-title-text {
+            font-size: 12px; font-weight: 700; color: #6a8aaa;
+            letter-spacing: 2px; text-transform: uppercase;
+            font-family: monospace;
+        }
+        .rk-badge {
+            font-size: 10px; font-weight: 700; font-family: monospace;
+            padding: 2px 8px; border-radius: 3px;
+            background: rgba(74,170,255,0.1);
+            border: 1px solid rgba(74,170,255,0.25);
+            color: #4aafff; letter-spacing: 1px;
+            transition: background .2s, color .2s, border-color .2s;
+        }
+        .rk-acum-badge {
+            font-size: 11px; font-weight: 700; font-family: monospace;
+            padding: 3px 10px; border-radius: 3px;
+            border: 1px solid;
+        }
+
+        /* ── Grupo de botões de mercado ── */
         .rk-controls {
-            display: flex; flex-wrap: wrap; gap: 10px;
-            padding: 8px 0 6px;
+            display: flex; flex-wrap: wrap;
+            align-items: center; gap: 8px;
+            padding-bottom: 8px;
+        }
+        .rk-mkt-group {
+            display: flex; flex-wrap: wrap; gap: 3px;
+        }
+        .rk-mkt-btn {
+            font-size: 10px; font-family: monospace; font-weight: 600;
+            padding: 4px 9px; border-radius: 3px; cursor: pointer;
+            border: 1px solid #1e2535;
+            background: #10131c; color: #3a4a5a;
+            letter-spacing: .5px;
+            transition: background .15s, border-color .15s, color .15s;
+        }
+        .rk-mkt-btn:hover {
+            background: #141928; color: #6a8aaa;
+            border-color: #2a3550;
+        }
+        .rk-mkt-btn.active {
+            background: rgba(74,170,255,0.12);
+            border-color: rgba(74,170,255,0.4);
+            color: #4aafff;
+        }
+
+        /* ── Aux controls ── */
+        .rk-aux-controls {
+            display: flex; flex-wrap: wrap; gap: 10px; margin-left: auto;
         }
         .rk-ctrl-group {
-            display: flex; align-items: center; gap: 6px;
+            display: flex; align-items: center; gap: 5px;
         }
         .rk-ctrl-group label {
-            font-size: 10px; color: #556; text-transform: uppercase;
-            letter-spacing: 1px;
+            font-size: 9px; color: #2a3a4a;
+            text-transform: uppercase; letter-spacing: 1px;
         }
         .rk-ctrl-group select {
-            background: #171b24; border: 1px solid #2a2f3e;
-            color: #9aa; font-size: 11px; padding: 4px 8px;
+            background: #10131c; border: 1px solid #1e2535;
+            color: #6a8aaa; font-size: 10px; padding: 3px 7px;
             border-radius: 3px; cursor: pointer; outline: none;
         }
         .rk-btn-h {
-            width: 24px; height: 24px; border-radius: 50%;
-            border: 1px solid #2a3550; background: #0d1117;
-            color: #cdd; cursor: pointer; font-size: 14px;
+            width: 22px; height: 22px; border-radius: 3px;
+            border: 1px solid #1e2535; background: #10131c;
+            color: #3a5a80; cursor: pointer; font-size: 13px;
             line-height: 1; padding: 0; display: flex;
             align-items: center; justify-content: center;
+            transition: border-color .15s, color .15s;
         }
-        .rk-btn-h:hover { border-color: #4af; color: #4af; }
+        .rk-btn-h:hover { border-color: #2a3a5a; color: #6a8aaa; }
         .rk-altura-input {
-            width: 58px; height: 24px; text-align: center;
-            border-radius: 4px; border: 1px solid #2a3550;
-            background: #111827; color: #1fcc59;
-            font-size: 11px; outline: none;
+            width: 50px; height: 22px; text-align: center;
+            border-radius: 3px; border: 1px solid #1e2535;
+            background: #10131c; color: #4aafff;
+            font-size: 10px; outline: none; font-family: monospace;
+        }
+
+        /* ── Chart outer com barra lateral ── */
+        .rk-chart-outer {
+            display: flex; gap: 0; width: 100%; margin-top: 4px;
+        }
+        .rk-chart-bar {
+            width: 3px; flex-shrink: 0; border-radius: 2px 0 0 2px;
+            background: rgba(74,170,255,0.4);
+            transition: background .3s;
         }
         .rk-canvas-wrap {
-            position: relative; width: 100%;
-            background: linear-gradient(180deg, #0c0c0d, #1b1f24);
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
-            border-radius: 3px; overflow: hidden;
+            flex: 1; min-width: 0;
+            background: #0b0d14;
+            border: 1px solid #141928;
+            border-left: none;
+            border-radius: 0 3px 3px 0;
+            overflow: hidden;
             height: 220px; box-sizing: border-box;
         }
         .rk-canvas-wrap canvas {
             display: block; width: 100% !important; height: 100% !important;
         }
+
+        /* ── Scrollbar ── */
         .rk-scrollbar {
-            width: 100%; margin-top: 8px;
-            accent-color: #1fcc59; cursor: grab;
+            width: 100%; margin-top: 6px;
+            accent-color: #2a4a70; cursor: grab;
+            height: 3px;
+        }
+
+        /* ── Footer ── */
+        .rk-footer {
+            display: flex; flex-wrap: wrap;
+            align-items: center; gap: 8px;
+            margin-top: 7px;
         }
         .rk-info {
-            margin-top: 4px; color: #3a4555;
-            font-size: 10px; text-align: center;
-            font-family: monospace;
+            font-size: 9px; color: #1e2a3a;
+            font-family: monospace; flex-shrink: 0;
         }
         .rk-summary {
-            display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;
+            display: flex; flex-wrap: wrap; gap: 4px;
         }
         .rk-pill {
-            font-size: 10px; padding: 3px 9px; border-radius: 10px;
+            font-size: 9px; padding: 2px 8px; border-radius: 2px;
             border: 1px solid; white-space: nowrap; font-family: monospace;
-            cursor: default;
+            font-weight: 600; letter-spacing: .5px;
         }
     `;
     document.head.appendChild(style);
 })();
 
 /* ════════════════════════════════════════════════════════
-   MERCADOS DISPONÍVEIS
+   MERCADOS
 ════════════════════════════════════════════════════════ */
 const RK_MERCADOS = {
-    over25:  { label: 'Over 2.5',      test: tg => tg >= 3,          cor: '#1fcc59', corN: '#ef4444' },
-    over15:  { label: 'Over 1.5',      test: tg => tg >= 2,          cor: '#00BCD4', corN: '#ef4444' },
-    over35:  { label: 'Over 3.5',      test: tg => tg >= 4,          cor: '#FFEB3B', corN: '#ef4444' },
-    ambas:   { label: 'Ambas Marcam',  test: (tg,c,f) => c>0&&f>0,  cor: '#B0BEC5', corN: '#ef4444' },
+    over25:    { label: 'Over 2.5',    test: (tg,c,f) => tg >= 3,        cor: '#1fcc59', corN: '#ef4444' },
+    over15:    { label: 'Over 1.5',    test: (tg,c,f) => tg >= 2,        cor: '#00BCD4', corN: '#ef4444' },
+    over35:    { label: 'Over 3.5',    test: (tg,c,f) => tg >= 4,        cor: '#FFEB3B', corN: '#ef4444' },
+    over05:    { label: 'Over 0.5',    test: (tg,c,f) => tg >= 1,        cor: '#69F0AE', corN: '#ef4444' },
+    ambas:     { label: 'Ambas Sim',   test: (tg,c,f) => c > 0 && f > 0, cor: '#B0BEC5', corN: '#ef4444' },
+    casaVence: { label: 'Casa Vence',  test: (tg,c,f) => c > f,          cor: '#AB47BC', corN: '#ef4444' },
+    foraVence: { label: 'Fora Vence',  test: (tg,c,f) => f > c,          cor: '#2196F3', corN: '#ef4444' },
+    empate:    { label: 'Empate',      test: (tg,c,f) => c === f,        cor: '#78909C', corN: '#ef4444' },
 };
 
 /* ════════════════════════════════════════════════════════
@@ -8283,10 +8387,10 @@ let rkAltura  = 220;
 
 rkLoadPrefs();
 
-let _rkChart       = null;
-let _rkData        = null;       // dados brutos (array de jogos)
-let _rkInicioVis   = 0;
-let _rkTabVis      = !document.hidden;
+let _rkChart     = null;
+let _rkData      = null;
+let _rkInicioVis = 0;
+let _rkTabVis    = !document.hidden;
 
 document.addEventListener('visibilitychange', () => { _rkTabVis = !document.hidden; });
 
@@ -8300,25 +8404,48 @@ function toggleRenkoAccordion(btn) {
 }
 
 /* ════════════════════════════════════════════════════════
-   SINCRONIZA SELETORES
+   SINCRONIZA UI com prefs carregadas
 ════════════════════════════════════════════════════════ */
-function rkSyncSelectors() {
-    const selMkt    = document.getElementById('rkSelMercado');
-    const selJanela = document.getElementById('rkSelJanela');
-    const inputAlt  = document.getElementById('rkAlturaInput');
-    if (selMkt)    selMkt.value    = rkMercado;
-    if (selJanela) selJanela.value = String(rkJanela);
-    if (inputAlt)  inputAlt.value  = String(rkAltura);
+function rkSyncUI() {
+    // janela
+    const selJ = document.getElementById('rkSelJanela');
+    if (selJ) selJ.value = String(rkJanela);
+
+    // altura
+    const inp = document.getElementById('rkAlturaInput');
+    if (inp) inp.value = String(rkAltura);
     rkAplicarAltura();
+
+    // botões de mercado
+    document.querySelectorAll('.rk-mkt-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mkt === rkMercado);
+    });
+
+    // badge + barra lateral
+    rkAtualizarIdentidade();
+}
+
+/* atualiza badge de nome e cor da barra lateral */
+function rkAtualizarIdentidade() {
+    const mk   = RK_MERCADOS[rkMercado] || RK_MERCADOS.over25;
+    const badge = document.getElementById('rkBadgeMercado');
+    const bar   = document.getElementById('rkChartBar');
+
+    if (badge) {
+        badge.textContent  = mk.label;
+        badge.style.color  = mk.cor;
+        badge.style.borderColor = mk.cor + '55';
+        badge.style.background  = mk.cor + '18';
+    }
+    if (bar) bar.style.background = mk.cor + '99';
 }
 
 /* ════════════════════════════════════════════════════════
-   PROCESSAMENTO — converte jogos → série acumulada
+   PROCESSAMENTO
 ════════════════════════════════════════════════════════ */
 function rkProcessData(jogos) {
     const mk = RK_MERCADOS[rkMercado] || RK_MERCADOS.over25;
 
-    // ordena cronologicamente (igual ao heatmap)
     const sorted = [...jogos].sort((a, b) => {
         const da = new Date(a.data), db = new Date(b.data);
         if (da - db !== 0) return da - db;
@@ -8330,8 +8457,7 @@ function rkProcessData(jogos) {
     const direcoes = [];
     const placares = [];
     const labels   = [];
-
-    let acumulado = 0;
+    let acumulado  = 0;
     let wins = 0, total = 0;
 
     sorted.forEach((jogo, idx) => {
@@ -8340,9 +8466,9 @@ function rkProcessData(jogos) {
         const casa = ft[0], fora = ft[1];
         const tg   = casa + fora;
 
-        const hit      = mk.test(tg, casa, fora);
-        const direcao  = hit ? 1 : -1;
-        acumulado     += direcao;
+        const hit     = mk.test(tg, casa, fora);
+        const direcao = hit ? 1 : -1;
+        acumulado    += direcao;
         if (hit) wins++;
         total++;
 
@@ -8356,12 +8482,12 @@ function rkProcessData(jogos) {
 }
 
 /* ════════════════════════════════════════════════════════
-   RENDER DO CHART
+   RENDER
 ════════════════════════════════════════════════════════ */
 function rkRender() {
-    const canvas  = document.getElementById('rkCanvas');
-    const scroll  = document.getElementById('rkScroll');
-    const info    = document.getElementById('rkInfo');
+    const canvas = document.getElementById('rkCanvas');
+    const scroll = document.getElementById('rkScroll');
+    const info   = document.getElementById('rkInfo');
     if (!canvas) return;
 
     if (!_rkData || !_rkData.length) {
@@ -8369,14 +8495,13 @@ function rkRender() {
         return;
     }
 
-    const proc  = rkProcessData(_rkData);
-    const { pontos, direcoes, placares, labels, wins, total } = proc;
-
+    const { pontos, direcoes, placares, labels, wins, total } = rkProcessData(_rkData);
     if (!pontos.length) {
         if (info) info.textContent = 'Sem jogos para exibir.';
         return;
     }
 
+    const mk        = RK_MERCADOS[rkMercado] || RK_MERCADOS.over25;
     const nTotal    = pontos.length;
     const maxInicio = Math.max(0, nTotal - rkJanela);
     _rkInicioVis    = Math.min(Math.max(0, _rkInicioVis), maxInicio);
@@ -8386,33 +8511,30 @@ function rkRender() {
         scroll.max      = String(maxInicio);
         scroll.value    = String(_rkInicioVis);
         scroll.disabled = maxInicio <= 0;
+        scroll.style.accentColor = mk.cor;
     }
 
     const xMin = _rkInicioVis;
     const xMax = Math.min(nTotal - 1, xMin + rkJanela - 1);
 
-    if (info) {
-        info.textContent = `Exibindo ${xMin + 1}–${xMax + 1} de ${nTotal} jogos`;
-    }
-
-    const mk = RK_MERCADOS[rkMercado] || RK_MERCADOS.over25;
+    if (info) info.textContent = `Exibindo ${xMin + 1}–${xMax + 1} de ${nTotal} jogos`;
 
     const ptColors = direcoes.map(d => d > 0 ? mk.cor : mk.corN);
+    const segColor = ctx => ctx.p1.parsed.y >= ctx.p0.parsed.y ? mk.cor : mk.corN;
 
     if (_rkChart) {
         const ds = _rkChart.data.datasets[0];
-        _rkChart.data.labels      = labels;
-        ds.data                   = pontos;
-        ds._direcoes              = direcoes;
-        ds._placares              = placares;
-        ds.pointBackgroundColor   = ptColors;
-        ds.segment.borderColor    = segCtx => {
-            return segCtx.p1.parsed.y >= segCtx.p0.parsed.y ? mk.cor : mk.corN;
-        };
+        _rkChart.data.labels    = labels;
+        ds.data                 = pontos;
+        ds._direcoes            = direcoes;
+        ds._placares            = placares;
+        ds.pointBackgroundColor = ptColors;
+        ds.segment.borderColor  = segColor;
         _rkChart.options.scales.x.min = xMin;
         _rkChart.options.scales.x.max = xMax;
         _rkChart.update('none');
         _rkBuildSummary(wins, total, mk, pontos);
+        _rkBuildAcumBadge(pontos, mk);
         return;
     }
 
@@ -8434,15 +8556,11 @@ function rkRender() {
                 pointRadius: 3,
                 pointHoverRadius: 5,
                 pointBorderWidth: 1,
-                pointBorderColor: '#111827',
+                pointBorderColor: '#0b0d14',
                 pointBackgroundColor: ptColors,
                 tension: 0,
                 fill: false,
-                segment: {
-                    borderColor: ctx => {
-                        return ctx.p1.parsed.y >= ctx.p0.parsed.y ? mk.cor : mk.corN;
-                    }
-                }
+                segment: { borderColor: segColor }
             }]
         },
         options: {
@@ -8454,22 +8572,22 @@ function rkRender() {
                 tooltip: {
                     mode: 'index',
                     intersect: false,
-                    backgroundColor: 'rgba(8,10,18,.95)',
-                    borderColor: '#2a3550',
+                    backgroundColor: 'rgba(6,8,16,.96)',
+                    borderColor: '#1a2035',
                     borderWidth: 1,
-                    titleColor: '#4af',
-                    bodyColor: '#cdd',
-                    titleFont: { family: 'monospace', size: 11 },
+                    titleColor: '#4aafff',
+                    bodyColor: '#8a9ab0',
+                    titleFont: { family: 'monospace', size: 10 },
                     bodyFont:  { family: 'monospace', size: 10 },
+                    padding: 8,
                     callbacks: {
                         label: ctx => {
-                            const ds      = ctx.dataset;
-                            const dir     = ds._direcoes?.[ctx.dataIndex];
-                            const placar  = ds._placares?.[ctx.dataIndex] || '';
-                            const lado    = dir > 0
-                                ? `✔ ${mk.label} +1`
-                                : `✖ ${mk.label} -1`;
-                            return `${lado}  |  Acum: ${ctx.parsed.y}  |  ${placar}`;
+                            const ds     = ctx.dataset;
+                            const dir    = ds._direcoes?.[ctx.dataIndex];
+                            const placar = ds._placares?.[ctx.dataIndex] || '';
+                            const icon   = dir > 0 ? '✔' : '✖';
+                            const cor    = dir > 0 ? mk.label : `Não ${mk.label}`;
+                            return `${icon} ${cor}  |  Acum ${ctx.parsed.y > 0 ? '+' : ''}${ctx.parsed.y}  |  ${placar}`;
                         }
                     }
                 }
@@ -8478,12 +8596,18 @@ function rkRender() {
                 x: {
                     min: xMin,
                     max: xMax,
-                    ticks: { color: '#3a4555', maxRotation: 0, autoSkip: true, font: { size: 9 } },
-                    grid:  { color: 'rgba(255,255,255,.04)' }
+                    ticks: {
+                        color: '#1e2a3a', maxRotation: 0, autoSkip: true,
+                        font: { size: 8, family: 'monospace' }
+                    },
+                    grid: { color: 'rgba(255,255,255,.03)' }
                 },
                 y: {
-                    ticks: { color: '#3a4555', stepSize: 1, font: { size: 9 } },
-                    grid:  { color: 'rgba(255,255,255,.05)' }
+                    ticks: {
+                        color: '#1e2a3a', stepSize: 1,
+                        font: { size: 8, family: 'monospace' }
+                    },
+                    grid: { color: 'rgba(255,255,255,.04)' }
                 }
             }
         }
@@ -8491,6 +8615,19 @@ function rkRender() {
 
     window._rkChart = _rkChart;
     _rkBuildSummary(wins, total, mk, pontos);
+    _rkBuildAcumBadge(pontos, mk);
+}
+
+/* ════════════════════════════════════════════════════════
+   BADGE DE ACUMULADO (canto superior direito)
+════════════════════════════════════════════════════════ */
+function _rkBuildAcumBadge(pontos, mk) {
+    const div  = document.getElementById('rkAcumBadge');
+    if (!div || !pontos.length) return;
+    const acum = pontos[pontos.length - 1];
+    const cor  = acum >= 0 ? mk.cor : mk.corN;
+    const sinal = acum > 0 ? '+' : '';
+    div.innerHTML = `<span class="rk-acum-badge" style="color:${cor};border-color:${cor}33;background:${cor}11">${sinal}${acum}</span>`;
 }
 
 /* ════════════════════════════════════════════════════════
@@ -8500,50 +8637,78 @@ function _rkBuildSummary(wins, total, mk, pontos) {
     const div = document.getElementById('rkSummary');
     if (!div) return;
 
-    const losses  = total - wins;
-    const pct     = total ? ((wins / total) * 100).toFixed(1) : '0.0';
-    const acum    = pontos.length ? pontos[pontos.length - 1] : 0;
-    const acumCor = acum >= 0 ? mk.cor : mk.corN;
+    const losses = total - wins;
+    const pct    = total ? ((wins / total) * 100).toFixed(1) : '0.0';
+    const streak = _rkCalcStreak(pontos);
 
     div.innerHTML = `
-        <div class="rk-pill" style="border-color:rgba(31,204,89,.4);color:${mk.cor};background:rgba(31,204,89,.07)">
-            ${mk.label}
-        </div>
-        <div class="rk-pill" style="border-color:rgba(31,204,89,.35);color:#1fcc59;background:rgba(31,204,89,.07)">
-            ✔ ${wins} Wins
-        </div>
-        <div class="rk-pill" style="border-color:rgba(239,68,68,.35);color:#ef4444;background:rgba(239,68,68,.07)">
-            ✖ ${losses} Losses
-        </div>
-        <div class="rk-pill" style="border-color:rgba(255,200,60,.35);color:#ffc83c;background:rgba(255,200,60,.07)">
-            ${pct}% Hit
-        </div>
-        <div class="rk-pill" style="border-color:rgba(74,170,255,.3);color:${acumCor};background:rgba(74,170,255,.06)">
-            Acum: ${acum > 0 ? '+' : ''}${acum}
-        </div>
+        <span class="rk-pill" style="color:#1fcc59;border-color:#1fcc5930;background:#1fcc5910">
+            ✔ ${wins}
+        </span>
+        <span class="rk-pill" style="color:#ef4444;border-color:#ef444430;background:#ef444410">
+            ✖ ${losses}
+        </span>
+        <span class="rk-pill" style="color:#ffc83c;border-color:#ffc83c30;background:#ffc83c10">
+            ${pct}%
+        </span>
+        <span class="rk-pill" style="color:${mk.cor};border-color:${mk.cor}30;background:${mk.cor}0d">
+            ${total} jogos
+        </span>
+        ${streak.txt ? `<span class="rk-pill" style="color:${streak.cor};border-color:${streak.cor}30;background:${streak.cor}10">${streak.txt}</span>` : ''}
     `;
+}
+
+/* calcula sequência atual (positiva ou negativa) */
+function _rkCalcStreak(pontos) {
+    if (!pontos.length) return { txt: '', cor: '' };
+    let count = 1;
+    const last = pontos[pontos.length - 1] >= pontos[pontos.length - 2] ? 1 : -1;
+    for (let i = pontos.length - 2; i > 0; i--) {
+        const dir = pontos[i] >= pontos[i - 1] ? 1 : -1;
+        if (dir === last) count++;
+        else break;
+    }
+    if (count < 2) return { txt: '', cor: '' };
+    const cor = last > 0 ? '#1fcc59' : '#ef4444';
+    const txt = last > 0 ? `↑ Seq ${count}` : `↓ Seq ${count}`;
+    return { txt, cor };
 }
 
 /* ════════════════════════════════════════════════════════
    ALTURA
 ════════════════════════════════════════════════════════ */
 function rkAplicarAltura() {
-    const wrap  = document.getElementById('rkCanvasWrap');
-    const input = document.getElementById('rkAlturaInput');
-    if (!wrap || !input) return;
-    const h = Math.min(600, Math.max(120, parseInt(input.value || '220', 10)));
-    input.value    = String(h);
-    rkAltura       = h;
+    const wrap = document.getElementById('rkCanvasWrap');
+    const inp  = document.getElementById('rkAlturaInput');
+    if (!wrap || !inp) return;
+    const h = Math.min(600, Math.max(120, parseInt(inp.value || '220', 10)));
+    inp.value         = String(h);
+    rkAltura          = h;
     wrap.style.height = `${h}px`;
     rkSavePrefs();
     if (_rkChart?.resize) _rkChart.resize();
 }
 
 /* ════════════════════════════════════════════════════════
-   DESTROY ao trocar mercado (recriar chart limpo)
+   TROCA DE MERCADO — destrói e recria chart
 ════════════════════════════════════════════════════════ */
 function _rkDestroyChart() {
     if (_rkChart) { _rkChart.destroy(); _rkChart = null; window._rkChart = null; }
+}
+
+function rkTrocarMercado(novoMkt) {
+    if (!RK_MERCADOS[novoMkt]) return;
+    rkMercado = novoMkt;
+    _rkDestroyChart();
+
+    // atualiza botões
+    document.querySelectorAll('.rk-mkt-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mkt === novoMkt);
+    });
+
+    rkAtualizarIdentidade();
+    rkSavePrefs();
+    rkRender();
 }
 
 /* ════════════════════════════════════════════════════════
@@ -8565,38 +8730,40 @@ async function rkFetch() {
    INIT
 ════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
-    rkSyncSelectors();
+    rkSyncUI();
 
-    document.getElementById('rkSelMercado')?.addEventListener('change', e => {
-        rkMercado = e.target.value;
-        _rkDestroyChart();
-        rkSavePrefs();
-        rkRender();
+    // botões de mercado
+    document.getElementById('rkMktGroup')?.addEventListener('click', e => {
+        const btn = e.target.closest('.rk-mkt-btn');
+        if (btn?.dataset.mkt) rkTrocarMercado(btn.dataset.mkt);
     });
 
+    // janela
     document.getElementById('rkSelJanela')?.addEventListener('change', e => {
         rkJanela = +e.target.value;
         rkSavePrefs();
         rkRender();
     });
 
+    // altura
     document.getElementById('rkAlturaInput')?.addEventListener('change', rkAplicarAltura);
     document.getElementById('rkAlturaInput')?.addEventListener('input',  rkAplicarAltura);
 
     document.getElementById('rkAlturaMenos')?.addEventListener('click', () => {
         const inp = document.getElementById('rkAlturaInput');
         if (!inp) return;
-        inp.value = String((parseInt(inp.value || '220', 10) || 220) - 10);
+        inp.value = String(Math.max(120, (parseInt(inp.value || '220', 10) || 220) - 10));
         rkAplicarAltura();
     });
 
     document.getElementById('rkAlturaMais')?.addEventListener('click', () => {
         const inp = document.getElementById('rkAlturaInput');
         if (!inp) return;
-        inp.value = String((parseInt(inp.value || '220', 10) || 220) + 10);
+        inp.value = String(Math.min(600, (parseInt(inp.value || '220', 10) || 220) + 10));
         rkAplicarAltura();
     });
 
+    // scroll
     document.getElementById('rkScroll')?.addEventListener('input', e => {
         _rkInicioVis = parseInt(e.target.value || '0', 10);
         rkRender();
