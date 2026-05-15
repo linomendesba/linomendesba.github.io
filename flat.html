@@ -726,19 +726,23 @@ function calcGraphDataForMarket(games, marketKey) {
 
   function slotMatches(s) { return s.hits > s.misses; }
 
-  // ── CORREÇÃO: ordena os slots por timestamp absoluto (data + hora + minuto)
+  // ordena os slots por timestamp absoluto (data + hora + minuto)
   const slots = [...slotMap.values()].sort((a, b) => a.absMin - b.absMin);
 
   const points = [];
   const meta   = [];
   let val = 50;
 
-  // ── CORREÇÃO: em vez de buscar "hora-1" (que quebra entre dias),
-  // compara com o slot imediatamente anterior na sequência ordenada.
-  // Isso funciona corretamente mesmo na virada do dia (ex: 23:56 → 00:03).
-  for (let i = 1; i < slots.length; i++) {
-    const curr = slots[i];
-    const prev = slots[i - 1];
+  // Replica a lógica do antigo: busca o slot anterior pela chave "hora-1:minuto"
+  // Só gera ponto quando existe um slot exatamente 1 hora antes (mesmo minuto)
+  for (const curr of slots) {
+    const hh  = String(curr.hora).padStart(2, "0");
+    const mm  = String(curr.minuto).padStart(2, "0");
+    const prevKey = curr.dataJogo
+      ? `${curr.dataJogo}|${String(curr.hora - 1).padStart(2, "0")}:${mm}`
+      : `${String(curr.hora - 1).padStart(2, "0")}:${mm}`;
+    const prev = slotMap.get(prevKey);
+    if (!prev) continue;
 
     const prevMatches = slotMatches(prev);
     const currMatches = slotMatches(curr);
@@ -747,8 +751,8 @@ function calcGraphDataForMarket(games, marketKey) {
       if (currMatches) val++; else val--;
       points.push(val);
       meta.push({
-        hora:    String(curr.hora).padStart(2, "0"),
-        minuto:  String(curr.minuto).padStart(2, "0"),
+        hora:    hh,
+        minuto:  mm,
         jogos:   curr.count,
         data:    curr.dataJogo || null
       });
