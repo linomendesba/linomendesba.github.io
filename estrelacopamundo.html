@@ -8794,7 +8794,8 @@ rkLoadPrefs();
 
 let _rkChart     = null;
 let _rkData      = null;
-let _rkInicioVis = Infinity; // será ajustado para maxInicio no primeiro render
+let _rkInicioVis     = Infinity; // será ajustado para maxInicio no primeiro render
+let _rkLastMaxInicio = Infinity; // rastreia se usuário está no fim da barra
 let _rkTabVis    = !document.hidden;
 
 document.addEventListener('visibilitychange', () => { _rkTabVis = !document.hidden; });
@@ -8911,7 +8912,13 @@ function rkRender() {
     const mk        = RK_MERCADOS[rkMercado] || RK_MERCADOS.over25;
     const nTotal    = pontos.length;
     const maxInicio = Math.max(0, nTotal - rkJanela);
-    _rkInicioVis    = Math.min(Math.max(0, _rkInicioVis), maxInicio);
+    // auto-scroll: se _rkInicioVis === Infinity (primeiro render) ou
+    // se o usuário não mexeu na barra (estava no fim), acompanha os novos dados
+    if (_rkInicioVis === Infinity || _rkInicioVis >= _rkLastMaxInicio) {
+        _rkInicioVis = maxInicio;
+    }
+    _rkInicioVis      = Math.min(Math.max(0, _rkInicioVis), maxInicio);
+    _rkLastMaxInicio  = maxInicio;
 
     if (scroll) {
         scroll.min      = '0';
@@ -8949,6 +8956,29 @@ function rkRender() {
         return;
     }
 
+    // positioner que vira o tooltip para não cobrir as bordas
+    Chart.Tooltip.positioners.rkSmart = function(elements, eventPos) {
+        if (!elements.length) return false;
+        const chart = this.chart;
+        const cw    = chart.width;
+        const ch    = chart.height;
+        const x     = eventPos.x;
+        const y     = eventPos.y;
+        const GAP   = 20;
+        // decide lado horizontal
+        const goLeft = x > cw * 0.6;
+        const tx = goLeft ? x - GAP : x + GAP;
+        // decide lado vertical
+        const goUp = y > ch * 0.55;
+        const ty = goUp ? y - GAP : y + GAP;
+        return {
+            x: tx,
+            y: ty,
+            xAlign: goLeft ? 'right' : 'left',
+            yAlign: goUp   ? 'bottom' : 'top',
+        };
+    };
+
     _rkChart = new Chart(canvas.getContext('2d'), {
         type: 'line',
         data: {
@@ -8979,10 +9009,9 @@ function rkRender() {
                 tooltip: {
                     mode: 'nearest',
                     intersect: false,
-                    xAlign: 'left',
-                    yAlign: 'center',
-                    caretSize: 0,
-                    caretPadding: 36,
+                    position: 'rkSmart',
+                    caretSize: 4,
+                    caretPadding: 12,
                     backgroundColor: 'rgba(5,7,14,.97)',
                     borderColor: '#151d30',
                     borderWidth: 1,
