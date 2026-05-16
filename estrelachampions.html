@@ -5685,47 +5685,56 @@ function toggleAccordion(button) {
 }
 
 // ─────────────────────────────────────────────
-//  FILTRO CENTRAL — apenas jogos já ocorridos
-//  Lógica:
-//    1. Pega a data/hora atual (now)
-//    2. Monta o momento real do jogo: campo `data` (datetime ISO)
-//       + campo `minuto` (minuto dentro da partida, somado ao início)
-//    3. Só inclui o jogo se esse momento já passou
-//    4. Ordena do mais antigo para o mais recente
-//    5. Retorna os últimos `limit` registros
+//  FILTRO CENTRAL — apenas jogos com resultado real
+//
+//  A API retorna em ordem cronológica:
+//    índice 0 = mais antigo
+//    último índice = mais recente (pode ser futuro/em andamento, sem ft)
+//
+//  Estratégia:
+//    1. Percorre de trás para frente até achar o primeiro ft válido
+//    2. Corta o array nesse ponto (descarta futuros do final)
+//    3. Remove eventuais ft inválidos no meio (segurança)
+//    4. Retorna os últimos `limit` — ordem original preservada
 // ─────────────────────────────────────────────
+function ftValido(ft) {
+    if (!ft || typeof ft !== 'string') return false;
+    const partes = ft.trim().split(' x ');
+    if (partes.length !== 2) return false;
+    const [a, b] = partes.map(Number);
+    return !isNaN(a) && !isNaN(b) && a >= 0 && b >= 0;
+}
+
 function filtrarJogosOcorridos(data, limit = 480) {
-    const agora = new Date();
-
-    const passados = data.filter(jogo => {
-        try {
-            // `data` é o campo ISO com data/hora do início da partida
-            const inicioPartida = new Date(jogo.data);
-            // Soma os minutos de jogo para saber o momento exato daquele resultado
-            const momentoResultado = new Date(inicioPartida.getTime() + (jogo.minuto || 0) * 60 * 1000);
-            return momentoResultado <= agora;
-        } catch {
-            return false;
+    // 1. Acha o índice do jogo mais recente com ft válido (de trás para frente)
+    let ultimoValido = -1;
+    for (let i = data.length - 1; i >= 0; i--) {
+        if (ftValido(data[i].ft)) {
+            ultimoValido = i;
+            break;
         }
-    });
+    }
 
-    // Ordena do mais antigo para o mais recente (mantém ordem cronológica)
-    passados.sort((a, b) => {
-        const tA = new Date(a.data).getTime() + (a.minuto || 0) * 60000;
-        const tB = new Date(b.data).getTime() + (b.minuto || 0) * 60000;
-        return tA - tB;
-    });
+    if (ultimoValido === -1) {
+        console.warn('[Máximas] Nenhum jogo com ft válido encontrado.');
+        return [];
+    }
 
-    // Retorna os últimos `limit` jogos ocorridos
-    const resultado = passados.slice(-limit);
+    // 2. Corta até o índice mais recente válido + filtra ft inválidos no meio
+    const apenasOcorridos = data
+        .slice(0, ultimoValido + 1)
+        .filter(j => ftValido(j.ft));
+
+    // 3. Retorna os últimos `limit` mantendo a ordem cronológica original
+    const resultado = apenasOcorridos.slice(-limit);
 
     // Log do resultado mais recente para conferência
     if (resultado.length > 0) {
-        const maisRecente = resultado[resultado.length - 1];
-        console.log(`[Máximas] Resultado mais recente: ${maisRecente.time_a} ${maisRecente.ft} ${maisRecente.time_b} | data: ${maisRecente.data} | minuto: ${maisRecente.minuto}`);
+        const r = resultado[resultado.length - 1];
+        console.log(`[Máximas] Mais recente → ${r.time_a} ${r.ft} ${r.time_b} | data: ${r.data} | minuto: ${r.minuto}`);
     }
+    console.log(`[Máximas] Total API: ${data.length} | Último ft válido idx: ${ultimoValido} | Válidos: ${apenasOcorridos.length} | Usados: ${resultado.length}`);
 
-    console.log(`[Máximas] Total API: ${data.length} | Ocorridos: ${passados.length} | Usados (últimos ${limit}): ${resultado.length}`);
     return resultado;
 }
 
@@ -5739,7 +5748,6 @@ async function fetchMaximaplacar() {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         const data = await response.json();
 
-        // Usa apenas jogos já ocorridos, ordenados cronologicamente
         const recentData = filtrarJogosOcorridos(data, 480);
 
         const dataHash = JSON.stringify(recentData);
@@ -5812,7 +5820,6 @@ fetchMaximaplacar();
             const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
             const data = await response.json();
 
-            // Usa apenas jogos já ocorridos, ordenados cronologicamente
             const recentData = filtrarJogosOcorridos(data, 480);
 
             const dataHash = JSON.stringify(recentData);
@@ -5868,7 +5875,6 @@ async function fetchMaximamercado() {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         const data = await response.json();
 
-        // Usa apenas jogos já ocorridos, ordenados cronologicamente
         const recentData = filtrarJogosOcorridos(data, 480);
 
         const mercadosFixos = [
@@ -5951,7 +5957,6 @@ async function fetchMediahoramercado() {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         const data = await response.json();
 
-        // Usa apenas jogos já ocorridos, ordenados cronologicamente
         const recentData = filtrarJogosOcorridos(data);
         const numHoras = Math.floor(recentData.length / 20);
 
