@@ -5706,34 +5706,52 @@ function ftValido(ft) {
 }
 
 function filtrarJogosOcorridos(data, limit = 480) {
-    // 1. Acha o índice do jogo mais recente com ft válido (de trás para frente)
-    let ultimoValido = -1;
+    // Detecta automaticamente se o mais recente está no início ou no fim
+    // Testa os primeiros e últimos registros com ft válido
+    let primeiroValidoInicio = -1;
+    let primeiroValidoFim = -1;
+
+    for (let i = 0; i < data.length; i++) {
+        if (ftValido(data[i].ft)) { primeiroValidoInicio = i; break; }
+    }
     for (let i = data.length - 1; i >= 0; i--) {
-        if (ftValido(data[i].ft)) {
-            ultimoValido = i;
-            break;
-        }
+        if (ftValido(data[i].ft)) { primeiroValidoFim = i; break; }
     }
 
-    if (ultimoValido === -1) {
+    if (primeiroValidoInicio === -1) {
         console.warn('[Máximas] Nenhum jogo com ft válido encontrado.');
         return [];
     }
 
-    // 2. Corta até o índice mais recente válido + filtra ft inválidos no meio
-    const apenasOcorridos = data
-        .slice(0, ultimoValido + 1)
-        .filter(j => ftValido(j.ft));
+    // Compara datas para saber qual extremo é mais recente
+    const dataInicio = new Date(data[primeiroValidoInicio].data || 0).getTime();
+    const dataFim    = new Date(data[primeiroValidoFim].data    || 0).getTime();
 
-    // 3. Retorna os últimos `limit` mantendo a ordem cronológica original
+    let apenasOcorridos;
+
+    if (dataInicio >= dataFim) {
+        // Mais recente está NO INÍCIO → inverte para manter ordem antiga→nova
+        console.log('[Máximas] Ordem detectada: mais recente no INÍCIO');
+        const corte = data
+            .slice(0, primeiroValidoFim + 1) // descarta futuros do fim
+            .filter(j => ftValido(j.ft));
+        apenasOcorridos = corte.reverse();    // inverte: índice 0 = mais antigo
+    } else {
+        // Mais recente está NO FIM (padrão)
+        console.log('[Máximas] Ordem detectada: mais recente no FIM');
+        apenasOcorridos = data
+            .slice(0, primeiroValidoFim + 1)
+            .filter(j => ftValido(j.ft));
+    }
+
+    // Retorna os últimos `limit` (mais recentes) em ordem antiga→nova
     const resultado = apenasOcorridos.slice(-limit);
 
-    // Log do resultado mais recente para conferência
     if (resultado.length > 0) {
         const r = resultado[resultado.length - 1];
         console.log(`[Máximas] Mais recente → ${r.time_a} ${r.ft} ${r.time_b} | data: ${r.data} | minuto: ${r.minuto}`);
     }
-    console.log(`[Máximas] Total API: ${data.length} | Último ft válido idx: ${ultimoValido} | Válidos: ${apenasOcorridos.length} | Usados: ${resultado.length}`);
+    console.log(`[Máximas] Total API: ${data.length} | Válidos: ${apenasOcorridos.length} | Usados: ${resultado.length}`);
 
     return resultado;
 }
