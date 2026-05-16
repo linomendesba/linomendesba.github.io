@@ -5687,47 +5687,74 @@ function toggleAccordion(button) {
 }
 
 // ─────────────────────────────────────────────
-//  FILTRO CENTRAL — apenas jogos já ocorridos
-//  Lógica:
-//    1. Pega a data/hora atual (now)
-//    2. Monta o momento real do jogo: campo `data` (datetime ISO)
-//       + campo `minuto` (minuto dentro da partida, somado ao início)
-//    3. Só inclui o jogo se esse momento já passou
-//    4. Ordena do mais antigo para o mais recente
-//    5. Retorna os últimos `limit` registros
+//  FILTRO CENTRAL — apenas jogos com resultado real
+//
+//  A API retorna em ordem cronológica:
+//    índice 0 = mais antigo
+//    último índice = mais recente (pode ser futuro/em andamento, sem ft)
+//
+//  Estratégia:
+//    1. Percorre de trás para frente até achar o primeiro ft válido
+//    2. Corta o array nesse ponto (descarta futuros do final)
+//    3. Remove eventuais ft inválidos no meio (segurança)
+//    4. Retorna os últimos `limit` — ordem original preservada
 // ─────────────────────────────────────────────
+function ftValido(ft) {
+    if (!ft || typeof ft !== 'string') return false;
+    const partes = ft.trim().split(' x ');
+    if (partes.length !== 2) return false;
+    const [a, b] = partes.map(Number);
+    return !isNaN(a) && !isNaN(b) && a >= 0 && b >= 0;
+}
+
 function filtrarJogosOcorridos(data, limit = 480) {
-    const agora = new Date();
+    // Detecta automaticamente se o mais recente está no início ou no fim
+    // Testa os primeiros e últimos registros com ft válido
+    let primeiroValidoInicio = -1;
+    let primeiroValidoFim = -1;
 
-    const passados = data.filter(jogo => {
-        try {
-            // `data` é o campo ISO com data/hora do início da partida
-            const inicioPartida = new Date(jogo.data);
-            // Soma os minutos de jogo para saber o momento exato daquele resultado
-            const momentoResultado = new Date(inicioPartida.getTime() + (jogo.minuto || 0) * 60 * 1000);
-            return momentoResultado <= agora;
-        } catch {
-            return false;
-        }
-    });
-
-    // Ordena do mais antigo para o mais recente (mantém ordem cronológica)
-    passados.sort((a, b) => {
-        const tA = new Date(a.data).getTime() + (a.minuto || 0) * 60000;
-        const tB = new Date(b.data).getTime() + (b.minuto || 0) * 60000;
-        return tA - tB;
-    });
-
-    // Retorna os últimos `limit` jogos ocorridos
-    const resultado = passados.slice(-limit);
-
-    // Log do resultado mais recente para conferência
-    if (resultado.length > 0) {
-        const maisRecente = resultado[resultado.length - 1];
-        console.log(`[Máximas] Resultado mais recente: ${maisRecente.time_a} ${maisRecente.ft} ${maisRecente.time_b} | data: ${maisRecente.data} | minuto: ${maisRecente.minuto}`);
+    for (let i = 0; i < data.length; i++) {
+        if (ftValido(data[i].ft)) { primeiroValidoInicio = i; break; }
+    }
+    for (let i = data.length - 1; i >= 0; i--) {
+        if (ftValido(data[i].ft)) { primeiroValidoFim = i; break; }
     }
 
-    console.log(`[Máximas] Total API: ${data.length} | Ocorridos: ${passados.length} | Usados (últimos ${limit}): ${resultado.length}`);
+    if (primeiroValidoInicio === -1) {
+        console.warn('[Máximas] Nenhum jogo com ft válido encontrado.');
+        return [];
+    }
+
+    // Compara datas para saber qual extremo é mais recente
+    const dataInicio = new Date(data[primeiroValidoInicio].data || 0).getTime();
+    const dataFim    = new Date(data[primeiroValidoFim].data    || 0).getTime();
+
+    let apenasOcorridos;
+
+    if (dataInicio >= dataFim) {
+        // Mais recente está NO INÍCIO → inverte para manter ordem antiga→nova
+        console.log('[Máximas] Ordem detectada: mais recente no INÍCIO');
+        const corte = data
+            .slice(0, primeiroValidoFim + 1) // descarta futuros do fim
+            .filter(j => ftValido(j.ft));
+        apenasOcorridos = corte.reverse();    // inverte: índice 0 = mais antigo
+    } else {
+        // Mais recente está NO FIM (padrão)
+        console.log('[Máximas] Ordem detectada: mais recente no FIM');
+        apenasOcorridos = data
+            .slice(0, primeiroValidoFim + 1)
+            .filter(j => ftValido(j.ft));
+    }
+
+    // Retorna os últimos `limit` (mais recentes) em ordem antiga→nova
+    const resultado = apenasOcorridos.slice(-limit);
+
+    if (resultado.length > 0) {
+        const r = resultado[resultado.length - 1];
+        console.log(`[Máximas] Mais recente → ${r.time_a} ${r.ft} ${r.time_b} | data: ${r.data} | minuto: ${r.minuto}`);
+    }
+    console.log(`[Máximas] Total API: ${data.length} | Válidos: ${apenasOcorridos.length} | Usados: ${resultado.length}`);
+
     return resultado;
 }
 
@@ -5741,7 +5768,6 @@ async function fetchMaximaplacar() {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         const data = await response.json();
 
-        // Usa apenas jogos já ocorridos, ordenados cronologicamente
         const recentData = filtrarJogosOcorridos(data, 480);
 
         const dataHash = JSON.stringify(recentData);
@@ -5814,7 +5840,6 @@ fetchMaximaplacar();
             const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
             const data = await response.json();
 
-            // Usa apenas jogos já ocorridos, ordenados cronologicamente
             const recentData = filtrarJogosOcorridos(data, 480);
 
             const dataHash = JSON.stringify(recentData);
@@ -5870,7 +5895,6 @@ async function fetchMaximamercado() {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         const data = await response.json();
 
-        // Usa apenas jogos já ocorridos, ordenados cronologicamente
         const recentData = filtrarJogosOcorridos(data, 480);
 
         const mercadosFixos = [
@@ -5953,7 +5977,6 @@ async function fetchMediahoramercado() {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
         const data = await response.json();
 
-        // Usa apenas jogos já ocorridos, ordenados cronologicamente
         const recentData = filtrarJogosOcorridos(data);
         const numHoras = Math.floor(recentData.length / 20);
 
