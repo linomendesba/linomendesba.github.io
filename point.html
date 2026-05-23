@@ -30,7 +30,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 100%;
             margin: 0 auto;
             padding: 20px;
         }
@@ -122,49 +122,43 @@
             color: var(--text-primary);
         }
 
-        /* GRÁFICO */
+        /* GRÁFICO - GRID LAYOUT */
         .chart-container {
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 20px;
             overflow-x: auto;
-            min-height: 400px;
+            overflow-y: auto;
+            min-height: 600px;
+            max-height: 800px;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            align-items: flex-start;
+            justify-content: flex-start;
         }
 
         .chart-wrapper {
-            display: inline-flex;
-            gap: 15px;
-            align-items: flex-end;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+            gap: 8px;
             padding: 20px;
-            min-width: 100%;
-        }
-
-        .column {
-            display: flex;
-            flex-direction: column-reverse;
-            gap: 4px;
-            align-items: center;
-            padding: 10px;
-            background-color: rgba(0, 0, 0, 0.2);
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
+            width: 100%;
+            align-content: start;
         }
 
         .box {
-            width: 32px;
-            height: 32px;
+            width: 45px;
+            height: 45px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 4px;
             font-weight: 700;
             font-size: 16px;
+            cursor: pointer;
             transition: all 0.2s ease;
             user-select: none;
+            position: relative;
         }
 
         .box.over {
@@ -180,17 +174,41 @@
         }
 
         .box:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transform: scale(1.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            z-index: 10;
         }
 
-        .column-label {
-            margin-top: 10px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-secondary);
+        /* TOOLTIP */
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 1000;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            border: 1px solid var(--border-color);
+            display: none;
+        }
+
+        .box:hover .tooltip {
+            display: block;
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
         }
 
         /* EMPTY STATE */
@@ -198,6 +216,7 @@
             text-align: center;
             padding: 40px;
             color: var(--text-secondary);
+            width: 100%;
         }
 
         .empty-state svg {
@@ -212,6 +231,7 @@
             text-align: center;
             padding: 40px;
             color: var(--text-secondary);
+            width: 100%;
         }
 
         .spinner {
@@ -240,19 +260,13 @@
             }
 
             .chart-wrapper {
-                gap: 8px;
-                padding: 15px;
+                grid-template-columns: repeat(auto-fill, minmax(35px, 1fr));
             }
 
             .box {
-                width: 24px;
-                height: 24px;
+                width: 35px;
+                height: 35px;
                 font-size: 12px;
-            }
-
-            .column {
-                padding: 6px;
-                gap: 2px;
             }
 
             .info-panel {
@@ -282,6 +296,7 @@
                     <option value="80">80 jogos</option>
                     <option value="160">160 jogos</option>
                     <option value="320">320 jogos</option>
+                    <option value="640" selected>640 jogos</option>
                 </select>
             </div>
         </div>
@@ -333,6 +348,13 @@
         const initialState = document.getElementById('initial-state');
         const loadingEl = document.getElementById('loading');
 
+        let currentData = {
+            results: [],
+            pnfBoxes: []
+        };
+
+        let updateInterval = null;
+
         // Event listeners
         leagueSelect.addEventListener('change', loadChart);
         gamesSelect.addEventListener('change', loadChart);
@@ -346,16 +368,49 @@
             chartWrapper.style.display = 'none';
             loadingEl.style.display = 'block';
 
+            // Limpar interval anterior
+            if (updateInterval) clearInterval(updateInterval);
+
             try {
                 const results = await fetchResults(league, gamesLimit);
-                const pnfData = calculatePointFigure(results);
-                renderChart(pnfData, results);
-                updateStats(pnfData);
+                currentData.results = results;
+                
+                const pnfBoxes = calculatePointFigure(results);
+                currentData.pnfBoxes = pnfBoxes;
+                
+                renderChart(pnfBoxes, results);
+                updateStats(results);
+                
+                loadingEl.style.display = 'none';
+
+                // Iniciar atualização a cada 1 minuto
+                updateInterval = setInterval(() => {
+                    refreshData(league, gamesLimit);
+                }, 60000);
+
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
                 showError('Erro ao carregar dados. Tente novamente.');
-            } finally {
-                loadingEl.style.display = 'none';
+            }
+        }
+
+        async function refreshData(league, gamesLimit) {
+            try {
+                const newResults = await fetchResults(league, gamesLimit);
+                
+                // Comparar dados
+                if (JSON.stringify(newResults) !== JSON.stringify(currentData.results)) {
+                    currentData.results = newResults;
+                    
+                    const pnfBoxes = calculatePointFigure(newResults);
+                    currentData.pnfBoxes = pnfBoxes;
+                    
+                    // Atualizar gráfico sem piscar
+                    updateChartInPlace(pnfBoxes, newResults);
+                    updateStats(newResults);
+                }
+            } catch (error) {
+                console.error('Erro ao atualizar dados:', error);
             }
         }
 
@@ -365,26 +420,28 @@
                 const response = await fetch(url);
                 const html = await response.text();
                 
-                // Parse HTML para extrair dados JSON
+                // Tentar parsear dados
                 const jsonMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*({.*?});/s);
-                if (!jsonMatch) {
-                    // Fallback: gerar dados de demonstração
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[1]);
+                    const matches = data.matches || [];
+                    
+                    return matches
+                        .slice(0, limit)
+                        .reverse() // De trás para frente (recente para antigo)
+                        .map(match => ({
+                            id: match.id,
+                            liga: match.liga,
+                            time_a: match.time_a,
+                            time_b: match.time_b,
+                            ft: match.ft,
+                            data: match.data,
+                            hora: match.hora || 0,
+                            minuto: match.minuto || 0
+                        }));
+                } else {
                     return generateDemoData(limit);
                 }
-
-                const data = JSON.parse(jsonMatch[1]);
-                const matches = data.matches || [];
-                
-                return matches
-                    .slice(0, limit)
-                    .map(match => ({
-                        id: match.id,
-                        liga: match.liga,
-                        time_a: match.time_a,
-                        time_b: match.time_b,
-                        ft: match.ft,
-                        data: match.data
-                    }));
             } catch (error) {
                 console.warn('Erro ao parsear dados reais, usando dados de demonstração:', error);
                 return generateDemoData(limit);
@@ -392,12 +449,12 @@
         }
 
         function generateDemoData(limit) {
-            // Gerar dados realistas para demonstração
             const results = [];
+            const now = new Date();
             let overCount = 0;
             let underCount = 0;
 
-            for (let i = 0; i < limit; i++) {
+            for (let i = limit - 1; i >= 0; i--) {
                 const isOver = Math.random() > 0.45; // ~55% over, 45% under
                 
                 if (isOver) {
@@ -414,10 +471,16 @@
                     }
                 }
 
+                const gameTime = new Date(now.getTime() - i * 3600000);
+
                 results.push({
                     id: i,
-                    ft: isOver ? '3x2' : '0x0',
-                    isOver: isOver
+                    time_a: 'Time ' + String.fromCharCode(65 + (i % 26)),
+                    time_b: 'Time ' + String.fromCharCode(66 + (i % 26)),
+                    ft: isOver ? (Math.random() > 0.5 ? '3x1' : '2x2') : '1x0',
+                    data: gameTime.toISOString(),
+                    hora: gameTime.getHours(),
+                    minuto: gameTime.getMinutes()
                 });
             }
 
@@ -425,19 +488,129 @@
         }
 
         function calculatePointFigure(results) {
-            const columns = [];
-            let currentColumn = null;
+            const boxes = [];
+            let currentType = null;
             let reversalCounter = 0;
-            let totalReversals = 0;
-            let maxOver = 0;
-            let maxUnder = 0;
-            let currentOverSeq = 0;
-            let currentUnderSeq = 0;
+            let boxIndex = 0;
+
+            results.forEach((result, idx) => {
+                const isOver = countGoals(result.ft) > 2.5;
+                const type = isOver ? 'over' : 'under';
+
+                if (currentType === null) {
+                    currentType = type;
+                    boxes.push({
+                        type: type,
+                        resultIndex: idx,
+                        time: formatTime(result.hora, result.minuto),
+                        teams: `${result.time_a} vs ${result.time_b}`,
+                        ft: result.ft
+                    });
+                    boxIndex++;
+                } else if (currentType === type) {
+                    reversalCounter = 0;
+                    boxes.push({
+                        type: type,
+                        resultIndex: idx,
+                        time: formatTime(result.hora, result.minuto),
+                        teams: `${result.time_a} vs ${result.time_b}`,
+                        ft: result.ft
+                    });
+                    boxIndex++;
+                } else {
+                    reversalCounter++;
+                    if (reversalCounter === 3) {
+                        currentType = type;
+                        reversalCounter = 0;
+                        boxes.push({
+                            type: type,
+                            resultIndex: idx,
+                            time: formatTime(result.hora, result.minuto),
+                            teams: `${result.time_a} vs ${result.time_b}`,
+                            ft: result.ft
+                        });
+                        boxIndex++;
+                    }
+                }
+            });
+
+            return boxes;
+        }
+
+        function formatTime(hora, minuto) {
+            return `${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}`;
+        }
+
+        function countGoals(ftString) {
+            if (!ftString) return 0;
+            const parts = ftString.split('x').map(p => parseInt(p) || 0);
+            return parts[0] + parts[1];
+        }
+
+        function renderChart(pnfBoxes) {
+            chartWrapper.innerHTML = '';
+
+            if (pnfBoxes.length === 0) {
+                initialState.style.display = 'block';
+                chartWrapper.style.display = 'none';
+                return;
+            }
+
+            pnfBoxes.forEach(box => {
+                const boxEl = document.createElement('div');
+                boxEl.className = `box ${box.type}`;
+                boxEl.textContent = box.type === 'over' ? 'X' : 'O';
+                
+                const tooltip = document.createElement('div');
+                tooltip.className = 'tooltip';
+                tooltip.innerHTML = `${box.time}<br>${box.teams}<br>${box.ft}`;
+                
+                boxEl.appendChild(tooltip);
+                chartWrapper.appendChild(boxEl);
+            });
+
+            initialState.style.display = 'none';
+            chartWrapper.style.display = 'grid';
+        }
+
+        function updateChartInPlace(pnfBoxes, results) {
+            const boxes = chartWrapper.querySelectorAll('.box');
+            
+            // Atualizar boxes existentes ou adicionar novos
+            pnfBoxes.forEach((box, idx) => {
+                let boxEl = boxes[idx];
+                
+                if (!boxEl) {
+                    boxEl = document.createElement('div');
+                    chartWrapper.appendChild(boxEl);
+                }
+                
+                boxEl.className = `box ${box.type}`;
+                boxEl.textContent = box.type === 'over' ? 'X' : 'O';
+                
+                // Atualizar tooltip
+                let tooltip = boxEl.querySelector('.tooltip');
+                if (!tooltip) {
+                    tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    boxEl.appendChild(tooltip);
+                }
+                tooltip.innerHTML = `${box.time}<br>${box.teams}<br>${box.ft}`;
+            });
+
+            // Remover boxes em excesso
+            for (let i = pnfBoxes.length; i < boxes.length; i++) {
+                boxes[i].remove();
+            }
+        }
+
+        function updateStats(results) {
+            let maxOver = 0, maxUnder = 0, currentOverSeq = 0, currentUnderSeq = 0;
+            let lastType = null;
 
             results.forEach(result => {
                 const isOver = countGoals(result.ft) > 2.5;
-
-                // Atualizar sequências
+                
                 if (isOver) {
                     currentOverSeq++;
                     currentUnderSeq = 0;
@@ -447,112 +620,26 @@
                     currentOverSeq = 0;
                     maxUnder = Math.max(maxUnder, currentUnderSeq);
                 }
-
-                // Lógica do Ponto & Figura
-                if (currentColumn === null) {
-                    // Inicializar primeira coluna
-                    currentColumn = {
-                        type: isOver ? 'over' : 'under',
-                        boxes: 1,
-                        count: 1
-                    };
-                    reversalCounter = 0;
-                } else if (currentColumn.type === 'over' && isOver) {
-                    // Continuar coluna Over
-                    currentColumn.count++;
-                    reversalCounter = 0;
-                } else if (currentColumn.type === 'under' && !isOver) {
-                    // Continuar coluna Under
-                    currentColumn.count++;
-                    reversalCounter = 0;
-                } else if (currentColumn.type === 'over' && !isOver) {
-                    // Começar contagem para reversão
-                    reversalCounter++;
-                    if (reversalCounter === 3) {
-                        // Reverter para Under
-                        columns.push(currentColumn);
-                        currentColumn = {
-                            type: 'under',
-                            boxes: 1,
-                            count: 1
-                        };
-                        reversalCounter = 0;
-                        totalReversals++;
-                    }
-                } else if (currentColumn.type === 'under' && isOver) {
-                    // Começar contagem para reversão
-                    reversalCounter++;
-                    if (reversalCounter === 3) {
-                        // Reverter para Over
-                        columns.push(currentColumn);
-                        currentColumn = {
-                            type: 'over',
-                            boxes: 1,
-                            count: 1
-                        };
-                        reversalCounter = 0;
-                        totalReversals++;
-                    }
-                }
+                lastType = isOver ? 'over' : 'under';
             });
 
-            if (currentColumn) {
-                columns.push(currentColumn);
-            }
-
-            return {
-                columns,
-                maxOver,
-                maxUnder,
-                reversals: totalReversals,
-                trend: currentColumn ? currentColumn.type : 'neutro'
-            };
-        }
-
-        function countGoals(ftString) {
-            if (!ftString) return 0;
-            const parts = ftString.split('x').map(p => parseInt(p) || 0);
-            return parts[0] + parts[1];
-        }
-
-        function renderChart(pnfData) {
-            chartWrapper.innerHTML = '';
-
-            if (pnfData.columns.length === 0) {
-                initialState.style.display = 'block';
-                chartWrapper.style.display = 'none';
-                return;
-            }
-
-            pnfData.columns.forEach(col => {
-                const columnDiv = document.createElement('div');
-                columnDiv.className = 'column';
-
-                for (let i = 0; i < col.count; i++) {
-                    const box = document.createElement('div');
-                    box.className = `box ${col.type}`;
-                    box.textContent = col.type === 'over' ? 'X' : 'O';
-                    columnDiv.appendChild(box);
+            // Contar reversões
+            let reversions = 0;
+            let lastReversalType = null;
+            for (let i = 1; i < results.length; i++) {
+                const prevIsOver = countGoals(results[i-1].ft) > 2.5;
+                const currIsOver = countGoals(results[i].ft) > 2.5;
+                if (prevIsOver !== currIsOver && lastReversalType !== (currIsOver ? 'over' : 'under')) {
+                    reversions++;
+                    lastReversalType = currIsOver ? 'over' : 'under';
                 }
+            }
 
-                const label = document.createElement('div');
-                label.className = 'column-label';
-                label.textContent = col.type === 'over' ? 'Over' : 'Under';
-                columnDiv.appendChild(label);
-
-                chartWrapper.appendChild(columnDiv);
-            });
-
-            initialState.style.display = 'none';
-            chartWrapper.style.display = 'flex';
-        }
-
-        function updateStats(pnfData) {
-            document.getElementById('max-over').textContent = pnfData.maxOver;
-            document.getElementById('max-under').textContent = pnfData.maxUnder;
-            document.getElementById('reversions').textContent = pnfData.reversals;
+            document.getElementById('max-over').textContent = maxOver;
+            document.getElementById('max-under').textContent = maxUnder;
+            document.getElementById('reversions').textContent = reversions;
             
-            const trendText = pnfData.trend === 'over' ? 'Over ↑' : pnfData.trend === 'under' ? 'Under ↓' : '—';
+            const trendText = lastType === 'over' ? 'Over ↑' : lastType === 'under' ? 'Under ↓' : '—';
             document.getElementById('trend').textContent = trendText;
         }
 
@@ -563,11 +650,6 @@
             initialState.style.display = 'block';
             chartWrapper.style.display = 'none';
         }
-
-        // Carregar gráfico ao iniciar se houver liga selecionada
-        window.addEventListener('load', () => {
-            // Não carregar automaticamente, aguardar seleção do usuário
-        });
     </script>
 </body>
 </html>
