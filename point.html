@@ -6,9 +6,11 @@
     <title>Ponto & Figura</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         :root {
             --bg: #1c1f26;
+            --bg2: #252a33;
+            --border: #3a3f4a;
             --text: #e8eaed;
             --text-sec: #9ca3af;
             --over: #10b981;
@@ -20,6 +22,7 @@
             color: var(--text);
             font-family: 'Courier New', monospace;
             padding: 20px;
+            min-height: 100vh;
         }
 
         .header {
@@ -39,32 +42,40 @@
             font-size: 11px;
             color: var(--text-sec);
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         select {
-            background: #252a33;
-            border: 1px solid #3a3f4a;
+            background: var(--bg2);
+            border: 1px solid var(--border);
             color: var(--text);
-            padding: 8px;
+            padding: 8px 12px;
             border-radius: 3px;
             font-size: 12px;
             min-width: 140px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
         }
+
+        select:focus { border-color: #5a6070; }
 
         .layout {
             display: flex;
             gap: 20px;
+            align-items: flex-start;
         }
 
-        .chart {
+        /* CHART */
+        .chart-wrap {
             flex: 1;
-            background: #252a33;
-            border: 1px solid #3a3f4a;
+            background: var(--bg2);
+            border: 1px solid var(--border);
             border-radius: 4px;
             padding: 15px;
-            overflow-x: auto;
-            overflow-y: auto;
+            overflow: auto;
             max-height: 600px;
+            position: relative; /* para tooltip ficar dentro */
         }
 
         .lines {
@@ -72,16 +83,14 @@
             gap: 1px;
             font-weight: bold;
             font-size: 14px;
-            letter-spacing: 1px;
             width: fit-content;
+            min-height: 20px;
         }
 
         .column {
             display: flex;
             flex-direction: column;
-            gap: 0;
             text-align: center;
-            position: relative;
         }
 
         .cell {
@@ -95,48 +104,40 @@
             position: relative;
         }
 
-        .tooltip {
-            position: absolute;
-            background: rgba(0,0,0,0.9);
+        .x { color: var(--over); }
+        .o { color: var(--under); }
+
+        /* TOOLTIP — fixo no body, não corta */
+        #tooltip {
+            position: fixed;
+            background: rgba(10,12,16,0.97);
             color: var(--text);
             padding: 6px 10px;
             border-radius: 3px;
-            font-size: 10px;
-            white-space: nowrap;
+            font-size: 11px;
             font-family: 'Segoe UI', sans-serif;
-            border: 1px solid #3a3f4a;
-            bottom: calc(100% + 5px);
-            left: 50%;
-            transform: translateX(-50%);
-            display: none;
+            border: 1px solid var(--border);
             pointer-events: none;
-            z-index: 1000;
+            z-index: 9999;
+            white-space: nowrap;
+            display: none;
+            line-height: 1.5;
         }
 
-        .cell:hover .tooltip {
-            display: block;
-        }
-
-        .x {
-            color: var(--over);
-        }
-
-        .o {
-            color: var(--under);
-        }
-
+        /* STATS */
         .stats {
             width: 200px;
-            background: #252a33;
-            border: 1px solid #3a3f4a;
+            background: var(--bg2);
+            border: 1px solid var(--border);
             border-radius: 4px;
             padding: 15px;
+            flex-shrink: 0;
         }
 
         .stat {
             margin-bottom: 15px;
             padding-bottom: 15px;
-            border-bottom: 1px solid #3a3f4a;
+            border-bottom: 1px solid var(--border);
         }
 
         .stat:last-child {
@@ -149,6 +150,7 @@
             font-size: 10px;
             color: var(--text-sec);
             text-transform: uppercase;
+            letter-spacing: 0.5px;
             margin-bottom: 4px;
         }
 
@@ -157,246 +159,256 @@
             font-weight: bold;
         }
 
-        .stat-value.over {
-            color: var(--over);
-        }
-
-        .stat-value.under {
-            color: var(--under);
-        }
+        .stat-value.over  { color: var(--over); }
+        .stat-value.under { color: var(--under); }
 
         .loading {
             text-align: center;
             color: var(--text-sec);
+            padding: 40px;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="control">
-            <label>Liga</label>
-            <select id="league">
-                <option value="Copa%20do%20Mundo">Copa do Mundo</option>
-                <option value="Ligas%20dos%20Campe%C3%B5es">Ligas dos Campeões</option>
-                <option value="Am%C3%A9rica%20Latina">América Latina</option>
-            </select>
-        </div>
 
-        <div class="control">
-            <label>Jogos</label>
-            <select id="games">
-                <option value="20">20</option>
-                <option value="40">40</option>
-                <option value="80">80</option>
-                <option value="160">160</option>
-                <option value="320">320</option>
-                <option value="640" selected>640</option>
-            </select>
+<div class="header">
+    <div class="control">
+        <label>Liga</label>
+        <select id="league">
+            <option value="Copa%20do%20Mundo">Copa do Mundo</option>
+            <option value="Ligas%20dos%20Campe%C3%B5es">Ligas dos Campeões</option>
+            <option value="Am%C3%A9rica%20Latina">América Latina</option>
+        </select>
+    </div>
+    <div class="control">
+        <label>Jogos</label>
+        <select id="games">
+            <option value="20">20</option>
+            <option value="40">40</option>
+            <option value="80">80</option>
+            <option value="160">160</option>
+            <option value="320">320</option>
+            <option value="640">640</option>
+        </select>
+    </div>
+</div>
+
+<div class="layout">
+    <div class="chart-wrap" id="chartWrap">
+        <div class="loading">Selecione uma liga</div>
+    </div>
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-label">Max Over</div>
+            <div class="stat-value over" id="maxOver">-</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Max Under</div>
+            <div class="stat-value under" id="maxUnder">-</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Reversões</div>
+            <div class="stat-value" id="reversions">-</div>
+        </div>
+        <div class="stat">
+            <div class="stat-label">Tendência</div>
+            <div class="stat-value" id="trend">-</div>
         </div>
     </div>
+</div>
 
-    <div class="layout">
-        <div class="chart" id="chart">
-            <div class="loading">Selecione uma liga</div>
-        </div>
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-label">Max Over</div>
-                <div class="stat-value over" id="maxOver">-</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">Max Under</div>
-                <div class="stat-value under" id="maxUnder">-</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">Reversões</div>
-                <div class="stat-value" id="reversions">-</div>
-            </div>
-            <div class="stat">
-                <div class="stat-label">Tendência</div>
-                <div class="stat-value" id="trend">-</div>
-            </div>
-        </div>
-    </div>
+<!-- Tooltip global fixo -->
+<div id="tooltip"></div>
 
-    <script>
-        const leagueEl = document.getElementById('league');
-        const gamesEl = document.getElementById('games');
-        const chartEl = document.getElementById('chart');
+<script>
+    const leagueEl = document.getElementById('league');
+    const gamesEl  = document.getElementById('games');
+    const chartWrap = document.getElementById('chartWrap');
+    const tooltipEl = document.getElementById('tooltip');
 
-        let updateTimer = null;
+    // ── LocalStorage: restaurar seletores ──────────────────────────
+    const savedLeague = localStorage.getItem('pf_league');
+    const savedGames  = localStorage.getItem('pf_games');
+    if (savedLeague) leagueEl.value = savedLeague;
+    if (savedGames)  gamesEl.value  = savedGames;
 
-        leagueEl.addEventListener('change', loadData);
-        gamesEl.addEventListener('change', loadData);
+    leagueEl.addEventListener('change', () => {
+        localStorage.setItem('pf_league', leagueEl.value);
+        loadData();
+    });
+    gamesEl.addEventListener('change', () => {
+        localStorage.setItem('pf_games', gamesEl.value);
+        loadData();
+    });
 
-        async function loadData() {
-            const league = leagueEl.value;
-            const limit = parseInt(gamesEl.value);
-            
-            chartEl.innerHTML = '<div class="loading">Carregando...</div>';
+    // ── Tooltip global ─────────────────────────────────────────────
+    document.addEventListener('mousemove', e => {
+        if (tooltipEl.style.display === 'block') {
+            const TW = tooltipEl.offsetWidth;
+            const TH = tooltipEl.offsetHeight;
+            const margin = 10;
+            let x = e.clientX + margin;
+            let y = e.clientY - TH - margin;
 
-            if (updateTimer) clearInterval(updateTimer);
+            // Não ultrapassar borda direita
+            if (x + TW > window.innerWidth - 4) x = e.clientX - TW - margin;
+            // Não ultrapassar borda superior
+            if (y < 4) y = e.clientY + margin;
 
-            try {
-                const results = await fetchResults(league, limit);
-                renderChart(results);
-                updateStats(results);
+            tooltipEl.style.left = x + 'px';
+            tooltipEl.style.top  = y + 'px';
+        }
+    });
 
-                // Atualizar a cada 1 minuto
-                updateTimer = setInterval(() => refreshData(league, limit), 60000);
-            } catch (error) {
-                chartEl.innerHTML = '<div class="loading">Erro ao carregar</div>';
-                console.error(error);
-            }
+    // ── Dados ──────────────────────────────────────────────────────
+    let updateTimer = null;
+
+    async function loadData() {
+        const league = leagueEl.value;
+        const limit  = parseInt(gamesEl.value);
+
+        chartWrap.innerHTML = '<div class="loading">Carregando...</div>';
+        if (updateTimer) clearInterval(updateTimer);
+
+        try {
+            const results = await fetchResults(league, limit);
+            renderChart(results);
+            updateStats(results);
+            updateTimer = setInterval(() => refreshData(league, limit), 60000);
+        } catch (err) {
+            chartWrap.innerHTML = '<div class="loading">Erro ao carregar</div>';
+            console.error(err);
+        }
+    }
+
+    async function refreshData(league, limit) {
+        try {
+            const results = await fetchResults(league, limit);
+            renderChart(results);
+            updateStats(results);
+        } catch (e) {
+            console.error('Erro na atualização:', e);
+        }
+    }
+
+    async function fetchResults(league, limit) {
+        const url = `https://betstat.site/resultados/estrela/${league}`;
+        const response = await fetch(url);
+        const html = await response.text();
+        const jsonMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*({.*?});/s);
+
+        if (jsonMatch) {
+            const data = JSON.parse(jsonMatch[1]);
+            const matches = (data.matches || []).slice(0, limit);
+            return matches.map(m => ({
+                ft:     (m.ft || '0x0').trim(),
+                hora:   parseInt(m.hora)   || 0,
+                minuto: parseInt(m.minuto) || 0
+            }));
         }
 
-        async function refreshData(league, limit) {
-            try {
-                const results = await fetchResults(league, limit);
-                renderChart(results);
-                updateStats(results);
-            } catch (e) {
-                console.error('Erro na atualização:', e);
-            }
-        }
+        return generateDemo(limit);
+    }
 
-        async function fetchResults(league, limit) {
-            const url = `https://betstat.site/resultados/estrela/${league}`;
-            const response = await fetch(url);
-            const html = await response.text();
-            const jsonMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*({.*?});/s);
-            
-            if (jsonMatch) {
-                const data = JSON.parse(jsonMatch[1]);
-                const matches = (data.matches || []).slice(0, limit);
-                
-                // Retornar na ordem que vem (sem sortar)
-                return matches.map(m => ({
-                    ft: (m.ft || '0x0').trim(),
-                    hora: parseInt(m.hora) || 0,
-                    minuto: parseInt(m.minuto) || 0
-                }));
-            }
-            
-            return generateDemo(limit);
-        }
-
-        function generateDemo(limit) {
-            const results = [];
-            const now = new Date();
-            
-            // Gerar em ordem cronológica (do passado para o presente)
-            for (let i = limit - 1; i >= 0; i--) {
-                const date = new Date(now.getTime() - i * 3 * 60 * 1000); // 3 min por jogo
-                results.push({
-                    ft: Math.random() > 0.45 ? '3x1' : '1x0',
-                    hora: date.getHours(),
-                    minuto: date.getMinutes(),
-                    data: date.toISOString()
-                });
-            }
-            
-            return results;
-        }
-
-        function renderChart(results) {
-            const symbols = [];
-            let currentType = null;
-            let reversalCount = 0;
-
-            // Calcular símbolos P&F com índices
-            results.forEach(r => {
-                const goals = (parseInt(r.ft?.split('x')[0]) || 0) + (parseInt(r.ft?.split('x')[1]) || 0);
-                const isOver = goals > 2.5;
-                const type = isOver ? 'X' : 'O';
-
-                if (currentType === null) {
-                    currentType = type;
-                    symbols.push({ type, idx: symbols.length, result: r });
-                } else if (currentType === type) {
-                    reversalCount = 0;
-                    symbols.push({ type, idx: symbols.length, result: r });
-                } else {
-                    reversalCount++;
-                    if (reversalCount === 3) {
-                        currentType = type;
-                        reversalCount = 0;
-                        symbols.push({ type, idx: symbols.length, result: r });
-                    }
-                }
+    function generateDemo(limit) {
+        const results = [];
+        const now = new Date();
+        for (let i = limit - 1; i >= 0; i--) {
+            const date = new Date(now.getTime() - i * 3 * 60 * 1000);
+            results.push({
+                ft:     Math.random() > 0.45 ? '3x1' : '1x0',
+                hora:   date.getHours(),
+                minuto: date.getMinutes()
             });
+        }
+        return results;
+    }
 
-            // Agrupar em colunas
-            const columns = [];
-            let col = [];
-            let lastType = null;
+    // ── Renderizar ─────────────────────────────────────────────────
+    // Regra: cada jogo = 1 símbolo. Muda de coluna quando muda o tipo.
+    function buildColumns(results) {
+        const columns = [];
+        let col = null;
 
-            symbols.forEach(sym => {
-                if (lastType === null || lastType === sym.type) {
-                    col.push(sym);
-                    lastType = sym.type;
-                } else {
-                    columns.push({ type: lastType, items: col });
-                    col = [sym];
-                    lastType = sym.type;
-                }
-            });
+        results.forEach(r => {
+            const goals = (parseInt(r.ft?.split('x')[0]) || 0)
+                        + (parseInt(r.ft?.split('x')[1]) || 0);
+            const type  = goals > 2.5 ? 'X' : 'O';
 
-            if (col.length > 0) {
-                columns.push({ type: lastType, items: col });
+            if (!col || col.type !== type) {
+                col = { type, items: [] };
+                columns.push(col);
             }
 
-            // Renderizar
-            const html = columns.map(c => {
-                const cells = c.items.map(item => {
-                    const time = `${String(item.result.hora).padStart(2, '0')}:${String(item.result.minuto).padStart(2, '0')}`;
-                    const tooltip = `${time}<br>${item.result.ft || 'N/A'}`;
-                    return `
-                        <div class="cell ${item.type === 'X' ? 'x' : 'o'}">
-                            ${item.type}
-                            <div class="tooltip">${tooltip}</div>
-                        </div>
-                    `;
-                }).join('');
-                return `<div class="column">${cells}</div>`;
+            col.items.push({ type, result: r });
+        });
+
+        return columns;
+    }
+
+    function renderChart(results) {
+        const columns = buildColumns(results);
+
+        const colsHtml = columns.map(c => {
+            const cellsHtml = c.items.map(item => {
+                const hh = String(item.result.hora).padStart(2, '0');
+                const mm = String(item.result.minuto).padStart(2, '0');
+                const cls = item.type === 'X' ? 'x' : 'o';
+                return `<div class="cell ${cls}"
+                    data-tip="${hh}:${mm} | ${item.result.ft || 'N/A'}"
+                    onmouseenter="showTip(this)"
+                    onmouseleave="hideTip()"
+                >${item.type}</div>`;
             }).join('');
+            return `<div class="column">${cellsHtml}</div>`;
+        }).join('');
 
-            chartEl.innerHTML = `<div class="lines">${html}</div>`;
-        }
+        chartWrap.innerHTML = `<div class="lines">${colsHtml}</div>`;
+    }
 
-        function updateStats(results) {
-            let maxOver = 0, maxUnder = 0, currOver = 0, currUnder = 0;
-            let lastType = null;
-            let reversions = 0;
+    // ── Stats ──────────────────────────────────────────────────────
+    function updateStats(results) {
+        let maxOver = 0, maxUnder = 0, currOver = 0, currUnder = 0;
+        let lastType = null, reversions = 0;
 
-            results.forEach(r => {
-                const goals = (parseInt(r.ft?.split('x')[0]) || 0) + (parseInt(r.ft?.split('x')[1]) || 0);
-                const isOver = goals > 2.5;
-                const type = isOver ? 'X' : 'O';
+        results.forEach(r => {
+            const goals = (parseInt(r.ft?.split('x')[0]) || 0)
+                        + (parseInt(r.ft?.split('x')[1]) || 0);
+            const type  = goals > 2.5 ? 'X' : 'O';
 
-                if (isOver) {
-                    currOver++;
-                    currUnder = 0;
-                    maxOver = Math.max(maxOver, currOver);
-                } else {
-                    currUnder++;
-                    currOver = 0;
-                    maxUnder = Math.max(maxUnder, currUnder);
-                }
+            if (type === 'X') {
+                currOver++;
+                currUnder = 0;
+                maxOver = Math.max(maxOver, currOver);
+            } else {
+                currUnder++;
+                currOver = 0;
+                maxUnder = Math.max(maxUnder, currUnder);
+            }
 
-                if (lastType !== null && lastType !== type) {
-                    reversions++;
-                }
-                lastType = type;
-            });
+            if (lastType !== null && lastType !== type) reversions++;
+            lastType = type;
+        });
 
-            document.getElementById('maxOver').textContent = maxOver;
-            document.getElementById('maxUnder').textContent = maxUnder;
-            document.getElementById('reversions').textContent = reversions;
-            
-            const trend = lastType === 'X' ? '↑ OVER' : '↓ UNDER';
-            document.getElementById('trend').textContent = trend;
-        }
-    </script>
+        document.getElementById('maxOver').textContent   = maxOver;
+        document.getElementById('maxUnder').textContent  = maxUnder;
+        document.getElementById('reversions').textContent = reversions;
+        document.getElementById('trend').textContent =
+            lastType === 'X' ? '↑ OVER' : '↓ UNDER';
+    }
+
+    // ── Tooltip helpers ───────────────────────────────────────────
+    function showTip(el) {
+        tooltipEl.innerHTML = el.dataset.tip.replace('|', '<br>');
+        tooltipEl.style.display = 'block';
+    }
+
+    function hideTip() {
+        tooltipEl.style.display = 'none';
+    }
+
+    // ── Init ───────────────────────────────────────────────────────
+    loadData();
+</script>
 </body>
 </html>
