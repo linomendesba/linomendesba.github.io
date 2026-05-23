@@ -82,8 +82,10 @@
             background: var(--card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 20px;
+            padding: 40px 20px 20px 20px;
+            overflow: visible;
             overflow-x: auto;
+            overflow-y: hidden;
             height: 500px;
             display: flex;
             align-items: flex-end;
@@ -139,20 +141,17 @@
         }
 
         .tooltip {
-            position: absolute;
+            position: fixed;
             background: rgba(0,0,0,0.95);
             color: var(--text);
-            padding: 6px 10px;
-            border-radius: 3px;
-            font-size: 10px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 11px;
             white-space: nowrap;
-            bottom: calc(100% + 5px);
-            left: 50%;
-            transform: translateX(-50%);
             border: 1px solid var(--border);
             display: none;
             pointer-events: none;
-            z-index: 1000;
+            z-index: 10000;
         }
 
         .box:hover .tooltip {
@@ -383,20 +382,26 @@
                 
                 if (jsonMatch) {
                     const data = JSON.parse(jsonMatch[1]);
-                    return (data.matches || [])
-                        .slice(0, limit)
-                        .reverse()
-                        .map(m => ({
-                            id: m.id,
-                            time_a: m.time_a,
-                            time_b: m.time_b,
-                            ft: m.ft,
-                            hora: m.hora || 0,
-                            minuto: m.minuto || 0
-                        }));
+                    const matches = (data.matches || []).slice(0, limit);
+                    
+                    // Ordenar por data/hora (mais recente primeiro)
+                    return matches.sort((a, b) => {
+                        const dateA = new Date(a.data || 0);
+                        const dateB = new Date(b.data || 0);
+                        return dateB - dateA;
+                    }).map(m => ({
+                        id: m.id,
+                        time_a: (m.time_a || 'Time A').trim(),
+                        time_b: (m.time_b || 'Time B').trim(),
+                        ft: (m.ft || '0x0').trim(),
+                        hora: parseInt(m.hora) || 0,
+                        minuto: parseInt(m.minuto) || 0,
+                        data: m.data || new Date().toISOString()
+                    }));
                 }
                 return generateDemoData(limit);
             } catch (e) {
+                console.error('Erro:', e);
                 return generateDemoData(limit);
             }
         }
@@ -492,9 +497,15 @@
                     const time = `${String(box.result.hora).padStart(2, '0')}:${String(box.result.minuto).padStart(2, '0')}`;
                     const tooltip = document.createElement('div');
                     tooltip.className = 'tooltip';
-                    tooltip.innerHTML = `${time}<br>${box.result.time_a} x ${box.result.time_b}<br>${box.result.ft}`;
+                    tooltip.textContent = `${time} | ${box.result.time_a} x ${box.result.time_b} | ${box.result.ft}`;
                     
                     boxEl.appendChild(tooltip);
+                    boxEl.addEventListener('mouseenter', (e) => {
+                        const rect = boxEl.getBoundingClientRect();
+                        tooltip.style.top = (rect.top - 35) + 'px';
+                        tooltip.style.left = (rect.left - 80) + 'px';
+                    });
+                    
                     colDiv.appendChild(boxEl);
                 });
 
@@ -544,9 +555,15 @@
                     const time = `${String(box.result.hora).padStart(2, '0')}:${String(box.result.minuto).padStart(2, '0')}`;
                     const tooltip = document.createElement('div');
                     tooltip.className = 'tooltip';
-                    tooltip.innerHTML = `${time}<br>${box.result.time_a} x ${box.result.time_b}<br>${box.result.ft}`;
+                    tooltip.textContent = `${time} | ${box.result.time_a} x ${box.result.time_b} | ${box.result.ft}`;
                     
                     boxEl.appendChild(tooltip);
+                    boxEl.addEventListener('mouseenter', (e) => {
+                        const rect = boxEl.getBoundingClientRect();
+                        tooltip.style.top = (rect.top - 35) + 'px';
+                        tooltip.style.left = (rect.left - 80) + 'px';
+                    });
+                    
                     colEl.appendChild(boxEl);
                 });
             });
