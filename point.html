@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ponto & Figura</title>
+    <title>Ponto & Figura — Saldo Over/Under</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root { --bg:#1c1f26; --bg2:#252a33; --border:#3a3f4a; --text:#e8eaed; --muted:#9ca3af; }
@@ -79,7 +79,7 @@
             <option value="4">4 (muito conservador)</option>
         </select>
     </div>
-    <div class="trend-badge trend-neutral" id="trendBadge">TENDÊNCIA: NEUTRO</div>
+    <div class="trend-badge trend-neutral" id="trendBadge">SALDO: 0 | NEUTRO</div>
 </div>
 
 <div class="chart-wrap" id="chartWrap">
@@ -90,29 +90,34 @@
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════
-   PONTO & FIGURA — Limpo
+   PONTO & FIGURA — Saldo Over/Under
+
+   NOVO EIXO: -20 a +20 (passo 1)
+   • Cada Over 2.5  → cursor +1
+   • Cada Under 2.5 → cursor -1
+   • Cursor inicia em 0 (neutro)
+   • Positivo = mais Overs que Unders
+   • Negativo = mais Unders que Overs
+   • Range simétrico, sempre centralizado
 
    • Dados mais recentes à DIREITA
-   • Cursor inicia em 50
-   • Altura fixa 420px
    • Fator de Reversão configurável
-   • Badge de Tendência
-   • Visual LIMPO: grade fina, símbolos, eixo Y, nada mais
+   • Visual LIMPO
 ═══════════════════════════════════════════════════════════════════ */
 
-const Y_MIN   = 0;
-const Y_MAX   = 100;
-const Y_STEP  = 5;
-const Y_LEVELS = (Y_MAX - Y_MIN) / Y_STEP + 1;
+const Y_MIN   = -20;
+const Y_MAX   = 20;
+const Y_STEP  = 1;
+const Y_LEVELS = (Y_MAX - Y_MIN) / Y_STEP + 1; // 41 níveis: -20,-19,...,0,...,19,20
 
-const AXIS_W = 46;
+const AXIS_W = 52;  // um pouco mais largo para números negativos
 const PAD_T  = 10;
 const PAD_B  = 10;
 const PAD_R  = 10;
 
 const C = {
     bg:'#252a33', axBg:'#1c1f26',
-    grid:'#2e3442',      // grade única, sutil
+    grid:'#2e3442',
     axBorder:'#464f62', label:'#7a8699', tick:'#4a5268',
     X:'#10b981', O:'#ef4444',
     zero: '#5a6478',
@@ -136,12 +141,12 @@ const trendBadge = document.getElementById('trendBadge');
 function lsGet(k,fb){try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb;}catch{return fb;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
-selLeague.value = lsGet('pf6_league', selLeague.value);
-selGames.value  = lsGet('pf6_games',  selGames.value);
-selRev.value    = lsGet('pf6_rev',    selRev.value);
-selLeague.addEventListener('change', ()=>{ lsSet('pf6_league', selLeague.value); load(); });
-selGames.addEventListener('change',  ()=>{ lsSet('pf6_games',  selGames.value);  load(); });
-selRev.addEventListener('change',    ()=>{ lsSet('pf6_rev',    selRev.value);    load(); });
+selLeague.value = lsGet('pf7_league', selLeague.value);
+selGames.value  = lsGet('pf7_games',  selGames.value);
+selRev.value    = lsGet('pf7_rev',    selRev.value);
+selLeague.addEventListener('change', ()=>{ lsSet('pf7_league', selLeague.value); load(); });
+selGames.addEventListener('change',  ()=>{ lsSet('pf7_games',  selGames.value);  load(); });
+selRev.addEventListener('change',    ()=>{ lsSet('pf7_rev',    selRev.value);    load(); });
 
 // ── Fetch ─────────────────────────────────────────────
 async function load() {
@@ -197,7 +202,7 @@ async function fetchData(league, limit) {
 function build(results, revAmt) {
     columns = [];
     hitMap  = [];
-    let cursor = 50;
+    let cursor = 0;   // inicia em 0 (neutro)
     let col    = null;
     let pendingType = null;
     let pendingCount = 0;
@@ -208,8 +213,9 @@ function build(results, revAmt) {
         const isOver = goals > 2.5;
         const type   = isOver ? 'X' : 'O';
 
-        if (isOver) cursor = Math.min(Y_MAX, cursor + Y_STEP);
-        else        cursor = Math.max(Y_MIN, cursor - Y_STEP);
+        // move cursor: Over = +1, Under = -1
+        if (isOver) cursor = Math.min(Y_MAX, cursor + 1);
+        else        cursor = Math.max(Y_MIN, cursor - 1);
 
         if (!col) {
             col = { type, items: [] };
@@ -237,11 +243,13 @@ function build(results, revAmt) {
 function updateTrendBadge() {
     if (!columns.length) {
         trendBadge.className = 'trend-badge trend-neutral';
-        trendBadge.textContent = 'TENDÊNCIA: NEUTRO';
+        trendBadge.textContent = 'SALDO: 0 | NEUTRO';
         return;
     }
     const lastCol = columns[columns.length - 1];
+    const lastPos = lastCol.items[lastCol.items.length - 1].pos;
     const prevCol = columns.length > 1 ? columns[columns.length - 2] : null;
+
     let trend = 'NEUTRO', cls = 'trend-neutral';
 
     if (lastCol.type === 'X') {
@@ -259,11 +267,13 @@ function updateTrendBadge() {
             else { trend = 'BAIXA ▼'; cls = 'trend-down'; }
         } else { trend = 'BAIXA ▼'; cls = 'trend-down'; }
     }
+
+    const sign = lastPos > 0 ? '+' : '';
     trendBadge.className = `trend-badge ${cls}`;
-    trendBadge.textContent = `TENDÊNCIA: ${trend}`;
+    trendBadge.textContent = `SALDO: ${sign}${lastPos} | ${trend}`;
 }
 
-// ── Draw LIMPO ────────────────────────────────────────
+// ── Draw ──────────────────────────────────────────────
 function draw() {
     if (!columns.length) return;
 
@@ -285,16 +295,15 @@ function draw() {
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Grade horizontal — apenas linhas de 25 em 25 (0,25,50,75,100)
-    // Mais limpo, sem linhas a cada 5
+    // Grade horizontal — linhas de 5 em 5 (-20, -15, -10, -5, 0, 5, 10, 15, 20)
     for (let v = Y_MIN; v <= Y_MAX; v += Y_STEP) {
-        if (v % 25 !== 0) continue; // só linhas de 25 em 25
+        if (v % 5 !== 0) continue;
         const y = posToY(v) + cell / 2;
         ctx.beginPath();
         ctx.moveTo(AXIS_W, y);
         ctx.lineTo(W, y);
-        ctx.strokeStyle = v === 50 ? C.zero : C.grid;
-        ctx.lineWidth = v === 50 ? 1 : 0.5;
+        ctx.strokeStyle = v === 0 ? C.zero : C.grid;
+        ctx.lineWidth = v === 0 ? 1.5 : 0.5;
         ctx.stroke();
     }
 
@@ -308,24 +317,29 @@ function draw() {
     ctx.lineTo(AXIS_W, H);
     ctx.stroke();
 
-    const fs = Math.max(8, Math.min(11, cell - 1));
+    const fs = Math.max(8, Math.min(10, cell - 1));
     ctx.font = `${fs}px Courier New`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
     for (let v = Y_MIN; v <= Y_MAX; v += Y_STEP) {
-        if (v % 10 !== 0) continue;
+        if (v % 5 !== 0) continue; // label a cada 5
         const y = posToY(v) + cell / 2;
         ctx.fillStyle = C.tick;
         ctx.fillRect(AXIS_W - 5, y - 0.5, 5, 1);
-        if (v >= 70) ctx.fillStyle = '#4caf7d';
-        else if (v >= 50) ctx.fillStyle = '#7abf9a';
-        else if (v >= 30) ctx.fillStyle = '#bf7a7a';
-        else ctx.fillStyle = '#c04a4a';
-        ctx.fillText(String(v), AXIS_W - 8, y);
+
+        // Cores por zona
+        if (v >= 10) ctx.fillStyle = '#4caf7d';      // over forte
+        else if (v > 0) ctx.fillStyle = '#7abf9a';   // over leve
+        else if (v === 0) ctx.fillStyle = '#9ca3af'; // neutro
+        else if (v > -10) ctx.fillStyle = '#bf7a7a'; // under leve
+        else ctx.fillStyle = '#c04a4a';              // under forte
+
+        const sign = v > 0 ? '+' : '';
+        ctx.fillText(`${sign}${v}`, AXIS_W - 8, y);
     }
 
-    // Símbolos — apenas isso, nada mais
+    // Símbolos
     hitMap = [];
     const symSz = Math.max(5, Math.min(cell * 0.82, 14));
     ctx.font = `bold ${symSz}px Courier New`;
@@ -370,7 +384,8 @@ canvas.addEventListener('mousemove', e => {
         const tipo = goals > 2.5
             ? `<span style="color:#10b981">▲ Over 2.5</span>`
             : `<span style="color:#ef4444">▼ Under 2.5</span>`;
-        tip.innerHTML = `${hh}:${mm} &nbsp;|&nbsp; ${res.ft || 'N/A'} &nbsp;→&nbsp; ${tipo}<br>Nível: <b>${found.item.pos}</b> &nbsp;|&nbsp; Coluna ${found.colIdx}`;
+        const sign = found.item.pos >= 0 ? '+' : '';
+        tip.innerHTML = `${hh}:${mm} &nbsp;|&nbsp; ${res.ft || 'N/A'} &nbsp;→&nbsp; ${tipo}<br>Saldo: <b>${sign}${found.item.pos}</b> &nbsp;|&nbsp; Coluna ${found.colIdx}`;
         tip.style.display = 'block';
         const TW = tip.offsetWidth, TH = tip.offsetHeight;
         let tx = e.clientX + 14, ty = e.clientY - TH - 8;
