@@ -122,7 +122,7 @@
             color: var(--text-primary);
         }
 
-        /* GRÁFICO - GRID LAYOUT */
+        /* GRÁFICO - COLUNAS VERTICAIS */
         .chart-container {
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
@@ -133,22 +133,33 @@
             min-height: 600px;
             max-height: 800px;
             display: flex;
-            align-items: flex-start;
+            align-items: flex-end;
             justify-content: flex-start;
         }
 
         .chart-wrapper {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
-            gap: 8px;
+            display: flex;
+            gap: 12px;
             padding: 20px;
-            width: 100%;
-            align-content: start;
+            align-items: flex-end;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 4px;
+            align-items: center;
+            padding: 8px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            min-height: 300px;
+            justify-content: flex-end;
         }
 
         .box {
-            width: 45px;
-            height: 45px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -259,14 +270,16 @@
                 min-width: 100%;
             }
 
-            .chart-wrapper {
-                grid-template-columns: repeat(auto-fill, minmax(35px, 1fr));
+            .box {
+                width: 32px;
+                height: 32px;
+                font-size: 12px;
             }
 
-            .box {
-                width: 35px;
-                height: 35px;
-                font-size: 12px;
+            .column {
+                padding: 6px;
+                gap: 2px;
+                min-height: 200px;
             }
 
             .info-panel {
@@ -556,51 +569,116 @@
                 return;
             }
 
+            // Agrupar boxes em colunas
+            const columns = [];
+            let currentColumn = [];
+            let lastType = null;
+
             pnfBoxes.forEach(box => {
-                const boxEl = document.createElement('div');
-                boxEl.className = `box ${box.type}`;
-                boxEl.textContent = box.type === 'over' ? 'X' : 'O';
-                
-                const tooltip = document.createElement('div');
-                tooltip.className = 'tooltip';
-                tooltip.innerHTML = `${box.time}<br>${box.teams}<br>${box.ft}`;
-                
-                boxEl.appendChild(tooltip);
-                chartWrapper.appendChild(boxEl);
+                if (lastType === null || lastType === box.type) {
+                    currentColumn.push(box);
+                    lastType = box.type;
+                } else {
+                    // Mudou o tipo, criar nova coluna
+                    columns.push({
+                        type: lastType,
+                        boxes: currentColumn
+                    });
+                    currentColumn = [box];
+                    lastType = box.type;
+                }
+            });
+
+            // Adicionar última coluna
+            if (currentColumn.length > 0) {
+                columns.push({
+                    type: lastType,
+                    boxes: currentColumn
+                });
+            }
+
+            // Renderizar colunas
+            columns.forEach(col => {
+                const columnDiv = document.createElement('div');
+                columnDiv.className = 'column';
+
+                col.boxes.forEach(box => {
+                    const boxEl = document.createElement('div');
+                    boxEl.className = `box ${box.type}`;
+                    boxEl.textContent = box.type === 'over' ? 'X' : 'O';
+                    
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    tooltip.innerHTML = `${box.time}<br>${box.teams}<br>${box.ft}`;
+                    
+                    boxEl.appendChild(tooltip);
+                    columnDiv.appendChild(boxEl);
+                });
+
+                chartWrapper.appendChild(columnDiv);
             });
 
             initialState.style.display = 'none';
-            chartWrapper.style.display = 'grid';
+            chartWrapper.style.display = 'flex';
         }
 
         function updateChartInPlace(pnfBoxes, results) {
-            const boxes = chartWrapper.querySelectorAll('.box');
-            
-            // Atualizar boxes existentes ou adicionar novos
-            pnfBoxes.forEach((box, idx) => {
-                let boxEl = boxes[idx];
-                
-                if (!boxEl) {
-                    boxEl = document.createElement('div');
-                    chartWrapper.appendChild(boxEl);
+            // Agrupar boxes em colunas
+            const columns = [];
+            let currentColumn = [];
+            let lastType = null;
+
+            pnfBoxes.forEach(box => {
+                if (lastType === null || lastType === box.type) {
+                    currentColumn.push(box);
+                    lastType = box.type;
+                } else {
+                    columns.push({
+                        type: lastType,
+                        boxes: currentColumn
+                    });
+                    currentColumn = [box];
+                    lastType = box.type;
                 }
-                
-                boxEl.className = `box ${box.type}`;
-                boxEl.textContent = box.type === 'over' ? 'X' : 'O';
-                
-                // Atualizar tooltip
-                let tooltip = boxEl.querySelector('.tooltip');
-                if (!tooltip) {
-                    tooltip = document.createElement('div');
-                    tooltip.className = 'tooltip';
-                    boxEl.appendChild(tooltip);
-                }
-                tooltip.innerHTML = `${box.time}<br>${box.teams}<br>${box.ft}`;
             });
 
-            // Remover boxes em excesso
-            for (let i = pnfBoxes.length; i < boxes.length; i++) {
-                boxes[i].remove();
+            if (currentColumn.length > 0) {
+                columns.push({
+                    type: lastType,
+                    boxes: currentColumn
+                });
+            }
+
+            const columnElements = chartWrapper.querySelectorAll('.column');
+            
+            // Atualizar colunas existentes ou adicionar novas
+            columns.forEach((col, idx) => {
+                let colEl = columnElements[idx];
+                
+                if (!colEl) {
+                    colEl = document.createElement('div');
+                    colEl.className = 'column';
+                    chartWrapper.appendChild(colEl);
+                }
+                
+                colEl.innerHTML = '';
+                col.boxes.forEach(box => {
+                    const boxEl = document.createElement('div');
+                    boxEl.className = `box ${box.type}`;
+                    boxEl.textContent = box.type === 'over' ? 'X' : 'O';
+                    
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    tooltip.innerHTML = `${box.time}<br>${box.teams}<br>${box.ft}`;
+                    
+                    boxEl.appendChild(tooltip);
+                    colEl.appendChild(boxEl);
+                });
+            });
+
+            // Remover colunas em excesso
+            for (let i = columns.length; i < columnElements.length; i++) {
+                columnElements[i].remove();
             }
         }
 
