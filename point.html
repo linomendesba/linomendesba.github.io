@@ -1,561 +1,448 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ponto & Figura — Futebol Virtual</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --bg:#111318;--bg2:#181c23;--border:#2a3040;--border2:#38445a;
-  --text:#dce3ef;--muted:#6b7894;--muted2:#4a5468;
-  --X:#00e5a0;--O:#ff4a6e;--accent:#3b82f6;
-}
-html,body{height:100%;overflow:hidden}
-body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
-  display:flex;flex-direction:column;padding:10px 12px 8px;gap:8px;}
-
-.header{display:flex;gap:10px;align-items:flex-end;flex-shrink:0;flex-wrap:wrap;}
-.ctrl{display:flex;flex-direction:column;gap:3px}
-.ctrl label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
-select{background:var(--bg2);border:1px solid var(--border);color:var(--text);
-  padding:5px 8px;border-radius:3px;font-size:11px;cursor:pointer;
-  outline:none;font-family:'Courier New',monospace;transition:border-color .2s;}
-select:hover,select:focus{border-color:var(--border2)}
-
-.badge{padding:5px 12px;border-radius:3px;font-size:10px;font-weight:bold;
-  margin-left:auto;align-self:center;letter-spacing:.5px;
-  font-family:'Courier New',monospace;transition:all .3s;white-space:nowrap;}
-.b-up{background:rgba(0,229,160,.12);color:var(--X);border:1px solid rgba(0,229,160,.25)}
-.b-dn{background:rgba(255,74,110,.12);color:var(--O);border:1px solid rgba(255,74,110,.25)}
-.b-neu{background:var(--bg2);color:var(--muted);border:1px solid var(--border)}
-
-.stats{display:flex;gap:0;flex-shrink:0;border:1px solid var(--border);border-radius:3px;overflow:hidden;}
-.stat{flex:1;padding:5px 10px;background:var(--bg2);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;gap:1px;}
-.stat:last-child{border-right:none}
-.stat-lbl{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
-.stat-val{font-size:13px;font-weight:bold;color:var(--text)}
-.stat-val.up{color:var(--X)}.stat-val.dn{color:var(--O)}.stat-val.acc{color:var(--accent)}
-
-.chart-wrap{flex:1;min-height:0;position:relative;
-  background:var(--bg2);border:1px solid var(--border);border-radius:3px;
-  overflow-x:auto;overflow-y:hidden;}
-.chart-wrap::-webkit-scrollbar{height:4px}
-.chart-wrap::-webkit-scrollbar-track{background:var(--bg)}
-.chart-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-canvas{display:block;height:100%}
-#loadMsg{position:absolute;inset:0;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:8px;
-  color:var(--muted);font-size:12px;pointer-events:none;}
-.spinner{width:20px;height:20px;border:2px solid var(--border2);
-  border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-.legend{display:flex;gap:16px;flex-shrink:0;align-items:center;font-size:10px;color:var(--muted);}
-.leg{display:flex;align-items:center;gap:5px}
-.dot{width:10px;height:10px;border-radius:2px}
-.dot-x{background:var(--X)}.dot-o{background:var(--O)}
-.leg-note{margin-left:auto;font-size:9px;color:var(--muted2)}
-
-#ttip{position:fixed;background:rgba(10,12,18,.97);color:var(--text);
-  padding:7px 12px;border-radius:3px;font-size:11px;
-  font-family:'Courier New',monospace;border:1px solid var(--border2);
-  pointer-events:none;z-index:9999;white-space:nowrap;display:none;
-  line-height:2;box-shadow:0 4px 20px rgba(0,0,0,.5);}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ponto & Figura — Gols</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --bg:#1c1f26; --bg2:#252a33; --border:#3a3f4a; --text:#e8eaed; --muted:#9ca3af; }
+        body {
+            background: var(--bg); color: var(--text);
+            font-family: 'Courier New', monospace;
+            padding: 14px; min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+        .header { display:flex; gap:16px; margin-bottom:12px; align-items:flex-end; flex-shrink:0; flex-wrap:wrap; }
+        .ctrl { display:flex; flex-direction:column; gap:4px; }
+        label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+        select {
+            background:var(--bg2); border:1px solid var(--border); color:var(--text);
+            padding:6px 10px; border-radius:3px; font-size:12px; min-width:150px; cursor:pointer; outline:none;
+        }
+        .trend-badge {
+            padding: 4px 10px; border-radius: 3px; font-size: 11px; font-weight: bold;
+            margin-left: auto; align-self: center; font-family: 'Segoe UI', sans-serif;
+            transition: all 0.3s ease;
+        }
+        .trend-up    { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+        .trend-down  { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+        .trend-neutral{ background: rgba(156,163,175,0.15);color:#9ca3af;  border: 1px solid rgba(156,163,175,0.3); }
+        .chart-wrap {
+            background:var(--bg2); border:1px solid var(--border);
+            border-radius:4px; overflow:hidden; position:relative;
+            height: 420px; flex-shrink: 0;
+        }
+        canvas { display:block; }
+        #loadMsg {
+            position:absolute; inset:0; display:flex;
+            align-items:center; justify-content:center; color:var(--muted); font-size:13px;
+        }
+        #tooltip {
+            position:fixed; background:rgba(8,10,14,.97); color:#e8eaed;
+            padding:6px 10px; border-radius:3px; font-size:11px;
+            font-family:'Segoe UI',sans-serif; border:1px solid #3a3f4a;
+            pointer-events:none; z-index:9999; white-space:nowrap; display:none; line-height:1.7;
+        }
+    </style>
+<base target="_blank">
 </head>
 <body>
 
 <div class="header">
-  <div class="ctrl">
-    <label>Liga</label>
-    <select id="selLeague">
-      <option value="Copa%20do%20Mundo">Copa do Mundo</option>
-      <option value="Ligas%20dos%20Campe%C3%B5es">Liga dos Campeões</option>
-      <option value="Am%C3%A9rica%20Latina">América Latina</option>
-    </select>
-  </div>
-  <div class="ctrl">
-    <label>Jogos</label>
-    <select id="selGames">
-      <option value="40">40</option>
-      <option value="80" selected>80</option>
-      <option value="160">160</option>
-      <option value="320">320</option>
-      <option value="640">640</option>
-    </select>
-  </div>
-  <div class="ctrl">
-    <label>Reversão (gols)</label>
-    <select id="selRev">
-      <option value="1">1 gol</option>
-      <option value="2">2 gols</option>
-      <option value="3" selected>3 gols</option>
-      <option value="4">4 gols</option>
-      <option value="5">5 gols</option>
-    </select>
-  </div>
-  <div class="badge b-neu" id="badge">TENDÊNCIA: NEUTRO</div>
-</div>
-
-<div class="stats">
-  <div class="stat"><span class="stat-lbl">Jogos</span><span class="stat-val acc" id="sJogos">—</span></div>
-  <div class="stat"><span class="stat-lbl">Média Gols</span><span class="stat-val" id="sMedia">—</span></div>
-  <div class="stat"><span class="stat-lbl">0 gols</span><span class="stat-val dn" id="s0">—</span></div>
-  <div class="stat"><span class="stat-lbl">1–2 gols</span><span class="stat-val" id="s12">—</span></div>
-  <div class="stat"><span class="stat-lbl">3–4 gols</span><span class="stat-val up" id="s34">—</span></div>
-  <div class="stat"><span class="stat-lbl">5+ gols</span><span class="stat-val up" id="s5">—</span></div>
-  <div class="stat"><span class="stat-lbl">Colunas</span><span class="stat-val acc" id="sCols">—</span></div>
-  <div class="stat"><span class="stat-lbl">Última Col.</span><span class="stat-val" id="sUltCol">—</span></div>
+    <div class="ctrl">
+        <label>Liga</label>
+        <select id="selLeague">
+            <option value="Copa%20do%20Mundo">Copa do Mundo</option>
+            <option value="Ligas%20dos%20Campe%C3%B5es">Ligas dos Campeões</option>
+            <option value="Am%C3%A9rica%20Latina">América Latina</option>
+        </select>
+    </div>
+    <div class="ctrl">
+        <label>Jogos</label>
+        <select id="selGames">
+            <option value="20">20</option>
+            <option value="40">40</option>
+            <option value="80">80</option>
+            <option value="160">160</option>
+            <option value="320">320</option>
+            <option value="640">640</option>
+        </select>
+    </div>
+    <div class="ctrl">
+        <label>Inversão</label>
+        <select id="selRev">
+            <option value="1">1 (sensível)</option>
+            <option value="2" selected>2 (equilibrado)</option>
+            <option value="3">3 (conservador)</option>
+            <option value="4">4 (muito conservador)</option>
+        </select>
+    </div>
+    <div class="trend-badge trend-neutral" id="trendBadge">TENDÊNCIA: NEUTRO</div>
 </div>
 
 <div class="chart-wrap" id="chartWrap">
-  <div id="loadMsg"><div class="spinner"></div><span>Carregando...</span></div>
-  <canvas id="pf"></canvas>
+    <div id="loadMsg">Selecione uma liga</div>
+    <canvas id="pf"></canvas>
 </div>
-
-<div class="legend">
-  <div class="leg"><div class="dot dot-x"></div><span>X = gols aumentam</span></div>
-  <div class="leg"><div class="dot dot-o"></div><span>O = gols diminuem</span></div>
-  <div class="leg-note" id="sBreak"></div>
-</div>
-
-<div id="ttip"></div>
+<div id="tooltip"></div>
 
 <script>
-/* ════════════════════════════════════════════════════════════
-   PONTO & FIGURA — Futebol Virtual
-   
-   Eixo Y fixo: 0 a 8 gols (BOX = 1 gol por caixa)
-   
-   LÓGICA P&F CORRETA:
-   ─────────────────────────────────────────────────────────
-   Cada jogo tem um total de gols G (0-8+).
-   
-   Estado atual: coluna corrente (tipo X ou O) + preço atual.
-   
-   Coluna X (gols estão subindo):
-     • G >= preco + 1  → adiciona X(s) de preco+1 até G, atualiza preco=G
-     • G <= preco - REV → REVERSÃO: inicia coluna O em preco-1,
-                          adiciona O(s) de preco-1 até G, atualiza preco=G
-     • contrário       → jogo neutro, sem marcação
-   
-   Coluna O (gols estão caindo):
-     • G <= preco - 1  → adiciona O(s) de preco-1 até G, atualiza preco=G
-     • G >= preco + REV → REVERSÃO: inicia coluna X em preco+1,
-                          adiciona X(s) de preco+1 até G, atualiza preco=G
-     • contrário       → jogo neutro, sem marcação
-   
-   "preco" = posição Y atual da coluna (último símbolo adicionado)
-   Se G pular vários níveis, preenche TODOS os intermediários.
-   Dados mais recentes à DIREITA.
-════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════
+   PONTO & FIGURA — Gols (0–8)
 
-const Y_MIN  = 0;
-const Y_MAX  = 8;
-const LEVELS = Y_MAX - Y_MIN + 1; /* 9 linhas: 0,1,2,3,4,5,6,7,8 */
+   Eixo Y fixo: 0 a 8 gols totais do jogo.
+   Cada jogo move o "cursor" para o valor real de gols.
+   X = gols subiram em relação ao último valor registrado
+   O = gols caíram em relação ao último valor registrado
+   Empate (mesmo nº de gols) = continua na mesma coluna, mesmo símbolo
+   Fator de Reversão: quantos gols de diferença para inverter coluna
+═══════════════════════════════════════════════════════════════════ */
 
-let columns = [], hitMap = [], timer = null;
+// Eixo Y fixo de 0 a 8 gols
+const Y_MIN    = 0;
+const Y_MAX    = 8;
+const Y_LEVELS = Y_MAX - Y_MIN + 1;  // 9 níveis: 0,1,2,3,4,5,6,7,8
 
-const LS = {
-  get:(k,d)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):d;}catch{return d;}},
-  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+const AXIS_W = 46;
+const PAD_T  = 10;
+const PAD_B  = 10;
+const PAD_R  = 10;
+
+const C = {
+    bg:'#252a33', axBg:'#1c1f26',
+    grid:'#2e3442',
+    axBorder:'#464f62', label:'#7a8699', tick:'#4a5268',
+    X:'#10b981', O:'#ef4444',
+    mid: '#5a6478',  // linha de 4 gols (meio)
 };
 
-const $ = id => document.getElementById(id);
-const wrap = $('chartWrap'), canvas = $('pf'), ctx = canvas.getContext('2d');
-const loadMsg = $('loadMsg'), ttip = $('ttip'), badge = $('badge');
-const selLeague = $('selLeague'), selGames = $('selGames'), selRev = $('selRev');
+let columns = [];
+let hitMap  = [];
+let timer   = null;
 
-['selLeague','selGames','selRev'].forEach(id => {
-  $(id).value = LS.get('pf_'+id, $(id).value);
-  $(id).addEventListener('change', () => { LS.set('pf_'+id, $(id).value); load(); });
-});
+const selLeague  = document.getElementById('selLeague');
+const selGames   = document.getElementById('selGames');
+const selRev     = document.getElementById('selRev');
+const wrap       = document.getElementById('chartWrap');
+const canvas     = document.getElementById('pf');
+const ctx        = canvas.getContext('2d');
+const loadMsg    = document.getElementById('loadMsg');
+const tip        = document.getElementById('tooltip');
+const trendBadge = document.getElementById('trendBadge');
 
-/* ── Fetch ──────────────────────────────────────────────── */
+// ── LocalStorage ─────────────────────────────────────
+function lsGet(k,fb){try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb;}catch{return fb;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+
+selLeague.value = lsGet('pfg_league', selLeague.value);
+selGames.value  = lsGet('pfg_games',  selGames.value);
+selRev.value    = lsGet('pfg_rev',    selRev.value);
+selLeague.addEventListener('change', ()=>{ lsSet('pfg_league', selLeague.value); load(); });
+selGames.addEventListener('change',  ()=>{ lsSet('pfg_games',  selGames.value);  load(); });
+selRev.addEventListener('change',    ()=>{ lsSet('pfg_rev',    selRev.value);    load(); });
+
+// ── Fetch ─────────────────────────────────────────────
+async function load() {
+    loadMsg.style.display   = 'flex';
+    canvas.style.visibility = 'hidden';
+    if (timer) clearInterval(timer);
+
+    const league = selLeague.value;
+    const limit  = parseInt(selGames.value);
+    const revAmt = parseInt(selRev.value);
+
+    try {
+        const data = await fetchData(league, limit);
+        build(data, revAmt);
+        updateTrendBadge();
+        draw();
+        timer = setInterval(async () => {
+            try {
+                const d = await fetchData(league, limit);
+                build(d, revAmt);
+                updateTrendBadge();
+                draw();
+            } catch {}
+        }, 60000);
+    } catch(e) {
+        loadMsg.textContent = 'Erro ao carregar';
+        console.error(e);
+    }
+}
+
 async function fetchData(league, limit) {
-  const resp = await fetch(`https://betstat.site/resultados/estrela/${league}`);
-  if (!resp.ok) throw new Error(resp.status);
-  const ct = resp.headers.get('content-type') || '';
-  let arr;
-  if (ct.includes('application/json')) {
-    const json = await resp.json();
-    arr = Array.isArray(json) ? json : (json.matches || json.data || []);
-  } else {
-    const html = await resp.text();
-    const m = html.match(/window\.__INITIAL_STATE__\s*=\s*({.*?});/s);
-    if (!m) throw new Error('formato inesperado');
-    arr = JSON.parse(m[1]).matches || [];
-  }
-  return arr.slice(0, limit).reverse().map((m, i) => ({
-    ft:     (m.ft || '0x0').trim(),
-    hora:   +m.hora   || 0,
-    minuto: +m.minuto || 0,
-    jogo:   i + 1
-  }));
-}
-
-/* ── Gols totais do jogo (clampado em Y_MAX) ─────────────── */
-function gols(r) {
-  const p = (r.ft || '0x0').split('x');
-  return Math.min(Y_MAX, (+p[0] || 0) + (+p[1] || 0));
-}
-
-/* ── Build P&F ───────────────────────────────────────────── */
-function build(results, REV) {
-  columns = [];
-  if (!results.length) return;
-
-  /* Primeiro jogo: define preço inicial e tipo da primeira coluna */
-  const g0 = gols(results[0]);
-  let preco = g0;
-  let tipo  = g0 > 0 ? 'X' : 'O'; /* se 0 gols começa coluna O (queda) */
-
-  let col = { type: tipo, items: [], top: preco, bot: preco };
-  columns.push(col);
-  col.items.push({ y: preco, result: results[0] });
-
-  for (let i = 1; i < results.length; i++) {
-    const g = gols(results[i]);
-
-    if (col.type === 'X') {
-
-      if (g >= preco + 1) {
-        /* Sobe: preenche de preco+1 até g */
-        for (let y = preco + 1; y <= g; y++) {
-          col.items.push({ y, result: results[i] });
-          if (y > col.top) col.top = y;
-        }
-        preco = g;
-
-      } else if (g <= preco - REV) {
-        /* Reversão X → O: nova coluna O começando em preco-1 */
-        preco = preco - 1;
-        col = { type: 'O', items: [], top: preco, bot: preco };
-        columns.push(col);
-        for (let y = preco; y >= g; y--) {
-          col.items.push({ y, result: results[i] });
-          if (y < col.bot) col.bot = y;
-        }
-        preco = g;
-      }
-      /* else: neutro, sem marcação */
-
-    } else { /* O */
-
-      if (g <= preco - 1) {
-        /* Desce: preenche de preco-1 até g */
-        for (let y = preco - 1; y >= g; y--) {
-          col.items.push({ y, result: results[i] });
-          if (y < col.bot) col.bot = y;
-        }
-        preco = g;
-
-      } else if (g >= preco + REV) {
-        /* Reversão O → X: nova coluna X começando em preco+1 */
-        preco = preco + 1;
-        col = { type: 'X', items: [], top: preco, bot: preco };
-        columns.push(col);
-        for (let y = preco; y <= g; y++) {
-          col.items.push({ y, result: results[i] });
-          if (y > col.top) col.top = y;
-        }
-        preco = g;
-      }
-      /* else: neutro, sem marcação */
+    const resp = await fetch(`https://betstat.site/resultados/estrela/${league}`);
+    if (!resp.ok) throw new Error(resp.status);
+    const ct = resp.headers.get('content-type') || '';
+    let arr;
+    if (ct.includes('application/json')) {
+        const json = await resp.json();
+        arr = Array.isArray(json) ? json : (json.matches || json.data || []);
+    } else {
+        const html = await resp.text();
+        const m = html.match(/window\.__INITIAL_STATE__\s*=\s*({.*?});/s);
+        if (!m) throw new Error('formato inesperado');
+        arr = JSON.parse(m[1]).matches || [];
     }
-  }
+    return arr.slice(0, limit).reverse().map(m => ({
+        ft:     (m.ft || '0x0').trim(),
+        hora:   parseInt(m.hora)   || 0,
+        minuto: parseInt(m.minuto) || 0,
+    }));
 }
 
-/* ── Badge ───────────────────────────────────────────────── */
-function updateBadge() {
-  if (!columns.length) {
-    badge.className = 'badge b-neu';
-    badge.textContent = 'TENDÊNCIA: NEUTRO';
-    return;
-  }
-  const last = columns[columns.length - 1];
-  const prev = columns.length > 1 ? columns[columns.length - 2] : null;
-  let txt = 'NEUTRO', cls = 'b-neu';
-  if (last.type === 'X') {
-    txt = (prev && last.top > prev.top) ? 'ALTA FORTE ▲▲' : 'ALTA ▲';
-    cls = 'b-up';
-  } else {
-    txt = (prev && last.bot < prev.bot) ? 'BAIXA FORTE ▼▼' : 'BAIXA ▼';
-    cls = 'b-dn';
-  }
-  badge.className = `badge ${cls}`;
-  badge.textContent = `TENDÊNCIA: ${txt}`;
+// ── Build P&F — baseado em gols reais (0–8) ───────────
+/*
+   Regras:
+   - cursor = gols totais do jogo atual (clamped a Y_MIN..Y_MAX)
+   - X se gols >= último_cursor + 1  (subiu)
+   - O se gols <= último_cursor - 1  (caiu)
+   - empate: continua coluna atual com mesmo símbolo e mesmo pos
+   - Fator de reversão: para trocar de coluna X→O, precisa cair revAmt gols;
+     para trocar O→X, precisa subir revAmt gols
+*/
+function build(results, revAmt) {
+    columns = [];
+    hitMap  = [];
+
+    if (!results.length) return;
+
+    // Pega gols do primeiro jogo como ponto de partida
+    const goalsOf = r => Math.min(Y_MAX, Math.max(Y_MIN,
+        (parseInt(r.ft?.split('x')[0]) || 0) + (parseInt(r.ft?.split('x')[1]) || 0)
+    ));
+
+    let prevGols = goalsOf(results[0]);
+    let col = null;
+
+    results.forEach((r, idx) => {
+        const gols = goalsOf(r);
+
+        if (idx === 0) {
+            // Primeiro jogo: abre coluna com base em gols > 0? X : O
+            // Convencional: começa sem direção definida até o 2º jogo
+            col = { type: gols >= prevGols ? 'X' : 'O', items: [] };
+            columns.push(col);
+            col.items.push({ pos: gols, result: r, gols });
+            prevGols = gols;
+            return;
+        }
+
+        const diff = gols - prevGols;
+
+        if (diff === 0) {
+            // Empate de gols: repete símbolo atual na mesma pos
+            col.items.push({ pos: gols, result: r, gols });
+            return;
+        }
+
+        if (col.type === 'X') {
+            if (diff > 0) {
+                // Continua subindo
+                col.items.push({ pos: gols, result: r, gols });
+            } else {
+                // Caiu — verifica fator de reversão
+                if (Math.abs(diff) >= revAmt) {
+                    col = { type: 'O', items: [] };
+                    columns.push(col);
+                    col.items.push({ pos: gols, result: r, gols });
+                } else {
+                    // Queda pequena demais para reverter, mantém coluna X mas adiciona o ponto
+                    col.items.push({ pos: gols, result: r, gols });
+                }
+            }
+        } else {
+            if (diff < 0) {
+                // Continua caindo
+                col.items.push({ pos: gols, result: r, gols });
+            } else {
+                // Subiu — verifica fator de reversão
+                if (Math.abs(diff) >= revAmt) {
+                    col = { type: 'X', items: [] };
+                    columns.push(col);
+                    col.items.push({ pos: gols, result: r, gols });
+                } else {
+                    col.items.push({ pos: gols, result: r, gols });
+                }
+            }
+        }
+
+        prevGols = gols;
+    });
 }
 
-/* ── Stats ───────────────────────────────────────────────── */
-function updateStats(data) {
-  const n = data.length;
-  if (!n) return;
-  const avg = (data.reduce((s,r) => s + gols(r), 0) / n).toFixed(2);
-  const g0  = data.filter(r => gols(r) === 0).length;
-  const g12 = data.filter(r => { const g=gols(r); return g>=1&&g<=2; }).length;
-  const g34 = data.filter(r => { const g=gols(r); return g>=3&&g<=4; }).length;
-  const g5  = data.filter(r => gols(r) >= 5).length;
-  const pct = v => ` (${Math.round(v/n*100)}%)`;
-  const last = columns[columns.length-1];
+// ── Tendência ──────────────────────────────────────────
+function updateTrendBadge() {
+    if (!columns.length) {
+        trendBadge.className = 'trend-badge trend-neutral';
+        trendBadge.textContent = 'TENDÊNCIA: NEUTRO';
+        return;
+    }
+    const lastCol = columns[columns.length - 1];
+    const prevCol = columns.length > 1 ? columns[columns.length - 2] : null;
+    let trend = 'NEUTRO', cls = 'trend-neutral';
 
-  $('sJogos').textContent  = n;
-  $('sMedia').textContent  = avg;
-  $('s0').textContent      = g0  + pct(g0);
-  $('s12').textContent     = g12 + pct(g12);
-  $('s34').textContent     = g34 + pct(g34);
-  $('s5').textContent      = g5  + pct(g5);
-  $('sCols').textContent   = columns.length;
-  $('sUltCol').textContent = last ? `${last.type} (${last.items.length})` : '—';
-
-  /* último breakout / breakdown */
-  let lastBreak = '';
-  for (let i = 1; i < columns.length; i++) {
-    const c = columns[i], p = columns[i-1];
-    if (c.type==='X' && c.top > p.top) lastBreak = '▲ breakout col.'+(i+1);
-    if (c.type==='O' && c.bot < p.bot) lastBreak = '▼ breakdown col.'+(i+1);
-  }
-  $('sBreak').textContent = lastBreak;
+    if (lastCol.type === 'X') {
+        const lastHigh = Math.max(...lastCol.items.map(i => i.pos));
+        const prevHigh = prevCol ? Math.max(...prevCol.items.map(i => i.pos)) : lastHigh;
+        if (prevCol && lastHigh > prevHigh) { trend = 'ALTA FORTE ▲▲'; cls = 'trend-up'; }
+        else { trend = 'ALTA ▲'; cls = 'trend-up'; }
+    } else {
+        const lastLow = Math.min(...lastCol.items.map(i => i.pos));
+        const prevLow = prevCol ? Math.min(...prevCol.items.map(i => i.pos)) : lastLow;
+        if (prevCol && lastLow < prevLow) { trend = 'BAIXA FORTE ▼▼'; cls = 'trend-down'; }
+        else { trend = 'BAIXA ▼'; cls = 'trend-down'; }
+    }
+    trendBadge.className = `trend-badge ${cls}`;
+    trendBadge.textContent = `TENDÊNCIA: ${trend}`;
 }
 
-/* ── Cor do eixo Y ───────────────────────────────────────── */
-function axColor(v) {
-  if (v === 0) return '#c04a4a';
-  if (v <= 2)  return '#bf7a7a';
-  if (v <= 4)  return '#7abf9a';
-  return '#4caf7d';
-}
-
-/* ── Draw ────────────────────────────────────────────────── */
-const BG   = '#181c23';
-const AXBG = '#111318';
-const GRID = { main:'#232834', sub:'#1c2028', border:'#2a3040' };
-const SYM  = { X:'#00e5a0', O:'#ff4a6e' };
-
+// ── Draw ──────────────────────────────────────────────
 function draw() {
-  if (!columns.length) return;
+    if (!columns.length) return;
 
-  const H     = wrap.clientHeight;
-  const AX_W  = 42;   /* largura do eixo Y */
-  const PAD_T = 8;
-  const PAD_B = 22;   /* espaço p/ números de coluna */
-  const PAD_R = 8;
+    const W = wrap.clientWidth;
+    const H = wrap.clientHeight;
+    canvas.width  = W;
+    canvas.height = H;
 
-  const availH = H - PAD_T - PAD_B;
+    // cellH: divide a área disponível pelos 9 níveis (0..8)
+    const cellH = (H - PAD_T - PAD_B) / Y_LEVELS;
+    const numCols = columns.length;
+    const cellW = (W - AXIS_W - PAD_R) / numCols;
+    const cell  = Math.max(2, Math.min(cellH, cellW));
 
-  /* cellH: divide a altura disponível pelos 9 níveis (0-8).
-     Mínimo 8px, máximo 60px. */
-  const cellH = Math.max(8, Math.min(60, availH / LEVELS));
+    // O gráfico fica ancorado no topo (Y_MAX=8 no topo, Y_MIN=0 embaixo)
+    const blockH = Y_LEVELS * cell;
+    const oY = PAD_T + Math.max(0, (H - PAD_T - PAD_B - blockH) / 2);
+    const oX = AXIS_W;
 
-  /* cellW: independente do cellH.
-     Mínimo 12px, máximo 28px. Scroll horizontal se necessário. */
-  const wrapW     = wrap.clientWidth;
-  const fitCellW  = (wrapW - AX_W - PAD_R) / Math.max(1, columns.length);
-  const cellW     = Math.max(12, Math.min(28, fitCellW));
-  const totalW    = AX_W + columns.length * cellW + PAD_R;
-  const W         = Math.max(wrapW, totalW);
+    // pos = gols (0..8) → coordenada Y no canvas
+    // 8 gols → topo, 0 gols → baixo
+    const posToY = pos => oY + (Y_MAX - pos) * cell;
 
-  canvas.width  = W;
-  canvas.height = H;
+    // Fundo
+    ctx.fillStyle = C.bg;
+    ctx.fillRect(0, 0, W, H);
 
-  /* Função de conversão valor → pixel Y
-     v=8 → topo (PAD_T), v=0 → base (PAD_T + 8*cellH) */
-  const toY = v => PAD_T + (Y_MAX - v) * cellH;
-  const oX  = AX_W;
-
-  /* Fundo */
-  ctx.fillStyle = BG;
-  ctx.fillRect(0, 0, W, H);
-
-  /* Faixas de cor por zona */
-  const zones = [
-    [0, 0, 'rgba(192,74,74,0.08)'],
-    [1, 2, 'rgba(191,122,122,0.05)'],
-    [3, 4, 'rgba(122,191,154,0.05)'],
-    [5, 8, 'rgba(76,175,125,0.08)'],
-  ];
-  zones.forEach(([lo, hi, cor]) => {
-    /* topo da faixa = linha do valor alto, base = linha do valor baixo + cellH */
-    const y1 = toY(hi);
-    const y2 = toY(lo) + cellH;
-    ctx.fillStyle = cor;
-    ctx.fillRect(oX, y1, W - oX, y2 - y1);
-  });
-
-  /* Grade horizontal — uma linha por nível */
-  for (let v = Y_MIN; v <= Y_MAX; v++) {
-    const y = toY(v) + cellH / 2;
-    ctx.beginPath(); ctx.moveTo(oX, y); ctx.lineTo(W, y);
-    ctx.strokeStyle = v % 2 === 0 ? GRID.main : GRID.sub;
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
-  }
-
-  /* Grade vertical a cada 5 colunas */
-  for (let ci = 0; ci < columns.length; ci += 5) {
-    const x = oX + ci * cellW;
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H);
-    ctx.strokeStyle = 'rgba(255,255,255,0.025)';
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
-  }
-
-  /* Símbolos */
-  hitMap = [];
-  const symSz = Math.max(6, Math.min(cellH * 0.74, 18));
-  ctx.font = `bold ${symSz}px 'Courier New',monospace`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  columns.forEach((col, ci) => {
-    const cx = oX + ci * cellW + cellW / 2;
-
-    /* Destaque coluna mais recente */
-    if (ci === columns.length - 1) {
-      ctx.fillStyle = col.type === 'X'
-        ? 'rgba(0,229,160,0.07)' : 'rgba(255,74,110,0.07)';
-      ctx.fillRect(oX + ci * cellW, PAD_T, cellW, LEVELS * cellH);
+    // Grade horizontal para cada nível de gol
+    for (let g = Y_MIN; g <= Y_MAX; g++) {
+        const y = posToY(g) + cell / 2;
+        ctx.beginPath();
+        ctx.moveTo(AXIS_W, y);
+        ctx.lineTo(W, y);
+        // Linha especial em 2.5 (entre 2 e 3) — over/under
+        ctx.strokeStyle = (g === 2 || g === 3) ? '#3a4255' : C.grid;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
     }
 
-    ctx.fillStyle = SYM[col.type];
-    col.items.forEach(item => {
-      const cy = toY(item.y) + cellH / 2;
-      ctx.fillText(col.type, cx, cy);
-      hitMap.push({ cx, cy, hrX: cellW/2+1, hrY: cellH/2+1,
-                    colIdx: ci+1, colType: col.type, item });
+    // Linha de referência over/under 2.5 (entre linha 2 e linha 3)
+    {
+        const yOver = posToY(2) + cell; // borda inferior do nível 2 = borda superior do nível 3... mas:
+        // Melhor: posição entre 2 e 3
+        const yRef = posToY(3) + cell / 2 + (posToY(2) - posToY(3)) / 2;
+        // posToY(2) > posToY(3) porque Y cresce para baixo no canvas
+        const yLine = (posToY(2) + cell / 2 + posToY(3) + cell / 2) / 2;
+        ctx.beginPath();
+        ctx.moveTo(AXIS_W, yLine);
+        ctx.lineTo(W, yLine);
+        ctx.strokeStyle = 'rgba(156,163,175,0.18)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // Eixo Y
+    ctx.fillStyle = C.axBg;
+    ctx.fillRect(0, 0, AXIS_W, H);
+    ctx.strokeStyle = C.axBorder;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(AXIS_W, 0);
+    ctx.lineTo(AXIS_W, H);
+    ctx.stroke();
+
+    const fs = Math.max(8, Math.min(12, cell - 1));
+    ctx.font = `${fs}px Courier New`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+
+    for (let g = Y_MIN; g <= Y_MAX; g++) {
+        const y = posToY(g) + cell / 2;
+        // Tick
+        ctx.fillStyle = C.tick;
+        ctx.fillRect(AXIS_W - 5, y - 0.5, 5, 1);
+        // Cor por nível de gols
+        if      (g >= 5) ctx.fillStyle = '#4caf7d';
+        else if (g >= 3) ctx.fillStyle = '#7abf9a';
+        else if (g === 2) ctx.fillStyle = '#bf7a7a';
+        else              ctx.fillStyle = '#c04a4a';
+        ctx.fillText(String(g), AXIS_W - 8, y);
+    }
+
+    // Símbolos
+    hitMap = [];
+    const symSz = Math.max(5, Math.min(cell * 0.82, 16));
+    ctx.font = `bold ${symSz}px Courier New`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    columns.forEach((col, ci) => {
+        const cx = oX + ci * cell + cell / 2;
+        ctx.fillStyle = col.type === 'X' ? C.X : C.O;
+        col.items.forEach(item => {
+            const cy = posToY(item.pos) + cell / 2;
+            ctx.fillText(col.type, cx, cy);
+            hitMap.push({ cx, cy, hr: cell / 2, colIdx: ci + 1, item });
+        });
     });
 
-    /* Marcadores breakout/breakdown */
-    if (ci > 0 && cellH >= 10) {
-      const prev = columns[ci - 1];
-      if (col.type === 'X' && col.top > prev.top) {
-        const by = toY(col.top) + cellH / 2;
-        ctx.save();
-        ctx.fillStyle = SYM.X;
-        ctx.font = `${Math.max(7, cellH * 0.5)}px sans-serif`;
-        ctx.fillText('▲', cx, by - cellH * 0.92);
-        ctx.restore();
-      }
-      if (col.type === 'O' && col.bot < prev.bot) {
-        const by = toY(col.bot) + cellH / 2;
-        ctx.save();
-        ctx.fillStyle = SYM.O;
-        ctx.font = `${Math.max(7, cellH * 0.5)}px sans-serif`;
-        ctx.fillText('▼', cx, by + cellH * 0.92);
-        ctx.restore();
-      }
-    }
-  });
-
-  /* Número das colunas no rodapé (a cada 5) */
-  if (cellW >= 10) {
-    ctx.font = '7px Courier New';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#4a5468';
-    for (let ci = 0; ci < columns.length; ci += 5) {
-      ctx.fillText(ci + 1, oX + ci * cellW + cellW / 2, PAD_T + LEVELS * cellH + 11);
-    }
-  }
-
-  /* Eixo Y — desenhado por último, fica sobre tudo (não scrolla) */
-  ctx.fillStyle = AXBG;
-  ctx.fillRect(0, 0, AX_W, H);
-  ctx.strokeStyle = GRID.border;
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(AX_W, 0); ctx.lineTo(AX_W, H); ctx.stroke();
-
-  const fs = Math.max(8, Math.min(11, cellH * 0.7));
-  ctx.font = `${fs}px 'Courier New',monospace`;
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-
-  for (let v = Y_MIN; v <= Y_MAX; v++) {
-    const y = toY(v) + cellH / 2;
-    ctx.fillStyle = GRID.border;
-    ctx.fillRect(AX_W - 5, y - 0.5, 5, 1);
-    ctx.fillStyle = axColor(v);
-    ctx.fillText(v === Y_MAX ? '8+' : v + 'g', AX_W - 7, y);
-  }
-}
-
-/* ── Load ────────────────────────────────────────────────── */
-async function load() {
-  loadMsg.style.display = 'flex';
-  canvas.style.visibility = 'hidden';
-  loadMsg.innerHTML = '<div class="spinner"></div><span>Carregando...</span>';
-  if (timer) clearInterval(timer);
-
-  const league = selLeague.value;
-  const limit  = +selGames.value;
-  const REV    = +selRev.value;
-
-  try {
-    const data = await fetchData(league, limit);
-    build(data, REV);
-    draw();
-    updateBadge();
-    updateStats(data);
-    loadMsg.style.display = 'none';
     canvas.style.visibility = 'visible';
-
-    timer = setInterval(async () => {
-      try {
-        const d = await fetchData(league, limit);
-        build(d, REV);
-        draw();
-        updateBadge();
-        updateStats(d);
-      } catch {}
-    }, 60000);
-  } catch (e) {
-    loadMsg.innerHTML = '<span style="color:#6b7894;font-size:11px">Erro ao conectar com a API</span>';
-    console.error(e);
-  }
+    loadMsg.style.display = 'none';
 }
 
-/* ── Resize ──────────────────────────────────────────────── */
+// ── Resize ─────────────────────────────────────────────
 let rsz = null;
 window.addEventListener('resize', () => {
-  clearTimeout(rsz);
-  rsz = setTimeout(() => { if (columns.length) draw(); }, 80);
+    clearTimeout(rsz);
+    rsz = setTimeout(() => { if (columns.length) draw(); }, 100);
 });
 
-/* ── Tooltip ─────────────────────────────────────────────── */
+// ── Tooltip ────────────────────────────────────────────
 canvas.addEventListener('mousemove', e => {
-  const r  = canvas.getBoundingClientRect();
-  const mx = e.clientX - r.left;
-  const my = e.clientY - r.top;
-  let found = null;
-  for (const h of hitMap) {
-    if (Math.abs(mx - h.cx) <= h.hrX && Math.abs(my - h.cy) <= h.hrY) {
-      found = h; break;
+    const r = canvas.getBoundingClientRect();
+    const mx = e.clientX - r.left;
+    const my = e.clientY - r.top;
+    let found = null;
+    for (const h of hitMap) {
+        if (Math.abs(mx - h.cx) <= h.hr && Math.abs(my - h.cy) <= h.hr) { found = h; break; }
     }
-  }
-  if (found) {
-    const res = found.item.result;
-    const g   = gols(res);
-    const hh  = String(res.hora).padStart(2,'0');
-    const mm  = String(res.minuto).padStart(2,'0');
-    const cor = found.colType === 'X' ? '#00e5a0' : '#ff4a6e';
-    ttip.innerHTML =
-      `${hh}:${mm} &nbsp;|&nbsp; <b style="color:#dce3ef">${res.ft||'?'}</b>` +
-      ` &nbsp;→&nbsp; <b style="color:${cor}">${g} gol${g!==1?'s':''}</b><br>` +
-      `Nível: <b>${found.item.y}g</b> &nbsp;|&nbsp; Coluna <b>${found.colIdx}</b> (${found.colType})`;
-    ttip.style.display = 'block';
-    const TW = ttip.offsetWidth, TH = ttip.offsetHeight;
-    let tx = e.clientX + 14, ty = e.clientY - TH - 8;
-    if (tx + TW > window.innerWidth - 6) tx = e.clientX - TW - 14;
-    if (ty < 4) ty = e.clientY + 12;
-    ttip.style.left = tx + 'px';
-    ttip.style.top  = ty + 'px';
-  } else {
-    ttip.style.display = 'none';
-  }
+    if (found) {
+        const res = found.item.result;
+        const hh = String(res.hora).padStart(2,'0');
+        const mm = String(res.minuto).padStart(2,'0');
+        const gols = found.item.gols;
+        const tipo = gols > 2.5
+            ? `<span style="color:#10b981">▲ Over 2.5</span>`
+            : `<span style="color:#ef4444">▼ Under 2.5</span>`;
+        tip.innerHTML = `${hh}:${mm} &nbsp;|&nbsp; ${res.ft || 'N/A'} &nbsp;→&nbsp; <b>${gols} gol${gols!==1?'s':''}</b> ${tipo}<br>Coluna ${found.colIdx}`;
+        tip.style.display = 'block';
+        const TW = tip.offsetWidth, TH = tip.offsetHeight;
+        let tx = e.clientX + 14, ty = e.clientY - TH - 8;
+        if (tx + TW > window.innerWidth - 6) tx = e.clientX - TW - 14;
+        if (ty < 4) ty = e.clientY + 12;
+        tip.style.left = tx + 'px';
+        tip.style.top = ty + 'px';
+    } else {
+        tip.style.display = 'none';
+    }
 });
-canvas.addEventListener('mouseleave', () => { ttip.style.display = 'none'; });
+canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 
+// ── Init ───────────────────────────────────────────────
 load();
 </script>
 </body>
