@@ -6,20 +6,32 @@
     <title>Ponto & Figura</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        :root { --bg:#1c1f26; --bg2:#252a33; --border:#3a3f4a; --text:#e8eaed; --muted:#9ca3af; }
+        :root { 
+            --bg:#1c1f26; --bg2:#252a33; --border:#3a3f4a; --text:#e8eaed; --muted:#9ca3af;
+            --zone-over-strong:#0d3b2e; --zone-over-light:#1a3d2e;
+            --zone-under-strong:#3b0d0d; --zone-under-light:#3d1a1a;
+        }
         body {
             background: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace;
             padding: 14px; min-height: 100vh;
             display: flex; flex-direction: column;
         }
-        .header { display:flex; gap:16px; margin-bottom:12px; align-items:flex-end; flex-shrink:0; }
+        .header { display:flex; gap:16px; margin-bottom:12px; align-items:flex-end; flex-shrink:0; flex-wrap:wrap; }
         .ctrl { display:flex; flex-direction:column; gap:4px; }
         label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
         select {
             background:var(--bg2); border:1px solid var(--border); color:var(--text);
             padding:6px 10px; border-radius:3px; font-size:12px; min-width:150px; cursor:pointer; outline:none;
         }
+        .trend-badge {
+            padding: 4px 10px; border-radius: 3px; font-size: 11px; font-weight: bold;
+            margin-left: auto; align-self: center; font-family: 'Segoe UI', sans-serif;
+            transition: all 0.3s ease;
+        }
+        .trend-up { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+        .trend-down { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+        .trend-neutral { background: rgba(156,163,175,0.15); color: #9ca3af; border: 1px solid rgba(156,163,175,0.3); }
         .chart-wrap {
             background:var(--bg2); border:1px solid var(--border);
             border-radius:4px; overflow:hidden; position:relative;
@@ -62,6 +74,16 @@
             <option value="640">640</option>
         </select>
     </div>
+    <div class="ctrl">
+        <label>Inversão (Reversão)</label>
+        <select id="selRev">
+            <option value="1">1 (sensível)</option>
+            <option value="2" selected>2 (equilibrado)</option>
+            <option value="3">3 (conservador)</option>
+            <option value="4">4 (muito conservador)</option>
+        </select>
+    </div>
+    <div class="trend-badge trend-neutral" id="trendBadge">TENDÊNCIA: NEUTRO</div>
 </div>
 
 <div class="chart-wrap" id="chartWrap">
@@ -74,29 +96,32 @@
 /* ═══════════════════════════════════════════════════════════════════
    PONTO & FIGURA — Eixo Y fixo 0–100, passo 5
 
-   ALTERAÇÕES:
-   • Dados mais recentes aparecem à DIREITA
-   • Altura do container fixa em 420px
-   • Cursor inicia em 50 (centro do eixo) para distribuição visual equilibrada
+   MELHORIAS:
+   • Dados mais recentes à DIREITA
+   • Cursor inicia em 50 (centro)
+   • Altura fixa 420px
+   • FATOR DE REVERSÃO configurável (elimina ruído de inversões rápidas)
+   • Zonas coloridas de fundo (over/under forte/leve)
+   • Badge de tendência atual
+   • Destaque em colunas com momentum
+   • Animação de entrada suave
+   • Skeleton loader temático P&F
 
    REGRAS:
    • Eixo Y fixo: 0, 5, 10, 15 ... 100 (21 níveis)
-   • Cursor começa em 50 (centro)
+   • Cursor começa em 50
    • Over  2.5 → cursor + 5  (máx 100)
    • Under 2.5 → cursor - 5  (mín 0)
-   • Símbolo plotado na posição do cursor após cada jogo
+   • Fator de reversão: N jogos consecutivos do tipo oposto para trocar de coluna
    • X (verde) = Over 2.5   |   O (vermelho) = Under 2.5
-   • Nova coluna abre quando o tipo muda
-   • Coluna de X: símbolos empilhados de baixo pra cima (cursor subindo)
-   • Coluna de O: símbolos empilhados de cima pra baixo (cursor descendo)
-   • Determinístico: mesmos dados = mesmo gráfico sempre
+   • Coluna de X: empilha de baixo pra cima
+   • Coluna de O: empilha de cima pra baixo
 ═══════════════════════════════════════════════════════════════════ */
 
-// Eixo Y: fixo 0 a 100, passo 5
 const Y_MIN   = 0;
 const Y_MAX   = 100;
 const Y_STEP  = 5;
-const Y_LEVELS = (Y_MAX - Y_MIN) / Y_STEP + 1; // 21 níveis: 0,5,10,...,100
+const Y_LEVELS = (Y_MAX - Y_MIN) / Y_STEP + 1;
 
 const AXIS_W = 46;
 const PAD_T  = 10;
@@ -105,52 +130,165 @@ const PAD_R  = 10;
 
 const C = {
     bg:'#252a33', axBg:'#1c1f26',
-    grid5:'#343b4a',    // linha principal (a cada 5 = toda linha)
-    grid25:'#2e3442',   // linha de quarto em quarto (25,50,75)
+    grid5:'#343b4a', grid25:'#2e3442',
     axBorder:'#464f62', label:'#7a8699', tick:'#4a5268',
     X:'#10b981', O:'#ef4444',
-    zero: '#5a6478',    // linha do zero / 50
+    zero: '#5a6478',
+    zoneOverStrong: 'rgba(16,185,129,0.04)',
+    zoneOverLight:  'rgba(16,185,129,0.02)',
+    zoneUnderStrong:'rgba(239,68,68,0.04)',
+    zoneUnderLight: 'rgba(239,68,68,0.02)',
+    colNum: '#5a6478',
+    momentum: 'rgba(255,255,255,0.06)',
 };
 
 let columns = [];
 let hitMap  = [];
 let timer   = null;
+let animFrame = 0;
 
 const selLeague = document.getElementById('selLeague');
 const selGames  = document.getElementById('selGames');
+const selRev    = document.getElementById('selRev');
 const wrap      = document.getElementById('chartWrap');
 const canvas    = document.getElementById('pf');
 const ctx       = canvas.getContext('2d');
 const loadMsg   = document.getElementById('loadMsg');
 const tip       = document.getElementById('tooltip');
+const trendBadge = document.getElementById('trendBadge');
 
 // ── LocalStorage ─────────────────────────────────────
 function lsGet(k,fb){try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb;}catch{return fb;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
-selLeague.value = lsGet('pf4_league', selLeague.value);
-selGames.value  = lsGet('pf4_games',  selGames.value);
-selLeague.addEventListener('change', ()=>{ lsSet('pf4_league', selLeague.value); load(); });
-selGames.addEventListener('change',  ()=>{ lsSet('pf4_games',  selGames.value);  load(); });
+selLeague.value = lsGet('pf5_league', selLeague.value);
+selGames.value  = lsGet('pf5_games',  selGames.value);
+selRev.value    = lsGet('pf5_rev',    selRev.value);
+selLeague.addEventListener('change', ()=>{ lsSet('pf5_league', selLeague.value); load(); });
+selGames.addEventListener('change',  ()=>{ lsSet('pf5_games',  selGames.value);  load(); });
+selRev.addEventListener('change',    ()=>{ lsSet('pf5_rev',    selRev.value);    load(); });
+
+// ── Skeleton Loader ────────────────────────────────────
+let skeletonCols = [];
+let skeletonIdx = 0;
+let skeletonTimer = null;
+
+function generateSkeleton() {
+    skeletonCols = [];
+    let cursor = 50;
+    let col = null;
+    const fakeData = Array.from({length: 40}, () => Math.random() > 0.5 ? 'X' : 'O');
+
+    fakeData.forEach(type => {
+        if (type === 'X') cursor = Math.min(Y_MAX, cursor + Y_STEP);
+        else cursor = Math.max(Y_MIN, cursor - Y_STEP);
+
+        if (!col || col.type !== type) {
+            col = { type, items: [] };
+            skeletonCols.push(col);
+        }
+        col.items.push({ pos: cursor });
+    });
+}
+
+function drawSkeleton() {
+    const W = wrap.clientWidth;
+    const H = wrap.clientHeight;
+    canvas.width = W;
+    canvas.height = H;
+
+    const numCols = skeletonCols.length;
+    const cellH = (H - PAD_T - PAD_B) / Y_LEVELS;
+    const cellW = (W - AXIS_W - PAD_R) / numCols;
+    const cell = Math.max(2, Math.min(cellH, cellW));
+    const blockH = Y_LEVELS * cell;
+    const oY = PAD_T + Math.max(0, (H - PAD_T - PAD_B - blockH) / 2);
+    const oX = AXIS_W;
+    const posToY = pos => oY + ((Y_MAX - pos) / Y_STEP) * cell;
+
+    ctx.fillStyle = C.bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Grade
+    for (let v = Y_MIN; v <= Y_MAX; v += Y_STEP) {
+        const y = posToY(v) + cell / 2;
+        ctx.beginPath();
+        ctx.moveTo(AXIS_W, y);
+        ctx.lineTo(W, y);
+        ctx.strokeStyle = v === 50 ? C.zero : (v % 25 === 0 ? C.grid25 : C.grid5);
+        ctx.lineWidth = v === 50 ? 1 : (v % 25 === 0 ? 0.7 : 0.35);
+        ctx.stroke();
+    }
+
+    // Eixo Y
+    ctx.fillStyle = C.axBg;
+    ctx.fillRect(0, 0, AXIS_W, H);
+    ctx.strokeStyle = C.axBorder;
+    ctx.beginPath();
+    ctx.moveTo(AXIS_W, 0);
+    ctx.lineTo(AXIS_W, H);
+    ctx.stroke();
+
+    // Símbolos skeleton
+    const symSz = Math.max(5, Math.min(cell * 0.82, 14));
+    ctx.font = `bold ${symSz}px Courier New`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    skeletonCols.forEach((col, ci) => {
+        const isActive = ci === skeletonIdx;
+        const cx = oX + ci * cell + cell / 2;
+
+        col.items.forEach(item => {
+            const cy = posToY(item.pos) + cell / 2;
+            if (isActive) {
+                ctx.fillStyle = col.type === 'X' ? C.X : C.O;
+                ctx.globalAlpha = 1;
+            } else {
+                ctx.fillStyle = '#3a3f4a';
+                ctx.globalAlpha = 0.3;
+            }
+            ctx.fillText(col.type, cx, cy);
+        });
+    });
+    ctx.globalAlpha = 1;
+
+    skeletonIdx = (skeletonIdx + 1) % skeletonCols.length;
+}
 
 // ── Fetch ─────────────────────────────────────────────
 async function load() {
-    loadMsg.style.display   = 'flex';
-    canvas.style.visibility = 'hidden';
+    loadMsg.style.display   = 'none';
+    canvas.style.visibility = 'visible';
     if (timer) clearInterval(timer);
+    if (skeletonTimer) clearInterval(skeletonTimer);
+
+    // Skeleton loader
+    generateSkeleton();
+    skeletonTimer = setInterval(drawSkeleton, 250);
 
     const league = selLeague.value;
     const limit  = parseInt(selGames.value);
+    const revAmt = parseInt(selRev.value);
 
     try {
         const data = await fetchData(league, limit);
-        build(data);
-        draw();
+        clearInterval(skeletonTimer);
+        build(data, revAmt);
+        updateTrendBadge();
+        animateDraw();
         timer = setInterval(async () => {
-            try { const d = await fetchData(league, limit); build(d); draw(); } catch {}
+            try { 
+                const d = await fetchData(league, limit); 
+                build(d, revAmt); 
+                updateTrendBadge();
+                draw(); 
+            } catch {}
         }, 60000);
     } catch(e) {
+        clearInterval(skeletonTimer);
         loadMsg.textContent = 'Erro ao carregar';
+        loadMsg.style.display = 'flex';
         console.error(e);
     }
 }
@@ -169,8 +307,6 @@ async function fetchData(league, limit) {
         if (!m) throw new Error('formato inesperado');
         arr = JSON.parse(m[1]).matches || [];
     }
-    // INVERTE a ordem: mais antigos primeiro, mais recentes por último
-    // Assim os dados mais recentes aparecem à DIREITA no gráfico
     return arr.slice(0, limit).reverse().map(m => ({
         ft:     (m.ft || '0x0').trim(),
         hora:   parseInt(m.hora)   || 0,
@@ -178,13 +314,15 @@ async function fetchData(league, limit) {
     }));
 }
 
-// ── Build P&F ─────────────────────────────────────────
-function build(results) {
+// ── Build P&F com Fator de Reversão ───────────────────
+function build(results, revAmt) {
     columns = [];
     hitMap  = [];
 
-    let cursor = 50;   // COMEÇA EM 50 (centro do eixo) para distribuição visual equilibrada
+    let cursor = 50;
     let col    = null;
+    let pendingType = null;
+    let pendingCount = 0;
 
     results.forEach(r => {
         const goals = (parseInt(r.ft?.split('x')[0]) || 0)
@@ -196,18 +334,117 @@ function build(results) {
         if (isOver) cursor = Math.min(Y_MAX, cursor + Y_STEP);
         else        cursor = Math.max(Y_MIN, cursor - Y_STEP);
 
-        // nova coluna quando tipo muda
-        if (!col || col.type !== type) {
+        // Lógica de reversão com fator
+        if (!col) {
             col = { type, items: [] };
             columns.push(col);
+            pendingType = null;
+            pendingCount = 0;
+        } else if (col.type === type) {
+            // Mesmo tipo: continua na coluna atual, reseta pendência
+            pendingType = null;
+            pendingCount = 0;
+        } else {
+            // Tipo diferente: acumula pendência
+            if (pendingType === type) {
+                pendingCount++;
+            } else {
+                pendingType = type;
+                pendingCount = 1;
+            }
+
+            // Se atingiu o fator de reversão, cria nova coluna
+            if (pendingCount >= revAmt) {
+                col = { type, items: [] };
+                columns.push(col);
+                pendingType = null;
+                pendingCount = 0;
+            }
         }
 
+        // Sempre adiciona o item (mesmo que pendente de reversão)
+        // Mas só na coluna atual
         col.items.push({ pos: cursor, result: r });
     });
 }
 
+// ── Tendência ──────────────────────────────────────────
+function updateTrendBadge() {
+    if (!columns.length) {
+        trendBadge.className = 'trend-badge trend-neutral';
+        trendBadge.textContent = 'TENDÊNCIA: NEUTRO';
+        return;
+    }
+
+    const lastCol = columns[columns.length - 1];
+    const prevCol = columns.length > 1 ? columns[columns.length - 2] : null;
+
+    let trend = 'NEUTRO';
+    let cls = 'trend-neutral';
+
+    if (lastCol.type === 'X') {
+        // Tendência de alta
+        if (prevCol && prevCol.type === 'X') {
+            // Coluna X após coluna X = momentum de alta
+            const lastHigh = Math.max(...lastCol.items.map(i => i.pos));
+            const prevHigh = Math.max(...prevCol.items.map(i => i.pos));
+            if (lastHigh > prevHigh) {
+                trend = 'ALTA FORTE ▲▲';
+                cls = 'trend-up';
+            } else {
+                trend = 'ALTA ▲';
+                cls = 'trend-up';
+            }
+        } else {
+            trend = 'ALTA ▲';
+            cls = 'trend-up';
+        }
+    } else {
+        // Tendência de baixa
+        if (prevCol && prevCol.type === 'O') {
+            const lastLow = Math.min(...lastCol.items.map(i => i.pos));
+            const prevLow = Math.min(...prevCol.items.map(i => i.pos));
+            if (lastLow < prevLow) {
+                trend = 'BAIXA FORTE ▼▼';
+                cls = 'trend-down';
+            } else {
+                trend = 'BAIXA ▼';
+                cls = 'trend-down';
+            }
+        } else {
+            trend = 'BAIXA ▼';
+            cls = 'trend-down';
+        }
+    }
+
+    trendBadge.className = `trend-badge ${cls}`;
+    trendBadge.textContent = `TENDÊNCIA: ${trend}`;
+}
+
+// ── Animação de entrada ────────────────────────────────
+function animateDraw() {
+    animFrame = 0;
+    const totalFrames = 20;
+
+    function step() {
+        animFrame++;
+        const progress = animFrame / totalFrames;
+        const ease = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+
+        draw(ease);
+
+        if (animFrame < totalFrames) {
+            requestAnimationFrame(step);
+        } else {
+            draw(1);
+        }
+    }
+
+    requestAnimationFrame(step);
+}
+
 // ── Draw ──────────────────────────────────────────────
-function draw() {
+function draw(animProgress = 1) {
     if (!columns.length) return;
 
     const W = wrap.clientWidth;
@@ -216,47 +453,49 @@ function draw() {
     canvas.height = H;
 
     const numCols = columns.length;
-
-    // Altura de cada nível (fixo, 21 níveis de 0 a 100)
     const cellH = (H - PAD_T - PAD_B) / Y_LEVELS;
-    // Largura de cada coluna (dinâmica)
     const cellW = (W - AXIS_W - PAD_R) / numCols;
-    // Célula quadrada
     const cell  = Math.max(2, Math.min(cellH, cellW));
-
-    // Centralizar verticalmente se sobrar
     const blockH = Y_LEVELS * cell;
     const oY = PAD_T + Math.max(0, (H - PAD_T - PAD_B - blockH) / 2);
     const oX = AXIS_W;
-
-    // Y de uma posição no eixo (pos=100 = topo, pos=0 = base)
     const posToY = pos => oY + ((Y_MAX - pos) / Y_STEP) * cell;
 
     // ── Fundo ─────────────────────────────────────────
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
-    // ── Grade horizontal — todas as linhas do eixo ────
+    // ── Zonas coloridas de fundo ─────────────────────
+    const zoneColors = [
+        { min: 70, max: 100, color: C.zoneOverStrong },
+        { min: 50, max: 70, color: C.zoneOverLight },
+        { min: 30, max: 50, color: C.zoneUnderLight },
+        { min: 0,  max: 30, color: C.zoneUnderStrong },
+    ];
+
+    zoneColors.forEach(z => {
+        const yTop = posToY(z.max);
+        const yBot = posToY(z.min) + cell;
+        ctx.fillStyle = z.color;
+        ctx.fillRect(AXIS_W, yTop, W - AXIS_W, yBot - yTop);
+    });
+
+    // ── Grade horizontal ──────────────────────────────
     for (let v = Y_MIN; v <= Y_MAX; v += Y_STEP) {
         const y = posToY(v) + cell / 2;
-
         ctx.beginPath();
         ctx.moveTo(AXIS_W, y);
         ctx.lineTo(W, y);
         ctx.setLineDash([]);
-
         if (v === 50) {
-            // linha do meio — destaque
             ctx.strokeStyle = C.zero;
-            ctx.lineWidth   = 1;
+            ctx.lineWidth = 1;
         } else if (v % 25 === 0) {
-            // 0, 25, 75, 100 — linha secundária
             ctx.strokeStyle = C.grid25;
-            ctx.lineWidth   = 0.7;
+            ctx.lineWidth = 0.7;
         } else {
-            // demais (5,10,15,...) — sutil
             ctx.strokeStyle = C.grid5;
-            ctx.lineWidth   = 0.35;
+            ctx.lineWidth = 0.35;
         }
         ctx.stroke();
     }
@@ -265,46 +504,53 @@ function draw() {
     // ── Eixo Y ────────────────────────────────────────
     ctx.fillStyle = C.axBg;
     ctx.fillRect(0, 0, AXIS_W, H);
-
     ctx.strokeStyle = C.axBorder;
-    ctx.lineWidth   = 1;
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(AXIS_W, 0);
     ctx.lineTo(AXIS_W, H);
     ctx.stroke();
 
     const fs = Math.max(8, Math.min(11, cell - 1));
-    ctx.font         = `${fs}px Courier New`;
-    ctx.textAlign    = 'right';
+    ctx.font = `${fs}px Courier New`;
+    ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
-    // labels em todos os múltiplos de 10 + 0 e 100
     for (let v = Y_MIN; v <= Y_MAX; v += Y_STEP) {
-        if (v % 10 !== 0) continue; // label a cada 10
+        if (v % 10 !== 0) continue;
         const y = posToY(v) + cell / 2;
-
-        // tick mark
         ctx.fillStyle = C.tick;
         ctx.fillRect(AXIS_W - 5, y - 0.5, 5, 1);
-
-        // label colorido por zona
-        if      (v >= 70) ctx.fillStyle = '#4caf7d';  // zona over forte
-        else if (v >= 50) ctx.fillStyle = '#7abf9a';  // zona over leve
-        else if (v >= 30) ctx.fillStyle = '#bf7a7a';  // zona under leve
-        else              ctx.fillStyle = '#c04a4a';  // zona under forte
-
+        if (v >= 70) ctx.fillStyle = '#4caf7d';
+        else if (v >= 50) ctx.fillStyle = '#7abf9a';
+        else if (v >= 30) ctx.fillStyle = '#bf7a7a';
+        else ctx.fillStyle = '#c04a4a';
         ctx.fillText(String(v), AXIS_W - 8, y);
     }
 
-    // ── Símbolos ──────────────────────────────────────
+    // ── Símbolos com animação ─────────────────────────
     hitMap = [];
     const symSz = Math.max(5, Math.min(cell * 0.82, 14));
-    ctx.font         = `bold ${symSz}px Courier New`;
-    ctx.textAlign    = 'center';
+    ctx.font = `bold ${symSz}px Courier New`;
+    ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    const visibleCols = Math.floor(numCols * animProgress);
+
     columns.forEach((col, ci) => {
+        if (ci >= visibleCols) return;
+
         const cx = oX + ci * cell + cell / 2;
+
+        // Destaque em colunas longas (momentum)
+        const isMomentum = col.items.length >= 4;
+        if (isMomentum) {
+            const colTop = posToY(Math.max(...col.items.map(i => i.pos))) - cell/2;
+            const colBot = posToY(Math.min(...col.items.map(i => i.pos))) + cell/2;
+            ctx.fillStyle = C.momentum;
+            ctx.fillRect(oX + ci * cell, colTop, cell, colBot - colTop + cell);
+        }
+
         ctx.fillStyle = col.type === 'X' ? C.X : C.O;
 
         col.items.forEach(item => {
@@ -312,10 +558,19 @@ function draw() {
             ctx.fillText(col.type, cx, cy);
             hitMap.push({ cx, cy, hr: cell / 2, colIdx: ci + 1, item });
         });
+
+        // Número da coluna no topo
+        if (cell >= 14 && col.items.length > 0) {
+            const topY = posToY(Math.max(...col.items.map(i => i.pos))) - cell/2 - 2;
+            ctx.fillStyle = C.colNum;
+            ctx.font = `9px Courier New`;
+            ctx.fillText(String(ci + 1), cx, topY);
+            ctx.font = `bold ${symSz}px Courier New`;
+        }
     });
 
     canvas.style.visibility = 'visible';
-    loadMsg.style.display   = 'none';
+    loadMsg.style.display = 'none';
 }
 
 // ── Resize ─────────────────────────────────────────────
@@ -327,7 +582,7 @@ window.addEventListener('resize', () => {
 
 // ── Tooltip ────────────────────────────────────────────
 canvas.addEventListener('mousemove', e => {
-    const r  = canvas.getBoundingClientRect();
+    const r = canvas.getBoundingClientRect();
     const mx = e.clientX - r.left;
     const my = e.clientY - r.top;
     let found = null;
@@ -335,11 +590,11 @@ canvas.addEventListener('mousemove', e => {
         if (Math.abs(mx - h.cx) <= h.hr && Math.abs(my - h.cy) <= h.hr) { found = h; break; }
     }
     if (found) {
-        const res   = found.item.result;
-        const hh    = String(res.hora).padStart(2,'0');
-        const mm    = String(res.minuto).padStart(2,'0');
+        const res = found.item.result;
+        const hh = String(res.hora).padStart(2,'0');
+        const mm = String(res.minuto).padStart(2,'0');
         const goals = (parseInt(res.ft?.split('x')[0])||0) + (parseInt(res.ft?.split('x')[1])||0);
-        const tipo  = goals > 2.5
+        const tipo = goals > 2.5
             ? `<span style="color:#10b981">▲ Over 2.5</span>`
             : `<span style="color:#ef4444">▼ Under 2.5</span>`;
         tip.innerHTML = `${hh}:${mm} &nbsp;|&nbsp; ${res.ft || 'N/A'} &nbsp;→&nbsp; ${tipo}<br>Nível: <b>${found.item.pos}</b> &nbsp;|&nbsp; Coluna ${found.colIdx}`;
@@ -349,7 +604,7 @@ canvas.addEventListener('mousemove', e => {
         if (tx + TW > window.innerWidth - 6) tx = e.clientX - TW - 14;
         if (ty < 4) ty = e.clientY + 12;
         tip.style.left = tx + 'px';
-        tip.style.top  = ty + 'px';
+        tip.style.top = ty + 'px';
     } else {
         tip.style.display = 'none';
     }
