@@ -15,6 +15,7 @@
             --text-sec: #9ca3af;
             --over: #10b981;
             --under: #ef4444;
+            --cell: 20px;
         }
 
         body {
@@ -55,10 +56,7 @@
             min-width: 140px;
             cursor: pointer;
             outline: none;
-            transition: border-color 0.2s;
         }
-
-        select:focus { border-color: #5a6070; }
 
         .layout {
             display: flex;
@@ -66,65 +64,24 @@
             align-items: flex-start;
         }
 
-        /* CHART */
+        /* ── Chart container ── */
         .chart-wrap {
             flex: 1;
             background: var(--bg2);
             border: 1px solid var(--border);
             border-radius: 4px;
-            padding: 15px;
             overflow: auto;
-            max-height: 600px;
-            position: relative; /* para tooltip ficar dentro */
-        }
-
-        .lines {
-            display: flex;
-            gap: 1px;
-            font-weight: bold;
-            font-size: 14px;
-            width: fit-content;
-            min-height: 20px;
-        }
-
-        .column {
-            display: flex;
-            flex-direction: column;
-            text-align: center;
-        }
-
-        .cell {
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
-            cursor: pointer;
             position: relative;
+            max-height: 600px;
         }
 
-        .x { color: var(--over); }
-        .o { color: var(--under); }
-
-        /* TOOLTIP — fixo no body, não corta */
-        #tooltip {
-            position: fixed;
-            background: rgba(10,12,16,0.97);
-            color: var(--text);
-            padding: 6px 10px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-family: 'Segoe UI', sans-serif;
-            border: 1px solid var(--border);
-            pointer-events: none;
-            z-index: 9999;
-            white-space: nowrap;
-            display: none;
-            line-height: 1.5;
+        /* Canvas ocupa tudo */
+        #pfCanvas {
+            display: block;
+            cursor: crosshair;
         }
 
-        /* STATS */
+        /* ── Stats ── */
         .stats {
             width: 200px;
             background: var(--bg2);
@@ -140,11 +97,7 @@
             border-bottom: 1px solid var(--border);
         }
 
-        .stat:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
+        .stat:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
         .stat-label {
             font-size: 10px;
@@ -154,18 +107,31 @@
             margin-bottom: 4px;
         }
 
-        .stat-value {
-            font-size: 18px;
-            font-weight: bold;
-        }
-
+        .stat-value { font-size: 18px; font-weight: bold; }
         .stat-value.over  { color: var(--over); }
         .stat-value.under { color: var(--under); }
+
+        /* ── Tooltip ── */
+        #tooltip {
+            position: fixed;
+            background: rgba(10,12,16,0.97);
+            color: #e8eaed;
+            padding: 6px 10px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-family: 'Segoe UI', sans-serif;
+            border: 1px solid #3a3f4a;
+            pointer-events: none;
+            z-index: 9999;
+            white-space: nowrap;
+            display: none;
+            line-height: 1.6;
+        }
 
         .loading {
             text-align: center;
             color: var(--text-sec);
-            padding: 40px;
+            padding: 60px;
         }
     </style>
 </head>
@@ -195,7 +161,8 @@
 
 <div class="layout">
     <div class="chart-wrap" id="chartWrap">
-        <div class="loading">Selecione uma liga</div>
+        <div class="loading" id="loadMsg">Selecione uma liga</div>
+        <canvas id="pfCanvas" style="display:none"></canvas>
     </div>
     <div class="stats">
         <div class="stat">
@@ -217,198 +184,287 @@
     </div>
 </div>
 
-<!-- Tooltip global fixo -->
 <div id="tooltip"></div>
 
 <script>
-    const leagueEl = document.getElementById('league');
-    const gamesEl  = document.getElementById('games');
-    const chartWrap = document.getElementById('chartWrap');
-    const tooltipEl = document.getElementById('tooltip');
+// ─── CONFIG ────────────────────────────────────────────────────────────────
+const CELL      = 20;    // px por célula
+const AXIS_W    = 36;    // largura do eixo Y (px)
+const PAD_TOP   = 10;    // padding topo
+const FONT_SZ   = 13;    // tamanho fonte símbolo
+const AXIS_FONT = '11px Courier New';
+const SYM_FONT  = `bold ${FONT_SZ}px Courier New`;
+const COL_W     = CELL;  // largura de cada coluna de símbolos
 
-    // ── LocalStorage: restaurar seletores ──────────────────────────
-    const savedLeague = localStorage.getItem('pf_league');
-    const savedGames  = localStorage.getItem('pf_games');
-    if (savedLeague) leagueEl.value = savedLeague;
-    if (savedGames)  gamesEl.value  = savedGames;
+const C_BG      = '#252a33';
+const C_AXIS_BG = '#1e2229';
+const C_GRID    = '#2e333d';
+const C_BORDER  = '#3a3f4a';
+const C_LABEL   = '#6b7280';
+const C_X       = '#10b981';
+const C_O       = '#ef4444';
+const C_TEXT    = '#e8eaed';
 
-    leagueEl.addEventListener('change', () => {
-        localStorage.setItem('pf_league', leagueEl.value);
-        loadData();
+// ─── STATE ─────────────────────────────────────────────────────────────────
+let columns   = [];   // array de colunas P&F
+let minRow    = 0;    // menor índice de linha usado
+let maxRow    = 0;    // maior índice de linha usado
+let hitMap    = [];   // [{col, row, item}] para hover
+
+let updateTimer = null;
+
+// ─── ELEMENTOS ─────────────────────────────────────────────────────────────
+const leagueEl  = document.getElementById('league');
+const gamesEl   = document.getElementById('games');
+const chartWrap = document.getElementById('chartWrap');
+const canvas    = document.getElementById('pfCanvas');
+const ctx       = canvas.getContext('2d');
+const loadMsg   = document.getElementById('loadMsg');
+const tooltipEl = document.getElementById('tooltip');
+
+// ─── LOCALSTORAGE ──────────────────────────────────────────────────────────
+const saved_l = localStorage.getItem('pf_league');
+const saved_g = localStorage.getItem('pf_games');
+if (saved_l) leagueEl.value = saved_l;
+if (saved_g) gamesEl.value  = saved_g;
+
+leagueEl.addEventListener('change', () => { localStorage.setItem('pf_league', leagueEl.value); loadData(); });
+gamesEl.addEventListener('change',  () => { localStorage.setItem('pf_games',  gamesEl.value);  loadData(); });
+
+// ─── DADOS ─────────────────────────────────────────────────────────────────
+async function loadData() {
+    loadMsg.style.display = 'block';
+    canvas.style.display  = 'none';
+    if (updateTimer) clearInterval(updateTimer);
+
+    const league = leagueEl.value;
+    const limit  = parseInt(gamesEl.value);
+
+    try {
+        const results = await fetchResults(league, limit);
+        build(results);
+        render();
+        updateStats(results);
+        updateTimer = setInterval(async () => {
+            const r = await fetchResults(league, limit);
+            build(r);
+            render();
+            updateStats(r);
+        }, 60000);
+    } catch(e) {
+        loadMsg.textContent = 'Erro ao carregar';
+        console.error(e);
+    }
+}
+
+async function fetchResults(league, limit) {
+    const url = `https://betstat.site/resultados/estrela/${league}`;
+    const resp = await fetch(url);
+    const html = await resp.text();
+    const m = html.match(/window\.__INITIAL_STATE__\s*=\s*({.*?});/s);
+    if (m) {
+        const data = JSON.parse(m[1]);
+        return (data.matches || []).slice(0, limit).map(x => ({
+            ft:     (x.ft || '0x0').trim(),
+            hora:   parseInt(x.hora)   || 0,
+            minuto: parseInt(x.minuto) || 0
+        }));
+    }
+    return generateDemo(limit);
+}
+
+function generateDemo(limit) {
+    const now = new Date();
+    return Array.from({length: limit}, (_, i) => {
+        const d = new Date(now - (limit - 1 - i) * 3 * 60000);
+        return { ft: Math.random() > 0.45 ? '3x1' : '1x0', hora: d.getHours(), minuto: d.getMinutes() };
     });
-    gamesEl.addEventListener('change', () => {
-        localStorage.setItem('pf_games', gamesEl.value);
-        loadData();
+}
+
+// ─── BUILD P&F ─────────────────────────────────────────────────────────────
+// Cada jogo = 1 símbolo. Mudança de tipo = nova coluna.
+// O símbolo novo começa na última posição da coluna anterior (ponto de reversão).
+function build(results) {
+    columns = [];
+    hitMap  = [];
+
+    // Converter cada resultado num tipo e índice de linha "absoluto"
+    // Vamos usar um índice acumulativo: cada jogo é +1 (X sobe) ou -1 (O desce)
+    // A linha é o índice acumulado, que cria o movimento vertical.
+
+    let cursor = 0;   // posição vertical atual (cresce pra baixo = under, sobe = over)
+    let dir    = null; // 'X' ou 'O'
+    let col    = null;
+
+    // Para consistência visual, X sobe (row diminui) e O desce (row aumenta)
+    results.forEach(r => {
+        const goals = (parseInt(r.ft?.split('x')[0]) || 0)
+                    + (parseInt(r.ft?.split('x')[1]) || 0);
+        const type  = goals > 2.5 ? 'X' : 'O';
+
+        if (type === 'X') cursor--;  // sobe
+        else              cursor++;  // desce
+
+        if (!col || col.type !== type) {
+            // Nova coluna — começa no cursor atual
+            col = { type, startRow: cursor, items: [] };
+            columns.push(col);
+        }
+
+        col.items.push({ type, row: cursor, result: r });
     });
 
-    // ── Tooltip global ─────────────────────────────────────────────
-    document.addEventListener('mousemove', e => {
-        if (tooltipEl.style.display === 'block') {
-            const TW = tooltipEl.offsetWidth;
-            const TH = tooltipEl.offsetHeight;
-            const margin = 10;
-            let x = e.clientX + margin;
-            let y = e.clientY - TH - margin;
+    // Calcular limites do eixo Y
+    minRow = Infinity; maxRow = -Infinity;
+    columns.forEach(c => c.items.forEach(it => {
+        if (it.row < minRow) minRow = it.row;
+        if (it.row > maxRow) maxRow = it.row;
+    }));
+}
 
-            // Não ultrapassar borda direita
-            if (x + TW > window.innerWidth - 4) x = e.clientX - TW - margin;
-            // Não ultrapassar borda superior
-            if (y < 4) y = e.clientY + margin;
+// ─── RENDER ────────────────────────────────────────────────────────────────
+function render() {
+    if (!columns.length) return;
 
-            tooltipEl.style.left = x + 'px';
-            tooltipEl.style.top  = y + 'px';
-        }
-    });
+    const totalRows = maxRow - minRow + 1;
+    const totalCols = columns.length;
 
-    // ── Dados ──────────────────────────────────────────────────────
-    let updateTimer = null;
+    const W = AXIS_W + totalCols * COL_W + 10;
+    const H = PAD_TOP * 2 + totalRows * CELL;
 
-    async function loadData() {
-        const league = leagueEl.value;
-        const limit  = parseInt(gamesEl.value);
+    canvas.width  = W;
+    canvas.height = H;
+    canvas.style.display = 'block';
+    loadMsg.style.display = 'none';
 
-        chartWrap.innerHTML = '<div class="loading">Carregando...</div>';
-        if (updateTimer) clearInterval(updateTimer);
+    // Fundo
+    ctx.fillStyle = C_BG;
+    ctx.fillRect(0, 0, W, H);
 
-        try {
-            const results = await fetchResults(league, limit);
-            renderChart(results);
-            updateStats(results);
-            updateTimer = setInterval(() => refreshData(league, limit), 60000);
-        } catch (err) {
-            chartWrap.innerHTML = '<div class="loading">Erro ao carregar</div>';
-            console.error(err);
+    // ── Grade horizontal ───────────────────────────────────────────
+    ctx.strokeStyle = C_GRID;
+    ctx.lineWidth   = 0.5;
+    for (let r = minRow; r <= maxRow; r++) {
+        const y = rowToY(r) + CELL / 2;
+        ctx.beginPath();
+        ctx.moveTo(AXIS_W, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+    }
+
+    // ── Eixo Y (fundo) ─────────────────────────────────────────────
+    ctx.fillStyle = C_AXIS_BG;
+    ctx.fillRect(0, 0, AXIS_W, H);
+
+    // Linha separadora eixo
+    ctx.strokeStyle = C_BORDER;
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(AXIS_W, 0);
+    ctx.lineTo(AXIS_W, H);
+    ctx.stroke();
+
+    // Labels eixo Y: mostrar a cada 2 linhas para não poluir
+    ctx.fillStyle  = C_LABEL;
+    ctx.font       = AXIS_FONT;
+    ctx.textAlign  = 'right';
+    ctx.textBaseline = 'middle';
+
+    for (let r = minRow; r <= maxRow; r++) {
+        const y = rowToY(r) + CELL / 2;
+        // Marcar apenas múltiplos de 2 ou extremos
+        if ((r % 2 === 0) || r === minRow || r === maxRow) {
+            ctx.fillText(String(r), AXIS_W - 4, y);
         }
     }
 
-    async function refreshData(league, limit) {
-        try {
-            const results = await fetchResults(league, limit);
-            renderChart(results);
-            updateStats(results);
-        } catch (e) {
-            console.error('Erro na atualização:', e);
-        }
-    }
+    // ── Símbolos ───────────────────────────────────────────────────
+    hitMap = [];
+    ctx.font      = SYM_FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
-    async function fetchResults(league, limit) {
-        const url = `https://betstat.site/resultados/estrela/${league}`;
-        const response = await fetch(url);
-        const html = await response.text();
-        const jsonMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*({.*?});/s);
+    columns.forEach((col, ci) => {
+        const x = AXIS_W + ci * COL_W + COL_W / 2;
+        ctx.fillStyle = col.type === 'X' ? C_X : C_O;
 
-        if (jsonMatch) {
-            const data = JSON.parse(jsonMatch[1]);
-            const matches = (data.matches || []).slice(0, limit);
-            return matches.map(m => ({
-                ft:     (m.ft || '0x0').trim(),
-                hora:   parseInt(m.hora)   || 0,
-                minuto: parseInt(m.minuto) || 0
-            }));
-        }
+        col.items.forEach(item => {
+            const y = rowToY(item.row) + CELL / 2;
+            ctx.fillText(item.type, x, y);
 
-        return generateDemo(limit);
-    }
-
-    function generateDemo(limit) {
-        const results = [];
-        const now = new Date();
-        for (let i = limit - 1; i >= 0; i--) {
-            const date = new Date(now.getTime() - i * 3 * 60 * 1000);
-            results.push({
-                ft:     Math.random() > 0.45 ? '3x1' : '1x0',
-                hora:   date.getHours(),
-                minuto: date.getMinutes()
-            });
-        }
-        return results;
-    }
-
-    // ── Renderizar ─────────────────────────────────────────────────
-    // Regra: cada jogo = 1 símbolo. Muda de coluna quando muda o tipo.
-    function buildColumns(results) {
-        const columns = [];
-        let col = null;
-
-        results.forEach(r => {
-            const goals = (parseInt(r.ft?.split('x')[0]) || 0)
-                        + (parseInt(r.ft?.split('x')[1]) || 0);
-            const type  = goals > 2.5 ? 'X' : 'O';
-
-            if (!col || col.type !== type) {
-                col = { type, items: [] };
-                columns.push(col);
-            }
-
-            col.items.push({ type, result: r });
+            hitMap.push({ cx: x, cy: y, half: COL_W / 2, item });
         });
+    });
 
-        return columns;
+    // Scroll para o final (coluna mais recente)
+    chartWrap.scrollLeft = chartWrap.scrollWidth;
+}
+
+function rowToY(r) {
+    return PAD_TOP + (r - minRow) * CELL;
+}
+
+// ─── STATS ─────────────────────────────────────────────────────────────────
+function updateStats(results) {
+    let maxOver = 0, maxUnder = 0, curr = 0, lastType = null, rev = 0;
+
+    results.forEach(r => {
+        const goals = (parseInt(r.ft?.split('x')[0]) || 0)
+                    + (parseInt(r.ft?.split('x')[1]) || 0);
+        const type  = goals > 2.5 ? 'X' : 'O';
+
+        if (lastType !== null && lastType !== type) { rev++; curr = 0; }
+        curr++;
+        if (type === 'X') maxOver  = Math.max(maxOver,  curr);
+        else              maxUnder = Math.max(maxUnder, curr);
+        lastType = type;
+    });
+
+    document.getElementById('maxOver').textContent   = maxOver;
+    document.getElementById('maxUnder').textContent  = maxUnder;
+    document.getElementById('reversions').textContent = rev;
+    document.getElementById('trend').textContent =
+        lastType === 'X' ? '↑ OVER' : '↓ UNDER';
+}
+
+// ─── TOOLTIP ───────────────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx   = e.clientX - rect.left;
+    const my   = e.clientY - rect.top;
+
+    let found = null;
+    for (const h of hitMap) {
+        if (Math.abs(mx - h.cx) <= h.half && Math.abs(my - h.cy) <= CELL / 2) {
+            found = h;
+            break;
+        }
     }
 
-    function renderChart(results) {
-        const columns = buildColumns(results);
-
-        const colsHtml = columns.map(c => {
-            const cellsHtml = c.items.map(item => {
-                const hh = String(item.result.hora).padStart(2, '0');
-                const mm = String(item.result.minuto).padStart(2, '0');
-                const cls = item.type === 'X' ? 'x' : 'o';
-                return `<div class="cell ${cls}"
-                    data-tip="${hh}:${mm} | ${item.result.ft || 'N/A'}"
-                    onmouseenter="showTip(this)"
-                    onmouseleave="hideTip()"
-                >${item.type}</div>`;
-            }).join('');
-            return `<div class="column">${cellsHtml}</div>`;
-        }).join('');
-
-        chartWrap.innerHTML = `<div class="lines">${colsHtml}</div>`;
-    }
-
-    // ── Stats ──────────────────────────────────────────────────────
-    function updateStats(results) {
-        let maxOver = 0, maxUnder = 0, currOver = 0, currUnder = 0;
-        let lastType = null, reversions = 0;
-
-        results.forEach(r => {
-            const goals = (parseInt(r.ft?.split('x')[0]) || 0)
-                        + (parseInt(r.ft?.split('x')[1]) || 0);
-            const type  = goals > 2.5 ? 'X' : 'O';
-
-            if (type === 'X') {
-                currOver++;
-                currUnder = 0;
-                maxOver = Math.max(maxOver, currOver);
-            } else {
-                currUnder++;
-                currOver = 0;
-                maxUnder = Math.max(maxUnder, currUnder);
-            }
-
-            if (lastType !== null && lastType !== type) reversions++;
-            lastType = type;
-        });
-
-        document.getElementById('maxOver').textContent   = maxOver;
-        document.getElementById('maxUnder').textContent  = maxUnder;
-        document.getElementById('reversions').textContent = reversions;
-        document.getElementById('trend').textContent =
-            lastType === 'X' ? '↑ OVER' : '↓ UNDER';
-    }
-
-    // ── Tooltip helpers ───────────────────────────────────────────
-    function showTip(el) {
-        tooltipEl.innerHTML = el.dataset.tip.replace('|', '<br>');
+    if (found) {
+        const r  = found.item.result;
+        const hh = String(r.hora).padStart(2, '0');
+        const mm = String(r.minuto).padStart(2, '0');
+        tooltipEl.innerHTML = `${hh}:${mm}<br>${r.ft || 'N/A'}`;
         tooltipEl.style.display = 'block';
-    }
 
-    function hideTip() {
+        const TW = tooltipEl.offsetWidth;
+        const TH = tooltipEl.offsetHeight;
+        let tx = e.clientX + 12;
+        let ty = e.clientY - TH - 8;
+        if (tx + TW > window.innerWidth - 6)  tx = e.clientX - TW - 12;
+        if (ty < 4)                            ty = e.clientY + 12;
+        tooltipEl.style.left = tx + 'px';
+        tooltipEl.style.top  = ty + 'px';
+    } else {
         tooltipEl.style.display = 'none';
     }
+});
 
-    // ── Init ───────────────────────────────────────────────────────
-    loadData();
+canvas.addEventListener('mouseleave', () => { tooltipEl.style.display = 'none'; });
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+loadData();
 </script>
 </body>
 </html>
