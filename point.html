@@ -3,16 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ponto & Figura — Gols</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Share+Tech&display=swap" rel="stylesheet">
+    <title>Ponto & Figura</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root { --bg:#1c1f26; --bg2:#252a33; --border:#3a3f4a; --text:#e8eaed; --muted:#9ca3af; }
         body {
             background: var(--bg); color: var(--text);
-            font-family: 'Share Tech', sans-serif;
+            font-family: 'Courier New', monospace;
             padding: 14px; min-height: 100vh;
             display: flex; flex-direction: column;
         }
@@ -21,21 +18,21 @@
         label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
         select {
             background:var(--bg2); border:1px solid var(--border); color:var(--text);
-            padding:6px 10px; border-radius:3px; font-size:12px; font-family:'Share Tech',sans-serif;
-            min-width:150px; cursor:pointer; outline:none;
+            padding:6px 10px; border-radius:3px; font-size:12px; min-width:150px; cursor:pointer; outline:none;
         }
         .trend-badge {
             padding: 4px 10px; border-radius: 3px; font-size: 11px; font-weight: bold;
-            margin-left: auto; align-self: center; font-family: 'Share Tech', sans-serif;
-            letter-spacing: .5px; transition: all 0.3s ease;
+            margin-left: auto; align-self: center; font-family: 'Segoe UI', sans-serif;
+            transition: all 0.3s ease;
         }
-        .trend-up    { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
-        .trend-down  { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
-        .trend-neutral{ background: rgba(156,163,175,0.15);color:#9ca3af; border: 1px solid rgba(156,163,175,0.3); }
+        .trend-up { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+        .trend-down { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+        .trend-neutral { background: rgba(156,163,175,0.15); color: #9ca3af; border: 1px solid rgba(156,163,175,0.3); }
         .chart-wrap {
             background:var(--bg2); border:1px solid var(--border);
             border-radius:4px; overflow:hidden; position:relative;
-            height: 420px; flex-shrink: 0;
+            height: 420px;
+            flex-shrink: 0;
         }
         canvas { display:block; }
         #loadMsg {
@@ -45,7 +42,7 @@
         #tooltip {
             position:fixed; background:rgba(8,10,14,.97); color:#e8eaed;
             padding:6px 10px; border-radius:3px; font-size:11px;
-            font-family:'Share Tech',sans-serif; border:1px solid #3a3f4a;
+            font-family:'Segoe UI',sans-serif; border:1px solid #3a3f4a;
             pointer-events:none; z-index:9999; white-space:nowrap; display:none; line-height:1.7;
         }
     </style>
@@ -92,46 +89,61 @@
 <div id="tooltip"></div>
 
 <script>
-const Y_MIN    = 0;
-const Y_MAX    = 8;
-const Y_LEVELS = Y_MAX - Y_MIN + 1;  // 9
+/* ═══════════════════════════════════════════════════════════════════
+   PONTO & FIGURA — Limpo
 
-const AXIS_W = 40;
+   • Dados mais recentes à DIREITA
+   • Cursor inicia em 50
+   • Altura fixa 420px
+   • Fator de Reversão configurável
+   • Badge de Tendência
+   • Visual LIMPO: grade fina, símbolos, eixo Y, nada mais
+═══════════════════════════════════════════════════════════════════ */
+
+const Y_MIN   = 0;
+const Y_MAX   = 100;
+const Y_STEP  = 5;
+const Y_LEVELS = (Y_MAX - Y_MIN) / Y_STEP + 1;
+
+const AXIS_W = 46;
 const PAD_T  = 10;
 const PAD_B  = 10;
 const PAD_R  = 10;
 
 const C = {
     bg:'#252a33', axBg:'#1c1f26',
-    grid:'#2e3442',
-    axBorder:'#464f62', tick:'#4a5268',
+    grid:'#2e3442',      // grade única, sutil
+    axBorder:'#464f62', label:'#7a8699', tick:'#4a5268',
     X:'#10b981', O:'#ef4444',
+    zero: '#5a6478',
 };
 
 let columns = [];
 let hitMap  = [];
 let timer   = null;
 
-const selLeague  = document.getElementById('selLeague');
-const selGames   = document.getElementById('selGames');
-const selRev     = document.getElementById('selRev');
-const wrap       = document.getElementById('chartWrap');
-const canvas     = document.getElementById('pf');
-const ctx        = canvas.getContext('2d');
-const loadMsg    = document.getElementById('loadMsg');
-const tip        = document.getElementById('tooltip');
+const selLeague = document.getElementById('selLeague');
+const selGames  = document.getElementById('selGames');
+const selRev    = document.getElementById('selRev');
+const wrap      = document.getElementById('chartWrap');
+const canvas    = document.getElementById('pf');
+const ctx       = canvas.getContext('2d');
+const loadMsg   = document.getElementById('loadMsg');
+const tip       = document.getElementById('tooltip');
 const trendBadge = document.getElementById('trendBadge');
 
+// ── LocalStorage ─────────────────────────────────────
 function lsGet(k,fb){try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb;}catch{return fb;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
-selLeague.value = lsGet('pfg_league', selLeague.value);
-selGames.value  = lsGet('pfg_games',  selGames.value);
-selRev.value    = lsGet('pfg_rev',    selRev.value);
-selLeague.addEventListener('change', ()=>{ lsSet('pfg_league', selLeague.value); load(); });
-selGames.addEventListener('change',  ()=>{ lsSet('pfg_games',  selGames.value);  load(); });
-selRev.addEventListener('change',    ()=>{ lsSet('pfg_rev',    selRev.value);    load(); });
+selLeague.value = lsGet('pf6_league', selLeague.value);
+selGames.value  = lsGet('pf6_games',  selGames.value);
+selRev.value    = lsGet('pf6_rev',    selRev.value);
+selLeague.addEventListener('change', ()=>{ lsSet('pf6_league', selLeague.value); load(); });
+selGames.addEventListener('change',  ()=>{ lsSet('pf6_games',  selGames.value);  load(); });
+selRev.addEventListener('change',    ()=>{ lsSet('pf6_rev',    selRev.value);    load(); });
 
+// ── Fetch ─────────────────────────────────────────────
 async function load() {
     loadMsg.style.display   = 'flex';
     canvas.style.visibility = 'hidden';
@@ -147,7 +159,12 @@ async function load() {
         updateTrendBadge();
         draw();
         timer = setInterval(async () => {
-            try { const d = await fetchData(league, limit); build(d, revAmt); updateTrendBadge(); draw(); } catch {}
+            try { 
+                const d = await fetchData(league, limit); 
+                build(d, revAmt); 
+                updateTrendBadge();
+                draw(); 
+            } catch {}
         }, 60000);
     } catch(e) {
         loadMsg.textContent = 'Erro ao carregar';
@@ -176,68 +193,47 @@ async function fetchData(league, limit) {
     }));
 }
 
+// ── Build P&F com Fator de Reversão ───────────────────
 function build(results, revAmt) {
     columns = [];
     hitMap  = [];
-    if (!results.length) return;
+    let cursor = 50;
+    let col    = null;
+    let pendingType = null;
+    let pendingCount = 0;
 
-    const goalsOf = r => Math.min(Y_MAX, Math.max(Y_MIN,
-        (parseInt(r.ft?.split('x')[0]) || 0) + (parseInt(r.ft?.split('x')[1]) || 0)
-    ));
+    results.forEach(r => {
+        const goals = (parseInt(r.ft?.split('x')[0]) || 0)
+                    + (parseInt(r.ft?.split('x')[1]) || 0);
+        const isOver = goals > 2.5;
+        const type   = isOver ? 'X' : 'O';
 
-    let prevGols = goalsOf(results[0]);
-    let col = null;
+        if (isOver) cursor = Math.min(Y_MAX, cursor + Y_STEP);
+        else        cursor = Math.max(Y_MIN, cursor - Y_STEP);
 
-    results.forEach((r, idx) => {
-        const gols = goalsOf(r);
-
-        if (idx === 0) {
-            col = { type: 'X', items: [] };
+        if (!col) {
+            col = { type, items: [] };
             columns.push(col);
-            col.items.push({ pos: gols, result: r, gols });
-            prevGols = gols;
-            return;
-        }
-
-        const diff = gols - prevGols;
-
-        if (diff === 0) {
-            col.items.push({ pos: gols, result: r, gols });
-            return;
-        }
-
-        if (col.type === 'X') {
-            if (diff > 0) {
-                col.items.push({ pos: gols, result: r, gols });
-            } else {
-                if (Math.abs(diff) >= revAmt) {
-                    col = { type: 'O', items: [] };
-                    columns.push(col);
-                } else {
-                    col.items.push({ pos: gols, result: r, gols });
-                    prevGols = gols; return;
-                }
-                col.items.push({ pos: gols, result: r, gols });
-            }
+            pendingType = null;
+            pendingCount = 0;
+        } else if (col.type === type) {
+            pendingType = null;
+            pendingCount = 0;
         } else {
-            if (diff < 0) {
-                col.items.push({ pos: gols, result: r, gols });
-            } else {
-                if (Math.abs(diff) >= revAmt) {
-                    col = { type: 'X', items: [] };
-                    columns.push(col);
-                } else {
-                    col.items.push({ pos: gols, result: r, gols });
-                    prevGols = gols; return;
-                }
-                col.items.push({ pos: gols, result: r, gols });
+            if (pendingType === type) pendingCount++;
+            else { pendingType = type; pendingCount = 1; }
+            if (pendingCount >= revAmt) {
+                col = { type, items: [] };
+                columns.push(col);
+                pendingType = null;
+                pendingCount = 0;
             }
         }
-
-        prevGols = gols;
+        col.items.push({ pos: cursor, result: r });
     });
 }
 
+// ── Tendência ──────────────────────────────────────────
 function updateTrendBadge() {
     if (!columns.length) {
         trendBadge.className = 'trend-badge trend-neutral';
@@ -249,20 +245,25 @@ function updateTrendBadge() {
     let trend = 'NEUTRO', cls = 'trend-neutral';
 
     if (lastCol.type === 'X') {
-        const lastHigh = Math.max(...lastCol.items.map(i => i.pos));
-        const prevHigh = prevCol ? Math.max(...prevCol.items.map(i => i.pos)) : lastHigh;
-        if (prevCol && lastHigh > prevHigh) { trend = 'ALTA FORTE ▲▲'; cls = 'trend-up'; }
-        else { trend = 'ALTA ▲'; cls = 'trend-up'; }
+        if (prevCol && prevCol.type === 'X') {
+            const lastHigh = Math.max(...lastCol.items.map(i => i.pos));
+            const prevHigh = Math.max(...prevCol.items.map(i => i.pos));
+            if (lastHigh > prevHigh) { trend = 'ALTA FORTE ▲▲'; cls = 'trend-up'; }
+            else { trend = 'ALTA ▲'; cls = 'trend-up'; }
+        } else { trend = 'ALTA ▲'; cls = 'trend-up'; }
     } else {
-        const lastLow = Math.min(...lastCol.items.map(i => i.pos));
-        const prevLow = prevCol ? Math.min(...prevCol.items.map(i => i.pos)) : lastLow;
-        if (prevCol && lastLow < prevLow) { trend = 'BAIXA FORTE ▼▼'; cls = 'trend-down'; }
-        else { trend = 'BAIXA ▼'; cls = 'trend-down'; }
+        if (prevCol && prevCol.type === 'O') {
+            const lastLow = Math.min(...lastCol.items.map(i => i.pos));
+            const prevLow = Math.min(...prevCol.items.map(i => i.pos));
+            if (lastLow < prevLow) { trend = 'BAIXA FORTE ▼▼'; cls = 'trend-down'; }
+            else { trend = 'BAIXA ▼'; cls = 'trend-down'; }
+        } else { trend = 'BAIXA ▼'; cls = 'trend-down'; }
     }
     trendBadge.className = `trend-badge ${cls}`;
     trendBadge.textContent = `TENDÊNCIA: ${trend}`;
 }
 
+// ── Draw LIMPO ────────────────────────────────────────
 function draw() {
     if (!columns.length) return;
 
@@ -272,47 +273,29 @@ function draw() {
     canvas.height = H;
 
     const numCols = columns.length;
-
-    // cell quadrada: o menor entre altura/9 e largura/nColunas
     const cellH = (H - PAD_T - PAD_B) / Y_LEVELS;
     const cellW = (W - AXIS_W - PAD_R) / numCols;
     const cell  = Math.max(2, Math.min(cellH, cellW));
-
     const blockH = Y_LEVELS * cell;
-    // Centraliza verticalmente dentro do wrap
     const oY = PAD_T + Math.max(0, (H - PAD_T - PAD_B - blockH) / 2);
     const oX = AXIS_W;
-
-    // posToY: centro da linha do nível g
-    // 8 gols → linha mais alta, 0 gols → linha mais baixa
-    const posToY = g => oY + (Y_MAX - g) * cell + cell / 2;
+    const posToY = pos => oY + ((Y_MAX - pos) / Y_STEP) * cell;
 
     // Fundo
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Grade: uma linha horizontal por nível de gol (passando pelo centro)
-    for (let g = Y_MIN; g <= Y_MAX; g++) {
-        const y = posToY(g);
+    // Grade horizontal — apenas linhas de 25 em 25 (0,25,50,75,100)
+    // Mais limpo, sem linhas a cada 5
+    for (let v = Y_MIN; v <= Y_MAX; v += Y_STEP) {
+        if (v % 25 !== 0) continue; // só linhas de 25 em 25
+        const y = posToY(v) + cell / 2;
         ctx.beginPath();
         ctx.moveTo(AXIS_W, y);
         ctx.lineTo(W, y);
-        ctx.strokeStyle = C.grid;
-        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = v === 50 ? C.zero : C.grid;
+        ctx.lineWidth = v === 50 ? 1 : 0.5;
         ctx.stroke();
-    }
-
-    // Linha tracejada over/under 2.5 — entre os centros dos níveis 2 e 3
-    {
-        const yLine = (posToY(2) + posToY(3)) / 2;
-        ctx.beginPath();
-        ctx.moveTo(AXIS_W, yLine);
-        ctx.lineTo(W, yLine);
-        ctx.strokeStyle = 'rgba(120,140,180,0.4)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 4]);
-        ctx.stroke();
-        ctx.setLineDash([]);
     }
 
     // Eixo Y
@@ -325,26 +308,27 @@ function draw() {
     ctx.lineTo(AXIS_W, H);
     ctx.stroke();
 
-    const fs = Math.max(9, Math.min(13, cell * 0.6));
-    ctx.font = `${fs}px 'Share Tech Mono', monospace`;
+    const fs = Math.max(8, Math.min(11, cell - 1));
+    ctx.font = `${fs}px Courier New`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
-    for (let g = Y_MIN; g <= Y_MAX; g++) {
-        const y = posToY(g);
+    for (let v = Y_MIN; v <= Y_MAX; v += Y_STEP) {
+        if (v % 10 !== 0) continue;
+        const y = posToY(v) + cell / 2;
         ctx.fillStyle = C.tick;
         ctx.fillRect(AXIS_W - 5, y - 0.5, 5, 1);
-        if      (g >= 5) ctx.fillStyle = '#4caf7d';
-        else if (g >= 3) ctx.fillStyle = '#7abf9a';
-        else if (g === 2) ctx.fillStyle = '#bf7a7a';
-        else              ctx.fillStyle = '#c04a4a';
-        ctx.fillText(String(g), AXIS_W - 7, y);
+        if (v >= 70) ctx.fillStyle = '#4caf7d';
+        else if (v >= 50) ctx.fillStyle = '#7abf9a';
+        else if (v >= 30) ctx.fillStyle = '#bf7a7a';
+        else ctx.fillStyle = '#c04a4a';
+        ctx.fillText(String(v), AXIS_W - 8, y);
     }
 
-    // Símbolos X / O — plotados no centro da linha do nível exato de gols
+    // Símbolos — apenas isso, nada mais
     hitMap = [];
-    const symSz = Math.max(5, Math.min(cell * 0.75, 16));
-    ctx.font = `bold ${symSz}px 'Share Tech Mono', monospace`;
+    const symSz = Math.max(5, Math.min(cell * 0.82, 14));
+    ctx.font = `bold ${symSz}px Courier New`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
@@ -352,7 +336,7 @@ function draw() {
         const cx = oX + ci * cell + cell / 2;
         ctx.fillStyle = col.type === 'X' ? C.X : C.O;
         col.items.forEach(item => {
-            const cy = posToY(item.pos);
+            const cy = posToY(item.pos) + cell / 2;
             ctx.fillText(col.type, cx, cy);
             hitMap.push({ cx, cy, hr: cell / 2, colIdx: ci + 1, item });
         });
@@ -362,12 +346,14 @@ function draw() {
     loadMsg.style.display = 'none';
 }
 
+// ── Resize ─────────────────────────────────────────────
 let rsz = null;
 window.addEventListener('resize', () => {
     clearTimeout(rsz);
     rsz = setTimeout(() => { if (columns.length) draw(); }, 100);
 });
 
+// ── Tooltip ────────────────────────────────────────────
 canvas.addEventListener('mousemove', e => {
     const r = canvas.getBoundingClientRect();
     const mx = e.clientX - r.left;
@@ -380,11 +366,11 @@ canvas.addEventListener('mousemove', e => {
         const res = found.item.result;
         const hh = String(res.hora).padStart(2,'0');
         const mm = String(res.minuto).padStart(2,'0');
-        const gols = found.item.gols;
-        const tipo = gols > 2.5
+        const goals = (parseInt(res.ft?.split('x')[0])||0) + (parseInt(res.ft?.split('x')[1])||0);
+        const tipo = goals > 2.5
             ? `<span style="color:#10b981">▲ Over 2.5</span>`
             : `<span style="color:#ef4444">▼ Under 2.5</span>`;
-        tip.innerHTML = `${hh}:${mm} &nbsp;|&nbsp; ${res.ft || 'N/A'} &nbsp;→&nbsp; <b>${gols} gol${gols!==1?'s':''}</b> &nbsp;${tipo}<br>Coluna ${found.colIdx}`;
+        tip.innerHTML = `${hh}:${mm} &nbsp;|&nbsp; ${res.ft || 'N/A'} &nbsp;→&nbsp; ${tipo}<br>Nível: <b>${found.item.pos}</b> &nbsp;|&nbsp; Coluna ${found.colIdx}`;
         tip.style.display = 'block';
         const TW = tip.offsetWidth, TH = tip.offsetHeight;
         let tx = e.clientX + 14, ty = e.clientY - TH - 8;
@@ -398,6 +384,7 @@ canvas.addEventListener('mousemove', e => {
 });
 canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 
+// ── Init ───────────────────────────────────────────────
 load();
 </script>
 </body>
