@@ -62,47 +62,45 @@
     <div class="ctrl">
         <label>Jogos</label>
         <select id="selGames">
-            <option value="20">20</option>
-            <option value="40">40</option>
-            <option value="80">80</option>
-            <option value="160">160</option>
-            <option value="320">320</option>
-            <option value="640">640</option>
+            <option value="500">500</option>
+            <option value="600">600</option>
+            <option value="700" selected>700</option>
+            <option value="800">800</option>
+            <option value="900">900</option>
+            <option value="1000">1000</option>
         </select>
     </div>
     <div class="ctrl">
-        <label>Inversão</label>
-        <select id="selRev">
-            <option value="1">1 (sensível)</option>
-            <option value="2" selected>2 (equilibrado)</option>
-            <option value="3">3 (conservador)</option>
-            <option value="4">4 (muito conservador)</option>
+        <label>Mercado</label>
+        <select id="selMarket">
+            <option value="over25">Over / Under 2.5</option>
+            <option value="over35">Over / Under 3.5</option>
+            <option value="btts">Ambas Marcam (Sim / Não)</option>
+            <option value="home">Casa Vence / Fora Vence</option>
         </select>
     </div>
     <div class="trend-badge trend-neutral" id="trendBadge">TENDÊNCIA: NEUTRO</div>
 </div>
 
 <div class="chart-wrap" id="chartWrap">
-    <div id="loadMsg">Selecione uma liga</div>
+    <div id="loadMsg">Carregando...</div>
     <canvas id="pf"></canvas>
 </div>
 <div id="tooltip"></div>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════
-   PONTO & FIGURA — Limpo
-
-   • Dados mais recentes à DIREITA
-   • Cursor inicia em 50
-   • Altura fixa 420px
-   • Fator de Reversão configurável
-   • Badge de Tendência
-   • Visual LIMPO: grade fina, símbolos, eixo Y, nada mais
+   PONTO & FIGURA
+   • Inversão fixa: 2 (equilibrado)
+   • Jogos: 500–1000
+   • Mercados: Over/Under 2.5, Over/Under 3.5, Ambas Marcam, Casa/Fora
 ═══════════════════════════════════════════════════════════════════ */
 
-const Y_MIN   = 0;
-const Y_MAX   = 100;
-const Y_STEP  = 5;
+const REV_AMT = 2;
+
+const Y_MIN    = 0;
+const Y_MAX    = 100;
+const Y_STEP   = 5;
 const Y_LEVELS = (Y_MAX - Y_MIN) / Y_STEP + 1;
 
 const AXIS_W = 46;
@@ -112,10 +110,18 @@ const PAD_R  = 10;
 
 const C = {
     bg:'#252a33', axBg:'#1c1f26',
-    grid:'#2e3442',      // grade única, sutil
+    grid:'#2e3442',
     axBorder:'#464f62', label:'#7a8699', tick:'#4a5268',
     X:'#10b981', O:'#ef4444',
     zero: '#5a6478',
+};
+
+// Labels dinâmicos por mercado
+const MARKET_LABELS = {
+    over25: { x: 'Over 2.5', o: 'Under 2.5' },
+    over35: { x: 'Over 3.5', o: 'Under 3.5' },
+    btts:   { x: 'Ambas Sim', o: 'Ambas Não' },
+    home:   { x: 'Casa Vence', o: 'Fora Vence' },
 };
 
 let columns = [];
@@ -124,7 +130,7 @@ let timer   = null;
 
 const selLeague = document.getElementById('selLeague');
 const selGames  = document.getElementById('selGames');
-const selRev    = document.getElementById('selRev');
+const selMarket = document.getElementById('selMarket');
 const wrap      = document.getElementById('chartWrap');
 const canvas    = document.getElementById('pf');
 const ctx       = canvas.getContext('2d');
@@ -136,12 +142,13 @@ const trendBadge = document.getElementById('trendBadge');
 function lsGet(k,fb){try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb;}catch{return fb;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
-selLeague.value = lsGet('pf6_league', selLeague.value);
-selGames.value  = lsGet('pf6_games',  selGames.value);
-selRev.value    = lsGet('pf6_rev',    selRev.value);
-selLeague.addEventListener('change', ()=>{ lsSet('pf6_league', selLeague.value); load(); });
-selGames.addEventListener('change',  ()=>{ lsSet('pf6_games',  selGames.value);  load(); });
-selRev.addEventListener('change',    ()=>{ lsSet('pf6_rev',    selRev.value);    load(); });
+selLeague.value = lsGet('pf7_league', selLeague.value);
+selGames.value  = lsGet('pf7_games',  selGames.value);
+selMarket.value = lsGet('pf7_market', selMarket.value);
+
+selLeague.addEventListener('change', ()=>{ lsSet('pf7_league', selLeague.value); load(); });
+selGames.addEventListener('change',  ()=>{ lsSet('pf7_games',  selGames.value);  load(); });
+selMarket.addEventListener('change', ()=>{ lsSet('pf7_market', selMarket.value); load(); });
 
 // ── Fetch ─────────────────────────────────────────────
 async function load() {
@@ -151,19 +158,19 @@ async function load() {
 
     const league = selLeague.value;
     const limit  = parseInt(selGames.value);
-    const revAmt = parseInt(selRev.value);
+    const market = selMarket.value;
 
     try {
         const data = await fetchData(league, limit);
-        build(data, revAmt);
-        updateTrendBadge();
-        draw();
+        build(data, market);
+        updateTrendBadge(market);
+        draw(market);
         timer = setInterval(async () => {
-            try { 
-                const d = await fetchData(league, limit); 
-                build(d, revAmt); 
-                updateTrendBadge();
-                draw(); 
+            try {
+                const d = await fetchData(league, limit);
+                build(d, market);
+                updateTrendBadge(market);
+                draw(market);
             } catch {}
         }, 60000);
     } catch(e) {
@@ -193,8 +200,24 @@ async function fetchData(league, limit) {
     }));
 }
 
-// ── Build P&F com Fator de Reversão ───────────────────
-function build(results, revAmt) {
+// ── Classificador por mercado ─────────────────────────
+function classify(r, market) {
+    const parts = r.ft?.split('x') || ['0','0'];
+    const h = parseInt(parts[0]) || 0;
+    const a = parseInt(parts[1]) || 0;
+    const goals = h + a;
+
+    switch (market) {
+        case 'over25': return goals > 2.5;
+        case 'over35': return goals > 3.5;
+        case 'btts':   return h > 0 && a > 0;
+        case 'home':   return h > a;  // casa vence = X, fora vence ou empate = O
+        default:       return goals > 2.5;
+    }
+}
+
+// ── Build P&F ─────────────────────────────────────────
+function build(results, market) {
     columns = [];
     hitMap  = [];
     let cursor = 50;
@@ -203,13 +226,11 @@ function build(results, revAmt) {
     let pendingCount = 0;
 
     results.forEach(r => {
-        const goals = (parseInt(r.ft?.split('x')[0]) || 0)
-                    + (parseInt(r.ft?.split('x')[1]) || 0);
-        const isOver = goals > 2.5;
-        const type   = isOver ? 'X' : 'O';
+        const isPositive = classify(r, market);
+        const type = isPositive ? 'X' : 'O';
 
-        if (isOver) cursor = Math.min(Y_MAX, cursor + Y_STEP);
-        else        cursor = Math.max(Y_MIN, cursor - Y_STEP);
+        if (isPositive) cursor = Math.min(Y_MAX, cursor + Y_STEP);
+        else            cursor = Math.max(Y_MIN, cursor - Y_STEP);
 
         if (!col) {
             col = { type, items: [] };
@@ -222,7 +243,7 @@ function build(results, revAmt) {
         } else {
             if (pendingType === type) pendingCount++;
             else { pendingType = type; pendingCount = 1; }
-            if (pendingCount >= revAmt) {
+            if (pendingCount >= REV_AMT) {
                 col = { type, items: [] };
                 columns.push(col);
                 pendingType = null;
@@ -234,7 +255,7 @@ function build(results, revAmt) {
 }
 
 // ── Tendência ──────────────────────────────────────────
-function updateTrendBadge() {
+function updateTrendBadge(market) {
     if (!columns.length) {
         trendBadge.className = 'trend-badge trend-neutral';
         trendBadge.textContent = 'TENDÊNCIA: NEUTRO';
@@ -243,28 +264,29 @@ function updateTrendBadge() {
     const lastCol = columns[columns.length - 1];
     const prevCol = columns.length > 1 ? columns[columns.length - 2] : null;
     let trend = 'NEUTRO', cls = 'trend-neutral';
+    const lbl = MARKET_LABELS[market] || MARKET_LABELS.over25;
 
     if (lastCol.type === 'X') {
         if (prevCol && prevCol.type === 'X') {
             const lastHigh = Math.max(...lastCol.items.map(i => i.pos));
             const prevHigh = Math.max(...prevCol.items.map(i => i.pos));
-            if (lastHigh > prevHigh) { trend = 'ALTA FORTE ▲▲'; cls = 'trend-up'; }
-            else { trend = 'ALTA ▲'; cls = 'trend-up'; }
-        } else { trend = 'ALTA ▲'; cls = 'trend-up'; }
+            if (lastHigh > prevHigh) { trend = `${lbl.x} FORTE ▲▲`; cls = 'trend-up'; }
+            else { trend = `${lbl.x} ▲`; cls = 'trend-up'; }
+        } else { trend = `${lbl.x} ▲`; cls = 'trend-up'; }
     } else {
         if (prevCol && prevCol.type === 'O') {
             const lastLow = Math.min(...lastCol.items.map(i => i.pos));
             const prevLow = Math.min(...prevCol.items.map(i => i.pos));
-            if (lastLow < prevLow) { trend = 'BAIXA FORTE ▼▼'; cls = 'trend-down'; }
-            else { trend = 'BAIXA ▼'; cls = 'trend-down'; }
-        } else { trend = 'BAIXA ▼'; cls = 'trend-down'; }
+            if (lastLow < prevLow) { trend = `${lbl.o} FORTE ▼▼`; cls = 'trend-down'; }
+            else { trend = `${lbl.o} ▼`; cls = 'trend-down'; }
+        } else { trend = `${lbl.o} ▼`; cls = 'trend-down'; }
     }
     trendBadge.className = `trend-badge ${cls}`;
     trendBadge.textContent = `TENDÊNCIA: ${trend}`;
 }
 
-// ── Draw LIMPO ────────────────────────────────────────
-function draw() {
+// ── Draw ──────────────────────────────────────────────
+function draw(market) {
     if (!columns.length) return;
 
     const W = wrap.clientWidth;
@@ -281,14 +303,11 @@ function draw() {
     const oX = AXIS_W;
     const posToY = pos => oY + ((Y_MAX - pos) / Y_STEP) * cell;
 
-    // Fundo
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Grade horizontal — apenas linhas de 25 em 25 (0,25,50,75,100)
-    // Mais limpo, sem linhas a cada 5
     for (let v = Y_MIN; v <= Y_MAX; v += Y_STEP) {
-        if (v % 25 !== 0) continue; // só linhas de 25 em 25
+        if (v % 25 !== 0) continue;
         const y = posToY(v) + cell / 2;
         ctx.beginPath();
         ctx.moveTo(AXIS_W, y);
@@ -298,7 +317,6 @@ function draw() {
         ctx.stroke();
     }
 
-    // Eixo Y
     ctx.fillStyle = C.axBg;
     ctx.fillRect(0, 0, AXIS_W, H);
     ctx.strokeStyle = C.axBorder;
@@ -325,7 +343,6 @@ function draw() {
         ctx.fillText(String(v), AXIS_W - 8, y);
     }
 
-    // Símbolos — apenas isso, nada mais
     hitMap = [];
     const symSz = Math.max(5, Math.min(cell * 0.82, 14));
     ctx.font = `bold ${symSz}px Courier New`;
@@ -338,7 +355,7 @@ function draw() {
         col.items.forEach(item => {
             const cy = posToY(item.pos) + cell / 2;
             ctx.fillText(col.type, cx, cy);
-            hitMap.push({ cx, cy, hr: cell / 2, colIdx: ci + 1, item });
+            hitMap.push({ cx, cy, hr: cell / 2, colIdx: ci + 1, item, market });
         });
     });
 
@@ -350,7 +367,7 @@ function draw() {
 let rsz = null;
 window.addEventListener('resize', () => {
     clearTimeout(rsz);
-    rsz = setTimeout(() => { if (columns.length) draw(); }, 100);
+    rsz = setTimeout(() => { if (columns.length) draw(selMarket.value); }, 100);
 });
 
 // ── Tooltip ────────────────────────────────────────────
@@ -364,12 +381,14 @@ canvas.addEventListener('mousemove', e => {
     }
     if (found) {
         const res = found.item.result;
+        const market = found.market || selMarket.value;
+        const lbl = MARKET_LABELS[market] || MARKET_LABELS.over25;
         const hh = String(res.hora).padStart(2,'0');
         const mm = String(res.minuto).padStart(2,'0');
-        const goals = (parseInt(res.ft?.split('x')[0])||0) + (parseInt(res.ft?.split('x')[1])||0);
-        const tipo = goals > 2.5
-            ? `<span style="color:#10b981">▲ Over 2.5</span>`
-            : `<span style="color:#ef4444">▼ Under 2.5</span>`;
+        const isPos = classify(res, market);
+        const tipo = isPos
+            ? `<span style="color:#10b981">▲ ${lbl.x}</span>`
+            : `<span style="color:#ef4444">▼ ${lbl.o}</span>`;
         tip.innerHTML = `${hh}:${mm} &nbsp;|&nbsp; ${res.ft || 'N/A'} &nbsp;→&nbsp; ${tipo}<br>Nível: <b>${found.item.pos}</b> &nbsp;|&nbsp; Coluna ${found.colIdx}`;
         tip.style.display = 'block';
         const TW = tip.offsetWidth, TH = tip.offsetHeight;
