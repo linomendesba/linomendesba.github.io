@@ -6,107 +6,51 @@
     <title>Ponto & Figura</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        :root {
-            --bg: #1c1f26;
-            --bg2: #252a33;
-            --border: #3a3f4a;
-            --text: #e8eaed;
-            --text-sec: #9ca3af;
-        }
-
+        :root { --bg:#1c1f26; --bg2:#252a33; --border:#3a3f4a; --text:#e8eaed; --muted:#9ca3af; }
         body {
-            background: var(--bg);
-            color: var(--text);
+            background: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace;
-            padding: 16px;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            padding: 14px; height: 100vh;
+            display: flex; flex-direction: column; overflow: hidden;
         }
-
-        .header {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 12px;
-            align-items: flex-end;
-            flex-shrink: 0;
-        }
-
-        .control { display: flex; flex-direction: column; gap: 5px; }
-
-        label {
-            font-size: 10px;
-            color: var(--text-sec);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
+        .header { display:flex; gap:16px; margin-bottom:12px; align-items:flex-end; flex-shrink:0; }
+        .ctrl { display:flex; flex-direction:column; gap:4px; }
+        label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
         select {
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 7px 12px;
-            border-radius: 3px;
-            font-size: 12px;
-            min-width: 140px;
-            cursor: pointer;
-            outline: none;
+            background:var(--bg2); border:1px solid var(--border); color:var(--text);
+            padding:6px 10px; border-radius:3px; font-size:12px; min-width:150px; cursor:pointer; outline:none;
         }
-
         .chart-wrap {
-            flex: 1;
-            background: var(--bg2);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
+            flex:1; background:var(--bg2); border:1px solid var(--border);
+            border-radius:4px; overflow:hidden; position:relative;
         }
-
-        #pfCanvas { display: block; }
-
+        canvas { display:block; }
         #loadMsg {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-sec);
-            font-size: 13px;
+            position:absolute; inset:0; display:flex;
+            align-items:center; justify-content:center; color:var(--muted); font-size:13px;
         }
-
         #tooltip {
-            position: fixed;
-            background: rgba(10,12,16,0.97);
-            color: #e8eaed;
-            padding: 6px 10px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-family: 'Segoe UI', sans-serif;
-            border: 1px solid #3a3f4a;
-            pointer-events: none;
-            z-index: 9999;
-            white-space: nowrap;
-            display: none;
-            line-height: 1.6;
+            position:fixed; background:rgba(8,10,14,.97); color:#e8eaed;
+            padding:5px 9px; border-radius:3px; font-size:11px;
+            font-family:'Segoe UI',sans-serif; border:1px solid #3a3f4a;
+            pointer-events:none; z-index:9999; white-space:nowrap; display:none; line-height:1.6;
         }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <div class="control">
+    <div class="ctrl">
         <label>Liga</label>
-        <select id="league">
+        <select id="selLeague">
             <option value="Copa%20do%20Mundo">Copa do Mundo</option>
             <option value="Ligas%20dos%20Campe%C3%B5es">Ligas dos Campeões</option>
             <option value="Am%C3%A9rica%20Latina">América Latina</option>
         </select>
     </div>
-    <div class="control">
+    <div class="ctrl">
         <label>Jogos</label>
-        <select id="games">
+        <select id="selGames">
             <option value="20">20</option>
             <option value="40">40</option>
             <option value="80">80</option>
@@ -119,60 +63,77 @@
 
 <div class="chart-wrap" id="chartWrap">
     <div id="loadMsg">Selecione uma liga</div>
-    <canvas id="pfCanvas"></canvas>
+    <canvas id="pf"></canvas>
 </div>
-
 <div id="tooltip"></div>
 
 <script>
-// ── COLORS ──────────────────────────────────────────────────────────────────
-const C_BG        = '#252a33';
-const C_AXIS_BG   = '#1c1f26';
-const C_GRID_MAIN = '#3a3f4a';   // linhas cheias a cada 5
-const C_GRID_SUB  = '#2a2f3a';   // linhas sutis
-const C_BORDER    = '#4a5060';
-const C_LABEL     = '#7a8494';
-const C_X         = '#10b981';
-const C_O         = '#ef4444';
+/* ═══════════════════════════════════════════════════════════════════
+   PONTO & FIGURA CORRETO
 
-// ── STATE ───────────────────────────────────────────────────────────────────
-let columns = [], minRow = 0, maxRow = 0, hitMap = [];
-let updateTimer = null;
+   Como funciona o P&F de verdade:
+   ─────────────────────────────────────────────────────────────────
+   • Há um CURSOR de posição vertical que começa em 0
+   • Cada jogo Over 2.5  → cursor SOBE 1 (X)
+   • Cada jogo Under 2.5 → cursor DESCE 1 (O)
+   • Coluna de X: símbolos empilhados SUBINDO (de baixo para cima)
+   • Coluna de O: símbolos empilhados DESCENDO (de cima para baixo)
+   • Quando o tipo muda → abre nova coluna, começa do cursor atual
+   • Eixo Y: posição do cursor (valor acumulado, fixo por dado)
+   • 100% determinístico: mesmos dados = mesmo gráfico
+   ─────────────────────────────────────────────────────────────────
+═══════════════════════════════════════════════════════════════════ */
 
-// ── ELEMENTS ────────────────────────────────────────────────────────────────
-const leagueEl  = document.getElementById('league');
-const gamesEl   = document.getElementById('games');
-const chartWrap = document.getElementById('chartWrap');
-const canvas    = document.getElementById('pfCanvas');
+const C = {
+    bg:'#252a33', axBg:'#1c1f26',
+    grid5:'#363d4d', grid1:'#272c37',
+    axBorder:'#464f62', label:'#7a8699', tick:'#4a5268',
+    X:'#10b981', O:'#ef4444',
+};
+
+const AXIS_W = 46;
+const PAD_T  = 12;
+const PAD_B  = 12;
+const PAD_R  = 12;
+
+let columns = [];   // [{type, items:[{pos, result}]}]
+let minPos  = 0;
+let maxPos  = 0;
+let hitMap  = [];
+let timer   = null;
+
+const selLeague = document.getElementById('selLeague');
+const selGames  = document.getElementById('selGames');
+const wrap      = document.getElementById('chartWrap');
+const canvas    = document.getElementById('pf');
 const ctx       = canvas.getContext('2d');
 const loadMsg   = document.getElementById('loadMsg');
-const tooltipEl = document.getElementById('tooltip');
+const tip       = document.getElementById('tooltip');
 
-// ── LOCALSTORAGE ─────────────────────────────────────────────────────────────
-const sl = localStorage.getItem('pf_league');
-const sg = localStorage.getItem('pf_games');
-if (sl) leagueEl.value = sl;
-if (sg) gamesEl.value  = sg;
+// ── LocalStorage ─────────────────────────────────────
+function lsGet(k,fb){try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb;}catch{return fb;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 
-leagueEl.addEventListener('change', () => { localStorage.setItem('pf_league', leagueEl.value); loadData(); });
-gamesEl.addEventListener('change',  () => { localStorage.setItem('pf_games',  gamesEl.value);  loadData(); });
+selLeague.value = lsGet('pf3_league', selLeague.value);
+selGames.value  = lsGet('pf3_games',  selGames.value);
+selLeague.addEventListener('change', ()=>{ lsSet('pf3_league', selLeague.value); load(); });
+selGames.addEventListener('change',  ()=>{ lsSet('pf3_games',  selGames.value);  load(); });
 
-// ── LOAD ─────────────────────────────────────────────────────────────────────
-async function loadData() {
+// ── Fetch ─────────────────────────────────────────────
+async function load() {
     loadMsg.style.display = 'flex';
     canvas.style.visibility = 'hidden';
-    if (updateTimer) clearInterval(updateTimer);
+    if (timer) clearInterval(timer);
 
-    const league = leagueEl.value;
-    const limit  = parseInt(gamesEl.value);
+    const league = selLeague.value;
+    const limit  = parseInt(selGames.value);
 
     try {
-        const results = await fetchResults(league, limit);
-        build(results);
-        render();
-        updateTimer = setInterval(async () => {
-            const r = await fetchResults(league, limit).catch(() => null);
-            if (r) { build(r); render(); }
+        const data = await fetchData(league, limit);
+        build(data);
+        draw();
+        timer = setInterval(async () => {
+            try { const d = await fetchData(league, limit); build(d); draw(); } catch {}
         }, 60000);
     } catch(e) {
         loadMsg.textContent = 'Erro ao carregar';
@@ -180,221 +141,215 @@ async function loadData() {
     }
 }
 
-async function fetchResults(league, limit) {
+async function fetchData(league, limit) {
     const resp = await fetch(`https://betstat.site/resultados/estrela/${league}`);
-    const html = await resp.text();
-    const m = html.match(/window\.__INITIAL_STATE__\s*=\s*({.*?});/s);
-    if (m) {
+    if (!resp.ok) throw new Error(resp.status);
+    const ct   = resp.headers.get('content-type') || '';
+    let arr;
+    if (ct.includes('application/json')) {
+        const json = await resp.json();
+        arr = Array.isArray(json) ? json : (json.matches || json.data || []);
+    } else {
+        // fallback: HTML com __INITIAL_STATE__
+        const html = await resp.text();
+        const m = html.match(/window\.__INITIAL_STATE__\s*=\s*({.*?});/s);
+        if (!m) throw new Error('formato inesperado');
         const data = JSON.parse(m[1]);
-        return (data.matches || []).slice(0, limit).map(x => ({
-            ft:     (x.ft || '0x0').trim(),
-            hora:   parseInt(x.hora)   || 0,
-            minuto: parseInt(x.minuto) || 0
-        }));
+        arr = data.matches || [];
     }
-    return generateDemo(limit);
+    return arr.slice(0, limit).map(m => ({
+        ft:     (m.ft || '0x0').trim(),
+        hora:   parseInt(m.hora)   || 0,
+        minuto: parseInt(m.minuto) || 0,
+    }));
 }
 
-function generateDemo(limit) {
-    const now = new Date();
-    return Array.from({length: limit}, (_, i) => {
-        const d = new Date(now - (limit - 1 - i) * 3 * 60000);
-        return { ft: Math.random() > 0.45 ? '3x1' : '1x0', hora: d.getHours(), minuto: d.getMinutes() };
-    });
-}
+// ── Build P&F ─────────────────────────────────────────
+/*
+  cursor começa em 0.
+  X (over 2.5): cursor++  → símbolo fica em posição cursor (mais alto = valor maior)
+  O (under 2.5): cursor-- → símbolo fica em posição cursor (mais baixo = valor menor)
 
-// ── BUILD P&F ─────────────────────────────────────────────────────────────────
+  No canvas: posição MAIOR = mais abaixo (invertido, pois canvas Y cresce pra baixo)
+  Mas exibimos invertido: posição MAIOR = mais ACIMA (como gráfico de preço)
+
+  Portanto: rowPixel = (maxPos - pos) * cell  → maior pos = topo
+*/
 function build(results) {
     columns = [];
-    let cursor = 0, col = null;
+    let cursor = 0;
+    let col    = null;
 
     results.forEach(r => {
         const goals = (parseInt(r.ft?.split('x')[0]) || 0)
                     + (parseInt(r.ft?.split('x')[1]) || 0);
         const type  = goals > 2.5 ? 'X' : 'O';
 
-        if (type === 'X') cursor--;
-        else              cursor++;
-
+        // muda de coluna se tipo diferente
         if (!col || col.type !== type) {
             col = { type, items: [] };
             columns.push(col);
         }
-        col.items.push({ type, row: cursor, result: r });
+
+        // atualiza cursor ANTES de registrar (símbolo aparece na nova posição)
+        if (type === 'X') cursor++;
+        else              cursor--;
+
+        col.items.push({ pos: cursor, result: r });
     });
 
-    minRow = Infinity; maxRow = -Infinity;
+    // limites do eixo Y (posições do cursor)
+    minPos = Infinity; maxPos = -Infinity;
     columns.forEach(c => c.items.forEach(it => {
-        if (it.row < minRow) minRow = it.row;
-        if (it.row > maxRow) maxRow = it.row;
+        if (it.pos < minPos) minPos = it.pos;
+        if (it.pos > maxPos) maxPos = it.pos;
     }));
+
+    // garantir pelo menos 1 linha de margem visual
+    minPos--;
+    maxPos++;
 }
 
-// ── RENDER ────────────────────────────────────────────────────────────────────
-function render() {
+// ── Draw ──────────────────────────────────────────────
+function draw() {
     if (!columns.length) return;
 
-    const wrapW = chartWrap.clientWidth;
-    const wrapH = chartWrap.clientHeight;
+    const W = wrap.clientWidth;
+    const H = wrap.clientHeight;
 
-    const AXIS_W  = 38;
-    const PAD_TOP = 10;
-    const PAD_BOT = 10;
-    const PAD_R   = 10;
+    canvas.width  = W;
+    canvas.height = H;
 
-    const totalRows = maxRow - minRow + 1;
-    const totalCols = columns.length;
+    const numLevels = maxPos - minPos + 1;   // linhas do eixo Y
+    const numCols   = columns.length;         // colunas do eixo X
 
-    // Célula: preenche todo o espaço disponível sem deixar sobra
-    const cellH = (wrapH - PAD_TOP - PAD_BOT) / totalRows;
-    const cellW = (wrapW - AXIS_W - PAD_R)    / totalCols;
-    // Célula quadrada, usando o menor dos dois
-    const cell  = Math.max(4, Math.min(cellH, cellW));
+    // Tamanho da célula para preencher o espaço
+    const cellH = (H - PAD_T - PAD_B) / numLevels;
+    const cellW = (W - AXIS_W - PAD_R) / numCols;
+    const cell  = Math.max(3, Math.min(cellH, cellW));
 
-    // Canvas exatamente do tamanho do wrap
-    canvas.width  = wrapW;
-    canvas.height = wrapH;
-    canvas.style.width  = wrapW + 'px';
-    canvas.style.height = wrapH + 'px';
-    canvas.style.visibility = 'visible';
-    loadMsg.style.display   = 'none';
+    // Offset para centralizar se célula for menor que o espaço
+    const blockH = numLevels * cell;
+    const oY = PAD_T + Math.max(0, (H - PAD_T - PAD_B - blockH) / 2);
+    const oX = AXIS_W;
 
-    // Calcular offset para centralizar o conteúdo no espaço disponível
-    const contentW = totalCols * cell;
-    const contentH = totalRows * cell;
-    const startX   = AXIS_W;
-    const startY   = PAD_TOP + Math.max(0, (wrapH - PAD_TOP - PAD_BOT - contentH) / 2);
+    // posição Y de um nível: nível maior = topo (menor Y no canvas)
+    const lvlY = pos => oY + (maxPos - pos) * cell;
 
-    function rowY(r) {
-        return startY + (r - minRow) * cell;
-    }
-    function colX(ci) {
-        return startX + ci * cell + cell / 2;
-    }
+    // ── Fundo ─────────────────────────────────────────
+    ctx.fillStyle = C.bg;
+    ctx.fillRect(0, 0, W, H);
 
-    // ── Fundo ──
-    ctx.fillStyle = C_BG;
-    ctx.fillRect(0, 0, wrapW, wrapH);
-
-    // ── Linhas horizontais de grade ──────────────────────────────────────
-    for (let r = minRow; r <= maxRow; r++) {
-        const y = rowY(r) + cell / 2;
-        const absVal = Math.abs(-r); // valor positivo exibido
-
-        // Linha principal a cada 5 ou no topo/base
-        const isMain = (absVal % 5 === 0) || r === minRow || r === maxRow;
+    // ── Grade horizontal ──────────────────────────────
+    for (let pos = minPos; pos <= maxPos; pos++) {
+        const y    = lvlY(pos) + cell / 2;
+        const is5  = Math.abs(pos) % 5 === 0;
 
         ctx.beginPath();
         ctx.moveTo(AXIS_W, y);
-        ctx.lineTo(wrapW, y);
-
-        if (isMain) {
-            ctx.strokeStyle = C_GRID_MAIN;
+        ctx.lineTo(W, y);
+        if (is5) {
+            ctx.strokeStyle = C.grid5;
             ctx.lineWidth   = 0.8;
             ctx.setLineDash([]);
         } else {
-            ctx.strokeStyle = C_GRID_SUB;
-            ctx.lineWidth   = 0.4;
-            ctx.setLineDash([2, 4]);
+            ctx.strokeStyle = C.grid1;
+            ctx.lineWidth   = 0.35;
+            ctx.setLineDash([1, 6]);
         }
         ctx.stroke();
-        ctx.setLineDash([]);
     }
+    ctx.setLineDash([]);
 
-    // ── Eixo Y ──────────────────────────────────────────────────────────
-    ctx.fillStyle = C_AXIS_BG;
-    ctx.fillRect(0, 0, AXIS_W, wrapH);
+    // ── Eixo Y ────────────────────────────────────────
+    ctx.fillStyle = C.axBg;
+    ctx.fillRect(0, 0, AXIS_W, H);
 
-    // Linha separadora
-    ctx.strokeStyle = C_BORDER;
+    ctx.strokeStyle = C.axBorder;
     ctx.lineWidth   = 1;
     ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(AXIS_W, 0);
-    ctx.lineTo(AXIS_W, wrapH);
+    ctx.lineTo(AXIS_W, H);
     ctx.stroke();
 
-    // Labels eixo Y — mostrar a cada 1 se couber, a cada 2 se não
-    const fontSize = Math.max(8, Math.min(11, cell - 1));
-    ctx.fillStyle    = C_LABEL;
-    ctx.font         = `${fontSize}px Courier New`;
+    const fs = Math.max(8, Math.min(11, cell - 1));
+    ctx.font = `${fs}px Courier New`;
     ctx.textAlign    = 'right';
     ctx.textBaseline = 'middle';
 
-    for (let r = minRow; r <= maxRow; r++) {
-        const absVal = Math.abs(-r);
-        const isMain = (absVal % 5 === 0) || r === minRow || r === maxRow;
-        if (!isMain) continue; // só label nas linhas principais
-
-        const y = rowY(r) + cell / 2;
-
-        // Ticket de destaque no label principal
-        ctx.fillStyle = C_BORDER;
-        ctx.fillRect(AXIS_W - 4, y - 1, 4, 2);
-
-        ctx.fillStyle = '#9ca3af';
-        ctx.fillText(String(absVal), AXIS_W - 6, y);
+    // labels a cada 5 posições
+    for (let pos = minPos; pos <= maxPos; pos++) {
+        if (Math.abs(pos) % 5 !== 0) continue;
+        const y = lvlY(pos) + cell / 2;
+        // tick
+        ctx.fillStyle = C.tick;
+        ctx.fillRect(AXIS_W - 5, y - 0.5, 5, 1);
+        // label: mostrar valor absoluto com sinal para indicar over/under
+        ctx.fillStyle = pos >= 0 ? '#4caf7d' : '#c0404a';
+        ctx.fillText((pos >= 0 ? '+' : '') + pos, AXIS_W - 8, y);
     }
 
-    // ── Símbolos ─────────────────────────────────────────────────────────
+    // ── Símbolos ──────────────────────────────────────
     hitMap = [];
-    const symSize = Math.max(7, cell - 2);
-    ctx.font      = `bold ${symSize}px Courier New`;
-    ctx.textAlign = 'center';
+    const symSz = Math.max(6, Math.min(cell * 0.82, 15));
+    ctx.font         = `bold ${symSz}px Courier New`;
+    ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
 
     columns.forEach((col, ci) => {
-        const x = colX(ci);
-        ctx.fillStyle = col.type === 'X' ? C_X : C_O;
+        const cx = oX + ci * cell + cell / 2;
+        ctx.fillStyle = col.type === 'X' ? C.X : C.O;
 
         col.items.forEach(item => {
-            const y = rowY(item.row) + cell / 2;
-            ctx.fillText(item.type, x, y);
-            hitMap.push({ cx: x, cy: y, r: cell / 2, item });
+            const cy = lvlY(item.pos) + cell / 2;
+            ctx.fillText(col.type, cx, cy);
+            hitMap.push({ cx, cy, hr: cell / 2, col: ci + 1, item });
         });
     });
+
+    canvas.style.visibility = 'visible';
+    loadMsg.style.display   = 'none';
 }
 
-// ── RESIZE ────────────────────────────────────────────────────────────────────
-let resizeTimer = null;
+// ── Resize ─────────────────────────────────────────────
+let rsz = null;
 window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { if (columns.length) render(); }, 120);
+    clearTimeout(rsz);
+    rsz = setTimeout(() => { if (columns.length) draw(); }, 100);
 });
 
-// ── TOOLTIP ───────────────────────────────────────────────────────────────────
+// ── Tooltip ────────────────────────────────────────────
 canvas.addEventListener('mousemove', e => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-
+    const r  = canvas.getBoundingClientRect();
+    const mx = e.clientX - r.left;
+    const my = e.clientY - r.top;
     let found = null;
     for (const h of hitMap) {
-        if (Math.abs(mx - h.cx) <= h.r && Math.abs(my - h.cy) <= h.r) { found = h; break; }
+        if (Math.abs(mx - h.cx) <= h.hr && Math.abs(my - h.cy) <= h.hr) { found = h; break; }
     }
-
     if (found) {
-        const r  = found.item.result;
-        const hh = String(r.hora).padStart(2,'0');
-        const mm = String(r.minuto).padStart(2,'0');
-        tooltipEl.innerHTML = `${hh}:${mm}<br>${r.ft || 'N/A'}`;
-        tooltipEl.style.display = 'block';
-
-        const TW = tooltipEl.offsetWidth, TH = tooltipEl.offsetHeight;
+        const res   = found.item.result;
+        const hh    = String(res.hora).padStart(2,'0');
+        const mm    = String(res.minuto).padStart(2,'0');
+        const goals = (parseInt(res.ft?.split('x')[0])||0) + (parseInt(res.ft?.split('x')[1])||0);
+        const tipo  = goals > 2.5 ? '<span style="color:#10b981">Over 2.5</span>' : '<span style="color:#ef4444">Under 2.5</span>';
+        tip.innerHTML = `${hh}:${mm} &nbsp;|&nbsp; ${res.ft || 'N/A'} &nbsp;→&nbsp; ${tipo}<br>Coluna ${found.col} &nbsp;|&nbsp; Posição ${found.item.pos > 0 ? '+' : ''}${found.item.pos}`;
+        tip.style.display = 'block';
+        const TW = tip.offsetWidth, TH = tip.offsetHeight;
         let tx = e.clientX + 14, ty = e.clientY - TH - 8;
         if (tx + TW > window.innerWidth - 6) tx = e.clientX - TW - 14;
         if (ty < 4) ty = e.clientY + 12;
-        tooltipEl.style.left = tx + 'px';
-        tooltipEl.style.top  = ty + 'px';
+        tip.style.left = tx + 'px';
+        tip.style.top  = ty + 'px';
     } else {
-        tooltipEl.style.display = 'none';
+        tip.style.display = 'none';
     }
 });
+canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 
-canvas.addEventListener('mouseleave', () => { tooltipEl.style.display = 'none'; });
-
-// ── INIT ──────────────────────────────────────────────────────────────────────
-loadData();
+// ── Init ───────────────────────────────────────────────
+load();
 </script>
 </body>
 </html>
