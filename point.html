@@ -64,9 +64,7 @@
             position: relative;
         }
 
-        #pfCanvas {
-            display: block;
-        }
+        #pfCanvas { display: block; }
 
         #loadMsg {
             position: absolute;
@@ -127,24 +125,18 @@
 <div id="tooltip"></div>
 
 <script>
-// ── CONFIG ──────────────────────────────────────────────────────────────────
-const AXIS_W   = 34;
-const PAD_V    = 8;
-const PAD_R    = 8;
-
-const C_BG     = '#252a33';
-const C_AXIS   = '#1e2229';
-const C_GRID   = '#2c3039';
-const C_BORDER = '#3a3f4a';
-const C_LABEL  = '#6b7280';
-const C_X      = '#10b981';
-const C_O      = '#ef4444';
+// ── COLORS ──────────────────────────────────────────────────────────────────
+const C_BG        = '#252a33';
+const C_AXIS_BG   = '#1c1f26';
+const C_GRID_MAIN = '#3a3f4a';   // linhas cheias a cada 5
+const C_GRID_SUB  = '#2a2f3a';   // linhas sutis
+const C_BORDER    = '#4a5060';
+const C_LABEL     = '#7a8494';
+const C_X         = '#10b981';
+const C_O         = '#ef4444';
 
 // ── STATE ───────────────────────────────────────────────────────────────────
-let columns = [];
-let minRow  = 0;
-let maxRow  = 0;
-let hitMap  = [];
+let columns = [], minRow = 0, maxRow = 0, hitMap = [];
 let updateTimer = null;
 
 // ── ELEMENTS ────────────────────────────────────────────────────────────────
@@ -214,8 +206,7 @@ function generateDemo(limit) {
 // ── BUILD P&F ─────────────────────────────────────────────────────────────────
 function build(results) {
     columns = [];
-    let cursor = 0;
-    let col    = null;
+    let cursor = 0, col = null;
 
     results.forEach(r => {
         const goals = (parseInt(r.ft?.split('x')[0]) || 0)
@@ -246,89 +237,122 @@ function render() {
     const wrapW = chartWrap.clientWidth;
     const wrapH = chartWrap.clientHeight;
 
-    // Calcular tamanho de célula para caber tudo
+    const AXIS_W  = 38;
+    const PAD_TOP = 10;
+    const PAD_BOT = 10;
+    const PAD_R   = 10;
+
     const totalRows = maxRow - minRow + 1;
     const totalCols = columns.length;
 
-    const cellH = Math.max(6, Math.floor((wrapH - PAD_V * 2) / totalRows));
-    const cellW = Math.max(6, Math.floor((wrapW - AXIS_W - PAD_R) / totalCols));
-    const cell  = Math.min(cellH, cellW); // célula quadrada
+    // Célula: preenche todo o espaço disponível sem deixar sobra
+    const cellH = (wrapH - PAD_TOP - PAD_BOT) / totalRows;
+    const cellW = (wrapW - AXIS_W - PAD_R)    / totalCols;
+    // Célula quadrada, usando o menor dos dois
+    const cell  = Math.max(4, Math.min(cellH, cellW));
 
-    const chartH = PAD_V * 2 + totalRows * cell;
-    const chartW = AXIS_W + totalCols * cell + PAD_R;
-
-    canvas.width  = Math.max(chartW, wrapW);
-    canvas.height = Math.max(chartH, wrapH);
+    // Canvas exatamente do tamanho do wrap
+    canvas.width  = wrapW;
+    canvas.height = wrapH;
+    canvas.style.width  = wrapW + 'px';
+    canvas.style.height = wrapH + 'px';
     canvas.style.visibility = 'visible';
     loadMsg.style.display   = 'none';
 
-    const W = canvas.width;
-    const H = canvas.height;
+    // Calcular offset para centralizar o conteúdo no espaço disponível
+    const contentW = totalCols * cell;
+    const contentH = totalRows * cell;
+    const startX   = AXIS_W;
+    const startY   = PAD_TOP + Math.max(0, (wrapH - PAD_TOP - PAD_BOT - contentH) / 2);
 
-    // Fundo
-    ctx.fillStyle = C_BG;
-    ctx.fillRect(0, 0, W, H);
-
-    // Grade
-    ctx.strokeStyle = C_GRID;
-    ctx.lineWidth   = 0.5;
-    for (let r = minRow; r <= maxRow; r++) {
-        const y = rowY(r, cell) + cell / 2;
-        ctx.beginPath();
-        ctx.moveTo(AXIS_W, y);
-        ctx.lineTo(W, y);
-        ctx.stroke();
+    function rowY(r) {
+        return startY + (r - minRow) * cell;
+    }
+    function colX(ci) {
+        return startX + ci * cell + cell / 2;
     }
 
-    // Eixo Y
-    ctx.fillStyle = C_AXIS;
-    ctx.fillRect(0, 0, AXIS_W, H);
+    // ── Fundo ──
+    ctx.fillStyle = C_BG;
+    ctx.fillRect(0, 0, wrapW, wrapH);
+
+    // ── Linhas horizontais de grade ──────────────────────────────────────
+    for (let r = minRow; r <= maxRow; r++) {
+        const y = rowY(r) + cell / 2;
+        const absVal = Math.abs(-r); // valor positivo exibido
+
+        // Linha principal a cada 5 ou no topo/base
+        const isMain = (absVal % 5 === 0) || r === minRow || r === maxRow;
+
+        ctx.beginPath();
+        ctx.moveTo(AXIS_W, y);
+        ctx.lineTo(wrapW, y);
+
+        if (isMain) {
+            ctx.strokeStyle = C_GRID_MAIN;
+            ctx.lineWidth   = 0.8;
+            ctx.setLineDash([]);
+        } else {
+            ctx.strokeStyle = C_GRID_SUB;
+            ctx.lineWidth   = 0.4;
+            ctx.setLineDash([2, 4]);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // ── Eixo Y ──────────────────────────────────────────────────────────
+    ctx.fillStyle = C_AXIS_BG;
+    ctx.fillRect(0, 0, AXIS_W, wrapH);
+
+    // Linha separadora
     ctx.strokeStyle = C_BORDER;
     ctx.lineWidth   = 1;
+    ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(AXIS_W, 0);
-    ctx.lineTo(AXIS_W, H);
+    ctx.lineTo(AXIS_W, wrapH);
     ctx.stroke();
 
-    // Labels eixo Y
-    const fontSize = Math.max(8, Math.min(11, cell - 2));
+    // Labels eixo Y — mostrar a cada 1 se couber, a cada 2 se não
+    const fontSize = Math.max(8, Math.min(11, cell - 1));
     ctx.fillStyle    = C_LABEL;
     ctx.font         = `${fontSize}px Courier New`;
     ctx.textAlign    = 'right';
     ctx.textBaseline = 'middle';
 
-    const step = totalRows > 40 ? Math.ceil(totalRows / 20) : (totalRows > 20 ? 2 : 1);
     for (let r = minRow; r <= maxRow; r++) {
-        if ((r - minRow) % step === 0 || r === minRow || r === maxRow) {
-            const y = rowY(r, cell) + cell / 2;
-            ctx.fillText(String(-r), AXIS_W - 3, y); // inverter sinal: X sobe = positivo
-        }
+        const absVal = Math.abs(-r);
+        const isMain = (absVal % 5 === 0) || r === minRow || r === maxRow;
+        if (!isMain) continue; // só label nas linhas principais
+
+        const y = rowY(r) + cell / 2;
+
+        // Ticket de destaque no label principal
+        ctx.fillStyle = C_BORDER;
+        ctx.fillRect(AXIS_W - 4, y - 1, 4, 2);
+
+        ctx.fillStyle = '#9ca3af';
+        ctx.fillText(String(absVal), AXIS_W - 6, y);
     }
 
-    // Símbolos
+    // ── Símbolos ─────────────────────────────────────────────────────────
     hitMap = [];
-    const symFont = `bold ${Math.max(8, cell - 3)}px Courier New`;
-    ctx.font      = symFont;
+    const symSize = Math.max(7, cell - 2);
+    ctx.font      = `bold ${symSize}px Courier New`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
     columns.forEach((col, ci) => {
-        const x = AXIS_W + ci * cell + cell / 2;
+        const x = colX(ci);
         ctx.fillStyle = col.type === 'X' ? C_X : C_O;
 
         col.items.forEach(item => {
-            const y = rowY(item.row, cell) + cell / 2;
+            const y = rowY(item.row) + cell / 2;
             ctx.fillText(item.type, x, y);
             hitMap.push({ cx: x, cy: y, r: cell / 2, item });
         });
     });
-
-    // Scroll para o fim (mais recente)
-    chartWrap.scrollLeft = chartWrap.scrollWidth;
-}
-
-function rowY(r, cell) {
-    return PAD_V + (r - minRow) * cell;
 }
 
 // ── RESIZE ────────────────────────────────────────────────────────────────────
@@ -341,8 +365,8 @@ window.addEventListener('resize', () => {
 // ── TOOLTIP ───────────────────────────────────────────────────────────────────
 canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
-    const mx   = e.clientX - rect.left;
-    const my   = e.clientY - rect.top;
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
 
     let found = null;
     for (const h of hitMap) {
