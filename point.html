@@ -63,23 +63,25 @@
             border-radius: 4px;
             padding: 15px;
             overflow-x: auto;
-            min-height: 400px;
+            overflow-y: auto;
+            max-height: 600px;
         }
 
         .lines {
             display: flex;
             gap: 1px;
-            align-items: flex-end;
             font-weight: bold;
             font-size: 14px;
             letter-spacing: 1px;
+            width: fit-content;
         }
 
         .column {
             display: flex;
-            flex-direction: column-reverse;
+            flex-direction: column;
             gap: 0;
             text-align: center;
+            position: relative;
         }
 
         .cell {
@@ -89,6 +91,30 @@
             align-items: center;
             justify-content: center;
             line-height: 1;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: var(--text);
+            padding: 6px 10px;
+            border-radius: 3px;
+            font-size: 10px;
+            white-space: nowrap;
+            font-family: 'Segoe UI', sans-serif;
+            border: 1px solid #3a3f4a;
+            bottom: calc(100% + 5px);
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .cell:hover .tooltip {
+            display: block;
         }
 
         .x {
@@ -272,7 +298,7 @@
             let currentType = null;
             let reversalCount = 0;
 
-            // Calcular símbolos P&F
+            // Calcular símbolos P&F com índices
             results.forEach(r => {
                 const goals = (parseInt(r.ft?.split('x')[0]) || 0) + (parseInt(r.ft?.split('x')[1]) || 0);
                 const isOver = goals > 2.5;
@@ -280,16 +306,16 @@
 
                 if (currentType === null) {
                     currentType = type;
-                    symbols.push(type);
+                    symbols.push({ type, idx: symbols.length, result: r });
                 } else if (currentType === type) {
                     reversalCount = 0;
-                    symbols.push(type);
+                    symbols.push({ type, idx: symbols.length, result: r });
                 } else {
                     reversalCount++;
                     if (reversalCount === 3) {
                         currentType = type;
                         reversalCount = 0;
-                        symbols.push(type);
+                        symbols.push({ type, idx: symbols.length, result: r });
                     }
                 }
             });
@@ -300,13 +326,13 @@
             let lastType = null;
 
             symbols.forEach(sym => {
-                if (lastType === null || lastType === sym) {
+                if (lastType === null || lastType === sym.type) {
                     col.push(sym);
-                    lastType = sym;
+                    lastType = sym.type;
                 } else {
                     columns.push({ type: lastType, items: col });
                     col = [sym];
-                    lastType = sym;
+                    lastType = sym.type;
                 }
             });
 
@@ -316,9 +342,16 @@
 
             // Renderizar
             const html = columns.map(c => {
-                const cells = c.items.map(item => 
-                    `<div class="cell ${item === 'X' ? 'x' : 'o'}">${item}</div>`
-                ).join('');
+                const cells = c.items.map(item => {
+                    const time = `${String(item.result.hora).padStart(2, '0')}:${String(item.result.minuto).padStart(2, '0')}`;
+                    const tooltip = `${time}<br>${item.result.ft || 'N/A'}`;
+                    return `
+                        <div class="cell ${item.type === 'X' ? 'x' : 'o'}">
+                            ${item.type}
+                            <div class="tooltip">${tooltip}</div>
+                        </div>
+                    `;
+                }).join('');
                 return `<div class="column">${cells}</div>`;
             }).join('');
 
