@@ -9534,21 +9534,40 @@ document.addEventListener('DOMContentLoaded', () => {
 <script>
 (function () {
  
-  /* ── CSS exclusivo: só tabela + scrollbar ── */
+  /* ── CSS exclusivo ── */
   if (!document.getElementById("tpm-style")) {
     const s = document.createElement("style");
     s.id = "tpm-style";
     s.textContent = `
-      /* Scroll container */
+      /* Layout lado a lado */
+      .tpm-tables-row {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .tpm-block {
+        flex: 1;
+        min-width: 260px;
+      }
+      .tpm-block h3 {
+        margin: 0 0 7px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #c9d1d9;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: .7px;
+      }
+ 
+      /* Scroll container com scrollbar moderna */
       .tpm-scroll {
         overflow-x: auto;
         border-radius: 6px;
       }
- 
-      /* Scrollbar moderna */
-      .tpm-scroll::-webkit-scrollbar { height: 5px; }
-      .tpm-scroll::-webkit-scrollbar-track { background: #0d1117; border-radius: 10px; }
-      .tpm-scroll::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
+      .tpm-scroll::-webkit-scrollbar        { height: 4px; }
+      .tpm-scroll::-webkit-scrollbar-track  { background: #0d1117; border-radius: 10px; }
+      .tpm-scroll::-webkit-scrollbar-thumb  { background: #30363d; border-radius: 10px; transition: background .2s; }
       .tpm-scroll::-webkit-scrollbar-thumb:hover { background: #58a6ff; }
  
       /* Tabela */
@@ -9576,6 +9595,7 @@ document.addEventListener('DOMContentLoaded', () => {
         position: sticky;
         left: 0;
         z-index: 2;
+        background: #161b22;
       }
       .tpm-table tbody tr:nth-child(odd)  td { background: #0d1117; }
       .tpm-table tbody tr:nth-child(even) td { background: #161b22; }
@@ -9583,7 +9603,7 @@ document.addEventListener('DOMContentLoaded', () => {
         padding: 7px 8px;
         text-align: center;
         vertical-align: middle;
-        line-height: 1.6;
+        line-height: 1.65;
         white-space: nowrap;
         border-bottom: 1px solid #21262d;
         border-left: 1px solid #21262d;
@@ -9601,21 +9621,32 @@ document.addEventListener('DOMContentLoaded', () => {
         left: 0;
         z-index: 1;
       }
-      /* Cores de mercado */
+ 
+      /* Destaque coluna do minuto atual */
+      .tpm-table th.tpm-col-atual {
+        background: #1a2c1a !important;
+        color: #1fcc59 !important;
+        border-bottom-color: #1fcc59 !important;
+        outline: 1px solid #1fcc5940;
+      }
+      .tpm-table td.tpm-col-atual {
+        background: #111a11 !important;
+        outline: 1px solid #1fcc5930;
+      }
+      .tpm-table tbody tr:nth-child(even) td.tpm-col-atual {
+        background: #162016 !important;
+      }
+ 
+      /* Cores mercado */
       .tpm-row-ambas td:first-child { color: #a78bfa; }
       .tpm-row-15    td:first-child { color: #38bdf8; }
       .tpm-row-25    td:first-child { color: #22d3ee; }
       .tpm-row-35    td:first-child { color: #2dd4bf; }
       .tpm-row-cfe   td:first-child { color: #fb923c; }
+ 
       /* Badges */
-      .tpm-badge {
-        display: inline-block;
-        padding: 1px 5px;
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: 700;
-      }
-      .tpm-green  { background: rgba(31,204,89,.18); color: #1fcc59; }
+      .tpm-badge { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+      .tpm-green  { background: rgba(31,204,89,.18);  color: #1fcc59; }
       .tpm-yellow { background: rgba(255,183,0,.14);  color: #ffb700; }
       .tpm-gray   { background: transparent;           color: #6e7681; }
     `;
@@ -9623,13 +9654,23 @@ document.addEventListener('DOMContentLoaded', () => {
   }
  
   /* ── Estado ── */
-  let _t1=null,_t2=null,_t1d=null,_t2d=null;
+  let _t1=null,_t2=null,_t1d=null,_t2d=null,_minSel=null;
   let _cache=[],_busy=false,_pollId=null;
  
-  function _norm(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim(); }
+  function _norm(s){ return (s||""  ).normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim(); }
   function _domOk(){ return !!document.getElementById("tpm-cards"); }
  
-  /* ── Fetch resultados ── */
+  /* extrai minuto fixo do start_time do jogo selecionado */
+  const _minutosFixos=[1,4,7,10,13,16,19,22,25,28,31,34,37,40,43,46,49,52,55,58];
+  function _minDoJogo(startTime) {
+    if (!startTime) return null;
+    try {
+      const min = new Date(startTime).getMinutes();
+      return _minutosFixos.reduce((p,c) => Math.abs(c-min)<Math.abs(p-min)?c:p);
+    } catch { return null; }
+  }
+ 
+  /* ── Fetch ── */
   async function _fetchRes() {
     try {
       const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL)+`?ts=${Date.now()}`);
@@ -9640,7 +9681,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch(e){ console.error("[TPM] res:",e); return _cache; }
   }
  
-  /* ── Fetch próximos ── */
   async function _fetchProx() {
     try {
       const r = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
@@ -9656,16 +9696,17 @@ document.addEventListener('DOMContentLoaded', () => {
     catch { return "--:--"; }
   }
  
-  /* ── Render cards ── */
+  /* ── Cards ── */
   function _renderCards(games) {
     const c = document.getElementById("tpm-cards"); if (!c) return;
     const p1=_t1, p2=_t2;
  
     c.innerHTML = games.length
-      ? games.map(g => {
+      ? games.map(g=>{
           const h=_norm(g.team_home), v=_norm(g.team_visit);
-          return `<div class="game-card" data-h="${h}" data-v="${v}"
-                       onclick="tpmSelect(this,'${h}','${v}','${g.team_home}','${g.team_visit}')">
+          const gMin = _minDoJogo(g.start_time);
+          return `<div class="game-card" data-h="${h}" data-v="${v}" data-min="${gMin||''}"
+                       onclick="tpmSelect(this,'${h}','${v}','${g.team_home}','${g.team_visit}','${g.start_time||''}')">
                     <div class="game-time">${_hora(g)}</div>
                     <div class="game-teams">
                       <span class="team-home">${g.team_home||'Casa'}</span>
@@ -9676,29 +9717,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join("")
       : `<div class="game-card">Nenhum jogo disponível</div>`;
  
-    const cards = c.querySelectorAll(".game-card");
-    let pick = null;
-    if (p1&&p2) cards.forEach(x=>{ if(x.dataset.h===p1&&x.dataset.v===p2) pick=x; });
-    if (!pick && cards.length && cards[0].dataset.h) pick=cards[0];
+    const cards=c.querySelectorAll(".game-card");
+    let pick=null;
+    if(p1&&p2) cards.forEach(x=>{ if(x.dataset.h===p1&&x.dataset.v===p2) pick=x; });
+    if(!pick&&cards.length&&cards[0].dataset.h) pick=cards[0];
  
-    if (pick) {
+    if(pick){
       pick.classList.add("selected");
       _t1=pick.dataset.h; _t2=pick.dataset.v;
       _t1d=pick.querySelector(".team-home")?.innerText;
       _t2d=pick.querySelector(".team-visit")?.innerText;
+      if(pick.dataset.min) _minSel=+pick.dataset.min;
       _setTitles();
-    } else if (p1&&p2) { _t1=p1; _t2=p2; }
+    } else if(p1&&p2){ _t1=p1; _t2=p2; }
   }
  
-  window.tpmSelect = function(card,h,v,hd,vd){
+  window.tpmSelect=function(card,h,v,hd,vd,startTime){
     document.querySelectorAll("#tpm-cards .game-card").forEach(c=>c.classList.remove("selected"));
     card.classList.add("selected");
     _t1=h;_t2=v;_t1d=hd;_t2d=vd;
+    _minSel = _minDoJogo(startTime);
     _setTitles(); _runAnalise();
   };
  
   function _setTitles(){
-    const e1=document.getElementById("tpm-title1"), e2=document.getElementById("tpm-title2");
+    const e1=document.getElementById("tpm-title1"),e2=document.getElementById("tpm-title2");
     if(e1) e1.innerText=_t1d||_t1||"Time 1";
     if(e2) e2.innerText=_t2d||_t2||"Time 2";
   }
@@ -9722,7 +9765,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
  
   function _badge(pct){
-    const cls = pct>=70?"tpm-green":pct>=55?"tpm-yellow":"tpm-gray";
+    const cls=pct>=70?"tpm-green":pct>=55?"tpm-yellow":"tpm-gray";
     return `<span class="tpm-badge ${cls}">${pct}%</span>`;
   }
  
@@ -9736,7 +9779,16 @@ document.addEventListener('DOMContentLoaded', () => {
       tbody.innerHTML=`<tr><td colspan="99" style="text-align:center;padding:14px;color:#6e7681;">Sem dados</td></tr>`;
       return;
     }
-    mins.forEach(m=>{ const th=document.createElement("th"); th.innerText=m+"'"; theadTr.appendChild(th); });
+ 
+    const minAtual=_minSel;
+ 
+    mins.forEach(m=>{
+      const th=document.createElement("th");
+      th.innerText=m+"'";
+      th.dataset.min=m;
+      if(+m===minAtual) th.classList.add("tpm-col-atual");
+      theadTr.appendChild(th);
+    });
  
     const linhas=[
       {cls:"tpm-row-ambas",label:"Ambas",cols:[["ambasSim","S"],["ambasNao","N"]]},
@@ -9752,6 +9804,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mins.forEach(m=>{
         const d=analise[m]||{total:0}, tot=d.total||1;
         const td=document.createElement("td");
+        if(+m===minAtual) td.classList.add("tpm-col-atual");
         td.innerHTML=ln.cols.map(([k,sig])=>`${sig}:${_badge(Math.round((d[k]||0)/tot*100))}`).join("<br>");
         tr.appendChild(td);
       });
@@ -9770,8 +9823,8 @@ document.addEventListener('DOMContentLoaded', () => {
   async function _update(){
     if(_busy||!_domOk()){ if(!_domOk()) clearInterval(_pollId); return; }
     _busy=true;
-    try { const g=await _fetchProx(); if(!_domOk()) return; _renderCards(g); await _runAnalise(); }
-    finally { _busy=false; }
+    try{ const g=await _fetchProx(); if(!_domOk()) return; _renderCards(g); await _runAnalise(); }
+    finally{ _busy=false; }
   }
  
   function _init(){
