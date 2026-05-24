@@ -486,6 +486,10 @@
     </div>
 </div>
 
+<!-- ════════════════════════════════════════════════════════════
+     TIMES POR MINUTO — rota via ROTAS_API / LIGA_ATUAL
+════════════════════════════════════════════════════════════ -->
+ 
 <div class="accordion-item">
   <button class="accordion-button" onclick="toggleAccordion(this)">▼ Times por Minuto ▲</button>
   <div class="accordion-content">
@@ -9538,262 +9542,270 @@ document.addEventListener('DOMContentLoaded', () => {
 <script>
 /* ════════════════════════════════════════════════════════════
    TIMES POR MINUTO
+   - Próximos jogos : ROTAS_API.proximosJogos(LIGA_ATUAL)
+   - Histórico      : ROTAS_API.resultados(LIGA_ATUAL)
+   - Campos próximos: team_home, team_visit, start_time
+   - Campos histórico: time_a, time_b, ft, minuto
 ════════════════════════════════════════════════════════════ */
+(function () {
  
-let _minSelectedTeam1        = null;
-let _minSelectedTeam2        = null;
-let _minSelectedTeamHomeDisp = null;
-let _minSelectedTeamVisitDisp= null;
+  let _t1 = null, _t2 = null, _t1Disp = null, _t2Disp = null;
+  let _pollingId = null;
+  let _cacheResultados = [];
+  let _buscando = false;
  
-function _minRemoveAccents(str) {
-    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
+  function _norm(str) {
+    return (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  }
  
-/* ── Busca histórico via ROTAS_API + LIGA_ATUAL (igual ao modelo) ── */
-async function _minCarregarJogos() {
+  /* ── verifica se os elementos do accordion ainda existem ── */
+  function _domOk() {
+    return !!document.getElementById("nextGamesMinutesContainer");
+  }
+ 
+  /* ── Busca histórico de resultados ── */
+  async function _fetchResultados() {
     try {
-        const ts  = new Date().getTime();
-        const url = ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${ts}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
+      const ts = Date.now();
+      const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + `?ts=${ts}`);
+      if (!r.ok) throw new Error(r.status);
+      const data = await r.json();
+      if (data.length > 0) _cacheResultados = data;
+      return data;
     } catch (e) {
-        console.error("[MinTab] Erro ao carregar jogos:", e);
-        return [];
+      console.error("[MinTab] Erro resultados:", e);
+      return _cacheResultados; // retorna cache se falhar
     }
-}
+  }
  
-/* ── Busca próximos jogos via NEXT_GAMES_API ── */
-async function _minLoadNextGames() {
-    /* Cancela silenciosamente se o accordion foi removido do DOM */
-    if (!document.getElementById("nextGamesMinutesContainer")) {
-        clearInterval(_minPollingInterval);
-        return;
-    }
- 
+  /* ── Busca próximos jogos ── */
+  async function _fetchProximos() {
     try {
-        const res  = await fetch(NEXT_GAMES_API);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const games = Array.isArray(data.data) ? data.data.slice(0, 6)
-                    : Array.isArray(data)       ? data.slice(0, 6)
-                    : [];
- 
-        const container = document.getElementById("nextGamesMinutesContainer");
-        if (!container) return; /* segunda verificação após o await */
-        const prevHome  = _minSelectedTeam1;
-        const prevVisit = _minSelectedTeam2;
- 
-        if (games.length > 0) {
-            container.innerHTML = games.map(g => `
-                <div class="game-card"
-                     data-home="${_minRemoveAccents(g.team_home)}"
-                     data-visit="${_minRemoveAccents(g.team_visit)}"
-                     onclick="minSelectGame(this,'${_minRemoveAccents(g.team_home)}','${_minRemoveAccents(g.team_visit)}','${g.team_home}','${g.team_visit}')">
-                    <div class="game-time">${g.time || '--:--'}</div>
-                    <div class="game-teams">
-                        <span class="team-home">${g.team_home  || 'Casa'}</span>
-                        <span class="vs">vs</span>
-                        <span class="team-visit">${g.team_visit || 'Fora'}</span>
-                    </div>
-                </div>
-            `).join("");
-        } else {
-            container.innerHTML = `<div class="game-card">Nenhum jogo disponível</div>`;
-        }
- 
-        /* Restaura seleção anterior ou seleciona primeiro card */
-        const cards = container.querySelectorAll('.game-card');
-        let toSelect = null;
- 
-        if (prevHome && prevVisit) {
-            cards.forEach(c => {
-                if (c.dataset.home === prevHome && c.dataset.visit === prevVisit) toSelect = c;
-            });
-        }
- 
-        if (!toSelect && cards.length > 0 && cards[0].dataset.home) {
-            toSelect = cards[0];
-        }
- 
-        if (toSelect) {
-            toSelect.classList.add('selected');
-            _minSelectedTeam1        = toSelect.dataset.home;
-            _minSelectedTeam2        = toSelect.dataset.visit;
-            _minSelectedTeamHomeDisp = toSelect.querySelector('.team-home').innerText;
-            _minSelectedTeamVisitDisp= toSelect.querySelector('.team-visit').innerText;
-            document.getElementById("team1Title").innerText = _minSelectedTeamHomeDisp;
-            document.getElementById("team2Title").innerText = _minSelectedTeamVisitDisp;
-        } else if (prevHome && prevVisit) {
-            _minSelectedTeam1 = prevHome;
-            _minSelectedTeam2 = prevVisit;
-        }
- 
-        if (_minSelectedTeam1 && _minSelectedTeam2) await _minAnalisar();
- 
+      const r = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
+      if (!r.ok) throw new Error(r.status);
+      const j = await r.json();
+      return j
+        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+        .slice(0, 6);
     } catch (e) {
-        console.error("[MinTab] Erro ao carregar próximos jogos:", e);
-        const errC = document.getElementById("nextGamesMinutesContainer");
-        if (errC) errC.innerHTML = `<div class="game-card">Erro: ${e.message}</div>`;
-        if (_minSelectedTeam1 && _minSelectedTeam2) await _minAnalisar();
+      console.error("[MinTab] Erro próximos:", e);
+      return [];
     }
-}
+  }
  
-window.minSelectGame = function(card, home, visit, homeDisp, visitDisp) {
-    document.querySelectorAll('#nextGamesMinutesContainer .game-card')
-            .forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-    _minSelectedTeam1        = home;
-    _minSelectedTeam2        = visit;
-    _minSelectedTeamHomeDisp = homeDisp;
-    _minSelectedTeamVisitDisp= visitDisp;
-    document.getElementById("team1Title").innerText = homeDisp;
-    document.getElementById("team2Title").innerText = visitDisp;
-    _minAnalisar();
-};
+  /* ── Formata hora a partir de start_time ── */
+  function _hora(startTime) {
+    if (!startTime) return "--:--";
+    try {
+      const d = new Date(startTime);
+      return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    } catch { return "--:--"; }
+  }
  
-/* ── Analisa mercados por minuto ── */
-function _minAnalisarMercados(jogos, time) {
-    const analise = {};
+  /* ── Renderiza cards dos próximos jogos ── */
+  function _renderCards(games) {
+    const container = document.getElementById("nextGamesMinutesContainer");
+    if (!container) return;
+ 
+    const prev1 = _t1, prev2 = _t2;
+ 
+    if (games.length > 0) {
+      container.innerHTML = games.map(g => {
+        const h = _norm(g.team_home);
+        const v = _norm(g.team_visit);
+        return `
+          <div class="game-card"
+               data-home="${h}" data-visit="${v}"
+               onclick="minTabSelectGame(this,'${h}','${v}','${g.team_home}','${g.team_visit}')">
+            <div class="game-time">${_hora(g.start_time)}</div>
+            <div class="game-teams">
+              <span class="team-home">${g.team_home || "Casa"}</span>
+              <span class="vs">vs</span>
+              <span class="team-visit">${g.team_visit || "Fora"}</span>
+            </div>
+          </div>`;
+      }).join("");
+    } else {
+      container.innerHTML = `<div class="game-card">Nenhum jogo disponível</div>`;
+    }
+ 
+    /* Restaura seleção anterior ou seleciona primeiro card */
+    const cards = container.querySelectorAll(".game-card");
+    let toSelect = null;
+ 
+    if (prev1 && prev2) {
+      cards.forEach(c => {
+        if (c.dataset.home === prev1 && c.dataset.visit === prev2) toSelect = c;
+      });
+    }
+    if (!toSelect && cards.length > 0 && cards[0].dataset.home) {
+      toSelect = cards[0];
+    }
+ 
+    if (toSelect) {
+      toSelect.classList.add("selected");
+      _t1     = toSelect.dataset.home;
+      _t2     = toSelect.dataset.visit;
+      _t1Disp = toSelect.querySelector(".team-home").innerText;
+      _t2Disp = toSelect.querySelector(".team-visit").innerText;
+      const el1 = document.getElementById("team1Title");
+      const el2 = document.getElementById("team2Title");
+      if (el1) el1.innerText = _t1Disp;
+      if (el2) el2.innerText = _t2Disp;
+    } else if (prev1 && prev2) {
+      _t1 = prev1; _t2 = prev2;
+    }
+  }
+ 
+  /* ── Analisa mercados por minuto para um time ── */
+  function _analisar(jogos, time) {
+    const a = {};
     jogos.forEach(j => {
-        const tA = _minRemoveAccents(j.time_a || "");
-        const tB = _minRemoveAccents(j.time_b || "");
-        if (tA !== time && tB !== time) return;
+      const tA = _norm(j.time_a), tB = _norm(j.time_b);
+      if (tA !== time && tB !== time) return;
  
-        const min    = j.minuto;
-        const ft     = j.ft ? j.ft.split(" x ").map(Number) : [0, 0];
-        const [gA, gB] = ft;
-        const total  = gA + gB;
+      const min = j.minuto;
+      const ft = j.ft ? j.ft.split(" x ").map(Number) : [0, 0];
+      const [gA, gB] = ft;
+      const tot = gA + gB;
  
-        if (!analise[min]) analise[min] = {
-            ambasSim:0, ambasNao:0,
-            over15:0, under15:0,
-            over25:0, under25:0,
-            over35:0, under35:0,
-            casa:0, fora:0, empate:0,
-            total:0
-        };
- 
-        const a = analise[min];
-        a.total++;
-        if (gA > 0 && gB > 0) a.ambasSim++;
-        if (gA === 0 || gB === 0) a.ambasNao++;
-        total > 1.5  ? a.over15++  : a.under15++;
-        total > 2.5  ? a.over25++  : a.under25++;
-        total > 3.5  ? a.over35++  : a.under35++;
-        if (gA > gB) a.casa++;
-        else if (gB > gA) a.fora++;
-        else a.empate++;
+      if (!a[min]) a[min] = { ambasSim:0, ambasNao:0, over15:0, under15:0, over25:0, under25:0, over35:0, under35:0, casa:0, fora:0, empate:0, total:0 };
+      const d = a[min];
+      d.total++;
+      if (gA > 0 && gB > 0) d.ambasSim++; else d.ambasNao++;
+      tot > 1.5 ? d.over15++ : d.under15++;
+      tot > 2.5 ? d.over25++ : d.under25++;
+      tot > 3.5 ? d.over35++ : d.under35++;
+      if (gA > gB) d.casa++; else if (gB > gA) d.fora++; else d.empate++;
     });
-    return analise;
-}
+    return a;
+  }
  
-/* ── Cores por valor de percentual ── */
-function _minCellColor(pct) {
-    if (pct >= 70) return { bg: 'rgba(31,204,89,.20)', color: '#1fcc59' };
-    if (pct >= 55) return { bg: 'rgba(255,183,0,.15)',  color: '#ffb700' };
-    return                { bg: 'transparent',           color: '#8b949e' };
-}
+  /* ── Badge colorido por percentual ── */
+  function _badge(pct) {
+    if (pct >= 70) return { bg: "rgba(31,204,89,.20)", color: "#1fcc59" };
+    if (pct >= 55) return { bg: "rgba(255,183,0,.15)",  color: "#ffb700" };
+    return                { bg: "transparent",           color: "#8b949e" };
+  }
  
-/* ── Gera tabela estilizada ── */
-function _minGerarTabela(analise, tableId) {
+  /* ── Gera tabela estilizada ── */
+  function _gerarTabela(analise, tableId) {
     const table = document.getElementById(tableId);
+    if (!table) return;
     const tbody = table.querySelector("tbody");
     const thead = table.querySelector("thead");
- 
     tbody.innerHTML = "";
     thead.innerHTML = "";
  
-    const minutos = Object.keys(analise).sort((a, b) => +a - +b);
-    if (!minutos.length) {
-        tbody.innerHTML = `<tr><td colspan="99" style="text-align:center;padding:12px;color:#8b949e;">Sem dados</td></tr>`;
-        return;
+    const mins = Object.keys(analise).sort((a, b) => +a - +b);
+    if (!mins.length) {
+      tbody.innerHTML = `<tr><td colspan="99" style="text-align:center;padding:14px;color:#8b949e;font-size:11px;">Sem dados para este time</td></tr>`;
+      return;
     }
  
     /* Cabeçalho */
     const trH = document.createElement("tr");
-    const thMkt = document.createElement("th");
-    thMkt.innerText = "Mercado";
-    Object.assign(thMkt.style, {
-        padding:'6px 8px', background:'#161b22', color:'#8b949e',
-        fontWeight:'600', fontSize:'10px', textTransform:'uppercase',
-        letterSpacing:'.5px', borderBottom:'1px solid #30363d',
-        position:'sticky', left:'0', zIndex:'2', textAlign:'left',
-        whiteSpace:'nowrap'
-    });
-    trH.appendChild(thMkt);
+    const thM = document.createElement("th");
+    thM.innerText = "Mercado";
+    Object.assign(thM.style, { padding:"6px 10px", background:"#161b22", color:"#6e7681", fontWeight:"600", fontSize:"10px", textTransform:"uppercase", letterSpacing:".5px", borderBottom:"2px solid #30363d", position:"sticky", left:"0", zIndex:"2", textAlign:"left", whiteSpace:"nowrap" });
+    trH.appendChild(thM);
  
-    minutos.forEach(m => {
-        const th = document.createElement("th");
-        th.innerText = m + "'";
-        Object.assign(th.style, {
-            padding:'6px 10px', background:'#161b22', color:'#8b949e',
-            fontWeight:'600', fontSize:'10px', textAlign:'center',
-            borderBottom:'1px solid #30363d', borderLeft:'1px solid #21262d',
-            whiteSpace:'nowrap'
-        });
-        trH.appendChild(th);
+    mins.forEach(m => {
+      const th = document.createElement("th");
+      th.innerText = m + "'";
+      Object.assign(th.style, { padding:"6px 10px", background:"#161b22", color:"#6e7681", fontWeight:"600", fontSize:"10px", textAlign:"center", borderBottom:"2px solid #30363d", borderLeft:"1px solid #21262d", whiteSpace:"nowrap" });
+      trH.appendChild(th);
     });
     thead.appendChild(trH);
  
-    /* Mercados */
+    /* Linhas de mercado */
     const linhas = [
-        { label:'Ambas', keys:['ambasSim','ambasNao'], siglas:['S','N'], theme:'#7c3aed' },
-        { label:'1.5',   keys:['over15','under15'],    siglas:['O','U'], theme:'#0ea5e9' },
-        { label:'2.5',   keys:['over25','under25'],    siglas:['O','U'], theme:'#06b6d4' },
-        { label:'3.5',   keys:['over35','under35'],    siglas:['O','U'], theme:'#14b8a6' },
-        { label:'C/F/E', keys:['casa','fora','empate'],siglas:['C','F','E'], theme:'#f97316' },
+      { label:"Ambas", keys:["ambasSim","ambasNao"], siglas:["S","N"], theme:"#a78bfa" },
+      { label:"1.5",   keys:["over15","under15"],    siglas:["O","U"], theme:"#38bdf8" },
+      { label:"2.5",   keys:["over25","under25"],    siglas:["O","U"], theme:"#22d3ee" },
+      { label:"3.5",   keys:["over35","under35"],    siglas:["O","U"], theme:"#2dd4bf" },
+      { label:"C/F/E", keys:["casa","fora","empate"],siglas:["C","F","E"], theme:"#fb923c" },
     ];
  
-    linhas.forEach((linha, li) => {
-        const tr = document.createElement("tr");
-        const isOdd = li % 2 === 0;
+    linhas.forEach((ln, li) => {
+      const tr = document.createElement("tr");
+      const odd = li % 2 === 0;
  
-        /* Label do mercado */
-        const tdL = document.createElement("td");
-        tdL.innerText = linha.label;
-        Object.assign(tdL.style, {
-            padding:'7px 8px', background: isOdd ? '#0d1117' : '#161b22',
-            color: linha.theme, fontWeight:'700', fontSize:'10px',
-            borderBottom:'1px solid #21262d', position:'sticky', left:'0',
-            zIndex:'1', whiteSpace:'nowrap', textTransform:'uppercase',
-            letterSpacing:'.4px'
-        });
-        tr.appendChild(tdL);
+      const tdL = document.createElement("td");
+      tdL.innerText = ln.label;
+      Object.assign(tdL.style, { padding:"8px 10px", background: odd ? "#0d1117" : "#161b22", color: ln.theme, fontWeight:"700", fontSize:"10px", borderBottom:"1px solid #21262d", position:"sticky", left:"0", zIndex:"1", whiteSpace:"nowrap", textTransform:"uppercase", letterSpacing:".4px" });
+      tr.appendChild(tdL);
  
-        minutos.forEach(m => {
-            const d   = analise[m] || { total: 0 };
-            const tot = d.total || 1;
-            const td  = document.createElement("td");
-            Object.assign(td.style, {
-                padding:'5px 6px', background: isOdd ? '#0d1117' : '#161b22',
-                borderBottom:'1px solid #21262d', borderLeft:'1px solid #21262d',
-                textAlign:'center', verticalAlign:'middle', lineHeight:'1.5'
-            });
+      mins.forEach(m => {
+        const d = analise[m] || { total: 0 };
+        const tot = d.total || 1;
+        const td = document.createElement("td");
+        Object.assign(td.style, { padding:"5px 6px", background: odd ? "#0d1117" : "#161b22", borderBottom:"1px solid #21262d", borderLeft:"1px solid #21262d", textAlign:"center", verticalAlign:"middle", lineHeight:"1.6" });
  
-            td.innerHTML = linha.keys.map((k, ki) => {
-                const pct = d[k] ? Math.round(d[k] / tot * 100) : 0;
-                const { bg, color } = _minCellColor(pct);
-                return `<span style="display:inline-block;padding:1px 4px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:600;">${linha.siglas[ki]}:${pct}%</span>`;
-            }).join("<br>");
+        td.innerHTML = ln.keys.map((k, ki) => {
+          const pct = d[k] ? Math.round(d[k] / tot * 100) : 0;
+          const { bg, color } = _badge(pct);
+          return `<span style="display:inline-block;padding:1px 5px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:600;">${ln.siglas[ki]}:${pct}%</span>`;
+        }).join("<br>");
  
-            tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
     });
-}
+  }
  
-/* ── Análise principal ── */
-async function _minAnalisar() {
-    if (!_minSelectedTeam1 || !_minSelectedTeam2) return;
-    const jogos = await _minCarregarJogos();
-    _minGerarTabela(_minAnalisarMercados(jogos, _minSelectedTeam1), "team1-tabela-resultados");
-    _minGerarTabela(_minAnalisarMercados(jogos, _minSelectedTeam2), "team2-tabela-resultados");
-}
+  /* ── Roda análise e preenche as duas tabelas ── */
+  async function _runAnalise() {
+    if (!_t1 || !_t2 || !_domOk()) return;
+    const jogos = await _fetchResultados();
+    _gerarTabela(_analisar(jogos, _t1), "team1-tabela-resultados");
+    _gerarTabela(_analisar(jogos, _t2), "team2-tabela-resultados");
+  }
  
-/* ── Init + polling 15s ── */
-_minLoadNextGames();
-let _minPollingInterval = setInterval(_minLoadNextGames, 15000);
+  /* ── Ciclo principal ── */
+  async function _update() {
+    if (_buscando || !_domOk()) {
+      if (!_domOk()) { clearInterval(_pollingId); return; }
+      return;
+    }
+    _buscando = true;
+    try {
+      const games = await _fetchProximos();
+      if (!_domOk()) return;
+      _renderCards(games);
+      await _runAnalise();
+    } finally {
+      _buscando = false;
+    }
+  }
+ 
+  /* ── Seleção manual de jogo ── */
+  window.minTabSelectGame = function (card, home, visit, homeDisp, visitDisp) {
+    document.querySelectorAll("#nextGamesMinutesContainer .game-card")
+            .forEach(c => c.classList.remove("selected"));
+    card.classList.add("selected");
+    _t1 = home; _t2 = visit; _t1Disp = homeDisp; _t2Disp = visitDisp;
+    const el1 = document.getElementById("team1Title");
+    const el2 = document.getElementById("team2Title");
+    if (el1) el1.innerText = homeDisp;
+    if (el2) el2.innerText = visitDisp;
+    _runAnalise();
+  };
+ 
+  /* ── Inicia quando DOM estiver pronto ── */
+  function _init() {
+    if (!_domOk()) { setTimeout(_init, 100); return; }
+    _update();
+    _pollingId = setInterval(_update, 15000);
+  }
+ 
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", _init);
+  } else {
+    _init();
+  }
+ 
+})();
 </script>
 
 
