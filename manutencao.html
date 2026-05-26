@@ -9768,6 +9768,9 @@ document.addEventListener('DOMContentLoaded', () => {
   /* Guarda dados brutos para tooltip */
   let _rawAnalise1={}, _rawAnalise2={};
 
+  /* ── Controle lazy: garante que só inicia quando o acordeão abrir ── */
+  let _iniciado = false;
+
   function _norm(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim(); }
   function _domOk(){ return !!document.getElementById("tpm-cards"); }
 
@@ -10084,21 +10087,98 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ── Ciclo ── */
   async function _update(){
-    if(_busy||!_domOk()){ if(!_domOk()) clearInterval(_pollId); return; }
+    if(_busy||!_domOk()){ if(!_domOk()) _pausar(); return; }
     _busy=true;
     try{ const g=await _fetchProx(); if(!_domOk()) return; _renderCards(g); await _runAnalise(); }
     finally{ _busy=false; }
   }
 
-  function _init(){
-    if(!_domOk()){ setTimeout(_init,100); return; }
+  /* ── Pausa o polling quando o acordeão fechar ── */
+  function _pausar(){
+    if(_pollId){ clearInterval(_pollId); _pollId=null; }
+  }
+
+  /* ── Inicia o polling (chamado apenas ao abrir o acordeão) ── */
+  function _iniciar(){
+    if(_pollId) return; /* já está rodando */
     _update();
     _pollId=setInterval(_update,15000);
   }
 
-  document.readyState==="loading"
-    ? document.addEventListener("DOMContentLoaded",_init)
-    : _init();
+  /* ── Observa o acordeão via MutationObserver + visibilidade ── */
+  function _observarAcordeao(){
+    const el = document.getElementById("tpm-cards");
+    if(!el){
+      /* Se o elemento ainda não existe, tenta de novo em 200ms */
+      setTimeout(_observarAcordeao, 200);
+      return;
+    }
+
+    /*
+     * Estratégia: observa o elemento pai do acordeão procurando mudanças
+     * de atributos (open, class, hidden, style) ou remoção/adição de filhos.
+     * Também usa IntersectionObserver para detectar quando fica visível na tela.
+     *
+     * COMO ADAPTAR AO SEU ACORDEÃO:
+     *   - Se for <details>/<summary>: o script já detecta o atributo "open" automaticamente.
+     *   - Se for controlado por classe CSS (ex: .active, .show, .is-open):
+     *     ajuste a função _estaVisivel() abaixo para checar a classe correta.
+     *   - Se for controlado por atributo (ex: aria-expanded="true"):
+     *     ajuste _estaVisivel() para checar esse atributo.
+     */
+
+    function _estaVisivel(){
+      /* Sobe até 6 níveis procurando um <details> aberto ou elemento oculto */
+      let node = el;
+      for(let i=0; i<6; i++){
+        if(!node || node === document.body) break;
+        /* <details> nativo */
+        if(node.tagName === "DETAILS" && !node.open) return false;
+        /* elemento com display:none ou visibility:hidden */
+        const st = getComputedStyle(node);
+        if(st.display === "none" || st.visibility === "hidden") return false;
+        node = node.parentElement;
+      }
+      return true;
+    }
+
+    /* IntersectionObserver: dispara quando o painel entra/sai da viewport */
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if(entry.isIntersecting && _estaVisivel()){
+          _iniciar();
+        } else {
+          _pausar();
+        }
+      });
+    }, { threshold: 0.01 });
+    io.observe(el);
+
+    /* MutationObserver: captura mudanças de atributos no DOM (ex: open, class, style) */
+    const mo = new MutationObserver(() => {
+      if(_estaVisivel()){
+        _iniciar();
+      } else {
+        _pausar();
+      }
+    });
+    /* Observa o elemento e seus ancestrais até 6 níveis acima */
+    let node = el.parentElement;
+    for(let i=0; i<6; i++){
+      if(!node || node === document.body) break;
+      mo.observe(node, { attributes: true, attributeFilter: ["open","class","style","hidden","aria-expanded"] });
+      node = node.parentElement;
+    }
+  }
+
+  /* ── Bootstrap: aguarda DOM e inicia observação ── */
+  function _boot(){
+    _observarAcordeao();
+  }
+
+  document.readyState === "loading"
+    ? document.addEventListener("DOMContentLoaded", _boot)
+    : _boot();
 
 })();
 </script>
