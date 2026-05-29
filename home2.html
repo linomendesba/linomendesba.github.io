@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>BetStat - Escolha sua Casa</title>
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" src="js/firebase-auth.js"></script>
+    <style>
+      :root {
+        --bg-deep: #060810;
+        --bg-mid: #0c1020;
+        --bg-card: #0f1428;
+        --accent: #1fac89;
+        --accent-dim: rgba(31, 172, 137, 0.12);
+        --accent-glow: rgba(31, 172, 137, 0.35);
+        --border: rgba(255, 255, 255, 0.06);
+        --border-hover: rgba(31, 172, 137, 0.6);
+        --text-primary: #e8ecf4;
+        --text-muted: #525d7a;
+        --text-dim: #333d57;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: "Roboto", sans-serif;
+        background: var(--bg-deep);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 20px 50px;
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(31, 172, 137, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(31, 172, 137, 0.03) 1px, transparent 1px);
+        background-size: 50px 50px;
+        pointer-events: none;
+        z-index: 0;
+      }
+      body::after {
+        content: "";
+        position: fixed;
+        top: -20%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 900px;
+        height: 600px;
+        background: radial-gradient(ellipse, rgba(31, 172, 137, 0.07) 0, transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        max-width: 1100px;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* LOGOUT */
+      .logout-btn {
+        position: fixed;
+        top: 22px;
+        right: 22px;
+        background: 0 0;
+        color: var(--text-muted);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 9px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: "Roboto", sans-serif;
+        font-size: 0.82em;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        transition: all 0.2s ease;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .logout-btn:hover {
+        color: #e74c3c;
+        border-color: rgba(231, 76, 60, 0.4);
+        background: rgba(231, 76, 60, 0.08);
+      }
+
+      /* HEADER */
+      .header {
+        text-align: center;
+        margin-bottom: 44px;
+        animation: fadeDown 0.7s ease both;
+      }
+      .logo-wrap {
+        display: inline-block;
+        margin-bottom: 22px;
+        position: relative;
+      }
+      .logo-wrap::after {
+        content: "";
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60%;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      }
+      .logo {
+        max-width: 160px;
+        filter: drop-shadow(0 0 24px rgba(31, 172, 137, 0.4));
+      }
+      .header-title {
+        font-family: "Roboto", sans-serif;
+        font-size: 2.2em;
+        font-weight: 700;
+        color: var(--text-primary);
+        letter-spacing: 0.03em;
+        margin-top: 22px;
+        margin-bottom: 14px;
+      }
+      .header-title span { color: #fbee00; }
+
+      /* STATUS BAR */
+      .status-bar {
+        display: inline-flex;
+        align-items: center;
+        gap: 18px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 30px;
+        padding: 7px 20px;
+        font-size: 0.78em;
+        color: var(--text-muted);
+        font-weight: 400;
+        letter-spacing: 0.04em;
+      }
+      .status-dot {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .status-dot::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        animation: pulse 2s infinite;
+      }
+      .status-sep {
+        width: 1px;
+        height: 12px;
+        background: var(--border);
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.35; }
+      }
+
+      /* SECTION LABEL */
+      .section-label {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+        color: var(--text-muted);
+        font-size: 0.72em;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .section-label::after,
+      .section-label::before {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      /* CARDS */
+      .casas-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 28px;
+        animation: fadeUp 0.7s ease 0.15s both;
+      }
+
+      .casa-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 28px 28px 24px;
+        cursor: pointer;
+        transition:
+          transform 0.25s ease,
+          border-color 0.25s ease,
+          box-shadow 0.25s ease,
+          background 0.25s ease;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 20px;
+        -webkit-tap-highlight-color: transparent;
+        min-height: 110px;
+      }
+
+      /* top accent line */
+      .casa-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+      }
+      .casa-card:hover::before { transform: scaleX(1); }
+
+      /* glow corner */
+      .casa-card::after {
+        content: "";
+        position: absolute;
+        bottom: -40px; right: -40px;
+        width: 130px; height: 130px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(31, 172, 137, 0.12), transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      .casa-card:hover::after { opacity: 1; }
+
+      .casa-card:hover {
+        transform: translateY(-7px);
+        border-color: var(--border-hover);
+        background: #111829;
+        box-shadow:
+          0 20px 48px rgba(0, 0, 0, 0.55),
+          0 0 0 1px rgba(31, 172, 137, 0.15);
+      }
+
+      /* seta de acesso */
+      .casa-arrow {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        color: var(--accent);
+        opacity: 0;
+        transform: translateX(-4px);
+        transition: opacity 0.25s ease, transform 0.25s ease;
+        font-size: 0.72em;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+      .casa-arrow svg { width: 12px; height: 12px; }
+      .casa-card:hover .casa-arrow {
+        opacity: 1;
+        transform: translateX(0);
+      }
+
+      .casa-logo-box {
+        width: 140px;
+        min-width: 140px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .casa-logo-box img {
+        max-width: 130px;
+        max-height: 48px;
+        object-fit: contain;
+        filter: brightness(0.88) saturate(1.1);
+        transition: filter 0.25s ease, opacity 0.25s ease;
+      }
+      .casa-card:hover .casa-logo-box img {
+        filter: brightness(1.08) saturate(1.3)
+          drop-shadow(0 0 10px rgba(31, 172, 137, 0.35));
+      }
+
+      /* nome fallback */
+      .casa-nome {
+        font-size: 0.72em;
+        font-weight: 500;
+        color: var(--text-dim);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+        transition: color 0.25s ease;
+      }
+      .casa-card:hover .casa-nome { color: var(--text-muted); }
+
+      .casa-info {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        flex: 1;
+      }
+
+      .casa-divider {
+        width: 1px;
+        height: 52px;
+        background: linear-gradient(180deg, transparent, var(--border-hover), transparent);
+        flex-shrink: 0;
+      }
+
+      .ligas-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 0.78em;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        border: 1px solid rgba(31, 172, 137, 0.22);
+        margin-top: auto;
+      }
+      .ligas-badge::before {
+        content: "";
+        width: 5px; height: 5px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 6px var(--accent);
+      }
+
+      /* LOADING OVERLAY */
+      .casa-card.loading { pointer-events: none; }
+      .casa-card.loading .casa-logo-box img { opacity: 0.3; }
+      .card-spinner {
+        display: none;
+        position: absolute;
+        inset: 0;
+        align-items: center;
+        justify-content: center;
+        background: rgba(6, 8, 16, 0.6);
+        border-radius: 14px;
+        z-index: 10;
+      }
+      .casa-card.loading .card-spinner { display: flex; }
+      .spinner-ring {
+        width: 30px; height: 30px;
+        border: 2px solid rgba(31, 172, 137, 0.2);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* RODAPÉ */
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        animation: fadeUp 0.7s ease 0.3s both;
+      }
+      .footer-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 11px 24px;
+        border-radius: 8px;
+        font-size: 0.83em;
+        font-weight: 500;
+        text-decoration: none;
+        letter-spacing: 0.03em;
+        transition: all 0.2s ease;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        background: var(--bg-card);
+      }
+      .footer-link:hover {
+        background: var(--accent-dim);
+        border-color: rgba(31, 172, 137, 0.35);
+        color: var(--text-primary);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      }
+      .footer-link.highlight {
+        border-color: rgba(31, 172, 137, 0.3);
+        color: var(--accent);
+        background: var(--accent-dim);
+      }
+      .footer-link.highlight:hover {
+        background: rgba(31, 172, 137, 0.2);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      @keyframes fadeDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      @media (max-width: 1100px) {
+        .casas-grid { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media (max-width: 760px) {
+        .casas-grid { grid-template-columns: 1fr; gap: 12px; }
+        .casa-card  { padding: 20px 18px; min-height: 90px; }
+        .casa-logo-box { width: 110px; min-width: 110px; }
+        .header-title { font-size: 1.8em; }
+        .footer { flex-direction: row; gap: 10px; }
+        .footer-link { flex: 1; justify-content: center; }
+      }
+      @media (max-width: 380px) {
+        .casas-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <button class="logout-btn" onclick="logout()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+      </svg>
+      Sair
+    </button>
+
+    <div class="container">
+
+      <div class="header">
+        <div class="logo-wrap">
+          <img src="img/logo.png" alt="BetStat Logo" class="logo" loading="lazy" />
+        </div>
+        <h1 class="header-title">Escolha sua <span>Casa de Apostas</span></h1>
+        <div class="status-bar">
+          <span class="status-dot">Online</span>
+          <span class="status-sep"></span>
+          <span>6 plataformas disponíveis</span>
+        </div>
+      </div>
+
+      <div class="section-label">Casas Disponíveis</div>
+
+      <div class="casas-grid">
+
+        <!-- LINHA 1: bet365 | betano | estrelabet -->
+        <div class="casa-card" onclick="selecionarCasa(this,'bet365')">
+          <div class="card-spinner"><div class="spinner-ring"></div></div>
+          <span class="casa-arrow">
+            Acessar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
+            </svg>
+          </span>
+          <div class="casa-logo-box">
+            <img src="img/bets.png" alt="Bet365" loading="lazy" />
+          </div>
+          <div class="casa-divider"></div>
+          <div class="casa-info">
+            <span class="casa-nome">Bet365</span>
+            <span class="ligas-badge">4 Ligas</span>
+          </div>
+        </div>
+
+        <div class="casa-card" onclick="selecionarCasa(this,'betano')">
+          <div class="card-spinner"><div class="spinner-ring"></div></div>
+          <span class="casa-arrow">
+            Acessar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
+            </svg>
+          </span>
+          <div class="casa-logo-box">
+            <img src="img/betano2.png" alt="Betano" loading="lazy" />
+          </div>
+          <div class="casa-divider"></div>
+          <div class="casa-info">
+            <span class="casa-nome">Betano</span>
+            <span class="ligas-badge">6 Ligas</span>
+          </div>
+        </div>
+
+        <div class="casa-card" onclick="selecionarCasa(this,'estrelabet')">
+          <div class="card-spinner"><div class="spinner-ring"></div></div>
+          <span class="casa-arrow">
+            Acessar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
+            </svg>
+          </span>
+          <div class="casa-logo-box">
+            <img src="img/estrela.png" alt="EstrelaBet" loading="lazy" />
+          </div>
+          <div class="casa-divider"></div>
+          <div class="casa-info">
+            <span class="casa-nome">EstrelaBet</span>
+            <span class="ligas-badge">3 Ligas</span>
+          </div>
+        </div>
+
+        <!-- LINHA 2: sportingbet | kiron | betsson -->
+<div class="casa-card disabled-card" style="pointer-events:none;opacity:0.6;cursor:default;">
+  <div class="em-breve-badge" style="position:absolute;top:10px;right:10px;background:#f59e0b;color:#000;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;letter-spacing:0.5px;z-index:10;">EM BREVE</div>
+  <div class="card-spinner"><div class="spinner-ring"></div></div>
+  <span class="casa-arrow" style="opacity:0.4;">
+    Acessar
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
+    </svg>
+  </span>
+  <div class="casa-logo-box">
+    <img src="img/sportingbet.png" alt="Sportingbet" loading="lazy" />
+  </div>
+  <div class="casa-divider"></div>
+  <div class="casa-info">
+    <span class="casa-nome">Sportingbet</span>
+    <span class="ligas-badge">4 Ligas</span>
+  </div>
+</div>
+
+        <div class="casa-card" onclick="selecionarCasa(this,'kiron')">
+          <div class="card-spinner"><div class="spinner-ring"></div></div>
+          <span class="casa-arrow">
+            Acessar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
+            </svg>
+          </span>
+          <div class="casa-logo-box">
+            <img src="img/kiron.png" alt="Kiron" loading="lazy" />
+          </div>
+          <div class="casa-divider"></div>
+          <div class="casa-info">
+            <span class="casa-nome">Kiron</span>
+            <span class="ligas-badge">3 Ligas</span>
+          </div>
+        </div>
+
+        <div class="casa-card" onclick="selecionarCasa(this,'betsson')">
+          <div class="card-spinner"><div class="spinner-ring"></div></div>
+          <span class="casa-arrow">
+            Acessar
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>
+            </svg>
+          </span>
+          <div class="casa-logo-box">
+            <img src="img/betsson.png" alt="Betsson" loading="lazy" />
+          </div>
+          <div class="casa-divider"></div>
+          <div class="casa-info">
+            <span class="casa-nome">Betsson</span>
+            <span class="ligas-badge">3 Ligas</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="footer">
+        <a href="https://t.me/Betstatsite" class="footer-link" target="_blank" rel="noopener noreferrer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          Suporte
+        </a>
+        <a href="https://www.betstat.site/renovar.html" class="footer-link highlight" target="_blank" rel="noopener noreferrer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+            <line x1="1" y1="10" x2="23" y2="10"/>
+          </svg>
+          Renovar Acesso
+        </a>
+      </div>
+
+    </div>
+
+    <script>
+      const rotas = {
+        betano:      "index.html",
+        bet365:      "bet365copa.html",
+        betsson:     "betssonespanha.html",
+        kiron:       "kironengland.html",
+        estrelabet:  "estrelachampions.html",
+        sportingbet: "sportingbetchampions.html",
+      };
+
+      function selecionarCasa(el, casa) {
+        if (el.classList.contains("loading")) return;
+        el.classList.add("loading");
+        localStorage.setItem("casaSelecionada", casa);
+        setTimeout(() => {
+          window.location.href = rotas[casa];
+        }, 400);
+      }
+    </script>
+  </body>
+</html>
