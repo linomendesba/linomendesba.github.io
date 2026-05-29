@@ -1,1 +1,627 @@
-function a0_0x1031(_0x3d9bbd,_0x2d5c1b){_0x3d9bbd=_0x3d9bbd-0x118;const _0x4b69eb=a0_0x1781();let _0x32c2ce=_0x4b69eb[_0x3d9bbd];if(a0_0x1031['pwEBNt']===undefined){var _0x19b421=function(_0x4e9195){const _0x541cde='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x42c107='',_0x375c2b='',_0x251f36=_0x42c107+_0x19b421;for(let _0x2b5069=0x0,_0xcbe62f,_0x972056,_0x43884b=0x0;_0x972056=_0x4e9195['charAt'](_0x43884b++);~_0x972056&&(_0xcbe62f=_0x2b5069%0x4?_0xcbe62f*0x40+_0x972056:_0x972056,_0x2b5069++%0x4)?_0x42c107+=_0x251f36['charCodeAt'](_0x43884b+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0xcbe62f>>(-0x2*_0x2b5069&0x6)):_0x2b5069:0x0){_0x972056=_0x541cde['indexOf'](_0x972056);}for(let _0x59a64c=0x0,_0x3352e4=_0x42c107['length'];_0x59a64c<_0x3352e4;_0x59a64c++){_0x375c2b+='%'+('00'+_0x42c107['charCodeAt'](_0x59a64c)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x375c2b);};a0_0x1031['UzotJv']=_0x19b421,a0_0x1031['BTNdbc']={},a0_0x1031['pwEBNt']=!![];}const _0x1781ca=_0x4b69eb[0x0],_0x103152=_0x3d9bbd+_0x1781ca,_0x2d596a=a0_0x1031['BTNdbc'][_0x103152];if(!_0x2d596a){const _0x5c22f1=function(_0x1107ab){this['Srezgr']=_0x1107ab,this['niEFTD']=[0x1,0x0,0x0],this['xCPMVj']=function(){return'newState';},this['GrwTHi']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['CCtoOu']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x5c22f1['prototype']['UmuEAC']=function(){const _0x3e1152=new RegExp(this['GrwTHi']+this['CCtoOu']),_0x254609=_0x3e1152['test'](this['xCPMVj']['toString']())?--this['niEFTD'][0x1]:--this['niEFTD'][0x0];return this['AaAYgT'](_0x254609);},_0x5c22f1['prototype']['AaAYgT']=function(_0x1b651a){if(!Boolean(~_0x1b651a))return _0x1b651a;return this['vswyCp'](this['Srezgr']);},_0x5c22f1['prototype']['vswyCp']=function(_0x33a95c){for(let _0x3fcc1c=0x0,_0x5c5118=this['niEFTD']['length'];_0x3fcc1c<_0x5c5118;_0x3fcc1c++){this['niEFTD']['push'](Math['round'](Math['random']())),_0x5c5118=this['niEFTD']['length'];}return _0x33a95c(this['niEFTD'][0x0]);},new _0x5c22f1(a0_0x1031)['UmuEAC'](),_0x32c2ce=a0_0x1031['UzotJv'](_0x32c2ce),a0_0x1031['BTNdbc'][_0x103152]=_0x32c2ce;}else _0x32c2ce=_0x2d596a;return _0x32c2ce;}function a0_0x1781(){const _0x383701=['yxbWzw5K','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nxf1ys5ODg1S','C2XVDhm','uhjVAMxdP8o1zxm','C2vSzwn0','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25TywnYBY5ODg1S','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2j1C2nHy29UzNjVBNrVlMH0BwW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nwj1C2nHDgLTzs5ODg1S','Dg9Nz2XL','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2vZDhjLBgfJBgfZC2LMAwnHy2fVlMH0BwW','mJaXmtiYmwHSBujusa','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','qMv0C3nVBG','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl3bVCMnLBNrHz2vTA2LYB24UAhrTBa','tCoHEgLTyxm','ywrKrxzLBNrmAxn0zw5LCG','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25XDweUAhrTBa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2vZDhjLBgfYywrHCI5ODg1S','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDdm2nwnSyxnPzMLJywnHBY5ODg1S','Aw5JBhvKzxm','Cg9ZDe1LC3nHz2u','CgfYC2u','uMvMzxjLBMnPyq','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nwzSDxHVlMH0BwW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2vZDhjLBgfMBhv4BY5ODg1S','nejjwwLHtW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl0XPz2ftDgf0A2LYB24UAhrTBa','y29UDgvUDerVy3vTzw50','DMfSDwu','yNnMyxyTDgL0Bgu','Bg9JyxrPB24','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2DVBhnRAxjVBI5ODg1S','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2j1C2nHzg9YDgLTzs5ODg1S','8j+BOo+4JYbfEhrYyxm','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2nHBgn1BgfKB3jHlMH0BwW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2vZDhjLBgfIDxnJywrVCI5ODg1S','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25IDxnJywrVCI5ODg1S','Aw5Zzxj0qMvMB3jL','tgLNyvn0yxq','z2v0rwXLBwvUDej5swq','C3rVCfbYB3bHz2f0Aw9U','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2vZDhjLBgfXDwfKCMfUDguUAhrTBa','B25SB2fK','y3jLyxrLrwXLBwvUDa','rMX1Eg8','yNnMyxyTy29UDgvUDa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDgfUB2j1C2nHzg9YlMH0BwW','rxnJB2XOysbHigzLCNjHBwvUDghIGky','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2zPEg9RAxjVBI5ODg1S','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2TPCM9UCMfKyxiUAhrTBa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25JBgfZC2LMAwnHy2fVlMH0BwW','y3jLyxrLvhjLzvDHBgTLCG','zxn0CMvSyq','yNnMyxyTyxbWBhKTyNrU','AhjLzG','yNnMyxyTzNjHBwu','yNnMyxyTAxrLBs1IDg4','r2vZDmoJBYbcyw5Jyq','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2vZDhjLBgfTywnYBY5ODg1S','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2TPCM9UzhvLBg8UAhrTBa','yxbWzw5Kq2HPBgq','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDgfUB3jHzgfYlMH0BwW','z3jVDxa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl21LBNrVCI5ODg1S','z2vZDgfVlMH0BwW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nwzPEg8UAhrTBa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2XVy2fSAxPbsxn0yxiUAhrTBa','C3bHBG','yNnMyxyTy2fZys1ZzwXLy3q','tg9JywXPEKfj','C2v0sxrLBq','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25WB3jJzw50lMH0BwW','C3r5Bgu','mtm4mtyYou5cEMndrq','C3jJ','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2nLBNrYywWV','qw8GvML2BW','mJmZnJL6wwfRtum','AgvHzgvYic5UyxyTC2vSzxrVCIbZzwXLy3qGB3b0Aw9UoMzPCNn0lwnOAwXK','Aw5Uzxjive1m','ndy0mdC0sgvvvwTx','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2rHEs5ODg1S','AgvHza','AgvHzgvYlwTPCM9U','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl21HEgLTywvZDhjLBgeUAhrTBa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25MAxHVlMH0BwW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nxn0yxqUAhrTBa','mtq0tejjCK1I','uhldQsbmAxzL','yMv0yw5V','DgfYz2v0','C3rYAw5NAwz5','zg9JDw1LBNq','ChvZAa','ywjVDxq6yMXHBMS','77YliefKAwnPB25HCIbgzxjYyw1LBNrH','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2zSDxHVlMH0BwW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2TPCM9UBwfJCM8UAhrTBa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2TPCM9UyNvZy2fKB3iUAhrTBa','yNngyxzbzgrxCMfWCgvY','yMv0mZy1','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2j1C2nHzg9YB2rKA2LYB24UAhrTBa','q2XHC3nPzMLJyCoNW6nV','AxmTB3bLBG','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl0XPz2ftDgf0lMH0BwW','A2LYB24','kcGOlISPkYKRksSK','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl211BhqZnJuUAhrTBa','zg9JDw1LBNrfBgvTzw50','C2vSzwn0zwq','ug9Yy2vUDgfNzw0','lMjZzMf2lwfKzc1IDg4','u0Hpv19dt01nru5u','ig9Wzw4','q2fSyYbeDxrJAa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25VzgrZlMH0BwW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDgfUB2zPEg8UAhrTBa','AgvHzgvYlwjLDhnZB24','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nwDVBhmUAhrTBa','i2HLywrLCG','yNngyxztBg90C0nVBNrHAw5LCG','y2HHBMDL','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl21VCMzLDxm','ywXSB3DMDwXSC2nYzwvU','BgvUz3rO','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2vZDhjLBgfKDwvSBY5ODg1S','rxn0CMvSyujLDa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2D1AwfZlMH0BwW','qNvZy2fKB3iGrhvLBg8','yMv0C3nVBG','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2j1C2nHzg9YB2rKlMH0BwW','igLZlw9Wzw4','Bg9HzgLUzW','AwzYyw1L','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25NB2XZlMH0BwW','AgvHzgvYlwvZDhjLBgfIzxq','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl3bVCMnLBNrHz2vTC3rHCI5ODg1S','r3ldOwzPy28GtwfJCM8','tw9YCgHLDxmGsue','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2TPCM9UCxvHzhjHBNrLCY5ODg1S','Dgv4DenVBNrLBNq','qNvZy2fKB3iGt2rKCW','Dg9VBhm','4PYMie3dOxHPBw8GzguG','Dg9mB3DLCKnHC2u','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2DVBhnLC3rYzwXHlMH0BwW','y2XHC3noyw1L','yNv0Dg9U','yNnMyxyTAxrLBq','uxvHzhjHBNrLCW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nxbYB2PLy29LCY5ODg1S','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl211BhrIzxrHBM8UAhrTBa','AgLKzuHLywrLCG','qMv0mZy1','twvUDg9Y','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2vZDhjLBgfMAxHVlMH0BwW','lMfJy29YzgLVBI1PDgvT','mtiWnZmXmxvws0jHsq','zgL2','qNvZy2fKB3iGvgLTzq','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25TyxHPBwfZlMH0BwW','txvSDgLmAwDH','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25MBhv4BY5ODg1S','yNnMyxyTDg9VBgjHCG','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDgfUB3bYzs5ODg1S','y2XVC2vZDa','BMv4De5Vzgu','qNvZy2fKB3iGugXHy2fY','zxn0CMvSywjLDa','qMv0yw5V','B3b0Aw9U','4PYvifjLBw92zxi','igzLCNjHBwvUDgfZigf0Aw5NAwrV','zMLUza','AgvHzgvYlwjLDdm2nq','vgfIzwXHiezPEge','D2fYBG','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2TPCM9UChjVAMvJyw8UAhrTBa','sg9YysbgAxHH','zgLZywjSzwq','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl211BhrIzxrZC29UlMH0BwW','uMfKyxiGr3ldOwzPy28','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2zSyxqUAhrTBa','Dg9tDhjPBMC','C3bSAwnL','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nxjHzgfYlMH0BwW','w0jZrMf2xsbozw5ODw0GlMfJy29YzgLVBI1PDgvTigvUy29UDhjHzg8U','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl3jLzMvYzw5JAweUAhrTBa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25WCMuUAhrTBa','DxjS','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25SB2nHBgL6ywKUAhrTBa','mtmZmZvrAfP3wvi','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nwnVBMzYB250BY5ODg1S','BgfIzwW','y2XHC3nmAxn0','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2j1C2nHzg9YDgLTzxn0yxiUAhrTBa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2TPCM9UChjLlMH0BwW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2vZDhjLBgfWCM9QzwnVzxmUAhrTBa','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25WCM9QzwnVzxmUAhrTBa','lMjZzMf2lxjLBw92zs1IDg4','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nxbSywnHCI5ODg1S','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl211BhrRAxjVBI5ODg1S','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2j1C2nHzg9YDgLTzwTPCM9UlMH0BwW','ohDPDg95zW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLlZm2nw1Hy3jVlMH0BwW','r29SC1bYW7m','z2XVyMfS','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25ZDgf0lMH0BwW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2jLDhnZB25YywrHCI5ODg1S','nZK5mdm5meDpBeLhEG','y2XPy2S','s2LYB24','4Q2qie5VDMeGrMvYCMfTzw50yq','r2vYywrVCIbuAxa','y3nZvgv4Da','AgvHzgvYlwjLDgfUBW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl21HEgLTyxnRAxjVBI5ODg1S','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl3bVCMnLBNrHz2vTyMv0yw5VlMH0BwW','Ahr0Chm6lY93D3CUyMv0C3rHDc5ZAxrLl2nSyxnZAwzPy2fJyw8UAhrTBa','CxvLCNLtzwXLy3rVCG','yNnMyxyTywrKlwj0BG','uhjPBwvPCM8GzxnJB2XOysbHignHC2hIGky','CMvHzhLtDgf0zq'];a0_0x1781=function(){return _0x383701;};return a0_0x1781();}(function(_0x293686,_0x4430c3){const _0x57740c=a0_0x1031,_0x2bdc10=_0x293686();while(!![]){try{const _0xef48af=-parseInt(_0x57740c(0x1e6))/0x1+parseInt(_0x57740c(0x1e9))/0x2+-parseInt(_0x57740c(0x1e2))/0x3*(parseInt(_0x57740c(0x1b2))/0x4)+-parseInt(_0x57740c(0x178))/0x5*(parseInt(_0x57740c(0x1f0))/0x6)+parseInt(_0x57740c(0x156))/0x7+-parseInt(_0x57740c(0x184))/0x8*(parseInt(_0x57740c(0x1a2))/0x9)+parseInt(_0x57740c(0x18a))/0xa;if(_0xef48af===_0x4430c3)break;else _0x2bdc10['push'](_0x2bdc10['shift']());}catch(_0x425e05){_0x2bdc10['push'](_0x2bdc10['shift']());}}}(a0_0x1781,0x69820),(function(){const _0x2b7b03=a0_0x1031,_0x2b5069=(function(){let _0x413d93=!![];return function(_0x287970,_0x54e22e){const _0x4ade76=_0x413d93?function(){if(_0x54e22e){const _0x35659e=_0x54e22e['apply'](_0x287970,arguments);return _0x54e22e=null,_0x35659e;}}:function(){};return _0x413d93=![],_0x4ade76;};}());function _0xcbe62f(){const _0x5ad7d5=a0_0x1031,_0x50f1bb=_0x2b5069(this,function(){const _0x4aca28=a0_0x1031;return _0x50f1bb[_0x4aca28(0x170)]()['search'](_0x4aca28(0x123))[_0x4aca28(0x170)]()['constructor'](_0x50f1bb)['search'](_0x4aca28(0x123));});_0x50f1bb();const _0xf5e2ee=document[_0x5ad7d5(0x1cc)](document[_0x5ad7d5(0x125)],NodeFilter[_0x5ad7d5(0x129)]);let _0x195784;while(_0x195784=_0xf5e2ee[_0x5ad7d5(0x15f)]()){const _0x4f49da=_0x195784['nodeValue']['trim']()['toLowerCase']();if(_0x4f49da[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x167)))return _0x5ad7d5(0x11d);if(_0x4f49da[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x12e)))return _0x5ad7d5(0x13a);if(_0x4f49da[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x190)))return'betano';if(_0x4f49da[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x140)))return _0x5ad7d5(0x161);if(_0x4f49da[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x1ec)))return _0x5ad7d5(0x122);}const _0x559ef9=document[_0x5ad7d5(0x194)](_0x5ad7d5(0x1e7));if(_0x559ef9){const _0x34b713=_0x559ef9[_0x5ad7d5(0x145)][_0x5ad7d5(0x149)]();if(_0x34b713[_0x5ad7d5(0x1ac)]('bet365'))return'bet365';if(_0x34b713[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x13a)))return _0x5ad7d5(0x13a);if(_0x34b713[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x1f2)))return _0x5ad7d5(0x1f2);if(_0x34b713[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x161)))return _0x5ad7d5(0x161);if(_0x34b713[_0x5ad7d5(0x1ac)]('kiron'))return _0x5ad7d5(0x122);}const _0x4aeb2d=window['location'][_0x5ad7d5(0x1cf)][_0x5ad7d5(0x149)]();if(_0x4aeb2d[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x11d))||_0x4aeb2d[_0x5ad7d5(0x1ac)]('365'))return _0x5ad7d5(0x11d);if(_0x4aeb2d[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x13a)))return'betsson';if(_0x4aeb2d[_0x5ad7d5(0x1ac)]('betano'))return _0x5ad7d5(0x1f2);if(_0x4aeb2d[_0x5ad7d5(0x1ac)](_0x5ad7d5(0x1cd)))return _0x5ad7d5(0x161);if(_0x4aeb2d['includes']('kiron'))return _0x5ad7d5(0x122);return _0x5ad7d5(0x187);}const _0x972056=_0xcbe62f(),_0x43884b='bsFavToolsV5_'+_0x972056,_0x59a64c=[{'group':_0x2b7b03(0x152),'tools':[{'label':_0x2b7b03(0x1f1),'url':'https://www.betstat.site/bet365pre.html'},{'label':_0x2b7b03(0x1c5),'url':_0x2b7b03(0x1b0)},{'label':'Máximas','url':'https://www.betstat.site/365maximas.html'},{'label':'GolsPró','url':_0x2b7b03(0x12f)},{'label':_0x2b7b03(0x16b),'url':_0x2b7b03(0x1da)},{'label':_0x2b7b03(0x168),'url':_0x2b7b03(0x1ea)},{'label':'LigaStat','url':_0x2b7b03(0x1ef)},{'label':'MultiLiga','url':_0x2b7b03(0x124)},{'label':_0x2b7b03(0x1de),'url':'https://www.betstat.site/365localizAI.html'},{'label':_0x2b7b03(0x19b),'url':_0x2b7b03(0x14f)},{'label':_0x2b7b03(0x1af),'url':_0x2b7b03(0x174)},{'label':'Quadrantes','url':_0x2b7b03(0x199)},{'label':_0x2b7b03(0x127),'url':'https://www.betstat.site/365porcent.html'},{'label':_0x2b7b03(0x11f),'url':_0x2b7b03(0x1ab)},{'label':_0x2b7b03(0x142),'url':_0x2b7b03(0x185)},{'label':_0x2b7b03(0x16e),'url':_0x2b7b03(0x172)},{'label':'Buscador\x20Odds','url':'https://www.betstat.site/365odds.html'},{'label':_0x2b7b03(0x158),'url':_0x2b7b03(0x19f)},{'label':'Buscador\x20Placar','url':_0x2b7b03(0x181)},{'label':_0x2b7b03(0x139),'url':_0x2b7b03(0x179)}]},{'group':_0x2b7b03(0x162),'tools':[{'label':_0x2b7b03(0x1f1),'url':_0x2b7b03(0x15d)},{'label':_0x2b7b03(0x1c5),'url':_0x2b7b03(0x119)},{'label':_0x2b7b03(0x1a7),'url':'https://www.betstat.site/maximabetano.html'},{'label':_0x2b7b03(0x186),'url':'https://www.betstat.site/gols.html'},{'label':_0x2b7b03(0x16b),'url':_0x2b7b03(0x12d)},{'label':_0x2b7b03(0x168),'url':_0x2b7b03(0x1ea)},{'label':_0x2b7b03(0x1bf),'url':_0x2b7b03(0x121)},{'label':_0x2b7b03(0x15a),'url':_0x2b7b03(0x150)},{'label':_0x2b7b03(0x1de),'url':'https://www.betstat.site/localizAI.html'},{'label':_0x2b7b03(0x19b),'url':'https://www.betstat.site/betanotips.html'},{'label':_0x2b7b03(0x1af),'url':_0x2b7b03(0x174)},{'label':_0x2b7b03(0x14e),'url':'https://www.betstat.site/quadrantesgols.html'},{'label':_0x2b7b03(0x127),'url':_0x2b7b03(0x192)},{'label':_0x2b7b03(0x11f),'url':_0x2b7b03(0x193)},{'label':_0x2b7b03(0x142),'url':'https://www.betstat.site/macrobetano.html'},{'label':_0x2b7b03(0x16e),'url':_0x2b7b03(0x1d6)},{'label':'Buscador\x20Odds','url':_0x2b7b03(0x13b)},{'label':_0x2b7b03(0x158),'url':_0x2b7b03(0x1b9)},{'label':_0x2b7b03(0x160),'url':_0x2b7b03(0x1c7)},{'label':_0x2b7b03(0x139),'url':_0x2b7b03(0x19e)}]},{'group':_0x2b7b03(0x1a5),'tools':[{'label':_0x2b7b03(0x1f1),'url':_0x2b7b03(0x175)},{'label':_0x2b7b03(0x1c5),'url':_0x2b7b03(0x15b)},{'label':_0x2b7b03(0x1a7),'url':_0x2b7b03(0x159)},{'label':_0x2b7b03(0x186),'url':_0x2b7b03(0x13f)},{'label':'Hora\x20Fixa','url':_0x2b7b03(0x1ee)},{'label':_0x2b7b03(0x168),'url':_0x2b7b03(0x1ea)},{'label':_0x2b7b03(0x1bf),'url':_0x2b7b03(0x188)},{'label':'MultiLiga','url':_0x2b7b03(0x16d)},{'label':_0x2b7b03(0x1de),'url':_0x2b7b03(0x177)},{'label':_0x2b7b03(0x19b),'url':_0x2b7b03(0x17f)},{'label':_0x2b7b03(0x1af),'url':_0x2b7b03(0x174)},{'label':'Quadrantes','url':_0x2b7b03(0x1a9)},{'label':_0x2b7b03(0x127),'url':_0x2b7b03(0x1e0)},{'label':'Classificação','url':_0x2b7b03(0x1cb)},{'label':_0x2b7b03(0x142),'url':_0x2b7b03(0x19d)},{'label':_0x2b7b03(0x16e),'url':_0x2b7b03(0x189)},{'label':'Buscador\x20Odds','url':_0x2b7b03(0x12c)},{'label':_0x2b7b03(0x158),'url':'https://www.betstat.site/betssonbuscatime.html'},{'label':_0x2b7b03(0x160),'url':_0x2b7b03(0x1bd)},{'label':_0x2b7b03(0x139),'url':'https://www.betstat.site/betssonduelo.html'}]},{'group':_0x2b7b03(0x137),'tools':[{'label':'Pré\x20Live','url':'https://www.betstat.site/estrelapre.html'},{'label':'Fluxo','url':_0x2b7b03(0x1b1)},{'label':_0x2b7b03(0x1a7),'url':_0x2b7b03(0x1ed)},{'label':_0x2b7b03(0x186),'url':_0x2b7b03(0x14a)},{'label':'Hora\x20Fixa','url':_0x2b7b03(0x154)},{'label':_0x2b7b03(0x168),'url':_0x2b7b03(0x1ea)},{'label':_0x2b7b03(0x1bf),'url':'https://www.betstat.site/estrelastat.html'},{'label':_0x2b7b03(0x15a),'url':'https://www.betstat.site/estrelamult.html'},{'label':'LocalizAI','url':_0x2b7b03(0x1db)},{'label':_0x2b7b03(0x19b),'url':_0x2b7b03(0x17e)},{'label':_0x2b7b03(0x1af),'url':_0x2b7b03(0x174)},{'label':_0x2b7b03(0x14e),'url':_0x2b7b03(0x1c2)},{'label':_0x2b7b03(0x127),'url':_0x2b7b03(0x141)},{'label':_0x2b7b03(0x11f),'url':_0x2b7b03(0x1a1)},{'label':_0x2b7b03(0x142),'url':_0x2b7b03(0x1d3)},{'label':_0x2b7b03(0x16e),'url':_0x2b7b03(0x1aa)},{'label':_0x2b7b03(0x146),'url':'https://www.betstat.site/buscadoroddstar.html'},{'label':'Buscador\x20Time','url':_0x2b7b03(0x17c)},{'label':_0x2b7b03(0x160),'url':_0x2b7b03(0x1bc)},{'label':'Buscador\x20Duelo','url':_0x2b7b03(0x136)}]},{'group':_0x2b7b03(0x18c),'tools':[{'label':_0x2b7b03(0x1f1),'url':_0x2b7b03(0x17d)},{'label':_0x2b7b03(0x1c5),'url':'https://www.betstat.site/kironfluxo.html'},{'label':_0x2b7b03(0x1a7),'url':_0x2b7b03(0x191)},{'label':_0x2b7b03(0x186),'url':_0x2b7b03(0x1b8)},{'label':_0x2b7b03(0x16b),'url':_0x2b7b03(0x1c9)},{'label':'Tabela\x20Fixa','url':_0x2b7b03(0x1ea)},{'label':_0x2b7b03(0x1bf),'url':_0x2b7b03(0x1b3)},{'label':_0x2b7b03(0x15a),'url':_0x2b7b03(0x182)},{'label':_0x2b7b03(0x1de),'url':'https://www.betstat.site/localizAIkiron.html'},{'label':_0x2b7b03(0x19b),'url':_0x2b7b03(0x16a)},{'label':_0x2b7b03(0x1af),'url':_0x2b7b03(0x174)},{'label':_0x2b7b03(0x14e),'url':_0x2b7b03(0x144)},{'label':_0x2b7b03(0x127),'url':_0x2b7b03(0x1a6)},{'label':_0x2b7b03(0x11f),'url':'https://www.betstat.site/classificacaokiron.html'},{'label':_0x2b7b03(0x142),'url':_0x2b7b03(0x11a)},{'label':_0x2b7b03(0x16e),'url':_0x2b7b03(0x1ca)},{'label':_0x2b7b03(0x146),'url':_0x2b7b03(0x11e)},{'label':_0x2b7b03(0x158),'url':_0x2b7b03(0x183)},{'label':_0x2b7b03(0x160),'url':_0x2b7b03(0x11b)},{'label':_0x2b7b03(0x139),'url':_0x2b7b03(0x1d4)}]},{'group':_0x2b7b03(0x1ba),'tools':[{'label':'Guias','url':_0x2b7b03(0x138)},{'label':_0x2b7b03(0x153),'url':_0x2b7b03(0x1d8)},{'label':'Guias','url':_0x2b7b03(0x16f)},{'label':_0x2b7b03(0x1e5),'url':'https://www.betstat.site/live.html'},{'label':_0x2b7b03(0x12b),'url':_0x2b7b03(0x1bb)},{'label':_0x2b7b03(0x143),'url':_0x2b7b03(0x133)},{'label':_0x2b7b03(0x18e),'url':_0x2b7b03(0x1e4)},{'label':_0x2b7b03(0x1d2),'url':_0x2b7b03(0x1d9)}]}],_0x3352e4=0x5;function _0x5c22f1(){const _0x486af0=_0x2b7b03;try{const _0x3529e2=JSON[_0x486af0(0x1ae)](localStorage['getItem'](_0x43884b));if(_0x3529e2&&Array['isArray'](_0x3529e2[_0x486af0(0x19a)]))return _0x3529e2;}catch{}return{'slots':[]};}function _0x1107ab(_0x6bc851){const _0x55f5c4=_0x2b7b03;localStorage[_0x55f5c4(0x1df)](_0x43884b,JSON[_0x55f5c4(0x1f4)](_0x6bc851));}function _0x3e1152(_0x49b6a5){const _0x2dbee2=_0x2b7b03;for(const _0x119197 of _0x59a64c){const _0x440e07=_0x119197[_0x2dbee2(0x147)][_0x2dbee2(0x166)](_0x5019cb=>_0x5019cb['url']===_0x49b6a5);if(_0x440e07)return _0x119197[_0x2dbee2(0x1d7)]+'\x20›\x20'+_0x440e07[_0x2dbee2(0x17a)];}return _0x2dbee2(0x18d);}const _0x254609=_0x2b7b03(0x1a3);function _0x1b651a(_0x472f06){const _0x4b2aa6=_0x2b7b03,_0x18c359=document['createElement'](_0x4b2aa6(0x19c));_0x18c359[_0x4b2aa6(0x14b)]=_0x4b2aa6(0x1dd);const _0x5e9183=document[_0x4b2aa6(0x1c4)]('option');_0x5e9183[_0x4b2aa6(0x1b5)]='',_0x5e9183[_0x4b2aa6(0x145)]='Escolha\x20a\x20casa…',_0x5e9183[_0x4b2aa6(0x16c)]=!![];if(!_0x472f06)_0x5e9183[_0x4b2aa6(0x126)]=!![];return _0x18c359[_0x4b2aa6(0x1d5)](_0x5e9183),_0x59a64c['forEach'](_0x1d8dad=>{const _0x2fae4a=_0x4b2aa6,_0x43b194=document[_0x2fae4a(0x1c4)]('option');_0x43b194[_0x2fae4a(0x1b5)]=_0x1d8dad[_0x2fae4a(0x1d7)],_0x43b194[_0x2fae4a(0x145)]=_0x1d8dad[_0x2fae4a(0x1d7)];if(_0x1d8dad['group']===_0x472f06)_0x43b194[_0x2fae4a(0x126)]=!![];_0x18c359[_0x2fae4a(0x1d5)](_0x43b194);}),_0x18c359;}function _0x33a95c(_0x141960,_0x21978a){const _0x5ba778=_0x2b7b03,_0xd6cd9d=document[_0x5ba778(0x1c4)](_0x5ba778(0x19c));_0xd6cd9d['className']='bsfav-tool-select';const _0x33720c=document[_0x5ba778(0x1c4)](_0x5ba778(0x163));_0x33720c[_0x5ba778(0x1b5)]='',_0x33720c[_0x5ba778(0x145)]=_0x141960?_0x5ba778(0x1c8):_0x5ba778(0x196),_0x33720c['disabled']=!![];if(!_0x21978a)_0x33720c[_0x5ba778(0x126)]=!![];_0xd6cd9d['appendChild'](_0x33720c);if(_0x141960){const _0x3742f5=_0x59a64c[_0x5ba778(0x166)](_0x4c339f=>_0x4c339f[_0x5ba778(0x1d7)]===_0x141960);_0x3742f5&&_0x3742f5['tools']['forEach'](_0x24fdc7=>{const _0x4dbcfd=_0x5ba778,_0x55ebe5=document[_0x4dbcfd(0x1c4)](_0x4dbcfd(0x163));_0x55ebe5[_0x4dbcfd(0x1b5)]=_0x24fdc7['url'],_0x55ebe5[_0x4dbcfd(0x145)]=_0x24fdc7['label'];if(_0x24fdc7['url']===_0x21978a)_0x55ebe5[_0x4dbcfd(0x126)]=!![];_0xd6cd9d['appendChild'](_0x55ebe5);});}return _0xd6cd9d['disabled']=!_0x141960,_0xd6cd9d;}function _0x3fcc1c(_0x365229,_0x402e7c){const _0x27d569=_0x2b7b03,{url:_0x687edf,open:_0x2307f9}=_0x402e7c;let _0x53b046='',_0x432a93=_0x687edf||'';if(_0x687edf)for(const _0x259fa9 of _0x59a64c){if(_0x259fa9[_0x27d569(0x147)][_0x27d569(0x166)](_0xedb42c=>_0xedb42c[_0x27d569(0x176)]===_0x687edf)){_0x53b046=_0x259fa9[_0x27d569(0x1d7)];break;}}const _0x444b29=document['createElement'](_0x27d569(0x157));_0x444b29[_0x27d569(0x14b)]=_0x27d569(0x14d);const _0x90836f=document['createElement']('button');_0x90836f[_0x27d569(0x14b)]=_0x27d569(0x1d1)+(_0x2307f9?_0x27d569(0x13c):'');const _0x115c62=document[_0x27d569(0x1c4)](_0x27d569(0x1dc));_0x115c62[_0x27d569(0x14b)]=_0x27d569(0x1b6),_0x115c62[_0x27d569(0x145)]=_0x687edf?_0x3e1152(_0x687edf):'⭐\x20Nova\x20Ferramenta';const _0xd03d44=document[_0x27d569(0x1c4)]('button');_0xd03d44[_0x27d569(0x14b)]='bsfav-remove-btn',_0xd03d44[_0x27d569(0x145)]=_0x27d569(0x164),_0xd03d44[_0x27d569(0x1a8)]('click',_0x166af7=>{const _0x40079b=_0x27d569;_0x166af7[_0x40079b(0x1c1)]();const _0x45898c=_0x5c22f1();_0x45898c[_0x40079b(0x19a)][_0x40079b(0x171)](_0x365229,0x1),_0x1107ab(_0x45898c),_0x36349c();});const _0x17cd68=document['createElement'](_0x27d569(0x1dc));_0x17cd68['className']='bsfav-chevron',_0x17cd68[_0x27d569(0x145)]='▼',_0x90836f['append'](_0x115c62,_0xd03d44,_0x17cd68);const _0x133ace=document[_0x27d569(0x1c4)](_0x27d569(0x157));_0x133ace[_0x27d569(0x14b)]=_0x27d569(0x1c6)+(_0x2307f9?_0x27d569(0x12a):'');const _0x5c992b=document[_0x27d569(0x1c4)](_0x27d569(0x157));_0x5c992b['className']=_0x27d569(0x15c);const _0x2f8e87=_0x1b651a(_0x53b046),_0x2d98d8=_0x33a95c(_0x53b046,_0x432a93),_0xb4aba5=document[_0x27d569(0x1c4)]('button');_0xb4aba5['className']=_0x27d569(0x1ce),_0xb4aba5[_0x27d569(0x145)]='Carregar',_0xb4aba5['disabled']=!_0x432a93,_0x2f8e87[_0x27d569(0x1a8)](_0x27d569(0x132),()=>{const _0x2df550=_0x27d569,_0x5a9f73=_0x33a95c(_0x2f8e87[_0x2df550(0x1b5)],'');_0x2d98d8[_0x2df550(0x1e8)]=_0x5a9f73['innerHTML'],_0x2d98d8['disabled']=!_0x2f8e87[_0x2df550(0x1b5)],_0xb4aba5[_0x2df550(0x16c)]=!![];}),_0x2d98d8[_0x27d569(0x1a8)](_0x27d569(0x132),()=>{const _0xf77813=_0x27d569;_0xb4aba5[_0xf77813(0x16c)]=!_0x2d98d8[_0xf77813(0x1b5)];});const _0x5bcb25=_0x119dc4=>{const _0x5b15a9=_0x27d569;try{const _0x590caf=_0x119dc4[_0x5b15a9(0x1b4)]||_0x119dc4['contentWindow'][_0x5b15a9(0x1f5)],_0x3cb85f=_0x590caf[_0x5b15a9(0x194)](_0x5b15a9(0x130));_0x3cb85f&&(_0x3cb85f[_0x5b15a9(0x1e1)][_0x5b15a9(0x18f)]=_0x5b15a9(0x1a4));}catch{_0x119dc4['contentWindow'][_0x5b15a9(0x1ad)]({'action':_0x5b15a9(0x151)},'*');}};_0xb4aba5['addEventListener'](_0x27d569(0x18b),()=>{const _0x3fda9d=_0x27d569,_0x5b6e40=_0x2d98d8[_0x3fda9d(0x1b5)];if(!_0x5b6e40)return;const _0x4f9c1c=_0x5c22f1();_0x4f9c1c[_0x3fda9d(0x19a)][_0x365229][_0x3fda9d(0x176)]=_0x5b6e40,_0x1107ab(_0x4f9c1c),_0x115c62[_0x3fda9d(0x145)]=_0x3e1152(_0x5b6e40),_0x10142f['src']=_0x5b6e40,_0x10142f[_0x3fda9d(0x1c3)]=()=>_0x5bcb25(_0x10142f);}),_0x5c992b['append'](_0x2f8e87,_0x2d98d8,_0xb4aba5);const _0x10142f=document[_0x27d569(0x1c4)](_0x27d569(0x13e));_0x10142f[_0x27d569(0x14b)]=_0x27d569(0x1d0),_0x10142f[_0x27d569(0x1e3)]=_0x2307f9&&_0x687edf?_0x687edf:_0x27d569(0x1f7),_0x10142f['setAttribute'](_0x27d569(0x134),'');if(_0x2307f9&&_0x687edf)_0x10142f[_0x27d569(0x1c3)]=()=>_0x5bcb25(_0x10142f);return _0x133ace[_0x27d569(0x198)](_0x5c992b,_0x10142f),_0x90836f['addEventListener'](_0x27d569(0x18b),_0x520e28=>{const _0x41121f=_0x27d569;if(_0x520e28[_0x41121f(0x1f3)][_0x41121f(0x15e)](_0x41121f(0x180)))return;const _0x172dc4=_0x133ace[_0x41121f(0x17b)][_0x41121f(0x1a0)]('open');_0x90836f[_0x41121f(0x17b)][_0x41121f(0x1a0)](_0x41121f(0x120),_0x172dc4);if(_0x172dc4){const _0x2cf15b=_0x5c22f1(),_0x3a7d81=_0x2cf15b['slots'][_0x365229]?.['url'],_0x351d12=_0x10142f[_0x41121f(0x1e3)]==='about:blank'||_0x10142f['src']===window[_0x41121f(0x1b7)]['href'];_0x3a7d81&&_0x351d12&&(_0x10142f[_0x41121f(0x1e3)]=_0x3a7d81,_0x10142f['onload']=()=>_0x5bcb25(_0x10142f));}const _0xe11f1=_0x5c22f1();_0xe11f1[_0x41121f(0x19a)][_0x365229]&&(_0xe11f1[_0x41121f(0x19a)][_0x365229]['open']=_0x172dc4,_0x1107ab(_0xe11f1));}),_0x444b29[_0x27d569(0x198)](_0x90836f,_0x133ace),_0x444b29;}function _0x5c5118(){const _0x325b4f=_0x2b7b03;return document[_0x325b4f(0x1c0)](_0x325b4f(0x131));}function _0x36349c(){const _0x157177=_0x2b7b03,_0x32895e=_0x5c5118();if(!_0x32895e)return;_0x32895e[_0x157177(0x1e8)]='';const _0x1b4f52=_0x5c22f1();_0x1b4f52['slots']['forEach']((_0x1fee05,_0x275f4e)=>{_0x32895e['appendChild'](_0x3fcc1c(_0x275f4e,_0x1fee05));});const _0x3dc0f1=document['querySelector'](_0x157177(0x128));if(_0x3dc0f1){const _0x4a7f82=_0x1b4f52[_0x157177(0x19a)][_0x157177(0x135)]>=_0x3352e4;_0x3dc0f1[_0x157177(0x16c)]=_0x4a7f82,_0x3dc0f1['textContent']=_0x4a7f82?_0x157177(0x148)+_0x3352e4+_0x157177(0x165):_0x157177(0x118);}}function _0x199d7e(){const _0x2d6f50=_0x2b7b03,_0x16ac50=document[_0x2d6f50(0x1c4)](_0x2d6f50(0x1e1));_0x16ac50[_0x2d6f50(0x145)]=_0x254609,document[_0x2d6f50(0x1eb)][_0x2d6f50(0x1d5)](_0x16ac50);const _0x5c3fde=document['querySelector'](_0x2d6f50(0x155));if(!_0x5c3fde){console[_0x2d6f50(0x169)](_0x2d6f50(0x173));return;}const _0x245bb5=_0x5c3fde['parentNode'],_0x258367=document[_0x2d6f50(0x1c4)](_0x2d6f50(0x157));_0x258367['id']=_0x2d6f50(0x11c);const _0x40b314=document['createElement'](_0x2d6f50(0x14c));_0x40b314['className']=_0x2d6f50(0x195),_0x40b314['textContent']='＋\x20Adicionar\x20Ferramenta',_0x40b314[_0x2d6f50(0x1a8)](_0x2d6f50(0x18b),()=>{const _0x407ee2=_0x2d6f50,_0x454679=_0x5c22f1();if(_0x454679[_0x407ee2(0x19a)][_0x407ee2(0x135)]>=_0x3352e4)return;_0x454679['slots'][_0x407ee2(0x1f6)]({'url':'','open':!![]}),_0x1107ab(_0x454679),_0x36349c();}),_0x258367['appendChild'](_0x40b314);const _0x4a8c29=document[_0x2d6f50(0x1c4)](_0x2d6f50(0x157));_0x4a8c29['id']=_0x2d6f50(0x131),_0x245bb5[_0x2d6f50(0x1be)](_0x258367,_0x5c3fde),_0x245bb5[_0x2d6f50(0x1be)](_0x4a8c29,_0x5c3fde),_0x36349c();}document[_0x2b7b03(0x197)]===_0x2b7b03(0x13d)?document[_0x2b7b03(0x1a8)]('DOMContentLoaded',_0x199d7e):_0x199d7e();}()));
+(function () {
+
+  /* ── DETECTA CASA ATUAL ──────────────────────────────────────── */
+  function detectarCasa() {
+    const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_COMMENT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const txt = node.nodeValue.trim().toLowerCase();
+      if (txt.includes('header-bet365'))     return 'bet365';
+      if (txt.includes('header-betsson'))    return 'betsson';
+      if (txt.includes('header-betano'))     return 'betano';
+      if (txt.includes('header-estrelabet')) return 'estrelabet';
+      if (txt.includes('header-kiron'))      return 'kiron';
+    }
+
+    const ligas = document.querySelector('header .nav-seletor select option:first-child');
+    if (ligas) {
+      const t = ligas.textContent.toLowerCase();
+      if (t.includes('bet365'))     return 'bet365';
+      if (t.includes('betsson'))    return 'betsson';
+      if (t.includes('betano'))     return 'betano';
+      if (t.includes('estrelabet')) return 'estrelabet';
+      if (t.includes('kiron'))      return 'kiron';
+    }
+
+    const url = window.location.href.toLowerCase();
+    if (url.includes('bet365') || url.includes('365')) return 'bet365';
+    if (url.includes('betsson'))                        return 'betsson';
+    if (url.includes('betano'))                         return 'betano';
+    if (url.includes('estrela'))                        return 'estrelabet';
+    if (url.includes('kiron'))                          return 'kiron';
+
+    return 'global';
+  }
+
+  const CASA_ATUAL = detectarCasa();
+  const LS_KEY     = `bsFavToolsV5_${CASA_ATUAL}`;
+
+  /* ── CATÁLOGO COMPLETO ───────────────────────────────────────── */
+  const CATALOGO = [
+    {
+      group: "Bet365",
+      tools: [
+        { label: "Pré Live",        url: "https://www.betstat.site/bet365pre.html" },
+        { label: "Fluxo",           url: "https://www.betstat.site/365fluxo.html" },
+        { label: "Máximas",         url: "https://www.betstat.site/365maximas.html" },
+        { label: "GolsPró",         url: "https://www.betstat.site/365gols.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/365fixo.html" },
+        { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "LigaStat",        url: "https://www.betstat.site/365stat.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/mult365.html" },
+        { label: "LocalizAI",       url: "https://www.betstat.site/365localizAI.html" },
+        { label: "Projeções",       url: "https://www.betstat.site/365projecoes.html" },
+        { label: "Referencia",      url: "https://www.betstat.site/referencia.html" },
+        { label: "Quadrantes",      url: "https://www.betstat.site/365qua.html" },
+        { label: "Porcentagem",     url: "https://www.betstat.site/365porcent.html" },
+        { label: "Classificação",   url: "https://www.betstat.site/bet365clasificacao.html" },
+        { label: "Gráfico Macro",   url: "https://www.betstat.site/365macro.html" },
+        { label: "Radar Gráfico",   url: "https://www.betstat.site/365radar.html" },
+        { label: "Buscador Odds",   url: "https://www.betstat.site/365odds.html" },
+        { label: "Buscador Time",   url: "https://www.betstat.site/365buscatime.html" },
+        { label: "Buscador Placar", url: "https://www.betstat.site/365placar.html" },
+        { label: "Buscador Duelo",  url: "https://www.betstat.site/365confronto.html" },
+      ]
+    },
+    {
+      group: "Betano",
+      tools: [
+        { label: "Pré Live",        url: "https://www.betstat.site/betanopre.html" },
+        { label: "Fluxo",           url: "https://www.betstat.site/fluxo.html" },
+        { label: "Máximas",         url: "https://www.betstat.site/maximabetano.html" },
+        { label: "GolsPró",         url: "https://www.betstat.site/gols.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/betanofixo.html" },
+        { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "LigaStat",        url: "https://www.betstat.site/LigaStat.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/multbetano.html" },
+        { label: "LocalizAI",       url: "https://www.betstat.site/localizAI.html" },
+        { label: "Projeções",       url: "https://www.betstat.site/betanotips.html" },
+        { label: "Referencia",      url: "https://www.betstat.site/referencia.html" },
+        { label: "Quadrantes",      url: "https://www.betstat.site/quadrantesgols.html" },
+        { label: "Porcentagem",     url: "https://www.betstat.site/porcentagembetano.html" },
+        { label: "Classificação",   url: "https://www.betstat.site/classificacao.html" },
+        { label: "Gráfico Macro",   url: "https://www.betstat.site/macrobetano.html" },
+        { label: "Radar Gráfico",   url: "https://www.betstat.site/betanoradar.html" },
+        { label: "Buscador Odds",   url: "https://www.betstat.site/buscadorodd.html" },
+        { label: "Buscador Time",   url: "https://www.betstat.site/buscadortime.html" },
+        { label: "Buscador Placar", url: "https://www.betstat.site/betanobuscador.html" },
+        { label: "Buscador Duelo",  url: "https://www.betstat.site/buscaconfronto.html" },
+      ]
+    },
+    {
+      group: "Betsson",
+      tools: [
+        { label: "Pré Live",        url: "https://www.betstat.site/betssonpre.html" },
+        { label: "Fluxo",           url: "https://www.betstat.site/betssonfluxo.html" },
+        { label: "Máximas",         url: "https://www.betstat.site/betssonmaximas.html" },
+        { label: "GolsPró",         url: "https://www.betstat.site/betssongols.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/betssonfixo.html" },
+        { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "LigaStat",        url: "https://www.betstat.site/betssonstat.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/multbetsson.html" },
+        { label: "LocalizAI",       url: "https://www.betstat.site/betssonlocalizai.html" },
+        { label: "Projeções",       url: "https://www.betstat.site/betssonprojecoes.html" },
+        { label: "Referencia",      url: "https://www.betstat.site/referencia.html" },
+        { label: "Quadrantes",      url: "https://www.betstat.site/betssonqua.html" },
+        { label: "Porcentagem",     url: "https://www.betstat.site/betssonporcent.html" },
+        { label: "Classificação",   url: "https://www.betstat.site/betssonclassificacao.html" },
+        { label: "Gráfico Macro",   url: "https://www.betstat.site/betssonmacro.html" },
+        { label: "Radar Gráfico",   url: "https://www.betstat.site/betssonradar.html" },
+        { label: "Buscador Odds",   url: "https://www.betstat.site/betssonodds.html" },
+        { label: "Buscador Time",   url: "https://www.betstat.site/betssonbuscatime.html" },
+        { label: "Buscador Placar", url: "https://www.betstat.site/betssonbuscador.html" },
+        { label: "Buscador Duelo",  url: "https://www.betstat.site/betssonduelo.html" },
+      ]
+    },
+    {
+      group: "EstrelaBet",
+      tools: [
+        { label: "Pré Live",        url: "https://www.betstat.site/estrelapre.html" },
+        { label: "Fluxo",           url: "https://www.betstat.site/estrelafluxo.html" },
+        { label: "Máximas",         url: "https://www.betstat.site/maximaestrela.html" },
+        { label: "GolsPró",         url: "https://www.betstat.site/golsestrela.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/estrelafixo.html" },
+        { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "LigaStat",        url: "https://www.betstat.site/estrelastat.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/estrelamult.html" },
+        { label: "LocalizAI",       url: "https://www.betstat.site/localizAIstar.html" },
+        { label: "Projeções",       url: "https://www.betstat.site/estrelaprojecoes.html" },
+        { label: "Referencia",      url: "https://www.betstat.site/referencia.html" },
+        { label: "Quadrantes",      url: "https://www.betstat.site/estrelaquadrante.html" },
+        { label: "Porcentagem",     url: "https://www.betstat.site/porcentagemstar.html" },
+        { label: "Classificação",   url: "https://www.betstat.site/estrelaclassificacao.html" },
+        { label: "Gráfico Macro",   url: "https://www.betstat.site/estrelamacro.html" },
+        { label: "Radar Gráfico",   url: "https://www.betstat.site/estrelaradar.html" },
+        { label: "Buscador Odds",   url: "https://www.betstat.site/buscadoroddstar.html" },
+        { label: "Buscador Time",   url: "https://www.betstat.site/buscadortimestar.html" },
+        { label: "Buscador Placar", url: "https://www.betstat.site/estrelabuscador.html" },
+        { label: "Buscador Duelo",  url: "https://www.betstat.site/estreladuelo.html" },
+      ]
+    },
+    {
+      group: "Kiron",
+      tools: [
+        { label: "Pré Live",        url: "https://www.betstat.site/kironpre.html" },
+        { label: "Fluxo",           url: "https://www.betstat.site/kironfluxo.html" },
+        { label: "Máximas",         url: "https://www.betstat.site/maximaskiron.html" },
+        { label: "GolsPró",         url: "https://www.betstat.site/golskiron.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/fixokiron.html" },
+        { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "LigaStat",        url: "https://www.betstat.site/LigaStatkiron.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/multkiron.html" },
+        { label: "LocalizAI",       url: "https://www.betstat.site/localizAIkiron.html" },
+        { label: "Projeções",       url: "https://www.betstat.site/kironprojecao.html" },
+        { label: "Referencia",      url: "https://www.betstat.site/referencia.html" },
+        { label: "Quadrantes",      url: "https://www.betstat.site/kironquadrantes.html" },
+        { label: "Porcentagem",     url: "https://www.betstat.site/porcentagemkiron.html" },
+        { label: "Classificação",   url: "https://www.betstat.site/classificacaokiron.html" },
+        { label: "Gráfico Macro",   url: "https://www.betstat.site/kironmacro.html" },
+        { label: "Radar Gráfico",   url: "https://www.betstat.site/kironradar.html" },
+        { label: "Buscador Odds",   url: "https://www.betstat.site/buscadoroddkiron.html" },
+        { label: "Buscador Time",   url: "https://www.betstat.site/buscadortimekiron.html" },
+        { label: "Buscador Placar", url: "https://www.betstat.site/kironbuscador.html" },
+        { label: "Buscador Duelo",  url: "https://www.betstat.site/kironduelo.html" },
+      ]
+    },
+    {
+      group: "🛠️ Extras",
+      tools: [
+        { label: "Guias",        url: "https://www.betstat.site/guias.html" },
+        { label: "Mentor",        url: "https://www.betstat.site/mentor.html" },
+        { label: "Flat",        url: "https://www.betstat.site/flat.html" },
+        { label: "Ao Vivo",      url: "https://www.betstat.site/live.html" },
+        { label: "Calc Dutch",   url: "https://www.betstat.site/calculadora.html" },
+        { label: "Morpheus IA",  url: "https://www.betstat.site/morfeus" },
+        { label: "Gerador Tip",  url: "https://www.betstat.site/central/" },
+        { label: "Gestão Banca", url: "gestao.html" },
+      ]
+    }
+  ];
+
+  const MAX_SLOTS = 5;
+
+  /* ── localStorage ────────────────────────────────────────────── */
+  function loadState() {
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_KEY));
+      if (s && Array.isArray(s.slots)) return s;
+    } catch {}
+    return { slots: [] };
+  }
+  function saveState(s) { localStorage.setItem(LS_KEY, JSON.stringify(s)); }
+
+  /* ── Label pelo URL ──────────────────────────────────────────── */
+  function labelByUrl(url) {
+    for (const cat of CATALOGO) {
+      const t = cat.tools.find(t => t.url === url);
+      if (t) return `${cat.group} › ${t.label}`;
+    }
+    return '⭐ Nova Ferramenta';
+  }
+
+  /* ── CSS ─────────────────────────────────────────────────────── */
+  const CSS = `
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap');
+
+    #bsFavWrapper    { margin-bottom: 10px; font-family: 'Roboto', Arial, sans-serif; }
+    #bsFavAddWrapper { margin-bottom: 6px; }
+
+    /* ── Botão Adicionar — idêntico ao .accordion-button da página ── */
+    .bsfav-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 16px;
+    background: transparent;
+    border: 1px dashed rgba(109,120,133,.5);
+    color: #6d7885;
+    font-family: 'Roboto', Arial, sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: color .2s, background .2s, border-color .2s;
+    box-sizing: border-box;
+    }
+    .bsfav-add-btn:hover {
+    background: rgba(109,120,133,.12);
+    border-color: #6d7885;
+    color: #aab4bf;
+    }
+    .bsfav-add-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+    }
+
+    /* ── Item wrapper ── */
+    .bsfav-item { margin-bottom: 6px; }
+
+    /* ── Botão do acordeão favorito — idêntico ao .accordion-button ── */
+    .bsfav-item-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 6px 16px;
+      background: linear-gradient(90deg, #292d36 0%, #2a2c34 100%);
+      border: none;
+      border-bottom: 1px solid transparent;
+      border-left: 3px solid rgba(74,222,128,.45);
+      color: #7a8494;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      text-align: left;
+      border-radius: 0;
+      transition: color .2s, background .2s, border-color .2s;
+      box-sizing: border-box;
+    }
+    .bsfav-item-btn:hover {
+      color: #b0bec5;
+      background: linear-gradient(90deg, #2e3240 0%, #2f3140 100%);
+      border-bottom-color: rgba(255,255,255,.06);
+    }
+    .bsfav-item-btn.is-open {
+      color: #c8cdd8;
+      background: linear-gradient(90deg, #2e3240 0%, #2f3140 100%);
+      border-bottom-color: rgba(255,255,255,.06);
+      border-left-color: rgba(74,222,128,.8);
+    }
+
+    .bsfav-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bsfav-chevron {
+      font-size: 9px;
+      color: #7a8494;
+      flex-shrink: 0;
+      transition: transform .2s;
+    }
+    .bsfav-item-btn.is-open .bsfav-chevron { transform: rotate(180deg); }
+
+    /* ── Botão remover ── */
+    .bsfav-remove-btn {
+      padding: 2px 8px;
+      line-height: 1.5;
+      background: rgba(239,68,68,.08);
+      color: #f87171;
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-weight: 700;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all .2s;
+    }
+    .bsfav-remove-btn:hover {
+      background: rgba(239,68,68,.2);
+      border-color: rgba(239,68,68,.6);
+    }
+
+    /* ── Conteúdo expandido ── */
+    .bsfav-content {
+      display: none;
+      overflow: hidden;
+      background: #1e2128;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      margin-bottom: 2px;
+    }
+    .bsfav-content.open { display: block; }
+
+    /* ── Toolbar interna ── */
+    .bsfav-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 10px;
+      background: #1a1d24;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      flex-wrap: wrap;
+    }
+    .bsfav-toolbar select {
+      flex: 1;
+      background: #2a2d35;
+      color: #c8cdd8;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 3px;
+      padding: 4px 9px;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-size: 11px;
+      cursor: pointer;
+      min-width: 120px;
+    }
+    .bsfav-toolbar select:focus   { outline: none; border-color: rgba(255,255,255,.3); }
+    .bsfav-toolbar select:disabled { opacity: .4; cursor: not-allowed; }
+
+    .bsfav-apply-btn {
+      padding: 4px 14px;
+      background: #2a2d35;
+      color: #c8cdd8;
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 3px;
+      font-family: 'Roboto', Arial, sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .2s;
+    }
+    .bsfav-apply-btn:hover {
+      background: #32363f;
+      border-color: rgba(255,255,255,.3);
+      color: #e2e8f0;
+    }
+    .bsfav-apply-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* ── iframe ── */
+    .bsfav-frame {
+      width: 100%;
+      min-height: 620px;
+      border: none;
+      display: block;
+      background: #1a1d24;
+    }
+  `;
+
+  /* ── Cria selects de casa e ferramenta ───────────────────────── */
+  function buildCasaSelect(selectedGroup) {
+    const sel = document.createElement('select');
+    sel.className = 'bsfav-casa-select';
+
+    const ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = 'Escolha a casa…';
+    ph.disabled = true;
+    if (!selectedGroup) ph.selected = true;
+    sel.appendChild(ph);
+
+    CATALOGO.forEach(cat => {
+      const o = document.createElement('option');
+      o.value = cat.group;
+      o.textContent = cat.group;
+      if (cat.group === selectedGroup) o.selected = true;
+      sel.appendChild(o);
+    });
+
+    return sel;
+  }
+
+  function buildToolSelect(casaGroup, selectedUrl) {
+    const sel = document.createElement('select');
+    sel.className = 'bsfav-tool-select';
+
+    const ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = casaGroup ? 'Escolha a ferramenta…' : 'Primeiro escolha a casa…';
+    ph.disabled = true;
+    if (!selectedUrl) ph.selected = true;
+    sel.appendChild(ph);
+
+    if (casaGroup) {
+      const casa = CATALOGO.find(c => c.group === casaGroup);
+      if (casa) {
+        casa.tools.forEach(t => {
+          const o = document.createElement('option');
+          o.value = t.url;
+          o.textContent = t.label;
+          if (t.url === selectedUrl) o.selected = true;
+          sel.appendChild(o);
+        });
+      }
+    }
+
+    sel.disabled = !casaGroup;
+    return sel;
+  }
+
+  /* ── Cria um acordeão favorito ───────────────────────────────── */
+  function createToolAccordion(idx, slotData) {
+    const { url, open } = slotData;
+
+    let selectedCasa    = '';
+    let selectedToolUrl = url || '';
+
+    if (url) {
+      for (const cat of CATALOGO) {
+        if (cat.tools.find(t => t.url === url)) {
+          selectedCasa = cat.group;
+          break;
+        }
+      }
+    }
+
+    const item = document.createElement('div');
+    item.className = 'bsfav-item';
+
+    /* header */
+    const btn = document.createElement('button');
+    btn.className = 'bsfav-item-btn' + (open ? ' is-open' : '');
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'bsfav-title';
+    titleSpan.textContent = url ? labelByUrl(url) : '⭐ Nova Ferramenta';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'bsfav-remove-btn';
+    removeBtn.textContent = '✕ Remover';
+    removeBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const st = loadState();
+      st.slots.splice(idx, 1);
+      saveState(st);
+      rebuildSlots();
+    });
+
+    const chevron = document.createElement('span');
+    chevron.className = 'bsfav-chevron';
+    chevron.textContent = '▼';
+
+    btn.append(titleSpan, removeBtn, chevron);
+
+    /* conteúdo */
+    const content = document.createElement('div');
+    content.className = 'bsfav-content' + (open ? ' open' : '');
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'bsfav-toolbar';
+
+    const casaSel  = buildCasaSelect(selectedCasa);
+    const toolSel  = buildToolSelect(selectedCasa, selectedToolUrl);
+    const applyBtn = document.createElement('button');
+    applyBtn.className   = 'bsfav-apply-btn';
+    applyBtn.textContent = 'Carregar';
+    applyBtn.disabled    = !selectedToolUrl;
+
+    casaSel.addEventListener('change', () => {
+      const novoToolSel = buildToolSelect(casaSel.value, '');
+      toolSel.innerHTML = novoToolSel.innerHTML;
+      toolSel.disabled  = !casaSel.value;
+      applyBtn.disabled = true;
+    });
+
+    toolSel.addEventListener('change', () => {
+      applyBtn.disabled = !toolSel.value;
+    });
+
+    const hideHeader = (fr) => {
+      try {
+        const doc = fr.contentDocument || fr.contentWindow.document;
+        const h   = doc.querySelector('#header');
+        if (h) { h.style.cssText = 'display:none!important;height:0;overflow:hidden'; }
+      } catch {
+        fr.contentWindow.postMessage({ action: 'hideHeader' }, '*');
+      }
+    };
+
+    applyBtn.addEventListener('click', () => {
+      const chosen = toolSel.value;
+      if (!chosen) return;
+      const st = loadState();
+      st.slots[idx].url = chosen;
+      saveState(st);
+      titleSpan.textContent = labelByUrl(chosen);
+      frame.src    = chosen;
+      frame.onload = () => hideHeader(frame);
+    });
+
+    toolbar.append(casaSel, toolSel, applyBtn);
+
+    const frame = document.createElement('iframe');
+    frame.className = 'bsfav-frame';
+    frame.src       = (open && url) ? url : 'about:blank';
+    frame.setAttribute('allowfullscreen', '');
+    if (open && url) frame.onload = () => hideHeader(frame);
+
+    content.append(toolbar, frame);
+
+    /* toggle */
+    btn.addEventListener('click', e => {
+      if (e.target.closest('.bsfav-remove-btn')) return;
+      const isOpen = content.classList.toggle('open');
+      btn.classList.toggle('is-open', isOpen);
+
+      if (isOpen) {
+        const st  = loadState();
+        const cur = st.slots[idx]?.url;
+        const blank = frame.src === 'about:blank' || frame.src === window.location.href;
+        if (cur && blank) {
+          frame.src    = cur;
+          frame.onload = () => hideHeader(frame);
+        }
+      }
+
+      const st = loadState();
+      if (st.slots[idx]) { st.slots[idx].open = isOpen; saveState(st); }
+    });
+
+    item.append(btn, content);
+    return item;
+  }
+
+  /* ── Referência ao container de slots ───────────────────────── */
+  function getSlotsContainer() {
+    return document.getElementById('bsFavSlotsContainer');
+  }
+
+  /* ── Reconstrói apenas os slots favoritos ────────────────────── */
+  function rebuildSlots() {
+    const container = getSlotsContainer();
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const state = loadState();
+    state.slots.forEach((slot, i) => {
+      container.appendChild(createToolAccordion(i, slot));
+    });
+
+    const addBtn = document.querySelector('.bsfav-add-btn');
+    if (addBtn) {
+      const atMax = state.slots.length >= MAX_SLOTS;
+      addBtn.disabled    = atMax;
+      addBtn.textContent = atMax
+        ? `✦ Máximo de ${MAX_SLOTS} ferramentas atingido`
+        : '＋ Adicionar Ferramenta';
+    }
+  }
+
+  /* ── Init ────────────────────────────────────────────────────── */
+  function init() {
+    const style = document.createElement('style');
+    style.textContent = CSS;
+    document.head.appendChild(style);
+
+    const firstFixed = document.querySelector('.accordion-item');
+    if (!firstFixed) {
+      console.warn('[BsFav] Nenhum .accordion-item encontrado.');
+      return;
+    }
+
+    const parent = firstFixed.parentNode;
+
+    const addWrapper = document.createElement('div');
+    addWrapper.id = 'bsFavAddWrapper';
+
+    const addBtn = document.createElement('button');
+    addBtn.className   = 'bsfav-add-btn';
+    addBtn.textContent = '＋ Adicionar Ferramenta';
+    addBtn.addEventListener('click', () => {
+      const st = loadState();
+      if (st.slots.length >= MAX_SLOTS) return;
+      st.slots.push({ url: '', open: true });
+      saveState(st);
+      rebuildSlots();
+    });
+
+    addWrapper.appendChild(addBtn);
+
+    const slotsContainer = document.createElement('div');
+    slotsContainer.id = 'bsFavSlotsContainer';
+
+    parent.insertBefore(addWrapper,     firstFixed);
+    parent.insertBefore(slotsContainer, firstFixed);
+
+    rebuildSlots();
+  }
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', init)
+    : init();
+
+})();
