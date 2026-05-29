@@ -113,7 +113,7 @@ select option{background:#0f1520;color:var(--text)}
 #alertBar{
   position:relative;z-index:2;
   display:flex;align-items:center;gap:10px;
-  padding:0 12px;height:60px;
+  padding:0 12px;height:50px;
   border-bottom:1px solid var(--border);
   transition:all .4s;flex-shrink:0;
   background:linear-gradient(180deg,var(--bg2) 0%,var(--bg) 100%);
@@ -156,7 +156,7 @@ select option{background:#0f1520;color:var(--text)}
 #alertBar.vermelho .a-nivel{color:var(--red);background:rgba(255,61,106,.08)}
 #alertBar.neutro   .a-nivel{color:var(--muted);background:transparent}
 
-.a-ind{font-family:var(--mono);font-size:9px;color:var(--muted2);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a-ind{font-family:var(--mono);font-size:8.5px;color:var(--muted2);letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .a-chips{display:flex;flex-direction:column;gap:3px;align-items:flex-end;flex-shrink:0}
 .a-chip{
@@ -196,7 +196,7 @@ select option{background:#0f1520;color:var(--text)}
 #main{
   position:relative;z-index:1;
   display:grid;grid-template-columns:1fr 192px;
-  height:calc(100vh - var(--hdr) - 60px - var(--pills));
+  height:calc(100vh - var(--hdr) - 50px - var(--pills));
   min-height:0;
 }
 
@@ -210,6 +210,39 @@ select option{background:#0f1520;color:var(--text)}
 #macdWrap{display:none}
 
 /* MACD oculto */
+
+/* ── EXTERNAL TOOLTIP ── */
+#extTooltip{
+  position:fixed;
+  pointer-events:none;
+  z-index:9999;
+  min-width:220px;
+  max-width:280px;
+  background:rgba(7,11,18,.97);
+  border:1px solid rgba(100,160,255,.15);
+  border-radius:6px;
+  padding:10px 12px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;
+  color:#5a7090;
+  line-height:1.7;
+  opacity:0;
+  transition:opacity .15s;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+}
+#extTooltip.visible{opacity:1}
+#extTooltip .tt-title{
+  font-size:10px;font-weight:700;color:#c8d8f0;
+  margin-bottom:6px;padding-bottom:6px;
+  border-bottom:1px solid rgba(100,160,255,.1);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#extTooltip .tt-row{display:flex;justify-content:space-between;gap:12px}
+#extTooltip .tt-lbl{color:#3a4d6a}
+#extTooltip .tt-val{color:#c8d8f0;font-weight:700}
+#extTooltip .tt-val.gn{color:#0ff5a0}
+#extTooltip .tt-val.rd{color:#ff3d6a}
+#extTooltip .tt-sep{height:1px;background:rgba(100,160,255,.07);margin:5px 0}
 
 .chart-overlay{
   position:absolute;inset:0;display:flex;flex-direction:column;
@@ -286,6 +319,9 @@ select option{background:#0f1520;color:var(--text)}
 </head>
 <body>
 
+<!-- EXTERNAL TOOLTIP -->
+<div id="extTooltip"></div>
+
 <!-- TOP BAR -->
 <div id="topbar">
   <div class="logo"></div>
@@ -356,7 +392,6 @@ select option{background:#0f1520;color:var(--text)}
       <span class="a-nivel" id="a-nivel">—</span>
     </div>
     <div class="a-ind" id="a-ind1">—</div>
-    <div class="a-ind" id="a-ind2">—</div>
   </div>
   <div class="a-chips">
     <span class="a-chip casa" id="a-casa">—</span>
@@ -909,35 +944,8 @@ function render(){
     },
   };
 
-  // Tooltip
-  mainCh.options.plugins.tooltip.callbacks.title=items=>{
-    const i=items[0].dataIndex;
-    const r=wRows[i];if(!r)return '';
-    const tA=r.time_a||r.team_home||r.home||'';
-    const tB=r.time_b||r.team_visit||r.away||'';
-    const ftP=parseFt(r);
-    const ft=ftP?`${ftP[0]} x ${ftP[1]}`:(r.ft||'');
-    return `${wLabels[i]||''}  ${tA} × ${tB}  ${ft}`;
-  };
-  mainCh.options.plugins.tooltip.callbacks.afterBody=items=>{
-    const i=items[0].dataIndex;
-    const idx=wStart+i;
-    const _rr=all.rr[idx],_mmf=all.mmF[idx],_mms=all.mmS[idx];
-    const _ri=all.rsiV[idx],_md=all.md[idx];
-    const _bu=all.bU[idx],_bl=all.bL[idx];
-    const _cong=(!nan(_bu)&&!nan(_bl))?(_bu-_bl)/2:NaN;
-    const _grad=(!nan(_mmf)&&!nan(_mms))?(_mmf>_mms?'alta':'baixa'):'--';
-    const _oc=all.oc[idx];
-    return [
-      '',
-      `  RSI       ${nan(_ri)?'—':_ri.toFixed(1)}`,
-      `  MACD      ${nan(_md)?'—':_md.toFixed(2)}`,
-      `  Boll.     ${nan(_bl)?'—':_bl.toFixed(1)} / ${nan(_bu)?'—':_bu.toFixed(1)}`,
-      `  Congest.  ±${nan(_cong)?'—':_cong.toFixed(1)}`,
-      `  Grad MM   ${_grad}`,
-      `  Resultado ${_oc===1?'✓ GREEN':'✗ RED'}`,
-    ];
-  };
+  // Feed external tooltip
+  _ttWRows=wRows; _ttWLabels=wLabels; _ttAll=all; _ttWStart=wStart;
 
   mainCh.update('none');
 
@@ -1020,12 +1028,10 @@ function render(){
   document.getElementById('a-title').textContent=title;
   document.getElementById('a-nivel').textContent=nivel;
 
-  // linha 1: indicadores principais (estilo Betaxis)
+  // linha única de indicadores (estilo Betaxis com emojis)
   const tick=v=>v?'✅':'❌';
-  const indL1=`MM: ${tick(mmOk)} | Balão: ${tick(balaoOk)} | RSI: ${tick(rsiOk)} | MACD: ${tick(macdOk)} | Grad: ${tick(grad==='alta')}`;
-  const indL2=`Boll: ${tick(bollOk)} | Zona: ${tick(zonaOk)} | Cong: ${tick(congOk)} | Rolling: ${r20}% ${tick(r20>=50)} | Streak Red: ${streakRed} ${tick(streakOk)}`;
-  document.getElementById('a-ind1').textContent=indL1;
-  document.getElementById('a-ind2').textContent=indL2;
+  const indLine=`MM: ${tick(mmOk)} | Balão: ${tick(balaoOk)} | RSI: ${tick(rsiOk)} | MACD: ${tick(macdOk)} | Grad: ${tick(grad==='alta')} | Boll: ${tick(bollOk)} | Zona: ${tick(zonaOk)} | Cong: ${tick(congOk)} | Rolling: ${r20}% ${tick(r20>=50)} | Streak Red: ${streakRed} ${tick(streakOk)}`;
+  document.getElementById('a-ind1').textContent=indLine;
 
   // chips
   const casaVal=document.getElementById('sel-casa');
@@ -1062,6 +1068,70 @@ function render(){
 
   buildHeatmap(rows,all.oc);
   buildBars(all.oc);
+}
+
+/* ─────────────────────────────────────
+   EXTERNAL TOOLTIP (fixo no canto, longe do cursor)
+───────────────────────────────────── */
+// wRows/wLabels/all/wStart ficam atualizados pelo render()
+let _ttWRows=[], _ttWLabels=[], _ttAll=null, _ttWStart=0;
+
+function externalTooltip(context){
+  const tt=document.getElementById('extTooltip');
+  const {chart,tooltip}=context;
+
+  if(tooltip.opacity===0){tt.classList.remove('visible');return;}
+
+  const i=tooltip.dataPoints?.[0]?.dataIndex;
+  if(i===undefined){tt.classList.remove('visible');return;}
+
+  const r=_ttWRows[i];
+  const idx=_ttWStart+i;
+  const all=_ttAll;
+  if(!r||!all){tt.classList.remove('visible');return;}
+
+  const tA=r.time_a||r.team_home||r.home||'';
+  const tB=r.time_b||r.team_visit||r.away||'';
+  const ftP=parseFt(r);
+  const ft=ftP?`${ftP[0]} x ${ftP[1]}`:(r.ft||'');
+  const hora=_ttWLabels[i]||'';
+
+  const _rr =all.rr[idx],  _mmf=all.mmF[idx], _mms=all.mmS[idx];
+  const _ri =all.rsiV[idx],_md =all.md[idx];
+  const _bu =all.bU[idx],  _bl =all.bL[idx];
+  const _cong=(!nan(_bu)&&!nan(_bl))?(_bu-_bl)/2:NaN;
+  const _grad=(!nan(_mmf)&&!nan(_mms))?(_mmf>_mms?'alta ▲':'baixa ▼'):'--';
+  const _oc=all.oc[idx];
+
+  const row=(lbl,val,cls='')=>`<div class="tt-row"><span class="tt-lbl">${lbl}</span><span class="tt-val ${cls}">${val}</span></div>`;
+
+  tt.innerHTML=`
+    <div class="tt-title">${hora}  ${tA} × ${tB}  ${ft}</div>
+    ${row('Rolante',nan(_rr)?'—':Math.round(_rr)+'%', nan(_rr)?'':(_rr>=55?'gn':'rd'))}
+    ${row('MM Rápida',nan(_mmf)?'—':_mmf.toFixed(1))}
+    ${row('MM Lenta',nan(_mms)?'—':_mms.toFixed(1))}
+    <div class="tt-sep"></div>
+    ${row('RSI',nan(_ri)?'—':_ri.toFixed(1), nan(_ri)?'':(_ri>=35&&_ri<=72?'gn':'rd'))}
+    ${row('MACD',nan(_md)?'—':_md.toFixed(2), nan(_md)?'':(_md>=0?'gn':'rd'))}
+    ${row('Boll.',nan(_bl)?'—':`${_bl.toFixed(1)} / ${nan(_bu)?'—':_bu.toFixed(1)}`)}
+    ${row('Congestão',nan(_cong)?'—':'±'+_cong.toFixed(1))}
+    ${row('Grad MM',_grad)}
+    <div class="tt-sep"></div>
+    ${row('Resultado',_oc===1?'✓ GREEN':'✗ RED',_oc===1?'gn':'rd')}
+  `;
+
+  // posição: canto superior direito do canvas, sempre fixo
+  const canvasRect=chart.canvas.getBoundingClientRect();
+  const ttW=240, ttH=tt.offsetHeight||220;
+  // tenta colocar no canto superior direito do chart
+  let left=canvasRect.right - ttW - 14;
+  let top=canvasRect.top + 10;
+  // se sair da viewport ajusta
+  if(left<0) left=canvasRect.left+8;
+  if(top+ttH>window.innerHeight) top=window.innerHeight-ttH-8;
+  tt.style.left=left+'px';
+  tt.style.top=top+'px';
+  tt.classList.add('visible');
 }
 
 /* ─────────────────────────────────────
@@ -1104,25 +1174,8 @@ function initCharts(){
         legend:{display:false},
         annotation:{annotations:{}},
         tooltip:{
-          backgroundColor:'rgba(7,11,18,.97)',
-          titleColor:'#c8d8f0',
-          bodyColor:'#5a7090',
-          borderColor:'rgba(100,160,255,.15)',borderWidth:1,
-          padding:10,
-          titleFont:{family:"'JetBrains Mono'",size:10,weight:'700'},
-          bodyFont:{family:"'JetBrains Mono'",size:9},
-          callbacks:{
-            title:()=>'',
-            label:ctx=>{
-              if(isNaN(ctx.raw)) return null;
-              const ds=ctx.dataset.label;
-              if(ds==='Taxa Rolante') return `  Rolante  ${Math.round(ctx.raw)}%`;
-              if(ds==='MM Lenta')     return `  MM Lenta  ${ctx.raw.toFixed(1)}`;
-              if(ds==='MM Rápida')    return `  MM Rápida  ${ctx.raw.toFixed(1)}`;
-              if(ds?.startsWith('Boll')) return null;
-              return null;
-            }
-          }
+          enabled:false,
+          external:externalTooltip
         },
         datalabels:{display:false}
       }
