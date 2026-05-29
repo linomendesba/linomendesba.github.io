@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Trader Stats</title>
+<title>Betaxis — Trader Stats</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -56,13 +57,22 @@ select:focus{border-color:var(--accent)}
 .refresh-badge{
   font-family:var(--mono);font-size:9px;padding:2px 7px;
   border:1px solid var(--border2);border-radius:3px;color:var(--muted);
-  transition:color .3s,border-color .3s;white-space:nowrap;
+  transition:color .3s,border-color .3s;white-space:nowrap;cursor:pointer;
 }
+.refresh-badge:hover{border-color:var(--accent);color:var(--accent)}
 .refresh-badge.live{color:var(--accent);border-color:rgba(0,214,143,.4)}
 
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);
   box-shadow:0 0 5px var(--accent);animation:blink 2s infinite;flex-shrink:0}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* label toggle btn */
+.lbl-toggle{
+  font-family:var(--mono);font-size:9px;padding:2px 7px;
+  border:1px solid var(--border2);border-radius:3px;color:var(--muted);
+  cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none;
+}
+.lbl-toggle.on{color:var(--accent);border-color:rgba(0,214,143,.4);background:rgba(0,214,143,.06)}
 
 /* ── ALERT BAR ── */
 #alertBar{
@@ -117,7 +127,7 @@ select:focus{border-color:var(--accent)}
 
 /* ── MAIN LAYOUT ── */
 #main{
-  display:grid;grid-template-columns:1fr 200px;
+  display:grid;grid-template-columns:1fr 190px;
   height:calc(100vh - var(--hdr) - var(--bar) - var(--pills));
   min-height:0;
 }
@@ -131,6 +141,12 @@ select:focus{border-color:var(--accent)}
 #mainWrap canvas{width:100%!important;height:100%!important}
 #macdWrap{height:var(--macd);flex-shrink:0;position:relative;border-top:1px solid var(--border)}
 #macdWrap canvas{width:100%!important;height:100%!important}
+
+/* MACD label */
+.macd-lbl{
+  position:absolute;top:4px;left:8px;font-family:var(--mono);font-size:8px;
+  color:var(--muted);letter-spacing:.06em;pointer-events:none;z-index:2;
+}
 
 .chart-overlay{
   position:absolute;inset:0;display:flex;flex-direction:column;
@@ -150,7 +166,8 @@ select:focus{border-color:var(--accent)}
 
 /* slots grid */
 #slotGrid{display:grid;grid-template-columns:repeat(10,1fr);gap:3px}
-.sq{aspect-ratio:1;border-radius:2px}
+.sq{aspect-ratio:1;border-radius:2px;cursor:default;transition:opacity .1s}
+.sq:hover{opacity:.7}
 .sq.gn{background:var(--green);opacity:.85}
 .sq.rd{background:var(--red);opacity:.8}
 .sq.em{background:var(--border2)}
@@ -164,18 +181,21 @@ select:focus{border-color:var(--accent)}
 .sval.gn{color:var(--green)}
 .sval.rd{color:var(--red)}
 
-/* próximos */
-.ng{display:flex;flex-direction:column;gap:3px;padding:6px 0;border-bottom:1px solid var(--border)}
-.ng:last-child{border-bottom:none}
-.ng-t{font-family:var(--mono);font-size:9px;color:var(--accent)}
-.ng-m{font-size:10px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ── MINI HEATMAP ── */
+.heatmap-wrap{display:flex;flex-direction:column;gap:2px}
+.hm-row{display:flex;align-items:center;gap:4px}
+.hm-lbl{font-family:var(--mono);font-size:8px;color:var(--muted);min-width:22px;text-align:right}
+.hm-cells{display:flex;gap:2px;flex:1}
+.hm-cell{flex:1;height:10px;border-radius:1px;transition:opacity .15s}
+.hm-cell:hover{opacity:.6;cursor:default}
 
-/* odds */
-.orow{display:flex;justify-content:space-between;align-items:center;
-  padding:4px 0;border-bottom:1px solid var(--border);font-size:10px}
-.orow:last-child{border-bottom:none}
-.olbl{color:var(--muted2)}
-.oval{font-family:var(--mono);font-weight:700;color:var(--text)}
+/* ── MÉDIA POR HORA BAR ── */
+.bar-wrap{display:flex;flex-direction:column;gap:3px}
+.bar-item{display:flex;align-items:center;gap:5px}
+.bar-lbl{font-family:var(--mono);font-size:8px;color:var(--muted);min-width:28px;text-align:right}
+.bar-track{flex:1;height:7px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:width .4s}
+.bar-val{font-family:var(--mono);font-size:8px;color:var(--muted2);min-width:24px}
 
 @media(max-width:600px){
   #main{grid-template-columns:1fr}
@@ -188,7 +208,7 @@ select:focus{border-color:var(--accent)}
 
 <!-- TOP BAR -->
 <div id="topbar">
-  <div class="logo">▲ TRADER</div>
+  <div class="logo">BETAXIS</div>
   <div class="sel-group">
     <span class="sel-lbl">CASA</span>
     <select id="sel-casa" onchange="onCasaChange()">
@@ -241,7 +261,8 @@ select:focus{border-color:var(--accent)}
     </select>
   </div>
   <div class="divider"></div>
-  <div id="refreshBadge" class="refresh-badge">⟳ <span id="refreshTxt">30s</span></div>
+  <div id="lblToggle" class="lbl-toggle on" onclick="toggleLabels()">RÓTULOS ON</div>
+  <div id="refreshBadge" class="refresh-badge" onclick="softRefresh()">⟳ <span id="refreshTxt">30s</span></div>
   <div class="live-dot"></div>
 </div>
 
@@ -255,7 +276,7 @@ select:focus{border-color:var(--accent)}
   <div class="a-stats">
     <div class="a-stat"><span class="a-sv" id="s-roll">—</span><span class="a-sl">Rolling 20</span></div>
     <div class="a-stat"><span class="a-sv" id="s-taxa">—</span><span class="a-sl">Taxa geral</span></div>
-    <div class="a-stat"><span class="a-sv" id="s-tot">—</span><span class="a-sl">Total</span></div>
+    <div class="a-stat"><span class="a-sv" id="s-tot">—</span><span class="a-sl">Total jogos</span></div>
   </div>
 </div>
 
@@ -285,6 +306,7 @@ select:focus{border-color:var(--accent)}
       <canvas id="mainChart"></canvas>
     </div>
     <div id="macdWrap">
+      <div class="macd-lbl">MACD · SIGNAL · HIST</div>
       <canvas id="macdChart"></canvas>
     </div>
   </div>
@@ -301,51 +323,54 @@ select:focus{border-color:var(--accent)}
       <div class="srow"><span class="slbl">Taxa geral</span><span class="sval" id="s-taxa2">—</span></div>
       <div class="srow"><span class="slbl">Rolling (20)</span><span class="sval" id="s-roll2">—</span></div>
       <div class="srow"><span class="slbl">Streak atual</span><span class="sval" id="s-streak">—</span></div>
+      <div class="srow"><span class="slbl">Máx seguidos</span><span class="sval" id="s-maxstreak">—</span></div>
     </div>
     <div class="s-sec">
-      <div class="s-lbl">Próximos jogos</div>
-      <div id="nextGames"><span style="font-size:10px;color:var(--muted)">—</span></div>
+      <div class="s-lbl">Heatmap por hora</div>
+      <div class="heatmap-wrap" id="hmWrap"></div>
     </div>
     <div class="s-sec">
-      <div class="s-lbl">Odds (último capturado)</div>
-      <div id="oddsBox"><span style="font-size:10px;color:var(--muted)">—</span></div>
+      <div class="s-lbl">Taxa últimas 5 janelas</div>
+      <div class="bar-wrap" id="barWrap"></div>
     </div>
   </div>
 </div>
 
 <script>
+Chart.register(ChartDataLabels);
+
 /* ──────────────────────────────────────────────
    CONFIG LIGAS
 ────────────────────────────────────────────── */
 const LIGAS={
   bet365:[
-    {label:'Copa',      res:'bet365/Copa',      prox:'bet365/Copa',      odds:'bet365/Copa'},
-    {label:'Euro Cup',  res:'bet365/Euro',       prox:'bet365/Euro',      odds:'bet365/Euro'},
-    {label:'Super',     res:'bet365/Super',      prox:'bet365/Super',     odds:'bet365/Super'},
-    {label:'Premier',   res:'bet365/Premier',    prox:'bet365/Premier',   odds:'bet365/Premier'},
+    {label:'Copa',      res:'bet365/Copa'},
+    {label:'Euro Cup',  res:'bet365/Euro'},
+    {label:'Super',     res:'bet365/Super'},
+    {label:'Premier',   res:'bet365/Premier'},
   ],
   betano:[
-    {label:'Copa América',        res:'Copa%20Am%C3%A9rica',        prox:'Copa%20Am%C3%A9rica',        odds:'Copa%20Am%C3%A9rica'},
-    {label:'Clássicos América',   res:'Ta%C3%A7a%20Gl%C3%B3ria%20eterna', prox:'Ta%C3%A7a%20Gl%C3%B3ria%20eterna', odds:'Ta%C3%A7a%20Gl%C3%B3ria%20eterna'},
-    {label:'Euro',                res:'Euro',                       prox:'Euro',                       odds:'Euro'},
-    {label:'Camp. Italiano',      res:'Campeonato%20Italiano',      prox:'Campeonato%20Italiano',      odds:'Campeonato%20Italiano'},
-    {label:'Copa das Estrelas',   res:'Copa%20das%20estrelas',      prox:'Copa%20das%20estrelas',      odds:'Copa%20das%20estrelas'},
-    {label:'Brasileirão Betano',  res:'Brasileir%C3%A3o%20Betano', prox:'Brasileir%C3%A3o%20Betano', odds:'Brasileir%C3%A3o%20Betano'},
+    {label:'Copa América',        res:'Copa%20Am%C3%A9rica'},
+    {label:'Clássicos América',   res:'Ta%C3%A7a%20Gl%C3%B3ria%20eterna'},
+    {label:'Euro',                res:'Euro'},
+    {label:'Camp. Italiano',      res:'Campeonato%20Italiano'},
+    {label:'Copa das Estrelas',   res:'Copa%20das%20estrelas'},
+    {label:'Brasileirão Betano',  res:'Brasileir%C3%A3o%20Betano'},
   ],
   kiron:[
-    {label:'England League', res:'kiron/England', prox:'kiron/England', odds:'kiron/England'},
-    {label:'Italy League',   res:'kiron/Italy',   prox:'kiron/Italy',   odds:'kiron/Italy'},
-    {label:'Spain League',   res:'kiron/Spain',   prox:'kiron/Spain',   odds:'kiron/Spain'},
+    {label:'England League', res:'kiron/England'},
+    {label:'Italy League',   res:'kiron/Italy'},
+    {label:'Spain League',   res:'kiron/Spain'},
   ],
   estrela:[
-    {label:'Copa do Mundo',       res:'estrela/Copa%20do%20Mundo',          prox:'estrela/Copa%20do%20Mundo',          odds:'estrela/Copa%20do%20Mundo'},
-    {label:'Ligas dos Campeões',  res:'estrela/Ligas%20dos%20Campe%C3%B5es',prox:'estrela/Ligas%20dos%20Campe%C3%B5es',odds:'estrela/Ligas%20dos%20Campe%C3%B5es'},
-    {label:'América Latina',      res:'estrela/Am%C3%A9rica%20Latina',      prox:'estrela/Am%C3%A9rica%20Latina',      odds:'estrela/Am%C3%A9rica%20Latina'},
+    {label:'Copa do Mundo',       res:'estrela/Copa%20do%20Mundo'},
+    {label:'Ligas dos Campeões',  res:'estrela/Ligas%20dos%20Campe%C3%B5es'},
+    {label:'América Latina',      res:'estrela/Am%C3%A9rica%20Latina'},
   ],
   betsson:[
-    {label:'Espanha',    res:'betsson/Espanha',   prox:'betsson/Espanha',   odds:'betsson/Espanha'},
-    {label:'Inglaterra', res:'betsson/Inglaterra',prox:'betsson/Inglaterra',odds:'betsson/Inglaterra'},
-    {label:'Brasil',     res:'betsson/Brasil',    prox:'betsson/Brasil',    odds:'betsson/Brasil'},
+    {label:'Espanha',    res:'betsson/Espanha'},
+    {label:'Inglaterra', res:'betsson/Inglaterra'},
+    {label:'Brasil',     res:'betsson/Brasil'},
   ],
 };
 
@@ -360,13 +385,14 @@ const BASE='https://betstat.site';
 /* ──────────────────────────────────────────────
    STATE
 ────────────────────────────────────────────── */
-let allRowsRaw=[]; // resultados brutos da API
-let rows=[];       // após filtro período
+let allRowsRaw=[];
+let rows=[];
 let mkt='over25';
 let win=120;
 let periodHours=9999;
 let mainCh=null, macdCh=null;
 let refreshTimer=null, countdownTimer=null, refreshCountdown=30;
+let showLabels=true; // rótulos ON por padrão
 
 /* ──────────────────────────────────────────────
    MATH HELPERS
@@ -416,7 +442,6 @@ function rsiN(arr,p=14){
    OUTCOME
 ────────────────────────────────────────────── */
 function parseFt(r){
-  // suporta "2 x 1" (Betano/modelo) e "2x1" (outros formatos)
   const ft=r.ft||r.resultado_ft||'';
   if(!ft) return null;
   const parts=ft.split(/\s*x\s*/i).map(s=>parseInt(s.trim()));
@@ -443,11 +468,10 @@ function outcome(r){
 }
 
 /* ──────────────────────────────────────────────
-   COMPUTE — roda sobre array de rows (resultados)
+   COMPUTE
 ────────────────────────────────────────────── */
 function compute(data){
   const oc=data.map(r=>{ const o=outcome(r); return o===null?0:o; });
-  // rolling rate 20
   const rr=oc.map((_,i)=>{
     const s=Math.max(0,i-19),sl=oc.slice(s,i+1);
     return sl.reduce((a,b)=>a+b,0)/sl.length*100;
@@ -468,38 +492,30 @@ function compute(data){
 }
 
 /* ──────────────────────────────────────────────
-   PERÍODO FILTER
+   PERÍODO FILTER + SORT
 ────────────────────────────────────────────── */
 function rowHora(r){
-  // hora+minuto numérico (campo direto)
   if(r.hora!==undefined&&r.hora!==null&&r.minuto!==undefined&&r.minuto!==null)
     return Number(r.hora)*60+Number(r.minuto);
-  // campo data ISO
   if(r.data){ const d=new Date(r.data); if(!isNaN(d)) return d.getUTCHours()*60+d.getUTCMinutes(); }
-  // campo start_time ISO
   if(r.start_time){ const d=new Date(r.start_time); if(!isNaN(d)) return d.getUTCHours()*60+d.getUTCMinutes(); }
   return -1;
 }
 
-// Ordena por data+hora para garantir ordem cronológica correta
 function sortRows(raw){
   return [...raw].sort((a,b)=>{
-    // tenta comparar por data completa primeiro
     const dA=a.data||a.start_time, dB=b.data||b.start_time;
     if(dA&&dB){
       const tA=new Date(dA).getTime(), tB=new Date(dB).getTime();
       if(!isNaN(tA)&&!isNaN(tB)&&tA!==tB) return tA-tB;
     }
-    // fallback: hora+minuto
-    const hA=rowHora(a), hB=rowHora(b);
-    return hA-hB;
+    return rowHora(a)-rowHora(b);
   });
 }
 
 function filterByPeriod(raw){
   if(periodHours>=9999) return raw;
   if(!raw.length) return raw;
-  // usa o array já ordenado para pegar o último elemento correto
   const sorted=sortRows(raw);
   const lastM=rowHora(sorted[sorted.length-1]);
   if(lastM<0) return raw;
@@ -513,22 +529,145 @@ function filterByPeriod(raw){
 }
 
 /* ──────────────────────────────────────────────
+   MAX STREAK HELPER
+────────────────────────────────────────────── */
+function maxStreak(oc, type){
+  let best=0, cur=0;
+  for(const o of oc){
+    if(o===type) cur++; else cur=0;
+    if(cur>best) best=cur;
+  }
+  return best;
+}
+
+/* ──────────────────────────────────────────────
+   HEATMAP — taxa por bloco de hora (0-3,3-6…)
+────────────────────────────────────────────── */
+function buildHeatmap(data, oc){
+  const buckets=Array(8).fill(null).map(()=>({g:0,t:0}));
+  data.forEach((r,i)=>{
+    const m=rowHora(r);
+    if(m<0) return;
+    const h=Math.floor((m/60)%24);
+    const b=Math.floor(h/3);
+    buckets[b].t++;
+    if(oc[i]===1) buckets[b].g++;
+  });
+
+  const wrap=document.getElementById('hmWrap');
+  wrap.innerHTML='';
+  const row=document.createElement('div');
+  row.className='hm-row';
+  const lblEl=document.createElement('div');
+  lblEl.className='hm-lbl';
+  lblEl.textContent='';
+  row.appendChild(lblEl);
+  const cells=document.createElement('div');
+  cells.className='hm-cells';
+  buckets.forEach((b,i)=>{
+    const cell=document.createElement('div');
+    cell.className='hm-cell';
+    const taxa=b.t>0?b.g/b.t:0;
+    const h1=i*3, h2=h1+3;
+    cell.title=`${String(h1).padStart(2,'0')}h–${String(h2).padStart(2,'0')}h: ${b.t>0?Math.round(taxa*100)+'%':'sem dados'} (${b.g}/${b.t})`;
+    // cor: verde → vermelho pelo taxa
+    if(b.t===0){
+      cell.style.background='rgba(255,255,255,.05)';
+    } else {
+      const r=Math.round(255*(1-taxa));
+      const g=Math.round(200*taxa);
+      cell.style.background=`rgba(${r},${g},80,0.55)`;
+    }
+    cells.appendChild(cell);
+  });
+  row.appendChild(cells);
+  wrap.appendChild(row);
+
+  // legenda horas
+  const lblRow=document.createElement('div');
+  lblRow.className='hm-row';
+  const sp=document.createElement('div');
+  sp.className='hm-lbl';
+  lblRow.appendChild(sp);
+  const lblCells=document.createElement('div');
+  lblCells.className='hm-cells';
+  lblCells.style.cssText='display:flex;gap:2px;flex:1';
+  ['0h','3h','6h','9h','12h','15h','18h','21h'].forEach(t=>{
+    const d=document.createElement('div');
+    d.style.cssText='flex:1;font-family:var(--mono);font-size:7px;color:var(--muted);text-align:center';
+    d.textContent=t;
+    lblCells.appendChild(d);
+  });
+  lblRow.appendChild(lblCells);
+  wrap.appendChild(lblRow);
+}
+
+/* ──────────────────────────────────────────────
+   BAR CHART — taxa por janelas de 20
+────────────────────────────────────────────── */
+function buildBars(oc){
+  const wrap=document.getElementById('barWrap');
+  wrap.innerHTML='';
+  const total=oc.length;
+  if(total<20){ wrap.innerHTML='<span style="font-size:9px;color:var(--muted)">Dados insuficientes</span>'; return; }
+  const windows=[];
+  for(let i=0;i<5;i++){
+    const end=total-i*20;
+    const start=Math.max(0,end-20);
+    if(end<=0) break;
+    const slice=oc.slice(start,end);
+    const taxa=slice.reduce((a,b)=>a+b,0)/slice.length*100;
+    windows.push({taxa,label:`J-${i*20}~${i*20+20}`});
+  }
+  windows.reverse().forEach(w=>{
+    const item=document.createElement('div');
+    item.className='bar-item';
+    const lbl=document.createElement('div');
+    lbl.className='bar-lbl';
+    lbl.textContent=w.label;
+    const track=document.createElement('div');
+    track.className='bar-track';
+    const fill=document.createElement('div');
+    fill.className='bar-fill';
+    fill.style.width=w.taxa+'%';
+    const color=w.taxa>=60?'var(--green)':w.taxa>=40?'var(--amber)':'var(--red)';
+    fill.style.background=color;
+    track.appendChild(fill);
+    const val=document.createElement('div');
+    val.className='bar-val';
+    val.style.color=color;
+    val.textContent=Math.round(w.taxa)+'%';
+    item.appendChild(lbl);
+    item.appendChild(track);
+    item.appendChild(val);
+    wrap.appendChild(item);
+  });
+}
+
+/* ──────────────────────────────────────────────
    SELETORES
 ────────────────────────────────────────────── */
 function onCasaChange(){
   const casa=document.getElementById('sel-casa').value;
   const ligas=LIGAS[casa];
   const sel=document.getElementById('sel-liga');
-  sel.innerHTML=ligas.map(l=>`<option value="${l.res}|${l.prox}|${l.odds}">${l.label}</option>`).join('');
+  sel.innerHTML=ligas.map(l=>`<option value="${l.res}">${l.label}</option>`).join('');
   fullLoad();
 }
 function onMktChange(){ mkt=document.getElementById('sel-mkt').value; render(); }
 function onPeriodChange(){ periodHours=parseFloat(document.getElementById('sel-period').value); rows=filterByPeriod(allRowsRaw); render(); }
 function onQtdChange(){ win=parseInt(document.getElementById('sel-qtd').value); render(); }
 
-function getLigaPaths(){
-  const v=document.getElementById('sel-liga').value.split('|');
-  return {res:v[0],prox:v[1],odds:v[2]};
+function toggleLabels(){
+  showLabels=!showLabels;
+  const btn=document.getElementById('lblToggle');
+  btn.textContent='RÓTULOS '+(showLabels?'ON':'OFF');
+  btn.classList.toggle('on',showLabels);
+  if(mainCh) render();
+}
+
+function getLigaRes(){
+  return document.getElementById('sel-liga').value;
 }
 
 /* ──────────────────────────────────────────────
@@ -543,19 +682,11 @@ async function fetchJ(url){
 async function fullLoad(){
   showOverlay(true,'Carregando...');
   allRowsRaw=[];rows=[];
-  const {res,prox,odds}=getLigaPaths();
+  const res=getLigaRes();
   try{
-    const [resR,proxR,oddsR]=await Promise.allSettled([
-      fetchJ(`${BASE}/resultados/${res}`),
-      fetchJ(`${BASE}/proximos/${prox}`),
-      fetchJ(`${BASE}/odds/${odds}`),
-    ]);
-    allRowsRaw=resR.status==='fulfilled'&&Array.isArray(resR.value)?sortRows(resR.value):[];
+    const resR=await fetchJ(`${BASE}/resultados/${res}`);
+    allRowsRaw=Array.isArray(resR)?sortRows(resR):[];
     rows=filterByPeriod(allRowsRaw);
-    renderSide(
-      proxR.status==='fulfilled'&&Array.isArray(proxR.value)?proxR.value:[],
-      oddsR.status==='fulfilled'&&Array.isArray(oddsR.value)?oddsR.value:[]
-    );
     render();
     startAutoRefresh();
   }catch(e){
@@ -563,23 +694,22 @@ async function fullLoad(){
   }
 }
 
-/* Refresh incremental — só atualiza se chegaram linhas novas */
 async function softRefresh(){
-  const {res}=getLigaPaths();
+  const res=getLigaRes();
   try{
     const fresh=await fetchJ(`${BASE}/resultados/${res}?t=${Date.now()}`);
     if(!Array.isArray(fresh)) return;
     const freshSorted=sortRows(fresh);
-    if(freshSorted.length===allRowsRaw.length) return; // nada novo
+    if(freshSorted.length===allRowsRaw.length) return;
     allRowsRaw=freshSorted;
     rows=filterByPeriod(allRowsRaw);
-    render(); // atualiza só chart/indicadores, sem piscar
+    render();
     flashBadge();
   }catch(e){}
 }
 
 /* ──────────────────────────────────────────────
-   RENDER — usa chart.update('none') para não piscar
+   RENDER
 ────────────────────────────────────────────── */
 function render(){
   if(!rows.length){ showOverlay(true,'Sem dados'); return; }
@@ -600,7 +730,7 @@ function render(){
   const wOc  =all.oc.slice(wStart);
   const wRows=rows.slice(wStart);
 
-  // Labels: hora:min do jogo — suporta hora/minuto direto, data ISO ou start_time ISO
+  // Labels: hora:min
   const wLabels=wRows.map(r=>{
     if(r.hora!==undefined&&r.hora!==null&&r.minuto!==undefined&&r.minuto!==null)
       return `${String(Number(r.hora)).padStart(2,'0')}:${String(Number(r.minuto)).padStart(2,'0')}`;
@@ -610,24 +740,39 @@ function render(){
   });
 
   const dotBg=wOc.map(o=>o===1?'rgba(0,214,143,.9)':'rgba(240,69,90,.85)');
+  const dotBd=wOc.map(o=>o===1?'rgba(0,214,143,1)':'rgba(240,69,90,1)');
 
   if(!mainCh) initCharts();
 
-  // ── MAIN CHART datasets (update sem destroy)
+  // ── MAIN CHART datasets
   mainCh.data.labels=wLabels;
   mainCh.data.datasets=[
     {label:'Boll Upper',data:wBU,borderColor:'rgba(157,125,234,.28)',borderWidth:1,borderDash:[4,4],
-     backgroundColor:'rgba(157,125,234,.06)',fill:'+1',pointRadius:0,tension:.35,order:5},
+     backgroundColor:'rgba(157,125,234,.06)',fill:'+1',pointRadius:0,tension:.35,order:5,
+     datalabels:{display:false}},
     {label:'Boll Lower',data:wBL,borderColor:'rgba(157,125,234,.28)',borderWidth:1,borderDash:[4,4],
-     backgroundColor:'transparent',fill:false,pointRadius:0,tension:.35,order:5},
+     backgroundColor:'transparent',fill:false,pointRadius:0,tension:.35,order:5,
+     datalabels:{display:false}},
     {label:'MM Lenta',data:wMmS,borderColor:'#f5a623',borderWidth:2,fill:false,
-     pointRadius:0,tension:.35,order:3},
+     pointRadius:0,tension:.35,order:3,datalabels:{display:false}},
     {label:'MM Rápida',data:wMmF,borderColor:'rgba(0,214,143,.6)',borderWidth:1.5,fill:false,
-     pointRadius:0,tension:.35,order:3},
+     pointRadius:0,tension:.35,order:3,datalabels:{display:false}},
     {label:'Taxa Rolante',data:wRr,borderColor:'rgba(140,150,190,.2)',borderWidth:1,fill:false,
      pointRadius:5,pointHoverRadius:7,
-     pointBackgroundColor:dotBg,pointBorderColor:dotBg,pointBorderWidth:1,
-     tension:.3,order:2},
+     pointBackgroundColor:dotBg,pointBorderColor:dotBd,pointBorderWidth:1,
+     tension:.3,order:2,
+     datalabels:{
+       display: showLabels ? (ctx=>{ const n=wRr.length; const i=ctx.dataIndex; if(n>80 && i%2!==0) return false; return !isNaN(ctx.dataset.data[i]); }) : false,
+       color:ctx=>wOc[ctx.dataIndex]===1?'#00d68f':'#f0455a',
+       font:{size:9,weight:'800',family:"'Space Mono'"},
+       formatter:v=>isNaN(v)?'':Math.round(v),
+       anchor:ctx=>wOc[ctx.dataIndex]===1?'end':'start',
+       align:ctx=>wOc[ctx.dataIndex]===1?'top':'bottom',
+       offset:3,
+       clamp:true,
+       padding:0,
+     }
+    },
   ];
 
   // annotation equilíbrio
@@ -640,12 +785,15 @@ function render(){
     eq:{type:'line',yMin:eq,yMax:eq,borderColor:'rgba(255,255,255,.25)',borderWidth:1.5,borderDash:[6,4],
       label:{display:true,content:`Equil. ${eq.toFixed(1)}`,position:'start',
              color:'rgba(255,255,255,.35)',font:{size:8},backgroundColor:'transparent'}},
-    zonaH:{type:'line',yMin:zonaH,yMax:zonaH,borderColor:'rgba(0,214,143,.15)',borderWidth:1,borderDash:[4,6]},
-    zonaL:{type:'line',yMin:zonaL,yMax:zonaL,borderColor:'rgba(240,69,90,.15)',borderWidth:1,borderDash:[4,6]},
+    zonaH:{type:'line',yMin:zonaH,yMax:zonaH,borderColor:'rgba(0,214,143,.18)',borderWidth:1,borderDash:[4,6],
+      label:{display:true,content:`${f0(zonaH)}`,position:'end',color:'rgba(0,214,143,.45)',font:{size:7},backgroundColor:'transparent'}},
+    zonaL:{type:'line',yMin:zonaL,yMax:zonaL,borderColor:'rgba(240,69,90,.18)',borderWidth:1,borderDash:[4,6],
+      label:{display:true,content:`${f0(zonaL)}`,position:'end',color:'rgba(240,69,90,.45)',font:{size:7},backgroundColor:'transparent'}},
     cong:{type:'box',yMin:Math.max(0,eq-lastStd),yMax:Math.min(100,eq+lastStd),
           backgroundColor:'rgba(240,69,90,.03)',borderColor:'transparent'},
   };
-  // Tooltip: acessa wRows pelo index
+
+  // Tooltip título com placar
   mainCh.options.plugins.tooltip.callbacks.title=items=>{
     const i=items[0].dataIndex;
     const r=wRows[i];
@@ -665,11 +813,11 @@ function render(){
   macdCh.data.labels=wLabels;
   macdCh.data.datasets=[
     {label:'Hist',data:wMh,type:'bar',backgroundColor:mhColors,borderWidth:0,
-     categoryPercentage:.85,barPercentage:.85,order:1},
+     categoryPercentage:.85,barPercentage:.85,order:1,datalabels:{display:false}},
     {label:'MACD',data:wMd,type:'line',borderColor:'#4f9eff',borderWidth:1.5,
-     pointRadius:0,fill:false,tension:.35,order:0},
+     pointRadius:0,fill:false,tension:.35,order:0,datalabels:{display:false}},
     {label:'Signal',data:wSig,type:'line',borderColor:'#f0455a',borderWidth:1,
-     pointRadius:0,fill:false,tension:.35,borderDash:[3,3],order:0},
+     pointRadius:0,fill:false,tension:.35,borderDash:[3,3],order:0,datalabels:{display:false}},
   ];
   macdCh.update('none');
 
@@ -731,20 +879,33 @@ function render(){
   document.getElementById('s-roll2').textContent=r20+'%';
   document.getElementById('s-taxa2').textContent=`${taxa}% (${hits}/${cur+1})`;
   document.getElementById('s-tot2').textContent=cur+1;
+
   const streakEl=document.getElementById('s-streak');
   streakEl.textContent=streakColor==='gn'?`${streak} GREEN seguidos`:`${streak} RED seguidos`;
   streakEl.className='sval '+(streakColor==='gn'?'gn':'rd');
 
-  // ── Grid últimos 30
+  // Máx streak (verde)
+  const mxG=maxStreak(all.oc,1);
+  const mxEl=document.getElementById('s-maxstreak');
+  mxEl.textContent=`${mxG} GREEN (histórico)`;
+  mxEl.className='sval gn';
+
+  // Grid últimos 30
   const last30=all.oc.slice(Math.max(0,cur-29),cur+1);
   const pad=30-last30.length;
   document.getElementById('slotGrid').innerHTML=
     Array(pad).fill('<div class="sq em"></div>').join('')+
     last30.map(o=>`<div class="sq ${o===1?'gn':'rd'}"></div>`).join('');
+
+  // Heatmap
+  buildHeatmap(rows, all.oc);
+
+  // Barras janelas
+  buildBars(all.oc);
 }
 
 /* ──────────────────────────────────────────────
-   CHARTS INIT — chamado apenas uma vez
+   CHARTS INIT
 ────────────────────────────────────────────── */
 function initCharts(){
   const ctxM=document.getElementById('mainChart').getContext('2d');
@@ -771,7 +932,7 @@ function initCharts(){
           titleFont:{family:"'Space Mono'",size:10,weight:'700'},
           bodyFont:{family:"'Space Mono'",size:9},
           callbacks:{
-            title:()=>'',  // preenchido em render()
+            title:()=>'',
             label:ctx=>{
               if(isNaN(ctx.raw)) return null;
               if(ctx.dataset.label==='Taxa Rolante') return `Rolante: ${Math.round(ctx.raw)}%`;
@@ -781,7 +942,8 @@ function initCharts(){
               return null;
             }
           }
-        }
+        },
+        datalabels:{display:false}
       }
     }
   });
@@ -804,41 +966,11 @@ function initCharts(){
           backgroundColor:'rgba(9,9,15,.94)',titleColor:'#dde0ec',bodyColor:'#6b7494',
           borderColor:'rgba(255,255,255,.08)',borderWidth:1,
           callbacks:{label:ctx=>nan(ctx.raw)?null:`MACD: ${ctx.raw.toFixed(2)}`}
-        }
+        },
+        datalabels:{display:false}
       }
     }
   });
-}
-
-/* ──────────────────────────────────────────────
-   RENDER SIDE — próximos e odds (só no fullLoad)
-────────────────────────────────────────────── */
-function renderSide(proximos,oddsData){
-  // próximos
-  const ng=document.getElementById('nextGames');
-  if(!proximos.length){ng.innerHTML='<span style="font-size:10px;color:var(--muted)">Sem dados</span>';}
-  else{
-    ng.innerHTML=proximos.slice(0,6).map(g=>{
-      // suporta variações de campo entre casas (Betano: time, Bet365: start_time, etc.)
-      const t=g.time||g.start_time?.slice(11,16)||g.hora_inicio||'—';
-      const a=g.time_a||g.team_home||g.home||'—';
-      const b=g.time_b||g.team_visit||g.away||'—';
-      return `<div class="ng"><div class="ng-t">${t}</div><div class="ng-m">${a} × ${b}</div></div>`;
-    }).join('');
-  }
-  // odds
-  const ob=document.getElementById('oddsBox');
-  if(!oddsData.length){ob.innerHTML='<span style="font-size:10px;color:var(--muted)">Sem odds</span>';}
-  else{
-    const o=oddsData[oddsData.length-1];
-    const itens=[
-      {l:'Over 1.5',v:o.odds_mais_1_5},{l:'Over 2.5',v:o.odds_mais_2_5},
-      {l:'Over 3.5',v:o.odds_mais_3_5},{l:'Ambas sim',v:o.odds_ambas_marcam_sim},
-      {l:'Casa vence',v:o.odds_casa_vence},{l:'Empate',v:o.odds_empate},
-      {l:'Fora vence',v:o.odds_visitante_vence},
-    ].filter(i=>i.v&&i.v!=='null');
-    ob.innerHTML=itens.map(i=>`<div class="orow"><span class="olbl">${i.l}</span><span class="oval">${parseFloat(i.v).toFixed(2)}</span></div>`).join('');
-  }
 }
 
 /* ──────────────────────────────────────────────
@@ -856,7 +988,7 @@ function flashBadge(){
 }
 
 /* ──────────────────────────────────────────────
-   AUTO-REFRESH — incremental, sem piscar
+   AUTO-REFRESH
 ────────────────────────────────────────────── */
 function startAutoRefresh(){
   clearInterval(refreshTimer);clearInterval(countdownTimer);
