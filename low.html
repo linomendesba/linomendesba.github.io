@@ -415,11 +415,18 @@ function rsiN(arr,p=14){
 /* ──────────────────────────────────────────────
    OUTCOME
 ────────────────────────────────────────────── */
-function outcome(r){
-  // r = objeto da API: {ft:"2 x 1", ht:"1 x 0", time_a, time_b, hora, minuto}
-  const ft=r.ft||'';
-  const parts=ft.split('x').map(s=>parseInt(s.trim()));
+function parseFt(r){
+  // suporta "2 x 1" (Betano/modelo) e "2x1" (outros formatos)
+  const ft=r.ft||r.resultado_ft||'';
+  if(!ft) return null;
+  const parts=ft.split(/\s*x\s*/i).map(s=>parseInt(s.trim()));
   if(parts.length<2||isNaN(parts[0])||isNaN(parts[1])) return null;
+  return parts;
+}
+
+function outcome(r){
+  const parts=parseFt(r);
+  if(!parts) return null;
   const h=parts[0],a=parts[1],t=h+a;
   switch(mkt){
     case 'over25':   return t>2?1:0;
@@ -464,18 +471,40 @@ function compute(data){
    PERÍODO FILTER
 ────────────────────────────────────────────── */
 function rowHora(r){
-  // tenta hora+minuto numérico, depois campo data ISO
-  if(r.hora!==undefined&&r.minuto!==undefined) return r.hora*60+r.minuto;
-  if(r.data){ const d=new Date(r.data); return d.getUTCHours()*60+d.getUTCMinutes(); }
+  // hora+minuto numérico (campo direto)
+  if(r.hora!==undefined&&r.hora!==null&&r.minuto!==undefined&&r.minuto!==null)
+    return Number(r.hora)*60+Number(r.minuto);
+  // campo data ISO
+  if(r.data){ const d=new Date(r.data); if(!isNaN(d)) return d.getUTCHours()*60+d.getUTCMinutes(); }
+  // campo start_time ISO
+  if(r.start_time){ const d=new Date(r.start_time); if(!isNaN(d)) return d.getUTCHours()*60+d.getUTCMinutes(); }
   return -1;
 }
+
+// Ordena por data+hora para garantir ordem cronológica correta
+function sortRows(raw){
+  return [...raw].sort((a,b)=>{
+    // tenta comparar por data completa primeiro
+    const dA=a.data||a.start_time, dB=b.data||b.start_time;
+    if(dA&&dB){
+      const tA=new Date(dA).getTime(), tB=new Date(dB).getTime();
+      if(!isNaN(tA)&&!isNaN(tB)&&tA!==tB) return tA-tB;
+    }
+    // fallback: hora+minuto
+    const hA=rowHora(a), hB=rowHora(b);
+    return hA-hB;
+  });
+}
+
 function filterByPeriod(raw){
   if(periodHours>=9999) return raw;
   if(!raw.length) return raw;
-  const lastM=rowHora(raw[raw.length-1]);
+  // usa o array já ordenado para pegar o último elemento correto
+  const sorted=sortRows(raw);
+  const lastM=rowHora(sorted[sorted.length-1]);
   if(lastM<0) return raw;
   const cutM=lastM-periodHours*60;
-  return raw.filter(r=>{
+  return sorted.filter(r=>{
     let m=rowHora(r);
     if(m<0) return false;
     if(m<cutM-12*60) m+=24*60;
@@ -521,7 +550,7 @@ async function fullLoad(){
       fetchJ(`${BASE}/proximos/${prox}`),
       fetchJ(`${BASE}/odds/${odds}`),
     ]);
-    allRowsRaw=resR.status==='fulfilled'&&Array.isArray(resR.value)?resR.value:[];
+    allRowsRaw=resR.status==='fulfilled'&&Array.isArray(resR.value)?sortRows(resR.value):[];
     rows=filterByPeriod(allRowsRaw);
     renderSide(
       proxR.status==='fulfilled'&&Array.isArray(proxR.value)?proxR.value:[],
@@ -540,8 +569,9 @@ async function softRefresh(){
   try{
     const fresh=await fetchJ(`${BASE}/resultados/${res}?t=${Date.now()}`);
     if(!Array.isArray(fresh)) return;
-    if(fresh.length===allRowsRaw.length) return; // nada novo
-    allRowsRaw=fresh;
+    const freshSorted=sortRows(fresh);
+    if(freshSorted.length===allRowsRaw.length) return; // nada novo
+    allRowsRaw=freshSorted;
     rows=filterByPeriod(allRowsRaw);
     render(); // atualiza só chart/indicadores, sem piscar
     flashBadge();
@@ -570,11 +600,12 @@ function render(){
   const wOc  =all.oc.slice(wStart);
   const wRows=rows.slice(wStart);
 
-  // Labels: hora:min do jogo
+  // Labels: hora:min do jogo — suporta hora/minuto direto, data ISO ou start_time ISO
   const wLabels=wRows.map(r=>{
-    if(r.hora!==undefined&&r.minuto!==undefined)
-      return `${String(r.hora).padStart(2,'0')}:${String(r.minuto).padStart(2,'0')}`;
-    if(r.data){ const d=new Date(r.data); return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`; }
+    if(r.hora!==undefined&&r.hora!==null&&r.minuto!==undefined&&r.minuto!==null)
+      return `${String(Number(r.hora)).padStart(2,'0')}:${String(Number(r.minuto)).padStart(2,'0')}`;
+    const iso=r.data||r.start_time;
+    if(iso){ const d=new Date(iso); if(!isNaN(d)) return `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`; }
     return '';
   });
 
@@ -619,9 +650,10 @@ function render(){
     const i=items[0].dataIndex;
     const r=wRows[i];
     if(!r) return '';
-    const teamA=r.time_a||r.team_home||'';
-    const teamB=r.time_b||r.team_visit||'';
-    const ft=r.ft||'';
+    const teamA=r.time_a||r.team_home||r.home||'';
+    const teamB=r.time_b||r.team_visit||r.away||'';
+    const ftParts=parseFt(r);
+    const ft=ftParts?`${ftParts[0]} x ${ftParts[1]}`:(r.ft||'');
     const hora=wLabels[i]||'';
     return `${hora}  ${teamA} × ${teamB}  ${ft}`;
   };
@@ -787,9 +819,10 @@ function renderSide(proximos,oddsData){
   if(!proximos.length){ng.innerHTML='<span style="font-size:10px;color:var(--muted)">Sem dados</span>';}
   else{
     ng.innerHTML=proximos.slice(0,6).map(g=>{
-      const t=g.time||g.start_time?.slice(11,16)||'—';
-      const a=g.team_home||g.time_a||'—';
-      const b=g.team_visit||g.time_b||'—';
+      // suporta variações de campo entre casas (Betano: time, Bet365: start_time, etc.)
+      const t=g.time||g.start_time?.slice(11,16)||g.hora_inicio||'—';
+      const a=g.time_a||g.team_home||g.home||'—';
+      const b=g.time_b||g.team_visit||g.away||'—';
       return `<div class="ng"><div class="ng-t">${t}</div><div class="ng-m">${a} × ${b}</div></div>`;
     }).join('');
   }
