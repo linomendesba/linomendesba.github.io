@@ -10,7 +10,6 @@ const LIGAS = {
   ITALIANO: "Campeonato Italiano",
   COPA_ESTRELAS: "Copa das Estrelas",
   BRASILEIRAO: "Brasileirão Betano",
-  MUNDIAL: "Mundial",
 
   // BET365 - Nomes únicos
   BET365_COPA:    "Bet365 Copa",
@@ -44,7 +43,6 @@ const ROTAS_API = {
     if (nomeLiga === LIGAS.ITALIANO)      return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
     if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
     if (nomeLiga === LIGAS.BRASILEIRAO)   return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.MUNDIAL)       return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
 
     // BET365 - rotas específicas
     if (nomeLiga === LIGAS.BET365_COPA)    return `${API_BASE_URL}/resultados/bet365/Copa`;
@@ -80,7 +78,6 @@ const ROTAS_API = {
     if (nomeLiga === LIGAS.ITALIANO)      return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
     if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
     if (nomeLiga === LIGAS.BRASILEIRAO)   return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.MUNDIAL)       return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
 
     // BET365
     if (nomeLiga === LIGAS.BET365_COPA)    return `${API_BASE_URL}/proximos/bet365/Copa`;
@@ -116,7 +113,6 @@ const ROTAS_API = {
     if (nomeLiga === LIGAS.ITALIANO)      return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
     if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
     if (nomeLiga === LIGAS.BRASILEIRAO)   return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.MUNDIAL)       return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
 
     // BET365
     if (nomeLiga === LIGAS.BET365_COPA)    return `${API_BASE_URL}/odds/bet365/Copa`;
@@ -155,7 +151,6 @@ function detectarLigaAtual() {
   if (caminho.includes("copa_america.html"))         return LIGAS.COPA_AMERICA;
   if (caminho.includes("copa_das_estrelas.html"))    return LIGAS.COPA_ESTRELAS;
   if (caminho.includes("euro.html") && !caminho.includes("bet365") && !caminho.includes("betsson")) return LIGAS.EURO;
-  if (caminho.includes("mundial.html"))              return LIGAS.MUNDIAL;
 
   // BET365
   if (caminho.includes("bet365copa.html"))    return LIGAS.BET365_COPA;
