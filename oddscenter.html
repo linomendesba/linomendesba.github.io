@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Máximas de Odds</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #4edea3;
+            --primary-dark: #003824;
+            --secondary: #9ddf2e;
+            --background: #0e1511;
+            --surface: #1a2420;
+            --surface-high: #242c27;
+            --outline: #3c4a42;
+            --error: #ff6b6b;
+            --warning: #ffa500;
+        }
+
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #4edea3 #0e1511;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0e1511;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4edea3;
+            border-radius: 10px;
+        }
+
+        .glow-border {
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 10px rgba(78, 222, 163, 0.3);
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        .glow-border.alert {
+            border-color: var(--warning);
+            box-shadow: 0 0 10px rgba(255, 165, 0, 0.4);
+            animation: glow-alert 1.5s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(78, 222, 163, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(78, 222, 163, 0.5); }
+        }
+
+        @keyframes glow-alert {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 165, 0, 0.4); }
+            50% { box-shadow: 0 0 20px rgba(255, 165, 0, 0.6); }
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(78, 222, 163, 0.2);
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .streak-indicator {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .streak-danger {
+            background-color: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+        }
+
+        .streak-warning {
+            background-color: rgba(255, 165, 0, 0.2);
+            color: #ffa500;
+        }
+
+        .streak-safe {
+            background-color: rgba(78, 222, 163, 0.2);
+            color: var(--primary);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: var(--surface-high);
+            color: var(--primary);
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--outline);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background-color: var(--outline);
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--outline);
+        }
+
+        tbody tr {
+            transition: background-color 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background-color: var(--surface-high);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid var(--primary);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-primary {
+            background-color: rgba(78, 222, 163, 0.2);
+            color: var(--primary);
+        }
+
+        .badge-secondary {
+            background-color: rgba(157, 223, 46, 0.2);
+            color: var(--secondary);
+        }
+
+        .badge-danger {
+            background-color: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+        }
+
+        .select-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        select {
+            appearance: none;
+            background-color: var(--surface-high);
+            color: #dde4dd;
+            border: 2px solid var(--outline);
+            padding: 0.75rem 2.5rem 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        select:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(78, 222, 163, 0.2);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(78, 222, 163, 0.3);
+        }
+
+        .select-container::after {
+            content: '▼';
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: var(--primary);
+            font-size: 0.75rem;
+        }
+
+        .market-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 2rem;
+            color: #888;
+        }
+
+        .match-card {
+            background-color: var(--surface-high);
+            border: 1px solid var(--outline);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .match-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(78, 222, 163, 0.2);
+        }
+
+        .team-vs {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .team {
+            flex: 1;
+            text-align: center;
+        }
+
+        .team-name {
+            font-weight: 600;
+            margin: 0.5rem 0;
+        }
+
+        .vs-text {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .odds-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .odd-pill {
+            background-color: var(--surface);
+            border: 1px solid var(--outline);
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .odd-pill:hover {
+            background-color: rgba(78, 222, 163, 0.1);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .odd-pill.selected {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: var(--primary-dark);
+        }
+
+        @media (max-width: 768px) {
+            .market-grid {
+                grid-template-columns: 1fr;
+            }
+
+            th, td {
+                padding: 0.5rem;
+                font-size: 0.875rem;
+            }
+
+            .stat-value {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-black text-gray-200" style="background-color: var(--background); color: #dde4dd;">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="sticky top-0 z-40 bg-surface-container border-b" style="background-color: var(--surface); border-color: var(--outline);">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full animate-pulse" style="background-color: var(--primary);"></div>
+                        <h1 class="text-2xl sm:text-3xl font-bold" style="color: var(--primary);">MÁXIMAS DASHBOARD</h1>
+                    </div>
+                    
+                    <!-- Selectors -->
+                    <div class="flex flex-col sm:flex-row gap-3 flex-wrap">
+                        <div class="select-container flex-1 min-w-[180px]">
+                            <select id="casaSelect" onchange="onCasaChange()">
+                                <option value="">Selecione a Casa...</option>
+                            </select>
+                        </div>
+                        <div class="select-container flex-1 min-w-[180px]">
+                            <select id="ligaSelect" onchange="onLigaChange()">
+                                <option value="">Todas as Ligas</option>
+                            </select>
+                        </div>
+                        <button onclick="reloadData()" class="px-4 py-2 rounded-lg font-semibold transition-all" style="background-color: var(--primary); color: var(--primary-dark); hover: scale-105;">
+                            🔄 Atualizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Stats Summary -->
+            <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="card-hover p-4 rounded-lg border-2" style="background-color: var(--surface-high); border-color: var(--outline);">
+                    <p class="text-sm text-gray-400 mb-2">Confrontos Analisados</p>
+                    <p class="stat-value" id="totalMatches">--</p>
+                </div>
+                <div class="card-hover p-4 rounded-lg border-2" style="background-color: var(--surface-high); border-color: var(--outline);">
+                    <p class="text-sm text-gray-400 mb-2">Máximas Encontradas</p>
+                    <p class="stat-value" id="totalMaxima">--</p>
+                </div>
+                <div class="card-hover p-4 rounded-lg border-2" style="background-color: var(--surface-high); border-color: var(--outline);">
+                    <p class="text-sm text-gray-400 mb-2">Taxa de Acerto</p>
+                    <p class="stat-value" id="successRate">--%</p>
+                </div>
+                <div class="card-hover p-4 rounded-lg border-2" style="background-color: var(--surface-high); border-color: var(--outline);">
+                    <p class="text-sm text-gray-400 mb-2">Melhor Odd Hoje</p>
+                    <p class="stat-value" id="bestOdd">--</p>
+                </div>
+            </section>
+
+            <!-- Próximos Confrontos -->
+            <section class="mb-8">
+                <h2 class="text-xl sm:text-2xl font-bold mb-4" style="color: var(--primary);">📊 PRÓXIMOS CONFRONTOS</h2>
+                <div class="market-grid" id="nextMatchesContainer">
+                    <div class="no-data">Carregando confrontos...</div>
+                </div>
+            </section>
+
+            <!-- Mercados por Máximas -->
+            <section class="mb-8">
+                <h2 class="text-xl sm:text-2xl font-bold mb-4" style="color: var(--primary);">⚡ MÁXIMAS EM ALTA</h2>
+                <div id="maximasContainer" class="space-y-6">
+                    <div class="no-data">Carregando máximas...</div>
+                </div>
+            </section>
+
+            <!-- Tabela Detalhada -->
+            <section>
+                <h2 class="text-xl sm:text-2xl font-bold mb-4" style="color: var(--primary);">📈 ANÁLISE DETALHADA</h2>
+                <div class="rounded-lg border-2 overflow-hidden table-container" style="border-color: var(--outline); background-color: var(--surface);">
+                    <table id="detailedTable">
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable(0)">Odd 🔽</th>
+                                <th onclick="sortTable(1)">Mercado</th>
+                                <th onclick="sortTable(2)">Streak Atual</th>
+                                <th onclick="sortTable(3)">Max Sem Green</th>
+                                <th onclick="sortTable(4)">Total de Jogos</th>
+                                <th onclick="sortTable(5)">Taxa de Sucesso</th>
+                                <th onclick="sortTable(6)">Soma Gols</th>
+                                <th onclick="sortTable(7)">Média</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr>
+                                <td colspan="8" class="no-data">Selecione uma casa para ver dados</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // ==================== CONFIGURAÇÃO ====================
+        const API_BASE = '/api'; // Ajuste para sua rota base
+        
+        // Estado global
+        let state = {
+            casaSelecionada: null,
+            ligaSelecionada: null,
+            dados: {
+                casas: [],
+                ligas: [],
+                matches: [],
+                maximas: {}
+            }
+        };
+
+        // ==================== INICIALIZAÇÃO ====================
+        async function init() {
+            await loadCasas();
+            // Opcional: carregar dados da primeira casa ao iniciar
+        }
+
+        // ==================== ROTAS (Ajuste conforme sua API) ====================
+        
+        /**
+         * GET /api/casas - Lista todas as casas de apostas
+         * Resposta esperada: { casas: ["Bet365", "Betano", ...] }
+         */
+        async function loadCasas() {
+            try {
+                // SUBSTITUIR PELA SUA ROTA
+                const response = await fetch(`${API_BASE}/casas`);
+                if (!response.ok) throw new Error('Erro ao carregar casas');
+                
+                const data = await response.json();
+                state.dados.casas = data.casas || [];
+                
+                populateCasaSelect();
+            } catch (error) {
+                console.error('Erro ao carregar casas:', error);
+                // Dados de exemplo para testes
+                state.dados.casas = ['Bet365', 'Betano', 'Stake', 'KTO'];
+                populateCasaSelect();
+            }
+        }
+
+        /**
+         * GET /api/casas/:casa/ligas - Lista ligas para uma casa
+         * Resposta esperada: { ligas: ["Premier League", "Serie A", ...] }
+         */
+        async function loadLigas(casa) {
+            try {
+                // SUBSTITUIR PELA SUA ROTA
+                const response = await fetch(`${API_BASE}/casas/${casa}/ligas`);
+                if (!response.ok) throw new Error('Erro ao carregar ligas');
+                
+                const data = await response.json();
+                state.dados.ligas = data.ligas || [];
+                
+                populateLigaSelect();
+            } catch (error) {
+                console.error('Erro ao carregar ligas:', error);
+                state.dados.ligas = ['Premier League', 'Serie A', 'LaLiga', 'Bundesliga'];
+                populateLigaSelect();
+            }
+        }
+
+        /**
+         * GET /api/casas/:casa/proximos?liga=:liga - Próximos confrontos
+         * Resposta esperada: {
+         *   matches: [
+         *     { time1: "Time A", time2: "Time B", data: "2024-01-15 20:00", liga: "Premier League", odds: { over25: 1.85, ... } }
+         *   ]
+         * }
+         */
+        async function loadProximosConfrontos(casa, liga = null) {
+            try {
+                const url = liga ? 
+                    `${API_BASE}/casas/${casa}/proximos?liga=${liga}` : 
+                    `${API_BASE}/casas/${casa}/proximos`;
+                
+                // SUBSTITUIR PELA SUA ROTA
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Erro ao carregar confrontos');
+                
+                const data = await response.json();
+                state.dados.matches = data.matches || [];
+                
+                renderNextMatches();
+            } catch (error) {
+                console.error('Erro ao carregar confrontos:', error);
+                state.dados.matches = [];
+                renderNextMatches();
+            }
+        }
+
+        /**
+         * GET /api/casas/:casa/maximas?liga=:liga - Máximas de odds
+         * Resposta esperada: {
+         *   maximas: {
+         *     "over25": [
+         *       { odd: "1.85", streak: 3, maxSemGreen: 7, totalGames: 25, ... }
+         *     ]
+         *   }
+         * }
+         */
+        async function loadMaximas(casa, liga = null) {
+            try {
+                const url = liga ? 
+                    `${API_BASE}/casas/${casa}/maximas?liga=${liga}` : 
+                    `${API_BASE}/casas/${casa}/maximas`;
+                
+                // SUBSTITUIR PELA SUA ROTA
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Erro ao carregar máximas');
+                
+                const data = await response.json();
+                state.dados.maximas = data.maximas || {};
+                
+                renderMaximas();
+                renderDetailedTable();
+                updateStats();
+            } catch (error) {
+                console.error('Erro ao carregar máximas:', error);
+                state.dados.maximas = {};
+                renderMaximas();
+                renderDetailedTable();
+            }
+        }
+
+        // ==================== HANDLERS DE MUDANÇAS ====================
+        
+        async function onCasaChange() {
+            const select = document.getElementById('casaSelect');
+            state.casaSelecionada = select.value;
+            
+            if (state.casaSelecionada) {
+                await loadLigas(state.casaSelecionada);
+                await reloadData();
+            } else {
+                document.getElementById('ligaSelect').innerHTML = '<option value="">Todas as Ligas</option>';
+                state.dados.matches = [];
+                state.dados.maximas = {};
+                renderNextMatches();
+                renderMaximas();
+                renderDetailedTable();
+            }
+        }
+
+        async function onLigaChange() {
+            const select = document.getElementById('ligaSelect');
+            state.ligaSelecionada = select.value || null;
+            await reloadData();
+        }
+
+        async function reloadData() {
+            if (!state.casaSelecionada) {
+                alert('Selecione uma casa de apostas');
+                return;
+            }
+
+            const casa = state.casaSelecionada;
+            const liga = state.ligaSelecionada;
+
+            await Promise.all([
+                loadProximosConfrontos(casa, liga),
+                loadMaximas(casa, liga)
+            ]);
+        }
+
+        // ==================== RENDERIZAÇÃO ====================
+        
+        function populateCasaSelect() {
+            const select = document.getElementById('casaSelect');
+            select.innerHTML = '<option value="">Selecione a Casa...</option>';
+            
+            state.dados.casas.forEach(casa => {
+                const option = document.createElement('option');
+                option.value = casa;
+                option.textContent = casa;
+                select.appendChild(option);
+            });
+        }
+
+        function populateLigaSelect() {
+            const select = document.getElementById('ligaSelect');
+            select.innerHTML = '<option value="">Todas as Ligas</option>';
+            
+            state.dados.ligas.forEach(liga => {
+                const option = document.createElement('option');
+                option.value = liga;
+                option.textContent = liga;
+                select.appendChild(option);
+            });
+        }
+
+        function renderNextMatches() {
+            const container = document.getElementById('nextMatchesContainer');
+            
+            if (!state.dados.matches || state.dados.matches.length === 0) {
+                container.innerHTML = '<div class="no-data col-span-full">Nenhum confronto encontrado</div>';
+                return;
+            }
+
+            container.innerHTML = state.dados.matches.slice(0, 6).map(match => `
+                <div class="match-card">
+                    <div class="text-xs text-gray-400 mb-3" style="color: var(--outline);">
+                        ${match.data || 'Data não especificada'} • ${match.liga || 'Liga'}
+                    </div>
+                    <div class="team-vs">
+                        <div class="team">
+                            <div style="font-size: 1.2rem;">⚽</div>
+                            <div class="team-name">${match.time1 || 'Time 1'}</div>
+                        </div>
+                        <div class="vs-text">vs</div>
+                        <div class="team">
+                            <div style="font-size: 1.2rem;">⚽</div>
+                            <div class="team-name">${match.time2 || 'Time 2'}</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 0.9rem; color: var(--primary); font-weight: 600;">
+                        ${renderMatchOdds(match.odds)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderMatchOdds(odds) {
+            if (!odds) return 'Odds não disponíveis';
+            
+            const types = ['over25', 'over35', 'ambas'];
+            return types
+                .filter(type => odds[type])
+                .map(type => `<span>${type}: ${odds[type]}</span>`)
+                .join(' | ');
+        }
+
+        function renderMaximas() {
+            const container = document.getElementById('maximasContainer');
+            const mercados = Object.keys(state.dados.maximas);
+            
+            if (mercados.length === 0) {
+                container.innerHTML = '<div class="no-data">Nenhuma máxima encontrada</div>';
+                return;
+            }
+
+            container.innerHTML = mercados.map(mercado => {
+                const maximas = state.dados.maximas[mercado] || [];
+                const top5 = maximas.slice(0, 5);
+                
+                return `
+                    <div class="rounded-lg border-2 p-6" style="border-color: var(--outline); background-color: var(--surface-high);">
+                        <h3 class="text-lg font-bold mb-4" style="color: var(--secondary);">${mercado.toUpperCase()}</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                            ${top5.map(m => {
+                                const streakLevel = m.streak > m.maxSemGreen * 0.6 ? 'danger' : 
+                                                   m.streak > m.maxSemGreen * 0.3 ? 'warning' : 'safe';
+                                
+                                return `
+                                    <div class="p-3 rounded-lg border-2 text-center" style="border-color: var(--outline); background-color: var(--surface);">
+                                        <div class="text-lg font-bold" style="color: var(--primary);">${m.odd}</div>
+                                        <div class="text-xs text-gray-400 mt-2">Streak: ${m.streak}/${m.maxSemGreen}</div>
+                                        <div class="text-xs mt-2">
+                                            <span class="streak-indicator streak-${streakLevel}">
+                                                ${m.taxa ? m.taxa.toFixed(1) : '-'}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderDetailedTable() {
+            const tbody = document.getElementById('tableBody');
+            const maximas = [];
+
+            Object.entries(state.dados.maximas).forEach(([mercado, odds]) => {
+                (odds || []).forEach(odd => {
+                    maximas.push({
+                        odd: odd.odd,
+                        mercado,
+                        streak: odd.streak || 0,
+                        maxSemGreen: odd.maxSemGreen || 0,
+                        totalGames: odd.totalGames || 0,
+                        taxa: odd.taxa || 0,
+                        somaGoals: odd.somaGoals || 0,
+                        media: odd.media || 0
+                    });
+                });
+            });
+
+            if (maximas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="no-data">Nenhum dado disponível</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = maximas.map(m => `
+                <tr>
+                    <td><strong>${m.odd}</strong></td>
+                    <td>${m.mercado}</td>
+                    <td>
+                        <span class="badge badge-${m.streak > m.maxSemGreen * 0.6 ? 'danger' : m.streak > m.maxSemGreen * 0.3 ? 'secondary' : 'primary'}">
+                            ${m.streak}
+                        </span>
+                    </td>
+                    <td>${m.maxSemGreen}</td>
+                    <td>${m.totalGames}</td>
+                    <td style="color: var(--primary);">${m.taxa.toFixed(1)}%</td>
+                    <td>${m.somaGoals}</td>
+                    <td>${m.media.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateStats() {
+            let totalGames = 0;
+            let totalMaxima = 0;
+            let successRate = 0;
+            let bestOdd = 0;
+
+            Object.values(state.dados.maximas).forEach(odds => {
+                totalMaxima += odds.length;
+                odds.forEach(o => {
+                    totalGames += o.totalGames || 0;
+                    if (o.taxa > successRate) successRate = o.taxa;
+                    if (o.odd > bestOdd) bestOdd = o.odd;
+                });
+            });
+
+            document.getElementById('totalMatches').textContent = totalGames || '--';
+            document.getElementById('totalMaxima').textContent = totalMaxima || '--';
+            document.getElementById('successRate').textContent = successRate ? successRate.toFixed(0) + '%' : '--%';
+            document.getElementById('bestOdd').textContent = bestOdd ? bestOdd.toFixed(2) : '--';
+        }
+
+        function sortTable(colIndex) {
+            const tbody = document.getElementById('tableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            const isNumeric = (val) => !isNaN(parseFloat(val)) && isFinite(val);
+            
+            rows.sort((a, b) => {
+                const aVal = a.children[colIndex]?.textContent.trim() || '';
+                const bVal = b.children[colIndex]?.textContent.trim() || '';
+                
+                if (isNumeric(aVal) && isNumeric(bVal)) {
+                    return parseFloat(bVal) - parseFloat(aVal);
+                }
+                return aVal.localeCompare(bVal);
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // ==================== INICIAR ====================
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
