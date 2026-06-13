@@ -584,31 +584,132 @@ function _onLigaChange() {
 }
 
 /* ── ADAPTADOR: API BetStat → window.LOADED_JSON (formato Caramelo) ── */
+/* ═══════════════════════════════════════════════════════════════════
+   ✅ INTEGRAÇÃO CORRETA: API BetStat → Gráfico Principal Novo (Caramelo)
+═══════════════════════════════════════════════════════════════════ */
+
 async function _traderFetch() {
-    if (!LIGA_ATUAL) return;
+    if (!LIGA_ATUAL) {
+        console.log('[API] Aguardando seleção de liga...');
+        return;
+    }
+
     try {
-        const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + '?t=' + Date.now());
-        if (!res.ok) return;
-        const dados = await res.json();
+        // ✅ Busca da rota de RESULTADOS
+        const urlResultados = ROTAS_API.resultados(LIGA_ATUAL);
+        console.log('[API] Buscando resultados:', urlResultados);
+
+        const res = await fetch(urlResultados + '?t=' + Date.now());
         
-        // ⚠️ IMPORTANTE: O CARAMELO USA TRADINGVIEW, NÃO DADOS DA API BETSTAT
-        // NÃO chamar _betstatToLoadedJson() pois os dados não correspondem
-        
-        // Notifica apenas se houver data carregada
-        if (dados && Array.isArray(dados) && dados.length > 0) {
-            // Aqui você integra com o CARAMELO (se necessário)
-            // Por enquanto, apenas log para debug
-            console.log('[Trader] Dados carregados:', dados.length, 'registros');
+        if (!res.ok) {
+            console.warn(`[API] Erro ${res.status} ao buscar dados`);
+            return;
         }
+
+        const apiData = await res.json();
+        
+        if (!Array.isArray(apiData) || apiData.length === 0) {
+            console.warn('[API] Nenhum dado retornado');
+            return;
+        }
+
+        // ✅ Transforma dados para formato Caramelo (Gráfico Principal Novo)
+        const loadedJson = transformarDadosParaCaramelo(apiData);
+        
+        // ✅ Armazena no window para Caramelo acessar
+        window.LOADED_JSON = loadedJson;
+        
+        // ✅ Renderiza o Gráfico Principal Novo (certo!)
+        if (typeof window.renderGraficoPrincipalNovo === 'function') {
+            console.log('[API] Renderizando Gráfico Principal Novo');
+            window.renderGraficoPrincipalNovo();
+        } else {
+            console.warn('[API] renderGraficoPrincipalNovo não disponível');
+        }
+
     } catch(e) {
-        console.warn('[Trader] fetch error:', e);
+        console.error('[API] Erro ao buscar/processar dados:', e);
     }
 }
 
-// Função removida - Não era necessária
-// O Caramelo usa TradingView e não precisa de transformação de dados da API BetStat
+/**
+ * ✅ TRANSFORMA dados da API BetStat para formato Caramelo
+ * Entrada: Array de jogos da API
+ * Saída: { table: { rows: [...] } } formato Caramelo
+ */
+function transformarDadosParaCaramelo(apiData) {
+    
+    // ✅ Ordena por hora (descendente = mais recentes primeiro)
+    const sorted = [...apiData].sort((a, b) => {
+        const dA = new Date(a.data);
+        const dB = new Date(b.data);
+        
+        if (dA.getTime() !== dB.getTime()) {
+            return dB.getTime() - dA.getTime();
+        }
+        
+        if (a.hora !== b.hora) {
+            return b.hora - a.hora;
+        }
+        
+        return b.minuto - a.minuto;
+    });
 
-// Inicia fetch do trader quando a liga já está definida
+    // ✅ Agrupa por hora
+    const porHora = {};
+    
+    for (const item of sorted) {
+        const hKey = String(item.hora).padStart(2, '0');
+        
+        if (!porHora[hKey]) {
+            porHora[hKey] = [];
+        }
+        
+        porHora[hKey].push(item);
+    }
+
+    // ✅ Converte para formato Caramelo (table.rows)
+    const rows = Object.entries(porHora)
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([hora, jogos]) => {
+            
+            const cells = [{ v: hora }];
+            
+            for (const jogo of jogos) {
+                if (!jogo.ft || !jogo.ft.includes(' x ')) {
+                    continue;
+                }
+                
+                // ✅ MANTÉM FORMATO CORRETO (não transforma em "-")
+                const ftFormatado = jogo.ft;
+                
+                let htFormatado = '';
+                if (jogo.ht && jogo.ht !== 'OUT' && jogo.ht.includes(' x ')) {
+                    htFormatado = '\n' + jogo.ht;
+                } else if (jogo.ht === 'OUT') {
+                    htFormatado = '\nOUT';
+                }
+                
+                const nomesTimes = (jogo.time_a && jogo.time_b) 
+                    ? `${jogo.time_a} x ${jogo.time_b}` 
+                    : 'Aguardando...';
+                
+                const valorFinal = nomesTimes + '\n' + ftFormatado + htFormatado;
+                
+                cells.push({ v: valorFinal });
+            }
+            
+            return { c: cells };
+        });
+
+    return {
+        table: {
+            rows: rows
+        }
+    };
+}
+
+// ✅ Inicia fetch do trader quando a liga já está definida
 document.addEventListener('DOMContentLoaded', () => {
     _traderFetch();
     setInterval(_traderFetch, 3000);
