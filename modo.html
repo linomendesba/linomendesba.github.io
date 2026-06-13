@@ -625,7 +625,14 @@ html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-f
                 <option value="420">24h</option>
                 </select>
 
-                <span class="pa-lbl">FT</span>
+                <span class="pa-lbl">Visual</span>
+                <select id="analTipoGrafico" style="max-width:110px;">
+                    <option value="linha" selected>Linha</option>
+                    <option value="classico">Clássico</option>
+                    <option value="candlestick">Candlestick</option>
+                </select>
+
+                <div class="pa-sep"></div>
                 <select id="analMercadoFT" style="max-width:130px;">
                     <option value="">— FT —</option>
                     <optgroup label="Over">
@@ -844,7 +851,10 @@ function _initSeletores() {
 
 function _onLigaChange() {
     // Reseta instâncias de gráficos para refletir a nova liga
-    Object.keys(chartInstances).forEach(k => { delete chartInstances[k]; });
+    Object.keys(chartInstances).forEach(k => {
+        try { chartInstances[k]?.destroy(); } catch(_) {}
+        delete chartInstances[k];
+    });
     if (typeof updateCharts === 'function') updateCharts();
 
     _rkDestroyChart();
@@ -1098,47 +1108,40 @@ function processApiData(data, league) {
         if(a.hora!==b.hora)return a.hora-b.hora;
         return a.minuto-b.minuto;
     });
-    const slicedData=sortedData.slice(-numPoints - Math.ceil(averagePoints * 3.5));
+    // Precisa de amostras extras para a média móvel "aquecer"
+    const slicedData=sortedData.slice(-numPoints - averagePoints * 2);
     chartData[league]=slicedData;
 
-    function toAbsMin(m){
-        const d=new Date(m.data);
-        return Math.floor(d.getTime()/86400000)*1440 + m.hora*60 + m.minuto;
-    }
+    // arrays brutos (todos os dados, inclusive os extras para MA)
+    const rawFT=[], rawHT=[], rawInd=[];
+    slicedData.forEach(m=>{
+        let ft=[0,0]; if(m.ft?.includes(' x '))ft=m.ft.split(' x ').map(Number);
+        const htTotal=parseHtScoreTotal(m.ht);
+        rawFT.push(ft[0]+ft[1]);
+        rawHT.push(htTotal);
+        rawInd.push(ft[0]+ft[1]);
+    });
+
+    // Exportar apenas os últimos numPoints pontos
+    const startExibir = Math.max(0, slicedData.length - numPoints);
 
     let labels=[],golsFT=[],golsHT=[],golsInd=[];
     let golsFTColors=[],golsHTColors=[],golsIndColors=[];
 
-    const janelaMin = averagePoints * 3;
-    const startExibir = Math.max(0, slicedData.length - numPoints);
-
-    for(let i=0;i<slicedData.length;i++){
-        const mAtual = slicedData[i];
-        const tsAtual = toAbsMin(mAtual);
-
-        let sGolsFT=0, sGolsHT=0, valid=0;
-
-        for(let j=i;j>=0;j--){
-            const mj=slicedData[j];
-            const tsJ=toAbsMin(mj);
-            if(tsAtual - tsJ > janelaMin) break;
-            const m=mj;
-            let ft=[0,0];if(m.ft?.includes(' x '))ft=m.ft.split(' x ').map(Number);
-            const htTotal=parseHtScoreTotal(m.ht);
-            const tg=ft[0]+ft[1];
-            sGolsFT+=tg; sGolsHT+=htTotal;
-            valid++;
-        }
-        if(i < startExibir) continue;
+    for(let i=startExibir;i<slicedData.length;i++){
         const m=slicedData[i];
         labels.push(`${m.hora}:${m.minuto.toString().padStart(2,'0')}`);
-        let ft=[0,0];if(m.ft?.includes(' x '))ft=m.ft.split(' x ').map(Number);
-        const tg=ft[0]+ft[1];
 
-        golsFT.push(sGolsFT);golsFTColors.push('#FFFF00');
-        golsHT.push(sGolsHT);golsHTColors.push('#26A69A');
-        const golsIndVal=tg; const golsIndColor=golsIndVal>=5?'#2ecc71':golsIndVal>=3?'#3498db':golsIndVal===2?'#f1c40f':golsIndVal===1?'#e67e22':'#e74c3c';
-        golsInd.push(golsIndVal);golsIndColors.push(golsIndColor);
+        golsFT.push(rawFT[i]);
+        golsFTColors.push('#FFFF00');
+
+        golsHT.push(rawHT[i]);
+        golsHTColors.push('#26A69A');
+
+        const tg=rawInd[i];
+        const golsIndColor=tg>=5?'#2ecc71':tg>=3?'#3498db':tg===2?'#f1c40f':tg===1?'#e67e22':'#e74c3c';
+        golsInd.push(tg);
+        golsIndColors.push(golsIndColor);
     }
 
     const result={
@@ -1820,7 +1823,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
-   MODO TRADER — Painel Analítico
+   MODO TRADER — Painel Analítico (LightweightCharts / TradingView)
 ═══════════════════════════════════════════════════════════════════ */
 
 const ANAL_PADRAO = {
@@ -1914,6 +1917,7 @@ function analLoadCfg(){
         _s('analBollPeriod',s.bollP);_s('analBollDesvio',s.bollD);
         _s('analStochK',s.stochK);_s('analStochD',s.stochD);
         _s('analAtrPeriod',s.atrP);_s('analRegLinPeriod',s.regLinP);
+        _s('analTipoGrafico',s.tipoGrafico||'linha');
         _c('analModoFixoToggle',s.fixo!==undefined?s.fixo:true);
         _c('analMediasToggle',s.mm!==undefined?s.mm:true);
         _c('analTopoFundoToggle',s.topo!==undefined?s.topo:true);
@@ -1943,6 +1947,7 @@ function analSaveCfg(){
             bollP:_g('analBollPeriod'),bollD:_g('analBollDesvio'),
             stochK:_g('analStochK'),stochD:_g('analStochD'),
             atrP:_g('analAtrPeriod'),regLinP:_g('analRegLinPeriod'),
+            tipoGrafico:_g('analTipoGrafico'),
             fixo:_gc('analModoFixoToggle'),mm:_gc('analMediasToggle'),
             topo:_gc('analTopoFundoToggle'),rng:_gc('analRangeToggle'),
             showRsi:_gc('analShowRSI'),pct:_gc('analExibirValorToggle'),la:_gc('analLinhaAtualToggle'),
@@ -2258,6 +2263,8 @@ function analAtualizarGrafico(){
         }
     }
 
+    const tipoVisual = document.getElementById('analTipoGrafico')?.value || 'linha';
+
     if(pontosSelecionado.length>0){
         const isIndicadorSel=TIPOS_GOLS.includes(tipoLinha);
         if(isIndicadorSel){
@@ -2266,9 +2273,38 @@ function analAtualizarGrafico(){
             datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pontosSelecionado,borderColor:'#fff',borderWidth:2.3,pointRadius:2,pointHoverRadius:4,pointBackgroundColor:ptBg,pointBorderColor:ptBd,fill:false,tension:0.1,order:0,_tipo:tipoLinha,_isGols:true,_showPointLabels:mostrarNumeros});
         } else {
             const pointBg=[],pointBorder=[];
-            for(let b=totalBlocos-2;b>=0;b--){const mapa=new Map(blocos[b+1].map(j=>[j.minuto,j]));for(let i=blocos[b].length-1;i>=0;i--){const jA=blocos[b][i];if(!jA)continue;const jR=mapa.get(jA.minuto);if(!jR)continue;const a=analVerificarCondicao(jA,tipoLinha),r=analVerificarCondicao(jR,tipoLinha);if(a&&r){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}else if(!a&&!r){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}}}
-            pointBg.unshift('#1e1e1e');pointBorder.unshift('rgb(204,204,204)');
-            datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pontosSelecionado,borderColor:'#fff',borderWidth:2.3,pointRadius:2.3,pointHoverRadius:2,pointBackgroundColor:pointBg,pointBorderColor:pointBorder,fill:false,tension:0.1,order:0,_tipo:tipoLinha,_showPointLabels:mostrarNumeros});
+
+            // Clássico: bolinha verde/vermelha por resultado do bloco vs bloco anterior
+            if(tipoVisual==='classico'||tipoVisual==='candlestick'){
+                for(let b=totalBlocos-2;b>=0;b--){const mapa=new Map(blocos[b+1].map(j=>[j.minuto,j]));for(let i=blocos[b].length-1;i>=0;i--){const jA=blocos[b][i];if(!jA)continue;const jR=mapa.get(jA.minuto);if(!jR)continue;const a=analVerificarCondicao(jA,tipoLinha),r=analVerificarCondicao(jR,tipoLinha);if(a&&r){pointBg.push('#4CAF50');pointBorder.push('#4CAF50');}else if(!a&&!r){pointBg.push('#FF3B30');pointBorder.push('#FF3B30');}else{pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}}}
+                pointBg.unshift('#1e1e1e');pointBorder.unshift('rgb(204,204,204)');
+            } else {
+                // Linha simples
+                for(let i=0;i<pontosSelecionado.length;i++){pointBg.push('#1e1e1e');pointBorder.push('rgb(204,204,204)');}
+            }
+
+            if(tipoVisual==='candlestick'){
+                // Simula candlestick: barras verticais com open/close por bloco
+                const ohlcData = pontosSelecionado.map((v,i,arr)=>{
+                    const prev = i>0?arr[i-1]:v;
+                    const open=prev, close=v;
+                    const high=Math.max(open,close)+2, low=Math.min(open,close)-2;
+                    return{open,high,low,close};
+                });
+                const upColor='rgba(31,204,89,0.85)', downColor='rgba(239,68,68,0.85)';
+                const bgClrs=ohlcData.map(o=>o.close>=o.open?upColor:downColor);
+                const borderClrs=ohlcData.map(o=>o.close>=o.open?'#1fcc59':'#ef4444');
+                datasets.push({
+                    label:tipoLinha.replace(/_/g,' ').toUpperCase(),
+                    data:ohlcData.map(o=>o.close),
+                    borderColor:borderClrs,backgroundColor:bgClrs,
+                    type:'bar',borderWidth:1,borderSkipped:false,
+                    order:0,_tipo:tipoLinha,_showPointLabels:mostrarNumeros,
+                    barThickness:5,
+                });
+            } else {
+                datasets.push({label:tipoLinha.replace(/_/g,' ').toUpperCase(),data:pontosSelecionado,borderColor:'#fff',borderWidth:2.3,pointRadius:tipoVisual==='classico'?3:2.3,pointHoverRadius:2,pointBackgroundColor:pointBg,pointBorderColor:pointBorder,fill:false,tension:tipoVisual==='classico'?0:0.1,order:0,_tipo:tipoLinha,_showPointLabels:mostrarNumeros});
+            }
         }
         ma1=analCalcMA(pontosSelecionado,periodoMA1);
         ma2=analCalcMA(pontosSelecionado,periodoMA2);
@@ -2754,6 +2790,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     analLoadVis();analLoadCfg();_analLoadDrag();_analUpdateDragCounter();
 
     const triggerUpdate=()=>{analSaveCfg();analAtualizarGrafico();};
+    document.getElementById('analTipoGrafico')?.addEventListener('change',()=>{_analLastHash=null;analSaveCfg();analAtualizarGrafico();});
     document.getElementById('analNumBlocos')?.addEventListener('change',()=>{_analLastHash=null;analUpdate();});
     document.getElementById('analMercadoFT')?.addEventListener('change',()=>{const ht=document.getElementById('analMercadoHT');if(document.getElementById('analMercadoFT').value&&ht)ht.value='';triggerUpdate();});
     document.getElementById('analMercadoHT')?.addEventListener('change',()=>{const ft=document.getElementById('analMercadoFT');if(document.getElementById('analMercadoHT').value&&ft)ft.value='';triggerUpdate();});
