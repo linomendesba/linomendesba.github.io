@@ -584,132 +584,64 @@ function _onLigaChange() {
 }
 
 /* ── ADAPTADOR: API BetStat → window.LOADED_JSON (formato Caramelo) ── */
-/* ═══════════════════════════════════════════════════════════════════
-   ✅ INTEGRAÇÃO CORRETA: API BetStat → Gráfico Principal Novo (Caramelo)
-═══════════════════════════════════════════════════════════════════ */
-
 async function _traderFetch() {
-    if (!LIGA_ATUAL) {
-        console.log('[API] Aguardando seleção de liga...');
-        return;
-    }
-
+    if (!LIGA_ATUAL) return;
     try {
-        // ✅ Busca da rota de RESULTADOS
-        const urlResultados = ROTAS_API.resultados(LIGA_ATUAL);
-        console.log('[API] Buscando resultados:', urlResultados);
-
-        const res = await fetch(urlResultados + '?t=' + Date.now());
-        
-        if (!res.ok) {
-            console.warn(`[API] Erro ${res.status} ao buscar dados`);
-            return;
-        }
-
-        const apiData = await res.json();
-        
-        if (!Array.isArray(apiData) || apiData.length === 0) {
-            console.warn('[API] Nenhum dado retornado');
-            return;
-        }
-
-        // ✅ Transforma dados para formato Caramelo (Gráfico Principal Novo)
-        const loadedJson = transformarDadosParaCaramelo(apiData);
-        
-        // ✅ Armazena no window para Caramelo acessar
-        window.LOADED_JSON = loadedJson;
-        
-        // ✅ Renderiza o Gráfico Principal Novo (certo!)
+        const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + '?t=' + Date.now());
+        if (!res.ok) return;
+        const dados = await res.json();
+        window.LOADED_JSON = _betstatToLoadedJson(dados);
         if (typeof window.renderGraficoPrincipalNovo === 'function') {
-            console.log('[API] Renderizando Gráfico Principal Novo');
             window.renderGraficoPrincipalNovo();
-        } else {
-            console.warn('[API] renderGraficoPrincipalNovo não disponível');
         }
-
+        // Notifica o grafico-trading.js para re-renderizar
+        const panel = document.getElementById('graficoTradingPanel');
+        if (panel && !panel.classList.contains('hidden') && typeof window.renderGraficoTrading === 'function') {
+            window.renderGraficoTrading();
+        }
     } catch(e) {
-        console.error('[API] Erro ao buscar/processar dados:', e);
+        console.warn('[Trader] fetch error:', e);
     }
 }
 
-/**
- * ✅ TRANSFORMA dados da API BetStat para formato Caramelo
- * Entrada: Array de jogos da API
- * Saída: { table: { rows: [...] } } formato Caramelo
- */
-function transformarDadosParaCaramelo(apiData) {
-    
-    // ✅ Ordena por hora (descendente = mais recentes primeiro)
+function _betstatToLoadedJson(apiData) {
+    // Agrupa jogos por hora → cada hora vira uma row, cada jogo vira uma cell
     const sorted = [...apiData].sort((a, b) => {
-        const dA = new Date(a.data);
-        const dB = new Date(b.data);
-        
-        if (dA.getTime() !== dB.getTime()) {
-            return dB.getTime() - dA.getTime();
-        }
-        
-        if (a.hora !== b.hora) {
-            return b.hora - a.hora;
-        }
-        
+        const dA = new Date(a.data), dB = new Date(b.data);
+        if (dA - dB !== 0) return dB - dA;
+        if (a.hora !== b.hora) return b.hora - a.hora;
         return b.minuto - a.minuto;
     });
 
-    // ✅ Agrupa por hora
+    // Agrupa por hora
     const porHora = {};
-    
     for (const item of sorted) {
-        const hKey = String(item.hora).padStart(2, '0');
-        
-        if (!porHora[hKey]) {
-            porHora[hKey] = [];
-        }
-        
-        porHora[hKey].push(item);
+        const h = String(item.hora).padStart(2, '0');
+        if (!porHora[h]) porHora[h] = [];
+        porHora[h].push(item);
     }
 
-    // ✅ Converte para formato Caramelo (table.rows)
-    const rows = Object.entries(porHora)
-        .sort((a, b) => b[0].localeCompare(a[0]))
-        .map(([hora, jogos]) => {
-            
-            const cells = [{ v: hora }];
-            
-            for (const jogo of jogos) {
-                if (!jogo.ft || !jogo.ft.includes(' x ')) {
-                    continue;
-                }
-                
-                // ✅ MANTÉM FORMATO CORRETO (não transforma em "-")
-                const ftFormatado = jogo.ft;
-                
-                let htFormatado = '';
-                if (jogo.ht && jogo.ht !== 'OUT' && jogo.ht.includes(' x ')) {
-                    htFormatado = '\n' + jogo.ht;
-                } else if (jogo.ht === 'OUT') {
-                    htFormatado = '\nOUT';
-                }
-                
-                const nomesTimes = (jogo.time_a && jogo.time_b) 
-                    ? `${jogo.time_a} x ${jogo.time_b}` 
-                    : 'Aguardando...';
-                
-                const valorFinal = nomesTimes + '\n' + ftFormatado + htFormatado;
-                
-                cells.push({ v: valorFinal });
+    const rows = Object.entries(porHora).map(([hora, jogos]) => {
+        const cells = [{ v: hora }];
+        for (const j of jogos) {
+            if (!j.ft || !j.ft.includes(' x ')) continue;
+            const ft = j.ft.replace(' x ', '-');
+            let htStr = '';
+            if (j.ht && j.ht !== 'OUT' && j.ht.includes(' x ')) {
+                htStr = '\n' + j.ht.replace(' x ', '-');
+            } else if (j.ht === 'OUT') {
+                htStr = '\nOUT';
             }
-            
-            return { c: cells };
-        });
-
-    return {
-        table: {
-            rows: rows
+            const titulo = (j.time_a && j.time_b) ? `${j.time_a} x ${j.time_b}\n` : '';
+            cells.push({ v: titulo + ft + htStr });
         }
-    };
+        return { c: cells };
+    });
+
+    return { table: { rows } };
 }
 
-// ✅ Inicia fetch do trader quando a liga já está definida
+// Inicia fetch do trader quando a liga já está definida
 document.addEventListener('DOMContentLoaded', () => {
     _traderFetch();
     setInterval(_traderFetch, 3000);
