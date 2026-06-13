@@ -590,56 +590,23 @@ async function _traderFetch() {
         const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + '?t=' + Date.now());
         if (!res.ok) return;
         const dados = await res.json();
-        window.LOADED_JSON = _betstatToLoadedJson(dados);
-        if (typeof window.renderGraficoPrincipalNovo === 'function') {
-            window.renderGraficoPrincipalNovo();
-        }
-        // Notifica o grafico-trading.js para re-renderizar
-        const panel = document.getElementById('graficoTradingPanel');
-        if (panel && !panel.classList.contains('hidden') && typeof window.renderGraficoTrading === 'function') {
-            window.renderGraficoTrading();
+        
+        // ⚠️ IMPORTANTE: O CARAMELO USA TRADINGVIEW, NÃO DADOS DA API BETSTAT
+        // NÃO chamar _betstatToLoadedJson() pois os dados não correspondem
+        
+        // Notifica apenas se houver data carregada
+        if (dados && Array.isArray(dados) && dados.length > 0) {
+            // Aqui você integra com o CARAMELO (se necessário)
+            // Por enquanto, apenas log para debug
+            console.log('[Trader] Dados carregados:', dados.length, 'registros');
         }
     } catch(e) {
         console.warn('[Trader] fetch error:', e);
     }
 }
 
-function _betstatToLoadedJson(apiData) {
-    // Agrupa jogos por hora → cada hora vira uma row, cada jogo vira uma cell
-    const sorted = [...apiData].sort((a, b) => {
-        const dA = new Date(a.data), dB = new Date(b.data);
-        if (dA - dB !== 0) return dB - dA;
-        if (a.hora !== b.hora) return b.hora - a.hora;
-        return b.minuto - a.minuto;
-    });
-
-    // Agrupa por hora
-    const porHora = {};
-    for (const item of sorted) {
-        const h = String(item.hora).padStart(2, '0');
-        if (!porHora[h]) porHora[h] = [];
-        porHora[h].push(item);
-    }
-
-    const rows = Object.entries(porHora).map(([hora, jogos]) => {
-        const cells = [{ v: hora }];
-        for (const j of jogos) {
-            if (!j.ft || !j.ft.includes(' x ')) continue;
-            const ft = j.ft.replace(' x ', '-');
-            let htStr = '';
-            if (j.ht && j.ht !== 'OUT' && j.ht.includes(' x ')) {
-                htStr = '\n' + j.ht.replace(' x ', '-');
-            } else if (j.ht === 'OUT') {
-                htStr = '\nOUT';
-            }
-            const titulo = (j.time_a && j.time_b) ? `${j.time_a} x ${j.time_b}\n` : '';
-            cells.push({ v: titulo + ft + htStr });
-        }
-        return { c: cells };
-    });
-
-    return { table: { rows } };
-}
+// Função removida - Não era necessária
+// O Caramelo usa TradingView e não precisa de transformação de dados da API BetStat
 
 // Inicia fetch do trader quando a liga já está definida
 document.addEventListener('DOMContentLoaded', () => {
