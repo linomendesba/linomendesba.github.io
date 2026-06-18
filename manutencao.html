@@ -184,6 +184,53 @@
 </div>
   </div>
 
+
+  
+<div class="accordion-item">
+    <button class="accordion-button" id="btnAccordionQD">▼ Gráfico Quadrantes ▲</button>
+    <div class="accordion-content" id="accordeonQD">
+ 
+        <!-- ══ GRÁFICO ══ -->
+        <div class="chart-container">
+            <div class="canvas-wrapper">
+                <canvas id="CanvasQuadrantes" width="1080" height="450" style="max-height:450px;"></canvas>
+            </div>
+ 
+            <!-- ══ CONTROLES ══ -->
+            <div class="control-panel">
+ 
+                <div>
+                    <label for="pointsSelectorQD"></label>
+                    <select id="pointsSelectorQD">
+                        <option value="20">1 Hora</option>
+                        <option value="40">2 Horas</option>
+                        <option value="60">3 Horas</option>
+                        <option value="80">4 Horas</option>
+                        <option value="100">5 Horas</option>
+                        <option value="120">6 Horas</option>
+                        <option value="140">7 Horas</option>
+                        <option value="160" selected>8 Horas</option>
+                        <option value="180">9 Horas</option>
+                        <option value="200">10 Horas</option>
+                    </select>
+                </div>
+ 
+                <div class="checkbox-container">
+                    <input type="checkbox" id="fibonacciToggleQD" checked>
+                    <label for="fibonacciToggleQD">Ativar Fibonacci</label>
+                </div>
+ 
+                <label class="linha-atual-toggle">
+                    <input type="checkbox" id="linhaAtualToggleQD" checked>
+                    Linha Atual
+                </label>
+ 
+            </div><!-- /control-panel -->
+        </div><!-- /chart-container -->
+ 
+    </div><!-- /accordion-content -->
+</div><!-- /accordion-item -->
+
 <div class="accordion-item">
     <button class="accordion-button" onclick="toggleAccordion(this)">▼ Ranking Speed ▲</button>
     <div class="accordion-content">
@@ -8116,6 +8163,326 @@ document.addEventListener('DOMContentLoaded', () => {
 
     hmFetch();
     setInterval(hmFetch, 3000);
+});
+</script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+ 
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   GRÁFICO QUADRANTES SIMPLES - UMA LINHA
+═══════════════════════════════════════════════════════════════════ */
+ 
+const QD_ACCORDION_KEY = 'qd:accordionOpen_simples_v1';
+const QUADRANTES_MINUTOS = [
+    [1, 4, 7, 10, 13],
+    [16, 19, 22, 25, 28],
+    [31, 34, 37, 40, 43],
+    [46, 49, 52, 55, 58]
+];
+const CORES_QUADRANTES = ['#FF6B6B', '#FFB366', '#6BCB77', '#4D96FF'];
+const LABELS_QUADRANTES = ['Q1 (1-13)', 'Q2 (16-28)', 'Q3 (31-43)', 'Q4 (46-58)'];
+ 
+let numPointsQD = 160;
+let showFibonacciQD = true;
+let showLinhaAtualQD = true;
+let chartInstanceQD = null;
+let chartDataQD = [];
+ 
+/* ── HELPERS ── */
+function _lsAccordionQD() {
+    const val = localStorage.getItem(QD_ACCORDION_KEY);
+    return val !== '0';
+}
+ 
+function _saveAccordionQD(open) {
+    localStorage.setItem(QD_ACCORDION_KEY, open ? '1' : '0');
+}
+ 
+/* ── PROCESSAR DADOS - UMA LINHA COM GOLS REAIS ── */
+function processQuadrantesDataSimples(dados) {
+    if (!dados || dados.length === 0) return { gols: [], labels: [], quadrantesInfo: [] };
+ 
+    const sorted = [...dados].sort((a, b) => {
+        const dA = new Date(a.data), dB = new Date(b.data);
+        if (dA.getTime() !== dB.getTime()) return dA - dB;
+        if (a.hora !== b.hora) return a.hora - b.hora;
+        return a.minuto - b.minuto;
+    });
+ 
+    const sliced = sorted.slice(-numPointsQD);
+    let labels = [], gols = [], quadrantesInfo = [];
+ 
+    for (let i = 0; i < sliced.length; i++) {
+        const m = sliced[i];
+        let ft = [0, 0];
+        
+        if (m.ft && m.ft.includes(' x ')) {
+            ft = m.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+        }
+ 
+        const totalGols = ft[0] + ft[1];
+        let quadranteAtual = null;
+ 
+        // Detecta qual quadrante e adiciona o total de gols
+        if (m.minuto) {
+            if (QUADRANTES_MINUTOS[0].includes(m.minuto)) {
+                quadranteAtual = 'Q1';
+                gols.push(totalGols);
+            } else if (QUADRANTES_MINUTOS[1].includes(m.minuto)) {
+                quadranteAtual = 'Q2';
+                gols.push(totalGols);
+            } else if (QUADRANTES_MINUTOS[2].includes(m.minuto)) {
+                quadranteAtual = 'Q3';
+                gols.push(totalGols);
+            } else if (QUADRANTES_MINUTOS[3].includes(m.minuto)) {
+                quadranteAtual = 'Q4';
+                gols.push(totalGols);
+            } else {
+                // Não está em nenhum quadrante, não adiciona ponto
+                continue;
+            }
+        } else {
+            continue;
+        }
+ 
+        labels.push(`${m.hora}:${m.minuto.toString().padStart(2, '0')}`);
+        quadrantesInfo.push(quadranteAtual);
+    }
+ 
+    return { gols, labels, quadrantesInfo };
+}
+ 
+/* ── CORES DOS PONTOS BASEADO NO QUADRANTE ── */
+function getPointColors(quadrantesInfo) {
+    const colorMap = {
+        'Q1': CORES_QUADRANTES[0],
+        'Q2': CORES_QUADRANTES[1],
+        'Q3': CORES_QUADRANTES[2],
+        'Q4': CORES_QUADRANTES[3]
+    };
+    
+    return quadrantesInfo.map(q => colorMap[q] || '#ffffff');
+}
+ 
+/* ── PLUGIN FIBONACCI ── */
+const fibonacciPluginQD = {
+    id: 'fibonacciQD',
+    afterDraw(chart) {
+        if (!showFibonacciQD) return;
+        const ctx = chart.ctx, yAxis = chart.scales.y;
+        if (!yAxis) return;
+ 
+        const fibLevels = [0, 23.6, 38.2, 50, 61.8, 100];
+        const { left, right } = chart.chartArea, range = yAxis.max - yAxis.min;
+ 
+        ctx.save();
+        fibLevels.forEach((lvl, i) => {
+            const y = yAxis.getPixelForValue(yAxis.min + (lvl / 100) * range);
+            ctx.beginPath();
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(left, y);
+            ctx.lineTo(right, y);
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+ 
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.85)';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${fibLevels[i]}%`, right + 52, y - (i === 0 ? -8 : 0));
+        });
+        ctx.restore();
+    }
+};
+ 
+/* ── PLUGIN LINHA ATUAL ── */
+const linhaAtualPluginQD = {
+    id: 'linhaAtualQD',
+    afterDraw(chart) {
+        if (!showLinhaAtualQD) return;
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea || !scales.y) return;
+ 
+        const { left, right, top, bottom } = chartArea, padX = 5, BAD_H = 18;
+        const entries = [];
+ 
+        chart.data.datasets.forEach((d, i) => {
+            if (!d.label || !chart.isDatasetVisible(i)) return;
+            const arr = d.data;
+            if (!arr || !arr.length) return;
+ 
+            let yVal = null;
+            for (let j = arr.length - 1; j >= 0; j--) {
+                if (arr[j] !== null && arr[j] !== undefined && isFinite(arr[j])) {
+                    yVal = arr[j];
+                    break;
+                }
+            }
+ 
+            if (yVal === null) return;
+ 
+            const yPx = scales.y.getPixelForValue(yVal);
+            const badgeY = Math.max(top + BAD_H / 2, Math.min(yPx, bottom - BAD_H / 2));
+ 
+            entries.push({
+                yVal,
+                yPx,
+                badgeY,
+                label: d.label,
+                color: d.borderColor
+            });
+        });
+ 
+        entries.forEach(({ yVal, yPx, badgeY, label, color }) => {
+            ctx.save();
+            ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.setLineDash([6, 4]);
+            ctx.beginPath(); ctx.moveTo(left, yPx); ctx.lineTo(right, yPx); ctx.stroke(); ctx.setLineDash([]);
+ 
+            const text = yVal.toFixed(1);
+            ctx.font = 'bold 10px Arial,sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+            const bw = Math.ceil(ctx.measureText(text).width) + padX * 2;
+            const bx = right + 4, by = badgeY - BAD_H / 2;
+ 
+            ctx.fillStyle = 'rgba(10,12,20,0.95)'; ctx.strokeStyle = color; ctx.lineWidth = 1.2;
+            ctx.fillRect(bx, by, bw, BAD_H); ctx.strokeRect(bx, by, bw, BAD_H);
+ 
+            ctx.fillStyle = color;
+            ctx.fillText(text, bx + padX, badgeY);
+            ctx.restore();
+        });
+    }
+};
+ 
+/* ── CRIAR GRÁFICO ── */
+function createChartQD() {
+    const canvas = document.getElementById('CanvasQuadrantes');
+    if (!canvas) return;
+ 
+    const processado = processQuadrantesDataSimples(chartDataQD);
+    const { gols, labels, quadrantesInfo } = processado;
+ 
+    if (gols.length === 0) {
+        console.warn('Sem dados para exibir');
+        return;
+    }
+ 
+    const pointColors = getPointColors(quadrantesInfo);
+ 
+    const datasets = [{
+        label: 'Gols por Quadrante',
+        data: gols,
+        borderColor: '#1fcc59',
+        backgroundColor: '#1fcc59',
+        pointBackgroundColor: pointColors,
+        pointBorderColor: pointColors,
+        pointBorderWidth: 1.5,
+        pointRadius: 4,
+        pointHoverRadius: 5,
+        borderWidth: 2,
+        fill: false,
+        tension: 0.1
+    }];
+ 
+    if (chartInstanceQD) {
+        chartInstanceQD.destroy();
+    }
+ 
+    const ctx = canvas.getContext('2d');
+    chartInstanceQD = new Chart(ctx, {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 0 },
+            layout: { padding: { top: 30, right: 80 } },
+            plugins: {
+                legend: { display: true },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleColor: '#1fcc59',
+                    bodyColor: '#e0e0e0',
+                    borderColor: '#1fcc59',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: ctx => {
+                            const quadInfo = quadrantesInfo[ctx.dataIndex] || '?';
+                            return `${ctx.dataset.label} (${quadInfo}): ${ctx.parsed.y} gol(s)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { display: false }, grid: { display: false } },
+                y: { beginAtZero: true, ticks: { color: '#b0b0b0' }, grid: { color: 'rgba(255,255,255,0.3)', lineWidth: 0.5 } }
+            }
+        },
+        plugins: [fibonacciPluginQD, linhaAtualPluginQD]
+    });
+}
+ 
+/* ── FETCH E UPDATE ── */
+async function updateChartQD() {
+    try {
+        // Tenta usar ROTAS_API se existir
+        if (typeof ROTAS_API !== 'undefined' && typeof LIGA_ATUAL !== 'undefined') {
+            const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + `?ts=${Date.now()}`);
+            if (!r.ok) throw new Error(r.status);
+            chartDataQD = await r.json();
+        }
+        createChartQD();
+    } catch (e) {
+        console.error('Erro ao buscar dados:', e);
+        chartDataQD = [];
+        createChartQD();
+    }
+}
+ 
+/* ── EVENT LISTENERS ── */
+document.addEventListener('DOMContentLoaded', () => {
+    // Acordeão
+    const btnAccordion = document.getElementById('btnAccordionQD');
+    const contentAccordion = document.getElementById('accordeonQD');
+    
+    if (btnAccordion && contentAccordion) {
+        const accordionOpen = _lsAccordionQD();
+        if (!accordionOpen) {
+            contentAccordion.style.display = 'none';
+        }
+        
+        btnAccordion.addEventListener('click', function() {
+            const isOpen = contentAccordion.style.display !== 'none';
+            contentAccordion.style.display = isOpen ? 'none' : 'block';
+            _saveAccordionQD(!isOpen);
+        });
+    }
+ 
+    // Seletor de pontos
+    document.getElementById('pointsSelectorQD')?.addEventListener('change', e => {
+        numPointsQD = parseInt(e.target.value, 10);
+        updateChartQD();
+    });
+ 
+    // Checkbox Fibonacci
+    document.getElementById('fibonacciToggleQD')?.addEventListener('change', function() {
+        showFibonacciQD = this.checked;
+        if (chartInstanceQD) chartInstanceQD.update();
+    });
+ 
+    // Checkbox Linha Atual
+    document.getElementById('linhaAtualToggleQD')?.addEventListener('change', function() {
+        showLinhaAtualQD = this.checked;
+        if (chartInstanceQD) chartInstanceQD.update();
+    });
+ 
+    // Inicializa
+    updateChartQD();
+    setInterval(updateChartQD, 5000);
 });
 </script>
 
