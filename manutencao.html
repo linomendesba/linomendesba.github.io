@@ -185,7 +185,7 @@
   </div>
 
 
-  
+  <!-- ── ACORDEÃO QUADRANTES ── -->
 <div class="accordion-item">
     <button class="accordion-button" id="btnAccordionQD">▼ Gráfico Quadrantes ▲</button>
     <div class="accordion-content" id="accordeonQD">
@@ -212,6 +212,17 @@
                         <option value="160" selected>8 Horas</option>
                         <option value="180">9 Horas</option>
                         <option value="200">10 Horas</option>
+                    </select>
+                </div>
+ 
+                <div>
+                    <label for="baseSelectorQD"></label>
+                    <select id="baseSelectorQD">
+                        <option value="19">Base 20</option>
+                        <option value="39">Base 40</option>
+                        <option value="59">Base 60</option>
+                        <option value="79" selected>Base 80</option>
+                        <option value="99">Base 100</option>
                     </select>
                 </div>
  
@@ -8166,15 +8177,14 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
  
 <script>
 /* ═══════════════════════════════════════════════════════════════════
-   GRÁFICO QUADRANTES SIMPLES - UMA LINHA
+   GRÁFICO QUADRANTES - UMA LINHA COM 4 QUADRANTES
 ═══════════════════════════════════════════════════════════════════ */
  
-const QD_ACCORDION_KEY = 'qd:accordionOpen_simples_v1';
+const QD_ACCORDION_KEY = 'qd:accordionOpen_v1';
 const QUADRANTES_MINUTOS = [
     [1, 4, 7, 10, 13],
     [16, 19, 22, 25, 28],
@@ -8185,6 +8195,7 @@ const CORES_QUADRANTES = ['#FF6B6B', '#FFB366', '#6BCB77', '#4D96FF'];
 const LABELS_QUADRANTES = ['Q1 (1-13)', 'Q2 (16-28)', 'Q3 (31-43)', 'Q4 (46-58)'];
  
 let numPointsQD = 160;
+let basePointsQD = 79;
 let showFibonacciQD = true;
 let showLinhaAtualQD = true;
 let chartInstanceQD = null;
@@ -8200,9 +8211,9 @@ function _saveAccordionQD(open) {
     localStorage.setItem(QD_ACCORDION_KEY, open ? '1' : '0');
 }
  
-/* ── PROCESSAR DADOS - UMA LINHA COM GOLS REAIS ── */
-function processQuadrantesDataSimples(dados) {
-    if (!dados || dados.length === 0) return { gols: [], labels: [], quadrantesInfo: [] };
+/* ── PROCESSAR DADOS - UMA LINHA, QUADRANTES SEQUENCIAIS ── */
+function processQuadrantesData(dados) {
+    if (!dados || dados.length === 0) return { gols: [], labels: [], quadrantes: [] };
  
     const sorted = [...dados].sort((a, b) => {
         const dA = new Date(a.data), dB = new Date(b.data);
@@ -8211,59 +8222,74 @@ function processQuadrantesDataSimples(dados) {
         return a.minuto - b.minuto;
     });
  
-    const sliced = sorted.slice(-numPointsQD);
-    let labels = [], gols = [], quadrantesInfo = [];
+    const sliced = sorted.slice(-numPointsQD - Math.ceil(basePointsQD * 3.5));
  
-    for (let i = 0; i < sliced.length; i++) {
-        const m = sliced[i];
-        let ft = [0, 0];
-        
-        if (m.ft && m.ft.includes(' x ')) {
-            ft = m.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
-        }
- 
-        const totalGols = ft[0] + ft[1];
-        let quadranteAtual = null;
- 
-        // Detecta qual quadrante e adiciona o total de gols
-        if (m.minuto) {
-            if (QUADRANTES_MINUTOS[0].includes(m.minuto)) {
-                quadranteAtual = 'Q1';
-                gols.push(totalGols);
-            } else if (QUADRANTES_MINUTOS[1].includes(m.minuto)) {
-                quadranteAtual = 'Q2';
-                gols.push(totalGols);
-            } else if (QUADRANTES_MINUTOS[2].includes(m.minuto)) {
-                quadranteAtual = 'Q3';
-                gols.push(totalGols);
-            } else if (QUADRANTES_MINUTOS[3].includes(m.minuto)) {
-                quadranteAtual = 'Q4';
-                gols.push(totalGols);
-            } else {
-                // Não está em nenhum quadrante, não adiciona ponto
-                continue;
-            }
-        } else {
-            continue;
-        }
- 
-        labels.push(`${m.hora}:${m.minuto.toString().padStart(2, '0')}`);
-        quadrantesInfo.push(quadranteAtual);
+    function toAbsMin(m) {
+        const d = new Date(m.data);
+        return Math.floor(d.getTime() / 86400000) * 1440 + m.hora * 60 + m.minuto;
     }
  
-    return { gols, labels, quadrantesInfo };
+    const janelaMin = basePointsQD * 3;
+    const startExibir = Math.max(0, sliced.length - numPointsQD);
+ 
+    let labels = [], gols = [], quadrantes = [];
+ 
+    for (let i = 0; i < sliced.length; i++) {
+        const mAtual = sliced[i];
+        const tsAtual = toAbsMin(mAtual);
+ 
+        let stats = { q1: 0, q2: 0, q3: 0, q4: 0 };
+ 
+        // Soma gols em cada quadrante dentro da janela
+        for (let j = i; j >= 0; j--) {
+            const mj = sliced[j];
+            const tsJ = toAbsMin(mj);
+            if (tsAtual - tsJ > janelaMin) break;
+ 
+            const m = mj;
+            let ft = [0, 0];
+            if (m.ft && m.ft.includes(' x ')) {
+                ft = m.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+            }
+ 
+            const totalGols = ft[0] + ft[1];
+ 
+            // Conta gols por quadrante
+            if (m.minuto && QUADRANTES_MINUTOS[0].includes(m.minuto)) stats.q1 += totalGols;
+            if (m.minuto && QUADRANTES_MINUTOS[1].includes(m.minuto)) stats.q2 += totalGols;
+            if (m.minuto && QUADRANTES_MINUTOS[2].includes(m.minuto)) stats.q3 += totalGols;
+            if (m.minuto && QUADRANTES_MINUTOS[3].includes(m.minuto)) stats.q4 += totalGols;
+        }
+ 
+        if (i < startExibir) continue;
+ 
+        // Adiciona cada quadrante como um ponto sequencial
+        const hora = sliced[i].hora.toString().padStart(2, '0');
+        const minuto = sliced[i].minuto.toString().padStart(2, '0');
+        
+        gols.push(stats.q1);
+        labels.push(`${hora}:${minuto} Q1`);
+        quadrantes.push(0); // índice do Q1
+ 
+        gols.push(stats.q2);
+        labels.push(`${hora}:${minuto} Q2`);
+        quadrantes.push(1); // índice do Q2
+ 
+        gols.push(stats.q3);
+        labels.push(`${hora}:${minuto} Q3`);
+        quadrantes.push(2); // índice do Q3
+ 
+        gols.push(stats.q4);
+        labels.push(`${hora}:${minuto} Q4`);
+        quadrantes.push(3); // índice do Q4
+    }
+ 
+    return { gols, labels, quadrantes };
 }
  
-/* ── CORES DOS PONTOS BASEADO NO QUADRANTE ── */
-function getPointColors(quadrantesInfo) {
-    const colorMap = {
-        'Q1': CORES_QUADRANTES[0],
-        'Q2': CORES_QUADRANTES[1],
-        'Q3': CORES_QUADRANTES[2],
-        'Q4': CORES_QUADRANTES[3]
-    };
-    
-    return quadrantesInfo.map(q => colorMap[q] || '#ffffff');
+/* ── CORES DOS PONTOS ── */
+function getPointColors(quadrantes) {
+    return quadrantes.map(idx => CORES_QUADRANTES[idx]);
 }
  
 /* ── PLUGIN FIBONACCI ── */
@@ -8362,15 +8388,15 @@ function createChartQD() {
     const canvas = document.getElementById('CanvasQuadrantes');
     if (!canvas) return;
  
-    const processado = processQuadrantesDataSimples(chartDataQD);
-    const { gols, labels, quadrantesInfo } = processado;
+    const processado = processQuadrantesData(chartDataQD);
+    const { gols, labels, quadrantes } = processado;
  
     if (gols.length === 0) {
         console.warn('Sem dados para exibir');
         return;
     }
  
-    const pointColors = getPointColors(quadrantesInfo);
+    const pointColors = getPointColors(quadrantes);
  
     const datasets = [{
         label: 'Gols por Quadrante',
@@ -8410,10 +8436,7 @@ function createChartQD() {
                     borderColor: '#1fcc59',
                     borderWidth: 1,
                     callbacks: {
-                        label: ctx => {
-                            const quadInfo = quadrantesInfo[ctx.dataIndex] || '?';
-                            return `${ctx.dataset.label} (${quadInfo}): ${ctx.parsed.y} gol(s)`;
-                        }
+                        label: ctx => `Gols: ${ctx.parsed.y}`
                     }
                 }
             },
@@ -8429,7 +8452,6 @@ function createChartQD() {
 /* ── FETCH E UPDATE ── */
 async function updateChartQD() {
     try {
-        // Tenta usar ROTAS_API se existir
         if (typeof ROTAS_API !== 'undefined' && typeof LIGA_ATUAL !== 'undefined') {
             const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + `?ts=${Date.now()}`);
             if (!r.ok) throw new Error(r.status);
@@ -8465,6 +8487,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Seletor de pontos
     document.getElementById('pointsSelectorQD')?.addEventListener('change', e => {
         numPointsQD = parseInt(e.target.value, 10);
+        updateChartQD();
+    });
+ 
+    // Seletor de base
+    document.getElementById('baseSelectorQD')?.addEventListener('change', e => {
+        basePointsQD = parseInt(e.target.value, 10);
         updateChartQD();
     });
  
