@@ -184,7 +184,7 @@
 </div>
   </div>
 
-  <!-- ── ACORDEÃO QUADRANTES ── -->
+<!-- ── ACORDEÃO QUADRANTES ── -->
 <div class="accordion-item">
     <button class="accordion-button" id="btnAccordionQD">▼ Gráfico Quadrantes ▲</button>
     <div class="accordion-content" id="accordeonQD">
@@ -462,13 +462,53 @@ function _saveAccordionQD(open) {
     localStorage.setItem(QD_ACCORDION_KEY, open ? '1' : '0');
 }
 
-/* ── QUADRANTES DEFINIDOS POR MINUTOS ── */
-const QUADRANTES_MINUTOS = [
+/* ── QUADRANTES: DETECÇÃO AUTOMÁTICA POR LIGA ── */
+let QUADRANTES_MINUTOS = [
     [1, 4, 7, 10, 13],
     [16, 19, 22, 25, 28],
     [31, 34, 37, 40, 43],
     [46, 49, 52, 55, 58]
 ];
+
+/**
+ * Detecta os minutos únicos do dataset e cria quadrantes automaticamente
+ * Agrupa minutos em até 4 quadrantes balanceados
+ */
+function detectarQuadrantesAutomatico(dados) {
+    if (!dados || dados.length === 0) return QUADRANTES_MINUTOS; // usa padrão se vazio
+
+    // Coleta todos os minutos únicos presentes nos dados
+    const minutosUnicos = [...new Set(dados.map(m => m.minuto))].sort((a, b) => a - b);
+
+    // Se tem 20 ou mais minutos distintos, assume padrão de 4 quadrantes de 5
+    if (minutosUnicos.length >= 20) {
+        const q1 = minutosUnicos.slice(0, 5);
+        const q2 = minutosUnicos.slice(5, 10);
+        const q3 = minutosUnicos.slice(10, 15);
+        const q4 = minutosUnicos.slice(15, 20);
+        
+        const quadrantesDetectados = [q1, q2, q3, q4].filter(q => q.length > 0);
+        
+        console.log('✓ Quadrantes detectados automaticamente:', quadrantesDetectados);
+        return quadrantesDetectados;
+    }
+
+    // Se tem 4-19 minutos, divide em até 4 quadrantes
+    if (minutosUnicos.length > 0) {
+        const tamanhoQuadrante = Math.ceil(minutosUnicos.length / 4);
+        const quadrantesDetectados = [];
+        
+        for (let i = 0; i < minutosUnicos.length; i += tamanhoQuadrante) {
+            quadrantesDetectados.push(minutosUnicos.slice(i, i + tamanhoQuadrante));
+        }
+        
+        console.log('✓ Quadrantes detectados (dinâmico):', quadrantesDetectados);
+        return quadrantesDetectados;
+    }
+
+    // Fallback ao padrão se nenhum minuto for encontrado
+    return QUADRANTES_MINUTOS;
+}
 
 /* ── DESCOBRE A QUE QUADRANTE UM MINUTO PERTENCE ── */
 function getQuadranteIndex(minuto) {
@@ -749,6 +789,10 @@ async function updateChartQD() {
             if (!r.ok) throw new Error(r.status);
             chartDataQD = await r.json();
         }
+        
+        // Detecta automaticamente os quadrantes da liga atual
+        QUADRANTES_MINUTOS = detectarQuadrantesAutomatico(chartDataQD);
+        
         createChartQD();
     } catch (e) {
         console.error('Erro ao buscar dados:', e);
