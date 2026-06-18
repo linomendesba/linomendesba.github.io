@@ -168,10 +168,9 @@
       tools: [
         { label: "Guias",        url: "https://www.betstat.site/guias.html" },
         { label: "Mentor",        url: "https://www.betstat.site/mentor.html" },
-        { label: "Flat",        url: "https://www.betstat.site/flat.html" },
+        { label: "Guias",        url: "https://www.betstat.site/flat.html" },
         { label: "Ao Vivo",      url: "https://www.betstat.site/live.html" },
         { label: "Calc Dutch",   url: "https://www.betstat.site/calculadora.html" },
-        { label: "Morpheus Pro",  url: "https://www.betstat.site/morpheuspro.html" },
         { label: "Morpheus IA",  url: "https://www.betstat.site/morfeus" },
         { label: "Gerador Tip",  url: "https://www.betstat.site/central/" },
         { label: "Gestão Banca", url: "gestao.html" },
