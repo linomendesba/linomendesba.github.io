@@ -443,7 +443,7 @@ let showLinhaAtualQD     = true;
 let chartInstanceQD      = null;
 let chartDataQD          = [];
 let jogosPorPontoQD      = [];   // quantos jogos efetivamente compuseram cada quadrante exibido
-let horariosQuadrantesQD = [];   // armazena hora inicio-fim de cada quadrante
+let quadrantesInfoQD     = [];   // armazena quadrante, hora, etc
 
 /* ── HELPERS DE STORAGE ── */
 function _lsGetNum(key, fallback) {
@@ -492,14 +492,15 @@ function processQuadrantesData(dados) {
 
         const primeiro = chunk[0], ultimo = chunk[chunk.length - 1];
         const fmt = m => `${m.hora}:${m.minuto.toString().padStart(2, '0')}`;
-        const horaInicio = fmt(primeiro);
-        const horaFim = fmt(ultimo);
+        const horaNum = primeiro.hora;
+        const minutoInicio = primeiro.minuto;
 
         grupos.push({
             gols,
             jogos: chunk.length,
-            label: chunk.length > 1 ? `${horaInicio}–${horaFim}` : horaInicio,
-            horario: chunk.length > 1 ? `${horaInicio} a ${horaFim}` : horaInicio,
+            hora: horaNum,
+            minutoInicio: minutoInicio,
+            horarioExtenso: chunk.length > 1 ? `${fmt(primeiro)}–${fmt(ultimo)}` : fmt(primeiro),
             quadrante: grupos.length + 1
         });
     }
@@ -509,9 +510,14 @@ function processQuadrantesData(dados) {
 
     return {
         data: visiveis.map(g => g.gols),
-        labels: visiveis.map(g => g.label),
+        labels: visiveis.map((g, idx) => `Q${idx + 1} ${g.hora.toString().padStart(2, '0')}h`),
         jogosPorPonto: visiveis.map(g => g.jogos),
-        horarios: visiveis.map(g => ({ horario: g.horario, quadrante: g.quadrante }))
+        quadrantesInfo: visiveis.map((g, idx) => ({ 
+            quadrante: idx + 1, 
+            hora: g.hora.toString().padStart(2, '0'),
+            minutoInicio: g.minutoInicio,
+            horarioExtenso: g.horarioExtenso
+        }))
     };
 }
 
@@ -643,9 +649,9 @@ function createChartQD() {
     if (!canvas) return;
 
     const processado = processQuadrantesData(chartDataQD);
-    const { data, labels, jogosPorPonto, horarios } = processado;
+    const { data, labels, jogosPorPonto, quadrantesInfo } = processado;
     jogosPorPontoQD = jogosPorPonto;
-    horariosQuadrantesQD = horarios;
+    quadrantesInfoQD = quadrantesInfo;
 
     const cores = calcularCoresPontosQD(data);
     const yBounds = calcularYAxisBounds(data);
@@ -691,10 +697,8 @@ function createChartQD() {
                         title: items => {
                             const idx = items[0]?.dataIndex;
                             if (idx === undefined || idx === null) return '';
-                            const info = horariosQuadrantesQD[idx];
-                            if (!info) return '';
-                            const hora = info.horario.split(' ')[0];
-                            return `Q${info.quadrante} HORA ${hora}`;
+                            const info = quadrantesInfoQD[idx];
+                            return info ? `Q${info.quadrante} HORA ${info.hora}` : '';
                         },
                         label: ctx => `Gols: ${ctx.parsed.y}`,
                         afterLabel: items => {
