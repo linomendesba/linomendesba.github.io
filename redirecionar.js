@@ -19,6 +19,7 @@ function redirecionar(select) {
     url === "https://t.me/+grZB16eZ9ZJkNjVh" ||
     url === "https://www.betstat.site/guias.html" ||
     url === "https://www.betstat.site/mentor.html" ||
+    url === "https://www.betstat.site/morpheuspro.html" ||
     url === "https://youtu.be/oRqi3RvH8zE" ||
     url === "blog.html" ||
     url === "gestao.html" ||
