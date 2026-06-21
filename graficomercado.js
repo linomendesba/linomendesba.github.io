@@ -397,6 +397,23 @@ function _duplicateSetup(setup) {
     _updateSetupCounter();
 }
  
+/* ── PRÉVIA NO HOVER (mostra a linha temporariamente sem ativar de verdade) ── */
+function _setPreviewLine(label, show) {
+    leagues.forEach(l => {
+        const ci = chartInstances[l]; if (!ci) return;
+        let changed = false;
+        ci.data.datasets.forEach((ds, idx) => {
+            const ml = ds.label.includes(' - ') ? ds.label.split(' - ')[0] : ds.label;
+            if (ml !== label) return;
+            const isMA = ds.label.includes(' - ');
+            const newHidden = show ? (isMA ? !showMovingAverages : false) : true;
+            const meta = ci.getDatasetMeta(idx);
+            if (meta.hidden !== newHidden) { meta.hidden = newHidden; changed = true; }
+        });
+        if (changed) ci.update('none');
+    });
+}
+ 
 /* ── RENDERIZA PAINEL DE TOGGLES (ordenado pela ordem do setup) ── */
 function _renderLinesPanel(setup) {
     const panel = document.getElementById('setupLinesPanel');
@@ -444,6 +461,7 @@ function _renderLinesPanel(setup) {
         }
  
         toggle.addEventListener('click', () => {
+            toggle.style.outline = ''; // limpa eventual contorno de prévia
             const nowActive = !_isLineActive(setup.id, label);
             _setLineActive(setup.id, label, nowActive);
             statsChartVisibleDatasets[label] = setup.markets.includes(label) && nowActive;
@@ -463,7 +481,39 @@ function _renderLinesPanel(setup) {
             _renderLinesPanel(_getActiveSetup());
         });
  
+        // Prévia ao passar o mouse: só faz sentido para mercados desativados
+        if (!active) {
+            toggle.dataset.label = label;
+            toggle.dataset.color = color;
+            toggle.addEventListener('mouseenter', () => {
+                toggle.style.outline = `2px dashed ${color}`;
+                toggle.style.outlineOffset = '2px';
+                _setPreviewLine(label, true);
+            });
+            toggle.addEventListener('mouseleave', () => {
+                toggle.style.outline = '';
+                // só esconde de novo se o mercado continuar desativado
+                // (evita conflito caso o usuário tenha clicado durante o hover)
+                if (!_isLineActive(setup.id, label)) _setPreviewLine(label, false);
+            });
+        }
+ 
         panel.appendChild(toggle);
+    });
+ 
+    // Reconcilia a prévia com a posição real do mouse: o painel é
+    // recriado a cada atualização automática (3s), então re-sincroniza
+    // aqui pra prévia não "grudar" ligada nem perder o hover em andamento.
+    panel.querySelectorAll('.market-toggle.inactive').forEach(el => {
+        const lbl = el.dataset.label;
+        if (!lbl) return;
+        if (el.matches(':hover')) {
+            el.style.outline = `2px dashed ${el.dataset.color}`;
+            el.style.outlineOffset = '2px';
+            _setPreviewLine(lbl, true);
+        } else {
+            _setPreviewLine(lbl, false);
+        }
     });
 }
  
