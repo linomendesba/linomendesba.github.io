@@ -1437,4 +1437,5 @@ window.onload=()=>{
     _renderLinesPanel(_getActiveSetup());
     _updateSetupCounter();
 };
+
 setInterval(updateCharts,3000);
