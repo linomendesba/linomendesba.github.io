@@ -314,6 +314,8 @@ function _renderSetupBar() {
     const activeId = _loadActiveId();
  
     _getAllSetups().forEach(setup => {
+        if (setup.id === '__padrao__') return; // chip "Padrão" não é mais exibido na barra
+ 
         const item = document.createElement('div');
         item.className = 'setup-item' + (setup.id === activeId ? ' active' : '');
  
