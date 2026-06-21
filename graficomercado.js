@@ -1,4 +1,4 @@
-        /* ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
    GRÁFICO MERCADOS 
 ═══════════════════════════════════════════════════════════════════ */
  
@@ -481,10 +481,14 @@ function _renderLinesPanel(setup) {
             _renderLinesPanel(_getActiveSetup());
         });
  
+        // dataset.label/color sempre presentes (usados também pela
+        // atualização leve de valores em _updateLinesPanelValues, que
+        // roda a cada 3s sem recriar os elementos)
+        toggle.dataset.label = label;
+        toggle.dataset.color = color;
+
         // Prévia ao passar o mouse: só faz sentido para mercados desativados
         if (!active) {
-            toggle.dataset.label = label;
-            toggle.dataset.color = color;
             toggle.addEventListener('mouseenter', () => {
                 toggle.style.outline = `2px dashed ${color}`;
                 toggle.style.outlineOffset = '2px';
@@ -513,6 +517,42 @@ function _renderLinesPanel(setup) {
             _setPreviewLine(lbl, true);
         } else {
             _setPreviewLine(lbl, false);
+        }
+    });
+}
+
+/* ── ATUALIZAÇÃO LEVE DOS VALORES DO PAINEL (sem recriar DOM) ──
+   Chamada a cada updateCharts() (3s). Diferente de _renderLinesPanel,
+   esta função NUNCA destrói/recria os elementos .market-toggle — apenas
+   atualiza o texto do valor e o tooltip. Isso evita que o hover/prévia
+   em andamento seja interrompido e o mercado pisque enquanto o usuário
+   está analisando o gráfico. Use _renderLinesPanel apenas quando a
+   ESTRUTURA realmente muda (troca de setup, ativar/desativar mercado). */
+function _updateLinesPanelValues() {
+    const panel = document.getElementById('setupLinesPanel');
+    if (!panel) return;
+    panel.querySelectorAll('.market-toggle').forEach(toggle => {
+        const label = toggle.dataset.label;
+        if (!label) return;
+        const val = _getDatasetCurrentValue(label);
+        const isGols = label === 'Gols FT' || label === 'Gols HT' || label === 'Gols FT Casa' || label === 'Gols FT Fora';
+
+        let tooltipText = label;
+        if (val !== null) tooltipText += ' — ' + (isGols ? Math.round(val) + ' gols' : val.toFixed(1));
+        toggle.title = tooltipText;
+
+        let valSpan = toggle.querySelector('.market-toggle-val');
+        if (val !== null) {
+            const text = isGols ? Math.round(val) : val.toFixed(1);
+            if (!valSpan) {
+                valSpan = document.createElement('span');
+                valSpan.className = 'market-toggle-val';
+                valSpan.style.color = toggle.dataset.color || '#888';
+                toggle.appendChild(valSpan);
+            }
+            valSpan.textContent = text;
+        } else if (valSpan) {
+            valSpan.remove();
         }
     });
 }
@@ -1062,8 +1102,9 @@ function updateStatsChart(chart, newData) {
             ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label)+'Colors'];
     });
     chart.update();
-    // Atualiza valores no painel de toggles
-    _renderLinesPanel(_getActiveSetup());
+    // Atualiza valores no painel de toggles (sem recriar DOM, evita
+    // o "piscar" da prévia ao passar o mouse durante o auto-update de 3s)
+    _updateLinesPanelValues();
 }
  
 /* ═══════════════════════════════════════════════════════════════════
