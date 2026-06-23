@@ -1438,6 +1438,368 @@ window.onload=()=>{
     _updateSetupCounter();
 };
 
+/* ═══════════════════════════════════════════════════════════════════
+   BETSTAT — ANÁLISE AVANÇADA v3
+   5 FEATURES: Zona de Calor · Tendência · Alertas · Spark · Zoom
+   Cole este bloco ANTES de: setInterval(updateCharts, 3000);
+═══════════════════════════════════════════════════════════════════ */
 
+/* ─── FEATURE 1: ZONA DE CALOR (plugin global Chart.js) ─────────── */
+let showZonaCalor = _ls('mgraf:zonaCalor', true);
 
-setInterval(updateCharts,3000);
+const zonaCalorPlugin = {
+    id: 'zonaCalor',
+    beforeDatasetsDraw(chart) {
+        if (!showZonaCalor) return;
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea || !scales.y) return;
+        const { left, right, top, bottom } = chartArea;
+        const yAxis = scales.y;
+
+        const valores = [];
+        chart.data.datasets.forEach((ds, idx) => {
+            if (ds.label && ds.label.includes(' MA')) return;
+            if (!chart.isDatasetVisible(idx)) return;
+            if (ds.yAxisID === 'y2') return;
+            ds.data.forEach(v => { if (v !== null && isFinite(v)) valores.push(v); });
+        });
+        if (valores.length < 4) return;
+
+        const media = valores.reduce((a, b) => a + b, 0) / valores.length;
+        const sigma = Math.sqrt(valores.reduce((a, b) => a + (b - media) ** 2, 0) / valores.length);
+
+        const clamp = px => Math.min(bottom, Math.max(top, px));
+        const pxMax    = clamp(yAxis.getPixelForValue(yAxis.max));
+        const pxQuente = clamp(yAxis.getPixelForValue(media + sigma));
+        const pxMedia  = clamp(yAxis.getPixelForValue(media));
+        const pxFrio   = clamp(yAxis.getPixelForValue(media - sigma));
+        const pxMin    = clamp(yAxis.getPixelForValue(yAxis.min));
+        const w = right - left;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,200,80,0.07)';
+        ctx.fillRect(left, pxMax, w, pxQuente - pxMax);
+        ctx.fillStyle = 'rgba(255,220,0,0.06)';
+        ctx.fillRect(left, pxQuente, w, pxFrio - pxQuente);
+        ctx.fillStyle = 'rgba(220,50,50,0.08)';
+        ctx.fillRect(left, pxFrio, w, pxMin - pxFrio);
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.lineWidth = 1; ctx.setLineDash([6, 6]);
+        ctx.beginPath(); ctx.moveTo(left, pxMedia); ctx.lineTo(right, pxMedia); ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText('μ ' + media.toFixed(1), left + 4, pxMedia - 7);
+        ctx.restore();
+    }
+};
+
+// Registra globalmente — afeta qualquer chart criado depois
+Chart.register(zonaCalorPlugin);
+
+/* ─── FEATURE 3: ALERTAS VISUAIS (plugin global) ────────────────── */
+const ALERTA_THRESHOLD = 1.25;
+let _alertaPulse = 0;
+
+const alertasPlugin = {
+    id: 'alertas',
+    afterDatasetsDraw(chart) {
+        const { ctx, chartArea } = chart;
+        if (!chartArea) return;
+        const lines = chart.dragLines || [];
+        _alertaPulse = (_alertaPulse + 1) % 60;
+        const pulseR = 6 + Math.sin(_alertaPulse / 60 * Math.PI * 2) * 2.5;
+
+        chart.data.datasets.forEach((ds, dsIdx) => {
+            if (!ds.label || ds.label.includes(' MA')) return;
+            if (!chart.isDatasetVisible(dsIdx)) return;
+            if (ds.yAxisID === 'y2') return;
+            const meta = chart.getDatasetMeta(dsIdx);
+            if (!meta || !meta.data || meta.hidden) return;
+            const vals = ds.data;
+            if (!vals || vals.length < 2) return;
+
+            let lastIdx = -1;
+            for (let j = vals.length - 1; j >= 0; j--) {
+                if (vals[j] !== null && isFinite(vals[j])) { lastIdx = j; break; }
+            }
+            if (lastIdx < 0) return;
+            const lastVal = vals[lastIdx];
+            const point = meta.data[lastIdx];
+            if (!point) return;
+
+            const nonNull = vals.filter(v => v !== null && isFinite(v));
+            if (nonNull.length < 3) return;
+            const avg = nonNull.reduce((a, b) => a + b, 0) / nonNull.length;
+
+            let cruzou = false;
+            if (lastIdx >= 1 && lines.length > 0) {
+                const prev = vals[lastIdx - 1];
+                if (prev !== null && isFinite(prev)) {
+                    lines.forEach(l => {
+                        if ((prev < l.y && lastVal >= l.y) || (prev > l.y && lastVal <= l.y)) cruzou = true;
+                    });
+                }
+            }
+            const isPico = lastVal > avg * ALERTA_THRESHOLD;
+            if (!cruzou && !isPico) return;
+
+            const ac = cruzou ? '#FFD600' : '#00e5ff';
+            ctx.save();
+            ctx.beginPath(); ctx.arc(point.x, point.y, pulseR, 0, Math.PI * 2);
+            ctx.strokeStyle = ac; ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.7 + Math.sin(_alertaPulse / 60 * Math.PI * 2) * 0.3;
+            ctx.stroke();
+            ctx.globalAlpha = 0.9;
+            ctx.font = 'bold 9px Arial'; ctx.fillStyle = ac;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            ctx.fillText(cruzou ? '⚡' : '▲', point.x, point.y - pulseR - 2);
+            ctx.restore();
+        });
+    }
+};
+
+Chart.register(alertasPlugin);
+
+/* ─── FEATURE 2: TENDÊNCIA NO PAINEL ────────────────────────────── */
+const TREND_N = 5;
+
+function _getTrend(label) {
+    const ci = chartInstances['Copa'] || Object.values(chartInstances)[0];
+    if (!ci) return 0;
+    const ds = ci.data.datasets.find(d => d.label === label);
+    if (!ds || !ds.data) return 0;
+    const vals = ds.data.filter(v => v !== null && isFinite(v));
+    if (vals.length < 3) return 0;
+    const rec = vals.slice(-TREND_N);
+    const n = rec.length;
+    const sX  = rec.reduce((a, _, i) => a + i, 0);
+    const sY  = rec.reduce((a, v)    => a + v, 0);
+    const sXY = rec.reduce((a, v, i) => a + i * v, 0);
+    const sX2 = rec.reduce((a, _, i) => a + i * i, 0);
+    const d = n * sX2 - sX * sX;
+    if (d === 0) return 0;
+    const slope = (n * sXY - sX * sY) / d;
+    if (Math.abs(slope) < 0.15) return 0;
+    return slope > 0 ? 1 : -1;
+}
+
+function _updateTrendIndicators() {
+    const panel = document.getElementById('setupLinesPanel');
+    if (!panel) return;
+    panel.querySelectorAll('.market-toggle').forEach(toggle => {
+        const label = toggle.dataset.label;
+        if (!label) return;
+        const trend = _getTrend(label);
+        let el = toggle.querySelector('.market-toggle-trend');
+        if (!el) {
+            el = document.createElement('span');
+            el.className = 'market-toggle-trend';
+            el.style.cssText = 'font-size:10px;margin-left:3px;font-weight:bold;transition:color 0.3s';
+            toggle.appendChild(el);
+        }
+        el.textContent = trend > 0 ? '▲' : trend < 0 ? '▼' : '→';
+        el.style.color  = trend > 0 ? '#00e676' : trend < 0 ? '#ff5252' : 'rgba(255,255,255,0.35)';
+    });
+}
+
+/* ─── FEATURE 4: SPARK NO TOOLTIP ───────────────────────────────── */
+function _sparkAscii(values) {
+    const B = ['▁','▂','▃','▄','▅','▆','▇','█'];
+    const v = values.filter(x => x !== null && isFinite(x));
+    if (v.length < 2) return '';
+    const mn = Math.min(...v), mx = Math.max(...v), r = mx - mn || 1;
+    return v.map(x => B[Math.round(((x - mn) / r) * (B.length - 1))]).join('');
+}
+
+function _patchTooltipSpark(chart) {
+    const cb = chart.options.plugins.tooltip.callbacks;
+    if (cb._sparkPatched) return;
+    const orig = cb.afterBody;
+    cb.afterBody = (items) => {
+        const base = orig ? orig(items) : '';
+        if (!items.length) return base;
+        const lbl = items[0].dataset.label;
+        if (!lbl || lbl.includes(' MA')) return base;
+        const ds = chart.data.datasets.find(d => d.label === lbl);
+        if (!ds) return base;
+        const spark = _sparkAscii(ds.data.slice(-6));
+        const t = _getTrend(lbl);
+        const dir = t > 0 ? '▲' : t < 0 ? '▼' : '→';
+        return [base, spark + ' ' + dir].filter(Boolean);
+    };
+    cb._sparkPatched = true;
+}
+
+/* ─── FEATURE 5: ZOOM DE PERÍODO ────────────────────────────────── */
+let _zoomStart = 0, _zoomEnd = 100, _zoomActive = false;
+
+function _applyZoom() {
+    leagues.forEach(l => {
+        const ci = chartInstances[l]; if (!ci) return;
+        const total = ci.data.labels.length; if (total < 2) return;
+        ci.options.scales.x.min = Math.floor((_zoomStart / 100) * total);
+        ci.options.scales.x.max = Math.max(ci.options.scales.x.min + 1, Math.ceil((_zoomEnd / 100) * total) - 1);
+        ci.update('none');
+    });
+}
+function _resetZoom() {
+    leagues.forEach(l => {
+        const ci = chartInstances[l]; if (!ci) return;
+        delete ci.options.scales.x.min; delete ci.options.scales.x.max;
+        ci.update('none');
+    });
+}
+
+function _buildZoomUI() {
+    if (document.getElementById('_bsZoomPanel')) return;
+    const refs = { s: null, sL: null, e: null, eL: null };
+
+    const btn = document.createElement('button');
+    btn.id = '_bsZoomBtn'; btn.innerHTML = '🔍';
+    btn.title = 'Zoom de Período (tecla Z)';
+    btn.style.cssText = 'position:fixed;bottom:18px;right:18px;z-index:9999;width:38px;height:38px;border-radius:50%;background:rgba(15,18,30,0.92);border:1.5px solid #1fad8b;color:#1fad8b;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5)';
+
+    const panel = document.createElement('div');
+    panel.id = '_bsZoomPanel';
+    panel.style.cssText = 'position:fixed;bottom:66px;right:14px;z-index:9998;background:rgba(12,15,26,0.95);border:1px solid #1fad8b;border-radius:8px;padding:10px 14px 8px;display:none;flex-direction:column;gap:6px;min-width:200px;box-shadow:0 4px 16px rgba(0,0,0,0.6);font-family:Arial,sans-serif';
+
+    const ttl = document.createElement('div');
+    ttl.textContent = '🔍 Zoom de Período';
+    ttl.style.cssText = 'color:#1fad8b;font-size:11px;font-weight:bold;margin-bottom:4px';
+    panel.appendChild(ttl);
+
+    const mk = (txt, mn, mx, init, onCh, rS, rL) => {
+        const w = document.createElement('div');
+        w.style.cssText = 'display:flex;align-items:center;gap:8px';
+        const l = document.createElement('span');
+        l.style.cssText = 'color:#aaa;font-size:10px;width:36px;text-align:right';
+        l.textContent = txt;
+        const inp = document.createElement('input');
+        inp.type = 'range'; inp.min = mn; inp.max = mx; inp.value = init;
+        inp.style.cssText = 'flex:1;accent-color:#1fad8b;cursor:pointer';
+        const vl = document.createElement('span');
+        vl.style.cssText = 'color:#e0e0e0;font-size:10px;width:32px';
+        vl.textContent = init + '%';
+        refs[rS] = inp; refs[rL] = vl;
+        inp.addEventListener('input', () => { vl.textContent = inp.value + '%'; onCh(parseInt(inp.value)); });
+        w.appendChild(l); w.appendChild(inp); w.appendChild(vl);
+        panel.appendChild(w);
+    };
+
+    mk('Início', 0, 90, 0, v => {
+        _zoomStart = Math.min(v, _zoomEnd - 5);
+        refs.s.value = _zoomStart; refs.sL.textContent = _zoomStart + '%'; _applyZoom();
+    }, 's', 'sL');
+    mk('Fim', 10, 100, 100, v => {
+        _zoomEnd = Math.max(v, _zoomStart + 5);
+        refs.e.value = _zoomEnd; refs.eL.textContent = _zoomEnd + '%'; _applyZoom();
+    }, 'e', 'eL');
+
+    const rb = document.createElement('button');
+    rb.textContent = '↺ Reset';
+    rb.style.cssText = 'margin-top:4px;padding:3px 0;background:transparent;border:1px solid #555;border-radius:4px;color:#aaa;font-size:10px;cursor:pointer;width:100%';
+    rb.addEventListener('click', () => {
+        _zoomStart = 0; _zoomEnd = 100;
+        refs.s.value = 0; refs.sL.textContent = '0%';
+        refs.e.value = 100; refs.eL.textContent = '100%';
+        _resetZoom();
+    });
+    panel.appendChild(rb);
+
+    btn.addEventListener('click', () => {
+        _zoomActive = !_zoomActive;
+        panel.style.display = _zoomActive ? 'flex' : 'none';
+        btn.style.background = _zoomActive ? '#1fad8b' : 'rgba(15,18,30,0.92)';
+        btn.style.color = _zoomActive ? '#000' : '#1fad8b';
+        if (!_zoomActive) _resetZoom();
+    });
+    document.body.appendChild(panel);
+    document.body.appendChild(btn);
+}
+
+/* ─── TOGGLE ZONA DE CALOR ──────────────────────────────────────── */
+function _injectZonaCalorToggle() {
+    if (document.getElementById('_bsZonaCalorWrap')) return;
+    const anchor = document.getElementById('linhaToolsPanel')
+                || document.getElementById('setupLinesPanel')
+                || document.getElementById('setupBar');
+    if (!anchor) return;
+    const wrap = document.createElement('div');
+    wrap.id = '_bsZonaCalorWrap';
+    wrap.style.cssText = 'display:flex;align-items:center;gap:7px;margin-top:6px;padding:4px 6px';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox'; chk.id = '_bsZonaCalorChk'; chk.checked = showZonaCalor;
+    chk.style.cssText = 'accent-color:#1fad8b;cursor:pointer';
+    chk.addEventListener('change', () => {
+        showZonaCalor = chk.checked;
+        _lsSet('mgraf:zonaCalor', showZonaCalor);
+        leagues.forEach(l => { if (chartInstances[l]) chartInstances[l].update(); });
+    });
+    const lbl = document.createElement('label');
+    lbl.htmlFor = '_bsZonaCalorChk'; lbl.textContent = 'Zona de Calor';
+    lbl.style.cssText = 'color:#b0b0b0;font-size:12px;cursor:pointer;user-select:none';
+    wrap.appendChild(chk); wrap.appendChild(lbl);
+    anchor.parentNode.insertBefore(wrap, anchor.nextSibling);
+}
+
+/* ─── HOOK: aplica patches APÓS chart ser criado ────────────────── */
+// Roda depois que updateCharts() termina e o chart já existe
+const _bs_origUpdateCharts = updateCharts;
+updateCharts = function() {
+    _bs_origUpdateCharts.apply(this, arguments);
+    // Aguarda fetch + render completar
+    setTimeout(() => {
+        leagues.forEach(l => {
+            const ci = chartInstances[l]; if (!ci) return;
+            _patchTooltipSpark(ci);
+        });
+        _updateTrendIndicators();
+    }, 600);
+};
+
+/* ─── PATCH _updateLinesPanelValues ─────────────────────────────── */
+const _bs_origPanelVals = _updateLinesPanelValues;
+_updateLinesPanelValues = function() {
+    _bs_origPanelVals.apply(this, arguments);
+    _updateTrendIndicators();
+};
+
+/* ─── RAF ANIMAÇÃO ALERTAS ──────────────────────────────────────── */
+let _bsRafId = null;
+function _startAlertRaf() {
+    if (_bsRafId) return;
+    const tick = () => {
+        if (!_tabVisible) { _bsRafId = null; return; }
+        const ci = chartInstances['Copa'] || Object.values(chartInstances)[0];
+        if (!ci) { _bsRafId = null; return; }
+        if (!ci.data.datasets.some((ds, i) => !ds.label.includes(' MA') && ci.isDatasetVisible(i))) {
+            _bsRafId = null; return;
+        }
+        ci.update('none');
+        _bsRafId = requestAnimationFrame(tick);
+    };
+    _bsRafId = requestAnimationFrame(tick);
+}
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { _bsRafId = null; setTimeout(_startAlertRaf, 500); }
+});
+setTimeout(_startAlertRaf, 1500);
+
+/* ─── TECLA Z ───────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+    if ((e.key === 'z' || e.key === 'Z') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        const b = document.getElementById('_bsZoomBtn'); if (b) b.click();
+    }
+});
+
+/* ─── INIT ──────────────────────────────────────────────────────── */
+const _bsInit = () => { _buildZoomUI(); _injectZonaCalorToggle(); };
+document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', _bsInit)
+    : _bsInit();
+
+setInterval(updateCharts, 3000);
