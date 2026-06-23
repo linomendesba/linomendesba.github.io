@@ -1439,29 +1439,14 @@ window.onload=()=>{
 };
 
 /* ═══════════════════════════════════════════════════════════════════
-   ██████╗ ███████╗████████╗███████╗████████╗ █████╗ ████████╗
-   ██╔══██╗██╔════╝╚══██╔══╝██╔════╝╚══██╔══╝██╔══██╗╚══██╔══╝
-   ██████╔╝█████╗     ██║   ███████╗   ██║   ███████║   ██║
-   ██╔══██╗██╔══╝     ██║   ╚════██║   ██║   ██╔══██║   ██║
-   ██████╔╝███████╗   ██║   ███████║   ██║   ██║  ██║   ██║
-   ╚═════╝ ╚══════╝   ╚═╝   ╚══════╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝
-   BETSTAT — ANÁLISE AVANÇADA DE GRÁFICOS
+   BETSTAT — ANÁLISE AVANÇADA v2
    5 FEATURES: Zona de Calor · Tendência no Painel ·
-                Alertas Visuais · Spark-line no Tooltip ·
-                Zoom de Período (sliders flutuantes)
-   INSTRUÇÃO: Cole este bloco ANTES da linha:
-              setInterval(updateCharts, 3000);
+               Alertas Visuais · Spark-line no Tooltip ·
+               Zoom de Período
+   Cole este bloco ANTES de: setInterval(updateCharts, 3000);
 ═══════════════════════════════════════════════════════════════════ */
 
-/* ───────────────────────────────────────────────────────────────────
-   FEATURE 1 — ZONA DE CALOR (plugin Chart.js)
-   Pinta faixas coloridas no fundo do gráfico baseado na média dos
-   datasets visíveis:
-     · Vermelho  < média - 1σ  (mercado frio)
-     · Amarelo   média ± 1σ    (zona neutra)
-     · Verde     > média + 1σ  (mercado quente)
-   Ativado/desativado por flag global: showZonaCalor
-─────────────────────────────────────────────────────────────────── */
+/* ─── FEATURE 1: ZONA DE CALOR ─────────────────────────────────── */
 let showZonaCalor = _ls('mgraf:zonaCalor', true);
 
 const zonaCalorPlugin = {
@@ -1473,12 +1458,11 @@ const zonaCalorPlugin = {
         const { left, right, top, bottom } = chartArea;
         const yAxis = scales.y;
 
-        // Coleta todos os valores dos datasets principais visíveis
         const valores = [];
         chart.data.datasets.forEach((ds, idx) => {
             if (ds.label.includes(' MA')) return;
             if (!chart.isDatasetVisible(idx)) return;
-            if (ds.yAxisID === 'y2') return; // ignora eixo secundário
+            if (ds.yAxisID === 'y2') return;
             ds.data.forEach(v => { if (v !== null && isFinite(v)) valores.push(v); });
         });
         if (valores.length < 4) return;
@@ -1486,30 +1470,27 @@ const zonaCalorPlugin = {
         const media = valores.reduce((a, b) => a + b, 0) / valores.length;
         const sigma = Math.sqrt(valores.reduce((a, b) => a + (b - media) ** 2, 0) / valores.length);
 
-        const yQuente = Math.min(yAxis.max, media + sigma);
-        const yFrio   = Math.max(yAxis.min, media - sigma);
-
-        const pxQuente = yAxis.getPixelForValue(yQuente);
-        const pxMedia  = yAxis.getPixelForValue(media);
-        const pxFrio   = yAxis.getPixelForValue(yFrio);
-        const pxTop    = yAxis.getPixelForValue(yAxis.max);
-        const pxBottom = yAxis.getPixelForValue(yAxis.min);
+        const pxQuente = Math.min(bottom, Math.max(top, yAxis.getPixelForValue(media + sigma)));
+        const pxMedia  = Math.min(bottom, Math.max(top, yAxis.getPixelForValue(media)));
+        const pxFrio   = Math.min(bottom, Math.max(top, yAxis.getPixelForValue(media - sigma)));
+        const pxMax    = Math.min(bottom, Math.max(top, yAxis.getPixelForValue(yAxis.max)));
+        const pxMin    = Math.min(bottom, Math.max(top, yAxis.getPixelForValue(yAxis.min)));
 
         ctx.save();
 
-        // Zona quente (acima de média + σ) — verde escuro
-        ctx.fillStyle = 'rgba(0, 200, 80, 0.07)';
-        ctx.fillRect(left, Math.max(top, pxTop), right - left, Math.min(pxQuente, bottom) - Math.max(top, pxTop));
+        // quente (acima de média+σ)
+        ctx.fillStyle = 'rgba(0,200,80,0.07)';
+        ctx.fillRect(left, pxMax, right - left, pxQuente - pxMax);
 
-        // Zona neutra (média ± σ) — amarelo suave
-        ctx.fillStyle = 'rgba(255, 220, 0, 0.06)';
-        ctx.fillRect(left, Math.max(top, pxQuente), right - left, Math.min(pxFrio, bottom) - Math.max(top, pxQuente));
+        // neutro (média±σ)
+        ctx.fillStyle = 'rgba(255,220,0,0.06)';
+        ctx.fillRect(left, pxQuente, right - left, pxFrio - pxQuente);
 
-        // Zona fria (abaixo de média - σ) — vermelho escuro
-        ctx.fillStyle = 'rgba(220, 50, 50, 0.08)';
-        ctx.fillRect(left, Math.max(top, pxFrio), right - left, Math.min(pxBottom, bottom) - Math.max(top, pxFrio));
+        // frio (abaixo de média-σ)
+        ctx.fillStyle = 'rgba(220,50,50,0.08)';
+        ctx.fillRect(left, pxFrio, right - left, pxMin - pxFrio);
 
-        // Linha da média — tracejada branca suave
+        // linha da média
         ctx.strokeStyle = 'rgba(255,255,255,0.18)';
         ctx.lineWidth = 1;
         ctx.setLineDash([6, 6]);
@@ -1519,40 +1500,17 @@ const zonaCalorPlugin = {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Label "μ" no lado esquerdo
         ctx.fillStyle = 'rgba(255,255,255,0.3)';
         ctx.font = '10px Arial';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         ctx.fillText('μ ' + media.toFixed(1), left + 4, pxMedia - 7);
-
         ctx.restore();
     }
 };
 
-// Registra o plugin globalmente para que createStatsChart o inclua
-// (a função createStatsChart já injeta os plugins via array —
-//  aqui fazemos override do array após a definição)
-const _origCreateStatsChart = createStatsChart;
-function createStatsChart(ctx, labels, data, league) {
-    const chart = _origCreateStatsChart(ctx, labels, data, league);
-    // Injeta zonaCalorPlugin e alertasPlugin se ainda não estiverem
-    if (!chart.config.plugins.includes(zonaCalorPlugin)) {
-        chart.config.plugins.push(zonaCalorPlugin);
-    }
-    if (!chart.config.plugins.includes(alertasPlugin)) {
-        chart.config.plugins.push(alertasPlugin);
-    }
-    return chart;
-}
-
-/* ───────────────────────────────────────────────────────────────────
-   FEATURE 2 — INDICADOR DE TENDÊNCIA NO PAINEL DE TOGGLES
-   Acrescenta ▲ / ▼ / → ao lado do valor atual em cada toggle do
-   painel, calculando a direção dos últimos TREND_N pontos.
-   Sobrepõe _updateLinesPanelValues sem recriar o DOM.
-─────────────────────────────────────────────────────────────────── */
-const TREND_N = 5; // quantos pontos usar para calcular tendência
+/* ─── FEATURE 2: TENDÊNCIA NO PAINEL ───────────────────────────── */
+const TREND_N = 5;
 
 function _getTrend(label) {
     const ci = chartInstances['Copa'] || Object.values(chartInstances)[0];
@@ -1562,31 +1520,25 @@ function _getTrend(label) {
     const vals = ds.data.filter(v => v !== null && isFinite(v));
     if (vals.length < 3) return 0;
     const recentes = vals.slice(-TREND_N);
-    // Regressão linear simples: sinal do coeficiente angular
     const n = recentes.length;
-    const sumX = recentes.reduce((a, _, i) => a + i, 0);
-    const sumY = recentes.reduce((a, v) => a + v, 0);
+    const sumX  = recentes.reduce((a, _, i) => a + i, 0);
+    const sumY  = recentes.reduce((a, v)    => a + v, 0);
     const sumXY = recentes.reduce((a, v, i) => a + i * v, 0);
     const sumX2 = recentes.reduce((a, _, i) => a + i * i, 0);
-    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-    if (Math.abs(slope) < 0.15) return 0;   // threshold: ignora variação mínima
+    const denom = n * sumX2 - sumX * sumX;
+    if (denom === 0) return 0;
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    if (Math.abs(slope) < 0.15) return 0;
     return slope > 0 ? 1 : -1;
 }
 
-// Patch da função existente _updateLinesPanelValues
-const _origUpdateLinesPanelValues = _updateLinesPanelValues;
-function _updateLinesPanelValues() {
-    _origUpdateLinesPanelValues(); // chama original primeiro
-
+function _updateTrendIndicators() {
     const panel = document.getElementById('setupLinesPanel');
     if (!panel) return;
-
     panel.querySelectorAll('.market-toggle').forEach(toggle => {
         const label = toggle.dataset.label;
         if (!label) return;
-        const color = toggle.dataset.color || '#888';
         const trend = _getTrend(label);
-
         let trendEl = toggle.querySelector('.market-toggle-trend');
         if (!trendEl) {
             trendEl = document.createElement('span');
@@ -1594,7 +1546,6 @@ function _updateLinesPanelValues() {
             trendEl.style.cssText = 'font-size:10px;margin-left:3px;font-weight:bold;transition:color 0.3s';
             toggle.appendChild(trendEl);
         }
-
         if (trend > 0) {
             trendEl.textContent = '▲';
             trendEl.style.color = '#00e676';
@@ -1608,24 +1559,15 @@ function _updateLinesPanelValues() {
     });
 }
 
-/* ───────────────────────────────────────────────────────────────────
-   FEATURE 3 — ALERTAS VISUAIS NO GRÁFICO
-   Desenha um círculo pulsante (anel colorido) sobre o último ponto
-   de qualquer dataset que:
-     a) Cruzou uma drag line nos últimos 2 pontos, OU
-     b) Está acima de ALERTA_THRESHOLD % do valor médio (pico)
-   Plugin registrado via createStatsChart override acima.
-─────────────────────────────────────────────────────────────────── */
-const ALERTA_THRESHOLD = 1.25; // 25% acima da média = alerta de pico
-
-let _alertaPulse = 0; // controla animação
+/* ─── FEATURE 3: ALERTAS VISUAIS ───────────────────────────────── */
+const ALERTA_THRESHOLD = 1.25;
+let _alertaPulse = 0;
 
 const alertasPlugin = {
     id: 'alertas',
     afterDatasetsDraw(chart) {
         const { ctx, chartArea, scales } = chart;
         if (!chartArea || !scales.y) return;
-        const yAxis = scales.y;
         const lines = chart.dragLines || [];
         _alertaPulse = (_alertaPulse + 1) % 60;
         const pulseR = 6 + Math.sin(_alertaPulse / 60 * Math.PI * 2) * 2.5;
@@ -1636,11 +1578,9 @@ const alertasPlugin = {
             if (ds.yAxisID === 'y2') return;
             const meta = chart.getDatasetMeta(dsIdx);
             if (!meta || !meta.data || meta.hidden) return;
-
             const vals = ds.data;
             if (!vals || vals.length < 2) return;
 
-            // Último ponto válido
             let lastIdx = -1;
             for (let j = vals.length - 1; j >= 0; j--) {
                 if (vals[j] !== null && isFinite(vals[j])) { lastIdx = j; break; }
@@ -1650,43 +1590,34 @@ const alertasPlugin = {
             const point   = meta.data[lastIdx];
             if (!point) return;
 
-            // Média do dataset
             const nonNull = vals.filter(v => v !== null && isFinite(v));
             if (nonNull.length < 3) return;
             const avg = nonNull.reduce((a, b) => a + b, 0) / nonNull.length;
 
-            // Verifica cruzamento de drag line (penúltimo → último)
             let cruzou = false;
             if (lastIdx >= 1 && lines.length > 0) {
                 const prevVal = vals[lastIdx - 1];
                 if (prevVal !== null && isFinite(prevVal)) {
                     lines.forEach(line => {
                         if ((prevVal < line.y && lastVal >= line.y) ||
-                            (prevVal > line.y && lastVal <= line.y)) {
-                            cruzou = true;
-                        }
+                            (prevVal > line.y && lastVal <= line.y)) cruzou = true;
                     });
                 }
             }
-
-            // Verifica pico acima do threshold
             const isPico = lastVal > avg * ALERTA_THRESHOLD;
-
             if (!cruzou && !isPico) return;
 
-            // Desenha anel pulsante
-            const color = cruzou ? '#FFD600' : '#00e5ff';
+            const alertColor = cruzou ? '#FFD600' : '#00e5ff';
             ctx.save();
             ctx.beginPath();
             ctx.arc(point.x, point.y, pulseR, 0, Math.PI * 2);
-            ctx.strokeStyle = color;
+            ctx.strokeStyle = alertColor;
             ctx.lineWidth = 2;
             ctx.globalAlpha = 0.7 + Math.sin(_alertaPulse / 60 * Math.PI * 2) * 0.3;
             ctx.stroke();
-            // Mini label
             ctx.globalAlpha = 0.9;
             ctx.font = 'bold 9px Arial';
-            ctx.fillStyle = color;
+            ctx.fillStyle = alertColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             ctx.fillText(cruzou ? '⚡' : '▲', point.x, point.y - pulseR - 2);
@@ -1695,14 +1626,8 @@ const alertasPlugin = {
     }
 };
 
-/* ───────────────────────────────────────────────────────────────────
-   FEATURE 4 — SPARK-LINE NO TOOLTIP
-   Substitui o callback afterBody do Chart.js para incluir
-   mini representação visual em ASCII dos últimos 6 valores
-   do dataset em hover, além do FT/HT já existente.
-─────────────────────────────────────────────────────────────────── */
+/* ─── FEATURE 4: SPARK-LINE NO TOOLTIP ─────────────────────────── */
 function _sparkAscii(values) {
-    // Retorna string como: ▁▃▅▇█▅ baseada nos valores relativos
     const BLOCKS = ['▁','▂','▃','▄','▅','▆','▇','█'];
     const valid = values.filter(v => v !== null && isFinite(v));
     if (valid.length < 2) return '';
@@ -1711,186 +1636,36 @@ function _sparkAscii(values) {
     return valid.map(v => BLOCKS[Math.round(((v - mn) / range) * (BLOCKS.length - 1))]).join('');
 }
 
-// Patch no createStatsChart — sobrescreve afterBody para incluir spark
-// (feito via _origCreateStatsChart já chamado acima; precisamos
-//  apenas interceptar após a criação)
-const _patchTooltipSpark = (chart, league) => {
-    const callbacks = chart.options.plugins.tooltip.callbacks;
-    const _origAfterBody = callbacks.afterBody;
-    callbacks.afterBody = (items) => {
+function _patchTooltipSpark(chart) {
+    const cb = chart.options.plugins.tooltip.callbacks;
+    const _origAfterBody = cb.afterBody;
+    cb.afterBody = (items) => {
         const base = _origAfterBody ? _origAfterBody(items) : '';
         if (!items.length) return base;
         const dsLabel = items[0].dataset.label;
         if (!dsLabel || dsLabel.includes(' MA')) return base;
-
         const ds = chart.data.datasets.find(d => d.label === dsLabel);
         if (!ds) return base;
-
-        const vals = ds.data.slice(-6);
-        const spark = _sparkAscii(vals);
-        const dir = (() => {
-            const trend = _getTrend(dsLabel);
-            return trend > 0 ? ' ▲' : trend < 0 ? ' ▼' : ' →';
-        })();
-
-        const lines = [base, `${spark}${dir}`];
-        return lines.filter(Boolean);
+        const spark = _sparkAscii(ds.data.slice(-6));
+        const dir = _getTrend(dsLabel) > 0 ? '▲' : _getTrend(dsLabel) < 0 ? '▼' : '→';
+        return [base, spark + ' ' + dir].filter(Boolean);
     };
-    chart.options.plugins.tooltip.callbacks = callbacks;
-};
-
-// Hook na criação para aplicar o patch
-const _origCreateStatsChart2 = createStatsChart;
-function createStatsChart(ctx, labels, data, league) {  // eslint-disable-line no-redeclaration
-    const chart = _origCreateStatsChart2(ctx, labels, data, league);
-    _patchTooltipSpark(chart, league);
-    return chart;
 }
 
-/* ───────────────────────────────────────────────────────────────────
-   FEATURE 5 — ZOOM DE PERÍODO (sliders flutuantes)
-   Cria dois range inputs injetados via JS (position: fixed).
-   · Slider esquerdo: ponto inicial do zoom (% do numPoints)
-   · Slider direito: ponto final (sempre <= numPoints)
-   O zoom filtra os dados exibidos sem alterar numPoints global.
-   Os sliders aparecem ao apertar Z no teclado ou clicando no
-   botão flutuante "Z" que é criado pelo script.
-─────────────────────────────────────────────────────────────────── */
-let _zoomStart = 0;    // índice relativo de início (0 = mais antigo)
-let _zoomEnd   = 100;  // índice relativo de fim (100 = mais recente, em %)
+/* ─── FEATURE 5: ZOOM DE PERÍODO ───────────────────────────────── */
+let _zoomStart  = 0;
+let _zoomEnd    = 100;
 let _zoomActive = false;
-
-function _buildZoomUI() {
-    if (document.getElementById('_bsZoomPanel')) return;
-
-    // Botão flutuante toggle
-    const btnToggle = document.createElement('button');
-    btnToggle.id = '_bsZoomBtn';
-    btnToggle.title = 'Ativar/desativar Zoom de Período (tecla Z)';
-    btnToggle.innerHTML = '&#x1F50D;';
-    btnToggle.style.cssText = `
-        position: fixed;
-        bottom: 18px;
-        right: 18px;
-        z-index: 9999;
-        width: 38px; height: 38px;
-        border-radius: 50%;
-        background: rgba(15,18,30,0.92);
-        border: 1.5px solid #1fad8b;
-        color: #1fad8b;
-        font-size: 16px;
-        cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-        transition: background 0.2s, border-color 0.2s;
-    `;
-
-    // Painel dos sliders
-    const panel = document.createElement('div');
-    panel.id = '_bsZoomPanel';
-    panel.style.cssText = `
-        position: fixed;
-        bottom: 66px;
-        right: 14px;
-        z-index: 9998;
-        background: rgba(12,15,26,0.95);
-        border: 1px solid #1fad8b;
-        border-radius: 8px;
-        padding: 10px 14px 8px;
-        display: none;
-        flex-direction: column;
-        gap: 6px;
-        min-width: 200px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.6);
-        font-family: Arial, sans-serif;
-    `;
-
-    const title = document.createElement('div');
-    title.textContent = '🔍 Zoom de Período';
-    title.style.cssText = 'color:#1fad8b;font-size:11px;font-weight:bold;margin-bottom:4px;';
-    panel.appendChild(title);
-
-    // Labels
-    const _makeSlider = (label, min, max, val, onChange) => {
-        const wrap = document.createElement('div');
-        wrap.style.cssText = 'display:flex;align-items:center;gap:8px;';
-        const lbl = document.createElement('span');
-        lbl.style.cssText = 'color:#aaa;font-size:10px;width:36px;text-align:right;';
-        lbl.textContent = label;
-        const inp = document.createElement('input');
-        inp.type = 'range'; inp.min = min; inp.max = max; inp.value = val;
-        inp.style.cssText = 'flex:1;accent-color:#1fad8b;cursor:pointer;';
-        const valLbl = document.createElement('span');
-        valLbl.style.cssText = 'color:#e0e0e0;font-size:10px;width:28px;';
-        valLbl.textContent = val + '%';
-        inp.addEventListener('input', () => {
-            valLbl.textContent = inp.value + '%';
-            onChange(parseInt(inp.value, 10));
-        });
-        wrap.appendChild(lbl);
-        wrap.appendChild(inp);
-        wrap.appendChild(valLbl);
-        panel.appendChild(wrap);
-        return inp;
-    };
-
-    const inpStart = _makeSlider('Início', 0, 90, _zoomStart, v => {
-        _zoomStart = Math.min(v, _zoomEnd - 5);
-        inpStart.value = _zoomStart;
-        _applyZoom();
-    });
-    const inpEnd = _makeSlider('Fim', 10, 100, _zoomEnd, v => {
-        _zoomEnd = Math.max(v, _zoomStart + 5);
-        inpEnd.value = _zoomEnd;
-        _applyZoom();
-    });
-
-    // Botão reset
-    const reset = document.createElement('button');
-    reset.textContent = '↺ Reset';
-    reset.style.cssText = `
-        margin-top:4px; padding:3px 0; background:transparent;
-        border:1px solid #555; border-radius:4px; color:#aaa;
-        font-size:10px; cursor:pointer; width:100%;
-        transition: border-color 0.2s, color 0.2s;
-    `;
-    reset.addEventListener('click', () => {
-        _zoomStart = 0; _zoomEnd = 100;
-        inpStart.value = 0; inpEnd.value = 100;
-        panel.querySelectorAll('span').forEach(s => {
-            if (s.textContent.includes('%')) {
-                // atualiza labels de valor
-            }
-        });
-        // forçar update dos labels
-        panel.querySelectorAll('input[type=range]').forEach((inp, i) => {
-            inp.nextSibling.textContent = (i === 0 ? '0' : '100') + '%';
-        });
-        _applyZoom();
-    });
-    panel.appendChild(reset);
-
-    btnToggle.addEventListener('click', () => {
-        _zoomActive = !_zoomActive;
-        panel.style.display = _zoomActive ? 'flex' : 'none';
-        btnToggle.style.background = _zoomActive ? '#1fad8b' : 'rgba(15,18,30,0.92)';
-        btnToggle.style.color      = _zoomActive ? '#000'    : '#1fad8b';
-        if (!_zoomActive) _resetZoom();
-    });
-
-    document.body.appendChild(panel);
-    document.body.appendChild(btnToggle);
-}
 
 function _applyZoom() {
     leagues.forEach(l => {
         const ci = chartInstances[l]; if (!ci) return;
         const total = ci.data.labels.length;
         if (total < 2) return;
-        const start = Math.floor(((_zoomStart) / 100) * total);
-        const end   = Math.ceil(( (_zoomEnd)   / 100) * total);
-        ci.options.scales.x.min = start;
-        ci.options.scales.x.max = end - 1;
+        const s = Math.floor((_zoomStart / 100) * total);
+        const e = Math.ceil( (_zoomEnd   / 100) * total);
+        ci.options.scales.x.min = s;
+        ci.options.scales.x.max = Math.max(s + 1, e - 1);
         ci.update('none');
     });
 }
@@ -1904,105 +1679,204 @@ function _resetZoom() {
     });
 }
 
-// Tecla Z para toggle zoom
-document.addEventListener('keydown', e => {
-    if (e.key === 'z' || e.key === 'Z') {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-        const btn = document.getElementById('_bsZoomBtn');
-        if (btn) btn.click();
-    }
-});
+function _buildZoomUI() {
+    if (document.getElementById('_bsZoomPanel')) return;
 
-// Inicializa UI assim que o DOM estiver pronto
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', _buildZoomUI);
-} else {
-    _buildZoomUI();
+    const btn = document.createElement('button');
+    btn.id = '_bsZoomBtn';
+    btn.innerHTML = '🔍';
+    btn.title = 'Zoom de Período (tecla Z)';
+    btn.style.cssText = [
+        'position:fixed;bottom:18px;right:18px;z-index:9999',
+        'width:38px;height:38px;border-radius:50%',
+        'background:rgba(15,18,30,0.92);border:1.5px solid #1fad8b',
+        'color:#1fad8b;font-size:16px;cursor:pointer',
+        'display:flex;align-items:center;justify-content:center',
+        'box-shadow:0 2px 8px rgba(0,0,0,0.5)'
+    ].join(';');
+
+    const panel = document.createElement('div');
+    panel.id = '_bsZoomPanel';
+    panel.style.cssText = [
+        'position:fixed;bottom:66px;right:14px;z-index:9998',
+        'background:rgba(12,15,26,0.95);border:1px solid #1fad8b',
+        'border-radius:8px;padding:10px 14px 8px',
+        'display:none;flex-direction:column;gap:6px;min-width:200px',
+        'box-shadow:0 4px 16px rgba(0,0,0,0.6);font-family:Arial,sans-serif'
+    ].join(';');
+
+    const title = document.createElement('div');
+    title.textContent = '🔍 Zoom de Período';
+    title.style.cssText = 'color:#1fad8b;font-size:11px;font-weight:bold;margin-bottom:4px';
+    panel.appendChild(title);
+
+    const inpStartEl = { val: null, lbl: null };
+    const inpEndEl   = { val: null, lbl: null };
+
+    const makeSlider = (labelTxt, min, max, init, onChange, refs) => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;align-items:center;gap:8px';
+        const lbl = document.createElement('span');
+        lbl.style.cssText = 'color:#aaa;font-size:10px;width:36px;text-align:right';
+        lbl.textContent = labelTxt;
+        const inp = document.createElement('input');
+        inp.type = 'range'; inp.min = min; inp.max = max; inp.value = init;
+        inp.style.cssText = 'flex:1;accent-color:#1fad8b;cursor:pointer';
+        const valLbl = document.createElement('span');
+        valLbl.style.cssText = 'color:#e0e0e0;font-size:10px;width:32px';
+        valLbl.textContent = init + '%';
+        refs.val = inp; refs.lbl = valLbl;
+        inp.addEventListener('input', () => {
+            valLbl.textContent = inp.value + '%';
+            onChange(parseInt(inp.value, 10));
+        });
+        wrap.appendChild(lbl); wrap.appendChild(inp); wrap.appendChild(valLbl);
+        panel.appendChild(wrap);
+    };
+
+    makeSlider('Início', 0, 90, 0, v => {
+        _zoomStart = Math.min(v, _zoomEnd - 5);
+        inpStartEl.val.value = _zoomStart;
+        inpStartEl.lbl.textContent = _zoomStart + '%';
+        _applyZoom();
+    }, inpStartEl);
+
+    makeSlider('Fim', 10, 100, 100, v => {
+        _zoomEnd = Math.max(v, _zoomStart + 5);
+        inpEndEl.val.value = _zoomEnd;
+        inpEndEl.lbl.textContent = _zoomEnd + '%';
+        _applyZoom();
+    }, inpEndEl);
+
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = '↺ Reset';
+    resetBtn.style.cssText = [
+        'margin-top:4px;padding:3px 0;background:transparent',
+        'border:1px solid #555;border-radius:4px;color:#aaa',
+        'font-size:10px;cursor:pointer;width:100%'
+    ].join(';');
+    resetBtn.addEventListener('click', () => {
+        _zoomStart = 0; _zoomEnd = 100;
+        inpStartEl.val.value = 0;  inpStartEl.lbl.textContent = '0%';
+        inpEndEl.val.value   = 100; inpEndEl.lbl.textContent  = '100%';
+        _resetZoom();
+    });
+    panel.appendChild(resetBtn);
+
+    btn.addEventListener('click', () => {
+        _zoomActive = !_zoomActive;
+        panel.style.display = _zoomActive ? 'flex' : 'none';
+        btn.style.background = _zoomActive ? '#1fad8b' : 'rgba(15,18,30,0.92)';
+        btn.style.color      = _zoomActive ? '#000'    : '#1fad8b';
+        if (!_zoomActive) _resetZoom();
+    });
+
+    document.body.appendChild(panel);
+    document.body.appendChild(btn);
 }
 
-/* ───────────────────────────────────────────────────────────────────
-   BOTÃO TOGGLE ZONA DE CALOR — injetado no painel existente
-   Aparece logo abaixo do último toggle existente no accordion.
-   Não mexe no HTML — criado 100% via JS.
-─────────────────────────────────────────────────────────────────── */
+/* ─── TOGGLE ZONA DE CALOR (injetado no DOM) ────────────────────── */
 function _injectZonaCalorToggle() {
     if (document.getElementById('_bsZonaCalorWrap')) return;
-
-    // Tenta encontrar o container do accordion/controles
-    const targetIds = ['linhaToolsPanel', 'setupLinesPanel', 'setupBar'];
-    let anchor = null;
-    for (const id of targetIds) {
-        anchor = document.getElementById(id);
-        if (anchor) break;
-    }
+    const anchor = document.getElementById('linhaToolsPanel')
+                || document.getElementById('setupLinesPanel')
+                || document.getElementById('setupBar');
     if (!anchor) return;
 
     const wrap = document.createElement('div');
     wrap.id = '_bsZonaCalorWrap';
-    wrap.style.cssText = 'display:flex;align-items:center;gap:7px;margin-top:6px;padding:4px 6px;';
+    wrap.style.cssText = 'display:flex;align-items:center;gap:7px;margin-top:6px;padding:4px 6px';
 
     const chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.id   = '_bsZonaCalorToggle';
-    chk.checked = showZonaCalor;
-    chk.style.accentColor = '#1fad8b';
-    chk.style.cursor = 'pointer';
-
-    const lbl = document.createElement('label');
-    lbl.htmlFor = '_bsZonaCalorToggle';
-    lbl.textContent = 'Zona de Calor';
-    lbl.style.cssText = 'color:#b0b0b0;font-size:12px;cursor:pointer;user-select:none;';
-
+    chk.type = 'checkbox'; chk.id = '_bsZonaCalorChk'; chk.checked = showZonaCalor;
+    chk.style.cssText = 'accent-color:#1fad8b;cursor:pointer';
     chk.addEventListener('change', () => {
         showZonaCalor = chk.checked;
         _lsSet('mgraf:zonaCalor', showZonaCalor);
-        leagues.forEach(lg => { if (chartInstances[lg]) chartInstances[lg].update(); });
+        leagues.forEach(l => { if (chartInstances[l]) chartInstances[l].update(); });
     });
 
-    wrap.appendChild(chk);
-    wrap.appendChild(lbl);
+    const lbl = document.createElement('label');
+    lbl.htmlFor = '_bsZonaCalorChk';
+    lbl.textContent = 'Zona de Calor';
+    lbl.style.cssText = 'color:#b0b0b0;font-size:12px;cursor:pointer;user-select:none';
 
-    // Insere após o anchor
+    wrap.appendChild(chk); wrap.appendChild(lbl);
     anchor.parentNode.insertBefore(wrap, anchor.nextSibling);
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', _injectZonaCalorToggle);
-} else {
-    _injectZonaCalorToggle();
-}
+/* ─── OVERRIDE ÚNICO DO createStatsChart ────────────────────────── */
+// Guarda referência ANTES de redeclarar
+const _bs_origCreate = createStatsChart;
 
-/* ───────────────────────────────────────────────────────────────────
-   ATIVA RERENDER CONTÍNUO para animação dos alertas (pulse)
-   Usa requestAnimationFrame apenas quando a aba está visível e
-   há pelo menos 1 dataset ativo.
-─────────────────────────────────────────────────────────────────── */
-let _rafRunning = false;
+createStatsChart = function(ctx, labels, data, league) {
+    const chart = _bs_origCreate(ctx, labels, data, league);
+    // Injeta plugins extras
+    chart.config.plugins.push(zonaCalorPlugin);
+    chart.config.plugins.push(alertasPlugin);
+    // Patch tooltip spark
+    _patchTooltipSpark(chart);
+    return chart;
+};
+
+/* ─── OVERRIDE ÚNICO DO updateCharts ────────────────────────────── */
+const _bs_origUpdate = updateCharts;
+
+updateCharts = function() {
+    _bs_origUpdate();
+    // Tendências no painel — roda 800ms após fetch completar
+    setTimeout(_updateTrendIndicators, 800);
+};
+
+/* ─── PATCH _updateLinesPanelValues (tendência a cada 3s) ──────── */
+const _bs_origPanelValues = _updateLinesPanelValues;
+
+_updateLinesPanelValues = function() {
+    _bs_origPanelValues();
+    _updateTrendIndicators();
+};
+
+/* ─── RAF PARA ANIMAÇÃO DOS ALERTAS ─────────────────────────────── */
+let _bsRafRunning = false;
 function _startAlertRaf() {
-    if (_rafRunning) return;
-    _rafRunning = true;
-    const loop = () => {
-        if (!_tabVisible) { _rafRunning = false; return; }
+    if (_bsRafRunning) return;
+    _bsRafRunning = true;
+    const tick = () => {
+        if (!_tabVisible) { _bsRafRunning = false; return; }
         const ci = chartInstances['Copa'] || Object.values(chartInstances)[0];
-        const hasVisible = ci && ci.data.datasets.some((ds, i) =>
+        if (!ci) { _bsRafRunning = false; return; }
+        const hasVis = ci.data.datasets.some((ds, i) =>
             !ds.label.includes(' MA') && ci.isDatasetVisible(i));
-        if (!hasVisible) { _rafRunning = false; return; }
+        if (!hasVis) { _bsRafRunning = false; return; }
         ci.update('none');
-        requestAnimationFrame(loop);
+        requestAnimationFrame(tick);
     };
-    requestAnimationFrame(loop);
+    requestAnimationFrame(tick);
 }
-
-// Inicia RAF quando visibilitychange re-ativa a aba
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) _startAlertRaf();
+    if (!document.hidden) setTimeout(_startAlertRaf, 500);
+});
+// Inicia RAF 1s após primeira carga
+setTimeout(_startAlertRaf, 1000);
+
+/* ─── TECLA Z ───────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+    if ((e.key === 'z' || e.key === 'Z') &&
+        e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        const b = document.getElementById('_bsZoomBtn');
+        if (b) b.click();
+    }
 });
 
-// Inicia após o primeiro updateCharts
-const _origUpdateCharts = updateCharts;
-function updateCharts() {
-    _origUpdateCharts();
-    setTimeout(_startAlertRaf, 800);
+/* ─── INIT ──────────────────────────────────────────────────────── */
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        _buildZoomUI();
+        _injectZonaCalorToggle();
+    });
+} else {
+    _buildZoomUI();
+    _injectZonaCalorToggle();
 }
 
 setInterval(updateCharts, 3000);
