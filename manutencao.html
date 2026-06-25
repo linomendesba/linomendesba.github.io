@@ -1725,22 +1725,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script>
     // ═══════════════════════════════════════════════════════════════════════════════
-// SUGESTÃO DE ENTRADA — oculta abaixo da tabela, expand/colapsa, auto-resultado
+// SUGESTÃO DE ENTRADA — botão injetado no painel-cores, painel expande abaixo
 // Adicionar no final do script principal (após Estado.carregar())
 // ═══════════════════════════════════════════════════════════════════════════════
 
 (function initSugestaoEntrada() {
 
-  let _sgHoraAtualCache = null; // hora atual detectada no último ciclo
-  let _sgPendente = null;       // sugestão aguardando virada de hora para auto-resultado
+  let _sgHoraAtualCache = null;
+  let _sgPendente = null;
 
-  // ── Chaves de storage ────────────────────────────────────────────────────────
-  function sgHistKey()    { return `sg_hist_${getLigaKey()}`; }
-  function sgExpandKey()  { return `sg_expand_${getLigaKey()}`; }
+  // ── Storage ──────────────────────────────────────────────────────────────────
+  function sgHistKey()   { return `sg_hist_${getLigaKey()}`; }
+  function sgExpandKey() { return `sg_expand_${getLigaKey()}`; }
   function sgCarregarHist() { return JSON.parse(localStorage.getItem(sgHistKey()) || '[]'); }
   function sgSalvarHist(h)  { localStorage.setItem(sgHistKey(), JSON.stringify(h.slice(0, 60))); }
 
-  // ── Nome legível do mercado ──────────────────────────────────────────────────
+  // ── Nome legível ─────────────────────────────────────────────────────────────
   function nomeMercado(m) {
     const n = {
       ambasMarcam:'Ambas Sim', ambasNaoMarcam:'Ambas Não',
@@ -1751,14 +1751,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return n[m] || m;
   }
 
-  // ── Conta ocorrências do mercado em uma hora específica ──────────────────────
+  // ── Conta ocorrências do mercado em hora/data específica ─────────────────────
   function contarOcorrencias(resultados, mercado, dataStr, hora) {
     return resultados
       .filter(j => j.data.split('T')[0] === dataStr && j.hora === hora)
       .filter(j => qdCheckMarket(j.ft, j.ht, mercado)).length;
   }
 
-  // ── Hora anterior à hora informada ──────────────────────────────────────────
+  // ── Hora anterior ────────────────────────────────────────────────────────────
   function horaAnterior(dataStr, hora) {
     let h = hora - 1, d = dataStr;
     if (h < 0) {
@@ -1770,30 +1770,21 @@ document.addEventListener('DOMContentLoaded', () => {
     return { dataStr: d, hora: h };
   }
 
-  // ── Verifica resultado automático da sugestão pendente ───────────────────────
-  // Checa se algum dos minutos sugeridos teve o mercado ocorrendo na hora que era "atual"
+  // ── Checa resultado automático quando hora vira ──────────────────────────────
   function sgChecarResultadoAuto(resultados) {
     if (!_sgPendente) return;
     const { mercado, sugeridos, horaRef, dataRef } = _sgPendente;
-
-    // Só verifica quando horaRef já virou hora anterior (i.e. hora atual mudou)
     const { hora: horaAtualAgora, dateStr: dataAgora } = qdGetHoraAtual(resultados);
-    if (horaAtualAgora === horaRef && dataAgora === dataRef) return; // ainda na mesma hora
+    if (horaAtualAgora === horaRef && dataAgora === dataRef) return;
 
-    // Coleta os jogos da hora que estava pendente
-    const jogos = resultados.filter(j =>
-      j.data.split('T')[0] === dataRef && j.hora === horaRef
-    );
+    const jogos = resultados.filter(j => j.data.split('T')[0] === dataRef && j.hora === horaRef);
+    const temDados = sugeridos.some(minuto => jogos.find(j => j.minuto === minuto));
+    if (!temDados) return;
 
-    // Verifica se algum dos minutos sugeridos teve o mercado
     const acertou = sugeridos.some(minuto => {
       const jogo = jogos.find(j => j.minuto === minuto);
       return jogo && qdCheckMarket(jogo.ft, jogo.ht, mercado);
     });
-
-    // Verifica se pelo menos um dos minutos sugeridos já tem resultado
-    const temDados = sugeridos.some(minuto => jogos.find(j => j.minuto === minuto));
-    if (!temDados) return; // ainda sem dados para julgar
 
     const status = acertou ? 'green' : 'red';
     const hist = sgCarregarHist();
@@ -1801,189 +1792,171 @@ document.addEventListener('DOMContentLoaded', () => {
     sgSalvarHist(hist);
     _sgPendente = null;
 
-    sgRenderAtivo();
-    sgRenderHistorico();
-
-    // Auto-gera próxima sugestão para a nova hora atual
+    sgRenderCorpo();
     sgAutoGerar(resultados);
   }
 
-  // ── Auto-gera sugestão quando hora vira ──────────────────────────────────────
+  // ── Auto-gera sugestão para hora atual ──────────────────────────────────────
   function sgAutoGerar(resultados) {
-    if (_sgPendente) return; // já tem uma pendente
+    if (_sgPendente) return;
     const { hora: horaAtual, dateStr: dataAtual } = qdGetHoraAtual(resultados);
-    if (_sgHoraAtualCache === `${dataAtual}-${horaAtual}`) return; // mesma hora, não gera de novo
-    _sgHoraAtualCache = `${dataAtual}-${horaAtual}`;
+    const cacheKey = `${dataAtual}-${horaAtual}`;
+    if (_sgHoraAtualCache === cacheKey) return;
+    _sgHoraAtualCache = cacheKey;
 
     const mercado = document.querySelector('#seletorResultado')?.value || 'over2.5';
     const ant = horaAnterior(dataAtual, horaAtual);
     const qtd = contarOcorrencias(resultados, mercado, ant.dataStr, ant.hora);
     const sugeridos = minutosFixos.slice(qtd, qtd + 3);
-
     if (!sugeridos.length) return;
 
-    _sgPendente = {
-      mercado, qtd, sugeridos,
-      horaRef: horaAtual, dataRef: dataAtual,
-      status: 'pendente',
-    };
-
-    sgRenderAtivo();
+    _sgPendente = { mercado, qtd, sugeridos, horaRef: horaAtual, dataRef: dataAtual, status: 'pendente' };
+    sgRenderCorpo();
   }
 
-  // ── Render da sugestão ativa ─────────────────────────────────────────────────
-  function sgRenderAtivo() {
-    const el = document.getElementById('sg-sugestao-ativa');
-    if (!el) return;
-
-    if (!_sgPendente) {
-      el.innerHTML = '<span style="color:#6b7280;font-size:0.82em">Aguardando próxima hora...</span>';
-      return;
-    }
-
-    const { mercado, qtd, sugeridos, status } = _sgPendente;
-
-    if (status === 'pendente') {
-      el.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-          <span style="color:#9ca3af;font-size:0.82em">${nomeMercado(mercado)} · pulou ${qtd}</span>
-          ${sugeridos.map(m => `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:28px;background:rgba(31,172,89,0.18);border:1px solid rgba(31,204,89,0.4);border-radius:5px;color:#1fcc59;font-weight:700;font-size:0.9em;padding:0 6px;">${m}′</span>`).join('')}
-          <span style="color:#6b7280;font-size:0.8em;font-style:italic;">resultado automático ao virar hora</span>
-        </div>`;
-      return;
-    }
-
-    const cor = status === 'green' ? '#4ade80' : '#f87171';
-    const tag = status === 'green' ? 'GREEN ✔' : 'RED ✘';
-    el.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span style="color:#9ca3af;font-size:0.82em">${nomeMercado(mercado)} · pulou ${qtd}</span>
-        ${sugeridos.map(m => `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:28px;background:rgba(31,172,89,0.12);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#6b7280;font-weight:700;font-size:0.9em;padding:0 6px;">${m}′</span>`).join('')}
-        <strong style="color:${cor};font-size:0.95em">${tag}</strong>
-      </div>`;
-  }
-
-  // ── Render do histórico ──────────────────────────────────────────────────────
-  function sgRenderHistorico() {
-    const histEl = document.getElementById('sg-historico');
-    const statsEl = document.getElementById('sg-stats');
-    if (!histEl) return;
+  // ── Render do conteúdo do painel ─────────────────────────────────────────────
+  function sgRenderCorpo() {
+    const corpo = document.getElementById('sg-corpo');
+    if (!corpo) return;
 
     const hist = sgCarregarHist();
-    const greens  = hist.filter(h => h.status === 'green').length;
-    const reds    = hist.filter(h => h.status === 'red').length;
-    const total   = greens + reds;
-    const pct     = total > 0 ? Math.round((greens / total) * 100) + '%' : '—';
+    const greens = hist.filter(h => h.status === 'green').length;
+    const reds   = hist.filter(h => h.status === 'red').length;
+    const total  = greens + reds;
+    const pct    = total > 0 ? Math.round((greens / total) * 100) + '%' : '—';
 
-    if (statsEl) {
-      statsEl.innerHTML = total === 0 ? '' : `
-        <span style="color:#4ade80">✔ ${greens}</span>
-        <span style="color:#f87171">✘ ${reds}</span>
-        <span style="color:#9ca3af;font-size:0.85em">${pct}</span>
-      `;
+    // Badge no botão
+    const badge = document.getElementById('sg-badge');
+    if (badge) {
+      badge.textContent = total > 0 ? ` ${greens}✔ ${reds}✘ ${pct}` : '';
     }
 
-    histEl.innerHTML = hist.length === 0
-      ? '<span style="color:#6b7280;font-size:0.82em">Nenhum registro ainda</span>'
-      : hist.slice(0, 10).map((h, i) => {
+    // Sugestão ativa
+    let ativoHtml = '';
+    if (_sgPendente) {
+      const { mercado, qtd, sugeridos, status } = _sgPendente;
+      if (status === 'pendente') {
+        const pills = sugeridos.map(m =>
+          `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:26px;background:rgba(31,172,89,0.18);border:1px solid rgba(31,204,89,0.4);border-radius:5px;color:#1fcc59;font-weight:700;font-size:0.85em;padding:0 5px;">${m}′</span>`
+        ).join('');
+        ativoHtml = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:5px 0;">
+          <span style="color:#9ca3af;font-size:0.8em">${nomeMercado(mercado)} · pulou ${qtd} →</span>
+          ${pills}
+          <span style="color:#6b7280;font-size:0.75em;font-style:italic;">resultado automático</span>
+        </div>`;
+      } else {
+        const cor = status === 'green' ? '#4ade80' : '#f87171';
+        const tag = status === 'green' ? 'GREEN ✔' : 'RED ✘';
+        const pills = sugeridos.map(m =>
+          `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:26px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#6b7280;font-weight:700;font-size:0.85em;padding:0 5px;">${m}′</span>`
+        ).join('');
+        ativoHtml = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:5px 0;">
+          <span style="color:#9ca3af;font-size:0.8em">${nomeMercado(mercado)} · pulou ${qtd} →</span>
+          ${pills}
+          <strong style="color:${cor};font-size:0.9em">${tag}</strong>
+        </div>`;
+      }
+    } else {
+      ativoHtml = '<span style="color:#6b7280;font-size:0.8em;padding:4px 0;display:block;">Aguardando próxima hora...</span>';
+    }
+
+    // Histórico
+    const histHtml = hist.length === 0
+      ? '<span style="color:#6b7280;font-size:0.78em">Nenhum registro ainda</span>'
+      : hist.slice(0, 12).map((h, i) => {
           const cor = h.status === 'green' ? '#4ade80' : '#f87171';
           const tag = h.status === 'green' ? 'G' : 'R';
-          return `<span onclick="sgRemover(${i})" title="Clique para remover" style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:4px;padding:2px 6px;font-size:0.76em;cursor:pointer;gap:4px;">
-            <span style="color:#6b7280">${nomeMercado(h.mercado)}</span>
-            <span style="color:#9ca3af">${(h.sugeridos||[]).join(',')}′</span>
+          return `<span onclick="sgRemover(${i})" title="Clique para remover" style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:2px 6px;font-size:0.75em;cursor:pointer;">
+            <span style="color:#9ca3af">${nomeMercado(h.mercado)}</span>
+            <span style="color:#6b7280">${(h.sugeridos||[]).join(',')}′</span>
             <strong style="color:${cor}">${tag}</strong>
           </span>`;
         }).join(' ');
+
+    corpo.innerHTML = `
+      <div style="border-top:1px solid rgba(255,255,255,0.08);padding:6px 12px 8px;">
+        ${ativoHtml}
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${histHtml}</div>
+      </div>
+    `;
   }
 
-  // ── Remove entrada do histórico ──────────────────────────────────────────────
+  // ── Remove do histórico ──────────────────────────────────────────────────────
   window.sgRemover = function (i) {
     const hist = sgCarregarHist();
     hist.splice(i, 1);
     sgSalvarHist(hist);
-    sgRenderHistorico();
+    sgRenderCorpo();
   };
 
-  // ── Toggle expand/colapsar ───────────────────────────────────────────────────
+  // ── Toggle expand ────────────────────────────────────────────────────────────
   window.sgToggle = function () {
     const corpo = document.getElementById('sg-corpo');
     const btn   = document.getElementById('sg-toggle-btn');
     if (!corpo || !btn) return;
     const aberto = corpo.style.display !== 'none';
     corpo.style.display = aberto ? 'none' : 'block';
-    btn.textContent = aberto ? '▲ Sugestão' : '▼ Sugestão';
+    btn.innerHTML = (aberto ? '▲' : '▼') + ' Sugestão' + (document.getElementById('sg-badge')?.textContent || '');
     localStorage.setItem(sgExpandKey(), aberto ? '0' : '1');
   };
 
-  // ── Injeta o painel ABAIXO da tabela ────────────────────────────────────────
+  // ── Injeta o botão no painel-cores e o corpo abaixo ─────────────────────────
   function injetarPainel() {
-    if (document.getElementById('sg-painel')) return;
+    if (document.getElementById('sg-toggle-btn')) return;
 
     const expandido = localStorage.getItem(sgExpandKey()) === '1';
 
-    const painel = document.createElement('div');
-    painel.id = 'sg-painel';
-    painel.style.cssText = `
-      background:#1e2130;border:1px solid rgba(255,255,255,0.1);border-radius:8px;
-      margin-top:8px;overflow:hidden;
-    `;
-    painel.innerHTML = `
-      <div onclick="sgToggle()" style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;cursor:pointer;user-select:none;border-bottom:1px solid rgba(255,255,255,${expandido?'0.1':'0'});">
-        <button id="sg-toggle-btn" style="background:none;border:none;color:#1fcc59;font-weight:600;font-size:0.85em;cursor:pointer;padding:0;">${expandido?'▼':'▲'} Sugestão</button>
-        <span id="sg-stats" style="display:flex;gap:10px;font-size:0.82em;"></span>
-      </div>
-      <div id="sg-corpo" style="display:${expandido?'block':'none'};padding:8px 12px;">
-        <div id="sg-sugestao-ativa" style="margin-bottom:6px;min-height:28px;"></div>
-        <div id="sg-historico" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
-      </div>
-    `;
+    // Botão que vai dentro do #painel-cores
+    const lbl = document.createElement('label');
+    lbl.className = 'alerta-toggle-label';
+    lbl.style.cssText = 'margin-left:6px;cursor:pointer;';
+    lbl.innerHTML = `<button id="sg-toggle-btn" onclick="sgToggle()" style="background:none;border:none;color:#1fcc59;font-weight:600;font-size:0.82em;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:4px;">▲ Sugestão<span id="sg-badge" style="color:#9ca3af;font-size:0.85em;"></span></button>`;
 
-    // Insere APÓS a tabela principal
-    const tabela = document.getElementById('tabelaResultados');
-    if (tabela && tabela.parentNode) {
-      tabela.parentNode.insertBefore(painel, tabela.nextSibling);
-    } else {
-      document.body.appendChild(painel);
+    // Corpo expansível — vai logo após o #painel-cores
+    const corpo = document.createElement('div');
+    corpo.id = 'sg-corpo';
+    corpo.style.display = expandido ? 'block' : 'none';
+
+    // Aguarda o painel-cores existir (ele é criado por garantirPainelCores)
+    function tentarInjetar() {
+      const painelCores = document.getElementById('painel-cores');
+      if (!painelCores) { setTimeout(tentarInjetar, 300); return; }
+
+      // Evita duplicar
+      if (document.getElementById('sg-toggle-btn')) return;
+
+      painelCores.appendChild(lbl);
+      painelCores.parentNode.insertBefore(corpo, painelCores.nextSibling);
+
+      sgRenderCorpo();
     }
 
-    sgRenderAtivo();
-    sgRenderHistorico();
+    tentarInjetar();
   }
 
-  // ── Hook no ciclo de busca de dados ─────────────────────────────────────────
-  // Sobrescreve buscarDados para interceptar os resultados sem alterar a lógica original
+  // ── Hook no buscarDados ──────────────────────────────────────────────────────
   const _buscarDadosOriginal = buscarDados;
   window.buscarDados = async function () {
     await _buscarDadosOriginal();
-
-    // Busca os dados direto para a lógica da sugestão
     try {
       const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
       if (!r.ok) return;
       const resultados = await r.json();
       if (!resultados.length) return;
-
-      // Checa se sugestão pendente já tem resultado (hora virou)
       sgChecarResultadoAuto(resultados);
-
-      // Se não tem pendente, auto-gera para hora atual (primeira carga ou troca de liga)
       if (!_sgPendente) sgAutoGerar(resultados);
-
     } catch(e) { console.error('sg:', e); }
   };
 
-  // ── Reagera ao trocar mercado ─────────────────────────────────────────────────
-  const srEl = document.querySelector('#seletorResultado');
-  if (srEl) {
-    srEl.addEventListener('change', async () => {
-      _sgPendente = null;
-      _sgHoraAtualCache = null;
-      try {
-        const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-        if (r.ok) sgAutoGerar(await r.json());
-      } catch(e) {}
-    });
-  }
+  // ── Reagera ao trocar mercado ────────────────────────────────────────────────
+  document.querySelector('#seletorResultado')?.addEventListener('change', async () => {
+    _sgPendente = null;
+    _sgHoraAtualCache = null;
+    try {
+      const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+      if (r.ok) sgAutoGerar(await r.json());
+    } catch(e) {}
+  });
 
   // ── Init ─────────────────────────────────────────────────────────────────────
   if (document.readyState === 'loading') {
