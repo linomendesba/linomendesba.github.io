@@ -1725,203 +1725,267 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script>
     // ═══════════════════════════════════════════════════════════════════════════════
-// SUGESTÃO DE ENTRADA — baseada na quantidade do mercado na hora anterior
-// Adicionar este bloco no final do seu script principal (após Estado.carregar())
+// SUGESTÃO DE ENTRADA — oculta abaixo da tabela, expand/colapsa, auto-resultado
+// Adicionar no final do script principal (após Estado.carregar())
 // ═══════════════════════════════════════════════════════════════════════════════
 
 (function initSugestaoEntrada() {
 
-  // ── Histórico persistido por liga + mercado ──────────────────────────────────
-  function sgHistKey() {
-    return `sg_hist_${getLigaKey()}`;
-  }
-  function sgCarregarHist() {
-    return JSON.parse(localStorage.getItem(sgHistKey()) || '[]');
-  }
-  function sgSalvarHist(hist) {
-    localStorage.setItem(sgHistKey(), JSON.stringify(hist.slice(0, 60)));
-  }
+  let _sgHoraAtualCache = null; // hora atual detectada no último ciclo
+  let _sgPendente = null;       // sugestão aguardando virada de hora para auto-resultado
 
-  // ── Conta ocorrências do mercado na hora anterior ────────────────────────────
-  function contarOcorrenciasHoraAnterior(resultados, mercado) {
-    const { hora: horaAtual, dateStr: dataAtual } = qdGetHoraAtual(resultados);
-    let horaAnt = horaAtual - 1;
-    let dataAnt = dataAtual;
-    if (horaAnt < 0) {
-      horaAnt = 23;
-      const d = new Date(dataAtual + 'T12:00:00');
-      d.setDate(d.getDate() - 1);
-      dataAnt = d.toISOString().split('T')[0];
-    }
-    const jogosHoraAnt = resultados.filter(j =>
-      j.data.split('T')[0] === dataAnt && j.hora === horaAnt
-    );
-    return jogosHoraAnt.filter(j => qdCheckMarket(j.ft, j.ht, mercado)).length;
-  }
+  // ── Chaves de storage ────────────────────────────────────────────────────────
+  function sgHistKey()    { return `sg_hist_${getLigaKey()}`; }
+  function sgExpandKey()  { return `sg_expand_${getLigaKey()}`; }
+  function sgCarregarHist() { return JSON.parse(localStorage.getItem(sgHistKey()) || '[]'); }
+  function sgSalvarHist(h)  { localStorage.setItem(sgHistKey(), JSON.stringify(h.slice(0, 60))); }
 
-  // ── Gera a sugestão ──────────────────────────────────────────────────────────
-  function gerarSugestao(resultados) {
-    const mercado = document.querySelector('#seletorResultado')?.value || 'over2.5';
-    const qtd = contarOcorrenciasHoraAnterior(resultados, mercado);
-    const minutos = minutosFixos;
-    const sugeridos = minutos.slice(qtd, qtd + 3);
-    return { mercado, qtd, sugeridos, minutos, hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) };
-  }
-
-  // ── Labels legíveis dos mercados ─────────────────────────────────────────────
+  // ── Nome legível do mercado ──────────────────────────────────────────────────
   function nomeMercado(m) {
     const n = {
-      ambasMarcam: 'Ambas Sim', ambasNaoMarcam: 'Ambas Não',
-      'over0.5': 'Over 0.5', 'over1.5': 'Over 1.5', 'over2.5': 'Over 2.5',
-      'over3.5': 'Over 3.5', over5: 'Over 5',
-      'under0.5': 'Under 0.5', 'under1.5': 'Under 1.5',
-      'under2.5': 'Under 2.5', 'under3.5': 'Under 3.5',
-      casaVence: 'Casa Vence', foraVence: 'Fora Vence',
-      empate: 'Empate', viradinha: 'Viradinha',
+      ambasMarcam:'Ambas Sim', ambasNaoMarcam:'Ambas Não',
+      'over0.5':'Over 0.5','over1.5':'Over 1.5','over2.5':'Over 2.5','over3.5':'Over 3.5',over5:'Over 5',
+      'under0.5':'Under 0.5','under1.5':'Under 1.5','under2.5':'Under 2.5','under3.5':'Under 3.5',
+      casaVence:'Casa Vence',foraVence:'Fora Vence',empate:'Empate',viradinha:'Viradinha',
     };
     return n[m] || m;
   }
 
-  // ── Renderiza o painel ───────────────────────────────────────────────────────
-  function sgRender() {
-    const painel = document.getElementById('sg-painel');
-    if (!painel) return;
-    const hist = sgCarregarHist();
-    const greens = hist.filter(h => h.status === 'green').length;
-    const reds   = hist.filter(h => h.status === 'red').length;
-    const nenhum = hist.filter(h => h.status === 'nenhum').length;
-    const total  = greens + reds;
-    const pct    = total > 0 ? Math.round((greens / total) * 100) + '%' : '—';
+  // ── Conta ocorrências do mercado em uma hora específica ──────────────────────
+  function contarOcorrencias(resultados, mercado, dataStr, hora) {
+    return resultados
+      .filter(j => j.data.split('T')[0] === dataStr && j.hora === hora)
+      .filter(j => qdCheckMarket(j.ft, j.ht, mercado)).length;
+  }
 
-    const ativo = painel.querySelector('#sg-sugestao-ativa');
-    const histEl = painel.querySelector('#sg-historico');
-    const statsEl = painel.querySelector('#sg-stats');
+  // ── Hora anterior à hora informada ──────────────────────────────────────────
+  function horaAnterior(dataStr, hora) {
+    let h = hora - 1, d = dataStr;
+    if (h < 0) {
+      h = 23;
+      const dt = new Date(dataStr + 'T12:00:00');
+      dt.setDate(dt.getDate() - 1);
+      d = dt.toISOString().split('T')[0];
+    }
+    return { dataStr: d, hora: h };
+  }
+
+  // ── Verifica resultado automático da sugestão pendente ───────────────────────
+  // Checa se algum dos minutos sugeridos teve o mercado ocorrendo na hora que era "atual"
+  function sgChecarResultadoAuto(resultados) {
+    if (!_sgPendente) return;
+    const { mercado, sugeridos, horaRef, dataRef } = _sgPendente;
+
+    // Só verifica quando horaRef já virou hora anterior (i.e. hora atual mudou)
+    const { hora: horaAtualAgora, dateStr: dataAgora } = qdGetHoraAtual(resultados);
+    if (horaAtualAgora === horaRef && dataAgora === dataRef) return; // ainda na mesma hora
+
+    // Coleta os jogos da hora que estava pendente
+    const jogos = resultados.filter(j =>
+      j.data.split('T')[0] === dataRef && j.hora === horaRef
+    );
+
+    // Verifica se algum dos minutos sugeridos teve o mercado
+    const acertou = sugeridos.some(minuto => {
+      const jogo = jogos.find(j => j.minuto === minuto);
+      return jogo && qdCheckMarket(jogo.ft, jogo.ht, mercado);
+    });
+
+    // Verifica se pelo menos um dos minutos sugeridos já tem resultado
+    const temDados = sugeridos.some(minuto => jogos.find(j => j.minuto === minuto));
+    if (!temDados) return; // ainda sem dados para julgar
+
+    const status = acertou ? 'green' : 'red';
+    const hist = sgCarregarHist();
+    hist.unshift({ ..._sgPendente, status });
+    sgSalvarHist(hist);
+    _sgPendente = null;
+
+    sgRenderAtivo();
+    sgRenderHistorico();
+
+    // Auto-gera próxima sugestão para a nova hora atual
+    sgAutoGerar(resultados);
+  }
+
+  // ── Auto-gera sugestão quando hora vira ──────────────────────────────────────
+  function sgAutoGerar(resultados) {
+    if (_sgPendente) return; // já tem uma pendente
+    const { hora: horaAtual, dateStr: dataAtual } = qdGetHoraAtual(resultados);
+    if (_sgHoraAtualCache === `${dataAtual}-${horaAtual}`) return; // mesma hora, não gera de novo
+    _sgHoraAtualCache = `${dataAtual}-${horaAtual}`;
+
+    const mercado = document.querySelector('#seletorResultado')?.value || 'over2.5';
+    const ant = horaAnterior(dataAtual, horaAtual);
+    const qtd = contarOcorrencias(resultados, mercado, ant.dataStr, ant.hora);
+    const sugeridos = minutosFixos.slice(qtd, qtd + 3);
+
+    if (!sugeridos.length) return;
+
+    _sgPendente = {
+      mercado, qtd, sugeridos,
+      horaRef: horaAtual, dataRef: dataAtual,
+      status: 'pendente',
+    };
+
+    sgRenderAtivo();
+  }
+
+  // ── Render da sugestão ativa ─────────────────────────────────────────────────
+  function sgRenderAtivo() {
+    const el = document.getElementById('sg-sugestao-ativa');
+    if (!el) return;
+
+    if (!_sgPendente) {
+      el.innerHTML = '<span style="color:#6b7280;font-size:0.82em">Aguardando próxima hora...</span>';
+      return;
+    }
+
+    const { mercado, qtd, sugeridos, status } = _sgPendente;
+
+    if (status === 'pendente') {
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="color:#9ca3af;font-size:0.82em">${nomeMercado(mercado)} · pulou ${qtd}</span>
+          ${sugeridos.map(m => `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:28px;background:rgba(31,172,89,0.18);border:1px solid rgba(31,204,89,0.4);border-radius:5px;color:#1fcc59;font-weight:700;font-size:0.9em;padding:0 6px;">${m}′</span>`).join('')}
+          <span style="color:#6b7280;font-size:0.8em;font-style:italic;">resultado automático ao virar hora</span>
+        </div>`;
+      return;
+    }
+
+    const cor = status === 'green' ? '#4ade80' : '#f87171';
+    const tag = status === 'green' ? 'GREEN ✔' : 'RED ✘';
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="color:#9ca3af;font-size:0.82em">${nomeMercado(mercado)} · pulou ${qtd}</span>
+        ${sugeridos.map(m => `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:28px;background:rgba(31,172,89,0.12);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#6b7280;font-weight:700;font-size:0.9em;padding:0 6px;">${m}′</span>`).join('')}
+        <strong style="color:${cor};font-size:0.95em">${tag}</strong>
+      </div>`;
+  }
+
+  // ── Render do histórico ──────────────────────────────────────────────────────
+  function sgRenderHistorico() {
+    const histEl = document.getElementById('sg-historico');
+    const statsEl = document.getElementById('sg-stats');
+    if (!histEl) return;
+
+    const hist = sgCarregarHist();
+    const greens  = hist.filter(h => h.status === 'green').length;
+    const reds    = hist.filter(h => h.status === 'red').length;
+    const total   = greens + reds;
+    const pct     = total > 0 ? Math.round((greens / total) * 100) + '%' : '—';
 
     if (statsEl) {
-      statsEl.innerHTML = `
+      statsEl.innerHTML = total === 0 ? '' : `
         <span style="color:#4ade80">✔ ${greens}</span>
         <span style="color:#f87171">✘ ${reds}</span>
-        <span style="color:#fbbf24">— ${nenhum}</span>
         <span style="color:#9ca3af;font-size:0.85em">${pct}</span>
       `;
     }
 
-    if (histEl) {
-      histEl.innerHTML = hist.length === 0
-        ? '<span style="color:#6b7280;font-size:0.82em">Nenhum registro ainda</span>'
-        : hist.slice(0, 8).map((h, i) => {
-            const cor = h.status === 'green' ? '#4ade80' : h.status === 'red' ? '#f87171' : '#fbbf24';
-            const tag = h.status === 'green' ? 'GREEN' : h.status === 'red' ? 'RED' : 'NENHUM';
-            return `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:2px 7px;font-size:0.78em;cursor:pointer;" onclick="sgRemover(${i})">
-              <span style="color:#9ca3af">${h.hora}</span>
-              <span style="color:#d1d5db">${nomeMercado(h.mercado)}</span>
-              <span style="color:#6b7280">${h.sugeridos.join(',')}′</span>
-              <strong style="color:${cor}">${tag}</strong>
-              <span style="color:#4b5563;font-size:0.9em">✕</span>
-            </span>`;
-          }).join(' ');
-    }
+    histEl.innerHTML = hist.length === 0
+      ? '<span style="color:#6b7280;font-size:0.82em">Nenhum registro ainda</span>'
+      : hist.slice(0, 10).map((h, i) => {
+          const cor = h.status === 'green' ? '#4ade80' : '#f87171';
+          const tag = h.status === 'green' ? 'G' : 'R';
+          return `<span onclick="sgRemover(${i})" title="Clique para remover" style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:4px;padding:2px 6px;font-size:0.76em;cursor:pointer;gap:4px;">
+            <span style="color:#6b7280">${nomeMercado(h.mercado)}</span>
+            <span style="color:#9ca3af">${(h.sugeridos||[]).join(',')}′</span>
+            <strong style="color:${cor}">${tag}</strong>
+          </span>`;
+        }).join(' ');
   }
-
-  // ── Marca resultado ──────────────────────────────────────────────────────────
-  window.sgMarcar = function (status) {
-    const sg = window._sgAtiva;
-    if (!sg) return;
-    const hist = sgCarregarHist();
-    hist.unshift({ ...sg, status });
-    sgSalvarHist(hist);
-    window._sgAtiva = null;
-
-    const ativo = document.getElementById('sg-sugestao-ativa');
-    if (ativo) {
-      const corMap = { green: '#4ade80', red: '#f87171', nenhum: '#fbbf24' };
-      const tagMap = { green: 'GREEN ✔', red: 'RED ✘', nenhum: 'NENHUM' };
-      ativo.innerHTML = `<span style="color:${corMap[status]};font-weight:600;font-size:0.95em">${tagMap[status]} — registrado</span>`;
-    }
-    sgRender();
-  };
 
   // ── Remove entrada do histórico ──────────────────────────────────────────────
   window.sgRemover = function (i) {
     const hist = sgCarregarHist();
     hist.splice(i, 1);
     sgSalvarHist(hist);
-    sgRender();
+    sgRenderHistorico();
   };
 
-  // ── Clique no botão Sugestão ──────────────────────────────────────────────────
-  window.sgGerarClick = async function () {
-    const btn = document.getElementById('sg-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '...'; }
-
-    let resultados = [];
-    try {
-      const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-      if (r.ok) resultados = await r.json();
-    } catch (e) { console.error('sg fetch:', e); }
-
-    if (btn) { btn.disabled = false; btn.textContent = 'Sugestão'; }
-
-    if (!resultados.length) {
-      const ativo = document.getElementById('sg-sugestao-ativa');
-      if (ativo) ativo.innerHTML = '<span style="color:#f87171;font-size:0.85em">Sem dados disponíveis</span>';
-      return;
-    }
-
-    const sg = gerarSugestao(resultados);
-    window._sgAtiva = sg;
-
-    const ativo = document.getElementById('sg-sugestao-ativa');
-    if (!ativo) return;
-
-    if (!sg.sugeridos.length) {
-      ativo.innerHTML = `<span style="color:#f87171;font-size:0.85em">Qtd (${sg.qtd}) excede minutos da liga</span>`;
-      return;
-    }
-
-    ativo.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span style="color:#9ca3af;font-size:0.82em">${sg.hora} · ${nomeMercado(sg.mercado)} · pulou ${sg.qtd}</span>
-        ${sg.sugeridos.map(m => `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:30px;background:rgba(31,172,89,0.18);border:1px solid rgba(31,204,89,0.4);border-radius:5px;color:#1fcc59;font-weight:700;font-size:0.9em;padding:0 6px;">${m}′</span>`).join('')}
-        <span style="color:#6b7280;font-size:0.82em">→</span>
-        <button onclick="sgMarcar('green')" style="padding:3px 10px;border-radius:5px;border:1px solid #166534;background:rgba(22,101,52,0.3);color:#4ade80;cursor:pointer;font-size:0.82em;font-weight:600;">GREEN</button>
-        <button onclick="sgMarcar('red')"   style="padding:3px 10px;border-radius:5px;border:1px solid #7f1d1d;background:rgba(127,29,29,0.3);color:#f87171;cursor:pointer;font-size:0.82em;font-weight:600;">RED</button>
-        <button onclick="sgMarcar('nenhum')" style="padding:3px 10px;border-radius:5px;border:1px solid #92400e;background:rgba(146,64,14,0.25);color:#fbbf24;cursor:pointer;font-size:0.82em;">Nenhum</button>
-      </div>
-    `;
+  // ── Toggle expand/colapsar ───────────────────────────────────────────────────
+  window.sgToggle = function () {
+    const corpo = document.getElementById('sg-corpo');
+    const btn   = document.getElementById('sg-toggle-btn');
+    if (!corpo || !btn) return;
+    const aberto = corpo.style.display !== 'none';
+    corpo.style.display = aberto ? 'none' : 'block';
+    btn.textContent = aberto ? '▲ Sugestão' : '▼ Sugestão';
+    localStorage.setItem(sgExpandKey(), aberto ? '0' : '1');
   };
 
-  // ── Injeta o painel no DOM ────────────────────────────────────────────────────
+  // ── Injeta o painel ABAIXO da tabela ────────────────────────────────────────
   function injetarPainel() {
     if (document.getElementById('sg-painel')) return;
+
+    const expandido = localStorage.getItem(sgExpandKey()) === '1';
 
     const painel = document.createElement('div');
     painel.id = 'sg-painel';
     painel.style.cssText = `
       background:#1e2130;border:1px solid rgba(255,255,255,0.1);border-radius:8px;
-      padding:8px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;
+      margin-top:8px;overflow:hidden;
     `;
     painel.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button id="sg-btn" onclick="sgGerarClick()" style="padding:4px 14px;border-radius:6px;border:1px solid #1fcc59;background:rgba(31,204,89,0.12);color:#1fcc59;cursor:pointer;font-weight:600;font-size:0.88em;">Sugestão</button>
+      <div onclick="sgToggle()" style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;cursor:pointer;user-select:none;border-bottom:1px solid rgba(255,255,255,${expandido?'0.1':'0'});">
+        <button id="sg-toggle-btn" style="background:none;border:none;color:#1fcc59;font-weight:600;font-size:0.85em;cursor:pointer;padding:0;">${expandido?'▼':'▲'} Sugestão</button>
         <span id="sg-stats" style="display:flex;gap:10px;font-size:0.82em;"></span>
       </div>
-      <div id="sg-sugestao-ativa" style="min-height:32px;"></div>
-      <div id="sg-historico" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      <div id="sg-corpo" style="display:${expandido?'block':'none'};padding:8px 12px;">
+        <div id="sg-sugestao-ativa" style="margin-bottom:6px;min-height:28px;"></div>
+        <div id="sg-historico" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      </div>
     `;
 
-    // Insere antes da tabela principal
+    // Insere APÓS a tabela principal
     const tabela = document.getElementById('tabelaResultados');
     if (tabela && tabela.parentNode) {
-      tabela.parentNode.insertBefore(painel, tabela);
+      tabela.parentNode.insertBefore(painel, tabela.nextSibling);
     } else {
       document.body.appendChild(painel);
     }
 
-    sgRender();
+    sgRenderAtivo();
+    sgRenderHistorico();
   }
 
-  // ── Aguarda o DOM estar pronto ────────────────────────────────────────────────
+  // ── Hook no ciclo de busca de dados ─────────────────────────────────────────
+  // Sobrescreve buscarDados para interceptar os resultados sem alterar a lógica original
+  const _buscarDadosOriginal = buscarDados;
+  window.buscarDados = async function () {
+    await _buscarDadosOriginal();
+
+    // Busca os dados direto para a lógica da sugestão
+    try {
+      const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+      if (!r.ok) return;
+      const resultados = await r.json();
+      if (!resultados.length) return;
+
+      // Checa se sugestão pendente já tem resultado (hora virou)
+      sgChecarResultadoAuto(resultados);
+
+      // Se não tem pendente, auto-gera para hora atual (primeira carga ou troca de liga)
+      if (!_sgPendente) sgAutoGerar(resultados);
+
+    } catch(e) { console.error('sg:', e); }
+  };
+
+  // ── Reagera ao trocar mercado ─────────────────────────────────────────────────
+  const srEl = document.querySelector('#seletorResultado');
+  if (srEl) {
+    srEl.addEventListener('change', async () => {
+      _sgPendente = null;
+      _sgHoraAtualCache = null;
+      try {
+        const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+        if (r.ok) sgAutoGerar(await r.json());
+      } catch(e) {}
+    });
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', injetarPainel);
   } else {
