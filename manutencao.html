@@ -1724,6 +1724,214 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="disableChartAnimations.js"></script>
 
 <script>
+    // ═══════════════════════════════════════════════════════════════════════════════
+// SUGESTÃO DE ENTRADA — baseada na quantidade do mercado na hora anterior
+// Adicionar este bloco no final do seu script principal (após Estado.carregar())
+// ═══════════════════════════════════════════════════════════════════════════════
+
+(function initSugestaoEntrada() {
+
+  // ── Histórico persistido por liga + mercado ──────────────────────────────────
+  function sgHistKey() {
+    return `sg_hist_${getLigaKey()}`;
+  }
+  function sgCarregarHist() {
+    return JSON.parse(localStorage.getItem(sgHistKey()) || '[]');
+  }
+  function sgSalvarHist(hist) {
+    localStorage.setItem(sgHistKey(), JSON.stringify(hist.slice(0, 60)));
+  }
+
+  // ── Conta ocorrências do mercado na hora anterior ────────────────────────────
+  function contarOcorrenciasHoraAnterior(resultados, mercado) {
+    const { hora: horaAtual, dateStr: dataAtual } = qdGetHoraAtual(resultados);
+    let horaAnt = horaAtual - 1;
+    let dataAnt = dataAtual;
+    if (horaAnt < 0) {
+      horaAnt = 23;
+      const d = new Date(dataAtual + 'T12:00:00');
+      d.setDate(d.getDate() - 1);
+      dataAnt = d.toISOString().split('T')[0];
+    }
+    const jogosHoraAnt = resultados.filter(j =>
+      j.data.split('T')[0] === dataAnt && j.hora === horaAnt
+    );
+    return jogosHoraAnt.filter(j => qdCheckMarket(j.ft, j.ht, mercado)).length;
+  }
+
+  // ── Gera a sugestão ──────────────────────────────────────────────────────────
+  function gerarSugestao(resultados) {
+    const mercado = document.querySelector('#seletorResultado')?.value || 'over2.5';
+    const qtd = contarOcorrenciasHoraAnterior(resultados, mercado);
+    const minutos = minutosFixos;
+    const sugeridos = minutos.slice(qtd, qtd + 3);
+    return { mercado, qtd, sugeridos, minutos, hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) };
+  }
+
+  // ── Labels legíveis dos mercados ─────────────────────────────────────────────
+  function nomeMercado(m) {
+    const n = {
+      ambasMarcam: 'Ambas Sim', ambasNaoMarcam: 'Ambas Não',
+      'over0.5': 'Over 0.5', 'over1.5': 'Over 1.5', 'over2.5': 'Over 2.5',
+      'over3.5': 'Over 3.5', over5: 'Over 5',
+      'under0.5': 'Under 0.5', 'under1.5': 'Under 1.5',
+      'under2.5': 'Under 2.5', 'under3.5': 'Under 3.5',
+      casaVence: 'Casa Vence', foraVence: 'Fora Vence',
+      empate: 'Empate', viradinha: 'Viradinha',
+    };
+    return n[m] || m;
+  }
+
+  // ── Renderiza o painel ───────────────────────────────────────────────────────
+  function sgRender() {
+    const painel = document.getElementById('sg-painel');
+    if (!painel) return;
+    const hist = sgCarregarHist();
+    const greens = hist.filter(h => h.status === 'green').length;
+    const reds   = hist.filter(h => h.status === 'red').length;
+    const nenhum = hist.filter(h => h.status === 'nenhum').length;
+    const total  = greens + reds;
+    const pct    = total > 0 ? Math.round((greens / total) * 100) + '%' : '—';
+
+    const ativo = painel.querySelector('#sg-sugestao-ativa');
+    const histEl = painel.querySelector('#sg-historico');
+    const statsEl = painel.querySelector('#sg-stats');
+
+    if (statsEl) {
+      statsEl.innerHTML = `
+        <span style="color:#4ade80">✔ ${greens}</span>
+        <span style="color:#f87171">✘ ${reds}</span>
+        <span style="color:#fbbf24">— ${nenhum}</span>
+        <span style="color:#9ca3af;font-size:0.85em">${pct}</span>
+      `;
+    }
+
+    if (histEl) {
+      histEl.innerHTML = hist.length === 0
+        ? '<span style="color:#6b7280;font-size:0.82em">Nenhum registro ainda</span>'
+        : hist.slice(0, 8).map((h, i) => {
+            const cor = h.status === 'green' ? '#4ade80' : h.status === 'red' ? '#f87171' : '#fbbf24';
+            const tag = h.status === 'green' ? 'GREEN' : h.status === 'red' ? 'RED' : 'NENHUM';
+            return `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:2px 7px;font-size:0.78em;cursor:pointer;" onclick="sgRemover(${i})">
+              <span style="color:#9ca3af">${h.hora}</span>
+              <span style="color:#d1d5db">${nomeMercado(h.mercado)}</span>
+              <span style="color:#6b7280">${h.sugeridos.join(',')}′</span>
+              <strong style="color:${cor}">${tag}</strong>
+              <span style="color:#4b5563;font-size:0.9em">✕</span>
+            </span>`;
+          }).join(' ');
+    }
+  }
+
+  // ── Marca resultado ──────────────────────────────────────────────────────────
+  window.sgMarcar = function (status) {
+    const sg = window._sgAtiva;
+    if (!sg) return;
+    const hist = sgCarregarHist();
+    hist.unshift({ ...sg, status });
+    sgSalvarHist(hist);
+    window._sgAtiva = null;
+
+    const ativo = document.getElementById('sg-sugestao-ativa');
+    if (ativo) {
+      const corMap = { green: '#4ade80', red: '#f87171', nenhum: '#fbbf24' };
+      const tagMap = { green: 'GREEN ✔', red: 'RED ✘', nenhum: 'NENHUM' };
+      ativo.innerHTML = `<span style="color:${corMap[status]};font-weight:600;font-size:0.95em">${tagMap[status]} — registrado</span>`;
+    }
+    sgRender();
+  };
+
+  // ── Remove entrada do histórico ──────────────────────────────────────────────
+  window.sgRemover = function (i) {
+    const hist = sgCarregarHist();
+    hist.splice(i, 1);
+    sgSalvarHist(hist);
+    sgRender();
+  };
+
+  // ── Clique no botão Sugestão ──────────────────────────────────────────────────
+  window.sgGerarClick = async function () {
+    const btn = document.getElementById('sg-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+    let resultados = [];
+    try {
+      const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
+      if (r.ok) resultados = await r.json();
+    } catch (e) { console.error('sg fetch:', e); }
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Sugestão'; }
+
+    if (!resultados.length) {
+      const ativo = document.getElementById('sg-sugestao-ativa');
+      if (ativo) ativo.innerHTML = '<span style="color:#f87171;font-size:0.85em">Sem dados disponíveis</span>';
+      return;
+    }
+
+    const sg = gerarSugestao(resultados);
+    window._sgAtiva = sg;
+
+    const ativo = document.getElementById('sg-sugestao-ativa');
+    if (!ativo) return;
+
+    if (!sg.sugeridos.length) {
+      ativo.innerHTML = `<span style="color:#f87171;font-size:0.85em">Qtd (${sg.qtd}) excede minutos da liga</span>`;
+      return;
+    }
+
+    ativo.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="color:#9ca3af;font-size:0.82em">${sg.hora} · ${nomeMercado(sg.mercado)} · pulou ${sg.qtd}</span>
+        ${sg.sugeridos.map(m => `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:30px;background:rgba(31,172,89,0.18);border:1px solid rgba(31,204,89,0.4);border-radius:5px;color:#1fcc59;font-weight:700;font-size:0.9em;padding:0 6px;">${m}′</span>`).join('')}
+        <span style="color:#6b7280;font-size:0.82em">→</span>
+        <button onclick="sgMarcar('green')" style="padding:3px 10px;border-radius:5px;border:1px solid #166534;background:rgba(22,101,52,0.3);color:#4ade80;cursor:pointer;font-size:0.82em;font-weight:600;">GREEN</button>
+        <button onclick="sgMarcar('red')"   style="padding:3px 10px;border-radius:5px;border:1px solid #7f1d1d;background:rgba(127,29,29,0.3);color:#f87171;cursor:pointer;font-size:0.82em;font-weight:600;">RED</button>
+        <button onclick="sgMarcar('nenhum')" style="padding:3px 10px;border-radius:5px;border:1px solid #92400e;background:rgba(146,64,14,0.25);color:#fbbf24;cursor:pointer;font-size:0.82em;">Nenhum</button>
+      </div>
+    `;
+  };
+
+  // ── Injeta o painel no DOM ────────────────────────────────────────────────────
+  function injetarPainel() {
+    if (document.getElementById('sg-painel')) return;
+
+    const painel = document.createElement('div');
+    painel.id = 'sg-painel';
+    painel.style.cssText = `
+      background:#1e2130;border:1px solid rgba(255,255,255,0.1);border-radius:8px;
+      padding:8px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;
+    `;
+    painel.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button id="sg-btn" onclick="sgGerarClick()" style="padding:4px 14px;border-radius:6px;border:1px solid #1fcc59;background:rgba(31,204,89,0.12);color:#1fcc59;cursor:pointer;font-weight:600;font-size:0.88em;">Sugestão</button>
+        <span id="sg-stats" style="display:flex;gap:10px;font-size:0.82em;"></span>
+      </div>
+      <div id="sg-sugestao-ativa" style="min-height:32px;"></div>
+      <div id="sg-historico" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+    `;
+
+    // Insere antes da tabela principal
+    const tabela = document.getElementById('tabelaResultados');
+    if (tabela && tabela.parentNode) {
+      tabela.parentNode.insertBefore(painel, tabela);
+    } else {
+      document.body.appendChild(painel);
+    }
+
+    sgRender();
+  }
+
+  // ── Aguarda o DOM estar pronto ────────────────────────────────────────────────
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injetarPainel);
+  } else {
+    injetarPainel();
+  }
+
+})();
+</script>
+
+<script>
 const minutosFixos = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
