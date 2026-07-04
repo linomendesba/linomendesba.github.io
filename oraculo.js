@@ -43,7 +43,7 @@
         pointer-events: none;
       }
       #sg-corpo.aberto {
-        max-height: 160px;
+        max-height: 120px;
         opacity: 1;
       }
 
@@ -87,7 +87,7 @@
         font-weight: 700;
         font-size: 0.8em;
         letter-spacing: 0.03em;
-        transition: background 0.15s, border-color 0.15s;
+        transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
       }
       .sg-pill:hover {
         background: rgba(23,123,142,0.22);
@@ -105,35 +105,42 @@
         padding: 6px 12px 8px;
       }
 
-      .sg-hist-row {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        flex-wrap: wrap;
-        padding: 0 12px 8px;
-        border-top: 1px dashed rgba(23,123,142,0.15);
-        margin-top: 2px;
-        padding-top: 6px;
+      /* Pill que bateu o mercado (green) */
+      .sg-pill.sg-pill-hit {
+        background: rgba(34,197,94,0.18);
+        border-color: rgba(34,197,94,0.6);
+        color: #22c55e;
       }
-      .sg-hist-item {
+      /* Pills que não bateram, mas o grupo teve green em outro minuto */
+      .sg-pill.sg-pill-miss {
+        background: rgba(148,163,184,0.08);
+        border-color: rgba(148,163,184,0.25);
+        color: #64748b;
+        opacity: 0.6;
+      }
+      /* Nenhuma das 3 bateu -> todas ficam vermelhas */
+      .sg-pill.sg-pill-red {
+        background: rgba(239,68,68,0.15);
+        border-color: rgba(239,68,68,0.55);
+        color: #ef4444;
+      }
+
+      .sg-status-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 26px;
-        height: 20px;
-        padding: 0 5px;
-        border-radius: 3px;
-        font-size: 0.7em;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        cursor: default;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.72em;
+        font-weight: 800;
+        letter-spacing: 0.05em;
       }
-      .sg-hist-item.sg-green {
+      .sg-status-badge.sg-status-green {
         background: rgba(34,197,94,0.15);
         border: 1px solid rgba(34,197,94,0.5);
         color: #22c55e;
       }
-      .sg-hist-item.sg-red {
+      .sg-status-badge.sg-status-red {
         background: rgba(239,68,68,0.15);
         border: 1px solid rgba(239,68,68,0.5);
         color: #ef4444;
@@ -144,12 +151,7 @@
 
   let _sgHoraAtualCache = null;
   let _sgPendente = null;
-
-
-  function sgHistKey()   { return `sg_hist_${getLigaKey()}`; }
-  function sgExpandKey() { return `sg_expand_${getLigaKey()}`; }
-  function sgCarregarHist() { return JSON.parse(localStorage.getItem(sgHistKey()) || '[]'); }
-  function sgSalvarHist(h)  { localStorage.setItem(sgHistKey(), JSON.stringify(h.slice(0, 60))); }
+  let _sgUltimoResultado = null; // último grupo de 3 minutos já conferido (green/red), fica na tela até a próxima sugestão ser gerada
 
 
   function nomeMercado(m) {
@@ -192,8 +194,8 @@
     const temDados = sugeridos.some(minuto => jogos.find(j => j.minuto === minuto));
     if (!temDados) return;
 
-    // Percorre os 3 minutos sugeridos e marca green no primeiro que bater o mercado.
-    // Se nenhum bater, fica red.
+    // Confere os 3 minutos sugeridos: assim que um bater o mercado, marca esse minuto como o green.
+    // Se nenhum bater, o grupo inteiro fica red.
     let minutoGreen = null;
     const acertou = sugeridos.some(minuto => {
       const jogo = jogos.find(j => j.minuto === minuto);
@@ -204,14 +206,16 @@
       return false;
     });
 
-    const status = acertou ? 'green' : 'red';
-    const hist = sgCarregarHist();
-    hist.unshift({ ..._sgPendente, status, minutoGreen });
-    sgSalvarHist(hist);
+    _sgUltimoResultado = {
+      mercado, sugeridos, horaRef, dataRef,
+      status: acertou ? 'green' : 'red',
+      minutoGreen,
+    };
     _sgPendente = null;
 
     sgRenderCorpo();
-    sgAutoGerar(resultados);
+    // Não gera a próxima sugestão aqui: o resultado (green/red) fica visível até
+    // o próximo ciclo de busca, quando o buscarDados chama sgAutoGerar naturalmente.
   }
 
 
@@ -229,19 +233,8 @@
     if (!sugeridos.length) return;
 
     _sgPendente = { mercado, qtd, sugeridos, horaRef: horaAtual, dataRef: dataAtual, status: 'pendente' };
+    _sgUltimoResultado = null;
     sgRenderCorpo();
-  }
-
-
-  function sgHistBadge(h) {
-    if (h.status === 'green') {
-      // Registros antigos (salvos antes de existir o campo minutoGreen) não têm o minuto exato.
-      const temMinuto = h.minutoGreen !== undefined && h.minutoGreen !== null;
-      const label = temMinuto ? `${h.minutoGreen}'` : '✓';
-      const tituloMinuto = temMinuto ? `no minuto ${h.minutoGreen}'` : '(minuto não registrado)';
-      return `<span class="sg-hist-item sg-green" title="${nomeMercado(h.mercado)} • green ${tituloMinuto}">${label}</span>`;
-    }
-    return `<span class="sg-hist-item sg-red" title="${nomeMercado(h.mercado)} • red (nenhuma das 3 entradas bateu)">✕</span>`;
   }
 
 
@@ -249,11 +242,7 @@
     const corpo = document.getElementById('sg-corpo');
     if (!corpo) return;
 
-    const hist = sgCarregarHist().slice(0, 10);
-    const histHtml = hist.length
-      ? `<div class="sg-hist-row">${hist.map(sgHistBadge).join('')}</div>`
-      : '';
-
+    // 1) Sugestão em andamento (hora ainda não fechou)
     if (_sgPendente) {
       const { mercado, sugeridos, horaRef } = _sgPendente;
       const horaLabel = String(horaRef).padStart(2, '0') + 'h';
@@ -269,14 +258,45 @@
           <span class="sg-sep"></span>
           ${pills}
         </div>
-        ${histHtml}
       `;
-    } else {
-      corpo.innerHTML = `
-        <div class="sg-vazio">Aguardando dados da próxima hora…</div>
-        ${histHtml}
-      `;
+      return;
     }
+
+    // 2) Última sugestão já conferida: mostra green/red na própria sugestão
+    if (_sgUltimoResultado) {
+      const { mercado, sugeridos, horaRef, status, minutoGreen } = _sgUltimoResultado;
+      const horaLabel = String(horaRef).padStart(2, '0') + 'h';
+
+      const pills = sugeridos.map(m => {
+        let cls = 'sg-pill';
+        if (status === 'green') {
+          cls += (m === minutoGreen) ? ' sg-pill-hit' : ' sg-pill-miss';
+        } else {
+          cls += ' sg-pill-red';
+        }
+        return `<span class="${cls}"><span class="sg-pill-prefix">▸</span>${m}</span>`;
+      }).join('');
+
+      const badge = status === 'green'
+        ? `<span class="sg-status-badge sg-status-green">GREEN</span>`
+        : `<span class="sg-status-badge sg-status-red">RED</span>`;
+
+      corpo.innerHTML = `
+        <div class="sg-inner">
+          <span class="sg-label-mercado">${nomeMercado(mercado)}</span>
+          <span class="sg-sep"></span>
+          <span class="sg-hora">${horaLabel}</span>
+          <span class="sg-sep"></span>
+          ${pills}
+          <span class="sg-sep"></span>
+          ${badge}
+        </div>
+      `;
+      return;
+    }
+
+    // 3) Nada ainda
+    corpo.innerHTML = `<div class="sg-vazio">Aguardando dados da próxima hora…</div>`;
   }
 
 
@@ -292,6 +312,8 @@
 
     localStorage.setItem(sgExpandKey(), aberto ? '0' : '1');
   };
+
+  function sgExpandKey() { return `sg_expand_${getLigaKey()}`; }
 
 
   function injetarPainel() {
@@ -345,6 +367,7 @@
 
   document.querySelector('#seletorResultado')?.addEventListener('change', async () => {
     _sgPendente = null;
+    _sgUltimoResultado = null;
     _sgHoraAtualCache = null;
     try {
       const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
