@@ -1,4 +1,3 @@
-
 (function initSugestaoEntrada() {
 
 
@@ -44,7 +43,7 @@
         pointer-events: none;
       }
       #sg-corpo.aberto {
-        max-height: 120px;
+        max-height: 160px;
         opacity: 1;
       }
 
@@ -105,6 +104,40 @@
         font-style: italic;
         padding: 6px 12px 8px;
       }
+
+      .sg-hist-row {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+        padding: 0 12px 8px;
+        border-top: 1px dashed rgba(23,123,142,0.15);
+        margin-top: 2px;
+        padding-top: 6px;
+      }
+      .sg-hist-item {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 26px;
+        height: 20px;
+        padding: 0 5px;
+        border-radius: 3px;
+        font-size: 0.7em;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        cursor: default;
+      }
+      .sg-hist-item.sg-green {
+        background: rgba(34,197,94,0.15);
+        border: 1px solid rgba(34,197,94,0.5);
+        color: #22c55e;
+      }
+      .sg-hist-item.sg-red {
+        background: rgba(239,68,68,0.15);
+        border: 1px solid rgba(239,68,68,0.5);
+        color: #ef4444;
+      }
     `;
     document.head.appendChild(s);
   })();
@@ -159,14 +192,21 @@
     const temDados = sugeridos.some(minuto => jogos.find(j => j.minuto === minuto));
     if (!temDados) return;
 
+    // Percorre os 3 minutos sugeridos e marca green no primeiro que bater o mercado.
+    // Se nenhum bater, fica red.
+    let minutoGreen = null;
     const acertou = sugeridos.some(minuto => {
       const jogo = jogos.find(j => j.minuto === minuto);
-      return jogo && qdCheckMarket(jogo.ft, jogo.ht, mercado);
+      if (jogo && qdCheckMarket(jogo.ft, jogo.ht, mercado)) {
+        minutoGreen = minuto;
+        return true;
+      }
+      return false;
     });
 
     const status = acertou ? 'green' : 'red';
     const hist = sgCarregarHist();
-    hist.unshift({ ..._sgPendente, status });
+    hist.unshift({ ..._sgPendente, status, minutoGreen });
     sgSalvarHist(hist);
     _sgPendente = null;
 
@@ -193,9 +233,22 @@
   }
 
 
+  function sgHistBadge(h) {
+    if (h.status === 'green') {
+      return `<span class="sg-hist-item sg-green" title="${nomeMercado(h.mercado)} • green no minuto ${h.minutoGreen}'">${h.minutoGreen}'</span>`;
+    }
+    return `<span class="sg-hist-item sg-red" title="${nomeMercado(h.mercado)} • red (nenhuma das 3 entradas bateu)">✕</span>`;
+  }
+
+
   function sgRenderCorpo() {
     const corpo = document.getElementById('sg-corpo');
     if (!corpo) return;
+
+    const hist = sgCarregarHist().slice(0, 10);
+    const histHtml = hist.length
+      ? `<div class="sg-hist-row">${hist.map(sgHistBadge).join('')}</div>`
+      : '';
 
     if (_sgPendente) {
       const { mercado, sugeridos, horaRef } = _sgPendente;
@@ -212,9 +265,13 @@
           <span class="sg-sep"></span>
           ${pills}
         </div>
+        ${histHtml}
       `;
     } else {
-      corpo.innerHTML = `<div class="sg-vazio">Aguardando dados da próxima hora…</div>`;
+      corpo.innerHTML = `
+        <div class="sg-vazio">Aguardando dados da próxima hora…</div>
+        ${histHtml}
+      `;
     }
   }
 
