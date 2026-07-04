@@ -8834,11 +8834,119 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════════
-// SUGESTÃO DE ENTRADA — botão injetado no painel-cores, painel expande abaixo
+// ORÁCULO — botão injetado no painel-cores, painel expande abaixo
 // Adicionar no final do script principal (após Estado.carregar())
 // ═══════════════════════════════════════════════════════════════════════════════
 
 (function initSugestaoEntrada() {
+
+  // ── Estilos globais injetados uma única vez ──────────────────────────────────
+  (function injetarEstilos() {
+    if (document.getElementById('sg-styles')) return;
+    const s = document.createElement('style');
+    s.id = 'sg-styles';
+    s.textContent = `
+      #sg-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        background: none;
+        border: none;
+        padding: 0 2px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 400;
+        letter-spacing: normal;
+        text-transform: none;
+        color: #177b8e;
+        transition: color 0.15s;
+      }
+      #sg-btn:hover { color: #1fa8c7; }
+      #sg-btn .sg-arrow {
+        font-size: 0.72em;
+        opacity: 0.75;
+        transition: transform 0.2s;
+        margin-left: 1px;
+      }
+      #sg-btn.aberto .sg-arrow { transform: rotate(180deg); }
+
+      #sg-corpo {
+        overflow: hidden;
+        border-top: 1px solid rgba(23,123,142,0.18);
+        background: linear-gradient(180deg, rgba(23,123,142,0.06) 0%, transparent 100%);
+        padding: 0;
+        transition: max-height 0.3s ease, opacity 0.25s ease;
+      }
+      #sg-corpo.fechado {
+        max-height: 0;
+        opacity: 0;
+        pointer-events: none;
+      }
+      #sg-corpo.aberto {
+        max-height: 120px;
+        opacity: 1;
+      }
+
+      .sg-inner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 6px 12px 8px;
+      }
+      .sg-label-mercado {
+        font-size: 0.78em;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+      .sg-hora {
+        font-size: 0.75em;
+        color: rgba(23,123,142,0.7);
+        font-weight: 600;
+        letter-spacing: 0.03em;
+      }
+      .sg-sep {
+        width: 1px;
+        height: 14px;
+        background: rgba(23,123,142,0.25);
+        display: inline-block;
+      }
+      .sg-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 24px;
+        padding: 0 8px;
+        background: rgba(23,123,142,0.12);
+        border: 1px solid rgba(23,123,142,0.35);
+        border-radius: 4px;
+        color: #1fa8c7;
+        font-weight: 700;
+        font-size: 0.8em;
+        letter-spacing: 0.03em;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .sg-pill:hover {
+        background: rgba(23,123,142,0.22);
+        border-color: rgba(23,123,142,0.6);
+      }
+      .sg-pill-prefix {
+        font-size: 0.7em;
+        margin-right: 2px;
+        opacity: 0.65;
+      }
+      .sg-vazio {
+        font-size: 0.78em;
+        color: #475569;
+        font-style: italic;
+        padding: 6px 12px 8px;
+      }
+    `;
+    document.head.appendChild(s);
+  })();
 
   let _sgHoraAtualCache = null;
   let _sgPendente = null;
@@ -8928,65 +9036,69 @@ document.addEventListener('DOMContentLoaded', () => {
     const corpo = document.getElementById('sg-corpo');
     if (!corpo) return;
 
-    // Sugestão ativa
-    let ativoHtml = '';
     if (_sgPendente) {
       const { mercado, sugeridos, horaRef } = _sgPendente;
       const horaLabel = String(horaRef).padStart(2, '0') + 'h';
       const pills = sugeridos.map(m =>
         '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:26px;background:rgba(23,123,142,0.18);border:1px solid rgba(23,123,142,0.5);border-radius:5px;color:#177b8e;font-weight:700;font-size:0.85em;padding:0 6px;">\u25b8' + m + '</span>'
       ).join('');
-      ativoHtml = '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:5px 0;">'
-        + '<span style="color:#e5e7eb;font-size:0.82em;font-weight:600;">' + nomeMercado(mercado) + '</span>'
-        + '<span style="color:#6b7280;font-size:0.8em;">\u25b8 ' + horaLabel + '</span>'
-        + pills
-        + '</div>';
-    }
 
-    corpo.innerHTML = `
-      <div style="border-top:1px solid rgba(255,255,255,0.08);padding:6px 12px 8px;">
-        ${ativoHtml}
-      </div>
-    `;
+      corpo.innerHTML = `
+        <div class="sg-inner">
+          <span class="sg-label-mercado">${nomeMercado(mercado)}</span>
+          <span class="sg-sep"></span>
+          <span class="sg-hora">${horaLabel}</span>
+          <span class="sg-sep"></span>
+          ${pills}
+        </div>
+      `;
+    } else {
+      corpo.innerHTML = `<div class="sg-vazio">Aguardando dados da próxima hora…</div>`;
+    }
   }
 
   // ── Toggle expand ────────────────────────────────────────────────────────────
   window.sgToggle = function () {
     const corpo = document.getElementById('sg-corpo');
-    const btn   = document.getElementById('sg-toggle-btn');
+    const btn   = document.getElementById('sg-btn');
     if (!corpo || !btn) return;
-    const aberto = corpo.style.display !== 'none';
-    corpo.style.display = aberto ? 'none' : 'block';
-    btn.innerHTML = (aberto ? '▲' : '▼') + ' Trader';
+    const aberto = corpo.classList.contains('aberto');
+
+    corpo.classList.toggle('aberto', !aberto);
+    corpo.classList.toggle('fechado', aberto);
+    btn.classList.toggle('aberto', !aberto);
+
     localStorage.setItem(sgExpandKey(), aberto ? '0' : '1');
   };
 
   // ── Injeta o botão no painel-cores e o corpo abaixo ─────────────────────────
   function injetarPainel() {
-    if (document.getElementById('sg-toggle-btn')) return;
+    if (document.getElementById('sg-btn')) return;
 
     const expandido = localStorage.getItem(sgExpandKey()) === '1';
 
-    // Botão que vai dentro do #painel-cores
-    const lbl = document.createElement('label');
-    lbl.className = 'alerta-toggle-label';
-    lbl.style.cssText = 'margin-left:6px;cursor:pointer;';
-    lbl.innerHTML = `<button id="sg-toggle-btn" onclick="sgToggle()" style="background:none;border:none;color:#1fcc59;font-weight:600;font-size:0.82em;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:4px;">▲ Trader</button>`;
+    // Botão dentro do #painel-cores — mesmo padrão dos outros labels do painel
+    const wrapper = document.createElement('label');
+    wrapper.className = 'alerta-toggle-label';
+    wrapper.style.cssText = 'margin-left:6px;cursor:pointer;';
+    wrapper.innerHTML = `
+      <button id="sg-btn" onclick="sgToggle()" class="${expandido ? 'aberto' : ''}" title="Oráculo de Entradas">
+        Oráculo
+        <span class="sg-arrow">▾</span>
+      </button>
+    `;
 
-    // Corpo expansível — vai logo após o #painel-cores
+    // Corpo expansível
     const corpo = document.createElement('div');
     corpo.id = 'sg-corpo';
-    corpo.style.display = expandido ? 'block' : 'none';
+    corpo.className = expandido ? 'aberto' : 'fechado';
 
-    // Aguarda o painel-cores existir (ele é criado por garantirPainelCores)
     function tentarInjetar() {
       const painelCores = document.getElementById('painel-cores');
       if (!painelCores) { setTimeout(tentarInjetar, 300); return; }
+      if (document.getElementById('sg-btn')) return;
 
-      // Evita duplicar
-      if (document.getElementById('sg-toggle-btn')) return;
-
-      painelCores.appendChild(lbl);
+      painelCores.appendChild(wrapper);
       painelCores.parentNode.insertBefore(corpo, painelCores.nextSibling);
 
       sgRenderCorpo();
@@ -9006,7 +9118,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!resultados.length) return;
       sgChecarResultadoAuto(resultados);
       if (!_sgPendente) sgAutoGerar(resultados);
-    } catch(e) { console.error('sg:', e); }
+    } catch(e) { console.error('oraculo:', e); }
   };
 
   // ── Reagera ao trocar mercado ────────────────────────────────────────────────
