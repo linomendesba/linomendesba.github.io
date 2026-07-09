@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="trader.css" />
     <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+    <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src="config.js"></script>
@@ -1724,6 +1725,296 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="disableChartAnimations.js"></script>
 
 
+
+<!-- ══ 2. HTML DO PAINEL ══ -->
+<div id="painelVelas" class="velas-panel">
+    <div class="velas-top">
+        <div class="velas-title">🕯️ Gráfico Velas</div>
+
+        <div class="velas-legend">
+            <button class="velas-pill" data-velas-mercado="over25"  style="--pill-cor:#1fcc59">Over 2.5</button>
+            <button class="velas-pill" data-velas-mercado="under25" style="--pill-cor:#ef4444">Under 2.5</button>
+            <button class="velas-pill" data-velas-mercado="ambasS"  style="--pill-cor:#38bdf8">Ambas Sim</button>
+            <button class="velas-pill" data-velas-mercado="ambasN"  style="--pill-cor:#f59e0b">Ambas Não</button>
+            <button class="velas-pill" data-velas-mercado="empateHT" style="--pill-cor:#a855f7">Empate HT</button>
+        </div>
+
+        <select id="velasPointsSelector">
+            <option value="20">20 jogos</option>
+            <option value="40">40 jogos</option>
+            <option value="60" selected>60 jogos</option>
+            <option value="100">100 jogos</option>
+            <option value="150">150 jogos</option>
+            <option value="240">240 jogos</option>
+        </select>
+    </div>
+
+    <div class="velas-chart-wrapper">
+        <div id="velasChartContainer"></div>
+        <div id="velasTooltip" class="velas-tooltip"></div>
+    </div>
+</div>
+
+
+<!-- ══ 3. CSS ══ -->
+<style>
+.velas-panel{background:#1f2129;border-radius:12px;padding:14px;margin-top:14px;}
+.velas-top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:10px;}
+.velas-title{color:#fff;font-weight:600;font-size:15px;margin-right:auto;}
+.velas-legend{display:flex;flex-wrap:wrap;gap:6px;}
+.velas-pill{
+    --pill-cor:#1fcc59;
+    background:#151821;color:#94a3b8;border:1px solid rgba(255,255,255,.08);
+    padding:5px 12px;border-radius:999px;font-size:12px;cursor:pointer;
+    transition:.15s;
+}
+.velas-pill:hover{border-color:var(--pill-cor);}
+.velas-pill.selected{
+    background:var(--pill-cor);color:#0d1117;border-color:var(--pill-cor);
+    font-weight:600;
+}
+#velasPointsSelector{
+    background:#151821;color:#cbd5e1;border:1px solid rgba(255,255,255,.08);
+    border-radius:8px;padding:5px 8px;font-size:12px;
+}
+.velas-chart-wrapper{
+    position:relative;width:100%;height:420px;background:#151821;
+    border-radius:10px;overflow:hidden;
+}
+#velasChartContainer{width:100%;height:100%;}
+.velas-tooltip{
+    position:absolute;display:none;pointer-events:none;z-index:5;
+    background:#0d1117;border:1px solid rgba(31,204,89,.35);border-radius:8px;
+    padding:8px 10px;font-size:12px;color:#e2e8f0;min-width:120px;
+}
+.velas-tt-placar{font-weight:700;color:#1fcc59;}
+.velas-tt-sub{color:#94a3b8;margin-top:2px;}
+.velas-tt-hora{color:#64748b;font-size:11px;margin-top:2px;}
+</style>
+
+
+<!-- ══ 4. SCRIPT ══ -->
+<script>
+(function(){
+    "use strict";
+
+    /* Se esta página NÃO tiver parseHtParts (já existe no GRAFICO_MODELO),
+       descomente a versão abaixo:
+    function parseHtParts(htStr){
+        if (!htStr || htStr === 'OUT') return null;
+        if (htStr.includes(' x ')){
+            const p = htStr.split(' x ').map(Number);
+            if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) return p;
+        }
+        return null;
+    }
+    */
+
+    const VELAS_MERCADOS = {
+        over25:   { nome: 'Over 2.5',  cor: '#1fcc59', ativo: true  },
+        under25:  { nome: 'Under 2.5', cor: '#ef4444', ativo: false },
+        ambasS:   { nome: 'Ambas Sim', cor: '#38bdf8', ativo: false },
+        ambasN:   { nome: 'Ambas Não', cor: '#f59e0b', ativo: false },
+        empateHT: { nome: 'Empate HT', cor: '#a855f7', ativo: false }
+    };
+
+    let velasChart   = null;
+    const velasSeries = {};
+    let velasNumPoints = 60;
+    let velasPontos     = {};   // time -> { label, ft, ht } pra tooltip/eixo
+    let velasVisible    = false;
+
+    const $v = id => document.getElementById(id);
+
+    /* ── regra de cada mercado (mesma lógica do Caramelo, adaptada
+       ao formato { data, hora, minuto, ft, ht } da sua API) ── */
+    function bateMercadoVelas(m, key){
+        let ft = [0, 0];
+        if (m.ft && m.ft.includes(' x ')) ft = m.ft.split(' x ').map(Number);
+        const htParts = parseHtParts(m.ht);
+
+        switch (key){
+            case 'over25':   return (ft[0] + ft[1]) > 2.5;
+            case 'under25':  return (ft[0] + ft[1]) < 2.5;
+            case 'ambasS':   return ft[0] > 0 && ft[1] > 0;
+            case 'ambasN':   return !(ft[0] > 0 && ft[1] > 0);
+            case 'empateHT': return !!(htParts && htParts[0] === htParts[1]);
+            default: return false;
+        }
+    }
+
+    /* ── transforma jogos em velas: cada jogo soma +1 (bateu) ou -1
+       (não bateu) no acumulado do mercado; open/close = acumulado
+       antes/depois, high/low = maior/menor entre os dois ── */
+    function buildVelasData(rawData){
+        const sorted = [...rawData].sort((a, b) => {
+            const dA = new Date(a.data), dB = new Date(b.data);
+            if (dA.getTime() !== dB.getTime()) return dA - dB;
+            if (a.hora !== b.hora) return a.hora - b.hora;
+            return a.minuto - b.minuto;
+        });
+        const sliced = sorted.slice(-velasNumPoints);
+
+        const acumulado = {}, candles = {};
+        Object.keys(VELAS_MERCADOS).forEach(k => { acumulado[k] = 0; candles[k] = []; });
+
+        const pontos = {};
+        sliced.forEach((m, i) => {
+            const time = i + 1;
+            pontos[time] = {
+                label: `${String(m.hora).padStart(2, '0')}:${String(m.minuto).padStart(2, '0')}`,
+                ft: m.ft || '-',
+                ht: m.ht || '-'
+            };
+            Object.keys(VELAS_MERCADOS).forEach(key => {
+                const hit   = bateMercadoVelas(m, key);
+                const open  = acumulado[key];
+                const close = open + (hit ? 1 : -1);
+                acumulado[key] = close;
+                candles[key].push({
+                    time, open, close,
+                    high: Math.max(open, close),
+                    low:  Math.min(open, close)
+                });
+            });
+        });
+
+        velasPontos = pontos;
+        return candles;
+    }
+
+    function criarVelasChart(){
+        const el = $v('velasChartContainer');
+        if (!el || !window.LightweightCharts) return false;
+        if (velasChart) return true;
+
+        velasChart = window.LightweightCharts.createChart(el, {
+            layout: { background: { color: '#151821' }, textColor: '#cbd5e1' },
+            localization: { timeFormatter: t => (velasPontos[t]?.label) || String(t) },
+            grid: {
+                vertLines: { color: 'rgba(255,255,255,.045)' },
+                horzLines: { color: 'rgba(255,255,255,.045)' }
+            },
+            rightPriceScale: { borderVisible: false },
+            timeScale: {
+                borderColor: 'rgba(31,204,89,.25)',
+                rightOffset: 2,
+                barSpacing: 14,
+                rightBarStaysOnScroll: true,
+                tickMarkFormatter: t => (velasPontos[t]?.label) || ''
+            },
+            crosshair: { mode: window.LightweightCharts.CrosshairMode.Normal },
+            handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+            handleScale:  { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
+        });
+
+        Object.entries(VELAS_MERCADOS).forEach(([key, cfg]) => {
+            const options = {
+                upColor: cfg.cor, downColor: '#ef4444',
+                borderUpColor: cfg.cor, borderDownColor: '#ef4444',
+                wickUpColor: cfg.cor, wickDownColor: '#ef4444',
+                priceLineVisible: false, lastValueVisible: false
+            };
+            velasSeries[key] = velasChart.addSeries
+                ? velasChart.addSeries(window.LightweightCharts.CandlestickSeries, options)
+                : velasChart.addCandlestickSeries(options);
+        });
+
+        velasChart.subscribeCrosshairMove(renderVelasTooltip);
+        return true;
+    }
+
+    function renderVelasTooltip(param){
+        const el = $v('velasTooltip');
+        const container = $v('velasChartContainer');
+        if (!el || !param || !param.point || !container || param.time == null){
+            if (el) el.style.display = 'none';
+            return;
+        }
+        const info = velasPontos[param.time];
+        if (!info){ el.style.display = 'none'; return; }
+
+        el.innerHTML = `
+            <div class="velas-tt-placar">${info.ft}</div>
+            <div class="velas-tt-sub">HT: ${info.ht}</div>
+            <div class="velas-tt-hora">${info.label}</div>
+        `;
+        const rect = container.getBoundingClientRect();
+        let left = param.point.x + 14, top = param.point.y + 14;
+        if (left + 180 > rect.width)  left = param.point.x - 194;
+        if (top  + 70  > rect.height) top  = param.point.y - 84;
+        el.style.left = `${Math.max(6, left)}px`;
+        el.style.top  = `${Math.max(6, top)}px`;
+        el.style.display = 'block';
+    }
+
+    function renderVelasSeries(candles){
+        Object.keys(VELAS_MERCADOS).forEach(key => {
+            velasSeries[key]?.setData(VELAS_MERCADOS[key].ativo ? (candles[key] || []) : []);
+        });
+    }
+
+    function syncVelasLegend(){
+        document.querySelectorAll('[data-velas-mercado]').forEach(btn => {
+            const key = btn.dataset.velasMercado;
+            btn.classList.toggle('selected', !!VELAS_MERCADOS[key]?.ativo);
+        });
+    }
+
+    function resizeVelasChart(){
+        const el = $v('velasChartContainer');
+        if (!velasChart || !el) return;
+        const rect = el.getBoundingClientRect();
+        velasChart.applyOptions({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+    }
+
+    function updateVelas(){
+        if (!velasVisible) return;
+        const ts = new Date().getTime();
+        fetch(ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${ts}`)
+            .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(data => {
+                if (!criarVelasChart()) return;
+                const candles = buildVelasData(data);
+                renderVelasSeries(candles);
+            })
+            .catch(e => console.error('Erro Velas:', e));
+    }
+
+    /* ── chamadas públicas pra plugar no seu switchTab() ── */
+    function abrirVelas(){
+        velasVisible = true;
+        criarVelasChart();
+        requestAnimationFrame(() => { resizeVelasChart(); updateVelas(); });
+    }
+    function fecharVelas(){ velasVisible = false; }
+
+    window.abrirPainelVelas  = abrirVelas;
+    window.fecharPainelVelas = fecharVelas;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-velas-mercado]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.velasMercado;
+                if (!VELAS_MERCADOS[key]) return;
+                VELAS_MERCADOS[key].ativo = !VELAS_MERCADOS[key].ativo;
+                syncVelasLegend();
+                if (velasVisible) updateVelas();
+            });
+        });
+
+        $v('velasPointsSelector')?.addEventListener('change', e => {
+            velasNumPoints = parseInt(e.target.value, 10);
+            if (velasVisible) updateVelas();
+        });
+
+        window.addEventListener('resize', resizeVelasChart);
+        syncVelasLegend();
+    });
+
+    setInterval(updateVelas, 3000);
+})();
+</script>
 
 <script>
 const minutosFixos = [
