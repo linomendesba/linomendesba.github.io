@@ -1452,6 +1452,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!el || !window.LightweightCharts) return false;
                 if (velasChart) return true;
 
+                // se o acordeão ainda estiver fechado, o container mede
+                // 0 de altura — criar o chart nesse estado deixa o canvas
+                // corrompido pra sempre (grade renderiza, velas não).
+                // Espera o acordeão abrir de verdade.
+                const rectInicial = el.getBoundingClientRect();
+                if (rectInicial.width < 10 || rectInicial.height < 10) return false;
+
                 velasChart = window.LightweightCharts.createChart(el, {
                     layout: { background: { color: '#151821' }, textColor: '#cbd5e1' },
                     localization: { timeFormatter: t => (velasPontos[t]?.label) || String(t) },
@@ -1588,7 +1595,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 window.addEventListener('resize', resizeVelasChart);
                 syncVelasLegend();
-                criarVelasChart();
+
+                // além do retry via setInterval, tenta na hora que o
+                // usuário clica pra abrir o acordeão (sem depender de
+                // esperar até 3s pro primeiro desenho)
+                const btnAcordeaoVelas = $v('painelVelas')?.closest('.accordion-item')?.querySelector('.accordion-button');
+                btnAcordeaoVelas?.addEventListener('click', () => {
+                    setTimeout(updateVelas, 350);
+                });
+
                 updateVelas();
             });
 
