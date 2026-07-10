@@ -1472,6 +1472,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     handleScale:  { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
                 });
 
+                console.log('[velas] LightweightCharts version:', window.LightweightCharts.version, '| addSeries existe?', !!velasChart.addSeries);
+
                 Object.entries(VELAS_MERCADOS).forEach(([key, cfg]) => {
                     const options = {
                         upColor: cfg.cor, downColor: '#ef4444',
@@ -1479,10 +1481,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         wickUpColor: cfg.cor, wickDownColor: '#ef4444',
                         priceLineVisible: false, lastValueVisible: false
                     };
-                    velasSeries[key] = velasChart.addSeries
-                        ? velasChart.addSeries(window.LightweightCharts.CandlestickSeries, options)
-                        : velasChart.addCandlestickSeries(options);
+                    try {
+                        velasSeries[key] = (velasChart.addSeries && window.LightweightCharts.CandlestickSeries)
+                            ? velasChart.addSeries(window.LightweightCharts.CandlestickSeries, options)
+                            : velasChart.addCandlestickSeries(options);
+                    } catch (err) {
+                        console.error('[velas] erro criando série', key, err);
+                    }
                 });
+                console.log('[velas] séries criadas:', Object.keys(velasSeries));
 
                 velasChart.subscribeCrosshairMove(renderVelasTooltip);
 
@@ -1521,8 +1528,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             function renderVelasSeries(candles){
+                console.log('[velas] candles over25 (amostra):', candles.over25?.slice(0, 5), '| total:', candles.over25?.length);
                 Object.keys(VELAS_MERCADOS).forEach(key => {
-                    velasSeries[key]?.setData(VELAS_MERCADOS[key].ativo ? (candles[key] || []) : []);
+                    const dataToSet = VELAS_MERCADOS[key].ativo ? (candles[key] || []) : [];
+                    try {
+                        velasSeries[key]?.setData(dataToSet);
+                    } catch (err) {
+                        console.error('[velas] erro no setData de', key, err, dataToSet.slice(0,3));
+                    }
                 });
                 // sem isso o timeScale pode continuar "olhando" pra um
                 // intervalo onde não existe vela nenhuma
