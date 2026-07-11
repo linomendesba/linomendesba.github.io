@@ -25,7 +25,7 @@
 
         <div class="grafico-trading-left">
             <div class="grafico-trading-title">🕯️ Gráfico Velas</div>
-            <div class="grafico-trading-sub" id="graficoSub">Acertou sobe • Errou desce</div>
+            <div class="grafico-trading-sub" id="graficoSub">Comparação por blocos de 20 jogos</div>
         </div>
 
         <div id="graficoTradingLegendas" class="grafico-trading-legendas">
@@ -86,7 +86,7 @@
     const log = (msg) => { statusEl.innerHTML = msg; console.log('[velas]', msg); };
     const $ = (id) => document.getElementById(id);
 
-    document.getElementById('graficoSub').textContent = 'Acertou sobe • Errou desce — ' + LIGA;
+    document.getElementById('graficoSub').textContent = 'Comparação por blocos de 20 jogos — ' + LIGA;
 
     function parseHtParts(htStr){
         if (!htStr || htStr === 'OUT') return null;
@@ -169,7 +169,9 @@
         }
     }
 
-    // ---------- CONSTRÓI SÉRIES (tempo = índice sequencial, igual ao Caramelo) ----------
+    // ---------- CONSTRÓI SÉRIES — lógica real do grafico-principal-novo do Caramelo ----------
+    // Compara blocos de 20 jogos posição a posição: virou acerto = +5, virou erro = -5,
+    // manteve igual (sempre acertou ou sempre errou) = doji (corpo achatado, colorido).
     function buildSeriesData(rawData){
         const sorted = [...rawData].sort((a, b) => {
             const dA = new Date(a.data), dB = new Date(b.data);
@@ -178,53 +180,90 @@
             return a.minuto - b.minuto;
         });
         const sliced = sorted.slice(-velasNumPoints); // cronológico, mais antigo → mais novo
+        const usadosDesc = sliced.slice().reverse();  // mais novo → mais antigo (formato usado pelo Caramelo)
 
-        const acumulado = {}, data = {}, candles = {};
-        Object.keys(mercados).forEach(k => { acumulado[k] = 0; data[k] = []; candles[k] = []; ultimoValorPorMercado[k] = 0; });
+        const data = {}, candles = {};
+        Object.keys(mercados).forEach(k => { data[k] = []; candles[k] = []; ultimoValorPorMercado[k] = 0; });
         pontosAtuais = {};
 
-        sliced.forEach((m, idx) => {
-            const time = idx + 1;
+        const BLOCO = 20; // tamanho do bloco de comparação, igual ao grafico-principal-novo
+        const totalBlocos = Math.floor(usadosDesc.length / BLOCO);
 
-            let ft = [0, 0];
-            if (m.ft && m.ft.includes(' x ')) ft = m.ft.split(' x ').map(Number);
-            const totalGols = (Number.isFinite(ft[0]) && Number.isFinite(ft[1])) ? (ft[0] + ft[1]) : 0;
+        if (totalBlocos < 2){
+            dataPorMercado = data;
+            candlePorMercado = candles;
+            log(`⚠️ selecione pelo menos 40 jogos (esse gráfico compara blocos de ${BLOCO} jogos, precisa de no mínimo 2 blocos).`);
+            return;
+        }
 
-            pontosAtuais[time] = {
-                labelTempo: `${String(m.hora).padStart(2, '0')}:${String(m.minuto).padStart(2, '0')}`,
-                jogo: `${m.time_a || ''} x ${m.time_b || ''}`,
-                ft: m.ft || '-',
-                ht: m.ht || '-'
-            };
+        const blocos = [];
+        for (let i = 0; i < totalBlocos; i++) blocos.push(usadosDesc.slice(i * BLOCO, i * BLOCO + BLOCO));
 
-            Object.keys(mercados).forEach(key => {
-                const hit  = bateMercado(m, key);
-                const peso = totalGols; // tamanho do corpo proporcional aos gols do jogo — 0x0 vira doji
-                const dir  = hit ? 1 : -1;
-                const delta = dir * peso;
+        const blocoBase = blocos[blocos.length - 1]; // bloco mais antigo = ponto de partida da curva
 
-                const open  = acumulado[key];
-                const close = open + delta;
-                acumulado[key] = close;
-                ultimoValorPorMercado[key] = close;
+        // sequência de jogos de referência — igual pra todos os mercados, usada no tooltip
+        const refs = [blocoBase[BLOCO - 1] || blocoBase[blocoBase.length - 1] || null];
+        for (let b = totalBlocos - 2; b >= 0; b--) {
+            for (let i = BLOCO - 1; i >= 0; i--) refs.push(blocos[b][i] || null);
+        }
+
+        Object.keys(mercados).forEach(key => {
+            const totalCond = blocoBase.filter(m => bateMercado(m, key)).length;
+            const pctInicial = blocoBase.length ? (totalCond / blocoBase.length) * 100 : 0;
+
+            const pontos = [pctInicial];
+            const cores = ['flat'];
+
+            for (let b = totalBlocos - 2; b >= 0; b--) {
+                for (let i = BLOCO - 1; i >= 0; i--) {
+                    const atual = blocos[b][i];
+                    const ref   = blocos[b + 1][i];
+
+                    if (!atual || !ref) { pontos.push(pontos[pontos.length - 1]); cores.push('flat'); continue; }
+
+                    const a = bateMercado(atual, key);
+                    const r = bateMercado(ref, key);
+                    let delta = 0;
+                    if (a && !r) delta = 5;       // virou acerto -> sobe
+                    else if (!a && r) delta = -5; // virou erro -> desce
+
+                    pontos.push(pontos[pontos.length - 1] + delta);
+
+                    if (a && r) cores.push('#4CAF50');        // sempre acertou -> doji verde
+                    else if (!a && !r) cores.push('#FF3B30'); // sempre errou -> doji vermelho
+                    else cores.push('flat');                  // mudou -> usa cor padrão de alta/baixa da vela
+                }
+            }
+
+            pontos.forEach((close, idx) => {
+                const time = idx + 1;
+                const open = idx > 0 ? pontos[idx - 1] : close;
+                const corpo = close - open;
+                const pavio = Math.max(0.35, Math.abs(corpo) * 0.35);
 
                 data[key].push({ time, value: close });
 
-                const pavio = Math.max(0.35, Math.abs(delta) * 0.35);
                 const item = {
                     time, open, close,
                     high: Math.max(open, close) + pavio,
                     low:  Math.min(open, close) - pavio
                 };
-
-                if (delta === 0) {
-                    // doji (0x0) — colore pelo resultado do mercado pra continuar visível
-                    const cor = hit ? mercados[key].cor : '#ef4444';
-                    item.color = cor; item.borderColor = cor; item.wickColor = cor;
-                }
-
+                const cor = cores[idx];
+                if (cor && cor !== 'flat') { item.color = cor; item.borderColor = cor; item.wickColor = cor; }
                 candles[key].push(item);
             });
+
+            ultimoValorPorMercado[key] = pontos[pontos.length - 1] ?? 0;
+        });
+
+        refs.forEach((m, idx) => {
+            if (!m) return;
+            pontosAtuais[idx + 1] = {
+                labelTempo: `${String(m.hora).padStart(2, '0')}:${String(m.minuto).padStart(2, '0')}`,
+                jogo: `${m.time_a || ''} x ${m.time_b || ''}`,
+                ft: m.ft || '-',
+                ht: m.ht || '-'
+            };
         });
 
         dataPorMercado = data;
