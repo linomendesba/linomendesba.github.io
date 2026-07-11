@@ -34,6 +34,7 @@
             <button type="button" data-gt-market="ambasS" class="gt-legend">Ambas S</button>
             <button type="button" data-gt-market="ambasN" class="gt-legend">Ambas N</button>
             <button type="button" data-gt-market="empateHT" class="gt-legend">Empate HT</button>
+            <button type="button" data-gt-market="totalGols" class="gt-legend" style="border-color:rgba(255,255,255,.35)">Total Gols (FT)</button>
         </div>
 
         <div class="grafico-trading-actions">
@@ -103,7 +104,8 @@
         under25:  { nome: 'Under 2.5', cor: '#ef4444', ativo: false },
         ambasS:   { nome: 'Ambas S',   cor: '#38bdf8', ativo: false },
         ambasN:   { nome: 'Ambas N',   cor: '#f59e0b', ativo: false },
-        empateHT: { nome: 'Empate HT', cor: '#a855f7', ativo: false }
+        empateHT: { nome: 'Empate HT', cor: '#a855f7', ativo: false },
+        totalGols: { nome: 'Total Gols (FT)', cor: '#ffffff', ativo: false }
     };
 
     let chart = null;
@@ -207,31 +209,61 @@
             for (let i = BLOCO - 1; i >= 0; i--) refs.push(blocos[b][i] || null);
         }
 
+        function totalGolsFt(m){
+            let ft = [0, 0];
+            if (m?.ft && m.ft.includes(' x ')) ft = m.ft.split(' x ').map(Number);
+            return (Number.isFinite(ft[0]) && Number.isFinite(ft[1])) ? (ft[0] + ft[1]) : 0;
+        }
+
         Object.keys(mercados).forEach(key => {
-            const totalCond = blocoBase.filter(m => bateMercado(m, key)).length;
-            const pctInicial = blocoBase.length ? (totalCond / blocoBase.length) * 100 : 0;
+            let pontos, cores;
 
-            const pontos = [pctInicial];
-            const cores = ['flat'];
+            if (key === 'totalGols') {
+                // indicador de valor bruto (não é acerto/erro) — soma real de gols, igual ao Caramelo
+                const mediaGolsFt = blocoBase.length
+                    ? blocoBase.reduce((s, m) => s + totalGolsFt(m), 0) / blocoBase.length
+                    : 0;
+                pontos = [mediaGolsFt * 20];
+                cores = ['flat'];
 
-            for (let b = totalBlocos - 2; b >= 0; b--) {
-                for (let i = BLOCO - 1; i >= 0; i--) {
-                    const atual = blocos[b][i];
-                    const ref   = blocos[b + 1][i];
+                for (let b = totalBlocos - 2; b >= 0; b--) {
+                    for (let i = BLOCO - 1; i >= 0; i--) {
+                        const atual = blocos[b][i];
+                        const ref   = blocos[b + 1][i];
 
-                    if (!atual || !ref) { pontos.push(pontos[pontos.length - 1]); cores.push('flat'); continue; }
+                        if (!atual || !ref) { pontos.push(pontos[pontos.length - 1]); cores.push('flat'); continue; }
 
-                    const a = bateMercado(atual, key);
-                    const r = bateMercado(ref, key);
-                    let delta = 0;
-                    if (a && !r) delta = 5;       // virou acerto -> sobe
-                    else if (!a && r) delta = -5; // virou erro -> desce
+                        const deltaGols = totalGolsFt(atual) - totalGolsFt(ref);
+                        pontos.push(pontos[pontos.length - 1] + deltaGols);
+                        cores.push(deltaGols > 0 ? '#4CAF50' : deltaGols < 0 ? '#FF3B30' : 'flat');
+                    }
+                }
+            } else {
+                const totalCond = blocoBase.filter(m => bateMercado(m, key)).length;
+                const pctInicial = blocoBase.length ? (totalCond / blocoBase.length) * 100 : 0;
 
-                    pontos.push(pontos[pontos.length - 1] + delta);
+                pontos = [pctInicial];
+                cores = ['flat'];
 
-                    if (a && r) cores.push('#4CAF50');        // sempre acertou -> doji verde
-                    else if (!a && !r) cores.push('#FF3B30'); // sempre errou -> doji vermelho
-                    else cores.push('flat');                  // mudou -> usa cor padrão de alta/baixa da vela
+                for (let b = totalBlocos - 2; b >= 0; b--) {
+                    for (let i = BLOCO - 1; i >= 0; i--) {
+                        const atual = blocos[b][i];
+                        const ref   = blocos[b + 1][i];
+
+                        if (!atual || !ref) { pontos.push(pontos[pontos.length - 1]); cores.push('flat'); continue; }
+
+                        const a = bateMercado(atual, key);
+                        const r = bateMercado(ref, key);
+                        let delta = 0;
+                        if (a && !r) delta = 5;       // virou acerto -> sobe
+                        else if (!a && r) delta = -5; // virou erro -> desce
+
+                        pontos.push(pontos[pontos.length - 1] + delta);
+
+                        if (a && r) cores.push('#4CAF50');        // sempre acertou -> doji verde
+                        else if (!a && !r) cores.push('#FF3B30'); // sempre errou -> doji vermelho
+                        else cores.push('flat');                  // mudou -> usa cor padrão de alta/baixa da vela
+                    }
                 }
             }
 
