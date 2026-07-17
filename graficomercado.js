@@ -812,7 +812,7 @@ const rotulosPlugin = {
  
             const color = ds.borderColor || '#fff';
             ctx.save();
-            ctx.font = "600 9.5px 'Inter',Arial,sans-serif";
+            ctx.font = 'bold 9px Arial,sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'bottom';
             ctx.fillStyle = color;
@@ -844,15 +844,14 @@ const fibonacciLinesPlugin = {
         if (!showFibonacciLines) return;
         const ctx = chart.ctx, yAxis = chart.scales.y; if (!yAxis) return;
         const fibLevels = [0,23.6,38.2,50,61.8,100];
-        const fibColor  = 'rgba(167,139,250,0.55)', fibText = 'rgba(196,181,253,0.9)';
         const {left,right} = chart.chartArea, range = yAxis.max - yAxis.min;
         ctx.save();
         fibLevels.forEach((lvl,i) => {
             const y = yAxis.getPixelForValue(yAxis.min + (lvl/100)*range);
-            ctx.beginPath(); ctx.setLineDash([6,4]); ctx.moveTo(left,y); ctx.lineTo(right,y);
-            ctx.strokeStyle = fibColor; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.setLineDash([5,5]); ctx.moveTo(left,y); ctx.lineTo(right,y);
+            ctx.strokeStyle = 'rgba(0,255,0,0.5)'; ctx.lineWidth = 1;
             ctx.stroke(); ctx.setLineDash([]);
-            ctx.fillStyle = fibText; ctx.font = "10px 'Inter',Arial,sans-serif";
+            ctx.fillStyle = 'rgba(0,255,0,0.85)'; ctx.font = '10px Arial';
             ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
             ctx.fillText(`${fibLevels[i]}%`, right+52, y-(i===0?-8:0));
         });
@@ -899,14 +898,13 @@ const linhaAtualPlugin = {
             ctx.stroke(); ctx.setLineDash([]);
             const isGols = label==='Gols FT'||label==='Gols HT'||label==='Gols Individual'||label==='Gols FT Casa'||label==='Gols FT Fora';
             const text = isGols ? String(Math.round(yVal)) : yVal.toFixed(1);
-            ctx.font = "600 10.5px 'Inter',Arial,sans-serif";
+            ctx.font = 'bold 10px Arial,sans-serif';
             ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
             const bw = Math.ceil(ctx.measureText(text).width)+padX*2;
-            const bx = right+4, by = badgeY-BAD_H/2, br = 4;
-            ctx.fillStyle = 'rgba(13,16,26,0.96)';
+            const bx = right+4, by = badgeY-BAD_H/2;
+            ctx.fillStyle = 'rgba(10,12,20,0.95)';
             ctx.strokeStyle = color; ctx.lineWidth = 1.2;
-            ctx.beginPath(); ctx.roundRect(bx,by,bw,BAD_H,br);
-            ctx.fill(); ctx.stroke();
+            ctx.fillRect(bx,by,bw,BAD_H); ctx.strokeRect(bx,by,bw,BAD_H);
             ctx.fillStyle = color;
             ctx.fillText(text, bx+padX, badgeY);
             ctx.restore();
@@ -1027,11 +1025,10 @@ const linhaDraggablePlugin = {
             ctx.beginPath();ctx.moveTo(left,yPx);ctx.lineTo(right,yPx);ctx.stroke();ctx.setLineDash([]);
             // Badge sem %
             const text = l.y.toFixed(1);
-            ctx.font="600 10.5px 'Inter',Arial,sans-serif";ctx.textBaseline='middle';ctx.textAlign='left';
-            const bw=Math.ceil(ctx.measureText(text).width)+PAD*2,bx=right+4,by=yPx-BH/2,br=4;
-            ctx.fillStyle='rgba(13,16,26,0.96)';
-            ctx.strokeStyle=l.color||'#1fcc59';ctx.lineWidth=isSel?1.5:1;
-            ctx.beginPath();ctx.roundRect(bx,by,bw,BH,br);ctx.fill();ctx.stroke();
+            ctx.font='bold 10px Arial,sans-serif';ctx.textBaseline='middle';ctx.textAlign='left';
+            const bw=Math.ceil(ctx.measureText(text).width)+PAD*2,bx=right+4,by=yPx-BH/2;
+            ctx.fillStyle='rgba(10,12,20,0.95)';ctx.fillRect(bx,by,bw,BH);
+            ctx.strokeStyle=l.color||'#1fcc59';ctx.lineWidth=isSel?1.5:1;ctx.strokeRect(bx,by,bw,BH);
             ctx.fillStyle=l.color||'#1fcc59';ctx.fillText(text,bx+PAD,yPx);
             ctx.restore();
         });
@@ -1042,12 +1039,11 @@ const linhaDraggablePlugin = {
    CRIAÇÃO DO GRÁFICO
 ═══════════════════════════════════════════════════════════════════ */
 Chart.defaults.animation.duration = 0;
-Chart.defaults.font.family = "'Inter','Segoe UI',system-ui,-apple-system,Arial,sans-serif";
  
 function createStatsChart(ctx, labels, data, league) {
     const activeSetup = _getActiveSetup();
     const datasets = [];
-    const shortColor = '#38BDF8', longColor = '#F59E0B';
+    const shortColor = '#00FF00', longColor = '#FF0000';
  
     Object.entries(labelToKey).forEach(([label]) => {
         const key   = labelToKey[label];
@@ -1057,16 +1053,14 @@ function createStatsChart(ctx, labels, data, league) {
             label, data:data[key],
             borderColor:color, backgroundColor:color,
             pointBackgroundColor:data[key+'Colors'],
-            pointBorderColor:'rgba(8,11,20,0.9)', pointBorderWidth:1.5,
-            borderWidth:2.5, pointRadius:3.5, pointHoverRadius:6, pointHoverBorderWidth:2,
-            tension:0.3, cubicInterpolationMode:'monotone',
-            borderCapStyle:'round', borderJoinStyle:'round',
+            pointBorderColor:'rgba(0,0,0,0)', pointBorderWidth:0,
+            borderWidth:2, pointRadius:3, pointHoverRadius:4,
             fill:false,
             yAxisID: isGolsInd ? 'y2' : 'y',
             hidden:!statsChartVisibleDatasets[label]
         });
-        datasets.push({label:label+' - Short MA',data:data[key+'Short'],borderColor:shortColor,backgroundColor:'transparent',tension:0.3,cubicInterpolationMode:'monotone',borderWidth:1.75,borderDash:[4,3],pointRadius:0,fill:false,yAxisID:isGolsInd?'y2':'y',hidden:!showMovingAverages||!statsChartVisibleDatasets[label]});
-        datasets.push({label:label+' - Long MA', data:data[key+'Long'], borderColor:longColor, backgroundColor:'transparent',tension:0.3,cubicInterpolationMode:'monotone',borderWidth:1.75,borderDash:[2,3],pointRadius:0,fill:false,yAxisID:isGolsInd?'y2':'y',hidden:!showMovingAverages||!statsChartVisibleDatasets[label]});
+        datasets.push({label:label+' - Short MA',data:data[key+'Short'],borderColor:shortColor,backgroundColor:'transparent',tension:0,borderWidth:2,pointRadius:0,fill:false,yAxisID:isGolsInd?'y2':'y',hidden:!showMovingAverages||!statsChartVisibleDatasets[label]});
+        datasets.push({label:label+' - Long MA', data:data[key+'Long'], borderColor:longColor, backgroundColor:'transparent',tension:0,borderWidth:2,pointRadius:0,fill:false,yAxisID:isGolsInd?'y2':'y',hidden:!showMovingAverages||!statsChartVisibleDatasets[label]});
     });
  
     return new Chart(ctx, {
@@ -1077,12 +1071,10 @@ function createStatsChart(ctx, labels, data, league) {
             plugins:{
                 legend:{display:false},
                 tooltip:{
-                    enabled:true, backgroundColor:'rgba(15,18,28,0.92)',
-                    titleColor:'#7DE3D6', titleFont:{weight:'600',size:12},
-                    bodyColor:'#E5E7EB', bodyFont:{size:11.5},
-                    borderColor:'rgba(125,227,214,0.35)', borderWidth:1,
-                    cornerRadius:8, displayColors:true, boxPadding:4,
-                    caretPadding:26, padding:12,
+                    enabled:true, backgroundColor:'rgba(0,0,0,0.8)',
+                    titleColor:'#1fad8b', bodyColor:'#e0e0e0',
+                    borderColor:'#1fad8b', borderWidth:1,
+                    caretPadding:26, padding:10,
                     callbacks:{
                         title:items=>{const sd=chartData[league];const m=sd[Math.max(0,sd.length-numPoints)+items[0].dataIndex];return m?`${m.hora}:${m.minuto.toString().padStart(2,'0')}`:'';},
                         label:ctx=>{const v=ctx.parsed.y;if(v===null)return '';const isGols=ctx.dataset.label==='Gols FT'||ctx.dataset.label==='Gols HT'||ctx.dataset.label==='Gols Individual'||ctx.dataset.label==='Gols FT Casa'||ctx.dataset.label==='Gols FT Fora';return isGols?`${ctx.dataset.label}: ${v} gols`:`${ctx.dataset.label}: ${v.toFixed(2)}%`;},
@@ -1093,8 +1085,8 @@ function createStatsChart(ctx, labels, data, league) {
             },
             scales:{
                 x:{ticks:{display:false},grid:{display:false}},
-                y:{beginAtZero:false,ticks:{color:'#8B92A8',font:{size:11},stepSize:5,padding:8},grid:{color:'rgba(148,163,184,0.09)',lineWidth:1,drawTicks:false},border:{display:false},afterFit:s=>{s.paddingTop=20;}},
-                y2:{position:'right',beginAtZero:true,min:0,max:10,ticks:{color:'rgba(148,163,184,0.35)',stepSize:1,precision:0},grid:{display:false},border:{display:false},afterFit:s=>{s.width=0;}}
+                y:{beginAtZero:false,ticks:{color:'#b0b0b0',stepSize:5},grid:{color:'rgba(255,255,255,0.3)',lineWidth:0.5},afterFit:s=>{s.paddingTop=20;}},
+                y2:{position:'right',beginAtZero:true,min:0,max:10,ticks:{color:'rgba(255,255,255,0.35)',stepSize:1,precision:0},grid:{display:false},afterFit:s=>{s.width=0;}}
             }
         },
         plugins:[fibonacciLinesPlugin,linhaAtualPlugin,linhaDraggablePlugin,rotulosPlugin]
@@ -1170,7 +1162,7 @@ function processApiData(data, league) {
     const allData=[golsFT,golsHT,casaVence,empate,foraVence,ambasSim,ambasNao,over05,over15,over25,over35,over5,under05,under15,under25,under35,gol0,gol1,gol2,gol3,gol4,gol5,gol2t0,gol2t1,gol2t2,gol2t3,gol2t4,casa0,casa1,casa2,casa3,casa4,fora0,fora1,fora2,fora3,fora4,placar0x0,placar1x0,placar2x0,placar3x0,placar2x1,placar3x1,placar3x2,placar4x0,placar4x1,placar0x1,placar0x2,placar1x2,placar0x3,placar1x3,placar2x3,placar0x4,placar1x4,placarHT0x0,placarHT0x1,placarHT1x0,placarHT1x1,placarHT0x2,placarHT2x0,placarHTOut,overHT,underHT,casaHT,empateHT,foraHT,viradinha,par,impar,margem1,margem2,margem3,empateGols];
     const allColors=[golsFTColors,golsHTColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,over05Colors,over15Colors,over25Colors,over35Colors,over5Colors,under05Colors,under15Colors,under25Colors,under35Colors,gol0Colors,gol1Colors,gol2Colors,gol3Colors,gol4Colors,gol5Colors,gol2t0Colors,gol2t1Colors,gol2t2Colors,gol2t3Colors,gol2t4Colors,casa0Colors,casa1Colors,casa2Colors,casa3Colors,casa4Colors,fora0Colors,fora1Colors,fora2Colors,fora3Colors,fora4Colors,placar0x0Colors,placar1x0Colors,placar2x0Colors,placar3x0Colors,placar2x1Colors,placar3x1Colors,placar3x2Colors,placar4x0Colors,placar4x1Colors,placar0x1Colors,placar0x2Colors,placar1x2Colors,placar0x3Colors,placar1x3Colors,placar2x3Colors,placar0x4Colors,placar1x4Colors,placarHT0x0Colors,placarHT0x1Colors,placarHT1x0Colors,placarHT1x1Colors,placarHT0x2Colors,placarHT2x0Colors,placarHTOutColors,overHTColors,underHTColors,casaHTColors,empateHTColors,foraHTColors,viradinhaColors,parColors,imparColors,margem1Colors,margem2Colors,margem3Colors,empateGolsColors];
  
-    const green='#2DD4BF',red='#FB7185';
+    const green='#00FF00',red='#FF0000';
     // janela em minutos reais: averagePoints jogos * 3 min por jogo
     const janelaMin = averagePoints * 3;
     // só exibe os últimos numPoints jogos
