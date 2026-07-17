@@ -793,26 +793,6 @@ function parseHtParts(htStr) {
 }
  
 /* ═══════════════════════════════════════════════════════════════════
-   PLUGIN — BRILHO (GLOW) NAS LINHAS
-   Dá um efeito neon sutil às linhas visíveis, sem alterar dados.
-═══════════════════════════════════════════════════════════════════ */
-const lineGlowPlugin = {
-    id: 'lineGlow',
-    beforeDatasetDraw(chart, args) {
-        const ds = args.meta.dataset;
-        if (!ds || !chart.isDatasetVisible(args.index)) return;
-        const dsCfg = chart.data.datasets[args.index];
-        if (dsCfg.label && dsCfg.label.includes(' MA')) return; // sem glow nas médias
-        chart.ctx.save();
-        chart.ctx.shadowColor = dsCfg.borderColor || 'rgba(255,255,255,0.4)';
-        chart.ctx.shadowBlur = 8;
-    },
-    afterDatasetDraw(chart) {
-        chart.ctx.restore();
-    }
-};
-
-/* ═══════════════════════════════════════════════════════════════════
    PLUGIN — RÓTULOS ACIMA DOS PONTOS
    Exibe só o número (sem %) acima de cada ponto visível.
    Ativo apenas quando showLabels === true.
@@ -1117,7 +1097,7 @@ function createStatsChart(ctx, labels, data, league) {
                 y2:{position:'right',beginAtZero:true,min:0,max:10,ticks:{color:'rgba(148,163,184,0.35)',stepSize:1,precision:0},grid:{display:false},border:{display:false},afterFit:s=>{s.width=0;}}
             }
         },
-        plugins:[lineGlowPlugin,fibonacciLinesPlugin,linhaAtualPlugin,linhaDraggablePlugin,rotulosPlugin]
+        plugins:[fibonacciLinesPlugin,linhaAtualPlugin,linhaDraggablePlugin,rotulosPlugin]
     });
 }
  
