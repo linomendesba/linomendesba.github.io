@@ -1706,22 +1706,36 @@ document.getElementById('labelsToggle').addEventListener('change',function(){
     leagues.forEach(l=>{if(chartInstances[l])chartInstances[l].update();});
     _captureControlsToSetup(_getActiveSetup());
 });
-document.getElementById('btnLinhaTools').addEventListener('click',e=>{
-    e.stopPropagation();
-    const p=document.getElementById('linhaToolsPanel');
-    p.style.display=p.style.display==='none'?'block':'none';
-});
-document.getElementById('btnFibTools').addEventListener('click',e=>{
-    e.stopPropagation();
-    const p=document.getElementById('fibToolsPanel');
-    p.style.display=p.style.display==='none'?'block':'none';
-});
-document.addEventListener('click',()=>{
-    const p1=document.getElementById('linhaToolsPanel'); if(p1)p1.style.display='none';
-    const p2=document.getElementById('fibToolsPanel');   if(p2)p2.style.display='none';
-});
-document.getElementById('linhaToolsPanel').addEventListener('click',e=>e.stopPropagation());
-document.getElementById('fibToolsPanel').addEventListener('click',e=>e.stopPropagation());
+(function(){
+    const btnLinha  = document.getElementById('btnLinhaTools');
+    const pLinha    = document.getElementById('linhaToolsPanel');
+    const btnFib    = document.getElementById('btnFibTools');
+    const pFib      = document.getElementById('fibToolsPanel');
+
+    if (!btnLinha) console.error('[grafico] elemento #btnLinhaTools não encontrado no HTML');
+    if (!pLinha)   console.error('[grafico] elemento #linhaToolsPanel não encontrado no HTML');
+    if (!btnFib)   console.error('[grafico] elemento #btnFibTools não encontrado no HTML');
+    if (!pFib)     console.error('[grafico] elemento #fibToolsPanel não encontrado no HTML');
+
+    if (btnLinha && pLinha) {
+        btnLinha.addEventListener('click',e=>{
+            e.stopPropagation();
+            pLinha.style.display = pLinha.style.display==='none' ? 'block' : 'none';
+        });
+        pLinha.addEventListener('click',e=>e.stopPropagation());
+    }
+    if (btnFib && pFib) {
+        btnFib.addEventListener('click',e=>{
+            e.stopPropagation();
+            pFib.style.display = pFib.style.display==='none' ? 'block' : 'none';
+        });
+        pFib.addEventListener('click',e=>e.stopPropagation());
+    }
+    document.addEventListener('click',()=>{
+        if (pLinha) pLinha.style.display='none';
+        if (pFib)   pFib.style.display='none';
+    });
+})();
  
 window.adicionarLinhaDraggable=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.addDragLine(document.getElementById('lineColorPicker')?.value||'#1fcc59');};
 window.deletarLinhaSelecionada=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.deleteDragLine();};
