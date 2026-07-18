@@ -1100,8 +1100,9 @@ const fibDraggablePlugin = {
         chart._selectedFib = -1;
         chart._fibDrawMode = false;
         let creating = null;      // {y1,y2,x1Px,x2Px} enquanto o usuário está traçando
-        let draggingIdx = -1;     // índice do fibonacci sendo movido (translada em Y)
+        let draggingIdx = -1;     // índice do fibonacci sendo movido (translada em X e Y)
         let dragStartVal = 0, dragOrigY1 = 0, dragOrigY2 = 0;
+        let dragStartXVal = 0, dragOrigX1Idx = null, dragOrigX2Idx = null;
         const HIT_PX = 8, MIN_DRAG_PX = 12; // abaixo disso, considera "largura total"
 
         const getYS   = () => chart.scales.y;
@@ -1176,11 +1177,15 @@ const fibDraggablePlugin = {
             const idx = nearestFib(pxX,pxY);
             if (idx>=0) {
                 if (evt.cancelable) evt.preventDefault();
+                const xS = getXS();
                 draggingIdx = idx;
                 chart._selectedFib = idx;
                 dragStartVal = yS.getValueForPixel(pxY);
                 dragOrigY1 = chart.fibDraws[idx].y1;
                 dragOrigY2 = chart.fibDraws[idx].y2;
+                dragStartXVal  = xS ? xS.getValueForPixel(pxX) : 0;
+                dragOrigX1Idx  = chart.fibDraws[idx].x1Idx ?? null;
+                dragOrigX2Idx  = chart.fibDraws[idx].x2Idx ?? null;
             } else {
                 chart._selectedFib = -1;
             }
@@ -1204,6 +1209,25 @@ const fibDraggablePlugin = {
                 const delta = v - dragStartVal;
                 chart.fibDraws[draggingIdx].y1 = Math.round((dragOrigY1+delta)*10)/10;
                 chart.fibDraws[draggingIdx].y2 = Math.round((dragOrigY2+delta)*10)/10;
+
+                // Move também na horizontal (só quando o fibonacci tem largura customizada)
+                if (dragOrigX1Idx!=null && dragOrigX2Idx!=null) {
+                    const xS = getXS();
+                    if (xS) {
+                        const xv = xS.getValueForPixel(pxX);
+                        const deltaX = Math.round(xv - dragStartXVal);
+                        let nx1 = dragOrigX1Idx + deltaX, nx2 = dragOrigX2Idx + deltaX;
+                        const labelsLen = (chart.data.labels||[]).length;
+                        if (labelsLen>0) {
+                            const lo = Math.min(nx1,nx2), hi = Math.max(nx1,nx2);
+                            if (lo<0) { nx1-=lo; nx2-=lo; }
+                            const hi2 = Math.max(nx1,nx2);
+                            if (hi2>labelsLen-1) { const over=hi2-(labelsLen-1); nx1-=over; nx2-=over; }
+                        }
+                        chart.fibDraws[draggingIdx].x1Idx = nx1;
+                        chart.fibDraws[draggingIdx].x2Idx = nx2;
+                    }
+                }
                 chart.update('none');
             }
         };
