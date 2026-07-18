@@ -215,7 +215,9 @@ function _captureControlsToSetup(setup) {
     }
     // Fibonacci livre (arrastável)
     if (ci && ci.fibDraws) {
-        arr[idx].fibDraws = ci.fibDraws.map(f => ({ y1: f.y1, y2: f.y2, color: f.color || '#A78BFA' }));
+        arr[idx].fibDraws = ci.fibDraws.map(f => ({
+            y1: f.y1, y2: f.y2, x1Idx: f.x1Idx ?? null, x2Idx: f.x2Idx ?? null, color: f.color || '#A78BFA'
+        }));
     }
     _saveCustomSetups(arr);
 }
@@ -278,7 +280,9 @@ function _applySetup(setup) {
 
         // Aplica fibonacci livre do setup
         ci.fibDraws = (setup.fibDraws || []).map(f => ({
-            y1: Number(f.y1), y2: Number(f.y2), color: f.color || '#A78BFA'
+            y1: Number(f.y1), y2: Number(f.y2),
+            x1Idx: (f.x1Idx==null?null:Number(f.x1Idx)), x2Idx: (f.x2Idx==null?null:Number(f.x2Idx)),
+            color: f.color || '#A78BFA'
         }));
         ci._selectedFib = -1;
         _saveDragFibs(ci.fibDraws);
@@ -953,12 +957,21 @@ function _loadDragFibs() {
     try {
         const a = JSON.parse(localStorage.getItem(DRAG_FIBS_KEY)||'[]');
         return Array.isArray(a)
-            ? a.map(f => ({y1:Number(f.y1),y2:Number(f.y2),color:f.color||'#A78BFA'}))
+            ? a.map(f => ({
+                y1:Number(f.y1), y2:Number(f.y2),
+                x1Idx:(f.x1Idx==null?null:Number(f.x1Idx)),
+                x2Idx:(f.x2Idx==null?null:Number(f.x2Idx)),
+                color:f.color||'#A78BFA'
+              }))
             : [];
     } catch { return []; }
 }
 function _saveDragFibs(arr) {
-    try { localStorage.setItem(DRAG_FIBS_KEY, JSON.stringify((arr||[]).map(f=>({y1:f.y1,y2:f.y2,color:f.color||'#A78BFA'})))); } catch {}
+    try {
+        localStorage.setItem(DRAG_FIBS_KEY, JSON.stringify((arr||[]).map(f=>({
+            y1:f.y1, y2:f.y2, x1Idx:(f.x1Idx??null), x2Idx:(f.x2Idx??null), color:f.color||'#A78BFA'
+        }))));
+    } catch {}
 }
 function _atualizarContadorFibs(arr) {
     const el = document.getElementById('contadorFibs');
@@ -1086,13 +1099,26 @@ const fibDraggablePlugin = {
         chart.fibDraws     = _loadDragFibs();
         chart._selectedFib = -1;
         chart._fibDrawMode = false;
-        let creating = null;      // {y1,y2} enquanto o usuário está traçando
-        let draggingIdx = -1;     // índice do fibonacci sendo movido inteiro
+        let creating = null;      // {y1,y2,x1Px,x2Px} enquanto o usuário está traçando
+        let draggingIdx = -1;     // índice do fibonacci sendo movido (translada em Y)
         let dragStartVal = 0, dragOrigY1 = 0, dragOrigY2 = 0;
-        const HIT_PX = 8;
+        const HIT_PX = 8, MIN_DRAG_PX = 12; // abaixo disso, considera "largura total"
 
         const getYS   = () => chart.scales.y;
+        const getXS   = () => chart.scales.x;
         const getEvtY = evt => { const r=canvas.getBoundingClientRect(); return ((evt.touches&&evt.touches[0]?.clientY)??evt.clientY??0)-r.top; };
+        const getEvtX = evt => { const r=canvas.getBoundingClientRect(); return ((evt.touches&&evt.touches[0]?.clientX)??evt.clientX??0)-r.left; };
+
+        // Span em pixels de um fibonacci já salvo (null/null = largura total do gráfico)
+        const spanPx = f => {
+            const {left,right} = chart.chartArea;
+            const xS = getXS();
+            if (f.x1Idx==null || f.x2Idx==null || !xS) return {x1:left, x2:right, anchored:false};
+            let p1 = xS.getPixelForValue(f.x1Idx), p2 = xS.getPixelForValue(f.x2Idx);
+            if (!isFinite(p1)||!isFinite(p2)) return {x1:left, x2:right, anchored:false};
+            if (p1>p2) [p1,p2]=[p2,p1];
+            return { x1: Math.max(left,p1), x2: Math.min(right,p2), anchored:true };
+        };
 
         chart.setFibDrawMode = (on) => {
             chart._fibDrawMode = !!on;
@@ -1116,12 +1142,14 @@ const fibDraggablePlugin = {
             _captureControlsToSetup(_getActiveSetup());
         };
 
-        // Acha o fibonacci existente mais próximo do clique (para mover)
-        const nearestFib = pxY => {
+        // Acha o fibonacci existente mais próximo do clique (para mover) — só conta clique dentro do span horizontal dele
+        const nearestFib = (pxX,pxY) => {
             const yS=getYS(); if(!yS||!chart.chartArea) return -1;
             const {top,bottom} = chart.chartArea;
             let best=-1, bestDist=Infinity;
             (chart.fibDraws||[]).forEach((f,i)=>{
+                const {x1,x2} = spanPx(f);
+                if (pxX < x1-2 || pxX > x2+2) return;
                 FIB_RETR_LEVELS.forEach(lvl=>{
                     const val = f.y1 + (lvl/100)*(f.y2-f.y1);
                     const ly = yS.getPixelForValue(val);
@@ -1135,17 +1163,17 @@ const fibDraggablePlugin = {
 
         const startEvt = evt => {
             const yS=getYS(); if(!yS) return;
-            const pxY = getEvtY(evt);
+            const pxY = getEvtY(evt), pxX = getEvtX(evt);
             if (chart._fibDrawMode) {
                 if (evt.cancelable) evt.preventDefault();
                 let v = yS.getValueForPixel(pxY);
                 v = Math.max(yS.min, Math.min(yS.max, Math.round(v*10)/10));
-                creating = { y1: v, y2: v };
+                creating = { y1: v, y2: v, x1Px: pxX, x2Px: pxX };
                 chart._selectedFib = -1;
                 chart.update('none');
                 return;
             }
-            const idx = nearestFib(pxY);
+            const idx = nearestFib(pxX,pxY);
             if (idx>=0) {
                 if (evt.cancelable) evt.preventDefault();
                 draggingIdx = idx;
@@ -1160,12 +1188,13 @@ const fibDraggablePlugin = {
         };
         const moveEvt = evt => {
             const yS=getYS(); if(!yS) return;
-            const pxY = getEvtY(evt);
+            const pxY = getEvtY(evt), pxX = getEvtX(evt);
             if (creating) {
                 if (evt.cancelable) evt.preventDefault();
                 let v = yS.getValueForPixel(pxY);
                 v = Math.max(yS.min, Math.min(yS.max, Math.round(v*10)/10));
                 creating.y2 = v;
+                creating.x2Px = pxX;
                 chart.update('none');
                 return;
             }
@@ -1180,13 +1209,22 @@ const fibDraggablePlugin = {
         };
         const endEvt = () => {
             if (creating) {
-                const dist = Math.abs(creating.y2-creating.y1);
-                if (dist > 0) {
+                const distY = Math.abs(creating.y2-creating.y1);
+                const distX = Math.abs(creating.x2Px-creating.x1Px);
+                if (distY > 0) {
                     if (chart.fibDraws.length >= MAX_DRAG_FIBS) {
                         alert(`Máximo de ${MAX_DRAG_FIBS} fibonacci!`);
                     } else {
                         const color = FIB_COLORS[chart.fibDraws.length % FIB_COLORS.length];
-                        chart.fibDraws.push({ y1: creating.y1, y2: creating.y2, color });
+                        let x1Idx = null, x2Idx = null;
+                        if (distX >= MIN_DRAG_PX) {
+                            const xS = getXS();
+                            if (xS) {
+                                x1Idx = xS.getValueForPixel(creating.x1Px);
+                                x2Idx = xS.getValueForPixel(creating.x2Px);
+                            }
+                        }
+                        chart.fibDraws.push({ y1: creating.y1, y2: creating.y2, x1Idx, x2Idx, color });
                         chart._selectedFib = chart.fibDraws.length-1;
                         _saveDragFibs(chart.fibDraws); _atualizarContadorFibs(chart.fibDraws);
                         _captureControlsToSetup(_getActiveSetup());
@@ -1223,8 +1261,9 @@ const fibDraggablePlugin = {
     },
     afterDatasetsDraw(chart) {
         const yS = chart.scales.y; if (!yS || !chart.chartArea) return;
-        const ctx = chart.ctx, {left,right,top,bottom} = chart.chartArea;
-        const draw = (f, isSel, isPreview) => {
+        const ctx = chart.ctx, {top,bottom} = chart.chartArea;
+        const draw = (f, isSel, isPreview, span) => {
+            const {x1:xa,x2:xb,anchored} = span;
             FIB_RETR_LEVELS.forEach(lvl => {
                 const val = f.y1 + (lvl/100)*(f.y2-f.y1);
                 const yPx = yS.getPixelForValue(val);
@@ -1234,29 +1273,47 @@ const fibDraggablePlugin = {
                 ctx.lineWidth = isSel ? 1.8 : 1;
                 ctx.globalAlpha = isPreview ? 0.55 : (lvl===0||lvl===100 ? 0.9 : 0.7);
                 if (!isSel) ctx.setLineDash([5,4]);
-                ctx.beginPath(); ctx.moveTo(left,yPx); ctx.lineTo(right,yPx); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(xa,yPx); ctx.lineTo(xb,yPx); ctx.stroke();
                 ctx.setLineDash([]); ctx.globalAlpha = 1;
                 ctx.fillStyle = f.color;
                 ctx.font = "600 9.5px 'Inter',Arial,sans-serif";
                 ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-                ctx.fillText(`${lvl}%  ${val.toFixed(1)}`, left+6, yPx-7);
+                ctx.fillText(`${lvl}%  ${val.toFixed(1)}`, xa+6, yPx-7);
                 ctx.restore();
             });
-            // âncoras nas duas pontas (0% e 100%)
-            [f.y1,f.y2].forEach(v=>{
+            // âncoras nas duas pontas (0% e 100%) — no ponto real quando tem largura customizada
+            const ax = anchored ? xa : xa+16;
+            const bx = anchored ? xb : xb-16;
+            [[f.y1,ax],[f.y2,bx]].forEach(([v,px])=>{
                 const yPx = yS.getPixelForValue(v);
                 if (!isFinite(yPx)||yPx<top||yPx>bottom) return;
                 ctx.save();
                 ctx.fillStyle = f.color;
                 ctx.strokeStyle = 'rgba(8,11,20,0.9)'; ctx.lineWidth = 1.2;
-                ctx.beginPath(); ctx.arc(left+16, yPx, isSel?4.5:3.5, 0, Math.PI*2);
+                ctx.beginPath(); ctx.arc(px, yPx, isSel?4.5:3.5, 0, Math.PI*2);
                 ctx.fill(); ctx.stroke();
                 ctx.restore();
             });
         };
-        (chart.fibDraws||[]).forEach((f,i)=> draw(f, i===chart._selectedFib, false));
+        const spanPxSaved = f => {
+            const {left,right} = chart.chartArea;
+            const xS = chart.scales.x;
+            if (f.x1Idx==null || f.x2Idx==null || !xS) return {x1:left, x2:right, anchored:false};
+            let p1 = xS.getPixelForValue(f.x1Idx), p2 = xS.getPixelForValue(f.x2Idx);
+            if (!isFinite(p1)||!isFinite(p2)) return {x1:left, x2:right, anchored:false};
+            if (p1>p2) [p1,p2]=[p2,p1];
+            return { x1: Math.max(left,p1), x2: Math.min(right,p2), anchored:true };
+        };
+        (chart.fibDraws||[]).forEach((f,i)=> draw(f, i===chart._selectedFib, false, spanPxSaved(f)));
         const creating = chart._fibCreatingRef ? chart._fibCreatingRef() : null;
-        if (creating) draw({y1:creating.y1,y2:creating.y2,color:'#E5E7EB'}, true, true);
+        if (creating) {
+            const {left,right} = chart.chartArea;
+            const distX = Math.abs(creating.x2Px-creating.x1Px);
+            const useSpan = distX >= 12;
+            const xa = useSpan ? Math.min(creating.x1Px,creating.x2Px) : left;
+            const xb = useSpan ? Math.max(creating.x1Px,creating.x2Px) : right;
+            draw({y1:creating.y1,y2:creating.y2,color:'#E5E7EB'}, true, true, {x1:xa,x2:xb,anchored:useSpan});
+        }
     }
 };
 
@@ -1654,8 +1711,17 @@ document.getElementById('btnLinhaTools').addEventListener('click',e=>{
     const p=document.getElementById('linhaToolsPanel');
     p.style.display=p.style.display==='none'?'block':'none';
 });
-document.addEventListener('click',()=>{const p=document.getElementById('linhaToolsPanel');if(p)p.style.display='none';});
+document.getElementById('btnFibTools').addEventListener('click',e=>{
+    e.stopPropagation();
+    const p=document.getElementById('fibToolsPanel');
+    p.style.display=p.style.display==='none'?'block':'none';
+});
+document.addEventListener('click',()=>{
+    const p1=document.getElementById('linhaToolsPanel'); if(p1)p1.style.display='none';
+    const p2=document.getElementById('fibToolsPanel');   if(p2)p2.style.display='none';
+});
 document.getElementById('linhaToolsPanel').addEventListener('click',e=>e.stopPropagation());
+document.getElementById('fibToolsPanel').addEventListener('click',e=>e.stopPropagation());
  
 window.adicionarLinhaDraggable=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.addDragLine(document.getElementById('lineColorPicker')?.value||'#1fcc59');};
 window.deletarLinhaSelecionada=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.deleteDragLine();};
