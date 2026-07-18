@@ -869,6 +869,7 @@ const fibonacciLinesPlugin = {
         const fibLevels = [0,23.6,38.2,50,61.8,100];
         const fibColor  = 'rgba(167,139,250,0.55)', fibText = 'rgba(196,181,253,0.9)';
         const {left,right} = chart.chartArea, range = yAxis.max - yAxis.min;
+        const axisRight = (yAxis.position === 'right');
         ctx.save();
         fibLevels.forEach((lvl,i) => {
             const y = yAxis.getPixelForValue(yAxis.min + (lvl/100)*range);
@@ -876,8 +877,14 @@ const fibonacciLinesPlugin = {
             ctx.strokeStyle = fibColor; ctx.lineWidth = 1;
             ctx.stroke(); ctx.setLineDash([]);
             ctx.fillStyle = fibText; ctx.font = "10px 'Inter',Arial,sans-serif";
-            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            ctx.fillText(`${fibLevels[i]}%`, right+52, y-(i===0?-8:0));
+            ctx.textBaseline = 'middle';
+            if (axisRight) {
+                ctx.textAlign = 'right';
+                ctx.fillText(`${fibLevels[i]}%`, left-8, y-(i===0?-8:0));
+            } else {
+                ctx.textAlign = 'left';
+                ctx.fillText(`${fibLevels[i]}%`, right+52, y-(i===0?-8:0));
+            }
         });
         ctx.restore();
     }
