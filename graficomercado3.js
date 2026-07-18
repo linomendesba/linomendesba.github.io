@@ -9,6 +9,7 @@ const DRAG_LINES_KEY        = 'mgraf:draglines';
 const DRAG_FIBS_KEY         = 'mgraf:dragfibs';
 const ACCORDION_KEY         = 'mgraf:accordionOpen';
 const SETUP_LINE_TOGGLE_KEY = 'mgraf:lineToggles_v4';
+const Y_AXIS_POS_KEY        = 'mgraf:yAxisPosition';
  
 const MAX_SETUPS    = 10;
 const MAX_DRAG_LINES = 6;
@@ -24,6 +25,7 @@ let averagePoints      = 19;
 let showFibonacciLines = false;
 let showMovingAverages = false;
 let showLabels         = false;   // rótulos acima dos pontos
+let yAxisPosition      = _ls(Y_AXIS_POS_KEY, 'left'); // 'left' | 'right' — preferência do usuário, vale para todos os setups
 const leagues          = ['Copa'];
 const chartInstances   = {};
 let chartData          = {};
@@ -923,7 +925,8 @@ const linhaAtualPlugin = {
             ctx.font = "600 10.5px 'Inter',Arial,sans-serif";
             ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
             const bw = Math.ceil(ctx.measureText(text).width)+padX*2;
-            const bx = right+4, by = badgeY-BAD_H/2, br = 4;
+            const axisRight = (scales.y.position === 'right');
+            const bx = axisRight ? left-4-bw : right+4, by = badgeY-BAD_H/2, br = 4;
             ctx.fillStyle = 'rgba(13,16,26,0.96)';
             ctx.strokeStyle = color; ctx.lineWidth = 1.2;
             ctx.beginPath(); ctx.roundRect(bx,by,bw,BAD_H,br);
@@ -1075,7 +1078,9 @@ const linhaDraggablePlugin = {
             // Badge sem %
             const text = l.y.toFixed(1);
             ctx.font="600 10.5px 'Inter',Arial,sans-serif";ctx.textBaseline='middle';ctx.textAlign='left';
-            const bw=Math.ceil(ctx.measureText(text).width)+PAD*2,bx=right+4,by=yPx-BH/2,br=4;
+            const bw=Math.ceil(ctx.measureText(text).width)+PAD*2;
+            const axisRight=(yS.position==='right');
+            const bx=axisRight?left-4-bw:right+4, by=yPx-BH/2,br=4;
             ctx.fillStyle='rgba(13,16,26,0.96)';
             ctx.strokeStyle=l.color||'#1fcc59';ctx.lineWidth=isSel?1.5:1;
             ctx.beginPath();ctx.roundRect(bx,by,bw,BH,br);ctx.fill();ctx.stroke();
@@ -1376,7 +1381,7 @@ function createStatsChart(ctx, labels, data, league) {
         type:'line', data:{labels,datasets},
         options:{
             responsive:true, maintainAspectRatio:false, animation:{duration:0},
-            layout:{padding:{top:30,right:80}},
+            layout:{padding: yAxisPosition==='right' ? {top:30,left:80} : {top:30,right:80}},
             plugins:{
                 legend:{display:false},
                 tooltip:{
@@ -1396,7 +1401,7 @@ function createStatsChart(ctx, labels, data, league) {
             },
             scales:{
                 x:{ticks:{display:false},grid:{display:false}},
-                y:{beginAtZero:false,ticks:{color:'#8B92A8',font:{size:11},stepSize:5,padding:8},grid:{color:'rgba(148,163,184,0.09)',lineWidth:1,drawTicks:false},border:{display:false},afterFit:s=>{s.paddingTop=20;}},
+                y:{position:yAxisPosition,beginAtZero:false,ticks:{color:'#8B92A8',font:{size:11},stepSize:5,padding:8},grid:{color:'rgba(148,163,184,0.09)',lineWidth:1,drawTicks:false},border:{display:false},afterFit:s=>{s.paddingTop=20;}},
                 y2:{position:'right',beginAtZero:true,min:0,max:10,ticks:{color:'rgba(148,163,184,0.35)',stepSize:1,precision:0},grid:{display:false},border:{display:false},afterFit:s=>{s.width=0;}}
             }
         },
@@ -1704,6 +1709,18 @@ function toggleMovingAverages() {
     });
     _captureControlsToSetup(_getActiveSetup());
 }
+
+/* ── POSIÇÃO DO EIXO (%): preferência do usuário, esquerda ou direita ── */
+function setYAxisPosition(pos) {
+    yAxisPosition = (pos === 'right') ? 'right' : 'left';
+    _lsSet(Y_AXIS_POS_KEY, yAxisPosition);
+    leagues.forEach(l=>{
+        const ci = chartInstances[l]; if (!ci) return;
+        ci.options.scales.y.position   = yAxisPosition;
+        ci.options.layout.padding      = yAxisPosition==='right' ? {top:30,left:80} : {top:30,right:80};
+        ci.update();
+    });
+}
  
 document.getElementById('pointsSelector').addEventListener('change',e=>{
     numPoints=parseInt(e.target.value,10);
@@ -1717,6 +1734,11 @@ document.getElementById('averageSelector').addEventListener('change',e=>{
 });
 document.getElementById('fibonacciToggle').addEventListener('change',toggleFibonacciLines);
 document.getElementById('movingAveragesToggle').addEventListener('change',toggleMovingAverages);
+const yAxisSel = document.getElementById('yAxisPositionSelector');
+if (yAxisSel) {
+    yAxisSel.value = yAxisPosition;
+    yAxisSel.addEventListener('change', e => setYAxisPosition(e.target.value));
+}
 document.getElementById('linhaAtualToggle').addEventListener('change',function(){
     leagues.forEach(l=>{
         const ci=chartInstances[l];if(!ci)return;
