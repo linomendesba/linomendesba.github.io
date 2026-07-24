@@ -7,6 +7,7 @@ const ACTIVE_SETUP_KEY      = 'mgraf:activeSetup_v4';
 const VISIBLE_DS_KEY        = 'mgraf:visibleDatasets_v4';
 const DRAG_LINES_KEY        = 'mgraf:draglines';
 const DRAG_FIBS_KEY         = 'mgraf:dragfibs';
+const DRAG_TRENDS_KEY       = 'mgraf:dragtrends';
 const ACCORDION_KEY         = 'mgraf:accordionOpen';
 const SETUP_LINE_TOGGLE_KEY = 'mgraf:lineToggles_v4';
 const Y_AXIS_POS_KEY        = 'mgraf:yAxisPosition';
@@ -14,8 +15,12 @@ const Y_AXIS_POS_KEY        = 'mgraf:yAxisPosition';
 const MAX_SETUPS    = 10;
 const MAX_DRAG_LINES = 6;
 const MAX_DRAG_FIBS  = 4;
+const MAX_DRAG_TRENDS = 6;
 const FIB_RETR_LEVELS = [0,23.6,38.2,50,61.8,100];
 const FIB_COLORS = ['#A78BFA','#FBBF24','#34D399','#F472B6','#60A5FA','#FB923C'];
+/* LTA = Linha de Tendência de Alta (suporte, ascendente) — verde
+   LTB = Linha de Tendência de Baixa (resistência, descendente) — vermelho */
+const TREND_COLORS = { LTA: '#34D399', LTB: '#F87171' };
  
 /* ───────────────────────────────────────────
    VARIÁVEIS GLOBAIS DE ESTADO
@@ -153,7 +158,8 @@ const SETUP_PADRAO = {
     fibonacci: false, mediasMoveis: false,
     linhaAtual: true, labels: false,
     dragLines: [],
-    fibDraws: []
+    fibDraws: [],
+    trendLines: []
 };
  
 function _loadCustomSetups()    { return _ls(SETUPS_KEY, []); }
@@ -219,6 +225,13 @@ function _captureControlsToSetup(setup) {
     if (ci && ci.fibDraws) {
         arr[idx].fibDraws = ci.fibDraws.map(f => ({
             y1: f.y1, y2: f.y2, x1Idx: f.x1Idx ?? null, x2Idx: f.x2Idx ?? null, color: f.color || '#A78BFA'
+        }));
+    }
+    // Linhas de tendência (LTA/LTB)
+    if (ci && ci.trendLines) {
+        arr[idx].trendLines = ci.trendLines.map(t => ({
+            x1Idx: t.x1Idx, y1: t.y1, x2Idx: t.x2Idx, y2: t.y2,
+            color: t.color || '#34D399', tipo: t.tipo || 'LTA'
         }));
     }
     _saveCustomSetups(arr);
@@ -289,6 +302,16 @@ function _applySetup(setup) {
         ci._selectedFib = -1;
         _saveDragFibs(ci.fibDraws);
         _atualizarContadorFibs(ci.fibDraws);
+
+        // Aplica linhas de tendência (LTA/LTB) do setup
+        ci.trendLines = (setup.trendLines || []).map(t => ({
+            x1Idx: Number(t.x1Idx), y1: Number(t.y1),
+            x2Idx: Number(t.x2Idx), y2: Number(t.y2),
+            color: t.color || '#34D399', tipo: t.tipo || 'LTA'
+        }));
+        ci._selectedTrend = -1;
+        _saveDragTrends(ci.trendLines);
+        _atualizarContadorTrends(ci.trendLines);
  
         // Linha atual
         ci.options.plugins.linhaAtual.enabled = l;
@@ -987,6 +1010,40 @@ function _atualizarContadorFibs(arr) {
     const el = document.getElementById('contadorFibs');
     if (el) el.textContent = `${(arr||[]).length} / ${MAX_DRAG_FIBS} fibonacci`;
 }
+
+/* ── LINHAS DE TENDÊNCIA LIVRES (LTA / LTB, ARRASTÁVEIS) ── */
+function _loadDragTrends() {
+    try {
+        const a = JSON.parse(localStorage.getItem(DRAG_TRENDS_KEY)||'[]');
+        return Array.isArray(a)
+            ? a.map(t => ({
+                x1Idx:Number(t.x1Idx), y1:Number(t.y1),
+                x2Idx:Number(t.x2Idx), y2:Number(t.y2),
+                color:t.color||'#34D399', tipo:t.tipo||'LTA'
+              }))
+            : [];
+    } catch { return []; }
+}
+function _saveDragTrends(arr) {
+    try {
+        localStorage.setItem(DRAG_TRENDS_KEY, JSON.stringify((arr||[]).map(t=>({
+            x1Idx:t.x1Idx, y1:t.y1, x2Idx:t.x2Idx, y2:t.y2, color:t.color||'#34D399', tipo:t.tipo||'LTA'
+        }))));
+    } catch {}
+}
+function _atualizarContadorTrends(arr) {
+    const el = document.getElementById('contadorTendencias');
+    if (el) el.textContent = `${(arr||[]).length} / ${MAX_DRAG_TRENDS} tendências`;
+}
+/* Distância de um ponto (px,py) até o segmento (x1,y1)-(x2,y2), em pixels */
+function _distToSegment(px,py,x1,y1,x2,y2) {
+    const dx=x2-x1, dy=y2-y1;
+    const len2 = dx*dx+dy*dy;
+    if (len2===0) return Math.hypot(px-x1,py-y1);
+    let t = ((px-x1)*dx+(py-y1)*dy)/len2;
+    t = Math.max(0,Math.min(1,t));
+    return Math.hypot(px-(x1+t*dx), py-(y1+t*dy));
+}
  
 const linhaDraggablePlugin = {
     id: 'linhaDraggable',
@@ -1354,6 +1411,238 @@ const fibDraggablePlugin = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════
+   PLUGIN — LINHAS DE TENDÊNCIA LIVRES (LTA / LTB)
+   O usuário clica em um ponto (ex.: um fundo) e arrasta até outro ponto
+   (ex.: outro fundo mais recente) para traçar a linha. Ela fica fixa,
+   com âncoras nas duas pontas — que podem ser arrastadas individualmente
+   para ajuste fino — e uma projeção pontilhada que estende a linha até
+   a borda direita do gráfico, exatamente como uma LTA/LTB é usada para
+   ler a direção do preço. A linha inteira também pode ser arrastada
+   segurando qualquer ponto do traço (fora das âncoras).
+═══════════════════════════════════════════════════════════════════ */
+const trendLinePlugin = {
+    id: 'trendLine',
+    afterInit(chart) {
+        const canvas = chart.canvas;
+        chart.trendLines       = _loadDragTrends();
+        chart._selectedTrend    = -1;
+        chart._trendDrawMode    = false;
+        chart._trendPendingTipo = 'LTA';
+        let creating = null;       // {x1Px,y1,x2Px,y2} enquanto o usuário traça
+        let draggingIdx = -1, draggingHandle = null; // 'p1' | 'p2' | 'body'
+        let dragStartXVal = 0, dragStartYVal = 0, dragOrig = null;
+        const HIT_PX = 9;
+
+        const getXS = () => chart.scales.x;
+        const getYS = () => chart.scales.y;
+        const getEvtY = evt => { const r=canvas.getBoundingClientRect(); return ((evt.touches&&evt.touches[0]?.clientY)??evt.clientY??0)-r.top; };
+        const getEvtX = evt => { const r=canvas.getBoundingClientRect(); return ((evt.touches&&evt.touches[0]?.clientX)??evt.clientX??0)-r.left; };
+
+        const pointPx = t => {
+            const xS=getXS(), yS=getYS(); if(!xS||!yS) return null;
+            return {
+                x1: xS.getPixelForValue(t.x1Idx), y1: yS.getPixelForValue(t.y1),
+                x2: xS.getPixelForValue(t.x2Idx), y2: yS.getPixelForValue(t.y2)
+            };
+        };
+
+        chart.setTrendDrawMode = (on, tipo) => {
+            chart._trendDrawMode = !!on;
+            if (tipo) chart._trendPendingTipo = tipo;
+            canvas.style.cursor = on ? 'crosshair' : '';
+        };
+        chart.deleteTrendSelected = () => {
+            const idx = chart._selectedTrend;
+            if (idx>=0 && idx<chart.trendLines.length) {
+                chart.trendLines.splice(idx,1);
+                chart._selectedTrend = -1;
+                _saveDragTrends(chart.trendLines); _atualizarContadorTrends(chart.trendLines);
+                chart.update();
+                _captureControlsToSetup(_getActiveSetup());
+            }
+        };
+        chart.clearTrendDraws = () => {
+            chart.trendLines = [];
+            chart._selectedTrend = -1;
+            _saveDragTrends(chart.trendLines); _atualizarContadorTrends(chart.trendLines);
+            chart.update();
+            _captureControlsToSetup(_getActiveSetup());
+        };
+
+        // Acha a linha (e a parte dela: ponta 1, ponta 2 ou corpo) mais próxima do clique
+        const nearestTrend = (pxX,pxY) => {
+            if (!chart.chartArea) return {idx:-1,handle:null};
+            let best=-1,bestDist=Infinity,bestHandle=null;
+            (chart.trendLines||[]).forEach((t,i)=>{
+                const p = pointPx(t); if(!p) return;
+                const dP1 = Math.hypot(p.x1-pxX,p.y1-pxY);
+                const dP2 = Math.hypot(p.x2-pxX,p.y2-pxY);
+                const dLine = _distToSegment(pxX,pxY,p.x1,p.y1,p.x2,p.y2);
+                if (dP1<=HIT_PX && dP1<bestDist) { bestDist=dP1; best=i; bestHandle='p1'; }
+                if (dP2<=HIT_PX && dP2<bestDist) { bestDist=dP2; best=i; bestHandle='p2'; }
+                if (dLine<=HIT_PX && dLine<bestDist) { bestDist=dLine; best=i; bestHandle='body'; }
+            });
+            return {idx:best, handle:bestHandle};
+        };
+
+        const startEvt = evt => {
+            const xS=getXS(), yS=getYS(); if(!xS||!yS) return;
+            const pxY = getEvtY(evt), pxX = getEvtX(evt);
+            if (chart._trendDrawMode) {
+                if (evt.cancelable) evt.preventDefault();
+                let v = yS.getValueForPixel(pxY);
+                v = Math.round(v*10)/10;
+                creating = { x1Px:pxX, y1:v, x2Px:pxX, y2:v };
+                chart._selectedTrend = -1;
+                chart.update('none');
+                return;
+            }
+            const {idx,handle} = nearestTrend(pxX,pxY);
+            if (idx>=0) {
+                if (evt.cancelable) evt.preventDefault();
+                draggingIdx = idx; draggingHandle = handle;
+                chart._selectedTrend = idx;
+                dragStartXVal = xS.getValueForPixel(pxX);
+                dragStartYVal = yS.getValueForPixel(pxY);
+                dragOrig = { ...chart.trendLines[idx] };
+            } else {
+                chart._selectedTrend = -1;
+            }
+            chart.update();
+        };
+
+        const moveEvt = evt => {
+            const xS=getXS(), yS=getYS(); if(!xS||!yS) return;
+            const pxY = getEvtY(evt), pxX = getEvtX(evt);
+            if (creating) {
+                if (evt.cancelable) evt.preventDefault();
+                let v = yS.getValueForPixel(pxY);
+                creating.y2 = Math.round(v*10)/10;
+                creating.x2Px = pxX;
+                chart.update('none');
+                return;
+            }
+            if (draggingIdx>=0) {
+                if (evt.cancelable) evt.preventDefault();
+                const t = chart.trendLines[draggingIdx];
+                if (draggingHandle === 'p1') {
+                    t.x1Idx = Math.round(xS.getValueForPixel(pxX));
+                    t.y1    = Math.round(yS.getValueForPixel(pxY)*10)/10;
+                } else if (draggingHandle === 'p2') {
+                    t.x2Idx = Math.round(xS.getValueForPixel(pxX));
+                    t.y2    = Math.round(yS.getValueForPixel(pxY)*10)/10;
+                } else {
+                    const dxVal = xS.getValueForPixel(pxX) - dragStartXVal;
+                    const dyVal = yS.getValueForPixel(pxY) - dragStartYVal;
+                    t.x1Idx = Math.round(dragOrig.x1Idx + dxVal);
+                    t.x2Idx = Math.round(dragOrig.x2Idx + dxVal);
+                    t.y1    = Math.round((dragOrig.y1 + dyVal)*10)/10;
+                    t.y2    = Math.round((dragOrig.y2 + dyVal)*10)/10;
+                }
+                chart.update('none');
+            }
+        };
+
+        const endEvt = () => {
+            if (creating) {
+                const distPx = Math.abs(creating.x2Px-creating.x1Px);
+                if (distPx > 4) {
+                    if (chart.trendLines.length >= MAX_DRAG_TRENDS) {
+                        alert(`Máximo de ${MAX_DRAG_TRENDS} linhas de tendência!`);
+                    } else {
+                        const xS = getXS();
+                        const x1Idx = Math.round(xS.getValueForPixel(creating.x1Px));
+                        const x2Idx = Math.round(xS.getValueForPixel(creating.x2Px));
+                        const tipo  = chart._trendPendingTipo || 'LTA';
+                        const color = TREND_COLORS[tipo] || '#34D399';
+                        chart.trendLines.push({ x1Idx, y1:creating.y1, x2Idx, y2:creating.y2, color, tipo });
+                        chart._selectedTrend = chart.trendLines.length-1;
+                        _saveDragTrends(chart.trendLines); _atualizarContadorTrends(chart.trendLines);
+                        _captureControlsToSetup(_getActiveSetup());
+                    }
+                }
+                creating = null;
+                chart.setTrendDrawMode(false);
+                chart.update();
+            }
+            if (draggingIdx>=0) {
+                _saveDragTrends(chart.trendLines);
+                _captureControlsToSetup(_getActiveSetup());
+            }
+            draggingIdx = -1; draggingHandle = null;
+        };
+
+        canvas.addEventListener('mousedown',startEvt);
+        canvas.addEventListener('mousemove',moveEvt);
+        canvas.addEventListener('mouseleave',endEvt);
+        window.addEventListener('mouseup',endEvt);
+        canvas.addEventListener('touchstart',startEvt,{passive:false});
+        canvas.addEventListener('touchmove',moveEvt,{passive:false});
+        canvas.addEventListener('touchend',endEvt,{passive:true});
+        canvas.addEventListener('touchcancel',endEvt,{passive:true});
+        window.addEventListener('keydown', e=>{
+            if (e.key==='Delete'||e.key==='Backspace') {
+                const c = chartInstances['Copa']||Object.values(chartInstances)[0];
+                if (c) c.deleteTrendSelected();
+            }
+        });
+
+        chart._trendCreatingRef = () => creating;
+        _atualizarContadorTrends(chart.trendLines);
+    },
+    afterDatasetsDraw(chart) {
+        const xS = chart.scales.x, yS = chart.scales.y;
+        if (!xS || !yS || !chart.chartArea) return;
+        const ctx = chart.ctx, {right} = chart.chartArea;
+
+        const drawLine = (x1Idx,y1,x2Idx,y2,color,isSel,isPreview,tipo) => {
+            const p1x = xS.getPixelForValue(x1Idx), p1y = yS.getPixelForValue(y1);
+            const p2x = xS.getPixelForValue(x2Idx), p2y = yS.getPixelForValue(y2);
+            if (![p1x,p1y,p2x,p2y].every(isFinite)) return;
+            ctx.save();
+            ctx.strokeStyle = color; ctx.lineWidth = isSel?2.2:1.6;
+            ctx.globalAlpha = isPreview?0.6:1;
+            // segmento real, entre as duas âncoras que o usuário escolheu
+            ctx.beginPath(); ctx.moveTo(p1x,p1y); ctx.lineTo(p2x,p2y); ctx.stroke();
+            // projeção pontilhada além da 2ª âncora, até a borda direita — leitura de direção
+            if (p2x !== p1x) {
+                const slope = (p2y-p1y)/(p2x-p1x);
+                const extY  = p2y + slope*(right-p2x);
+                ctx.setLineDash([6,5]); ctx.globalAlpha = isPreview?0.4:0.65;
+                ctx.beginPath(); ctx.moveTo(p2x,p2y); ctx.lineTo(right, extY); ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            ctx.globalAlpha = 1;
+            if (!isPreview) {
+                [[p1x,p1y],[p2x,p2y]].forEach(([px,py])=>{
+                    ctx.beginPath();
+                    ctx.fillStyle = color; ctx.strokeStyle = 'rgba(8,11,20,0.9)'; ctx.lineWidth = 1.2;
+                    ctx.arc(px,py, isSel?4.5:3.5, 0, Math.PI*2);
+                    ctx.fill(); ctx.stroke();
+                });
+                if (tipo) {
+                    ctx.font = "600 9.5px 'Inter',Arial,sans-serif";
+                    ctx.fillStyle = color; ctx.textAlign='left'; ctx.textBaseline='bottom';
+                    ctx.fillText(tipo, p2x+6, p2y-4);
+                }
+            }
+            ctx.restore();
+        };
+
+        (chart.trendLines||[]).forEach((t,i)=>{
+            drawLine(t.x1Idx,t.y1,t.x2Idx,t.y2,t.color,i===chart._selectedTrend,false,t.tipo);
+        });
+        const creating = chart._trendCreatingRef ? chart._trendCreatingRef() : null;
+        if (creating) {
+            const x1Idx = xS.getValueForPixel(creating.x1Px);
+            const x2Idx = xS.getValueForPixel(creating.x2Px);
+            const previewColor = TREND_COLORS[chart._trendPendingTipo] || '#E5E7EB';
+            drawLine(x1Idx,creating.y1,x2Idx,creating.y2,previewColor,true,true,null);
+        }
+    }
+};
+
+/* ═══════════════════════════════════════════════════════════════════
    CRIAÇÃO DO GRÁFICO
 ═══════════════════════════════════════════════════════════════════ */
 Chart.defaults.animation.duration = 0;
@@ -1412,7 +1701,7 @@ function createStatsChart(ctx, labels, data, league) {
                 y2:{position:'right',beginAtZero:true,min:0,max:10,ticks:{color:'rgba(148,163,184,0.35)',stepSize:1,precision:0},grid:{display:false},border:{display:false},afterFit:s=>{s.width=0;}}
             }
         },
-        plugins:[fibonacciLinesPlugin,fibDraggablePlugin,linhaAtualPlugin,linhaDraggablePlugin,rotulosPlugin]
+        plugins:[fibonacciLinesPlugin,fibDraggablePlugin,linhaAtualPlugin,linhaDraggablePlugin,trendLinePlugin,rotulosPlugin]
     });
 }
  
@@ -1764,11 +2053,15 @@ document.getElementById('labelsToggle').addEventListener('change',function(){
     const pLinha    = document.getElementById('linhaToolsPanel');
     const btnFib    = document.getElementById('btnFibTools');
     const pFib      = document.getElementById('fibToolsPanel');
+    const btnTrend  = document.getElementById('btnTrendTools');
+    const pTrend    = document.getElementById('trendToolsPanel');
 
     if (!btnLinha) console.error('[grafico] elemento #btnLinhaTools não encontrado no HTML');
     if (!pLinha)   console.error('[grafico] elemento #linhaToolsPanel não encontrado no HTML');
     if (!btnFib)   console.error('[grafico] elemento #btnFibTools não encontrado no HTML');
     if (!pFib)     console.error('[grafico] elemento #fibToolsPanel não encontrado no HTML');
+    if (!btnTrend) console.error('[grafico] elemento #btnTrendTools não encontrado no HTML');
+    if (!pTrend)   console.error('[grafico] elemento #trendToolsPanel não encontrado no HTML');
 
     if (btnLinha && pLinha) {
         btnLinha.addEventListener('click',e=>{
@@ -1784,9 +2077,17 @@ document.getElementById('labelsToggle').addEventListener('change',function(){
         });
         pFib.addEventListener('click',e=>e.stopPropagation());
     }
+    if (btnTrend && pTrend) {
+        btnTrend.addEventListener('click',e=>{
+            e.stopPropagation();
+            pTrend.style.display = pTrend.style.display==='none' ? 'block' : 'none';
+        });
+        pTrend.addEventListener('click',e=>e.stopPropagation());
+    }
     document.addEventListener('click',()=>{
         if (pLinha) pLinha.style.display='none';
         if (pFib)   pFib.style.display='none';
+        if (pTrend) pTrend.style.display='none';
     });
 })();
  
@@ -1797,6 +2098,12 @@ window.limparTodasLinhas=()=>{const c=chartInstances['Copa']||Object.values(char
 window.ativarDesenhoFibonacci=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.setFibDrawMode(true);};
 window.deletarFibonacciSelecionado=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.deleteFibSelected();};
 window.limparFibonacciLivre=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.clearFibDraws();};
+
+/* LTA = tendência de alta (suporte) | LTB = tendência de baixa (resistência) */
+window.ativarDesenhoLTA=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.setTrendDrawMode(true,'LTA');};
+window.ativarDesenhoLTB=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.setTrendDrawMode(true,'LTB');};
+window.deletarTendenciaSelecionada=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.deleteTrendSelected();};
+window.limparTendencias=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.clearTrendDraws();};
  
 window.onload=()=>{
     updateCharts();
