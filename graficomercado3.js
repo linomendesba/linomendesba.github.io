@@ -244,7 +244,8 @@ function _captureControlsToSetup(setup) {
     // Fibonacci livre (arrastável)
     if (ci && ci.fibDraws) {
         arr[idx].fibDraws = ci.fibDraws.map(f => ({
-            y1: f.y1, y2: f.y2, x1Idx: f.x1Idx ?? null, x2Idx: f.x2Idx ?? null, color: f.color || '#A78BFA'
+            y1: f.y1, y2: f.y2, x1Idx: f.x1Idx ?? null, x2Idx: f.x2Idx ?? null,
+            x1Frac: f.x1Frac ?? null, x2Frac: f.x2Frac ?? null, color: f.color || '#A78BFA'
         }));
     }
     // Linhas de tendência (LTA/LTB)
@@ -317,6 +318,7 @@ function _applySetup(setup) {
         ci.fibDraws = (setup.fibDraws || []).map(f => ({
             y1: Number(f.y1), y2: Number(f.y2),
             x1Idx: (f.x1Idx==null?null:Number(f.x1Idx)), x2Idx: (f.x2Idx==null?null:Number(f.x2Idx)),
+            x1Frac: (f.x1Frac==null?null:Number(f.x1Frac)), x2Frac: (f.x2Frac==null?null:Number(f.x2Frac)),
             color: f.color || '#A78BFA'
         }));
         ci._selectedFib = -1;
