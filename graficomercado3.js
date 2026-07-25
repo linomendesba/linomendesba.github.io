@@ -1197,7 +1197,11 @@ const fibDraggablePlugin = {
         const getYS   = () => chart.scales.y;
         const getXS   = () => chart.scales.x;
         const getEvtY = evt => { const r=canvas.getBoundingClientRect(); return ((evt.touches&&evt.touches[0]?.clientY)??evt.clientY??0)-r.top; };
-        const getEvtX = evt => { const r=canvas.getBoundingClientRect(); return ((evt.touches&&evt.touches[0]?.clientX)??evt.clientX??0)-r.left; };
+        /* Subtrai o pan atual (graphPanPlugin) do X do clique — assim o
+           ponto clicado bate certinho com a posição visual, mesmo o
+           gráfico estando arrastado pra esquerda/direita, inclusive em
+           área vazia que o pan revelou. */
+        const getEvtX = evt => { const r=canvas.getBoundingClientRect(); return ((evt.touches&&evt.touches[0]?.clientX)??evt.clientX??0)-r.left-(chart._panOffsetX||0); };
 
         // Span em pixels de um fibonacci já salvo (null/null = largura total do gráfico)
         const spanPx = f => {
@@ -1456,7 +1460,11 @@ const trendLinePlugin = {
         const getXS = () => chart.scales.x;
         const getYS = () => chart.scales.y;
         const getEvtY = evt => { const r=canvas.getBoundingClientRect(); return ((evt.touches&&evt.touches[0]?.clientY)??evt.clientY??0)-r.top; };
-        const getEvtX = evt => { const r=canvas.getBoundingClientRect(); return ((evt.touches&&evt.touches[0]?.clientX)??evt.clientX??0)-r.left; };
+        /* Mesma compensação do pan aplicada no fibDraggablePlugin — sem
+           isso, traçar LTA/LTB numa área revelada pelo arrastar do
+           gráfico ficava desalinhado do ponto onde o mouse realmente
+           clicou. */
+        const getEvtX = evt => { const r=canvas.getBoundingClientRect(); return ((evt.touches&&evt.touches[0]?.clientX)??evt.clientX??0)-r.left-(chart._panOffsetX||0); };
 
         const pointPx = t => {
             const xS=getXS(), yS=getYS(); if(!xS||!yS) return null;
