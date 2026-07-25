@@ -1014,6 +1014,8 @@ function _loadDragFibs() {
                 y1:Number(f.y1), y2:Number(f.y2),
                 x1Idx:(f.x1Idx==null?null:Number(f.x1Idx)),
                 x2Idx:(f.x2Idx==null?null:Number(f.x2Idx)),
+                x1Frac:(f.x1Frac==null?null:Number(f.x1Frac)),
+                x2Frac:(f.x2Frac==null?null:Number(f.x2Frac)),
                 color:f.color||'#A78BFA'
               }))
             : [];
@@ -1022,7 +1024,8 @@ function _loadDragFibs() {
 function _saveDragFibs(arr) {
     try {
         localStorage.setItem(_ligaKey(DRAG_FIBS_KEY), JSON.stringify((arr||[]).map(f=>({
-            y1:f.y1, y2:f.y2, x1Idx:(f.x1Idx??null), x2Idx:(f.x2Idx??null), color:f.color||'#A78BFA'
+            y1:f.y1, y2:f.y2, x1Idx:(f.x1Idx??null), x2Idx:(f.x2Idx??null),
+            x1Frac:(f.x1Frac??null), x2Frac:(f.x2Frac??null), color:f.color||'#A78BFA'
         }))));
     } catch {}
 }
@@ -1181,6 +1184,19 @@ const linhaDraggablePlugin = {
    ser movido inteiro ou apagado. Independente do Fibonacci automático
    (fibonacciLinesPlugin) que continua funcionando como antes.
 ═══════════════════════════════════════════════════════════════════ */
+/* Converte pixel-X <-> fração (0 a 1) da largura do gráfico. Usado pelo
+   fib livre para guardar a posição X sem depender do eixo de categorias —
+   assim funciona também na área "vazia" reservada para pontos futuros,
+   onde o eixo não tem posições/índices válidos. */
+function _fibPxToFrac(chart, px) {
+    const {left,right} = chart.chartArea;
+    return right<=left ? 0 : (px-left)/(right-left);
+}
+function _fibFracToPx(chart, frac) {
+    const {left,right} = chart.chartArea;
+    return left + frac*(right-left);
+}
+
 const fibDraggablePlugin = {
     id: 'fibDraggable',
     afterInit(chart) {
@@ -1192,6 +1208,7 @@ const fibDraggablePlugin = {
         let draggingIdx = -1;     // índice do fibonacci sendo movido (translada em X e Y)
         let dragStartVal = 0, dragOrigY1 = 0, dragOrigY2 = 0;
         let dragStartXVal = 0, dragOrigX1Idx = null, dragOrigX2Idx = null;
+        let dragStartPxX = 0, dragOrigX1Frac = null, dragOrigX2Frac = null;
         const HIT_PX = 8, MIN_DRAG_PX = 12; // abaixo disso, considera "largura total"
 
         const getYS   = () => chart.scales.y;
@@ -1206,6 +1223,11 @@ const fibDraggablePlugin = {
         // Span em pixels de um fibonacci já salvo (null/null = largura total do gráfico)
         const spanPx = f => {
             const {left,right} = chart.chartArea;
+            if (f.x1Frac!=null && f.x2Frac!=null) {
+                let p1 = _fibFracToPx(chart,f.x1Frac), p2 = _fibFracToPx(chart,f.x2Frac);
+                if (p1>p2) [p1,p2]=[p2,p1];
+                return { x1: Math.max(left,p1), x2: Math.min(right,p2), anchored:true };
+            }
             const xS = getXS();
             if (f.x1Idx==null || f.x2Idx==null || !xS) return {x1:left, x2:right, anchored:false};
             let p1 = xS.getPixelForValue(f.x1Idx), p2 = xS.getPixelForValue(f.x2Idx);
@@ -1279,6 +1301,9 @@ const fibDraggablePlugin = {
                 dragStartXVal  = xS ? xS.getValueForPixel(pxX) : 0;
                 dragOrigX1Idx  = chart.fibDraws[idx].x1Idx ?? null;
                 dragOrigX2Idx  = chart.fibDraws[idx].x2Idx ?? null;
+                dragStartPxX   = pxX;
+                dragOrigX1Frac = chart.fibDraws[idx].x1Frac ?? null;
+                dragOrigX2Frac = chart.fibDraws[idx].x2Frac ?? null;
             } else {
                 chart._selectedFib = -1;
             }
@@ -1304,7 +1329,17 @@ const fibDraggablePlugin = {
                 chart.fibDraws[draggingIdx].y2 = Math.round((dragOrigY2+delta)*10)/10;
 
                 // Move também na horizontal (só quando o fibonacci tem largura customizada)
-                if (dragOrigX1Idx!=null && dragOrigX2Idx!=null) {
+                if (dragOrigX1Frac!=null && dragOrigX2Frac!=null) {
+                    const {left,right} = chart.chartArea;
+                    const deltaFrac = (pxX - dragStartPxX) / Math.max(1,(right-left));
+                    let nf1 = dragOrigX1Frac + deltaFrac, nf2 = dragOrigX2Frac + deltaFrac;
+                    const lo = Math.min(nf1,nf2);
+                    if (lo<0) { nf1-=lo; nf2-=lo; }
+                    const hi2 = Math.max(nf1,nf2);
+                    if (hi2>1) { const over=hi2-1; nf1-=over; nf2-=over; }
+                    chart.fibDraws[draggingIdx].x1Frac = nf1;
+                    chart.fibDraws[draggingIdx].x2Frac = nf2;
+                } else if (dragOrigX1Idx!=null && dragOrigX2Idx!=null) {
                     const xS = getXS();
                     if (xS) {
                         const xv = xS.getValueForPixel(pxX);
@@ -1333,15 +1368,12 @@ const fibDraggablePlugin = {
                         alert(`Máximo de ${MAX_DRAG_FIBS} fibonacci!`);
                     } else {
                         const color = FIB_COLORS[chart.fibDraws.length % FIB_COLORS.length];
-                        let x1Idx = null, x2Idx = null;
+                        let x1Frac = null, x2Frac = null;
                         if (distX >= MIN_DRAG_PX) {
-                            const xS = getXS();
-                            if (xS) {
-                                x1Idx = xS.getValueForPixel(creating.x1Px);
-                                x2Idx = xS.getValueForPixel(creating.x2Px);
-                            }
+                            x1Frac = _fibPxToFrac(chart, creating.x1Px);
+                            x2Frac = _fibPxToFrac(chart, creating.x2Px);
                         }
-                        chart.fibDraws.push({ y1: creating.y1, y2: creating.y2, x1Idx, x2Idx, color });
+                        chart.fibDraws.push({ y1: creating.y1, y2: creating.y2, x1Frac, x2Frac, color });
                         chart._selectedFib = chart.fibDraws.length-1;
                         _saveDragFibs(chart.fibDraws); _atualizarContadorFibs(chart.fibDraws);
                         _captureControlsToSetup(_getActiveSetup());
@@ -1422,6 +1454,11 @@ const fibDraggablePlugin = {
         };
         const spanPxSaved = f => {
             const {left,right} = chart.chartArea;
+            if (f.x1Frac!=null && f.x2Frac!=null) {
+                let p1 = _fibFracToPx(chart,f.x1Frac), p2 = _fibFracToPx(chart,f.x2Frac);
+                if (p1>p2) [p1,p2]=[p2,p1];
+                return { x1: Math.max(left,p1), x2: Math.min(right,p2), anchored:true };
+            }
             const xS = chart.scales.x;
             if (f.x1Idx==null || f.x2Idx==null || !xS) return {x1:left, x2:right, anchored:false};
             let p1 = xS.getPixelForValue(f.x1Idx), p2 = xS.getPixelForValue(f.x2Idx);
