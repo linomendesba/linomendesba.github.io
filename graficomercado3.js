@@ -1663,6 +1663,47 @@ const trendLinePlugin = {
 };
 
 /* ═══════════════════════════════════════════════════════════════════
+   PAN DO GRÁFICO (arrastar só a área de dados pra esquerda/direita —
+   eixo, grid e números de porcentagem ficam sempre fixos, pois são
+   desenhados pelo Chart.js ANTES deste plugin entrar em ação)
+═══════════════════════════════════════════════════════════════════ */
+const GRAPH_PAN_KEY = 'mgraf:graphPanX';
+const graphPanPlugin = {
+    id: 'graphPan',
+    afterInit(chart) {
+        chart._panOffsetX = 0;
+        chart.setPanOffset = (dx) => {
+            const area = chart.chartArea;
+            const largura = area ? (area.right - area.left) : 0;
+            const limite  = largura; // pode sumir até uma largura inteira pra cada lado
+            chart._panOffsetX = Math.max(-limite, Math.min(limite, dx));
+            chart.update('none');
+        };
+    },
+    /* roda antes de tudo que é desenhado "por cima" dos dados (linha
+       principal, médias móveis, fibonacci, tendência, linhas manuais,
+       rótulos) — clipa na área do gráfico e desloca só esse conteúdo */
+    beforeDatasetsDraw(chart) {
+        const area = chart.chartArea;
+        if (!area) return;
+        const dx = chart._panOffsetX || 0;
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(area.left, area.top, area.right - area.left, area.bottom - area.top);
+        ctx.clip();
+        ctx.translate(dx, 0);
+    },
+    /* como este plugin é o ÚLTIMO da lista, seu afterDatasetsDraw roda
+       por último — ou seja, DEPOIS de todos os outros plugins terem
+       desenhado suas linhas/rótulos, então tudo isso sai deslocado e
+       cortado junto; só então a translação é desfeita */
+    afterDatasetsDraw(chart) {
+        chart.ctx.restore();
+    }
+};
+
+/* ═══════════════════════════════════════════════════════════════════
    CRIAÇÃO DO GRÁFICO
 ═══════════════════════════════════════════════════════════════════ */
 Chart.defaults.animation.duration = 0;
@@ -1721,7 +1762,7 @@ function createStatsChart(ctx, labels, data, league) {
                 y2:{position:'right',beginAtZero:true,min:0,max:10,ticks:{color:'rgba(148,163,184,0.35)',stepSize:1,precision:0},grid:{display:false},border:{display:false},afterFit:s=>{s.width=0;}}
             }
         },
-        plugins:[fibonacciLinesPlugin,fibDraggablePlugin,linhaAtualPlugin,linhaDraggablePlugin,trendLinePlugin,rotulosPlugin]
+        plugins:[fibonacciLinesPlugin,fibDraggablePlugin,linhaAtualPlugin,linhaDraggablePlugin,trendLinePlugin,rotulosPlugin,graphPanPlugin]
     });
 }
  
@@ -2126,53 +2167,35 @@ window.deletarTendenciaSelecionada=()=>{const c=chartInstances['Copa']||Object.v
 window.limparTendencias=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.clearTrendDraws();};
  
 /* ═══════════════════════════════════════════════════════════════════
-   ARRASTAR GRÁFICO (só o traçado/canvas desliza pra esquerda/direita
-   DENTRO do .canvas-wrapper, que vira a "janela" fixa; o que passa da
-   borda simplesmente some, cortado pelo overflow:hidden do wrapper)
+   ARRASTAR GRÁFICO (pan): clicar em cima do gráfico, segurar e
+   arrastar move só a linha/dados pra esquerda ou direita. O eixo de
+   porcentagem, o grid e os números continuam sempre fixos, porque o
+   deslocamento acontece dentro do próprio Chart.js (graphPanPlugin),
+   não no elemento <canvas>.
 ═══════════════════════════════════════════════════════════════════ */
-const GRAPH_DRAG_X_KEY = 'mgraf:graphDragX';
+const GRAPH_PAN_STORE_KEY = 'mgraf:graphPanX';
 
 function _initGraphDrag(league) {
     const canvas = document.getElementById(league);
     if (!canvas || canvas.dataset.dragInit === '1') return;
     canvas.dataset.dragInit = '1';
 
-    /* .canvas-wrapper vira a "janela": tamanho fixo e corta tudo que
-       sair dela. O .control-panel (selects, botões) fica de fora e
-       não é afetado. */
-    const wrapper = canvas.closest('.canvas-wrapper') || canvas.parentElement;
-    if (!wrapper) return;
-    if (getComputedStyle(wrapper).position === 'static') wrapper.style.position = 'relative';
-    wrapper.style.overflow = 'hidden';
-
-    if (getComputedStyle(canvas).position === 'static') canvas.style.position = 'relative';
-    canvas.style.willChange = 'transform';
-
-    const dragKey = `${GRAPH_DRAG_X_KEY}:${league}`;
-    let offsetX = _ls(dragKey, 0) || 0;
-    const applyOffset = () => { canvas.style.transform = `translateX(${offsetX}px)`; };
-
-    /* Limite: deixa sempre uma faixa do canvas visível dentro do wrapper,
-       senão o gráfico some por completo e não dá mais pra clicar nele
-       de volta pra trazê-lo. */
-    const MIN_VISIVEL_PX = 80;
-    const clamp = () => {
-        const w = wrapper.clientWidth, cw = canvas.getBoundingClientRect().width || w;
-        const maxOffset = Math.max(0, cw - MIN_VISIVEL_PX);
-        const minOffset = -Math.max(0, cw - MIN_VISIVEL_PX);
-        if (offsetX > maxOffset) offsetX = maxOffset;
-        if (offsetX < minOffset) offsetX = minOffset;
-        applyOffset();
-    };
-
-    let dragging = false, startClientX = 0, startOffsetX = 0;
-
+    const dragKey = `${GRAPH_PAN_STORE_KEY}:${league}`;
     const chartOf = () => chartInstances[league];
 
-    /* Só inicia o "arrastar o gráfico inteiro" se, neste mesmo clique,
-       nenhuma ferramenta de desenho (linha / fibonacci / tendência)
-       tiver capturado o evento primeiro — evita conflito com elas. */
-    const podeArrastarJanela = () => {
+    /* Restaura o pan salvo assim que o gráfico existir. */
+    const restorePanQuandoPronto = () => {
+        const c = chartOf();
+        if (!c) { setTimeout(restorePanQuandoPronto, 200); return; }
+        const saved = _ls(dragKey, 0) || 0;
+        if (saved) c.setPanOffset(saved);
+    };
+    restorePanQuandoPronto();
+
+    /* Só inicia o arrastar se, neste mesmo clique, nenhuma ferramenta
+       de desenho (linha manual / fibonacci / tendência) já tiver
+       capturado o evento primeiro — evita conflito com elas. */
+    const podeArrastar = () => {
         const c = chartOf();
         if (!c) return true;
         if (c._fibDrawMode || c._trendDrawMode) return false;
@@ -2182,49 +2205,46 @@ function _initGraphDrag(league) {
         return true;
     };
 
-    const onMouseDown = e => {
-        if (!podeArrastarJanela()) return;
+    let dragging = false, startClientX = 0, startOffset = 0;
+
+    const getX = e => e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX) ?? 0;
+
+    const onDown = e => {
+        const c = chartOf();
+        if (!c || !podeArrastar()) return;
         dragging = true;
-        startClientX = e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX) ?? 0;
-        startOffsetX = offsetX;
+        startClientX = getX(e);
+        startOffset  = c._panOffsetX || 0;
         canvas.style.cursor = 'grabbing';
     };
-    const onMouseMove = e => {
+    const onMove = e => {
         if (!dragging) return;
-        const clientX = e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX) ?? startClientX;
-        const cw = canvas.getBoundingClientRect().width || wrapper.clientWidth;
-        const maxOffset = Math.max(0, cw - MIN_VISIVEL_PX);
-        const minOffset = -maxOffset;
-        let next = startOffsetX + (clientX - startClientX);
-        if (next > maxOffset) next = maxOffset;
-        if (next < minOffset) next = minOffset;
-        offsetX = next;
-        applyOffset();
+        const c = chartOf(); if (!c) return;
+        const delta = getX(e) - startClientX;
+        c.setPanOffset(startOffset + delta);
     };
-    const onMouseUp = () => {
+    const onUp = () => {
         if (!dragging) return;
         dragging = false;
         canvas.style.cursor = '';
-        _lsSet(dragKey, offsetX);
+        const c = chartOf();
+        _lsSet(dragKey, c ? (c._panOffsetX || 0) : 0);
     };
-    /* Duplo clique recentraliza o gráfico dentro da janela. */
-    const onDblClick = () => { offsetX = 0; applyOffset(); _lsSet(dragKey, 0); };
+    /* Duplo clique recentraliza o gráfico. */
+    const onDblClick = () => {
+        const c = chartOf(); if (!c) return;
+        c.setPanOffset(0);
+        _lsSet(dragKey, 0);
+    };
 
-    /* Registrado DEPOIS dos plugins de linha/fibonacci/tendência (que já
-       rodam desde createStatsChart), então quando este handler executa,
-       as flags de seleção deles já refletem o clique atual. */
-    canvas.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('mousedown', onDown);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
     canvas.addEventListener('dblclick', onDblClick);
 
-    canvas.addEventListener('touchstart', onMouseDown, {passive:true});
-    window.addEventListener('touchmove', onMouseMove, {passive:true});
-    window.addEventListener('touchend', onMouseUp, {passive:true});
-
-    window.addEventListener('resize', clamp);
-
-    clamp();
+    canvas.addEventListener('touchstart', onDown, {passive:true});
+    window.addEventListener('touchmove', onMove, {passive:true});
+    window.addEventListener('touchend', onUp, {passive:true});
 }
 
 window.onload=()=>{
