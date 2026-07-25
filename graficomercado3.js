@@ -34,6 +34,26 @@ let yAxisPosition      = _ls(Y_AXIS_POS_KEY, 'left'); // 'left' | 'right' — pr
 const leagues          = ['Copa'];
 const chartInstances   = {};
 let chartData          = {};
+
+/* Nome da liga atual — lido do elemento <h4 class="custom-color"> dentro de
+   #resultDisplay, que toda página de liga possui com o nome da própria liga
+   (ex: "Clássicos"). Não usamos a const `leagues` porque este mesmo arquivo
+   grafico.js é compartilhado por todas as páginas, então `leagues[0]` não
+   diferencia uma liga da outra — o h4 é o único identificador realmente
+   único por página. */
+function _ligaAtual() {
+    const h4 = (document.querySelector('#resultDisplay h4.custom-color') || document.querySelector('h4.custom-color'));
+    const nome = h4 && h4.textContent ? h4.textContent.trim() : '';
+    if (nome) return nome;
+    return (leagues && leagues[0]) ? leagues[0] : 'default';
+}
+
+/* Chave de armazenamento específica da liga atual — garante que linhas manuais,
+   fibonacci livre e linhas de tendência (LTA/LTB) desenhadas em uma liga NÃO
+   apareçam em outra ao trocar de liga. */
+function _ligaKey(baseKey) {
+    return `${baseKey}:${_ligaAtual()}`;
+}
  
 let _tabVisible = !document.hidden;
 document.addEventListener('visibilitychange', () => {
@@ -971,14 +991,14 @@ const linhaAtualPlugin = {
 /* ── DRAG LINES ── */
 function _loadDragLines() {
     try {
-        const a = JSON.parse(localStorage.getItem(DRAG_LINES_KEY)||'[]');
+        const a = JSON.parse(localStorage.getItem(_ligaKey(DRAG_LINES_KEY))||'[]');
         return Array.isArray(a)
             ? a.map(l => ({y:Number(l.y),color:l.color||'#1fcc59',dragging:false}))
             : [];
     } catch { return []; }
 }
 function _saveDragLines(l) {
-    try { localStorage.setItem(DRAG_LINES_KEY, JSON.stringify(l.map(x=>({y:x.y,color:x.color||'#1fcc59'})))); } catch {}
+    try { localStorage.setItem(_ligaKey(DRAG_LINES_KEY), JSON.stringify(l.map(x=>({y:x.y,color:x.color||'#1fcc59'})))); } catch {}
 }
 function _atualizarContador(l) {
     const el = document.getElementById('contadorLinhas');
@@ -988,7 +1008,7 @@ function _atualizarContador(l) {
 /* ── FIBONACCI LIVRE (ARRASTÁVEL) ── */
 function _loadDragFibs() {
     try {
-        const a = JSON.parse(localStorage.getItem(DRAG_FIBS_KEY)||'[]');
+        const a = JSON.parse(localStorage.getItem(_ligaKey(DRAG_FIBS_KEY))||'[]');
         return Array.isArray(a)
             ? a.map(f => ({
                 y1:Number(f.y1), y2:Number(f.y2),
@@ -1001,7 +1021,7 @@ function _loadDragFibs() {
 }
 function _saveDragFibs(arr) {
     try {
-        localStorage.setItem(DRAG_FIBS_KEY, JSON.stringify((arr||[]).map(f=>({
+        localStorage.setItem(_ligaKey(DRAG_FIBS_KEY), JSON.stringify((arr||[]).map(f=>({
             y1:f.y1, y2:f.y2, x1Idx:(f.x1Idx??null), x2Idx:(f.x2Idx??null), color:f.color||'#A78BFA'
         }))));
     } catch {}
@@ -1014,7 +1034,7 @@ function _atualizarContadorFibs(arr) {
 /* ── LINHAS DE TENDÊNCIA LIVRES (LTA / LTB, ARRASTÁVEIS) ── */
 function _loadDragTrends() {
     try {
-        const a = JSON.parse(localStorage.getItem(DRAG_TRENDS_KEY)||'[]');
+        const a = JSON.parse(localStorage.getItem(_ligaKey(DRAG_TRENDS_KEY))||'[]');
         return Array.isArray(a)
             ? a.map(t => ({
                 x1Idx:Number(t.x1Idx), y1:Number(t.y1),
@@ -1026,7 +1046,7 @@ function _loadDragTrends() {
 }
 function _saveDragTrends(arr) {
     try {
-        localStorage.setItem(DRAG_TRENDS_KEY, JSON.stringify((arr||[]).map(t=>({
+        localStorage.setItem(_ligaKey(DRAG_TRENDS_KEY), JSON.stringify((arr||[]).map(t=>({
             x1Idx:t.x1Idx, y1:t.y1, x2Idx:t.x2Idx, y2:t.y2, color:t.color||'#34D399', tipo:t.tipo||'LTA'
         }))));
     } catch {}
@@ -2105,11 +2125,107 @@ window.ativarDesenhoLTB=()=>{const c=chartInstances['Copa']||Object.values(chart
 window.deletarTendenciaSelecionada=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.deleteTrendSelected();};
 window.limparTendencias=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.clearTrendDraws();};
  
+/* ═══════════════════════════════════════════════════════════════════
+   ARRASTAR GRÁFICO (mover a caixa do gráfico pra esquerda/direita,
+   sempre flutuando dentro dos limites da janela/viewport)
+═══════════════════════════════════════════════════════════════════ */
+const GRAPH_DRAG_X_KEY = 'mgraf:graphDragX';
+
+/* Mede a posição "real" da caixa desconsiderando o translateX atual,
+   pra podermos calcular corretamente os limites esquerdo/direito. */
+function _dragBaseRect(box) {
+    const prevTransform = box.style.transform;
+    box.style.transform = 'none';
+    const rect = box.getBoundingClientRect();
+    box.style.transform = prevTransform;
+    return rect;
+}
+
+function _initGraphDrag(league) {
+    const canvas = document.getElementById(league);
+    if (!canvas) return;
+
+    /* Caixa que será movida: o .canvas-wrapper envolve só o canvas,
+       deixando o .control-panel (selects, botões etc.) parado no lugar. */
+    const box = canvas.closest('.canvas-wrapper') || canvas.parentElement;
+    if (!box || box.dataset.dragInit === '1') return;
+    box.dataset.dragInit = '1';
+
+    if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+    box.style.willChange = 'transform';
+
+    const dragKey = `${GRAPH_DRAG_X_KEY}:${league}`;
+    let offsetX = _ls(dragKey, 0) || 0;
+
+    const applyOffset = () => { box.style.transform = `translateX(${offsetX}px)`; };
+
+    const clampToWindow = () => {
+        const rect = _dragBaseRect(box);
+        const minOffset = -rect.left;
+        const maxOffset = window.innerWidth - rect.right;
+        if (offsetX < minOffset) offsetX = minOffset;
+        if (offsetX > maxOffset) offsetX = maxOffset;
+        applyOffset();
+    };
+
+    /* Alcinha de arrastar — fica no topo da caixa, não interfere com os
+       cliques usados para desenhar linhas/fibonacci/tendência no canvas. */
+    let handle = box.querySelector('.grafico-drag-handle');
+    if (!handle) {
+        handle = document.createElement('div');
+        handle.className = 'grafico-drag-handle';
+        handle.title = 'Clique, segure e arraste para mover o gráfico';
+        handle.textContent = '⋮⋮ arraste para mover ⋮⋮';
+        handle.style.cssText = 'cursor:grab;user-select:none;text-align:center;'
+            + 'font-size:11px;letter-spacing:2px;color:#888;padding:4px 0;'
+            + 'background:rgba(255,255,255,0.03);border-radius:4px 4px 0 0;';
+        box.insertBefore(handle, box.firstChild);
+    }
+
+    let dragging = false, startClientX = 0, startOffsetX = 0, baseRect = null;
+
+    const onPointerDown = e => {
+        dragging = true;
+        startClientX = e.clientX;
+        startOffsetX = offsetX;
+        baseRect = _dragBaseRect(box);
+        handle.style.cursor = 'grabbing';
+        if (handle.setPointerCapture) { try { handle.setPointerCapture(e.pointerId); } catch(_) {} }
+        e.preventDefault();
+    };
+    const onPointerMove = e => {
+        if (!dragging) return;
+        const delta = e.clientX - startClientX;
+        let next = startOffsetX + delta;
+        const minOffset = -baseRect.left;
+        const maxOffset = window.innerWidth - baseRect.right;
+        if (next < minOffset) next = minOffset;
+        if (next > maxOffset) next = maxOffset;
+        offsetX = next;
+        applyOffset();
+    };
+    const onPointerUp = () => {
+        if (!dragging) return;
+        dragging = false;
+        handle.style.cursor = 'grab';
+        _lsSet(dragKey, offsetX);
+    };
+
+    handle.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+    window.addEventListener('resize', clampToWindow);
+
+    clampToWindow();
+}
+
 window.onload=()=>{
     updateCharts();
     _renderSetupBar();
     _renderLinesPanel(_getActiveSetup());
     _updateSetupCounter();
+    leagues.forEach(_initGraphDrag);
 };
 
 
