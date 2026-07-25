@@ -1701,7 +1701,7 @@ function createStatsChart(ctx, labels, data, league) {
             },
             scales:{
                 x:{ticks:{display:false},grid:{display:false}},
-                y:{position:yAxisPosition,beginAtZero:false,ticks:{color:'#8B92A8',font:{size:11},stepSize:5,padding:8},grid:{color:'rgba(148,163,184,0.09)',lineWidth:1,drawTicks:false},border:{display:false},afterFit:s=>{s.paddingTop=20;}},
+                y:{position:yAxisPosition,beginAtZero:false,ticks:{color:'#8B92A8',font:{size:11},stepSize:100/30,padding:8,callback:v=>Math.round(v*100)/100},grid:{color:'rgba(148,163,184,0.09)',lineWidth:1,drawTicks:false},border:{display:false},afterFit:s=>{s.paddingTop=20;}},
                 y2:{position:'right',beginAtZero:true,min:0,max:10,ticks:{color:'rgba(148,163,184,0.35)',stepSize:1,precision:0},grid:{display:false},border:{display:false},afterFit:s=>{s.width=0;}}
             }
         },
