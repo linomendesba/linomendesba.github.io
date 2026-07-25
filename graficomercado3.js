@@ -1378,19 +1378,27 @@ const fibDraggablePlugin = {
     },
     afterDatasetsDraw(chart) {
         const yS = chart.scales.y; if (!yS || !chart.chartArea) return;
-        const ctx = chart.ctx, {top,bottom} = chart.chartArea;
+        const ctx = chart.ctx, {top,bottom,left,right} = chart.chartArea;
         const draw = (f, isSel, isPreview, span) => {
             const {x1:xa,x2:xb,anchored} = span;
             FIB_RETR_LEVELS.forEach(lvl => {
                 const val = f.y1 + (lvl/100)*(f.y2-f.y1);
                 const yPx = yS.getPixelForValue(val);
                 if (!isFinite(yPx) || yPx<top-1 || yPx>bottom+1) return;
+                const baseAlpha = isPreview ? 0.55 : (lvl===0||lvl===100 ? 0.9 : 0.7);
                 ctx.save();
                 ctx.strokeStyle = f.color;
                 ctx.lineWidth = isSel ? 1.8 : 1;
-                ctx.globalAlpha = isPreview ? 0.55 : (lvl===0||lvl===100 ? 0.9 : 0.7);
+                ctx.globalAlpha = baseAlpha;
                 if (!isSel) ctx.setLineDash([5,4]);
                 ctx.beginPath(); ctx.moveTo(xa,yPx); ctx.lineTo(xb,yPx); ctx.stroke();
+                // projeção pontilhada além das âncoras até as bordas do gráfico — igual LTA/LTB
+                if (anchored) {
+                    ctx.setLineDash([3,4]);
+                    ctx.globalAlpha = baseAlpha * 0.55;
+                    if (xa > left)  { ctx.beginPath(); ctx.moveTo(left,  yPx); ctx.lineTo(xa, yPx); ctx.stroke(); }
+                    if (xb < right) { ctx.beginPath(); ctx.moveTo(xb, yPx); ctx.lineTo(right, yPx); ctx.stroke(); }
+                }
                 ctx.setLineDash([]); ctx.globalAlpha = 1;
                 ctx.fillStyle = f.color;
                 ctx.font = "600 9.5px 'Inter',Arial,sans-serif";
