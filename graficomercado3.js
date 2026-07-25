@@ -2126,98 +2126,105 @@ window.deletarTendenciaSelecionada=()=>{const c=chartInstances['Copa']||Object.v
 window.limparTendencias=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.clearTrendDraws();};
  
 /* ═══════════════════════════════════════════════════════════════════
-   ARRASTAR GRÁFICO (mover a caixa do gráfico pra esquerda/direita,
-   sempre flutuando dentro dos limites da janela/viewport)
+   ARRASTAR GRÁFICO (só o traçado/canvas desliza pra esquerda/direita
+   DENTRO do .canvas-wrapper, que vira a "janela" fixa; o que passa da
+   borda simplesmente some, cortado pelo overflow:hidden do wrapper)
 ═══════════════════════════════════════════════════════════════════ */
 const GRAPH_DRAG_X_KEY = 'mgraf:graphDragX';
 
-/* Mede a posição "real" da caixa desconsiderando o translateX atual,
-   pra podermos calcular corretamente os limites esquerdo/direito. */
-function _dragBaseRect(box) {
-    const prevTransform = box.style.transform;
-    box.style.transform = 'none';
-    const rect = box.getBoundingClientRect();
-    box.style.transform = prevTransform;
-    return rect;
-}
-
 function _initGraphDrag(league) {
     const canvas = document.getElementById(league);
-    if (!canvas) return;
+    if (!canvas || canvas.dataset.dragInit === '1') return;
+    canvas.dataset.dragInit = '1';
 
-    /* Caixa que será movida: o .canvas-wrapper envolve só o canvas,
-       deixando o .control-panel (selects, botões etc.) parado no lugar. */
-    const box = canvas.closest('.canvas-wrapper') || canvas.parentElement;
-    if (!box || box.dataset.dragInit === '1') return;
-    box.dataset.dragInit = '1';
+    /* .canvas-wrapper vira a "janela": tamanho fixo e corta tudo que
+       sair dela. O .control-panel (selects, botões) fica de fora e
+       não é afetado. */
+    const wrapper = canvas.closest('.canvas-wrapper') || canvas.parentElement;
+    if (!wrapper) return;
+    if (getComputedStyle(wrapper).position === 'static') wrapper.style.position = 'relative';
+    wrapper.style.overflow = 'hidden';
 
-    if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
-    box.style.willChange = 'transform';
+    if (getComputedStyle(canvas).position === 'static') canvas.style.position = 'relative';
+    canvas.style.willChange = 'transform';
 
     const dragKey = `${GRAPH_DRAG_X_KEY}:${league}`;
     let offsetX = _ls(dragKey, 0) || 0;
+    const applyOffset = () => { canvas.style.transform = `translateX(${offsetX}px)`; };
 
-    const applyOffset = () => { box.style.transform = `translateX(${offsetX}px)`; };
-
-    const clampToWindow = () => {
-        const rect = _dragBaseRect(box);
-        const minOffset = -rect.left;
-        const maxOffset = window.innerWidth - rect.right;
-        if (offsetX < minOffset) offsetX = minOffset;
+    /* Limite: deixa sempre uma faixa do canvas visível dentro do wrapper,
+       senão o gráfico some por completo e não dá mais pra clicar nele
+       de volta pra trazê-lo. */
+    const MIN_VISIVEL_PX = 80;
+    const clamp = () => {
+        const w = wrapper.clientWidth, cw = canvas.getBoundingClientRect().width || w;
+        const maxOffset = Math.max(0, cw - MIN_VISIVEL_PX);
+        const minOffset = -Math.max(0, cw - MIN_VISIVEL_PX);
         if (offsetX > maxOffset) offsetX = maxOffset;
+        if (offsetX < minOffset) offsetX = minOffset;
         applyOffset();
     };
 
-    /* Alcinha de arrastar — fica no topo da caixa, não interfere com os
-       cliques usados para desenhar linhas/fibonacci/tendência no canvas. */
-    let handle = box.querySelector('.grafico-drag-handle');
-    if (!handle) {
-        handle = document.createElement('div');
-        handle.className = 'grafico-drag-handle';
-        handle.title = 'Clique, segure e arraste para mover o gráfico';
-        handle.textContent = '⋮⋮ arraste para mover ⋮⋮';
-        handle.style.cssText = 'cursor:grab;user-select:none;text-align:center;'
-            + 'font-size:11px;letter-spacing:2px;color:#888;padding:4px 0;'
-            + 'background:rgba(255,255,255,0.03);border-radius:4px 4px 0 0;';
-        box.insertBefore(handle, box.firstChild);
-    }
+    let dragging = false, startClientX = 0, startOffsetX = 0;
 
-    let dragging = false, startClientX = 0, startOffsetX = 0, baseRect = null;
+    const chartOf = () => chartInstances[league];
 
-    const onPointerDown = e => {
-        dragging = true;
-        startClientX = e.clientX;
-        startOffsetX = offsetX;
-        baseRect = _dragBaseRect(box);
-        handle.style.cursor = 'grabbing';
-        if (handle.setPointerCapture) { try { handle.setPointerCapture(e.pointerId); } catch(_) {} }
-        e.preventDefault();
+    /* Só inicia o "arrastar o gráfico inteiro" se, neste mesmo clique,
+       nenhuma ferramenta de desenho (linha / fibonacci / tendência)
+       tiver capturado o evento primeiro — evita conflito com elas. */
+    const podeArrastarJanela = () => {
+        const c = chartOf();
+        if (!c) return true;
+        if (c._fibDrawMode || c._trendDrawMode) return false;
+        if ((c._selectedDragLine ?? -1) >= 0) return false;
+        if ((c._selectedFib ?? -1) >= 0) return false;
+        if ((c._selectedTrend ?? -1) >= 0) return false;
+        return true;
     };
-    const onPointerMove = e => {
+
+    const onMouseDown = e => {
+        if (!podeArrastarJanela()) return;
+        dragging = true;
+        startClientX = e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX) ?? 0;
+        startOffsetX = offsetX;
+        canvas.style.cursor = 'grabbing';
+    };
+    const onMouseMove = e => {
         if (!dragging) return;
-        const delta = e.clientX - startClientX;
-        let next = startOffsetX + delta;
-        const minOffset = -baseRect.left;
-        const maxOffset = window.innerWidth - baseRect.right;
-        if (next < minOffset) next = minOffset;
+        const clientX = e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX) ?? startClientX;
+        const cw = canvas.getBoundingClientRect().width || wrapper.clientWidth;
+        const maxOffset = Math.max(0, cw - MIN_VISIVEL_PX);
+        const minOffset = -maxOffset;
+        let next = startOffsetX + (clientX - startClientX);
         if (next > maxOffset) next = maxOffset;
+        if (next < minOffset) next = minOffset;
         offsetX = next;
         applyOffset();
     };
-    const onPointerUp = () => {
+    const onMouseUp = () => {
         if (!dragging) return;
         dragging = false;
-        handle.style.cursor = 'grab';
+        canvas.style.cursor = '';
         _lsSet(dragKey, offsetX);
     };
+    /* Duplo clique recentraliza o gráfico dentro da janela. */
+    const onDblClick = () => { offsetX = 0; applyOffset(); _lsSet(dragKey, 0); };
 
-    handle.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
-    window.addEventListener('resize', clampToWindow);
+    /* Registrado DEPOIS dos plugins de linha/fibonacci/tendência (que já
+       rodam desde createStatsChart), então quando este handler executa,
+       as flags de seleção deles já refletem o clique atual. */
+    canvas.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('dblclick', onDblClick);
 
-    clampToWindow();
+    canvas.addEventListener('touchstart', onMouseDown, {passive:true});
+    window.addEventListener('touchmove', onMouseMove, {passive:true});
+    window.addEventListener('touchend', onMouseUp, {passive:true});
+
+    window.addEventListener('resize', clamp);
+
+    clamp();
 }
 
 window.onload=()=>{
