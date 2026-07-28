@@ -7751,25 +7751,23 @@ function calculatePercentage(data, market, horas) {
     // Cada hora = 20 jogos
     const quantidadeJogos = horas * 20;
 
-    // Janela atual: usada pro NÚMERO exibido na tela (normal, igual sempre foi)
+    // Janela atual: usada pro NÚMERO exibido na tela (normal, igual sempre foi) — é a MÉDIA do período
     const jogosFiltrados = data.slice(-quantidadeJogos);
     const resultadoAtual = contarGreensReds(jogosFiltrados, market);
 
-    // Janela deslocada em JOGOS_TENDENCIA jogos pra trás: usada só pra decidir a SETA
-    // Ex: se JOGOS_TENDENCIA = 5, compara o bloco atual com o bloco de 5 jogos atrás,
-    // então a seta só muda quando o resultado desses últimos 5 jogos realmente vira o jogo.
-    const fimAnterior = data.length - JOGOS_TENDENCIA;
-    const inicioAnterior = fimAnterior - quantidadeJogos;
-    const jogosAnteriores = data.slice(Math.max(0, inicioAnterior), Math.max(0, fimAnterior));
-    const resultadoAnterior = jogosAnteriores.length > 0
-        ? contarGreensReds(jogosAnteriores, market)
-        : resultadoAtual; // sem dados suficientes ainda, não compara com nada (empata)
+    // Últimos JOGOS_TENDENCIA jogos (só isso, direto): usados pra comparar com a média
+    // e decidir a SETA. Ex: se os últimos 5 jogos têm taxa de green MAIOR que a média
+    // do período, a seta sobe. Se for MENOR, a seta desce.
+    const jogosRecentes = data.slice(-JOGOS_TENDENCIA);
+    const resultadoRecente = jogosRecentes.length > 0
+        ? contarGreensReds(jogosRecentes, market)
+        : resultadoAtual; // sem dados suficientes ainda, empata com a média
 
     return {
         greens: resultadoAtual.greens,
         reds:   resultadoAtual.reds,
-        greensBase: resultadoAnterior.greens, // usado só pela seta
-        redsBase:   resultadoAnterior.reds,   // usado só pela seta
+        greensRecente: resultadoRecente.greens, // taxa de green só dos últimos N jogos
+        redsRecente:   resultadoRecente.reds,   // taxa de red só dos últimos N jogos
         totalJogos: jogosFiltrados.length
     };
 }
@@ -7779,14 +7777,14 @@ function calculatePercentage(data, market, horas) {
 // Guarda a última seta de cada mercado/horas, só pra manter a direção quando empatar
 const _ultimaSeta = {};
 
-function getSeta(chave, valorAtual, valorBase) {
-    const diferenca = valorAtual - valorBase;
+function getSeta(chave, valorRecente, valorMedia) {
+    const diferenca = valorRecente - valorMedia;
 
     let seta;
-    if (valorAtual > valorBase) {
-        seta = "▲"; // os últimos jogos estão empurrando o mercado pra cima
-    } else if (valorAtual < valorBase) {
-        seta = "▼"; // os últimos jogos estão empurrando o mercado pra baixo
+    if (valorRecente > valorMedia) {
+        seta = "▲"; // os últimos jogos estão acima da média do período (esquentando)
+    } else if (valorRecente < valorMedia) {
+        seta = "▼"; // os últimos jogos estão abaixo da média do período (esfriando)
     } else {
         seta = _ultimaSeta[chave] || "▲"; // empatou: mantém a última direção conhecida
     }
@@ -7850,8 +7848,8 @@ async function atualizarPercentuais() {
 
     const chave = `${market}_${horas}`; // seta separada por mercado + horas
 
-    const setaGreen = getSeta(chave + "_g", parseFloat(resultado.greens), parseFloat(resultado.greensBase));
-    const setaRed   = getSeta(chave + "_r", parseFloat(resultado.reds),   parseFloat(resultado.redsBase));
+    const setaGreen = getSeta(chave + "_g", parseFloat(resultado.greensRecente), parseFloat(resultado.greens));
+    const setaRed   = getSeta(chave + "_r", parseFloat(resultado.redsRecente),   parseFloat(resultado.reds));
 
     const elGreen = document.getElementById("greenPercentage");
     const elRed   = document.getElementById("redPercentage");
