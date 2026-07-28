@@ -7607,48 +7607,136 @@ function calculatePercentage(data, market, horas) {
     let reds = 0;
 
     jogosFiltrados.forEach((game) => {
-        const [scoreA, scoreB] = game.ft.split(" x ").map(Number);
+        const [scoreA, scoreB] = game.ft.split(" x ").map(Number).map(g => isNaN(g) ? 0 : g);
+        const totalGols = scoreA + scoreB;
+
+        // Gols do 2º tempo (precisa do placar do HT)
+        let scoreA2T = 0, scoreB2T = 0;
+        if (game.ht && game.ht.includes("x")) {
+            const [htA, htB] = game.ht.split(" x ").map(Number).map(g => isNaN(g) ? 0 : g);
+            scoreA2T = Math.max(0, scoreA - htA);
+            scoreB2T = Math.max(0, scoreB - htB);
+        }
+        const total2T = scoreA2T + scoreB2T;
+
+        let isGreen;
 
         switch (market) {
             case "ambasMarcam":
-                (scoreA > 0 && scoreB > 0) ? greens++ : reds++;
+                isGreen = (scoreA > 0 && scoreB > 0);
                 break;
             case "ambasNaoMarcam":
-                (scoreA === 0 || scoreB === 0) ? greens++ : reds++;
+                isGreen = (scoreA === 0 || scoreB === 0);
                 break;
             case "casaVence":
-                (scoreA > scoreB) ? greens++ : reds++;
+                isGreen = (scoreA > scoreB);
                 break;
             case "foraVence":
-                (scoreA < scoreB) ? greens++ : reds++;
+                isGreen = (scoreA < scoreB);
                 break;
             case "empate":
-                (scoreA === scoreB) ? greens++ : reds++;
+                isGreen = (scoreA === scoreB);
+                break;
+
+            case "over0.5":
+                isGreen = (totalGols > 0.5);
                 break;
             case "over1.5":
-                (scoreA + scoreB > 1.5) ? greens++ : reds++;
-                break;
-            case "under1.5":
-                (scoreA + scoreB <= 1.5) ? greens++ : reds++;
+                isGreen = (totalGols > 1.5);
                 break;
             case "over2.5":
-                (scoreA + scoreB > 2.5) ? greens++ : reds++;
-                break;
-            case "under2.5":
-                (scoreA + scoreB <= 2.5) ? greens++ : reds++;
+                isGreen = (totalGols > 2.5);
                 break;
             case "over3.5":
-                (scoreA + scoreB > 3.5) ? greens++ : reds++;
-                break;
-            case "under3.5":
-                (scoreA + scoreB <= 3.5) ? greens++ : reds++;
+                isGreen = (totalGols > 3.5);
                 break;
             case "over5":
-                (scoreA + scoreB > 5) ? greens++ : reds++;
+                isGreen = (totalGols >= 5);
                 break;
+
+            case "under0.5":
+                isGreen = (totalGols < 0.5);
+                break;
+            case "under1.5":
+                isGreen = (totalGols < 1.5);
+                break;
+            case "under2.5":
+                isGreen = (totalGols < 2.5);
+                break;
+            case "under3.5":
+                isGreen = (totalGols < 3.5);
+                break;
+
+            case "exato0":
+                isGreen = (totalGols === 0);
+                break;
+            case "exato1":
+                isGreen = (totalGols === 1);
+                break;
+            case "exato2":
+                isGreen = (totalGols === 2);
+                break;
+            case "exato3":
+                isGreen = (totalGols === 3);
+                break;
+            case "exato4":
+                isGreen = (totalGols === 4);
+                break;
+
+            case "exato2t0":
+                isGreen = (total2T === 0);
+                break;
+            case "exato2t1":
+                isGreen = (total2T === 1);
+                break;
+            case "exato2t2":
+                isGreen = (total2T === 2);
+                break;
+            case "exato2t3":
+                isGreen = (total2T === 3);
+                break;
+            case "exato2t4":
+                isGreen = (total2T === 4);
+                break;
+
+            case "casa0Gols":
+                isGreen = (scoreA === 0);
+                break;
+            case "casa1Gol":
+                isGreen = (scoreA === 1);
+                break;
+            case "casa2Gols":
+                isGreen = (scoreA === 2);
+                break;
+            case "casa3Gols":
+                isGreen = (scoreA === 3);
+                break;
+            case "casa4Gols":
+                isGreen = (scoreA === 4);
+                break;
+
+            case "fora0Gols":
+                isGreen = (scoreB === 0);
+                break;
+            case "fora1Gol":
+                isGreen = (scoreB === 1);
+                break;
+            case "fora2Gols":
+                isGreen = (scoreB === 2);
+                break;
+            case "fora3Gols":
+                isGreen = (scoreB === 3);
+                break;
+            case "fora4Gols":
+                isGreen = (scoreB === 4);
+                break;
+
             default:
+                isGreen = false;
                 break;
         }
+
+        isGreen ? greens++ : reds++;
     });
 
     const total = greens + reds || 1; // evita divisão por zero
@@ -7660,9 +7748,13 @@ function calculatePercentage(data, market, horas) {
     };
 }
 
-// ====================== ATUALIZAR AO MUDAR O SELETOR ======================
+// ====================== ATUALIZAR AO MUDAR OS SELETORES ======================
 
 document.getElementById("seletorHoras").addEventListener("change", async () => {
+    await atualizarPercentuais();
+});
+
+document.getElementById("seletorResultado").addEventListener("change", async () => {
     await atualizarPercentuais();
 });
 
