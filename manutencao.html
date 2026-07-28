@@ -7595,18 +7595,16 @@ async function fetchResults() {
     return data;                    // retorna todos os jogos (sem slice aqui)
 }
 
-// Função principal que calcula Green e Red
-function calculatePercentage(data, market, horas) {
-    // Cada hora = 20 jogos
-    const quantidadeJogos = horas * 20;
+// Quantos jogos de defasagem usar pra calcular a TENDÊNCIA da seta
+// (o número da porcentagem continua usando todos os jogos do período normalmente)
+const JOGOS_TENDENCIA = 5;
 
-    // Pega apenas os últimos X jogos (de acordo com as horas selecionadas)
-    const jogosFiltrados = data.slice(-quantidadeJogos);
-
+// Conta greens/reds de uma lista de jogos pra um mercado específico
+function contarGreensReds(jogos, market) {
     let greens = 0;
     let reds = 0;
 
-    jogosFiltrados.forEach((game) => {
+    jogos.forEach((game) => {
         const [scoreA, scoreB] = game.ft.split(" x ").map(Number).map(g => isNaN(g) ? 0 : g);
         const totalGols = scoreA + scoreB;
 
@@ -7743,32 +7741,53 @@ function calculatePercentage(data, market, horas) {
 
     return {
         greens: ((greens / total) * 100).toFixed(1),
-        reds:   ((reds   / total) * 100).toFixed(1),
+        reds:   ((reds   / total) * 100).toFixed(1)
+    };
+}
+
+// Função principal que calcula Green e Red (número exibido) + a base pra tendência (seta)
+function calculatePercentage(data, market, horas) {
+    // Cada hora = 20 jogos
+    const quantidadeJogos = horas * 20;
+
+    // Janela atual: usada pro NÚMERO exibido na tela (normal, igual sempre foi)
+    const jogosFiltrados = data.slice(-quantidadeJogos);
+    const resultadoAtual = contarGreensReds(jogosFiltrados, market);
+
+    // Janela deslocada em JOGOS_TENDENCIA jogos pra trás: usada só pra decidir a SETA
+    // Ex: se JOGOS_TENDENCIA = 5, compara o bloco atual com o bloco de 5 jogos atrás,
+    // então a seta só muda quando o resultado desses últimos 5 jogos realmente vira o jogo.
+    const fimAnterior = data.length - JOGOS_TENDENCIA;
+    const inicioAnterior = fimAnterior - quantidadeJogos;
+    const jogosAnteriores = data.slice(Math.max(0, inicioAnterior), Math.max(0, fimAnterior));
+    const resultadoAnterior = jogosAnteriores.length > 0
+        ? contarGreensReds(jogosAnteriores, market)
+        : resultadoAtual; // sem dados suficientes ainda, não compara com nada (empata)
+
+    return {
+        greens: resultadoAtual.greens,
+        reds:   resultadoAtual.reds,
+        greensBase: resultadoAnterior.greens, // usado só pela seta
+        redsBase:   resultadoAnterior.reds,   // usado só pela seta
         totalJogos: jogosFiltrados.length
     };
 }
 
 // ====================== CONTROLE DE TENDÊNCIA (SETAS) ======================
 
-// Guarda o último valor calculado E a última seta de cada mercado/horas separadamente,
-// pra não misturar a tendência de um mercado com a de outro.
-const _historicoPercentuais = {};
+// Guarda a última seta de cada mercado/horas, só pra manter a direção quando empatar
+const _ultimaSeta = {};
 
-function getSeta(chave, valorAtual) {
-    const registro = _historicoPercentuais[chave];
-
+function getSeta(chave, valorAtual, valorBase) {
     let seta;
-    if (!registro) {
-        seta = " ▲"; // primeira vez calculando esse mercado, começa neutro-positivo
-    } else if (valorAtual > registro.valor) {
-        seta = " ▲"; // subiu, muda pra alta
-    } else if (valorAtual < registro.valor) {
-        seta = " ▼"; // caiu, muda pra baixa
+    if (valorAtual > valorBase) {
+        seta = " ▲"; // os últimos jogos estão empurrando o mercado pra cima
+    } else if (valorAtual < valorBase) {
+        seta = " ▼"; // os últimos jogos estão empurrando o mercado pra baixo
     } else {
-        seta = registro.seta; // empatou: mantém a última direção (nunca mostra neutro)
+        seta = _ultimaSeta[chave] || " ▲"; // empatou: mantém a última direção conhecida
     }
-
-    _historicoPercentuais[chave] = { valor: valorAtual, seta: seta };
+    _ultimaSeta[chave] = seta;
     return seta;
 }
 
@@ -7790,26 +7809,23 @@ async function atualizarPercentuais() {
     const todosJogos = await fetchResults();
     const resultado  = calculatePercentage(todosJogos, market, horas);
 
-    const chave = `${market}_${horas}`; // histórico separado por mercado + horas
-    const greenNum = parseFloat(resultado.greens);
-    const redNum   = parseFloat(resultado.reds);
+    const chave = `${market}_${horas}`; // seta separada por mercado + horas
 
-    const setaGreen = getSeta(chave + "_g", greenNum);
-    const setaRed   = getSeta(chave + "_r", redNum);
+    const setaGreen = getSeta(chave + "_g", parseFloat(resultado.greens), parseFloat(resultado.greensBase));
+    const setaRed   = getSeta(chave + "_r", parseFloat(resultado.reds),   parseFloat(resultado.redsBase));
 
     const elGreen = document.getElementById("greenPercentage");
     const elRed   = document.getElementById("redPercentage");
 
-    elGreen.innerHTML = `G: ${resultado.greens}%<span style="color:${setaGreen.includes('▲') ? '#1fcc59' : setaGreen.includes('▼') ? '#f87171' : '#999'}">${setaGreen}</span>`;
-    elRed.innerHTML   = `R: ${resultado.reds}%<span style="color:${setaRed.includes('▲') ? '#1fcc59' : setaRed.includes('▼') ? '#f87171' : '#999'}">${setaRed}</span>`;
+    elGreen.innerHTML = `G: ${resultado.greens}%<span style="color:${setaGreen.includes('▲') ? '#1fcc59' : '#f87171'}">${setaGreen}</span>`;
+    elRed.innerHTML   = `R: ${resultado.reds}%<span style="color:${setaRed.includes('▲') ? '#1fcc59' : '#f87171'}">${setaRed}</span>`;
 
     // Opcional: mostrar quantos jogos foram usados
     // console.log(`Calculado com base em ${resultado.totalJogos} jogos (${horas} horas)`);
 }
 
-// ====================== ATUALIZAÇÃO AUTOMÁTICA (PRA SETA REFLETIR JOGOS NOVOS) ======================
-// Sem isso, a seta só mudaria quando você trocasse de seletor manualmente.
-// A cada 30s ela recalcula e compara com o valor anterior daquele mesmo mercado/horas.
+// ====================== ATUALIZAÇÃO AUTOMÁTICA ======================
+// A cada 30s recalcula o número e reavalia a seta contra o bloco de JOGOS_TENDENCIA jogos atrás.
 setInterval(async () => {
     await atualizarPercentuais();
 }, 30000);
