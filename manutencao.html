@@ -7748,6 +7748,22 @@ function calculatePercentage(data, market, horas) {
     };
 }
 
+// ====================== CONTROLE DE TENDÊNCIA (SETAS) ======================
+
+// Guarda o último valor calculado de cada mercado/horas separadamente,
+// pra não misturar a tendência de um mercado com a de outro.
+const _historicoPercentuais = {};
+
+function getSeta(chave, valorAtual) {
+    const valorAnterior = _historicoPercentuais[chave];
+    _historicoPercentuais[chave] = valorAtual;
+
+    if (valorAnterior === undefined) return "";          // primeira vez, sem histórico ainda
+    if (valorAtual > valorAnterior) return " ▲";          // subiu
+    if (valorAtual < valorAnterior) return " ▼";          // caiu
+    return " ▬";                                          // manteve
+}
+
 // ====================== ATUALIZAR AO MUDAR OS SELETORES ======================
 
 document.getElementById("seletorHoras").addEventListener("change", async () => {
@@ -7766,12 +7782,29 @@ async function atualizarPercentuais() {
     const todosJogos = await fetchResults();
     const resultado  = calculatePercentage(todosJogos, market, horas);
 
-    document.getElementById("greenPercentage").innerText = `G ${resultado.greens}%`;
-    document.getElementById("redPercentage").innerText   = `R  ${resultado.reds}%`;
+    const chave = `${market}_${horas}`; // histórico separado por mercado + horas
+    const greenNum = parseFloat(resultado.greens);
+    const redNum   = parseFloat(resultado.reds);
+
+    const setaGreen = getSeta(chave + "_g", greenNum);
+    const setaRed   = getSeta(chave + "_r", redNum);
+
+    const elGreen = document.getElementById("greenPercentage");
+    const elRed   = document.getElementById("redPercentage");
+
+    elGreen.innerHTML = `G: ${resultado.greens}%<span style="color:${setaGreen.includes('▲') ? '#1fcc59' : setaGreen.includes('▼') ? '#f87171' : '#999'}">${setaGreen}</span>`;
+    elRed.innerHTML   = `R: ${resultado.reds}%<span style="color:${setaRed.includes('▲') ? '#1fcc59' : setaRed.includes('▼') ? '#f87171' : '#999'}">${setaRed}</span>`;
 
     // Opcional: mostrar quantos jogos foram usados
     // console.log(`Calculado com base em ${resultado.totalJogos} jogos (${horas} horas)`);
 }
+
+// ====================== ATUALIZAÇÃO AUTOMÁTICA (PRA SETA REFLETIR JOGOS NOVOS) ======================
+// Sem isso, a seta só mudaria quando você trocasse de seletor manualmente.
+// A cada 30s ela recalcula e compara com o valor anterior daquele mesmo mercado/horas.
+setInterval(async () => {
+    await atualizarPercentuais();
+}, 30000);
 
 // ====================== CARREGAR AO ABRIR A PÁGINA ======================
 
