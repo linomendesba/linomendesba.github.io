@@ -7597,7 +7597,8 @@ async function fetchResults() {
 
 // Quantos jogos de defasagem usar pra calcular a TENDÊNCIA da seta
 // (o número da porcentagem continua usando todos os jogos do período normalmente)
-const JOGOS_TENDENCIA = 5;
+// Valor é ajustável pelo seletor injetado abaixo, e fica salvo no navegador.
+let JOGOS_TENDENCIA = parseInt(localStorage.getItem("jogosTendencia")) || 5;
 
 // Conta greens/reds de uma lista de jogos pra um mercado específico
 function contarGreensReds(jogos, market) {
@@ -7797,6 +7798,37 @@ function getSeta(chave, valorAtual, valorBase) {
 
     return `${seta} ${sinal}${valorAbs}%`;
 }
+
+// ====================== SELETOR DE SENSIBILIDADE DA TENDÊNCIA (INJETADO VIA JS) ======================
+// Cria o <select> na tela sem precisar mexer no HTML, e insere antes do card G/R.
+(function criarSeletorTendencia() {
+    const referencia = document.getElementById("greenPercentage")?.parentElement; // div#resultDisplay que envolve G/R
+    if (!referencia) return;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "seletor-tendencia";
+    wrapper.style.marginRight = "0.5rem";
+
+    const select = document.createElement("select");
+    select.id = "seletorTendencia";
+
+    [5, 10, 20, 30, 40, 50].forEach((valor) => {
+        const opt = document.createElement("option");
+        opt.value = valor;
+        opt.textContent = `Tend:${valor}`;
+        if (valor === JOGOS_TENDENCIA) opt.selected = true;
+        select.appendChild(opt);
+    });
+
+    select.addEventListener("change", async () => {
+        JOGOS_TENDENCIA = parseInt(select.value);
+        localStorage.setItem("jogosTendencia", JOGOS_TENDENCIA);
+        await atualizarPercentuais();
+    });
+
+    wrapper.appendChild(select);
+    referencia.parentElement.insertBefore(wrapper, referencia);
+})();
 
 // ====================== ATUALIZAR AO MUDAR OS SELETORES ======================
 
