@@ -190,7 +190,9 @@ async function updateChart(){
 document.getElementById('pointsSelector').value = String(numPoints);
 document.getElementById('averageSelector').value = String(averagePoints);
 document.getElementById('linhaAtualToggle').checked = linhaAtual;
-setMercado(mercadoAtivo);
+/* setMercado(mercadoAtivo) só é chamado lá embaixo, depois que fibsPorMercado/
+   trendsPorMercado (declaradas mais adiante) já existem — chamar aqui antes
+   causava "Cannot access 'fibsPorMercado' before initialization" */
 
 document.getElementById('pointsSelector').addEventListener('change', e=>{ numPoints=parseInt(e.target.value,10); _lsSet(LS_HORAS,numPoints); updateChart(); });
 document.getElementById('averageSelector').addEventListener('change', e=>{ averagePoints=parseInt(e.target.value,10); _lsSet(LS_BASE,averagePoints); updateChart(); });
@@ -492,7 +494,7 @@ new ResizeObserver(entries=>{
     resizeOverlay();
 }).observe(chartEl);
 
-carregarDesenhos();
+setMercado(mercadoAtivo); // agora sim: fibsPorMercado/trendsPorMercado já existem
 resizeOverlay();
 updateChart();
 setInterval(updateChart, 3000);
