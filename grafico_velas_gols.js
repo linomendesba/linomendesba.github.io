@@ -95,12 +95,16 @@ function toCandles(pontos, campo){
 
 /* ═══════════════════════════════════════════════════════════════════
    BUSCA DE DADOS — lê direto da rota real do BetStat.
+   Caminho RELATIVO de propósito: se fosse domínio fixo (https://betstat.site/...)
+   e a página estivesse aberta em https://www.betstat.site, o navegador trata
+   como origens diferentes e o CORS bloqueia a requisição. Com caminho relativo,
+   a chamada sempre bate na mesma origem de onde a página foi carregada.
    Ajuste LIGA_NOME se for usar essa página pra outra liga (o valor vai
    codificado na URL via encodeURIComponent, então acentos/espaços são
    tratados automaticamente).
 ═══════════════════════════════════════════════════════════════════ */
 const LIGA_NOME = 'Taça Glória eterna';
-const RESULTADOS_URL = `https://betstat.site/resultados/${encodeURIComponent(LIGA_NOME)}`;
+const RESULTADOS_URL = `/resultados/${encodeURIComponent(LIGA_NOME)}`;
 
 async function fetchGolsData(){
     const r = await fetch(`${RESULTADOS_URL}?timestamp=${Date.now()}`, { credentials: 'include' });
