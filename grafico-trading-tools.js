@@ -25,7 +25,7 @@
     }
 
     function activeMarket() {
-        return core()?.getActiveMarket?.() || "over25";
+        return core()?.getActiveMarket?.() || "totalGols";
     }
 
     function marketColor() {
@@ -225,7 +225,7 @@
         return;
     }
 
-    const captureTools = ["line", "vertical", "trend", "zone", "text", "delete"];
+    const captureTools = ["line", "vertical", "trend", "zone", "text", "delete", "fib"];
     const shouldCapture = captureTools.includes(activeTool);
 
     overlay.style.pointerEvents = shouldCapture ? "auto" : "none";
@@ -303,6 +303,19 @@
             return;
         }
 
+        if (activeTool === "fib") {
+            draft = {
+                type: "fib",
+                x1: logicalFromX(p.x),
+                y1: priceFromY(p.y),
+                x2: logicalFromX(p.x),
+                y2: priceFromY(p.y),
+                color: marketColor()
+            };
+            drawSoon();
+            return;
+        }
+
         if (activeTool === "text") {
             openTextEditor(p);
             return;
@@ -323,7 +336,7 @@
 
         const p = getPoint(e);
 
-        if (draft.type === "trend" || draft.type === "zone") {
+        if (draft.type === "trend" || draft.type === "zone" || draft.type === "fib") {
             draft.x2 = logicalFromX(p.x);
             draft.y2 = priceFromY(p.y);
             drawSoon();
@@ -358,6 +371,22 @@
             if (validDraft(draft)) {
                 addObject({
                     type: "zone",
+                    x1: draft.x1,
+                    y1: draft.y1,
+                    x2: draft.x2,
+                    y2: draft.y2,
+                    color: draft.color
+                });
+            }
+
+            draft = null;
+            setTool("select");
+        }
+
+        if (draft?.type === "fib") {
+            if (validDraft(draft)) {
+                addObject({
+                    type: "fib",
                     x1: draft.x1,
                     y1: draft.y1,
                     x2: draft.x2,
@@ -538,6 +567,35 @@
             }
         }
 
+        if (obj.type === "fib") {
+            const x1 = xFromLogical(obj.x1);
+            const x2 = xFromLogical(obj.x2);
+
+            if ([x1, x2].every(Number.isFinite) && [obj.y1, obj.y2].every(Number.isFinite)) {
+                const left = Math.min(x1, x2);
+                const right = Math.max(x1, x2);
+                const niveis = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+
+                niveis.forEach((nivel) => {
+                    const preco = obj.y1 + (obj.y2 - obj.y1) * nivel;
+                    const y = yFromPrice(preco);
+                    if (!Number.isFinite(y)) return;
+
+                    ctx.beginPath();
+                    ctx.moveTo(left, y);
+                    ctx.lineTo(right, y);
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.setLineDash([]);
+                    ctx.font = "700 10px system-ui, -apple-system, Segoe UI, sans-serif";
+                    ctx.textBaseline = "bottom";
+                    ctx.fillText(`${(nivel * 100).toFixed(1)}% — ${preco.toFixed(2)}`, right + 4, y - 1);
+                    ctx.restore();
+                });
+            }
+        }
+
         if (obj.type === "text") {
             const x = xFromLogical(obj.x);
             const y = yFromPrice(obj.y);
@@ -574,6 +632,10 @@
             }
 
             if (obj.type === "zone") {
+                if (pointInZone(p, obj)) return obj;
+            }
+
+            if (obj.type === "fib") {
                 if (pointInZone(p, obj)) return obj;
             }
 
