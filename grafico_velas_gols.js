@@ -94,28 +94,18 @@ function toCandles(pontos, campo){
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   BUSCA DE DADOS — usa ROTAS_API/LIGA_ATUAL se existirem na página;
-   senão cai em modo demo (só pra teste isolado do arquivo)
+   BUSCA DE DADOS — lê direto da rota real do BetStat.
+   Ajuste LIGA_NOME se for usar essa página pra outra liga (o valor vai
+   codificado na URL via encodeURIComponent, então acentos/espaços são
+   tratados automaticamente).
 ═══════════════════════════════════════════════════════════════════ */
+const LIGA_NOME = 'Taça Glória eterna';
+const RESULTADOS_URL = `https://betstat.site/resultados/${encodeURIComponent(LIGA_NOME)}`;
+
 async function fetchGolsData(){
-    if (typeof ROTAS_API !== 'undefined' && typeof LIGA_ATUAL !== 'undefined') {
-        const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${Date.now()}`);
-        if (!r.ok) throw new Error(r.status);
-        return r.json();
-    }
-    return gerarDadosDemo();
-}
-function gerarDadosDemo(){
-    const out = [];
-    const agora = new Date();
-    for (let i=300; i>=0; i--){
-        const d = new Date(agora.getTime() - i*3*60000);
-        const ftA = Math.floor(Math.random()*4), ftB = Math.floor(Math.random()*4);
-        const htA = Math.min(ftA, Math.floor(Math.random()*3)), htB = Math.min(ftB, Math.floor(Math.random()*3));
-        out.push({ data: d.toISOString().slice(0,10), hora: d.getHours(), minuto: d.getMinutes(),
-            ft: `${ftA} x ${ftB}`, ht: Math.random() < 0.03 ? 'OUT' : `${htA} x ${htB}` });
-    }
-    return out;
+    const r = await fetch(`${RESULTADOS_URL}?timestamp=${Date.now()}`, { credentials: 'include' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -183,7 +173,8 @@ async function updateChart(){
         atualizarLinhaAtual();
         redrawOverlay();
     } catch (e) {
-        console.error('Erro ao atualizar gráfico de velas:', e);
+        console.error('Erro ao buscar/atualizar dados de', RESULTADOS_URL, ':', e);
+        document.getElementById('valorAtualDisplay').textContent = 'erro (ver console)';
     }
 }
 
