@@ -79,6 +79,9 @@
             </select>
             <button id="btnGraficoZoomIn" type="button">+</button>
             <button id="btnGraficoZoomOut" type="button">−</button>
+            <button id="btnToggleMM" type="button" class="gt-ind-toggle" title="Médias móveis (9/21)">MM</button>
+            <button id="btnToggleRSI" type="button" class="gt-ind-toggle" title="RSI (14)">RSI</button>
+            <button id="btnToggleMACD" type="button" class="gt-ind-toggle" title="MACD (9/21/8)">MACD</button>
         </div>
 
     </div>
@@ -99,6 +102,16 @@
 
         <div id="graficoTradingContainer" class="grafico-trading-container"></div>
 
+    </div>
+
+    <div id="rsiPanelWrap" class="gt-sub-panel" style="display:none;">
+        <span class="gt-sub-panel-label">RSI (14)</span>
+        <div id="rsiPanelContainer" class="gt-sub-panel-container"></div>
+    </div>
+
+    <div id="macdPanelWrap" class="gt-sub-panel" style="display:none;">
+        <span class="gt-sub-panel-label">MACD (9/21/8)</span>
+        <div id="macdPanelContainer" class="gt-sub-panel-container"></div>
     </div>
 
 </section>
@@ -223,6 +236,146 @@
         return null;
     }
 
+    // ---------- INDICADORES (mesma lógica do painel analítico: MA, RSI, MACD) ----------
+    const IND_CFG = { periodoMA1: 9, periodoMA2: 21, rsiPeriodo: 14, macdRapida: 9, macdLenta: 21, macdSinal: 8 };
+
+    function calcMA(pts, p) {
+        return pts.map((_, i) => {
+            const s = pts.slice(Math.max(0, i - p + 1), i + 1);
+            return s.reduce((a, b) => a + b, 0) / s.length;
+        });
+    }
+    function calcRSI(pts, per = 14) {
+        const g = [], p = [];
+        for (let i = 1; i < pts.length; i++) {
+            const d = pts[i] - pts[i - 1];
+            g.push(d > 0 ? d : 0);
+            p.push(d < 0 ? Math.abs(d) : 0);
+        }
+        const r = [];
+        for (let i = per; i < g.length; i++) {
+            const mg = g.slice(i - per, i).reduce((a, b) => a + b, 0) / per;
+            const mp = p.slice(i - per, i).reduce((a, b) => a + b, 0) / per;
+            r.push(100 - 100 / (1 + mg / (mp || 1)));
+        }
+        return Array(per).fill(null).concat(r);
+    }
+    function calcEMA(d, p) {
+        const k = 2 / (p + 1), e = [d[0]];
+        for (let i = 1; i < d.length; i++) e.push(d[i] * k + e[i - 1] * (1 - k));
+        return e;
+    }
+    function calcMACD(d, r, l, s) {
+        const er = calcEMA(d, r), el = calcEMA(d, l);
+        const macd = er.map((v, i) => v - el[i]);
+        const sig = calcEMA(macd, s);
+        return { macd, sig, hist: macd.map((v, i) => v - sig[i]) };
+    }
+
+    const indicadores = { mm: false, rsi: false, macd: false };
+    let maSeries1 = null, maSeries2 = null;
+    let rsiChart = null, rsiSeries = null;
+    let macdChart = null, macdLineSeries = null, macdSignalSeries = null, macdHistSeries = null;
+    let syncingIndPanels = false;
+
+    function garantirSeriesMA(){
+        if (!chart) return;
+        if (!maSeries1) maSeries1 = chart.addLineSeries({ color: '#22c55e', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+        if (!maSeries2) maSeries2 = chart.addLineSeries({ color: '#f59e0b', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    }
+
+    function criarPainelRSI(){
+        const el = $('rsiPanelContainer');
+        if (!el || !window.LightweightCharts || rsiChart) return;
+        rsiChart = window.LightweightCharts.createChart(el, {
+            layout: { background: { color: '#111318' }, textColor: '#cbd5e1' },
+            grid: { vertLines: { color: 'rgba(255,255,255,.045)' }, horzLines: { color: 'rgba(255,255,255,.045)' } },
+            rightPriceScale: { borderVisible: false },
+            timeScale: { borderColor: 'rgba(124,92,246,.28)', timeVisible: false, secondsVisible: false, tickMarkFormatter: t => pontosAtuais[t]?.labelTempo || '' },
+            crosshair: { mode: window.LightweightCharts.CrosshairMode.Normal },
+            handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+            handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
+        });
+        rsiSeries = rsiChart.addLineSeries({ color: '#38bdf8', lineWidth: 2, priceLineVisible: false, lastValueVisible: true, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) });
+        rsiSeries.createPriceLine({ price: 70, color: 'rgba(239,68,68,.55)', lineWidth: 1, lineStyle: window.LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '70' });
+        rsiSeries.createPriceLine({ price: 30, color: 'rgba(34,197,94,.55)', lineWidth: 1, lineStyle: window.LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '30' });
+        rsiChart.timeScale().subscribeVisibleLogicalRangeChange(range => sincronizarPaineis(range, rsiChart));
+    }
+
+    function criarPainelMACD(){
+        const el = $('macdPanelContainer');
+        if (!el || !window.LightweightCharts || macdChart) return;
+        macdChart = window.LightweightCharts.createChart(el, {
+            layout: { background: { color: '#111318' }, textColor: '#cbd5e1' },
+            grid: { vertLines: { color: 'rgba(255,255,255,.045)' }, horzLines: { color: 'rgba(255,255,255,.045)' } },
+            rightPriceScale: { borderVisible: false },
+            timeScale: { borderColor: 'rgba(124,92,246,.28)', timeVisible: false, secondsVisible: false, tickMarkFormatter: t => pontosAtuais[t]?.labelTempo || '' },
+            crosshair: { mode: window.LightweightCharts.CrosshairMode.Normal },
+            handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+            handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
+        });
+        macdHistSeries = macdChart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false });
+        macdLineSeries = macdChart.addLineSeries({ color: '#7c5cff', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+        macdSignalSeries = macdChart.addLineSeries({ color: '#f59e0b', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+        macdChart.timeScale().subscribeVisibleLogicalRangeChange(range => sincronizarPaineis(range, macdChart));
+    }
+
+    function sincronizarPaineis(range, origem){
+        if (!range || syncingIndPanels) return;
+        syncingIndPanels = true;
+        [chart, rsiChart, macdChart].forEach(c => { if (c && c !== origem) c.timeScale().setVisibleLogicalRange(range); });
+        syncingIndPanels = false;
+    }
+
+    function atualizarIndicadores(){
+        const keyAtivo = Object.keys(mercados).find(k => mercados[k].ativo);
+        const candles = (keyAtivo && candlePorMercado[keyAtivo]) || [];
+        const closes = candles.map(c => c.close);
+        const times = candles.map(c => c.time);
+
+        if (indicadores.mm && maSeries1 && maSeries2 && closes.length){
+            const ma1 = calcMA(closes, IND_CFG.periodoMA1);
+            const ma2 = calcMA(closes, IND_CFG.periodoMA2);
+            maSeries1.setData(times.map((t, i) => ({ time: t, value: ma1[i] })));
+            maSeries2.setData(times.map((t, i) => ({ time: t, value: ma2[i] })));
+        } else {
+            maSeries1?.setData([]);
+            maSeries2?.setData([]);
+        }
+
+        if (indicadores.rsi && rsiSeries && closes.length){
+            const rsi = calcRSI(closes, IND_CFG.rsiPeriodo);
+            rsiSeries.setData(times.map((t, i) => ({ time: t, value: rsi[i] })).filter(p => p.value !== null));
+        }
+
+        if (indicadores.macd && macdLineSeries && closes.length){
+            const { macd, sig, hist } = calcMACD(closes, IND_CFG.macdRapida, IND_CFG.macdLenta, IND_CFG.macdSinal);
+            macdLineSeries.setData(times.map((t, i) => ({ time: t, value: macd[i] })));
+            macdSignalSeries.setData(times.map((t, i) => ({ time: t, value: sig[i] })));
+            macdHistSeries.setData(times.map((t, i) => ({ time: t, value: hist[i], color: hist[i] >= 0 ? 'rgba(34,197,94,.65)' : 'rgba(239,68,68,.65)' })));
+        }
+
+        const range = chart?.timeScale()?.getVisibleLogicalRange?.();
+        if (range) sincronizarPaineis(range, chart);
+    }
+
+    function resizePainelIndicador(painelChart, containerId){
+        const el = $(containerId);
+        if (!painelChart || !el) return;
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 10 || rect.height < 10) return;
+        painelChart.applyOptions({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+    }
+
+    function aplicarVisibilidadePaineis(){
+        $('rsiPanelWrap').style.display = indicadores.rsi ? '' : 'none';
+        $('macdPanelWrap').style.display = indicadores.macd ? '' : 'none';
+        requestAnimationFrame(() => {
+            resizePainelIndicador(rsiChart, 'rsiPanelContainer');
+            resizePainelIndicador(macdChart, 'macdPanelContainer');
+        });
+    }
+
     // ---------- ESTADO DOS MERCADOS ----------
     const mercados = {
         totalGols: { nome: 'Total Gols (FT)', cor: '#7c5cff', ativo: true }
@@ -245,7 +398,8 @@
             const range = chart?.timeScale?.().getVisibleLogicalRange?.() || visibleRange;
             localStorage.setItem(STATE_KEY, JSON.stringify({
                 range, velasNumPoints,
-                mercados: Object.fromEntries(Object.entries(mercados).map(([k, v]) => [k, !!v.ativo]))
+                mercados: Object.fromEntries(Object.entries(mercados).map(([k, v]) => [k, !!v.ativo])),
+                indicadores
             }));
         } catch {}
     }
@@ -263,6 +417,7 @@
         if (st.velasNumPoints) velasNumPoints = st.velasNumPoints;
         if (st.mercados) Object.keys(mercados).forEach(k => { if (k in st.mercados) mercados[k].ativo = !!st.mercados[k]; });
         if (st.range && Number.isFinite(st.range.from) && Number.isFinite(st.range.to)) visibleRange = st.range;
+        if (st.indicadores) Object.assign(indicadores, st.indicadores);
 
         // sanitiza estado antigo (versões anteriores permitiam FT+HT juntos) — mantém só 1 ativo
         const ativos = Object.keys(mercados).filter(k => mercados[k].ativo);
@@ -416,11 +571,12 @@
         });
 
         chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-            if (range) { visibleRange = range; saveState(); }
+            if (range) { visibleRange = range; saveState(); sincronizarPaineis(range, chart); }
             window.GraficoTradingTools?.redraw?.();
         });
 
         chart.subscribeCrosshairMove(renderTooltip);
+        garantirSeriesMA();
         return true;
     }
 
@@ -437,6 +593,8 @@
         const rect = el.getBoundingClientRect();
         if (rect.width < 10 || rect.height < 10) return;
         chart.applyOptions({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+        resizePainelIndicador(rsiChart, 'rsiPanelContainer');
+        resizePainelIndicador(macdChart, 'macdPanelContainer');
         window.GraficoTradingTools?.resize?.();
         window.GraficoTradingTools?.redraw?.();
     }
@@ -499,6 +657,7 @@
         const beforeRange = chart.timeScale().getVisibleLogicalRange();
         buildSeriesData(rawDataCache);
         renderSeries();
+        atualizarIndicadores();
 
         if (beforeRange) chart.timeScale().setVisibleLogicalRange(beforeRange);
         else if (visibleRange) chart.timeScale().setVisibleLogicalRange(visibleRange);
@@ -567,6 +726,32 @@
         window.GraficoTradingTools?.addCurrentLine?.();
     });
 
+    $('btnToggleMM').addEventListener('click', () => {
+        indicadores.mm = !indicadores.mm;
+        $('btnToggleMM').classList.toggle('active', indicadores.mm);
+        if (indicadores.mm) garantirSeriesMA();
+        atualizarIndicadores();
+        saveState();
+    });
+
+    $('btnToggleRSI').addEventListener('click', () => {
+        indicadores.rsi = !indicadores.rsi;
+        $('btnToggleRSI').classList.toggle('active', indicadores.rsi);
+        if (indicadores.rsi) criarPainelRSI();
+        aplicarVisibilidadePaineis();
+        atualizarIndicadores();
+        saveState();
+    });
+
+    $('btnToggleMACD').addEventListener('click', () => {
+        indicadores.macd = !indicadores.macd;
+        $('btnToggleMACD').classList.toggle('active', indicadores.macd);
+        if (indicadores.macd) criarPainelMACD();
+        aplicarVisibilidadePaineis();
+        atualizarIndicadores();
+        saveState();
+    });
+
     window.addEventListener('resize', resizeChart);
 
     window.addEventListener('gt:toolchange', (ev) => {
@@ -593,6 +778,13 @@
     popularSelectorLiga();
     applySavedState();
     syncLegendUI();
+
+    $('btnToggleMM').classList.toggle('active', indicadores.mm);
+    $('btnToggleRSI').classList.toggle('active', indicadores.rsi);
+    $('btnToggleMACD').classList.toggle('active', indicadores.macd);
+    if (indicadores.rsi) criarPainelRSI();
+    if (indicadores.macd) criarPainelMACD();
+    aplicarVisibilidadePaineis();
 
     log('buscando dados de ' + LIGA + '...');
     fetch(URL_RESULTADOS + '?timestamp=' + Date.now())
