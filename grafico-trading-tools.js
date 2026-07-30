@@ -99,6 +99,7 @@
 
         resizeOverlay();
         if (!currentLigaKey) loadObjects();
+        bindChartClick();
         setTool(activeTool);
     }
 
@@ -122,10 +123,35 @@
         drawSoon();
     }
 
+    let chartClickBound = false;
+
+    function bindChartClick() {
+        if (chartClickBound) return;
+        const c = chart();
+        if (!c || typeof c.subscribeClick !== "function") return;
+
+        c.subscribeClick((param) => {
+            if (activeTool !== "select") return;
+
+            if (!param || !param.point) {
+                selectedId = null;
+                drawSoon();
+                return;
+            }
+
+            const hit = hitTest(param.point);
+            selectedId = hit ? hit.id : null;
+            drawSoon();
+        });
+
+        chartClickBound = true;
+    }
+
     function onOpen() {
         ensureOverlay();
         resizeOverlay();
         reloadIfLigaChanged();
+        bindChartClick();
         drawSoon();
     }
 
