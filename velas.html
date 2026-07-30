@@ -17,7 +17,7 @@
     gtag('js', new Date()); gtag('config', 'G-4WT805FFHQ');
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="betstat-velas.css?v=2">
+<link rel="stylesheet" href="betstat-velas.css?v=3">
 <style>
     html, body { margin:0; background:#0b0c14; font-family: 'Roboto', system-ui, -apple-system, Segoe UI, sans-serif; }
     #status { display:none; }
@@ -104,14 +104,14 @@
 
     </div>
 
-    <div id="rsiPanelWrap" class="gt-sub-panel" style="display:none; height:130px; min-height:130px;">
+    <div id="rsiPanelWrap" class="gt-sub-panel" style="display:none; height:220px; min-height:220px;">
         <span class="gt-sub-panel-label">RSI (14)</span>
-        <div id="rsiPanelContainer" class="gt-sub-panel-container" style="width:100%; height:100%;"></div>
+        <div id="rsiPanelContainer" class="gt-sub-panel-container" style="width:100%; height:100%; position:relative;"></div>
     </div>
 
-    <div id="macdPanelWrap" class="gt-sub-panel" style="display:none; height:130px; min-height:130px;">
+    <div id="macdPanelWrap" class="gt-sub-panel" style="display:none; height:220px; min-height:220px;">
         <span class="gt-sub-panel-label">MACD (9/21/8)</span>
-        <div id="macdPanelContainer" class="gt-sub-panel-container" style="width:100%; height:100%;"></div>
+        <div id="macdPanelContainer" class="gt-sub-panel-container" style="width:100%; height:100%; position:relative;"></div>
     </div>
 
 </section>
@@ -300,6 +300,7 @@
         rsiSeries.createPriceLine({ price: 70, color: 'rgba(239,68,68,.55)', lineWidth: 1, lineStyle: window.LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '70' });
         rsiSeries.createPriceLine({ price: 30, color: 'rgba(34,197,94,.55)', lineWidth: 1, lineStyle: window.LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '30' });
         rsiChart.timeScale().subscribeVisibleLogicalRangeChange(range => sincronizarPaineis(range, rsiChart));
+        rsiChart.subscribeCrosshairMove(param => renderTooltipGenerico(param, 'rsiPanelContainer', 'gtTooltipRSI'));
     }
 
     function criarPainelMACD(){
@@ -318,6 +319,7 @@
         macdLineSeries = macdChart.addLineSeries({ color: '#7c5cff', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
         macdSignalSeries = macdChart.addLineSeries({ color: '#f59e0b', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
         macdChart.timeScale().subscribeVisibleLogicalRangeChange(range => sincronizarPaineis(range, macdChart));
+        macdChart.subscribeCrosshairMove(param => renderTooltipGenerico(param, 'macdPanelContainer', 'gtTooltipMACD'));
     }
 
     function sincronizarPaineis(range, origem){
@@ -620,6 +622,44 @@
             $('graficoTradingContainer')?.appendChild(el);
         }
         return el;
+    }
+
+    function getTooltipElGenerico(containerId, tooltipId){
+        let el = document.getElementById(tooltipId);
+        if (!el){
+            el = document.createElement('div');
+            el.id = tooltipId;
+            el.className = 'gt-tooltip';
+            $(containerId)?.appendChild(el);
+        }
+        return el;
+    }
+
+    function renderTooltipGenerico(param, containerId, tooltipId){
+        const el = getTooltipElGenerico(containerId, tooltipId);
+        const container = $(containerId);
+        if (!param || !param.point || !container || param.time == null){
+            el.style.display = 'none';
+            return;
+        }
+        const info = pontosAtuais[param.time];
+        if (!info){ el.style.display = 'none'; return; }
+
+        el.innerHTML = `
+            <div class="gt-tooltip-title">${info.jogo}</div>
+            <div class="gt-tooltip-sub">HT: ${info.ht}</div>
+            <div class="gt-tooltip-odd">FT: ${info.ft}</div>
+            <div class="gt-tooltip-time">${info.labelTempo}</div>
+        `;
+
+        const rect = container.getBoundingClientRect();
+        const tooltipW = 230, tooltipH = 92;
+        let left = param.point.x + 14, top = param.point.y + 14;
+        if (left + tooltipW > rect.width) left = param.point.x - tooltipW - 14;
+        if (top + tooltipH > rect.height) top = param.point.y - tooltipH - 14;
+        el.style.left = `${Math.max(8, left)}px`;
+        el.style.top  = `${Math.max(8, Math.min(top, rect.height - 20))}px`;
+        el.style.display = 'block';
     }
 
     function renderTooltip(param){
