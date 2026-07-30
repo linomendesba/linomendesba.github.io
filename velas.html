@@ -299,7 +299,9 @@
         rsiSeries = rsiChart.addLineSeries({ color: '#38bdf8', lineWidth: 2, priceLineVisible: false, lastValueVisible: true, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) });
         rsiSeries.createPriceLine({ price: 70, color: 'rgba(239,68,68,.55)', lineWidth: 1, lineStyle: window.LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '70' });
         rsiSeries.createPriceLine({ price: 30, color: 'rgba(34,197,94,.55)', lineWidth: 1, lineStyle: window.LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '30' });
-        rsiChart.timeScale().subscribeVisibleLogicalRangeChange(range => sincronizarPaineis(range, rsiChart));
+        // sincronização é sempre "principal -> paineis" (ver atualizarIndicadores); não escutamos
+        // o range do próprio painel aqui pra evitar que um auto-fit interno dele (ex.: no instante
+        // em que ainda está com display:none / tamanho zero) distorça o gráfico principal.
         rsiChart.subscribeCrosshairMove(param => renderTooltipGenerico(param, 'rsiPanelContainer', 'gtTooltipRSI'));
     }
 
@@ -318,7 +320,7 @@
         macdHistSeries = macdChart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false });
         macdLineSeries = macdChart.addLineSeries({ color: '#7c5cff', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
         macdSignalSeries = macdChart.addLineSeries({ color: '#f59e0b', lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
-        macdChart.timeScale().subscribeVisibleLogicalRangeChange(range => sincronizarPaineis(range, macdChart));
+        // idem RSI: sincronização é sempre unidirecional (principal -> painel)
         macdChart.subscribeCrosshairMove(param => renderTooltipGenerico(param, 'macdPanelContainer', 'gtTooltipMACD'));
     }
 
@@ -372,6 +374,10 @@
     function aplicarVisibilidadePaineis(){
         $('rsiPanelWrap').style.display = indicadores.rsi ? '' : 'none';
         $('macdPanelWrap').style.display = indicadores.macd ? '' : 'none';
+        // resize síncrono (força reflow) — garante que o painel já tenha o tamanho certo
+        // ANTES de qualquer setData(), evitando um auto-fit distorcido no momento da criação.
+        resizePainelIndicador(rsiChart, 'rsiPanelContainer');
+        resizePainelIndicador(macdChart, 'macdPanelContainer');
         requestAnimationFrame(() => {
             resizePainelIndicador(rsiChart, 'rsiPanelContainer');
             resizePainelIndicador(macdChart, 'macdPanelContainer');
@@ -690,18 +696,26 @@
     }
 
     // ---------- RENDER PRINCIPAL ----------
-    function render(){
+    function render(opts = {}){
         if (!rawDataCache) return;
         if (!createChart()) return;
 
-        const beforeRange = chart.timeScale().getVisibleLogicalRange();
+        const manterZoom = opts.manterZoom !== false;
+        const beforeRange = manterZoom ? chart.timeScale().getVisibleLogicalRange() : null;
         buildSeriesData(rawDataCache);
         renderSeries();
         atualizarIndicadores();
 
-        if (beforeRange) chart.timeScale().setVisibleLogicalRange(beforeRange);
-        else if (visibleRange) chart.timeScale().setVisibleLogicalRange(visibleRange);
-        else chart.timeScale().scrollToRealTime();
+        if (!manterZoom) {
+            visibleRange = null;
+            chart.timeScale().scrollToRealTime();
+        } else if (beforeRange) {
+            chart.timeScale().setVisibleLogicalRange(beforeRange);
+        } else if (visibleRange) {
+            chart.timeScale().setVisibleLogicalRange(visibleRange);
+        } else {
+            chart.timeScale().scrollToRealTime();
+        }
 
         saveState();
         log(`<b>${rawDataCache.length}</b> jogos carregados de <b>${LIGA}</b> — mostrando <b>${Math.min(velasNumPoints, rawDataCache.length)}</b>`);
@@ -739,7 +753,7 @@
     $('velasPointsSelector').addEventListener('change', e => {
         velasNumPoints = parseInt(e.target.value, 10);
         saveState();
-        render();
+        render({ manterZoom: false });
     });
 
     $('casaSelector').addEventListener('change', e => {
