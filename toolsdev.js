@@ -167,6 +167,7 @@
       group: "🛠️ Extras",
       tools: [
         { label: "Guias",        url: "https://www.betstat.site/guias.html" },
+        { label: "DayTrade",        url: "https://www.betstat.site/velas.html" },
         { label: "Mentor",        url: "https://www.betstat.site/mentor.html" },
         { label: "Guias",        url: "https://www.betstat.site/flat.html" },
         { label: "Ao Vivo",      url: "https://www.betstat.site/live.html" },
