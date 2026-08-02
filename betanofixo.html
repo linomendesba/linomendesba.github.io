@@ -435,16 +435,16 @@
             <option value="5">05</option>
         </select>
 
-        <label for="hoursCountSelect">Período:</label>
-        <select id="hoursCountSelect" onchange="handleSelectionChange()">
-            <option value="1">Última 1h</option>
-            <option value="2">Últimas 2h</option>
-            <option value="3">Últimas 3h</option>
-            <option value="4">Últimas 4h</option>
-            <option value="5">Últimas 5h</option>
-            <option value="6">Últimas 6h</option>
-            <option value="7">Últimas 7h</option>
-            <option value="8" selected>Últimas 8h</option>
+        <label for="daysCountSelect">Dias:</label>
+        <select id="daysCountSelect" onchange="handleSelectionChange()">
+            <option value="1">Último 1 dia</option>
+            <option value="2">Últimos 2 dias</option>
+            <option value="3">Últimos 3 dias</option>
+            <option value="4">Últimos 4 dias</option>
+            <option value="5">Últimos 5 dias</option>
+            <option value="6">Últimos 6 dias</option>
+            <option value="7">Últimos 7 dias</option>
+            <option value="8" selected>Últimos 8 dias</option>
         </select>
     </div>
 
@@ -586,7 +586,12 @@
         }
     }
 
-    // ============ FUSO HORÁRIO: BET365 (INGLATERRA) -> BRASIL ============
+    // ============ FUSO HORÁRIO: BET365 (INGLATERRA) x DEMAIS CASAS (BRASIL) ============
+    // Os dados da Bet365 chegam e permanecem na hora da Inglaterra — NÃO são convertidos.
+    // A única adaptação necessária é: ao calcular qual é "a hora atual" para destacar a
+    // linha/coluna correspondente na tabela (ou como padrão do filtro "Agora"), a Bet365
+    // precisa da hora atual convertida de Brasil -> Inglaterra, pois é nessa hora que o
+    // dado correspondente está gravado. As demais casas usam a hora do Brasil normalmente.
     // Brasil não observa horário de verão (fixo UTC-3).
     // Reino Unido observa BST (UTC+1) do último domingo de março ao último domingo de outubro; caso contrário GMT (UTC+0).
     function lastSundayOfMonthUTC(year, monthIndex) {
@@ -605,21 +610,29 @@
         return isBST ? 4 : 3; // horas que o Reino Unido está à frente do Brasil
     }
 
-    // Converte o campo "hora" do jogo para hora do Brasil, de acordo com a casa selecionada
-    function normalizeHour(game, houseKey) {
+    // Retorna a hora "HH" bruta gravada no jogo, sem nenhuma conversão (usada para montar as chaves da tabela)
+    function rawHour(game) {
         let h = parseInt(game.hora, 10);
         if (isNaN(h)) h = 0;
+        return String(((h % 24) + 24) % 24).padStart(2, '0');
+    }
+
+    // Retorna a hora "atual" no fuso correto para a casa selecionada — usada apenas para
+    // destacar a linha da hora atual e como padrão do filtro "Agora"
+    function getCurrentHourForHouse(houseKey) {
+        const now = new Date();
+        let hour = now.getHours(); // hora local do navegador = hora do Brasil
         const house = housesData[houseKey];
         if (house && house.useUkOffset) {
             const offset = getUkToBrOffsetHours();
-            h = ((h - offset) % 24 + 24) % 24;
+            hour = ((hour + offset) % 24 + 24) % 24; // Brasil -> Inglaterra
         }
-        return String(h).padStart(2, '0');
+        return String(hour).padStart(2, '0');
     }
 
     let cachedData = {};
-    let percent100Mode = 'current';
-    let hourMode = 'all';
+    let percent100Mode = 'all';
+    let hourMode = 'current';
     let specificHour = null;
     let lastCalculatedResults = [];
     let currentHouse = loadSelector('house', 'betano');
@@ -678,8 +691,7 @@
             select.appendChild(option);
         }
         const savedSpecificHour = loadSelector('specificHour', null);
-        const now = new Date();
-        select.value = savedSpecificHour || String(now.getHours()).padStart(2, '0');
+        select.value = savedSpecificHour || getCurrentHourForHouse(currentHouse);
         specificHour = select.value;
     }
 
@@ -703,8 +715,7 @@
         specificSelect.style.display = mode === 'specific' ? 'block' : 'none';
 
         if (mode === 'specific' && !specificHour) {
-            const now = new Date();
-            specificHour = String(now.getHours()).padStart(2, '0');
+            specificHour = getCurrentHourForHouse(currentHouse);
             specificSelect.value = specificHour;
         }
 
@@ -724,7 +735,7 @@
         saveSelector('league_' + currentHouse, league);
         saveSelector('market', document.getElementById("marketSelect").value);
         saveSelector('gales', document.getElementById("rangeSelect").value);
-        saveSelector('hoursCount', document.getElementById("hoursCountSelect").value);
+        saveSelector('daysCount', document.getElementById("daysCountSelect").value);
 
         const key = cacheKey(currentHouse, league);
         if (cachedData[key]) {
@@ -835,19 +846,13 @@
         return String(Math.floor(index / gamesPerHour));
     }
 
-    // Retorna as N horas mais recentes (formato "HH"), terminando na hora atual do Brasil, em ordem decrescente
-    function getRecentHours(count) {
-        const now = new Date();
-        const currentHour = now.getHours();
-        const hours = [];
-        for (let i = 0; i < count; i++) {
-            const h = ((currentHour - i) % 24 + 24) % 24;
-            hours.push(String(h).padStart(2, '0'));
-        }
-        return hours;
+    // Retorna os N dias mais recentes de uma lista de dayKeys já ordenada (ascendente)
+    function getSelectedDays(sortedDays, daysCount) {
+        if (!daysCount || daysCount >= sortedDays.length) return sortedDays;
+        return sortedDays.slice(sortedDays.length - daysCount);
     }
 
-    function calculateLeaguePercent100(data, market, gales, houseKey, targetHour = null) {
+    function calculateLeaguePercent100(data, market, gales, houseKey, daysCount, targetHour = null) {
         const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
         const numMins = uniqueMinutes.length;
         const gamesPerHour = numMins;
@@ -857,7 +862,9 @@
             daySet.add(getDayKey(game, idx, gamesPerHour));
         });
         const sortedDays = [...daySet].sort();
-        const numDays = sortedDays.length;
+        const selectedDays = getSelectedDays(sortedDays, daysCount);
+        const selectedDaySet = new Set(selectedDays);
+        const numDays = selectedDays.length;
 
         const slotMap = {};
         for (let h = 0; h < 24; h++) {
@@ -869,9 +876,10 @@
         }
 
         data.forEach((game, idx) => {
-            const hh = normalizeHour(game, houseKey);
-            const mm = String(game.minuto).padStart(2, '0');
             const dk = getDayKey(game, idx, gamesPerHour);
+            if (!selectedDaySet.has(dk)) return;
+            const hh = rawHour(game);
+            const mm = String(game.minuto).padStart(2, '0');
             if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
                 slotMap[hh][mm][dk] = game;
             }
@@ -892,7 +900,7 @@
             uniqueMinutes.forEach((baseMin, minIdx) => {
                 const bm = String(baseMin).padStart(2, '0');
 
-                sortedDays.forEach(dayKey => {
+                selectedDays.forEach(dayKey => {
                     const baseGame = slotMap[hh][bm][dayKey];
                     if (!baseGame) return;
 
@@ -947,15 +955,16 @@
 
         let targetHour = null;
         if (hourMode === 'current') {
-            targetHour = String(new Date().getHours()).padStart(2, '0');
+            targetHour = getCurrentHourForHouse(currentHouse);
         } else if (hourMode === 'specific') {
-            targetHour = specificHour || String(new Date().getHours()).padStart(2, '0');
+            targetHour = specificHour || getCurrentHourForHouse(currentHouse);
         }
 
         container.innerHTML = '<div class="percent100-loading">Analisando dados...</div>';
         lastCalculatedResults = [];
 
         const leaguesList = housesData[currentHouse].leagues;
+        const daysCount = parseInt(document.getElementById("daysCountSelect").value, 10) || 8;
 
         if (percent100Mode === 'current') {
             const currentLeague = document.getElementById("leagueSelect").value;
@@ -967,7 +976,7 @@
                 return;
             }
 
-            const result = calculateLeaguePercent100(cachedData[key], market, gales, currentHouse, targetHour);
+            const result = calculateLeaguePercent100(cachedData[key], market, gales, currentHouse, daysCount, targetHour);
             const leagueData = {
                 leagueName: currentLeagueName,
                 leagueValue: currentLeague,
@@ -998,7 +1007,7 @@
             leaguesList.forEach((league, index) => {
                 const key = cacheKey(currentHouse, league.value);
                 if (cachedData[key]) {
-                    const result = calculateLeaguePercent100(cachedData[key], market, gales, currentHouse, targetHour);
+                    const result = calculateLeaguePercent100(cachedData[key], market, gales, currentHouse, daysCount, targetHour);
                     const leagueData = {
                         leagueName: league.name,
                         leagueValue: league.value,
@@ -1096,10 +1105,10 @@
         let targetHour = null;
         let hourFilterText = "Todas";
         if (hourMode === 'current') {
-            targetHour = String(new Date().getHours()).padStart(2, '0');
+            targetHour = getCurrentHourForHouse(currentHouse);
             hourFilterText = `Hora${targetHour}`;
         } else if (hourMode === 'specific') {
-            targetHour = specificHour || String(new Date().getHours()).padStart(2, '0');
+            targetHour = specificHour || getCurrentHourForHouse(currentHouse);
             hourFilterText = `Hora${targetHour}`;
         }
 
@@ -1179,7 +1188,10 @@
             daySet.add(getDayKey(game, idx, gamesPerHour));
         });
         const sortedDays = [...daySet].sort();
-        const numDays = sortedDays.length;
+        const daysCount = parseInt(document.getElementById("daysCountSelect").value, 10) || 8;
+        const selectedDays = getSelectedDays(sortedDays, daysCount);
+        const selectedDaySet = new Set(selectedDays);
+        const numDays = selectedDays.length;
 
         const slotMap = {};
         for (let h = 0; h < 24; h++) {
@@ -1191,9 +1203,10 @@
         }
 
         data.forEach((game, idx) => {
-            const hh = normalizeHour(game, houseKey);
-            const mm = String(game.minuto).padStart(2, '0');
             const dk = getDayKey(game, idx, gamesPerHour);
+            if (!selectedDaySet.has(dk)) return;
+            const hh = rawHour(game);
+            const mm = String(game.minuto).padStart(2, '0');
             if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
                 slotMap[hh][mm][dk] = game;
             }
@@ -1216,7 +1229,7 @@
             uniqueMinutes.forEach((baseMin, minIdx) => {
                 const bm = String(baseMin).padStart(2, '0');
 
-                sortedDays.forEach(dayKey => {
+                selectedDays.forEach(dayKey => {
                     const baseGame = slotMap[hh][bm][dayKey];
                     if (!baseGame) return;
 
@@ -1248,7 +1261,7 @@
             });
         }
 
-        displayTable(result, uniqueMinutes, totals, numDays);
+        displayTable(result, uniqueMinutes, totals, numDays, houseKey);
     }
 
     function pct(slot) {
@@ -1283,14 +1296,12 @@
         return el;
     }
 
-    function displayTable(result, uniqueMinutes, totals, numDays) {
-        const now = new Date();
-        const currentHour = String(now.getHours()).padStart(2, '0');
-        const hoursCount = parseInt(document.getElementById("hoursCountSelect").value, 10) || 8;
-        const recentHours = getRecentHours(hoursCount);
+    function displayTable(result, uniqueMinutes, totals, numDays, houseKey) {
+        const currentHour = getCurrentHourForHouse(houseKey);
+        const daysCount = parseInt(document.getElementById("daysCountSelect").value, 10) || 8;
 
         document.getElementById("currentHourLabel").textContent =
-            `Hora atual: ${currentHour}h — ${numDays} dias de dados — exibindo últimas ${hoursCount}h`;
+            `Hora atual: ${currentHour}h — exibindo últimos ${numDays} dia${numDays !== 1 ? 's' : ''} de dados (máx. ${daysCount})`;
 
         const headerHTML = "<tr><th>H</th>" +
             uniqueMinutes.map(m => `<th>${String(m).padStart(2, '0')}</th>`).join("") +
@@ -1309,22 +1320,10 @@
         });
         curBody.appendChild(curRow);
 
-        // Recalcula os totais apenas dentro do período selecionado (Período: 1-8h)
-        const periodTotals = {};
-        uniqueMinutes.forEach(m => { periodTotals[String(m).padStart(2, '0')] = { total: 0, green: 0, goalsSum: 0 }; });
-        recentHours.forEach(hh => {
-            uniqueMinutes.forEach(m => {
-                const mm = String(m).padStart(2, '0');
-                const slot = result[hh][mm];
-                periodTotals[mm].total += slot.total;
-                periodTotals[mm].green += slot.green;
-                periodTotals[mm].goalsSum += slot.goalsSum;
-            });
-        });
-
         const body = document.getElementById("resultsBody");
         body.innerHTML = "";
-        recentHours.forEach(hh => {
+        for (let h = 23; h >= 0; h--) {
+            const hh = String(h).padStart(2, '0');
             const row = document.createElement("tr");
             const hCell = document.createElement("td");
             hCell.textContent = hh;
@@ -1333,7 +1332,7 @@
                 row.appendChild(makeCell(result[hh][String(m).padStart(2, '0')]));
             });
             body.appendChild(row);
-        });
+        }
 
         const totalRow = document.createElement("tr");
         totalRow.className = "total-row";
@@ -1341,7 +1340,7 @@
         tLabel.textContent = "%";
         totalRow.appendChild(tLabel);
         uniqueMinutes.forEach(m => {
-            totalRow.appendChild(makeCell(periodTotals[String(m).padStart(2, '0')]));
+            totalRow.appendChild(makeCell(totals[String(m).padStart(2, '0')]));
         });
         body.appendChild(totalRow);
     }
@@ -1356,13 +1355,13 @@
 
         document.getElementById('marketSelect').value = loadSelector('market', document.getElementById('marketSelect').value);
         document.getElementById('rangeSelect').value = loadSelector('gales', document.getElementById('rangeSelect').value);
-        document.getElementById('hoursCountSelect').value = loadSelector('hoursCount', '8');
+        document.getElementById('daysCountSelect').value = loadSelector('daysCount', '8');
 
         initHourSelect();
         handleSelectionChange();
 
-        const savedPercent100Mode = loadSelector('percent100Mode', 'current');
-        const savedHourMode = loadSelector('hourMode', 'all');
+        const savedPercent100Mode = loadSelector('percent100Mode', 'all');
+        const savedHourMode = loadSelector('hourMode', 'current');
         togglePercent100Mode(savedPercent100Mode);
         toggleHourMode(savedHourMode);
     };
