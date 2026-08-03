@@ -891,7 +891,7 @@
             const hh = String(h).padStart(2, '0');
             result[hh] = {};
             uniqueMinutes.forEach(m => {
-                result[hh][String(m).padStart(2, '0')] = { total: 0, green: 0 };
+                result[hh][String(m).padStart(2, '0')] = { total: 0, green: 0, goalsSum: 0 };
             });
         }
 
@@ -906,6 +906,7 @@
                     if (!baseGame) return;
 
                     result[hh][bm].total += 1;
+                    result[hh][bm].goalsSum += totalGoals(baseGame);
 
                     let green = false;
 
@@ -930,18 +931,30 @@
         });
 
         const percent100Minutes = [];
+        const percent100Details = [];
         hoursToCalc.forEach(hh => {
             uniqueMinutes.forEach(m => {
                 const mm = String(m).padStart(2, '0');
                 const slot = result[hh][mm];
                 if (slot.total > 0 && slot.green === slot.total) {
-                    percent100Minutes.push(`${hh}:${mm}`);
+                    const time = `${hh}:${mm}`;
+                    percent100Minutes.push(time);
+                    percent100Details.push({
+                        time,
+                        hour: hh,
+                        minute: mm,
+                        green: slot.green,
+                        total: slot.total,
+                        avgGoals: slot.total > 0 ? slot.goalsSum / slot.total : 0
+                    });
                 }
             });
         });
+        percent100Details.sort((a, b) => a.time.localeCompare(b.time));
 
         return {
             minutes: percent100Minutes.sort(),
+            details: percent100Details,
             count: percent100Minutes.length,
             targetHour: targetHour,
             totalHours: hoursToCalc.length,
@@ -1075,14 +1088,26 @@
         return column;
     }
 
+    function formatExportLine(detail, marketText) {
+        const ratio = `${detail.green}/${detail.total}`;
+        return `${detail.hour}h ${detail.minute}' | ${marketText} | ${ratio} | media ${detail.avgGoals.toFixed(1)}`;
+    }
+
+    function formatExportBlock(data, marketText) {
+        return data.details.map(d => formatExportLine(d, marketText)).join('\n');
+    }
+
     function exportSingleList(index) {
         const data = lastCalculatedResults[index];
-        if (!data || data.minutes.length === 0) {
+        if (!data || data.details.length === 0) {
             alert('Nenhum minuto 100% para exportar nesta liga.');
             return;
         }
 
-        let content = data.minutes.join('\n');
+        const marketSelect = document.getElementById("marketSelect");
+        const marketText = marketSelect.options[marketSelect.selectedIndex].text;
+
+        let content = formatExportBlock(data, marketText);
 
         const safeName = data.leagueName.replace(/[^a-zA-Z0-9]/g, '-');
         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
@@ -1115,12 +1140,12 @@
 
         if (lastCalculatedResults.length === 1) {
             const data = lastCalculatedResults[0];
-            if (data.minutes.length === 0) {
+            if (data.details.length === 0) {
                 alert('Nenhum minuto 100% para exportar.');
                 return;
             }
 
-            let content = data.minutes.join('\n');
+            let content = formatExportBlock(data, marketText);
             const safeName = data.leagueName.replace(/[^a-zA-Z0-9]/g, '-');
             const filename = `${safeName}-${marketText.replace(/\s+/g, '-')}-${hourFilterText}-G${gales}.txt`;
             downloadTxt(content, filename);
@@ -1130,9 +1155,9 @@
 
         let content = '';
         lastCalculatedResults.forEach((data, index) => {
-            if (data.minutes.length > 0) {
+            if (data.details.length > 0) {
                 content += `=== ${data.leagueName} ===\n`;
-                content += data.minutes.join('\n');
+                content += formatExportBlock(data, marketText);
                 content += '\n\n';
             }
         });
