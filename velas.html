@@ -468,12 +468,12 @@
         $('velasPointsSelector').disabled = filtroSomenteHoje;
     }
 
-    // Retorna o timestamp (ms) de um jogo, combinando data + hora + minuto.
-    function timestampDoJogo(item){
+    // Chave do "dia" de um jogo, a partir do campo `data` (ignora hora/minuto do próprio campo data).
+    function chaveDia(item){
         const d = new Date(item.data);
-        d.setHours(item.hora || 0, item.minuto || 0, 0, 0);
-        return d.getTime();
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
     }
+    let qtdFiltroHojeAtual = 0;
 
     // ---------- CONSTRÓI SÉRIES — Total Gols (FT/HT), lógica real do grafico-principal-novo do Caramelo ----------
     // Compara blocos de 20 jogos posição a posição: tamanho do candle = diferença real de gols
@@ -487,12 +487,14 @@
         });
         let sliced;
         if (filtroSomenteHoje) {
-            // ignora a quantidade selecionada — pega TODOS os jogos a partir das 00h do dia atual,
-            // não importa quantos sejam
-            const inicioHoje = new Date();
-            inicioHoje.setHours(0, 0, 0, 0);
-            const inicioHojeMs = inicioHoje.getTime();
-            sliced = sorted.filter(item => timestampDoJogo(item) >= inicioHojeMs);
+            // ignora a quantidade selecionada — pega TODOS os jogos do mesmo dia do jogo mais
+            // recente carregado (ou seja, desde as 00h até agora), não importa quantos sejam.
+            // Usa o dia do último jogo em vez do "agora" do navegador pra evitar desalinhamento
+            // de fuso horário entre o campo `data` da API e o horário local.
+            const ultimoJogo = sorted[sorted.length - 1];
+            const diaAtual = ultimoJogo ? chaveDia(ultimoJogo) : null;
+            sliced = diaAtual ? sorted.filter(item => chaveDia(item) === diaAtual) : [];
+            qtdFiltroHojeAtual = sliced.length;
         } else {
             sliced = sorted.slice(-velasNumPoints); // cronológico, mais antigo → mais novo
         }
@@ -771,9 +773,7 @@
 
         saveState();
         if (filtroSomenteHoje) {
-            const inicioHoje = new Date(); inicioHoje.setHours(0, 0, 0, 0);
-            const qtdHoje = rawDataCache.filter(item => timestampDoJogo(item) >= inicioHoje.getTime()).length;
-            log(`<b>${rawDataCache.length}</b> jogos carregados de <b>${LIGA}</b> — mostrando <b>${qtdHoje}</b> jogos de hoje`);
+            log(`<b>${rawDataCache.length}</b> jogos carregados de <b>${LIGA}</b> — mostrando <b>${qtdFiltroHojeAtual}</b> jogos de hoje`);
         } else {
             log(`<b>${rawDataCache.length}</b> jogos carregados de <b>${LIGA}</b> — mostrando <b>${Math.min(velasNumPoints, rawDataCache.length)}</b>`);
         }
