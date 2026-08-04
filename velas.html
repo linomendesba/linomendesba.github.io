@@ -36,6 +36,23 @@
             0 4px 14px rgba(124,92,246,.12);
         font-weight:900;
     }
+    #filtroHojeWrap{
+        display:inline-flex; align-items:center; gap:6px;
+        height:32px; padding:0 10px; box-sizing:border-box;
+        background:#171a21; color:#cbd5e1; border:1px solid rgba(124,92,246,.35);
+        border-radius:12px; font-size:12px; font-weight:800;
+        cursor:pointer; user-select:none;
+    }
+    #filtroHojeWrap input{ accent-color:#7c5cff; cursor:pointer; margin:0; }
+    #filtroHojeWrap.active{
+        color:#7c5cff;
+        border-color:rgba(124,92,246,.80);
+        background:rgba(124,92,246,.14);
+        box-shadow:
+            0 0 0 1px rgba(124,92,246,.22),
+            0 4px 14px rgba(124,92,246,.12);
+    }
+    #velasPointsSelector:disabled{ opacity:.45; cursor:not-allowed; }
 </style>
 </head>
 <body>
@@ -60,6 +77,10 @@
         <div class="grafico-trading-actions">
             <select id="casaSelector"></select>
             <select id="ligaSelector"></select>
+            <label id="filtroHojeWrap" for="filtroHojeCheckbox">
+                <input type="checkbox" id="filtroHojeCheckbox">
+                <span>Somente hoje</span>
+            </label>
             <select id="velasPointsSelector">
                 <option value="20">20 jogos</option>
                 <option value="40">40 jogos</option>
@@ -395,6 +416,7 @@
     const candleSeries = {};
 
     let velasNumPoints = 60;
+    let filtroSomenteHoje = false;
     let pontosAtuais = {};
     let candlePorMercado = {};
     let ultimoValorPorMercado = {};
@@ -405,7 +427,7 @@
         try {
             const range = chart?.timeScale?.().getVisibleLogicalRange?.() || visibleRange;
             localStorage.setItem(STATE_KEY, JSON.stringify({
-                range, velasNumPoints,
+                range, velasNumPoints, filtroSomenteHoje,
                 mercados: Object.fromEntries(Object.entries(mercados).map(([k, v]) => [k, !!v.ativo])),
                 indicadores
             }));
@@ -423,6 +445,7 @@
         const st = loadState();
         if (!st) return;
         if (st.velasNumPoints) velasNumPoints = st.velasNumPoints;
+        if (typeof st.filtroSomenteHoje === 'boolean') filtroSomenteHoje = st.filtroSomenteHoje;
         if (st.mercados) Object.keys(mercados).forEach(k => { if (k in st.mercados) mercados[k].ativo = !!st.mercados[k]; });
         if (st.range && Number.isFinite(st.range.from) && Number.isFinite(st.range.to)) visibleRange = st.range;
         if (st.indicadores) Object.assign(indicadores, st.indicadores);
@@ -435,6 +458,21 @@
         }
 
         $('velasPointsSelector').value = String(velasNumPoints);
+        syncFiltroHojeUI();
+    }
+
+    // ---------- FILTRO "SOMENTE HOJE" ----------
+    function syncFiltroHojeUI(){
+        $('filtroHojeCheckbox').checked = filtroSomenteHoje;
+        $('filtroHojeWrap').classList.toggle('active', filtroSomenteHoje);
+        $('velasPointsSelector').disabled = filtroSomenteHoje;
+    }
+
+    // Retorna o timestamp (ms) de um jogo, combinando data + hora + minuto.
+    function timestampDoJogo(item){
+        const d = new Date(item.data);
+        d.setHours(item.hora || 0, item.minuto || 0, 0, 0);
+        return d.getTime();
     }
 
     // ---------- CONSTRÓI SÉRIES — Total Gols (FT/HT), lógica real do grafico-principal-novo do Caramelo ----------
@@ -447,7 +485,17 @@
             if (a.hora !== b.hora) return a.hora - b.hora;
             return a.minuto - b.minuto;
         });
-        const sliced = sorted.slice(-velasNumPoints); // cronológico, mais antigo → mais novo
+        let sliced;
+        if (filtroSomenteHoje) {
+            // ignora a quantidade selecionada — pega TODOS os jogos a partir das 00h do dia atual,
+            // não importa quantos sejam
+            const inicioHoje = new Date();
+            inicioHoje.setHours(0, 0, 0, 0);
+            const inicioHojeMs = inicioHoje.getTime();
+            sliced = sorted.filter(item => timestampDoJogo(item) >= inicioHojeMs);
+        } else {
+            sliced = sorted.slice(-velasNumPoints); // cronológico, mais antigo → mais novo
+        }
         const usadosDesc = sliced.slice().reverse();  // mais novo → mais antigo (formato usado pelo Caramelo)
 
         const candles = {};
@@ -459,7 +507,11 @@
 
         if (totalBlocos < 2){
             candlePorMercado = candles;
-            log(`⚠️ selecione pelo menos 40 jogos (esse gráfico compara blocos de ${BLOCO} jogos, precisa de no mínimo 2 blocos).`);
+            if (filtroSomenteHoje) {
+                log(`⚠️ ainda não há jogos suficientes hoje (encontrados ${usadosDesc.length}) — esse gráfico compara blocos de ${BLOCO} jogos, precisa de no mínimo 2 blocos (${BLOCO * 2}).`);
+            } else {
+                log(`⚠️ selecione pelo menos 40 jogos (esse gráfico compara blocos de ${BLOCO} jogos, precisa de no mínimo 2 blocos).`);
+            }
             return;
         }
 
@@ -718,7 +770,13 @@
         }
 
         saveState();
-        log(`<b>${rawDataCache.length}</b> jogos carregados de <b>${LIGA}</b> — mostrando <b>${Math.min(velasNumPoints, rawDataCache.length)}</b>`);
+        if (filtroSomenteHoje) {
+            const inicioHoje = new Date(); inicioHoje.setHours(0, 0, 0, 0);
+            const qtdHoje = rawDataCache.filter(item => timestampDoJogo(item) >= inicioHoje.getTime()).length;
+            log(`<b>${rawDataCache.length}</b> jogos carregados de <b>${LIGA}</b> — mostrando <b>${qtdHoje}</b> jogos de hoje`);
+        } else {
+            log(`<b>${rawDataCache.length}</b> jogos carregados de <b>${LIGA}</b> — mostrando <b>${Math.min(velasNumPoints, rawDataCache.length)}</b>`);
+        }
 
         requestAnimationFrame(() => {
             resizeChart();
@@ -752,6 +810,13 @@
 
     $('velasPointsSelector').addEventListener('change', e => {
         velasNumPoints = parseInt(e.target.value, 10);
+        saveState();
+        render({ manterZoom: false });
+    });
+
+    $('filtroHojeCheckbox').addEventListener('change', e => {
+        filtroSomenteHoje = e.target.checked;
+        syncFiltroHojeUI();
         saveState();
         render({ manterZoom: false });
     });
@@ -832,6 +897,7 @@
     popularSelectorLiga();
     applySavedState();
     syncLegendUI();
+    syncFiltroHojeUI();
 
     $('btnToggleMM').classList.toggle('active', indicadores.mm);
     $('btnToggleRSI').classList.toggle('active', indicadores.rsi);
