@@ -41,7 +41,7 @@
     html, body { margin:0; background:var(--bg); font-family:'Roboto', system-ui, -apple-system, Segoe UI, sans-serif; color:var(--text); }
     #status{ text-align:center; color:var(--muted); font-size:13px; padding:6px 0 14px; }
 
-    .bacbo-wrap{ max-width:1360px; margin:0 auto; padding:0 16px 60px; }
+    .bacbo-wrap{ max-width:1800px; margin:0 auto; padding:0 16px 60px; }
 
     .bacbo-head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
     .bacbo-title{ font-size:22px; font-weight:800; letter-spacing:.2px; }
@@ -192,6 +192,26 @@
     .die.blue{ background:var(--player); } .die.red{ background:var(--banker); }
     .die .cell{ display:flex; align-items:center; justify-content:center; }
     .die .dot{ width:5px; height:5px; border-radius:50%; background:#fff; }
+
+    /* Relógio ao vivo (horário de Brasília) */
+    .clock-badge{
+        display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 14px;
+        background:#000; border:2px solid #2a2d38; border-radius:8px;
+        font-family:'Roboto Mono', monospace; font-size:15px; font-weight:700; color:#fff; letter-spacing:.5px;
+    }
+    .clock-badge svg{ width:14px; height:14px; opacity:.75; flex-shrink:0; }
+    .clock-badge .clock-tz{ font-size:9px; font-weight:700; color:var(--muted); text-transform:uppercase; }
+
+    /* Tabela Bac Bo (grade de totais, estilo casa) */
+    .tabela-grid{ display:grid; grid-auto-flow:column; grid-template-rows:repeat(6, 30px); gap:4px; }
+    .tabela-cell{ width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+        font-size:11px; font-weight:800; border:1.5px solid transparent; cursor:default; }
+    .tabela-cell.B{ background:var(--banker-glow); border-color:var(--banker); color:var(--banker); }
+    .tabela-cell.P{ background:var(--player-glow); border-color:var(--player); color:var(--player); }
+    .tabela-cell.T{ background:var(--tie-glow); border-color:var(--tie); color:var(--tie); }
+
+    /* Grade de resultados paginada — usa .result-grid / .pagination / .detail-popup já definidos acima */
+    .result-cell{ user-select:none; }
 </style>
 </head>
 <body>
@@ -221,6 +241,11 @@
                 <option value="800">Últimos 800</option>
             </select>
         </div>
+        <div class="clock-badge" title="Horário de Brasília (America/Sao_Paulo)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <span id="relogioBR">--:--:--</span>
+            <span class="clock-tz">BR</span>
+        </div>
     </div>
 
     <div class="stat-strip">
@@ -230,6 +255,14 @@
         <div class="stat-box"><div class="lbl">% Tie</div><div class="val t" id="statT">—</div></div>
         <div class="stat-box"><div class="lbl">Sequência Atual</div><div class="val" id="statSeq">—</div></div>
         <div class="stat-box"><div class="lbl">Recorde do dia</div><div class="val" id="statRecorde">—</div></div>
+    </div>
+
+    <!-- Tabela Bac Bo (totais) -->
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-head">
+            <div class="card-title">Tabela Bac Bo<small>Total (soma) de cada rodada, em ordem — cores por vencedor</small></div>
+        </div>
+        <div class="bead-scroll"><div class="tabela-grid" id="tabelaBacBoGrid"></div></div>
     </div>
 
     <!-- Bead Road + Histórico -->
@@ -246,6 +279,15 @@
             <label class="chip" for="invertToggle"><input type="checkbox" id="invertToggle"><span>Inverter direção</span></label>
         </div>
         <div class="hist-scroll"><div class="hist-row" id="histRow"></div></div>
+    </div>
+
+    <!-- Grade de Resultados (paginada, com horário) -->
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-head">
+            <div class="card-title">Grade de Resultados<small>Todas as rodadas do período, com horário — clique para ver detalhes</small></div>
+            <div class="pagination" id="gradePagination"></div>
+        </div>
+        <div class="result-grid" id="gradeResultados"></div>
     </div>
 
     <div class="grid3">
@@ -348,6 +390,13 @@
 
 </div>
 
+<div class="detail-popup" id="detailPopup">
+    <button class="popup-close" id="popupClose" type="button">&times;</button>
+    <div class="popup-date" id="popupDate"></div>
+    <div class="popup-outcome" id="popupOutcome"></div>
+    <div class="popup-stats" id="popupStats"></div>
+</div>
+
 <script>
 (function(){
     "use strict";
@@ -381,6 +430,32 @@
     $('qtdSelector').value = String(qtdJanela);
     $('notifToggle').checked = notifAtiva;
     $('notifPattern').value = notifPatternSaved;
+
+    // ---------- HELPERS DE FUSO HORÁRIO (Brasília) ----------
+    const BR_TZ = 'America/Sao_Paulo';
+    const brFmt = new Intl.DateTimeFormat('en-US', {
+        timeZone: BR_TZ, year:'numeric', month:'2-digit', day:'2-digit',
+        hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23'
+    });
+    function brParts(d){
+        const parts = {};
+        brFmt.formatToParts(d).forEach(p => { if (p.type !== 'literal') parts[p.type] = p.value; });
+        return parts;
+    }
+    function horaLabelBR(d){
+        const p = brParts(d);
+        return p.hour + ':' + p.minute + ':' + p.second;
+    }
+    function dataLabelBR(d){
+        const p = brParts(d);
+        return p.day + '/' + p.month + '/' + p.year;
+    }
+    function tickRelogio(){
+        const el = $('relogioBR');
+        if (el) el.textContent = horaLabelBR(new Date());
+    }
+    tickRelogio();
+    setInterval(tickRelogio, 1000);
 
     // ---------- HELPERS ----------
     function outcomeToLetra(item){
@@ -425,10 +500,8 @@
 
     function isToday(d){
         if (!d) return false;
-        const now = new Date();
-        return d.getUTCFullYear() === now.getUTCFullYear() &&
-               d.getUTCMonth() === now.getUTCMonth() &&
-               d.getUTCDate() === now.getUTCDate();
+        const a = brParts(d), b = brParts(new Date());
+        return a.year === b.year && a.month === b.month && a.day === b.day;
     }
 
     function normalizar(list){
@@ -441,8 +514,8 @@
                 somaP: item.player_score,
                 somaB: item.banker_score,
                 data: d,
-                hora: d ? d.getUTCHours() : 0,
-                horaLabel: d ? d.toISOString().substr(11,8) : ''
+                hora: d ? parseInt(brParts(d).hour, 10) : 0,
+                horaLabel: d ? horaLabelBR(d) : ''
             };
         }).filter(x => x.data);
     }
@@ -563,6 +636,28 @@
         requestAnimationFrame(() => { grid.parentElement.scrollLeft = grid.parentElement.scrollWidth; });
     }
 
+    // ---------- RENDER: TABELA BAC BO (totais) ----------
+    function renderTabelaBacBo(arr){
+        const seq = sequenciaEfetiva(arr);
+        const grid = $('tabelaBacBoGrid');
+        grid.innerHTML = '';
+        if (!seq.length){ grid.innerHTML = '<div class="bead-empty">Sem dados no período selecionado</div>'; return; }
+        const nomeCompleto = { B:'Banker', P:'Player', T:'Tie' };
+        seq.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'tabela-cell ' + item.letra;
+            const soma = (typeof item.somaP === 'number' && typeof item.somaB === 'number')
+                ? Math.max(item.somaP, item.somaB)
+                : (item.somaB ?? item.somaP ?? '');
+            div.textContent = soma;
+            let tip = nomeCompleto[item.letra] + ' — ' + item.horaLabel;
+            if (item.letra !== 'T') tip += ' — Player ' + (item.somaP ?? '?') + ' x Banker ' + (item.somaB ?? '?');
+            div.title = tip;
+            grid.appendChild(div);
+        });
+        requestAnimationFrame(() => { grid.parentElement.scrollLeft = grid.parentElement.scrollWidth; });
+    }
+
     // ---------- RENDER: HISTÓRICO VISUAL ----------
     function renderHistorico(arr){
         const row = $('histRow');
@@ -598,6 +693,92 @@
             row.parentElement.scrollLeft = invertDirecao ? 0 : row.parentElement.scrollWidth;
         });
     }
+
+    // ---------- RENDER: GRADE DE RESULTADOS (paginada, com horário) ----------
+    let paginaGrade = 1;
+    const ITENS_POR_PAGINA_GRADE = 60;
+    const nomeCompletoLetra = { B:'Banker', P:'Player', T:'Tie' };
+
+    function renderGradeResultados(arr){
+        const seq = arr.slice().reverse(); // mais recente primeiro
+        const totalPaginas = Math.max(1, Math.ceil(seq.length / ITENS_POR_PAGINA_GRADE));
+        if (paginaGrade > totalPaginas) paginaGrade = totalPaginas;
+        if (paginaGrade < 1) paginaGrade = 1;
+        const inicio = (paginaGrade - 1) * ITENS_POR_PAGINA_GRADE;
+        const pageItems = seq.slice(inicio, inicio + ITENS_POR_PAGINA_GRADE);
+
+        const grid = $('gradeResultados');
+        grid.innerHTML = '';
+        if (!pageItems.length){ grid.innerHTML = '<div class="bead-empty">Sem dados no período selecionado</div>'; }
+        pageItems.forEach((item, i) => {
+            const idxGlobal = seq.length - inicio - i;
+            const soma = (typeof item.somaP === 'number' && typeof item.somaB === 'number')
+                ? Math.max(item.somaP, item.somaB)
+                : (item.somaB ?? item.somaP ?? '');
+            const cell = document.createElement('div');
+            cell.className = 'result-cell';
+            cell.innerHTML =
+                '<div class="result-circle ' + item.letra + '">' + (item.letra === 'T' ? 'T' : soma) + '</div>' +
+                '<div class="result-label ' + item.letra + '">' + nomeCompletoLetra[item.letra] + '</div>' +
+                '<div class="result-time">' + item.horaLabel + '</div>' +
+                '<div class="result-idx">#' + idxGlobal + '</div>';
+            cell.addEventListener('click', (e) => abrirPopupResultado(item, idxGlobal, e.currentTarget));
+            grid.appendChild(cell);
+        });
+
+        // paginação
+        const pagWrap = $('gradePagination');
+        pagWrap.innerHTML = '';
+        const btnPrev = document.createElement('button');
+        btnPrev.textContent = '‹';
+        btnPrev.disabled = paginaGrade === 1;
+        btnPrev.addEventListener('click', () => { paginaGrade--; renderGradeResultados(getWorkingSet()); });
+        pagWrap.appendChild(btnPrev);
+
+        const maxBotoes = 5;
+        let ini = Math.max(1, paginaGrade - 2);
+        let fim = Math.min(totalPaginas, ini + maxBotoes - 1);
+        ini = Math.max(1, fim - maxBotoes + 1);
+        for (let p = ini; p <= fim; p++){
+            const b = document.createElement('button');
+            b.textContent = p;
+            if (p === paginaGrade) b.className = 'active';
+            b.addEventListener('click', () => { paginaGrade = p; renderGradeResultados(getWorkingSet()); });
+            pagWrap.appendChild(b);
+        }
+        const btnNext = document.createElement('button');
+        btnNext.textContent = '›';
+        btnNext.disabled = paginaGrade === totalPaginas;
+        btnNext.addEventListener('click', () => { paginaGrade++; renderGradeResultados(getWorkingSet()); });
+        pagWrap.appendChild(btnNext);
+    }
+
+    function abrirPopupResultado(item, idxGlobal, targetEl){
+        const popup = $('detailPopup');
+        $('popupDate').textContent = item.data ? (dataLabelBR(item.data) + ' às ' + item.horaLabel) : item.horaLabel;
+        $('popupOutcome').textContent = nomeCompletoLetra[item.letra] + ' · Rodada #' + idxGlobal;
+        $('popupOutcome').style.color = item.letra === 'B' ? 'var(--banker)' : item.letra === 'P' ? 'var(--player)' : 'var(--tie)';
+        $('popupStats').innerHTML =
+            '<div><span>Player</span><b>' + (item.somaP ?? '—') + '</b></div>' +
+            '<div><span>Banker</span><b>' + (item.somaB ?? '—') + '</b></div>' +
+            '<div><span>Horário (Brasília)</span><b>' + item.horaLabel + '</b></div>';
+
+        const rect = targetEl.getBoundingClientRect();
+        let left = rect.left + rect.width/2 - 140;
+        left = Math.max(10, Math.min(left, window.innerWidth - 290));
+        let top = rect.bottom + 8;
+        if (top + 220 > window.innerHeight) top = Math.max(10, rect.top - 228);
+        popup.style.left = left + 'px';
+        popup.style.top = top + 'px';
+        popup.style.display = 'block';
+    }
+    $('popupClose').addEventListener('click', () => { $('detailPopup').style.display = 'none'; });
+    document.addEventListener('click', (e) => {
+        const popup = $('detailPopup');
+        if (popup.style.display === 'block' && !popup.contains(e.target) && !e.target.closest('.result-cell')){
+            popup.style.display = 'none';
+        }
+    });
 
     // ---------- RENDER: SEQUÊNCIAS ----------
     function renderSequencias(arr){
@@ -885,8 +1066,10 @@
     function renderAll(){
         const arr = getWorkingSet();
         renderStats(arr);
+        renderTabelaBacBo(arr);
         renderBeadRoad(arr);
         renderHistorico(arr);
+        renderGradeResultados(arr);
         renderSequencias(arr);
         renderProporcao(arr);
         renderMaximas(arr);
@@ -900,16 +1083,19 @@
     $('filtroHojeCheckbox').addEventListener('change', e => {
         filtroSomenteHoje = e.target.checked;
         $('filtroHojeWrap').classList.toggle('active', filtroSomenteHoje);
+        paginaGrade = 1;
         renderAll();
     });
     $('tieModeSelector').addEventListener('change', e => {
         tieMode = e.target.value;
         localStorage.setItem('betstat:bacbo:tieMode', tieMode);
+        paginaGrade = 1;
         renderAll();
     });
     $('qtdSelector').addEventListener('change', e => {
         qtdJanela = parseInt(e.target.value, 10);
         localStorage.setItem('betstat:bacbo:qtd', String(qtdJanela));
+        paginaGrade = 1;
         renderAll();
     });
     $('btnValidar').addEventListener('click', validarPadrao);
