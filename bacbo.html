@@ -82,7 +82,7 @@
     .bead-scroll{ overflow-x:auto; padding-bottom:4px; }
     .bead-grid{ display:grid; grid-auto-flow:column; grid-template-rows:repeat(6, 24px); gap:3px; }
     .bead-cell{ width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-        font-size:9px; font-weight:800; position:relative; border:1.5px solid transparent; }
+        font-size:9px; font-weight:800; position:relative; border:1.5px solid transparent; cursor:pointer; }
     .bead-cell.B{ background:var(--banker-glow); border-color:var(--banker); color:var(--banker); }
     .bead-cell.P{ background:var(--player-glow); border-color:var(--player); color:var(--player); }
     .bead-cell.T{ background:var(--tie-glow); border-color:var(--tie); color:var(--tie); width:14px; height:14px; font-size:8px; }
@@ -93,8 +93,11 @@
     /* Histórico visual */
     .hist-scroll{ overflow-x:auto; padding-bottom:6px; }
     .hist-row{ display:flex; gap:6px; }
+    .hist-item{ display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; }
     .hist-ball{ min-width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-        font-size:12px; font-weight:800; flex-shrink:0; border:1.5px solid transparent; }
+        font-size:13px; font-weight:800; flex-shrink:0; border:1.5px solid transparent; cursor:pointer; }
+    .hist-idx{ font-size:9px; color:var(--muted); font-family:'Roboto Mono', monospace; }
+    .hist-time{ font-size:9px; color:var(--muted); font-family:'Roboto Mono', monospace; }
     .hist-ball.B{ background:var(--banker-glow); border-color:var(--banker); color:var(--banker); }
     .hist-ball.P{ background:var(--player-glow); border-color:var(--player); color:var(--player); }
     .hist-ball.T{ background:var(--tie-glow); border-color:var(--tie); color:var(--tie); }
@@ -163,7 +166,7 @@
     <div class="bacbo-head">
         <div>
             <div class="bacbo-title">Bac <span>Bo</span> — Painel de Análise</div>
-            <div class="bacbo-sub" id="subLabel">Atualizando a cada 5s • Sortenabet Bac-bo-vip</div>
+
         </div>
         <div class="bacbo-controls">
             <label class="chip" id="filtroHojeWrap" for="filtroHojeCheckbox">
@@ -204,7 +207,8 @@
 
     <div class="card" style="margin-bottom:16px;">
         <div class="card-head">
-            <div class="card-title">Histórico visual<small>Bolinhas coloridas — mais recente à direita</small></div>
+            <div class="card-title">Histórico visual<small>Bolinhas coloridas com soma, horário e nº da rodada</small></div>
+            <label class="chip" for="invertToggle"><input type="checkbox" id="invertToggle"><span>Inverter direção</span></label>
         </div>
         <div class="hist-scroll"><div class="hist-row" id="histRow"></div></div>
     </div>
@@ -330,6 +334,13 @@
     let notifAtiva = localStorage.getItem('betstat:bacbo:notifAtiva') === '1';
     let notifPatternSaved = localStorage.getItem('betstat:bacbo:notifPattern') || 'B P B';
     let ultimoRoundIdVisto = null;
+    let invertDirecao = localStorage.getItem('betstat:bacbo:invert') === '1';
+    $('invertToggle').checked = invertDirecao;
+    $('invertToggle').addEventListener('change', e => {
+        invertDirecao = e.target.checked;
+        localStorage.setItem('betstat:bacbo:invert', invertDirecao ? '1' : '0');
+        renderHistorico(getWorkingSet());
+    });
 
     $('tieModeSelector').value = tieMode;
     $('qtdSelector').value = String(qtdJanela);
@@ -396,7 +407,7 @@
                 somaB: item.banker_score,
                 data: d,
                 hora: d ? d.getUTCHours() : 0,
-                horaLabel: d ? d.toISOString().substr(11,5) : ''
+                horaLabel: d ? d.toISOString().substr(11,8) : ''
             };
         }).filter(x => x.data);
     }
@@ -456,7 +467,7 @@
         grid.innerHTML = '';
         if (!seq.length){ grid.innerHTML = '<div class="bead-empty">Sem dados no período selecionado</div>'; return; }
 
-        // matriz[col][row] = {letra, tieCount}
+        // matriz[col][row] = {letra, tieCount, item, tieItems[]}
         const cols = [];
         let col = -1, row = 0, lastLetra = null;
 
@@ -465,12 +476,12 @@
                 if (tieMode === 'break'){
                     col++; row = 0; lastLetra = 'T';
                     cols[col] = cols[col] || [];
-                    cols[col][row] = { letra:'T', tieCount:0 };
+                    cols[col][row] = { letra:'T', tieCount:0, item, tieItems:[] };
                 } else { // 'own'
-                    if (col === -1){ col = 0; row = 0; cols[col] = cols[col] || []; cols[col][row] = { letra:'T', tieCount:1 }; lastLetra = null; }
+                    if (col === -1){ col = 0; row = 0; cols[col] = cols[col] || []; cols[col][row] = { letra:'T', tieCount:1, item, tieItems:[item] }; lastLetra = null; }
                     else {
                         const cell = cols[col][row];
-                        if (cell) cell.tieCount = (cell.tieCount || 0) + 1;
+                        if (cell){ cell.tieCount = (cell.tieCount || 0) + 1; cell.tieItems.push(item); }
                     }
                 }
                 return;
@@ -482,9 +493,11 @@
                 col++; row = 0;
                 cols[col] = cols[col] || [];
             }
-            cols[col][row] = { letra:item.letra, tieCount:0 };
+            cols[col][row] = { letra:item.letra, tieCount:0, item, tieItems:[] };
             lastLetra = item.letra;
         });
+
+        const nomeCompleto = { B:'Banker', P:'Player', T:'Tie' };
 
         cols.forEach(colArr => {
             if (!colArr) return;
@@ -495,12 +508,18 @@
                 else {
                     div.className = 'bead-cell ' + cell.letra;
                     div.textContent = cell.letra === 'T' ? 'T' : cell.letra;
+                    let tip = nomeCompleto[cell.letra] + ' — ' + cell.item.horaLabel;
+                    if (cell.letra !== 'T'){
+                        tip += ' — Player ' + (cell.item.somaP ?? '?') + ' x Banker ' + (cell.item.somaB ?? '?');
+                    }
                     if (cell.tieCount > 0){
+                        tip += '\nTie(s) na sequência: ' + cell.tieItems.map(t => t.horaLabel).join(', ');
                         const tc = document.createElement('span');
                         tc.className = 'tiecount';
                         tc.textContent = cell.tieCount;
                         div.appendChild(tc);
                     }
+                    div.title = tip;
                 }
                 grid.appendChild(div);
             }
@@ -513,15 +532,36 @@
     function renderHistorico(arr){
         const row = $('histRow');
         row.innerHTML = '';
-        const last = arr.slice(-120);
-        last.forEach(item => {
+        const nomeCompleto = { B:'Banker', P:'Player', T:'Tie' };
+        const base = arr.slice(-120).map((item, i) => ({ item, idxGlobal: arr.length - Math.min(120, arr.length) + i + 1 }));
+        const last = invertDirecao ? base.slice().reverse() : base;
+        last.forEach(({ item, idxGlobal }) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'hist-item';
+
             const b = document.createElement('div');
             b.className = 'hist-ball ' + item.letra;
-            b.title = item.horaLabel + ' — ' + item.letra + (item.letra !== 'T' ? '' : '');
-            b.textContent = item.letra;
-            row.appendChild(b);
+            let tip = nomeCompleto[item.letra] + ' — ' + item.horaLabel;
+            if (item.letra !== 'T') tip += ' — Player ' + (item.somaP ?? '?') + ' x Banker ' + (item.somaB ?? '?');
+            b.title = tip;
+            b.textContent = item.letra === 'T' ? 'T' : (item.somaP != null && item.somaB != null ? Math.max(item.somaP, item.somaB) : item.letra);
+
+            const time = document.createElement('div');
+            time.className = 'hist-time';
+            time.textContent = item.horaLabel;
+
+            const idx = document.createElement('div');
+            idx.className = 'hist-idx';
+            idx.textContent = '#' + idxGlobal;
+
+            wrap.appendChild(b);
+            wrap.appendChild(time);
+            wrap.appendChild(idx);
+            row.appendChild(wrap);
         });
-        requestAnimationFrame(() => { row.parentElement.scrollLeft = row.parentElement.scrollWidth; });
+        requestAnimationFrame(() => {
+            row.parentElement.scrollLeft = invertDirecao ? 0 : row.parentElement.scrollWidth;
+        });
     }
 
     // ---------- RENDER: SEQUÊNCIAS ----------
@@ -851,7 +891,6 @@
         norm.sort((a,b) => a.data - b.data);
         ordered = norm;
         log('');
-        $('subLabel').textContent = ordered.length + ' rodadas carregadas • atualizando a cada 5s';
         renderAll();
     }
 
