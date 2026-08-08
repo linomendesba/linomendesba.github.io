@@ -747,8 +747,10 @@
 
     // ---------- RENDER: GRADE DE RESULTADOS (paginada, com horário) ----------
     let paginaGrade = 1;
-    const ITENS_POR_PAGINA_GRADE = 60;
+    let ITENS_POR_PAGINA_GRADE = parseInt(localStorage.getItem('betstat:bacbo:gradeQtd') || '120', 10);
     const nomeCompletoLetra = { B:'Banker', P:'Player', T:'Tie' };
+    let gradeCoresSelecionadas = new Set(); // cores marcadas no filtro (B/P/T), acumulativo
+    $('gradeQtdSelector').value = String(ITENS_POR_PAGINA_GRADE);
 
     function renderGradeResultados(arr){
         const seq = arr.slice().reverse(); // mais recente primeiro
@@ -768,6 +770,7 @@
                 : (item.somaB ?? item.somaP ?? '');
             const cell = document.createElement('div');
             cell.className = 'result-cell';
+            cell.dataset.cor = item.letra;
             cell.innerHTML =
                 '<div class="result-circle ' + item.letra + '">' + (item.letra === 'T' ? 'T' : soma) + '</div>' +
                 '<div class="result-label ' + item.letra + '">' + nomeCompletoLetra[item.letra] + '</div>' +
@@ -776,6 +779,7 @@
             cell.addEventListener('click', (e) => abrirPopupResultado(item, idxGlobal, e.currentTarget));
             grid.appendChild(cell);
         });
+        aplicarFiltroCorGrade();
 
         // paginação
         const pagWrap = $('gradePagination');
@@ -802,6 +806,29 @@
         btnNext.disabled = paginaGrade === totalPaginas;
         btnNext.addEventListener('click', () => { paginaGrade++; renderGradeResultados(getWorkingSet()); });
         pagWrap.appendChild(btnNext);
+    }
+
+    // marca/destaca na grade atual todas as células das cores selecionadas no filtro
+    function aplicarFiltroCorGrade(){
+        const grid = $('gradeResultados');
+        const cells = grid.querySelectorAll('.result-cell');
+        let selecionados = 0;
+        cells.forEach(cell => {
+            const cor = cell.dataset.cor;
+            if (gradeCoresSelecionadas.size === 0){
+                cell.classList.remove('dimmed', 'result-selected');
+            } else if (gradeCoresSelecionadas.has(cor)){
+                cell.classList.add('result-selected');
+                cell.classList.remove('dimmed');
+                selecionados++;
+            } else {
+                cell.classList.add('dimmed');
+                cell.classList.remove('result-selected');
+            }
+        });
+        $('gradeFiltroContagem').textContent = gradeCoresSelecionadas.size
+            ? (selecionados + ' selecionado' + (selecionados === 1 ? '' : 's') + ' nesta página')
+            : '';
     }
 
     function abrirPopupResultado(item, idxGlobal, targetEl){
@@ -1064,13 +1091,49 @@
         localStorage.setItem('betstat:bacbo:notifPattern', $('notifPattern').value);
     });
 
-    // ---------- GRÁFICO DE 3 LINHAS (canvas nativo) ----------
+    // ---------- GRÁFICO DE 3 LINHAS + DETECÇÃO DE TOPO/FUNDO (canvas nativo) ----------
+    let sensibilidadeReversao = parseInt(localStorage.getItem('betstat:bacbo:sensibilidade') || '4', 10);
+    $('reversaoSensibilidade').value = String(sensibilidadeReversao);
+    let chart3Data = null; // geometria do último render, usada pelo tooltip no hover
+
+    // Detecta topos/fundos locais na vantagem acumulada (accB - accP).
+    // 'janela' = quantos pontos pra cada lado precisam ser menores/maiores (sensibilidade).
+    function detectarReversoes(vantagem, janela){
+        const n = vantagem.length;
+        const brutos = [];
+        for (let i = 0; i < n; i++){
+            const ini = Math.max(0, i - janela);
+            const fim = Math.min(n - 1, i + janela);
+            if ((i - ini) < janela || (fim - i) < janela) continue; // sem folga suficiente nas bordas
+            let isMax = true, isMin = true;
+            for (let j = ini; j <= fim; j++){
+                if (j === i) continue;
+                if (vantagem[j] > vantagem[i]) isMax = false;
+                if (vantagem[j] < vantagem[i]) isMin = false;
+            }
+            if (isMax && vantagem[i] > 0) brutos.push({ idx:i, tipo:'topo', valor:vantagem[i] });
+            else if (isMin && vantagem[i] < 0) brutos.push({ idx:i, tipo:'fundo', valor:vantagem[i] });
+        }
+        // funde pontos do mesmo tipo muito próximos, mantendo o mais extremo
+        const limpos = [];
+        brutos.forEach(p => {
+            const anterior = limpos[limpos.length - 1];
+            if (anterior && anterior.tipo === p.tipo && (p.idx - anterior.idx) <= janela){
+                const maisExtremo = p.tipo === 'topo' ? (p.valor > anterior.valor) : (p.valor < anterior.valor);
+                if (maisExtremo) limpos[limpos.length - 1] = p;
+            } else {
+                limpos.push(p);
+            }
+        });
+        return limpos;
+    }
+
     function renderChart3Linhas(arr){
         const seq = sequenciaEfetiva(arr);
         const canvas = $('chart3linhas');
         const wrap = canvas.parentElement;
         const dpr = window.devicePixelRatio || 1;
-        const w = wrap.clientWidth - 32;
+        const w = wrap.clientWidth;
         const h = 260;
         canvas.width = w * dpr; canvas.height = h * dpr;
         canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
@@ -1078,17 +1141,24 @@
         ctx.scale(dpr, dpr);
         ctx.clearRect(0, 0, w, h);
 
+        chart3Data = null;
+        const chip = $('vantagemAtualChip');
+        chip.textContent = '—'; chip.style.color = '';
+
         if (!seq.length) return;
 
         let accB = 0, accP = 0, accT = 0;
-        const seriesB = [], seriesP = [], seriesT = [];
+        const seriesB = [], seriesP = [], seriesT = [], vantagem = [];
         seq.forEach(x => {
             if (x.letra === 'B') accB++; else if (x.letra === 'P') accP++; else accT++;
             seriesB.push(accB); seriesP.push(accP); seriesT.push(accT);
+            vantagem.push(accB - accP);
         });
         const maxV = Math.max(1, accB, accP, accT);
-        const padL = 34, padB = 18, padT = 10, padR = 8;
+        const padL = 34, padB = 18, padT = 14, padR = 10;
         const plotW = w - padL - padR, plotH = h - padT - padB;
+        const xAt = i => padL + (plotW * i/(seriesB.length-1 || 1));
+        const yAt = v => padT + plotH - (plotH * v/maxV);
 
         // grid
         ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.lineWidth = 1;
@@ -1102,8 +1172,7 @@
         function drawLine(series, color){
             ctx.beginPath();
             series.forEach((v, i) => {
-                const x = padL + (plotW * i/(series.length-1 || 1));
-                const y = padT + plotH - (plotH * v/maxV);
+                const x = xAt(i), y = yAt(v);
                 if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             });
             ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
@@ -1111,7 +1180,70 @@
         drawLine(seriesT, '#f5c144');
         drawLine(seriesP, '#3b82f6');
         drawLine(seriesB, '#ef4444');
+
+        // marca topos (Banker esticando a vantagem) e fundos (Player esticando a vantagem)
+        const pontos = detectarReversoes(vantagem, sensibilidadeReversao);
+        pontos.forEach(p => {
+            const x = xAt(p.idx);
+            ctx.beginPath();
+            if (p.tipo === 'topo'){
+                const y = yAt(seriesB[p.idx]);
+                ctx.moveTo(x, y - 11); ctx.lineTo(x - 5, y - 2); ctx.lineTo(x + 5, y - 2);
+                ctx.closePath(); ctx.fillStyle = '#ef4444'; ctx.fill();
+            } else {
+                const y = yAt(seriesP[p.idx]);
+                ctx.moveTo(x, y + 11); ctx.lineTo(x - 5, y + 2); ctx.lineTo(x + 5, y + 2);
+                ctx.closePath(); ctx.fillStyle = '#3b82f6'; ctx.fill();
+            }
+        });
+
+        // chip com a vantagem atual
+        const vAtual = vantagem[vantagem.length - 1];
+        if (vAtual > 0){ chip.textContent = 'Banker +' + vAtual; chip.style.color = 'var(--banker)'; }
+        else if (vAtual < 0){ chip.textContent = 'Player +' + Math.abs(vAtual); chip.style.color = 'var(--player)'; }
+        else { chip.textContent = 'Equilibrado'; chip.style.color = 'var(--muted)'; }
+
+        chart3Data = { seq, seriesB, seriesP, seriesT, vantagem, pontos, xAt };
     }
+
+    $('reversaoSensibilidade').addEventListener('change', e => {
+        sensibilidadeReversao = parseInt(e.target.value, 10);
+        localStorage.setItem('betstat:bacbo:sensibilidade', String(sensibilidadeReversao));
+        renderChart3Linhas(getWorkingSet());
+    });
+
+    // tooltip ao passar o mouse no gráfico
+    (function(){
+        const canvas = $('chart3linhas');
+        const tooltip = $('chartReversaoTooltip');
+        canvas.addEventListener('mousemove', e => {
+            if (!chart3Data || !chart3Data.seq.length){ tooltip.style.display = 'none'; return; }
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            let nearest = 0, menorDist = Infinity;
+            for (let i = 0; i < chart3Data.seq.length; i++){
+                const d = Math.abs(chart3Data.xAt(i) - mx);
+                if (d < menorDist){ menorDist = d; nearest = i; }
+            }
+            const item = chart3Data.seq[nearest];
+            const v = chart3Data.vantagem[nearest];
+            const ponto = chart3Data.pontos.find(p => p.idx === nearest);
+            let html = '<b>' + item.horaLabel + '</b><br>Banker: ' + chart3Data.seriesB[nearest] +
+                ' · Player: ' + chart3Data.seriesP[nearest] + ' · Tie: ' + chart3Data.seriesT[nearest] +
+                '<br>Vantagem: ' + (v > 0 ? 'Banker +' + v : v < 0 ? 'Player +' + Math.abs(v) : 'Equilibrado');
+            if (ponto){
+                html += '<br><b style="color:' + (ponto.tipo === 'topo' ? 'var(--banker)' : 'var(--player)') + '">' +
+                    (ponto.tipo === 'topo' ? '▲ Topo — possível reversão' : '▼ Fundo — possível reversão') + '</b>';
+            }
+            tooltip.innerHTML = html;
+            tooltip.style.display = 'block';
+            let left = mx + 14;
+            if (left + 190 > rect.width) left = mx - 190;
+            tooltip.style.left = Math.max(0, left) + 'px';
+            tooltip.style.top = Math.max(0, (e.clientY - rect.top) - 46) + 'px';
+        });
+        canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+    })();
 
     // ---------- MASTER RENDER ----------
     function renderAll(){
@@ -1148,6 +1280,30 @@
         localStorage.setItem('betstat:bacbo:qtd', String(qtdJanela));
         paginaGrade = 1;
         renderAll();
+    });
+    document.querySelectorAll('.color-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cor = btn.dataset.cor;
+            if (gradeCoresSelecionadas.has(cor)){
+                gradeCoresSelecionadas.delete(cor);
+                btn.classList.remove('active');
+            } else {
+                gradeCoresSelecionadas.add(cor);
+                btn.classList.add('active');
+            }
+            aplicarFiltroCorGrade();
+        });
+    });
+    $('gradeFiltroClear').addEventListener('click', () => {
+        gradeCoresSelecionadas.clear();
+        document.querySelectorAll('.color-filter-btn').forEach(b => b.classList.remove('active'));
+        aplicarFiltroCorGrade();
+    });
+    $('gradeQtdSelector').addEventListener('change', e => {
+        ITENS_POR_PAGINA_GRADE = parseInt(e.target.value, 10);
+        localStorage.setItem('betstat:bacbo:gradeQtd', String(ITENS_POR_PAGINA_GRADE));
+        paginaGrade = 1;
+        renderGradeResultados(getWorkingSet());
     });
     $('btnValidar').addEventListener('click', validarPadrao);
     document.querySelectorAll('[data-preset]').forEach(btn => {
