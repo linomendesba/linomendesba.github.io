@@ -41,7 +41,7 @@
     html, body { margin:0; background:var(--bg); font-family:'Roboto', system-ui, -apple-system, Segoe UI, sans-serif; color:var(--text); }
     #status{ text-align:center; color:var(--muted); font-size:13px; padding:6px 0 14px; }
 
-    .bacbo-wrap{ max-width:1800px; margin:0 auto; padding:0 16px 60px; }
+    .bacbo-wrap{ max-width:1360px; margin:0 auto; padding:0 16px 60px; }
 
     .bacbo-head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
     .bacbo-title{ font-size:22px; font-weight:800; letter-spacing:.2px; }
@@ -211,7 +211,29 @@
     .tabela-cell.T{ background:var(--tie-glow); border-color:var(--tie); color:var(--tie); }
 
     /* Grade de resultados paginada — usa .result-grid / .pagination / .detail-popup já definidos acima */
-    .result-cell{ user-select:none; }
+    .result-cell{ user-select:none; transition:.15s; }
+    .result-cell.dimmed{ opacity:.18; }
+    .result-cell.result-selected{ box-shadow:0 0 0 2px var(--accent); border-color:var(--accent); }
+    .color-filter-row{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .color-filter-btn{
+        display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 12px;
+        background:var(--card2); border:1.5px solid var(--border); border-radius:20px;
+        font-size:11.5px; font-weight:700; color:var(--muted); cursor:pointer; user-select:none; transition:.15s;
+    }
+    .color-filter-btn i{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+    .color-filter-btn.active.B{ border-color:var(--banker); color:var(--banker); background:var(--banker-glow); }
+    .color-filter-btn.active.P{ border-color:var(--player); color:var(--player); background:var(--player-glow); }
+    .color-filter-btn.active.T{ border-color:var(--tie); color:var(--tie); background:var(--tie-glow); }
+    .color-filter-clear{ font-size:11px; color:var(--muted); text-decoration:underline; cursor:pointer; margin-left:2px; }
+
+    /* Tooltip do gráfico (topo/fundo) */
+    .chart-tooltip{
+        position:absolute; pointer-events:none; z-index:20; display:none;
+        background:#0d1117; border:1px solid var(--border-strong); border-radius:8px;
+        padding:8px 10px; font-size:11.5px; line-height:1.5; color:var(--text);
+        box-shadow:0 10px 30px rgba(0,0,0,.5); white-space:nowrap;
+    }
+    .chart-tooltip b{ font-family:'Roboto Mono', monospace; }
 </style>
 </head>
 <body>
@@ -285,7 +307,23 @@
     <div class="card" style="margin-bottom:16px;">
         <div class="card-head">
             <div class="card-title">Grade de Resultados<small>Todas as rodadas do período, com horário — clique para ver detalhes</small></div>
-            <div class="pagination" id="gradePagination"></div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <select id="gradeQtdSelector" title="Itens por página">
+                    <option value="60">60 por página</option>
+                    <option value="120" selected>120 por página</option>
+                    <option value="200">200 por página</option>
+                    <option value="99999">Mostrar tudo do período</option>
+                </select>
+                <div class="pagination" id="gradePagination"></div>
+            </div>
+        </div>
+        <div class="color-filter-row" style="margin-bottom:12px;">
+            <span style="font-size:11.5px; color:var(--muted); font-weight:700;">Selecionar por resultado:</span>
+            <div class="color-filter-btn B" data-cor="B"><i style="background:var(--banker)"></i> Banker</div>
+            <div class="color-filter-btn P" data-cor="P"><i style="background:var(--player)"></i> Player</div>
+            <div class="color-filter-btn T" data-cor="T"><i style="background:var(--tie)"></i> Tie</div>
+            <span class="color-filter-clear" id="gradeFiltroClear">limpar seleção</span>
+            <span style="font-size:11px; color:var(--muted); margin-left:auto;" id="gradeFiltroContagem"></span>
         </div>
         <div class="result-grid" id="gradeResultados"></div>
     </div>
@@ -378,13 +416,26 @@
     <!-- Gráfico de 3 linhas -->
     <div class="card">
         <div class="card-head">
-            <div class="card-title">Acumulado Banker / Player / Tie<small>Contagem acumulada de vitórias ao longo das rodadas</small></div>
+            <div class="card-title">Acumulado Banker / Player / Tie<small>Contagem acumulada — linhas pontilhadas marcam topos/fundos da vantagem (possível reversão)</small></div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span class="chip" id="vantagemAtualChip" style="font-weight:800;">—</span>
+                <select id="reversaoSensibilidade" title="Sensibilidade de detecção de topo/fundo">
+                    <option value="2">Sensibilidade: Alta</option>
+                    <option value="4" selected>Sensibilidade: Média</option>
+                    <option value="7">Sensibilidade: Baixa</option>
+                </select>
+            </div>
         </div>
-        <canvas id="chart3linhas"></canvas>
+        <div style="position:relative;">
+            <canvas id="chart3linhas"></canvas>
+            <div id="chartReversaoTooltip" class="chart-tooltip"></div>
+        </div>
         <div class="chart-legend">
             <span><i style="background:var(--banker)"></i> Banker</span>
             <span><i style="background:var(--player)"></i> Player</span>
             <span><i style="background:var(--tie)"></i> Tie</span>
+            <span><i style="background:var(--banker); clip-path:polygon(50% 100%,0 0,100% 0);"></i> Topo (Banker esticou a vantagem)</span>
+            <span><i style="background:var(--player); clip-path:polygon(50% 0,0 100%,100% 100%);"></i> Fundo (Player esticou a vantagem)</span>
         </div>
     </div>
 
