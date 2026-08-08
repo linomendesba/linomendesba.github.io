@@ -163,8 +163,10 @@
     .pagination button:disabled{ opacity:.3; cursor:not-allowed; }
 
     .result-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(64px, 1fr)); gap:6px; }
+    .grade-scroll{ position:relative; }
+    .grade-scroll.virtual{ max-height:640px; overflow-y:auto; overflow-x:hidden; border-radius:10px; }
     .result-cell{ background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:7px 4px 6px;
-        display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; transition:.15s; }
+        display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; transition:.15s; height:84px; box-sizing:border-box; }
     .result-cell:hover{ border-color:var(--border-strong); background:#1c2029; }
     .result-cell.selected{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); background:var(--accent-glow); }
     .result-circle{ width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
@@ -325,7 +327,9 @@
             <span class="color-filter-clear" id="gradeFiltroClear">limpar seleção</span>
             <span style="font-size:11px; color:var(--muted); margin-left:auto;" id="gradeFiltroContagem"></span>
         </div>
-        <div class="result-grid" id="gradeResultados"></div>
+        <div class="grade-scroll" id="gradeScrollWrap">
+            <div class="result-grid" id="gradeResultados"></div>
+        </div>
     </div>
 
     <div class="grid3">
@@ -365,7 +369,7 @@
     <!-- Validador de padrão -->
     <div class="card" style="margin-bottom:16px;">
         <div class="card-head">
-            <div class="card-title">Validador de padrão<small>Testa padrões tipo B P B + simulação de Gale</small></div>
+            <div class="card-title">Validador de padrão<small>Backtest real no histórico: ocorrências, taxa por Gale e comparação com a probabilidade teórica</small></div>
         </div>
         <div class="pattern-input-row">
             <input type="text" id="patternInput" placeholder="Ex: B P B  (separe com espaço)" style="flex:1; min-width:220px;">
@@ -381,6 +385,9 @@
                 <option value="2" selected>Até G2</option>
                 <option value="3">Até G3</option>
             </select>
+            <label class="chip" for="backtestBaseCompleta" title="Ignora os filtros de período/quantidade e testa em tudo que já foi carregado">
+                <input type="checkbox" id="backtestBaseCompleta"><span>Base completa</span>
+            </label>
             <button class="btn active" id="btnValidar">Validar</button>
         </div>
         <div class="pattern-result" id="patternResult">Digite um padrão e clique em Validar.</div>
@@ -455,6 +462,12 @@
     // ---------- CONFIG ----------
     const API_URL = 'https://betstat.site/resultados/bacbo';
     const POLL_MS = 5000;
+    // Endpoint WebSocket do backend pra push em tempo real dos resultados do Bac Bo.
+    // Deixe vazio ('') pra manter só o polling de 5s (comportamento atual, sem regressão).
+    // Preenchendo, a página conecta via WS e só usa o polling como rede de segurança
+    // enquanto não conecta / se a conexão cair (com reconexão automática).
+    const WS_URL = '';
+    const WS_RECONNECT_MS = 4000;
 
     const $ = id => document.getElementById(id);
     const statusEl = $('status');
@@ -752,61 +765,129 @@
     let gradeCoresSelecionadas = new Set(); // cores marcadas no filtro (B/P/T), acumulativo
     $('gradeQtdSelector').value = String(ITENS_POR_PAGINA_GRADE);
 
+    // limite de itens a partir do qual a grade vira virtualizada (evita milhares de nós no DOM)
+    const LIMITE_VIRTUALIZACAO = 300;
+    const ROW_HEIGHT_GRADE = 90; // 84px da célula + 6px de gap
+    const COL_MIN_GRADE = 70;    // 64px min-width + 6px de gap
+
+    function criarCelulaResultado(item, idxGlobal){
+        const soma = (typeof item.somaP === 'number' && typeof item.somaB === 'number')
+            ? Math.max(item.somaP, item.somaB)
+            : (item.somaB ?? item.somaP ?? '');
+        const cell = document.createElement('div');
+        cell.className = 'result-cell';
+        cell.dataset.cor = item.letra;
+        cell.innerHTML =
+            '<div class="result-circle ' + item.letra + '">' + (item.letra === 'T' ? 'T' : soma) + '</div>' +
+            '<div class="result-label ' + item.letra + '">' + nomeCompletoLetra[item.letra] + '</div>' +
+            '<div class="result-time">' + item.horaLabel + '</div>' +
+            '<div class="result-idx">#' + idxGlobal + '</div>';
+        cell.addEventListener('click', (e) => abrirPopupResultado(item, idxGlobal, e.currentTarget));
+        return cell;
+    }
+
+    let gradeVirtualDraw = null; // função de redesenho ativa no modo virtualizado (p/ resize)
+
     function renderGradeResultados(arr){
         const seq = arr.slice().reverse(); // mais recente primeiro
-        const totalPaginas = Math.max(1, Math.ceil(seq.length / ITENS_POR_PAGINA_GRADE));
-        if (paginaGrade > totalPaginas) paginaGrade = totalPaginas;
-        if (paginaGrade < 1) paginaGrade = 1;
-        const inicio = (paginaGrade - 1) * ITENS_POR_PAGINA_GRADE;
-        const pageItems = seq.slice(inicio, inicio + ITENS_POR_PAGINA_GRADE);
-
+        const scrollWrap = $('gradeScrollWrap');
         const grid = $('gradeResultados');
-        grid.innerHTML = '';
-        if (!pageItems.length){ grid.innerHTML = '<div class="bead-empty">Sem dados no período selecionado</div>'; }
-        pageItems.forEach((item, i) => {
-            const idxGlobal = seq.length - inicio - i;
-            const soma = (typeof item.somaP === 'number' && typeof item.somaB === 'number')
-                ? Math.max(item.somaP, item.somaB)
-                : (item.somaB ?? item.somaP ?? '');
-            const cell = document.createElement('div');
-            cell.className = 'result-cell';
-            cell.dataset.cor = item.letra;
-            cell.innerHTML =
-                '<div class="result-circle ' + item.letra + '">' + (item.letra === 'T' ? 'T' : soma) + '</div>' +
-                '<div class="result-label ' + item.letra + '">' + nomeCompletoLetra[item.letra] + '</div>' +
-                '<div class="result-time">' + item.horaLabel + '</div>' +
-                '<div class="result-idx">#' + idxGlobal + '</div>';
-            cell.addEventListener('click', (e) => abrirPopupResultado(item, idxGlobal, e.currentTarget));
-            grid.appendChild(cell);
-        });
-        aplicarFiltroCorGrade();
-
-        // paginação
         const pagWrap = $('gradePagination');
-        pagWrap.innerHTML = '';
-        const btnPrev = document.createElement('button');
-        btnPrev.textContent = '‹';
-        btnPrev.disabled = paginaGrade === 1;
-        btnPrev.addEventListener('click', () => { paginaGrade--; renderGradeResultados(getWorkingSet()); });
-        pagWrap.appendChild(btnPrev);
+        const gradeQtdSelector = $('gradeQtdSelector');
+        const usarVirtual = gradeQtdSelector.value === '99999' && seq.length > LIMITE_VIRTUALIZACAO;
 
-        const maxBotoes = 5;
-        let ini = Math.max(1, paginaGrade - 2);
-        let fim = Math.min(totalPaginas, ini + maxBotoes - 1);
-        ini = Math.max(1, fim - maxBotoes + 1);
-        for (let p = ini; p <= fim; p++){
-            const b = document.createElement('button');
-            b.textContent = p;
-            if (p === paginaGrade) b.className = 'active';
-            b.addEventListener('click', () => { paginaGrade = p; renderGradeResultados(getWorkingSet()); });
-            pagWrap.appendChild(b);
+        if (!usarVirtual){
+            // ---------- modo normal: grid paginado de verdade ----------
+            scrollWrap.classList.remove('virtual');
+            scrollWrap.onscroll = null;
+            gradeVirtualDraw = null;
+            grid.removeAttribute('style');
+
+            const totalPaginas = Math.max(1, Math.ceil(seq.length / ITENS_POR_PAGINA_GRADE));
+            if (paginaGrade > totalPaginas) paginaGrade = totalPaginas;
+            if (paginaGrade < 1) paginaGrade = 1;
+            const inicio = (paginaGrade - 1) * ITENS_POR_PAGINA_GRADE;
+            const pageItems = seq.slice(inicio, inicio + ITENS_POR_PAGINA_GRADE);
+
+            grid.innerHTML = '';
+            if (!pageItems.length){ grid.innerHTML = '<div class="bead-empty">Sem dados no período selecionado</div>'; }
+            pageItems.forEach((item, i) => {
+                const idxGlobal = seq.length - inicio - i;
+                grid.appendChild(criarCelulaResultado(item, idxGlobal));
+            });
+            aplicarFiltroCorGrade();
+
+            // paginação
+            pagWrap.style.display = '';
+            pagWrap.innerHTML = '';
+            const btnPrev = document.createElement('button');
+            btnPrev.textContent = '‹';
+            btnPrev.disabled = paginaGrade === 1;
+            btnPrev.addEventListener('click', () => { paginaGrade--; renderGradeResultados(getWorkingSet()); });
+            pagWrap.appendChild(btnPrev);
+
+            const maxBotoes = 5;
+            let ini = Math.max(1, paginaGrade - 2);
+            let fim = Math.min(totalPaginas, ini + maxBotoes - 1);
+            ini = Math.max(1, fim - maxBotoes + 1);
+            for (let p = ini; p <= fim; p++){
+                const b = document.createElement('button');
+                b.textContent = p;
+                if (p === paginaGrade) b.className = 'active';
+                b.addEventListener('click', () => { paginaGrade = p; renderGradeResultados(getWorkingSet()); });
+                pagWrap.appendChild(b);
+            }
+            const btnNext = document.createElement('button');
+            btnNext.textContent = '›';
+            btnNext.disabled = paginaGrade === totalPaginas;
+            btnNext.addEventListener('click', () => { paginaGrade++; renderGradeResultados(getWorkingSet()); });
+            pagWrap.appendChild(btnNext);
+            return;
         }
-        const btnNext = document.createElement('button');
-        btnNext.textContent = '›';
-        btnNext.disabled = paginaGrade === totalPaginas;
-        btnNext.addEventListener('click', () => { paginaGrade++; renderGradeResultados(getWorkingSet()); });
-        pagWrap.appendChild(btnNext);
+
+        // ---------- modo virtualizado: só monta no DOM o que está visível na tela ----------
+        pagWrap.style.display = 'none';
+        pagWrap.innerHTML = '<span style="font-size:11px; color:var(--muted);">' + seq.length + ' rodadas — role a lista pra navegar (virtualizado)</span>';
+        pagWrap.style.display = '';
+
+        scrollWrap.classList.add('virtual');
+        grid.style.position = 'relative';
+        grid.style.display = 'block';
+
+        const containerW = scrollWrap.clientWidth || 800;
+        const cols = Math.max(1, Math.floor((containerW + 6) / COL_MIN_GRADE));
+        const rows = Math.ceil(seq.length / cols);
+        grid.style.height = (rows * ROW_HEIGHT_GRADE) + 'px';
+
+        function draw(){
+            const scrollTop = scrollWrap.scrollTop;
+            const viewH = scrollWrap.clientHeight || 640;
+            const buffer = 4; // linhas extras renderizadas fora da tela, pra rolagem ficar suave
+            const rowIni = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT_GRADE) - buffer);
+            const rowFim = Math.min(rows - 1, Math.ceil((scrollTop + viewH) / ROW_HEIGHT_GRADE) + buffer);
+            const idxIni = rowIni * cols;
+            const idxFim = Math.min(seq.length, (rowFim + 1) * cols);
+
+            grid.innerHTML = '';
+            const widthPct = 100 / cols;
+            for (let i = idxIni; i < idxFim; i++){
+                const item = seq[i];
+                const idxGlobal = seq.length - i;
+                const r = Math.floor(i / cols), c = i % cols;
+                const cell = criarCelulaResultado(item, idxGlobal);
+                cell.style.position = 'absolute';
+                cell.style.top = (r * ROW_HEIGHT_GRADE) + 'px';
+                cell.style.left = (c * widthPct) + '%';
+                cell.style.width = 'calc(' + widthPct.toFixed(4) + '% - 6px)';
+                grid.appendChild(cell);
+            }
+            aplicarFiltroCorGrade();
+        }
+        gradeVirtualDraw = draw;
+        draw();
+        scrollWrap.onscroll = () => requestAnimationFrame(draw);
     }
+    window.addEventListener('resize', () => { if (gradeVirtualDraw) renderGradeResultados(getWorkingSet()); });
 
     // marca/destaca na grade atual todas as células das cores selecionadas no filtro
     function aplicarFiltroCorGrade(){
@@ -987,52 +1068,97 @@
         const galeMax = parseInt($('galeMax').value, 10);
         if (!pattern.length){ $('patternResult').textContent = 'Digite um padrão válido, ex: B P B'; return; }
 
-        const arr = sequenciaEfetiva(getWorkingSet());
-        const seq = tieMode === 'break' ? arr : arr.filter(x => x.letra !== 'T');
-        const letras = seq.map(x => x.letra);
+        // "Base completa" ignora os filtros de período/quantidade e usa tudo que já foi carregado da API
+        const usarBaseCompleta = $('backtestBaseCompleta').checked;
+        const arrBase = usarBaseCompleta ? ordered.slice() : getWorkingSet();
+        const arr = sequenciaEfetiva(arrBase);
+        const seqFull = tieMode === 'break' ? arr : arr.filter(x => x.letra !== 'T');
+        const letras = seqFull.map(x => x.letra);
 
         let ocorrencias = 0, acertosProximaIgual = 0, acertosProximaOposta = 0;
-        // gale: simula apostar no lado OPOSTO ao último elemento do padrão logo após ocorrência
-        let galeVitorias = 0, galeDerrotas = 0;
-        const detalhes = [];
+        const porNivel = Array.from({ length: galeMax + 1 }, () => 0); // vitórias exatamente no nível g
+        let semResolucao = 0; // ocorrências no fim da base, sem rodadas suficientes pra resolver o gale
+        const ocorrenciasDetalhe = [];
 
         for (let i = 0; i <= letras.length - pattern.length - 1; i++){
             const slice = letras.slice(i, i + pattern.length);
-            if (slice.join('') === pattern.join('')){
-                ocorrencias++;
-                const alvo = pattern[pattern.length - 1] === 'B' ? 'P' : 'B'; // aposta na quebra
-                let venceu = false;
-                for (let g = 0; g <= galeMax; g++){
-                    const idx = i + pattern.length + g;
-                    if (idx >= letras.length) break;
-                    if (letras[idx] === alvo){ venceu = true; break; }
-                    if (letras[idx] === alvo ? false : true) { /* continua tentando */ }
-                }
-                if (venceu) galeVitorias++; else galeDerrotas++;
-
-                if (letras[i + pattern.length] === pattern[pattern.length-1]) acertosProximaIgual++;
-                if (letras[i + pattern.length] === alvo) acertosProximaOposta++;
+            if (slice.join('') !== pattern.join('')) continue;
+            ocorrencias++;
+            const alvo = pattern[pattern.length - 1] === 'B' ? 'P' : 'B'; // aposta na quebra
+            let venceuNivel = -1;
+            for (let g = 0; g <= galeMax; g++){
+                const idx = i + pattern.length + g;
+                if (idx >= letras.length){ venceuNivel = -2; break; } // acabou a base antes de resolver
+                if (letras[idx] === alvo){ venceuNivel = g; break; }
             }
+            if (venceuNivel >= 0) porNivel[venceuNivel]++;
+            else if (venceuNivel === -2) semResolucao++;
+
+            const itemSeguinte = seqFull[i + pattern.length];
+            if (itemSeguinte){
+                if (itemSeguinte.letra === pattern[pattern.length-1]) acertosProximaIgual++;
+                if (itemSeguinte.letra === alvo) acertosProximaOposta++;
+            }
+            ocorrenciasDetalhe.push({
+                horaLabel: seqFull[i].horaLabel,
+                venceuNivel,
+                item: itemSeguinte || null
+            });
         }
 
-        const totalGale = galeVitorias + galeDerrotas;
-        const taxaGale = totalGale ? (galeVitorias/totalGale*100).toFixed(1) : '0.0';
+        const resolvidas = ocorrencias - semResolucao;
+        const galeVitorias = porNivel.reduce((a,b) => a+b, 0);
+        const galeDerrotas = resolvidas - galeVitorias;
+        const taxaGale = resolvidas ? (galeVitorias/resolvidas*100).toFixed(1) : '0.0';
         const taxaRepete = ocorrencias ? (acertosProximaIgual/ocorrencias*100).toFixed(1) : '0.0';
         const taxaQuebra = ocorrencias ? (acertosProximaOposta/ocorrencias*100).toFixed(1) : '0.0';
 
+        // ---- comparação com a probabilidade teórica (baseada na proporção real B/P da amostra, sem Tie) ----
+        const totalBP = letras.filter(l => l === 'B' || l === 'P').length;
+        const nAlvoGeral = letras.filter(l => l === (pattern[pattern.length-1] === 'B' ? 'P' : 'B')).length;
+        const pAlvo = totalBP ? nAlvoGeral / totalBP : 0.5;
+        const taxaEsperada = (1 - Math.pow(1 - pAlvo, galeMax + 1)) * 100;
+        const edge = resolvidas ? (parseFloat(taxaGale) - taxaEsperada) : 0;
+
+        // ---- linhas por nível de gale ----
+        let linhasNivel = '';
+        for (let g = 0; g <= galeMax; g++){
+            linhasNivel += `<tr><td>${g === 0 ? 'SG (1ª tentativa)' : 'G'+g}</td><td style="color:var(--green)">${porNivel[g]}</td>
+                <td>${resolvidas ? (porNivel[g]/resolvidas*100).toFixed(1) : '0.0'}%</td></tr>`;
+        }
+
+        // ---- lista das últimas ocorrências reais encontradas (mais recentes primeiro) ----
+        const ultimas = ocorrenciasDetalhe.slice(-15).reverse();
+        let linhasOcorrencias = ultimas.map(o => {
+            let statusTxt, cor;
+            if (o.venceuNivel === -2){ statusTxt = 'sem dados suficientes'; cor = 'var(--muted)'; }
+            else if (o.venceuNivel >= 0){ statusTxt = 'venceu em ' + (o.venceuNivel === 0 ? 'SG' : 'G'+o.venceuNivel); cor = 'var(--green)'; }
+            else { statusTxt = 'perdeu (estourou o gale)'; cor = 'var(--red)'; }
+            return `<tr><td>${o.horaLabel}</td><td>${o.item ? nomeCompletoLetra[o.item.letra] : '—'}</td><td style="color:${cor}">${statusTxt}</td></tr>`;
+        }).join('');
+        if (!linhasOcorrencias) linhasOcorrencias = '<tr><td colspan="3" style="color:var(--muted)">Nenhuma ocorrência no período analisado.</td></tr>';
+
         $('patternResult').innerHTML = `
             <div class="row"><span>Padrão testado</span><b>${pattern.join(' ')}</b></div>
-            <div class="row"><span>Ocorrências no período</span><b>${ocorrencias}</b></div>
+            <div class="row"><span>Base analisada</span><b>${usarBaseCompleta ? ordered.length + ' rodadas (toda a base carregada)' : arrBase.length + ' rodadas (período/filtro atual)'}</b></div>
+            <div class="row"><span>Ocorrências do padrão</span><b>${ocorrencias}${semResolucao ? ' (' + semResolucao + ' sem dados suficientes p/ resolver)' : ''}</b></div>
             <div class="row"><span>Próxima rodada repete último (${pattern[pattern.length-1]})</span><b>${taxaRepete}%</b></div>
             <div class="row"><span>Próxima rodada quebra (apostar oposto)</span><b>${taxaQuebra}%</b></div>
             <table class="gale-table">
-                <thead><tr><th>Estratégia</th><th>Vitórias</th><th>Derrotas</th><th>Taxa de acerto</th></tr></thead>
-                <tbody>
-                    <tr><td>Apostar oposto até ${galeMax === 0 ? 'SG' : 'G'+galeMax}</td><td style="color:var(--green)">${galeVitorias}</td><td style="color:var(--red)">${galeDerrotas}</td><td><b>${taxaGale}%</b></td></tr>
-                </tbody>
+                <thead><tr><th>Nível</th><th>Vitórias</th><th>% do total resolvido</th></tr></thead>
+                <tbody>${linhasNivel}</tbody>
+                <tfoot><tr style="border-top:1px solid var(--border-strong)"><td><b>Total (até G${galeMax})</b></td>
+                    <td style="color:var(--green)"><b>${galeVitorias}</b></td><td><b>${taxaGale}%</b></td></tr></tfoot>
+            </table>
+            <div class="row" style="margin-top:8px;"><span>Taxa esperada (aleatório, com a proporção real B/P da base)</span><b>${taxaEsperada.toFixed(1)}%</b></div>
+            <div class="row"><span>Edge observado (real − esperado)</span><b style="color:${edge >= 0 ? 'var(--green)' : 'var(--red)'}">${edge >= 0 ? '+' : ''}${edge.toFixed(1)} p.p.</b></div>
+            <div style="font-size:11px; color:var(--muted); margin-top:10px; margin-bottom:4px;">Últimas ${Math.min(15, ocorrenciasDetalhe.length)} ocorrências reais deste padrão na base analisada:</div>
+            <table class="gale-table">
+                <thead><tr><th>Início do padrão</th><th>Resultado seguinte</th><th>Status da aposta</th></tr></thead>
+                <tbody>${linhasOcorrencias}</tbody>
             </table>
         `;
-        return { pattern, ocorrencias, taxaGale };
+        return { pattern, ocorrencias, taxaGale, edge };
     }
 
     // ---------- NOTIFICADOR DE PADRÃO ----------
@@ -1311,7 +1437,7 @@
     });
     window.addEventListener('resize', () => renderChart3Linhas(getWorkingSet()));
 
-    // ---------- FETCH ----------
+    // ---------- FETCH / TEMPO REAL (WebSocket com fallback pra polling) ----------
     function processarDados(data){
         rawData = Array.isArray(data) ? data : (data.rows || data.resultados || []);
         if (!rawData.length){ log('⚠️ resposta chegou vazia.'); return; }
@@ -1322,18 +1448,47 @@
         renderAll();
     }
 
+    let pollIntervalId = null;
+    function iniciarPolling(){
+        if (pollIntervalId) return;
+        pollIntervalId = setInterval(() => {
+            fetch(API_URL + '?timestamp=' + Date.now())
+                .then(r => r.json())
+                .then(processarDados)
+                .catch(() => {});
+        }, POLL_MS);
+    }
+    function pararPolling(){
+        if (pollIntervalId){ clearInterval(pollIntervalId); pollIntervalId = null; }
+    }
+
+    let ws = null;
+    function conectarWebSocket(){
+        if (!WS_URL){ iniciarPolling(); return; } // sem endpoint configurado, segue só no polling
+        try { ws = new WebSocket(WS_URL); } catch (e) { iniciarPolling(); return; }
+
+        ws.addEventListener('open', () => {
+            pararPolling();
+            log('');
+        });
+        ws.addEventListener('message', ev => {
+            try { processarDados(JSON.parse(ev.data)); } catch (e) { /* mensagem não era JSON de resultados */ }
+        });
+        ws.addEventListener('close', () => {
+            iniciarPolling(); // garante atualização enquanto tenta reconectar
+            setTimeout(conectarWebSocket, WS_RECONNECT_MS);
+        });
+        ws.addEventListener('error', () => { try { ws.close(); } catch (e) {} });
+        iniciarPolling(); // rede de segurança até o WS confirmar conexão
+    }
+
     log('buscando dados do Bac Bo...');
     fetch(API_URL + '?timestamp=' + Date.now())
         .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(processarDados)
         .catch(err => { log('❌ erro buscando dados: ' + err.message); console.error('[bacbo]', err); });
 
-    setInterval(() => {
-        fetch(API_URL + '?timestamp=' + Date.now())
-            .then(r => r.json())
-            .then(processarDados)
-            .catch(() => {});
-    }, POLL_MS);
+    conectarWebSocket();
 
 })();
 </script>
