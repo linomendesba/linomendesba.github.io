@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="img/favicon.ico" type="image/x-icon">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+<title>BetStat — Bac Bo</title>
+<meta name="description" content="BetStat — Análise Bac Bo em tempo real: Roadmap, sequências, padrões, gale e estatísticas">
+<meta name="robots" content="index, follow">
+<meta name="author" content="BetStat">
+<script src="app.utils.min.js"></script>
+<script type="module" src="js/firebase-auth.js"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date()); gtag('config', 'G-4WT805FFHQ');
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+    :root{
+        --bg:#0b0c14;
+        --card:#12141c;
+        --card2:#171a21;
+        --border:rgba(124,92,246,.20);
+        --border-strong:rgba(124,92,246,.45);
+        --accent:#7c5cff;
+        --accent-glow:rgba(124,92,246,.14);
+        --banker:#ef4444;
+        --banker-glow:rgba(239,68,68,.18);
+        --player:#3b82f6;
+        --player-glow:rgba(59,130,246,.18);
+        --tie:#f5c144;
+        --tie-glow:rgba(245,193,68,.18);
+        --text:#e5e7eb;
+        --muted:#8b8fa3;
+        --green:#22c55e;
+        --red:#ef4444;
+    }
+    *{box-sizing:border-box;}
+    html, body { margin:0; background:var(--bg); font-family:'Roboto', system-ui, -apple-system, Segoe UI, sans-serif; color:var(--text); }
+    #status{ text-align:center; color:var(--muted); font-size:13px; padding:6px 0 14px; }
+
+    .bacbo-wrap{ max-width:1360px; margin:0 auto; padding:0 16px 60px; }
+
+    .bacbo-head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+    .bacbo-title{ font-size:22px; font-weight:800; letter-spacing:.2px; }
+    .bacbo-title span{ color:var(--accent); }
+    .bacbo-sub{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+
+    .bacbo-controls{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+    select, .btn, input[type="text"]{
+        height:34px; background:var(--card2); color:var(--text); border:1px solid var(--border);
+        border-radius:10px; padding:0 12px; font-size:12.5px; font-weight:600; font-family:inherit;
+    }
+    select:focus, input:focus{ outline:none; border-color:var(--border-strong); }
+    .btn{ cursor:pointer; user-select:none; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+    .btn:hover{ border-color:var(--border-strong); background:#1c2029; }
+    .btn.active{ color:var(--accent); border-color:var(--border-strong); background:var(--accent-glow); }
+    .chip{
+        display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 12px;
+        background:var(--card2); border:1px solid var(--border); border-radius:10px; font-size:12px; font-weight:700; color:var(--muted);
+    }
+    .chip input{ accent-color:var(--accent); cursor:pointer; }
+
+    .stat-strip{ display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:18px; }
+    .stat-box{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px 14px; }
+    .stat-box .lbl{ font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:700; }
+    .stat-box .val{ font-size:20px; font-weight:800; margin-top:4px; font-family:'Roboto Mono', monospace; }
+    .stat-box .val.b{ color:var(--banker); } .stat-box .val.p{ color:var(--player); } .stat-box .val.t{ color:var(--tie); }
+
+    .grid2{ display:grid; grid-template-columns:1.4fr 1fr; gap:16px; margin-bottom:16px; }
+    .grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px; }
+    @media (max-width:980px){ .grid2, .grid3, .stat-strip{ grid-template-columns:1fr; } }
+
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; }
+    .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:8px; flex-wrap:wrap; }
+    .card-title{ font-size:14px; font-weight:800; }
+    .card-title small{ display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:2px; }
+
+    /* Bead Road */
+    .bead-scroll{ overflow-x:auto; padding-bottom:4px; }
+    .bead-grid{ display:grid; grid-auto-flow:column; grid-template-rows:repeat(6, 24px); gap:3px; }
+    .bead-cell{ width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+        font-size:9px; font-weight:800; position:relative; border:1.5px solid transparent; }
+    .bead-cell.B{ background:var(--banker-glow); border-color:var(--banker); color:var(--banker); }
+    .bead-cell.P{ background:var(--player-glow); border-color:var(--player); color:var(--player); }
+    .bead-cell.T{ background:var(--tie-glow); border-color:var(--tie); color:var(--tie); width:14px; height:14px; font-size:8px; }
+    .bead-cell .tiecount{ position:absolute; bottom:-3px; right:-3px; background:var(--tie); color:#1a1400; font-size:7px;
+        border-radius:50%; width:11px; height:11px; display:flex; align-items:center; justify-content:center; font-weight:900; }
+    .bead-empty{ text-align:center; color:var(--muted); font-size:12px; padding:30px 0; }
+
+    /* Histórico visual */
+    .hist-scroll{ overflow-x:auto; padding-bottom:6px; }
+    .hist-row{ display:flex; gap:6px; }
+    .hist-ball{ min-width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+        font-size:12px; font-weight:800; flex-shrink:0; border:1.5px solid transparent; }
+    .hist-ball.B{ background:var(--banker-glow); border-color:var(--banker); color:var(--banker); }
+    .hist-ball.P{ background:var(--player-glow); border-color:var(--player); color:var(--player); }
+    .hist-ball.T{ background:var(--tie-glow); border-color:var(--tie); color:var(--tie); }
+
+    /* Sequências */
+    .seq-row{ display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px dashed var(--border); font-size:12.5px; }
+    .seq-row:last-child{ border-bottom:none; }
+    .seq-val{ font-weight:800; font-family:'Roboto Mono', monospace; }
+
+    /* Proporção */
+    .prop-bar-wrap{ margin-bottom:10px; }
+    .prop-bar-lbl{ display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-bottom:4px; }
+    .prop-bar-bg{ height:10px; border-radius:6px; background:#1a1c24; overflow:hidden; }
+    .prop-bar-fill{ height:100%; border-radius:6px; transition:width .3s; }
+
+    /* Cores por hora */
+    .hour-chart{ display:flex; align-items:flex-end; gap:3px; height:120px; overflow-x:auto; padding-top:6px; }
+    .hour-col{ display:flex; flex-direction:column; justify-content:flex-end; align-items:center; min-width:26px; height:100%; gap:1px; }
+    .hour-seg{ width:100%; border-radius:2px 2px 0 0; }
+    .hour-lbl{ font-size:9px; color:var(--muted); margin-top:4px; transform:rotate(0deg); white-space:nowrap; }
+
+    /* Distribuição de somas */
+    .soma-chart{ display:flex; align-items:flex-end; gap:6px; height:130px; }
+    .soma-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+    .soma-bar{ width:100%; background:linear-gradient(180deg, var(--accent), #4c34b0); border-radius:5px 5px 0 0; min-height:2px; }
+    .soma-lbl{ font-size:10px; color:var(--muted); margin-top:5px; font-weight:700; }
+    .soma-pct{ font-size:9px; color:var(--muted); margin-bottom:3px; }
+
+    /* Validador de padrão */
+    .pattern-input-row{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+    .pattern-btns{ display:flex; gap:6px; }
+    .pattern-btns .btn{ padding:0 10px; font-size:11px; }
+    .pattern-result{ background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; font-size:12.5px; }
+    .pattern-result .row{ display:flex; justify-content:space-between; padding:5px 0; }
+    .pattern-result .row b{ font-family:'Roboto Mono', monospace; }
+    .gale-table{ width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+    .gale-table th, .gale-table td{ padding:6px 8px; text-align:center; border-bottom:1px solid var(--border); }
+    .gale-table th{ color:var(--muted); font-size:10.5px; text-transform:uppercase; }
+
+    /* Notificador */
+    .notif-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+    .notif-log{ max-height:140px; overflow-y:auto; font-size:11.5px; color:var(--muted); }
+    .notif-log div{ padding:4px 0; border-bottom:1px dashed var(--border); }
+    .switch{ position:relative; width:36px; height:20px; }
+    .switch input{ opacity:0; width:0; height:0; }
+    .slider{ position:absolute; inset:0; background:#2a2d38; border-radius:20px; cursor:pointer; transition:.2s; }
+    .slider:before{ content:""; position:absolute; width:14px; height:14px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+    input:checked + .slider{ background:var(--accent); }
+    input:checked + .slider:before{ transform:translateX(16px); }
+
+    /* Gráfico 3 linhas */
+    #chart3linhas{ width:100%; height:260px; }
+    .chart-legend{ display:flex; gap:14px; font-size:11.5px; margin-top:8px; flex-wrap:wrap; }
+    .chart-legend span{ display:inline-flex; align-items:center; gap:5px; }
+    .chart-legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; }
+</style>
+</head>
+<body>
+<div id="header"></div>
+<br><br><br>
+
+<div id="status">carregando dados do Bac Bo...</div>
+
+<div class="bacbo-wrap">
+
+    <div class="bacbo-head">
+        <div>
+            <div class="bacbo-title">Bac <span>Bo</span> — Painel de Análise</div>
+            <div class="bacbo-sub" id="subLabel">Atualizando a cada 5s • Sortenabet Bac-bo-vip</div>
+        </div>
+        <div class="bacbo-controls">
+            <label class="chip" id="filtroHojeWrap" for="filtroHojeCheckbox">
+                <input type="checkbox" id="filtroHojeCheckbox">
+                <span>Somente hoje</span>
+            </label>
+            <select id="tieModeSelector" title="Como tratar o Tie (empate)">
+                <option value="own">Tie: marca própria (não quebra sequência)</option>
+                <option value="break">Tie: quebra sequência</option>
+                <option value="ignore">Tie: ignorar completamente</option>
+            </select>
+            <select id="qtdSelector">
+                <option value="60">Últimos 60</option>
+                <option value="120">Últimos 120</option>
+                <option value="200" selected>Últimos 200</option>
+                <option value="400">Últimos 400</option>
+                <option value="800">Últimos 800</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="stat-strip">
+        <div class="stat-box"><div class="lbl">Rodadas</div><div class="val" id="statTotal">—</div></div>
+        <div class="stat-box"><div class="lbl">% Banker</div><div class="val b" id="statB">—</div></div>
+        <div class="stat-box"><div class="lbl">% Player</div><div class="val p" id="statP">—</div></div>
+        <div class="stat-box"><div class="lbl">% Tie</div><div class="val t" id="statT">—</div></div>
+        <div class="stat-box"><div class="lbl">Sequência Atual</div><div class="val" id="statSeq">—</div></div>
+        <div class="stat-box"><div class="lbl">Recorde do dia</div><div class="val" id="statRecorde">—</div></div>
+    </div>
+
+    <!-- Bead Road + Histórico -->
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-head">
+            <div class="card-title">Roadmap / Bead Road<small>Padrão de cassino: nova coluna a cada troca de vencedor</small></div>
+        </div>
+        <div class="bead-scroll"><div class="bead-grid" id="beadGrid"></div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-head">
+            <div class="card-title">Histórico visual<small>Bolinhas coloridas — mais recente à direita</small></div>
+        </div>
+        <div class="hist-scroll"><div class="hist-row" id="histRow"></div></div>
+    </div>
+
+    <div class="grid3">
+        <!-- Sequências -->
+        <div class="card">
+            <div class="card-head"><div class="card-title">Sequências (streaks)<small>Quantos B/P seguidos</small></div></div>
+            <div id="seqPanel"></div>
+        </div>
+
+        <!-- Proporção de cores -->
+        <div class="card">
+            <div class="card-head"><div class="card-title">Proporção de cores<small>% no período selecionado</small></div></div>
+            <div id="propPanel"></div>
+        </div>
+
+        <!-- Máximas seguidas -->
+        <div class="card">
+            <div class="card-head"><div class="card-title">Máximas seguidas<small>Recorde de sequência</small></div></div>
+            <div id="maxPanel"></div>
+        </div>
+    </div>
+
+    <div class="grid2">
+        <!-- Cores por hora -->
+        <div class="card">
+            <div class="card-head"><div class="card-title">Cores por hora<small>Distribuição B/P/T por faixa de horário</small></div></div>
+            <div class="hour-chart" id="hourChart"></div>
+        </div>
+
+        <!-- Distribuição de somas -->
+        <div class="card">
+            <div class="card-head"><div class="card-title">Distribuição de somas<small>Frequência dos totais de dados (2 a 12)</small></div></div>
+            <div class="soma-chart" id="somaChart"></div>
+        </div>
+    </div>
+
+    <!-- Validador de padrão -->
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-head">
+            <div class="card-title">Validador de padrão<small>Testa padrões tipo B P B + simulação de Gale</small></div>
+        </div>
+        <div class="pattern-input-row">
+            <input type="text" id="patternInput" placeholder="Ex: B P B  (separe com espaço)" style="flex:1; min-width:220px;">
+            <div class="pattern-btns">
+                <button class="btn" data-preset="B P B">B P B</button>
+                <button class="btn" data-preset="P P B">P P B</button>
+                <button class="btn" data-preset="B B B">B B B</button>
+                <button class="btn" data-preset="P B P B">P B P B</button>
+            </div>
+            <select id="galeMax">
+                <option value="0">Sem Gale (SG)</option>
+                <option value="1">Até G1</option>
+                <option value="2" selected>Até G2</option>
+                <option value="3">Até G3</option>
+            </select>
+            <button class="btn active" id="btnValidar">Validar</button>
+        </div>
+        <div class="pattern-result" id="patternResult">Digite um padrão e clique em Validar.</div>
+    </div>
+
+    <div class="grid2">
+        <!-- Notificador de padrão -->
+        <div class="card">
+            <div class="card-head"><div class="card-title">Notificador de padrão<small>Alerta quando o padrão configurado aparecer</small></div></div>
+            <div class="notif-row">
+                <label class="switch"><input type="checkbox" id="notifToggle"><span class="slider"></span></label>
+                <span style="font-size:12.5px; font-weight:700;">Ativar alerta sonoro + notificação</span>
+            </div>
+            <div class="notif-row">
+                <input type="text" id="notifPattern" placeholder="Padrão a monitorar, ex: B P B" style="flex:1;">
+                <button class="btn" id="btnNotifPreset">usar do validador</button>
+            </div>
+            <div class="notif-log" id="notifLog"><div>Aguardando ativação…</div></div>
+        </div>
+
+        <!-- Filtro de empate (info card, controlado pelo seletor do topo) -->
+        <div class="card">
+            <div class="card-head"><div class="card-title">Filtro de empate<small>Como o Tie afeta as estatísticas</small></div></div>
+            <div style="font-size:12.5px; color:var(--muted); line-height:1.7;">
+                <p><b style="color:var(--text);">Marca própria (padrão):</b> Tie aparece como marcador dourado sobre a última célula do Bead Road e não interrompe sequências de Banker/Player — é o comportamento clássico de cassino.</p>
+                <p><b style="color:var(--text);">Quebra sequência:</b> Tie conta como resultado próprio, cria coluna nova e zera a sequência atual de B/P.</p>
+                <p><b style="color:var(--text);">Ignorar:</b> Rodadas de Tie são completamente removidas de todos os cálculos (Bead Road, sequências, padrão, gráfico).</p>
+                <p style="margin-top:10px;">Altere no seletor <b style="color:var(--accent);">"Tie:"</b> no topo da página. A alteração recalcula tudo instantaneamente.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de 3 linhas -->
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">Acumulado Banker / Player / Tie<small>Contagem acumulada de vitórias ao longo das rodadas</small></div>
+        </div>
+        <canvas id="chart3linhas"></canvas>
+        <div class="chart-legend">
+            <span><i style="background:var(--banker)"></i> Banker</span>
+            <span><i style="background:var(--player)"></i> Player</span>
+            <span><i style="background:var(--tie)"></i> Tie</span>
+        </div>
+    </div>
+
+</div>
+
+<script>
+(function(){
+    "use strict";
+
+    // ---------- CONFIG ----------
+    const API_URL = 'https://betstat.site/resultados/bacbo';
+    const POLL_MS = 5000;
+
+    const $ = id => document.getElementById(id);
+    const statusEl = $('status');
+    const log = msg => { statusEl.textContent = msg; };
+
+    // ---------- STATE ----------
+    let rawData = [];          // bruto, como veio da API (ordem desconhecida)
+    let ordered = [];          // ordenado do mais antigo pro mais novo: {letra:'B'|'P'|'T', soma_p, soma_b, started_at, hora, dataStr}
+    let filtroSomenteHoje = false;
+    let tieMode = localStorage.getItem('betstat:bacbo:tieMode') || 'own';
+    let qtdJanela = parseInt(localStorage.getItem('betstat:bacbo:qtd') || '200', 10);
+    let notifAtiva = localStorage.getItem('betstat:bacbo:notifAtiva') === '1';
+    let notifPatternSaved = localStorage.getItem('betstat:bacbo:notifPattern') || 'B P B';
+    let ultimoRoundIdVisto = null;
+
+    $('tieModeSelector').value = tieMode;
+    $('qtdSelector').value = String(qtdJanela);
+    $('notifToggle').checked = notifAtiva;
+    $('notifPattern').value = notifPatternSaved;
+
+    // ---------- HELPERS ----------
+    function outcomeToLetra(item){
+        const o = (item.outcome || '').toLowerCase();
+        if (o.includes('tie')) return 'T';
+        if (o.includes('banker')) return 'B';
+        if (o.includes('player')) return 'P';
+        return 'T';
+    }
+
+    function toDate(str){
+        if (!str) return null;
+        return new Date(str.replace(' ', 'T') + 'Z');
+    }
+
+    function isToday(d){
+        if (!d) return false;
+        const now = new Date();
+        return d.getUTCFullYear() === now.getUTCFullYear() &&
+               d.getUTCMonth() === now.getUTCMonth() &&
+               d.getUTCDate() === now.getUTCDate();
+    }
+
+    function normalizar(list){
+        return list.map(item => {
+            const d = toDate(item.started_at || item.captured_at);
+            return {
+                id: item.id,
+                round_id: item.round_id,
+                letra: outcomeToLetra(item),
+                somaP: item.player_score,
+                somaB: item.banker_score,
+                data: d,
+                hora: d ? d.getUTCHours() : 0,
+                horaLabel: d ? d.toISOString().substr(11,5) : ''
+            };
+        }).filter(x => x.data);
+    }
+
+    // aplica filtro "somente hoje" + janela de quantidade, retorna ordenado antigo->novo
+    function getWorkingSet(){
+        let arr = ordered.slice();
+        if (filtroSomenteHoje) arr = arr.filter(x => isToday(x.data));
+        if (arr.length > qtdJanela) arr = arr.slice(arr.length - qtdJanela);
+        return arr;
+    }
+
+    // aplica modo de tie: retorna sequência de letras B/P (e T se mode != ignore) já filtrada
+    function sequenciaEfetiva(arr){
+        if (tieMode === 'ignore') return arr.filter(x => x.letra !== 'T');
+        return arr;
+    }
+
+    // ---------- RENDER: STAT STRIP ----------
+    function renderStats(arr){
+        const total = arr.length;
+        const nB = arr.filter(x => x.letra === 'B').length;
+        const nP = arr.filter(x => x.letra === 'P').length;
+        const nT = arr.filter(x => x.letra === 'T').length;
+        $('statTotal').textContent = total;
+        $('statB').textContent = total ? ((nB/total*100).toFixed(1) + '%') : '—';
+        $('statP').textContent = total ? ((nP/total*100).toFixed(1) + '%') : '—';
+        $('statT').textContent = total ? ((nT/total*100).toFixed(1) + '%') : '—';
+
+        // sequência atual (ignorando tie se mode='own', pois tie não quebra)
+        const seqArr = tieMode === 'break' ? arr : arr.filter(x => x.letra !== 'T');
+        let curLetra = null, curLen = 0;
+        for (let i = seqArr.length - 1; i >= 0; i--){
+            if (curLetra === null){ curLetra = seqArr[i].letra; curLen = 1; }
+            else if (seqArr[i].letra === curLetra) curLen++;
+            else break;
+        }
+        $('statSeq').textContent = curLetra ? (curLen + 'x ' + curLetra) : '—';
+        $('statSeq').className = 'val ' + (curLetra === 'B' ? 'b' : curLetra === 'P' ? 'p' : curLetra === 'T' ? 't' : '');
+
+        // recorde do dia
+        const hoje = arr.filter(x => isToday(x.data));
+        const hojeSeq = tieMode === 'break' ? hoje : hoje.filter(x => x.letra !== 'T');
+        let recLetra = null, recLen = 0, run = 0, runLetra = null;
+        hojeSeq.forEach(x => {
+            if (x.letra === runLetra) run++;
+            else { runLetra = x.letra; run = 1; }
+            if (run > recLen){ recLen = run; recLetra = runLetra; }
+        });
+        $('statRecorde').textContent = recLetra ? (recLen + 'x ' + recLetra) : '—';
+    }
+
+    // ---------- RENDER: BEAD ROAD ----------
+    function renderBeadRoad(arr){
+        const seq = sequenciaEfetiva(arr);
+        const grid = $('beadGrid');
+        grid.innerHTML = '';
+        if (!seq.length){ grid.innerHTML = '<div class="bead-empty">Sem dados no período selecionado</div>'; return; }
+
+        // matriz[col][row] = {letra, tieCount}
+        const cols = [];
+        let col = -1, row = 0, lastLetra = null;
+
+        seq.forEach(item => {
+            if (item.letra === 'T'){
+                if (tieMode === 'break'){
+                    col++; row = 0; lastLetra = 'T';
+                    cols[col] = cols[col] || [];
+                    cols[col][row] = { letra:'T', tieCount:0 };
+                } else { // 'own'
+                    if (col === -1){ col = 0; row = 0; cols[col] = cols[col] || []; cols[col][row] = { letra:'T', tieCount:1 }; lastLetra = null; }
+                    else {
+                        const cell = cols[col][row];
+                        if (cell) cell.tieCount = (cell.tieCount || 0) + 1;
+                    }
+                }
+                return;
+            }
+            if (item.letra === lastLetra){
+                row++;
+                if (row > 5){ row = 5; col++; cols[col] = cols[col] || []; }
+            } else {
+                col++; row = 0;
+                cols[col] = cols[col] || [];
+            }
+            cols[col][row] = { letra:item.letra, tieCount:0 };
+            lastLetra = item.letra;
+        });
+
+        cols.forEach(colArr => {
+            if (!colArr) return;
+            for (let r = 0; r < 6; r++){
+                const cell = colArr[r];
+                const div = document.createElement('div');
+                if (!cell){ div.style.visibility = 'hidden'; div.className = 'bead-cell'; }
+                else {
+                    div.className = 'bead-cell ' + cell.letra;
+                    div.textContent = cell.letra === 'T' ? 'T' : cell.letra;
+                    if (cell.tieCount > 0){
+                        const tc = document.createElement('span');
+                        tc.className = 'tiecount';
+                        tc.textContent = cell.tieCount;
+                        div.appendChild(tc);
+                    }
+                }
+                grid.appendChild(div);
+            }
+        });
+        // auto-scroll pro final
+        requestAnimationFrame(() => { grid.parentElement.scrollLeft = grid.parentElement.scrollWidth; });
+    }
+
+    // ---------- RENDER: HISTÓRICO VISUAL ----------
+    function renderHistorico(arr){
+        const row = $('histRow');
+        row.innerHTML = '';
+        const last = arr.slice(-120);
+        last.forEach(item => {
+            const b = document.createElement('div');
+            b.className = 'hist-ball ' + item.letra;
+            b.title = item.horaLabel + ' — ' + item.letra + (item.letra !== 'T' ? '' : '');
+            b.textContent = item.letra;
+            row.appendChild(b);
+        });
+        requestAnimationFrame(() => { row.parentElement.scrollLeft = row.parentElement.scrollWidth; });
+    }
+
+    // ---------- RENDER: SEQUÊNCIAS ----------
+    function renderSequencias(arr){
+        const seq = tieMode === 'break' ? arr : arr.filter(x => x.letra !== 'T');
+        // conta streaks atuais de cada lado a partir do fim
+        let curB = 0, curP = 0;
+        for (let i = seq.length - 1; i >= 0; i--){
+            if (seq[i].letra === 'B'){ if (curP > 0) break; curB++; }
+            else if (seq[i].letra === 'P'){ if (curB > 0) break; curP++; }
+            else break;
+        }
+        // alternâncias (quantas trocas de lado)
+        let trocas = 0;
+        for (let i = 1; i < seq.length; i++){
+            if (seq[i].letra !== seq[i-1].letra) trocas++;
+        }
+        const html = `
+            <div class="seq-row"><span>Streak atual Banker</span><span class="seq-val" style="color:var(--banker)">${curB}x</span></div>
+            <div class="seq-row"><span>Streak atual Player</span><span class="seq-val" style="color:var(--player)">${curP}x</span></div>
+            <div class="seq-row"><span>Trocas de lado no período</span><span class="seq-val">${trocas}</span></div>
+            <div class="seq-row"><span>Rodadas analisadas</span><span class="seq-val">${seq.length}</span></div>
+        `;
+        $('seqPanel').innerHTML = html;
+    }
+
+    // ---------- RENDER: PROPORÇÃO ----------
+    function renderProporcao(arr){
+        const total = arr.length || 1;
+        const nB = arr.filter(x => x.letra === 'B').length;
+        const nP = arr.filter(x => x.letra === 'P').length;
+        const nT = arr.filter(x => x.letra === 'T').length;
+        const rows = [
+            ['Banker', nB, 'var(--banker)'],
+            ['Player', nP, 'var(--player)'],
+            ['Tie', nT, 'var(--tie)']
+        ];
+        $('propPanel').innerHTML = rows.map(([nome, n, cor]) => {
+            const pct = (n/total*100).toFixed(1);
+            return `<div class="prop-bar-wrap">
+                <div class="prop-bar-lbl"><span>${nome}</span><span>${n} (${pct}%)</span></div>
+                <div class="prop-bar-bg"><div class="prop-bar-fill" style="width:${pct}%; background:${cor};"></div></div>
+            </div>`;
+        }).join('');
+    }
+
+    // ---------- RENDER: MÁXIMAS SEGUIDAS ----------
+    function renderMaximas(arr){
+        const seq = tieMode === 'break' ? arr : arr.filter(x => x.letra !== 'T');
+        let maxB = 0, maxP = 0, maxT = 0, run = 0, runLetra = null;
+        seq.forEach(x => {
+            if (x.letra === runLetra) run++;
+            else { runLetra = x.letra; run = 1; }
+            if (runLetra === 'B') maxB = Math.max(maxB, run);
+            if (runLetra === 'P') maxP = Math.max(maxP, run);
+            if (runLetra === 'T') maxT = Math.max(maxT, run);
+        });
+        if (tieMode !== 'break'){
+            // conta ties consecutivos separadamente (não quebram streak de B/P)
+            let runT = 0;
+            arr.forEach(x => { if (x.letra === 'T'){ runT++; maxT = Math.max(maxT, runT); } else runT = 0; });
+        }
+        $('maxPanel').innerHTML = `
+            <div class="seq-row"><span>Maior sequência Banker</span><span class="seq-val" style="color:var(--banker)">${maxB}x</span></div>
+            <div class="seq-row"><span>Maior sequência Player</span><span class="seq-val" style="color:var(--player)">${maxP}x</span></div>
+            <div class="seq-row"><span>Maior sequência Tie</span><span class="seq-val" style="color:var(--tie)">${maxT}x</span></div>
+        `;
+    }
+
+    // ---------- RENDER: CORES POR HORA ----------
+    function renderCoresPorHora(arr){
+        const buckets = {};
+        arr.forEach(x => {
+            buckets[x.hora] = buckets[x.hora] || { B:0, P:0, T:0 };
+            buckets[x.hora][x.letra]++;
+        });
+        const horas = Object.keys(buckets).map(Number).sort((a,b) => a-b);
+        const maxTotal = Math.max(1, ...horas.map(h => buckets[h].B + buckets[h].P + buckets[h].T));
+        const chart = $('hourChart');
+        chart.innerHTML = '';
+        horas.forEach(h => {
+            const b = buckets[h];
+            const col = document.createElement('div');
+            col.className = 'hour-col';
+            const totalH = b.B + b.P + b.T;
+            const scale = 90 / maxTotal;
+            col.innerHTML = `
+                <div class="hour-seg" style="background:var(--tie); height:${b.T*scale}px;" title="Tie: ${b.T}"></div>
+                <div class="hour-seg" style="background:var(--player); height:${b.P*scale}px;" title="Player: ${b.P}"></div>
+                <div class="hour-seg" style="background:var(--banker); height:${b.B*scale}px; border-radius:0 0 2px 2px;" title="Banker: ${b.B}"></div>
+                <div class="hour-lbl">${String(h).padStart(2,'0')}h</div>
+            `;
+            chart.appendChild(col);
+        });
+        if (!horas.length) chart.innerHTML = '<div style="color:var(--muted); font-size:12px;">Sem dados</div>';
+    }
+
+    // ---------- RENDER: DISTRIBUIÇÃO DE SOMAS ----------
+    function renderDistribuicaoSomas(arr){
+        const freq = {};
+        for (let i = 2; i <= 12; i++) freq[i] = 0;
+        let total = 0;
+        arr.forEach(x => {
+            if (typeof x.somaP === 'number'){ freq[x.somaP] = (freq[x.somaP]||0) + 1; total++; }
+            if (typeof x.somaB === 'number'){ freq[x.somaB] = (freq[x.somaB]||0) + 1; total++; }
+        });
+        const maxF = Math.max(1, ...Object.values(freq));
+        const chart = $('somaChart');
+        chart.innerHTML = '';
+        for (let i = 2; i <= 12; i++){
+            const f = freq[i] || 0;
+            const pct = total ? (f/total*100).toFixed(1) : '0.0';
+            const h = Math.round((f/maxF) * 100);
+            const col = document.createElement('div');
+            col.className = 'soma-col';
+            col.innerHTML = `<div class="soma-pct">${pct}%</div><div class="soma-bar" style="height:${h}%;" title="${i}: ${f} ocorrências"></div><div class="soma-lbl">${i}</div>`;
+            chart.appendChild(col);
+        }
+    }
+
+    // ---------- VALIDADOR DE PADRÃO ----------
+    function parsePattern(str){
+        return str.trim().toUpperCase().split(/[\s,]+/).filter(Boolean).map(c => c[0]);
+    }
+
+    function validarPadrao(){
+        const patternStr = $('patternInput').value;
+        const pattern = parsePattern(patternStr);
+        const galeMax = parseInt($('galeMax').value, 10);
+        if (!pattern.length){ $('patternResult').textContent = 'Digite um padrão válido, ex: B P B'; return; }
+
+        const arr = sequenciaEfetiva(getWorkingSet());
+        const seq = tieMode === 'break' ? arr : arr.filter(x => x.letra !== 'T');
+        const letras = seq.map(x => x.letra);
+
+        let ocorrencias = 0, acertosProximaIgual = 0, acertosProximaOposta = 0;
+        // gale: simula apostar no lado OPOSTO ao último elemento do padrão logo após ocorrência
+        let galeVitorias = 0, galeDerrotas = 0;
+        const detalhes = [];
+
+        for (let i = 0; i <= letras.length - pattern.length - 1; i++){
+            const slice = letras.slice(i, i + pattern.length);
+            if (slice.join('') === pattern.join('')){
+                ocorrencias++;
+                const alvo = pattern[pattern.length - 1] === 'B' ? 'P' : 'B'; // aposta na quebra
+                let venceu = false;
+                for (let g = 0; g <= galeMax; g++){
+                    const idx = i + pattern.length + g;
+                    if (idx >= letras.length) break;
+                    if (letras[idx] === alvo){ venceu = true; break; }
+                    if (letras[idx] === alvo ? false : true) { /* continua tentando */ }
+                }
+                if (venceu) galeVitorias++; else galeDerrotas++;
+
+                if (letras[i + pattern.length] === pattern[pattern.length-1]) acertosProximaIgual++;
+                if (letras[i + pattern.length] === alvo) acertosProximaOposta++;
+            }
+        }
+
+        const totalGale = galeVitorias + galeDerrotas;
+        const taxaGale = totalGale ? (galeVitorias/totalGale*100).toFixed(1) : '0.0';
+        const taxaRepete = ocorrencias ? (acertosProximaIgual/ocorrencias*100).toFixed(1) : '0.0';
+        const taxaQuebra = ocorrencias ? (acertosProximaOposta/ocorrencias*100).toFixed(1) : '0.0';
+
+        $('patternResult').innerHTML = `
+            <div class="row"><span>Padrão testado</span><b>${pattern.join(' ')}</b></div>
+            <div class="row"><span>Ocorrências no período</span><b>${ocorrencias}</b></div>
+            <div class="row"><span>Próxima rodada repete último (${pattern[pattern.length-1]})</span><b>${taxaRepete}%</b></div>
+            <div class="row"><span>Próxima rodada quebra (apostar oposto)</span><b>${taxaQuebra}%</b></div>
+            <table class="gale-table">
+                <thead><tr><th>Estratégia</th><th>Vitórias</th><th>Derrotas</th><th>Taxa de acerto</th></tr></thead>
+                <tbody>
+                    <tr><td>Apostar oposto até ${galeMax === 0 ? 'SG' : 'G'+galeMax}</td><td style="color:var(--green)">${galeVitorias}</td><td style="color:var(--red)">${galeDerrotas}</td><td><b>${taxaGale}%</b></td></tr>
+                </tbody>
+            </table>
+        `;
+        return { pattern, ocorrencias, taxaGale };
+    }
+
+    // ---------- NOTIFICADOR DE PADRÃO ----------
+    function beep(){
+        try{
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const o = ctx.createOscillator(); const g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.frequency.value = 880; g.gain.value = 0.08;
+            o.start(); setTimeout(() => { o.stop(); ctx.close(); }, 220);
+        }catch(e){}
+    }
+
+    function logNotif(msg){
+        const el = $('notifLog');
+        const d = document.createElement('div');
+        d.textContent = new Date().toLocaleTimeString('pt-BR') + ' — ' + msg;
+        el.prepend(d);
+        while (el.children.length > 30) el.removeChild(el.lastChild);
+    }
+
+    function checarNotificador(){
+        if (!notifAtiva) return;
+        const pattern = parsePattern($('notifPattern').value);
+        if (!pattern.length) return;
+        const arr = sequenciaEfetiva(getWorkingSet());
+        const seq = tieMode === 'break' ? arr : arr.filter(x => x.letra !== 'T');
+        const letras = seq.map(x => x.letra);
+        if (letras.length < pattern.length) return;
+        const tail = letras.slice(letras.length - pattern.length);
+        if (tail.join('') === pattern.join('')){
+            const key = 'lastNotif:' + pattern.join('');
+            if (window[key] === letras.length) return; // evita repetir na mesma rodada
+            window[key] = letras.length;
+            beep();
+            logNotif('Padrão "' + pattern.join(' ') + '" detectado!');
+            if (window.Notification && Notification.permission === 'granted'){
+                new Notification('BetStat — Bac Bo', { body: 'Padrão detectado: ' + pattern.join(' ') });
+            }
+        }
+    }
+
+    $('notifToggle').addEventListener('change', e => {
+        notifAtiva = e.target.checked;
+        localStorage.setItem('betstat:bacbo:notifAtiva', notifAtiva ? '1' : '0');
+        if (notifAtiva && window.Notification && Notification.permission === 'default'){
+            Notification.requestPermission();
+        }
+        logNotif(notifAtiva ? 'Monitoramento ativado.' : 'Monitoramento desativado.');
+    });
+    $('notifPattern').addEventListener('change', e => {
+        localStorage.setItem('betstat:bacbo:notifPattern', e.target.value);
+    });
+    $('btnNotifPreset').addEventListener('click', () => {
+        $('notifPattern').value = $('patternInput').value || $('notifPattern').value;
+        localStorage.setItem('betstat:bacbo:notifPattern', $('notifPattern').value);
+    });
+
+    // ---------- GRÁFICO DE 3 LINHAS (canvas nativo) ----------
+    function renderChart3Linhas(arr){
+        const seq = sequenciaEfetiva(arr);
+        const canvas = $('chart3linhas');
+        const wrap = canvas.parentElement;
+        const dpr = window.devicePixelRatio || 1;
+        const w = wrap.clientWidth - 32;
+        const h = 260;
+        canvas.width = w * dpr; canvas.height = h * dpr;
+        canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
+
+        if (!seq.length) return;
+
+        let accB = 0, accP = 0, accT = 0;
+        const seriesB = [], seriesP = [], seriesT = [];
+        seq.forEach(x => {
+            if (x.letra === 'B') accB++; else if (x.letra === 'P') accP++; else accT++;
+            seriesB.push(accB); seriesP.push(accP); seriesT.push(accT);
+        });
+        const maxV = Math.max(1, accB, accP, accT);
+        const padL = 34, padB = 18, padT = 10, padR = 8;
+        const plotW = w - padL - padR, plotH = h - padT - padB;
+
+        // grid
+        ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++){
+            const y = padT + plotH - (plotH * i/4);
+            ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w-padR, y); ctx.stroke();
+            ctx.fillStyle = '#8b8fa3'; ctx.font = '10px Roboto Mono';
+            ctx.fillText(Math.round(maxV*i/4), 2, y+3);
+        }
+
+        function drawLine(series, color){
+            ctx.beginPath();
+            series.forEach((v, i) => {
+                const x = padL + (plotW * i/(series.length-1 || 1));
+                const y = padT + plotH - (plotH * v/maxV);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+        }
+        drawLine(seriesT, '#f5c144');
+        drawLine(seriesP, '#3b82f6');
+        drawLine(seriesB, '#ef4444');
+    }
+
+    // ---------- MASTER RENDER ----------
+    function renderAll(){
+        const arr = getWorkingSet();
+        renderStats(arr);
+        renderBeadRoad(arr);
+        renderHistorico(arr);
+        renderSequencias(arr);
+        renderProporcao(arr);
+        renderMaximas(arr);
+        renderCoresPorHora(arr);
+        renderDistribuicaoSomas(arr);
+        renderChart3Linhas(arr);
+        checarNotificador();
+    }
+
+    // ---------- EVENTOS DE CONTROLE ----------
+    $('filtroHojeCheckbox').addEventListener('change', e => {
+        filtroSomenteHoje = e.target.checked;
+        $('filtroHojeWrap').classList.toggle('active', filtroSomenteHoje);
+        renderAll();
+    });
+    $('tieModeSelector').addEventListener('change', e => {
+        tieMode = e.target.value;
+        localStorage.setItem('betstat:bacbo:tieMode', tieMode);
+        renderAll();
+    });
+    $('qtdSelector').addEventListener('change', e => {
+        qtdJanela = parseInt(e.target.value, 10);
+        localStorage.setItem('betstat:bacbo:qtd', String(qtdJanela));
+        renderAll();
+    });
+    $('btnValidar').addEventListener('click', validarPadrao);
+    document.querySelectorAll('[data-preset]').forEach(btn => {
+        btn.addEventListener('click', () => { $('patternInput').value = btn.dataset.preset; validarPadrao(); });
+    });
+    window.addEventListener('resize', () => renderChart3Linhas(getWorkingSet()));
+
+    // ---------- FETCH ----------
+    function processarDados(data){
+        rawData = Array.isArray(data) ? data : (data.rows || data.resultados || []);
+        if (!rawData.length){ log('⚠️ resposta chegou vazia.'); return; }
+        const norm = normalizar(rawData);
+        norm.sort((a,b) => a.data - b.data);
+        ordered = norm;
+        log('');
+        $('subLabel').textContent = ordered.length + ' rodadas carregadas • atualizando a cada 5s';
+        renderAll();
+    }
+
+    log('buscando dados do Bac Bo...');
+    fetch(API_URL + '?timestamp=' + Date.now())
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(processarDados)
+        .catch(err => { log('❌ erro buscando dados: ' + err.message); console.error('[bacbo]', err); });
+
+    setInterval(() => {
+        fetch(API_URL + '?timestamp=' + Date.now())
+            .then(r => r.json())
+            .then(processarDados)
+            .catch(() => {});
+    }, POLL_MS);
+
+})();
+</script>
+
+<script>
+  fetch('header.html').then(r=>r.text()).then(d=>{document.getElementById('header').innerHTML=d;});
+</script>
+<script src="redirecionar.js"></script>
+</body>
+</html>
