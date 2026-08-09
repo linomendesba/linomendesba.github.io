@@ -428,6 +428,48 @@
         </div>
     </div>
 
+    <!-- Gráfico Renko -->
+    <div class="card">
+        <div class="card-head">
+            <div class="card-title">Renko Banker / Player<small>Só se move quando ganha ou perde — tijolo novo a cada N pontos de saldo. Empate não altera nada.</small></div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <select id="renkoLinhaSelector" title="Qual linha analisar">
+                    <option value="banker">Analisar: Banker</option>
+                    <option value="player">Analisar: Player</option>
+                    <option value="ambas" selected>Analisar: Ambas</option>
+                </select>
+                <select id="renkoTijoloSelector" title="Tamanho do tijolo (pontos de saldo por tijolo)">
+                    <option value="1">Tijolo: 1</option>
+                    <option value="2">Tijolo: 2</option>
+                    <option value="3" selected>Tijolo: 3</option>
+                    <option value="5">Tijolo: 5</option>
+                    <option value="10">Tijolo: 10</option>
+                </select>
+                <select id="renkoQtdSelector" title="Quantidade de rodadas analisadas neste gráfico (independente do filtro geral)">
+                    <option value="60">Últimos 60</option>
+                    <option value="120">Últimos 120</option>
+                    <option value="200" selected>Últimos 200</option>
+                    <option value="400">Últimos 400</option>
+                    <option value="800">Últimos 800</option>
+                    <option value="1000">Últimos 1.000</option>
+                    <option value="2000">Últimos 2.000</option>
+                    <option value="3000">Últimos 3.000</option>
+                    <option value="4000">Últimos 4.000</option>
+                    <option value="5000">Últimos 5.000</option>
+                    <option value="6000">Últimos 6.000</option>
+                </select>
+            </div>
+        </div>
+        <div style="position:relative;">
+            <canvas id="chartRenko"></canvas>
+            <div id="chartRenkoTooltip" class="chart-tooltip"></div>
+        </div>
+        <div class="chart-legend">
+            <span><i style="background:var(--green)"></i> Tijolo de alta (saldo subiu)</span>
+            <span><i style="background:var(--red)"></i> Tijolo de baixa (saldo desceu)</span>
+        </div>
+    </div>
+
     <!-- Gráfico de 3 linhas -->
     <div class="card">
         <div class="card-head">
@@ -463,6 +505,7 @@
             <span><i style="background:var(--player)"></i> Player</span>
             <span><i style="background:var(--tie)"></i> Tie</span>
             <span><i style="background:var(--banker); clip-path:polygon(50% 100%,0 0,100% 0);"></i> Topo (Banker esticou a vantagem)</span>
+
             <span><i style="background:var(--player); clip-path:polygon(50% 0,0 100%,100% 100%);"></i> Fundo (Player esticou a vantagem)</span>
         </div>
     </div>
@@ -501,6 +544,9 @@
     let tieMode = localStorage.getItem('betstat:bacbo:tieMode') || 'own';
     let qtdJanela = parseInt(localStorage.getItem('betstat:bacbo:qtd') || '200', 10);
     let qtdJanelaChart3 = parseInt(localStorage.getItem('betstat:bacbo:chart3Qtd') || '200', 10);
+    let renkoLinha = localStorage.getItem('betstat:bacbo:renkoLinha') || 'ambas'; // 'banker' | 'player' | 'ambas'
+    let renkoTijolo = parseInt(localStorage.getItem('betstat:bacbo:renkoTijolo') || '3', 10);
+    let qtdJanelaRenko = parseInt(localStorage.getItem('betstat:bacbo:renkoQtd') || '200', 10);
     let notifAtiva = localStorage.getItem('betstat:bacbo:notifAtiva') === '1';
     let notifPatternSaved = localStorage.getItem('betstat:bacbo:notifPattern') || 'B P B';
     let ultimoRoundIdVisto = null;
@@ -515,6 +561,9 @@
     $('tieModeSelector').value = tieMode;
     $('qtdSelector').value = String(qtdJanela);
     $('chart3QtdSelector').value = String(qtdJanelaChart3);
+    $('renkoLinhaSelector').value = renkoLinha;
+    $('renkoTijoloSelector').value = String(renkoTijolo);
+    $('renkoQtdSelector').value = String(qtdJanelaRenko);
     $('notifToggle').checked = notifAtiva;
     $('notifPattern').value = notifPatternSaved;
 
@@ -621,6 +670,14 @@
         let arr = ordered.slice();
         if (filtroSomenteHoje) arr = arr.filter(x => isToday(x.data));
         if (arr.length > qtdJanelaChart3) arr = arr.slice(arr.length - qtdJanelaChart3);
+        return arr;
+    }
+
+    // janela própria do gráfico Renko (independente do resto da página)
+    function getRenkoSet(){
+        let arr = ordered.slice();
+        if (filtroSomenteHoje) arr = arr.filter(x => isToday(x.data));
+        if (arr.length > qtdJanelaRenko) arr = arr.slice(arr.length - qtdJanelaRenko);
         return arr;
     }
 
@@ -1249,6 +1306,164 @@
         localStorage.setItem('betstat:bacbo:notifPattern', $('notifPattern').value);
     });
 
+    // ---------- GRÁFICO RENKO (Banker / Player / Ambas) ----------
+    let renkoData = null; // geometria do último render, usada pelo tooltip no hover
+
+    // Constrói a série de saldo de uma linha: +1 quando ganha, -1 quando perde, empate não conta (nem gera ponto).
+    function construirSerieRenko(seq, lado){
+        const valores = [0];
+        seq.forEach(x => {
+            if (x.letra === 'T') return; // empate não faz nada
+            const venceu = x.letra === lado;
+            valores.push(valores[valores.length - 1] + (venceu ? 1 : -1));
+        });
+        return valores;
+    }
+
+    // Transforma a série de saldo em tijolos: um tijolo novo a cada vez que o saldo
+    // avança (ou recua) 'tijolo' pontos a partir do fechamento do último tijolo.
+    function construirTijolosRenko(valores, tijolo){
+        const bricks = [];
+        let fechamento = valores[0];
+        for (let i = 1; i < valores.length; i++){
+            const v = valores[i];
+            let diff = v - fechamento;
+            if (diff >= tijolo){
+                const n = Math.floor(diff / tijolo);
+                for (let k = 0; k < n; k++){
+                    bricks.push({ dir: 1, de: fechamento, para: fechamento + tijolo });
+                    fechamento += tijolo;
+                }
+            } else if (diff <= -tijolo){
+                const n = Math.floor(-diff / tijolo);
+                for (let k = 0; k < n; k++){
+                    bricks.push({ dir: -1, de: fechamento, para: fechamento - tijolo });
+                    fechamento -= tijolo;
+                }
+            }
+        }
+        return bricks;
+    }
+
+    function renderChartRenko(arr){
+        const seq = arr; // Tie é ignorado dentro de construirSerieRenko, independente do tieMode global
+        const canvas = $('chartRenko');
+        const wrap = canvas.parentElement;
+        const dpr = window.devicePixelRatio || 1;
+        const w = wrap.clientWidth;
+        const paineis = renkoLinha === 'ambas' ? ['banker', 'player'] : [renkoLinha];
+        const h = paineis.length === 2 ? 320 : 210;
+        canvas.width = w * dpr; canvas.height = h * dpr;
+        canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
+        renkoData = null;
+
+        if (!seq.length){ return; }
+
+        const corAlta = '#22c55e', corBaixa = '#ef4444';
+        const padL = 6, padR = 10, padT = 6, gapEntrePaineis = 26;
+        const alturaPainel = (h - padT*2 - (paineis.length - 1) * gapEntrePaineis) / paineis.length;
+        const panelsGeom = [];
+
+        paineis.forEach((lado, pIdx) => {
+            const valores = construirSerieRenko(seq, lado === 'banker' ? 'B' : 'P');
+            const bricks = construirTijolosRenko(valores, renkoTijolo);
+            const y0 = padT + pIdx * (alturaPainel + gapEntrePaineis);
+
+            // rótulo do painel
+            ctx.fillStyle = lado === 'banker' ? '#ef4444' : '#3b82f6';
+            ctx.font = '700 11px Roboto';
+            ctx.fillText(lado === 'banker' ? 'Banker' : 'Player', padL, y0 - 8 < padT ? padT + 10 : y0 + 10);
+
+            if (!bricks.length){
+                ctx.fillStyle = '#8b8fa3'; ctx.font = '11px Roboto';
+                ctx.fillText('Sem tijolos formados ainda nessa janela — reduza o tamanho do tijolo.', padL, y0 + alturaPainel/2);
+                panelsGeom.push({ lado, bricks: [], y0, alturaPainel, brickW: 0, minV: 0, maxV: 0, xAt: null, yAt: null });
+                return;
+            }
+
+            const todos = bricks.flatMap(b => [b.de, b.para]);
+            const minV = Math.min(...todos), maxV = Math.max(...todos);
+            const rangeV = (maxV - minV) || 1;
+            const plotW = w - padL - padR, plotH = alturaPainel - 14; // reserva espaço pro rótulo em cima
+            const brickW = Math.max(4, Math.min(20, plotW / bricks.length));
+            const xAt = i => padL + i * brickW;
+            const yTopoPainel = y0 + 14;
+            const yAt = v => yTopoPainel + plotH - (plotH * (v - minV) / rangeV);
+
+            // linha de zero
+            if (minV < 0 && maxV > 0){
+                ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(padL, yAt(0)); ctx.lineTo(w - padR, yAt(0)); ctx.stroke();
+            }
+
+            bricks.forEach((b, i) => {
+                const x = xAt(i);
+                const yTop = yAt(Math.max(b.de, b.para));
+                const yBot = yAt(Math.min(b.de, b.para));
+                ctx.fillStyle = b.dir === 1 ? corAlta : corBaixa;
+                ctx.fillRect(x, yTop, Math.max(1, brickW - 1), Math.max(1, yBot - yTop));
+            });
+
+            panelsGeom.push({ lado, bricks, y0: yTopoPainel, alturaPainel: plotH, brickW, minV, maxV, xAt, yAt });
+        });
+
+        renkoData = { panels: panelsGeom };
+    }
+
+    // tooltip ao passar o mouse no gráfico Renko
+    (function(){
+        const canvas = $('chartRenko');
+        const tooltip = $('chartRenkoTooltip');
+        canvas.addEventListener('mousemove', e => {
+            if (!renkoData || !renkoData.panels.length){ tooltip.style.display = 'none'; return; }
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+            let melhor = null, melhorDist = Infinity;
+            renkoData.panels.forEach(p => {
+                if (!p.bricks.length) return;
+                p.bricks.forEach((b, i) => {
+                    const x = p.xAt(i) + p.brickW/2;
+                    const yTop = p.yAt(Math.max(b.de, b.para));
+                    const yBot = p.yAt(Math.min(b.de, b.para));
+                    const yCentro = (yTop + yBot) / 2;
+                    const dist = Math.abs(x - mx) + (my >= yTop - 20 && my <= yBot + 20 ? 0 : 999);
+                    if (dist < melhorDist){ melhorDist = dist; melhor = { p, b }; }
+                });
+            });
+            if (!melhor || melhorDist > 40){ tooltip.style.display = 'none'; return; }
+            const { p, b } = melhor;
+            const nomeLinha = p.lado === 'banker' ? 'Banker' : 'Player';
+            const html = '<b>' + nomeLinha + '</b><br>' +
+                (b.dir === 1 ? '▲ Alta' : '▼ Baixa') + ': ' + b.de + ' → ' + b.para;
+            tooltip.innerHTML = html;
+            tooltip.style.display = 'block';
+            let left = mx + 14;
+            if (left + 160 > rect.width) left = mx - 160;
+            tooltip.style.left = Math.max(0, left) + 'px';
+            tooltip.style.top = Math.max(0, my - 40) + 'px';
+        });
+        canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+    })();
+
+    $('renkoLinhaSelector').addEventListener('change', e => {
+        renkoLinha = e.target.value;
+        localStorage.setItem('betstat:bacbo:renkoLinha', renkoLinha);
+        renderChartRenko(getRenkoSet());
+    });
+    $('renkoTijoloSelector').addEventListener('change', e => {
+        renkoTijolo = parseInt(e.target.value, 10);
+        localStorage.setItem('betstat:bacbo:renkoTijolo', String(renkoTijolo));
+        renderChartRenko(getRenkoSet());
+    });
+    $('renkoQtdSelector').addEventListener('change', e => {
+        qtdJanelaRenko = parseInt(e.target.value, 10);
+        localStorage.setItem('betstat:bacbo:renkoQtd', String(qtdJanelaRenko));
+        renderChartRenko(getRenkoSet());
+    });
+
     // ---------- GRÁFICO DE 3 LINHAS + DETECÇÃO DE TOPO/FUNDO (canvas nativo) ----------
     let sensibilidadeReversao = parseInt(localStorage.getItem('betstat:bacbo:sensibilidade') || '4', 10);
     $('reversaoSensibilidade').value = String(sensibilidadeReversao);
@@ -1448,6 +1663,7 @@
         renderMaximas(arr);
         renderCoresPorHora(arr);
         renderDistribuicaoSomas(arr);
+        renderChartRenko(getRenkoSet());
         renderChart3Linhas(getChart3Set());
         checarNotificador();
     }
@@ -1503,7 +1719,7 @@
     document.querySelectorAll('[data-preset]').forEach(btn => {
         btn.addEventListener('click', () => { $('patternInput').value = btn.dataset.preset; validarPadrao(); });
     });
-    window.addEventListener('resize', () => renderChart3Linhas(getChart3Set()));
+    window.addEventListener('resize', () => { renderChartRenko(getRenkoSet()); renderChart3Linhas(getChart3Set()); });
 
     // ---------- FETCH / TEMPO REAL (WebSocket com fallback pra polling) ----------
     function processarDados(data){
