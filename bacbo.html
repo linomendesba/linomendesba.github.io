@@ -78,8 +78,18 @@
     .card-title{ font-size:14px; font-weight:800; }
     .card-title small{ display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:2px; }
 
-    /* Bead Road */
-    .bead-scroll{ overflow-x:auto; padding-bottom:4px; }
+    /* Rolagem horizontal por clique-e-arraste, sem barra de rolagem visível */
+    .bead-scroll, .hist-scroll, .hour-chart{
+        overflow-x:auto; padding-bottom:4px;
+        scrollbar-width:none; -ms-overflow-style:none; cursor:grab;
+    }
+    .bead-scroll::-webkit-scrollbar, .hist-scroll::-webkit-scrollbar, .hour-chart::-webkit-scrollbar{
+        display:none; height:0;
+    }
+    .bead-scroll.dragging, .hist-scroll.dragging, .hour-chart.dragging{
+        cursor:grabbing; user-select:none;
+    }
+    .bead-scroll{ padding-bottom:4px; }
     .bead-grid{ display:grid; grid-auto-flow:column; grid-template-rows:repeat(6, 24px); gap:3px; }
     .bead-cell{ width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
         font-size:9px; font-weight:800; position:relative; border:1.5px solid transparent; cursor:pointer; }
@@ -435,13 +445,15 @@
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <select id="renkoLinhaSelector" title="Qual linha analisar">
                     <option value="banker">Analisar: Banker</option>
-                    <option value="player"selected>Analisar: Player</option>
-                    <option value="ambas" >Analisar: Ambas</option>
+                    <option value="player">Analisar: Player</option>
+                    <option value="ambas" selected>Analisar: Ambas</option>
                 </select>
                 <select id="renkoTijoloSelector" title="Tamanho do tijolo (pontos de saldo por tijolo)">
-                    <option value="1"selected>Tijolo: 1</option>
+                    <option value="1">Tijolo: 1</option>
                     <option value="2">Tijolo: 2</option>
-                    <option value="3" >Tijolo: 3</option>
+                    <option value="3" selected>Tijolo: 3</option>
+                    <option value="5">Tijolo: 5</option>
+                    <option value="10">Tijolo: 10</option>
                 </select>
                 <select id="renkoQtdSelector" title="Quantidade de rodadas analisadas neste gráfico (independente do filtro geral)">
                     <option value="60">Últimos 60</option>
@@ -534,6 +546,39 @@
     const $ = id => document.getElementById(id);
     const statusEl = $('status');
     const log = msg => { statusEl.textContent = msg; };
+
+    // ---------- ROLAGEM POR CLIQUE-E-ARRASTE (substitui a barra de rolagem visível) ----------
+    function enableDragScroll(el){
+        if (!el || el._dragScrollAtivo) return;
+        el._dragScrollAtivo = true;
+        let isDown = false, moveu = false, startX = 0, startScroll = 0;
+        el.addEventListener('mousedown', e => {
+            isDown = true; moveu = false;
+            startX = e.pageX;
+            startScroll = el.scrollLeft;
+            el.classList.add('dragging');
+        });
+        window.addEventListener('mouseup', () => {
+            if (!isDown) return;
+            isDown = false;
+            el.classList.remove('dragging');
+        });
+        el.addEventListener('mousemove', e => {
+            if (!isDown) return;
+            const delta = e.pageX - startX;
+            if (Math.abs(delta) > 3) moveu = true;
+            if (moveu) e.preventDefault();
+            el.scrollLeft = startScroll - delta;
+        });
+        // depois de um arraste real, engole o próximo clique pra não abrir popup/tooltip da célula sem querer
+        el.addEventListener('click', e => {
+            if (moveu){ e.stopPropagation(); e.preventDefault(); moveu = false; }
+        }, true);
+    }
+    function ativarDragScrollEmTodos(){
+        document.querySelectorAll('.bead-scroll, .hist-scroll, .hour-chart').forEach(enableDragScroll);
+    }
+    ativarDragScrollEmTodos();
 
     // ---------- STATE ----------
     let rawData = [];          // bruto, como veio da API (ordem desconhecida)
