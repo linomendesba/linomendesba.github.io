@@ -11,7 +11,6 @@
 <meta name="author" content="BetStat">
 <script src="app.utils.min.js"></script>
 <script type="module" src="js/firebase-auth.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js"></script>
 <script>
     window.dataLayer = window.dataLayer || [];
     function gtag() { dataLayer.push(arguments); }
@@ -78,16 +77,6 @@
     .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:8px; flex-wrap:wrap; }
     .card-title{ font-size:14px; font-weight:800; }
     .card-title small{ display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:2px; }
-
-    /* Vídeo ao vivo */
-    .live-video-card{ position:relative; margin-bottom:18px; border-radius:16px; overflow:hidden; background:#000; border:1px solid var(--border); }
-    .live-video-card video{ display:block; width:100%; height:auto; max-height:520px; background:#000; }
-    .live-badge{ position:absolute; top:12px; left:12px; z-index:2; display:flex; align-items:center; gap:6px; background:rgba(0,0,0,.55); backdrop-filter:blur(4px); padding:5px 10px; border-radius:20px; font-size:11px; font-weight:800; letter-spacing:.4px; color:#fff; text-transform:uppercase; }
-    .live-badge .dot{ width:7px; height:7px; border-radius:50%; background:var(--red); animation:live-pulse 1.4s infinite; }
-    @keyframes live-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
-    .live-video-status{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12.5px; background:#000; z-index:1; text-align:center; padding:0 20px; }
-    .live-video-status.hidden{ display:none; }
-    .live-video-status button{ margin-top:10px; }
 
     /* Rolagem horizontal por clique-e-arraste, sem barra de rolagem visível */
     .bead-scroll, .hist-scroll, .hour-chart{
@@ -267,12 +256,6 @@
 <div id="status">carregando dados do Bac Bo...</div>
 
 <div class="bacbo-wrap">
-
-    <div class="live-video-card">
-        <div class="live-badge"><span class="dot"></span> Ao vivo</div>
-        <video id="bacboLiveVideo" muted playsinline autoplay controls></video>
-        <div class="live-video-status" id="bacboLiveStatus">Conectando à transmissão…</div>
-    </div>
 
     <div class="bacbo-head">
         <div class="bacbo-controls">
@@ -563,56 +546,6 @@
     const $ = id => document.getElementById(id);
     const statusEl = $('status');
     const log = msg => { statusEl.textContent = msg; };
-
-    // ---------- VÍDEO AO VIVO (stream Bac Bo via HLS) ----------
-    (function initLiveVideo(){
-        const STREAM_URL = 'https://live101.egprom.com/app/30/amlst:bacbor1_bi_auto/playlist.m3u8';
-        const video = $('bacboLiveVideo');
-        const statusBox = $('bacboLiveStatus');
-        if (!video) return;
-
-        function setStatus(msg, showRetry){
-            if (!statusBox) return;
-            statusBox.classList.remove('hidden');
-            statusBox.innerHTML = msg + (showRetry ? '<br><button class="btn" id="bacboRetryStream" type="button">Tentar novamente</button>' : '');
-            const btn = $('bacboRetryStream');
-            if (btn) btn.addEventListener('click', startStream);
-        }
-        function hideStatus(){ if (statusBox) statusBox.classList.add('hidden'); }
-
-        let hls = null;
-        function startStream(){
-            setStatus('Conectando à transmissão…', false);
-            if (hls){ hls.destroy(); hls = null; }
-
-            if (video.canPlayType('application/vnd.apple.mpegurl')){
-                // Safari/iOS tocam HLS nativamente
-                video.src = STREAM_URL;
-                video.addEventListener('loadedmetadata', hideStatus, { once:true });
-                video.addEventListener('error', () => setStatus('Não foi possível carregar a transmissão.', true), { once:true });
-                video.play().catch(() => {});
-                return;
-            }
-
-            if (window.Hls && window.Hls.isSupported()){
-                hls = new Hls({ liveDurationInfinity:true });
-                hls.loadSource(STREAM_URL);
-                hls.attachMedia(video);
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    hideStatus();
-                    video.play().catch(() => {});
-                });
-                hls.on(Hls.Events.ERROR, (evt, data) => {
-                    if (data && data.fatal){
-                        setStatus('Transmissão indisponível no momento.', true);
-                    }
-                });
-            } else {
-                setStatus('Seu navegador não suporta este formato de transmissão.', false);
-            }
-        }
-        startStream();
-    })();
 
     // ---------- ROLAGEM POR CLIQUE-E-ARRASTE (substitui a barra de rolagem visível) ----------
     function enableDragScroll(el){
