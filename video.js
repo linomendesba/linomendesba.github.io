@@ -1,8 +1,16 @@
 (function () {
     const content = document.getElementById('accordeonVidBetanoClassicos');
     const iframe  = document.getElementById('iframeVidBetanoClassicos');
+    const wrap    = content.querySelector('.video-wrap');
     let carregado = false;
     let popup = null;
+
+    function posicionarPopup() {
+        if (!popup) return;
+        const rect = wrap.getBoundingClientRect();
+        popup.style.top  = (rect.top + window.scrollY) + 'px';
+        popup.style.left = (rect.right + window.scrollX + 12) + 'px';
+    }
 
     function criarPopup() {
         if (popup) return;
@@ -15,10 +23,7 @@
         `;
 
         Object.assign(popup.style, {
-            position: 'absolute',
-            top: '0',
-            left: '100%',
-            marginLeft: '12px',
+            position: 'fixed',
             width: '220px',
             background: '#1b1f2a',
             color: '#e5e7eb',
@@ -28,14 +33,8 @@
             fontSize: '13px',
             lineHeight: '1.4',
             boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
-            zIndex: '9999'
+            zIndex: '99999'
         });
-
-        // garante que o container pai tenha posicionamento relativo
-        const parent = content.parentElement;
-        if (parent && getComputedStyle(parent).position === 'static') {
-            parent.style.position = 'relative';
-        }
 
         const btnFechar = popup.querySelector('#fecharPopupExtensaoVidBetano');
         Object.assign(btnFechar.style, {
@@ -51,7 +50,11 @@
         });
         btnFechar.addEventListener('click', removerPopup);
 
-        (parent || content).appendChild(popup);
+        document.body.appendChild(popup);
+        posicionarPopup();
+
+        window.addEventListener('scroll', posicionarPopup);
+        window.addEventListener('resize', posicionarPopup);
     }
 
     function removerPopup() {
@@ -59,6 +62,8 @@
             popup.remove();
             popup = null;
         }
+        window.removeEventListener('scroll', posicionarPopup);
+        window.removeEventListener('resize', posicionarPopup);
     }
 
     function estaAberto() {
