@@ -2,8 +2,9 @@
  *  RADAR DE LIGAS — cards de ligas (multi-casa)
  *  ---------------------------------------------------------------------------
  *  Duas análises INDEPENDENTES, cada uma com seu próprio seletor de mercado
- *  e de horas, mais um único par Aplicar/Parar e um botão pra ocultar a
- *  barra de controles (o motor continua rodando escondido).
+ *  e de horas, e seu próprio par Aplicar/Parar — dá pra ligar só a ⭐, só a
+ *  🔶, ou as duas ao mesmo tempo. Tem também um botão pra ocultar a barra
+ *  de controles (o motor continua rodando escondido).
  *
  *   1) ⭐ MELHOR LIGA — maior incidência do mercado escolhido na janela.
  *   2) 🔶 TOPO / FUNDO — card pisca em amarelo ao bater mínimo/máximo
@@ -118,10 +119,11 @@
     cincoOuMaisGols:   { label: '5+ Gols',              tipo: 'pct' },
   };
 
-  const LS_CFG_ESTRELA = 'radarEstrela_config';
-  const LS_CFG_TF      = 'radarTopoFundo_config';
-  const LS_ACTIVE      = 'radarLigas_active';
-  const LS_VISIVEL     = 'radarLigas_visivel';
+  const LS_CFG_ESTRELA     = 'radarEstrela_config';
+  const LS_CFG_TF          = 'radarTopoFundo_config';
+  const LS_ACTIVE_ESTRELA  = 'radarLigas_active_estrela';
+  const LS_ACTIVE_TF       = 'radarLigas_active_tf';
+  const LS_VISIVEL         = 'radarLigas_visivel';
 
   // ---------------------------------------------------------------------
   // LÓGICA (portada do bot)
@@ -211,13 +213,16 @@
   }
   function saveCfgTF(cfg) { localStorage.setItem(LS_CFG_TF, JSON.stringify(cfg)); }
 
-  function isActive() { return localStorage.getItem(LS_ACTIVE) === '1'; }
-  function setActive(v) { localStorage.setItem(LS_ACTIVE, v ? '1' : '0'); }
+  function isActiveEstrela() { return localStorage.getItem(LS_ACTIVE_ESTRELA) === '1'; }
+  function setActiveEstrela(v) { localStorage.setItem(LS_ACTIVE_ESTRELA, v ? '1' : '0'); }
+
+  function isActiveTF() { return localStorage.getItem(LS_ACTIVE_TF) === '1'; }
+  function setActiveTF(v) { localStorage.setItem(LS_ACTIVE_TF, v ? '1' : '0'); }
 
   function isVisivel() { return localStorage.getItem(LS_VISIVEL) !== '0'; } // padrão: visível
   function setVisivel(v) { localStorage.setItem(LS_VISIVEL, v ? '1' : '0'); }
 
-  let intervalId = null;
+  let intervalId = null; // um único timer compartilhado, roda enquanto QUALQUER uma das duas estiver ativa
 
   // ---------------------------------------------------------------------
   // BUSCA
@@ -265,16 +270,26 @@
   // EXECUÇÃO DO CICLO
   // ---------------------------------------------------------------------
   async function rodarAnalise() {
+    const ativaEstrela = isActiveEstrela();
+    const ativaTF = isActiveTF();
+    if (!ativaEstrela && !ativaTF) return; // nada ligado, não faz nada (nem busca dados)
+
     const cfgEstrela = loadCfgEstrela();
     const cfgTF = loadCfgTF();
     const cards = document.querySelectorAll('.cardsligasbetano-card');
     if (!cards.length) return;
 
-    cards.forEach(card => {
-      card.classList.remove('rdlg-hit-fundo', 'rdlg-hit-topo');
-      const estrelaAntiga = card.querySelector('.rdlg-estrela');
-      if (estrelaAntiga) estrelaAntiga.remove();
-    });
+    // limpa só as marcações da(s) análise(s) que estão realmente ativas agora;
+    // a que estiver parada mantém seu último estado até ser religada ou tiver "Parar" clicado
+    if (ativaEstrela) {
+      cards.forEach(card => {
+        const estrelaAntiga = card.querySelector('.rdlg-estrela');
+        if (estrelaAntiga) estrelaAntiga.remove();
+      });
+    }
+    if (ativaTF) {
+      cards.forEach(card => card.classList.remove('rdlg-hit-fundo', 'rdlg-hit-topo'));
+    }
 
     const semLiga = [];
     const tarefas = [];
@@ -291,54 +306,80 @@
 
     const resultados = await Promise.all(tarefas);
 
-    let melhor = null;
-    resultados.forEach(({ card, dados, gph }) => {
-      if (!dados) return;
-      const r = analisarEstrela(dados, cfgEstrela.horas, cfgEstrela.mercado, gph);
-      if (!r) return;
-      if (!melhor || r.metrica > melhor.metrica) melhor = { card, ...r };
-    });
-    if (melhor) {
-      const h3 = melhor.card.querySelector('h3');
-      if (h3 && !h3.querySelector('.rdlg-estrela')) {
-        const info = MARKET_INFO[cfgEstrela.mercado];
-        const txt = info.tipo === 'pct' ? `${melhor.metrica.toFixed(0)}% ${info.label}` : `${melhor.metrica.toFixed(2)} gols/jogo`;
-        const estrela = document.createElement('span');
-        estrela.className = 'rdlg-estrela';
-        estrela.title = `Melhor liga: ${txt} (últimas ${cfgEstrela.horas}h)`;
-        estrela.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.63 22 9.24 16.5 13.97 18.18 21 12 17.27 5.82 21 7.5 13.97 2 9.24 8.91 8.63 12 2"/></svg>';
-        h3.appendChild(estrela);
+    if (ativaEstrela) {
+      let melhor = null;
+      resultados.forEach(({ card, dados, gph }) => {
+        if (!dados) return;
+        const r = analisarEstrela(dados, cfgEstrela.horas, cfgEstrela.mercado, gph);
+        if (!r) return;
+        if (!melhor || r.metrica > melhor.metrica) melhor = { card, ...r };
+      });
+      if (melhor) {
+        const h3 = melhor.card.querySelector('h3');
+        if (h3 && !h3.querySelector('.rdlg-estrela')) {
+          const info = MARKET_INFO[cfgEstrela.mercado];
+          const txt = info.tipo === 'pct' ? `${melhor.metrica.toFixed(0)}% ${info.label}` : `${melhor.metrica.toFixed(2)} gols/jogo`;
+          const estrela = document.createElement('span');
+          estrela.className = 'rdlg-estrela';
+          estrela.title = `Melhor liga: ${txt} (últimas ${cfgEstrela.horas}h)`;
+          estrela.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.63 22 9.24 16.5 13.97 18.18 21 12 17.27 5.82 21 7.5 13.97 2 9.24 8.91 8.63 12 2"/></svg>';
+          h3.appendChild(estrela);
+        }
       }
     }
 
-    resultados.forEach(({ card, dados, gph }) => {
-      if (!dados) return;
-      const r = analisarTopoFundo(dados, cfgTF.horas, gph);
-      if (!r) return;
-      const hitFundo = (cfgTF.modo === 'fundo' || cfgTF.modo === 'ambos') && r.noFundo;
-      const hitTopo  = (cfgTF.modo === 'topo'  || cfgTF.modo === 'ambos') && r.noTopo;
-      if (hitFundo) card.classList.add('rdlg-hit-fundo');
-      if (hitTopo)  card.classList.add('rdlg-hit-topo');
-    });
+    if (ativaTF) {
+      resultados.forEach(({ card, dados, gph }) => {
+        if (!dados) return;
+        const r = analisarTopoFundo(dados, cfgTF.horas, gph);
+        if (!r) return;
+        const hitFundo = (cfgTF.modo === 'fundo' || cfgTF.modo === 'ambos') && r.noFundo;
+        const hitTopo  = (cfgTF.modo === 'topo'  || cfgTF.modo === 'ambos') && r.noTopo;
+        if (hitFundo) card.classList.add('rdlg-hit-fundo');
+        if (hitTopo)  card.classList.add('rdlg-hit-topo');
+      });
+    }
   }
 
-  function iniciar() {
-    setActive(true);
-    if (intervalId) clearInterval(intervalId);
-    rodarAnalise();
+  function garantirTimer() {
+    if (intervalId) return;
     intervalId = setInterval(rodarAnalise, CHECK_INTERVAL_MS);
+  }
+
+  function pararTimerSeNadaAtivo() {
+    if (!isActiveEstrela() && !isActiveTF() && intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  function iniciarEstrela() {
+    setActiveEstrela(true);
+    garantirTimer();
+    rodarAnalise();
     atualizarStatus();
   }
 
-  function parar() {
-    setActive(false);
-    if (intervalId) clearInterval(intervalId);
-    intervalId = null;
+  function pararEstrela() {
+    setActiveEstrela(false);
+    document.querySelectorAll('.cardsligasbetano-card .rdlg-estrela').forEach(el => el.remove());
+    pararTimerSeNadaAtivo();
+    atualizarStatus();
+  }
+
+  function iniciarTF() {
+    setActiveTF(true);
+    garantirTimer();
+    rodarAnalise();
+    atualizarStatus();
+  }
+
+  function pararTF() {
+    setActiveTF(false);
     document.querySelectorAll('.cardsligasbetano-card').forEach(card => {
       card.classList.remove('rdlg-hit-fundo', 'rdlg-hit-topo');
-      const estrela = card.querySelector('.rdlg-estrela');
-      if (estrela) estrela.remove();
     });
+    pararTimerSeNadaAtivo();
     atualizarStatus();
   }
 
@@ -428,12 +469,16 @@
     document.head.appendChild(style);
   }
 
-  function atualizarStatus() {
-    const statusEl = document.getElementById('rdlg-status');
+  function atualizarStatusEl(id, ativo) {
+    const statusEl = document.getElementById(id);
     if (!statusEl) return;
-    const ativo = isActive();
     statusEl.classList.toggle('on', ativo);
     statusEl.querySelector('span:last-child').textContent = ativo ? 'Ativo' : 'Parado';
+  }
+
+  function atualizarStatus() {
+    atualizarStatusEl('rdlg-status-estrela', isActiveEstrela());
+    atualizarStatusEl('rdlg-status-tf', isActiveTF());
   }
 
   function injetarUI() {
@@ -450,12 +495,14 @@
     wrap.className = 'rdlg-wrap';
     wrap.innerHTML = `
       <button type="button" class="rdlg-toggle" id="rdlg-toggle" title="Mostrar/ocultar controles">☰</button>
-      <span class="rdlg-status" id="rdlg-status"><span class="rdlg-dot"></span><span>Parado</span></span>
       <div class="rdlg-controls" id="rdlg-controls">
-        <span class="rdlg-grupo" title="Análise 1: melhor liga">
+        <span class="rdlg-grupo" title="Análise 1: melhor liga (independente do 🔶)">
           ⭐
           <select id="rdlg-estrela-mercado">${opcoesMercado}</select>
           <select id="rdlg-estrela-horas">${opcoesHoras}</select>
+          <button type="button" class="rdlg-btn-aplicar" id="rdlg-estrela-aplicar">Aplicar</button>
+          <button type="button" class="rdlg-btn-parar" id="rdlg-estrela-parar">Parar</button>
+          <span class="rdlg-status" id="rdlg-status-estrela"><span class="rdlg-dot"></span><span>Parado</span></span>
         </span>
         <span class="rdlg-grupo" title="Análise 2: topo/fundo (independente da ⭐)">
           🔶
@@ -465,9 +512,10 @@
             <option value="ambos">🎯 Ambos</option>
           </select>
           <select id="rdlg-tf-horas">${opcoesHoras}</select>
+          <button type="button" class="rdlg-btn-aplicar" id="rdlg-tf-aplicar">Aplicar</button>
+          <button type="button" class="rdlg-btn-parar" id="rdlg-tf-parar">Parar</button>
+          <span class="rdlg-status" id="rdlg-status-tf"><span class="rdlg-dot"></span><span>Parado</span></span>
         </span>
-        <button type="button" class="rdlg-btn-aplicar" id="rdlg-aplicar">Aplicar</button>
-        <button type="button" class="rdlg-btn-parar" id="rdlg-parar">Parar</button>
       </div>
     `;
     container.parentNode.insertBefore(wrap, container);
@@ -477,18 +525,23 @@
     wrap.querySelector('#rdlg-tf-modo').value = cfgTF.modo;
     wrap.querySelector('#rdlg-tf-horas').value = String(cfgTF.horas);
 
-    wrap.querySelector('#rdlg-aplicar').addEventListener('click', () => {
+    wrap.querySelector('#rdlg-estrela-aplicar').addEventListener('click', () => {
       saveCfgEstrela({
         mercado: wrap.querySelector('#rdlg-estrela-mercado').value,
         horas: parseInt(wrap.querySelector('#rdlg-estrela-horas').value, 10),
       });
+      iniciarEstrela();
+    });
+    wrap.querySelector('#rdlg-estrela-parar').addEventListener('click', pararEstrela);
+
+    wrap.querySelector('#rdlg-tf-aplicar').addEventListener('click', () => {
       saveCfgTF({
         modo: wrap.querySelector('#rdlg-tf-modo').value,
         horas: parseInt(wrap.querySelector('#rdlg-tf-horas').value, 10),
       });
-      iniciar();
+      iniciarTF();
     });
-    wrap.querySelector('#rdlg-parar').addEventListener('click', parar);
+    wrap.querySelector('#rdlg-tf-parar').addEventListener('click', pararTF);
 
     const controlsEl = wrap.querySelector('#rdlg-controls');
     const toggleEl = wrap.querySelector('#rdlg-toggle');
@@ -513,7 +566,9 @@
     }
     injetarCSS();
     injetarUI();
-    if (isActive()) iniciar();
+    if (isActiveEstrela()) garantirTimer();
+    if (isActiveTF()) garantirTimer();
+    if (isActiveEstrela() || isActiveTF()) rodarAnalise();
   }
 
   if (document.readyState === 'loading') {
