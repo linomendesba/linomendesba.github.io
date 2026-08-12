@@ -8,7 +8,8 @@
  *
  *   1) ⭐ MELHOR LIGA — maior incidência do mercado escolhido na janela.
  *   2) 🔶 TOPO / FUNDO — card pisca em amarelo ao bater mínimo/máximo
- *      histórico de Gols FT (blocos de LINES_TO_SUM jogos, igual ao bot).
+ *      histórico do mercado escolhido (blocos de LINES_TO_SUM jogos, igual
+ *      ao bot; padrão Gols FT, mas pode trocar pra qualquer mercado).
  *
  *  MULTI-CASA: em vez de mapear cada card pelo texto do <h3> (o que só
  *  funcionava pra Betano), o script lê o arquivo de destino do card
@@ -37,7 +38,6 @@
  *      <script src="radar-topo-fundo.js"></script>
  * ===========================================================================
  */
-
 (function () {
   'use strict';
 
@@ -186,11 +186,11 @@
     return count;
   }
 
-  function computeMinMax(allData, linesToSum) {
+  function computeMinMax(allData, linesToSum, marketId) {
     if (allData.length < linesToSum) return { min: null, max: null };
     let min = Infinity, max = -Infinity;
     for (let i = linesToSum - 1; i < allData.length; i++) {
-      const val = calcMarketValue(allData.slice(i - linesToSum + 1, i + 1), 'golsFT');
+      const val = calcMarketValue(allData.slice(i - linesToSum + 1, i + 1), marketId);
       if (val < min) min = val;
       if (val > max) max = val;
     }
@@ -209,8 +209,11 @@
   function saveCfgEstrela(cfg) { localStorage.setItem(LS_CFG_ESTRELA, JSON.stringify(cfg)); }
 
   function loadCfgTF() {
-    try { const s = JSON.parse(localStorage.getItem(LS_CFG_TF)); if (s && s.modo && s.horas) return s; } catch (e) {}
-    return { modo: 'fundo', horas: 12 };
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_CFG_TF));
+      if (s && s.modo && s.horas) return { mercado: 'golsFT', ...s };
+    } catch (e) {}
+    return { modo: 'fundo', horas: 12, mercado: 'golsFT' };
   }
   function saveCfgTF(cfg) { localStorage.setItem(LS_CFG_TF, JSON.stringify(cfg)); }
 
@@ -255,15 +258,15 @@
   }
 
   // ---------------------------------------------------------------------
-  // ANÁLISE 2 — 🔶 TOPO / FUNDO (mercado fixo Gols FT)
+  // ANÁLISE 2 — 🔶 TOPO / FUNDO (mercado configurável, padrão Gols FT)
   // ---------------------------------------------------------------------
-  function analisarTopoFundo(dadosCompletos, horas, gph) {
+  function analisarTopoFundo(dadosCompletos, horas, gph, marketId) {
     const linesToSum = gph === 30 ? 30 : LINES_TO_SUM_PADRAO;
     const dados = dadosCompletos.slice(-calcGames(horas, gph));
     if (dados.length < linesToSum * 2) return null;
-    const { min, max } = computeMinMax(dados, linesToSum);
+    const { min, max } = computeMinMax(dados, linesToSum, marketId);
     if (min === null || max === null) return null;
-    const atual = calcMarketValue(dados.slice(-linesToSum), 'golsFT');
+    const atual = calcMarketValue(dados.slice(-linesToSum), marketId);
     return { atual, min, max, noFundo: atual <= min, noTopo: atual >= max };
   }
 
@@ -289,7 +292,7 @@
       });
     }
     if (ativaTF) {
-      cards.forEach(card => card.classList.remove('rdlg-hit-fundo', 'rdlg-hit-topo'));
+      cards.forEach(card => { card.classList.remove('rdlg-hit-fundo', 'rdlg-hit-topo'); card.removeAttribute('title'); });
     }
 
     const semLiga = [];
@@ -332,10 +335,14 @@
     if (ativaTF) {
       resultados.forEach(({ card, dados, gph }) => {
         if (!dados) return;
-        const r = analisarTopoFundo(dados, cfgTF.horas, gph);
+        const r = analisarTopoFundo(dados, cfgTF.horas, gph, cfgTF.mercado);
         if (!r) return;
         const hitFundo = (cfgTF.modo === 'fundo' || cfgTF.modo === 'ambos') && r.noFundo;
         const hitTopo  = (cfgTF.modo === 'topo'  || cfgTF.modo === 'ambos') && r.noTopo;
+        if (hitFundo || hitTopo) {
+          const infoM = MARKET_INFO[cfgTF.mercado];
+          card.title = `${hitTopo ? 'Topo' : 'Fundo'} de ${infoM ? infoM.label : cfgTF.mercado}: atual ${r.atual} (mín ${r.min} / máx ${r.max})`;
+        }
         if (hitFundo) card.classList.add('rdlg-hit-fundo');
         if (hitTopo)  card.classList.add('rdlg-hit-topo');
       });
@@ -379,6 +386,7 @@
     setActiveTF(false);
     document.querySelectorAll('.cardsligasbetano-card').forEach(card => {
       card.classList.remove('rdlg-hit-fundo', 'rdlg-hit-topo');
+      card.removeAttribute('title');
     });
     pararTimerSeNadaAtivo();
     atualizarStatus();
@@ -507,6 +515,7 @@
         </span>
         <span class="rdlg-grupo" title="Análise 2: topo/fundo (independente da ⭐)">
           🔶
+          <select id="rdlg-tf-mercado">${opcoesMercado}</select>
           <select id="rdlg-tf-modo">
             <option value="fundo">⬇️ Fundo</option>
             <option value="topo">⬆️ Topo</option>
@@ -523,6 +532,7 @@
 
     wrap.querySelector('#rdlg-estrela-mercado').value = cfgEstrela.mercado;
     wrap.querySelector('#rdlg-estrela-horas').value = String(cfgEstrela.horas);
+    wrap.querySelector('#rdlg-tf-mercado').value = cfgTF.mercado;
     wrap.querySelector('#rdlg-tf-modo').value = cfgTF.modo;
     wrap.querySelector('#rdlg-tf-horas').value = String(cfgTF.horas);
 
@@ -537,6 +547,7 @@
 
     wrap.querySelector('#rdlg-tf-aplicar').addEventListener('click', () => {
       saveCfgTF({
+        mercado: wrap.querySelector('#rdlg-tf-mercado').value,
         modo: wrap.querySelector('#rdlg-tf-modo').value,
         horas: parseInt(wrap.querySelector('#rdlg-tf-horas').value, 10),
       });
