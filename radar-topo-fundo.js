@@ -1,48 +1,6 @@
-/* =============================================================================
- *  RADAR DE LIGAS — cards de ligas (multi-casa)
- *  ---------------------------------------------------------------------------
- *  Duas análises INDEPENDENTES, cada uma com seu próprio seletor de mercado
- *  e de horas, e seu próprio par Aplicar/Parar — dá pra ligar só a ⭐, só a
- *  🔶, ou as duas ao mesmo tempo. Tem também um botão pra ocultar a barra
- *  de controles (o motor continua rodando escondido).
- *
- *   1) ⭐ MELHOR LIGA — maior incidência do mercado escolhido na janela.
- *   2) 🔶 TOPO / FUNDO — card pisca em amarelo ao bater mínimo/máximo
- *      histórico do mercado escolhido (blocos de LINES_TO_SUM jogos, igual
- *      ao bot; padrão Gols FT, mas pode trocar pra qualquer mercado).
- *
- *  MULTI-CASA: em vez de mapear cada card pelo texto do <h3> (o que só
- *  funcionava pra Betano), o script lê o arquivo de destino do card
- *  (href ou onclick="window.location.href='...'") e aplica a MESMA lógica
- *  de detecção de arquivo do seu detectarLigaAtual() no config.js — LIGA_
- *  REGISTRY abaixo é uma cópia fiel disso. Então funciona em qualquer
- *  página de qualquer casa que já exista no seu config.js, sem precisar
- *  editar nada aqui quando você adicionar essa mesma barra nas páginas de
- *  Bet365 / Kiron / EstrelaBet.
- *
- *  Config de cada análise, estado ativo/parado e visibilidade da barra
- *  ficam salvos no localStorage, valendo pra qualquer página do site.
- *
- *  IMPORTANTE — confira antes de usar:
- *   1) "Mundial" (mundial.html) usa a constante LIGAS.MUNDIAL, que existe
- *      no seu config.js e cai em /resultados/Mundial.
- *   2) A ordem cronológica dos jogos (mais antigo -> mais recente) é
- *      detectada AUTOMATICAMENTE (campo id/timestamp/data se existir, ou
- *      pelo horário dos jogos como fallback) — não precisa configurar
- *      nada manualmente. Campo esperado do resultado: "ft" no formato
- *      "1 x 0".
- *
- *  Como usar: inclua DEPOIS do config.js e depois do HTML dos cards, em
- *  qualquer página de liga (Betano, Bet365, Kiron, EstrelaBet):
- *      <script src="radar-topo-fundo.js"></script>
- * ===========================================================================
- */
+
 (function () {
   'use strict';
-
-  // ---------------------------------------------------------------------
-  // REGISTRO DE LIGAS POR ARQUIVO (cópia do detectarLigaAtual do config.js)
-  // ---------------------------------------------------------------------
   const LEAGUE_REGISTRY = [
     { test: f => f.includes('brasileirao.html'),                    liga: () => LIGAS.BRASILEIRAO,            gph: 20 },
     { test: f => f.includes('campeonato_italiano.html'),             liga: () => LIGAS.ITALIANO,               gph: 20 },
@@ -84,11 +42,8 @@
     return null;
   }
 
-  // ---------------------------------------------------------------------
-  // CONFIGURÁVEL
-  // ---------------------------------------------------------------------
-  const LINES_TO_SUM_PADRAO = 20;  // base do bloco topo/fundo (30 se gph=30, igual ao bot)
-  const MIN_GAMES_ESTRELA   = 10;  // mín. de jogos na janela pra liga entrar no ranking da ⭐
+  const LINES_TO_SUM_PADRAO = 20;  
+  const MIN_GAMES_ESTRELA   = 10;  
   const CHECK_INTERVAL_MS   = 60_000;
 
   const HOUR_OPTIONS = [
@@ -134,9 +89,7 @@
   const LS_ACTIVE_TF       = 'radarLigas_active_tf';
   const LS_VISIVEL         = 'radarLigas_visivel';
 
-  // ---------------------------------------------------------------------
-  // LÓGICA (portada do bot)
-  // ---------------------------------------------------------------------
+
   function parseFt(ft) {
     if (!ft) return { h: 0, a: 0, total: 0 };
     const parts = String(ft).split(/\s*x\s*/i).map(s => parseInt(s, 10) || 0);
@@ -204,7 +157,7 @@
     return count;
   }
 
-  // Formata para exibição: soma -> "22 gols" | pct -> "40%" (igual ao bot)
+
   function fmtValor(marketId, val, linesToSum) {
     const info = MARKET_INFO[marketId];
     if (!info) return String(val);
@@ -226,9 +179,7 @@
 
   function calcGames(hours, gph) { return hours * gph; }
 
-  // ---------------------------------------------------------------------
-  // CONFIG / ESTADO
-  // ---------------------------------------------------------------------
+
   function loadCfgEstrela() {
     try { const s = JSON.parse(localStorage.getItem(LS_CFG_ESTRELA)); if (s && s.mercado && s.horas) return s; } catch (e) {}
     return { mercado: 'over2.5', horas: 24 };
@@ -253,16 +204,9 @@
   function isVisivel() { return localStorage.getItem(LS_VISIVEL) !== '0'; } // padrão: visível
   function setVisivel(v) { localStorage.setItem(LS_VISIVEL, v ? '1' : '0'); }
 
-  let intervalId = null; // um único timer compartilhado, roda enquanto QUALQUER uma das duas estiver ativa
+  let intervalId = null; 
 
-  // ---------------------------------------------------------------------
-  // BUSCA (com auto-detecção de ordem cronológica)
-  // ---------------------------------------------------------------------
 
-  // Tenta achar campos de ordenação explícitos e confiáveis (id crescente,
-  // timestamp, data_hora...). Se não achar nenhum, cai pra heurística por
-  // horário do dia (compara a sequência de horários e detecta se o array
-  // já vem crescente ou decrescente, corrigindo sozinho se precisar).
   function ordenarCronologico(dados) {
     if (!Array.isArray(dados) || dados.length < 2) return dados;
     const amostra = dados[0];
@@ -284,9 +228,6 @@
       }
     }
 
-    // Fallback: sem campo de data/id confiável — usa só o horário do dia
-    // (HH:MM, ou hora+minuto separados) e detecta a direção pela maioria
-    // dos passos crescentes/decrescentes, corrigindo virada de meia-noite.
     const minutosDoDia = (item) => {
       let h = null, m = null;
       if (item && typeof item.horario === 'string' && /^\d{1,2}:\d{2}$/.test(item.horario)) {
@@ -298,12 +239,12 @@
     };
 
     const tempos = dados.map(minutosDoDia);
-    if (tempos.some(t => t === null)) return dados; // nada pra basear a ordenação — mantém como veio
+    if (tempos.some(t => t === null)) return dados; 
 
     let subiu = 0, desceu = 0;
     for (let i = 1; i < tempos.length; i++) {
       let delta = tempos[i] - tempos[i - 1];
-      if (delta > 720) delta -= 1440;   // virada de meia-noite (ex: 23:58 -> 00:03)
+      if (delta > 720) delta -= 1440;  
       if (delta < -720) delta += 1440;
       if (delta > 0) subiu++;
       else if (delta < 0) desceu++;
@@ -324,9 +265,7 @@
     }
   }
 
-  // ---------------------------------------------------------------------
-  // ANÁLISE 1 — ⭐ MELHOR LIGA
-  // ---------------------------------------------------------------------
+
   function analisarEstrela(dadosCompletos, horas, mercado, gph) {
     const janela = dadosCompletos.slice(-calcGames(horas, gph));
     if (janela.length < MIN_GAMES_ESTRELA) return null;
@@ -336,9 +275,7 @@
     return { metrica, valor, jogos: janela.length };
   }
 
-  // ---------------------------------------------------------------------
-  // ANÁLISE 2 — 🔶 TOPO / FUNDO (mercado configurável, padrão Gols FT)
-  // ---------------------------------------------------------------------
+
   function analisarTopoFundo(dadosCompletos, horas, gph, marketId) {
     const linesToSum = gph === 30 ? 30 : LINES_TO_SUM_PADRAO;
     const dados = dadosCompletos.slice(-calcGames(horas, gph));
@@ -349,21 +286,18 @@
     return { atual, min, max, linesToSum, noFundo: atual <= min, noTopo: atual >= max };
   }
 
-  // ---------------------------------------------------------------------
-  // EXECUÇÃO DO CICLO
-  // ---------------------------------------------------------------------
+
   async function rodarAnalise() {
     const ativaEstrela = isActiveEstrela();
     const ativaTF = isActiveTF();
-    if (!ativaEstrela && !ativaTF) return; // nada ligado, não faz nada (nem busca dados)
+    if (!ativaEstrela && !ativaTF) return; 
 
     const cfgEstrela = loadCfgEstrela();
     const cfgTF = loadCfgTF();
     const cards = document.querySelectorAll('.cardsligasbetano-card');
     if (!cards.length) return;
 
-    // NÃO apaga nada aqui — busca e calcula tudo primeiro, e só aplica no DOM
-    // no final (em modo diff), pra evitar o "apaga e reconstrói" que pisca.
+
     const semLiga = [];
     const tarefas = [];
     cards.forEach(card => {
@@ -379,7 +313,7 @@
 
     const resultados = await Promise.all(tarefas);
 
-    // ---- ⭐ calcula quem é o "melhor" (sem mexer no DOM ainda) ----
+
     if (ativaEstrela) {
       let melhor = null;
       resultados.forEach(({ card, dados, gph }) => {
@@ -389,7 +323,7 @@
         if (!melhor || r.metrica > melhor.metrica) melhor = { card, ...r };
       });
 
-      // aplica: só mexe se o card "melhor" mudou (ou some se ninguém qualificou)
+
       cards.forEach(card => {
         const jaTem = card.querySelector('.rdlg-estrela');
         const deveTer = melhor && card === melhor.card;
@@ -407,11 +341,11 @@
           estrela.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="#22d3ee" stroke="#0e7490" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.63 22 9.24 16.5 13.97 18.18 21 12 17.27 5.82 21 7.5 13.97 2 9.24 8.91 8.63 12 2"/></svg>';
           h3.appendChild(estrela);
         }
-        if (estrela) estrela.title = tituloNovo; // atualiza só o texto, sem remover/recriar
+        if (estrela) estrela.title = tituloNovo; 
       }
     }
 
-    // ---- 🔶 calcula hitFundo/hitTopo de cada card (sem mexer no DOM ainda) ----
+
     if (ativaTF) {
       resultados.forEach(({ card, dados, gph }) => {
         if (!dados) return;
@@ -481,9 +415,7 @@
     atualizarStatus();
   }
 
-  // ---------------------------------------------------------------------
-  // UI
-  // ---------------------------------------------------------------------
+
   function injetarCSS() {
     const style = document.createElement('style');
     style.textContent = `
@@ -495,7 +427,7 @@
       .rdlg-wrap {
         display: flex; align-items: center; gap: 8px;
         flex-wrap: wrap;
-        background: rgb(42 44 53)
+        background: #2a2c35;
         border: 1px solid rgba(148,163,184,.18);
         border-radius: 8px;
         padding: 5px 8px;
@@ -658,12 +590,6 @@
     atualizarStatus();
   }
 
-  // ---------------------------------------------------------------------
-  // DEBUG — rode isso no Console (F12) estando logado na página normal:
-  //   radarVerOrdem()            -> mostra todos os cards resolvidos
-  //   radarVerOrdem('premier')   -> filtra pelo texto do card (ex: título)
-  // Usa o mesmo fetchLiga() do script, então já entra autenticado.
-  // ---------------------------------------------------------------------
   window.radarVerOrdem = async function (filtroTexto) {
     const cards = document.querySelectorAll('.cardsligasbetano-card');
     if (!cards.length) { console.warn('[radar-debug] nenhum .cardsligasbetano-card encontrado nessa página.'); return; }
