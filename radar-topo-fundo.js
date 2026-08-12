@@ -467,11 +467,12 @@
       .cardsligasbetano-card.rdlg-hit-fundo,
       .cardsligasbetano-card.rdlg-hit-topo {
         border-color: #f59e0b !important;
-        animation: rdlgPisca 1s steps(1, end) infinite;
+        background: #f59e0b !important;
+        box-shadow: 0 0 8px 2px #fde68a inset;
       }
-      @keyframes rdlgPisca {
-        0%, 100% { background: #78350f; box-shadow: 0 0 4px 1px #f59e0b inset; }
-        50%      { background: #f59e0b; box-shadow: 0 0 16px 4px #fde68a inset; }
+      .cardsligasbetano-card.rdlg-hit-fundo *,
+      .cardsligasbetano-card.rdlg-hit-topo * {
+        color: #1c1917 !important;
       }
       .rdlg-estrela { margin-left: 4px; vertical-align: middle; display: inline-block; }
     `;
