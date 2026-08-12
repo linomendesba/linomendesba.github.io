@@ -474,7 +474,7 @@
       .cardsligasbetano-card.rdlg-hit-fundo,
       .cardsligasbetano-card.rdlg-hit-topo {
         border-color: #f59e0b !important;
-        background: #f59e0b !important;
+        background: #ffa0007a !important;
         box-shadow: 0 0 8px 2px #fde68a inset;
       }
       .cardsligasbetano-card.rdlg-hit-fundo *,
