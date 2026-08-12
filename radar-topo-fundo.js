@@ -283,18 +283,8 @@
     const cards = document.querySelectorAll('.cardsligasbetano-card');
     if (!cards.length) return;
 
-    // limpa só as marcações da(s) análise(s) que estão realmente ativas agora;
-    // a que estiver parada mantém seu último estado até ser religada ou tiver "Parar" clicado
-    if (ativaEstrela) {
-      cards.forEach(card => {
-        const estrelaAntiga = card.querySelector('.rdlg-estrela');
-        if (estrelaAntiga) estrelaAntiga.remove();
-      });
-    }
-    if (ativaTF) {
-      cards.forEach(card => { card.classList.remove('rdlg-hit-fundo', 'rdlg-hit-topo'); card.removeAttribute('title'); });
-    }
-
+    // NÃO apaga nada aqui — busca e calcula tudo primeiro, e só aplica no DOM
+    // no final (em modo diff), pra evitar o "apaga e reconstrói" que pisca.
     const semLiga = [];
     const tarefas = [];
     cards.forEach(card => {
@@ -310,6 +300,7 @@
 
     const resultados = await Promise.all(tarefas);
 
+    // ---- ⭐ calcula quem é o "melhor" (sem mexer no DOM ainda) ----
     if (ativaEstrela) {
       let melhor = null;
       resultados.forEach(({ card, dados, gph }) => {
@@ -318,33 +309,49 @@
         if (!r) return;
         if (!melhor || r.metrica > melhor.metrica) melhor = { card, ...r };
       });
+
+      // aplica: só mexe se o card "melhor" mudou (ou some se ninguém qualificou)
+      cards.forEach(card => {
+        const jaTem = card.querySelector('.rdlg-estrela');
+        const deveTer = melhor && card === melhor.card;
+        if (jaTem && !deveTer) jaTem.remove();
+      });
       if (melhor) {
         const h3 = melhor.card.querySelector('h3');
-        if (h3 && !h3.querySelector('.rdlg-estrela')) {
-          const info = MARKET_INFO[cfgEstrela.mercado];
-          const txt = info.tipo === 'pct' ? `${melhor.metrica.toFixed(0)}% ${info.label}` : `${melhor.metrica.toFixed(2)} gols/jogo`;
-          const estrela = document.createElement('span');
+        const info = MARKET_INFO[cfgEstrela.mercado];
+        const txt = info.tipo === 'pct' ? `${melhor.metrica.toFixed(0)}% ${info.label}` : `${melhor.metrica.toFixed(2)} gols/jogo`;
+        const tituloNovo = `Melhor liga: ${txt} (últimas ${cfgEstrela.horas}h)`;
+        let estrela = h3 ? h3.querySelector('.rdlg-estrela') : null;
+        if (h3 && !estrela) {
+          estrela = document.createElement('span');
           estrela.className = 'rdlg-estrela';
-          estrela.title = `Melhor liga: ${txt} (últimas ${cfgEstrela.horas}h)`;
-          estrela.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.63 22 9.24 16.5 13.97 18.18 21 12 17.27 5.82 21 7.5 13.97 2 9.24 8.91 8.63 12 2"/></svg>';
+          estrela.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="#22d3ee" stroke="#0e7490" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.63 22 9.24 16.5 13.97 18.18 21 12 17.27 5.82 21 7.5 13.97 2 9.24 8.91 8.63 12 2"/></svg>';
           h3.appendChild(estrela);
         }
+        if (estrela) estrela.title = tituloNovo; // atualiza só o texto, sem remover/recriar
       }
     }
 
+    // ---- 🔶 calcula hitFundo/hitTopo de cada card (sem mexer no DOM ainda) ----
     if (ativaTF) {
       resultados.forEach(({ card, dados, gph }) => {
         if (!dados) return;
         const r = analisarTopoFundo(dados, cfgTF.horas, gph, cfgTF.mercado);
-        if (!r) return;
-        const hitFundo = (cfgTF.modo === 'fundo' || cfgTF.modo === 'ambos') && r.noFundo;
-        const hitTopo  = (cfgTF.modo === 'topo'  || cfgTF.modo === 'ambos') && r.noTopo;
+        const hitFundo = !!(r && (cfgTF.modo === 'fundo' || cfgTF.modo === 'ambos') && r.noFundo);
+        const hitTopo  = !!(r && (cfgTF.modo === 'topo'  || cfgTF.modo === 'ambos') && r.noTopo);
+
+        // só toca na classList/title se o estado realmente mudou
+        const tinhaFundo = card.classList.contains('rdlg-hit-fundo');
+        const tinhaTopo  = card.classList.contains('rdlg-hit-topo');
+        if (hitFundo !== tinhaFundo) card.classList.toggle('rdlg-hit-fundo', hitFundo);
+        if (hitTopo !== tinhaTopo)   card.classList.toggle('rdlg-hit-topo', hitTopo);
+
         if (hitFundo || hitTopo) {
           const infoM = MARKET_INFO[cfgTF.mercado];
           card.title = `${hitTopo ? 'Topo' : 'Fundo'} de ${infoM ? infoM.label : cfgTF.mercado}: atual ${r.atual} (mín ${r.min} / máx ${r.max})`;
+        } else if (tinhaFundo || tinhaTopo) {
+          card.removeAttribute('title');
         }
-        if (hitFundo) card.classList.add('rdlg-hit-fundo');
-        if (hitTopo)  card.classList.add('rdlg-hit-topo');
       });
     }
   }
