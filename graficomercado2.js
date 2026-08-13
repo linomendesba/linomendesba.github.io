@@ -1,5 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════
    GRÁFICO MERCADOS 
+   VERSAO: 2026-08-13-v3 — janela por qtd de jogos (sem mergulho na hora
+   sem dados) + eixo Y em % inteiro (73%, não 73.33%) + filtro hora===3
 ═══════════════════════════════════════════════════════════════════ */
  
 /* Prefixo 'kiron:' em TODAS as chaves — isola totalmente o armazenamento deste
@@ -1701,7 +1703,7 @@ function createStatsChart(ctx, labels, data, league) {
             },
             scales:{
                 x:{ticks:{display:false},grid:{display:false}},
-                y:{position:yAxisPosition,beginAtZero:false,ticks:{color:'#8B92A8',font:{size:11},stepSize:100/30,padding:8,callback:v=>{const r=Math.round(v*100)/100;return (Number.isInteger(r)?r:r.toFixed(2))+'%';}},grid:{color:'rgba(148,163,184,0.09)',lineWidth:1,drawTicks:false},border:{display:false},afterFit:s=>{s.paddingTop=20;}},
+                y:{position:yAxisPosition,beginAtZero:false,ticks:{color:'#8B92A8',font:{size:11},stepSize:100/30,padding:8,callback:v=>Math.round(v)+'%'},grid:{color:'rgba(148,163,184,0.09)',lineWidth:1,drawTicks:false},border:{display:false},afterFit:s=>{s.paddingTop=20;}},
                 y2:{position:'right',beginAtZero:true,min:0,max:10,ticks:{color:'rgba(148,163,184,0.35)',stepSize:1,precision:0},grid:{display:false},border:{display:false},afterFit:s=>{s.width=0;}}
             }
         },
@@ -1731,7 +1733,7 @@ function processApiData(data, league) {
     // nesse horário, e deixar esses registros passarem gera um mergulho falso
     // a 0% no gráfico (ver print reportado). Filtra ANTES de ordenar/processar
     // para que a janela de média (janelaMin) também não seja distorcida por eles.
-    const dataSemHora3 = data.filter(m => m.hora !== 3);
+    const dataSemHora3 = data.filter(m => Number(m.hora) !== 3);
     const sortedData = [...dataSemHora3].sort((a,b)=>{
         const dA=new Date(a.data),dB=new Date(b.data);
         if(dA.getTime()!==dB.getTime())return dA-dB;
@@ -1784,21 +1786,22 @@ function processApiData(data, league) {
     const allColors=[golsFTColors,golsHTColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,over05Colors,over15Colors,over25Colors,over35Colors,over5Colors,under05Colors,under15Colors,under25Colors,under35Colors,gol0Colors,gol1Colors,gol2Colors,gol3Colors,gol4Colors,gol5Colors,gol2t0Colors,gol2t1Colors,gol2t2Colors,gol2t3Colors,gol2t4Colors,casa0Colors,casa1Colors,casa2Colors,casa3Colors,casa4Colors,fora0Colors,fora1Colors,fora2Colors,fora3Colors,fora4Colors,placar0x0Colors,placar1x0Colors,placar2x0Colors,placar3x0Colors,placar2x1Colors,placar3x1Colors,placar3x2Colors,placar4x0Colors,placar4x1Colors,placar0x1Colors,placar0x2Colors,placar1x2Colors,placar0x3Colors,placar1x3Colors,placar2x3Colors,placar0x4Colors,placar1x4Colors,placarHT0x0Colors,placarHT0x1Colors,placarHT1x0Colors,placarHT1x1Colors,placarHT0x2Colors,placarHT2x0Colors,placarHTOutColors,overHTColors,underHTColors,casaHTColors,empateHTColors,foraHTColors,viradinhaColors,parColors,imparColors,margem1Colors,margem2Colors,margem3Colors,empateGolsColors];
  
     const green='#2DD4BF',red='#FB7185';
-    // janela em minutos reais: averagePoints jogos * 2 min por jogo (30 jogos/hora)
-    const janelaMin = averagePoints * 2;
+    // Janela baseada em QUANTIDADE de jogos (averagePoints), não em tempo.
+    // Antes a janela era por minutos reais, e um buraco sem jogos (ex: 3h da
+    // manhã) fazia sobrar só 1-2 jogos válidos na amostra — qualquer mercado
+    // binário desses poucos jogos virava 0% ou 100% na hora, gerando a agulha
+    // no gráfico. Contando sempre os últimos N jogos (independente do tempo
+    // real entre eles), a média fica estável e o buraco de horário some.
     // só exibe os últimos numPoints jogos
     const startExibir = Math.max(0, slicedData.length - numPoints);
  
     for(let i=0;i<slicedData.length;i++){
         const mAtual = slicedData[i];
-        const tsAtual = toAbsMin(mAtual);
- 
+
         let s={golsFT:0,golsHT:0,casaVence:0,empate:0,foraVence:0,ambasSim:0,ambasNao:0,over05:0,over15:0,over25:0,over35:0,over5:0,under05:0,under15:0,under25:0,under35:0,gol0:0,gol1:0,gol2:0,gol3:0,gol4:0,gol5:0,gol2t0:0,gol2t1:0,gol2t2:0,gol2t3:0,gol2t4:0,casa0:0,casa1:0,casa2:0,casa3:0,casa4:0,fora0:0,fora1:0,fora2:0,fora3:0,fora4:0,p0x0:0,p1x0:0,p2x0:0,p3x0:0,p2x1:0,p3x1:0,p3x2:0,p4x0:0,p4x1:0,p0x1:0,p0x2:0,p1x2:0,p0x3:0,p1x3:0,p2x3:0,p0x4:0,p1x4:0,ht0x0:0,ht0x1:0,ht1x0:0,ht1x1:0,ht0x2:0,ht2x0:0,htOut:0,overHT:0,underHT:0,casaHT:0,empateHT:0,foraHT:0,viradinha:0,golsFTCasa:0,golsFTFora:0,par:0,impar:0,margem1:0,margem2:0,margem3:0,empateGols:0,valid:0};
  
-        for(let j=i;j>=0;j--){
+        for(let j=i;j>=0 && s.valid<averagePoints;j--){
             const mj=slicedData[j];
-            const tsJ=toAbsMin(mj);
-            if(tsAtual - tsJ > janelaMin) break; // fora da janela de tempo
             const m=mj;
             let ft=[0,0];if(m.ft?.includes(' x '))ft=m.ft.split(' x ').map(Number);
             const htTotal=parseHtScoreTotal(m.ht),htParts=parseHtParts(m.ht);
@@ -2099,8 +2102,6 @@ document.getElementById('labelsToggle').addEventListener('change',function(){
         if (pTrend) pTrend.style.display='none';
     });
 })();
-
-
  
 window.adicionarLinhaDraggable=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.addDragLine(document.getElementById('lineColorPicker')?.value||'#1fcc59');};
 window.deletarLinhaSelecionada=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.deleteDragLine();};
