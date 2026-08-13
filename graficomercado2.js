@@ -4,6 +4,7 @@
    com a hora 3 comprimida na linha do tempo (sem mergulho na hora sem
    dados) + eixo Y em % inteiro (73%, não 73.33%) + filtro hora===3
 ═══════════════════════════════════════════════════════════════════ */
+
  
 /* Prefixo 'kiron:' em TODAS as chaves — isola totalmente o armazenamento deste
    arquivo (30 jogos/hora) do armazenamento usado pelas ligas de 20 jogos/hora,
