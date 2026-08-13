@@ -2099,6 +2099,7 @@ document.getElementById('labelsToggle').addEventListener('change',function(){
         if (pTrend) pTrend.style.display='none';
     });
 })();
+
  
 window.adicionarLinhaDraggable=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.addDragLine(document.getElementById('lineColorPicker')?.value||'#1fcc59');};
 window.deletarLinhaSelecionada=()=>{const c=chartInstances['Copa']||Object.values(chartInstances)[0];if(c)c.deleteDragLine();};
