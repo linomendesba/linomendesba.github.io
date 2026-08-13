@@ -1,7 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════
    GRÁFICO MERCADOS 
-   VERSAO: 2026-08-13-v3 — janela por qtd de jogos (sem mergulho na hora
-   sem dados) + eixo Y em % inteiro (73%, não 73.33%) + filtro hora===3
+   VERSAO: 2026-08-13-v4 — janela por TEMPO (movimentações corretas),
+   com a hora 3 comprimida na linha do tempo (sem mergulho na hora sem
+   dados) + eixo Y em % inteiro (73%, não 73.33%) + filtro hora===3
 ═══════════════════════════════════════════════════════════════════ */
  
 /* Prefixo 'kiron:' em TODAS as chaves — isola totalmente o armazenamento deste
@@ -1744,11 +1745,16 @@ function processApiData(data, league) {
     const slicedData=sortedData.slice(-numPoints - Math.ceil(averagePoints * 2.5));
     chartData[league]=slicedData;
  
-    // Converte jogo em timestamp de minutos absolutos (considera data + hora + minuto)
+    // Converte jogo em timestamp de minutos absolutos (considera data + hora + minuto).
+    // A hora 3 é comprimida da linha do tempo (nunca há jogos nela na kiron),
+    // então o intervalo de 2h→4h passa a valer só ~2min pra janela de média,
+    // igual a qualquer outro intervalo normal — sem isso, os jogos logo após
+    // as 4h caíam numa janela quase vazia e o mercado virava 0%/100% na hora
+    // (mergulho falso). Isso NÃO altera o cálculo em nenhum outro horário.
     function toAbsMin(m){
         const d=new Date(m.data);
-        // usa apenas a data (dia), combinada com hora e minuto locais da liga
-        return Math.floor(d.getTime()/86400000)*1440 + m.hora*60 + m.minuto;
+        const horaComprimida = m.hora > 3 ? m.hora - 1 : m.hora;
+        return Math.floor(d.getTime()/86400000)*1440 + horaComprimida*60 + m.minuto;
     }
  
     let labels=[],golsFT=[],golsHT=[],golsInd=[],casaVence=[],empate=[],foraVence=[],ambasSim=[],ambasNao=[];
@@ -1786,22 +1792,21 @@ function processApiData(data, league) {
     const allColors=[golsFTColors,golsHTColors,casaVenceColors,empateColors,foraVenceColors,ambasSimColors,ambasNaoColors,over05Colors,over15Colors,over25Colors,over35Colors,over5Colors,under05Colors,under15Colors,under25Colors,under35Colors,gol0Colors,gol1Colors,gol2Colors,gol3Colors,gol4Colors,gol5Colors,gol2t0Colors,gol2t1Colors,gol2t2Colors,gol2t3Colors,gol2t4Colors,casa0Colors,casa1Colors,casa2Colors,casa3Colors,casa4Colors,fora0Colors,fora1Colors,fora2Colors,fora3Colors,fora4Colors,placar0x0Colors,placar1x0Colors,placar2x0Colors,placar3x0Colors,placar2x1Colors,placar3x1Colors,placar3x2Colors,placar4x0Colors,placar4x1Colors,placar0x1Colors,placar0x2Colors,placar1x2Colors,placar0x3Colors,placar1x3Colors,placar2x3Colors,placar0x4Colors,placar1x4Colors,placarHT0x0Colors,placarHT0x1Colors,placarHT1x0Colors,placarHT1x1Colors,placarHT0x2Colors,placarHT2x0Colors,placarHTOutColors,overHTColors,underHTColors,casaHTColors,empateHTColors,foraHTColors,viradinhaColors,parColors,imparColors,margem1Colors,margem2Colors,margem3Colors,empateGolsColors];
  
     const green='#2DD4BF',red='#FB7185';
-    // Janela baseada em QUANTIDADE de jogos (averagePoints), não em tempo.
-    // Antes a janela era por minutos reais, e um buraco sem jogos (ex: 3h da
-    // manhã) fazia sobrar só 1-2 jogos válidos na amostra — qualquer mercado
-    // binário desses poucos jogos virava 0% ou 100% na hora, gerando a agulha
-    // no gráfico. Contando sempre os últimos N jogos (independente do tempo
-    // real entre eles), a média fica estável e o buraco de horário some.
+    // janela em minutos reais: averagePoints jogos * 2 min por jogo (30 jogos/hora)
+    const janelaMin = averagePoints * 2;
     // só exibe os últimos numPoints jogos
     const startExibir = Math.max(0, slicedData.length - numPoints);
  
     for(let i=0;i<slicedData.length;i++){
         const mAtual = slicedData[i];
+        const tsAtual = toAbsMin(mAtual);
 
         let s={golsFT:0,golsHT:0,casaVence:0,empate:0,foraVence:0,ambasSim:0,ambasNao:0,over05:0,over15:0,over25:0,over35:0,over5:0,under05:0,under15:0,under25:0,under35:0,gol0:0,gol1:0,gol2:0,gol3:0,gol4:0,gol5:0,gol2t0:0,gol2t1:0,gol2t2:0,gol2t3:0,gol2t4:0,casa0:0,casa1:0,casa2:0,casa3:0,casa4:0,fora0:0,fora1:0,fora2:0,fora3:0,fora4:0,p0x0:0,p1x0:0,p2x0:0,p3x0:0,p2x1:0,p3x1:0,p3x2:0,p4x0:0,p4x1:0,p0x1:0,p0x2:0,p1x2:0,p0x3:0,p1x3:0,p2x3:0,p0x4:0,p1x4:0,ht0x0:0,ht0x1:0,ht1x0:0,ht1x1:0,ht0x2:0,ht2x0:0,htOut:0,overHT:0,underHT:0,casaHT:0,empateHT:0,foraHT:0,viradinha:0,golsFTCasa:0,golsFTFora:0,par:0,impar:0,margem1:0,margem2:0,margem3:0,empateGols:0,valid:0};
  
-        for(let j=i;j>=0 && s.valid<averagePoints;j--){
+        for(let j=i;j>=0;j--){
             const mj=slicedData[j];
+            const tsJ=toAbsMin(mj);
+            if(tsAtual - tsJ > janelaMin) break; // fora da janela de tempo (com a hora 3 comprimida)
             const m=mj;
             let ft=[0,0];if(m.ft?.includes(' x '))ft=m.ft.split(' x ').map(Number);
             const htTotal=parseHtScoreTotal(m.ht),htParts=parseHtParts(m.ht);
