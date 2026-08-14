@@ -323,7 +323,12 @@ let currentCamp = 'Valley Arena';
 let selectedMinutes = new Set();
 let chartNumPoints = 20;
 let horasFiltro = 24;
-const LIVE_VIDEO_URL = 'https://vsa2.gambling-malta.com/vr-media-schedule/MediaViewer?sportType=MOTOR_CYCLE_SPEEDWAY&operator=BetanoBR';
+let lastDataSignature = null;
+const LIVE_VIDEO_URLS = {
+  'Valley Arena': 'https://vsa2.gambling-malta.com/vr-media-schedule/MediaViewer?sportType=MOTOR_CYCLE_SPEEDWAY&operator=BetanoBR',
+  'Ringway': 'https://stoiximan-br.live.inspiredvss.co.uk/inggWebViewer/?cust=stoiximan-br&ch=speedway'
+};
+function currentVideoUrl(){ return LIVE_VIDEO_URLS[currentCamp] || LIVE_VIDEO_URLS['Valley Arena']; }
 let chart;
 let allRows = [];
 let activeSignal = null;
@@ -860,6 +865,17 @@ function filterByHoras(rows, horas){
   });
 }
 
+// Redesenha tudo a partir do que já está em memória (allRows) — sem buscar na API de novo
+function renderAll(){
+  const palette = getActivePalette();
+  document.getElementById('arenaName').textContent = palette.arena;
+  renderCards(allRows, palette.colors);
+  renderChart(allRows, palette.colors);
+  renderBacktest(allRows, palette.colors);
+  renderMosaic(filterByHoras(allRows, horasFiltro), palette.colors);
+  renderLegend(palette.colors);
+}
+
 async function loadData(){
   const err = document.getElementById('error'); err.style.display='none';
   try{
@@ -867,15 +883,15 @@ async function loadData(){
     const res = await fetch(url, {cache:'no-store'});
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    allRows = sortRows(normalizePayload(data).map(mapSpeedwayRow));
+    const rows = sortRows(normalizePayload(data).map(mapSpeedwayRow));
 
-    const palette = getActivePalette();
-    document.getElementById('arenaName').textContent = palette.arena;
-    renderCards(allRows, palette.colors);
-    renderChart(allRows, palette.colors);
-    renderBacktest(allRows, palette.colors);
-    renderMosaic(filterByHoras(allRows, horasFiltro), palette.colors);
-    renderLegend(palette.colors);
+    // assinatura leve baseada na corrida mais recente — se não mudou, não redesenha (evita piscar a cada 5s)
+    const signature = rows.length ? `${currentCamp}|${rows.length}|${rows[0].event_id}` : `${currentCamp}|0`;
+    const houveMudanca = signature !== lastDataSignature;
+    lastDataSignature = signature;
+    allRows = rows;
+
+    if(houveMudanca) renderAll();
     document.getElementById('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
   }catch(e){
     err.textContent = `Erro ao carregar JSON: ${e.message}`; err.style.display='block';
@@ -896,10 +912,15 @@ document.querySelectorAll('.gameBtn').forEach(btn => {
     // limpa apenas o sinal da aba atual
     localStorage.removeItem(signalStorageKey());
 
+    lastDataSignature = null; // força re-render mesmo que por acaso o sinal fique igual
+    if(!document.getElementById('videoWrap').classList.contains('hidden')){
+      document.getElementById('liveVideoFrame').src = currentVideoUrl(); // troca o vídeo pra liga selecionada
+    }
+
     loadData();
   };
 });
-['fResultado','fPar','fCor','fOdds','fSequencia'].forEach(id=>document.getElementById(id).addEventListener('change',()=>loadData()));
+['fResultado','fPar','fCor','fOdds','fSequencia'].forEach(id=>document.getElementById(id).addEventListener('change',()=>renderAll()));
 
 document.getElementById('fChartPoints').addEventListener('change', e => {
   chartNumPoints = parseInt(e.target.value, 10) || 20;
@@ -921,11 +942,11 @@ function setVideoVisivel(mostrar){
   const btn = document.getElementById('btnToggleVideo');
   if(mostrar){
     wrap.classList.remove('hidden');
-    if(!frame.src) frame.src = LIVE_VIDEO_URL;
+    frame.src = currentVideoUrl(); // sempre reatribui — garante recarregar mesmo trocando de liga
     btn.textContent = 'Ocultar vídeo';
   }else{
     wrap.classList.add('hidden');
-    frame.src = ''; // libera banda/recursos enquanto o vídeo estiver oculto
+    frame.removeAttribute('src'); // src="" não fica vazio de verdade (vira a URL da própria página); removeAttribute limpa de fato
     btn.textContent = 'Mostrar vídeo';
   }
   localStorage.setItem('speedwayVideoVisivel', mostrar ? '1' : '0');
