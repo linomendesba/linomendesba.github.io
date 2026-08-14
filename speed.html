@@ -508,7 +508,7 @@ function cellStyleForResult(r, colors){
           </div>
         `,
         style: '',
-        title: `Previsão Piloto ${p1} - Piloto ${p2}`
+        title: `Previsão ${pilotLabel(p1)} - ${pilotLabel(p2)}`
       };
     }
 
@@ -537,7 +537,7 @@ function cellStyleForResult(r, colors){
     isPrevisao: false,
     label,
     style:`background:${c};color:${cellTextColor(c)}`,
-    title:`Ganhador Piloto ${w}`
+    title:`Ganhador ${pilotLabel(w)}`
   };
 }
 function sortRows(rows){
@@ -571,6 +571,22 @@ function mapSpeedwayRow(r){
 function getActivePalette(){
   if(currentCamp === 'Ringway') return palettes.betano_ringway;
   return palettes.betano_valley;
+}
+let pilotNamesMap = {};
+function buildPilotNamesMap(rows){
+  const map = {};
+  for(const r of rows){
+    for(let pos=1; pos<=4; pos++){
+      const numero = int(r[`pos${pos}_numero`]);
+      const nome = r[`pos${pos}_nome`];
+      if(numero && nome && !map[numero]) map[numero] = nome;
+    }
+    if(Object.keys(map).length >= 4) break;
+  }
+  return map;
+}
+function pilotLabel(p){
+  return pilotNamesMap[p] || `Piloto ${p}`;
 }
 function passaFiltroVisual(r){
   const p = document.getElementById('fPar').value;
@@ -955,7 +971,7 @@ function renderPilotRanking(rows, colors){
     const pos = idx + 1;
     const iconHtml = categoria === 'cor'
       ? `<span class="rankColorBox" style="background:${c};color:${cellTextColor(c)}">${item.piloto}</span>`
-      : `<span class="rankDot" style="background:${c}"></span><span class="rankName">Piloto ${item.piloto}</span>`;
+      : `<span class="rankDot" style="background:${c}"></span><span class="rankName">${pilotLabel(item.piloto)}</span>`;
 
     return `<div class="rankRow">
       <span class="rankPos">${pos}º</span>
@@ -1009,7 +1025,7 @@ function renderOddsRanking(rows, colors){
     return `<div class="rankRow">
       <span class="rankPos">${pos}º</span>
       <span class="rankColorBox" style="background:${c};color:${cellTextColor(c)}">${item.piloto}</span>
-      <span class="rankName">Piloto ${item.piloto}</span>
+      <span class="rankName">${pilotLabel(item.piloto)}</span>
       <span class="rankStats">média <strong>${item.qtd ? item.media.toFixed(2) : '-'}</strong> · faixa ${faixa} · ${item.zebras} zebras</span>
     </div>`;
   }).join('');
@@ -1033,6 +1049,7 @@ function filterByHoras(rows, horas){
 // Redesenha tudo a partir do que já está em memória (allRows) — sem buscar na API de novo
 function renderAll(){
   const palette = getActivePalette();
+  pilotNamesMap = buildPilotNamesMap(allRows);
   document.getElementById('arenaName').textContent = palette.arena;
   renderCards(allRows, palette.colors);
   renderChart(allRows, palette.colors);
