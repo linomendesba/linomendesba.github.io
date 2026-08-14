@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>BetStat — Escolha sua Casa</title>
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" src="js/firebase-auth.js"></script>
+    <style>
+      /* ============================================================
+         TOKENS
+      ============================================================ */
+      :root {
+        --bg: #0a0c11;
+        --bg-elevated: #0d1015;
+        --surface: #12151c;
+        --surface-hover: #171b24;
+        --border: rgba(255, 255, 255, 0.08);
+        --border-strong: rgba(255, 255, 255, 0.16);
+
+        --accent: #f5c518;
+        --accent-dim: rgba(245, 197, 24, 0.12);
+        --accent-line: rgba(245, 197, 24, 0.55);
+
+        --live: #f4f5f7;
+        --live-dim: rgba(255, 255, 255, 0.08);
+
+        --neutral: #eef0f4;
+        --neutral-dim: rgba(255, 255, 255, 0.08);
+        --neutral-line: rgba(255, 255, 255, 0.22);
+
+        --danger: #e2574c;
+
+        --text: #eef0f4;
+        --text-secondary: #8d94a3;
+        --text-tertiary: #4d5361;
+
+        --font-display: "Space Grotesk", sans-serif;
+        --font-mono: "IBM Plex Mono", monospace;
+
+        --radius: 10px;
+        --max-w: 760px;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      html { color-scheme: dark; }
+
+      body {
+        font-family: var(--font-display);
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 64px 20px 48px;
+        overflow-x: hidden;
+        position: relative;
+      }
+
+      /* fundo ambiente — grid sutil + glow, estático (sem partículas) */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+        background-size: 44px 44px;
+        mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black, transparent 75%);
+        pointer-events: none;
+        z-index: 0;
+      }
+      body::after {
+        content: "";
+        position: fixed;
+        top: -10%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 720px;
+        height: 420px;
+        background: radial-gradient(ellipse, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .container {
+        max-width: var(--max-w);
+        width: 100%;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ============================================================
+         SAIR
+      ============================================================ */
+      .logout-btn {
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--bg-elevated);
+        color: var(--text-tertiary);
+        border: 1px solid var(--border);
+        padding: 8px 14px;
+        border-radius: 7px;
+        cursor: pointer;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        z-index: 1000;
+      }
+      .logout-btn:hover {
+        color: var(--danger);
+        border-color: rgba(226, 87, 76, 0.4);
+        background: rgba(226, 87, 76, 0.08);
+      }
+      .logout-btn svg { flex-shrink: 0; }
+
+      /* ============================================================
+         HEADER
+      ============================================================ */
+      .header { margin-bottom: 34px; animation: rise 0.5s ease both; }
+
+      .brand-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 22px;
+      }
+      .brand-row img {
+        height: 30px;
+        width: auto;
+      }
+      .brand-row .divider-dot {
+        width: 4px; height: 4px;
+        border-radius: 50%;
+        background: var(--text-tertiary);
+      }
+      .brand-tag {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+      }
+
+      .header-title {
+        font-size: clamp(1.6rem, 5vw, 2.15rem);
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        line-height: 1.15;
+        margin-bottom: 8px;
+      }
+      .header-title span { color: var(--accent); }
+
+      .header-sub {
+        font-size: 0.92rem;
+        color: var(--text-secondary);
+        margin-bottom: 22px;
+        max-width: 46ch;
+      }
+
+      /* readout de status — elemento assinatura */
+      .status-readout {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid var(--border);
+        background: var(--bg-elevated);
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        color: var(--text-secondary);
+        position: relative;
+        overflow: hidden;
+      }
+      .status-readout::after {
+        content: "";
+        position: absolute;
+        top: 0; left: -30%;
+        width: 30%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(245, 197, 24, 0.1), transparent);
+        animation: scan 6s ease-in-out infinite;
+      }
+      .status-live {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--accent);
+        font-weight: 500;
+      }
+      .status-live::before {
+        content: "";
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 6px var(--accent);
+        animation: pulse 2s infinite;
+      }
+      .status-sep { color: var(--text-tertiary); }
+      .status-cursor {
+        margin-left: auto;
+        color: var(--accent);
+        animation: blink 1.1s steps(1) infinite;
+      }
+
+      /* ============================================================
+         LABELS DE SEÇÃO
+      ============================================================ */
+      .section-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 30px 0 12px;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+      }
+      .section-label::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      /* ============================================================
+         BOARD — lista de casas (linhas tipo "order book")
+      ============================================================ */
+      .board {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        overflow: hidden;
+        animation: rise 0.5s ease 0.05s both;
+      }
+
+      .board-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        position: relative;
+        transition: background 0.16s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .board-row:last-child { border-bottom: none; }
+      .board-row:hover,
+      .board-row:focus-visible { background: var(--surface-hover); }
+      .board-row:focus-visible { outline: none; }
+
+      .board-row::before {
+        content: "";
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 2px;
+        background: var(--neutral);
+        transform: scaleY(0);
+        transition: transform 0.16s ease;
+      }
+      .board-row:hover::before,
+      .board-row:focus-visible::before { transform: scaleY(1); }
+
+      .row-index {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        color: var(--text-tertiary);
+        width: 20px;
+        flex-shrink: 0;
+      }
+
+      .row-logo {
+        width: 84px;
+        height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        flex-shrink: 0;
+      }
+      .row-logo img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        filter: brightness(0.92) saturate(1.05);
+        transition: filter 0.18s ease;
+      }
+      .board-row:hover .row-logo img { filter: brightness(1.1) saturate(1.2); }
+
+      .row-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 3px;
+      }
+      .row-meta {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        color: var(--text-secondary);
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mini-logos {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .mini-logos img {
+        height: 13px;
+        width: auto;
+        object-fit: contain;
+        filter: brightness(0.85) saturate(1.05);
+      }
+
+      .row-badge {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        color: var(--neutral);
+        background: var(--neutral-dim);
+        border: 1px solid var(--neutral-line);
+        padding: 5px 10px;
+        border-radius: 5px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .row-badge.live {
+        color: var(--live);
+        background: var(--live-dim);
+        border-color: rgba(255, 255, 255, 0.22);
+      }
+
+      .row-arrow {
+        display: flex;
+        color: var(--text-tertiary);
+        flex-shrink: 0;
+        transition: transform 0.18s ease, color 0.18s ease;
+      }
+      .row-arrow svg { width: 15px; height: 15px; }
+      .board-row:hover .row-arrow { color: var(--neutral); transform: translateX(3px); }
+
+      /* overlay de carregamento */
+      .row-spinner {
+        display: none;
+        position: absolute;
+        inset: 0;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 12, 17, 0.72);
+        z-index: 5;
+      }
+      .board-row.loading .row-spinner { display: flex; }
+      .board-row.loading { pointer-events: none; }
+      .spinner-ring {
+        width: 22px; height: 22px;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        border-top-color: var(--neutral);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+
+      /* ============================================================
+         BANNER GUIAS
+      ============================================================ */
+      .guias-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px 18px;
+        margin-top: 30px;
+        text-decoration: none;
+        color: inherit;
+        transition: background 0.16s ease, border-color 0.16s ease;
+        animation: rise 0.5s ease 0.15s both;
+      }
+      .guias-banner:hover {
+        background: var(--surface);
+        border-color: var(--border-strong);
+      }
+      .guias-left { display: flex; align-items: center; gap: 13px; min-width: 0; }
+      .guias-icon {
+        width: 34px; height: 34px;
+        border-radius: 7px;
+        border: 1px solid var(--border);
+        background: var(--bg-elevated);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--neutral);
+        flex-shrink: 0;
+      }
+      .guias-text { min-width: 0; }
+      .guias-title { font-size: 0.86rem; font-weight: 600; }
+      .guias-sub {
+        font-size: 0.72rem;
+        color: var(--text-tertiary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .guias-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--neutral);
+        border: 1px solid var(--neutral-line);
+        padding: 8px 14px;
+        border-radius: 6px;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .guias-cta svg { width: 12px; height: 12px; }
+
+      /* ============================================================
+         RODAPÉ
+      ============================================================ */
+      .footer {
+        display: flex;
+        gap: 10px;
+        margin-top: 26px;
+        animation: rise 0.5s ease 0.2s both;
+      }
+      .footer-link {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 11px 18px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        text-decoration: none;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        background: var(--bg-elevated);
+        transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+      }
+      .footer-link:hover {
+        color: var(--text);
+        border-color: var(--border-strong);
+      }
+      .footer-link.highlight {
+        color: var(--neutral);
+        border-color: var(--neutral-line);
+        background: var(--neutral-dim);
+      }
+      .footer-link.highlight:hover {
+        background: rgba(255, 255, 255, 0.16);
+        border-color: var(--neutral);
+        color: #0a0c11;
+      }
+
+      /* ============================================================
+         ANIMAÇÕES
+      ============================================================ */
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.35; }
+      }
+      @keyframes blink {
+        0%, 49% { opacity: 1; }
+        50%, 100% { opacity: 0; }
+      }
+      @keyframes scan {
+        0% { left: -30%; }
+        100% { left: 130%; }
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation: none !important; transition: none !important; }
+      }
+
+      /* ============================================================
+         RESPONSIVO
+      ============================================================ */
+      @media (max-width: 600px) {
+        body { padding: 56px 14px 36px; }
+        .row-logo { width: 60px; height: 28px; }
+        .row-index { display: none; }
+        .board-row { padding: 13px 14px; gap: 12px; }
+        .row-badge { font-size: 0.62rem; padding: 4px 8px; }
+        .row-meta { font-size: 0.68rem; }
+        .guias-sub { display: none; }
+        .footer { flex-direction: row; }
+      }
+      @media (max-width: 380px) {
+        .row-logo { width: 50px; }
+        .row-badge { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <button class="logout-btn" onclick="logout()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+      </svg>
+      Sair
+    </button>
+
+    <div class="container">
+
+      <div class="header">
+        <div class="brand-row">
+          <img src="img/logo.png" alt="BetStat" />
+          <span class="divider-dot"></span>
+          <span class="brand-tag">Painel de acesso</span>
+        </div>
+
+        <h1 class="header-title">Sua escolha <span> começa aqui</span></h1>
+
+        <div class="status-readout">
+          <span class="status-live">Sistema online</span>
+          <span class="status-sep">·</span>
+          <span>8 plataformas disponíveis</span>
+          <span class="status-cursor">▌</span>
+        </div>
+      </div>
+
+      <div class="section-label">Plataformas</div>
+
+      <div class="board" role="list">
+
+        <div class="board-row" role="button" tabindex="0" aria-label="Acessar Bet365" onclick="selecionarCasa(this,'bet365')">
+          <div class="row-spinner"><div class="spinner-ring"></div></div>
+          <span class="row-index">01</span>
+          <div class="row-logo"><img src="img/bets.png" alt="Bet365" loading="lazy" /></div>
+          <div class="row-info">
+            <span class="row-meta"></span>
+          </div>
+          <span class="row-badge">4 ligas</span>
+          <span class="row-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </span>
+        </div>
+
+        <div class="board-row" role="button" tabindex="0" aria-label="Acessar Betano" onclick="selecionarCasa(this,'betano')">
+          <div class="row-spinner"><div class="spinner-ring"></div></div>
+          <span class="row-index">02</span>
+          <div class="row-logo"><img src="img/betano2.png" alt="Betano" loading="lazy" /></div>
+          <div class="row-info">
+            <span class="row-meta"></span>
+          </div>
+          <span class="row-badge">7 ligas</span>
+          <span class="row-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </span>
+        </div>
+
+        <div class="board-row" role="button" tabindex="0" aria-label="Acessar EstrelaBet" onclick="selecionarCasa(this,'estrelabet')">
+          <div class="row-spinner"><div class="spinner-ring"></div></div>
+          <span class="row-index">03</span>
+          <div class="row-logo"><img src="img/estrela.png" alt="EstrelaBet" loading="lazy" /></div>
+          <div class="row-info">
+            <div class="mini-logos">
+              <span class="row-meta"></span>
+            </div>
+          </div>
+          <span class="row-badge">3 ligas</span>
+          <span class="row-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </span>
+        </div>
+
+        <div class="board-row" role="button" tabindex="0" aria-label="Acessar Kiron" onclick="selecionarCasa(this,'kiron')">
+          <div class="row-spinner"><div class="spinner-ring"></div></div>
+          <span class="row-index">04</span>
+          <div class="row-logo"><img src="img/kiron.png" alt="Kiron" loading="lazy" /></div>
+          <div class="row-info">
+            <span class="row-meta"></span>
+          </div>
+          <span class="row-badge">3 ligas</span>
+          <span class="row-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </span>
+        </div>
+
+        <div class="board-row" role="button" tabindex="0" aria-label="Acessar Betsson" onclick="selecionarCasa(this,'betsson')">
+          <div class="row-spinner"><div class="spinner-ring"></div></div>
+          <span class="row-index">05</span>
+          <div class="row-logo"><img src="img/betsson.png" alt="Betsson" loading="lazy" /></div>
+          <div class="row-info">
+            <span class="row-meta"></span>
+          </div>
+          <span class="row-badge">3 ligas</span>
+          <span class="row-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </span>
+        </div>
+
+        <div class="board-row" role="button" tabindex="0" aria-label="Acessar Sofascore" onclick="selecionarCasa(this,'vexascore')">
+          <div class="row-spinner"><div class="spinner-ring"></div></div>
+          <span class="row-index">06</span>
+          <div class="row-logo"><img src="img/vexa.png" alt="Sofascore" loading="lazy" /></div>
+          <div class="row-info">
+            <span class="row-meta"></span>
+          </div>
+          <span class="row-badge live">Fut.Real</span>
+          <span class="row-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </span>
+        </div>
+
+        <div class="board-row" role="button" tabindex="0" aria-label="Acessar BacBo" onclick="selecionarCasa(this,'bacbo')">
+          <div class="row-spinner"><div class="spinner-ring"></div></div>
+          <span class="row-index">07</span>
+          <div class="row-logo"><img src="img/bacbo.png" alt="BacBo" loading="lazy" /></div>
+          <div class="row-info">
+            <span class="row-meta"></span>
+          </div>
+          <span class="row-badge live">● Live</span>
+          <span class="row-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </span>
+        </div>
+
+        <div class="board-row" role="button" tabindex="0" aria-label="Acessar SpeedWay" onclick="selecionarCasa(this,'speedway')">
+          <div class="row-spinner"><div class="spinner-ring"></div></div>
+          <span class="row-index">08</span>
+          <div class="row-logo"><img src="img/speedway.png" alt="SpeedWay" loading="lazy" /></div>
+          <div class="row-info">
+            <span class="row-meta"></span>
+          </div>
+          <span class="row-badge live">● Live</span>
+          <span class="row-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+          </span>
+        </div>
+
+      </div>
+
+      <a href="https://www.betstat.site/guias" class="guias-banner" target="_blank" rel="noopener noreferrer">
+        <div class="guias-left">
+          <div class="guias-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </div>
+          <div class="guias-text">
+            <div class="guias-title">Central de Guias BetStat</div>
+          </div>
+        </div>
+        <span class="guias-cta">
+          Ver guias
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+        </span>
+      </a>
+
+      <div class="footer">
+        <a href="https://t.me/Betstatsite" class="footer-link" target="_blank" rel="noopener noreferrer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          Suporte
+        </a>
+        <a href="https://www.betstat.site/renovar.html" class="footer-link highlight" target="_blank" rel="noopener noreferrer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+            <line x1="1" y1="10" x2="23" y2="10"/>
+          </svg>
+          Renovar acesso
+        </a>
+      </div>
+
+    </div>
+
+    <script>
+      const rotas = {
+        betano:      "index.html",
+        bet365:      "bet365copa.html",
+        betsson:     "betssonespanha.html",
+        kiron:       "kironengland.html",
+        estrelabet:  "estrelachampions.html",
+        vexascore:   "https://www.forebet.com/",
+        bacbo:       "https://www.betstat.site/bacbo",
+        speedway:    "https://www.betstat.site/speed",
+      };
+
+      function selecionarCasa(el, casa) {
+        if (el.classList.contains("loading")) return;
+        el.classList.add("loading");
+        localStorage.setItem("casaSelecionada", casa);
+        const destino = rotas[casa];
+        setTimeout(() => {
+          if (destino && destino.startsWith("http")) {
+            window.open(destino, "_blank", "noopener noreferrer");
+            el.classList.remove("loading");
+          } else {
+            window.location.href = destino;
+          }
+        }, 400);
+      }
+
+      /* clique com teclado (Enter / Espaço) para as linhas focáveis */
+      document.querySelectorAll('[role="button"][tabindex="0"]').forEach((el) => {
+        el.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            el.click();
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
