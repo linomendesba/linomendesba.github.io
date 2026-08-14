@@ -223,12 +223,30 @@ button,select{font:inherit}
   min-width:70px;
 }
 }
+
+.lowSample{margin-right:4px;font-size:12px;cursor:help}
+.signalToast{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-20px);background:#0c1520;border:1px solid var(--cyan);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;box-shadow:0 6px 22px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;z-index:99999}
+.signalToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes signalPulseAnim{0%,100%{box-shadow:0 0 0 rgba(0,229,255,0)}50%{box-shadow:0 0 26px rgba(0,229,255,.55)}}
+.backtestPanel.signalPulse{animation:signalPulseAnim 1s ease-in-out 2}
+.comparePanel{margin-bottom:10px}
+.compareGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.compareCol{background:#0c1219;border:1px solid #202a35;border-radius:8px;padding:10px 12px}
+.comparePanelTitle{font-weight:700;font-size:13px;color:#8fc8ff;margin-bottom:8px}
+.compareStat{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #182129;font-size:12px;color:var(--muted)}
+.compareStat:last-child{border-bottom:none}
+.compareStat strong{color:#fff;font-size:13px}
+.oddRow td{color:#8fc8ff!important}
+@media(max-width:1050px){
+  .compareGrid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 <div id="header"></div>
 <br><br><br>
 <div class="app">
+  <div id="signalToast" class="signalToast"></div>
   <div class="speedwayTop">
     <div class="gameBtns">
       <button class="gameBtn active" data-game="betano" data-camp="Valley Arena">Betano - Valley Arena</button>
@@ -300,15 +318,18 @@ button,select{font:inherit}
           </div>
           <div class="cards" id="cards"><div class="pilotCard" style="--c:#ff3b30"><h3>PILOTO 1</h3><div class="metric"><div><small>ATUAL</small><b>0</b></div><div class="bar"><span style="width:0%"></span></div><div><small>MÁXIMO</small><b>3</b></div></div></div><div class="pilotCard" style="--c:#19a7ff"><h3>PILOTO 2</h3><div class="metric"><div><small>ATUAL</small><b>0</b></div><div class="bar"><span style="width:0%"></span></div><div><small>MÁXIMO</small><b>5</b></div></div></div><div class="pilotCard" style="--c:#eef3f8"><h3>PILOTO 3</h3><div class="metric"><div><small>ATUAL</small><b>1</b></div><div class="bar"><span style="width:20%"></span></div><div><small>MÁXIMO</small><b>5</b></div></div></div><div class="pilotCard" style="--c:#ffd21a"><h3>PILOTO 4</h3><div class="metric"><div><small>ATUAL</small><b>0</b></div><div class="bar"><span style="width:0%"></span></div><div><small>MÁXIMO</small><b>6</b></div></div></div></div>
         </div>
-        <div class="panel backtestPanel">
+        <div class="panel backtestPanel" id="backtestPanelBox">
           <div class="backtestTop">
             <h2 class="panelTitle">ANÁLISE POR SEQUÊNCIA</h2>
-            <select id="fSequencia">
-              <option value="3">Últimos 3 jogos</option>
-              <option value="4" selected="">Últimos 4 jogos</option>
-              <option value="5">Últimos 5 jogos</option>
-              <option value="6">Últimos 6 jogos</option>
-            </select>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button id="btnToggleSignalSound" type="button" class="videoToggleBtn">🔔 Som: ON</button>
+              <select id="fSequencia">
+                <option value="3">Últimos 3 jogos</option>
+                <option value="4" selected="">Últimos 4 jogos</option>
+                <option value="5">Últimos 5 jogos</option>
+                <option value="6">Últimos 6 jogos</option>
+              </select>
+            </div>
           </div>
           <div id="backtestContent" class="btMuted">
     <div class="backtestBox">
@@ -372,6 +393,23 @@ button,select{font:inherit}
           <div id="oddsRanking" class="rankList"></div>
         </div>
       </div>
+
+      <section class="panel comparePanel">
+        <div class="rankTop">
+          <h2 class="panelTitle">COMPARAÇÃO: VALLEY ARENA x RINGWAY</h2>
+          <div class="rankTopSelects">
+            <select id="fCompareHoras">
+              <option value="3">Últimas 3h</option>
+              <option value="6">Últimas 6h</option>
+              <option value="12">Últimas 12h</option>
+              <option value="24" selected="">Últimas 24h</option>
+              <option value="48">Últimas 48h</option>
+              <option value="72">Últimas 72h</option>
+            </select>
+          </div>
+        </div>
+        <div class="compareGrid" id="compareGrid"></div>
+      </section>
 
       <div class="panel mosaicPanel">
         <div class="mosaicHeader"><div><h2 class="panelTitle">MOSAICO DE RESULTADOS</h2><div class="arena" id="arenaName">Valley Arena</div></div><div class="loading" id="updatedAt">ÚLTIMA ATUALIZAÇÃO: 14/08/2026, 08:01:20</div></div>
@@ -447,6 +485,59 @@ function loadStoredSignal(){
 function saveStoredSignal(){
   if(activeSignal) localStorage.setItem(signalStorageKey(), JSON.stringify(activeSignal));
   else localStorage.removeItem(signalStorageKey());
+}
+
+// ---------- FILTROS PERSISTIDOS (localStorage) ----------
+const PERSISTED_FILTER_IDS = ['fPar','fCor','fRankingCategoria'];
+function loadPersistedFilters(){
+  PERSISTED_FILTER_IDS.forEach(id=>{
+    const saved = localStorage.getItem(`speedwayFiltro:${id}`);
+    const el = document.getElementById(id);
+    if(saved !== null && el) el.value = saved;
+  });
+}
+function persistFilter(id){
+  const el = document.getElementById(id);
+  if(el) localStorage.setItem(`speedwayFiltro:${id}`, el.value);
+}
+
+// ---------- ALERTA DE SINAL (som + visual) ----------
+let signalSoundOn = localStorage.getItem('speedwaySignalSound') !== '0';
+let lastAlertedSignalKey = null;
+function playSignalBeep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.55);
+  }catch(e){ /* audio bloqueado pelo navegador, ignora */ }
+}
+function showSignalToast(msg){
+  const el = document.getElementById('signalToast');
+  if(!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(showSignalToast._t);
+  showSignalToast._t = setTimeout(()=> el.classList.remove('show'), 6000);
+}
+function triggerSignalAlert(signal){
+  const key = `${signal.baseKey}|${signal.pilots.join(',')}`;
+  if(key === lastAlertedSignalKey) return;
+  lastAlertedSignalKey = key;
+  const nomes = signal.pilots.map(p => pilotLabel(p)).join(' e ');
+  showSignalToast(`🔔 Novo sinal gerado: ${nomes}`);
+  if(signalSoundOn) playSignalBeep();
+  const box = document.getElementById('backtestPanelBox');
+  if(box){
+    box.classList.add('signalPulse');
+    setTimeout(()=> box.classList.remove('signalPulse'), 2000);
+  }
 }
 
 function winner(r){ return int(getField(r,['ganhador','GANHADOR','primeiro','PRIMEIRO','Primeiro','vencedor','VENCEDOR'])); }
@@ -753,7 +844,22 @@ function renderMosaic(rows, colors){
   });
   const totalZebras = filtered.filter(r => oddWinner(r) >= ZEBRA_ODD).length;
   html += `<td class="hourZebraCell">${totalZebras}</td>`;
-  html += '</tr></tbody>';
+  html += '</tr>';
+
+  // Linha extra: odd media do ganhador por minuto (minutos "mais gordos")
+  html += '<tr class="zebraRow oddRow"><th class="hour">ODD MÉDIA</th>';
+  let somaOddTotal = 0, qtdOddTotal = 0;
+  minutes.forEach(m=>{
+    const oddsDoMinuto = filtered.filter(r=>minVal(r)===m).map(r=>oddWinner(r)).filter(o=>o!==null);
+    const media = oddsDoMinuto.length ? oddsDoMinuto.reduce((a,b)=>a+b,0)/oddsDoMinuto.length : null;
+    if(media !== null){ somaOddTotal += oddsDoMinuto.reduce((a,b)=>a+b,0); qtdOddTotal += oddsDoMinuto.length; }
+    html += `<td data-min="${m}">${media !== null ? media.toFixed(2) : '-'}</td>`;
+  });
+  const mediaGeral = qtdOddTotal ? (somaOddTotal/qtdOddTotal) : null;
+  html += `<td class="hourZebraCell">${mediaGeral !== null ? mediaGeral.toFixed(2) : '-'}</td>`;
+  html += '</tr>';
+
+  html += '</tbody>';
   table.innerHTML = html;
   if(scroller) scroller.scrollLeft = previousScrollLeft;
   updateHighlights();
@@ -914,6 +1020,7 @@ function renderBacktest(rows, colors){
     if(bt.ocorrencias > 0 && bt.pilotos.length === 2){
       activeSignal = buildNewSignal(rows, sequence, bt);
       saveStoredSignal();
+      if(activeSignal) triggerSignalAlert(activeSignal);
     }else{
       el.innerHTML = `
         <div class="backtestBox">
@@ -951,18 +1058,26 @@ function renderBacktest(rows, colors){
   `;
 }
 
+const AMOSTRA_MINIMA = 5; // abaixo disso, ranking mostra aviso de amostra pequena
+
 function computePilotRanking(rows, horas){
   const filtered = filterByHoras(rows, horas);
   const stats = {1:0,2:0,3:0,4:0};
+  const podioStats = {1:0,2:0,3:0,4:0};
   let total = 0;
   filtered.forEach(r=>{
     const w = winner(r);
-    if([1,2,3,4].includes(w)){ stats[w]++; total++; }
+    const s2 = segundo(r);
+    if([1,2,3,4].includes(w)){ stats[w]++; total++; podioStats[w]++; }
+    if([1,2,3,4].includes(s2)) podioStats[s2]++;
   });
   return [1,2,3,4].map(p=>({
     piloto:p,
     vitorias:stats[p],
-    pct: total ? (stats[p]/total)*100 : 0
+    pct: total ? (stats[p]/total)*100 : 0,
+    podio:podioStats[p],
+    pctPodio: total ? (podioStats[p]/total)*100 : 0,
+    amostraBaixa: stats[p] < AMOSTRA_MINIMA
   })).sort((a,b)=> b.vitorias - a.vitorias || a.piloto - b.piloto);
 }
 
@@ -983,11 +1098,12 @@ function renderPilotRanking(rows, colors){
     const iconHtml = categoria === 'cor'
       ? `<span class="rankColorBox" style="background:${c};color:${cellTextColor(c)}">${item.piloto}</span>`
       : `<span class="rankDot" style="background:${c}"></span><span class="rankName">${pilotLabel(item.piloto)}</span>`;
+    const avisoHtml = item.amostraBaixa ? `<span class="lowSample" title="Amostra pequena: apenas ${item.vitorias} vitória(s) no período">⚠️</span>` : '';
 
     return `<div class="rankRow">
       <span class="rankPos">${pos}º</span>
       ${iconHtml}
-      <span class="rankStats"><strong>${item.vitorias}</strong> vitórias (${item.pct.toFixed(1)}%)</span>
+      <span class="rankStats">${avisoHtml}<strong>${item.vitorias}</strong> vitórias (${item.pct.toFixed(1)}%) · pódio <strong>${item.podio}</strong> (${item.pctPodio.toFixed(1)}%)</span>
     </div>`;
   }).join('');
 }
@@ -1014,7 +1130,8 @@ function computeOddsRanking(rows, horas){
     min: stats[p].min,
     max: stats[p].max,
     zebras: stats[p].zebras,
-    qtd: stats[p].qtd
+    qtd: stats[p].qtd,
+    amostraBaixa: stats[p].qtd < AMOSTRA_MINIMA
   })).sort((a,b)=> b.media - a.media);
 }
 
@@ -1032,12 +1149,13 @@ function renderOddsRanking(rows, colors){
     const c = colors[item.piloto];
     const pos = idx + 1;
     const faixa = item.qtd ? `${item.min.toFixed(2)} - ${item.max.toFixed(2)}` : '-';
+    const avisoHtml = item.amostraBaixa ? `<span class="lowSample" title="Amostra pequena: apenas ${item.qtd} vitória(s) com odd no período">⚠️</span>` : '';
 
     return `<div class="rankRow">
       <span class="rankPos">${pos}º</span>
       <span class="rankColorBox" style="background:${c};color:${cellTextColor(c)}">${item.piloto}</span>
       <span class="rankName">${pilotLabel(item.piloto)}</span>
-      <span class="rankStats">média <strong>${item.qtd ? item.media.toFixed(2) : '-'}</strong> · faixa ${faixa} · ${item.zebras} zebras</span>
+      <span class="rankStats">${avisoHtml}média <strong>${item.qtd ? item.media.toFixed(2) : '-'}</strong> · faixa ${faixa} · ${item.zebras} zebras</span>
     </div>`;
   }).join('');
 }
@@ -1055,6 +1173,72 @@ function filterByHoras(rows, horas){
     const t = new Date(r.start_time).getTime();
     return Number.isFinite(t) ? t >= cutoff : true;
   });
+}
+
+// ---------- COMPARAÇÃO ENTRE LIGAS ----------
+const COMPARE_CAMPS = ['Valley Arena', 'Ringway'];
+let compareData = {};
+let compareHorasFiltro = 24;
+
+function summarizeCampForCompare(rows, horas){
+  const filtered = filterByHoras(rows, horas);
+  const stats = {1:0,2:0,3:0,4:0};
+  let total = 0, zebras = 0, somaOdd = 0, qtdOdd = 0;
+  filtered.forEach(r=>{
+    const w = winner(r);
+    if([1,2,3,4].includes(w)){ stats[w]++; total++; }
+    const odd = oddWinner(r);
+    if(odd !== null){ somaOdd += odd; qtdOdd++; if(odd >= ZEBRA_ODD) zebras++; }
+  });
+  let favorito = null, favoritoVit = -1;
+  [1,2,3,4].forEach(p=>{ if(stats[p] > favoritoVit){ favoritoVit = stats[p]; favorito = p; } });
+  return {
+    total,
+    zebras,
+    taxaZebra: total ? (zebras/total)*100 : 0,
+    oddMedia: qtdOdd ? somaOdd/qtdOdd : null,
+    favorito,
+    favoritoVit,
+    favoritoPct: total ? (favoritoVit/total)*100 : 0
+  };
+}
+
+async function loadComparisonData(){
+  try{
+    const resultados = await Promise.all(COMPARE_CAMPS.map(async camp=>{
+      const url = `${SPEEDWAY_API_BASE}${encodeURIComponent(camp)}?_=${Date.now()}`;
+      const res = await fetch(url, {cache:'no-store'});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return sortRows(normalizePayload(data).map(mapSpeedwayRow));
+    }));
+    COMPARE_CAMPS.forEach((camp, idx)=>{ compareData[camp] = resultados[idx]; });
+    renderComparison();
+  }catch(e){
+    // Não deixamos o erro de comparação atrapalhar o painel principal
+    console.warn('Falha ao carregar comparação de ligas:', e.message);
+  }
+}
+
+function renderComparison(){
+  const el = document.getElementById('compareGrid');
+  if(!el) return;
+  const paletteMap = { 'Valley Arena': palettes.betano_valley, 'Ringway': palettes.betano_ringway };
+
+  el.innerHTML = COMPARE_CAMPS.map(camp=>{
+    const rows = compareData[camp];
+    if(!rows) return `<div class="compareCol"><div class="comparePanelTitle">${camp}</div><div class="btMuted">Carregando...</div></div>`;
+    const s2 = summarizeCampForCompare(rows, compareHorasFiltro);
+    const colors = paletteMap[camp].colors;
+    const c = colors[s2.favorito] || '#333';
+    return `<div class="compareCol">
+      <div class="comparePanelTitle">${camp}</div>
+      <div class="compareStat"><span>Corridas no período</span><strong>${s2.total}</strong></div>
+      <div class="compareStat"><span>Zebras (odd ≥ ${ZEBRA_ODD.toFixed(2)})</span><strong>${s2.zebras} (${s2.taxaZebra.toFixed(1)}%)</strong></div>
+      <div class="compareStat"><span>Odd média do ganhador</span><strong>${s2.oddMedia !== null ? s2.oddMedia.toFixed(2) : '-'}</strong></div>
+      <div class="compareStat"><span>Favorito</span><strong style="color:${c}">${s2.favorito ? pilotLabel(s2.favorito) : '-'} ${s2.favorito ? `(${s2.favoritoPct.toFixed(1)}%)` : ''}</strong></div>
+    </div>`;
+  }).join('');
 }
 
 // Redesenha tudo a partir do que já está em memória (allRows) — sem buscar na API de novo
@@ -1115,7 +1299,10 @@ document.querySelectorAll('.gameBtn').forEach(btn => {
     loadData();
   };
 });
-['fResultado','fPar','fCor','fOdds','fSequencia'].forEach(id=>document.getElementById(id).addEventListener('change',()=>renderAll()));
+['fResultado','fPar','fCor','fOdds','fSequencia'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{
+  if(PERSISTED_FILTER_IDS.includes(id)) persistFilter(id);
+  renderAll();
+}));
 
 document.getElementById('fChartPoints').addEventListener('change', e => {
   chartNumPoints = parseInt(e.target.value, 10) || 20;
@@ -1131,6 +1318,7 @@ document.getElementById('fHoras').addEventListener('change', e => {
 });
 
 document.getElementById('fRankingCategoria').addEventListener('change', () => {
+  persistFilter('fRankingCategoria');
   const palette = getActivePalette();
   renderPilotRanking(allRows, palette.colors);
 });
@@ -1169,7 +1357,21 @@ document.getElementById('btnToggleVideo').addEventListener('click', () => {
 });
 setVideoVisivel(localStorage.getItem('speedwayVideoVisivel') !== '0'); // visível por padrão
 
+document.getElementById('fCompareHoras').addEventListener('change', e => {
+  compareHorasFiltro = parseInt(e.target.value, 10) || 24;
+  renderComparison();
+});
+
+document.getElementById('btnToggleSignalSound').addEventListener('click', () => {
+  signalSoundOn = !signalSoundOn;
+  localStorage.setItem('speedwaySignalSound', signalSoundOn ? '1' : '0');
+  document.getElementById('btnToggleSignalSound').textContent = `🔔 Som: ${signalSoundOn ? 'ON' : 'OFF'}`;
+});
+document.getElementById('btnToggleSignalSound').textContent = `🔔 Som: ${signalSoundOn ? 'ON' : 'OFF'}`;
+
+loadPersistedFilters();
 loadData(); setInterval(loadData, UPDATE_MS);
+loadComparisonData(); setInterval(loadComparisonData, 30000);
 </script>
 
 <script>
