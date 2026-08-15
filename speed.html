@@ -833,7 +833,15 @@ function renderMosaic(rows, colors){
   const filtered = applyFilters(rows);
   const minutes = [...new Set(filtered.map(minVal))].sort((a,b)=>parseInt(a)-parseInt(b));
   if(minutes.length === 0){ table.innerHTML = '<thead><tr><th class="hour">HORA</th></tr></thead><tbody><tr><th class="hour">-</th></tr></tbody>'; return; }
-  const hourKeys = [...new Set(filtered.map(r=>`${dateKey(r)}|${hourVal(r)}`))].sort((a,b)=>b.localeCompare(a)).slice(0,12);
+  const hourKeysAll = [...new Set(filtered.map(r=>`${dateKey(r)}|${hourVal(r)}`))].sort((a,b)=>b.localeCompare(a));
+  // A hora mais antiga pode ter sido cortada no meio pelo filtro de tempo (cutoff em ms, não alinhado à hora cheia).
+  // Se ela tiver menos corridas que os minutos observados no período, está incompleta — remove pra não exibir linha pela metade.
+  if(hourKeysAll.length){
+    const hkMaisAntiga = hourKeysAll[hourKeysAll.length - 1];
+    const qtdMaisAntiga = filtered.filter(r=>`${dateKey(r)}|${hourVal(r)}` === hkMaisAntiga).length;
+    if(qtdMaisAntiga < minutes.length) hourKeysAll.pop();
+  }
+  const hourKeys = hourKeysAll.slice(0,12);
   const map = new Map();
   filtered.forEach(r=> map.set(`${dateKey(r)}|${hourVal(r)}|${minVal(r)}`, r));
   let html = '<thead><tr><th class="hour">HORA</th>' + minutes.map(m=>`<th data-min="${m}">${m}</th>`).join('') + '<th class="hourZebra">ZEBRAS</th></tr></thead><tbody>';
