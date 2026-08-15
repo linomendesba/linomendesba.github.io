@@ -739,26 +739,39 @@ function renderCards(rows, colors){
   }
 }
 function renderChart(rows, colors){
-  const seq = rows.slice(0,chartNumPoints).reverse();
+  // Janela deslizante sobre TODO o histórico disponível (não recomeça do zero a cada atualização) —
+  // pra cada corrida, olha as últimas `chartNumPoints` corridas terminando nela e calcula a % de cada piloto ali dentro.
+  // Isso evita o salto estranho no início da linha e deixa a curva estável entre uma atualização e outra.
+  const windowSize = chartNumPoints;
+  const chron = [...rows].reverse(); // do mais antigo pro mais recente
+  const winners = chron.map(winner);
 
-  const acumulado = {1:0,2:0,3:0,4:0};
-  const data = {1:[],2:[],3:[],4:[]};
-
-  seq.forEach((r, index)=>{
-    const w = winner(r);
-
-    if([1,2,3,4].includes(w)){
-      acumulado[w]++;
-    }
-
-    const total = index + 1;
-
+  const rolling = {1:[],2:[],3:[],4:[]};
+  for(let i=0;i<winners.length;i++){
+    const inicio = Math.max(0, i - windowSize + 1);
+    const janela = winners.slice(inicio, i+1);
+    const total = janela.length || 1;
     for(let p=1;p<=4;p++){
-      data[p].push(((acumulado[p] / total) * 100).toFixed(2));
+      const cnt = janela.filter(w=>w===p).length;
+      rolling[p].push(+((cnt/total)*100).toFixed(2));
     }
-  });
+  }
+
+  const seq = chron.slice(-windowSize);
+  const startIdx = chron.length - seq.length;
+  const data = {1:[],2:[],3:[],4:[]};
+  for(let p=1;p<=4;p++) data[p] = rolling[p].slice(startIdx);
 
   const labels = seq.map(r => minVal(r));
+
+  // eixo Y dinâmico focado na faixa real dos valores (a linha fica mais legível em vez de achatada em 0-100 fixo)
+  const allVals = [1,2,3,4].flatMap(p=>data[p]);
+  const rawMin = allVals.length ? Math.min(...allVals) : 0;
+  const rawMax = allVals.length ? Math.max(...allVals) : 100;
+  const pad = Math.max(3, Math.round((rawMax-rawMin)*0.2));
+  const yMin = Math.max(0, Math.floor(rawMin-pad));
+  const yMax = Math.min(100, Math.ceil(rawMax+pad));
+  const ptRadius = windowSize<=30?4:windowSize<=60?3:windowSize<=120?2:windowSize<=240?1:0;
 
   const cfg = {
     type:'line',
@@ -770,16 +783,16 @@ function renderChart(rows, colors){
         borderColor:colors[p],
         backgroundColor:colors[p],
         borderWidth:2,
-        pointRadius:4,
-        pointHoverRadius:7,
-        tension:0.25,
+        pointRadius:ptRadius,
+        pointHoverRadius:ptRadius+3,
+        tension:0.35,
         fill:false
       }))
     },
     options:{
       responsive:true,
       maintainAspectRatio:false,
-      animation:false,
+      animation:{duration:500, easing:'easeOutQuart'},
       plugins:{
         legend:{
           labels:{
@@ -806,8 +819,8 @@ function renderChart(rows, colors){
           grid:{color:'#2f3945'}
         },
         y:{
-          min:0,
-          max:100,
+          min:yMin,
+          max:yMax,
           ticks:{
             color:'#d7dbe0',
             callback:value => value + '%'
