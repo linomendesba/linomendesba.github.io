@@ -458,6 +458,7 @@ const LIVE_VIDEO_URLS = {
 };
 function currentVideoUrl(){ return LIVE_VIDEO_URLS[currentCamp] || LIVE_VIDEO_URLS['Valley Arena']; }
 let chart;
+let chartSeq = []; // guarda a sequência de corridas exibida no gráfico, usada pelo tooltip (evita closure presa em dados antigos)
 let allRows = [];
 let activeSignal = null;
 
@@ -769,6 +770,7 @@ function renderChart(rows, colors){
   for(let p=1;p<=4;p++) data[p] = rolling[p].slice(startIdx);
 
   const labels = seq.map(r => minVal(r));
+  chartSeq = seq;
 
   // eixo Y dinâmico focado na faixa real dos valores (a linha fica mais legível em vez de achatada em 0-100 fixo)
   const allVals = [1,2,3,4].flatMap(p=>data[p]);
@@ -810,7 +812,7 @@ function renderChart(rows, colors){
           callbacks:{
             title:(items)=>{
               const idx = items[0].dataIndex;
-              const r = seq[idx];
+              const r = chartSeq[idx];
               return `${dateKey(r)} ${hourVal(r)}:${minVal(r)}`;
             },
             label:(context)=>{
@@ -838,8 +840,21 @@ function renderChart(rows, colors){
   };
 
   if(chart){
-    chart.data = cfg.data;
-    chart.options = cfg.options;
+    // Atualiza os dados NOS MESMOS objetos/arrays já existentes, em vez de substituir tudo por objetos novos.
+    // Trocar chart.data/chart.options inteiros faz o Chart.js perder a referência dos datasets antigos e
+    // redesenhar/animar como se fosse um gráfico novo — daí o "piscar". Mutando in-place, ele só anima a
+    // diferença real entre um ponto e outro.
+    chart.data.labels = labels;
+    chart.data.datasets.forEach((ds,i)=>{
+      const p = i+1;
+      ds.data = data[p];
+      ds.pointRadius = ptRadius;
+      ds.pointHoverRadius = ptRadius+3;
+      ds.borderColor = colors[p];
+      ds.backgroundColor = colors[p];
+    });
+    chart.options.scales.y.min = yMin;
+    chart.options.scales.y.max = yMax;
     chart.update();
   }else{
     chart = new Chart(document.getElementById('chart'), cfg);
