@@ -1,4 +1,3 @@
-
 const minutosFixos = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
@@ -40,8 +39,8 @@ const LABEL_CURTO_MERCADO = {
 };
 const MERCADOS_EXTRAS_MAX = 5;
 
-const COR_GREEN_PADRAO = "#018b06";
-const COR_RED_PADRAO   = "#be0e02";
+const COR_GREEN_PADRAO = "#007004";
+const COR_RED_PADRAO   = "#980b01";
 
 const CORES_PLACAR_FT = ["#A855F7","#F59E0B","#3B82F6","#EC4899","#06B6D4","#F97316"];
 const CORES_PLACAR_HT = ["#C084FC","#FCD34D","#67E8F9","#F9A8D4","#A5B4FC","#6EE7B7"];
@@ -916,20 +915,33 @@ function garantirCheckboxQuadrantes() {
     .th-icon { display:inline-flex; align-items:center; justify-content:center; vertical-align:middle; }
     .th-icon svg { display:block; }
 
+    /* ── Painel "Cores das Células" — no mesmo padrão visual dos seletores do topo ── */
     #painel-cores {
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 6px 2px;
     }
-    .pc-title { font-size:0.75em; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:0.4px; }
-    #painel-cores label { display:flex; align-items:center; gap:5px; font-size:0.75em; color:#9ca3af; cursor:pointer; }
-    #painel-cores input[type="color"] { width:24px; height:18px; border:none; border-radius:3px; cursor:pointer; padding:0; background:none; }
+    .pc-title {
+      font-size:0.72em; font-weight:700; color:#8b94a3;
+      text-transform:uppercase; letter-spacing:0.5px;
+      margin-right:2px; white-space:nowrap;
+    }
+    /* Base compartilhada por todos os "controles" do painel — mesma altura,
+       mesmo raio e mesma paleta neutra usada nos <select> do topo da página */
+    #painel-cores label,
     .btn-reset-cores {
-      display:inline-flex; align-items:center; gap:4px;
-      padding:2px 9px; background:rgba(255,255,255,0.05);
-      border:1px solid rgba(255,255,255,0.1); border-radius:4px;
-      cursor:pointer; color:#9ca3af; font-size:0.75em; font-weight:500;
-      transition:background 0.15s; white-space:nowrap;
+      display:inline-flex; align-items:center; gap:6px;
+      height:30px; padding:0 11px; box-sizing:border-box;
+      background:#1c212f; border:1px solid rgba(255,255,255,0.09);
+      border-radius:7px; font-size:0.76em; font-weight:600; color:#9ca3af;
+      cursor:pointer; white-space:nowrap;
+      transition:background 0.15s, border-color 0.15s, color 0.15s;
     }
-    .btn-reset-cores:hover { background:rgba(255,255,255,0.09); color:#d1d5db; }
+    #painel-cores label:hover,
+    .btn-reset-cores:hover { background:#242b3d; border-color:rgba(255,255,255,0.18); color:#d1d5db; }
+    #painel-cores input[type="color"] {
+      width:18px; height:18px; border:1px solid rgba(255,255,255,0.18);
+      border-radius:5px; cursor:pointer; padding:0; background:none;
+    }
 
     @keyframes streakPulse {
       0%   { box-shadow: 0 0 0 0px rgba(255,220,0,0),   inset 0 0 0 0px rgba(255,220,0,0); }
@@ -944,23 +956,32 @@ function garantirCheckboxQuadrantes() {
       outline-offset: -2px;
     }
     .alerta-toggle-label {
-      display: inline-flex; align-items: center; gap: 5px;
-      cursor: pointer; color: #9ca3af; font-size: 0.75em; font-weight: 500; user-select: none;
-      padding: 2px 7px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);
+      display: inline-flex; align-items: center; gap: 6px;
+      height:30px; padding: 0 11px; box-sizing:border-box;
+      cursor: pointer; color: #9ca3af; font-size: 0.76em; font-weight: 600; user-select: none;
+      border-radius: 7px; border: 1px solid rgba(255,255,255,0.09); background:#1c212f;
       transition: border-color 0.2s, color 0.2s, background 0.2s; letter-spacing: 0.2px; white-space: nowrap;
     }
-    .alerta-toggle-label:hover { border-color: rgba(255,220,0,0.3); color: #d4af37; background: rgba(255,220,0,0.05); }
-    .alerta-toggle-label input[type="checkbox"] { width: 11px; height: 11px; cursor: pointer; accent-color: #d4af37; flex-shrink: 0; }
-    .alerta-ativo { color: #d4af37 !important; font-weight: 600; border-color: rgba(212,175,55,0.45) !important; background: rgba(212,175,55,0.07) !important; }
+    .alerta-toggle-label:hover { border-color: rgba(255,220,0,0.3); color: #d4af37; background: rgba(255,220,0,0.08); }
+    .alerta-toggle-label input[type="checkbox"] { width: 12px; height: 12px; cursor: pointer; accent-color: #d4af37; flex-shrink: 0; }
+    .alerta-ativo { color: #d4af37 !important; font-weight: 700; border-color: rgba(212,175,55,0.45) !important; background: rgba(212,175,55,0.08) !important; }
 
+    /* Botão primário — mesmo tratamento (pill, borda e texto teal-green)
+       do botão "Marcar" do topo da página */
     .btn-aplicar-cores {
-      display:inline-flex; align-items:center; gap:4px;
-      padding:2px 10px; background:#14532d;
-      border:1px solid #16a34a; border-radius:4px;
-      cursor:pointer; color:#86efac; font-size:0.75em; font-weight:600;
-      transition:background 0.15s; white-space:nowrap;
+      display:inline-flex; align-items:center; gap:5px;
+      height:30px; padding:0 13px; box-sizing:border-box;
+      background:rgba(31,172,137,0.14);
+      border:1px solid #1fac89; border-radius:7px;
+      cursor:pointer; color:#4ade80; font-size:0.76em; font-weight:700;
+      transition:background 0.15s, color 0.15s, box-shadow 0.15s; white-space:nowrap;
     }
-    .btn-aplicar-cores:hover { background:#166534; color:#bbf7d0; }
+    .btn-aplicar-cores:hover {
+      background:rgba(31,172,137,0.26); color:#86efac;
+      box-shadow:0 0 0 1px rgba(31,172,137,0.4);
+    }
+    .btn-aplicar-cores:active { transform:translateY(1px); }
+    .btn-aplicar-cores svg { flex-shrink:0; }
 
     /* Top5: bolinha + brilho ciano no span do nome (funciona com e sem Ver Times) */
     .placar-futuro .time-casa.rk-top5-nome,
@@ -1139,7 +1160,7 @@ function garantirPainelCores() {
   }
   const el = document.createElement("div"); el.id = "painel-cores";
   el.innerHTML = `
-    <span class="pc-title">Cores das células</span>
+    <span class="pc-title">Cores das Células</span>
     <label>Cor Green<input type="color" id="input-cor-green" value="${Estado.corGreen}"></label>
     <label>Cor Red<input type="color" id="input-cor-red" value="${Estado.corRed}"></label>
     <button class="btn-aplicar-cores" id="btn-aplicar-cores">
@@ -1149,7 +1170,7 @@ function garantirPainelCores() {
     <button class="btn-reset-cores" id="btn-reset-cores">${SVG_ICONS.reset} Resetar padrão</button>
     <label class="alerta-toggle-label" id="lbl-streak-alerta">
       <input type="checkbox" id="cb-streak-alerta">
-      Alerta máx. consecutivo
+      Máx. consecutiva
     </label>
     <label class="alerta-toggle-label" id="lbl-stats-laterais">
       <input type="checkbox" id="cb-stats-laterais" checked>
