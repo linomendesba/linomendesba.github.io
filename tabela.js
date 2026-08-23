@@ -73,6 +73,7 @@ const Estado = {
   timesSelecionados:    [],
   oddsSelecionadas:     [],
   mercadosExtras:       [], // [{mercado, mostrarOdd, destacar}]
+  corDestaqueExtra:     "#93C5FD",
   selectedChaves:       [],
   colunasSelecionadas:  [],
   _ultimoHashDados:       null,
@@ -106,6 +107,7 @@ const Estado = {
     this.colunasSelecionadas  = JSON.parse(localStorage.getItem(this._colunasKey()))  || [];
     this.corGreen = localStorage.getItem("corGreen") || COR_GREEN_PADRAO;
     this.corRed   = localStorage.getItem("corRed")   || COR_RED_PADRAO;
+    this.corDestaqueExtra = localStorage.getItem("corDestaqueExtra") || this.corDestaqueExtra;
     this.placarHTSelecionados = this.placarHTSelecionados
       .map(v => v.replace(/^(__ht__|_ht_|ht:)/i, "").trim())
       .filter(v => v.length > 0);
@@ -123,6 +125,7 @@ const Estado = {
     localStorage.setItem(this._colunasKey(),  JSON.stringify(this.colunasSelecionadas));
     localStorage.setItem("corGreen", this.corGreen);
     localStorage.setItem("corRed",   this.corRed);
+    localStorage.setItem("corDestaqueExtra", this.corDestaqueExtra);
     const elH = document.querySelector("#seletorHoras");
     if (elH) localStorage.setItem(this._horasKey(), elH.value);
   },
@@ -352,13 +355,14 @@ function aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB) {
  try {
   const ativos = Estado.mercadosExtras.filter(m => m.destacar);
   cel.classList.remove("destaque-extra");
+  cel.style.removeProperty("--destaque-extra-color");
   cel.querySelectorAll(".destaque-extra-dot").forEach(d => d.remove());
   if (!ativos.length) return;
+  const cor = Estado.corDestaqueExtra || "#93C5FD";
   let algumBateu = false;
   ativos.forEach(item => {
     if (verificarAcerto(item.mercado, rA, rB, htA, htB)) {
       algumBateu = true;
-      const cor = corMercadoExtra(item.mercado);
       const dot = document.createElement("span");
       dot.className = "destaque-extra-dot";
       dot.title = LABEL_CURTO_MERCADO[item.mercado] || item.mercado;
@@ -368,8 +372,22 @@ function aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB) {
       cel.appendChild(dot);
     }
   });
-  if (algumBateu) cel.classList.add("destaque-extra");
+  if (algumBateu) {
+    cel.classList.add("destaque-extra");
+    cel.style.setProperty("--destaque-extra-color", cor);
+  }
  } catch (e) { console.error("Erro destaque mercados extras:", e); }
+}
+
+// ─── MERCADOS EXTRAS — odds extras no tooltip ────────────────────────────────
+function tooltipMercadosExtrasHTML(oddsObj) {
+  if (!Estado.mercadosExtras.length) return "";
+  return Estado.mercadosExtras.filter(m => m.mostrarOdd).map(item => {
+    const val = getOddValue(oddsObj, item.mercado);
+    if (!val || val === "N/A") return "";
+    const label = LABEL_CURTO_MERCADO[item.mercado] || item.mercado;
+    return `<span class="odd-tooltip odd-tooltip-extra">${label} @${val}</span>`;
+  }).join("");
 }
 
 let qdNumPreviousHours = 1;
@@ -1872,7 +1890,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
     const oddTip=getOddValue(oddsMatch,selRes);
     const tooltip=document.createElement("span"); tooltip.className="tooltip";
-    tooltip.innerHTML=`<span class="times">${dado.time_a} vs ${dado.time_b}</span><span class="placares">${placarFT} <span class="placarHT">(${placarHT})</span></span>${oddTip&&oddTip!=="N/A"?`<span class="odd-tooltip">@${oddTip}</span>`:""}`;
+    tooltip.innerHTML=`<span class="times">${dado.time_a} vs ${dado.time_b}</span><span class="placares">${placarFT} <span class="placarHT">(${placarHT})</span></span>${oddTip&&oddTip!=="N/A"?`<span class="odd-tooltip">@${oddTip}</span>`:""}${tooltipMercadosExtrasHTML(oddsMatch)}`;
     placar.appendChild(tooltip);
     cel.appendChild(placar);
     processedMatches.add(mk);
@@ -1982,7 +2000,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     }
 
     const tooltip=document.createElement("span"); tooltip.className="tooltip";
-    tooltip.innerHTML=`<span class="times">${jogo.team_home} vs ${jogo.team_visit}</span>${mostrarOdds&&oddVal&&oddVal!=="N/A"?`<span class="odd-tooltip">@${oddVal}</span>`:""}`;
+    tooltip.innerHTML=`<span class="times">${jogo.team_home} vs ${jogo.team_visit}</span>${mostrarOdds&&oddVal&&oddVal!=="N/A"?`<span class="odd-tooltip">@${oddVal}</span>`:""}${tooltipMercadosExtrasHTML(oddsP)}`;
     placar.appendChild(tooltip);
     cel.appendChild(placar);
     processedMatches.add(mk);
@@ -2325,8 +2343,9 @@ function sincronizarEstiloBtnMercadosExtras() {
  try {
   const styleTag = document.createElement("style");
   styleTag.textContent = `
-    .destaque-extra { box-shadow: inset 0 0 0 2px rgba(255,255,255,0.55) !important; }
+    .destaque-extra { box-shadow: inset 0 0 0 2px var(--destaque-extra-color, rgba(255,255,255,0.55)) !important; }
     #painelMercadosExtras select { width:100%; }
+    .odd-tooltip-extra { color:#cbd5e1 !important; font-weight:600; }
   `;
   document.head.appendChild(styleTag);
 
@@ -2335,7 +2354,17 @@ function sincronizarEstiloBtnMercadosExtras() {
   const select   = document.getElementById("selectNovoMercadoExtra");
   const lista    = document.getElementById("listaMercadosExtras");
   const seletorResultado = document.getElementById("seletorResultado");
+  const corInput = document.getElementById("corDestaqueExtraInput");
   if (!btn || !painel || !select || !lista) return;
+
+  if (corInput) {
+    corInput.value = Estado.corDestaqueExtra || "#93C5FD";
+    corInput.addEventListener("input", () => {
+      Estado.corDestaqueExtra = corInput.value;
+      Estado.salvar();
+      renderizarRapido();
+    });
+  }
 
   sincronizarEstiloBtnMercadosExtras();
   window.addEventListener("resize", sincronizarEstiloBtnMercadosExtras);
