@@ -967,14 +967,17 @@ function garantirCheckboxQuadrantes() {
     .btn-aplicar-cores {
       display:inline-flex; align-items:center; gap:5px;
       height:30px; padding:0 13px; box-sizing:border-box;
-      background:#16a34a;
-      border:1px solid #16a34a; border-radius:7px;
-      cursor:pointer; color:#fff; font-size:0.76em; font-weight:700;
+      background: #20283b;
+      /* border: 1px solid #16a34a; */
+      border-radius: 7px;
+      cursor: pointer;
+      color: #8ba3af;
+      font-size:0.76em; font-weight:700;
       transition:background 0.15s, border-color 0.15s, box-shadow 0.15s; white-space:nowrap;
     }
     .btn-aplicar-cores:hover {
-      background:#15803d; border-color:#15803d;
-      box-shadow:0 0 0 1px rgba(22,163,74,0.4);
+      background:#262f45;
+      box-shadow:0 0 0 1px rgba(255,255,255,0.08);
     }
     .btn-aplicar-cores:active { transform:translateY(1px); }
     .btn-aplicar-cores svg { flex-shrink:0; }
@@ -1018,7 +1021,7 @@ function garantirCheckboxQuadrantes() {
     .col-direita-pct   { width:34px !important; min-width:34px !important; max-width:38px !important; padding:2px 3px !important; font-size:0.78em !important; text-align:center; }
     .col-direita-media { width:30px !important; min-width:30px !important; max-width:34px !important; padding:2px 3px !important; font-size:0.74em !important; text-align:center; color:#93c5fd; }
     .col-direita-th    { font-size:0.7em !important; padding:2px 2px !important; }
-    .media-goals-col   { color:#93c5fd; }
+    .media-goals-col   { color:#93c5fd; font-size:0.74em; font-weight:600; }
     /* Header rows das stats (%, gols, acertos por coluna) mais baixos */
     #linhaPercentual th, #linhaTotalGols th, #linhaMediaGolsColuna th, #linhaAcertosMercado th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
     /* ── ZONA GREEN: Intensidade por coluna ── */
