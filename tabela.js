@@ -392,6 +392,7 @@ function tooltipMercadosExtrasHTML(oddsObj) {
 
 let qdNumPreviousHours = 1;
 let qdDadosCache = null; // cache de dados para não buscar duas vezes
+let _ultimaFreqOdds = new Map(); // cache das odds contadas no último render (mercado selecionado)
 
 // ─── Obtém hora e data do registro mais recente nos dados ─────────────────────
 function qdGetHoraAtual(resultados) {
@@ -873,6 +874,15 @@ function garantirCheckboxQuadrantes() {
 
     #coluna-stats { display:flex; flex-wrap:wrap; gap:5px; padding:5px 8px; margin-bottom:4px; }
     #coluna-stats:empty { display:none; }
+
+    #melhores-odds-bar { display:none; align-items:center; flex-wrap:wrap; gap:8px; padding:6px 8px; margin-bottom:6px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:8px; }
+    .mo-title { display:inline-flex; align-items:center; gap:5px; font-size:0.75em; font-weight:700; color:#8b94a3; text-transform:uppercase; letter-spacing:0.4px; white-space:nowrap; }
+    .mo-vazio { font-size:0.78em; color:#6b7280; }
+    .mo-tag { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:3px 9px; font-size:0.78em; }
+    .mo-odd { font-weight:700; color:#f0c040; }
+    .mo-bar { width:40px; height:4px; border-radius:3px; background:rgba(255,255,255,0.1); overflow:hidden; }
+    .mo-bar-fill { display:block; height:100%; background:#4ade80; border-radius:3px; }
+    .mo-count { color:#9ca3af; font-weight:600; }
     .col-stat-tag { display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,0.08); border-radius:8px; padding:3px 10px; font-size:0.76em; white-space:nowrap; color:#fff; }
     .col-stat-tag .col-min { font-weight:bold; color:#ccc; }
     .col-stat-tag .col-g { color:#4cff55; font-weight:bold; }
@@ -1189,6 +1199,10 @@ function garantirPainelCores() {
       <input type="checkbox" id="cb-zona-green-toggle">
       Zona Green
     </label>
+    <label class="alerta-toggle-label" id="lbl-melhores-odds">
+      <input type="checkbox" id="cb-melhores-odds">
+      Melhores Odds
+    </label>
   `;
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
   el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
@@ -1229,6 +1243,21 @@ function garantirPainelCores() {
       zgLbl?.classList.toggle("alerta-ativo", this.checked);
       if (this.checked) aplicarZonaGreen();
       else document.querySelectorAll(".zg-low,.zg-mid,.zg-high,.zg-hot").forEach(el => el.classList.remove("zg-low","zg-mid","zg-high","zg-hot"));
+    });
+  }
+
+  // Checkbox Melhores Odds
+  const moCb = el.querySelector("#cb-melhores-odds");
+  const moLbl = el.querySelector("#lbl-melhores-odds");
+  if (moCb) {
+    const moOn = localStorage.getItem("melhoresOddsAtivo") === "1"; // padrão OFF
+    moCb.checked = moOn;
+    moLbl?.classList.toggle("alerta-ativo", moOn);
+    atualizarMelhoresOdds(_ultimaFreqOdds);
+    moCb.addEventListener("change", function() {
+      localStorage.setItem("melhoresOddsAtivo", this.checked ? "1" : "0");
+      moLbl?.classList.toggle("alerta-ativo", this.checked);
+      atualizarMelhoresOdds(_ultimaFreqOdds);
     });
   }
 
@@ -1876,6 +1905,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const totalGolsPorColuna    = Array(minutosFixos.length).fill(0);
   const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
   const processedMatches      = new Set();
+  const freqOddsMercado       = new Map(); // contagem de odds do mercado selecionado (para "Melhores Odds")
 
   dados.forEach(dado => {
     const ds=getDateStr(dado.data), chave=`${ds}-${dado.hora}`, linha=mapeamentoChaveLinha[chave];
@@ -1905,6 +1935,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
     placar.appendChild(placarTexto);
 
     const oddsMatch=findOddsNoIndex(oddsIndex,dado);
+    const ovMercado=getOddValue(oddsMatch,selRes);
+    if(ovMercado && ovMercado!=="N/A") freqOddsMercado.set(ovMercado,(freqOddsMercado.get(ovMercado)||0)+1);
     if(mostrarOdds){
       const ov=getOddValue(oddsMatch,selRes);
       const oel=document.createElement("div"); oel.className="odds"; oel.textContent=`@${ov}`;
@@ -2072,6 +2104,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
   document.getElementById("mediaGolsHora").textContent=`Médias: ${statsEl.mediaGolsHora}`;
 
   criarOuObterPainel(); aplicarHighlights(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
+  _ultimaFreqOdds = freqOddsMercado;
+  atualizarMelhoresOdds(freqOddsMercado);
   garantirPainelCores(); sincronizarPainelCores();
   atualizarCheckboxStreak(); calcularStreakMaximo();
   iniciarObserverStreak();
@@ -2228,6 +2262,42 @@ function aplicarZonaGreen() {
       if (cel.getAttribute("data-resultado")) cel.classList.add(zgClass);
     });
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MELHORES ODDS — Top 5 odds mais frequentes no mercado selecionado
+// ═══════════════════════════════════════════════════════════════════════════════
+function garantirMelhoresOddsBar() {
+  let el = document.getElementById("melhores-odds-bar");
+  if (el) return el;
+  el = document.createElement("div");
+  el.id = "melhores-odds-bar";
+  const tabela = document.getElementById("tabelaResultados");
+  if (tabela && tabela.parentNode) tabela.parentNode.insertBefore(el, tabela);
+  else document.body.appendChild(el);
+  return el;
+}
+
+function atualizarMelhoresOdds(freqMap) {
+  const el = garantirMelhoresOddsBar();
+  const ativo = localStorage.getItem("melhoresOddsAtivo") === "1";
+  if (!ativo) { el.style.display = "none"; el.innerHTML = ""; return; }
+
+  const entradas = Array.from((freqMap || new Map()).entries())
+    .sort((a, b) => b[1] - a[1] || parseFloat(a[0]) - parseFloat(b[0]))
+    .slice(0, 5);
+
+  el.style.display = "flex";
+  if (entradas.length === 0) {
+    el.innerHTML = `<span class="mo-title">${SVG_ICONS.trend || ""} Melhores Odds</span><span class="mo-vazio">Sem dados para este mercado</span>`;
+    return;
+  }
+  const maiorContagem = entradas[0][1];
+  const tagsHtml = entradas.map(([odd, count]) => {
+    const pct = maiorContagem > 0 ? Math.round((count / maiorContagem) * 100) : 0;
+    return `<span class="mo-tag"><span class="mo-odd">@${odd}</span><span class="mo-bar"><span class="mo-bar-fill" style="width:${pct}%"></span></span><span class="mo-count">${count}×</span></span>`;
+  }).join("");
+  el.innerHTML = `<span class="mo-title">${SVG_ICONS.trend || ""} Melhores Odds</span>${tagsHtml}`;
 }
 
 // ─── RANKING TOP5 INTERNO ─────────────────────────────────────────────────────
