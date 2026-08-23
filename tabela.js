@@ -324,6 +324,7 @@ function renderizarPainelMercadosExtras() {
 
 // ─── MERCADOS EXTRAS — badges de odd na célula ───────────────────────────────
 function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
+ try {
   if (!Estado.mercadosExtras.length) return;
   Estado.mercadosExtras.forEach(item => {
     if (!item.mostrarOdd) return;
@@ -337,10 +338,12 @@ function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
     b.textContent = `${LABEL_CURTO_MERCADO[item.mercado] || item.mercado} @${val}`;
     placarEl.appendChild(b);
   });
+ } catch (e) { console.error("Erro badges mercados extras:", e); }
 }
 
 // ─── MERCADOS EXTRAS — destaque de 2º mercado na célula ──────────────────────
 function aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB) {
+ try {
   const ativos = Estado.mercadosExtras.filter(m => m.destacar);
   cel.classList.remove("destaque-extra");
   cel.querySelectorAll(".destaque-extra-dot").forEach(d => d.remove());
@@ -360,6 +363,7 @@ function aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB) {
     }
   });
   if (algumBateu) cel.classList.add("destaque-extra");
+ } catch (e) { console.error("Erro destaque mercados extras:", e); }
 }
 
 let qdNumPreviousHours = 1;
@@ -2293,6 +2297,7 @@ if(_mo){
 
 // ─── MERCADOS EXTRAS — inicialização da UI (popover) ─────────────────────────
 (function initMercadosExtrasUI() {
+ try {
   const styleTag = document.createElement("style");
   styleTag.textContent = `
     .destaque-extra { box-shadow: inset 0 0 0 2px rgba(255,255,255,0.55) !important; }
@@ -2339,4 +2344,7 @@ if(_mo){
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
+ } catch (e) {
+   console.error("Erro ao iniciar popover de mercados extras:", e);
+ }
 })();
