@@ -355,10 +355,8 @@ function aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB) {
  try {
   const ativos = Estado.mercadosExtras.filter(m => m.destacar);
   cel.classList.remove("destaque-extra");
-  cel.style.removeProperty("--destaque-extra-color");
   cel.querySelectorAll(".destaque-extra-dot").forEach(d => d.remove());
   if (!ativos.length) return;
-  const cor = Estado.corDestaqueExtra || "#93C5FD";
   let algumBateu = false;
   ativos.forEach(item => {
     if (verificarAcerto(item.mercado, rA, rB, htA, htB)) {
@@ -367,16 +365,18 @@ function aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB) {
       dot.className = "destaque-extra-dot";
       dot.title = LABEL_CURTO_MERCADO[item.mercado] || item.mercado;
       dot.style.cssText = `position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;
-        background:${cor};box-shadow:0 0 3px ${cor};`;
+        background:var(--destaque-extra-color, #93C5FD);box-shadow:0 0 3px var(--destaque-extra-color, #93C5FD);`;
       cel.style.position = "relative";
       cel.appendChild(dot);
     }
   });
-  if (algumBateu) {
-    cel.classList.add("destaque-extra");
-    cel.style.setProperty("--destaque-extra-color", cor);
-  }
+  if (algumBateu) cel.classList.add("destaque-extra");
  } catch (e) { console.error("Erro destaque mercados extras:", e); }
+}
+
+// ─── MERCADOS EXTRAS — aplica a cor de destaque globalmente (sem re-render) ──
+function aplicarCorDestaqueExtraGlobal() {
+  document.documentElement.style.setProperty("--destaque-extra-color", Estado.corDestaqueExtra || "#93C5FD");
 }
 
 // ─── MERCADOS EXTRAS — odds extras no tooltip ────────────────────────────────
@@ -2359,14 +2359,21 @@ function sincronizarEstiloBtnMercadosExtras() {
 
   if (corInput) {
     corInput.value = Estado.corDestaqueExtra || "#93C5FD";
+    // Enquanto arrasta no seletor: só atualiza a variável CSS (instantâneo, sem re-render)
     corInput.addEventListener("input", () => {
       Estado.corDestaqueExtra = corInput.value;
+      aplicarCorDestaqueExtraGlobal();
+    });
+    // Ao soltar/fechar o seletor: persiste e garante que tudo esteja sincronizado
+    corInput.addEventListener("change", () => {
+      Estado.corDestaqueExtra = corInput.value;
+      aplicarCorDestaqueExtraGlobal();
       Estado.salvar();
-      renderizarRapido();
     });
   }
 
   sincronizarEstiloBtnMercadosExtras();
+  aplicarCorDestaqueExtraGlobal();
   window.addEventListener("resize", sincronizarEstiloBtnMercadosExtras);
 
   renderizarPainelMercadosExtras();
