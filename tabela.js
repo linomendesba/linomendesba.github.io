@@ -54,6 +54,7 @@ const SVG_ICONS = {
   chart: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>`,
   trend: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/><polyline points="16,7 22,7 22,13"/></svg>`,
   reset: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1,4 1,10 7,10"/><path d="M3.51,15a9,9,0,1,0,.49-3.63"/></svg>`,
+  avg:   `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="14" width="3.5" height="7"/><rect x="10.25" y="8" width="3.5" height="13"/><rect x="17.5" y="4" width="3.5" height="17"/><line x1="2" y1="11" x2="22" y2="11" stroke-dasharray="2.5 2.5"/></svg>`,
 };
 
 // ─── HELPER: nome normalizado da liga atual ───────────────────────────────────
@@ -668,7 +669,7 @@ function qdRenderTabela(resultados) {
     for (let i = 0; i < blocosDeMinutos.length; i++) {
       trHtml += qdCreateBlocoThs(i, timeSlots);
     }
-    trHtml += `<th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th>`;
+    trHtml += `<th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th>`;
     trQD.innerHTML = trHtml;
 
     thead.insertBefore(trQD, thead.firstChild);
@@ -836,7 +837,8 @@ function garantirCheckboxQuadrantes() {
     #tabelaResultados.tem-coluna-selecionada td:first-child,
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(1),
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(2),
-    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(3) { filter: none; }
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(3),
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(4) { filter: none; }
 
     td.quadrant-border, th.quadrant-border { border-left: 3px solid rgba(255,255,255,0.35) !important; }
 
@@ -920,11 +922,6 @@ function garantirCheckboxQuadrantes() {
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
       padding: 6px 2px;
     }
-    .pc-title {
-      font-size:0.72em; font-weight:700; color:#8b94a3;
-      text-transform:uppercase; letter-spacing:0.5px;
-      margin-right:2px; white-space:nowrap;
-    }
     /* Base compartilhada por todos os "controles" do painel — mesma altura,
        mesmo raio e mesma paleta neutra usada nos <select> do topo da página */
     #painel-cores label,
@@ -966,19 +963,18 @@ function garantirCheckboxQuadrantes() {
     .alerta-toggle-label input[type="checkbox"] { width: 12px; height: 12px; cursor: pointer; accent-color: #d4af37; flex-shrink: 0; }
     .alerta-ativo { color: #d4af37 !important; font-weight: 700; border-color: rgba(212,175,55,0.45) !important; background: rgba(212,175,55,0.08) !important; }
 
-    /* Botão primário — mesmo tratamento (pill, borda e texto teal-green)
-       do botão "Marcar" do topo da página */
+    /* Botão primário — preenchimento sólido, se destaca claramente como ação de confirmação */
     .btn-aplicar-cores {
       display:inline-flex; align-items:center; gap:5px;
       height:30px; padding:0 13px; box-sizing:border-box;
-      background:rgba(31,172,137,0.14);
-      border:1px solid #1fac89; border-radius:7px;
-      cursor:pointer; color:#4ade80; font-size:0.76em; font-weight:700;
-      transition:background 0.15s, color 0.15s, box-shadow 0.15s; white-space:nowrap;
+      background:#16a34a;
+      border:1px solid #16a34a; border-radius:7px;
+      cursor:pointer; color:#fff; font-size:0.76em; font-weight:700;
+      transition:background 0.15s, border-color 0.15s, box-shadow 0.15s; white-space:nowrap;
     }
     .btn-aplicar-cores:hover {
-      background:rgba(31,172,137,0.26); color:#86efac;
-      box-shadow:0 0 0 1px rgba(31,172,137,0.4);
+      background:#15803d; border-color:#15803d;
+      box-shadow:0 0 0 1px rgba(22,163,74,0.4);
     }
     .btn-aplicar-cores:active { transform:translateY(1px); }
     .btn-aplicar-cores svg { flex-shrink:0; }
@@ -1020,9 +1016,11 @@ function garantirCheckboxQuadrantes() {
     /* Colunas direitas (gols/acertos/%) — mais finas */
     .col-direita-stats { width:22px !important; min-width:22px !important; max-width:26px !important; padding:2px 3px !important; font-size:0.78em !important; text-align:center; }
     .col-direita-pct   { width:34px !important; min-width:34px !important; max-width:38px !important; padding:2px 3px !important; font-size:0.78em !important; text-align:center; }
+    .col-direita-media { width:30px !important; min-width:30px !important; max-width:34px !important; padding:2px 3px !important; font-size:0.74em !important; text-align:center; color:#93c5fd; }
     .col-direita-th    { font-size:0.7em !important; padding:2px 2px !important; }
+    .media-goals-col   { color:#93c5fd; }
     /* Header rows das stats (%, gols, acertos por coluna) mais baixos */
-    #linhaPercentual th, #linhaTotalGols th, #linhaAcertosMercado th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
+    #linhaPercentual th, #linhaTotalGols th, #linhaMediaGolsColuna th, #linhaAcertosMercado th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
     /* ── ZONA GREEN: Intensidade por coluna ── */
     td[data-resultado="acerto"].zg-low  { filter: brightness(0.55) saturate(0.7); }
     td[data-resultado="acerto"].zg-mid  { filter: brightness(0.8) saturate(0.9); }
@@ -1036,18 +1034,23 @@ function garantirCheckboxQuadrantes() {
     /* Ocultar colunas direitas quando checkbox desativado */
     .stats-laterais-ocultas .col-direita-stats,
     .stats-laterais-ocultas .col-direita-pct,
+    .stats-laterais-ocultas .col-direita-media,
     .stats-laterais-ocultas #th-gols-linha,
+    .stats-laterais-ocultas #th-media-linha,
     .stats-laterais-ocultas #th-acertos-linha,
     .stats-laterais-ocultas #th-pct-linha,
     .stats-laterais-ocultas #th-foot-gols,
+    .stats-laterais-ocultas #th-foot-media,
     .stats-laterais-ocultas #th-foot-acertos,
     .stats-laterais-ocultas #th-foot-pct,
     .stats-laterais-ocultas #linhaPercentual,
     .stats-laterais-ocultas #linhaTotalGols,
+    .stats-laterais-ocultas #linhaMediaGolsColuna,
     .stats-laterais-ocultas #linhaAcertosMercado,
     .stats-laterais-ocultas #trQuadrantes th:nth-last-child(1),
     .stats-laterais-ocultas #trQuadrantes th:nth-last-child(2),
-    .stats-laterais-ocultas #trQuadrantes th:nth-last-child(3) { display:none !important; }
+    .stats-laterais-ocultas #trQuadrantes th:nth-last-child(3),
+    .stats-laterais-ocultas #trQuadrantes th:nth-last-child(4) { display:none !important; }
   `;
   document.head.appendChild(style);
 
@@ -1160,7 +1163,6 @@ function garantirPainelCores() {
   }
   const el = document.createElement("div"); el.id = "painel-cores";
   el.innerHTML = `
-    <span class="pc-title">Cores das Células</span>
     <label>Cor Green<input type="color" id="input-cor-green" value="${Estado.corGreen}"></label>
     <label>Cor Red<input type="color" id="input-cor-red" value="${Estado.corRed}"></label>
     <button class="btn-aplicar-cores" id="btn-aplicar-cores">
@@ -1492,7 +1494,7 @@ function getDateStr(d){if(d.includes("T"))return new Date(d).toISOString().split
 function normalizarHorario(h,m){const c=minutosFixos.reduce((p,x)=>Math.abs(x-m)<Math.abs(p-m)?x:p);return`${h.toString().padStart(2,"0")}:${c.toString().padStart(2,"0")}`;}
 function normalizarHorarioStr(h){if(!h)return h;const[hr,mn]=h.split(":").map(Number);return normalizarHorario(hr,mn);}
 function abbreviateTeamName(n){if(!n)return"";const w=n.trim().split(" ");if(w.length>1)return w.map(x=>x.charAt(0).toUpperCase()).join("")+w[w.length-1].slice(0,3).toLowerCase();return n.length>5?n.slice(0,5).toUpperCase():n.toUpperCase();}
-function calculateGoalStats(linhas){const tot=linhas.reduce((a,r)=>a+parseInt(r.children[r.children.length-3].textContent||0),0);return{totalGols:tot,mediaGolsHora:linhas.length>0?(tot/linhas.length).toFixed(2):0};}
+function calculateGoalStats(linhas){const tot=linhas.reduce((a,r)=>a+parseInt(r.children[r.children.length-4].textContent||0),0);return{totalGols:tot,mediaGolsHora:linhas.length>0?(tot/linhas.length).toFixed(2):0};}
 
 // ─── INDEX DE ODDS ────────────────────────────────────────────────────────────
 function indexarOdds(oddsData) {
@@ -1717,10 +1719,13 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const trTotalGols = document.createElement("tr"); trTotalGols.id="linhaTotalGols";
   trTotalGols.appendChild(createIconTh("ball","Gols por coluna"));
 
+  const trMediaGolsColuna = document.createElement("tr"); trMediaGolsColuna.id="linhaMediaGolsColuna";
+  trMediaGolsColuna.appendChild(createIconTh("avg","Média de gols por coluna"));
+
   const trAcertosMercado = document.createElement("tr"); trAcertosMercado.id="linhaAcertosMercado";
   trAcertosMercado.appendChild(createIconTh("check","Acertos por coluna"));
 
-  thead.append(trPercentual, trTotalGols, trAcertosMercado);
+  thead.append(trPercentual, trTotalGols, trMediaGolsColuna, trAcertosMercado);
 
   const trMinutos = document.createElement("tr");
   // Coluna única de hora (sem th separado de seleção)
@@ -1740,9 +1745,10 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
   // Colunas direitas: gols, acertos, % — com IDs para ocultar/mostrar
   const thGolsLinha = createIconTh("ball","Gols"); thGolsLinha.id="th-gols-linha"; thGolsLinha.style.cssText="width:22px;min-width:22px;max-width:22px;padding:2px;";
+  const thMediaLinha = createIconTh("avg","Média de gols"); thMediaLinha.id="th-media-linha"; thMediaLinha.style.cssText="width:30px;min-width:30px;max-width:34px;padding:2px;";
   const thAcertosLinha = createIconTh("check","Acertos"); thAcertosLinha.id="th-acertos-linha"; thAcertosLinha.style.cssText="width:22px;min-width:22px;max-width:22px;padding:2px;";
   const thPctLinha = createIconTh("trend","% Linha"); thPctLinha.id="th-pct-linha"; thPctLinha.style.cssText="width:34px;min-width:34px;max-width:38px;padding:2px;";
-  [thGolsLinha,thAcertosLinha,thPctLinha].forEach(th=>trMinutos.appendChild(th));
+  [thGolsLinha,thMediaLinha,thAcertosLinha,thPctLinha].forEach(th=>trMinutos.appendChild(th));
   thead.appendChild(trMinutos);
   tabelaBody.innerHTML = "";
 
@@ -1818,9 +1824,10 @@ function criarTabela(dados, oddsData, proximosJogos) {
       tr.appendChild(td);
     });
     const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-direita-stats"});
+    const tdMedia = Object.assign(document.createElement("td"),{textContent:"0.00",className:"col-direita-media"});
     const tdAcertos = Object.assign(document.createElement("td"),{textContent:"0",className:"col-direita-stats"});
     const tdPct = Object.assign(document.createElement("td"),{textContent:"0%",className:"col-direita-pct"});
-    tr.appendChild(tdGols); tr.appendChild(tdAcertos); tr.appendChild(tdPct);
+    tr.appendChild(tdGols); tr.appendChild(tdMedia); tr.appendChild(tdAcertos); tr.appendChild(tdPct);
     tabelaBody.appendChild(tr);
     mapeamentoChaveLinha[chave]=tr;
   });
@@ -1962,7 +1969,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB);
 
     if(acerto){linha.children[linha.children.length-2].textContent=parseInt(linha.children[linha.children.length-2].textContent)+1;totalAcertosPorColuna[idx]++;}
-    linha.children[linha.children.length-3].textContent=parseInt(linha.children[linha.children.length-3].textContent)+tg;
+    linha.children[linha.children.length-4].textContent=parseInt(linha.children[linha.children.length-4].textContent)+tg;
     totalGolsPorColuna[idx]+=tg;
   });
 
@@ -2030,25 +2037,32 @@ function criarTabela(dados, oddsData, proximosJogos) {
   // ── Footer totais ──────────────────────────────────────────────────────────
   totalGolsPorColuna.forEach(t=>trTotalGols.appendChild(Object.assign(document.createElement("td"),{className:"total-goals",textContent:t})));
   totalAcertosPorColuna.forEach(t=>trAcertosMercado.appendChild(Object.assign(document.createElement("td"),{className:"market-hits",textContent:t})));
-  for(let i=0;i<3;i++){trTotalGols.appendChild(document.createElement("td"));trAcertosMercado.appendChild(document.createElement("td"));}
+  for(let i=0;i<4;i++){trTotalGols.appendChild(document.createElement("td"));trAcertosMercado.appendChild(document.createElement("td"));}
 
   const todasLinhas=Array.from(tabelaBody.querySelectorAll("tr"));
   todasLinhas.forEach(row=>{
-    const total=Array.from(row.cells).slice(1,-3).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
+    const total=Array.from(row.cells).slice(1,-4).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
+    const totalGolsRow=parseInt(row.children[row.children.length-4].textContent)||0;
+    const mediaCell=row.children[row.children.length-3];
+    mediaCell.textContent = total>0 ? (totalGolsRow/total).toFixed(2) : "0.00";
     const acertos=parseInt(row.children[row.children.length-2].textContent);
     const pct=total>0?Math.floor((acertos/total)*100):0;
     const pctCell=row.children[row.children.length-1]; pctCell.textContent=`${pct}%`;
     const _t=getThreshold(selRes); pctCell.classList.toggle("porcentagem-verde",pct>=_t); pctCell.classList.toggle("porcentagem-branca",pct<_t);
   });
   const totMercadoCol=Array(minutosFixos.length).fill(0);
-  todasLinhas.forEach(row=>{Array.from(row.cells).slice(1,-3).forEach((c,i)=>{if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro"))totMercadoCol[i]++;});});
+  todasLinhas.forEach(row=>{Array.from(row.cells).slice(1,-4).forEach((c,i)=>{if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro"))totMercadoCol[i]++;});});
   totMercadoCol.forEach((tot,i)=>{
     const pct=tot>0?Math.floor((totalAcertosPorColuna[i]/tot)*100):0;
     const cell=document.createElement("td"); cell.textContent=`${pct}%`;
     const _t=getThreshold(selRes); cell.classList.toggle("porcentagem-verde",pct>=_t); cell.classList.toggle("porcentagem-branca",pct<_t);
     trPercentual.appendChild(cell);
+
+    const mediaColCell=document.createElement("td"); mediaColCell.className="media-goals-col";
+    mediaColCell.textContent = tot>0 ? (totalGolsPorColuna[i]/tot).toFixed(2) : "0.00";
+    trMediaGolsColuna.appendChild(mediaColCell);
   });
-  for(let i=0;i<3;i++) trPercentual.appendChild(document.createElement("td"));
+  for(let i=0;i<4;i++){ trPercentual.appendChild(document.createElement("td")); trMediaGolsColuna.appendChild(document.createElement("td")); }
 
   const statsEl=calculateGoalStats(todasLinhas);
   document.getElementById("totalGols").textContent=`Gols: ${statsEl.totalGols}`;
@@ -2075,6 +2089,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     trFootMinutos.appendChild(th);
   });
   const thFG=document.createElement("th"); thFG.id="th-foot-gols"; thFG.style.cssText="width:22px;min-width:22px;padding:2px;"; thFG.innerHTML=SVG_ICONS["ball"]||""; trFootMinutos.appendChild(thFG);
+  const thFMedia=document.createElement("th"); thFMedia.id="th-foot-media"; thFMedia.style.cssText="width:30px;min-width:30px;padding:2px;"; thFMedia.innerHTML=SVG_ICONS["avg"]||""; trFootMinutos.appendChild(thFMedia);
   const thFA=document.createElement("th"); thFA.id="th-foot-acertos"; thFA.style.cssText="width:22px;min-width:22px;padding:2px;"; thFA.innerHTML=SVG_ICONS["check"]||""; trFootMinutos.appendChild(thFA);
   const thFP=document.createElement("th"); thFP.id="th-foot-pct"; thFP.style.cssText="width:34px;min-width:34px;padding:2px;"; thFP.innerHTML=SVG_ICONS["trend"]||""; trFootMinutos.appendChild(thFP);
   tfoot.appendChild(trFootMinutos);
