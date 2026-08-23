@@ -2343,7 +2343,9 @@ function sincronizarEstiloBtnMercadosExtras() {
  try {
   const styleTag = document.createElement("style");
   styleTag.textContent = `
-    .destaque-extra { box-shadow: inset 0 0 0 2px var(--destaque-extra-color, rgba(255,255,255,0.55)) !important; }
+    .destaque-extra { box-shadow: inset 0 0 0 2px var(--destaque-extra-color, rgba(255,255,255,0.55)); }
+    /* Quando a célula também está em streak-alerta, o pulso (animação) deve vencer o destaque estático */
+    .streak-alerta.destaque-extra { animation: streakPulse 1.8s ease-in-out infinite; }
     #painelMercadosExtras select { width:100%; }
     .odd-tooltip-extra { color:#cbd5e1 !important; font-weight:600; }
   `;
