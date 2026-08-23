@@ -920,7 +920,7 @@ function garantirCheckboxQuadrantes() {
     /* ── Painel "Cores das Células" — no mesmo padrão visual dos seletores do topo ── */
     #painel-cores {
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      padding: 6px 2px;
+      padding: 6px 2px; margin-top: -20px;
     }
     /* Base compartilhada por todos os "controles" do painel — mesma altura,
        mesmo raio e mesma paleta neutra usada nos <select> do topo da página */
@@ -2445,6 +2445,7 @@ function sincronizarEstiloBtnMercadosExtras() {
     else if (acao === "destaque") mercadosExtrasToggleFlag(mercado, "destacar");
   });
 
+  // Atualiza a lista de opções/avisos do popover quando o mercado principal muda
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
