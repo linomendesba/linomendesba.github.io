@@ -246,7 +246,14 @@ function mercadosExtrasRemover(mercado) {
 function mercadosExtrasToggleFlag(mercado, flag) {
   const item = Estado.mercadosExtras.find(m => m.mercado === mercado);
   if (!item) return;
-  item[flag] = !item[flag];
+  if (flag === "destacar") {
+    // Apenas 1 mercado extra pode ficar em destaque por vez (além do mercado principal)
+    const novoValor = !item.destacar;
+    Estado.mercadosExtras.forEach(m => { m.destacar = false; });
+    item.destacar = novoValor;
+  } else {
+    item[flag] = !item[flag];
+  }
   Estado.salvar();
   renderizarPainelMercadosExtras();
   renderizarRapido();
@@ -330,11 +337,10 @@ function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
     if (!item.mostrarOdd) return;
     const val = getOddValue(oddsObj, item.mercado);
     if (!val || val === "N/A") return;
-    const cor = corMercadoExtra(item.mercado);
     const b = document.createElement("div");
     b.className = "odd-extra-badge";
     b.style.cssText = `font-size:0.68em;line-height:1;margin-top:1px;padding:1px 3px;border-radius:3px;
-      background:${cor}26;border:1px solid ${cor};color:${cor};white-space:nowrap;`;
+      background:rgba(255,255,255,0.08);color:#ffffff;white-space:nowrap;`;
     b.textContent = `${LABEL_CURTO_MERCADO[item.mercado] || item.mercado} @${val}`;
     placarEl.appendChild(b);
   });
@@ -2295,6 +2301,25 @@ if(_mo){
   });
 }
 
+// ─── Sincroniza o botão "+ Mercados" com o estilo padrão dos outros seletores ─
+function sincronizarEstiloBtnMercadosExtras() {
+  const btn = document.getElementById("btnMercadosExtras");
+  // usa o <select> de Horas como referência de "padrão da página"
+  const ref = document.querySelector("#seletorHoras") || document.querySelector(".seletor-container select");
+  if (!btn || !ref) return;
+  const cs = getComputedStyle(ref);
+  const props = [
+    "height", "minHeight", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "fontSize", "fontFamily", "fontWeight", "color", "backgroundColor",
+    "border", "borderRadius", "boxSizing", "lineHeight"
+  ];
+  props.forEach(p => { btn.style[p] = cs[p]; });
+  btn.style.display = "inline-flex";
+  btn.style.alignItems = "center";
+  btn.style.justifyContent = "center";
+  btn.style.verticalAlign = "middle";
+}
+
 // ─── MERCADOS EXTRAS — inicialização da UI (popover) ─────────────────────────
 (function initMercadosExtrasUI() {
  try {
@@ -2311,6 +2336,9 @@ if(_mo){
   const lista    = document.getElementById("listaMercadosExtras");
   const seletorResultado = document.getElementById("seletorResultado");
   if (!btn || !painel || !select || !lista) return;
+
+  sincronizarEstiloBtnMercadosExtras();
+  window.addEventListener("resize", sincronizarEstiloBtnMercadosExtras);
 
   renderizarPainelMercadosExtras();
 
