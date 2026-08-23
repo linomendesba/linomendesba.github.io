@@ -2515,7 +2515,6 @@ function sincronizarEstiloBtnMercadosExtras() {
     else if (acao === "destaque") mercadosExtrasToggleFlag(mercado, "destacar");
   });
 
-  // Atualiza a lista de opções/avisos do popover quando o mercado principal muda
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
