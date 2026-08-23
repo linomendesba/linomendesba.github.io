@@ -1936,7 +1936,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
     const oddsMatch=findOddsNoIndex(oddsIndex,dado);
     const ovMercado=getOddValue(oddsMatch,selRes);
-    if(ovMercado && ovMercado!=="N/A") freqOddsMercado.set(ovMercado,(freqOddsMercado.get(ovMercado)||0)+1);
     if(mostrarOdds){
       const ov=getOddValue(oddsMatch,selRes);
       const oel=document.createElement("div"); oel.className="odds"; oel.textContent=`@${ov}`;
@@ -1998,6 +1997,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
     }
 
     const acerto = verificarAcerto(selRes, rA, rB, htA, htB);
+
+    // "Melhores Odds" deve contar apenas quando o mercado principal REALMENTE aconteceu (acerto),
+    // não toda vez que a odd apareceu na tabela (acerto + erro).
+    if (acerto && ovMercado && ovMercado !== "N/A") {
+      freqOddsMercado.set(ovMercado, (freqOddsMercado.get(ovMercado) || 0) + 1);
+    }
 
     cel.setAttribute("data-resultado", acerto ? "acerto" : "erro");
     cel.style.setProperty("background-color", acerto ? Estado.corGreen : Estado.corRed, "important");
