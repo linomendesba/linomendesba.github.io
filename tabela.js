@@ -1,4 +1,4 @@
-const minutosFixos = [
+let minutosFixos = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
 
@@ -201,12 +201,80 @@ function restaurarHorasSeletor() {
 // QUADRANTES — lógica integrada
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const blocosDeMinutos = [
+let blocosDeMinutos = [
   [1, 4, 7, 10, 13],
   [16, 19, 22, 25, 28],
   [31, 34, 37, 40, 43],
   [46, 49, 52, 55, 58]
 ];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DETECÇÃO AUTOMÁTICA DE MINUTOS FIXOS — permite usar o MESMO tabela.js em
+// todas as ligas, mesmo as que têm um intervalo de minutos diferente (ex: as
+// 3 ligas de 30 jogos/hora). Em vez de minutosFixos vir fixo no código, ele é
+// calculado a partir dos minutos que realmente aparecem nos resultados da liga.
+// ═══════════════════════════════════════════════════════════════════════════════
+let _minutosFixosDetectado = false;
+
+function _mediana(arr) {
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+// Divide a sequência de minutos detectada em até 4 blocos (quadrantes) balanceados
+function gerarBlocosDeMinutos(seq) {
+  const tamanho = Math.max(1, Math.ceil(seq.length / 4));
+  const blocos = [];
+  for (let i = 0; i < seq.length; i += tamanho) blocos.push(seq.slice(i, i + tamanho));
+  return blocos;
+}
+
+// Tamanho de cada bloco/quadrante da estrutura ATUAL (usado pra bordas e cores)
+function _tamanhoBlocoQD() {
+  return Math.max(1, Math.ceil(minutosFixos.length / 4));
+}
+
+/**
+ * Analisa os resultados recebidos da API e, se conseguir identificar um padrão
+ * confiável de minutos (passo entre os minutos + minuto inicial), substitui
+ * minutosFixos/blocosDeMinutos automaticamente — sem precisar mexer no código
+ * liga por liga. Roda só 1x por carregamento da liga pra tabela não "pular"
+ * de estrutura no meio do uso.
+ */
+function detectarEAtualizarMinutosFixos(dados) {
+  if (_minutosFixosDetectado) return;
+  if (!dados || dados.length < 20) return; // pouco dado ainda — espera mais antes de decidir
+
+  const porHora = {};
+  dados.forEach(d => {
+    if (d.minuto == null || !d.data || d.hora == null) return;
+    const chave = `${getDateStr(d.data)}-${d.hora}`;
+    (porHora[chave] = porHora[chave] || []).push(d.minuto);
+  });
+
+  const diffs = [];
+  Object.values(porHora).forEach(mins => {
+    const s = [...new Set(mins)].sort((a, b) => a - b);
+    for (let i = 1; i < s.length; i++) diffs.push(s[i] - s[i - 1]);
+  });
+  if (diffs.length < 5) return; // dado insuficiente pra confiar no padrão
+
+  const passo = Math.round(_mediana(diffs));
+  if (!passo || passo < 1) return;
+
+  const primeiros = Object.values(porHora).map(mins => Math.min(...mins));
+  const inicio = Math.round(_mediana(primeiros));
+
+  const seq = [];
+  for (let m = inicio; m < 60; m += passo) seq.push(m);
+  if (seq.length < 4) return; // sequência curta demais — mantém o padrão default
+
+  minutosFixos = seq;
+  blocosDeMinutos = gerarBlocosDeMinutos(seq);
+  _minutosFixosDetectado = true;
+  console.log(`[BetStat] minutosFixos detectado automaticamente (${getLigaKey()}):`, seq);
+}
 
 const counterMarketMap = {
   'ambasMarcam':    'ambasNaoMarcam',
@@ -803,13 +871,14 @@ function qdToggle(ativo) {
 // Aplica/remove a classe quadrant-border nas células da tabela principal
 function qdAplicarSeparadorTabela(ativo) {
   if (ativo) {
+    const tamanhoBloco = _tamanhoBlocoQD();
     document.querySelectorAll(".minute-header").forEach((th, i) => {
-      th.classList.toggle("quadrant-border", i > 0 && i % 5 === 0);
+      th.classList.toggle("quadrant-border", i > 0 && i % tamanhoBloco === 0);
     });
     document.querySelectorAll("#tabelaResultados tbody tr").forEach(row => {
       Array.from(row.cells).forEach((cell, i) => {
         if (i < 1 || i >= 1 + minutosFixos.length) return;
-        cell.classList.toggle("quadrant-border", (i - 1) > 0 && (i - 1) % 5 === 0);
+        cell.classList.toggle("quadrant-border", (i - 1) > 0 && (i - 1) % tamanhoBloco === 0);
       });
     });
   } else {
@@ -1081,7 +1150,7 @@ function garantirCheckboxQuadrantes() {
 
     /* Colunas direitas combinadas: "Gols" (total + média) e "Dados" (% + quantidade) */
     /* Colunas da DIREITA (Gols / Dados de cada linha de horário): estreitas, um valor em cima do outro — mesmo tamanho de fonte da linha do topo */
-    .col-combo { width:24px !important; min-width:24px !important; max-width:26px !important; padding:1px 0 !important; text-align:center; }
+    .col-combo { width:34px !important; min-width:34px !important; max-width:38px !important; padding:1px 1px !important; text-align:center; }
     .col-combo .valor-principal { display:block; font-size:0.85em; font-weight:700; line-height:1.15; white-space:nowrap; }
     .col-combo .valor-sub       { display:block; font-size:0.78em; font-weight:700; opacity:0.85; line-height:1.1; margin-top:1px; color:#93c5fd; white-space:nowrap; }
     .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
@@ -1570,16 +1639,17 @@ function aplicarColunaHighlights() {
     const min=parseInt(th.textContent.trim());
     th.classList.toggle("coluna-selecionada",Estado.colunasSelecionadas.includes(min));
   });
+  const tamanhoBloco=_tamanhoBlocoQD();
   document.querySelectorAll("#tabelaResultados tbody tr").forEach(row=>{
     Array.from(row.cells).forEach((cell,i)=>{
       if(i<1||i>=1+minutosFixos.length) return;
       const colIdx=i-1;
       cell.classList.toggle("coluna-selecionada",Estado.colunasSelecionadas.includes(minutosFixos[colIdx]));
-      if (qdCheckboxAtivo()) cell.classList.toggle("quadrant-border",colIdx>0&&colIdx%5===0);
+      if (qdCheckboxAtivo()) cell.classList.toggle("quadrant-border",colIdx>0&&colIdx%tamanhoBloco===0);
     });
   });
   if (qdCheckboxAtivo()) {
-    document.querySelectorAll(".minute-header").forEach((th,i)=>{th.classList.toggle("quadrant-border",i>0&&i%5===0);});
+    document.querySelectorAll(".minute-header").forEach((th,i)=>{th.classList.toggle("quadrant-border",i>0&&i%tamanhoBloco===0);});
   }
 }
 function atualizarColunaStats() {
@@ -1865,11 +1935,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
   thHora.appendChild(wrapH); thHora.style.cssText="width:26px;min-width:26px;";
   trMinutos.appendChild(thHora);
 
+  const tamanhoBlocoHeader = _tamanhoBlocoQD();
   minutosFixos.forEach((m, i) => {
     const th = document.createElement("th"); th.className="minute-header"; th.textContent=m;
-    const qIdx = Math.floor(i/5)%4;
+    const qIdx = Math.min(3, Math.floor(i/tamanhoBlocoHeader));
     th.classList.add(`qd-${qIdx}`);
-    if (qdCheckboxAtivo() && i>0 && i%5===0) th.classList.add("quadrant-border");
+    if (qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) th.classList.add("quadrant-border");
     if (Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
     th.addEventListener("click", ()=>toggleColuna(m));
     trMinutos.appendChild(th);
@@ -1946,9 +2017,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
     tr.appendChild(tdHora);
     minutosFixos.forEach((m,i)=>{
       const td=document.createElement("td");
-      const qIdx=Math.floor(i/5)%4;
+      const qIdx=Math.min(3,Math.floor(i/tamanhoBlocoHeader));
       td.classList.add(`qd-cell-${qIdx}`);
-      if(qdCheckboxAtivo() && i>0 && i%5===0) td.classList.add("quadrant-border");
+      if(qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) td.classList.add("quadrant-border");
       if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
       tr.appendChild(td);
     });
@@ -2230,10 +2301,11 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const trFootMinutos = document.createElement("tr");
   const thFootHora = document.createElement("th"); thFootHora.style.cssText="width:26px;min-width:26px;text-align:center;font-size:0.7em;color:#9ca3af;padding:2px;";
   thFootHora.innerHTML=SVG_ICONS["clock"]||""; trFootMinutos.appendChild(thFootHora);
+  const tamanhoBlocoFooter=_tamanhoBlocoQD();
   minutosFixos.forEach((m,i)=>{
     const th=document.createElement("th"); th.className="minute-header"; th.textContent=m;
-    const qIdx=Math.floor(i/5)%4; th.classList.add(`qd-${qIdx}`);
-    if(qdCheckboxAtivo()&&i>0&&i%5===0) th.classList.add("quadrant-border");
+    const qIdx=Math.min(3,Math.floor(i/tamanhoBlocoFooter)); th.classList.add(`qd-${qIdx}`);
+    if(qdCheckboxAtivo()&&i>0&&i%tamanhoBlocoFooter===0) th.classList.add("quadrant-border");
     if(Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
     th.addEventListener("click",()=>toggleColuna(m));
     trFootMinutos.appendChild(th);
@@ -2298,6 +2370,7 @@ async function buscarDados() {
     _ultimaLigaHorasRestauradas = null;
     // Troca de liga: limpa caches e recarrega seleções
     _cacheResultados = []; _cacheOddsData = []; _cacheProximosJogos = [];
+    _minutosFixosDetectado = false; // redetecta o padrão de minutos da nova liga
     Estado.carregar();
     const trQDantigo = document.querySelector("#trQuadrantes");
     if (trQDantigo) trQDantigo.remove();
@@ -2337,6 +2410,7 @@ async function buscarDados() {
     rkSincronizar();
     return;
   }
+  detectarEAtualizarMinutosFixos(dados);
   criarTabela(dados,oddsData,proximosJogos);
 }
 
