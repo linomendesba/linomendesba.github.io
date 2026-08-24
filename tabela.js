@@ -349,8 +349,8 @@ function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
     if (!val || val === "N/A") return;
     const b = document.createElement("div");
     b.className = "odd-extra-badge";
-    b.style.cssText = `font-size:0.68em;line-height:1;margin-top:1px;padding:1px 3px;border-radius:3px;
-      background:rgba(255,255,255,0.08);color:#ffffff;white-space:nowrap;`;
+    b.style.cssText = `font-size:9px;line-height:1;margin-top:1px;padding:1px 2px;border-radius:3px;
+      background:none;color:#ffffff;white-space:nowrap;`;
     b.textContent = `${LABEL_CURTO_MERCADO[item.mercado] || item.mercado} @${val}`;
     placarEl.appendChild(b);
   });
@@ -580,18 +580,18 @@ function qdCreateBlocoThs(index, timeSlots) {
       <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;${mtStyle}white-space:nowrap;">
         <span id="qd-label-${index}-${slotIdx}" style="color:${labelColor};font-weight:${labelWeight};font-size:${labelSize};">${labelTxt}</span>
         <div style="display:flex;align-items:center;gap:0.25rem;">
-<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Gols">
-  <span style="font-size:10px;line-height:1;">⚽</span>
+<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${golsTextColor};" title="Gols">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
   <strong id="qd-gols-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
 </span>
 
-<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Acertos">
-  <span style="font-size:10px;line-height:1;">✅</span>
+<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${hitTextColor};" title="Acertos">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="7,12.5 10.3,16 17,8.5"/></svg>
   <strong id="qd-hits-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
 </span>
 
-<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Erros">
-  <span style="font-size:10px;line-height:1;">❌</span>
+<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${counterTextColor};" title="Erros">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="m14.5 9.5-5 5M9.5 9.5l5 5"/></svg>
   <strong id="qd-counter-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
 </span>
         </div>
@@ -1081,12 +1081,12 @@ function garantirCheckboxQuadrantes() {
 
     /* Colunas direitas combinadas: "Gols" (total + média) e "Dados" (% + quantidade) */
     /* Colunas da DIREITA (Gols / Dados de cada linha de horário): estreitas, um valor em cima do outro — mesmo tamanho de fonte da linha do topo */
-    .col-combo { width:24px !important; min-width:24px !important; max-width:28px !important; padding:1px 0 !important; text-align:center; }
+    .col-combo { width:24px !important; min-width:24px !important; max-width:26px !important; padding:1px 0 !important; text-align:center; }
     .col-combo .valor-principal { display:block; font-size:0.85em; font-weight:700; line-height:1.15; white-space:nowrap; }
     .col-combo .valor-sub       { display:block; font-size:0.78em; font-weight:700; opacity:0.85; line-height:1.1; margin-top:1px; color:#93c5fd; white-space:nowrap; }
     .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
     /* Linhas do TOPO (Gols por coluna / Dados por coluna): duas linhas separadas, e dentro de cada uma o texto do mesmo grupo (principal + sub) lado a lado — forçado com !important para não ser sobrescrito por outro CSS da página */
-    .col-combo-top { padding:3px 4px !important; text-align:center !important; white-space:nowrap !important; height:18px !important; box-sizing:border-box !important; }
+    .col-combo-top { padding:3px 2px !important; text-align:center !important; white-space:nowrap !important; height:18px !important; box-sizing:border-box !important; }
     .col-combo-top .valor-principal { display:inline-block !important; font-size:0.85em !important; font-weight:700 !important; white-space:nowrap !important; vertical-align:middle !important; }
     .col-combo-top .valor-sub       { display:inline-block !important; font-size:0.78em !important; opacity:0.85 !important; margin-left:3px !important; color:#93c5fd; white-space:nowrap !important; vertical-align:middle !important; }
     /* Separação visual clara entre a linha de Gols (de cima) e a linha de Dados (de baixo) */
