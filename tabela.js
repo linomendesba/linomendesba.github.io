@@ -580,18 +580,18 @@ function qdCreateBlocoThs(index, timeSlots) {
       <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;${mtStyle}white-space:nowrap;">
         <span id="qd-label-${index}-${slotIdx}" style="color:${labelColor};font-weight:${labelWeight};font-size:${labelSize};">${labelTxt}</span>
         <div style="display:flex;align-items:center;gap:0.25rem;">
-<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Gols">
-  <span style="font-size:10px;line-height:1;">⚽</span>
+<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${golsTextColor};" title="Gols">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
   <strong id="qd-gols-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
 </span>
 
-<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Acertos">
-  <span style="font-size:10px;line-height:1;">✅</span>
+<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${hitTextColor};" title="Acertos">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="7,12.5 10.3,16 17,8.5"/></svg>
   <strong id="qd-hits-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
 </span>
 
-<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Erros">
-  <span style="font-size:10px;line-height:1;">❌</span>
+<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${counterTextColor};" title="Erros">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="m14.5 9.5-5 5M9.5 9.5l5 5"/></svg>
   <strong id="qd-counter-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
 </span>
         </div>
