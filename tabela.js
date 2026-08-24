@@ -1034,10 +1034,15 @@ function garantirCheckboxQuadrantes() {
     .placar-futuro .placar-futuro-odd:hover { opacity: 0.7; }
 
     /* Colunas direitas combinadas: "Gols" (total + média) e "Dados" (% + quantidade) */
+    /* Colunas da DIREITA (Gols / Dados de cada linha de horário): estreitas, um valor em cima do outro */
     .col-combo { width:24px !important; min-width:24px !important; max-width:28px !important; padding:1px 0 !important; text-align:center; }
     .col-combo .valor-principal { display:block; font-size:0.72em; font-weight:700; line-height:1.1; white-space:nowrap; }
     .col-combo .valor-sub       { display:block; font-size:0.58em; opacity:0.8; line-height:1.05; margin-top:1px; color:#93c5fd; white-space:nowrap; }
     .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
+    /* Linhas do TOPO (Gols/Dados por coluna de minuto): texto lado a lado, maior, largura livre */
+    .col-combo-top { padding:2px 3px !important; text-align:center; white-space:nowrap; }
+    .col-combo-top .valor-principal { display:inline; font-size:0.85em; font-weight:700; }
+    .col-combo-top .valor-sub       { display:inline; font-size:0.78em; opacity:0.85; margin-left:3px; color:#93c5fd; }
     /* Faixas de cor do % — cor no TEXTO, sem preencher o fundo da célula: 0–29 vermelho / 30–49 amarelo / 50–100 verde */
     .pct-vermelho .valor-principal { color:#ff5c5c; }
     .pct-amarelo  .valor-principal { color:#f5c518; }
@@ -1762,7 +1767,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   // Coluna única de hora (sem th separado de seleção)
   const thHora = document.createElement("th"); thHora.title="Hora";
   const wrapH = document.createElement("span"); wrapH.className="th-icon"; wrapH.innerHTML=SVG_ICONS["clock"]||"";
-  thHora.appendChild(wrapH); thHora.style.cssText="width:36px;min-width:36px;";
+  thHora.appendChild(wrapH); thHora.style.cssText="width:26px;min-width:26px;";
   trMinutos.appendChild(thHora);
 
   minutosFixos.forEach((m, i) => {
@@ -1833,15 +1838,15 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const chave=`${item.data}-${item.hora}`;
     const tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
     // Checkbox embutido na célula de hora
-    const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 4px;";
+    const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 1px;";
     const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
-    cb.style.cssText="display:block;margin:0 auto 1px auto;width:12px;height:12px;cursor:pointer;accent-color:#4ade80;";
+    cb.style.cssText="display:block;margin:0 auto 1px auto;width:11px;height:11px;cursor:pointer;accent-color:#4ade80;";
     cb.addEventListener("change",function(){
       if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
       else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
       Estado.salvar();updateSelectedRows();
     });
-    const horaSpan=document.createElement("span"); horaSpan.textContent=item.hora.toString().padStart(2,"0"); horaSpan.style.cssText="font-size:0.85em;font-weight:700;color:#e5e7eb;";
+    const horaSpan=document.createElement("span"); horaSpan.textContent=item.hora.toString().padStart(2,"0"); horaSpan.style.cssText="font-size:0.78em;font-weight:700;color:#e5e7eb;";
     tdHora.appendChild(cb); tdHora.appendChild(horaSpan);
     tr.appendChild(tdHora);
     minutosFixos.forEach((m,i)=>{
@@ -2081,15 +2086,15 @@ function criarTabela(dados, oddsData, proximosJogos) {
   totalGolsPorColuna.forEach((t,i)=>{
     const tot=totMercadoCol[i];
     const media=tot>0?(t/tot).toFixed(1):"0.0";
-    const cell=document.createElement("td"); cell.className="col-combo";
-    cell.innerHTML=`<span class="valor-principal">${t}</span><span class="valor-sub">${media}</span>`;
+    const cell=document.createElement("td"); cell.className="col-combo-top";
+    cell.innerHTML=`<span class="valor-principal">${t}</span><span class="valor-sub">(${media})</span>`;
     trGolsColuna.appendChild(cell);
   });
-  // Linha "Dados por coluna": % em cima, (quantidade de acertos) embaixo — colorido por faixa
+  // Linha "Dados por coluna": % e (quantidade de acertos) lado a lado — colorido por faixa
   totMercadoCol.forEach((tot,i)=>{
     const acertosCol=totalAcertosPorColuna[i];
     const pct=tot>0?Math.floor((acertosCol/tot)*100):0;
-    const cell=document.createElement("td"); cell.className=`col-combo ${getClassePct(pct)}`;
+    const cell=document.createElement("td"); cell.className=`col-combo-top ${getClassePct(pct)}`;
     cell.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">(${acertosCol})</span>`;
     trDadosColuna.appendChild(cell);
   });
@@ -2128,7 +2133,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   if (!tfoot) { tfoot = document.createElement("tfoot"); tabela.appendChild(tfoot); }
   tfoot.innerHTML = "";
   const trFootMinutos = document.createElement("tr");
-  const thFootHora = document.createElement("th"); thFootHora.style.cssText="width:36px;min-width:36px;text-align:center;font-size:0.7em;color:#9ca3af;padding:2px;";
+  const thFootHora = document.createElement("th"); thFootHora.style.cssText="width:26px;min-width:26px;text-align:center;font-size:0.7em;color:#9ca3af;padding:2px;";
   thFootHora.innerHTML=SVG_ICONS["clock"]||""; trFootMinutos.appendChild(thFootHora);
   minutosFixos.forEach((m,i)=>{
     const th=document.createElement("th"); th.className="minute-header"; th.textContent=m;
@@ -2529,7 +2534,6 @@ function sincronizarEstiloBtnMercadosExtras() {
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
-  
  } catch (e) {
    console.error("Erro ao iniciar popover de mercados extras:", e);
  }
