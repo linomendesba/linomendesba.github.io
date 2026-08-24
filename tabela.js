@@ -1039,10 +1039,10 @@ function garantirCheckboxQuadrantes() {
     .col-combo .valor-principal { display:block; font-size:0.85em; font-weight:700; line-height:1.15; white-space:nowrap; }
     .col-combo .valor-sub       { display:block; font-size:0.78em; font-weight:700; opacity:0.85; line-height:1.1; margin-top:1px; color:#93c5fd; white-space:nowrap; }
     .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
-    /* Linhas do TOPO (Gols por coluna / Dados por coluna): duas linhas separadas, e dentro de cada uma o texto do mesmo grupo (principal + sub) lado a lado */
-    .col-combo-top { padding:2px 4px !important; text-align:center; white-space:nowrap; }
-    .col-combo-top .valor-principal { display:inline; font-size:0.85em; font-weight:700; }
-    .col-combo-top .valor-sub       { display:inline; font-size:0.78em; opacity:0.85; margin-left:3px; color:#93c5fd; }
+    /* Linhas do TOPO (Gols por coluna / Dados por coluna): duas linhas separadas, e dentro de cada uma o texto do mesmo grupo (principal + sub) lado a lado — forçado com !important para não ser sobrescrito por outro CSS da página */
+    .col-combo-top { padding:2px 4px !important; text-align:center !important; white-space:nowrap !important; }
+    .col-combo-top .valor-principal { display:inline-block !important; font-size:0.85em !important; font-weight:700 !important; white-space:nowrap !important; vertical-align:middle !important; }
+    .col-combo-top .valor-sub       { display:inline-block !important; font-size:0.78em !important; opacity:0.85 !important; margin-left:3px !important; color:#93c5fd; white-space:nowrap !important; vertical-align:middle !important; }
     /* Faixas de cor do % — cor no TEXTO, sem preencher o fundo da célula: 0–29 vermelho / 30–49 amarelo / 50–100 verde */
     .pct-vermelho .valor-principal { color:#ff5c5c; }
     .pct-amarelo  .valor-principal { color:#f5c518; }
