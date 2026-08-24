@@ -349,7 +349,8 @@ function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
     if (!val || val === "N/A") return;
     const b = document.createElement("div");
     b.className = "odd-extra-badge";
-    b.style.cssText = `font-size:0.9em;line-height:1;margin-top:1px;color:#dfdfdf;font-weight:bold;white-space:nowrap;`;
+    b.style.cssText = `font-size:0.68em;line-height:1;margin-top:1px;padding:1px 3px;border-radius:3px;
+      background:rgba(255,255,255,0.08);color:#ffffff;white-space:nowrap;`;
     b.textContent = `${LABEL_CURTO_MERCADO[item.mercado] || item.mercado} @${val}`;
     placarEl.appendChild(b);
   });
@@ -448,16 +449,18 @@ function aplicarOraculoTabela() {
   const sugeridos = minutosFixos.slice(qtd, qtd + 3);
   if (!sugeridos.length) return;
 
-  const headersMinuto = document.querySelectorAll(".minute-header");
+  const chave = `${dataAtual}-${horaAtual}`;
+  const tr = document.querySelector(`tr[data-chave="${chave}"]`);
+  if (!tr) return;
 
   const ORACULO_LABELS = ["SG", "G1", "G2"];
   sugeridos.forEach((m, i) => {
     const idx = minutosFixos.indexOf(m);
     if (idx < 0) return;
-    const th = headersMinuto[idx];
-    if (th) {
-      th.classList.add("oraculo-marcado");
-      th.setAttribute("data-oraculo-label", ORACULO_LABELS[i] || "");
+    const td = tr.children[idx + 1]; // +1 por causa da célula de hora
+    if (td) {
+      td.classList.add("oraculo-marcado");
+      td.setAttribute("data-oraculo-label", ORACULO_LABELS[i] || "");
     }
   });
 }
@@ -1106,13 +1109,12 @@ function garantirCheckboxQuadrantes() {
     .oraculo-marcado::after {
       content: attr(data-oraculo-label);
       position:absolute;
-      top:-8px; left:50%;
-      transform:translateX(-50%);
-      width:16px; height:16px;
+      top:2px; right:2px;
+      width:18px; height:18px;
       border-radius:50%;
       background:#f5c518;
       color:#111;
-      font-size:8px;
+      font-size:9px;
       font-weight:800;
       letter-spacing:-0.2px;
       display:flex;
@@ -1120,7 +1122,7 @@ function garantirCheckboxQuadrantes() {
       justify-content:center;
       box-shadow:0 0 4px rgba(245,197,24,0.8), 0 0 0 1px rgba(0,0,0,0.45);
       pointer-events:none;
-      z-index:5;
+      z-index:3;
       line-height:1;
     }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
