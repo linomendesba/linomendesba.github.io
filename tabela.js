@@ -2385,10 +2385,17 @@ async function buscarDados() {
     proximosJogos = _cacheProximosJogos;
   } else {
     _renderizandoRapido = false;
-    try{const r=await fetch(ROTAS_API.resultados(LIGA_ATUAL));if(!r.ok)throw new Error(`${r.status}`);dados=await r.json();}
-    catch(e){console.error("Erro resultados:",e);showErrorMessage(`Erro ao carregar resultados: ${e.message}`);}
-    try{oddsData=await fetchOdds();}catch(e){showErrorMessage(`Erro odds: ${e.message}`);}
-    try{proximosJogos=await fetchProximosJogos();}catch(e){showErrorMessage(`Erro próximos: ${e.message}`);}
+    const [resResultados, resOdds, resProximos] = await Promise.allSettled([
+      (async () => { const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL)); if (!r.ok) throw new Error(`${r.status}`); return r.json(); })(),
+      fetchOdds(),
+      fetchProximosJogos(),
+    ]);
+    if (resResultados.status === "fulfilled") dados = resResultados.value;
+    else { console.error("Erro resultados:", resResultados.reason); showErrorMessage(`Erro ao carregar resultados: ${resResultados.reason.message}`); }
+    if (resOdds.status === "fulfilled") oddsData = resOdds.value;
+    else showErrorMessage(`Erro odds: ${resOdds.reason.message}`);
+    if (resProximos.status === "fulfilled") proximosJogos = resProximos.value;
+    else showErrorMessage(`Erro próximos: ${resProximos.reason.message}`);
     // Atualiza caches
     if(dados.length>0) _cacheResultados=dados;
     _cacheOddsData=oddsData; _cacheProximosJogos=proximosJogos;
@@ -2700,6 +2707,7 @@ function sincronizarEstiloBtnMercadosExtras() {
     else if (acao === "destaque") mercadosExtrasToggleFlag(mercado, "destacar");
   });
   
+
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
