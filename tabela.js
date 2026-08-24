@@ -978,9 +978,7 @@ function garantirCheckboxQuadrantes() {
     #tabelaResultados.tem-coluna-selecionada th.coluna-selecionada                   { filter: none; background: rgba(255,255,255,0.2) !important; }
     #tabelaResultados.tem-coluna-selecionada td:first-child,
     #tabelaResultados.tem-coluna-selecionada td:nth-last-child(1),
-    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(2),
-    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(3),
-    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(4) { filter: none; }
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(2) { filter: none; }
 
     td.quadrant-border, th.quadrant-border { border-left: 3px solid rgba(255,255,255,0.35) !important; }
 
