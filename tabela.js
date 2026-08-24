@@ -2700,7 +2700,6 @@ function sincronizarEstiloBtnMercadosExtras() {
     else if (acao === "destaque") mercadosExtrasToggleFlag(mercado, "destacar");
   });
   
-
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
