@@ -26,6 +26,13 @@ const MERCADO_THRESHOLD = {
 
 function getThreshold(mercado) { return MERCADO_THRESHOLD[mercado] ?? 50; }
 
+// ─── Faixas de cor por porcentagem (usadas na coluna combinada "Dados") ──────
+function getClassePct(pct) {
+  if (pct >= 50) return "pct-verde";
+  if (pct >= 30) return "pct-amarelo";
+  return "pct-vermelho";
+}
+
 // ─── MERCADOS EXTRAS (odds extras + destaque de 2º mercado) ──────────────────
 const LABEL_CURTO_MERCADO = {
   ambasMarcam: "BTS", ambasNaoMarcam: "NBTS",
@@ -670,7 +677,7 @@ function qdRenderTabela(resultados) {
     for (let i = 0; i < blocosDeMinutos.length; i++) {
       trHtml += qdCreateBlocoThs(i, timeSlots);
     }
-    trHtml += `<th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th>`;
+    trHtml += `<th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th>`;
     trQD.innerHTML = trHtml;
 
     thead.insertBefore(trQD, thead.firstChild);
@@ -1026,14 +1033,20 @@ function garantirCheckboxQuadrantes() {
     }
     .placar-futuro .placar-futuro-odd:hover { opacity: 0.7; }
 
-    /* Colunas direitas (gols/acertos/%) — mais finas */
-    .col-direita-stats { width:22px !important; min-width:22px !important; max-width:26px !important; padding:2px 3px !important; font-size:0.78em !important; text-align:center; }
-    .col-direita-pct   { width:34px !important; min-width:34px !important; max-width:38px !important; padding:2px 3px !important; font-size:0.78em !important; text-align:center; }
-    .col-direita-media { width:30px !important; min-width:30px !important; max-width:34px !important; padding:2px 3px !important; font-size:0.74em !important; text-align:center; color:#93c5fd; }
-    .col-direita-th    { font-size:0.7em !important; padding:2px 2px !important; }
-    .media-goals-col   { color:#93c5fd; font-size:0.74em; font-weight:600; }
-    /* Header rows das stats (%, gols, acertos por coluna) mais baixos */
-    #linhaPercentual th, #linhaTotalGols th, #linhaMediaGolsColuna th, #linhaAcertosMercado th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
+    /* Colunas direitas combinadas: "Gols" (total + média) e "Dados" (% + quantidade) */
+    .col-combo { width:34px !important; min-width:34px !important; max-width:40px !important; padding:1px 2px !important; text-align:center; }
+    .col-combo .valor-principal { display:block; font-size:0.78em; font-weight:700; line-height:1.15; }
+    .col-combo .valor-sub       { display:block; font-size:0.64em; opacity:0.8; line-height:1.1; margin-top:1px; color:#93c5fd; }
+    .col-combo-th { font-size:0.7em !important; padding:2px 2px !important; }
+    /* Faixas de cor do %: 0–29 vermelho / 30–49 amarelo / 50–100 verde */
+    .pct-vermelho { background-color:#7a0d02 !important; color:#ffd9d4; }
+    .pct-amarelo  { background-color:#7a5c02 !important; color:#ffedb3; }
+    .pct-verde    { background-color:#036606 !important; color:#d3ffd6; }
+    .pct-vermelho .valor-sub, .pct-amarelo .valor-sub, .pct-verde .valor-sub { color:inherit; opacity:0.85; }
+    /* Tom azul para células com jogos ainda não realizados (próximos) */
+    .cel-proximo-jogo { background-color:rgba(37,99,235,0.24) !important; box-shadow:inset 0 0 0 1px rgba(96,165,250,0.4); }
+    /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
+    #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
     /* ── ZONA GREEN: Intensidade por coluna ── */
     td[data-resultado="acerto"].zg-low  { filter: brightness(0.55) saturate(0.7); }
     td[data-resultado="acerto"].zg-mid  { filter: brightness(0.8) saturate(0.9); }
@@ -1045,25 +1058,15 @@ function garantirCheckboxQuadrantes() {
     td[data-resultado="erro"].zg-hot    { filter: brightness(1.15) saturate(1.3); }
 
     /* Ocultar colunas direitas quando checkbox desativado */
-    .stats-laterais-ocultas .col-direita-stats,
-    .stats-laterais-ocultas .col-direita-pct,
-    .stats-laterais-ocultas .col-direita-media,
+    .stats-laterais-ocultas .col-combo,
     .stats-laterais-ocultas #th-gols-linha,
-    .stats-laterais-ocultas #th-media-linha,
-    .stats-laterais-ocultas #th-acertos-linha,
-    .stats-laterais-ocultas #th-pct-linha,
+    .stats-laterais-ocultas #th-dados-linha,
     .stats-laterais-ocultas #th-foot-gols,
-    .stats-laterais-ocultas #th-foot-media,
-    .stats-laterais-ocultas #th-foot-acertos,
-    .stats-laterais-ocultas #th-foot-pct,
-    .stats-laterais-ocultas #linhaPercentual,
-    .stats-laterais-ocultas #linhaTotalGols,
-    .stats-laterais-ocultas #linhaMediaGolsColuna,
-    .stats-laterais-ocultas #linhaAcertosMercado,
+    .stats-laterais-ocultas #th-foot-dados,
+    .stats-laterais-ocultas #linhaGolsColuna,
+    .stats-laterais-ocultas #linhaDadosColuna,
     .stats-laterais-ocultas #trQuadrantes th:nth-last-child(1),
-    .stats-laterais-ocultas #trQuadrantes th:nth-last-child(2),
-    .stats-laterais-ocultas #trQuadrantes th:nth-last-child(3),
-    .stats-laterais-ocultas #trQuadrantes th:nth-last-child(4) { display:none !important; }
+    .stats-laterais-ocultas #trQuadrantes th:nth-last-child(2) { display:none !important; }
   `;
   document.head.appendChild(style);
 
@@ -1526,7 +1529,7 @@ function getDateStr(d){if(d.includes("T"))return new Date(d).toISOString().split
 function normalizarHorario(h,m){const c=minutosFixos.reduce((p,x)=>Math.abs(x-m)<Math.abs(p-m)?x:p);return`${h.toString().padStart(2,"0")}:${c.toString().padStart(2,"0")}`;}
 function normalizarHorarioStr(h){if(!h)return h;const[hr,mn]=h.split(":").map(Number);return normalizarHorario(hr,mn);}
 function abbreviateTeamName(n){if(!n)return"";const w=n.trim().split(" ");if(w.length>1)return w.map(x=>x.charAt(0).toUpperCase()).join("")+w[w.length-1].slice(0,3).toLowerCase();return n.length>5?n.slice(0,5).toUpperCase():n.toUpperCase();}
-function calculateGoalStats(linhas){const tot=linhas.reduce((a,r)=>a+parseInt(r.children[r.children.length-4].textContent||0),0);return{totalGols:tot,mediaGolsHora:linhas.length>0?(tot/linhas.length).toFixed(2):0};}
+function calculateGoalStats(linhas){const tot=linhas.reduce((a,r)=>a+parseInt(r.children[r.children.length-2].textContent||0),0);return{totalGols:tot,mediaGolsHora:linhas.length>0?(tot/linhas.length).toFixed(2):0};}
 
 // ─── INDEX DE ODDS ────────────────────────────────────────────────────────────
 function indexarOdds(oddsData) {
@@ -1745,19 +1748,13 @@ function criarTabela(dados, oddsData, proximosJogos) {
     qdRenderTabela(dados);
   }
 
-  const trPercentual = document.createElement("tr"); trPercentual.id="linhaPercentual";
-  trPercentual.appendChild(createIconTh("chart","% Acerto por coluna"));
+  const trGolsColuna = document.createElement("tr"); trGolsColuna.id="linhaGolsColuna";
+  trGolsColuna.appendChild(createIconTh("ball","Gols por coluna (total / média)"));
 
-  const trTotalGols = document.createElement("tr"); trTotalGols.id="linhaTotalGols";
-  trTotalGols.appendChild(createIconTh("ball","Gols por coluna"));
+  const trDadosColuna = document.createElement("tr"); trDadosColuna.id="linhaDadosColuna";
+  trDadosColuna.appendChild(createIconTh("chart","Dados por coluna (% acerto / quantidade)"));
 
-  const trMediaGolsColuna = document.createElement("tr"); trMediaGolsColuna.id="linhaMediaGolsColuna";
-  trMediaGolsColuna.appendChild(createIconTh("avg","Média de gols por coluna"));
-
-  const trAcertosMercado = document.createElement("tr"); trAcertosMercado.id="linhaAcertosMercado";
-  trAcertosMercado.appendChild(createIconTh("check","Acertos por coluna"));
-
-  thead.append(trPercentual, trTotalGols, trMediaGolsColuna, trAcertosMercado);
+  thead.append(trGolsColuna, trDadosColuna);
 
   const trMinutos = document.createElement("tr");
   // Coluna única de hora (sem th separado de seleção)
@@ -1776,11 +1773,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
     trMinutos.appendChild(th);
   });
   // Colunas direitas: gols, acertos, % — com IDs para ocultar/mostrar
-  const thGolsLinha = createIconTh("ball","Gols"); thGolsLinha.id="th-gols-linha"; thGolsLinha.style.cssText="width:22px;min-width:22px;max-width:22px;padding:2px;";
-  const thMediaLinha = createIconTh("avg","Média de gols"); thMediaLinha.id="th-media-linha"; thMediaLinha.style.cssText="width:30px;min-width:30px;max-width:34px;padding:2px;";
-  const thAcertosLinha = createIconTh("check","Acertos"); thAcertosLinha.id="th-acertos-linha"; thAcertosLinha.style.cssText="width:22px;min-width:22px;max-width:22px;padding:2px;";
-  const thPctLinha = createIconTh("trend","% Linha"); thPctLinha.id="th-pct-linha"; thPctLinha.style.cssText="width:34px;min-width:34px;max-width:38px;padding:2px;";
-  [thGolsLinha,thMediaLinha,thAcertosLinha,thPctLinha].forEach(th=>trMinutos.appendChild(th));
+  const thGolsLinha = createIconTh("ball","Gols (total / média)"); thGolsLinha.id="th-gols-linha"; thGolsLinha.classList.add("col-combo","col-combo-th");
+  const thDadosLinha = createIconTh("chart","Dados (% acerto / quantidade)"); thDadosLinha.id="th-dados-linha"; thDadosLinha.classList.add("col-combo","col-combo-th");
+  [thGolsLinha,thDadosLinha].forEach(th=>trMinutos.appendChild(th));
   thead.appendChild(trMinutos);
   tabelaBody.innerHTML = "";
 
@@ -1855,11 +1850,10 @@ function criarTabela(dados, oddsData, proximosJogos) {
       if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
       tr.appendChild(td);
     });
-    const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-direita-stats"});
-    const tdMedia = Object.assign(document.createElement("td"),{textContent:"0.00",className:"col-direita-media"});
-    const tdAcertos = Object.assign(document.createElement("td"),{textContent:"0",className:"col-direita-stats"});
-    const tdPct = Object.assign(document.createElement("td"),{textContent:"0%",className:"col-direita-pct"});
-    tr.appendChild(tdGols); tr.appendChild(tdMedia); tr.appendChild(tdAcertos); tr.appendChild(tdPct);
+    // Acumuladores brutos (número simples); o texto combinado é montado no fechamento da tabela
+    const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
+    const tdDados = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
+    tr.appendChild(tdGols); tr.appendChild(tdDados);
     tabelaBody.appendChild(tr);
     mapeamentoChaveLinha[chave]=tr;
   });
@@ -2008,8 +2002,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
     cel.style.setProperty("background-color", acerto ? Estado.corGreen : Estado.corRed, "important");
     aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB);
 
-    if(acerto){linha.children[linha.children.length-2].textContent=parseInt(linha.children[linha.children.length-2].textContent)+1;totalAcertosPorColuna[idx]++;}
-    linha.children[linha.children.length-4].textContent=parseInt(linha.children[linha.children.length-4].textContent)+tg;
+    if(acerto){linha.children[linha.children.length-1].textContent=parseInt(linha.children[linha.children.length-1].textContent)+1;totalAcertosPorColuna[idx]++;}
+    linha.children[linha.children.length-2].textContent=parseInt(linha.children[linha.children.length-2].textContent)+tg;
     totalGolsPorColuna[idx]+=tg;
   });
 
@@ -2023,6 +2017,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     if(jaTemRes) return;
     const idx=minutosFixos.indexOf(jogo.minuto); if(idx===-1) return;
     const cel=linha.children[1+idx]; if(cel.querySelector(".placar")) return;
+    cel.classList.add("cel-proximo-jogo");
 
     const placar=document.createElement("div"); placar.className="placar placar-futuro";
     placar.setAttribute("data-time-a",jogo.team_home); placar.setAttribute("data-time-b",jogo.team_visit);
@@ -2075,34 +2070,45 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
 
   // ── Footer totais ──────────────────────────────────────────────────────────
-  totalGolsPorColuna.forEach(t=>trTotalGols.appendChild(Object.assign(document.createElement("td"),{className:"total-goals",textContent:t})));
-  totalAcertosPorColuna.forEach(t=>trAcertosMercado.appendChild(Object.assign(document.createElement("td"),{className:"market-hits",textContent:t})));
-  for(let i=0;i<4;i++){trTotalGols.appendChild(document.createElement("td"));trAcertosMercado.appendChild(document.createElement("td"));}
-
-  const todasLinhas=Array.from(tabelaBody.querySelectorAll("tr"));
-  todasLinhas.forEach(row=>{
-    const total=Array.from(row.cells).slice(1,-4).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
-    const totalGolsRow=parseInt(row.children[row.children.length-4].textContent)||0;
-    const mediaCell=row.children[row.children.length-3];
-    mediaCell.textContent = total>0 ? (totalGolsRow/total).toFixed(2) : "0.00";
-    const acertos=parseInt(row.children[row.children.length-2].textContent);
-    const pct=total>0?Math.floor((acertos/total)*100):0;
-    const pctCell=row.children[row.children.length-1]; pctCell.textContent=`${pct}%`;
-    const _t=getThreshold(selRes); pctCell.classList.toggle("porcentagem-verde",pct>=_t); pctCell.classList.toggle("porcentagem-branca",pct<_t);
-  });
+  // Quantidade real de jogos (não-futuros) por coluna, usada nas duas linhas combinadas
+  const todasLinhasFooter=Array.from(tabelaBody.querySelectorAll("tr"));
   const totMercadoCol=Array(minutosFixos.length).fill(0);
-  todasLinhas.forEach(row=>{Array.from(row.cells).slice(1,-4).forEach((c,i)=>{if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro"))totMercadoCol[i]++;});});
-  totMercadoCol.forEach((tot,i)=>{
-    const pct=tot>0?Math.floor((totalAcertosPorColuna[i]/tot)*100):0;
-    const cell=document.createElement("td"); cell.textContent=`${pct}%`;
-    const _t=getThreshold(selRes); cell.classList.toggle("porcentagem-verde",pct>=_t); cell.classList.toggle("porcentagem-branca",pct<_t);
-    trPercentual.appendChild(cell);
+  todasLinhasFooter.forEach(row=>{Array.from(row.cells).slice(1,-2).forEach((c,i)=>{if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro"))totMercadoCol[i]++;});});
 
-    const mediaColCell=document.createElement("td"); mediaColCell.className="media-goals-col";
-    mediaColCell.textContent = tot>0 ? (totalGolsPorColuna[i]/tot).toFixed(2) : "0.00";
-    trMediaGolsColuna.appendChild(mediaColCell);
+  // Linha "Gols por coluna": total em cima, média embaixo (mesma célula)
+  totalGolsPorColuna.forEach((t,i)=>{
+    const tot=totMercadoCol[i];
+    const media=tot>0?(t/tot).toFixed(2):"0.00";
+    const cell=document.createElement("td"); cell.className="col-combo";
+    cell.innerHTML=`<span class="valor-principal">${t}</span><span class="valor-sub">${media}</span>`;
+    trGolsColuna.appendChild(cell);
   });
-  for(let i=0;i<4;i++){ trPercentual.appendChild(document.createElement("td")); trMediaGolsColuna.appendChild(document.createElement("td")); }
+  // Linha "Dados por coluna": % em cima, (quantidade de acertos) embaixo — colorido por faixa
+  totMercadoCol.forEach((tot,i)=>{
+    const acertosCol=totalAcertosPorColuna[i];
+    const pct=tot>0?Math.floor((acertosCol/tot)*100):0;
+    const cell=document.createElement("td"); cell.className=`col-combo ${getClassePct(pct)}`;
+    cell.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">(${acertosCol})</span>`;
+    trDadosColuna.appendChild(cell);
+  });
+  trGolsColuna.appendChild(document.createElement("td")); trGolsColuna.appendChild(document.createElement("td"));
+  trDadosColuna.appendChild(document.createElement("td")); trDadosColuna.appendChild(document.createElement("td"));
+
+  const todasLinhas=todasLinhasFooter;
+  todasLinhas.forEach(row=>{
+    const total=Array.from(row.cells).slice(1,-2).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
+    const tdGolsRow=row.children[row.children.length-2];
+    const totalGolsRow=parseInt(tdGolsRow.textContent)||0;
+    const media = total>0 ? (totalGolsRow/total).toFixed(2) : "0.00";
+    tdGolsRow.className="col-combo";
+    tdGolsRow.innerHTML=`<span class="valor-principal">${totalGolsRow}</span><span class="valor-sub">${media}</span>`;
+
+    const tdDadosRow=row.children[row.children.length-1];
+    const acertos=parseInt(tdDadosRow.textContent)||0;
+    const pct=total>0?Math.floor((acertos/total)*100):0;
+    tdDadosRow.className=`col-combo ${getClassePct(pct)}`;
+    tdDadosRow.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">(${acertos})</span>`;
+  });
 
   const statsEl=calculateGoalStats(todasLinhas);
   document.getElementById("totalGols").textContent=`Gols: ${statsEl.totalGols}`;
@@ -2130,10 +2136,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
     th.addEventListener("click",()=>toggleColuna(m));
     trFootMinutos.appendChild(th);
   });
-  const thFG=document.createElement("th"); thFG.id="th-foot-gols"; thFG.style.cssText="width:22px;min-width:22px;padding:2px;"; thFG.innerHTML=SVG_ICONS["ball"]||""; trFootMinutos.appendChild(thFG);
-  const thFMedia=document.createElement("th"); thFMedia.id="th-foot-media"; thFMedia.style.cssText="width:30px;min-width:30px;padding:2px;"; thFMedia.innerHTML=SVG_ICONS["avg"]||""; trFootMinutos.appendChild(thFMedia);
-  const thFA=document.createElement("th"); thFA.id="th-foot-acertos"; thFA.style.cssText="width:22px;min-width:22px;padding:2px;"; thFA.innerHTML=SVG_ICONS["check"]||""; trFootMinutos.appendChild(thFA);
-  const thFP=document.createElement("th"); thFP.id="th-foot-pct"; thFP.style.cssText="width:34px;min-width:34px;padding:2px;"; thFP.innerHTML=SVG_ICONS["trend"]||""; trFootMinutos.appendChild(thFP);
+  const thFG=document.createElement("th"); thFG.id="th-foot-gols"; thFG.classList.add("col-combo"); thFG.innerHTML=SVG_ICONS["ball"]||""; trFootMinutos.appendChild(thFG);
+  const thFD=document.createElement("th"); thFD.id="th-foot-dados"; thFD.classList.add("col-combo"); thFD.innerHTML=SVG_ICONS["chart"]||""; trFootMinutos.appendChild(thFD);
   tfoot.appendChild(trFootMinutos);
 
   aplicarEstadoStatsLaterais();
