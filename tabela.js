@@ -349,8 +349,8 @@ function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
     if (!val || val === "N/A") return;
     const b = document.createElement("div");
     b.className = "odd-extra-badge";
-    b.style.cssText = `font-size:0.68em;line-height:1;margin-top:1px;padding:1px 3px;border-radius:3px;
-      background:rgba(255,255,255,0.08);color:#ffffff;white-space:nowrap;`;
+    b.style.cssText = `font-size:0.78em;line-height:1;margin-top:1px;padding:1px 2px;border-radius:3px;
+      background:none;color:#ffffff;white-space:nowrap;`;
     b.textContent = `${LABEL_CURTO_MERCADO[item.mercado] || item.mercado} @${val}`;
     placarEl.appendChild(b);
   });
@@ -1081,7 +1081,7 @@ function garantirCheckboxQuadrantes() {
 
     /* Colunas direitas combinadas: "Gols" (total + média) e "Dados" (% + quantidade) */
     /* Colunas da DIREITA (Gols / Dados de cada linha de horário): estreitas, um valor em cima do outro — mesmo tamanho de fonte da linha do topo */
-    .col-combo { width:24px !important; min-width:24px !important; max-width:28px !important; padding:1px 0 !important; text-align:center; }
+    .col-combo { width:34px !important; min-width:34px !important; max-width:40px !important; padding:1px 0 !important; text-align:center; }
     .col-combo .valor-principal { display:block; font-size:0.85em; font-weight:700; line-height:1.15; white-space:nowrap; }
     .col-combo .valor-sub       { display:block; font-size:0.78em; font-weight:700; opacity:0.85; line-height:1.1; margin-top:1px; color:#93c5fd; white-space:nowrap; }
     .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
