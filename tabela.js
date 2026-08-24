@@ -434,7 +434,7 @@ function oraculoHoraAnterior(dataStr, hora) {
 }
 
 function aplicarOraculoTabela() {
-  document.querySelectorAll(".oraculo-marcado").forEach(td => td.classList.remove("oraculo-marcado"));
+  document.querySelectorAll(".oraculo-marcado").forEach(td => { td.classList.remove("oraculo-marcado"); td.removeAttribute("data-oraculo-label"); });
   const ativo = localStorage.getItem("oraculoAtivo") === "1";
   if (!ativo) return;
   const dadosRef = qdDadosCache;
@@ -453,11 +453,15 @@ function aplicarOraculoTabela() {
   const tr = document.querySelector(`tr[data-chave="${chave}"]`);
   if (!tr) return;
 
-  sugeridos.forEach(m => {
+  const ORACULO_LABELS = ["SG", "G1", "G2"];
+  sugeridos.forEach((m, i) => {
     const idx = minutosFixos.indexOf(m);
     if (idx < 0) return;
     const td = tr.children[idx + 1]; // +1 por causa da célula de hora
-    if (td) td.classList.add("oraculo-marcado");
+    if (td) {
+      td.classList.add("oraculo-marcado");
+      td.setAttribute("data-oraculo-label", ORACULO_LABELS[i] || "");
+    }
   });
 }
 
@@ -1103,15 +1107,23 @@ function garantirCheckboxQuadrantes() {
     /* ── ORÁCULO: marca direto na célula os minutos sugeridos da hora atual ── */
     .oraculo-marcado { position:relative; box-shadow:inset 0 0 0 1px rgba(23,123,142,0.7) !important; }
     .oraculo-marcado::after {
-      content:"";
+      content: attr(data-oraculo-label);
       position:absolute;
-      top:3px; right:3px;
-      width:6px; height:6px;
+      top:2px; right:2px;
+      width:18px; height:18px;
       border-radius:50%;
-      background:#fff;
-      box-shadow:0 0 4px rgba(255,255,255,0.9), 0 0 0 2px rgba(23,123,142,0.75);
+      background:#f5c518;
+      color:#111;
+      font-size:9px;
+      font-weight:800;
+      letter-spacing:-0.2px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 0 4px rgba(245,197,24,0.8), 0 0 0 1px rgba(0,0,0,0.45);
       pointer-events:none;
-      z-index:2;
+      z-index:3;
+      line-height:1;
     }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
     #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
