@@ -1040,9 +1040,15 @@ function garantirCheckboxQuadrantes() {
     .col-combo .valor-sub       { display:block; font-size:0.78em; font-weight:700; opacity:0.85; line-height:1.1; margin-top:1px; color:#93c5fd; white-space:nowrap; }
     .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
     /* Linhas do TOPO (Gols por coluna / Dados por coluna): duas linhas separadas, e dentro de cada uma o texto do mesmo grupo (principal + sub) lado a lado — forçado com !important para não ser sobrescrito por outro CSS da página */
-    .col-combo-top { padding:2px 4px !important; text-align:center !important; white-space:nowrap !important; }
+    .col-combo-top { padding:3px 4px !important; text-align:center !important; white-space:nowrap !important; height:18px !important; box-sizing:border-box !important; }
     .col-combo-top .valor-principal { display:inline-block !important; font-size:0.85em !important; font-weight:700 !important; white-space:nowrap !important; vertical-align:middle !important; }
     .col-combo-top .valor-sub       { display:inline-block !important; font-size:0.78em !important; opacity:0.85 !important; margin-left:3px !important; color:#93c5fd; white-space:nowrap !important; vertical-align:middle !important; }
+    /* Separação visual clara entre a linha de Gols (de cima) e a linha de Dados (de baixo) */
+    #linhaGolsColuna { background:rgba(255,255,255,0.02) !important; }
+    #linhaGolsColuna td.col-combo-top,
+    #linhaGolsColuna th { border-bottom:1px solid rgba(255,255,255,0.10) !important; }
+    #linhaDadosColuna td.col-combo-top,
+    #linhaDadosColuna th { padding-top:3px !important; }
     /* Faixas de cor do % — cor no TEXTO, sem preencher o fundo da célula: 0–29 vermelho / 30–49 amarelo / 50–100 verde */
     .pct-vermelho .valor-principal { color:#ff5c5c; }
     .pct-amarelo  .valor-principal { color:#f5c518; }
