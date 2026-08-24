@@ -1034,15 +1034,17 @@ function garantirCheckboxQuadrantes() {
     .placar-futuro .placar-futuro-odd:hover { opacity: 0.7; }
 
     /* Colunas direitas combinadas: "Gols" (total + média) e "Dados" (% + quantidade) */
-    .col-combo { width:34px !important; min-width:34px !important; max-width:40px !important; padding:1px 2px !important; text-align:center; }
-    .col-combo .valor-principal { display:block; font-size:0.78em; font-weight:700; line-height:1.15; }
-    .col-combo .valor-sub       { display:block; font-size:0.64em; opacity:0.8; line-height:1.1; margin-top:1px; color:#93c5fd; }
-    .col-combo-th { font-size:0.7em !important; padding:2px 2px !important; }
-    /* Faixas de cor do %: 0–29 vermelho / 30–49 amarelo / 50–100 verde */
-    .pct-vermelho { background-color:#7a0d02 !important; color:#ffd9d4; }
-    .pct-amarelo  { background-color:#7a5c02 !important; color:#ffedb3; }
-    .pct-verde    { background-color:#036606 !important; color:#d3ffd6; }
-    .pct-vermelho .valor-sub, .pct-amarelo .valor-sub, .pct-verde .valor-sub { color:inherit; opacity:0.85; }
+    .col-combo { width:24px !important; min-width:24px !important; max-width:28px !important; padding:1px 0 !important; text-align:center; }
+    .col-combo .valor-principal { display:block; font-size:0.72em; font-weight:700; line-height:1.1; white-space:nowrap; }
+    .col-combo .valor-sub       { display:block; font-size:0.58em; opacity:0.8; line-height:1.05; margin-top:1px; color:#93c5fd; white-space:nowrap; }
+    .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
+    /* Faixas de cor do % — cor no TEXTO, sem preencher o fundo da célula: 0–29 vermelho / 30–49 amarelo / 50–100 verde */
+    .pct-vermelho .valor-principal { color:#ff5c5c; }
+    .pct-amarelo  .valor-principal { color:#f5c518; }
+    .pct-verde    .valor-principal { color:#4ade80; }
+    .pct-vermelho .valor-sub { color:#ff5c5c; opacity:0.75; }
+    .pct-amarelo  .valor-sub { color:#f5c518; opacity:0.75; }
+    .pct-verde    .valor-sub { color:#4ade80; opacity:0.75; }
     /* Tom azul para células com jogos ainda não realizados (próximos) */
     .cel-proximo-jogo { background-color:rgba(37,99,235,0.24) !important; box-shadow:inset 0 0 0 1px rgba(96,165,250,0.4); }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
@@ -2078,7 +2080,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   // Linha "Gols por coluna": total em cima, média embaixo (mesma célula)
   totalGolsPorColuna.forEach((t,i)=>{
     const tot=totMercadoCol[i];
-    const media=tot>0?(t/tot).toFixed(2):"0.00";
+    const media=tot>0?(t/tot).toFixed(1):"0.0";
     const cell=document.createElement("td"); cell.className="col-combo";
     cell.innerHTML=`<span class="valor-principal">${t}</span><span class="valor-sub">${media}</span>`;
     trGolsColuna.appendChild(cell);
@@ -2099,7 +2101,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const total=Array.from(row.cells).slice(1,-2).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
     const tdGolsRow=row.children[row.children.length-2];
     const totalGolsRow=parseInt(tdGolsRow.textContent)||0;
-    const media = total>0 ? (totalGolsRow/total).toFixed(2) : "0.00";
+    const media = total>0 ? (totalGolsRow/total).toFixed(1) : "0.0";
     tdGolsRow.className="col-combo";
     tdGolsRow.innerHTML=`<span class="valor-principal">${totalGolsRow}</span><span class="valor-sub">${media}</span>`;
 
