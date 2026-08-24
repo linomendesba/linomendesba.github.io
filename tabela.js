@@ -349,8 +349,7 @@ function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
     if (!val || val === "N/A") return;
     const b = document.createElement("div");
     b.className = "odd-extra-badge";
-    b.style.cssText = `font-size:0.68em;line-height:1;margin-top:1px;padding:1px 3px;border-radius:3px;
-      background:rgba(255,255,255,0.08);color:#ffffff;white-space:nowrap;`;
+    b.style.cssText = `font-size:0.9em;line-height:1;margin-top:1px;color:#dfdfdf;font-weight:bold;white-space:nowrap;`;
     b.textContent = `${LABEL_CURTO_MERCADO[item.mercado] || item.mercado} @${val}`;
     placarEl.appendChild(b);
   });
