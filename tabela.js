@@ -849,12 +849,8 @@ function garantirCheckboxQuadrantes() {
   style.id = "multi-select-styles";
   style.textContent = `
     .odd-selecionada {
-      border: 0 !important;
-      outline: none !important;
-      background: transparent !important;
-      box-shadow: none !important;
-      padding: 0 !important;
-      color: var(--sel-color, #A855F7) !important;
+      border: 3px solid var(--sel-color, #A855F7) !important;
+      outline: none !important; color: var(--sel-color, #A855F7) !important;
     }
     .time-nome-selecionado {
       background-color: var(--sel-color, #A855F7) !important;
@@ -870,21 +866,7 @@ function garantirCheckboxQuadrantes() {
     }
     .ht-span { cursor: pointer; opacity: 0.85; transition: opacity 0.15s; }
     .ht-span:hover { opacity: 1; text-decoration: underline dotted rgba(255,255,255,0.4); }
-    /* Odds: tamanho único e somente texto, sem fundo/borda */
-    .odds,
-    .placar-futuro-odd {
-      font-size:0.85em !important;
-      line-height:1.1 !important;
-      background:transparent !important;
-      border:0 !important;
-      box-shadow:none !important;
-      padding:0 !important;
-      margin-top:1px;
-      font-weight:bold;
-      cursor:pointer;
-      white-space:nowrap;
-    }
-    .placar-futuro-odd { opacity:0.85; color:#dfdfdf; }
+    .placar-futuro-odd { font-size:0.9em; opacity:0.85; margin-top:1px; color:#dfdfdf; font-weight:bold; cursor:pointer; }
     .placar-futuro .placar-texto { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1.1; }
 
     .minute-header { cursor:pointer; user-select:none; font-size:0.82em; font-weight:700; }
@@ -1094,11 +1076,6 @@ function garantirCheckboxQuadrantes() {
     .placar-futuro .placar-futuro-odd {
       cursor: pointer;
       transition: opacity 0.15s;
-      font-size:0.85em !important;
-      background:transparent !important;
-      border:0 !important;
-      box-shadow:none !important;
-      padding:0 !important;
     }
     .placar-futuro .placar-futuro-odd:hover { opacity: 0.7; }
 
