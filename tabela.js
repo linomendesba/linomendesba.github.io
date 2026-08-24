@@ -1036,8 +1036,8 @@ function garantirCheckboxQuadrantes() {
     /* Colunas direitas combinadas: "Gols" (total + média) e "Dados" (% + quantidade) */
     /* Colunas da DIREITA (Gols / Dados de cada linha de horário): estreitas, um valor em cima do outro */
     .col-combo { width:24px !important; min-width:24px !important; max-width:28px !important; padding:1px 0 !important; text-align:center; }
-    .col-combo .valor-principal { display:block; font-size:0.72em; font-weight:700; line-height:1.1; white-space:nowrap; }
-    .col-combo .valor-sub       { display:block; font-size:0.58em; opacity:0.8; line-height:1.05; margin-top:1px; color:#93c5fd; white-space:nowrap; }
+    .col-combo .valor-principal { display:block; font-size:0.68em; font-weight:700; line-height:1.1; white-space:nowrap; }
+    .col-combo .valor-sub       { display:block; font-size:0.68em; font-weight:700; opacity:0.8; line-height:1.05; margin-top:1px; color:#93c5fd; white-space:nowrap; }
     .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
     /* Linhas do TOPO (Gols/Dados por coluna de minuto): texto lado a lado, maior, largura livre */
     .col-combo-top { padding:2px 3px !important; text-align:center; white-space:nowrap; }
