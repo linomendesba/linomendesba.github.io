@@ -448,18 +448,16 @@ function aplicarOraculoTabela() {
   const sugeridos = minutosFixos.slice(qtd, qtd + 3);
   if (!sugeridos.length) return;
 
-  const chave = `${dataAtual}-${horaAtual}`;
-  const tr = document.querySelector(`tr[data-chave="${chave}"]`);
-  if (!tr) return;
+  const headersMinuto = document.querySelectorAll(".minute-header");
 
   const ORACULO_LABELS = ["SG", "G1", "G2"];
   sugeridos.forEach((m, i) => {
     const idx = minutosFixos.indexOf(m);
     if (idx < 0) return;
-    const td = tr.children[idx + 1]; // +1 por causa da célula de hora
-    if (td) {
-      td.classList.add("oraculo-marcado");
-      td.setAttribute("data-oraculo-label", ORACULO_LABELS[i] || "");
+    const th = headersMinuto[idx];
+    if (th) {
+      th.classList.add("oraculo-marcado");
+      th.setAttribute("data-oraculo-label", ORACULO_LABELS[i] || "");
     }
   });
 }
@@ -1108,12 +1106,13 @@ function garantirCheckboxQuadrantes() {
     .oraculo-marcado::after {
       content: attr(data-oraculo-label);
       position:absolute;
-      top:2px; right:2px;
-      width:18px; height:18px;
+      top:-8px; left:50%;
+      transform:translateX(-50%);
+      width:16px; height:16px;
       border-radius:50%;
       background:#f5c518;
       color:#111;
-      font-size:9px;
+      font-size:8px;
       font-weight:800;
       letter-spacing:-0.2px;
       display:flex;
@@ -1121,7 +1120,7 @@ function garantirCheckboxQuadrantes() {
       justify-content:center;
       box-shadow:0 0 4px rgba(245,197,24,0.8), 0 0 0 1px rgba(0,0,0,0.45);
       pointer-events:none;
-      z-index:3;
+      z-index:5;
       line-height:1;
     }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
