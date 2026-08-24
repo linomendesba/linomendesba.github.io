@@ -2529,6 +2529,7 @@ function sincronizarEstiloBtnMercadosExtras() {
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
+  
  } catch (e) {
    console.error("Erro ao iniciar popover de mercados extras:", e);
  }
