@@ -1081,12 +1081,12 @@ function garantirCheckboxQuadrantes() {
 
     /* Colunas direitas combinadas: "Gols" (total + média) e "Dados" (% + quantidade) */
     /* Colunas da DIREITA (Gols / Dados de cada linha de horário): estreitas, um valor em cima do outro — mesmo tamanho de fonte da linha do topo */
-    .col-combo { width:28px !important; min-width:28px !important; max-width:32px !important; padding:1px 0 !important; text-align:center; }
+    .col-combo { width:24px !important; min-width:24px !important; max-width:26px !important; padding:1px 0 !important; text-align:center; }
     .col-combo .valor-principal { display:block; font-size:0.85em; font-weight:700; line-height:1.15; white-space:nowrap; }
     .col-combo .valor-sub       { display:block; font-size:0.78em; font-weight:700; opacity:0.85; line-height:1.1; margin-top:1px; color:#93c5fd; white-space:nowrap; }
     .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
     /* Linhas do TOPO (Gols por coluna / Dados por coluna): duas linhas separadas, e dentro de cada uma o texto do mesmo grupo (principal + sub) lado a lado — forçado com !important para não ser sobrescrito por outro CSS da página */
-    .col-combo-top { padding:3px 4px !important; text-align:center !important; white-space:nowrap !important; height:18px !important; box-sizing:border-box !important; }
+    .col-combo-top { padding:3px 2px !important; text-align:center !important; white-space:nowrap !important; height:18px !important; box-sizing:border-box !important; }
     .col-combo-top .valor-principal { display:inline-block !important; font-size:0.85em !important; font-weight:700 !important; white-space:nowrap !important; vertical-align:middle !important; }
     .col-combo-top .valor-sub       { display:inline-block !important; font-size:0.78em !important; opacity:0.85 !important; margin-left:3px !important; color:#93c5fd; white-space:nowrap !important; vertical-align:middle !important; }
     /* Separação visual clara entre a linha de Gols (de cima) e a linha de Dados (de baixo) */
