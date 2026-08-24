@@ -1,6 +1,44 @@
-const minutosFixos = [
+const MINUTOS_PADRAO = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
+// minutosFixos agora é dinâmico: cada liga pode ter minutos/quantidade de jogos por
+// hora diferentes. O valor real é detectado a partir dos dados que a API devolve
+// (ver detectarMinutosFixos()) e cacheado por liga no localStorage.
+let minutosFixos = [...MINUTOS_PADRAO];
+// Tamanho de cada quadrante (bloco de colunas separado por borda) — recalculado
+// junto com minutosFixos pra sempre dividir em ~4 blocos, não só quando dá 20 colunas.
+let TAMANHO_QUADRANTE = 5;
+
+/**
+ * Detecta os minutos fixos (colunas da tabela) reais de uma liga a partir dos
+ * jogos recebidos da API, em vez de assumir sempre 1,4,7...58 (20 jogos/hora).
+ * - Junta com o que já foi visto antes daquela liga (localStorage) pra não
+ *   "sumir" coluna por causa de uma janela de dados momentaneamente incompleta.
+ * - Se não houver dados suficientes, cai pro cache da liga e, por fim, pro padrão.
+ */
+function detectarMinutosFixos(dados, ligaKey) {
+  const cacheKey = `minutosFixos_${ligaKey}`;
+  const cache = JSON.parse(localStorage.getItem(cacheKey) || "null");
+
+  const minutosUnicos = (dados || [])
+    .map(d => d.minuto)
+    .filter(m => typeof m === "number" && !isNaN(m));
+  const setUnicos = [...new Set(minutosUnicos)].sort((a, b) => a - b);
+
+  // Poucos dados pra confiar (ex.: liga recém aberta) → usa cache ou padrão
+  if (setUnicos.length < 4) {
+    return (cache && cache.length) ? cache : [...MINUTOS_PADRAO];
+  }
+
+  const uniao = [...new Set([...(cache || []), ...setUnicos])].sort((a, b) => a - b);
+  localStorage.setItem(cacheKey, JSON.stringify(uniao));
+  return uniao;
+}
+
+function atualizarMinutosFixos(dados, ligaKey) {
+  minutosFixos = detectarMinutosFixos(dados, ligaKey);
+  TAMANHO_QUADRANTE = Math.max(1, Math.round(minutosFixos.length / 4));
+}
 
 const MERCADO_THRESHOLD = {
   ambasMarcam:    Math.round((9  / 20) * 100),
@@ -349,8 +387,8 @@ function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
     if (!val || val === "N/A") return;
     const b = document.createElement("div");
     b.className = "odd-extra-badge";
-    b.style.cssText = `font-size:9px;line-height:1;margin-top:1px;padding:1px 2px;border-radius:3px;
-      background:none;color:#ffffff;white-space:nowrap;`;
+    b.style.cssText = `font-size:0.68em;line-height:1;margin-top:1px;padding:1px 3px;border-radius:3px;
+      background:rgba(255,255,255,0.08);color:#ffffff;white-space:nowrap;`;
     b.textContent = `${LABEL_CURTO_MERCADO[item.mercado] || item.mercado} @${val}`;
     placarEl.appendChild(b);
   });
@@ -417,52 +455,6 @@ function qdGetHoraAtual(resultados) {
   // Fallback para hora do sistema
   const now = new Date();
   return { hora: now.getHours(), dateStr: now.toISOString().split('T')[0] };
-}
-
-// ─── ORÁCULO DE ENTRADAS (integrado à tabela) ──────────────────────────────────
-// Marca direto nas células da hora atual os minutos sugeridos, com base em
-// quantas vezes o mercado selecionado ocorreu na hora anterior.
-function oraculoHoraAnterior(dataStr, hora) {
-  let h = hora - 1, d = dataStr;
-  if (h < 0) {
-    h = 23;
-    const dt = new Date(dataStr + 'T12:00:00');
-    dt.setDate(dt.getDate() - 1);
-    d = dt.toISOString().split('T')[0];
-  }
-  return { dataStr: d, hora: h };
-}
-
-function aplicarOraculoTabela() {
-  document.querySelectorAll(".oraculo-marcado").forEach(td => { td.classList.remove("oraculo-marcado"); td.removeAttribute("data-oraculo-label"); });
-  const ativo = localStorage.getItem("oraculoAtivo") === "1";
-  if (!ativo) return;
-  const dadosRef = qdDadosCache;
-  if (!dadosRef || !dadosRef.length) return;
-
-  const mercado = document.querySelector("#seletorResultado")?.value || "over2.5";
-  const { hora: horaAtual, dateStr: dataAtual } = qdGetHoraAtual(dadosRef);
-  const ant = oraculoHoraAnterior(dataAtual, horaAtual);
-
-  const jogosAnt = dadosRef.filter(j => getDateStr(j.data) === ant.dataStr && j.hora === ant.hora);
-  const qtd = jogosAnt.filter(j => qdCheckMarket(j.ft, j.ht, mercado)).length;
-  const sugeridos = minutosFixos.slice(qtd, qtd + 3);
-  if (!sugeridos.length) return;
-
-  const chave = `${dataAtual}-${horaAtual}`;
-  const tr = document.querySelector(`tr[data-chave="${chave}"]`);
-  if (!tr) return;
-
-  const ORACULO_LABELS = ["SG", "G1", "G2"];
-  sugeridos.forEach((m, i) => {
-    const idx = minutosFixos.indexOf(m);
-    if (idx < 0) return;
-    const td = tr.children[idx + 1]; // +1 por causa da célula de hora
-    if (td) {
-      td.classList.add("oraculo-marcado");
-      td.setAttribute("data-oraculo-label", ORACULO_LABELS[i] || "");
-    }
-  });
 }
 
 // ─── KEY DO CHECKBOX DOS QUADRANTES ──────────────────────────────────────────
@@ -580,18 +572,18 @@ function qdCreateBlocoThs(index, timeSlots) {
       <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;${mtStyle}white-space:nowrap;">
         <span id="qd-label-${index}-${slotIdx}" style="color:${labelColor};font-weight:${labelWeight};font-size:${labelSize};">${labelTxt}</span>
         <div style="display:flex;align-items:center;gap:0.25rem;">
-<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${golsTextColor};" title="Gols">
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Gols">
+  <span style="font-size:10px;line-height:1;">⚽</span>
   <strong id="qd-gols-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
 </span>
 
-<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${hitTextColor};" title="Acertos">
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="7,12.5 10.3,16 17,8.5"/></svg>
+<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Acertos">
+  <span style="font-size:10px;line-height:1;">✅</span>
   <strong id="qd-hits-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
 </span>
 
-<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${counterTextColor};" title="Erros">
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="m14.5 9.5-5 5M9.5 9.5l5 5"/></svg>
+<span style="display:inline-flex;align-items:center;gap:0.15rem;" title="Erros">
+  <span style="font-size:10px;line-height:1;">❌</span>
   <strong id="qd-counter-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
 </span>
         </div>
@@ -804,12 +796,12 @@ function qdToggle(ativo) {
 function qdAplicarSeparadorTabela(ativo) {
   if (ativo) {
     document.querySelectorAll(".minute-header").forEach((th, i) => {
-      th.classList.toggle("quadrant-border", i > 0 && i % 5 === 0);
+      th.classList.toggle("quadrant-border", i > 0 && i % TAMANHO_QUADRANTE === 0);
     });
     document.querySelectorAll("#tabelaResultados tbody tr").forEach(row => {
       Array.from(row.cells).forEach((cell, i) => {
         if (i < 1 || i >= 1 + minutosFixos.length) return;
-        cell.classList.toggle("quadrant-border", (i - 1) > 0 && (i - 1) % 5 === 0);
+        cell.classList.toggle("quadrant-border", (i - 1) > 0 && (i - 1) % TAMANHO_QUADRANTE === 0);
       });
     });
   } else {
@@ -1080,21 +1072,15 @@ function garantirCheckboxQuadrantes() {
     .placar-futuro .placar-futuro-odd:hover { opacity: 0.7; }
 
     /* Colunas direitas combinadas: "Gols" (total + média) e "Dados" (% + quantidade) */
-    /* Colunas da DIREITA (Gols / Dados de cada linha de horário): estreitas, um valor em cima do outro — mesmo tamanho de fonte da linha do topo */
-    .col-combo { width:24px !important; min-width:24px !important; max-width:26px !important; padding:1px 0 !important; text-align:center; }
-    .col-combo .valor-principal { display:block; font-size:0.85em; font-weight:700; line-height:1.15; white-space:nowrap; }
-    .col-combo .valor-sub       { display:block; font-size:0.78em; font-weight:700; opacity:0.85; line-height:1.1; margin-top:1px; color:#93c5fd; white-space:nowrap; }
+    /* Colunas da DIREITA (Gols / Dados de cada linha de horário): estreitas, um valor em cima do outro */
+    .col-combo { width:36px !important; min-width:36px !important; max-width:42px !important; padding:1px 1px !important; text-align:center; }
+    .col-combo .valor-principal { display:block; font-size:0.7em; font-weight:700; line-height:1.1; white-space:nowrap; }
+    .col-combo .valor-sub       { display:block; font-size:0.66em; font-weight:700; opacity:0.8; line-height:1.05; margin-top:1px; color:#93c5fd; white-space:nowrap; }
     .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
-    /* Linhas do TOPO (Gols por coluna / Dados por coluna): duas linhas separadas, e dentro de cada uma o texto do mesmo grupo (principal + sub) lado a lado — forçado com !important para não ser sobrescrito por outro CSS da página */
-    .col-combo-top { padding:3px 2px !important; text-align:center !important; white-space:nowrap !important; height:18px !important; box-sizing:border-box !important; }
-    .col-combo-top .valor-principal { display:inline-block !important; font-size:0.85em !important; font-weight:700 !important; white-space:nowrap !important; vertical-align:middle !important; }
-    .col-combo-top .valor-sub       { display:inline-block !important; font-size:0.78em !important; opacity:0.85 !important; margin-left:3px !important; color:#93c5fd; white-space:nowrap !important; vertical-align:middle !important; }
-    /* Separação visual clara entre a linha de Gols (de cima) e a linha de Dados (de baixo) */
-    #linhaGolsColuna { background:rgba(255,255,255,0.02) !important; }
-    #linhaGolsColuna td.col-combo-top,
-    #linhaGolsColuna th { border-bottom:1px solid rgba(255,255,255,0.10) !important; }
-    #linhaDadosColuna td.col-combo-top,
-    #linhaDadosColuna th { padding-top:3px !important; }
+    /* Linhas do TOPO (Gols/Dados por coluna de minuto): texto lado a lado, maior, largura livre */
+    .col-combo-top { padding:2px 3px !important; text-align:center; white-space:nowrap; }
+    .col-combo-top .valor-principal { display:inline; font-size:0.85em; font-weight:700; }
+    .col-combo-top .valor-sub       { display:inline; font-size:0.78em; opacity:0.85; margin-left:3px; color:#93c5fd; }
     /* Faixas de cor do % — cor no TEXTO, sem preencher o fundo da célula: 0–29 vermelho / 30–49 amarelo / 50–100 verde */
     .pct-vermelho .valor-principal { color:#ff5c5c; }
     .pct-amarelo  .valor-principal { color:#f5c518; }
@@ -1103,28 +1089,7 @@ function garantirCheckboxQuadrantes() {
     .pct-amarelo  .valor-sub { color:#f5c518; opacity:0.75; }
     .pct-verde    .valor-sub { color:#4ade80; opacity:0.75; }
     /* Tom azul para células com jogos ainda não realizados (próximos) */
-    .cel-proximo-jogo { background-color:rgba(23,123,142,0.28) !important; box-shadow:inset 0 0 0 1px rgba(23,123,142,0.55); }
-    /* ── ORÁCULO: marca direto na célula os minutos sugeridos da hora atual ── */
-    .oraculo-marcado { position:relative; box-shadow:inset 0 0 0 1px rgba(23,123,142,0.7) !important; }
-    .oraculo-marcado::after {
-      content: attr(data-oraculo-label);
-      position:absolute;
-      top:2px; right:2px;
-      width:18px; height:18px;
-      border-radius:50%;
-      background:#f5c518;
-      color:#111;
-      font-size:9px;
-      font-weight:800;
-      letter-spacing:-0.2px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-shadow:0 0 4px rgba(245,197,24,0.8), 0 0 0 1px rgba(0,0,0,0.45);
-      pointer-events:none;
-      z-index:3;
-      line-height:1;
-    }
+    .cel-proximo-jogo { background-color:rgba(37,99,235,0.24) !important; box-shadow:inset 0 0 0 1px rgba(96,165,250,0.4); }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
     #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
     /* ── ZONA GREEN: Intensidade por coluna ── */
@@ -1286,10 +1251,6 @@ function garantirPainelCores() {
       <input type="checkbox" id="cb-melhores-odds">
       Melhores Odds
     </label>
-    <label class="alerta-toggle-label" id="lbl-oraculo-tabela">
-      <input type="checkbox" id="cb-oraculo-tabela">
-      Oráculo
-    </label>
   `;
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
   el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
@@ -1348,20 +1309,6 @@ function garantirPainelCores() {
     });
   }
 
-  // Checkbox Oráculo (marca direto na tabela os minutos sugeridos da hora atual)
-  const orCb  = el.querySelector("#cb-oraculo-tabela");
-  const orLbl = el.querySelector("#lbl-oraculo-tabela");
-  if (orCb) {
-    const orOn = localStorage.getItem("oraculoAtivo") === "1"; // padrão OFF
-    orCb.checked = orOn;
-    orLbl?.classList.toggle("alerta-ativo", orOn);
-    orCb.addEventListener("change", function() {
-      localStorage.setItem("oraculoAtivo", this.checked ? "1" : "0");
-      orLbl?.classList.toggle("alerta-ativo", this.checked);
-      aplicarOraculoTabela();
-    });
-  }
-
   el.querySelector("#btn-reset-cores").addEventListener("click", () => {
     Estado.corGreen = COR_GREEN_PADRAO; Estado.corRed = COR_RED_PADRAO; Estado.salvar();
     el.querySelector("#input-cor-green").value = COR_GREEN_PADRAO;
@@ -1387,10 +1334,6 @@ function sincronizarPainelCores() {
   const zgCb  = document.getElementById("cb-zona-green-toggle");
   const zgLbl = document.getElementById("lbl-zona-green-toggle");
   if (zgCb) { const on = localStorage.getItem("zonaGreenAtivo") === "1"; zgCb.checked = on; zgLbl?.classList.toggle("alerta-ativo", on); }
-  // Sincroniza Oráculo
-  const orCb  = document.getElementById("cb-oraculo-tabela");
-  const orLbl = document.getElementById("lbl-oraculo-tabela");
-  if (orCb) { const on = localStorage.getItem("oraculoAtivo") === "1"; orCb.checked = on; orLbl?.classList.toggle("alerta-ativo", on); }
 }
 
 // ─── PAINEL DE SELEÇÕES ───────────────────────────────────────────────────────
@@ -1575,11 +1518,11 @@ function aplicarColunaHighlights() {
       if(i<1||i>=1+minutosFixos.length) return;
       const colIdx=i-1;
       cell.classList.toggle("coluna-selecionada",Estado.colunasSelecionadas.includes(minutosFixos[colIdx]));
-      if (qdCheckboxAtivo()) cell.classList.toggle("quadrant-border",colIdx>0&&colIdx%5===0);
+      if (qdCheckboxAtivo()) cell.classList.toggle("quadrant-border",colIdx>0&&colIdx%TAMANHO_QUADRANTE===0);
     });
   });
   if (qdCheckboxAtivo()) {
-    document.querySelectorAll(".minute-header").forEach((th,i)=>{th.classList.toggle("quadrant-border",i>0&&i%5===0);});
+    document.querySelectorAll(".minute-header").forEach((th,i)=>{th.classList.toggle("quadrant-border",i>0&&i%TAMANHO_QUADRANTE===0);});
   }
 }
 function atualizarColunaStats() {
@@ -1869,7 +1812,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const th = document.createElement("th"); th.className="minute-header"; th.textContent=m;
     const qIdx = Math.floor(i/5)%4;
     th.classList.add(`qd-${qIdx}`);
-    if (qdCheckboxAtivo() && i>0 && i%5===0) th.classList.add("quadrant-border");
+    if (qdCheckboxAtivo() && i>0 && i%TAMANHO_QUADRANTE===0) th.classList.add("quadrant-border");
     if (Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
     th.addEventListener("click", ()=>toggleColuna(m));
     trMinutos.appendChild(th);
@@ -1948,7 +1891,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
       const td=document.createElement("td");
       const qIdx=Math.floor(i/5)%4;
       td.classList.add(`qd-cell-${qIdx}`);
-      if(qdCheckboxAtivo() && i>0 && i%5===0) td.classList.add("quadrant-border");
+      if(qdCheckboxAtivo() && i>0 && i%TAMANHO_QUADRANTE===0) td.classList.add("quadrant-border");
       if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
       tr.appendChild(td);
     });
@@ -2177,12 +2120,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const totMercadoCol=Array(minutosFixos.length).fill(0);
   todasLinhasFooter.forEach(row=>{Array.from(row.cells).slice(1,-2).forEach((c,i)=>{if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro"))totMercadoCol[i]++;});});
 
-  // Linha "Gols por coluna": total e média lado a lado (mesma célula)
+  // Linha "Gols por coluna": total em cima, média embaixo (mesma célula)
   totalGolsPorColuna.forEach((t,i)=>{
     const tot=totMercadoCol[i];
     const media=tot>0?(t/tot).toFixed(1):"0.0";
     const cell=document.createElement("td"); cell.className="col-combo-top";
-    cell.innerHTML=`<span class="valor-principal">${t}</span><span class="valor-sub">{${media}}</span>`;
+    cell.innerHTML=`<span class="valor-principal">${t}</span><span class="valor-sub">(${media})</span>`;
     trGolsColuna.appendChild(cell);
   });
   // Linha "Dados por coluna": % e (quantidade de acertos) lado a lado — colorido por faixa
@@ -2190,7 +2133,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const acertosCol=totalAcertosPorColuna[i];
     const pct=tot>0?Math.floor((acertosCol/tot)*100):0;
     const cell=document.createElement("td"); cell.className=`col-combo-top ${getClassePct(pct)}`;
-    cell.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">{${acertosCol}}</span>`;
+    cell.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">(${acertosCol})</span>`;
     trDadosColuna.appendChild(cell);
   });
   trGolsColuna.appendChild(document.createElement("td")); trGolsColuna.appendChild(document.createElement("td"));
@@ -2209,14 +2152,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const acertos=parseInt(tdDadosRow.textContent)||0;
     const pct=total>0?Math.floor((acertos/total)*100):0;
     tdDadosRow.className=`col-combo ${getClassePct(pct)}`;
-    tdDadosRow.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">{${acertos}}</span>`;
+    tdDadosRow.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">(${acertos})</span>`;
   });
 
   const statsEl=calculateGoalStats(todasLinhas);
   document.getElementById("totalGols").textContent=`Gols: ${statsEl.totalGols}`;
   document.getElementById("mediaGolsHora").textContent=`Médias: ${statsEl.mediaGolsHora}`;
 
-  criarOuObterPainel(); aplicarHighlights(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats(); aplicarOraculoTabela();
+  criarOuObterPainel(); aplicarHighlights(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
   _ultimaFreqOdds = freqOddsMercado;
   atualizarMelhoresOdds(freqOddsMercado);
   garantirPainelCores(); sincronizarPainelCores();
@@ -2233,7 +2176,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   minutosFixos.forEach((m,i)=>{
     const th=document.createElement("th"); th.className="minute-header"; th.textContent=m;
     const qIdx=Math.floor(i/5)%4; th.classList.add(`qd-${qIdx}`);
-    if(qdCheckboxAtivo()&&i>0&&i%5===0) th.classList.add("quadrant-border");
+    if(qdCheckboxAtivo()&&i>0&&i%TAMANHO_QUADRANTE===0) th.classList.add("quadrant-border");
     if(Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
     th.addEventListener("click",()=>toggleColuna(m));
     trFootMinutos.appendChild(th);
@@ -2322,6 +2265,10 @@ async function buscarDados() {
   }
 
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
+
+  // Detecta automaticamente os minutos/quadrantes reais desta liga (cada liga
+  // pode ter minutos e nº de jogos por hora diferentes)
+  atualizarMinutosFixos(dados, ligaAtual);
 
   // Salva cache dos dados para os quadrantes e re-render rápido
   qdDadosCache = dados;
