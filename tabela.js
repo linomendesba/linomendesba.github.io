@@ -1039,18 +1039,11 @@ function garantirCheckboxQuadrantes() {
     .col-combo .valor-principal { display:block; font-size:0.85em; font-weight:700; line-height:1.15; white-space:nowrap; }
     .col-combo .valor-sub       { display:block; font-size:0.78em; font-weight:700; opacity:0.85; line-height:1.1; margin-top:1px; color:#93c5fd; white-space:nowrap; }
     .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
-    /* Linha do TOPO (Dados + Gols por coluna de minuto, unificada): tudo lado a lado na mesma linha */
+    /* Linhas do TOPO (Gols por coluna / Dados por coluna): duas linhas separadas, e dentro de cada uma o texto do mesmo grupo (principal + sub) lado a lado */
     .col-combo-top { padding:2px 4px !important; text-align:center; white-space:nowrap; }
-    .col-combo-top .stat-grupo { display:inline-flex; align-items:baseline; gap:3px; }
-    .col-combo-top .stat-sep   { display:inline-block; margin:0 6px; opacity:0.35; font-size:0.75em; }
-    .col-combo-top .valor-principal,
-    .col-combo-top .valor-principal-g { display:inline; font-size:0.85em; font-weight:700; }
-    .col-combo-top .valor-sub,
-    .col-combo-top .valor-sub-g       { display:inline; font-size:0.78em; opacity:0.85; }
-    .col-combo-top .valor-sub     { color:#93c5fd; }
-    .col-combo-top .valor-principal-g { color:#fff; }
-    .col-combo-top .valor-sub-g       { color:#93c5fd; }
-    /* Faixas de cor do % — cor no TEXTO, sem preencher o fundo da célula: 0–29 vermelho / 30–49 amarelo / 50–100 verde. Só afeta o grupo "Dados" (valor-principal/valor-sub), não o grupo "Gols" (valor-principal-g/valor-sub-g) */
+    .col-combo-top .valor-principal { display:inline; font-size:0.85em; font-weight:700; }
+    .col-combo-top .valor-sub       { display:inline; font-size:0.78em; opacity:0.85; margin-left:3px; color:#93c5fd; }
+    /* Faixas de cor do % — cor no TEXTO, sem preencher o fundo da célula: 0–29 vermelho / 30–49 amarelo / 50–100 verde */
     .pct-vermelho .valor-principal { color:#ff5c5c; }
     .pct-amarelo  .valor-principal { color:#f5c518; }
     .pct-verde    .valor-principal { color:#4ade80; }
@@ -1059,8 +1052,8 @@ function garantirCheckboxQuadrantes() {
     .pct-verde    .valor-sub { color:#4ade80; opacity:0.75; }
     /* Tom azul para células com jogos ainda não realizados (próximos) */
     .cel-proximo-jogo { background-color:rgba(37,99,235,0.24) !important; box-shadow:inset 0 0 0 1px rgba(96,165,250,0.4); }
-    /* Header row das stats combinadas (Dados + Gols por coluna) mais baixo */
-    #linhaStatsColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
+    /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
+    #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
     /* ── ZONA GREEN: Intensidade por coluna ── */
     td[data-resultado="acerto"].zg-low  { filter: brightness(0.55) saturate(0.7); }
     td[data-resultado="acerto"].zg-mid  { filter: brightness(0.8) saturate(0.9); }
@@ -1077,7 +1070,8 @@ function garantirCheckboxQuadrantes() {
     .stats-laterais-ocultas #th-dados-linha,
     .stats-laterais-ocultas #th-foot-gols,
     .stats-laterais-ocultas #th-foot-dados,
-    .stats-laterais-ocultas #linhaStatsColuna,
+    .stats-laterais-ocultas #linhaGolsColuna,
+    .stats-laterais-ocultas #linhaDadosColuna,
     .stats-laterais-ocultas #trQuadrantes th:nth-last-child(1),
     .stats-laterais-ocultas #trQuadrantes th:nth-last-child(2) { display:none !important; }
   `;
@@ -1761,10 +1755,13 @@ function criarTabela(dados, oddsData, proximosJogos) {
     qdRenderTabela(dados);
   }
 
-  const trStatsColuna = document.createElement("tr"); trStatsColuna.id="linhaStatsColuna";
-  trStatsColuna.appendChild(createIconTh("chart","Dados (% acerto / quantidade) e Gols (total / média) por coluna"));
+  const trGolsColuna = document.createElement("tr"); trGolsColuna.id="linhaGolsColuna";
+  trGolsColuna.appendChild(createIconTh("ball","Gols por coluna (total / média)"));
 
-  thead.append(trStatsColuna);
+  const trDadosColuna = document.createElement("tr"); trDadosColuna.id="linhaDadosColuna";
+  trDadosColuna.appendChild(createIconTh("chart","Dados por coluna (% acerto / quantidade)"));
+
+  thead.append(trGolsColuna, trDadosColuna);
 
   const trMinutos = document.createElement("tr");
   // Coluna única de hora (sem th separado de seleção)
@@ -2085,17 +2082,24 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const totMercadoCol=Array(minutosFixos.length).fill(0);
   todasLinhasFooter.forEach(row=>{Array.from(row.cells).slice(1,-2).forEach((c,i)=>{if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro"))totMercadoCol[i]++;});});
 
-  // Linha unificada "Dados + Gols por coluna": % (qtd) ao lado de total (média), lado a lado — % colorido por faixa
+  // Linha "Gols por coluna": total e média lado a lado (mesma célula)
+  totalGolsPorColuna.forEach((t,i)=>{
+    const tot=totMercadoCol[i];
+    const media=tot>0?(t/tot).toFixed(1):"0.0";
+    const cell=document.createElement("td"); cell.className="col-combo-top";
+    cell.innerHTML=`<span class="valor-principal">${t}</span><span class="valor-sub">(${media})</span>`;
+    trGolsColuna.appendChild(cell);
+  });
+  // Linha "Dados por coluna": % e (quantidade de acertos) lado a lado — colorido por faixa
   totMercadoCol.forEach((tot,i)=>{
     const acertosCol=totalAcertosPorColuna[i];
     const pct=tot>0?Math.floor((acertosCol/tot)*100):0;
-    const t=totalGolsPorColuna[i];
-    const media=tot>0?(t/tot).toFixed(1):"0.0";
     const cell=document.createElement("td"); cell.className=`col-combo-top ${getClassePct(pct)}`;
-    cell.innerHTML=`<span class="stat-grupo stat-dados"><span class="valor-principal">${pct}%</span><span class="valor-sub">(${acertosCol})</span></span><span class="stat-sep">·</span><span class="stat-grupo stat-gols"><span class="valor-principal-g">${t}</span><span class="valor-sub-g">(${media})</span></span>`;
-    trStatsColuna.appendChild(cell);
+    cell.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">(${acertosCol})</span>`;
+    trDadosColuna.appendChild(cell);
   });
-  trStatsColuna.appendChild(document.createElement("td")); trStatsColuna.appendChild(document.createElement("td"));
+  trGolsColuna.appendChild(document.createElement("td")); trGolsColuna.appendChild(document.createElement("td"));
+  trDadosColuna.appendChild(document.createElement("td")); trDadosColuna.appendChild(document.createElement("td"));
 
   const todasLinhas=todasLinhasFooter;
   todasLinhas.forEach(row=>{
