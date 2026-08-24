@@ -222,9 +222,13 @@ function _mediana(arr) {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-// Divide a sequência de minutos detectada em até 4 blocos (quadrantes) balanceados
+// Divide a sequência de minutos detectada em blocos FIXOS de 5 minutos cada
+// (não "sempre 4 blocos"). Ligas de 20 jogos/h -> 4 blocos de 5. Ligas de
+// 30 jogos/h -> 6 blocos de 5. Isso é o que bate com a estrutura real das
+// ligas (blocosDeMinutos original de 30 jogos: 6 blocos de 5 minutos).
+const QD_TAMANHO_BLOCO_FIXO = 5;
 function gerarBlocosDeMinutos(seq) {
-  const tamanho = Math.max(1, Math.ceil(seq.length / 4));
+  const tamanho = QD_TAMANHO_BLOCO_FIXO;
   const blocos = [];
   for (let i = 0; i < seq.length; i += tamanho) blocos.push(seq.slice(i, i + tamanho));
   return blocos;
@@ -232,7 +236,7 @@ function gerarBlocosDeMinutos(seq) {
 
 // Tamanho de cada bloco/quadrante da estrutura ATUAL (usado pra bordas e cores)
 function _tamanhoBlocoQD() {
-  return Math.max(1, Math.ceil(minutosFixos.length / 4));
+  return QD_TAMANHO_BLOCO_FIXO;
 }
 
 /**
@@ -626,9 +630,10 @@ function qdCreateBlocoThs(index, timeSlots) {
   const qIdx        = index % 4;
   const isFirstBloco = index === 0;
   // Colspan dinâmico: cada bloco pode ter um nº diferente de minutos
-  // (ex.: ligas de 20 jogos/h -> blocos de 5; ligas de 30 jogos/h -> blocos de 8).
-  // Fixar em 5 desalinhava a linha QDT com a linha de minutos nas ligas de 30 jogos,
-  // o que fazia o clique de seleção "acender" a coluna errada.
+  // (ex.: último bloco de uma liga com total não-múltiplo de 5 fica menor).
+  // Fixar em 5 desalinhava a linha QDT com a linha de minutos quando o bloco
+  // real tinha outro tamanho, o que fazia o clique de seleção "acender" a
+  // coluna errada.
   const colspanBloco = (blocosDeMinutos[index] && blocosDeMinutos[index].length) || 5;
   let innerHtml = '';
   timeSlots.forEach((slot, slotIdx) => {
@@ -1952,7 +1957,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const tamanhoBlocoHeader = _tamanhoBlocoQD();
   minutosFixos.forEach((m, i) => {
     const th = document.createElement("th"); th.className="minute-header"; th.textContent=m;
-    const qIdx = Math.min(3, Math.floor(i/tamanhoBlocoHeader));
+    const qIdx = Math.floor(i/tamanhoBlocoHeader) % 4;
     th.classList.add(`qd-${qIdx}`);
     if (qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) th.classList.add("quadrant-border");
     if (Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
@@ -2031,7 +2036,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     tr.appendChild(tdHora);
     minutosFixos.forEach((m,i)=>{
       const td=document.createElement("td");
-      const qIdx=Math.min(3,Math.floor(i/tamanhoBlocoHeader));
+      const qIdx=Math.floor(i/tamanhoBlocoHeader) % 4;
       td.classList.add(`qd-cell-${qIdx}`);
       if(qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) td.classList.add("quadrant-border");
       if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
@@ -2318,7 +2323,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const tamanhoBlocoFooter=_tamanhoBlocoQD();
   minutosFixos.forEach((m,i)=>{
     const th=document.createElement("th"); th.className="minute-header"; th.textContent=m;
-    const qIdx=Math.min(3,Math.floor(i/tamanhoBlocoFooter)); th.classList.add(`qd-${qIdx}`);
+    const qIdx=Math.floor(i/tamanhoBlocoFooter) % 4; th.classList.add(`qd-${qIdx}`);
     if(qdCheckboxAtivo()&&i>0&&i%tamanhoBlocoFooter===0) th.classList.add("quadrant-border");
     if(Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
     th.addEventListener("click",()=>toggleColuna(m));
