@@ -2032,17 +2032,25 @@ function hfSalvarCheckbox(ativo) {
 
 function hfRemoverEstrutura() {
   document.getElementById("hf-wrapper-top")?.remove();
-  document.getElementById("hf-wrapper-bottom")?.remove();
+}
+
+function hfAtualizarVisibilidadeControles() {
+  const wrap = document.getElementById("hf-controles-inline");
+  if (wrap) wrap.style.display = hfCheckboxAtivo() ? "inline-flex" : "none";
 }
 
 function hfToggle(ativo) {
   hfSalvarCheckbox(ativo);
+  hfAtualizarVisibilidadeControles();
   if (ativo) hfRender(qdDadosCache);
   else hfRemoverEstrutura();
 }
 
 function garantirCheckboxHoraFixa() {
-  if (document.getElementById("lbl-horafixa-toggle")) return;
+  if (document.getElementById("lbl-horafixa-toggle")) {
+    hfAtualizarVisibilidadeControles();
+    return;
+  }
   const painel = document.getElementById("painel-cores");
   if (!painel) return; // painel ainda não criado, será chamado novamente
 
@@ -2062,6 +2070,40 @@ function garantirCheckboxHoraFixa() {
   });
 
   painel.appendChild(lbl);
+
+  // ── Seletores de Hora fixa / Gales — ficam ao lado do checkbox, no mesmo painel ──
+  const controlesWrap = document.createElement("span");
+  controlesWrap.id = "hf-controles-inline";
+  let horaOptions = `<option value="atual">Atual</option>`;
+  for (let h = 0; h < 24; h++) horaOptions += `<option value="${h}">${h.toString().padStart(2, "0")}h</option>`;
+  controlesWrap.innerHTML = `
+    <label for="hf-seletor-hora">Hora:</label>
+    <select id="hf-seletor-hora">${horaOptions}</select>
+    <label for="hf-seletor-gales">Gales:</label>
+    <select id="hf-seletor-gales">
+      <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+    </select>
+  `;
+  painel.appendChild(controlesWrap);
+
+  const selHora  = controlesWrap.querySelector("#hf-seletor-hora");
+  const selGales = controlesWrap.querySelector("#hf-seletor-gales");
+  selHora.value  = hfLerHoraSelecionada();
+  selGales.value = String(hfLerGales());
+
+  selHora.addEventListener("change", () => {
+    hfSalvarHoraSelecionada(selHora.value);
+    hfRender(qdDadosCache);
+  });
+  selGales.addEventListener("change", () => {
+    hfSalvarGales(parseInt(selGales.value, 10));
+    hfRender(qdDadosCache);
+  });
+
+  hfSincronizarEstiloControles();
+  window.addEventListener("resize", hfSincronizarEstiloControles);
+
+  hfAtualizarVisibilidadeControles();
 }
 
 // ─── Copia o estilo computado dos <select> do topo da página para os seletores
@@ -2115,9 +2157,9 @@ function hfGarantirEstrutura() {
       .hf-50  { background: #e67e00 !important; color: #111; }
       .hf-40  { background: #cc4400 !important; color: #fff; }
       .hf-0   { background: #990000 !important; color: #fff; }
-      #hf-wrapper-bottom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 4px; margin-bottom: 10px; }
-      #hf-wrapper-bottom label { font-size: 0.76em; font-weight: 600; color: #9ca3af; white-space: nowrap; }
-      #hf-wrapper-bottom select { width: auto !important; max-width: 140px; height: 30px !important; box-sizing: border-box !important; }
+      #hf-controles-inline { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; }
+      #hf-controles-inline label { font-size: 0.76em; font-weight: 600; color: #9ca3af; white-space: nowrap; }
+      #hf-controles-inline select { width: auto !important; max-width: 120px; height: 30px !important; box-sizing: border-box !important; }
     `;
     document.head.appendChild(st);
   }
@@ -2131,38 +2173,6 @@ function hfGarantirEstrutura() {
     </table>
   `;
   tabela.parentNode.insertBefore(topWrap, tabela);
-
-  const botWrap = document.createElement("div");
-  botWrap.id = "hf-wrapper-bottom";
-  let horaOptions = `<option value="atual">Atual</option>`;
-  for (let h = 0; h < 24; h++) horaOptions += `<option value="${h}">${h.toString().padStart(2, "0")}h</option>`;
-  botWrap.innerHTML = `
-    <label for="hf-seletor-hora">Hora fixa:</label>
-    <select id="hf-seletor-hora">${horaOptions}</select>
-    <label for="hf-seletor-gales">Gales:</label>
-    <select id="hf-seletor-gales">
-      <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
-    </select>
-  `;
-  if (tabela.nextSibling) tabela.parentNode.insertBefore(botWrap, tabela.nextSibling);
-  else tabela.parentNode.appendChild(botWrap);
-
-  const selHora  = botWrap.querySelector("#hf-seletor-hora");
-  const selGales = botWrap.querySelector("#hf-seletor-gales");
-  selHora.value  = hfLerHoraSelecionada();
-  selGales.value = String(hfLerGales());
-
-  selHora.addEventListener("change", () => {
-    hfSalvarHoraSelecionada(selHora.value);
-    hfRender(qdDadosCache);
-  });
-  selGales.addEventListener("change", () => {
-    hfSalvarGales(parseInt(selGales.value, 10));
-    hfRender(qdDadosCache);
-  });
-
-  hfSincronizarEstiloControles();
-  window.addEventListener("resize", hfSincronizarEstiloControles);
 }
 
 // ─── Renderiza/atualiza a linha da hora (atual ou fixa) ───────────────────────
