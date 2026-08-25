@@ -2149,14 +2149,14 @@ function hfGarantirEstrutura() {
       .hf-cell-wrap { display: flex; flex-direction: column; line-height: 1.15; }
       .hf-cell-pct { font-weight: 700; }
       .hf-cell-avg { font-size: 0.85em; opacity: 0.85; }
-      .hf-100 { background: #6a0dad !important; color: #fff; }
-      .hf-90  { background: #1a7a1a !important; color: #fff; }
-      .hf-80  { background: #2eb82e !important; color: #111; }
-      .hf-70  { background: #66cc00 !important; color: #111; }
-      .hf-60  { background: #cccc00 !important; color: #111; }
-      .hf-50  { background: #e67e00 !important; color: #111; }
-      .hf-40  { background: #cc4400 !important; color: #fff; }
-      .hf-0   { background: #990000 !important; color: #fff; }
+      .hf-100 { background: #16a34a !important; color: #fff; }
+      .hf-90  { background: #2563eb !important; color: #fff; }
+      .hf-80  { background: #06b6d4 !important; color: #111; }
+      .hf-70  { background: #eab308 !important; color: #111; }
+      .hf-60  { background: #f97316 !important; color: #111; }
+      .hf-50  { background: #ec4899 !important; color: #fff; }
+      .hf-40  { background: #a855f7 !important; color: #fff; }
+      .hf-0   { background: #dc2626 !important; color: #fff; }
       #hf-controles-inline { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; }
       #hf-controles-inline label { font-size: 0.76em; font-weight: 600; color: #9ca3af; white-space: nowrap; }
       #hf-controles-inline select { width: auto !important; max-width: 120px; height: 30px !important; box-sizing: border-box !important; }
