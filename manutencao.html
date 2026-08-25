@@ -1107,7 +1107,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="mfv-title">Placares Mais Repetidos</span>
                     </div>
                     <div class="mfv-meta">
-                        <span class="mfv-hint">12 mais frequentes · últimos 480 jogos</span>
+                        <span class="mfv-hint">20 mais frequentes · últimos 480 jogos</span>
                         <span class="mfv-ts" id="placarrepet-update"></span>
                     </div>
                 </div>
@@ -2979,28 +2979,37 @@ const updateInterval = setInterval(async () => {
 <script>
     // ─────────────────────────────────────────────
 //  STYLES — scoped to .mfv (maximasfutebolvirtual)
+//  Obs: NÃO mexe em .accordion-* (isso é de outro lugar).
+//  Aqui só existem classes das tabelas de máximas.
 // ─────────────────────────────────────────────
 (function injectMaximasStyles() {
-    if (document.getElementById('mfv-styles')) return;
+    const old = document.getElementById('mfv-styles');
+    if (old) old.remove(); // permite re-injetar versão nova sem precisar dar hard refresh
     const s = document.createElement('style');
     s.id = 'mfv-styles';
     s.textContent = `
         .mfv-wrap {
+            display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 16px;
         }
 
         .mfv-block {
-            border-radius: 8px;
+            background: #0c121c;
+            border: 1px solid #1a2436;
+            border-radius: 10px;
             overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.28);
         }
 
         .mfv-head {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 9px 14px;
-            background: #2a2c34;
+            flex-wrap: wrap;
+            row-gap: 4px;
+            padding: 10px 14px;
+            background: #151b26;
             border-bottom: 1px solid #1f2a3a;
         }
 
@@ -3008,9 +3017,11 @@ const updateInterval = setInterval(async () => {
             display: flex;
             align-items: center;
             gap: 8px;
+            min-width: 0;
         }
 
         .mfv-tag {
+            flex-shrink: 0;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -3020,30 +3031,46 @@ const updateInterval = setInterval(async () => {
             color: #000;
             font-size: 11px;
             font-weight: 700;
-            border-radius: 4px;
+            border-radius: 5px;
         }
 
         .mfv-title {
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 700;
-            color: #e6edf5;
-            letter-spacing: 0.7px;
+            color: #eaf1f9;
+            letter-spacing: 0.6px;
             text-transform: uppercase;
+            white-space: nowrap;
         }
 
         .mfv-meta {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+            margin-left: auto;
         }
 
         .mfv-hint, .mfv-ts {
-            font-size: 10px;
+            font-size: 9.5px;
             color: #4a5f7a;
+            white-space: nowrap;
         }
 
-        .mfv-scroll::-webkit-scrollbar { height: 4px; }
-        .mfv-scroll::-webkit-scrollbar-thumb { background: #1f2a3a; }
+        .mfv-ts {
+            color: #3d5570;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ====== Container de rolagem ====== */
+        .mfv-scroll {
+            position: relative;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .mfv-scroll::-webkit-scrollbar { height: 5px; }
+        .mfv-scroll::-webkit-scrollbar-track { background: #0a0f18; }
+        .mfv-scroll::-webkit-scrollbar-thumb { background: #24344a; border-radius: 4px; }
 
         .mfv-table {
             border-collapse: collapse;
@@ -3056,16 +3083,18 @@ const updateInterval = setInterval(async () => {
         .maximamercado-th,
         .placarrepet-th,
         .mediahoramercado-th {
-            padding: 8px 12px !important;
-            font-size: 10px !important;
+            min-width: 84px;
+            padding: 8px 8px !important;
+            font-size: 9.5px !important;
             font-weight: 700 !important;
-            color: #8a9eb8 !important;
+            color: #6f88a8 !important;
             text-align: center !important;
             text-transform: uppercase !important;
-            letter-spacing: 0.8px !important;
+            letter-spacing: 0.4px !important;
             background: #05080f !important;
             border-bottom: 1px solid #1f2a3a !important;
             border-right: 1px solid #131f2b !important;
+            white-space: nowrap;
         }
         .maximaplacar-th:last-child,
         .maximamercado-th:last-child,
@@ -3079,13 +3108,15 @@ const updateInterval = setInterval(async () => {
         .maximamercado-td,
         .placarrepet-td,
         .mediahoramercado-td {
-            padding: 10px 12px !important;
-            font-size: 13.5px !important;
-            font-weight: 500 !important;
-            color: #7a9ac0 !important;           /* <-- Azul sóbrio (sem amarelo) */
+            min-width: 84px;
+            padding: 9px 8px !important;
+            font-size: 12.5px !important;
+            font-weight: 600 !important;
+            color: #7a9ac0 !important;
             text-align: center !important;
             border-right: 1px solid #131f2b !important;
             font-variant-numeric: tabular-nums !important;
+            white-space: nowrap;
         }
         .maximaplacar-td:last-child,
         .maximamercado-td:last-child,
@@ -3100,40 +3131,58 @@ const updateInterval = setInterval(async () => {
             color: #a8c4e0 !important;
         }
 
-        /* Destaques */
+        /* Destaques — usam box-shadow/borda uniforme pra NÃO deslocar a célula
+           (era isso que desalinhava cabeçalho x dado antes) */
         .maximaplacar-proximidade,
         .maximamercado-proximidade {
-            color: #a8c4e0 !important;
-            background: #0f1826 !important;
+            color: #ffcf7a !important;
+            background: #1c1710 !important;
         }
 
         .mfv-alerta {
             color: #ff7a5c !important;
-            background: #1c2838 !important;
+            background: #1c1116 !important;
             font-weight: 700 !important;
-            border-left: 3px solid #ff5e3a !important;
+            box-shadow: inset 3px 0 0 #ff5e3a !important;
         }
 
         .placarrepet-highlight-high,
         .mediahoramercado-highlight-high {
-            color: #b0c9e5 !important;
-            background: #0f1826 !important;
-            font-weight: 600 !important;
+            color: #00e676 !important;
+            background: #0c1c14 !important;
+            font-weight: 700 !important;
         }
 
         /* Barra Máxima / Atual */
         .maximaplacar-td span,
         .maximamercado-td span {
-            color: #455a7a !important;
-            font-size: 14px !important;
-            margin: 0 5px !important;
+            color: #3a4f5c !important;
+            font-size: 11px !important;
+            margin: 0 4px !important;
         }
 
-        /* Força extra contra o amarelo do BetStat */
+        /* Força extra contra o amarelo padrão do BetStat */
         .placarrepet-td,
         .mediahoramercado-td,
         .mfv-table td {
             color: #7a9ac0 !important;
+        }
+        .placarrepet-highlight-high,
+        .mediahoramercado-highlight-high {
+            color: #00e676 !important;
+        }
+
+        /* ====================== MOBILE ====================== */
+        @media (max-width: 640px) {
+            .mfv-head { padding: 8px 10px; }
+            .mfv-title { font-size: 10.5px; }
+            .mfv-hint { display: none; } /* remove o texto explicativo pra não embolar no celular */
+            .maximaplacar-th, .maximamercado-th, .placarrepet-th, .mediahoramercado-th,
+            .maximaplacar-td, .maximamercado-td, .placarrepet-td, .mediahoramercado-td {
+                min-width: 70px;
+                font-size: 11px !important;
+                padding: 7px 6px !important;
+            }
         }
     `;
     document.head.appendChild(s);
@@ -3162,6 +3211,58 @@ function toggleAccordion(button) {
 }
 
 // ─────────────────────────────────────────────
+//  ORDENAÇÃO CRONOLÓGICA — roda ANTES de qualquer cálculo
+// ─────────────────────────────────────────────
+// Algumas ligas retornam a rota com o jogo mais recente em data[0],
+// outras retornam com o mais recente em data[data.length - 1].
+// Todo o resto do código (slice(-480), contagem de sequências etc.)
+// assume que o ÚLTIMO item do array é sempre o jogo mais recente.
+// Essa função detecta a direção e, se necessário, inverte o array.
+//
+// Schema real da rota (igual pra todas as ligas):
+// { id, liga, event_id, data, hora, minuto, time_a, time_b, ft, ht }
+//
+// "id" é autoincremento do banco -> reflete a ORDEM REAL de inserção
+// dos jogos, então é a chave mais confiável pra detectar a direção.
+// "data" fica de fallback (combinado com hora/minuto, já que sozinho
+// o campo "data" não carrega o horário real do jogo).
+function valorOrdenacao(jogo) {
+    if (jogo && typeof jogo.id === 'number') return jogo.id;
+
+    if (jogo && jogo.data) {
+        const base = new Date(jogo.data).getTime();
+        if (!isNaN(base)) {
+            const hora = Number(jogo.hora) || 0;
+            const minuto = Number(jogo.minuto) || 0;
+            // usa a data só como "dia base" e hora/minuto reais pra desempate
+            return Math.floor(base / 86400000) * 86400000 + hora * 3600000 + minuto * 60000;
+        }
+    }
+
+    return null;
+}
+
+function normalizarOrdemCronologica(data) {
+    if (!Array.isArray(data) || data.length < 2) return data;
+
+    const vPrimeiro = valorOrdenacao(data[0]);
+    const vUltimo = valorOrdenacao(data[data.length - 1]);
+
+    if (vPrimeiro === null || vUltimo === null) {
+        console.warn('[Máximas] Não foi possível identificar "id" ou "data" válidos no jogo para checar a ordem. Assumindo que o último item do array já é o mais recente.');
+        return data;
+    }
+
+    // Se o primeiro jogo do array é MAIS RECENTE que o último,
+    // a rota veio do mais novo pro mais antigo -> inverte.
+    if (vPrimeiro > vUltimo) {
+        return data.slice().reverse();
+    }
+
+    return data;
+}
+
+// ─────────────────────────────────────────────
 //  TABELA 1 — Máximas de Placares
 // ─────────────────────────────────────────────
 let previousDataHashMaximaplacar = '';
@@ -3169,7 +3270,8 @@ let previousDataHashMaximaplacar = '';
 async function fetchMaximaplacar() {
     try {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-        const data = await response.json();
+        let data = await response.json();
+        data = normalizarOrdemCronologica(data);
 
         const dataHash = JSON.stringify(data.slice(-480));
         if (dataHash === previousDataHashMaximaplacar) return;
@@ -3240,7 +3342,8 @@ fetchMaximaplacar();
     async function fetchPlacarRepet() {
         try {
             const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-            const data = await response.json();
+            let data = await response.json();
+            data = normalizarOrdemCronologica(data);
 
             const dataHash = JSON.stringify(data.slice(-480));
             if (dataHash === previousDataHashPlacarRepet) return;
@@ -3294,7 +3397,8 @@ fetchMaximaplacar();
 async function fetchMaximamercado() {
     try {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-        const data = await response.json();
+        let data = await response.json();
+        data = normalizarOrdemCronologica(data);
         const recentData = data.slice(-480);
 
         const mercadosFixos = [
@@ -3375,7 +3479,8 @@ fetchMaximamercado();
 async function fetchMediahoramercado() {
     try {
         const response = await fetch(ROTAS_API.resultados(LIGA_ATUAL));
-        const data = await response.json();
+        let data = await response.json();
+        data = normalizarOrdemCronologica(data);
         const numHoras = Math.floor(data.length / 20);
 
         const mercadosFixos = [
