@@ -193,7 +193,40 @@
     return { min: min === Infinity ? null : min, max: max === -Infinity ? null : max };
   }
 
-  function calcGames(hours, gph) { return hours * gph; }
+  // Constrói uma linha do tempo real em minutos acumulados, a partir de
+  // "hora"/"minuto" de cada jogo (já em ordem cronológica ascendente,
+  // garantida pelo ordenarCronologico via "id"). Detecta virada de dia
+  // do mesmo jeito que o ordenarCronologico já fazia (salto > 720min
+  // pra trás = virou o dia), então cada jogo ganha um "minutosAcumulados"
+  // sempre crescente, mesmo atravessando meia-noite.
+  function construirLinhaDoTempo(dadosOrdenados) {
+    let diaOffset = 0;
+    let minutoAnterior = null;
+    return dadosOrdenados.map(jogo => {
+      const h = Number(jogo.hora), m = Number(jogo.minuto);
+      if (isNaN(h) || isNaN(m)) return { jogo, minutosAcumulados: null };
+      const minutoDoDia = h * 60 + m;
+      if (minutoAnterior !== null) {
+        const delta = minutoDoDia - minutoAnterior;
+        if (delta < -720) diaOffset += 1; // ex: 23:50 -> 00:10, virou o dia
+      }
+      minutoAnterior = minutoDoDia;
+      return { jogo, minutosAcumulados: diaOffset * 1440 + minutoDoDia };
+    });
+  }
+
+  // Identifica o jogo mais recente e volta contando "horas" reais de dados
+  // (não uma quantidade fixa de jogos). Equivale ao que o LigaStat deveria
+  // fazer: "últimas 3h" = jogos cujo horário real caiu dentro das 3h antes
+  // do jogo mais recente.
+  function filtrarPorHoras(dadosOrdenados, horas) {
+    const linha = construirLinhaDoTempo(dadosOrdenados);
+    const validos = linha.filter(x => x.minutosAcumulados !== null);
+    if (!validos.length) return dadosOrdenados; // sem hora/minuto: cai pro comportamento antigo
+    const fim = validos[validos.length - 1].minutosAcumulados;
+    const inicio = fim - horas * 60;
+    return validos.filter(x => x.minutosAcumulados >= inicio).map(x => x.jogo);
+  }
 
 
   function loadCfgEstrela() {
@@ -283,8 +316,8 @@
   }
 
 
-  function analisarEstrela(dadosCompletos, horas, mercado, gph) {
-    const janela = dadosCompletos.slice(-calcGames(horas, gph));
+  function analisarEstrela(dadosCompletos, horas, mercado) {
+    const janela = filtrarPorHoras(dadosCompletos, horas);
     if (janela.length < MIN_GAMES_ESTRELA) return null;
     const info = MARKET_INFO[mercado];
     const valor = calcMarketValue(janela, mercado);
@@ -299,7 +332,7 @@
 
   function analisarTopoFundo(dadosCompletos, horas, gph, marketId) {
     const linesToSum = gph === 30 ? 30 : LINES_TO_SUM_PADRAO;
-    const dados = dadosCompletos.slice(-calcGames(horas, gph));
+    const dados = filtrarPorHoras(dadosCompletos, horas);
     if (dados.length < linesToSum * 2) return null;
     const { min, max } = computeMinMax(dados, linesToSum, marketId);
     if (min === null || max === null) return null;
@@ -339,7 +372,7 @@
       let melhor = null;
       resultados.forEach(({ card, dados, gph }) => {
         if (!dados) return;
-        const r = analisarEstrela(dados, cfgEstrela.horas, cfgEstrela.mercado, gph);
+        const r = analisarEstrela(dados, cfgEstrela.horas, cfgEstrela.mercado);
         if (!r) return;
         if (!melhor || r.metrica > melhor.metrica) melhor = { card, ...r };
       });
