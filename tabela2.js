@@ -1341,6 +1341,7 @@ function aplicarCoresCelulas() {
 function garantirPainelCores() {
   if (document.getElementById("painel-cores")) {
     garantirCheckboxQuadrantes();
+    garantirCheckboxHoraFixa();
     return;
   }
   const el = document.createElement("div"); el.id = "painel-cores";
@@ -1460,6 +1461,8 @@ function garantirPainelCores() {
 
   // Adiciona o checkbox dos quadrantes ao painel de cores
   garantirCheckboxQuadrantes();
+  // Adiciona o checkbox da Hora Fixa ao painel de cores
+  garantirCheckboxHoraFixa();
 }
 
 function sincronizarPainelCores() {
@@ -2017,6 +2020,72 @@ function hfClassePct(p) {
 }
 
 // ─── Monta a estrutura (topo: linha da hora / rodapé: seletores) uma única vez ─
+// ─── CHECKBOX DE ATIVAÇÃO DA HORA FIXA (mesmo padrão do checkbox de Quadrantes) ─
+const HF_CHECKBOX_KEY = "horaFixaAtiva";
+
+function hfCheckboxAtivo() {
+  return localStorage.getItem(HF_CHECKBOX_KEY) === "1";
+}
+function hfSalvarCheckbox(ativo) {
+  localStorage.setItem(HF_CHECKBOX_KEY, ativo ? "1" : "0");
+}
+
+function hfRemoverEstrutura() {
+  document.getElementById("hf-wrapper-top")?.remove();
+  document.getElementById("hf-wrapper-bottom")?.remove();
+}
+
+function hfToggle(ativo) {
+  hfSalvarCheckbox(ativo);
+  if (ativo) hfRender(qdDadosCache);
+  else hfRemoverEstrutura();
+}
+
+function garantirCheckboxHoraFixa() {
+  if (document.getElementById("lbl-horafixa-toggle")) return;
+  const painel = document.getElementById("painel-cores");
+  if (!painel) return; // painel ainda não criado, será chamado novamente
+
+  const lbl = document.createElement("label");
+  lbl.id = "lbl-horafixa-toggle";
+  lbl.className = "alerta-toggle-label";
+  lbl.style.cssText = "margin-left:6px;";
+  lbl.innerHTML = `<input type="checkbox" id="cb-horafixa-toggle"> Hora Fixa`;
+
+  const cb = lbl.querySelector("#cb-horafixa-toggle");
+  cb.checked = hfCheckboxAtivo();
+  if (cb.checked) lbl.classList.add("alerta-ativo");
+
+  cb.addEventListener("change", function () {
+    lbl.classList.toggle("alerta-ativo", this.checked);
+    hfToggle(this.checked);
+  });
+
+  painel.appendChild(lbl);
+}
+
+// ─── Copia o estilo computado dos <select> do topo da página para os seletores
+// da Hora Fixa, exatamente como já é feito para o botão "+ Mercados" ──────────
+function hfSincronizarEstiloControles() {
+  const selHora  = document.getElementById("hf-seletor-hora");
+  const selGales = document.getElementById("hf-seletor-gales");
+  const ref = document.querySelector("#seletorHoras") || document.querySelector(".seletor-container select");
+  if (!ref || (!selHora && !selGales)) return;
+  const cs = getComputedStyle(ref);
+  const props = [
+    "height", "minHeight", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "fontSize", "fontFamily", "fontWeight", "color", "backgroundColor",
+    "border", "borderRadius", "boxSizing", "lineHeight"
+  ];
+  [selHora, selGales].forEach(sel => {
+    if (!sel) return;
+    props.forEach(p => { sel.style[p] = cs[p]; });
+    sel.style.width = "auto";
+    sel.style.display = "inline-block";
+    sel.style.verticalAlign = "middle";
+  });
+}
+
 function hfGarantirEstrutura() {
   if (document.getElementById("hf-wrapper-top")) return;
   const tabela = document.getElementById("tabelaResultados");
@@ -2043,8 +2112,9 @@ function hfGarantirEstrutura() {
       .hf-50  { background: #e67e00 !important; color: #111; }
       .hf-40  { background: #cc4400 !important; color: #fff; }
       .hf-0   { background: #990000 !important; color: #fff; }
-      #hf-wrapper-bottom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 4px; font-size: 0.85em; color: #d1d5db; }
-      #hf-wrapper-bottom select { background: #161b22; color: #e5e7eb; border: 1px solid #30363d; border-radius: 4px; padding: 3px 6px; }
+      #hf-wrapper-bottom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 4px; }
+      #hf-wrapper-bottom label { font-size: 0.76em; font-weight: 600; color: #9ca3af; white-space: nowrap; }
+      #hf-wrapper-bottom select { width: auto !important; max-width: 140px; }
     `;
     document.head.appendChild(st);
   }
@@ -2088,10 +2158,14 @@ function hfGarantirEstrutura() {
     hfSalvarGales(parseInt(selGales.value, 10));
     hfRender(qdDadosCache);
   });
+
+  hfSincronizarEstiloControles();
+  window.addEventListener("resize", hfSincronizarEstiloControles);
 }
 
 // ─── Renderiza/atualiza a linha da hora (atual ou fixa) ───────────────────────
 function hfRender(dados) {
+  if (!hfCheckboxAtivo()) { hfRemoverEstrutura(); return; } // desativado — não mostra nem calcula
   hfGarantirEstrutura();
   if (!document.getElementById("hf-wrapper-top")) return;
   if (!dados || !dados.length) return;
@@ -2130,7 +2204,7 @@ function hfRender(dados) {
     td.className = hfClassePct(p);
     td.title = `Minuto ${slot.minuto}\nMercado: ${mercadoLabel}\nGales: ${gales}\nAcertos: ${slot.green} de ${slot.total} (${Math.round(p)}%)\nMédia de gols: ${g.toFixed(1)}`;
     td.innerHTML = slot.total > 0
-      ? `<div class="hf-cell-wrap"><span class="hf-cell-pct">${Math.round(p)}%</span><span class="hf-cell-avg">${g.toFixed(1)}⚽</span></div>`
+      ? `<div class="hf-cell-wrap"><span class="hf-cell-pct">${Math.round(p)}%</span><span class="hf-cell-avg">${g.toFixed(1)}</span></div>`
       : `<div class="hf-cell-wrap"><span class="hf-cell-pct">${Math.round(p)}%</span></div>`;
     row.appendChild(td);
   });
