@@ -2081,6 +2081,10 @@ function hfSincronizarEstiloControles() {
     if (!sel) return;
     props.forEach(p => { sel.style[p] = cs[p]; });
     sel.style.width = "auto";
+    sel.style.height = "30px";
+    sel.style.boxSizing = "border-box";
+    sel.style.paddingTop = "0";
+    sel.style.paddingBottom = "0";
     sel.style.display = "inline-block";
     sel.style.verticalAlign = "middle";
   });
@@ -2112,9 +2116,9 @@ function hfGarantirEstrutura() {
       .hf-50  { background: #e67e00 !important; color: #111; }
       .hf-40  { background: #cc4400 !important; color: #fff; }
       .hf-0   { background: #990000 !important; color: #fff; }
-      #hf-wrapper-bottom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 4px; }
+      #hf-wrapper-bottom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 4px; margin-bottom: 10px; }
       #hf-wrapper-bottom label { font-size: 0.76em; font-weight: 600; color: #9ca3af; white-space: nowrap; }
-      #hf-wrapper-bottom select { width: auto !important; max-width: 140px; }
+      #hf-wrapper-bottom select { width: auto !important; max-width: 140px; height: 30px !important; box-sizing: border-box !important; }
     `;
     document.head.appendChild(st);
   }
