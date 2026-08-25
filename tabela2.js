@@ -2099,8 +2099,7 @@ function hfGarantirEstrutura() {
     const st = document.createElement("style");
     st.id = "hf-styles";
     st.textContent = `
-      #hf-wrapper-top { margin-bottom: 6px; }
-      #hf-label { font-size: 11px; color: #aaa; text-align: right; padding: 2px 8px 4px; font-style: italic; }
+      #hf-wrapper-top { margin-bottom: 0; }
       #hf-table-top { width: 100%; border-collapse: collapse; table-layout: fixed; }
       #hf-table-top th, #hf-table-top td { text-align: center; padding: 4px 2px; font-size: 0.78em; border: 1px solid #232833; }
       #hf-table-top th { background: #20242e; color: #d1d5db; font-weight: 700; }
@@ -2126,7 +2125,6 @@ function hfGarantirEstrutura() {
   const topWrap = document.createElement("div");
   topWrap.id = "hf-wrapper-top";
   topWrap.innerHTML = `
-    <div id="hf-label"></div>
     <table id="hf-table-top">
       <thead><tr id="hf-header-top"></tr></thead>
       <tbody><tr id="hf-row-top"></tr></tbody>
@@ -2184,11 +2182,6 @@ function hfRender(dados) {
 
   const diasSelecionados = hfUltimosDias(dados, HF_DIAS_FIXOS);
   const linha = hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados);
-
-  const label = document.getElementById("hf-label");
-  if (label) {
-    label.textContent = `Hora ${horaSelStr === "atual" ? "atual" : "fixa"}: ${horaAlvo.toString().padStart(2, "0")}h — últimos ${diasSelecionados.length} dia${diasSelecionados.length !== 1 ? "s" : ""} de dados (máx. ${HF_DIAS_FIXOS}) — Gales: ${gales}`;
-  }
 
   const header = document.getElementById("hf-header-top");
   const row = document.getElementById("hf-row-top");
