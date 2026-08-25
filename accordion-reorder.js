@@ -1,5 +1,3 @@
-
-
 (function () {
   'use strict';
 
@@ -8,6 +6,9 @@ const STORAGE_KEY = 'betstat_accordion_order_global';
   const COR_BOTAO        = '#1a7ba2';
   const COR_BOTAO_HV     = '#145f7d';
   const COR_DESABILITADO = '#2a3a40';
+  const COR_ICONE        = '#eaf1f9';
+  const COR_ICONE_DESAB  = 'rgba(234,241,249,0.35)';
+  const COR_BORDA        = '#0f2833';
 
 
   const style = document.createElement('style');
@@ -39,9 +40,9 @@ const STORAGE_KEY = 'betstat_accordion_order_global';
       z-index: 10;
     }
     .acc-reorder-btn {
-      background: #3a3e48;
-      color: #1c1f26;
-      border: none;
+      background: ${COR_BOTAO};
+      color: ${COR_ICONE};
+      border: 1px solid ${COR_BORDA};
       border-radius: 4px;
       width: 25px;
       height: 18px;
@@ -51,22 +52,25 @@ const STORAGE_KEY = 'betstat_accordion_order_global';
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.15s, opacity 0.15s;
+      transition: background 0.15s, opacity 0.15s, border-color 0.15s;
       padding: 0;
       flex-shrink: 0;
     }
     .acc-reorder-btn:hover:not(:disabled) {
-      background: #145f7d;
+      background: ${COR_BOTAO_HV};
+      border-color: ${COR_BOTAO};
     }
     .acc-reorder-btn:disabled {
-      background: #2a3a40;
+      background: ${COR_DESABILITADO};
+      color: ${COR_ICONE_DESAB};
+      border-color: ${COR_DESABILITADO};
       cursor: not-allowed;
-      opacity: 0.5;
+      opacity: 0.6;
     }
     .acc-reorder-moving {
       transition: transform 0.18s ease;
       transform: scale(1.01);
-      box-shadow: 0 0 0 2px #1a7ba2;
+      box-shadow: 0 0 0 2px ${COR_BOTAO};
       border-radius: 4px;
     }
   `;
