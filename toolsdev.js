@@ -57,10 +57,7 @@
         { label: "Classificação",   url: "https://www.betstat.site/bet365clasificacao.html" },
         { label: "Gráfico Macro",   url: "https://www.betstat.site/365macro.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/365radar.html" },
-        { label: "Buscador Odds",   url: "https://www.betstat.site/365odds.html" },
-        { label: "Buscador Time",   url: "https://www.betstat.site/365buscatime.html" },
-        { label: "Buscador Placar", url: "https://www.betstat.site/365placar.html" },
-        { label: "Buscador Duelo",  url: "https://www.betstat.site/365confronto.html" },
+        { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
       ]
     },
     {
@@ -83,9 +80,7 @@
         { label: "Gráfico Macro",   url: "https://www.betstat.site/macrobetano.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/betanoradar.html" },
         { label: "Buscador Odds",   url: "https://www.betstat.site/buscadorodd.html" },
-        { label: "Buscador Time",   url: "https://www.betstat.site/buscadortime.html" },
-        { label: "Buscador Placar", url: "https://www.betstat.site/betanobuscador.html" },
-        { label: "Buscador Duelo",  url: "https://www.betstat.site/buscaconfronto.html" },
+        { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
       ]
     },
     {
@@ -107,10 +102,7 @@
         { label: "Classificação",   url: "https://www.betstat.site/betssonclassificacao.html" },
         { label: "Gráfico Macro",   url: "https://www.betstat.site/betssonmacro.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/betssonradar.html" },
-        { label: "Buscador Odds",   url: "https://www.betstat.site/betssonodds.html" },
-        { label: "Buscador Time",   url: "https://www.betstat.site/betssonbuscatime.html" },
-        { label: "Buscador Placar", url: "https://www.betstat.site/betssonbuscador.html" },
-        { label: "Buscador Duelo",  url: "https://www.betstat.site/betssonduelo.html" },
+        { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
       ]
     },
     {
@@ -132,10 +124,7 @@
         { label: "Classificação",   url: "https://www.betstat.site/estrelaclassificacao.html" },
         { label: "Gráfico Macro",   url: "https://www.betstat.site/estrelamacro.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/estrelaradar.html" },
-        { label: "Buscador Odds",   url: "https://www.betstat.site/buscadoroddstar.html" },
-        { label: "Buscador Time",   url: "https://www.betstat.site/buscadortimestar.html" },
-        { label: "Buscador Placar", url: "https://www.betstat.site/estrelabuscador.html" },
-        { label: "Buscador Duelo",  url: "https://www.betstat.site/estreladuelo.html" },
+        { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
       ]
     },
     {
@@ -157,10 +146,7 @@
         { label: "Classificação",   url: "https://www.betstat.site/classificacaokiron.html" },
         { label: "Gráfico Macro",   url: "https://www.betstat.site/kironmacro.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/kironradar.html" },
-        { label: "Buscador Odds",   url: "https://www.betstat.site/buscadoroddkiron.html" },
-        { label: "Buscador Time",   url: "https://www.betstat.site/buscadortimekiron.html" },
-        { label: "Buscador Placar", url: "https://www.betstat.site/kironbuscador.html" },
-        { label: "Buscador Duelo",  url: "https://www.betstat.site/kironduelo.html" },
+        { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
       ]
     },
     {
