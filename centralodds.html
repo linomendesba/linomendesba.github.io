@@ -394,6 +394,19 @@
       .oac-prox-bar { height: 5px; background: var(--bg-primary); border-radius: 3px; overflow: hidden; }
       .oac-prox-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
 
+      .oac-mini-timeline-wrap { display: flex; flex-direction: column; gap: 5px; }
+      .oac-mini-timeline-wrap .os-label {
+        font-size: 0.6rem;
+        font-family: "DM Mono", monospace;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+      }
+      .mini-timeline { display: flex; gap: 3px; flex-wrap: wrap; }
+      .mini-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+      .mini-dot.dot-green { background: var(--green); }
+      .mini-dot.dot-red { background: var(--red); }
+
       .oac-quebras { border-top: 1px dashed var(--border); padding-top: 10px; }
       .oac-quebras .oq-label {
         font-size: 0.6rem;
@@ -560,7 +573,7 @@
           </div>
           <div class="filter-group">
             <label for="lines-select">Jogos Analisados</label>
-            <select id="lines-select" onchange="loadData()"></select>
+            <select id="lines-select" onchange="onLinesChange()"></select>
           </div>
           <div class="filter-group">
             <label for="filter-select">Mercado</label>
@@ -578,13 +591,16 @@
         <div class="extra-grid" id="extraGrid" style="display:none">
           <div class="filter-group">
             <label for="filtro-ocorrMin">Ocorrências Mínimas da Odd</label>
-            <select id="filtro-ocorrMin" onchange="analyze()">
+            <select id="filtro-ocorrMin" onchange="onOcorrMinChange()">
               <option value="0">Sem filtro</option>
               <option value="3">≥ 3</option>
               <option value="5" selected>≥ 5</option>
+              <option value="8">≥ 8</option>
               <option value="10">≥ 10</option>
+              <option value="12">≥ 12</option>
               <option value="20">≥ 20</option>
             </select>
+            <div style="font-size:0.62rem;color:var(--text-secondary);margin-top:4px;">Ajusta sozinho conforme a janela, até você escolher manualmente.</div>
           </div>
           <div class="filter-group">
             <label for="filtro-sortBy">Ordenar por</label>
@@ -603,13 +619,25 @@
               <option value="90">≥ 90% de proximidade</option>
             </select>
           </div>
+          <div class="filter-group checkbox-group">
+            <label class="toggle-pill" id="toggle-alerta-sonoro-wrap">
+              <input type="checkbox" id="toggle-alerta-sonoro" onchange="onToggleAlertaSonoro()">
+              🔔 Avisar quando bater recorde
+            </label>
+          </div>
         </div>
       </div>
 
       <!-- Barra de status -->
-      <div class="status-bar" id="statusBar">
-        <div class="s-dot"></div>
-        <span id="statusMessage">Aguardando carregamento dos dados...</span>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+        <div class="status-bar" id="statusBar" style="margin-bottom:0; flex:1; min-width:220px;">
+          <div class="s-dot"></div>
+          <span id="statusMessage">Aguardando carregamento dos dados...</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span id="lastUpdateLabel" style="font-size:11px;color:var(--text-secondary);font-family:'DM Mono',monospace;"></span>
+          <button class="btn-toggle" onclick="loadData()">↻ Atualizar agora</button>
+        </div>
       </div>
 
       <!-- Stats Bar -->
@@ -617,8 +645,19 @@
 
       <!-- Resultados -->
       <div>
-        <div class="section-title" id="cards-title">Odds Monitoradas</div>
-        <div class="cards-container" id="cards-container"></div>
+        <div class="section-title" id="cards-title-perto">Prestes a Quebrar</div>
+        <div class="cards-container" id="cards-container-perto"></div>
+        <div style="text-align:center;margin:0 0 28px;display:none" id="mostrar-mais-perto-wrap">
+          <button class="btn-toggle" onclick="expandirSecao('perto')">Mostrar mais</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title" id="cards-title-recorde">Recorde Já Batido</div>
+        <div class="cards-container" id="cards-container-recorde"></div>
+        <div style="text-align:center;margin:0 0 8px;display:none" id="mostrar-mais-recorde-wrap">
+          <button class="btn-toggle" onclick="expandirSecao('recorde')">Mostrar mais</button>
+        </div>
       </div>
 
       <!-- Match Details -->
@@ -684,18 +723,16 @@
       };
 
       const LINES_OPTIONS_DEFAULT = [
-        { value: 60,  label: '03 Hs' },
-        { value: 120, label: '06 Hs' },
-        { value: 240, label: '12 Hs' },
-        { value: 480, label: '24 Hs' },
-        { value: 960, label: '48 Hs' },
+        { value: 240,  label: '12 Hs' },
+        { value: 480,  label: '24 Hs' },
+        { value: 960,  label: '48 Hs' },
+        { value: 1440, label: '72 Hs' },
       ];
       const LINES_OPTIONS_KIRON = [
-        { value: 90,   label: '03 Hs' },
-        { value: 180,  label: '06 Hs' },
         { value: 360,  label: '12 Hs' },
         { value: 720,  label: '24 Hs' },
         { value: 1440, label: '48 Hs' },
+        { value: 2160, label: '72 Hs' },
       ];
       const LINES_OPTIONS_DEFAULT_LABEL = '24 Hs';
 
@@ -741,6 +778,19 @@
       let oddStreakStats = {};     // { key(odd): {atual, maxHist, streaks[], totalOcorrencias, proximidade, isRecorde} }
       let matchDetails = {};
       let selectedKey = null;
+      let mercadoAtualAnalise = null;
+
+      // Paginação das seções de cards
+      const PAGE_SIZE = 12;
+      let limitPerto = PAGE_SIZE;
+      let limitRecorde = PAGE_SIZE;
+
+      // Sugestão automática de ocorrências mínimas conforme a janela escolhida
+      const OCORR_MIN_SUGERIDO = { '12 Hs': 3, '24 Hs': 5, '48 Hs': 8, '72 Hs': 12 };
+      let ocorrMinManual = false;
+
+      // Controle de alerta sonoro/notificação quando uma odd bate o recorde
+      let previousRecordSet = new Set();
 
       /* ─────────────────────────────────────
          PERSISTENCIA DE FILTROS (localStorage)
@@ -748,7 +798,7 @@
       const FILTROS_STORAGE_KEY = 'betstat_central_odds_filtros_v1';
       const FILTROS_IDS = [
         'casa-select', 'liga-select', 'lines-select', 'filter-select',
-        'toggle-somente-ativas', 'filtro-ocorrMin', 'filtro-sortBy', 'filtro-alertaMin',
+        'toggle-somente-ativas', 'filtro-ocorrMin', 'filtro-sortBy', 'filtro-alertaMin', 'toggle-alerta-sonoro',
       ];
 
       function salvarFiltrosAtuais() {
@@ -800,7 +850,11 @@
         aplicarValorSalvo('toggle-somente-ativas', v['toggle-somente-ativas']);
         atualizarTogglePillVisual();
 
+        aplicarValorSalvo('toggle-alerta-sonoro', v['toggle-alerta-sonoro']);
+        atualizarToggleSonoroVisual();
+
         ['filtro-ocorrMin', 'filtro-sortBy', 'filtro-alertaMin'].forEach(id => aplicarValorSalvo(id, v[id]));
+        if (v['filtro-ocorrMin'] !== undefined) ocorrMinManual = true;
 
         return true;
       }
@@ -853,8 +907,56 @@
       function onCasaChange() {
         populateLigaSelect();
         populateLinesSelect();
+        aplicarSugestaoOcorrMin();
         salvarFiltrosAtuais();
         loadData();
+      }
+
+      /* ─────────────────────────────────────
+         ALERTA SONORO / NOTIFICAÇÃO DE RECORDE
+      ───────────────────────────────────── */
+      function tocarBeep() {
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = 880;
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.3);
+        } catch (e) {}
+      }
+
+      function dispararAlertaRecorde(keys, market) {
+        tocarBeep();
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification('BetStat — Recorde batido', {
+              body: `Odd(s) @${keys.join(', @')} bateram a máxima histórica em ${MARKET_LABELS[market] || market}.`,
+            });
+          } catch (e) {}
+        }
+      }
+
+      // Compara os recordes ativos deste refresh com o refresh anterior
+      // e dispara alerta apenas para os que quebraram AGORA (evita repetir
+      // o alerta a cada 60s enquanto a odd continuar batida).
+      function checarNovosRecordes(market) {
+        const somAtivo = document.getElementById('toggle-alerta-sonoro').checked;
+        const atuais = new Set();
+        const novos = [];
+        Object.entries(oddStreakStats).forEach(([key, o]) => {
+          if (o.isRecorde) {
+            atuais.add(key);
+            if (!previousRecordSet.has(key)) novos.push(key);
+          }
+        });
+        previousRecordSet = atuais;
+        if (somAtivo && novos.length) dispararAlertaRecorde(novos, market);
       }
 
       function onLigaChange() {
@@ -871,6 +973,51 @@
       function atualizarTogglePillVisual() {
         const checked = document.getElementById('toggle-somente-ativas').checked;
         document.getElementById('toggle-somente-ativas-wrap').classList.toggle('active', checked);
+      }
+
+      function atualizarToggleSonoroVisual() {
+        const checked = document.getElementById('toggle-alerta-sonoro').checked;
+        document.getElementById('toggle-alerta-sonoro-wrap').classList.toggle('active', checked);
+      }
+
+      function onToggleAlertaSonoro() {
+        atualizarToggleSonoroVisual();
+        salvarFiltrosAtuais();
+        const checked = document.getElementById('toggle-alerta-sonoro').checked;
+        if (checked && 'Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
+
+      function onOcorrMinChange() {
+        ocorrMinManual = true;
+        salvarFiltrosAtuais();
+        analyze();
+      }
+
+      // Sugere um mínimo de ocorrências proporcional à janela escolhida
+      // (janelas maiores acumulam mais ruído de odds raras). So aplica
+      // enquanto o usuario nao tiver escolhido manualmente um valor.
+      function aplicarSugestaoOcorrMin() {
+        if (ocorrMinManual) return;
+        const sel = document.getElementById('lines-select');
+        const label = sel.options.length && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : '24 Hs';
+        const sugestao = OCORR_MIN_SUGERIDO[label] ?? 5;
+        const ocorrSel = document.getElementById('filtro-ocorrMin');
+        const existe = Array.from(ocorrSel.options).some(o => o.value === String(sugestao));
+        if (existe) ocorrSel.value = String(sugestao);
+      }
+
+      function onLinesChange() {
+        aplicarSugestaoOcorrMin();
+        salvarFiltrosAtuais();
+        loadData();
+      }
+
+      function expandirSecao(tipo) {
+        if (tipo === 'perto') limitPerto += PAGE_SIZE;
+        else limitRecorde += PAGE_SIZE;
+        renderSections(mercadoAtualAnalise);
       }
 
       function toggleAvancado() {
@@ -969,6 +1116,11 @@
 
           setStatus(`${oddsJanela.length} jogos carregados — analisando...`);
           analyze();
+
+          const agora = new Date();
+          const hh = agora.getHours().toString().padStart(2, '0');
+          const mm = agora.getMinutes().toString().padStart(2, '0');
+          document.getElementById('lastUpdateLabel').textContent = `Atualizado às ${hh}:${mm}`;
         } catch (error) {
           console.error('Erro ao carregar os dados:', error);
           setStatus(`Erro: ${error.message}`, 'error');
@@ -1140,6 +1292,7 @@
             totalOcorrencias: resolved.length,
             greenCount: resolved.filter(e => e.status === 'green').length,
             proximidade, isRecorde,
+            timeline: resolved.slice(-15).map(e => e.status),
           };
 
           matchDetails[key] = seq.map(e => ({
@@ -1148,6 +1301,9 @@
           }));
         });
 
+        limitPerto = PAGE_SIZE;
+        limitRecorde = PAGE_SIZE;
+        checarNovosRecordes(market);
         renderCentralCards(market);
       }
 
@@ -1162,14 +1318,73 @@
         return entries;
       }
 
+      // Badge "Recorde Batido" muda de cor conforme o quanto já passou da máxima:
+      // logo depois de bater (100-129%) é laranja; muito além (130%+) é vermelho forte,
+      // já que deixou de ser previsão e virou uma anomalia estatística.
+      function getRecordeBadgeStyle(proximidade) {
+        if (proximidade >= 130) return 'background:var(--alert-color-hot);color:#fff;';
+        return 'background:var(--orange);color:#000;';
+      }
+
+      function buildOddCard(o, index) {
+        const prox = Math.min(o.proximidade, 100);
+        const isQuente = o.isRecorde || o.proximidade >= 90;
+
+        const card = document.createElement('div');
+        card.className = `odd-alert-card ${isQuente ? 'quente' : ''}`;
+        const rankLabel = index < 3 ? `<div class="rank-badge">#${index + 1}</div>` : '';
+        const recordeTag = o.isRecorde
+          ? `<span class="oac-recorde-tag" style="${getRecordeBadgeStyle(o.proximidade)}">Recorde batido (${o.proximidade}%)</span>`
+          : '';
+
+        const badgesHtml = o.streaks.map(v => `<span class="oq-badge">${v}</span>`).join('') || '<span class="oq-badge">—</span>';
+        const dotsHtml = (o.timeline || []).map(s => `<span class="mini-dot ${s === 'green' ? 'dot-green' : 'dot-red'}"></span>`).join('') || '<span class="oq-badge">—</span>';
+
+        card.innerHTML = `
+          ${rankLabel}
+          <div class="oac-header">
+            <span class="oac-odd">@${o.key}</span>
+            ${recordeTag}
+          </div>
+          <div class="oac-stats">
+            <div class="oac-stat destaque">
+              <div class="os-label">Corrente Atual</div>
+              <div class="os-value">${o.atual}</div>
+            </div>
+            <div class="oac-stat">
+              <div class="os-label">Máxima Histórica</div>
+              <div class="os-value">${o.maxHist}</div>
+            </div>
+          </div>
+          <div class="oac-prox-wrap">
+            <div class="oac-prox-label"><span>Proximidade</span><span style="color:${getPctColor(prox)}">${o.proximidade}%</span></div>
+            <div class="oac-prox-bar"><div class="oac-prox-fill" style="width:${prox}%; background:${getPctColor(prox)}"></div></div>
+          </div>
+          <div class="oac-mini-timeline-wrap">
+            <div class="os-label">Últimos jogos dessa odd</div>
+            <div class="mini-timeline">${dotsHtml}</div>
+          </div>
+          <div class="oac-quebras">
+            <div class="oq-label">Histórico de Quebra (jogos sem sair)</div>
+            <div class="oq-badges">${badgesHtml}</div>
+          </div>
+          <div class="oac-footer">
+            <span>${o.totalOcorrencias} ocorrências</span>
+            <span>${o.greenCount} greens</span>
+          </div>`;
+        card.addEventListener('click', () => toggleMatchDetails(o.key, card, 'Odd @' + o.key));
+        return card;
+      }
+
       function renderCentralCards(market) {
+        mercadoAtualAnalise = market;
         const sorted = getSortedStreaks();
-        const alertaMin = parseInt(document.getElementById('filtro-alertaMin').value, 10) || 0;
 
         const mediaProx = sorted.length
           ? Math.round(sorted.reduce((s, o) => s + Math.min(o.proximidade, 100), 0) / sorted.length) + '%'
           : '—';
-        const melhorOportunidade = sorted.length ? '@' + sorted[0].key : '—';
+        const pertoParaMedia = sorted.filter(o => !o.isRecorde);
+        const melhorOportunidade = pertoParaMedia.length ? '@' + pertoParaMedia[0].key : (sorted.length ? '@' + sorted[0].key : '—');
         const recordesAtivos = sorted.filter(o => o.isRecorde).length;
 
         updateStatsBarGeneric([
@@ -1180,61 +1395,47 @@
           { label: 'Mercado', value: MARKET_LABELS[market] || market, small: true },
         ]);
 
-        document.getElementById('cards-title').textContent = 'Odds Monitoradas — ' + (MARKET_LABELS[market] || market);
-        const container = document.getElementById('cards-container');
-        container.innerHTML = '';
-
-        if (!sorted.length) {
-          container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📡</div>Nenhuma odd com histórico suficiente nessa janela/mercado.</div>`;
-          renderProximosCentralOdds(market);
-          return;
-        }
-
-        sorted.forEach((o, index) => {
-          const prox = Math.min(o.proximidade, 100);
-          const isQuente = o.isRecorde || o.proximidade >= 90;
-          const isAlerta = !isQuente && alertaMin > 0 && o.proximidade >= alertaMin;
-
-          const card = document.createElement('div');
-          card.className = `odd-alert-card ${isQuente ? 'quente' : isAlerta ? 'alerta' : ''}`;
-          const rankLabel = index < 3 ? `<div class="rank-badge">#${index + 1}</div>` : '';
-          const recordeTag = o.isRecorde ? `<span class="oac-recorde-tag">Recorde batido</span>` : '';
-
-          const badgesHtml = o.streaks.map(v => `<span class="oq-badge">${v}</span>`).join('') || '<span class="oq-badge">—</span>';
-
-          card.innerHTML = `
-            ${rankLabel}
-            <div class="oac-header">
-              <span class="oac-odd">@${o.key}</span>
-              ${recordeTag}
-            </div>
-            <div class="oac-stats">
-              <div class="oac-stat destaque">
-                <div class="os-label">Corrente Atual</div>
-                <div class="os-value">${o.atual}</div>
-              </div>
-              <div class="oac-stat">
-                <div class="os-label">Máxima Histórica</div>
-                <div class="os-value">${o.maxHist}</div>
-              </div>
-            </div>
-            <div class="oac-prox-wrap">
-              <div class="oac-prox-label"><span>Proximidade</span><span style="color:${getPctColor(prox)}">${o.proximidade}%</span></div>
-              <div class="oac-prox-bar"><div class="oac-prox-fill" style="width:${prox}%; background:${getPctColor(prox)}"></div></div>
-            </div>
-            <div class="oac-quebras">
-              <div class="oq-label">Histórico de Quebra (jogos sem sair)</div>
-              <div class="oq-badges">${badgesHtml}</div>
-            </div>
-            <div class="oac-footer">
-              <span>${o.totalOcorrencias} ocorrências</span>
-              <span>${o.greenCount} greens</span>
-            </div>`;
-          card.addEventListener('click', () => toggleMatchDetails(o.key, card, 'Odd @' + o.key));
-          container.appendChild(card);
-        });
-
+        renderSections(market);
         renderProximosCentralOdds(market);
+      }
+
+      // Separa em duas listas: quem ainda não bateu a máxima (a "previsão"
+      // de verdade) e quem já bateu (vira anomalia/curiosidade estatística).
+      // Cada uma com paginação própria via "Mostrar mais".
+      function renderSections(market) {
+        const sorted = getSortedStreaks();
+        const alertaMin = parseInt(document.getElementById('filtro-alertaMin').value, 10) || 0;
+
+        const perto = sorted.filter(o => !o.isRecorde);
+        const recorde = sorted.filter(o => o.isRecorde);
+
+        document.getElementById('cards-title-perto').textContent =
+          `Prestes a Quebrar — ${MARKET_LABELS[market] || market} (${perto.length})`;
+        document.getElementById('cards-title-recorde').textContent =
+          `Recorde Já Batido — ${MARKET_LABELS[market] || market} (${recorde.length})`;
+
+        const containerPerto = document.getElementById('cards-container-perto');
+        const containerRecorde = document.getElementById('cards-container-recorde');
+        containerPerto.innerHTML = '';
+        containerRecorde.innerHTML = '';
+
+        if (!perto.length) {
+          containerPerto.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📡</div>Nenhuma odd se aproximando da máxima nessa janela/mercado.</div>`;
+        } else {
+          perto.slice(0, limitPerto).forEach((o, index) => {
+            const card = buildOddCard(o, index);
+            if (alertaMin > 0 && o.proximidade >= alertaMin) card.classList.add('alerta');
+            containerPerto.appendChild(card);
+          });
+        }
+        document.getElementById('mostrar-mais-perto-wrap').style.display = perto.length > limitPerto ? '' : 'none';
+
+        if (!recorde.length) {
+          containerRecorde.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🏁</div>Nenhum recorde batido nessa janela/mercado.</div>`;
+        } else {
+          recorde.slice(0, limitRecorde).forEach((o, index) => containerRecorde.appendChild(buildOddCard(o, index)));
+        }
+        document.getElementById('mostrar-mais-recorde-wrap').style.display = recorde.length > limitRecorde ? '' : 'none';
       }
 
       function updateStatsBarGeneric(pills) {
@@ -1407,6 +1608,8 @@
           populateLigaSelect();
           populateLinesSelect();
           populateMercadoSelect();
+          aplicarSugestaoOcorrMin();
+          atualizarToggleSonoroVisual();
         }
 
         document.querySelector('.filter-section').addEventListener('change', salvarFiltrosAtuais);
