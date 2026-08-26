@@ -14,6 +14,7 @@ function redirecionar(select) {
     url === "https://www.betstat.site/renovar.html" ||
     url === "https://www.betstat.site/bacbo.html" ||
     url === "https://www.betstat.site/referencia.html" ||
+    url === "https://www.betstat.site/centralodds.html" ||
     url === "https://t.me/betstatgraphic2bot" ||
     url === "https://www.betstat.site/day.html" ||
     url === "https://t.me/tip_zera" ||
