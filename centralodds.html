@@ -1576,6 +1576,83 @@
         }
       }
 
+      /* ─────────────────────────────────────
+         FUNÇÕES DE NORMALIZAÇÃO - Cruzamento Inteligente
+      ───────────────────────────────────── */
+      function normalizeLeagueCross(liga) {
+        if (!liga) return '';
+        return liga.toLowerCase().trim().replace(/\s+/g, ' ')
+          .replace(/[àáâãäå]/g, 'a').replace(/[èéêë]/g, 'e').replace(/[ìíîï]/g, 'i')
+          .replace(/[òóôõö]/g, 'o').replace(/[ùúûü]/g, 'u').replace(/ç/g, 'c');
+      }
+
+      function normalizeTeamCross(team) {
+        if (!team) return '';
+        return team.toLowerCase().trim().replace(/\s+/g, ' ')
+          .replace(/[àáâãäå]/g, 'a').replace(/[èéêë]/g, 'e').replace(/[ìíîï]/g, 'i')
+          .replace(/[òóôõö]/g, 'o').replace(/[ùúûü]/g, 'u').replace(/ç/g, 'c');
+      }
+
+      function normalizeDateCross(dateStr) {
+        if (!dateStr) return '';
+        // Se ISO: 2025-08-21T12:31:00.000Z
+        if (dateStr.includes('T')) {
+          try {
+            const d = new Date(dateStr);
+            const dia = String(d.getUTCDate()).padStart(2, '0');
+            const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const ano = d.getUTCFullYear();
+            return `${dia}/${mes}/${ano}`;
+          } catch (e) { return ''; }
+        }
+        // Se DD/MM/YYYY
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr.trim())) return dateStr.trim();
+        return '';
+      }
+
+      function buildOddsIndexCross(oddsArray) {
+        const byMatchId = {};
+        const byMatch = {};
+        (oddsArray || []).forEach(odd => {
+          if (odd.match_id) byMatchId[String(odd.match_id)] = odd;
+          const homeN = normalizeTeamCross(odd.time_casa || '');
+          const awayN = normalizeTeamCross(odd.time_visitante || '');
+          const ligaN = normalizeLeagueCross(odd.liga || '');
+          const dateN = normalizeDateCross(odd.data_captura || odd.inicio_jogo || '');
+          if (homeN && awayN && ligaN && dateN) {
+            const matchKey = `${ligaN}|${homeN}|${awayN}|${dateN}`;
+            byMatch[matchKey] = odd;
+          }
+        });
+        return { byMatchId, byMatch };
+      }
+
+      function findOddForProximoCross(jogo, oddsIndex) {
+        if (!jogo || !oddsIndex) return null;
+        const homeN = normalizeTeamCross(jogo.team_home || '');
+        const awayN = normalizeTeamCross(jogo.team_visit || '');
+        const ligaN = normalizeLeagueCross(jogo.league || '');
+        let dateN = '';
+        if (jogo.start_time) dateN = normalizeDateCross(jogo.start_time);
+        else if (jogo.captured_date) dateN = normalizeDateCross(jogo.captured_date);
+        
+        // Estratégia 1: Event ID
+        if (jogo.event_id && oddsIndex.byMatchId[String(jogo.event_id)]) {
+          return { odd: oddsIndex.byMatchId[String(jogo.event_id)], strategy: 'EVENT_ID' };
+        }
+        
+        // Estratégia 2: Match exato (liga + times + data)
+        if (homeN && awayN && ligaN && dateN) {
+          const key = `${ligaN}|${homeN}|${awayN}|${dateN}`;
+          if (oddsIndex.byMatch[key]) return { odd: oddsIndex.byMatch[key], strategy: 'EXACT' };
+          
+          // Estratégia 3: Times invertidos
+          const keyInv = `${ligaN}|${awayN}|${homeN}|${dateN}`;
+          if (oddsIndex.byMatch[keyInv]) return { odd: oddsIndex.byMatch[keyInv], strategy: 'INVERTED' };
+        }
+        return null;
+      }
+
       function renderProximosCentralOdds(market) {
         const lista = document.getElementById('lista-proximos-jogos');
         lista.innerHTML = '';
@@ -1587,34 +1664,18 @@
         const oddField = marketToOdd[market];
         const marketLabel = MARKET_LABELS[market] || market;
 
-        // Usa o histórico COMPLETO de odds (não a janela filtrada) para achar a odd
-        // mais recente desse confronto.
-        const oddsIndex = {};
-        for (let i = oddsBrutos.length - 1; i >= 0; i--) {
-          const o = oddsBrutos[i];
-          const gd = parseDataOdd(o);
-          if (!gd) continue;
-          const dk = localDateKey(gd);
-          const homeN = normalizeTeamNameOdd(o.time_casa);
-          const awayN = normalizeTeamNameOdd(o.time_visitante);
-          const ik = `${homeN}|${awayN}|${dk}`;
-          if (!oddsIndex[ik]) oddsIndex[ik] = o;
-          const ikPartial = `${homeN}|${awayN}|`;
-          if (!oddsIndex[ikPartial]) oddsIndex[ikPartial] = o;
-        }
+        // ✅ NOVO: Usar cruzamento inteligente com validação de liga + event_id
+        const oddsIndex = buildOddsIndexCross(oddsBrutos || []);
 
         proximosData.forEach(jogo => {
           const time = jogo.time || extractTimeFromDateTime(jogo.start_time);
           const homeTeam = jogo.team_home || jogo.time_casa || '';
           const awayTeam = jogo.team_visit || jogo.time_visitante || '';
-          let dateKey = '';
-          if (jogo.start_time) { try { dateKey = isoDateKey(jogo.start_time); } catch (e) {} }
 
-          const homeN = normalizeTeamNameOdd(homeTeam), awayN = normalizeTeamNameOdd(awayTeam);
-          let oddsEntry = oddsIndex[`${homeN}|${awayN}|${dateKey}`]
-            || oddsIndex[`${awayN}|${homeN}|${dateKey}`]
-            || oddsIndex[`${homeN}|${awayN}|`]
-            || oddsIndex[`${awayN}|${homeN}|`];
+          // ✅ NOVO: Busca com validação de liga + times + data + event_id
+          const oddInfo = findOddForProximoCross(jogo, oddsIndex);
+          const oddsEntry = oddInfo ? oddInfo.odd : null;
+          
           const oddRaw = oddsEntry ? parseFloat(oddsEntry[oddField]) : NaN;
           const oddVal = !isNaN(oddRaw) ? oddRaw.toFixed(2) : null;
 
