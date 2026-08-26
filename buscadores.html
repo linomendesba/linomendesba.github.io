@@ -921,6 +921,77 @@
       let avancadoVisible = false;
 
       /* ─────────────────────────────────────
+         PERSISTENCIA DE FILTROS (localStorage)
+         Salva o modo (aba) e todos os seletores para que, ao voltar
+         na pagina, tudo continue exatamente como o usuario deixou.
+      ───────────────────────────────────── */
+      const FILTROS_STORAGE_KEY = 'betstat_buscadores_filtros_v1';
+      const FILTROS_IDS = [
+        'casa-select', 'liga-select', 'lines-select', 'filter-select',
+        'qual-select', 'offset-select', 'offset-select2',
+        'numTiros-select', 'topResults-select',
+        'filtro-pctMin', 'filtro-ocorrMin', 'filtro-pulosMax', 'filtro-sortBy',
+      ];
+
+      function salvarFiltrosAtuais() {
+        try {
+          const valores = {};
+          FILTROS_IDS.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) valores[id] = el.value;
+          });
+          localStorage.setItem(FILTROS_STORAGE_KEY, JSON.stringify({ modo: modoAtual, valores }));
+        } catch (e) {
+          // localStorage indisponivel (modo privado, storage cheio, etc.) - ignora
+        }
+      }
+
+      function carregarFiltrosSalvos() {
+        try {
+          const raw = localStorage.getItem(FILTROS_STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      // Aplica um valor salvo num <select> apenas se ele existir entre as
+      // opcoes atuais (evita travar em valor invalido apos repopular listas
+      // dependentes, como liga/horas que mudam conforme a casa).
+      function aplicarValorSalvo(id, valor) {
+        if (valor === undefined || valor === null) return;
+        const el = document.getElementById(id);
+        if (!el) return;
+        const existe = Array.from(el.options).some(o => o.value === valor);
+        if (existe) el.value = valor;
+      }
+
+      function restaurarFiltrosSalvos() {
+        const salvo = carregarFiltrosSalvos();
+        if (!salvo) return false;
+        const v = salvo.valores || {};
+
+        const modo = MODOS.some(m => m.id === salvo.modo) ? salvo.modo : 'placar';
+        aplicarModoUI(modo);
+
+        aplicarValorSalvo('casa-select', v['casa-select']);
+        populateLigaSelect();
+        aplicarValorSalvo('liga-select', v['liga-select']);
+
+        populateLinesSelect();
+        aplicarValorSalvo('lines-select', v['lines-select']);
+
+        populateMercadoSelect();
+        aplicarValorSalvo('filter-select', v['filter-select']);
+
+        ['qual-select', 'offset-select', 'offset-select2', 'numTiros-select',
+         'topResults-select', 'filtro-pctMin', 'filtro-ocorrMin',
+         'filtro-pulosMax', 'filtro-sortBy'].forEach(id => aplicarValorSalvo(id, v[id]));
+
+        return true;
+      }
+
+      /* ─────────────────────────────────────
          INICIALIZAÇÃO DE SELECTS
       ───────────────────────────────────── */
       function initModoTabs() {
@@ -982,10 +1053,14 @@
       function onCasaChange() {
         populateLigaSelect();
         populateLinesSelect();
+        salvarFiltrosAtuais();
         loadData();
       }
 
-      function setModo(modo) {
+      // So a parte visual (troca de aba/painel). Nao mexe em dados nem
+      // dispara fetch — usada tanto pelo clique nas abas quanto na
+      // restauracao de filtros salvos no boot.
+      function aplicarModoUI(modo) {
         modoAtual = modo;
         document.querySelectorAll('.modo-tab').forEach(t => t.classList.toggle('active', t.dataset.modo === modo));
         document.querySelectorAll('[data-modo-only]').forEach(el => {
@@ -993,7 +1068,12 @@
           el.classList.toggle('modo-hidden', !modos.includes(modo));
         });
         document.getElementById('upcoming-section').style.display = modo === 'placar' ? 'none' : '';
+      }
+
+      function setModo(modo) {
+        aplicarModoUI(modo);
         populateMercadoSelect();
+        salvarFiltrosAtuais();
         loadData();
       }
 
@@ -1182,28 +1262,54 @@
         const sortBy   = document.getElementById('filtro-sortBy').value;
 
         placarStats = {};
+
+        // 1) Agrupa os indices (posicoes em jogosJanela) de cada placar.
+        const indicesPorPlacar = {};
         jogosJanela.forEach((jogo, idx) => {
           const [gc, gf] = jogo.ft.split(' x ').map(Number);
           const placar = `${gc} x ${gf}`;
-          if (!placarStats[placar]) placarStats[placar] = { contagem: 0, ocorrencias: 0, pulos: 0 };
-          placarStats[placar].contagem++;
+          if (!indicesPorPlacar[placar]) indicesPorPlacar[placar] = [];
+          indicesPorPlacar[placar].push(idx);
+        });
 
-          // GALE: dentro da janela de "numTiros" jogos consecutivos (a partir do
-          // skip "i"), basta que o mercado bata em PELO MENOS UM desses jogos
-          // para contar como green (igual ao gale real: acertou na 1a, 2a ou 3a
-          // tentativa). So conta como red se nenhum dos "numTiros" jogos bater.
-          // jogosJanela e um array continuo (ordenado por data/hora), entao a
-          // janela pode atravessar naturalmente o limite de uma hora para outra.
-          for (let i = 2; i + idx + (numTiros - 1) < jogosJanela.length; i++) {
-            let hit = false;
-            for (let j = 0; j < numTiros; j++) {
-              const alvo = jogosJanela[idx + i + j];
+        // 2) GALE: sempre pula pelo menos 2 jogos apos a ocorrencia do placar
+        // e analisa os proximos "numTiros" jogos consecutivos — basta o
+        // mercado bater em PELO MENOS UM desses jogos pra contar como green
+        // (igual gale real: acerta na 1a, 2a ou 3a tentativa).
+        // O quanto pular NAO e fixo: a busca testa automaticamente pulos
+        // crescentes (2, 3, 4, ...) e fica com o valor que da a MAIOR
+        // porcentagem de acerto pra aquele placar (parando assim que achar
+        // 100%). Isso é feito usando SEMPRE o mesmo pulo pra TODAS as
+        // ocorrencias daquele placar — nao um pulo diferente por ocorrencia
+        // individual, que era o que inflava o percentual errado antes.
+        const PULA_MIN = 2;
+        const PULA_MAX = 60; // limite da busca automatica (mesmo teto do filtro "Max. Pulos")
+
+        function contarHits(indices, skip) {
+          let hits = 0;
+          indices.forEach(idx => {
+            const inicio = idx + skip;
+            const fim = inicio + numTiros; // exclusivo
+            if (fim > jogosJanela.length) return; // sem dados suficientes a frente = nao bate
+            for (let j = inicio; j < fim; j++) {
+              const alvo = jogosJanela[j];
               const [ah, af] = alvo.ft.split(' x ').map(Number);
               const [ahHT, afHT] = parseHT(alvo);
-              if (checkMarketCondition(ah, af, ah + af, market, ahHT, afHT)) { hit = true; break; }
+              if (checkMarketCondition(ah, af, ah + af, market, ahHT, afHT)) { hits++; return; }
             }
-            if (hit) { placarStats[placar].ocorrencias++; placarStats[placar].pulos = i; break; }
+          });
+          return hits;
+        }
+
+        Object.entries(indicesPorPlacar).forEach(([placar, indices]) => {
+          const contagem = indices.length;
+          let melhorSkip = PULA_MIN;
+          let melhorHits = contarHits(indices, PULA_MIN);
+          for (let skip = PULA_MIN + 1; skip <= PULA_MAX && melhorHits < contagem; skip++) {
+            const hits = contarHits(indices, skip);
+            if (hits > melhorHits) { melhorHits = hits; melhorSkip = skip; }
           }
+          placarStats[placar] = { contagem, ocorrencias: melhorHits, pulos: melhorSkip };
         });
 
         let arr = Object.entries(placarStats).map(([placar, s]) => ({
@@ -1877,10 +1983,24 @@
       document.addEventListener('DOMContentLoaded', () => {
         initModoTabs();
         initCasaSelect();
-        populateLigaSelect();
-        populateLinesSelect();
-        populateMercadoSelect();
-        setModo('placar');
+
+        // Tenta restaurar tudo que o usuario configurou da ultima vez
+        // (aba/modo, casa, liga, horas, mercado e todos os filtros).
+        // Se nao houver nada salvo ainda, cai no padrao de sempre.
+        const restaurou = restaurarFiltrosSalvos();
+        if (!restaurou) {
+          populateLigaSelect();
+          populateLinesSelect();
+          populateMercadoSelect();
+          aplicarModoUI('placar');
+        }
+
+        // Qualquer mudanca em qualquer seletor dos filtros (casa, liga,
+        // horas, mercado, posicao, gales, tiros, top, filtros avancados...)
+        // salva o estado automaticamente.
+        document.querySelector('.filter-section').addEventListener('change', salvarFiltrosAtuais);
+
+        loadData();
         setInterval(loadData, 60000);
       });
     </script>
