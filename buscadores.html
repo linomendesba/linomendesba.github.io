@@ -645,13 +645,7 @@
           </div>
           <div class="filter-group">
             <label for="lines-select">Jogos Analisados</label>
-            <select id="lines-select" onchange="loadData()">
-              <option value="60">03 Hs</option>
-              <option value="120" selected>06 Hs</option>
-              <option value="240">12 Hs</option>
-              <option value="480">24 Hs</option>
-              <option value="960">48 Hs</option>
-            </select>
+            <select id="lines-select" onchange="loadData()"></select>
           </div>
           <div class="filter-group">
             <label for="filter-select">Mercado</label>
@@ -849,6 +843,26 @@
         },
       };
 
+      // Opcoes do seletor "Jogos Analisados" (horas).
+      // A Kiron tem um ritmo de jogos diferente das outras casas
+      // (jogos mais curtos/mais frequentes), entao para cobrir a mesma
+      // quantidade de horas ela precisa de mais linhas/jogos.
+      const LINES_OPTIONS_DEFAULT = [
+        { value: 60,  label: '03 Hs' },
+        { value: 120, label: '06 Hs' },
+        { value: 240, label: '12 Hs' },
+        { value: 480, label: '24 Hs' },
+        { value: 960, label: '48 Hs' },
+      ];
+      const LINES_OPTIONS_KIRON = [
+        { value: 90,   label: '03 Hs' },
+        { value: 180,  label: '06 Hs' },
+        { value: 360,  label: '12 Hs' },
+        { value: 720,  label: '24 Hs' },
+        { value: 1440, label: '48 Hs' },
+      ];
+      const LINES_OPTIONS_DEFAULT_LABEL = '06 Hs';
+
       const MODOS = [
         { id: 'placar',    label: 'Por Placar' },
         { id: 'time',      label: 'Por Time' },
@@ -931,6 +945,29 @@
         ).join('');
       }
 
+      // Popula o seletor "Jogos Analisados" (horas) de acordo com a casa
+      // selecionada, ja que a Kiron usa uma quantidade de linhas diferente
+      // das demais casas para representar a mesma janela de horas.
+      // Tenta preservar a faixa de horas (label) que estava selecionada
+      // antes da troca; se nao existir na nova lista, cai no padrao '06 Hs'.
+      function populateLinesSelect() {
+        const casa = document.getElementById('casa-select').value;
+        const options = casa === 'kiron' ? LINES_OPTIONS_KIRON : LINES_OPTIONS_DEFAULT;
+        const sel = document.getElementById('lines-select');
+        const labelAtual = sel.options.length && sel.selectedIndex >= 0
+          ? sel.options[sel.selectedIndex].text
+          : LINES_OPTIONS_DEFAULT_LABEL;
+
+        sel.innerHTML = options.map(o =>
+          `<option value="${o.value}">${o.label}</option>`
+        ).join('');
+
+        const match = options.find(o => o.label === labelAtual) ||
+                      options.find(o => o.label === LINES_OPTIONS_DEFAULT_LABEL) ||
+                      options[0];
+        sel.value = String(match.value);
+      }
+
       function populateMercadoSelect() {
         const sel = document.getElementById('filter-select');
         const keys = modoAtual === 'odd'
@@ -944,6 +981,7 @@
 
       function onCasaChange() {
         populateLigaSelect();
+        populateLinesSelect();
         loadData();
       }
 
@@ -1150,15 +1188,21 @@
           if (!placarStats[placar]) placarStats[placar] = { contagem: 0, ocorrencias: 0, pulos: 0 };
           placarStats[placar].contagem++;
 
+          // GALE: dentro da janela de "numTiros" jogos consecutivos (a partir do
+          // skip "i"), basta que o mercado bata em PELO MENOS UM desses jogos
+          // para contar como green (igual ao gale real: acertou na 1a, 2a ou 3a
+          // tentativa). So conta como red se nenhum dos "numTiros" jogos bater.
+          // jogosJanela e um array continuo (ordenado por data/hora), entao a
+          // janela pode atravessar naturalmente o limite de uma hora para outra.
           for (let i = 2; i + idx + (numTiros - 1) < jogosJanela.length; i++) {
-            let ok = true;
+            let hit = false;
             for (let j = 0; j < numTiros; j++) {
               const alvo = jogosJanela[idx + i + j];
               const [ah, af] = alvo.ft.split(' x ').map(Number);
               const [ahHT, afHT] = parseHT(alvo);
-              if (!checkMarketCondition(ah, af, ah + af, market, ahHT, afHT)) { ok = false; break; }
+              if (checkMarketCondition(ah, af, ah + af, market, ahHT, afHT)) { hit = true; break; }
             }
-            if (ok) { placarStats[placar].ocorrencias++; placarStats[placar].pulos = i; break; }
+            if (hit) { placarStats[placar].ocorrencias++; placarStats[placar].pulos = i; break; }
           }
         });
 
@@ -1834,6 +1878,7 @@
         initModoTabs();
         initCasaSelect();
         populateLigaSelect();
+        populateLinesSelect();
         populateMercadoSelect();
         setModo('placar');
         setInterval(loadData, 60000);
