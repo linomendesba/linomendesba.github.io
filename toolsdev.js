@@ -41,10 +41,6 @@
     {
       group: "Bet365",
       tools: [
-        { label: "Pré Live",        url: "https://www.betstat.site/bet365pre.html" },
-        { label: "Fluxo",           url: "https://www.betstat.site/365fluxo.html" },
-        { label: "Máximas",         url: "https://www.betstat.site/365maximas.html" },
-        { label: "GolsPró",         url: "https://www.betstat.site/365gols.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/365fixo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/365stat.html" },
@@ -63,10 +59,6 @@
     {
       group: "Betano",
       tools: [
-        { label: "Pré Live",        url: "https://www.betstat.site/betanopre.html" },
-        { label: "Fluxo",           url: "https://www.betstat.site/fluxo.html" },
-        { label: "Máximas",         url: "https://www.betstat.site/maximabetano.html" },
-        { label: "GolsPró",         url: "https://www.betstat.site/gols.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/betanofixo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/LigaStat.html" },
@@ -86,10 +78,6 @@
     {
       group: "Betsson",
       tools: [
-        { label: "Pré Live",        url: "https://www.betstat.site/betssonpre.html" },
-        { label: "Fluxo",           url: "https://www.betstat.site/betssonfluxo.html" },
-        { label: "Máximas",         url: "https://www.betstat.site/betssonmaximas.html" },
-        { label: "GolsPró",         url: "https://www.betstat.site/betssongols.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/betssonfixo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/betssonstat.html" },
@@ -108,10 +96,6 @@
     {
       group: "EstrelaBet",
       tools: [
-        { label: "Pré Live",        url: "https://www.betstat.site/estrelapre.html" },
-        { label: "Fluxo",           url: "https://www.betstat.site/estrelafluxo.html" },
-        { label: "Máximas",         url: "https://www.betstat.site/maximaestrela.html" },
-        { label: "GolsPró",         url: "https://www.betstat.site/golsestrela.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/estrelafixo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/estrelastat.html" },
@@ -130,10 +114,6 @@
     {
       group: "Kiron",
       tools: [
-        { label: "Pré Live",        url: "https://www.betstat.site/kironpre.html" },
-        { label: "Fluxo",           url: "https://www.betstat.site/kironfluxo.html" },
-        { label: "Máximas",         url: "https://www.betstat.site/maximaskiron.html" },
-        { label: "GolsPró",         url: "https://www.betstat.site/golskiron.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/fixokiron.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/LigaStatkiron.html" },
@@ -157,7 +137,6 @@
         { label: "Mentor",        url: "https://www.betstat.site/mentor.html" },
         { label: "Guias",        url: "https://www.betstat.site/flat.html" },
         { label: "Ao Vivo",      url: "https://www.betstat.site/live.html" },
-        { label: "Calc Dutch",   url: "https://www.betstat.site/calculadora.html" },
         { label: "Morpheus IA",  url: "https://www.betstat.site/morfeus" },
         { label: "Gerador Tip",  url: "https://www.betstat.site/central/" },
         { label: "Gestão Banca", url: "gestao.html" },
