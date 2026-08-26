@@ -896,6 +896,7 @@
       ───────────────────────────────────── */
       let modoAtual = 'placar';
       let resultadosBrutos = [];   // dados crus da rota /resultados/
+      let oddsBrutos = [];         // dados crus da rota /odds/ (sem corte de janela)
       let jogosJanela = [];        // já filtrados pela janela de tempo
       let oddsJanela = [];         // (modo odd) dados de /odds/ filtrados
       let resultsMapOdd = null;    // (modo odd) índice para cruzar odds x resultado
@@ -1042,7 +1043,7 @@
           if (modoAtual === 'odd') {
             const resOdds = await fetch(urls.odds);
             if (!resOdds.ok) throw new Error(`HTTP ${resOdds.status} em /odds/`);
-            const oddsBrutos = await resOdds.json();
+            oddsBrutos = await resOdds.json();
             oddsJanela = filtrarPorJanela(oddsBrutos, parseDataOdd);
             resultsMapOdd = buildResultsMapOdd(resultadosBrutos);
           }
@@ -1769,14 +1770,21 @@
         const oddField = marketToOdd[market];
         const marketLabel = MARKET_LABELS[market] || market;
 
+        // Usa o histórico COMPLETO de odds (não a janela filtrada) para achar a odd
+        // mais recente desse confronto: ligas com muitos times (Betano/Bet365) podem
+        // não repetir o mesmo confronto dentro de uma janela curta (ex.: 6h).
         const oddsIndex = {};
-        for (let i = oddsJanela.length - 1; i >= 0; i--) {
-          const o = oddsJanela[i];
+        for (let i = oddsBrutos.length - 1; i >= 0; i--) {
+          const o = oddsBrutos[i];
           const gd = parseDataOdd(o);
           if (!gd) continue;
           const dk = localDateKey(gd);
-          const ik = `${normalizeTeamName(o.time_casa)}|${normalizeTeamName(o.time_visitante)}|${dk}`;
+          const homeN = normalizeTeamName(o.time_casa);
+          const awayN = normalizeTeamName(o.time_visitante);
+          const ik = `${homeN}|${awayN}|${dk}`;
           if (!oddsIndex[ik]) oddsIndex[ik] = o;
+          const ikPartial = `${homeN}|${awayN}|`;
+          if (!oddsIndex[ikPartial]) oddsIndex[ikPartial] = o; // mais recente por ordem de percurso
         }
 
         const topOddKeys = getSortedOdds().slice(0, 5).map(o => o.key);
@@ -1788,12 +1796,11 @@
           let dateKey = '';
           if (jogo.start_time) { try { dateKey = isoDateKey(jogo.start_time); } catch (e) {} }
 
-          let oddsEntry = oddsIndex[`${normalizeTeamName(homeTeam)}|${normalizeTeamName(awayTeam)}|${dateKey}`];
-          if (!oddsEntry) {
-            const partial = `${normalizeTeamName(homeTeam)}|${normalizeTeamName(awayTeam)}|`;
-            const foundKey = Object.keys(oddsIndex).find(k => k.indexOf(partial) === 0);
-            if (foundKey) oddsEntry = oddsIndex[foundKey];
-          }
+          const homeN = normalizeTeamName(homeTeam), awayN = normalizeTeamName(awayTeam);
+          let oddsEntry = oddsIndex[`${homeN}|${awayN}|${dateKey}`]
+            || oddsIndex[`${awayN}|${homeN}|${dateKey}`]
+            || oddsIndex[`${homeN}|${awayN}|`]
+            || oddsIndex[`${awayN}|${homeN}|`];
           const oddRaw = oddsEntry ? parseFloat(oddsEntry[oddField]) : NaN;
           const oddVal = !isNaN(oddRaw) ? oddRaw.toFixed(2) : null;
           const isTop = oddVal && topOddKeys.includes(oddVal);
