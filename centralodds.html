@@ -1065,12 +1065,30 @@
             const [datePart, timePart] = o.inicio_jogo.split(', ');
             const [d, mo, y] = datePart.split('/');
             const [h, mi] = (timePart || '00:00').split(':');
-            return new Date(y, mo - 1, d, h, mi);
+            const dt = new Date(y, mo - 1, d, h, mi);
+            if (!isNaN(dt)) return dt;
           }
           if (o.data_captura) {
             const [d, mo, y] = o.data_captura.split('/');
-            const [h, mi] = (o.horario || '00:00').split(':');
-            return new Date(y, mo - 1, d, h, mi);
+            const [h, mi] = (o.horario || o.hora || '00:00').split(':');
+            const dt = new Date(y, mo - 1, d, h, mi);
+            if (!isNaN(dt)) return dt;
+          }
+          // Fallback: campo "data" no mesmo formato DD/MM/YYYY usado por /resultados/
+          if (o.data && typeof o.data === 'string' && o.data.includes('/')) {
+            const [d, mo, y] = o.data.split('/');
+            const [h, mi] = (o.horario || o.hora || '00:00').split(':');
+            const dt = new Date(y, mo - 1, d, h, mi);
+            if (!isNaN(dt)) return dt;
+          }
+          // Fallback: qualquer campo de data/hora já em formato ISO/RFC que o
+          // proprio Date consiga entender direto (ex: start_time de /proximos/,
+          // ou variações que algumas casas usam no /odds/).
+          for (const campo of ['start_time', 'inicio_jogo', 'data_captura', 'data', 'datetime', 'date']) {
+            if (o[campo]) {
+              const dt = new Date(o[campo]);
+              if (!isNaN(dt)) return dt;
+            }
           }
         } catch (e) {}
         return null;
@@ -1112,9 +1130,23 @@
           oddsBrutos = await resOdds.json();
           oddsJanela = filtrarPorJanela(oddsBrutos, parseDataOdd);
 
+          let datasNaoReconhecidas = false;
+          if (oddsBrutos.length && !oddsJanela.length) {
+            // Nenhum registro tinha uma data reconhecida pelo parseDataOdd — em vez
+            // de ficar sem nada, usa todos os registros brutos (sem corte de janela)
+            // pra não travar a análise enquanto o formato de data não é ajustado.
+            datasNaoReconhecidas = true;
+            oddsJanela = oddsBrutos;
+          }
+
           await loadProximos(urls.proximos);
 
-          setStatus(`${oddsJanela.length} jogos carregados — analisando...`);
+          if (datasNaoReconhecidas) {
+            console.warn('[Central de Odds] /odds/ retornou', oddsBrutos.length, 'registros, mas nenhum com data reconhecida. Amostra:', oddsBrutos[0]);
+            setStatus(`${oddsBrutos.length} registros recebidos, mas sem data reconhecida (veja o console) — usando todos sem filtro de janela...`, 'error');
+          } else {
+            setStatus(`${oddsJanela.length} de ${oddsBrutos.length} jogos na janela — analisando...`);
+          }
           analyze();
 
           const agora = new Date();
