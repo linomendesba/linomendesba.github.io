@@ -72,7 +72,6 @@
         { label: "Classificação",   url: "https://www.betstat.site/classificacao.html" },
         { label: "Gráfico Macro",   url: "https://www.betstat.site/macrobetano.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/betanoradar.html" },
-        { label: "Buscador Odds",   url: "https://www.betstat.site/buscadorodd.html" },
         { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
         { label: "Central Odds",   url: "https://www.betstat.site/centralodds.html" },
       ]
