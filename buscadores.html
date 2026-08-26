@@ -1445,6 +1445,19 @@
       /* ═════════════════════════════════════
          MODO: POR ODD
       ═════════════════════════════════════ */
+      // Extrai "YYYY-MM-DD" direto da string, SEM passar por new Date()/toISOString().
+      // Isso evita que o horário local do navegador desloque o dia (bug de fuso).
+      function isoDateKey(str) {
+        return (str || '').split('T')[0].substring(0, 10);
+      }
+      // Mesma ideia, mas para um Date já construído a partir de componentes locais
+      // (ex.: parseDataOdd) — usa os getters locais, que apenas "ecoam" os números
+      // originais (dia/mês/ano) sem nenhuma conversão de fuso.
+      function localDateKey(d) {
+        if (!d || isNaN(d)) return '';
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+
       function buildResultsMapOdd(resultsData) {
         const map = {}, mapByTeams = {};
         resultsData.forEach(result => {
@@ -1452,7 +1465,7 @@
           const homeN = normalizeTeamName(result.time_a);
           const awayN = normalizeTeamName(result.time_b);
           let dateKey = '';
-          try { dateKey = new Date(result.data).toISOString().substring(0, 10); } catch (e) {}
+          try { dateKey = isoDateKey(result.data); } catch (e) {}
           if (dateKey) {
             map[`${homeN}|${awayN}|${dateKey}`] = ft;
             map[`${awayN}|${homeN}|${dateKey}`] = ft;
@@ -1476,7 +1489,7 @@
           for (const delta of [-1, 1]) {
             const d2 = new Date(base);
             d2.setDate(d2.getDate() + delta);
-            const dk2 = d2.toISOString().substring(0, 10);
+            const dk2 = localDateKey(d2);
             const r = resultsMapOdd[`${homeN}|${awayN}|${dk2}`] || resultsMapOdd[`${awayN}|${homeN}|${dk2}`];
             if (r) return r;
           }
@@ -1523,7 +1536,7 @@
             const gameStart = parseDataOdd(match);
             let dateKey = '', dataFmt = '?';
             if (gameStart) {
-              dateKey = gameStart.toISOString().substring(0, 10);
+              dateKey = localDateKey(gameStart);
               dataFmt = `${gameStart.getDate().toString().padStart(2,'0')}/${(gameStart.getMonth()+1).toString().padStart(2,'0')}`;
             }
             const ftFound = dateKey ? lookupResultOdd(match.time_casa, match.time_visitante, dateKey) : null;
@@ -1705,7 +1718,9 @@
         try {
           const r = await fetch(url);
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          window.__proximosData = (await r.json()).slice(0, 7);
+          // Sem corte aqui: cada modo decide quantos jogos exibir
+          // (nas páginas originais, Time/Confronto mostravam 6 e Odd mostrava todos).
+          window.__proximosData = await r.json();
         } catch (e) {
           console.error('Erro ao carregar proximos jogos:', e);
           window.__proximosData = [];
@@ -1716,7 +1731,7 @@
         document.getElementById('upcoming-title').textContent = 'Próximos Jogos';
         const lista = document.getElementById('lista-proximos-jogos');
         lista.innerHTML = '';
-        const dados = window.__proximosData || [];
+        const dados = (window.__proximosData || []).slice(0, 6);
         if (!dados.length) {
           lista.innerHTML = '<div class="game-card">Nenhum jogo disponivel</div>';
           return;
@@ -1759,7 +1774,7 @@
           const o = oddsJanela[i];
           const gd = parseDataOdd(o);
           if (!gd) continue;
-          const dk = gd.toISOString().substring(0, 10);
+          const dk = localDateKey(gd);
           const ik = `${normalizeTeamName(o.time_casa)}|${normalizeTeamName(o.time_visitante)}|${dk}`;
           if (!oddsIndex[ik]) oddsIndex[ik] = o;
         }
@@ -1771,7 +1786,7 @@
           const homeTeam = jogo.team_home || jogo.time_casa || '';
           const awayTeam = jogo.team_visit || jogo.time_visitante || '';
           let dateKey = '';
-          if (jogo.start_time) { try { dateKey = new Date(jogo.start_time).toISOString().substring(0, 10); } catch (e) {} }
+          if (jogo.start_time) { try { dateKey = isoDateKey(jogo.start_time); } catch (e) {} }
 
           let oddsEntry = oddsIndex[`${normalizeTeamName(homeTeam)}|${normalizeTeamName(awayTeam)}|${dateKey}`];
           if (!oddsEntry) {
