@@ -54,7 +54,7 @@
         { label: "Gráfico Macro",   url: "https://www.betstat.site/365macro.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/365radar.html" },
         { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
-        { label: "Buscadores",   url: "https://www.betstat.site/centralodds.html" },
+        { label: "Central Odds",   url: "https://www.betstat.site/centralodds.html" },
       ]
     },
     {
@@ -74,7 +74,7 @@
         { label: "Radar Gráfico",   url: "https://www.betstat.site/betanoradar.html" },
         { label: "Buscador Odds",   url: "https://www.betstat.site/buscadorodd.html" },
         { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
-        { label: "Buscadores",   url: "https://www.betstat.site/centralodds.html" },
+        { label: "Central Odds",   url: "https://www.betstat.site/centralodds.html" },
       ]
     },
     {
@@ -93,7 +93,7 @@
         { label: "Gráfico Macro",   url: "https://www.betstat.site/betssonmacro.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/betssonradar.html" },
         { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
-        { label: "Buscadores",   url: "https://www.betstat.site/centralodds.html" },
+        { label: "Central Odds",   url: "https://www.betstat.site/centralodds.html" },
       ]
     },
     {
@@ -112,7 +112,7 @@
         { label: "Gráfico Macro",   url: "https://www.betstat.site/estrelamacro.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/estrelaradar.html" },
         { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
-        { label: "Buscadores",   url: "https://www.betstat.site/centralodds.html" },
+        { label: "Central Odds",   url: "https://www.betstat.site/centralodds.html" },
       ]
     },
     {
