@@ -1272,45 +1272,30 @@
           indicesPorPlacar[placar].push(idx);
         });
 
-        // 2) GALE: sempre pula pelo menos 2 jogos apos a ocorrencia do placar
-        // e analisa os proximos "numTiros" jogos consecutivos — basta o
-        // mercado bater em PELO MENOS UM desses jogos pra contar como green
-        // (igual gale real: acerta na 1a, 2a ou 3a tentativa).
-        // O quanto pular NAO e fixo: a busca testa automaticamente pulos
-        // crescentes (2, 3, 4, ...) e fica com o valor que da a MAIOR
-        // porcentagem de acerto pra aquele placar (parando assim que achar
-        // 100%). Isso é feito usando SEMPRE o mesmo pulo pra TODAS as
-        // ocorrencias daquele placar — nao um pulo diferente por ocorrencia
-        // individual, que era o que inflava o percentual errado antes.
-        const PULA_MIN = 2;
-        const PULA_MAX = 60; // limite da busca automatica (mesmo teto do filtro "Max. Pulos")
+        // 2) GALE: pula SEMPRE 5 jogos apos a ocorrencia do placar (fixo) e
+        // analisa os proximos "numTiros" jogos consecutivos (o gale
+        // selecionado) — basta o mercado bater em PELO MENOS UM desses jogos
+        // pra contar como green (igual gale real: acerta na 1a, 2a ou 3a
+        // tentativa). So conta como red se NENHUM dos "numTiros" jogos bater.
+        const PULA_JOGOS = 5;
 
-        function contarHits(indices, skip) {
-          let hits = 0;
+        Object.entries(indicesPorPlacar).forEach(([placar, indices]) => {
+          const contagem = indices.length;
+          let ocorrencias = 0;
           indices.forEach(idx => {
-            const inicio = idx + skip;
+            const inicio = idx + PULA_JOGOS;
             const fim = inicio + numTiros; // exclusivo
             if (fim > jogosJanela.length) return; // sem dados suficientes a frente = nao bate
             for (let j = inicio; j < fim; j++) {
               const alvo = jogosJanela[j];
               const [ah, af] = alvo.ft.split(' x ').map(Number);
               const [ahHT, afHT] = parseHT(alvo);
-              if (checkMarketCondition(ah, af, ah + af, market, ahHT, afHT)) { hits++; return; }
+              if (checkMarketCondition(ah, af, ah + af, market, ahHT, afHT)) { ocorrencias++; return; }
             }
           });
-          return hits;
-        }
-
-        Object.entries(indicesPorPlacar).forEach(([placar, indices]) => {
-          const contagem = indices.length;
-          let melhorSkip = PULA_MIN;
-          let melhorHits = contarHits(indices, PULA_MIN);
-          for (let skip = PULA_MIN + 1; skip <= PULA_MAX && melhorHits < contagem; skip++) {
-            const hits = contarHits(indices, skip);
-            if (hits > melhorHits) { melhorHits = hits; melhorSkip = skip; }
-          }
-          placarStats[placar] = { contagem, ocorrencias: melhorHits, pulos: melhorSkip };
+          placarStats[placar] = { contagem, ocorrencias, pulos: PULA_JOGOS };
         });
+
 
         let arr = Object.entries(placarStats).map(([placar, s]) => ({
           placar, ocorrencias: s.contagem,
