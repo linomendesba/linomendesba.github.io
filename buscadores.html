@@ -1119,7 +1119,21 @@
 
       function parseDataResultado(m) {
         const d = new Date(m.data);
-        return isNaN(d) ? null : d;
+        if (isNaN(d)) return null;
+        // IMPORTANTE: o campo "data" só carrega o DIA do jogo — o horário
+        // vem sempre travado (ex.: 03:00:00.000Z), não reflete o minuto real
+        // da rodada. O horário verdadeiro está em "hora" e "minuto" (o ciclo
+        // fixo 1,4,7,...,58). Sem isso, jogos do mesmo dia empatam no
+        // timestamp e a ordenação cronológica (da qual depende o "pula 5"
+        // fixo do buscador de placar) fica errada.
+        if (typeof m.hora === 'number' && typeof m.minuto === 'number') {
+          const dt = new Date(Date.UTC(
+            d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(),
+            m.hora, m.minuto, 0
+          ));
+          return isNaN(dt) ? d : dt;
+        }
+        return d;
       }
 
       // odds: aceita "inicio_jogo" ("DD/MM/YYYY, HH:MM") ou "data_captura"+"horario"
