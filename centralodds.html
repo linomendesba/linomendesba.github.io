@@ -1202,47 +1202,65 @@
 
       /* ─────────────────────────────────────
          CRUZAMENTO ODD x RESULTADO
+         Importante: no futebol virtual o MESMO confronto (ex.: "Los Albos x
+         U. Catolica") pode se repetir várias vezes no mesmo dia. Casar só por
+         "time + dia" (como era antes) faz o cruzamento pegar o resultado
+         errado quando isso acontece. Por isso aqui casamos por "time + dia +
+         HORA:MINUTO", com uma pequena tolerância pra absorver diferenças de
+         arredondamento entre o horário salvo na odd e no resultado; só em
+         último caso (sem nenhum horário batendo) cai no fallback por
+         proximidade de horário entre jogos daquela dupla de times.
       ───────────────────────────────────── */
+      function minuteKeyFromDate(d) {
+        if (!d || isNaN(d)) return '';
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      }
+
       function buildResultsMapOdd(resultsData) {
-        const map = {}, mapByTeams = {};
+        const exactMap = {}, mapByTeams = {};
         resultsData.forEach(result => {
           const ft = result.ft;
           const homeN = normalizeTeamNameOdd(result.time_a);
           const awayN = normalizeTeamNameOdd(result.time_b);
-          let dateKey = '';
-          try { dateKey = isoDateKey(result.data); } catch (e) {}
-          if (dateKey) {
-            map[`${homeN}|${awayN}|${dateKey}`] = ft;
-            map[`${awayN}|${homeN}|${dateKey}`] = ft;
-          }
+          const d = new Date(result.data);
+          if (isNaN(d)) return;
+
+          const mk = minuteKeyFromDate(d);
+          exactMap[`${homeN}|${awayN}|${mk}`] = ft;
+          exactMap[`${awayN}|${homeN}|${mk}`] = ft;
+
           const tk = `${homeN}|${awayN}`, tkInv = `${awayN}|${homeN}`;
-          (mapByTeams[tk] ||= []).push({ dateKey, ft });
-          (mapByTeams[tkInv] ||= []).push({ dateKey, ft });
+          (mapByTeams[tk] ||= []).push({ ts: d.getTime(), ft });
+          (mapByTeams[tkInv] ||= []).push({ ts: d.getTime(), ft });
         });
-        map.__byTeams = mapByTeams;
-        return map;
+        return { exactMap, mapByTeams };
       }
 
-      function lookupResultOdd(homeTeam, awayTeam, dateKey) {
+      function lookupResultOdd(homeTeam, awayTeam, gameDate) {
+        if (!gameDate || isNaN(gameDate)) return null;
         const homeN = normalizeTeamNameOdd(homeTeam), awayN = normalizeTeamNameOdd(awayTeam);
-        const exact = resultsMapOdd[`${homeN}|${awayN}|${dateKey}`];
+
+        const mk = minuteKeyFromDate(gameDate);
+        const exact = resultsMapOdd.exactMap[`${homeN}|${awayN}|${mk}`];
         if (exact) return exact;
-        const inv = resultsMapOdd[`${awayN}|${homeN}|${dateKey}`];
-        if (inv) return inv;
-        try {
-          const base = new Date(dateKey + 'T12:00:00');
-          for (const delta of [-1, 1]) {
-            const d2 = new Date(base);
-            d2.setDate(d2.getDate() + delta);
-            const dk2 = localDateKey(d2);
-            const r = resultsMapOdd[`${homeN}|${awayN}|${dk2}`] || resultsMapOdd[`${awayN}|${homeN}|${dk2}`];
-            if (r) return r;
-          }
-        } catch (e) {}
-        const cand = (resultsMapOdd.__byTeams[`${homeN}|${awayN}`] || []);
+
+        // Tolerância de +-1 e +-2 minutos (arredondamento entre captura da odd e do resultado)
+        for (const deltaMin of [-1, 1, -2, 2]) {
+          const d2 = new Date(gameDate.getTime() + deltaMin * 60000);
+          const mk2 = minuteKeyFromDate(d2);
+          const r = resultsMapOdd.exactMap[`${homeN}|${awayN}|${mk2}`];
+          if (r) return r;
+        }
+
+        // Último recurso: entre os jogos já registrados dessa dupla de times,
+        // pega o de horário mais próximo (evita cair no jogo errado do mesmo dia).
+        const cand = resultsMapOdd.mapByTeams[`${homeN}|${awayN}`] || [];
         if (cand.length) {
-          const s = cand.slice().sort((a, b) => Math.abs(new Date(a.dateKey) - new Date(dateKey)) - Math.abs(new Date(b.dateKey) - new Date(dateKey)));
-          if (s[0].ft) return s[0].ft;
+          const alvo = gameDate.getTime();
+          const maisProximo = cand.slice().sort((a, b) => Math.abs(a.ts - alvo) - Math.abs(b.ts - alvo))[0];
+          // So aceita o fallback se a diferenca for razoavel (ate 6h) - senao é
+          // melhor nao contar o jogo do que arriscar cruzar com o confronto errado.
+          if (maisProximo && Math.abs(maisProximo.ts - alvo) <= 6 * 60 * 60 * 1000) return maisProximo.ft;
         }
         return null;
       }
@@ -1273,12 +1291,11 @@
           const key = oddValue.toFixed(2);
 
           const gameStart = parseDataOdd(match);
-          let dateKey = '', dataFmt = '?';
+          let dataFmt = '?';
           if (gameStart) {
-            dateKey = localDateKey(gameStart);
             dataFmt = `${gameStart.getDate().toString().padStart(2,'0')}/${(gameStart.getMonth()+1).toString().padStart(2,'0')}`;
           }
-          const ftFound = dateKey ? lookupResultOdd(match.time_casa, match.time_visitante, dateKey) : null;
+          const ftFound = gameStart ? lookupResultOdd(match.time_casa, match.time_visitante, gameStart) : null;
 
           let status = 'pending';
           if (ftFound) {
