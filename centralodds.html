@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+    <title>BetStat | Central de Odds</title>
+    <meta name="description" content="Central de Odds BetStat - monitoramento de máxima de sequências sem bater mercado e odds próximas da quebra no futebol virtual." />
+    <meta name="keywords" content="BetStat, futebol virtual, central de odds, odds maximo, quebra de padrao, estatisticas apostas" />
+    <meta property="og:title" content="BetStat | Central de Odds" />
+    <meta property="og:description" content="Análise de odds máximas sem bater mercado e detecção de quebra de padrão." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.betstat.site/central-odds.html" />
+    <meta property="og:site_name" content="BetStat" />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="BetStat" />
+    <meta name="canonical" href="https://www.betstat.site/central-odds.html" />
+    <script type="module" src="js/firebase-auth.js"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { dataLayer.push(arguments); }
+      gtag("js", new Date());
+      gtag("config", "G-4WT805FFHQ");
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+    <style>
+      :root {
+        --bg-primary: #111318;
+        --bg-secondary: #181c23;
+        --bg-card: #1e232d;
+        --bg-card-hover: #242a36;
+        --bg-top: #0d1c1f;
+        --border: #2a3040;
+        --border-accent: #1a4750;
+        --accent: #177b8e;
+        --accent-dim: #115c6b;
+        --accent-muted: rgba(23, 123, 142, 0.14);
+        --text-primary: #e4e8f0;
+        --text-secondary: #7a8499;
+        --text-accent: #177b8e;
+        --green: #2ecc71;
+        --red: #e74c3c;
+        --orange: #e6a817;
+        --red-bg: #1a0d0d;
+        --green-bg: #0a1f16;
+        --odd-color: #e6a817;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: "DM Sans", sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        min-height: 100vh;
+      }
+
+      #header { position: sticky; top: 0; z-index: 100; }
+
+      .page-wrapper {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 28px 24px 60px;
+      }
+
+      .section-title {
+        font-size: 0.7rem;
+        font-family: "DM Mono", monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-accent);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      /* ── PRÓXIMOS JOGOS COM ODD E ALERTA ── */
+      .upcoming-section {
+        margin-bottom: 24px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 24px;
+      }
+
+      .games-table {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+
+      .game-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 14px;
+        min-width: 220px;
+        flex: 1;
+        max-width: 280px;
+        position: relative;
+      }
+
+      .game-card.alert-quebra {
+        background: var(--bg-top);
+        border-color: var(--odd-color);
+      }
+
+      .game-card .gc-time {
+        font-family: "DM Mono", monospace;
+        font-size: 1.05rem;
+        color: var(--accent);
+        margin-bottom: 6px;
+        font-weight: 500;
+      }
+
+      .game-card .gc-teams {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        flex-wrap: wrap;
+      }
+
+      .game-card .gc-team { color: var(--text-primary); }
+      .game-card .gc-vs { color: var(--text-secondary); font-size: 0.72rem; }
+
+      .gc-market-odd {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .gc-market-odd .gmo-label {
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: var(--text-secondary);
+      }
+
+      .gc-market-odd .gmo-value {
+        font-family: "DM Mono", monospace;
+        font-weight: 600;
+        color: var(--odd-color);
+        font-size: 0.85rem;
+      }
+
+      .badge-quebra {
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        font-size: 0.6rem;
+        font-family: "DM Mono", monospace;
+        background: rgba(230, 168, 23, 0.2);
+        color: var(--odd-color);
+        border: 1px solid var(--odd-color);
+        padding: 2px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+      }
+
+      /* ── FILTROS ── */
+      .filter-section {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+      }
+
+      .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+      }
+
+      .filter-group label {
+        display: block;
+        font-size: 0.68rem;
+        font-family: "DM Mono", monospace;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-accent);
+        margin-bottom: 6px;
+      }
+
+      .filter-group select {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: var(--bg-card);
+        color: var(--text-primary);
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.85rem;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.2s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%237a8499' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 28px;
+      }
+
+      .filter-group select:focus { border-color: var(--accent); }
+
+      /* ── STATS BAR ── */
+      .stats-bar {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
+
+      .stat-pill {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 20px;
+        flex: 1;
+        min-width: 140px;
+        text-align: center;
+      }
+
+      .stat-pill .pill-label {
+        font-size: 0.65rem;
+        font-family: "DM Mono", monospace;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+      }
+
+      .stat-pill .pill-value {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-family: "DM Mono", monospace;
+      }
+
+      .stat-pill .pill-value.accent { color: var(--accent); }
+      .stat-pill .pill-value.green { color: var(--green); }
+      .stat-pill .pill-value.odd-color { color: var(--odd-color); }
+      .stat-pill .pill-value.red { color: var(--red); }
+
+      /* ── CARDS DE ODDS (MAX E QUEBRA) ── */
+      .cards-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      .odd-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 18px 16px;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+        position: relative;
+      }
+
+      .odd-card:hover {
+        border-color: var(--accent-dim);
+        background: var(--bg-card-hover);
+      }
+
+      .odd-card.near-max {
+        background: var(--bg-top);
+        border-color: var(--odd-color);
+      }
+
+      .odd-display { text-align: center; margin-bottom: 12px; }
+      .odd-display .odd-at {
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--text-secondary);
+      }
+      .odd-display .odd-value {
+        font-family: "DM Mono", monospace;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--odd-color);
+      }
+
+      .card-stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .card-stat {
+        text-align: center;
+        background: var(--bg-primary);
+        border-radius: 6px;
+        padding: 6px 4px;
+      }
+
+      .card-stat .cs-label {
+        font-size: 0.58rem;
+        font-family: "DM Mono", monospace;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: 3px;
+      }
+
+      .card-stat .cs-value {
+        font-size: 0.95rem;
+        font-weight: 600;
+        font-family: "DM Mono", monospace;
+        color: var(--text-primary);
+      }
+
+      /* ── MATCH DETAILS ── */
+      #match-details {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 24px;
+        margin-top: 8px;
+      }
+      #match-details h2 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      #match-details ul { list-style: none; display: grid; gap: 8px; }
+      #match-details li {
+        padding: 10px 14px;
+        border-radius: 7px;
+        font-size: 0.82rem;
+        background: var(--bg-card);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid var(--border);
+      }
+      #match-details li.highlight-green { background: var(--green-bg); border-color: var(--border-accent); }
+      #match-details li.highlight-red { background: var(--red-bg); border-color: #4a1a1a; }
+      #match-details li .detail-date {
+        font-family: "DM Mono", monospace;
+        font-size: 0.75rem;
+        color: var(--accent);
+        min-width: 40px;
+      }
+      #match-details li .detail-teams { flex: 1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      #match-details li .detail-team { color: var(--text-primary); font-weight: 500; }
+      #match-details li .detail-score {
+        font-family: "DM Mono", monospace;
+        font-weight: 600;
+        color: var(--text-primary);
+        background: var(--bg-primary);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+      }
+      #match-details li .detail-odd {
+        font-family: "DM Mono", monospace;
+        font-weight: 600;
+        color: var(--odd-color);
+        font-size: 0.8rem;
+      }
+      .status-badge {
+        font-size: 0.68rem;
+        font-family: "DM Mono", monospace;
+        font-weight: 500;
+        padding: 3px 10px;
+        border-radius: 4px;
+      }
+      .status-badge.green { background: rgba(46,204,113,0.15); color: var(--green); border: 1px solid rgba(46,204,113,0.25); }
+      .status-badge.red { background: rgba(231,76,60,0.15); color: var(--red); border: 1px solid rgba(231,76,60,0.25); }
+
+      /* ── STATUS BAR ── */
+      .status-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: 7px;
+        padding: 9px 14px;
+        margin-bottom: 14px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .status-bar.loading { border-left-color: var(--orange); }
+      .status-bar.error { border-left-color: var(--red); }
+      .s-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+      .loading .s-dot { background: var(--orange); animation: blink 1s infinite; }
+      .error .s-dot { background: var(--red); }
+      @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: var(--bg-primary); }
+      ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+      @media (max-width: 768px) {
+        .page-wrapper { padding: 16px 14px 40px; }
+        .filter-grid { grid-template-columns: 1fr 1fr; }
+        .games-table { flex-direction: column; }
+        .game-card { max-width: 100%; }
+        .cards-container { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="header"></div>
+    <br><br>
+
+    <div class="page-wrapper">
+      <!-- Próximos Jogos -->
+      <div class="upcoming-section">
+        <div class="section-title">
+          <span>Próximos Jogos — Odds ao Vivo &amp; Alerta de Quebra</span>
+        </div>
+        <div class="games-table" id="lista-proximos-jogos"></div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filter-section">
+        <div class="section-title">
+          <span>Parâmetros da Central de Odds</span>
+        </div>
+        <div class="filter-grid">
+          <div class="filter-group">
+            <label for="casa-select">Casa</label>
+            <select id="casa-select" onchange="onCasaChange()"></select>
+          </div>
+          <div class="filter-group">
+            <label for="liga-select">Liga</label>
+            <select id="liga-select" onchange="loadData()"></select>
+          </div>
+          <div class="filter-group">
+            <label for="lines-select">Jogos Analisados</label>
+            <select id="lines-select" onchange="loadData()"></select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-select">Mercado</label>
+            <select id="filter-select" onchange="analyze()"></select>
+          </div>
+          <div class="filter-group">
+            <label for="sort-select">Ordenar Odds Por</label>
+            <select id="sort-select" onchange="analyze()">
+              <option value="atual_desc">Maior Sequência Sem Bater (Atual)</option>
+              <option value="max_desc">Maior Histórico Máximo</option>
+              <option value="quebra_desc">Próximos da Quebra (Proporção)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Status -->
+      <div class="status-bar" id="statusBar">
+        <div class="s-dot"></div>
+        <span id="statusMessage">Aguardando carregamento dos dados...</span>
+      </div>
+
+      <!-- Stats Bar -->
+      <div class="stats-bar" id="stats-bar"></div>
+
+      <!-- Grid de Cards de Odds -->
+      <div class="section-title">Central de Odds - Máximas e Histórico de Quebras</div>
+      <div class="cards-container" id="cards-container"></div>
+
+      <!-- Detalhes do Card Selecionado -->
+      <div id="match-details" style="display: none;">
+        <div id="match-details-content"></div>
+      </div>
+    </div>
+
+    <script>
+      const BASE = 'https://betstat.site';
+
+      const CASAS = {
+        betano: {
+          label: 'Betano',
+          ligas: [
+            { label: 'Taça Glória Eterna',  res: encodeURIComponent('Taça Glória Eterna') },
+            { label: 'Copa América',        res: encodeURIComponent('Copa América') },
+            { label: 'Euro',                res: encodeURIComponent('Euro') },
+            { label: 'Campeonato Italiano', res: encodeURIComponent('Campeonato Italiano') },
+            { label: 'Copa das Estrelas',   res: encodeURIComponent('Copa das Estrelas') },
+            { label: 'Brasileirão Betano',  res: encodeURIComponent('Brasileirão Betano') },
+            { label: 'Mundial',             res: encodeURIComponent('Mundial') },
+          ],
+        },
+        bet365: {
+          label: 'Bet365',
+          ligas: [
+            { label: 'Copa',    res: 'bet365/Copa' },
+            { label: 'Euro',    res: 'bet365/Euro' },
+            { label: 'Super',   res: 'bet365/Super' },
+            { label: 'Premier', res: 'bet365/Premier' },
+          ],
+        },
+        betsson: {
+          label: 'Betsson',
+          ligas: [
+            { label: 'Espanha',    res: 'betsson/Espanha' },
+            { label: 'Inglaterra', res: 'betsson/Inglaterra' },
+            { label: 'Brasil',     res: 'betsson/Brasil' },
+          ],
+        },
+        kiron: {
+          label: 'Kiron',
+          ligas: [
+            { label: 'Liga Inglaterra', res: 'kiron/England' },
+            { label: 'Liga Itália',     res: 'kiron/Italy' },
+            { label: 'Liga Espanha',    res: 'kiron/Spain' },
+          ],
+        },
+        estrela: {
+          label: 'EstrelaBet',
+          ligas: [
+            { label: 'Copa do Mundo',      res: 'estrela/Copa%20do%20Mundo' },
+            { label: 'Ligas dos Campeões', res: 'estrela/Ligas%20dos%20Campe%C3%B5es' },
+            { label: 'América Latina',     res: 'estrela/Am%C3%A9rica%20Latina' },
+          ],
+        },
+      };
+
+      const LINES_OPTIONS_DEFAULT = [
+        { value: 60,  label: '03 Hs' },
+        { value: 120, label: '06 Hs' },
+        { value: 240, label: '12 Hs' },
+        { value: 480, label: '24 Hs' },
+        { value: 960, label: '48 Hs' },
+      ];
+      const LINES_OPTIONS_KIRON = [
+        { value: 90,   label: '03 Hs' },
+        { value: 180,  label: '06 Hs' },
+        { value: 360,  label: '12 Hs' },
+        { value: 720,  label: '24 Hs' },
+        { value: 1440, label: '48 Hs' },
+      ];
+
+      const MARKET_LABELS = {
+        bothscoreunder: 'Ambas Sim',
+        ambnao: 'Ambas Não',
+        casavence: 'Casa Vence',
+        foravence: 'Fora Vence',
+        empate: 'Empate',
+        'over1.5': 'Over 1.5', 'under1.5': 'Under 1.5',
+        'over2.5': 'Over 2.5', 'under2.5': 'Under 2.5',
+        'over3.5': 'Over 3.5', 'under3.5': 'Under 3.5',
+        '5plus': '5 Gols ou Mais',
+        exact0: '0 Gol Exato', exact1: '1 Gol Exato',
+        exact2: '2 Gols Exatos', exact3: '3 Gols Exatos', exact4: '4 Gols Exatos',
+      };
+
+      const marketToOdd = {
+        bothscoreunder: 'odds_ambas_marcam_sim',
+        ambnao: 'odds_ambas_marcam_nao',
+        casavence: 'odds_casa_vence',
+        foravence: 'odds_visitante_vence',
+        empate: 'odds_empate',
+        'over1.5': 'odds_mais_1_5', 'under1.5': 'odds_menos_1_5',
+        'over2.5': 'odds_mais_2_5', 'under2.5': 'odds_menos_2_5',
+        'over3.5': 'odds_mais_3_5', 'under3.5': 'odds_menos_3_5',
+        '5plus': 'odds_mais_5_gols',
+        exact0: 'odds_0_gols', exact1: 'odds_1_gol',
+        exact2: 'odds_2_gols', exact3: 'odds_3_gols', exact4: 'odds_4_gols',
+      };
+
+      /* ESTADO LOCAL */
+      let resultadosBrutos = [];
+      let oddsBrutos = [];
+      let oddsJanela = [];
+      let resultsMapOdd = null;
+      let oddMaxStats = {};
+      let matchDetails = {};
+      let selectedKey = null;
+
+      const STORAGE_KEY = 'betstat_central_odds_filtros_v1';
+
+      function salvarFiltros() {
+        try {
+          const vals = {
+            casa: document.getElementById('casa-select').value,
+            liga: document.getElementById('liga-select').value,
+            lines: document.getElementById('lines-select').value,
+            market: document.getElementById('filter-select').value,
+            sort: document.getElementById('sort-select').value,
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(vals));
+        } catch (e) {}
+      }
+
+      function carregarFiltros() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          return raw ? JSON.parse(raw) : null;
+        } catch (e) { return null; }
+      }
+
+      function initSelects() {
+        const casaSel = document.getElementById('casa-select');
+        casaSel.innerHTML = Object.entries(CASAS).map(([k, c]) => `<option value="${k}">${c.label}</option>`).join('');
+
+        populateLigaSelect();
+        populateLinesSelect();
+
+        const mSel = document.getElementById('filter-select');
+        mSel.innerHTML = Object.keys(marketToOdd).map(k => `<option value="${k}">${MARKET_LABELS[k]}</option>`).join('');
+
+        const salvo = carregarFiltros();
+        if (salvo) {
+          if (salvo.casa && CASAS[salvo.casa]) casaSel.value = salvo.casa;
+          populateLigaSelect();
+          if (salvo.liga) document.getElementById('liga-select').value = salvo.liga;
+          populateLinesSelect();
+          if (salvo.lines) document.getElementById('lines-select').value = salvo.lines;
+          if (salvo.market) document.getElementById('filter-select').value = salvo.market;
+          if (salvo.sort) document.getElementById('sort-select').value = salvo.sort;
+        }
+      }
+
+      function populateLigaSelect() {
+        const casa = document.getElementById('casa-select').value;
+        const sel = document.getElementById('liga-select');
+        sel.innerHTML = CASAS[casa].ligas.map(l => `<option value="${l.res}">${l.label}</option>`).join('');
+      }
+
+      function populateLinesSelect() {
+        const casa = document.getElementById('casa-select').value;
+        const options = casa === 'kiron' ? LINES_OPTIONS_KIRON : LINES_OPTIONS_DEFAULT;
+        const sel = document.getElementById('lines-select');
+        sel.innerHTML = options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+      }
+
+      function onCasaChange() {
+        populateLigaSelect();
+        populateLinesSelect();
+        salvarFiltros();
+        loadData();
+      }
+
+      function buildUrls() {
+        const res = document.getElementById('liga-select').value;
+        return {
+          resultados: `${BASE}/resultados/${res}`,
+          proximos: `${BASE}/proximos/${res}`,
+          odds: `${BASE}/odds/${res}`,
+        };
+      }
+
+      function parseDataResultado(m) {
+        const d = new Date(m.data);
+        if (isNaN(d)) return null;
+        if (typeof m.hora === 'number' && typeof m.minuto === 'number') {
+          const dt = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), m.hora, m.minuto, 0));
+          return isNaN(dt) ? d : dt;
+        }
+        return d;
+      }
+
+      function parseDataOdd(o) {
+        try {
+          if (o.inicio_jogo) {
+            const [datePart, timePart] = o.inicio_jogo.split(', ');
+            const [d, mo, y] = datePart.split('/');
+            const [h, mi] = (timePart || '00:00').split(':');
+            return new Date(y, mo - 1, d, h, mi);
+          }
+          if (o.data_captura) {
+            const [d, mo, y] = o.data_captura.split('/');
+            const [h, mi] = (o.horario || '00:00').split(':');
+            return new Date(y, mo - 1, d, h, mi);
+          }
+        } catch (e) {}
+        return null;
+      }
+
+      function isoDateKey(str) { return (str || '').split('T')[0].substring(0, 10); }
+      function localDateKey(d) {
+        if (!d || isNaN(d)) return '';
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+      function normalizeTeamName(t) { return (t || '').trim().toLowerCase(); }
+
+      function buildResultsMapOdd(resultsData) {
+        const map = {}, mapByTeams = {};
+        resultsData.forEach(result => {
+          const ft = result.ft;
+          const homeN = normalizeTeamName(result.time_a);
+          const awayN = normalizeTeamName(result.time_b);
+          let dateKey = '';
+          try { dateKey = isoDateKey(result.data); } catch (e) {}
+          if (dateKey) {
+            map[`${homeN}|${awayN}|${dateKey}`] = ft;
+            map[`${awayN}|${homeN}|${dateKey}`] = ft;
+          }
+          const tk = `${homeN}|${awayN}`, tkInv = `${awayN}|${homeN}`;
+          (mapByTeams[tk] ||= []).push({ dateKey, ft });
+          (mapByTeams[tkInv] ||= []).push({ dateKey, ft });
+        });
+        map.__byTeams = mapByTeams;
+        return map;
+      }
+
+      function lookupResultOdd(homeTeam, awayTeam, dateKey) {
+        const homeN = normalizeTeamName(homeTeam), awayN = normalizeTeamName(awayTeam);
+        const exact = resultsMapOdd[`${homeN}|${awayN}|${dateKey}`];
+        if (exact) return exact;
+        const inv = resultsMapOdd[`${awayN}|${homeN}|${dateKey}`];
+        if (inv) return inv;
+        const cand = (resultsMapOdd.__byTeams[`${homeN}|${awayN}`] || []);
+        if (cand.length) {
+          const s = cand.slice().sort((a, b) => Math.abs(new Date(a.dateKey) - new Date(dateKey)) - Math.abs(new Date(b.dateKey) - new Date(dateKey)));
+          if (s[0].ft) return s[0].ft;
+        }
+        return null;
+      }
+
+      function checkMarketCondition(goalsHome, goalsAway, goals, market) {
+        switch (market) {
+          case '5plus': return goals >= 5;
+          case 'over3.5': return goals > 3.5;
+          case 'over2.5': return goals > 2.5;
+          case 'over1.5': return goals > 1.5;
+          case 'under1.5': return goals < 1.5;
+          case 'under2.5': return goals < 2.5;
+          case 'under3.5': return goals < 3.5;
+          case 'exact0': return goals === 0;
+          case 'exact1': return goals === 1;
+          case 'exact2': return goals === 2;
+          case 'exact3': return goals === 3;
+          case 'exact4': return goals === 4;
+          case 'bothscoreunder': return (goalsHome > 0 && goalsAway > 0);
+          case 'ambnao': return (goalsHome === 0 || goalsAway === 0);
+          case 'casavence': return (goalsHome > goalsAway);
+          case 'foravence': return (goalsHome < goalsAway);
+          case 'empate': return (goalsHome === goalsAway);
+          default: return false;
+        }
+      }
+
+      async function loadData() {
+        salvarFiltros();
+        setStatus('Carregando dados da API...', 'loading');
+        const urls = buildUrls();
+
+        try {
+          const [resResultados, resOdds, resProximos] = await Promise.all([
+            fetch(urls.resultados),
+            fetch(urls.odds),
+            fetch(urls.proximos).catch(() => null)
+          ]);
+
+          if (!resResultados.ok) throw new Error(`HTTP ${resResultados.status} em /resultados/`);
+          if (!resOdds.ok) throw new Error(`HTTP ${resOdds.status} em /odds/`);
+
+          resultadosBrutos = await resResultados.json();
+          oddsBrutos = await resOdds.json();
+          window.__proximosData = resProximos && resProximos.ok ? await resProximos.json() : [];
+
+          const qtd = parseInt(document.getElementById('lines-select').value, 10);
+          const comData = oddsBrutos.map(o => ({ item: o, dt: parseDataOdd(o) })).filter(x => x.dt instanceof Date && !isNaN(x.dt));
+          comData.sort((a, b) => a.dt - b.dt); // cronológico
+          oddsJanela = qtd > 0 ? comData.slice(-qtd).map(x => x.item) : comData.map(x => x.item);
+
+          resultsMapOdd = buildResultsMapOdd(resultadosBrutos);
+
+          setStatus(`${oddsJanela.length} odds analisadas — processando...`);
+          analyze();
+        } catch (error) {
+          console.error(error);
+          setStatus(`Erro ao carregar: ${error.message}`, 'error');
+        }
+      }
+
+      function setStatus(msg, type) {
+        document.getElementById('statusMessage').textContent = msg;
+        const bar = document.getElementById('statusBar');
+        bar.classList.remove('loading', 'error');
+        if (type === 'loading') bar.classList.add('loading');
+        if (type === 'error') bar.classList.add('error');
+      }
+
+      /* ─────────────────────────────────────
+         LÓGICA PRINCIPAL DA CENTRAL DE ODDS
+      ───────────────────────────────────── */
+      function analyze() {
+        salvarFiltros();
+        const market = document.getElementById('filter-select').value;
+        const oddField = marketToOdd[market];
+
+        oddMaxStats = {};
+        matchDetails = {};
+
+        // Organizar ocorrências cronológicas de cada ODD
+        oddsJanela.forEach(match => {
+          const oddVal = parseFloat(match[oddField]);
+          if (isNaN(oddVal)) return;
+
+          const key = oddVal.toFixed(2);
+          if (!oddMaxStats[key]) {
+            oddMaxStats[key] = {
+              total: 0,
+              greens: 0,
+              currentSeqSemBater: 0,
+              maxSeqSemBater: 0,
+              quebrasCount: 0
+            };
+          }
+
+          const gameStart = parseDataOdd(match);
+          const dateKey = gameStart ? localDateKey(gameStart) : '';
+          const ftFound = dateKey ? lookupResultOdd(match.time_casa, match.time_visitante, dateKey) : null;
+
+          if (!ftFound) return; // ignora jogos sem resultado final no banco
+
+          const [gh, ga] = ftFound.split(' x ').map(Number);
+          const isGreen = checkMarketCondition(gh || 0, ga || 0, (gh || 0) + (ga || 0), market);
+
+          const stat = oddMaxStats[key];
+          stat.total++;
+
+          if (isGreen) {
+            stat.greens++;
+            if (stat.currentSeqSemBater > 0) {
+              stat.quebrasCount++;
+            }
+            stat.currentSeqSemBater = 0; // reset
+          } else {
+            stat.currentSeqSemBater++;
+            if (stat.currentSeqSemBater > stat.maxSeqSemBater) {
+              stat.maxSeqSemBater = stat.currentSeqSemBater;
+            }
+          }
+
+          if (!matchDetails[key]) matchDetails[key] = [];
+          const dataFmt = gameStart ? `${gameStart.getDate().toString().padStart(2,'0')}/${(gameStart.getMonth()+1).toString().padStart(2,'0')}` : '?';
+          matchDetails[key].push({
+            date: dataFmt,
+            home: match.time_casa,
+            away: match.time_visitante,
+            ft: ftFound,
+            oddVal: key,
+            isGreen: isGreen
+          });
+        });
+
+        renderCards();
+        renderProximos(market);
+      }
+
+      function getSortedOddsArray() {
+        const sortBy = document.getElementById('sort-select').value;
+        const arr = Object.entries(oddMaxStats)
+          .map(([key, s]) => {
+            const ratioQuebra = s.maxSeqSemBater > 0 ? (s.currentSeqSemBater / s.maxSeqSemBater) : 0;
+            return { key, ...s, ratioQuebra };
+          })
+          .filter(o => o.total > 0);
+
+        if (sortBy === 'atual_desc') {
+          arr.sort((a, b) => b.currentSeqSemBater - a.currentSeqSemBater || b.maxSeqSemBater - a.maxSeqSemBater);
+        } else if (sortBy === 'max_desc') {
+          arr.sort((a, b) => b.maxSeqSemBater - a.maxSeqSemBater || b.currentSeqSemBater - a.currentSeqSemBater);
+        } else if (sortBy === 'quebra_desc') {
+          arr.sort((a, b) => b.ratioQuebra - a.ratioQuebra || b.currentSeqSemBater - a.currentSeqSemBater);
+        }
+
+        return arr.slice(0, 24);
+      }
+
+      function renderCards() {
+        const sorted = getSortedOddsArray();
+        const market = document.getElementById('filter-select').value;
+
+        // Atualiza Stats Bar
+        const topCurrent = sorted.length ? sorted[0] : null;
+        const topQuebra = sorted.slice().sort((a, b) => b.ratioQuebra - a.ratioQuebra)[0];
+
+        updateStatsBarGeneric([
+          { label: 'Odds Distintas', value: sorted.length, cls: 'accent' },
+          { label: 'Maior Sequência Atual', value: topCurrent ? `${topCurrent.currentSeqSemBater} jgs` : '0', cls: 'red' },
+          { label: 'Próxima da Quebra', value: topQuebra && topQuebra.ratioQuebra > 0 ? `@${topQuebra.key} (${Math.round(topQuebra.ratioQuebra*100)}%)` : '—', cls: 'odd-color' },
+          { label: 'Mercado', value: MARKET_LABELS[market] || market, small: true },
+        ]);
+
+        const container = document.getElementById('cards-container');
+        container.innerHTML = '';
+
+        if (!sorted.length) {
+          container.innerHTML = '<div style="color:var(--text-secondary)">Nenhum resultado encontrado para os filtros selecionados.</div>';
+          return;
+        }
+
+        sorted.forEach(o => {
+          const isNearMax = o.maxSeqSemBater > 0 && (o.currentSeqSemBater >= o.maxSeqSemBater - 1);
+          const card = document.createElement('div');
+          card.className = `odd-card ${isNearMax ? 'near-max' : ''}`;
+
+          card.innerHTML = `
+            <div class="odd-display">
+              <div class="odd-at">Odd</div>
+              <div class="odd-value">@${o.key}</div>
+            </div>
+            <div class="card-stats">
+              <div class="card-stat">
+                <div class="cs-label">Sem Bater (Atual)</div>
+                <div class="cs-value" style="color:${o.currentSeqSemBater > 0 ? 'var(--red)' : 'var(--green)'}">${o.currentSeqSemBater}</div>
+              </div>
+              <div class="card-stat">
+                <div class="cs-label">Máximo Sem Bater</div>
+                <div class="cs-value" style="color:var(--odd-color)">${o.maxSeqSemBater}</div>
+              </div>
+            </div>
+            <div class="card-stats">
+              <div class="card-stat">
+                <div class="cs-label">Ocorrências</div>
+                <div class="cs-value">${o.total}</div>
+              </div>
+              <div class="card-stat">
+                <div class="cs-label">Quebras Reg.</div>
+                <div class="cs-value" style="color:var(--green)">${o.quebrasCount}</div>
+              </div>
+            </div>
+          `;
+
+          card.addEventListener('click', () => toggleMatchDetails(o.key, card));
+          container.appendChild(card);
+        });
+
+        setStatus(`Análise concluída — Exibindo ${sorted.length} odds em destaque.`);
+      }
+
+      function updateStatsBarGeneric(pills) {
+        const bar = document.getElementById('stats-bar');
+        bar.innerHTML = pills.map(p => `
+          <div class="stat-pill">
+            <div class="pill-label">${p.label}</div>
+            <div class="pill-value ${p.cls || ''}" style="${p.small ? 'font-size:0.85rem;padding-top:4px;' : ''}">${p.value}</div>
+          </div>`).join('');
+      }
+
+      /* ─────────────────────────────────────
+         PRÓXIMOS JOGOS COM ALERTA
+      ───────────────────────────────────── */
+      function renderProximos(market) {
+        const lista = document.getElementById('lista-proximos-jogos');
+        lista.innerHTML = '';
+        const proximos = window.__proximosData || [];
+
+        if (!proximos.length) {
+          lista.innerHTML = '<div class="game-card" style="color:var(--text-secondary);font-size:0.8rem;">Nenhum próximo jogo disponível.</div>';
+          return;
+        }
+
+        const oddField = marketToOdd[market];
+
+        // Mapear odd mais recente de cada confronto
+        const oddsIndex = {};
+        for (let i = oddsBrutos.length - 1; i >= 0; i--) {
+          const o = oddsBrutos[i];
+          const gd = parseDataOdd(o);
+          if (!gd) continue;
+          const dk = localDateKey(gd);
+          const homeN = normalizeTeamName(o.time_casa);
+          const awayN = normalizeTeamName(o.time_visitante);
+          if (!oddsIndex[`${homeN}|${awayN}|${dk}`]) oddsIndex[`${homeN}|${awayN}|${dk}`] = o;
+          if (!oddsIndex[`${homeN}|${awayN}|`]) oddsIndex[`${homeN}|${awayN}|`] = o;
+        }
+
+        proximos.slice(0, 8).forEach(jogo => {
+          const time = jogo.time || '--:--';
+          const home = jogo.team_home || jogo.time_casa || '';
+          const away = jogo.team_visit || jogo.time_visitante || '';
+
+          const homeN = normalizeTeamName(home), awayN = normalizeTeamName(away);
+          let dateKey = '';
+          if (jogo.start_time) { try { dateKey = isoDateKey(jogo.start_time); } catch(e){} }
+
+          const oddMatch = oddsIndex[`${homeN}|${awayN}|${dateKey}`] || oddsIndex[`${homeN}|${awayN}|`];
+          let valDisplay = '—';
+          let isAlertQuebra = false;
+
+          if (oddMatch && oddMatch[oddField]) {
+            const val = parseFloat(oddMatch[oddField]).toFixed(2);
+            valDisplay = `@${val}`;
+            const stat = oddMaxStats[val];
+            if (stat && stat.maxSeqSemBater > 0 && stat.currentSeqSemBater >= stat.maxSeqSemBater - 1) {
+              isAlertQuebra = true;
+            }
+          }
+
+          const card = document.createElement('div');
+          card.className = `game-card ${isAlertQuebra ? 'alert-quebra' : ''}`;
+          card.innerHTML = `
+            ${isAlertQuebra ? '<div class="badge-quebra">Alerta Quebra</div>' : ''}
+            <div class="gc-time">${time}</div>
+            <div class="gc-teams">
+              <span class="gc-team">${home}</span>
+              <span class="gc-vs">×</span>
+              <span class="gc-team">${away}</span>
+            </div>
+            <div class="gc-market-odd">
+              <span class="gmo-label">${MARKET_LABELS[market] || market}</span>
+              <span class="gmo-value">${valDisplay}</span>
+            </div>
+          `;
+          lista.appendChild(card);
+        });
+      }
+
+      /* ─────────────────────────────────────
+         EXIBIÇÃO DE DETALHES
+      ───────────────────────────────────── */
+      function toggleMatchDetails(key, cardEl) {
+        const detailsDiv = document.getElementById('match-details');
+        document.querySelectorAll('.odd-card').forEach(c => c.classList.remove('selected'));
+        if (selectedKey === key && detailsDiv.style.display === 'block') {
+          detailsDiv.style.display = 'none';
+          selectedKey = null;
+        } else {
+          if (cardEl) cardEl.classList.add('selected');
+          showMatchDetails(key);
+          selectedKey = key;
+        }
+      }
+
+      function showMatchDetails(key) {
+        const detailsDiv = document.getElementById('match-details');
+        const content = document.getElementById('match-details-content');
+        content.innerHTML = '';
+
+        const title = document.createElement('h2');
+        title.textContent = `Histórico e Sequência - Odd @${key}`;
+        content.appendChild(title);
+
+        const list = matchDetails[key] || [];
+        if (list.length) {
+          const ul = document.createElement('ul');
+          list.forEach(item => {
+            const li = document.createElement('li');
+            li.className = item.isGreen ? 'highlight-green' : 'highlight-red';
+            li.innerHTML = `
+              <span class="detail-date">${item.date}</span>
+              <span class="detail-teams">
+                <span class="detail-team">${item.home}</span>
+                <span class="detail-score">${item.ft}</span>
+                <span class="detail-team">${item.away}</span>
+              </span>
+              <span class="detail-odd">@${item.oddVal}</span>
+              <span class="status-badge ${item.isGreen ? 'green' : 'red'}">${item.isGreen ? 'Green' : 'Red'}</span>
+            `;
+            ul.appendChild(li);
+          });
+          content.appendChild(ul);
+        } else {
+          content.innerHTML += '<p style="color:var(--text-secondary)">Nenhum histórico detalhado disponível.</p>';
+        }
+
+        detailsDiv.style.display = 'block';
+        detailsDiv.scrollIntoView({ behavior: 'smooth' });
+      }
+
+      /* INICIALIZAÇÃO */
+      document.addEventListener('DOMContentLoaded', () => {
+        initSelects();
+        loadData();
+      });
+    </script>
+  </body>
+</html>
