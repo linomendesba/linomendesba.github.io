@@ -131,7 +131,7 @@
         { label: "Gráfico Macro",   url: "https://www.betstat.site/kironmacro.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/kironradar.html" },
         { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
-        { label: "Buscadores",   url: "https://www.betstat.site/centralodds.html" },
+        { label: "Central Odds",   url: "https://www.betstat.site/centralodds.html" },
       ]
     },
     {
