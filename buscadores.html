@@ -646,11 +646,11 @@
           <div class="filter-group">
             <label for="lines-select">Jogos Analisados</label>
             <select id="lines-select" onchange="loadData()">
-              <option value="60">Últimos 60 jogos</option>
-              <option value="120" selected>Últimos 120 jogos</option>
-              <option value="240">Últimos 240 jogos</option>
-              <option value="480">Últimos 480 jogos</option>
-              <option value="960">Últimos 960 jogos</option>
+              <option value="60">03 Hs</option>
+              <option value="120" selected>06 Hs</option>
+              <option value="240">12 Hs</option>
+              <option value="480">24 Hs</option>
+              <option value="960">48 Hs</option>
             </select>
           </div>
           <div class="filter-group">
@@ -1102,6 +1102,15 @@
         return teamName.trim().replace(/\s+/g, ' ');
       }
 
+      // Usado só nos cruzamentos do modo Odd (times x odds x próximos jogos).
+      // A página original de Odd normalizava em minúsculas antes de comparar
+      // (provavelmente por inconsistência de capitalização entre as rotas
+      // /odds/ e /proximos/); Time/Confronto nunca fizeram isso e não devem
+      // fazer, pois aqui o resultado alimenta texto exibido na tela.
+      function normalizeTeamNameOdd(teamName) {
+        return normalizeTeamName(teamName).toLowerCase();
+      }
+
       function parseHT(match) {
         if (!match.ht || match.ht === 'OUT') return [undefined, undefined];
         const p = match.ht.split(' x ').map(Number);
@@ -1458,8 +1467,8 @@
         const map = {}, mapByTeams = {};
         resultsData.forEach(result => {
           const ft = result.ft;
-          const homeN = normalizeTeamName(result.time_a);
-          const awayN = normalizeTeamName(result.time_b);
+          const homeN = normalizeTeamNameOdd(result.time_a);
+          const awayN = normalizeTeamNameOdd(result.time_b);
           let dateKey = '';
           try { dateKey = isoDateKey(result.data); } catch (e) {}
           if (dateKey) {
@@ -1475,7 +1484,7 @@
       }
 
       function lookupResultOdd(homeTeam, awayTeam, dateKey) {
-        const homeN = normalizeTeamName(homeTeam), awayN = normalizeTeamName(awayTeam);
+        const homeN = normalizeTeamNameOdd(homeTeam), awayN = normalizeTeamNameOdd(awayTeam);
         const exact = resultsMapOdd[`${homeN}|${awayN}|${dateKey}`];
         if (exact) return exact;
         const inv = resultsMapOdd[`${awayN}|${homeN}|${dateKey}`];
@@ -1734,20 +1743,21 @@
         }
         dados.forEach(jogo => {
           const time = jogo.time && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(jogo.time) ? jogo.time : extractTimeFromDateTime(jogo.start_time);
-          const homeTeam = normalizeTeamName(jogo.team_home);
-          const awayTeam = normalizeTeamName(jogo.team_visit);
+          const homeTeam = (jogo.team_home || '').trim().replace(/\s+/g, ' ');
+          const awayTeam = (jogo.team_visit || '').trim().replace(/\s+/g, ' ');
+          const homeKey = normalizeTeamName(homeTeam), awayKey = normalizeTeamName(awayTeam);
           let isTop = false;
-          if (mode === 'team') isTop = topKeys.includes(homeTeam) || topKeys.includes(awayTeam);
-          if (mode === 'matchup') isTop = topKeys.includes(createMatchupKey(homeTeam, awayTeam));
+          if (mode === 'team') isTop = topKeys.includes(homeKey) || topKeys.includes(awayKey);
+          if (mode === 'matchup') isTop = topKeys.includes(createMatchupKey(homeKey, awayKey));
 
           const card = document.createElement('div');
           card.className = `game-card ${isTop ? 'top-match' : ''}`;
           card.innerHTML = `
             <div class="time">${time}</div>
             <div class="teams">
-              <span class="team ${(mode==='team' && topKeys.includes(homeTeam)) ? 'top-team' : ''}">${homeTeam}</span>
+              <span class="team ${(mode==='team' && topKeys.includes(homeKey)) ? 'top-team' : ''}">${homeTeam}</span>
               <span class="vs">×</span>
-              <span class="team ${(mode==='team' && topKeys.includes(awayTeam)) ? 'top-team' : ''}">${awayTeam}</span>
+              <span class="team ${(mode==='team' && topKeys.includes(awayKey)) ? 'top-team' : ''}">${awayTeam}</span>
             </div>`;
           lista.appendChild(card);
         });
@@ -1774,8 +1784,8 @@
           const gd = parseDataOdd(o);
           if (!gd) continue;
           const dk = localDateKey(gd);
-          const homeN = normalizeTeamName(o.time_casa);
-          const awayN = normalizeTeamName(o.time_visitante);
+          const homeN = normalizeTeamNameOdd(o.time_casa);
+          const awayN = normalizeTeamNameOdd(o.time_visitante);
           const ik = `${homeN}|${awayN}|${dk}`;
           if (!oddsIndex[ik]) oddsIndex[ik] = o;
           const ikPartial = `${homeN}|${awayN}|`;
@@ -1791,7 +1801,7 @@
           let dateKey = '';
           if (jogo.start_time) { try { dateKey = isoDateKey(jogo.start_time); } catch (e) {} }
 
-          const homeN = normalizeTeamName(homeTeam), awayN = normalizeTeamName(awayTeam);
+          const homeN = normalizeTeamNameOdd(homeTeam), awayN = normalizeTeamNameOdd(awayTeam);
           let oddsEntry = oddsIndex[`${homeN}|${awayN}|${dateKey}`]
             || oddsIndex[`${awayN}|${homeN}|${dateKey}`]
             || oddsIndex[`${homeN}|${awayN}|`]
