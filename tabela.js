@@ -1804,7 +1804,7 @@ function getOddValue(odds, res) {
 // ─── FETCH ────────────────────────────────────────────────────────────────────
 async function fetchOdds() {
   try {
-    const r = await fetch(ROTAS_API.odds(LIGA_ATUAL));
+    const r = await fetch(ROTAS_API.odds(LIGA_ATUAL), { cache: "no-store" });
     if (!r.ok) throw new Error();
     return await r.json();
   } catch(e) {
@@ -1815,7 +1815,7 @@ async function fetchOdds() {
 
 async function fetchProximosJogos() {
   try {
-    const r = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL));
+    const r = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL), { cache: "no-store" });
     if (!r.ok) throw new Error();
     const j = await r.json();
     return j.sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
@@ -2691,7 +2691,7 @@ async function buscarDados() {
   } else {
     _renderizandoRapido = false;
     const [resResultados, resOdds, resProximos] = await Promise.allSettled([
-      (async () => { const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL)); if (!r.ok) throw new Error(`${r.status}`); return r.json(); })(),
+      (async () => { const r = await fetch(ROTAS_API.resultados(LIGA_ATUAL), { cache: "no-store" }); if (!r.ok) throw new Error(`${r.status}`); return r.json(); })(),
       fetchOdds(),
       fetchProximosJogos(),
     ]);
