@@ -1,16 +1,71 @@
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="mult.css" />
-    <title>BetStat</title>
-  </head>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+        <link rel="stylesheet" href="mult.css" />
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"
+        ></script>
+        <title>BetStat</title>
+        <!-- Meta tags SEO principais -->
+        <meta
+          name="description"
+          content="Transforme suas apostas com BetStat - a única plataforma especializada em futebol virtual Betano. Análises precisas, estatísticas confiáveis e resultados comprovados para investimentos inteligentes."
+        />
+        <meta
+          name="keywords"
+          content="BetStat, apostas esportivas, futebol virtual, Betano, estatísticas apostas, análise apostas, investimentos esportivos"
+        />
+
+        <!-- Open Graph meta tags para redes sociais -->
+        <meta
+          property="og:title"
+          content="BetStat | Plataforma de Análise para Apostas Esportivas"
+        />
+        <meta
+          property="og:description"
+          content="Transforme suas apostas com análises precisas e estatísticas confiáveis. A única plataforma especializada em futebol virtual Betano."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.betstat.site/multbetano.html" />
+        <meta property="og:site_name" content="BetStat" />
+
+        <!-- Meta tags adicionais -->
+        <meta name="robots" content="index, follow" />
+        <meta name="author" content="BetStat" />
+        <meta name="canonical" href="https://www.betstat.site/multbetano.html" />
+        <script type="module" src="js/firebase-auth.js"></script>
+        <script>
+          window.dataLayer = window.dataLayer || [];
+          function gtag() {
+            dataLayer.push(arguments);
+          }
+          gtag("js", new Date());
+
+          gtag("config", "G-4WT805FFHQ");
+        </script>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap"
+          rel="stylesheet"
+        />
+      </head>
 
   <body>
+
+    <div id="header"></div>
+
+    <br><br>
 
     <div id="errorMessage" class="error-message" style="display: none;"></div>
 
     <div class="seletor-container">
+
+      <!-- ── NOVO: seletor único de liga — troca a liga exibida na tabela ── -->
+      <div class="seletor-liga">
+        <select id="seletorLiga"></select>
+      </div>
 
       <div class="seletor-mostrar-times">
         <select id="mostrarTimes">
@@ -141,6 +196,9 @@
         <div id="redPercentage">Reds: 0%</div>
       </div>
 
+      <div class="logo-betano">
+        <img src="img/betano2.png" alt="Betano">
+      </div>
     </div><!-- /seletor-container -->
 
     <table id="tabelaResultados" class="tabela-liga">
@@ -150,33 +208,69 @@
 
     <script>
       // ═══════════════════════════════════════════════════════════════════
-      // Página de UMA liga só. Casa/liga vêm pela URL, ex.:
-      //   tabela-liga.html?res=Copa%2520Am%25C3%25A9rica&nome=Copa+Am%C3%A9rica
-      // "res" já é o segmento de rota pronto (o multbetano.html monta isso
-      // com URLSearchParams, que cuida do encoding sozinho — aqui só se lê
-      // de volta com .get(), sem reencodar nada).
-      // Quem monta esse link é o multbetano.html / mult<casa>.html, um
-      // <iframe> por liga — assim cada liga tem seu próprio #tabelaResultados,
-      // #seletorHoras etc. sem colidir com as outras, e a tabela.js roda
-      // 100% sem alteração, do jeito que já tá pronta.
+      // ROTAS_API — mesmo padrão que já funciona no buscadores.html
+      // (BASE + /resultados|odds|proximos/ + encodeURIComponent(liga)).
+      // A tabela.js chama ROTAS_API.resultados(LIGA_ATUAL), .odds(LIGA_ATUAL)
+      // e .proximosJogos(LIGA_ATUAL) — por isso precisa vir ANTES dela.
       // ═══════════════════════════════════════════════════════════════════
-      const params = new URLSearchParams(window.location.search);
-      const RES  = params.get("res")  || "";
-      const NOME = params.get("nome") || RES;
-
       const BASE = "https://betstat.site";
       window.ROTAS_API = {
-        resultados:    res => `${BASE}/resultados/${res}`,
-        odds:          res => `${BASE}/odds/${res}`,
-        proximosJogos: res => `${BASE}/proximos/${res}`,
+        resultados:    liga => `${BASE}/resultados/${encodeURIComponent(liga)}`,
+        odds:          liga => `${BASE}/odds/${encodeURIComponent(liga)}`,
+        proximosJogos: liga => `${BASE}/proximos/${encodeURIComponent(liga)}`,
       };
 
-      window.LIGA_ATUAL = RES;
-      document.querySelector("h4.custom-color").textContent = NOME;
-      document.title = `BetStat - ${NOME}`;
+      // ═══════════════════════════════════════════════════════════════════
+      // LIGAS BETANO desta página — a tabela.js troca de liga sozinha,
+      // isso aqui só popula o <select> e diz pra ela qual liga usar agora.
+      // (mesmos nomes que já existiam no LIGAS_CONFIG antigo / buscadores)
+      // ═══════════════════════════════════════════════════════════════════
+      const LIGAS_BETANO = [
+        { nome: "Copa América" },
+        { nome: "Taça Glória Eterna" },
+        { nome: "Euro" },
+        { nome: "Campeonato Italiano" },
+        { nome: "Copa das Estrelas" },
+        { nome: "Brasileirão Betano" },
+      ];
+
+      const LIGA_STORAGE_KEY = "multbetano_ligaSelecionada";
+
+      function popularSeletorLiga() {
+        const sel = document.getElementById("seletorLiga");
+        sel.innerHTML = LIGAS_BETANO.map(
+          l => `<option value="${l.nome}">${l.nome}</option>`
+        ).join("");
+        const salva = localStorage.getItem(LIGA_STORAGE_KEY);
+        if (salva && LIGAS_BETANO.some(l => l.nome === salva)) sel.value = salva;
+      }
+
+      // Troca a liga ativa: atualiza LIGA_ATUAL (usado pela tabela.js pra
+      // montar as rotas) e o <h4 class="custom-color"> (usado pela tabela.js
+      // pra isolar localStorage/seleções por liga — ver getLigaKey()).
+      function aplicarLigaAtual(nomeLiga) {
+        window.LIGA_ATUAL = nomeLiga;
+        localStorage.setItem(LIGA_STORAGE_KEY, nomeLiga);
+        const h4 = document.querySelector("h4.custom-color");
+        if (h4) h4.textContent = nomeLiga;
+      }
+
+      popularSeletorLiga();
+      const seletorLigaEl = document.getElementById("seletorLiga");
+      aplicarLigaAtual(seletorLigaEl.value);
+
+      seletorLigaEl.addEventListener("change", () => {
+        aplicarLigaAtual(seletorLigaEl.value);
+        // buscarDados() (definida em tabela.js) já detecta troca de liga
+        // sozinha via getLigaKey() e força o re-render/re-fetch.
+        if (typeof buscarDados === "function") buscarDados();
+      });
     </script>
 
     <script src="app.utils.min.js"></script>
     <script src="tabela.js"></script>
+
+    <script src="header-loader.js"></script>
+    <script src="redirecionar.js"></script>
   </body>
 </html>
