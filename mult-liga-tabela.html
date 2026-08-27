@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="mult.css" />
+    <link rel="stylesheet" href="style.css" />
+    <title>BetStat</title>
+
+    <!--
+      ESTA PÁGINA É UM "MODELO" — não é pra ser aberta sozinha pelo usuário.
+      Ela é carregada dentro de um <iframe> pelo hub (multbetano.html), um
+      iframe por liga, recebendo casa/liga via querystring:
+
+        mult-liga-tabela.html?casa=betano&res=<encodeURIComponent(res)>&label=<encodeURIComponent(label)>
+
+      Por isso NÃO tem: seletor de liga (fixo via URL), tag do Google
+      Analytics (evita contar 1 pageview por iframe), header/nav e
+      redirecionar.js (o hub já cuida disso uma única vez). O
+      firebase-auth.js foi mantido porque o tabela.js provavelmente
+      depende dele para autenticar as chamadas de /resultados,/odds,/proximos.
+    -->
+    <script type="module" src="js/firebase-auth.js"></script>
+
+    <style>
+      .liga-card-titulo {
+        font-size: 1.05em;
+        font-weight: 600;
+        padding: 6px 4px 10px;
+        opacity: 0.92;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+    <h3 class="liga-card-titulo" id="ligaCardTitulo"></h3>
+
+    <div class="seletor-container">
+
+      <div class="seletor-mostrar-times">
+        <select id="mostrarTimes">
+          <option value="nao" selected>Ver Times:Não</option>
+          <option value="sim">Ver Times:Sim</option>
+        </select>
+      </div>
+
+      <div class="seletor-mostrar-ht">
+        <select id="mostrarHT">
+          <option value="nao" selected>Ver HT:Não</option>
+          <option value="sim">Ver HT:Sim</option>
+        </select>
+      </div>
+
+      <div class="seletor-horas">
+        <select id="seletorHoras">
+          <option value="3">Horas:3</option>
+          <option value="6" selected>Horas:6</option>
+          <option value="12">Horas:12</option>
+          <option value="24">Horas:24</option>
+          <option value="48">Horas:48</option>
+          <option value="72">Horas:72</option>
+        </select>
+      </div>
+
+      <div class="seletor-resultado">
+        <select id="seletorResultado">
+
+          <optgroup label="── Ambas Marcam ──">
+            <option value="ambasMarcam" selected>Ambas Sim</option>
+            <option value="ambasNaoMarcam">Ambas Não</option>
+          </optgroup>
+
+          <optgroup label="── Resultado FT ──">
+            <option value="casaVence">Casa Vence</option>
+            <option value="empate">Empate FT</option>
+            <option value="foraVence">Fora Vence</option>
+          </optgroup>
+
+          <optgroup label="── Over ──">
+            <option value="over0.5">Over 0.5</option>
+            <option value="over1.5">Over 1.5</option>
+            <option value="over2.5">Over 2.5</option>
+            <option value="over3.5">Over 3.5</option>
+            <option value="over5">Over 5+</option>
+          </optgroup>
+
+          <optgroup label="── Under ──">
+            <option value="under0.5">Under 0.5</option>
+            <option value="under1.5">Under 1.5</option>
+            <option value="under2.5">Under 2.5</option>
+            <option value="under3.5">Under 3.5</option>
+          </optgroup>
+
+          <optgroup label="── Gols Exatos FT ──">
+            <option value="exato0">0 Gol</option>
+            <option value="exato1">1 Gol</option>
+            <option value="exato2">2 Gols</option>
+            <option value="exato3">3 Gols</option>
+            <option value="exato4">4 Gols</option>
+          </optgroup>
+
+          <optgroup label="── Gols Exatos 2º Tempo ──">
+            <option value="exato2t0">0 gol / 2° tempo</option>
+            <option value="exato2t1">1 gol / 2° tempo</option>
+            <option value="exato2t2">2 gols / 2° tempo</option>
+            <option value="exato2t3">3 gols / 2° tempo</option>
+            <option value="exato2t4">4 gols / 2° tempo</option>
+          </optgroup>
+
+          <optgroup label="── Total de Gols — Casa ──">
+            <option value="casa0Gols">Casa 0 Gols</option>
+            <option value="casa1Gol">Casa 1 Gol</option>
+            <option value="casa2Gols">Casa 2 Gols</option>
+            <option value="casa3Gols">Casa 3 Gols</option>
+            <option value="casa4Gols">Casa 4 Gols</option>
+          </optgroup>
+
+          <optgroup label="── Total de Gols — Fora ──">
+            <option value="fora0Gols">Fora 0 Gols</option>
+            <option value="fora1Gol">Fora 1 Gol</option>
+            <option value="fora2Gols">Fora 2 Gols</option>
+            <option value="fora3Gols">Fora 3 Gols</option>
+            <option value="fora4Gols">Fora 4 Gols</option>
+          </optgroup>
+
+        </select>
+      </div>
+
+      <div class="seletor-ver-odds">
+        <select id="mostrarOdds">
+          <option value="nao">Ver Odds:Não</option>
+          <option value="sim" selected>Ver Odds:Sim</option>
+        </select>
+      </div>
+
+      <div class="seletor-tipo-placar">
+        <select id="seletorTipoPlacar">
+          <option value="ft" selected>Resultado:FT</option>
+          <option value="ht">Resultado:HT</option>
+        </select>
+      </div>
+
+      <div class="seletor-mercados-extras" style="position:relative;display:inline-block;">
+        <button type="button" id="btnMercadosExtras" style="cursor:pointer;white-space:nowrap;">+ Mercados<span id="mercadosExtrasCount" style="display:none;margin-left:4px;color:#4ade80;"></span></button>
+        <div id="painelMercadosExtras" style="display:none;position:absolute;top:38px;left:0;z-index:50;background:#0f1420;border:1px solid #374151;border-radius:8px;padding:10px;width:280px;box-shadow:0 8px 24px rgba(0,0,0,0.45);">
+          <div style="font-size:0.75em;color:#9ca3af;margin-bottom:6px;">Mercados extras (até 5) - mostrar odd (💰) livre; destaque (✨) só 1 por vez, junto ao mercado principal</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+            <label for="corDestaqueExtraInput" style="font-size:0.75em;color:#9ca3af;">Cor do destaque:</label>
+            <input type="color" id="corDestaqueExtraInput" value="#93C5FD" style="width:28px;height:24px;padding:0;border:1px solid #374151;border-radius:4px;background:none;cursor:pointer;">
+          </div>
+          <select id="selectNovoMercadoExtra" style="width:100%;margin-bottom:8px;">
+            <option value="">+ Adicionar mercado...</option>
+          </select>
+          <div id="listaMercadosExtras" style="display:flex;flex-direction:column;gap:4px;"></div>
+        </div>
+      </div>
+
+      <div id="resultDisplay">
+        <div id="totalGols">0</div>
+        <div id="mediaGolsHora">0</div>
+        <h4 class="custom-color"></h4>
+      </div>
+
+      <div id="resultDisplayPercent">
+        <div id="greenPercentage">Greens: 0%</div>
+        <div id="redPercentage">Reds: 0%</div>
+      </div>
+    </div><!-- /seletor-container -->
+
+    <table id="tabelaResultados" class="tabela-liga">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+
+    <script>
+      // ═══════════════════════════════════════════════════════════════════
+      // Casa/Liga fixos, vindos da URL (montados pelo hub multbetano.html).
+      // "res" chega EXATAMENTE igual ao "res" do CASAS do buscadores.html
+      // (ex.: "Ta%C3%A7a%20Gl%C3%B3ria%20Eterna", "bet365/Copa",
+      // "estrela/Copa%20do%20Mundo") — o hub faz encodeURIComponent(res)
+      // uma vez ao montar a query string, e URLSearchParams.get() já
+      // devolve isso decodificado de volta ao valor original de "res".
+      // Por isso aqui NÃO se faz encode/decode de novo — usa-se "RES" direto,
+      // igual o buscadores.html faz com `${BASE}/resultados/${res}`.
+      // ═══════════════════════════════════════════════════════════════════
+      const params = new URLSearchParams(location.search);
+      const CASA_ATUAL = params.get("casa") || "";
+      const RES = params.get("res") || "";
+      const LABEL = params.get("label") || RES;
+
+      const BASE = "https://betstat.site";
+      window.ROTAS_API = {
+        resultados:    () => `${BASE}/resultados/${RES}`,
+        odds:          () => `${BASE}/odds/${RES}`,
+        proximosJogos: () => `${BASE}/proximos/${RES}`,
+      };
+
+      // tabela.js usa LIGA_ATUAL (repassado pra ROTAS_API, ignorado acima)
+      // e getLigaKey() (que prioriza o texto do h4.custom-color) pra isolar
+      // localStorage por liga — setando os dois garante que cada liga
+      // continua com filtros/seleções salvos separadamente.
+      window.LIGA_ATUAL = LABEL;
+      document.getElementById("ligaCardTitulo").textContent = LABEL;
+      const h4Liga = document.querySelector("h4.custom-color");
+      if (h4Liga) h4Liga.textContent = LABEL;
+    </script>
+
+    <script src="app.utils.min.js"></script>
+    <script src="tabela.js"></script>
+  </body>
+</html>
