@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
-    <link rel="stylesheet" href="mult.css" />
     <link rel="stylesheet" href="style.css" />
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
     <title>BetStat</title>
@@ -144,13 +143,35 @@
         if (salva && CASAS[salva]) sel.value = salva;
       }
 
+      // Mede a altura REAL do conteúdo olhando a posição de fim (bottom) dos
+      // elementos filhos diretos do body, em vez de scrollHeight.
+      // Por quê: scrollHeight respeita qualquer height/min-height forçada
+      // via CSS (ex.: algo em % ou vh no mult.css) — e como a gente MESMO
+      // seta a altura do iframe a cada medição, um elemento com altura em
+      // "%"/"vh" passa a se basear no valor que a gente acabou de setar,
+      // criando um loop: mede → seta um pouco maior → esse "maior" vira a
+      // nova base do %/vh → mede de novo maior ainda → cresce pra sempre.
+      // getBoundingClientRect() dá a posição real renderizada do elemento,
+      // que não é afetada por essa realimentação, então corta o loop.
+      function medirAlturaConteudo(doc) {
+        const body = doc.body;
+        if (!body) return 0;
+        const bodyTop = body.getBoundingClientRect().top;
+        let maxBottom = 0;
+        Array.from(body.children).forEach(el => {
+          const rect = el.getBoundingClientRect();
+          if (rect.bottom > maxBottom) maxBottom = rect.bottom;
+        });
+        return Math.ceil(maxBottom - bodyTop);
+      }
+
       // Ajusta a altura do iframe pro conteúdo real da tabela dentro dele
       // (mesmo domínio, então dá pra ler contentDocument direto, sem postMessage).
       function ajustarAlturaIframe(iframe) {
         try {
           const doc = iframe.contentDocument || iframe.contentWindow.document;
-          const altura = doc.documentElement.scrollHeight;
-          iframe.style.height = (altura + 24) + "px";
+          const altura = medirAlturaConteudo(doc);
+          if (altura > 0) iframe.style.height = (altura + 24) + "px";
         } catch (e) {
           iframe.style.height = "900px"; // fallback se por algum motivo não der pra ler o iframe
         }
@@ -158,11 +179,19 @@
 
       // Observa mudanças no conteúdo do iframe (dados atualizando, filtros
       // sendo trocados, popover de "+ Mercados" abrindo) pra re-ajustar a
-      // altura na hora, sem esperar o polling.
+      // altura na hora, sem esperar o polling. Debounce curto pra não medir
+      // no meio de uma leva de mutações (ex.: tabela inteira sendo
+      // reconstruída linha por linha) e não gerar chamadas em excesso.
+      const _timersAltura = new WeakMap();
+      function agendarAjusteAltura(iframe) {
+        clearTimeout(_timersAltura.get(iframe));
+        _timersAltura.set(iframe, setTimeout(() => ajustarAlturaIframe(iframe), 150));
+      }
+
       function observarIframe(iframe) {
         try {
           const doc = iframe.contentDocument || iframe.contentWindow.document;
-          const obs = new MutationObserver(() => ajustarAlturaIframe(iframe));
+          const obs = new MutationObserver(() => agendarAjusteAltura(iframe));
           obs.observe(doc.body, { childList: true, subtree: true, attributes: true });
         } catch (e) {}
       }
