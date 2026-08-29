@@ -3146,14 +3146,10 @@ function normalizarOrdemCronologica(data) {
 // ─────────────────────────────────────────────
 // Cada liga roda num ritmo diferente (20 jogos/hora, 30 jogos/hora...).
 // Em vez de fixar esse número, agrupamos os jogos (já em ordem
-// cronológica, garantida pelo id via normalizarOrdemCronologica) pelo
-// campo "hora" real (0-23), e contamos quantos jogos caem em cada hora
-// cheia. Como o array já está em ordem, não precisa combinar com "dia"
-// pra saber se um grupo de mesma hora é o mesmo bloco — e não combinar
-// evita descasamento de fuso (ex: Bet365, cujo "hora" vem em horário da
-// Inglaterra enquanto "data" reflete o dia em horário do Brasil). A
-// média dos grupos "fechados" (ignorando o primeiro e o último, que
-// podem estar cortados no meio) é o ritmo real da liga.
+// cronológica) pelo campo "hora" real (0-23) combinado com o dia, e
+// contamos quantos jogos caem em cada hora cheia. A média dos grupos
+// "fechados" (ignorando o primeiro e o último, que podem estar
+// cortados no meio) é o ritmo real da liga.
 function detectarJogosPorHora(data) {
     const FALLBACK = 20;
     if (!Array.isArray(data) || data.length < 10) return FALLBACK;
@@ -3163,15 +3159,9 @@ function detectarJogosPorHora(data) {
     let contagemAtual = 0;
 
     data.forEach(jogo => {
-        // Agrupa só pela "hora" (sem combinar com "dia"): o array já vem
-        // cronologicamente ordenado por "id" (via normalizarOrdemCronologica),
-        // então jogos consecutivos com a mesma hora já são, por definição, o
-        // mesmo bloco contínuo. Combinar com "dia" quebrava no Bet365, cujo
-        // campo "hora" fica em horário da Inglaterra enquanto "data" reflete
-        // o dia de inserção em horário do Brasil — descasando os dois campos
-        // bem na janela entre as duas viradas de dia.
+        const dia = jogo && jogo.data ? String(jogo.data).slice(0, 10) : '?';
         const hora = jogo ? jogo.hora : '?';
-        const chave = String(hora);
+        const chave = `${dia}_${hora}`;
 
         if (chave === chaveAtual) {
             contagemAtual++;
