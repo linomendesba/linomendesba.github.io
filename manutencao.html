@@ -3146,10 +3146,14 @@ function normalizarOrdemCronologica(data) {
 // ─────────────────────────────────────────────
 // Cada liga roda num ritmo diferente (20 jogos/hora, 30 jogos/hora...).
 // Em vez de fixar esse número, agrupamos os jogos (já em ordem
-// cronológica) pelo campo "hora" real (0-23) combinado com o dia, e
-// contamos quantos jogos caem em cada hora cheia. A média dos grupos
-// "fechados" (ignorando o primeiro e o último, que podem estar
-// cortados no meio) é o ritmo real da liga.
+// cronológica, garantida pelo id via normalizarOrdemCronologica) pelo
+// campo "hora" real (0-23), e contamos quantos jogos caem em cada hora
+// cheia. Como o array já está em ordem, não precisa combinar com "dia"
+// pra saber se um grupo de mesma hora é o mesmo bloco — e não combinar
+// evita descasamento de fuso (ex: Bet365, cujo "hora" vem em horário da
+// Inglaterra enquanto "data" reflete o dia em horário do Brasil). A
+// média dos grupos "fechados" (ignorando o primeiro e o último, que
+// podem estar cortados no meio) é o ritmo real da liga.
 function detectarJogosPorHora(data) {
     const FALLBACK = 20;
     if (!Array.isArray(data) || data.length < 10) return FALLBACK;
@@ -3159,9 +3163,15 @@ function detectarJogosPorHora(data) {
     let contagemAtual = 0;
 
     data.forEach(jogo => {
-        const dia = jogo && jogo.data ? String(jogo.data).slice(0, 10) : '?';
+        // Agrupa só pela "hora" (sem combinar com "dia"): o array já vem
+        // cronologicamente ordenado por "id" (via normalizarOrdemCronologica),
+        // então jogos consecutivos com a mesma hora já são, por definição, o
+        // mesmo bloco contínuo. Combinar com "dia" quebrava no Bet365, cujo
+        // campo "hora" fica em horário da Inglaterra enquanto "data" reflete
+        // o dia de inserção em horário do Brasil — descasando os dois campos
+        // bem na janela entre as duas viradas de dia.
         const hora = jogo ? jogo.hora : '?';
-        const chave = `${dia}_${hora}`;
+        const chave = String(hora);
 
         if (chave === chaveAtual) {
             contagemAtual++;
@@ -3187,8 +3197,26 @@ function detectarJogosPorHora(data) {
 }
 
 // ─────────────────────────────────────────────
-//  SELETOR DE PERÍODO
+//  JOGOS/HORA — fonte primária: ligas-config.js
 // ─────────────────────────────────────────────
+// O ligas-config.js já define, por liga, o array fixo "minutos" (os
+// minutos exatos em que os jogos acontecem dentro de cada hora). Isso
+// é um dado ESTÁTICO e conhecido — não precisa ser detectado em
+// runtime, e não depende do campo "hora" (que no Bet365 vem em
+// horário da Inglaterra). Usamos LIGAS_INFO[LIGA_ATUAL].minutos.length
+// como fonte da verdade; a detecção heurística (detectarJogosPorHora)
+// vira só um fallback pra liga que porventura não esteja cadastrada.
+function obterJogosPorHora(data) {
+    if (typeof LIGA_ATUAL !== 'undefined' && typeof LIGAS_INFO !== 'undefined') {
+        const liga = LIGAS_INFO[LIGA_ATUAL];
+        if (liga && Array.isArray(liga.minutos) && liga.minutos.length > 0) {
+            return liga.minutos.length;
+        }
+    }
+    return detectarJogosPorHora(data);
+}
+
+
 // Valor do seletor = quantidade de HORAS (não de jogos).
 // A quantidade real de jogos usada em cada tabela é calculada como
 // horasSelecionadas * jogosPorHoraDetectado, recalculado a cada fetch.
@@ -3224,7 +3252,7 @@ async function fetchMaximaplacar() {
         let data = await LigaDataManager.getResultados();
         data = normalizarOrdemCronologica(data);
 
-        const jogosPorHora = detectarJogosPorHora(data);
+        const jogosPorHora = obterJogosPorHora(data);
         const totalJogosPeriodo = horasSelecionadas * jogosPorHora;
         const recentData = data.slice(-totalJogosPeriodo);
 
@@ -3297,7 +3325,7 @@ async function fetchPlacarRepet() {
         let data = await LigaDataManager.getResultados();
         data = normalizarOrdemCronologica(data);
 
-        const jogosPorHora = detectarJogosPorHora(data);
+        const jogosPorHora = obterJogosPorHora(data);
         const totalJogosPeriodo = horasSelecionadas * jogosPorHora;
         const recentData = data.slice(-totalJogosPeriodo);
 
@@ -3352,7 +3380,7 @@ async function fetchMaximamercado() {
         let data = await LigaDataManager.getResultados();
         data = normalizarOrdemCronologica(data);
 
-        const jogosPorHora = detectarJogosPorHora(data);
+        const jogosPorHora = obterJogosPorHora(data);
         const totalJogosPeriodo = horasSelecionadas * jogosPorHora;
         const recentData = data.slice(-totalJogosPeriodo);
 
@@ -3436,7 +3464,7 @@ async function fetchMediahoramercado() {
         let data = await LigaDataManager.getResultados();
         data = normalizarOrdemCronologica(data);
 
-        const jogosPorHora = detectarJogosPorHora(data);
+        const jogosPorHora = obterJogosPorHora(data);
         const totalJogosPeriodo = horasSelecionadas * jogosPorHora;
         const recentData = data.slice(-totalJogosPeriodo);
         const numHoras = Math.max(1, Math.floor(recentData.length / jogosPorHora));
