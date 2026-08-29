@@ -1,30 +1,3 @@
-/* ════════════════════════════════════════════════════════════════
-   LIGAS-CONFIG.JS
-   Fonte única de verdade para TODAS as ligas do BetStat.
-
-   Cada página só precisa ter, no config.js dela, a variável:
-       const LIGA_ATUAL = "chave-da-liga-aqui";
-   (a mesma que já é usada hoje pra apontar a rota da API).
-
-   A partir dessa única variável, este arquivo resolve sozinho:
-     1) o nome exibido no h4 (título da liga na página)
-     2) os cards de navegação da "casa" (Betano, Bet365, etc.)
-
-   Os minutos de cada liga também ficam guardados aqui dentro
-   (LIGAS_INFO[...].minutos), mas só como referência/fonte única de
-   dados — o tabela.js continua com seu próprio MINUTOS_POR_LIGA
-   interno cuidando disso, sem nenhuma mudança. (ver nota mais
-   abaixo, antes da função inicializarLigaAtual)
-
-   Pra adicionar uma liga nova (a 21ª, 22ª...):
-     - Duplique a página normalmente.
-     - No config.js da página nova, defina LIGA_ATUAL com uma chave
-       que ainda não existe aqui embaixo.
-     - Adicione UMA entrada nova no objeto LIGAS_INFO abaixo (nome,
-       casa, arquivo e minutos).
-     - Pronto. Nenhuma outra página precisa ser tocada — os cards de
-       todas as páginas da mesma casa vão puxar a liga nova sozinhos.
-   ════════════════════════════════════════════════════════════════ */
 
 const LIGAS_INFO = {
 
@@ -120,28 +93,6 @@ const LIGAS_INFO = {
 
 };
 
-/* ════════════════════════════════════════════════════════════════
-   IMPORTANTE: este arquivo NÃO declara um MINUTOS_POR_LIGA global.
-   O tabela.js já tem o dele próprio (const MINUTOS_POR_LIGA = {...}
-   lá dentro) e, como <script src> compartilham o mesmo escopo,
-   declarar de novo aqui causaria "Identifier already declared" e
-   quebraria o tabela.js inteiro. Os minutos ficam guardados dentro
-   de cada liga em LIGAS_INFO[...].minutos só como referência /
-   fonte de dados pra você copiar pro tabela.js quando cadastrar
-   uma liga nova — não são lidos automaticamente por ele.
-   ════════════════════════════════════════════════════════════════ */
-
-/* ════════════════════════════════════════════════════════════════
-   Injeta automaticamente:
-     1) o texto do h4.custom-color (nome da liga)
-     2) os cards de navegação da casa (todas as ligas com a mesma
-        propriedade "casa" da liga atual)
-   Só precisa existir na página:
-     <h4 class="custom-color"></h4>                (pode ficar vazio)
-     <div id="cardsLigasContainer"></div>           (substitui o bloco fixo)
-     <script src="config.js"></script>              (define LIGA_ATUAL)
-     <script src="ligas-config.js"></script>        (este arquivo)
-   ════════════════════════════════════════════════════════════════ */
 function inicializarLigaAtual() {
   const chave = typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : null;
   const liga = chave ? LIGAS_INFO[chave] : null;
@@ -167,7 +118,7 @@ function inicializarLigaAtual() {
       .join("");
   }
 
-  // 3) reaplica o destaque da liga ativa, se a função já existir na página
+
   if (typeof marcarLigaAtiva === "function") marcarLigaAtiva();
 }
 
