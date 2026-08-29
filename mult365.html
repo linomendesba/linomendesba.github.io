@@ -60,6 +60,10 @@
       .liga-card-iframe { width: 100%; border: none; display: block; }
       .seletor-casa select { min-width: 200px; }
     </style>
+
+    <!-- Carrega config.js e ligas-config.js para usar LIGAS_INFO -->
+    <script src="config.js"></script>
+    <script src="ligas-config.js"></script>
   </head>
 
   <body>
@@ -80,58 +84,47 @@
 
     <script>
       // ═══════════════════════════════════════════════════════════════════
-      // CASAS — copiado 1:1 do CASAS do buscadores.html (mesmo "res" usado
-      // nas rotas /resultados|odds|proximos/ do backend). Se uma casa/liga
-      // for adicionada ou renomeada lá, replicar aqui também.
+      // GERAÇÃO AUTOMÁTICA DE CASAS A PARTIR DE LIGAS_INFO
+      // 
+      // Ao invés de manter CASAS hardcoded (que duplicava ligas-config.js),
+      // agora extrai tudo de LIGAS_INFO. Se uma liga for adicionada lá,
+      // aparece automaticamente aqui.
       // ═══════════════════════════════════════════════════════════════════
-      const CASAS = {
-        betano: {
-          label: 'Betano',
-          ligas: [
-            { label: 'Taça Glória Eterna',  res: encodeURIComponent('Taça Glória Eterna') },
-            { label: 'Copa América',        res: encodeURIComponent('Copa América') },
-            { label: 'Euro',                res: encodeURIComponent('Euro') },
-            { label: 'Campeonato Italiano', res: encodeURIComponent('Campeonato Italiano') },
-            { label: 'Copa das Estrelas',   res: encodeURIComponent('Copa das Estrelas') },
-            { label: 'Brasileirão Betano',  res: encodeURIComponent('Brasileirão Betano') },
-            { label: 'Mundial',             res: encodeURIComponent('Mundial') },
-          ],
-        },
-        bet365: {
-          label: 'Bet365',
-          ligas: [
-            { label: 'Copa',    res: 'bet365/Copa' },
-            { label: 'Euro',    res: 'bet365/Euro' },
-            { label: 'Super',   res: 'bet365/Super' },
-            { label: 'Premier', res: 'bet365/Premier' },
-          ],
-        },
-        betsson: {
-          label: 'Betsson',
-          ligas: [
-            { label: 'Espanha',    res: 'betsson/Espanha' },
-            { label: 'Inglaterra', res: 'betsson/Inglaterra' },
-            { label: 'Brasil',     res: 'betsson/Brasil' },
-          ],
-        },
-        kiron: {
-          label: 'Kiron',
-          ligas: [
-            { label: 'Liga Inglaterra', res: 'kiron/England' },
-            { label: 'Liga Itália',     res: 'kiron/Italy' },
-            { label: 'Liga Espanha',    res: 'kiron/Spain' },
-          ],
-        },
-        estrela: {
-          label: 'EstrelaBet',
-          ligas: [
-            { label: 'Copa do Mundo',      res: 'estrela/Copa%20do%20Mundo' },
-            { label: 'Ligas dos Campeões', res: 'estrela/Ligas%20dos%20Campe%C3%B5es' },
-            { label: 'América Latina',     res: 'estrela/Am%C3%A9rica%20Latina' },
-          ],
-        },
-      };
+      
+      function construirCasasDeAGrupar(ligasInfo) {
+        const casaMap = {};
 
+        Object.entries(ligasInfo).forEach(([chave, liga]) => {
+          const casa = liga.casa; // "BETANO", "BET365", "BETSSON", "KIRON", "ESTRELABET"
+          if (!casaMap[casa]) {
+            casaMap[casa] = { label: casa, ligas: [] };
+          }
+          casaMap[casa].ligas.push({
+            chave: chave,
+            label: liga.nomeExibicao,
+            arquivo: liga.arquivo,
+            nomeCompleto: chave, // chave original pra identificar uniquamente
+          });
+        });
+
+        // Transforma pra formato esperado (com res encoded)
+        const casas = {};
+        Object.entries(casaMap).forEach(([casa, dados]) => {
+          const casaLower = casa.toLowerCase();
+          casas[casaLower] = {
+            label: casa.charAt(0).toUpperCase() + casa.slice(1).toLowerCase(),
+            ligas: dados.ligas.map(l => ({
+              label: l.label,
+              res: encodeURIComponent(l.nomeCompleto), // usa a chave original
+            })),
+          };
+        });
+
+        return casas;
+      }
+
+      // Gera CASAS a partir de LIGAS_INFO
+      const CASAS = construirCasasDeAGrupar(LIGAS_INFO);
       const CASA_STORAGE_KEY = "multligas_casaSelecionada";
 
       function popularSeletorCasa() {
@@ -155,7 +148,6 @@
         return Math.ceil(maxBottom - bodyTop);
       }
 
-
       function ajustarAlturaIframe(iframe) {
         try {
           const doc = iframe.contentDocument || iframe.contentWindow.document;
@@ -165,7 +157,6 @@
           iframe.style.height = "900px"; 
         }
       }
-
 
       const _timersAltura = new WeakMap();
       function agendarAjusteAltura(iframe) {
@@ -208,7 +199,6 @@
           cont.appendChild(card);
         });
       }
-
 
       function ajustarTodasAlturas() {
         document.querySelectorAll(".liga-card-iframe").forEach(ajustarAlturaIframe);

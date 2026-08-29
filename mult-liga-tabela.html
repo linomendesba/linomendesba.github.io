@@ -10,6 +10,11 @@
 
     <script type="module" src="js/firebase-auth.js"></script>
 
+    <!-- Carrega config.js, ligas-config.js e liga-data-manager.js -->
+    <script src="config.js"></script>
+    <script src="ligas-config.js"></script>
+    <script src="liga-data-manager.js"></script>
+
     <style>
       .liga-card-titulo {
         font-size: 1.05em;
@@ -155,25 +160,51 @@
     </table>
 
     <script>
+      // ═══════════════════════════════════════════════════════════════════
+      // SETUP: Extrai parâmetros da URL e configura LIGA_ATUAL
+      // 
+      // mult365.html passa: ?casa=CASA&res=<chave-da-liga>&label=<nome-exibição>
+      // Aqui reconstituímos LIGA_ATUAL com a chave correta pra usar em
+      // config.js e liga-data-manager.js
+      // ═══════════════════════════════════════════════════════════════════
+      
       const params = new URLSearchParams(location.search);
-      const CASA_ATUAL = params.get("casa") || "";
-      const RES = params.get("res") || "";
-      const LABEL = params.get("label") || RES;
+      const CASA_PARAM = params.get("casa") || "";
+      const RES_PARAM = params.get("res") || "";  // é a chave original (ex: "Taça Glória Eterna")
+      const LABEL_PARAM = params.get("label") || RES_PARAM;
 
-      const BASE = "https://betstat.site";
-      window.ROTAS_API = {
-        resultados:    () => `${BASE}/resultados/${RES}`,
-        odds:          () => `${BASE}/odds/${RES}`,
-        proximosJogos: () => `${BASE}/proximos/${RES}`,
-      };
-      const PREFIXO_CASA_MINUTOS = { bet365: "Bet365 ", betsson: "Betsson ", kiron: "Kiron " };
-      const prefixoMinutos = PREFIXO_CASA_MINUTOS[CASA_ATUAL] || "";
-      window.LIGA_ATUAL = (prefixoMinutos && !LABEL.startsWith(prefixoMinutos.trim()))
-        ? `${prefixoMinutos}${LABEL}`
-        : LABEL;
-      document.getElementById("ligaCardTitulo").textContent = LABEL;
+      // Reconstrói LIGA_ATUAL a partir da chave recebida
+      // Se a chave já existe em LIGAS_INFO, usa ela diretamente;
+      // senão usa a lógica antiga de prefixo (compatibilidade com URLs antigas)
+      let LIGA_ATUAL_OVERRIDE = null;
+      if (LIGAS_INFO[RES_PARAM]) {
+        LIGA_ATUAL_OVERRIDE = RES_PARAM;
+      } else {
+        const PREFIXO_CASA_MINUTOS = { 
+          bet365: "Bet365 ", 
+          betsson: "Betsson ", 
+          kiron: "Kiron " 
+        };
+        const prefixoMinutos = PREFIXO_CASA_MINUTOS[CASA_PARAM] || "";
+        LIGA_ATUAL_OVERRIDE = (prefixoMinutos && !LABEL_PARAM.startsWith(prefixoMinutos.trim()))
+          ? `${prefixoMinutos}${LABEL_PARAM}`
+          : LABEL_PARAM;
+      }
+
+      // Sobrescreve LIGA_ATUAL (que foi detectado por config.js)
+      // com o valor que veio da URL (vindo de mult365.html)
+      LIGA_ATUAL = LIGA_ATUAL_OVERRIDE;
+
+      // Título da página (dentro do iframe)
+      document.getElementById("ligaCardTitulo").textContent = LABEL_PARAM;
       const h4Liga = document.querySelector("h4.custom-color");
-      if (h4Liga) h4Liga.textContent = LABEL;
+      if (h4Liga) h4Liga.textContent = LABEL_PARAM;
+
+      // Agora ROTAS_API.resultados(LIGA_ATUAL), 
+      // ROTAS_API.proximosJogos(LIGA_ATUAL) e 
+      // ROTAS_API.odds(LIGA_ATUAL) vão retornar as URLs corretas
+      // baseadas na chave que foi setada acima.
+      // O LigaDataManager vai usar esses valores.
     </script>
 
     <script src="app.utils.min.js"></script>
