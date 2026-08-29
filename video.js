@@ -1,13 +1,4 @@
-// video.js – Vídeo automático por liga
-// Reaproveita LIGAS e LIGA_ATUAL que já vêm do config.js (carregado ANTES deste
-// arquivo na página). NÃO altera nada no config.js.
-//
-// Como funciona:
-// - Cada liga cadastrada aqui tem um vídeo (iframe ou HLS).
-// - A liga sem entrada aqui (ex: todas as do Bet365) simplesmente não tem
-//   vídeo -> o bloco "Streaming ao Vivo" some sozinho na página.
-// - O vídeo só carrega de verdade quando o accordion é aberto (lazy load),
-//   igual já funcionava antes.
+
 
 (function () {
 
