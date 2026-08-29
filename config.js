@@ -34,10 +34,10 @@ const LIGAS = {
   ESTRELA_AMERICA_LATINA: "América Latina"
 };
 
-// Mapeamento direto e explícito de cada liga
+
 const ROTAS_API = {
   resultados: (nomeLiga) => {
-    // BETANO - rotas diretas
+
     if (nomeLiga === LIGAS.GLORIA_ETERNA) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
     if (nomeLiga === LIGAS.COPA_AMERICA)  return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
     if (nomeLiga === LIGAS.EURO)          return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
@@ -184,3 +184,50 @@ function detectarLigaAtual() {
 }
 
 const LIGA_ATUAL = detectarLigaAtual();
+
+
+const BASE_URL_SITE = "https://www.betstat.site";
+
+function aplicarSEOAutomatico() {
+
+  const caminho = window.location.pathname || "";
+  const ehHome = caminho === "/" || caminho === "" || /\/index\.html$/i.test(caminho);
+
+  const liga = LIGA_ATUAL;
+  const urlAtual = BASE_URL_SITE + caminho;
+
+  const dados = ehHome
+    ? {
+        titulo: "BetStat | Análise",
+        descricao: "BetStat - plataforma de análise para futebol virtual Bet365, Betano, Kiron, Estrelabet e Betsson, além de BacBo Live, Speedway e Futebol Real. Mais de 80 ferramentas com estatísticas em tempo real, gráficos de tendência e sinais automáticos.",
+        keywords: "BetStat, futebol virtual, apostas esportivas, Bet365, Betano, Kiron, Estrelabet, Betsson, BacBo Live, Speedway, estatísticas ao vivo, análise de apostas, Taça Glória Eterna",
+        ogTitulo: "BetStat | Plataforma de Análise para Futebol Virtual e Apostas Esportivas",
+        ogDescricao: "Mais de 80 ferramentas de análise em tempo real para Bet365, Betano, Kiron, Estrelabet e Betsson. Estatísticas, gráficos de tendência e sinais automáticos via Telegram.",
+      }
+    : {
+        titulo: `BetStat | ${liga} - Análise ao Vivo`,
+        descricao: `Análise da ${liga} na BetStat: resultados, próximos jogos, odds e estatísticas em tempo real. Parte de uma plataforma com mais de 80 ferramentas para futebol virtual Bet365, Betano, Kiron, Estrelabet e Betsson.`,
+        keywords: `${liga}, futebol virtual, BetStat, estatísticas, resultados ao vivo, análise de apostas`,
+        ogTitulo: `BetStat | ${liga} - Análise ao Vivo`,
+        ogDescricao: `Resultados, próximos jogos, odds e estatísticas em tempo real da ${liga} na plataforma BetStat.`,
+      };
+
+  document.title = dados.titulo;
+
+
+  function upsertTag(seletor, tag, atributos) {
+    let el = document.head.querySelector(seletor);
+    if (!el) {
+      el = document.createElement(tag);
+      document.head.appendChild(el);
+    }
+    Object.keys(atributos).forEach((attr) => el.setAttribute(attr, atributos[attr]));
+  }
+
+  upsertTag('meta[name="description"]', "meta", { name: "description", content: dados.descricao });
+  upsertTag('meta[name="keywords"]', "meta", { name: "keywords", content: dados.keywords });
+  upsertTag('meta[property="og:title"]', "meta", { property: "og:title", content: dados.ogTitulo });
+  upsertTag('meta[property="og:description"]', "meta", { property: "og:description", content: dados.ogDescricao });
+  upsertTag('meta[property="og:url"]', "meta", { property: "og:url", content: urlAtual });
+  upsertTag('link[rel="canonical"]', "link", { rel: "canonical", href: urlAtual });
+}
