@@ -1898,7 +1898,7 @@ function verificarAcerto(selRes, rA, rB, htA, htB) {
 // em 8 dias e tem um seletor pequeno de gales (1 a 4).
 // ═══════════════════════════════════════════════════════════════════════════════
 const HF_GALES_PADRAO = 2;
-const HF_DIAS_FIXOS = 3;
+const HF_DIAS_FIXOS = 8;
 
 function hfGalesKey() { return `hf_gales_${getLigaKey()}`; }
 
