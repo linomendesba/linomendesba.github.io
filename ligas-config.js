@@ -9,8 +9,12 @@
    A partir dessa única variável, este arquivo resolve sozinho:
      1) o nome exibido no h4 (título da liga na página)
      2) os cards de navegação da "casa" (Betano, Bet365, etc.)
-     3) os minutos fixos da liga (substitui o antigo MINUTOS_POR_LIGA
-        que ficava direto dentro do tabela.js)
+
+   Os minutos de cada liga também ficam guardados aqui dentro
+   (LIGAS_INFO[...].minutos), mas só como referência/fonte única de
+   dados — o tabela.js continua com seu próprio MINUTOS_POR_LIGA
+   interno cuidando disso, sem nenhuma mudança. (ver nota mais
+   abaixo, antes da função inicializarLigaAtual)
 
    Pra adicionar uma liga nova (a 21ª, 22ª...):
      - Duplique a página normalmente.
@@ -117,14 +121,15 @@ const LIGAS_INFO = {
 };
 
 /* ════════════════════════════════════════════════════════════════
-   Compatibilidade com o tabela.js atual: ele espera uma variável
-   global MINUTOS_POR_LIGA (chaveada por LIGA_ATUAL). Continua
-   funcionando sem precisar editar o tabela.js, desde que este
-   arquivo (ligas-config.js) seja carregado ANTES do tabela.js.
+   IMPORTANTE: este arquivo NÃO declara um MINUTOS_POR_LIGA global.
+   O tabela.js já tem o dele próprio (const MINUTOS_POR_LIGA = {...}
+   lá dentro) e, como <script src> compartilham o mesmo escopo,
+   declarar de novo aqui causaria "Identifier already declared" e
+   quebraria o tabela.js inteiro. Os minutos ficam guardados dentro
+   de cada liga em LIGAS_INFO[...].minutos só como referência /
+   fonte de dados pra você copiar pro tabela.js quando cadastrar
+   uma liga nova — não são lidos automaticamente por ele.
    ════════════════════════════════════════════════════════════════ */
-const MINUTOS_POR_LIGA = Object.fromEntries(
-  Object.entries(LIGAS_INFO).map(([chave, liga]) => [chave, liga.minutos])
-);
 
 /* ════════════════════════════════════════════════════════════════
    Injeta automaticamente:
