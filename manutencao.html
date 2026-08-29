@@ -3102,23 +3102,65 @@ function toggleAccordion(button) {
 // Schema real da rota (igual pra todas as ligas):
 // { id, liga, event_id, data, hora, minuto, time_a, time_b, ft, ht }
 //
-// "id" é autoincremento do banco -> reflete a ORDEM REAL de inserção
-// dos jogos, então é a chave mais confiável pra detectar a direção.
-// "data" fica de fallback (combinado com hora/minuto, já que sozinho
-// o campo "data" não carrega o horário real do jogo).
+// "data" vem sempre travado em T03:00:00.000Z, que é 00:00 de Brasília
+// convertido pra UTC (Brasil não tem horário de verão, fuso fixo -3h)
+// — ou seja, "data" só carrega o DIA (calendário de Brasília), não o
+// horário real do jogo. Quem carrega o horário real são "hora" e
+// "minuto". Só que no Bet365 esses dois campos vêm CRUS, em horário
+// da Inglaterra — enquanto nas outras casas já vêm em horário de
+// Brasília. "id" NÃO é confiável como critério principal: o Bet365
+// passou por uma unificação de duas fontes de captura distintas
+// (bet365_unificado.js), então o autoincremento reflete ordem de
+// INSERÇÃO no banco unificado, não necessariamente a ordem real dos
+// jogos.
+//
+// Por isso o valor de ordenação é sempre reconstruído a partir de
+// data+hora+minuto, convertendo "hora" pra horário de Brasília quando
+// a liga é do Bet365 (considerando o horário de verão britânico).
+function estaNoHorarioVeraoInglaterra(date) {
+    const ano = date.getUTCFullYear();
+    const inicioBST = ultimoDomingoUTC(ano, 2);  // último domingo de março, 01:00 UTC
+    inicioBST.setUTCHours(1, 0, 0, 0);
+    const fimBST = ultimoDomingoUTC(ano, 9);     // último domingo de outubro, 01:00 UTC
+    fimBST.setUTCHours(1, 0, 0, 0);
+    return date >= inicioBST && date < fimBST;
+}
+
+function ultimoDomingoUTC(ano, mesIndex) {
+    const d = new Date(Date.UTC(ano, mesIndex + 1, 0)); // último dia do mês
+    d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+    return d;
+}
+
+function ehLigaBet365() {
+    return typeof LIGA_ATUAL !== 'undefined' && typeof LIGAS_INFO !== 'undefined'
+        && LIGAS_INFO[LIGA_ATUAL] && LIGAS_INFO[LIGA_ATUAL].casa === 'BET365';
+}
+
+// Horas a SUBTRAIR de "hora" pra converter de horário da Inglaterra
+// pra horário de Brasília. Outras casas já capturam em horário de
+// Brasília, então o offset é 0.
+function obterOffsetHoraCasa(diaBaseMillis) {
+    if (!ehLigaBet365()) return 0;
+    return estaNoHorarioVeraoInglaterra(new Date(diaBaseMillis)) ? 4 : 3;
+}
+
 function valorOrdenacao(jogo) {
-    if (jogo && typeof jogo.id === 'number') return jogo.id;
+    if (!jogo || !jogo.data) return null;
 
-    if (jogo && jogo.data) {
-        const base = new Date(jogo.data).getTime();
-        if (!isNaN(base)) {
-            const hora = Number(jogo.hora) || 0;
-            const minuto = Number(jogo.minuto) || 0;
-            return Math.floor(base / 86400000) * 86400000 + hora * 3600000 + minuto * 60000;
-        }
-    }
+    const diaBase = new Date(jogo.data).getTime(); // 00:00 de Brasília do dia, em millis UTC
+    if (isNaN(diaBase)) return null;
 
-    return null;
+    const hora = Number(jogo.hora) || 0;
+    const minuto = Number(jogo.minuto) || 0;
+    const offset = obterOffsetHoraCasa(diaBase);
+
+    // "data" já é o dia certo de Brasília (nowBR() no momento real da
+    // captura) — então só precisa "enrolar" hora-offset pra dentro de
+    // 0-23 nesse MESMO dia, sem recuar/avançar o dia base.
+    const horaBR = ((hora - offset) % 24 + 24) % 24;
+
+    return diaBase + horaBR * 3600000 + minuto * 60000;
 }
 
 function normalizarOrdemCronologica(data) {
@@ -3128,7 +3170,7 @@ function normalizarOrdemCronologica(data) {
     const vUltimo = valorOrdenacao(data[data.length - 1]);
 
     if (vPrimeiro === null || vUltimo === null) {
-        console.warn('[Máximas] Não foi possível identificar "id" ou "data" válidos no jogo para checar a ordem. Assumindo que o último item do array já é o mais recente.');
+        console.warn('[Máximas] Não foi possível identificar "data"/"hora" válidos no jogo para checar a ordem. Assumindo que o último item do array já é o mais recente.');
         return data;
     }
 
@@ -3146,7 +3188,7 @@ function normalizarOrdemCronologica(data) {
 // ─────────────────────────────────────────────
 // Cada liga roda num ritmo diferente (20 jogos/hora, 30 jogos/hora...).
 // Em vez de fixar esse número, agrupamos os jogos (já em ordem
-// cronológica, garantida pelo id via normalizarOrdemCronologica) pelo
+// cronológica, garantida por data+hora+minuto via normalizarOrdemCronologica) pelo
 // campo "hora" real (0-23), e contamos quantos jogos caem em cada hora
 // cheia. Como o array já está em ordem, não precisa combinar com "dia"
 // pra saber se um grupo de mesma hora é o mesmo bloco — e não combinar
@@ -3523,6 +3565,7 @@ async function fetchMediahoramercado() {
             total['Fora Vence'] += res.foraVence;
             total['Empate'] += res.empate;
         }
+
         const tableBody = document.getElementById('mediahoramercado-resultados');
         let row = tableBody.querySelector('tr');
         if (!row) { row = document.createElement('tr'); tableBody.appendChild(row); }
