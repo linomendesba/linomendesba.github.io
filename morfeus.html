@@ -610,8 +610,6 @@
 <body>
   <div id="header"></div>
 
-  <br><br>
-
   <div class="page-wrapper">
 
     <!-- FILTER CARD -->
@@ -863,67 +861,32 @@ async function fetchComCache(url) {
 /* === CÁLCULOS === */
 function normalizeTeamName(s) { return (s||'').toLowerCase().trim().replace(/\s+/g,' ').replace(/[^a-z0-9\s]/g,''); }
 
-function calcularRankingTimes(dados, mv) {
+function calcularRankingTimes(jogos,mv) {
   const r={};
-  if (!Array.isArray(dados)) return r;
-  
-  dados.forEach(j=>{
-    if (!j || !j.teamHome || !j.teamAway) return;
-    
-    const nk1 = normalizeTeamName(j.teamHome);
-    const nk2 = normalizeTeamName(j.teamAway);
-    
-    if(!r[nk1]) r[nk1]={v:0,d:0,p:0,e:0};
-    if(!r[nk2]) r[nk2]={v:0,d:0,p:0,e:0};
-    
-    const g1 = parseInt(j.scoreHome) || 0;
-    const g2 = parseInt(j.scoreAway) || 0;
-    
-    if(isNaN(g1)||isNaN(g2)) return;
-    
+  jogos.forEach(j=>{
+    const nk1=normalizeTeamName(j.time_a), nk2=normalizeTeamName(j.time_b);
+    if(!r[nk1])r[nk1]={v:0,d:0,p:0,e:0};
+    if(!r[nk2])r[nk2]={v:0,d:0,p:0,e:0};
+    const [g1,g2]=j.ft.split(' x ').map(Number);
+    if(isNaN(g1)||isNaN(g2))return;
     r[nk1].v++;r[nk2].v++;
-    
     if(mv==='casaVence'||mv==='foraVence'||mv==='empate'){
-      if(g1>g2){r[nk1].d++;r[nk2].p++;}
-      else if(g1<g2){r[nk2].d++;r[nk1].p++;}
-      else{r[nk1].e++;r[nk2].e++;}
+      if(g1>g2){r[nk1].d++;r[nk2].p++;}else if(g1<g2){r[nk2].d++;r[nk1].p++;}else{r[nk1].e++;r[nk2].e++;}
     }
   });
   return r;
 }
 
-function calcularStreak(dados, mv) {
+function calcularStreak(jogos, mv) {
   let seq=[], lastRes='';
-  if (!Array.isArray(dados)) return null;
-  
-  dados.forEach(j=>{
-    if (!j) return;
-    
-    const g1 = parseInt(j.scoreHome) || 0;
-    const g2 = parseInt(j.scoreAway) || 0;
-    
-    if(isNaN(g1)||isNaN(g2)) return;
-    
-    const ocorreu = (mv==='casaVence'&&g1>g2) || 
-                   (mv==='foraVence'&&g1<g2) || 
-                   (mv==='empate'&&g1===g2) || 
-                   (mv==='ambasMarcam'&&g1>0&&g2>0) || 
-                   (mv==='ambasNaoMarcam'&&(g1===0||g2===0)) || 
-                   (mv.startsWith('over')&&(g1+g2)>parseFloat(mv.replace('over',''))) || 
-                   (mv.startsWith('under')&&(g1+g2)<parseFloat(mv.replace('under',''))) || 
-                   (mv.startsWith('exact')&&(g1+g2)===parseInt(mv.replace('exact','')));
-    
+  jogos.forEach(j=>{
+    const [g1,g2]=j[0].split(' x ').map(Number);
+    if(isNaN(g1)||isNaN(g2))return;
+    const ocorreu = (mv==='casaVence'&&g1>g2) || (mv==='foraVence'&&g1<g2) || (mv==='empate'&&g1===g2) || (mv==='ambasMarcam'&&g1>0&&g2>0) || (mv==='ambasNaoMarcam'&&(g1===0||g2===0)) || (mv.startsWith('over')&&(g1+g2)>parseFloat(mv.replace('over',''))) || (mv.startsWith('under')&&(g1+g2)<parseFloat(mv.replace('under',''))) || (mv.startsWith('exact')&&(g1+g2)===parseInt(mv.replace('exact','')));
     const res = ocorreu?'green':'red';
-    
-    if(res===lastRes){
-      seq[seq.length-1]++;
-    } else {
-      seq.push(1);
-      lastRes=res;
-    }
+    if(res===lastRes){seq[seq.length-1]++;}else{seq.push(1);lastRes=res;}
   });
-  
-  if(!seq.length) return null;
+  if(!seq.length)return null;
   const tipo = lastRes;
   const contagem = seq[seq.length-1];
   return {tipo, contagem};
@@ -1024,23 +987,9 @@ async function buscarDadosAPI(casa, liga, numJogos) {
       fetchComCache(`${base}/proximos${prefix}/${le}`),
       fetchComCache(`${base}/odds${prefix}/${le}`).catch(()=>[])
     ]);
-    
-    if (!Array.isArray(res)) res = [];
-    if (!Array.isArray(prox)) prox = [];
-    if (!Array.isArray(oddsRaw)) oddsRaw = [];
-    
     res.slice(-numJogos).forEach(j=>{
-      if (j && j[0] !== undefined && j[1] !== undefined && j[3] && j[4]) {
-        d.dadosCru.push({
-          scoreHome: j[0],
-          scoreAway: j[1],
-          time: (j[2]||'').slice(11,16),
-          teamHome: j[3],
-          teamAway: j[4],
-          minute: parseInt(j[6]||0)
-        });
-        d.totalJogos++;
-      }
+      d.dadosCru.push([j[0],j[1],(j[2]||'').slice(11,16),j[3],j[4],parseInt(j[6]||0)]);
+      d.totalJogos++;
     });
     d.proximos=prox.slice(0,6);
     d.oddsRaw=oddsRaw;
@@ -1053,17 +1002,18 @@ async function buscarDadosAPI(casa, liga, numJogos) {
 
 async function processarLiga(casa,liga,mv) {
   const numJogos = parseInt(document.getElementById('periodo-select').value);
-  const dados = await buscarDadosAPI(casa,liga,numJogos);
+  const dados=await buscarDadosAPI(casa,liga,numJogos);
   
-  dados.ranking = calcularRankingTimes(dados.dadosCru, mv);
-  dados.streak = calcularStreak(dados.dadosCru, mv);
+  // Transformar dados do formato API para formato esperado pelas funções de cálculo
+  const jogosFormatados = dados.dadosCru.map(j=>[`${j[0]} x ${j[1]}`, j[2], '', j[3], j[4], j[5]]);
   
-  const{rankingExato,rankingFaixas,top5Odds,top3Faixas} = calcularRankingOdds(dados, mv);
-  dados.rankingExato = rankingExato;
-  dados.rankingFaixas = rankingFaixas;
-  dados.top5Odds = top5Odds;
-  dados.top3Faixas = top3Faixas;
-  
+  dados.ranking=calcularRankingTimes(dados.dadosCru.map(j=>({time_a:j[3],time_b:j[4],ft:`${j[0]} x ${j[1]}`})),mv);
+  dados.streak=calcularStreak(jogosFormatados,mv);
+  const{rankingExato,rankingFaixas,top5Odds,top3Faixas}=calcularRankingOdds(dados,mv);
+  dados.rankingExato=rankingExato;
+  dados.rankingFaixas=rankingFaixas;
+  dados.top5Odds=top5Odds;
+  dados.top3Faixas=top3Faixas;
   return dados;
 }
 
