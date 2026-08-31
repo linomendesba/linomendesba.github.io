@@ -769,17 +769,19 @@ function processResults(resArr) {
 
   console.log(`Total de linhas válidas: ${validRows.length}`);
 
-  // INVERTE para processar de trás para frente (mais recente primeiro)
-  const reversedRows = validRows.slice().reverse();
+  // Não dá pra confiar na ordem do array pra achar "hoje": tem liga que
+  // vem do mais antigo pro mais recente no JSON e outras o inverso.
+  // Por isso, primeiro achamos o jogo mais recente comparando data+hora
+  // reais de cada linha (não a posição no array), usamos a data dele
+  // como referência de "hoje", filtramos só as linhas desse dia e
+  // ordenamos do mais recente pro mais antigo — a lógica de pontos por
+  // janela abaixo depende dessa ordem cronológica.
+  const todayRows = getTodayRowsSorted(validRows);
 
-  // Encontra ponto de reset a cada meia-noite: mantém somente os jogos
-  // de hoje (a partir da última virada de dia detectada).
-  const rowsFromMidnight = getRowsFromMidnight(reversedRows);
-
-  console.log(`Linhas a partir de meia-noite: ${rowsFromMidnight.length}`);
-  if (rowsFromMidnight.length > 0) {
-    console.log(`Primeira linha (mais recente):`, rowsFromMidnight[0]);
-    console.log(`Última linha (mais antiga):`, rowsFromMidnight[rowsFromMidnight.length - 1]);
+  console.log(`Linhas de hoje: ${todayRows.length}`);
+  if (todayRows.length > 0) {
+    console.log(`Mais recente:`, todayRows[0]);
+    console.log(`Mais antiga (do dia):`, todayRows[todayRows.length - 1]);
   }
   console.log(`Filtro ativo: ${filterOption}`);
 
@@ -787,7 +789,7 @@ function processResults(resArr) {
   let matchedCount = 0;
   let pointsAdded = 0;
 
-  rowsFromMidnight.forEach((row, index) => {
+  todayRows.forEach((row, index) => {
     // Parse de FT e HT (formato "X x Y")
     const ftScore = parseScore(row.ft || row.score);
     const htScore = parseScore(row.ht);
@@ -824,8 +826,8 @@ function processResults(resArr) {
       matchedCount++;
       // Adiciona pontos aos times da janela (-1, 0, +1)
       for (let i = -1; i <= 1; i++) {
-        if (rowsFromMidnight[index + i]) {
-          const windowRow = rowsFromMidnight[index + i];
+        if (todayRows[index + i]) {
+          const windowRow = todayRows[index + i];
           const wTeam1 = windowRow.time_a || windowRow.team_home || windowRow.team1 || windowRow.home || '';
           const wTeam2 = windowRow.time_b || windowRow.team_visit || windowRow.team2 || windowRow.away || '';
           if (wTeam1) {
@@ -846,63 +848,51 @@ function processResults(resArr) {
   console.log('Teams processados:', teams);
 }
 
-// Encontra o ponto de virada do dia (meia-noite) e devolve somente os
-// jogos de HOJE. Como o array chega invertido (mais recentes primeiro),
-// a virada de dia aparece quando a hora "salta" pra trás — por exemplo
-// de 00:30 (mais recente, hoje) para 23:10 (mais antigo, ontem).
-// Tudo o que vem ANTES desse ponto (índices 0..i-1) é de hoje.
-function getRowsFromMidnight(lines) {
-  for (let i = 1; i < lines.length; i++) {
-    const currentTime = extractHour(lines[i]);
-    const previousTime = extractHour(lines[i - 1]);
+// Monta uma chave de data+hora comparável pra uma linha de resultado,
+// sem depender de em que posição do array ela está.
+function getRowTimestamp(row) {
+  const dataStr = row.data || row.start_time || '';
+  const dateOnly = dataStr && typeof dataStr === 'string'
+    ? (dataStr.includes('T') ? dataStr.slice(0, 10) : dataStr)
+    : '';
+  if (!dateOnly) return null;
 
-    if (!currentTime || !previousTime) continue;
-
-    const currentHour = parseInt(currentTime.split(':')[0], 10);
-    const previousHour = parseInt(previousTime.split(':')[0], 10);
-
-    console.log(`[${i}] Hora anterior (mais recente): ${previousTime} (${previousHour}h), Hora atual (mais antiga): ${currentTime} (${currentHour}h)`);
-
-    // Detecta mudança de dia: a hora do jogo mais antigo é bem maior que
-    // a do mais recente (ex: 23:xx de ontem vindo antes de 01:xx de hoje).
-    if (previousHour < currentHour && (currentHour - previousHour) > 10) {
-      console.log(`✓ Virada de dia encontrada no índice ${i} — mantendo apenas os jogos de hoje (índices 0 a ${i - 1}).`);
-      return lines.slice(0, i);
-    }
+  let horaStr = '00';
+  let minutoStr = '00';
+  if (row.hora !== undefined && row.hora !== null) {
+    horaStr = String(parseInt(row.hora, 10)).padStart(2, '0');
+    minutoStr = String(parseInt(row.minuto || 0, 10)).padStart(2, '0');
+  } else if (row.time && typeof row.time === 'string') {
+    const [h, m] = row.time.slice(0, 5).split(':');
+    if (h) horaStr = h.padStart(2, '0');
+    if (m) minutoStr = m.padStart(2, '0');
   }
 
-  // Não encontrou virada de dia dentro da janela: considera tudo como hoje.
-  console.log('⚠ Não encontrada mudança de dia. Usando todas as linhas como do dia atual.');
-  return lines;
+  return { dateOnly, key: `${dateOnly} ${horaStr}:${minutoStr}` };
 }
 
-// Extrai hora do objeto (compatível com múltiplos formatos)
-function extractHour(row) {
-  // PRIORIDADE 1: Campo direto de hora (hora: 17, minuto: 34)
-  if (row.hora !== undefined && row.hora !== null) {
-    const h = parseInt(row.hora, 10);
-    const m = row.minuto ? parseInt(row.minuto, 10) : 0;
-    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+// Acha o jogo mais recente comparando data+hora reais (não a posição no
+// array), usa a data dele como "hoje", e devolve só os jogos desse dia,
+// ordenados do mais recente pro mais antigo.
+function getTodayRowsSorted(rows) {
+  const withTs = rows
+    .map(row => ({ row, ts: getRowTimestamp(row) }))
+    .filter(r => r.ts);
+
+  if (withTs.length === 0) {
+    console.log('⚠ Nenhuma linha com data/hora identificável. Usando todas as linhas.');
+    return rows;
   }
 
-  // PRIORIDADE 2: Campo time direto
-  if (row.time && typeof row.time === 'string') {
-    return row.time.slice(0, 5);
-  }
+  const mostRecent = withTs.reduce((a, b) => (b.ts.key > a.ts.key ? b : a));
+  const today = mostRecent.ts.dateOnly;
 
-  // PRIORIDADE 3: Format ISO (format fixo, menos confiável)
-  if (row.data && typeof row.data === 'string' && row.data.includes('T')) {
-    const timeStr = row.data.split('T')[1]; // pega "03:00:00.000Z"
-    if (timeStr) return timeStr.slice(0, 5); // retorna "03:00"
-  }
+  console.log(`✓ Jogo mais recente identificado: ${mostRecent.ts.key} — usando ${today} como o dia de hoje.`);
 
-  // PRIORIDADE 4: start_time similar
-  if (row.start_time && typeof row.start_time === 'string' && row.start_time.includes('T')) {
-    const timeStr = row.start_time.split('T')[1];
-    if (timeStr) return timeStr.slice(0, 5);
-  }
-
-  return '';
+  return withTs
+    .filter(r => r.ts.dateOnly === today)
+    .sort((a, b) => (a.ts.key < b.ts.key ? 1 : a.ts.key > b.ts.key ? -1 : 0))
+    .map(r => r.row);
 }
 
 function incrementGamesOnly(teams, name) {
@@ -1170,7 +1160,7 @@ async function loadData() {
 
     processResults(resArr);
     renderTable();
-    sortTable(3); // Ordena por pontos (coluna 3), igual BetAxis
+    sortTable(3); 
     renderNextMatches(proxArr);
 
     const now = new Date();
@@ -1254,27 +1244,19 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
 // ══════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
   const saved = loadPrefs();
-  populateLigas(saved.liga);
-  populateLinesSelect(saved.lines);
+  populateLigas(saved);
 
   const casaSel = document.getElementById('casa-select');
   const ligaSel = document.getElementById('league-select');
-  const linesSel = document.getElementById('lines-select');
   const filterSel = document.getElementById('filter-select');
 
   casaSel.addEventListener('change', () => {
     populateLigas(null);
-    populateLinesSelect(null);
     savePrefs();
     loadData();
   });
 
   ligaSel.addEventListener('change', () => {
-    savePrefs();
-    loadData();
-  });
-
-  linesSel.addEventListener('change', () => {
     savePrefs();
     loadData();
   });
@@ -1286,7 +1268,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   loadData();
 
-  // Auto-refresh a cada 3 minutos (180000ms), igual BetAxis
+
   setInterval(() => {
     loadData();
   }, 180000);
