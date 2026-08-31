@@ -489,15 +489,13 @@
           </div>
 
           <div class="filter-group">
+            <label>Casa</label>
+            <select id="casaSelect" onchange="onCasaChange()"></select>
+          </div>
+
+          <div class="filter-group">
             <label>Liga</label>
-            <select id="leagueSelect">
-              <option value="">Selecione uma liga...</option>
-              <option value="all">Todas as Ligas</option>
-              <option value="Copa">Copa</option>
-              <option value="Euro">Euro</option>
-              <option value="Super">Super</option>
-              <option value="Premier">Premier</option>
-            </select>
+            <select id="leagueSelect"></select>
           </div>
         </div>
 
@@ -528,6 +526,79 @@
     <script>
       let cachedData = {};
       let allProjectionsData = {};
+
+      // ────────────────────────────────────────────────────────
+      // CONFIG CASAS / LIGAS
+      // ────────────────────────────────────────────────────────
+      const BASE = 'https://betstat.site';
+
+      const CASAS = {
+        betano: {
+          label: 'Betano',
+          ligas: [
+            { label: 'Taça Glória Eterna',  res: encodeURIComponent('Taça Glória Eterna') },
+            { label: 'Copa América',        res: encodeURIComponent('Copa América') },
+            { label: 'Euro',                res: encodeURIComponent('Euro') },
+            { label: 'Campeonato Italiano', res: encodeURIComponent('Campeonato Italiano') },
+            { label: 'Copa das Estrelas',   res: encodeURIComponent('Copa das Estrelas') },
+            { label: 'Brasileirão Betano',  res: encodeURIComponent('Brasileirão Betano') },
+            { label: 'Mundial',             res: encodeURIComponent('Mundial') },
+          ],
+        },
+        bet365: {
+          label: 'Bet365',
+          ligas: [
+            { label: 'Copa',    res: 'bet365/Copa' },
+            { label: 'Euro',    res: 'bet365/Euro' },
+            { label: 'Super',   res: 'bet365/Super' },
+            { label: 'Premier', res: 'bet365/Premier' },
+          ],
+        },
+        betsson: {
+          label: 'Betsson',
+          ligas: [
+            { label: 'Espanha',    res: 'betsson/Espanha' },
+            { label: 'Inglaterra', res: 'betsson/Inglaterra' },
+            { label: 'Brasil',     res: 'betsson/Brasil' },
+          ],
+        },
+        kiron: {
+          label: 'Kiron',
+          ligas: [
+            { label: 'Liga Inglaterra', res: 'kiron/England' },
+            { label: 'Liga Itália',     res: 'kiron/Italy' },
+            { label: 'Liga Espanha',    res: 'kiron/Spain' },
+          ],
+        },
+        estrela: {
+          label: 'EstrelaBet',
+          ligas: [
+            { label: 'Copa do Mundo',      res: 'estrela/Copa%20do%20Mundo' },
+            { label: 'Ligas dos Campeões', res: 'estrela/Ligas%20dos%20Campe%C3%B5es' },
+            { label: 'América Latina',     res: 'estrela/Am%C3%A9rica%20Latina' },
+          ],
+        },
+      };
+
+      function initCasaSelect() {
+        const sel = document.getElementById('casaSelect');
+        sel.innerHTML = Object.entries(CASAS).map(([key, casa]) =>
+          `<option value="${key}">${casa.label}</option>`
+        ).join('');
+      }
+
+      function populateLeagueSelect() {
+        const casa = document.getElementById('casaSelect').value;
+        const sel = document.getElementById('leagueSelect');
+        sel.innerHTML =
+          '<option value="">Selecione uma liga...</option>' +
+          '<option value="all">Todas as Ligas</option>' +
+          CASAS[casa].ligas.map(l => `<option value="${l.res}">${l.label}</option>`).join('');
+      }
+
+      function onCasaChange() {
+        populateLeagueSelect();
+      }
 
       // ────────────────────────────────────────────────────────
       // UTILIDADES
@@ -748,17 +819,17 @@
         document.getElementById("loading").style.display = show ? "block" : "none";
       }
 
-      function fetchApiData(league) {
+      function fetchApiData(res, label) {
         showLoading(true);
-        const apiUrl = `https://betstat.site/resultados/bet365/${league}`;
+        const apiUrl = `${BASE}/resultados/${res}`;
         fetch(apiUrl)
           .then(response => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return response.json();
           })
           .then(data => {
-            cachedData[league] = data;
-            processApiData(data, league);
+            cachedData[res] = data;
+            processApiData(data, label);
             showLoading(false);
           })
           .catch(error => {
@@ -768,16 +839,16 @@
           });
       }
 
-      function fetchAllLeagues() {
-        const leagues = ['Copa', 'Euro', 'Super', 'Premier'];
+      function fetchAllLeagues(casa) {
+        const ligas = CASAS[casa].ligas;
         showLoading(true);
-        Promise.all(leagues.map(league => 
-          cachedData[league] ? Promise.resolve(cachedData[league]) : 
-          fetch(`https://betstat.site/resultados/bet365/${league}`).then(res => res.json())
+        Promise.all(ligas.map(liga =>
+          cachedData[liga.res] ? Promise.resolve(cachedData[liga.res]) :
+          fetch(`${BASE}/resultados/${liga.res}`).then(res => res.json())
         ))
         .then(results => {
-          leagues.forEach((league, index) => cachedData[league] = results[index]);
-          processAllLeagues(leagues);
+          ligas.forEach((liga, index) => cachedData[liga.res] = results[index]);
+          processAllLeagues(ligas);
           showLoading(false);
         })
         .catch(error => {
@@ -797,36 +868,42 @@
         displayProjections(projections);
       }
 
-      function processAllLeagues(leagues) {
+      function processAllLeagues(ligas) {
         const market = document.getElementById("marketSelect").value;
         const range = parseInt(document.getElementById("rangeSelect").value, 10);
         const selectedHour = document.getElementById("hourSelect").value;
         const gameLimit = document.getElementById("gameLimitSelect").value;
         let allProjections = {};
 
-        leagues.forEach(league => {
-          const limitedData = gameLimit === "todos" ? cachedData[league] : cachedData[league].slice(-parseInt(gameLimit, 10));
-          const projections = analyzeProjections(limitedData, market, range, league, selectedHour);
+        ligas.forEach(liga => {
+          const rawData = cachedData[liga.res];
+          const limitedData = gameLimit === "todos" ? rawData : rawData.slice(-parseInt(gameLimit, 10));
+          const projections = analyzeProjections(limitedData, market, range, liga.label, selectedHour);
           Object.keys(projections).forEach(hour => {
             if (!allProjections[hour]) allProjections[hour] = {};
-            allProjections[hour][league] = projections[hour][league];
+            allProjections[hour][liga.label] = projections[hour][liga.label];
           });
         });
         displayProjections(allProjections);
       }
 
       function generateList() {
+        const casa = document.getElementById("casaSelect").value;
         const league = document.getElementById("leagueSelect").value;
-        if (!league) {
-          alert("Selecione uma liga!");
+        if (!casa || !league) {
+          alert("Selecione uma casa e uma liga!");
           return;
         }
         if (league === "all") {
-          fetchAllLeagues();
-        } else if (cachedData[league]) {
-          processApiData(cachedData[league], league);
+          fetchAllLeagues(casa);
         } else {
-          fetchApiData(league);
+          const liga = CASAS[casa].ligas.find(l => l.res === league);
+          const label = liga ? liga.label : league;
+          if (cachedData[league]) {
+            processApiData(cachedData[league], label);
+          } else {
+            fetchApiData(league, label);
+          }
         }
       }
 
@@ -1037,6 +1114,8 @@
         if (typeof loadHeaderContent === 'function') {
           loadHeaderContent(headerEl);
         }
+        initCasaSelect();
+        populateLeagueSelect();
       });
     </script>
 
