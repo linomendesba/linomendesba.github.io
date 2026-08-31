@@ -499,7 +499,7 @@
       function onMercadoChange() {
         selectedMarket = document.getElementById('mercado-select').value;
         salvarSelecao();
-        loadPanel();
+        loadPanel({ forceRefetch: false });
       }
 
       function restaurarSelecao() {
@@ -565,6 +565,19 @@
           console.error(`Falha ao carregar ${endpoint}:`, err);
           return [];
         }
+      }
+
+      // Cache dos jogos por liga (chave = "res" da liga). Trocar de mercado
+      // reaproveita os dados ja buscados (sem novo fetch, sem piscar tela);
+      // o refresh periodico busca de novo, mas so troca o conteudo da
+      // tabela quando os dados chegam, sem apagar o que ja esta na tela.
+      const dataCache = {};
+
+      async function getLeagueDataCached(res, forceRefetch) {
+        if (!forceRefetch && dataCache[res]) return dataCache[res];
+        const data = await getLeagueData(`${BASE}/resultados/${res}`);
+        dataCache[res] = data;
+        return data;
       }
 
       function evaluateMarket(match, market) {
@@ -675,37 +688,46 @@
       }
 
       // Liga única selecionada.
-      async function renderLigaUnica(casaKey, liga) {
+      // structureChanged: só reconstroi o esqueleto do painel quando o
+      // usuario troca de casa/liga. No refresh automatico, so o conteudo
+      // da tabela e trocado, sem apagar a tela (evita o "piscar").
+      async function renderLigaUnica(casaKey, liga, structureChanged, forceRefetch) {
         const panels = document.getElementById('mainPanels');
-        panels.innerHTML = `
-          <div class="panel-header-bar">${CASAS[casaKey].label} — ${liga.label}</div>
-          <div class="section-content" id="statsBox-${liga.res}">Carregando jogos...</div>`;
+        const boxId = `statsBox-${liga.res}`;
 
-        const endpoint = `${BASE}/resultados/${liga.res}`;
-        const data = await getLeagueData(endpoint);
+        if (structureChanged) {
+          panels.innerHTML = `
+            <div class="panel-header-bar">${CASAS[casaKey].label} — ${liga.label}</div>
+            <div class="section-content" id="${boxId}">Carregando jogos...</div>`;
+        }
 
-        document.getElementById(`statsBox-${liga.res}`).innerHTML = buildStatsTableHtml(data, casaKey);
+        const data = await getLeagueDataCached(liga.res, forceRefetch || structureChanged);
+
+        const box = document.getElementById(boxId);
+        if (box) box.innerHTML = buildStatsTableHtml(data, casaKey);
 
         document.getElementById('mainTrends').style.display = '';
         document.getElementById('mainTrends').querySelector('.trend-content').innerHTML = buildTrendHtml(data);
       }
 
       // Todas as ligas da casa selecionada, uma abaixo da outra.
-      async function renderTodasLigas(casaKey) {
+      async function renderTodasLigas(casaKey, structureChanged, forceRefetch) {
         const ligas = CASAS[casaKey].ligas;
         const panels = document.getElementById('mainPanels');
-        panels.innerHTML = ligas.map(l => `
-          <div class="liga-panel">
-            <div class="panel-header-bar">${CASAS[casaKey].label} — ${l.label}</div>
-            <div class="section-content" id="statsBox-${l.res}">Carregando jogos...</div>
-          </div>`).join('');
+
+        if (structureChanged) {
+          panels.innerHTML = ligas.map(l => `
+            <div class="liga-panel">
+              <div class="panel-header-bar">${CASAS[casaKey].label} — ${l.label}</div>
+              <div class="section-content" id="statsBox-${l.res}">Carregando jogos...</div>
+            </div>`).join('');
+        }
 
         // trends nao fazem sentido para varias ligas ao mesmo tempo
         document.getElementById('mainTrends').style.display = 'none';
 
         await Promise.all(ligas.map(async l => {
-          const endpoint = `${BASE}/resultados/${l.res}`;
-          const data = await getLeagueData(endpoint);
+          const data = await getLeagueDataCached(l.res, forceRefetch || structureChanged);
           const box = document.getElementById(`statsBox-${l.res}`);
           if (box) box.innerHTML = buildStatsTableHtml(data, casaKey);
         }));
@@ -744,7 +766,10 @@
       /* ─────────────────────────────────────
          CARREGAMENTO DO PAINEL (casa + liga + mercado atuais)
       ───────────────────────────────────── */
-      async function loadPanel() {
+      let currentSkeletonKey = null;
+
+      async function loadPanel(options) {
+        const forceRefetch = options && options.forceRefetch === false ? false : true;
         const casaKey = document.getElementById('casa-select').value;
         const ligaVal = document.getElementById('liga-select').value;
         currentCasaKey = casaKey;
@@ -753,14 +778,18 @@
         document.getElementById('rate-note').innerHTML =
           `Ritmo desta casa: <span>${gph} jogos/hora</span> — as colunas da tabela abaixo mostram a quantidade de jogos equivalente a cada janela de horas.`;
 
+        const skeletonKey = `${casaKey}::${ligaVal}`;
+        const structureChanged = skeletonKey !== currentSkeletonKey;
+        currentSkeletonKey = skeletonKey;
+
         if (ligaVal === TODAS_LIGAS) {
-          await renderTodasLigas(casaKey);
+          await renderTodasLigas(casaKey, structureChanged, forceRefetch);
           return;
         }
 
         const liga = CASAS[casaKey].ligas.find(l => l.res === ligaVal);
         if (!liga) return;
-        await renderLigaUnica(casaKey, liga);
+        await renderLigaUnica(casaKey, liga, structureChanged, forceRefetch);
       }
 
       /* ─────────────────────────────────────
@@ -771,7 +800,7 @@
         restaurarSelecao();
         populateMercadoSelect();
         loadPanel();
-        setInterval(loadPanel, 30000);
+        setInterval(() => loadPanel({ forceRefetch: true }), 30000);
       });
     </script>
 
