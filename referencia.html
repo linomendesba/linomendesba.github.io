@@ -1118,6 +1118,10 @@ function setStatus(message, mode) {
 // ══════════════════════════════════════════════
 let currentController = null; // permite cancelar uma requisição anterior ainda pendente
 let loadSeq = 0; // ignora respostas antigas que chegam fora de ordem
+let retryTimeoutId = null; // agenda a nova tentativa após timeout/erro
+let retryAttempt = 0; // quantas tentativas seguidas já falharam
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 4000;
 
 async function fetchJSON(url, signal) {
   const res = await fetch(url, { cache: 'no-store', signal });
@@ -1132,6 +1136,13 @@ async function loadData() {
   if (!routes) {
     setStatus('Selecione uma liga válida.', 'error');
     return;
+  }
+
+  // Cancela qualquer tentativa automática ainda agendada — essa chamada
+  // (manual ou automática) já assume o lugar dela.
+  if (retryTimeoutId) {
+    clearTimeout(retryTimeoutId);
+    retryTimeoutId = null;
   }
 
   // Cancela qualquer requisição anterior ainda em andamento, para não
@@ -1166,20 +1177,38 @@ async function loadData() {
     const now = new Date();
     const hora = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setStatus('Atualizado às ' + hora, '');
+    retryAttempt = 0; // sucesso: zera o contador de tentativas
   } catch (e) {
     if (e.name === 'AbortError') {
       // Cancelado porque uma nova seleção/chamada assumiu, ou por timeout.
       if (seq === loadSeq) {
         console.error('Tempo de resposta esgotado ao carregar dados.');
-        setStatus('Tempo esgotado. Tentando novamente...', 'error');
+        scheduleRetry('Tempo esgotado.');
       }
       return;
     }
     if (seq !== loadSeq) return;
     console.error('Erro ao carregar dados:', e);
-    setStatus('Erro ao carregar dados. Tentando novamente...', 'error');
+    scheduleRetry('Erro ao carregar dados.');
   } finally {
     clearTimeout(timeoutId);
+  }
+}
+
+// Reagenda uma nova tentativa em poucos segundos (até um limite), pra
+// mensagem "Tentando novamente..." realmente corresponder ao que
+// acontece. Depois de esgotar as tentativas, deixa pra próxima
+// atualização automática (a cada 3 minutos) tentar de novo.
+function scheduleRetry(reason) {
+  if (retryTimeoutId) clearTimeout(retryTimeoutId);
+
+  if (retryAttempt < MAX_RETRY_ATTEMPTS) {
+    retryAttempt++;
+    setStatus(`${reason} Tentando novamente (${retryAttempt}/${MAX_RETRY_ATTEMPTS})...`, 'error');
+    retryTimeoutId = setTimeout(loadData, RETRY_DELAY_MS);
+  } else {
+    setStatus(`${reason} Vai tentar de novo na próxima atualização automática.`, 'error');
+    retryAttempt = 0; // libera uma nova rodada de tentativas da próxima vez
   }
 }
 
@@ -1268,10 +1297,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   loadData();
 
-
+  // Auto-refresh a cada 1 minuto (60000ms)
   setInterval(() => {
     loadData();
-  }, 180000);
+  }, 60000);
 });
     </script>
     <script>
