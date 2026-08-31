@@ -81,16 +81,10 @@
       .page-header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-end;
         gap: 12px;
         margin-bottom: 22px;
         flex-wrap: wrap;
-      }
-
-      .page-header h1 {
-        font-size: 1.3rem;
-        font-weight: 600;
-        letter-spacing: 0.01em;
       }
 
       .refresh-status {
@@ -300,7 +294,6 @@
     <div class="page-wrapper">
 
       <div class="page-header">
-        <h1></h1>
         <div class="refresh-status"><span class="refresh-dot"></span>Atualizando...</div>
       </div>
 
@@ -411,28 +404,28 @@
       }
 
       const allMarkets = [
-        { label: 'Ambas Sim', target: 47.08, default: true },
-        { label: 'Ambas Não', target: 52.92, default: true },
-        { label: 'Over 0.5', target: 90.00 },
-        { label: 'Over 1.5', target: 68.46 },
-        { label: 'Over 2.5', target: 42.16 },
-        { label: 'Over 3.5', target: 21.33 },
-        { label: 'Under 0.5', target: 10.00 },
-        { label: 'Under 1.5', target: 31.54 },
-        { label: 'Under 2.5', target: 57.84 },
-        { label: 'Under 3.5', target: 78.67 },
-        { label: '0 Gols', target: 10.00 },
-        { label: '1 Gol', target: 20.00 },
-        { label: '2 Gols', target: 24.00 },
-        { label: '3 Gols', target: 20.00 },
-        { label: '4 Gols', target: 15.00 },
-        { label: '5 Gols', target: 10.00 },
-        { label: 'Casa Vence FT', target: 45.00 },
-        { label: 'Fora Vence FT', target: 35.00 },
-        { label: 'Empate FT', target: 20.00 },
-        { label: 'Casa Vence HT', target: 35.00 },
-        { label: 'Fora Vence HT', target: 25.00 },
-        { label: 'Empate HT', target: 40.00 },
+        { label: 'Ambas Sim' },
+        { label: 'Ambas Não' },
+        { label: 'Over 0.5' },
+        { label: 'Over 1.5' },
+        { label: 'Over 2.5' },
+        { label: 'Over 3.5' },
+        { label: 'Under 0.5' },
+        { label: 'Under 1.5' },
+        { label: 'Under 2.5' },
+        { label: 'Under 3.5' },
+        { label: '0 Gols' },
+        { label: '1 Gol' },
+        { label: '2 Gols' },
+        { label: '3 Gols' },
+        { label: '4 Gols' },
+        { label: '5 Gols' },
+        { label: 'Casa Vence FT' },
+        { label: 'Fora Vence FT' },
+        { label: 'Empate FT' },
+        { label: 'Casa Vence HT' },
+        { label: 'Fora Vence HT' },
+        { label: 'Empate HT' },
       ];
 
       const TODAS_LIGAS = '__ALL__';
@@ -549,9 +542,9 @@
         };
       }
 
-      async function getLeagueData(endpoint) {
+      async function getLeagueData(endpoint, signal) {
         try {
-          const res = await fetch(endpoint);
+          const res = await fetch(endpoint, { signal });
           if (!res.ok) throw new Error(`Erro ${res.status}`);
           const data = await res.json();
           return data
@@ -562,6 +555,10 @@
               return b.minuto - a.minuto;
             });
         } catch (err) {
+          // Requisição cancelada (usuario trocou de casa/liga antes dela
+          // terminar) - repassa pra quem chamou decidir o que fazer,
+          // sem tratar como erro real.
+          if (err.name === 'AbortError') throw err;
           console.error(`Falha ao carregar ${endpoint}:`, err);
           return [];
         }
@@ -573,9 +570,9 @@
       // tabela quando os dados chegam, sem apagar o que ja esta na tela.
       const dataCache = {};
 
-      async function getLeagueDataCached(res, forceRefetch) {
+      async function getLeagueDataCached(res, forceRefetch, signal) {
         if (!forceRefetch && dataCache[res]) return dataCache[res];
-        const data = await getLeagueData(`${BASE}/resultados/${res}`);
+        const data = await getLeagueData(`${BASE}/resultados/${res}`, signal);
         dataCache[res] = data;
         return data;
       }
@@ -691,7 +688,7 @@
       // structureChanged: só reconstroi o esqueleto do painel quando o
       // usuario troca de casa/liga. No refresh automatico, so o conteudo
       // da tabela e trocado, sem apagar a tela (evita o "piscar").
-      async function renderLigaUnica(casaKey, liga, structureChanged, forceRefetch) {
+      async function renderLigaUnica(casaKey, liga, structureChanged, forceRefetch, signal) {
         const panels = document.getElementById('mainPanels');
         const boxId = `statsBox-${liga.res}`;
 
@@ -701,7 +698,14 @@
             <div class="section-content" id="${boxId}">Carregando jogos...</div>`;
         }
 
-        const data = await getLeagueDataCached(liga.res, forceRefetch || structureChanged);
+        let data;
+        try {
+          data = await getLeagueDataCached(liga.res, forceRefetch || structureChanged, signal);
+        } catch (err) {
+          if (err.name === 'AbortError') return; // uma troca mais recente ja cancelou esta busca
+          throw err;
+        }
+        if (signal.aborted) return;
 
         const box = document.getElementById(boxId);
         if (box) box.innerHTML = buildStatsTableHtml(data, casaKey);
@@ -711,7 +715,7 @@
       }
 
       // Todas as ligas da casa selecionada, uma abaixo da outra.
-      async function renderTodasLigas(casaKey, structureChanged, forceRefetch) {
+      async function renderTodasLigas(casaKey, structureChanged, forceRefetch, signal) {
         const ligas = CASAS[casaKey].ligas;
         const panels = document.getElementById('mainPanels');
 
@@ -727,7 +731,14 @@
         document.getElementById('mainTrends').style.display = 'none';
 
         await Promise.all(ligas.map(async l => {
-          const data = await getLeagueDataCached(l.res, forceRefetch || structureChanged);
+          let data;
+          try {
+            data = await getLeagueDataCached(l.res, forceRefetch || structureChanged, signal);
+          } catch (err) {
+            if (err.name === 'AbortError') return; // cancelada por uma troca mais recente
+            throw err;
+          }
+          if (signal.aborted) return;
           const box = document.getElementById(`statsBox-${l.res}`);
           if (box) box.innerHTML = buildStatsTableHtml(data, casaKey);
         }));
@@ -768,8 +779,20 @@
       ───────────────────────────────────── */
       let currentSkeletonKey = null;
 
+      // Cancela a busca anterior sempre que uma nova e disparada, pra evitar
+      // deixar requisicoes obsoletas rodando em segundo plano quando o
+      // usuario troca de casa/liga rapidamente (ex: clica em varias casas
+      // seguidas antes da anterior terminar de carregar).
+      let activeController = null;
+
       async function loadPanel(options) {
         const forceRefetch = options && options.forceRefetch === false ? false : true;
+
+        if (activeController) activeController.abort();
+        const controller = new AbortController();
+        activeController = controller;
+        const signal = controller.signal;
+
         const casaKey = document.getElementById('casa-select').value;
         const ligaVal = document.getElementById('liga-select').value;
         currentCasaKey = casaKey;
@@ -783,13 +806,13 @@
         currentSkeletonKey = skeletonKey;
 
         if (ligaVal === TODAS_LIGAS) {
-          await renderTodasLigas(casaKey, structureChanged, forceRefetch);
+          await renderTodasLigas(casaKey, structureChanged, forceRefetch, signal);
           return;
         }
 
         const liga = CASAS[casaKey].ligas.find(l => l.res === ligaVal);
         if (!liga) return;
-        await renderLigaUnica(casaKey, liga, structureChanged, forceRefetch);
+        await renderLigaUnica(casaKey, liga, structureChanged, forceRefetch, signal);
       }
 
       /* ─────────────────────────────────────
