@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -6,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
-  <title>BetStat</title>
+  <title>BetStat | Morpheus</title>
   <meta name="description" content="BetStat Macro — análise de mercados por hora em futebol virtual." />
   <meta name="robots" content="index, follow" />
   <meta name="author" content="BetStat" />
@@ -173,11 +174,61 @@ body { font-family:'Roboto',sans-serif; background:var(--bg); color:var(--text);
 .error-box { background:rgba(224,82,82,0.08); border:1px solid rgba(224,82,82,0.3); border-radius:8px; padding:0.825rem 1rem; color:var(--red); font-size:0.81rem; }
 .loading-box { display:flex; align-items:center; gap:0.45rem; font-size:0.84rem; color:var(--primary); padding:0.375rem 0; }
 
+/* ESTADOS DE FOCO (ACESSIBILIDADE / NAVEGAÇÃO POR TECLADO) */
+.btn:focus-visible,
+.action-btn:focus-visible,
+.liga-tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* INDICADOR DE SELEÇÃO (reforça o estado ativo além da cor) */
+.btn.active::after {
+  content: '✓';
+  margin-left: 0.4rem;
+  font-size: 0.72rem;
+}
+
+/* SUBAGRUPAMENTO DO MERCADO DA ANÁLISE */
+.market-groups { display:flex; flex-direction:column; gap:0.75rem; }
+.market-subgroup { display:flex; flex-direction:column; gap:0.4rem; }
+.subgroup-label { font-size:0.62rem; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:var(--text-dim); opacity:0.75; }
+
+/* DIVISOR SUTIL ENTRE OS BLOCOS DE FILTRO (leitura em "etapas") */
+.config-grid .full { padding-top:1rem; margin-top:0.15rem; border-top:1px solid rgba(255,255,255,0.05); }
+.config-grid .full:first-of-type { border-top:none; padding-top:0; margin-top:0; }
+
+/* TRANSIÇÃO SUAVE AO EXIBIR O CAMPO LIGA */
+#liga-section.hidden { display:none; }
+#liga-section { animation: fadeSlide 0.22s ease; }
+@keyframes fadeSlide { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+
+/* RESUMO DA CONFIGURAÇÃO SELECIONADA */
+.config-summary { display:none; flex-wrap:wrap; align-items:center; gap:0.4rem; font-size:0.78rem; color:var(--text-muted); margin-top:1rem; }
+.summary-chip { background:var(--primary-dim); color:var(--primary); border:1px solid var(--primary-border); border-radius:5px; padding:0.15rem 0.55rem; font-weight:600; }
+.summary-sep { color:var(--text-dim); }
+
+/* ESTADO VAZIO (ANTES DA PRIMEIRA ANÁLISE) */
+.empty-state { text-align:center; padding:2.5rem 1.5rem; background:var(--surface); border:1px dashed var(--border); border-radius:12px; }
+.empty-icon { font-size:1.6rem; margin-bottom:0.6rem; opacity:0.7; }
+.empty-title { font-size:0.9rem; color:var(--text); font-weight:500; }
+.empty-title strong { color:var(--primary); }
+.empty-sub { font-size:0.78rem; color:var(--text-dim); margin-top:0.3rem; }
+
+/* SKELETON DE CARREGAMENTO (PERCEPÇÃO DE PERFORMANCE) */
+.skeleton-wrap { display:flex; flex-direction:column; gap:0.55rem; margin-top:0.9rem; }
+.skeleton { height:12px; border-radius:4px; background:linear-gradient(90deg, var(--surface-2) 25%, rgba(255,255,255,0.06) 50%, var(--surface-2) 75%); background-size:200% 100%; animation:shimmer 1.3s infinite; }
+.skeleton.w-70 { width:70%; }
+.skeleton.w-50 { width:50%; }
+.skeleton.w-90 { width:90%; }
+@keyframes shimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
+
 @media (max-width:700px) {
   .container { padding:1rem; }
   .card { padding:1rem; }
   .config-grid { grid-template-columns:1fr; }
   .config-grid .full { grid-column:1; }
+  .actions { position:sticky; bottom:0; background:var(--bg); margin:0 -1rem -1rem; padding:0.75rem 1rem 1rem; border-top:1px solid var(--border); }
 }
 </style>
 
@@ -193,61 +244,78 @@ body { font-family:'Roboto',sans-serif; background:var(--bg); color:var(--text);
 
           <div>
             <div class="field-label">Casa de Aposta</div>
-            <div class="btn-grid" id="casas-group">
-              <button class="btn" data-value="betano">Betano</button>
-              <button class="btn" data-value="kiron">Kiron</button>
-              <button class="btn" data-value="estrela">Estrelabet</button>
-              <button class="btn" data-value="bet365">Bet365</button>
-              <button class="btn" data-value="betsson">Betsson</button>
+            <div class="btn-grid" id="casas-group" role="group" aria-label="Casa de aposta">
+              <button class="btn" data-value="betano" aria-pressed="false">Betano</button>
+              <button class="btn" data-value="kiron" aria-pressed="false">Kiron</button>
+              <button class="btn" data-value="estrela" aria-pressed="false">Estrelabet</button>
+              <button class="btn" data-value="bet365" aria-pressed="false">Bet365</button>
+              <button class="btn" data-value="betsson" aria-pressed="false">Betsson</button>
             </div>
           </div>
 
           <div>
             <div class="field-label">Período de Análise</div>
-            <div class="btn-grid" id="periodo-group">
-              <button class="btn" data-value="120">6h</button>
-              <button class="btn" data-value="240">12h</button>
-              <button class="btn" data-value="480">24h</button>
-              <button class="btn" data-value="960">48h</button>
-              <button class="btn" data-value="1440">72h</button>
+            <div class="btn-grid" id="periodo-group" role="group" aria-label="Período de análise">
+              <button class="btn" data-value="120" aria-pressed="false">6h</button>
+              <button class="btn" data-value="240" aria-pressed="false">12h</button>
+              <button class="btn" data-value="480" aria-pressed="false">24h</button>
+              <button class="btn" data-value="960" aria-pressed="false">48h</button>
+              <button class="btn" data-value="1440" aria-pressed="false">72h</button>
             </div>
           </div>
 
-          <div class="full" id="liga-section" style="display:none;">
+          <div class="full hidden" id="liga-section">
             <div class="field-label">Liga</div>
             <p class="multi-hint">Selecione uma ou mais ligas — ou clique em "Todas"</p>
-            <div class="btn-grid" id="ligas-group"></div>
+            <div class="btn-grid" id="ligas-group" role="group" aria-label="Liga"></div>
           </div>
 
           <div class="full">
             <div class="field-label">Mercado da Análise</div>
-            <div class="btn-grid" id="mercados-group">
-              <button class="btn" data-value="casaVence">Casa Vence</button>
-              <button class="btn" data-value="foraVence">Fora Vence</button>
-              <button class="btn" data-value="empate">Empate</button>
-              <button class="btn" data-value="ambasMarcam">Ambas Sim</button>
-              <button class="btn" data-value="ambasNaoMarcam">Ambas Não</button>
-              <button class="btn" data-value="over1.5">Over 1.5</button>
-              <button class="btn" data-value="over2.5">Over 2.5</button>
-              <button class="btn" data-value="over3.5">Over 3.5</button>
-              <button class="btn" data-value="under1.5">Under 1.5</button>
-              <button class="btn" data-value="under2.5">Under 2.5</button>
-              <button class="btn" data-value="under3.5">Under 3.5</button>
-              <button class="btn" data-value="over5">5+ Gols</button>
+            <div class="market-groups" id="mercados-group" role="group" aria-label="Mercado da análise">
+              <div class="market-subgroup">
+                <span class="subgroup-label">Resultado</span>
+                <div class="btn-grid">
+                  <button class="btn" data-value="casaVence" aria-pressed="false">Casa Vence</button>
+                  <button class="btn" data-value="foraVence" aria-pressed="false">Fora Vence</button>
+                  <button class="btn" data-value="empate" aria-pressed="false">Empate</button>
+                </div>
+              </div>
+              <div class="market-subgroup">
+                <span class="subgroup-label">Ambas Marcam</span>
+                <div class="btn-grid">
+                  <button class="btn" data-value="ambasMarcam" aria-pressed="false">Ambas Sim</button>
+                  <button class="btn" data-value="ambasNaoMarcam" aria-pressed="false">Ambas Não</button>
+                </div>
+              </div>
+              <div class="market-subgroup">
+                <span class="subgroup-label">Total de Gols</span>
+                <div class="btn-grid">
+                  <button class="btn" data-value="over1.5" aria-pressed="false">Over 1.5</button>
+                  <button class="btn" data-value="over2.5" aria-pressed="false">Over 2.5</button>
+                  <button class="btn" data-value="over3.5" aria-pressed="false">Over 3.5</button>
+                  <button class="btn" data-value="under1.5" aria-pressed="false">Under 1.5</button>
+                  <button class="btn" data-value="under2.5" aria-pressed="false">Under 2.5</button>
+                  <button class="btn" data-value="under3.5" aria-pressed="false">Under 3.5</button>
+                  <button class="btn" data-value="over5" aria-pressed="false">5+ Gols</button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div>
+          <div class="full">
             <div class="field-label">Estratégia Martingale</div>
-            <div class="btn-grid" id="martingale-group">
-              <button class="btn" data-value="0">Nenhum</button>
-              <button class="btn" data-value="1">1 Cobertura</button>
-              <button class="btn" data-value="2">2 Coberturas</button>
-              <button class="btn" data-value="3">3 Coberturas</button>
+            <div class="btn-grid" id="martingale-group" role="group" aria-label="Estratégia martingale">
+              <button class="btn" data-value="0" aria-pressed="false">Nenhum</button>
+              <button class="btn" data-value="1" aria-pressed="false">1 Cobertura</button>
+              <button class="btn" data-value="2" aria-pressed="false">2 Coberturas</button>
+              <button class="btn" data-value="3" aria-pressed="false">3 Coberturas</button>
             </div>
           </div>
 
         </div>
+
+        <div class="config-summary" id="config-summary"></div>
 
         <hr class="divider">
 
@@ -258,7 +326,13 @@ body { font-family:'Roboto',sans-serif; background:var(--bg); color:var(--text);
       </div>
 
       <!-- RESULTADO -->
-      <div id="result-container" style="display:none;"></div>
+      <div id="result-container">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">📊</div>
+          <div class="empty-title">Configure os filtros acima e clique em <strong>Gerar Análise</strong></div>
+          <div class="empty-sub">O resultado da análise vai aparecer aqui.</div>
+        </div>
+      </div>
 
     </div>
 
@@ -300,23 +374,45 @@ function restaurarConfig() {
   if (!cfg) return;
   if (cfg.casa) {
     const b = document.querySelector(`#casas-group .btn[data-value="${cfg.casa}"]`);
-    if (b) { b.classList.add('active'); mostrarLigas(cfg.casa); }
+    if (b) { b.classList.add('active'); b.setAttribute('aria-pressed','true'); mostrarLigas(cfg.casa); }
   }
   ['mercado','martingale','periodo'].forEach(k => {
     const id = k==='mercado'?'mercados-group':k==='martingale'?'martingale-group':'periodo-group';
-    if (cfg[k]) { const b = document.querySelector(`#${id} .btn[data-value="${cfg[k]}"]`); if (b) b.classList.add('active'); }
+    if (cfg[k]) { const b = document.querySelector(`#${id} .btn[data-value="${cfg[k]}"]`); if (b) { b.classList.add('active'); b.setAttribute('aria-pressed','true'); } }
   });
   if (cfg.ligas && cfg.ligas.length > 0) {
     setTimeout(() => {
-      cfg.ligas.forEach(v => { const b = document.querySelector(`#ligas-group .btn[data-value="${v}"]`); if (b) b.classList.add('active'); });
+      cfg.ligas.forEach(v => { const b = document.querySelector(`#ligas-group .btn[data-value="${v}"]`); if (b) { b.classList.add('active'); b.setAttribute('aria-pressed','true'); } });
       const allBtns = document.querySelectorAll('#ligas-group .btn:not([data-value="__todas__"])');
       const actBtns = document.querySelectorAll('#ligas-group .btn.active:not([data-value="__todas__"])');
       if (allBtns.length > 0 && allBtns.length === actBtns.length) {
         const tb = document.querySelector('#ligas-group .btn[data-value="__todas__"]');
-        if (tb) { document.querySelectorAll('#ligas-group .btn.active').forEach(b=>b.classList.remove('active')); tb.classList.add('active'); }
+        if (tb) { document.querySelectorAll('#ligas-group .btn.active').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false');}); tb.classList.add('active'); tb.setAttribute('aria-pressed','true'); }
       }
+      atualizarResumo();
     }, 50);
   }
+  atualizarResumo();
+}
+
+/* === RESUMO DA CONFIGURAÇÃO === */
+function atualizarResumo() {
+  const el = document.getElementById('config-summary');
+  if (!el) return;
+  const casa = getSelectedText('casas-group');
+  const mercado = getSelectedText('mercados-group');
+  const periodo = getSelectedText('periodo-group');
+  const martingale = getSelectedText('martingale-group');
+  const ligas = getSelectedLigas();
+  const parts = [];
+  if (casa) parts.push(casa);
+  if (ligas && ligas.length > 0) parts.push(ligas.length > 3 ? `${ligas.length} ligas` : ligas.join(', '));
+  if (mercado) parts.push(mercado);
+  if (periodo) parts.push(periodo);
+  if (martingale) parts.push(martingale);
+  if (parts.length === 0) { el.style.display = 'none'; el.innerHTML=''; return; }
+  el.style.display = 'flex';
+  el.innerHTML = parts.map(p => `<span class="summary-chip">${p}</span>`).join('<span class="summary-sep">·</span>');
 }
 
 /* === BOTÕES SINGLE-SELECT === */
@@ -325,10 +421,12 @@ function restaurarConfig() {
   if (!g) return;
   g.addEventListener('click', e => {
     if (!e.target.classList.contains('btn')) return;
-    g.querySelectorAll('.btn.active').forEach(b=>b.classList.remove('active'));
+    g.querySelectorAll('.btn.active').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false');});
     e.target.classList.add('active');
+    e.target.setAttribute('aria-pressed','true');
     if (id==='casas-group') mostrarLigas(e.target.dataset.value);
     salvarConfig();
+    atualizarResumo();
   });
 });
 
@@ -338,32 +436,35 @@ document.getElementById('ligas-group').addEventListener('click', e => {
   const btn = e.target;
   if (btn.dataset.value==='__todas__') {
     const isActive = btn.classList.contains('active');
-    document.querySelectorAll('#ligas-group .btn').forEach(b=>b.classList.remove('active'));
-    if (!isActive) btn.classList.add('active');
+    document.querySelectorAll('#ligas-group .btn').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false');});
+    if (!isActive) { btn.classList.add('active'); btn.setAttribute('aria-pressed','true'); }
   } else {
     const tb = document.querySelector('#ligas-group .btn[data-value="__todas__"]');
-    if (tb) tb.classList.remove('active');
+    if (tb) { tb.classList.remove('active'); tb.setAttribute('aria-pressed','false'); }
     btn.classList.toggle('active');
+    btn.setAttribute('aria-pressed', btn.classList.contains('active') ? 'true' : 'false');
   }
   salvarConfig();
+  atualizarResumo();
 });
 
 function mostrarLigas(casa) {
   const section = document.getElementById('liga-section');
   const group   = document.getElementById('ligas-group');
-  if (!casasConfig[casa]) { section.style.display='none'; return; }
+  if (!casasConfig[casa]) { section.classList.add('hidden'); return; }
   group.innerHTML = '';
   const all = document.createElement('button');
-  all.className='btn'; all.dataset.value='__todas__'; all.textContent='Todas';
+  all.className='btn'; all.dataset.value='__todas__'; all.textContent='Todas'; all.setAttribute('aria-pressed','false');
   group.appendChild(all);
   casasConfig[casa].ligas.forEach(item => {
     const btn = document.createElement('button');
     btn.className = 'btn';
+    btn.setAttribute('aria-pressed','false');
     if (typeof item==='object') { btn.dataset.value=item.value; btn.textContent=item.name; }
     else { btn.dataset.value=item; btn.textContent=item; }
     group.appendChild(btn);
   });
-  section.style.display = 'block';
+  section.classList.remove('hidden');
 }
 
 function getSelectedValue(groupId) { const g=document.getElementById(groupId),b=g?g.querySelector('.btn.active'):null; return b?b.dataset.value:null; }
@@ -375,12 +476,13 @@ function getSelectedLigas() {
 }
 
 function limparAnalise() {
-  document.querySelectorAll('.btn.active').forEach(b=>b.classList.remove('active'));
-  document.getElementById('result-container').style.display='none';
-  document.getElementById('liga-section').style.display='none';
+  document.querySelectorAll('.btn.active').forEach(b=>{b.classList.remove('active');b.setAttribute('aria-pressed','false');});
+  document.getElementById('result-container').innerHTML='<div class="empty-state" id="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Configure os filtros acima e clique em <strong>Gerar Análise</strong></div><div class="empty-sub">O resultado da análise vai aparecer aqui.</div></div>';
+  document.getElementById('liga-section').classList.add('hidden');
   try { localStorage.removeItem(LS_KEY); } catch(e){}
   const btn=document.getElementById('btn-gerar');
   btn.className='action-btn btn-generate'; btn.innerHTML='Gerar Análise'; btn.onclick=gerarAnalise; btn.disabled=false;
+  atualizarResumo();
 }
 
 /* === API === */
@@ -669,7 +771,7 @@ async function gerarAnalise() {
   btn.disabled=true;
   btn.innerHTML='<span class="spinner"></span> Processando...';
   rc.style.display='block';
-  rc.innerHTML=`<div class="result-card"><div class="result-header"><div class="result-dot"></div><div class="result-title-text" id="rtt">Processando…</div></div><div class="result-body"><div class="loading-box"><span class="spinner spinner-g"></span> Coletando dados de ${ligas.length} liga(s)…</div></div></div>`;
+  rc.innerHTML=`<div class="result-card"><div class="result-header"><div class="result-dot"></div><div class="result-title-text" id="rtt">Processando…</div></div><div class="result-body"><div class="loading-box"><span class="spinner spinner-g"></span> Coletando dados de ${ligas.length} liga(s)…</div><div class="skeleton-wrap"><div class="skeleton w-70"></div><div class="skeleton w-90"></div><div class="skeleton w-50"></div></div></div></div>`;
 
   function setS(msg){const el=document.getElementById('rtt');if(el)el.textContent=msg;}
 
@@ -712,7 +814,7 @@ function switchTab(idx){
 }
 
 function novaAnalise(){
-  document.getElementById('result-container').style.display='none';
+  document.getElementById('result-container').innerHTML='<div class="empty-state" id="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Configure os filtros acima e clique em <strong>Gerar Análise</strong></div><div class="empty-sub">O resultado da análise vai aparecer aqui.</div></div>';
   const btn=document.getElementById('btn-gerar');
   btn.className='action-btn btn-generate';btn.innerHTML='Gerar Análise';btn.onclick=gerarAnalise;btn.disabled=false;
 }
