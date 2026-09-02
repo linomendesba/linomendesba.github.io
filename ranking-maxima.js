@@ -520,16 +520,27 @@ const RankingMaxima = (() => {
   let top5ChartInstance = null;
   const TOP5_CHART_COLORS = ['#e6a817', '#c0c0c0', '#cd7f32', '#177b8e', '#2ecc71'];
 
+  function formatGameTime(game) {
+    // Pega a hora:minuto direto da string bruta (regex), em vez de
+    // depender do parseDate (que não trata a parte de horário em
+    // todos os formatos) — funciona tanto com ISO ("...T14:35:00")
+    // quanto com "DD/MM/AAAA HH:mm" ou variações parecidas.
+    const raw = String(game.data || game.date || game.hora || '');
+    const match = raw.match(/(\d{1,2}):(\d{2})/);
+    if (!match) return null;
+    return `${match[1].padStart(2, '0')}:${match[2]}`;
+  }
+
   function buildWalkSeries(games, market) {
     let cumulative = 0;
-    const points = [{ x: 0, y: 0 }]; // ponto inicial, antes do primeiro jogo
+    const points = [{ x: 0, y: 0, t: null }]; // ponto inicial, antes do primeiro jogo
 
     games.forEach(game => {
       const goals = getMatchGoals(game.ft || game.resultado || game.placar);
       if (!goals) return; // pula jogos sem resultado, sem quebrar a linha
 
       cumulative += marketHappened(market, goals) ? 1 : -1;
-      points.push({ x: points.length, y: cumulative });
+      points.push({ x: points.length, y: cumulative, t: formatGameTime(game) });
     });
 
     return points;
@@ -558,6 +569,7 @@ const RankingMaxima = (() => {
       pointRadius: 2,
       pointHoverRadius: 4,
       tension: 0.15,
+      hidden: idx !== 0, // por padrão só o 1º lugar vem ligado; os outros ficam na legenda pra ativar clicando
     }));
 
     if (top5ChartInstance) {
@@ -584,7 +596,11 @@ const RankingMaxima = (() => {
           },
           tooltip: {
             callbacks: {
-              title: (items) => `Jogo ${items[0].parsed.x}`,
+              title: (items) => {
+                const raw = items[0].raw;
+                const hora = raw && raw.t;
+                return hora ? `Jogo ${items[0].parsed.x} · ${hora}` : `Jogo ${items[0].parsed.x}`;
+              },
               label: (item) => `${item.dataset.label}: ${item.parsed.y > 0 ? '+' : ''}${item.parsed.y}`,
             },
           },
