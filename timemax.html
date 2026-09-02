@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+  <title>BetStat | Ranking de Máxima</title>
+  <meta name="description" content="Ranking de Máxima por Time no BetStat - analise as maiores sequências de jogos sem Over 2.5 ou Under 2.5." />
+  <meta name="keywords" content="BetStat, máxima, sequência, Over 2.5, Under 2.5, futebol virtual" />
+  <meta property="og:title" content="BetStat | Ranking de Máxima" />
+  <meta property="og:description" content="Ranking de Máxima por Time - maiores sequências sem mercado" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.betstat.site/ranking-maxima.html" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="BetStat" />
+  <script type="module" src="js/firebase-auth.js"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag("js", new Date());
+    gtag("config", "G-4WT805FFHQ");
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-primary: #111318;
+      --bg-secondary: #181c23;
+      --bg-card: #1e232d;
+      --bg-card-hover: #242a36;
+      --bg-top: #0d1c1f;
+      --border: #2a3040;
+      --border-accent: #1a4750;
+      --accent: #177b8e;
+      --accent-dim: #115c6b;
+      --accent-muted: rgba(23, 123, 142, 0.14);
+      --text-primary: #e4e8f0;
+      --text-secondary: #7a8499;
+      --text-accent: #177b8e;
+      --green: #2ecc71;
+      --red: #e74c3c;
+      --orange: #e6a817;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "DM Sans", sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    #header { position: sticky; top: 0; z-index: 100; }
+
+    .page-wrapper {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 28px 24px 60px;
+    }
+
+    .section-title {
+      font-size: 0.7rem;
+      font-family: "DM Mono", monospace;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .title-main {
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+      color: var(--text-primary);
+    }
+
+    /* ── FILTER SECTION ── */
+    .filter-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .filter-group label {
+      font-size: 0.65rem;
+      font-family: "DM Mono", monospace;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .filter-group select {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: "DM Sans", sans-serif;
+      font-size: 0.85rem;
+      padding: 9px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      min-width: 140px;
+    }
+
+    .filter-group select:hover {
+      border-color: var(--accent-dim);
+    }
+
+    .filter-group select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-muted);
+    }
+
+    /* ── LOADING STATE ── */
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── RANKING TABLE ── */
+    .ranking-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .ranking-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .ranking-table thead {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ranking-table th {
+      padding: 14px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-accent);
+      font-family: "DM Mono", monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .ranking-table th:nth-child(1) { width: 60px; }
+    .ranking-table th:nth-child(2) { flex: 1; }
+    .ranking-table th:nth-child(3) { width: 120px; text-align: center; }
+
+    .ranking-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    .ranking-table tbody tr:hover {
+      background: var(--bg-card);
+    }
+
+    .ranking-table tbody tr.top-3:hover {
+      background: var(--bg-top);
+    }
+
+    .ranking-table td {
+      padding: 14px 16px;
+      vertical-align: middle;
+    }
+
+    .pos-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-weight: 600;
+      font-family: "DM Mono", monospace;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .pos-badge.top-1 {
+      background: linear-gradient(135deg, #e6a817, #d4941d);
+      color: #000;
+    }
+
+    .pos-badge.top-2 {
+      background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+      color: #000;
+    }
+
+    .pos-badge.top-3 {
+      background: linear-gradient(135deg, #cd7f32, #b85c1a);
+      color: #fff;
+    }
+
+    .team-name {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .maxima-value {
+      font-family: "DM Mono", monospace;
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: center;
+      color: var(--accent);
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .empty-state-text {
+      font-size: 0.9rem;
+    }
+
+    /* ── CARDS (CASAS) ── */
+    .cardsligasbetano-section {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .cardsligasbetano-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .cardsligasbetano-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .cardsligasbetano-card:hover {
+      border-color: var(--accent);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+
+    .cardsligasbetano-card h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .filter-section {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .filter-group select {
+        min-width: auto;
+        width: 100%;
+      }
+
+      .ranking-table {
+        font-size: 0.75rem;
+      }
+
+      .ranking-table th,
+      .ranking-table td {
+        padding: 10px 12px;
+      }
+
+      .pos-badge {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+      }
+
+      .cardsligasbetano-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .title-main {
+        font-size: 1.4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="header"></div>
+
+  <div class="page-wrapper">
+    <h1 class="title-main">Ranking de Máxima por Time</h1>
+
+    <!-- FILTERS -->
+    <div class="filter-section">
+      <div class="filter-group">
+        <label for="casaSelect">Casa de Apostas</label>
+        <select id="casaSelect">
+          <option value="">Selecionar...</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="ligaSelect">Liga</label>
+        <select id="ligaSelect">
+          <option value="">Selecionar...</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="periodoSelect">Período</label>
+        <select id="periodoSelect">
+          <option value="24">Últimas 24h</option>
+          <option value="48">Últimas 48h</option>
+          <option value="72" selected>Últimas 72h</option>
+          <option value="168">Últimos 7 dias</option>
+          <option value="720">Últimos 30 dias</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="mercadoSelect">Mercado</label>
+        <select id="mercadoSelect">
+          <option value="over" selected>Over 2.5</option>
+          <option value="under">Under 2.5</option>
+        </select>
+      </div>
+
+      <div class="loading" id="loadingIndicator" style="display:none;margin-top:14px;">
+        <div class="spinner"></div>
+        <span>Processando...</span>
+      </div>
+    </div>
+
+    <!-- RANKING -->
+    <div class="section-title">
+      <span>Ranking</span>
+    </div>
+
+    <div class="ranking-container">
+      <table class="ranking-table" id="rankingTable">
+        <thead>
+          <tr>
+            <th>Pos.</th>
+            <th>Time</th>
+            <th>Máxima</th>
+          </tr>
+        </thead>
+        <tbody id="rankingBody">
+          <tr>
+            <td colspan="3" class="empty-state">
+              <div class="empty-state-icon">📊</div>
+              <div class="empty-state-text">Selecione uma liga para ver o ranking</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CARDS DE CASAS -->
+    <div class="cardsligasbetano-section">
+      <div class="section-title">
+        <span>Navegação Rápida</span>
+      </div>
+      <div class="cardsligasbetano-grid" id="cardsLigasContainer"></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="ligas-config.js"></script>
+  <script src="liga-data-manager.js"></script>
+  <script src="ranking-maxima.js"></script>
+  <script src="header-loader.js"></script>
+  <script src="redirecionar.js"></script>
+  <script src="app.utils.min.js"></script>
+</body>
+</html>
