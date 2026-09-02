@@ -13,7 +13,7 @@ const RankingMaxima = (() => {
   // Estados
   let currentCasa = null;
   let currentLiga = null;
-  let currentPeriodo = 1440; // quantidade de jogos a analisar (não é minuto!)
+  let currentHoras = 72; // quantidade de HORAS selecionada (não jogos)
   let currentPeriodoIndex = 5; // posição no seletor: 0=3h ... 5=72h
   let currentMercado = 'over25';
   let currentMinJogos = 0; // 0 = sem mínimo
@@ -32,102 +32,127 @@ const RankingMaxima = (() => {
   // ────────────────────────────────────────────────────────────────
   // CONFIG DO SELETOR DE PERÍODO
   // ────────────────────────────────────────────────────────────────
-  // O seletor de "horas" na verdade representa uma quantidade fixa de
-  // jogos (as ligas virtuais rodam em intervalos fixos, então cada
-  // janela de tempo corresponde a um número de jogos). A Kiron tem um
-  // ritmo de jogos diferente das demais casas, por isso usa outra
-  // tabela de valores para os mesmos rótulos.
+  // O seletor guarda a quantidade de HORAS mesmo (3/6/12/24/48/72). A
+  // quantidade de JOGOS correspondente é calculada em tempo real —
+  // ver obterJogosPorHora() — porque cada liga/casa tem um ritmo
+  // diferente de jogos por hora, então um número fixo de jogos não
+  // representa a mesma janela de tempo em todo lugar.
 
   const PERIODO_LABELS = ['3 Horas', '6 Horas', '12 Horas', '24 Horas', '48 Horas', '72 Horas'];
-  const PERIODO_VALUES_PADRAO = [60, 120, 240, 480, 960, 1440];
-  const PERIODO_VALUES_KIRON = [90, 180, 360, 720, 1440, 2160];
+  const PERIODO_HORAS = [3, 6, 12, 24, 48, 72];
 
-  function isKiron(casa) {
-    return (casa || '').trim().toUpperCase() === 'KIRON';
-  }
-
-  function populatePeriodoSelect(casa) {
+  function populatePeriodoSelect() {
     const select = document.getElementById('periodoSelect');
     if (!select) return;
-
-    const valores = isKiron(casa) ? PERIODO_VALUES_KIRON : PERIODO_VALUES_PADRAO;
 
     select.innerHTML = '';
     PERIODO_LABELS.forEach((label, idx) => {
       const opt = document.createElement('option');
-      opt.value = valores[idx];
+      opt.value = PERIODO_HORAS[idx];
       opt.textContent = label;
       select.appendChild(opt);
     });
 
-    // Mantém a mesma posição selecionada (ex.: "72 Horas"), já que os
-    // valores mudam entre Kiron e as demais casas, mas os rótulos não.
     select.selectedIndex = currentPeriodoIndex;
-    currentPeriodo = valores[currentPeriodoIndex];
-  }
-
-  // ────────────────────────────────────────────────────────────────
-  // UTILIDADES DE DATA
-  // ────────────────────────────────────────────────────────────────
-
-  function parseDate(dateStr) {
-    if (!dateStr) return null;
-    const raw = String(dateStr).trim();
-    if (!raw) return null;
-
-    // ISO completo com "T" (ex: "2026-09-02T14:35:00") — o Date nativo já dá conta.
-    if (raw.includes('T')) {
-      const d = new Date(raw);
-      return isNaN(d.getTime()) ? null : d;
-    }
-
-    // Separa data e hora quando vêm com espaço no meio:
-    // "2026-09-02 14:35:00" ou "02/09/2026 14:35"
-    const [datePart, timePart] = raw.split(/\s+/);
-    const dateParts = (datePart || '').split(/[-/]/);
-    if (dateParts.length !== 3) return null;
-
-    let year, month, day;
-    if (dateParts[0].length === 4) {
-      // YYYY-MM-DD
-      [year, month, day] = dateParts;
-    } else {
-      // DD/MM/YYYY ou DD-MM-YYYY
-      [day, month, year] = dateParts;
-    }
-
-    let hour = 0, minute = 0, second = 0;
-    if (timePart) {
-      const timeParts = timePart.split(':');
-      hour = parseInt(timeParts[0], 10) || 0;
-      minute = parseInt(timeParts[1], 10) || 0;
-      second = parseInt(timeParts[2], 10) || 0;
-    }
-
-    const result = new Date(Number(year), Number(month) - 1, Number(day), hour, minute, second);
-    return isNaN(result.getTime()) ? null : result;
+    currentHoras = PERIODO_HORAS[currentPeriodoIndex];
   }
 
   // ────────────────────────────────────────────────────────────────
   // ORDEM CRONOLÓGICA DOS JOGOS
   // ────────────────────────────────────────────────────────────────
-  // O campo "data" que vem da API é fixo/genérico pros jogos virtuais
-  // (não reflete o horário real de cada partida) — só "hora"/"minuto"
-  // (hora do dia) e o "id" (autoincremento do banco) variam de fato
-  // entre os jogos. Como "hora"/"minuto" sozinhos não dão pra saber
-  // se um jogo é de hoje ou de ontem, o "id" é o critério certo pra
-  // ordem cronológica: ele só cresce, então reflete a ordem real em
-  // que os jogos foram capturados/aconteceram.
+  // O campo "data" da API traz o dia certo, mas a hora embutida nele
+  // não é confiável pros jogos virtuais — quem tem a hora real são os
+  // campos separados "hora" e "minuto". Por isso a chave de ordenação
+  // junta a PARTE DO DIA de "data" com "hora"/"minuto" reais, em vez
+  // de usar "data" sozinho (impreciso) ou "id" sozinho (reflete ordem
+  // de inserção no banco, que não é necessariamente a ordem real dos
+  // jogos).
 
-  function getGameSortKey(game) {
-    const id = Number(game.id);
-    if (!isNaN(id)) return id;
-    const eventId = Number(game.event_id);
-    if (!isNaN(eventId)) return eventId;
-    // fallback bem improvável de ser necessário, só pra não quebrar
-    // caso algum dia venha um jogo sem id nem event_id
-    const d = parseDate(game.data || game.date);
-    return d ? d.getTime() : 0;
+  function valorOrdenacao(game) {
+    if (!game || !game.data) return null;
+
+    const diaStr = String(game.data).includes('T') ? String(game.data).split('T')[0] : String(game.data);
+    const hora = String(Number(game.hora) || 0).padStart(2, '0');
+    const minuto = String(Number(game.minuto) || 0).padStart(2, '0');
+
+    const t = new Date(`${diaStr}T${hora}:${minuto}:00`).getTime();
+    return isNaN(t) ? null : t;
+  }
+
+  function normalizarOrdemCronologica(data) {
+    if (!Array.isArray(data) || data.length < 2) return data;
+
+    const comChave = data.map((jogo, i) => ({ jogo, i, v: valorOrdenacao(jogo) }));
+
+    if (comChave.some(x => x.v === null)) {
+      console.warn('[RankingMaxima] Não foi possível calcular data+hora de algum jogo. Mantendo ordem original da rota.');
+      return data;
+    }
+
+    // Ordem ascendente (mais antigo -> mais recente); desempate estável
+    // pelo índice original quando dois jogos caem no mesmo minuto exato.
+    comChave.sort((a, b) => a.v - b.v || a.i - b.i);
+
+    return comChave.map(x => x.jogo);
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // DETECÇÃO AUTOMÁTICA DE JOGOS/HORA
+  // ────────────────────────────────────────────────────────────────
+  // Cada liga roda num ritmo diferente. Em vez de fixar um número,
+  // agrupamos os jogos (já em ordem cronológica) pelo campo "hora"
+  // real (0-23) e contamos quantos jogos caem em cada hora cheia. A
+  // média dos grupos "fechados" (ignorando o primeiro e o último, que
+  // podem estar cortados no meio) é o ritmo real da liga.
+
+  function detectarJogosPorHora(data) {
+    const FALLBACK = 20;
+    if (!Array.isArray(data) || data.length < 10) return FALLBACK;
+
+    const grupos = [];
+    let chaveAtual = null;
+    let contagemAtual = 0;
+
+    data.forEach(jogo => {
+      const hora = jogo ? jogo.hora : '?';
+      const chave = String(hora);
+
+      if (chave === chaveAtual) {
+        contagemAtual++;
+      } else {
+        if (chaveAtual !== null) grupos.push(contagemAtual);
+        chaveAtual = chave;
+        contagemAtual = 1;
+      }
+    });
+    if (contagemAtual > 0) grupos.push(contagemAtual);
+
+    if (grupos.length < 3) {
+      const soma = grupos.reduce((a, b) => a + b, 0);
+      return grupos.length ? Math.max(1, Math.round(soma / grupos.length)) : FALLBACK;
+    }
+
+    // descarta o primeiro e o último grupo (podem vir incompletos)
+    const gruposCompletos = grupos.slice(1, -1);
+    const soma = gruposCompletos.reduce((a, b) => a + b, 0);
+    const media = soma / gruposCompletos.length;
+
+    return Math.max(1, Math.round(media));
+  }
+
+  // Fonte primária: se ligas-config.js definir, pra liga atual, um
+  // array fixo "minutos" (os minutos exatos em que os jogos acontecem
+  // dentro de cada hora), usamos o tamanho dele — é um dado estático
+  // e conhecido, não precisa ser detectado em runtime. A detecção
+  // heurística acima vira só um fallback pra liga não cadastrada.
+  function obterJogosPorHora(data, liga) {
+    if (typeof LIGAS_INFO !== 'undefined' && liga) {
+      const info = LIGAS_INFO[liga];
+      if (info && Array.isArray(info.minutos) && info.minutos.length > 0) {
+        return info.minutos.length;
+      }
+    }
+    return detectarJogosPorHora(data);
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -284,31 +309,41 @@ const RankingMaxima = (() => {
     return allGames;
   }
 
-  function computeRanking(allGames, periodo, mercado, minJogos) {
-    // "periodo" representa a quantidade de jogos a analisar (não minutos).
-    // Ordena todos os jogos do mais recente para o mais antigo (por id,
-    // não por "data" — ver getGameSortKey) e pega os N primeiros, onde
-    // N = periodo selecionado.
-    const sortedByDateDesc = [...allGames].sort((a, b) => getGameSortKey(b) - getGameSortKey(a));
+  function computeRanking(allGames, liga, horas, mercado, minJogos) {
+    // Normaliza a ordem cronológica de TODOS os jogos da liga (mais
+    // antigo -> mais recente). Se não der pra confiar na data/hora de
+    // algum jogo, normalizarOrdemCronologica devolve a ordem original
+    // da API sem mexer (a API já entrega mais ou menos em ordem).
+    const normalizados = normalizarOrdemCronologica(allGames);
 
+    // Ritmo real de jogos/hora dessa liga — não é mais um número fixo
+    // chutado, é calculado a partir da própria liga (ou detectado nos
+    // dados caso a liga não tenha "minutos" configurado).
+    const jogosPorHora = obterJogosPorHora(normalizados, liga);
+    const totalJogosPeriodo = horas * jogosPorHora;
 
-    const filteredGames = sortedByDateDesc.slice(0, periodo);
+    // Pega os N jogos mais recentes (final do array, já que está em
+    // ordem ascendente) — essa janela é da LIGA INTEIRA, com todos os
+    // times misturados; o agrupamento por time acontece depois.
+    const filteredGames = normalizados.slice(-totalJogosPeriodo);
 
-    console.log('[RankingMaxima] Jogos selecionados no período:', filteredGames.length, 'de', periodo, 'solicitados');
+    console.log('[RankingMaxima] Jogos/hora detectado:', jogosPorHora, '| Jogos selecionados no período:', filteredGames.length, 'de', totalJogosPeriodo, 'solicitados (', horas, 'h )');
 
-    // O jogo mais recente é o primeiro após a ordenação desc
-    const mostRecentGame = filteredGames[0] || null;
+    // O jogo mais recente é o último após a ordenação ascendente
+    const mostRecentGame = filteredGames[filteredGames.length - 1] || null;
 
     if (mostRecentGame) {
       const horaLabel = formatGameTime(mostRecentGame);
-      latestGameTime = horaLabel ? `${horaLabel} (id ${getGameSortKey(mostRecentGame)})` : `id ${getGameSortKey(mostRecentGame)}`;
+      latestGameTime = horaLabel ? `${horaLabel} (id ${mostRecentGame.id})` : `id ${mostRecentGame.id}`;
       gamesAnalyzedCount = filteredGames.length;
       console.log('[RankingMaxima] Jogo mais recente:', latestGameTime, 'Total:', gamesAnalyzedCount);
     }
 
     allGamesForPeriod = filteredGames;
 
-    // Agrupa jogos por time
+    // Agrupa jogos por time — como filteredGames já está em ordem
+    // cronológica ascendente, os arrays por time saem naturalmente
+    // ordenados também (sem precisar reordenar de novo).
     const teamGames = {};
 
     filteredGames.forEach((game, idx) => {
@@ -341,9 +376,6 @@ const RankingMaxima = (() => {
     // Calcula a máxima e a sequência atual para cada time
     const ranking = Object.entries(teamGames)
       .map(([team, games]) => {
-        // Ordena do mais antigo pro mais recente (por id, não por "data")
-        games.sort((a, b) => getGameSortKey(a) - getGameSortKey(b));
-
         const maxima = calculateMaximaForTeam(games, mercado);
         const streakAtual = calculateCurrentStreakForTeam(games, mercado);
         return { team, maxima, streakAtual, gameCount: games.length, games };
@@ -359,14 +391,14 @@ const RankingMaxima = (() => {
     return ranking;
   }
 
-  async function processRanking(liga, periodo, mercado, minJogos) {
+  async function processRanking(liga, horas, mercado, minJogos) {
     const loading = document.getElementById('loadingIndicator');
     const precisaBuscar = !gamesCache.loaded || gamesCache.liga !== liga;
     if (precisaBuscar && loading) loading.style.display = 'flex';
 
     try {
       const allGames = await fetchGamesForLiga(liga);
-      const ranking = computeRanking(allGames, periodo, mercado, minJogos);
+      const ranking = computeRanking(allGames, liga, horas, mercado, minJogos);
 
       rankingData = ranking;
       renderRanking(ranking);
@@ -748,7 +780,6 @@ const RankingMaxima = (() => {
     select.addEventListener('change', (e) => {
       currentCasa = e.target.value;
       updateLigaSelect();
-      populatePeriodoSelect(currentCasa);
       salvarFiltros();
     });
   }
@@ -785,7 +816,7 @@ const RankingMaxima = (() => {
   function initPeriodoSelect() {
     const select = document.getElementById('periodoSelect');
     select.addEventListener('change', (e) => {
-      currentPeriodo = parseInt(e.target.value, 10);
+      currentHoras = parseInt(e.target.value, 10);
       currentPeriodoIndex = select.selectedIndex;
       if (currentLiga) {
         procesarRanking();
@@ -838,7 +869,7 @@ const RankingMaxima = (() => {
 
   function procesarRanking() {
     if (!currentLiga) return;
-    processRanking(currentLiga, currentPeriodo, currentMercado, currentMinJogos);
+    processRanking(currentLiga, currentHoras, currentMercado, currentMinJogos);
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -880,7 +911,7 @@ const RankingMaxima = (() => {
 
       document.getElementById('casaSelect').value = currentCasa || '';
       document.getElementById('ligaSelect').value = currentLiga || '';
-      populatePeriodoSelect(currentCasa); // define currentPeriodo com o valor certo pra essa casa
+      populatePeriodoSelect();
       document.getElementById('mercadoSelect').value = currentMercado;
       const minJogosSelect = document.getElementById('minJogosSelect');
       if (minJogosSelect) minJogosSelect.value = currentMinJogos;
@@ -910,7 +941,7 @@ const RankingMaxima = (() => {
     console.log('[RankingMaxima] Init começando...');
     initCasaSelect();
     initLigaSelect();
-    populatePeriodoSelect(currentCasa); // garante os valores certos (Kiron vs demais) antes de qualquer interação
+    populatePeriodoSelect();
     initPeriodoSelect();
     initMercadoSelect();
     initMinJogosSelect();
@@ -924,6 +955,45 @@ const RankingMaxima = (() => {
   console.log('[RankingMaxima] Adicionando listener DOMContentLoaded');
   document.addEventListener('DOMContentLoaded', init);
 
+  // ────────────────────────────────────────────────────────────────
+  // DEBUG: investigar jogos de um time específico dentro do período
+  // atualmente carregado. Roda no console: RankingMaxima._debugTeam('curacao')
+  // ────────────────────────────────────────────────────────────────
+  function normalizeForSearch(str) {
+    return (str || '')
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // remove acentos
+      .trim()
+      .toLowerCase();
+  }
+
+  function _debugTeam(nomeParcial) {
+    const alvo = normalizeForSearch(nomeParcial);
+    const variantes = new Set();
+    const jogosDoTime = [];
+
+    allGamesForPeriod.forEach(game => {
+      const home = (game.time_a || '').trim();
+      const away = (game.time_b || '').trim();
+      if (normalizeForSearch(home).includes(alvo)) {
+        variantes.add(home);
+        jogosDoTime.push(game);
+      } else if (normalizeForSearch(away).includes(alvo)) {
+        variantes.add(away);
+        jogosDoTime.push(game);
+      }
+    });
+
+    console.log('[Debug] Variações de nome encontradas no período atual:', Array.from(variantes));
+    console.log('[Debug] Total de jogos encontrados:', jogosDoTime.length, 'de', allGamesForPeriod.length, 'jogos no período');
+    console.table(jogosDoTime.map(g => ({
+      id: g.id, time_a: g.time_a, time_b: g.time_b, ft: g.ft, hora: g.hora, minuto: g.minuto,
+    })));
+
+    return jogosDoTime;
+  }
+
   return {
     init,
     processRanking,
@@ -931,7 +1001,7 @@ const RankingMaxima = (() => {
     _getCurrentState: () => ({
       casa: currentCasa,
       liga: currentLiga,
-      periodo: currentPeriodo,
+      horas: currentHoras,
       mercado: currentMercado,
       minJogos: currentMinJogos,
       searchQuery,
@@ -941,5 +1011,6 @@ const RankingMaxima = (() => {
       gamesAnalyzedCount,
       cache: { liga: gamesCache.liga, totalJogos: gamesCache.games.length },
     }),
+    _debugTeam,
   };
 })();
