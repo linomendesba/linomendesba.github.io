@@ -564,6 +564,12 @@ const RankingMaxima = (() => {
       top5ChartInstance.destroy();
     }
 
+    // Precisa mostrar a seção ANTES de criar o Chart: se o container
+    // ainda estiver com display:none, o Chart.js mede o canvas com
+    // largura/altura zero e o gráfico fica em branco mesmo depois de
+    // exibir a seção.
+    section.style.display = 'block';
+
     top5ChartInstance = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: { datasets },
@@ -598,8 +604,6 @@ const RankingMaxima = (() => {
         },
       },
     });
-
-    section.style.display = 'block';
   }
 
   function setupSortHeaders() {
