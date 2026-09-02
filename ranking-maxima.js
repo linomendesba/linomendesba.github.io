@@ -351,7 +351,6 @@ const RankingMaxima = (() => {
 
     updateSortIndicators();
     renderTop5Cards();
-    updatePeriodInfo();
   }
 
   function updateSortIndicators() {
@@ -400,19 +399,6 @@ const RankingMaxima = (() => {
       .join('');
 
     section.style.display = 'block';
-  }
-
-  function updatePeriodInfo() {
-    const section = document.getElementById('periodInfo');
-    if (!section) return;
-
-    if (latestGameTime && gamesAnalyzedCount > 0) {
-      document.getElementById('gamesAnalyzedCount').textContent = gamesAnalyzedCount;
-      document.getElementById('latestGameTime').textContent = latestGameTime;
-      section.style.display = 'flex';
-    } else {
-      section.style.display = 'none';
-    }
   }
 
   function setupSortHeaders() {
