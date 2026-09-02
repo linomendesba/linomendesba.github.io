@@ -109,6 +109,28 @@ const RankingMaxima = (() => {
   }
 
   // ────────────────────────────────────────────────────────────────
+  // ORDEM CRONOLÓGICA DOS JOGOS
+  // ────────────────────────────────────────────────────────────────
+  // O campo "data" que vem da API é fixo/genérico pros jogos virtuais
+  // (não reflete o horário real de cada partida) — só "hora"/"minuto"
+  // (hora do dia) e o "id" (autoincremento do banco) variam de fato
+  // entre os jogos. Como "hora"/"minuto" sozinhos não dão pra saber
+  // se um jogo é de hoje ou de ontem, o "id" é o critério certo pra
+  // ordem cronológica: ele só cresce, então reflete a ordem real em
+  // que os jogos foram capturados/aconteceram.
+
+  function getGameSortKey(game) {
+    const id = Number(game.id);
+    if (!isNaN(id)) return id;
+    const eventId = Number(game.event_id);
+    if (!isNaN(eventId)) return eventId;
+    // fallback bem improvável de ser necessário, só pra não quebrar
+    // caso algum dia venha um jogo sem id nem event_id
+    const d = parseDate(game.data || game.date);
+    return d ? d.getTime() : 0;
+  }
+
+  // ────────────────────────────────────────────────────────────────
   // DETECÇÃO DO RESULTADO E DOS MERCADOS
   // ────────────────────────────────────────────────────────────────
 
@@ -264,13 +286,11 @@ const RankingMaxima = (() => {
 
   function computeRanking(allGames, periodo, mercado, minJogos) {
     // "periodo" representa a quantidade de jogos a analisar (não minutos).
-    // Ordena todos os jogos do mais recente para o mais antigo e pega
-    // os N primeiros, onde N = periodo selecionado.
-    const sortedByDateDesc = [...allGames].sort((a, b) => {
-      const dateA = parseDate(a.data || a.date) || new Date(0);
-      const dateB = parseDate(b.data || b.date) || new Date(0);
-      return dateB - dateA;
-    });
+    // Ordena todos os jogos do mais recente para o mais antigo (por id,
+    // não por "data" — ver getGameSortKey) e pega os N primeiros, onde
+    // N = periodo selecionado.
+    const sortedByDateDesc = [...allGames].sort((a, b) => getGameSortKey(b) - getGameSortKey(a));
+
 
     const filteredGames = sortedByDateDesc.slice(0, periodo);
 
@@ -278,17 +298,10 @@ const RankingMaxima = (() => {
 
     // O jogo mais recente é o primeiro após a ordenação desc
     const mostRecentGame = filteredGames[0] || null;
-    const mostRecentDate = mostRecentGame ? parseDate(mostRecentGame.data || mostRecentGame.date) : null;
 
-    if (mostRecentGame && mostRecentDate) {
-      latestGameTime = mostRecentDate.toLocaleString('pt-BR', {
-        year: '2-digit',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      });
+    if (mostRecentGame) {
+      const horaLabel = formatGameTime(mostRecentGame);
+      latestGameTime = horaLabel ? `${horaLabel} (id ${getGameSortKey(mostRecentGame)})` : `id ${getGameSortKey(mostRecentGame)}`;
       gamesAnalyzedCount = filteredGames.length;
       console.log('[RankingMaxima] Jogo mais recente:', latestGameTime, 'Total:', gamesAnalyzedCount);
     }
@@ -328,12 +341,8 @@ const RankingMaxima = (() => {
     // Calcula a máxima e a sequência atual para cada time
     const ranking = Object.entries(teamGames)
       .map(([team, games]) => {
-        // Ordena por data
-        games.sort((a, b) => {
-          const dateA = parseDate(a.data || a.date) || new Date(0);
-          const dateB = parseDate(b.data || b.date) || new Date(0);
-          return dateA - dateB;
-        });
+        // Ordena do mais antigo pro mais recente (por id, não por "data")
+        games.sort((a, b) => getGameSortKey(a) - getGameSortKey(b));
 
         const maxima = calculateMaximaForTeam(games, mercado);
         const streakAtual = calculateCurrentStreakForTeam(games, mercado);
@@ -540,11 +549,17 @@ const RankingMaxima = (() => {
   const TOP5_CHART_COLORS = ['#e6a817', '#c0c0c0', '#cd7f32', '#177b8e', '#2ecc71'];
 
   function formatGameTime(game) {
-    // Pega a hora:minuto direto da string bruta (regex), em vez de
-    // depender do parseDate (que não trata a parte de horário em
-    // todos os formatos) — funciona tanto com ISO ("...T14:35:00")
-    // quanto com "DD/MM/AAAA HH:mm" ou variações parecidas.
-    const raw = String(game.data || game.date || game.hora || '');
+    // "hora"/"minuto" são os campos confiáveis (hora do dia do jogo).
+    // O campo "data" da API vem fixo/genérico pros jogos virtuais, não
+    // dá pra confiar nele nem pra ordenação nem pra exibir horário.
+    if (game.hora !== undefined && game.hora !== null && game.minuto !== undefined && game.minuto !== null) {
+      const hh = String(game.hora).padStart(2, '0');
+      const mm = String(game.minuto).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+    // Fallback pro formato antigo (string de data com hora embutida),
+    // caso apareça algum jogo sem hora/minuto separados.
+    const raw = String(game.data || game.date || '');
     const match = raw.match(/(\d{1,2}):(\d{2})/);
     if (!match) return null;
     return `${match[1].padStart(2, '0')}:${match[2]}`;
