@@ -13,7 +13,8 @@ const RankingMaxima = (() => {
   // Estados
   let currentCasa = null;
   let currentLiga = null;
-  let currentPeriodo = 1440; // minutos (72 horas)
+  let currentPeriodo = 1440; // quantidade de jogos a analisar (não é minuto!)
+  let currentPeriodoIndex = 5; // posição no seletor: 0=3h ... 5=72h
   let currentMercado = 'over';
   let rankingOrderDir = 'desc'; // desc = maiores, asc = menores
   let rankingData = [];
@@ -22,14 +23,45 @@ const RankingMaxima = (() => {
   let gamesAnalyzedCount = 0;
 
   // ────────────────────────────────────────────────────────────────
+  // CONFIG DO SELETOR DE PERÍODO
+  // ────────────────────────────────────────────────────────────────
+  // O seletor de "horas" na verdade representa uma quantidade fixa de
+  // jogos (as ligas virtuais rodam em intervalos fixos, então cada
+  // janela de tempo corresponde a um número de jogos). A Kiron tem um
+  // ritmo de jogos diferente das demais casas, por isso usa outra
+  // tabela de valores para os mesmos rótulos.
+
+  const PERIODO_LABELS = ['3 Horas', '6 Horas', '12 Horas', '24 Horas', '48 Horas', '72 Horas'];
+  const PERIODO_VALUES_PADRAO = [60, 120, 240, 480, 960, 1440];
+  const PERIODO_VALUES_KIRON = [90, 180, 360, 720, 1440, 2160];
+
+  function isKiron(casa) {
+    return (casa || '').trim().toUpperCase() === 'KIRON';
+  }
+
+  function populatePeriodoSelect(casa) {
+    const select = document.getElementById('periodoSelect');
+    if (!select) return;
+
+    const valores = isKiron(casa) ? PERIODO_VALUES_KIRON : PERIODO_VALUES_PADRAO;
+
+    select.innerHTML = '';
+    PERIODO_LABELS.forEach((label, idx) => {
+      const opt = document.createElement('option');
+      opt.value = valores[idx];
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+
+    // Mantém a mesma posição selecionada (ex.: "72 Horas"), já que os
+    // valores mudam entre Kiron e as demais casas, mas os rótulos não.
+    select.selectedIndex = currentPeriodoIndex;
+    currentPeriodo = valores[currentPeriodoIndex];
+  }
+
+  // ────────────────────────────────────────────────────────────────
   // UTILIDADES DE DATA
   // ────────────────────────────────────────────────────────────────
-
-  function getTimeRangeForMinutes(minutes) {
-    const now = new Date();
-    const start = new Date(now.getTime() - minutes * 60 * 1000);
-    return { start, end: now };
-  }
 
   function parseDate(dateStr) {
     if (!dateStr) return null;
@@ -48,12 +80,6 @@ const RankingMaxima = (() => {
       return new Date(y, m - 1, d);
     }
     return null;
-  }
-
-  function isWithinRange(dateStr, start, end) {
-    const date = parseDate(dateStr);
-    if (!date || isNaN(date)) return false;
-    return date >= start && date <= end;
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -155,23 +181,22 @@ const RankingMaxima = (() => {
 
       console.log('[RankingMaxima] Total de jogos:', allGames.length);
 
-      // Filtra por período
-      const { start, end } = getTimeRangeForMinutes(periodo);
-      const filteredGames = allGames.filter(g => isWithinRange(g.data || g.date, start, end));
-
-      console.log('[RankingMaxima] Jogos no período:', filteredGames.length);
-
-      // Encontra o jogo mais recente
-      let mostRecentGame = null;
-      let mostRecentDate = null;
-
-      filteredGames.forEach(game => {
-        const gameDate = parseDate(game.data || game.date);
-        if (gameDate && (!mostRecentDate || gameDate > mostRecentDate)) {
-          mostRecentDate = gameDate;
-          mostRecentGame = game;
-        }
+      // "periodo" representa a quantidade de jogos a analisar (não minutos).
+      // Ordena todos os jogos do mais recente para o mais antigo e pega
+      // os N primeiros, onde N = periodo selecionado.
+      const sortedByDateDesc = [...allGames].sort((a, b) => {
+        const dateA = parseDate(a.data || a.date) || new Date(0);
+        const dateB = parseDate(b.data || b.date) || new Date(0);
+        return dateB - dateA;
       });
+
+      const filteredGames = sortedByDateDesc.slice(0, periodo);
+
+      console.log('[RankingMaxima] Jogos selecionados no período:', filteredGames.length, 'de', periodo, 'solicitados');
+
+      // O jogo mais recente é o primeiro após a ordenação desc
+      const mostRecentGame = filteredGames[0] || null;
+      const mostRecentDate = mostRecentGame ? parseDate(mostRecentGame.data || mostRecentGame.date) : null;
 
       if (mostRecentGame && mostRecentDate) {
         latestGameTime = mostRecentDate.toLocaleString('pt-BR', {
@@ -482,6 +507,7 @@ const RankingMaxima = (() => {
     select.addEventListener('change', (e) => {
       currentCasa = e.target.value;
       updateLigaSelect();
+      populatePeriodoSelect(currentCasa);
       salvarFiltros();
     });
   }
@@ -516,6 +542,7 @@ const RankingMaxima = (() => {
     const select = document.getElementById('periodoSelect');
     select.addEventListener('change', (e) => {
       currentPeriodo = parseInt(e.target.value, 10);
+      currentPeriodoIndex = select.selectedIndex;
       if (currentLiga) {
         procesarRanking();
       }
@@ -557,7 +584,7 @@ const RankingMaxima = (() => {
     const filtros = {
       casa: currentCasa,
       liga: currentLiga,
-      periodo: currentPeriodo,
+      periodoIndex: currentPeriodoIndex,
       mercado: currentMercado,
       rankingOrder: rankingOrderDir,
     };
@@ -572,18 +599,19 @@ const RankingMaxima = (() => {
       const filtros = JSON.parse(saved);
       currentCasa = filtros.casa || null;
       currentLiga = filtros.liga || null;
-      currentPeriodo = filtros.periodo || 1440;
+      currentPeriodoIndex = typeof filtros.periodoIndex === 'number' ? filtros.periodoIndex : 5;
       currentMercado = filtros.mercado || 'over';
       rankingOrderDir = filtros.rankingOrder || 'desc';
 
       document.getElementById('casaSelect').value = currentCasa || '';
       document.getElementById('ligaSelect').value = currentLiga || '';
-      document.getElementById('periodoSelect').value = currentPeriodo;
+      populatePeriodoSelect(currentCasa); // define currentPeriodo com o valor certo pra essa casa
       document.getElementById('mercadoSelect').value = currentMercado;
       document.getElementById('rankingOrderSelect').value = rankingOrderDir;
 
       if (currentCasa) {
         updateLigaSelect();
+        document.getElementById('ligaSelect').value = currentLiga || '';
       }
 
       if (currentLiga) {
@@ -605,6 +633,7 @@ const RankingMaxima = (() => {
     console.log('[RankingMaxima] Init começando...');
     initCasaSelect();
     initLigaSelect();
+    populatePeriodoSelect(currentCasa); // garante os valores certos (Kiron vs demais) antes de qualquer interação
     initPeriodoSelect();
     initMercadoSelect();
     initRankingOrderSelect();
