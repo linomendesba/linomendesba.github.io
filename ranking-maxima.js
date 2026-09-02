@@ -4,7 +4,12 @@
 // para cada time dentro de um período selecionado.
 // ────────────────────────────────────────────────────────────────
 
+console.log('[RankingMaxima] Script carregado');
+console.log('[RankingMaxima] ROTAS_API existe?', typeof ROTAS_API);
+console.log('[RankingMaxima] LIGAS_INFO existe?', typeof LIGAS_INFO);
+
 const RankingMaxima = (() => {
+  console.log('[RankingMaxima] Inicializando módulo');
   // Estados
   let currentCasa = null;
   let currentLiga = null;
@@ -285,11 +290,18 @@ const RankingMaxima = (() => {
   // ────────────────────────────────────────────────────────────────
 
   function getCasasUnicas() {
+    console.log('[RankingMaxima] getCasasUnicas chamado');
+    if (typeof LIGAS_INFO === 'undefined') {
+      console.error('[RankingMaxima] LIGAS_INFO não está definido!');
+      return [];
+    }
     const casas = new Set();
     Object.values(LIGAS_INFO).forEach(liga => {
       casas.add(liga.casa);
     });
-    return Array.from(casas).sort();
+    const resultado = Array.from(casas).sort();
+    console.log('[RankingMaxima] Casas únicas:', resultado);
+    return resultado;
   }
 
   function getLigasByCasa(casa) {
@@ -299,8 +311,14 @@ const RankingMaxima = (() => {
   }
 
   function initCasaSelect() {
+    console.log('[RankingMaxima] initCasaSelect chamado');
     const select = document.getElementById('casaSelect');
+    if (!select) {
+      console.error('[RankingMaxima] Elemento #casaSelect NÃO ENCONTRADO!');
+      return;
+    }
     const casas = getCasasUnicas();
+    console.log('[RankingMaxima] Casas encontradas:', casas);
 
     casas.forEach(casa => {
       const opt = document.createElement('option');
@@ -419,13 +437,16 @@ const RankingMaxima = (() => {
   // ────────────────────────────────────────────────────────────────
 
   function init() {
+    console.log('[RankingMaxima] Init começando...');
     initCasaSelect();
     initLigaSelect();
     initPeriodoSelect();
     initMercadoSelect();
     restaurarFiltros();
+    console.log('[RankingMaxima] Init concluído');
   }
 
+  console.log('[RankingMaxima] Adicionando listener DOMContentLoaded');
   document.addEventListener('DOMContentLoaded', init);
 
   return {
