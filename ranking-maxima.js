@@ -123,37 +123,63 @@ const RankingMaxima = (() => {
     try {
       // Busca os resultados da liga
       const url = ROTAS_API.resultados(liga);
+      console.log('[RankingMaxima] Buscando:', url);
+      
       const response = await fetch(url);
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        throw new Error(`HTTP ${response.status} em ${url}`);
       }
 
-      const allGames = await response.json();
+      let allGames = await response.json();
+      console.log('[RankingMaxima] Dados brutos recebidos:', allGames);
+
+      // Garante que é um array
+      if (!Array.isArray(allGames)) {
+        if (allGames && typeof allGames === 'object') {
+          // Se é um objeto, tenta extrair um array de dentro
+          allGames = Object.values(allGames).find(v => Array.isArray(v)) || [];
+        } else {
+          allGames = [];
+        }
+      }
+
+      console.log('[RankingMaxima] Total de jogos:', allGames.length);
 
       // Filtra por período
       const { start, end } = getTimeRangeForHours(periodo);
-      const filteredGames = Array.isArray(allGames)
-        ? allGames.filter(g => isWithinRange(g.data || g.date, start, end))
-        : [];
+      const filteredGames = allGames.filter(g => isWithinRange(g.data || g.date, start, end));
+
+      console.log('[RankingMaxima] Jogos no período:', filteredGames.length);
 
       // Agrupa jogos por time
       const teamGames = {};
 
-      filteredGames.forEach(game => {
+      filteredGames.forEach((game, idx) => {
         const home = (game.time_casa || game.team_home || '').trim();
         const away = (game.time_visitante || game.team_visit || '').trim();
+        const resultado = game.resultado || game.placar || '';
 
-        if (!home || !away) return;
+        if (!home || !away) {
+          console.warn(`[RankingMaxima] Jogo ${idx} sem times:`, game);
+          return;
+        }
+
+        if (!resultado) {
+          console.warn(`[RankingMaxima] Jogo ${idx} sem resultado:`, { home, away });
+          return;
+        }
 
         // Inicializa arrays se não existem
         if (!teamGames[home]) teamGames[home] = [];
         if (!teamGames[away]) teamGames[away] = [];
 
-        // Adiciona o jogo aos dois times (tanto como mandante quanto visitante)
+        // Adiciona o jogo aos dois times
         teamGames[home].push(game);
         teamGames[away].push(game);
       });
+
+      console.log('[RankingMaxima] Times únicos encontrados:', Object.keys(teamGames).length);
 
       // Calcula a máxima para cada time
       const ranking = Object.entries(teamGames)
@@ -171,11 +197,13 @@ const RankingMaxima = (() => {
         .filter(r => r.gameCount > 0)
         .sort((a, b) => b.maxima - a.maxima);
 
+      console.log('[RankingMaxima] Ranking final:', ranking);
+
       rankingData = ranking;
       renderRanking(ranking);
     } catch (error) {
       console.error('[RankingMaxima] Erro ao processar ranking:', error);
-      showError('Erro ao carregar dados. Tente novamente.');
+      showError('Erro ao carregar dados. Verifique o console para detalhes.');
     } finally {
       if (loading) loading.style.display = 'none';
     }
@@ -396,11 +424,6 @@ const RankingMaxima = (() => {
     initPeriodoSelect();
     initMercadoSelect();
     restaurarFiltros();
-
-    // Inicializa cards de navegação (mesmo padrão das outras páginas)
-    if (typeof inicializarLigaAtual === 'function') {
-      inicializarLigaAtual();
-    }
   }
 
   document.addEventListener('DOMContentLoaded', init);
