@@ -318,7 +318,7 @@ const RankingMaxima = (() => {
 
         const maxima = calculateMaximaForTeam(games, mercado);
         const streakAtual = calculateCurrentStreakForTeam(games, mercado);
-        return { team, maxima, streakAtual, gameCount: games.length };
+        return { team, maxima, streakAtual, gameCount: games.length, games };
       })
       .filter(r => r.gameCount > 0 && r.gameCount >= minJogos);
 
@@ -470,9 +470,10 @@ const RankingMaxima = (() => {
   function renderTop5Cards() {
     const container = document.getElementById('top5Grid');
     const section = document.getElementById('top5Section');
-    
+
     if (!container || rankingData.length === 0) {
       if (section) section.style.display = 'none';
+      renderTop5LineChart([]);
       return;
     }
 
@@ -502,6 +503,101 @@ const RankingMaxima = (() => {
         `;
       })
       .join('');
+
+    section.style.display = 'block';
+    renderTop5LineChart(top5);
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // GRÁFICO DE SEQUÊNCIA VISUAL (TOP 5)
+  // ────────────────────────────────────────────────────────────────
+  // Um "walk" acumulado por time: cada jogo soma +1 se o mercado
+  // selecionado bateu naquele jogo, ou -1 se não bateu. O resultado é
+  // uma linha que sobe em trechos de mercado batendo e desce em
+  // trechos de seca — visualmente parecido com um Renko, mas em cima
+  // dos mesmos jogos que já entram no cálculo da máxima.
+
+  let top5ChartInstance = null;
+  const TOP5_CHART_COLORS = ['#e6a817', '#c0c0c0', '#cd7f32', '#177b8e', '#2ecc71'];
+
+  function buildWalkSeries(games, market) {
+    let cumulative = 0;
+    const points = [{ x: 0, y: 0 }]; // ponto inicial, antes do primeiro jogo
+
+    games.forEach(game => {
+      const goals = getMatchGoals(game.ft || game.resultado || game.placar);
+      if (!goals) return; // pula jogos sem resultado, sem quebrar a linha
+
+      cumulative += marketHappened(market, goals) ? 1 : -1;
+      points.push({ x: points.length, y: cumulative });
+    });
+
+    return points;
+  }
+
+  function renderTop5LineChart(top5) {
+    const section = document.getElementById('top5ChartSection');
+    const canvas = document.getElementById('top5LineChart');
+    if (!section || !canvas) return;
+
+    if (!top5 || top5.length === 0 || typeof Chart === 'undefined') {
+      section.style.display = 'none';
+      if (top5ChartInstance) {
+        top5ChartInstance.destroy();
+        top5ChartInstance = null;
+      }
+      return;
+    }
+
+    const datasets = top5.map((item, idx) => ({
+      label: item.team,
+      data: buildWalkSeries(item.games || [], currentMercado),
+      borderColor: TOP5_CHART_COLORS[idx],
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 2,
+      pointHoverRadius: 4,
+      tension: 0.15,
+    }));
+
+    if (top5ChartInstance) {
+      top5ChartInstance.destroy();
+    }
+
+    top5ChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'nearest', intersect: false },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { color: '#e4e8f0', font: { family: 'DM Sans', size: 11 }, boxWidth: 12 },
+          },
+          tooltip: {
+            callbacks: {
+              title: (items) => `Jogo ${items[0].parsed.x}`,
+              label: (item) => `${item.dataset.label}: ${item.parsed.y > 0 ? '+' : ''}${item.parsed.y}`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Jogos', color: '#7a8499' },
+            ticks: { stepSize: 1, color: '#7a8499', precision: 0 },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+          },
+          y: {
+            title: { display: true, text: 'Sequência acumulada', color: '#7a8499' },
+            ticks: { stepSize: 1, color: '#7a8499', precision: 0 },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+          },
+        },
+      },
+    });
 
     section.style.display = 'block';
   }
