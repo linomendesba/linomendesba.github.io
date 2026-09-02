@@ -15,12 +15,19 @@ const RankingMaxima = (() => {
   let currentLiga = null;
   let currentPeriodo = 1440; // quantidade de jogos a analisar (não é minuto!)
   let currentPeriodoIndex = 5; // posição no seletor: 0=3h ... 5=72h
-  let currentMercado = 'over';
+  let currentMercado = 'over25';
+  let currentMinJogos = 0; // 0 = sem mínimo
+  let searchQuery = ''; // filtro de busca por nome de time (só na tabela completa)
   let rankingOrderDir = 'desc'; // desc = maiores, asc = menores
   let rankingData = [];
   let allGamesForPeriod = []; // Guarda todos os jogos do período pra análise
   let latestGameTime = null;
   let gamesAnalyzedCount = 0;
+
+  // Cache dos jogos brutos por liga, pra não refazer o fetch na API toda
+  // vez que só o período/mercado/mínimo de jogos muda — só quando a
+  // liga selecionada é diferente da última buscada.
+  let gamesCache = { liga: null, games: [], loaded: false };
 
   // ────────────────────────────────────────────────────────────────
   // CONFIG DO SELETOR DE PERÍODO
@@ -83,10 +90,10 @@ const RankingMaxima = (() => {
   }
 
   // ────────────────────────────────────────────────────────────────
-  // DETECÇÃO DO RESULTADO (OVER vs UNDER)
+  // DETECÇÃO DO RESULTADO E DOS MERCADOS
   // ────────────────────────────────────────────────────────────────
 
-  function getMarketResult(result) {
+  function getMatchGoals(result) {
     // result pode ser um objeto { placar: "X X Y" } ou um número/string
     let placar = result;
 
@@ -98,18 +105,44 @@ const RankingMaxima = (() => {
       placar = String(placar || '0 0 0');
     }
 
-    // Extrai os gols: "3 x 2" → 5
+    // Extrai os gols: "3 x 2" → golsCasa=3, golsFora=2
     const match = placar.match(/(\d+)\s*[xX×]\s*(\d+)/);
     if (!match) return null;
 
-    const goalsHome = parseInt(match[1], 10);
-    const goalsAway = parseInt(match[2], 10);
-    const totalGoals = goalsHome + goalsAway;
+    const golsCasa = parseInt(match[1], 10);
+    const golsFora = parseInt(match[2], 10);
 
     return {
-      totalGoals,
-      isOver: totalGoals > 2.5,  // true = Over 2.5, false = Under 2.5
+      golsCasa,
+      golsFora,
+      totalGols: golsCasa + golsFora,
     };
+  }
+
+  // Cada chave é o value usado no <select id="mercadoSelect"> do HTML.
+  // A função retorna true se o mercado ACONTECEU naquele jogo.
+  const MARKET_HANDLERS = {
+    casa: (g) => g.golsCasa > g.golsFora,
+    fora: (g) => g.golsFora > g.golsCasa,
+    empate: (g) => g.golsCasa === g.golsFora,
+    btts_sim: (g) => g.golsCasa > 0 && g.golsFora > 0,
+    btts_nao: (g) => !(g.golsCasa > 0 && g.golsFora > 0),
+    over15: (g) => g.totalGols > 1.5,
+    over25: (g) => g.totalGols > 2.5,
+    over35: (g) => g.totalGols > 3.5,
+    over5: (g) => g.totalGols >= 5,
+    under15: (g) => g.totalGols < 1.5,
+    under25: (g) => g.totalGols < 2.5,
+    under35: (g) => g.totalGols < 3.5,
+  };
+
+  function marketHappened(marketKey, goals) {
+    const handler = MARKET_HANDLERS[marketKey];
+    if (!handler) {
+      console.warn('[RankingMaxima] Mercado desconhecido:', marketKey);
+      return false;
+    }
+    return handler(goals);
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -118,7 +151,7 @@ const RankingMaxima = (() => {
 
   function calculateMaximaForTeam(games, market) {
     // games: array de jogos do time, já filtrados e ordenados por data
-    // market: 'over' ou 'under'
+    // market: uma das chaves de MARKET_HANDLERS
     //
     // Retorna a maior sequência de jogos consecutivos em que o
     // mercado NÃO aconteceu.
@@ -129,12 +162,10 @@ const RankingMaxima = (() => {
     let currentSequence = 0;
 
     games.forEach(game => {
-      const result = getMarketResult(game.ft || game.resultado || game.placar);
-      if (!result) return; // pula jogos sem resultado
+      const goals = getMatchGoals(game.ft || game.resultado || game.placar);
+      if (!goals) return; // pula jogos sem resultado
 
-      const marketHappened = market === 'over' ? result.isOver : !result.isOver;
-
-      if (!marketHappened) {
+      if (!marketHappened(market, goals)) {
         // Mercado NÃO aconteceu, incrementa a sequência
         currentSequence++;
         maxSequence = Math.max(maxSequence, currentSequence);
@@ -147,122 +178,167 @@ const RankingMaxima = (() => {
     return maxSequence;
   }
 
+  function calculateCurrentStreakForTeam(games, market) {
+    // games: array de jogos do time, já ordenados cronologicamente
+    // (do mais antigo pro mais recente).
+    //
+    // Retorna a sequência ATUAL: quantos jogos seguidos, contando a
+    // partir do jogo mais recente pra trás, o mercado não aconteceu.
+    // Para assim que encontrar um jogo em que o mercado aconteceu.
+
+    let streak = 0;
+
+    for (let i = games.length - 1; i >= 0; i--) {
+      const goals = getMatchGoals(games[i].ft || games[i].resultado || games[i].placar);
+      if (!goals) continue; // pula jogos sem resultado, sem quebrar a sequência
+
+      if (!marketHappened(market, goals)) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }
+
   // ────────────────────────────────────────────────────────────────
-  // BUSCA E PROCESSAMENTO DE DADOS
+  // BUSCA (COM CACHE) E PROCESSAMENTO DE DADOS
   // ────────────────────────────────────────────────────────────────
 
-  async function processRanking(liga, periodo, mercado) {
+  async function fetchGamesForLiga(liga) {
+    // Reaproveita os jogos já buscados se a liga não mudou — troca de
+    // período, mercado ou mínimo de jogos não precisa de nova chamada
+    // à API, só de recalcular em cima dos mesmos dados.
+    if (gamesCache.loaded && gamesCache.liga === liga) {
+      console.log('[RankingMaxima] Usando cache de jogos para', liga);
+      return gamesCache.games;
+    }
+
+    const url = ROTAS_API.resultados(liga);
+    console.log('[RankingMaxima] Buscando:', url);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} em ${url}`);
+    }
+
+    let allGames = await response.json();
+    console.log('[RankingMaxima] Dados brutos recebidos:', allGames);
+
+    // Garante que é um array
+    if (!Array.isArray(allGames)) {
+      if (allGames && typeof allGames === 'object') {
+        // Se é um objeto, tenta extrair um array de dentro
+        allGames = Object.values(allGames).find(v => Array.isArray(v)) || [];
+      } else {
+        allGames = [];
+      }
+    }
+
+    console.log('[RankingMaxima] Total de jogos:', allGames.length);
+
+    gamesCache = { liga, games: allGames, loaded: true };
+    return allGames;
+  }
+
+  function computeRanking(allGames, periodo, mercado, minJogos) {
+    // "periodo" representa a quantidade de jogos a analisar (não minutos).
+    // Ordena todos os jogos do mais recente para o mais antigo e pega
+    // os N primeiros, onde N = periodo selecionado.
+    const sortedByDateDesc = [...allGames].sort((a, b) => {
+      const dateA = parseDate(a.data || a.date) || new Date(0);
+      const dateB = parseDate(b.data || b.date) || new Date(0);
+      return dateB - dateA;
+    });
+
+    const filteredGames = sortedByDateDesc.slice(0, periodo);
+
+    console.log('[RankingMaxima] Jogos selecionados no período:', filteredGames.length, 'de', periodo, 'solicitados');
+
+    // O jogo mais recente é o primeiro após a ordenação desc
+    const mostRecentGame = filteredGames[0] || null;
+    const mostRecentDate = mostRecentGame ? parseDate(mostRecentGame.data || mostRecentGame.date) : null;
+
+    if (mostRecentGame && mostRecentDate) {
+      latestGameTime = mostRecentDate.toLocaleString('pt-BR', {
+        year: '2-digit',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      gamesAnalyzedCount = filteredGames.length;
+      console.log('[RankingMaxima] Jogo mais recente:', latestGameTime, 'Total:', gamesAnalyzedCount);
+    }
+
+    allGamesForPeriod = filteredGames;
+
+    // Agrupa jogos por time
+    const teamGames = {};
+
+    filteredGames.forEach((game, idx) => {
+      // Tenta vários nomes de campo
+      const home = (game.time_a || game.time_casa || game.team_home || '').trim();
+      const away = (game.time_b || game.time_visitante || game.team_visit || '').trim();
+      const resultado = game.ft || game.resultado || game.placar || '';
+
+      if (!home || !away) {
+        console.warn(`[RankingMaxima] Jogo ${idx} sem times:`, game);
+        return;
+      }
+
+      if (!resultado) {
+        console.warn(`[RankingMaxima] Jogo ${idx} sem resultado:`, { home, away });
+        return;
+      }
+
+      // Inicializa arrays se não existem
+      if (!teamGames[home]) teamGames[home] = [];
+      if (!teamGames[away]) teamGames[away] = [];
+
+      // Adiciona o jogo aos dois times
+      teamGames[home].push(game);
+      teamGames[away].push(game);
+    });
+
+    console.log('[RankingMaxima] Times únicos encontrados:', Object.keys(teamGames).length);
+
+    // Calcula a máxima e a sequência atual para cada time
+    const ranking = Object.entries(teamGames)
+      .map(([team, games]) => {
+        // Ordena por data
+        games.sort((a, b) => {
+          const dateA = parseDate(a.data || a.date) || new Date(0);
+          const dateB = parseDate(b.data || b.date) || new Date(0);
+          return dateA - dateB;
+        });
+
+        const maxima = calculateMaximaForTeam(games, mercado);
+        const streakAtual = calculateCurrentStreakForTeam(games, mercado);
+        return { team, maxima, streakAtual, gameCount: games.length };
+      })
+      .filter(r => r.gameCount > 0 && r.gameCount >= minJogos);
+
+    // Reseta sorting para padrão (máxima desc)
+    sortBy = 'maxima';
+    sortDir = 'desc';
+
+    console.log('[RankingMaxima] Ranking final:', ranking);
+
+    return ranking;
+  }
+
+  async function processRanking(liga, periodo, mercado, minJogos) {
     const loading = document.getElementById('loadingIndicator');
-    if (loading) loading.style.display = 'flex';
+    const precisaBuscar = !gamesCache.loaded || gamesCache.liga !== liga;
+    if (precisaBuscar && loading) loading.style.display = 'flex';
 
     try {
-      // Busca os resultados da liga
-      const url = ROTAS_API.resultados(liga);
-      console.log('[RankingMaxima] Buscando:', url);
-      
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} em ${url}`);
-      }
-
-      let allGames = await response.json();
-      console.log('[RankingMaxima] Dados brutos recebidos:', allGames);
-
-      // Garante que é um array
-      if (!Array.isArray(allGames)) {
-        if (allGames && typeof allGames === 'object') {
-          // Se é um objeto, tenta extrair um array de dentro
-          allGames = Object.values(allGames).find(v => Array.isArray(v)) || [];
-        } else {
-          allGames = [];
-        }
-      }
-
-      console.log('[RankingMaxima] Total de jogos:', allGames.length);
-
-      // "periodo" representa a quantidade de jogos a analisar (não minutos).
-      // Ordena todos os jogos do mais recente para o mais antigo e pega
-      // os N primeiros, onde N = periodo selecionado.
-      const sortedByDateDesc = [...allGames].sort((a, b) => {
-        const dateA = parseDate(a.data || a.date) || new Date(0);
-        const dateB = parseDate(b.data || b.date) || new Date(0);
-        return dateB - dateA;
-      });
-
-      const filteredGames = sortedByDateDesc.slice(0, periodo);
-
-      console.log('[RankingMaxima] Jogos selecionados no período:', filteredGames.length, 'de', periodo, 'solicitados');
-
-      // O jogo mais recente é o primeiro após a ordenação desc
-      const mostRecentGame = filteredGames[0] || null;
-      const mostRecentDate = mostRecentGame ? parseDate(mostRecentGame.data || mostRecentGame.date) : null;
-
-      if (mostRecentGame && mostRecentDate) {
-        latestGameTime = mostRecentDate.toLocaleString('pt-BR', {
-          year: '2-digit',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        });
-        gamesAnalyzedCount = filteredGames.length;
-        console.log('[RankingMaxima] Jogo mais recente:', latestGameTime, 'Total:', gamesAnalyzedCount);
-      }
-
-      allGamesForPeriod = filteredGames;
-
-      // Agrupa jogos por time
-      const teamGames = {};
-
-      filteredGames.forEach((game, idx) => {
-        // Tenta vários nomes de campo
-        const home = (game.time_a || game.time_casa || game.team_home || '').trim();
-        const away = (game.time_b || game.time_visitante || game.team_visit || '').trim();
-        const resultado = game.ft || game.resultado || game.placar || '';
-
-        if (!home || !away) {
-          console.warn(`[RankingMaxima] Jogo ${idx} sem times:`, game);
-          return;
-        }
-
-        if (!resultado) {
-          console.warn(`[RankingMaxima] Jogo ${idx} sem resultado:`, { home, away });
-          return;
-        }
-
-        // Inicializa arrays se não existem
-        if (!teamGames[home]) teamGames[home] = [];
-        if (!teamGames[away]) teamGames[away] = [];
-
-        // Adiciona o jogo aos dois times
-        teamGames[home].push(game);
-        teamGames[away].push(game);
-      });
-
-      console.log('[RankingMaxima] Times únicos encontrados:', Object.keys(teamGames).length);
-
-      // Calcula a máxima para cada time
-      const ranking = Object.entries(teamGames)
-        .map(([team, games]) => {
-          // Ordena por data
-          games.sort((a, b) => {
-            const dateA = parseDate(a.data || a.date) || new Date(0);
-            const dateB = parseDate(b.data || b.date) || new Date(0);
-            return dateA - dateB;
-          });
-
-          const maxima = calculateMaximaForTeam(games, mercado);
-          return { team, maxima, gameCount: games.length };
-        })
-        .filter(r => r.gameCount > 0);
-
-      // Reseta sorting para padrão (máxima desc)
-      sortBy = 'maxima';
-      sortDir = 'desc';
-
-      console.log('[RankingMaxima] Ranking final:', ranking);
+      const allGames = await fetchGamesForLiga(liga);
+      const ranking = computeRanking(allGames, periodo, mercado, minJogos);
 
       rankingData = ranking;
       renderRanking(ranking);
@@ -296,6 +372,9 @@ const RankingMaxima = (() => {
       } else if (sortBy === 'games') {
         aVal = a.gameCount;
         bVal = b.gameCount;
+      } else if (sortBy === 'streak') {
+        aVal = a.streakAtual;
+        bVal = b.streakAtual;
       }
 
       if (typeof aVal === 'string') {
@@ -306,6 +385,13 @@ const RankingMaxima = (() => {
     });
 
     return sorted;
+  }
+
+  function applySearchFilter(data) {
+    if (!searchQuery) return data;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return data;
+    return data.filter(item => item.team.toLowerCase().includes(q));
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -319,16 +405,33 @@ const RankingMaxima = (() => {
     if (ranking.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="3" class="empty-state">
+          <td colspan="4" class="empty-state">
             <div class="empty-state-icon">📭</div>
             <div class="empty-state-text">Nenhum jogo encontrado neste período</div>
           </td>
         </tr>
       `;
+      renderTop5Cards();
       return;
     }
 
-    const sorted = applySorting(ranking);
+    const filtered = applySearchFilter(ranking);
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-text">Nenhum time encontrado para "${escapeHtml(searchQuery)}"</div>
+          </td>
+        </tr>
+      `;
+      updateSortIndicators();
+      renderTop5Cards();
+      return;
+    }
+
+    const sorted = applySorting(filtered);
 
     sorted.forEach((item, index) => {
       const pos = index + 1;
@@ -344,6 +447,7 @@ const RankingMaxima = (() => {
         </td>
         <td><span class="team-name">${escapeHtml(item.team)}</span></td>
         <td><div class="maxima-value">${item.maxima}</div></td>
+        <td><div class="streak-value">${item.streakAtual}</div></td>
       `;
 
       tbody.appendChild(row);
@@ -393,6 +497,7 @@ const RankingMaxima = (() => {
             <div class="top5-name">${escapeHtml(item.team)}</div>
             <div class="top5-value">${item.maxima}</div>
             <div class="top5-label">Máxima</div>
+            <div class="top5-streak">Seq. atual: ${item.streakAtual}</div>
           </div>
         `;
       })
@@ -440,7 +545,7 @@ const RankingMaxima = (() => {
     const tbody = document.getElementById('rankingBody');
     tbody.innerHTML = `
       <tr>
-        <td colspan="3" class="empty-state">
+        <td colspan="4" class="empty-state">
           <div class="empty-state-icon">⚠️</div>
           <div class="empty-state-text">${escapeHtml(message)}</div>
         </td>
@@ -517,6 +622,9 @@ const RankingMaxima = (() => {
     const select = document.getElementById('ligaSelect');
     select.addEventListener('change', (e) => {
       currentLiga = e.target.value;
+      searchQuery = '';
+      const buscaInput = document.getElementById('buscaTimeInput');
+      if (buscaInput) buscaInput.value = '';
       if (currentLiga) {
         procesarRanking();
       }
@@ -557,9 +665,30 @@ const RankingMaxima = (() => {
     });
   }
 
+  function initMinJogosSelect() {
+    const select = document.getElementById('minJogosSelect');
+    if (!select) return;
+    select.addEventListener('change', (e) => {
+      currentMinJogos = parseInt(e.target.value, 10) || 0;
+      if (currentLiga) {
+        procesarRanking();
+      }
+      salvarFiltros();
+    });
+  }
+
+  function initBuscaInput() {
+    const input = document.getElementById('buscaTimeInput');
+    if (!input) return;
+    input.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderRanking(rankingData);
+    });
+  }
+
   function procesarRanking() {
     if (!currentLiga) return;
-    processRanking(currentLiga, currentPeriodo, currentMercado);
+    processRanking(currentLiga, currentPeriodo, currentMercado, currentMinJogos);
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -572,9 +701,18 @@ const RankingMaxima = (() => {
       liga: currentLiga,
       periodoIndex: currentPeriodoIndex,
       mercado: currentMercado,
+      minJogos: currentMinJogos,
       rankingOrder: rankingOrderDir,
     };
     localStorage.setItem('rankingMaximaFiltros', JSON.stringify(filtros));
+  }
+
+  // Compatibilidade com filtros salvos antes da expansão de mercados
+  // (quando só existia 'over' e 'under', equivalentes a Over/Under 2.5).
+  function migrarMercadoAntigo(mercado) {
+    if (mercado === 'over') return 'over25';
+    if (mercado === 'under') return 'under25';
+    return mercado;
   }
 
   function restaurarFiltros() {
@@ -586,13 +724,16 @@ const RankingMaxima = (() => {
       currentCasa = filtros.casa || null;
       currentLiga = filtros.liga || null;
       currentPeriodoIndex = typeof filtros.periodoIndex === 'number' ? filtros.periodoIndex : 5;
-      currentMercado = filtros.mercado || 'over';
+      currentMercado = migrarMercadoAntigo(filtros.mercado) || 'over25';
+      currentMinJogos = typeof filtros.minJogos === 'number' ? filtros.minJogos : 0;
       rankingOrderDir = filtros.rankingOrder || 'desc';
 
       document.getElementById('casaSelect').value = currentCasa || '';
       document.getElementById('ligaSelect').value = currentLiga || '';
       populatePeriodoSelect(currentCasa); // define currentPeriodo com o valor certo pra essa casa
       document.getElementById('mercadoSelect').value = currentMercado;
+      const minJogosSelect = document.getElementById('minJogosSelect');
+      if (minJogosSelect) minJogosSelect.value = currentMinJogos;
       document.getElementById('rankingOrderSelect').value = rankingOrderDir;
 
       if (currentCasa) {
@@ -622,6 +763,8 @@ const RankingMaxima = (() => {
     populatePeriodoSelect(currentCasa); // garante os valores certos (Kiron vs demais) antes de qualquer interação
     initPeriodoSelect();
     initMercadoSelect();
+    initMinJogosSelect();
+    initBuscaInput();
     initRankingOrderSelect();
     setupSortHeaders();
     restaurarFiltros();
@@ -640,10 +783,13 @@ const RankingMaxima = (() => {
       liga: currentLiga,
       periodo: currentPeriodo,
       mercado: currentMercado,
+      minJogos: currentMinJogos,
+      searchQuery,
       rankingOrderDir,
       ranking: rankingData,
       latestGameTime,
       gamesAnalyzedCount,
+      cache: { liga: gamesCache.liga, totalJogos: gamesCache.games.length },
     }),
   };
 })();
