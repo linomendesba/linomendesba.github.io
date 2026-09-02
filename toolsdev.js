@@ -127,6 +127,7 @@
       group: "Bônus",
       tools: [
         { label: "Guias",        url: "https://www.betstat.site/guias.html" },
+        { label: "Max Time",      url: "https://www.betstat.site/timemax.html" },
         { label: "Referencia",      url: "https://www.betstat.site/referencia.html" },
         { label: "DayTrade",        url: "https://www.betstat.site/velas.html" },
         { label: "Mentor",        url: "https://www.betstat.site/mentor.html" },
