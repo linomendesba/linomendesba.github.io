@@ -13,17 +13,21 @@ const RankingMaxima = (() => {
   // Estados
   let currentCasa = null;
   let currentLiga = null;
-  let currentPeriodo = 72; // horas
+  let currentPeriodo = 1440; // minutos (72 horas)
   let currentMercado = 'over';
+  let rankingOrderDir = 'desc'; // desc = maiores, asc = menores
   let rankingData = [];
+  let allGamesForPeriod = []; // Guarda todos os jogos do período pra análise
+  let latestGameTime = null;
+  let gamesAnalyzedCount = 0;
 
   // ────────────────────────────────────────────────────────────────
   // UTILIDADES DE DATA
   // ────────────────────────────────────────────────────────────────
 
-  function getTimeRangeForHours(hours) {
+  function getTimeRangeForMinutes(minutes) {
     const now = new Date();
-    const start = new Date(now.getTime() - hours * 60 * 60 * 1000);
+    const start = new Date(now.getTime() - minutes * 60 * 1000);
     return { start, end: now };
   }
 
@@ -152,10 +156,37 @@ const RankingMaxima = (() => {
       console.log('[RankingMaxima] Total de jogos:', allGames.length);
 
       // Filtra por período
-      const { start, end } = getTimeRangeForHours(periodo);
+      const { start, end } = getTimeRangeForMinutes(periodo);
       const filteredGames = allGames.filter(g => isWithinRange(g.data || g.date, start, end));
 
       console.log('[RankingMaxima] Jogos no período:', filteredGames.length);
+
+      // Encontra o jogo mais recente
+      let mostRecentGame = null;
+      let mostRecentDate = null;
+
+      filteredGames.forEach(game => {
+        const gameDate = parseDate(game.data || game.date);
+        if (gameDate && (!mostRecentDate || gameDate > mostRecentDate)) {
+          mostRecentDate = gameDate;
+          mostRecentGame = game;
+        }
+      });
+
+      if (mostRecentGame && mostRecentDate) {
+        latestGameTime = mostRecentDate.toLocaleString('pt-BR', {
+          year: '2-digit',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        gamesAnalyzedCount = filteredGames.length;
+        console.log('[RankingMaxima] Jogo mais recente:', latestGameTime, 'Total:', gamesAnalyzedCount);
+      }
+
+      allGamesForPeriod = filteredGames;
 
       // Agrupa jogos por time
       const teamGames = {};
@@ -200,8 +231,11 @@ const RankingMaxima = (() => {
           const maxima = calculateMaximaForTeam(games, mercado);
           return { team, maxima, gameCount: games.length };
         })
-        .filter(r => r.gameCount > 0)
-        .sort((a, b) => b.maxima - a.maxima);
+        .filter(r => r.gameCount > 0);
+
+      // Reseta sorting para padrão (máxima desc)
+      sortBy = 'maxima';
+      sortDir = 'desc';
 
       console.log('[RankingMaxima] Ranking final:', ranking);
 
@@ -213,6 +247,40 @@ const RankingMaxima = (() => {
     } finally {
       if (loading) loading.style.display = 'none';
     }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // SORTING
+  // ────────────────────────────────────────────────────────────────
+
+  let sortBy = 'maxima';
+  let sortDir = 'desc';
+
+  function applySorting(data) {
+    const sorted = [...data];
+
+    sorted.sort((a, b) => {
+      let aVal, bVal;
+
+      if (sortBy === 'maxima') {
+        aVal = a.maxima;
+        bVal = b.maxima;
+      } else if (sortBy === 'team') {
+        aVal = a.team.toLowerCase();
+        bVal = b.team.toLowerCase();
+      } else if (sortBy === 'games') {
+        aVal = a.gameCount;
+        bVal = b.gameCount;
+      }
+
+      if (typeof aVal === 'string') {
+        return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      } else {
+        return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+    });
+
+    return sorted;
   }
 
   // ────────────────────────────────────────────────────────────────
@@ -235,16 +303,18 @@ const RankingMaxima = (() => {
       return;
     }
 
-    ranking.forEach((item, index) => {
+    const sorted = applySorting(ranking);
+
+    sorted.forEach((item, index) => {
       const pos = index + 1;
       const isTop3 = pos <= 3;
       const badge = getPosBadge(pos);
 
       const row = document.createElement('tr');
-      if (isTop3) row.classList.add('top-3');
+      if (isTop3) row.classList.add(`top-${pos}`);
 
       row.innerHTML = `
-        <td>
+        <td style="text-align: center;">
           <div class="pos-badge ${badge.class}">${badge.icon}</div>
         </td>
         <td><span class="team-name">${escapeHtml(item.team)}</span></td>
@@ -252,6 +322,87 @@ const RankingMaxima = (() => {
       `;
 
       tbody.appendChild(row);
+    });
+
+    updateSortIndicators();
+    renderTop5Cards();
+    updatePeriodInfo();
+  }
+
+  function updateSortIndicators() {
+    const headers = document.querySelectorAll('.ranking-table th');
+    headers.forEach(h => {
+      h.classList.remove('sort-asc', 'sort-desc');
+      if (h.dataset.sort === sortBy) {
+        h.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+      }
+    });
+  }
+
+  function renderTop5Cards() {
+    const container = document.getElementById('top5Grid');
+    const section = document.getElementById('top5Section');
+    
+    if (!container || rankingData.length === 0) {
+      if (section) section.style.display = 'none';
+      return;
+    }
+
+    // Ordena conforme rankingOrderDir
+    let sorted = [...rankingData];
+    sorted.sort((a, b) => {
+      return rankingOrderDir === 'desc' ? b.maxima - a.maxima : a.maxima - b.maxima;
+    });
+
+    const top5 = sorted.slice(0, 5);
+
+    container.innerHTML = top5
+      .map((item, idx) => {
+        const pos = idx + 1;
+        const badge = getPosBadge(pos);
+        const rankClass = pos <= 3 ? `rank-${pos}` : '';
+
+        return `
+          <div class="top5-card ${rankClass}">
+            <div class="top5-rank">${pos}º lugar</div>
+            <div class="top5-badge">${badge.icon}</div>
+            <div class="top5-name">${escapeHtml(item.team)}</div>
+            <div class="top5-value">${item.maxima}</div>
+            <div class="top5-label">Máxima</div>
+          </div>
+        `;
+      })
+      .join('');
+
+    section.style.display = 'block';
+  }
+
+  function updatePeriodInfo() {
+    const section = document.getElementById('periodInfo');
+    if (!section) return;
+
+    if (latestGameTime && gamesAnalyzedCount > 0) {
+      document.getElementById('gamesAnalyzedCount').textContent = gamesAnalyzedCount;
+      document.getElementById('latestGameTime').textContent = latestGameTime;
+      section.style.display = 'flex';
+    } else {
+      section.style.display = 'none';
+    }
+  }
+
+  function setupSortHeaders() {
+    const headers = document.querySelectorAll('.ranking-table th.sortable');
+    headers.forEach(h => {
+      h.addEventListener('click', () => {
+        const newSort = h.dataset.sort;
+        if (sortBy === newSort) {
+          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortBy = newSort;
+          sortDir = 'desc';
+        }
+        renderRanking(rankingData);
+      });
     });
   }
 
@@ -383,6 +534,16 @@ const RankingMaxima = (() => {
     });
   }
 
+  function initRankingOrderSelect() {
+    const select = document.getElementById('rankingOrderSelect');
+    if (!select) return;
+    select.addEventListener('change', (e) => {
+      rankingOrderDir = e.target.value;
+      renderTop5Cards();
+      salvarFiltros();
+    });
+  }
+
   function procesarRanking() {
     if (!currentLiga) return;
     processRanking(currentLiga, currentPeriodo, currentMercado);
@@ -398,6 +559,7 @@ const RankingMaxima = (() => {
       liga: currentLiga,
       periodo: currentPeriodo,
       mercado: currentMercado,
+      rankingOrder: rankingOrderDir,
     };
     localStorage.setItem('rankingMaximaFiltros', JSON.stringify(filtros));
   }
@@ -410,13 +572,15 @@ const RankingMaxima = (() => {
       const filtros = JSON.parse(saved);
       currentCasa = filtros.casa || null;
       currentLiga = filtros.liga || null;
-      currentPeriodo = filtros.periodo || 72;
+      currentPeriodo = filtros.periodo || 1440;
       currentMercado = filtros.mercado || 'over';
+      rankingOrderDir = filtros.rankingOrder || 'desc';
 
       document.getElementById('casaSelect').value = currentCasa || '';
       document.getElementById('ligaSelect').value = currentLiga || '';
       document.getElementById('periodoSelect').value = currentPeriodo;
       document.getElementById('mercadoSelect').value = currentMercado;
+      document.getElementById('rankingOrderSelect').value = rankingOrderDir;
 
       if (currentCasa) {
         updateLigaSelect();
@@ -443,6 +607,8 @@ const RankingMaxima = (() => {
     initLigaSelect();
     initPeriodoSelect();
     initMercadoSelect();
+    initRankingOrderSelect();
+    setupSortHeaders();
     restaurarFiltros();
     console.log('[RankingMaxima] Init concluído');
   }
@@ -459,7 +625,10 @@ const RankingMaxima = (() => {
       liga: currentLiga,
       periodo: currentPeriodo,
       mercado: currentMercado,
+      rankingOrderDir,
       ranking: rankingData,
+      latestGameTime,
+      gamesAnalyzedCount,
     }),
   };
 })();
