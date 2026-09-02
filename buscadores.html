@@ -1136,19 +1136,29 @@
         return d;
       }
 
-      // odds: aceita "inicio_jogo" ("DD/MM/YYYY, HH:MM") ou "data_captura"+"horario"
+      // odds: aceita "inicio_jogo" no formato real do banco
+      // ("YYYY-MM-DD HH:MM:SS", às vezes com "T" no lugar do espaço) ou,
+      // como fallback, "data_captura" ("DD/MM/YYYY") + "horario" ("HH:MM").
+      // BUG CORRIGIDO: antes o parser assumia "inicio_jogo" no formato
+      // "DD/MM/YYYY, HH:MM" (com vírgula) — formato que não existe nos
+      // dados reais. Isso fazia TODA linha de odds virar Data Invalida,
+      // e o filtro de janela descartava 100% dos dados silenciosamente
+      // (o modo "Por Odd" ficava zerado mesmo com odds no banco).
       function parseDataOdd(o) {
         try {
           if (o.inicio_jogo) {
-            const [datePart, timePart] = o.inicio_jogo.split(', ');
-            const [d, mo, y] = datePart.split('/');
-            const [h, mi] = (timePart || '00:00').split(':');
-            return new Date(y, mo - 1, d, h, mi);
+            const sep = o.inicio_jogo.includes('T') ? 'T' : ' ';
+            const [datePart, timePart] = o.inicio_jogo.split(sep);
+            const [y, mo, d] = datePart.split('-');
+            const [h, mi] = (timePart || '00:00:00').split(':');
+            const dt = new Date(y, mo - 1, d, h, mi);
+            if (!isNaN(dt)) return dt;
           }
           if (o.data_captura) {
             const [d, mo, y] = o.data_captura.split('/');
             const [h, mi] = (o.horario || '00:00').split(':');
-            return new Date(y, mo - 1, d, h, mi);
+            const dt = new Date(y, mo - 1, d, h, mi);
+            if (!isNaN(dt)) return dt;
           }
         } catch (e) {}
         return null;
