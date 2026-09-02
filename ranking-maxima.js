@@ -99,7 +99,7 @@ const RankingMaxima = (() => {
     let currentSequence = 0;
 
     games.forEach(game => {
-      const result = getMarketResult(game.resultado || game.placar);
+      const result = getMarketResult(game.ft || game.resultado || game.placar);
       if (!result) return; // pula jogos sem resultado
 
       const marketHappened = market === 'over' ? result.isOver : !result.isOver;
@@ -161,9 +161,10 @@ const RankingMaxima = (() => {
       const teamGames = {};
 
       filteredGames.forEach((game, idx) => {
-        const home = (game.time_casa || game.team_home || '').trim();
-        const away = (game.time_visitante || game.team_visit || '').trim();
-        const resultado = game.resultado || game.placar || '';
+        // Tenta vários nomes de campo
+        const home = (game.time_a || game.time_casa || game.team_home || '').trim();
+        const away = (game.time_b || game.time_visitante || game.team_visit || '').trim();
+        const resultado = game.ft || game.resultado || game.placar || '';
 
         if (!home || !away) {
           console.warn(`[RankingMaxima] Jogo ${idx} sem times:`, game);
