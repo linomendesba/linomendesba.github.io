@@ -108,14 +108,21 @@ const SVG_ICONS = {
 };
 
 // ─── HELPER: nome normalizado da liga atual ───────────────────────────────────
+// Prioriza LIGA_ATUAL (definido de forma síncrona em config.js, já é único
+// por liga) em vez do texto do h4.custom-color (que só é preenchido depois
+// pelo ligas-config.js e usa nomeExibicao curto — "Copa", "Euro" — que se
+// repete entre casas diferentes, ex: Bet365 Copa e Copa do Mundo Estrelabet
+// caem ambos em "copa"). Usar LIGA_ATUAL evita tanto a race de timing quanto
+// a colisão de chave entre ligas de casas diferentes com o mesmo nome curto.
 function getLigaKey() {
+  if (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) {
+    return String(LIGA_ATUAL).trim().toLowerCase().replace(/\s+/g, "_");
+  }
   const h4 = document.querySelector("h4.custom-color");
   if (h4 && h4.textContent.trim()) {
     return h4.textContent.trim().toLowerCase().replace(/\s+/g, "_");
   }
-  return typeof LIGA_ATUAL !== "undefined"
-    ? String(LIGA_ATUAL).trim().toLowerCase().replace(/\s+/g, "_")
-    : "default";
+  return "default";
 }
 
 // ─── ESTADO CENTRALIZADO ──────────────────────────────────────────────────────
