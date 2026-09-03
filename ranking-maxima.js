@@ -322,12 +322,14 @@ const RankingMaxima = (() => {
   // ────────────────────────────────────────────────────────────────
   // PRÓXIMOS CONFRONTOS
   // ────────────────────────────────────────────────────────────────
-  // Usa a mesma rota /proximos/<liga> já usada na Central de Odds.
-  // Se ROTAS_API.proximos existir (config.js), usa direto; senão,
-  // deriva a URL a partir de ROTAS_API.resultados trocando o trecho
-  // "/resultados/" por "/proximos/" (mesmo padrão de BASE da Central
-  // de Odds: `${BASE}/proximos/${liga}`).
+  // Usa a mesma rota de próximos jogos já usada na Central de Odds.
+  // Nome real da função em config.js: ROTAS_API.proximosJogos (não
+  // ".proximos"). Mantém dois fallbacks só por segurança, caso o
+  // config.js mude no futuro.
   function obterUrlProximos(liga) {
+    if (typeof ROTAS_API !== 'undefined' && typeof ROTAS_API.proximosJogos === 'function') {
+      return ROTAS_API.proximosJogos(liga);
+    }
     if (typeof ROTAS_API !== 'undefined' && typeof ROTAS_API.proximos === 'function') {
       return ROTAS_API.proximos(liga);
     }
