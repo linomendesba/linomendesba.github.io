@@ -35,9 +35,15 @@ const RankingMaxima = (() => {
   let proximosCache = { liga: null, jogos: [], loaded: false };
 
   // Times fixados manualmente no gráfico de sequência, além do Top 5,
-  // digitados pelo usuário no campo de busca do gráfico. Guarda o nome
-  // exatamente como aparece no ranking (não o que o usuário digitou).
+  // através do botão "+" na tabela do ranking. Guarda o nome exatamente
+  // como aparece no ranking.
   let pinnedTeams = [];
+
+  // ────────────────────────────────────────────────────────────────
+  // AUTO-REFRESH (a cada 1 minuto, sem piscar a tela)
+  // ────────────────────────────────────────────────────────────────
+  const AUTO_REFRESH_MS = 60 * 1000;
+  let autoRefreshTimer = null;
 
   // ────────────────────────────────────────────────────────────────
   // CONFIG DO SELETOR DE PERÍODO
@@ -437,7 +443,7 @@ const RankingMaxima = (() => {
     section.style.display = 'block';
   }
 
-  function computeRanking(allGames, liga, horas, mercado, minJogos) {
+  function computeRanking(allGames, liga, horas, mercado, minJogos, resetSort = true) {
     // Normaliza a ordem cronológica de TODOS os jogos da liga (mais
     // antigo -> mais recente). Se não der pra confiar na data/hora de
     // algum jogo, normalizarOrdemCronologica devolve a ordem original
@@ -510,9 +516,13 @@ const RankingMaxima = (() => {
       })
       .filter(r => r.gameCount > 0 && r.gameCount >= minJogos);
 
-    // Reseta sorting para padrão (máxima desc)
-    sortBy = 'maxima';
-    sortDir = 'desc';
+    // Reseta sorting para padrão (máxima desc) — só quando é uma troca
+    // de filtro de verdade. No refresh silencioso automático mantemos
+    // a ordenação que o usuário já tinha escolhido.
+    if (resetSort) {
+      sortBy = 'maxima';
+      sortDir = 'desc';
+    }
 
     console.log('[RankingMaxima] Ranking final:', ranking);
 
@@ -524,6 +534,11 @@ const RankingMaxima = (() => {
     const precisaBuscar = !gamesCache.loaded || gamesCache.liga !== liga;
     if (precisaBuscar && loading) loading.style.display = 'flex';
 
+    // Dispara as duas buscas (resultados + próximos confrontos) em
+    // paralelo em vez de esperar uma terminar pra começar a outra —
+    // corta bastante o tempo de carregamento ao trocar de liga/casa.
+    const proximosPromise = fetchProximos(liga);
+
     try {
       const allGames = await fetchGamesForLiga(liga);
       const ranking = computeRanking(allGames, liga, horas, mercado, minJogos);
@@ -533,7 +548,7 @@ const RankingMaxima = (() => {
 
       // Próximos confrontos: não trava a renderização do ranking em si
       // se essa parte falhar (fetchProximos já trata os próprios erros).
-      fetchProximos(liga).then(() => renderProximosConfrontos());
+      proximosPromise.then(() => renderProximosConfrontos());
     } catch (error) {
       console.error('[RankingMaxima] Erro ao processar ranking:', error);
       showError('Erro ao carregar dados. Verifique o console para detalhes.');
@@ -599,7 +614,7 @@ const RankingMaxima = (() => {
     if (ranking.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="4" class="empty-state">
+          <td colspan="5" class="empty-state">
             <div class="empty-state-icon">📭</div>
             <div class="empty-state-text">Nenhum jogo encontrado neste período</div>
           </td>
@@ -614,7 +629,7 @@ const RankingMaxima = (() => {
     if (filtered.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="4" class="empty-state">
+          <td colspan="5" class="empty-state">
             <div class="empty-state-icon">🔍</div>
             <div class="empty-state-text">Nenhum time encontrado para "${escapeHtml(searchQuery)}"</div>
           </td>
@@ -631,6 +646,7 @@ const RankingMaxima = (() => {
       const pos = index + 1;
       const isTop3 = pos <= 3;
       const badge = getPosBadge(pos);
+      const pinned = isPinned(item.team);
 
       const row = document.createElement('tr');
       if (isTop3) row.classList.add(`top-${pos}`);
@@ -642,6 +658,9 @@ const RankingMaxima = (() => {
         <td><span class="team-name">${escapeHtml(item.team)}</span></td>
         <td><div class="maxima-value">${item.maxima}</div></td>
         <td><div class="streak-value">${item.streakAtual}</div></td>
+        <td class="col-grafico">
+          <button type="button" class="pin-toggle-btn ${pinned ? 'pinned' : ''}" data-team="${escapeHtml(item.team)}" title="${pinned ? 'Remover do gráfico' : 'Adicionar ao gráfico'}">${pinned ? '✕' : '+'}</button>
+        </td>
       `;
 
       tbody.appendChild(row);
@@ -710,7 +729,7 @@ const RankingMaxima = (() => {
       .filter(item => !top5.some(t => t.team === item.team));
 
     const chartItems = [
-      ...top5.map(item => ({ ...item, pinned: false })),
+      ...top5.map(item => ({ ...item, pinned: isPinned(item.team) })),
       ...extras.map(item => ({ ...item, pinned: true })),
     ];
 
@@ -858,10 +877,13 @@ const RankingMaxima = (() => {
     },
   };
 
-  function corParaItemChart(item, idx, totalTop5) {
-    if (!item.pinned) return TOP5_CHART_COLORS[idx] || '#e4e8f0';
-    const pinnedIdx = idx - totalTop5;
-    return PINNED_CHART_COLORS[pinnedIdx % PINNED_CHART_COLORS.length];
+  function corParaItemChart(idx, totalTop5) {
+    // Cor por POSIÇÃO (dentro do Top5 ou fora dele) — não pelo status
+    // "pinned", porque um time do Top5 também pode ter sido fixado
+    // manualmente (pra ficar sempre visível) sem perder a cor de medalha.
+    if (idx < totalTop5) return TOP5_CHART_COLORS[idx] || '#e4e8f0';
+    const extraIdx = idx - totalTop5;
+    return PINNED_CHART_COLORS[extraIdx % PINNED_CHART_COLORS.length];
   }
 
   function renderTop5LineChart(items) {
@@ -882,7 +904,7 @@ const RankingMaxima = (() => {
 
     const datasets = items.map((item, idx) => {
       const { points, colors } = buildWalkSeries(item.games || [], currentMercado);
-      const cor = corParaItemChart(item, idx, totalTop5);
+      const cor = corParaItemChart(idx, totalTop5);
 
       return {
         label: item.pinned ? `${item.team} (fixado)` : item.team,
@@ -963,38 +985,26 @@ const RankingMaxima = (() => {
   // TIME FIXADO NO GRÁFICO (campo de busca + chips removíveis)
   // ────────────────────────────────────────────────────────────────
 
-  function addPinnedTeam(rawName) {
-    const errorEl = document.getElementById('pinTeamError');
-    const input = document.getElementById('pinTeamInput');
-    if (errorEl) {
-      errorEl.style.display = 'none';
-      errorEl.textContent = '';
-    }
+  function isPinned(teamName) {
+    return pinnedTeams.some(t => normalizeForSearch(t) === normalizeForSearch(teamName));
+  }
 
-    const nome = (rawName || '').trim();
-    if (!nome) return;
+  // Adiciona ou remove um time do gráfico. Usado tanto pelo botão +/✕
+  // de cada linha da tabela quanto pelo ✕ dos chips abaixo do gráfico.
+  // Não reconstrói a tabela inteira — só troca o ícone/estado dos
+  // botões já na tela — pra não dar aquele "piscar" a cada clique.
+  function togglePinnedTeam(teamName) {
+    const entry = findRankingEntry(teamName);
+    if (!entry) return;
 
-    const entry = findRankingEntry(nome);
-    if (!entry) {
-      if (errorEl) {
-        errorEl.textContent = `Time "${nome}" não encontrado no ranking atual (confira o nome ou os filtros aplicados).`;
-        errorEl.style.display = 'block';
-      }
-      return;
-    }
-
-    const jaExiste = pinnedTeams.some(t => normalizeForSearch(t) === normalizeForSearch(entry.team));
-    if (!jaExiste) {
+    if (isPinned(entry.team)) {
+      pinnedTeams = pinnedTeams.filter(t => normalizeForSearch(t) !== normalizeForSearch(entry.team));
+    } else {
       pinnedTeams.push(entry.team);
     }
 
-    if (input) input.value = '';
-    renderTop5Cards(); // reprocessa Top5 + regenera o gráfico já com o time fixado
-  }
-
-  function removePinnedTeam(teamName) {
-    pinnedTeams = pinnedTeams.filter(t => normalizeForSearch(t) !== normalizeForSearch(teamName));
-    renderTop5Cards();
+    renderTop5Cards(); // reprocessa Top5 + regenera o gráfico + os chips
+    syncPinToggleButtons();
   }
 
   function renderPinnedChips() {
@@ -1009,21 +1019,31 @@ const RankingMaxima = (() => {
     `).join('');
 
     list.querySelectorAll('button[data-team]').forEach(btn => {
-      btn.addEventListener('click', () => removePinnedTeam(btn.dataset.team));
+      btn.addEventListener('click', () => togglePinnedTeam(btn.dataset.team));
     });
   }
 
-  function initPinTeamControls() {
-    const btn = document.getElementById('pinTeamBtn');
-    const input = document.getElementById('pinTeamInput');
-    if (!btn || !input) return;
+  // Sincroniza o ícone/estado (+ ou ✕) de todos os botões da tabela
+  // com o array pinnedTeams atual, sem re-renderizar as linhas.
+  function syncPinToggleButtons() {
+    document.querySelectorAll('.pin-toggle-btn[data-team]').forEach(btn => {
+      const pinned = isPinned(btn.dataset.team);
+      btn.classList.toggle('pinned', pinned);
+      btn.textContent = pinned ? '✕' : '+';
+      btn.title = pinned ? 'Remover do gráfico' : 'Adicionar ao gráfico';
+    });
+  }
 
-    btn.addEventListener('click', () => addPinnedTeam(input.value));
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        addPinnedTeam(input.value);
-      }
+  // Um único listener no corpo da tabela (delegação de evento) cobre
+  // todos os botões +/✕, inclusive os recriados a cada renderRanking —
+  // não precisa reatachar handler linha por linha.
+  function initPinToggleDelegation() {
+    const tbody = document.getElementById('rankingBody');
+    if (!tbody) return;
+    tbody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.pin-toggle-btn');
+      if (!btn) return;
+      togglePinnedTeam(btn.dataset.team);
     });
   }
 
@@ -1066,7 +1086,7 @@ const RankingMaxima = (() => {
     const tbody = document.getElementById('rankingBody');
     tbody.innerHTML = `
       <tr>
-        <td colspan="4" class="empty-state">
+        <td colspan="5" class="empty-state">
           <div class="empty-state-icon">⚠️</div>
           <div class="empty-state-text">${escapeHtml(message)}</div>
         </td>
@@ -1219,6 +1239,72 @@ const RankingMaxima = (() => {
   }
 
   // ────────────────────────────────────────────────────────────────
+  // AUTO-REFRESH SILENCIOSO
+  // ────────────────────────────────────────────────────────────────
+  // Busca dados novos por trás dos panos a cada 1 minuto e só troca o
+  // conteúdo na tela quando a resposta chega — sem mostrar o spinner
+  // "Processando...", sem resetar a ordenação da tabela nem o texto
+  // já digitado no campo de busca, e sem re-renderizar nada se a
+  // busca falhar (mantém os últimos dados válidos na tela). É isso
+  // que evita o "piscar".
+
+  async function silentRefresh() {
+    if (!currentLiga) return;
+    // Não atualiza com a aba em segundo plano — evita gastar chamadas
+    // à API à toa e evita competir com o que o usuário estiver fazendo
+    // assim que ele voltar pra aba (a troca de aba já dispara um
+    // refresh imediato, ver initAutoRefresh).
+    if (document.hidden) return;
+
+    // Guarda a liga alvo no início: se o usuário trocar de liga
+    // enquanto esse fetch está em andamento, a resposta é descartada
+    // em vez de ser aplicada na liga errada.
+    const ligaAlvo = currentLiga;
+
+    try {
+      const url = ROTAS_API.resultados(ligaAlvo);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status} em ${url}`);
+      let allGames = await response.json();
+      if (!Array.isArray(allGames)) {
+        allGames = (allGames && typeof allGames === 'object')
+          ? (Object.values(allGames).find(v => Array.isArray(v)) || [])
+          : [];
+      }
+
+      if (currentLiga !== ligaAlvo) return; // liga mudou nesse meio tempo, descarta
+
+      gamesCache = { liga: ligaAlvo, games: allGames, loaded: true };
+
+      const ranking = computeRanking(allGames, ligaAlvo, currentHoras, currentMercado, currentMinJogos, false);
+      rankingData = ranking;
+      renderRanking(ranking); // troca só o conteúdo, sem mexer no spinner
+
+      // Próximos confrontos também são recarregados, do mesmo jeito
+      // silencioso (invalida o cache dessa liga e refaz o fetch).
+      proximosCache = { liga: null, jogos: [], loaded: false };
+      fetchProximos(ligaAlvo).then(() => {
+        if (currentLiga === ligaAlvo) renderProximosConfrontos();
+      });
+    } catch (error) {
+      // Falha silenciosa: mantém os dados antigos na tela e tenta de
+      // novo no próximo ciclo, sem incomodar o usuário com um erro.
+      console.warn('[RankingMaxima] Auto-refresh falhou, mantendo dados atuais:', error);
+    }
+  }
+
+  function initAutoRefresh() {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = setInterval(silentRefresh, AUTO_REFRESH_MS);
+
+    // Se o usuário sair da aba e voltar depois de um bom tempo, busca
+    // dados novos na hora em vez de esperar o próximo tick do timer.
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) silentRefresh();
+    });
+  }
+
+  // ────────────────────────────────────────────────────────────────
   // SALVAMENTO DE FILTROS (localStorage)
   // ────────────────────────────────────────────────────────────────
 
@@ -1293,9 +1379,10 @@ const RankingMaxima = (() => {
     initMinJogosSelect();
     initBuscaInput();
     initRankingOrderSelect();
-    initPinTeamControls();
+    initPinToggleDelegation();
     setupSortHeaders();
     restaurarFiltros();
+    initAutoRefresh();
     console.log('[RankingMaxima] Init concluído');
   }
 
