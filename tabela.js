@@ -113,7 +113,9 @@ function getLigaKey() {
   if (h4 && h4.textContent.trim()) {
     return h4.textContent.trim().toLowerCase().replace(/\s+/g, "_");
   }
-  return typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "default";
+  return typeof LIGA_ATUAL !== "undefined"
+    ? String(LIGA_ATUAL).trim().toLowerCase().replace(/\s+/g, "_")
+    : "default";
 }
 
 // ─── ESTADO CENTRALIZADO ──────────────────────────────────────────────────────
