@@ -2811,7 +2811,7 @@ let _buscando=false;
 // ferramentas pra perceber um resultado novo na API, mesmo buscando em
 // intervalo menor que elas. Alinhando ao mesmo relógio, ela passa a
 // verificar nos mesmos instantes que o resto da página.
-sincronizarIntervalo(async()=>{if(_buscando)return;_buscando=true;try{await buscarDados();}finally{_buscando=false;}},5000);
+sincronizarIntervalo(async()=>{if(_buscando)return;_buscando=true;try{await buscarDados();}finally{_buscando=false;}},2000);
 
 // ─── LISTENERS ────────────────────────────────────────────────────────────────
 const _sh=document.querySelector("#seletorHoras");
