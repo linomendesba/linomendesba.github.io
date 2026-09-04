@@ -149,12 +149,32 @@
       border: 1px solid #3a3f50;
       border-radius: 6px;
       overflow: hidden;
-      pointer-events: none; /* somente leitura — é um resumo, edição fica na tabela principal */
+      border-collapse: collapse;
+      cursor: default;
     }
-    .tabela-hora-atual-mini tbody tr {
-      background: rgba(255,255,255,0.03);
+    .tabela-hora-atual-mini th, .tabela-hora-atual-mini td {
+      text-align: center;
+      padding: 4px 6px;
+      font-size: 0.78em;
     }
-    /* Faixas de cor por porcentagem (estrutura do tabela.js) */
+    .tabela-hora-atual-mini thead th {
+      background: #1e2130;
+      color: #9ca3af;
+    }
+    /* Célula dupla: % em cima, média de gols embaixo — modelo do HORA_FIXA.html */
+    .cell-wrap { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+    .cell-pct  { font-weight: 700; font-size: 0.92em; }
+    .cell-avg  { font-size: 0.72em; opacity: 0.85; font-weight: 500; margin-top: 1px; }
+    /* Faixas de cor por % — mesmas cores da legenda do HORA_FIXA.html */
+    .percent-100    { background: #6a0dad; color: #fff; }
+    .percent-90-99  { background: #1a7a1a; color: #fff; }
+    .percent-80-90  { background: #2eb82e; color: #fff; }
+    .percent-70-80  { background: #66cc00; color: #111; }
+    .percent-60-70  { background: #cccc00; color: #111; }
+    .percent-50-60  { background: #e67e00; color: #111; }
+    .percent-40-50  { background: #cc4400; color: #fff; }
+    .percent-0-40   { background: #990000; color: #fff; }
+    /* Faixas de cor por porcentagem (estrutura do tabela.js) — usadas nas colunas de Dados da tabela principal */
     .pct-verde    { color: #00e676 !important; font-weight: bold; }
     .pct-amarelo  { color: #fbbf24 !important; font-weight: bold; }
     .pct-vermelho { color: #ff5555 !important; font-weight: bold; }
@@ -996,7 +1016,9 @@
     const hora = horaAtual;
 
     // Globais de seletor
-    const mercado    = document.getElementById("sel-mercado").value;
+    const mercadoSel  = document.getElementById("sel-mercado");
+    const mercado     = mercadoSel.value;
+    const mercadoLabel= mercadoSel.options[mercadoSel.selectedIndex]?.text || mercado;
     const tipoPlacar = document.getElementById("sel-tipo-placar").value;
     const mostTimes  = document.getElementById("sel-times").value === "sim";
     const mostHT     = document.getElementById("sel-ht").value === "sim";
@@ -1056,7 +1078,9 @@
       td.textContent = `Sem dados para ${hora.toString().padStart(2,"0")}:00`;
       tr.appendChild(td); tbody.appendChild(tr);
       // limpa rodapés/stats
-      atualizarIndicador(key); return;
+      atualizarIndicador(key);
+      atualizarMiniHoraAtual(key, mF, Array(mF.length).fill(0), Array(mF.length).fill(0), Array(mF.length).fill(0), mercadoLabel);
+      return;
     }
 
     // Coleta datas únicas com jogos nessa hora
@@ -1258,47 +1282,60 @@
     updateSelectedRows(key);
     aplicarColunas(key);
     atualizarColunaStats(key);
-    atualizarMiniHoraAtual(key);
+    atualizarMiniHoraAtual(key, mF, totMercadoCol, totalAcertosPorColuna, totalGolsPorColuna, mercadoLabel);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // MINI-TABELA "HORA ATUAL" — mostra, em destaque acima da tabela principal,
-  // a linha do dia mais recente (hoje, se já tiver dados na hora fixa).
-  // Reaproveita o DOM já renderizado na tabela principal (clonando), evitando
-  // duplicar toda a lógica de montagem de células.
+  // MINI-TABELA "HORA ATUAL" — modelo trazido do HORA_FIXA.html: uma linha só
+  // (a hora fixa), uma célula por minuto, com % de acerto + média de gols
+  // agregados nos últimos `diasAtual` dias (mesmos totais já calculados na
+  // tabela principal: totMercadoCol / totalAcertosPorColuna / totalGolsPorColuna).
   // ═══════════════════════════════════════════════════════════════════════════
-  function atualizarMiniHoraAtual(key) {
-    const principal = document.getElementById(`tabela-${key}`);
-    const mini = document.getElementById(`tabela-hora-atual-${key}`);
-    if (!principal || !mini) return;
+  function getPercentClass(p) {
+    if (p >= 100) return "percent-100";
+    if (p >= 90)  return "percent-90-99";
+    if (p >= 80)  return "percent-80-90";
+    if (p >= 70)  return "percent-70-80";
+    if (p >= 60)  return "percent-60-70";
+    if (p >= 50)  return "percent-50-60";
+    if (p >= 40)  return "percent-40-50";
+    return "percent-0-40";
+  }
 
+  function makeStatCell(total, green, goalsSum, mercadoLabel) {
+    const p = total > 0 ? (green / total) * 100 : 0;
+    const g = total > 0 ? (goalsSum / total) : 0;
+    const td = document.createElement("td");
+    td.className = getPercentClass(p);
+    td.title = total > 0
+      ? `Mercado: ${mercadoLabel}\nAcertos: ${green} de ${total} jogos (${Math.round(p)}%)\nMédia de gols: ${g.toFixed(1)} ⚽`
+      : `Sem dados registrados`;
+    td.innerHTML = total > 0
+      ? `<div class="cell-wrap"><span class="cell-pct">${Math.round(p)}%</span><span class="cell-avg">${g.toFixed(1)} ⚽</span></div>`
+      : `<div class="cell-wrap"><span class="cell-pct">${Math.round(p)}%</span></div>`;
+    return td;
+  }
+
+  function atualizarMiniHoraAtual(key, mF, totMercadoCol, totalAcertosPorColuna, totalGolsPorColuna, mercado) {
+    const mini = document.getElementById(`tabela-hora-atual-${key}`);
+    if (!mini) return;
     const theadMini = mini.querySelector("thead");
     const tbodyMini = mini.querySelector("tbody");
-    theadMini.innerHTML = "";
-    tbodyMini.innerHTML = "";
+    theadMini.innerHTML = ""; tbodyMini.innerHTML = "";
 
-    // Cabeçalho: reaproveita a linha de minutos (ícones + colunas)
-    const linhasThead = principal.querySelectorAll("thead tr");
-    const trMinutos = linhasThead[linhasThead.length - 1];
-    if (trMinutos) {
-      const cloneHead = trMinutos.cloneNode(true);
-      cloneHead.querySelectorAll("th").forEach(th => th.replaceWith(th.cloneNode(true))); // remove listeners (toggleColuna)
-      theadMini.appendChild(cloneHead);
-    }
+    const trHead = document.createElement("tr");
+    trHead.appendChild(Object.assign(document.createElement("th"), {innerHTML: SVG_ICONS.clock}));
+    mF.forEach(m => trHead.appendChild(Object.assign(document.createElement("th"), {textContent: m.toString().padStart(2,"0")})));
+    theadMini.appendChild(trHead);
 
-    // Corpo: primeira linha da tabela principal = data mais recente disponível
-    const primeiraLinha = principal.querySelector("tbody tr[data-chave]");
-    if (primeiraLinha) {
-      const cloneLinha = primeiraLinha.cloneNode(true);
-      cloneLinha.querySelector(".row-selector")?.remove();
-      tbodyMini.appendChild(cloneLinha);
-    } else {
-      const tr = document.createElement("tr");
-      const td = document.createElement("td");
-      td.className = "sem-dados"; td.textContent = "Sem dados ainda para a hora atual";
-      td.colSpan = (trMinutos?.children.length) || 30;
-      tr.appendChild(td); tbodyMini.appendChild(tr);
-    }
+    const trBody = document.createElement("tr");
+    const thHora = document.createElement("th");
+    thHora.textContent = horaAtual.toString().padStart(2,"0");
+    trBody.appendChild(thHora);
+    mF.forEach((m, i) => {
+      trBody.appendChild(makeStatCell(totMercadoCol[i], totalAcertosPorColuna[i], totalGolsPorColuna[i], mercado));
+    });
+    tbodyMini.appendChild(trBody);
   }
   // ═══════════════════════════════════════════════════════════════════════════
   // HIGHLIGHTS
