@@ -1018,20 +1018,19 @@
     const thead = tabela.querySelector("thead");
     thead.innerHTML = "";
 
-    const trPercentual     = Object.assign(document.createElement("tr"), {id:`linhaPct-${key}`});
-    const trTotalGols      = Object.assign(document.createElement("tr"), {id:`linhaTG-${key}`});
-    const trAcertosMercado = Object.assign(document.createElement("tr"), {id:`linhaAM-${key}`});
+    // 2 linhas combinadas: gols+média por coluna, e %+acertos por coluna
+    const trGolsMedia  = Object.assign(document.createElement("tr"), {id:`linhaGM-${key}`});
+    const trPercentual = Object.assign(document.createElement("tr"), {id:`linhaPct-${key}`});
 
     // th hora — label da hora fixa
-    [trPercentual, trTotalGols, trAcertosMercado].forEach(tr => {
+    [trGolsMedia, trPercentual].forEach(tr => {
       tr.appendChild(document.createElement("th")); // checkbox placeholder
       tr.appendChild(document.createElement("th")); // data placeholder
     });
+    trGolsMedia.children[1].textContent  = "⚽";
     trPercentual.children[1].textContent = "📊";
-    trTotalGols.children[1].textContent  = "⚽";
-    trAcertosMercado.children[1].textContent = "✅";
 
-    thead.append(trPercentual, trTotalGols, trAcertosMercado);
+    thead.append(trGolsMedia, trPercentual);
 
     // Linha de minutos
     const trMin = document.createElement("tr");
@@ -1045,7 +1044,7 @@
       th.addEventListener("click", () => toggleColuna(key, m));
       trMin.appendChild(th);
     });
-    ["⚽","✅","📈"].forEach(t => trMin.appendChild(Object.assign(document.createElement("th"),{textContent:t})));
+    ["⚽","📊"].forEach(t => trMin.appendChild(Object.assign(document.createElement("th"),{textContent:t})));
     thead.appendChild(trMin);
 
     // ── tbody ───────────────────────────────────────────────────────────────
@@ -1055,7 +1054,7 @@
     if (dadosFiltrados.length === 0 && proximosFiltrados.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = mF.length + 5;
+      td.colSpan = mF.length + 4;
       td.className = "sem-dados";
       td.textContent = `Sem dados para ${hora.toString().padStart(2,"0")}:00`;
       tr.appendChild(td); tbody.appendChild(tr);
@@ -1073,20 +1072,23 @@
       datasSet.add(ds);
     });
 
-    // Ordena: mais recente primeiro, limita a diasAtual dias
-    // Se a hora está acontecendo agora → exclui o dia atual (dados incompletos)
+    // Ordena: mais recente primeiro, limita a diasAtual dias de HISTÓRICO.
+    // O dia de hoje (em andamento ou com próximos jogos ainda não iniciados)
+    // entra como linha extra, sem consumir uma das vagas de diasAtual —
+    // igual ao comportamento nas outras casas.
     const agoraD = new Date();
     const hojeStrD = `${agoraD.getFullYear()}-${(agoraD.getMonth()+1).toString().padStart(2,"0")}-${agoraD.getDate().toString().padStart(2,"0")}`;
-    const offsetD = CASAS_CONFIG[casaAtual]?.offsetHora || 0;
-    const horaAtualNaCasaD = (agoraD.getHours() + offsetD) % 24;
-    const horaEmAndamento = hora === horaAtualNaCasaD;
-    const datasUnicas = Array.from(datasSet)
+    const temHojeD = datasSet.has(hojeStrD);
+    const historicoD = Array.from(datasSet)
+      .filter(d => d !== hojeStrD)
       .sort((a, b) => b.localeCompare(a))
-      .filter(d => !(horaEmAndamento && d === hojeStrD))
       .slice(0, diasAtual);
+    const datasUnicas = temHojeD ? [hojeStrD, ...historicoD] : historicoD;
 
     const mapeamento = {}; // dataStr → tr
+    const totaisPorLinha = {}; // dataStr → {gols, acertos}
     datasUnicas.forEach(dataStr => {
+      totaisPorLinha[dataStr] = { gols: 0, acertos: 0 };
       const tr = document.createElement("tr");
       tr.setAttribute("data-chave", `${dataStr}-${hora}`);
 
@@ -1119,10 +1121,9 @@
         tr.appendChild(td);
       });
 
-      // gols | acertos | %
-      tr.appendChild(Object.assign(document.createElement("td"), {textContent:"0"}));
-      tr.appendChild(Object.assign(document.createElement("td"), {textContent:"0"}));
-      tr.appendChild(Object.assign(document.createElement("td"), {textContent:"0%"}));
+      // gols+média | %+acertos — preenchidas ao final
+      tr.appendChild(document.createElement("td"));
+      tr.appendChild(document.createElement("td"));
 
       tbody.appendChild(tr);
       mapeamento[dataStr] = tr;
@@ -1208,12 +1209,12 @@
       const [rA, rB] = primary.split(" x ").map(n => parseInt(n)||0);
       const acerto = calcAcerto(rA, rB, mercado);
       cel.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
+      const totaisLinha = totaisPorLinha[ds];
       if (acerto) {
         totalAcertosPorColuna[idx]++;
-        linha.children[linha.children.length - 2].textContent = parseInt(linha.children[linha.children.length - 2].textContent) + 1;
+        if (totaisLinha) totaisLinha.acertos++;
       }
-      const tgCel = linha.children[linha.children.length - 3];
-      tgCel.textContent = parseInt(tgCel.textContent) + (rA + rB);
+      if (totaisLinha) totaisLinha.gols += (rA + rB);
       totalGolsPorColuna[idx] += (rA + rB);
 
       // Stats seleção
@@ -1223,37 +1224,43 @@
     });
 
 
-    // ── Totais thead ────────────────────────────────────────────────────────
-    totalGolsPorColuna.forEach(t => trTotalGols.appendChild(Object.assign(document.createElement("td"),{className:"total-goals",textContent:t})));
-    totalAcertosPorColuna.forEach(t => trAcertosMercado.appendChild(Object.assign(document.createElement("td"),{className:"market-hits",textContent:t})));
-    for(let i=0;i<3;i++){trTotalGols.appendChild(document.createElement("td"));trAcertosMercado.appendChild(document.createElement("td"));}
-
-    // % por linha
+    // ── gols+média e %+acertos por LINHA (data) ────────────────────────────────
     const todasLinhas = Array.from(tbody.querySelectorAll("tr"));
-    todasLinhas.forEach(row => {
-      const total   = Array.from(row.cells).slice(2,-3).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
-      const acertos = parseInt(row.children[row.children.length-2].textContent)||0;
-      const pct     = total > 0 ? Math.floor((acertos/total)*100) : 0;
-      const pctCell = row.children[row.children.length-1];
-      pctCell.textContent = `${pct}%`;
-      pctCell.classList.toggle("porcentagem-verde",  pct >= thresh);
-      pctCell.classList.toggle("porcentagem-branca", pct <  thresh);
+    datasUnicas.forEach(dataStr => {
+      const row = mapeamento[dataStr];
+      if (!row) return;
+      const totais = totaisPorLinha[dataStr] || { gols: 0, acertos: 0 };
+      const total  = Array.from(row.cells).slice(2,-2).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
+      const pct    = total > 0 ? Math.floor((totais.acertos/total)*100) : 0;
+      const media  = total > 0 ? (totais.gols/total).toFixed(1) : "0.0";
+
+      const golsCell = row.children[row.children.length - 2];
+      golsCell.innerHTML = `<span>${totais.gols}</span><br><span style="font-size:0.68em;color:#9ca3af;">${media}</span>`;
+
+      const pctCell = row.children[row.children.length - 1];
+      pctCell.innerHTML = `<span class="${pct >= thresh ? "porcentagem-verde" : "porcentagem-branca"}">${pct}%</span><br><span style="font-size:0.68em;color:#9ca3af;">${totais.acertos}</span>`;
     });
 
-    // % por coluna
+    // ── gols+média e %+acertos por COLUNA (minuto) ─────────────────────────────
     const totMercadoCol = Array(mF.length).fill(0);
     todasLinhas.forEach(row => {
-      Array.from(row.cells).slice(2,-3).forEach((c,i) => { if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro")) totMercadoCol[i]++; });
+      Array.from(row.cells).slice(2,-2).forEach((c,i) => { if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro")) totMercadoCol[i]++; });
     });
     totMercadoCol.forEach((tot,i) => {
-      const pct  = tot > 0 ? Math.floor((totalAcertosPorColuna[i]/tot)*100) : 0;
-      const cell = document.createElement("td"); cell.textContent = `${pct}%`;
-      cell.classList.toggle("porcentagem-verde",  pct >= thresh);
-      cell.classList.toggle("porcentagem-branca", pct <  thresh);
-      if (i>0&&i%qS===0) cell.classList.add("quadrant-border");
-      trPercentual.appendChild(cell);
+      const pct   = tot > 0 ? Math.floor((totalAcertosPorColuna[i]/tot)*100) : 0;
+      const media = tot > 0 ? (totalGolsPorColuna[i]/tot).toFixed(1) : "0.0";
+
+      const cellGM = document.createElement("td");
+      cellGM.innerHTML = `<span>${totalGolsPorColuna[i]}</span><br><span style="font-size:0.68em;color:#9ca3af;">${media}</span>`;
+      if (i>0&&i%qS===0) cellGM.classList.add("quadrant-border");
+      trGolsMedia.appendChild(cellGM);
+
+      const cellPct = document.createElement("td");
+      cellPct.innerHTML = `<span class="${pct >= thresh ? "porcentagem-verde" : "porcentagem-branca"}">${pct}%</span><br><span style="font-size:0.68em;color:#9ca3af;">${totalAcertosPorColuna[i]}</span>`;
+      if (i>0&&i%qS===0) cellPct.classList.add("quadrant-border");
+      trPercentual.appendChild(cellPct);
     });
-    for(let i=0;i<3;i++) trPercentual.appendChild(document.createElement("td"));
+    for(let i=0;i<2;i++){ trGolsMedia.appendChild(document.createElement("td")); trPercentual.appendChild(document.createElement("td")); }
 
     // Finaliza
     const unif = new Map();
