@@ -1902,11 +1902,11 @@ function verificarAcerto(selRes, rA, rB, htA, htB) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // HORA FIXA — painel resumo (hora atual ou hora fixa escolhida) com % por gales
 // Reaproveita: mercado (#seletorResultado), minutosFixos, qdGetHoraAtual (mesma
-// identificação de hora atual usada nos quadrantes) e qdCheckMarket. Fica sempre
-// em 8 dias e tem um seletor pequeno de gales (1 a 4).
+// identificação de hora atual usada nos quadrantes) e qdCheckMarket. Tem
+// seletores pequenos de Dias (5 ou 6 — igual à página day.html) e Gales (1 a 4).
 // ═══════════════════════════════════════════════════════════════════════════════
 const HF_GALES_PADRAO = 1;
-const HF_DIAS_FIXOS = 3;
+const HF_DIAS_PADRAO = 5; // mesmo padrão da página day.html (localStorage "hf_dias")
 
 function hfGalesKey() { return `hf_gales_${getLigaKey()}`; }
 
@@ -1915,6 +1915,16 @@ function hfLerGales() {
   return (v >= 1 && v <= 4) ? v : HF_GALES_PADRAO;
 }
 function hfSalvarGales(v) { localStorage.setItem(hfGalesKey(), String(v)); }
+
+// ─── Dias analisados — mesmas opções (5/6) e mesmo propósito do #sel-dias da
+// página day.html, pra dar pra comparar os números direto entre as duas ──────
+function hfDiasKey() { return `hf_dias_${getLigaKey()}`; }
+
+function hfLerDias() {
+  const v = parseInt(localStorage.getItem(hfDiasKey()), 10);
+  return (v === 5 || v === 6) ? v : HF_DIAS_PADRAO;
+}
+function hfSalvarDias(v) { localStorage.setItem(hfDiasKey(), String(v)); }
 
 // ─── Placar/gols (mesmo formato "X x Y" já usado no restante da tabela) ──────
 function hfParseScore(s) {
@@ -1927,8 +1937,8 @@ function hfTotalGols(jogo) {
   return g1 + g2;
 }
 
-// ─── Últimos N dias com dados (sempre 8, conforme pedido) ─────────────────────
-function hfUltimosDias(dados, n = HF_DIAS_FIXOS) {
+// ─── Últimos N dias com dados (N = seletor de Dias, igual à página day.html) ──
+function hfUltimosDias(dados, n = HF_DIAS_PADRAO) {
   const set = new Set();
   (dados || []).forEach(j => { if (j && j.data) set.add(getDateStr(j.data)); });
   return [...set].sort().slice(-n);
@@ -2062,16 +2072,27 @@ function garantirCheckboxHoraFixa() {
 
   painel.appendChild(lbl);
 
-  // ── Seletores de Hora fixa / Gales — ficam ao lado do checkbox, no mesmo painel ──
+  // ── Seletores de Hora fixa / Dias / Gales — ficam ao lado do checkbox, no mesmo painel ──
   const controlesWrap = document.createElement("span");
   controlesWrap.id = "hf-controles-inline";
   controlesWrap.innerHTML = `
+    <label for="hf-seletor-dias">Dias:</label>
+    <select id="hf-seletor-dias">
+      <option value="5">5 dias</option><option value="6">6 dias</option>
+    </select>
     <label for="hf-seletor-gales">Gales:</label>
     <select id="hf-seletor-gales">
       <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
     </select>
   `;
   painel.appendChild(controlesWrap);
+
+  const selDias = controlesWrap.querySelector("#hf-seletor-dias");
+  selDias.value = String(hfLerDias());
+  selDias.addEventListener("change", () => {
+    hfSalvarDias(parseInt(selDias.value, 10));
+    hfRender(qdDadosCache);
+  });
 
   const selGales = controlesWrap.querySelector("#hf-seletor-gales");
   selGales.value = String(hfLerGales());
@@ -2090,23 +2111,27 @@ function garantirCheckboxHoraFixa() {
 // ─── Copia o estilo computado dos <select> do topo da página para os seletores
 // da Hora Fixa, exatamente como já é feito para o botão "+ Mercados" ──────────
 function hfSincronizarEstiloControles() {
+  const selDias  = document.getElementById("hf-seletor-dias");
   const selGales = document.getElementById("hf-seletor-gales");
   const ref = document.querySelector("#seletorHoras") || document.querySelector(".seletor-container select");
-  if (!ref || !selGales) return;
+  if (!ref || (!selGales && !selDias)) return;
   const cs = getComputedStyle(ref);
   const props = [
     "height", "minHeight", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
     "fontSize", "fontFamily", "fontWeight", "color", "backgroundColor",
     "border", "borderRadius", "boxSizing", "lineHeight"
   ];
-  props.forEach(p => { selGales.style[p] = cs[p]; });
-  selGales.style.width = "auto";
-  selGales.style.height = "30px";
-  selGales.style.boxSizing = "border-box";
-  selGales.style.paddingTop = "0";
-  selGales.style.paddingBottom = "0";
-  selGales.style.display = "inline-block";
-  selGales.style.verticalAlign = "middle";
+  [selDias, selGales].forEach(sel => {
+    if (!sel) return;
+    props.forEach(p => { sel.style[p] = cs[p]; });
+    sel.style.width = "auto";
+    sel.style.height = "30px";
+    sel.style.boxSizing = "border-box";
+    sel.style.paddingTop = "0";
+    sel.style.paddingBottom = "0";
+    sel.style.display = "inline-block";
+    sel.style.verticalAlign = "middle";
+  });
 }
 
 function hfGarantirEstrutura() {
@@ -2165,7 +2190,7 @@ function hfRender(dados) {
   const gales = hfLerGales();
   const { hora: horaAlvo } = qdGetHoraAtual(dados); // sempre a hora atual, mesma identificação usada nos quadrantes
 
-  const diasSelecionados = hfUltimosDias(dados, HF_DIAS_FIXOS);
+  const diasSelecionados = hfUltimosDias(dados, hfLerDias());
   const linha = hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados);
 
   const header = document.getElementById("hf-header-top");
