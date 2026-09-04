@@ -134,6 +134,30 @@
       font-style: italic;
       margin: -6px 0 10px 0;
     }
+    .mini-hora-atual-wrap {
+      margin-bottom: 12px;
+    }
+    .mini-hora-atual-titulo {
+      font-size: 0.68em;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #f87171;
+      margin-bottom: 4px;
+    }
+    .tabela-hora-atual-mini {
+      border: 1px solid #3a3f50;
+      border-radius: 6px;
+      overflow: hidden;
+      pointer-events: none; /* somente leitura — é um resumo, edição fica na tabela principal */
+    }
+    .tabela-hora-atual-mini tbody tr {
+      background: rgba(255,255,255,0.03);
+    }
+    /* Faixas de cor por porcentagem (estrutura do tabela.js) */
+    .pct-verde    { color: #00e676 !important; font-weight: bold; }
+    .pct-amarelo  { color: #fbbf24 !important; font-weight: bold; }
+    .pct-vermelho { color: #ff5555 !important; font-weight: bold; }
     .seletor-container {
       display: flex;
       flex-wrap: wrap;
@@ -621,6 +645,23 @@
   const CORES_ODD    = ["#F472B6","#FDE68A","#93C5FD","#6EE7B7","#FCA5A1","#C4B5FD"];
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // ÍCONES + FAIXAS DE % (estrutura trazida do tabela.js)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const SVG_ICONS = {
+    clock: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>`,
+    ball:  `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>`,
+    check: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>`,
+    chart: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>`,
+    trend: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/><polyline points="16,7 22,7 22,13"/></svg>`,
+  };
+  // Faixas de cor por porcentagem (usadas nas colunas de % da tabela)
+  function getClassePct(pct) {
+    if (pct >= 50) return "pct-verde";
+    if (pct >= 30) return "pct-amarelo";
+    return "pct-vermelho";
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // THRESHOLDS
   // ═══════════════════════════════════════════════════════════════════════════
   const MERCADO_MEDIA_BASE = {
@@ -889,6 +930,16 @@
       box.dataset.ligaKey = key;
       box.innerHTML = `<h4>${cfg.nome}</h4><div class="liga-hora-label" id="hora-label-${key}">Hora atual: ${horaAtual.toString().padStart(2,"0")}:00 — últimos ${diasAtual} dias</div>`;
 
+      // mini-tabela: linha da hora atual em destaque (acima da tabela principal)
+      const miniWrap = document.createElement("div");
+      miniWrap.className = "mini-hora-atual-wrap";
+      miniWrap.innerHTML = `<div class="mini-hora-atual-titulo">Hora atual</div>`;
+      const miniTabela = document.createElement("table");
+      miniTabela.id = `tabela-hora-atual-${key}`; miniTabela.className = "tabela-liga tabela-hora-atual-mini";
+      miniTabela.innerHTML = "<thead></thead><tbody></tbody>";
+      miniWrap.appendChild(miniTabela);
+      box.appendChild(miniWrap);
+
       // painel
       const painel = document.createElement("div");
       painel.id = `painel-${key}`; painel.className = "painel-liga";
@@ -969,16 +1020,16 @@
       tr.appendChild(document.createElement("th")); // checkbox placeholder
       tr.appendChild(document.createElement("th")); // data placeholder
     });
-    trPercentual.children[1].textContent = "📊";
-    trTotalGols.children[1].textContent  = "⚽";
-    trAcertosMercado.children[1].textContent = "✅";
+    trPercentual.children[1].innerHTML = SVG_ICONS.chart;
+    trTotalGols.children[1].innerHTML  = SVG_ICONS.ball;
+    trAcertosMercado.children[1].innerHTML = SVG_ICONS.check;
 
     thead.append(trPercentual, trTotalGols, trAcertosMercado);
 
     // Linha de minutos
     const trMin = document.createElement("tr");
     trMin.appendChild(document.createElement("th")); // checkbox
-    const thData = Object.assign(document.createElement("th"), {textContent:"📅"});
+    const thData = document.createElement("th"); thData.innerHTML = SVG_ICONS.clock; thData.title = "Dia / hora fixa";
     trMin.appendChild(thData);
     mF.forEach((m, i) => {
       const th = document.createElement("th"); th.className = "minute-header"; th.textContent = m;
@@ -987,7 +1038,10 @@
       th.addEventListener("click", () => toggleColuna(key, m));
       trMin.appendChild(th);
     });
-    ["⚽","✅","📈"].forEach(t => trMin.appendChild(Object.assign(document.createElement("th"),{textContent:t})));
+    [["ball","Gols (total)"],["check","Acertos"],["trend","% de acerto"]].forEach(([icon,title]) => {
+      const th = document.createElement("th"); th.innerHTML = SVG_ICONS[icon]; th.title = title;
+      trMin.appendChild(th);
+    });
     thead.appendChild(trMin);
 
     // ── tbody ───────────────────────────────────────────────────────────────
@@ -1178,8 +1232,8 @@
       const pct     = total > 0 ? Math.floor((acertos/total)*100) : 0;
       const pctCell = row.children[row.children.length-1];
       pctCell.textContent = `${pct}%`;
-      pctCell.classList.toggle("porcentagem-verde",  pct >= thresh);
-      pctCell.classList.toggle("porcentagem-branca", pct <  thresh);
+      pctCell.classList.remove("porcentagem-verde","porcentagem-branca");
+      pctCell.classList.add(getClassePct(pct));
     });
 
     // % por coluna
@@ -1190,8 +1244,7 @@
     totMercadoCol.forEach((tot,i) => {
       const pct  = tot > 0 ? Math.floor((totalAcertosPorColuna[i]/tot)*100) : 0;
       const cell = document.createElement("td"); cell.textContent = `${pct}%`;
-      cell.classList.toggle("porcentagem-verde",  pct >= thresh);
-      cell.classList.toggle("porcentagem-branca", pct <  thresh);
+      cell.classList.add(getClassePct(pct));
       if (i>0&&i%qS===0) cell.classList.add("quadrant-border");
       trPercentual.appendChild(cell);
     });
@@ -1205,8 +1258,48 @@
     updateSelectedRows(key);
     aplicarColunas(key);
     atualizarColunaStats(key);
+    atualizarMiniHoraAtual(key);
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MINI-TABELA "HORA ATUAL" — mostra, em destaque acima da tabela principal,
+  // a linha do dia mais recente (hoje, se já tiver dados na hora fixa).
+  // Reaproveita o DOM já renderizado na tabela principal (clonando), evitando
+  // duplicar toda a lógica de montagem de células.
+  // ═══════════════════════════════════════════════════════════════════════════
+  function atualizarMiniHoraAtual(key) {
+    const principal = document.getElementById(`tabela-${key}`);
+    const mini = document.getElementById(`tabela-hora-atual-${key}`);
+    if (!principal || !mini) return;
+
+    const theadMini = mini.querySelector("thead");
+    const tbodyMini = mini.querySelector("tbody");
+    theadMini.innerHTML = "";
+    tbodyMini.innerHTML = "";
+
+    // Cabeçalho: reaproveita a linha de minutos (ícones + colunas)
+    const linhasThead = principal.querySelectorAll("thead tr");
+    const trMinutos = linhasThead[linhasThead.length - 1];
+    if (trMinutos) {
+      const cloneHead = trMinutos.cloneNode(true);
+      cloneHead.querySelectorAll("th").forEach(th => th.replaceWith(th.cloneNode(true))); // remove listeners (toggleColuna)
+      theadMini.appendChild(cloneHead);
+    }
+
+    // Corpo: primeira linha da tabela principal = data mais recente disponível
+    const primeiraLinha = principal.querySelector("tbody tr[data-chave]");
+    if (primeiraLinha) {
+      const cloneLinha = primeiraLinha.cloneNode(true);
+      cloneLinha.querySelector(".row-selector")?.remove();
+      tbodyMini.appendChild(cloneLinha);
+    } else {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.className = "sem-dados"; td.textContent = "Sem dados ainda para a hora atual";
+      td.colSpan = (trMinutos?.children.length) || 30;
+      tr.appendChild(td); tbodyMini.appendChild(tr);
+    }
+  }
   // ═══════════════════════════════════════════════════════════════════════════
   // HIGHLIGHTS
   // ═══════════════════════════════════════════════════════════════════════════
