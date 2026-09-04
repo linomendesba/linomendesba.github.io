@@ -41,7 +41,6 @@
     {
       group: "Bet365",
       tools: [
-        { label: "Hora Fixa",       url: "https://www.betstat.site/365fixo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/365stat.html" },
         { label: "MultiLiga",       url: "https://www.betstat.site/mult365.html" },
@@ -58,7 +57,6 @@
     {
       group: "Betano",
       tools: [
-        { label: "Hora Fixa",       url: "https://www.betstat.site/betanofixo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/LigaStat.html" },
         { label: "MultiLiga",       url: "https://www.betstat.site/multbetano.html" },
@@ -75,7 +73,6 @@
     {
       group: "Betsson",
       tools: [
-        { label: "Hora Fixa",       url: "https://www.betstat.site/betssonfixo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/betssonstat.html" },
         { label: "MultiLiga",       url: "https://www.betstat.site/multbetsson.html" },
@@ -92,7 +89,6 @@
     {
       group: "EstrelaBet",
       tools: [
-        { label: "Hora Fixa",       url: "https://www.betstat.site/estrelafixo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/estrelastat.html" },
         { label: "MultiLiga",       url: "https://www.betstat.site/estrelamult.html" },
@@ -109,7 +105,6 @@
     {
       group: "Kiron",
       tools: [
-        { label: "Hora Fixa",       url: "https://www.betstat.site/fixokiron.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/LigaStatkiron.html" },
         { label: "MultiLiga",       url: "https://www.betstat.site/multkiron.html" },
