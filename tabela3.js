@@ -2190,7 +2190,21 @@ function hfRender(dados) {
   const gales = hfLerGales();
   const { hora: horaAlvo } = qdGetHoraAtual(dados); // sempre a hora atual, mesma identificação usada nos quadrantes
 
-  const diasSelecionados = hfUltimosDias(dados, hfLerDias());
+  // Mesma lógica do day.html: as datas candidatas vêm dos dados JÁ FILTRADOS
+  // pela hora alvo (não de todas as horas) — senão dias sem jogo nessa hora
+  // entram na lista e empurram pra fora um dia que realmente tem dado,
+  // descasando a base de comparação com a página day.html.
+  const dadosDaHora = dados.filter(d => d && d.hora === horaAlvo);
+
+  // Se a hora alvo é a que está acontecendo agora, exclui o dia de hoje
+  // (dados incompletos) — mesmo critério de "horaEmAndamento" do day.html.
+  const agoraHF = new Date();
+  const hojeStrHF = `${agoraHF.getFullYear()}-${(agoraHF.getMonth()+1).toString().padStart(2,"0")}-${agoraHF.getDate().toString().padStart(2,"0")}`;
+  const horaEmAndamentoHF = horaAlvo === agoraHF.getHours();
+
+  let diasSelecionados = hfUltimosDias(dadosDaHora, hfLerDias() + (horaEmAndamentoHF ? 1 : 0));
+  if (horaEmAndamentoHF) diasSelecionados = diasSelecionados.filter(d => d !== hojeStrHF).slice(-hfLerDias());
+
   const linha = hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados);
 
   const header = document.getElementById("hf-header-top");
