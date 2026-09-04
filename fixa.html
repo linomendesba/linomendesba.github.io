@@ -174,7 +174,7 @@
     .percent-80-90  { background: #2eb82e; color: #fff; }
     .percent-70-80  { background: #66cc00; color: #111; }
     .percent-60-70  { background: #cccc00; color: #111; }
-    .percent-50-60  { background: #1a7a1a; color: #fff; }
+    .percent-50-60  { background: #e67e00; color: #111; }
     .percent-40-50  { background: #cc4400; color: #fff; }
     .percent-0-40   { background: #990000; color: #fff; }
     /* Faixas de cor por porcentagem (estrutura do tabela.js) — usadas nas colunas de Dados da tabela principal */
@@ -1063,20 +1063,23 @@
     const thead = tabela.querySelector("thead");
     thead.innerHTML = "";
 
-    const trPercentual     = Object.assign(document.createElement("tr"), {id:`linhaPct-${key}`});
+    // Modelo solicitado para a tabela de baixo:
+    // 1ª linha: quantidade de gols + média de gols juntos.
+    // 2ª linha: percentual + quantidade de mercado/acertos juntos.
+    // 3ª linha: minutos.
     const trTotalGols      = Object.assign(document.createElement("tr"), {id:`linhaTG-${key}`});
-    const trAcertosMercado = Object.assign(document.createElement("tr"), {id:`linhaAM-${key}`});
+    const trPercentual     = Object.assign(document.createElement("tr"), {id:`linhaPct-${key}`});
 
-    // th hora — label da hora fixa
-    [trPercentual, trTotalGols, trAcertosMercado].forEach(tr => {
+    [trTotalGols, trPercentual].forEach(tr => {
       tr.appendChild(document.createElement("th")); // checkbox placeholder
       tr.appendChild(document.createElement("th")); // data placeholder
     });
+    trTotalGols.children[1].innerHTML = SVG_ICONS.ball;
+    trTotalGols.children[1].title = "Gols totais + média de gols";
     trPercentual.children[1].innerHTML = SVG_ICONS.chart;
-    trTotalGols.children[1].innerHTML  = SVG_ICONS.ball;
-    trAcertosMercado.children[1].innerHTML = SVG_ICONS.check;
+    trPercentual.children[1].title = "Percentual + quantidade de mercado/acertos";
 
-    thead.append(trPercentual, trTotalGols, trAcertosMercado);
+    thead.append(trTotalGols, trPercentual);
 
     // Linha de minutos
     const trMin = document.createElement("tr");
@@ -1090,7 +1093,7 @@
       th.addEventListener("click", () => toggleColuna(key, m));
       trMin.appendChild(th);
     });
-    [["ball","Gols (total)"],["check","Acertos"],["trend","% de acerto"]].forEach(([icon,title]) => {
+    [["ball","Gols total + média"],["trend","Mercados + acertos + %"]].forEach(([icon,title]) => {
       const th = document.createElement("th"); th.innerHTML = SVG_ICONS[icon]; th.title = title;
       trMin.appendChild(th);
     });
@@ -1103,7 +1106,7 @@
     if (dadosFiltrados.length === 0 && proximosFiltrados.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = mF.length + 5;
+      td.colSpan = mF.length + 4;
       td.className = "sem-dados";
       td.textContent = `Sem dados para ${hora.toString().padStart(2,"0")}:00`;
       tr.appendChild(td); tbody.appendChild(tr);
@@ -1169,10 +1172,16 @@
         tr.appendChild(td);
       });
 
-      // gols | acertos | %
-      tr.appendChild(Object.assign(document.createElement("td"), {textContent:"0"}));
-      tr.appendChild(Object.assign(document.createElement("td"), {textContent:"0"}));
-      tr.appendChild(Object.assign(document.createElement("td"), {textContent:"0%"}));
+      // Resumo da linha: gols totais + média | mercados + acertos + %
+      const tdResumoGols = document.createElement("td");
+      tdResumoGols.className = "row-summary-gols";
+      tdResumoGols.innerHTML = `<span class="cell-total">0</span> <span class="cell-avg">0.0</span>`;
+      tr.appendChild(tdResumoGols);
+
+      const tdResumoMercado = document.createElement("td");
+      tdResumoMercado.className = "row-summary-mercado";
+      tdResumoMercado.innerHTML = `<span class="cell-total">0</span> <span class="cell-green-count">0</span> <span class="cell-pct">0%</span>`;
+      tr.appendChild(tdResumoMercado);
 
       tbody.appendChild(tr);
       mapeamento[dataStr] = tr;
@@ -1260,10 +1269,9 @@
       cel.style.backgroundColor = acerto ? "#018b06" : "#be0e02";
       if (acerto) {
         totalAcertosPorColuna[idx]++;
-        linha.children[linha.children.length - 2].textContent = parseInt(linha.children[linha.children.length - 2].textContent) + 1;
+        linha.dataset.acertos = String((parseInt(linha.dataset.acertos || "0", 10) || 0) + 1);
       }
-      const tgCel = linha.children[linha.children.length - 3];
-      tgCel.textContent = parseInt(tgCel.textContent) + (rA + rB);
+      linha.dataset.gols = String((parseInt(linha.dataset.gols || "0", 10) || 0) + (rA + rB));
       totalGolsPorColuna[idx] += (rA + rB);
 
       // Stats seleção
@@ -1273,36 +1281,59 @@
     });
 
 
-    // ── Totais thead ────────────────────────────────────────────────────────
-    totalGolsPorColuna.forEach(t => trTotalGols.appendChild(Object.assign(document.createElement("td"),{className:"total-goals",textContent:t})));
-    totalAcertosPorColuna.forEach(t => trAcertosMercado.appendChild(Object.assign(document.createElement("td"),{className:"market-hits",textContent:t})));
-    for(let i=0;i<3;i++){trTotalGols.appendChild(document.createElement("td"));trAcertosMercado.appendChild(document.createElement("td"));}
-
-    // % por linha
-    const todasLinhas = Array.from(tbody.querySelectorAll("tr"));
-    todasLinhas.forEach(row => {
-      const total   = Array.from(row.cells).slice(2,-3).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
-      const acertos = parseInt(row.children[row.children.length-2].textContent)||0;
-      const pct     = total > 0 ? Math.floor((acertos/total)*100) : 0;
-      const pctCell = row.children[row.children.length-1];
-      pctCell.textContent = `${pct}%`;
-      pctCell.classList.remove("porcentagem-verde","porcentagem-branca");
-      pctCell.classList.add(getClassePct(pct));
-    });
-
-    // % por coluna
+    // ── Totais do cabeçalho: cada indicador fica junto no mesmo bloco ───────
     const totMercadoCol = Array(mF.length).fill(0);
+    const todasLinhas = Array.from(tbody.querySelectorAll("tr"));
+
     todasLinhas.forEach(row => {
-      Array.from(row.cells).slice(2,-3).forEach((c,i) => { if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro")) totMercadoCol[i]++; });
+      Array.from(row.cells).slice(2,-2).forEach((c,i) => {
+        if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro")) totMercadoCol[i]++;
+      });
     });
-    totMercadoCol.forEach((tot,i) => {
-      const pct  = tot > 0 ? Math.floor((totalAcertosPorColuna[i]/tot)*100) : 0;
-      const cell = document.createElement("td"); cell.textContent = `${pct}%`;
-      cell.classList.add(getClassePct(pct));
-      if (i>0&&i%qS===0) cell.classList.add("quadrant-border");
-      trPercentual.appendChild(cell);
+
+    mF.forEach((m, i) => {
+      const totalMercados = totMercadoCol[i] || 0;
+      const gols = totalGolsPorColuna[i] || 0;
+      const hits = totalAcertosPorColuna[i] || 0;
+      const media = totalMercados > 0 ? gols / totalMercados : 0;
+      const pct = totalMercados > 0 ? Math.floor((hits / totalMercados) * 100) : 0;
+
+      const tdG = document.createElement("td");
+      tdG.className = "total-goals";
+      tdG.innerHTML = `<span class="cell-total">${gols}</span> <span class="cell-avg">${media.toFixed(1)}</span>`;
+      if (i>0 && i%qS===0) tdG.classList.add("quadrant-border");
+      trTotalGols.appendChild(tdG);
+
+      const tdM = document.createElement("td");
+      tdM.className = getClassePct(pct);
+      tdM.innerHTML = `<span class="cell-pct">${pct}%</span> <span class="cell-green-count">${hits}</span>`;
+      if (i>0 && i%qS===0) tdM.classList.add("quadrant-border");
+      trPercentual.appendChild(tdM);
     });
-    for(let i=0;i<3;i++) trPercentual.appendChild(document.createElement("td"));
+
+    trTotalGols.appendChild(document.createElement("td"));
+    trTotalGols.appendChild(document.createElement("td"));
+    trPercentual.appendChild(document.createElement("td"));
+    trPercentual.appendChild(document.createElement("td"));
+
+    // Resumo por linha: gols totais + média | mercados + acertos + %
+    todasLinhas.forEach(row => {
+      const total = Array.from(row.cells).slice(2,-2)
+        .filter(c => c.querySelector(".placar") && !c.querySelector(".placar-futuro")).length;
+      const gols = parseInt(row.dataset.gols || "0", 10) || 0;
+      const acertos = parseInt(row.dataset.acertos || "0", 10) || 0;
+      const pct = total > 0 ? Math.floor((acertos / total) * 100) : 0;
+      const media = total > 0 ? gols / total : 0;
+
+      const golsCell = row.children[row.children.length - 2];
+      golsCell.innerHTML = `<span class="cell-total">${gols}</span> <span class="cell-avg">${media.toFixed(1)}</span>`;
+
+      const mercadoCell = row.children[row.children.length - 1];
+      mercadoCell.innerHTML = `<span class="cell-total">${total}</span> <span class="cell-green-count">${acertos}</span> <span class="cell-pct">${pct}%</span>`;
+      mercadoCell.classList.remove("porcentagem-verde","porcentagem-branca");
+      mercadoCell.classList.add(getClassePct(pct));
+      mercadoCell.title = `${total} mercados · ${acertos} acertos · ${pct}% · ${gols} gols · média ${media.toFixed(1)}`;
+    });
 
     // Finaliza
     const unif = new Map();
@@ -1339,128 +1370,79 @@
       ? `Mercado: ${mercadoLabel}\nAcertos: ${green} de ${total} jogos (${Math.round(p)}%)\nMédia de gols: ${g.toFixed(1)}`
       : `Sem dados registrados`;
     td.innerHTML = total > 0
-      ? `<div class="cell-wrap">
-           <span class="cell-top"><span class="cell-total">${total}</span> <span class="cell-avg">${g.toFixed(1)}</span></span>
-           <span class="cell-bottom"><span class="cell-pct">${Math.round(p)}%</span> <span class="cell-green-count">${green}</span></span>
-         </div>`
-      : `<div class="cell-wrap"><span class="cell-top"><span class="cell-total">0</span> <span class="cell-avg">0.0</span></span><span class="cell-bottom"><span class="cell-pct">0%</span> <span class="cell-green-count">0</span></span></div>`;
+      ? `<div class="cell-wrap"><span class="cell-pct">${Math.round(p)}%</span><span class="cell-avg">${g.toFixed(1)}</span></div>`
+      : `<div class="cell-wrap"><span class="cell-pct">${Math.round(p)}%</span></div>`;
     return td;
   }
 
-  // Calcula a "Hora atual" usando exatamente a mesma regra de Gales do
-  // analisador geral, mas de forma automática. Assim o seletor de Gales
-  // já afeta a tabela de cima sem clicar em ANALISAR.
-  function calcularMiniGales(key, mF, mercado) {
+  // TABELA DE CIMA: mantém o layout original (% + média de gols).
+  // A única alteração é que o seletor global de Gales passa a ser aplicado aqui.
+  function calcularMiniGales(key, mF) {
     const tabela = document.getElementById(`tabela-${key}`);
     if (!tabela) return null;
 
-    const numGales = parseInt(document.getElementById("sel-gales-global")?.value || "2", 10);
+    const numGales = parseInt(document.getElementById("sel-gales-global")?.value || "1", 10);
     const stats = Array.from({length: mF.length}, () => ({total:0, green:0, goals:0}));
+    const cellsPorLinha = row => Array.from({length:mF.length}, (_,i) => row.cells[2+i]);
 
-    // Cada coluna é o início de uma sequência de N Gales.
-    // A última coluna é mantida, mas só considera os minutos disponíveis.
     tabela.querySelectorAll("tbody tr").forEach(row => {
       if (row.classList.contains("sem-dados")) return;
+      const cells = cellsPorLinha(row);
 
-      for (let start = 0; start < mF.length; start++) {
+      mF.forEach((_, start) => {
         const fim = Math.min(start + numGales, mF.length);
-        let temDado = false, temGreen = false, temRed = false;
-        let golsSequencia = 0, qtdJogosSequencia = 0;
+        let totalLinha = false;
+        let greenLinha = false;
+        let golsLinha = 0;
 
-        for (let i = start; i < fim; i++) {
-          const c = row.cells[2 + i];
-          if (!c) continue;
-          const placar = c.querySelector(".placar:not(.placar-futuro)");
+        for (let i=start; i<fim; i++) {
+          const c = cells[i];
+          const placar = c?.querySelector(".placar:not(.placar-futuro)");
           if (!placar) continue;
+          totalLinha = true;
+          if (c.style.backgroundColor === "rgb(1, 139, 6)" || c.classList.contains("acerto")) greenLinha = true;
 
-          const bg = c.style.backgroundColor;
-          if (bg === "rgb(1, 139, 6)") temGreen = true;
-          else if (bg === "rgb(190, 14, 2)") temRed = true;
-          else continue;
-
-          temDado = true;
-
-          const score = extrairPlacarFromEl(placar).match(/(\d+)\s*x\s*(\d+)/);
-          if (score) {
-            golsSequencia += parseInt(score[1],10) + parseInt(score[2],10);
-            qtdJogosSequencia++;
-          }
+          const texto = extrairPlacarFromEl(placar);
+          const nums = texto.match(/(\d+)\s*x\s*(\d+)/i);
+          if (nums) golsLinha += (parseInt(nums[1],10)||0) + (parseInt(nums[2],10)||0);
         }
 
-        if (!temDado) continue;
-
-        // Mesma regra do analisador:
-        // qualquer green na sequência = green; somente red = red.
-        stats[start].total++;
-        if (temGreen) stats[start].green++;
-        if (qtdJogosSequencia > 0) stats[start].goals += golsSequencia / qtdJogosSequencia;
-      }
+        if (totalLinha) {
+          stats[start].total++;
+          if (greenLinha) stats[start].green++;
+          stats[start].goals += golsLinha;
+        }
+      });
     });
 
-    return {numGales, stats};
+    return stats;
   }
 
   function atualizarMiniHoraAtual(key, mF, totMercadoCol, totalAcertosPorColuna, totalGolsPorColuna, mercado) {
     const mini = document.getElementById(`tabela-hora-atual-${key}`);
     if (!mini) return;
-
-    const calculado = calcularMiniGales(key, mF, document.getElementById("sel-mercado")?.value || "ambasMarcam");
-    const stats = calculado?.stats || mF.map((_,i) => ({
-      total: totMercadoCol?.[i] || 0,
-      green: totalAcertosPorColuna?.[i] || 0,
-      goals: totalGolsPorColuna?.[i] || 0
-    }));
-
-    const numGales = calculado?.numGales || parseInt(document.getElementById("sel-gales-global")?.value || "2",10);
-
     const theadMini = mini.querySelector("thead");
     const tbodyMini = mini.querySelector("tbody");
-    theadMini.innerHTML = "";
-    tbodyMini.innerHTML = "";
+    theadMini.innerHTML = ""; tbodyMini.innerHTML = "";
 
-    // Cabeçalho: relógio + minutos de início de cada sequência.
+    const galeStats = calcularMiniGales(key, mF);
+
     const trHead = document.createElement("tr");
-    trHead.appendChild(Object.assign(document.createElement("th"), {
-      innerHTML: SVG_ICONS.clock,
-      title: `Hora atual — ${numGales} Gale${numGales > 1 ? "s" : ""}`
-    }));
-    mF.forEach(m => trHead.appendChild(Object.assign(document.createElement("th"), {
-      textContent: m.toString().padStart(2,"0")
-    })));
+    trHead.appendChild(Object.assign(document.createElement("th"), {innerHTML: SVG_ICONS.clock}));
+    mF.forEach(m => trHead.appendChild(Object.assign(document.createElement("th"), {textContent: m.toString().padStart(2,"0")})));
     theadMini.appendChild(trHead);
 
-    // Linha 1: total de jogos + média de gols.
-    const trTop = document.createElement("tr");
-    const thTop = document.createElement("th");
-    thTop.textContent = horaAtual.toString().padStart(2,"0");
-    thTop.title = `Hora atual — ${numGales} Gale${numGales > 1 ? "s" : ""} — ${mercado}`;
-    trTop.appendChild(thTop);
-
-    // Linha 2: percentual + quantidade de acertos.
-    const trBottom = document.createElement("tr");
-    const thBottom = document.createElement("th");
-    thBottom.textContent = `${numGales}G`;
-    thBottom.title = `Percentual de acerto considerando ${numGales} Gale${numGales > 1 ? "s" : ""}`;
-    trBottom.appendChild(thBottom);
+    const trBody = document.createElement("tr");
+    const thHora = document.createElement("th");
+    thHora.textContent = horaAtual.toString().padStart(2,"0");
+    trBody.appendChild(thHora);
 
     mF.forEach((m, i) => {
-      const s = stats[i] || {total:0, green:0, goals:0};
-      const tdTop = document.createElement("td");
-      const p = s.total > 0 ? (s.green / s.total) * 100 : 0;
-      const avg = s.total > 0 ? s.goals / s.total : 0;
-      tdTop.innerHTML = `<div class="cell-wrap"><span class="cell-top"><span class="cell-total">${s.total}</span> <span class="cell-avg">${avg.toFixed(1)}</span></span></div>`;
-      tdTop.title = `Mercado: ${mercado}\n${s.total} jogos · média de gols ${avg.toFixed(1)}`;
-      tdTop.className = getPercentClass(p);
-
-      const tdBottom = document.createElement("td");
-      tdBottom.className = getPercentClass(p);
-      tdBottom.innerHTML = `<div class="cell-wrap"><span class="cell-bottom"><span class="cell-pct">${Math.round(p)}%</span> <span class="cell-green-count">${s.green}</span></span></div>`;
-      tdBottom.title = `Mercado: ${mercado}\n${s.green} acertos de ${s.total} jogos (${Math.round(p)}%)`;
-      trTop.appendChild(tdTop);
-      trBottom.appendChild(tdBottom);
+      const s = galeStats?.[i];
+      if (s) trBody.appendChild(makeStatCell(s.total, s.green, s.goals, mercado));
+      else trBody.appendChild(makeStatCell(totMercadoCol[i], totalAcertosPorColuna[i], totalGolsPorColuna[i], mercado));
     });
-
-    tbodyMini.append(trTop, trBottom);
+    tbodyMini.appendChild(trBody);
   }
   // ═══════════════════════════════════════════════════════════════════════════
   // HIGHLIGHTS
