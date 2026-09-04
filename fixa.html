@@ -161,12 +161,9 @@
       background: #1e2130;
       color: #9ca3af;
     }
-    /* Célula dupla no modelo do print: total + média de gols em cima; % + acertos embaixo */
-    .cell-wrap { display: flex; flex-direction: column; align-items: center; line-height: 1.12; }
-    .cell-top, .cell-bottom { display: flex; align-items: center; justify-content: center; gap: 3px; }
-    .cell-total { font-weight: 700; font-size: 0.92em; }
+    /* Célula dupla: % em cima, média de gols embaixo — modelo do HORA_FIXA.html */
+    .cell-wrap { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
     .cell-pct  { font-weight: 700; font-size: 0.92em; }
-    .cell-green-count { font-size: 0.72em; opacity: 0.95; font-weight: 700; }
     .cell-avg  { font-size: 0.72em; opacity: 0.85; font-weight: 500; margin-top: 1px; }
     /* Faixas de cor por % — mesmas cores da legenda do HORA_FIXA.html */
     .percent-100    { background: #6a0dad; color: #fff; }
@@ -174,7 +171,7 @@
     .percent-80-90  { background: #2eb82e; color: #fff; }
     .percent-70-80  { background: #66cc00; color: #111; }
     .percent-60-70  { background: #cccc00; color: #111; }
-    .percent-50-60  { background: #1a7a1a; color: #fff; }
+    .percent-50-60  { background: #e67e00; color: #111; }
     .percent-40-50  { background: #cc4400; color: #fff; }
     .percent-0-40   { background: #990000; color: #fff; }
     /* Faixas de cor por porcentagem (estrutura do tabela.js) — usadas nas colunas de Dados da tabela principal */
@@ -511,7 +508,6 @@
   const CASAS_CONFIG = {
     betano: {
       nome: "Betano",
-      timeZone: "America/Sao_Paulo",
       ligas: {
         copaAmerica: {
           nome: "Copa América",
@@ -565,7 +561,6 @@
     },
     bet365: {
       nome: "Bet365",
-      timeZone: "Europe/London",
       ligas: {
         copa: {
           nome: "Copa",
@@ -603,7 +598,6 @@
     },
     kiron: {
       nome: "Kiron",
-      timeZone: "America/Sao_Paulo",
       ligas: {
         england: {
           nome: "England League",
@@ -634,7 +628,6 @@
     },
     estrelabet: {
       nome: "Estrelabet",
-      timeZone: "America/Sao_Paulo",
       ligas: {
         copa: {
           nome: "Copa do Mundo",
@@ -772,28 +765,7 @@
   const estados = {};
   const ligasAtivas = new Set(); // keys de ligas ativas (exibidas)
   let casaAtual = localStorage.getItem("hf_casa") || "betano";
-
-  // A Bet365 usa o relógio da Inglaterra. Intl/Europe-London aplica
-  // automaticamente GMT/BST conforme a data, sem precisar fixar +3/+4 horas.
-  function getCasaTimeParts(casa = casaAtual, date = new Date()) {
-    const timeZone = CASAS_CONFIG[casa]?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone, year:"numeric", month:"2-digit", day:"2-digit",
-      hour:"2-digit", minute:"2-digit", hour12:false
-    }).formatToParts(date);
-    const out = {};
-    parts.forEach(p => { if (p.type !== "literal") out[p.type] = p.value; });
-    return {
-      year: parseInt(out.year,10),
-      month: parseInt(out.month,10),
-      day: parseInt(out.day,10),
-      hour: parseInt(out.hour,10),
-      minute: parseInt(out.minute,10),
-      dateStr: `${out.year}-${out.month}-${out.day}`
-    };
-  }
-
-  let horaAtual = getCasaTimeParts(casaAtual).hour;
+  let horaAtual = new Date().getHours(); // sempre a hora atual, sem seletor
   const diasAtual = 6; // fixo em 6 dias, sem seletor
   let cachesDados = {}; // chave → { dados, odds, proximos }
   const _busy = {};
@@ -887,23 +859,21 @@
   // DOM – inicializar hora select
   // ═══════════════════════════════════════════════════════════════════════════
   function updateBadgeHora() {
-    const agoraCasa = getCasaTimeParts(casaAtual);
-    const txt = agoraCasa.hour.toString().padStart(2,"0") + ":00";
+    const txt = horaAtual.toString().padStart(2,"0") + ":00";
     const badge = document.getElementById("badge-hora");
     if (badge) badge.textContent = txt;
     document.querySelectorAll("[id^='hora-label-']").forEach(el => {
       el.textContent = `Hora atual: ${txt} — últimos ${diasAtual} dias`;
     });
   }
-
-  // Verifica a cada chamada se o relógio da casa mudou.
+  // Verifica a cada chamada se a hora do relógio mudou; se sim, atualiza
+  // horaAtual, o badge/labels e força o re-render das tabelas ativas.
   function atualizarHoraSeMudou() {
-    const nova = getCasaTimeParts(casaAtual).hour;
+    const nova = new Date().getHours();
     if (nova !== horaAtual) {
       horaAtual = nova;
       updateBadgeHora();
       ligasAtivas.forEach(key => { if (estados[key]) estados[key].forcarRerender(); });
-      rerenderComCache();
     }
   }
 
@@ -1126,9 +1096,9 @@
     // Ordena: mais recente primeiro, limita a diasAtual dias
     // Se a hora está acontecendo agora → exclui o dia atual (dados incompletos)
     const agoraD = new Date();
-    const casaNowD = getCasaTimeParts(casaAtual, agoraD);
-    const hojeStrD = casaNowD.dateStr;
-    const horaAtualNaCasaD = casaNowD.hour;
+    const hojeStrD = `${agoraD.getFullYear()}-${(agoraD.getMonth()+1).toString().padStart(2,"0")}-${agoraD.getDate().toString().padStart(2,"0")}`;
+    const offsetD = CASAS_CONFIG[casaAtual]?.offsetHora || 0;
+    const horaAtualNaCasaD = (agoraD.getHours() + offsetD) % 24;
     const horaEmAndamento = hora === horaAtualNaCasaD;
     const datasUnicas = Array.from(datasSet)
       .sort((a, b) => b.localeCompare(a))
@@ -1322,9 +1292,11 @@
   // tabela principal: totMercadoCol / totalAcertosPorColuna / totalGolsPorColuna).
   // ═══════════════════════════════════════════════════════════════════════════
   function getPercentClass(p) {
-    // Modelo do print: 50% ou mais = verde; 40–49% = laranja;
-    // abaixo de 40% = vermelho; 100% = roxo.
     if (p >= 100) return "percent-100";
+    if (p >= 90)  return "percent-90-99";
+    if (p >= 80)  return "percent-80-90";
+    if (p >= 70)  return "percent-70-80";
+    if (p >= 60)  return "percent-60-70";
     if (p >= 50)  return "percent-50-60";
     if (p >= 40)  return "percent-40-50";
     return "percent-0-40";
@@ -1336,131 +1308,34 @@
     const td = document.createElement("td");
     td.className = getPercentClass(p);
     td.title = total > 0
-      ? `Mercado: ${mercadoLabel}\nAcertos: ${green} de ${total} jogos (${Math.round(p)}%)\nMédia de gols: ${g.toFixed(1)}`
+      ? `Mercado: ${mercadoLabel}\nAcertos: ${green} de ${total} jogos (${Math.round(p)}%)\nMédia de gols: ${g.toFixed(1)} ⚽`
       : `Sem dados registrados`;
     td.innerHTML = total > 0
-      ? `<div class="cell-wrap">
-           <span class="cell-top"><span class="cell-total">${total}</span> <span class="cell-avg">${g.toFixed(1)}</span></span>
-           <span class="cell-bottom"><span class="cell-pct">${Math.round(p)}%</span> <span class="cell-green-count">${green}</span></span>
-         </div>`
-      : `<div class="cell-wrap"><span class="cell-top"><span class="cell-total">0</span> <span class="cell-avg">0.0</span></span><span class="cell-bottom"><span class="cell-pct">0%</span> <span class="cell-green-count">0</span></span></div>`;
+      ? `<div class="cell-wrap"><span class="cell-pct">${Math.round(p)}%</span><span class="cell-avg">${g.toFixed(1)} ⚽</span></div>`
+      : `<div class="cell-wrap"><span class="cell-pct">${Math.round(p)}%</span></div>`;
     return td;
-  }
-
-  // Calcula a "Hora atual" usando exatamente a mesma regra de Gales do
-  // analisador geral, mas de forma automática. Assim o seletor de Gales
-  // já afeta a tabela de cima sem clicar em ANALISAR.
-  function calcularMiniGales(key, mF, mercado) {
-    const tabela = document.getElementById(`tabela-${key}`);
-    if (!tabela) return null;
-
-    const numGales = parseInt(document.getElementById("sel-gales-global")?.value || "2", 10);
-    const stats = Array.from({length: mF.length}, () => ({total:0, green:0, goals:0}));
-
-    // Cada coluna é o início de uma sequência de N Gales.
-    // A última coluna é mantida, mas só considera os minutos disponíveis.
-    tabela.querySelectorAll("tbody tr").forEach(row => {
-      if (row.classList.contains("sem-dados")) return;
-
-      for (let start = 0; start < mF.length; start++) {
-        const fim = Math.min(start + numGales, mF.length);
-        let temDado = false, temGreen = false, temRed = false;
-        let golsSequencia = 0, qtdJogosSequencia = 0;
-
-        for (let i = start; i < fim; i++) {
-          const c = row.cells[2 + i];
-          if (!c) continue;
-          const placar = c.querySelector(".placar:not(.placar-futuro)");
-          if (!placar) continue;
-
-          const bg = c.style.backgroundColor;
-          if (bg === "rgb(1, 139, 6)") temGreen = true;
-          else if (bg === "rgb(190, 14, 2)") temRed = true;
-          else continue;
-
-          temDado = true;
-
-          const score = extrairPlacarFromEl(placar).match(/(\d+)\s*x\s*(\d+)/);
-          if (score) {
-            golsSequencia += parseInt(score[1],10) + parseInt(score[2],10);
-            qtdJogosSequencia++;
-          }
-        }
-
-        if (!temDado) continue;
-
-        // Mesma regra do analisador:
-        // qualquer green na sequência = green; somente red = red.
-        stats[start].total++;
-        if (temGreen) stats[start].green++;
-        if (qtdJogosSequencia > 0) stats[start].goals += golsSequencia / qtdJogosSequencia;
-      }
-    });
-
-    return {numGales, stats};
   }
 
   function atualizarMiniHoraAtual(key, mF, totMercadoCol, totalAcertosPorColuna, totalGolsPorColuna, mercado) {
     const mini = document.getElementById(`tabela-hora-atual-${key}`);
     if (!mini) return;
-
-    const calculado = calcularMiniGales(key, mF, document.getElementById("sel-mercado")?.value || "ambasMarcam");
-    const stats = calculado?.stats || mF.map((_,i) => ({
-      total: totMercadoCol?.[i] || 0,
-      green: totalAcertosPorColuna?.[i] || 0,
-      goals: totalGolsPorColuna?.[i] || 0
-    }));
-
-    const numGales = calculado?.numGales || parseInt(document.getElementById("sel-gales-global")?.value || "2",10);
-
     const theadMini = mini.querySelector("thead");
     const tbodyMini = mini.querySelector("tbody");
-    theadMini.innerHTML = "";
-    tbodyMini.innerHTML = "";
+    theadMini.innerHTML = ""; tbodyMini.innerHTML = "";
 
-    // Cabeçalho: relógio + minutos de início de cada sequência.
     const trHead = document.createElement("tr");
-    trHead.appendChild(Object.assign(document.createElement("th"), {
-      innerHTML: SVG_ICONS.clock,
-      title: `Hora atual — ${numGales} Gale${numGales > 1 ? "s" : ""}`
-    }));
-    mF.forEach(m => trHead.appendChild(Object.assign(document.createElement("th"), {
-      textContent: m.toString().padStart(2,"0")
-    })));
+    trHead.appendChild(Object.assign(document.createElement("th"), {innerHTML: SVG_ICONS.clock}));
+    mF.forEach(m => trHead.appendChild(Object.assign(document.createElement("th"), {textContent: m.toString().padStart(2,"0")})));
     theadMini.appendChild(trHead);
 
-    // Linha 1: total de jogos + média de gols.
-    const trTop = document.createElement("tr");
-    const thTop = document.createElement("th");
-    thTop.textContent = horaAtual.toString().padStart(2,"0");
-    thTop.title = `Hora atual — ${numGales} Gale${numGales > 1 ? "s" : ""} — ${mercado}`;
-    trTop.appendChild(thTop);
-
-    // Linha 2: percentual + quantidade de acertos.
-    const trBottom = document.createElement("tr");
-    const thBottom = document.createElement("th");
-    thBottom.textContent = `${numGales}G`;
-    thBottom.title = `Percentual de acerto considerando ${numGales} Gale${numGales > 1 ? "s" : ""}`;
-    trBottom.appendChild(thBottom);
-
+    const trBody = document.createElement("tr");
+    const thHora = document.createElement("th");
+    thHora.textContent = horaAtual.toString().padStart(2,"0");
+    trBody.appendChild(thHora);
     mF.forEach((m, i) => {
-      const s = stats[i] || {total:0, green:0, goals:0};
-      const tdTop = document.createElement("td");
-      const p = s.total > 0 ? (s.green / s.total) * 100 : 0;
-      const avg = s.total > 0 ? s.goals / s.total : 0;
-      tdTop.innerHTML = `<div class="cell-wrap"><span class="cell-top"><span class="cell-total">${s.total}</span> <span class="cell-avg">${avg.toFixed(1)}</span></span></div>`;
-      tdTop.title = `Mercado: ${mercado}\n${s.total} jogos · média de gols ${avg.toFixed(1)}`;
-      tdTop.className = getPercentClass(p);
-
-      const tdBottom = document.createElement("td");
-      tdBottom.className = getPercentClass(p);
-      tdBottom.innerHTML = `<div class="cell-wrap"><span class="cell-bottom"><span class="cell-pct">${Math.round(p)}%</span> <span class="cell-green-count">${s.green}</span></span></div>`;
-      tdBottom.title = `Mercado: ${mercado}\n${s.green} acertos de ${s.total} jogos (${Math.round(p)}%)`;
-      trTop.appendChild(tdTop);
-      trBottom.appendChild(tdBottom);
+      trBody.appendChild(makeStatCell(totMercadoCol[i], totalAcertosPorColuna[i], totalGolsPorColuna[i], mercado));
     });
-
-    tbodyMini.append(trTop, trBottom);
+    tbodyMini.appendChild(trBody);
   }
   // ═══════════════════════════════════════════════════════════════════════════
   // HIGHLIGHTS
@@ -2203,8 +2078,6 @@
   document.getElementById("sel-casa").addEventListener("change", function() {
     casaAtual = this.value;
     localStorage.setItem("hf_casa", casaAtual);
-    horaAtual = getCasaTimeParts(casaAtual).hour;
-    updateBadgeHora();
     // Limpa ligas ativas e caches
     ligasAtivas.clear();
     cachesDados = {};
@@ -2230,15 +2103,6 @@
       ligasAtivas.forEach(k => { if(estados[k]) estados[k].forcarRerender(); });
       rerenderComCache();
     });
-  });
-
-  // O seletor de Gales controla DIRETAMENTE a tabela de cima.
-  // Não é necessário clicar em ANALISAR para atualizar a Hora atual.
-  document.getElementById("sel-gales-global")?.addEventListener("change", () => {
-    ligasAtivas.forEach(k => {
-      if (estados[k]) estados[k].forcarRerender();
-    });
-    rerenderComCache();
   });
 
   init();
