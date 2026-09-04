@@ -1974,28 +1974,53 @@ function hfMontarSlotsHora(dados, horaAlvo, diasSelecionados) {
 // mercado → dia conta GREEN; se nenhum bateu mas havia dado real na janela →
 // conta RED; se não há dado nenhum na janela → dia é ignorado (não entra no
 // total), exatamente como lá (temDadoReal / temGreen / temRed).
+//
+// Diferença extra em relação ao day.html: quando a janela passa do fim dos
+// minutos fixos da liga (ex.: 3 gales a partir do minuto 57), em vez de
+// deixar a célula zerada, ela "empresta" os minutos que faltam do INÍCIO da
+// próxima hora (57 → 57, 0, 3) pra fechar o gale de verdade.
 function hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados) {
   const slots = hfMontarSlotsHora(dados, horaAlvo, diasSelecionados);
   const numMins = minutosFixos.length;
 
+  // Hora seguinte — usada só quando a janela de gales não fecha inteira
+  // dentro da hora atual (fim da lista de minutos fixos da liga). Nesse caso
+  // "empresta" os primeiros minutos da PRÓXIMA hora pra completar o gale
+  // (ex.: 3 gales no minuto 57 → 57, e depois 0 e 3 da hora seguinte).
+  // Se horaAlvo for 23, a hora seguinte (0) cai no dia seguinte.
+  const horaSeguinte = (horaAlvo + 1) % 24;
+  const diaSeguinte = (d) => {
+    if (horaAlvo !== 23) return d;
+    const dt = new Date(`${d}T12:00:00`);
+    dt.setDate(dt.getDate() + 1);
+    return dt.toISOString().split("T")[0];
+  };
+  const diasSeguintes = diasSelecionados.map(diaSeguinte);
+  const slotsProx = hfMontarSlotsHora(dados, horaSeguinte, diasSeguintes);
+
   return minutosFixos.map((baseMin, minIdx) => {
-    // Janela precisa caber inteira (mesmo critério do gerador de combos de lá:
-    // for (i < mF.length - (gales-1))). Se não cabe, não existe esse combo —
-    // célula fica vazia, igual ao Analisador não gerar combo nenhum ali.
-    if (minIdx + gales > numMins) {
-      return { minuto: baseMin, total: 0, green: 0, golsSum: 0 };
-    }
-    const combo = minutosFixos.slice(minIdx, minIdx + gales);
+    const faltam = (minIdx + gales) - numMins; // minutos que faltam além do fim da hora
+    const comboAtual = minutosFixos.slice(minIdx, Math.min(minIdx + gales, numMins));
+    const comboProx  = faltam > 0 ? minutosFixos.slice(0, faltam) : [];
 
     let green = 0, red = 0, golsSum = 0;
-    diasSelecionados.forEach(dia => {
+    diasSelecionados.forEach((dia, di) => {
       let temGreen = false, temRed = false;
-      combo.forEach(m => {
+      comboAtual.forEach(m => {
         const jogo = slots[m][dia];
         if (!jogo) return;
         if (qdCheckMarket(jogo.ft, jogo.ht, mercado)) temGreen = true;
         else temRed = true;
       });
+      if (comboProx.length) {
+        const diaProx = diasSeguintes[di];
+        comboProx.forEach(m => {
+          const jogo = slotsProx[m] && slotsProx[m][diaProx];
+          if (!jogo) return;
+          if (qdCheckMarket(jogo.ft, jogo.ht, mercado)) temGreen = true;
+          else temRed = true;
+        });
+      }
       if (!temGreen && !temRed) return; // sem dado real na janela pra esse dia
 
       if (temGreen) green++; else red++;
