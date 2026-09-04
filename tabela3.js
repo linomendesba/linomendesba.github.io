@@ -108,12 +108,21 @@ const SVG_ICONS = {
 };
 
 // ─── HELPER: nome normalizado da liga atual ───────────────────────────────────
+// Prioriza LIGA_ATUAL (definido de forma síncrona em config.js, já é único
+// por liga) em vez do texto do h4.custom-color (que só é preenchido depois
+// pelo ligas-config.js e usa nomeExibicao curto — "Copa", "Euro" — que se
+// repete entre casas diferentes, ex: Bet365 Copa e Copa do Mundo Estrelabet
+// caem ambos em "copa"). Usar LIGA_ATUAL evita tanto a race de timing quanto
+// a colisão de chave entre ligas de casas diferentes com o mesmo nome curto.
 function getLigaKey() {
+  if (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) {
+    return String(LIGA_ATUAL).trim().toLowerCase().replace(/\s+/g, "_");
+  }
   const h4 = document.querySelector("h4.custom-color");
   if (h4 && h4.textContent.trim()) {
     return h4.textContent.trim().toLowerCase().replace(/\s+/g, "_");
   }
-  return typeof LIGA_ATUAL !== "undefined" ? LIGA_ATUAL : "default";
+  return "default";
 }
 
 // ─── ESTADO CENTRALIZADO ──────────────────────────────────────────────────────
@@ -1897,7 +1906,7 @@ function verificarAcerto(selRes, rA, rB, htA, htB) {
 // em 8 dias e tem um seletor pequeno de gales (1 a 4).
 // ═══════════════════════════════════════════════════════════════════════════════
 const HF_GALES_PADRAO = 1;
-const HF_DIAS_FIXOS = 6;
+const HF_DIAS_FIXOS = 3;
 
 function hfGalesKey() { return `hf_gales_${getLigaKey()}`; }
 
@@ -1945,27 +1954,47 @@ function hfMontarSlotsHora(dados, horaAlvo, diasSelecionados) {
 }
 
 // ─── Calcula % de acerto por minuto (com gales) para a hora alvo ──────────────
+// Réplica exata da lógica do Analisador de Gales da página day.html
+// (função analisarGalesParaHora → executarAnalisadorGales), só que em vez de
+// filtrar apenas os combos 100%, calcula a % green/total de cada janela —
+// isso é o que vira a cor/percentual de cada coluna aqui na Hora Fixa.
+//
+// Janela = `gales` colunas consecutivas de minutosFixos começando em baseMin
+// (igual aos "combos" de lá). Por dia: se QUALQUER minuto da janela bateu o
+// mercado → dia conta GREEN; se nenhum bateu mas havia dado real na janela →
+// conta RED; se não há dado nenhum na janela → dia é ignorado (não entra no
+// total), exatamente como lá (temDadoReal / temGreen / temRed).
 function hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados) {
   const slots = hfMontarSlotsHora(dados, horaAlvo, diasSelecionados);
   const numMins = minutosFixos.length;
+
   return minutosFixos.map((baseMin, minIdx) => {
-    let total = 0, green = 0, golsSum = 0;
+    // Janela precisa caber inteira (mesmo critério do gerador de combos de lá:
+    // for (i < mF.length - (gales-1))). Se não cabe, não existe esse combo —
+    // célula fica vazia, igual ao Analisador não gerar combo nenhum ali.
+    if (minIdx + gales > numMins) {
+      return { minuto: baseMin, total: 0, green: 0, golsSum: 0 };
+    }
+    const combo = minutosFixos.slice(minIdx, minIdx + gales);
+
+    let green = 0, red = 0, golsSum = 0;
     diasSelecionados.forEach(dia => {
+      let temGreen = false, temRed = false;
+      combo.forEach(m => {
+        const jogo = slots[m][dia];
+        if (!jogo) return;
+        if (qdCheckMarket(jogo.ft, jogo.ht, mercado)) temGreen = true;
+        else temRed = true;
+      });
+      if (!temGreen && !temRed) return; // sem dado real na janela pra esse dia
+
+      if (temGreen) green++; else red++;
+
       const baseJogo = slots[baseMin][dia];
-      if (!baseJogo) return;
-      total++;
-      golsSum += hfTotalGols(baseJogo);
-      let acertou = false;
-      for (let attempt = 0; attempt < gales && !acertou; attempt++) {
-        const idxAlvo = minIdx + attempt;
-        if (idxAlvo >= numMins) break; // gale não pode passar da última coluna da hora
-        const minAlvo = minutosFixos[idxAlvo];
-        const jogoAlvo = slots[minAlvo][dia];
-        if (!jogoAlvo) continue;
-        if (qdCheckMarket(jogoAlvo.ft, jogoAlvo.ht, mercado)) acertou = true;
-      }
-      if (acertou) green++;
+      if (baseJogo) golsSum += hfTotalGols(baseJogo);
     });
+
+    const total = green + red;
     return { minuto: baseMin, total, green, golsSum };
   });
 }
@@ -2802,7 +2831,7 @@ let _buscando=false;
 // ferramentas pra perceber um resultado novo na API, mesmo buscando em
 // intervalo menor que elas. Alinhando ao mesmo relógio, ela passa a
 // verificar nos mesmos instantes que o resto da página.
-sincronizarIntervalo(async()=>{if(_buscando)return;_buscando=true;try{await buscarDados();}finally{_buscando=false;}},5000);
+sincronizarIntervalo(async()=>{if(_buscando)return;_buscando=true;try{await buscarDados();}finally{_buscando=false;}},2000);
 
 // ─── LISTENERS ────────────────────────────────────────────────────────────────
 const _sh=document.querySelector("#seletorHoras");
@@ -2812,22 +2841,26 @@ const _mt=document.querySelector("#mostrarTimes");
 const _mht=document.querySelector("#mostrarHT");
 const _mo=document.querySelector("#mostrarOdds");
 
+// Horas / Resultado / Tipo de placar são apenas filtros de EXIBIÇÃO sobre os
+// dados que já estão em cache — não precisam buscar tudo de novo na API.
+// Antes, essas 3 chamavam buscarDados() diretamente sem setar
+// _renderizandoRapido, o que forçava 3 requisições de rede (getResultados,
+// fetchOdds, fetchProximosJogos) toda vez que você trocava o seletor, daí a
+// demora/trava. Agora usam renderizarRapido(), igual Times/HT/Odds, e
+// reaproveitam o cache — só refaz o fetch se realmente não houver cache ainda.
 if(_sh)  _sh.addEventListener("change", ()=>{ 
   localStorage.setItem(Estado._horasKey(), _sh.value); 
-  Estado.forcarRerender();
-  buscarDados(); 
+  renderizarRapido(); 
 });
 
 if(_sr)  _sr.addEventListener("change", ()=>{ 
-  Estado.forcarRerender();
-  buscarDados();
+  renderizarRapido();
   // Atualiza quadrantes ao trocar mercado (só valores, sem recriar estrutura)
   if(qdCheckboxAtivo()) qdRenderTabelaValores(qdDadosCache);
 });
 
 if(_stp) _stp.addEventListener("change",()=>{ 
-  Estado.forcarRerender();
-  buscarDados(); 
+  renderizarRapido(); 
 });
 
 // ─── RENDERIZAÇÃO RÁPIDA (sem fetch) ──────────────────────────────────────────
