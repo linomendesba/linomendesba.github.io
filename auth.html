@@ -185,6 +185,7 @@
                     body: JSON.stringify({ token })
                 });
             } catch (e) {
+                console.error('Erro de rede ao chamar /api/verify-turnstile:', e);
                 alert("Não foi possível verificar a segurança agora. Tente novamente.");
                 btn.disabled = false;
                 btn.textContent = 'Entrar';
@@ -192,9 +193,20 @@
                 return;
             }
 
-            const result = await verify.json();
+            let result;
+            try {
+                result = await verify.json();
+            } catch (e) {
+                console.error('Resposta de /api/verify-turnstile não é JSON. Status:', verify.status);
+                alert("Erro inesperado na verificação (status " + verify.status + "). Veja o console.");
+                btn.disabled = false;
+                btn.textContent = 'Entrar';
+                if (window.turnstile) turnstile.reset();
+                return;
+            }
 
-            if (!result.success) {
+            if (!verify.ok || !result.success) {
+                console.error('Turnstile rejeitado:', verify.status, result);
                 alert("Falha na verificação de segurança.");
                 btn.disabled = false;
                 btn.textContent = 'Entrar';
