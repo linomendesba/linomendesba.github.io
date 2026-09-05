@@ -2,19 +2,19 @@
 const LIGAS_INFO = {
 
   // ───────────── BET365 ─────────────
-  "Copa": {
+  "Bet365 Copa": {
     casa: "BET365", nomeExibicao: "Copa", arquivo: "bet365copa.html",
     minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   },
-  "Super": {
+  "Bet365 Super": {
     casa: "BET365", nomeExibicao: "Super", arquivo: "bet365super.html",
     minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   },
-  "Euro": {
+  "Bet365 Euro": {
     casa: "BET365", nomeExibicao: "Euro", arquivo: "bet365euro.html",
     minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   },
-  "Premier": {
+  "Bet365 Premier": {
     casa: "BET365", nomeExibicao: "Premier", arquivo: "bet365premier.html",
     minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   },
