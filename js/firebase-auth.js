@@ -28,44 +28,7 @@ const db = getFirestore(app);
 
 let isRedirecting = false;
 
-
-const ADMIN_API_URL = "https://betstat.site/admin";
-let assinaturaCheckInterval = null;
-
-async function checkSubscriptionStatus(user) {
-  if (!user || isRedirecting) return;
-
-  const path = window.location.pathname;
-  if (path.includes("auth.html") || path.includes("cadastro.html")) {
-    return;
-  }
-  try {
-    const token = await user.getIdToken();
-    const resp = await fetch(`${ADMIN_API_URL}/meu-status`, {
-      headers: { Authorization: "Bearer " + token }
-    });
-
-    if (resp.status === 404) {
-      isRedirecting = true;
-      localStorage.removeItem("deviceId");
-      await signOut(auth).catch(() => {});
-      window.location.href = "/auth.html";
-      return;
-    }
-    if (!resp.ok) return; 
-    const data = await resp.json();
-    if (data.bloqueado) {
-      isRedirecting = true;
-      localStorage.removeItem("deviceId");
-      await signOut(auth).catch(() => {});
-      window.location.href = "/auth.html";
-    }
-  } catch (e) {
-    console.error("Erro ao checar assinatura:", e);
-  }
-}
-
-
+// ─── FIREBASE DEVICE CONTROL ─────────────────────────────
 function getDeviceId() {
   let id = localStorage.getItem("deviceId");
   if (!id) {
@@ -121,10 +84,6 @@ onAuthStateChanged(auth, async (user) => {
     unsubscribeDeviceMonitor();
     unsubscribeDeviceMonitor = null;
   }
-  if (assinaturaCheckInterval) {
-    clearInterval(assinaturaCheckInterval);
-    assinaturaCheckInterval = null;
-  }
 
   if (!user) {
     if (!isRedirecting && !window.location.href.includes("auth.html")) {
@@ -135,10 +94,6 @@ onAuthStateChanged(auth, async (user) => {
 
   await registerCurrentDevice(user);
   unsubscribeDeviceMonitor = setupDeviceMonitor(user);
-
-  await checkSubscriptionStatus(user);
-  if (assinaturaCheckInterval) clearInterval(assinaturaCheckInterval);
-  assinaturaCheckInterval = setInterval(() => checkSubscriptionStatus(user), 5 * 60 * 1000);
 
   if (window.location.href.includes("auth.html")) {
     window.location.href = "/home.html";
@@ -159,10 +114,6 @@ window.login = async function (email, password) {
 
 window.logout = function () {
   isRedirecting = true;
-  if (assinaturaCheckInterval) {
-    clearInterval(assinaturaCheckInterval);
-    assinaturaCheckInterval = null;
-  }
   localStorage.removeItem("deviceId");
   signOut(auth)
     .then(() => setTimeout(() => { window.location.href = "auth.html"; }, 100))
