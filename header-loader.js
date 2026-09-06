@@ -1,1 +1,492 @@
-function a0_0x3ee4(){const _0x44d115=['yMv0C3nVBG','ntb1re52wwm','oxP6tNngCW','y2fZyvnLBgvJAw9UywrH','yxbWBhK','yMv0mZy1','mti0ntiYwLPSDeTk','mJaYmtmXu0njDfPz','odK3mJGYvgXUwwHl','mtKWnJaZmK9HwgHzyq','ywrKrxzLBNrmAxn0zw5LCG','yMv0yw5V','zxjYB3i','C2vHCMnO','CMvWBgfJzq','Bg9JyxrPB24','A2LYB24','DgHLBG','Bg9HzgLUzW','DMfSDwu','C3bSAxq','re9nq29UDgvUDeXVywrLza','AgvHzgvY','y29UC3rYDwn0B3i','nJK0nZm2AMvkCMDR','C3rHDhvZ','AhjLzG','Dg9tDhjPBMC','mtbREgjgzLK','nZm4mJbcCKfZy1e','mtq1nZe5z1zTrvPK','CMvKAxjLy2LVBMfY','l2HLywrLCI0','iIbJyxjYzwDHzg8Gy29Tihn1y2vZC28H','4PYfieHLywrLCIaI','rxjYBYbHBYbJyxjYzwDHCIbOzwfKzxi6ia','lMH0BwW','kcGOlISPkYKRksSK','rwXLBwvUDg8Gi2HLywrLCIbUW6nVigvUy29UDhjHzg8H','phaGC3r5Bgu9iMnVBg9YoNjLzdTWywrKAw5NoJiWChG7iJ5fCNjVigfVignHCNjLz2fYig1LBNuGzguGBMf2zwDHW6FdO28Upc9WpG','C2v0sxrLBq','l2HVBwu','CMvHzhLtDgf0zq','Aw5Uzxjive1m','zxn0CMvSywjLDa'];a0_0x3ee4=function(){return _0x44d115;};return a0_0x3ee4();}const a0_0x495f2a=a0_0x16ab;function a0_0x16ab(_0x387509,_0x47cbd1){_0x387509=_0x387509-0x66;const _0x3b8efc=a0_0x3ee4();let _0x4b1047=_0x3b8efc[_0x387509];if(a0_0x16ab['tzUXEC']===undefined){var _0x481653=function(_0x29a0ff){const _0x429c2a='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';let _0x9bd0ac='',_0x4bc306='',_0x4400b0=_0x9bd0ac+_0x481653;for(let _0x23afaa=0x0,_0x3fe8b8,_0x50bde6,_0x5772e4=0x0;_0x50bde6=_0x29a0ff['charAt'](_0x5772e4++);~_0x50bde6&&(_0x3fe8b8=_0x23afaa%0x4?_0x3fe8b8*0x40+_0x50bde6:_0x50bde6,_0x23afaa++%0x4)?_0x9bd0ac+=_0x4400b0['charCodeAt'](_0x5772e4+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x3fe8b8>>(-0x2*_0x23afaa&0x6)):_0x23afaa:0x0){_0x50bde6=_0x429c2a['indexOf'](_0x50bde6);}for(let _0x4395bb=0x0,_0x3d314c=_0x9bd0ac['length'];_0x4395bb<_0x3d314c;_0x4395bb++){_0x4bc306+='%'+('00'+_0x9bd0ac['charCodeAt'](_0x4395bb)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x4bc306);};a0_0x16ab['jRtQnF']=_0x481653,a0_0x16ab['Akqvok']={},a0_0x16ab['tzUXEC']=!![];}const _0x3ee471=_0x3b8efc[0x0],_0x16ab3e=_0x387509+_0x3ee471,_0x4b3943=a0_0x16ab['Akqvok'][_0x16ab3e];if(!_0x4b3943){const _0x18e0fa=function(_0x4c13be){this['NlawEe']=_0x4c13be,this['vwFJIA']=[0x1,0x0,0x0],this['FIyXkK']=function(){return'newState';},this['PYWUEY']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['oTvNBF']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x18e0fa['prototype']['aOQGAi']=function(){const _0x409bde=new RegExp(this['PYWUEY']+this['oTvNBF']),_0x50ed6e=_0x409bde['test'](this['FIyXkK']['toString']())?--this['vwFJIA'][0x1]:--this['vwFJIA'][0x0];return this['wHDeOU'](_0x50ed6e);},_0x18e0fa['prototype']['wHDeOU']=function(_0x2201b8){if(!Boolean(~_0x2201b8))return _0x2201b8;return this['gIMvUc'](this['NlawEe']);},_0x18e0fa['prototype']['gIMvUc']=function(_0x1c405b){for(let _0x32474f=0x0,_0x2862ad=this['vwFJIA']['length'];_0x32474f<_0x2862ad;_0x32474f++){this['vwFJIA']['push'](Math['round'](Math['random']())),_0x2862ad=this['vwFJIA']['length'];}return _0x1c405b(this['vwFJIA'][0x0]);},new _0x18e0fa(a0_0x16ab)['aOQGAi'](),_0x4b1047=a0_0x16ab['jRtQnF'](_0x4b1047),a0_0x16ab['Akqvok'][_0x16ab3e]=_0x4b1047;}else _0x4b1047=_0x4b3943;return _0x4b1047;}(function(_0x1cc2fa,_0x147129){const _0x467d4a=a0_0x16ab,_0x2a78bd=_0x1cc2fa();while(!![]){try{const _0x28dc15=parseInt(_0x467d4a(0x92))/0x1+-parseInt(_0x467d4a(0x7c))/0x2*(-parseInt(_0x467d4a(0x8e))/0x3)+parseInt(_0x467d4a(0x77))/0x4*(parseInt(_0x467d4a(0x7b))/0x5)+parseInt(_0x467d4a(0x67))/0x6+-parseInt(_0x467d4a(0x7d))/0x7+-parseInt(_0x467d4a(0x68))/0x8+-parseInt(_0x467d4a(0x66))/0x9*(-parseInt(_0x467d4a(0x8d))/0xa);if(_0x28dc15===_0x147129)break;else _0x2a78bd['push'](_0x2a78bd['shift']());}catch(_0x3975fe){_0x2a78bd['push'](_0x2a78bd['shift']());}}}(a0_0x3ee4,0x8eeaf),(function(){const _0x5ae13a=a0_0x16ab,_0x23afaa=(function(){let _0x4395bb=!![];return function(_0x3d314c,_0x18e0fa){const _0x4c13be=_0x4395bb?function(){const _0x18f63b=a0_0x16ab;if(_0x18e0fa){const _0x409bde=_0x18e0fa[_0x18f63b(0x90)](_0x3d314c,arguments);return _0x18e0fa=null,_0x409bde;}}:function(){};return _0x4395bb=![],_0x4c13be;};}());'use strict';const _0x3fe8b8={'index':_0x5ae13a(0x6a),'index.html':_0x5ae13a(0x6a),'euro':_0x5ae13a(0x6a),'euro.html':_0x5ae13a(0x6a),'copa_america':_0x5ae13a(0x6a),'copa_america.html':_0x5ae13a(0x6a),'copa_das_estrelas':_0x5ae13a(0x6a),'copa_das_estrelas.html':'betano','brasileirao':_0x5ae13a(0x6a),'brasileirao.html':_0x5ae13a(0x6a),'campeonato_italiano':_0x5ae13a(0x6a),'campeonato_italiano.html':_0x5ae13a(0x6a),'manutencao':_0x5ae13a(0x6a),'manutencao.html':_0x5ae13a(0x6a),'betanopre':_0x5ae13a(0x6a),'betanopre.html':_0x5ae13a(0x6a),'fluxo':'betano','fluxo.html':_0x5ae13a(0x6a),'maximabetano':_0x5ae13a(0x6a),'maximabetano.html':'betano','ranking':_0x5ae13a(0x6a),'ranking.html':_0x5ae13a(0x6a),'equipes':_0x5ae13a(0x6a),'equipes.html':_0x5ae13a(0x6a),'palpites':_0x5ae13a(0x6a),'palpites.html':_0x5ae13a(0x6a),'gols':_0x5ae13a(0x6a),'gols.html':_0x5ae13a(0x6a),'betanobar':'betano','betanobar.html':_0x5ae13a(0x6a),'betanofixo':_0x5ae13a(0x6a),'betanofixo.html':_0x5ae13a(0x6a),'ligastat':_0x5ae13a(0x6a),'ligastat.html':_0x5ae13a(0x6a),'multbetano':_0x5ae13a(0x6a),'multbetano.html':_0x5ae13a(0x6a),'localizai':'betano','localizai.html':'betano','timeminuto':_0x5ae13a(0x6a),'timeminuto.html':_0x5ae13a(0x6a),'betanotips':_0x5ae13a(0x6a),'betanotips.html':'betano','simulador':_0x5ae13a(0x6a),'simulador.html':_0x5ae13a(0x6a),'porcentagembetano':'betano','porcentagembetano.html':_0x5ae13a(0x6a),'classificacao':'betano','classificacao.html':_0x5ae13a(0x6a),'sequencia':_0x5ae13a(0x6a),'sequencia.html':_0x5ae13a(0x6a),'betanofiboexato':_0x5ae13a(0x6a),'betanofiboexato.html':'betano','betanofiboht':'betano','betanofiboht.html':'betano','graficosgols':'betano','graficosgols.html':_0x5ae13a(0x6a),'graficoodd':_0x5ae13a(0x6a),'graficoodd.html':'betano','graficotime':_0x5ae13a(0x6a),'graficotime.html':_0x5ae13a(0x6a),'macrobetano':'betano','macrobetano.html':'betano','quadrantesgols':_0x5ae13a(0x6a),'quadrantesgols.html':_0x5ae13a(0x6a),'betanoradar':_0x5ae13a(0x6a),'betanoradar.html':_0x5ae13a(0x6a),'day.html':'betano','buscadorodd':'betano','buscadorodd.html':_0x5ae13a(0x6a),'buscadortime':_0x5ae13a(0x6a),'buscadortime.html':_0x5ae13a(0x6a),'betanobuscador':_0x5ae13a(0x6a),'betanobuscador.html':_0x5ae13a(0x6a),'buscaconfronto':_0x5ae13a(0x6a),'buscaconfronto.html':_0x5ae13a(0x6a),'referencia.html':_0x5ae13a(0x6a),'tv':_0x5ae13a(0x6a),'bet365copa':_0x5ae13a(0x91),'bet365copa.html':'bet365','bet365premier':_0x5ae13a(0x91),'bet365premier.html':_0x5ae13a(0x91),'bet365super':_0x5ae13a(0x91),'bet365super.html':_0x5ae13a(0x91),'bet365euro':'bet365','bet365euro.html':'bet365','bet365pre':_0x5ae13a(0x91),'bet365pre.html':_0x5ae13a(0x91),'mult365':'bet365','mult365.html':'bet365','365localizai':_0x5ae13a(0x91),'365localizai.html':_0x5ae13a(0x91),'365fluxo':_0x5ae13a(0x91),'365fluxo.html':_0x5ae13a(0x91),'365maximas':'bet365','365maximas.html':_0x5ae13a(0x91),'365raking':'bet365','365raking.html':_0x5ae13a(0x91),'365equipes':_0x5ae13a(0x91),'365equipes.html':_0x5ae13a(0x91),'365palpites':_0x5ae13a(0x91),'365palpites.html':_0x5ae13a(0x91),'365gols':_0x5ae13a(0x91),'365gols.html':'bet365','365bar':_0x5ae13a(0x91),'365bar.html':'bet365','365fixo':_0x5ae13a(0x91),'365fixo.html':_0x5ae13a(0x91),'365stat':'bet365','365stat.html':'bet365','365timeminuto':_0x5ae13a(0x91),'365timeminuto.html':_0x5ae13a(0x91),'365projecoes':_0x5ae13a(0x91),'365projecoes.html':_0x5ae13a(0x91),'365porcent':'bet365','365porcent.html':'bet365','bet365clasificacao':_0x5ae13a(0x91),'bet365clasificacao.html':_0x5ae13a(0x91),'365sequencia':'bet365','365sequencia.html':_0x5ae13a(0x91),'365radar':_0x5ae13a(0x91),'365radar.html':'bet365','365ft':_0x5ae13a(0x91),'365ft.html':_0x5ae13a(0x91),'365ht':_0x5ae13a(0x91),'365ht.html':'bet365','365gf':_0x5ae13a(0x91),'365gf.html':'bet365','365gratime':_0x5ae13a(0x91),'365gratime.html':_0x5ae13a(0x91),'365macro':_0x5ae13a(0x91),'365macro.html':_0x5ae13a(0x91),'365qua':_0x5ae13a(0x91),'365qua.html':'bet365','365buscatime':_0x5ae13a(0x91),'365buscatime.html':'bet365','365placar':_0x5ae13a(0x91),'365placar.html':_0x5ae13a(0x91),'365odds':_0x5ae13a(0x91),'365odds.html':_0x5ae13a(0x91),'365confronto':_0x5ae13a(0x91),'365confronto.html':_0x5ae13a(0x91),'365buscador':_0x5ae13a(0x91),'365buscador.html':'bet365','365maximaconfronto':_0x5ae13a(0x91),'365maximaconfronto.html':_0x5ae13a(0x91),'365fiboht':_0x5ae13a(0x91),'365fiboht.html':'bet365','365tips':_0x5ae13a(0x91),'365tips.html':_0x5ae13a(0x91),'365fiboexato':_0x5ae13a(0x91),'365fiboexato.html':_0x5ae13a(0x91),'porcentagem365':_0x5ae13a(0x91),'porcentagem365.html':_0x5ae13a(0x91),'maxima365':_0x5ae13a(0x91),'maxima365.html':_0x5ae13a(0x91),'betssonespanha':_0x5ae13a(0x8c),'betssonespanha.html':_0x5ae13a(0x8c),'betssoningland':_0x5ae13a(0x8c),'betssoningland.html':_0x5ae13a(0x8c),'betssonbrasil':_0x5ae13a(0x8c),'betssonbrasil.html':_0x5ae13a(0x8c),'betssonpre':_0x5ae13a(0x8c),'betssonpre.html':'betsson','multbetsson':_0x5ae13a(0x8c),'multbetsson.html':_0x5ae13a(0x8c),'betssonlocalizai':_0x5ae13a(0x8c),'betssonlocalizai.html':'betsson','betssonfluxo':'betsson','betssonfluxo.html':_0x5ae13a(0x8c),'betssonmaximas':_0x5ae13a(0x8c),'betssonmaximas.html':'betsson','betssonranking':_0x5ae13a(0x8c),'betssonranking.html':_0x5ae13a(0x8c),'betssonequipes':'betsson','betssonequipes.html':_0x5ae13a(0x8c),'betssonpalpites':'betsson','betssonpalpites.html':'betsson','betssonbar':_0x5ae13a(0x8c),'betssonbar.html':_0x5ae13a(0x8c),'betssonstat':_0x5ae13a(0x8c),'betssonstat.html':_0x5ae13a(0x8c),'betssonft':_0x5ae13a(0x8c),'betssonft.html':_0x5ae13a(0x8c),'betssonht':'betsson','betssonht.html':_0x5ae13a(0x8c),'betssonprojecoes':'betsson','betssonprojecoes.html':'betsson','betssonporcent':'betsson','betssonporcent.html':_0x5ae13a(0x8c),'betssonclassificacao':'betsson','betssonclassificacao.html':'betsson','betssonsequencia':_0x5ae13a(0x8c),'betssonsequencia.html':_0x5ae13a(0x8c),'betssonradar':_0x5ae13a(0x8c),'betssonradar.html':'betsson','betssongols':_0x5ae13a(0x8c),'betssongols.html':'betsson','betssongf':_0x5ae13a(0x8c),'betssongf.html':_0x5ae13a(0x8c),'betssongratime':'betsson','betssongratime.html':_0x5ae13a(0x8c),'betssonmacro':'betsson','betssonmacro.html':_0x5ae13a(0x8c),'betssonqua':'betsson','betssonqua.html':_0x5ae13a(0x8c),'betssonbuscatime':_0x5ae13a(0x8c),'betssonbuscatime.html':_0x5ae13a(0x8c),'betssonplacar':'betsson','betssonplacar.html':'betsson','betssonodds':_0x5ae13a(0x8c),'betssonodds.html':_0x5ae13a(0x8c),'betssonconfonto':_0x5ae13a(0x8c),'betssonconfonto.html':_0x5ae13a(0x8c),'betssonduelo':'betsson','betssonduelo.html':_0x5ae13a(0x8c),'betssonfixo':_0x5ae13a(0x8c),'betssonfixo.html':_0x5ae13a(0x8c),'betssonbuscador':'betsson','betssonbuscador.html':'betsson','betssonminuto':_0x5ae13a(0x8c),'betssonminuto.html':'betsson','betssonclassifica':_0x5ae13a(0x8c),'betssonclassifica.html':_0x5ae13a(0x8c),'kironengland':'kiron','kironengland.html':'kiron','kironitaly':_0x5ae13a(0x6f),'kironitaly.html':_0x5ae13a(0x6f),'kironspain':'kiron','kironspain.html':_0x5ae13a(0x6f),'kironbrazil':_0x5ae13a(0x6f),'kironbrazil.html':'kiron','kironamerica':_0x5ae13a(0x6f),'kironamerica.html':_0x5ae13a(0x6f),'kironpre':_0x5ae13a(0x6f),'kironpre.html':'kiron','tvkiron':_0x5ae13a(0x6f),'kironfluxo':_0x5ae13a(0x6f),'kironfluxo.html':'kiron','maximaskiron':'kiron','maximaskiron.html':_0x5ae13a(0x6f),'rankingkiron':_0x5ae13a(0x6f),'rankingkiron.html':_0x5ae13a(0x6f),'kironequipes':_0x5ae13a(0x6f),'kironequipes.html':_0x5ae13a(0x6f),'kironpalpites':_0x5ae13a(0x6f),'kironpalpites.html':_0x5ae13a(0x6f),'golskiron':_0x5ae13a(0x6f),'golskiron.html':_0x5ae13a(0x6f),'kironbar':_0x5ae13a(0x6f),'kironbar.html':'kiron','fixokiron':'kiron','fixokiron.html':'kiron','ligastatkiron':'kiron','ligastatkiron.html':_0x5ae13a(0x6f),'multkiron':'kiron','multkiron.html':'kiron','localizaikiron':_0x5ae13a(0x6f),'localizaikiron.html':_0x5ae13a(0x6f),'kironminuto':'kiron','kironminuto.html':_0x5ae13a(0x6f),'kironprojecao':_0x5ae13a(0x6f),'kironprojecao.html':_0x5ae13a(0x6f),'porcentagemkiron':_0x5ae13a(0x6f),'porcentagemkiron.html':_0x5ae13a(0x6f),'classificacaokiron':'kiron','classificacaokiron.html':_0x5ae13a(0x6f),'kironsequencia':'kiron','kironsequencia.html':_0x5ae13a(0x6f),'kirongf':_0x5ae13a(0x6f),'kirongf.html':_0x5ae13a(0x6f),'kironft':_0x5ae13a(0x6f),'kironft.html':_0x5ae13a(0x6f),'kironht':_0x5ae13a(0x6f),'kironht.html':_0x5ae13a(0x6f),'kirongraficoood':_0x5ae13a(0x6f),'kirongraficoood.html':_0x5ae13a(0x6f),'kirongraficotime':'kiron','kirongraficotime.html':_0x5ae13a(0x6f),'kironmacro':_0x5ae13a(0x6f),'kironmacro.html':_0x5ae13a(0x6f),'kironquadrantes':_0x5ae13a(0x6f),'kironquadrantes.html':_0x5ae13a(0x6f),'kironradar':_0x5ae13a(0x6f),'kironradar.html':'kiron','buscadoroddkiron':'kiron','buscadoroddkiron.html':'kiron','buscadortimekiron':_0x5ae13a(0x6f),'buscadortimekiron.html':'kiron','kironbuscador':_0x5ae13a(0x6f),'kironbuscador.html':_0x5ae13a(0x6f),'kironduelo':_0x5ae13a(0x6f),'kironduelo.html':_0x5ae13a(0x6f),'estrelachampions':_0x5ae13a(0x8b),'estrelachampions.html':_0x5ae13a(0x8b),'estrelacopamundo':_0x5ae13a(0x8b),'estrelacopamundo.html':_0x5ae13a(0x8b),'estrelaamericalatina':_0x5ae13a(0x8b),'estrelaamericalatina.html':_0x5ae13a(0x8b),'estrelapre':_0x5ae13a(0x8b),'estrelapre.html':_0x5ae13a(0x8b),'estrelafluxo':_0x5ae13a(0x8b),'estrelafluxo.html':_0x5ae13a(0x8b),'estrelatv':'estrelabet','estrelatv.html':_0x5ae13a(0x8b),'golsestrela':_0x5ae13a(0x8b),'golsestrela.html':_0x5ae13a(0x8b),'estrelabar':_0x5ae13a(0x8b),'estrelabar.html':_0x5ae13a(0x8b),'maximaestrela':_0x5ae13a(0x8b),'maximaestrela.html':_0x5ae13a(0x8b),'estrelaequipes':'estrelabet','estrelaequipes.html':_0x5ae13a(0x8b),'rankingestrela':_0x5ae13a(0x8b),'rankingestrela.html':_0x5ae13a(0x8b),'estrelamult':'estrelabet','estrelamult.html':_0x5ae13a(0x8b),'estrelapalpites':_0x5ae13a(0x8b),'estrelapalpites.html':_0x5ae13a(0x8b),'estrelastat':_0x5ae13a(0x8b),'estrelastat.html':_0x5ae13a(0x8b),'localizaistar':_0x5ae13a(0x8b),'localizaistar.html':_0x5ae13a(0x8b),'estrelaprojecoes':_0x5ae13a(0x8b),'estrelaprojecoes.html':_0x5ae13a(0x8b),'estrelafixo':_0x5ae13a(0x8b),'estrelafixo.html':_0x5ae13a(0x8b),'estrelaodds':'estrelabet','estrelaodds.html':_0x5ae13a(0x8b),'estrelaft':_0x5ae13a(0x8b),'estrelaft.html':'estrelabet','estrelagf':_0x5ae13a(0x8b),'estrelagf.html':_0x5ae13a(0x8b),'estrelaght':'estrelabet','estrelaght.html':'estrelabet','estrelasimulador':'estrelabet','estrelasimulador.html':'estrelabet','estrelasequencia':_0x5ae13a(0x8b),'estrelasequencia.html':'estrelabet','estrelaquadrante':'estrelabet','estrelaquadrante.html':_0x5ae13a(0x8b),'porcentagemstar':'estrelabet','porcentagemstar.html':_0x5ae13a(0x8b),'estrelaclassificacao':_0x5ae13a(0x8b),'estrelaclassificacao.html':_0x5ae13a(0x8b),'estrelatimeminuto':_0x5ae13a(0x8b),'estrelatimeminuto.html':_0x5ae13a(0x8b),'estrelamacro':_0x5ae13a(0x8b),'estrelamacro.html':_0x5ae13a(0x8b),'estrelaclassifica':_0x5ae13a(0x8b),'estrelaclassifica.html':_0x5ae13a(0x8b),'estrelaradar':_0x5ae13a(0x8b),'estrelaradar.html':_0x5ae13a(0x8b),'buscadoroddstar':'estrelabet','buscadoroddstar.html':_0x5ae13a(0x8b),'estreladuelo':_0x5ae13a(0x8b),'estreladuelo.html':_0x5ae13a(0x8b),'buscadortimestar':'estrelabet','buscadortimestar.html':'estrelabet','estrelabuscador':_0x5ae13a(0x8b),'estrelabuscador.html':_0x5ae13a(0x8b)};function _0x50bde6(){const _0x31d1b0=_0x5ae13a,_0x50ed6e=window['location']['pathname']['toLowerCase']();let _0x2201b8=_0x50ed6e[_0x31d1b0(0x6d)](/\/$/,'')[_0x31d1b0(0x73)]('/')['pop']();const _0x1c405b=_0x2201b8[_0x31d1b0(0x6d)](_0x31d1b0(0x83),'');if(_0x3fe8b8[_0x2201b8])return _0x3fe8b8[_0x2201b8];if(_0x3fe8b8[_0x1c405b])return _0x3fe8b8[_0x1c405b];return localStorage['getItem'](_0x31d1b0(0x8f))||_0x31d1b0(0x6a);}function _0x5772e4(){const _0x2b9a22=_0x5ae13a,_0x32474f=_0x23afaa(this,function(){const _0x2995d4=a0_0x16ab;return _0x32474f[_0x2995d4(0x7a)]()[_0x2995d4(0x6c)](_0x2995d4(0x84))[_0x2995d4(0x7a)]()[_0x2995d4(0x76)](_0x32474f)['search'](_0x2995d4(0x84));});_0x32474f();const _0x2862ad=document['getElementById'](_0x2b9a22(0x75));if(!_0x2862ad){console[_0x2b9a22(0x6b)](_0x2b9a22(0x85));return;}const _0x229f61=_0x50bde6();localStorage[_0x2b9a22(0x87)]('casaSelecionada',_0x229f61);const _0x235af5=_0x2b9a22(0x7f)+_0x229f61+_0x2b9a22(0x83);fetch(_0x235af5)['then'](_0x11c13a=>{const _0x14a48a=_0x2b9a22;if(!_0x11c13a['ok'])throw new Error(_0x14a48a(0x82)+_0x11c13a[_0x14a48a(0x78)]);return _0x11c13a['text']();})[_0x2b9a22(0x70)](_0x3f1a95=>{const _0x1b2e9e=_0x2b9a22;_0x2862ad[_0x1b2e9e(0x8a)]=_0x3f1a95,console['log'](_0x1b2e9e(0x81)+_0x229f61+_0x1b2e9e(0x80));})['catch'](_0x3962e1=>{const _0x28e24c=_0x2b9a22;console['error']('Erro\x20ao\x20carregar\x20header:',_0x3962e1),_0x2862ad[_0x28e24c(0x8a)]=_0x28e24c(0x86);});}document[_0x5ae13a(0x89)]===_0x5ae13a(0x71)?document[_0x5ae13a(0x69)](_0x5ae13a(0x74),_0x5772e4):_0x5772e4();}()),window[a0_0x495f2a(0x7e)]=function(_0x1c6145){const _0x4ca684=a0_0x495f2a,_0x29108b=_0x1c6145[_0x4ca684(0x72)];if(_0x29108b)window[_0x4ca684(0x6e)][_0x4ca684(0x79)]=_0x29108b;},window['voltarHome']=function(){const _0x2ed77e=a0_0x495f2a;window[_0x2ed77e(0x6e)][_0x2ed77e(0x79)]=_0x2ed77e(0x88);});
+// header-loader.js - Carrega o header correto baseado na casa de apostas
+
+(function() {
+  'use strict';
+
+  const MAPEAMENTO_CASAS = {
+
+    // ═══════════════════════════════
+    // BETANO
+    // ═══════════════════════════════
+    'index': 'betano',
+    'index.html': 'betano',
+    'euro': 'betano',
+    'euro.html': 'betano',
+    'copa_america': 'betano',
+    'copa_america.html': 'betano',
+    'copa_das_estrelas': 'betano',
+    'copa_das_estrelas.html': 'betano',
+    'brasileirao': 'betano',
+    'brasileirao.html': 'betano',
+    'campeonato_italiano': 'betano',
+    'campeonato_italiano.html': 'betano',
+    'manutencao': 'betano',
+    'manutencao.html': 'betano',
+    'betanopre': 'betano',
+    'betanopre.html': 'betano',
+    'fluxo': 'betano',
+    'fluxo.html': 'betano',
+    'maximabetano': 'betano',
+    'maximabetano.html': 'betano',
+    'ranking': 'betano',
+    'ranking.html': 'betano',
+    'equipes': 'betano',
+    'equipes.html': 'betano',
+    'palpites': 'betano',
+    'palpites.html': 'betano',
+    'gols': 'betano',
+    'gols.html': 'betano',
+    'betanobar': 'betano',
+    'betanobar.html': 'betano',
+    'betanofixo': 'betano',
+    'betanofixo.html': 'betano',
+    'ligastat': 'betano',
+    'ligastat.html': 'betano',
+    'multbetano': 'betano',
+    'multbetano.html': 'betano',
+    'localizai': 'betano',
+    'localizai.html': 'betano',
+    'timeminuto': 'betano',
+    'timeminuto.html': 'betano',
+    'betanotips': 'betano',
+    'betanotips.html': 'betano',
+    'simulador': 'betano',
+    'simulador.html': 'betano',
+    'porcentagembetano': 'betano',
+    'porcentagembetano.html': 'betano',
+    'classificacao': 'betano',
+    'classificacao.html': 'betano',
+    'sequencia': 'betano',
+    'sequencia.html': 'betano',
+    'betanofiboexato': 'betano',
+    'betanofiboexato.html': 'betano',
+    'betanofiboht': 'betano',
+    'betanofiboht.html': 'betano',
+    'graficosgols': 'betano',
+    'graficosgols.html': 'betano',
+    'graficoodd': 'betano',
+    'graficoodd.html': 'betano',
+    'graficotime': 'betano',
+    'graficotime.html': 'betano',
+    'macrobetano': 'betano',
+    'macrobetano.html': 'betano',
+    'quadrantesgols': 'betano',
+    'quadrantesgols.html': 'betano',
+    'betanoradar': 'betano',
+    'betanoradar.html': 'betano',
+    'day.html': 'betano',
+    'buscadorodd': 'betano',
+    'buscadorodd.html': 'betano',
+    'buscadortime': 'betano',
+    'buscadortime.html': 'betano',
+    'betanobuscador': 'betano',
+    'betanobuscador.html': 'betano',
+    'buscaconfronto': 'betano',
+    'buscaconfronto.html': 'betano',
+    'referencia.html': 'betano',
+    'tv': 'betano',
+
+    // ═══════════════════════════════
+    // BET365
+    // ═══════════════════════════════
+    'bet365copa': 'bet365',
+    'bet365copa.html': 'bet365',
+    'bet365premier': 'bet365',
+    'bet365premier.html': 'bet365',
+    'bet365super': 'bet365',
+    'bet365super.html': 'bet365',
+    'bet365euro': 'bet365',
+    'bet365euro.html': 'bet365',
+    'bet365pre': 'bet365',
+    'bet365pre.html': 'bet365',
+    'mult365': 'bet365',
+    'mult365.html': 'bet365',
+    '365localizai': 'bet365',
+    '365localizai.html': 'bet365',
+    '365fluxo': 'bet365',
+    '365fluxo.html': 'bet365',
+    '365maximas': 'bet365',
+    '365maximas.html': 'bet365',
+    '365raking': 'bet365',
+    '365raking.html': 'bet365',
+    '365equipes': 'bet365',
+    '365equipes.html': 'bet365',
+    '365palpites': 'bet365',
+    '365palpites.html': 'bet365',
+    '365gols': 'bet365',
+    '365gols.html': 'bet365',
+    '365bar': 'bet365',
+    '365bar.html': 'bet365',
+    '365fixo': 'bet365',
+    '365fixo.html': 'bet365',
+    '365stat': 'bet365',
+    '365stat.html': 'bet365',
+    '365timeminuto': 'bet365',
+    '365timeminuto.html': 'bet365',
+    '365projecoes': 'bet365',
+    '365projecoes.html': 'bet365',
+    '365porcent': 'bet365',
+    '365porcent.html': 'bet365',
+    'bet365clasificacao': 'bet365',
+    'bet365clasificacao.html': 'bet365',
+    '365sequencia': 'bet365',
+    '365sequencia.html': 'bet365',
+    '365radar': 'bet365',
+    '365radar.html': 'bet365',
+    '365ft': 'bet365',
+    '365ft.html': 'bet365',
+    '365ht': 'bet365',
+    '365ht.html': 'bet365',
+    '365gf': 'bet365',
+    '365gf.html': 'bet365',
+    '365gratime': 'bet365',
+    '365gratime.html': 'bet365',
+    '365macro': 'bet365',
+    '365macro.html': 'bet365',
+    '365qua': 'bet365',
+    '365qua.html': 'bet365',
+    '365buscatime': 'bet365',
+    '365buscatime.html': 'bet365',
+    '365placar': 'bet365',
+    '365placar.html': 'bet365',
+    '365odds': 'bet365',
+    '365odds.html': 'bet365',
+    '365confronto': 'bet365',
+    '365confronto.html': 'bet365',
+    '365buscador': 'bet365',
+    '365buscador.html': 'bet365',
+    '365maximaconfronto': 'bet365',
+    '365maximaconfronto.html': 'bet365',
+    '365fiboht': 'bet365',
+    '365fiboht.html': 'bet365',
+    '365tips': 'bet365',
+    '365tips.html': 'bet365',
+    '365fiboexato': 'bet365',
+    '365fiboexato.html': 'bet365',
+    'porcentagem365': 'bet365',
+    'porcentagem365.html': 'bet365',
+    'maxima365': 'bet365',
+    'maxima365.html': 'bet365',
+
+    // ═══════════════════════════════
+    // BETSSON
+    // ═══════════════════════════════
+    'betssonespanha': 'betsson',
+    'betssonespanha.html': 'betsson',
+    'betssoningland': 'betsson',
+    'betssoningland.html': 'betsson',
+    'betssonbrasil': 'betsson',
+    'betssonbrasil.html': 'betsson',
+    'betssonpre': 'betsson',
+    'betssonpre.html': 'betsson',
+    'multbetsson': 'betsson',
+    'multbetsson.html': 'betsson',
+    'betssonlocalizai': 'betsson',
+    'betssonlocalizai.html': 'betsson',
+    'betssonfluxo': 'betsson',
+    'betssonfluxo.html': 'betsson',
+    'betssonmaximas': 'betsson',
+    'betssonmaximas.html': 'betsson',
+    'betssonranking': 'betsson',
+    'betssonranking.html': 'betsson',
+    'betssonequipes': 'betsson',
+    'betssonequipes.html': 'betsson',
+    'betssonpalpites': 'betsson',
+    'betssonpalpites.html': 'betsson',
+    'betssonbar': 'betsson',
+    'betssonbar.html': 'betsson',
+    'betssonstat': 'betsson',
+    'betssonstat.html': 'betsson',
+    'betssonft': 'betsson',
+    'betssonft.html': 'betsson',
+    'betssonht': 'betsson',
+    'betssonht.html': 'betsson',
+    'betssonprojecoes': 'betsson',
+    'betssonprojecoes.html': 'betsson',
+    'betssonporcent': 'betsson',
+    'betssonporcent.html': 'betsson',
+    'betssonclassificacao': 'betsson',
+    'betssonclassificacao.html': 'betsson',
+    'betssonsequencia': 'betsson',
+    'betssonsequencia.html': 'betsson',
+    'betssonradar': 'betsson',
+    'betssonradar.html': 'betsson',
+    'betssongols': 'betsson',
+    'betssongols.html': 'betsson',
+    'betssongf': 'betsson',
+    'betssongf.html': 'betsson',
+    'betssongratime': 'betsson',
+    'betssongratime.html': 'betsson',
+    'betssonmacro': 'betsson',
+    'betssonmacro.html': 'betsson',
+    'betssonqua': 'betsson',
+    'betssonqua.html': 'betsson',
+    'betssonbuscatime': 'betsson',
+    'betssonbuscatime.html': 'betsson',
+    'betssonplacar': 'betsson',
+    'betssonplacar.html': 'betsson',
+    'betssonodds': 'betsson',
+    'betssonodds.html': 'betsson',
+    'betssonconfonto': 'betsson',
+    'betssonconfonto.html': 'betsson',
+    'betssonduelo': 'betsson',
+    'betssonduelo.html': 'betsson',
+    'betssonfixo': 'betsson',
+    'betssonfixo.html': 'betsson',
+    'betssonbuscador': 'betsson',
+    'betssonbuscador.html': 'betsson',
+    'betssonminuto': 'betsson',
+    'betssonminuto.html': 'betsson',
+    'betssonclassifica': 'betsson',
+    'betssonclassifica.html': 'betsson',
+
+    // ═══════════════════════════════
+    // KIRON
+    // ═══════════════════════════════
+    'kironengland': 'kiron',
+    'kironengland.html': 'kiron',
+    'kironitaly': 'kiron',
+    'kironitaly.html': 'kiron',
+    'kironspain': 'kiron',
+    'kironspain.html': 'kiron',
+    'kironbrazil': 'kiron',
+    'kironbrazil.html': 'kiron',
+    'kironamerica': 'kiron',
+    'kironamerica.html': 'kiron',
+    'kironpre': 'kiron',
+    'kironpre.html': 'kiron',
+    'tvkiron': 'kiron',
+    'kironfluxo': 'kiron',
+    'kironfluxo.html': 'kiron',
+    'maximaskiron': 'kiron',
+    'maximaskiron.html': 'kiron',
+    'rankingkiron': 'kiron',
+    'rankingkiron.html': 'kiron',
+    'kironequipes': 'kiron',
+    'kironequipes.html': 'kiron',
+    'kironpalpites': 'kiron',
+    'kironpalpites.html': 'kiron',
+    'golskiron': 'kiron',
+    'golskiron.html': 'kiron',
+    'kironbar': 'kiron',
+    'kironbar.html': 'kiron',
+    'fixokiron': 'kiron',
+    'fixokiron.html': 'kiron',
+    'ligastatkiron': 'kiron',
+    'ligastatkiron.html': 'kiron',
+    'multkiron': 'kiron',
+    'multkiron.html': 'kiron',
+    'localizaikiron': 'kiron',
+    'localizaikiron.html': 'kiron',
+    'kironminuto': 'kiron',
+    'kironminuto.html': 'kiron',
+    'kironprojecao': 'kiron',
+    'kironprojecao.html': 'kiron',
+    'porcentagemkiron': 'kiron',
+    'porcentagemkiron.html': 'kiron',
+    'classificacaokiron': 'kiron',
+    'classificacaokiron.html': 'kiron',
+    'kironsequencia': 'kiron',
+    'kironsequencia.html': 'kiron',
+    'kirongf': 'kiron',
+    'kirongf.html': 'kiron',
+    'kironft': 'kiron',
+    'kironft.html': 'kiron',
+    'kironht': 'kiron',
+    'kironht.html': 'kiron',
+    'kirongraficoood': 'kiron',
+    'kirongraficoood.html': 'kiron',
+    'kirongraficotime': 'kiron',
+    'kirongraficotime.html': 'kiron',
+    'kironmacro': 'kiron',
+    'kironmacro.html': 'kiron',
+    'kironquadrantes': 'kiron',
+    'kironquadrantes.html': 'kiron',
+    'kironradar': 'kiron',
+    'kironradar.html': 'kiron',
+    'buscadoroddkiron': 'kiron',
+    'buscadoroddkiron.html': 'kiron',
+    'buscadortimekiron': 'kiron',
+    'buscadortimekiron.html': 'kiron',
+    'kironbuscador': 'kiron',
+    'kironbuscador.html': 'kiron',
+    'kironduelo': 'kiron',
+    'kironduelo.html': 'kiron',
+
+    // ═══════════════════════════════
+    // ESTRELABET
+    // ═══════════════════════════════
+    'estrelachampions': 'estrelabet',
+    'estrelachampions.html': 'estrelabet',
+    'estrelacopamundo': 'estrelabet',
+    'estrelacopamundo.html': 'estrelabet',
+    'estrelaamericalatina': 'estrelabet',
+    'estrelaamericalatina.html': 'estrelabet',
+    'estrelapre': 'estrelabet',
+    'estrelapre.html': 'estrelabet',
+    'estrelafluxo': 'estrelabet',
+    'estrelafluxo.html': 'estrelabet',
+    'estrelatv': 'estrelabet',
+    'estrelatv.html': 'estrelabet',
+    'golsestrela': 'estrelabet',
+    'golsestrela.html': 'estrelabet',
+    'estrelabar': 'estrelabet',
+    'estrelabar.html': 'estrelabet',
+    'maximaestrela': 'estrelabet',
+    'maximaestrela.html': 'estrelabet',
+    'estrelaequipes': 'estrelabet',
+    'estrelaequipes.html': 'estrelabet',
+    'rankingestrela': 'estrelabet',
+    'rankingestrela.html': 'estrelabet',
+    'estrelamult': 'estrelabet',
+    'estrelamult.html': 'estrelabet',
+    'estrelapalpites': 'estrelabet',
+    'estrelapalpites.html': 'estrelabet',
+    'estrelastat': 'estrelabet',
+    'estrelastat.html': 'estrelabet',
+    'localizaistar': 'estrelabet',
+    'localizaistar.html': 'estrelabet',
+    'estrelaprojecoes': 'estrelabet',
+    'estrelaprojecoes.html': 'estrelabet',
+    'estrelafixo': 'estrelabet',
+    'estrelafixo.html': 'estrelabet',
+    'estrelaodds': 'estrelabet',
+    'estrelaodds.html': 'estrelabet',
+    'estrelaft': 'estrelabet',
+    'estrelaft.html': 'estrelabet',
+    'estrelagf': 'estrelabet',
+    'estrelagf.html': 'estrelabet',
+    'estrelaght': 'estrelabet',
+    'estrelaght.html': 'estrelabet',
+    'estrelasimulador': 'estrelabet',
+    'estrelasimulador.html': 'estrelabet',
+    'estrelasequencia': 'estrelabet',
+    'estrelasequencia.html': 'estrelabet',
+    'estrelaquadrante': 'estrelabet',
+    'estrelaquadrante.html': 'estrelabet',
+    'porcentagemstar': 'estrelabet',
+    'porcentagemstar.html': 'estrelabet',
+    'estrelaclassificacao': 'estrelabet',
+    'estrelaclassificacao.html': 'estrelabet',
+    'estrelatimeminuto': 'estrelabet',
+    'estrelatimeminuto.html': 'estrelabet',
+    'estrelamacro': 'estrelabet',
+    'estrelamacro.html': 'estrelabet',
+    'estrelaclassifica': 'estrelabet',
+    'estrelaclassifica.html': 'estrelabet',
+    'estrelaradar': 'estrelabet',
+    'estrelaradar.html': 'estrelabet',
+    'buscadoroddstar': 'estrelabet',
+    'buscadoroddstar.html': 'estrelabet',
+    'estreladuelo': 'estrelabet',
+    'estreladuelo.html': 'estrelabet',
+    'buscadortimestar': 'estrelabet',
+    'buscadortimestar.html': 'estrelabet',
+    'estrelabuscador': 'estrelabet',
+    'estrelabuscador.html': 'estrelabet',
+
+  };
+
+  function detectarCasa() {
+    const caminho = window.location.pathname.toLowerCase();
+    let nomeArquivo = caminho.replace(/\/$/, '').split('/').pop();
+    const semExtensao = nomeArquivo.replace('.html', '');
+
+    if (MAPEAMENTO_CASAS[nomeArquivo]) return MAPEAMENTO_CASAS[nomeArquivo];
+    if (MAPEAMENTO_CASAS[semExtensao]) return MAPEAMENTO_CASAS[semExtensao];
+
+    return localStorage.getItem('casaSelecionada') || 'betano';
+  }
+
+  function carregarHeader() {
+    const headerDiv = document.getElementById('header');
+
+    if (!headerDiv) {
+      console.error('Elemento #header não encontrado!');
+      return;
+    }
+
+    const casa = detectarCasa();
+    localStorage.setItem('casaSelecionada', casa);
+
+    const headerFile = `/header-${casa}.html`;
+
+    fetch(headerFile)
+      .then(response => {
+        if (!response.ok) throw new Error(`Erro ao carregar header: ${response.status}`);
+        return response.text();
+      })
+      .then(html => {
+        headerDiv.innerHTML = html;
+        console.log(`✅ Header "${casa}" carregado com sucesso!`);
+        // Se o status da assinatura já tiver chegado antes do header terminar
+        // de carregar (comum, já que os dois fetches rodam em paralelo),
+        // aplica o valor em cache assim que o badge existir no DOM.
+        if (window.__statusAssinatura) {
+          window.atualizarBadgeAssinatura(window.__statusAssinatura);
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao carregar header:', error);
+        headerDiv.innerHTML = '<p style="color:red;padding:20px;">Erro ao carregar menu de navegação.</p>';
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', carregarHeader);
+  } else {
+    carregarHeader();
+  }
+
+})();
+
+
+// ═══════════════════════════════════════
+// FUNÇÕES GLOBAIS
+// ═══════════════════════════════════════
+
+window.redirecionar = function(select) {
+  const url = select.value;
+  if (url) window.location.href = url;
+};
+
+window.voltarHome = function() {
+  window.location.href = '/home';
+};
+
+// ═══════════════════════════════════════
+// BADGE DE DIAS RESTANTES DA ASSINATURA
+// Alimentado pelo evento 'betstat:assinatura-status', disparado pelo
+// firebase-auth.js sempre que ele consulta /meu-status (login e a cada
+// 5 min) — nenhum fetch extra é feito aqui.
+// ═══════════════════════════════════════
+window.atualizarBadgeAssinatura = function(dados) {
+  const el = document.getElementById('dias-restantes');
+  if (!el || !dados) return;
+  const txt = el.querySelector('.dias-txt');
+  const dias = dados.dias;
+
+  let cor, texto;
+  if (dias === null || dias === undefined) {
+    cor = 'cinza';
+    texto = 'Assinatura: sem dados';
+  } else if (dias < 0) {
+    const abs = Math.abs(dias);
+    cor = 'vermelho';
+    texto = `Venceu há ${abs} dia${abs !== 1 ? 's' : ''}`;
+  } else if (dias <= 5) {
+    cor = 'amarelo';
+    texto = `${dias} dia${dias !== 1 ? 's' : ''} restante${dias !== 1 ? 's' : ''}`;
+  } else {
+    cor = 'verde';
+    texto = `${dias} dias restantes`;
+  }
+
+  el.className = 'dias-badge dias-' + cor;
+  txt.textContent = texto;
+};
+
+window.addEventListener('betstat:assinatura-status', (e) => window.atualizarBadgeAssinatura(e.detail));
+
+// ⚠️ window.logout é gerenciado pelo auth.js via Firebase signOut
+// Não redefinir aqui para não sobrescrever o logout do Firebase
