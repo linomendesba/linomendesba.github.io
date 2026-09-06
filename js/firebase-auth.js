@@ -28,15 +28,15 @@ const db = getFirestore(app);
 
 let isRedirecting = false;
 
-// ─── CHECAGEM DE ASSINATURA (bloqueia acesso se vencida) ─────────
+
 const ADMIN_API_URL = "https://betstat.site/admin";
 let assinaturaCheckInterval = null;
 
 async function checkSubscriptionStatus(user) {
   if (!user || isRedirecting) return;
-  // Não checa nas próprias páginas de auth/renovação/cadastro, senão gera loop
+
   const path = window.location.pathname;
-  if (path.includes("renovar.html") || path.includes("auth.html") || path.includes("cadastro.html")) {
+  if (path.includes("auth.html") || path.includes("cadastro.html")) {
     return;
   }
   try {
@@ -44,18 +44,28 @@ async function checkSubscriptionStatus(user) {
     const resp = await fetch(`${ADMIN_API_URL}/meu-status`, {
       headers: { Authorization: "Bearer " + token }
     });
-    if (!resp.ok) return; // erro de rede/servidor não deve travar quem está em dia
+
+    if (resp.status === 404) {
+      isRedirecting = true;
+      localStorage.removeItem("deviceId");
+      await signOut(auth).catch(() => {});
+      window.location.href = "/auth.html";
+      return;
+    }
+    if (!resp.ok) return; 
     const data = await resp.json();
     if (data.bloqueado) {
       isRedirecting = true;
-      window.location.href = "/renovar.html";
+      localStorage.removeItem("deviceId");
+      await signOut(auth).catch(() => {});
+      window.location.href = "/auth.html";
     }
   } catch (e) {
     console.error("Erro ao checar assinatura:", e);
   }
 }
 
-// ─── FIREBASE DEVICE CONTROL ─────────────────────────────
+
 function getDeviceId() {
   let id = localStorage.getItem("deviceId");
   if (!id) {
@@ -126,9 +136,6 @@ onAuthStateChanged(auth, async (user) => {
   await registerCurrentDevice(user);
   unsubscribeDeviceMonitor = setupDeviceMonitor(user);
 
-  // Checa assinatura agora, e periodicamente enquanto a sessão ficar aberta
-  // (login por si só só é validado no auth.html — isso cobre quem já estava
-  // logado e a assinatura vence com a aba aberta ou em visitas futuras).
   await checkSubscriptionStatus(user);
   if (assinaturaCheckInterval) clearInterval(assinaturaCheckInterval);
   assinaturaCheckInterval = setInterval(() => checkSubscriptionStatus(user), 5 * 60 * 1000);
