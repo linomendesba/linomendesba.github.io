@@ -28,13 +28,13 @@ const db = getFirestore(app);
 
 let isRedirecting = false;
 
-// ─── CHECAGEM DE ASSINATURA (bloqueia acesso se vencida) ─────────
+
 const ADMIN_API_URL = "https://betstat.site/admin";
 let assinaturaCheckInterval = null;
 
 async function checkSubscriptionStatus(user) {
   if (!user || isRedirecting) return;
-  // Não checa nas próprias páginas de auth/cadastro, senão gera loop
+
   const path = window.location.pathname;
   if (path.includes("auth.html") || path.includes("cadastro.html")) {
     return;
@@ -44,8 +44,7 @@ async function checkSubscriptionStatus(user) {
     const resp = await fetch(`${ADMIN_API_URL}/meu-status`, {
       headers: { Authorization: "Bearer " + token }
     });
-    // 404 = conta já não existe mais no Supabase (foi removida por vencimento
-    // antes do próprio Firebase invalidar a sessão) — desloga na hora.
+
     if (resp.status === 404) {
       isRedirecting = true;
       localStorage.removeItem("deviceId");
@@ -53,17 +52,8 @@ async function checkSubscriptionStatus(user) {
       window.location.href = "/auth.html";
       return;
     }
-    if (!resp.ok) return; // outro erro de rede/servidor não deve travar quem está em dia
+    if (!resp.ok) return; 
     const data = await resp.json();
-
-    // Publica o status pra quem quiser exibir (ex: badge de dias no header),
-    // sem precisar fazer um segundo fetch em /meu-status. Guarda em cache
-    // global pra cobrir o caso do header ainda não ter carregado quando
-    // esse evento dispara (header-loader.js aplica o cache assim que injeta
-    // o header).
-    window.__statusAssinatura = data;
-    window.dispatchEvent(new CustomEvent("betstat:assinatura-status", { detail: data }));
-
     if (data.bloqueado) {
       isRedirecting = true;
       localStorage.removeItem("deviceId");
@@ -75,7 +65,7 @@ async function checkSubscriptionStatus(user) {
   }
 }
 
-// ─── FIREBASE DEVICE CONTROL ─────────────────────────────
+
 function getDeviceId() {
   let id = localStorage.getItem("deviceId");
   if (!id) {
@@ -146,10 +136,6 @@ onAuthStateChanged(auth, async (user) => {
   await registerCurrentDevice(user);
   unsubscribeDeviceMonitor = setupDeviceMonitor(user);
 
-  // Checa assinatura agora, e periodicamente enquanto a sessão ficar aberta
-  // (cobre quem já estava logado e a assinatura vence com a aba aberta,
-  // ou quem a conta foi removida por vencimento em algum momento depois
-  // do login já ter sido feito).
   await checkSubscriptionStatus(user);
   if (assinaturaCheckInterval) clearInterval(assinaturaCheckInterval);
   assinaturaCheckInterval = setInterval(() => checkSubscriptionStatus(user), 5 * 60 * 1000);
