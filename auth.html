@@ -175,6 +175,10 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
+        // URL do servidor admin (fire.js) — usado só para checar se a
+        // assinatura está em dia antes de liberar o acesso ao painel
+        const ADMIN_API_URL = 'https://betstat.site/admin';
+
         window.login = async function() {
             const email    = document.getElementById("email").value;
             const password = document.getElementById("password").value;
@@ -237,7 +241,33 @@
             btn.textContent = 'Entrando...';
 
             signInWithEmailAndPassword(auth, email, password)
-                .then(() => {
+                .then(async (userCredential) => {
+                    // ─────────────────────────────────────────────────────
+                    // Checa se a assinatura está em dia antes de liberar
+                    // o acesso ao painel. Se estiver vencida (fora da
+                    // tolerância), manda pra tela de renovação em vez
+                    // do home.html.
+                    // ─────────────────────────────────────────────────────
+                    btn.textContent = 'Verificando assinatura...';
+                    try {
+                        const idToken = await userCredential.user.getIdToken();
+                        const statusResp = await fetch(`${ADMIN_API_URL}/meu-status`, {
+                            headers: { 'Authorization': 'Bearer ' + idToken }
+                        });
+                        const status = await statusResp.json();
+
+                        if (statusResp.ok && status.bloqueado) {
+                            window.location.href = "/renovar.html";
+                            return;
+                        }
+                    } catch (e) {
+                        // Se a checagem falhar por qualquer motivo (rede, etc.),
+                        // não trava o login — deixa passar para o home.html
+                        // normalmente, pra não bloquear cliente em dia por um
+                        // erro temporário do servidor.
+                        console.error('Falha ao checar status da assinatura:', e);
+                    }
+
                     window.location.href = "/home.html";
                 })
                 .catch(() => {
@@ -250,7 +280,7 @@
         }
 
         window.goToPayment = function() {
-            window.location.href = "payment.html";
+            window.location.href = "cadastro.html";
         }
     </script>
 
