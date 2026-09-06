@@ -84,34 +84,38 @@ function setupDeviceMonitor(user) {
 }
 
 // ─── CHECAGEM DE ASSINATURA (VENCIMENTO) ─────────────────
+// Não existe mais renovação: quando a assinatura vence, o servidor exclui
+// o cliente (Firebase + Supabase) e /meu-status passa a responder 404.
+// Aqui a gente só detecta isso e desloga, mandando pra tela de login —
+// de lá o cliente clica em "Assine aqui" e faz um cadastro novo.
+
 // Páginas onde essa checagem não deve rodar, pra não criar loop de
-// redirecionamento (o próprio fluxo de renovação/login já cuida disso).
+// redirecionamento (o próprio fluxo de login/cadastro já cuida disso).
 function paginaIsenta() {
   const p = window.location.pathname;
-  return p.includes("auth.html") || p.includes("renovar.html") || p.includes("cadastro.html");
+  return p.includes("auth.html") || p.includes("cadastro.html");
 }
 
 async function checkSubscription(user) {
   if (!user || isRedirecting || paginaIsenta()) return;
   try {
     const idToken = await user.getIdToken();
-    const resp = await fetch(`${ADMIN_API_URL}/meu-status`, {
-      headers: { 'Authorization': 'Bearer ' + idToken }
-    });
+    // Token vai como querystring (não como header Authorization) pra evitar
+    // que o navegador precise de um preflight CORS liberando esse header.
+    const resp = await fetch(`${ADMIN_API_URL}/meu-status?token=${encodeURIComponent(idToken)}`);
 
-    // Se o servidor não respondeu OK (erro temporário, rede, etc.), não
-    // bloqueia o cliente por precaução — só tenta de novo no próximo ciclo.
-    if (!resp.ok) return;
-
-    const data = await resp.json();
-    if (data.bloqueado) {
-      console.log("Assinatura vencida. Redirecionando para renovação.");
+    if (resp.status === 404) {
+      console.log("Assinatura vencida. Conta removida — deslogando.");
       isRedirecting = true;
-      window.location.href = "/renovar.html";
+      localStorage.removeItem("deviceId");
+      await signOut(auth);
+      window.location.href = "auth.html";
+      return;
     }
+
+    // Qualquer outro erro (rede, servidor fora do ar, etc.) não bloqueia
+    // o cliente por precaução — só tenta de novo no próximo ciclo.
   } catch (e) {
-    // Falha de rede não deve travar o cliente em dia por um problema
-    // temporário do servidor — só loga e tenta de novo depois.
     console.error("Erro ao checar assinatura:", e);
   }
 }
