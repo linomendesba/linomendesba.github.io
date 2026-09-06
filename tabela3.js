@@ -2292,7 +2292,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const tamanhoBlocoHeader = _tamanhoBlocoQD();
   minutosFixos.forEach((m, i) => {
     const th = document.createElement("th"); th.className="minute-header";
-    th.innerHTML = `${m}<span class="seq-jogo-header" style="color:#ec4899;font-size:10px;font-weight:600;margin-left:3px;">${(i+1).toString().padStart(2,"0")}</span>`;
+    th.innerHTML = `${m}<span class="seq-jogo-header" style="color:#94a3b8;font-size:10px;font-weight:600;margin-left:4px;">&middot;${(i+1).toString().padStart(2,"0")}</span>`;
     const qIdx = Math.floor(i/tamanhoBlocoHeader) % 4;
     th.classList.add(`qd-${qIdx}`);
     if (qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) th.classList.add("quadrant-border");
@@ -2672,7 +2672,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const tamanhoBlocoFooter=_tamanhoBlocoQD();
   minutosFixos.forEach((m,i)=>{
     const th=document.createElement("th"); th.className="minute-header";
-    th.innerHTML = `${m}<span class="seq-jogo-header" style="color:#ec4899;font-size:10px;font-weight:600;margin-left:3px;">${(i+1).toString().padStart(2,"0")}</span>`;
+    th.innerHTML = `${m}<span class="seq-jogo-header" style="color:#94a3b8;font-size:10px;font-weight:600;margin-left:4px;">&middot;${(i+1).toString().padStart(2,"0")}</span>`;
     const qIdx=Math.floor(i/tamanhoBlocoFooter) % 4; th.classList.add(`qd-${qIdx}`);
     if(qdCheckboxAtivo()&&i>0&&i%tamanhoBlocoFooter===0) th.classList.add("quadrant-border");
     if(Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
