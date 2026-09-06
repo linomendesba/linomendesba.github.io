@@ -219,6 +219,31 @@
         animation: blink 1.1s steps(1) infinite;
       }
 
+      /* readout da assinatura — só nesta página */
+      .assinatura-readout {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        border: 1px solid var(--border);
+        background: var(--bg-elevated);
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        color: var(--text-secondary);
+      }
+      .assinatura-readout .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        flex-shrink: 0;
+      }
+      .assinatura-readout.verde    { color: #4ade80; }
+      .assinatura-readout.amarelo  { color: #facc15; }
+      .assinatura-readout.vermelho { color: var(--danger); }
+
       /* ============================================================
          LABELS DE SEÇÃO
       ============================================================ */
@@ -771,6 +796,11 @@
           <span class="status-count">8 plataformas disponíveis</span>
           <span class="status-cursor">▌</span>
         </div>
+
+        <div class="assinatura-readout" id="assinatura-readout">
+          <span class="dot"></span>
+          <span id="assinatura-txt">Verificando assinatura…</span>
+        </div>
       </div>
 
       <div class="section-label">Plataformas</div>
@@ -1157,6 +1187,61 @@
             e.preventDefault();
             primeiro.focus();
           }
+        }
+      });
+    </script>
+
+    <script type="module">
+      // ─── STATUS DA ASSINATURA — só nesta página ───────────────────
+      // Reaproveita o app do Firebase já inicializado pelo
+      // firebase-auth.js (getAuth() sem argumento pega o app default,
+      // que já existe já que firebase-auth.js roda antes no <head>).
+      // Não mexe em nada do firebase-auth.js nem do header.
+      import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js";
+
+      const auth = getAuth();
+      const ADMIN_API_URL = "https://betstat.site/admin";
+
+      function atualizarAssinaturaReadout(dados) {
+        const el = document.getElementById("assinatura-readout");
+        const txt = document.getElementById("assinatura-txt");
+        if (!el || !txt || !dados) return;
+        const dias = dados.dias;
+
+        let cor, texto;
+        if (dias === null || dias === undefined) {
+          cor = "";
+          texto = "Assinatura: sem dados";
+        } else if (dias < 0) {
+          const abs = Math.abs(dias);
+          cor = "vermelho";
+          texto = `Assinatura venceu há ${abs} dia${abs !== 1 ? "s" : ""}`;
+        } else if (dias <= 5) {
+          cor = "amarelo";
+          texto = `Assinatura: ${dias} dia${dias !== 1 ? "s" : ""} restante${dias !== 1 ? "s" : ""}`;
+        } else {
+          cor = "verde";
+          texto = `Assinatura: ${dias} dias restantes`;
+        }
+
+        el.className = "assinatura-readout " + cor;
+        txt.textContent = texto;
+      }
+
+      onAuthStateChanged(auth, async (user) => {
+        // Se não tiver usuário, o firebase-auth.js já cuida do redirect —
+        // aqui só não faz nada.
+        if (!user) return;
+        try {
+          const token = await user.getIdToken();
+          const resp = await fetch(`${ADMIN_API_URL}/meu-status`, {
+            headers: { Authorization: "Bearer " + token }
+          });
+          if (!resp.ok) return;
+          const dados = await resp.json();
+          atualizarAssinaturaReadout(dados);
+        } catch (e) {
+          console.error("Erro ao buscar status da assinatura:", e);
         }
       });
     </script>
