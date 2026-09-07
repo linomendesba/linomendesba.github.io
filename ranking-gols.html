@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+  <title>BetStat | Ranking de Gols por Time</title>
+  <meta name="description" content="Ranking de Gols por Time no BetStat - veja quais times mais e menos marcam gols, jogando em casa, fora ou ambos." />
+  <meta name="keywords" content="BetStat, gols, artilheiro, ranking, ataque, futebol virtual" />
+  <meta property="og:title" content="BetStat | Ranking de Gols por Time" />
+  <meta property="og:description" content="Ranking de Gols por Time - times que mais e menos marcam" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.betstat.site/ranking-gols.html" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="BetStat" />
+  <script type="module" src="js/firebase-auth.js"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag("js", new Date());
+    gtag("config", "G-4WT805FFHQ");
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-primary: #111318;
+      --bg-secondary: #181c23;
+      --bg-card: #1e232d;
+      --bg-card-hover: #242a36;
+      --bg-top: #0d1c1f;
+      --border: #2a3040;
+      --border-accent: #1a4750;
+      --accent: #177b8e;
+      --accent-dim: #115c6b;
+      --accent-muted: rgba(23, 123, 142, 0.14);
+      --text-primary: #e4e8f0;
+      --text-secondary: #7a8499;
+      --text-accent: #177b8e;
+      --green: #2ecc71;
+      --red: #e74c3c;
+      --orange: #e6a817;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "DM Sans", sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    #header { position: sticky; top: 0; z-index: 100; }
+
+    .page-wrapper {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 28px 24px 60px;
+    }
+
+    .section-title {
+      font-size: 0.7rem;
+      font-family: "DM Mono", monospace;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .title-main {
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+      color: var(--text-primary);
+    }
+
+    /* ── FILTER SECTION ── */
+    .filter-section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .filter-group label {
+      font-size: 0.65rem;
+      font-family: "DM Mono", monospace;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .filter-group select {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: "DM Sans", sans-serif;
+      font-size: 0.85rem;
+      padding: 9px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      min-width: 140px;
+    }
+
+    .filter-group select:hover {
+      border-color: var(--accent-dim);
+    }
+
+    .filter-group select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-muted);
+    }
+
+    /* ── LOADING STATE ── */
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── TOP 5 CARDS ── */
+    .top5-section {
+      margin-bottom: 28px;
+    }
+
+    .top5-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+
+    .confrontos-section {
+      margin-bottom: 28px;
+    }
+
+    .confrontos-hint {
+      font-family: "DM Sans", sans-serif;
+      text-transform: none;
+      letter-spacing: normal;
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+    }
+
+    .games-table {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .game-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      min-width: 220px;
+      flex: 1;
+      max-width: 280px;
+      transition: all 0.2s;
+    }
+
+    .game-card.quase-maxima {
+      background: rgba(230, 168, 23, 0.08);
+      border-color: var(--orange);
+    }
+
+    .game-card .gc-time {
+      font-family: "DM Mono", monospace;
+      font-size: 1rem;
+      color: var(--accent);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .game-card .gc-teams {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      flex-wrap: wrap;
+    }
+
+    .game-card .gc-team { color: var(--text-primary); }
+    .game-card .gc-team.quase-team { color: var(--orange); font-weight: 700; }
+    .game-card .gc-vs { color: var(--text-secondary); font-size: 0.72rem; }
+
+    .gc-flag {
+      margin-top: 8px;
+      font-size: 0.62rem;
+      font-family: "DM Mono", monospace;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: #000;
+      background: var(--orange);
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-right: 4px;
+    }
+
+    .confrontos-empty {
+      padding: 30px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      width: 100%;
+    }
+
+
+    .chart-section {
+      margin-bottom: 28px;
+    }
+
+    .chart-hint {
+      font-family: "DM Sans", sans-serif;
+      text-transform: none;
+      letter-spacing: normal;
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+    }
+
+    .chart-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 12px;
+      height: 320px;
+      position: relative;
+    }
+
+
+    .chart-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .chart-controls-hint {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+    }
+
+    .chart-controls-hint strong {
+      color: var(--accent);
+    }
+
+
+    .pin-toggle-btn {
+      -webkit-appearance: none !important;
+      appearance: none !important;
+      box-sizing: border-box !important;
+      display: inline-flex !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      width: 28px !important;
+      height: 28px !important;
+      min-width: 28px !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border-radius: 50% !important;
+      border: 1px solid var(--border) !important;
+      background: var(--bg-card) !important;
+      color: var(--text-secondary) !important;
+      font-family: "DM Sans", sans-serif !important;
+      font-size: 0.95rem !important;
+      font-weight: 600 !important;
+      line-height: 1 !important;
+      cursor: pointer !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transition: all 0.15s !important;
+      box-shadow: none !important;
+    }
+
+    .pin-toggle-btn:hover {
+      border-color: var(--accent) !important;
+      color: var(--accent) !important;
+      background: var(--accent-muted) !important;
+    }
+
+    .pin-toggle-btn.pinned {
+      background: var(--accent) !important;
+      border-color: var(--accent) !important;
+      color: #fff !important;
+    }
+
+    .pin-toggle-btn.pinned:hover {
+      background: var(--red) !important;
+      border-color: var(--red) !important;
+    }
+
+    .pinned-teams-list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .pinned-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 4px 6px 4px 12px;
+      font-size: 0.75rem;
+      color: var(--text-primary);
+    }
+
+    .pinned-chip button {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.9rem;
+      line-height: 1;
+      padding: 3px 7px;
+      border-radius: 50%;
+      transition: all 0.15s;
+    }
+
+    .pinned-chip button:hover {
+      color: var(--red);
+      background: rgba(231, 76, 60, 0.15);
+    }
+
+    .top5-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+
+    .top5-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--accent);
+    }
+
+    .top5-card.rank-1::before {
+      background: linear-gradient(90deg, #e6a817, #d4941d);
+    }
+
+    .top5-card.rank-2::before {
+      background: linear-gradient(90deg, #c0c0c0, #a8a8a8);
+    }
+
+    .top5-card.rank-3::before {
+      background: linear-gradient(90deg, #cd7f32, #b85c1a);
+    }
+
+    .top5-card:hover {
+      border-color: var(--accent);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+
+    .top5-rank {
+      font-family: "DM Mono", monospace;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
+    }
+
+    .top5-badge {
+      display: inline-block;
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+    }
+
+    .top5-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+      word-break: break-word;
+    }
+
+    .top5-value {
+      font-family: "DM Mono", monospace;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .top5-label {
+      font-size: 0.65rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 6px;
+    }
+
+    .top5-streak {
+      font-size: 0.7rem;
+      color: var(--orange);
+      font-family: "DM Mono", monospace;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .ranking-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .ranking-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .ranking-table thead {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+    }
+
+    .ranking-table th {
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-accent);
+      font-family: "DM Mono", monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    .ranking-table th:hover {
+      background: var(--bg-top);
+    }
+
+    .ranking-table th.sortable::after {
+      content: " ⬍";
+      opacity: 0.3;
+      font-size: 0.7rem;
+    }
+
+    .ranking-table th.sort-asc::after {
+      content: " ⬆";
+      opacity: 1;
+    }
+
+    .ranking-table th.sort-desc::after {
+      content: " ⬇";
+      opacity: 1;
+    }
+
+    .ranking-table th:nth-child(1) { width: 50px; text-align: center; cursor: default; }
+    .ranking-table th:nth-child(1):hover { background: none; }
+    .ranking-table th:nth-child(2) { min-width: 180px; }
+    .ranking-table th:nth-child(3) { width: 100px; text-align: right; }
+    .ranking-table th:nth-child(4) { width: 90px; text-align: right; }
+    .ranking-table th:nth-child(5) { width: 80px; text-align: right; }
+    .ranking-table th.col-grafico { width: 70px; text-align: center; cursor: default; }
+    .ranking-table th.col-grafico:hover { background: none; }
+    .ranking-table td.col-grafico { text-align: center; }
+
+    .ranking-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    .ranking-table tbody tr:hover {
+      background: var(--bg-card);
+    }
+
+    .ranking-table tbody tr.top-1 {
+      background: rgba(230, 168, 23, 0.08);
+    }
+
+    .ranking-table tbody tr.top-1:hover {
+      background: rgba(230, 168, 23, 0.15);
+    }
+
+    .ranking-table tbody tr.top-2 {
+      background: rgba(192, 192, 192, 0.08);
+    }
+
+    .ranking-table tbody tr.top-2:hover {
+      background: rgba(192, 192, 192, 0.15);
+    }
+
+    .ranking-table tbody tr.top-3 {
+      background: rgba(205, 127, 50, 0.08);
+    }
+
+    .ranking-table tbody tr.top-3:hover {
+      background: rgba(205, 127, 50, 0.15);
+    }
+
+    .ranking-table td {
+      padding: 10px 14px;
+      vertical-align: middle;
+    }
+
+    .pos-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-weight: 600;
+      font-family: "DM Mono", monospace;
+      font-size: 0.9rem;
+    }
+
+    .pos-badge.top-1 {
+      background: linear-gradient(135deg, #e6a817, #d4941d);
+      color: #000;
+    }
+
+    .pos-badge.top-2 {
+      background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
+      color: #000;
+    }
+
+    .pos-badge.top-3 {
+      background: linear-gradient(135deg, #cd7f32, #b85c1a);
+      color: #fff;
+    }
+
+    .pos-badge.other {
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+
+    .team-name {
+      font-weight: 500;
+      color: var(--text-primary);
+      word-break: break-word;
+    }
+
+    .media-value {
+      font-family: "DM Mono", monospace;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: right;
+      color: var(--accent);
+    }
+
+    .total-value {
+      font-family: "DM Mono", monospace;
+      font-size: 1rem;
+      font-weight: 600;
+      text-align: right;
+      color: var(--orange);
+    }
+
+    .jogos-value {
+      font-family: "DM Mono", monospace;
+      font-size: 0.9rem;
+      text-align: right;
+      color: var(--text-secondary);
+    }
+
+
+    .filter-group input[type="text"] {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-family: "DM Sans", sans-serif;
+      font-size: 0.85rem;
+      padding: 9px 12px;
+      border-radius: 6px;
+      min-width: 200px;
+      transition: all 0.15s;
+    }
+
+    .filter-group input[type="text"]::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .filter-group input[type="text"]:hover {
+      border-color: var(--accent-dim);
+    }
+
+    .filter-group input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-muted);
+    }
+
+
+    .empty-state {
+      padding: 40px;
+      text-align: center;
+      color: var(--text-secondary);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .empty-state-text {
+      font-size: 0.9rem;
+    }
+
+
+    @media (max-width: 768px) {
+      .filter-section {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .filter-group select,
+      .filter-group input[type="text"] {
+        min-width: auto;
+        width: 100%;
+      }
+
+      .top5-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+      }
+
+      .chart-container {
+        height: 240px;
+        padding: 12px;
+      }
+
+      .chart-hint {
+        display: none;
+      }
+
+      .games-table {
+        gap: 8px;
+      }
+
+      .game-card {
+        max-width: 100%;
+      }
+
+      .top5-card {
+        padding: 12px;
+      }
+
+      .top5-badge {
+        font-size: 1.4rem;
+      }
+
+      .top5-value {
+        font-size: 1.4rem;
+      }
+
+      .ranking-table {
+        font-size: 0.75rem;
+      }
+
+      .ranking-table th,
+      .ranking-table td {
+        padding: 10px 12px;
+      }
+
+      .pos-badge {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+      }
+
+      .cardsligasbetano-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .title-main {
+        font-size: 1.4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="header"></div>
+
+  <br>   <br>
+
+  <div class="page-wrapper">
+    <div class="filter-section">
+      <div class="filter-group">
+        <label for="casaSelect">Casa de Apostas</label>
+        <select id="casaSelect">
+          <option value="">Selecionar...</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="ligaSelect">Liga</label>
+        <select id="ligaSelect">
+          <option value="">Selecionar...</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="periodoSelect">Período</label>
+        <select id="periodoSelect"></select>
+      </div>
+
+      <div class="filter-group">
+        <label for="mandoSelect">Onde Joga</label>
+        <select id="mandoSelect">
+          <option value="ambos" selected>Casa e Fora</option>
+          <option value="casa">Jogando em Casa</option>
+          <option value="fora">Jogando Fora</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="rankingOrderSelect">Ranking</label>
+        <select id="rankingOrderSelect">
+          <option value="desc">Mais Gols (Artilharia)</option>
+          <option value="asc">Menos Gols</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="minJogosSelect">Mínimo de Jogos</label>
+        <select id="minJogosSelect">
+          <option value="0" selected>Sem mínimo</option>
+          <option value="3">3+ jogos</option>
+          <option value="5">5+ jogos</option>
+          <option value="10">10+ jogos</option>
+          <option value="15">15+ jogos</option>
+          <option value="20">20+ jogos</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="buscaTimeInput">Buscar Time</label>
+        <input type="text" id="buscaTimeInput" placeholder="Nome do time..." autocomplete="off" />
+      </div>
+
+      <div class="loading" id="loadingIndicator" style="display:none;margin-top:14px;">
+        <div class="spinner"></div>
+        <span>Processando...</span>
+      </div>
+    </div>
+
+
+    <div class="confrontos-section" id="confrontosSection" style="display:none;">
+      <div class="section-title">
+        <span>Próximos Confrontos</span>
+        <span class="confrontos-hint">⚽ destaque = time no Top 5 de artilharia</span>
+      </div>
+      <div class="games-table" id="confrontosGrid"></div>
+    </div>
+
+
+    <div class="top5-section" id="top5Section" style="display:none;">
+      <div class="section-title">
+        <span>Top 5</span>
+      </div>
+      <div class="top5-grid" id="top5Grid"></div>
+    </div>
+
+
+    <div class="chart-section" id="top5ChartSection" style="display:none;">
+      <div class="section-title">
+        <span>Gols Acumulados — Top 5</span>
+        <span class="chart-hint">🟢 marcou · 🔴 não marcou · a linha sobe/desce conforme os gols de cada jogo · tracejada = total atual</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="top5LineChart"></canvas>
+      </div>
+      <div class="chart-controls-hint">Use o botão <strong>+</strong> na tabela do ranking pra adicionar um time ao gráfico.</div>
+      <div class="pinned-teams-list" id="pinnedTeamsList"></div>
+    </div>
+
+    <div class="section-title">
+      <span>Ranking Completo</span>
+    </div>
+
+    <div class="ranking-container">
+      <table class="ranking-table" id="rankingTable">
+        <thead>
+          <tr>
+            <th data-sort="pos">Pos.</th>
+            <th class="sortable" data-sort="team">Time</th>
+            <th class="sortable" data-sort="media">Média Gols</th>
+            <th class="sortable" data-sort="total">Total Gols</th>
+            <th class="sortable" data-sort="games">Jogos</th>
+            <th class="col-grafico">Gráfico</th>
+          </tr>
+        </thead>
+        <tbody id="rankingBody">
+          <tr>
+            <td colspan="6" class="empty-state">
+              <div class="empty-state-icon">⚽</div>
+              <div class="empty-state-text">Selecione uma liga para ver o ranking</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <script src="config.js"></script>
+  <script src="ligas-config.js"></script>
+  <script src="liga-data-manager.js"></script>
+  <script src="ranking-gols.js"></script>
+  <script src="header-loader.js"></script>
+  <script src="redirecionar.js"></script>
+  <script src="app.utils.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,1600 @@
+// ranking-gols.js
+// ────────────────────────────────────────────────────────────────
+// Calcula o ranking de GOLS MARCADOS por time (média e total) dentro
+// de um período selecionado, podendo filtrar por jogos em casa, fora
+// ou ambos. Base estrutural (cache, período, ordenação cronológica,
+// próximos confrontos, top5, gráfico, auto-refresh) reaproveitada do
+// ranking-maxima.js — só o motor de cálculo muda: aqui não existe
+// mercado nem sequência, é gols de fato.
+// ────────────────────────────────────────────────────────────────
+
+console.log('[RankingGols] Script carregado');
+console.log('[RankingGols] ROTAS_API existe?', typeof ROTAS_API);
+console.log('[RankingGols] LIGAS_INFO existe?', typeof LIGAS_INFO);
+
+const RankingGols = (() => {
+  console.log('[RankingGols] Inicializando módulo');
+  // Estados
+  let currentCasa = null;
+  let currentLiga = null;
+  let currentHoras = 72; // quantidade de HORAS selecionada (não jogos)
+  let currentPeriodoIndex = 5; // posição no seletor: 0=3h ... 5=72h
+  let currentMando = 'ambos'; // 'ambos' | 'casa' | 'fora'
+  let currentMinJogos = 0; // 0 = sem mínimo
+  let searchQuery = ''; // filtro de busca por nome de time (só na tabela completa)
+  let rankingOrderDir = 'desc'; // desc = mais gols, asc = menos gols
+  let rankingData = [];
+  let allGamesForPeriod = []; // Guarda todos os jogos do período pra análise
+  let latestGameTime = null;
+  let gamesAnalyzedCount = 0;
+  let currentTop5Names = []; // nomes (normalizados) do Top5 atualmente exibido
+
+  // Cache dos jogos brutos por liga, pra não refazer o fetch na API toda
+  // vez que só o período/mando/mínimo de jogos muda — só quando a
+  // liga selecionada é diferente da última buscada.
+  let gamesCache = { liga: null, games: [], loaded: false };
+
+  // Cache dos PRÓXIMOS jogos (card "Próximos Confrontos"), por liga.
+  // Independe de mando/período/mínimo de jogos — só refaz o fetch
+  // quando a liga muda.
+  let proximosCache = { liga: null, jogos: [], loaded: false };
+
+  // Times fixados manualmente no gráfico, além do Top 5, através do
+  // botão "+" na tabela do ranking. Guarda o nome exatamente como
+  // aparece no ranking.
+  let pinnedTeams = [];
+
+  // ────────────────────────────────────────────────────────────────
+  // AUTO-REFRESH (a cada 1 minuto, sem piscar a tela)
+  // ────────────────────────────────────────────────────────────────
+  const AUTO_REFRESH_MS = 60 * 1000;
+  let autoRefreshTimer = null;
+
+  // ────────────────────────────────────────────────────────────────
+  // CONFIG DO SELETOR DE PERÍODO
+  // ────────────────────────────────────────────────────────────────
+  // O seletor guarda a quantidade de HORAS mesmo (3/6/12/24/48/72). A
+  // quantidade de JOGOS correspondente é calculada em tempo real —
+  // ver obterJogosPorHora() — porque cada liga/casa tem um ritmo
+  // diferente de jogos por hora, então um número fixo de jogos não
+  // representa a mesma janela de tempo em todo lugar.
+
+  const PERIODO_LABELS = ['3 Horas', '6 Horas', '12 Horas', '24 Horas', '48 Horas', '72 Horas'];
+  const PERIODO_HORAS = [3, 6, 12, 24, 48, 72];
+
+  function populatePeriodoSelect() {
+    const select = document.getElementById('periodoSelect');
+    if (!select) return;
+
+    select.innerHTML = '';
+    PERIODO_LABELS.forEach((label, idx) => {
+      const opt = document.createElement('option');
+      opt.value = PERIODO_HORAS[idx];
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+
+    select.selectedIndex = currentPeriodoIndex;
+    currentHoras = PERIODO_HORAS[currentPeriodoIndex];
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // ORDEM CRONOLÓGICA DOS JOGOS
+  // ────────────────────────────────────────────────────────────────
+  // O campo "data" da API traz o dia certo, mas a hora embutida nele
+  // não é confiável pros jogos virtuais — quem tem a hora real são os
+  // campos separados "hora" e "minuto". Por isso a chave de ordenação
+  // junta a PARTE DO DIA de "data" com "hora"/"minuto" reais, em vez
+  // de usar "data" sozinho (impreciso) ou "id" sozinho (reflete ordem
+  // de inserção no banco, que não é necessariamente a ordem real dos
+  // jogos).
+
+  function valorOrdenacao(game) {
+    if (!game || !game.data) return null;
+
+    const diaStr = String(game.data).includes('T') ? String(game.data).split('T')[0] : String(game.data);
+    const hora = String(Number(game.hora) || 0).padStart(2, '0');
+    const minuto = String(Number(game.minuto) || 0).padStart(2, '0');
+
+    const t = new Date(`${diaStr}T${hora}:${minuto}:00`).getTime();
+    return isNaN(t) ? null : t;
+  }
+
+  function normalizarOrdemCronologica(data) {
+    if (!Array.isArray(data) || data.length < 2) return data;
+
+    const comChave = data.map((jogo, i) => ({ jogo, i, v: valorOrdenacao(jogo) }));
+
+    if (comChave.some(x => x.v === null)) {
+      console.warn('[RankingGols] Não foi possível calcular data+hora de algum jogo. Mantendo ordem original da rota.');
+      return data;
+    }
+
+    // Ordem ascendente (mais antigo -> mais recente); desempate estável
+    // pelo índice original quando dois jogos caem no mesmo minuto exato.
+    comChave.sort((a, b) => a.v - b.v || a.i - b.i);
+
+    return comChave.map(x => x.jogo);
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // DETECÇÃO AUTOMÁTICA DE JOGOS/HORA
+  // ────────────────────────────────────────────────────────────────
+  // Cada liga roda num ritmo diferente. Em vez de fixar um número,
+  // agrupamos os jogos (já em ordem cronológica) pelo campo "hora"
+  // real (0-23) e contamos quantos jogos caem em cada hora cheia. A
+  // média dos grupos "fechados" (ignorando o primeiro e o último, que
+  // podem estar cortados no meio) é o ritmo real da liga.
+
+  function detectarJogosPorHora(data) {
+    const FALLBACK = 20;
+    if (!Array.isArray(data) || data.length < 10) return FALLBACK;
+
+    const grupos = [];
+    let chaveAtual = null;
+    let contagemAtual = 0;
+
+    data.forEach(jogo => {
+      const hora = jogo ? jogo.hora : '?';
+      const chave = String(hora);
+
+      if (chave === chaveAtual) {
+        contagemAtual++;
+      } else {
+        if (chaveAtual !== null) grupos.push(contagemAtual);
+        chaveAtual = chave;
+        contagemAtual = 1;
+      }
+    });
+    if (contagemAtual > 0) grupos.push(contagemAtual);
+
+    if (grupos.length < 3) {
+      const soma = grupos.reduce((a, b) => a + b, 0);
+      return grupos.length ? Math.max(1, Math.round(soma / grupos.length)) : FALLBACK;
+    }
+
+    // descarta o primeiro e o último grupo (podem vir incompletos)
+    const gruposCompletos = grupos.slice(1, -1);
+    const soma = gruposCompletos.reduce((a, b) => a + b, 0);
+    const media = soma / gruposCompletos.length;
+
+    return Math.max(1, Math.round(media));
+  }
+
+  // Fonte primária: se ligas-config.js definir, pra liga atual, um
+  // array fixo "minutos" (os minutos exatos em que os jogos acontecem
+  // dentro de cada hora), usamos o tamanho dele — é um dado estático
+  // e conhecido, não precisa ser detectado em runtime. A detecção
+  // heurística acima vira só um fallback pra liga não cadastrada.
+  function obterJogosPorHora(data, liga) {
+    if (typeof LIGAS_INFO !== 'undefined' && liga) {
+      const info = LIGAS_INFO[liga];
+      if (info && Array.isArray(info.minutos) && info.minutos.length > 0) {
+        return info.minutos.length;
+      }
+    }
+    return detectarJogosPorHora(data);
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // LEITURA DO PLACAR
+  // ────────────────────────────────────────────────────────────────
+
+  function getMatchGoals(result) {
+    // result pode ser um objeto { placar: "X X Y" } ou um número/string
+    let placar = result;
+
+    if (typeof result === 'object' && result !== null) {
+      placar = result.placar || result.score || result.resultado || '';
+    }
+
+    if (typeof placar !== 'string') {
+      placar = String(placar || '0 0 0');
+    }
+
+    // Extrai os gols: "3 x 2" → golsCasa=3, golsFora=2
+    const match = placar.match(/(\d+)\s*[xX×]\s*(\d+)/);
+    if (!match) return null;
+
+    const golsCasa = parseInt(match[1], 10);
+    const golsFora = parseInt(match[2], 10);
+
+    return {
+      golsCasa,
+      golsFora,
+      totalGols: golsCasa + golsFora,
+    };
+  }
+
+  function extrairHome(game) {
+    return (game.time_a || game.time_casa || game.team_home || '').trim();
+  }
+
+  function extrairAway(game) {
+    return (game.time_b || game.time_visitante || game.team_visit || '').trim();
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // CÁLCULO DE GOLS POR TIME
+  // ────────────────────────────────────────────────────────────────
+  // games: todos os jogos do time (casa + fora) dentro do período,
+  // já em ordem cronológica. mando: 'ambos' | 'casa' | 'fora' — filtra
+  // quais desses jogos entram na conta.
+  //
+  // Retorna total de gols marcados, quantidade de jogos considerados,
+  // média (total/jogos) e a sequência cronológica de gols por jogo
+  // (usada depois pra montar o gráfico acumulado).
+
+  function calculateGoalsForTeam(teamName, games, mando) {
+    let total = 0;
+    let count = 0;
+    const sequencia = []; // [{ golsTime, game }]
+
+    games.forEach(game => {
+      const home = extrairHome(game);
+      const away = extrairAway(game);
+      const isHome = teamName === home;
+      const isAway = teamName === away;
+      if (!isHome && !isAway) return; // segurança, não deve acontecer
+
+      if (mando === 'casa' && !isHome) return;
+      if (mando === 'fora' && !isAway) return;
+
+      const goals = getMatchGoals(game.ft || game.resultado || game.placar);
+      if (!goals) return; // pula jogos sem resultado
+
+      const golsTime = isHome ? goals.golsCasa : goals.golsFora;
+
+      total += golsTime;
+      count++;
+      sequencia.push({ golsTime, game });
+    });
+
+    const media = count > 0 ? total / count : 0;
+
+    return { total, count, media, sequencia };
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // BUSCA (COM CACHE) E PROCESSAMENTO DE DADOS
+  // ────────────────────────────────────────────────────────────────
+
+  async function fetchGamesForLiga(liga) {
+    // Reaproveita os jogos já buscados se a liga não mudou — troca de
+    // período, mando ou mínimo de jogos não precisa de nova chamada
+    // à API, só de recalcular em cima dos mesmos dados.
+    if (gamesCache.loaded && gamesCache.liga === liga) {
+      console.log('[RankingGols] Usando cache de jogos para', liga);
+      return gamesCache.games;
+    }
+
+    const url = ROTAS_API.resultados(liga);
+    console.log('[RankingGols] Buscando:', url);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} em ${url}`);
+    }
+
+    let allGames = await response.json();
+    console.log('[RankingGols] Dados brutos recebidos:', allGames);
+
+    // Garante que é um array
+    if (!Array.isArray(allGames)) {
+      if (allGames && typeof allGames === 'object') {
+        // Se é um objeto, tenta extrair um array de dentro
+        allGames = Object.values(allGames).find(v => Array.isArray(v)) || [];
+      } else {
+        allGames = [];
+      }
+    }
+
+    console.log('[RankingGols] Total de jogos:', allGames.length);
+
+    gamesCache = { liga, games: allGames, loaded: true };
+    return allGames;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // PRÓXIMOS CONFRONTOS
+  // ────────────────────────────────────────────────────────────────
+  // Usa a mesma rota de próximos jogos já usada na Central de Odds.
+  // Nome real da função em config.js: ROTAS_API.proximosJogos (não
+  // ".proximos"). Mantém dois fallbacks só por segurança, caso o
+  // config.js mude no futuro.
+  function obterUrlProximos(liga) {
+    if (typeof ROTAS_API !== 'undefined' && typeof ROTAS_API.proximosJogos === 'function') {
+      return ROTAS_API.proximosJogos(liga);
+    }
+    if (typeof ROTAS_API !== 'undefined' && typeof ROTAS_API.proximos === 'function') {
+      return ROTAS_API.proximos(liga);
+    }
+    if (typeof ROTAS_API !== 'undefined' && typeof ROTAS_API.resultados === 'function') {
+      const urlResultados = ROTAS_API.resultados(liga);
+      if (urlResultados && urlResultados.includes('/resultados/')) {
+        return urlResultados.replace('/resultados/', '/proximos/');
+      }
+    }
+    return null;
+  }
+
+  async function fetchProximos(liga) {
+    if (proximosCache.loaded && proximosCache.liga === liga) {
+      return proximosCache.jogos;
+    }
+
+    const url = obterUrlProximos(liga);
+    if (!url) {
+      console.warn('[RankingGols] Não foi possível montar a URL de /proximos/ para', liga);
+      proximosCache = { liga, jogos: [], loaded: true };
+      return [];
+    }
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status} em ${url}`);
+      let jogos = await response.json();
+      if (!Array.isArray(jogos)) jogos = [];
+      proximosCache = { liga, jogos, loaded: true };
+      return jogos;
+    } catch (error) {
+      console.error('[RankingGols] Erro ao carregar próximos confrontos:', error);
+      proximosCache = { liga, jogos: [], loaded: true };
+      return [];
+    }
+  }
+
+  // "start_time" (ISO) é o formato mais comum em /proximos/; alguns
+  // retornos já trazem um campo "time" (HH:MM) pronto.
+  function extractTimeFromDateTime(str) {
+    if (!str || isNaN(new Date(str))) return '--:--';
+    const d = new Date(str);
+    return `${d.getUTCHours().toString().padStart(2, '0')}:${d.getUTCMinutes().toString().padStart(2, '0')}`;
+  }
+
+  // Procura, no ranking já calculado, o time cujo nome bate (ignorando
+  // acentos/maiúsculas) com o nome informado.
+  function findRankingEntry(teamName) {
+    if (!teamName) return null;
+    const alvo = normalizeForSearch(teamName);
+    return rankingData.find(r => normalizeForSearch(r.team) === alvo) || null;
+  }
+
+  function isInTop5(teamName) {
+    if (!teamName) return false;
+    const alvo = normalizeForSearch(teamName);
+    return currentTop5Names.includes(alvo);
+  }
+
+  function renderProximosConfrontos() {
+    const section = document.getElementById('confrontosSection');
+    const grid = document.getElementById('confrontosGrid');
+    if (!section || !grid) return;
+
+    const jogos = proximosCache.jogos || [];
+
+    if (!currentLiga || jogos.length === 0 || rankingData.length === 0) {
+      section.style.display = 'none';
+      grid.innerHTML = '';
+      return;
+    }
+
+    const itens = jogos.map(jogo => {
+      const homeTeam = (jogo.team_home || jogo.time_casa || '').trim();
+      const awayTeam = (jogo.team_visit || jogo.time_visitante || '').trim();
+      if (!homeTeam || !awayTeam) return null;
+
+      const hora = jogo.time || extractTimeFromDateTime(jogo.start_time);
+
+      const homeEntry = findRankingEntry(homeTeam);
+      const awayEntry = findRankingEntry(awayTeam);
+
+      // "Destaque" = time atualmente no Top 5 de artilharia exibido.
+      const homeQuase = isInTop5(homeTeam);
+      const awayQuase = isInTop5(awayTeam);
+      const isQuase = homeQuase || awayQuase;
+
+      const flags = [];
+      if (homeQuase) flags.push(`⚽ ${escapeHtml(homeTeam)} no Top 5 (média ${homeEntry.media.toFixed(2)})`);
+      if (awayQuase) flags.push(`⚽ ${escapeHtml(awayTeam)} no Top 5 (média ${awayEntry.media.toFixed(2)})`);
+
+      return {
+        key: `${normalizeForSearch(homeTeam)}|${normalizeForSearch(awayTeam)}`,
+        homeTeam, awayTeam, hora, isQuase, homeQuase, awayQuase, flags,
+      };
+    }).filter(Boolean);
+
+    // Garante chaves únicas mesmo se o mesmo confronto aparecer mais
+    // de uma vez na lista (raro, mas evita cards se sobrescreverem).
+    const contagem = new Map();
+    itens.forEach(item => {
+      const base = item.key;
+      const n = contagem.get(base) || 0;
+      contagem.set(base, n + 1);
+      if (n > 0) item.key = `${base}#${n}`;
+    });
+
+    if (itens.length === 0) {
+      grid.innerHTML = '<div class="confrontos-empty">Nenhum confronto disponível no momento.</div>';
+      section.style.display = 'block';
+      return;
+    }
+
+    // Se o grid ainda está no estado "vazio" (placeholder de texto) ou
+    // não tem nenhum card, faz a primeira montagem do zero.
+    if (!grid.querySelector('.game-card')) grid.innerHTML = '';
+
+    // A partir daqui, atualiza os cards já existentes em vez de trocar
+    // o innerHTML inteiro — é isso que evita o "piscar" no auto-refresh:
+    // só o que mudou (horário, destaque de Top5) é tocado, e os cards
+    // que não mudaram nem saem do DOM.
+    const existentes = new Map();
+    Array.from(grid.children).forEach(card => {
+      if (card.dataset.key) existentes.set(card.dataset.key, card);
+    });
+
+    let nodeAnterior = null;
+
+    itens.forEach(item => {
+      let card = existentes.get(item.key);
+
+      if (card) {
+        existentes.delete(item.key);
+
+        const novaClasse = `game-card ${item.isQuase ? 'quase-maxima' : ''}`.trim();
+        if (card.className !== novaClasse) card.className = novaClasse;
+
+        const timeEl = card.querySelector('.gc-time');
+        if (timeEl && timeEl.textContent !== item.hora) timeEl.textContent = item.hora;
+
+        const teamEls = card.querySelectorAll('.gc-team');
+        if (teamEls[0]) {
+          const cls = `gc-team ${item.homeQuase ? 'quase-team' : ''}`.trim();
+          if (teamEls[0].className !== cls) teamEls[0].className = cls;
+          if (teamEls[0].textContent !== item.homeTeam) teamEls[0].textContent = item.homeTeam;
+        }
+        if (teamEls[1]) {
+          const cls = `gc-team ${item.awayQuase ? 'quase-team' : ''}`.trim();
+          if (teamEls[1].className !== cls) teamEls[1].className = cls;
+          if (teamEls[1].textContent !== item.awayTeam) teamEls[1].textContent = item.awayTeam;
+        }
+
+        const flagsHtml = item.flags.map(f => `<div class="gc-flag">${f}</div>`).join('');
+        const flagsAtuais = Array.from(card.querySelectorAll('.gc-flag')).map(el => el.outerHTML).join('');
+        if (flagsAtuais !== flagsHtml) {
+          card.querySelectorAll('.gc-flag').forEach(el => el.remove());
+          if (flagsHtml) card.insertAdjacentHTML('beforeend', flagsHtml);
+        }
+      } else {
+        // Confronto novo na lista — cria o card do zero.
+        card = document.createElement('div');
+        card.dataset.key = item.key;
+        card.className = `game-card ${item.isQuase ? 'quase-maxima' : ''}`.trim();
+        card.innerHTML = `
+          <div class="gc-time">${escapeHtml(item.hora)}</div>
+          <div class="gc-teams">
+            <span class="gc-team ${item.homeQuase ? 'quase-team' : ''}">${escapeHtml(item.homeTeam)}</span>
+            <span class="gc-vs">x</span>
+            <span class="gc-team ${item.awayQuase ? 'quase-team' : ''}">${escapeHtml(item.awayTeam)}</span>
+          </div>
+          ${item.flags.map(f => `<div class="gc-flag">${f}</div>`).join('')}
+        `;
+      }
+
+      // Garante a ordem certa sem recriar nós: só move o card se ele
+      // não estiver já na posição esperada.
+      const referencia = nodeAnterior ? nodeAnterior.nextSibling : grid.firstChild;
+      if (referencia !== card) grid.insertBefore(card, referencia);
+      nodeAnterior = card;
+    });
+
+    // Remove do DOM os confrontos que saíram da lista (já rolaram, etc.).
+    existentes.forEach(card => card.remove());
+
+    section.style.display = 'block';
+  }
+
+  function computeRanking(allGames, liga, horas, mando, minJogos, resetSort = true) {
+    // Normaliza a ordem cronológica de TODOS os jogos da liga (mais
+    // antigo -> mais recente). Se não der pra confiar na data/hora de
+    // algum jogo, normalizarOrdemCronologica devolve a ordem original
+    // da API sem mexer (a API já entrega mais ou menos em ordem).
+    const normalizados = normalizarOrdemCronologica(allGames);
+
+    // Ritmo real de jogos/hora dessa liga — não é mais um número fixo
+    // chutado, é calculado a partir da própria liga (ou detectado nos
+    // dados caso a liga não tenha "minutos" configurado).
+    const jogosPorHora = obterJogosPorHora(normalizados, liga);
+    const totalJogosPeriodo = horas * jogosPorHora;
+
+    // Pega os N jogos mais recentes (final do array, já que está em
+    // ordem ascendente) — essa janela é da LIGA INTEIRA, com todos os
+    // times misturados; o agrupamento por time acontece depois.
+    const filteredGames = normalizados.slice(-totalJogosPeriodo);
+
+    console.log('[RankingGols] Jogos/hora detectado:', jogosPorHora, '| Jogos selecionados no período:', filteredGames.length, 'de', totalJogosPeriodo, 'solicitados (', horas, 'h )');
+
+    // O jogo mais recente é o último após a ordenação ascendente
+    const mostRecentGame = filteredGames[filteredGames.length - 1] || null;
+
+    if (mostRecentGame) {
+      const horaLabel = formatGameTime(mostRecentGame);
+      latestGameTime = horaLabel ? `${horaLabel} (id ${mostRecentGame.id})` : `id ${mostRecentGame.id}`;
+      gamesAnalyzedCount = filteredGames.length;
+      console.log('[RankingGols] Jogo mais recente:', latestGameTime, 'Total:', gamesAnalyzedCount);
+    }
+
+    allGamesForPeriod = filteredGames;
+
+    // Agrupa jogos por time — como filteredGames já está em ordem
+    // cronológica ascendente, os arrays por time saem naturalmente
+    // ordenados também (sem precisar reordenar de novo).
+    const teamGames = {};
+
+    filteredGames.forEach((game, idx) => {
+      const home = extrairHome(game);
+      const away = extrairAway(game);
+      const resultado = game.ft || game.resultado || game.placar || '';
+
+      if (!home || !away) {
+        console.warn(`[RankingGols] Jogo ${idx} sem times:`, game);
+        return;
+      }
+
+      if (!resultado) {
+        console.warn(`[RankingGols] Jogo ${idx} sem resultado:`, { home, away });
+        return;
+      }
+
+      // Inicializa arrays se não existem
+      if (!teamGames[home]) teamGames[home] = [];
+      if (!teamGames[away]) teamGames[away] = [];
+
+      // Adiciona o jogo aos dois times
+      teamGames[home].push(game);
+      teamGames[away].push(game);
+    });
+
+    console.log('[RankingGols] Times únicos encontrados:', Object.keys(teamGames).length);
+
+    // Calcula gols (total, média) e a sequência pro gráfico, de cada time
+    const ranking = Object.entries(teamGames)
+      .map(([team, games]) => {
+        const { total, count, media, sequencia } = calculateGoalsForTeam(team, games, mando);
+        return { team, total, gameCount: count, media, sequencia };
+      })
+      .filter(r => r.gameCount > 0 && r.gameCount >= minJogos);
+
+    // Reseta sorting para padrão (média desc) — só quando é uma troca
+    // de filtro de verdade. No refresh silencioso automático mantemos
+    // a ordenação que o usuário já tinha escolhido.
+    if (resetSort) {
+      sortBy = 'media';
+      sortDir = 'desc';
+    }
+
+    console.log('[RankingGols] Ranking final:', ranking);
+
+    return ranking;
+  }
+
+  async function processRanking(liga, horas, mando, minJogos) {
+    const loading = document.getElementById('loadingIndicator');
+    const precisaBuscar = !gamesCache.loaded || gamesCache.liga !== liga;
+    if (precisaBuscar && loading) loading.style.display = 'flex';
+
+    // Dispara as duas buscas (resultados + próximos confrontos) em
+    // paralelo em vez de esperar uma terminar pra começar a outra —
+    // corta bastante o tempo de carregamento ao trocar de liga/casa.
+    const proximosPromise = fetchProximos(liga);
+
+    try {
+      const allGames = await fetchGamesForLiga(liga);
+      const ranking = computeRanking(allGames, liga, horas, mando, minJogos);
+
+      rankingData = ranking;
+      renderRanking(ranking);
+
+      // Próximos confrontos: não trava a renderização do ranking em si
+      // se essa parte falhar (fetchProximos já trata os próprios erros).
+      proximosPromise.then(() => renderProximosConfrontos());
+    } catch (error) {
+      console.error('[RankingGols] Erro ao processar ranking:', error);
+      showError('Erro ao carregar dados. Verifique o console para detalhes.');
+      const confrontosSection = document.getElementById('confrontosSection');
+      if (confrontosSection) confrontosSection.style.display = 'none';
+    } finally {
+      if (loading) loading.style.display = 'none';
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // SORTING
+  // ────────────────────────────────────────────────────────────────
+
+  let sortBy = 'media';
+  let sortDir = 'desc';
+
+  function applySorting(data) {
+    const sorted = [...data];
+
+    sorted.sort((a, b) => {
+      let aVal, bVal;
+
+      if (sortBy === 'media') {
+        aVal = a.media;
+        bVal = b.media;
+      } else if (sortBy === 'team') {
+        aVal = a.team.toLowerCase();
+        bVal = b.team.toLowerCase();
+      } else if (sortBy === 'games') {
+        aVal = a.gameCount;
+        bVal = b.gameCount;
+      } else if (sortBy === 'total') {
+        aVal = a.total;
+        bVal = b.total;
+      }
+
+      if (typeof aVal === 'string') {
+        return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      } else {
+        return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+    });
+
+    return sorted;
+  }
+
+  function applySearchFilter(data) {
+    if (!searchQuery) return data;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return data;
+    return data.filter(item => item.team.toLowerCase().includes(q));
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // RENDERIZAÇÃO
+  // ────────────────────────────────────────────────────────────────
+
+  function renderRanking(ranking) {
+    const tbody = document.getElementById('rankingBody');
+
+    if (ranking.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div class="empty-state-text">Nenhum jogo encontrado neste período</div>
+          </td>
+        </tr>
+      `;
+      renderTop5Cards();
+      return;
+    }
+
+    const filtered = applySearchFilter(ranking);
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-text">Nenhum time encontrado para "${escapeHtml(searchQuery)}"</div>
+          </td>
+        </tr>
+      `;
+      updateSortIndicators();
+      renderTop5Cards();
+      return;
+    }
+
+    const sorted = applySorting(filtered);
+    renderRankingRowsDiff(sorted);
+
+    updateSortIndicators();
+    renderTop5Cards();
+  }
+
+  // Atualiza a tabela linha a linha, reaproveitando os <tr> que já
+  // existem (casados por nome de time) em vez de recriar tudo do zero
+  // a cada chamada — é isso que evita o "piscar" no auto-refresh de
+  // 1 em 1 minuto. Só cria/remove nós quando um time realmente entra
+  // ou sai do ranking filtrado; times que continuam na lista só têm
+  // os valores (posição, média, total, jogos) atualizados no lugar.
+  function renderRankingRowsDiff(sorted) {
+    const tbody = document.getElementById('rankingBody');
+
+    // Se o corpo da tabela está no estado "vazio" (placeholder de
+    // colspan) vindo de uma renderização anterior, força uma primeira
+    // montagem limpa dessa vez.
+    if (tbody.children.length && !tbody.children[0].dataset.team) tbody.innerHTML = '';
+
+    const existentes = new Map();
+    Array.from(tbody.children).forEach(tr => {
+      if (tr.dataset.team) existentes.set(tr.dataset.team, tr);
+    });
+
+    let nodeAnterior = null;
+
+    sorted.forEach((item, index) => {
+      const pos = index + 1;
+      const isTop3 = pos <= 3;
+      const badge = getPosBadge(pos);
+      const pinned = isPinned(item.team);
+      const mediaFmt = item.media.toFixed(2);
+
+      let row = existentes.get(item.team);
+
+      if (row) {
+        existentes.delete(item.team);
+
+        const novaClasse = isTop3 ? `top-${pos}` : '';
+        if (row.className !== novaClasse) row.className = novaClasse;
+
+        const posBadgeEl = row.querySelector('.pos-badge');
+        if (posBadgeEl) {
+          const cls = `pos-badge ${badge.class}`.trim();
+          if (posBadgeEl.className !== cls) posBadgeEl.className = cls;
+          if (posBadgeEl.textContent !== badge.icon) posBadgeEl.textContent = badge.icon;
+        }
+
+        const mediaEl = row.querySelector('.media-value');
+        if (mediaEl && mediaEl.textContent !== mediaFmt) mediaEl.textContent = mediaFmt;
+
+        const totalEl = row.querySelector('.total-value');
+        if (totalEl && totalEl.textContent !== String(item.total)) totalEl.textContent = item.total;
+
+        const jogosEl = row.querySelector('.jogos-value');
+        if (jogosEl && jogosEl.textContent !== String(item.gameCount)) jogosEl.textContent = item.gameCount;
+
+        const pinBtn = row.querySelector('.pin-toggle-btn');
+        if (pinBtn) {
+          pinBtn.classList.toggle('pinned', pinned);
+          const novoIcone = pinned ? '✕' : '+';
+          if (pinBtn.textContent !== novoIcone) pinBtn.textContent = novoIcone;
+          const novoTitulo = pinned ? 'Remover do gráfico' : 'Adicionar ao gráfico';
+          if (pinBtn.title !== novoTitulo) pinBtn.title = novoTitulo;
+        }
+      } else {
+        // Time novo no ranking filtrado (ex.: acabou de atingir o
+        // mínimo de jogos do período) — cria a linha do zero.
+        row = document.createElement('tr');
+        row.dataset.team = item.team;
+        row.className = isTop3 ? `top-${pos}` : '';
+        row.innerHTML = `
+          <td style="text-align: center;">
+            <div class="pos-badge ${badge.class}">${badge.icon}</div>
+          </td>
+          <td><span class="team-name">${escapeHtml(item.team)}</span></td>
+          <td><div class="media-value">${mediaFmt}</div></td>
+          <td><div class="total-value">${item.total}</div></td>
+          <td><div class="jogos-value">${item.gameCount}</div></td>
+          <td class="col-grafico">
+            <button type="button" class="pin-toggle-btn ${pinned ? 'pinned' : ''}" data-team="${escapeHtml(item.team)}" title="${pinned ? 'Remover do gráfico' : 'Adicionar ao gráfico'}">${pinned ? '✕' : '+'}</button>
+          </td>
+        `;
+      }
+
+      // Garante a ordem certa sem recriar nós: só move o <tr> se ele
+      // ainda não estiver na posição esperada.
+      const referencia = nodeAnterior ? nodeAnterior.nextSibling : tbody.firstChild;
+      if (referencia !== row) tbody.insertBefore(row, referencia);
+      nodeAnterior = row;
+    });
+
+    // Remove do DOM os times que saíram do ranking filtrado (ex.:
+    // busca por nome mudou, ou o time ficou abaixo do mínimo de jogos).
+    existentes.forEach(tr => tr.remove());
+  }
+
+  function updateSortIndicators() {
+    const headers = document.querySelectorAll('.ranking-table th');
+    headers.forEach(h => {
+      h.classList.remove('sort-asc', 'sort-desc');
+      if (h.dataset.sort === sortBy) {
+        h.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+      }
+    });
+  }
+
+  function renderTop5Cards() {
+    const container = document.getElementById('top5Grid');
+    const section = document.getElementById('top5Section');
+
+    renderPinnedChips();
+
+    if (!container || rankingData.length === 0) {
+      if (section) section.style.display = 'none';
+      currentTop5Names = [];
+      renderTop5LineChart([]);
+      return;
+    }
+
+    // Ordena conforme rankingOrderDir (média de gols)
+    let sorted = [...rankingData];
+    sorted.sort((a, b) => {
+      return rankingOrderDir === 'desc' ? b.media - a.media : a.media - b.media;
+    });
+
+    const top5 = sorted.slice(0, 5);
+    currentTop5Names = top5.map(item => normalizeForSearch(item.team));
+
+    container.innerHTML = top5
+      .map((item, idx) => {
+        const pos = idx + 1;
+        const badge = getPosBadge(pos);
+        const rankClass = pos <= 3 ? `rank-${pos}` : '';
+
+        return `
+          <div class="top5-card ${rankClass}">
+            <div class="top5-rank">${pos}º lugar</div>
+            <div class="top5-badge">${badge.icon}</div>
+            <div class="top5-name">${escapeHtml(item.team)}</div>
+            <div class="top5-value">${item.media.toFixed(2)}</div>
+            <div class="top5-label">Média Gols/Jogo</div>
+            <div class="top5-streak">Total: ${item.total} gols em ${item.gameCount} jogos</div>
+          </div>
+        `;
+      })
+      .join('');
+
+    section.style.display = 'block';
+
+    // Times fixados manualmente (que ainda não estejam no Top 5) entram
+    // como séries extras no gráfico, sempre visíveis por padrão.
+    const extras = pinnedTeams
+      .map(nome => findRankingEntry(nome))
+      .filter(Boolean)
+      .filter(item => !top5.some(t => t.team === item.team));
+
+    const chartItems = [
+      ...top5.map(item => ({ ...item, pinned: isPinned(item.team) })),
+      ...extras.map(item => ({ ...item, pinned: true })),
+    ];
+
+    renderTop5LineChart(chartItems);
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // GRÁFICO DE GOLS ACUMULADOS (TOP 5)
+  // ────────────────────────────────────────────────────────────────
+  // Um "walk" acumulado por time: cada jogo soma a QUANTIDADE DE GOLS
+  // que o time marcou naquela partida (não é +1/-1 fixo). Ex.: time
+  // fez 3x1 em casa → sobe +3 no gráfico daquele jogo. O resultado é
+  // uma linha que sobe mais forte nos jogos artilheiros e fica quase
+  // reta nos jogos secos — o total acumulado no fim bate com a coluna
+  // "Total Gols" da tabela.
+
+  let top5ChartInstance = null;
+  // "Assinatura" (time + se está fixado, na ordem exibida) das séries
+  // atualmente desenhadas no gráfico. Serve pra saber, no próximo
+  // render, se a composição do Top 5/fixados continua a mesma — nesse
+  // caso só atualizamos os dados dos datasets já existentes em vez de
+  // destruir e recriar o Chart.js inteiro (o que fazia o gráfico
+  // "piscar" a cada auto-refresh de 1 em 1 minuto).
+  let top5ChartSignature = [];
+  const TOP5_CHART_COLORS = ['#e6a817', '#c0c0c0', '#cd7f32', '#177b8e', '#2ecc71'];
+  // Cores extras pra times fixados manualmente (além do Top 5), num
+  // ciclo próprio pra não repetir as cores do pódio.
+  const PINNED_CHART_COLORS = ['#a78bfa', '#f472b6', '#38bdf8', '#fb923c', '#34d399', '#f87171'];
+  const GOL_GREEN = '#2ecc71';
+  const GOL_RED = '#e74c3c';
+  const GOL_NEUTRAL = 'rgba(122,132,153,0.6)';
+
+  function formatGameTime(game) {
+    // "hora"/"minuto" são os campos confiáveis (hora do dia do jogo).
+    // O campo "data" da API vem fixo/genérico pros jogos virtuais, não
+    // dá pra confiar nele nem pra ordenação nem pra exibir horário.
+    if (game.hora !== undefined && game.hora !== null && game.minuto !== undefined && game.minuto !== null) {
+      const hh = String(game.hora).padStart(2, '0');
+      const mm = String(game.minuto).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+    // Fallback pro formato antigo (string de data com hora embutida),
+    // caso apareça algum jogo sem hora/minuto separados.
+    const raw = String(game.data || game.date || '');
+    const match = raw.match(/(\d{1,2}):(\d{2})/);
+    if (!match) return null;
+    return `${match[1].padStart(2, '0')}:${match[2]}`;
+  }
+
+  function buildGoalsWalkSeries(sequencia) {
+    let cumulative = 0;
+    const points = [{ x: 0, y: 0, t: null, g: null }]; // ponto inicial, antes do primeiro jogo
+    // Cor de cada ponto (verde = marcou gol naquele jogo, vermelho =
+    // não marcou), no mesmo espírito do grafico-mercado.js.
+    const colors = [GOL_NEUTRAL];
+
+    sequencia.forEach(({ golsTime, game }) => {
+      cumulative += golsTime;
+      points.push({ x: points.length, y: cumulative, t: formatGameTime(game), g: golsTime });
+      colors.push(golsTime > 0 ? GOL_GREEN : GOL_RED);
+    });
+
+    return { points, colors };
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // PLUGIN — LINHA ATUAL
+  // ────────────────────────────────────────────────────────────────
+  // Desenha uma linha horizontal tracejada + badge no valor mais
+  // recente de cada série visível — mesmo padrão usado no
+  // grafico-mercado.js (linhaAtualPlugin).
+  const linhaAtualPlugin = {
+    id: 'linhaAtual',
+    afterDraw(chart, args, opts) {
+      const cfg = (opts && opts.enabled !== undefined)
+        ? opts
+        : ((chart.options.plugins && chart.options.plugins.linhaAtual) || {});
+      if (cfg.enabled === false) return;
+
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea || !scales.y) return;
+
+      const { left, right, top, bottom } = chartArea;
+      const padX = 5, BAD_H = 18;
+      const entries = [];
+
+      chart.data.datasets.forEach((ds, i) => {
+        if (!chart.isDatasetVisible(i)) return;
+        const arr = ds.data;
+        if (!arr || !arr.length) return;
+
+        const ultimo = arr[arr.length - 1];
+        const yVal = ultimo && typeof ultimo === 'object' ? ultimo.y : ultimo;
+        if (yVal === null || yVal === undefined || !isFinite(yVal)) return;
+
+        const yPx = scales.y.getPixelForValue(yVal);
+        if (!isFinite(yPx) || yPx < top || yPx > bottom) return;
+
+        entries.push({ yVal, yPx, color: ds.borderColor || '#fff' });
+      });
+
+      if (!entries.length) return;
+
+      entries.sort((a, b) => a.yPx - b.yPx);
+      for (let i = 1; i < entries.length; i++) {
+        const prev = entries[i - 1], curr = entries[i];
+        curr.badgeY = (curr.yPx - (prev.badgeY ?? prev.yPx) < BAD_H + 2)
+          ? (prev.badgeY ?? prev.yPx) + BAD_H + 2
+          : curr.yPx;
+        if (i === 1) prev.badgeY = prev.badgeY ?? prev.yPx;
+      }
+      if (entries.length === 1) entries[0].badgeY = entries[0].yPx;
+
+      entries.forEach(({ yVal, yPx, badgeY, color }) => {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(left, yPx);
+        ctx.lineTo(right, yPx);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const text = (yVal > 0 ? '+' : '') + yVal;
+        ctx.font = "600 10.5px 'DM Mono', monospace";
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        const bw = Math.ceil(ctx.measureText(text).width) + padX * 2;
+        const bx = right + 4, by = badgeY - BAD_H / 2, br = 4;
+
+        ctx.fillStyle = 'rgba(13,16,26,0.96)';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(bx, by, bw, BAD_H, br);
+        } else {
+          ctx.beginPath();
+          ctx.rect(bx, by, bw, BAD_H);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        ctx.fillText(text, bx + padX, badgeY);
+        ctx.restore();
+      });
+    },
+  };
+
+  function corParaItemChart(idx, totalTop5) {
+    // Cor por POSIÇÃO (dentro do Top5 ou fora dele) — não pelo status
+    // "pinned", porque um time do Top5 também pode ter sido fixado
+    // manualmente (pra ficar sempre visível) sem perder a cor de medalha.
+    if (idx < totalTop5) return TOP5_CHART_COLORS[idx] || '#e4e8f0';
+    const extraIdx = idx - totalTop5;
+    return PINNED_CHART_COLORS[extraIdx % PINNED_CHART_COLORS.length];
+  }
+
+  function renderTop5LineChart(items) {
+    const section = document.getElementById('top5ChartSection');
+    const canvas = document.getElementById('top5LineChart');
+    if (!section || !canvas) return;
+
+    if (!items || items.length === 0 || typeof Chart === 'undefined') {
+      section.style.display = 'none';
+      if (top5ChartInstance) {
+        top5ChartInstance.destroy();
+        top5ChartInstance = null;
+        top5ChartSignature = [];
+      }
+      return;
+    }
+
+    const totalTop5 = items.filter(i => !i.pinned).length;
+
+    const datasets = items.map((item, idx) => {
+      const { points, colors } = buildGoalsWalkSeries(item.sequencia || []);
+      const cor = corParaItemChart(idx, totalTop5);
+
+      return {
+        label: item.pinned ? `${item.team} (fixado)` : item.team,
+        data: points,
+        borderColor: cor,
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        // Cada bolinha vem verde (marcou gol naquele jogo) ou vermelha
+        // (não marcou) — a linha em si mantém a cor do time.
+        pointBackgroundColor: colors,
+        pointBorderColor: 'rgba(8,11,20,0.9)',
+        pointBorderWidth: 1,
+        tension: 0.15,
+        // Por padrão só o 1º lugar do Top 5 vem ligado (os outros ficam
+        // na legenda pra ativar clicando); times fixados manualmente
+        // pelo usuário sempre entram já visíveis.
+        hidden: !item.pinned && idx !== 0,
+      };
+    });
+
+    // Precisa mostrar a seção ANTES de criar/medir o Chart: se o
+    // container ainda estiver com display:none, o Chart.js mede o
+    // canvas com largura/altura zero e o gráfico fica em branco mesmo
+    // depois de exibir a seção.
+    section.style.display = 'block';
+
+    const novaAssinatura = items.map(item => `${item.team}::${item.pinned ? 1 : 0}`);
+    const mesmaComposicao = top5ChartInstance
+      && novaAssinatura.length === top5ChartSignature.length
+      && novaAssinatura.every((chave, i) => chave === top5ChartSignature[i]);
+
+    if (mesmaComposicao) {
+      // Mesmos times, na mesma ordem — só troca os pontos/cores dos
+      // datasets já existentes e manda o Chart.js redesenhar sem
+      // animação ('none'). Não recria a instância, não mexe em
+      // "hidden" (preserva o show/hide que o usuário já tiver
+      // escolhido manualmente na legenda). Resultado: os dados novos
+      // aparecem sem o gráfico inteiro piscar.
+      datasets.forEach((novo, i) => {
+        const atual = top5ChartInstance.data.datasets[i];
+        if (!atual) return;
+        atual.data = novo.data;
+        atual.pointBackgroundColor = novo.pointBackgroundColor;
+        atual.borderColor = novo.borderColor;
+        atual.label = novo.label;
+      });
+      top5ChartInstance.update('none');
+      return;
+    }
+
+    if (top5ChartInstance) {
+      top5ChartInstance.destroy();
+    }
+
+    top5ChartSignature = novaAssinatura;
+
+    top5ChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'nearest', intersect: false },
+        // Espaço extra à direita pros badges da "linha atual".
+        layout: { padding: { right: 56 } },
+        plugins: {
+          legend: {
+            position: 'top',
+            labels: { color: '#e4e8f0', font: { family: 'DM Sans', size: 11 }, boxWidth: 12 },
+          },
+          tooltip: {
+            callbacks: {
+              title: (items) => {
+                const raw = items[0].raw;
+                const hora = raw && raw.t;
+                return hora ? `Jogo ${items[0].parsed.x} · ${hora}` : `Jogo ${items[0].parsed.x}`;
+              },
+              label: (item) => {
+                const raw = item.raw;
+                const golsJogo = raw && raw.g;
+                const sufixo = (golsJogo === null || golsJogo === undefined) ? '' : ` (fez ${golsJogo} gol${golsJogo === 1 ? '' : 's'} nesse jogo)`;
+                return `${item.dataset.label}: ${item.parsed.y > 0 ? '+' : ''}${item.parsed.y} gols acumulados${sufixo}`;
+              },
+            },
+          },
+          linhaAtual: { enabled: true },
+        },
+        scales: {
+          x: {
+            type: 'linear',
+            title: { display: true, text: 'Jogos', color: '#7a8499' },
+            ticks: { stepSize: 1, color: '#7a8499', precision: 0 },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+          },
+          y: {
+            title: { display: true, text: 'Gols acumulados', color: '#7a8499' },
+            ticks: { stepSize: 1, color: '#7a8499', precision: 0 },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+          },
+        },
+      },
+      plugins: [linhaAtualPlugin],
+    });
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // TIME FIXADO NO GRÁFICO (campo de busca + chips removíveis)
+  // ────────────────────────────────────────────────────────────────
+
+  function isPinned(teamName) {
+    return pinnedTeams.some(t => normalizeForSearch(t) === normalizeForSearch(teamName));
+  }
+
+  // Adiciona ou remove um time do gráfico. Usado tanto pelo botão +/✕
+  // de cada linha da tabela quanto pelo ✕ dos chips abaixo do gráfico.
+  // Não reconstrói a tabela inteira — só troca o ícone/estado dos
+  // botões já na tela — pra não dar aquele "piscar" a cada clique.
+  function togglePinnedTeam(teamName) {
+    const entry = findRankingEntry(teamName);
+    if (!entry) return;
+
+    if (isPinned(entry.team)) {
+      pinnedTeams = pinnedTeams.filter(t => normalizeForSearch(t) !== normalizeForSearch(entry.team));
+    } else {
+      pinnedTeams.push(entry.team);
+    }
+
+    renderTop5Cards(); // reprocessa Top5 + regenera o gráfico + os chips
+    syncPinToggleButtons();
+  }
+
+  function renderPinnedChips() {
+    const list = document.getElementById('pinnedTeamsList');
+    if (!list) return;
+
+    list.innerHTML = pinnedTeams.map(team => `
+      <div class="pinned-chip">
+        <span>${escapeHtml(team)}</span>
+        <button type="button" data-team="${escapeHtml(team)}" title="Remover do gráfico">✕</button>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('button[data-team]').forEach(btn => {
+      btn.addEventListener('click', () => togglePinnedTeam(btn.dataset.team));
+    });
+  }
+
+  // Sincroniza o ícone/estado (+ ou ✕) de todos os botões da tabela
+  // com o array pinnedTeams atual, sem re-renderizar as linhas.
+  function syncPinToggleButtons() {
+    document.querySelectorAll('.pin-toggle-btn[data-team]').forEach(btn => {
+      const pinned = isPinned(btn.dataset.team);
+      btn.classList.toggle('pinned', pinned);
+      btn.textContent = pinned ? '✕' : '+';
+      btn.title = pinned ? 'Remover do gráfico' : 'Adicionar ao gráfico';
+    });
+  }
+
+  // Um único listener no corpo da tabela (delegação de evento) cobre
+  // todos os botões +/✕, inclusive os recriados a cada renderRanking —
+  // não precisa reatachar handler linha por linha.
+  function initPinToggleDelegation() {
+    const tbody = document.getElementById('rankingBody');
+    if (!tbody) return;
+    tbody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.pin-toggle-btn');
+      if (!btn) return;
+      togglePinnedTeam(btn.dataset.team);
+    });
+  }
+
+  function setupSortHeaders() {
+    const headers = document.querySelectorAll('.ranking-table th.sortable');
+    headers.forEach(h => {
+      h.addEventListener('click', () => {
+        const newSort = h.dataset.sort;
+        if (sortBy === newSort) {
+          sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortBy = newSort;
+          sortDir = 'desc';
+        }
+        renderRanking(rankingData);
+      });
+    });
+  }
+
+  function getPosBadge(pos) {
+    switch (pos) {
+      case 1:
+        return { icon: '🥇', class: 'top-1' };
+      case 2:
+        return { icon: '🥈', class: 'top-2' };
+      case 3:
+        return { icon: '🥉', class: 'top-3' };
+      default:
+        return { icon: pos.toString(), class: '' };
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function showError(message) {
+    const tbody = document.getElementById('rankingBody');
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="empty-state">
+          <div class="empty-state-icon">⚠️</div>
+          <div class="empty-state-text">${escapeHtml(message)}</div>
+        </td>
+      </tr>
+    `;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // SELETORES E EVENTOS
+  // ────────────────────────────────────────────────────────────────
+
+  function getCasasUnicas() {
+    console.log('[RankingGols] getCasasUnicas chamado');
+    if (typeof LIGAS_INFO === 'undefined') {
+      console.error('[RankingGols] LIGAS_INFO não está definido!');
+      return [];
+    }
+    const casas = new Set();
+    Object.values(LIGAS_INFO).forEach(liga => {
+      casas.add(liga.casa);
+    });
+    const resultado = Array.from(casas).sort();
+    console.log('[RankingGols] Casas únicas:', resultado);
+    return resultado;
+  }
+
+  function getLigasByCasa(casa) {
+    return Object.entries(LIGAS_INFO)
+      .filter(([_, liga]) => liga.casa === casa)
+      .map(([key, liga]) => ({ key, ...liga }));
+  }
+
+  function initCasaSelect() {
+    console.log('[RankingGols] initCasaSelect chamado');
+    const select = document.getElementById('casaSelect');
+    if (!select) {
+      console.error('[RankingGols] Elemento #casaSelect NÃO ENCONTRADO!');
+      return;
+    }
+    const casas = getCasasUnicas();
+    console.log('[RankingGols] Casas encontradas:', casas);
+
+    casas.forEach(casa => {
+      const opt = document.createElement('option');
+      opt.value = casa;
+      opt.textContent = casa;
+      select.appendChild(opt);
+    });
+
+    select.addEventListener('change', (e) => {
+      currentCasa = e.target.value;
+      updateLigaSelect();
+      salvarFiltros();
+    });
+  }
+
+  function updateLigaSelect() {
+    const ligaSelect = document.getElementById('ligaSelect');
+    ligaSelect.innerHTML = '<option value="">Selecionar...</option>';
+
+    if (!currentCasa) return;
+
+    const ligas = getLigasByCasa(currentCasa);
+    ligas.forEach(liga => {
+      const opt = document.createElement('option');
+      opt.value = liga.key;
+      opt.textContent = liga.nomeExibicao;
+      ligaSelect.appendChild(opt);
+    });
+  }
+
+  function initLigaSelect() {
+    const select = document.getElementById('ligaSelect');
+    select.addEventListener('change', (e) => {
+      currentLiga = e.target.value;
+      searchQuery = '';
+      const buscaInput = document.getElementById('buscaTimeInput');
+      if (buscaInput) buscaInput.value = '';
+
+      // Times fixados e próximos confrontos são específicos da liga
+      // anterior — reseta ao trocar de liga.
+      pinnedTeams = [];
+      proximosCache = { liga: null, jogos: [], loaded: false };
+      renderPinnedChips();
+
+      if (currentLiga) {
+        procesarRanking();
+      }
+      salvarFiltros();
+    });
+  }
+
+  function initPeriodoSelect() {
+    const select = document.getElementById('periodoSelect');
+    select.addEventListener('change', (e) => {
+      currentHoras = parseInt(e.target.value, 10);
+      currentPeriodoIndex = select.selectedIndex;
+      if (currentLiga) {
+        procesarRanking();
+      }
+      salvarFiltros();
+    });
+  }
+
+  function initMandoSelect() {
+    const select = document.getElementById('mandoSelect');
+    select.addEventListener('change', (e) => {
+      currentMando = e.target.value;
+      if (currentLiga) {
+        procesarRanking();
+      }
+      salvarFiltros();
+    });
+  }
+
+  function initRankingOrderSelect() {
+    const select = document.getElementById('rankingOrderSelect');
+    if (!select) return;
+    select.addEventListener('change', (e) => {
+      rankingOrderDir = e.target.value;
+      renderTop5Cards();
+      salvarFiltros();
+    });
+  }
+
+  function initMinJogosSelect() {
+    const select = document.getElementById('minJogosSelect');
+    if (!select) return;
+    select.addEventListener('change', (e) => {
+      currentMinJogos = parseInt(e.target.value, 10) || 0;
+      if (currentLiga) {
+        procesarRanking();
+      }
+      salvarFiltros();
+    });
+  }
+
+  function initBuscaInput() {
+    const input = document.getElementById('buscaTimeInput');
+    if (!input) return;
+    input.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderRanking(rankingData);
+    });
+  }
+
+  function procesarRanking() {
+    if (!currentLiga) return;
+    processRanking(currentLiga, currentHoras, currentMando, currentMinJogos);
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // AUTO-REFRESH SILENCIOSO
+  // ────────────────────────────────────────────────────────────────
+  // Busca dados novos por trás dos panos a cada 1 minuto e só troca o
+  // conteúdo na tela quando a resposta chega — sem mostrar o spinner
+  // "Processando...", sem resetar a ordenação da tabela nem o texto
+  // já digitado no campo de busca, e sem re-renderizar nada se a
+  // busca falhar (mantém os últimos dados válidos na tela). É isso
+  // que evita o "piscar".
+
+  async function silentRefresh() {
+    if (!currentLiga) return;
+    // Não atualiza com a aba em segundo plano — evita gastar chamadas
+    // à API à toa e evita competir com o que o usuário estiver fazendo
+    // assim que ele voltar pra aba (a troca de aba já dispara um
+    // refresh imediato, ver initAutoRefresh).
+    if (document.hidden) return;
+
+    // Guarda a liga alvo no início: se o usuário trocar de liga
+    // enquanto esse fetch está em andamento, a resposta é descartada
+    // em vez de ser aplicada na liga errada.
+    const ligaAlvo = currentLiga;
+
+    try {
+      const url = ROTAS_API.resultados(ligaAlvo);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status} em ${url}`);
+      let allGames = await response.json();
+      if (!Array.isArray(allGames)) {
+        allGames = (allGames && typeof allGames === 'object')
+          ? (Object.values(allGames).find(v => Array.isArray(v)) || [])
+          : [];
+      }
+
+      if (currentLiga !== ligaAlvo) return; // liga mudou nesse meio tempo, descarta
+
+      gamesCache = { liga: ligaAlvo, games: allGames, loaded: true };
+
+      const ranking = computeRanking(allGames, ligaAlvo, currentHoras, currentMando, currentMinJogos, false);
+      rankingData = ranking;
+      renderRanking(ranking); // troca só o conteúdo, sem mexer no spinner
+
+      // Próximos confrontos também são recarregados, do mesmo jeito
+      // silencioso (invalida o cache dessa liga e refaz o fetch).
+      proximosCache = { liga: null, jogos: [], loaded: false };
+      fetchProximos(ligaAlvo).then(() => {
+        if (currentLiga === ligaAlvo) renderProximosConfrontos();
+      });
+    } catch (error) {
+      // Falha silenciosa: mantém os dados antigos na tela e tenta de
+      // novo no próximo ciclo, sem incomodar o usuário com um erro.
+      console.warn('[RankingGols] Auto-refresh falhou, mantendo dados atuais:', error);
+    }
+  }
+
+  function initAutoRefresh() {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = setInterval(silentRefresh, AUTO_REFRESH_MS);
+
+    // Se o usuário sair da aba e voltar depois de um bom tempo, busca
+    // dados novos na hora em vez de esperar o próximo tick do timer.
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) silentRefresh();
+    });
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // SALVAMENTO DE FILTROS (localStorage)
+  // ────────────────────────────────────────────────────────────────
+
+  function salvarFiltros() {
+    const filtros = {
+      casa: currentCasa,
+      liga: currentLiga,
+      periodoIndex: currentPeriodoIndex,
+      mando: currentMando,
+      minJogos: currentMinJogos,
+      rankingOrder: rankingOrderDir,
+    };
+    localStorage.setItem('rankingGolsFiltros', JSON.stringify(filtros));
+  }
+
+  function restaurarFiltros() {
+    const saved = localStorage.getItem('rankingGolsFiltros');
+    if (!saved) return false;
+
+    try {
+      const filtros = JSON.parse(saved);
+      currentCasa = filtros.casa || null;
+      currentLiga = filtros.liga || null;
+      currentPeriodoIndex = typeof filtros.periodoIndex === 'number' ? filtros.periodoIndex : 5;
+      currentMando = filtros.mando || 'ambos';
+      currentMinJogos = typeof filtros.minJogos === 'number' ? filtros.minJogos : 0;
+      rankingOrderDir = filtros.rankingOrder || 'desc';
+
+      document.getElementById('casaSelect').value = currentCasa || '';
+      document.getElementById('ligaSelect').value = currentLiga || '';
+      populatePeriodoSelect();
+      document.getElementById('mandoSelect').value = currentMando;
+      const minJogosSelect = document.getElementById('minJogosSelect');
+      if (minJogosSelect) minJogosSelect.value = currentMinJogos;
+      document.getElementById('rankingOrderSelect').value = rankingOrderDir;
+
+      if (currentCasa) {
+        updateLigaSelect();
+        document.getElementById('ligaSelect').value = currentLiga || '';
+      }
+
+      if (currentLiga) {
+        procesarRanking();
+      }
+
+      return true;
+    } catch (e) {
+      console.error('[RankingGols] Erro ao restaurar filtros:', e);
+      return false;
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // INICIALIZAÇÃO
+  // ────────────────────────────────────────────────────────────────
+
+  function init() {
+    console.log('[RankingGols] Init começando...');
+    initCasaSelect();
+    initLigaSelect();
+    populatePeriodoSelect();
+    initPeriodoSelect();
+    initMandoSelect();
+    initMinJogosSelect();
+    initBuscaInput();
+    initRankingOrderSelect();
+    initPinToggleDelegation();
+    setupSortHeaders();
+    restaurarFiltros();
+    initAutoRefresh();
+    console.log('[RankingGols] Init concluído');
+  }
+
+  console.log('[RankingGols] Adicionando listener DOMContentLoaded');
+  document.addEventListener('DOMContentLoaded', init);
+
+  // ────────────────────────────────────────────────────────────────
+  // DEBUG: investigar jogos de um time específico dentro do período
+  // atualmente carregado. Roda no console: RankingGols._debugTeam('curacao')
+  // ────────────────────────────────────────────────────────────────
+  function normalizeForSearch(str) {
+    return (str || '')
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // remove acentos
+      .trim()
+      .toLowerCase();
+  }
+
+  function _debugTeam(nomeParcial) {
+    const alvo = normalizeForSearch(nomeParcial);
+    const variantes = new Set();
+    const jogosDoTime = [];
+
+    allGamesForPeriod.forEach(game => {
+      const home = (game.time_a || '').trim();
+      const away = (game.time_b || '').trim();
+      if (normalizeForSearch(home).includes(alvo)) {
+        variantes.add(home);
+        jogosDoTime.push(game);
+      } else if (normalizeForSearch(away).includes(alvo)) {
+        variantes.add(away);
+        jogosDoTime.push(game);
+      }
+    });
+
+    console.log('[Debug] Variações de nome encontradas no período atual:', Array.from(variantes));
+    console.log('[Debug] Total de jogos encontrados:', jogosDoTime.length, 'de', allGamesForPeriod.length, 'jogos no período');
+    console.table(jogosDoTime.map(g => ({
+      id: g.id, time_a: g.time_a, time_b: g.time_b, ft: g.ft, hora: g.hora, minuto: g.minuto,
+    })));
+
+    return jogosDoTime;
+  }
+
+  return {
+    init,
+    processRanking,
+    // Debug
+    _getCurrentState: () => ({
+      casa: currentCasa,
+      liga: currentLiga,
+      horas: currentHoras,
+      mando: currentMando,
+      minJogos: currentMinJogos,
+      searchQuery,
+      rankingOrderDir,
+      ranking: rankingData,
+      latestGameTime,
+      gamesAnalyzedCount,
+      cache: { liga: gamesCache.liga, totalJogos: gamesCache.games.length },
+      pinnedTeams,
+      proximosCache: { liga: proximosCache.liga, totalJogos: proximosCache.jogos.length },
+    }),
+    _debugTeam,
+  };
+})();
