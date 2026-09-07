@@ -22,7 +22,7 @@ const RankingGols = (() => {
   let currentMando = 'ambos'; // 'ambos' | 'casa' | 'fora'
   let currentMinJogos = 0; // 0 = sem mínimo
   let searchQuery = ''; // filtro de busca por nome de time (só na tabela completa)
-  let rankingOrderDir = 'desc'; // desc = mais gols, asc = menos gols
+  let rankingOrderDir = 'desc'; // desc = melhor saldo, asc = pior saldo
   let rankingData = [];
   let allGamesForPeriod = []; // Guarda todos os jogos do período pra análise
   let latestGameTime = null;
@@ -215,18 +215,21 @@ const RankingGols = (() => {
   }
 
   // ────────────────────────────────────────────────────────────────
-  // CÁLCULO DE GOLS POR TIME
+  // CÁLCULO DE SALDO DE GOLS POR TIME
   // ────────────────────────────────────────────────────────────────
   // games: todos os jogos do time (casa + fora) dentro do período,
   // já em ordem cronológica. mando: 'ambos' | 'casa' | 'fora' — filtra
   // quais desses jogos entram na conta.
   //
-  // Retorna total de gols marcados, quantidade de jogos considerados,
-  // média (total/jogos) e a sequência cronológica de gols por jogo
-  // (usada depois pra montar o gráfico acumulado).
+  // O ranking segue o MESMO PENSAMENTO do gráfico (saldo de gols por
+  // jogo, marcados - sofridos): "total" e "media" aqui são o SALDO
+  // acumulado/médio do time no período, não mais gols marcados soltos.
+  // Assim a tabela e o gráfico contam a mesma história — quem lidera
+  // o ranking é quem tem o melhor saldo, e é esse saldo que aparece
+  // plotado no gráfico do Top 5.
 
   function calculateGoalsForTeam(teamName, games, mando) {
-    let total = 0;
+    let total = 0; // saldo de gols total (marcados - sofridos) no período
     let count = 0;
     const sequencia = []; // [{ golsTime, golsSofridos, game }]
 
@@ -246,7 +249,7 @@ const RankingGols = (() => {
       const golsTime = isHome ? goals.golsCasa : goals.golsFora;
       const golsSofridos = isHome ? goals.golsFora : goals.golsCasa;
 
-      total += golsTime;
+      total += (golsTime - golsSofridos); // acumula o SALDO, não o gol bruto
       count++;
       sequencia.push({ golsTime, golsSofridos, game });
     });
@@ -391,14 +394,14 @@ const RankingGols = (() => {
       const homeEntry = findRankingEntry(homeTeam);
       const awayEntry = findRankingEntry(awayTeam);
 
-      // "Destaque" = time atualmente no Top 5 de artilharia exibido.
+      // "Destaque" = time atualmente no Top 5 de saldo de gols exibido.
       const homeQuase = isInTop5(homeTeam);
       const awayQuase = isInTop5(awayTeam);
       const isQuase = homeQuase || awayQuase;
 
       const flags = [];
-      if (homeQuase) flags.push(`⚽ ${escapeHtml(homeTeam)} no Top 5 (média ${homeEntry.media.toFixed(2)})`);
-      if (awayQuase) flags.push(`⚽ ${escapeHtml(awayTeam)} no Top 5 (média ${awayEntry.media.toFixed(2)})`);
+      if (homeQuase) flags.push(`⚽ ${escapeHtml(homeTeam)} no Top 5 (saldo ${formatSaldo(homeEntry.media, 2)})`);
+      if (awayQuase) flags.push(`⚽ ${escapeHtml(awayTeam)} no Top 5 (saldo ${formatSaldo(awayEntry.media, 2)})`);
 
       return {
         key: `${normalizeForSearch(homeTeam)}|${normalizeForSearch(awayTeam)}`,
@@ -723,7 +726,7 @@ const RankingGols = (() => {
       const isTop3 = pos <= 3;
       const badge = getPosBadge(pos);
       const pinned = isPinned(item.team);
-      const mediaFmt = item.media.toFixed(2);
+      const mediaFmt = formatSaldo(item.media, 2);
 
       let row = existentes.get(item.team);
 
@@ -744,7 +747,8 @@ const RankingGols = (() => {
         if (mediaEl && mediaEl.textContent !== mediaFmt) mediaEl.textContent = mediaFmt;
 
         const totalEl = row.querySelector('.total-value');
-        if (totalEl && totalEl.textContent !== String(item.total)) totalEl.textContent = item.total;
+        const totalFmt = formatSaldo(item.total);
+        if (totalEl && totalEl.textContent !== totalFmt) totalEl.textContent = totalFmt;
 
         const jogosEl = row.querySelector('.jogos-value');
         if (jogosEl && jogosEl.textContent !== String(item.gameCount)) jogosEl.textContent = item.gameCount;
@@ -769,7 +773,7 @@ const RankingGols = (() => {
           </td>
           <td><span class="team-name">${escapeHtml(item.team)}</span></td>
           <td><div class="media-value">${mediaFmt}</div></td>
-          <td><div class="total-value">${item.total}</div></td>
+          <td><div class="total-value">${formatSaldo(item.total)}</div></td>
           <td><div class="jogos-value">${item.gameCount}</div></td>
           <td class="col-grafico">
             <button type="button" class="pin-toggle-btn ${pinned ? 'pinned' : ''}" data-team="${escapeHtml(item.team)}" title="${pinned ? 'Remover do gráfico' : 'Adicionar ao gráfico'}">${pinned ? '✕' : '+'}</button>
@@ -812,7 +816,7 @@ const RankingGols = (() => {
       return;
     }
 
-    // Ordena conforme rankingOrderDir (média de gols)
+    // Ordena conforme rankingOrderDir (saldo de gols)
     let sorted = [...rankingData];
     sorted.sort((a, b) => {
       return rankingOrderDir === 'desc' ? b.media - a.media : a.media - b.media;
@@ -832,9 +836,9 @@ const RankingGols = (() => {
             <div class="top5-rank">${pos}º lugar</div>
             <div class="top5-badge">${badge.icon}</div>
             <div class="top5-name">${escapeHtml(item.team)}</div>
-            <div class="top5-value">${item.media.toFixed(2)}</div>
-            <div class="top5-label">Média Gols/Jogo</div>
-            <div class="top5-streak">Total: ${item.total} gols em ${item.gameCount} jogos</div>
+            <div class="top5-value">${formatSaldo(item.media, 2)}</div>
+            <div class="top5-label">Saldo Médio/Jogo</div>
+            <div class="top5-streak">Saldo total: ${formatSaldo(item.total)} em ${item.gameCount} jogos</div>
           </div>
         `;
       })
@@ -1248,6 +1252,15 @@ const RankingGols = (() => {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  // Formata saldo de gols com sinal explícito (+2, -3, 0) — diferente
+  // de gols marcados, o saldo pode ser negativo, então o "+" nos
+  // valores positivos ajuda a bater o olho e diferenciar de cara.
+  function formatSaldo(n, casas) {
+    const num = Number(n) || 0;
+    const fixo = typeof casas === 'number' ? num.toFixed(casas) : String(num);
+    return num > 0 ? `+${fixo}` : fixo;
   }
 
   function showError(message) {
