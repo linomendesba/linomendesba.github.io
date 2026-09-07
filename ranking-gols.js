@@ -228,7 +228,7 @@ const RankingGols = (() => {
   function calculateGoalsForTeam(teamName, games, mando) {
     let total = 0;
     let count = 0;
-    const sequencia = []; // [{ golsTime, game }]
+    const sequencia = []; // [{ golsTime, golsSofridos, game }]
 
     games.forEach(game => {
       const home = extrairHome(game);
@@ -244,10 +244,11 @@ const RankingGols = (() => {
       if (!goals) return; // pula jogos sem resultado
 
       const golsTime = isHome ? goals.golsCasa : goals.golsFora;
+      const golsSofridos = isHome ? goals.golsFora : goals.golsCasa;
 
       total += golsTime;
       count++;
-      sequencia.push({ golsTime, game });
+      sequencia.push({ golsTime, golsSofridos, game });
     });
 
     const media = count > 0 ? total / count : 0;
@@ -859,12 +860,12 @@ const RankingGols = (() => {
   // ────────────────────────────────────────────────────────────────
   // GRÁFICO DE GOLS ACUMULADOS (TOP 5)
   // ────────────────────────────────────────────────────────────────
-  // Um "walk" acumulado por time: cada jogo soma a QUANTIDADE DE GOLS
-  // que o time marcou naquela partida (não é +1/-1 fixo). Ex.: time
-  // fez 3x1 em casa → sobe +3 no gráfico daquele jogo. O resultado é
-  // uma linha que sobe mais forte nos jogos artilheiros e fica quase
-  // reta nos jogos secos — o total acumulado no fim bate com a coluna
-  // "Total Gols" da tabela.
+  // Uma linha por time, ponto a ponto: cada jogo tem um ponto cujo
+  // valor Y é simplesmente a QUANTIDADE DE GOLS que o time fez
+  // naquela partida — não é acumulado, não depende de vitória/empate/
+  // derrota, só do número de gols mesmo. Ex.: 1x1, 3x0, 1x2 (jogando
+  // em casa) → pontos em 1, 3, 1: sobe até 3 no segundo jogo e desce
+  // até 1 no terceiro, porque foi só 1 gol de novo.
 
   let top5ChartInstance = null;
   // "Assinatura" (time + se está fixado, na ordem exibida) das séries
@@ -900,15 +901,16 @@ const RankingGols = (() => {
   }
 
   function buildGoalsWalkSeries(sequencia) {
-    let cumulative = 0;
     const points = [{ x: 0, y: 0, t: null, g: null }]; // ponto inicial, antes do primeiro jogo
-    // Cor de cada ponto (verde = marcou gol naquele jogo, vermelho =
-    // não marcou), no mesmo espírito do grafico-mercado.js.
+    // Cor de cada ponto: verde = marcou gol naquele jogo, vermelho =
+    // não marcou.
     const colors = [GOL_NEUTRAL];
 
     sequencia.forEach(({ golsTime, game }) => {
-      cumulative += golsTime;
-      points.push({ x: points.length, y: cumulative, t: formatGameTime(game), g: golsTime });
+      // Y é o número de gols daquele jogo específico — sem acumular,
+      // sem entrar em vitória/empate/derrota. Só a quantidade de gols
+      // define se o próximo ponto sobe ou desce em relação ao anterior.
+      points.push({ x: points.length, y: golsTime, t: formatGameTime(game), g: golsTime });
       colors.push(golsTime > 0 ? GOL_GREEN : GOL_RED);
     });
 
@@ -1110,10 +1112,8 @@ const RankingGols = (() => {
                 return hora ? `Jogo ${items[0].parsed.x} · ${hora}` : `Jogo ${items[0].parsed.x}`;
               },
               label: (item) => {
-                const raw = item.raw;
-                const golsJogo = raw && raw.g;
-                const sufixo = (golsJogo === null || golsJogo === undefined) ? '' : ` (fez ${golsJogo} gol${golsJogo === 1 ? '' : 's'} nesse jogo)`;
-                return `${item.dataset.label}: ${item.parsed.y > 0 ? '+' : ''}${item.parsed.y} gols acumulados${sufixo}`;
+                const golsJogo = item.parsed.y;
+                return `${item.dataset.label}: ${golsJogo} gol${golsJogo === 1 ? '' : 's'} nesse jogo`;
               },
             },
           },
@@ -1127,7 +1127,7 @@ const RankingGols = (() => {
             grid: { color: 'rgba(255,255,255,0.05)' },
           },
           y: {
-            title: { display: true, text: 'Gols acumulados', color: '#7a8499' },
+            title: { display: true, text: 'Gols no jogo', color: '#7a8499' },
             ticks: { stepSize: 1, color: '#7a8499', precision: 0 },
             grid: { color: 'rgba(255,255,255,0.05)' },
           },
