@@ -1,8 +1,8 @@
-// config.js – VERSÃO SIMPLES E DIRETA
+// config.js – VERSÃO REFATORADA E LIMPA
 
 const API_BASE_URL = "https://betstat.site";
 
-// Ligas
+// Ligas (Mantido o catálogo global)
 const LIGAS = {
   GLORIA_ETERNA: "Taça Glória Eterna",
   COPA_AMERICA: "Copa América",
@@ -12,13 +12,11 @@ const LIGAS = {
   BRASILEIRAO: "Brasileirão Betano",
   MUNDIAL: "Mundial",
 
-  // BET365 - Nomes únicos
   BET365_COPA:    "Bet365 Copa",
   BET365_EURO:    "Bet365 Euro",
   BET365_SUPER:   "Bet365 Super",
   BET365_PREMIER: "Bet365 Premier",
 
-  // BETSSON - Nomes únicos
   BETSSON_ESPANHA:    "Betsson Espanha",
   BETSSON_INGLATERRA: "Betsson Inglaterra",
   BETSSON_BRASIL:     "Betsson Brasil",
@@ -29,167 +27,95 @@ const LIGAS = {
   KIRON_AMERICA: "Kiron Liga América Latina",
   KIRON_SPAIN:   "Kiron Liga Espanha",
 
-  ESTRELA_COPA_MUNDO:    "Copa do Mundo",
-  ESTRELA_CHAMPIONS:     "Ligas dos Campeões",
+  ESTRELA_COPA_MUNDO:     "Copa do Mundo",
+  ESTRELA_CHAMPIONS:      "Ligas dos Campeões",
   ESTRELA_AMERICA_LATINA: "América Latina"
 };
 
+// 1. Dicionário de Mapeamento de Rotas para Ligas Especiais
+// Evita dezenas de 'if/else' nas chamadas de API
+const MAPEAMENTO_ROTAS_ESPECIAIS = {
+  [LIGAS.BET365_COPA]:    "bet365/Copa",
+  [LIGAS.BET365_EURO]:    "bet365/Euro",
+  [LIGAS.BET365_SUPER]:   "bet365/Super",
+  [LIGAS.BET365_PREMIER]: "bet365/Premier",
 
-const ROTAS_API = {
-  resultados: (nomeLiga) => {
+  [LIGAS.BETSSON_ESPANHA]:    "betsson/Espanha",
+  [LIGAS.BETSSON_INGLATERRA]: "betsson/Inglaterra",
+  [LIGAS.BETSSON_BRASIL]:     "betsson/Brasil",
 
-    if (nomeLiga === LIGAS.GLORIA_ETERNA) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.COPA_AMERICA)  return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.EURO)          return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.ITALIANO)      return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.BRASILEIRAO)   return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.MUNDIAL)       return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
+  [LIGAS.KIRON_BRAZIL]:  "kiron/Brazil",
+  [LIGAS.KIRON_ENGLAND]: "kiron/England",
+  [LIGAS.KIRON_ITALY]:   "kiron/Italy",
+  [LIGAS.KIRON_AMERICA]: "kiron/America%20Latina",
+  [LIGAS.KIRON_SPAIN]:   "kiron/Spain",
 
-    // BET365 - rotas específicas
-    if (nomeLiga === LIGAS.BET365_COPA)    return `${API_BASE_URL}/resultados/bet365/Copa`;
-    if (nomeLiga === LIGAS.BET365_EURO)    return `${API_BASE_URL}/resultados/bet365/Euro`;
-    if (nomeLiga === LIGAS.BET365_SUPER)   return `${API_BASE_URL}/resultados/bet365/Super`;
-    if (nomeLiga === LIGAS.BET365_PREMIER) return `${API_BASE_URL}/resultados/bet365/Premier`;
-
-    // BETSSON - rotas específicas
-    if (nomeLiga === LIGAS.BETSSON_ESPANHA)    return `${API_BASE_URL}/resultados/betsson/Espanha`;
-    if (nomeLiga === LIGAS.BETSSON_INGLATERRA) return `${API_BASE_URL}/resultados/betsson/Inglaterra`;
-    if (nomeLiga === LIGAS.BETSSON_BRASIL)     return `${API_BASE_URL}/resultados/betsson/Brasil`;
-
-    // KIRON
-    if (nomeLiga === LIGAS.KIRON_BRAZIL)  return `${API_BASE_URL}/resultados/kiron/Brazil`;
-    if (nomeLiga === LIGAS.KIRON_ENGLAND) return `${API_BASE_URL}/resultados/kiron/England`;
-    if (nomeLiga === LIGAS.KIRON_ITALY)   return `${API_BASE_URL}/resultados/kiron/Italy`;
-    if (nomeLiga === LIGAS.KIRON_AMERICA) return `${API_BASE_URL}/resultados/kiron/America%20Latina`;
-    if (nomeLiga === LIGAS.KIRON_SPAIN)   return `${API_BASE_URL}/resultados/kiron/Spain`;
-
-    // ESTRELA
-    if (nomeLiga === LIGAS.ESTRELA_COPA_MUNDO)      return `${API_BASE_URL}/resultados/estrela/Copa%20do%20Mundo`;
-    if (nomeLiga === LIGAS.ESTRELA_CHAMPIONS)        return `${API_BASE_URL}/resultados/estrela/Ligas%20dos%20Campe%C3%B5es`;
-    if (nomeLiga === LIGAS.ESTRELA_AMERICA_LATINA)   return `${API_BASE_URL}/resultados/estrela/Am%C3%A9rica%20Latina`;
-
-    return `${API_BASE_URL}/resultados/${encodeURIComponent(nomeLiga)}`;
-  },
-
-  proximosJogos: (nomeLiga) => {
-    // BETANO
-    if (nomeLiga === LIGAS.GLORIA_ETERNA) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.COPA_AMERICA)  return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.EURO)          return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.ITALIANO)      return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.BRASILEIRAO)   return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.MUNDIAL)       return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
-
-    // BET365
-    if (nomeLiga === LIGAS.BET365_COPA)    return `${API_BASE_URL}/proximos/bet365/Copa`;
-    if (nomeLiga === LIGAS.BET365_EURO)    return `${API_BASE_URL}/proximos/bet365/Euro`;
-    if (nomeLiga === LIGAS.BET365_SUPER)   return `${API_BASE_URL}/proximos/bet365/Super`;
-    if (nomeLiga === LIGAS.BET365_PREMIER) return `${API_BASE_URL}/proximos/bet365/Premier`;
-
-    // BETSSON
-    if (nomeLiga === LIGAS.BETSSON_ESPANHA)    return `${API_BASE_URL}/proximos/betsson/Espanha`;
-    if (nomeLiga === LIGAS.BETSSON_INGLATERRA) return `${API_BASE_URL}/proximos/betsson/Inglaterra`;
-    if (nomeLiga === LIGAS.BETSSON_BRASIL)     return `${API_BASE_URL}/proximos/betsson/Brasil`;
-
-    // KIRON
-    if (nomeLiga === LIGAS.KIRON_BRAZIL)  return `${API_BASE_URL}/proximos/kiron/Brazil`;
-    if (nomeLiga === LIGAS.KIRON_ENGLAND) return `${API_BASE_URL}/proximos/kiron/England`;
-    if (nomeLiga === LIGAS.KIRON_ITALY)   return `${API_BASE_URL}/proximos/kiron/Italy`;
-    if (nomeLiga === LIGAS.KIRON_AMERICA) return `${API_BASE_URL}/proximos/kiron/America%20Latina`;
-    if (nomeLiga === LIGAS.KIRON_SPAIN)   return `${API_BASE_URL}/proximos/kiron/Spain`;
-
-    // ESTRELA
-    if (nomeLiga === LIGAS.ESTRELA_COPA_MUNDO)     return `${API_BASE_URL}/proximos/estrela/Copa%20do%20Mundo`;
-    if (nomeLiga === LIGAS.ESTRELA_CHAMPIONS)       return `${API_BASE_URL}/proximos/estrela/Ligas%20dos%20Campe%C3%B5es`;
-    if (nomeLiga === LIGAS.ESTRELA_AMERICA_LATINA)  return `${API_BASE_URL}/proximos/estrela/Am%C3%A9rica%20Latina`;
-
-    return `${API_BASE_URL}/proximos/${encodeURIComponent(nomeLiga)}`;
-  },
-
-  odds: (nomeLiga) => {
-    // BETANO
-    if (nomeLiga === LIGAS.GLORIA_ETERNA) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.COPA_AMERICA)  return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.EURO)          return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.ITALIANO)      return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.COPA_ESTRELAS) return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.BRASILEIRAO)   return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
-    if (nomeLiga === LIGAS.MUNDIAL)       return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
-
-    // BET365
-    if (nomeLiga === LIGAS.BET365_COPA)    return `${API_BASE_URL}/odds/bet365/Copa`;
-    if (nomeLiga === LIGAS.BET365_EURO)    return `${API_BASE_URL}/odds/bet365/Euro`;
-    if (nomeLiga === LIGAS.BET365_SUPER)   return `${API_BASE_URL}/odds/bet365/Super`;
-    if (nomeLiga === LIGAS.BET365_PREMIER) return `${API_BASE_URL}/odds/bet365/Premier`;
-
-    // BETSSON
-    if (nomeLiga === LIGAS.BETSSON_ESPANHA)    return `${API_BASE_URL}/odds/betsson/Espanha`;
-    if (nomeLiga === LIGAS.BETSSON_INGLATERRA) return `${API_BASE_URL}/odds/betsson/Inglaterra`;
-    if (nomeLiga === LIGAS.BETSSON_BRASIL)     return `${API_BASE_URL}/odds/betsson/Brasil`;
-
-    // KIRON
-    if (nomeLiga === LIGAS.KIRON_BRAZIL)  return `${API_BASE_URL}/odds/kiron/Brazil`;
-    if (nomeLiga === LIGAS.KIRON_ENGLAND) return `${API_BASE_URL}/odds/kiron/England`;
-    if (nomeLiga === LIGAS.KIRON_ITALY)   return `${API_BASE_URL}/odds/kiron/Italy`;
-    if (nomeLiga === LIGAS.KIRON_AMERICA) return `${API_BASE_URL}/odds/kiron/America%20Latina`;
-    if (nomeLiga === LIGAS.KIRON_SPAIN)   return `${API_BASE_URL}/odds/kiron/Spain`;
-
-    // ESTRELA
-    if (nomeLiga === LIGAS.ESTRELA_COPA_MUNDO)     return `${API_BASE_URL}/odds/estrela/Copa%20do%20Mundo`;
-    if (nomeLiga === LIGAS.ESTRELA_CHAMPIONS)       return `${API_BASE_URL}/odds/estrela/Ligas%20dos%20Campe%C3%B5es`;
-    if (nomeLiga === LIGAS.ESTRELA_AMERICA_LATINA)  return `${API_BASE_URL}/odds/estrela/Am%C3%A9rica%20Latina`;
-
-    return `${API_BASE_URL}/odds/${encodeURIComponent(nomeLiga)}`;
-  }
+  [LIGAS.ESTRELA_COPA_MUNDO]:     "estrela/Copa%20do%20Mundo",
+  [LIGAS.ESTRELA_CHAMPIONS]:      "estrela/Ligas%20dos%20Campe%C3%B5es",
+  [LIGAS.ESTRELA_AMERICA_LATINA]: "estrela/Am%C3%A9rica%20Latina",
 };
 
-// Detectar página
+// Gerador genérico de endpoint para eliminar duplicação de funções
+function gerarUrlApi(recurso, nomeLiga) {
+  const subCaminho = MAPEAMENTO_ROTAS_ESPECIAIS[nomeLiga] || encodeURIComponent(nomeLiga);
+  return `${API_BASE_URL}/${recurso}/${subCaminho}`;
+}
+
+const ROTAS_API = {
+  resultados: (nomeLiga) => gerarUrlApi("resultados", nomeLiga),
+  proximosJogos: (nomeLiga) => gerarUrlApi("proximos", nomeLiga),
+  odds: (nomeLiga) => gerarUrlApi("odds", nomeLiga),
+};
+
+// 2. Mapeamento declarativo de Arquivo -> Liga
+// Substitui a lista de 'if (caminho.includes(...))' por uma tabela de busca rápida
+const MAPA_ARQUIVO_PARA_LIGA = {
+  "brasileirao.html":         LIGAS.BRASILEIRAO,
+  "campeonato_italiano.html": LIGAS.ITALIANO,
+  "copa_america.html":        LIGAS.COPA_AMERICA,
+  "copa_das_estrelas.html":   LIGAS.COPA_ESTRELAS,
+  "mundial.html":             LIGAS.MUNDIAL,
+  "bet365copa.html":          LIGAS.BET365_COPA,
+  "bet365euro.html":          LIGAS.BET365_EURO,
+  "bet365super.html":         LIGAS.BET365_SUPER,
+  "bet365premier.html":       LIGAS.BET365_PREMIER,
+  "betssonespanha.html":      LIGAS.BETSSON_ESPANHA,
+  "betssoningland.html":      LIGAS.BETSSON_INGLATERRA,
+  "betssonbrasil.html":       LIGAS.BETSSON_BRASIL,
+  "kironbrazil.html":         LIGAS.KIRON_BRAZIL,
+  "kironengland.html":        LIGAS.KIRON_ENGLAND,
+  "kironitaly.html":          LIGAS.KIRON_ITALY,
+  "kironamerica.html":        LIGAS.KIRON_AMERICA,
+  "kironspain.html":          LIGAS.KIRON_SPAIN,
+  "estrelacopamundo.html":    LIGAS.ESTRELA_COPA_MUNDO,
+  "estrelachampions.html":    LIGAS.ESTRELA_CHAMPIONS,
+  "estrelaamericalatina.html":LIGAS.ESTRELA_AMERICA_LATINA,
+};
+
 function detectarLigaAtual() {
   const caminho = (window.location.pathname || "").toLowerCase();
 
-  // BETANO
-  if (caminho.includes("brasileirao.html"))         return LIGAS.BRASILEIRAO;
-  if (caminho.includes("campeonato_italiano.html"))  return LIGAS.ITALIANO;
-  if (caminho.includes("copa_america.html"))         return LIGAS.COPA_AMERICA;
-  if (caminho.includes("copa_das_estrelas.html"))    return LIGAS.COPA_ESTRELAS;
-  if (caminho.includes("euro.html") && !caminho.includes("bet365") && !caminho.includes("betsson")) return LIGAS.EURO;
-  if (caminho.includes("mundial.html"))              return LIGAS.MUNDIAL;
+  // Tratamento da exceção da Euro (evitando conflito com bet365/betsson)
+  if (caminho.includes("euro.html") && !caminho.includes("bet365") && !caminho.includes("betsson")) {
+    return LIGAS.EURO;
+  }
 
-  // BET365
-  if (caminho.includes("bet365copa.html"))    return LIGAS.BET365_COPA;
-  if (caminho.includes("bet365euro.html"))    return LIGAS.BET365_EURO;
-  if (caminho.includes("bet365super.html"))   return LIGAS.BET365_SUPER;
-  if (caminho.includes("bet365premier.html")) return LIGAS.BET365_PREMIER;
+  // Busca direta no Mapa
+  for (const [arquivo, liga] of Object.entries(MAPA_ARQUIVO_PARA_LIGA)) {
+    if (caminho.includes(arquivo)) return liga;
+  }
 
-  // BETSSON
-  if (caminho.includes("betssonespanha.html"))  return LIGAS.BETSSON_ESPANHA;
-  if (caminho.includes("betssoningland.html"))  return LIGAS.BETSSON_INGLATERRA;
-  if (caminho.includes("betssonbrasil.html"))   return LIGAS.BETSSON_BRASIL;
-
-  // KIRON
-  if (caminho.includes("kironbrazil.html"))  return LIGAS.KIRON_BRAZIL;
-  if (caminho.includes("kironengland.html")) return LIGAS.KIRON_ENGLAND;
-  if (caminho.includes("kironitaly.html"))   return LIGAS.KIRON_ITALY;
-  if (caminho.includes("kironamerica.html")) return LIGAS.KIRON_AMERICA;
-  if (caminho.includes("kironspain.html"))   return LIGAS.KIRON_SPAIN;
-
-  // ESTRELABET
-  if (caminho.includes("estrelacopamundo.html"))     return LIGAS.ESTRELA_COPA_MUNDO;
-  if (caminho.includes("estrelachampions.html"))     return LIGAS.ESTRELA_CHAMPIONS;
-  if (caminho.includes("estrelaamericalatina.html")) return LIGAS.ESTRELA_AMERICA_LATINA;
-
-  return LIGAS.GLORIA_ETERNA;
+  return LIGAS.GLORIA_ETERNA; // Fallback padrão
 }
 
 const LIGA_ATUAL = detectarLigaAtual();
 
-
+// ────────────────────────────────────────────────────────────────
+// SEO AUTOMÁTICO (Inalterado)
+// ────────────────────────────────────────────────────────────────
 const BASE_URL_SITE = "https://www.betstat.site";
 
 function aplicarSEOAutomatico() {
-
   const caminho = window.location.pathname || "";
   const ehHome = caminho === "/" || caminho === "" || /\/index\.html$/i.test(caminho);
 
@@ -213,7 +139,6 @@ function aplicarSEOAutomatico() {
       };
 
   document.title = dados.titulo;
-
 
   function upsertTag(seletor, tag, atributos) {
     let el = document.head.querySelector(seletor);
