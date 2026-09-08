@@ -22,7 +22,7 @@ const RankingGols = (() => {
   let currentMando = 'ambos'; // 'ambos' | 'casa' | 'fora'
   let currentMinJogos = 0; // 0 = sem mínimo
   let searchQuery = ''; // filtro de busca por nome de time (só na tabela completa)
-  let rankingOrderDir = 'desc'; // desc = melhor saldo, asc = pior saldo
+  let rankingOrderDir = 'desc'; // desc = mais gols, asc = menos gols
   let rankingData = [];
   let allGamesForPeriod = []; // Guarda todos os jogos do período pra análise
   let latestGameTime = null;
@@ -215,21 +215,18 @@ const RankingGols = (() => {
   }
 
   // ────────────────────────────────────────────────────────────────
-  // CÁLCULO DE SALDO DE GOLS POR TIME
+  // CÁLCULO DE GOLS POR TIME
   // ────────────────────────────────────────────────────────────────
   // games: todos os jogos do time (casa + fora) dentro do período,
   // já em ordem cronológica. mando: 'ambos' | 'casa' | 'fora' — filtra
   // quais desses jogos entram na conta.
   //
-  // O ranking segue o MESMO PENSAMENTO do gráfico (saldo de gols por
-  // jogo, marcados - sofridos): "total" e "media" aqui são o SALDO
-  // acumulado/médio do time no período, não mais gols marcados soltos.
-  // Assim a tabela e o gráfico contam a mesma história — quem lidera
-  // o ranking é quem tem o melhor saldo, e é esse saldo que aparece
-  // plotado no gráfico do Top 5.
+  // Retorna total de gols marcados, quantidade de jogos considerados,
+  // média (total/jogos) e a sequência cronológica de gols por jogo
+  // (usada depois pra montar o gráfico acumulado).
 
   function calculateGoalsForTeam(teamName, games, mando) {
-    let total = 0; // saldo de gols total (marcados - sofridos) no período
+    let total = 0;
     let count = 0;
     const sequencia = []; // [{ golsTime, golsSofridos, game }]
 
@@ -249,7 +246,7 @@ const RankingGols = (() => {
       const golsTime = isHome ? goals.golsCasa : goals.golsFora;
       const golsSofridos = isHome ? goals.golsFora : goals.golsCasa;
 
-      total += (golsTime - golsSofridos); // acumula o SALDO, não o gol bruto
+      total += golsTime;
       count++;
       sequencia.push({ golsTime, golsSofridos, game });
     });
@@ -394,14 +391,14 @@ const RankingGols = (() => {
       const homeEntry = findRankingEntry(homeTeam);
       const awayEntry = findRankingEntry(awayTeam);
 
-      // "Destaque" = time atualmente no Top 5 de saldo de gols exibido.
+      // "Destaque" = time atualmente no Top 5 de artilharia exibido.
       const homeQuase = isInTop5(homeTeam);
       const awayQuase = isInTop5(awayTeam);
       const isQuase = homeQuase || awayQuase;
 
       const flags = [];
-      if (homeQuase) flags.push(`⚽ ${escapeHtml(homeTeam)} no Top 5 (saldo ${formatSaldo(homeEntry.media, 2)})`);
-      if (awayQuase) flags.push(`⚽ ${escapeHtml(awayTeam)} no Top 5 (saldo ${formatSaldo(awayEntry.media, 2)})`);
+      if (homeQuase) flags.push(`⚽ ${escapeHtml(homeTeam)} no Top 5 (média ${homeEntry.media.toFixed(2)})`);
+      if (awayQuase) flags.push(`⚽ ${escapeHtml(awayTeam)} no Top 5 (média ${awayEntry.media.toFixed(2)})`);
 
       return {
         key: `${normalizeForSearch(homeTeam)}|${normalizeForSearch(awayTeam)}`,
@@ -726,7 +723,7 @@ const RankingGols = (() => {
       const isTop3 = pos <= 3;
       const badge = getPosBadge(pos);
       const pinned = isPinned(item.team);
-      const mediaFmt = formatSaldo(item.media, 2);
+      const mediaFmt = item.media.toFixed(2);
 
       let row = existentes.get(item.team);
 
@@ -747,8 +744,7 @@ const RankingGols = (() => {
         if (mediaEl && mediaEl.textContent !== mediaFmt) mediaEl.textContent = mediaFmt;
 
         const totalEl = row.querySelector('.total-value');
-        const totalFmt = formatSaldo(item.total);
-        if (totalEl && totalEl.textContent !== totalFmt) totalEl.textContent = totalFmt;
+        if (totalEl && totalEl.textContent !== String(item.total)) totalEl.textContent = item.total;
 
         const jogosEl = row.querySelector('.jogos-value');
         if (jogosEl && jogosEl.textContent !== String(item.gameCount)) jogosEl.textContent = item.gameCount;
@@ -773,7 +769,7 @@ const RankingGols = (() => {
           </td>
           <td><span class="team-name">${escapeHtml(item.team)}</span></td>
           <td><div class="media-value">${mediaFmt}</div></td>
-          <td><div class="total-value">${formatSaldo(item.total)}</div></td>
+          <td><div class="total-value">${item.total}</div></td>
           <td><div class="jogos-value">${item.gameCount}</div></td>
           <td class="col-grafico">
             <button type="button" class="pin-toggle-btn ${pinned ? 'pinned' : ''}" data-team="${escapeHtml(item.team)}" title="${pinned ? 'Remover do gráfico' : 'Adicionar ao gráfico'}">${pinned ? '✕' : '+'}</button>
@@ -816,7 +812,7 @@ const RankingGols = (() => {
       return;
     }
 
-    // Ordena conforme rankingOrderDir (saldo de gols)
+    // Ordena conforme rankingOrderDir (média de gols)
     let sorted = [...rankingData];
     sorted.sort((a, b) => {
       return rankingOrderDir === 'desc' ? b.media - a.media : a.media - b.media;
@@ -836,9 +832,9 @@ const RankingGols = (() => {
             <div class="top5-rank">${pos}º lugar</div>
             <div class="top5-badge">${badge.icon}</div>
             <div class="top5-name">${escapeHtml(item.team)}</div>
-            <div class="top5-value">${formatSaldo(item.media, 2)}</div>
-            <div class="top5-label">Saldo Médio/Jogo</div>
-            <div class="top5-streak">Saldo total: ${formatSaldo(item.total)} em ${item.gameCount} jogos</div>
+            <div class="top5-value">${item.media.toFixed(2)}</div>
+            <div class="top5-label">Média Gols/Jogo</div>
+            <div class="top5-streak">Total: ${item.total} gols em ${item.gameCount} jogos</div>
           </div>
         `;
       })
@@ -862,15 +858,14 @@ const RankingGols = (() => {
   }
 
   // ────────────────────────────────────────────────────────────────
-  // GRÁFICO DE SALDO DE GOLS (TOP 5)
+  // GRÁFICO DE GOLS ACUMULADOS (TOP 5)
   // ────────────────────────────────────────────────────────────────
   // Uma linha por time, ponto a ponto: cada jogo tem um ponto cujo
-  // valor Y é o SALDO DE GOLS daquele jogo específico (gols marcados
-  // menos gols sofridos) — não é acumulado, é só o saldo daquela
-  // partida isolada. Ex.: vitória por 3x1 → +2; derrota por 1x3 → -2;
-  // vitória por 4x1 → +3; empate 1x1 → 0. Isso reflete o pedido do
-  // usuário (ideia do PH): o gráfico mostra a "força" da vitória/
-  // derrota em cada jogo, não só a quantidade de gols marcados.
+  // valor Y é simplesmente a QUANTIDADE DE GOLS que o time fez
+  // naquela partida — não é acumulado, não depende de vitória/empate/
+  // derrota, só do número de gols mesmo. Ex.: 1x1, 3x0, 1x2 (jogando
+  // em casa) → pontos em 1, 3, 1: sobe até 3 no segundo jogo e desce
+  // até 1 no terceiro, porque foi só 1 gol de novo.
 
   let top5ChartInstance = null;
   // "Assinatura" (time + se está fixado, na ordem exibida) das séries
@@ -887,16 +882,6 @@ const RankingGols = (() => {
   const GOL_GREEN = '#2ecc71';
   const GOL_RED = '#e74c3c';
   const GOL_NEUTRAL = 'rgba(122,132,153,0.6)';
-  const GOL_EMPATE = '#8b5e3c'; // marrom — ponto de empate, pedido pelo usuário
-
-  // A cada quantos jogos a linha zera e recomeça. Sem isso, um time
-  // muito dominante nunca para de subir (linha quase reta pra sempre).
-  // Resetando por blocos, a linha fica limitada numa faixa e oscila
-  // parecido com o gráfico de mercado (que também usa uma janela,
-  // "Base 20" por padrão) — mas SEM QUEBRAR a regra do empate: dentro
-  // de cada bloco, vitória sobe, derrota desce, empate lateraliza
-  // 100% garantido, sem exceção.
-  const RESET_A_CADA_N_JOGOS = 20;
 
   function formatGameTime(game) {
     // "hora"/"minuto" são os campos confiáveis (hora do dia do jogo).
@@ -916,37 +901,17 @@ const RankingGols = (() => {
   }
 
   function buildGoalsWalkSeries(sequencia) {
-    const points = [{ x: 0, y: 0, t: null, saldo: null, gt: null, gs: null, resetStart: false }]; // ponto inicial, antes do primeiro jogo
-    // Cor de cada ponto: verde = venceu, vermelho = perdeu, marrom = empatou.
+    const points = [{ x: 0, y: 0, t: null, g: null }]; // ponto inicial, antes do primeiro jogo
+    // Cor de cada ponto: verde = marcou gol naquele jogo, vermelho =
+    // não marcou.
     const colors = [GOL_NEUTRAL];
 
-    let acumulado = 0; // posição atual da linha (soma dos saldos até aqui, dentro do bloco atual)
-
-    sequencia.forEach(({ golsTime, golsSofridos, game }, idx) => {
-      // A cada RESET_A_CADA_N_JOGOS jogos, a linha zera e começa um
-      // bloco novo — evita que times muito dominantes virem uma reta
-      // ascendente sem fim, e deixa o gráfico oscilando numa faixa,
-      // igual o gráfico de mercado.
-      const resetStart = idx > 0 && idx % RESET_A_CADA_N_JOGOS === 0;
-      if (resetStart) acumulado = 0;
-
-      // O saldo daquele jogo (marcados - sofridos) é somado/subtraído
-      // da posição ATUAL da linha — não é um valor isolado. Vitória
-      // por 3x1 SOBE +2 a partir de onde a linha já estava; derrota
-      // por 1x3 DESCE -2; empate soma 0, ou seja, a linha fica
-      // exatamente na mesma altura (lateraliza), sem subir nem descer.
-      const saldo = golsTime - golsSofridos;
-      acumulado += saldo;
-      points.push({
-        x: points.length,
-        y: acumulado,
-        t: formatGameTime(game),
-        saldo,
-        gt: golsTime,
-        gs: golsSofridos,
-        resetStart, // true = primeiro jogo de um bloco novo (linha acabou de zerar aqui)
-      });
-      colors.push(saldo > 0 ? GOL_GREEN : (saldo < 0 ? GOL_RED : GOL_EMPATE));
+    sequencia.forEach(({ golsTime, game }) => {
+      // Y é o número de gols daquele jogo específico — sem acumular,
+      // sem entrar em vitória/empate/derrota. Só a quantidade de gols
+      // define se o próximo ponto sobe ou desce em relação ao anterior.
+      points.push({ x: points.length, y: golsTime, t: formatGameTime(game), g: golsTime });
+      colors.push(golsTime > 0 ? GOL_GREEN : GOL_RED);
     });
 
     return { points, colors };
@@ -1076,8 +1041,8 @@ const RankingGols = (() => {
         borderWidth: 2,
         pointRadius: 3,
         pointHoverRadius: 5,
-        // Cada bolinha vem verde (venceu), vermelha (perdeu) ou marrom
-        // (empatou) — a linha em si mantém a cor do time.
+        // Cada bolinha vem verde (marcou gol naquele jogo) ou vermelha
+        // (não marcou) — a linha em si mantém a cor do time.
         pointBackgroundColor: colors,
         pointBorderColor: 'rgba(8,11,20,0.9)',
         pointBorderWidth: 1,
@@ -1147,14 +1112,8 @@ const RankingGols = (() => {
                 return hora ? `Jogo ${items[0].parsed.x} · ${hora}` : `Jogo ${items[0].parsed.x}`;
               },
               label: (item) => {
-                const raw = item.raw;
-                if (!raw || raw.gt === null || raw.gt === undefined) return null;
-                const saldo = raw.saldo;
-                const sinalSaldo = saldo > 0 ? '+' : '';
-                const acumulado = item.parsed.y;
-                const sinalAcum = acumulado > 0 ? '+' : '';
-                const resultado = saldo > 0 ? 'venceu' : (saldo < 0 ? 'perdeu' : 'empatou');
-                return `${item.dataset.label}: ${raw.gt}x${raw.gs} (${resultado}, ${sinalSaldo}${saldo}) · linha em ${sinalAcum}${acumulado}`;
+                const golsJogo = item.parsed.y;
+                return `${item.dataset.label}: ${golsJogo} gol${golsJogo === 1 ? '' : 's'} nesse jogo`;
               },
             },
           },
@@ -1168,7 +1127,7 @@ const RankingGols = (() => {
             grid: { color: 'rgba(255,255,255,0.05)' },
           },
           y: {
-            title: { display: true, text: 'Saldo acumulado', color: '#7a8499' },
+            title: { display: true, text: 'Gols no jogo', color: '#7a8499' },
             ticks: { stepSize: 1, color: '#7a8499', precision: 0 },
             grid: { color: 'rgba(255,255,255,0.05)' },
           },
@@ -1277,15 +1236,6 @@ const RankingGols = (() => {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-  }
-
-  // Formata saldo de gols com sinal explícito (+2, -3, 0) — diferente
-  // de gols marcados, o saldo pode ser negativo, então o "+" nos
-  // valores positivos ajuda a bater o olho e diferenciar de cara.
-  function formatSaldo(n, casas) {
-    const num = Number(n) || 0;
-    const fixo = typeof casas === 'number' ? num.toFixed(casas) : String(num);
-    return num > 0 ? `+${fixo}` : fixo;
   }
 
   function showError(message) {
