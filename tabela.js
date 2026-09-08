@@ -1788,11 +1788,10 @@ function getOddValue(odds, res) {
 }
 
 // ─── FETCH ────────────────────────────────────────────────────────────────────
-// Resultados busca DIRETO na API (sem passar pelo LigaDataManager), igual o
-// gráfico (graficomercado.js) já faz — é o dado mais sensível a atraso da
-// tabela (decide se a célula mostra placar ou só nomes de times "próximo
-// jogo"), então prioriza sempre vir fresco em vez de reaproveitar o cache
-// compartilhado com outros painéis da página.
+// Resultados, odds e próximos jogos buscam DIRETO na API — sem depender do
+// liga-data-manager.js — no mesmo estilo do gráfico (graficomercado.js):
+// fetch() com timestamp + cache:"no-store" a cada ciclo, sempre vindo fresco
+// em vez de reaproveitar cache compartilhado com outros painéis da página.
 async function fetchResultados() {
   const ts = Date.now();
   const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
@@ -1802,10 +1801,12 @@ async function fetchResultados() {
 
 async function fetchOdds() {
   try {
-    // Antes: fetch() direto pra API. Agora usa o mesmo LigaDataManager que o
-    // resto da página, compartilhando a mesma resposta cacheada (1s) em vez
-    // de disparar uma requisição própria só pra tabela.
-    return await LigaDataManager.getOdds();
+    // Busca DIRETO na API, no mesmo estilo do gráfico (graficomercado.js) —
+    // sem passar pelo LigaDataManager/cache compartilhado.
+    const ts = Date.now();
+    const res = await fetch(ROTAS_API.odds(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em odds`);
+    return await res.json();
   } catch(e) {
     console.error("Erro odds:", e);
     return [];
@@ -1814,7 +1815,11 @@ async function fetchOdds() {
 
 async function fetchProximosJogos() {
   try {
-    const j = await LigaDataManager.getProximosJogos();
+    // Busca DIRETO na API, no mesmo estilo do gráfico — sem LigaDataManager.
+    const ts = Date.now();
+    const res = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em proximosJogos`);
+    const j = await res.json();
     return j.sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
   } catch(e) {
     console.error("Erro próximos:", e);
@@ -2787,19 +2792,14 @@ async function buscarDados() {
   // Salva cache dos dados para os quadrantes e re-render rápido
   qdDadosCache = dados;
 
-  if(!Estado.dadosMudaram(dados,oddsData,proximosJogos)){
-    console.log("Dados inalterados."); computeStatsFromDOM(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
-    garantirPainelCores(); sincronizarPainelCores();
-    atualizarCheckboxStreak(); calcularStreakMaximo();
-    iniciarObserverStreak();
-    if (qdCheckboxAtivo()) qdRenderTabela(dados);
-    else qdAtualizarIndicadorAoVivo();
-    aplicarEstadoStatsLaterais();
-    rkSincronizar();
-    hfRender(dados);
-    return;
-  }
-  criarTabela(dados,oddsData,proximosJogos);
+  // Sempre recria a tabela a partir dos dados frescos da API — sem o atalho
+  // de "dados inalterados" (hash), que às vezes fazia o placar ficar preso
+  // até dar F5 na página. criarTabela() já reaproveita as <tr data-chave>
+  // existentes (só limpa/reenche as células, não recria o <tbody> inteiro),
+  // então essa recriação forçada não causa piscada — só garante que o
+  // resultado mais recente sempre chegue na tela no próximo ciclo.
+  criarTabela(dados, oddsData, proximosJogos);
+  if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2897,17 +2897,26 @@ function rkSincronizar() {
   }
 }
 
+// Atualização automática igual ao gráfico (graficomercado.js): sem
+// liga-data-manager.js, sem sincronizarIntervalo — só um setInterval simples
+// no mesmo período (3000ms) e uma pausa quando a aba não está visível
+// (evita fetch inútil em segundo plano e força um refresh assim que o
+// usuário volta pra aba, igual updateCharts() do gráfico faz).
+let _tabVisibleTabela = !document.hidden;
+let _buscando = false;
+async function _buscarDadosSeguro() {
+  if (!_tabVisibleTabela || _buscando) return;
+  _buscando = true;
+  try { await buscarDados(); } finally { _buscando = false; }
+}
+document.addEventListener('visibilitychange', () => {
+  _tabVisibleTabela = !document.hidden;
+  if (_tabVisibleTabela) _buscarDadosSeguro();
+});
+
 buscarDados();
 setTimeout(iniciarObserverStreak, 1000);
-let _buscando=false;
-// Antes: setInterval(...) puro, contando a partir do instante em que este
-// script terminou de carregar — fora de sincronia com o relógio absoluto que
-// o resto da página usa (sincronizarIntervalo, em liga-data-manager.js).
-// Isso fazia a tabela demorar até um ciclo inteiro (5s) a mais que as outras
-// ferramentas pra perceber um resultado novo na API, mesmo buscando em
-// intervalo menor que elas. Alinhando ao mesmo relógio, ela passa a
-// verificar nos mesmos instantes que o resto da página.
-sincronizarIntervalo(async()=>{if(_buscando)return;_buscando=true;try{await buscarDados();}finally{_buscando=false;}},2000);
+setInterval(_buscarDadosSeguro, 3000);
 
 // ─── LISTENERS ────────────────────────────────────────────────────────────────
 const _sh=document.querySelector("#seletorHoras");
