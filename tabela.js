@@ -2321,10 +2321,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const thDadosLinha = createIconTh("chart","Dados (% acerto / quantidade)"); thDadosLinha.id="th-dados-linha"; thDadosLinha.classList.add("col-combo","col-combo-th");
   [thGolsLinha,thDadosLinha].forEach(th=>trMinutos.appendChild(th));
   thead.appendChild(trMinutos);
-  // Em vez de tabelaBody.innerHTML = "" (destrói e recria TODAS as linhas a cada
-  // render), guarda as linhas já existentes por data-chave pra reaproveitar.
-  const linhasExistentes = new Map();
-  tabelaBody.querySelectorAll("tr[data-chave]").forEach(tr => linhasExistentes.set(tr.getAttribute("data-chave"), tr));
+  // Reconstrói o <tbody> inteiro a cada render — igual a tabela antiga
+  // fazia (tabelaBody.innerHTML=""). Sem reaproveitar <tr> por data-chave:
+  // cada célula é criada do zero a partir do "dados" que acabou de vir da
+  // API, então não existe chance de uma célula ficar presa com um placar
+  // antigo entre um ciclo e outro. É a forma mais simples de garantir que
+  // o resultado apareça assim que a API atualizar — no mesmo instante em
+  // que o gráfico também busca (mesmo timestamp/cache:no-store).
+  tabelaBody.innerHTML = "";
 
   const seletorHoras      = document.querySelector("#seletorHoras");
   const seletorResultado  = document.querySelector("#seletorResultado");
@@ -2374,60 +2378,34 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const horasUnicas=[...horasFuturasFiltradas,...horasDadosLimitadas].sort((a,b)=>b.timestamp-a.timestamp);
   const mapeamentoChaveLinha={};
 
-  const chavesUsadas = new Set();
   horasUnicas.forEach(item=>{
     const chave=`${item.data}-${item.hora}`;
-    chavesUsadas.add(chave);
-    let tr = linhasExistentes.get(chave);
-    if (tr) {
-      // ── Linha já existia: reaproveita o <tr>, o checkbox e o listener ──
-      // só reseta as células de jogo e os acumuladores de gols/acertos.
-      const cb = tr.querySelector(".row-selector");
-      if (cb) cb.checked = Estado.selectedChaves.includes(chave);
-      Array.from(tr.children).slice(1, -2).forEach((td, i) => {
-        td.innerHTML = ""; td.className = "";
-        const qIdx = Math.floor(i / tamanhoBlocoHeader) % 4;
-        td.classList.add(`qd-cell-${qIdx}`);
-        if (qdCheckboxAtivo() && i > 0 && i % tamanhoBlocoHeader === 0) td.classList.add("quadrant-border");
-        if (Estado.colunasSelecionadas.includes(minutosFixos[i])) td.classList.add("coluna-selecionada");
-        td.removeAttribute("data-resultado");
-      });
-      const tdGolsR = tr.children[tr.children.length - 2];
-      const tdDadosR = tr.children[tr.children.length - 1];
-      tdGolsR.textContent = "0"; tdGolsR.className = "col-combo";
-      tdDadosR.textContent = "0"; tdDadosR.className = "col-combo";
-      tabelaBody.appendChild(tr); // reordena pro lugar certo (appendChild move nó existente)
-    } else {
-      // ── Linha nova de verdade: cria do zero, igual antes ──
-      tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
-      const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 1px;";
-      const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
-      cb.style.cssText="display:block;margin:0 auto 1px auto;width:11px;height:11px;cursor:pointer;accent-color:#4ade80;";
-      cb.addEventListener("change",function(){
-        if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
-        else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
-        Estado.salvar();updateSelectedRows();
-      });
-      const horaSpan=document.createElement("span"); horaSpan.textContent=item.hora.toString().padStart(2,"0"); horaSpan.style.cssText="font-size:0.78em;font-weight:700;color:#e5e7eb;";
-      tdHora.appendChild(cb); tdHora.appendChild(horaSpan);
-      tr.appendChild(tdHora);
-      minutosFixos.forEach((m,i)=>{
-        const td=document.createElement("td");
-        const qIdx=Math.floor(i/tamanhoBlocoHeader) % 4;
-        td.classList.add(`qd-cell-${qIdx}`);
-        if(qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) td.classList.add("quadrant-border");
-        if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
-        tr.appendChild(td);
-      });
-      const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
-      const tdDados = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
-      tr.appendChild(tdGols); tr.appendChild(tdDados);
-      tabelaBody.appendChild(tr);
-    }
+    const tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
+    const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 1px;";
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
+    cb.style.cssText="display:block;margin:0 auto 1px auto;width:11px;height:11px;cursor:pointer;accent-color:#4ade80;";
+    cb.addEventListener("change",function(){
+      if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
+      else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
+      Estado.salvar();updateSelectedRows();
+    });
+    const horaSpan=document.createElement("span"); horaSpan.textContent=item.hora.toString().padStart(2,"0"); horaSpan.style.cssText="font-size:0.78em;font-weight:700;color:#e5e7eb;";
+    tdHora.appendChild(cb); tdHora.appendChild(horaSpan);
+    tr.appendChild(tdHora);
+    minutosFixos.forEach((m,i)=>{
+      const td=document.createElement("td");
+      const qIdx=Math.floor(i/tamanhoBlocoHeader) % 4;
+      td.classList.add(`qd-cell-${qIdx}`);
+      if(qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) td.classList.add("quadrant-border");
+      if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
+      tr.appendChild(td);
+    });
+    const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
+    const tdDados = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
+    tr.appendChild(tdGols); tr.appendChild(tdDados);
+    tabelaBody.appendChild(tr);
     mapeamentoChaveLinha[chave]=tr;
   });
-  // Remove linhas de horas que não fazem mais parte do range selecionado
-  linhasExistentes.forEach((tr, chave) => { if (!chavesUsadas.has(chave)) tr.remove(); });
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   function handleFTClick(e) {
