@@ -1,12 +1,11 @@
-
 const MINUTOS_POR_LIGA = {
-  // BET365
+
   "Bet365 Copa":    [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   "Bet365 Super":   [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   "Bet365 Euro":    [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   "Bet365 Premier": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
 
-  // BETANO
+
   "Taça Glória Eterna": [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   "Copa América":       [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   "Euro":               [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
@@ -15,17 +14,17 @@ const MINUTOS_POR_LIGA = {
   "Brasileirão Betano": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   "Mundial":            [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
 
-  // ESTRELABET
+
   "Copa do Mundo":       [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   "Ligas dos Campeões":  [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   "América Latina":      [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
 
-  // BETSSON
+
   "Betsson Espanha":     [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   "Betsson Inglaterra":  [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   "Betsson Brasil":      [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
 
-  // KIRON (30 jogos/hora — só as 3 ligas ativas na API)
+
   "Kiron Liga Inglaterra": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58],
   "Kiron Liga Itália":     [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
   "Kiron Liga Espanha":    [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
@@ -929,6 +928,7 @@ function garantirCheckboxQuadrantes() {
     .placar-futuro .placar-texto { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1.1; }
 
     .minute-header { cursor:pointer; user-select:none; font-size:0.82em; font-weight:700; }
+    .minute-header .jogo-num { font-size:0.72em; font-weight:700; opacity:0.8; margin-left:2px; }
     .minute-header:hover { filter: brightness(1.6) !important; }
 
     .qd-0 { background-color: #1c2133 !important; box-shadow: inset 0 -2px 0 0 #374060; }
@@ -1353,7 +1353,7 @@ function garantirPainelCores() {
   const statsOcultas = localStorage.getItem("statsLateraisOcultas") === "1";
   el.querySelector("#cb-stats-laterais").checked = !statsOcultas;
 
-  // Checkbox Ranking Top 5
+
   const rkCb = el.querySelector("#cb-ranking-top5");
   if (rkCb) {
     const rkOn = localStorage.getItem("rankingTop5Ativo") === "1";
@@ -1420,7 +1420,7 @@ function sincronizarPainelCores() {
   const zgCb  = document.getElementById("cb-zona-green-toggle");
   const zgLbl = document.getElementById("lbl-zona-green-toggle");
   if (zgCb) { const on = localStorage.getItem("zonaGreenAtivo") === "1"; zgCb.checked = on; zgLbl?.classList.toggle("alerta-ativo", on); }
-  // Sincroniza Oráculo
+
   const orCb  = document.getElementById("cb-oraculo-tabela");
   const orLbl = document.getElementById("lbl-oraculo-tabela");
   if (orCb) { const on = localStorage.getItem("oraculoAtivo") === "1"; orCb.checked = on; orLbl?.classList.toggle("alerta-ativo", on); }
@@ -1794,7 +1794,7 @@ function updateSelectedRows(){
   if(!sel&&mainTable){
     sel=document.createElement("table"); sel.id="selectedRowsContainer"; sel.className=mainTable.className; sel.style.cssText="width:100%;margin-bottom:10px";
     const thead=mainTable.querySelector("thead").cloneNode(true);
-    // Remove linha de quadrantes do clone se existir
+
     thead.querySelector("#trQuadrantes")?.remove();
     sel.appendChild(thead); sel.appendChild(document.createElement("tbody"));
     mainTable.parentNode.insertBefore(sel,mainTable);
@@ -2237,7 +2237,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   const tamanhoBlocoHeader = _tamanhoBlocoQD();
   minutosFixos.forEach((m, i) => {
-    const th = document.createElement("th"); th.className="minute-header"; th.textContent=m;
+    const th = document.createElement("th"); th.className="minute-header";
+    th.innerHTML = `${m}<span class="jogo-num">&nbsp;·${String(i+1).padStart(2,"0")}</span>`;
     const qIdx = Math.floor(i/tamanhoBlocoHeader) % 4;
     th.classList.add(`qd-${qIdx}`);
     if (qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) th.classList.add("quadrant-border");
@@ -2587,7 +2588,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
   thFootHora.innerHTML=SVG_ICONS["clock"]||""; trFootMinutos.appendChild(thFootHora);
   const tamanhoBlocoFooter=_tamanhoBlocoQD();
   minutosFixos.forEach((m,i)=>{
-    const th=document.createElement("th"); th.className="minute-header"; th.textContent=m;
+    const th=document.createElement("th"); th.className="minute-header";
+    th.innerHTML = `${m}<span class="jogo-num">&nbsp;·${String(i+1).padStart(2,"0")}</span>`;
     const qIdx=Math.floor(i/tamanhoBlocoFooter) % 4; th.classList.add(`qd-${qIdx}`);
     if(qdCheckboxAtivo()&&i>0&&i%tamanhoBlocoFooter===0) th.classList.add("quadrant-border");
     if(Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
@@ -2621,7 +2623,7 @@ function aplicarEstadoStatsLaterais() {
   if (tabela) tabela.classList.toggle("stats-laterais-ocultas", ocultas);
   const selRows = document.getElementById("selectedRowsContainer");
   if (selRows) selRows.classList.toggle("stats-laterais-ocultas", ocultas);
-  // Atualiza checkbox se o painel já existir
+
   const cb = document.getElementById("cb-stats-laterais");
   if (cb) cb.checked = !ocultas;
 }
