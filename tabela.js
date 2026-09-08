@@ -2747,36 +2747,49 @@ async function buscarDados() {
     dados = _cacheResultados;
     oddsData = _cacheOddsData;
     proximosJogos = _cacheProximosJogos;
-  } else {
-    _renderizandoRapido = false;
-    const [resResultados, resOdds, resProximos] = await Promise.allSettled([
-      fetchResultados(),
-      fetchOdds(),
-      fetchProximosJogos(),
-    ]);
-    if (resResultados.status === "fulfilled") dados = resResultados.value;
-    else { console.error("Erro resultados:", resResultados.reason); showErrorMessage(`Erro ao carregar resultados: ${resResultados.reason.message}`); }
-    if (resOdds.status === "fulfilled") oddsData = resOdds.value;
-    else showErrorMessage(`Erro odds: ${resOdds.reason.message}`);
-    if (resProximos.status === "fulfilled") proximosJogos = resProximos.value;
-    else showErrorMessage(`Erro próximos: ${resProximos.reason.message}`);
-    // Atualiza caches
-    if(dados.length>0) _cacheResultados=dados;
-    _cacheOddsData=oddsData; _cacheProximosJogos=proximosJogos;
+    if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
+    qdDadosCache = dados;
+    criarTabela(dados, oddsData, proximosJogos);
+    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+    return;
   }
+  _renderizandoRapido = false;
+
+  // Dispara as 3 buscas em paralelo, mas a tabela NÃO espera odds/próximos
+  // pra aparecer — só resultados. Se odds/proximosJogos forem rotas mais
+  // pesadas no backend (junções maiores, mais linhas), esperar as três com
+  // Promise.allSettled segurava o placar novo na tela até elas também
+  // terminarem, mesmo com o resultado já em mãos. Agora: assim que
+  // resultados volta, já renderiza (usando o odds/próximos mais recente em
+  // cache); quando odds/próximos chegarem, re-renderiza só pra atualizar
+  // essa parte, sem ter atrasado o placar.
+  const pOdds = fetchOdds();
+  const pProximos = fetchProximosJogos();
+
+  try {
+    dados = await fetchResultados();
+    if (dados.length > 0) _cacheResultados = dados;
+  } catch (e) {
+    console.error("Erro resultados:", e);
+    showErrorMessage(`Erro ao carregar resultados: ${e.message}`);
+    dados = _cacheResultados; // mantém o último conhecido em vez de zerar a tabela
+  }
+
+  oddsData = _cacheOddsData;
+  proximosJogos = _cacheProximosJogos;
 
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
 
-  // Salva cache dos dados para os quadrantes e re-render rápido
   qdDadosCache = dados;
-
-  // Sempre recria a tabela a partir dos dados frescos da API — sem o atalho
-  // de "dados inalterados" (hash), que às vezes fazia o placar ficar preso
-  // até dar F5 na página. criarTabela() já reaproveita as <tr data-chave>
-  // existentes (só limpa/reenche as células, não recria o <tbody> inteiro),
-  // então essa recriação forçada não causa piscada — só garante que o
-  // resultado mais recente sempre chegue na tela no próximo ciclo.
   criarTabela(dados, oddsData, proximosJogos);
+  if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+
+  // fetchOdds/fetchProximosJogos nunca rejeitam (retornam [] em erro), então
+  // Promise.all aqui é só pra sincronizar o "quando" — não precisa de catch.
+  const [oddsDataFinal, proximosJogosFinal] = await Promise.all([pOdds, pProximos]);
+  _cacheOddsData = oddsDataFinal;
+  _cacheProximosJogos = proximosJogosFinal;
+  criarTabela(dados, oddsDataFinal, proximosJogosFinal);
   if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 }
 
