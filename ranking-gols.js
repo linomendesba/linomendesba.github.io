@@ -858,15 +858,14 @@ const RankingGols = (() => {
   }
 
   // ────────────────────────────────────────────────────────────────
-  // GRÁFICO DE SALDO DE GOLS (TOP 5)
+  // GRÁFICO DE GOLS ACUMULADOS (TOP 5)
   // ────────────────────────────────────────────────────────────────
   // Uma linha por time, ponto a ponto: cada jogo tem um ponto cujo
-  // valor Y é o SALDO DE GOLS daquele jogo específico (gols marcados
-  // menos gols sofridos) — não é acumulado, é só o saldo daquela
-  // partida isolada. Ex.: vitória por 3x1 → +2; derrota por 1x3 → -2;
-  // vitória por 4x1 → +3; empate 1x1 → 0. Isso reflete o pedido do
-  // usuário (ideia do PH): o gráfico mostra a "força" da vitória/
-  // derrota em cada jogo, não só a quantidade de gols marcados.
+  // valor Y é simplesmente a QUANTIDADE DE GOLS que o time fez
+  // naquela partida — não é acumulado, não depende de vitória/empate/
+  // derrota, só do número de gols mesmo. Ex.: 1x1, 3x0, 1x2 (jogando
+  // em casa) → pontos em 1, 3, 1: sobe até 3 no segundo jogo e desce
+  // até 1 no terceiro, porque foi só 1 gol de novo.
 
   let top5ChartInstance = null;
   // "Assinatura" (time + se está fixado, na ordem exibida) das séries
@@ -902,25 +901,17 @@ const RankingGols = (() => {
   }
 
   function buildGoalsWalkSeries(sequencia) {
-    const points = [{ x: 0, y: 0, t: null, saldo: null, gt: null, gs: null }]; // ponto inicial, antes do primeiro jogo
-    // Cor de cada ponto: verde = venceu naquele jogo (saldo positivo),
-    // vermelho = perdeu (saldo negativo), neutro = empate (saldo 0).
+    const points = [{ x: 0, y: 0, t: null, g: null }]; // ponto inicial, antes do primeiro jogo
+    // Cor de cada ponto: verde = marcou gol naquele jogo, vermelho =
+    // não marcou.
     const colors = [GOL_NEUTRAL];
 
-    sequencia.forEach(({ golsTime, golsSofridos, game }) => {
-      // Y é o SALDO DE GOLS daquele jogo específico (marcados - sofridos)
-      // — sem acumular. Vitória por 3x1 sobe +2; derrota por 1x3 desce
-      // -2; empate fica em 0. É a mesma lógica da coluna "SG".
-      const saldo = golsTime - golsSofridos;
-      points.push({
-        x: points.length,
-        y: saldo,
-        t: formatGameTime(game),
-        saldo,
-        gt: golsTime,
-        gs: golsSofridos,
-      });
-      colors.push(saldo > 0 ? GOL_GREEN : (saldo < 0 ? GOL_RED : GOL_NEUTRAL));
+    sequencia.forEach(({ golsTime, game }) => {
+      // Y é o número de gols daquele jogo específico — sem acumular,
+      // sem entrar em vitória/empate/derrota. Só a quantidade de gols
+      // define se o próximo ponto sobe ou desce em relação ao anterior.
+      points.push({ x: points.length, y: golsTime, t: formatGameTime(game), g: golsTime });
+      colors.push(golsTime > 0 ? GOL_GREEN : GOL_RED);
     });
 
     return { points, colors };
@@ -1121,11 +1112,8 @@ const RankingGols = (() => {
                 return hora ? `Jogo ${items[0].parsed.x} · ${hora}` : `Jogo ${items[0].parsed.x}`;
               },
               label: (item) => {
-                const raw = item.raw;
-                if (!raw || raw.gt === null || raw.gt === undefined) return null;
-                const saldo = raw.saldo;
-                const sinal = saldo > 0 ? '+' : '';
-                return `${item.dataset.label}: ${raw.gt}x${raw.gs} (saldo ${sinal}${saldo})`;
+                const golsJogo = item.parsed.y;
+                return `${item.dataset.label}: ${golsJogo} gol${golsJogo === 1 ? '' : 's'} nesse jogo`;
               },
             },
           },
@@ -1139,7 +1127,7 @@ const RankingGols = (() => {
             grid: { color: 'rgba(255,255,255,0.05)' },
           },
           y: {
-            title: { display: true, text: 'Saldo de gols no jogo', color: '#7a8499' },
+            title: { display: true, text: 'Gols no jogo', color: '#7a8499' },
             ticks: { stepSize: 1, color: '#7a8499', precision: 0 },
             grid: { color: 'rgba(255,255,255,0.05)' },
           },
