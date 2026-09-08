@@ -889,6 +889,15 @@ const RankingGols = (() => {
   const GOL_NEUTRAL = 'rgba(122,132,153,0.6)';
   const GOL_EMPATE = '#8b5e3c'; // marrom — ponto de empate, pedido pelo usuário
 
+  // A cada quantos jogos a linha zera e recomeça. Sem isso, um time
+  // muito dominante nunca para de subir (linha quase reta pra sempre).
+  // Resetando por blocos, a linha fica limitada numa faixa e oscila
+  // parecido com o gráfico de mercado (que também usa uma janela,
+  // "Base 20" por padrão) — mas SEM QUEBRAR a regra do empate: dentro
+  // de cada bloco, vitória sobe, derrota desce, empate lateraliza
+  // 100% garantido, sem exceção.
+  const RESET_A_CADA_N_JOGOS = 20;
+
   function formatGameTime(game) {
     // "hora"/"minuto" são os campos confiáveis (hora do dia do jogo).
     // O campo "data" da API vem fixo/genérico pros jogos virtuais, não
@@ -907,13 +916,20 @@ const RankingGols = (() => {
   }
 
   function buildGoalsWalkSeries(sequencia) {
-    const points = [{ x: 0, y: 0, t: null, saldo: null, gt: null, gs: null }]; // ponto inicial, antes do primeiro jogo
+    const points = [{ x: 0, y: 0, t: null, saldo: null, gt: null, gs: null, resetStart: false }]; // ponto inicial, antes do primeiro jogo
     // Cor de cada ponto: verde = venceu, vermelho = perdeu, marrom = empatou.
     const colors = [GOL_NEUTRAL];
 
-    let acumulado = 0; // posição atual da linha (soma dos saldos até aqui)
+    let acumulado = 0; // posição atual da linha (soma dos saldos até aqui, dentro do bloco atual)
 
-    sequencia.forEach(({ golsTime, golsSofridos, game }) => {
+    sequencia.forEach(({ golsTime, golsSofridos, game }, idx) => {
+      // A cada RESET_A_CADA_N_JOGOS jogos, a linha zera e começa um
+      // bloco novo — evita que times muito dominantes virem uma reta
+      // ascendente sem fim, e deixa o gráfico oscilando numa faixa,
+      // igual o gráfico de mercado.
+      const resetStart = idx > 0 && idx % RESET_A_CADA_N_JOGOS === 0;
+      if (resetStart) acumulado = 0;
+
       // O saldo daquele jogo (marcados - sofridos) é somado/subtraído
       // da posição ATUAL da linha — não é um valor isolado. Vitória
       // por 3x1 SOBE +2 a partir de onde a linha já estava; derrota
@@ -928,6 +944,7 @@ const RankingGols = (() => {
         saldo,
         gt: golsTime,
         gs: golsSofridos,
+        resetStart, // true = primeiro jogo de um bloco novo (linha acabou de zerar aqui)
       });
       colors.push(saldo > 0 ? GOL_GREEN : (saldo < 0 ? GOL_RED : GOL_EMPATE));
     });
@@ -1051,18 +1068,25 @@ const RankingGols = (() => {
       const { points, colors } = buildGoalsWalkSeries(item.sequencia || []);
       const cor = corParaItemChart(idx, totalTop5);
 
+      // Pontos de reset (início de um bloco novo, linha acabou de
+      // zerar) ganham um contorno amarelo e ficam um pouco maiores,
+      // pra ficar visível onde cada bloco de RESET_A_CADA_N_JOGOS
+      // jogos começa.
+      const pointBorderColors = points.map(p => (p.resetStart ? '#f4c542' : 'rgba(8,11,20,0.9)'));
+      const pointRadii = points.map(p => (p.resetStart ? 5 : 3));
+
       return {
         label: item.pinned ? `${item.team} (fixado)` : item.team,
         data: points,
         borderColor: cor,
         backgroundColor: 'transparent',
         borderWidth: 2,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-        // Cada bolinha vem verde (marcou gol naquele jogo) ou vermelha
-        // (não marcou) — a linha em si mantém a cor do time.
+        pointRadius: pointRadii,
+        pointHoverRadius: 6,
+        // Cada bolinha vem verde (venceu), vermelha (perdeu) ou marrom
+        // (empatou) — a linha em si mantém a cor do time.
         pointBackgroundColor: colors,
-        pointBorderColor: 'rgba(8,11,20,0.9)',
+        pointBorderColor: pointBorderColors,
         pointBorderWidth: 1,
         tension: 0.15,
         // Por padrão só o 1º lugar do Top 5 vem ligado (os outros ficam
@@ -1095,6 +1119,8 @@ const RankingGols = (() => {
         if (!atual) return;
         atual.data = novo.data;
         atual.pointBackgroundColor = novo.pointBackgroundColor;
+        atual.pointBorderColor = novo.pointBorderColor;
+        atual.pointRadius = novo.pointRadius;
         atual.borderColor = novo.borderColor;
         atual.label = novo.label;
       });
@@ -1127,7 +1153,8 @@ const RankingGols = (() => {
               title: (items) => {
                 const raw = items[0].raw;
                 const hora = raw && raw.t;
-                return hora ? `Jogo ${items[0].parsed.x} · ${hora}` : `Jogo ${items[0].parsed.x}`;
+                const base = hora ? `Jogo ${items[0].parsed.x} · ${hora}` : `Jogo ${items[0].parsed.x}`;
+                return raw && raw.resetStart ? `${base} (linha zerou aqui — novo bloco)` : base;
               },
               label: (item) => {
                 const raw = item.raw;
