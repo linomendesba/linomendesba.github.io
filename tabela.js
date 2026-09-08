@@ -457,7 +457,7 @@ let qdDadosCache = null;
 
 function qdGetHoraAtual(resultados) {
   if (resultados && resultados.length > 0) {
-    // Ordena pelo timestamp mais recente
+
     const sorted = [...resultados].sort((a, b) => {
       const tA = new Date(`${a.data.split('T')[0]}T${a.hora.toString().padStart(2,'0')}:${(a.minuto||0).toString().padStart(2,'00')}:00`).getTime();
       const tB = new Date(`${b.data.split('T')[0]}T${b.hora.toString().padStart(2,'0')}:${(b.minuto||0).toString().padStart(2,'00')}:00`).getTime();
@@ -2623,7 +2623,7 @@ function aplicarEstadoStatsLaterais() {
   if (tabela) tabela.classList.toggle("stats-laterais-ocultas", ocultas);
   const selRows = document.getElementById("selectedRowsContainer");
   if (selRows) selRows.classList.toggle("stats-laterais-ocultas", ocultas);
-  // Atualiza checkbox se o painel já existir
+
   const cb = document.getElementById("cb-stats-laterais");
   if (cb) cb.checked = !ocultas;
 }
