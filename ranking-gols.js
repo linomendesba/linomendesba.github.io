@@ -1068,25 +1068,18 @@ const RankingGols = (() => {
       const { points, colors } = buildGoalsWalkSeries(item.sequencia || []);
       const cor = corParaItemChart(idx, totalTop5);
 
-      // Pontos de reset (início de um bloco novo, linha acabou de
-      // zerar) ganham um contorno amarelo e ficam um pouco maiores,
-      // pra ficar visível onde cada bloco de RESET_A_CADA_N_JOGOS
-      // jogos começa.
-      const pointBorderColors = points.map(p => (p.resetStart ? '#f4c542' : 'rgba(8,11,20,0.9)'));
-      const pointRadii = points.map(p => (p.resetStart ? 5 : 3));
-
       return {
         label: item.pinned ? `${item.team} (fixado)` : item.team,
         data: points,
         borderColor: cor,
         backgroundColor: 'transparent',
         borderWidth: 2,
-        pointRadius: pointRadii,
-        pointHoverRadius: 6,
+        pointRadius: 3,
+        pointHoverRadius: 5,
         // Cada bolinha vem verde (venceu), vermelha (perdeu) ou marrom
         // (empatou) — a linha em si mantém a cor do time.
         pointBackgroundColor: colors,
-        pointBorderColor: pointBorderColors,
+        pointBorderColor: 'rgba(8,11,20,0.9)',
         pointBorderWidth: 1,
         tension: 0.15,
         // Por padrão só o 1º lugar do Top 5 vem ligado (os outros ficam
@@ -1119,8 +1112,6 @@ const RankingGols = (() => {
         if (!atual) return;
         atual.data = novo.data;
         atual.pointBackgroundColor = novo.pointBackgroundColor;
-        atual.pointBorderColor = novo.pointBorderColor;
-        atual.pointRadius = novo.pointRadius;
         atual.borderColor = novo.borderColor;
         atual.label = novo.label;
       });
@@ -1153,8 +1144,7 @@ const RankingGols = (() => {
               title: (items) => {
                 const raw = items[0].raw;
                 const hora = raw && raw.t;
-                const base = hora ? `Jogo ${items[0].parsed.x} · ${hora}` : `Jogo ${items[0].parsed.x}`;
-                return raw && raw.resetStart ? `${base} (linha zerou aqui — novo bloco)` : base;
+                return hora ? `Jogo ${items[0].parsed.x} · ${hora}` : `Jogo ${items[0].parsed.x}`;
               },
               label: (item) => {
                 const raw = item.raw;
