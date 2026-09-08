@@ -102,11 +102,11 @@ function inicializarLigaAtual() {
     return;
   }
 
-  // 1) nome da liga no h4
+
   const h4 = document.querySelector("h4.custom-color");
   if (h4) h4.textContent = liga.nomeExibicao;
 
-  // 2) cards da mesma casa
+
   const container = document.getElementById("cardsLigasContainer");
   if (container) {
     const cardsDaCasa = Object.values(LIGAS_INFO).filter((l) => l.casa === liga.casa);
