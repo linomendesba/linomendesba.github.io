@@ -928,7 +928,7 @@ function garantirCheckboxQuadrantes() {
     .placar-futuro .placar-texto { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1.1; }
 
     .minute-header { cursor:pointer; user-select:none; font-size:0.82em; font-weight:700; }
-    .minute-header .jogo-num { font-size:0.72em; font-weight:700; opacity:0.8; margin-left:2px; }
+    .minute-header .jogo-num { font-size:0.95em; font-weight:700; opacity:1; margin-left:3px; color:#90a4c0; }
     .minute-header:hover { filter: brightness(1.6) !important; }
 
     .qd-0 { background-color: #1c2133 !important; box-shadow: inset 0 -2px 0 0 #374060; }
@@ -1794,7 +1794,7 @@ function updateSelectedRows(){
   if(!sel&&mainTable){
     sel=document.createElement("table"); sel.id="selectedRowsContainer"; sel.className=mainTable.className; sel.style.cssText="width:100%;margin-bottom:10px";
     const thead=mainTable.querySelector("thead").cloneNode(true);
-
+    // Remove linha de quadrantes do clone se existir
     thead.querySelector("#trQuadrantes")?.remove();
     sel.appendChild(thead); sel.appendChild(document.createElement("tbody"));
     mainTable.parentNode.insertBefore(sel,mainTable);
@@ -2623,7 +2623,7 @@ function aplicarEstadoStatsLaterais() {
   if (tabela) tabela.classList.toggle("stats-laterais-ocultas", ocultas);
   const selRows = document.getElementById("selectedRowsContainer");
   if (selRows) selRows.classList.toggle("stats-laterais-ocultas", ocultas);
-
+  // Atualiza checkbox se o painel já existir
   const cb = document.getElementById("cb-stats-laterais");
   if (cb) cb.checked = !ocultas;
 }
