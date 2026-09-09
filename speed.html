@@ -549,6 +549,7 @@ const ROLLING_WINDOW_BY_CAMP = {
 };
 function currentRollingWindow(){ return ROLLING_WINDOW_BY_CAMP[currentCamp] || 30; }
 let chart;
+let chartCampAtual = null; // qual estádio está desenhado no chart agora — usado pra saber se precisa recriar (ver renderChart)
 let chartSeq = []; // guarda a sequência de corridas exibida no gráfico, usada pelo tooltip (evita closure presa em dados antigos)
 let allRows = [];
 let activeSignal = null;
@@ -969,11 +970,12 @@ function renderChart(rows, colors){
     }
   };
 
-  if(chart){
+  if(chart && chartCampAtual === currentCamp){
     // Atualiza os dados NOS MESMOS objetos/arrays já existentes, em vez de substituir tudo por objetos novos.
     // Trocar chart.data/chart.options inteiros faz o Chart.js perder a referência dos datasets antigos e
     // redesenhar/animar como se fosse um gráfico novo — daí o "piscar". Mutando in-place, ele só anima a
     // diferença real entre um ponto e outro.
+    // Isso só é seguro quando o estádio (paleta de cores) continua o mesmo — ver o "else" abaixo.
     chart.data.labels = labels;
     chart.data.datasets.forEach((ds,i)=>{
       const p = i+1;
@@ -988,7 +990,13 @@ function renderChart(rows, colors){
     chart.options.scales.y.max = yMax;
     chart.update('none');
   }else{
+    // Estádio mudou (ou é a primeira renderização): recria o gráfico do zero.
+    // Necessário porque o Chart.js guarda em cache as cores resolvidas de cada ponto e, ao trocar de
+    // paleta e só mutar o dataset existente, as bolinhas ficavam presas nas cores do estádio anterior
+    // (ex.: ao trocar pra Ringway, as bolinhas continuavam com as cores da Valley Arena).
+    if(chart) chart.destroy();
     chart = new Chart(document.getElementById('chart'), cfg);
+    chartCampAtual = currentCamp;
   }
 }
 function renderMosaic(rows, colors){
