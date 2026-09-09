@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="img/favicon.ico" type="image/x-icon">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
-<title>BetStat - Speedway</title>
+<title>BetStat | Speedway</title>
 <meta name="description" content="BetStat">
 <meta name="robots" content="index, follow">
 <meta name="author" content="BetStat">
@@ -607,18 +607,31 @@ function saveStoredSignal(){
 }
 
 // ---------- FILTROS PERSISTIDOS (localStorage) ----------
-const PERSISTED_FILTER_IDS = ['fPar','fCor','fRankingCategoria'];
+// Genérico: TODO <select> com id (dentro ou fora de acordeon) salva e restaura sozinho — não precisa mais
+// listar cada seletor manualmente aqui, então um seletor novo já nasce persistido.
 function loadPersistedFilters(){
-  PERSISTED_FILTER_IDS.forEach(id=>{
-    const saved = localStorage.getItem(`speedwayFiltro:${id}`);
-    const el = document.getElementById(id);
-    if(saved !== null && el) el.value = saved;
+  document.querySelectorAll('select[id]').forEach(el=>{
+    const saved = localStorage.getItem(`speedwayFiltro:${el.id}`);
+    if(saved === null) return;
+    const optionExiste = Array.from(el.options).some(o=>o.value === saved);
+    if(!optionExiste) return; // valor salvo não existe mais entre as opções — ignora pra não deixar o select "vazio"
+    el.value = saved;
+    // dispara 'change' pra rodar o mesmo handler que já existe pra esse select (atualiza labels, variáveis
+    // de estado em memória — chartNumPoints, horasFiltro, etc. — e redesenha), sem precisar duplicar essa
+    // lógica aqui
+    el.dispatchEvent(new Event('change', {bubbles:true}));
   });
 }
 function persistFilter(id){
   const el = document.getElementById(id);
   if(el) localStorage.setItem(`speedwayFiltro:${id}`, el.value);
 }
+// Salva automaticamente qualquer select (com id) assim que o valor muda — cobre os seletores dentro e fora
+// dos acordeons, incluindo os que ainda não existem hoje.
+document.addEventListener('change', e => {
+  const el = e.target;
+  if(el && el.tagName === 'SELECT' && el.id) persistFilter(el.id);
+});
 
 // ---------- ALERTA DE SINAL (som + visual) ----------
 let signalSoundOn = localStorage.getItem('speedwaySignalSound') !== '0';
@@ -1551,7 +1564,6 @@ document.querySelectorAll('.gameBtn').forEach(btn => {
   };
 });
 ['fResultado','fPar','fCor','fOdds','fSequencia'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{
-  if(PERSISTED_FILTER_IDS.includes(id)) persistFilter(id);
   renderAll();
 }));
 
@@ -1576,7 +1588,6 @@ document.getElementById('fHoras').addEventListener('change', e => {
 });
 
 document.getElementById('fRankingCategoria').addEventListener('change', () => {
-  persistFilter('fRankingCategoria');
   const palette = getActivePalette();
   renderPilotRanking(allRows, palette.colors);
 });
