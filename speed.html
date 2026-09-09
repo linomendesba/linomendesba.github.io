@@ -263,7 +263,6 @@ button:active{transform:translateY(1px)}
   .compareGrid{grid-template-columns:1fr}
 }
 
-/* ---------- ACORDEONS DAS FERRAMENTAS ---------- */
 .accordionContainer{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
 .accordionItem{background:rgba(12,18,26,.96);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:0 8px 26px rgba(0,0,0,.32);min-width:0}
 .accordionHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;user-select:none}
@@ -345,6 +344,45 @@ button:active{transform:translateY(1px)}
               </select>
               </div>
               <div class="chartWrap" id="chartWrapBox"><canvas id="chart" style="display: block; box-sizing: border-box; height: 230px; width: 970.9px;" width="970" height="230"></canvas></div>
+              <div class="chartResizeHint">↕ Arraste o canto inferior direito do gráfico para aumentar ou diminuir a altura</div>
+            </div>
+          </div>
+        </div>
+        <div class="accordionItem" data-tool="zebras">
+          <div class="accordionHeader">
+            <h2 class="panelTitle">GRÁFICO — SOMENTE ZEBRAS (ODD ≥ 4.00)</h2>
+            <div class="accordionControls">
+              <button type="button" class="accBtn accUp" title="Mover para cima">&#9650;</button>
+              <button type="button" class="accBtn accDown" title="Mover para baixo">&#9660;</button>
+              <button type="button" class="accBtn accToggle" title="Recolher/Expandir">&#9662;</button>
+            </div>
+          </div>
+          <div class="accordionBody">
+            <div class="chartPanel">
+              <div class="chartTop">
+                <div class="chartTopInfo" id="zebraChartInfo">(ÚLTIMAS <span id="zebraChartPointsLabel">20</span> JOGADAS)</div>
+              <select id="fZebraPoints">
+                <option value="10">10 corridas</option>
+                <option value="20" selected="">20 corridas</option>
+                <option value="30">30 corridas</option>
+                <option value="40">40 corridas</option>
+                <option value="50">50 corridas</option>
+                <option value="60">60 corridas</option>
+                <option value="70">70 corridas</option>
+                <option value="80">80 corridas</option>
+                <option value="90">90 corridas</option>
+                <option value="100">100 corridas</option>
+                <option value="150">150 corridas</option>
+                <option value="200">200 corridas</option>
+                <option value="250">250 corridas</option>
+                <option value="300">300 corridas</option>
+                <option value="350">350 corridas</option>
+                <option value="400">400 corridas</option>
+                <option value="450">450 corridas</option>
+                <option value="500">500 corridas</option>
+              </select>
+              </div>
+              <div class="chartWrap" id="zebraChartWrapBox"><canvas id="zebraChart"></canvas></div>
               <div class="chartResizeHint">↕ Arraste o canto inferior direito do gráfico para aumentar ou diminuir a altura</div>
             </div>
           </div>
@@ -536,7 +574,7 @@ let currentGame = 'betano';
 let currentCamp = 'Valley Arena';
 let selectedMinutes = new Set();
 let chartNumPoints = 20;
-let chartPosicao = 1; // 1 = ganhador (1ª posição), 2 = segundo colocado
+let chartPosicao = 1;
 let horasFiltro = 24;
 let rankingHorasFiltro = 24;
 let oddsRankingHorasFiltro = 24;
@@ -547,18 +585,20 @@ const LIVE_VIDEO_URLS = {
 };
 function currentVideoUrl(){ return LIVE_VIDEO_URLS[currentCamp] || LIVE_VIDEO_URLS['Valley Arena']; }
 
-// Janela fixa (ROLLING_WINDOW) do gráfico de % por piloto — varia por estádio porque cada um tem
-// um comportamento diferente de corridas. Valley Arena funciona bem com 30, Ringway precisa de 20.
 const ROLLING_WINDOW_BY_CAMP = {
   'Valley Arena': 30,
   'Ringway': 20
 };
 function currentRollingWindow(){ return ROLLING_WINDOW_BY_CAMP[currentCamp] || 30; }
 let chart;
-let chartCampAtual = null; // qual estádio está desenhado no chart agora — usado pra saber se precisa recriar (ver renderChart)
-let chartSeq = []; // guarda a sequência de corridas exibida no gráfico, usada pelo tooltip (evita closure presa em dados antigos)
+let chartCampAtual = null;
+let chartSeq = [];
 let allRows = [];
 let activeSignal = null;
+let chartZebraNumPoints = 20;
+let zebraChart;
+let zebraChartCampAtual = null;
+let zebraChartSeq = [];
 
 const palettes = {
   betano_valley: { arena:'Valley Arena', colors:{1:'#ff3b30',2:'#19a7ff',3:'#eef3f8',4:'#ffd21a'} },
@@ -608,19 +648,13 @@ function saveStoredSignal(){
   else localStorage.removeItem(signalStorageKey());
 }
 
-// ---------- FILTROS PERSISTIDOS (localStorage) ----------
-// Genérico: TODO <select> com id (dentro ou fora de acordeon) salva e restaura sozinho — não precisa mais
-// listar cada seletor manualmente aqui, então um seletor novo já nasce persistido.
 function loadPersistedFilters(){
   document.querySelectorAll('select[id]').forEach(el=>{
     const saved = localStorage.getItem(`speedwayFiltro:${el.id}`);
     if(saved === null) return;
     const optionExiste = Array.from(el.options).some(o=>o.value === saved);
-    if(!optionExiste) return; // valor salvo não existe mais entre as opções — ignora pra não deixar o select "vazio"
+    if(!optionExiste) return;
     el.value = saved;
-    // dispara 'change' pra rodar o mesmo handler que já existe pra esse select (atualiza labels, variáveis
-    // de estado em memória — chartNumPoints, horasFiltro, etc. — e redesenha), sem precisar duplicar essa
-    // lógica aqui
     el.dispatchEvent(new Event('change', {bubbles:true}));
   });
 }
@@ -628,14 +662,11 @@ function persistFilter(id){
   const el = document.getElementById(id);
   if(el) localStorage.setItem(`speedwayFiltro:${id}`, el.value);
 }
-// Salva automaticamente qualquer select (com id) assim que o valor muda — cobre os seletores dentro e fora
-// dos acordeons, incluindo os que ainda não existem hoje.
 document.addEventListener('change', e => {
   const el = e.target;
   if(el && el.tagName === 'SELECT' && el.id) persistFilter(el.id);
 });
 
-// ---------- ALERTA DE SINAL (som + visual) ----------
 let signalSoundOn = localStorage.getItem('speedwaySignalSound') !== '0';
 let lastAlertedSignalKey = null;
 function playSignalBeep(){
@@ -650,7 +681,7 @@ function playSignalBeep(){
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
     osc.connect(gain); gain.connect(ctx.destination);
     osc.start(); osc.stop(ctx.currentTime + 0.55);
-  }catch(e){ /* audio bloqueado pelo navegador, ignora */ }
+  }catch(e){}
 }
 function showSignalToast(msg){
   const el = document.getElementById('signalToast');
@@ -688,8 +719,6 @@ function oddSecond(r){
 function prediction(r){
   let raw = String(getField(r,['previsao','PREVISAO','previsão','PREVISÃO','forecast']) ?? '').trim();
 
-  // Na Betano, o campo previsao pode vir vazio.
-  // Nesse caso, montamos a previsão usando ganhador-segundo.
   if(!raw){
     const g = winner(r);
     const s = int(getField(r,['segundo','SEGUNDO','second','Segundo']));
@@ -711,7 +740,7 @@ function cellTextColor(color){
 }
 function cellStyleForResult(r, colors){
   const mode = document.getElementById('fResultado').value;
-  const oddsMode = document.getElementById('fOdds').value; // 'nao' | 'odd1' | 'odd2' | 'ambas'
+  const oddsMode = document.getElementById('fOdds').value;
   const showOdd1 = oddsMode === 'odd1' || oddsMode === 'ambas';
   const showOdd2 = oddsMode === 'odd2' || oddsMode === 'ambas';
 
@@ -788,8 +817,6 @@ function normalizePayload(data){
   if(Array.isArray(data?.jogos)) return data.jogos;
   return [];
 }
-// Mapeia os campos da rota /resultados/speedway/... (pos1_numero, pos1_odd, pos2_numero, data_captura...)
-// pros nomes que o resto do código já usa (ganhador, oddganhador, segundo, data)
 function mapSpeedwayRow(r){
   return {
     ...r,
@@ -856,17 +883,8 @@ function renderCards(rows, colors){
   }
 }
 function renderChart(rows, colors){
-  // Janela deslizante sobre TODO o histórico disponível (não recomeça do zero a cada atualização) —
-  // pra cada corrida, olha as últimas `ROLLING_WINDOW` corridas terminando nela e calcula a % de cada piloto ali dentro.
-  // Isso evita o salto estranho no início da linha e deixa a curva estável entre uma atualização e outra.
-  //
-  // ROLLING_WINDOW é FIXA (não muda com o filtro "quantidade de corridas"). `chartNumPoints` só controla
-  // quantos pontos aparecem no eixo X — se ele também mudasse a janela de cálculo, escolher "200 corridas"
-  // faria cada ponto virar uma média de 200 corridas (bem mais lenta/achatada) em vez de continuar refletindo
-  // a % das últimas N corridas, e o "comportamento" da linha mudava dependendo da quantidade escolhida.
-  // A janela em si (N) varia por estádio — ver ROLLING_WINDOW_BY_CAMP.
   const ROLLING_WINDOW = currentRollingWindow();
-  const chron = [...rows].reverse(); // do mais antigo pro mais recente
+  const chron = [...rows].reverse();
   const posFn = chartPosicao === 2 ? segundo : winner;
   const winners = chron.map(posFn);
 
@@ -889,7 +907,6 @@ function renderChart(rows, colors){
   const labels = seq.map(r => minVal(r));
   chartSeq = seq;
 
-  // eixo Y dinâmico focado na faixa real dos valores (a linha fica mais legível em vez de achatada em 0-100 fixo)
   const allVals = [1,2,3,4].flatMap(p=>data[p]);
   const rawMin = allVals.length ? Math.min(...allVals) : 0;
   const rawMax = allVals.length ? Math.max(...allVals) : 100;
@@ -897,9 +914,6 @@ function renderChart(rows, colors){
   const yMin = Math.max(0, Math.floor(rawMin-pad));
   const yMax = Math.min(100, Math.ceil(rawMax+pad));
   const ptRadius = chartNumPoints<=30?4:chartNumPoints<=60?3:chartNumPoints<=120?2:chartNumPoints<=240?1:0;
-  // A borda escura da bolinha (pointBorderColor) precisa acompanhar o raio — com raio pequeno (muitas corridas
-  // selecionadas) uma borda fixa de 1.5px praticamente cobre toda a bolinha, fazendo ela parecer preta em vez
-  // de mostrar a cor do piloto.
   const ptBorderWidth = ptRadius>=3 ? 1.5 : ptRadius===2 ? 1 : ptRadius===1 ? 0.6 : 0;
 
   const cfg = {
@@ -994,11 +1008,6 @@ function renderChart(rows, colors){
   };
 
   if(chart && chartCampAtual === currentCamp){
-    // Atualiza os dados NOS MESMOS objetos/arrays já existentes, em vez de substituir tudo por objetos novos.
-    // Trocar chart.data/chart.options inteiros faz o Chart.js perder a referência dos datasets antigos e
-    // redesenhar/animar como se fosse um gráfico novo — daí o "piscar". Mutando in-place, ele só anima a
-    // diferença real entre um ponto e outro.
-    // Isso só é seguro quando o estádio (paleta de cores) continua o mesmo — ver o "else" abaixo.
     chart.data.labels = labels;
     chart.data.datasets.forEach((ds,i)=>{
       const p = i+1;
@@ -1015,13 +1024,155 @@ function renderChart(rows, colors){
     chart.options.scales.y.max = yMax;
     chart.update('none');
   }else{
-    // Estádio mudou (ou é a primeira renderização): recria o gráfico do zero.
-    // Necessário porque o Chart.js guarda em cache as cores resolvidas de cada ponto e, ao trocar de
-    // paleta e só mutar o dataset existente, as bolinhas ficavam presas nas cores do estádio anterior
-    // (ex.: ao trocar pra Ringway, as bolinhas continuavam com as cores da Valley Arena).
     if(chart) chart.destroy();
     chart = new Chart(document.getElementById('chart'), cfg);
     chartCampAtual = currentCamp;
+  }
+}
+function renderZebraChart(rows, colors){
+  const ROLLING_WINDOW = currentRollingWindow();
+  const chron = [...rows].reverse();
+  const isZebraArr = chron.map(r => ((oddWinner(r) ?? -1) >= ZEBRA_ODD) ? 1 : 0);
+
+  const rolling = [];
+  for(let i=0;i<isZebraArr.length;i++){
+    const inicio = Math.max(0, i - ROLLING_WINDOW + 1);
+    const janela = isZebraArr.slice(inicio, i+1);
+    const total = janela.length || 1;
+    const cnt = janela.reduce((a,b)=>a+b,0);
+    rolling.push(+((cnt/total)*100).toFixed(2));
+  }
+
+  const seq = chron.slice(-chartZebraNumPoints);
+  const startIdx = chron.length - seq.length;
+  const data = rolling.slice(startIdx);
+  const labels = seq.map(r => minVal(r));
+  zebraChartSeq = seq;
+
+  const totalZebras = chron.filter(r => (oddWinner(r) ?? -1) >= ZEBRA_ODD).length;
+  const labelEl = document.getElementById('zebraChartPointsLabel');
+  if(labelEl) labelEl.textContent = chartZebraNumPoints;
+  const infoEl = document.getElementById('zebraChartInfo');
+  if(infoEl) infoEl.innerHTML = `(ÚLTIMAS <span id="zebraChartPointsLabel">${chartZebraNumPoints}</span> JOGADAS · ${totalZebras} ZEBRAS NO TOTAL)`;
+
+  const rawMin = data.length ? Math.min(...data) : 0;
+  const rawMax = data.length ? Math.max(...data) : 100;
+  const pad = Math.max(3, Math.round((rawMax-rawMin)*0.2));
+  const yMin = Math.max(0, Math.floor(rawMin-pad));
+  const yMax = Math.min(100, Math.ceil(rawMax+pad));
+  const ptRadius = chartZebraNumPoints<=30?4:chartZebraNumPoints<=60?3:chartZebraNumPoints<=120?2:chartZebraNumPoints<=240?1:0;
+  const ptBorderWidth = ptRadius>=3 ? 1.5 : ptRadius===2 ? 1 : ptRadius===1 ? 0.6 : 0;
+  const corZebra = '#00e5ff';
+
+  const cfg = {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'% Zebras (janela)',
+        data,
+        borderColor:corZebra,
+        backgroundColor:'rgba(0,229,255,.12)',
+        borderWidth:2.5,
+        borderCapStyle:'round',
+        borderJoinStyle:'round',
+        pointRadius:ptRadius,
+        pointHoverRadius:ptRadius+3,
+        pointBackgroundColor:corZebra,
+        pointBorderColor:'#0b1118',
+        pointBorderWidth:ptBorderWidth,
+        pointHoverBorderWidth:Math.max(1, ptBorderWidth+0.5),
+        tension:0.35,
+        cubicInterpolationMode:'monotone',
+        fill:true
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:{duration:500, easing:'easeOutQuart'},
+      interaction:{mode:'index', intersect:false, axis:'x'},
+      elements:{
+        line:{borderCapStyle:'round', borderJoinStyle:'round'},
+        point:{hitRadius:8}
+      },
+      plugins:{
+        legend:{
+          labels:{
+            color:'#e7ecf2',
+            usePointStyle:true,
+            pointStyle:'circle',
+            boxWidth:8,
+            boxHeight:8,
+            padding:18,
+            font:{weight:'500', size:12, family:"'Roboto', Inter, sans-serif"}
+          }
+        },
+        tooltip:{
+          enabled:true,
+          backgroundColor:'rgba(10,15,21,.94)',
+          titleColor:'#ffffff',
+          titleFont:{weight:'700', size:12},
+          bodyColor:'#d7dbe0',
+          bodyFont:{size:12},
+          borderColor:'rgba(255,255,255,.08)',
+          borderWidth:1,
+          padding:12,
+          cornerRadius:10,
+          displayColors:true,
+          usePointStyle:true,
+          boxPadding:5,
+          callbacks:{
+            title:(items)=>{
+              const idx = items[0].dataIndex;
+              const r = zebraChartSeq[idx];
+              return `${dateKey(r)} ${hourVal(r)}:${minVal(r)}`;
+            },
+            label:(context)=>{
+              const idx = context.dataIndex;
+              const r = zebraChartSeq[idx];
+              const odd = oddWinner(r);
+              const marcador = odd !== null && odd >= ZEBRA_ODD ? ' 🦓 zebra nesta corrida' : '';
+              return `% Zebras na janela: ${context.raw}%${odd !== null ? ' · odd: ' + odd : ''}${marcador}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{
+          ticks:{color:'#8a94a1', font:{size:11}, maxRotation:0, autoSkip:true, maxTicksLimit:24},
+          grid:{color:'rgba(255,255,255,.035)', drawBorder:false, drawTicks:false},
+          border:{display:false}
+        },
+        y:{
+          min:yMin,
+          max:yMax,
+          ticks:{
+            color:'#8a94a1',
+            font:{size:11},
+            callback:value => value + '%'
+          },
+          grid:{color:'rgba(255,255,255,.06)', drawBorder:false, drawTicks:false},
+          border:{display:false}
+        }
+      }
+    }
+  };
+
+  if(zebraChart && zebraChartCampAtual === currentCamp){
+    zebraChart.data.labels = labels;
+    zebraChart.data.datasets[0].data = data;
+    zebraChart.data.datasets[0].pointRadius = ptRadius;
+    zebraChart.data.datasets[0].pointHoverRadius = ptRadius+3;
+    zebraChart.data.datasets[0].pointBorderWidth = ptBorderWidth;
+    zebraChart.data.datasets[0].pointHoverBorderWidth = Math.max(1, ptBorderWidth+0.5);
+    zebraChart.options.scales.y.min = yMin;
+    zebraChart.options.scales.y.max = yMax;
+    zebraChart.update('none');
+  }else{
+    if(zebraChart) zebraChart.destroy();
+    zebraChart = new Chart(document.getElementById('zebraChart'), cfg);
+    zebraChartCampAtual = currentCamp;
   }
 }
 function renderMosaic(rows, colors){
@@ -1032,16 +1183,11 @@ function renderMosaic(rows, colors){
   const minutes = [...new Set(filtered.map(minVal))].sort((a,b)=>parseInt(a)-parseInt(b));
   if(minutes.length === 0){ table.innerHTML = '<thead><tr><th class="hour">HORA</th></tr></thead><tbody><tr><th class="hour">-</th></tr></tbody>'; return; }
   const hourKeysAll = [...new Set(filtered.map(r=>`${dateKey(r)}|${hourVal(r)}`))].sort((a,b)=>b.localeCompare(a));
-  // A hora mais antiga pode ter sido cortada no meio pelo filtro de tempo (cutoff em ms, não alinhado à hora cheia).
-  // Se ela tiver menos corridas que os minutos observados no período, está incompleta — remove pra não exibir linha pela metade.
   if(hourKeysAll.length){
     const hkMaisAntiga = hourKeysAll[hourKeysAll.length - 1];
     const qtdMaisAntiga = filtered.filter(r=>`${dateKey(r)}|${hourVal(r)}` === hkMaisAntiga).length;
     if(qtdMaisAntiga < minutes.length) hourKeysAll.pop();
   }
-  // Antes havia um corte fixo pras 12 horas mais recentes aqui, o que ignorava o filtro de PERÍODO (TABELA)
-  // pra janelas maiores que 12h — por isso 24h/48h/72h pareciam não mostrar nada além do que 12h já mostrava.
-  // Agora mostra todas as horas que sobraram do filtro de período (já aplicado antes, em filterByHoras).
   const hourKeys = hourKeysAll;
   const map = new Map();
   filtered.forEach(r=> map.set(`${dateKey(r)}|${hourVal(r)}|${minVal(r)}`, r));
@@ -1072,7 +1218,6 @@ function renderMosaic(rows, colors){
   html += `<td class="hourZebraCell">${totalZebras}</td>`;
   html += '</tr>';
 
-  // Linha extra: odd media do ganhador por minuto (minutos "mais gordos")
   html += '<tr class="zebraRow oddRow"><th class="hour">ODD MÉDIA</th>';
   let somaOddTotal = 0, qtdOddTotal = 0;
   minutes.forEach(m=>{
@@ -1128,7 +1273,6 @@ function runSequenceBacktest(rows, sequence){
     }
     if(!match) continue;
 
-    // pula o próximo jogo e valida os 3 jogos seguintes
     const alvos = [chrono[i+qtd+1], chrono[i+qtd+2], chrono[i+qtd+3]];
     ocorrencias++;
     for(let p=1; p<=4; p++){
@@ -1163,7 +1307,7 @@ function runSequenceBacktest(rows, sequence){
 function buildNewSignal(rows, sequence, backtest){
   if(!rows.length || sequence.length === 0 || backtest.ocorrencias === 0) return null;
   const latest = rows[0];
-  const targets = [6,9,12].map(add => addMinutesFromRow(latest, add)); // +3 é o jogo pulado; +6/+9/+12 são as 3 entradas
+  const targets = [6,9,12].map(add => addMinutesFromRow(latest, add));
   return {
     createdAt: Date.now(),
     baseKey: rowKey(latest),
@@ -1179,7 +1323,6 @@ if(!activeSignal) return 'none';
 
 const map = new Map(rows.map(r => [rowKey(r), r]));
 
-// GREEN
 for(const t of activeSignal.targets){
 
   const k = `${t.data}|${t.hora}|${t.minuto}`;
@@ -1192,7 +1335,6 @@ for(const t of activeSignal.targets){
   }
 }
 
-// verifica se já passamos do último minuto da validação
 const ultimoAlvo = activeSignal.targets[activeSignal.targets.length - 1];
 
 const ultimoExiste = rows.some(r =>
@@ -1207,9 +1349,6 @@ if(ultimoExiste){
   return 'red';
 }
 
-// proteção extra:
-// se já existem jogos mais novos que o último alvo,
-// encerra mesmo que o registro exato não esteja no JSON
 const maisNovo = rows[0];
 
 const atualNum =
@@ -1284,7 +1423,7 @@ function renderBacktest(rows, colors){
   `;
 }
 
-const AMOSTRA_MINIMA = 5; // abaixo disso, ranking mostra aviso de amostra pequena
+const AMOSTRA_MINIMA = 5;
 
 function computePilotRanking(rows, horas){
   const filtered = filterByHoras(rows, horas);
@@ -1391,8 +1530,6 @@ function renderLegend(colors){
 }
 const SPEEDWAY_API_BASE = 'https://betstat.site/resultados/speedway/';
 
-// Monta o instante (epoch ms) de uma corrida a partir dos campos data/hora/minuto — os mesmos
-// que o mosaico já usa pra montar as linhas/colunas da tabela.
 function rowTimestamp(r){
   const parts = parseDateParts(dateKey(r));
   if(!parts) return NaN;
@@ -1400,9 +1537,6 @@ function rowTimestamp(r){
   const m = int(minVal(r)) ?? 0;
   return new Date(parts.y, parts.mo, parts.d, h, m, 0, 0).getTime();
 }
-// Filtra por janela de horas — usado SOMENTE pela tabela/mosaico.
-// Usa rowTimestamp (data/hora/minuto do registro) em vez de "start_time", que não existe na rota do Speedway
-// (por isso o filtro de período não filtrava nada antes: toda corrida caía no fallback "inclui mesmo assim").
 function filterByHoras(rows, horas){
   if(!horas) return rows;
   const cutoff = Date.now() - horas * 3600 * 1000;
@@ -1412,7 +1546,6 @@ function filterByHoras(rows, horas){
   });
 }
 
-// ---------- COMPARAÇÃO ENTRE LIGAS ----------
 const COMPARE_CAMPS = ['Valley Arena', 'Ringway'];
 let compareData = {};
 let compareHorasFiltro = 24;
@@ -1452,7 +1585,6 @@ async function loadComparisonData(){
     COMPARE_CAMPS.forEach((camp, idx)=>{ compareData[camp] = resultados[idx]; });
     renderComparison();
   }catch(e){
-    // Não deixamos o erro de comparação atrapalhar o painel principal
     console.warn('Falha ao carregar comparação de ligas:', e.message);
   }
 }
@@ -1468,8 +1600,6 @@ function renderComparison(){
     const s2 = summarizeCampForCompare(rows, compareHorasFiltro);
     const colors = paletteMap[camp].colors;
     const c = colors[s2.favorito] || '#333';
-    // Nomes dos pilotos são específicos de cada arena — nunca usar o pilotNamesMap global aqui,
-    // senão os dois lados mostram o nome do campeonato que estiver ativo na tela principal.
     const namesMap = buildPilotNamesMap(rows);
     const favoritoNome = s2.favorito ? (namesMap[s2.favorito] || `Piloto ${s2.favorito}`) : '-';
     return `<div class="compareCol">
@@ -1482,13 +1612,13 @@ function renderComparison(){
   }).join('');
 }
 
-// Redesenha tudo a partir do que já está em memória (allRows) — sem buscar na API de novo
 function renderAll(){
   const palette = getActivePalette();
   pilotNamesMap = buildPilotNamesMap(allRows);
   document.getElementById('arenaName').textContent = palette.arena;
   renderCards(allRows, palette.colors);
   renderChart(allRows, palette.colors);
+  renderZebraChart(allRows, palette.colors);
   renderBacktest(allRows, palette.colors);
   renderPilotRanking(allRows, palette.colors);
   renderOddsRanking(allRows, palette.colors);
@@ -1496,7 +1626,7 @@ function renderAll(){
   renderLegend(palette.colors);
 }
 
-let loadDataRequestId = 0; // usado só pra descartar respostas fora de ordem — ver loadData()
+let loadDataRequestId = 0;
 
 async function loadData(){
   const err = document.getElementById('error'); err.style.display='none';
@@ -1508,19 +1638,10 @@ async function loadData(){
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    // Se, enquanto essa requisição estava em voo, uma requisição mais nova já foi disparada (ex.: trocou de
-    // estádio, ou o próximo tick do setInterval já chamou loadData de novo), essa resposta está desatualizada
-    // e pode chegar DEPOIS da mais nova — descarta pra não sobrescrever dados corretos com dados velhos/do
-    // estádio errado (era isso que fazia a tabela "piscar" errado por um instante e voltar ao normal).
     if(requestId !== loadDataRequestId || campDaRequisicao !== currentCamp) return;
 
     const rows = sortRows(normalizePayload(data).map(mapSpeedwayRow));
 
-    // Assinatura baseada no CONTEÚDO das últimas corridas (data+hora+minuto+ganhador+odd), não em "event_id"
-    // — esse campo nunca existiu nos dados (não é setado em mapSpeedwayRow nem em lugar nenhum), então a
-    // assinatura antiga ficava sempre "undefined" e só mudava quando o tamanho da janela oscilava por acaso.
-    // Isso fazia a MESA (mosaico) não ser recriada quando chegava corrida nova de verdade — no Ringway isso
-    // aparecia mais porque o tamanho da janela de corridas muda com menos frequência que na Valley Arena.
     const signature = rows.length
       ? `${currentCamp}|${rows.length}|${rows.slice(0,3).map(r=>`${dateKey(r)}${hourVal(r)}${minVal(r)}-${r.ganhador}-${r.oddganhador}`).join(',')}`
       : `${currentCamp}|0`;
@@ -1528,9 +1649,6 @@ async function loadData(){
     lastDataSignature = signature;
     allRows = rows;
 
-    // A tabela (mosaico) é redesenhada em TODA resposta válida — é barata e assim nunca fica presa numa
-    // versão desatualizada. Só as partes mais pesadas (gráfico, backtest, rankings) ficam condicionadas a
-    // uma mudança real nos dados, pra evitar redesenho/flicker desnecessário a cada 5s.
     const palette = getActivePalette();
     document.getElementById('arenaName').textContent = palette.arena;
     renderMosaic(filterByHoras(allRows, horasFiltro), palette.colors);
@@ -1538,7 +1656,7 @@ async function loadData(){
     if(houveMudanca) renderAll();
     document.getElementById('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
   }catch(e){
-    if(requestId !== loadDataRequestId || campDaRequisicao !== currentCamp) return; // idem: erro de uma requisição já obsoleta
+    if(requestId !== loadDataRequestId || campDaRequisicao !== currentCamp) return;
     err.textContent = `Erro ao carregar JSON: ${e.message}`; err.style.display='block';
   }
 }
@@ -1554,12 +1672,11 @@ document.querySelectorAll('.gameBtn').forEach(btn => {
     selectedMinutes.clear();
     activeSignal = null;
 
-    // limpa apenas o sinal da aba atual
     localStorage.removeItem(signalStorageKey());
 
-    lastDataSignature = null; // força re-render mesmo que por acaso o sinal fique igual
+    lastDataSignature = null;
     if(!document.getElementById('videoWrap').classList.contains('hidden')){
-      document.getElementById('liveVideoFrame').src = currentVideoUrl(); // troca o vídeo pra liga selecionada
+      document.getElementById('liveVideoFrame').src = currentVideoUrl();
     }
 
     loadData();
@@ -1581,6 +1698,12 @@ document.getElementById('fChartPosition').addEventListener('change', e => {
   document.getElementById('chartPositionLabel').textContent = chartPosicao === 2 ? '2ª POSIÇÃO' : '1ª POSIÇÃO';
   const palette = getActivePalette();
   renderChart(allRows, palette.colors);
+});
+
+document.getElementById('fZebraPoints').addEventListener('change', e => {
+  chartZebraNumPoints = parseInt(e.target.value, 10) || 20;
+  const palette = getActivePalette();
+  renderZebraChart(allRows, palette.colors);
 });
 
 document.getElementById('fHoras').addEventListener('change', e => {
@@ -1606,18 +1729,17 @@ document.getElementById('fOddsRankingHoras').addEventListener('change', e => {
   renderOddsRanking(allRows, palette.colors);
 });
 
-// ---------- VÍDEO AO VIVO ----------
 function setVideoVisivel(mostrar){
   const wrap = document.getElementById('videoWrap');
   const frame = document.getElementById('liveVideoFrame');
   const btn = document.getElementById('btnToggleVideo');
   if(mostrar){
     wrap.classList.remove('hidden');
-    frame.src = currentVideoUrl(); // sempre reatribui — garante recarregar mesmo trocando de liga
+    frame.src = currentVideoUrl();
     btn.textContent = 'Ocultar vídeo';
   }else{
     wrap.classList.add('hidden');
-    frame.removeAttribute('src'); // src="" não fica vazio de verdade (vira a URL da própria página); removeAttribute limpa de fato
+    frame.removeAttribute('src');
     btn.textContent = 'Mostrar vídeo';
   }
   localStorage.setItem('speedwayVideoVisivel', mostrar ? '1' : '0');
@@ -1626,13 +1748,12 @@ document.getElementById('btnToggleVideo').addEventListener('click', () => {
   const estaVisivel = !document.getElementById('videoWrap').classList.contains('hidden');
   setVideoVisivel(!estaVisivel);
 });
-setVideoVisivel(localStorage.getItem('speedwayVideoVisivel') !== '0'); // visível por padrão
+setVideoVisivel(localStorage.getItem('speedwayVideoVisivel') !== '0');
 
-// ---------- ACORDEONS DAS FERRAMENTAS (ordem + colapsar/expandir) ----------
 (function(){
   const ORDER_KEY = 'speedwayAccordionOrder';
   const COLLAPSE_KEY = 'speedwayAccordionCollapsed';
-  const DEFAULT_ORDER = ['grafico','maximo','sequencia','ranking','comparacao'];
+  const DEFAULT_ORDER = ['grafico','zebras','maximo','sequencia','ranking','comparacao'];
   const container = document.getElementById('toolAccordions');
   if(!container) return;
 
@@ -1728,7 +1849,6 @@ setVideoVisivel(localStorage.getItem('speedwayVideoVisivel') !== '0'); // visív
   updateArrowsState();
 })();
 
-// ---------- ALTURA AJUSTÁVEL (gráfico e vídeo — ajustada pelo usuário, arrastando o canto) ----------
 function makeHeightResizable(elementId, storageKey){
   const wrap = document.getElementById(elementId);
   if(!wrap) return;
@@ -1752,6 +1872,9 @@ function makeHeightResizable(elementId, storageKey){
         if(elementId === 'chartWrapBox' && typeof chart !== 'undefined' && chart && typeof chart.resize === 'function'){
           chart.resize();
         }
+        if(elementId === 'zebraChartWrapBox' && typeof zebraChart !== 'undefined' && zebraChart && typeof zebraChart.resize === 'function'){
+          zebraChart.resize();
+        }
       }catch(err){}
     }, 60);
   });
@@ -1759,6 +1882,7 @@ function makeHeightResizable(elementId, storageKey){
 }
 makeHeightResizable('chartWrapBox', 'speedwayChartHeight');
 makeHeightResizable('videoWrap', 'speedwayVideoHeight');
+makeHeightResizable('zebraChartWrapBox', 'speedwayZebraChartHeight');
 
 document.getElementById('fCompareHoras').addEventListener('change', e => {
   compareHorasFiltro = parseInt(e.target.value, 10) || 24;
