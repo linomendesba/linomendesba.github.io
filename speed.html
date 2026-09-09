@@ -1376,12 +1376,23 @@ function renderLegend(colors){
 }
 const SPEEDWAY_API_BASE = 'https://betstat.site/resultados/speedway/';
 
-// Filtra por janela de horas (usa start_time) — usado SOMENTE pela tabela/mosaico
+// Monta o instante (epoch ms) de uma corrida a partir dos campos data/hora/minuto — os mesmos
+// que o mosaico já usa pra montar as linhas/colunas da tabela.
+function rowTimestamp(r){
+  const parts = parseDateParts(dateKey(r));
+  if(!parts) return NaN;
+  const h = int(hourVal(r)) ?? 0;
+  const m = int(minVal(r)) ?? 0;
+  return new Date(parts.y, parts.mo, parts.d, h, m, 0, 0).getTime();
+}
+// Filtra por janela de horas — usado SOMENTE pela tabela/mosaico.
+// Usa rowTimestamp (data/hora/minuto do registro) em vez de "start_time", que não existe na rota do Speedway
+// (por isso o filtro de período não filtrava nada antes: toda corrida caía no fallback "inclui mesmo assim").
 function filterByHoras(rows, horas){
   if(!horas) return rows;
   const cutoff = Date.now() - horas * 3600 * 1000;
   return rows.filter(r => {
-    const t = new Date(r.start_time).getTime();
+    const t = rowTimestamp(r);
     return Number.isFinite(t) ? t >= cutoff : true;
   });
 }
@@ -1470,24 +1481,49 @@ function renderAll(){
   renderLegend(palette.colors);
 }
 
+let loadDataRequestId = 0; // usado só pra descartar respostas fora de ordem — ver loadData()
+
 async function loadData(){
   const err = document.getElementById('error'); err.style.display='none';
+  const requestId = ++loadDataRequestId;
+  const campDaRequisicao = currentCamp;
   try{
     const url = `${SPEEDWAY_API_BASE}${encodeURIComponent(currentCamp)}?_=${Date.now()}`;
     const res = await fetch(url, {cache:'no-store'});
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+
+    // Se, enquanto essa requisição estava em voo, uma requisição mais nova já foi disparada (ex.: trocou de
+    // estádio, ou o próximo tick do setInterval já chamou loadData de novo), essa resposta está desatualizada
+    // e pode chegar DEPOIS da mais nova — descarta pra não sobrescrever dados corretos com dados velhos/do
+    // estádio errado (era isso que fazia a tabela "piscar" errado por um instante e voltar ao normal).
+    if(requestId !== loadDataRequestId || campDaRequisicao !== currentCamp) return;
+
     const rows = sortRows(normalizePayload(data).map(mapSpeedwayRow));
 
-    // assinatura leve baseada na corrida mais recente — se não mudou, não redesenha (evita piscar a cada 5s)
-    const signature = rows.length ? `${currentCamp}|${rows.length}|${rows[0].event_id}` : `${currentCamp}|0`;
+    // Assinatura baseada no CONTEÚDO das últimas corridas (data+hora+minuto+ganhador+odd), não em "event_id"
+    // — esse campo nunca existiu nos dados (não é setado em mapSpeedwayRow nem em lugar nenhum), então a
+    // assinatura antiga ficava sempre "undefined" e só mudava quando o tamanho da janela oscilava por acaso.
+    // Isso fazia a MESA (mosaico) não ser recriada quando chegava corrida nova de verdade — no Ringway isso
+    // aparecia mais porque o tamanho da janela de corridas muda com menos frequência que na Valley Arena.
+    const signature = rows.length
+      ? `${currentCamp}|${rows.length}|${rows.slice(0,3).map(r=>`${dateKey(r)}${hourVal(r)}${minVal(r)}-${r.ganhador}-${r.oddganhador}`).join(',')}`
+      : `${currentCamp}|0`;
     const houveMudanca = signature !== lastDataSignature;
     lastDataSignature = signature;
     allRows = rows;
 
+    // A tabela (mosaico) é redesenhada em TODA resposta válida — é barata e assim nunca fica presa numa
+    // versão desatualizada. Só as partes mais pesadas (gráfico, backtest, rankings) ficam condicionadas a
+    // uma mudança real nos dados, pra evitar redesenho/flicker desnecessário a cada 5s.
+    const palette = getActivePalette();
+    document.getElementById('arenaName').textContent = palette.arena;
+    renderMosaic(filterByHoras(allRows, horasFiltro), palette.colors);
+
     if(houveMudanca) renderAll();
     document.getElementById('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
   }catch(e){
+    if(requestId !== loadDataRequestId || campDaRequisicao !== currentCamp) return; // idem: erro de uma requisição já obsoleta
     err.textContent = `Erro ao carregar JSON: ${e.message}`; err.style.display='block';
   }
 }
