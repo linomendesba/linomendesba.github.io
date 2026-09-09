@@ -738,6 +738,15 @@ function prediction(r){
 function cellTextColor(color){
   return color === '#eef3f8' || color === '#ffd21a' ? '#17202a' : '#fff';
 }
+function darkenColor(hex, amount=0.28){
+  hex = String(hex).replace('#','');
+  if(hex.length===3) hex = hex.split('').map(ch=>ch+ch).join('');
+  const num = parseInt(hex,16);
+  if(!Number.isFinite(num)) return hex ? `#${hex}` : '#333';
+  let r = (num>>16)&255, g=(num>>8)&255, b=num&255;
+  r = Math.round(r*(1-amount)); g = Math.round(g*(1-amount)); b = Math.round(b*(1-amount));
+  return `#${[r,g,b].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('')}`;
+}
 function cellStyleForResult(r, colors){
   const mode = document.getElementById('fResultado').value;
   const oddsMode = document.getElementById('fOdds').value;
@@ -753,16 +762,18 @@ function cellStyleForResult(r, colors){
 
       const c1 = colors[p1] || '#333';
       const c2 = colors[p2] || '#333';
+      const c1bg = darkenColor(c1);
+      const c2bg = darkenColor(c2);
 
       return {
         isPrevisao: true,
         label: `
           <div class="previsaoSplit">
-            <span style="background:${c1};color:${cellTextColor(c1)}">
+            <span style="background:${c1bg};color:${cellTextColor(c1)}">
               <strong>${p1}</strong>
               ${showOdd1 ? `<small>@${oddWinner(r) ?? '-'}</small>` : ''}
             </span>
-            <span style="background:${c2};color:${cellTextColor(c2)}">
+            <span style="background:${c2bg};color:${cellTextColor(c2)}">
               <strong>${p2}</strong>
               ${showOdd2 ? `<small>@${oddSecond(r) ?? '-'}</small>` : ''}
             </span>
@@ -783,6 +794,7 @@ function cellStyleForResult(r, colors){
 
   const w = winner(r);
   const c = colors[w] || '#333';
+  const cbg = darkenColor(c);
   const odd1 = oddWinner(r);
   const odd2 = oddSecond(r);
 
@@ -797,7 +809,7 @@ function cellStyleForResult(r, colors){
   return {
     isPrevisao: false,
     label,
-    style:`background:${c};color:${cellTextColor(c)}`,
+    style:`background:${cbg};color:${cellTextColor(c)}`,
     title:`Ganhador ${pilotLabel(w)}`
   };
 }
@@ -1651,7 +1663,6 @@ async function loadData(){
 
     const palette = getActivePalette();
     document.getElementById('arenaName').textContent = palette.arena;
-    renderMosaic(filterByHoras(allRows, horasFiltro), palette.colors);
 
     if(houveMudanca) renderAll();
     document.getElementById('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
