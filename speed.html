@@ -69,7 +69,8 @@ button:active{transform:translateY(1px)}
 .videoPanelHeader .panelTitle{margin:0}
 .videoToggleBtn{background:#171d25;color:#fff;border:1px solid #38414d;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s ease}
 .videoToggleBtn:hover{border-color:var(--orange);background:#1c232c;box-shadow:0 0 10px rgba(255,139,26,.15)}
-.videoWrap{width:100%;height:420px;border-radius:10px;overflow:hidden;border:1px solid #202a35;background:#000}
+.videoWrap{width:100%;height:420px;min-height:180px;max-height:900px;resize:vertical;border-radius:10px;overflow:hidden;border:1px solid #202a35;background:#000;position:relative}
+.videoWrap::after{content:'';position:absolute;right:2px;bottom:2px;width:11px;height:11px;pointer-events:none;background:linear-gradient(135deg,transparent 0 50%,#4a5764 50%,#4a5764 58%,transparent 58% 66%,#4a5764 66%,#4a5764 74%,transparent 74%);opacity:.6}
 .videoWrap iframe{width:100%;height:100%;border:0;display:block}
 .videoWrap.hidden{display:none}
 .chartTop{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
@@ -297,6 +298,7 @@ button:active{transform:translateY(1px)}
     <div id="videoWrap" class="videoWrap">
       <iframe id="liveVideoFrame" title="Transmissão ao vivo" allowfullscreen loading="lazy"></iframe>
     </div>
+    <div class="chartResizeHint">↕ Arraste o canto inferior direito do vídeo para aumentar ou diminuir a altura</div>
   </section>
 
   <div id="error" class="error" style="display: none;"></div>
@@ -1726,13 +1728,12 @@ setVideoVisivel(localStorage.getItem('speedwayVideoVisivel') !== '0'); // visív
   updateArrowsState();
 })();
 
-// ---------- ALTURA DO GRÁFICO (ajustável pelo usuário, arrastando) ----------
-(function(){
-  const HEIGHT_KEY = 'speedwayChartHeight';
-  const wrap = document.getElementById('chartWrapBox');
+// ---------- ALTURA AJUSTÁVEL (gráfico e vídeo — ajustada pelo usuário, arrastando o canto) ----------
+function makeHeightResizable(elementId, storageKey){
+  const wrap = document.getElementById(elementId);
   if(!wrap) return;
 
-  const saved = parseInt(localStorage.getItem(HEIGHT_KEY), 10);
+  const saved = parseInt(localStorage.getItem(storageKey), 10);
   if(saved && saved >= 150){
     wrap.style.height = saved + 'px';
   }
@@ -1742,20 +1743,22 @@ setVideoVisivel(localStorage.getItem('speedwayVideoVisivel') !== '0'); // visív
     for(const entry of entries){
       const h = Math.round(entry.contentRect.height);
       if(h > 0){
-        localStorage.setItem(HEIGHT_KEY, String(h));
+        localStorage.setItem(storageKey, String(h));
       }
     }
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       try{
-        if(typeof chart !== 'undefined' && chart && typeof chart.resize === 'function'){
+        if(elementId === 'chartWrapBox' && typeof chart !== 'undefined' && chart && typeof chart.resize === 'function'){
           chart.resize();
         }
       }catch(err){}
     }, 60);
   });
   ro.observe(wrap);
-})();
+}
+makeHeightResizable('chartWrapBox', 'speedwayChartHeight');
+makeHeightResizable('videoWrap', 'speedwayVideoHeight');
 
 document.getElementById('fCompareHoras').addEventListener('change', e => {
   compareHorasFiltro = parseInt(e.target.value, 10) || 24;
