@@ -101,6 +101,27 @@ button:active{transform:translateY(1px)}
 .mosaic td.dim{filter:brightness(.35) saturate(.65)}
 .mosaic td.highlight{outline:2px solid #fff;outline-offset:-2px;filter:brightness(1.16)}
 
+.pilotNameCell{
+  display:block;
+  font-size:9px;
+  font-weight:700;
+  line-height:1.1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:100%;
+  padding:0 2px;
+}
+.cellResult.withNames strong,
+.previsaoSplit.withNames strong{
+  font-size:9px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:100%;
+  display:block;
+}
+
 .mosaic td.previsaoCell{
   padding:0;
   background:none!important;
@@ -529,7 +550,7 @@ button:active{transform:translateY(1px)}
       <section class="filters">
     <div class="filter"><label>RESULTADOS</label><select id="fResultado"><option value="back">Back / Ganhador</option><option value="previsao">Previsão</option></select></div>
     <div class="filter"><label>PAR/ÍMPAR</label><select id="fPar"><option value="todos">Todos</option><option value="par">Par</option><option value="impar">Ímpar</option></select></div>
-    <div class="filter"><label>CORES</label><select id="fCor"><option value="todos">Todas</option><option value="1">Piloto 1</option><option value="2">Piloto 2</option><option value="3">Piloto 3</option><option value="4">Piloto 4</option></select></div>
+    <div class="filter"><label>NOMES</label><select id="fNomes"><option value="nao" selected>Números</option><option value="sim">Nomes dos pilotos</option></select></div>
     <div class="filter">
       <label>MOSTRA ODD?</label>
       <select id="fOdds">
@@ -573,6 +594,8 @@ const UPDATE_MS = 5000;
 let currentGame = 'betano';
 let currentCamp = localStorage.getItem('speedwayCurrentCamp') || 'Valley Arena';
 let selectedMinutes = new Set();
+let selectedColor = 'todos';
+let showNames = false;
 let chartNumPoints = 20;
 let chartPosicao = 1;
 let horasFiltro = 24;
@@ -765,16 +788,19 @@ function cellStyleForResult(r, colors){
       const c1bg = c1;
       const c2bg = c2;
 
+      const label1 = showNames ? abbreviateName(pilotLabelForRow(r, p1)) : p1;
+      const label2 = showNames ? abbreviateName(pilotLabelForRow(r, p2)) : p2;
+
       return {
         isPrevisao: true,
         label: `
-          <div class="previsaoSplit">
+          <div class="previsaoSplit${showNames ? ' withNames' : ''}">
             <span style="background:${c1bg};color:${cellTextColor(c1)}">
-              <strong>${p1}</strong>
+              <strong>${label1}</strong>
               ${showOdd1 ? `<small>@${oddWinner(r) ?? '-'}</small>` : ''}
             </span>
             <span style="background:${c2bg};color:${cellTextColor(c2)}">
-              <strong>${p2}</strong>
+              <strong>${label2}</strong>
               ${showOdd2 ? `<small>@${oddSecond(r) ?? '-'}</small>` : ''}
             </span>
           </div>
@@ -802,9 +828,10 @@ function cellStyleForResult(r, colors){
   if(showOdd1) oddsHtml += `<small>1ª @${odd1 ?? '-'}</small>`;
   if(showOdd2) oddsHtml += `<small>2ª @${odd2 ?? '-'}</small>`;
 
+  const mainLabel = showNames ? abbreviateName(pilotLabelForRow(r, w)) : String(w);
   const label = (showOdd1 || showOdd2)
-  ? `<div class="cellResult"><strong>${w}</strong>${oddsHtml}</div>`
-  : String(w);
+  ? `<div class="cellResult${showNames ? ' withNames' : ''}"><strong>${mainLabel}</strong>${oddsHtml}</div>`
+  : (showNames ? `<span class="pilotNameCell">${mainLabel}</span>` : mainLabel);
 
   return {
     isPrevisao: false,
@@ -867,9 +894,16 @@ function pilotLabelForRow(r, p){
   }
   return pilotLabel(p);
 }
+function abbreviateName(fullName){
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if(parts.length < 2) return fullName;
+  const cap = w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  const first = cap(parts[0]);
+  const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+  return `${first} ${lastInitial}.`;
+}
 function passaFiltroVisual(r){
   const p = document.getElementById('fPar').value;
-  const c = document.getElementById('fCor').value;
 
   const w = winner(r);
   if(![1,2,3,4].includes(w)) return false;
@@ -877,7 +911,7 @@ function passaFiltroVisual(r){
   if(p === 'par' && w % 2 !== 0) return false;
   if(p === 'impar' && w % 2 === 0) return false;
 
-  if(c !== 'todos' && String(w) !== c) return false;
+  if(selectedColor !== 'todos' && String(w) !== selectedColor) return false;
 
   return true;
 }
@@ -1222,7 +1256,7 @@ function renderMosaic(rows, colors){
         const cell = cellStyleForResult(r, colors);
         const passou = passaFiltroVisual(r);
 
-        html += `<td class="${cell.isPrevisao ? 'previsaoCell' : ''} ${passou ? '' : 'semCor'}" data-min="${m}" style="${passou ? cell.style : ''}" title="${cell.title}">${cell.label}</td>`;
+        html += `<td class="${cell.isPrevisao ? 'previsaoCell' : ''} ${passou ? '' : 'semCor'}" data-min="${m}" data-winner="${w}" style="${passou ? cell.style : ''}" title="${cell.title}">${cell.label}</td>`;
       }
     });
     const zebraHora = filtered.filter(r => `${dateKey(r)}|${hourVal(r)}` === hk && oddWinner(r) >= ZEBRA_ODD).length;
@@ -1254,11 +1288,19 @@ function renderMosaic(rows, colors){
   table.innerHTML = html;
   if(scroller) scroller.scrollLeft = previousScrollLeft;
   updateHighlights();
-  table.querySelectorAll('th[data-min],td[data-min]').forEach(cell=>{
+  table.querySelectorAll('th[data-min]').forEach(cell=>{
     cell.onclick = () => {
       const m = cell.dataset.min;
       selectedMinutes.has(m) ? selectedMinutes.delete(m) : selectedMinutes.add(m);
       updateHighlights();
+    };
+  });
+  table.querySelectorAll('td[data-winner]').forEach(cell=>{
+    cell.onclick = () => {
+      const w = cell.dataset.winner;
+      selectedColor = (selectedColor === w) ? 'todos' : w;
+      const palette = getActivePalette();
+      renderMosaic(filterByHoras(allRows, horasFiltro), palette.colors);
     };
   });
 }
@@ -1706,9 +1748,14 @@ document.querySelectorAll('.gameBtn').forEach(btn => {
   btn.classList.toggle('active', btn.dataset.camp === currentCamp);
 });
 document.getElementById('arenaName').textContent = currentCamp;
-['fResultado','fPar','fCor','fOdds','fSequencia'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{
+['fResultado','fPar','fOdds','fSequencia'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{
   renderAll();
 }));
+document.getElementById('fNomes').addEventListener('change', e => {
+  showNames = e.target.value === 'sim';
+  const palette = getActivePalette();
+  renderMosaic(filterByHoras(allRows, horasFiltro), palette.colors);
+});
 
 document.getElementById('fChartPoints').addEventListener('change', e => {
   chartNumPoints = parseInt(e.target.value, 10) || 20;
