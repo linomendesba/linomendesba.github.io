@@ -1589,12 +1589,18 @@ function majorityStats(list){
     const w = winner(r);
     if([1,2,3,4].includes(w)){ counts[w]++; total++; }
   });
-  let best = null, bestCount = -1;
-  [1,2,3,4].forEach(p=>{
-    if(counts[p] > bestCount){ bestCount = counts[p]; best = p; }
-  });
-  const pct = total ? Math.round((bestCount/total)*100) : 0;
-  return { piloto: best, count: bestCount, total, pct };
+  if(total === 0){
+    return { piloto: null, count: 0, total: 0, pct: 0, empate: false };
+  }
+  const maxCount = Math.max(counts[1], counts[2], counts[3], counts[4]);
+  const empatados = [1,2,3,4].filter(p => counts[p] === maxCount);
+  const pct = Math.round((maxCount/total)*100);
+  if(empatados.length > 1){
+    // empate real entre pilotos: sem cor de piloto (cinza), mas mantém contagem/porcentagem reais
+    return { piloto: null, count: maxCount, total, pct, empate: true };
+  }
+  const best = empatados[0];
+  return { piloto: best, count: maxCount, total, pct, empate: false };
 }
 function renderMosaic(rows, colors){
   const table = document.getElementById('mosaic');
@@ -1625,7 +1631,7 @@ function renderMosaic(rows, colors){
   let html = '<thead>';
   html += '<tr class="statRow"><th class="hour">MAIORIA</th>' + minutes.map(m=>{
     const st = colStatsByMin.get(m);
-    const cor = st.piloto ? colors[st.piloto] : '#fff';
+    const cor = st.piloto ? colors[st.piloto] : (st.empate ? '#8a94a1' : '#fff');
     return `<th data-min="${m}" style="color:${cor}">${st.pct}% ${st.count}</th>`;
   }).join('') + '<th class="hourZebra">-</th><th class="hourStat">-</th></tr>';
   html += '<tr><th class="hour">HORA</th>' + minutes.map(m=>`<th data-min="${m}">${m}</th>`).join('') + '<th class="hourZebra">ZEBRAS</th><th class="hourStat">MAIORIA</th></tr>';
@@ -1654,7 +1660,7 @@ function renderMosaic(rows, colors){
     const rowList = filtered.filter(r => `${dateKey(r)}|${hourVal(r)}` === hk);
     const zebraHora = rowList.filter(r => oddWinner(r) >= ZEBRA_ODD).length;
     const rowStats = majorityStats(rowList);
-    const rowCor = rowStats.piloto ? colors[rowStats.piloto] : '#fff';
+    const rowCor = rowStats.piloto ? colors[rowStats.piloto] : (rowStats.empate ? '#8a94a1' : '#fff');
     html += `<td class="hourZebraCell">${zebraHora}</td>`;
     html += `<td class="hourStatCell" style="color:${rowCor}">${rowStats.pct}% ${rowStats.count}</td>`;
     html += '</tr>';
@@ -1665,7 +1671,7 @@ function renderMosaic(rows, colors){
     html += `<td data-min="${m}">${count}</td>`;
   });
   const totalZebras = filtered.filter(r => oddWinner(r) >= ZEBRA_ODD).length;
-  const grandCor = grandStats.piloto ? colors[grandStats.piloto] : '#fff';
+  const grandCor = grandStats.piloto ? colors[grandStats.piloto] : (grandStats.empate ? '#8a94a1' : '#fff');
   html += `<td class="hourZebraCell">${totalZebras}</td>`;
   html += `<td class="hourStatCell" style="color:${grandCor}">${grandStats.pct}% ${grandStats.count}</td>`;
   html += '</tr>';
