@@ -100,6 +100,8 @@ button:active{transform:translateY(1px)}
 .mosaic td.empty{background:#050a10;color:#35404a;cursor:default}
 .mosaic td.dim{filter:brightness(.35) saturate(.65)}
 .mosaic td.highlight{outline:2px solid #fff;outline-offset:-2px;filter:brightness(1.16)}
+.mosaic td.colorDim{filter:brightness(.38) saturate(.5)}
+.mosaic td.colorSelected{outline:2px solid #fff;outline-offset:-2px;filter:brightness(1.14)}
 
 .pilotNameCell{
   display:block;
@@ -181,6 +183,38 @@ button:active{transform:translateY(1px)}
 
 .previsaoSplit span{
   flex-direction:column;
+}
+
+.conjuntoCell{
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  line-height:1;
+  padding:0 3px;
+}
+
+.conjuntoCell strong{
+  font-size:13px;
+  font-weight:700;
+  line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:100%;
+}
+
+.conjuntoCell .conjuntoArrow{
+  font-size:11px;
+  opacity:.75;
+  font-weight:700;
+  flex-shrink:0;
+}
+
+.conjuntoCell.withNames strong{
+  font-size:9px;
+  max-width:46%;
 }
 
 .zebraRow td{background:#111922!important;color:#fff;font-size:12px;font-weight:600}.legend{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:10px;color:var(--muted);font-size:12px}.legend b{color:var(--c);font-weight:650}.live{margin-left:auto;color:var(--green);font-weight:700;animation:livePulse 1.8s ease-in-out infinite}
@@ -548,9 +582,9 @@ button:active{transform:translateY(1px)}
       </div>
 
       <section class="filters">
-    <div class="filter"><label>RESULTADOS</label><select id="fResultado"><option value="back">Back / Ganhador</option><option value="previsao">Previsão</option></select></div>
+    <div class="filter"><label>RESULTADOS</label><select id="fResultado"><option value="back">Back / Ganhador</option><option value="previsao">Previsão</option><option value="conjunto">Conjunto (1º + 2º)</option></select></div>
     <div class="filter"><label>PAR/ÍMPAR</label><select id="fPar"><option value="todos">Todos</option><option value="par">Par</option><option value="impar">Ímpar</option></select></div>
-    <div class="filter"><label>NOMES</label><select id="fNomes"><option value="nao" selected>Números</option><option value="sim">Nomes dos pilotos</option></select></div>
+    <div class="filter"><label>NOMES</label><select id="fNomes"><option value="nao" selected>Números</option><option value="sim">Nomes dos pilotos</option><option value="ambos">Números + Nomes</option></select></div>
     <div class="filter">
       <label>MOSTRA ODD?</label>
       <select id="fOdds">
@@ -595,6 +629,7 @@ let currentGame = 'betano';
 let currentCamp = localStorage.getItem('speedwayCurrentCamp') || 'Valley Arena';
 let selectedMinutes = new Set();
 let selectedColor = 'todos';
+let nomesMode = 'nao';
 let showNames = false;
 let chartNumPoints = 20;
 let chartPosicao = 1;
@@ -788,8 +823,8 @@ function cellStyleForResult(r, colors){
       const c1bg = c1;
       const c2bg = c2;
 
-      const label1 = showNames ? abbreviateName(pilotLabelForRow(r, p1)) : p1;
-      const label2 = showNames ? abbreviateName(pilotLabelForRow(r, p2)) : p2;
+      const label1 = pilotDisplayLabel(r, p1);
+      const label2 = pilotDisplayLabel(r, p2);
 
       return {
         isPrevisao: true,
@@ -818,6 +853,30 @@ function cellStyleForResult(r, colors){
     };
   }
 
+  if(mode === 'conjunto'){
+    const w = winner(r);
+    const s = segundo(r);
+    const c = colors[w] || '#333';
+    const cbg = c;
+
+    const label1 = pilotDisplayLabel(r, w);
+    const temSegundo = [1,2,3,4].includes(s);
+    const label2 = temSegundo ? pilotDisplayLabel(r, s) : null;
+
+    const label = `
+      <div class="conjuntoCell${showNames ? ' withNames' : ''}" style="color:${cellTextColor(c)}">
+        <strong>${label1}</strong>${label2 ? `<span class="conjuntoArrow">&#8594;</span><strong>${label2}</strong>` : ''}
+      </div>
+    `;
+
+    return {
+      isPrevisao: false,
+      label,
+      style:`background:${cbg};color:${cellTextColor(c)}`,
+      title: temSegundo ? `Ganhador ${pilotLabelForRow(r, w)} · 2º ${pilotLabelForRow(r, s)}` : `Ganhador ${pilotLabelForRow(r, w)}`
+    };
+  }
+
   const w = winner(r);
   const c = colors[w] || '#333';
   const cbg = c;
@@ -828,7 +887,7 @@ function cellStyleForResult(r, colors){
   if(showOdd1) oddsHtml += `<small>1ª @${odd1 ?? '-'}</small>`;
   if(showOdd2) oddsHtml += `<small>2ª @${odd2 ?? '-'}</small>`;
 
-  const mainLabel = showNames ? abbreviateName(pilotLabelForRow(r, w)) : String(w);
+  const mainLabel = pilotDisplayLabel(r, w);
   const label = (showOdd1 || showOdd2)
   ? `<div class="cellResult${showNames ? ' withNames' : ''}"><strong>${mainLabel}</strong>${oddsHtml}</div>`
   : (showNames ? `<span class="pilotNameCell">${mainLabel}</span>` : mainLabel);
@@ -902,7 +961,12 @@ function abbreviateName(fullName){
   const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
   return `${first} ${lastInitial}.`;
 }
-function passaFiltroVisual(r){
+function pilotDisplayLabel(r, p){
+  if(nomesMode === 'sim') return abbreviateName(pilotLabelForRow(r, p));
+  if(nomesMode === 'ambos') return `${p} - ${abbreviateName(pilotLabelForRow(r, p))}`;
+  return String(p);
+}
+function passaFiltroBase(r){
   const p = document.getElementById('fPar').value;
 
   const w = winner(r);
@@ -911,8 +975,12 @@ function passaFiltroVisual(r){
   if(p === 'par' && w % 2 !== 0) return false;
   if(p === 'impar' && w % 2 === 0) return false;
 
+  return true;
+}
+function passaFiltroVisual(r){
+  if(!passaFiltroBase(r)) return false;
+  const w = winner(r);
   if(selectedColor !== 'todos' && String(w) !== selectedColor) return false;
-
   return true;
 }
 
@@ -1254,9 +1322,16 @@ function renderMosaic(rows, colors){
       if(!w) html += `<td class="empty" data-min="${m}">-</td>`;
       else {
         const cell = cellStyleForResult(r, colors);
-        const passou = passaFiltroVisual(r);
+        const passouBase = passaFiltroBase(r);
+        const corSelecionada = selectedColor !== 'todos' && String(w) === selectedColor;
+        const corApagada = selectedColor !== 'todos' && String(w) !== selectedColor;
 
-        html += `<td class="${cell.isPrevisao ? 'previsaoCell' : ''} ${passou ? '' : 'semCor'}" data-min="${m}" data-winner="${w}" style="${passou ? cell.style : ''}" title="${cell.title}">${cell.label}</td>`;
+        const classes = [cell.isPrevisao ? 'previsaoCell' : ''];
+        if(!passouBase) classes.push('semCor');
+        else if(corApagada) classes.push('colorDim');
+        else if(corSelecionada) classes.push('colorSelected');
+
+        html += `<td class="${classes.join(' ')}" data-min="${m}" data-winner="${w}" style="${passouBase ? cell.style : ''}" title="${cell.title}">${cell.label}</td>`;
       }
     });
     const zebraHora = filtered.filter(r => `${dateKey(r)}|${hourVal(r)}` === hk && oddWinner(r) >= ZEBRA_ODD).length;
@@ -1752,7 +1827,8 @@ document.getElementById('arenaName').textContent = currentCamp;
   renderAll();
 }));
 document.getElementById('fNomes').addEventListener('change', e => {
-  showNames = e.target.value === 'sim';
+  nomesMode = e.target.value;
+  showNames = nomesMode !== 'nao';
   const palette = getActivePalette();
   renderMosaic(filterByHoras(allRows, horasFiltro), palette.colors);
 });
