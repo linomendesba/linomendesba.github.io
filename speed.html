@@ -73,6 +73,31 @@ button:active{transform:translateY(1px)}
 .videoWrap::after{content:'';position:absolute;right:2px;bottom:2px;width:11px;height:11px;pointer-events:none;background:linear-gradient(135deg,transparent 0 50%,#4a5764 50%,#4a5764 58%,transparent 58% 66%,#4a5764 66%,#4a5764 74%,transparent 74%);opacity:.6}
 .videoWrap iframe{width:100%;height:100%;border:0;display:block}
 .videoWrap.hidden{display:none}
+.videoWrap.floating{
+  position:fixed;
+  z-index:9998;
+  resize:both;
+  min-width:260px;
+  min-height:160px;
+  box-shadow:0 14px 46px rgba(0,0,0,.6);
+  border:1px solid var(--orange);
+}
+.videoWrap.floating::after{opacity:.9}
+.videoDragBar{
+  display:none;
+  position:absolute;top:0;left:0;right:0;height:26px;
+  background:rgba(11,17,24,.95);
+  align-items:center;justify-content:space-between;
+  padding:0 8px;cursor:move;z-index:3;
+  font-size:11px;color:#c7d0d9;font-weight:700;
+  user-select:none;
+  border-bottom:1px solid #26313d;
+  touch-action:none;
+}
+.videoWrap.floating .videoDragBar{display:flex}
+.videoWrap.floating iframe{position:absolute;top:26px;left:0;right:0;bottom:0;width:100%;height:calc(100% - 26px)}
+.videoDragClose{background:#171d25;color:#fff;border:1px solid #38414d;border-radius:6px;width:20px;height:18px;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.videoDragClose:hover{border-color:var(--orange)}
 .chartTop{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
 .chartTopInfo{color:var(--muted);font-size:12px;flex:1;min-width:160px}
 .chartTop .panelTitle{margin:0}
@@ -376,7 +401,10 @@ button:active{transform:translateY(1px)}
   <section class="panel videoPanel">
     <div class="videoPanelHeader">
       <h2 class="panelTitle">TRANSMISSÃO AO VIVO</h2>
-      <button id="btnToggleVideo" type="button" class="videoToggleBtn">Ocultar vídeo</button>
+      <div style="display:flex;gap:8px">
+        <button id="btnFloatVideo" type="button" class="videoToggleBtn">🗗 Fixar vídeo</button>
+        <button id="btnToggleVideo" type="button" class="videoToggleBtn">Ocultar vídeo</button>
+      </div>
     </div>
     <div id="videoWrap" class="videoWrap">
       <iframe id="liveVideoFrame" title="Transmissão ao vivo" allowfullscreen loading="lazy"></iframe>
@@ -2152,6 +2180,135 @@ document.getElementById('btnToggleVideo').addEventListener('click', () => {
   setVideoVisivel(!estaVisivel);
 });
 setVideoVisivel(localStorage.getItem('speedwayVideoVisivel') !== '0');
+
+(function(){
+  const FLOAT_POS_KEY = 'speedwayVideoFloatPos';
+  const FLOAT_STATE_KEY = 'speedwayVideoFloating';
+  const wrap = document.getElementById('videoWrap');
+  const btn = document.getElementById('btnFloatVideo');
+  if(!wrap || !btn) return;
+
+  let placeholder = null;
+  let dragBar = null;
+  let dragging = false;
+  let dragOffsetX = 0, dragOffsetY = 0;
+  let floatRO = null;
+
+  function savePos(){
+    const rect = wrap.getBoundingClientRect();
+    localStorage.setItem(FLOAT_POS_KEY, JSON.stringify({
+      left: rect.left, top: rect.top, width: rect.width, height: rect.height
+    }));
+  }
+  function loadPos(){
+    try{ return JSON.parse(localStorage.getItem(FLOAT_POS_KEY)); }catch(e){ return null; }
+  }
+
+  function createDragBar(){
+    dragBar = document.createElement('div');
+    dragBar.className = 'videoDragBar';
+    dragBar.innerHTML = '<span>🎥 arraste para mover</span><button type="button" class="videoDragClose" title="Devolver à página">✕</button>';
+    wrap.insertBefore(dragBar, wrap.firstChild);
+    dragBar.querySelector('.videoDragClose').addEventListener('click', () => setFloating(false));
+    dragBar.addEventListener('mousedown', startDrag);
+    dragBar.addEventListener('touchstart', startDrag, {passive:false});
+  }
+  function removeDragBar(){
+    if(dragBar){ dragBar.remove(); dragBar = null; }
+  }
+
+  function startDrag(e){
+    dragging = true;
+    const point = e.touches ? e.touches[0] : e;
+    const rect = wrap.getBoundingClientRect();
+    dragOffsetX = point.clientX - rect.left;
+    dragOffsetY = point.clientY - rect.top;
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('touchmove', onDrag, {passive:false});
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchend', endDrag);
+    e.preventDefault();
+  }
+  function onDrag(e){
+    if(!dragging) return;
+    const point = e.touches ? e.touches[0] : e;
+    let left = point.clientX - dragOffsetX;
+    let top = point.clientY - dragOffsetY;
+    const maxLeft = Math.max(0, window.innerWidth - wrap.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - wrap.offsetHeight);
+    left = Math.max(0, Math.min(left, maxLeft));
+    top = Math.max(0, Math.min(top, maxTop));
+    wrap.style.left = left + 'px';
+    wrap.style.top = top + 'px';
+    wrap.style.right = 'auto';
+    e.preventDefault();
+  }
+  function endDrag(){
+    if(!dragging) return;
+    dragging = false;
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('touchmove', onDrag);
+    document.removeEventListener('mouseup', endDrag);
+    document.removeEventListener('touchend', endDrag);
+    savePos();
+  }
+
+  function setFloating(on){
+    if(on){
+      if(wrap.classList.contains('floating')) return;
+      placeholder = document.createComment('video-placeholder');
+      wrap.parentNode.insertBefore(placeholder, wrap);
+      document.body.appendChild(wrap);
+      wrap.classList.add('floating');
+      createDragBar();
+
+      const saved = loadPos();
+      if(saved){
+        wrap.style.left = Math.max(0, Math.min(saved.left, window.innerWidth - 120)) + 'px';
+        wrap.style.top = Math.max(0, Math.min(saved.top, window.innerHeight - 80)) + 'px';
+        wrap.style.width = saved.width + 'px';
+        wrap.style.height = saved.height + 'px';
+        wrap.style.right = 'auto';
+      }else{
+        wrap.style.width = '420px';
+        wrap.style.height = '260px';
+        wrap.style.top = '80px';
+        wrap.style.right = '20px';
+        wrap.style.left = 'auto';
+      }
+
+      btn.textContent = '📌 Devolver vídeo';
+      localStorage.setItem(FLOAT_STATE_KEY, '1');
+
+      floatRO = new ResizeObserver(() => savePos());
+      floatRO.observe(wrap);
+    }else{
+      if(!wrap.classList.contains('floating')) return;
+      savePos();
+      if(floatRO){ floatRO.disconnect(); floatRO = null; }
+      removeDragBar();
+      wrap.classList.remove('floating');
+      wrap.style.left = '';
+      wrap.style.top = '';
+      wrap.style.right = '';
+      wrap.style.width = '';
+      wrap.style.height = '';
+      if(placeholder && placeholder.parentNode){
+        placeholder.parentNode.insertBefore(wrap, placeholder);
+        placeholder.remove();
+      }
+      placeholder = null;
+      btn.textContent = '🗗 Fixar vídeo';
+      localStorage.setItem(FLOAT_STATE_KEY, '0');
+    }
+  }
+
+  btn.addEventListener('click', () => setFloating(!wrap.classList.contains('floating')));
+
+  if(localStorage.getItem(FLOAT_STATE_KEY) === '1'){
+    setFloating(true);
+  }
+})();
 
 (function(){
   const ORDER_KEY = 'speedwayAccordionOrder';
