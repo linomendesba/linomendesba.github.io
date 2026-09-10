@@ -195,7 +195,7 @@ button:active{transform:translateY(1px)}
   padding:0 3px;
 }
 
-.conjuntoCell strong{
+.conjuntoCell > strong{
   font-size:13px;
   font-weight:700;
   line-height:1;
@@ -212,9 +212,38 @@ button:active{transform:translateY(1px)}
   flex-shrink:0;
 }
 
-.conjuntoCell.withNames strong{
+.conjuntoCell.withNames > strong{
   font-size:9px;
   max-width:46%;
+}
+
+.conjuntoItem{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+  max-width:46%;
+  min-width:0;
+}
+
+.conjuntoItem strong{
+  font-size:13px;
+  font-weight:700;
+  line-height:1;
+}
+
+.pilotNameSub{
+  display:block;
+  margin-top:2px;
+  font-size:8px;
+  font-weight:600;
+  opacity:.85;
+  line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:100%;
 }
 
 .zebraRow td{background:#111922!important;color:#fff;font-size:12px;font-weight:600}.legend{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:10px;color:var(--muted);font-size:12px}.legend b{color:var(--c);font-weight:650}.live{margin-left:auto;color:var(--green);font-weight:700;animation:livePulse 1.8s ease-in-out infinite}
@@ -825,17 +854,21 @@ function cellStyleForResult(r, colors){
 
       const label1 = pilotDisplayLabel(r, p1);
       const label2 = pilotDisplayLabel(r, p2);
+      const nome1Html = nomesMode === 'ambos' ? pilotNameSubHtml(r, p1) : '';
+      const nome2Html = nomesMode === 'ambos' ? pilotNameSubHtml(r, p2) : '';
 
       return {
         isPrevisao: true,
         label: `
-          <div class="previsaoSplit${showNames ? ' withNames' : ''}">
+          <div class="previsaoSplit${nomesMode === 'sim' ? ' withNames' : ''}">
             <span style="background:${c1bg};color:${cellTextColor(c1)}">
               <strong>${label1}</strong>
+              ${nome1Html}
               ${showOdd1 ? `<small>@${oddWinner(r) ?? '-'}</small>` : ''}
             </span>
             <span style="background:${c2bg};color:${cellTextColor(c2)}">
               <strong>${label2}</strong>
+              ${nome2Html}
               ${showOdd2 ? `<small>@${oddSecond(r) ?? '-'}</small>` : ''}
             </span>
           </div>
@@ -858,14 +891,20 @@ function cellStyleForResult(r, colors){
     const s = segundo(r);
     const c = colors[w] || '#333';
     const cbg = c;
-
-    const label1 = pilotDisplayLabel(r, w);
     const temSegundo = [1,2,3,4].includes(s);
-    const label2 = temSegundo ? pilotDisplayLabel(r, s) : null;
+
+    let item1, item2;
+    if(nomesMode === 'ambos'){
+      item1 = `<div class="conjuntoItem"><strong>${w}</strong>${pilotNameSubHtml(r, w)}</div>`;
+      item2 = temSegundo ? `<div class="conjuntoItem"><strong>${s}</strong>${pilotNameSubHtml(r, s)}</div>` : null;
+    }else{
+      item1 = `<strong>${pilotDisplayLabel(r, w)}</strong>`;
+      item2 = temSegundo ? `<strong>${pilotDisplayLabel(r, s)}</strong>` : null;
+    }
 
     const label = `
-      <div class="conjuntoCell${showNames ? ' withNames' : ''}" style="color:${cellTextColor(c)}">
-        <strong>${label1}</strong>${label2 ? `<span class="conjuntoArrow">&#8594;</span><strong>${label2}</strong>` : ''}
+      <div class="conjuntoCell${nomesMode === 'sim' ? ' withNames' : ''}" style="color:${cellTextColor(c)}">
+        ${item1}${item2 ? `<span class="conjuntoArrow">&#8594;</span>${item2}` : ''}
       </div>
     `;
 
@@ -887,10 +926,15 @@ function cellStyleForResult(r, colors){
   if(showOdd1) oddsHtml += `<small>1ª @${odd1 ?? '-'}</small>`;
   if(showOdd2) oddsHtml += `<small>2ª @${odd2 ?? '-'}</small>`;
 
-  const mainLabel = pilotDisplayLabel(r, w);
-  const label = (showOdd1 || showOdd2)
-  ? `<div class="cellResult${showNames ? ' withNames' : ''}"><strong>${mainLabel}</strong>${oddsHtml}</div>`
-  : (showNames ? `<span class="pilotNameCell">${mainLabel}</span>` : mainLabel);
+  let label;
+  if(nomesMode === 'ambos'){
+    label = `<div class="cellResult"><strong>${w}</strong>${pilotNameSubHtml(r, w)}${oddsHtml}</div>`;
+  }else{
+    const mainLabel = pilotDisplayLabel(r, w);
+    label = (showOdd1 || showOdd2)
+    ? `<div class="cellResult${nomesMode === 'sim' ? ' withNames' : ''}"><strong>${mainLabel}</strong>${oddsHtml}</div>`
+    : (nomesMode === 'sim' ? `<span class="pilotNameCell">${mainLabel}</span>` : mainLabel);
+  }
 
   return {
     isPrevisao: false,
@@ -963,8 +1007,10 @@ function abbreviateName(fullName){
 }
 function pilotDisplayLabel(r, p){
   if(nomesMode === 'sim') return abbreviateName(pilotLabelForRow(r, p));
-  if(nomesMode === 'ambos') return `${p} - ${abbreviateName(pilotLabelForRow(r, p))}`;
   return String(p);
+}
+function pilotNameSubHtml(r, p){
+  return `<small class="pilotNameSub">${abbreviateName(pilotLabelForRow(r, p))}</small>`;
 }
 function passaFiltroBase(r){
   const p = document.getElementById('fPar').value;
