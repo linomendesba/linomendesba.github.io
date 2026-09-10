@@ -471,6 +471,49 @@ button:active{transform:translateY(1px)}
             </div>
           </div>
         </div>
+        <div class="accordionItem" data-tool="parimpar">
+          <div class="accordionHeader">
+            <h2 class="panelTitle">GRÁFICO — PAR / ÍMPAR</h2>
+            <div class="accordionControls">
+              <button type="button" class="accBtn accUp" title="Mover para cima">&#9650;</button>
+              <button type="button" class="accBtn accDown" title="Mover para baixo">&#9660;</button>
+              <button type="button" class="accBtn accToggle" title="Recolher/Expandir">&#9662;</button>
+            </div>
+          </div>
+          <div class="accordionBody">
+            <div class="chartPanel">
+              <div class="chartTop">
+                <div class="chartTopInfo">(<span id="parImparChartPositionLabel">1ª POSIÇÃO</span> · ÚLTIMAS <span id="parImparChartPointsLabel">20</span> JOGADAS)</div>
+              <select id="fParImparPosition">
+                <option value="1" selected="">1ª posição (ganhador)</option>
+                <option value="2">2ª posição</option>
+              </select>
+              <select id="fParImparPoints">
+                <option value="10">10 corridas</option>
+                <option value="20" selected="">20 corridas</option>
+                <option value="30">30 corridas</option>
+                <option value="40">40 corridas</option>
+                <option value="50">50 corridas</option>
+                <option value="60">60 corridas</option>
+                <option value="70">70 corridas</option>
+                <option value="80">80 corridas</option>
+                <option value="90">90 corridas</option>
+                <option value="100">100 corridas</option>
+                <option value="150">150 corridas</option>
+                <option value="200">200 corridas</option>
+                <option value="250">250 corridas</option>
+                <option value="300">300 corridas</option>
+                <option value="350">350 corridas</option>
+                <option value="400">400 corridas</option>
+                <option value="450">450 corridas</option>
+                <option value="500">500 corridas</option>
+              </select>
+              </div>
+              <div class="chartWrap" id="parImparChartWrapBox"><canvas id="parImparChart"></canvas></div>
+              <div class="chartResizeHint">↕ Arraste o canto inferior direito do gráfico para aumentar ou diminuir a altura</div>
+            </div>
+          </div>
+        </div>
         <div class="accordionItem" data-tool="maximo">
           <div class="accordionHeader">
             <h2 class="panelTitle">MÁXIMO POR PILOTO</h2>
@@ -686,6 +729,12 @@ let chartZebraNumPoints = 20;
 let zebraChart;
 let zebraChartCampAtual = null;
 let zebraChartSeq = [];
+let chartParImparNumPoints = 20;
+let parImparChartPosicao = 1;
+let parImparChart;
+let parImparChartCampAtual = null;
+let parImparChartSeq = [];
+const PARIMPAR_COLORS = { par:'#19a7ff', impar:'#ff8b1a' };
 
 const palettes = {
   betano_valley: { arena:'Valley Arena', colors:{1:'#ff3b30',2:'#19a7ff',3:'#eef3f8',4:'#ffd21a'} },
@@ -1195,6 +1244,154 @@ function renderChart(rows, colors){
     if(chart) chart.destroy();
     chart = new Chart(document.getElementById('chart'), cfg);
     chartCampAtual = currentCamp;
+  }
+}
+function renderParImparChart(rows){
+  const ROLLING_WINDOW = currentRollingWindow();
+  const chron = [...rows].reverse();
+  const posFn = parImparChartPosicao === 2 ? segundo : winner;
+  const winners = chron.map(posFn);
+
+  const rolling = { par:[], impar:[] };
+  for(let i=0;i<winners.length;i++){
+    const inicio = Math.max(0, i - ROLLING_WINDOW + 1);
+    const janela = winners.slice(inicio, i+1).filter(w => [1,2,3,4].includes(w));
+    const total = janela.length || 1;
+    const cntPar = janela.filter(w => w % 2 === 0).length;
+    const cntImpar = janela.length - cntPar;
+    rolling.par.push(+((cntPar/total)*100).toFixed(2));
+    rolling.impar.push(+((cntImpar/total)*100).toFixed(2));
+  }
+
+  const seq = chron.slice(-chartParImparNumPoints);
+  const startIdx = chron.length - seq.length;
+  const data = { par: rolling.par.slice(startIdx), impar: rolling.impar.slice(startIdx) };
+
+  const labels = seq.map(r => minVal(r));
+  parImparChartSeq = seq;
+
+  const allVals = [...data.par, ...data.impar];
+  const rawMin = allVals.length ? Math.min(...allVals) : 0;
+  const rawMax = allVals.length ? Math.max(...allVals) : 100;
+  const pad = Math.max(3, Math.round((rawMax-rawMin)*0.2));
+  const yMin = Math.max(0, Math.floor(rawMin-pad));
+  const yMax = Math.min(100, Math.ceil(rawMax+pad));
+  const ptRadius = chartParImparNumPoints<=30?4:chartParImparNumPoints<=60?3:chartParImparNumPoints<=120?2:chartParImparNumPoints<=240?1:0;
+  const ptBorderWidth = ptRadius>=3 ? 1.5 : ptRadius===2 ? 1 : ptRadius===1 ? 0.6 : 0;
+
+  const dsBase = (label, color, values) => ({
+    label,
+    data:values,
+    borderColor:color,
+    backgroundColor:color,
+    borderWidth:2.5,
+    borderCapStyle:'round',
+    borderJoinStyle:'round',
+    pointRadius:ptRadius,
+    pointHoverRadius:ptRadius+3,
+    pointBackgroundColor:color,
+    pointBorderColor:'#0b1118',
+    pointBorderWidth:ptBorderWidth,
+    pointHoverBorderWidth:Math.max(1, ptBorderWidth+0.5),
+    tension:0.35,
+    cubicInterpolationMode:'monotone',
+    fill:false
+  });
+
+  const cfg = {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        dsBase('Par', PARIMPAR_COLORS.par, data.par),
+        dsBase('Ímpar', PARIMPAR_COLORS.impar, data.impar)
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:{duration:500, easing:'easeOutQuart'},
+      interaction:{mode:'index', intersect:false, axis:'x'},
+      elements:{
+        line:{borderCapStyle:'round', borderJoinStyle:'round'},
+        point:{hitRadius:8}
+      },
+      plugins:{
+        legend:{
+          labels:{
+            color:'#e7ecf2',
+            usePointStyle:true,
+            pointStyle:'circle',
+            boxWidth:8,
+            boxHeight:8,
+            padding:18,
+            font:{weight:'500', size:12, family:"'Roboto', Inter, sans-serif"}
+          }
+        },
+        tooltip:{
+          enabled:true,
+          backgroundColor:'rgba(10,15,21,.94)',
+          titleColor:'#ffffff',
+          titleFont:{weight:'700', size:12},
+          bodyColor:'#d7dbe0',
+          bodyFont:{size:12},
+          borderColor:'rgba(255,255,255,.08)',
+          borderWidth:1,
+          padding:12,
+          cornerRadius:10,
+          displayColors:true,
+          usePointStyle:true,
+          boxPadding:5,
+          callbacks:{
+            title:(items)=>{
+              const idx = items[0].dataIndex;
+              const r = parImparChartSeq[idx];
+              return `${dateKey(r)} ${hourVal(r)}:${minVal(r)}`;
+            },
+            label:(context)=>{
+              return `${context.dataset.label}: ${context.raw}%`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{
+          ticks:{color:'#8a94a1', font:{size:11}, maxRotation:0, autoSkip:true, maxTicksLimit:24},
+          grid:{color:'rgba(255,255,255,.035)', drawBorder:false, drawTicks:false},
+          border:{display:false}
+        },
+        y:{
+          min:yMin,
+          max:yMax,
+          ticks:{
+            color:'#8a94a1',
+            font:{size:11},
+            callback:value => value + '%'
+          },
+          grid:{color:'rgba(255,255,255,.06)', drawBorder:false, drawTicks:false},
+          border:{display:false}
+        }
+      }
+    }
+  };
+
+  if(parImparChart && parImparChartCampAtual === currentCamp){
+    parImparChart.data.labels = labels;
+    parImparChart.data.datasets[0].data = data.par;
+    parImparChart.data.datasets[1].data = data.impar;
+    parImparChart.data.datasets.forEach(ds=>{
+      ds.pointRadius = ptRadius;
+      ds.pointHoverRadius = ptRadius+3;
+      ds.pointBorderWidth = ptBorderWidth;
+      ds.pointHoverBorderWidth = Math.max(1, ptBorderWidth+0.5);
+    });
+    parImparChart.options.scales.y.min = yMin;
+    parImparChart.options.scales.y.max = yMax;
+    parImparChart.update('none');
+  }else{
+    if(parImparChart) parImparChart.destroy();
+    parImparChart = new Chart(document.getElementById('parImparChart'), cfg);
+    parImparChartCampAtual = currentCamp;
   }
 }
 function renderZebraChart(rows, colors){
@@ -1802,6 +1999,7 @@ function renderAll(){
   renderCards(allRows, palette.colors);
   renderChart(allRows, palette.colors);
   renderZebraChart(allRows, palette.colors);
+  renderParImparChart(allRows);
   renderBacktest(allRows, palette.colors);
   renderPilotRanking(allRows, palette.colors);
   renderOddsRanking(allRows, palette.colors);
@@ -1899,6 +2097,18 @@ document.getElementById('fZebraPoints').addEventListener('change', e => {
   renderZebraChart(allRows, palette.colors);
 });
 
+document.getElementById('fParImparPoints').addEventListener('change', e => {
+  chartParImparNumPoints = parseInt(e.target.value, 10) || 20;
+  document.getElementById('parImparChartPointsLabel').textContent = chartParImparNumPoints;
+  renderParImparChart(allRows);
+});
+
+document.getElementById('fParImparPosition').addEventListener('change', e => {
+  parImparChartPosicao = parseInt(e.target.value, 10) === 2 ? 2 : 1;
+  document.getElementById('parImparChartPositionLabel').textContent = parImparChartPosicao === 2 ? '2ª POSIÇÃO' : '1ª POSIÇÃO';
+  renderParImparChart(allRows);
+});
+
 document.getElementById('fHoras').addEventListener('change', e => {
   horasFiltro = parseInt(e.target.value, 10) || 24;
   const palette = getActivePalette();
@@ -1946,7 +2156,7 @@ setVideoVisivel(localStorage.getItem('speedwayVideoVisivel') !== '0');
 (function(){
   const ORDER_KEY = 'speedwayAccordionOrder';
   const COLLAPSE_KEY = 'speedwayAccordionCollapsed';
-  const DEFAULT_ORDER = ['grafico','zebras','maximo','sequencia','ranking','comparacao'];
+  const DEFAULT_ORDER = ['grafico','zebras','parimpar','maximo','sequencia','ranking','comparacao'];
   const container = document.getElementById('toolAccordions');
   if(!container) return;
 
@@ -2068,6 +2278,9 @@ function makeHeightResizable(elementId, storageKey){
         if(elementId === 'zebraChartWrapBox' && typeof zebraChart !== 'undefined' && zebraChart && typeof zebraChart.resize === 'function'){
           zebraChart.resize();
         }
+        if(elementId === 'parImparChartWrapBox' && typeof parImparChart !== 'undefined' && parImparChart && typeof parImparChart.resize === 'function'){
+          parImparChart.resize();
+        }
       }catch(err){}
     }, 60);
   });
@@ -2076,6 +2289,7 @@ function makeHeightResizable(elementId, storageKey){
 makeHeightResizable('chartWrapBox', 'speedwayChartHeight');
 makeHeightResizable('videoWrap', 'speedwayVideoHeight');
 makeHeightResizable('zebraChartWrapBox', 'speedwayZebraChartHeight');
+makeHeightResizable('parImparChartWrapBox', 'speedwayParImparChartHeight');
 
 document.getElementById('fCompareHoras').addEventListener('change', e => {
   compareHorasFiltro = parseInt(e.target.value, 10) || 24;
