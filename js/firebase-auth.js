@@ -28,7 +28,7 @@ const db = getFirestore(app);
 
 let isRedirecting = false;
 
-// ─── FIREBASE DEVICE CONTROL ─────────────────────────────
+
 function getDeviceId() {
   let id = localStorage.getItem("deviceId");
   if (!id) {
