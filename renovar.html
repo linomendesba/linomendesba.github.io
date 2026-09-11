@@ -130,6 +130,7 @@
     </div>
 
     <script>
+        // Ajuste aqui se o endereço do backend for diferente
         const API_URL = 'https://betstat.site/admin';
 
         let refId = null;
@@ -144,7 +145,9 @@
             document.getElementById('erro').style.display = 'none';
         }
 
-
+        // Pré-preenche o email se a página foi aberta como renovar.html?email=...
+        // (é assim que o auth.html deve redirecionar quando o login falhar por
+        // conta desativada — ver instruções de integração)
         (function preencherEmailDaUrl() {
             const params = new URLSearchParams(window.location.search);
             const email = params.get('email');
@@ -167,6 +170,16 @@
                     body: JSON.stringify({ email })
                 });
                 const data = await resp.json();
+
+                if (!resp.ok && data.precisaRecadastro) {
+                    document.getElementById('erro').innerHTML =
+                        'Sua conta é de antes dessa atualização e precisa ser recadastrada uma última vez. ' +
+                        '<a href="cadastro.html" style="color:var(--accent);">Clique aqui pra recadastrar</a>.';
+                    document.getElementById('erro').style.display = 'block';
+                    btn.disabled = false;
+                    btn.textContent = 'Gerar PIX de renovação';
+                    return;
+                }
                 if (!resp.ok) throw new Error(data.error || 'Erro ao gerar cobrança de renovação.');
 
                 refId = data.ref_id;
