@@ -223,19 +223,42 @@ const Estado = {
 
   hashDados(dados) {
     if (!dados || dados.length === 0) return "vazio";
-    // OTIMIZAÇÃO: hash genérico (cobre resultados, odds e próximos jogos, cada um
-    // com campos diferentes) em vez de olhar só id/ft/ht — isso fazia o hash de
-    // odds/próximos sempre dar igual mesmo quando o conteúdo mudava, deixando essa
-    // checagem inofensiva. JSON.stringify aqui é O(n) sobre os dados já baixados,
-    // muito mais barato que reconstruir a tabela inteira no DOM.
-    try { return dados.length + "_" + JSON.stringify(dados); }
-    catch (e) { return dados.length + "_" + String(Date.now()); }
+    // CORREÇÃO: JSON.stringify() do array inteiro (que pode cobrir vários dias
+    // de jogos) rodando 2x a cada 3s estava mais pesado que o redesenho que
+    // essa checagem deveria evitar — travava a thread principal e atrasava a
+    // tabela. Troquei por um hash tipo djb2, somando os valores de cada campo
+    // de cada registro direto (sem montar uma string gigante nem escapar/
+    // aspas como o JSON faz). Continua genérico — funciona igual pra
+    // resultados, odds e próximos jogos, sem precisar saber os nomes dos campos.
+    let h = 5381;
+    for (let i = 0; i < dados.length; i++) {
+      const item = dados[i];
+      if (item == null) continue;
+      const vals = Object.values(item);
+      for (let j = 0; j < vals.length; j++) {
+        const v = vals[j];
+        const s = typeof v === "string" ? v : String(v ?? "");
+        for (let k = 0; k < s.length; k++) h = ((h << 5) + h + s.charCodeAt(k)) | 0;
+      }
+    }
+    return dados.length + "_" + h;
   },
 
   dadosMudaram(dados, odds, proximos) {
     const hD=this.hashDados(dados), hO=this.hashDados(odds), hP=this.hashDados(proximos);
     if (hD!==this._ultimoHashDados || hO!==this._ultimoHashOdds || hP!==this._ultimoHashProximos) {
       this._ultimoHashDados=hD; this._ultimoHashOdds=hO; this._ultimoHashProximos=hP; return true;
+    }
+    return false;
+  },
+
+  // Igual a dadosMudaram, mas sem recalcular o hash de "dados" — usado no segundo
+  // check do ciclo (depois que odds/próximos terminam), quando "dados" é o mesmo
+  // array já checado no primeiro passo, então recontar tudo de novo é trabalho à toa.
+  oddsOuProximosMudaram(odds, proximos) {
+    const hO=this.hashDados(odds), hP=this.hashDados(proximos);
+    if (hO!==this._ultimoHashOdds || hP!==this._ultimoHashProximos) {
+      this._ultimoHashOdds=hO; this._ultimoHashProximos=hP; return true;
     }
     return false;
   },
@@ -2727,25 +2750,27 @@ async function buscarDados() {
 
   qdDadosCache = dados;
 
-  // CORREÇÃO: o placar (dados/resultados) já chegou aqui, então pinta ele já,
-  // usando odds/próximos ainda em cache — sem esperar essas duas buscas mais
-  // lentas terminarem. Isso é o que garante que o placar apareça na tabela no
-  // mesmo instante em que aparece no gráfico. O guard de hash continua evitando
-  // trabalho à toa: se nada mudou desde o último ciclo, essa chamada não faz nada.
-  if (Estado.dadosMudaram(dados, oddsData, proximosJogos)) {
-    criarTabela(dados, oddsData, proximosJogos);
-  }
+  // CORREÇÃO/REVERSÃO: o guard de "só redesenha se o hash mudou" foi removido.
+  // Ele causava um bug sério: se o preenchimento de UM jogo específico falhasse
+  // silenciosamente dentro de criarTabela() por qualquer motivo pontual, o hash
+  // já tinha sido marcado como "processado" antes disso, então aquele placar
+  // ficava faltando na célula até que ALGUM outro jogo (em qualquer liga)
+  // mudasse o hash geral e forçasse um novo redesenho completo — daí o "aparece
+  // sozinho depois de um tempo" que foi reportado. Nesse produto (placar/odds
+  // ao vivo, dinheiro envolvido), sempre pintar com o dado mais fresco é mais
+  // importante que economizar o redesenho, então voltamos a chamar criarTabela
+  // sempre. O ganho real de performance já vem de outro lado: um único redesenho
+  // por ciclo (em vez de dois) e o lookup de minuto pré-calculado, ambos abaixo.
+  criarTabela(dados, oddsData, proximosJogos);
   if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 
-  // Odds e próximos-jogos chegam depois (podem ser mais lentos) e só disparam um
-  // segundo redesenho se de fato trouxerem algo diferente do que já foi pintado
-  // acima — senão essa segunda passagem é pulada, sem custo de DOM.
+  // Odds e próximos-jogos chegam depois (podem ser mais lentos que resultados).
+  // Assim que chegam, repinta com tudo atualizado — mantendo o placar que já
+  // apareceu acima, agora com odds/próximos jogos frescos também.
   const [oddsDataFinal, proximosJogosFinal] = await Promise.all([pOdds, pProximos]);
   _cacheOddsData = oddsDataFinal;
   _cacheProximosJogos = proximosJogosFinal;
-  if (Estado.dadosMudaram(dados, oddsDataFinal, proximosJogosFinal)) {
-    criarTabela(dados, oddsDataFinal, proximosJogosFinal);
-  }
+  criarTabela(dados, oddsDataFinal, proximosJogosFinal);
   if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 }
 
