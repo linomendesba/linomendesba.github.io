@@ -30,6 +30,7 @@ const MINUTOS_POR_LIGA = {
   "Kiron Liga Espanha":    [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
 };
 
+
 const MINUTOS_FIXOS_PADRAO = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
@@ -2719,29 +2720,31 @@ async function buscarDados() {
     dados = _cacheResultados; 
   }
 
-  // OTIMIZAÇÃO: antes a tabela era reconstruída inteira DUAS vezes por ciclo —
-  // uma vez com odds/próximos-jogos ainda em cache (resposta rápida) e outra
-  // depois que as buscas de odds/próximos terminavam. Como as duas buscas já
-  // são disparadas em paralelo com a de resultados (pOdds/pProximos acima),
-  // o ganho de latência dessa "renderização rápida" era mínimo e custava o
-  // dobro de trabalho de DOM a cada 3s. Agora só esperamos as três e
-  // renderizamos uma vez, já com tudo atualizado.
-  const [oddsDataFinal, proximosJogosFinal] = await Promise.all([pOdds, pProximos]);
-  _cacheOddsData = oddsDataFinal;
-  _cacheProximosJogos = proximosJogosFinal;
-  oddsData = oddsDataFinal;
-  proximosJogos = proximosJogosFinal;
+  oddsData = _cacheOddsData;
+  proximosJogos = _cacheProximosJogos;
 
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
 
   qdDadosCache = dados;
 
-  // OTIMIZAÇÃO PRINCIPAL: só reconstrói a tabela (DOM pesado) quando os dados
-  // buscados agora são realmente diferentes dos que já estão na tela. Isso não
-  // atrasa dado novo em nenhum cenário — a busca acima sempre roda; isso só
-  // evita redesenhar quando o resultado é idêntico ao que já foi mostrado.
+  // CORREÇÃO: o placar (dados/resultados) já chegou aqui, então pinta ele já,
+  // usando odds/próximos ainda em cache — sem esperar essas duas buscas mais
+  // lentas terminarem. Isso é o que garante que o placar apareça na tabela no
+  // mesmo instante em que aparece no gráfico. O guard de hash continua evitando
+  // trabalho à toa: se nada mudou desde o último ciclo, essa chamada não faz nada.
   if (Estado.dadosMudaram(dados, oddsData, proximosJogos)) {
     criarTabela(dados, oddsData, proximosJogos);
+  }
+  if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+
+  // Odds e próximos-jogos chegam depois (podem ser mais lentos) e só disparam um
+  // segundo redesenho se de fato trouxerem algo diferente do que já foi pintado
+  // acima — senão essa segunda passagem é pulada, sem custo de DOM.
+  const [oddsDataFinal, proximosJogosFinal] = await Promise.all([pOdds, pProximos]);
+  _cacheOddsData = oddsDataFinal;
+  _cacheProximosJogos = proximosJogosFinal;
+  if (Estado.dadosMudaram(dados, oddsDataFinal, proximosJogosFinal)) {
+    criarTabela(dados, oddsDataFinal, proximosJogosFinal);
   }
   if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 }
