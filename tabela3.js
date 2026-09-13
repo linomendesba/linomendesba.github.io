@@ -2698,7 +2698,16 @@ function iniciarObserverStreak() {
 let _cacheOddsData = [];
 let _cacheProximosJogos = [];
 let _cacheResultados = [];
-let _renderizandoRapido = false; 
+let _renderizandoRapido = false;
+// CORREÇÃO: "buscarDados" ficava esperando (await) odds+próximos-jogos terminarem
+// antes de a função retornar. Como o mutex "_buscando" (em _buscarDadosSeguro)
+// só libera o próximo ciclo quando a função atual retorna, isso significava que,
+// se a rota de odds ou de próximos-jogos demorasse (ex.: 12-15s), a busca do
+// PLACAR — que é rápida — ficava travada esperando junto, mesmo não tendo nada
+// a ver com o atraso. É esse acoplamento que estava causando os 15s de atraso.
+// Agora odds/próximos-jogos rodam em paralelo sem bloquear o retorno da função:
+// o ciclo de busca do placar sempre libera assim que o placar em si chega.
+let _cicloBusca = 0;
 
 async function buscarDados() {
   hideErrorMessage();
@@ -2731,6 +2740,7 @@ async function buscarDados() {
   }
   _renderizandoRapido = false;
 
+  const meuCiclo = ++_cicloBusca;
   const pOdds = fetchOdds();
   const pProximos = fetchProximosJogos();
 
@@ -2749,29 +2759,22 @@ async function buscarDados() {
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
 
   qdDadosCache = dados;
-
-  // CORREÇÃO/REVERSÃO: o guard de "só redesenha se o hash mudou" foi removido.
-  // Ele causava um bug sério: se o preenchimento de UM jogo específico falhasse
-  // silenciosamente dentro de criarTabela() por qualquer motivo pontual, o hash
-  // já tinha sido marcado como "processado" antes disso, então aquele placar
-  // ficava faltando na célula até que ALGUM outro jogo (em qualquer liga)
-  // mudasse o hash geral e forçasse um novo redesenho completo — daí o "aparece
-  // sozinho depois de um tempo" que foi reportado. Nesse produto (placar/odds
-  // ao vivo, dinheiro envolvido), sempre pintar com o dado mais fresco é mais
-  // importante que economizar o redesenho, então voltamos a chamar criarTabela
-  // sempre. O ganho real de performance já vem de outro lado: um único redesenho
-  // por ciclo (em vez de dois) e o lookup de minuto pré-calculado, ambos abaixo.
   criarTabela(dados, oddsData, proximosJogos);
   if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 
-  // Odds e próximos-jogos chegam depois (podem ser mais lentos que resultados).
-  // Assim que chegam, repinta com tudo atualizado — mantendo o placar que já
-  // apareceu acima, agora com odds/próximos jogos frescos também.
-  const [oddsDataFinal, proximosJogosFinal] = await Promise.all([pOdds, pProximos]);
-  _cacheOddsData = oddsDataFinal;
-  _cacheProximosJogos = proximosJogosFinal;
-  criarTabela(dados, oddsDataFinal, proximosJogosFinal);
-  if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+  // Não usa "await" aqui de propósito: a função retorna já, liberando o mutex
+  // pro próximo ciclo de busca do placar rodar em 3s, sem esperar essa parte.
+  // Quando odds/próximos chegarem (mesmo que demore), repinta com tudo fresco —
+  // a checagem "meuCiclo !== _cicloBusca" descarta essa atualização se, nesse
+  // meio tempo, um ciclo mais novo já rodou e pintou algo mais recente (evita
+  // que uma resposta atrasada sobrescreva a tabela com um placar mais velho).
+  Promise.all([pOdds, pProximos]).then(([oddsDataFinal, proximosJogosFinal]) => {
+    _cacheOddsData = oddsDataFinal;
+    _cacheProximosJogos = proximosJogosFinal;
+    if (meuCiclo !== _cicloBusca) return;
+    criarTabela(dados, oddsDataFinal, proximosJogosFinal);
+    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+  }).catch(e => console.error("Erro odds/próximos jogos:", e));
 }
 
 
