@@ -1,17 +1,11 @@
-// ═══════════════════════════════════════════════════════════════════════════════
-// MINUTOS FIXOS POR LIGA — tabela estática (substitui a detecção automática em
-// runtime). Chaveado pelo valor de LIGA_ATUAL definido em config.js, então cada
-// liga+casa cai exatamente na sequência de minutos correta desde o 1º carregamento
-// da página, sem precisar esperar ~20 resultados da API pra "adivinhar" o padrão.
-// ═══════════════════════════════════════════════════════════════════════════════
 const MINUTOS_POR_LIGA = {
-  // BET365
+
   "Bet365 Copa":    [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   "Bet365 Super":   [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   "Bet365 Euro":    [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   "Bet365 Premier": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
 
-  // BETANO
+
   "Taça Glória Eterna": [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   "Copa América":       [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   "Euro":               [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
@@ -20,23 +14,23 @@ const MINUTOS_POR_LIGA = {
   "Brasileirão Betano": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   "Mundial":            [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
 
-  // ESTRELABET
+
   "Copa do Mundo":       [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   "Ligas dos Campeões":  [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   "América Latina":      [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
 
-  // BETSSON
+
   "Betsson Espanha":     [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   "Betsson Inglaterra":  [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   "Betsson Brasil":      [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
 
-  // KIRON (30 jogos/hora — só as 3 ligas ativas na API)
+
   "Kiron Liga Inglaterra": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58],
   "Kiron Liga Itália":     [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
   "Kiron Liga Espanha":    [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
 };
 
-// Minutos padrão (fallback) caso LIGA_ATUAL não esteja no mapa acima
+
 const MINUTOS_FIXOS_PADRAO = [
   1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
 ];
@@ -44,6 +38,22 @@ const MINUTOS_FIXOS_PADRAO = [
 let minutosFixos = (typeof LIGA_ATUAL !== "undefined" && MINUTOS_POR_LIGA[LIGA_ATUAL])
   ? MINUTOS_POR_LIGA[LIGA_ATUAL]
   : MINUTOS_FIXOS_PADRAO;
+
+// OTIMIZAÇÃO: minutosFixos não muda em tempo de execução (é fixo por liga/página),
+// então o "minuto mais próximo" para cada um dos 60 minutos possíveis é pré-calculado
+// uma única vez aqui, em vez de refazer um reduce() sobre minutosFixos a cada jogo/odd
+// processado em cada ciclo de atualização.
+const MINUTO_PROXIMO_CACHE = (() => {
+  const cache = new Array(60);
+  for (let m = 0; m < 60; m++) {
+    cache[m] = minutosFixos.reduce((p, c) => (Math.abs(c - m) < Math.abs(p - m) ? c : p));
+  }
+  return cache;
+})();
+function minutoMaisProximo(m) {
+  const mn = ((m % 60) + 60) % 60;
+  return MINUTO_PROXIMO_CACHE[mn];
+}
 
 const MERCADO_THRESHOLD = {
   ambasMarcam:    Math.round((9  / 20) * 100),
@@ -69,14 +79,14 @@ const MERCADO_THRESHOLD = {
 
 function getThreshold(mercado) { return MERCADO_THRESHOLD[mercado] ?? 50; }
 
-// ─── Faixas de cor por porcentagem (usadas na coluna combinada "Dados") ──────
+
 function getClassePct(pct) {
   if (pct >= 50) return "pct-verde";
   if (pct >= 30) return "pct-amarelo";
   return "pct-vermelho";
 }
 
-// ─── MERCADOS EXTRAS (odds extras + destaque de 2º mercado) ──────────────────
+
 const LABEL_CURTO_MERCADO = {
   ambasMarcam: "BTS", ambasNaoMarcam: "NBTS",
   casaVence: "1", empate: "X", foraVence: "2",
@@ -107,13 +117,7 @@ const SVG_ICONS = {
   avg:   `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="14" width="3.5" height="7"/><rect x="10.25" y="8" width="3.5" height="13"/><rect x="17.5" y="4" width="3.5" height="17"/><line x1="2" y1="11" x2="22" y2="11" stroke-dasharray="2.5 2.5"/></svg>`,
 };
 
-// ─── HELPER: nome normalizado da liga atual ───────────────────────────────────
-// Prioriza LIGA_ATUAL (definido de forma síncrona em config.js, já é único
-// por liga) em vez do texto do h4.custom-color (que só é preenchido depois
-// pelo ligas-config.js e usa nomeExibicao curto — "Copa", "Euro" — que se
-// repete entre casas diferentes, ex: Bet365 Copa e Copa do Mundo Estrelabet
-// caem ambos em "copa"). Usar LIGA_ATUAL evita tanto a race de timing quanto
-// a colisão de chave entre ligas de casas diferentes com o mesmo nome curto.
+
 function getLigaKey() {
   if (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) {
     return String(LIGA_ATUAL).trim().toLowerCase().replace(/\s+/g, "_");
@@ -125,13 +129,13 @@ function getLigaKey() {
   return "default";
 }
 
-// ─── ESTADO CENTRALIZADO ──────────────────────────────────────────────────────
+
 const Estado = {
   placarFTSelecionados: [],
   placarHTSelecionados: [],
   timesSelecionados:    [],
   oddsSelecionadas:     [],
-  mercadosExtras:       [], // [{mercado, mostrarOdd, destacar}]
+  mercadosExtras:       [], 
   corDestaqueExtra:     "#93C5FD",
   selectedChaves:       [],
   colunasSelecionadas:  [],
@@ -142,7 +146,7 @@ const Estado = {
   corGreen: COR_GREEN_PADRAO,
   corRed:   COR_RED_PADRAO,
 
-  // ── Chaves isoladas por liga ──────────────────────────────────────────────
+
   _placarFTKey()  { return `placarFTSelecionados_${getLigaKey()}`; },
   _placarHTKey()  { return `placarHTSelecionados_${getLigaKey()}`; },
   _timesKey()     { return `timesSelecionados_${getLigaKey()}`; },
@@ -154,7 +158,7 @@ const Estado = {
 
   carregar() {
     const ligaKey = getLigaKey();
-    // Placar FT — chave por liga, com fallback legado global
+
     const legFT = JSON.parse(localStorage.getItem("placarSelecionados")) || [];
     const legFTGlobal = JSON.parse(localStorage.getItem("placarFTSelecionados")) || legFT;
     this.placarFTSelecionados = JSON.parse(localStorage.getItem(this._placarFTKey())) || [];
@@ -170,7 +174,7 @@ const Estado = {
     this.placarHTSelecionados = this.placarHTSelecionados
       .map(v => v.replace(/^(__ht__|_ht_|ht:)/i, "").trim())
       .filter(v => v.length > 0);
-    // Remove chaves legadas globais para não vazar entre ligas
+
     ["placarSelecionado","timeSelecionado","oddSelecionada"].forEach(k => localStorage.removeItem(k));
   },
 
@@ -219,14 +223,13 @@ const Estado = {
 
   hashDados(dados) {
     if (!dados || dados.length === 0) return "vazio";
-    // Percorre TODAS as linhas (não só primeira/última) e inclui os campos que
-    // mudam depois que a linha já existe (ft/ht preenchidos quando o jogo termina).
-    // Assim, uma partida que estava "pendente" e teve o placar atualizado agora
-    // muda o hash mesmo sem alterar o tamanho do array nem a ponta id-based.
-    return dados.length + "_" + dados.map(d => {
-      const id = d?.id ?? d?.match_id ?? "";
-      return `${id}:${d?.ft ?? ""}:${d?.ht ?? ""}`;
-    }).join("|");
+    // OTIMIZAÇÃO: hash genérico (cobre resultados, odds e próximos jogos, cada um
+    // com campos diferentes) em vez de olhar só id/ft/ht — isso fazia o hash de
+    // odds/próximos sempre dar igual mesmo quando o conteúdo mudava, deixando essa
+    // checagem inofensiva. JSON.stringify aqui é O(n) sobre os dados já baixados,
+    // muito mais barato que reconstruir a tabela inteira no DOM.
+    try { return dados.length + "_" + JSON.stringify(dados); }
+    catch (e) { return dados.length + "_" + String(Date.now()); }
   },
 
   dadosMudaram(dados, odds, proximos) {
@@ -242,7 +245,7 @@ const Estado = {
 
 Estado.carregar();
 
-// ─── RESTAURAR HORAS POR LIGA ─────────────────────────────────────────────────
+
 let _ultimaLigaHorasRestauradas = null;
 function restaurarHorasSeletor() {
   const key = Estado._horasKey();
@@ -254,14 +257,7 @@ function restaurarHorasSeletor() {
   if (el && el.value !== salvo) { el.value = salvo; }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// QUADRANTES — lógica integrada
-// ═══════════════════════════════════════════════════════════════════════════════
 
-// Divide a sequência de minutos em blocos FIXOS de 5 minutos cada (não "sempre
-// 4 blocos"). Ligas de 20 jogos/h -> 4 blocos de 5. Ligas de 30 jogos/h -> 6
-// blocos de 5. Gerado a partir de minutosFixos (já resolvido pela tabela
-// MINUTOS_POR_LIGA acima), então cada liga cai na estrutura certa de cara.
 const QD_TAMANHO_BLOCO_FIXO = 5;
 function gerarBlocosDeMinutos(seq) {
   const tamanho = QD_TAMANHO_BLOCO_FIXO;
@@ -272,7 +268,7 @@ function gerarBlocosDeMinutos(seq) {
 
 let blocosDeMinutos = gerarBlocosDeMinutos(minutosFixos);
 
-// Tamanho de cada bloco/quadrante da estrutura ATUAL (usado pra bordas e cores)
+
 function _tamanhoBlocoQD() {
   return QD_TAMANHO_BLOCO_FIXO;
 }
@@ -299,7 +295,7 @@ const counterMarketMap = {
   'fora0Gols': null, 'fora1Gol': null, 'fora2Gols': null, 'fora3Gols': null, 'fora4Gols': null,
 };
 
-// ─── MERCADOS EXTRAS — lógica de estado ──────────────────────────────────────
+
 function mercadoPrincipalAtual() {
   return document.querySelector("#seletorResultado")?.value || "";
 }
@@ -326,7 +322,7 @@ function mercadosExtrasToggleFlag(mercado, flag) {
   const item = Estado.mercadosExtras.find(m => m.mercado === mercado);
   if (!item) return;
   if (flag === "destacar") {
-    // Apenas 1 mercado extra pode ficar em destaque por vez (além do mercado principal)
+
     const novoValor = !item.destacar;
     Estado.mercadosExtras.forEach(m => { m.destacar = false; });
     item.destacar = novoValor;
@@ -342,7 +338,7 @@ function corMercadoExtra(mercado) {
   return CORES_ODD[idx % CORES_ODD.length] || CORES_ODD[0];
 }
 
-// ─── MERCADOS EXTRAS — renderização do painel (popover na barra) ─────────────
+
 function renderizarPainelMercadosExtras() {
   const btn = document.getElementById("btnMercadosExtras");
   const countEl = document.getElementById("mercadosExtrasCount");
@@ -350,7 +346,7 @@ function renderizarPainelMercadosExtras() {
   const lista = document.getElementById("listaMercadosExtras");
   if (!btn || !select || !lista) return;
 
-  // Contador no botão
+
   if (Estado.mercadosExtras.length > 0) {
     countEl.textContent = `(${Estado.mercadosExtras.length})`;
     countEl.style.display = "inline";
@@ -358,7 +354,7 @@ function renderizarPainelMercadosExtras() {
     countEl.style.display = "none";
   }
 
-  // Popula o select de "adicionar" clonando as opções do seletor principal
+
   const origem = document.querySelector("#seletorResultado");
   select.innerHTML = '<option value="">+ Adicionar mercado…</option>';
   if (origem) {
@@ -386,7 +382,7 @@ function renderizarPainelMercadosExtras() {
   }
   select.disabled = Estado.mercadosExtras.length >= MERCADOS_EXTRAS_MAX;
 
-  // Lista de tags já adicionadas
+
   lista.innerHTML = "";
   Estado.mercadosExtras.forEach(item => {
     const cor = corMercadoExtra(item.mercado);
@@ -408,7 +404,7 @@ function renderizarPainelMercadosExtras() {
   });
 }
 
-// ─── MERCADOS EXTRAS — badges de odd na célula ───────────────────────────────
+
 function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
  try {
   if (!Estado.mercadosExtras.length) return;
@@ -426,14 +422,11 @@ function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
  } catch (e) { console.error("Erro badges mercados extras:", e); }
 }
 
-// ─── MERCADOS EXTRAS — destaque de 2º mercado na célula ──────────────────────
+
 function aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB) {
  try {
   const ativos = Estado.mercadosExtras.filter(m => m.destacar);
-  // Otimização: se não há mercado extra em destaque, só mexe no DOM da célula
-  // quando ela realmente tinha marcação de uma rodada anterior (ex.: acabou de
-  // desativar o destaque). Sem isso, essa função tocava em TODA célula da
-  // tabela a cada atualização (a cada 5s), mesmo com o recurso nunca usado.
+
   if (!ativos.length) {
     if (cel.classList.contains("destaque-extra")) {
       cel.classList.remove("destaque-extra");
@@ -460,12 +453,12 @@ function aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB) {
  } catch (e) { console.error("Erro destaque mercados extras:", e); }
 }
 
-// ─── MERCADOS EXTRAS — aplica a cor de destaque globalmente (sem re-render) ──
+
 function aplicarCorDestaqueExtraGlobal() {
   document.documentElement.style.setProperty("--destaque-extra-color", Estado.corDestaqueExtra || "#93C5FD");
 }
 
-// ─── MERCADOS EXTRAS — odds extras no tooltip ────────────────────────────────
+
 function tooltipMercadosExtrasHTML(oddsObj) {
   if (!Estado.mercadosExtras.length) return "";
   return Estado.mercadosExtras.filter(m => m.mostrarOdd).map(item => {
@@ -477,12 +470,12 @@ function tooltipMercadosExtrasHTML(oddsObj) {
 }
 
 let qdNumPreviousHours = 1;
-let qdDadosCache = null; // cache de dados para não buscar duas vezes
+let qdDadosCache = null; 
 
-// ─── Obtém hora e data do registro mais recente nos dados ─────────────────────
+
 function qdGetHoraAtual(resultados) {
   if (resultados && resultados.length > 0) {
-    // Ordena pelo timestamp mais recente
+
     const sorted = [...resultados].sort((a, b) => {
       const tA = new Date(`${a.data.split('T')[0]}T${a.hora.toString().padStart(2,'0')}:${(a.minuto||0).toString().padStart(2,'00')}:00`).getTime();
       const tB = new Date(`${b.data.split('T')[0]}T${b.hora.toString().padStart(2,'0')}:${(b.minuto||0).toString().padStart(2,'00')}:00`).getTime();
@@ -492,14 +485,12 @@ function qdGetHoraAtual(resultados) {
     const dateStr = rec.data.includes('T') ? rec.data.split('T')[0] : rec.data.split('/').reverse().join('-');
     return { hora: rec.hora, dateStr };
   }
-  // Fallback para hora do sistema
+
   const now = new Date();
   return { hora: now.getHours(), dateStr: now.toISOString().split('T')[0] };
 }
 
-// ─── ORÁCULO DE ENTRADAS (integrado à tabela) ──────────────────────────────────
-// Marca direto nas células da hora atual os minutos sugeridos, com base em
-// quantas vezes o mercado selecionado ocorreu na hora anterior.
+
 function oraculoHoraAnterior(dataStr, hora) {
   let h = hora - 1, d = dataStr;
   if (h < 0) {
@@ -535,7 +526,7 @@ function aplicarOraculoTabela() {
   sugeridos.forEach((m, i) => {
     const idx = minutosFixos.indexOf(m);
     if (idx < 0) return;
-    const td = tr.children[idx + 1]; // +1 por causa da célula de hora
+    const td = tr.children[idx + 1]; 
     if (td) {
       td.classList.add("oraculo-marcado");
       td.setAttribute("data-oraculo-label", ORACULO_LABELS[i] || "");
@@ -543,11 +534,11 @@ function aplicarOraculoTabela() {
   });
 }
 
-// ─── KEY DO CHECKBOX DOS QUADRANTES ──────────────────────────────────────────
+
 const QD_CHECKBOX_KEY = "quadrantesAtivos";
 
 function qdCheckboxAtivo() {
-  // Se nunca foi salvo, padrão é DESATIVADO (não pisca na primeira carga)
+
   const val = localStorage.getItem(QD_CHECKBOX_KEY);
   return val === "1";
 }
@@ -556,7 +547,7 @@ function qdSalvarCheckbox(ativo) {
   localStorage.setItem(QD_CHECKBOX_KEY, ativo ? "1" : "0");
 }
 
-// ─── checkMarket para quadrantes ─────────────────────────────────────────────
+
 function qdCheckMarket(ftScore, htScore, market) {
   if (!ftScore || !ftScore.includes('x')) return false;
   const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
@@ -576,8 +567,7 @@ function qdCheckMarket(ftScore, htScore, market) {
     case 'foraVence':      return golsFora > golsCasa;
     case 'empate':         return golsCasa === golsFora;
     case 'viradinha':      {
-      // Viradinha: quem venceu no HT perde no FT
-      // Casa venceu HT mas perdeu FT, OU Fora venceu HT mas perdeu FT
+
       const casaVenceuHT = golsCasaHT > golsForaHT;
       const foraVenceuHT = golsForaHT > golsCasaHT;
       const casaPerdeuFT = golsCasa < golsFora;
@@ -635,11 +625,7 @@ function qdCalcStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
 function qdCreateBlocoThs(index, timeSlots) {
   const qIdx        = index % 4;
   const isFirstBloco = index === 0;
-  // Colspan dinâmico: cada bloco pode ter um nº diferente de minutos
-  // (ex.: último bloco de uma liga com total não-múltiplo de 5 fica menor).
-  // Fixar em 5 desalinhava a linha QDT com a linha de minutos quando o bloco
-  // real tinha outro tamanho, o que fazia o clique de seleção "acender" a
-  // coluna errada.
+
   const colspanBloco = (blocosDeMinutos[index] && blocosDeMinutos[index].length) || 5;
   let innerHtml = '';
   timeSlots.forEach((slot, slotIdx) => {
@@ -684,21 +670,20 @@ function qdCreateBlocoThs(index, timeSlots) {
   return `<th colspan="${colspanBloco}" class="qd-bloco-th qd-${qIdx}" style="padding:0.4rem 0.5rem;text-align:left;font-size:12px;line-height:1.2;${isFirstBloco ? '' : 'border-left:3px solid rgba(255,255,255,0.35);'}">${innerHtml}</th>`;
 }
 
-// ─── Calcula qual bloco está ao vivo agora ────────────────────────────────────
+
 function qdBlocoAtual() {
   const minAtual = new Date().getMinutes();
-  // Tolerância baseada no passo real entre minutos da liga (3 nas de 20 jogos/h,
-  // 2 nas de 30 jogos/h) em vez de um "+2" fixo, que podia invadir o próximo bloco.
+
   const passoAtual = minutosFixos.length > 1 ? (minutosFixos[1] - minutosFixos[0]) : 3;
   for (let i = 0; i < blocosDeMinutos.length; i++) {
     const mins = blocosDeMinutos[i];
     if (minAtual >= mins[0] && minAtual < mins[mins.length - 1] + passoAtual) return i;
   }
-  // Entre blocos — retorna o próximo
+
   for (let i = 0; i < blocosDeMinutos.length; i++) {
     if (minAtual < blocosDeMinutos[i][0]) return i;
   }
-  return 0; // volta ao início (minuto 58+ → bloco 0 da próxima hora)
+  return 0; 
 }
 
 function qdNomeBlocoLabel(blocoIdx) {
@@ -706,7 +691,7 @@ function qdNomeBlocoLabel(blocoIdx) {
   return `Q${blocoIdx + 1} (${mins[0]}-${mins[mins.length - 1]})`;
 }
 
-// Atualiza apenas o indicador "AO VIVO" nas células do bloco ativo
+
 function qdAtualizarIndicadorAoVivo() {
   const blocoAtivo = qdBlocoAtual();
   document.querySelectorAll(".qd-bloco-th").forEach((th, i) => {
@@ -720,7 +705,7 @@ function qdAtualizarIndicadorAoVivo() {
       const b = document.createElement("span");
       b.className = "qd-live-badge";
       b.innerHTML = `<span class="qd-live-dot"></span>Q${i+1}`;
-      // Insere antes da primeira div de conteúdo, dentro da primeira linha
+
       const firstDiv = th.querySelector("div");
       if (firstDiv) firstDiv.insertBefore(b, firstDiv.firstChild);
       else th.insertBefore(b, th.firstChild);
@@ -730,7 +715,7 @@ function qdAtualizarIndicadorAoVivo() {
   });
 }
 
-// Atualiza só os números e labels de hora sem recriar a estrutura
+
 function qdRenderTabelaValores(resultados) {
   if (!qdCheckboxAtivo()) return;
   if (!document.querySelector("#trQuadrantes")) return;
@@ -744,13 +729,12 @@ function qdRenderTabelaValores(resultados) {
     currentHour--;
     if (currentHour < 0) { currentHour = 23; currentDate.setDate(currentDate.getDate() - 1); }
   }
-  // Limite dinâmico: antes era fixo em 20, o que cortava os últimos jogos das
-  // ligas de 30 jogos/hora e fazia os totais dos quadrantes não baterem.
+
   const limiteJogosHora = Math.max(20, minutosFixos.length);
   const jogosPorSlot = timeSlots.map(slot =>
     (resultados||[]).filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, limiteJogosHora)
   );
-  // Atualiza labels de hora
+
   timeSlots.forEach((slot, slotIdx) => {
     for (let i = 0; i < blocosDeMinutos.length; i++) {
       const labelEl = document.getElementById(`qd-label-${i}-${slotIdx}`);
@@ -774,7 +758,7 @@ function qdRenderTabelaValores(resultados) {
       if (counterEl) counterEl.innerText = stats.counterMarketHits;
     });
   });
-  // Sempre re-aplica o destaque do bloco ativo após atualizar valores
+
   qdAtualizarIndicadorAoVivo();
 }
 
@@ -794,14 +778,13 @@ function qdRenderTabela(resultados) {
     if (currentHour < 0) { currentHour = 23; currentDate.setDate(currentDate.getDate() - 1); }
   }
 
-  // Limite dinâmico: antes era fixo em 20, o que cortava os últimos jogos das
-  // ligas de 30 jogos/hora e fazia os totais dos quadrantes não baterem.
+
   const limiteJogosHora = Math.max(20, minutosFixos.length);
   const jogosPorSlot = timeSlots.map(slot =>
     (resultados||[]).filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, limiteJogosHora)
   );
 
-  // Só recria a estrutura quando qdNumPreviousHours muda (não a cada hora)
+
   const structKey = `${qdNumPreviousHours}`;
 
   let trQD = thead.querySelector("#trQuadrantes");
@@ -829,7 +812,7 @@ function qdRenderTabela(resultados) {
     });
   }
 
-  // Sempre atualiza labels de hora (sem recriar a estrutura)
+
   timeSlots.forEach((slot, slotIdx) => {
     for (let i = 0; i < blocosDeMinutos.length; i++) {
       const labelEl = document.getElementById(`qd-label-${i}-${slotIdx}`);
@@ -841,7 +824,7 @@ function qdRenderTabela(resultados) {
     }
   });
 
-  // Atualiza valores numéricos
+
   const selectedMarket = document.querySelector('#seletorResultado')?.value || 'over2.5';
   const counterMarket  = counterMarketMap[selectedMarket];
   blocosDeMinutos.forEach((minutosDoBloco, index) => {
@@ -856,30 +839,29 @@ function qdRenderTabela(resultados) {
     });
   });
 
-  // Sempre re-aplica o destaque do bloco ativo após renderizar
+
   qdAtualizarIndicadorAoVivo();
 }
 
 function qdAtualizarComCache() {
-  // Remove o tr para forçar recriação (numPreviousHours mudou — estrutura precisa mudar)
+
   const trQD = document.querySelector("#trQuadrantes");
   if (trQD) trQD.remove();
   qdRenderTabela(qdDadosCache);
 }
 
-// Sem wrapper externo — os quadrantes ficam no thead da tabela principal.
-// Esta função só garante que não existe o wrapper antigo caso o código tenha sido atualizado.
+
 function garantirQuadrantesWrapper() {
   const old = document.getElementById("quadrantes-wrapper");
   if (old) old.remove();
 }
 
-// ─── TOGGLE VISIBILIDADE DOS QUADRANTES ───────────────────────────────────────
+
 function qdToggle(ativo) {
   qdSalvarCheckbox(ativo);
   const trQD = document.querySelector("#trQuadrantes");
   if (ativo) {
-    // Ativo: mostra se existe, senão renderiza
+
     if (trQD) {
       trQD.style.display = "";
       qdAtualizarIndicadorAoVivo();
@@ -887,13 +869,13 @@ function qdToggle(ativo) {
       qdRenderTabela(qdDadosCache);
     }
   } else {
-    // Desativado: REMOVE o trQD completamente para não reaparecer ao trocar liga
+
     if (trQD) trQD.remove();
   }
   qdAplicarSeparadorTabela(ativo);
 }
 
-// Aplica/remove a classe quadrant-border nas células da tabela principal
+
 function qdAplicarSeparadorTabela(ativo) {
   if (ativo) {
     const tamanhoBloco = _tamanhoBlocoQD();
@@ -911,12 +893,12 @@ function qdAplicarSeparadorTabela(ativo) {
   }
 }
 
-// ─── CHECKBOX DOS QUADRANTES ──────────────────────────────────────────────────
+
 function garantirCheckboxQuadrantes() {
   if (document.getElementById("lbl-quadrantes-toggle")) return;
 
   const painel = document.getElementById("painel-cores");
-  if (!painel) return; // painel ainda não criado, será chamado novamente
+  if (!painel) return; 
 
   const lbl = document.createElement("label");
   lbl.id = "lbl-quadrantes-toggle";
@@ -936,7 +918,7 @@ function garantirCheckboxQuadrantes() {
   painel.appendChild(lbl);
 }
 
-// ─── INJEÇÃO DE ESTILOS ───────────────────────────────────────────────────────
+
 (function injectStyles() {
   if (document.getElementById("multi-select-styles")) return;
   const style = document.createElement("style");
@@ -964,6 +946,7 @@ function garantirCheckboxQuadrantes() {
     .placar-futuro .placar-texto { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1.1; }
 
     .minute-header { cursor:pointer; user-select:none; font-size:0.82em; font-weight:700; }
+    .minute-header .jogo-num { font-size:0.95em; font-weight:700; opacity:1; margin-left:3px; color:#90a4c0; }
     .minute-header:hover { filter: brightness(1.6) !important; }
 
     .qd-0 { background-color: #1c2133 !important; box-shadow: inset 0 -2px 0 0 #374060; }
@@ -1241,14 +1224,14 @@ function garantirCheckboxQuadrantes() {
   document.body.appendChild(tc);
 })();
 
-// ─── TOAST ────────────────────────────────────────────────────────────────────
+
 function showToast(msg) {
   const c = document.getElementById("toast-container"); if (!c) return;
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
   c.appendChild(t); setTimeout(() => t.remove(), 2200);
 }
 
-// ─── ALERTA DE MÁXIMO CONSECUTIVO ────────────────────────────────────────────
+
 function calcularStreakMaximo() {
   const tbody = document.querySelector("#tabelaResultados tbody");
   if (!tbody) return;
@@ -1326,7 +1309,7 @@ function atualizarCheckboxStreak() {
   lbl.classList.toggle("alerta-ativo", ativo);
 }
 
-// ─── APLICA CORES NAS CÉLULAS ─────────────────────────────────────────────────
+
 function aplicarCoresCelulas() {
   document.querySelectorAll("td[data-resultado]").forEach(cel => {
     const tipo = cel.getAttribute("data-resultado");
@@ -1335,7 +1318,7 @@ function aplicarCoresCelulas() {
   });
 }
 
-// ─── PAINEL DE CORES ──────────────────────────────────────────────────────────
+
 function garantirPainelCores() {
   if (document.getElementById("painel-cores")) {
     garantirCheckboxQuadrantes();
@@ -1384,11 +1367,11 @@ function garantirPainelCores() {
     localStorage.setItem("statsLateraisOcultas", this.checked ? "0" : "1");
     aplicarEstadoStatsLaterais();
   });
-  // Restaura estado salvo do checkbox de stats
+
   const statsOcultas = localStorage.getItem("statsLateraisOcultas") === "1";
   el.querySelector("#cb-stats-laterais").checked = !statsOcultas;
 
-  // Checkbox Ranking Top 5
+
   const rkCb = el.querySelector("#cb-ranking-top5");
   if (rkCb) {
     const rkOn = localStorage.getItem("rankingTop5Ativo") === "1";
@@ -1399,11 +1382,11 @@ function garantirPainelCores() {
       if (this.checked) rkAplicarDestaque(); else rkLimparDestaque();
     });
   }
-  // Checkbox Zona Green
+
   const zgCb = el.querySelector("#cb-zona-green-toggle");
   const zgLbl = el.querySelector("#lbl-zona-green-toggle");
   if (zgCb) {
-    const zgOn = localStorage.getItem("zonaGreenAtivo") === "1"; // padrão OFF
+    const zgOn = localStorage.getItem("zonaGreenAtivo") === "1"; 
     zgCb.checked = zgOn;
     zgLbl?.classList.toggle("alerta-ativo", zgOn);
     zgCb.addEventListener("change", function() {
@@ -1414,11 +1397,11 @@ function garantirPainelCores() {
     });
   }
 
-  // Checkbox Oráculo (marca direto na tabela os minutos sugeridos da hora atual)
+
   const orCb  = el.querySelector("#cb-oraculo-tabela");
   const orLbl = el.querySelector("#lbl-oraculo-tabela");
   if (orCb) {
-    const orOn = localStorage.getItem("oraculoAtivo") === "1"; // padrão OFF
+    const orOn = localStorage.getItem("oraculoAtivo") === "1"; 
     orCb.checked = orOn;
     orLbl?.classList.toggle("alerta-ativo", orOn);
     orCb.addEventListener("change", function() {
@@ -1438,9 +1421,9 @@ function garantirPainelCores() {
   if (tabela && tabela.parentNode) tabela.parentNode.insertBefore(el, tabela.nextSibling);
   else document.body.appendChild(el);
 
-  // Adiciona o checkbox dos quadrantes ao painel de cores
+
   garantirCheckboxQuadrantes();
-  // Adiciona o checkbox da Hora Fixa ao painel de cores
+
   garantirCheckboxHoraFixa();
 }
 
@@ -1451,17 +1434,17 @@ function sincronizarPainelCores() {
   if (ir) ir.value = Estado.corRed;
   aplicarCoresCelulas();
   aplicarEstadoStatsLaterais();
-  // Sincroniza Zona Green
+
   const zgCb  = document.getElementById("cb-zona-green-toggle");
   const zgLbl = document.getElementById("lbl-zona-green-toggle");
   if (zgCb) { const on = localStorage.getItem("zonaGreenAtivo") === "1"; zgCb.checked = on; zgLbl?.classList.toggle("alerta-ativo", on); }
-  // Sincroniza Oráculo
+
   const orCb  = document.getElementById("cb-oraculo-tabela");
   const orLbl = document.getElementById("lbl-oraculo-tabela");
   if (orCb) { const on = localStorage.getItem("oraculoAtivo") === "1"; orCb.checked = on; orLbl?.classList.toggle("alerta-ativo", on); }
 }
 
-// ─── PAINEL DE SELEÇÕES ───────────────────────────────────────────────────────
+
 function criarOuObterPainel() {
   let painel = document.getElementById("painel-selecao");
   if (!painel) {
@@ -1571,7 +1554,7 @@ function computeStatsFromDOM() {
   criarOuObterPainel(); atualizarStatsSelecao(unif);
 }
 
-// ─── HIGHLIGHTS ───────────────────────────────────────────────────────────────
+
 function aplicarHighlights() {
   const mostrarOdds = document.querySelector("#mostrarOdds")?.value==="sim";
   document.querySelectorAll(".placar").forEach(placar => {
@@ -1624,7 +1607,7 @@ function aplicarHighlights() {
   computeStatsFromDOM();
 }
 
-// ─── SELEÇÃO DE COLUNAS ───────────────────────────────────────────────────────
+
 function toggleColuna(minuto) {
   const lista=Estado.colunasSelecionadas, idx=lista.indexOf(minuto);
   if(idx!==-1) lista.splice(idx,1); else lista.push(minuto);
@@ -1661,7 +1644,7 @@ function atualizarColunaStats() {
   }
   el.innerHTML=""; if(Estado.colunasSelecionadas.length===0) return;
 
-  // Lógica por SEQUÊNCIA: só conta linhas onde TODAS as colunas selecionadas têm resultado real
+
   const colOrd=[...Estado.colunasSelecionadas].sort((a,b)=>minutosFixos.indexOf(a)-minutosFixos.indexOf(b));
   let gT=0, rT=0;
   document.querySelectorAll("#tabelaResultados tbody tr").forEach(row=>{
@@ -1669,14 +1652,14 @@ function atualizarColunaStats() {
     colOrd.forEach(min=>{
       const colIdx=minutosFixos.indexOf(min); if(colIdx===-1) return;
       const cell=row.cells[1+colIdx]; if(!cell) { todasComResultado=false; return; }
-      // Só conta células com placar real (não futuro)
+
       const placarReal=cell.querySelector(".placar:not(.placar-futuro)");
       if(!placarReal) { todasComResultado=false; return; }
       const tipo=cell.getAttribute("data-resultado");
       if(tipo==="acerto") temGreen=true;
       else if(tipo==="erro") temRed=true;
     });
-    // Ignora linhas onde alguma coluna selecionada ainda não tem resultado
+
     if(!todasComResultado) return;
     if(temGreen) gT++;
     else if(temRed) rT++;
@@ -1691,17 +1674,29 @@ function atualizarColunaStats() {
   el.appendChild(tag);
 }
 
-// ─── UTILITÁRIOS ──────────────────────────────────────────────────────────────
+
 function showErrorMessage(m){const e=document.getElementById("errorMessage");if(!e)return;e.textContent=m;e.style.display="block";}
 function hideErrorMessage(){const e=document.getElementById("errorMessage");if(!e)return;e.textContent="";e.style.display="none";}
 function normalizeString(s){if(!s)return"";return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
 function formatDateToDDMMYYYY(d){if(d.includes("T")){const dt=new Date(d);return`${dt.getUTCDate().toString().padStart(2,"0")}/${(dt.getUTCMonth()+1).toString().padStart(2,"0")}/${dt.getUTCFullYear()}`;}const[dd,mm,yy]=d.split("/");return`${dd.padStart(2,"0")}/${mm.padStart(2,"0")}/${yy}`;}
 function getDateStr(d){if(d.includes("T"))return new Date(d).toISOString().split("T")[0];const[dd,mm,yy]=d.split("/");return`${yy}-${mm}-${dd}`;}
-function normalizarHorario(h,m){const c=minutosFixos.reduce((p,x)=>Math.abs(x-m)<Math.abs(p-m)?x:p);return`${h.toString().padStart(2,"0")}:${c.toString().padStart(2,"0")}`;}
+function normalizarHorario(h,m){const c=minutoMaisProximo(m);return`${h.toString().padStart(2,"0")}:${c.toString().padStart(2,"0")}`;}
 function normalizarHorarioStr(h){if(!h)return h;const[hr,mn]=h.split(":").map(Number);return normalizarHorario(hr,mn);}
 function abbreviateTeamName(n){if(!n)return"";const w=n.trim().split(" ");if(w.length>1)return w.map(x=>x.charAt(0).toUpperCase()).join("")+w[w.length-1].slice(0,3).toLowerCase();return n.length>5?n.slice(0,5).toUpperCase():n.toUpperCase();}
 
-// ─── INDEX DE ODDS ────────────────────────────────────────────────────────────
+
+// OTIMIZAÇÃO: indexarOdds() reconstruía o Map inteiro toda vez que criarTabela()
+// rodava, mesmo quando oddsData era o mesmo array já indexado antes (ex.: no
+// caminho de renderização rápida, que reusa _cacheOddsData). Cache por referência:
+// se o array passado é o mesmo objeto de antes, devolve o índice já pronto.
+let _indexarOddsCacheRef = null;
+let _indexarOddsCacheResult = null;
+function indexarOddsCached(oddsData) {
+  if (oddsData === _indexarOddsCacheRef) return _indexarOddsCacheResult;
+  _indexarOddsCacheResult = indexarOdds(oddsData);
+  _indexarOddsCacheRef = oddsData;
+  return _indexarOddsCacheResult;
+}
 function indexarOdds(oddsData) {
   const tm = {"peixe": "boca"};
   const map = new Map();
@@ -1711,7 +1706,7 @@ function indexarOdds(oddsData) {
     const [hStr, mnStr] = (odd.horario || "").split(":");
     const h  = parseInt(hStr) || 0;
     const mn = parseInt(mnStr) || 0;
-    const minNorm = minutosFixos.reduce((p, c) => Math.abs(c - mn) < Math.abs(p - mn) ? c : p);
+    const minNorm = minutoMaisProximo(mn);
     const hor = `${h.toString().padStart(2,"0")}:${minNorm.toString().padStart(2,"0")}`;
     const set = k => { if (!map.has(k)) map.set(k, odd); };
     set(`${odd.data_captura}|${hor}|${casa}|${vis}`);
@@ -1734,7 +1729,7 @@ function findOddsProximoNoIndex(idx, {time, team_home, team_visit}) {
   const parts = (time || "").split(":");
   const h  = parseInt(parts[0]) || 0;
   const mn = parseInt(parts[1]) || 0;
-  const minNorm = minutosFixos.reduce((p, c) => Math.abs(c - mn) < Math.abs(p - mn) ? c : p);
+  const minNorm = minutoMaisProximo(mn);
   for (const delta of [0, -1, 1]) {
     const hAjust = ((h + delta) + 24) % 24;
     const hor = `${hAjust.toString().padStart(2,"0")}:${minNorm.toString().padStart(2,"0")}`;
@@ -1744,7 +1739,7 @@ function findOddsProximoNoIndex(idx, {time, team_home, team_visit}) {
   return null;
 }
 
-// ─── MAP DE ODDS POR MERCADO ──────────────────────────────────────────────────
+
 function getOddValue(odds, res) {
   const m = {
     ambasMarcam:    "odds_ambas_marcam_sim",
@@ -1787,13 +1782,21 @@ function getOddValue(odds, res) {
   return odds ? odds[m[res]] || "N/A" : "N/A";
 }
 
-// ─── FETCH ────────────────────────────────────────────────────────────────────
+
+async function fetchResultados() {
+  const ts = Date.now();
+  const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Erro HTTP ${res.status} em resultados`);
+  return res.json();
+}
+
 async function fetchOdds() {
   try {
-    // Antes: fetch() direto pra API. Agora usa o mesmo LigaDataManager que o
-    // resto da página, compartilhando a mesma resposta cacheada (1s) em vez
-    // de disparar uma requisição própria só pra tabela.
-    return await LigaDataManager.getOdds();
+
+    const ts = Date.now();
+    const res = await fetch(ROTAS_API.odds(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em odds`);
+    return await res.json();
   } catch(e) {
     console.error("Erro odds:", e);
     return [];
@@ -1802,7 +1805,11 @@ async function fetchOdds() {
 
 async function fetchProximosJogos() {
   try {
-    const j = await LigaDataManager.getProximosJogos();
+
+    const ts = Date.now();
+    const res = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em proximosJogos`);
+    const j = await res.json();
     return j.sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
   } catch(e) {
     console.error("Erro próximos:", e);
@@ -1810,7 +1817,7 @@ async function fetchProximosJogos() {
   }
 }
 
-// ─── SELECTED ROWS ────────────────────────────────────────────────────────────
+
 function updateSelectedRows(){
   let sel=document.getElementById("selectedRowsContainer");
   const mainTable=document.getElementById("tabelaResultados");
@@ -1839,14 +1846,14 @@ function updateSelectedRows(){
   });
 }
 
-// ─── HELPER: cria th com SVG ──────────────────────────────────────────────────
+
 function createIconTh(svgKey, title) {
   const th = document.createElement("th"); th.title = title||"";
   const wrap = document.createElement("span"); wrap.className = "th-icon";
   wrap.innerHTML = SVG_ICONS[svgKey]||""; th.appendChild(wrap); return th;
 }
 
-// ─── LÓGICA DE ACERTO POR MERCADO ────────────────────────────────────────────
+
 function verificarAcerto(selRes, rA, rB, htA, htB) {
   const tg  = rA + rB;
   const tg2 = (typeof htA === "number" && typeof htB === "number") ? (rA - htA) + (rB - htB) : null;
@@ -1857,9 +1864,9 @@ function verificarAcerto(selRes, rA, rB, htA, htB) {
     case "foraVence": return rB > rA;
     case "empate":    return rA === rB;
     case "viradinha": {
-      // Requer dados de HT
+
       if (typeof htA !== "number" || typeof htB !== "number") return false;
-      // Quem venceu no HT perde no FT
+
       const casaVenceuHT = htA > htB;
       const foraVenceuHT = htB > htA;
       const casaPerdeuFT = rA < rB;
@@ -1899,14 +1906,9 @@ function verificarAcerto(selRes, rA, rB, htA, htB) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// HORA FIXA — painel resumo (hora atual ou hora fixa escolhida) com % por gales
-// Reaproveita: mercado (#seletorResultado), minutosFixos, qdGetHoraAtual (mesma
-// identificação de hora atual usada nos quadrantes) e qdCheckMarket. Tem
-// seletores pequenos de Dias (5 ou 6 — igual à página day.html) e Gales (1 a 4).
-// ═══════════════════════════════════════════════════════════════════════════════
+
 const HF_GALES_PADRAO = 1;
-const HF_DIAS_PADRAO = 5; // mesmo padrão da página day.html (localStorage "hf_dias")
+const HF_DIAS_PADRAO = 5; 
 
 function hfGalesKey() { return `hf_gales_${getLigaKey()}`; }
 
@@ -1916,8 +1918,7 @@ function hfLerGales() {
 }
 function hfSalvarGales(v) { localStorage.setItem(hfGalesKey(), String(v)); }
 
-// ─── Dias analisados — mesmas opções (5/6) e mesmo propósito do #sel-dias da
-// página day.html, pra dar pra comparar os números direto entre as duas ──────
+
 function hfDiasKey() { return `hf_dias_${getLigaKey()}`; }
 
 function hfLerDias() {
@@ -1926,7 +1927,7 @@ function hfLerDias() {
 }
 function hfSalvarDias(v) { localStorage.setItem(hfDiasKey(), String(v)); }
 
-// ─── Placar/gols (mesmo formato "X x Y" já usado no restante da tabela) ──────
+
 function hfParseScore(s) {
   if (!s || typeof s !== "string") return [0, 0];
   const p = s.split("x").map(v => parseInt(v.trim(), 10) || 0);
@@ -1937,14 +1938,14 @@ function hfTotalGols(jogo) {
   return g1 + g2;
 }
 
-// ─── Últimos N dias com dados (N = seletor de Dias, igual à página day.html) ──
+
 function hfUltimosDias(dados, n = HF_DIAS_PADRAO) {
   const set = new Set();
   (dados || []).forEach(j => { if (j && j.data) set.add(getDateStr(j.data)); });
   return [...set].sort().slice(-n);
 }
 
-// ─── Agrupa, para a hora alvo, os jogos por minuto normalizado x dia ─────────
+
 function hfMontarSlotsHora(dados, horaAlvo, diasSelecionados) {
   const diasSet = new Set(diasSelecionados);
   const slots = {};
@@ -1954,7 +1955,7 @@ function hfMontarSlotsHora(dados, horaAlvo, diasSelecionados) {
     if (jogo.hora !== horaAlvo || jogo.minuto == null || !jogo.data) return;
     const dia = getDateStr(jogo.data);
     if (!diasSet.has(dia)) return;
-    const minNorm = minutosFixos.reduce((p, c) => Math.abs(c - jogo.minuto) < Math.abs(p - jogo.minuto) ? c : p);
+    const minNorm = minutoMaisProximo(jogo.minuto);
     const chave = `${jogo.time_a}|${jogo.time_b}|${dia}|${minNorm}`;
     if (vistos.has(chave)) return;
     vistos.add(chave);
@@ -1963,31 +1964,12 @@ function hfMontarSlotsHora(dados, horaAlvo, diasSelecionados) {
   return slots;
 }
 
-// ─── Calcula % de acerto por minuto (com gales) para a hora alvo ──────────────
-// Réplica exata da lógica do Analisador de Gales da página day.html
-// (função analisarGalesParaHora → executarAnalisadorGales), só que em vez de
-// filtrar apenas os combos 100%, calcula a % green/total de cada janela —
-// isso é o que vira a cor/percentual de cada coluna aqui na Hora Fixa.
-//
-// Janela = `gales` colunas consecutivas de minutosFixos começando em baseMin
-// (igual aos "combos" de lá). Por dia: se QUALQUER minuto da janela bateu o
-// mercado → dia conta GREEN; se nenhum bateu mas havia dado real na janela →
-// conta RED; se não há dado nenhum na janela → dia é ignorado (não entra no
-// total), exatamente como lá (temDadoReal / temGreen / temRed).
-//
-// Diferença extra em relação ao day.html: quando a janela passa do fim dos
-// minutos fixos da liga (ex.: 3 gales a partir do minuto 57), em vez de
-// deixar a célula zerada, ela "empresta" os minutos que faltam do INÍCIO da
-// próxima hora (57 → 57, 0, 3) pra fechar o gale de verdade.
+
 function hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados) {
   const slots = hfMontarSlotsHora(dados, horaAlvo, diasSelecionados);
   const numMins = minutosFixos.length;
 
-  // Hora seguinte — usada só quando a janela de gales não fecha inteira
-  // dentro da hora atual (fim da lista de minutos fixos da liga). Nesse caso
-  // "empresta" os primeiros minutos da PRÓXIMA hora pra completar o gale
-  // (ex.: 3 gales no minuto 57 → 57, e depois 0 e 3 da hora seguinte).
-  // Se horaAlvo for 23, a hora seguinte (0) cai no dia seguinte.
+
   const horaSeguinte = (horaAlvo + 1) % 24;
   const diaSeguinte = (d) => {
     if (horaAlvo !== 23) return d;
@@ -1999,7 +1981,7 @@ function hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados) {
   const slotsProx = hfMontarSlotsHora(dados, horaSeguinte, diasSeguintes);
 
   return minutosFixos.map((baseMin, minIdx) => {
-    const faltam = (minIdx + gales) - numMins; // minutos que faltam além do fim da hora
+    const faltam = (minIdx + gales) - numMins; 
     const comboAtual = minutosFixos.slice(minIdx, Math.min(minIdx + gales, numMins));
     const comboProx  = faltam > 0 ? minutosFixos.slice(0, faltam) : [];
 
@@ -2021,7 +2003,7 @@ function hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados) {
           else temRed = true;
         });
       }
-      if (!temGreen && !temRed) return; // sem dado real na janela pra esse dia
+      if (!temGreen && !temRed) return; 
 
       if (temGreen) green++; else red++;
 
@@ -2045,8 +2027,7 @@ function hfClassePct(p) {
   return "hf-0";
 }
 
-// ─── Monta a estrutura (topo: linha da hora / rodapé: seletores) uma única vez ─
-// ─── CHECKBOX DE ATIVAÇÃO DA HORA FIXA (mesmo padrão do checkbox de Quadrantes) ─
+
 const HF_CHECKBOX_KEY = "horaFixaAtiva";
 
 function hfCheckboxAtivo() {
@@ -2078,7 +2059,7 @@ function garantirCheckboxHoraFixa() {
     return;
   }
   const painel = document.getElementById("painel-cores");
-  if (!painel) return; // painel ainda não criado, será chamado novamente
+  if (!painel) return; 
 
   const lbl = document.createElement("label");
   lbl.id = "lbl-horafixa-toggle";
@@ -2097,7 +2078,7 @@ function garantirCheckboxHoraFixa() {
 
   painel.appendChild(lbl);
 
-  // ── Seletores de Hora fixa / Dias / Gales — ficam ao lado do checkbox, no mesmo painel ──
+
   const controlesWrap = document.createElement("span");
   controlesWrap.id = "hf-controles-inline";
   controlesWrap.innerHTML = `
@@ -2133,8 +2114,7 @@ function garantirCheckboxHoraFixa() {
   hfAtualizarVisibilidadeControles();
 }
 
-// ─── Copia o estilo computado dos <select> do topo da página para os seletores
-// da Hora Fixa, exatamente como já é feito para o botão "+ Mercados" ──────────
+
 function hfSincronizarEstiloControles() {
   const selDias  = document.getElementById("hf-seletor-dias");
   const selGales = document.getElementById("hf-seletor-gales");
@@ -2202,9 +2182,9 @@ function hfGarantirEstrutura() {
   tabela.parentNode.insertBefore(topWrap, tabela);
 }
 
-// ─── Renderiza/atualiza a linha da hora (atual ou fixa) ───────────────────────
+
 function hfRender(dados) {
-  if (!hfCheckboxAtivo()) { hfRemoverEstrutura(); return; } // desativado — não mostra nem calcula
+  if (!hfCheckboxAtivo()) { hfRemoverEstrutura(); return; } 
   hfGarantirEstrutura();
   if (!document.getElementById("hf-wrapper-top")) return;
   if (!dados || !dados.length) return;
@@ -2213,16 +2193,12 @@ function hfRender(dados) {
   const mercado = seletorResultado?.value || "over2.5";
   const mercadoLabel = seletorResultado?.selectedOptions?.[0]?.textContent || mercado;
   const gales = hfLerGales();
-  const { hora: horaAlvo } = qdGetHoraAtual(dados); // sempre a hora atual, mesma identificação usada nos quadrantes
+  const { hora: horaAlvo } = qdGetHoraAtual(dados); 
 
-  // Mesma lógica do day.html: as datas candidatas vêm dos dados JÁ FILTRADOS
-  // pela hora alvo (não de todas as horas) — senão dias sem jogo nessa hora
-  // entram na lista e empurram pra fora um dia que realmente tem dado,
-  // descasando a base de comparação com a página day.html.
+
   const dadosDaHora = dados.filter(d => d && d.hora === horaAlvo);
 
-  // Se a hora alvo é a que está acontecendo agora, exclui o dia de hoje
-  // (dados incompletos) — mesmo critério de "horaEmAndamento" do day.html.
+
   const agoraHF = new Date();
   const hojeStrHF = `${agoraHF.getFullYear()}-${(agoraHF.getMonth()+1).toString().padStart(2,"0")}-${agoraHF.getDate().toString().padStart(2,"0")}`;
   const horaEmAndamentoHF = horaAlvo === agoraHF.getHours();
@@ -2256,11 +2232,11 @@ function hfRender(dados) {
   });
 }
 
-// ─── CRIAÇÃO DA TABELA ────────────────────────────────────────────────────────
+
 function criarTabela(dados, oddsData, proximosJogos) {
   criarOuObterPainel();
 
-  // Garante wrapper dos quadrantes antes da tabela principal
+
   garantirQuadrantesWrapper();
 
   const tabela = document.getElementById("tabelaResultados");
@@ -2268,7 +2244,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   let thead = tabela.querySelector("thead");
   if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
 
-  // ── Limpa o thead e insere trQD IMEDIATAMENTE como 1ª linha ──
+
   thead.innerHTML = "";
   if (qdCheckboxAtivo()) {
     qdRenderTabela(dados);
@@ -2283,7 +2259,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   thead.append(trGolsColuna, trDadosColuna);
 
   const trMinutos = document.createElement("tr");
-  // Coluna única de hora (sem th separado de seleção)
+
   const thHora = document.createElement("th"); thHora.title="Hora";
   const wrapH = document.createElement("span"); wrapH.className="th-icon"; wrapH.innerHTML=SVG_ICONS["clock"]||"";
   thHora.appendChild(wrapH); thHora.style.cssText="width:26px;min-width:26px;";
@@ -2292,7 +2268,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const tamanhoBlocoHeader = _tamanhoBlocoQD();
   minutosFixos.forEach((m, i) => {
     const th = document.createElement("th"); th.className="minute-header";
-    th.innerHTML = `${m}<span class="seq-jogo-header" style="color:#94a3b8;font-size:10px;font-weight:600;margin-left:4px;">&middot;${(i+1).toString().padStart(2,"0")}</span>`;
+    th.innerHTML = `${m}<span class="jogo-num">&nbsp;·${String(i+1).padStart(2,"0")}</span>`;
     const qIdx = Math.floor(i/tamanhoBlocoHeader) % 4;
     th.classList.add(`qd-${qIdx}`);
     if (qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) th.classList.add("quadrant-border");
@@ -2300,15 +2276,13 @@ function criarTabela(dados, oddsData, proximosJogos) {
     th.addEventListener("click", ()=>toggleColuna(m));
     trMinutos.appendChild(th);
   });
-  // Colunas direitas: gols, acertos, % — com IDs para ocultar/mostrar
+
   const thGolsLinha = createIconTh("ball","Gols (total / média)"); thGolsLinha.id="th-gols-linha"; thGolsLinha.classList.add("col-combo","col-combo-th");
   const thDadosLinha = createIconTh("chart","Dados (% acerto / quantidade)"); thDadosLinha.id="th-dados-linha"; thDadosLinha.classList.add("col-combo","col-combo-th");
   [thGolsLinha,thDadosLinha].forEach(th=>trMinutos.appendChild(th));
   thead.appendChild(trMinutos);
-  // Em vez de tabelaBody.innerHTML = "" (destrói e recria TODAS as linhas a cada
-  // render), guarda as linhas já existentes por data-chave pra reaproveitar.
-  const linhasExistentes = new Map();
-  tabelaBody.querySelectorAll("tr[data-chave]").forEach(tr => linhasExistentes.set(tr.getAttribute("data-chave"), tr));
+
+  tabelaBody.innerHTML = "";
 
   const seletorHoras      = document.querySelector("#seletorHoras");
   const seletorResultado  = document.querySelector("#seletorResultado");
@@ -2325,7 +2299,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const horasSel     = parseInt(seletorHoras.value)||12;
   const selRes       = seletorResultado.value;
   const tipoPlacar   = seletorTipoPlacar.value;
-  const oddsIndex    = indexarOdds(oddsData);
+  const oddsIndex    = indexarOddsCached(oddsData);
 
   dados.sort((a,b)=>{
     const tA=new Date(`${getDateStr(a.data)}T${a.hora.toString().padStart(2,"0")}:${a.minuto.toString().padStart(2,"0")}:00`).getTime();
@@ -2335,85 +2309,59 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   const proximosComHoras = proximosJogos.map(j=>{
     const[h,mn]=j.time.split(":").map(Number);
-    const closest=minutosFixos.reduce((p,c)=>Math.abs(c-mn)<Math.abs(p-mn)?c:p);
+    const closest=minutoMaisProximo(mn);
     return{...j,date:new Date(j.start_time),hora:h,minuto:closest,team_visitante:j.team_visit};
   }).sort((a,b)=>new Date(b.start_time)-new Date(a.start_time));
 
-  // Horas dos próximos jogos (futuras) — entram sempre, fora do limite do seletor
+
   const horasFuturasSet=new Set();
   proximosComHoras.forEach(j=>{
     const ds=j.captured_date?j.captured_date.split("/").reverse().join("-"):j.date.toISOString().split("T")[0];
     horasFuturasSet.add(JSON.stringify({hora:j.hora,timestamp:new Date(`${ds}T${j.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
   });
-  // Horas com dados reais — respeitam o limite do seletor
+
   const horasDadosSet=new Set();
   dados.forEach(d=>{
     const ds=getDateStr(d.data);
     horasDadosSet.add(JSON.stringify({hora:d.hora,timestamp:new Date(`${ds}T${d.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
   });
   const horasDadosLimitadas=Array.from(horasDadosSet).map(s=>JSON.parse(s)).sort((a,b)=>b.timestamp-a.timestamp).slice(0,horasSel);
-  // Merge: futuras que não conflitem com dados já presentes + dados limitados
+
   const chavesDados=new Set(horasDadosLimitadas.map(h=>`${h.data}-${h.hora}`));
   const horasFuturasFiltradas=Array.from(horasFuturasSet).map(s=>JSON.parse(s)).filter(h=>!chavesDados.has(`${h.data}-${h.hora}`));
   const horasUnicas=[...horasFuturasFiltradas,...horasDadosLimitadas].sort((a,b)=>b.timestamp-a.timestamp);
   const mapeamentoChaveLinha={};
 
-  const chavesUsadas = new Set();
   horasUnicas.forEach(item=>{
     const chave=`${item.data}-${item.hora}`;
-    chavesUsadas.add(chave);
-    let tr = linhasExistentes.get(chave);
-    if (tr) {
-      // ── Linha já existia: reaproveita o <tr>, o checkbox e o listener ──
-      // só reseta as células de jogo e os acumuladores de gols/acertos.
-      const cb = tr.querySelector(".row-selector");
-      if (cb) cb.checked = Estado.selectedChaves.includes(chave);
-      Array.from(tr.children).slice(1, -2).forEach((td, i) => {
-        td.innerHTML = ""; td.className = "";
-        const qIdx = Math.floor(i / tamanhoBlocoHeader) % 4;
-        td.classList.add(`qd-cell-${qIdx}`);
-        if (qdCheckboxAtivo() && i > 0 && i % tamanhoBlocoHeader === 0) td.classList.add("quadrant-border");
-        if (Estado.colunasSelecionadas.includes(minutosFixos[i])) td.classList.add("coluna-selecionada");
-        td.removeAttribute("data-resultado");
-      });
-      const tdGolsR = tr.children[tr.children.length - 2];
-      const tdDadosR = tr.children[tr.children.length - 1];
-      tdGolsR.textContent = "0"; tdGolsR.className = "col-combo";
-      tdDadosR.textContent = "0"; tdDadosR.className = "col-combo";
-      tabelaBody.appendChild(tr); // reordena pro lugar certo (appendChild move nó existente)
-    } else {
-      // ── Linha nova de verdade: cria do zero, igual antes ──
-      tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
-      const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 1px;";
-      const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
-      cb.style.cssText="display:block;margin:0 auto 1px auto;width:11px;height:11px;cursor:pointer;accent-color:#4ade80;";
-      cb.addEventListener("change",function(){
-        if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
-        else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
-        Estado.salvar();updateSelectedRows();
-      });
-      const horaSpan=document.createElement("span"); horaSpan.textContent=item.hora.toString().padStart(2,"0"); horaSpan.style.cssText="font-size:0.78em;font-weight:700;color:#e5e7eb;";
-      tdHora.appendChild(cb); tdHora.appendChild(horaSpan);
-      tr.appendChild(tdHora);
-      minutosFixos.forEach((m,i)=>{
-        const td=document.createElement("td");
-        const qIdx=Math.floor(i/tamanhoBlocoHeader) % 4;
-        td.classList.add(`qd-cell-${qIdx}`);
-        if(qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) td.classList.add("quadrant-border");
-        if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
-        tr.appendChild(td);
-      });
-      const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
-      const tdDados = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
-      tr.appendChild(tdGols); tr.appendChild(tdDados);
-      tabelaBody.appendChild(tr);
-    }
+    const tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
+    const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 1px;";
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
+    cb.style.cssText="display:block;margin:0 auto 1px auto;width:11px;height:11px;cursor:pointer;accent-color:#4ade80;";
+    cb.addEventListener("change",function(){
+      if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
+      else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
+      Estado.salvar();updateSelectedRows();
+    });
+    const horaSpan=document.createElement("span"); horaSpan.textContent=item.hora.toString().padStart(2,"0"); horaSpan.style.cssText="font-size:0.78em;font-weight:700;color:#e5e7eb;";
+    tdHora.appendChild(cb); tdHora.appendChild(horaSpan);
+    tr.appendChild(tdHora);
+    minutosFixos.forEach((m,i)=>{
+      const td=document.createElement("td");
+      const qIdx=Math.floor(i/tamanhoBlocoHeader) % 4;
+      td.classList.add(`qd-cell-${qIdx}`);
+      if(qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) td.classList.add("quadrant-border");
+      if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
+      tr.appendChild(td);
+    });
+    const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
+    const tdDados = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
+    tr.appendChild(tdGols); tr.appendChild(tdDados);
+    tabelaBody.appendChild(tr);
     mapeamentoChaveLinha[chave]=tr;
   });
-  // Remove linhas de horas que não fazem mais parte do range selecionado
-  linhasExistentes.forEach((tr, chave) => { if (!chavesUsadas.has(chave)) tr.remove(); });
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+
   function handleFTClick(e) {
     if(e.target.classList.contains("time-casa")||e.target.classList.contains("time-fora")) return;
     if(e.target.classList.contains("ht-span")||e.target.closest(".ht-span")) return;
@@ -2450,14 +2398,14 @@ function criarTabela(dados, oddsData, proximosJogos) {
     Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
   }
 
-  // ── Processa dados ─────────────────────────────────────────────────────────
+
   const totalGolsPorColuna    = Array(minutosFixos.length).fill(0);
   const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
   const processedMatches      = new Set();
 
   dados.forEach(dado => {
     const ds=getDateStr(dado.data), chave=`${ds}-${dado.hora}`, linha=mapeamentoChaveLinha[chave];
-    const minNorm=minutosFixos.reduce((p,c)=>Math.abs(c-dado.minuto)<Math.abs(p-dado.minuto)?c:p);
+    const minNorm=minutoMaisProximo(dado.minuto);
     const mk=`${dado.time_a}|${dado.time_b}|${chave}|${minNorm}`;
     if(!linha||processedMatches.has(mk)) return;
     const idx=minutosFixos.indexOf(minNorm); if(idx===-1) return;
@@ -2504,7 +2452,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     cel.appendChild(placar);
     processedMatches.add(mk);
 
-    // Highlights iniciais
+
     if(Estado.placarFTSelecionados.includes(placarFT)){
       const cor=Estado.getCorSelecao(Estado.placarFTSelecionados,placarFT,"ft");
       const ftSpan=placarTexto.querySelector(".ft-span");
@@ -2554,7 +2502,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     totalGolsPorColuna[idx]+=tg;
   });
 
-  // ── Próximos jogos ─────────────────────────────────────────────────────────
+
   proximosComHoras.forEach(jogo=>{
     const dataStr=jogo.captured_date?jogo.captured_date.split("/").reverse().join("-"):jogo.date.toISOString().split("T")[0];
     const chave=`${dataStr}-${jogo.hora}`, linha=mapeamentoChaveLinha[chave];
@@ -2573,7 +2521,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     if(mostrarTimes) {
       placarTexto.innerHTML=`<span class="time-casa" style="cursor:pointer" data-full-time="${jogo.team_home}">${abbreviateTeamName(jogo.team_home)}</span><span class="time-fora" style="cursor:pointer" data-full-time="${jogo.team_visit}">${abbreviateTeamName(jogo.team_visit)}</span>`;
     } else {
-      // Spans individuais com data-full-time para o Top5 destacar só o nome certo
+
       placarTexto.innerHTML=`<span class="time-casa" data-full-time="${jogo.team_home}">${abbreviateTeamName(jogo.team_home)}</span><span class="time-fora" data-full-time="${jogo.team_visit}">${abbreviateTeamName(jogo.team_visit)}</span>`;
     }
     placar.appendChild(placarTexto);
@@ -2616,13 +2564,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
     processedMatches.add(mk);
   });
 
-  // ── Footer totais ──────────────────────────────────────────────────────────
-  // Quantidade real de jogos (não-futuros) por coluna, usada nas duas linhas combinadas
+
   const todasLinhasFooter=Array.from(tabelaBody.querySelectorAll("tr"));
   const totMercadoCol=Array(minutosFixos.length).fill(0);
   todasLinhasFooter.forEach(row=>{Array.from(row.cells).slice(1,-2).forEach((c,i)=>{if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro"))totMercadoCol[i]++;});});
 
-  // Linha "Gols por coluna": total e média lado a lado (mesma célula)
+
   totalGolsPorColuna.forEach((t,i)=>{
     const tot=totMercadoCol[i];
     const media=tot>0?(t/tot).toFixed(1):"0.0";
@@ -2630,7 +2577,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     cell.innerHTML=`<span class="valor-principal">${t}</span><span class="valor-sub">${media}</span>`;
     trGolsColuna.appendChild(cell);
   });
-  // Linha "Dados por coluna": % e (quantidade de acertos) lado a lado — colorido por faixa
+
   totMercadoCol.forEach((tot,i)=>{
     const acertosCol=totalAcertosPorColuna[i];
     const pct=tot>0?Math.floor((acertosCol/tot)*100):0;
@@ -2662,7 +2609,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   atualizarCheckboxStreak(); calcularStreakMaximo();
   iniciarObserverStreak();
 
-  // ── Linha de minutos no rodapé (repete os minutos embaixo da tabela) ────────
+
   let tfoot = tabela.querySelector("tfoot");
   if (!tfoot) { tfoot = document.createElement("tfoot"); tabela.appendChild(tfoot); }
   tfoot.innerHTML = "";
@@ -2672,7 +2619,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const tamanhoBlocoFooter=_tamanhoBlocoQD();
   minutosFixos.forEach((m,i)=>{
     const th=document.createElement("th"); th.className="minute-header";
-    th.innerHTML = `${m}<span class="seq-jogo-header" style="color:#94a3b8;font-size:10px;font-weight:600;margin-left:4px;">&middot;${(i+1).toString().padStart(2,"0")}</span>`;
+    th.innerHTML = `${m}<span class="jogo-num">&nbsp;·${String(i+1).padStart(2,"0")}</span>`;
     const qIdx=Math.floor(i/tamanhoBlocoFooter) % 4; th.classList.add(`qd-${qIdx}`);
     if(qdCheckboxAtivo()&&i>0&&i%tamanhoBlocoFooter===0) th.classList.add("quadrant-border");
     if(Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
@@ -2685,33 +2632,33 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   aplicarEstadoStatsLaterais();
 
-  // Quadrantes — atualiza dados (estrutura já foi inserida no início, só atualiza valores)
+
   qdDadosCache = dados;
   if (qdCheckboxAtivo()) qdRenderTabelaValores(dados);
 
-  // Ranking top5 — destaca nome dos times nos próximos confrontos
+
   rkSincronizar();
 
-  // Hora Fixa — atualiza o painel resumo (hora atual/fixa) com base nos dados atuais
+
   hfRender(dados);
 
-  // Zona Green — aplica intensidade por coluna
+
   setTimeout(aplicarZonaGreen, 80);
 }
 
-// ─── TOGGLE STATS LATERAIS ────────────────────────────────────────────────────
+
 function aplicarEstadoStatsLaterais() {
   const ocultas = localStorage.getItem("statsLateraisOcultas") === "1";
   const tabela = document.getElementById("tabelaResultados");
   if (tabela) tabela.classList.toggle("stats-laterais-ocultas", ocultas);
   const selRows = document.getElementById("selectedRowsContainer");
   if (selRows) selRows.classList.toggle("stats-laterais-ocultas", ocultas);
-  // Atualiza checkbox se o painel já existir
+
   const cb = document.getElementById("cb-stats-laterais");
   if (cb) cb.checked = !ocultas;
 }
 
-// ─── OBSERVER: re-aplica streak automaticamente ───────────────────────────────
+
 let _streakDebounceTimer = null;
 function iniciarObserverStreak() {
   const tabela = document.getElementById("tabelaResultados");
@@ -2724,12 +2671,11 @@ function iniciarObserverStreak() {
   tabela._streakObserver = observer;
 }
 
-// ─── BUSCA COM DIFF ───────────────────────────────────────────────────────────
-// Cache global para evitar re-fetches desnecessários ao trocar Times/HT/Odds
+
 let _cacheOddsData = [];
 let _cacheProximosJogos = [];
 let _cacheResultados = [];
-let _renderizandoRapido = false; // flag: true quando ativado por toggle visual
+let _renderizandoRapido = false; 
 
 async function buscarDados() {
   hideErrorMessage();
@@ -2740,7 +2686,7 @@ async function buscarDados() {
     Estado.forcarRerender();
     Estado._ultimaLigaRenderizada = ligaAtual;
     _ultimaLigaHorasRestauradas = null;
-    // Troca de liga: limpa caches e recarrega seleções
+
     _cacheResultados = []; _cacheOddsData = []; _cacheProximosJogos = [];
     Estado.carregar();
     const trQDantigo = document.querySelector("#trQuadrantes");
@@ -2748,55 +2694,62 @@ async function buscarDados() {
   }
   let dados=[],oddsData=[],proximosJogos=[];
 
-  // Se é re-render visual (toggle de Times/HT/Odds) e temos cache, reutiliza sem fetch
+
   if (_renderizandoRapido && _cacheResultados.length > 0) {
     _renderizandoRapido = false;
     dados = _cacheResultados;
     oddsData = _cacheOddsData;
     proximosJogos = _cacheProximosJogos;
-  } else {
-    _renderizandoRapido = false;
-    const [resResultados, resOdds, resProximos] = await Promise.allSettled([
-      LigaDataManager.getResultados(),
-      fetchOdds(),
-      fetchProximosJogos(),
-    ]);
-    if (resResultados.status === "fulfilled") dados = resResultados.value;
-    else { console.error("Erro resultados:", resResultados.reason); showErrorMessage(`Erro ao carregar resultados: ${resResultados.reason.message}`); }
-    if (resOdds.status === "fulfilled") oddsData = resOdds.value;
-    else showErrorMessage(`Erro odds: ${resOdds.reason.message}`);
-    if (resProximos.status === "fulfilled") proximosJogos = resProximos.value;
-    else showErrorMessage(`Erro próximos: ${resProximos.reason.message}`);
-    // Atualiza caches
-    if(dados.length>0) _cacheResultados=dados;
-    _cacheOddsData=oddsData; _cacheProximosJogos=proximosJogos;
+    if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
+    qdDadosCache = dados;
+    criarTabela(dados, oddsData, proximosJogos);
+    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+    return;
   }
+  _renderizandoRapido = false;
+
+  const pOdds = fetchOdds();
+  const pProximos = fetchProximosJogos();
+
+  try {
+    dados = await fetchResultados();
+    if (dados.length > 0) _cacheResultados = dados;
+  } catch (e) {
+    console.error("Erro resultados:", e);
+    showErrorMessage(`Erro ao carregar resultados: ${e.message}`);
+    dados = _cacheResultados; 
+  }
+
+  // OTIMIZAÇÃO: antes a tabela era reconstruída inteira DUAS vezes por ciclo —
+  // uma vez com odds/próximos-jogos ainda em cache (resposta rápida) e outra
+  // depois que as buscas de odds/próximos terminavam. Como as duas buscas já
+  // são disparadas em paralelo com a de resultados (pOdds/pProximos acima),
+  // o ganho de latência dessa "renderização rápida" era mínimo e custava o
+  // dobro de trabalho de DOM a cada 3s. Agora só esperamos as três e
+  // renderizamos uma vez, já com tudo atualizado.
+  const [oddsDataFinal, proximosJogosFinal] = await Promise.all([pOdds, pProximos]);
+  _cacheOddsData = oddsDataFinal;
+  _cacheProximosJogos = proximosJogosFinal;
+  oddsData = oddsDataFinal;
+  proximosJogos = proximosJogosFinal;
 
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
 
-  // Salva cache dos dados para os quadrantes e re-render rápido
   qdDadosCache = dados;
 
-  if(!Estado.dadosMudaram(dados,oddsData,proximosJogos)){
-    console.log("Dados inalterados."); computeStatsFromDOM(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats();
-    garantirPainelCores(); sincronizarPainelCores();
-    atualizarCheckboxStreak(); calcularStreakMaximo();
-    iniciarObserverStreak();
-    if (qdCheckboxAtivo()) qdRenderTabela(dados);
-    else qdAtualizarIndicadorAoVivo();
-    aplicarEstadoStatsLaterais();
-    rkSincronizar();
-    hfRender(dados);
-    return;
+  // OTIMIZAÇÃO PRINCIPAL: só reconstrói a tabela (DOM pesado) quando os dados
+  // buscados agora são realmente diferentes dos que já estão na tela. Isso não
+  // atrasa dado novo em nenhum cenário — a busca acima sempre roda; isso só
+  // evita redesenhar quando o resultado é idêntico ao que já foi mostrado.
+  if (Estado.dadosMudaram(dados, oddsData, proximosJogos)) {
+    criarTabela(dados, oddsData, proximosJogos);
   }
-  criarTabela(dados,oddsData,proximosJogos);
+  if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ZONA GREEN — Intensidade por coluna
-// ═══════════════════════════════════════════════════════════════════════════════
+
 function aplicarZonaGreen() {
-  // Respeita checkbox — se desativado, limpa e sai
+
   if (localStorage.getItem("zonaGreenAtivo") !== "1") {
     document.querySelectorAll(".zg-low,.zg-mid,.zg-high,.zg-hot").forEach(el => el.classList.remove("zg-low","zg-mid","zg-high","zg-hot"));
     return;
@@ -2827,9 +2780,7 @@ function aplicarZonaGreen() {
   });
 }
 
-// ─── RANKING TOP5 INTERNO ─────────────────────────────────────────────────────
-// Calcula ranking por pontos com os dados carregados e destaca APENAS o nome
-// do time (span.time-casa / span.time-fora) nos próximos confrontos (.placar-futuro)
+
 
 function rkCalcularTop5(dados, nJogos) {
   const ts = {};
@@ -2887,19 +2838,24 @@ function rkSincronizar() {
   }
 }
 
+
+let _tabVisibleTabela = !document.hidden;
+let _buscando = false;
+async function _buscarDadosSeguro() {
+  if (!_tabVisibleTabela || _buscando) return;
+  _buscando = true;
+  try { await buscarDados(); } finally { _buscando = false; }
+}
+document.addEventListener('visibilitychange', () => {
+  _tabVisibleTabela = !document.hidden;
+  if (_tabVisibleTabela) _buscarDadosSeguro();
+});
+
 buscarDados();
 setTimeout(iniciarObserverStreak, 1000);
-let _buscando=false;
-// Antes: setInterval(...) puro, contando a partir do instante em que este
-// script terminou de carregar — fora de sincronia com o relógio absoluto que
-// o resto da página usa (sincronizarIntervalo, em liga-data-manager.js).
-// Isso fazia a tabela demorar até um ciclo inteiro (5s) a mais que as outras
-// ferramentas pra perceber um resultado novo na API, mesmo buscando em
-// intervalo menor que elas. Alinhando ao mesmo relógio, ela passa a
-// verificar nos mesmos instantes que o resto da página.
-sincronizarIntervalo(async()=>{if(_buscando)return;_buscando=true;try{await buscarDados();}finally{_buscando=false;}},2000);
+setInterval(_buscarDadosSeguro, 3000);
 
-// ─── LISTENERS ────────────────────────────────────────────────────────────────
+
 const _sh=document.querySelector("#seletorHoras");
 const _sr=document.querySelector("#seletorResultado");
 const _stp=document.querySelector("#seletorTipoPlacar");
@@ -2907,13 +2863,7 @@ const _mt=document.querySelector("#mostrarTimes");
 const _mht=document.querySelector("#mostrarHT");
 const _mo=document.querySelector("#mostrarOdds");
 
-// Horas / Resultado / Tipo de placar são apenas filtros de EXIBIÇÃO sobre os
-// dados que já estão em cache — não precisam buscar tudo de novo na API.
-// Antes, essas 3 chamavam buscarDados() diretamente sem setar
-// _renderizandoRapido, o que forçava 3 requisições de rede (getResultados,
-// fetchOdds, fetchProximosJogos) toda vez que você trocava o seletor, daí a
-// demora/trava. Agora usam renderizarRapido(), igual Times/HT/Odds, e
-// reaproveitam o cache — só refaz o fetch se realmente não houver cache ainda.
+
 if(_sh)  _sh.addEventListener("change", ()=>{ 
   localStorage.setItem(Estado._horasKey(), _sh.value); 
   renderizarRapido(); 
@@ -2921,7 +2871,7 @@ if(_sh)  _sh.addEventListener("change", ()=>{
 
 if(_sr)  _sr.addEventListener("change", ()=>{ 
   renderizarRapido();
-  // Atualiza quadrantes ao trocar mercado (só valores, sem recriar estrutura)
+
   if(qdCheckboxAtivo()) qdRenderTabelaValores(qdDadosCache);
 });
 
@@ -2929,11 +2879,10 @@ if(_stp) _stp.addEventListener("change",()=>{
   renderizarRapido(); 
 });
 
-// ─── RENDERIZAÇÃO RÁPIDA (sem fetch) ──────────────────────────────────────────
-// Usa dados em cache para re-renderizar sem buscar novamente da API
+
 function renderizarRapido() {
   if (_cacheResultados.length > 0) {
-    _renderizandoRapido = true; // sinaliza para buscarDados reutilizar cache
+    _renderizandoRapido = true; 
   }
   Estado.forcarRerender();
   buscarDados();
@@ -2966,10 +2915,10 @@ if(_mo){
   });
 }
 
-// ─── Sincroniza o botão "+ Mercados" com o estilo padrão dos outros seletores ─
+
 function sincronizarEstiloBtnMercadosExtras() {
   const btn = document.getElementById("btnMercadosExtras");
-  // usa o <select> de Horas como referência de "padrão da página"
+
   const ref = document.querySelector("#seletorHoras") || document.querySelector(".seletor-container select");
   if (!btn || !ref) return;
   const cs = getComputedStyle(ref);
@@ -2985,7 +2934,7 @@ function sincronizarEstiloBtnMercadosExtras() {
   btn.style.verticalAlign = "middle";
 }
 
-// ─── MERCADOS EXTRAS — inicialização da UI (popover) ─────────────────────────
+
 (function initMercadosExtrasUI() {
  try {
   const styleTag = document.createElement("style");
@@ -3008,12 +2957,12 @@ function sincronizarEstiloBtnMercadosExtras() {
 
   if (corInput) {
     corInput.value = Estado.corDestaqueExtra || "#93C5FD";
-    // Enquanto arrasta no seletor: só atualiza a variável CSS (instantâneo, sem re-render)
+
     corInput.addEventListener("input", () => {
       Estado.corDestaqueExtra = corInput.value;
       aplicarCorDestaqueExtraGlobal();
     });
-    // Ao soltar/fechar o seletor: persiste e garante que tudo esteja sincronizado
+
     corInput.addEventListener("change", () => {
       Estado.corDestaqueExtra = corInput.value;
       aplicarCorDestaqueExtraGlobal();
