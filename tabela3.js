@@ -2970,7 +2970,6 @@ function sincronizarEstiloBtnMercadosExtras() {
    console.error("Erro ao iniciar popover de mercados extras:", e);
  }
 })();
-
 /* =========================================================================
    BUSCAR PADRÕES (automático, focado nos PRÓXIMOS CONFRONTOS)
    -------------------------------------------------------------------------
@@ -2979,13 +2978,12 @@ function sincronizarEstiloBtnMercadosExtras() {
    "entradas", para o mercado que já está selecionado no filtro
    (#seletorResultado).
 
-   Diferente da versão anterior, aqui NÃO marcamos as ocorrências antigas
-   na tabela — só interessa saber se o padrão está "valendo" agora, ou
-   seja: se o placar-gatilho já aconteceu recentemente e a janela de
-   pulos/entradas dele ainda vai cair em jogos que ainda não aconteceram
-   (os "próximos confrontos", em azul na tabela). Só esses padrões
-   entram na lista, e ao selecionar um deles marcamos exatamente as
-   células futuras onde ele está prestes a valer.
+   Só entram na lista os padrões que estão "valendo" AGORA: o
+   placar-gatilho já aconteceu recentemente e a janela de pulos/entradas
+   dele ainda vai cair em jogos que ainda não aconteceram (os "próximos
+   confrontos", em azul na tabela). Ao selecionar um deles, marcamos
+   exatamente as células futuras onde ele está valendo — sempre
+   recalculado na hora, para nunca ficar desatualizado.
 
    Reaproveita tudo que já existe acima neste arquivo: _cacheResultados,
    _cacheProximosJogos, qdCheckMarket, minutosFixos, getDateStr,
@@ -3002,8 +3000,10 @@ function sincronizarEstiloBtnMercadosExtras() {
     minOcorrencias: 5,
     maxPulos: 9,
     maxEntradas: 3,
-    resultados: [],      // lista de padrões ATIVOS (já batendo com os próximos confrontos)
-    selecionado: null,   // padrão atualmente destacado na tabela
+    pctMinimo: 0,          // filtro de % mínima exibida na lista (0 = todas)
+    resultadosBrutos: [],  // todos os padrões ativos encontrados (sem filtro de %)
+    resultados: [],        // resultadosBrutos já filtrados por pctMinimo (o que é exibido)
+    selecionado: null,     // padrão atualmente destacado na tabela
     painelAberto: false,
   };
 
@@ -3023,6 +3023,7 @@ function sincronizarEstiloBtnMercadosExtras() {
       if (cfg.minOcorrencias) bpEstado.minOcorrencias = cfg.minOcorrencias;
       if (cfg.maxPulos != null) bpEstado.maxPulos = cfg.maxPulos;
       if (cfg.maxEntradas != null) bpEstado.maxEntradas = cfg.maxEntradas;
+      if (cfg.pctMinimo != null) bpEstado.pctMinimo = cfg.pctMinimo;
     } catch (e) { /* config corrompida: ignora */ }
   }
 
@@ -3032,6 +3033,7 @@ function sincronizarEstiloBtnMercadosExtras() {
         minOcorrencias: bpEstado.minOcorrencias,
         maxPulos: bpEstado.maxPulos,
         maxEntradas: bpEstado.maxEntradas,
+        pctMinimo: bpEstado.pctMinimo,
       }));
     } catch (e) { /* localStorage indisponível: segue sem persistir */ }
   }
@@ -3106,7 +3108,7 @@ function sincronizarEstiloBtnMercadosExtras() {
 
   // ---------------------------------------------------------------------
   // Motor: testa TODOS os placares x pulos x entradas sobre o histórico
-  // (isso continua igual — é o que dá a % de acerto de cada padrão)
+  // (isso dá a % de acerto de cada padrão)
   // ---------------------------------------------------------------------
   function bpCalcularCandidatos(jogos, mercado) {
     const n = jogos.length;
@@ -3172,6 +3174,8 @@ function sincronizarEstiloBtnMercadosExtras() {
   // ocorrência(s) do placar-gatilho cuja janela de pulos/entradas ainda
   // não terminou no histórico — ou seja, parte dela cai nos próximos
   // confrontos — e devolve exatamente quais jogos futuros são esses.
+  // Recebe jogosPassados/futuros já prontos para não recalcular à toa
+  // quando é chamada várias vezes seguidas (lista inteira, por exemplo).
   // ---------------------------------------------------------------------
   function bpChecarProximos(padrao, jogosPassados, futuros) {
     const n = jogosPassados.length;
@@ -3199,44 +3203,71 @@ function sincronizarEstiloBtnMercadosExtras() {
     return alvos;
   }
 
+  // Calcula, para uma lista de candidatos, os alvos ativos de cada um —
+  // sempre com dados frescos (histórico + próximos ao vivo).
+  function bpComAlvosFrescos(candidatos) {
+    const jogosPassados = bpColetarJogosOrdenados();
+    const futuros = bpColetarFuturosOrdenados();
+    return candidatos
+      .map(c => Object.assign({}, c, { alvosProximos: bpChecarProximos(c, jogosPassados, futuros) }))
+      .filter(c => c.alvosProximos.length > 0);
+  }
+
   // ---------------------------------------------------------------------
   // Busca completa: calcula os candidatos e mantém só os que estão
   // ativos agora dentro dos próximos confrontos.
   // ---------------------------------------------------------------------
   function bpBuscarAutomatico() {
     const jogosPassados = bpColetarJogosOrdenados();
-    const futuros = bpColetarFuturosOrdenados();
     const mercado = bpMercadoAtual();
-
-    if (!futuros.length) return [];
+    if (!(typeof _cacheProximosJogos !== "undefined" && _cacheProximosJogos.length)) return [];
 
     const candidatos = bpCalcularCandidatos(jogosPassados, mercado);
-    const ativos = [];
+    return bpComAlvosFrescos(candidatos).slice(0, 30);
+  }
 
-    for (const c of candidatos) {
-      const alvosProximos = bpChecarProximos(c, jogosPassados, futuros);
-      if (alvosProximos.length) {
-        ativos.push(Object.assign({}, c, { alvosProximos }));
-      }
-      if (ativos.length >= 15) break;
-    }
-    return ativos;
+  function bpAplicarFiltroPct() {
+    bpEstado.resultados = bpEstado.pctMinimo > 0
+      ? bpEstado.resultadosBrutos.filter(r => r.pct >= bpEstado.pctMinimo)
+      : bpEstado.resultadosBrutos.slice();
+    if (bpEstado.resultados.length > 15) bpEstado.resultados = bpEstado.resultados.slice(0, 15);
   }
 
   // ---------------------------------------------------------------------
-  // Localiza a célula da tabela correspondente a um jogo futuro
+  // Localiza a célula da tabela correspondente a um jogo futuro.
+  // Tenta primeiro pela chave data+hora+minuto; se não achar (algum
+  // detalhe de fuso/formatação), cai para um fallback buscando pelos
+  // nomes dos times no próprio placar futuro já renderizado.
   // ---------------------------------------------------------------------
   function bpChaveCelula(jf) {
     return `${jf.dataStr}-${jf.hora}-${jf.minuto}`;
   }
 
+  function bpNormalizarNome(s) {
+    return (typeof normalizeString === "function") ? normalizeString(s || "") : String(s || "").trim().toLowerCase();
+  }
+
   function bpCelulaParaFuturo(jf) {
     const chave = `${jf.dataStr}-${jf.hora}`;
     const linha = document.querySelector(`#tabelaResultados tbody tr[data-chave="${CSS.escape(chave)}"]`);
-    if (!linha) return null;
-    const idx = minutosFixos.indexOf(jf.minuto);
-    if (idx === -1) return null;
-    return linha.children[1 + idx] || null;
+    if (linha) {
+      const idx = minutosFixos.indexOf(jf.minuto);
+      if (idx !== -1) {
+        const cel = linha.children[1 + idx];
+        if (cel) return cel;
+      }
+    }
+    // fallback: procura pelo placar futuro com os mesmos times
+    if (jf.timeCasa && jf.timeFora) {
+      const alvoA = bpNormalizarNome(jf.timeCasa), alvoB = bpNormalizarNome(jf.timeFora);
+      const placares = document.querySelectorAll("#tabelaResultados .placar-futuro");
+      for (const p of placares) {
+        const a = bpNormalizarNome(p.getAttribute("data-time-a"));
+        const b = bpNormalizarNome(p.getAttribute("data-time-b"));
+        if (a === alvoA && b === alvoB) return p.closest("td");
+      }
+    }
+    return null;
   }
 
   function bpBadge(cel, texto, classeSufixo) {
@@ -3249,8 +3280,9 @@ function sincronizarEstiloBtnMercadosExtras() {
 
   // ---------------------------------------------------------------------
   // Marca (só) as células dos próximos confrontos onde o padrão selecionado
-  // está valendo. Faz diff contra o que já está marcado para não remover
-  // e reaplicar à toa — evita o "piscar" quando a tabela é atualizada.
+  // está valendo — recalculado na hora com dados frescos. Faz diff contra
+  // o que já está marcado para não remover e reaplicar à toa, evitando o
+  // "piscar" quando a tabela é atualizada sozinha.
   // ---------------------------------------------------------------------
   function bpLimparHighlight() {
     bpCelulasMarcadas.forEach(info => {
@@ -3265,17 +3297,26 @@ function sincronizarEstiloBtnMercadosExtras() {
   }
 
   function bpAplicarHighlight(rolarAte) {
-    const padrao = bpEstado.selecionado;
-    const alvos = padrao ? (padrao.alvosProximos || []) : [];
+    let padrao = bpEstado.selecionado;
+
+    // recalcula os alvos na hora, com dados frescos (evita ficar desatualizado)
+    if (padrao) {
+      const jogosPassados = bpColetarJogosOrdenados();
+      const futuros = bpColetarFuturosOrdenados();
+      const alvosProximos = bpChecarProximos(padrao, jogosPassados, futuros);
+      padrao = Object.assign({}, padrao, { alvosProximos });
+    }
+
+    const alvos = padrao ? padrao.alvosProximos : [];
 
     const novasMarcas = new Map();
     alvos.forEach(a => {
       const chave = bpChaveCelula(a.jogoFuturo);
+      // se já houver um alvo mais "forte" (entrada) marcado nessa mesma célula, mantém ele
+      if (novasMarcas.has(chave) && novasMarcas.get(chave).tipo === "entrada") return;
       const classe = a.tipo === "entrada" ? "bp-cel-alvo-entrada" : "bp-cel-alvo-pulo";
       const badgeClasse = a.tipo === "entrada" ? "alvo-entrada" : "alvo-pulo";
       const badgeTexto = (a.tipo === "entrada" ? "E" : "P") + a.numero;
-      // se já houver um alvo mais "forte" (entrada) marcado nessa mesma célula, mantém ele
-      if (novasMarcas.has(chave) && novasMarcas.get(chave).tipo === "entrada") return;
       novasMarcas.set(chave, { jogoFuturo: a.jogoFuturo, tipo: a.tipo, classe, badgeTexto, badgeClasse });
     });
 
@@ -3320,18 +3361,25 @@ function sincronizarEstiloBtnMercadosExtras() {
   // ---------------------------------------------------------------------
   function bpRenderResultados() {
     const el = document.getElementById("bpResultadosLista");
+    const painel = document.getElementById("bpPainelResultados");
     const status = document.getElementById("bpStatusBusca");
     if (!el) return;
 
-    if (!bpEstado.resultados.length) {
-      el.innerHTML = "";
-      if (status) {
+    const semNada = !bpEstado.resultados.length;
+    if (painel) painel.style.display = semNada ? "none" : "block";
+    el.innerHTML = "";
+
+    if (status) {
+      if (!bpEstado.resultadosBrutos.length) {
         status.textContent = `Nenhum padrão está valendo agora nos próximos confrontos para "${bpNomeMercado(bpMercadoAtual())}".`;
+      } else if (semNada) {
+        status.textContent = `${bpEstado.resultadosBrutos.length} padrão(ões) ativo(s), mas nenhum com ${bpEstado.pctMinimo}% ou mais. Reduza o filtro de % para ver.`;
+      } else {
+        status.textContent = "";
       }
-      return;
     }
 
-    if (status) status.textContent = "";
+    if (semNada) return;
 
     el.innerHTML = bpEstado.resultados.map((r, i) => {
       const cor = r.pct >= 70 ? "#22c55e" : r.pct >= 50 ? "#eab308" : "#ef4444";
@@ -3380,18 +3428,17 @@ function sincronizarEstiloBtnMercadosExtras() {
     const tabela = document.getElementById("tabelaResultados");
     const host = tabela ? tabela.parentElement : document.body;
 
-    // --- lista horizontal de padrões, acima da tabela ---
+    // --- lista horizontal de padrões, acima da tabela (sem texto de status aqui) ---
     const wrapResultados = document.createElement("div");
     wrapResultados.id = "bpPainelResultados";
-    wrapResultados.style.cssText = "margin:8px 0;font-family:inherit;";
+    wrapResultados.style.cssText = "margin:8px 0;font-family:inherit;display:none;";
     wrapResultados.innerHTML = `
-      <div id="bpStatusBusca" style="font-size:11px;opacity:.65;margin-bottom:4px;"></div>
       <div id="bpResultadosLista" style="
         display:flex; gap:8px; overflow-x:auto; padding:2px 2px 6px 2px;
         -webkit-overflow-scrolling:touch;"></div>
     `;
 
-    // --- buscador (config + botões), abaixo da tabela ---
+    // --- buscador (config + botões + status), abaixo da tabela ---
     const wrapBuscador = document.createElement("div");
     wrapBuscador.id = "bpPainelBuscarPadroes";
     wrapBuscador.style.cssText = "margin:8px 0;font-family:inherit;";
@@ -3417,6 +3464,17 @@ function sincronizarEstiloBtnMercadosExtras() {
             Entradas até
             <input id="bpMaxEntradas" type="number" min="1" max="10" style="width:60px;padding:4px;border-radius:6px;">
           </label>
+          <label style="display:flex;flex-direction:column;font-size:11px;gap:3px;">
+            % mínima
+            <select id="bpFiltroPct" style="width:90px;padding:4px;border-radius:6px;">
+              <option value="0">Todas</option>
+              <option value="80">≥ 80%</option>
+              <option value="85">≥ 85%</option>
+              <option value="90">≥ 90%</option>
+              <option value="95">≥ 95%</option>
+              <option value="100">100%</option>
+            </select>
+          </label>
           <button id="bpBtnBuscar" type="button" style="
             background:#7c3aed;border:none;color:#fff;padding:7px 16px;
             border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">Buscar Automaticamente</button>
@@ -3425,6 +3483,8 @@ function sincronizarEstiloBtnMercadosExtras() {
             padding:7px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Limpar</button>
           <span id="bpMercadoLabel" style="font-size:11px;opacity:.7;margin-left:auto;"></span>
         </div>
+
+        <div id="bpStatusBusca" style="font-size:11px;opacity:.75;"></div>
       </div>
     `;
 
@@ -3440,6 +3500,7 @@ function sincronizarEstiloBtnMercadosExtras() {
     const elMin = wrapBuscador.querySelector("#bpMinOcorrencias");
     const elMaxPulos = wrapBuscador.querySelector("#bpMaxPulos");
     const elMaxEntradas = wrapBuscador.querySelector("#bpMaxEntradas");
+    const elFiltroPct = wrapBuscador.querySelector("#bpFiltroPct");
     const elBtnAbrir = wrapBuscador.querySelector("#bpBtnAbrir");
     const elPainelConfig = wrapBuscador.querySelector("#bpPainelConfig");
     const elBtnBuscar = wrapBuscador.querySelector("#bpBtnBuscar");
@@ -3449,6 +3510,7 @@ function sincronizarEstiloBtnMercadosExtras() {
     elMin.value = bpEstado.minOcorrencias;
     elMaxPulos.value = bpEstado.maxPulos;
     elMaxEntradas.value = bpEstado.maxEntradas;
+    elFiltroPct.value = String(bpEstado.pctMinimo);
 
     function atualizarLabelMercado() {
       elMercadoLabel.textContent = `Mercado atual do filtro: ${bpNomeMercado(bpMercadoAtual())}`;
@@ -3471,7 +3533,8 @@ function sincronizarEstiloBtnMercadosExtras() {
       elBtnBuscar.disabled = true;
       elBtnBuscar.textContent = "Buscando...";
       setTimeout(() => {
-        bpEstado.resultados = bpBuscarAutomatico();
+        bpEstado.resultadosBrutos = bpBuscarAutomatico();
+        bpAplicarFiltroPct();
         bpEstado.selecionado = bpEstado.resultados[0] || null;
         bpRenderResultados();
         bpAplicarHighlight(true);
@@ -3480,7 +3543,19 @@ function sincronizarEstiloBtnMercadosExtras() {
       }, 20);
     });
 
+    elFiltroPct.addEventListener("change", () => {
+      bpEstado.pctMinimo = parseInt(elFiltroPct.value, 10) || 0;
+      bpSalvarConfig();
+      bpAplicarFiltroPct();
+      if (!bpEstado.resultados.includes(bpEstado.selecionado)) {
+        bpEstado.selecionado = bpEstado.resultados[0] || null;
+      }
+      bpRenderResultados();
+      bpAplicarHighlight(true);
+    });
+
     elBtnLimpar.addEventListener("click", () => {
+      bpEstado.resultadosBrutos = [];
       bpEstado.resultados = [];
       bpEstado.selecionado = null;
       bpRenderResultados();
@@ -3497,15 +3572,15 @@ function sincronizarEstiloBtnMercadosExtras() {
   function bpInjetarCSS() {
     const style = document.createElement("style");
     style.textContent = `
-      .bp-cel-alvo-entrada { box-shadow: inset 0 0 0 2px #f59e0b, 0 0 12px -2px #f59e0b !important; position: relative; }
-      .bp-cel-alvo-pulo { opacity: .55 !important; box-shadow: inset 0 0 0 1px #a855f780 !important; position: relative; }
+      .bp-cel-alvo-entrada { box-shadow: inset 0 0 0 3px #f59e0b, 0 0 14px -1px #f59e0b !important; position: relative; z-index: 2; }
+      .bp-cel-alvo-pulo { box-shadow: inset 0 0 0 2px #a855f7cc, 0 0 10px -2px #a855f7 !important; position: relative; z-index: 2; }
       .bp-badge {
-        position: absolute; top: 0; left: 0; z-index: 5;
+        position: absolute; top: 0; left: 0; z-index: 6;
         font-size: 7px; font-weight: 800; line-height: 1;
         padding: 1px 3px; border-radius: 0 0 4px 0;
         background: #a855f7; color: #fff; pointer-events: none;
       }
-      .bp-badge-alvo-entrada { background: #f59e0b; }
+      .bp-badge-alvo-entrada { background: #f59e0b; color: #1a1a1a; }
       .bp-badge-alvo-pulo { background: #7c3aed; }
       .bp-item:hover { background: #ffffff12 !important; }
       #bpResultadosLista::-webkit-scrollbar { height: 6px; }
