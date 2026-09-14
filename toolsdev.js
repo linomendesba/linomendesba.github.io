@@ -41,6 +41,7 @@
     {
       group: "Bet365",
       tools: [
+        { label: "Fluxo",     url: "https://www.betstat.site/fluxo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/365stat.html" },
@@ -58,6 +59,7 @@
     {
       group: "Betano",
       tools: [
+        { label: "Fluxo",     url: "https://www.betstat.site/fluxo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/LigaStat.html" },
@@ -75,6 +77,7 @@
     {
       group: "Betsson",
       tools: [
+        { label: "Fluxo",     url: "https://www.betstat.site/fluxo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/betssonstat.html" },
@@ -92,6 +95,7 @@
     {
       group: "EstrelaBet",
       tools: [
+        { label: "Fluxo",     url: "https://www.betstat.site/fluxo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/estrelastat.html" },
@@ -109,6 +113,7 @@
     {
       group: "Kiron",
       tools: [
+        { label: "Fluxo",     url: "https://www.betstat.site/fluxo.html" },
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/LigaStatkiron.html" },
