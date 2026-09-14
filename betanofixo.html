@@ -861,6 +861,20 @@
         return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
     }
 
+    // Data de hoje no fuso local do navegador, no formato usado nos dayKeys (YYYY-MM-DD)
+    function getTodayStr() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+
+    // Mesma regra de exclusão do "dia em andamento" usada na Tabela e no Day:
+    // quando a hora analisada é a hora atual da casa, o dia de hoje (dados
+    // possivelmente incompletos) é excluído do pool antes de pegar os últimos N dias.
+    function getSelectedDaysForHour(sortedDays, daysCount, hh, liveHour, todayStr) {
+        const pool = (hh === liveHour) ? sortedDays.filter(d => d !== todayStr) : sortedDays;
+        return getSelectedDays(pool, daysCount);
+    }
+
     // Retorna o jogo de uma tentativa de gale, emprestando da hora seguinte
     // (e do dia seguinte, quando a hora é 23) quando o índice ultrapassa numMins.
     function getGameForAttempt(slotMap, hh, dayKey, uniqueMinutes, targetMinIdx) {
@@ -883,9 +897,8 @@
             daySet.add(getDayKey(game, idx, gamesPerHour));
         });
         const sortedDays = [...daySet].sort();
-        const selectedDays = getSelectedDays(sortedDays, daysCount);
-        const selectedDaySet = new Set(selectedDays);
-        const numDays = selectedDays.length;
+        const todayStr = getTodayStr();
+        const liveHour = getCurrentHourForHouse(houseKey);
 
         const slotMap = {};
         for (let h = 0; h < 24; h++) {
@@ -896,9 +909,10 @@
             });
         }
 
+        // Popula com TODOS os dias disponíveis — a seleção de dias (e a exclusão
+        // do dia em andamento) é aplicada por hora mais abaixo, igual à Tabela/Day.
         data.forEach((game, idx) => {
             const dk = getDayKey(game, idx, gamesPerHour);
-            if (!selectedDaySet.has(dk)) return;
             const hh = rawHour(game);
             const mm = String(game.minuto).padStart(2, '0');
             if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
@@ -916,12 +930,16 @@
         }
 
         const hoursToCalc = targetHour ? [targetHour] : Array.from({length: 24}, (_, i) => String(i).padStart(2, '0'));
+        let numDays = daysCount;
 
         hoursToCalc.forEach(hh => {
+            const selectedDaysH = getSelectedDaysForHour(sortedDays, daysCount, hh, liveHour, todayStr);
+            if (hh === liveHour) numDays = selectedDaysH.length;
+
             uniqueMinutes.forEach((baseMin, minIdx) => {
                 const bm = String(baseMin).padStart(2, '0');
 
-                selectedDays.forEach(dayKey => {
+                selectedDaysH.forEach(dayKey => {
                     let green = false;
                     let sawAny = false;
 
@@ -1232,9 +1250,8 @@
         });
         const sortedDays = [...daySet].sort();
         const daysCount = parseInt(document.getElementById("daysCountSelect").value, 10) || 5;
-        const selectedDays = getSelectedDays(sortedDays, daysCount);
-        const selectedDaySet = new Set(selectedDays);
-        const numDays = selectedDays.length;
+        const todayStr = getTodayStr();
+        const liveHour = getCurrentHourForHouse(houseKey);
 
         const slotMap = {};
         for (let h = 0; h < 24; h++) {
@@ -1245,9 +1262,10 @@
             });
         }
 
+        // Popula com TODOS os dias disponíveis — a seleção de dias (e a exclusão
+        // do dia em andamento) é aplicada por hora mais abaixo, igual à Tabela/Day.
         data.forEach((game, idx) => {
             const dk = getDayKey(game, idx, gamesPerHour);
-            if (!selectedDaySet.has(dk)) return;
             const hh = rawHour(game);
             const mm = String(game.minuto).padStart(2, '0');
             if (slotMap[hh] && slotMap[hh][mm] !== undefined) {
@@ -1266,13 +1284,17 @@
         const totals = {};
         uniqueMinutes.forEach(m => { totals[String(m).padStart(2, '0')] = { total: 0, green: 0, goalsSum: 0 }; });
 
+        let numDays = daysCount;
+
         for (let h = 0; h < 24; h++) {
             const hh = String(h).padStart(2, '0');
+            const selectedDaysH = getSelectedDaysForHour(sortedDays, daysCount, hh, liveHour, todayStr);
+            if (hh === liveHour) numDays = selectedDaysH.length;
 
             uniqueMinutes.forEach((baseMin, minIdx) => {
                 const bm = String(baseMin).padStart(2, '0');
 
-                selectedDays.forEach(dayKey => {
+                selectedDaysH.forEach(dayKey => {
                     let green = false;
                     let sawAny = false;
 
