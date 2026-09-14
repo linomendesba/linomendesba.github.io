@@ -42,6 +42,7 @@
       group: "Bet365",
       tools: [
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/365stat.html" },
         { label: "MultiLiga",       url: "https://www.betstat.site/mult365.html" },
         { label: "LocalizAI",       url: "https://www.betstat.site/365localizAI.html" },
@@ -58,6 +59,7 @@
       group: "Betano",
       tools: [
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/LigaStat.html" },
         { label: "MultiLiga",       url: "https://www.betstat.site/multbetano.html" },
         { label: "LocalizAI",       url: "https://www.betstat.site/localizAI.html" },
@@ -74,6 +76,7 @@
       group: "Betsson",
       tools: [
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/betssonstat.html" },
         { label: "MultiLiga",       url: "https://www.betstat.site/multbetsson.html" },
         { label: "LocalizAI",       url: "https://www.betstat.site/betssonlocalizai.html" },
@@ -90,6 +93,7 @@
       group: "EstrelaBet",
       tools: [
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/estrelastat.html" },
         { label: "MultiLiga",       url: "https://www.betstat.site/estrelamult.html" },
         { label: "LocalizAI",       url: "https://www.betstat.site/localizAIstar.html" },
@@ -106,6 +110,7 @@
       group: "Kiron",
       tools: [
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/LigaStatkiron.html" },
         { label: "MultiLiga",       url: "https://www.betstat.site/multkiron.html" },
         { label: "LocalizAI",       url: "https://www.betstat.site/localizAIkiron.html" },
