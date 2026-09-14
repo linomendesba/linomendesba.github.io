@@ -898,12 +898,16 @@
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     }
 
-    // Mesma regra de exclusão do "dia em andamento" usada na Tabela e no Day:
-    // quando a hora analisada é a hora atual da casa, o dia de hoje (dados
-    // possivelmente incompletos) é excluído do pool antes de pegar os últimos N dias.
+    // Mesma regra da Tabela/Day: "hoje" nunca ocupa vaga do histórico (daysCount) —
+    // se tiver dado (mesmo que a hora já tenha passado e os dados ainda estejam
+    // incompletos por atraso de captura), ele entra como dia extra, sem disputar
+    // o slice com os dias antigos. Antes só excluía "hoje" quando hh === liveHour,
+    // o que deixava hoje roubar a vaga de um dia histórico válido em qualquer
+    // outra hora, gerando contagens divergentes (ex.: 5/5 vs 4/4).
     function getSelectedDaysForHour(sortedDays, daysCount, hh, liveHour, todayStr) {
-        const pool = (hh === liveHour) ? sortedDays.filter(d => d !== todayStr) : sortedDays;
-        return getSelectedDays(pool, daysCount);
+        const temHoje = sortedDays.includes(todayStr);
+        const historico = getSelectedDays(sortedDays.filter(d => d !== todayStr), daysCount);
+        return temHoje ? [...historico, todayStr] : historico;
     }
 
     // Retorna o jogo de uma tentativa de gale, emprestando da hora seguinte
