@@ -2171,10 +2171,16 @@ function hfRender(dados) {
 
   const agoraHF = new Date();
   const hojeStrHF = `${agoraHF.getFullYear()}-${(agoraHF.getMonth()+1).toString().padStart(2,"0")}-${agoraHF.getDate().toString().padStart(2,"0")}`;
-  const horaEmAndamentoHF = horaAlvo === agoraHF.getHours();
 
-  let diasSelecionados = hfUltimosDias(dadosDaHora, hfLerDias() + (horaEmAndamentoHF ? 1 : 0));
-  if (horaEmAndamentoHF) diasSelecionados = diasSelecionados.filter(d => d !== hojeStrHF).slice(-hfLerDias());
+  // Mesma regra da Tabela/Day/Hora Fixa (buscadores): "hoje" nunca ocupa vaga
+  // do histórico (hfLerDias dias) — se tiver dado, entra como dia extra, sem
+  // disputar o slice com os dias antigos. Antes só excluía "hoje" quando a
+  // hora analisada era a hora atual do relógio, o que deixava hoje roubar a
+  // vaga de um dia histórico válido em qualquer outra hora, gerando
+  // contagens diferentes das outras duas páginas.
+  const temHojeHF = dadosDaHora.some(d => d && getDateStr(d.data) === hojeStrHF);
+  const historicoHF = hfUltimosDias(dadosDaHora.filter(d => !(d && getDateStr(d.data) === hojeStrHF)), hfLerDias());
+  let diasSelecionados = temHojeHF ? [...historicoHF, hojeStrHF] : historicoHF;
 
   const linha = hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados);
 
