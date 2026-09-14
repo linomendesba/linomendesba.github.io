@@ -853,6 +853,33 @@
         return sortedDays.slice(sortedDays.length - daysCount);
     }
 
+    // ===== EMPRÉSTIMO DE MINUTOS DA HORA SEGUINTE (mesma lógica da Tabela/Day) =====
+    // Quando a sequência de gales ultrapassa o último minuto da hora, os minutos
+    // iniciais são "emprestados" da hora seguinte (minutosFixos se repete a cada hora).
+    function nextHourKey(hh) {
+        return String((parseInt(hh, 10) + 1) % 24).padStart(2, '0');
+    }
+
+    function addOneDayStr(dateStr) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        dt.setUTCDate(dt.getUTCDate() + 1);
+        return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+    }
+
+    // Retorna o jogo de uma tentativa de gale, emprestando da hora seguinte
+    // (e do dia seguinte, quando a hora é 23) quando o índice ultrapassa numMins.
+    function getGameForAttempt(slotMap, hh, dayKey, uniqueMinutes, targetMinIdx) {
+        const numMins = uniqueMinutes.length;
+        const borrowed = targetMinIdx >= numMins;
+        const realIdx = targetMinIdx % numMins;
+        const targetHH = borrowed ? nextHourKey(hh) : hh;
+        const targetDayKey = (borrowed && hh === '23') ? addOneDayStr(dayKey) : dayKey;
+        const tm = String(uniqueMinutes[realIdx]).padStart(2, '0');
+        return slotMap[targetHH] && slotMap[targetHH][tm] ? slotMap[targetHH][tm][targetDayKey] : undefined;
+    }
+
     function calculateLeaguePercent100(data, market, gales, houseKey, daysCount, targetHour = null) {
         const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
         const numMins = uniqueMinutes.length;
@@ -902,30 +929,27 @@
                 const bm = String(baseMin).padStart(2, '0');
 
                 selectedDays.forEach(dayKey => {
-                    const baseGame = slotMap[hh][bm][dayKey];
-                    if (!baseGame) return;
-
-                    result[hh][bm].total += 1;
-                    result[hh][bm].goalsSum += totalGoals(baseGame);
-
                     let green = false;
+                    let sawAny = false;
 
-                    for (let attempt = 0; attempt < gales && !green; attempt++) {
+                    for (let attempt = 0; attempt < gales; attempt++) {
                         const targetMinIdx = minIdx + attempt;
-                        if (targetMinIdx >= numMins) break;
-
-                        const tm = String(uniqueMinutes[targetMinIdx]).padStart(2, '0');
-                        const targetGame = slotMap[hh][tm][dayKey];
+                        const targetGame = getGameForAttempt(slotMap, hh, dayKey, uniqueMinutes, targetMinIdx);
                         if (!targetGame) continue;
 
+                        sawAny = true;
                         if (checkMarket(targetGame, market)) {
                             green = true;
                         }
                     }
 
-                    if (green) {
-                        result[hh][bm].green += 1;
-                    }
+                    if (!sawAny) return;
+
+                    result[hh][bm].total += 1;
+                    if (green) result[hh][bm].green += 1;
+
+                    const baseGame = slotMap[hh][bm][dayKey];
+                    if (baseGame) result[hh][bm].goalsSum += totalGoals(baseGame);
                 });
             });
         });
@@ -1256,32 +1280,33 @@
                 const bm = String(baseMin).padStart(2, '0');
 
                 selectedDays.forEach(dayKey => {
-                    const baseGame = slotMap[hh][bm][dayKey];
-                    if (!baseGame) return;
-
-                    result[hh][bm].total += 1;
-                    result[hh][bm].goalsSum += totalGoals(baseGame);
-                    totals[bm].total += 1;
-                    totals[bm].goalsSum += totalGoals(baseGame);
-
                     let green = false;
+                    let sawAny = false;
 
-                    for (let attempt = 0; attempt < gales && !green; attempt++) {
+                    for (let attempt = 0; attempt < gales; attempt++) {
                         const targetMinIdx = minIdx + attempt;
-                        if (targetMinIdx >= numMins) break;
-
-                        const tm = String(uniqueMinutes[targetMinIdx]).padStart(2, '0');
-                        const targetGame = slotMap[hh][tm][dayKey];
+                        const targetGame = getGameForAttempt(slotMap, hh, dayKey, uniqueMinutes, targetMinIdx);
                         if (!targetGame) continue;
 
+                        sawAny = true;
                         if (checkMarket(targetGame, market)) {
                             green = true;
                         }
                     }
 
+                    if (!sawAny) return;
+
+                    result[hh][bm].total += 1;
+                    totals[bm].total += 1;
                     if (green) {
                         result[hh][bm].green += 1;
                         totals[bm].green += 1;
+                    }
+
+                    const baseGame = slotMap[hh][bm][dayKey];
+                    if (baseGame) {
+                        result[hh][bm].goalsSum += totalGoals(baseGame);
+                        totals[bm].goalsSum += totalGoals(baseGame);
                     }
                 });
             });
