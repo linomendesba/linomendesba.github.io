@@ -262,8 +262,7 @@
     .tabela-liga.tem-col-sel td:first-child,
     .tabela-liga.tem-col-sel td:nth-child(2),
     .tabela-liga.tem-col-sel td:nth-last-child(1),
-    .tabela-liga.tem-col-sel td:nth-last-child(2),
-    .tabela-liga.tem-col-sel td:nth-last-child(3) { filter: none; }
+    .tabela-liga.tem-col-sel td:nth-last-child(2) { filter: none; }
 
     /* selected rows */
     .selected-rows-liga { margin-top: 6px; border-top: 1px solid var(--border); }
@@ -1561,16 +1560,16 @@ const CASAS_CONFIG = {
       ? construirMapaAcertoPorHora(cache.dados,cfg,proximaHora,mercado,tipoPlacar)
       : null;
 
-    // Mesma regra de exclusão do dia em andamento (dados incompletos) usada na tabela
+    // Mesma regra da tabela: "hoje" nunca ocupa vaga do histórico (diasAtual);
+    // se tiver dado, entra como dia extra, sem disputar slice com os dias antigos
     const agora=new Date();
     const hojeStr=`${agora.getFullYear()}-${(agora.getMonth()+1).toString().padStart(2,"0")}-${agora.getDate().toString().padStart(2,"0")}`;
-    const offset=CASAS_CONFIG[casaAtual]?.offsetHora||0;
-    const horaAtualCasa=(agora.getHours()+offset)%24;
-    const horaEmAndamento=hora===horaAtualCasa;
-    const datasUnicas=Array.from(mapaAtual.keys())
+    const temHoje=mapaAtual.has(hojeStr);
+    const historico=Array.from(mapaAtual.keys())
+      .filter(d=>d!==hojeStr)
       .sort((a,b)=>b.localeCompare(a))
-      .filter(d=>!(horaEmAndamento&&d===hojeStr))
       .slice(0,diasAtual);
+    const datasUnicas=temHoje?[hojeStr,...historico]:historico;
 
     // Analisa cada combinação
     const resultados=[];
@@ -1809,16 +1808,16 @@ const CASAS_CONFIG = {
       const mapaAtual = construirMapaAcertoPorHora(cache.dados, cfg, hora, mercado, tipoPlacar);
       if (mapaAtual.size === 0) return [];
 
-      // Exclui dia atual se a hora está acontecendo agora (dados incompletos)
+      // Mesma regra da tabela: "hoje" nunca ocupa vaga do histórico (diasAtual);
+      // se tiver dado, entra como dia extra, sem disputar slice com os dias antigos
       const agoraG = new Date();
       const hojeStrG = `${agoraG.getFullYear()}-${(agoraG.getMonth()+1).toString().padStart(2,"0")}-${agoraG.getDate().toString().padStart(2,"0")}`;
-      const offsetG = CASAS_CONFIG[casaAtual]?.offsetHora || 0;
-      const horaAtualCasaG = (agoraG.getHours() + offsetG) % 24;
-      const horaEmAndamentoG = hora === horaAtualCasaG;
-      const datasUnicas = Array.from(mapaAtual.keys())
+      const temHojeG = mapaAtual.has(hojeStrG);
+      const historicoG = Array.from(mapaAtual.keys())
+        .filter(d => d !== hojeStrG)
         .sort((a, b) => b.localeCompare(a))
-        .filter(d => !(horaEmAndamentoG && d === hojeStrG))
         .slice(0, diasAtual);
+      const datasUnicas = temHojeG ? [hojeStrG, ...historicoG] : historicoG;
 
       // Gera combinações sequenciais, emprestando minutos da hora seguinte quando necessário
       const combinacoes = gerarCombinacoesComEmprestimo(mF, numG);
@@ -2168,15 +2167,16 @@ const CASAS_CONFIG = {
 
     const datasSet = new Set();
     dados.forEach(d => datasSet.add(getDateStr(d.data)));
+    // Mesma regra da tabela: "hoje" nunca ocupa vaga do histórico (diasAtual);
+    // se tiver dado, entra como dia extra, sem disputar slice com os dias antigos
     const agoraV = new Date();
     const hojeStrV = `${agoraV.getFullYear()}-${(agoraV.getMonth()+1).toString().padStart(2,"0")}-${agoraV.getDate().toString().padStart(2,"0")}`;
-    const offsetV = CASAS_CONFIG[casaAtual]?.offsetHora || 0;
-    const horaAtualCasaV = (agoraV.getHours() + offsetV) % 24;
-    const horaEmAndamentoV = horaAlvo === horaAtualCasaV;
-    const datasUnicas = Array.from(datasSet)
+    const temHojeV = datasSet.has(hojeStrV);
+    const historicoV = Array.from(datasSet)
+      .filter(d => d !== hojeStrV)
       .sort((a, b) => b.localeCompare(a))
-      .filter(d => !(horaEmAndamentoV && d === hojeStrV))
       .slice(0, diasAtual);
+    const datasUnicas = temHojeV ? [hojeStrV, ...historicoV] : historicoV;
 
     const mapaDatas = new Map();
     datasUnicas.forEach(ds => mapaDatas.set(ds, new Map()));
