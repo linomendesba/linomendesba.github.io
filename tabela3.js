@@ -73,7 +73,7 @@ function getClassePct(pct) {
 
 const LABEL_CURTO_MERCADO = {
   ambasMarcam: "BTS", ambasNaoMarcam: "NBTS",
-  casaVence: "1", empate: "X", foraVence: "2",
+  casaVence: "1", empate: "X", foraVence: "2", viradinha: "VIRA",
   "over0.5": "O0.5", "over1.5": "O1.5", "over2.5": "O2.5", "over3.5": "O3.5", over5: "O5+",
   "under0.5": "U0.5", "under1.5": "U1.5", "under2.5": "U2.5", "under3.5": "U3.5",
   exato0: "=0", exato1: "=1", exato2: "=2", exato3: "=3", exato4: "=4",
@@ -512,6 +512,106 @@ function aplicarOraculoTabela() {
     if (td) {
       td.classList.add("oraculo-marcado");
       td.setAttribute("data-oraculo-label", ORACULO_LABELS[i] || "");
+    }
+  });
+}
+
+
+/* ── BUSCADOR: "Análise por Sequência" adaptada pro futebol virtual ──
+   Mesma ideia do Speedway (ler os últimos N resultados, achar essa mesma
+   sequência no histórico e ver o que veio depois), só que aqui é por
+   MERCADO (under/over/casa vence/etc.) e por COLUNA de minuto (cada
+   minuto fixo é um "horário" que se repete a cada hora, igual hora fixa).
+   Só marca a célula do próximo confronto quando a assertividade histórica
+   for 100%. */
+const BUSCADOR_QTD = 4;
+const BUSCADOR_AMOSTRA_MINIMA = 3;
+const BUSCADOR_MERCADOS = [
+  "casaVence","empate","foraVence","ambasMarcam","ambasNaoMarcam","viradinha",
+  "over0.5","over1.5","over2.5","over3.5","over5",
+  "under0.5","under1.5","under2.5","under3.5"
+];
+
+function buscadorParsePlacar(str) {
+  if (!str) return null;
+  const partes = String(str).split(" x ").map(n => parseInt(n, 10));
+  if (partes.length !== 2 || isNaN(partes[0]) || isNaN(partes[1])) return null;
+  return partes;
+}
+
+function buscadorAcertoDado(mercado, dado) {
+  const ft = buscadorParsePlacar(dado.ft);
+  if (!ft) return null;
+  const ht = buscadorParsePlacar(dado.ht);
+  return verificarAcerto(mercado, ft[0], ft[1], ht ? ht[0] : null, ht ? ht[1] : null);
+}
+
+const _buscadorCacheColuna = new Map();
+
+function buscadorSerieColuna(minuto) {
+  if (_buscadorCacheColuna.has(minuto)) return _buscadorCacheColuna.get(minuto);
+  const serie = (qdDadosCache || [])
+    .filter(d => {
+      const mn = minutosFixos.reduce((p,c)=>Math.abs(c-d.minuto)<Math.abs(p-d.minuto)?c:p);
+      return mn === minuto;
+    })
+    .map(d => ({
+      ts: new Date(`${getDateStr(d.data)}T${d.hora.toString().padStart(2,"0")}:${d.minuto.toString().padStart(2,"0")}:00`).getTime(),
+      dado: d
+    }))
+    .sort((a,b) => a.ts - b.ts);
+  _buscadorCacheColuna.set(minuto, serie);
+  return serie;
+}
+
+function buscadorSequenciaParaColuna(minuto, mercado) {
+  const coluna = buscadorSerieColuna(minuto)
+    .map(x => buscadorAcertoDado(mercado, x.dado))
+    .filter(v => v !== null);
+
+  if (coluna.length < BUSCADOR_QTD + BUSCADOR_AMOSTRA_MINIMA) return null;
+
+  const atual = coluna.slice(-BUSCADOR_QTD);
+  let ocorrencias = 0, greens = 0;
+  for (let i = 0; i <= coluna.length - BUSCADOR_QTD - 1; i++) {
+    let bate = true;
+    for (let j = 0; j < BUSCADOR_QTD; j++) {
+      if (coluna[i+j] !== atual[j]) { bate = false; break; }
+    }
+    if (!bate) continue;
+    ocorrencias++;
+    if (coluna[i + BUSCADOR_QTD]) greens++;
+  }
+  if (ocorrencias < BUSCADOR_AMOSTRA_MINIMA) return null;
+  return { ocorrencias, greens, taxa: greens / ocorrencias };
+}
+
+function aplicarBuscadorTabela() {
+  document.querySelectorAll(".buscador-marcado").forEach(td => {
+    td.classList.remove("buscador-marcado");
+    td.removeAttribute("data-buscador-label");
+  });
+  const ativo = localStorage.getItem("buscadorAtivo") === "1";
+  if (!ativo || !qdDadosCache || !qdDadosCache.length) return;
+
+  _buscadorCacheColuna.clear();
+
+  document.querySelectorAll("#tabelaResultados tbody td.cel-proximo-jogo").forEach(td => {
+    const tr = td.closest("tr");
+    if (!tr) return;
+    const idx = Array.prototype.indexOf.call(tr.children, td) - 1;
+    const minuto = minutosFixos[idx];
+    if (minuto === undefined) return;
+
+    const bateram = [];
+    BUSCADOR_MERCADOS.forEach(mercado => {
+      const r = buscadorSequenciaParaColuna(minuto, mercado);
+      if (r && r.taxa === 1) bateram.push(mercado);
+    });
+
+    if (bateram.length) {
+      td.classList.add("buscador-marcado");
+      td.setAttribute("data-buscador-label", bateram.map(m => LABEL_CURTO_MERCADO[m] || m).join(" • "));
     }
   });
 }
@@ -1031,25 +1131,25 @@ function garantirCheckboxQuadrantes() {
 
     /* ── Painel "Cores das Células" — no mesmo padrão visual dos seletores do topo ── */
     #painel-cores {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      padding: 6px 2px; margin-top: -20px;
+      display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+      padding: 4px 2px; margin-top: -20px;
     }
     /* Base compartilhada por todos os "controles" do painel — mesma altura,
        mesmo raio e mesma paleta neutra usada nos <select> do topo da página */
     #painel-cores label,
     .btn-reset-cores {
-      display:inline-flex; align-items:center; gap:6px;
-      height:30px; padding:0 11px; box-sizing:border-box;
+      display:inline-flex; align-items:center; gap:4px;
+      height:22px; padding:0 7px; box-sizing:border-box;
       background:#1c212f; border:1px solid rgba(255,255,255,0.09);
-      border-radius:7px; font-size:0.76em; font-weight:600; color:#9ca3af;
+      border-radius:6px; font-size:0.66em; font-weight:600; color:#9ca3af;
       cursor:pointer; white-space:nowrap;
       transition:background 0.15s, border-color 0.15s, color 0.15s;
     }
     #painel-cores label:hover,
     .btn-reset-cores:hover { background:#242b3d; border-color:rgba(255,255,255,0.18); color:#d1d5db; }
     #painel-cores input[type="color"] {
-      width:18px; height:18px; border:1px solid rgba(255,255,255,0.18);
-      border-radius:5px; cursor:pointer; padding:0; background:none;
+      width:14px; height:14px; border:1px solid rgba(255,255,255,0.18);
+      border-radius:4px; cursor:pointer; padding:0; background:none;
     }
 
     @keyframes streakPulse {
@@ -1065,26 +1165,26 @@ function garantirCheckboxQuadrantes() {
       outline-offset: -2px;
     }
     .alerta-toggle-label {
-      display: inline-flex; align-items: center; gap: 6px;
-      height:30px; padding: 0 11px; box-sizing:border-box;
-      cursor: pointer; color: #9ca3af; font-size: 0.76em; font-weight: 600; user-select: none;
-      border-radius: 7px; border: 1px solid rgba(255,255,255,0.09); background:#1c212f;
-      transition: border-color 0.2s, color 0.2s, background 0.2s; letter-spacing: 0.2px; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 4px;
+      height:22px; padding: 0 7px; box-sizing:border-box;
+      cursor: pointer; color: #9ca3af; font-size: 0.66em; font-weight: 600; user-select: none;
+      border-radius: 6px; border: 1px solid rgba(255,255,255,0.09); background:#1c212f;
+      transition: border-color 0.2s, color 0.2s, background 0.2s; letter-spacing: 0.1px; white-space: nowrap;
     }
     .alerta-toggle-label:hover { border-color: rgba(255,220,0,0.3); color: #d4af37; background: rgba(255,220,0,0.08); }
-    .alerta-toggle-label input[type="checkbox"] { width: 12px; height: 12px; cursor: pointer; accent-color: #d4af37; flex-shrink: 0; }
+    .alerta-toggle-label input[type="checkbox"] { width: 10px; height: 10px; cursor: pointer; accent-color: #d4af37; flex-shrink: 0; }
     .alerta-ativo { color: #d4af37 !important; font-weight: 700; border-color: rgba(212,175,55,0.45) !important; background: rgba(212,175,55,0.08) !important; }
 
     /* Botão primário — preenchimento sólido, se destaca claramente como ação de confirmação */
     .btn-aplicar-cores {
-      display:inline-flex; align-items:center; gap:5px;
-      height:30px; padding:0 13px; box-sizing:border-box;
+      display:inline-flex; align-items:center; gap:4px;
+      height:22px; padding:0 9px; box-sizing:border-box;
       background: #20283b;
       /* border: 1px solid #16a34a; */
-      border-radius: 7px;
+      border-radius: 6px;
       cursor: pointer;
       color: #8ba3af;
-      font-size:0.76em; font-weight:700;
+      font-size:0.66em; font-weight:700;
       transition:background 0.15s, border-color 0.15s, box-shadow 0.15s; white-space:nowrap;
     }
     .btn-aplicar-cores:hover {
@@ -1173,6 +1273,28 @@ function garantirCheckboxQuadrantes() {
       pointer-events:none;
       z-index:3;
       line-height:1;
+    }
+    /* ── BUSCADOR: marca direto na célula do próximo confronto quando alguma sequência bate 100% no histórico daquele minuto ── */
+    .buscador-marcado { position:relative; box-shadow:inset 0 0 0 1.5px rgba(139,77,232,0.9) !important; }
+    .buscador-marcado::before {
+      content: attr(data-buscador-label);
+      position:absolute;
+      left:2px; right:2px; bottom:2px;
+      background:rgba(139,77,232,0.94);
+      color:#fff;
+      font-size:7.5px;
+      font-weight:800;
+      letter-spacing:-0.1px;
+      line-height:1.15;
+      text-align:center;
+      border-radius:3px;
+      padding:1px 2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      box-shadow:0 0 5px rgba(139,77,232,0.75);
+      pointer-events:none;
+      z-index:3;
     }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
     #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
@@ -1336,6 +1458,10 @@ function garantirPainelCores() {
       <input type="checkbox" id="cb-oraculo-tabela">
       Oráculo
     </label>
+    <label class="alerta-toggle-label" id="lbl-buscador-tabela">
+      <input type="checkbox" id="cb-buscador-tabela">
+      Buscador
+    </label>
   `;
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
   el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
@@ -1393,6 +1519,20 @@ function garantirPainelCores() {
     });
   }
 
+
+  const bqCb  = el.querySelector("#cb-buscador-tabela");
+  const bqLbl = el.querySelector("#lbl-buscador-tabela");
+  if (bqCb) {
+    const bqOn = localStorage.getItem("buscadorAtivo") === "1";
+    bqCb.checked = bqOn;
+    bqLbl?.classList.toggle("alerta-ativo", bqOn);
+    bqCb.addEventListener("change", function() {
+      localStorage.setItem("buscadorAtivo", this.checked ? "1" : "0");
+      bqLbl?.classList.toggle("alerta-ativo", this.checked);
+      aplicarBuscadorTabela();
+    });
+  }
+
   el.querySelector("#btn-reset-cores").addEventListener("click", () => {
     Estado.corGreen = COR_GREEN_PADRAO; Estado.corRed = COR_RED_PADRAO; Estado.salvar();
     el.querySelector("#input-cor-green").value = COR_GREEN_PADRAO;
@@ -1424,6 +1564,10 @@ function sincronizarPainelCores() {
   const orCb  = document.getElementById("cb-oraculo-tabela");
   const orLbl = document.getElementById("lbl-oraculo-tabela");
   if (orCb) { const on = localStorage.getItem("oraculoAtivo") === "1"; orCb.checked = on; orLbl?.classList.toggle("alerta-ativo", on); }
+
+  const bqCb  = document.getElementById("cb-buscador-tabela");
+  const bqLbl = document.getElementById("lbl-buscador-tabela");
+  if (bqCb) { const on = localStorage.getItem("buscadorAtivo") === "1"; bqCb.checked = on; bqLbl?.classList.toggle("alerta-ativo", on); }
 }
 
 
@@ -2171,10 +2315,16 @@ function hfRender(dados) {
 
   const agoraHF = new Date();
   const hojeStrHF = `${agoraHF.getFullYear()}-${(agoraHF.getMonth()+1).toString().padStart(2,"0")}-${agoraHF.getDate().toString().padStart(2,"0")}`;
-  const horaEmAndamentoHF = horaAlvo === agoraHF.getHours();
 
-  let diasSelecionados = hfUltimosDias(dadosDaHora, hfLerDias() + (horaEmAndamentoHF ? 1 : 0));
-  if (horaEmAndamentoHF) diasSelecionados = diasSelecionados.filter(d => d !== hojeStrHF).slice(-hfLerDias());
+  // Mesma regra da Tabela/Day/Hora Fixa (buscadores): "hoje" nunca ocupa vaga
+  // do histórico (hfLerDias dias) — se tiver dado, entra como dia extra, sem
+  // disputar o slice com os dias antigos. Antes só excluía "hoje" quando a
+  // hora analisada era a hora atual do relógio, o que deixava hoje roubar a
+  // vaga de um dia histórico válido em qualquer outra hora, gerando
+  // contagens diferentes das outras duas páginas.
+  const temHojeHF = dadosDaHora.some(d => d && getDateStr(d.data) === hojeStrHF);
+  const historicoHF = hfUltimosDias(dadosDaHora.filter(d => !(d && getDateStr(d.data) === hojeStrHF)), hfLerDias());
+  let diasSelecionados = temHojeHF ? [...historicoHF, hojeStrHF] : historicoHF;
 
   const linha = hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados);
 
@@ -2605,6 +2755,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   qdDadosCache = dados;
   if (qdCheckboxAtivo()) qdRenderTabelaValores(dados);
+  aplicarBuscadorTabela();
 
 
   rkSincronizar();
@@ -2969,642 +3120,4 @@ function sincronizarEstiloBtnMercadosExtras() {
  } catch (e) {
    console.error("Erro ao iniciar popover de mercados extras:", e);
  }
-})();
-/* =========================================================================
-   BUSCAR PADRÕES (automático, focado nos PRÓXIMOS CONFRONTOS)
-   -------------------------------------------------------------------------
-   O botão "Buscar Padrões" testa sozinho todos os placares que já
-   apareceram no histórico carregado, cruzando com uma faixa de "pulos" e
-   "entradas", para o mercado que já está selecionado no filtro
-   (#seletorResultado).
-
-   Só entram na lista os padrões que estão "valendo" AGORA: o
-   placar-gatilho já aconteceu recentemente e a janela de pulos/entradas
-   dele ainda vai cair em jogos que ainda não aconteceram (os "próximos
-   confrontos", em azul na tabela). Ao selecionar um deles, marcamos
-   exatamente as células futuras onde ele está valendo — sempre
-   recalculado na hora, para nunca ficar desatualizado.
-
-   Reaproveita tudo que já existe acima neste arquivo: _cacheResultados,
-   _cacheProximosJogos, qdCheckMarket, minutosFixos, getDateStr,
-   getLigaKey, Estado, criarTabela.
-   ========================================================================= */
-(function () {
-  if (window.__bpAutoInit) return;
-  window.__bpAutoInit = true;
-
-  // ---------------------------------------------------------------------
-  // Estado do módulo
-  // ---------------------------------------------------------------------
-  const bpEstado = {
-    minOcorrencias: 5,
-    maxPulos: 9,
-    maxEntradas: 3,
-    pctMinimo: 0,          // filtro de % mínima exibida na lista (0 = todas)
-    resultadosBrutos: [],  // todos os padrões ativos encontrados (sem filtro de %)
-    resultados: [],        // resultadosBrutos já filtrados por pctMinimo (o que é exibido)
-    selecionado: null,     // padrão atualmente destacado na tabela
-    painelAberto: false,
-  };
-
-  // células atualmente marcadas na tabela: chave -> { jogoFuturo, classe, badgeTexto, badgeClasse }
-  let bpCelulasMarcadas = new Map();
-
-  function bpChaveConfig() {
-    const liga = (typeof getLigaKey === "function") ? getLigaKey() : "default";
-    return `bpAutoConfig_${liga}`;
-  }
-
-  function bpCarregarConfig() {
-    try {
-      const raw = localStorage.getItem(bpChaveConfig());
-      if (!raw) return;
-      const cfg = JSON.parse(raw);
-      if (cfg.minOcorrencias) bpEstado.minOcorrencias = cfg.minOcorrencias;
-      if (cfg.maxPulos != null) bpEstado.maxPulos = cfg.maxPulos;
-      if (cfg.maxEntradas != null) bpEstado.maxEntradas = cfg.maxEntradas;
-      if (cfg.pctMinimo != null) bpEstado.pctMinimo = cfg.pctMinimo;
-    } catch (e) { /* config corrompida: ignora */ }
-  }
-
-  function bpSalvarConfig() {
-    try {
-      localStorage.setItem(bpChaveConfig(), JSON.stringify({
-        minOcorrencias: bpEstado.minOcorrencias,
-        maxPulos: bpEstado.maxPulos,
-        maxEntradas: bpEstado.maxEntradas,
-        pctMinimo: bpEstado.pctMinimo,
-      }));
-    } catch (e) { /* localStorage indisponível: segue sem persistir */ }
-  }
-
-  // ---------------------------------------------------------------------
-  // Mercado alvo = o que já está selecionado no filtro principal da tabela
-  // ---------------------------------------------------------------------
-  function bpMercadoAtual() {
-    const sel = document.querySelector("#seletorResultado");
-    return sel && sel.value ? sel.value : "ambasMarcam";
-  }
-
-  function bpNomeMercado(chave) {
-    return (typeof LABEL_CURTO_MERCADO === "object" && LABEL_CURTO_MERCADO[chave]) || chave;
-  }
-
-  // ---------------------------------------------------------------------
-  // Coleta cronológica dos jogos JÁ REALIZADOS (mais antigo primeiro)
-  // ---------------------------------------------------------------------
-  function bpTimestamp(jogo) {
-    const ds = getDateStr(jogo.data);
-    const hh = String(jogo.hora).padStart(2, "0");
-    const mm = String(jogo.minuto).padStart(2, "0");
-    return new Date(`${ds}T${hh}:${mm}:00`).getTime();
-  }
-
-  function bpColetarJogosOrdenados() {
-    const base = (typeof _cacheResultados !== "undefined" && Array.isArray(_cacheResultados)) ? _cacheResultados : [];
-    return base
-      .filter(j => j && j.ft && j.ft.includes("x") && j.data != null && j.hora != null && j.minuto != null)
-      .map(j => Object.assign({}, j, { _ts: bpTimestamp(j) }))
-      .sort((a, b) => a._ts - b._ts);
-  }
-
-  // ---------------------------------------------------------------------
-  // Coleta cronológica dos PRÓXIMOS CONFRONTOS (ainda não realizados)
-  // ---------------------------------------------------------------------
-  function bpDataStrFuturo(j) {
-    if (j.captured_date) return j.captured_date.split("/").reverse().join("-");
-    if (j.start_time) return new Date(j.start_time).toISOString().split("T")[0];
-    if (j.date instanceof Date) return j.date.toISOString().split("T")[0];
-    return null;
-  }
-
-  function bpMapearFuturo(j) {
-    if (!j || !j.time) return null;
-    const [h, mn] = String(j.time).split(":").map(Number);
-    if (Number.isNaN(h) || Number.isNaN(mn)) return null;
-    const minuto = minutosFixos.reduce((p, c) => Math.abs(c - mn) < Math.abs(p - mn) ? c : p);
-    const dataStr = bpDataStrFuturo(j);
-    if (!dataStr) return null;
-    return {
-      _origem: j,
-      dataStr,
-      hora: h,
-      minuto,
-      timeCasa: j.team_home,
-      timeFora: j.team_visit,
-    };
-  }
-
-  function bpColetarFuturosOrdenados() {
-    const base = (typeof _cacheProximosJogos !== "undefined" && Array.isArray(_cacheProximosJogos)) ? _cacheProximosJogos : [];
-    return base
-      .map(bpMapearFuturo)
-      .filter(Boolean)
-      .map(jf => Object.assign(jf, {
-        _ts: new Date(`${jf.dataStr}T${String(jf.hora).padStart(2, "0")}:${String(jf.minuto).padStart(2, "0")}:00`).getTime(),
-      }))
-      .sort((a, b) => a._ts - b._ts);
-  }
-
-  // ---------------------------------------------------------------------
-  // Motor: testa TODOS os placares x pulos x entradas sobre o histórico
-  // (isso dá a % de acerto de cada padrão)
-  // ---------------------------------------------------------------------
-  function bpCalcularCandidatos(jogos, mercado) {
-    const n = jogos.length;
-    if (n < 10) return [];
-
-    const marketHit = new Array(n);
-    for (let i = 0; i < n; i++) marketHit[i] = qdCheckMarket(jogos[i].ft, jogos[i].ht, mercado);
-
-    const indicesPorPlacar = new Map();
-    for (let i = 0; i < n; i++) {
-      const p = jogos[i].ft;
-      if (!indicesPorPlacar.has(p)) indicesPorPlacar.set(p, []);
-      indicesPorPlacar.get(p).push(i);
-    }
-
-    const candidatos = [];
-
-    indicesPorPlacar.forEach((indices, placar) => {
-      if (indices.length < bpEstado.minOcorrencias) return;
-
-      for (let pulos = 0; pulos <= bpEstado.maxPulos; pulos++) {
-        for (let entradas = 1; entradas <= bpEstado.maxEntradas; entradas++) {
-          let greens = 0, total = 0;
-
-          for (const i of indices) {
-            const inicioEntradas = i + pulos + 1;
-            const fimEntradas = inicioEntradas + entradas;
-            if (fimEntradas > n) continue; // janela incompleta no fim do histórico
-
-            let idxGreen = -1;
-            for (let k = inicioEntradas; k < fimEntradas; k++) {
-              if (marketHit[k]) { idxGreen = k - inicioEntradas; break; }
-            }
-            total++;
-            if (idxGreen !== -1) greens++;
-          }
-
-          if (total >= bpEstado.minOcorrencias) {
-            candidatos.push({
-              placar, pulos, entradas, mercado, nomeMercado: bpNomeMercado(mercado),
-              greens, total, pct: (greens / total) * 100,
-            });
-          }
-        }
-      }
-    });
-
-    candidatos.sort((a, b) => (b.pct - a.pct) || (b.total - a.total));
-
-    const vistos = new Set();
-    const finais = [];
-    for (const c of candidatos) {
-      const chave = `${c.placar}|${c.pulos}`;
-      if (vistos.has(chave)) continue;
-      vistos.add(chave);
-      finais.push(c);
-    }
-    return finais;
-  }
-
-  // ---------------------------------------------------------------------
-  // Verifica se um padrão está "valendo" agora: pega a(s) última(s)
-  // ocorrência(s) do placar-gatilho cuja janela de pulos/entradas ainda
-  // não terminou no histórico — ou seja, parte dela cai nos próximos
-  // confrontos — e devolve exatamente quais jogos futuros são esses.
-  // Recebe jogosPassados/futuros já prontos para não recalcular à toa
-  // quando é chamada várias vezes seguidas (lista inteira, por exemplo).
-  // ---------------------------------------------------------------------
-  function bpChecarProximos(padrao, jogosPassados, futuros) {
-    const n = jogosPassados.length;
-    const alvos = [];
-
-    for (let i = 0; i < n; i++) {
-      if (jogosPassados[i].ft !== padrao.placar) continue;
-
-      const inicioEntradas = i + padrao.pulos + 1;
-      const fimEntradas = inicioEntradas + padrao.entradas;
-      if (fimEntradas <= n) continue; // essa ocorrência já terminou toda no passado
-
-      for (let k = i + 1; k < fimEntradas; k++) {
-        if (k < n) continue; // esse slot ainda é jogo já realizado
-        const jf = futuros[k - n];
-        if (!jf) continue; // ainda não carregamos esse jogo futuro
-        const dentroEntradas = k >= inicioEntradas;
-        alvos.push({
-          jogoFuturo: jf,
-          tipo: dentroEntradas ? "entrada" : "pulo",
-          numero: dentroEntradas ? (k - inicioEntradas + 1) : (k - i),
-        });
-      }
-    }
-    return alvos;
-  }
-
-  // Calcula, para uma lista de candidatos, os alvos ativos de cada um —
-  // sempre com dados frescos (histórico + próximos ao vivo).
-  function bpComAlvosFrescos(candidatos) {
-    const jogosPassados = bpColetarJogosOrdenados();
-    const futuros = bpColetarFuturosOrdenados();
-    return candidatos
-      .map(c => Object.assign({}, c, { alvosProximos: bpChecarProximos(c, jogosPassados, futuros) }))
-      .filter(c => c.alvosProximos.length > 0);
-  }
-
-  // ---------------------------------------------------------------------
-  // Busca completa: calcula os candidatos e mantém só os que estão
-  // ativos agora dentro dos próximos confrontos.
-  // ---------------------------------------------------------------------
-  function bpBuscarAutomatico() {
-    const jogosPassados = bpColetarJogosOrdenados();
-    const mercado = bpMercadoAtual();
-    if (!(typeof _cacheProximosJogos !== "undefined" && _cacheProximosJogos.length)) return [];
-
-    const candidatos = bpCalcularCandidatos(jogosPassados, mercado);
-    return bpComAlvosFrescos(candidatos).slice(0, 30);
-  }
-
-  function bpAplicarFiltroPct() {
-    bpEstado.resultados = bpEstado.pctMinimo > 0
-      ? bpEstado.resultadosBrutos.filter(r => r.pct >= bpEstado.pctMinimo)
-      : bpEstado.resultadosBrutos.slice();
-    if (bpEstado.resultados.length > 15) bpEstado.resultados = bpEstado.resultados.slice(0, 15);
-  }
-
-  // ---------------------------------------------------------------------
-  // Localiza a célula da tabela correspondente a um jogo futuro.
-  // Tenta primeiro pela chave data+hora+minuto; se não achar (algum
-  // detalhe de fuso/formatação), cai para um fallback buscando pelos
-  // nomes dos times no próprio placar futuro já renderizado.
-  // ---------------------------------------------------------------------
-  function bpChaveCelula(jf) {
-    return `${jf.dataStr}-${jf.hora}-${jf.minuto}`;
-  }
-
-  function bpNormalizarNome(s) {
-    return (typeof normalizeString === "function") ? normalizeString(s || "") : String(s || "").trim().toLowerCase();
-  }
-
-  function bpCelulaParaFuturo(jf) {
-    const chave = `${jf.dataStr}-${jf.hora}`;
-    const linha = document.querySelector(`#tabelaResultados tbody tr[data-chave="${CSS.escape(chave)}"]`);
-    if (linha) {
-      const idx = minutosFixos.indexOf(jf.minuto);
-      if (idx !== -1) {
-        const cel = linha.children[1 + idx];
-        if (cel) return cel;
-      }
-    }
-    // fallback: procura pelo placar futuro com os mesmos times
-    if (jf.timeCasa && jf.timeFora) {
-      const alvoA = bpNormalizarNome(jf.timeCasa), alvoB = bpNormalizarNome(jf.timeFora);
-      const placares = document.querySelectorAll("#tabelaResultados .placar-futuro");
-      for (const p of placares) {
-        const a = bpNormalizarNome(p.getAttribute("data-time-a"));
-        const b = bpNormalizarNome(p.getAttribute("data-time-b"));
-        if (a === alvoA && b === alvoB) return p.closest("td");
-      }
-    }
-    return null;
-  }
-
-  function bpBadge(cel, texto, classeSufixo) {
-    if (!cel) return;
-    const b = document.createElement("span");
-    b.className = `bp-badge bp-badge-${classeSufixo}`;
-    b.textContent = texto;
-    cel.appendChild(b);
-  }
-
-  // ---------------------------------------------------------------------
-  // Marca (só) as células dos próximos confrontos onde o padrão selecionado
-  // está valendo — recalculado na hora com dados frescos. Faz diff contra
-  // o que já está marcado para não remover e reaplicar à toa, evitando o
-  // "piscar" quando a tabela é atualizada sozinha.
-  // ---------------------------------------------------------------------
-  function bpLimparHighlight() {
-    bpCelulasMarcadas.forEach(info => {
-      const cel = bpCelulaParaFuturo(info.jogoFuturo);
-      if (cel) {
-        cel.classList.remove("bp-marcado", "bp-cel-alvo-entrada", "bp-cel-alvo-pulo");
-        const b = cel.querySelector(".bp-badge");
-        if (b) b.remove();
-      }
-    });
-    bpCelulasMarcadas = new Map();
-  }
-
-  function bpAplicarHighlight(rolarAte) {
-    let padrao = bpEstado.selecionado;
-
-    // recalcula os alvos na hora, com dados frescos (evita ficar desatualizado)
-    if (padrao) {
-      const jogosPassados = bpColetarJogosOrdenados();
-      const futuros = bpColetarFuturosOrdenados();
-      const alvosProximos = bpChecarProximos(padrao, jogosPassados, futuros);
-      padrao = Object.assign({}, padrao, { alvosProximos });
-    }
-
-    const alvos = padrao ? padrao.alvosProximos : [];
-
-    const novasMarcas = new Map();
-    alvos.forEach(a => {
-      const chave = bpChaveCelula(a.jogoFuturo);
-      // se já houver um alvo mais "forte" (entrada) marcado nessa mesma célula, mantém ele
-      if (novasMarcas.has(chave) && novasMarcas.get(chave).tipo === "entrada") return;
-      const classe = a.tipo === "entrada" ? "bp-cel-alvo-entrada" : "bp-cel-alvo-pulo";
-      const badgeClasse = a.tipo === "entrada" ? "alvo-entrada" : "alvo-pulo";
-      const badgeTexto = (a.tipo === "entrada" ? "E" : "P") + a.numero;
-      novasMarcas.set(chave, { jogoFuturo: a.jogoFuturo, tipo: a.tipo, classe, badgeTexto, badgeClasse });
-    });
-
-    // remove marcas que não existem mais
-    bpCelulasMarcadas.forEach((info, chave) => {
-      if (!novasMarcas.has(chave)) {
-        const cel = bpCelulaParaFuturo(info.jogoFuturo);
-        if (cel) {
-          cel.classList.remove("bp-marcado", "bp-cel-alvo-entrada", "bp-cel-alvo-pulo");
-          const b = cel.querySelector(".bp-badge");
-          if (b) b.remove();
-        }
-      }
-    });
-
-    // aplica/atualiza as marcas atuais
-    let primeiraCelula = null;
-    novasMarcas.forEach((info, chave) => {
-      const cel = bpCelulaParaFuturo(info.jogoFuturo);
-      if (!cel) return;
-      if (!primeiraCelula) primeiraCelula = cel;
-
-      const badgeAtual = cel.querySelector(".bp-badge");
-      const jaCorreto = cel.classList.contains(info.classe) && badgeAtual && badgeAtual.textContent === info.badgeTexto;
-      if (jaCorreto) return; // já está certinho, não mexe (evita flicker à toa)
-
-      cel.classList.remove("bp-cel-alvo-entrada", "bp-cel-alvo-pulo");
-      if (badgeAtual) badgeAtual.remove();
-      cel.classList.add("bp-marcado", info.classe);
-      bpBadge(cel, info.badgeTexto, info.badgeClasse);
-    });
-
-    bpCelulasMarcadas = novasMarcas;
-
-    if (rolarAte && primeiraCelula && typeof primeiraCelula.scrollIntoView === "function") {
-      primeiraCelula.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-    }
-  }
-
-  // ---------------------------------------------------------------------
-  // Renderização da lista de padrões ATIVOS (horizontal, acima da tabela)
-  // ---------------------------------------------------------------------
-  function bpRenderResultados() {
-    const el = document.getElementById("bpResultadosLista");
-    const painel = document.getElementById("bpPainelResultados");
-    const status = document.getElementById("bpStatusBusca");
-    if (!el) return;
-
-    const semNada = !bpEstado.resultados.length;
-    if (painel) painel.style.display = semNada ? "none" : "block";
-    el.innerHTML = "";
-
-    if (status) {
-      if (!bpEstado.resultadosBrutos.length) {
-        status.textContent = `Nenhum padrão está valendo agora nos próximos confrontos para "${bpNomeMercado(bpMercadoAtual())}".`;
-      } else if (semNada) {
-        status.textContent = `${bpEstado.resultadosBrutos.length} padrão(ões) ativo(s), mas nenhum com ${bpEstado.pctMinimo}% ou mais. Reduza o filtro de % para ver.`;
-      } else {
-        status.textContent = "";
-      }
-    }
-
-    if (semNada) return;
-
-    el.innerHTML = bpEstado.resultados.map((r, i) => {
-      const cor = r.pct >= 70 ? "#22c55e" : r.pct >= 50 ? "#eab308" : "#ef4444";
-      const ativo = bpEstado.selecionado === r;
-      const qtdEntradasAlvo = r.alvosProximos.filter(a => a.tipo === "entrada").length;
-      const proximidade = qtdEntradasAlvo > 0
-        ? `entrada já nos próximos`
-        : `${Math.min(...r.alvosProximos.map(a => a.numero))} pulo(s) até valer`;
-      return `
-        <div class="bp-item" data-idx="${i}" style="
-          flex: 0 0 auto; display:flex; flex-direction:column; gap:4px;
-          padding:8px 12px; border-radius:10px; cursor:pointer;
-          background:${ativo ? "#7c3aed26" : "#ffffff08"};
-          border:1px solid ${ativo ? "#7c3aed" : "transparent"}; min-width:150px;">
-          <div style="font-size:12px; white-space:nowrap;">
-            <strong style="color:#e5e7eb;">${r.placar}</strong>
-            <span style="opacity:.7;"> · ${r.pulos}p/${r.entradas}e ·</span>
-            <strong style="color:#c4b5fd;"> ${r.nomeMercado}</strong>
-          </div>
-          <div style="display:flex;align-items:baseline;gap:8px;white-space:nowrap;">
-            <span style="font-weight:800;font-size:15px;color:${cor};">${r.pct.toFixed(1)}%</span>
-            <span style="font-size:11px;opacity:.65;">${r.greens}/${r.total}</span>
-          </div>
-          <div style="font-size:10px; ${qtdEntradasAlvo > 0 ? "color:#f59e0b;font-weight:700;" : "opacity:.65;"} white-space:nowrap;">
-            ${proximidade}
-          </div>
-        </div>`;
-    }).join("");
-
-    el.querySelectorAll(".bp-item").forEach(div => {
-      div.addEventListener("click", () => {
-        const idx = parseInt(div.getAttribute("data-idx"), 10);
-        bpEstado.selecionado = bpEstado.resultados[idx];
-        bpRenderResultados();
-        bpAplicarHighlight(true);
-      });
-    });
-  }
-
-  // ---------------------------------------------------------------------
-  // Painel / UI — lista horizontal ACIMA da tabela, buscador ABAIXO dela
-  // ---------------------------------------------------------------------
-  function bpMontarPainel() {
-    if (document.getElementById("bpPainelResultados")) return;
-
-    const tabela = document.getElementById("tabelaResultados");
-    const host = tabela ? tabela.parentElement : document.body;
-
-    // --- lista horizontal de padrões, acima da tabela (sem texto de status aqui) ---
-    const wrapResultados = document.createElement("div");
-    wrapResultados.id = "bpPainelResultados";
-    wrapResultados.style.cssText = "margin:8px 0;font-family:inherit;display:none;";
-    wrapResultados.innerHTML = `
-      <div id="bpResultadosLista" style="
-        display:flex; gap:8px; overflow-x:auto; padding:2px 2px 6px 2px;
-        -webkit-overflow-scrolling:touch;"></div>
-    `;
-
-    // --- buscador (config + botões + status), abaixo da tabela ---
-    const wrapBuscador = document.createElement("div");
-    wrapBuscador.id = "bpPainelBuscarPadroes";
-    wrapBuscador.style.cssText = "margin:8px 0;font-family:inherit;";
-    wrapBuscador.innerHTML = `
-      <button id="bpBtnAbrir" type="button" style="
-        background:#7c3aed1a;border:1px solid #7c3aed80;color:#c4b5fd;
-        padding:6px 14px;border-radius:8px;font-weight:700;font-size:13px;
-        cursor:pointer;">🔎 Buscar Padrões</button>
-
-      <div id="bpPainelConfig" style="display:none;margin-top:8px;padding:10px;
-        border:1px solid #7c3aed40;border-radius:10px;background:#0f0f1a99;">
-
-        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:8px;">
-          <label style="display:flex;flex-direction:column;font-size:11px;gap:3px;">
-            Mín. ocorrências
-            <input id="bpMinOcorrencias" type="number" min="2" max="100" style="width:70px;padding:4px;border-radius:6px;">
-          </label>
-          <label style="display:flex;flex-direction:column;font-size:11px;gap:3px;">
-            Pulos até
-            <input id="bpMaxPulos" type="number" min="0" max="30" style="width:60px;padding:4px;border-radius:6px;">
-          </label>
-          <label style="display:flex;flex-direction:column;font-size:11px;gap:3px;">
-            Entradas até
-            <input id="bpMaxEntradas" type="number" min="1" max="10" style="width:60px;padding:4px;border-radius:6px;">
-          </label>
-          <label style="display:flex;flex-direction:column;font-size:11px;gap:3px;">
-            % mínima
-            <select id="bpFiltroPct" style="width:90px;padding:4px;border-radius:6px;">
-              <option value="0">Todas</option>
-              <option value="80">≥ 80%</option>
-              <option value="85">≥ 85%</option>
-              <option value="90">≥ 90%</option>
-              <option value="95">≥ 95%</option>
-              <option value="100">100%</option>
-            </select>
-          </label>
-          <button id="bpBtnBuscar" type="button" style="
-            background:#7c3aed;border:none;color:#fff;padding:7px 16px;
-            border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">Buscar Automaticamente</button>
-          <button id="bpBtnLimpar" type="button" style="
-            background:transparent;border:1px solid #6b7280;color:#d1d5db;
-            padding:7px 12px;border-radius:8px;font-size:13px;cursor:pointer;">Limpar</button>
-          <span id="bpMercadoLabel" style="font-size:11px;opacity:.7;margin-left:auto;"></span>
-        </div>
-
-        <div id="bpStatusBusca" style="font-size:11px;opacity:.75;"></div>
-      </div>
-    `;
-
-    if (tabela) {
-      host.insertBefore(wrapResultados, tabela);
-      if (tabela.nextSibling) host.insertBefore(wrapBuscador, tabela.nextSibling);
-      else host.appendChild(wrapBuscador);
-    } else {
-      host.appendChild(wrapResultados);
-      host.appendChild(wrapBuscador);
-    }
-
-    const elMin = wrapBuscador.querySelector("#bpMinOcorrencias");
-    const elMaxPulos = wrapBuscador.querySelector("#bpMaxPulos");
-    const elMaxEntradas = wrapBuscador.querySelector("#bpMaxEntradas");
-    const elFiltroPct = wrapBuscador.querySelector("#bpFiltroPct");
-    const elBtnAbrir = wrapBuscador.querySelector("#bpBtnAbrir");
-    const elPainelConfig = wrapBuscador.querySelector("#bpPainelConfig");
-    const elBtnBuscar = wrapBuscador.querySelector("#bpBtnBuscar");
-    const elBtnLimpar = wrapBuscador.querySelector("#bpBtnLimpar");
-    const elMercadoLabel = wrapBuscador.querySelector("#bpMercadoLabel");
-
-    elMin.value = bpEstado.minOcorrencias;
-    elMaxPulos.value = bpEstado.maxPulos;
-    elMaxEntradas.value = bpEstado.maxEntradas;
-    elFiltroPct.value = String(bpEstado.pctMinimo);
-
-    function atualizarLabelMercado() {
-      elMercadoLabel.textContent = `Mercado atual do filtro: ${bpNomeMercado(bpMercadoAtual())}`;
-    }
-    atualizarLabelMercado();
-
-    elBtnAbrir.addEventListener("click", () => {
-      bpEstado.painelAberto = !bpEstado.painelAberto;
-      elPainelConfig.style.display = bpEstado.painelAberto ? "block" : "none";
-      atualizarLabelMercado();
-    });
-
-    elBtnBuscar.addEventListener("click", () => {
-      bpEstado.minOcorrencias = parseInt(elMin.value, 10) || 5;
-      bpEstado.maxPulos = parseInt(elMaxPulos.value, 10) || 0;
-      bpEstado.maxEntradas = parseInt(elMaxEntradas.value, 10) || 1;
-      bpSalvarConfig();
-      atualizarLabelMercado();
-
-      elBtnBuscar.disabled = true;
-      elBtnBuscar.textContent = "Buscando...";
-      setTimeout(() => {
-        bpEstado.resultadosBrutos = bpBuscarAutomatico();
-        bpAplicarFiltroPct();
-        bpEstado.selecionado = bpEstado.resultados[0] || null;
-        bpRenderResultados();
-        bpAplicarHighlight(true);
-        elBtnBuscar.disabled = false;
-        elBtnBuscar.textContent = "Buscar Automaticamente";
-      }, 20);
-    });
-
-    elFiltroPct.addEventListener("change", () => {
-      bpEstado.pctMinimo = parseInt(elFiltroPct.value, 10) || 0;
-      bpSalvarConfig();
-      bpAplicarFiltroPct();
-      if (!bpEstado.resultados.includes(bpEstado.selecionado)) {
-        bpEstado.selecionado = bpEstado.resultados[0] || null;
-      }
-      bpRenderResultados();
-      bpAplicarHighlight(true);
-    });
-
-    elBtnLimpar.addEventListener("click", () => {
-      bpEstado.resultadosBrutos = [];
-      bpEstado.resultados = [];
-      bpEstado.selecionado = null;
-      bpRenderResultados();
-      bpLimparHighlight();
-    });
-
-    const seletorResultado = document.querySelector("#seletorResultado");
-    if (seletorResultado) seletorResultado.addEventListener("change", atualizarLabelMercado);
-  }
-
-  // ---------------------------------------------------------------------
-  // CSS do módulo (injetado uma única vez)
-  // ---------------------------------------------------------------------
-  function bpInjetarCSS() {
-    const style = document.createElement("style");
-    style.textContent = `
-      .bp-cel-alvo-entrada { box-shadow: inset 0 0 0 3px #f59e0b, 0 0 14px -1px #f59e0b !important; position: relative; z-index: 2; }
-      .bp-cel-alvo-pulo { box-shadow: inset 0 0 0 2px #a855f7cc, 0 0 10px -2px #a855f7 !important; position: relative; z-index: 2; }
-      .bp-badge {
-        position: absolute; top: 0; left: 0; z-index: 6;
-        font-size: 7px; font-weight: 800; line-height: 1;
-        padding: 1px 3px; border-radius: 0 0 4px 0;
-        background: #a855f7; color: #fff; pointer-events: none;
-      }
-      .bp-badge-alvo-entrada { background: #f59e0b; color: #1a1a1a; }
-      .bp-badge-alvo-pulo { background: #7c3aed; }
-      .bp-item:hover { background: #ffffff12 !important; }
-      #bpResultadosLista::-webkit-scrollbar { height: 6px; }
-      #bpResultadosLista::-webkit-scrollbar-thumb { background: #7c3aed80; border-radius: 4px; }
-    `;
-    document.head.appendChild(style);
-  }
-
-  // ---------------------------------------------------------------------
-  // Reaplica o destaque sempre que a tabela é redesenhada — de forma
-  // SÍNCRONA (sem setTimeout) para que o navegador nunca chegue a pintar
-  // um quadro sem as marcações, evitando o "piscar" ao atualizar.
-  // ---------------------------------------------------------------------
-  const _bpCriarTabelaOriginal = criarTabela;
-  criarTabela = function (...args) {
-    const r = _bpCriarTabelaOriginal.apply(this, args);
-    bpAplicarHighlight(false);
-    return r;
-  };
-
-  // ---------------------------------------------------------------------
-  // Boot
-  // ---------------------------------------------------------------------
-  bpCarregarConfig();
-  bpInjetarCSS();
-  bpMontarPainel();
 })();
