@@ -600,7 +600,7 @@ function buscadorProximasCelulas() {
       const corte = chave.lastIndexOf("-");
       const data = chave.slice(0, corte), hora = chave.slice(corte + 1);
       const ts = new Date(`${data}T${hora.toString().padStart(2,"0")}:${minuto.toString().padStart(2,"0")}:00`).getTime();
-      return { td, ts };
+      return { td, ts, chave, minuto };
     })
     .filter(Boolean)
     .sort((a,b) => a.ts - b.ts);
@@ -656,6 +656,75 @@ function renderBuscadorPainel(info) {
 
 let buscadorUltimoAlertaKey = null;
 
+const BUSCADOR_SINAL_KEY = "buscadorSinalPendente";
+
+function buscadorCarregarSinal() {
+  try { return JSON.parse(localStorage.getItem(BUSCADOR_SINAL_KEY)) || null; }
+  catch (e) { return null; }
+}
+
+function buscadorSalvarSinal(sinal) {
+  if (sinal) localStorage.setItem(BUSCADOR_SINAL_KEY, JSON.stringify(sinal));
+  else localStorage.removeItem(BUSCADOR_SINAL_KEY);
+}
+
+let buscadorSinalPendente = buscadorCarregarSinal();
+
+function buscadorBuscarDado(chave, minuto) {
+  const corte = chave.lastIndexOf("-");
+  const data = chave.slice(0, corte), hora = chave.slice(corte + 1);
+  return (qdDadosCache || []).find(d =>
+    getDateStr(d.data) === data && String(d.hora) === String(hora) && d.minuto === minuto
+  ) || null;
+}
+
+function buscadorAvaliarSinalPendente() {
+  if (!buscadorSinalPendente) return null;
+  const alvos = buscadorSinalPendente.alvos.map(a => {
+    const dado = buscadorBuscarDado(a.chave, a.minuto);
+    const acerto = dado ? buscadorAcertoDado(buscadorSinalPendente.mercado, dado) : null;
+    return { ...a, acerto };
+  });
+  const todosResolvidos = alvos.every(a => a.acerto !== null);
+  return { alvos, todosResolvidos, algumAcerto: alvos.some(a => a.acerto === true) };
+}
+
+function buscadorRemarcarCelulasPendentes() {
+  if (!buscadorSinalPendente) return;
+  buscadorSinalPendente.alvos.forEach((a, i) => {
+    const tr = document.querySelector(`#tabelaResultados tbody tr[data-chave="${a.chave}"]`);
+    if (!tr) return;
+    const idx = minutosFixos.indexOf(a.minuto);
+    if (idx === -1) return;
+    const td = tr.children[idx + 1];
+    if (td) {
+      td.classList.add("buscador-marcado");
+      td.setAttribute("data-buscador-label", String(i + 1));
+    }
+  });
+}
+
+function renderBuscadorPainelPendente() {
+  const painel = garantirPainelBuscador();
+  const mercadoLabel = LABEL_CURTO_MERCADO[buscadorSinalPendente.mercado] || buscadorSinalPendente.mercado || "";
+  const chips = (buscadorSinalPendente.sequencia || []).map(v => `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`).join("");
+  painel.innerHTML = `
+    <div class="buscador-box buscador-box-hit">
+      🔎 <strong>Buscador</strong> (${mercadoLabel}) — sequência lida: ${chips}
+      <span class="buscador-status buscador-status-hit">Sinal em andamento — aguardando o resultado dos ${BUSCADOR_ALVOS} confrontos marcados</span>
+    </div>`;
+}
+
+function buscadorNotificarResultadoSinal(algumAcerto) {
+  const mercadoLabel = LABEL_CURTO_MERCADO[buscadorSinalPendente.mercado] || buscadorSinalPendente.mercado;
+  if (algumAcerto) {
+    showToast(`✅ Buscador (${mercadoLabel}): sinal GREEN — bateu em pelo menos 1 dos ${BUSCADOR_ALVOS} confrontos`);
+  } else {
+    showToast(`❌ Buscador (${mercadoLabel}): sinal RED — não bateu em nenhum dos ${BUSCADOR_ALVOS} confrontos`);
+  }
+  buscadorPlayBeep();
+}
+
 function buscadorPlayBeep() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -695,6 +764,21 @@ function aplicarBuscadorTabela() {
   if (!ativo) { removerPainelBuscador(); return; }
   if (!qdDadosCache || !qdDadosCache.length) { removerPainelBuscador(); return; }
 
+  if (buscadorSinalPendente) {
+    const avaliacao = buscadorAvaliarSinalPendente();
+    if (avaliacao && avaliacao.todosResolvidos) {
+      buscadorNotificarResultadoSinal(avaliacao.algumAcerto);
+      buscadorSinalPendente = null;
+      buscadorSalvarSinal(null);
+      buscadorUltimoAlertaKey = null;
+      // segue o fluxo normal abaixo pra já buscar um novo sinal neste mesmo ciclo
+    } else {
+      buscadorRemarcarCelulasPendentes();
+      renderBuscadorPainelPendente();
+      return;
+    }
+  }
+
   const mercado = buscadorMercadoAtual();
   const resultado = buscadorAnalisar(mercado);
   if (!resultado) { renderBuscadorPainel({ insuficiente: true, mercado }); return; }
@@ -703,10 +787,20 @@ function aplicarBuscadorTabela() {
   renderBuscadorPainel({ mercado, resultado, bateu100 });
 
   if (bateu100) {
-    buscadorProximasCelulas().slice(0, BUSCADOR_ALVOS).forEach((item, i) => {
+    const celulas = buscadorProximasCelulas().slice(0, BUSCADOR_ALVOS);
+    celulas.forEach((item, i) => {
       item.td.classList.add("buscador-marcado");
       item.td.setAttribute("data-buscador-label", String(i + 1));
     });
+    if (celulas.length === BUSCADOR_ALVOS) {
+      buscadorSinalPendente = {
+        mercado,
+        sequencia: resultado.sequencia,
+        alvos: celulas.map(c => ({ chave: c.chave, minuto: c.minuto })),
+        criadoEm: Date.now()
+      };
+      buscadorSalvarSinal(buscadorSinalPendente);
+    }
     buscadorAlertar(mercado, resultado);
   }
 }
