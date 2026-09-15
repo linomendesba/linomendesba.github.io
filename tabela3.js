@@ -535,6 +535,7 @@ let BUSCADOR_AMOSTRA_MINIMA = (() => {
   return BUSCADOR_OPCOES_AMOSTRA.includes(salvo) ? salvo : BUSCADOR_AMOSTRA_MINIMA_PADRAO;
 })();
 const BUSCADOR_ALVOS = 3;
+const BUSCADOR_LABELS = ["SG", "G1", "G2"];
 
 function buscadorParsePlacar(str) {
   if (!str) return null;
@@ -711,7 +712,7 @@ function buscadorRemarcarCelulasPendentes() {
     const td = tr.children[idx + 1];
     if (td) {
       td.classList.add("buscador-marcado");
-      td.setAttribute("data-buscador-label", String(i + 1));
+      td.setAttribute("data-buscador-label", BUSCADOR_LABELS[i] || String(i + 1));
     }
   });
 }
@@ -802,7 +803,7 @@ function aplicarBuscadorTabela() {
     const celulas = buscadorProximasCelulas().slice(0, BUSCADOR_ALVOS);
     celulas.forEach((item, i) => {
       item.td.classList.add("buscador-marcado");
-      item.td.setAttribute("data-buscador-label", String(i + 1));
+      item.td.setAttribute("data-buscador-label", BUSCADOR_LABELS[i] || String(i + 1));
     });
     if (celulas.length === BUSCADOR_ALVOS) {
       buscadorSinalPendente = {
@@ -1475,18 +1476,19 @@ function garantirCheckboxQuadrantes() {
       z-index:3;
       line-height:1;
     }
-    /* ── BUSCADOR: marca com um numero (1/2/3) os próximos confrontos que serão validados pela sequência ── */
+    /* ── BUSCADOR: marca SG / G1 / G2 nos próximos confrontos validados pela sequência ── */
     .buscador-marcado { position:relative; box-shadow:inset 0 0 0 1.5px rgba(139,77,232,0.9) !important; }
     .buscador-marcado::before {
       content: attr(data-buscador-label);
       position:absolute;
       top:2px; left:2px;
-      width:16px; height:16px;
+      width:18px; height:18px;
       border-radius:50%;
       background:#8b4de8;
       color:#fff;
       font-size:9px;
       font-weight:800;
+      letter-spacing:-0.2px;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -1514,35 +1516,41 @@ function garantirCheckboxQuadrantes() {
       100% { box-shadow: 0 0 0 0 rgba(139,77,232,0); }
     }
     .buscador-pulse { animation: buscadorPulse 1s ease-in-out 2; }
-    #lbl-buscador-ocorrencias { display:inline-flex; align-items:center; gap:5px; line-height:1; }
+    #lbl-buscador-ocorrencias {
+      display:inline-flex; align-items:center;
+      height:22px; padding:0 !important;
+      border:none !important; background:transparent !important;
+    }
     .buscador-ocorrencias-select {
       appearance:none; -webkit-appearance:none; -moz-appearance:none;
       color-scheme:dark;
-      background-color:rgba(139,77,232,0.14);
-      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1.6 6 6.4 11 1.6' fill='none' stroke='%23c9a6ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-      background-repeat:no-repeat;
-      background-position:right 6px center;
-      background-size:9px 6px;
-      color:#e9dcff;
-      border:1px solid rgba(139,77,232,0.45);
-      border-radius:7px;
+      box-sizing:border-box;
       height:22px;
-      padding:0 20px 0 8px;
-      font-size:11px; font-weight:800; letter-spacing:0.3px; line-height:20px;
-      text-align:center; text-align-last:center;
+      padding:0 18px 0 8px;
+      background-color:rgba(212,175,55,0.08);
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1.2 5 4.8 9 1.2' fill='none' stroke='%23d4af37' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat:no-repeat;
+      background-position:right 5px center;
+      background-size:8px 5px;
+      border:1px solid rgba(212,175,55,0.45);
+      border-radius:6px;
+      color:#d4af37;
+      font-family:inherit;
+      font-size:0.66em; font-weight:700; letter-spacing:0.1px;
+      line-height:20px; white-space:nowrap;
       cursor:pointer; outline:none;
-      transition:border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+      transition:border-color .2s, background-color .2s, color .2s;
     }
     .buscador-ocorrencias-select:hover {
-      border-color:rgba(139,77,232,0.85);
-      background-color:rgba(139,77,232,0.24);
+      border-color:rgba(212,175,55,0.75);
+      background-color:rgba(212,175,55,0.16);
     }
     .buscador-ocorrencias-select:focus-visible {
-      border-color:#8b4de8;
-      box-shadow:0 0 0 2px rgba(139,77,232,0.35);
+      border-color:#d4af37;
+      box-shadow:0 0 0 2px rgba(212,175,55,0.25);
     }
     .buscador-ocorrencias-select option {
-      background:#1b1725; color:#e9dcff; font-weight:700;
+      background:#1c212f; color:#e5e7eb; font-weight:600;
     }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
     #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
