@@ -567,20 +567,24 @@ function buscadorSerieGlobal(mercado) {
 
 function buscadorAnalisar(mercado) {
   const bools = buscadorSerieGlobal(mercado);
-  if (bools.length < BUSCADOR_QTD + BUSCADOR_AMOSTRA_MINIMA) return null;
+  if (bools.length < BUSCADOR_QTD + BUSCADOR_ALVOS) return null;
 
   const atual = bools.slice(-BUSCADOR_QTD);
-  let ocorrencias = 0, greens = 0;
+  const todasOcorrencias = []; // ordem cronológica: true = acertou em ao menos 1 dos 3 próximos
   for (let i = 0; i <= bools.length - BUSCADOR_QTD - BUSCADOR_ALVOS; i++) {
     let bate = true;
     for (let j = 0; j < BUSCADOR_QTD; j++) {
       if (bools[i+j] !== atual[j]) { bate = false; break; }
     }
     if (!bate) continue;
-    ocorrencias++;
     const alvos = bools.slice(i + BUSCADOR_QTD, i + BUSCADOR_QTD + BUSCADOR_ALVOS);
-    if (alvos.some(Boolean)) greens++;
+    todasOcorrencias.push(alvos.some(Boolean));
   }
+
+  // considera só as últimas N ocorrências desse padrão, N = seletor "Ocorrências mín."
+  const janela = todasOcorrencias.slice(-BUSCADOR_AMOSTRA_MINIMA);
+  const ocorrencias = janela.length;
+  const greens = janela.filter(Boolean).length;
   return { sequencia: atual, ocorrencias, greens, taxa: ocorrencias ? greens / ocorrencias : null };
 }
 
