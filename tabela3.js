@@ -686,7 +686,19 @@ function buscadorAvaliarSinalPendente() {
     return { ...a, acerto };
   });
   const todosResolvidos = alvos.every(a => a.acerto !== null);
-  return { alvos, todosResolvidos, algumAcerto: alvos.some(a => a.acerto === true) };
+  const idxAcerto = alvos.findIndex(a => a.acerto === true);
+  const algumAcerto = idxAcerto !== -1;
+  const conferidos = alvos.filter(a => a.acerto !== null).length;
+  // GREEN antecipado: o primeiro acerto ja encerra o sinal, sem esperar os 3 confrontos.
+  // So aguarda os 3 quando nenhum bateu ainda (caminho pro RED).
+  return {
+    alvos,
+    todosResolvidos,
+    conferidos,
+    algumAcerto,
+    ordemAcerto: algumAcerto ? idxAcerto + 1 : null,
+    resolvido: algumAcerto || todosResolvidos
+  };
 }
 
 function buscadorRemarcarCelulasPendentes() {
@@ -704,21 +716,21 @@ function buscadorRemarcarCelulasPendentes() {
   });
 }
 
-function renderBuscadorPainelPendente() {
+function renderBuscadorPainelPendente(avaliacao) {
   const painel = garantirPainelBuscador();
   const mercadoLabel = LABEL_CURTO_MERCADO[buscadorSinalPendente.mercado] || buscadorSinalPendente.mercado || "";
   const chips = (buscadorSinalPendente.sequencia || []).map(v => `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`).join("");
   painel.innerHTML = `
     <div class="buscador-box buscador-box-hit">
       🔎 <strong>Buscador</strong> (${mercadoLabel}) — sequência lida: ${chips}
-      <span class="buscador-status buscador-status-hit">Sinal em andamento — aguardando o resultado dos ${BUSCADOR_ALVOS} confrontos marcados</span>
+      <span class="buscador-status buscador-status-hit">Sinal em andamento — ${(avaliacao ? avaliacao.conferidos : 0)}/${BUSCADOR_ALVOS} conferidos, ainda sem green (encerra no 1º acerto)</span>
     </div>`;
 }
 
-function buscadorNotificarResultadoSinal(algumAcerto) {
+function buscadorNotificarResultadoSinal(avaliacao) {
   const mercadoLabel = LABEL_CURTO_MERCADO[buscadorSinalPendente.mercado] || buscadorSinalPendente.mercado;
-  if (algumAcerto) {
-    showToast(`✅ Buscador (${mercadoLabel}): sinal GREEN — bateu em pelo menos 1 dos ${BUSCADOR_ALVOS} confrontos`);
+  if (avaliacao && avaliacao.algumAcerto) {
+    showToast(`✅ Buscador (${mercadoLabel}): sinal GREEN no ${avaliacao.ordemAcerto}º confronto — liberado pro próximo sinal`);
   } else {
     showToast(`❌ Buscador (${mercadoLabel}): sinal RED — não bateu em nenhum dos ${BUSCADOR_ALVOS} confrontos`);
   }
@@ -766,15 +778,15 @@ function aplicarBuscadorTabela() {
 
   if (buscadorSinalPendente) {
     const avaliacao = buscadorAvaliarSinalPendente();
-    if (avaliacao && avaliacao.todosResolvidos) {
-      buscadorNotificarResultadoSinal(avaliacao.algumAcerto);
+    if (avaliacao && avaliacao.resolvido) {
+      buscadorNotificarResultadoSinal(avaliacao);
       buscadorSinalPendente = null;
       buscadorSalvarSinal(null);
       buscadorUltimoAlertaKey = null;
       // segue o fluxo normal abaixo pra já buscar um novo sinal neste mesmo ciclo
     } else {
       buscadorRemarcarCelulasPendentes();
-      renderBuscadorPainelPendente();
+      renderBuscadorPainelPendente(avaliacao);
       return;
     }
   }
@@ -1502,10 +1514,35 @@ function garantirCheckboxQuadrantes() {
       100% { box-shadow: 0 0 0 0 rgba(139,77,232,0); }
     }
     .buscador-pulse { animation: buscadorPulse 1s ease-in-out 2; }
-    #lbl-buscador-ocorrencias { display:inline-flex; align-items:center; gap:6px; }
+    #lbl-buscador-ocorrencias { display:inline-flex; align-items:center; gap:5px; line-height:1; }
     .buscador-ocorrencias-select {
-      background:rgba(255,255,255,0.06); color:inherit; border:1px solid rgba(255,255,255,0.15);
-      border-radius:6px; padding:2px 6px; font-size:12px; font-weight:600;
+      appearance:none; -webkit-appearance:none; -moz-appearance:none;
+      color-scheme:dark;
+      background-color:rgba(139,77,232,0.14);
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1.6 6 6.4 11 1.6' fill='none' stroke='%23c9a6ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat:no-repeat;
+      background-position:right 6px center;
+      background-size:9px 6px;
+      color:#e9dcff;
+      border:1px solid rgba(139,77,232,0.45);
+      border-radius:7px;
+      height:22px;
+      padding:0 20px 0 8px;
+      font-size:11px; font-weight:800; letter-spacing:0.3px; line-height:20px;
+      text-align:center; text-align-last:center;
+      cursor:pointer; outline:none;
+      transition:border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+    }
+    .buscador-ocorrencias-select:hover {
+      border-color:rgba(139,77,232,0.85);
+      background-color:rgba(139,77,232,0.24);
+    }
+    .buscador-ocorrencias-select:focus-visible {
+      border-color:#8b4de8;
+      box-shadow:0 0 0 2px rgba(139,77,232,0.35);
+    }
+    .buscador-ocorrencias-select option {
+      background:#1b1725; color:#e9dcff; font-weight:700;
     }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
     #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
