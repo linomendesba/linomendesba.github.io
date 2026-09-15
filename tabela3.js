@@ -644,6 +644,38 @@ function renderBuscadorPainel(info) {
     </div>`;
 }
 
+let buscadorSoundOn = localStorage.getItem("buscadorSignalSound") !== "0";
+let buscadorUltimoAlertaKey = null;
+
+function buscadorPlayBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 1046.5;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.55);
+  } catch (e) {}
+}
+
+function buscadorAlertar(mercado, resultado) {
+  const key = `${mercado}|${resultado.sequencia.join(",")}|${resultado.ocorrencias}`;
+  if (key === buscadorUltimoAlertaKey) return;
+  buscadorUltimoAlertaKey = key;
+  const mercadoLabel = LABEL_CURTO_MERCADO[mercado] || mercado;
+  showToast(`🔎 Buscador: sequência 100% (${mercadoLabel}) — 3 próximos confrontos marcados`);
+  if (buscadorSoundOn) buscadorPlayBeep();
+  const painel = document.getElementById("painelBuscador");
+  if (painel) {
+    painel.classList.add("buscador-pulse");
+    setTimeout(() => painel.classList.remove("buscador-pulse"), 2000);
+  }
+}
+
 function aplicarBuscadorTabela() {
   document.querySelectorAll(".buscador-marcado").forEach(td => {
     td.classList.remove("buscador-marcado");
@@ -666,6 +698,7 @@ function aplicarBuscadorTabela() {
       item.td.classList.add("buscador-marcado");
       item.td.setAttribute("data-buscador-label", String(i + 1));
     });
+    buscadorAlertar(mercado, resultado);
   }
 }
 
@@ -1360,6 +1393,12 @@ function garantirCheckboxQuadrantes() {
     .buscador-chip-x { background:#ff3b30; }
     .buscador-status { color:#9ca3af; font-weight:600; }
     .buscador-status-hit { color:#c9a6ff; font-weight:800; }
+    @keyframes buscadorPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(139,77,232,0.6); }
+      50%  { box-shadow: 0 0 18px 4px rgba(139,77,232,0.6); }
+      100% { box-shadow: 0 0 0 0 rgba(139,77,232,0); }
+    }
+    .buscador-pulse { animation: buscadorPulse 1s ease-in-out 2; }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
     #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
     /* ── ZONA GREEN: Intensidade por coluna ── */
@@ -1526,6 +1565,10 @@ function garantirPainelCores() {
       <input type="checkbox" id="cb-buscador-tabela">
       Buscador
     </label>
+    <label class="alerta-toggle-label" id="lbl-buscador-som">
+      <input type="checkbox" id="cb-buscador-som">
+      🔔 Som
+    </label>
   `;
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
   el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
@@ -1597,6 +1640,18 @@ function garantirPainelCores() {
     });
   }
 
+  const bsCb  = el.querySelector("#cb-buscador-som");
+  const bsLbl = el.querySelector("#lbl-buscador-som");
+  if (bsCb) {
+    bsCb.checked = buscadorSoundOn;
+    bsLbl?.classList.toggle("alerta-ativo", buscadorSoundOn);
+    bsCb.addEventListener("change", function() {
+      buscadorSoundOn = this.checked;
+      localStorage.setItem("buscadorSignalSound", this.checked ? "1" : "0");
+      bsLbl?.classList.toggle("alerta-ativo", this.checked);
+    });
+  }
+
   el.querySelector("#btn-reset-cores").addEventListener("click", () => {
     Estado.corGreen = COR_GREEN_PADRAO; Estado.corRed = COR_RED_PADRAO; Estado.salvar();
     el.querySelector("#input-cor-green").value = COR_GREEN_PADRAO;
@@ -1632,6 +1687,10 @@ function sincronizarPainelCores() {
   const bqCb  = document.getElementById("cb-buscador-tabela");
   const bqLbl = document.getElementById("lbl-buscador-tabela");
   if (bqCb) { const on = localStorage.getItem("buscadorAtivo") === "1"; bqCb.checked = on; bqLbl?.classList.toggle("alerta-ativo", on); }
+
+  const bsCb  = document.getElementById("cb-buscador-som");
+  const bsLbl = document.getElementById("lbl-buscador-som");
+  if (bsCb) { bsCb.checked = buscadorSoundOn; bsLbl?.classList.toggle("alerta-ativo", buscadorSoundOn); }
 }
 
 
