@@ -519,18 +519,16 @@ function aplicarOraculoTabela() {
 
 /* ── BUSCADOR: "Análise por Sequência" adaptada pro futebol virtual ──
    Mesma ideia do Speedway (ler os últimos N resultados, achar essa mesma
-   sequência no histórico e ver o que veio depois), só que aqui é por
-   MERCADO (under/over/casa vence/etc.) e por COLUNA de minuto (cada
-   minuto fixo é um "horário" que se repete a cada hora, igual hora fixa).
-   Só marca a célula do próximo confronto quando a assertividade histórica
-   for 100%. */
+   sequência no histórico completo e ver o que costuma vir depois): usa
+   só o MERCADO que já está selecionado na tabela (#seletorResultado),
+   olha a sequência cronológica de acertos/erros desse mercado (todas as
+   colunas juntas, na ordem real de horário) e faz o backtest. Só marca
+   os 3 próximos confrontos quando achar 100% de assertividade com pelo
+   menos 5 ocorrências no histórico; senão mostra acima da tabela a
+   sequência lida e a assertividade mais próxima de 100% encontrada. */
 const BUSCADOR_QTD = 4;
-const BUSCADOR_AMOSTRA_MINIMA = 3;
-const BUSCADOR_MERCADOS = [
-  "casaVence","empate","foraVence","ambasMarcam","ambasNaoMarcam","viradinha",
-  "over0.5","over1.5","over2.5","over3.5","over5",
-  "under0.5","under1.5","under2.5","under3.5"
-];
+const BUSCADOR_AMOSTRA_MINIMA = 5;
+const BUSCADOR_ALVOS = 3;
 
 function buscadorParsePlacar(str) {
   if (!str) return null;
@@ -546,44 +544,104 @@ function buscadorAcertoDado(mercado, dado) {
   return verificarAcerto(mercado, ft[0], ft[1], ht ? ht[0] : null, ht ? ht[1] : null);
 }
 
-const _buscadorCacheColuna = new Map();
-
-function buscadorSerieColuna(minuto) {
-  if (_buscadorCacheColuna.has(minuto)) return _buscadorCacheColuna.get(minuto);
-  const serie = (qdDadosCache || [])
-    .filter(d => {
-      const mn = minutosFixos.reduce((p,c)=>Math.abs(c-d.minuto)<Math.abs(p-d.minuto)?c:p);
-      return mn === minuto;
-    })
-    .map(d => ({
-      ts: new Date(`${getDateStr(d.data)}T${d.hora.toString().padStart(2,"0")}:${d.minuto.toString().padStart(2,"0")}:00`).getTime(),
-      dado: d
-    }))
-    .sort((a,b) => a.ts - b.ts);
-  _buscadorCacheColuna.set(minuto, serie);
-  return serie;
+function buscadorMercadoAtual() {
+  return document.querySelector("#seletorResultado")?.value || "over2.5";
 }
 
-function buscadorSequenciaParaColuna(minuto, mercado) {
-  const coluna = buscadorSerieColuna(minuto)
-    .map(x => buscadorAcertoDado(mercado, x.dado))
-    .filter(v => v !== null);
+function buscadorSerieGlobal(mercado) {
+  return (qdDadosCache || [])
+    .map(d => ({
+      ts: new Date(`${getDateStr(d.data)}T${d.hora.toString().padStart(2,"0")}:${d.minuto.toString().padStart(2,"0")}:00`).getTime(),
+      acerto: buscadorAcertoDado(mercado, d)
+    }))
+    .filter(x => x.acerto !== null)
+    .sort((a,b) => a.ts - b.ts)
+    .map(x => x.acerto);
+}
 
-  if (coluna.length < BUSCADOR_QTD + BUSCADOR_AMOSTRA_MINIMA) return null;
+function buscadorAnalisar(mercado) {
+  const bools = buscadorSerieGlobal(mercado);
+  if (bools.length < BUSCADOR_QTD + BUSCADOR_AMOSTRA_MINIMA) return null;
 
-  const atual = coluna.slice(-BUSCADOR_QTD);
+  const atual = bools.slice(-BUSCADOR_QTD);
   let ocorrencias = 0, greens = 0;
-  for (let i = 0; i <= coluna.length - BUSCADOR_QTD - 1; i++) {
+  for (let i = 0; i <= bools.length - BUSCADOR_QTD - BUSCADOR_ALVOS; i++) {
     let bate = true;
     for (let j = 0; j < BUSCADOR_QTD; j++) {
-      if (coluna[i+j] !== atual[j]) { bate = false; break; }
+      if (bools[i+j] !== atual[j]) { bate = false; break; }
     }
     if (!bate) continue;
     ocorrencias++;
-    if (coluna[i + BUSCADOR_QTD]) greens++;
+    const alvos = bools.slice(i + BUSCADOR_QTD, i + BUSCADOR_QTD + BUSCADOR_ALVOS);
+    if (alvos.some(Boolean)) greens++;
   }
-  if (ocorrencias < BUSCADOR_AMOSTRA_MINIMA) return null;
-  return { ocorrencias, greens, taxa: greens / ocorrencias };
+  return { sequencia: atual, ocorrencias, greens, taxa: ocorrencias ? greens / ocorrencias : null };
+}
+
+function buscadorProximasCelulas() {
+  return Array.from(document.querySelectorAll("#tabelaResultados tbody td.cel-proximo-jogo"))
+    .map(td => {
+      const tr = td.closest("tr");
+      const chave = tr?.getAttribute("data-chave");
+      if (!chave) return null;
+      const idx = Array.prototype.indexOf.call(tr.children, td) - 1;
+      const minuto = minutosFixos[idx];
+      if (minuto === undefined) return null;
+      const corte = chave.lastIndexOf("-");
+      const data = chave.slice(0, corte), hora = chave.slice(corte + 1);
+      const ts = new Date(`${data}T${hora.toString().padStart(2,"0")}:${minuto.toString().padStart(2,"0")}:00`).getTime();
+      return { td, ts };
+    })
+    .filter(Boolean)
+    .sort((a,b) => a.ts - b.ts);
+}
+
+function garantirPainelBuscador() {
+  let painel = document.getElementById("painelBuscador");
+  if (!painel) {
+    painel = document.createElement("div"); painel.id = "painelBuscador";
+    const tabela = document.getElementById("tabelaResultados");
+    if (tabela) {
+      const painelSelecao = document.getElementById("painel-selecao");
+      const anchor = painelSelecao || tabela;
+      anchor.parentNode.insertBefore(painel, anchor);
+    }
+  }
+  return painel;
+}
+
+function removerPainelBuscador() {
+  document.getElementById("painelBuscador")?.remove();
+}
+
+function renderBuscadorPainel(info) {
+  if (!info) { removerPainelBuscador(); return; }
+  const painel = garantirPainelBuscador();
+  const mercadoLabel = LABEL_CURTO_MERCADO[info.mercado] || info.mercado || "";
+
+  if (info.insuficiente) {
+    painel.innerHTML = `<div class="buscador-box buscador-box-muted">🔎 <strong>Buscador</strong> (${mercadoLabel}): histórico ainda insuficiente — precisa de pelo menos ${BUSCADOR_AMOSTRA_MINIMA} ocorrências dessa sequência.</div>`;
+    return;
+  }
+
+  const { resultado, bateu100 } = info;
+  const chips = resultado.sequencia.map(v => `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`).join("");
+
+  if (resultado.ocorrencias === 0) {
+    painel.innerHTML = `<div class="buscador-box buscador-box-muted">🔎 <strong>Buscador</strong> (${mercadoLabel}) — sequência lida: ${chips} <span>ainda não apareceu no histórico completo.</span></div>`;
+    return;
+  }
+
+  const pct = (resultado.taxa * 100).toFixed(1);
+  const statusTxt = bateu100
+    ? `100% em ${resultado.ocorrencias} ocorrências — próximos ${BUSCADOR_ALVOS} confrontos marcados na tabela`
+    : `${pct}% em ${resultado.ocorrencias} ocorrências (mais próximo de 100% encontrado)`;
+
+  painel.innerHTML = `
+    <div class="buscador-box ${bateu100 ? "buscador-box-hit" : ""}">
+      🔎 <strong>Buscador</strong> (${mercadoLabel}) — sequência lida: ${chips}
+      <span class="buscador-status ${bateu100 ? "buscador-status-hit" : ""}">${statusTxt}</span>
+    </div>`;
 }
 
 function aplicarBuscadorTabela() {
@@ -591,29 +649,24 @@ function aplicarBuscadorTabela() {
     td.classList.remove("buscador-marcado");
     td.removeAttribute("data-buscador-label");
   });
+
   const ativo = localStorage.getItem("buscadorAtivo") === "1";
-  if (!ativo || !qdDadosCache || !qdDadosCache.length) return;
+  if (!ativo) { removerPainelBuscador(); return; }
+  if (!qdDadosCache || !qdDadosCache.length) { removerPainelBuscador(); return; }
 
-  _buscadorCacheColuna.clear();
+  const mercado = buscadorMercadoAtual();
+  const resultado = buscadorAnalisar(mercado);
+  if (!resultado) { renderBuscadorPainel({ insuficiente: true, mercado }); return; }
 
-  document.querySelectorAll("#tabelaResultados tbody td.cel-proximo-jogo").forEach(td => {
-    const tr = td.closest("tr");
-    if (!tr) return;
-    const idx = Array.prototype.indexOf.call(tr.children, td) - 1;
-    const minuto = minutosFixos[idx];
-    if (minuto === undefined) return;
+  const bateu100 = resultado.ocorrencias >= BUSCADOR_AMOSTRA_MINIMA && resultado.taxa === 1;
+  renderBuscadorPainel({ mercado, resultado, bateu100 });
 
-    const bateram = [];
-    BUSCADOR_MERCADOS.forEach(mercado => {
-      const r = buscadorSequenciaParaColuna(minuto, mercado);
-      if (r && r.taxa === 1) bateram.push(mercado);
+  if (bateu100) {
+    buscadorProximasCelulas().slice(0, BUSCADOR_ALVOS).forEach((item, i) => {
+      item.td.classList.add("buscador-marcado");
+      item.td.setAttribute("data-buscador-label", String(i + 1));
     });
-
-    if (bateram.length) {
-      td.classList.add("buscador-marcado");
-      td.setAttribute("data-buscador-label", bateram.map(m => LABEL_CURTO_MERCADO[m] || m).join(" • "));
-    }
-  });
+  }
 }
 
 
@@ -1274,28 +1327,39 @@ function garantirCheckboxQuadrantes() {
       z-index:3;
       line-height:1;
     }
-    /* ── BUSCADOR: marca direto na célula do próximo confronto quando alguma sequência bate 100% no histórico daquele minuto ── */
+    /* ── BUSCADOR: marca com um numero (1/2/3) os próximos confrontos que serão validados pela sequência ── */
     .buscador-marcado { position:relative; box-shadow:inset 0 0 0 1.5px rgba(139,77,232,0.9) !important; }
     .buscador-marcado::before {
       content: attr(data-buscador-label);
       position:absolute;
-      left:2px; right:2px; bottom:2px;
-      background:rgba(139,77,232,0.94);
+      top:2px; left:2px;
+      width:16px; height:16px;
+      border-radius:50%;
+      background:#8b4de8;
       color:#fff;
-      font-size:7.5px;
+      font-size:9px;
       font-weight:800;
-      letter-spacing:-0.1px;
-      line-height:1.15;
-      text-align:center;
-      border-radius:3px;
-      padding:1px 2px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      box-shadow:0 0 5px rgba(139,77,232,0.75);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 0 4px rgba(139,77,232,0.85), 0 0 0 1px rgba(0,0,0,0.45);
       pointer-events:none;
       z-index:3;
+      line-height:1;
     }
+    #painelBuscador { margin-bottom:6px; }
+    .buscador-box {
+      display:flex; align-items:center; flex-wrap:wrap; gap:7px;
+      background:rgba(139,77,232,0.08); border:1px solid rgba(139,77,232,0.35);
+      border-radius:8px; padding:6px 10px; font-size:0.76em; color:#e5e7eb;
+    }
+    .buscador-box-muted { border-color:rgba(255,255,255,0.1); color:#9ca3af; background:rgba(255,255,255,0.03); }
+    .buscador-box-hit { border-color:rgba(139,77,232,0.7); box-shadow:0 0 10px rgba(139,77,232,0.25); }
+    .buscador-chip { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:4px; font-size:9px; font-weight:800; color:#fff; }
+    .buscador-chip-v { background:#20d66b; }
+    .buscador-chip-x { background:#ff3b30; }
+    .buscador-status { color:#9ca3af; font-weight:600; }
+    .buscador-status-hit { color:#c9a6ff; font-weight:800; }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
     #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
     /* ── ZONA GREEN: Intensidade por coluna ── */
