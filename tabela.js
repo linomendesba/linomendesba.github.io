@@ -73,7 +73,7 @@ function getClassePct(pct) {
 
 const LABEL_CURTO_MERCADO = {
   ambasMarcam: "BTS", ambasNaoMarcam: "NBTS",
-  casaVence: "1", empate: "X", foraVence: "2",
+  casaVence: "1", empate: "X", foraVence: "2", viradinha: "VIRA",
   "over0.5": "O0.5", "over1.5": "O1.5", "over2.5": "O2.5", "over3.5": "O3.5", over5: "O5+",
   "under0.5": "U0.5", "under1.5": "U1.5", "under2.5": "U2.5", "under3.5": "U3.5",
   exato0: "=0", exato1: "=1", exato2: "=2", exato3: "=3", exato4: "=4",
@@ -514,6 +514,310 @@ function aplicarOraculoTabela() {
       td.setAttribute("data-oraculo-label", ORACULO_LABELS[i] || "");
     }
   });
+}
+
+
+/* ── BUSCADOR: "Análise por Sequência" adaptada pro futebol virtual ──
+   Mesma ideia do Speedway (ler os últimos N resultados, achar essa mesma
+   sequência no histórico completo e ver o que costuma vir depois): usa
+   só o MERCADO que já está selecionado na tabela (#seletorResultado),
+   olha a sequência cronológica de acertos/erros desse mercado (todas as
+   colunas juntas, na ordem real de horário) e faz o backtest. Só marca
+   os 3 próximos confrontos quando achar 100% de assertividade com pelo
+   menos N ocorrências no histórico (N configurável pelo seletor "Ocorrências
+   mín."); senão mostra acima da tabela a sequência lida e a assertividade
+   mais próxima de 100% encontrada. */
+const BUSCADOR_QTD = 4;
+const BUSCADOR_PULO = 1; // qtd de jogos pulados entre o padrão (4 jogos) e os 3 alvos analisados
+const BUSCADOR_AMOSTRA_MINIMA_PADRAO = 10;
+const BUSCADOR_OPCOES_AMOSTRA = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+let BUSCADOR_AMOSTRA_MINIMA = (() => {
+  const salvo = parseInt(localStorage.getItem("buscadorAmostraMinima"), 10);
+  return BUSCADOR_OPCOES_AMOSTRA.includes(salvo) ? salvo : BUSCADOR_AMOSTRA_MINIMA_PADRAO;
+})();
+const BUSCADOR_ALVOS = 3;
+const BUSCADOR_LABELS = ["SG", "G1", "G2"];
+
+function buscadorParsePlacar(str) {
+  if (!str) return null;
+  const partes = String(str).split(" x ").map(n => parseInt(n, 10));
+  if (partes.length !== 2 || isNaN(partes[0]) || isNaN(partes[1])) return null;
+  return partes;
+}
+
+function buscadorAcertoDado(mercado, dado) {
+  const ft = buscadorParsePlacar(dado.ft);
+  if (!ft) return null;
+  const ht = buscadorParsePlacar(dado.ht);
+  return verificarAcerto(mercado, ft[0], ft[1], ht ? ht[0] : null, ht ? ht[1] : null);
+}
+
+function buscadorMercadoAtual() {
+  return document.querySelector("#seletorResultado")?.value || "over2.5";
+}
+
+function buscadorSerieGlobal(mercado) {
+  return (qdDadosCache || [])
+    .map(d => ({
+      ts: new Date(`${getDateStr(d.data)}T${d.hora.toString().padStart(2,"0")}:${d.minuto.toString().padStart(2,"0")}:00`).getTime(),
+      acerto: buscadorAcertoDado(mercado, d)
+    }))
+    .filter(x => x.acerto !== null)
+    .sort((a,b) => a.ts - b.ts)
+    .map(x => x.acerto);
+}
+
+function buscadorAnalisar(mercado) {
+  const bools = buscadorSerieGlobal(mercado);
+  if (bools.length < BUSCADOR_QTD + BUSCADOR_PULO + BUSCADOR_ALVOS) return null;
+
+  const atual = bools.slice(-BUSCADOR_QTD);
+  const todasOcorrencias = []; // ordem cronológica: true = acertou em ao menos 1 dos 3 próximos (após pular 1 jogo)
+  for (let i = 0; i <= bools.length - BUSCADOR_QTD - BUSCADOR_PULO - BUSCADOR_ALVOS; i++) {
+    let bate = true;
+    for (let j = 0; j < BUSCADOR_QTD; j++) {
+      if (bools[i+j] !== atual[j]) { bate = false; break; }
+    }
+    if (!bate) continue;
+    const inicioAlvos = i + BUSCADOR_QTD + BUSCADOR_PULO;
+    const alvos = bools.slice(inicioAlvos, inicioAlvos + BUSCADOR_ALVOS);
+    todasOcorrencias.push(alvos.some(Boolean));
+  }
+
+  // considera só as últimas N ocorrências desse padrão, N = seletor "Ocorrências mín."
+  const janela = todasOcorrencias.slice(-BUSCADOR_AMOSTRA_MINIMA);
+  const ocorrencias = janela.length;
+  const greens = janela.filter(Boolean).length;
+  return { sequencia: atual, ocorrencias, greens, taxa: ocorrencias ? greens / ocorrencias : null };
+}
+
+function buscadorProximasCelulas() {
+  return Array.from(document.querySelectorAll("#tabelaResultados tbody td.cel-proximo-jogo"))
+    .map(td => {
+      const tr = td.closest("tr");
+      const chave = tr?.getAttribute("data-chave");
+      if (!chave) return null;
+      const idx = Array.prototype.indexOf.call(tr.children, td) - 1;
+      const minuto = minutosFixos[idx];
+      if (minuto === undefined) return null;
+      const corte = chave.lastIndexOf("-");
+      const data = chave.slice(0, corte), hora = chave.slice(corte + 1);
+      const ts = new Date(`${data}T${hora.toString().padStart(2,"0")}:${minuto.toString().padStart(2,"0")}:00`).getTime();
+      return { td, ts, chave, minuto };
+    })
+    .filter(Boolean)
+    .sort((a,b) => a.ts - b.ts);
+}
+
+function garantirPainelBuscador() {
+  let painel = document.getElementById("painelBuscador");
+  if (!painel) {
+    painel = document.createElement("div"); painel.id = "painelBuscador";
+    const tabela = document.getElementById("tabelaResultados");
+    if (tabela) {
+      const painelSelecao = document.getElementById("painel-selecao");
+      const anchor = painelSelecao || tabela;
+      anchor.parentNode.insertBefore(painel, anchor);
+    }
+  }
+  return painel;
+}
+
+function removerPainelBuscador() {
+  document.getElementById("painelBuscador")?.remove();
+}
+
+function renderBuscadorPainel(info) {
+  if (!info) { removerPainelBuscador(); return; }
+  const painel = garantirPainelBuscador();
+  const mercadoLabel = LABEL_CURTO_MERCADO[info.mercado] || info.mercado || "";
+
+  if (info.insuficiente) {
+    painel.innerHTML = `<div class="buscador-box buscador-box-muted">🔎 <strong>Buscador</strong> (${mercadoLabel}): histórico ainda insuficiente — precisa de pelo menos ${BUSCADOR_AMOSTRA_MINIMA} ocorrências dessa sequência.</div>`;
+    return;
+  }
+
+  const { resultado, bateu100 } = info;
+  const chips = resultado.sequencia.map(v => `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`).join("");
+
+  if (resultado.ocorrencias === 0) {
+    painel.innerHTML = `<div class="buscador-box buscador-box-muted">🔎 <strong>Buscador</strong> (${mercadoLabel}) — sequência lida: ${chips} <span>ainda não apareceu no histórico completo.</span></div>`;
+    return;
+  }
+
+  const pct = (resultado.taxa * 100).toFixed(1);
+  const statusTxt = bateu100
+    ? `100% em ${resultado.ocorrencias} ocorrências — próximos ${BUSCADOR_ALVOS} confrontos marcados na tabela`
+    : `${pct}% em ${resultado.ocorrencias} ocorrências (mais próximo de 100% encontrado)`;
+
+  painel.innerHTML = `
+    <div class="buscador-box ${bateu100 ? "buscador-box-hit" : ""}">
+      🔎 <strong>Buscador</strong> (${mercadoLabel}) — sequência lida: ${chips}
+      <span class="buscador-status ${bateu100 ? "buscador-status-hit" : ""}">${statusTxt}</span>
+    </div>`;
+}
+
+let buscadorUltimoAlertaKey = null;
+
+const BUSCADOR_SINAL_KEY = "buscadorSinalPendente";
+
+function buscadorCarregarSinal() {
+  try { return JSON.parse(localStorage.getItem(BUSCADOR_SINAL_KEY)) || null; }
+  catch (e) { return null; }
+}
+
+function buscadorSalvarSinal(sinal) {
+  if (sinal) localStorage.setItem(BUSCADOR_SINAL_KEY, JSON.stringify(sinal));
+  else localStorage.removeItem(BUSCADOR_SINAL_KEY);
+}
+
+let buscadorSinalPendente = buscadorCarregarSinal();
+
+function buscadorBuscarDado(chave, minuto) {
+  const corte = chave.lastIndexOf("-");
+  const data = chave.slice(0, corte), hora = chave.slice(corte + 1);
+  return (qdDadosCache || []).find(d =>
+    getDateStr(d.data) === data && String(d.hora) === String(hora) && d.minuto === minuto
+  ) || null;
+}
+
+function buscadorAvaliarSinalPendente() {
+  if (!buscadorSinalPendente) return null;
+  const alvos = buscadorSinalPendente.alvos.map(a => {
+    const dado = buscadorBuscarDado(a.chave, a.minuto);
+    const acerto = dado ? buscadorAcertoDado(buscadorSinalPendente.mercado, dado) : null;
+    return { ...a, acerto };
+  });
+  const todosResolvidos = alvos.every(a => a.acerto !== null);
+  const idxAcerto = alvos.findIndex(a => a.acerto === true);
+  const algumAcerto = idxAcerto !== -1;
+  const conferidos = alvos.filter(a => a.acerto !== null).length;
+  // GREEN antecipado: o primeiro acerto ja encerra o sinal, sem esperar os 3 confrontos.
+  // So aguarda os 3 quando nenhum bateu ainda (caminho pro RED).
+  return {
+    alvos,
+    todosResolvidos,
+    conferidos,
+    algumAcerto,
+    ordemAcerto: algumAcerto ? idxAcerto + 1 : null,
+    resolvido: algumAcerto || todosResolvidos
+  };
+}
+
+function buscadorRemarcarCelulasPendentes() {
+  if (!buscadorSinalPendente) return;
+  buscadorSinalPendente.alvos.forEach((a, i) => {
+    const tr = document.querySelector(`#tabelaResultados tbody tr[data-chave="${a.chave}"]`);
+    if (!tr) return;
+    const idx = minutosFixos.indexOf(a.minuto);
+    if (idx === -1) return;
+    const td = tr.children[idx + 1];
+    if (td) {
+      td.classList.add("buscador-marcado");
+      td.setAttribute("data-buscador-label", BUSCADOR_LABELS[i] || String(i + 1));
+    }
+  });
+}
+
+function renderBuscadorPainelPendente(avaliacao) {
+  const painel = garantirPainelBuscador();
+  const mercadoLabel = LABEL_CURTO_MERCADO[buscadorSinalPendente.mercado] || buscadorSinalPendente.mercado || "";
+  const chips = (buscadorSinalPendente.sequencia || []).map(v => `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`).join("");
+  painel.innerHTML = `
+    <div class="buscador-box buscador-box-hit">
+      🔎 <strong>Buscador</strong> (${mercadoLabel}) — sequência lida: ${chips}
+      <span class="buscador-status buscador-status-hit">Sinal em andamento — ${(avaliacao ? avaliacao.conferidos : 0)}/${BUSCADOR_ALVOS} conferidos, ainda sem green (encerra no 1º acerto)</span>
+    </div>`;
+}
+
+function buscadorNotificarResultadoSinal(avaliacao) {
+  const mercadoLabel = LABEL_CURTO_MERCADO[buscadorSinalPendente.mercado] || buscadorSinalPendente.mercado;
+  if (avaliacao && avaliacao.algumAcerto) {
+    showToast(`✅ Buscador (${mercadoLabel}): sinal GREEN no ${avaliacao.ordemAcerto}º confronto — liberado pro próximo sinal`);
+  } else {
+    showToast(`❌ Buscador (${mercadoLabel}): sinal RED — não bateu em nenhum dos ${BUSCADOR_ALVOS} confrontos`);
+  }
+  buscadorPlayBeep();
+}
+
+function buscadorPlayBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 1046.5;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.55);
+  } catch (e) {}
+}
+
+function buscadorAlertar(mercado, resultado) {
+  const key = `${mercado}|${resultado.sequencia.join(",")}|${resultado.ocorrencias}`;
+  if (key === buscadorUltimoAlertaKey) return;
+  buscadorUltimoAlertaKey = key;
+  const mercadoLabel = LABEL_CURTO_MERCADO[mercado] || mercado;
+  showToast(`🔎 Buscador: sequência 100% (${mercadoLabel}) — 3 próximos confrontos marcados`);
+  buscadorPlayBeep();
+  const painel = document.getElementById("painelBuscador");
+  if (painel) {
+    painel.classList.add("buscador-pulse");
+    setTimeout(() => painel.classList.remove("buscador-pulse"), 2000);
+  }
+}
+
+function aplicarBuscadorTabela() {
+  document.querySelectorAll(".buscador-marcado").forEach(td => {
+    td.classList.remove("buscador-marcado");
+    td.removeAttribute("data-buscador-label");
+  });
+
+  const ativo = localStorage.getItem("buscadorAtivo") === "1";
+  if (!ativo) { removerPainelBuscador(); return; }
+  if (!qdDadosCache || !qdDadosCache.length) { removerPainelBuscador(); return; }
+
+  if (buscadorSinalPendente) {
+    const avaliacao = buscadorAvaliarSinalPendente();
+    if (avaliacao && avaliacao.resolvido) {
+      buscadorNotificarResultadoSinal(avaliacao);
+      buscadorSinalPendente = null;
+      buscadorSalvarSinal(null);
+      buscadorUltimoAlertaKey = null;
+      // segue o fluxo normal abaixo pra já buscar um novo sinal neste mesmo ciclo
+    } else {
+      buscadorRemarcarCelulasPendentes();
+      renderBuscadorPainelPendente(avaliacao);
+      return;
+    }
+  }
+
+  const mercado = buscadorMercadoAtual();
+  const resultado = buscadorAnalisar(mercado);
+  if (!resultado) { renderBuscadorPainel({ insuficiente: true, mercado }); return; }
+
+  const bateu100 = resultado.ocorrencias >= BUSCADOR_AMOSTRA_MINIMA && resultado.taxa === 1;
+  renderBuscadorPainel({ mercado, resultado, bateu100 });
+
+  if (bateu100) {
+    const celulas = buscadorProximasCelulas().slice(BUSCADOR_PULO, BUSCADOR_PULO + BUSCADOR_ALVOS);
+    celulas.forEach((item, i) => {
+      item.td.classList.add("buscador-marcado");
+      item.td.setAttribute("data-buscador-label", BUSCADOR_LABELS[i] || String(i + 1));
+    });
+    if (celulas.length === BUSCADOR_ALVOS) {
+      buscadorSinalPendente = {
+        mercado,
+        sequencia: resultado.sequencia,
+        alvos: celulas.map(c => ({ chave: c.chave, minuto: c.minuto })),
+        criadoEm: Date.now()
+      };
+      buscadorSalvarSinal(buscadorSinalPendente);
+    }
+    buscadorAlertar(mercado, resultado);
+  }
 }
 
 
@@ -1031,25 +1335,25 @@ function garantirCheckboxQuadrantes() {
 
     /* ── Painel "Cores das Células" — no mesmo padrão visual dos seletores do topo ── */
     #painel-cores {
-      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      padding: 6px 2px; margin-top: -20px;
+      display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+      padding: 4px 2px; margin-top: -20px;
     }
     /* Base compartilhada por todos os "controles" do painel — mesma altura,
        mesmo raio e mesma paleta neutra usada nos <select> do topo da página */
     #painel-cores label,
     .btn-reset-cores {
-      display:inline-flex; align-items:center; gap:6px;
-      height:30px; padding:0 11px; box-sizing:border-box;
+      display:inline-flex; align-items:center; gap:4px;
+      height:22px; padding:0 7px; box-sizing:border-box;
       background:#1c212f; border:1px solid rgba(255,255,255,0.09);
-      border-radius:7px; font-size:0.76em; font-weight:600; color:#9ca3af;
+      border-radius:6px; font-size:0.66em; font-weight:600; color:#9ca3af;
       cursor:pointer; white-space:nowrap;
       transition:background 0.15s, border-color 0.15s, color 0.15s;
     }
     #painel-cores label:hover,
     .btn-reset-cores:hover { background:#242b3d; border-color:rgba(255,255,255,0.18); color:#d1d5db; }
     #painel-cores input[type="color"] {
-      width:18px; height:18px; border:1px solid rgba(255,255,255,0.18);
-      border-radius:5px; cursor:pointer; padding:0; background:none;
+      width:14px; height:14px; border:1px solid rgba(255,255,255,0.18);
+      border-radius:4px; cursor:pointer; padding:0; background:none;
     }
 
     @keyframes streakPulse {
@@ -1065,26 +1369,26 @@ function garantirCheckboxQuadrantes() {
       outline-offset: -2px;
     }
     .alerta-toggle-label {
-      display: inline-flex; align-items: center; gap: 6px;
-      height:30px; padding: 0 11px; box-sizing:border-box;
-      cursor: pointer; color: #9ca3af; font-size: 0.76em; font-weight: 600; user-select: none;
-      border-radius: 7px; border: 1px solid rgba(255,255,255,0.09); background:#1c212f;
-      transition: border-color 0.2s, color 0.2s, background 0.2s; letter-spacing: 0.2px; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 4px;
+      height:22px; padding: 0 7px; box-sizing:border-box;
+      cursor: pointer; color: #9ca3af; font-size: 0.66em; font-weight: 600; user-select: none;
+      border-radius: 6px; border: 1px solid rgba(255,255,255,0.09); background:#1c212f;
+      transition: border-color 0.2s, color 0.2s, background 0.2s; letter-spacing: 0.1px; white-space: nowrap;
     }
     .alerta-toggle-label:hover { border-color: rgba(255,220,0,0.3); color: #d4af37; background: rgba(255,220,0,0.08); }
-    .alerta-toggle-label input[type="checkbox"] { width: 12px; height: 12px; cursor: pointer; accent-color: #d4af37; flex-shrink: 0; }
+    .alerta-toggle-label input[type="checkbox"] { width: 10px; height: 10px; cursor: pointer; accent-color: #d4af37; flex-shrink: 0; }
     .alerta-ativo { color: #d4af37 !important; font-weight: 700; border-color: rgba(212,175,55,0.45) !important; background: rgba(212,175,55,0.08) !important; }
 
     /* Botão primário — preenchimento sólido, se destaca claramente como ação de confirmação */
     .btn-aplicar-cores {
-      display:inline-flex; align-items:center; gap:5px;
-      height:30px; padding:0 13px; box-sizing:border-box;
+      display:inline-flex; align-items:center; gap:4px;
+      height:22px; padding:0 9px; box-sizing:border-box;
       background: #20283b;
       /* border: 1px solid #16a34a; */
-      border-radius: 7px;
+      border-radius: 6px;
       cursor: pointer;
       color: #8ba3af;
-      font-size:0.76em; font-weight:700;
+      font-size:0.66em; font-weight:700;
       transition:background 0.15s, border-color 0.15s, box-shadow 0.15s; white-space:nowrap;
     }
     .btn-aplicar-cores:hover {
@@ -1173,6 +1477,83 @@ function garantirCheckboxQuadrantes() {
       pointer-events:none;
       z-index:3;
       line-height:1;
+    }
+    /* ── BUSCADOR: marca SG / G1 / G2 nos próximos confrontos validados pela sequência ── */
+    .buscador-marcado { position:relative; box-shadow:inset 0 0 0 1.5px rgba(139,77,232,0.9) !important; }
+    .buscador-marcado::before {
+      content: attr(data-buscador-label);
+      position:absolute;
+      top:2px; left:2px;
+      width:18px; height:18px;
+      border-radius:50%;
+      background:#8b4de8;
+      color:#fff;
+      font-size:9px;
+      font-weight:800;
+      letter-spacing:-0.2px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 0 4px rgba(139,77,232,0.85), 0 0 0 1px rgba(0,0,0,0.45);
+      pointer-events:none;
+      z-index:3;
+      line-height:1;
+    }
+    #painelBuscador { margin-bottom:6px; }
+    .buscador-box {
+      display:flex; align-items:center; flex-wrap:wrap; gap:7px;
+      background:rgba(139,77,232,0.08); border:1px solid rgba(139,77,232,0.35);
+      border-radius:8px; padding:6px 10px; font-size:0.76em; color:#e5e7eb;
+    }
+    .buscador-box-muted { border-color:rgba(255,255,255,0.1); color:#9ca3af; background:rgba(255,255,255,0.03); }
+    .buscador-box-hit { border-color:rgba(139,77,232,0.7); box-shadow:0 0 10px rgba(139,77,232,0.25); }
+    .buscador-chip { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:4px; font-size:9px; font-weight:800; color:#fff; }
+    .buscador-chip-v { background:#20d66b; }
+    .buscador-chip-x { background:#ff3b30; }
+    .buscador-status { color:#9ca3af; font-weight:600; }
+    .buscador-status-hit { color:#c9a6ff; font-weight:800; }
+    @keyframes buscadorPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(139,77,232,0.6); }
+      50%  { box-shadow: 0 0 18px 4px rgba(139,77,232,0.6); }
+      100% { box-shadow: 0 0 0 0 rgba(139,77,232,0); }
+    }
+    .buscador-pulse { animation: buscadorPulse 1s ease-in-out 2; }
+    #lbl-buscador-ocorrencias {
+      display:inline-flex; align-items:center;
+      height:22px; padding:0 !important;
+      border:none !important; background:transparent !important;
+    }
+    .buscador-ocorrencias-select {
+      appearance:none; -webkit-appearance:none; -moz-appearance:none;
+      color-scheme:dark;
+      box-sizing:border-box;
+      height:22px;
+      padding:0 19px 0 8px;
+      background-color:rgba(212,175,55,0.08);
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1.2 5 4.8 9 1.2' fill='none' stroke='%23d4af37' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat:no-repeat;
+      background-position:right 5px center;
+      background-size:8px 5px;
+      border:1px solid rgba(212,175,55,0.45);
+      border-radius:6px;
+      color:#d4af37;
+      font-family:inherit;
+      font-size:12px; font-weight:800; letter-spacing:0.3px;
+      line-height:20px; white-space:nowrap;
+      cursor:pointer; outline:none;
+      transition:border-color .2s, background-color .2s, color .2s;
+    }
+    .buscador-ocorrencias-select:hover {
+      border-color:rgba(212,175,55,0.75);
+      background-color:rgba(212,175,55,0.16);
+    }
+    .buscador-ocorrencias-select:focus-visible {
+      border-color:#d4af37;
+      box-shadow:0 0 0 2px rgba(212,175,55,0.25);
+    }
+    .buscador-ocorrencias-select option {
+      background:#1c212f; color:#e5e7eb;
+      font-size:13px; font-weight:700;
     }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
     #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
@@ -1336,6 +1717,15 @@ function garantirPainelCores() {
       <input type="checkbox" id="cb-oraculo-tabela">
       Oráculo
     </label>
+    <label class="alerta-toggle-label" id="lbl-buscador-tabela">
+      <input type="checkbox" id="cb-buscador-tabela">
+      Buscador
+    </label>
+    <label class="alerta-toggle-label" id="lbl-buscador-ocorrencias" style="display:none;" title="Ocorrências mín.">
+      <select id="sel-buscador-ocorrencias" class="buscador-ocorrencias-select">
+        ${BUSCADOR_OPCOES_AMOSTRA.map(n => `<option value="${n}">${String(n).padStart(2,"0")}</option>`).join("")}
+      </select>
+    </label>
   `;
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
   el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
@@ -1393,6 +1783,39 @@ function garantirPainelCores() {
     });
   }
 
+
+  const boLbl = el.querySelector("#lbl-buscador-ocorrencias");
+  const boSel = el.querySelector("#sel-buscador-ocorrencias");
+
+  function atualizarVisibilidadeOcorrencias(ativo) {
+    if (boLbl) boLbl.style.display = ativo ? "inline-flex" : "none";
+  }
+
+  const bqCb  = el.querySelector("#cb-buscador-tabela");
+  const bqLbl = el.querySelector("#lbl-buscador-tabela");
+  if (bqCb) {
+    const bqOn = localStorage.getItem("buscadorAtivo") === "1";
+    bqCb.checked = bqOn;
+    bqLbl?.classList.toggle("alerta-ativo", bqOn);
+    atualizarVisibilidadeOcorrencias(bqOn);
+    bqCb.addEventListener("change", function() {
+      localStorage.setItem("buscadorAtivo", this.checked ? "1" : "0");
+      bqLbl?.classList.toggle("alerta-ativo", this.checked);
+      atualizarVisibilidadeOcorrencias(this.checked);
+      aplicarBuscadorTabela();
+    });
+  }
+
+  if (boSel) {
+    boSel.value = String(BUSCADOR_AMOSTRA_MINIMA);
+    boSel.addEventListener("change", function() {
+      const val = parseInt(this.value, 10);
+      BUSCADOR_AMOSTRA_MINIMA = BUSCADOR_OPCOES_AMOSTRA.includes(val) ? val : BUSCADOR_AMOSTRA_MINIMA_PADRAO;
+      localStorage.setItem("buscadorAmostraMinima", String(BUSCADOR_AMOSTRA_MINIMA));
+      aplicarBuscadorTabela();
+    });
+  }
+
   el.querySelector("#btn-reset-cores").addEventListener("click", () => {
     Estado.corGreen = COR_GREEN_PADRAO; Estado.corRed = COR_RED_PADRAO; Estado.salvar();
     el.querySelector("#input-cor-green").value = COR_GREEN_PADRAO;
@@ -1424,6 +1847,19 @@ function sincronizarPainelCores() {
   const orCb  = document.getElementById("cb-oraculo-tabela");
   const orLbl = document.getElementById("lbl-oraculo-tabela");
   if (orCb) { const on = localStorage.getItem("oraculoAtivo") === "1"; orCb.checked = on; orLbl?.classList.toggle("alerta-ativo", on); }
+
+  const bqCb  = document.getElementById("cb-buscador-tabela");
+  const bqLbl = document.getElementById("lbl-buscador-tabela");
+  const boLbl = document.getElementById("lbl-buscador-ocorrencias");
+  if (bqCb) {
+    const on = localStorage.getItem("buscadorAtivo") === "1";
+    bqCb.checked = on;
+    bqLbl?.classList.toggle("alerta-ativo", on);
+    if (boLbl) boLbl.style.display = on ? "inline-flex" : "none";
+  }
+
+  const boSel = document.getElementById("sel-buscador-ocorrencias");
+  if (boSel) boSel.value = String(BUSCADOR_AMOSTRA_MINIMA);
 }
 
 
@@ -2611,6 +3047,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
   qdDadosCache = dados;
   if (qdCheckboxAtivo()) qdRenderTabelaValores(dados);
+  aplicarBuscadorTabela();
 
 
   rkSincronizar();
