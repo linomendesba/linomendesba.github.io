@@ -659,16 +659,16 @@ function renderBuscadorPainel(info) {
 
 let buscadorUltimoAlertaKey = null;
 
-const BUSCADOR_SINAL_KEY = "buscadorSinalPendente";
+function buscadorSinalKey() { return `buscadorSinalPendente_${getLigaKey()}`; }
 
 function buscadorCarregarSinal() {
-  try { return JSON.parse(localStorage.getItem(BUSCADOR_SINAL_KEY)) || null; }
+  try { return JSON.parse(localStorage.getItem(buscadorSinalKey())) || null; }
   catch (e) { return null; }
 }
 
 function buscadorSalvarSinal(sinal) {
-  if (sinal) localStorage.setItem(BUSCADOR_SINAL_KEY, JSON.stringify(sinal));
-  else localStorage.removeItem(BUSCADOR_SINAL_KEY);
+  if (sinal) localStorage.setItem(buscadorSinalKey(), JSON.stringify(sinal));
+  else localStorage.removeItem(buscadorSinalKey());
 }
 
 let buscadorSinalPendente = buscadorCarregarSinal();
@@ -3104,6 +3104,11 @@ async function buscarDados() {
     Estado.carregar();
     const trQDantigo = document.querySelector("#trQuadrantes");
     if (trQDantigo) trQDantigo.remove();
+
+    // troca de liga: recarrega o sinal pendente do Buscador dessa liga (evita
+    // continuar conferindo o sinal de uma liga diferente da que está aberta)
+    buscadorSinalPendente = buscadorCarregarSinal();
+    buscadorUltimoAlertaKey = null;
   }
   let dados=[],oddsData=[],proximosJogos=[];
 
