@@ -524,10 +524,16 @@ function aplicarOraculoTabela() {
    olha a sequência cronológica de acertos/erros desse mercado (todas as
    colunas juntas, na ordem real de horário) e faz o backtest. Só marca
    os 3 próximos confrontos quando achar 100% de assertividade com pelo
-   menos 5 ocorrências no histórico; senão mostra acima da tabela a
-   sequência lida e a assertividade mais próxima de 100% encontrada. */
+   menos N ocorrências no histórico (N configurável pelo seletor "Ocorrências
+   mín."); senão mostra acima da tabela a sequência lida e a assertividade
+   mais próxima de 100% encontrada. */
 const BUSCADOR_QTD = 4;
-const BUSCADOR_AMOSTRA_MINIMA = 5;
+const BUSCADOR_AMOSTRA_MINIMA_PADRAO = 10;
+const BUSCADOR_OPCOES_AMOSTRA = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+let BUSCADOR_AMOSTRA_MINIMA = (() => {
+  const salvo = parseInt(localStorage.getItem("buscadorAmostraMinima"), 10);
+  return BUSCADOR_OPCOES_AMOSTRA.includes(salvo) ? salvo : BUSCADOR_AMOSTRA_MINIMA_PADRAO;
+})();
 const BUSCADOR_ALVOS = 3;
 
 function buscadorParsePlacar(str) {
@@ -644,7 +650,6 @@ function renderBuscadorPainel(info) {
     </div>`;
 }
 
-let buscadorSoundOn = localStorage.getItem("buscadorSignalSound") !== "0";
 let buscadorUltimoAlertaKey = null;
 
 function buscadorPlayBeep() {
@@ -668,7 +673,7 @@ function buscadorAlertar(mercado, resultado) {
   buscadorUltimoAlertaKey = key;
   const mercadoLabel = LABEL_CURTO_MERCADO[mercado] || mercado;
   showToast(`🔎 Buscador: sequência 100% (${mercadoLabel}) — 3 próximos confrontos marcados`);
-  if (buscadorSoundOn) buscadorPlayBeep();
+  buscadorPlayBeep();
   const painel = document.getElementById("painelBuscador");
   if (painel) {
     painel.classList.add("buscador-pulse");
@@ -1399,6 +1404,11 @@ function garantirCheckboxQuadrantes() {
       100% { box-shadow: 0 0 0 0 rgba(139,77,232,0); }
     }
     .buscador-pulse { animation: buscadorPulse 1s ease-in-out 2; }
+    #lbl-buscador-ocorrencias { display:inline-flex; align-items:center; gap:6px; }
+    .buscador-ocorrencias-select {
+      background:rgba(255,255,255,0.06); color:inherit; border:1px solid rgba(255,255,255,0.15);
+      border-radius:6px; padding:2px 6px; font-size:12px; font-weight:600;
+    }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
     #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
     /* ── ZONA GREEN: Intensidade por coluna ── */
@@ -1565,9 +1575,11 @@ function garantirPainelCores() {
       <input type="checkbox" id="cb-buscador-tabela">
       Buscador
     </label>
-    <label class="alerta-toggle-label" id="lbl-buscador-som">
-      <input type="checkbox" id="cb-buscador-som">
-      🔔 Som
+    <label class="alerta-toggle-label" id="lbl-buscador-ocorrencias">
+      Ocorrências mín.
+      <select id="sel-buscador-ocorrencias" class="buscador-ocorrencias-select">
+        ${BUSCADOR_OPCOES_AMOSTRA.map(n => `<option value="${n}">${String(n).padStart(2,"0")}</option>`).join("")}
+      </select>
     </label>
   `;
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
@@ -1640,15 +1652,14 @@ function garantirPainelCores() {
     });
   }
 
-  const bsCb  = el.querySelector("#cb-buscador-som");
-  const bsLbl = el.querySelector("#lbl-buscador-som");
-  if (bsCb) {
-    bsCb.checked = buscadorSoundOn;
-    bsLbl?.classList.toggle("alerta-ativo", buscadorSoundOn);
-    bsCb.addEventListener("change", function() {
-      buscadorSoundOn = this.checked;
-      localStorage.setItem("buscadorSignalSound", this.checked ? "1" : "0");
-      bsLbl?.classList.toggle("alerta-ativo", this.checked);
+  const boSel = el.querySelector("#sel-buscador-ocorrencias");
+  if (boSel) {
+    boSel.value = String(BUSCADOR_AMOSTRA_MINIMA);
+    boSel.addEventListener("change", function() {
+      const val = parseInt(this.value, 10);
+      BUSCADOR_AMOSTRA_MINIMA = BUSCADOR_OPCOES_AMOSTRA.includes(val) ? val : BUSCADOR_AMOSTRA_MINIMA_PADRAO;
+      localStorage.setItem("buscadorAmostraMinima", String(BUSCADOR_AMOSTRA_MINIMA));
+      aplicarBuscadorTabela();
     });
   }
 
@@ -1688,9 +1699,8 @@ function sincronizarPainelCores() {
   const bqLbl = document.getElementById("lbl-buscador-tabela");
   if (bqCb) { const on = localStorage.getItem("buscadorAtivo") === "1"; bqCb.checked = on; bqLbl?.classList.toggle("alerta-ativo", on); }
 
-  const bsCb  = document.getElementById("cb-buscador-som");
-  const bsLbl = document.getElementById("lbl-buscador-som");
-  if (bsCb) { bsCb.checked = buscadorSoundOn; bsLbl?.classList.toggle("alerta-ativo", buscadorSoundOn); }
+  const boSel = document.getElementById("sel-buscador-ocorrencias");
+  if (boSel) boSel.value = String(BUSCADOR_AMOSTRA_MINIMA);
 }
 
 
