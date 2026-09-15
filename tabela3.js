@@ -528,6 +528,7 @@ function aplicarOraculoTabela() {
    mín."); senão mostra acima da tabela a sequência lida e a assertividade
    mais próxima de 100% encontrada. */
 const BUSCADOR_QTD = 4;
+const BUSCADOR_PULO = 1; // qtd de jogos pulados entre o padrão (4 jogos) e os 3 alvos analisados
 const BUSCADOR_AMOSTRA_MINIMA_PADRAO = 10;
 const BUSCADOR_OPCOES_AMOSTRA = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
 let BUSCADOR_AMOSTRA_MINIMA = (() => {
@@ -568,17 +569,18 @@ function buscadorSerieGlobal(mercado) {
 
 function buscadorAnalisar(mercado) {
   const bools = buscadorSerieGlobal(mercado);
-  if (bools.length < BUSCADOR_QTD + BUSCADOR_ALVOS) return null;
+  if (bools.length < BUSCADOR_QTD + BUSCADOR_PULO + BUSCADOR_ALVOS) return null;
 
   const atual = bools.slice(-BUSCADOR_QTD);
-  const todasOcorrencias = []; // ordem cronológica: true = acertou em ao menos 1 dos 3 próximos
-  for (let i = 0; i <= bools.length - BUSCADOR_QTD - BUSCADOR_ALVOS; i++) {
+  const todasOcorrencias = []; // ordem cronológica: true = acertou em ao menos 1 dos 3 próximos (após pular 1 jogo)
+  for (let i = 0; i <= bools.length - BUSCADOR_QTD - BUSCADOR_PULO - BUSCADOR_ALVOS; i++) {
     let bate = true;
     for (let j = 0; j < BUSCADOR_QTD; j++) {
       if (bools[i+j] !== atual[j]) { bate = false; break; }
     }
     if (!bate) continue;
-    const alvos = bools.slice(i + BUSCADOR_QTD, i + BUSCADOR_QTD + BUSCADOR_ALVOS);
+    const inicioAlvos = i + BUSCADOR_QTD + BUSCADOR_PULO;
+    const alvos = bools.slice(inicioAlvos, inicioAlvos + BUSCADOR_ALVOS);
     todasOcorrencias.push(alvos.some(Boolean));
   }
 
@@ -800,7 +802,7 @@ function aplicarBuscadorTabela() {
   renderBuscadorPainel({ mercado, resultado, bateu100 });
 
   if (bateu100) {
-    const celulas = buscadorProximasCelulas().slice(0, BUSCADOR_ALVOS);
+    const celulas = buscadorProximasCelulas().slice(BUSCADOR_PULO, BUSCADOR_PULO + BUSCADOR_ALVOS);
     celulas.forEach((item, i) => {
       item.td.classList.add("buscador-marcado");
       item.td.setAttribute("data-buscador-label", BUSCADOR_LABELS[i] || String(i + 1));
