@@ -1526,7 +1526,7 @@ function garantirCheckboxQuadrantes() {
       color-scheme:dark;
       box-sizing:border-box;
       height:22px;
-      padding:0 18px 0 8px;
+      padding:0 19px 0 8px;
       background-color:rgba(212,175,55,0.08);
       background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1.2 5 4.8 9 1.2' fill='none' stroke='%23d4af37' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
       background-repeat:no-repeat;
@@ -1536,7 +1536,7 @@ function garantirCheckboxQuadrantes() {
       border-radius:6px;
       color:#d4af37;
       font-family:inherit;
-      font-size:0.66em; font-weight:700; letter-spacing:0.1px;
+      font-size:12px; font-weight:800; letter-spacing:0.3px;
       line-height:20px; white-space:nowrap;
       cursor:pointer; outline:none;
       transition:border-color .2s, background-color .2s, color .2s;
@@ -1550,7 +1550,8 @@ function garantirCheckboxQuadrantes() {
       box-shadow:0 0 0 2px rgba(212,175,55,0.25);
     }
     .buscador-ocorrencias-select option {
-      background:#1c212f; color:#e5e7eb; font-weight:600;
+      background:#1c212f; color:#e5e7eb;
+      font-size:13px; font-weight:700;
     }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
     #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
