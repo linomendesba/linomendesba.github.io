@@ -1575,8 +1575,7 @@ function garantirPainelCores() {
       <input type="checkbox" id="cb-buscador-tabela">
       Buscador
     </label>
-    <label class="alerta-toggle-label" id="lbl-buscador-ocorrencias">
-      Ocorrências mín.
+    <label class="alerta-toggle-label" id="lbl-buscador-ocorrencias" style="display:none;" title="Ocorrências mín.">
       <select id="sel-buscador-ocorrencias" class="buscador-ocorrencias-select">
         ${BUSCADOR_OPCOES_AMOSTRA.map(n => `<option value="${n}">${String(n).padStart(2,"0")}</option>`).join("")}
       </select>
@@ -1639,20 +1638,28 @@ function garantirPainelCores() {
   }
 
 
+  const boLbl = el.querySelector("#lbl-buscador-ocorrencias");
+  const boSel = el.querySelector("#sel-buscador-ocorrencias");
+
+  function atualizarVisibilidadeOcorrencias(ativo) {
+    if (boLbl) boLbl.style.display = ativo ? "inline-flex" : "none";
+  }
+
   const bqCb  = el.querySelector("#cb-buscador-tabela");
   const bqLbl = el.querySelector("#lbl-buscador-tabela");
   if (bqCb) {
     const bqOn = localStorage.getItem("buscadorAtivo") === "1";
     bqCb.checked = bqOn;
     bqLbl?.classList.toggle("alerta-ativo", bqOn);
+    atualizarVisibilidadeOcorrencias(bqOn);
     bqCb.addEventListener("change", function() {
       localStorage.setItem("buscadorAtivo", this.checked ? "1" : "0");
       bqLbl?.classList.toggle("alerta-ativo", this.checked);
+      atualizarVisibilidadeOcorrencias(this.checked);
       aplicarBuscadorTabela();
     });
   }
 
-  const boSel = el.querySelector("#sel-buscador-ocorrencias");
   if (boSel) {
     boSel.value = String(BUSCADOR_AMOSTRA_MINIMA);
     boSel.addEventListener("change", function() {
@@ -1697,7 +1704,13 @@ function sincronizarPainelCores() {
 
   const bqCb  = document.getElementById("cb-buscador-tabela");
   const bqLbl = document.getElementById("lbl-buscador-tabela");
-  if (bqCb) { const on = localStorage.getItem("buscadorAtivo") === "1"; bqCb.checked = on; bqLbl?.classList.toggle("alerta-ativo", on); }
+  const boLbl = document.getElementById("lbl-buscador-ocorrencias");
+  if (bqCb) {
+    const on = localStorage.getItem("buscadorAtivo") === "1";
+    bqCb.checked = on;
+    bqLbl?.classList.toggle("alerta-ativo", on);
+    if (boLbl) boLbl.style.display = on ? "inline-flex" : "none";
+  }
 
   const boSel = document.getElementById("sel-buscador-ocorrencias");
   if (boSel) boSel.value = String(BUSCADOR_AMOSTRA_MINIMA);
