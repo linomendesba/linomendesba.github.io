@@ -943,8 +943,8 @@ function garantirModalBuscadorConfig() {
       </label>
       <label>Tipo de sequência
         <select id="cfg-buscador-tipo" class="buscador-select">
-          <option value="mercado">Mercado (ambas marcam, over, etc.)</option>
-          <option value="placares">Placares (sequência de resultados exatos)</option>
+          <option value="mercado">Mercado</option>
+          <option value="placares">Placares</option>
         </select>
       </label>
       <label>Ocorrências mín. no histórico
