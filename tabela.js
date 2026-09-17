@@ -453,6 +453,7 @@ function tooltipMercadosExtrasHTML(oddsObj) {
 
 let qdNumPreviousHours = 1;
 let qdDadosCache = null; 
+let qdOddsCache = null; // cache das odds cruas (pro Buscador poder ler sequência de odds)
 
 
 function qdGetHoraAtual(resultados) {
@@ -534,7 +535,7 @@ const BUSCADOR_OPCOES_AMOSTRA = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
 const BUSCADOR_SEQ_OPCOES   = [2, 3, 4];
 const BUSCADOR_GALES_OPCOES = [2, 3, 4];
 const BUSCADOR_PCT_OPCOES   = [80, 85, 90, 95, 100];
-const BUSCADOR_TIPO_OPCOES  = ["mercado", "placares"];
+const BUSCADOR_TIPO_OPCOES  = ["mercado", "placares", "odd"];
 
 const BUSCADOR_CONFIG_PADRAO = {
   seq: 4,
@@ -580,15 +581,14 @@ function buscadorLabelsGales(qtd) {
 }
 
 function buscadorCriterioAtual() {
-  const mercado = buscadorMercadoAtual();
-  if (buscadorConfig.tipo === "placares") return { tipo: "placares", mercado };
-  return { tipo: "mercado", mercado };
+  return { tipo: buscadorConfig.tipo, mercado: buscadorMercadoAtual() };
 }
 
 function buscadorTituloModo(criterio) {
   if (!criterio) return "";
   const mercadoLabel = LABEL_CURTO_MERCADO[criterio.mercado] || criterio.mercado || "";
   if (criterio.tipo === "placares") return `Placares → ${mercadoLabel}`;
+  if (criterio.tipo === "odd") return `Odd → ${mercadoLabel}`;
   return mercadoLabel;
 }
 
@@ -598,7 +598,9 @@ function buscadorAcertoGenerico(criterio, dado) {
 }
 
 function buscadorToken(criterio, entry) {
-  return criterio.tipo === "placares" ? entry.placar : entry.acertoMercado;
+  if (criterio.tipo === "placares") return entry.placar;
+  if (criterio.tipo === "odd") return entry.odd;
+  return entry.acertoMercado;
 }
 
 function buscadorParsePlacar(str) {
@@ -620,16 +622,29 @@ function buscadorMercadoAtual() {
 }
 
 function buscadorSerieGlobal(criterio) {
+  const precisaOdd = criterio.tipo === "odd";
+  const oddsIndex = precisaOdd ? indexarOdds(qdOddsCache || []) : null;
+
   return (qdDadosCache || [])
     .map(d => {
       const ftParsed = buscadorParsePlacar(d.ft);
       if (!ftParsed) return null;
       const acertoMercado = buscadorAcertoDado(criterio.mercado, d);
       if (acertoMercado === null) return null;
+
+      let odd = null;
+      if (precisaOdd) {
+        const oddsMatch = findOddsNoIndex(oddsIndex, d);
+        const valorOdd = getOddValue(oddsMatch, criterio.mercado);
+        if (!valorOdd || valorOdd === "N/A") return null; // sem odd histórica pra esse jogo/mercado
+        odd = String(valorOdd).trim();
+      }
+
       return {
         ts: new Date(`${getDateStr(d.data)}T${d.hora.toString().padStart(2,"0")}:${d.minuto.toString().padStart(2,"0")}:00`).getTime(),
         placar: String(d.ft).trim(),
-        acertoMercado
+        acertoMercado,
+        odd
       };
     })
     .filter(Boolean)
@@ -704,8 +719,9 @@ function removerPainelBuscador() {
 }
 
 function buscadorChip(v, tipo) {
-  if (tipo === "placares") return `<span class="buscador-chip buscador-chip-placar">${v}</span>`;
-  return `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`;
+  if (tipo === "mercado") return `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`;
+  const texto = tipo === "odd" ? `@${v}` : v;
+  return `<span class="buscador-chip buscador-chip-placar">${texto}</span>`;
 }
 
 function renderBuscadorPainel(info) {
@@ -945,6 +961,7 @@ function garantirModalBuscadorConfig() {
         <select id="cfg-buscador-tipo" class="buscador-select">
           <option value="mercado">Mercado</option>
           <option value="placares">Placares</option>
+          <option value="odd">Odds</option>
         </select>
       </label>
       <label>Ocorrências mín. no histórico
@@ -2867,6 +2884,7 @@ function hfRender(dados) {
 function criarTabela(dados, oddsData, proximosJogos) {
   criarOuObterPainel();
 
+  qdOddsCache = oddsData; // mantém as odds cruas disponíveis pro Buscador (tipo "odd")
 
   garantirQuadrantesWrapper();
 
