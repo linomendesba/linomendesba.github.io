@@ -453,6 +453,7 @@ function tooltipMercadosExtrasHTML(oddsObj) {
 
 let qdNumPreviousHours = 1;
 let qdDadosCache = null; 
+let qdOddsCache = null; // cache das odds cruas (pro Buscador poder ler sequência de odds)
 
 
 function qdGetHoraAtual(resultados) {
@@ -527,16 +528,80 @@ function aplicarOraculoTabela() {
    menos N ocorrências no histórico (N configurável pelo seletor "Ocorrências
    mín."); senão mostra acima da tabela a sequência lida e a assertividade
    mais próxima de 100% encontrada. */
-const BUSCADOR_QTD = 4;
-const BUSCADOR_PULO = 1; // qtd de jogos pulados entre o padrão (4 jogos) e os 3 alvos analisados
+const BUSCADOR_PULO = 1; // qtd de jogos pulados entre a sequência lida e os alvos analisados
+
 const BUSCADOR_AMOSTRA_MINIMA_PADRAO = 10;
 const BUSCADOR_OPCOES_AMOSTRA = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
-let BUSCADOR_AMOSTRA_MINIMA = (() => {
-  const salvo = parseInt(localStorage.getItem("buscadorAmostraMinima"), 10);
-  return BUSCADOR_OPCOES_AMOSTRA.includes(salvo) ? salvo : BUSCADOR_AMOSTRA_MINIMA_PADRAO;
-})();
-const BUSCADOR_ALVOS = 3;
-const BUSCADOR_LABELS = ["SG", "G1", "G2"];
+const BUSCADOR_SEQ_OPCOES   = [2, 3, 4];
+const BUSCADOR_GALES_OPCOES = [2, 3, 4];
+const BUSCADOR_PCT_OPCOES   = [80, 85, 90, 95, 100];
+const BUSCADOR_TIPO_OPCOES  = ["mercado", "placares", "odd"];
+
+const BUSCADOR_CONFIG_PADRAO = {
+  seq: 4,
+  gales: 3,
+  pct: 100,
+  tipo: "mercado",
+  amostraMinima: BUSCADOR_AMOSTRA_MINIMA_PADRAO
+};
+
+function buscadorConfigKey() { return `buscadorConfig_${getLigaKey()}`; }
+
+function buscadorCarregarConfig() {
+  let base = { ...BUSCADOR_CONFIG_PADRAO };
+  // migração best-effort do valor antigo (global) de "ocorrências mínimas"
+  const legadoAmostra = parseInt(localStorage.getItem("buscadorAmostraMinima"), 10);
+  if (BUSCADOR_OPCOES_AMOSTRA.includes(legadoAmostra)) base.amostraMinima = legadoAmostra;
+
+  try {
+    const salvo = JSON.parse(localStorage.getItem(buscadorConfigKey()));
+    if (salvo) {
+      base = {
+        seq:   BUSCADOR_SEQ_OPCOES.includes(salvo.seq)     ? salvo.seq   : base.seq,
+        gales: BUSCADOR_GALES_OPCOES.includes(salvo.gales) ? salvo.gales : base.gales,
+        pct:   BUSCADOR_PCT_OPCOES.includes(salvo.pct)     ? salvo.pct   : base.pct,
+        tipo:  BUSCADOR_TIPO_OPCOES.includes(salvo.tipo)   ? salvo.tipo  : base.tipo,
+        amostraMinima: BUSCADOR_OPCOES_AMOSTRA.includes(salvo.amostraMinima) ? salvo.amostraMinima : base.amostraMinima
+      };
+    }
+  } catch (e) {}
+  return base;
+}
+
+function buscadorSalvarConfig(cfg) {
+  localStorage.setItem(buscadorConfigKey(), JSON.stringify(cfg));
+}
+
+let buscadorConfig = buscadorCarregarConfig();
+
+function buscadorLabelsGales(qtd) {
+  const labels = ["SG"];
+  for (let i = 1; i < qtd; i++) labels.push("G" + i);
+  return labels;
+}
+
+function buscadorCriterioAtual() {
+  return { tipo: buscadorConfig.tipo, mercado: buscadorMercadoAtual() };
+}
+
+function buscadorTituloModo(criterio) {
+  if (!criterio) return "";
+  const mercadoLabel = LABEL_CURTO_MERCADO[criterio.mercado] || criterio.mercado || "";
+  if (criterio.tipo === "placares") return `Placares → ${mercadoLabel}`;
+  if (criterio.tipo === "odd") return `Odd → ${mercadoLabel}`;
+  return mercadoLabel;
+}
+
+function buscadorAcertoGenerico(criterio, dado) {
+  if (!dado) return null;
+  return buscadorAcertoDado(criterio.mercado, dado);
+}
+
+function buscadorToken(criterio, entry) {
+  if (criterio.tipo === "placares") return entry.placar;
+  if (criterio.tipo === "odd") return entry.odd;
+  return entry.acertoMercado;
+}
 
 function buscadorParsePlacar(str) {
   if (!str) return null;
@@ -556,36 +621,62 @@ function buscadorMercadoAtual() {
   return document.querySelector("#seletorResultado")?.value || "over2.5";
 }
 
-function buscadorSerieGlobal(mercado) {
+function buscadorSerieGlobal(criterio) {
+  const precisaOdd = criterio.tipo === "odd";
+  const oddsIndex = precisaOdd ? indexarOdds(qdOddsCache || []) : null;
+
   return (qdDadosCache || [])
-    .map(d => ({
-      ts: new Date(`${getDateStr(d.data)}T${d.hora.toString().padStart(2,"0")}:${d.minuto.toString().padStart(2,"0")}:00`).getTime(),
-      acerto: buscadorAcertoDado(mercado, d)
-    }))
-    .filter(x => x.acerto !== null)
-    .sort((a,b) => a.ts - b.ts)
-    .map(x => x.acerto);
+    .map(d => {
+      const ftParsed = buscadorParsePlacar(d.ft);
+      if (!ftParsed) return null;
+      const acertoMercado = buscadorAcertoDado(criterio.mercado, d);
+      if (acertoMercado === null) return null;
+
+      let odd = null;
+      if (precisaOdd) {
+        const oddsMatch = findOddsNoIndex(oddsIndex, d);
+        const valorOdd = getOddValue(oddsMatch, criterio.mercado);
+        if (!valorOdd || valorOdd === "N/A") return null; // sem odd histórica pra esse jogo/mercado
+        odd = String(valorOdd).trim();
+      }
+
+      return {
+        ts: new Date(`${getDateStr(d.data)}T${d.hora.toString().padStart(2,"0")}:${d.minuto.toString().padStart(2,"0")}:00`).getTime(),
+        placar: String(d.ft).trim(),
+        acertoMercado,
+        odd
+      };
+    })
+    .filter(Boolean)
+    .sort((a,b) => a.ts - b.ts);
 }
 
-function buscadorAnalisar(mercado) {
-  const bools = buscadorSerieGlobal(mercado);
-  if (bools.length < BUSCADOR_QTD + BUSCADOR_PULO + BUSCADOR_ALVOS) return null;
+function buscadorAnalisar(criterio) {
+  const seq   = buscadorConfig.seq;
+  const gales = buscadorConfig.gales;
+  const serieObjs = buscadorSerieGlobal(criterio);
+  if (serieObjs.length < seq + BUSCADOR_PULO + gales) return null;
 
-  const atual = bools.slice(-BUSCADOR_QTD);
-  const todasOcorrencias = []; // ordem cronológica: true = acertou em ao menos 1 dos 3 próximos (após pular 1 jogo)
-  for (let i = 0; i <= bools.length - BUSCADOR_QTD - BUSCADOR_PULO - BUSCADOR_ALVOS; i++) {
+  // "tokens" é o que define a sequência (placar exato no modo Placares, V/X no modo Mercado);
+  // "hits" é sempre o resultado no mercado selecionado — é o que decide green/red dos alvos.
+  const tokens = serieObjs.map(e => buscadorToken(criterio, e));
+  const hits   = serieObjs.map(e => e.acertoMercado);
+  const atual  = tokens.slice(-seq);
+
+  const todasOcorrencias = []; // ordem cronológica: true = bateu no mercado em ao menos 1 dos próximos "gales" (após pular 1 jogo)
+  for (let i = 0; i <= tokens.length - seq - BUSCADOR_PULO - gales; i++) {
     let bate = true;
-    for (let j = 0; j < BUSCADOR_QTD; j++) {
-      if (bools[i+j] !== atual[j]) { bate = false; break; }
+    for (let j = 0; j < seq; j++) {
+      if (tokens[i+j] !== atual[j]) { bate = false; break; }
     }
     if (!bate) continue;
-    const inicioAlvos = i + BUSCADOR_QTD + BUSCADOR_PULO;
-    const alvos = bools.slice(inicioAlvos, inicioAlvos + BUSCADOR_ALVOS);
-    todasOcorrencias.push(alvos.some(Boolean));
+    const inicioAlvos = i + seq + BUSCADOR_PULO;
+    const alvosHit = hits.slice(inicioAlvos, inicioAlvos + gales);
+    todasOcorrencias.push(alvosHit.some(Boolean));
   }
 
-  // considera só as últimas N ocorrências desse padrão, N = seletor "Ocorrências mín."
-  const janela = todasOcorrencias.slice(-BUSCADOR_AMOSTRA_MINIMA);
+  // considera só as últimas N ocorrências desse padrão, N = "Ocorrências mín." (config)
+  const janela = todasOcorrencias.slice(-buscadorConfig.amostraMinima);
   const ocorrencias = janela.length;
   const greens = janela.filter(Boolean).length;
   return { sequencia: atual, ocorrencias, greens, taxa: ocorrencias ? greens / ocorrencias : null };
@@ -627,33 +718,40 @@ function removerPainelBuscador() {
   document.getElementById("painelBuscador")?.remove();
 }
 
+function buscadorChip(v, tipo) {
+  if (tipo === "mercado") return `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`;
+  const texto = tipo === "odd" ? `@${v}` : v;
+  return `<span class="buscador-chip buscador-chip-placar">${texto}</span>`;
+}
+
 function renderBuscadorPainel(info) {
   if (!info) { removerPainelBuscador(); return; }
   const painel = garantirPainelBuscador();
-  const mercadoLabel = LABEL_CURTO_MERCADO[info.mercado] || info.mercado || "";
+  const tituloModo = buscadorTituloModo(info.criterio);
+  const cfg = buscadorConfig;
 
   if (info.insuficiente) {
-    painel.innerHTML = `<div class="buscador-box buscador-box-muted">🔎 <strong>Buscador</strong> (${mercadoLabel}): histórico ainda insuficiente — precisa de pelo menos ${BUSCADOR_AMOSTRA_MINIMA} ocorrências dessa sequência.</div>`;
+    painel.innerHTML = `<div class="buscador-box buscador-box-muted">🔎 <strong>Buscador</strong> (${tituloModo}): histórico ainda insuficiente — precisa de pelo menos ${cfg.amostraMinima} ocorrências dessa sequência.</div>`;
     return;
   }
 
-  const { resultado, bateu100 } = info;
-  const chips = resultado.sequencia.map(v => `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`).join("");
+  const { resultado, bateuAlvo } = info;
+  const chips = resultado.sequencia.map(v => buscadorChip(v, info.criterio.tipo)).join("");
 
   if (resultado.ocorrencias === 0) {
-    painel.innerHTML = `<div class="buscador-box buscador-box-muted">🔎 <strong>Buscador</strong> (${mercadoLabel}) — sequência lida: ${chips} <span>ainda não apareceu no histórico completo.</span></div>`;
+    painel.innerHTML = `<div class="buscador-box buscador-box-muted">🔎 <strong>Buscador</strong> (${tituloModo}) — sequência lida: ${chips} <span>ainda não apareceu no histórico completo.</span></div>`;
     return;
   }
 
   const pct = (resultado.taxa * 100).toFixed(1);
-  const statusTxt = bateu100
-    ? `100% em ${resultado.ocorrencias} ocorrências — próximos ${BUSCADOR_ALVOS} confrontos marcados na tabela`
-    : `${pct}% em ${resultado.ocorrencias} ocorrências (mais próximo de 100% encontrado)`;
+  const statusTxt = bateuAlvo
+    ? `${pct}% em ${resultado.ocorrencias} ocorrências — próximos ${cfg.gales} confrontos marcados na tabela`
+    : `${pct}% em ${resultado.ocorrencias} ocorrências (mais próximo de ${cfg.pct}% encontrado)`;
 
   painel.innerHTML = `
-    <div class="buscador-box ${bateu100 ? "buscador-box-hit" : ""}">
-      🔎 <strong>Buscador</strong> (${mercadoLabel}) — sequência lida: ${chips}
-      <span class="buscador-status ${bateu100 ? "buscador-status-hit" : ""}">${statusTxt}</span>
+    <div class="buscador-box ${bateuAlvo ? "buscador-box-hit" : ""}">
+      🔎 <strong>Buscador</strong> (${tituloModo}) — sequência lida: ${chips}
+      <span class="buscador-status ${bateuAlvo ? "buscador-status-hit" : ""}">${statusTxt}</span>
     </div>`;
 }
 
@@ -662,8 +760,12 @@ let buscadorUltimoAlertaKey = null;
 function buscadorSinalKey() { return `buscadorSinalPendente_${getLigaKey()}`; }
 
 function buscadorCarregarSinal() {
-  try { return JSON.parse(localStorage.getItem(buscadorSinalKey())) || null; }
-  catch (e) { return null; }
+  try {
+    const sinal = JSON.parse(localStorage.getItem(buscadorSinalKey())) || null;
+    // compatibilidade com sinais salvos antes da versão com "criterio" (só tinham "mercado")
+    if (sinal && !sinal.criterio && sinal.mercado) sinal.criterio = { tipo: "mercado", mercado: sinal.mercado };
+    return sinal;
+  } catch (e) { return null; }
 }
 
 function buscadorSalvarSinal(sinal) {
@@ -685,7 +787,7 @@ function buscadorAvaliarSinalPendente() {
   if (!buscadorSinalPendente) return null;
   const alvos = buscadorSinalPendente.alvos.map(a => {
     const dado = buscadorBuscarDado(a.chave, a.minuto);
-    const acerto = dado ? buscadorAcertoDado(buscadorSinalPendente.mercado, dado) : null;
+    const acerto = dado ? buscadorAcertoGenerico(buscadorSinalPendente.criterio, dado) : null;
     return { ...a, acerto };
   });
   const todosResolvidos = alvos.every(a => a.acerto !== null);
@@ -706,6 +808,7 @@ function buscadorAvaliarSinalPendente() {
 
 function buscadorRemarcarCelulasPendentes() {
   if (!buscadorSinalPendente) return;
+  const labels = buscadorLabelsGales(buscadorSinalPendente.alvos.length);
   buscadorSinalPendente.alvos.forEach((a, i) => {
     const tr = document.querySelector(`#tabelaResultados tbody tr[data-chave="${a.chave}"]`);
     if (!tr) return;
@@ -714,28 +817,30 @@ function buscadorRemarcarCelulasPendentes() {
     const td = tr.children[idx + 1];
     if (td) {
       td.classList.add("buscador-marcado");
-      td.setAttribute("data-buscador-label", BUSCADOR_LABELS[i] || String(i + 1));
+      td.setAttribute("data-buscador-label", labels[i] || String(i + 1));
     }
   });
 }
 
 function renderBuscadorPainelPendente(avaliacao) {
   const painel = garantirPainelBuscador();
-  const mercadoLabel = LABEL_CURTO_MERCADO[buscadorSinalPendente.mercado] || buscadorSinalPendente.mercado || "";
-  const chips = (buscadorSinalPendente.sequencia || []).map(v => `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`).join("");
+  const tituloModo = buscadorTituloModo(buscadorSinalPendente.criterio);
+  const chips = (buscadorSinalPendente.sequencia || []).map(v => buscadorChip(v, buscadorSinalPendente.criterio.tipo)).join("");
+  const totalAlvos = buscadorSinalPendente.alvos.length;
   painel.innerHTML = `
     <div class="buscador-box buscador-box-hit">
-      🔎 <strong>Buscador</strong> (${mercadoLabel}) — sequência lida: ${chips}
-      <span class="buscador-status buscador-status-hit">Sinal em andamento — ${(avaliacao ? avaliacao.conferidos : 0)}/${BUSCADOR_ALVOS} conferidos, ainda sem green (encerra no 1º acerto)</span>
+      🔎 <strong>Buscador</strong> (${tituloModo}) — sequência lida: ${chips}
+      <span class="buscador-status buscador-status-hit">Sinal em andamento — ${(avaliacao ? avaliacao.conferidos : 0)}/${totalAlvos} conferidos, ainda sem green (encerra no 1º acerto)</span>
     </div>`;
 }
 
 function buscadorNotificarResultadoSinal(avaliacao) {
-  const mercadoLabel = LABEL_CURTO_MERCADO[buscadorSinalPendente.mercado] || buscadorSinalPendente.mercado;
+  const tituloModo = buscadorTituloModo(buscadorSinalPendente.criterio);
+  const totalAlvos = buscadorSinalPendente.alvos.length;
   if (avaliacao && avaliacao.algumAcerto) {
-    showToast(`✅ Buscador (${mercadoLabel}): sinal GREEN no ${avaliacao.ordemAcerto}º confronto — liberado pro próximo sinal`);
+    showToast(`✅ Buscador (${tituloModo}): sinal GREEN no ${avaliacao.ordemAcerto}º confronto — liberado pro próximo sinal`);
   } else {
-    showToast(`❌ Buscador (${mercadoLabel}): sinal RED — não bateu em nenhum dos ${BUSCADOR_ALVOS} confrontos`);
+    showToast(`❌ Buscador (${tituloModo}): sinal RED — não bateu em nenhum dos ${totalAlvos} confrontos`);
   }
   buscadorPlayBeep();
 }
@@ -755,12 +860,12 @@ function buscadorPlayBeep() {
   } catch (e) {}
 }
 
-function buscadorAlertar(mercado, resultado) {
-  const key = `${mercado}|${resultado.sequencia.join(",")}|${resultado.ocorrencias}`;
+function buscadorAlertar(criterio, resultado) {
+  const key = `${criterio.tipo}|${criterio.mercado}|${resultado.sequencia.join(",")}|${resultado.ocorrencias}`;
   if (key === buscadorUltimoAlertaKey) return;
   buscadorUltimoAlertaKey = key;
-  const mercadoLabel = LABEL_CURTO_MERCADO[mercado] || mercado;
-  showToast(`🔎 Buscador: sequência 100% (${mercadoLabel}) — 3 próximos confrontos marcados`);
+  const tituloModo = buscadorTituloModo(criterio);
+  showToast(`🔎 Buscador: sequência encontrada (${tituloModo}) — ${buscadorConfig.gales} próximos confrontos marcados`);
   buscadorPlayBeep();
   const painel = document.getElementById("painelBuscador");
   if (painel) {
@@ -794,30 +899,133 @@ function aplicarBuscadorTabela() {
     }
   }
 
-  const mercado = buscadorMercadoAtual();
-  const resultado = buscadorAnalisar(mercado);
-  if (!resultado) { renderBuscadorPainel({ insuficiente: true, mercado }); return; }
+  const cfg = buscadorConfig;
+  const criterio = buscadorCriterioAtual();
+  const resultado = buscadorAnalisar(criterio);
+  if (!resultado) { renderBuscadorPainel({ insuficiente: true, criterio }); return; }
 
-  const bateu100 = resultado.ocorrencias >= BUSCADOR_AMOSTRA_MINIMA && resultado.taxa === 1;
-  renderBuscadorPainel({ mercado, resultado, bateu100 });
+  const bateuAlvo = resultado.ocorrencias >= cfg.amostraMinima
+    && resultado.taxa !== null
+    && (resultado.taxa * 100) >= cfg.pct - 1e-9;
 
-  if (bateu100) {
-    const celulas = buscadorProximasCelulas().slice(BUSCADOR_PULO, BUSCADOR_PULO + BUSCADOR_ALVOS);
+  renderBuscadorPainel({ criterio, resultado, bateuAlvo });
+
+  if (bateuAlvo) {
+    const celulas = buscadorProximasCelulas().slice(BUSCADOR_PULO, BUSCADOR_PULO + cfg.gales);
+    const labels = buscadorLabelsGales(cfg.gales);
     celulas.forEach((item, i) => {
       item.td.classList.add("buscador-marcado");
-      item.td.setAttribute("data-buscador-label", BUSCADOR_LABELS[i] || String(i + 1));
+      item.td.setAttribute("data-buscador-label", labels[i] || String(i + 1));
     });
-    if (celulas.length === BUSCADOR_ALVOS) {
+    if (celulas.length === cfg.gales) {
       buscadorSinalPendente = {
-        mercado,
+        criterio,
         sequencia: resultado.sequencia,
         alvos: celulas.map(c => ({ chave: c.chave, minuto: c.minuto })),
         criadoEm: Date.now()
       };
       buscadorSalvarSinal(buscadorSinalPendente);
     }
-    buscadorAlertar(mercado, resultado);
+    buscadorAlertar(criterio, resultado);
   }
+}
+
+
+function garantirModalBuscadorConfig() {
+  let overlay = document.getElementById("buscador-modal-overlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "buscador-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true">
+      <h4>⚙ Configurar Buscador <span id="buscador-modal-liga"></span></h4>
+      <label>Sequência a analisar
+        <select id="cfg-buscador-seq" class="buscador-select">
+          ${BUSCADOR_SEQ_OPCOES.map(n => `<option value="${n}">${n} jogos</option>`).join("")}
+        </select>
+      </label>
+      <label>Quantidade de gales
+        <select id="cfg-buscador-gales" class="buscador-select">
+          ${BUSCADOR_GALES_OPCOES.map(n => `<option value="${n}">${n}</option>`).join("")}
+        </select>
+      </label>
+      <label>Assertividade mínima
+        <select id="cfg-buscador-pct" class="buscador-select">
+          ${BUSCADOR_PCT_OPCOES.map(n => `<option value="${n}">${n}%</option>`).join("")}
+        </select>
+      </label>
+      <label>Tipo de sequência
+        <select id="cfg-buscador-tipo" class="buscador-select">
+          <option value="mercado">Mercado (ambas marcam, over, etc.)</option>
+          <option value="placares">Placares (sequência de resultados exatos)</option>
+          <option value="odd">Odd (sequência de cotações)</option>
+        </select>
+      </label>
+      <label>Ocorrências mín. no histórico
+        <select id="cfg-buscador-amostra" class="buscador-select">
+          ${BUSCADOR_OPCOES_AMOSTRA.map(n => `<option value="${n}">${String(n).padStart(2,"0")}</option>`).join("")}
+        </select>
+      </label>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarBuscadorConfig">Cancelar</button>
+        <button type="button" id="btnSalvarBuscadorConfig">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalBuscadorConfig(); });
+  overlay.querySelector("#btnCancelarBuscadorConfig").addEventListener("click", fecharModalBuscadorConfig);
+  overlay.querySelector("#btnSalvarBuscadorConfig").addEventListener("click", salvarModalBuscadorConfig);
+
+  return overlay;
+}
+
+function abrirModalBuscadorConfig() {
+  const overlay = garantirModalBuscadorConfig();
+  const ligaSpan = overlay.querySelector("#buscador-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+
+  overlay.querySelector("#cfg-buscador-seq").value    = String(buscadorConfig.seq);
+  overlay.querySelector("#cfg-buscador-gales").value  = String(buscadorConfig.gales);
+  overlay.querySelector("#cfg-buscador-pct").value    = String(buscadorConfig.pct);
+  overlay.querySelector("#cfg-buscador-tipo").value   = buscadorConfig.tipo;
+  overlay.querySelector("#cfg-buscador-amostra").value= String(buscadorConfig.amostraMinima);
+
+  overlay.hidden = false;
+}
+
+function fecharModalBuscadorConfig() {
+  const overlay = document.getElementById("buscador-modal-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function salvarModalBuscadorConfig() {
+  const overlay = document.getElementById("buscador-modal-overlay");
+  if (!overlay) return;
+
+  const novaConfig = {
+    seq:   parseInt(overlay.querySelector("#cfg-buscador-seq").value, 10),
+    gales: parseInt(overlay.querySelector("#cfg-buscador-gales").value, 10),
+    pct:   parseInt(overlay.querySelector("#cfg-buscador-pct").value, 10),
+    tipo:  overlay.querySelector("#cfg-buscador-tipo").value,
+    amostraMinima: parseInt(overlay.querySelector("#cfg-buscador-amostra").value, 10)
+  };
+
+  buscadorConfig = novaConfig;
+  buscadorSalvarConfig(novaConfig);
+
+  // muda a config = o sinal pendente (se houver) foi calculado com regras antigas, então é descartado
+  buscadorSinalPendente = null;
+  buscadorSalvarSinal(null);
+  buscadorUltimoAlertaKey = null;
+
+  fecharModalBuscadorConfig();
+  aplicarBuscadorTabela();
+  showToast(`⚙ Configurações do Buscador salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
 }
 
 
@@ -1518,6 +1726,48 @@ function garantirCheckboxQuadrantes() {
       100% { box-shadow: 0 0 0 0 rgba(139,77,232,0); }
     }
     .buscador-pulse { animation: buscadorPulse 1s ease-in-out 2; }
+    .buscador-chip-placar { width:auto; min-width:34px; padding:0 5px; background:#2b3040; border:1px solid rgba(212,175,55,0.4); color:#d4af37; }
+    .btn-buscador-config {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:22px; height:22px; margin-left:4px;
+      background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.45);
+      border-radius:6px; color:#d4af37; font-size:13px; line-height:1;
+      cursor:pointer; transition:border-color .2s, background-color .2s;
+    }
+    .btn-buscador-config:hover { border-color:rgba(212,175,55,0.75); background-color:rgba(212,175,55,0.16); }
+    .buscador-modal-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,0.6);
+      display:flex; align-items:center; justify-content:center;
+      z-index:9999;
+    }
+    .buscador-modal-overlay[hidden] { display:none; }
+    .buscador-modal {
+      background:#1c212f; border:1px solid rgba(212,175,55,0.4);
+      border-radius:10px; padding:18px 20px; width:280px; max-width:90vw;
+      box-shadow:0 8px 30px rgba(0,0,0,0.5);
+      display:flex; flex-direction:column; gap:12px;
+      color:#e5e7eb; font-size:13px;
+    }
+    .buscador-modal h4 { margin:0 0 4px; font-size:14px; color:#d4af37; }
+    .buscador-modal h4 span { color:#9ca3af; font-weight:600; font-size:12px; }
+    .buscador-modal label { display:flex; flex-direction:column; gap:4px; font-weight:600; }
+    .buscador-modal .buscador-select {
+      appearance:none; -webkit-appearance:none; -moz-appearance:none;
+      color-scheme:dark; box-sizing:border-box; height:30px; padding:0 22px 0 10px;
+      background-color:rgba(212,175,55,0.08);
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1.2 5 4.8 9 1.2' fill='none' stroke='%23d4af37' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat:no-repeat; background-position:right 8px center; background-size:8px 5px;
+      border:1px solid rgba(212,175,55,0.45); border-radius:6px; color:#d4af37;
+      font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; outline:none;
+    }
+    .buscador-modal .buscador-select option { background:#1c212f; color:#e5e7eb; }
+    .buscador-modal-actions { display:flex; gap:8px; margin-top:4px; }
+    .buscador-modal-actions button {
+      flex:1; height:32px; border-radius:6px; font-weight:800; font-size:12px;
+      cursor:pointer; border:1px solid rgba(212,175,55,0.45);
+    }
+    #btnSalvarBuscadorConfig { background:#d4af37; color:#1c212f; }
+    #btnCancelarBuscadorConfig { background:transparent; color:#d4af37; }
     #lbl-buscador-ocorrencias {
       display:inline-flex; align-items:center;
       height:22px; padding:0 !important;
@@ -1721,11 +1971,7 @@ function garantirPainelCores() {
       <input type="checkbox" id="cb-buscador-tabela">
       Buscador
     </label>
-    <label class="alerta-toggle-label" id="lbl-buscador-ocorrencias" style="display:none;" title="Ocorrências mín.">
-      <select id="sel-buscador-ocorrencias" class="buscador-ocorrencias-select">
-        ${BUSCADOR_OPCOES_AMOSTRA.map(n => `<option value="${n}">${String(n).padStart(2,"0")}</option>`).join("")}
-      </select>
-    </label>
+    <button type="button" id="btn-buscador-config" class="btn-buscador-config" style="display:none;" title="Configurar Buscador">⚙</button>
   `;
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
   el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
@@ -1784,11 +2030,10 @@ function garantirPainelCores() {
   }
 
 
-  const boLbl = el.querySelector("#lbl-buscador-ocorrencias");
-  const boSel = el.querySelector("#sel-buscador-ocorrencias");
+  const btnCfg = el.querySelector("#btn-buscador-config");
 
-  function atualizarVisibilidadeOcorrencias(ativo) {
-    if (boLbl) boLbl.style.display = ativo ? "inline-flex" : "none";
+  function atualizarVisibilidadeConfig(ativo) {
+    if (btnCfg) btnCfg.style.display = ativo ? "inline-flex" : "none";
   }
 
   const bqCb  = el.querySelector("#cb-buscador-tabela");
@@ -1797,23 +2042,17 @@ function garantirPainelCores() {
     const bqOn = localStorage.getItem("buscadorAtivo") === "1";
     bqCb.checked = bqOn;
     bqLbl?.classList.toggle("alerta-ativo", bqOn);
-    atualizarVisibilidadeOcorrencias(bqOn);
+    atualizarVisibilidadeConfig(bqOn);
     bqCb.addEventListener("change", function() {
       localStorage.setItem("buscadorAtivo", this.checked ? "1" : "0");
       bqLbl?.classList.toggle("alerta-ativo", this.checked);
-      atualizarVisibilidadeOcorrencias(this.checked);
+      atualizarVisibilidadeConfig(this.checked);
       aplicarBuscadorTabela();
     });
   }
 
-  if (boSel) {
-    boSel.value = String(BUSCADOR_AMOSTRA_MINIMA);
-    boSel.addEventListener("change", function() {
-      const val = parseInt(this.value, 10);
-      BUSCADOR_AMOSTRA_MINIMA = BUSCADOR_OPCOES_AMOSTRA.includes(val) ? val : BUSCADOR_AMOSTRA_MINIMA_PADRAO;
-      localStorage.setItem("buscadorAmostraMinima", String(BUSCADOR_AMOSTRA_MINIMA));
-      aplicarBuscadorTabela();
-    });
+  if (btnCfg) {
+    btnCfg.addEventListener("click", abrirModalBuscadorConfig);
   }
 
   el.querySelector("#btn-reset-cores").addEventListener("click", () => {
@@ -1848,18 +2087,15 @@ function sincronizarPainelCores() {
   const orLbl = document.getElementById("lbl-oraculo-tabela");
   if (orCb) { const on = localStorage.getItem("oraculoAtivo") === "1"; orCb.checked = on; orLbl?.classList.toggle("alerta-ativo", on); }
 
-  const bqCb  = document.getElementById("cb-buscador-tabela");
-  const bqLbl = document.getElementById("lbl-buscador-tabela");
-  const boLbl = document.getElementById("lbl-buscador-ocorrencias");
+  const bqCb   = document.getElementById("cb-buscador-tabela");
+  const bqLbl  = document.getElementById("lbl-buscador-tabela");
+  const btnCfg = document.getElementById("btn-buscador-config");
   if (bqCb) {
     const on = localStorage.getItem("buscadorAtivo") === "1";
     bqCb.checked = on;
     bqLbl?.classList.toggle("alerta-ativo", on);
-    if (boLbl) boLbl.style.display = on ? "inline-flex" : "none";
+    if (btnCfg) btnCfg.style.display = on ? "inline-flex" : "none";
   }
-
-  const boSel = document.getElementById("sel-buscador-ocorrencias");
-  if (boSel) boSel.value = String(BUSCADOR_AMOSTRA_MINIMA);
 }
 
 
@@ -2648,6 +2884,7 @@ function hfRender(dados) {
 function criarTabela(dados, oddsData, proximosJogos) {
   criarOuObterPainel();
 
+  qdOddsCache = oddsData; // mantém as odds cruas disponíveis pro Buscador (tipo "odd")
 
   garantirQuadrantesWrapper();
 
