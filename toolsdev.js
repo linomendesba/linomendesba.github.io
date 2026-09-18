@@ -10,6 +10,7 @@
       if (txt.includes('header-betsson'))    return 'betsson';
       if (txt.includes('header-betano'))     return 'betano';
       if (txt.includes('header-estrelabet')) return 'estrelabet';
+      if (txt.includes('header-sportingbet')) return 'sportingbet';
       if (txt.includes('header-kiron'))      return 'kiron';
     }
 
@@ -20,6 +21,7 @@
       if (t.includes('betsson'))    return 'betsson';
       if (t.includes('betano'))     return 'betano';
       if (t.includes('estrelabet')) return 'estrelabet';
+      if (t.includes('sportingbet')) return 'sportingbet';
       if (t.includes('kiron'))      return 'kiron';
     }
 
@@ -28,6 +30,7 @@
     if (url.includes('betsson'))                        return 'betsson';
     if (url.includes('betano'))                         return 'betano';
     if (url.includes('estrela'))                        return 'estrelabet';
+    if (url.includes('sporting'))                       return 'sportingbet';
     if (url.includes('kiron'))                          return 'kiron';
 
     return 'global';
@@ -106,6 +109,25 @@
         { label: "Classificação",   url: "https://www.betstat.site/estrelaclassificacao.html" },
         { label: "Gráfico Macro",   url: "https://www.betstat.site/estrelamacro.html" },
         { label: "Radar Gráfico",   url: "https://www.betstat.site/estrelaradar.html" },
+        { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
+        { label: "Central Odds",   url: "https://www.betstat.site/centralodds.html" },
+      ]
+    },
+    {
+      group: "Sportingbet",
+      tools: [
+        { label: "Fluxo",     url: "https://www.betstat.site/fluxo.html" },
+        { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
+        { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
+        // AJUSTAR: descomentar/renomear quando as páginas da Sportingbet existirem
+        // { label: "LigaStat",        url: "https://www.betstat.site/sportingbetstat.html" },
+        // { label: "MultiLiga",       url: "https://www.betstat.site/sportingbetmult.html" },
+        // { label: "LocalizAI",       url: "https://www.betstat.site/sportingbetlocalizai.html" },
+        // { label: "Projeções",       url: "https://www.betstat.site/sportingbetprojecoes.html" },
+        { label: "Porcentagem",     url: "https://www.betstat.site/365porcent.html" },
+        // { label: "Classificação",   url: "https://www.betstat.site/sportingbetclassificacao.html" },
+        // { label: "Gráfico Macro",   url: "https://www.betstat.site/sportingbetmacro.html" },
+        // { label: "Radar Gráfico",   url: "https://www.betstat.site/sportingbetradar.html" },
         { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
         { label: "Central Odds",   url: "https://www.betstat.site/centralodds.html" },
       ]
