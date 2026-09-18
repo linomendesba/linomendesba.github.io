@@ -19,6 +19,24 @@ const LIGAS_INFO = {
     minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   },
 
+    // ───────────── SPORTING ─────────────
+  "Sportingbet Copa do Mundo": {
+    casa: "Sportingbet", nomeExibicao: "Copa do Mundo", arquivo: "sportingbetcopa.html",
+    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  },
+  "Sportingbet Superliga América do Sul": {
+    casa: "Sportingbet", nomeExibicao: "Superliga", arquivo: "sportingbetsuperliga.html",
+    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
+  },
+  "Sportingbet Champions Cup": {
+    casa: "Sportingbet", nomeExibicao: "Champions Cup", arquivo: "sportingbetchampions.html",
+    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
+  },
+  "Sportingbet Eurocopa": {
+    casa: "Sportingbet", nomeExibicao: "Eurocopa", arquivo: "sportingbeteuro.html",
+    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  },
+
   // ───────────── BETANO ─────────────
   "Taça Glória Eterna": {
     casa: "BETANO", nomeExibicao: "Clássicos", arquivo: "index.html",
