@@ -17,6 +17,11 @@ const LIGAS = {
   BET365_SUPER:   "Bet365 Super",
   BET365_PREMIER: "Bet365 Premier",
 
+  SPORTINGBET_COPA:       "Sportingbet Copa do Mundo",
+  SPORTINGBET_EURO:       "Sportingbet Eurocopa",
+  SPORTINGBET_CHAMPIONS:  "Sportingbet Champions Cup",
+  SPORTINGBET_SUPERLIGA:  "Sportingbet Superliga América do Sul",
+
   BETSSON_ESPANHA:    "Betsson Espanha",
   BETSSON_INGLATERRA: "Betsson Inglaterra",
   BETSSON_BRASIL:     "Betsson Brasil",
@@ -39,6 +44,11 @@ const MAPEAMENTO_ROTAS_ESPECIAIS = {
   [LIGAS.BET365_EURO]:    "bet365/Euro",
   [LIGAS.BET365_SUPER]:   "bet365/Super",
   [LIGAS.BET365_PREMIER]: "bet365/Premier",
+
+  [LIGAS.SPORTINGBET_COPA]:      "sportingbet/copa",
+  [LIGAS.SPORTINGBET_EURO]:      "sportingbet/euro",
+  [LIGAS.SPORTINGBET_CHAMPIONS]: "sportingbet/champions",
+  [LIGAS.SPORTINGBET_SUPERLIGA]: "sportingbet/superliga",
 
   [LIGAS.BETSSON_ESPANHA]:    "betsson/Espanha",
   [LIGAS.BETSSON_INGLATERRA]: "betsson/Inglaterra",
@@ -79,6 +89,10 @@ const MAPA_ARQUIVO_PARA_LIGA = {
   "bet365euro.html":          LIGAS.BET365_EURO,
   "bet365super.html":         LIGAS.BET365_SUPER,
   "bet365premier.html":       LIGAS.BET365_PREMIER,
+  "sportingbetcopa.html":       LIGAS.SPORTINGBET_COPA,
+  "sportingbeteuro.html":       LIGAS.SPORTINGBET_EURO,
+  "sportingbetchampions.html":  LIGAS.SPORTINGBET_CHAMPIONS,
+  "sportingbetsuperliga.html":  LIGAS.SPORTINGBET_SUPERLIGA,
   "betssonespanha.html":      LIGAS.BETSSON_ESPANHA,
   "betssoningland.html":      LIGAS.BETSSON_INGLATERRA,
   "betssonbrasil.html":       LIGAS.BETSSON_BRASIL,
@@ -95,8 +109,8 @@ const MAPA_ARQUIVO_PARA_LIGA = {
 function detectarLigaAtual() {
   const caminho = (window.location.pathname || "").toLowerCase();
 
-  // Tratamento da exceção da Euro (evitando conflito com bet365/betsson)
-  if (caminho.includes("euro.html") && !caminho.includes("bet365") && !caminho.includes("betsson")) {
+  // Tratamento da exceção da Euro (evitando conflito com bet365/betsson/sportingbet)
+  if (caminho.includes("euro.html") && !caminho.includes("bet365") && !caminho.includes("betsson") && !caminho.includes("sportingbet")) {
     return LIGAS.EURO;
   }
 
