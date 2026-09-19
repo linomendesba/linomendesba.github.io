@@ -103,7 +103,15 @@
             }
             // tipo hls
             garantirHlsJs(function () {
-                videoEl.style.display = 'block';
+                // Ajusta o vídeo ao tamanho do container (streams com resolução maior,
+                // como os da Sportingbet, apareciam cortados no tamanho nativo)
+                videoEl.removeAttribute('width');
+                videoEl.removeAttribute('height');
+                videoEl.style.display   = 'block';
+                videoEl.style.width     = '100%';
+                videoEl.style.maxWidth  = '100%';
+                videoEl.style.height    = 'auto';
+                videoEl.style.objectFit = 'contain';
                 if (window.Hls && Hls.isSupported()) {
                     hls = new Hls({ enableWorker: true, lowLatencyMode: true });
                     hls.loadSource(video.src);
