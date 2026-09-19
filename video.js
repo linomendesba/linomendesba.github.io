@@ -1,4 +1,13 @@
-
+// video.js – Vídeo automático por liga
+// Reaproveita LIGAS e LIGA_ATUAL que já vêm do config.js (carregado ANTES deste
+// arquivo na página). NÃO altera nada no config.js.
+//
+// Como funciona:
+// - Cada liga cadastrada aqui tem um vídeo (iframe ou HLS).
+// - A liga sem entrada aqui (ex: todas as do Bet365) simplesmente não tem
+//   vídeo -> o bloco "Streaming ao Vivo" some sozinho na página.
+// - O vídeo só carrega de verdade quando o accordion é aberto (lazy load),
+//   igual já funcionava antes.
 
 (function () {
 
@@ -13,6 +22,12 @@
         [LIGAS.MUNDIAL]:       { tipo: 'iframe', src: 'https://stoiximan-br.live.inspiredvss.co.uk/inggWebViewer/?cust=stoiximan-br&ch=worldcup26' },
 
         // ── BET365 ── (sem vídeo, de propósito — nenhuma entrada aqui)
+
+        // ── SPORTINGBET (stream HLS, precisa de hls.js) ──
+        [LIGAS.SPORTINGBET_SUPERLIGA]:  { tipo: 'hls', src: 'https://gvc.live.inspiredvss.co.uk/live/soccer3sa/stream_5/soccer3sa.m3u8' },
+        [LIGAS.SPORTINGBET_COPA]:       { tipo: 'hls', src: 'https://gvc.live.inspiredvss.co.uk/live/soccer3globalcup/stream_5/soccer3globalcup.m3u8' },
+        [LIGAS.SPORTINGBET_CHAMPIONS]:  { tipo: 'hls', src: 'https://gvc.live.inspiredvss.co.uk/live/soccer3euroleague2023/stream_5/soccer3euroleague2023.m3u8' },
+        [LIGAS.SPORTINGBET_EURO]:       { tipo: 'hls', src: 'https://gvc.live.inspiredvss.co.uk/live/soccer3spanish/stream_5/soccer3spanish.m3u8' },
 
         // ── KIRON ──
         [LIGAS.KIRON_ENGLAND]: { tipo: 'iframe', src: 'https://iframe.net4media.net/streams/0199ce77-5337-7017-bae4-4df2438ddba0' },
