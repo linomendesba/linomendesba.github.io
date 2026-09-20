@@ -17,6 +17,11 @@ const LIGAS = {
   BET365_SUPER:   "Bet365 Super",
   BET365_PREMIER: "Bet365 Premier",
 
+  MGM_ELITE:    "MGM Elite South American",
+  MGM_AMERICAS: "MGM Full Americas Cup",
+  MGM_EURO:     "MGM Full Euro Cup",
+  MGM_GLOBAL:   "MGM Full Global Cup",
+
   SPORTINGBET_COPA:       "Sportingbet Copa do Mundo",
   SPORTINGBET_EURO:       "Sportingbet Eurocopa",
   SPORTINGBET_CHAMPIONS:  "Sportingbet Champions Cup",
@@ -44,6 +49,11 @@ const MAPEAMENTO_ROTAS_ESPECIAIS = {
   [LIGAS.BET365_EURO]:    "bet365/Euro",
   [LIGAS.BET365_SUPER]:   "bet365/Super",
   [LIGAS.BET365_PREMIER]: "bet365/Premier",
+
+  [LIGAS.MGM_ELITE]:    "mgm/elite",
+  [LIGAS.MGM_AMERICAS]: "mgm/americas",
+  [LIGAS.MGM_EURO]:     "mgm/euro",
+  [LIGAS.MGM_GLOBAL]:   "mgm/global",
 
   [LIGAS.SPORTINGBET_COPA]:      "sportingbet/copa",
   [LIGAS.SPORTINGBET_EURO]:      "sportingbet/euro",
@@ -89,6 +99,10 @@ const MAPA_ARQUIVO_PARA_LIGA = {
   "bet365euro.html":          LIGAS.BET365_EURO,
   "bet365super.html":         LIGAS.BET365_SUPER,
   "bet365premier.html":       LIGAS.BET365_PREMIER,
+  "mgmelite.html":            LIGAS.MGM_ELITE,
+  "mgmamericas.html":         LIGAS.MGM_AMERICAS,
+  "mgmeuro.html":             LIGAS.MGM_EURO,
+  "mgmglobal.html":           LIGAS.MGM_GLOBAL,
   "sportingbetcopa.html":       LIGAS.SPORTINGBET_COPA,
   "sportingbeteuro.html":       LIGAS.SPORTINGBET_EURO,
   "sportingbetchampions.html":  LIGAS.SPORTINGBET_CHAMPIONS,
@@ -109,8 +123,8 @@ const MAPA_ARQUIVO_PARA_LIGA = {
 function detectarLigaAtual() {
   const caminho = (window.location.pathname || "").toLowerCase();
 
-  // Tratamento da exceção da Euro (evitando conflito com bet365/betsson/sportingbet)
-  if (caminho.includes("euro.html") && !caminho.includes("bet365") && !caminho.includes("betsson") && !caminho.includes("sportingbet")) {
+  // Tratamento da exceção da Euro (evitando conflito com bet365/betsson/sportingbet/mgm)
+  if (caminho.includes("euro.html") && !caminho.includes("bet365") && !caminho.includes("betsson") && !caminho.includes("sportingbet") && !caminho.includes("mgm")) {
     return LIGAS.EURO;
   }
 
