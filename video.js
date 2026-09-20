@@ -23,6 +23,12 @@
 
         // ── BET365 ── (sem vídeo, de propósito — nenhuma entrada aqui)
 
+        // ── MGM ──
+        [LIGAS.MGM_ELITE]:    { tipo: 'iframe', src: 'https://leovegas.live.inspiredvss.co.uk/inggWebViewer/?cust=leovegas&ch=latam' },
+        [LIGAS.MGM_AMERICAS]: { tipo: 'iframe', src: 'https://leovegas.live.inspiredvss.co.uk/inggWebViewer/?cust=leovegas&ch=copa' },
+        [LIGAS.MGM_EURO]:     { tipo: 'iframe', src: 'https://leovegas.live.inspiredvss.co.uk/inggWebViewer/?cust=leovegas&ch=euro' },
+        [LIGAS.MGM_GLOBAL]:   { tipo: 'iframe', src: 'https://leovegas.live.inspiredvss.co.uk/inggWebViewer/?cust=leovegas&ch=global' },
+
         // ── SPORTINGBET (stream HLS, precisa de hls.js) ──
         [LIGAS.SPORTINGBET_SUPERLIGA]:  { tipo: 'hls', src: 'https://gvc.live.inspiredvss.co.uk/live/soccer3sa/stream_5/soccer3sa.m3u8' },
         [LIGAS.SPORTINGBET_COPA]:       { tipo: 'hls', src: 'https://gvc.live.inspiredvss.co.uk/live/soccer3globalcup/stream_5/soccer3globalcup.m3u8' },
