@@ -39,12 +39,14 @@
         [LIGAS.KIRON_ENGLAND]: { tipo: 'iframe', src: 'https://iframe.net4media.net/streams/0199ce77-5337-7017-bae4-4df2438ddba0' },
         [LIGAS.KIRON_ITALY]:   { tipo: 'iframe', src: 'https://iframe.net4media.net/streams/0199ce72-62fd-72f8-a616-0d5413281f85' },
         [LIGAS.KIRON_SPAIN]:   { tipo: 'iframe', src: 'https://iframe.net4media.net/streams/0199ce73-c384-705b-84f9-88c522fb45a4' },
-        // KIRON_BRAZIL e KIRON_AMERICA: sem vídeo cadastrado na página live (de propósito)
+        [LIGAS.KIRON_BRAZIL]:  { tipo: 'iframe', src: 'https://iframe.net4media.net/streams/019c8dfa-7c7c-7217-9b08-05a219d19f8a' },
+        [LIGAS.KIRON_AMERICA]: { tipo: 'iframe', src: 'https://iframe.net4media.net/streams/019c8df6-bf21-7108-917c-5059f77a9a9c' },
 
         // ── ESTRELA BET ──
         [LIGAS.ESTRELA_AMERICA_LATINA]: { tipo: 'iframe', src: 'https://altenar.live.inspiredvss.co.uk/inggWebViewer/?cust=altenar&ch=soccer3' },
         [LIGAS.ESTRELA_CHAMPIONS]:      { tipo: 'iframe', src: 'https://altenar.live.inspiredvss.co.uk/inggWebViewer/?cust=altenar&ch=champ' },
         [LIGAS.ESTRELA_COPA_MUNDO]:     { tipo: 'iframe', src: 'https://altenar.live.inspiredvss.co.uk/inggWebViewer/?cust=altenar&ch=international' },
+        [LIGAS.ESTRELA_PREMIER]:        { tipo: 'iframe', src: 'https://iframe.net4media.net/streams/019a9550-b659-7042-b235-b9f6937d4b8f?autoplay=true&muted=true&preload=none' },
 
         // ── BETSSON (stream HLS, precisa de hls.js) ──
         [LIGAS.BETSSON_INGLATERRA]: { tipo: 'hls', src: 'https://vfvideolive-vs001.akamaized.net/live/vwmf1_srvg-england-1024x576-1000k-mr-v3_channel0/playlist.m3u8' },

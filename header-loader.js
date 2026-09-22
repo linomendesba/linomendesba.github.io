@@ -334,6 +334,8 @@
     'estrelacopamundo.html': 'estrelabet',
     'estrelaamericalatina': 'estrelabet',
     'estrelaamericalatina.html': 'estrelabet',
+    'estrelapremier': 'estrelabet',
+    'estrelapremier.html': 'estrelabet',
     'estrelapre': 'estrelabet',
     'estrelapre.html': 'estrelabet',
     'estrelafluxo': 'estrelabet',

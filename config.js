@@ -39,7 +39,8 @@ const LIGAS = {
 
   ESTRELA_COPA_MUNDO:     "Copa do Mundo",
   ESTRELA_CHAMPIONS:      "Ligas dos Campeões",
-  ESTRELA_AMERICA_LATINA: "América Latina"
+  ESTRELA_AMERICA_LATINA: "América Latina",
+  ESTRELA_PREMIER:        "Premier League"
 };
 
 // 1. Dicionário de Mapeamento de Rotas para Ligas Especiais
@@ -64,15 +65,16 @@ const MAPEAMENTO_ROTAS_ESPECIAIS = {
   [LIGAS.BETSSON_INGLATERRA]: "betsson/Inglaterra",
   [LIGAS.BETSSON_BRASIL]:     "betsson/Brasil",
 
-  [LIGAS.KIRON_BRAZIL]:  "kiron/Brazil",
+  [LIGAS.KIRON_BRAZIL]:  "kiron/Brasil",
   [LIGAS.KIRON_ENGLAND]: "kiron/England",
   [LIGAS.KIRON_ITALY]:   "kiron/Italy",
-  [LIGAS.KIRON_AMERICA]: "kiron/America%20Latina",
+  [LIGAS.KIRON_AMERICA]: "kiron/Am%C3%A9rica%20Latina",
   [LIGAS.KIRON_SPAIN]:   "kiron/Spain",
 
   [LIGAS.ESTRELA_COPA_MUNDO]:     "estrela/Copa%20do%20Mundo",
   [LIGAS.ESTRELA_CHAMPIONS]:      "estrela/Ligas%20dos%20Campe%C3%B5es",
   [LIGAS.ESTRELA_AMERICA_LATINA]: "estrela/Am%C3%A9rica%20Latina",
+  [LIGAS.ESTRELA_PREMIER]:        "estrela/Premier%20League",
 };
 
 // Gerador genérico de endpoint para eliminar duplicação de funções
@@ -118,6 +120,7 @@ const MAPA_ARQUIVO_PARA_LIGA = {
   "estrelacopamundo.html":    LIGAS.ESTRELA_COPA_MUNDO,
   "estrelachampions.html":    LIGAS.ESTRELA_CHAMPIONS,
   "estrelaamericalatina.html":LIGAS.ESTRELA_AMERICA_LATINA,
+  "estrelapremier.html":      LIGAS.ESTRELA_PREMIER,
 };
 
 function detectarLigaAtual() {
