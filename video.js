@@ -49,9 +49,9 @@
         [LIGAS.ESTRELA_PREMIER]:        { tipo: 'iframe', src: 'https://iframe.net4media.net/streams/019a9550-b659-7042-b235-b9f6937d4b8f?autoplay=true&muted=true&preload=none' },
 
         // ── BETSSON (stream HLS, precisa de hls.js) ──
-        [LIGAS.BETSSON_INGLATERRA]: { tipo: 'hls', src: 'https://vfvideolive-vs001.akamaized.net/live/vwmf2_srvg-england-1024x576-1000k-mr-v3_channel0/playlist.m3u8' },
-        [LIGAS.BETSSON_BRASIL]:     { tipo: 'hls', src: 'https://vfvideolive-vs001.akamaized.net/live/vwmf2_srvg-brazil-1024x576-1000k-mr-v3_channel0/playlist.m3u8' },
-        [LIGAS.BETSSON_ESPANHA]:    { tipo: 'hls', src: 'https://vfvideolive-vs001.akamaized.net/live/vwmf2_srvg-spain-1024x576-1000k-mr-v3_channel0/playlist.m3u8' },
+        [LIGAS.BETSSON_INGLATERRA]: { tipo: 'hls', src: 'https://vfvideolive-vs001.akamaized.net/live/vwmf1_srvg-england-1024x576-1000k-mr-v3_channel0/playlist.m3u8' },
+        [LIGAS.BETSSON_BRASIL]:     { tipo: 'hls', src: 'https://vfvideolive-vs001.akamaized.net/live/vwmf2_srvg-england-1024x576-1000k-mr-v3_channel0/playlist.m3u8' },
+        [LIGAS.BETSSON_ESPANHA]:    { tipo: 'hls', src: 'https://vfvideolive-vs001.akamaized.net/live/vwmf3_srvg-england-1024x576-1000k-mr-v3_channel0/playlist.m3u8' },
     };
 
     function iniciar() {
