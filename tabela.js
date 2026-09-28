@@ -2437,23 +2437,37 @@ function getOddValue(odds, res) {
 }
 
 
+// Fetch com timeout: se a API pendurar, aborta em vez de travar o polling para sempre.
+// O timeout cobre também a leitura do corpo (res.json()).
+const FETCH_TIMEOUT_MS = 8000;
+async function fetchJsonComTimeout(url, nome, ms = FETCH_TIMEOUT_MS) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em ${nome}`);
+    return await res.json();
+  } catch (e) {
+    if (e && e.name === "AbortError") throw new Error(`Tempo esgotado (${ms / 1000}s) em ${nome}`);
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function fetchResultados() {
   const ts = Date.now();
-  const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Erro HTTP ${res.status} em resultados`);
-  return res.json();
+  return fetchJsonComTimeout(ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${ts}`, "resultados");
 }
 
 async function fetchOdds() {
   try {
 
     const ts = Date.now();
-    const res = await fetch(ROTAS_API.odds(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em odds`);
-    return await res.json();
+    return await fetchJsonComTimeout(ROTAS_API.odds(LIGA_ATUAL) + `?timestamp=${ts}`, "odds");
   } catch(e) {
     console.error("Erro odds:", e);
-    return [];
+    return null; // null = falhou (mantém o cache anterior); [] = API respondeu vazio
   }
 }
 
@@ -2461,13 +2475,11 @@ async function fetchProximosJogos() {
   try {
 
     const ts = Date.now();
-    const res = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em proximosJogos`);
-    const j = await res.json();
+    const j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(LIGA_ATUAL) + `?timestamp=${ts}`, "proximosJogos");
     return j.sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
   } catch(e) {
     console.error("Erro próximos:", e);
-    return [];
+    return null; // null = falhou (mantém o cache anterior)
   }
 }
 
@@ -3338,8 +3350,12 @@ let _cacheOddsData = [];
 let _cacheProximosJogos = [];
 let _cacheResultados = [];
 let _renderizandoRapido = false; 
+// Cada chamada de buscarDados ganha um número; se chegar uma chamada mais nova,
+// a mais antiga descarta o que trouxe (evita dado velho sobrescrever dado novo).
+let _versaoBusca = 0;
 
 async function buscarDados() {
+  const minhaVersao = ++_versaoBusca;
   hideErrorMessage();
   restaurarHorasSeletor();
   const ligaAtual = getLigaKey();
@@ -3375,8 +3391,16 @@ async function buscarDados() {
   }
   _renderizandoRapido = false;
 
+  // Odds e próximos jogos rodam em paralelo, mas NÃO seguram mais o polling de resultados.
+  // Quando terminam, só atualizam o cache (e re-renderizam se ainda for a busca mais recente).
   const pOdds = fetchOdds();
   const pProximos = fetchProximosJogos();
+  const pExtras = Promise.all([pOdds, pProximos]).then(([o, p]) => {
+    if (o !== null && ligaNaoMudou()) _cacheOddsData = o;          // null = falhou, mantém cache
+    if (p !== null && ligaNaoMudou()) _cacheProximosJogos = p;
+    return [o, p];
+  });
+  function ligaNaoMudou() { return Estado._ultimaLigaRenderizada === ligaAtual; }
 
   try {
     dados = await fetchResultados();
@@ -3385,6 +3409,16 @@ async function buscarDados() {
     console.error("Erro resultados:", e);
     showErrorMessage(`Erro ao carregar resultados: ${e.message}`);
     dados = _cacheResultados; 
+  }
+
+  // Chegou uma busca mais nova (ex.: troca de seletor/liga) enquanto esta esperava: descarta.
+  if (minhaVersao !== _versaoBusca) return;
+
+  // Primeira carga com resultados vazios: espera próximos/odds em vez de desistir
+  // (antes o cache deles nunca era preenchido nesse caso).
+  if (dados.length === 0 && _cacheProximosJogos.length === 0) {
+    await pExtras;
+    if (minhaVersao !== _versaoBusca) return;
   }
 
   oddsData = _cacheOddsData;
@@ -3396,12 +3430,13 @@ async function buscarDados() {
   criarTabela(dados, oddsData, proximosJogos);
   if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 
-
-  const [oddsDataFinal, proximosJogosFinal] = await Promise.all([pOdds, pProximos]);
-  _cacheOddsData = oddsDataFinal;
-  _cacheProximosJogos = proximosJogosFinal;
-  criarTabela(dados, oddsDataFinal, proximosJogosFinal);
-  if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+  // Segunda renderização (com odds/próximos frescos) sem bloquear o próximo ciclo de polling.
+  pExtras.then(() => {
+    if (minhaVersao !== _versaoBusca) return;
+    const dadosAtuais = dados.length ? dados : _cacheResultados;
+    criarTabela(dadosAtuais, _cacheOddsData, _cacheProximosJogos);
+    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+  }).catch(e => console.error("Erro ao renderizar odds/próximos:", e));
 }
 
 
@@ -3498,10 +3533,16 @@ function rkSincronizar() {
 
 let _tabVisibleTabela = !document.hidden;
 let _buscando = false;
+let _buscandoDesde = 0;
+const BUSCA_TRAVA_MAX_MS = 15000; // segurança: se uma busca passar disso, libera a trava
 async function _buscarDadosSeguro() {
-  if (!_tabVisibleTabela || _buscando) return;
+  if (!_tabVisibleTabela) return;
+  if (_buscando && (Date.now() - _buscandoDesde) < BUSCA_TRAVA_MAX_MS) return;
   _buscando = true;
-  try { await buscarDados(); } finally { _buscando = false; }
+  _buscandoDesde = Date.now();
+  try { await buscarDados(); }
+  catch (e) { console.error("Erro no ciclo de busca:", e); }
+  finally { _buscando = false; }
 }
 document.addEventListener('visibilitychange', () => {
   _tabVisibleTabela = !document.hidden;
