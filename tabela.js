@@ -234,7 +234,7 @@ const Estado = {
     return false;
   },
 
-  forcarRerender() { this._ultimoHashDados = null; },
+  forcarRerender() { this._ultimoHashDados = null; _ultimaAssinaturaRender = null; },
 };
 
 Estado.carregar();
@@ -1850,10 +1850,10 @@ function garantirCheckboxQuadrantes() {
 })();
 
 
-function showToast(msg) {
+function showToast(msg, ms) {
   const c = document.getElementById("toast-container"); if (!c) return;
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
-  c.appendChild(t); setTimeout(() => t.remove(), 2200);
+  c.appendChild(t); setTimeout(() => t.remove(), ms || 2200);
 }
 
 
@@ -1948,6 +1948,7 @@ function garantirPainelCores() {
   if (document.getElementById("painel-cores")) {
     garantirCheckboxQuadrantes();
     garantirCheckboxHoraFixa();
+    garantirMenuFerramentas();
     return;
   }
   const el = document.createElement("div"); el.id = "painel-cores";
@@ -2010,6 +2011,7 @@ function garantirPainelCores() {
     rkCb.addEventListener("change", function() {
       localStorage.setItem("rankingTop5Ativo", this.checked ? "1" : "0");
       if (this.checked) rkAplicarDestaque(); else rkLimparDestaque();
+      rkAtualizarVisibilidadeConfig();
     });
   }
 
@@ -2081,6 +2083,118 @@ function garantirPainelCores() {
   garantirCheckboxQuadrantes();
 
   garantirCheckboxHoraFixa();
+
+  garantirMenuFerramentas();
+}
+
+
+/* ── Menu único "⚙ Ferramentas": reúne todos os toggles (e seus ⚙) num só lugar ── */
+const FERR_ITENS = [
+  { lbl: "lbl-streak-alerta" },
+  { lbl: "lbl-stats-laterais" },
+  { lbl: "lbl-quadrantes-toggle" },
+  { lbl: "lbl-ranking-top5",     cfg: "btn-rk-config" },
+  { lbl: "lbl-zona-green-toggle" },
+  { lbl: "lbl-oraculo-tabela" },
+  { lbl: "lbl-buscador-tabela",  cfg: "btn-buscador-config" },
+  { lbl: "lbl-horafixa-toggle",  cfg: "btn-hf-config" },
+];
+
+function ferrAtualizarContagem() {
+  const badge = document.getElementById("ferr-count");
+  const panel = document.getElementById("ferr-panel");
+  const btn   = document.getElementById("btn-ferramentas");
+  if (!badge || !panel) return;
+  const n = panel.querySelectorAll('input[type="checkbox"]:checked').length;
+  badge.textContent = String(n);
+  btn?.classList.toggle("ferr-tem-ativos", n > 0);
+}
+
+function garantirMenuFerramentas() {
+  const painel = document.getElementById("painel-cores");
+  if (!painel) return;
+
+  garantirBotaoRkConfig();
+  rkAtualizarLabel();
+  rkAtualizarVisibilidadeConfig();
+
+  if (!document.getElementById("ferr-styles")) {
+    const st = document.createElement("style");
+    st.id = "ferr-styles";
+    st.textContent = `
+      #ferr-wrap { position:relative; display:inline-block; }
+      .btn-ferramentas {
+        display:inline-flex; align-items:center; gap:5px;
+        height:22px; padding:0 8px; box-sizing:border-box;
+        background:#1c212f; border:1px solid rgba(255,255,255,0.09); border-radius:6px;
+        color:#9ca3af; font-size:0.66em; font-weight:700; cursor:pointer;
+        transition:background .15s, border-color .15s, color .15s;
+      }
+      .btn-ferramentas:hover { background:#242b3d; border-color:rgba(255,255,255,0.18); color:#d1d5db; }
+      .btn-ferramentas.ferr-tem-ativos { color:#d4af37; border-color:rgba(212,175,55,0.45); background:rgba(212,175,55,0.08); }
+      #ferr-count {
+        min-width:14px; height:14px; padding:0 3px; box-sizing:border-box;
+        border-radius:7px; background:rgba(255,255,255,0.1); color:inherit;
+        font-size:0.95em; line-height:14px; text-align:center;
+      }
+      .ferr-tem-ativos #ferr-count { background:rgba(212,175,55,0.25); }
+      #ferr-panel {
+        position:absolute; left:0; top:calc(100% + 4px); z-index:10000;
+        display:flex; flex-direction:column; gap:4px; min-width:190px;
+        padding:8px; background:#1c212f; border:1px solid rgba(212,175,55,0.4);
+        border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,0.5);
+      }
+      #ferr-panel[hidden] { display:none; }
+      .ferr-row { display:flex; align-items:center; gap:4px; }
+      .ferr-row > label { flex:1; margin-left:0 !important; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  let wrap = document.getElementById("ferr-wrap");
+  if (!wrap) {
+    wrap = document.createElement("span");
+    wrap.id = "ferr-wrap";
+    wrap.innerHTML = `
+      <button type="button" id="btn-ferramentas" class="btn-ferramentas" title="Ferramentas da tabela" aria-haspopup="true">⚙ Ferramentas <span id="ferr-count">0</span></button>
+      <div id="ferr-panel" hidden></div>
+    `;
+    painel.appendChild(wrap);
+
+    const btn   = wrap.querySelector("#btn-ferramentas");
+    const panel = wrap.querySelector("#ferr-panel");
+    btn.addEventListener("click", (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; });
+    panel.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // abrir o modal de configuração de uma ferramenta fecha o menu
+      if (e.target.closest(".btn-buscador-config")) panel.hidden = true;
+    });
+    panel.addEventListener("change", () => setTimeout(ferrAtualizarContagem, 0));
+    document.addEventListener("click", () => { panel.hidden = true; });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") panel.hidden = true; });
+  }
+
+  const panel = wrap.querySelector("#ferr-panel");
+  FERR_ITENS.forEach(item => {
+    const lbl = document.getElementById(item.lbl);
+    if (!lbl) return; // ainda não criado — entra no próximo ciclo
+    let row = panel.querySelector(`.ferr-row[data-lbl="${item.lbl}"]`);
+    if (!row) {
+      row = document.createElement("div");
+      row.className = "ferr-row";
+      row.dataset.lbl = item.lbl;
+      panel.appendChild(row);
+    }
+    if (lbl.parentNode !== row) row.appendChild(lbl);
+    if (item.cfg) {
+      const cfg = document.getElementById(item.cfg);
+      if (cfg && cfg.parentNode !== row) row.appendChild(cfg);
+    }
+  });
+
+  // mantém o menu sempre por último no painel
+  if (painel.lastElementChild !== wrap) painel.appendChild(wrap);
+  ferrAtualizarContagem();
 }
 
 function sincronizarPainelCores() {
@@ -2593,6 +2707,32 @@ function hfLerDias() {
 }
 function hfSalvarDias(v) { localStorage.setItem(hfDiasKey(), String(v)); }
 
+const HF_ALERTA_OPCOES = [0, 70, 80, 90, 100]; // 0 = desligado
+function hfAlertaKey() { return `hf_alerta_${getLigaKey()}`; }
+function hfLerAlerta() {
+  const v = parseInt(localStorage.getItem(hfAlertaKey()), 10);
+  return HF_ALERTA_OPCOES.includes(v) ? v : 0;
+}
+function hfSalvarAlerta(v) { localStorage.setItem(hfAlertaKey(), String(v)); }
+
+// Alertas já disparados (não repete o mesmo aviso; sobrevive a recarregar a página)
+const _hfAlertasDisparados = (() => {
+  try { return new Set(JSON.parse(sessionStorage.getItem("hf_alertas_disparados") || "[]")); }
+  catch (e) { return new Set(); }
+})();
+function hfSalvarAlertasSessao() {
+  try { sessionStorage.setItem("hf_alertas_disparados", JSON.stringify(Array.from(_hfAlertasDisparados).slice(-60))); }
+  catch (e) {}
+}
+function hfDispararAlerta(slot, p, horaAlvo, dataAlvo, mercadoLabel, gales, limite) {
+  const key = [getLigaKey(), dataAlvo, horaAlvo, slot.minuto, mercadoLabel, gales, limite].join("|");
+  if (_hfAlertasDisparados.has(key)) return;
+  _hfAlertasDisparados.add(key);
+  hfSalvarAlertasSessao();
+  showToast(`⏰ Hora Fixa: minuto ${String(slot.minuto).padStart(2, "0")} com ${Math.round(p)}% (${slot.green}/${slot.total}) — ${mercadoLabel}, ${gales} gale${gales > 1 ? "s" : ""}`, 6000);
+  buscadorPlayBeep();
+}
+
 
 function hfParseScore(s) {
   if (!s || typeof s !== "string") return [0, 0];
@@ -2746,6 +2886,12 @@ function garantirModalHFConfig() {
           <option value="3">3</option><option value="4">4</option>
         </select>
       </label>
+      <label>Avisar quando a coluna atingir
+        <select id="cfg-hf-alerta" class="buscador-select">
+          <option value="0">Desligado</option>
+          ${HF_ALERTA_OPCOES.filter(n => n > 0).map(n => `<option value="${n}">${n}% ou mais</option>`).join("")}
+        </select>
+      </label>
       <div class="buscador-modal-actions">
         <button type="button" id="btnCancelarHFConfig">Cancelar</button>
         <button type="button" id="btnSalvarHFConfig">Salvar</button>
@@ -2766,6 +2912,7 @@ function abrirModalHFConfig() {
   if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
   overlay.querySelector("#cfg-hf-dias").value  = String(hfLerDias());
   overlay.querySelector("#cfg-hf-gales").value = String(hfLerGales());
+  overlay.querySelector("#cfg-hf-alerta").value = String(hfLerAlerta());
   overlay.hidden = false;
 }
 
@@ -2779,6 +2926,7 @@ function salvarModalHFConfig() {
   if (!overlay) return;
   hfSalvarDias(parseInt(overlay.querySelector("#cfg-hf-dias").value, 10));
   hfSalvarGales(parseInt(overlay.querySelector("#cfg-hf-gales").value, 10));
+  hfSalvarAlerta(parseInt(overlay.querySelector("#cfg-hf-alerta").value, 10));
   fecharModalHFConfig();
   hfRender(qdDadosCache);
   showToast(`⚙ Configurações da Hora Fixa salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
@@ -2880,6 +3028,7 @@ function hfGarantirEstrutura() {
       .hf-50  { background: #ec4899 !important; color: #fff; }
       .hf-40  { background: #a855f7 !important; color: #fff; }
       .hf-0   { background: #dc2626 !important; color: #fff; }
+      .hf-alvo { outline: 2px solid #d4af37; outline-offset: -2px; }
       #hf-controles-inline { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; }
       #hf-controles-inline label { font-size: 0.76em; font-weight: 600; color: #9ca3af; white-space: nowrap; }
       #hf-controles-inline select { width: auto !important; max-width: 120px; height: 30px !important; box-sizing: border-box !important; }
@@ -2909,7 +3058,7 @@ function hfRender(dados) {
   const mercado = seletorResultado?.value || "over2.5";
   const mercadoLabel = seletorResultado?.selectedOptions?.[0]?.textContent || mercado;
   const gales = hfLerGales();
-  const { hora: horaAlvo } = qdGetHoraAtual(dados); 
+  const { hora: horaAlvo, dateStr: dataAlvoHF } = qdGetHoraAtual(dados); 
 
 
   const dadosDaHora = dados.filter(d => d && d.hora === horaAlvo);
@@ -2941,17 +3090,31 @@ function hfRender(dados) {
   tdHora.textContent = horaAlvo.toString().padStart(2, "0");
   row.appendChild(tdHora);
 
+  // Alerta: colunas que ainda vão acontecer nesta hora e já batem a % escolhida no ⚙
+  const limiteAlerta = hfLerAlerta();
+  const minJogadoHF = dados.reduce((m, d) =>
+    (d && d.hora === horaAlvo && getDateStr(d.data) === dataAlvoHF) ? Math.max(m, Number(d.minuto)) : m, -1);
+  let primeiroAlvoHF = null;
+
   linha.forEach(slot => {
     const p = slot.total > 0 ? (slot.green / slot.total) * 100 : 0;
     const g = slot.total > 0 ? (slot.golsSum / slot.total) : 0;
     const td = document.createElement("td");
     td.className = hfClassePct(p);
+    if (limiteAlerta && slot.minuto > minJogadoHF && slot.total >= 3 && p >= limiteAlerta) {
+      td.classList.add("hf-alvo");
+      if (!primeiroAlvoHF) primeiroAlvoHF = { slot, p };
+    }
     td.title = `Minuto ${slot.minuto}\nMercado: ${mercadoLabel}\nGales: ${gales}\nAcertos: ${slot.green} de ${slot.total} (${Math.round(p)}%)\nMédia de gols: ${g.toFixed(1)}`;
     td.innerHTML = slot.total > 0
       ? `<div class="hf-cell-wrap"><span class="hf-cell-pct">${Math.round(p)}%</span><span class="hf-cell-avg">${g.toFixed(1)}</span></div>`
       : `<div class="hf-cell-wrap"><span class="hf-cell-pct">${Math.round(p)}%</span></div>`;
     row.appendChild(td);
   });
+
+  if (primeiroAlvoHF) {
+    hfDispararAlerta(primeiroAlvoHF.slot, primeiroAlvoHF.p, horaAlvo, dataAlvoHF, mercadoLabel, gales, limiteAlerta);
+  }
 }
 
 
@@ -3368,7 +3531,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   hfRender(dados);
 
 
-  setTimeout(aplicarZonaGreen, 80);
+  aplicarZonaGreen(); // síncrono: as células já nascem com a zona, sem piscar
 }
 
 
@@ -3405,6 +3568,70 @@ let _renderizandoRapido = false;
 // a mais antiga descarta o que trouxe (evita dado velho sobrescrever dado novo).
 let _versaoBusca = 0;
 
+/* ── Render só quando algo mudou ──
+   Antes a tabela inteira era apagada e recriada a cada 3s (e duas vezes por ciclo).
+   Agora cria uma "assinatura" do que influencia a tela (dados, odds, próximos jogos,
+   seletores, seleções e configurações). Se nada mudou, a tabela atual é mantida como está:
+   sem piscar, sem reiniciar animações e sem perder hover/tooltip. */
+var _ultimaAssinaturaRender = null;
+let _ultimoRenderEm = 0;
+const RENDER_FORCA_A_CADA_MS = 60000; // segurança: reconstrói pelo menos 1x por minuto
+
+const _CHAVES_RENDER_RE = /^(zonaGreenAtivo|oraculoAtivo|buscadorAtivo|alertaStreakAtivo|statsLateraisOcultas|rankingTop5Ativo|quadrantesAtivos|horaFixaAtiva|corGreen|corRed|corDestaqueExtra|buscadorAmostraMinima|placarSelecionados)$|^(placarFTSelecionados|placarHTSelecionados|timesSelecionados|oddsSelecionadas|mercadosExtras|selectedChaves|colunasSelecionadas|seletorHoras|buscadorSinal|buscadorConfig|hf_gales|hf_dias|hf_alerta|rk_config)/;
+
+function _fnvNum(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+// Hash que NÃO depende da ordem dos itens (a tabela reordena o array no lugar; se o hash
+// dependesse da ordem, a assinatura alternaria entre "ordem crua" e "ordem ordenada").
+function _hashLista(arr) {
+  if (!arr || !arr.length) return "0";
+  try {
+    let soma = 0, mistura = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const h = _fnvNum(JSON.stringify(arr[i]));
+      soma = (soma + h) >>> 0;
+      mistura = (mistura ^ Math.imul(h, 2654435761)) >>> 0;
+    }
+    return arr.length + "_" + soma.toString(36) + "_" + mistura.toString(36);
+  } catch (e) { return "x" + Date.now(); }
+}
+function _assinaturaUI() {
+  let sels = "";
+  document.querySelectorAll("select").forEach(el => { sels += (el.id || el.name || "") + "=" + el.value + ","; });
+  let ls = "";
+  try {
+    const ks = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (_CHAVES_RENDER_RE.test(k)) ks.push(k);
+    }
+    ks.sort();
+    ls = ks.map(k => k + "=" + String(localStorage.getItem(k)).slice(0, 2000)).join("|");
+  } catch (e) { ls = "x" + Date.now(); }
+  const est = JSON.stringify([
+    Estado.placarFTSelecionados, Estado.placarHTSelecionados, Estado.timesSelecionados,
+    Estado.oddsSelecionadas, Estado.mercadosExtras, Estado.colunasSelecionadas, Estado.selectedChaves,
+    Estado.corGreen, Estado.corRed, Estado.corDestaqueExtra
+  ]);
+  const d = new Date();
+  const agora = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`;
+  return [getLigaKey(), sels, ls, est, minutosFixos.join(","), qdNumPreviousHours, agora].join("§");
+}
+
+function renderizarTabelaSeMudou(dados, odds, proximos, forcar) {
+  const sig = _hashLista(dados) + "§" + _hashLista(odds) + "§" + _hashLista(proximos) + "§" + _assinaturaUI();
+  const temConteudo = !!document.querySelector("#tabelaResultados tbody tr");
+  const vencido = (Date.now() - _ultimoRenderEm) > RENDER_FORCA_A_CADA_MS;
+  if (!forcar && temConteudo && !vencido && sig === _ultimaAssinaturaRender) return false;
+  criarTabela(dados, odds, proximos);
+  _ultimaAssinaturaRender = sig;
+  _ultimoRenderEm = Date.now();
+  return true;
+}
+
 async function buscarDados() {
   const minhaVersao = ++_versaoBusca;
   hideErrorMessage();
@@ -3436,7 +3663,7 @@ async function buscarDados() {
     proximosJogos = _cacheProximosJogos;
     if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
     qdDadosCache = dados;
-    criarTabela(dados, oddsData, proximosJogos);
+    renderizarTabelaSeMudou(dados, oddsData, proximosJogos, true);
     if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
     return;
   }
@@ -3478,14 +3705,14 @@ async function buscarDados() {
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
 
   qdDadosCache = dados;
-  criarTabela(dados, oddsData, proximosJogos);
+  renderizarTabelaSeMudou(dados, oddsData, proximosJogos, false);
   if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 
   // Segunda renderização (com odds/próximos frescos) sem bloquear o próximo ciclo de polling.
   pExtras.then(() => {
     if (minhaVersao !== _versaoBusca) return;
     const dadosAtuais = dados.length ? dados : _cacheResultados;
-    criarTabela(dadosAtuais, _cacheOddsData, _cacheProximosJogos);
+    renderizarTabelaSeMudou(dadosAtuais, _cacheOddsData, _cacheProximosJogos, false);
     if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
   }).catch(e => console.error("Erro ao renderizar odds/próximos:", e));
 }
@@ -3525,7 +3752,30 @@ function aplicarZonaGreen() {
 
 
 
-function rkCalcularTop5(dados, nJogos) {
+/* ── Ranking Top N: configuração (⚙) ── */
+const RK_TAM_OPCOES   = [3, 5, 8];
+const RK_JOGOS_OPCOES = [20, 40, 60, 100];
+const RK_CONFIG_PADRAO = { tam: 5, fonte: "ranking", jogos: 60 };
+
+function rkConfigKey() { return `rk_config_${getLigaKey()}`; }
+
+function rkLerConfig() {
+  const base = { ...RK_CONFIG_PADRAO };
+  try {
+    const salvo = JSON.parse(localStorage.getItem(rkConfigKey()));
+    if (salvo && typeof salvo === "object") {
+      return {
+        tam:   RK_TAM_OPCOES.includes(salvo.tam)     ? salvo.tam   : base.tam,
+        fonte: (salvo.fonte === "calculo")           ? "calculo"   : "ranking",
+        jogos: RK_JOGOS_OPCOES.includes(salvo.jogos) ? salvo.jogos : base.jogos
+      };
+    }
+  } catch (e) {}
+  return base;
+}
+function rkSalvarConfig(cfg) { localStorage.setItem(rkConfigKey(), JSON.stringify(cfg)); }
+
+function rkCalcularTop5(dados, nJogos, tam = 5) {
   const ts = {};
   dados.slice(0, nJogos).forEach(d => {
     const { time_a, time_b, ft } = d;
@@ -3542,37 +3792,50 @@ function rkCalcularTop5(dados, nJogos) {
   return new Set(
     Object.entries(ts)
       .sort(([,a],[,b]) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp)
-      .slice(0, 5)
+      .slice(0, tam)
       .map(([nome]) => nome)
   );
 }
 
-// Cache do Top 5: mantém os nomes entre re-renderizações da tabela, então o destaque
-// nunca some enquanto o ranking está sendo atualizado (era isso que fazia piscar).
+// Cache do Top N: mantém os nomes entre re-renderizações da tabela, então o destaque
+// nunca some enquanto o ranking está sendo atualizado.
 let _rkTop5Cache = new Set();
 
-function rkLerTop5DoDOM() {
+function rkLerTop5DoDOM(tam) {
+  const n = tam || rkLerConfig().tam;
   const nomes = new Set();
   document.querySelectorAll("#rankingContainer .rk3-tbl tbody tr").forEach((tr, i) => {
-    if (i >= 5) return;
+    if (i >= n) return;
     const span = tr.querySelector(".rk3-team .rk-name-wrap span:first-child");
     if (span && span.textContent.trim()) nomes.add(span.textContent.trim());
   });
   return nomes;
 }
 
-// Só troca o cache quando o ranking tem dados (se estiver vazio/reconstruindo, mantém o anterior)
+// Fonte escolhida no ⚙: "ranking" (lê o ranking da página) ou "calculo" (calcula pelos últimos N jogos)
+function rkObterTop() {
+  const cfg = rkLerConfig();
+  if (cfg.fonte === "calculo") {
+    const base = qdDadosCache;
+    return (base && base.length) ? rkCalcularTop5(base, cfg.jogos, cfg.tam) : new Set();
+  }
+  return rkLerTop5DoDOM(cfg.tam);
+}
+
+// Só troca o cache quando há dados (se o ranking estiver vazio/reconstruindo, mantém o anterior)
 function rkAtualizarCache() {
-  const lido = rkLerTop5DoDOM();
+  const lido = rkObterTop();
   if (lido.size) _rkTop5Cache = lido;
   return _rkTop5Cache;
 }
 
 function rkAtivo() { return localStorage.getItem("rankingTop5Ativo") === "1"; }
 
-// Aplica o destaque num placar recém-criado, de forma síncrona (já nasce marcado, sem piscar)
+// Aplica o destaque num placar recém-criado, de forma síncrona (já nasce marcado)
 function rkMarcarPlacar(placar) {
-  if (!placar || !rkAtivo() || !_rkTop5Cache.size) return;
+  if (!placar || !rkAtivo()) return;
+  if (!_rkTop5Cache.size) rkAtualizarCache();
+  if (!_rkTop5Cache.size) return;
   [".time-casa", ".time-fora"].forEach(sel => {
     const span = placar.querySelector(sel);
     if (!span) return;
@@ -3583,14 +3846,14 @@ function rkMarcarPlacar(placar) {
 
 // Sincroniza sem "limpar e reaplicar": só mexe na classe dos spans que realmente mudaram
 function rkAplicarDestaque() {
-  const top5 = rkAtualizarCache();
-  if (!top5.size) return;
+  const top = rkAtualizarCache();
+  if (!top.size) return;
   document.querySelectorAll(".placar-futuro").forEach(placar => {
     [".time-casa", ".time-fora"].forEach(sel => {
       const span = placar.querySelector(sel);
       if (!span) return;
       const nome = span.getAttribute("data-full-time");
-      const deve = !!(nome && top5.has(nome));
+      const deve = !!(nome && top.has(nome));
       if (deve !== span.classList.contains("rk-top5-nome")) span.classList.toggle("rk-top5-nome", deve);
     });
   });
@@ -3605,6 +3868,133 @@ function rkSincronizar() {
     rkAplicarDestaque();                 // imediato: os placares novos já saem marcados
     setTimeout(rkAplicarDestaque, 120);  // reforço caso o ranking termine de atualizar depois
   }
+}
+
+// O ranking é atualizado por outro script, independente da tabela. Como a tabela agora só é
+// reconstruída quando algo muda, observamos o ranking pra manter o destaque em dia.
+(function rkObservarRanking() {
+  let timer = null;
+  const agenda = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { if (rkAtivo()) rkAplicarDestaque(); }, 150);
+  };
+  const ligar = () => {
+    const alvo = document.getElementById("rankingContainer");
+    if (!alvo) return false;
+    if (!alvo._rkObs) {
+      const obs = new MutationObserver(agenda);
+      obs.observe(alvo, { childList: true, subtree: true, characterData: true });
+      alvo._rkObs = obs;
+    }
+    return true;
+  };
+  if (!ligar()) {
+    let tentativas = 0;
+    const iv = setInterval(() => { if (ligar() || ++tentativas > 40) clearInterval(iv); }, 500);
+  }
+  setInterval(() => { if (rkAtivo()) rkAplicarDestaque(); }, 4000); // rede de segurança (barata: só compara classes)
+})();
+
+function rkAtualizarLabel() {
+  const lbl = document.getElementById("lbl-ranking-top5");
+  if (!lbl) return;
+  Array.from(lbl.childNodes).forEach(n => { if (n.nodeType === 3) n.remove(); });
+  lbl.appendChild(document.createTextNode(`Ranking Top ${rkLerConfig().tam}`));
+}
+
+function rkAtualizarVisibilidadeConfig() {
+  const btn = document.getElementById("btn-rk-config");
+  if (btn) btn.style.display = rkAtivo() ? "inline-flex" : "none";
+}
+
+function garantirBotaoRkConfig() {
+  if (document.getElementById("btn-rk-config")) return;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.id = "btn-rk-config";
+  btn.className = "btn-buscador-config";
+  btn.style.display = "none";
+  btn.title = "Configurar Ranking Top N";
+  btn.textContent = "⚙";
+  btn.addEventListener("click", abrirModalRkConfig);
+  const painel = document.getElementById("painel-cores");
+  if (painel) painel.appendChild(btn);
+}
+
+function garantirModalRkConfig() {
+  let overlay = document.getElementById("rk-modal-overlay");
+  if (overlay) return overlay;
+  overlay = document.createElement("div");
+  overlay.id = "rk-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true">
+      <h4>⚙ Configurar Ranking Top <span id="rk-modal-liga"></span></h4>
+      <label>Quantidade de times em destaque
+        <select id="cfg-rk-tam" class="buscador-select">
+          ${RK_TAM_OPCOES.map(n => `<option value="${n}">Top ${n}</option>`).join("")}
+        </select>
+      </label>
+      <label>Fonte do ranking
+        <select id="cfg-rk-fonte" class="buscador-select">
+          <option value="ranking">Ranking da página</option>
+          <option value="calculo">Calcular pela tabela</option>
+        </select>
+      </label>
+      <label>Jogos considerados (cálculo)
+        <select id="cfg-rk-jogos" class="buscador-select">
+          ${RK_JOGOS_OPCOES.map(n => `<option value="${n}">${n} jogos</option>`).join("")}
+        </select>
+      </label>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarRkConfig" style="background:transparent;color:#d4af37;">Cancelar</button>
+        <button type="button" id="btnSalvarRkConfig" style="background:#d4af37;color:#1c212f;">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const fonteSel = overlay.querySelector("#cfg-rk-fonte");
+  const jogosSel = overlay.querySelector("#cfg-rk-jogos");
+  const sincJogos = () => { jogosSel.disabled = fonteSel.value !== "calculo"; jogosSel.style.opacity = jogosSel.disabled ? "0.45" : "1"; };
+  fonteSel.addEventListener("change", sincJogos);
+  overlay._sincJogos = sincJogos;
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalRkConfig(); });
+  overlay.querySelector("#btnCancelarRkConfig").addEventListener("click", fecharModalRkConfig);
+  overlay.querySelector("#btnSalvarRkConfig").addEventListener("click", salvarModalRkConfig);
+  return overlay;
+}
+
+function abrirModalRkConfig() {
+  const overlay = garantirModalRkConfig();
+  const cfg = rkLerConfig();
+  const ligaSpan = overlay.querySelector("#rk-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+  overlay.querySelector("#cfg-rk-tam").value   = String(cfg.tam);
+  overlay.querySelector("#cfg-rk-fonte").value = cfg.fonte;
+  overlay.querySelector("#cfg-rk-jogos").value = String(cfg.jogos);
+  overlay._sincJogos();
+  overlay.hidden = false;
+}
+
+function fecharModalRkConfig() {
+  const overlay = document.getElementById("rk-modal-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function salvarModalRkConfig() {
+  const overlay = document.getElementById("rk-modal-overlay");
+  if (!overlay) return;
+  rkSalvarConfig({
+    tam:   parseInt(overlay.querySelector("#cfg-rk-tam").value, 10),
+    fonte: overlay.querySelector("#cfg-rk-fonte").value,
+    jogos: parseInt(overlay.querySelector("#cfg-rk-jogos").value, 10)
+  });
+  fecharModalRkConfig();
+  _rkTop5Cache = new Set();
+  rkAtualizarLabel();
+  if (rkAtivo()) { rkLimparDestaque(); rkAplicarDestaque(); }
+  showToast(`⚙ Ranking Top ${rkLerConfig().tam} salvo${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
 }
 
 
