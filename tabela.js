@@ -2708,8 +2708,80 @@ function hfRemoverEstrutura() {
 }
 
 function hfAtualizarVisibilidadeControles() {
-  const wrap = document.getElementById("hf-controles-inline");
-  if (wrap) wrap.style.display = hfCheckboxAtivo() ? "inline-flex" : "none";
+  const btn = document.getElementById("btn-hf-config");
+  if (btn) btn.style.display = hfCheckboxAtivo() ? "inline-flex" : "none";
+}
+
+/* ── Modal de configuração da Hora Fixa (mesmo padrão do Buscador) ── */
+function garantirModalHFConfig() {
+  let overlay = document.getElementById("hf-modal-overlay");
+  if (overlay) return overlay;
+
+  if (!document.getElementById("hf-modal-styles")) {
+    const st = document.createElement("style");
+    st.id = "hf-modal-styles";
+    st.textContent = `
+      #btnSalvarHFConfig { background:#d4af37; color:#1c212f; }
+      #btnCancelarHFConfig { background:transparent; color:#d4af37; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  overlay = document.createElement("div");
+  overlay.id = "hf-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true">
+      <h4>⚙ Configurar Hora Fixa <span id="hf-modal-liga"></span></h4>
+      <label>Dias
+        <select id="cfg-hf-dias" class="buscador-select">
+          <option value="5">5 dias</option>
+          <option value="6">6 dias</option>
+        </select>
+      </label>
+      <label>Gales
+        <select id="cfg-hf-gales" class="buscador-select">
+          <option value="1">1</option><option value="2">2</option>
+          <option value="3">3</option><option value="4">4</option>
+        </select>
+      </label>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarHFConfig">Cancelar</button>
+        <button type="button" id="btnSalvarHFConfig">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalHFConfig(); });
+  overlay.querySelector("#btnCancelarHFConfig").addEventListener("click", fecharModalHFConfig);
+  overlay.querySelector("#btnSalvarHFConfig").addEventListener("click", salvarModalHFConfig);
+  return overlay;
+}
+
+function abrirModalHFConfig() {
+  const overlay = garantirModalHFConfig();
+  const ligaSpan = overlay.querySelector("#hf-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+  overlay.querySelector("#cfg-hf-dias").value  = String(hfLerDias());
+  overlay.querySelector("#cfg-hf-gales").value = String(hfLerGales());
+  overlay.hidden = false;
+}
+
+function fecharModalHFConfig() {
+  const overlay = document.getElementById("hf-modal-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function salvarModalHFConfig() {
+  const overlay = document.getElementById("hf-modal-overlay");
+  if (!overlay) return;
+  hfSalvarDias(parseInt(overlay.querySelector("#cfg-hf-dias").value, 10));
+  hfSalvarGales(parseInt(overlay.querySelector("#cfg-hf-gales").value, 10));
+  fecharModalHFConfig();
+  hfRender(qdDadosCache);
+  showToast(`⚙ Configurações da Hora Fixa salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
 }
 
 function hfToggle(ativo) {
@@ -2745,37 +2817,15 @@ function garantirCheckboxHoraFixa() {
   painel.appendChild(lbl);
 
 
-  const controlesWrap = document.createElement("span");
-  controlesWrap.id = "hf-controles-inline";
-  controlesWrap.innerHTML = `
-    <label for="hf-seletor-dias">Dias:</label>
-    <select id="hf-seletor-dias">
-      <option value="5">5 dias</option><option value="6">6 dias</option>
-    </select>
-    <label for="hf-seletor-gales">Gales:</label>
-    <select id="hf-seletor-gales">
-      <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
-    </select>
-  `;
-  painel.appendChild(controlesWrap);
-
-  const selDias = controlesWrap.querySelector("#hf-seletor-dias");
-  selDias.value = String(hfLerDias());
-  selDias.addEventListener("change", () => {
-    hfSalvarDias(parseInt(selDias.value, 10));
-    hfRender(qdDadosCache);
-  });
-
-  const selGales = controlesWrap.querySelector("#hf-seletor-gales");
-  selGales.value = String(hfLerGales());
-
-  selGales.addEventListener("change", () => {
-    hfSalvarGales(parseInt(selGales.value, 10));
-    hfRender(qdDadosCache);
-  });
-
-  hfSincronizarEstiloControles();
-  window.addEventListener("resize", hfSincronizarEstiloControles);
+  const btnCfg = document.createElement("button");
+  btnCfg.type = "button";
+  btnCfg.id = "btn-hf-config";
+  btnCfg.className = "btn-buscador-config";
+  btnCfg.style.display = "none";
+  btnCfg.title = "Configurar Hora Fixa";
+  btnCfg.textContent = "⚙";
+  btnCfg.addEventListener("click", abrirModalHFConfig);
+  painel.appendChild(btnCfg);
 
   hfAtualizarVisibilidadeControles();
 }
@@ -3198,6 +3248,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
       placarTexto.innerHTML=`<span class="time-casa" data-full-time="${jogo.team_home}">${abbreviateTeamName(jogo.team_home)}</span><span class="time-fora" data-full-time="${jogo.team_visit}">${abbreviateTeamName(jogo.team_visit)}</span>`;
     }
     placar.appendChild(placarTexto);
+    rkMarcarPlacar(placar);
 
     const oddsP=findOddsProximoNoIndex(oddsIndex,jogo);
     const oddVal=getOddValue(oddsP,selRes);
@@ -3496,6 +3547,10 @@ function rkCalcularTop5(dados, nJogos) {
   );
 }
 
+// Cache do Top 5: mantém os nomes entre re-renderizações da tabela, então o destaque
+// nunca some enquanto o ranking está sendo atualizado (era isso que fazia piscar).
+let _rkTop5Cache = new Set();
+
 function rkLerTop5DoDOM() {
   const nomes = new Set();
   document.querySelectorAll("#rankingContainer .rk3-tbl tbody tr").forEach((tr, i) => {
@@ -3506,16 +3561,37 @@ function rkLerTop5DoDOM() {
   return nomes;
 }
 
+// Só troca o cache quando o ranking tem dados (se estiver vazio/reconstruindo, mantém o anterior)
+function rkAtualizarCache() {
+  const lido = rkLerTop5DoDOM();
+  if (lido.size) _rkTop5Cache = lido;
+  return _rkTop5Cache;
+}
+
+function rkAtivo() { return localStorage.getItem("rankingTop5Ativo") === "1"; }
+
+// Aplica o destaque num placar recém-criado, de forma síncrona (já nasce marcado, sem piscar)
+function rkMarcarPlacar(placar) {
+  if (!placar || !rkAtivo() || !_rkTop5Cache.size) return;
+  [".time-casa", ".time-fora"].forEach(sel => {
+    const span = placar.querySelector(sel);
+    if (!span) return;
+    const nome = span.getAttribute("data-full-time");
+    if (nome && _rkTop5Cache.has(nome)) span.classList.add("rk-top5-nome");
+  });
+}
+
+// Sincroniza sem "limpar e reaplicar": só mexe na classe dos spans que realmente mudaram
 function rkAplicarDestaque() {
-  rkLimparDestaque();
-  const top5 = rkLerTop5DoDOM();
+  const top5 = rkAtualizarCache();
   if (!top5.size) return;
   document.querySelectorAll(".placar-futuro").forEach(placar => {
     [".time-casa", ".time-fora"].forEach(sel => {
       const span = placar.querySelector(sel);
       if (!span) return;
       const nome = span.getAttribute("data-full-time");
-      if (nome && top5.has(nome)) span.classList.add("rk-top5-nome");
+      const deve = !!(nome && top5.has(nome));
+      if (deve !== span.classList.contains("rk-top5-nome")) span.classList.toggle("rk-top5-nome", deve);
     });
   });
 }
@@ -3525,8 +3601,9 @@ function rkLimparDestaque() {
 }
 
 function rkSincronizar() {
-  if (localStorage.getItem("rankingTop5Ativo") === "1") {
-    setTimeout(rkAplicarDestaque, 120);
+  if (rkAtivo()) {
+    rkAplicarDestaque();                 // imediato: os placares novos já saem marcados
+    setTimeout(rkAplicarDestaque, 120);  // reforço caso o ranking termine de atualizar depois
   }
 }
 
