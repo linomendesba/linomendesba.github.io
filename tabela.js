@@ -2110,6 +2110,16 @@ function ferrAtualizarContagem() {
   btn?.classList.toggle("ferr-tem-ativos", n > 0);
 }
 
+// Mantém o menu (agora horizontal) inteiro dentro da tela, deslocando pra esquerda se precisar
+function ferrPosicionar(panel) {
+  panel.style.left = "0px";
+  const r = panel.getBoundingClientRect();
+  const vw = document.documentElement.clientWidth;
+  if (!r.width || !vw) return;
+  const alvoEsq = Math.max(8, Math.min(r.left, vw - 8 - r.width));
+  panel.style.left = (alvoEsq - r.left) + "px";
+}
+
 function garantirMenuFerramentas() {
   const painel = document.getElementById("painel-cores");
   if (!painel) return;
@@ -2140,13 +2150,14 @@ function garantirMenuFerramentas() {
       .ferr-tem-ativos #ferr-count { background:rgba(212,175,55,0.25); }
       #ferr-panel {
         position:absolute; left:0; top:calc(100% + 4px); z-index:10000;
-        display:flex; flex-direction:column; gap:4px; min-width:190px;
+        display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:5px;
+        width:max-content; max-width:min(620px, 92vw); box-sizing:border-box;
         padding:8px; background:#1c212f; border:1px solid rgba(212,175,55,0.4);
         border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,0.5);
       }
       #ferr-panel[hidden] { display:none; }
-      .ferr-row { display:flex; align-items:center; gap:4px; }
-      .ferr-row > label { flex:1; margin-left:0 !important; }
+      .ferr-row { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
+      .ferr-row > label { flex:0 0 auto; margin-left:0 !important; }
     `;
     document.head.appendChild(st);
   }
@@ -2163,7 +2174,11 @@ function garantirMenuFerramentas() {
 
     const btn   = wrap.querySelector("#btn-ferramentas");
     const panel = wrap.querySelector("#ferr-panel");
-    btn.addEventListener("click", (e) => { e.stopPropagation(); panel.hidden = !panel.hidden; });
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) ferrPosicionar(panel);
+    });
     panel.addEventListener("click", (e) => {
       e.stopPropagation();
       // abrir o modal de configuração de uma ferramenta fecha o menu
