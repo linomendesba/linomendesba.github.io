@@ -3582,6 +3582,8 @@ let _renderizandoRapido = false;
 // Cada chamada de buscarDados ganha um número; se chegar uma chamada mais nova,
 // a mais antiga descarta o que trouxe (evita dado velho sobrescrever dado novo).
 let _versaoBusca = 0;
+let _falhasResultadosSeguidas = 0;
+const FALHAS_ATE_AVISAR = 5; // ~15s+ sem conseguir atualizar => aí sim mostra o aviso
 
 /* ── Render só quando algo mudou ──
    Antes a tabela inteira era apagada e recriada a cada 3s (e duas vezes por ciclo).
@@ -3698,9 +3700,16 @@ async function buscarDados() {
   try {
     dados = await fetchResultados();
     if (dados.length > 0) _cacheResultados = dados;
+    _falhasResultadosSeguidas = 0;
   } catch (e) {
-    console.error("Erro resultados:", e);
-    showErrorMessage(`Erro ao carregar resultados: ${e.message}`);
+    // Falha pontual (ex.: servidor lento): mantém a tabela com os últimos dados e tenta de novo
+    // no próximo ciclo, SEM mostrar erro. Só avisa se não há nada pra mostrar ou se a falha
+    // persistir por vários ciclos seguidos (dados ficando velhos de verdade).
+    _falhasResultadosSeguidas++;
+    console.warn("Falha ao buscar resultados (tentando de novo):", e.message);
+    if (_cacheResultados.length === 0 || _falhasResultadosSeguidas >= FALHAS_ATE_AVISAR) {
+      showErrorMessage(`Erro ao carregar resultados: ${e.message}`);
+    }
     dados = _cacheResultados; 
   }
 
