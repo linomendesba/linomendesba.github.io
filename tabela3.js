@@ -5,10 +5,6 @@ const MINUTOS_POR_LIGA = {
   "Bet365 Euro":    [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   "Bet365 Premier": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
 
-  "Sportingbet Champions Cup":    [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
-  "Sportingbet Superliga América do Sul":   [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
-  "Sportingbet Copa do Mundo": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
-  "Sportingbet Eurocopa": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
 
   "Taça Glória Eterna": [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   "Copa América":       [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
@@ -18,10 +14,20 @@ const MINUTOS_POR_LIGA = {
   "Brasileirão Betano": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   "Mundial":            [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
 
+  "Sportingbet Champions Cup":    [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
+  "Sportingbet Superliga América do Sul":   [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
+  "Sportingbet Copa do Mundo": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  "Sportingbet Eurocopa": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+
+  "MGM Elite South American": [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  "MGM Full Americas Cup":    [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
+  "MGM Full Euro Cup":        [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
+  "MGM Full Global Cup":      Array.from({ length: 60 }, (_, i) => i), // 1 jogo por minuto (0 a 59)
 
   "Copa do Mundo":       [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   "Ligas dos Campeões":  [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   "América Latina":      [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
+  "Premier League":      [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
 
 
   "Betsson Espanha":     [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
@@ -32,6 +38,8 @@ const MINUTOS_POR_LIGA = {
   "Kiron Liga Inglaterra": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58],
   "Kiron Liga Itália":     [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
   "Kiron Liga Espanha":    [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
+  "Kiron Liga Brasil":          [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
+  "Kiron Liga América Latina":  [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
 };
 
 
@@ -226,7 +234,7 @@ const Estado = {
     return false;
   },
 
-  forcarRerender() { this._ultimoHashDados = null; },
+  forcarRerender() { this._ultimoHashDados = null; _ultimaAssinaturaRender = null; },
 };
 
 Estado.carregar();
@@ -457,7 +465,7 @@ function tooltipMercadosExtrasHTML(oddsObj) {
 
 let qdNumPreviousHours = 1;
 let qdDadosCache = null; 
-let qdOddsCache = null; // cache das odds cruas (pro Buscador poder ler sequência de odds)
+let qdOddsCache = null; 
 
 
 function qdGetHoraAtual(resultados) {
@@ -521,18 +529,7 @@ function aplicarOraculoTabela() {
   });
 }
 
-
-/* ── BUSCADOR: "Análise por Sequência" adaptada pro futebol virtual ──
-   Mesma ideia do Speedway (ler os últimos N resultados, achar essa mesma
-   sequência no histórico completo e ver o que costuma vir depois): usa
-   só o MERCADO que já está selecionado na tabela (#seletorResultado),
-   olha a sequência cronológica de acertos/erros desse mercado (todas as
-   colunas juntas, na ordem real de horário) e faz o backtest. Só marca
-   os 3 próximos confrontos quando achar 100% de assertividade com pelo
-   menos N ocorrências no histórico (N configurável pelo seletor "Ocorrências
-   mín."); senão mostra acima da tabela a sequência lida e a assertividade
-   mais próxima de 100% encontrada. */
-const BUSCADOR_PULO = 1; // qtd de jogos pulados entre a sequência lida e os alvos analisados
+const BUSCADOR_PULO = 1; 
 
 const BUSCADOR_AMOSTRA_MINIMA_PADRAO = 10;
 const BUSCADOR_OPCOES_AMOSTRA = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
@@ -553,7 +550,7 @@ function buscadorConfigKey() { return `buscadorConfig_${getLigaKey()}`; }
 
 function buscadorCarregarConfig() {
   let base = { ...BUSCADOR_CONFIG_PADRAO };
-  // migração best-effort do valor antigo (global) de "ocorrências mínimas"
+
   const legadoAmostra = parseInt(localStorage.getItem("buscadorAmostraMinima"), 10);
   if (BUSCADOR_OPCOES_AMOSTRA.includes(legadoAmostra)) base.amostraMinima = legadoAmostra;
 
@@ -640,7 +637,7 @@ function buscadorSerieGlobal(criterio) {
       if (precisaOdd) {
         const oddsMatch = findOddsNoIndex(oddsIndex, d);
         const valorOdd = getOddValue(oddsMatch, criterio.mercado);
-        if (!valorOdd || valorOdd === "N/A") return null; // sem odd histórica pra esse jogo/mercado
+        if (!valorOdd || valorOdd === "N/A") return null; 
         odd = String(valorOdd).trim();
       }
 
@@ -661,13 +658,12 @@ function buscadorAnalisar(criterio) {
   const serieObjs = buscadorSerieGlobal(criterio);
   if (serieObjs.length < seq + BUSCADOR_PULO + gales) return null;
 
-  // "tokens" é o que define a sequência (placar exato no modo Placares, V/X no modo Mercado);
-  // "hits" é sempre o resultado no mercado selecionado — é o que decide green/red dos alvos.
+
   const tokens = serieObjs.map(e => buscadorToken(criterio, e));
   const hits   = serieObjs.map(e => e.acertoMercado);
   const atual  = tokens.slice(-seq);
 
-  const todasOcorrencias = []; // ordem cronológica: true = bateu no mercado em ao menos 1 dos próximos "gales" (após pular 1 jogo)
+  const todasOcorrencias = []; 
   for (let i = 0; i <= tokens.length - seq - BUSCADOR_PULO - gales; i++) {
     let bate = true;
     for (let j = 0; j < seq; j++) {
@@ -679,7 +675,7 @@ function buscadorAnalisar(criterio) {
     todasOcorrencias.push(alvosHit.some(Boolean));
   }
 
-  // considera só as últimas N ocorrências desse padrão, N = "Ocorrências mín." (config)
+
   const janela = todasOcorrencias.slice(-buscadorConfig.amostraMinima);
   const ocorrencias = janela.length;
   const greens = janela.filter(Boolean).length;
@@ -766,7 +762,7 @@ function buscadorSinalKey() { return `buscadorSinalPendente_${getLigaKey()}`; }
 function buscadorCarregarSinal() {
   try {
     const sinal = JSON.parse(localStorage.getItem(buscadorSinalKey())) || null;
-    // compatibilidade com sinais salvos antes da versão com "criterio" (só tinham "mercado")
+
     if (sinal && !sinal.criterio && sinal.mercado) sinal.criterio = { tipo: "mercado", mercado: sinal.mercado };
     return sinal;
   } catch (e) { return null; }
@@ -798,8 +794,7 @@ function buscadorAvaliarSinalPendente() {
   const idxAcerto = alvos.findIndex(a => a.acerto === true);
   const algumAcerto = idxAcerto !== -1;
   const conferidos = alvos.filter(a => a.acerto !== null).length;
-  // GREEN antecipado: o primeiro acerto ja encerra o sinal, sem esperar os 3 confrontos.
-  // So aguarda os 3 quando nenhum bateu ainda (caminho pro RED).
+
   return {
     alvos,
     todosResolvidos,
@@ -895,7 +890,7 @@ function aplicarBuscadorTabela() {
       buscadorSinalPendente = null;
       buscadorSalvarSinal(null);
       buscadorUltimoAlertaKey = null;
-      // segue o fluxo normal abaixo pra já buscar um novo sinal neste mesmo ciclo
+
     } else {
       buscadorRemarcarCelulasPendentes();
       renderBuscadorPainelPendente(avaliacao);
@@ -1022,7 +1017,7 @@ function salvarModalBuscadorConfig() {
   buscadorConfig = novaConfig;
   buscadorSalvarConfig(novaConfig);
 
-  // muda a config = o sinal pendente (se houver) foi calculado com regras antigas, então é descartado
+
   buscadorSinalPendente = null;
   buscadorSalvarSinal(null);
   buscadorUltimoAlertaKey = null;
@@ -1842,10 +1837,10 @@ function garantirCheckboxQuadrantes() {
 })();
 
 
-function showToast(msg) {
+function showToast(msg, ms) {
   const c = document.getElementById("toast-container"); if (!c) return;
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
-  c.appendChild(t); setTimeout(() => t.remove(), 2200);
+  c.appendChild(t); setTimeout(() => t.remove(), ms || 2200);
 }
 
 
@@ -1940,6 +1935,7 @@ function garantirPainelCores() {
   if (document.getElementById("painel-cores")) {
     garantirCheckboxQuadrantes();
     garantirCheckboxHoraFixa();
+    garantirMenuFerramentas();
     return;
   }
   const el = document.createElement("div"); el.id = "painel-cores";
@@ -2002,6 +1998,7 @@ function garantirPainelCores() {
     rkCb.addEventListener("change", function() {
       localStorage.setItem("rankingTop5Ativo", this.checked ? "1" : "0");
       if (this.checked) rkAplicarDestaque(); else rkLimparDestaque();
+      rkAtualizarVisibilidadeConfig();
     });
   }
 
@@ -2073,6 +2070,503 @@ function garantirPainelCores() {
   garantirCheckboxQuadrantes();
 
   garantirCheckboxHoraFixa();
+
+  garantirMenuFerramentas();
+}
+
+
+
+
+const AN_TOGGLES = [
+  { id: "roi",    key: "anRoiAtivo",    label: "Saldo (ROI)", linha: "linhaRoiColuna",    th: "ROI",
+    tip: "Saldo em unidades por coluna: green = odd − 1, red = −1 (só jogos com odd)" },
+  { id: "atraso", key: "anAtrasoAtivo", label: "Atraso",      linha: "linhaAtrasoColuna", th: "ATR",
+    tip: "Horas seguidas sem green em cada coluna (histórico, não é previsão)" },
+  { id: "tend",   key: "anTendAtivo",   label: "Tendência",   linha: "linhaTendColuna",   th: "TEN",
+    tip: "% de acerto das últimas horas comparada com as anteriores" },
+  { id: "nota",   key: "anNotaAtivo",   label: "Nota",        linha: "linhaNotaColuna",   th: "NOTA",
+    tip: "Nota 0–100 combinando acerto, saldo, tendência, gols e atraso. ★ = 3 melhores das próximas colunas" },
+];
+const AN_JANELAS      = [3, 4, 6, 8];
+const AN_LIMIARES     = [10, 15, 20, 25];
+const AN_PESOS_OPCOES = [0, 10, 20, 30, 40, 50, 60];
+const AN_CFG_PADRAO   = { janela: 4, limiar: 15, pesos: { acerto: 40, roi: 30, tend: 20, gols: 10, atraso: 0 } };
+
+let _anRaw = null;
+let _anCalc = null;
+
+function anCfgKey() { return `an_config_${getLigaKey()}`; }
+function anLerConfig() {
+  const base = { janela: AN_CFG_PADRAO.janela, limiar: AN_CFG_PADRAO.limiar, pesos: { ...AN_CFG_PADRAO.pesos } };
+  try {
+    const sv = JSON.parse(localStorage.getItem(anCfgKey()));
+    if (sv && typeof sv === "object") {
+      if (AN_JANELAS.includes(sv.janela))   base.janela = sv.janela;
+      if (AN_LIMIARES.includes(sv.limiar))  base.limiar = sv.limiar;
+      if (sv.pesos && typeof sv.pesos === "object") {
+        Object.keys(base.pesos).forEach(k => { if (AN_PESOS_OPCOES.includes(sv.pesos[k])) base.pesos[k] = sv.pesos[k]; });
+      }
+    }
+  } catch (e) {}
+  return base;
+}
+function anSalvarConfig(c) { localStorage.setItem(anCfgKey(), JSON.stringify(c)); }
+function anAtivo(id) {
+  const t = AN_TOGGLES.find(x => x.id === id);
+  return !!t && localStorage.getItem(t.key) === "1";
+}
+function anClamp(v, a = 0, b = 100) { return Math.max(a, Math.min(b, v)); }
+
+function anCalcular(raw, cfg) {
+  const { res, totMercado, totGols } = raw;
+  const n = res.length;
+
+  let acTot = 0, jgTot = 0;
+  res.forEach(col => col.forEach(r => { jgTot++; if (r.acerto) acTot++; }));
+  const pctGeral = jgTot ? acTot / jgTot : 0;
+
+  const roi = [], atraso = [], tend = [], comp = [], nota = [];
+  for (let i = 0; i < n; i++) {
+    const col = res[i]; 
+    const jogos = col.length;
+    const acertos = col.reduce((sm, r) => sm + (r.acerto ? 1 : 0), 0);
+
+
+    const comOdd = col.filter(r => r.odd);
+    if (comOdd.length >= 3) {
+      const u = comOdd.reduce((sm, r) => sm + (r.acerto ? r.odd - 1 : -1), 0);
+      roi[i] = { u, n: comOdd.length, pct: (u / comOdd.length) * 100 };
+    } else roi[i] = null;
+
+
+    if (jogos > 0) {
+      let k = 0;
+      while (k < jogos && !col[k].acerto) k++;
+      atraso[i] = { horas: k, todos: k === jogos, jogos };
+    } else atraso[i] = null;
+
+
+    if (jogos >= 6) {
+      const J = Math.min(cfg.janela, Math.floor(jogos / 2));
+      const rec = col.slice(0, J), ant = col.slice(J);
+      const pR = (rec.filter(r => r.acerto).length / rec.length) * 100;
+      const pA = (ant.filter(r => r.acerto).length / ant.length) * 100;
+      const diff = pR - pA;
+      tend[i] = { diff, pR, pA, J, dir: diff >= cfg.limiar ? "up" : (diff <= -cfg.limiar ? "down" : "flat") };
+    } else tend[i] = null;
+
+
+    if (jogos >= 3) {
+      const K = 4;
+      const cAcerto = ((acertos + pctGeral * K) / (jogos + K)) * 100;
+      const cRoi    = roi[i]  ? anClamp(50 + roi[i].pct)  : 50;
+      const cTend   = tend[i] ? anClamp(50 + tend[i].diff) : 50;
+      const media   = totMercado[i] > 0 ? totGols[i] / totMercado[i] : 0;
+      const cGols   = anClamp((media / 4) * 100);
+      const cAtraso = atraso[i] ? anClamp((atraso[i].horas / 6) * 100) : 0;
+      const w = cfg.pesos;
+      const soma = w.acerto + w.roi + w.tend + w.gols + w.atraso;
+      nota[i] = soma > 0 ? (w.acerto * cAcerto + w.roi * cRoi + w.tend * cTend + w.gols * cGols + w.atraso * cAtraso) / soma : null;
+      comp[i] = { cAcerto, cRoi, cTend, cGols, cAtraso };
+    } else { nota[i] = null; comp[i] = null; }
+  }
+
+
+  let maisRecente = 0;
+  res.forEach(col => { if (col[0] && col[0].ts > maisRecente) maisRecente = col[0].ts; });
+  let cand = [];
+  for (let i = 0; i < n; i++) if (nota[i] != null && !(res[i][0] && res[i][0].ts === maisRecente)) cand.push(i);
+  if (!cand.length) for (let i = 0; i < n; i++) if (nota[i] != null) cand.push(i);
+  const top = cand.sort((a, b) => nota[b] - nota[a]).slice(0, 3);
+
+
+  const roiHora = {};
+  res.forEach(col => col.forEach(r => {
+    if (!r.odd) return;
+    const o = roiHora[r.chave] || (roiHora[r.chave] = { u: 0, n: 0 });
+    o.u += r.acerto ? r.odd - 1 : -1; o.n++;
+  }));
+
+  return { roi, atraso, tend, nota, comp, top, roiHora };
+}
+
+function anGarantirEstilos() {
+  if (document.getElementById("an-styles")) return;
+  const st = document.createElement("style");
+  st.id = "an-styles";
+  st.textContent = `
+    tr.an-linha th.an-th { width:26px; min-width:26px; font-size:0.55em !important; font-weight:800; color:#9ca3af; padding:1px 2px !important; text-align:center; letter-spacing:.02em; cursor:help; }
+    tr.an-linha td.an-cell { border-bottom:1px solid rgba(255,255,255,0.06); cursor:help; }
+    .an-cell.an-neutro .valor-principal, .an-cell.an-neutro .valor-sub { color:#9ca3af !important; }
+    .an-cell.an-pos .valor-principal, .an-cell.an-pos .valor-sub { color:#4ade80 !important; }
+    .an-cell.an-neg .valor-principal, .an-cell.an-neg .valor-sub { color:#ff5c5c !important; }
+    .an-cell.an-warm .valor-principal, .an-cell.an-warm .valor-sub { color:#f5c518 !important; }
+    .an-cell.an-hot  .valor-principal, .an-cell.an-hot  .valor-sub { color:#fb923c !important; }
+    .an-cell.an-top { background:rgba(212,175,55,0.16) !important; box-shadow:inset 0 -2px 0 #d4af37; }
+    .an-cell.an-top .valor-principal, .an-cell.an-top .valor-sub { color:#d4af37 !important; }
+    .an-modal-nota { font-size:0.74em; line-height:1.35; color:#9ca3af; }
+    .an-modal-grade { display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; }
+    .an-modal-grade label { margin:0; }
+  `;
+  document.head.appendChild(st);
+}
+
+function anCelula(cls, principal, sub, titulo) {
+  const td = document.createElement("td");
+  td.className = `col-combo-top an-cell ${cls}`;
+  td.innerHTML = `<span class="valor-principal">${principal}</span>${sub !== "" ? `<span class="valor-sub">${sub}</span>` : ""}`;
+  if (titulo) td.title = titulo;
+  return td;
+}
+
+function anRenderLinhas() {
+  anGarantirEstilos();
+  const tabela = document.getElementById("tabelaResultados");
+  if (!tabela) return;
+  const thead = tabela.querySelector("thead");
+  if (!thead) return;
+
+  AN_TOGGLES.forEach(t => document.getElementById(t.linha)?.remove());
+  tabela.querySelectorAll("tbody tr[data-chave] > td:first-child[data-an-titulo]").forEach(td => {
+    td.removeAttribute("title"); td.removeAttribute("data-an-titulo");
+  });
+  if (!_anCalc) return;
+
+  const c = _anCalc;
+  const N = minutosFixos.length;
+  const trMin = thead.querySelector("th.minute-header")?.parentElement;
+  if (!trMin) return;
+  const bloco = _tamanhoBlocoQD();
+  const qdOn = qdCheckboxAtivo();
+  const sinal = v => (v > 0 ? "+" : "");
+
+  const montar = (t, fn) => {
+    const tr = document.createElement("tr");
+    tr.id = t.linha; tr.className = "an-linha";
+    const th = document.createElement("th");
+    th.className = "an-th"; th.textContent = t.th; th.title = t.tip;
+    tr.appendChild(th);
+    for (let i = 0; i < N; i++) {
+      const td = fn(i);
+      if (qdOn && i > 0 && i % bloco === 0) td.classList.add("quadrant-border");
+      tr.appendChild(td);
+    }
+    for (let k = 0; k < 2; k++) { const e = document.createElement("td"); e.className = "col-combo"; tr.appendChild(e); }
+    thead.insertBefore(tr, trMin);
+  };
+
+  if (anAtivo("roi")) montar(AN_TOGGLES[0], i => {
+    const r = c.roi[i];
+    if (!r) return anCelula("an-neutro", "–", "", "Poucos jogos com odd nesta coluna (mínimo 3)");
+    const u = Math.abs(r.u) < 0.05 ? 0 : r.u;
+    const cls = u > 0 ? "an-pos" : (u < 0 ? "an-neg" : "an-neutro");
+    return anCelula(cls, `${sinal(u)}${u.toFixed(1)}`, `${sinal(r.pct)}${Math.round(r.pct)}%`,
+      `Saldo ${sinal(u)}${u.toFixed(2)}u em ${r.n} jogos com odd (ROI ${sinal(r.pct)}${Math.round(r.pct)}%)`);
+  });
+
+  if (anAtivo("atraso")) montar(AN_TOGGLES[1], i => {
+    const a = c.atraso[i];
+    if (!a) return anCelula("an-neutro", "–", "", "");
+    const k = a.horas;
+    const cls = k >= 5 ? "an-hot" : (k >= 3 ? "an-warm" : "an-neutro");
+    const tit = a.todos ? `Nenhum green nas ${k} horas da janela (histórico, não é previsão)`
+              : (k === 0 ? "O último resultado desta coluna foi green"
+                         : `${k} hora(s) seguidas sem green nesta coluna (histórico, não é previsão)`);
+    return anCelula(cls, a.todos ? `${k}+` : `${k}`, "h", tit);
+  });
+
+  if (anAtivo("tend")) montar(AN_TOGGLES[2], i => {
+    const t = c.tend[i];
+    if (!t) return anCelula("an-neutro", "–", "", "Poucos jogos (mínimo 6) para comparar");
+    const seta = t.dir === "up" ? "↑" : (t.dir === "down" ? "↓" : "→");
+    const cls = t.dir === "up" ? "an-pos" : (t.dir === "down" ? "an-neg" : "an-neutro");
+    const d = Math.round(t.diff);
+    return anCelula(cls, seta, `${sinal(d)}${d}`,
+      `Últimas ${t.J}h: ${Math.round(t.pR)}% • antes: ${Math.round(t.pA)}% (${sinal(d)}${d} p.p.)`);
+  });
+
+  if (anAtivo("nota")) montar(AN_TOGGLES[3], i => {
+    const v = c.nota[i];
+    if (v == null) return anCelula("an-neutro", "–", "", "Poucos jogos (mínimo 3) ou todos os pesos em 0");
+    const pos = c.top.indexOf(i);
+    const cm = c.comp[i];
+    const cls = pos >= 0 ? "an-top" : (v >= 60 ? "an-pos" : (v < 40 ? "an-neg" : "an-neutro"));
+    const tit = `Nota ${Math.round(v)} • acerto ${Math.round(cm.cAcerto)} • saldo ${Math.round(cm.cRoi)} • tendência ${Math.round(cm.cTend)} • gols ${Math.round(cm.cGols)} • atraso ${Math.round(cm.cAtraso)}`
+              + (pos >= 0 ? ` • ${pos + 1}º entre as próximas colunas` : "");
+    return anCelula(cls, String(Math.round(v)), pos >= 0 ? "★" : "", tit);
+  });
+
+
+  if (anAtivo("roi")) {
+    tabela.querySelectorAll("tbody tr[data-chave]").forEach(tr => {
+      const o = c.roiHora[tr.getAttribute("data-chave")];
+      const td = tr.firstElementChild;
+      if (!o || !td) return;
+      const u = Math.abs(o.u) < 0.05 ? 0 : o.u;
+      td.title = `Saldo da hora: ${sinal(u)}${u.toFixed(1)}u em ${o.n} jogos com odd`;
+      td.setAttribute("data-an-titulo", "1");
+    });
+  }
+}
+
+function anAtualizar(raw) {
+  _anRaw = raw;
+  _anCalc = anCalcular(raw, anLerConfig());
+  anRenderLinhas();
+}
+function anRecalcular() {
+  if (!_anRaw) return;
+  _anCalc = anCalcular(_anRaw, anLerConfig());
+  anRenderLinhas();
+}
+
+function anAtualizarVisibilidadeConfig() {
+  const btn = document.getElementById("btn-an-config");
+  if (btn) btn.style.display = (anAtivo("tend") || anAtivo("nota")) ? "inline-flex" : "none";
+}
+
+function garantirControlesAnalises() {
+  const painel = document.getElementById("painel-cores");
+  if (!painel) return;
+
+  AN_TOGGLES.forEach(t => {
+    if (document.getElementById(`lbl-an-${t.id}`)) return;
+    const lbl = document.createElement("label");
+    lbl.className = "alerta-toggle-label";
+    lbl.id = `lbl-an-${t.id}`;
+    lbl.title = t.tip;
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.id = `cb-an-${t.id}`;
+    const on = anAtivo(t.id);
+    cb.checked = on;
+    lbl.classList.toggle("alerta-ativo", on);
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(" " + t.label));
+    cb.addEventListener("change", function () {
+      localStorage.setItem(t.key, this.checked ? "1" : "0");
+      lbl.classList.toggle("alerta-ativo", this.checked);
+      anRenderLinhas();
+      anAtualizarVisibilidadeConfig();
+    });
+    painel.appendChild(lbl);
+  });
+
+  if (!document.getElementById("btn-an-config")) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "btn-an-config";
+    btn.className = "btn-buscador-config";
+    btn.style.display = "none";
+    btn.title = "Configurar análises (Tendência e Nota)";
+    btn.textContent = "⚙";
+    btn.addEventListener("click", abrirModalAnConfig);
+    painel.appendChild(btn);
+  }
+  anAtualizarVisibilidadeConfig();
+}
+
+function garantirModalAnConfig() {
+  let overlay = document.getElementById("an-modal-overlay");
+  if (overlay) return overlay;
+  anGarantirEstilos();
+  const optsPeso = AN_PESOS_OPCOES.map(n => `<option value="${n}">${n}</option>`).join("");
+  overlay = document.createElement("div");
+  overlay.id = "an-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true" style="max-height:92vh;overflow:auto;width:320px;">
+      <h4>⚙ Configurar análises <span id="an-modal-liga"></span></h4>
+      <label>Tendência — janela recente
+        <select id="cfg-an-janela" class="buscador-select">
+          ${AN_JANELAS.map(n => `<option value="${n}">últimas ${n} horas</option>`).join("")}
+        </select>
+      </label>
+      <label>Tendência — variação mínima
+        <select id="cfg-an-limiar" class="buscador-select">
+          ${AN_LIMIARES.map(n => `<option value="${n}">${n} p.p.</option>`).join("")}
+        </select>
+      </label>
+      <div class="an-modal-nota">Pesos da Nota (o que pesa mais na nota da coluna):</div>
+      <div class="an-modal-grade">
+        <label>Acerto<select id="cfg-an-p-acerto" class="buscador-select">${optsPeso}</select></label>
+        <label>Saldo (ROI)<select id="cfg-an-p-roi" class="buscador-select">${optsPeso}</select></label>
+        <label>Tendência<select id="cfg-an-p-tend" class="buscador-select">${optsPeso}</select></label>
+        <label>Gols<select id="cfg-an-p-gols" class="buscador-select">${optsPeso}</select></label>
+        <label>Atraso<select id="cfg-an-p-atraso" class="buscador-select">${optsPeso}</select></label>
+      </div>
+      <div class="an-modal-nota">Análises históricas: descrevem o passado da janela de horas escolhida e não garantem resultado. O Atraso vem com peso 0 por padrão, pois uma coluna estar há mais tempo sem green não significa que está "devendo" um.</div>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarAnConfig" style="background:transparent;color:#d4af37;">Cancelar</button>
+        <button type="button" id="btnSalvarAnConfig" style="background:#d4af37;color:#1c212f;">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalAnConfig(); });
+  overlay.querySelector("#btnCancelarAnConfig").addEventListener("click", fecharModalAnConfig);
+  overlay.querySelector("#btnSalvarAnConfig").addEventListener("click", salvarModalAnConfig);
+  return overlay;
+}
+
+function abrirModalAnConfig() {
+  const ov = garantirModalAnConfig();
+  const cfg = anLerConfig();
+  const ligaSpan = ov.querySelector("#an-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+  ov.querySelector("#cfg-an-janela").value = String(cfg.janela);
+  ov.querySelector("#cfg-an-limiar").value = String(cfg.limiar);
+  Object.keys(cfg.pesos).forEach(k => { ov.querySelector(`#cfg-an-p-${k}`).value = String(cfg.pesos[k]); });
+  ov.hidden = false;
+}
+
+function fecharModalAnConfig() {
+  const ov = document.getElementById("an-modal-overlay");
+  if (ov) ov.hidden = true;
+}
+
+function salvarModalAnConfig() {
+  const ov = document.getElementById("an-modal-overlay");
+  if (!ov) return;
+  const pesos = {};
+  ["acerto", "roi", "tend", "gols", "atraso"].forEach(k => { pesos[k] = parseInt(ov.querySelector(`#cfg-an-p-${k}`).value, 10); });
+  anSalvarConfig({
+    janela: parseInt(ov.querySelector("#cfg-an-janela").value, 10),
+    limiar: parseInt(ov.querySelector("#cfg-an-limiar").value, 10),
+    pesos
+  });
+  fecharModalAnConfig();
+  anRecalcular();
+  showToast(`⚙ Análises salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
+}
+
+
+const FERR_ITENS = [
+  { lbl: "lbl-streak-alerta" },
+  { lbl: "lbl-stats-laterais" },
+  { lbl: "lbl-quadrantes-toggle" },
+  { lbl: "lbl-ranking-top5",     cfg: "btn-rk-config" },
+  { lbl: "lbl-zona-green-toggle" },
+  { lbl: "lbl-oraculo-tabela" },
+  { lbl: "lbl-buscador-tabela",  cfg: "btn-buscador-config" },
+  { lbl: "lbl-horafixa-toggle",  cfg: "btn-hf-config" },
+  { lbl: "lbl-an-roi" },
+  { lbl: "lbl-an-atraso" },
+  { lbl: "lbl-an-tend" },
+  { lbl: "lbl-an-nota",          cfg: "btn-an-config" },
+];
+
+function ferrAtualizarContagem() {
+  const badge = document.getElementById("ferr-count");
+  const panel = document.getElementById("ferr-panel");
+  const btn   = document.getElementById("btn-ferramentas");
+  if (!badge || !panel) return;
+  const n = panel.querySelectorAll('input[type="checkbox"]:checked').length;
+  badge.textContent = String(n);
+  btn?.classList.toggle("ferr-tem-ativos", n > 0);
+}
+
+
+function ferrPosicionar(panel) {
+  panel.style.left = "0px";
+  const r = panel.getBoundingClientRect();
+  const vw = document.documentElement.clientWidth;
+  if (!r.width || !vw) return;
+  const alvoEsq = Math.max(8, Math.min(r.left, vw - 8 - r.width));
+  panel.style.left = (alvoEsq - r.left) + "px";
+}
+
+function garantirMenuFerramentas() {
+  const painel = document.getElementById("painel-cores");
+  if (!painel) return;
+
+  garantirBotaoRkConfig();
+  rkAtualizarLabel();
+  rkAtualizarVisibilidadeConfig();
+  garantirControlesAnalises();
+
+  if (!document.getElementById("ferr-styles")) {
+    const st = document.createElement("style");
+    st.id = "ferr-styles";
+    st.textContent = `
+      #ferr-wrap { position:relative; display:inline-block; }
+      .btn-ferramentas {
+        display:inline-flex; align-items:center; gap:5px;
+        height:22px; padding:0 8px; box-sizing:border-box;
+        background:#1c212f; border:1px solid rgba(255,255,255,0.09); border-radius:6px;
+        color:#9ca3af; font-size:0.66em; font-weight:700; cursor:pointer;
+        transition:background .15s, border-color .15s, color .15s;
+      }
+      .btn-ferramentas:hover { background:#242b3d; border-color:rgba(255,255,255,0.18); color:#d1d5db; }
+      .btn-ferramentas.ferr-tem-ativos { color:#d4af37; border-color:rgba(212,175,55,0.45); background:rgba(212,175,55,0.08); }
+      #ferr-count {
+        min-width:14px; height:14px; padding:0 3px; box-sizing:border-box;
+        border-radius:7px; background:rgba(255,255,255,0.1); color:inherit;
+        font-size:0.95em; line-height:14px; text-align:center;
+      }
+      .ferr-tem-ativos #ferr-count { background:rgba(212,175,55,0.25); }
+      #ferr-panel {
+        position:absolute; left:0; top:calc(100% + 4px); z-index:10000;
+        display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:5px;
+        width:max-content; max-width:min(620px, 92vw); box-sizing:border-box;
+        padding:8px; background:#1c212f; border:1px solid rgba(212,175,55,0.4);
+        border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,0.5);
+      }
+      #ferr-panel[hidden] { display:none; }
+      .ferr-row { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
+      .ferr-row > label { flex:0 0 auto; margin-left:0 !important; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  let wrap = document.getElementById("ferr-wrap");
+  if (!wrap) {
+    wrap = document.createElement("span");
+    wrap.id = "ferr-wrap";
+    wrap.innerHTML = `
+      <button type="button" id="btn-ferramentas" class="btn-ferramentas" title="Ferramentas da tabela" aria-haspopup="true">⚙ Ferramentas <span id="ferr-count">0</span></button>
+      <div id="ferr-panel" hidden></div>
+    `;
+    painel.appendChild(wrap);
+
+    const btn   = wrap.querySelector("#btn-ferramentas");
+    const panel = wrap.querySelector("#ferr-panel");
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) ferrPosicionar(panel);
+    });
+    panel.addEventListener("click", (e) => {
+      e.stopPropagation();
+
+      if (e.target.closest(".btn-buscador-config")) panel.hidden = true;
+    });
+    panel.addEventListener("change", () => setTimeout(ferrAtualizarContagem, 0));
+    document.addEventListener("click", () => { panel.hidden = true; });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") panel.hidden = true; });
+  }
+
+  const panel = wrap.querySelector("#ferr-panel");
+  FERR_ITENS.forEach(item => {
+    const lbl = document.getElementById(item.lbl);
+    if (!lbl) return; 
+    let row = panel.querySelector(`.ferr-row[data-lbl="${item.lbl}"]`);
+    if (!row) {
+      row = document.createElement("div");
+      row.className = "ferr-row";
+      row.dataset.lbl = item.lbl;
+      panel.appendChild(row);
+    }
+    if (lbl.parentNode !== row) row.appendChild(lbl);
+    if (item.cfg) {
+      const cfg = document.getElementById(item.cfg);
+      if (cfg && cfg.parentNode !== row) row.appendChild(cfg);
+    }
+  });
+
+
+  if (painel.lastElementChild !== wrap) painel.appendChild(wrap);
+  ferrAtualizarContagem();
 }
 
 function sincronizarPainelCores() {
@@ -2429,23 +2923,36 @@ function getOddValue(odds, res) {
 }
 
 
+
+const FETCH_TIMEOUT_MS = 8000;
+async function fetchJsonComTimeout(url, nome, ms = FETCH_TIMEOUT_MS) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em ${nome}`);
+    return await res.json();
+  } catch (e) {
+    if (e && e.name === "AbortError") throw new Error(`Tempo esgotado (${ms / 1000}s) em ${nome}`);
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function fetchResultados() {
   const ts = Date.now();
-  const res = await fetch(ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Erro HTTP ${res.status} em resultados`);
-  return res.json();
+  return fetchJsonComTimeout(ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${ts}`, "resultados");
 }
 
 async function fetchOdds() {
   try {
 
     const ts = Date.now();
-    const res = await fetch(ROTAS_API.odds(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em odds`);
-    return await res.json();
+    return await fetchJsonComTimeout(ROTAS_API.odds(LIGA_ATUAL) + `?timestamp=${ts}`, "odds");
   } catch(e) {
     console.error("Erro odds:", e);
-    return [];
+    return null; 
   }
 }
 
@@ -2453,13 +2960,11 @@ async function fetchProximosJogos() {
   try {
 
     const ts = Date.now();
-    const res = await fetch(ROTAS_API.proximosJogos(LIGA_ATUAL) + `?timestamp=${ts}`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em proximosJogos`);
-    const j = await res.json();
+    const j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(LIGA_ATUAL) + `?timestamp=${ts}`, "proximosJogos");
     return j.sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
   } catch(e) {
     console.error("Erro próximos:", e);
-    return [];
+    return null; 
   }
 }
 
@@ -2572,6 +3077,32 @@ function hfLerDias() {
   return (v === 5 || v === 6) ? v : HF_DIAS_PADRAO;
 }
 function hfSalvarDias(v) { localStorage.setItem(hfDiasKey(), String(v)); }
+
+const HF_ALERTA_OPCOES = [0, 70, 80, 90, 100]; // 0 = desligado
+function hfAlertaKey() { return `hf_alerta_${getLigaKey()}`; }
+function hfLerAlerta() {
+  const v = parseInt(localStorage.getItem(hfAlertaKey()), 10);
+  return HF_ALERTA_OPCOES.includes(v) ? v : 0;
+}
+function hfSalvarAlerta(v) { localStorage.setItem(hfAlertaKey(), String(v)); }
+
+
+const _hfAlertasDisparados = (() => {
+  try { return new Set(JSON.parse(sessionStorage.getItem("hf_alertas_disparados") || "[]")); }
+  catch (e) { return new Set(); }
+})();
+function hfSalvarAlertasSessao() {
+  try { sessionStorage.setItem("hf_alertas_disparados", JSON.stringify(Array.from(_hfAlertasDisparados).slice(-60))); }
+  catch (e) {}
+}
+function hfDispararAlerta(slot, p, horaAlvo, dataAlvo, mercadoLabel, gales, limite) {
+  const key = [getLigaKey(), dataAlvo, horaAlvo, slot.minuto, mercadoLabel, gales, limite].join("|");
+  if (_hfAlertasDisparados.has(key)) return;
+  _hfAlertasDisparados.add(key);
+  hfSalvarAlertasSessao();
+  showToast(`⏰ Hora Fixa: minuto ${String(slot.minuto).padStart(2, "0")} com ${Math.round(p)}% (${slot.green}/${slot.total}) — ${mercadoLabel}, ${gales} gale${gales > 1 ? "s" : ""}`, 6000);
+  buscadorPlayBeep();
+}
 
 
 function hfParseScore(s) {
@@ -2688,8 +3219,88 @@ function hfRemoverEstrutura() {
 }
 
 function hfAtualizarVisibilidadeControles() {
-  const wrap = document.getElementById("hf-controles-inline");
-  if (wrap) wrap.style.display = hfCheckboxAtivo() ? "inline-flex" : "none";
+  const btn = document.getElementById("btn-hf-config");
+  if (btn) btn.style.display = hfCheckboxAtivo() ? "inline-flex" : "none";
+}
+
+
+function garantirModalHFConfig() {
+  let overlay = document.getElementById("hf-modal-overlay");
+  if (overlay) return overlay;
+
+  if (!document.getElementById("hf-modal-styles")) {
+    const st = document.createElement("style");
+    st.id = "hf-modal-styles";
+    st.textContent = `
+      #btnSalvarHFConfig { background:#d4af37; color:#1c212f; }
+      #btnCancelarHFConfig { background:transparent; color:#d4af37; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  overlay = document.createElement("div");
+  overlay.id = "hf-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true">
+      <h4>⚙ Configurar Hora Fixa <span id="hf-modal-liga"></span></h4>
+      <label>Dias
+        <select id="cfg-hf-dias" class="buscador-select">
+          <option value="5">5 dias</option>
+          <option value="6">6 dias</option>
+        </select>
+      </label>
+      <label>Gales
+        <select id="cfg-hf-gales" class="buscador-select">
+          <option value="1">1</option><option value="2">2</option>
+          <option value="3">3</option><option value="4">4</option>
+        </select>
+      </label>
+      <label>Avisar quando a coluna atingir
+        <select id="cfg-hf-alerta" class="buscador-select">
+          <option value="0">Desligado</option>
+          ${HF_ALERTA_OPCOES.filter(n => n > 0).map(n => `<option value="${n}">${n}% ou mais</option>`).join("")}
+        </select>
+      </label>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarHFConfig">Cancelar</button>
+        <button type="button" id="btnSalvarHFConfig">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalHFConfig(); });
+  overlay.querySelector("#btnCancelarHFConfig").addEventListener("click", fecharModalHFConfig);
+  overlay.querySelector("#btnSalvarHFConfig").addEventListener("click", salvarModalHFConfig);
+  return overlay;
+}
+
+function abrirModalHFConfig() {
+  const overlay = garantirModalHFConfig();
+  const ligaSpan = overlay.querySelector("#hf-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+  overlay.querySelector("#cfg-hf-dias").value  = String(hfLerDias());
+  overlay.querySelector("#cfg-hf-gales").value = String(hfLerGales());
+  overlay.querySelector("#cfg-hf-alerta").value = String(hfLerAlerta());
+  overlay.hidden = false;
+}
+
+function fecharModalHFConfig() {
+  const overlay = document.getElementById("hf-modal-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function salvarModalHFConfig() {
+  const overlay = document.getElementById("hf-modal-overlay");
+  if (!overlay) return;
+  hfSalvarDias(parseInt(overlay.querySelector("#cfg-hf-dias").value, 10));
+  hfSalvarGales(parseInt(overlay.querySelector("#cfg-hf-gales").value, 10));
+  hfSalvarAlerta(parseInt(overlay.querySelector("#cfg-hf-alerta").value, 10));
+  fecharModalHFConfig();
+  hfRender(qdDadosCache);
+  showToast(`⚙ Configurações da Hora Fixa salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
 }
 
 function hfToggle(ativo) {
@@ -2725,37 +3336,15 @@ function garantirCheckboxHoraFixa() {
   painel.appendChild(lbl);
 
 
-  const controlesWrap = document.createElement("span");
-  controlesWrap.id = "hf-controles-inline";
-  controlesWrap.innerHTML = `
-    <label for="hf-seletor-dias">Dias:</label>
-    <select id="hf-seletor-dias">
-      <option value="5">5 dias</option><option value="6">6 dias</option>
-    </select>
-    <label for="hf-seletor-gales">Gales:</label>
-    <select id="hf-seletor-gales">
-      <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
-    </select>
-  `;
-  painel.appendChild(controlesWrap);
-
-  const selDias = controlesWrap.querySelector("#hf-seletor-dias");
-  selDias.value = String(hfLerDias());
-  selDias.addEventListener("change", () => {
-    hfSalvarDias(parseInt(selDias.value, 10));
-    hfRender(qdDadosCache);
-  });
-
-  const selGales = controlesWrap.querySelector("#hf-seletor-gales");
-  selGales.value = String(hfLerGales());
-
-  selGales.addEventListener("change", () => {
-    hfSalvarGales(parseInt(selGales.value, 10));
-    hfRender(qdDadosCache);
-  });
-
-  hfSincronizarEstiloControles();
-  window.addEventListener("resize", hfSincronizarEstiloControles);
+  const btnCfg = document.createElement("button");
+  btnCfg.type = "button";
+  btnCfg.id = "btn-hf-config";
+  btnCfg.className = "btn-buscador-config";
+  btnCfg.style.display = "none";
+  btnCfg.title = "Configurar Hora Fixa";
+  btnCfg.textContent = "⚙";
+  btnCfg.addEventListener("click", abrirModalHFConfig);
+  painel.appendChild(btnCfg);
 
   hfAtualizarVisibilidadeControles();
 }
@@ -2810,6 +3399,7 @@ function hfGarantirEstrutura() {
       .hf-50  { background: #ec4899 !important; color: #fff; }
       .hf-40  { background: #a855f7 !important; color: #fff; }
       .hf-0   { background: #dc2626 !important; color: #fff; }
+      .hf-alvo { outline: 2px solid #d4af37; outline-offset: -2px; }
       #hf-controles-inline { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; }
       #hf-controles-inline label { font-size: 0.76em; font-weight: 600; color: #9ca3af; white-space: nowrap; }
       #hf-controles-inline select { width: auto !important; max-width: 120px; height: 30px !important; box-sizing: border-box !important; }
@@ -2839,7 +3429,7 @@ function hfRender(dados) {
   const mercado = seletorResultado?.value || "over2.5";
   const mercadoLabel = seletorResultado?.selectedOptions?.[0]?.textContent || mercado;
   const gales = hfLerGales();
-  const { hora: horaAlvo } = qdGetHoraAtual(dados); 
+  const { hora: horaAlvo, dateStr: dataAlvoHF } = qdGetHoraAtual(dados); 
 
 
   const dadosDaHora = dados.filter(d => d && d.hora === horaAlvo);
@@ -2848,12 +3438,7 @@ function hfRender(dados) {
   const agoraHF = new Date();
   const hojeStrHF = `${agoraHF.getFullYear()}-${(agoraHF.getMonth()+1).toString().padStart(2,"0")}-${agoraHF.getDate().toString().padStart(2,"0")}`;
 
-  // Mesma regra da Tabela/Day/Hora Fixa (buscadores): "hoje" nunca ocupa vaga
-  // do histórico (hfLerDias dias) — se tiver dado, entra como dia extra, sem
-  // disputar o slice com os dias antigos. Antes só excluía "hoje" quando a
-  // hora analisada era a hora atual do relógio, o que deixava hoje roubar a
-  // vaga de um dia histórico válido em qualquer outra hora, gerando
-  // contagens diferentes das outras duas páginas.
+
   const temHojeHF = dadosDaHora.some(d => d && getDateStr(d.data) === hojeStrHF);
   const historicoHF = hfUltimosDias(dadosDaHora.filter(d => !(d && getDateStr(d.data) === hojeStrHF)), hfLerDias());
   let diasSelecionados = temHojeHF ? [...historicoHF, hojeStrHF] : historicoHF;
@@ -2871,24 +3456,38 @@ function hfRender(dados) {
   tdHora.textContent = horaAlvo.toString().padStart(2, "0");
   row.appendChild(tdHora);
 
+
+  const limiteAlerta = hfLerAlerta();
+  const minJogadoHF = dados.reduce((m, d) =>
+    (d && d.hora === horaAlvo && getDateStr(d.data) === dataAlvoHF) ? Math.max(m, Number(d.minuto)) : m, -1);
+  let primeiroAlvoHF = null;
+
   linha.forEach(slot => {
     const p = slot.total > 0 ? (slot.green / slot.total) * 100 : 0;
     const g = slot.total > 0 ? (slot.golsSum / slot.total) : 0;
     const td = document.createElement("td");
     td.className = hfClassePct(p);
+    if (limiteAlerta && slot.minuto > minJogadoHF && slot.total >= 3 && p >= limiteAlerta) {
+      td.classList.add("hf-alvo");
+      if (!primeiroAlvoHF) primeiroAlvoHF = { slot, p };
+    }
     td.title = `Minuto ${slot.minuto}\nMercado: ${mercadoLabel}\nGales: ${gales}\nAcertos: ${slot.green} de ${slot.total} (${Math.round(p)}%)\nMédia de gols: ${g.toFixed(1)}`;
     td.innerHTML = slot.total > 0
       ? `<div class="hf-cell-wrap"><span class="hf-cell-pct">${Math.round(p)}%</span><span class="hf-cell-avg">${g.toFixed(1)}</span></div>`
       : `<div class="hf-cell-wrap"><span class="hf-cell-pct">${Math.round(p)}%</span></div>`;
     row.appendChild(td);
   });
+
+  if (primeiroAlvoHF) {
+    hfDispararAlerta(primeiroAlvoHF.slot, primeiroAlvoHF.p, horaAlvo, dataAlvoHF, mercadoLabel, gales, limiteAlerta);
+  }
 }
 
 
 function criarTabela(dados, oddsData, proximosJogos) {
   criarOuObterPainel();
 
-  qdOddsCache = oddsData; // mantém as odds cruas disponíveis pro Buscador (tipo "odd")
+  qdOddsCache = oddsData; 
 
   garantirQuadrantesWrapper();
 
@@ -3056,6 +3655,11 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
   const processedMatches      = new Set();
 
+
+  const resPorColuna = minutosFixos.map(() => []);
+  const tsPorChave = {};
+  horasUnicas.forEach(h => { tsPorChave[`${h.data}-${h.hora}`] = h.timestamp; });
+
   dados.forEach(dado => {
     const ds=getDateStr(dado.data), chave=`${ds}-${dado.hora}`, linha=mapeamentoChaveLinha[chave];
     const minNorm=minutosFixos.reduce((p,c)=>Math.abs(c-dado.minuto)<Math.abs(p-dado.minuto)?c:p);
@@ -3146,6 +3750,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
     const acerto = verificarAcerto(selRes, rA, rB, htA, htB);
 
+    const oddNum = parseFloat(String(oddTip).replace(",", "."));
+    resPorColuna[idx].push({ chave, ts: tsPorChave[chave] || 0, acerto: !!acerto, odd: (isFinite(oddNum) && oddNum > 1) ? oddNum : null });
+
     cel.setAttribute("data-resultado", acerto ? "acerto" : "erro");
     cel.style.setProperty("background-color", acerto ? Estado.corGreen : Estado.corRed, "important");
     aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB);
@@ -3178,6 +3785,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
       placarTexto.innerHTML=`<span class="time-casa" data-full-time="${jogo.team_home}">${abbreviateTeamName(jogo.team_home)}</span><span class="time-fora" data-full-time="${jogo.team_visit}">${abbreviateTeamName(jogo.team_visit)}</span>`;
     }
     placar.appendChild(placarTexto);
+    rkMarcarPlacar(placar);
 
     const oddsP=findOddsProximoNoIndex(oddsIndex,jogo);
     const oddVal=getOddValue(oddsP,selRes);
@@ -3297,7 +3905,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
   hfRender(dados);
 
 
-  setTimeout(aplicarZonaGreen, 80);
+  aplicarZonaGreen(); 
+
+  anAtualizar({ res: resPorColuna, totMercado: totMercadoCol, totGols: totalGolsPorColuna });
 }
 
 
@@ -3331,7 +3941,71 @@ let _cacheProximosJogos = [];
 let _cacheResultados = [];
 let _renderizandoRapido = false; 
 
+let _versaoBusca = 0;
+let _falhasResultadosSeguidas = 0;
+const FALHAS_ATE_AVISAR = 5; 
+
+
+var _ultimaAssinaturaRender = null;
+let _ultimoRenderEm = 0;
+const RENDER_FORCA_A_CADA_MS = 60000; 
+
+const _CHAVES_RENDER_RE = /^(zonaGreenAtivo|oraculoAtivo|buscadorAtivo|alertaStreakAtivo|statsLateraisOcultas|rankingTop5Ativo|quadrantesAtivos|horaFixaAtiva|corGreen|corRed|corDestaqueExtra|buscadorAmostraMinima|placarSelecionados)$|^(placarFTSelecionados|placarHTSelecionados|timesSelecionados|oddsSelecionadas|mercadosExtras|selectedChaves|colunasSelecionadas|seletorHoras|buscadorSinal|buscadorConfig|hf_gales|hf_dias|hf_alerta|rk_config)/;
+
+function _fnvNum(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+function _hashLista(arr) {
+  if (!arr || !arr.length) return "0";
+  try {
+    let soma = 0, mistura = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const h = _fnvNum(JSON.stringify(arr[i]));
+      soma = (soma + h) >>> 0;
+      mistura = (mistura ^ Math.imul(h, 2654435761)) >>> 0;
+    }
+    return arr.length + "_" + soma.toString(36) + "_" + mistura.toString(36);
+  } catch (e) { return "x" + Date.now(); }
+}
+function _assinaturaUI() {
+  let sels = "";
+  document.querySelectorAll("select").forEach(el => { sels += (el.id || el.name || "") + "=" + el.value + ","; });
+  let ls = "";
+  try {
+    const ks = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (_CHAVES_RENDER_RE.test(k)) ks.push(k);
+    }
+    ks.sort();
+    ls = ks.map(k => k + "=" + String(localStorage.getItem(k)).slice(0, 2000)).join("|");
+  } catch (e) { ls = "x" + Date.now(); }
+  const est = JSON.stringify([
+    Estado.placarFTSelecionados, Estado.placarHTSelecionados, Estado.timesSelecionados,
+    Estado.oddsSelecionadas, Estado.mercadosExtras, Estado.colunasSelecionadas, Estado.selectedChaves,
+    Estado.corGreen, Estado.corRed, Estado.corDestaqueExtra
+  ]);
+  const d = new Date();
+  const agora = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`;
+  return [getLigaKey(), sels, ls, est, minutosFixos.join(","), qdNumPreviousHours, agora].join("§");
+}
+
+function renderizarTabelaSeMudou(dados, odds, proximos, forcar) {
+  const sig = _hashLista(dados) + "§" + _hashLista(odds) + "§" + _hashLista(proximos) + "§" + _assinaturaUI();
+  const temConteudo = !!document.querySelector("#tabelaResultados tbody tr");
+  const vencido = (Date.now() - _ultimoRenderEm) > RENDER_FORCA_A_CADA_MS;
+  if (!forcar && temConteudo && !vencido && sig === _ultimaAssinaturaRender) return false;
+  criarTabela(dados, odds, proximos);
+  _ultimaAssinaturaRender = sig;
+  _ultimoRenderEm = Date.now();
+  return true;
+}
+
 async function buscarDados() {
+  const minhaVersao = ++_versaoBusca;
   hideErrorMessage();
   restaurarHorasSeletor();
   const ligaAtual = getLigaKey();
@@ -3346,8 +4020,7 @@ async function buscarDados() {
     const trQDantigo = document.querySelector("#trQuadrantes");
     if (trQDantigo) trQDantigo.remove();
 
-    // troca de liga: recarrega o sinal pendente do Buscador dessa liga (evita
-    // continuar conferindo o sinal de uma liga diferente da que está aberta)
+
     buscadorSinalPendente = buscadorCarregarSinal();
     buscadorUltimoAlertaKey = null;
   }
@@ -3361,22 +4034,43 @@ async function buscarDados() {
     proximosJogos = _cacheProximosJogos;
     if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
     qdDadosCache = dados;
-    criarTabela(dados, oddsData, proximosJogos);
+    renderizarTabelaSeMudou(dados, oddsData, proximosJogos, true);
     if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
     return;
   }
   _renderizandoRapido = false;
 
+
   const pOdds = fetchOdds();
   const pProximos = fetchProximosJogos();
+  const pExtras = Promise.all([pOdds, pProximos]).then(([o, p]) => {
+    if (o !== null && ligaNaoMudou()) _cacheOddsData = o;  
+    if (p !== null && ligaNaoMudou()) _cacheProximosJogos = p;
+    return [o, p];
+  });
+  function ligaNaoMudou() { return Estado._ultimaLigaRenderizada === ligaAtual; }
 
   try {
     dados = await fetchResultados();
     if (dados.length > 0) _cacheResultados = dados;
+    _falhasResultadosSeguidas = 0;
   } catch (e) {
-    console.error("Erro resultados:", e);
-    showErrorMessage(`Erro ao carregar resultados: ${e.message}`);
+
+    _falhasResultadosSeguidas++;
+    console.warn("Falha ao buscar resultados (tentando de novo):", e.message);
+    if (_cacheResultados.length === 0 || _falhasResultadosSeguidas >= FALHAS_ATE_AVISAR) {
+      showErrorMessage(`Erro ao carregar resultados: ${e.message}`);
+    }
     dados = _cacheResultados; 
+  }
+
+
+  if (minhaVersao !== _versaoBusca) return;
+
+
+  if (dados.length === 0 && _cacheProximosJogos.length === 0) {
+    await pExtras;
+    if (minhaVersao !== _versaoBusca) return;
   }
 
   oddsData = _cacheOddsData;
@@ -3385,15 +4079,16 @@ async function buscarDados() {
   if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
 
   qdDadosCache = dados;
-  criarTabela(dados, oddsData, proximosJogos);
+  renderizarTabelaSeMudou(dados, oddsData, proximosJogos, false);
   if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 
 
-  const [oddsDataFinal, proximosJogosFinal] = await Promise.all([pOdds, pProximos]);
-  _cacheOddsData = oddsDataFinal;
-  _cacheProximosJogos = proximosJogosFinal;
-  criarTabela(dados, oddsDataFinal, proximosJogosFinal);
-  if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+  pExtras.then(() => {
+    if (minhaVersao !== _versaoBusca) return;
+    const dadosAtuais = dados.length ? dados : _cacheResultados;
+    renderizarTabelaSeMudou(dadosAtuais, _cacheOddsData, _cacheProximosJogos, false);
+    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+  }).catch(e => console.error("Erro ao renderizar odds/próximos:", e));
 }
 
 
@@ -3431,7 +4126,30 @@ function aplicarZonaGreen() {
 
 
 
-function rkCalcularTop5(dados, nJogos) {
+
+const RK_TAM_OPCOES   = [3, 5, 8];
+const RK_JOGOS_OPCOES = [20, 40, 60, 100];
+const RK_CONFIG_PADRAO = { tam: 5, fonte: "ranking", jogos: 60 };
+
+function rkConfigKey() { return `rk_config_${getLigaKey()}`; }
+
+function rkLerConfig() {
+  const base = { ...RK_CONFIG_PADRAO };
+  try {
+    const salvo = JSON.parse(localStorage.getItem(rkConfigKey()));
+    if (salvo && typeof salvo === "object") {
+      return {
+        tam:   RK_TAM_OPCOES.includes(salvo.tam)     ? salvo.tam   : base.tam,
+        fonte: (salvo.fonte === "calculo")           ? "calculo"   : "ranking",
+        jogos: RK_JOGOS_OPCOES.includes(salvo.jogos) ? salvo.jogos : base.jogos
+      };
+    }
+  } catch (e) {}
+  return base;
+}
+function rkSalvarConfig(cfg) { localStorage.setItem(rkConfigKey(), JSON.stringify(cfg)); }
+
+function rkCalcularTop5(dados, nJogos, tam = 5) {
   const ts = {};
   dados.slice(0, nJogos).forEach(d => {
     const { time_a, time_b, ft } = d;
@@ -3448,31 +4166,68 @@ function rkCalcularTop5(dados, nJogos) {
   return new Set(
     Object.entries(ts)
       .sort(([,a],[,b]) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp)
-      .slice(0, 5)
+      .slice(0, tam)
       .map(([nome]) => nome)
   );
 }
 
-function rkLerTop5DoDOM() {
+
+let _rkTop5Cache = new Set();
+
+function rkLerTop5DoDOM(tam) {
+  const n = tam || rkLerConfig().tam;
   const nomes = new Set();
   document.querySelectorAll("#rankingContainer .rk3-tbl tbody tr").forEach((tr, i) => {
-    if (i >= 5) return;
+    if (i >= n) return;
     const span = tr.querySelector(".rk3-team .rk-name-wrap span:first-child");
     if (span && span.textContent.trim()) nomes.add(span.textContent.trim());
   });
   return nomes;
 }
 
+
+function rkObterTop() {
+  const cfg = rkLerConfig();
+  if (cfg.fonte === "calculo") {
+    const base = qdDadosCache;
+    return (base && base.length) ? rkCalcularTop5(base, cfg.jogos, cfg.tam) : new Set();
+  }
+  return rkLerTop5DoDOM(cfg.tam);
+}
+
+
+function rkAtualizarCache() {
+  const lido = rkObterTop();
+  if (lido.size) _rkTop5Cache = lido;
+  return _rkTop5Cache;
+}
+
+function rkAtivo() { return localStorage.getItem("rankingTop5Ativo") === "1"; }
+
+
+function rkMarcarPlacar(placar) {
+  if (!placar || !rkAtivo()) return;
+  if (!_rkTop5Cache.size) rkAtualizarCache();
+  if (!_rkTop5Cache.size) return;
+  [".time-casa", ".time-fora"].forEach(sel => {
+    const span = placar.querySelector(sel);
+    if (!span) return;
+    const nome = span.getAttribute("data-full-time");
+    if (nome && _rkTop5Cache.has(nome)) span.classList.add("rk-top5-nome");
+  });
+}
+
+
 function rkAplicarDestaque() {
-  rkLimparDestaque();
-  const top5 = rkLerTop5DoDOM();
-  if (!top5.size) return;
+  const top = rkAtualizarCache();
+  if (!top.size) return;
   document.querySelectorAll(".placar-futuro").forEach(placar => {
     [".time-casa", ".time-fora"].forEach(sel => {
       const span = placar.querySelector(sel);
       if (!span) return;
       const nome = span.getAttribute("data-full-time");
-      if (nome && top5.has(nome)) span.classList.add("rk-top5-nome");
+      const deve = !!(nome && top.has(nome));
+      if (deve !== span.classList.contains("rk-top5-nome")) span.classList.toggle("rk-top5-nome", deve);
     });
   });
 }
@@ -3482,18 +4237,151 @@ function rkLimparDestaque() {
 }
 
 function rkSincronizar() {
-  if (localStorage.getItem("rankingTop5Ativo") === "1") {
-    setTimeout(rkAplicarDestaque, 120);
+  if (rkAtivo()) {
+    rkAplicarDestaque(); 
+    setTimeout(rkAplicarDestaque, 120); 
   }
+}
+
+
+(function rkObservarRanking() {
+  let timer = null;
+  const agenda = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { if (rkAtivo()) rkAplicarDestaque(); }, 150);
+  };
+  const ligar = () => {
+    const alvo = document.getElementById("rankingContainer");
+    if (!alvo) return false;
+    if (!alvo._rkObs) {
+      const obs = new MutationObserver(agenda);
+      obs.observe(alvo, { childList: true, subtree: true, characterData: true });
+      alvo._rkObs = obs;
+    }
+    return true;
+  };
+  if (!ligar()) {
+    let tentativas = 0;
+    const iv = setInterval(() => { if (ligar() || ++tentativas > 40) clearInterval(iv); }, 500);
+  }
+  setInterval(() => { if (rkAtivo()) rkAplicarDestaque(); }, 4000); 
+})();
+
+function rkAtualizarLabel() {
+  const lbl = document.getElementById("lbl-ranking-top5");
+  if (!lbl) return;
+  Array.from(lbl.childNodes).forEach(n => { if (n.nodeType === 3) n.remove(); });
+  lbl.appendChild(document.createTextNode(`Ranking Top ${rkLerConfig().tam}`));
+}
+
+function rkAtualizarVisibilidadeConfig() {
+  const btn = document.getElementById("btn-rk-config");
+  if (btn) btn.style.display = rkAtivo() ? "inline-flex" : "none";
+}
+
+function garantirBotaoRkConfig() {
+  if (document.getElementById("btn-rk-config")) return;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.id = "btn-rk-config";
+  btn.className = "btn-buscador-config";
+  btn.style.display = "none";
+  btn.title = "Configurar Ranking Top N";
+  btn.textContent = "⚙";
+  btn.addEventListener("click", abrirModalRkConfig);
+  const painel = document.getElementById("painel-cores");
+  if (painel) painel.appendChild(btn);
+}
+
+function garantirModalRkConfig() {
+  let overlay = document.getElementById("rk-modal-overlay");
+  if (overlay) return overlay;
+  overlay = document.createElement("div");
+  overlay.id = "rk-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true">
+      <h4>⚙ Configurar Ranking Top <span id="rk-modal-liga"></span></h4>
+      <label>Quantidade de times em destaque
+        <select id="cfg-rk-tam" class="buscador-select">
+          ${RK_TAM_OPCOES.map(n => `<option value="${n}">Top ${n}</option>`).join("")}
+        </select>
+      </label>
+      <label>Fonte do ranking
+        <select id="cfg-rk-fonte" class="buscador-select">
+          <option value="ranking">Ranking da página</option>
+          <option value="calculo">Calcular pela tabela</option>
+        </select>
+      </label>
+      <label>Jogos considerados (cálculo)
+        <select id="cfg-rk-jogos" class="buscador-select">
+          ${RK_JOGOS_OPCOES.map(n => `<option value="${n}">${n} jogos</option>`).join("")}
+        </select>
+      </label>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarRkConfig" style="background:transparent;color:#d4af37;">Cancelar</button>
+        <button type="button" id="btnSalvarRkConfig" style="background:#d4af37;color:#1c212f;">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const fonteSel = overlay.querySelector("#cfg-rk-fonte");
+  const jogosSel = overlay.querySelector("#cfg-rk-jogos");
+  const sincJogos = () => { jogosSel.disabled = fonteSel.value !== "calculo"; jogosSel.style.opacity = jogosSel.disabled ? "0.45" : "1"; };
+  fonteSel.addEventListener("change", sincJogos);
+  overlay._sincJogos = sincJogos;
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalRkConfig(); });
+  overlay.querySelector("#btnCancelarRkConfig").addEventListener("click", fecharModalRkConfig);
+  overlay.querySelector("#btnSalvarRkConfig").addEventListener("click", salvarModalRkConfig);
+  return overlay;
+}
+
+function abrirModalRkConfig() {
+  const overlay = garantirModalRkConfig();
+  const cfg = rkLerConfig();
+  const ligaSpan = overlay.querySelector("#rk-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+  overlay.querySelector("#cfg-rk-tam").value   = String(cfg.tam);
+  overlay.querySelector("#cfg-rk-fonte").value = cfg.fonte;
+  overlay.querySelector("#cfg-rk-jogos").value = String(cfg.jogos);
+  overlay._sincJogos();
+  overlay.hidden = false;
+}
+
+function fecharModalRkConfig() {
+  const overlay = document.getElementById("rk-modal-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function salvarModalRkConfig() {
+  const overlay = document.getElementById("rk-modal-overlay");
+  if (!overlay) return;
+  rkSalvarConfig({
+    tam:   parseInt(overlay.querySelector("#cfg-rk-tam").value, 10),
+    fonte: overlay.querySelector("#cfg-rk-fonte").value,
+    jogos: parseInt(overlay.querySelector("#cfg-rk-jogos").value, 10)
+  });
+  fecharModalRkConfig();
+  _rkTop5Cache = new Set();
+  rkAtualizarLabel();
+  if (rkAtivo()) { rkLimparDestaque(); rkAplicarDestaque(); }
+  showToast(`⚙ Ranking Top ${rkLerConfig().tam} salvo${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
 }
 
 
 let _tabVisibleTabela = !document.hidden;
 let _buscando = false;
+let _buscandoDesde = 0;
+const BUSCA_TRAVA_MAX_MS = 15000; 
 async function _buscarDadosSeguro() {
-  if (!_tabVisibleTabela || _buscando) return;
+  if (!_tabVisibleTabela) return;
+  if (_buscando && (Date.now() - _buscandoDesde) < BUSCA_TRAVA_MAX_MS) return;
   _buscando = true;
-  try { await buscarDados(); } finally { _buscando = false; }
+  _buscandoDesde = Date.now();
+  try { await buscarDados(); }
+  catch (e) { console.error("Erro no ciclo de busca:", e); }
+  finally { _buscando = false; }
 }
 document.addEventListener('visibilitychange', () => {
   _tabVisibleTabela = !document.hidden;
