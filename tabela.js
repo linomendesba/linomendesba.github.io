@@ -2088,6 +2088,375 @@ function garantirPainelCores() {
 }
 
 
+
+/* ═══════════ ANÁLISES POR COLUNA: Saldo (ROI), Atraso, Tendência e Nota ═══════════
+   Linhas extras no topo da tabela, uma célula por minuto. Cada uma é um toggle no menu
+   Ferramentas (desligado por padrão). Tudo é calculado só com os resultados que já estão na
+   tela (janela de horas escolhida) e para o mercado selecionado. É análise HISTÓRICA:
+   descreve o passado e não garante nem prevê resultado. */
+const AN_TOGGLES = [
+  { id: "roi",    key: "anRoiAtivo",    label: "Saldo (ROI)", linha: "linhaRoiColuna",    th: "ROI",
+    tip: "Saldo em unidades por coluna: green = odd − 1, red = −1 (só jogos com odd)" },
+  { id: "atraso", key: "anAtrasoAtivo", label: "Atraso",      linha: "linhaAtrasoColuna", th: "ATR",
+    tip: "Horas seguidas sem green em cada coluna (histórico, não é previsão)" },
+  { id: "tend",   key: "anTendAtivo",   label: "Tendência",   linha: "linhaTendColuna",   th: "TEN",
+    tip: "% de acerto das últimas horas comparada com as anteriores" },
+  { id: "nota",   key: "anNotaAtivo",   label: "Nota",        linha: "linhaNotaColuna",   th: "NOTA",
+    tip: "Nota 0–100 combinando acerto, saldo, tendência, gols e atraso. ★ = 3 melhores das próximas colunas" },
+];
+const AN_JANELAS      = [3, 4, 6, 8];
+const AN_LIMIARES     = [10, 15, 20, 25];
+const AN_PESOS_OPCOES = [0, 10, 20, 30, 40, 50, 60];
+const AN_CFG_PADRAO   = { janela: 4, limiar: 15, pesos: { acerto: 40, roi: 30, tend: 20, gols: 10, atraso: 0 } };
+
+let _anRaw = null;
+let _anCalc = null;
+
+function anCfgKey() { return `an_config_${getLigaKey()}`; }
+function anLerConfig() {
+  const base = { janela: AN_CFG_PADRAO.janela, limiar: AN_CFG_PADRAO.limiar, pesos: { ...AN_CFG_PADRAO.pesos } };
+  try {
+    const sv = JSON.parse(localStorage.getItem(anCfgKey()));
+    if (sv && typeof sv === "object") {
+      if (AN_JANELAS.includes(sv.janela))   base.janela = sv.janela;
+      if (AN_LIMIARES.includes(sv.limiar))  base.limiar = sv.limiar;
+      if (sv.pesos && typeof sv.pesos === "object") {
+        Object.keys(base.pesos).forEach(k => { if (AN_PESOS_OPCOES.includes(sv.pesos[k])) base.pesos[k] = sv.pesos[k]; });
+      }
+    }
+  } catch (e) {}
+  return base;
+}
+function anSalvarConfig(c) { localStorage.setItem(anCfgKey(), JSON.stringify(c)); }
+function anAtivo(id) {
+  const t = AN_TOGGLES.find(x => x.id === id);
+  return !!t && localStorage.getItem(t.key) === "1";
+}
+function anClamp(v, a = 0, b = 100) { return Math.max(a, Math.min(b, v)); }
+
+function anCalcular(raw, cfg) {
+  const { res, totMercado, totGols } = raw;
+  const n = res.length;
+
+  let acTot = 0, jgTot = 0;
+  res.forEach(col => col.forEach(r => { jgTot++; if (r.acerto) acTot++; }));
+  const pctGeral = jgTot ? acTot / jgTot : 0;
+
+  const roi = [], atraso = [], tend = [], comp = [], nota = [];
+  for (let i = 0; i < n; i++) {
+    const col = res[i];                 // do mais recente para o mais antigo
+    const jogos = col.length;
+    const acertos = col.reduce((sm, r) => sm + (r.acerto ? 1 : 0), 0);
+
+    // 1) Saldo: green = odd − 1, red = −1 (só jogos com odd; mínimo 3)
+    const comOdd = col.filter(r => r.odd);
+    if (comOdd.length >= 3) {
+      const u = comOdd.reduce((sm, r) => sm + (r.acerto ? r.odd - 1 : -1), 0);
+      roi[i] = { u, n: comOdd.length, pct: (u / comOdd.length) * 100 };
+    } else roi[i] = null;
+
+    // 2) Atraso: horas seguidas sem green, a partir do resultado mais recente
+    if (jogos > 0) {
+      let k = 0;
+      while (k < jogos && !col[k].acerto) k++;
+      atraso[i] = { horas: k, todos: k === jogos, jogos };
+    } else atraso[i] = null;
+
+    // 3) Tendência: últimas J horas vs. as anteriores (J se adapta ao tamanho da janela)
+    if (jogos >= 6) {
+      const J = Math.min(cfg.janela, Math.floor(jogos / 2));
+      const rec = col.slice(0, J), ant = col.slice(J);
+      const pR = (rec.filter(r => r.acerto).length / rec.length) * 100;
+      const pA = (ant.filter(r => r.acerto).length / ant.length) * 100;
+      const diff = pR - pA;
+      tend[i] = { diff, pR, pA, J, dir: diff >= cfg.limiar ? "up" : (diff <= -cfg.limiar ? "down" : "flat") };
+    } else tend[i] = null;
+
+    // 4) Nota 0–100 (mínimo 3 jogos). Acerto é "suavizado" pra amostras pequenas não distorcerem.
+    if (jogos >= 3) {
+      const K = 4;
+      const cAcerto = ((acertos + pctGeral * K) / (jogos + K)) * 100;
+      const cRoi    = roi[i]  ? anClamp(50 + roi[i].pct)  : 50;
+      const cTend   = tend[i] ? anClamp(50 + tend[i].diff) : 50;
+      const media   = totMercado[i] > 0 ? totGols[i] / totMercado[i] : 0;
+      const cGols   = anClamp((media / 4) * 100);
+      const cAtraso = atraso[i] ? anClamp((atraso[i].horas / 6) * 100) : 0;
+      const w = cfg.pesos;
+      const soma = w.acerto + w.roi + w.tend + w.gols + w.atraso;
+      nota[i] = soma > 0 ? (w.acerto * cAcerto + w.roi * cRoi + w.tend * cTend + w.gols * cGols + w.atraso * cAtraso) / soma : null;
+      comp[i] = { cAcerto, cRoi, cTend, cGols, cAtraso };
+    } else { nota[i] = null; comp[i] = null; }
+  }
+
+  // "Próximas colunas" = as que ainda não têm resultado na hora mais recente. Se não sobrou nenhuma, todas.
+  let maisRecente = 0;
+  res.forEach(col => { if (col[0] && col[0].ts > maisRecente) maisRecente = col[0].ts; });
+  let cand = [];
+  for (let i = 0; i < n; i++) if (nota[i] != null && !(res[i][0] && res[i][0].ts === maisRecente)) cand.push(i);
+  if (!cand.length) for (let i = 0; i < n; i++) if (nota[i] != null) cand.push(i);
+  const top = cand.sort((a, b) => nota[b] - nota[a]).slice(0, 3);
+
+  // Saldo por hora (vai no tooltip da hora, na 1ª coluna)
+  const roiHora = {};
+  res.forEach(col => col.forEach(r => {
+    if (!r.odd) return;
+    const o = roiHora[r.chave] || (roiHora[r.chave] = { u: 0, n: 0 });
+    o.u += r.acerto ? r.odd - 1 : -1; o.n++;
+  }));
+
+  return { roi, atraso, tend, nota, comp, top, roiHora };
+}
+
+function anGarantirEstilos() {
+  if (document.getElementById("an-styles")) return;
+  const st = document.createElement("style");
+  st.id = "an-styles";
+  st.textContent = `
+    tr.an-linha th.an-th { width:26px; min-width:26px; font-size:0.55em !important; font-weight:800; color:#9ca3af; padding:1px 2px !important; text-align:center; letter-spacing:.02em; cursor:help; }
+    tr.an-linha td.an-cell { border-bottom:1px solid rgba(255,255,255,0.06); cursor:help; }
+    .an-cell.an-neutro .valor-principal, .an-cell.an-neutro .valor-sub { color:#9ca3af !important; }
+    .an-cell.an-pos .valor-principal, .an-cell.an-pos .valor-sub { color:#4ade80 !important; }
+    .an-cell.an-neg .valor-principal, .an-cell.an-neg .valor-sub { color:#ff5c5c !important; }
+    .an-cell.an-warm .valor-principal, .an-cell.an-warm .valor-sub { color:#f5c518 !important; }
+    .an-cell.an-hot  .valor-principal, .an-cell.an-hot  .valor-sub { color:#fb923c !important; }
+    .an-cell.an-top { background:rgba(212,175,55,0.16) !important; box-shadow:inset 0 -2px 0 #d4af37; }
+    .an-cell.an-top .valor-principal, .an-cell.an-top .valor-sub { color:#d4af37 !important; }
+    .an-modal-nota { font-size:0.74em; line-height:1.35; color:#9ca3af; }
+    .an-modal-grade { display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; }
+    .an-modal-grade label { margin:0; }
+  `;
+  document.head.appendChild(st);
+}
+
+function anCelula(cls, principal, sub, titulo) {
+  const td = document.createElement("td");
+  td.className = `col-combo-top an-cell ${cls}`;
+  td.innerHTML = `<span class="valor-principal">${principal}</span>${sub !== "" ? `<span class="valor-sub">${sub}</span>` : ""}`;
+  if (titulo) td.title = titulo;
+  return td;
+}
+
+function anRenderLinhas() {
+  anGarantirEstilos();
+  const tabela = document.getElementById("tabelaResultados");
+  if (!tabela) return;
+  const thead = tabela.querySelector("thead");
+  if (!thead) return;
+
+  AN_TOGGLES.forEach(t => document.getElementById(t.linha)?.remove());
+  tabela.querySelectorAll("tbody tr[data-chave] > td:first-child[data-an-titulo]").forEach(td => {
+    td.removeAttribute("title"); td.removeAttribute("data-an-titulo");
+  });
+  if (!_anCalc) return;
+
+  const c = _anCalc;
+  const N = minutosFixos.length;
+  const trMin = thead.querySelector("th.minute-header")?.parentElement;
+  if (!trMin) return;
+  const bloco = _tamanhoBlocoQD();
+  const qdOn = qdCheckboxAtivo();
+  const sinal = v => (v > 0 ? "+" : "");
+
+  const montar = (t, fn) => {
+    const tr = document.createElement("tr");
+    tr.id = t.linha; tr.className = "an-linha";
+    const th = document.createElement("th");
+    th.className = "an-th"; th.textContent = t.th; th.title = t.tip;
+    tr.appendChild(th);
+    for (let i = 0; i < N; i++) {
+      const td = fn(i);
+      if (qdOn && i > 0 && i % bloco === 0) td.classList.add("quadrant-border");
+      tr.appendChild(td);
+    }
+    for (let k = 0; k < 2; k++) { const e = document.createElement("td"); e.className = "col-combo"; tr.appendChild(e); }
+    thead.insertBefore(tr, trMin);
+  };
+
+  if (anAtivo("roi")) montar(AN_TOGGLES[0], i => {
+    const r = c.roi[i];
+    if (!r) return anCelula("an-neutro", "–", "", "Poucos jogos com odd nesta coluna (mínimo 3)");
+    const u = Math.abs(r.u) < 0.05 ? 0 : r.u;
+    const cls = u > 0 ? "an-pos" : (u < 0 ? "an-neg" : "an-neutro");
+    return anCelula(cls, `${sinal(u)}${u.toFixed(1)}`, `${sinal(r.pct)}${Math.round(r.pct)}%`,
+      `Saldo ${sinal(u)}${u.toFixed(2)}u em ${r.n} jogos com odd (ROI ${sinal(r.pct)}${Math.round(r.pct)}%)`);
+  });
+
+  if (anAtivo("atraso")) montar(AN_TOGGLES[1], i => {
+    const a = c.atraso[i];
+    if (!a) return anCelula("an-neutro", "–", "", "");
+    const k = a.horas;
+    const cls = k >= 5 ? "an-hot" : (k >= 3 ? "an-warm" : "an-neutro");
+    const tit = a.todos ? `Nenhum green nas ${k} horas da janela (histórico, não é previsão)`
+              : (k === 0 ? "O último resultado desta coluna foi green"
+                         : `${k} hora(s) seguidas sem green nesta coluna (histórico, não é previsão)`);
+    return anCelula(cls, a.todos ? `${k}+` : `${k}`, "h", tit);
+  });
+
+  if (anAtivo("tend")) montar(AN_TOGGLES[2], i => {
+    const t = c.tend[i];
+    if (!t) return anCelula("an-neutro", "–", "", "Poucos jogos (mínimo 6) para comparar");
+    const seta = t.dir === "up" ? "↑" : (t.dir === "down" ? "↓" : "→");
+    const cls = t.dir === "up" ? "an-pos" : (t.dir === "down" ? "an-neg" : "an-neutro");
+    const d = Math.round(t.diff);
+    return anCelula(cls, seta, `${sinal(d)}${d}`,
+      `Últimas ${t.J}h: ${Math.round(t.pR)}% • antes: ${Math.round(t.pA)}% (${sinal(d)}${d} p.p.)`);
+  });
+
+  if (anAtivo("nota")) montar(AN_TOGGLES[3], i => {
+    const v = c.nota[i];
+    if (v == null) return anCelula("an-neutro", "–", "", "Poucos jogos (mínimo 3) ou todos os pesos em 0");
+    const pos = c.top.indexOf(i);
+    const cm = c.comp[i];
+    const cls = pos >= 0 ? "an-top" : (v >= 60 ? "an-pos" : (v < 40 ? "an-neg" : "an-neutro"));
+    const tit = `Nota ${Math.round(v)} • acerto ${Math.round(cm.cAcerto)} • saldo ${Math.round(cm.cRoi)} • tendência ${Math.round(cm.cTend)} • gols ${Math.round(cm.cGols)} • atraso ${Math.round(cm.cAtraso)}`
+              + (pos >= 0 ? ` • ${pos + 1}º entre as próximas colunas` : "");
+    return anCelula(cls, String(Math.round(v)), pos >= 0 ? "★" : "", tit);
+  });
+
+  // Saldo da hora no tooltip da hora (1ª coluna de cada linha)
+  if (anAtivo("roi")) {
+    tabela.querySelectorAll("tbody tr[data-chave]").forEach(tr => {
+      const o = c.roiHora[tr.getAttribute("data-chave")];
+      const td = tr.firstElementChild;
+      if (!o || !td) return;
+      const u = Math.abs(o.u) < 0.05 ? 0 : o.u;
+      td.title = `Saldo da hora: ${sinal(u)}${u.toFixed(1)}u em ${o.n} jogos com odd`;
+      td.setAttribute("data-an-titulo", "1");
+    });
+  }
+}
+
+function anAtualizar(raw) {
+  _anRaw = raw;
+  _anCalc = anCalcular(raw, anLerConfig());
+  anRenderLinhas();
+}
+function anRecalcular() {
+  if (!_anRaw) return;
+  _anCalc = anCalcular(_anRaw, anLerConfig());
+  anRenderLinhas();
+}
+
+function anAtualizarVisibilidadeConfig() {
+  const btn = document.getElementById("btn-an-config");
+  if (btn) btn.style.display = (anAtivo("tend") || anAtivo("nota")) ? "inline-flex" : "none";
+}
+
+function garantirControlesAnalises() {
+  const painel = document.getElementById("painel-cores");
+  if (!painel) return;
+
+  AN_TOGGLES.forEach(t => {
+    if (document.getElementById(`lbl-an-${t.id}`)) return;
+    const lbl = document.createElement("label");
+    lbl.className = "alerta-toggle-label";
+    lbl.id = `lbl-an-${t.id}`;
+    lbl.title = t.tip;
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.id = `cb-an-${t.id}`;
+    const on = anAtivo(t.id);
+    cb.checked = on;
+    lbl.classList.toggle("alerta-ativo", on);
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(" " + t.label));
+    cb.addEventListener("change", function () {
+      localStorage.setItem(t.key, this.checked ? "1" : "0");
+      lbl.classList.toggle("alerta-ativo", this.checked);
+      anRenderLinhas();
+      anAtualizarVisibilidadeConfig();
+    });
+    painel.appendChild(lbl);
+  });
+
+  if (!document.getElementById("btn-an-config")) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "btn-an-config";
+    btn.className = "btn-buscador-config";
+    btn.style.display = "none";
+    btn.title = "Configurar análises (Tendência e Nota)";
+    btn.textContent = "⚙";
+    btn.addEventListener("click", abrirModalAnConfig);
+    painel.appendChild(btn);
+  }
+  anAtualizarVisibilidadeConfig();
+}
+
+function garantirModalAnConfig() {
+  let overlay = document.getElementById("an-modal-overlay");
+  if (overlay) return overlay;
+  anGarantirEstilos();
+  const optsPeso = AN_PESOS_OPCOES.map(n => `<option value="${n}">${n}</option>`).join("");
+  overlay = document.createElement("div");
+  overlay.id = "an-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true" style="max-height:92vh;overflow:auto;width:320px;">
+      <h4>⚙ Configurar análises <span id="an-modal-liga"></span></h4>
+      <label>Tendência — janela recente
+        <select id="cfg-an-janela" class="buscador-select">
+          ${AN_JANELAS.map(n => `<option value="${n}">últimas ${n} horas</option>`).join("")}
+        </select>
+      </label>
+      <label>Tendência — variação mínima
+        <select id="cfg-an-limiar" class="buscador-select">
+          ${AN_LIMIARES.map(n => `<option value="${n}">${n} p.p.</option>`).join("")}
+        </select>
+      </label>
+      <div class="an-modal-nota">Pesos da Nota (o que pesa mais na nota da coluna):</div>
+      <div class="an-modal-grade">
+        <label>Acerto<select id="cfg-an-p-acerto" class="buscador-select">${optsPeso}</select></label>
+        <label>Saldo (ROI)<select id="cfg-an-p-roi" class="buscador-select">${optsPeso}</select></label>
+        <label>Tendência<select id="cfg-an-p-tend" class="buscador-select">${optsPeso}</select></label>
+        <label>Gols<select id="cfg-an-p-gols" class="buscador-select">${optsPeso}</select></label>
+        <label>Atraso<select id="cfg-an-p-atraso" class="buscador-select">${optsPeso}</select></label>
+      </div>
+      <div class="an-modal-nota">Análises históricas: descrevem o passado da janela de horas escolhida e não garantem resultado. O Atraso vem com peso 0 por padrão, pois uma coluna estar há mais tempo sem green não significa que está "devendo" um.</div>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarAnConfig" style="background:transparent;color:#d4af37;">Cancelar</button>
+        <button type="button" id="btnSalvarAnConfig" style="background:#d4af37;color:#1c212f;">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalAnConfig(); });
+  overlay.querySelector("#btnCancelarAnConfig").addEventListener("click", fecharModalAnConfig);
+  overlay.querySelector("#btnSalvarAnConfig").addEventListener("click", salvarModalAnConfig);
+  return overlay;
+}
+
+function abrirModalAnConfig() {
+  const ov = garantirModalAnConfig();
+  const cfg = anLerConfig();
+  const ligaSpan = ov.querySelector("#an-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+  ov.querySelector("#cfg-an-janela").value = String(cfg.janela);
+  ov.querySelector("#cfg-an-limiar").value = String(cfg.limiar);
+  Object.keys(cfg.pesos).forEach(k => { ov.querySelector(`#cfg-an-p-${k}`).value = String(cfg.pesos[k]); });
+  ov.hidden = false;
+}
+
+function fecharModalAnConfig() {
+  const ov = document.getElementById("an-modal-overlay");
+  if (ov) ov.hidden = true;
+}
+
+function salvarModalAnConfig() {
+  const ov = document.getElementById("an-modal-overlay");
+  if (!ov) return;
+  const pesos = {};
+  ["acerto", "roi", "tend", "gols", "atraso"].forEach(k => { pesos[k] = parseInt(ov.querySelector(`#cfg-an-p-${k}`).value, 10); });
+  anSalvarConfig({
+    janela: parseInt(ov.querySelector("#cfg-an-janela").value, 10),
+    limiar: parseInt(ov.querySelector("#cfg-an-limiar").value, 10),
+    pesos
+  });
+  fecharModalAnConfig();
+  anRecalcular();
+  showToast(`⚙ Análises salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
+}
+
 /* ── Menu único "⚙ Ferramentas": reúne todos os toggles (e seus ⚙) num só lugar ── */
 const FERR_ITENS = [
   { lbl: "lbl-streak-alerta" },
@@ -2098,6 +2467,10 @@ const FERR_ITENS = [
   { lbl: "lbl-oraculo-tabela" },
   { lbl: "lbl-buscador-tabela",  cfg: "btn-buscador-config" },
   { lbl: "lbl-horafixa-toggle",  cfg: "btn-hf-config" },
+  { lbl: "lbl-an-roi" },
+  { lbl: "lbl-an-atraso" },
+  { lbl: "lbl-an-tend" },
+  { lbl: "lbl-an-nota",          cfg: "btn-an-config" },
 ];
 
 function ferrAtualizarContagem() {
@@ -2127,6 +2500,7 @@ function garantirMenuFerramentas() {
   garantirBotaoRkConfig();
   rkAtualizarLabel();
   rkAtualizarVisibilidadeConfig();
+  garantirControlesAnalises();
 
   if (!document.getElementById("ferr-styles")) {
     const st = document.createElement("style");
@@ -3304,6 +3678,11 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
   const processedMatches      = new Set();
 
+  // Coleta pras análises por coluna (ROI / atraso / tendência / nota)
+  const resPorColuna = minutosFixos.map(() => []);
+  const tsPorChave = {};
+  horasUnicas.forEach(h => { tsPorChave[`${h.data}-${h.hora}`] = h.timestamp; });
+
   dados.forEach(dado => {
     const ds=getDateStr(dado.data), chave=`${ds}-${dado.hora}`, linha=mapeamentoChaveLinha[chave];
     const minNorm=minutosFixos.reduce((p,c)=>Math.abs(c-dado.minuto)<Math.abs(p-dado.minuto)?c:p);
@@ -3393,6 +3772,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
     }
 
     const acerto = verificarAcerto(selRes, rA, rB, htA, htB);
+
+    const oddNum = parseFloat(String(oddTip).replace(",", "."));
+    resPorColuna[idx].push({ chave, ts: tsPorChave[chave] || 0, acerto: !!acerto, odd: (isFinite(oddNum) && oddNum > 1) ? oddNum : null });
 
     cel.setAttribute("data-resultado", acerto ? "acerto" : "erro");
     cel.style.setProperty("background-color", acerto ? Estado.corGreen : Estado.corRed, "important");
@@ -3547,6 +3929,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
 
   aplicarZonaGreen(); // síncrono: as células já nascem com a zona, sem piscar
+
+  anAtualizar({ res: resPorColuna, totMercado: totMercadoCol, totGols: totalGolsPorColuna });
 }
 
 
