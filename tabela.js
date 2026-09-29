@@ -465,7 +465,7 @@ function tooltipMercadosExtrasHTML(oddsObj) {
 
 let qdNumPreviousHours = 1;
 let qdDadosCache = null; 
-let qdOddsCache = null; // cache das odds cruas (pro Buscador poder ler sequência de odds)
+let qdOddsCache = null; 
 
 
 function qdGetHoraAtual(resultados) {
@@ -529,18 +529,7 @@ function aplicarOraculoTabela() {
   });
 }
 
-
-/* ── BUSCADOR: "Análise por Sequência" adaptada pro futebol virtual ──
-   Mesma ideia do Speedway (ler os últimos N resultados, achar essa mesma
-   sequência no histórico completo e ver o que costuma vir depois): usa
-   só o MERCADO que já está selecionado na tabela (#seletorResultado),
-   olha a sequência cronológica de acertos/erros desse mercado (todas as
-   colunas juntas, na ordem real de horário) e faz o backtest. Só marca
-   os 3 próximos confrontos quando achar 100% de assertividade com pelo
-   menos N ocorrências no histórico (N configurável pelo seletor "Ocorrências
-   mín."); senão mostra acima da tabela a sequência lida e a assertividade
-   mais próxima de 100% encontrada. */
-const BUSCADOR_PULO = 1; // qtd de jogos pulados entre a sequência lida e os alvos analisados
+const BUSCADOR_PULO = 1; 
 
 const BUSCADOR_AMOSTRA_MINIMA_PADRAO = 10;
 const BUSCADOR_OPCOES_AMOSTRA = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
@@ -561,7 +550,7 @@ function buscadorConfigKey() { return `buscadorConfig_${getLigaKey()}`; }
 
 function buscadorCarregarConfig() {
   let base = { ...BUSCADOR_CONFIG_PADRAO };
-  // migração best-effort do valor antigo (global) de "ocorrências mínimas"
+
   const legadoAmostra = parseInt(localStorage.getItem("buscadorAmostraMinima"), 10);
   if (BUSCADOR_OPCOES_AMOSTRA.includes(legadoAmostra)) base.amostraMinima = legadoAmostra;
 
@@ -648,7 +637,7 @@ function buscadorSerieGlobal(criterio) {
       if (precisaOdd) {
         const oddsMatch = findOddsNoIndex(oddsIndex, d);
         const valorOdd = getOddValue(oddsMatch, criterio.mercado);
-        if (!valorOdd || valorOdd === "N/A") return null; // sem odd histórica pra esse jogo/mercado
+        if (!valorOdd || valorOdd === "N/A") return null; 
         odd = String(valorOdd).trim();
       }
 
@@ -669,13 +658,12 @@ function buscadorAnalisar(criterio) {
   const serieObjs = buscadorSerieGlobal(criterio);
   if (serieObjs.length < seq + BUSCADOR_PULO + gales) return null;
 
-  // "tokens" é o que define a sequência (placar exato no modo Placares, V/X no modo Mercado);
-  // "hits" é sempre o resultado no mercado selecionado — é o que decide green/red dos alvos.
+
   const tokens = serieObjs.map(e => buscadorToken(criterio, e));
   const hits   = serieObjs.map(e => e.acertoMercado);
   const atual  = tokens.slice(-seq);
 
-  const todasOcorrencias = []; // ordem cronológica: true = bateu no mercado em ao menos 1 dos próximos "gales" (após pular 1 jogo)
+  const todasOcorrencias = []; 
   for (let i = 0; i <= tokens.length - seq - BUSCADOR_PULO - gales; i++) {
     let bate = true;
     for (let j = 0; j < seq; j++) {
@@ -687,7 +675,7 @@ function buscadorAnalisar(criterio) {
     todasOcorrencias.push(alvosHit.some(Boolean));
   }
 
-  // considera só as últimas N ocorrências desse padrão, N = "Ocorrências mín." (config)
+
   const janela = todasOcorrencias.slice(-buscadorConfig.amostraMinima);
   const ocorrencias = janela.length;
   const greens = janela.filter(Boolean).length;
@@ -774,7 +762,7 @@ function buscadorSinalKey() { return `buscadorSinalPendente_${getLigaKey()}`; }
 function buscadorCarregarSinal() {
   try {
     const sinal = JSON.parse(localStorage.getItem(buscadorSinalKey())) || null;
-    // compatibilidade com sinais salvos antes da versão com "criterio" (só tinham "mercado")
+
     if (sinal && !sinal.criterio && sinal.mercado) sinal.criterio = { tipo: "mercado", mercado: sinal.mercado };
     return sinal;
   } catch (e) { return null; }
@@ -806,8 +794,7 @@ function buscadorAvaliarSinalPendente() {
   const idxAcerto = alvos.findIndex(a => a.acerto === true);
   const algumAcerto = idxAcerto !== -1;
   const conferidos = alvos.filter(a => a.acerto !== null).length;
-  // GREEN antecipado: o primeiro acerto ja encerra o sinal, sem esperar os 3 confrontos.
-  // So aguarda os 3 quando nenhum bateu ainda (caminho pro RED).
+
   return {
     alvos,
     todosResolvidos,
@@ -903,7 +890,7 @@ function aplicarBuscadorTabela() {
       buscadorSinalPendente = null;
       buscadorSalvarSinal(null);
       buscadorUltimoAlertaKey = null;
-      // segue o fluxo normal abaixo pra já buscar um novo sinal neste mesmo ciclo
+
     } else {
       buscadorRemarcarCelulasPendentes();
       renderBuscadorPainelPendente(avaliacao);
@@ -1030,7 +1017,7 @@ function salvarModalBuscadorConfig() {
   buscadorConfig = novaConfig;
   buscadorSalvarConfig(novaConfig);
 
-  // muda a config = o sinal pendente (se houver) foi calculado com regras antigas, então é descartado
+
   buscadorSinalPendente = null;
   buscadorSalvarSinal(null);
   buscadorUltimoAlertaKey = null;
@@ -2089,11 +2076,7 @@ function garantirPainelCores() {
 
 
 
-/* ═══════════ ANÁLISES POR COLUNA: Saldo (ROI), Atraso, Tendência e Nota ═══════════
-   Linhas extras no topo da tabela, uma célula por minuto. Cada uma é um toggle no menu
-   Ferramentas (desligado por padrão). Tudo é calculado só com os resultados que já estão na
-   tela (janela de horas escolhida) e para o mercado selecionado. É análise HISTÓRICA:
-   descreve o passado e não garante nem prevê resultado. */
+
 const AN_TOGGLES = [
   { id: "roi",    key: "anRoiAtivo",    label: "Saldo (ROI)", linha: "linhaRoiColuna",    th: "ROI",
     tip: "Saldo em unidades por coluna: green = odd − 1, red = −1 (só jogos com odd)" },
@@ -2144,25 +2127,25 @@ function anCalcular(raw, cfg) {
 
   const roi = [], atraso = [], tend = [], comp = [], nota = [];
   for (let i = 0; i < n; i++) {
-    const col = res[i];                 // do mais recente para o mais antigo
+    const col = res[i]; 
     const jogos = col.length;
     const acertos = col.reduce((sm, r) => sm + (r.acerto ? 1 : 0), 0);
 
-    // 1) Saldo: green = odd − 1, red = −1 (só jogos com odd; mínimo 3)
+
     const comOdd = col.filter(r => r.odd);
     if (comOdd.length >= 3) {
       const u = comOdd.reduce((sm, r) => sm + (r.acerto ? r.odd - 1 : -1), 0);
       roi[i] = { u, n: comOdd.length, pct: (u / comOdd.length) * 100 };
     } else roi[i] = null;
 
-    // 2) Atraso: horas seguidas sem green, a partir do resultado mais recente
+
     if (jogos > 0) {
       let k = 0;
       while (k < jogos && !col[k].acerto) k++;
       atraso[i] = { horas: k, todos: k === jogos, jogos };
     } else atraso[i] = null;
 
-    // 3) Tendência: últimas J horas vs. as anteriores (J se adapta ao tamanho da janela)
+
     if (jogos >= 6) {
       const J = Math.min(cfg.janela, Math.floor(jogos / 2));
       const rec = col.slice(0, J), ant = col.slice(J);
@@ -2172,7 +2155,7 @@ function anCalcular(raw, cfg) {
       tend[i] = { diff, pR, pA, J, dir: diff >= cfg.limiar ? "up" : (diff <= -cfg.limiar ? "down" : "flat") };
     } else tend[i] = null;
 
-    // 4) Nota 0–100 (mínimo 3 jogos). Acerto é "suavizado" pra amostras pequenas não distorcerem.
+
     if (jogos >= 3) {
       const K = 4;
       const cAcerto = ((acertos + pctGeral * K) / (jogos + K)) * 100;
@@ -2188,7 +2171,7 @@ function anCalcular(raw, cfg) {
     } else { nota[i] = null; comp[i] = null; }
   }
 
-  // "Próximas colunas" = as que ainda não têm resultado na hora mais recente. Se não sobrou nenhuma, todas.
+
   let maisRecente = 0;
   res.forEach(col => { if (col[0] && col[0].ts > maisRecente) maisRecente = col[0].ts; });
   let cand = [];
@@ -2196,7 +2179,7 @@ function anCalcular(raw, cfg) {
   if (!cand.length) for (let i = 0; i < n; i++) if (nota[i] != null) cand.push(i);
   const top = cand.sort((a, b) => nota[b] - nota[a]).slice(0, 3);
 
-  // Saldo por hora (vai no tooltip da hora, na 1ª coluna)
+
   const roiHora = {};
   res.forEach(col => col.forEach(r => {
     if (!r.odd) return;
@@ -2313,7 +2296,7 @@ function anRenderLinhas() {
     return anCelula(cls, String(Math.round(v)), pos >= 0 ? "★" : "", tit);
   });
 
-  // Saldo da hora no tooltip da hora (1ª coluna de cada linha)
+
   if (anAtivo("roi")) {
     tabela.querySelectorAll("tbody tr[data-chave]").forEach(tr => {
       const o = c.roiHora[tr.getAttribute("data-chave")];
@@ -2457,7 +2440,7 @@ function salvarModalAnConfig() {
   showToast(`⚙ Análises salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
 }
 
-/* ── Menu único "⚙ Ferramentas": reúne todos os toggles (e seus ⚙) num só lugar ── */
+
 const FERR_ITENS = [
   { lbl: "lbl-streak-alerta" },
   { lbl: "lbl-stats-laterais" },
@@ -2483,7 +2466,7 @@ function ferrAtualizarContagem() {
   btn?.classList.toggle("ferr-tem-ativos", n > 0);
 }
 
-// Mantém o menu (agora horizontal) inteiro dentro da tela, deslocando pra esquerda se precisar
+
 function ferrPosicionar(panel) {
   panel.style.left = "0px";
   const r = panel.getBoundingClientRect();
@@ -2555,7 +2538,7 @@ function garantirMenuFerramentas() {
     });
     panel.addEventListener("click", (e) => {
       e.stopPropagation();
-      // abrir o modal de configuração de uma ferramenta fecha o menu
+
       if (e.target.closest(".btn-buscador-config")) panel.hidden = true;
     });
     panel.addEventListener("change", () => setTimeout(ferrAtualizarContagem, 0));
@@ -2566,7 +2549,7 @@ function garantirMenuFerramentas() {
   const panel = wrap.querySelector("#ferr-panel");
   FERR_ITENS.forEach(item => {
     const lbl = document.getElementById(item.lbl);
-    if (!lbl) return; // ainda não criado — entra no próximo ciclo
+    if (!lbl) return; 
     let row = panel.querySelector(`.ferr-row[data-lbl="${item.lbl}"]`);
     if (!row) {
       row = document.createElement("div");
@@ -2581,7 +2564,7 @@ function garantirMenuFerramentas() {
     }
   });
 
-  // mantém o menu sempre por último no painel
+
   if (painel.lastElementChild !== wrap) painel.appendChild(wrap);
   ferrAtualizarContagem();
 }
@@ -2940,8 +2923,7 @@ function getOddValue(odds, res) {
 }
 
 
-// Fetch com timeout: se a API pendurar, aborta em vez de travar o polling para sempre.
-// O timeout cobre também a leitura do corpo (res.json()).
+
 const FETCH_TIMEOUT_MS = 8000;
 async function fetchJsonComTimeout(url, nome, ms = FETCH_TIMEOUT_MS) {
   const ctrl = new AbortController();
@@ -2970,7 +2952,7 @@ async function fetchOdds() {
     return await fetchJsonComTimeout(ROTAS_API.odds(LIGA_ATUAL) + `?timestamp=${ts}`, "odds");
   } catch(e) {
     console.error("Erro odds:", e);
-    return null; // null = falhou (mantém o cache anterior); [] = API respondeu vazio
+    return null; 
   }
 }
 
@@ -2982,7 +2964,7 @@ async function fetchProximosJogos() {
     return j.sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
   } catch(e) {
     console.error("Erro próximos:", e);
-    return null; // null = falhou (mantém o cache anterior)
+    return null; 
   }
 }
 
@@ -3104,7 +3086,7 @@ function hfLerAlerta() {
 }
 function hfSalvarAlerta(v) { localStorage.setItem(hfAlertaKey(), String(v)); }
 
-// Alertas já disparados (não repete o mesmo aviso; sobrevive a recarregar a página)
+
 const _hfAlertasDisparados = (() => {
   try { return new Set(JSON.parse(sessionStorage.getItem("hf_alertas_disparados") || "[]")); }
   catch (e) { return new Set(); }
@@ -3241,7 +3223,7 @@ function hfAtualizarVisibilidadeControles() {
   if (btn) btn.style.display = hfCheckboxAtivo() ? "inline-flex" : "none";
 }
 
-/* ── Modal de configuração da Hora Fixa (mesmo padrão do Buscador) ── */
+
 function garantirModalHFConfig() {
   let overlay = document.getElementById("hf-modal-overlay");
   if (overlay) return overlay;
@@ -3456,12 +3438,7 @@ function hfRender(dados) {
   const agoraHF = new Date();
   const hojeStrHF = `${agoraHF.getFullYear()}-${(agoraHF.getMonth()+1).toString().padStart(2,"0")}-${agoraHF.getDate().toString().padStart(2,"0")}`;
 
-  // Mesma regra da Tabela/Day/Hora Fixa (buscadores): "hoje" nunca ocupa vaga
-  // do histórico (hfLerDias dias) — se tiver dado, entra como dia extra, sem
-  // disputar o slice com os dias antigos. Antes só excluía "hoje" quando a
-  // hora analisada era a hora atual do relógio, o que deixava hoje roubar a
-  // vaga de um dia histórico válido em qualquer outra hora, gerando
-  // contagens diferentes das outras duas páginas.
+
   const temHojeHF = dadosDaHora.some(d => d && getDateStr(d.data) === hojeStrHF);
   const historicoHF = hfUltimosDias(dadosDaHora.filter(d => !(d && getDateStr(d.data) === hojeStrHF)), hfLerDias());
   let diasSelecionados = temHojeHF ? [...historicoHF, hojeStrHF] : historicoHF;
@@ -3479,7 +3456,7 @@ function hfRender(dados) {
   tdHora.textContent = horaAlvo.toString().padStart(2, "0");
   row.appendChild(tdHora);
 
-  // Alerta: colunas que ainda vão acontecer nesta hora e já batem a % escolhida no ⚙
+
   const limiteAlerta = hfLerAlerta();
   const minJogadoHF = dados.reduce((m, d) =>
     (d && d.hora === horaAlvo && getDateStr(d.data) === dataAlvoHF) ? Math.max(m, Number(d.minuto)) : m, -1);
@@ -3510,7 +3487,7 @@ function hfRender(dados) {
 function criarTabela(dados, oddsData, proximosJogos) {
   criarOuObterPainel();
 
-  qdOddsCache = oddsData; // mantém as odds cruas disponíveis pro Buscador (tipo "odd")
+  qdOddsCache = oddsData; 
 
   garantirQuadrantesWrapper();
 
@@ -3678,7 +3655,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
   const processedMatches      = new Set();
 
-  // Coleta pras análises por coluna (ROI / atraso / tendência / nota)
+
   const resPorColuna = minutosFixos.map(() => []);
   const tsPorChave = {};
   horasUnicas.forEach(h => { tsPorChave[`${h.data}-${h.hora}`] = h.timestamp; });
@@ -3928,7 +3905,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   hfRender(dados);
 
 
-  aplicarZonaGreen(); // síncrono: as células já nascem com a zona, sem piscar
+  aplicarZonaGreen(); 
 
   anAtualizar({ res: resPorColuna, totMercado: totMercadoCol, totGols: totalGolsPorColuna });
 }
@@ -3963,20 +3940,15 @@ let _cacheOddsData = [];
 let _cacheProximosJogos = [];
 let _cacheResultados = [];
 let _renderizandoRapido = false; 
-// Cada chamada de buscarDados ganha um número; se chegar uma chamada mais nova,
-// a mais antiga descarta o que trouxe (evita dado velho sobrescrever dado novo).
+
 let _versaoBusca = 0;
 let _falhasResultadosSeguidas = 0;
-const FALHAS_ATE_AVISAR = 5; // ~15s+ sem conseguir atualizar => aí sim mostra o aviso
+const FALHAS_ATE_AVISAR = 5; 
 
-/* ── Render só quando algo mudou ──
-   Antes a tabela inteira era apagada e recriada a cada 3s (e duas vezes por ciclo).
-   Agora cria uma "assinatura" do que influencia a tela (dados, odds, próximos jogos,
-   seletores, seleções e configurações). Se nada mudou, a tabela atual é mantida como está:
-   sem piscar, sem reiniciar animações e sem perder hover/tooltip. */
+
 var _ultimaAssinaturaRender = null;
 let _ultimoRenderEm = 0;
-const RENDER_FORCA_A_CADA_MS = 60000; // segurança: reconstrói pelo menos 1x por minuto
+const RENDER_FORCA_A_CADA_MS = 60000; 
 
 const _CHAVES_RENDER_RE = /^(zonaGreenAtivo|oraculoAtivo|buscadorAtivo|alertaStreakAtivo|statsLateraisOcultas|rankingTop5Ativo|quadrantesAtivos|horaFixaAtiva|corGreen|corRed|corDestaqueExtra|buscadorAmostraMinima|placarSelecionados)$|^(placarFTSelecionados|placarHTSelecionados|timesSelecionados|oddsSelecionadas|mercadosExtras|selectedChaves|colunasSelecionadas|seletorHoras|buscadorSinal|buscadorConfig|hf_gales|hf_dias|hf_alerta|rk_config)/;
 
@@ -3985,8 +3957,7 @@ function _fnvNum(str) {
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
   return h >>> 0;
 }
-// Hash que NÃO depende da ordem dos itens (a tabela reordena o array no lugar; se o hash
-// dependesse da ordem, a assinatura alternaria entre "ordem crua" e "ordem ordenada").
+
 function _hashLista(arr) {
   if (!arr || !arr.length) return "0";
   try {
@@ -4049,8 +4020,7 @@ async function buscarDados() {
     const trQDantigo = document.querySelector("#trQuadrantes");
     if (trQDantigo) trQDantigo.remove();
 
-    // troca de liga: recarrega o sinal pendente do Buscador dessa liga (evita
-    // continuar conferindo o sinal de uma liga diferente da que está aberta)
+
     buscadorSinalPendente = buscadorCarregarSinal();
     buscadorUltimoAlertaKey = null;
   }
@@ -4070,12 +4040,11 @@ async function buscarDados() {
   }
   _renderizandoRapido = false;
 
-  // Odds e próximos jogos rodam em paralelo, mas NÃO seguram mais o polling de resultados.
-  // Quando terminam, só atualizam o cache (e re-renderizam se ainda for a busca mais recente).
+
   const pOdds = fetchOdds();
   const pProximos = fetchProximosJogos();
   const pExtras = Promise.all([pOdds, pProximos]).then(([o, p]) => {
-    if (o !== null && ligaNaoMudou()) _cacheOddsData = o;          // null = falhou, mantém cache
+    if (o !== null && ligaNaoMudou()) _cacheOddsData = o;  
     if (p !== null && ligaNaoMudou()) _cacheProximosJogos = p;
     return [o, p];
   });
@@ -4086,9 +4055,7 @@ async function buscarDados() {
     if (dados.length > 0) _cacheResultados = dados;
     _falhasResultadosSeguidas = 0;
   } catch (e) {
-    // Falha pontual (ex.: servidor lento): mantém a tabela com os últimos dados e tenta de novo
-    // no próximo ciclo, SEM mostrar erro. Só avisa se não há nada pra mostrar ou se a falha
-    // persistir por vários ciclos seguidos (dados ficando velhos de verdade).
+
     _falhasResultadosSeguidas++;
     console.warn("Falha ao buscar resultados (tentando de novo):", e.message);
     if (_cacheResultados.length === 0 || _falhasResultadosSeguidas >= FALHAS_ATE_AVISAR) {
@@ -4097,11 +4064,10 @@ async function buscarDados() {
     dados = _cacheResultados; 
   }
 
-  // Chegou uma busca mais nova (ex.: troca de seletor/liga) enquanto esta esperava: descarta.
+
   if (minhaVersao !== _versaoBusca) return;
 
-  // Primeira carga com resultados vazios: espera próximos/odds em vez de desistir
-  // (antes o cache deles nunca era preenchido nesse caso).
+
   if (dados.length === 0 && _cacheProximosJogos.length === 0) {
     await pExtras;
     if (minhaVersao !== _versaoBusca) return;
@@ -4116,7 +4082,7 @@ async function buscarDados() {
   renderizarTabelaSeMudou(dados, oddsData, proximosJogos, false);
   if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
 
-  // Segunda renderização (com odds/próximos frescos) sem bloquear o próximo ciclo de polling.
+
   pExtras.then(() => {
     if (minhaVersao !== _versaoBusca) return;
     const dadosAtuais = dados.length ? dados : _cacheResultados;
@@ -4160,7 +4126,7 @@ function aplicarZonaGreen() {
 
 
 
-/* ── Ranking Top N: configuração (⚙) ── */
+
 const RK_TAM_OPCOES   = [3, 5, 8];
 const RK_JOGOS_OPCOES = [20, 40, 60, 100];
 const RK_CONFIG_PADRAO = { tam: 5, fonte: "ranking", jogos: 60 };
@@ -4205,8 +4171,7 @@ function rkCalcularTop5(dados, nJogos, tam = 5) {
   );
 }
 
-// Cache do Top N: mantém os nomes entre re-renderizações da tabela, então o destaque
-// nunca some enquanto o ranking está sendo atualizado.
+
 let _rkTop5Cache = new Set();
 
 function rkLerTop5DoDOM(tam) {
@@ -4220,7 +4185,7 @@ function rkLerTop5DoDOM(tam) {
   return nomes;
 }
 
-// Fonte escolhida no ⚙: "ranking" (lê o ranking da página) ou "calculo" (calcula pelos últimos N jogos)
+
 function rkObterTop() {
   const cfg = rkLerConfig();
   if (cfg.fonte === "calculo") {
@@ -4230,7 +4195,7 @@ function rkObterTop() {
   return rkLerTop5DoDOM(cfg.tam);
 }
 
-// Só troca o cache quando há dados (se o ranking estiver vazio/reconstruindo, mantém o anterior)
+
 function rkAtualizarCache() {
   const lido = rkObterTop();
   if (lido.size) _rkTop5Cache = lido;
@@ -4239,7 +4204,7 @@ function rkAtualizarCache() {
 
 function rkAtivo() { return localStorage.getItem("rankingTop5Ativo") === "1"; }
 
-// Aplica o destaque num placar recém-criado, de forma síncrona (já nasce marcado)
+
 function rkMarcarPlacar(placar) {
   if (!placar || !rkAtivo()) return;
   if (!_rkTop5Cache.size) rkAtualizarCache();
@@ -4252,7 +4217,7 @@ function rkMarcarPlacar(placar) {
   });
 }
 
-// Sincroniza sem "limpar e reaplicar": só mexe na classe dos spans que realmente mudaram
+
 function rkAplicarDestaque() {
   const top = rkAtualizarCache();
   if (!top.size) return;
@@ -4273,13 +4238,12 @@ function rkLimparDestaque() {
 
 function rkSincronizar() {
   if (rkAtivo()) {
-    rkAplicarDestaque();                 // imediato: os placares novos já saem marcados
-    setTimeout(rkAplicarDestaque, 120);  // reforço caso o ranking termine de atualizar depois
+    rkAplicarDestaque(); 
+    setTimeout(rkAplicarDestaque, 120); 
   }
 }
 
-// O ranking é atualizado por outro script, independente da tabela. Como a tabela agora só é
-// reconstruída quando algo muda, observamos o ranking pra manter o destaque em dia.
+
 (function rkObservarRanking() {
   let timer = null;
   const agenda = () => {
@@ -4300,7 +4264,7 @@ function rkSincronizar() {
     let tentativas = 0;
     const iv = setInterval(() => { if (ligar() || ++tentativas > 40) clearInterval(iv); }, 500);
   }
-  setInterval(() => { if (rkAtivo()) rkAplicarDestaque(); }, 4000); // rede de segurança (barata: só compara classes)
+  setInterval(() => { if (rkAtivo()) rkAplicarDestaque(); }, 4000); 
 })();
 
 function rkAtualizarLabel() {
@@ -4409,7 +4373,7 @@ function salvarModalRkConfig() {
 let _tabVisibleTabela = !document.hidden;
 let _buscando = false;
 let _buscandoDesde = 0;
-const BUSCA_TRAVA_MAX_MS = 15000; // segurança: se uma busca passar disso, libera a trava
+const BUSCA_TRAVA_MAX_MS = 15000; 
 async function _buscarDadosSeguro() {
   if (!_tabVisibleTabela) return;
   if (_buscando && (Date.now() - _buscandoDesde) < BUSCA_TRAVA_MAX_MS) return;
