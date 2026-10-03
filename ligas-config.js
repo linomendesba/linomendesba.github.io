@@ -111,10 +111,7 @@ const LIGAS_INFO = {
     casa: "BETGREEN", nomeExibicao: "Chile", arquivo: "betgreenchile.html",
     minutos: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
   },
-  "BetGreen Champions League": {
-    casa: "BETGREEN", nomeExibicao: "Champions", arquivo: "betgreenchampions.html",
-    minutos: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
-  },
+
 
   // ───────────── KIRON (30 jogos/hora) ─────────────
   "Kiron Liga Inglaterra": {
