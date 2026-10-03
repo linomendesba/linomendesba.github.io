@@ -36,7 +36,7 @@ const LIGAS = {
   KIRON_ITALY:   "Kiron Liga Itália",
   KIRON_AMERICA: "Kiron Liga América Latina",
   KIRON_SPAIN:   "Kiron Liga Espanha",
-  KIRON_MUNDIAL: "Kiron Liga Mundial",
+
 
   ESTRELA_COPA_MUNDO:     "Copa do Mundo",
   ESTRELA_CHAMPIONS:      "Ligas dos Campeões",

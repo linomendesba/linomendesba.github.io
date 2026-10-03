@@ -134,10 +134,6 @@ const LIGAS_INFO = {
     casa: "KIRON", nomeExibicao: "América Latina", arquivo: "kironamerica.html",
     minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   },
-  "Kiron Liga Mundial": {
-    casa: "KIRON", nomeExibicao: "Mundial", arquivo: "kironmundial.html",
-    minutos: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58],
-  },
 
 };
 
