@@ -22,20 +22,22 @@ const LIGAS = {
   MGM_EURO:     "MGM Full Euro Cup",
   MGM_GLOBAL:   "MGM Full Global Cup",
 
-  SPORTINGBET_COPA:       "Sportingbet Copa do Mundo",
-  SPORTINGBET_EURO:       "Sportingbet Eurocopa",
-  SPORTINGBET_CHAMPIONS:  "Sportingbet Champions Cup",
-  SPORTINGBET_SUPERLIGA:  "Sportingbet Superliga América do Sul",
-
   BETSSON_ESPANHA:    "Betsson Espanha",
   BETSSON_INGLATERRA: "Betsson Inglaterra",
   BETSSON_BRASIL:     "Betsson Brasil",
+
+  BETGREEN_PREMIER:    "BetGreen Premier League",
+  BETGREEN_LALIGA:     "BetGreen La Liga",
+  BETGREEN_WORLDCUP:   "BetGreen World Cup",
+  BETGREEN_CHILE:      "BetGreen Primera Division",
+  BETGREEN_CHAMPIONS:  "BetGreen Champions League",
 
   KIRON_BRAZIL:  "Kiron Liga Brasil",
   KIRON_ENGLAND: "Kiron Liga Inglaterra",
   KIRON_ITALY:   "Kiron Liga Itália",
   KIRON_AMERICA: "Kiron Liga América Latina",
   KIRON_SPAIN:   "Kiron Liga Espanha",
+  KIRON_MUNDIAL: "Kiron Liga Mundial",
 
   ESTRELA_COPA_MUNDO:     "Copa do Mundo",
   ESTRELA_CHAMPIONS:      "Ligas dos Campeões",
@@ -56,20 +58,23 @@ const MAPEAMENTO_ROTAS_ESPECIAIS = {
   [LIGAS.MGM_EURO]:     "mgm/euro",
   [LIGAS.MGM_GLOBAL]:   "mgm/global",
 
-  [LIGAS.SPORTINGBET_COPA]:      "sportingbet/copa",
-  [LIGAS.SPORTINGBET_EURO]:      "sportingbet/euro",
-  [LIGAS.SPORTINGBET_CHAMPIONS]: "sportingbet/champions",
-  [LIGAS.SPORTINGBET_SUPERLIGA]: "sportingbet/superliga",
-
   [LIGAS.BETSSON_ESPANHA]:    "betsson/Espanha",
   [LIGAS.BETSSON_INGLATERRA]: "betsson/Inglaterra",
   [LIGAS.BETSSON_BRASIL]:     "betsson/Brasil",
+
+  // BetGreen: o nome da liga na URL é o mesmo salvo no banco pelo betgreen.js
+  [LIGAS.BETGREEN_PREMIER]:   "betgreen/England.%20Premier%20League",
+  [LIGAS.BETGREEN_LALIGA]:    "betgreen/Spain.%20La%20Liga",
+  [LIGAS.BETGREEN_WORLDCUP]:  "betgreen/World%20Cup.%20Play-offs",
+  [LIGAS.BETGREEN_CHILE]:     "betgreen/Chile.%20Primera%20Division",
+  [LIGAS.BETGREEN_CHAMPIONS]: "betgreen/Champions%20League",
 
   [LIGAS.KIRON_BRAZIL]:  "kiron/Brasil",
   [LIGAS.KIRON_ENGLAND]: "kiron/England",
   [LIGAS.KIRON_ITALY]:   "kiron/Italy",
   [LIGAS.KIRON_AMERICA]: "kiron/Am%C3%A9rica%20Latina",
   [LIGAS.KIRON_SPAIN]:   "kiron/Spain",
+  [LIGAS.KIRON_MUNDIAL]: "kiron/Mundial",
 
   [LIGAS.ESTRELA_COPA_MUNDO]:     "estrela/Copa%20do%20Mundo",
   [LIGAS.ESTRELA_CHAMPIONS]:      "estrela/Ligas%20dos%20Campe%C3%B5es",
@@ -96,6 +101,8 @@ const MAPA_ARQUIVO_PARA_LIGA = {
   "campeonato_italiano.html": LIGAS.ITALIANO,
   "copa_america.html":        LIGAS.COPA_AMERICA,
   "copa_das_estrelas.html":   LIGAS.COPA_ESTRELAS,
+  // precisa vir ANTES de "mundial.html" (o nome kironmundial.html contém "mundial.html")
+  "kironmundial.html":        LIGAS.KIRON_MUNDIAL,
   "mundial.html":             LIGAS.MUNDIAL,
   "bet365copa.html":          LIGAS.BET365_COPA,
   "bet365euro.html":          LIGAS.BET365_EURO,
@@ -105,13 +112,14 @@ const MAPA_ARQUIVO_PARA_LIGA = {
   "mgmamericas.html":         LIGAS.MGM_AMERICAS,
   "mgmeuro.html":             LIGAS.MGM_EURO,
   "mgmglobal.html":           LIGAS.MGM_GLOBAL,
-  "sportingbetcopa.html":       LIGAS.SPORTINGBET_COPA,
-  "sportingbeteuro.html":       LIGAS.SPORTINGBET_EURO,
-  "sportingbetchampions.html":  LIGAS.SPORTINGBET_CHAMPIONS,
-  "sportingbetsuperliga.html":  LIGAS.SPORTINGBET_SUPERLIGA,
   "betssonespanha.html":      LIGAS.BETSSON_ESPANHA,
   "betssoningland.html":      LIGAS.BETSSON_INGLATERRA,
   "betssonbrasil.html":       LIGAS.BETSSON_BRASIL,
+  "betgreenpremier.html":     LIGAS.BETGREEN_PREMIER,
+  "betgreenlaliga.html":      LIGAS.BETGREEN_LALIGA,
+  "betgreenworldcup.html":    LIGAS.BETGREEN_WORLDCUP,
+  "betgreenchile.html":       LIGAS.BETGREEN_CHILE,
+  "betgreenchampions.html":   LIGAS.BETGREEN_CHAMPIONS,
   "kironbrazil.html":         LIGAS.KIRON_BRAZIL,
   "kironengland.html":        LIGAS.KIRON_ENGLAND,
   "kironitaly.html":          LIGAS.KIRON_ITALY,
@@ -126,8 +134,8 @@ const MAPA_ARQUIVO_PARA_LIGA = {
 function detectarLigaAtual() {
   const caminho = (window.location.pathname || "").toLowerCase();
 
-  // Tratamento da exceção da Euro (evitando conflito com bet365/betsson/sportingbet/mgm)
-  if (caminho.includes("euro.html") && !caminho.includes("bet365") && !caminho.includes("betsson") && !caminho.includes("sportingbet") && !caminho.includes("mgm")) {
+  // Tratamento da exceção da Euro (evitando conflito com bet365/betsson/mgm)
+  if (caminho.includes("euro.html") && !caminho.includes("bet365") && !caminho.includes("betsson") && !caminho.includes("mgm")) {
     return LIGAS.EURO;
   }
 
