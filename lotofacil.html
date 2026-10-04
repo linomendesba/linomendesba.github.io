@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <!-- defer: não bloqueia a renderização; executam antes do DOMContentLoaded, onde o app inicia -->
+
   <script defer src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
@@ -293,9 +293,7 @@ label.btn{display:inline-flex;align-items:center}
   </div>
 
   <script>
-  // ─────────────────────────────────────────────────────────────
-  //  PERSIST helpers
-  // ─────────────────────────────────────────────────────────────
+
   const STORE_KEY = "lat_lotofacil_prefs_v1";
 
   function loadPrefs() {
@@ -308,17 +306,13 @@ label.btn{display:inline-flex;align-items:center}
     try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  CONFIG
-  // ─────────────────────────────────────────────────────────────
-  // A rota devolve os concursos do mais recente para o mais antigo (teto de 2000).
-  // Carga em duas etapas: FAST (poucos concursos, aparece rápido) e FULL (histórico completo, em seguida).
+
   const API_BASE = "https://betstat.site/resultados/lotofacil";
   const API_FAST = API_BASE + "?limit=60";
   const API_FULL = API_BASE + "?limit=1000";
   const CACHE_KEY = "lat_lotofacil_cache_v1";
 
-  // As requisições começam já aqui, sem esperar o DOM nem os scripts de gráfico.
+
   const jsonFetch = url => fetch(url, { cache: "no-store" }).then(r => {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json();
@@ -328,9 +322,9 @@ label.btn{display:inline-flex;align-items:center}
   PRE_FAST.catch(() => {}); PRE_FULL.catch(() => {});
   const NUMS = Array.from({ length: 25 }, (_, i) => i + 1);
   const FREQ_WINDOWS = [10, 25, 50, 100, 500];
-  const EXPECTED = 15 / 25; // chance teórica de uma dezena sair em um concurso (60%)
+  const EXPECTED = 15 / 25; 
 
-  // Volante 5x5 (linha a linha): moldura = borda (16 dezenas), centro = miolo 3x3 (9 dezenas)
+
   const MOLDURA = [1, 2, 3, 4, 5, 6, 10, 11, 15, 16, 20, 21, 22, 23, 24, 25];
   const MOLDURA_SET = new Set(MOLDURA);
 
@@ -352,17 +346,13 @@ label.btn{display:inline-flex;align-items:center}
   const prefs = Object.assign({}, DEFAULTS, loadPrefs());
   const persist = () => savePrefs(prefs);
 
-  // ─────────────────────────────────────────────────────────────
-  //  STATE
-  // ─────────────────────────────────────────────────────────────
-  let DATA = [];            // concursos em ordem crescente
-  let DER = null;           // séries derivadas, alinhadas com DATA
+
+  let DATA = []; 
+  let DER = null;  
   const charts = {};
   let pendingCharts = [];
 
-  // ─────────────────────────────────────────────────────────────
-  //  DOM
-  // ─────────────────────────────────────────────────────────────
+ 
   const el = id => document.getElementById(id);
   const secTabs    = el("secTabs");
   const baseSelect = el("baseSelect");
@@ -376,9 +366,7 @@ label.btn{display:inline-flex;align-items:center}
     statusBar.classList.toggle("hidden", !show);
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  UTILS
-  // ─────────────────────────────────────────────────────────────
+
   const pad = n => String(n).padStart(2, "0");
   const fmtPct = (v, d = 1) => (v * 100).toFixed(d).replace(".", ",") + "%";
   const fmtNum = (v, d = 1) => Number(v).toFixed(d).replace(".", ",");
@@ -414,9 +402,7 @@ label.btn{display:inline-flex;align-items:center}
     return `Base: <b>${rows.length}</b> concursos (#${a} a #${b})`;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  DADOS
-  // ─────────────────────────────────────────────────────────────
+
   function parseRow(r) {
     let nums = [];
     for (let i = 1; i <= 15; i++) {
@@ -457,7 +443,7 @@ label.btn{display:inline-flex;align-items:center}
     return raw.map(parseRow).filter(Boolean);
   }
 
-  // Junta linhas novas às já carregadas. Devolve true se o conjunto mudou (tamanho ou último concurso).
+
   function applyRows(rows) {
     const sig = () => DATA.length ? `${DATA.length}:${DATA[DATA.length - 1].concurso}` : "0";
     const before = sig();
@@ -468,7 +454,7 @@ label.btn{display:inline-flex;align-items:center}
     return before !== sig();
   }
 
-  // Cache local: na próxima visita a página já abre com dados, enquanto o histórico novo chega.
+
   function readCache() {
     try {
       const a = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
@@ -486,12 +472,10 @@ label.btn{display:inline-flex;align-items:center}
     } catch {}
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  CHART helpers
-  // ─────────────────────────────────────────────────────────────
+
   const COLORS = { purple: "#a78bfa", green: "#0ff5a0", red: "#ff3d6a", amber: "#ffb020", blue: "#38a8ff", cyan: "#22d3ee" };
 
-  // Os scripts do Chart.js são carregados com defer; isto roda no DOMContentLoaded (ver INIT).
+
   function initChartDefaults() {
     if (!window.Chart) return;
     Chart.defaults.color = "#8fa3c4";
@@ -513,7 +497,7 @@ label.btn{display:inline-flex;align-items:center}
     }, extra || {});
   }
 
-  // grace: folga no topo do eixo para o rótulo da barra mais alta não ser cortado
+
   const gridY = { beginAtZero: true, grace: "12%", grid: { color: "rgba(255,255,255,.05)" }, ticks: { precision: 0 } };
   const gridX = { grid: { display: false } };
 
@@ -521,7 +505,7 @@ label.btn{display:inline-flex;align-items:center}
     const c = el(id);
     if (!c || !window.Chart) return;
     cfg.options = cfg.options || {};
-    // padding no topo/direita: garante espaço para os rótulos acima das barras
+
     cfg.options.layout = Object.assign({ padding: { top: 26, right: 10 } }, cfg.options.layout || {});
     cfg.options.responsive = true;
     cfg.options.maintainAspectRatio = false;
@@ -537,9 +521,7 @@ label.btn{display:inline-flex;align-items:center}
     return m;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  01 — DEZENAS MAIS FREQUENTES
-  // ─────────────────────────────────────────────────────────────
+
   function secFreq() {
     const N = DATA.length;
     const W = FREQ_WINDOWS.includes(prefs.freqWin) ? prefs.freqWin : 50;
@@ -606,9 +588,7 @@ label.btn{display:inline-flex;align-items:center}
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  02 — ATRASOS E RECORRÊNCIAS
-  // ─────────────────────────────────────────────────────────────
+
   function delayStats() {
     const N = DATA.length;
     return NUMS.map(n => {
@@ -701,9 +681,7 @@ label.btn{display:inline-flex;align-items:center}
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  03 — REPETIÇÃO DE DEZENAS
-  // ─────────────────────────────────────────────────────────────
+
   function secRep() {
     const reps = lastK(DER.rep, baseK()).filter(v => v != null);
     if (!reps.length) return `<div class="empty">São necessários pelo menos 2 concursos.</div>`;
@@ -760,9 +738,7 @@ label.btn{display:inline-flex;align-items:center}
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  04 — PARES E ÍMPARES
-  // ─────────────────────────────────────────────────────────────
+
   function secParity() {
     const ev = lastK(DER.even, baseK());
     const total = ev.length;
@@ -823,9 +799,7 @@ label.btn{display:inline-flex;align-items:center}
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  05 — SOMA DAS DEZENAS
-  // ─────────────────────────────────────────────────────────────
+
   function secSum() {
     const sums = lastK(DER.sums, baseK());
     const total = sums.length;
@@ -896,9 +870,7 @@ label.btn{display:inline-flex;align-items:center}
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  06 — MOLDURA E CENTRO
-  // ─────────────────────────────────────────────────────────────
+
   function secFrame() {
     const mold = lastK(DER.mold, baseK());
     const total = mold.length;
@@ -966,9 +938,7 @@ label.btn{display:inline-flex;align-items:center}
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  07 — ANÁLISE POR PERÍODOS
-  // ─────────────────────────────────────────────────────────────
+
   function secPeriod() {
     const N = DATA.length;
     const Wr = [10, 25, 50].includes(prefs.perRecent) ? prefs.perRecent : 25;
@@ -1042,9 +1012,7 @@ label.btn{display:inline-flex;align-items:center}
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  08 — CONFERIDOR DE RESULTADOS
-  // ─────────────────────────────────────────────────────────────
+
   function parseGames(text) {
     const games = [], errors = [];
     String(text || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean).forEach((line, idx) => {
@@ -1145,9 +1113,7 @@ label.btn{display:inline-flex;align-items:center}
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  09 — MAPA DOS ÚLTIMOS SORTEIOS
-  // ─────────────────────────────────────────────────────────────
+
   const MAP_OPTS = [10, 18, 25, 30, 50, 100, 200];
 
   function secMap() {
@@ -1159,7 +1125,7 @@ label.btn{display:inline-flex;align-items:center}
     const order = NUMS.slice().sort((a, b) => c[b] - c[a] || a - b);
     const avgPer = mean(rows.map(r => r.nums.length));
 
-    // atraso dentro da janela exibida (concursos desde a última aparição)
+
     const delay = NUMS.map(n => {
       for (let i = total - 1; i >= 0; i--) if (rows[i].set.has(n)) return { v: total - 1 - i, open: false };
       return { v: total, open: true };
@@ -1201,9 +1167,7 @@ label.btn{display:inline-flex;align-items:center}
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  10 — SUGESTÕES ESTATÍSTICAS
-  // ─────────────────────────────────────────────────────────────
+
   function mulberry32(a) {
     return function () {
       a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -1236,7 +1200,7 @@ label.btn{display:inline-flex;align-items:center}
     const ds = delayStats();
     const lastSet = DATA[N - 1].set;
 
-    // chance histórica de sair, dado se a dezena estava (ou não) no concurso anterior
+
     const cond = NUMS.map(n => {
       let a = 0, b = 0;
       for (let i = Math.max(N - T, 1); i < N; i++) {
@@ -1285,10 +1249,10 @@ label.btn{display:inline-flex;align-items:center}
     const games = [], seen = new Set();
 
     for (let g = 0; g < qty; g++) {
-      const gamma = g === 0 ? 4 : 2; // o primeiro jogo fica mais perto do topo do ranking
+      const gamma = g === 0 ? 4 : 2; 
       let best = null;
       for (let tries = 0; tries < 3000; tries++) {
-        // amostragem ponderada sem reposição (chaves de Efraimidis–Spirakis)
+
         const keyed = NUMS.map((n, i) => ({ n, key: Math.pow(rnd(), 1 / Math.pow(sc[i] + 0.05, gamma)) }));
         keyed.sort((a, b) => b.key - a.key);
         const nums = keyed.slice(0, k).map(x => x.n).sort((a, b) => a - b);
@@ -1390,9 +1354,7 @@ label.btn{display:inline-flex;align-items:center}
     `;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  SEÇÕES / RENDER
-  // ─────────────────────────────────────────────────────────────
+
   const SECTIONS = [
     { id: "freq",   num: "01", tab: "Frequência",  title: "Dezenas mais frequentes",    desc: "Frequência de cada número nos últimos 10, 25, 50, 100 e 500 concursos.", fn: secFreq },
     { id: "delay",  num: "02", tab: "Atrasos",     title: "Atrasos e recorrências",     desc: "Quantos concursos cada dezena está sem aparecer e seu histórico de intervalos.", fn: secDelay },
@@ -1459,9 +1421,7 @@ label.btn{display:inline-flex;align-items:center}
       </div>`;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  EVENTOS
-  // ─────────────────────────────────────────────────────────────
+
   secTabs.addEventListener("click", e => {
     const b = e.target.closest(".st");
     if (!b) return;
@@ -1520,15 +1480,13 @@ label.btn{display:inline-flex;align-items:center}
     if (e.target.id === "comboInput") { prefs.combo = e.target.value; persist(); }
   });
 
-  // ─────────────────────────────────────────────────────────────
-  //  CARREGAR
-  // ─────────────────────────────────────────────────────────────
+
   let loadToken = 0;
   async function reload(showLoading, first) {
     const token = ++loadToken;
     setStatus("", false);
     if (first) {
-      // 1) cache local: abre na hora com o que já tinha
+
       const cached = readCache();
       if (cached.length) { applyRows(cached); renderLast(); renderActive(); }
       else content.innerHTML = `<div class="placeholder">Carregando...</div>`;
@@ -1536,7 +1494,7 @@ label.btn{display:inline-flex;align-items:center}
       content.innerHTML = `<div class="placeholder">Carregando...</div>`;
     }
     try {
-      // 2) sem cache: carga rápida (poucos concursos) para aparecer logo
+
       if (first && !DATA.length) {
         try {
           const fast = toRows(await PRE_FAST);
@@ -1562,9 +1520,7 @@ label.btn{display:inline-flex;align-items:center}
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  WEB SOCKET
-  // ─────────────────────────────────────────────────────────────
+
   const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
   let ws, backoff = 1000, hbTimer = null, hbWait = null, lastSoft = 0, softTimer = null, wsRunning = false;
 
@@ -1611,7 +1567,7 @@ label.btn{display:inline-flex;align-items:center}
       let m; try { m = JSON.parse(ev.data); } catch { return; }
       if (m.type === "ping")  { try { ws.send(JSON.stringify({ type: "pong" })); } catch {} return; }
       if (m.type === "pong")  { if (hbWait) clearTimeout(hbWait); return; }
-      // a API envia { type: "lotofacil", ... } quando entra um concurso novo
+
       if (["lotofacil", "dados:update", "push:versions", "vers", "hint", "update"].includes(m.type)) { softReload(); return; }
       if (m.type === "all:reload") location.reload();
     };
@@ -1619,10 +1575,7 @@ label.btn{display:inline-flex;align-items:center}
     ws.onerror = () => { try { ws.close(); } catch {} };
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  INIT
-  // ─────────────────────────────────────────────────────────────
-  // Chart.js usa defer; o DOMContentLoaded só dispara depois que ele (e o datalabels) executaram.
+
   document.addEventListener("DOMContentLoaded", () => {
     initChartDefaults();
     buildTabs();
