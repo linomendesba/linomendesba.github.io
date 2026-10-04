@@ -4,11 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- defer: não bloqueia a renderização; executam antes do DOMContentLoaded, onde o app inicia -->
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
   <title>BetStat — Lotofácil</title>
-  <meta name="description" content="BetStat Lotofácil — frequência, atrasos, repetições, pares e ímpares, soma, moldura e centro, períodos e conferidor de resultados." />
+  <meta name="description" content="BetStat Lotofácil — frequência, atrasos, repetições, pares e ímpares, soma, moldura e centro, períodos, conferidor de resultados, mapa dos sorteios e sugestões estatísticas." />
   <meta name="robots" content="index, follow" />
   <meta name="author" content="BetStat" />
   <script type="module" src="js/firebase-auth.js"></script>
@@ -218,6 +222,28 @@ table.tbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:
 .legend i.m{border-color:rgba(56,168,255,.7);background:rgba(56,168,255,.15)}
 .legend i.c{border-color:rgba(167,139,250,.7);background:rgba(167,139,250,.15)}
 
+/* ── MAPA DOS SORTEIOS ── */
+.mapa{border-collapse:separate;border-spacing:2px;width:100%;min-width:780px;table-layout:fixed;font-family:var(--mono);font-size:11px}
+.mapa th,.mapa td{height:26px;text-align:center;border-radius:3px;padding:0}
+.mapa thead th{background:rgba(56,168,255,.16);color:var(--blue);font-size:10px;font-weight:700}
+.mapa th.mp-c{width:60px;background:var(--bg3);color:var(--blue);font-size:10.5px;font-weight:700;position:sticky;left:0;z-index:1}
+.mapa th.mp-c.last{color:var(--purple);outline:1px solid rgba(167,139,250,.5)}
+.mapa td.mp-on{background:rgba(15,245,160,.2);border:1px solid rgba(15,245,160,.5);color:var(--green);font-weight:700}
+.mapa td.mp-off{background:var(--bg3);border:1px solid var(--border)}
+.mapa tfoot th{background:#2a3446;color:#fff;font-size:10px;position:sticky;left:0}
+.mapa tfoot td{color:#fff;font-weight:700;background:#2a3446;font-size:10.5px}
+.mapa tfoot tr.dl td{background:var(--bg3);color:var(--muted);font-weight:500}
+.mapa tfoot tr.dl th{background:var(--bg3);color:var(--muted)}
+
+/* ── SUGESTÕES ── */
+.scorebar{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--purple),var(--green))}
+.sg{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;margin-bottom:10px}
+.sg-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.04em}
+.sg-h b{color:var(--purple);font-size:11px}
+.sg-m{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.sg-bt{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:6px}
+.sg-bt b{color:var(--text)}
+
 /* ── CONFERIDOR ── */
 textarea.combo{
   width:100%;min-height:110px;resize:vertical;background:var(--bg3);border:1px solid var(--border2);
@@ -285,8 +311,21 @@ label.btn{display:inline-flex;align-items:center}
   // ─────────────────────────────────────────────────────────────
   //  CONFIG
   // ─────────────────────────────────────────────────────────────
-  // limit=1000 (teto da rota é 2000). A rota devolve os concursos do mais recente para o mais antigo.
-  const API_URL = "https://betstat.site/resultados/lotofacil?limit=1000";
+  // A rota devolve os concursos do mais recente para o mais antigo (teto de 2000).
+  // Carga em duas etapas: FAST (poucos concursos, aparece rápido) e FULL (histórico completo, em seguida).
+  const API_BASE = "https://betstat.site/resultados/lotofacil";
+  const API_FAST = API_BASE + "?limit=60";
+  const API_FULL = API_BASE + "?limit=1000";
+  const CACHE_KEY = "lat_lotofacil_cache_v1";
+
+  // As requisições começam já aqui, sem esperar o DOM nem os scripts de gráfico.
+  const jsonFetch = url => fetch(url, { cache: "no-store" }).then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  });
+  const PRE_FAST = jsonFetch(API_FAST);
+  const PRE_FULL = jsonFetch(API_FULL);
+  PRE_FAST.catch(() => {}); PRE_FULL.catch(() => {});
   const NUMS = Array.from({ length: 25 }, (_, i) => i + 1);
   const FREQ_WINDOWS = [10, 25, 50, 100, 500];
   const EXPECTED = 15 / 25; // chance teórica de uma dezena sair em um concurso (60%)
@@ -307,7 +346,8 @@ label.btn{display:inline-flex;align-items:center}
 
   const DEFAULTS = {
     sec: "freq", base: "100", freqWin: 50, perRecent: 25, perRef: 100,
-    sort: "delay", combo: "", gameIdx: 0, minHits: 11
+    sort: "delay", combo: "", gameIdx: 0, minHits: 11,
+    mapN: 18, sugMode: "eq", sugK: 15, sugQty: 5, sugSeed: 1
   };
   const prefs = Object.assign({}, DEFAULTS, loadPrefs());
   const persist = () => savePrefs(prefs);
@@ -412,15 +452,38 @@ label.btn{display:inline-flex;align-items:center}
     DER = { rep, even, sums, mold };
   }
 
-  async function loadData() {
-    const res = await fetch(API_URL, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
+  function toRows(json) {
     const raw = Array.isArray(json) ? json : (json.data || json.resultados || []);
-    const map = new Map();
-    raw.map(parseRow).filter(Boolean).forEach(r => map.set(r.concurso, r));
+    return raw.map(parseRow).filter(Boolean);
+  }
+
+  // Junta linhas novas às já carregadas. Devolve true se o conjunto mudou (tamanho ou último concurso).
+  function applyRows(rows) {
+    const sig = () => DATA.length ? `${DATA.length}:${DATA[DATA.length - 1].concurso}` : "0";
+    const before = sig();
+    const map = new Map(DATA.map(r => [r.concurso, r]));
+    rows.forEach(r => map.set(r.concurso, r));
     DATA = [...map.values()].sort((a, b) => a.concurso - b.concurso);
     buildDerived();
+    return before !== sig();
+  }
+
+  // Cache local: na próxima visita a página já abre com dados, enquanto o histórico novo chega.
+  function readCache() {
+    try {
+      const a = JSON.parse(localStorage.getItem(CACHE_KEY) || "[]");
+      return a.map(x => ({
+        concurso: x.c, data: x.d, nums: x.n, set: new Set(x.n), acumulou: !!x.a,
+        ganhadores15: x.g, proxData: x.p, estimado: x.e, local: null
+      })).filter(r => Array.isArray(r.nums) && r.nums.length === 15);
+    } catch { return []; }
+  }
+  function writeCache() {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(DATA.slice(-1000).map(r => ({
+        c: r.concurso, d: r.data, n: r.nums, a: r.acumulou ? 1 : 0, g: r.ganhadores15, p: r.proxData, e: r.estimado
+      }))));
+    } catch {}
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -428,7 +491,9 @@ label.btn{display:inline-flex;align-items:center}
   // ─────────────────────────────────────────────────────────────
   const COLORS = { purple: "#a78bfa", green: "#0ff5a0", red: "#ff3d6a", amber: "#ffb020", blue: "#38a8ff", cyan: "#22d3ee" };
 
-  if (window.Chart) {
+  // Os scripts do Chart.js são carregados com defer; isto roda no DOMContentLoaded (ver INIT).
+  function initChartDefaults() {
+    if (!window.Chart) return;
     Chart.defaults.color = "#8fa3c4";
     Chart.defaults.font.family = "Roboto, sans-serif";
     Chart.defaults.font.size = 10;
@@ -441,19 +506,23 @@ label.btn{display:inline-flex;align-items:center}
   function labelsOpt(formatter, extra) {
     return Object.assign({
       display: ctx => ctx.chart.width > 420,
+      clip: false,
       color: "#e6eefc", anchor: "end", align: "end", offset: 0,
       font: { size: 9, family: "Roboto Mono, monospace", weight: "700" },
       formatter
     }, extra || {});
   }
 
-  const gridY = { beginAtZero: true, grid: { color: "rgba(255,255,255,.05)" }, ticks: { precision: 0 } };
+  // grace: folga no topo do eixo para o rótulo da barra mais alta não ser cortado
+  const gridY = { beginAtZero: true, grace: "12%", grid: { color: "rgba(255,255,255,.05)" }, ticks: { precision: 0 } };
   const gridX = { grid: { display: false } };
 
   function mkChart(id, cfg) {
     const c = el(id);
     if (!c || !window.Chart) return;
     cfg.options = cfg.options || {};
+    // padding no topo/direita: garante espaço para os rótulos acima das barras
+    cfg.options.layout = Object.assign({ padding: { top: 26, right: 10 } }, cfg.options.layout || {});
     cfg.options.responsive = true;
     cfg.options.maintainAspectRatio = false;
     cfg.options.animation = false;
@@ -1077,6 +1146,251 @@ label.btn{display:inline-flex;align-items:center}
   }
 
   // ─────────────────────────────────────────────────────────────
+  //  09 — MAPA DOS ÚLTIMOS SORTEIOS
+  // ─────────────────────────────────────────────────────────────
+  const MAP_OPTS = [10, 18, 25, 30, 50, 100, 200];
+
+  function secMap() {
+    const N = DATA.length;
+    const want = MAP_OPTS.includes(prefs.mapN) ? prefs.mapN : 18;
+    const rows = DATA.slice(-Math.min(want, N));
+    const total = rows.length;
+    const c = countFreq(rows);
+    const order = NUMS.slice().sort((a, b) => c[b] - c[a] || a - b);
+    const avgPer = mean(rows.map(r => r.nums.length));
+
+    // atraso dentro da janela exibida (concursos desde a última aparição)
+    const delay = NUMS.map(n => {
+      for (let i = total - 1; i >= 0; i--) if (rows[i].set.has(n)) return { v: total - 1 - i, open: false };
+      return { v: total, open: true };
+    });
+
+    const optHtml = MAP_OPTS.map(v => `<option value="${v}" ${v === want ? "selected" : ""}>${v}</option>`).join("");
+    const head = NUMS.map(n => `<th>${pad(n)}</th>`).join("");
+    const body = rows.map((r, i) =>
+      `<tr><th class="mp-c ${i === total - 1 ? "last" : ""}" title="${fmtDate(r.data)}">${r.concurso}</th>` +
+      NUMS.map(n => r.set.has(n) ? `<td class="mp-on">${n}</td>` : `<td class="mp-off"></td>`).join("") + `</tr>`
+    ).join("");
+    const foot = NUMS.map(n => `<td style="background:${heat(c[n] / total, EXPECTED)}">${c[n]}</td>`).join("");
+    const dfoot = NUMS.map(n => `<td>${delay[n - 1].v}${delay[n - 1].open ? "+" : ""}</td>`).join("");
+
+    return `
+      <div class="controls">
+        <span class="ctl-lbl">Mostrar os últimos</span>
+        <select class="sel" data-act="mapn">${optHtml}</select>
+        <span class="ctl-lbl">sorteios</span>
+      </div>
+      ${want > N ? `<div class="ball-note" style="color:var(--amber)">A base carregada tem só ${N} concursos; o mapa mostra todos eles.</div>` : ""}
+      <div class="kpis">
+        ${kpi(total, "Sorteios no mapa", "p")}
+        ${kpi(`${pad(order[0])} · ${c[order[0]]}x`, "Mais saiu", "g")}
+        ${kpi(`${pad(order[24])} · ${c[order[24]]}x`, "Menos saiu", "r")}
+        ${kpi(fmtNum(total * EXPECTED, 1), "Esperado por dezena", "b")}
+      </div>
+      <div class="tbl-wrap">
+        <table class="mapa">
+          <thead><tr><th>Sort.</th>${head}</tr></thead>
+          <tbody>${body}</tbody>
+          <tfoot>
+            <tr><th>Total</th>${foot}</tr>
+            <tr class="dl"><th>Atraso</th>${dfoot}</tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="ball-note" style="margin-top:8px">Verde = dezena sorteada. Linha de baixo = concurso mais recente. Total: fundo verde acima e vermelho abaixo dos 60% esperados na janela. Atraso = sorteios seguidos sem a dezena (um "+" indica que ela nem apareceu na janela). Passe o mouse no número do concurso para ver a data.</div>
+    `;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  10 — SUGESTÕES ESTATÍSTICAS
+  // ─────────────────────────────────────────────────────────────
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function pctl(arr, p) {
+    const s = arr.slice().sort((a, b) => a - b);
+    if (!s.length) return 0;
+    const i = (s.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
+    return s[lo] + (s[hi] - s[lo]) * (i - lo);
+  }
+  function norm01(vals) {
+    const mn = Math.min(...vals), mx = Math.max(...vals);
+    return vals.map(v => mx === mn ? 0.5 : (v - mn) / (mx - mn));
+  }
+
+  const SUG_MODES = {
+    eq:  { l: "Equilibrado", w: { f: .35, t: .25, d: .20, c: .20 }, desc: "combina frequência, momento recente, atraso e repetição" },
+    hot: { l: "Quentes",     w: { f: .40, t: .50, d: 0,   c: .10 }, desc: "dá peso às dezenas que mais saíram, principalmente nos últimos 10 concursos" },
+    due: { l: "Atrasadas",   w: { f: .10, t: 0,   d: .70, c: .20 }, desc: "dá peso às dezenas que estão há mais tempo sem sair em relação ao próprio intervalo médio" }
+  };
+
+  function sugStats(mode) {
+    const rows = baseRows(), T = rows.length, N = DATA.length;
+    const rec = DATA.slice(-Math.min(10, N));
+    const cb = countFreq(rows), cr = countFreq(rec);
+    const ds = delayStats();
+    const lastSet = DATA[N - 1].set;
+
+    // chance histórica de sair, dado se a dezena estava (ou não) no concurso anterior
+    const cond = NUMS.map(n => {
+      let a = 0, b = 0;
+      for (let i = Math.max(N - T, 1); i < N; i++) {
+        if (DATA[i - 1].set.has(n) === lastSet.has(n)) { b++; if (DATA[i].set.has(n)) a++; }
+      }
+      return b >= 5 ? a / b : cb[n] / T;
+    });
+
+    const f = NUMS.map(n => cb[n] / T);
+    const t = NUMS.map(n => cr[n] / rec.length);
+    const d = NUMS.map(n => { const s = ds[n - 1]; return s.avg == null ? 0 : Math.min(s.cur / (s.avg + 1), 3); });
+    const nf = norm01(f), nt = norm01(t), nd = norm01(d), nc = norm01(cond);
+    const w = (SUG_MODES[mode] || SUG_MODES.eq).w;
+
+    const per = NUMS.map((n, i) => ({
+      n, f: f[i], t: t[i], cur: ds[i].cur, avg: ds[i].avg, cond: cond[i], inLast: lastSet.has(n),
+      score: w.f * nf[i] + w.t * nt[i] + w.d * nd[i] + w.c * nc[i]
+    }));
+
+    const rg = (arr, lo = 0, hi = 15) => arr.length ? [Math.floor(pctl(arr, .1)), Math.ceil(pctl(arr, .9))] : [lo, hi];
+    const profile = {
+      even: rg(lastK(DER.even, T)),
+      sum:  rg(lastK(DER.sums, T)),
+      mold: rg(lastK(DER.mold, T)),
+      rep:  rg(lastK(DER.rep, T).filter(v => v != null))
+    };
+    return { T, rows, per, profile, lastSet };
+  }
+
+  function gameMetrics(nums, lastSet) {
+    return {
+      even: nums.filter(n => n % 2 === 0).length,
+      sum: sum(nums),
+      mold: nums.filter(n => MOLDURA_SET.has(n)).length,
+      rep: nums.filter(n => lastSet.has(n)).length
+    };
+  }
+
+  function genGames(st, k, qty, seed) {
+    const rnd = mulberry32(seed);
+    const sc = st.per.map(p => p.score);
+    const scale = k / 15;
+    const rng = r => [Math.floor(r[0] * scale), Math.ceil(r[1] * scale)];
+    const R = { even: rng(st.profile.even), sum: rng(st.profile.sum), mold: rng(st.profile.mold), rep: rng(st.profile.rep) };
+    const out = (v, r) => (v < r[0] || v > r[1]) ? 1 : 0;
+    const games = [], seen = new Set();
+
+    for (let g = 0; g < qty; g++) {
+      const gamma = g === 0 ? 4 : 2; // o primeiro jogo fica mais perto do topo do ranking
+      let best = null;
+      for (let tries = 0; tries < 3000; tries++) {
+        // amostragem ponderada sem reposição (chaves de Efraimidis–Spirakis)
+        const keyed = NUMS.map((n, i) => ({ n, key: Math.pow(rnd(), 1 / Math.pow(sc[i] + 0.05, gamma)) }));
+        keyed.sort((a, b) => b.key - a.key);
+        const nums = keyed.slice(0, k).map(x => x.n).sort((a, b) => a - b);
+        const id = nums.join(",");
+        if (seen.has(id)) continue;
+        const m = gameMetrics(nums, st.lastSet);
+        const bad = {
+          even: out(m.even, R.even), sum: out(m.sum, R.sum), mold: out(m.mold, R.mold), rep: out(m.rep, R.rep)
+        };
+        const viol = bad.even + bad.sum + bad.mold + bad.rep;
+        if (!best || viol < best.viol) best = { nums, m, bad, viol };
+        if (viol === 0) break;
+      }
+      if (best) {
+        seen.add(best.nums.join(","));
+        const set = new Set(best.nums);
+        const hits = st.rows.map(r => r.nums.filter(n => set.has(n)).length);
+        best.best = Math.max(...hits);
+        best.w11 = hits.filter(h => h >= 11).length;
+        best.score = mean(best.nums.map(n => sc[n - 1]));
+        games.push(best);
+      }
+    }
+    return { games, R };
+  }
+
+  let SUG_LAST = [];
+
+  function secSug() {
+    const mode = SUG_MODES[prefs.sugMode] ? prefs.sugMode : "eq";
+    const k = [15, 16, 17, 18].includes(prefs.sugK) ? prefs.sugK : 15;
+    const qty = [3, 5, 10].includes(prefs.sugQty) ? prefs.sugQty : 5;
+    const st = sugStats(mode);
+    const { games, R } = genGames(st, k, qty, prefs.sugSeed || 1);
+    SUG_LAST = games;
+
+    const ranked = st.per.slice().sort((a, b) => b.score - a.score || a.n - b.n);
+    const top = ranked.slice(0, k);
+    const topSet = new Set(top.map(p => p.n));
+
+    const modeChips = Object.entries(SUG_MODES).map(([id, m]) =>
+      `<button class="chip ${id === mode ? "on" : ""}" data-act="sugmode" data-m="${id}">${m.l}</button>`).join("");
+    const kOpts = [15, 16, 17, 18].map(v => `<option value="${v}" ${v === k ? "selected" : ""}>${v}</option>`).join("");
+    const qOpts = [3, 5, 10].map(v => `<option value="${v}" ${v === qty ? "selected" : ""}>${v}</option>`).join("");
+
+    const rankRows = ranked.map(p => `<tr class="${topSet.has(p.n) ? "sel-row" : ""}">
+      <td>${ball(p.n, "sm " + (topSet.has(p.n) ? "hot" : ""))}</td>
+      <td class="l" style="min-width:90px"><div class="scorebar" style="width:${Math.max(4, p.score * 100).toFixed(0)}%"></div><small>${fmtNum(p.score * 100, 0)}</small></td>
+      <td style="background:${heat(p.f, EXPECTED)}">${fmtPct(p.f, 0)}</td>
+      <td style="background:${heat(p.t, EXPECTED)}">${fmtPct(p.t, 0)}</td>
+      <td class="cnum n${delayLevel(p.cur)}"><b>${p.cur}</b>${p.avg == null ? "" : `<small>média ${fmtNum(p.avg, 1)}</small>`}</td>
+      <td>${fmtPct(p.cond, 0)}</td>
+      <td>${p.inLast ? `<span class="badge ok">Sim</span>` : `<span class="badge nm">Não</span>`}</td>
+    </tr>`).join("");
+
+    const gameCards = games.map((g, i) => {
+      const b = (ok, txt) => `<span class="badge ${ok ? "ok" : "bd"}">${txt}</span>`;
+      return `<div class="sg">
+        <div class="sg-h"><b>Jogo ${i + 1}</b><span>${g.nums.length} dezenas</span><span>score médio ${fmtNum(g.score * 100, 0)}</span></div>
+        <div class="balls">${g.nums.map(n => ball(n, "main")).join("")}</div>
+        <div class="sg-m">
+          ${b(!g.bad.even, `${g.m.even}P / ${k - g.m.even}I`)}
+          ${b(!g.bad.sum, `soma ${g.m.sum}`)}
+          ${b(!g.bad.mold, `${g.m.mold}M / ${k - g.m.mold}C`)}
+          ${b(!g.bad.rep, `${g.m.rep} repetidas`)}
+        </div>
+        <div class="sg-bt">Na base de ${st.T} concursos: melhor resultado <b>${g.best}</b> acertos · <b>${g.w11}</b> concurso${g.w11 === 1 ? "" : "s"} com 11+</div>
+      </div>`;
+    }).join("");
+
+    return `
+      <div class="note">${baseNote(st.rows)} · altere a base no seletor "Base" acima · modo <b>${SUG_MODES[mode].l}</b>: ${SUG_MODES[mode].desc}</div>
+      <div class="controls">
+        <span class="ctl-lbl">Modo</span>${modeChips}
+        <span class="ctl-lbl" style="margin-left:6px">Dezenas por jogo</span><select class="sel" data-act="sugk">${kOpts}</select>
+        <span class="ctl-lbl">Jogos</span><select class="sel" data-act="sugqty">${qOpts}</select>
+        <button class="btn primary" data-act="sugnew">Gerar novos jogos</button>
+      </div>
+      <div class="kpis">
+        ${kpi(`${R.even[0]}–${R.even[1]} P`, "Pares alvo", "p")}
+        ${kpi(`${R.sum[0]}–${R.sum[1]}`, "Soma alvo", "b")}
+        ${kpi(`${R.mold[0]}–${R.mold[1]} M`, "Moldura alvo", "a")}
+        ${kpi(`${R.rep[0]}–${R.rep[1]}`, "Repetidas alvo", "g")}
+      </div>
+      <div class="sub">Dezenas mais bem pontuadas (${k})</div>
+      <div class="balls">${top.map(p => ball(p.n, "hot")).join("")}</div>
+      <div class="sub">Jogos sugeridos</div>
+      ${gameCards || `<div class="empty">Não foi possível gerar jogos com esta base.</div>`}
+      <div class="controls">
+        <button class="btn" data-act="sugsend">Enviar para o Conferidor</button>
+        <button class="btn" data-act="sugcopy">Copiar jogos</button>
+      </div>
+      <div class="sub">Ranking das dezenas</div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr>
+        <th>Dezena</th><th class="l">Score</th><th>Freq. base</th><th>Freq. últimos 10</th><th>Atraso</th><th>Chance condicional</th><th>No último</th>
+      </tr></thead><tbody>${rankRows}</tbody></table></div>
+      <div class="ball-note" style="margin-top:8px">Score (0 a 100) = média ponderada, conforme o modo, de: frequência na base, frequência nos últimos 10, atraso atual em relação ao intervalo médio e chance histórica de sair dado que a dezena estava (ou não) no concurso anterior. Os jogos são sorteados com mais chance para as dezenas de score alto e só aceitos quando ficam dentro do perfil histórico (10% a 90% da base) de pares, soma, moldura (M) e repetidas; selo vermelho = fora do perfil.</div>
+      <div class="ball-note" style="color:var(--amber)">Atenção: os sorteios da Lotofácil são aleatórios e independentes. Estas sugestões organizam o histórico; não preveem o próximo resultado e não aumentam a chance de acerto.</div>
+    `;
+  }
+
+  // ─────────────────────────────────────────────────────────────
   //  SEÇÕES / RENDER
   // ─────────────────────────────────────────────────────────────
   const SECTIONS = [
@@ -1087,7 +1401,9 @@ label.btn{display:inline-flex;align-items:center}
     { id: "sum",    num: "05", tab: "Soma",        title: "Soma das dezenas",           desc: "Faixas de soma dos 15 números sorteados e sua distribuição histórica.", fn: secSum },
     { id: "frame",  num: "06", tab: "Moldura/Centro", title: "Moldura e centro",        desc: "Distribuição das dezenas na borda e no centro do volante de 5 × 5.", fn: secFrame },
     { id: "period", num: "07", tab: "Períodos",    title: "Análise por períodos",       desc: "Comparação de frequências em períodos recentes e históricos mais longos.", fn: secPeriod },
-    { id: "check",  num: "08", tab: "Conferidor",  title: "Conferidor de resultados",   desc: "Importação de uma combinação para verificar quantas dezenas coincidiram com cada concurso.", fn: secCheck }
+    { id: "check",  num: "08", tab: "Conferidor",  title: "Conferidor de resultados",   desc: "Importação de uma combinação para verificar quantas dezenas coincidiram com cada concurso.", fn: secCheck },
+    { id: "map",    num: "09", tab: "Mapa",        title: "Mapa dos últimos sorteios",  desc: "Quais dezenas saíram em cada concurso recente, com total e atraso por dezena. Escolha quantos sorteios mostrar.", fn: secMap },
+    { id: "sug",    num: "10", tab: "Sugestões",   title: "Sugestões estatísticas",     desc: "Ranking das dezenas e jogos gerados a partir de frequência, atraso, repetição e do perfil histórico dos sorteios.", fn: secSug }
   ];
 
   function buildTabs() {
@@ -1168,6 +1484,18 @@ label.btn{display:inline-flex;align-items:center}
     else if (a === "checkclear") { prefs.combo = ""; prefs.gameIdx = 0; persist(); renderActive(); }
     else if (a === "checksample" && DATA.length) { prefs.combo = DATA[DATA.length - 1].nums.map(pad).join(" "); prefs.gameIdx = 0; persist(); renderActive(); }
     else if (a === "pickgame") { prefs.gameIdx = +t.dataset.i; persist(); renderActive(); }
+    else if (a === "sugmode") { prefs.sugMode = t.dataset.m; persist(); renderActive(); }
+    else if (a === "sugnew") { prefs.sugSeed = (Date.now() % 1000000000) + 1; persist(); renderActive(); }
+    else if (a === "sugsend" && SUG_LAST.length) {
+      prefs.combo = SUG_LAST.map(g => g.nums.map(pad).join(" ")).join("\n");
+      prefs.gameIdx = 0; prefs.sec = "check"; persist(); buildTabs(); renderActive();
+    }
+    else if (a === "sugcopy" && SUG_LAST.length) {
+      const txt = SUG_LAST.map(g => g.nums.map(pad).join(" ")).join("\n");
+      const done = ok => { setStatus(ok ? "Jogos copiados" : "Não foi possível copiar", true); setTimeout(() => setStatus("", false), 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => done(true), () => done(false));
+      else done(false);
+    }
   });
 
   content.addEventListener("change", async e => {
@@ -1178,6 +1506,9 @@ label.btn{display:inline-flex;align-items:center}
     else if (a === "delaysort") { prefs.sort = t.value; persist(); renderActive(); }
     else if (a === "minhits") { prefs.minHits = +t.value; persist(); renderActive(); }
     else if (a === "gameselect") { prefs.gameIdx = +t.value; persist(); renderActive(); }
+    else if (a === "mapn") { prefs.mapN = +t.value; persist(); renderActive(); }
+    else if (a === "sugk") { prefs.sugK = +t.value; persist(); renderActive(); }
+    else if (a === "sugqty") { prefs.sugQty = +t.value; persist(); renderActive(); }
     else if (a === "file") {
       const f = t.files && t.files[0];
       if (!f) return;
@@ -1193,15 +1524,37 @@ label.btn{display:inline-flex;align-items:center}
   //  CARREGAR
   // ─────────────────────────────────────────────────────────────
   let loadToken = 0;
-  async function reload(showLoading) {
+  async function reload(showLoading, first) {
     const token = ++loadToken;
-    if (showLoading) content.innerHTML = `<div class="placeholder">Carregando...</div>`;
     setStatus("", false);
+    if (first) {
+      // 1) cache local: abre na hora com o que já tinha
+      const cached = readCache();
+      if (cached.length) { applyRows(cached); renderLast(); renderActive(); }
+      else content.innerHTML = `<div class="placeholder">Carregando...</div>`;
+    } else if (showLoading) {
+      content.innerHTML = `<div class="placeholder">Carregando...</div>`;
+    }
     try {
-      await loadData();
+      // 2) sem cache: carga rápida (poucos concursos) para aparecer logo
+      if (first && !DATA.length) {
+        try {
+          const fast = toRows(await PRE_FAST);
+          if (token !== loadToken) return;
+          if (fast.length) {
+            applyRows(fast); renderLast(); renderActive();
+            setStatus("Carregando histórico completo...", true);
+          }
+        } catch {}
+      }
+      // 3) histórico completo
+      const full = toRows(await (first ? PRE_FULL : jsonFetch(API_FULL)));
       if (token !== loadToken) return;
+      const changed = applyRows(full);
+      writeCache();
       renderLast();
-      renderActive();
+      if (changed || !content.querySelector(".card")) renderActive();
+      setStatus("", false);
     } catch (err) {
       if (token !== loadToken) return;
       setStatus("Falha ao carregar: " + (err.message || "erro"), true);
@@ -1269,9 +1622,13 @@ label.btn{display:inline-flex;align-items:center}
   // ─────────────────────────────────────────────────────────────
   //  INIT
   // ─────────────────────────────────────────────────────────────
-  buildTabs();
-  reload(true);
-  connectWS();
+  // Chart.js usa defer; o DOMContentLoaded só dispara depois que ele (e o datalabels) executaram.
+  document.addEventListener("DOMContentLoaded", () => {
+    initChartDefaults();
+    buildTabs();
+    reload(true, true);
+    connectWS();
+  });
   </script>
 
 <script>
