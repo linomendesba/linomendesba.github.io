@@ -41,7 +41,15 @@ const LIGAS = {
   ESTRELA_COPA_MUNDO:     "Copa do Mundo",
   ESTRELA_CHAMPIONS:      "Ligas dos Campeões",
   ESTRELA_AMERICA_LATINA: "América Latina",
-  ESTRELA_PREMIER:        "Premier League"
+  ESTRELA_PREMIER:        "Premier League",
+
+  VAVA_MUNDIAL:   "Vavada Mundial",
+  VAVA_BRASIL:    "Vavada Brasil",
+  VAVA_INGLATERRA:"Vavada Inglaterra",
+  VAVA_ITALIA:    "Vavada Itália",
+  VAVA_AMERICA:   "Vavada América Latina",
+  VAVA_ESPANHA:   "Vavada Espanha",
+  VAVA_PREMIER:   "Vavada Premier League"
 };
 
 // 1. Dicionário de Mapeamento de Rotas para Ligas Especiais
@@ -79,6 +87,15 @@ const MAPEAMENTO_ROTAS_ESPECIAIS = {
   [LIGAS.ESTRELA_CHAMPIONS]:      "estrela/Ligas%20dos%20Campe%C3%B5es",
   [LIGAS.ESTRELA_AMERICA_LATINA]: "estrela/Am%C3%A9rica%20Latina",
   [LIGAS.ESTRELA_PREMIER]:        "estrela/Premier%20League",
+
+  // Vavada: o nome da liga na URL é o mesmo salvo no banco pelo vava.js
+  [LIGAS.VAVA_MUNDIAL]:    "vava/V-Mundial",
+  [LIGAS.VAVA_BRASIL]:     "vava/V-Brasil",
+  [LIGAS.VAVA_INGLATERRA]: "vava/V-Inglaterra",
+  [LIGAS.VAVA_ITALIA]:     "vava/V-It%C3%A1lia",
+  [LIGAS.VAVA_AMERICA]:    "vava/V-Am%C3%A9rica%20Latina",
+  [LIGAS.VAVA_ESPANHA]:    "vava/V-Espanha",
+  [LIGAS.VAVA_PREMIER]:    "vava/V-Premier%20League",
 };
 
 // Gerador genérico de endpoint para eliminar duplicação de funções
@@ -100,8 +117,9 @@ const MAPA_ARQUIVO_PARA_LIGA = {
   "campeonato_italiano.html": LIGAS.ITALIANO,
   "copa_america.html":        LIGAS.COPA_AMERICA,
   "copa_das_estrelas.html":   LIGAS.COPA_ESTRELAS,
-  // precisa vir ANTES de "mundial.html" (o nome kironmundial.html contém "mundial.html")
+  // precisam vir ANTES de "mundial.html" (kironmundial.html e vavamundial.html contêm "mundial.html")
   "kironmundial.html":        LIGAS.KIRON_MUNDIAL,
+  "vavamundial.html":         LIGAS.VAVA_MUNDIAL,
   "mundial.html":             LIGAS.MUNDIAL,
   "bet365copa.html":          LIGAS.BET365_COPA,
   "bet365euro.html":          LIGAS.BET365_EURO,
@@ -128,6 +146,12 @@ const MAPA_ARQUIVO_PARA_LIGA = {
   "estrelachampions.html":    LIGAS.ESTRELA_CHAMPIONS,
   "estrelaamericalatina.html":LIGAS.ESTRELA_AMERICA_LATINA,
   "estrelapremier.html":      LIGAS.ESTRELA_PREMIER,
+  "vavabrasil.html":          LIGAS.VAVA_BRASIL,
+  "vavainglaterra.html":      LIGAS.VAVA_INGLATERRA,
+  "vavaitalia.html":          LIGAS.VAVA_ITALIA,
+  "vavaamerica.html":         LIGAS.VAVA_AMERICA,
+  "vavaespanha.html":         LIGAS.VAVA_ESPANHA,
+  "vavapremier.html":         LIGAS.VAVA_PREMIER,
 };
 
 function detectarLigaAtual() {
@@ -163,14 +187,14 @@ function aplicarSEOAutomatico() {
   const dados = ehHome
     ? {
         titulo: "BetStat | Análise",
-        descricao: "BetStat - plataforma de análise para futebol virtual Bet365, Betano, Kiron, Estrelabet e Betsson, além de BacBo Live, Speedway e Futebol Real. Mais de 80 ferramentas com estatísticas em tempo real, gráficos de tendência e sinais automáticos.",
-        keywords: "BetStat, futebol virtual, apostas esportivas, Bet365, Betano, Kiron, Estrelabet, Betsson, BacBo Live, Speedway, estatísticas ao vivo, análise de apostas, Taça Glória Eterna",
+        descricao: "BetStat - plataforma de análise para futebol virtual Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada, além de BacBo Live, Speedway e Futebol Real. Mais de 80 ferramentas com estatísticas em tempo real, gráficos de tendência e sinais automáticos.",
+        keywords: "BetStat, futebol virtual, apostas esportivas, Bet365, Betano, Kiron, Estrelabet, Betsson, Vavada, BacBo Live, Speedway, estatísticas ao vivo, análise de apostas, Taça Glória Eterna",
         ogTitulo: "BetStat | Plataforma de Análise para Futebol Virtual e Apostas Esportivas",
-        ogDescricao: "Mais de 80 ferramentas de análise em tempo real para Bet365, Betano, Kiron, Estrelabet e Betsson. Estatísticas, gráficos de tendência e sinais automáticos via Telegram.",
+        ogDescricao: "Mais de 80 ferramentas de análise em tempo real para Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada. Estatísticas, gráficos de tendência e sinais automáticos via Telegram.",
       }
     : {
         titulo: `BetStat | ${liga} - Análise ao Vivo`,
-        descricao: `Análise da ${liga} na BetStat: resultados, próximos jogos, odds e estatísticas em tempo real. Parte de uma plataforma com mais de 80 ferramentas para futebol virtual Bet365, Betano, Kiron, Estrelabet e Betsson.`,
+        descricao: `Análise da ${liga} na BetStat: resultados, próximos jogos, odds e estatísticas em tempo real. Parte de uma plataforma com mais de 80 ferramentas para futebol virtual Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada.`,
         keywords: `${liga}, futebol virtual, BetStat, estatísticas, resultados ao vivo, análise de apostas`,
         ogTitulo: `BetStat | ${liga} - Análise ao Vivo`,
         ogDescricao: `Resultados, próximos jogos, odds e estatísticas em tempo real da ${liga} na plataforma BetStat.`,
