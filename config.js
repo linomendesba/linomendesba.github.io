@@ -26,6 +26,10 @@ const LIGAS = {
   BETSSON_INGLATERRA: "Betsson Inglaterra",
   BETSSON_BRASIL:     "Betsson Brasil",
 
+  ONEWIN_INGLATERRA: "1win Inglaterra",
+  ONEWIN_ESPANHA:    "1win Espanha",
+  ONEWIN_ITALIA:     "1win Itália",
+
   BETGREEN_PREMIER:    "BetGreen Premier League",
   BETGREEN_LALIGA:     "BetGreen La Liga",
   BETGREEN_WORLDCUP:   "BetGreen World Cup",
@@ -68,6 +72,11 @@ const MAPEAMENTO_ROTAS_ESPECIAIS = {
   [LIGAS.BETSSON_ESPANHA]:    "betsson/Espanha",
   [LIGAS.BETSSON_INGLATERRA]: "betsson/Inglaterra",
   [LIGAS.BETSSON_BRASIL]:     "betsson/Brasil",
+
+  // 1win: o nome da liga na URL é o mesmo salvo no banco pelo 1win.js
+  [LIGAS.ONEWIN_INGLATERRA]: "onewin/Inglaterra",
+  [LIGAS.ONEWIN_ESPANHA]:    "onewin/Espanha",
+  [LIGAS.ONEWIN_ITALIA]:     "onewin/It%C3%A1lia",
 
   // BetGreen: o nome da liga na URL é o mesmo salvo no banco pelo betgreen.js
   [LIGAS.BETGREEN_PREMIER]:   "betgreen/England.%20Premier%20League",
@@ -132,6 +141,9 @@ const MAPA_ARQUIVO_PARA_LIGA = {
   "betssonespanha.html":      LIGAS.BETSSON_ESPANHA,
   "betssoningland.html":      LIGAS.BETSSON_INGLATERRA,
   "betssonbrasil.html":       LIGAS.BETSSON_BRASIL,
+  "onewininglaterra.html":    LIGAS.ONEWIN_INGLATERRA,
+  "onewinespanha.html":       LIGAS.ONEWIN_ESPANHA,
+  "onewinitalia.html":        LIGAS.ONEWIN_ITALIA,
   "betgreenpremier.html":     LIGAS.BETGREEN_PREMIER,
   "betgreenlaliga.html":      LIGAS.BETGREEN_LALIGA,
   "betgreenworldcup.html":    LIGAS.BETGREEN_WORLDCUP,
