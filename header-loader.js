@@ -251,6 +251,8 @@
     'kironspain.html': 'kiron',
     'kironbrazil': 'kiron',
     'kironbrazil.html': 'kiron',
+    'kironmundial': 'kiron',
+    'kironmundial.html': 'kiron',
     'kironamerica': 'kiron',
     'kironamerica.html': 'kiron',
     'kironpre': 'kiron',
@@ -324,6 +326,48 @@
     'mgmeuro.html': 'mgm',
     'mgmglobal': 'mgm',
     'mgmglobal.html': 'mgm',
+
+    // ═══════════════════════════════
+    // 1WIN
+    // ═══════════════════════════════
+    'onewininglaterra': '1win',
+    'onewininglaterra.html': '1win',
+    'onewinespanha': '1win',
+    'onewinespanha.html': '1win',
+    'onewinitalia': '1win',
+    'onewinitalia.html': '1win',
+
+    // ═══════════════════════════════
+    // BETGREEN
+    // ═══════════════════════════════
+    'betgreenpremier': 'betgreen',
+    'betgreenpremier.html': 'betgreen',
+    'betgreenlaliga': 'betgreen',
+    'betgreenlaliga.html': 'betgreen',
+    'betgreenworldcup': 'betgreen',
+    'betgreenworldcup.html': 'betgreen',
+    'betgreenchile': 'betgreen',
+    'betgreenchile.html': 'betgreen',
+    'betgreenchampions': 'betgreen',
+    'betgreenchampions.html': 'betgreen',
+
+    // ═══════════════════════════════
+    // VAVADA
+    // ═══════════════════════════════
+    'vavamundial': 'vavada',
+    'vavamundial.html': 'vavada',
+    'vavabrasil': 'vavada',
+    'vavabrasil.html': 'vavada',
+    'vavainglaterra': 'vavada',
+    'vavainglaterra.html': 'vavada',
+    'vavaitalia': 'vavada',
+    'vavaitalia.html': 'vavada',
+    'vavaamerica': 'vavada',
+    'vavaamerica.html': 'vavada',
+    'vavaespanha': 'vavada',
+    'vavaespanha.html': 'vavada',
+    'vavapremier': 'vavada',
+    'vavapremier.html': 'vavada',
 
     // ═══════════════════════════════
     // ESTRELABET
@@ -411,6 +455,10 @@
 
     // Páginas novas da MGM (mgmfluxo, mgmranking...) não precisam ser cadastradas uma a uma
     if (semExtensao.startsWith('mgm')) return 'mgm';
+    // Idem para 1Win, BetGreen e Vavada (onewinfluxo, betgreenranking, vavafluxo...)
+    if (semExtensao.startsWith('onewin')) return '1win';
+    if (semExtensao.startsWith('betgreen')) return 'betgreen';
+    if (semExtensao.startsWith('vava')) return 'vavada';
 
     return localStorage.getItem('casaSelecionada') || 'betano';
   }
