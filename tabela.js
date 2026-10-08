@@ -484,6 +484,20 @@ function tooltipMercadosExtrasHTML(oddsObj) {
 }
 
 let qdNumPreviousHours = 1;
+let _qdKeyCarregada = null;
+function _qdKey() { return `qdNumPreviousHours_${getLigaKey()}`; }
+function qdCarregarQuantidade() {
+  const key = _qdKey();
+  if (_qdKeyCarregada === key) return;
+  _qdKeyCarregada = key;
+  try {
+    const n = parseInt(localStorage.getItem(key), 10);
+    if (Number.isFinite(n) && n >= 0 && n <= 24) qdNumPreviousHours = n;
+  } catch (e) {}
+}
+function qdSalvarQuantidade() {
+  try { localStorage.setItem(_qdKey(), String(qdNumPreviousHours)); } catch (e) {}
+}
 let qdDadosCache = null; 
 let qdOddsCache = null; 
 
@@ -1230,6 +1244,7 @@ function qdAtualizarIndicadorAoVivo() {
 
 
 function qdRenderTabelaValores(resultados) {
+  qdCarregarQuantidade();
   if (!qdCheckboxAtivo()) return;
   if (!document.querySelector("#trQuadrantes")) return;
 
@@ -1276,6 +1291,7 @@ function qdRenderTabelaValores(resultados) {
 }
 
 function qdRenderTabela(resultados) {
+  qdCarregarQuantidade();
   if (!qdCheckboxAtivo()) return;
 
   const thead = document.querySelector("#tabelaResultados thead");
@@ -1318,10 +1334,10 @@ function qdRenderTabela(resultados) {
     thead.insertBefore(trQD, thead.firstChild);
 
     trQD.querySelector("#qd-decrease")?.addEventListener("click", () => {
-      if (qdNumPreviousHours > 0) { qdNumPreviousHours--; qdAtualizarComCache(); }
+      if (qdNumPreviousHours > 0) { qdNumPreviousHours--; qdSalvarQuantidade(); qdAtualizarComCache(); }
     });
     trQD.querySelector("#qd-increase")?.addEventListener("click", () => {
-      qdNumPreviousHours++; qdAtualizarComCache();
+      qdNumPreviousHours++; qdSalvarQuantidade(); qdAtualizarComCache();
     });
   }
 
