@@ -459,12 +459,13 @@
     <!-- Gráfico Renko -->
     <div class="card">
         <div class="card-head">
-            <div class="card-title">Renko Banker / Player<small>Só se move quando ganha ou perde — tijolo novo a cada N pontos de saldo. Empate não altera nada.</small></div>
+            <div class="card-title">Renko Banker / Player / Tie<small>Só se move quando ganha ou perde — tijolo novo a cada N pontos de saldo. Em Banker/Player o empate não altera nada; na linha Tie, o empate sobe e qualquer outro resultado desce.</small></div>
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <select id="renkoLinhaSelector" title="Qual linha analisar">
                     <option value="banker">Analisar: Banker</option>
                     <option value="player">Analisar: Player</option>
-                    <option value="ambas" selected>Analisar: Ambas</option>
+                    <option value="tie">Analisar: Tie</option>
+                    <option value="ambas" selected>Analisar: Todas</option>
                 </select>
                 <select id="renkoTijoloSelector" title="Tamanho do tijolo (pontos de saldo por tijolo)">
                     <option value="1">Tijolo: 1</option>
@@ -605,7 +606,7 @@
     let tieMode = localStorage.getItem('betstat:bacbo:tieMode') || 'own';
     let qtdJanela = parseInt(localStorage.getItem('betstat:bacbo:qtd') || '200', 10);
     let qtdJanelaChart3 = parseInt(localStorage.getItem('betstat:bacbo:chart3Qtd') || '200', 10);
-    let renkoLinha = localStorage.getItem('betstat:bacbo:renkoLinha') || 'ambas'; // 'banker' | 'player' | 'ambas'
+    let renkoLinha = localStorage.getItem('betstat:bacbo:renkoLinha') || 'ambas'; // 'banker' | 'player' | 'tie' | 'ambas' (todas)
     let renkoTijolo = parseInt(localStorage.getItem('betstat:bacbo:renkoTijolo') || '3', 10);
     let qtdJanelaRenko = parseInt(localStorage.getItem('betstat:bacbo:renkoQtd') || '200', 10);
     let qtdHorasChart = parseInt(localStorage.getItem('betstat:bacbo:horaChartQtd') || '24', 10);
@@ -1396,10 +1397,11 @@
     let renkoData = null; // geometria do último render, usada pelo tooltip no hover
 
     // Constrói a série de saldo de uma linha: +1 quando ganha, -1 quando perde, empate não conta (nem gera ponto).
+    // Banker/Player: empate não conta. Tie: empate = +1, qualquer outro resultado = -1.
     function construirSerieRenko(seq, lado){
         const valores = [0];
         seq.forEach(x => {
-            if (x.letra === 'T') return; // empate não faz nada
+            if (x.letra === 'T' && lado !== 'T') return; // empate não faz nada nas linhas Banker/Player
             const venceu = x.letra === lado;
             valores.push(valores[valores.length - 1] + (venceu ? 1 : -1));
         });
@@ -1432,13 +1434,16 @@
     }
 
     function renderChartRenko(arr){
-        const seq = arr; // Tie é ignorado dentro de construirSerieRenko, independente do tieMode global
+        const seq = arr; // Tie é tratado dentro de construirSerieRenko, independente do tieMode global
+        const letraLado = { banker:'B', player:'P', tie:'T' };
+        const nomeLado = { banker:'Banker', player:'Player', tie:'Tie' };
+        const corLado = { banker:'#ef4444', player:'#3b82f6', tie:'#f5c144' };
         const canvas = $('chartRenko');
         const wrap = canvas.parentElement;
         const dpr = window.devicePixelRatio || 1;
         const w = wrap.clientWidth;
-        const paineis = renkoLinha === 'ambas' ? ['banker', 'player'] : [renkoLinha];
-        const h = paineis.length === 2 ? 320 : 210;
+        const paineis = renkoLinha === 'ambas' ? ['banker', 'player', 'tie'] : [renkoLinha];
+        const h = paineis.length === 3 ? 450 : 210;
         canvas.width = w * dpr; canvas.height = h * dpr;
         canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
         const ctx = canvas.getContext('2d');
@@ -1454,14 +1459,14 @@
         const panelsGeom = [];
 
         paineis.forEach((lado, pIdx) => {
-            const valores = construirSerieRenko(seq, lado === 'banker' ? 'B' : 'P');
+            const valores = construirSerieRenko(seq, letraLado[lado]);
             const bricks = construirTijolosRenko(valores, renkoTijolo);
             const y0 = padT + pIdx * (alturaPainel + gapEntrePaineis);
 
             // rótulo do painel
-            ctx.fillStyle = lado === 'banker' ? '#ef4444' : '#3b82f6';
+            ctx.fillStyle = corLado[lado];
             ctx.font = '700 11px Roboto';
-            ctx.fillText(lado === 'banker' ? 'Banker' : 'Player', padL, y0 - 8 < padT ? padT + 10 : y0 + 10);
+            ctx.fillText(nomeLado[lado], padL, y0 - 8 < padT ? padT + 10 : y0 + 10);
 
             if (!bricks.length){
                 ctx.fillStyle = '#8b8fa3'; ctx.font = '11px Roboto';
@@ -1521,7 +1526,7 @@
             });
             if (!melhor || melhorDist > 40){ tooltip.style.display = 'none'; return; }
             const { p, b } = melhor;
-            const nomeLinha = p.lado === 'banker' ? 'Banker' : 'Player';
+            const nomeLinha = { banker:'Banker', player:'Player', tie:'Tie' }[p.lado];
             const html = '<b>' + nomeLinha + '</b><br>' +
                 (b.dir === 1 ? '▲ Alta' : '▼ Baixa') + ': ' + b.de + ' → ' + b.para;
             tooltip.innerHTML = html;
