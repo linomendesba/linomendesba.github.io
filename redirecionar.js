@@ -244,6 +244,10 @@ function redirecionar(select) {
     url === "https://www.betstat.site/betssonfixo.html" ||
     url === "https://www.betstat.site/betssonbuscador.html" ||
     url === "https://www.betstat.site/betssonminuto.html" ||
+        url === "https://www.betstat.site/cavalos.html" ||
+    url === "https://www.betstat.site/galgos.html" ||
+    url === "https://www.betstat.site/motorizados.html" ||
+    url === "https://www.betstat.site/tenis.html" ||
     url === "https://www.betstat.site/betssonclassifica.html"
   ) {
     window.open(url, "_blank");
