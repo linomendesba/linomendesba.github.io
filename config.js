@@ -169,6 +169,18 @@ const MAPA_ARQUIVO_PARA_LIGA = {
 };
 
 function detectarLigaAtual() {
+  // Páginas multi-ligas (iframe mult-liga-tabela.html): a liga vem em ?res=
+  try {
+    let res = new URLSearchParams(window.location.search).get("res");
+    if (res) {
+      const validas = Object.values(LIGAS);
+      if (!validas.includes(res)) {
+        try { res = decodeURIComponent(res); } catch (e) {}
+      }
+      if (validas.includes(res)) return res;
+    }
+  } catch (e) {}
+
   const caminho = (window.location.pathname || "").toLowerCase();
 
   // Tratamento da exceção da Euro (evitando conflito com bet365/betsson/mgm)
