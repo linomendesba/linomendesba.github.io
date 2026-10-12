@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="style.css" />
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+    <title>BetStat | Multi Ligas</title>
+
+    <!-- Meta tags SEO principais -->
+    <meta
+      name="description"
+      content="Acompanhe todas as ligas de futebol virtual lado a lado na BetStat: Bet365, Betano, EstrelaBet, Betsson, Kiron, Vavada, 1win, BetGreen e MGM. Estatísticas em tempo real."
+    />
+    <meta
+      name="keywords"
+      content="BetStat, apostas esportivas, futebol virtual, Bet365, Betano, EstrelaBet, Betsson, Kiron, Vavada, estatísticas apostas, análise apostas"
+    />
+
+    <!-- Open Graph meta tags para redes sociais -->
+    <meta property="og:title" content="BetStat | Multi Ligas - Futebol Virtual" />
+    <meta
+      property="og:description"
+      content="Todas as ligas de futebol virtual lado a lado, com estatísticas em tempo real."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.betstat.site/estrelamult.html" />
+    <meta property="og:site_name" content="BetStat" />
+
+    <!-- Meta tags adicionais -->
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="BetStat" />
+    <link rel="canonical" href="https://www.betstat.site/estrelamult.html" />
+    <script type="module" src="js/firebase-auth.js"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-4WT805FFHQ");
+    </script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      .ligas-container { display: flex; flex-direction: column; gap: 22px; margin: 18px 0 60px; }
+      .liga-card {
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 10px;
+        overflow: hidden;
+        background: rgba(255,255,255,0.02);
+      }
+      .liga-card-iframe { width: 100%; border: none; display: block; }
+      .seletor-casa select { min-width: 200px; }
+    </style>
+
+    <!-- Carrega config.js e ligas-config.js para usar LIGAS_INFO -->
+    <script src="config.js"></script>
+    <script src="ligas-config.js"></script>
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <br><br>
+
+    <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+    <div class="seletor-container">
+      <div class="seletor-casa">
+        <select id="seletorCasa"></select>
+      </div>
+    </div>
+
+    <div id="ligasContainer" class="ligas-container"></div>
+
+    <script>
+      // ── Nomes bonitos e ordem das casas ──────────────────────────────
+      // Casas novas que não estiverem aqui entram automaticamente no fim
+      // da lista, com o nome capitalizado.
+      const CASAS_ORDEM = [
+        "BET365", "BETANO", "ESTRELABET", "BETSSON",
+        "KIRON", "VAVADA", "1WIN", "BETGREEN", "MGM",
+      ];
+      const CASAS_NOMES = {
+        BET365: "Bet365",
+        BETANO: "Betano",
+        ESTRELABET: "EstrelaBet",
+        BETSSON: "Betsson",
+        KIRON: "Kiron",
+        VAVADA: "Vavada",
+        "1WIN": "1win",
+        BETGREEN: "BetGreen",
+        MGM: "MGM",
+      };
+
+      function nomeBonitoCasa(casa) {
+        return CASAS_NOMES[casa] ||
+          casa.charAt(0).toUpperCase() + casa.slice(1).toLowerCase();
+      }
+
+      // Agrupa LIGAS_INFO por casa, mantendo a ordem de CASAS_ORDEM
+      function construirCasas(ligasInfo) {
+        const porCasa = {};
+        Object.entries(ligasInfo).forEach(([chave, liga]) => {
+          if (!liga || !liga.casa) return;
+          (porCasa[liga.casa] = porCasa[liga.casa] || []).push({
+            label: liga.nomeExibicao,
+            res: encodeURIComponent(chave), // chave original da liga
+          });
+        });
+
+        const ordenadas = [
+          ...CASAS_ORDEM.filter((c) => porCasa[c]),
+          ...Object.keys(porCasa).filter((c) => !CASAS_ORDEM.includes(c)),
+        ];
+
+        const casas = {};
+        ordenadas.forEach((casa) => {
+          casas[casa.toLowerCase()] = {
+            label: nomeBonitoCasa(casa),
+            ligas: porCasa[casa],
+          };
+        });
+        return casas;
+      }
+
+      const CASAS = construirCasas(LIGAS_INFO);
+      const CASA_STORAGE_KEY = "multligas_casaSelecionada";
+
+      // Casa padrão pelo nome do arquivo: estrelamult.html -> estrelabet,
+      // multbetano.html -> betano
+      function casaPeloArquivo() {
+        const nome = (window.location.pathname.split("/").pop() || "")
+          .toLowerCase()
+          .replace(/\.html$/, "")
+          .replace("mult", "");
+        if (!nome) return null;
+        return Object.keys(CASAS).find(
+          (k) => k.startsWith(nome) || nome.startsWith(k)
+        ) || null;
+      }
+
+      // Prioridade: ?casa=  >  última escolha salva  >  nome do arquivo  >  primeira
+      function casaInicial() {
+        const param = (new URLSearchParams(window.location.search).get("casa") || "").toLowerCase();
+        if (CASAS[param]) return param;
+
+        let salva = null;
+        try { salva = localStorage.getItem(CASA_STORAGE_KEY); } catch (e) {}
+        if (salva && CASAS[salva]) return salva;
+
+        return casaPeloArquivo() || Object.keys(CASAS)[0];
+      }
+
+      function popularSeletorCasa() {
+        const sel = document.getElementById("seletorCasa");
+        sel.innerHTML = "";
+        Object.entries(CASAS).forEach(([key, c]) => {
+          const opt = document.createElement("option");
+          opt.value = key;
+          opt.textContent = c.label;
+          sel.appendChild(opt);
+        });
+        sel.value = casaInicial();
+      }
+
+      function medirAlturaConteudo(doc) {
+        const body = doc.body;
+        if (!body) return 0;
+        const bodyTop = body.getBoundingClientRect().top;
+        let maxBottom = 0;
+        Array.from(body.children).forEach(el => {
+          const rect = el.getBoundingClientRect();
+          if (rect.bottom > maxBottom) maxBottom = rect.bottom;
+        });
+        return Math.ceil(maxBottom - bodyTop);
+      }
+
+      function ajustarAlturaIframe(iframe) {
+        try {
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          const altura = medirAlturaConteudo(doc);
+          if (altura > 0) iframe.style.height = (altura + 24) + "px";
+        } catch (e) {
+          iframe.style.height = "900px";
+        }
+      }
+
+      const _timersAltura = new WeakMap();
+      function agendarAjusteAltura(iframe) {
+        clearTimeout(_timersAltura.get(iframe));
+        _timersAltura.set(iframe, setTimeout(() => ajustarAlturaIframe(iframe), 150));
+      }
+
+      function observarIframe(iframe) {
+        try {
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          const obs = new MutationObserver(() => agendarAjusteAltura(iframe));
+          obs.observe(doc.body, { childList: true, subtree: true, attributes: true });
+        } catch (e) {}
+      }
+
+      function montarLigasDaCasa(casaKey) {
+        const cont = document.getElementById("ligasContainer");
+        cont.innerHTML = "";
+        const casa = CASAS[casaKey];
+        if (!casa) return;
+
+        casa.ligas.forEach(liga => {
+          const card = document.createElement("div");
+          card.className = "liga-card";
+
+          const iframe = document.createElement("iframe");
+          iframe.className = "liga-card-iframe";
+          iframe.scrolling = "no";
+          iframe.style.height = "400px";
+          iframe.src = `mult-liga-tabela.html?casa=${encodeURIComponent(casaKey)}`
+                     + `&res=${encodeURIComponent(liga.res)}`
+                     + `&label=${encodeURIComponent(liga.label)}`;
+
+          iframe.addEventListener("load", () => {
+            ajustarAlturaIframe(iframe);
+            observarIframe(iframe);
+          });
+
+          card.appendChild(iframe);
+          cont.appendChild(card);
+        });
+      }
+
+      function ajustarTodasAlturas() {
+        document.querySelectorAll(".liga-card-iframe").forEach(ajustarAlturaIframe);
+      }
+      setInterval(ajustarTodasAlturas, 6000);
+
+      popularSeletorCasa();
+      const seletorCasaEl = document.getElementById("seletorCasa");
+      montarLigasDaCasa(seletorCasaEl.value);
+
+      seletorCasaEl.addEventListener("change", () => {
+        try { localStorage.setItem(CASA_STORAGE_KEY, seletorCasaEl.value); } catch (e) {}
+        montarLigasDaCasa(seletorCasaEl.value);
+      });
+    </script>
+
+    <script src="header-loader.js"></script>
+    <script src="redirecionar.js"></script>
+  </body>
+</html>
