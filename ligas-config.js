@@ -131,7 +131,7 @@ const LIGAS_INFO = {
   },
   "BetGreen Champions League": {
     casa: "BETGREEN", nomeExibicao: "Champions", arquivo: "betgreenchampions.html",
-    minutos: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+    minutos: [3, 8, 13, 18, 23, 28, 33, 38, 43, 48, 53, 58],
   },
 
 
