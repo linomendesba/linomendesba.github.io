@@ -13,6 +13,7 @@ function redirecionar(select) {
     url === "https://t.me/betstatautobot" ||
     url === "https://www.betstat.site/renovar.html" ||
     url === "https://www.betstat.site/lotofacil.html" ||
+    url === "https://www.betstat.site/split.html" ||
     url === "https://www.betstat.site/bacbo.html" ||
     url === "https://www.betstat.site/referencia.html" ||
     url === "https://www.betstat.site/horafixa.html" ||
