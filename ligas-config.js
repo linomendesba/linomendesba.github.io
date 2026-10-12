@@ -114,11 +114,11 @@ const LIGAS_INFO = {
 
   // ───────────── BETGREEN (12 jogos/hora, de 5 em 5 minutos) ─────────────
   "BetGreen Premier League": {
-    casa: "BETGREEN", nomeExibicao: "Inglaterra", arquivo: "betgreenpremier.html",
+    casa: "BETGREEN", nomeExibicao: "Premier", arquivo: "betgreenpremier.html",
     minutos: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
   },
   "BetGreen La Liga": {
-    casa: "BETGREEN", nomeExibicao: "Espanha", arquivo: "betgreenlaliga.html",
+    casa: "BETGREEN", nomeExibicao: "La Liga", arquivo: "betgreenlaliga.html",
     minutos: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
   },
   "BetGreen World Cup": {
