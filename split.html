@@ -206,13 +206,19 @@
         } catch (e) {}
       }
 
+      // Carrega os iframes escalonados (um a cada ATRASO_ENTRE_IFRAMES_MS)
+      // pra não disparar todas as chamadas à API ao mesmo tempo.
+      const ATRASO_ENTRE_IFRAMES_MS = 1500;
+      let _montagemId = 0;
+
       function montarLigasDaCasa(casaKey) {
+        const idMontagem = ++_montagemId; // invalida montagens anteriores
         const cont = document.getElementById("ligasContainer");
         cont.innerHTML = "";
         const casa = CASAS[casaKey];
         if (!casa) return;
 
-        casa.ligas.forEach(liga => {
+        casa.ligas.forEach((liga, i) => {
           const card = document.createElement("div");
           card.className = "liga-card";
 
@@ -220,9 +226,6 @@
           iframe.className = "liga-card-iframe";
           iframe.scrolling = "no";
           iframe.style.height = "400px";
-          iframe.src = `mult-liga-tabela.html?casa=${encodeURIComponent(casaKey)}`
-                     + `&res=${encodeURIComponent(liga.res)}`
-                     + `&label=${encodeURIComponent(liga.label)}`;
 
           iframe.addEventListener("load", () => {
             ajustarAlturaIframe(iframe);
@@ -231,6 +234,13 @@
 
           card.appendChild(iframe);
           cont.appendChild(card);
+
+          setTimeout(() => {
+            if (idMontagem !== _montagemId) return; // usuário trocou de casa
+            iframe.src = `mult-liga-tabela.html?casa=${encodeURIComponent(casaKey)}`
+                       + `&res=${encodeURIComponent(liga.res)}`
+                       + `&label=${encodeURIComponent(liga.label)}`;
+          }, i * ATRASO_ENTRE_IFRAMES_MS);
         });
       }
 
