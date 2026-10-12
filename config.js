@@ -34,12 +34,14 @@ const LIGAS = {
   BETGREEN_LALIGA:     "BetGreen La Liga",
   BETGREEN_WORLDCUP:   "BetGreen World Cup",
   BETGREEN_CHILE:      "BetGreen Primera Division",
+  BETGREEN_CHAMPIONS:  "BetGreen Champions League",
 
   KIRON_BRAZIL:  "Kiron Liga Brasil",
   KIRON_ENGLAND: "Kiron Liga Inglaterra",
   KIRON_ITALY:   "Kiron Liga Itália",
   KIRON_AMERICA: "Kiron Liga América Latina",
   KIRON_SPAIN:   "Kiron Liga Espanha",
+  KIRON_MUNDIAL: "Kiron Liga Mundial",
 
 
   ESTRELA_COPA_MUNDO:     "Copa do Mundo",

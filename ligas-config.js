@@ -31,6 +31,10 @@ const LIGAS_INFO = {
     casa: "MGM", nomeExibicao: "Euro", arquivo: "mgmeuro.html",
     minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
   },
+  "MGM Full Global Cup": {
+    casa: "MGM", nomeExibicao: "Global", arquivo: "mgmglobal.html",
+    minutos: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59],
+  },
 
   // ───────────── BETANO ─────────────
   "Taça Glória Eterna": {
@@ -125,6 +129,10 @@ const LIGAS_INFO = {
     casa: "BETGREEN", nomeExibicao: "Chile", arquivo: "betgreenchile.html",
     minutos: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
   },
+  "BetGreen Champions League": {
+    casa: "BETGREEN", nomeExibicao: "Champions", arquivo: "betgreenchampions.html",
+    minutos: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+  },
 
 
   // ───────────── KIRON (30 jogos/hora) ─────────────
@@ -147,6 +155,10 @@ const LIGAS_INFO = {
   "Kiron Liga América Latina": {
     casa: "KIRON", nomeExibicao: "América Latina", arquivo: "kironamerica.html",
     minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
+  },
+  "Kiron Liga Mundial": {
+    casa: "KIRON", nomeExibicao: "Mundial", arquivo: "kironmundial.html",
+    minutos: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58],
   },
 
   // ───────────── VAVADA (mesmos feeds Altenar da Kiron/Estrela) ─────────────
