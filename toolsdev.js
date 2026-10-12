@@ -11,6 +11,10 @@
       if (txt.includes('header-betano'))     return 'betano';
       if (txt.includes('header-estrelabet')) return 'estrelabet';
       if (txt.includes('header-kiron'))      return 'kiron';
+      if (txt.includes('header-mgm'))        return 'mgm';
+      if (txt.includes('header-1win') || txt.includes('header-onewin')) return '1win';
+      if (txt.includes('header-betgreen'))   return 'betgreen';
+      if (txt.includes('header-vava'))       return 'vavada';
     }
 
     const ligas = document.querySelector('header .nav-seletor select option:first-child');
@@ -21,6 +25,10 @@
       if (t.includes('betano'))     return 'betano';
       if (t.includes('estrelabet')) return 'estrelabet';
       if (t.includes('kiron'))      return 'kiron';
+      if (t.includes('mgm'))        return 'mgm';
+      if (t.includes('1win') || t.includes('onewin')) return '1win';
+      if (t.includes('betgreen'))   return 'betgreen';
+      if (t.includes('vava'))       return 'vavada';
     }
 
     const url = window.location.href.toLowerCase();
@@ -29,6 +37,10 @@
     if (url.includes('betano'))                         return 'betano';
     if (url.includes('estrela'))                        return 'estrelabet';
     if (url.includes('kiron'))                          return 'kiron';
+    if (url.includes('mgm'))                            return 'mgm';
+    if (url.includes('onewin') || url.includes('1win')) return '1win';
+    if (url.includes('betgreen'))                       return 'betgreen';
+    if (url.includes('vava'))                           return 'vavada';
 
     return 'global';
   }
@@ -45,7 +57,7 @@
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/365stat.html" },
-        { label: "MultiLiga",       url: "https://www.betstat.site/mult365.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/split.html#bet365" },
         { label: "LocalizAI",       url: "https://www.betstat.site/365localizAI.html" },
         { label: "Projeções",       url: "https://www.betstat.site/365projecoes.html" },
         { label: "Porcentagem",     url: "https://www.betstat.site/365porcent.html" },
@@ -63,7 +75,7 @@
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/LigaStat.html" },
-        { label: "MultiLiga",       url: "https://www.betstat.site/multbetano.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/split.html#betano" },
         { label: "LocalizAI",       url: "https://www.betstat.site/localizAI.html" },
         { label: "Projeções",       url: "https://www.betstat.site/betanotips.html" },
         { label: "Porcentagem",     url: "https://www.betstat.site/porcentagembetano.html" },
@@ -81,7 +93,7 @@
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/betssonstat.html" },
-        { label: "MultiLiga",       url: "https://www.betstat.site/multbetsson.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/split.html#betsson" },
         { label: "LocalizAI",       url: "https://www.betstat.site/betssonlocalizai.html" },
         { label: "Projeções",       url: "https://www.betstat.site/betssonprojecoes.html" },
         { label: "Porcentagem",     url: "https://www.betstat.site/betssonporcent.html" },
@@ -99,7 +111,7 @@
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/estrelastat.html" },
-        { label: "MultiLiga",       url: "https://www.betstat.site/estrelamult.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/split.html#estrelabet" },
         { label: "LocalizAI",       url: "https://www.betstat.site/localizAIstar.html" },
         { label: "Projeções",       url: "https://www.betstat.site/estrelaprojecoes.html" },
         { label: "Porcentagem",     url: "https://www.betstat.site/porcentagemstar.html" },
@@ -117,7 +129,7 @@
         { label: "Tabela Fixa",     url: "https://www.betstat.site/day.html" },
         { label: "Hora Fixa",       url: "https://www.betstat.site/horafixa.html" },
         { label: "LigaStat",        url: "https://www.betstat.site/LigaStatkiron.html" },
-        { label: "MultiLiga",       url: "https://www.betstat.site/multkiron.html" },
+        { label: "MultiLiga",       url: "https://www.betstat.site/split.html#kiron" },
         { label: "LocalizAI",       url: "https://www.betstat.site/localizAIkiron.html" },
         { label: "Projeções",       url: "https://www.betstat.site/kironprojecao.html" },
         { label: "Porcentagem",     url: "https://www.betstat.site/porcentagemkiron.html" },
@@ -126,6 +138,33 @@
         { label: "Radar Gráfico",   url: "https://www.betstat.site/kironradar.html" },
         { label: "Buscadores",   url: "https://www.betstat.site/buscadores.html" },
         { label: "Central Odds",   url: "https://www.betstat.site/centralodds.html" },
+      ]
+    },
+    /* MultiLiga de todas as casas = mesma página (split.html).
+       O #casa no final só diferencia a URL entre as casas (título/seleção do slot) — não muda a página.
+       Casas novas: por enquanto só MultiLiga. */
+    {
+      group: "MGM",
+      tools: [
+        { label: "MultiLiga", url: "https://www.betstat.site/split.html#mgm" },
+      ]
+    },
+    {
+      group: "1win",
+      tools: [
+        { label: "MultiLiga", url: "https://www.betstat.site/split.html#1win" },
+      ]
+    },
+    {
+      group: "BetGreen",
+      tools: [
+        { label: "MultiLiga", url: "https://www.betstat.site/split.html#betgreen" },
+      ]
+    },
+    {
+      group: "Vavada",
+      tools: [
+        { label: "MultiLiga", url: "https://www.betstat.site/split.html#vavada" },
       ]
     },
     {
