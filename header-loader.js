@@ -2,8 +2,8 @@
 // Redireciona automaticamente chamadas de API do domínio antigo (betstat.site)
 // para o domínio atual do site. Carregue ANTES dos scripts da página.
 //
-// Se o backend ficar num endereço diferente do site, troque NOVA_BASE,
-// ex.: var NOVA_BASE = "https://www.datavirtual.com.br";
+// NOVA_BASE = endereço da API (sem www). Se mudar, altere só ali,
+// ex.: var NOVA_BASE = "https://datavirtual.com.br";
 (function () {
   if (window.__apiDominioShim) return;
   window.__apiDominioShim = true;
