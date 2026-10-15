@@ -212,18 +212,18 @@ function aplicarSEOAutomatico() {
 
   const dados = ehHome
     ? {
-        titulo: "BetStat | Análise",
-        descricao: "BetStat - plataforma de análise para futebol virtual Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada, além de BacBo Live, Speedway e Futebol Real. Mais de 80 ferramentas com estatísticas em tempo real, gráficos de tendência e sinais automáticos.",
-        keywords: "BetStat, futebol virtual, apostas esportivas, Bet365, Betano, Kiron, Estrelabet, Betsson, Vavada, BacBo Live, Speedway, estatísticas ao vivo, análise de apostas, Taça Glória Eterna",
-        ogTitulo: "BetStat | Plataforma de Análise para Futebol Virtual e Apostas Esportivas",
+        titulo: "DataVirtual | Análise",
+        descricao: "DataVirtual - plataforma de análise para futebol virtual Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada, além de BacBo Live, Speedway e Futebol Real. Mais de 80 ferramentas com estatísticas em tempo real, gráficos de tendência e sinais automáticos.",
+        keywords: "DataVirtual, futebol virtual, apostas esportivas, Bet365, Betano, Kiron, Estrelabet, Betsson, Vavada, BacBo Live, Speedway, estatísticas ao vivo, análise de apostas, Taça Glória Eterna",
+        ogTitulo: "DataVirtual | Plataforma de Análise para Futebol Virtual e Apostas Esportivas",
         ogDescricao: "Mais de 80 ferramentas de análise em tempo real para Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada. Estatísticas, gráficos de tendência e sinais automáticos via Telegram.",
       }
     : {
-        titulo: `BetStat | ${liga} - Análise ao Vivo`,
-        descricao: `Análise da ${liga} na BetStat: resultados, próximos jogos, odds e estatísticas em tempo real. Parte de uma plataforma com mais de 80 ferramentas para futebol virtual Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada.`,
-        keywords: `${liga}, futebol virtual, BetStat, estatísticas, resultados ao vivo, análise de apostas`,
-        ogTitulo: `BetStat | ${liga} - Análise ao Vivo`,
-        ogDescricao: `Resultados, próximos jogos, odds e estatísticas em tempo real da ${liga} na plataforma BetStat.`,
+        titulo: `DataVirtual | ${liga} - Análise ao Vivo`,
+        descricao: `Análise da ${liga} na plataforma DataVirtual: resultados, próximos jogos, odds e estatísticas em tempo real. Parte de uma plataforma com mais de 80 ferramentas para futebol virtual Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada.`,
+        keywords: `${liga}, futebol virtual, DataVirtual, estatísticas, resultados ao vivo, análise de apostas`,
+        ogTitulo: `DataVirtual | ${liga} - Análise ao Vivo`,
+        ogDescricao: `Resultados, próximos jogos, odds e estatísticas em tempo real da ${liga} na plataforma DataVirtual.`,
       };
 
   document.title = dados.titulo;
