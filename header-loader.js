@@ -9,7 +9,7 @@
   window.__apiDominioShim = true;
 
   var ANTIGO = /^https?:\/\/(www\.)?betstat\.site(?=\/|$)/i;
-  var NOVA_BASE = window.location.origin;
+  var NOVA_BASE = "https://datavirtual.com.br";  // API (sem www)
 
   function reescrever(u) {
     return typeof u === "string" ? u.replace(ANTIGO, NOVA_BASE) : u;
