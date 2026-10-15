@@ -1,6 +1,6 @@
 // config.js – VERSÃO REFATORADA E LIMPA
 
-const API_BASE_URL = "https://betstat.site";
+const API_BASE_URL = "https://www.datavirtual.com.br";
 
 // Ligas (Mantido o catálogo global)
 const LIGAS = {
@@ -201,7 +201,7 @@ const LIGA_ATUAL = detectarLigaAtual();
 // ────────────────────────────────────────────────────────────────
 // SEO AUTOMÁTICO (Inalterado)
 // ────────────────────────────────────────────────────────────────
-const BASE_URL_SITE = "https://www.betstat.site";
+const BASE_URL_SITE = "https://www.datavirtual.com.br";
 
 function aplicarSEOAutomatico() {
   const caminho = window.location.pathname || "";
