@@ -1,6 +1,6 @@
 // config.js – VERSÃO REFATORADA E LIMPA
 
-const API_BASE_URL = "https://www.datavirtual.com.br";
+const API_BASE_URL = "https://datavirtual.com.br";
 
 // Ligas (Mantido o catálogo global)
 const LIGAS = {
