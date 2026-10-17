@@ -487,6 +487,26 @@
     'estrelabuscador': 'estrelabet',
     'estrelabuscador.html': 'estrelabet',
 
+    // ═══════════════════════════════
+    // STRIVO
+    // ═══════════════════════════════
+    'strivoitalia': 'strivo',
+    'strivoitalia.html': 'strivo',
+    'strivoinglaterra': 'strivo',
+    'strivoinglaterra.html': 'strivo',
+    'strivoespanha': 'strivo',
+    'strivoespanha.html': 'strivo',
+    'strivochampions': 'strivo',
+    'strivochampions.html': 'strivo',
+    'strivocopamundo': 'strivo',
+    'strivocopamundo.html': 'strivo',
+    'strivoamerica': 'strivo',
+    'strivoamerica.html': 'strivo',
+    'strivobrasil': 'strivo',
+    'strivobrasil.html': 'strivo',
+    'strivoamericalatina': 'strivo',
+    'strivoamericalatina.html': 'strivo',
+
   };
 
   function detectarCasa() {
@@ -499,10 +519,11 @@
 
     // Páginas novas da MGM (mgmfluxo, mgmranking...) não precisam ser cadastradas uma a uma
     if (semExtensao.startsWith('mgm')) return 'mgm';
-    // Idem para 1Win, BetGreen e Vavada (onewinfluxo, betgreenranking, vavafluxo...)
+    // Idem para 1Win, BetGreen, Vavada e Strivo (onewinfluxo, betgreenranking, vavafluxo, strivofluxo...)
     if (semExtensao.startsWith('onewin')) return '1win';
     if (semExtensao.startsWith('betgreen')) return 'betgreen';
     if (semExtensao.startsWith('vava')) return 'vavada';
+    if (semExtensao.startsWith('strivo')) return 'strivo';
 
     return localStorage.getItem('casaSelecionada') || 'betano';
   }

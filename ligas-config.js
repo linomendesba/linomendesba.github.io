@@ -1,71 +1,5 @@
 const LIGAS_INFO = {
 
-  // ───────────── BET365 ─────────────
-  "Bet365 Copa": {
-    casa: "BET365", nomeExibicao: "Copa", arquivo: "bet365copa.html",
-    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
-  },
-  "Bet365 Super": {
-    casa: "BET365", nomeExibicao: "Super", arquivo: "bet365super.html",
-    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
-  },
-  "Bet365 Euro": {
-    casa: "BET365", nomeExibicao: "Euro", arquivo: "bet365euro.html",
-    minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
-  },
-  "Bet365 Premier": {
-    casa: "BET365", nomeExibicao: "Premier", arquivo: "bet365premier.html",
-    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
-  },
-
-  // ───────────── MGM ─────────────
-  "MGM Elite South American": {
-    casa: "MGM", nomeExibicao: "Elite", arquivo: "mgmelite.html",
-    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
-  },
-  "MGM Full Americas Cup": {
-    casa: "MGM", nomeExibicao: "Americas", arquivo: "mgmamericas.html",
-    minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
-  },
-  "MGM Full Euro Cup": {
-    casa: "MGM", nomeExibicao: "Euro", arquivo: "mgmeuro.html",
-    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
-  },
-  "MGM Full Global Cup": {
-    casa: "MGM", nomeExibicao: "Global", arquivo: "mgmglobal.html",
-    minutos: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59],
-  },
-
-  // ───────────── BETANO ─────────────
-  "Taça Glória Eterna": {
-    casa: "BETANO", nomeExibicao: "Clássicos", arquivo: "index.html",
-    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
-  },
-  "Copa América": {
-    casa: "BETANO", nomeExibicao: "América", arquivo: "copa_america.html",
-    minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
-  },
-  "Euro": {
-    casa: "BETANO", nomeExibicao: "Euro", arquivo: "euro.html",
-    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
-  },
-  "Campeonato Italiano": {
-    casa: "BETANO", nomeExibicao: "Italiano", arquivo: "campeonato_italiano.html",
-    minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
-  },
-  "Copa das Estrelas": {
-    casa: "BETANO", nomeExibicao: "Estrelas", arquivo: "copa_das_estrelas.html",
-    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
-  },
-  "Brasileirão Betano": {
-    casa: "BETANO", nomeExibicao: "Brasileirão", arquivo: "brasileirao.html",
-    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
-  },
-  "Mundial": {
-    casa: "BETANO", nomeExibicao: "World", arquivo: "mundial.html",
-    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
-  },
-
   // ───────────── ESTRELABET ─────────────
   "Copa do Mundo": {
     casa: "ESTRELABET", nomeExibicao: "Copa", arquivo: "estrelacopamundo.html",
@@ -81,20 +15,6 @@ const LIGAS_INFO = {
   },
   "Premier League": {
     casa: "ESTRELABET", nomeExibicao: "Premier", arquivo: "estrelapremier.html",
-    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
-  },
-
-  // ───────────── BETSSON ─────────────
-  "Betsson Espanha": {
-    casa: "BETSSON", nomeExibicao: "Espanha", arquivo: "betssonespanha.html",
-    minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
-  },
-  "Betsson Inglaterra": {
-    casa: "BETSSON", nomeExibicao: "England", arquivo: "betssoningland.html",
-    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
-  },
-  "Betsson Brasil": {
-    casa: "BETSSON", nomeExibicao: "Brasil", arquivo: "betssonbrasil.html",
     minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   },
 
@@ -185,6 +105,40 @@ const LIGAS_INFO = {
   "Vavada Premier League": {
     casa: "VAVADA", nomeExibicao: "Premier", arquivo: "vavapremier.html",
     minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  },
+
+  // ───────────── STRIVOBET ─────────────
+  "Strivo Itália": {
+    casa: "STRIVO", nomeExibicao: "Itália", arquivo: "strivoitalia.html",
+    minutos: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
+  },
+  "Strivo Inglaterra": {
+    casa: "STRIVO", nomeExibicao: "Inglaterra", arquivo: "strivoinglaterra.html",
+    minutos: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58],
+  },
+  "Strivo Espanha": {
+    casa: "STRIVO", nomeExibicao: "Espanha", arquivo: "strivoespanha.html",
+    minutos: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
+  },
+  "Strivo Champions": {
+    casa: "STRIVO", nomeExibicao: "Champions", arquivo: "strivochampions.html",
+    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  },
+  "Strivo Copa do Mundo": {
+    casa: "STRIVO", nomeExibicao: "Copa", arquivo: "strivocopamundo.html",
+    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  },
+  "Strivo América": {
+    casa: "STRIVO", nomeExibicao: "América", arquivo: "strivoamerica.html",
+    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
+  },
+  "Strivo Brasil": {
+    casa: "STRIVO", nomeExibicao: "Brasil", arquivo: "strivobrasil.html",
+    minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
+  },
+  "Strivo América Latina": {
+    casa: "STRIVO", nomeExibicao: "América Latina", arquivo: "strivoamericalatina.html",
+    minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   },
 
 };

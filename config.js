@@ -4,27 +4,9 @@ const API_BASE_URL = "https://datavirtual.com.br";
 
 // Ligas (Mantido o catálogo global)
 const LIGAS = {
-  GLORIA_ETERNA: "Taça Glória Eterna",
-  COPA_AMERICA: "Copa América",
-  EURO: "Euro",
-  ITALIANO: "Campeonato Italiano",
-  COPA_ESTRELAS: "Copa das Estrelas",
-  BRASILEIRAO: "Brasileirão Betano",
-  MUNDIAL: "Mundial",
 
-  BET365_COPA:    "Bet365 Copa",
-  BET365_EURO:    "Bet365 Euro",
-  BET365_SUPER:   "Bet365 Super",
-  BET365_PREMIER: "Bet365 Premier",
 
-  MGM_ELITE:    "MGM Elite South American",
-  MGM_AMERICAS: "MGM Full Americas Cup",
-  MGM_EURO:     "MGM Full Euro Cup",
-  MGM_GLOBAL:   "MGM Full Global Cup",
 
-  BETSSON_ESPANHA:    "Betsson Espanha",
-  BETSSON_INGLATERRA: "Betsson Inglaterra",
-  BETSSON_BRASIL:     "Betsson Brasil",
 
   ONEWIN_INGLATERRA: "1win Inglaterra",
   ONEWIN_ESPANHA:    "1win Espanha",
@@ -41,7 +23,6 @@ const LIGAS = {
   KIRON_ITALY:   "Kiron Liga Itália",
   KIRON_AMERICA: "Kiron Liga América Latina",
   KIRON_SPAIN:   "Kiron Liga Espanha",
-  KIRON_MUNDIAL: "Kiron Liga Mundial",
 
 
   ESTRELA_COPA_MUNDO:     "Copa do Mundo",
@@ -55,25 +36,23 @@ const LIGAS = {
   VAVA_ITALIA:    "Vavada Itália",
   VAVA_AMERICA:   "Vavada América Latina",
   VAVA_ESPANHA:   "Vavada Espanha",
-  VAVA_PREMIER:   "Vavada Premier League"
+  VAVA_PREMIER:   "Vavada Premier League",
+
+  STRIVO_ITALIA:         "Strivo Itália",
+  STRIVO_INGLATERRA:     "Strivo Inglaterra",
+  STRIVO_ESPANHA:        "Strivo Espanha",
+  STRIVO_CHAMPIONS:      "Strivo Champions",
+  STRIVO_COPA_MUNDO:     "Strivo Copa do Mundo",
+  STRIVO_AMERICA:        "Strivo América",
+  STRIVO_BRASIL:         "Strivo Brasil",
+  STRIVO_AMERICA_LATINA: "Strivo América Latina"
 };
 
 // 1. Dicionário de Mapeamento de Rotas para Ligas Especiais
 // Evita dezenas de 'if/else' nas chamadas de API
 const MAPEAMENTO_ROTAS_ESPECIAIS = {
-  [LIGAS.BET365_COPA]:    "bet365/Copa",
-  [LIGAS.BET365_EURO]:    "bet365/Euro",
-  [LIGAS.BET365_SUPER]:   "bet365/Super",
-  [LIGAS.BET365_PREMIER]: "bet365/Premier",
 
-  [LIGAS.MGM_ELITE]:    "mgm/elite",
-  [LIGAS.MGM_AMERICAS]: "mgm/americas",
-  [LIGAS.MGM_EURO]:     "mgm/euro",
-  [LIGAS.MGM_GLOBAL]:   "mgm/global",
 
-  [LIGAS.BETSSON_ESPANHA]:    "betsson/Espanha",
-  [LIGAS.BETSSON_INGLATERRA]: "betsson/Inglaterra",
-  [LIGAS.BETSSON_BRASIL]:     "betsson/Brasil",
 
   // 1win: o nome da liga na URL é o mesmo salvo no banco pelo 1win.js
   [LIGAS.ONEWIN_INGLATERRA]: "onewin/Inglaterra",
@@ -92,7 +71,6 @@ const MAPEAMENTO_ROTAS_ESPECIAIS = {
   [LIGAS.KIRON_ITALY]:   "kiron/Italy",
   [LIGAS.KIRON_AMERICA]: "kiron/Am%C3%A9rica%20Latina",
   [LIGAS.KIRON_SPAIN]:   "kiron/Spain",
-  [LIGAS.KIRON_MUNDIAL]: "kiron/Mundial",
 
   [LIGAS.ESTRELA_COPA_MUNDO]:     "estrela/Copa%20do%20Mundo",
   [LIGAS.ESTRELA_CHAMPIONS]:      "estrela/Ligas%20dos%20Campe%C3%B5es",
@@ -107,6 +85,16 @@ const MAPEAMENTO_ROTAS_ESPECIAIS = {
   [LIGAS.VAVA_AMERICA]:    "vava/V-Am%C3%A9rica%20Latina",
   [LIGAS.VAVA_ESPANHA]:    "vava/V-Espanha",
   [LIGAS.VAVA_PREMIER]:    "vava/V-Premier%20League",
+
+  // Strivo: o nome da liga na URL é o mesmo salvo no banco pelo strivo.js
+  [LIGAS.STRIVO_ITALIA]:         "strivo/It%C3%A1lia",
+  [LIGAS.STRIVO_INGLATERRA]:     "strivo/Inglaterra",
+  [LIGAS.STRIVO_ESPANHA]:        "strivo/Espanha",
+  [LIGAS.STRIVO_CHAMPIONS]:      "strivo/Champions",
+  [LIGAS.STRIVO_COPA_MUNDO]:     "strivo/Copa%20do%20Mundo",
+  [LIGAS.STRIVO_AMERICA]:        "strivo/Am%C3%A9rica",
+  [LIGAS.STRIVO_BRASIL]:         "strivo/Brasil",
+  [LIGAS.STRIVO_AMERICA_LATINA]: "strivo/Am%C3%A9rica%20Latina",
 };
 
 // Gerador genérico de endpoint para eliminar duplicação de funções
@@ -124,25 +112,7 @@ const ROTAS_API = {
 // 2. Mapeamento declarativo de Arquivo -> Liga
 // Substitui a lista de 'if (caminho.includes(...))' por uma tabela de busca rápida
 const MAPA_ARQUIVO_PARA_LIGA = {
-  "brasileirao.html":         LIGAS.BRASILEIRAO,
-  "campeonato_italiano.html": LIGAS.ITALIANO,
-  "copa_america.html":        LIGAS.COPA_AMERICA,
-  "copa_das_estrelas.html":   LIGAS.COPA_ESTRELAS,
-  // precisam vir ANTES de "mundial.html" (kironmundial.html e vavamundial.html contêm "mundial.html")
-  "kironmundial.html":        LIGAS.KIRON_MUNDIAL,
   "vavamundial.html":         LIGAS.VAVA_MUNDIAL,
-  "mundial.html":             LIGAS.MUNDIAL,
-  "bet365copa.html":          LIGAS.BET365_COPA,
-  "bet365euro.html":          LIGAS.BET365_EURO,
-  "bet365super.html":         LIGAS.BET365_SUPER,
-  "bet365premier.html":       LIGAS.BET365_PREMIER,
-  "mgmelite.html":            LIGAS.MGM_ELITE,
-  "mgmamericas.html":         LIGAS.MGM_AMERICAS,
-  "mgmeuro.html":             LIGAS.MGM_EURO,
-  "mgmglobal.html":           LIGAS.MGM_GLOBAL,
-  "betssonespanha.html":      LIGAS.BETSSON_ESPANHA,
-  "betssoningland.html":      LIGAS.BETSSON_INGLATERRA,
-  "betssonbrasil.html":       LIGAS.BETSSON_BRASIL,
   "onewininglaterra.html":    LIGAS.ONEWIN_INGLATERRA,
   "onewinespanha.html":       LIGAS.ONEWIN_ESPANHA,
   "onewinitalia.html":        LIGAS.ONEWIN_ITALIA,
@@ -166,6 +136,14 @@ const MAPA_ARQUIVO_PARA_LIGA = {
   "vavaamerica.html":         LIGAS.VAVA_AMERICA,
   "vavaespanha.html":         LIGAS.VAVA_ESPANHA,
   "vavapremier.html":         LIGAS.VAVA_PREMIER,
+  "strivoitalia.html":        LIGAS.STRIVO_ITALIA,
+  "strivoinglaterra.html":    LIGAS.STRIVO_INGLATERRA,
+  "strivoespanha.html":       LIGAS.STRIVO_ESPANHA,
+  "strivochampions.html":     LIGAS.STRIVO_CHAMPIONS,
+  "strivocopamundo.html":     LIGAS.STRIVO_COPA_MUNDO,
+  "strivoamericalatina.html": LIGAS.STRIVO_AMERICA_LATINA,
+  "strivoamerica.html":       LIGAS.STRIVO_AMERICA,
+  "strivobrasil.html":        LIGAS.STRIVO_BRASIL,
 };
 
 function detectarLigaAtual() {
@@ -183,17 +161,12 @@ function detectarLigaAtual() {
 
   const caminho = (window.location.pathname || "").toLowerCase();
 
-  // Tratamento da exceção da Euro (evitando conflito com bet365/betsson/mgm)
-  if (caminho.includes("euro.html") && !caminho.includes("bet365") && !caminho.includes("betsson") && !caminho.includes("mgm")) {
-    return LIGAS.EURO;
-  }
-
   // Busca direta no Mapa
   for (const [arquivo, liga] of Object.entries(MAPA_ARQUIVO_PARA_LIGA)) {
     if (caminho.includes(arquivo)) return liga;
   }
 
-  return LIGAS.GLORIA_ETERNA; // Fallback padrão
+  return LIGAS.KIRON_ENGLAND; // Fallback padrão
 }
 
 const LIGA_ATUAL = detectarLigaAtual();
@@ -213,14 +186,14 @@ function aplicarSEOAutomatico() {
   const dados = ehHome
     ? {
         titulo: "DataVirtual | Análise",
-        descricao: "DataVirtual - plataforma de análise para futebol virtual Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada, além de BacBo Live, Speedway e Futebol Real. Mais de 80 ferramentas com estatísticas em tempo real, gráficos de tendência e sinais automáticos.",
-        keywords: "DataVirtual, futebol virtual, apostas esportivas, Bet365, Betano, Kiron, Estrelabet, Betsson, Vavada, BacBo Live, Speedway, estatísticas ao vivo, análise de apostas, Taça Glória Eterna",
+        descricao: "DataVirtual - plataforma de análise para futebol virtual Kiron, Estrelabet, Vavada e StrivoBet, além de BacBo Live, Speedway e Futebol Real. Mais de 80 ferramentas com estatísticas em tempo real, gráficos de tendência e sinais automáticos.",
+        keywords: "DataVirtual, futebol virtual, apostas esportivas, Kiron, Estrelabet, Vavada, StrivoBet, BacBo Live, Speedway, estatísticas ao vivo, análise de apostas",
         ogTitulo: "DataVirtual | Plataforma de Análise para Futebol Virtual e Apostas Esportivas",
-        ogDescricao: "Mais de 80 ferramentas de análise em tempo real para Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada. Estatísticas, gráficos de tendência e sinais automáticos via Telegram.",
+        ogDescricao: "Mais de 80 ferramentas de análise em tempo real para Kiron, Estrelabet, Vavada e StrivoBet. Estatísticas, gráficos de tendência e sinais automáticos via Telegram.",
       }
     : {
         titulo: `DataVirtual | ${liga} - Análise ao Vivo`,
-        descricao: `Análise da ${liga} na plataforma DataVirtual: resultados, próximos jogos, odds e estatísticas em tempo real. Parte de uma plataforma com mais de 80 ferramentas para futebol virtual Bet365, Betano, Kiron, Estrelabet, Betsson e Vavada.`,
+        descricao: `Análise da ${liga} na plataforma DataVirtual: resultados, próximos jogos, odds e estatísticas em tempo real. Parte de uma plataforma com mais de 80 ferramentas para futebol virtual Kiron, Estrelabet, Vavada e StrivoBet.`,
         keywords: `${liga}, futebol virtual, DataVirtual, estatísticas, resultados ao vivo, análise de apostas`,
         ogTitulo: `DataVirtual | ${liga} - Análise ao Vivo`,
         ogDescricao: `Resultados, próximos jogos, odds e estatísticas em tempo real da ${liga} na plataforma DataVirtual.`,
