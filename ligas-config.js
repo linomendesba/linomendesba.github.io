@@ -1,23 +1,5 @@
 const LIGAS_INFO = {
 
-  // ───────────── ESTRELABET ─────────────
-  "Copa do Mundo": {
-    casa: "ESTRELABET", nomeExibicao: "Copa", arquivo: "estrelacopamundo.html",
-    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
-  },
-  "Ligas dos Campeões": {
-    casa: "ESTRELABET", nomeExibicao: "Campeões", arquivo: "estrelachampions.html",
-    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
-  },
-  "América Latina": {
-    casa: "ESTRELABET", nomeExibicao: "Latina", arquivo: "estrelaamericalatina.html",
-    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
-  },
-  "Premier League": {
-    casa: "ESTRELABET", nomeExibicao: "Premier", arquivo: "estrelapremier.html",
-    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
-  },
-
   // ───────────── 1WIN (20 jogos/hora, de 3 em 3 minutos) ─────────────
   "1win Inglaterra": {
     casa: "1WIN", nomeExibicao: "England", arquivo: "onewininglaterra.html",
@@ -75,6 +57,24 @@ const LIGAS_INFO = {
   "Kiron Liga América Latina": {
     casa: "KIRON", nomeExibicao: "América Latina", arquivo: "kironamerica.html",
     minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
+  },
+
+  // ───────────── ESTRELA (agora agrupada na casa KIRON) ─────────────
+  "Copa do Mundo": {
+    casa: "KIRON", nomeExibicao: "Copa", arquivo: "estrelacopamundo.html",
+    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  },
+  "Ligas dos Campeões": {
+    casa: "KIRON", nomeExibicao: "Campeões", arquivo: "estrelachampions.html",
+    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  },
+  "América Latina": {
+    casa: "KIRON", nomeExibicao: "Latina", arquivo: "estrelaamericalatina.html",
+    minutos: [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
+  },
+  "Premier League": {
+    casa: "KIRON", nomeExibicao: "Premier", arquivo: "estrelapremier.html",
+    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
   },
 
   // ───────────── VAVADA (mesmos feeds Altenar da Kiron/Estrela) ─────────────
