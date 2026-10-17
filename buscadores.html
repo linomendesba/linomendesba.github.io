@@ -1180,45 +1180,86 @@
       ───────────────────────────────────── */
       let loadDataToken = 0;
 
+      let loadAbort = null;
+      let chaveExibida = '';          // modo|liga que já está na tela (refresh de 60s não pisca "Carregando")
+      const cacheApi = new Map();     // url -> último JSON recebido (voltar pra uma liga já vista é instantâneo)
+      const CACHE_MAX = 12;
+
+      function guardarCache(url, dados) {
+        cacheApi.delete(url);
+        cacheApi.set(url, dados);
+        while (cacheApi.size > CACHE_MAX) cacheApi.delete(cacheApi.keys().next().value);
+      }
+
       async function loadData() {
         const myToken = ++loadDataToken;
-        setStatus('Carregando dados da API...', 'loading');
+        // Cancela DE VERDADE as buscas da casa/liga anterior. Antes elas só eram
+        // ignoradas e seguiam baixando em segundo plano, disputando conexão com a nova.
+        if (loadAbort) loadAbort.abort();
+        loadAbort = new AbortController();
+        const signal = loadAbort.signal;
+
         ligaAtual = Catalogo.getLiga(document.getElementById('liga-select').value);
         const urls = buildUrls();
         const modoDaChamada = modoAtual;
+        const precisaProximos = modoDaChamada !== 'placar';
+        const precisaOdds = modoDaChamada === 'odd';
+        const chave = `${modoDaChamada}|${urls.resultados}`;
+        const t0 = performance.now();
 
-        try {
-          const resResultados = await fetch(urls.resultados);
-          if (myToken !== loadDataToken) return; // uma chamada mais nova ja assumiu
-          if (!resResultados.ok) throw new Error(`HTTP ${resResultados.status} em /resultados/`);
-          const resultadosNovos = await resResultados.json();
-          if (myToken !== loadDataToken) return;
-          resultadosBrutos = resultadosNovos;
+        // Aplica um conjunto de dados (do cache ou recém-baixado) e roda a análise.
+        const aplicar = (res, odds, prox, mensagem) => {
+          resultadosBrutos = res;
           jogosJanela = filtrarPorJanela(resultadosBrutos, parseDataResultado);
           seqRes = montarSequencia(jogosJanela, tsResultado);
-
-          if (modoDaChamada === 'odd') {
-            const resOdds = await fetch(urls.odds);
-            if (myToken !== loadDataToken) return;
-            if (!resOdds.ok) throw new Error(`HTTP ${resOdds.status} em /odds/`);
-            const oddsNovos = await resOdds.json();
-            if (myToken !== loadDataToken) return;
-            oddsBrutos = oddsNovos;
+          if (precisaOdds) {
+            oddsBrutos = odds || [];
             oddsJanela = filtrarPorJanela(oddsBrutos, parseDataOdd);
             seqOdd = montarSequencia(oddsJanela, tsOdd);
             resultsMapOdd = buildResultsMapOdd(resultadosBrutos);
           }
-
-          if (modoDaChamada !== 'placar') {
-            await loadProximos(urls.proximos);
-            if (myToken !== loadDataToken) return;
-          }
-
-          if (myToken !== loadDataToken) return;
-          setStatus(`${jogosJanela.length} jogos carregados (${descricaoCiclo()}) — analisando...`);
+          if (precisaProximos) window.__proximosData = prox || [];
+          setStatus(mensagem());
           analyze();
+        };
+
+        if (chave !== chaveExibida) {
+          const noCache = cacheApi.get(urls.resultados) &&
+            (!precisaOdds || cacheApi.get(urls.odds));
+          if (noCache) {
+            aplicar(cacheApi.get(urls.resultados), cacheApi.get(urls.odds), cacheApi.get(urls.proximos),
+              () => `${jogosJanela.length} jogos (já vistos) — atualizando...`);
+            document.getElementById('statusBar').classList.add('loading');
+          } else {
+            setStatus('Carregando dados da API...', 'loading');
+          }
+        } // senão é refresh periódico/mudança de filtro: mantém a tela, sem piscar
+
+        try {
+          // As buscas saem JUNTAS (antes era uma depois da outra).
+          const [res, odds, prox] = await Promise.all([
+            fetchJson(urls.resultados, signal),
+            precisaOdds ? fetchJson(urls.odds, signal) : null,
+            precisaProximos
+              ? fetchJson(urls.proximos, signal).catch(e => {
+                  if (e.name === 'AbortError') throw e;
+                  console.error('Erro ao carregar proximos jogos:', e);
+                  return [];
+                })
+              : null,
+          ]);
+          if (myToken !== loadDataToken) return; // uma chamada mais nova ja assumiu
+
+          guardarCache(urls.resultados, res);
+          if (odds) guardarCache(urls.odds, odds);
+          if (prox) guardarCache(urls.proximos, prox);
+          chaveExibida = chave;
+
+          const seg = ((performance.now() - t0) / 1000).toFixed(1);
+          aplicar(res, odds, prox,
+            () => `${jogosJanela.length} jogos carregados em ${seg}s (${descricaoCiclo()})`);
         } catch (error) {
-          if (myToken !== loadDataToken) return; // erro de uma chamada ja obsoleta - ignora
+          if (error.name === 'AbortError' || myToken !== loadDataToken) return; // chamada obsoleta - ignora
           console.error('Erro ao carregar os dados:', error);
           setStatus(`Erro: ${error.message}`, 'error');
         }
@@ -2047,16 +2088,24 @@
         return `${d.getUTCHours().toString().padStart(2,'0')}:${d.getUTCMinutes().toString().padStart(2,'0')}`;
       }
 
-      async function loadProximos(url) {
+      // GET JSON cancelável (signal do loadData) e com limite de 30s, pra uma rota
+      // que não responde dar erro claro em vez de ficar "Carregando" pra sempre.
+      async function fetchJson(url, signal) {
+        const ctl = new AbortController();
+        const aoCancelar = () => ctl.abort();
+        signal.addEventListener('abort', aoCancelar);
+        const timer = setTimeout(() => ctl.abort(), 30000);
+        const rota = new URL(url).pathname;
         try {
-          const r = await fetch(url);
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          // Sem corte aqui: cada modo decide quantos jogos exibir
-          // (nas páginas originais, Time/Confronto mostravam 6 e Odd mostrava todos).
-          window.__proximosData = await r.json();
+          const r = await fetch(url, { signal: ctl.signal });
+          if (!r.ok) throw new Error(`HTTP ${r.status} em ${rota}`);
+          return await r.json();
         } catch (e) {
-          console.error('Erro ao carregar proximos jogos:', e);
-          window.__proximosData = [];
+          if (e.name === 'AbortError' && !signal.aborted) throw new Error(`sem resposta em 30s: ${rota}`);
+          throw e;
+        } finally {
+          clearTimeout(timer);
+          signal.removeEventListener('abort', aoCancelar);
         }
       }
 
