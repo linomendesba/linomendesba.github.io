@@ -62,6 +62,16 @@
     { test: f => f.includes('vavaamerica.html'),                     liga: () => LIGAS.VAVA_AMERICA,           gph: 20 },
     { test: f => f.includes('vavapremier.html'),                     liga: () => LIGAS.VAVA_PREMIER,           gph: 20 },
 
+    // ── STRIVO (Itália/Inglaterra/Espanha 30 jogos/hora; demais 20) ──
+    { test: f => f.includes('strivoitalia.html'),                   liga: () => LIGAS.STRIVO_ITALIA,      gph: 30 },
+    { test: f => f.includes('strivoinglaterra.html'),               liga: () => LIGAS.STRIVO_INGLATERRA,  gph: 30 },
+    { test: f => f.includes('strivoespanha.html'),                  liga: () => LIGAS.STRIVO_ESPANHA,     gph: 30 },
+    { test: f => f.includes('strivochampions.html'),                liga: () => LIGAS.STRIVO_CHAMPIONS,   gph: 20 },
+    { test: f => f.includes('strivocopamundo.html'),                liga: () => LIGAS.STRIVO_COPA_MUNDO,  gph: 20 },
+    { test: f => f.includes('strivoamericalatina.html'),            liga: () => LIGAS.STRIVO_AMERICA_LATINA, gph: 20 },
+    { test: f => f.includes('strivoamerica.html'),                  liga: () => LIGAS.STRIVO_AMERICA,     gph: 20 },
+    { test: f => f.includes('strivobrasil.html'),                   liga: () => LIGAS.STRIVO_BRASIL,      gph: 20 },
+
     // ── MUNDIAL (Betano) — por último entre os "mundial", depois de kironmundial/vavamundial ──
     { test: f => f.includes('mundial.html') && !f.includes('kiron') && !f.includes('vava'), liga: () => LIGAS.MUNDIAL, gph: 20 },
 
