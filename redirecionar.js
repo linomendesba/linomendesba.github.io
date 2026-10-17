@@ -45,6 +45,7 @@ function redirecionar(select) {
     url === "https://www.datavirtual.com.br/geradorbet365/" ||
     url === "https://www.datavirtual.com.br/multkiron.html" ||
     url === "https://www.datavirtual.com.br/365odds.html" ||
+    url === "https://www.datavirtual.com.br/classificacao.html" ||
     url === "https://www.datavirtual.com.br/morfeus.html" ||
     url === "https://www.datavirtual.com.br/calculadora.html" ||
     url === "https://www.datavirtual.com.br/bots.html" ||
