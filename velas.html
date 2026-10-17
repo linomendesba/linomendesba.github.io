@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="img/favicon.ico" type="image/x-icon">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
-<title>BetStat</title>
+<title>BetStat | DayTrade</title>
 <meta name="description" content="BetStat">
 <meta name="robots" content="index, follow">
 <meta name="author" content="BetStat">
@@ -81,23 +81,7 @@
                 <input type="checkbox" id="filtroHojeCheckbox">
                 <span>Somente hoje</span>
             </label>
-            <select id="velasPointsSelector">
-                <option value="20">20 jogos</option>
-                <option value="40">40 jogos</option>
-                <option value="60" selected>60 jogos</option>
-                <option value="80">80 jogos</option>
-                <option value="100">100 jogos</option>
-                <option value="120">120 jogos</option>
-                <option value="140">140 jogos</option>
-                <option value="160">160 jogos</option>
-                <option value="180">180 jogos</option>
-                <option value="200">200 jogos</option>
-                <option value="220">220 jogos</option>
-                <option value="240">240 jogos</option>
-                <option value="480">480 jogos</option>
-                <option value="960">960 jogos</option>
-                <option value="1440">1440 jogos</option>
-            </select>
+            <select id="velasPointsSelector"></select>
             <button id="btnGraficoZoomIn" type="button">+</button>
             <button id="btnGraficoZoomOut" type="button">−</button>
             <button id="btnToggleMM" type="button" class="gt-ind-toggle" title="Médias móveis (9/21)">MM</button>
@@ -137,65 +121,30 @@
 
 </section>
 
+<script src="catalogo-ferramentas.js"></script>
 <script src="lightweight-charts.standalone.production.js"></script>
 <script>
 (function(){
     "use strict";
 
-// ---------- CASAS / LIGAS DISPONÍVEIS ----------
-    const CASAS = {
-        bet365: {
-            nome: 'Bet365',
-            ligas: {
-                'Copa':    'https://betstat.site/resultados/bet365/Copa',
-                'Euro':    'https://betstat.site/resultados/bet365/Euro',
-                'Super':   'https://betstat.site/resultados/bet365/Super',
-                'Premier': 'https://betstat.site/resultados/bet365/Premier'
-            }
-        },
-        betano: {
-            nome: 'Betano',
-            ligas: {
-                'World':                                  'https://betstat.site/resultados/Mundial',
-                'Copa América':                           'https://betstat.site/resultados/Copa%20Am%C3%A9rica',
-                'Clássicos da América (Taça Glória Eterna)': 'https://betstat.site/resultados/Ta%C3%A7a%20Gl%C3%B3ria%20eterna',
-                'Euro':                                   'https://betstat.site/resultados/Euro',
-                'Campeonato Italiano':                    'https://betstat.site/resultados/Campeonato%20Italiano',
-                'Copa das Estrelas':                      'https://betstat.site/resultados/Copa%20das%20estrelas',
-                'Brasileirão Betano':                     'https://betstat.site/resultados/Brasileir%C3%A3o%20Betano'
-            }
-        },
-        kiron: {
-            nome: 'Kiron',
-            ligas: {
-                'England League': 'https://betstat.site/resultados/kiron/England',
-                'Italy League':   'https://betstat.site/resultados/kiron/Italy',
-                'Spain League':   'https://betstat.site/resultados/kiron/Spain'
-            }
-        },
-        estrela: {
-            nome: 'EstrelaBet',
-            ligas: {
-                'Copa do Mundo':        'https://betstat.site/resultados/estrela/Copa%20do%20Mundo',
-                'Ligas dos Campeões':   'https://betstat.site/resultados/estrela/Ligas%20dos%20Campe%C3%B5es',
-                'América Latina':      'https://betstat.site/resultados/estrela/Am%C3%A9rica%20Latina'
-            }
-        },
-        betsson: {
-            nome: 'Betsson',
-            ligas: {
-                'Espanha':     'https://betstat.site/resultados/betsson/Espanha',
-                'Inglaterra':  'https://betstat.site/resultados/betsson/Inglaterra',
-                'Brasil':      'https://betstat.site/resultados/betsson/Brasil'
-            }
-        }
-    };
+// ---------- CASAS / LIGAS (vêm do catalogo-ferramentas.js) ----------
+    // Para adicionar/remover casa ou liga, edite só o catálogo.
+    const CASAS = {};
+    Catalogo.casasAtivas().forEach(c => { CASAS[c.key] = { nome: c.label, ligas: c.ligas }; });
 
-    let casaAtual = 'betano';
-    let ligaAtual = 'Clássicos da América (Taça Glória Eterna)';
-    let LIGA = ligaAtual;
-    let URL_RESULTADOS = CASAS[casaAtual].ligas[ligaAtual];
-    let STATE_KEY = 'betstat:velas:estado:v1:' + casaAtual + ':' + ligaAtual;
+    // última casa/liga escolhida (se ela não existir mais no catálogo, cai na primeira)
+    const FONTE_KEY = 'betstat:velas:fonte:v2';
+    const _fonteSalva = (() => { try { return JSON.parse(localStorage.getItem(FONTE_KEY) || '{}'); } catch { return {}; } })();
+
+    let casaAtual = CASAS[_fonteSalva.casa] ? _fonteSalva.casa : Object.keys(CASAS)[0];
+    let ligaAtual = (CASAS[casaAtual].ligas.find(l => l.id === _fonteSalva.liga) || CASAS[casaAtual].ligas[0]).id; // id da liga no catálogo
+    let LIGA = Catalogo.getLiga(ligaAtual).label;
+    let URL_RESULTADOS = Catalogo.urlApi('resultados', ligaAtual);
+    let STATE_KEY = 'betstat:velas:estado:v2:' + casaAtual + ':' + ligaAtual;
+
+    // Ciclo de minutos da liga: 1 hora = jogos/hora (12, 20 ou 30). O gráfico compara cada jogo
+    // com o da mesma posição na hora anterior, então o bloco tem esse tamanho.
+    function blocoAtual(){ return Catalogo.jogosPorHora(Catalogo.getLiga(ligaAtual)); }
 
     const statusEl = document.getElementById('status');
     const log = (msg) => { statusEl.innerHTML = msg; console.log('[velas]', msg.replace(/<[^>]+>/g, '')); };
@@ -210,16 +159,68 @@
     function popularSelectorLiga(){
         const sel = $('ligaSelector');
         const ligas = CASAS[casaAtual].ligas;
-        sel.innerHTML = Object.keys(ligas).map(nome => `<option value="${nome}">${nome}</option>`).join('');
-        sel.value = ligaAtual in ligas ? ligaAtual : Object.keys(ligas)[0];
+        sel.innerHTML = ligas.map(l => `<option value="${l.id}">${l.label}</option>`).join('');
+        sel.value = ligas.some(l => l.id === ligaAtual) ? ligaAtual : ligas[0].id;
+    }
+
+    function textoSub(){ return `${CASAS[casaAtual].nome} — ${LIGA} · blocos de ${blocoAtual()} jogos (1h)`; }
+
+    // Janela = HORAS × jogos/hora da liga (ex.: 3h = 60 jogos a 20/h, 90 a 30/h, 36 a 12/h).
+    // Trocar de liga mantém as horas escolhidas; só o nº de jogos muda.
+    const HORAS_VELAS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 24, 48, 72];
+    let horasJanela = 3;
+    function atualizarJanela(horas){
+        const sel = $('velasPointsSelector');
+        const jph = blocoAtual();
+        const ops = HORAS_VELAS.map(h => ({ horas: h, value: h * jph }));
+        sel.innerHTML = ops.map(o => `<option value="${o.value}" data-horas="${o.horas}">${o.value} jogos · ${o.horas}h</option>`).join('');
+        const alvo = ops.find(o => o.horas === Number(horas)) || ops.find(o => o.horas === 3) || ops[0];
+        sel.value = String(alvo.value);
+        velasNumPoints = alvo.value;
+        horasJanela = alvo.horas;
+    }
+
+    // Aviso (só console) se vierem jogos com minuto fora do ciclo da liga.
+    function avisarForaDoCiclo(rows){
+        const liga = Catalogo.getLiga(ligaAtual);
+        if (!liga || !rows.length) return;
+        const fora = rows.filter(r => r.minuto != null && !liga.minutos.includes(Number(r.minuto))).length;
+        if (fora) console.warn(`[velas] ${fora}/${rows.length} jogos fora do ciclo de minutos de "${liga.id}"`);
+    }
+
+    // Busca com timeout de 15s; devolve null se casa/liga mudou enquanto carregava
+    // (evita que resposta velha sobrescreva os dados da liga nova).
+    let fonteToken = 0;
+    async function buscarResultados(){
+        const tk = fonteToken;
+        const url = URL_RESULTADOS;
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 15000);
+        try {
+            const r = await fetch(url + '?timestamp=' + Date.now(), { signal: ctrl.signal });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const data = await r.json();
+            if (tk !== fonteToken) return null;
+            const rows = Array.isArray(data) ? data : (data.rows || data.resultados || []);
+            avisarForaDoCiclo(rows);
+            return { rows, data };
+        } catch (e) {
+            if (tk !== fonteToken) return null;
+            if (ctrl.signal.aborted) throw new Error('tempo esgotado (15s)');
+            throw e;
+        } finally {
+            clearTimeout(timer);
+        }
     }
 
     function trocarFonteDados(){
-        LIGA = ligaAtual;
-        URL_RESULTADOS = CASAS[casaAtual].ligas[ligaAtual];
-        STATE_KEY = 'betstat:velas:estado:v1:' + casaAtual + ':' + ligaAtual;
+        fonteToken++;
+        LIGA = Catalogo.getLiga(ligaAtual).label;
+        URL_RESULTADOS = Catalogo.urlApi('resultados', ligaAtual);
+        STATE_KEY = 'betstat:velas:estado:v2:' + casaAtual + ':' + ligaAtual;
+        try { localStorage.setItem(FONTE_KEY, JSON.stringify({ casa: casaAtual, liga: ligaAtual })); } catch {}
         try { sessionStorage.setItem('ligaAtual', casaAtual + ':' + ligaAtual); } catch {}
-        document.getElementById('graficoSub').textContent = `${CASAS[casaAtual].nome} — ${LIGA}`;
+        document.getElementById('graficoSub').textContent = textoSub();
 
         // reseta pra buscar do zero na nova fonte
         rawDataCache = null;
@@ -229,10 +230,10 @@
         window.GraficoTradingTools?.reloadIfLigaChanged?.();
 
         log('buscando dados de ' + LIGA + '...');
-        fetch(URL_RESULTADOS + '?timestamp=' + Date.now())
-            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-            .then(data => {
-                rawDataCache = Array.isArray(data) ? data : (data.rows || data.resultados || []);
+        buscarResultados()
+            .then(res => {
+                if (!res) return;
+                rawDataCache = res.rows;
                 if (!rawDataCache.length){
                     log('⚠️ resposta chegou mas veio vazia.');
                     return;
@@ -246,7 +247,7 @@
     }
 
     try { sessionStorage.setItem('ligaAtual', casaAtual + ':' + ligaAtual); } catch {}
-    document.getElementById('graficoSub').textContent = `${CASAS[casaAtual].nome} — ${LIGA}`;
+    document.getElementById('graficoSub').textContent = textoSub();
 
     function parseHtParts(htStr){
         if (!htStr || htStr === 'OUT') return null;
@@ -427,7 +428,7 @@
         try {
             const range = chart?.timeScale?.().getVisibleLogicalRange?.() || visibleRange;
             localStorage.setItem(STATE_KEY, JSON.stringify({
-                range, velasNumPoints, filtroSomenteHoje,
+                range, horas: horasJanela, filtroSomenteHoje,
                 mercados: Object.fromEntries(Object.entries(mercados).map(([k, v]) => [k, !!v.ativo])),
                 indicadores
             }));
@@ -443,8 +444,8 @@
 
     function applySavedState(){
         const st = loadState();
+        atualizarJanela(st?.horas ?? horasJanela);  // refaz o seletor pro ritmo da liga atual
         if (!st) return;
-        if (st.velasNumPoints) velasNumPoints = st.velasNumPoints;
         if (typeof st.filtroSomenteHoje === 'boolean') filtroSomenteHoje = st.filtroSomenteHoje;
         if (st.mercados) Object.keys(mercados).forEach(k => { if (k in st.mercados) mercados[k].ativo = !!st.mercados[k]; });
         if (st.range && Number.isFinite(st.range.from) && Number.isFinite(st.range.to)) visibleRange = st.range;
@@ -457,7 +458,6 @@
             Object.keys(mercados).forEach(k => { mercados[k].ativo = (k === escolhido); });
         }
 
-        $('velasPointsSelector').value = String(velasNumPoints);
         syncFiltroHojeUI();
     }
 
@@ -476,7 +476,7 @@
     let qtdFiltroHojeAtual = 0;
 
     // ---------- CONSTRÓI SÉRIES — Total Gols (FT/HT), lógica real do grafico-principal-novo do Caramelo ----------
-    // Compara blocos de 20 jogos posição a posição: tamanho do candle = diferença real de gols
+    // Compara blocos de 1 hora (jogos/hora da liga) posição a posição: tamanho do candle = diferença real de gols
     // entre o jogo atual e o jogo na mesma posição do bloco anterior.
     function buildSeriesData(rawData){
         const sorted = [...rawData].sort((a, b) => {
@@ -504,7 +504,7 @@
         Object.keys(mercados).forEach(k => { candles[k] = []; ultimoValorPorMercado[k] = 0; });
         pontosAtuais = {};
 
-        const BLOCO = 20; // tamanho do bloco de comparação, igual ao grafico-principal-novo
+        const BLOCO = blocoAtual(); // 1 hora de jogos da liga (12, 20 ou 30), vem do ciclo de minutos do catálogo
         const totalBlocos = Math.floor(usadosDesc.length / BLOCO);
 
         if (totalBlocos < 2){
@@ -512,7 +512,7 @@
             if (filtroSomenteHoje) {
                 log(`⚠️ ainda não há jogos suficientes hoje (encontrados ${usadosDesc.length}) — esse gráfico compara blocos de ${BLOCO} jogos, precisa de no mínimo 2 blocos (${BLOCO * 2}).`);
             } else {
-                log(`⚠️ selecione pelo menos 40 jogos (esse gráfico compara blocos de ${BLOCO} jogos, precisa de no mínimo 2 blocos).`);
+                log(`⚠️ selecione pelo menos ${BLOCO * 2} jogos (esse gráfico compara blocos de ${BLOCO} jogos, precisa de no mínimo 2 blocos).`);
             }
             return;
         }
@@ -810,6 +810,7 @@
 
     $('velasPointsSelector').addEventListener('change', e => {
         velasNumPoints = parseInt(e.target.value, 10);
+        horasJanela = Number(e.target.selectedOptions[0]?.dataset.horas) || horasJanela;
         saveState();
         render({ manterZoom: false });
     });
@@ -895,7 +896,7 @@
     // ---------- BOOT ----------
     popularSelectorCasa();
     popularSelectorLiga();
-    applySavedState();
+    applySavedState();   // também monta o seletor de janela (horas × jogos/hora da liga)
     syncLegendUI();
     syncFiltroHojeUI();
 
@@ -907,13 +908,13 @@
     aplicarVisibilidadePaineis();
 
     log('buscando dados de ' + LIGA + '...');
-    fetch(URL_RESULTADOS + '?timestamp=' + Date.now())
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-        .then(data => {
-            rawDataCache = Array.isArray(data) ? data : (data.rows || data.resultados || []);
+    buscarResultados()
+        .then(res => {
+            if (!res) return;
+            rawDataCache = res.rows;
             if (!rawDataCache.length){
                 log('⚠️ resposta chegou mas veio vazia. Veja o console (F12) pra ver o JSON bruto.');
-                console.log('[velas] resposta bruta:', data);
+                console.log('[velas] resposta bruta:', res.data);
                 return;
             }
             render();
@@ -925,10 +926,10 @@
         });
 
     setInterval(() => {
-        fetch(URL_RESULTADOS + '?timestamp=' + Date.now())
-            .then(r => r.json())
-            .then(data => {
-                rawDataCache = Array.isArray(data) ? data : (data.rows || data.resultados || []);
+        buscarResultados()
+            .then(res => {
+                if (!res) return;
+                rawDataCache = res.rows;
                 render();
             })
             .catch(() => {});
