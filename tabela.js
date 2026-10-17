@@ -20,9 +20,6 @@
   if (!inserir()) document.addEventListener("DOMContentLoaded", inserir);
 })();
 
-
-
-
 const MINUTOS_POR_LIGA = {
 
   // Estrelabet
