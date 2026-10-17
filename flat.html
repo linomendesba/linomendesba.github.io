@@ -593,7 +593,8 @@ function setStatus(msg, show) {
 }
 
 function savePrefs(obj) {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); } catch {}
+  Object.assign(prefs, obj);
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(prefs)); } catch {}
 }
 
 function saveGroup(group) {
@@ -985,11 +986,32 @@ function buildLeagueBar() {
   });
 }
 
-async function fetchLeague(league, limit) {
-  const res = await fetch(league.resultados, { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
+const FETCH_TIMEOUT_MS = 15000;
 
-  const json = await res.json();
+async function fetchLeague(league, limit, parentSignal) {
+  // Cada requisição tem timeout próprio e é cancelada se o usuário trocar de casa/liga.
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; ctrl.abort(); }, FETCH_TIMEOUT_MS);
+  const onParentAbort = () => ctrl.abort();
+  if (parentSignal) {
+    if (parentSignal.aborted) ctrl.abort();
+    else parentSignal.addEventListener("abort", onParentAbort, { once: true });
+  }
+
+  let json;
+  try {
+    const res = await fetch(league.resultados, { cache: "no-store", signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status} — ${league.title}`);
+    json = await res.json();
+  } catch (e) {
+    if (timedOut) throw new Error(`Tempo esgotado — ${league.title}`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    if (parentSignal) parentSignal.removeEventListener("abort", onParentAbort);
+  }
+
   const raw  = Array.isArray(json) ? json : json.data || json.resultados || [];
 
   const sortedData = [...raw].sort((a, b) => {
@@ -1021,10 +1043,17 @@ function fingerprint(d) {
 }
 
 let renderToken   = 0;
-let renderRunning = false;
+let renderCtrl    = null;   // AbortController da renderização em andamento
+let renderRunning = false;  // só bloqueia o polling automático, nunca uma ação do usuário
 
 async function renderAll(fullReset) {
-  if (renderRunning) return;
+  // Polling/WS não empilha requisições; mas clique do usuário (fullReset) SEMPRE vale:
+  // cancela a renderização anterior e começa a nova.
+  if (!fullReset && renderRunning) return;
+
+  if (renderCtrl) { try { renderCtrl.abort(); } catch {} }
+  const ctrl = new AbortController();
+  renderCtrl = ctrl;
   renderRunning = true;
 
   const token   = ++renderToken;
@@ -1043,15 +1072,18 @@ async function renderAll(fullReset) {
 
   let results;
   try {
-    results = await Promise.allSettled(leagues.map(l => fetchLeague(l, limit)));
+    results = await Promise.allSettled(leagues.map(l => fetchLeague(l, limit, ctrl.signal)));
   } catch (e) {
-    renderRunning = false;
-    setStatus("Erro na conexão", true);
-    setTimeout(() => setStatus("", false), 3000);
+    if (token === renderToken) {
+      renderRunning = false;
+      setStatus("Erro na conexão", true);
+      setTimeout(() => setStatus("", false), 3000);
+    }
     return;
   }
 
-  if (token !== renderToken) { renderRunning = false; return; }
+  // Resposta velha (usuário já trocou de casa/liga): descarta sem mexer na tela.
+  if (token !== renderToken) return;
 
   const errs     = [];
   const incoming = [];
@@ -1094,7 +1126,8 @@ async function renderAll(fullReset) {
       });
     });
 
-    leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
+    // Se TODAS falharam nesta rodada, mantém o que já está na tela em vez de apagar.
+    if (incoming.length) leaguesGrid.querySelectorAll("[data-league-key]").forEach(el => {
       const key = el.dataset.leagueKey;
       if (!incoming.find(d => d.league.key === key)) {
         activeMarkets.forEach(market => {
