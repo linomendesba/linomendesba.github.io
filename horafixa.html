@@ -7,13 +7,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
-    <title>BetStat | Hora Fixa</title>
-    <meta name="description" content="Transforme suas apostas com BetStat - a única plataforma especializada em futebol virtual Betano." />
-    <meta property="og:title" content="BetStat | Plataforma de Análise para Apostas Esportivas" />
+    <title>DataVirtual | Hora Fixa</title>
+    <meta name="description" content="Transforme suas apostas com DataVirtual - a única plataforma especializada em futebol virtual Betano." />
+    <meta property="og:title" content="DataVirtual | Plataforma de Análise para Apostas Esportivas" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.betstat.site/payment.html" />
+    <meta property="og:url" content="https://www.datavirtual.com.br/payment.html" />
     <meta name="robots" content="index, follow" />
-    <meta name="author" content="BetStat" />
+    <meta name="author" content="DataVirtual" />
     <script type="module" src="js/firebase-auth.js"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -524,65 +524,28 @@
         </div>
     </div>
 
+<script src="catalogo-ferramentas.js"></script>
 <script>
-    // ============ CONFIGURAÇÃO DE CASAS E LIGAS ============
-    const housesData = {
-        betano: {
-            label: "Betano",
-            baseUrl: "https://betstat.site/resultados",
+    // ============ CASAS E LIGAS (catalogo-ferramentas.js) ============
+    // Casas, ligas, rotas da API e minutos de cada liga vêm do catálogo.
+    // Kiron e Estrela estão unidas na casa KIRON. value da liga = id da liga no catálogo.
+    const housesData = {};
+    Catalogo.casasAtivas().forEach(c => {
+        housesData[c.key] = {
+            label: c.label,
             useUkOffset: false,
-            leagues: [
-                { value: "Taça Glória Eterna", name: "Taça Glória Eterna" },
-                { value: "Copa América", name: "Copa América" },
-                { value: "Euro", name: "Euro" },
-                { value: "Campeonato Italiano", name: "Campeonato Italiano" },
-                { value: "Copa das Estrelas", name: "Copa das Estrelas" },
-                { value: "Brasileirão Betano", name: "Brasileirão Betano" },
-                { value: "Mundial", name: "Mundial" }
-            ]
-        },
-        bet365: {
-            label: "Bet365",
-            baseUrl: "https://betstat.site/resultados/bet365",
-            useUkOffset: true,
-            leagues: [
-                { value: "Copa", name: "Copa" },
-                { value: "Euro", name: "Euro" },
-                { value: "Super", name: "Super" },
-                { value: "Premier", name: "Premier" }
-            ]
-        },
-        kiron: {
-            label: "Kiron",
-            baseUrl: "https://betstat.site/resultados/kiron",
-            useUkOffset: false,
-            leagues: [
-                { value: "England", name: "England" },
-                { value: "Italy", name: "Italy" },
-                { value: "Spain", name: "Spain" }
-            ]
-        },
-        estrela: {
-            label: "Estrela",
-            baseUrl: "https://betstat.site/resultados/estrela",
-            useUkOffset: false,
-            leagues: [
-                { value: "Copa do Mundo", name: "Copa do Mundo" },
-                { value: "Ligas dos Campeões", name: "Ligas dos Campeões" },
-                { value: "América Latina", name: "América Latina" }
-            ]
-        },
-        betsson: {
-            label: "Betsson",
-            baseUrl: "https://betstat.site/resultados/betsson",
-            useUkOffset: false,
-            leagues: [
-                { value: "Espanha", name: "Espanha" },
-                { value: "Inglaterra", name: "Inglaterra" },
-                { value: "Brasil", name: "Brasil" }
-            ]
-        }
-    };
+            leagues: c.ligas.map(l => ({ value: l.id, name: l.label }))
+        };
+    });
+    const DEFAULT_HOUSE = Object.keys(housesData)[0];
+
+    // Minutos do ciclo da liga (ex.: 0,3,6... ou 1,3,5...), direto do catálogo.
+    // Sem catálogo para a liga, cai no comportamento antigo (minutos vistos nos dados).
+    function getLeagueMinutes(data, leagueId) {
+        const liga = leagueId ? Catalogo.getLiga(leagueId) : null;
+        if (liga) return [...liga.minutos].sort((a, b) => a - b);
+        return [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
+    }
 
     // ============ PERSISTÊNCIA DOS SELETORES ============
     const STORAGE_PREFIX = "fixos_";
@@ -649,7 +612,7 @@
     let hourMode = 'current';
     let specificHour = null;
     let lastCalculatedResults = [];
-    let currentHouse = loadSelector('house', 'betano');
+    let currentHouse = loadSelector('house', DEFAULT_HOUSE);
 
     function cacheKey(house, league) {
         return house + '::' + league;
@@ -665,7 +628,7 @@
             opt.textContent = housesData[key].label;
             select.appendChild(opt);
         });
-        if (!housesData[currentHouse]) currentHouse = 'betano';
+        if (!housesData[currentHouse]) currentHouse = DEFAULT_HOUSE;
         select.value = currentHouse;
     }
 
@@ -753,7 +716,7 @@
 
         const key = cacheKey(currentHouse, league);
         if (cachedData[key]) {
-            processApiData(cachedData[key], currentHouse);
+            processApiData(cachedData[key], currentHouse, league);
         } else {
             fetchApiData(currentHouse, league);
         }
@@ -769,13 +732,12 @@
 
     function fetchApiData(houseKey, league) {
         showLoading(true);
-        const house = housesData[houseKey];
-        const url = `${house.baseUrl}/${encodeURIComponent(league)}`;
+        const url = Catalogo.urlApi('resultados', league);
         fetch(url)
             .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
             .then(data => {
                 cachedData[cacheKey(houseKey, league)] = data;
-                processApiData(data, houseKey);
+                processApiData(data, houseKey, league);
                 showLoading(false);
                 if (percent100Mode === 'current') {
                     updatePercent100Display();
@@ -911,8 +873,8 @@
         return slotMap[targetHH] && slotMap[targetHH][tm] ? slotMap[targetHH][tm][targetDayKey] : undefined;
     }
 
-    function calculateLeaguePercent100(data, market, gales, houseKey, daysCount, targetHour = null) {
-        const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
+    function calculateLeaguePercent100(data, market, gales, houseKey, daysCount, targetHour = null, leagueId = null) {
+        const uniqueMinutes = getLeagueMinutes(data, leagueId);
         const numMins = uniqueMinutes.length;
         const gamesPerHour = numMins;
 
@@ -1049,7 +1011,7 @@
                 return;
             }
 
-            const result = calculateLeaguePercent100(cachedData[key], market, gales, currentHouse, daysCount, targetHour);
+            const result = calculateLeaguePercent100(cachedData[key], market, gales, currentHouse, daysCount, targetHour, currentLeague);
             const leagueData = {
                 leagueName: currentLeagueName,
                 leagueValue: currentLeague,
@@ -1065,7 +1027,7 @@
             const fetchPromises = leaguesList.map(l => {
                 const key = cacheKey(currentHouse, l.value);
                 if (cachedData[key]) return Promise.resolve();
-                const url = `${housesData[currentHouse].baseUrl}/${encodeURIComponent(l.value)}`;
+                const url = Catalogo.urlApi('resultados', l.value);
                 return fetch(url)
                     .then(r => r.json())
                     .then(data => { cachedData[key] = data; })
@@ -1080,7 +1042,7 @@
             leaguesList.forEach((league, index) => {
                 const key = cacheKey(currentHouse, league.value);
                 if (cachedData[key]) {
-                    const result = calculateLeaguePercent100(cachedData[key], market, gales, currentHouse, daysCount, targetHour);
+                    const result = calculateLeaguePercent100(cachedData[key], market, gales, currentHouse, daysCount, targetHour, league.value);
                     const leagueData = {
                         leagueName: league.name,
                         leagueValue: league.value,
@@ -1259,11 +1221,11 @@
         }, 1500);
     }
 
-    function processApiData(data, houseKey) {
+    function processApiData(data, houseKey, leagueId) {
         const market = document.getElementById("marketSelect").value;
         const gales  = parseInt(document.getElementById("rangeSelect").value, 10);
 
-        const uniqueMinutes = [...new Set(data.map(g => parseInt(g.minuto, 10)))].sort((a, b) => a - b);
+        const uniqueMinutes = getLeagueMinutes(data, leagueId);
         const numMins = uniqueMinutes.length;
 
         const gamesPerHour = numMins;
@@ -1452,8 +1414,8 @@
     }
 
     window.onload = function() {
-        currentHouse = loadSelector('house', 'betano');
-        if (!housesData[currentHouse]) currentHouse = 'betano';
+        currentHouse = loadSelector('house', DEFAULT_HOUSE);
+        if (!housesData[currentHouse]) currentHouse = DEFAULT_HOUSE;
 
         initHouseSelect();
         const preferredLeague = loadSelector('league_' + currentHouse, null);
@@ -1473,7 +1435,9 @@
     };
 </script>
 
-<script src="header-loader.js"></script>
+<script>
+  fetch('header.html').then(r=>r.text()).then(d=>{document.getElementById('header').innerHTML=d;});
+</script>
 <script src="redirecionar.js"></script>
 <script src="app.utils.min.js"></script>
 </body>
