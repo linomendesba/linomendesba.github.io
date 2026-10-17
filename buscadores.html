@@ -1201,27 +1201,42 @@
          qual fetch respondeu por ultimo.
       ───────────────────────────────────── */
       let loadDataToken = 0;
+      let loadDataController = null;
+      const FETCH_TIMEOUT_MS = 30000;
+
+      async function fetchJson(url, signal) {
+        const r = await fetch(url, { signal });
+        if (!r.ok) throw new Error(`HTTP ${r.status} em ${url}`);
+        return r.json();
+      }
 
       async function loadData() {
         const myToken = ++loadDataToken;
+
+        // Cancela de verdade os fetches da chamada anterior (troca rapida de
+        // casa/liga ou o refresh de 60s). Sem isso, requisicoes lentas ficam
+        // penduradas, ocupam as conexoes do navegador e as novas ficam na fila.
+        if (loadDataController) loadDataController.abort();
+        const controller = new AbortController();
+        loadDataController = controller;
+        // Limite de tempo: se a API nao responder, mostra erro em vez de ficar
+        // eternamente em "Carregando...".
+        const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
         setStatus('Carregando dados da API...', 'loading');
         const urls = buildUrls();
         const modoDaChamada = modoAtual;
+        let etapaUrl = urls.resultados;
 
         try {
-          const resResultados = await fetch(urls.resultados);
+          const resultadosNovos = await fetchJson(urls.resultados, controller.signal);
           if (myToken !== loadDataToken) return; // uma chamada mais nova ja assumiu
-          if (!resResultados.ok) throw new Error(`HTTP ${resResultados.status} em /resultados/`);
-          const resultadosNovos = await resResultados.json();
-          if (myToken !== loadDataToken) return;
           resultadosBrutos = resultadosNovos;
           jogosJanela = filtrarPorJanela(resultadosBrutos, parseDataResultado);
 
           if (modoDaChamada === 'odd') {
-            const resOdds = await fetch(urls.odds);
-            if (myToken !== loadDataToken) return;
-            if (!resOdds.ok) throw new Error(`HTTP ${resOdds.status} em /odds/`);
-            const oddsNovos = await resOdds.json();
+            etapaUrl = urls.odds;
+            const oddsNovos = await fetchJson(urls.odds, controller.signal);
             if (myToken !== loadDataToken) return;
             oddsBrutos = oddsNovos;
             oddsJanela = filtrarPorJanela(oddsBrutos, parseDataOdd);
@@ -1229,7 +1244,8 @@
           }
 
           if (modoDaChamada !== 'placar') {
-            await loadProximos(urls.proximos);
+            etapaUrl = urls.proximos;
+            await loadProximos(urls.proximos, controller.signal);
             if (myToken !== loadDataToken) return;
           }
 
@@ -1239,7 +1255,13 @@
         } catch (error) {
           if (myToken !== loadDataToken) return; // erro de uma chamada ja obsoleta - ignora
           console.error('Erro ao carregar os dados:', error);
-          setStatus(`Erro: ${error.message}`, 'error');
+          if (error.name === 'AbortError') {
+            setStatus(`Tempo esgotado (${FETCH_TIMEOUT_MS / 1000}s) esperando: ${etapaUrl}`, 'error');
+          } else {
+            setStatus(`Erro: ${error.message}`, 'error');
+          }
+        } finally {
+          clearTimeout(timer);
         }
       }
 
@@ -2068,14 +2090,15 @@
         return `${d.getUTCHours().toString().padStart(2,'0')}:${d.getUTCMinutes().toString().padStart(2,'0')}`;
       }
 
-      async function loadProximos(url) {
+      async function loadProximos(url, signal) {
         try {
-          const r = await fetch(url);
+          const r = await fetch(url, { signal });
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           // Sem corte aqui: cada modo decide quantos jogos exibir
           // (nas páginas originais, Time/Confronto mostravam 6 e Odd mostrava todos).
           window.__proximosData = await r.json();
         } catch (e) {
+          if (e.name === 'AbortError') throw e; // cancelado/timeout: quem chamou trata
           console.error('Erro ao carregar proximos jogos:', e);
           window.__proximosData = [];
         }
