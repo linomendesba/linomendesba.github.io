@@ -1206,6 +1206,7 @@
         const precisaOdds = modoDaChamada === 'odd';
         const chave = `${modoDaChamada}|${urls.resultados}`;
         const t0 = performance.now();
+        progresso = { token: myToken, bytes: 0, t0, mostrar: false, ultimo: 0 };
 
         // Aplica um conjunto de dados (do cache ou recém-baixado) e roda a análise.
         const aplicar = (res, odds, prox, mensagem) => {
@@ -1219,8 +1220,13 @@
             resultsMapOdd = buildResultsMapOdd(resultadosBrutos);
           }
           if (precisaProximos) window.__proximosData = prox || [];
-          setStatus(mensagem());
+          const msg = mensagem();
+          setStatus(msg);
+          const tA = performance.now();
           analyze();
+          const ms = Math.round(performance.now() - tA);
+          const elStatus = document.getElementById('statusMessage');
+          if (elStatus.textContent === msg && ms >= 50) elStatus.textContent = `${msg} · análise ${ms}ms`;
         };
 
         if (chave !== chaveExibida) {
@@ -1232,6 +1238,7 @@
             document.getElementById('statusBar').classList.add('loading');
           } else {
             setStatus('Carregando dados da API...', 'loading');
+            progresso.mostrar = true;
           }
         } // senão é refresh periódico/mudança de filtro: mantém a tela, sem piscar
 
@@ -1250,14 +1257,20 @@
           ]);
           if (myToken !== loadDataToken) return; // uma chamada mais nova ja assumiu
 
+          if (progresso.mostrar) {
+            setStatus('Processando dados…', 'loading');
+            await new Promise(r => setTimeout(r, 0)); // deixa o navegador pintar a mensagem antes da análise
+            if (myToken !== loadDataToken) return;
+          }
           guardarCache(urls.resultados, res);
           if (odds) guardarCache(urls.odds, odds);
           if (prox) guardarCache(urls.proximos, prox);
           chaveExibida = chave;
 
           const seg = ((performance.now() - t0) / 1000).toFixed(1);
+          const mb = (progresso.bytes / 1048576).toFixed(1);
           aplicar(res, odds, prox,
-            () => `${jogosJanela.length} jogos carregados em ${seg}s (${descricaoCiclo()})`);
+            () => `${jogosJanela.length} jogos carregados em ${seg}s${progresso.bytes ? ` · ${mb} MB` : ''} (${descricaoCiclo()})`);
         } catch (error) {
           if (error.name === 'AbortError' || myToken !== loadDataToken) return; // chamada obsoleta - ignora
           console.error('Erro ao carregar os dados:', error);
@@ -2088,20 +2101,47 @@
         return `${d.getUTCHours().toString().padStart(2,'0')}:${d.getUTCMinutes().toString().padStart(2,'0')}`;
       }
 
-      // GET JSON cancelável (signal do loadData) e com limite de 30s, pra uma rota
-      // que não responde dar erro claro em vez de ficar "Carregando" pra sempre.
+      // Progresso da carga em andamento. Só aparece no status quando a tela está em
+      // "Carregando" (refresh de 60s e voltar pra uma liga em cache ficam silenciosos).
+      let progresso = { token: 0, bytes: 0, t0: 0, mostrar: false, ultimo: 0 };
+
+      function mostrarProgresso() {
+        if (!progresso.mostrar || progresso.token !== loadDataToken) return;
+        const agora = performance.now();
+        if (agora - progresso.ultimo < 200) return;
+        progresso.ultimo = agora;
+        const mb = (progresso.bytes / 1048576).toFixed(1);
+        const seg = Math.round((agora - progresso.t0) / 1000);
+        setStatus(`Baixando dados da API… ${mb} MB · ${seg}s`, 'loading');
+      }
+
+      // GET JSON cancelável (signal do loadData). Lê a resposta em pedaços pra mostrar
+      // quanto já baixou e só dá erro se ficar 30s SEM chegar nenhum dado.
       async function fetchJson(url, signal) {
         const ctl = new AbortController();
         const aoCancelar = () => ctl.abort();
         signal.addEventListener('abort', aoCancelar);
-        const timer = setTimeout(() => ctl.abort(), 30000);
+        let timer = null;
+        const armar = () => { clearTimeout(timer); timer = setTimeout(() => ctl.abort(), 30000); };
         const rota = new URL(url).pathname;
+        armar();
         try {
           const r = await fetch(url, { signal: ctl.signal });
           if (!r.ok) throw new Error(`HTTP ${r.status} em ${rota}`);
-          return await r.json();
+          if (!r.body || !r.body.getReader) return await r.json();
+          const leitor = r.body.getReader();
+          const partes = [];
+          for (;;) {
+            const { done, value } = await leitor.read();
+            if (done) break;
+            partes.push(value);
+            progresso.bytes += value.length;
+            armar();
+            mostrarProgresso();
+          }
+          return JSON.parse(await new Blob(partes).text());
         } catch (e) {
-          if (e.name === 'AbortError' && !signal.aborted) throw new Error(`sem resposta em 30s: ${rota}`);
+          if (e.name === 'AbortError' && !signal.aborted) throw new Error(`sem resposta por 30s: ${rota}`);
           throw e;
         } finally {
           clearTimeout(timer);
