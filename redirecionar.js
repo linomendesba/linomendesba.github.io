@@ -39,7 +39,7 @@ function redirecionar(select) {
     url === "https://www.betano.bet.br/virtuals/futebol/" ||
     url === "https://www.datavirtual.com.br/tv/" ||
     url === "https://www.datavirtual.com.br/tvkiron/" ||
-    url === "https://www.datavirtual.com.br/central/" ||
+    url === "https://www.datavirtual.com.br/central.html" ||
     url === "https://www.datavirtual.com.br/morfeus" ||
     url === "https://www.datavirtual.com.br/geradorbet365/" ||
     url === "https://www.datavirtual.com.br/multkiron.html" ||
