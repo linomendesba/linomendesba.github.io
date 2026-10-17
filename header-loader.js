@@ -414,78 +414,78 @@
     'vavapremier.html': 'vavada',
 
     // ═══════════════════════════════
-    // ESTRELABET
+    // ESTRELABET (agora usa o header da KIRON)
     // ═══════════════════════════════
-    'estrelachampions': 'estrelabet',
-    'estrelachampions.html': 'estrelabet',
-    'estrelacopamundo': 'estrelabet',
-    'estrelacopamundo.html': 'estrelabet',
-    'estrelaamericalatina': 'estrelabet',
-    'estrelaamericalatina.html': 'estrelabet',
-    'estrelapremier': 'estrelabet',
-    'estrelapremier.html': 'estrelabet',
-    'estrelapre': 'estrelabet',
-    'estrelapre.html': 'estrelabet',
-    'estrelafluxo': 'estrelabet',
-    'estrelafluxo.html': 'estrelabet',
-    'estrelatv': 'estrelabet',
-    'estrelatv.html': 'estrelabet',
-    'golsestrela': 'estrelabet',
-    'golsestrela.html': 'estrelabet',
-    'estrelabar': 'estrelabet',
-    'estrelabar.html': 'estrelabet',
-    'maximaestrela': 'estrelabet',
-    'maximaestrela.html': 'estrelabet',
-    'estrelaequipes': 'estrelabet',
-    'estrelaequipes.html': 'estrelabet',
-    'rankingestrela': 'estrelabet',
-    'rankingestrela.html': 'estrelabet',
-    'estrelamult': 'estrelabet',
-    'estrelamult.html': 'estrelabet',
-    'estrelapalpites': 'estrelabet',
-    'estrelapalpites.html': 'estrelabet',
-    'estrelastat': 'estrelabet',
-    'estrelastat.html': 'estrelabet',
-    'localizaistar': 'estrelabet',
-    'localizaistar.html': 'estrelabet',
-    'estrelaprojecoes': 'estrelabet',
-    'estrelaprojecoes.html': 'estrelabet',
-    'estrelafixo': 'estrelabet',
-    'estrelafixo.html': 'estrelabet',
-    'estrelaodds': 'estrelabet',
-    'estrelaodds.html': 'estrelabet',
-    'estrelaft': 'estrelabet',
-    'estrelaft.html': 'estrelabet',
-    'estrelagf': 'estrelabet',
-    'estrelagf.html': 'estrelabet',
-    'estrelaght': 'estrelabet',
-    'estrelaght.html': 'estrelabet',
-    'estrelasimulador': 'estrelabet',
-    'estrelasimulador.html': 'estrelabet',
-    'estrelasequencia': 'estrelabet',
-    'estrelasequencia.html': 'estrelabet',
-    'estrelaquadrante': 'estrelabet',
-    'estrelaquadrante.html': 'estrelabet',
-    'porcentagemstar': 'estrelabet',
-    'porcentagemstar.html': 'estrelabet',
-    'estrelaclassificacao': 'estrelabet',
-    'estrelaclassificacao.html': 'estrelabet',
-    'estrelatimeminuto': 'estrelabet',
-    'estrelatimeminuto.html': 'estrelabet',
-    'estrelamacro': 'estrelabet',
-    'estrelamacro.html': 'estrelabet',
-    'estrelaclassifica': 'estrelabet',
-    'estrelaclassifica.html': 'estrelabet',
-    'estrelaradar': 'estrelabet',
-    'estrelaradar.html': 'estrelabet',
-    'buscadoroddstar': 'estrelabet',
-    'buscadoroddstar.html': 'estrelabet',
-    'estreladuelo': 'estrelabet',
-    'estreladuelo.html': 'estrelabet',
-    'buscadortimestar': 'estrelabet',
-    'buscadortimestar.html': 'estrelabet',
-    'estrelabuscador': 'estrelabet',
-    'estrelabuscador.html': 'estrelabet',
+    'estrelachampions': 'kiron',
+    'estrelachampions.html': 'kiron',
+    'estrelacopamundo': 'kiron',
+    'estrelacopamundo.html': 'kiron',
+    'estrelaamericalatina': 'kiron',
+    'estrelaamericalatina.html': 'kiron',
+    'estrelapremier': 'kiron',
+    'estrelapremier.html': 'kiron',
+    'estrelapre': 'kiron',
+    'estrelapre.html': 'kiron',
+    'estrelafluxo': 'kiron',
+    'estrelafluxo.html': 'kiron',
+    'estrelatv': 'kiron',
+    'estrelatv.html': 'kiron',
+    'golsestrela': 'kiron',
+    'golsestrela.html': 'kiron',
+    'estrelabar': 'kiron',
+    'estrelabar.html': 'kiron',
+    'maximaestrela': 'kiron',
+    'maximaestrela.html': 'kiron',
+    'estrelaequipes': 'kiron',
+    'estrelaequipes.html': 'kiron',
+    'rankingestrela': 'kiron',
+    'rankingestrela.html': 'kiron',
+    'estrelamult': 'kiron',
+    'estrelamult.html': 'kiron',
+    'estrelapalpites': 'kiron',
+    'estrelapalpites.html': 'kiron',
+    'estrelastat': 'kiron',
+    'estrelastat.html': 'kiron',
+    'localizaistar': 'kiron',
+    'localizaistar.html': 'kiron',
+    'estrelaprojecoes': 'kiron',
+    'estrelaprojecoes.html': 'kiron',
+    'estrelafixo': 'kiron',
+    'estrelafixo.html': 'kiron',
+    'estrelaodds': 'kiron',
+    'estrelaodds.html': 'kiron',
+    'estrelaft': 'kiron',
+    'estrelaft.html': 'kiron',
+    'estrelagf': 'kiron',
+    'estrelagf.html': 'kiron',
+    'estrelaght': 'kiron',
+    'estrelaght.html': 'kiron',
+    'estrelasimulador': 'kiron',
+    'estrelasimulador.html': 'kiron',
+    'estrelasequencia': 'kiron',
+    'estrelasequencia.html': 'kiron',
+    'estrelaquadrante': 'kiron',
+    'estrelaquadrante.html': 'kiron',
+    'porcentagemstar': 'kiron',
+    'porcentagemstar.html': 'kiron',
+    'estrelaclassificacao': 'kiron',
+    'estrelaclassificacao.html': 'kiron',
+    'estrelatimeminuto': 'kiron',
+    'estrelatimeminuto.html': 'kiron',
+    'estrelamacro': 'kiron',
+    'estrelamacro.html': 'kiron',
+    'estrelaclassifica': 'kiron',
+    'estrelaclassifica.html': 'kiron',
+    'estrelaradar': 'kiron',
+    'estrelaradar.html': 'kiron',
+    'buscadoroddstar': 'kiron',
+    'buscadoroddstar.html': 'kiron',
+    'estreladuelo': 'kiron',
+    'estreladuelo.html': 'kiron',
+    'buscadortimestar': 'kiron',
+    'buscadortimestar.html': 'kiron',
+    'estrelabuscador': 'kiron',
+    'estrelabuscador.html': 'kiron',
 
     // ═══════════════════════════════
     // STRIVO
@@ -524,8 +524,39 @@
     if (semExtensao.startsWith('betgreen')) return 'betgreen';
     if (semExtensao.startsWith('vava')) return 'vavada';
     if (semExtensao.startsWith('strivo')) return 'strivo';
+    // Estrela agora faz parte da Kiron (estrelafluxo, estrelaranking...)
+    if (semExtensao.startsWith('estrela')) return 'kiron';
 
     return localStorage.getItem('casaSelecionada') || 'betano';
+  }
+
+  // Kiron e Estrela dividem o mesmo header. Alguns módulos têm página própria
+  // para cada uma (ex.: kironradar / estrelaradar). O menu acompanha a liga que
+  // a pessoa está vendo:
+  //  - página da Estrela (estrela..., ...star)  -> usa os links da Estrela
+  //  - página da Kiron   (kiron..., ...kiron)   -> usa os links da Kiron
+  //  - página neutra (fluxo, buscadores...)     -> mantém a última escolha
+  function familiaDaPagina() {
+    const arquivo = window.location.pathname.toLowerCase().replace(/\/$/, '').split('/').pop().replace('.html', '');
+    if (arquivo.includes('estrela') || arquivo.includes('star')) return 'estrela';
+    if (arquivo.includes('kiron')) return 'kiron';
+    return null;
+  }
+
+  function familiaAtual() {
+    let familia = familiaDaPagina();
+    try {
+      if (familia) localStorage.setItem('familiaKiron', familia);
+      else familia = localStorage.getItem('familiaKiron');
+    } catch (e) {}
+    return familia === 'estrela' ? 'estrela' : 'kiron';
+  }
+
+  function ajustarModulosEstrela(container) {
+    if (familiaAtual() !== 'estrela') return;
+    container.querySelectorAll('option[data-estrela]').forEach(opt => {
+      opt.value = opt.getAttribute('data-estrela');
+    });
   }
 
   function carregarHeader() {
@@ -548,6 +579,7 @@
       })
       .then(html => {
         headerDiv.innerHTML = html;
+        ajustarModulosEstrela(headerDiv);
         console.log(`✅ Header "${casa}" carregado com sucesso!`);
       })
       .catch(error => {
