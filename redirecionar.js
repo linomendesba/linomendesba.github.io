@@ -13,6 +13,7 @@ function redirecionar(select) {
     url === "https://t.me/betstatautobot" ||
     url === "https://www.datavirtual.com.br/renovar.html" ||
     url === "https://www.datavirtual.com.br/lotofacil.html" ||
+    url === "https://www.datavirtual.com.br/projecoes.html" ||
     url === "https://www.datavirtual.com.br/split.html" ||
     url === "https://www.datavirtual.com.br/bacbo.html" ||
     url === "https://www.datavirtual.com.br/referencia.html" ||
