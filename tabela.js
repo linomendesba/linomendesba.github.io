@@ -1,3 +1,28 @@
+// Adiciona o grupo "Viradinha" no seletor de mercado de todas as ligas
+(function adicionarGrupoViradinha() {
+  const inserir = () => {
+    const sel = document.querySelector("#seletorResultado");
+    if (!sel) return false;
+    if (sel.querySelector('option[value="viradinha"]')) return true; // já existe, não duplica
+
+    const og = document.createElement("optgroup");
+    og.label = "── Viradinha ──";
+
+    const opt = document.createElement("option");
+    opt.value = "viradinha";
+    opt.textContent = "Viradinha";
+
+    og.appendChild(opt);
+    sel.appendChild(og);
+    return true;
+  };
+
+  if (!inserir()) document.addEventListener("DOMContentLoaded", inserir);
+})();
+
+
+
+
 const MINUTOS_POR_LIGA = {
 
   // Estrelabet
