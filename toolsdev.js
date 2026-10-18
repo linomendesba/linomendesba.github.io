@@ -24,6 +24,7 @@
      mexer nestas duas listas. */
   const BASE_URL = 'https://www.datavirtual.com.br/';
 
+  // Cada módulo: { label, path: 'pagina.html' }  (ou { label, url: 'https://...' }).
   const MODULOS = [
     { label: 'Flat',          path: 'flat.html' },
     { label: 'Mentor',        path: 'mentor.html' },
@@ -33,7 +34,8 @@
     { label: 'Hora Fixa',     path: 'horafixa.html' },
     { label: 'MultiLiga',     path: 'split.html' },
     { label: 'Morpheus IA',   path: 'morfeus' },
-    { label: 'DayTrade',     url: BASE_URL + 'velas.html' },
+    { label: 'DayTrade',      path: 'velas.html' },
+    { label: 'Max Time',      path: 'timemax.html' },
     { label: 'Projeções',     path: 'projecoes.html' },
     { label: 'Classificação', path: 'classificacao.html' },
     { label: 'Buscadores',    path: 'buscadores.html' },
@@ -45,7 +47,6 @@
     { label: 'Gerador Tip',  url: BASE_URL + 'central.html' },
     { label: 'Gestão Banca', url: 'gestao.html' },
     /* estavam no grupo Bônus antigo e não estão no menu atual — descomente para voltar:
-    { label: 'Max Time',     url: BASE_URL + 'timemax.html' },
     { label: 'Ranking Gols', url: BASE_URL + 'ranking-gols.html' },
     */
   ];
@@ -105,7 +106,17 @@
         grupos.push({
           group: c.label,
           casaKey: c.key,
-          tools: MODULOS.map(m => ({ label: m.label, url: BASE_URL + m.path + hash })),
+          tools: MODULOS
+            .filter(m => {
+              const ok = m.path || m.url;
+              if (!ok) console.warn('[BsFav] Módulo sem "path" nem "url" ignorado:', m.label);
+              return ok;
+            })
+            .map(m => {
+              // aceita { path: 'pagina.html' } ou { url: 'https://...' }; o #casa só entra se a URL não tiver hash
+              const base = m.url || (BASE_URL + m.path);
+              return { label: m.label, url: base.includes('#') ? base : base + hash };
+            }),
         });
       });
     }
