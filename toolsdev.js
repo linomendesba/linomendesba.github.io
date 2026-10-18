@@ -29,6 +29,7 @@
     { label: 'Flat',          path: 'flat.html' },
     { label: 'Mentor',        path: 'mentor.html' },
     { label: 'Fluxo',         path: 'fluxo.html' },
+    { label: 'LocalizeAI',    path: 'localizAI.html' },
     { label: 'Referência',    path: 'referencia.html' },
     { label: 'Tabela Fixa',   path: 'day.html' },
     { label: 'Hora Fixa',     path: 'horafixa.html' },
