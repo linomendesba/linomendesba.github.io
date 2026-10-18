@@ -2,6 +2,21 @@
 
 const API_BASE_URL = "https://datavirtual.com.br";
 
+// Abre a conexão (DNS + TLS) com a API enquanto o resto da página ainda carrega.
+// A API está em outro domínio (sem www), então esse handshake antes ficava no caminho do primeiro fetch.
+(function preconectarAPI() {
+  try {
+    if (typeof document === "undefined" || !document.head) return;
+    if (document.head.querySelector('link[data-dv-preconnect]')) return;
+    const l = document.createElement("link");
+    l.rel = "preconnect";
+    l.href = API_BASE_URL;
+    l.crossOrigin = "anonymous";
+    l.setAttribute("data-dv-preconnect", "1");
+    document.head.appendChild(l);
+  } catch (e) {}
+})();
+
 // Ligas (Mantido o catálogo global)
 const LIGAS = {
 

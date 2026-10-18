@@ -510,17 +510,32 @@ let qdDadosCache = null;
 let qdOddsCache = null; 
 
 
+// Timestamp de cada jogo, calculado uma única vez por objeto
+const _tsJogoMemo = new WeakMap();
+function tsJogo(j) {
+  let t = _tsJogoMemo.get(j);
+  if (t === undefined) {
+    t = new Date(`${getDateStr(j.data)}T${j.hora.toString().padStart(2,"0")}:${j.minuto.toString().padStart(2,"0")}:00`).getTime();
+    _tsJogoMemo.set(j, t);
+  }
+  return t;
+}
+
+// Jogo mais recente: uma varredura O(n) (antes era sort completo com parse de Date a cada comparação)
+let _horaAtualMemo = { ref: null, len: -1, val: null };
 function qdGetHoraAtual(resultados) {
   if (resultados && resultados.length > 0) {
-
-    const sorted = [...resultados].sort((a, b) => {
-      const tA = new Date(`${a.data.split('T')[0]}T${a.hora.toString().padStart(2,'0')}:${(a.minuto||0).toString().padStart(2,'00')}:00`).getTime();
-      const tB = new Date(`${b.data.split('T')[0]}T${b.hora.toString().padStart(2,'0')}:${(b.minuto||0).toString().padStart(2,'00')}:00`).getTime();
-      return tB - tA;
-    });
-    const rec = sorted[0];
+    if (_horaAtualMemo.ref === resultados && _horaAtualMemo.len === resultados.length) return _horaAtualMemo.val;
+    let rec = null, best = NaN;
+    for (let i = 0; i < resultados.length; i++) {
+      const r = resultados[i];
+      const t = new Date(`${r.data.split('T')[0]}T${r.hora.toString().padStart(2,'0')}:${(r.minuto||0).toString().padStart(2,'0')}:00`).getTime();
+      if (rec === null || isNaN(best) || t > best) { rec = r; best = t; }
+    }
     const dateStr = rec.data.includes('T') ? rec.data.split('T')[0] : rec.data.split('/').reverse().join('-');
-    return { hora: rec.hora, dateStr };
+    const val = { hora: rec.hora, dateStr };
+    _horaAtualMemo = { ref: resultados, len: resultados.length, val };
+    return val;
   }
 
   const now = new Date();
@@ -666,7 +681,7 @@ function buscadorMercadoAtual() {
 
 function buscadorSerieGlobal(criterio) {
   const precisaOdd = criterio.tipo === "odd";
-  const oddsIndex = precisaOdd ? indexarOdds(qdOddsCache || []) : null;
+  const oddsIndex = precisaOdd ? indexarOddsMemo(qdOddsCache || []) : null;
 
   return (qdDadosCache || [])
     .map(d => {
@@ -2090,6 +2105,7 @@ function garantirPainelCores() {
     atualizarVisibilidadeConfig(bqOn);
     bqCb.addEventListener("change", function() {
       localStorage.setItem("buscadorAtivo", this.checked ? "1" : "0");
+      if (this.checked) setTimeout(refetchSePreciso, 0);
       bqLbl?.classList.toggle("alerta-ativo", this.checked);
       atualizarVisibilidadeConfig(this.checked);
       aplicarBuscadorTabela();
@@ -2875,11 +2891,29 @@ function showErrorMessage(m){const e=document.getElementById("errorMessage");if(
 function hideErrorMessage(){const e=document.getElementById("errorMessage");if(!e)return;e.textContent="";e.style.display="none";}
 function normalizeString(s){if(!s)return"";return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
 function formatDateToDDMMYYYY(d){if(d.includes("T")){const dt=new Date(d);return`${dt.getUTCDate().toString().padStart(2,"0")}/${(dt.getUTCMonth()+1).toString().padStart(2,"0")}/${dt.getUTCFullYear()}`;}const[dd,mm,yy]=d.split("/");return`${dd.padStart(2,"0")}/${mm.padStart(2,"0")}/${yy}`;}
-function getDateStr(d){if(d.includes("T"))return new Date(d).toISOString().split("T")[0];const[dd,mm,yy]=d.split("/");return`${yy}-${mm}-${dd}`;}
+const _dateStrCache = new Map();
+function getDateStr(d){
+  let r = _dateStrCache.get(d);
+  if (r !== undefined) return r;
+  if (d.includes("T")) r = new Date(d).toISOString().split("T")[0];
+  else { const [dd,mm,yy] = d.split("/"); r = `${yy}-${mm}-${dd}`; }
+  if (_dateStrCache.size > 20000) _dateStrCache.clear();
+  _dateStrCache.set(d, r);
+  return r;
+}
 function normalizarHorario(h,m){const c=minutosFixos.reduce((p,x)=>Math.abs(x-m)<Math.abs(p-m)?x:p);return`${h.toString().padStart(2,"0")}:${c.toString().padStart(2,"0")}`;}
 function normalizarHorarioStr(h){if(!h)return h;const[hr,mn]=h.split(":").map(Number);return normalizarHorario(hr,mn);}
 function abbreviateTeamName(n){if(!n)return"";const w=n.trim().split(" ");if(w.length>1)return w.map(x=>x.charAt(0).toUpperCase()).join("")+w[w.length-1].slice(0,3).toLowerCase();return n.length>5?n.slice(0,5).toUpperCase():n.toUpperCase();}
 
+
+// Só reconstrói o índice quando o array de odds realmente mudou (mesma referência = mesmo índice)
+let _oddsIdxMemo = { src: null, idx: null };
+function indexarOddsMemo(oddsData) {
+  if (_oddsIdxMemo.idx && _oddsIdxMemo.src === oddsData) return _oddsIdxMemo.idx;
+  const idx = indexarOdds(oddsData || []);
+  _oddsIdxMemo = { src: oddsData, idx };
+  return idx;
+}
 
 function indexarOdds(oddsData) {
   const tm = {"peixe": "boca"};
@@ -2969,13 +3003,24 @@ function getOddValue(odds, res) {
 
 
 const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_ODDS_MS = 20000; // odds rodam em segundo plano: podem demorar mais sem travar a tabela
+
+// Guarda o último texto recebido de cada recurso. Se o servidor devolver exatamente o mesmo conteúdo,
+// reaproveita o JSON já interpretado (mesma referência) e evita parse, hash, índice de odds e re-render.
+const _memoFetch = Object.create(null);
+
 async function fetchJsonComTimeout(url, nome, ms = FETCH_TIMEOUT_MS) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
     const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
     if (!res.ok) throw new Error(`Erro HTTP ${res.status} em ${nome}`);
-    return await res.json();
+    const texto = await res.text();
+    const m = _memoFetch[nome];
+    if (m && m.texto === texto) return m.json;
+    const json = JSON.parse(texto);
+    _memoFetch[nome] = { texto, json };
+    return json;
   } catch (e) {
     if (e && e.name === "AbortError") throw new Error(`Tempo esgotado (${ms / 1000}s) em ${nome}`);
     throw e;
@@ -2984,31 +3029,35 @@ async function fetchJsonComTimeout(url, nome, ms = FETCH_TIMEOUT_MS) {
   }
 }
 
-async function fetchResultados() {
-  const ts = Date.now();
-  return fetchJsonComTimeout(ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${ts}`, "resultados");
+// Quantidade de horas que o servidor precisa devolver (Infinity = histórico completo, sem parâmetro)
+function _qsHoras(horas) {
+  return (Number.isFinite(horas) && horas > 0) ? `&horas=${Math.ceil(horas)}` : "";
 }
 
-async function fetchOdds() {
-  try {
+async function fetchResultados(horas) {
+  return fetchJsonComTimeout(ROTAS_API.resultados(LIGA_ATUAL) + `?timestamp=${Date.now()}` + _qsHoras(horas), "resultados");
+}
 
-    const ts = Date.now();
-    return await fetchJsonComTimeout(ROTAS_API.odds(LIGA_ATUAL) + `?timestamp=${ts}`, "odds");
+async function fetchOdds(horas) {
+  try {
+    return await fetchJsonComTimeout(ROTAS_API.odds(LIGA_ATUAL) + `?timestamp=${Date.now()}` + _qsHoras(horas), "odds", FETCH_TIMEOUT_ODDS_MS);
   } catch(e) {
     console.error("Erro odds:", e);
-    return null; 
+    return null;
   }
 }
 
+let _proxMemo = { src: null, out: null };
 async function fetchProximosJogos() {
   try {
-
-    const ts = Date.now();
-    const j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(LIGA_ATUAL) + `?timestamp=${ts}`, "proximosJogos");
-    return j.sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
+    const j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(LIGA_ATUAL) + `?timestamp=${Date.now()}`, "proximosJogos");
+    if (_proxMemo.src === j) return _proxMemo.out;
+    const out = j.slice().sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
+    _proxMemo = { src: j, out };
+    return out;
   } catch(e) {
     console.error("Erro próximos:", e);
-    return null; 
+    return null;
   }
 }
 
@@ -3342,12 +3391,14 @@ function salvarModalHFConfig() {
   hfSalvarDias(parseInt(overlay.querySelector("#cfg-hf-dias").value, 10));
   hfSalvarGales(parseInt(overlay.querySelector("#cfg-hf-gales").value, 10));
   hfSalvarAlerta(parseInt(overlay.querySelector("#cfg-hf-alerta").value, 10));
+  setTimeout(refetchSePreciso, 0);
   fecharModalHFConfig();
   hfRender(qdDadosCache);
   showToast(`⚙ Configurações da Hora Fixa salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
 }
 
 function hfToggle(ativo) {
+  if (ativo) setTimeout(refetchSePreciso, 0);
   hfSalvarCheckbox(ativo);
   hfAtualizarVisibilidadeControles();
   if (ativo) hfRender(qdDadosCache);
@@ -3595,13 +3646,9 @@ function criarTabela(dados, oddsData, proximosJogos) {
   const horasSel     = parseInt(seletorHoras.value)||12;
   const selRes       = seletorResultado.value;
   const tipoPlacar   = seletorTipoPlacar.value;
-  const oddsIndex    = indexarOdds(oddsData);
+  const oddsIndex    = indexarOddsMemo(oddsData);
 
-  dados.sort((a,b)=>{
-    const tA=new Date(`${getDateStr(a.data)}T${a.hora.toString().padStart(2,"0")}:${a.minuto.toString().padStart(2,"0")}:00`).getTime();
-    const tB=new Date(`${getDateStr(b.data)}T${b.hora.toString().padStart(2,"0")}:${b.minuto.toString().padStart(2,"0")}:00`).getTime();
-    return tB-tA;
-  });
+  dados.sort((a,b)=>tsJogo(b)-tsJogo(a));
 
   const proximosComHoras = proximosJogos.map(j=>{
     const[h,mn]=j.time.split(":").map(Number);
@@ -3616,12 +3663,13 @@ function criarTabela(dados, oddsData, proximosJogos) {
     horasFuturasSet.add(JSON.stringify({hora:j.hora,timestamp:new Date(`${ds}T${j.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
   });
 
-  const horasDadosSet=new Set();
+  const horasDadosMap=new Map();
   dados.forEach(d=>{
-    const ds=getDateStr(d.data);
-    horasDadosSet.add(JSON.stringify({hora:d.hora,timestamp:new Date(`${ds}T${d.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
+    const ds=getDateStr(d.data), k=ds+"-"+d.hora;
+    if(horasDadosMap.has(k)) return;
+    horasDadosMap.set(k,{hora:d.hora,timestamp:new Date(`${ds}T${d.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds});
   });
-  const horasDadosLimitadas=Array.from(horasDadosSet).map(s=>JSON.parse(s)).sort((a,b)=>b.timestamp-a.timestamp).slice(0,horasSel);
+  const horasDadosLimitadas=Array.from(horasDadosMap.values()).sort((a,b)=>b.timestamp-a.timestamp).slice(0,horasSel);
 
   const chavesDados=new Set(horasDadosLimitadas.map(h=>`${h.data}-${h.hora}`));
   const horasFuturasFiltradas=Array.from(horasFuturasSet).map(s=>JSON.parse(s)).filter(h=>!chavesDados.has(`${h.data}-${h.hora}`));
@@ -4002,7 +4050,16 @@ function _fnvNum(str) {
   return h >>> 0;
 }
 
+const _hashMemo = new WeakMap();
 function _hashLista(arr) {
+  if (!arr || !arr.length) return "0";
+  const m = _hashMemo.get(arr);
+  if (m && m.len === arr.length) return m.h;
+  const h = _hashListaCalc(arr);
+  _hashMemo.set(arr, { len: arr.length, h });
+  return h;
+}
+function _hashListaCalc(arr) {
   if (!arr || !arr.length) return "0";
   try {
     let soma = 0, mistura = 0;
@@ -4048,6 +4105,105 @@ function renderizarTabelaSeMudou(dados, odds, proximos, forcar) {
   return true;
 }
 
+// ── Quantas horas de histórico a tela realmente precisa ──
+// Seletor de horas + quadrantes. Ferramentas que olham mais longe aumentam o pedido:
+//   Hora Fixa  -> mesma hora dos últimos N dias
+//   Buscador   -> histórico completo (Infinity = sem limite)
+function horasNecessarias() {
+  if (localStorage.getItem("buscadorAtivo") === "1") return Infinity;
+  qdCarregarQuantidade();
+  const sel = parseInt(document.querySelector("#seletorHoras")?.value, 10) || 12;
+  let n = Math.max(sel, qdNumPreviousHours + 1);
+  if (hfCheckboxAtivo()) n = Math.max(n, (hfLerDias() + 1) * 24);
+  return n + 2; // margem: hora atual, Oráculo e jogos futuros
+}
+
+let _cacheHoras = 0;      // horas cobertas pelos resultados em cache
+let _cacheHorasOdds = 0;  // horas cobertas pelas odds em cache
+let _oddsUltimaBusca = 0;
+let _oddsEmVoo = false;
+let _proxEmVoo = false;
+let _pProxAtual = Promise.resolve();
+let _renderTimer = null;
+const ODDS_INTERVALO_MS = 6000; // odds mudam pouco: não precisam ser baixadas a cada 3s
+
+// Quando o usuário liga uma ferramenta que precisa de mais histórico, busca na hora
+function refetchSePreciso() {
+  const h = horasNecessarias();
+  if (h > _cacheHoras || h > _cacheHorasOdds) {
+    _ultimaAssinaturaRender = null;
+    _buscarDadosSeguro();
+  }
+}
+
+// ── Cache local (sessionStorage): troca de liga/casa pinta a tabela na hora e atualiza em seguida ──
+const CACHE_LOCAL_PREFIXO = "dvcache_";
+const CACHE_LOCAL_VALIDADE_MS = 10 * 60 * 1000;
+const CACHE_LOCAL_MAX_CHARS = 1500000;
+let _cacheLocalSalvoEm = 0;
+
+function limparCacheLocal() {
+  try {
+    Object.keys(sessionStorage).filter(k => k.startsWith(CACHE_LOCAL_PREFIXO)).forEach(k => sessionStorage.removeItem(k));
+  } catch (e) {}
+}
+
+function salvarCacheLocal() {
+  const agora = Date.now();
+  if (agora - _cacheLocalSalvoEm < 20000) return;
+  _cacheLocalSalvoEm = agora;
+  try {
+    if (!_cacheResultados.length) return;
+    const txt = JSON.stringify({
+      t: agora, horas: _cacheHoras, horasOdds: _cacheHorasOdds,
+      dados: _cacheResultados, odds: _cacheOddsData, prox: _cacheProximosJogos
+    });
+    const chave = CACHE_LOCAL_PREFIXO + getLigaKey();
+    if (txt.length > CACHE_LOCAL_MAX_CHARS) { sessionStorage.removeItem(chave); return; }
+    try { sessionStorage.setItem(chave, txt); }
+    catch (e) { limparCacheLocal(); try { sessionStorage.setItem(chave, txt); } catch (e2) {} }
+  } catch (e) {}
+}
+
+function hidratarDoCacheLocal() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_LOCAL_PREFIXO + getLigaKey());
+    if (!raw) return false;
+    const c = JSON.parse(raw);
+    if (!c || (Date.now() - c.t) > CACHE_LOCAL_VALIDADE_MS || !Array.isArray(c.dados) || !c.dados.length) return false;
+    _cacheResultados = c.dados;
+    _cacheOddsData = Array.isArray(c.odds) ? c.odds : [];
+    _cacheProximosJogos = Array.isArray(c.prox) ? c.prox : [];
+    // Infinity vira null no JSON
+    _cacheHoras = c.horas === null ? Infinity : (c.horas || 0);
+    _cacheHorasOdds = c.horasOdds === null ? Infinity : (c.horasOdds || 0);
+    Estado._ultimaLigaRenderizada = getLigaKey();
+    restaurarHorasSeletor();
+    qdDadosCache = _cacheResultados;
+    renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, true);
+    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+    return true;
+  } catch (e) {
+    console.warn("Cache local ignorado:", e);
+    return false;
+  }
+}
+
+// Junta num único render as respostas que chegam quase juntas (resultados, odds, próximos)
+function agendarRender() {
+  if (_renderTimer) return;
+  _renderTimer = setTimeout(() => {
+    _renderTimer = null;
+    if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) return;
+    try {
+      qdDadosCache = _cacheResultados;
+      renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, false);
+      if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+      salvarCacheLocal();
+    } catch (e) { console.error("Erro ao renderizar tabela:", e); }
+  }, 30);
+}
+
 async function buscarDados() {
   const minhaVersao = ++_versaoBusca;
   hideErrorMessage();
@@ -4060,79 +4216,70 @@ async function buscarDados() {
     _ultimaLigaHorasRestauradas = null;
 
     _cacheResultados = []; _cacheOddsData = []; _cacheProximosJogos = [];
+    _cacheHoras = 0; _cacheHorasOdds = 0; _oddsUltimaBusca = 0;
     Estado.carregar();
     const trQDantigo = document.querySelector("#trQuadrantes");
     if (trQDantigo) trQDantigo.remove();
 
-
     buscadorSinalPendente = buscadorCarregarSinal();
     buscadorUltimoAlertaKey = null;
   }
-  let dados=[],oddsData=[],proximosJogos=[];
 
+  const horas = horasNecessarias();
 
+  // Troca de mercado/seletor: redesenha com o que já está em memória (sem esperar rede)
   if (_renderizandoRapido && _cacheResultados.length > 0) {
     _renderizandoRapido = false;
-    dados = _cacheResultados;
-    oddsData = _cacheOddsData;
-    proximosJogos = _cacheProximosJogos;
-    if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
-    qdDadosCache = dados;
-    renderizarTabelaSeMudou(dados, oddsData, proximosJogos, true);
+    qdDadosCache = _cacheResultados;
+    renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, true);
     if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
-    return;
+    if (horas <= _cacheHoras) return; // o cache já cobre o que foi pedido
   }
   _renderizandoRapido = false;
 
+  const ligaNaoMudou = () => Estado._ultimaLigaRenderizada === ligaAtual;
+  const agora = Date.now();
 
-  const pOdds = fetchOdds();
-  const pProximos = fetchProximosJogos();
-  const pExtras = Promise.all([pOdds, pProximos]).then(([o, p]) => {
-    if (o !== null && ligaNaoMudou()) _cacheOddsData = o;  
-    if (p !== null && ligaNaoMudou()) _cacheProximosJogos = p;
-    return [o, p];
-  });
-  function ligaNaoMudou() { return Estado._ultimaLigaRenderizada === ligaAtual; }
-
-  try {
-    dados = await fetchResultados();
-    if (dados.length > 0) _cacheResultados = dados;
+  // Os três pedidos saem juntos e cada um atualiza a tela assim que chega,
+  // sem um esperar o outro (antes as odds só apareciam depois de odds E próximos).
+  const pRes = fetchResultados(horas).then(d => {
+    if (!ligaNaoMudou()) return;
     _falhasResultadosSeguidas = 0;
-  } catch (e) {
-
+    if (d.length > 0) { _cacheResultados = d; _cacheHoras = horas; }
+    agendarRender();
+  }).catch(e => {
     _falhasResultadosSeguidas++;
     console.warn("Falha ao buscar resultados (tentando de novo):", e.message);
     if (_cacheResultados.length === 0 || _falhasResultadosSeguidas >= FALHAS_ATE_AVISAR) {
       showErrorMessage(`Erro ao carregar resultados: ${e.message}`);
     }
-    dados = _cacheResultados; 
+  });
+
+  if (!_proxEmVoo) {
+    _proxEmVoo = true;
+    _pProxAtual = fetchProximosJogos().then(p => {
+      if (p !== null && ligaNaoMudou()) _cacheProximosJogos = p;
+    }).finally(() => { _proxEmVoo = false; agendarRender(); });
   }
 
+  const precisaOdds = _cacheOddsData.length === 0 || horas > _cacheHorasOdds || (agora - _oddsUltimaBusca) >= ODDS_INTERVALO_MS;
+  if (!_oddsEmVoo && precisaOdds) {
+    _oddsEmVoo = true;
+    _oddsUltimaBusca = agora;
+    fetchOdds(horas).then(o => {
+      if (o !== null && ligaNaoMudou()) { _cacheOddsData = o; _cacheHorasOdds = horas; }
+    }).finally(() => { _oddsEmVoo = false; agendarRender(); });
+  }
 
+  // O ciclo só espera os resultados; odds e próximos continuam em segundo plano
+  await pRes;
   if (minhaVersao !== _versaoBusca) return;
 
-
-  if (dados.length === 0 && _cacheProximosJogos.length === 0) {
-    await pExtras;
+  if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) {
+    await _pProxAtual;
     if (minhaVersao !== _versaoBusca) return;
+    if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) showErrorMessage("Nenhum dado disponível.");
   }
-
-  oddsData = _cacheOddsData;
-  proximosJogos = _cacheProximosJogos;
-
-  if(dados.length===0&&proximosJogos.length===0){showErrorMessage("Nenhum dado disponível.");return;}
-
-  qdDadosCache = dados;
-  renderizarTabelaSeMudou(dados, oddsData, proximosJogos, false);
-  if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
-
-
-  pExtras.then(() => {
-    if (minhaVersao !== _versaoBusca) return;
-    const dadosAtuais = dados.length ? dados : _cacheResultados;
-    renderizarTabelaSeMudou(dadosAtuais, _cacheOddsData, _cacheProximosJogos, false);
-    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
-  }).catch(e => console.error("Erro ao renderizar odds/próximos:", e));
 }
 
 
@@ -4432,6 +4579,7 @@ document.addEventListener('visibilitychange', () => {
   if (_tabVisibleTabela) _buscarDadosSeguro();
 });
 
+hidratarDoCacheLocal();
 buscarDados();
 setTimeout(iniciarObserverStreak, 1000);
 setInterval(_buscarDadosSeguro, 3000);
