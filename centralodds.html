@@ -666,75 +666,17 @@
       </div>
     </div>
 
+    <script src="catalogo-ferramentas.js"></script>
     <script>
       /* ─────────────────────────────────────
-         CONFIG CASAS / LIGAS
-         Rotas espelhando o config.js real do site (ROTAS_API) —
-         mesma estrutura usada em buscadores.html.
+         CASAS / LIGAS / ROTAS / MINUTOS
+         Tudo vem do catalogo-ferramentas.js (Catalogo). O value do select de
+         liga é o id da liga no catálogo. Para adicionar/remover casa ou liga,
+         edite só o catálogo. A janela "Jogos Analisados" = horas × jogos/hora
+         da liga (ciclo de minutos do catálogo).
       ───────────────────────────────────── */
-      const BASE = 'https://betstat.site';
-
-      const CASAS = {
-        betano: {
-          label: 'Betano',
-          ligas: [
-            { label: 'Taça Glória Eterna',  res: encodeURIComponent('Taça Glória Eterna') },
-            { label: 'Copa América',        res: encodeURIComponent('Copa América') },
-            { label: 'Euro',                res: encodeURIComponent('Euro') },
-            { label: 'Campeonato Italiano', res: encodeURIComponent('Campeonato Italiano') },
-            { label: 'Copa das Estrelas',   res: encodeURIComponent('Copa das Estrelas') },
-            { label: 'Brasileirão Betano',  res: encodeURIComponent('Brasileirão Betano') },
-            { label: 'Mundial',             res: encodeURIComponent('Mundial') },
-          ],
-        },
-        bet365: {
-          label: 'Bet365',
-          ligas: [
-            { label: 'Copa',    res: 'bet365/Copa' },
-            { label: 'Euro',    res: 'bet365/Euro' },
-            { label: 'Super',   res: 'bet365/Super' },
-            { label: 'Premier', res: 'bet365/Premier' },
-          ],
-        },
-        betsson: {
-          label: 'Betsson',
-          ligas: [
-            { label: 'Espanha',    res: 'betsson/Espanha' },
-            { label: 'Inglaterra', res: 'betsson/Inglaterra' },
-            { label: 'Brasil',     res: 'betsson/Brasil' },
-          ],
-        },
-        kiron: {
-          label: 'Kiron',
-          ligas: [
-            { label: 'Liga Inglaterra', res: 'kiron/England' },
-            { label: 'Liga Itália',     res: 'kiron/Italy' },
-            { label: 'Liga Espanha',    res: 'kiron/Spain' },
-          ],
-        },
-        estrela: {
-          label: 'EstrelaBet',
-          ligas: [
-            { label: 'Copa do Mundo',      res: 'estrela/Copa%20do%20Mundo' },
-            { label: 'Ligas dos Campeões', res: 'estrela/Ligas%20dos%20Campe%C3%B5es' },
-            { label: 'América Latina',     res: 'estrela/Am%C3%A9rica%20Latina' },
-          ],
-        },
-      };
-
-      const LINES_OPTIONS_DEFAULT = [
-        { value: 240,  label: '12 Hs' },
-        { value: 480,  label: '24 Hs' },
-        { value: 960,  label: '48 Hs' },
-        { value: 1440, label: '72 Hs' },
-      ];
-      const LINES_OPTIONS_KIRON = [
-        { value: 360,  label: '12 Hs' },
-        { value: 720,  label: '24 Hs' },
-        { value: 1440, label: '48 Hs' },
-        { value: 2160, label: '72 Hs' },
-      ];
-      const LINES_OPTIONS_DEFAULT_LABEL = '24 Hs';
+      const HORAS_JANELA = [12, 24, 48, 72];
+      const HORAS_JANELA_PADRAO = 24;
 
       /* ─────────────────────────────────────
          MERCADOS (apenas os que têm odd correspondente)
@@ -780,6 +722,11 @@
       let selectedKey = null;
       let mercadoAtualAnalise = null;
 
+      let ligaCarregada = null;    // id da liga dos dados que estão em tela
+      let ligaObjAtual = null;     // liga (catálogo) dos dados em tela — tolerância de minutos
+      let loadToken = 0;           // descarta respostas de uma carga que já foi substituída
+      let loadCtrl = null;         // AbortController da carga em andamento
+
       // Paginação das seções de cards
       const PAGE_SIZE = 12;
       let limitPerto = PAGE_SIZE;
@@ -791,6 +738,7 @@
 
       // Controle de alerta sonoro/notificação quando uma odd bate o recorde
       let previousRecordSet = new Set();
+      let previousRecordCtx = null;   // liga|mercado do refresh anterior
 
       /* ─────────────────────────────────────
          PERSISTENCIA DE FILTROS (localStorage)
@@ -809,6 +757,8 @@
             if (!el) return;
             valores[id] = el.type === 'checkbox' ? el.checked : el.value;
           });
+          const opt = document.getElementById('lines-select').selectedOptions[0];
+          if (opt && opt.dataset.horas) valores['lines-horas'] = Number(opt.dataset.horas);
           localStorage.setItem(FILTROS_STORAGE_KEY, JSON.stringify(valores));
         } catch (e) {
           // localStorage indisponivel - ignora
@@ -837,12 +787,10 @@
         const v = carregarFiltrosSalvos();
         if (!v) return false;
 
+        // valor salvo que não existe mais no catálogo (ex.: betano) cai no padrão
         aplicarValorSalvo('casa-select', v['casa-select']);
-        populateLigaSelect();
-        aplicarValorSalvo('liga-select', v['liga-select']);
-
-        populateLinesSelect();
-        aplicarValorSalvo('lines-select', v['lines-select']);
+        populateLigaSelect(v['liga-select']);
+        populateLinesSelect(v['lines-horas']);
 
         populateMercadoSelect();
         aplicarValorSalvo('filter-select', v['filter-select']);
@@ -863,36 +811,29 @@
          INICIALIZAÇÃO DE SELECTS
       ───────────────────────────────────── */
       function initCasaSelect() {
-        const sel = document.getElementById('casa-select');
-        sel.innerHTML = Object.entries(CASAS).map(([key, casa]) =>
-          `<option value="${key}">${casa.label}</option>`
-        ).join('');
+        Catalogo.preencherCasas(document.getElementById('casa-select'));
       }
 
-      function populateLigaSelect() {
+      function populateLigaSelect(valor) {
         const casa = document.getElementById('casa-select').value;
-        const sel = document.getElementById('liga-select');
-        sel.innerHTML = CASAS[casa].ligas.map(l =>
-          `<option value="${l.res}">${l.label}</option>`
-        ).join('');
+        Catalogo.preencherLigas(document.getElementById('liga-select'), casa, valor);
       }
 
-      function populateLinesSelect() {
-        const casa = document.getElementById('casa-select').value;
-        const options = casa === 'kiron' ? LINES_OPTIONS_KIRON : LINES_OPTIONS_DEFAULT;
+      // Janela em horas × jogos/hora da liga (12, 20 ou 30). Trocar de casa/liga
+      // mantém as HORAS escolhidas; só o número de jogos muda.
+      function populateLinesSelect(horas) {
         const sel = document.getElementById('lines-select');
-        const labelAtual = sel.options.length && sel.selectedIndex >= 0
-          ? sel.options[sel.selectedIndex].text
-          : LINES_OPTIONS_DEFAULT_LABEL;
-
-        sel.innerHTML = options.map(o =>
-          `<option value="${o.value}">${o.label}</option>`
+        const liga = Catalogo.getLiga(document.getElementById('liga-select').value);
+        if (!liga) { sel.innerHTML = ''; return; }
+        const atual = sel.selectedOptions[0];
+        const horasAtual = horas != null ? Number(horas)
+          : (atual && atual.dataset.horas ? Number(atual.dataset.horas) : HORAS_JANELA_PADRAO);
+        const ops = Catalogo.opcoesJanela(liga, HORAS_JANELA);
+        sel.innerHTML = ops.map(o =>
+          `<option value="${o.value}" data-horas="${o.horas}" title="${o.value} jogos">${o.label}</option>`
         ).join('');
-
-        const match = options.find(o => o.label === labelAtual) ||
-                      options.find(o => o.label === LINES_OPTIONS_DEFAULT_LABEL) ||
-                      options[0];
-        sel.value = String(match.value);
+        const alvo = ops.find(o => o.horas === horasAtual) || ops.find(o => o.horas === HORAS_JANELA_PADRAO) || ops[0];
+        sel.value = String(alvo.value);
       }
 
       function populateMercadoSelect() {
@@ -947,6 +888,11 @@
       // o alerta a cada 60s enquanto a odd continuar batida).
       function checarNovosRecordes(market) {
         const somAtivo = document.getElementById('toggle-alerta-sonoro').checked;
+        // Só alerta recorde que quebrou NESTA liga+mercado entre dois refreshes. Trocar de liga ou
+        // mercado muda o contexto: o conjunto é só atualizado, sem disparar alerta falso.
+        const ctx = document.getElementById('liga-select').value + '|' + market;
+        const mudouContexto = ctx !== previousRecordCtx;
+        previousRecordCtx = ctx;
         const atuais = new Set();
         const novos = [];
         Object.entries(oddStreakStats).forEach(([key, o]) => {
@@ -956,10 +902,12 @@
           }
         });
         previousRecordSet = atuais;
-        if (somAtivo && novos.length) dispararAlertaRecorde(novos, market);
+        if (somAtivo && novos.length && !mudouContexto) dispararAlertaRecorde(novos, market);
       }
 
       function onLigaChange() {
+        populateLinesSelect();   // jogos/hora muda de liga pra liga
+        aplicarSugestaoOcorrMin();
         salvarFiltrosAtuais();
         loadData();
       }
@@ -1028,12 +976,11 @@
       /* ─────────────────────────────────────
          URLS
       ───────────────────────────────────── */
-      function buildUrls() {
-        const res = document.getElementById('liga-select').value;
+      function buildUrls(ligaId) {
         return {
-          resultados: `${BASE}/resultados/${res}`,
-          proximos: `${BASE}/proximos/${res}`,
-          odds: `${BASE}/odds/${res}`,
+          resultados: Catalogo.urlApi('resultados', ligaId),
+          proximos: Catalogo.urlApi('proximos', ligaId),
+          odds: Catalogo.urlApi('odds', ligaId),
         };
       }
 
@@ -1044,29 +991,38 @@
         return parseInt(document.getElementById('lines-select').value, 10);
       }
 
-      function filtrarPorJanela(dados, getData) {
+      function filtrarPorJanela(dados, getData, qtdParam) {
         if (!dados || !dados.length) return [];
         const comData = dados
           .map(d => ({ item: d, dt: getData(d) }))
           .filter(x => x.dt instanceof Date && !isNaN(x.dt));
         if (!comData.length) return [];
 
-        const qtd = janelaQtd();
+        const qtd = qtdParam != null ? qtdParam : janelaQtd();
         const ordenadoDesc = comData.slice().sort((a, b) => b.dt - a.dt);
         const filtrado = qtd > 0 ? ordenadoDesc.slice(0, qtd) : ordenadoDesc;
 
         return filtrado.sort((a, b) => a.dt - b.dt).map(x => x.item);
       }
 
-      // odds: aceita "inicio_jogo" ("DD/MM/YYYY, HH:MM") ou "data_captura"+"horario"
+      // odds: "inicio_jogo" tem prioridade (é o horário do JOGO). Aceita o formato real do banco
+      // ("YYYY-MM-DD HH:MM:SS", às vezes com "T") e o antigo "DD/MM/YYYY, HH:MM". Antes só o
+      // antigo era reconhecido, então caía em "data_captura"+"horario" (horário da CAPTURA da odd,
+      // não do jogo) — o que bagunçava a janela e o cruzamento odd x resultado.
       function parseDataOdd(o) {
         try {
-          if (o.inicio_jogo) {
-            const [datePart, timePart] = o.inicio_jogo.split(', ');
-            const [d, mo, y] = datePart.split('/');
-            const [h, mi] = (timePart || '00:00').split(':');
-            const dt = new Date(y, mo - 1, d, h, mi);
-            if (!isNaN(dt)) return dt;
+          if (o.inicio_jogo && typeof o.inicio_jogo === 'string') {
+            const txt = o.inicio_jogo.trim();
+            let m = txt.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+            if (m) {
+              const dt = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+              if (!isNaN(dt)) return dt;
+            }
+            m = txt.match(/^(\d{2})\/(\d{2})\/(\d{4})[, ]+(\d{2}):(\d{2})/);
+            if (m) {
+              const dt = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]);
+              if (!isNaN(dt)) return dt;
+            }
           }
           if (o.data_captura) {
             const [d, mo, y] = o.data_captura.split('/');
@@ -1115,20 +1071,88 @@
       /* ─────────────────────────────────────
          CARREGAMENTO
       ───────────────────────────────────── */
+      // Busca JSON com timeout de 15s e cancelamento.
+      async function fetchJson(url, signal) {
+        const ctrl = new AbortController();
+        let estourou = false;
+        const timer = setTimeout(() => { estourou = true; ctrl.abort(); }, 15000);
+        const aoCancelar = () => ctrl.abort();
+        if (signal) {
+          if (signal.aborted) ctrl.abort();
+          else signal.addEventListener('abort', aoCancelar, { once: true });
+        }
+        try {
+          const r = await fetch(url, { signal: ctrl.signal });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return await r.json();
+        } catch (e) {
+          if (estourou) throw new Error('tempo esgotado (15s)');
+          throw e;
+        } finally {
+          clearTimeout(timer);
+          if (signal) signal.removeEventListener('abort', aoCancelar);
+        }
+      }
+
+      function comoLista(json) {
+        return Array.isArray(json) ? json : (json && (json.data || json.resultados || json.odds)) || [];
+      }
+
+      // Esvazia a tela e os dados em memória (troca de liga/erro): não mostra a liga anterior
+      // enquanto carrega e evita analisar dados misturados.
+      function limparResultadosUI(msg) {
+        ligaCarregada = null;
+        ligaObjAtual = null;
+        oddsJanela = []; oddsBrutos = []; resultadosBrutos = []; resultsMapOdd = null;
+        oddStreakStats = {}; matchDetails = {}; selectedKey = null;
+        window.__proximosData = [];
+        document.getElementById('match-details').style.display = 'none';
+        document.getElementById('stats-bar').innerHTML = '';
+        const aviso = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⏳</div>${msg}</div>`;
+        document.getElementById('cards-container-perto').innerHTML = aviso;
+        document.getElementById('cards-container-recorde').innerHTML = '';
+        ['mostrar-mais-perto-wrap', 'mostrar-mais-recorde-wrap'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
+        document.getElementById('lista-proximos-jogos').innerHTML = '';
+      }
+
+      /* Cada chamada tem token + AbortController próprios: trocar de casa/liga (ou o refresh de
+         60s) cancela a carga anterior e uma resposta velha nunca sobrescreve a atual.
+         Requisições têm timeout de 15s, então nada fica preso em "Carregando...". */
       async function loadData() {
+        if (loadCtrl) loadCtrl.abort();
+        const ctrl = new AbortController();
+        loadCtrl = ctrl;
+        const myToken = ++loadToken;
+        const vigente = () => myToken === loadToken;
+
+        const ligaId = document.getElementById('liga-select').value;
+        const qtd = janelaQtd();
+        if (ligaCarregada !== ligaId) limparResultadosUI('Carregando...');
         setStatus('Carregando dados da API...', 'loading');
-        const urls = buildUrls();
 
         try {
-          const resResultados = await fetch(urls.resultados);
-          if (!resResultados.ok) throw new Error(`HTTP ${resResultados.status} em /resultados/`);
-          resultadosBrutos = await resResultados.json();
-          resultsMapOdd = buildResultsMapOdd(resultadosBrutos);
+          if (!Catalogo.getLiga(ligaId)) throw new Error('liga não encontrada no catálogo');
+          const urls = buildUrls(ligaId);
+          const [resRaw, oddsRaw, proxRaw] = await Promise.all([
+            fetchJson(urls.resultados, ctrl.signal),
+            fetchJson(urls.odds, ctrl.signal),
+            // próximos jogos nunca derrubam a análise (a casa pode não ter essa rota)
+            fetchJson(urls.proximos, ctrl.signal).catch(() => []),
+          ]);
+          if (!vigente()) return;
+          if (document.getElementById('liga-select').value !== ligaId) return;
 
-          const resOdds = await fetch(urls.odds);
-          if (!resOdds.ok) throw new Error(`HTTP ${resOdds.status} em /odds/`);
-          oddsBrutos = await resOdds.json();
-          oddsJanela = filtrarPorJanela(oddsBrutos, parseDataOdd);
+          const novosResultados = comoLista(resRaw);
+          const novasOdds = comoLista(oddsRaw);
+          ligaObjAtual = Catalogo.getLiga(ligaId);
+          resultadosBrutos = novosResultados;
+          resultsMapOdd = buildResultsMapOdd(resultadosBrutos);
+          oddsBrutos = novasOdds;
+          oddsJanela = filtrarPorJanela(oddsBrutos, parseDataOdd, qtd);
+          window.__proximosData = comoLista(proxRaw);
 
           let datasNaoReconhecidas = false;
           if (oddsBrutos.length && !oddsJanela.length) {
@@ -1138,8 +1162,7 @@
             datasNaoReconhecidas = true;
             oddsJanela = oddsBrutos;
           }
-
-          await loadProximos(urls.proximos);
+          ligaCarregada = ligaId;
 
           if (datasNaoReconhecidas) {
             console.warn('[Central de Odds] /odds/ retornou', oddsBrutos.length, 'registros, mas nenhum com data reconhecida. Amostra:', oddsBrutos[0]);
@@ -1154,8 +1177,10 @@
           const mm = agora.getMinutes().toString().padStart(2, '0');
           document.getElementById('lastUpdateLabel').textContent = `Atualizado às ${hh}:${mm}`;
         } catch (error) {
+          if (!vigente()) return; // erro/cancelamento de carga obsoleta
           console.error('Erro ao carregar os dados:', error);
           setStatus(`Erro: ${error.message}`, 'error');
+          limparResultadosUI(`Não foi possível carregar esta liga (${error.message}).`);
         }
       }
 
@@ -1277,8 +1302,13 @@
         const exact = resultsMapOdd.exactMap[`${ligaN}|${homeN}|${awayN}|${mk}`];
         if (exact) return exact;
 
-        // Tolerância de +-1 e +-2 minutos (arredondamento entre captura da odd e do resultado)
-        for (const deltaMin of [-1, 1, -2, 2]) {
+        // Tolerância (arredondamento entre captura da odd e do resultado) vem do ciclo da liga:
+        // sempre MENOR que o intervalo entre jogos (±1 em ligas de 2 min, ±2 nas de 3 e 5 min),
+        // senão a odd casaria com o jogo vizinho.
+        const tol = ligaObjAtual ? Catalogo.toleranciaMin(ligaObjAtual) : 2;
+        const deltas = [];
+        for (let k = 1; k <= tol; k++) deltas.push(-k, k);
+        for (const deltaMin of deltas) {
           const d2 = new Date(gameDate.getTime() + deltaMin * 60000);
           const mk2 = minuteKeyFromDate(d2);
           const r = resultsMapOdd.exactMap[`${ligaN}|${homeN}|${awayN}|${mk2}`];
@@ -1310,6 +1340,17 @@
          é a "corrente atual". Proximidade = atual / máxima.
       ═════════════════════════════════════ */
       function analyze() {
+        // Dados de outra liga (troca em andamento): espera o loadData, não analisa misturado.
+        if (ligaCarregada !== document.getElementById('liga-select').value) return;
+        try {
+          analyzeInterno();
+        } catch (e) {
+          console.error('Erro na análise:', e);
+          setStatus(`Erro na análise: ${e.message}`, 'error');
+        }
+      }
+
+      function analyzeInterno() {
         matchDetails = {};
         document.getElementById('match-details').style.display = 'none';
         selectedKey = null;
@@ -1598,17 +1639,6 @@
         if (!str || isNaN(new Date(str))) return '--:--';
         const d = new Date(str);
         return `${d.getUTCHours().toString().padStart(2,'0')}:${d.getUTCMinutes().toString().padStart(2,'0')}`;
-      }
-
-      async function loadProximos(url) {
-        try {
-          const r = await fetch(url);
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          window.__proximosData = await r.json();
-        } catch (e) {
-          console.error('Erro ao carregar proximos jogos:', e);
-          window.__proximosData = [];
-        }
       }
 
       /* ─────────────────────────────────────

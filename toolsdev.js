@@ -1,187 +1,137 @@
 (function () {
 
-  /* ── DETECTA CASA ATUAL ──────────────────────────────────────── */
+  /* ── CATÁLOGO DE CASAS (catalogo-ferramentas.js) ──────────────────
+     As casas vêm do Catalogo: acrescentou/removeu/renomeou lá, o seletor
+     de casas daqui muda sozinho. Se a página que carrega este arquivo
+     ainda não incluiu o catalogo-ferramentas.js, ele é carregado aqui
+     (da mesma pasta deste script) antes de montar a tela. */
+  const SCRIPT_SRC = document.currentScript && document.currentScript.src;
+
+  function comCatalogo(cb) {
+    if (window.Catalogo) return cb();
+    const el = document.createElement('script');
+    el.src = SCRIPT_SRC
+      ? SCRIPT_SRC.replace(/[^\/?#]*([?#].*)?$/, 'catalogo-ferramentas.js')
+      : 'catalogo-ferramentas.js';
+    el.onload  = () => cb();
+    el.onerror = () => { console.warn('[BsFav] catalogo-ferramentas.js não carregou — só o grupo Bônus fica disponível.'); cb(); };
+    document.head.appendChild(el);
+  }
+
+  /* ── FERRAMENTAS FIXAS ────────────────────────────────────────────
+     As páginas são as mesmas para todas as casas (a casa é escolhida
+     dentro de cada página). Para incluir/remover uma ferramenta, é só
+     mexer nestas duas listas. */
+  const BASE_URL = 'https://www.datavirtual.com.br/';
+
+  const MODULOS = [
+    { label: 'Flat',          path: 'flat.html' },
+    { label: 'Mentor',        path: 'mentor.html' },
+    { label: 'Fluxo',         path: 'fluxo.html' },
+    { label: 'Referência',    path: 'referencia.html' },
+    { label: 'Tabela Fixa',   path: 'day.html' },
+    { label: 'Hora Fixa',     path: 'horafixa.html' },
+    { label: 'MultiLiga',     path: 'split.html' },
+    { label: 'Morpheus IA',   path: 'morfeus' },
+    { label: 'DayTrade',     url: BASE_URL + 'velas.html' },
+    { label: 'Projeções',     path: 'projecoes.html' },
+    { label: 'Classificação', path: 'classificacao.html' },
+    { label: 'Buscadores',    path: 'buscadores.html' },
+    { label: 'Central Odds',  path: 'centralodds.html' },
+  ];
+
+  const BONUS = [
+    { label: 'Guias',        url: BASE_URL + 'guias.html' },
+    { label: 'Gerador Tip',  url: BASE_URL + 'central.html' },
+    { label: 'Gestão Banca', url: 'gestao.html' },
+    /* estavam no grupo Bônus antigo e não estão no menu atual — descomente para voltar:
+    { label: 'Max Time',     url: BASE_URL + 'timemax.html' },
+    { label: 'Ranking Gols', url: BASE_URL + 'ranking-gols.html' },
+    */
+  ];
+
+  let CASA_ATUAL = 'global';
+  let LS_KEY     = 'bsFavToolsV5_global';
+  let CATALOGO   = [];   // [{ group, casaKey?, tools:[{label,url}] }]
+
+  /* ── DETECTA CASA ATUAL (pela lista de casas do catálogo) ─────── */
+  const APELIDOS_CASA = { onewin: '1WIN', vava: 'VAVADA', estrelabet: 'KIRON', estrela: 'KIRON' };
+
   function detectarCasa() {
+    const casas = (window.Catalogo ? Catalogo.casasAtivas() : []);
+    const tokens = [];   // [token, chave da casa]
+    casas.forEach(c => {
+      const t = new Set([c.key.toLowerCase(), c.label.toLowerCase().replace(/[^a-z0-9]/g, '')]);
+      c.label.toLowerCase().split(/[\s\/·]+/).filter(p => p.length > 2).forEach(p => t.add(p));
+      t.forEach(tk => tokens.push([tk, c.key]));
+    });
+    Object.entries(APELIDOS_CASA).forEach(([ap, key]) => {
+      if (casas.some(c => c.key === key)) tokens.push([ap, key]);
+    });
+    // tokens mais longos primeiro (ex.: "strivobet" antes de "strivo")
+    tokens.sort((x, y) => y[0].length - x[0].length);
+
+    const achar = (txt) => {
+      txt = (txt || '').toLowerCase();
+      const hit = tokens.find(([tk]) => txt.includes(tk));
+      return hit ? hit[1] : null;
+    };
+
     const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_COMMENT);
     let node;
     while ((node = walker.nextNode())) {
       const txt = node.nodeValue.trim().toLowerCase();
-      if (txt.includes('header-bet365'))     return 'bet365';
-      if (txt.includes('header-betsson'))    return 'betsson';
-      if (txt.includes('header-betano'))     return 'betano';
-      if (txt.includes('header-estrelabet')) return 'estrelabet';
-      if (txt.includes('header-kiron'))      return 'kiron';
-      if (txt.includes('header-mgm'))        return 'mgm';
-      if (txt.includes('header-1win') || txt.includes('header-onewin')) return '1win';
-      if (txt.includes('header-betgreen'))   return 'betgreen';
-      if (txt.includes('header-vava'))       return 'vavada';
+      if (txt.includes('header-')) {
+        const k = achar(txt.split('header-')[1]);
+        if (k) return k;
+      }
     }
 
-    const ligas = document.querySelector('header .nav-seletor select option:first-child');
-    if (ligas) {
-      const t = ligas.textContent.toLowerCase();
-      if (t.includes('bet365'))     return 'bet365';
-      if (t.includes('betsson'))    return 'betsson';
-      if (t.includes('betano'))     return 'betano';
-      if (t.includes('estrelabet')) return 'estrelabet';
-      if (t.includes('kiron'))      return 'kiron';
-      if (t.includes('mgm'))        return 'mgm';
-      if (t.includes('1win') || t.includes('onewin')) return '1win';
-      if (t.includes('betgreen'))   return 'betgreen';
-      if (t.includes('vava'))       return 'vavada';
+    const primeiro = document.querySelector('header .nav-seletor select option:first-child');
+    if (primeiro) {
+      const k = achar(primeiro.textContent);
+      if (k) return k;
     }
 
-    const url = window.location.href.toLowerCase();
-    if (url.includes('bet365') || url.includes('365')) return 'bet365';
-    if (url.includes('betsson'))                        return 'betsson';
-    if (url.includes('betano'))                         return 'betano';
-    if (url.includes('estrela'))                        return 'estrelabet';
-    if (url.includes('kiron'))                          return 'kiron';
-    if (url.includes('mgm'))                            return 'mgm';
-    if (url.includes('onewin') || url.includes('1win')) return '1win';
-    if (url.includes('betgreen'))                       return 'betgreen';
-    if (url.includes('vava'))                           return 'vavada';
-
-    return 'global';
+    return achar(window.location.href) || 'global';
   }
 
-  const CASA_ATUAL = detectarCasa();
-  const LS_KEY     = `bsFavToolsV5_${CASA_ATUAL}`;
-
-  /* ── CATÁLOGO COMPLETO ───────────────────────────────────────── */
-  const CATALOGO = [
-    {
-      group: "Bet365",
-      tools: [
-        { label: "Fluxo",     url: "https://www.datavirtual.com.br/fluxo.html" },
-        { label: "Tabela Fixa",     url: "https://www.datavirtual.com.br/day.html" },
-        { label: "Hora Fixa",       url: "https://www.datavirtual.com.br/horafixa.html" },
-        { label: "LigaStat",        url: "https://www.datavirtual.com.br/365stat.html" },
-        { label: "MultiLiga",       url: "https://www.datavirtual.com.br/split.html#bet365" },
-        { label: "LocalizAI",       url: "https://www.datavirtual.com.br/365localizAI.html" },
-        { label: "Projeções",       url: "https://www.datavirtual.com.br/365projecoes.html" },
-        { label: "Porcentagem",     url: "https://www.datavirtual.com.br/365porcent.html" },
-        { label: "Classificação",   url: "https://www.datavirtual.com.br/bet365clasificacao.html" },
-        { label: "Gráfico Macro",   url: "https://www.datavirtual.com.br/365macro.html" },
-        { label: "Radar Gráfico",   url: "https://www.datavirtual.com.br/365radar.html" },
-        { label: "Buscadores",   url: "https://www.datavirtual.com.br/buscadores.html" },
-        { label: "Central Odds",   url: "https://www.datavirtual.com.br/centralodds.html" },
-      ]
-    },
-    {
-      group: "Betano",
-      tools: [
-        { label: "Fluxo",     url: "https://www.datavirtual.com.br/fluxo.html" },
-        { label: "Tabela Fixa",     url: "https://www.datavirtual.com.br/day.html" },
-        { label: "Hora Fixa",       url: "https://www.datavirtual.com.br/horafixa.html" },
-        { label: "LigaStat",        url: "https://www.datavirtual.com.br/LigaStat.html" },
-        { label: "MultiLiga",       url: "https://www.datavirtual.com.br/split.html#betano" },
-        { label: "LocalizAI",       url: "https://www.datavirtual.com.br/localizAI.html" },
-        { label: "Projeções",       url: "https://www.datavirtual.com.br/betanotips.html" },
-        { label: "Porcentagem",     url: "https://www.datavirtual.com.br/porcentagembetano.html" },
-        { label: "Classificação",   url: "https://www.datavirtual.com.br/classificacao.html" },
-        { label: "Gráfico Macro",   url: "https://www.datavirtual.com.br/macrobetano.html" },
-        { label: "Radar Gráfico",   url: "https://www.datavirtual.com.br/betanoradar.html" },
-        { label: "Buscadores",   url: "https://www.datavirtual.com.br/buscadores.html" },
-        { label: "Central Odds",   url: "https://www.datavirtual.com.br/centralodds.html" },
-      ]
-    },
-    {
-      group: "Betsson",
-      tools: [
-        { label: "Fluxo",     url: "https://www.datavirtual.com.br/fluxo.html" },
-        { label: "Tabela Fixa",     url: "https://www.datavirtual.com.br/day.html" },
-        { label: "Hora Fixa",       url: "https://www.datavirtual.com.br/horafixa.html" },
-        { label: "LigaStat",        url: "https://www.datavirtual.com.br/betssonstat.html" },
-        { label: "MultiLiga",       url: "https://www.datavirtual.com.br/split.html#betsson" },
-        { label: "LocalizAI",       url: "https://www.datavirtual.com.br/betssonlocalizai.html" },
-        { label: "Projeções",       url: "https://www.datavirtual.com.br/betssonprojecoes.html" },
-        { label: "Porcentagem",     url: "https://www.datavirtual.com.br/betssonporcent.html" },
-        { label: "Classificação",   url: "https://www.datavirtual.com.br/betssonclassificacao.html" },
-        { label: "Gráfico Macro",   url: "https://www.datavirtual.com.br/betssonmacro.html" },
-        { label: "Radar Gráfico",   url: "https://www.datavirtual.com.br/betssonradar.html" },
-        { label: "Buscadores",   url: "https://www.datavirtual.com.br/buscadores.html" },
-        { label: "Central Odds",   url: "https://www.datavirtual.com.br/centralodds.html" },
-      ]
-    },
-    {
-      group: "EstrelaBet",
-      tools: [
-        { label: "Fluxo",     url: "https://www.datavirtual.com.br/fluxo.html" },
-        { label: "Tabela Fixa",     url: "https://www.datavirtual.com.br/day.html" },
-        { label: "Hora Fixa",       url: "https://www.datavirtual.com.br/horafixa.html" },
-        { label: "LigaStat",        url: "https://www.datavirtual.com.br/estrelastat.html" },
-        { label: "MultiLiga",       url: "https://www.datavirtual.com.br/split.html#estrelabet" },
-        { label: "LocalizAI",       url: "https://www.datavirtual.com.br/localizAIstar.html" },
-        { label: "Projeções",       url: "https://www.datavirtual.com.br/estrelaprojecoes.html" },
-        { label: "Porcentagem",     url: "https://www.datavirtual.com.br/porcentagemstar.html" },
-        { label: "Classificação",   url: "https://www.datavirtual.com.br/estrelaclassificacao.html" },
-        { label: "Gráfico Macro",   url: "https://www.datavirtual.com.br/estrelamacro.html" },
-        { label: "Radar Gráfico",   url: "https://www.datavirtual.com.br/estrelaradar.html" },
-        { label: "Buscadores",   url: "https://www.datavirtual.com.br/buscadores.html" },
-        { label: "Central Odds",   url: "https://www.datavirtual.com.br/centralodds.html" },
-      ]
-    },
-    {
-      group: "Kiron",
-      tools: [
-        { label: "Fluxo",     url: "https://www.datavirtual.com.br/fluxo.html" },
-        { label: "Tabela Fixa",     url: "https://www.datavirtual.com.br/day.html" },
-        { label: "Hora Fixa",       url: "https://www.datavirtual.com.br/horafixa.html" },
-        { label: "LigaStat",        url: "https://www.datavirtual.com.br/LigaStatkiron.html" },
-        { label: "MultiLiga",       url: "https://www.datavirtual.com.br/split.html#kiron" },
-        { label: "LocalizAI",       url: "https://www.datavirtual.com.br/localizAIkiron.html" },
-        { label: "Projeções",       url: "https://www.datavirtual.com.br/kironprojecao.html" },
-        { label: "Porcentagem",     url: "https://www.datavirtual.com.br/porcentagemkiron.html" },
-        { label: "Classificação",   url: "https://www.datavirtual.com.br/classificacaokiron.html" },
-        { label: "Gráfico Macro",   url: "https://www.datavirtual.com.br/kironmacro.html" },
-        { label: "Radar Gráfico",   url: "https://www.datavirtual.com.br/kironradar.html" },
-        { label: "Buscadores",   url: "https://www.datavirtual.com.br/buscadores.html" },
-        { label: "Central Odds",   url: "https://www.datavirtual.com.br/centralodds.html" },
-      ]
-    },
-    /* MultiLiga de todas as casas = mesma página (split.html).
-       O #casa no final só diferencia a URL entre as casas (título/seleção do slot) — não muda a página.
-       Casas novas: por enquanto só MultiLiga. */
-    {
-      group: "MGM",
-      tools: [
-        { label: "MultiLiga", url: "https://www.datavirtual.com.br/split.html#mgm" },
-      ]
-    },
-    {
-      group: "1win",
-      tools: [
-        { label: "MultiLiga", url: "https://www.datavirtual.com.br/split.html#1win" },
-      ]
-    },
-    {
-      group: "BetGreen",
-      tools: [
-        { label: "MultiLiga", url: "https://www.datavirtual.com.br/split.html#betgreen" },
-      ]
-    },
-    {
-      group: "Vavada",
-      tools: [
-        { label: "MultiLiga", url: "https://www.datavirtual.com.br/split.html#vavada" },
-      ]
-    },
-    {
-      group: "Bônus",
-      tools: [
-        { label: "Guias",        url: "https://www.datavirtual.com.br/guias.html" },
-        { label: "Max Time",      url: "https://www.datavirtual.com.br/timemax.html" },
-        { label: "Ranking Gols",      url: "https://www.datavirtual.com.br/ranking-gols.html" },
-        { label: "Referencia",      url: "https://www.datavirtual.com.br/referencia.html" },
-        { label: "DayTrade",        url: "https://www.datavirtual.com.br/velas.html" },
-        { label: "Mentor",        url: "https://www.datavirtual.com.br/mentor.html" },
-        { label: "Morpheus IA",  url: "https://www.datavirtual.com.br/morfeus" },
-        { label: "Gerador Tip",  url: "https://www.datavirtual.com.br/central/" },
-        { label: "Gestão Banca", url: "gestao.html" },
-      ]
+  /* ── MONTA O CATÁLOGO: 1 grupo por casa do Catalogo + Bônus ────── */
+  function montarCatalogo() {
+    const grupos = [];
+    if (window.Catalogo) {
+      Catalogo.casasAtivas().forEach(c => {
+        const hash = '#' + c.key.toLowerCase();   // mesmo padrão do split.html#casa; também distingue a URL de cada casa
+        grupos.push({
+          group: c.label,
+          casaKey: c.key,
+          tools: MODULOS.map(m => ({ label: m.label, url: BASE_URL + m.path + hash })),
+        });
+      });
     }
-  ];
+    grupos.push({ group: 'Bônus', tools: BONUS.map(t => ({ label: t.label, url: t.url })) });
+    return grupos;
+  }
+
+  function semHash(u) { return String(u || '').split('#')[0]; }
+
+  // Acha a ferramenta de uma URL salva. Slots antigos (URL sem #casa) casam pela página,
+  // dando preferência ao grupo da casa atual.
+  function acharFerramenta(url) {
+    if (!url) return null;
+    for (const cat of CATALOGO) {
+      const t = cat.tools.find(t => t.url === url);
+      if (t) return { group: cat.group, tool: t };
+    }
+    const alvo = semHash(url);
+    const pref = CATALOGO.find(c => c.casaKey && c.casaKey.toLowerCase() === CASA_ATUAL);
+    const ordem = pref ? [pref, ...CATALOGO.filter(c => c !== pref)] : CATALOGO;
+    for (const cat of ordem) {
+      const t = cat.tools.find(t => semHash(t.url) === alvo);
+      if (t) return { group: cat.group, tool: t };
+    }
+    return null;
+  }
 
   const MAX_SLOTS = 5;
 
@@ -197,11 +147,8 @@
 
   /* ── Label pelo URL ──────────────────────────────────────────── */
   function labelByUrl(url) {
-    for (const cat of CATALOGO) {
-      const t = cat.tools.find(t => t.url === url);
-      if (t) return `${cat.group} › ${t.label}`;
-    }
-    return '⭐ Nova Ferramenta';
+    const a = acharFerramenta(url);
+    return a ? `${a.group} › ${a.tool.label}` : '⭐ Nova Ferramenta';
   }
 
   /* ── CSS ─────────────────────────────────────────────────────── */
@@ -443,11 +390,10 @@
     let selectedToolUrl = url || '';
 
     if (url) {
-      for (const cat of CATALOGO) {
-        if (cat.tools.find(t => t.url === url)) {
-          selectedCasa = cat.group;
-          break;
-        }
+      const achado = acharFerramenta(url);
+      if (achado) {
+        selectedCasa    = achado.group;
+        selectedToolUrl = achado.tool.url;
       }
     }
 
@@ -625,8 +571,17 @@
     rebuildSlots();
   }
 
-  document.readyState === 'loading'
-    ? document.addEventListener('DOMContentLoaded', init)
-    : init();
+  function iniciar() {
+    CASA_ATUAL = detectarCasa();
+    LS_KEY     = `bsFavToolsV5_${String(CASA_ATUAL).toLowerCase()}`;
+    CATALOGO   = montarCatalogo();
+    init();
+  }
+
+  comCatalogo(() => {
+    document.readyState === 'loading'
+      ? document.addEventListener('DOMContentLoaded', iniciar)
+      : iniciar();
+  });
 
 })();
