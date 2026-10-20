@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+    <script src="catalogo-ferramentas.js"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+    <title>DataVirtual | Radar de Desvio</title>
+    <meta name="description" content="Radar de Desvio DataVirtual - veja em todas as ligas quais mercados estão fora do normal agora (Z-score da janela recente contra a média da própria liga)." />
+    <meta name="keywords" content="DataVirtual, futebol virtual, z-score, desvio, over 2.5, ambas marcam, estatísticas ao vivo" />
+    <meta property="og:title" content="DataVirtual | Radar de Desvio" />
+    <meta property="og:description" content="O que está fora do normal agora em cada liga: Z-score por mercado." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DataVirtual" />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="DataVirtual" />
+    <script type="module" src="js/firebase-auth.js"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { dataLayer.push(arguments); }
+      gtag("js", new Date());
+      gtag("config", "G-4WT805FFHQ");
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+    <style>
+      :root {
+        --bg-primary: #111318;
+        --bg-secondary: #181c23;
+        --bg-card: #1e232d;
+        --bg-card-hover: #242a36;
+        --bg-top: #0d1c1f;
+        --border: #2a3040;
+        --border-accent: #1a4750;
+        --accent: #177b8e;
+        --accent-dim: #115c6b;
+        --accent-muted: rgba(23, 123, 142, 0.14);
+        --text-primary: #e4e8f0;
+        --text-secondary: #7a8499;
+        --text-accent: #177b8e;
+        --green: #2ecc71;
+        --red: #e74c3c;
+        --orange: #e6a817;
+        /* diverging: quente = acima do normal, frio = abaixo do normal */
+        --up: 230, 168, 23;
+        --down: 59, 130, 196;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: "DM Sans", sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        min-height: 100vh;
+      }
+
+      #header { position: sticky; top: 0; z-index: 100; }
+
+      .page-wrapper {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 28px 24px 60px;
+      }
+
+      .section-title {
+        font-size: 0.7rem;
+        font-family: "DM Mono", monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-accent);
+        margin: 26px 0 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .section-title .hint {
+        font-family: "DM Sans", sans-serif;
+        text-transform: none;
+        letter-spacing: normal;
+        color: var(--text-secondary);
+        font-size: 0.72rem;
+      }
+
+      /* ── FILTROS ── */
+      .filter-section {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin-bottom: 18px;
+      }
+      .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 16px;
+      }
+      .filter-group label {
+        display: block;
+        font-size: 0.68rem;
+        font-family: "DM Mono", monospace;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-accent);
+        margin-bottom: 6px;
+      }
+      .filter-group select {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: var(--bg-card);
+        color: var(--text-primary);
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.85rem;
+        border: 1px solid var(--border);
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .filter-group select:focus { border-color: var(--accent); }
+      .filter-group select option { background: #1e232d; }
+
+      /* ── STATUS ── */
+      .status-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: 7px;
+        padding: 9px 14px;
+        margin-bottom: 14px;
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .status-bar.loading { border-left-color: var(--orange); }
+      .status-bar.error { border-left-color: var(--red); }
+      .s-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+      .loading .s-dot { background: var(--orange); animation: blink 1s infinite; }
+      .error .s-dot { background: var(--red); }
+      @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+      /* ── RESUMO ── */
+      .resumo {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .resumo-item {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 16px;
+        min-width: 150px;
+      }
+      .resumo-item .rv {
+        font-family: "DM Mono", monospace;
+        font-size: 1.35rem;
+        font-weight: 500;
+        color: var(--text-primary);
+      }
+      .resumo-item .rl {
+        font-size: 0.66rem;
+        font-family: "DM Mono", monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-secondary);
+        margin-top: 2px;
+      }
+
+      /* ── MAIORES DESVIOS ── */
+      .top-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        gap: 10px;
+      }
+      .top-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-left-width: 3px;
+        border-radius: 8px;
+        padding: 12px 14px;
+        cursor: pointer;
+        transition: background .15s, border-color .15s;
+      }
+      .top-card:hover { background: var(--bg-card-hover); }
+      .top-card.up { border-left-color: rgb(var(--up)); }
+      .top-card.down { border-left-color: rgb(var(--down)); }
+      .top-card .tc-liga {
+        font-size: 0.72rem;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+      }
+      .top-card .tc-linha {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .top-card .tc-mercado { font-size: 0.92rem; font-weight: 600; }
+      .top-card .tc-z {
+        font-family: "DM Mono", monospace;
+        font-size: 1.25rem;
+        font-weight: 500;
+      }
+      .top-card.up .tc-z { color: rgb(var(--up)); }
+      .top-card.down .tc-z { color: rgb(var(--down)); }
+      .top-card .tc-dir { font-size: 0.74rem; color: var(--text-primary); margin-top: 6px; }
+      .top-card .tc-num {
+        font-family: "DM Mono", monospace;
+        font-size: 0.68rem;
+        color: var(--text-secondary);
+        margin-top: 4px;
+      }
+      .vazio-msg {
+        background: var(--bg-card);
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        padding: 18px;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        text-align: center;
+      }
+
+      /* ── LEGENDA ── */
+      .legenda {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .legenda .escala {
+        display: flex;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .legenda .escala span {
+        font-family: "DM Mono", monospace;
+        font-size: 0.64rem;
+        padding: 3px 8px;
+        color: var(--text-primary);
+      }
+
+      /* ── MATRIZ ── */
+      .matrix-wrap {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow-x: auto;
+      }
+      table.matriz { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+      .matriz thead th {
+        background: var(--bg-card);
+        border-bottom: 1px solid var(--border);
+        padding: 10px 8px;
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-accent);
+        white-space: nowrap;
+        text-align: center;
+        font-weight: 500;
+      }
+      .matriz thead th:first-child { text-align: left; padding-left: 14px; }
+      .matriz td { border-bottom: 1px solid var(--border); padding: 0; }
+      .matriz tr:last-child td { border-bottom: none; }
+      .matriz td.liga-nome {
+        padding: 8px 14px;
+        min-width: 190px;
+        position: sticky;
+        left: 0;
+        background: var(--bg-secondary);
+        z-index: 1;
+        border-right: 1px solid var(--border);
+      }
+      .liga-nome .ln-t { font-weight: 500; }
+      .liga-nome .ln-s {
+        font-family: "DM Mono", monospace;
+        font-size: 0.62rem;
+        color: var(--text-secondary);
+        margin-top: 2px;
+      }
+      .matriz tr.grupo td {
+        padding: 7px 14px;
+        font-family: "DM Mono", monospace;
+        font-size: 0.62rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        background: var(--bg-card);
+      }
+      td.cel {
+        min-width: 92px;
+        text-align: center;
+        cursor: pointer;
+        padding: 7px 6px;
+        transition: filter .12s;
+      }
+      td.cel:hover { filter: brightness(1.25); }
+      td.cel .cz {
+        font-family: "DM Mono", monospace;
+        font-size: 0.98rem;
+        font-weight: 500;
+        line-height: 1.2;
+      }
+      td.cel .cs {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        color: var(--text-secondary);
+        margin-top: 2px;
+        white-space: nowrap;
+      }
+      td.cel.alerta.up { box-shadow: inset 0 0 0 1px rgba(var(--up), 0.85); }
+      td.cel.alerta.down { box-shadow: inset 0 0 0 1px rgba(var(--down), 0.9); }
+      td.cel.forte.up { box-shadow: inset 0 0 0 2px rgb(var(--up)); }
+      td.cel.forte.down { box-shadow: inset 0 0 0 2px rgb(var(--down)); }
+      td.cel.sel { outline: 2px solid var(--accent); outline-offset: -2px; }
+      td.cel.vazia { color: var(--text-secondary); cursor: default; }
+      td.cel.vazia:hover { filter: none; }
+      td.msg-linha {
+        padding: 10px 14px;
+        font-size: 0.74rem;
+        color: var(--text-secondary);
+      }
+      td.msg-linha.erro { color: var(--red); }
+
+      /* ── DETALHE ── */
+      .detalhe {
+        margin-top: 18px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-accent);
+        border-radius: 10px;
+        padding: 18px 22px;
+      }
+      .det-topo {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .det-titulo { font-size: 1.05rem; font-weight: 600; }
+      .det-sub { font-size: 0.74rem; color: var(--text-secondary); margin-top: 3px; }
+      .det-fechar {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        border-radius: 6px;
+        padding: 4px 10px;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+        font-size: 0.75rem;
+      }
+      .det-fechar:hover { border-color: var(--accent); color: var(--text-primary); }
+      .det-nums {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      .det-num {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+      }
+      .det-num .dv { font-family: "DM Mono", monospace; font-size: 1.1rem; }
+      .det-num .dl {
+        font-family: "DM Mono", monospace;
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-secondary);
+        margin-top: 3px;
+      }
+      .det-bloco-titulo {
+        font-family: "DM Mono", monospace;
+        font-size: 0.64rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin: 14px 0 8px;
+      }
+      .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+      .chip-z {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px 12px;
+        text-align: center;
+        min-width: 74px;
+      }
+      .chip-z.atual { border-color: var(--accent); }
+      .chip-z .cj { font-size: 0.64rem; color: var(--text-secondary); font-family: "DM Mono", monospace; }
+      .chip-z .cv { font-family: "DM Mono", monospace; font-size: 0.95rem; margin-top: 2px; }
+      .pontos { display: flex; flex-wrap: wrap; gap: 3px; }
+      .ponto {
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        font-family: "DM Mono", monospace;
+        font-size: 0.62rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
+      .ponto.hit { background: rgba(46, 204, 113, 0.75); }
+      .ponto.miss { background: rgba(231, 76, 60, 0.55); }
+      .ponto.acima { background: rgba(var(--up), 0.6); color: #111; }
+      .ponto.abaixo { background: rgba(var(--down), 0.6); }
+      .ponto.rec { outline: 1.5px solid #fff; outline-offset: 1px; }
+      .nota {
+        margin-top: 26px;
+        font-size: 0.74rem;
+        line-height: 1.55;
+        color: var(--text-secondary);
+        border-left: 3px solid var(--border);
+        padding-left: 12px;
+        max-width: 900px;
+      }
+
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: var(--bg-primary); }
+      ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+      @media (max-width: 768px) {
+        .page-wrapper { padding: 16px 14px 40px; }
+        .filter-grid { grid-template-columns: 1fr 1fr; }
+        .top-grid { grid-template-columns: 1fr; }
+        td.cel { min-width: 78px; }
+        td.liga-nome { min-width: 130px; }
+        .detalhe { padding: 14px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="header"></div>
+
+    <br /><br />
+
+    <div class="page-wrapper">
+      <!-- Filtros -->
+      <div class="filter-section">
+        <div class="filter-grid">
+          <div class="filter-group">
+            <label for="casa-select">Casa</label>
+            <select id="casa-select"></select>
+          </div>
+          <div class="filter-group">
+            <label for="horas-select">Janela recente</label>
+            <select id="horas-select"></select>
+          </div>
+          <div class="filter-group">
+            <label for="base-select">Base de comparação</label>
+            <select id="base-select">
+              <option value="0">Todo o histórico</option>
+              <option value="30">Últimos 30 dias</option>
+              <option value="14">Últimos 14 dias</option>
+              <option value="7">Últimos 7 dias</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="thr-select">Alerta a partir de</label>
+            <select id="thr-select">
+              <option value="1.5">|Z| ≥ 1,5</option>
+              <option value="2" selected>|Z| ≥ 2,0</option>
+              <option value="2.5">|Z| ≥ 2,5</option>
+              <option value="3">|Z| ≥ 3,0</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="mostrar-select">Mostrar</label>
+            <select id="mostrar-select">
+              <option value="todas">Todas as ligas</option>
+              <option value="alertas">Só ligas com desvio</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="ordem-select">Ordenar ligas</label>
+            <select id="ordem-select">
+              <option value="catalogo">Ordem do catálogo</option>
+              <option value="desvio">Maior desvio primeiro</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-bar" id="statusBar">
+        <div class="s-dot"></div>
+        <span id="statusMessage">Aguardando carregamento dos dados...</span>
+      </div>
+
+      <div class="resumo" id="resumo"></div>
+
+      <div class="section-title">
+        <span>Maiores desvios agora</span>
+        <span class="hint">clique num card ou numa célula para ver o detalhe</span>
+      </div>
+      <div class="top-grid" id="topGrid"></div>
+
+      <div class="section-title">
+        <span>Mapa de desvios</span>
+        <span class="hint" id="mapaHint"></span>
+      </div>
+      <div class="legenda">
+        <span>abaixo do normal</span>
+        <div class="escala">
+          <span style="background:rgba(59,130,196,0.56)">−3</span>
+          <span style="background:rgba(59,130,196,0.30)">−2</span>
+          <span style="background:rgba(59,130,196,0.10)">−1</span>
+          <span style="background:transparent">0</span>
+          <span style="background:rgba(230,168,23,0.10)">+1</span>
+          <span style="background:rgba(230,168,23,0.30)">+2</span>
+          <span style="background:rgba(230,168,23,0.56)">+3</span>
+        </div>
+        <span>acima do normal</span>
+        <span>· contorno = passou do limite de alerta</span>
+      </div>
+      <div class="matrix-wrap">
+        <table class="matriz" id="matriz"></table>
+      </div>
+
+      <div class="detalhe" id="detalhe" style="display: none"></div>
+
+      <p class="nota">
+        <strong>Como ler:</strong> o Z-score mede quantos desvios-padrão a janela recente está longe da média da
+        própria liga (base = jogos anteriores à janela). +2 significa que o mercado está saindo bem acima do normal;
+        −2, bem abaixo. É um mapa do que está fora do padrão agora — não prevê o próximo jogo. Com muitas células,
+        algumas passam do limite só por acaso (o resumo no topo mostra quantas esperar), e os mercados Over 1.5, 2.5,
+        3.5 e 5+ andam juntos, então os desvios deles se repetem.
+      </p>
+    </div>
+
+    <script>
+      /* ─────────────────────────────────────
+         RADAR DE DESVIO (Z-score)
+         Casas, ligas, rotas e ciclo de minutos vêm da CENTRAL
+         (catalogo-ferramentas.js). Esta página só calcula e desenha.
+      ───────────────────────────────────── */
+      const MIN_RECENTE = 20;   // jogos mínimos na janela recente pra calcular o Z
+      const MIN_BASE = 100;     // jogos mínimos na base pra comparar
+      const HORAS_OPCOES = [2, 3, 6, 12, 24, 48];
+      const HORAS_PADRAO = 6;
+      const CONCORRENCIA = 4;   // ligas baixadas ao mesmo tempo
+      const REFRESH_MS = 60000;
+      const STORAGE_KEY = 'datavirtual_radar_desvio_v1';
+
+      const MERCADOS = [
+        { id: 'media', label: 'Média de gols', curto: 'Média gols', tipo: 'media',
+          up: 'Jogos com mais gols que o normal', down: 'Jogos com menos gols que o normal' },
+        { id: 'o15', label: 'Over 1.5', curto: 'Over 1.5', f: j => j.g >= 2,
+          up: 'Mais Over 1.5 que o normal', down: 'Mais Under 1.5 que o normal' },
+        { id: 'o25', label: 'Over 2.5', curto: 'Over 2.5', f: j => j.g >= 3,
+          up: 'Mais Over 2.5 que o normal', down: 'Mais Under 2.5 que o normal' },
+        { id: 'o35', label: 'Over 3.5', curto: 'Over 3.5', f: j => j.g >= 4,
+          up: 'Mais Over 3.5 que o normal', down: 'Mais Under 3.5 que o normal' },
+        { id: 'o5', label: '5 ou mais gols', curto: '5+ gols', f: j => j.g >= 5,
+          up: 'Mais jogos de 5+ gols que o normal', down: 'Menos jogos de 5+ gols que o normal' },
+        { id: 'btts', label: 'Ambas marcam', curto: 'Ambas', f: j => j.gh > 0 && j.ga > 0,
+          up: 'Mais "Ambas marcam" que o normal', down: 'Mais "Ambas não" que o normal' },
+        { id: 'casa', label: 'Casa vence', curto: 'Casa', f: j => j.gh > j.ga,
+          up: 'Casa vencendo mais que o normal', down: 'Casa vencendo menos que o normal' },
+        { id: 'empate', label: 'Empate', curto: 'Empate', f: j => j.gh === j.ga,
+          up: 'Mais empates que o normal', down: 'Menos empates que o normal' },
+        { id: 'fora', label: 'Fora vence', curto: 'Fora', f: j => j.gh < j.ga,
+          up: 'Fora vencendo mais que o normal', down: 'Fora vencendo menos que o normal' },
+      ];
+
+      const estado = { casa: '', horas: HORAS_PADRAO, base: 0, thr: 2, mostrar: 'todas', ordem: 'catalogo' };
+      const dadosLiga = new Map(); // ligaId -> { jogos, usaSlots, erro?, carregando? }
+      let selecionada = null;      // { ligaId, mId }
+      let loadToken = 0;
+      let loadAbort = null;
+      let bytesCarga = 0;
+
+      /* ───────────── utilidades ───────────── */
+      function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      }
+      function nf(x, d) { return Number(x).toFixed(d).replace('.', ','); }
+      function fz(z) { const t = nf(Math.abs(z), 1); return (t === '0,0' ? '' : z > 0 ? '+' : '−') + t; }
+      function fPct(p) { return Math.round(p * 100) + '%'; }
+      function fHora(ts) {
+        const d = new Date(ts), p = n => String(n).padStart(2, '0');
+        return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+      }
+      function nomeLiga(liga) {
+        const casa = Catalogo.CASAS[liga.casa];
+        return `${casa ? casa.label : liga.casa} · ${liga.label}`;
+      }
+      function setStatus(msg, tipo) {
+        document.getElementById('statusMessage').textContent = msg;
+        const bar = document.getElementById('statusBar');
+        bar.classList.remove('loading', 'error');
+        if (tipo === 'loading') bar.classList.add('loading');
+        if (tipo === 'error') bar.classList.add('error');
+      }
+
+      /* ───────────── estatística ───────────── */
+      function erf(x) {
+        const s = x < 0 ? -1 : 1;
+        x = Math.abs(x);
+        const t = 1 / (1 + 0.3275911 * x);
+        const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+        return s * y;
+      }
+      // p-valor bilateral de um Z
+      function pBilateral(z) { return Math.max(0, 1 - erf(Math.abs(z) / Math.SQRT2)); }
+      function fP(p) { return p < 0.001 ? '< 0,001' : nf(p, 3); }
+
+      /* ───────────── dados ───────────── */
+      function parseJogo(m) {
+        if (!m || typeof m.ft !== 'string') return null;
+        const p = m.ft.split(' x ').map(Number);
+        if (p.length !== 2 || p.some(n => !Number.isFinite(n))) return null;
+        const d = new Date(m.data);
+        if (isNaN(d)) return null;
+        const temHM = m.hora !== null && m.hora !== undefined && m.hora !== '' &&
+                      m.minuto !== null && m.minuto !== undefined && m.minuto !== '';
+        // "data" só traz o dia; o horário real está em hora/minuto
+        const ts = temHM
+          ? Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), Number(m.hora), Number(m.minuto))
+          : d.getTime();
+        if (!Number.isFinite(ts)) return null;
+        return { ts, gh: p[0], ga: p[1], g: p[0] + p[1], a: m.time_a || '', b: m.time_b || '' };
+      }
+
+      // Ordena, tira duplicados e dá a cada jogo seu "slot" no ciclo de minutos da liga.
+      function prepararLiga(liga, rows) {
+        const vistos = new Set();
+        const jogos = [];
+        (Array.isArray(rows) ? rows : []).forEach(m => {
+          const j = parseJogo(m);
+          if (!j || vistos.has(j.ts)) return;
+          vistos.add(j.ts);
+          jogos.push(j);
+        });
+        jogos.sort((x, y) => x.ts - y.ts);
+        let fora = 0;
+        jogos.forEach(j => {
+          const r = Catalogo.slotDe(liga, j.ts);
+          j.slot = r.slot;
+          if (r.noCiclo) fora++;
+        });
+        const usaSlots = jogos.length > 0 && fora / jogos.length <= 0.1;
+        return { jogos, usaSlots, fora };
+      }
+
+      // Separa a janela recente (últimos `alvo` jogos DO CICLO da liga) da base (jogos anteriores).
+      function dividir(L, alvo, dias) {
+        const J = L.jogos;
+        if (!J.length) return null;
+        let ini;
+        if (L.usaSlots) {
+          const lim = J[J.length - 1].slot - alvo;
+          ini = J.findIndex(j => j.slot > lim);
+          if (ini < 0) ini = 0;
+        } else {
+          ini = Math.max(0, J.length - alvo);
+        }
+        const recente = J.slice(ini);
+        let base = J.slice(0, ini);
+        if (dias > 0) {
+          const corte = J[J.length - 1].ts - dias * 86400000;
+          base = base.filter(j => j.ts >= corte);
+        }
+        return { recente, base };
+      }
+
+      function medirMercado(rec, base, m) {
+        const n = rec.length, nb = base.length;
+        if (n < MIN_RECENTE) return { ok: false, n, nb, motivo: `só ${n} jogos na janela (mínimo ${MIN_RECENTE})` };
+        if (nb < MIN_BASE) return { ok: false, n, nb, motivo: `base com ${nb} jogos (mínimo ${MIN_BASE})` };
+
+        if (m.tipo === 'media') {
+          let s = 0;
+          rec.forEach(j => { s += j.g; });
+          let sb = 0, sb2 = 0;
+          base.forEach(j => { sb += j.g; sb2 += j.g * j.g; });
+          const mr = s / n, mb = sb / nb;
+          const varb = Math.max(sb2 / nb - mb * mb, 1e-9) * nb / (nb - 1);
+          const z = (mr - mb) / Math.sqrt(varb / n);
+          return { ok: true, z, pr: mr, pb: mb, n, nb, media: true };
+        }
+
+        let hr = 0, hb = 0;
+        rec.forEach(j => { if (m.f(j)) hr++; });
+        base.forEach(j => { if (m.f(j)) hb++; });
+        const pr = hr / n, pb = hb / nb;
+        if (pb <= 0 || pb >= 1) return { ok: false, n, nb, motivo: 'mercado sem variação na base' };
+        const z = (pr - pb) / Math.sqrt(pb * (1 - pb) / n);
+        return { ok: true, z, pr, pb, hr, n, nb, media: false };
+      }
+
+      function ligasDoEscopo() {
+        if (estado.casa === '__todas__') {
+          return Catalogo.casasAtivas().reduce((acc, c) => acc.concat(c.ligas), []);
+        }
+        return Catalogo.ligasDaCasa(estado.casa);
+      }
+
+      function calcular() {
+        const ligas = ligasDoEscopo();
+        const cel = new Map();
+        const info = new Map();
+        ligas.forEach(liga => {
+          const L = dadosLiga.get(liga.id);
+          if (!L || !L.jogos || !L.jogos.length) return;
+          const alvo = estado.horas * Catalogo.jogosPorHora(liga);
+          const d = dividir(L, alvo, estado.base);
+          if (!d) return;
+          info.set(liga.id, { n: d.recente.length, nb: d.base.length, alvo });
+          MERCADOS.forEach(m => {
+            cel.set(liga.id + '|' + m.id, Object.assign({ ligaId: liga.id, mId: m.id }, medirMercado(d.recente, d.base, m)));
+          });
+        });
+        return { ligas, cel, info };
+      }
+
+      /* ───────────── desenho ───────────── */
+      function corCelula(z) {
+        const t = Math.min(Math.abs(z), 3.5) / 3.5;
+        const a = (0.04 + 0.52 * t).toFixed(3);
+        return z >= 0 ? `rgba(230,168,23,${a})` : `rgba(59,130,196,${a})`;
+      }
+
+      function celulaHTML(c, m) {
+        if (!c || !c.ok) {
+          const tip = c && c.motivo ? c.motivo : 'sem dados';
+          return `<td class="cel vazia" title="${esc(tip)}">—</td>`;
+        }
+        const az = Math.abs(c.z);
+        let cls = 'cel ' + (c.z >= 0 ? 'up' : 'down');
+        if (az >= estado.thr) cls += ' alerta';
+        if (az >= 3 && az >= estado.thr) cls += ' forte';
+        if (selecionada && selecionada.ligaId === c.ligaId && selecionada.mId === c.mId) cls += ' sel';
+        const sub = c.media
+          ? `${nf(c.pr, 2)} vs ${nf(c.pb, 2)}`
+          : `${fPct(c.pr)} vs ${fPct(c.pb)}`;
+        const tip = `${m.label}: ${c.media ? nf(c.pr, 2) + ' gols' : fPct(c.pr)} na janela (${c.n} jogos) · base ${c.media ? nf(c.pb, 2) : fPct(c.pb)} (${c.nb} jogos) · Z ${fz(c.z)}`;
+        return `<td class="${cls}" data-l="${esc(c.ligaId)}" data-m="${m.id}" style="background:${corCelula(c.z)}" title="${esc(tip)}">` +
+               `<div class="cz">${fz(c.z)}</div><div class="cs">${sub}</div></td>`;
+      }
+
+      function maxAbsZ(ligaId, cel) {
+        let mx = 0;
+        MERCADOS.forEach(m => {
+          const c = cel.get(ligaId + '|' + m.id);
+          if (c && c.ok) mx = Math.max(mx, Math.abs(c.z));
+        });
+        return mx;
+      }
+
+      function renderResumo(calc) {
+        let total = 0, alertas = 0, ligasOk = 0;
+        calc.ligas.forEach(l => { if (calc.info.has(l.id)) ligasOk++; });
+        calc.cel.forEach(c => {
+          if (!c.ok) return;
+          total++;
+          if (Math.abs(c.z) >= estado.thr) alertas++;
+        });
+        const esperado = total * pBilateral(estado.thr);
+        document.getElementById('resumo').innerHTML =
+          `<div class="resumo-item"><div class="rv">${ligasOk}/${calc.ligas.length}</div><div class="rl">ligas com dados</div></div>` +
+          `<div class="resumo-item"><div class="rv">${alertas} <span style="font-size:.8rem;color:var(--text-secondary)">de ${total}</span></div><div class="rl">células fora do normal</div></div>` +
+          `<div class="resumo-item" title="Se tudo fosse sorte pura, quantas células passariam do limite"><div class="rv">~${nf(esperado, 1)}</div><div class="rl">esperado só por acaso</div></div>`;
+      }
+
+      function renderTop(calc) {
+        const lista = [];
+        calc.cel.forEach(c => { if (c.ok && Math.abs(c.z) >= estado.thr) lista.push(c); });
+        lista.sort((a, b) => Math.abs(b.z) - Math.abs(a.z));
+        const el = document.getElementById('topGrid');
+        if (!lista.length) {
+          el.innerHTML = `<div class="vazio-msg" style="grid-column:1/-1">Nada fora do normal agora com |Z| ≥ ${nf(estado.thr, 1)}. Baixe o limite de alerta pra ver desvios menores.</div>`;
+          return;
+        }
+        el.innerHTML = lista.slice(0, 8).map(c => {
+          const m = MERCADOS.find(x => x.id === c.mId);
+          const liga = Catalogo.getLiga(c.ligaId);
+          const dir = c.z > 0 ? 'up' : 'down';
+          const nums = c.media
+            ? `${nf(c.pr, 2)} gols na janela · base ${nf(c.pb, 2)} · ${c.n} jogos`
+            : `${fPct(c.pr)} na janela · base ${fPct(c.pb)} · ${c.n} jogos`;
+          return `<div class="top-card ${dir}" data-l="${esc(c.ligaId)}" data-m="${m.id}">` +
+                 `<div class="tc-liga">${esc(nomeLiga(liga))}</div>` +
+                 `<div class="tc-linha"><span class="tc-mercado">${esc(m.label)}</span><span class="tc-z">${fz(c.z)}</span></div>` +
+                 `<div class="tc-dir">${esc(c.z > 0 ? m.up : m.down)}</div>` +
+                 `<div class="tc-num">${nums}</div></div>`;
+        }).join('');
+      }
+
+      function renderMatriz(calc) {
+        const tabela = document.getElementById('matriz');
+        let ligas = calc.ligas.slice();
+
+        if (estado.mostrar === 'alertas') {
+          ligas = ligas.filter(l => maxAbsZ(l.id, calc.cel) >= estado.thr);
+        }
+        if (estado.ordem === 'desvio') {
+          ligas.sort((a, b) => maxAbsZ(b.id, calc.cel) - maxAbsZ(a.id, calc.cel));
+        }
+
+        const todas = estado.casa === '__todas__' && estado.ordem === 'catalogo';
+        const cab = `<thead><tr><th>Liga</th>${MERCADOS.map(m => `<th>${esc(m.curto)}</th>`).join('')}</tr></thead>`;
+        const colunas = MERCADOS.length + 1;
+        let corpo = '';
+        let casaAnterior = null;
+
+        if (!ligas.length) {
+          corpo = `<tr><td class="msg-linha" colspan="${colunas}">Nenhuma liga com desvio ≥ ${nf(estado.thr, 1)} agora.</td></tr>`;
+        }
+
+        ligas.forEach(liga => {
+          if (todas && liga.casa !== casaAnterior) {
+            casaAnterior = liga.casa;
+            corpo += `<tr class="grupo"><td colspan="${colunas}">${esc(Catalogo.CASAS[liga.casa].label)}</td></tr>`;
+          }
+          const L = dadosLiga.get(liga.id);
+          const inf = calc.info.get(liga.id);
+          const nome = estado.ordem === 'desvio' && estado.casa === '__todas__' ? nomeLiga(liga) : liga.label;
+          let sub = '';
+          if (inf) sub = `${inf.n}/${inf.alvo} jogos · base ${inf.nb}`;
+          else if (L && L.carregando) sub = 'carregando...';
+          const alvoNome = `<td class="liga-nome"><div class="ln-t">${esc(nome)}</div><div class="ln-s">${esc(sub)}</div></td>`;
+
+          if (L && L.erro && !inf) {
+            corpo += `<tr>${alvoNome}<td class="msg-linha erro" colspan="${MERCADOS.length}">Erro ao carregar: ${esc(L.erro)}</td></tr>`;
+          } else if (!inf) {
+            corpo += `<tr>${alvoNome}<td class="msg-linha" colspan="${MERCADOS.length}">${L && L.carregando ? 'Carregando dados da liga...' : 'Sem jogos na API para esta liga.'}</td></tr>`;
+          } else {
+            corpo += `<tr>${alvoNome}${MERCADOS.map(m => celulaHTML(calc.cel.get(liga.id + '|' + m.id), m)).join('')}</tr>`;
+          }
+        });
+
+        tabela.innerHTML = cab + `<tbody>${corpo}</tbody>`;
+        document.getElementById('mapaHint').textContent =
+          `janela de ${estado.horas} h por liga (respeita os jogos/hora de cada uma) · base: ${estado.base ? 'últimos ' + estado.base + ' dias' : 'todo o histórico'}`;
+      }
+
+      function sequenciaAtual(jogos, f) {
+        if (!jogos.length) return null;
+        const ult = f(jogos[jogos.length - 1]);
+        let qtd = 0;
+        for (let i = jogos.length - 1; i >= 0; i--) {
+          if (f(jogos[i]) === ult) qtd++; else break;
+        }
+        return { bateu: ult, qtd };
+      }
+
+      function renderDetalhe(calc) {
+        const el = document.getElementById('detalhe');
+        if (!selecionada) { el.style.display = 'none'; return; }
+        const liga = Catalogo.getLiga(selecionada.ligaId);
+        const m = MERCADOS.find(x => x.id === selecionada.mId);
+        const L = dadosLiga.get(selecionada.ligaId);
+        const c = calc.cel.get(selecionada.ligaId + '|' + selecionada.mId);
+        if (!liga || !m || !L || !L.jogos || !c) { el.style.display = 'none'; return; }
+
+        const jph = Catalogo.jogosPorHora(liga);
+        const d = dividir(L, estado.horas * jph, estado.base);
+
+        let nums = '';
+        if (c.ok) {
+          const p = pBilateral(c.z);
+          nums =
+            `<div class="det-num"><div class="dv">${fz(c.z)}</div><div class="dl">Z-score · p ${fP(p)}</div></div>` +
+            `<div class="det-num"><div class="dv">${c.media ? nf(c.pr, 2) : fPct(c.pr) + ' <span style="font-size:.7rem;color:var(--text-secondary)">(' + c.hr + '/' + c.n + ')</span>'}</div><div class="dl">Janela recente (${estado.horas} h)</div></div>` +
+            `<div class="det-num"><div class="dv">${c.media ? nf(c.pb, 2) : fPct(c.pb)}</div><div class="dl">Base · ${c.nb} jogos</div></div>`;
+        } else {
+          nums = `<div class="det-num"><div class="dv">—</div><div class="dl">${esc(c.motivo || 'sem dados')}</div></div>`;
+        }
+        if (m.tipo !== 'media' && m.f) {
+          const sq = sequenciaAtual(L.jogos, m.f);
+          if (sq) {
+            nums += `<div class="det-num"><div class="dv">${sq.qtd}</div><div class="dl">seguidos ${sq.bateu ? 'batendo' : 'sem bater'}</div></div>`;
+          }
+        }
+
+        // Z em várias janelas (mesma base)
+        const chips = HORAS_OPCOES.map(h => {
+          const dd = dividir(L, h * jph, estado.base);
+          const r = dd ? medirMercado(dd.recente, dd.base, m) : { ok: false };
+          const atual = h === estado.horas ? ' atual' : '';
+          const alerta = r.ok && Math.abs(r.z) >= estado.thr;
+          const cor = r.ok ? (r.z >= 0 ? 'rgb(var(--up))' : 'rgb(var(--down))') : 'var(--text-secondary)';
+          return `<div class="chip-z${atual}"><div class="cj">${h} h</div><div class="cv" style="color:${cor};${alerta ? 'font-weight:600' : ''}">${r.ok ? fz(r.z) : '—'}</div></div>`;
+        }).join('');
+
+        // últimos jogos
+        const ultimos = L.jogos.slice(-60);
+        const noRec = new Set(d ? d.recente.map(j => j.ts) : []);
+        const mediaBase = c.ok && c.media ? c.pb : 0;
+        const pontos = ultimos.map(j => {
+          let cls, txt = '';
+          if (m.tipo === 'media') { cls = j.g > mediaBase ? 'acima' : 'abaixo'; txt = j.g; }
+          else { cls = m.f(j) ? 'hit' : 'miss'; }
+          if (noRec.has(j.ts)) cls += ' rec';
+          const tip = `${fHora(j.ts)} · ${j.a} ${j.gh} x ${j.ga} ${j.b}`;
+          return `<div class="ponto ${cls}" title="${esc(tip)}">${txt}</div>`;
+        }).join('');
+
+        const legendaPontos = m.tipo === 'media'
+          ? 'quente = jogo acima da média da base · frio = abaixo'
+          : 'verde = bateu · vermelho = não bateu';
+
+        el.innerHTML =
+          `<div class="det-topo"><div><div class="det-titulo">${esc(m.label)} — ${esc(nomeLiga(liga))}</div>` +
+          `<div class="det-sub">${c.ok ? esc(c.z > 0 ? m.up : m.down) : 'Dados insuficientes para o cálculo'}</div></div>` +
+          `<button class="det-fechar" id="detFechar">fechar</button></div>` +
+          `<div class="det-nums">${nums}</div>` +
+          `<div class="det-bloco-titulo">Z-score por janela (mesma base)</div><div class="chips">${chips}</div>` +
+          `<div class="det-bloco-titulo">Últimos ${ultimos.length} jogos (mais recente à direita) · contorno branco = janela recente · ${legendaPontos}</div>` +
+          `<div class="pontos">${pontos}</div>`;
+        el.style.display = 'block';
+      }
+
+      let rafPendente = false;
+      function renderAgendado() {
+        if (rafPendente) return;
+        rafPendente = true;
+        requestAnimationFrame(() => { rafPendente = false; render(); });
+      }
+
+      function render() {
+        const calc = calcular();
+        renderResumo(calc);
+        renderTop(calc);
+        renderMatriz(calc);
+        renderDetalhe(calc);
+      }
+
+      /* ───────────── carga da API ───────────── */
+      // GET JSON cancelável; lê em pedaços (conta os MB) e só dá erro após 30s SEM chegar dado.
+      async function fetchJson(url, signal) {
+        const ctl = new AbortController();
+        const aoCancelar = () => ctl.abort();
+        signal.addEventListener('abort', aoCancelar);
+        let timer = null;
+        const armar = () => { clearTimeout(timer); timer = setTimeout(() => ctl.abort(), 30000); };
+        const rota = new URL(url).pathname;
+        armar();
+        try {
+          const r = await fetch(url, { signal: ctl.signal });
+          if (!r.ok) throw new Error(`HTTP ${r.status} em ${rota}`);
+          if (!r.body || !r.body.getReader) return await r.json();
+          const leitor = r.body.getReader();
+          const partes = [];
+          for (;;) {
+            const { done, value } = await leitor.read();
+            if (done) break;
+            partes.push(value);
+            bytesCarga += value.length;
+            armar();
+          }
+          return JSON.parse(await new Blob(partes).text());
+        } catch (e) {
+          if (e.name === 'AbortError' && !signal.aborted) throw new Error(`sem resposta por 30s: ${rota}`);
+          throw e;
+        } finally {
+          clearTimeout(timer);
+          signal.removeEventListener('abort', aoCancelar);
+        }
+      }
+
+      let carregando = false;
+      async function carregar() {
+        const myToken = ++loadToken;
+        if (loadAbort) loadAbort.abort();
+        loadAbort = new AbortController();
+        const signal = loadAbort.signal;
+        carregando = true;
+
+        const ligas = ligasDoEscopo();
+        ligas.forEach(l => { if (!dadosLiga.has(l.id)) dadosLiga.set(l.id, { carregando: true }); });
+        render();
+
+        const t0 = performance.now();
+        bytesCarga = 0;
+        let feitos = 0, erros = 0;
+        const semCache = ligas.some(l => !dadosLiga.get(l.id).jogos);
+        if (semCache) setStatus(`Carregando ligas... 0/${ligas.length}`, 'loading');
+
+        const fila = ligas.slice();
+        async function worker() {
+          while (fila.length) {
+            const liga = fila.shift();
+            try {
+              const rows = await fetchJson(Catalogo.urlApi('resultados', liga.id), signal);
+              if (myToken !== loadToken) return;
+              dadosLiga.set(liga.id, prepararLiga(liga, rows));
+            } catch (e) {
+              if (e.name === 'AbortError' || myToken !== loadToken) return;
+              erros++;
+              const anterior = dadosLiga.get(liga.id);
+              dadosLiga.set(liga.id, anterior && anterior.jogos ? Object.assign({}, anterior, { erro: e.message }) : { erro: e.message });
+            }
+            feitos++;
+            if (semCache) setStatus(`Carregando ligas... ${feitos}/${ligas.length} · ${(bytesCarga / 1048576).toFixed(1)} MB`, 'loading');
+            renderAgendado();
+          }
+        }
+        await Promise.all(Array.from({ length: Math.min(CONCORRENCIA, ligas.length) }, worker));
+        if (myToken !== loadToken) return;
+        carregando = false;
+
+        render();
+        const seg = ((performance.now() - t0) / 1000).toFixed(1);
+        const mb = (bytesCarga / 1048576).toFixed(1);
+        if (erros) setStatus(`${erros} liga(s) com erro — veja a mensagem na linha da liga · ${seg}s`, 'error');
+        else setStatus(`${ligas.length} ligas atualizadas em ${seg}s · ${mb} MB · atualiza a cada ${REFRESH_MS / 1000}s`);
+      }
+
+      /* ───────────── filtros / eventos ───────────── */
+      function salvar() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(estado)); } catch (e) {}
+      }
+      function restaurar() {
+        try {
+          const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+          if (s && typeof s === 'object') Object.keys(estado).forEach(k => { if (k in s) estado[k] = s[k]; });
+        } catch (e) {}
+      }
+
+      function montarSeletores() {
+        const selCasa = document.getElementById('casa-select');
+        const casas = Catalogo.casasAtivas();
+        selCasa.innerHTML = casas.map(c => `<option value="${c.key}">${esc(c.label)}</option>`).join('') +
+                            '<option value="__todas__">Todas as casas (carrega mais dados)</option>';
+        const valida = estado.casa === '__todas__' || casas.some(c => c.key === estado.casa);
+        if (!valida) estado.casa = casas.length ? casas[0].key : '__todas__';
+        selCasa.value = estado.casa;
+
+        const selHoras = document.getElementById('horas-select');
+        selHoras.innerHTML = HORAS_OPCOES.map(h => `<option value="${h}">${h} horas</option>`).join('');
+        if (!HORAS_OPCOES.includes(Number(estado.horas))) estado.horas = HORAS_PADRAO;
+        selHoras.value = String(estado.horas);
+
+        document.getElementById('base-select').value = String(estado.base);
+        document.getElementById('thr-select').value = String(estado.thr);
+        document.getElementById('mostrar-select').value = estado.mostrar;
+        document.getElementById('ordem-select').value = estado.ordem;
+        if (document.getElementById('base-select').value !== String(estado.base)) estado.base = 0;
+      }
+
+      function abrirDetalhe(ligaId, mId) {
+        selecionada = { ligaId, mId };
+        render();
+        const el = document.getElementById('detalhe');
+        if (el.style.display !== 'none' && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        restaurar();
+        montarSeletores();
+
+        document.getElementById('casa-select').addEventListener('change', e => {
+          estado.casa = e.target.value; selecionada = null; salvar(); carregar();
+        });
+        const simples = [['horas-select', 'horas', Number], ['base-select', 'base', Number],
+                         ['thr-select', 'thr', Number], ['mostrar-select', 'mostrar', String],
+                         ['ordem-select', 'ordem', String]];
+        simples.forEach(([id, chave, conv]) => {
+          document.getElementById(id).addEventListener('change', e => {
+            estado[chave] = conv(e.target.value); salvar(); render();
+          });
+        });
+
+        document.addEventListener('click', e => {
+          if (e.target.id === 'detFechar') { selecionada = null; render(); return; }
+          const alvo = e.target.closest('td.cel[data-l], .top-card[data-l]');
+          if (alvo) abrirDetalhe(alvo.dataset.l, alvo.dataset.m);
+        });
+
+        carregar();
+        setInterval(() => { if (!document.hidden && !carregando) carregar(); }, REFRESH_MS);
+      });
+    </script>
+
+    <script src="header-loader.js"></script>
+    <script src="redirecionar.js"></script>
+    <script src="app.utils.min.js"></script>
+  </body>
+</html>
