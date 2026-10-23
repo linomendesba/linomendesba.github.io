@@ -136,6 +136,24 @@
     .slider{ position:absolute; inset:0; background:#2a2d38; border-radius:20px; cursor:pointer; transition:.2s; }
     .slider:before{ content:""; position:absolute; width:14px; height:14px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
     input:checked + .slider{ background:var(--accent); } input:checked + .slider:before{ transform:translateX(16px); }
+
+    /* ===== análise estatística de padrões ===== */
+    .cbox{ position:relative; } .cbox svg{ display:block; width:100%; height:auto; overflow:visible; }
+    .ctip{ position:absolute; top:4px; display:none; pointer-events:none; z-index:5; background:#0b0c14; border:1px solid var(--border-strong); border-radius:8px; padding:6px 9px; font-size:11px; line-height:1.5; white-space:nowrap; }
+    .legend{ display:flex; flex-wrap:wrap; gap:14px; font-size:11px; color:var(--muted); margin-top:8px; }
+    .legend i{ display:inline-block; width:14px; height:3px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+    .legend i.dt{ width:8px; height:8px; border-radius:50%; }
+    .t td.ol{ box-shadow:inset 0 0 0 2px #fff; }
+    .t td.hmc{ padding:4px 2px; min-width:32px; font:600 10.5px 'Roboto Mono',monospace; }
+    .t td.num{ font-family:'Roboto Mono',monospace; }
+    .t td small.es{ display:block; font:500 9px 'Roboto',sans-serif; color:var(--muted); }
+    .sig.ok{ color:var(--green); font-weight:800; } .sig.mid{ color:var(--amber); font-weight:700; } .sig.no{ color:var(--muted); }
+    .mini{ background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; min-width:0; }
+    .mini .ttl{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:800; margin-bottom:6px; }
+    .minis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:12px; }
+    .pt{ display:inline-flex; align-items:center; gap:2px; vertical-align:middle; }
+    .cp.b{ min-width:0; padding:3px 7px; }
+    .row2 label.lb{ font-size:12px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -235,8 +253,8 @@
 
             <div class="grid3">
                 <div class="card">
-                    <div class="card-head"><div class="card-title">Intervalo entre bônus<small>Quantas rodadas se passaram entre um bônus e outro</small></div></div>
-                    <div class="bars" id="gapHist"></div>
+                    <div class="card-head"><div class="card-title">Intervalo entre bônus<small>Rodadas entre um bônus e outro · barras = real · linha amarela = o que o acaso produziria</small></div></div>
+                    <div class="cbox" id="gapHist"></div>
                     <div class="kv" id="gapKv"></div>
                     <div class="gapbars" id="gapRecent" title="Últimos intervalos entre bônus"></div>
                 </div>
@@ -264,6 +282,86 @@
             <div class="card">
                 <div class="card-head"><div class="card-title">Bônus por hora<small>Quantidade de bônus por hora nas últimas 24h (passe o mouse para ver o total de rodadas · barra amarela = acima do esperado)</small></div></div>
                 <div class="hours" id="horas"></div>
+            </div>
+
+            <div class="sect-title" id="analise">Análise estatística de padrões</div>
+            <div class="sect-sub">Tudo é comparado com o esperado teórico da roda (54 segmentos). Com muitas combinações testadas, alguns padrões aparecem por pura coincidência — por isso os resultados trazem p-valor e correção para múltiplos testes.</div>
+            <div class="row2">
+                <select id="anaBase" title="Base usada nas tabelas e gráficos desta seção">
+                    <option value="full">Base completa carregada</option>
+                    <option value="per">Período selecionado no topo</option>
+                </select>
+                <span id="anaInfo" style="font-size:12px; color:var(--muted);"></span>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><div class="card-title">Matriz de transição<small>Linhas = o que saiu · colunas = o que saiu na rodada seguinte · % real (e esperada) · amarelo = acima do esperado · azul = abaixo · borda branca = passa a correção de Bonferroni</small></div></div>
+                <div class="scroll" id="trans"></div>
+                <div class="note" id="transNote"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><div class="card-title">Scanner automático de padrões<small>Testa todas as sequências de 1 a 3 rodadas (setores ou «Bônus» genérico) contra cada alvo na rodada seguinte e lista as que mais se afastam do esperado</small></div></div>
+                <div class="row2">
+                    <input type="number" id="scMin" min="5" max="500" value="20" style="width:80px;" title="Mínimo de ocorrências do padrão para ser testado"><label class="lb">mín. ocorrências</label>
+                    <select id="scAlvo" title="Filtrar por alvo"></select>
+                    <select id="scDir"><option value="both">Acima e abaixo</option><option value="up">Só acima do esperado</option><option value="down">Só abaixo do esperado</option></select>
+                    <select id="scOrd"><option value="p">Ordenar por p-valor</option><option value="z">Ordenar por |z|</option></select>
+                </div>
+                <div class="res" id="scSum" style="margin-bottom:10px;"></div>
+                <div class="scroll"><table class="t"><thead><tr><th>Padrão → alvo</th><th>Ocorr.</th><th>Saiu</th><th>Real</th><th>Esperado</th><th>Desvio</th><th>z</th><th>p</th><th>p ajust. (FDR)</th><th>Veredito</th></tr></thead><tbody id="scTb"></tbody></table></div>
+                <div class="note">p = teste binomial exato (bicaudal) contra o esperado teórico · p ajust. = Benjamini-Hochberg sobre todos os testes feitos · ocorrências sobrepostas (ex.: «1 1» dentro de «1 1 1») não são independentes. Se o jogo é aleatório, o normal é poucos ou nenhum padrão passar na correção.</div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><div class="card-title">Heatmap hora × dia da semana<small>% do alvo por faixa de horário (horário de Brasília) · amarelo = acima do esperado · azul = abaixo · células com menos de 10 rodadas ficam em branco</small></div></div>
+                <div class="row2">
+                    <select id="hmAlvo" title="Alvo do heatmap"></select>
+                    <select id="hmLim"><option value="5000">5.000 rodadas</option><option value="10000">10.000 rodadas</option><option value="20000">20.000 rodadas</option></select>
+                    <button class="btn" id="hmLoad" title="Busca mais histórico na API (se o servidor permitir)">Carregar mais histórico</button>
+                    <span id="hmMsg" style="font-size:12px; color:var(--muted);"></span>
+                </div>
+                <div class="scroll" id="hmx"></div>
+                <div class="note" id="hmInfo"></div>
+            </div>
+
+            <div class="row2">
+                <select id="gAlvo" title="Alvo dos gráficos de média móvel e soma acumulada"></select>
+                <select id="maWin"><option value="20">Média móvel de 20</option><option value="50">Média móvel de 50</option><option value="100">Média móvel de 100</option></select>
+            </div>
+            <div class="grid2">
+                <div class="card">
+                    <div class="card-head"><div class="card-title">Média móvel do alvo<small>Linha amarela = esperado · faixa = variação normal (95%) para uma janela desse tamanho</small></div></div>
+                    <div class="cbox" id="maChart"></div>
+                    <div class="kv" id="maKv"></div>
+                </div>
+                <div class="card">
+                    <div class="card-head"><div class="card-title">Soma acumulada − esperado<small>Cada rodada soma (saiu − esperado). Faixa = envelope de 95% do acaso, que se abre com o tempo</small></div></div>
+                    <div class="cbox" id="cumChart"></div>
+                    <div class="kv" id="cumKv"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><div class="card-title">Top Slot × resultado da rodada<small>Eixo X = multiplicador do Top Slot · eixo Y = multiplicador máximo que a rodada pagou (escala log)</small></div></div>
+                <div class="cbox" id="scat"></div>
+                <div class="legend"><span><i class="dt" style="background:#f5c144"></i>Top Slot bateu com a roda</span><span><i class="dt" style="background:rgba(124,92,246,.55)"></i>não bateu</span></div>
+                <div class="kv" id="scatKv"></div>
+                <div class="note">Quando o Top Slot bate, o multiplicador entra no pagamento, então é esperado que essas rodadas paguem mais. Nas que não bateram, o Top Slot não deveria influenciar o resultado.</div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><div class="card-title">Multiplicador médio por tipo de bônus<small>Como cada bônus vem pagando ao longo do tempo comparado à referência (escala log)</small></div></div>
+                <div class="row2">
+                    <select id="bmWin"><option value="5">Média de 5 bônus</option><option value="10">Média de 10 bônus</option><option value="20">Média de 20 bônus</option></select>
+                    <label class="lb">Esperado (opcional):</label>
+                    <input type="number" id="exp_CF" min="0" step="any" placeholder="Coin Flip" style="width:96px;">
+                    <input type="number" id="exp_CH" min="0" step="any" placeholder="Cash Hunt" style="width:96px;">
+                    <input type="number" id="exp_PA" min="0" step="any" placeholder="Pachinko" style="width:96px;">
+                    <input type="number" id="exp_CT" min="0" step="any" placeholder="Crazy Time" style="width:96px;">
+                </div>
+                <div class="minis" id="bmGrid"></div>
+                <div class="legend"><span><i class="dt" style="background:rgba(139,143,163,.7)"></i>cada bônus</span><span><i style="background:#4da3ff"></i>média móvel</span><span><i style="background:#fff"></i>referência (esperado informado ou, se vazio, média de toda a base)</span></div>
             </div>
 
             <div class="card">
@@ -561,10 +659,12 @@ function rTopSlot(a){
 function bGaps(a){ const g=[]; let prev=-1; a.forEach((x,i)=>{ if(x.bonus){ if(prev>=0) g.push(i-prev-1); prev=i; } }); return g; }
 function rGaps(a){
     const g=bGaps(a), B=[['0',0,0],['1–2',1,2],['3–5',3,5],['6–9',6,9],['10–14',10,14],['15–19',15,19],['20–29',20,29],['30+',30,1e9]];
-    const cnt=B.map(b=>g.filter(v=>v>=b[1]&&v<=b[2]).length), mx=Math.max(1,...cnt);
-    $('gapHist').innerHTML=B.map((b,i)=>'<div class="bc" title="'+cnt[i]+' intervalos"><span>'+cnt[i]+'</span><div class="hb" style="height:'+(cnt[i]/mx*90)+'px"></div><em>'+b[0]+'</em></div>').join('');
-    const s=[...g].sort((p,q)=>p-q), med=s.length?s[Math.floor(s.length/2)]:null;
-    $('gapKv').innerHTML=g.length?'<span>Média <b>'+(g.reduce((p,q)=>p+q,0)/g.length).toFixed(1)+'</b></span><span>Mediana <b>'+med+'</b></span><span>Maior <b>'+s[s.length-1]+'</b></span><span>Esperado <b>'+(TOTAL/PESO_B-1).toFixed(1)+'</b></span>':'';
+    const q=1-PESO_B/TOTAL;
+    const cnt=B.map(b=>g.filter(v=>v>=b[1]&&v<=b[2]).length);
+    const ex=B.map(b=>g.length*(Math.pow(q,b[1])-(b[2]>=1e9?0:Math.pow(q,b[2]+1))));
+    if(g.length) barsLine($('gapHist'),B.map(b=>b[0]),cnt,ex); else $('gapHist').innerHTML='<div class="empty">Sem dados</div>';
+    const s=[...g].sort((p,q2)=>p-q2), med=s.length?s[Math.floor(s.length/2)]:null;
+    $('gapKv').innerHTML=g.length?'<span>Média <b>'+(g.reduce((p,q2)=>p+q2,0)/g.length).toFixed(1)+'</b></span><span>Mediana <b>'+med+'</b></span><span>Maior <b>'+s[s.length-1]+'</b></span><span>Esperado <b>'+(TOTAL/PESO_B-1).toFixed(1)+'</b></span>':'';
     const rec=g.slice(-30), rm=Math.max(1,...rec);
     $('gapRecent').innerHTML=rec.map(v=>'<div style="height:'+Math.max(4,v/rm*100)+'%;background:'+(v>=TOTAL/PESO_B?'var(--amber)':'var(--accent)')+'" title="'+v+' rodadas"></div>').join('');
 }
@@ -599,6 +699,322 @@ function rHoras(){
         const hot=o.t&&o.b/o.t>PESO_B/TOTAL*1.2;
         return '<div class="hc" title="'+o.b+' bônus em '+o.t+' rodadas"><span>'+o.b+'</span><div class="hb" style="height:'+(o.b/mx*90)+'px'+(hot?';background:linear-gradient(180deg,var(--amber),#a87a14)':'')+'"></div><em>'+o.h+'h</em></div>';
     }).join('')||'<div class="empty">Sem dados</div>';
+}
+
+// ================= ANÁLISE ESTATÍSTICA DE PADRÕES =================
+const TG=SECS.concat('B');
+const LFa=[0,0];
+function LF(n){ while(LFa.length<=n){ const k=LFa.length; LFa.push(LFa[k-1]+Math.log(k)); } return LFa[n]; }
+// teste binomial exato bicaudal (dobra a menor cauda)
+function binomP(n,k,p){
+    const lp=Math.log(p), lq=Math.log(1-p), b=LF(n); let up=0, lo=0;
+    for(let i=0;i<=n;i++){ const v=Math.exp(b-LF(i)-LF(n-i)+i*lp+(n-i)*lq); if(i>=k) up+=v; if(i<=k) lo+=v; }
+    return Math.min(1,2*Math.min(up,lo));
+}
+function phi(z){
+    const t=1/(1+0.2316419*Math.abs(z)), d=0.3989423*Math.exp(-z*z/2);
+    const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+    return z>0?1-p:p;
+}
+const zOf=(k,n,p)=>n?(k-n*p)/Math.sqrt(n*p*(1-p)):0;
+const fmtP=p=>p<0.001?'<0.001':p.toFixed(3);
+const pctTxt=v=>v<10?v.toFixed(1):v.toFixed(0);
+const emp=t=>'<div class="empty">'+t+'</div>';
+const tokIcon=t=>t==='B'?'<span class="cp b">Bônus</span>':icon(t,22);
+const patHtml=k=>'<span class="pt">'+k.split(' ').map(tokIcon).join('')+'</span>';
+function heatZ(z){
+    if(Math.abs(z)<.5) return '';
+    return 'background:'+(z>0?'rgba(245,193,68,':'rgba(56,189,248,')+Math.min(.6,Math.abs(z)/4*.6).toFixed(2)+')';
+}
+function hd(x){
+    if(x.dw===undefined){ const p=brp(x.d); x.dw=(new Date(Date.UTC(+p.year,+p.month-1,+p.day)).getUTCDay()+6)%7; x.hh=+p.hour; }
+    return x;
+}
+function fmtT(d,long){ const p=brp(d); return long?p.day+'/'+p.month+' '+p.hour+':'+p.minute:p.hour+':'+p.minute; }
+function xlabs(A,k){
+    const n=A.length, long=n>1&&(A[n-1].d-A[0].d)>20*36e5, out=[];
+    for(let j=0;j<k;j++){ const i=Math.round(j*(n-1)/(k-1)); out.push({i:i,t:fmtT(A[i].d,long),a:j===0?'start':j===k-1?'end':'middle'}); }
+    return out;
+}
+function niceTicks(lo,hi,n){
+    const span=hi-lo||1, s0=span/n, mag=Math.pow(10,Math.floor(Math.log10(s0))), r=s0/mag;
+    const step=(r<1.5?1:r<3?2:r<7?5:10)*mag, out=[];
+    for(let v=Math.ceil(lo/step)*step; v<=hi+step*1e-6; v+=step) out.push(+v.toFixed(10));
+    return out;
+}
+const kfmt=v=>v>=1000?(v/1000)+'k':String(v);
+const LOGT=[1,2,5,10,20,50,100,200,500,1000,2000,5000,10000,20000];
+
+// gráfico de linhas genérico (SVG) com faixas, linhas de referência, pontos e tooltip
+function mount(el,o){
+    const W=o.w||640, H=o.h||230, P=Object.assign({l:46,r:12,t:10,b:26},o.pad||{}), iw=W-P.l-P.r, ih=H-P.t-P.b, n=o.n;
+    const lg=!!o.log, tf=v=>lg?Math.log10(Math.max(v,o.floor||1)):v;
+    const X=i=>P.l+(n<=1?iw/2:i/(n-1)*iw), y0=tf(o.ymin), y1=tf(o.ymax);
+    const Y=v=>P.t+ih-(tf(v)-y0)/((y1-y0)||1)*ih, cY=v=>Math.max(P.t,Math.min(P.t+ih,Y(v)));
+    const g=(v,i)=>Array.isArray(v)?v[i]:v;
+    let s='<svg viewBox="0 0 '+W+' '+H+'" role="img">';
+    (o.yticks||niceTicks(o.ymin,o.ymax,5)).forEach(v=>{
+        const y=Y(v).toFixed(1);
+        s+='<line x1="'+P.l+'" x2="'+(W-P.r)+'" y1="'+y+'" y2="'+y+'" stroke="rgba(255,255,255,.07)"/><text x="'+(P.l-6)+'" y="'+(+y+3)+'" text-anchor="end" font-size="10" fill="#8b8fa3">'+(o.yfmt?o.yfmt(v):v)+'</text>';
+    });
+    (o.xlabels||[]).forEach(l=>{ s+='<text x="'+X(l.i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="'+(l.a||'middle')+'" font-size="10" fill="#8b8fa3">'+l.t+'</text>'; });
+    (o.bands||[]).forEach(b=>{
+        const up=[], dn=[];
+        for(let i=0;i<n;i++){ const h=g(b.hi,i), l=g(b.lo,i); if(h==null||l==null) continue; up.push(X(i).toFixed(1)+' '+cY(h).toFixed(1)); dn.push(X(i).toFixed(1)+' '+cY(l).toFixed(1)); }
+        if(up.length) s+='<path d="M'+up.join('L')+'L'+dn.reverse().join('L')+'Z" fill="'+b.color+'" stroke="none"/>';
+    });
+    (o.hlines||[]).forEach(h=>{ const y=Y(h.y).toFixed(1); s+='<line x1="'+P.l+'" x2="'+(W-P.r)+'" y1="'+y+'" y2="'+y+'" stroke="'+h.color+'" stroke-width="1.3" stroke-dasharray="'+(h.dash||'')+'"/>'; });
+    (o.series||[]).forEach(se=>{
+        if(se.kind==='dots'){
+            se.y.forEach((v,i)=>{ if(v!=null) s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="'+(se.r||2)+'" fill="'+se.color+'"/>'; });
+        }else{
+            let d='', on=false;
+            se.y.forEach((v,i)=>{ if(v==null){ on=false; return; } d+=(on?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1); on=true; });
+            if(d) s+='<path d="'+d+'" fill="none" stroke="'+se.color+'" stroke-width="'+(se.w||1.8)+'" stroke-linejoin="round"/>';
+        }
+    });
+    s+='<line class="xh" y1="'+P.t+'" y2="'+(P.t+ih)+'" stroke="rgba(255,255,255,.35)" style="display:none"/></svg><div class="ctip"></div>';
+    el.innerHTML=s;
+    if(!o.tip) return;
+    const svg=el.querySelector('svg'), tp=el.querySelector('.ctip'), xh=svg.querySelector('.xh');
+    svg.addEventListener('pointermove',ev=>{
+        const r=svg.getBoundingClientRect(); if(!r.width) return;
+        let i=Math.round(((ev.clientX-r.left)/r.width*W-P.l)/iw*(n-1)); i=Math.max(0,Math.min(n-1,i));
+        xh.setAttribute('x1',X(i)); xh.setAttribute('x2',X(i)); xh.style.display='block';
+        tp.innerHTML=o.tip(i); tp.style.display='block';
+        const px=X(i)/W*r.width; tp.style.left=Math.max(0,Math.min(r.width-170,px+10))+'px';
+    });
+    svg.addEventListener('pointerleave',()=>{ xh.style.display='none'; tp.style.display='none'; });
+}
+
+// barras (real) + linha (esperado ao acaso)
+function barsLine(el,labels,real,exp){
+    const W=340,H=170,P={l:30,r:8,t:14,b:24}, iw=W-P.l-P.r, ih=H-P.t-P.b, n=labels.length, bw=iw/n;
+    const mx=Math.max(1,...real,...exp)*1.12, Y=v=>P.t+ih-v/mx*ih;
+    let s='<svg viewBox="0 0 '+W+' '+H+'" role="img">';
+    niceTicks(0,mx,4).forEach(v=>{ const y=Y(v).toFixed(1); s+='<line x1="'+P.l+'" x2="'+(W-P.r)+'" y1="'+y+'" y2="'+y+'" stroke="rgba(255,255,255,.07)"/><text x="'+(P.l-5)+'" y="'+(+y+3)+'" text-anchor="end" font-size="9.5" fill="#8b8fa3">'+v+'</text>'; });
+    real.forEach((v,i)=>{
+        const x=P.l+i*bw+bw*.18, y=Y(v);
+        s+='<g><title>'+labels[i]+': real '+v+' · esperado ao acaso '+exp[i].toFixed(1)+'</title><rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+(bw*.64).toFixed(1)+'" height="'+Math.max(0,P.t+ih-y).toFixed(1)+'" rx="3" fill="#38bdf8" fill-opacity=".8"/>'+
+          '<text x="'+(x+bw*.32).toFixed(1)+'" y="'+(y-3).toFixed(1)+'" text-anchor="middle" font-size="9.5" fill="#8b8fa3">'+v+'</text></g>';
+    });
+    s+='<path d="M'+exp.map((v,i)=>(P.l+i*bw+bw/2).toFixed(1)+' '+Y(v).toFixed(1)).join('L')+'" fill="none" stroke="#f5c144" stroke-width="2"/>';
+    exp.forEach((v,i)=>{ s+='<circle cx="'+(P.l+i*bw+bw/2).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="3" fill="#f5c144"/>'; });
+    labels.forEach((l,i)=>{ s+='<text x="'+(P.l+i*bw+bw/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9.5" fill="#8b8fa3">'+l+'</text>'; });
+    el.innerHTML=s+'</svg><div class="legend"><span><i style="background:#38bdf8"></i>real</span><span><i style="background:#f5c144"></i>esperado ao acaso (geométrica, p = '+PESO_B+'/'+TOTAL+')</span></div>';
+}
+
+// ---- matriz de transição ----
+function rTrans(A){
+    if(A.length<30){ $('trans').innerHTML=emp('Poucos dados'); $('transNote').textContent=''; return; }
+    const m=TG.length, cnt=TG.map(()=>TG.map(()=>0)), row=TG.map(()=>0);
+    for(let i=0;i<A.length-1;i++){
+        const c=A[i].c, d=A[i+1].c;
+        for(let r=0;r<m;r++){ if(!mt(c,TG[r])) continue; row[r]++; for(let s=0;s<m;s++) if(mt(d,TG[s])) cnt[r][s]++; }
+    }
+    let h='<table class="t"><thead><tr><th>Saiu ↓ · depois →</th>'+TG.map(s=>'<th>'+(s==='B'?'Bônus':icon(s,24))+'</th>').join('')+'<th>n</th></tr></thead><tbody>';
+    let nom=0, bonf=0;
+    TG.forEach((r,ri)=>{
+        h+='<tr><td>'+tokIcon(r)+'</td>';
+        TG.forEach((s,si)=>{
+            const k=cnt[ri][si], N=row[ri], p=expPct(s)/100;
+            if(!N){ h+='<td class="hm" style="color:var(--muted)">—</td>'; return; }
+            const real=k/N*100, z=zOf(k,N,p), pv=binomP(N,k,p), ol=pv*m*m<0.05;
+            if(pv<0.05) nom++; if(ol) bonf++;
+            h+='<td class="hm'+(ol?' ol':'')+'" style="'+heatZ(z)+'" title="Depois de '+NAME[r]+' → '+NAME[s]+': '+k+' de '+N+' ('+real.toFixed(1)+'%) · esperado '+(p*100).toFixed(1)+'% · z='+z.toFixed(2)+' · p='+fmtP(pv)+'">'+pctTxt(real)+'%<small class="es">esp '+pctTxt(p*100)+'%</small></td>';
+        });
+        h+='<td class="num" style="color:var(--muted)">'+row[ri]+'</td></tr>';
+    });
+    $('trans').innerHTML=h+'</tbody></table>';
+    $('transNote').textContent=A.length+' rodadas · '+(m*m)+' células (as linhas/colunas «Bônus» são somas dos 4 bônus, então não são independentes) · com p<0.05 sem correção esperam-se ≈'+Math.round(m*m*0.05)+' células só por acaso; encontradas: '+nom+' · passam em Bonferroni: '+bonf+'.';
+}
+
+// ---- scanner de padrões ----
+let scCache={key:'',list:[],M:0};
+function scanCompute(A,minN){
+    const key=A.length+':'+(A.length?A[0].rid+'|'+A[A.length-1].rid:'')+':'+minN;
+    if(scCache.key===key) return scCache;
+    const st=new Map(), N=A.length;
+    for(let L=1;L<=3;L++){
+        for(let i=L-1;i<N-1;i++){
+            let keys=[''];
+            for(let j=i-L+1;j<=i;j++){
+                const c=A[j].c, tk=isBonus(c)?[c,'B']:[c], nk=[];
+                keys.forEach(k=>tk.forEach(t=>nk.push(k?k+' '+t:t)));
+                keys=nk;
+            }
+            const nx=A[i+1].c;
+            keys.forEach(k=>{
+                let o=st.get(k); if(!o){ o={n:0,h:new Array(TG.length).fill(0)}; st.set(k,o); }
+                o.n++; for(let t=0;t<TG.length;t++) if(mt(nx,TG[t])) o.h[t]++;
+            });
+        }
+    }
+    const list=[];
+    st.forEach((o,k)=>{
+        if(o.n<minN) return;
+        TG.forEach((t,ti)=>{ const p0=expPct(t)/100, kk=o.h[ti]; list.push({pat:k,t:t,n:o.n,k:kk,real:kk/o.n*100,exp:p0*100,z:zOf(kk,o.n,p0),p:binomP(o.n,kk,p0)}); });
+    });
+    const M=list.length, ord=list.map((_,i)=>i).sort((a,b)=>list[a].p-list[b].p);
+    let prev=1; for(let r=M-1;r>=0;r--){ const it=list[ord[r]]; prev=Math.min(prev,it.p*M/(r+1)); it.q=Math.min(1,prev); }
+    scCache={key:key,list:list,M:M};
+    return scCache;
+}
+function rScan(A){
+    const minN=Math.max(5,+$('scMin').value||20), ft=$('scAlvo').value, dir=$('scDir').value, ord=$('scOrd').value;
+    if(A.length<minN+5){ $('scSum').textContent='Poucos dados para o mínimo de ocorrências escolhido.'; $('scTb').innerHTML=''; return; }
+    const R=scanCompute(A,minN), L=R.list;
+    if(!R.M){ $('scSum').textContent='Nenhum padrão atingiu '+minN+' ocorrências. Reduza o mínimo ou use a base completa.'; $('scTb').innerHTML=''; return; }
+    const nom=L.filter(x=>x.p<.05).length, ok=L.filter(x=>x.q<.05).length;
+    $('scSum').innerHTML='<div class="r"><span>Base</span><b>'+A.length+' rodadas</b></div>'+
+        '<div class="r"><span>Testes feitos (padrões com ≥ '+minN+' ocorr. × alvos)</span><b>'+R.M+'</b></div>'+
+        '<div class="r"><span>Com p &lt; 0.05 (sem correção) · esperado só por acaso ≈ '+(R.M*0.05).toFixed(0)+'</span><b>'+nom+'</b></div>'+
+        '<div class="r"><span>Passam na correção de múltiplos testes (FDR 5%)</span><b style="color:'+(ok?'var(--green)':'var(--muted)')+'">'+ok+'</b></div>';
+    const v=L.filter(x=>(!ft||x.t===ft)&&(dir==='both'||(dir==='up'?x.z>0:x.z<0)));
+    v.sort(ord==='z'?(a,b)=>Math.abs(b.z)-Math.abs(a.z):(a,b)=>a.p-b.p||b.n-a.n);
+    $('scTb').innerHTML=v.slice(0,25).map(x=>{
+        const cls=x.q<.05?'ok':x.p<.05?'mid':'no', txt=x.q<.05?'Passa na correção':x.p<.05?'Fraco (só sem correção)':'Provável acaso', dv=x.real-x.exp;
+        return '<tr><td>'+patHtml(x.pat)+' <span style="color:var(--muted)">→</span> '+tokIcon(x.t)+'</td><td class="num">'+x.n+'</td><td class="num">'+x.k+'</td><td class="num">'+x.real.toFixed(1)+'%</td><td class="num">'+x.exp.toFixed(1)+'%</td>'+
+            '<td class="num" style="color:'+(dv>=0?'var(--amber)':'var(--blue)')+'">'+(dv>=0?'+':'')+dv.toFixed(1)+' pp</td><td class="num">'+x.z.toFixed(2)+'</td><td class="num">'+fmtP(x.p)+'</td><td class="num">'+fmtP(x.q)+'</td><td class="sig '+cls+'">'+txt+'</td></tr>';
+    }).join('')||'<tr><td colspan="10" class="empty">Nenhum resultado com esses filtros</td></tr>';
+}
+
+// ---- heatmap hora × dia da semana ----
+const DIAS=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+function rHeat(A){
+    const tg=$('hmAlvo').value, e=expPct(tg)/100;
+    if(A.length<50){ $('hmx').innerHTML=emp('Poucos dados'); $('hmInfo').textContent=''; return; }
+    const cell=Array.from({length:7},()=>Array.from({length:24},()=>[0,0])), dT=Array.from({length:7},()=>[0,0]), hT=Array.from({length:24},()=>[0,0]);
+    const days=new Set();
+    A.forEach(x=>{
+        hd(x); const hit=mt(x.c,tg)?1:0;
+        cell[x.dw][x.hh][0]++; cell[x.dw][x.hh][1]+=hit; dT[x.dw][0]++; dT[x.dw][1]+=hit; hT[x.hh][0]++; hT[x.hh][1]+=hit; days.add(dayKey(x.d));
+    });
+    const td=(c,min,extra)=>{
+        if(c[0]<min) return '<td class="hmc" style="color:var(--muted);opacity:.5">·</td>';
+        const real=c[1]/c[0]*100, z=zOf(c[1],c[0],e);
+        return '<td class="hmc" style="'+heatZ(z)+(extra||'')+'" title="'+c[1]+' de '+c[0]+' rodadas · esperado '+(e*100).toFixed(1)+'% · z='+z.toFixed(2)+'">'+real.toFixed(0)+'</td>';
+    };
+    let h='<table class="t"><thead><tr><th></th>'+Array.from({length:24},(_,i)=>'<th>'+i+'h</th>').join('')+'<th>Dia</th></tr></thead><tbody>';
+    for(let d=0;d<7;d++) h+='<tr><td>'+DIAS[d]+'</td>'+cell[d].map(c=>td(c,10)).join('')+td(dT[d],10,';border-left:1px solid var(--border)')+'</tr>';
+    h+='<tr><td>Hora</td>'+hT.map(c=>td(c,10,';border-top:1px solid var(--border)')).join('')+'<td class="hmc"></td></tr></tbody></table>';
+    $('hmx').innerHTML=h;
+    const avg=A.length/Math.max(1,days.size)/24;
+    $('hmInfo').textContent=A.length+' rodadas em '+days.size+' dia(s) de calendário ('+fmtT(A[0].d,true)+' → '+fmtT(A[A.length-1].d,true)+') · valores em % · esperado '+(e*100).toFixed(1)+'%'+
+        (days.size<14?' · ATENÇÃO: com menos de 2 semanas de dados, cada dia da semana tem poucas rodadas por faixa e as diferenças são, em geral, só ruído. Use «Carregar mais histórico».':'');
+}
+async function loadMore(){
+    const lim=+$('hmLim').value, btn=$('hmLoad'); btn.disabled=true; $('hmMsg').textContent='carregando até '+lim+' rodadas…';
+    try{
+        const r=await fetch(API+'?limit='+lim+'&t='+Date.now()); if(!r.ok) throw new Error('HTTP '+r.status);
+        const rows=await r.json(); if(!Array.isArray(rows)||!rows.length) throw new Error('resposta vazia');
+        const before=known.size; ingest(rows);
+        $('hmMsg').textContent='servidor devolveu '+rows.length+' rodadas · base agora tem '+known.size+' (+'+(known.size-before)+')';
+        render();
+    }catch(e){ $('hmMsg').textContent='não foi possível carregar: '+e.message; }
+    btn.disabled=false;
+}
+
+// ---- média móvel e soma acumulada ----
+function rMA(A){
+    const tg=$('gAlvo').value, w=+$('maWin').value, e=expPct(tg)/100, n=A.length;
+    if(n<w+2){ $('maChart').innerHTML=emp('Poucos dados para essa janela'); $('maKv').innerHTML=''; return; }
+    const ys=[]; let sum=0, mn=1e9, mxv=-1e9, out=0, val=0;
+    for(let i=0;i<n;i++){
+        if(mt(A[i].c,tg)) sum++; if(i>=w&&mt(A[i-w].c,tg)) sum--;
+        if(i>=w-1){ const v=sum/w*100; ys.push(v); mn=Math.min(mn,v); mxv=Math.max(mxv,v); val++; } else ys.push(null);
+    }
+    const sd=Math.sqrt(e*(1-e)/w)*100, lo=Math.max(0,e*100-1.96*sd), hi=e*100+1.96*sd;
+    ys.forEach(v=>{ if(v!=null&&(v<lo||v>hi)) out++; });
+    const ymin=Math.max(0,Math.floor(Math.min(lo,mn)-1)), ymax=Math.ceil(Math.max(hi,mxv)+1);
+    mount($('maChart'),{n:n,ymin:ymin,ymax:ymax,yfmt:v=>v+'%',xlabels:xlabs(A,5),
+        bands:[{lo:lo,hi:hi,color:'rgba(245,193,68,.12)'}], hlines:[{y:e*100,color:'#f5c144',dash:'5 4'}], series:[{kind:'line',y:ys,color:'#7c5cff'}],
+        tip:i=>ys[i]==null?'—':fmtT(A[i].d,true)+'<br><b>'+ys[i].toFixed(1)+'%</b> nas últimas '+w+' rodadas'});
+    $('maKv').innerHTML='<span>Esperado <b>'+(e*100).toFixed(1)+'%</b></span><span>Faixa normal <b>'+lo.toFixed(1)+'–'+hi.toFixed(1)+'%</b></span><span>Fora da faixa <b>'+(out/val*100).toFixed(0)+'%</b> do tempo</span><span style="flex-basis:100%">Janelas vizinhas se sobrepõem, então os desvios vêm agrupados; mesmo no acaso puro ≈5% do tempo fica fora da faixa.</span>';
+}
+function rCum(A){
+    const tg=$('gAlvo').value, e=expPct(tg)/100, n=A.length;
+    if(n<30){ $('cumChart').innerHTML=emp('Poucos dados'); $('cumKv').innerHTML=''; return; }
+    const ys=[], env=[]; let s=0, mx=0, out=0;
+    for(let i=0;i<n;i++){ s+=(mt(A[i].c,tg)?1:0)-e; ys.push(s); const b=1.96*Math.sqrt((i+1)*e*(1-e)); env.push(b); mx=Math.max(mx,Math.abs(s),b); if(Math.abs(s)>b) out++; }
+    const lim=Math.ceil(mx*1.08), up=env.map(v=>v), dn=env.map(v=>-v);
+    mount($('cumChart'),{n:n,ymin:-lim,ymax:lim,yfmt:v=>(v>0?'+':'')+v,xlabels:xlabs(A,5),
+        bands:[{lo:dn,hi:up,color:'rgba(124,92,246,.12)'}], hlines:[{y:0,color:'#f5c144',dash:'5 4'}], series:[{kind:'line',y:ys,color:'#4ade80'}],
+        tip:i=>fmtT(A[i].d,true)+'<br>saldo <b>'+(ys[i]>=0?'+':'')+ys[i].toFixed(1)+'</b> (envelope ±'+env[i].toFixed(1)+')'});
+    const fin=ys[n-1];
+    $('cumKv').innerHTML='<span>Saldo atual <b style="color:'+(fin>=0?'var(--green)':'var(--red)')+'">'+(fin>=0?'+':'')+fin.toFixed(1)+'</b> ocorrências vs. esperado</span><span>Envelope 95% <b>±'+env[n-1].toFixed(1)+'</b></span><span>Fora do envelope <b>'+(out/n*100).toFixed(0)+'%</b> do tempo</span>';
+}
+
+// ---- dispersão Top Slot × resultado ----
+function ranks(v){
+    const idx=v.map((_,i)=>i).sort((a,b)=>v[a]-v[b]), r=new Array(v.length);
+    for(let i=0;i<idx.length;){ let j=i; while(j+1<idx.length&&v[idx[j+1]]===v[idx[i]]) j++; const rk=(i+j)/2+1; for(let k=i;k<=j;k++) r[idx[k]]=rk; i=j+1; }
+    return r;
+}
+function spearman(x,y){
+    const n=x.length; if(n<8) return null;
+    const a=ranks(x), b=ranks(y), m=(n+1)/2; let sxy=0,sxx=0,syy=0;
+    for(let i=0;i<n;i++){ const p=a[i]-m, q=b[i]-m; sxy+=p*q; sxx+=p*p; syy+=q*q; }
+    const rho=sxy/Math.sqrt(sxx*syy||1);
+    return {rho:rho,n:n,p:2*(1-phi(Math.abs(rho*Math.sqrt(n-1))))};
+}
+const median=v=>{ if(!v.length) return 0; const s=[...v].sort((a,b)=>a-b), m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+const spTxt=s=>s?'ρ = '+s.rho.toFixed(2)+' (n='+s.n+', p'+(s.p<0.001?'<0.001':'='+s.p.toFixed(3))+')':'poucos pontos';
+function rScat(A){
+    const P=A.filter(x=>x.tm>0&&x.mx>0), el=$('scat');
+    if(P.length<10){ el.innerHTML=emp('Poucos dados'); $('scatKv').innerHTML=''; return; }
+    const W=640,H=270,pd={l:50,r:14,t:10,b:30}, iw=W-pd.l-pd.r, ih=H-pd.t-pd.b;
+    let xmin=1e9,xmax=0,ymin=1e9,ymax=0; P.forEach(x=>{ xmin=Math.min(xmin,x.tm); xmax=Math.max(xmax,x.tm); ymin=Math.min(ymin,x.mx); ymax=Math.max(ymax,x.mx); });
+    xmin/=1.3; xmax*=1.3; ymin=Math.max(.8,ymin/1.4); ymax*=1.4;
+    const lx0=Math.log10(xmin), lx1=Math.log10(xmax), ly0=Math.log10(ymin), ly1=Math.log10(ymax);
+    const X=v=>pd.l+(Math.log10(v)-lx0)/(lx1-lx0)*iw, Y=v=>pd.t+ih-(Math.log10(v)-ly0)/(ly1-ly0)*ih;
+    let s='<svg viewBox="0 0 '+W+' '+H+'" role="img">';
+    LOGT.filter(v=>v>=ymin&&v<=ymax).forEach(v=>{ const y=Y(v).toFixed(1); s+='<line x1="'+pd.l+'" x2="'+(W-pd.r)+'" y1="'+y+'" y2="'+y+'" stroke="rgba(255,255,255,.07)"/><text x="'+(pd.l-6)+'" y="'+(+y+3)+'" text-anchor="end" font-size="10" fill="#8b8fa3">'+kfmt(v)+'x</text>'; });
+    LOGT.filter(v=>v>=xmin&&v<=xmax).forEach(v=>{ const x=X(v).toFixed(1); s+='<line y1="'+pd.t+'" y2="'+(pd.t+ih)+'" x1="'+x+'" x2="'+x+'" stroke="rgba(255,255,255,.05)"/><text x="'+x+'" y="'+(H-12)+'" text-anchor="middle" font-size="10" fill="#8b8fa3">'+kfmt(v)+'x</text>'; });
+    s+='<text x="'+(pd.l+iw/2)+'" y="'+(H-1)+'" text-anchor="middle" font-size="9.5" fill="#8b8fa3">multiplicador do Top Slot</text>';
+    const D=P.length>3000?P.slice(-3000):P, dots=D.filter(x=>!x.match).concat(D.filter(x=>x.match));
+    dots.forEach(x=>{
+        const j=(((x.id*9301+49297)%233280)/233280-.5)*.12, cx=X(x.tm*(1+j)).toFixed(1), cy=Y(x.mx).toFixed(1);
+        s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(x.match?3.6:2.4)+'" fill="'+(x.match?'#f5c144':'rgba(124,92,246,.55)')+'"'+(x.match?' stroke="#fff" stroke-width=".8"':'')+'><title>'+hms(x.d)+' · saiu '+NAME[x.c]+' · Top Slot '+(x.tsc||'—')+' '+x.tm+'x'+(x.match?' (bateu)':'')+' · rodada pagou até '+x.mx+'x</title></circle>';
+    });
+    el.innerHTML=s+'</svg>';
+    const M=P.filter(x=>x.match), U=P.filter(x=>!x.match);
+    $('scatKv').innerHTML='<span>Rodadas com Top Slot <b>'+P.length+'</b>'+(P.length>3000?' (desenhadas as últimas 3.000)':'')+'</span><span>Bateu <b>'+M.length+'</b> ('+(M.length/P.length*100).toFixed(1)+'%)</span>'+
+        '<span>Pagou (mediana) — bateu <b>'+median(M.map(x=>x.mx))+'x</b> · não bateu <b>'+median(U.map(x=>x.mx))+'x</b></span>'+
+        '<span style="flex-basis:100%">Correlação de Spearman (Top Slot × pagamento) — todas: <b>'+spTxt(spearman(P.map(x=>x.tm),P.map(x=>x.mx)))+'</b> · só as que bateram: <b>'+spTxt(spearman(M.map(x=>x.tm),M.map(x=>x.mx)))+'</b> · só as que não bateram: <b>'+spTxt(spearman(U.map(x=>x.tm),U.map(x=>x.mx)))+'</b></span>';
+}
+
+// ---- multiplicador médio por bônus ao longo do tempo ----
+function rBM(A){
+    const K=+$('bmWin').value;
+    $('bmGrid').innerHTML=BONUSES.map(c=>'<div class="mini"><div class="ttl">'+icon(c,24)+NAME[c]+'</div><div class="cbox" id="bm_'+c+'"></div><div class="kv" id="bmKv_'+c+'"></div></div>').join('');
+    BONUSES.forEach(c=>{
+        const L=A.filter(x=>x.c===c).map(x=>({x:x,v:bonusVal(x)})).filter(o=>o.v>0), n=L.length, el=$('bm_'+c), kv=$('bmKv_'+c);
+        if(n<3){ el.innerHTML=emp('Poucos bônus ('+n+')'); kv.innerHTML=''; return; }
+        const vals=L.map(o=>o.v), mean=vals.reduce((s,v)=>s+v,0)/n, inp=parseFloat($('exp_'+c).value), ref=inp>0?inp:mean;
+        const roll=vals.map((_,i)=>{ if(i<K-1) return null; let s=0; for(let j=i-K+1;j<=i;j++) s+=vals[j]; return s/K; });
+        const last=roll[n-1];
+        const ymin=Math.max(1,Math.min(Math.min.apply(null,vals),ref)/1.4), ymax=Math.max(Math.max.apply(null,vals),ref)*1.4;
+        mount(el,{n:n,log:true,floor:1,ymin:ymin,ymax:ymax,h:210,yticks:LOGT.filter(v=>v>=ymin&&v<=ymax),yfmt:v=>kfmt(v)+'x',
+            xlabels:[{i:0,t:fmtT(L[0].x.d,true),a:'start'},{i:n-1,t:fmtT(L[n-1].x.d,true),a:'end'}],
+            hlines:[{y:ref,color:'#ffffff',dash:'5 4'}],
+            series:[{kind:'dots',y:vals,color:'rgba(139,143,163,.65)',r:2.3},{kind:'line',y:roll,color:COR[c],w:2.2}],
+            tip:i=>fmtT(L[i].x.d,true)+'<br>pagou <b>'+vals[i]+'x</b>'+(roll[i]!=null?'<br>média móvel <b>'+roll[i].toFixed(1)+'x</b>':'')});
+        kv.innerHTML='<span>Bônus <b>'+n+'</b></span><span>Média da base <b>'+mean.toFixed(1)+'x</b></span><span>Mediana <b>'+median(vals).toFixed(1)+'x</b></span>'+
+            '<span>Referência <b>'+ref.toFixed(1)+'x</b>'+(inp>0?'':' (média)')+'</span>'+
+            (last!=null?'<span>Últimos '+K+' <b style="color:'+(last>=ref?'var(--green)':'var(--amber)')+'">'+last.toFixed(1)+'x</b> ('+(last/ref).toFixed(2)+'× a ref.)</span>':'<span>Menos de '+K+' bônus para a média móvel</span>');
+    });
+}
+
+// ---- orquestração ----
+let anaSig='';
+const anaA=()=>$('anaBase').value==='full'?ordered:ws();
+function rAna(force){
+    const A=anaA(), sig=$('anaBase').value+':'+A.length+':'+(A.length?A[0].rid+'|'+A[A.length-1].rid:'');
+    if(!force&&sig===anaSig) return;
+    anaSig=sig;
+    $('anaInfo').textContent=A.length?A.length+' rodadas · '+fmtT(A[0].d,true)+' → '+fmtT(A[A.length-1].d,true):'';
+    rTrans(A); rScan(A); rHeat(A); rMA(A); rCum(A); rScat(A); rBM(A);
 }
 
 // ---- validador de padrão ----
@@ -650,7 +1066,7 @@ function render(){
     const a=ws();
     rStats(a); rWheel(); rOverdue(); rHist(); rCoin(); rBlocks(); rPtr(); rCH();
     rFreq(a); rAtraso(a); rWin(); rTopSlot(a);
-    rGaps(a); rSeq(a); rBonusSum(a); rBonus(a); rTopMx(a); rHoras(); checkNotif(a);
+    rGaps(a); rSeq(a); rBonusSum(a); rBonus(a); rTopMx(a); rHoras(); rAna(); checkNotif(a);
 }
 
 // ---- controles ----
@@ -670,6 +1086,20 @@ $('nOn').addEventListener('change',e=>{
 });
 $('nAlvo').addEventListener('change',e=>{lsSet('nAlvo',e.target.value); lastKey='';});
 $('nN').addEventListener('change',e=>{lsSet('nN',e.target.value); lastKey='';});
+
+// ---- controles da análise estatística ----
+$('anaBase').value=lsGet('anaBase','full');
+$('scAlvo').innerHTML='<option value="">Todos os alvos</option>'+optsAlvo;
+$('hmAlvo').innerHTML=optsAlvo; $('hmAlvo').value='B';
+$('gAlvo').innerHTML=optsAlvo; $('gAlvo').value='B';
+$('anaBase').addEventListener('change',e=>{lsSet('anaBase',e.target.value); rAna(true);});
+['scMin','scAlvo','scDir','scOrd'].forEach(id=>$(id).addEventListener('change',()=>rScan(anaA())));
+$('hmAlvo').addEventListener('change',()=>rHeat(anaA()));
+$('gAlvo').addEventListener('change',()=>{ const A=anaA(); rMA(A); rCum(A); });
+$('maWin').addEventListener('change',()=>rMA(anaA()));
+$('bmWin').addEventListener('change',()=>rBM(anaA()));
+$('hmLoad').addEventListener('click',loadMore);
+BONUSES.forEach(c=>{ $('exp_'+c).value=lsGet('exp_'+c,''); $('exp_'+c).addEventListener('change',e=>{lsSet('exp_'+c,e.target.value); rBM(anaA());}); });
 
 // ---- dados: carga completa 1x e depois só as rodadas recentes ----
 async function load(full){
