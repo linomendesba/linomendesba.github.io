@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="img/favicon.ico" type="image/x-icon">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-4WT805FFHQ"></script>
+<title>DataVirtual | Crazy Time</title>
+<meta name="description" content="DataVirtual — Análise Crazy Time em tempo real: atraso dos bônus, frequência por setor, Top Slot e validador de padrão">
+<meta name="robots" content="index, follow">
+<meta name="author" content="DataVirtual">
+<script src="app.utils.min.js"></script>
+<script type="module" src="js/firebase-auth.js"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date()); gtag('config', 'G-4WT805FFHQ');
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+    :root{ --bg:#0b0c14; --card:#12141c; --card2:#171a21; --border:rgba(124,92,246,.20); --border-strong:rgba(124,92,246,.45);
+        --accent:#7c5cff; --accent-glow:rgba(124,92,246,.14); --text:#e5e7eb; --muted:#8b8fa3; --green:#22c55e; --red:#ef4444; --amber:#f5c144; }
+    *{box-sizing:border-box;}
+    html,body{ margin:0; background:var(--bg); font-family:'Roboto',system-ui,sans-serif; color:var(--text); }
+    #status{ text-align:center; color:var(--muted); font-size:13px; padding:6px 0 14px; }
+    .wrap{ max-width:1800px; margin:0 auto; padding:0 16px 60px; }
+    .head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+    .controls{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+    select,.btn,input[type=text],input[type=number]{ height:34px; background:var(--card2); color:var(--text); border:1px solid var(--border);
+        border-radius:10px; padding:0 12px; font-size:12.5px; font-weight:600; font-family:inherit; }
+    select:focus,input:focus{ outline:none; border-color:var(--border-strong); }
+    .btn{ cursor:pointer; transition:.15s; } .btn:hover{ border-color:var(--border-strong); }
+    .btn.active{ color:var(--accent); border-color:var(--border-strong); background:var(--accent-glow); }
+    .chip{ display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 12px; background:var(--card2); border:1px solid var(--border);
+        border-radius:10px; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; }
+    .chip input{ accent-color:var(--accent); }
+    .clock{ display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 14px; background:#000; border:2px solid #2a2d38;
+        border-radius:8px; font:700 15px 'Roboto Mono',monospace; color:#fff; }
+    .clock small{ font-size:9px; color:var(--muted); }
+    .strip{ display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:18px; }
+    .box{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px 14px; }
+    .box .lbl{ font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:700; }
+    .box .val{ font:800 20px 'Roboto Mono',monospace; margin-top:4px; }
+    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+    @media (max-width:980px){ .grid2,.strip{ grid-template-columns:1fr 1fr; } .grid2{ grid-template-columns:1fr; } }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:16px; }
+    .grid2 .card{ margin-bottom:0; }
+    .card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:8px; flex-wrap:wrap; }
+    .card-title{ font-size:14px; font-weight:800; }
+    .card-title small{ display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:2px; }
+    .scroll{ overflow-x:auto; padding-bottom:6px; scrollbar-width:thin; }
+    .hrow{ display:flex; gap:6px; }
+    .hi{ display:flex; flex-direction:column; align-items:center; gap:3px; flex-shrink:0; font:9px 'Roboto Mono',monospace; color:var(--muted); }
+    .ball{ min-width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800;
+        border:1.5px solid rgba(255,255,255,.2); cursor:help; }
+    .pb{ margin-bottom:9px; } .pl{ display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-bottom:4px; }
+    .pl small{ color:var(--muted); font-weight:500; }
+    .pbg{ position:relative; height:10px; border-radius:6px; background:#1a1c24; overflow:hidden; }
+    .pf{ height:100%; border-radius:6px; transition:width .3s; }
+    .pbg i{ position:absolute; top:-2px; bottom:-2px; width:2px; background:#fff; opacity:.8; }
+    .note{ font-size:11.5px; color:var(--muted); margin-top:10px; }
+    table.t{ width:100%; border-collapse:collapse; font-size:12px; }
+    .t th,.t td{ padding:6px 8px; text-align:center; border-bottom:1px solid var(--border); }
+    .t th{ color:var(--muted); font-size:10.5px; text-transform:uppercase; } .t td:first-child,.t th:first-child{ text-align:left; }
+    .t tr.hot td{ color:var(--amber); } .dot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+    .hours{ display:flex; align-items:flex-end; gap:4px; height:130px; overflow-x:auto; }
+    .hc{ display:flex; flex-direction:column; justify-content:flex-end; align-items:center; min-width:26px; height:100%; font-size:10px; color:var(--muted); }
+    .hb{ width:100%; background:linear-gradient(180deg,var(--accent),#4c34b0); border-radius:4px 4px 0 0; min-height:2px; }
+    .hc em{ font-style:normal; font-size:9px; margin-top:4px; }
+    .row2{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+    .res{ background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; font-size:12.5px; }
+    .res .r{ display:flex; justify-content:space-between; padding:5px 0; } .res b{ font-family:'Roboto Mono',monospace; }
+    .log{ max-height:130px; overflow-y:auto; font-size:11.5px; color:var(--muted); margin-top:10px; }
+    .log div{ padding:4px 0; border-bottom:1px dashed var(--border); } .empty{ color:var(--muted); font-size:12px; padding:20px 0; text-align:center; }
+    .switch{ position:relative; width:36px; height:20px; } .switch input{ opacity:0; width:0; height:0; }
+    .slider{ position:absolute; inset:0; background:#2a2d38; border-radius:20px; cursor:pointer; transition:.2s; }
+    .slider:before{ content:""; position:absolute; width:14px; height:14px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+    input:checked + .slider{ background:var(--accent); } input:checked + .slider:before{ transform:translateX(16px); }
+</style>
+</head>
+<body>
+<div id="header"></div>
+<br><br><br>
+<div id="status">carregando dados do Crazy Time...</div>
+
+<div class="wrap">
+    <div class="head">
+        <div class="controls">
+            <label class="chip"><input type="checkbox" id="hoje"><span>Somente hoje</span></label>
+            <select id="qtd">
+                <option value="60">Últimos 60</option><option value="120">Últimos 120</option><option value="200">Últimos 200</option>
+                <option value="500">Últimos 500</option><option value="1000">Últimos 1.000</option><option value="2000">Últimos 2.000</option>
+            </select>
+        </div>
+        <div class="clock" title="Horário de Brasília"><span id="relogio">--:--:--</span><small>BR</small></div>
+    </div>
+
+    <div class="strip">
+        <div class="box"><div class="lbl">Rodadas</div><div class="val" id="sN">—</div></div>
+        <div class="box"><div class="lbl">% Bônus (esp. 16,7%)</div><div class="val" id="sB">—</div></div>
+        <div class="box"><div class="lbl">Sem bônus há</div><div class="val" id="sG">—</div></div>
+        <div class="box"><div class="lbl">Último bônus</div><div class="val" id="sL" style="font-size:15px;">—</div></div>
+        <div class="box"><div class="lbl">Top Slot bateu</div><div class="val" id="sM">—</div></div>
+        <div class="box"><div class="lbl">Maior multiplicador</div><div class="val" id="sX">—</div></div>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><div class="card-title">Histórico visual<small>Mais recente à esquerda — passe o mouse na bolinha para ver Top Slot, multiplicador e ganhadores</small></div></div>
+        <div class="scroll"><div class="hrow" id="hist"></div></div>
+    </div>
+
+    <div class="grid2">
+        <div class="card">
+            <div class="card-head"><div class="card-title">Frequência por setor<small>Barra = real no período · traço branco = esperado (roda de 54 segmentos)</small></div></div>
+            <div id="freq"></div>
+            <div class="note" id="tsInfo"></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title">Atraso dos setores<small>Rodadas sem sair · em amarelo: já passou do intervalo esperado</small></div></div>
+            <table class="t"><thead><tr><th>Setor</th><th>Sem sair há</th><th>Média real</th><th>Esperado</th><th>Recorde</th></tr></thead><tbody id="atraso"></tbody></table>
+        </div>
+    </div>
+
+    <div class="grid2">
+        <div class="card">
+            <div class="card-head"><div class="card-title">Bônus recentes<small>Últimos 15 do período — multiplicador do bônus e máximo da rodada</small></div></div>
+            <div class="scroll"><table class="t"><thead><tr><th>Hora</th><th>Bônus</th><th>Mult. bônus</th><th>Máx. rodada</th><th>Top Slot</th><th>Ganhadores</th></tr></thead><tbody id="bonusTb"></tbody></table></div>
+        </div>
+        <div class="card">
+            <div class="card-head"><div class="card-title">Bônus por hora<small>Quantidade de bônus por hora nas últimas 24h (passe o mouse para ver o total de rodadas)</small></div></div>
+            <div class="hours" id="horas"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><div class="card-title">Validador de padrão<small>Backtest no histórico: depois do padrão, quantas vezes o alvo saiu em até N tentativas (gale), comparado ao esperado</small></div></div>
+        <div class="row2">
+            <input type="text" id="pat" placeholder="Ex: 1 1 1 2  (1 2 5 10 CF CH PA CT · B = qualquer bônus · N = qualquer número)" style="flex:1; min-width:260px;">
+            <button class="btn" data-p="1 1 1">1 1 1</button><button class="btn" data-p="N N N N">N N N N</button><button class="btn" data-p="10 10">10 10</button>
+            <select id="alvo" title="O que você quer que saia"></select>
+            <select id="gale"><option value="0">Sem Gale</option><option value="1">Até G1</option><option value="2">Até G2</option><option value="3">Até G3</option><option value="5">Até G5</option><option value="10">Até G10</option></select>
+            <label class="chip"><input type="checkbox" id="base"><span>Base completa</span></label>
+            <button class="btn active" id="btnVal">Validar</button>
+        </div>
+        <div class="res" id="patRes">Digite um padrão, escolha o alvo e clique em Validar.</div>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><div class="card-title">Notificador de atraso<small>Alerta sonoro + notificação quando o setor escolhido ficar N rodadas sem sair</small></div></div>
+        <div class="row2">
+            <label class="switch"><input type="checkbox" id="nOn"><span class="slider"></span></label>
+            <select id="nAlvo"></select>
+            <input type="number" id="nN" min="1" max="999" value="20" style="width:90px;" title="Rodadas sem sair">
+            <span style="font-size:12px; color:var(--muted);">rodadas sem sair</span>
+        </div>
+        <div class="log" id="nLog"><div>Aguardando ativação…</div></div>
+    </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const API='https://datavirtual.com.br/resultados/crazytime', POLL_MS=10000, FULL=2000, RECENT=30, LS='betstat:crazytime:';
+const $=id=>document.getElementById(id);
+const SECS=['1','2','5','10','CF','CH','PA','CT'];
+const NAME={'1':'1','2':'2','5':'5','10':'10',CF:'Coin Flip',CH:'Cash Hunt',PA:'Pachinko',CT:'Crazy Time',B:'Qualquer bônus',N:'Qualquer número'};
+const COR={'1':'#3b82f6','2':'#22c55e','5':'#ec4899','10':'#a855f7',CF:'#38bdf8',CH:'#f59e0b',PA:'#ef4444',CT:'#facc15'};
+const PESO={'1':21,'2':13,'5':7,'10':4,CF:4,CH:2,PA:2,CT:1}, TOTAL=54, PESO_B=9;
+const CODE={CoinFlip:'CF',CashHunt:'CH',Pachinko:'PA',CrazyBonus:'CT'};
+const ALIAS={COINFLIP:'CF',CASHHUNT:'CH',PACHINKO:'PA',CRAZYBONUS:'CT',CRAZY:'CT',CRAZYTIME:'CT',BONUS:'B',NUM:'N'};
+const isBonus=c=>c==='CF'||c==='CH'||c==='PA'||c==='CT';
+const mt=(c,t)=>t==='B'?isBonus(c):t==='N'?!isBonus(c):c===t;
+const per=t=>TOTAL/(t==='B'?PESO_B:PESO[t]);
+const lsGet=(k,d)=>{try{const v=localStorage.getItem(LS+k);return v===null?d:v}catch(e){return d}};
+const lsSet=(k,v)=>{try{localStorage.setItem(LS+k,v)}catch(e){}};
+
+const brFmt=new Intl.DateTimeFormat('en-US',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+function brp(d){const o={};brFmt.formatToParts(d).forEach(p=>{if(p.type!=='literal')o[p.type]=p.value});return o}
+const hms=d=>{const p=brp(d);return p.hour+':'+p.minute+':'+p.second};
+const hm=d=>{const p=brp(d);return p.hour+':'+p.minute};
+const dayKey=d=>{const p=brp(d);return p.year+p.month+p.day};
+setInterval(()=>{$('relogio').textContent=hms(new Date())},1000);
+
+let ordered=[], hoje=false, qtd=parseInt(lsGet('qtd','200'),10);
+const known=new Map();
+$('qtd').value=String(qtd);
+
+function norm(r){
+    const d=new Date(r.settled_at||r.started_at||r.captured_at); if(isNaN(d)) return null;
+    const s=String(r.wheel_sector), c=CODE[s]||s;
+    return {id:+r.id, rid:r.round_id, c, bonus:isBonus(c), d, ts:r.top_slot_sector, tm:r.top_slot_mult, match:!!r.top_slot_matched,
+        mx:+r.max_multiplier||0, bm:r.bonus_multiplier, cmin:r.cashhunt_min, cmax:r.cashhunt_max,
+        cb:[r.cb_left_mult,r.cb_top_mult,r.cb_right_mult], w:+r.total_winners||0};
+}
+function ingest(rows){
+    let overlap=0;
+    rows.forEach(r=>{const x=norm(r); if(!x) return; if(known.has(x.rid)) overlap++; known.set(x.rid,x);});
+    ordered=[...known.values()].sort((a,b)=>a.d-b.d||a.id-b.id);
+    return overlap;
+}
+function ws(){
+    let a=ordered;
+    if(hoje){const k=dayKey(new Date()); a=a.filter(x=>dayKey(x.d)===k);}
+    return a.length>qtd?a.slice(a.length-qtd):a;
+}
+// atraso de um alvo (setor, 'B' = qualquer bônus, 'N' = qualquer número)
+function gaps(a,t){
+    let last=-1,prev=-1,max=0,cnt=0;
+    a.forEach((x,i)=>{ if(mt(x.c,t)){cnt++; max=Math.max(max,i-prev-1); prev=i; last=i;} });
+    max=Math.max(max,a.length-1-prev);
+    return {cnt, cur:a.length-1-last, max, li:last>=0?a[last]:null};
+}
+const tip=x=>NAME[x.c]+' — '+hms(x.d)+'\nTop Slot: '+(x.ts||'—')+(x.tm?' '+x.tm+'x':'')+(x.match?' (bateu)':'')+'\nMáx. rodada: '+x.mx+'x · '+x.w+' ganhadores';
+
+function rStats(a){
+    const n=a.length, nb=a.filter(x=>x.bonus).length, g=gaps(a,'B'), m=a.filter(x=>x.match).length;
+    $('sN').textContent=n;
+    $('sB').textContent=n?(nb/n*100).toFixed(1)+'%':'—';
+    $('sG').textContent=n?g.cur:'—';
+    $('sL').textContent=g.li?NAME[g.li.c]+' · '+hm(g.li.d):'—';
+    $('sM').textContent=n?(m/n*100).toFixed(1)+'%':'—';
+    $('sX').textContent=n?a.reduce((p,x)=>x.mx>p?x.mx:p,0)+'x':'—';
+}
+function rHist(a){
+    $('hist').innerHTML=a.slice(-120).reverse().map(x=>'<div class="hi"><div class="ball" style="background:'+COR[x.c]+';color:'+(x.c==='CT'?'#1a1400':'#fff')+'" title="'+tip(x)+'">'+x.c+'</div><span>'+hm(x.d)+'</span></div>').join('')||'<div class="empty">Sem dados</div>';
+}
+function rFreq(a){
+    const n=a.length;
+    $('freq').innerHTML=SECS.map(c=>{
+        const k=a.filter(x=>x.c===c).length, p=n?k/n*100:0, e=PESO[c]/TOTAL*100;
+        return '<div class="pb"><div class="pl"><span>'+NAME[c]+'</span><b>'+k+' · '+p.toFixed(1)+'% <small>(esp. '+e.toFixed(1)+'%)</small></b></div>'+
+            '<div class="pbg"><div class="pf" style="width:'+Math.min(100,p*2.5)+'%;background:'+COR[c]+'"></div><i style="left:'+Math.min(100,e*2.5)+'%"></i></div></div>';
+    }).join('');
+    const m=a.filter(x=>x.match);
+    $('tsInfo').textContent=n?'Top Slot bateu em '+m.length+' de '+n+' rodadas ('+(m.length/n*100).toFixed(1)+'%)'+(m.length?' · multiplicador médio quando bate: '+(m.reduce((s,x)=>s+(x.tm||0),0)/m.length).toFixed(1)+'x':''):'';
+}
+function rAtraso(a){
+    $('atraso').innerHTML=SECS.concat('B').map(t=>{
+        const g=gaps(a,t), p=per(t);
+        return '<tr class="'+(a.length&&g.cur>=p?'hot':'')+'"><td>'+NAME[t]+'</td><td><b>'+(a.length?g.cur:'—')+'</b></td><td>'+(g.cnt?(a.length/g.cnt).toFixed(1):'—')+'</td><td>'+p.toFixed(1)+'</td><td>'+g.max+'</td></tr>';
+    }).join('');
+}
+function multTxt(x){
+    if(x.c==='CT') return x.cb.filter(v=>v!=null).join(' / ')+'x';
+    if(x.c==='CH') return x.cmin!=null?x.cmin+'–'+x.cmax+'x (grade)':'—';
+    return x.bm!=null?x.bm+'x':'—';
+}
+function rBonus(a){
+    $('bonusTb').innerHTML=a.filter(x=>x.bonus).slice(-15).reverse().map(x=>'<tr><td>'+hm(x.d)+'</td><td><span class="dot" style="background:'+COR[x.c]+'"></span>'+NAME[x.c]+'</td><td>'+multTxt(x)+'</td><td>'+x.mx+'x</td><td>'+(x.match?'bateu':'—')+'</td><td>'+x.w+'</td></tr>').join('')||'<tr><td colspan="6" class="empty">Nenhum bônus no período</td></tr>';
+}
+function rHoras(){
+    const lim=Date.now()-864e5, m=new Map();
+    ordered.forEach(x=>{ if(x.d<lim) return; const p=brp(x.d), k=p.day+p.hour; let o=m.get(k); if(!o) m.set(k,o={h:p.hour,t:0,b:0}); o.t++; if(x.bonus) o.b++; });
+    const v=[...m.values()], mx=Math.max(1,...v.map(o=>o.b));
+    $('horas').innerHTML=v.map(o=>'<div class="hc" title="'+o.b+' bônus em '+o.t+' rodadas"><span>'+o.b+'</span><div class="hb" style="height:'+(o.b/mx*90)+'px"></div><em>'+o.h+'h</em></div>').join('')||'<div class="empty">Sem dados</div>';
+}
+
+// ---- validador de padrão ----
+const tokens=s=>s.trim().toUpperCase().split(/[\s,]+/).filter(Boolean).map(t=>ALIAS[t]||t);
+function validar(){
+    const pat=tokens($('pat').value), tg=$('alvo').value, G=+$('gale').value, a=$('base').checked?ordered:ws(), out=$('patRes');
+    if(!pat.length||pat.some(t=>t!=='B'&&t!=='N'&&!(t in PESO))){ out.textContent='Padrão inválido. Use 1 2 5 10 CF CH PA CT, B (qualquer bônus) ou N (qualquer número). Ex: 1 1 1'; return; }
+    const lv=Array(G+1).fill(0), det=[]; let oc=0, sem=0;
+    for(let i=0;i+pat.length<=a.length;i++){
+        let ok=true; for(let j=0;j<pat.length;j++) if(!mt(a[i+j].c,pat[j])){ok=false;break;}
+        if(!ok) continue;
+        const s=i+pat.length; let v=-1;
+        for(let g=0;g<=G;g++){ if(s+g>=a.length){v=-2;break;} if(mt(a[s+g].c,tg)){v=g;break;} }
+        oc++; if(v>=0) lv[v]++; else if(v===-2) sem++;
+        det.push({d:a[s-1].d,v});
+    }
+    const res=oc-sem, win=lv.reduce((x,y)=>x+y,0), taxa=res?win/res*100:0;
+    const p=a.length?a.filter(x=>mt(x.c,tg)).length/a.length:0, esp=(1-Math.pow(1-p,G+1))*100, edge=taxa-esp;
+    const niv=lv.map((k,g)=>'<tr><td>'+(g?'G'+g:'Sem Gale')+'</td><td style="color:var(--green)">'+k+'</td><td>'+(res?(k/res*100).toFixed(1):'0.0')+'%</td></tr>').join('');
+    const ult=det.slice(-10).reverse().map(o=>'<tr><td>'+hm(o.d)+'</td><td style="color:'+(o.v>=0?'var(--green)':o.v===-2?'var(--muted)':'var(--red)')+'">'+(o.v>=0?'saiu em '+(o.v?'G'+o.v:'Sem Gale'):o.v===-2?'sem dados suficientes':'não saiu (estourou o gale)')+'</td></tr>').join('')||'<tr><td colspan="2" style="color:var(--muted)">Nenhuma ocorrência.</td></tr>';
+    out.innerHTML='<div class="r"><span>Padrão → alvo</span><b>'+pat.join(' ')+' → '+NAME[tg]+'</b></div>'+
+        '<div class="r"><span>Base analisada</span><b>'+a.length+' rodadas</b></div>'+
+        '<div class="r"><span>Ocorrências do padrão</span><b>'+oc+(sem?' ('+sem+' sem dados p/ resolver)':'')+'</b></div>'+
+        '<table class="t" style="margin-top:8px"><thead><tr><th>Nível</th><th>Acertos</th><th>% do resolvido</th></tr></thead><tbody>'+niv+'</tbody>'+
+        '<tfoot><tr><td><b>Total (até G'+G+')</b></td><td style="color:var(--green)"><b>'+win+'</b></td><td><b>'+taxa.toFixed(1)+'%</b></td></tr></tfoot></table>'+
+        '<div class="r" style="margin-top:8px"><span>Taxa esperada (frequência real do alvo na base)</span><b>'+esp.toFixed(1)+'%</b></div>'+
+        '<div class="r"><span>Edge observado (real − esperado)</span><b style="color:'+(edge>=0?'var(--green)':'var(--red)')+'">'+(edge>=0?'+':'')+edge.toFixed(1)+' p.p.</b></div>'+
+        '<div class="note">Últimas '+Math.min(10,det.length)+' ocorrências:</div>'+
+        '<table class="t"><thead><tr><th>Fim do padrão</th><th>Resultado</th></tr></thead><tbody>'+ult+'</tbody></table>';
+}
+
+// ---- notificador de atraso ----
+let nOn=lsGet('nOn','0')==='1', lastKey='';
+function beep(){ try{ const c=new (window.AudioContext||window.webkitAudioContext)(), o=c.createOscillator(), g=c.createGain(); o.connect(g); g.connect(c.destination); o.frequency.value=880; g.gain.value=.08; o.start(); setTimeout(()=>{o.stop();c.close()},220);}catch(e){} }
+function logN(msg){ const el=$('nLog'), d=document.createElement('div'); d.textContent=new Date().toLocaleTimeString('pt-BR')+' — '+msg; el.prepend(d); while(el.children.length>30) el.removeChild(el.lastChild); }
+function checkNotif(a){
+    if(!nOn||!a.length) return;
+    const t=$('nAlvo').value, N=+$('nN').value||0, g=gaps(a,t);
+    if(!N||g.cur<N) return;
+    const k=t+':'+(g.li?g.li.rid:'none')+':'+N;
+    if(k===lastKey) return;
+    lastKey=k; beep();
+    const msg=NAME[t]+' está há '+g.cur+' rodadas sem sair';
+    logN(msg);
+    if(window.Notification&&Notification.permission==='granted') new Notification('DataVirtual — Crazy Time',{body:msg});
+}
+
+function render(){ const a=ws(); rStats(a); rHist(a); rFreq(a); rAtraso(a); rBonus(a); rHoras(); checkNotif(a); }
+
+// ---- controles ----
+const optsAlvo=SECS.concat('B').map(t=>'<option value="'+t+'">'+NAME[t]+'</option>').join('');
+$('alvo').innerHTML=optsAlvo; $('nAlvo').innerHTML=optsAlvo;
+$('alvo').value=lsGet('alvo','B'); $('nAlvo').value=lsGet('nAlvo','B'); $('nN').value=lsGet('nN','20'); $('nOn').checked=nOn;
+$('hoje').addEventListener('change',e=>{hoje=e.target.checked; render();});
+$('qtd').addEventListener('change',e=>{qtd=parseInt(e.target.value,10); lsSet('qtd',qtd); render();});
+$('btnVal').addEventListener('click',validar);
+$('alvo').addEventListener('change',e=>lsSet('alvo',e.target.value));
+document.querySelectorAll('[data-p]').forEach(b=>b.addEventListener('click',()=>{$('pat').value=b.dataset.p; validar();}));
+$('nOn').addEventListener('change',e=>{
+    nOn=e.target.checked; lsSet('nOn',nOn?'1':'0'); lastKey='';
+    if(nOn&&window.Notification&&Notification.permission==='default') Notification.requestPermission();
+    logN(nOn?'Monitoramento ativado.':'Monitoramento desativado.'); render();
+});
+$('nAlvo').addEventListener('change',e=>{lsSet('nAlvo',e.target.value); lastKey='';});
+$('nN').addEventListener('change',e=>{lsSet('nN',e.target.value); lastKey='';});
+
+// ---- dados: carga completa 1x e depois só as rodadas recentes ----
+async function load(full){
+    try{
+        const r=await fetch(API+'?limit='+(full?FULL:RECENT)+'&t='+Date.now());
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const rows=await r.json();
+        if(!Array.isArray(rows)||!rows.length){ if(full) $('status').textContent='⚠️ resposta chegou vazia.'; return; }
+        const had=known.size, overlap=ingest(rows);
+        if(!full&&had&&!overlap) return load(true); // ficou tempo parado e perdeu rodadas: recarrega tudo
+        $('status').textContent=''; render();
+    }catch(e){ if(full||!known.size) $('status').textContent='❌ erro buscando dados: '+e.message; }
+}
+load(true);
+setInterval(()=>load(false),POLL_MS);
+})();
+</script>
+
+<script>
+  fetch('header.html').then(r=>r.text()).then(d=>{document.getElementById('header').innerHTML=d;});
+</script>
+<script src="redirecionar.js"></script>
+</body>
+</html>
