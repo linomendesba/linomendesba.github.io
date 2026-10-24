@@ -38,7 +38,6 @@ const LIGAS = {
   KIRON_ITALY:   "Kiron Liga Itália",
   KIRON_AMERICA: "Kiron Liga América Latina",
   KIRON_SPAIN:   "Kiron Liga Espanha",
-  KIRON_MUNDIAL: "Kiron Liga Mundial",
 
 
   ESTRELA_COPA_MUNDO:     "Copa do Mundo",
@@ -87,7 +86,6 @@ const MAPEAMENTO_ROTAS_ESPECIAIS = {
   [LIGAS.KIRON_ITALY]:   "kiron/Italy",
   [LIGAS.KIRON_AMERICA]: "kiron/Am%C3%A9rica%20Latina",
   [LIGAS.KIRON_SPAIN]:   "kiron/Spain",
-  [LIGAS.KIRON_MUNDIAL]: "kiron/Mundial",
 
   [LIGAS.ESTRELA_COPA_MUNDO]:     "estrela/Copa%20do%20Mundo",
   [LIGAS.ESTRELA_CHAMPIONS]:      "estrela/Ligas%20dos%20Campe%C3%B5es",
@@ -143,7 +141,6 @@ const MAPA_ARQUIVO_PARA_LIGA = {
   "kironitaly.html":          LIGAS.KIRON_ITALY,
   "kironamerica.html":        LIGAS.KIRON_AMERICA,
   "kironspain.html":          LIGAS.KIRON_SPAIN,
-  "kironmundial.html":        LIGAS.KIRON_MUNDIAL,
   "estrelacopamundo.html":    LIGAS.ESTRELA_COPA_MUNDO,
   "estrelachampions.html":    LIGAS.ESTRELA_CHAMPIONS,
   "estrelaamericalatina.html":LIGAS.ESTRELA_AMERICA_LATINA,

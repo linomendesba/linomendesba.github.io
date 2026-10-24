@@ -63,13 +63,12 @@
     { id: "BetGreen Primera Division",  casa: "BETGREEN", label: "Chile",            rota: "betgreen/Chile.%20Primera%20Division",  minutos: ciclo(0, 5) },
     { id: "BetGreen Champions League",  casa: "BETGREEN", label: "Champions League", rota: "betgreen/Champions%20League",           minutos: ciclo(3, 5) },
 
-    // ── KIRON (2 em 2 min = 30 jogos/h; Brasil, América Latina e Mundial de 3 em 3 = 20 jogos/h) ──
+    // ── KIRON (2 em 2 min = 30 jogos/h; Brasil e América Latina de 3 em 3 = 20 jogos/h) ──
     { id: "Kiron Liga Inglaterra",     casa: "KIRON", label: "Inglaterra",     rota: "kiron/England",                  minutos: ciclo(0, 2) },
     { id: "Kiron Liga Itália",         casa: "KIRON", label: "Itália",         rota: "kiron/Italy",                    minutos: ciclo(1, 2) },
     { id: "Kiron Liga Espanha",        casa: "KIRON", label: "Espanha",        rota: "kiron/Spain",                    minutos: ciclo(1, 2) },
     { id: "Kiron Liga Brasil",         casa: "KIRON", label: "Brasil",         rota: "kiron/Brasil",                   minutos: ciclo(2, 3) },
     { id: "Kiron Liga América Latina", casa: "KIRON", label: "América Latina", rota: "kiron/Am%C3%A9rica%20Latina",    minutos: ciclo(2, 3) },
-    { id: "Kiron Liga Mundial",         casa: "KIRON", label: "Mundial",        rota: "kiron/Mundial",                  minutos: ciclo(0, 3) },
 
     // ── ESTRELA (agrupada na casa KIRON) ──
     { id: "Copa do Mundo",      casa: "KIRON", label: "Estrela · Copa do Mundo",   rota: "estrela/Copa%20do%20Mundo",            minutos: ciclo(0, 3) },

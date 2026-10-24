@@ -76,10 +76,6 @@ const LIGAS_INFO = {
     casa: "KIRON", nomeExibicao: "América Latina", arquivo: "kironamerica.html",
     minutos: [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
   },
-  "Kiron Liga Mundial": {
-    casa: "KIRON", nomeExibicao: "Mundial", arquivo: "kironmundial.html",
-    minutos: [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
-  },
 
   // ───────────── VAVADA (mesmos feeds Altenar da Kiron/Estrela) ─────────────
   "Vavada Mundial": {
