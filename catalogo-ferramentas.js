@@ -69,6 +69,7 @@
     { id: "Kiron Liga Espanha",        casa: "KIRON", label: "Espanha",        rota: "kiron/Spain",                    minutos: ciclo(1, 2) },
     { id: "Kiron Liga Brasil",         casa: "KIRON", label: "Brasil",         rota: "kiron/Brasil",                   minutos: ciclo(2, 3) },
     { id: "Kiron Liga América Latina", casa: "KIRON", label: "América Latina", rota: "kiron/Am%C3%A9rica%20Latina",    minutos: ciclo(2, 3) },
+    { id: "Kiron Liga Mundial",         casa: "KIRON", label: "Mundial",        rota: "kiron/Mundial",                  minutos: ciclo(0, 2) },
 
     // ── ESTRELA (agrupada na casa KIRON) ──
     { id: "Copa do Mundo",      casa: "KIRON", label: "Estrela · Copa do Mundo",   rota: "estrela/Copa%20do%20Mundo",            minutos: ciclo(0, 3) },
