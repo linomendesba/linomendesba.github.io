@@ -27,7 +27,7 @@ function redirecionar(select) {
     url === "https://t.me/+grZB16eZ9ZJkNjVh" ||
     url === "https://www.datavirtual.com.br/guias.html" ||
     url === "https://www.datavirtual.com.br/mentor.html" ||
-    url === "https://www.datavirtual.com.br/tvlive" ||
+    url === "https://www.datavirtual.com.br/tvlive.html" ||
     url === "https://www.datavirtual.com.br/buscadores.html" ||
     url === "https://www.datavirtual.com.br/velas.html" ||
     url === "https://www.datavirtual.com.br/morpheuspro.html" ||
