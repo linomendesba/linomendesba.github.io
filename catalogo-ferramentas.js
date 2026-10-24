@@ -41,8 +41,6 @@
     "1WIN":     { label: "1Win" },
     "BETGREEN": { label: "BetGreen" },
     "KIRON":    { label: "Kiron / Estrela" },
-    "VAVADA":   { label: "Vavada" },
-    "STRIVO":   { label: "StrivoBet" },
   };
 
   /* ───────────── LIGAS ─────────────
@@ -77,24 +75,6 @@
     { id: "América Latina",     casa: "KIRON", label: "Estrela · América Latina",  rota: "estrela/Am%C3%A9rica%20Latina",        minutos: ciclo(1, 3) },
     { id: "Premier League",     casa: "KIRON", label: "Estrela · Premier",         rota: "estrela/Premier%20League",             minutos: ciclo(0, 3) },
 
-    // ── VAVADA ──
-    { id: "Vavada Mundial",        casa: "VAVADA", label: "Mundial",        rota: "vava/V-Mundial",                  minutos: ciclo(0, 2) },
-    { id: "Vavada Inglaterra",     casa: "VAVADA", label: "Inglaterra",     rota: "vava/V-Inglaterra",               minutos: ciclo(0, 2) },
-    { id: "Vavada Itália",         casa: "VAVADA", label: "Itália",         rota: "vava/V-It%C3%A1lia",              minutos: ciclo(1, 2) },
-    { id: "Vavada Espanha",        casa: "VAVADA", label: "Espanha",        rota: "vava/V-Espanha",                  minutos: ciclo(1, 2) },
-    { id: "Vavada Brasil",         casa: "VAVADA", label: "Brasil",         rota: "vava/V-Brasil",                   minutos: ciclo(2, 3) },
-    { id: "Vavada América Latina", casa: "VAVADA", label: "América Latina", rota: "vava/V-Am%C3%A9rica%20Latina",    minutos: ciclo(2, 3) },
-    { id: "Vavada Premier League", casa: "VAVADA", label: "Premier League", rota: "vava/V-Premier%20League",         minutos: ciclo(0, 3) },
-
-    // ── STRIVOBET ──
-    { id: "Strivo Itália",         casa: "STRIVO", label: "Itália",         rota: "strivo/It%C3%A1lia",              minutos: ciclo(1, 2) },
-    { id: "Strivo Inglaterra",     casa: "STRIVO", label: "Inglaterra",     rota: "strivo/Inglaterra",               minutos: ciclo(0, 2) },
-    { id: "Strivo Espanha",        casa: "STRIVO", label: "Espanha",        rota: "strivo/Espanha",                  minutos: ciclo(1, 2) },
-    { id: "Strivo Champions",      casa: "STRIVO", label: "Champions",      rota: "strivo/Champions",                minutos: ciclo(0, 3) },
-    { id: "Strivo Copa do Mundo",  casa: "STRIVO", label: "Copa do Mundo",  rota: "strivo/Copa%20do%20Mundo",        minutos: ciclo(0, 3) },
-    { id: "Strivo América",        casa: "STRIVO", label: "América",        rota: "strivo/Am%C3%A9rica",             minutos: ciclo(1, 3) },
-    { id: "Strivo Brasil",         casa: "STRIVO", label: "Brasil",         rota: "strivo/Brasil",                   minutos: ciclo(2, 3) },
-    { id: "Strivo América Latina", casa: "STRIVO", label: "América Latina", rota: "strivo/Am%C3%A9rica%20Latina",    minutos: ciclo(2, 3) },
   ];
 
   /* ───────────── CONSULTAS ───────────── */
