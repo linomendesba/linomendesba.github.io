@@ -3,8 +3,8 @@
 
 const STORAGE_KEY = 'betstat_accordion_order_global';
 
-  const COR_BOTAO        = '#1a7ba2';
-  const COR_BOTAO_HV     = '#145f7d';
+  const COR_BOTAO        = '#0d4860';
+  const COR_BOTAO_HV     = '#0b3c50';
   const COR_DESABILITADO = '#2a3a40';
   const COR_ICONE        = '#eaf1f9';
   const COR_ICONE_DESAB  = 'rgba(234,241,249,0.35)';
