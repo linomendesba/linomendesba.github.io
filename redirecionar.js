@@ -2,7 +2,13 @@
 function redirecionar(select) {
   const url = select.value;
 
+  // TV Live: aceita qualquer forma do endereço (tvlive, tvlive.html, /tvlive.html, ./tvlive.html,
+  // com ou sem www, com ?query ou #hash) e sempre abre em nova aba.
+  const ehTvLive = /^(https?:\/\/(www\.)?datavirtual\.com\.br)?\/?(\.\/)?tvlive(\.html)?\/?([?#].*)?$/i
+    .test(String(url || "").trim());
+
   if (
+    ehTvLive ||
     url === "https://t.me/betstatsite" ||
     url === "https://t.me/ProPlayerFut" ||
     url === "https://t.me/+DlBr7IVFBk0yZTRh" ||
@@ -28,7 +34,6 @@ function redirecionar(select) {
     url === "https://www.datavirtual.com.br/guias.html" ||
     url === "https://www.datavirtual.com.br/mentor.html" ||
     url === "tvlive.html" ||
-    url === "https://www.datavirtual.com.br/tvlive.html" ||
     url === "https://www.datavirtual.com.br/buscadores.html" ||
     url === "https://www.datavirtual.com.br/velas.html" ||
     url === "https://www.datavirtual.com.br/morpheuspro.html" ||
