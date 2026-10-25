@@ -47,6 +47,7 @@
     { label: 'Guias',        url: BASE_URL + 'guias.html' },
     { label: 'Gerador Tip',  url: BASE_URL + 'central.html' },
     { label: 'Gestão Banca', url: 'gestao.html' },
+    { label: 'TV Live',      url: BASE_URL + 'tvlive.html' },
     /* estavam no grupo Bônus antigo e não estão no menu atual — descomente para voltar:
     { label: 'Ranking Gols', url: BASE_URL + 'ranking-gols.html' },
     */
@@ -57,7 +58,7 @@
   let CATALOGO   = [];   // [{ group, casaKey?, tools:[{label,url}] }]
 
   /* ── DETECTA CASA ATUAL (pela lista de casas do catálogo) ─────── */
-  const APELIDOS_CASA = { onewin: '1WIN', vava: 'VAVADA', estrelabet: 'KIRON', estrela: 'KIRON' };
+  const APELIDOS_CASA = { onewin: '1WIN', estrelabet: 'KIRON', estrela: 'KIRON' };
 
   function detectarCasa() {
     const casas = (window.Catalogo ? Catalogo.casasAtivas() : []);
@@ -70,7 +71,7 @@
     Object.entries(APELIDOS_CASA).forEach(([ap, key]) => {
       if (casas.some(c => c.key === key)) tokens.push([ap, key]);
     });
-    // tokens mais longos primeiro (ex.: "strivobet" antes de "strivo")
+    // tokens mais longos primeiro (os mais específicos antes dos curtos)
     tokens.sort((x, y) => y[0].length - x[0].length);
 
     const achar = (txt) => {
