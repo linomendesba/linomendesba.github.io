@@ -4226,12 +4226,12 @@ function hidratarDoCacheLocal() {
 // Em segundo plano, baixa resultados + odds + próximos das ligas "irmãs" e grava no cache.
 // Quando o usuário troca de liga, a tabela já abre completa (com odds e próximos) e só atualiza depois.
 // Se os nomes aceitos pela API forem outros, defina window.PRELOAD_LIGAS = ["nome1","nome2"] antes deste script.
-const PRELOAD_INTERVALO_MS = 4 * 60 * 1000;
+const PRELOAD_INTERVALO_MS = 8 * 60 * 1000; // cada liga é renovada no máximo a cada 8 min
 const PRELOAD_HORAS_MAX = 48;
-const _preloadUltimo = Object.create(null);
 let _preloadEmAndamento = false;
 
 function _casaDaLiga(nome) {
+  if (typeof LIGAS_INFO !== "undefined" && LIGAS_INFO[nome]) return LIGAS_INFO[nome].casa;
   const p = String(nome).split(" ")[0];
   return ["1win", "BetGreen", "Kiron"].includes(p) ? p : "Estrelabet";
 }
@@ -4243,34 +4243,36 @@ function ligasParaPrecarregar() {
   return Object.keys(MINUTOS_POR_LIGA).filter(n => n !== LIGA_ATUAL && _casaDaLiga(n) === casa);
 }
 
+// A troca de liga é uma navegação de página: o "quando foi pré-carregada" precisa sobreviver entre páginas.
+function _preloadQuando(lk) { return parseInt(localStorage.getItem("dvpreload_" + lk), 10) || 0; }
+function _preloadMarcar(lk) { try { localStorage.setItem("dvpreload_" + lk, String(Date.now())); } catch (e) {} }
+
+// Uma liga por chamada (a mais "velha" primeiro): custo constante no servidor, mesmo com 9 ligas irmãs.
 async function precarregarLigasIrmas() {
   if (_preloadEmAndamento || !_tabVisibleTabela || !_cacheResultados.length) return;
+  const agora = Date.now();
+  const liga = ligasParaPrecarregar()
+    .filter(n => {
+      const lk = ligaKeyDe(n);
+      return (agora - _preloadQuando(lk)) >= PRELOAD_INTERVALO_MS || localStorage.getItem(_cacheChave(lk, "res")) === null;
+    })
+    .sort((a, b) => _preloadQuando(ligaKeyDe(a)) - _preloadQuando(ligaKeyDe(b)))[0];
+  if (!liga) return;
+
   _preloadEmAndamento = true;
   try {
+    const lk = ligaKeyDe(liga);
+    _preloadMarcar(lk);
     const horasPedido = Math.min(horasNecessarias(), PRELOAD_HORAS_MAX);
-    for (const liga of ligasParaPrecarregar()) {
-      if (!_tabVisibleTabela) break;
-      const lk = ligaKeyDe(liga);
-      if (Date.now() - (_preloadUltimo[lk] || 0) < PRELOAD_INTERVALO_MS) continue;
-      _preloadUltimo[lk] = Date.now();
-      const [d, o, p] = await Promise.all([
-        fetchResultados(horasPedido, liga, false).catch(() => null),
-        fetchOdds(horasPedido, liga, false),
-        fetchProximosJogos(liga, false)
-      ]);
-      if (Array.isArray(d) && d.length) {
-        cacheGravar(lk, "res", d, horasPedido);
-        if (Array.isArray(o) && o.length) cacheGravar(lk, "odds", o, horasPedido);
-        if (Array.isArray(p) && p.length) cacheGravar(lk, "prox", p, 0);
-        const ja = _ligaStore.get(lk);
-        if (!ja || ja.horas <= horasPedido) {
-          _ligaStore.set(lk, {
-            res: d, odds: Array.isArray(o) ? o : (ja ? ja.odds : []), prox: Array.isArray(p) ? p : (ja ? ja.prox : []),
-            horas: horasPedido, horasOdds: Array.isArray(o) ? horasPedido : (ja ? ja.horasOdds : 0)
-          });
-        }
-      }
-      await new Promise(r => setTimeout(r, 1500)); // espaça as ligas para não pesar no servidor
+    const [d, o, p] = await Promise.all([
+      fetchResultados(horasPedido, liga, false).catch(() => null),
+      fetchOdds(horasPedido, liga, false),
+      fetchProximosJogos(liga, false)
+    ]);
+    if (Array.isArray(d) && d.length) {
+      cacheGravar(lk, "res", d, horasPedido);
+      if (Array.isArray(o) && o.length) cacheGravar(lk, "odds", o, horasPedido);
+      if (Array.isArray(p) && p.length) cacheGravar(lk, "prox", p, 0);
     }
   } catch (e) {
     console.warn("Pré-carregamento falhou:", e);
@@ -4681,8 +4683,8 @@ document.addEventListener('visibilitychange', () => {
 
 hidratarDoCacheLocal();
 buscarDados();
-setTimeout(precarregarLigasIrmas, 5000);
-setInterval(precarregarLigasIrmas, 60000);
+setTimeout(precarregarLigasIrmas, 4000);
+setInterval(precarregarLigasIrmas, 15000);
 setTimeout(iniciarObserverStreak, 1000);
 setInterval(_buscarDadosSeguro, 3000);
 
