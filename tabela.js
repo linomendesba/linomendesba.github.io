@@ -2995,7 +2995,7 @@ async function fetchJsonComTimeout(url, nome, ms = FETCH_TIMEOUT_MS, usarMemo = 
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
-    const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+    const res = await fetch(url, { cache: "no-store", signal: ctrl.signal, priority: "high" });
     if (!res.ok) throw new Error(`Erro HTTP ${res.status} em ${nome}`);
     const texto = await res.text();
     const m = usarMemo ? _memoFetch[nome] : null;
@@ -4018,6 +4018,28 @@ let _cacheProximosJogos = [];
 let _cacheResultados = [];
 let _renderizandoRapido = false; 
 
+// Primeira pintura de cada carga: espera resultados + odds + próximos chegarem e desenha TUDO junto.
+// Se algum demorar mais que PRIMEIRA_PINTURA_ESPERA_MS, pinta com o que tiver e completa quando chegar.
+const PRIMEIRA_PINTURA_ESPERA_MS = 3000;
+function _novaPrimeiraPintura() { return { feita: false, inicio: Date.now(), res: false, odds: false, prox: false }; }
+let _primeiraPintura = _novaPrimeiraPintura();
+function _primeiraPinturaPronta() {
+  const p = _primeiraPintura;
+  if (p.feita) return true;
+  if (p.res && p.odds && p.prox) return true;
+  return (Date.now() - p.inicio) >= PRIMEIRA_PINTURA_ESPERA_MS;
+}
+// Tenta de novo logo em seguida quando o servidor falha/estoura o tempo (só na carga inicial)
+async function _tentarDeNovo(fn, tentativas = 2, esperaMs = 300) {
+  let r = null;
+  for (let i = 0; i < tentativas; i++) {
+    r = await fn();
+    if (r !== null) return r;
+    if (i < tentativas - 1) await new Promise(ok => setTimeout(ok, esperaMs));
+  }
+  return r;
+}
+
 let _versaoBusca = 0;
 let _falhasResultadosSeguidas = 0;
 const FALHAS_ATE_AVISAR = 5; 
@@ -4125,13 +4147,14 @@ function refetchSePreciso() {
 // Resultados, odds e próximos jogos são guardados SEPARADOS (localStorage), cada um assim que chega.
 // Antes era um único pacote gravado no máximo a cada 20s, geralmente no primeiro render (ainda sem odds/próximos),
 // por isso ao voltar numa liga a tabela vinha sem odds e sem próximos confrontos.
-const CACHE_LOCAL_PREFIXO = "dvcache2_";
-const CACHE_LOCAL_VALIDADE_MS = 30 * 60 * 1000;
-const CACHE_LOCAL_MAX_CHARS = 2500000;
+const CACHE_LOCAL_PREFIXO = "dvcache2_"; // formato antigo (localStorage): só usado para limpar
+const CACHE_LOCAL_VALIDADE_MS = 12 * 60 * 60 * 1000;
+const IDB_NOME = "datavirtual_tabela";
+const IDB_STORE = "pacotes";
 
 function ligaKeyDe(nome) { return String(nome).trim().toLowerCase().replace(/\s+/g, "_"); }
-function _cacheChave(lk, tipo) { return `${CACHE_LOCAL_PREFIXO}${lk}|${tipo}`; }
 
+// Remove o cache antigo do localStorage (ele ocupava vários MB da cota de 5MB e podia atrapalhar outras gravações)
 function limparCacheLocal(manter) {
   try {
     Object.keys(localStorage)
@@ -4140,36 +4163,72 @@ function limparCacheLocal(manter) {
   } catch (e) {}
 }
 
-function cacheGravar(lk, tipo, dados, horas) {
-  try {
-    if (!Array.isArray(dados) || !dados.length) return;
-    const chave = _cacheChave(lk, tipo);
-    const txt = JSON.stringify({ t: Date.now(), h: Number.isFinite(horas) ? horas : -1, d: dados });
-    if (txt.length > CACHE_LOCAL_MAX_CHARS) { localStorage.removeItem(chave); return; }
-    try { localStorage.setItem(chave, txt); }
-    catch (e) { limparCacheLocal(chave); try { localStorage.setItem(chave, txt); } catch (e2) {} }
-  } catch (e) {}
+// ── IndexedDB: sem o limite de ~5MB do localStorage e sem JSON.stringify/parse gigante na thread principal ──
+let _idbOk = false;
+let _idbPromise = null;
+function idbAbrir() {
+  if (_idbPromise) return _idbPromise;
+  _idbPromise = new Promise(resolve => {
+    try {
+      if (typeof indexedDB === "undefined") return resolve(null);
+      const rq = indexedDB.open(IDB_NOME, 1);
+      rq.onupgradeneeded = () => { try { rq.result.createObjectStore(IDB_STORE); } catch (e) {} };
+      rq.onsuccess = () => { _idbOk = true; resolve(rq.result); };
+      rq.onerror = () => resolve(null);
+      rq.onblocked = () => resolve(null);
+    } catch (e) { resolve(null); }
+  });
+  return _idbPromise;
+}
+// Resolve com o resultado da operação, ou null se falhou
+function idbOp(modo, fn) {
+  return idbAbrir().then(db => !db ? null : new Promise(resolve => {
+    try {
+      const tx = db.transaction(IDB_STORE, modo);
+      const rq = fn(tx.objectStore(IDB_STORE));
+      tx.oncomplete = () => resolve(rq ? rq.result : true);
+      tx.onerror = () => resolve(null);
+      tx.onabort = () => resolve(null);
+    } catch (e) { resolve(null); }
+  }));
 }
 
-// Só regrava quando o array é outro (o servidor devolvendo o mesmo texto reaproveita a mesma referência)
-const _cacheGravadoRef = Object.create(null);
-function cacheGravarSeMudou(lk, tipo, dados, horas) {
-  if (!Array.isArray(dados) || !dados.length) return;
-  const k = lk + "|" + tipo;
-  if (_cacheGravadoRef[k] === dados) return;
-  _cacheGravadoRef[k] = dados;
-  setTimeout(() => cacheGravar(lk, tipo, dados, horas), 0);
+// UM pacote por liga com resultados + odds + próximos juntos: nunca fica um cache "pela metade".
+// pacote = { t, res, hRes, odds, hOdds, prox }
+const _pacotesConhecidos = new Set();   // ligas que já têm pacote salvo (usado pelo pré-carregamento)
+const _pacoteMem = new Map();           // pacotes lidos do IndexedDB nesta página
+
+async function pacoteLer(lk) {
+  const p = await idbOp("readonly", s => s.get(lk));
+  if (!p || !Array.isArray(p.res) || !p.res.length) return null;
+  if ((Date.now() - p.t) > CACHE_LOCAL_VALIDADE_MS) return null;
+  return p;
+}
+function pacoteGravar(lk, pac) {
+  if (!lk || !pac || !Array.isArray(pac.res) || !pac.res.length) return Promise.resolve(false);
+  return idbOp("readwrite", s => s.put(Object.assign({ t: Date.now() }, pac), lk)).then(r => {
+    if (r !== null) _pacotesConhecidos.add(lk);
+    return r !== null;
+  });
 }
 
-function cacheLer(lk, tipo) {
-  try {
-    const raw = localStorage.getItem(_cacheChave(lk, tipo));
-    if (!raw) return null;
-    const c = JSON.parse(raw);
-    if (!c || !Array.isArray(c.d) || (Date.now() - c.t) > CACHE_LOCAL_VALIDADE_MS) return null;
-    return { dados: c.d, horas: c.h === -1 ? Infinity : (c.h || 0) };
-  } catch (e) { return null; }
+// Salva o estado atual da liga (só se algo realmente mudou desde a última gravação)
+let _pacoteTimer = null;
+let _pacoteGravado = null;
+function pacoteGravarAgora(lk) {
+  if (!_idbOk || !lk || Estado._ultimaLigaRenderizada !== lk || !_cacheResultados.length) return;
+  const refs = [_cacheResultados, _cacheOddsData, _cacheProximosJogos];
+  if (_pacoteGravado && _pacoteGravado.lk === lk && refs.every((r, i) => r === _pacoteGravado.refs[i])) return;
+  _pacoteGravado = { lk, refs };
+  pacoteGravar(lk, { res: _cacheResultados, hRes: _cacheHoras, odds: _cacheOddsData, hOdds: _cacheHorasOdds, prox: _cacheProximosJogos });
 }
+function pacoteGravarAgendado(lk) {
+  if (_pacoteTimer) return;
+  _pacoteTimer = setTimeout(() => { _pacoteTimer = null; pacoteGravarAgora(lk); }, 2500);
+}
+// Ao fechar/esconder a aba, grava na hora (o que o usuário viu por último é o que volta)
+document.addEventListener("visibilitychange", () => { if (document.hidden) pacoteGravarAgora(getLigaKey()); });
+window.addEventListener("pagehide", () => pacoteGravarAgora(getLigaKey()));
 
 // Jogos futuros que já passaram do horário não podem aparecer como "próximo confronto"
 function _proxAindaValidos(lista) {
@@ -4187,34 +4246,49 @@ function guardarLigaNoStore(lk) {
   });
 }
 
-// Preenche as variáveis _cache* da liga a partir da memória ou do localStorage. Não renderiza.
+// Um pacote só pinta a tela direto do cache se estiver COMPLETO (resultados + odds + próximos ainda futuros).
+// Cache incompleto/velho não é mostrado: a rede traz tudo junto em poucos instantes.
+function _pacoteCompleto(p) {
+  return !!(p && Array.isArray(p.res) && p.res.length && Array.isArray(p.odds) && p.odds.length && _proxAindaValidos(p.prox).length);
+}
+
+// Preenche as variáveis _cache* da liga a partir da memória da sessão ou do pacote do IndexedDB. Não renderiza.
 function carregarDadosDaLiga(lk) {
   const s = _ligaStore.get(lk);
   if (s) {
+    if (!_pacoteCompleto(s)) return false;
     _cacheResultados = s.res; _cacheOddsData = s.odds; _cacheProximosJogos = _proxAindaValidos(s.prox);
     _cacheHoras = s.horas; _cacheHorasOdds = s.horasOdds;
     _oddsUltimaBusca = 0;
-    return _cacheResultados.length > 0;
+    return true;
   }
-  const r = cacheLer(lk, "res");
-  if (!r) return false;
-  const o = cacheLer(lk, "odds"), p = cacheLer(lk, "prox");
-  _cacheResultados = r.dados; _cacheHoras = r.horas;
-  _cacheOddsData = o ? o.dados : []; _cacheHorasOdds = o ? o.horas : 0;
-  _cacheProximosJogos = p ? _proxAindaValidos(p.dados) : [];
+  const p = _pacoteMem.get(lk);
+  if (!_pacoteCompleto(p)) return false;
+  _cacheResultados = p.res; _cacheHoras = p.hRes || 0;
+  _cacheOddsData = p.odds;  _cacheHorasOdds = p.hOdds || 0;
+  _cacheProximosJogos = _proxAindaValidos(p.prox);
   _oddsUltimaBusca = 0;
   return true;
 }
 
-function hidratarDoCacheLocal() {
+// Lê o pacote da liga no IndexedDB e, se estiver completo e a rede ainda não pintou nada, pinta na hora.
+async function hidratarDoCacheLocal() {
   try {
     const lk = getLigaKey();
+    if (!_ligaStore.has(lk) && !_pacoteMem.has(lk)) {
+      const p = await pacoteLer(lk);
+      if (p) _pacoteMem.set(lk, p);
+    }
+    // a rede pode ter chegado primeiro: nunca sobrescrever dado novo com cache
+    if (_primeiraPintura.feita || getLigaKey() !== lk) return false;
+    if (_cacheResultados.length || _cacheOddsData.length || _cacheProximosJogos.length) return false;
     if (!carregarDadosDaLiga(lk)) return false;
     Estado._ultimaLigaRenderizada = lk;
     restaurarHorasSeletor();
     qdDadosCache = _cacheResultados;
     renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, true);
     if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+    _primeiraPintura.feita = true;
     return true;
   } catch (e) {
     console.warn("Cache local ignorado:", e);
@@ -4249,12 +4323,12 @@ function _preloadMarcar(lk) { try { localStorage.setItem("dvpreload_" + lk, Stri
 
 // Uma liga por chamada (a mais "velha" primeiro): custo constante no servidor, mesmo com 9 ligas irmãs.
 async function precarregarLigasIrmas() {
-  if (_preloadEmAndamento || !_tabVisibleTabela || !_cacheResultados.length) return;
+  if (_preloadEmAndamento || !_idbOk || !_tabVisibleTabela || !_cacheResultados.length) return;
   const agora = Date.now();
   const liga = ligasParaPrecarregar()
     .filter(n => {
       const lk = ligaKeyDe(n);
-      return (agora - _preloadQuando(lk)) >= PRELOAD_INTERVALO_MS || localStorage.getItem(_cacheChave(lk, "res")) === null;
+      return (agora - _preloadQuando(lk)) >= PRELOAD_INTERVALO_MS || !_pacotesConhecidos.has(lk);
     })
     .sort((a, b) => _preloadQuando(ligaKeyDe(a)) - _preloadQuando(ligaKeyDe(b)))[0];
   if (!liga) return;
@@ -4270,9 +4344,11 @@ async function precarregarLigasIrmas() {
       fetchProximosJogos(liga, false)
     ]);
     if (Array.isArray(d) && d.length) {
-      cacheGravar(lk, "res", d, horasPedido);
-      if (Array.isArray(o) && o.length) cacheGravar(lk, "odds", o, horasPedido);
-      if (Array.isArray(p) && p.length) cacheGravar(lk, "prox", p, 0);
+      await pacoteGravar(lk, {
+        res: d, hRes: horasPedido,
+        odds: Array.isArray(o) ? o : [], hOdds: horasPedido,
+        prox: Array.isArray(p) ? p : []
+      });
     }
   } catch (e) {
     console.warn("Pré-carregamento falhou:", e);
@@ -4282,15 +4358,25 @@ async function precarregarLigasIrmas() {
 }
 
 // Junta num único render as respostas que chegam quase juntas (resultados, odds, próximos)
+let _esperaPinturaTimer = null;
 function agendarRender() {
   if (_renderTimer) return;
   _renderTimer = setTimeout(() => {
     _renderTimer = null;
     if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) return;
+    // Primeira pintura: aguarda resultados + odds + próximos (até o limite) para desenhar tudo de uma vez
+    if (!_primeiraPinturaPronta()) {
+      if (!_esperaPinturaTimer) {
+        const resta = Math.max(50, PRIMEIRA_PINTURA_ESPERA_MS - (Date.now() - _primeiraPintura.inicio)) + 20;
+        _esperaPinturaTimer = setTimeout(() => { _esperaPinturaTimer = null; agendarRender(); }, resta);
+      }
+      return;
+    }
     try {
       qdDadosCache = _cacheResultados;
       renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, false);
       if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+      _primeiraPintura.feita = true;
     } catch (e) { console.error("Erro ao renderizar tabela:", e); }
   }, 30);
 }
@@ -4309,6 +4395,7 @@ async function buscarDados() {
 
     _cacheResultados = []; _cacheOddsData = []; _cacheProximosJogos = [];
     _cacheHoras = 0; _cacheHorasOdds = 0; _oddsUltimaBusca = 0;
+    _primeiraPintura = _novaPrimeiraPintura();
     Estado.carregar();
     const trQDantigo = document.querySelector("#trQuadrantes");
     if (trQDantigo) trQDantigo.remove();
@@ -4323,6 +4410,7 @@ async function buscarDados() {
         qdDadosCache = _cacheResultados;
         renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, true);
         if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+        _primeiraPintura.feita = true;
       } catch (e) { console.error("Erro ao pintar liga do cache:", e); }
     }
   }
@@ -4347,9 +4435,11 @@ async function buscarDados() {
   const pRes = fetchResultados(horas).then(d => {
     if (!ligaNaoMudou()) return;
     _falhasResultadosSeguidas = 0;
-    if (d.length > 0) { _cacheResultados = d; _cacheHoras = horas; cacheGravarSeMudou(ligaAtual, "res", d, horas); }
+    if (d.length > 0) { _cacheResultados = d; _cacheHoras = horas; pacoteGravarAgendado(ligaAtual); }
+    _primeiraPintura.res = true;
     agendarRender();
   }).catch(e => {
+    if (ligaNaoMudou()) { _primeiraPintura.res = true; agendarRender(); }
     _falhasResultadosSeguidas++;
     console.warn("Falha ao buscar resultados (tentando de novo):", e.message);
     if (_cacheResultados.length === 0 || _falhasResultadosSeguidas >= FALHAS_ATE_AVISAR) {
@@ -4359,18 +4449,22 @@ async function buscarDados() {
 
   if (!_proxEmVoo) {
     _proxEmVoo = true;
-    _pProxAtual = fetchProximosJogos().then(p => {
-      if (p !== null && ligaNaoMudou()) { _cacheProximosJogos = p; cacheGravarSeMudou(ligaAtual, "prox", p, 0); }
-    }).finally(() => { _proxEmVoo = false; agendarRender(); });
+    const proxVazio = _cacheProximosJogos.length === 0;
+    _pProxAtual = (proxVazio ? _tentarDeNovo(() => fetchProximosJogos()) : fetchProximosJogos()).then(p => {
+      if (p !== null && ligaNaoMudou()) { _cacheProximosJogos = p; pacoteGravarAgendado(ligaAtual); }
+    }).finally(() => { _proxEmVoo = false; if (ligaNaoMudou()) _primeiraPintura.prox = true; agendarRender(); });
   }
 
   const precisaOdds = _cacheOddsData.length === 0 || horas > _cacheHorasOdds || (agora - _oddsUltimaBusca) >= ODDS_INTERVALO_MS;
   if (!_oddsEmVoo && precisaOdds) {
     _oddsEmVoo = true;
     _oddsUltimaBusca = agora;
-    fetchOdds(horas).then(o => {
-      if (o !== null && ligaNaoMudou()) { _cacheOddsData = o; _cacheHorasOdds = horas; cacheGravarSeMudou(ligaAtual, "odds", o, horas); }
-    }).finally(() => { _oddsEmVoo = false; agendarRender(); });
+    const oddsVazio = _cacheOddsData.length === 0;
+    (oddsVazio ? _tentarDeNovo(() => fetchOdds(horas)) : fetchOdds(horas)).then(o => {
+      if (o !== null && ligaNaoMudou()) { _cacheOddsData = o; _cacheHorasOdds = horas; pacoteGravarAgendado(ligaAtual); }
+    }).finally(() => { _oddsEmVoo = false; if (ligaNaoMudou()) _primeiraPintura.odds = true; agendarRender(); });
+  } else if (!precisaOdds) {
+    _primeiraPintura.odds = true;
   }
 
   // O ciclo só espera os resultados; odds e próximos continuam em segundo plano
@@ -4681,6 +4775,8 @@ document.addEventListener('visibilitychange', () => {
   if (_tabVisibleTabela) _buscarDadosSeguro();
 });
 
+limparCacheLocal(); // remove o cache antigo do localStorage (libera a cota usada pelas configurações)
+idbOp("readonly", s => s.getAllKeys()).then(ks => { if (Array.isArray(ks)) ks.forEach(k => _pacotesConhecidos.add(k)); });
 hidratarDoCacheLocal();
 buscarDados();
 setTimeout(precarregarLigasIrmas, 4000);
