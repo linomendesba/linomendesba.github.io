@@ -6,11 +6,10 @@
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="trader.css" />
     <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <title>DataVirtual | Pênaltis</title>
     <meta
       name="description"
-      content="DataVirtual - análise dos Pênaltis FutVirtual (Brasil, Espanha e Internacional): resultados por ordem de jogo na hora, odds, mercados e gráficos em tempo real."
+      content="DataVirtual - análise dos Pênaltis FutVirtual (Brasil, Espanha e Internacional): resultados por ordem de jogo na hora, odds e mercados em tempo real."
     />
     <meta property="og:title" content="DataVirtual | Pênaltis FutVirtual" />
     <meta property="og:type" content="website" />
@@ -18,8 +17,35 @@
     <meta property="og:url" content="https://www.datavirtual.com.br/penaltis.html" />
     <link rel="canonical" href="https://www.datavirtual.com.br/penaltis.html" />
     <meta name="robots" content="index, follow" />
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
     <script type="module" src="js/firebase-auth.js"></script>
+
+    <style>
+      /* ── Tabela de pênaltis (tudo com prefixo pn- pra não colidir com style.css) ── */
+      .pn-wrap { margin: 0 auto 24px; padding: 0 8px; max-width: 100%; }
+      .pn-scroll { overflow-x: auto; border: 1px solid #1f2937; border-radius: 10px; background: #0f1420; }
+      #tabelaPenaltis { border-collapse: collapse; width: 100%; font-size: 12px; color: #e5e7eb; }
+      #tabelaPenaltis th, #tabelaPenaltis td { border: 1px solid #1f2937; padding: 3px 4px; text-align: center; white-space: nowrap; }
+      #tabelaPenaltis thead th { background: #111827; color: #9ca3af; font-weight: 600; position: sticky; top: 0; z-index: 2; }
+      #tabelaPenaltis .pn-label { background: #111827; color: #9ca3af; font-weight: 700; position: sticky; left: 0; z-index: 3; min-width: 54px; }
+      #tabelaPenaltis .pn-label small { display: block; font-weight: 400; font-size: 10px; color: #6b7280; }
+      #tabelaPenaltis .pn-stat { background: #0b1220; font-weight: 600; color: #cbd5e1; }
+      #tabelaPenaltis .pn-pos { min-width: 46px; }
+      .pn-cell { min-width: 46px; line-height: 1.15; }
+      .pn-cell.hit  { background: rgba(46, 204, 113, 0.20); color: #4ade80; }
+      .pn-cell.miss { background: rgba(231, 76, 60, 0.16);  color: #f87171; }
+      .pn-cell.vazio { background: transparent; color: #374151; }
+      .pn-cell .pn-sc { font-weight: 700; font-size: 13px; }
+      .pn-cell .pn-tm { display: block; font-size: 9px; color: #9ca3af; font-weight: 400; }
+      .pn-cell .pn-od { display: block; font-size: 10px; color: #fbbf24; font-weight: 500; }
+      .pn-pct-hi { color: #4ade80; } .pn-pct-mid { color: #fbbf24; } .pn-pct-lo { color: #f87171; }
+      .pn-msg { text-align: center; padding: 18px; color: #9ca3af; }
+      .pn-proximos { display: flex; gap: 8px; overflow-x: auto; padding: 8px 4px; }
+      .pn-info { color: #6b7280; font-size: 11px; text-align: right; padding: 4px 6px; }
+    </style>
   </head>
 
   <body>
@@ -28,7 +54,7 @@
 
     <div id="errorMessage" class="error-message" style="display: none"></div>
 
-    <!-- ── CONTROLES (os ids são os que o tabela-penaltis.js espera) ── -->
+    <!-- ── CONTROLES (mesmas classes do 20_jogos.html; sem HT e sem minutos fixos) ── -->
     <div class="seletor-container">
       <div id="resultDisplay">
         <div id="greenPercentage">Greens: --</div>
@@ -67,36 +93,23 @@
           <option value="sim" selected>Ver Odds:Sim</option>
         </select>
       </div>
-
-      <div class="seletor-mercados-extras" style="position: relative; display: inline-block">
-        <button type="button" id="btnMercadosExtras" style="cursor: pointer; white-space: nowrap">+ Mercados<span id="mercadosExtrasCount" style="display: none; margin-left: 4px; color: #4ade80"></span></button>
-        <div id="painelMercadosExtras" style="display: none; position: absolute; top: 38px; left: 0; z-index: 50; background: #0f1420; border: 1px solid #374151; border-radius: 8px; padding: 10px; width: 280px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45)">
-          <div style="font-size: 0.75em; color: #9ca3af; margin-bottom: 6px">Mercados extras (até 5) - mostrar odd (💰) livre; destaque (✨) só 1 por vez, junto ao mercado principal</div>
-          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px">
-            <label for="corDestaqueExtraInput" style="font-size: 0.75em; color: #9ca3af">Cor do destaque:</label>
-            <input type="color" id="corDestaqueExtraInput" value="#93C5FD" style="width: 28px; height: 24px; padding: 0; border: 1px solid #374151; border-radius: 4px; background: none; cursor: pointer" />
-          </div>
-          <select id="selectNovoMercadoExtra" style="width: 100%; margin-bottom: 8px">
-            <option value="">+ Adicionar mercado...</option>
-          </select>
-          <div id="listaMercadosExtras" style="display: flex; flex-direction: column; gap: 4px"></div>
-        </div>
-      </div>
-
-      <div id="resultDisplay2">
-        <h4 class="custom-color"></h4>
-      </div>
     </div>
 
-    <!-- ── GRÁFICOS E FERRAMENTAS (montados pelo penaltis-graficos.js) ── -->
-    <div id="pgRoot"></div>
+    <!-- ── PRÓXIMOS JOGOS ── -->
+    <div class="pn-wrap">
+      <div id="pnProximos" class="pn-proximos"></div>
+    </div>
 
     <!-- ── TABELA: linhas = horas | colunas = ordem do jogo na hora (1º, 2º, 3º...) ── -->
-    <table id="tabelaResultados">
-      <thead></thead>
-      <tbody></tbody>
-      <tfoot></tfoot>
-    </table>
+    <div class="pn-wrap">
+      <div class="pn-scroll">
+        <table id="tabelaPenaltis">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="pn-info" id="pnInfo"></div>
+    </div>
 
     <div class="betstat-footer">
       <div class="betstat-footer-line">
@@ -104,8 +117,343 @@
       </div>
     </div>
 
-    <script src="tabela-penaltis.js"></script>
-    <script src="penaltis-graficos.js"></script>
+    <script>
+      (function () {
+        'use strict';
+
+        // ═══════════════════════════════════════════════════════════════
+        // CONFIG — é aqui que se mexe pra ajustar o template
+        // ═══════════════════════════════════════════════════════════════
+        const API_BASE = 'https://datavirtual.com.br';
+
+        // nome = exatamente como a liga é salva no banco / nas rotas do api.js
+        // jogosHora = quantos jogos acontecem por hora (define quantas posições a tabela mostra)
+        const LIGAS = [
+          { slug: 'brasil',        nome: 'Pênaltis Brasil',        curto: 'Brasil',        jogosHora: 17 },
+          { slug: 'espanha',       nome: 'Pênaltis Espanha',       curto: 'Espanha',       jogosHora: 14 },
+          { slug: 'internacional', nome: 'Pênaltis Internacional', curto: 'Internacional', jogosHora: 14 }
+        ];
+
+        const REFRESH_MS = 15000;            // atualização automática
+        const PREFS_KEY  = 'pn:prefs_v1';
+        const MERCADO_PADRAO = 'over5.5';
+
+        const ROTAS = {
+          resultados: l => `${API_BASE}/resultados/futpen/${encodeURIComponent(l.nome)}`,
+          odds:       l => `${API_BASE}/odds/futpen/${encodeURIComponent(l.nome)}`,
+          proximos:   l => `${API_BASE}/proximos/futpen/${encodeURIComponent(l.nome)}`
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // MERCADOS — cada um tem: teste (acertou?) + coluna da odd em futpenodds
+        // r = { ga: gols casa, gb: gols fora, total }
+        // ═══════════════════════════════════════════════════════════════
+        const MERCADOS = [];
+        const GRUPOS = [];
+        const lc = l => String(l).replace('.', '_');
+        function grupo(nome) { GRUPOS.push({ nome, itens: [] }); }
+        function add(id, label, col, test) {
+          const m = { id, label, col, test };
+          MERCADOS.push(m);
+          GRUPOS[GRUPOS.length - 1].itens.push(m);
+        }
+
+        grupo('Vencedor da disputa');
+        add('casaVence', 'Casa vence', 'odds_casa_vence',      r => r.ga > r.gb);
+        add('foraVence', 'Fora vence', 'odds_visitante_vence', r => r.gb > r.ga);
+
+        grupo('Total de gols — Over');
+        for (const L of [4.5, 5.5, 6.5, 7.5]) add(`over${L}`, `Over ${L}`, `odds_mais_${lc(L)}`, r => r.total > L);
+        grupo('Total de gols — Under');
+        for (const L of [4.5, 5.5, 6.5, 7.5]) add(`under${L}`, `Under ${L}`, `odds_menos_${lc(L)}`, r => r.total < L);
+
+        grupo('Gols exatos da disputa');
+        add('exato4menos', '4 ou menos', 'odds_exato_4_ou_menos', r => r.total <= 4);
+        for (const n of [5, 6, 7, 8, 9]) add(`exato${n}`, `${n} gols`, `odds_exato_${n}`, r => r.total === n);
+        add('exato10mais', '10 ou mais', 'odds_exato_10_ou_mais', r => r.total >= 10);
+
+        grupo('Total de gols — Casa');
+        for (const L of [2.5, 3.5]) {
+          add(`casaOver${L}`,  `Casa Over ${L}`,  `odds_casa_mais_${lc(L)}`,  r => r.ga > L);
+          add(`casaUnder${L}`, `Casa Under ${L}`, `odds_casa_menos_${lc(L)}`, r => r.ga < L);
+        }
+        grupo('Total de gols — Fora');
+        for (const L of [2.5, 3.5]) {
+          add(`foraOver${L}`,  `Fora Over ${L}`,  `odds_visitante_mais_${lc(L)}`,  r => r.gb > L);
+          add(`foraUnder${L}`, `Fora Under ${L}`, `odds_visitante_menos_${lc(L)}`, r => r.gb < L);
+        }
+
+        grupo('Gols exatos — Casa');
+        for (const n of [0, 1, 2, 3, 4]) add(`casaExato${n}`, `Casa ${n} gols`, `odds_casa_exato_${n}`, r => r.ga === n);
+        add('casaExato5', 'Casa 5+ gols', 'odds_casa_exato_5_mais', r => r.ga >= 5);
+        grupo('Gols exatos — Fora');
+        for (const n of [0, 1, 2, 3, 4]) add(`foraExato${n}`, `Fora ${n} gols`, `odds_visitante_exato_${n}`, r => r.gb === n);
+        add('foraExato5', 'Fora 5+ gols', 'odds_visitante_exato_5_mais', r => r.gb >= 5);
+
+        grupo('Vencedor + total (combinadas)');
+        for (const L of [4.5, 5.5, 6.5, 7.5]) {
+          add(`casaMais${L}`,  `Casa e Over ${L}`,  `odds_casa_mais_comb_${lc(L)}`,       r => r.ga > r.gb && r.total > L);
+          add(`casaMenos${L}`, `Casa e Under ${L}`, `odds_casa_menos_comb_${lc(L)}`,      r => r.ga > r.gb && r.total < L);
+          add(`foraMais${L}`,  `Fora e Over ${L}`,  `odds_visitante_mais_comb_${lc(L)}`,  r => r.gb > r.ga && r.total > L);
+          add(`foraMenos${L}`, `Fora e Under ${L}`, `odds_visitante_menos_comb_${lc(L)}`, r => r.gb > r.ga && r.total < L);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // ESTADO / PREFERÊNCIAS
+        // ═══════════════════════════════════════════════════════════════
+        const $ = id => document.getElementById(id);
+        const prefs = (() => {
+          const base = { liga: 'brasil', horas: 6, mercado: MERCADO_PADRAO, times: 'nao', odds: 'sim' };
+          try { Object.assign(base, JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')); } catch (_) {}
+          const q = new URLSearchParams(location.search).get('liga');   // ?liga=espanha
+          if (q && LIGAS.some(l => l.slug === q)) base.liga = q;
+          if (!LIGAS.some(l => l.slug === base.liga)) base.liga = LIGAS[0].slug;
+          if (!MERCADOS.some(m => m.id === base.mercado)) base.mercado = MERCADO_PADRAO;
+          return base;
+        })();
+        const savePrefs = () => { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (_) {} };
+
+        const dados = { resultados: [], odds: new Map(), proximos: [] };
+        let carregando = false;
+
+        const ligaAtual = () => LIGAS.find(l => l.slug === prefs.liga) || LIGAS[0];
+        const mercadoAtual = () => MERCADOS.find(m => m.id === prefs.mercado) || MERCADOS[0];
+
+        // ═══════════════════════════════════════════════════════════════
+        // HELPERS
+        // ═══════════════════════════════════════════════════════════════
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const semAcento = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const abrev = n => semAcento(n).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
+
+        async function getJSON(url) {
+          const res = await fetch(url, { headers: { Accept: 'application/json' } });
+          if (!res.ok) throw new Error(`HTTP ${res.status} em ${url}`);
+          return res.json();
+        }
+
+        // data/hora/minuto vêm do event_id ("pen-bra|2026-10-27|09:40", sempre horário de Brasília),
+        // que é mais confiável do que o campo DATE (o fuso do servidor pode deslocar o dia no JSON).
+        function parseEventId(id) {
+          const p = String(id || '').split('|');
+          const d = p[1], hm = p[2];
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(d || '') || !/^\d{2}:\d{2}$/.test(hm || '')) return null;
+          return { date: d, hh: hm.slice(0, 2), mm: hm.slice(3, 5) };
+        }
+
+        function normalizarResultado(r) {
+          const t = parseEventId(r.event_id);
+          if (!t) return null;
+          let ga = Number(r.gols_a), gb = Number(r.gols_b);
+          if (!Number.isInteger(ga) || !Number.isInteger(gb)) {          // fallback: ft = "3 x 4"
+            const m = String(r.ft || '').match(/^(\d+)\s*x\s*(\d+)$/);
+            if (!m) return null;
+            ga = Number(m[1]); gb = Number(m[2]);
+          }
+          return { eventId: r.event_id, ...t, key: `${t.date}${t.hh}${t.mm}`, a: r.time_a, b: r.time_b, ga, gb, total: ga + gb };
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CARGA DE DADOS (direto das rotas da API)
+        // ═══════════════════════════════════════════════════════════════
+        async function carregar() {
+          if (carregando) return;
+          carregando = true;
+          const liga = ligaAtual();
+          const horas = prefs.horas;
+          try {
+            const [res, odds, prox] = await Promise.allSettled([
+              getJSON(`${ROTAS.resultados(liga)}?horas=${horas}`),
+              prefs.odds === 'sim' ? getJSON(`${ROTAS.odds(liga)}?horas=${horas}`) : Promise.resolve([]),
+              getJSON(`${ROTAS.proximos(liga)}?limit=12`)
+            ]);
+
+            if (res.status !== 'fulfilled') throw res.reason;
+            if (liga.slug !== ligaAtual().slug) return;            // usuário trocou de liga durante a carga
+
+            dados.resultados = (Array.isArray(res.value) ? res.value : []).map(normalizarResultado).filter(Boolean);
+            dados.odds = new Map();
+            if (odds.status === 'fulfilled' && Array.isArray(odds.value)) {
+              for (const o of odds.value) if (o.match_id && !dados.odds.has(o.match_id)) dados.odds.set(o.match_id, o);
+            }
+            dados.proximos = prox.status === 'fulfilled' && Array.isArray(prox.value) ? prox.value : [];
+            erro('');
+          } catch (e) {
+            console.error('[PENALTIS] Erro ao carregar:', e);
+            erro(`Não foi possível carregar os resultados (${e.message}).`);
+          } finally {
+            carregando = false;
+          }
+          renderTudo();
+        }
+
+        function erro(msg) {
+          const el = $('errorMessage');
+          el.textContent = msg;
+          el.style.display = msg ? 'block' : 'none';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // MONTAGEM DAS LINHAS: agrupa por hora (data|HH) e numera 1º, 2º, 3º... na ordem em que aconteceram
+        // ═══════════════════════════════════════════════════════════════
+        function montarLinhas() {
+          const ordenados = [...dados.resultados].sort((x, y) => (x.key < y.key ? -1 : x.key > y.key ? 1 : 0));
+          const mapa = new Map();
+          for (const j of ordenados) {
+            const k = `${j.date}|${j.hh}`;
+            if (!mapa.has(k)) mapa.set(k, { date: j.date, hh: j.hh, jogos: [] });
+            mapa.get(k).jogos.push(j);
+          }
+          // últimas N horas (a mais recente primeiro)
+          return [...mapa.values()].slice(-prefs.horas).reverse();
+        }
+
+        const classePct = p => (p >= 60 ? 'pn-pct-hi' : p >= 40 ? 'pn-pct-mid' : 'pn-pct-lo');
+
+        // ═══════════════════════════════════════════════════════════════
+        // RENDER
+        // ═══════════════════════════════════════════════════════════════
+        function renderTudo() {
+          renderProximos();
+          renderTabela();
+        }
+
+        function renderTabela() {
+          const liga = ligaAtual(), mercado = mercadoAtual();
+          const linhas = montarLinhas();
+          const thead = document.querySelector('#tabelaPenaltis thead');
+          const tbody = document.querySelector('#tabelaPenaltis tbody');
+
+          if (!linhas.length) {
+            thead.innerHTML = '';
+            tbody.innerHTML = `<tr><td class="pn-msg">Sem resultados nas últimas ${prefs.horas}h.</td></tr>`;
+            $('greenPercentage').textContent = 'Greens: --';
+            $('redPercentage').textContent = 'Reds: --';
+            $('pnInfo').textContent = '';
+            return;
+          }
+
+          const cols = Math.max(liga.jogosHora, ...linhas.map(l => l.jogos.length));
+
+          // estatística por posição (coluna) e geral
+          const porPos = Array.from({ length: cols }, () => ({ n: 0, hit: 0, gols: 0 }));
+          let totN = 0, totHit = 0;
+
+          const corpo = linhas.map((l, idx) => {
+            let rHit = 0, rGols = 0;
+            const tds = [];
+            for (let p = 0; p < cols; p++) {
+              const j = l.jogos[p];
+              if (!j) { tds.push('<td class="pn-cell vazio">·</td>'); continue; }
+              const hit = !!mercado.test(j);
+              porPos[p].n++; porPos[p].gols += j.total; if (hit) porPos[p].hit++;
+              rHit += hit ? 1 : 0; rGols += j.total;
+
+              let extra = '';
+              if (prefs.times === 'sim') extra += `<span class="pn-tm">${esc(abrev(j.a))} x ${esc(abrev(j.b))}</span>`;
+              if (prefs.odds === 'sim') {
+                const o = dados.odds.get(j.eventId);
+                const v = o ? Number(o[mercado.col]) : NaN;
+                if (Number.isFinite(v) && v > 0) extra += `<span class="pn-od">${v.toFixed(2)}</span>`;
+              }
+              tds.push(
+                `<td class="pn-cell ${hit ? 'hit' : 'miss'}" title="${esc(j.a)} ${j.ga} x ${j.gb} ${esc(j.b)} — ${j.hh}:${j.mm} (${j.date})">` +
+                `<span class="pn-sc">${j.ga}x${j.gb}</span>${extra}</td>`
+              );
+            }
+            const n = l.jogos.length;
+            totN += n; totHit += rHit;
+            const pct = n ? Math.round((100 * rHit) / n) : 0;
+            const dm = `${l.date.slice(8, 10)}/${l.date.slice(5, 7)}`;
+            return (
+              `<tr><th class="pn-label">${l.hh}h<small>${dm}</small></th>${tds.join('')}` +
+              `<td class="pn-stat">${n ? (rGols / n).toFixed(1) : '-'}</td>` +
+              `<td class="pn-stat">${rHit}/${n}</td>` +
+              `<td class="pn-stat ${classePct(pct)}">${pct}%</td></tr>`
+            );
+          });
+
+          // cabeçalho: % por posição, média de gols, acertos, e os números 1..N
+          const rowPct = porPos.map(s => { const p = s.n ? Math.round((100 * s.hit) / s.n) : 0; return `<th class="${classePct(p)}">${s.n ? p + '%' : '-'}</th>`; }).join('');
+          const rowGols = porPos.map(s => `<th>${s.n ? (s.gols / s.n).toFixed(1) : '-'}</th>`).join('');
+          const rowHit = porPos.map(s => `<th>${s.hit}/${s.n}</th>`).join('');
+          const rowNum = porPos.map((_, i) => `<th class="pn-pos">${i + 1}º</th>`).join('');
+          const gp = totN ? Math.round((100 * totHit) / totN) : 0;
+
+          thead.innerHTML =
+            `<tr><th class="pn-label">📊</th>${rowPct}<th colspan="3" class="${classePct(gp)}">${gp}%</th></tr>` +
+            `<tr><th class="pn-label">⚽</th>${rowGols}<th colspan="3">média</th></tr>` +
+            `<tr><th class="pn-label">✔️</th>${rowHit}<th colspan="3">${totHit}/${totN}</th></tr>` +
+            `<tr><th class="pn-label">#</th>${rowNum}<th>⚽</th><th>✔️</th><th>📊</th></tr>`;
+          tbody.innerHTML = corpo.join('');
+
+          $('greenPercentage').textContent = `Greens: ${totN ? ((100 * totHit) / totN).toFixed(1) : '--'}%`;
+          $('redPercentage').textContent = `Reds: ${totN ? ((100 * (totN - totHit)) / totN).toFixed(1) : '--'}%`;
+          $('pnInfo').textContent = `${liga.nome} · ${mercado.label} · ${totN} jogos em ${linhas.length}h · ${liga.jogosHora} jogos/hora`;
+        }
+
+        // Próximos: o campo "time" é HH:MM de Brasília; mostra a partir de 2 min antes
+        function renderProximos() {
+          const box = $('pnProximos');
+          const agora = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Sao_Paulo' })
+            .format(new Date()).split(':').map(Number);
+          const nowMin = agora[0] * 60 + agora[1];
+          const lista = dados.proximos
+            .filter(g => /^\d{1,2}:\d{2}$/.test(g.time || ''))
+            .map(g => {
+              const [h, m] = g.time.split(':').map(Number);
+              let diff = h * 60 + m - nowMin;
+              if (diff < -720) diff += 1440; else if (diff >= 720) diff -= 1440;   // vira do dia
+              return { g, diff };
+            })
+            .filter(x => x.diff >= -2)
+            .sort((x, y) => x.diff - y.diff)
+            .slice(0, 6);
+
+          box.innerHTML = lista.length
+            ? lista.map(({ g }) => `
+                <div class="game-card">
+                  <div class="game-time">${esc(g.time)}</div>
+                  <div class="game-teams">
+                    <span class="team-home">${esc(g.team_home)}</span>
+                    <span class="vs">vs</span>
+                    <span class="team-visit">${esc(g.team_visit)}</span>
+                  </div>
+                </div>`).join('')
+            : '<div class="game-card">Nenhum jogo disponível no momento</div>';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CONTROLES
+        // ═══════════════════════════════════════════════════════════════
+        function montarControles() {
+          $('seletorLiga').innerHTML = LIGAS.map(l => `<option value="${l.slug}">${esc(l.nome)}</option>`).join('');
+          $('seletorResultado').innerHTML = GRUPOS.map(g =>
+            `<optgroup label="── ${esc(g.nome)} ──">${g.itens.map(m => `<option value="${m.id}">${esc(m.label)}</option>`).join('')}</optgroup>`
+          ).join('');
+
+          $('seletorLiga').value = prefs.liga;
+          $('seletorHoras').value = String(prefs.horas);
+          $('seletorResultado').value = prefs.mercado;
+          $('mostrarTimes').value = prefs.times;
+          $('mostrarOdds').value = prefs.odds;
+
+          $('seletorLiga').addEventListener('change', e => { prefs.liga = e.target.value; savePrefs(); dados.resultados = []; renderTabela(); carregar(); });
+          $('seletorHoras').addEventListener('change', e => { prefs.horas = Number(e.target.value); savePrefs(); carregar(); });
+          $('seletorResultado').addEventListener('change', e => { prefs.mercado = e.target.value; savePrefs(); renderTabela(); });
+          $('mostrarTimes').addEventListener('change', e => { prefs.times = e.target.value; savePrefs(); renderTabela(); });
+          $('mostrarOdds').addEventListener('change', e => { prefs.odds = e.target.value; savePrefs(); carregar(); });
+        }
+
+        montarControles();
+        carregar();
+        setInterval(carregar, REFRESH_MS);
+
+        // exposto pra testes / depuração no console
+        window.PENALTIS = { MERCADOS, LIGAS, prefs, dados, montarLinhas, renderTabela, carregar };
+      })();
+    </script>
+
     <script src="header-loader.js"></script>
     <script src="redirecionar.js"></script>
   </body>
