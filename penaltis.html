@@ -546,7 +546,7 @@ const store = new Map();
    Motivo: a API pode devolver odds só dos jogos ainda abertos; se a gente substituir o mapa a cada recarga,
    o jogo que virou resultado perde a odd. Aqui a odd de cada jogo é guardada enquanto ele é "próximo". */
 const ODD_COLS = MERCADOS.map(m => m.col);
-const ODDS_LS = 'penaltisOddsCache:v1:';
+const ODDS_LS = 'penaltisOddsCache:v2:';
 const validOdd = v => { const n = num(v); return n !== null && n > 0 ? n : null; };
 const timeKey = t => `${t.date}|${t.hh}:${t.mm}`;
 function reindexOdds(st){
@@ -562,7 +562,7 @@ function salvarOdds(slug, st){
   clearTimeout(st.saveT);
   st.saveT = setTimeout(() => {
     const d = {};
-    for(const [id, o] of st.oddsMap) d[id] = ODD_COLS.map(c => { const v = validOdd(o[c]); return v === null ? 0 : Math.round(v*100); });
+    for(const [id, o] of st.oddsMap) d[id] = { n:[o.time_casa || '', o.time_visitante || ''], v:ODD_COLS.map(c => { const v = validOdd(o[c]); return v === null ? 0 : Math.round(v*100); }) };
     try{ localStorage.setItem(ODDS_LS+slug, JSON.stringify({ sig:ODD_COLS.join(','), d })); }catch(e){ /* sem espaço: segue sem cache */ }
   }, 15000);
 }
@@ -571,11 +571,12 @@ function carregarOddsCache(slug, st){
     const j = JSON.parse(localStorage.getItem(ODDS_LS+slug) || 'null');
     if(!j || j.sig !== ODD_COLS.join(',') || !j.d) return;
     for(const id in j.d){
-      const arr = j.d[id], o = { match_id:id };
+      const e = j.d[id], arr = e.v, o = { match_id:id };
+      if(e.n && e.n[0]){ o.time_casa = e.n[0]; o.time_visitante = e.n[1]; }
       ODD_COLS.forEach((c,i) => { if(arr[i] > 0) o[c] = arr[i]/100; });
       st.oddsMap.set(id, o);
     }
-    reindexOdds(st);
+    reindexOdds(st); linkOdds(st);
   }catch(e){}
 }
 // antes do jogo começar vale a odd mais recente; depois que começou, só preenche o que estava faltando
@@ -608,7 +609,42 @@ function oddsDe(eventId, st){
   const o = st.oddsMap.get(eventId); if(o) return o;
   const t = parseEventId(eventId); if(!t) return null;
   const id = st.oddsByTime.get(timeKey(t));
-  return id ? (st.oddsMap.get(id) || null) : null;
+  if(id) return st.oddsMap.get(id) || null;
+  const lid = st.oddsLink && st.oddsLink.get(eventId);
+  return lid ? (st.oddsMap.get(lid) || null) : null;
+}
+/* Religa odd ↔ resultado quando o event_id não bate (o start do jogo varia entre a captura da odd e a do resultado,
+   então o mesmo jogo ficou com 2 event_id no banco). Casa por mesma liga + mesmos times + horário mais próximo (≤ 5 min),
+   sem usar a mesma odd em 2 jogos e sem pegar odd de jogo que ainda é "próximo". */
+const TOL_LINK_MS = 5*60000;
+const parTimes = (a, b) => `${noAccent(a).toLowerCase()}|${noAccent(b).toLowerCase()}`;
+function linkOdds(st){
+  const porTimes = new Map();
+  for(const [id, o] of st.oddsMap){
+    const a = o.time_casa, b = o.time_visitante, t = parseEventId(id);
+    if(!a || !b || !t) continue;
+    const k = parTimes(a, b); if(!porTimes.has(k)) porTimes.set(k, []);
+    porTimes.get(k).push({ id, ts: tsDe(t) });
+  }
+  const link = new Map();
+  if(porTimes.size){
+    const usado = new Set(st.prox.map(p => p.eventId)), orfas = [];
+    for(const r of st.rows){
+      const direto = st.oddsMap.has(r.eventId) ? r.eventId : st.oddsByTime.get(timeKey(r));
+      if(direto) usado.add(direto); else orfas.push(r);
+    }
+    orfas.sort((x, y) => x.ts - y.ts);
+    for(const r of orfas){
+      let melhor = null, menor = Infinity;
+      for(const c of (porTimes.get(parTimes(r.a, r.b)) || [])){
+        const dif = Math.abs(c.ts - r.ts);
+        if(usado.has(c.id) || dif > TOL_LINK_MS || dif >= menor) continue;
+        melhor = c; menor = dif;
+      }
+      if(melhor){ link.set(r.eventId, melhor.id); usado.add(melhor.id); }
+    }
+  }
+  st.oddsLink = link;
 }
 function oddNum(eventId, m){
   const o = oddsDe(eventId); if(!o) return null;
@@ -650,6 +686,7 @@ async function syncResultados(l, full, horas){
     st.rows = [...st.resMap.values()].filter(r => r.ts >= cutoff).sort((a,b) => b.ts - a.ts || (a.key < b.key ? 1 : -1));
   }
   st.lastOkRes = Date.now(); if(cheia) st.lastFullRes = Date.now();
+  if(novos || cheia) linkOdds(st);
   return novos;
 }
 async function syncOdds(l, full, horas){
@@ -666,7 +703,7 @@ async function syncOdds(l, full, horas){
     if(merged !== old){ st.oddsMap.set(o.match_id, merged); novos++; }
   }
   if(cheia) st.lastFullOdds = agora;
-  if(novos){ reindexOdds(st); salvarOdds(l.slug, st); }
+  if(novos){ reindexOdds(st); linkOdds(st); salvarOdds(l.slug, st); }
   return novos;
 }
 async function syncProx(l){
@@ -677,6 +714,7 @@ async function syncProx(l){
   const sig = list.map(p => p.eventId).join(',');
   const mudou = sig !== st.proxSig;
   st.prox = list; st.proxSig = sig;
+  if(mudou) linkOdds(st);
   return mudou;
 }
 
