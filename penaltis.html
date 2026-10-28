@@ -234,6 +234,28 @@ button:active{transform:translateY(1px)}
   .filters{grid-template-columns:1fr 1fr}
   .mosaic td{width:46px;min-width:46px}
 }
+
+/* ===== SELEÇÃO MÚLTIPLA (placar / time / odd) ===== */
+.mosaic td.cellRes,.mosaic td.nextCell{position:relative}
+.mosaic td.selHit{filter:brightness(1.14)}
+.mosaic .tm,.mosaic .cellOdd[data-odd]{cursor:pointer;border-radius:3px}
+.mosaic .tm:hover,.mosaic .cellOdd[data-odd]:hover{background:rgba(255,255,255,.28)}
+.cellTeams .tm{padding:1px 2px}
+.cellOdd[data-odd]{padding:1px 3px}
+.selTop,.selBot{position:absolute;left:0;right:0;height:5px;display:flex;pointer-events:none}
+.selTop{top:0}.selBot{bottom:0}
+.selTop i,.selBot i{flex:1;display:block}
+.selBar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:0 0 10px;padding:8px 10px;background:#0c1219;border:1px solid #202a35;border-radius:8px}
+.selGrp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.selGrp>label{font-size:11px;font-weight:700;color:#c7d0d9;letter-spacing:.4px;white-space:nowrap}
+.selGrp select,.selGrp input{background:#171d25;color:#fff;border:1px solid #38414d;border-radius:5px;padding:5px 8px;font-size:12px;max-width:150px}
+.selGrp input{width:78px}
+.selGrp input:focus{outline:none;border-color:var(--orange)}
+.selChip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--c);color:#fff;background:color-mix(in srgb,var(--c) 18%,#0c1219);border-radius:999px;padding:3px 9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.selChip::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--c);flex-shrink:0}
+.selChip:hover{background:color-mix(in srgb,var(--c) 34%,#0c1219)}
+.selCount{color:var(--muted);font-size:11px;font-weight:600}
+.selHint{color:var(--muted);font-size:11px}
 </style>
 </head>
 <body>
@@ -415,9 +437,10 @@ button:active{transform:translateY(1px)}
 
       <div class="panel mosaicPanel">
         <div class="mosaicHeader">
-          <div><h2 class="panelTitle" id="mosaicTitle">MOSAICO DE RESULTADOS</h2><div class="arena" id="arenaInfo">Pênaltis FutVirtual · passe o mouse nas células para ver odds e detalhes · clique no placar para destacar iguais</div></div>
+          <div><h2 class="panelTitle" id="mosaicTitle">MOSAICO DE RESULTADOS</h2><div class="arena" id="arenaInfo">Pênaltis FutVirtual · passe o mouse nas células para ver odds e detalhes · clique no placar, no time ou na odd para marcar (até 5 de cada, cada um com uma cor)</div></div>
           <div class="loading" id="updatedAt"></div>
         </div>
+        <div class="selBar" id="selBar"></div>
         <div class="tableScroll"><table class="mosaic" id="mosaic"></table></div>
         <div class="legend" id="legend"></div>
       </div>
@@ -536,7 +559,82 @@ function normProx(g){
 let ligaSlug = LIGAS[0].slug;
 let horasFiltro = 24, rankingHorasFiltro = 24, ranking2Horas = 24;
 let chartNumPoints = 20, golsNumPoints = 20, ladoNumPoints = 20;
-let selectedScore = null;
+/* ===== SELEÇÃO MÚLTIPLA: até 5 placares, 5 times (casa ou fora) e 5 odds, cada item com cor própria ===== */
+const SEL_MAX = 5;
+const SEL_CORES = {
+  score:['#ffd21a','#ff8b1a','#ff4fd8','#c6ff00','#ffffff'],
+  team :['#00e5ff','#4d7cff','#b26bff','#2dd4bf','#f0abfc'],
+  odd  :['#e879f9','#a3e635','#38bdf8','#fcd34d','#fb923c']
+};
+const SEL_ROTULO = { score:'PLACARES', team:'TIMES', odd:'ODDS' };
+const SEL_NOME = { score:'placares', team:'times', odd:'odds' };
+const SEL = { score:new Map(), team:new Map(), odd:new Map() };   // chave -> { i: índice da cor, label }
+const teamKey = n => noAccent(n).toLowerCase().trim();
+const selKey = (tipo, v) => tipo === 'team' ? teamKey(v) : String(v);
+const selAny = () => SEL.score.size + SEL.team.size + SEL.odd.size > 0;
+let selToastTimer = null;
+function selToast(msg){
+  const t = $('signalToast'); if(!t) return;
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(selToastTimer); selToastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+function selToggle(tipo, valor, soAdicionar){
+  const mp = SEL[tipo], k = selKey(tipo, valor);
+  if(mp.has(k)){ if(soAdicionar) return; mp.delete(k); }
+  else{
+    if(mp.size >= SEL_MAX){ selToast(`Limite de ${SEL_MAX} ${SEL_NOME[tipo]} marcados — remova um para escolher outro`); return; }
+    const usados = new Set([...mp.values()].map(x => x.i)); let i = 0; while(usados.has(i)) i++;
+    mp.set(k, { i, label:String(valor) });
+  }
+  refreshMosaic(); renderSelBar(true);
+}
+function selClear(redraw = true){
+  SEL.score.clear(); SEL.team.clear(); SEL.odd.clear();
+  if(redraw){ refreshMosaic(); renderSelBar(true); }
+}
+function selMatch(ft, a, b, odd){
+  const cor = (tipo, k) => { const x = SEL[tipo].get(k); return x ? SEL_CORES[tipo][x.i] : null; };
+  return { s: ft ? cor('score', ft) : null, ta: cor('team', teamKey(a)), tb: cor('team', teamKey(b)), o: odd ? cor('odd', odd.toFixed(2)) : null };
+}
+function selMarks(mt){
+  let top = '', bot = '';
+  if(mt.ta) top += `<i style="background:${mt.ta}"></i>`;
+  if(mt.tb) top += `<i style="background:${mt.tb}"></i>`;
+  if(mt.o) bot = `<i style="background:${mt.o}"></i>`;
+  return (top ? `<b class="selTop">${top}</b>` : '') + (bot ? `<b class="selBot">${bot}</b>` : '');
+}
+function renderSelBar(force){
+  const el = $('selBar'); if(!el) return;
+  if(!force && el.contains(document.activeElement) && /^(SELECT|INPUT)$/.test(document.activeElement.tagName)) return;   // não atrapalha quem está digitando
+  const rows = allRows();
+  const placares = [...new Set(rows.map(r => r.ft))].sort((x, y) => { const [a1,b1] = x.split(' x ').map(Number), [a2,b2] = y.split(' x ').map(Number); return a1 - a2 || b1 - b2; });
+  const nomes = new Map();
+  rows.forEach(r => { nomes.set(teamKey(r.a), r.a); nomes.set(teamKey(r.b), r.b); });
+  (S.prox || []).forEach(u => { nomes.set(teamKey(u.a), u.a); nomes.set(teamKey(u.b), u.b); });
+  const times = [...nomes.values()].sort((x, y) => x.localeCompare(y, 'pt-BR'));
+  const chips = tipo => [...SEL[tipo].entries()].map(([k, x]) =>
+    `<span class="selChip" style="--c:${SEL_CORES[tipo][x.i]}" data-t="${tipo}" data-k="${esc(k)}" title="Clique para remover">${tipo === 'odd' ? '@' : ''}${esc(x.label)} ✕</span>`).join('');
+  const grp = (tipo, ctl) => `<div class="selGrp"><label>${SEL_ROTULO[tipo]}</label>${chips(tipo)}${SEL[tipo].size < SEL_MAX ? ctl : ''}<span class="selCount">${SEL[tipo].size}/${SEL_MAX}</span></div>`;
+  const html =
+    grp('score', `<select data-add="score"><option value="">+ placar</option>${placares.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('')}</select>`) +
+    grp('team',  `<select data-add="team"><option value="">+ time</option>${times.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('')}</select>`) +
+    grp('odd',   `<input data-add="odd" type="text" inputmode="decimal" placeholder="+ odd" title="Digite a odd (ex: 1.85) e tecle Enter">`) +
+    (selAny() ? `<button type="button" class="toolBtn" data-limpar="1">Limpar marcações</button>` : `<span class="selHint">Dica: clique no placar, no nome do time ou na odd direto no mosaico</span>`);
+  if(el._html === html) return;
+  el._html = html; el.innerHTML = html;
+}
+(function bindSelBar(){
+  const el = $('selBar'); if(!el) return;
+  el.addEventListener('click', e => {
+    if(e.target.closest('[data-limpar]')){ selClear(); return; }
+    const c = e.target.closest('.selChip'); if(c) selToggle(c.dataset.t, c.dataset.k);
+  });
+  el.addEventListener('change', e => {
+    const t = e.target; if(!t.dataset || !t.dataset.add) return;
+    if(t.tagName === 'SELECT'){ const v = t.value; t.value = ''; if(v) selToggle(t.dataset.add, v, true); }
+    else{ const n = num(t.value); t.value = ''; if(n !== null && n > 0) selToggle('odd', n.toFixed(2), true); }
+  });
+})();
 let selectedPos = new Set(), selectedHours = new Set();
 let nextByKey = new Map();
 let lastNextSig = '';
@@ -769,7 +867,7 @@ function completarHistorico(){ setTimeout(() => { loadRes(); loadOdds(); }, 600)
 function setLiga(slug){
   if(!LIGAS.some(l => l.slug === slug)) return;
   ligaSlug = slug; S = getStore(slug); loadSeq++;
-  selectedScore = null; selectedPos.clear(); selectedHours.clear();
+  selClear(false); renderSelBar(true); selectedPos.clear(); selectedHours.clear();
   inflight.res = inflight.prox = inflight.odds = false;
   showError('');
   if(S.rows.length) renderAll(); else { $('mosaic').innerHTML = '<tbody><tr><td class="empty" style="height:60px">Carregando...</td></tr></tbody>'; renderNext(); }
@@ -921,17 +1019,19 @@ function renderMosaic(rows){
         const r = it.r, ok = m.test(r), odd = oddNum(r.eventId, m);
         P[p].n++; P[p].g += r.total; if(ok) P[p].h++; if(odd){ P[p].so += odd; P[p].no++; }
         rn++; rg += r.total; if(ok) rh++;
-        const sel = selectedScore !== null && r.ft === selectedScore, dim = selectedScore !== null && r.ft !== selectedScore;
-        const cls = ['cellRes', ok ? 'hit' : 'miss', dim ? 'colorDim' : (sel ? 'colorSelected' : '')].filter(Boolean).join(' ');
+        const mt = selMatch(r.ft, r.a, r.b, odd), hitSel = !!(mt.s || mt.ta || mt.tb || mt.o);
+        const cls = ['cellRes', ok ? 'hit' : 'miss', selAny() ? (hitSel ? 'selHit' : 'colorDim') : ''].filter(Boolean).join(' ');
         let h = '';
-        if(timesOn) h += `<span class="cellTeams">${abbr(r.a,3)} x ${abbr(r.b,3)}</span>`;
+        if(timesOn) h += `<span class="cellTeams"><span class="tm" data-team="${esc(r.a)}">${abbr(r.a,3)}</span> x <span class="tm" data-team="${esc(r.b)}">${abbr(r.b,3)}</span></span>`;
         h += `<span class="cellScore">${r.ga} x ${r.gb}</span>`;
-        if(oddsOn && odd) h += `<span class="cellOdd">@${odd.toFixed(2)}</span>`;
-        body += `<td class="${cls}" data-pos="${p+1}" data-ft="${r.ft}" data-k="${esc(r.eventId)}">${h}</td>`;
+        if(oddsOn && odd) h += `<span class="cellOdd" data-odd="${odd.toFixed(2)}">@${odd.toFixed(2)}</span>`;
+        h += selMarks(mt);
+        body += `<td class="${cls}"${mt.s ? ` style="box-shadow:inset 0 0 0 3px ${mt.s}"` : ''} data-pos="${p+1}" data-ft="${r.ft}" data-k="${esc(r.eventId)}">${h}</td>`;
       }else{
         const u = it.u, odd = oddNum(u.eventId, m);
         const cls = u.state === 'r' ? 'nextCell nextRun' : (u.eventId === firstId ? 'nextCell nextFirst' : 'nextCell');
-        body += `<td class="${cls}" data-pos="${p+1}" data-k="${esc(u.eventId)}"><span class="nxTeam">${u.state==='r'?'▶ ':''}${abbr(u.a,5)}</span><span class="nxTeam">${abbr(u.b,5)}</span>${oddsOn && odd ? `<span class="cellOdd">@${odd.toFixed(2)}</span>` : ''}</td>`;
+        const mtu = selMatch(null, u.a, u.b, odd);
+        body += `<td class="${cls}" data-pos="${p+1}" data-k="${esc(u.eventId)}"><span class="nxTeam tm" data-team="${esc(u.a)}">${u.state==='r'?'▶ ':''}${abbr(u.a,5)}</span><span class="nxTeam tm" data-team="${esc(u.b)}">${abbr(u.b,5)}</span>${oddsOn && odd ? `<span class="cellOdd" data-odd="${odd.toFixed(2)}">@${odd.toFixed(2)}</span>` : ''}${selMarks(mtu)}</td>`;
       }
     }
     const rp = rn ? Math.round(rh/rn*100) : 0;
@@ -958,7 +1058,11 @@ function renderMosaic(rows){
   updateHighlights();
   table.querySelectorAll('th[data-pos]').forEach(c => { c.onclick = () => { const k = c.dataset.pos; selectedPos.has(k) ? selectedPos.delete(k) : selectedPos.add(k); updateHighlights(); }; });
   table.querySelectorAll('th.hour[data-hour]').forEach(c => { c.onclick = () => { const h = c.dataset.hour; selectedHours.has(h) ? selectedHours.delete(h) : selectedHours.add(h); updateHighlights(); }; });
-  table.querySelectorAll('td[data-ft]').forEach(c => { c.onclick = () => { const f = c.dataset.ft; selectedScore = selectedScore === f ? null : f; refreshMosaic(); }; });
+  table.querySelectorAll('td[data-ft], td.nextCell').forEach(c => { c.onclick = e => {
+    const t = e.target.closest('[data-team]'); if(t){ selToggle('team', t.dataset.team); return; }
+    const o = e.target.closest('[data-odd]'); if(o){ selToggle('odd', o.dataset.odd); return; }
+    if(c.dataset.ft) selToggle('score', c.dataset.ft);
+  }; });
 }
 function refreshMosaic(){ renderMosaic(filterByHoras(allRows(), horasFiltro)); }
 function updateHighlights(){
@@ -1159,7 +1263,7 @@ function renderScoreRanking(rows){
 }
 function renderLegend(){
   const l = ligaAtual();
-  $('legend').innerHTML = `<span><b style="--c:${COR_HIT}">VERDE</b> mercado bateu</span><span><b style="--c:${COR_MISS}">VERMELHO</b> não bateu</span><span><b style="--c:#2f7fa8">AZUL</b> próximo jogo</span><span>${l.nome}: ${l.jogosHora} jogos por hora</span><span class="live">• AO VIVO</span>`;
+  $('legend').innerHTML = `<span><b style="--c:${COR_HIT}">VERDE</b> mercado bateu</span><span><b style="--c:${COR_MISS}">VERMELHO</b> não bateu</span><span><b style="--c:#2f7fa8">AZUL</b> próximo jogo</span><span>${l.nome}: ${l.jogosHora} jogos por hora</span><span>Marcação: <b style="--c:#ffd21a">contorno</b> = placar · <b style="--c:#00e5ff">faixa superior</b> = time · <b style="--c:#e879f9">faixa inferior</b> = odd</span><span class="live">• AO VIVO</span>`;
 }
 function updateTitles(){ const l = ligaAtual(); $('mosaicTitle').textContent = `MOSAICO DE RESULTADOS — ${l.nome.toUpperCase()}`; }
 
@@ -1169,7 +1273,7 @@ function renderAll(){
   const rows = allRows();
   renderCards(rows); renderChart(rows); renderGolsChart(rows); renderLadoChart(rows);
   renderBacktest(rows); renderMarketRanking(rows); renderScoreRanking(rows);
-  refreshMosaic(); renderNext(); renderLegend(); updateTitles();
+  renderSelBar(); refreshMosaic(); renderNext(); renderLegend(); updateTitles();
 }
 
 /* ===================== ANÁLISE POR PADRÃO (GREEN / RED) ===================== */
