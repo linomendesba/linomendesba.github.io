@@ -437,6 +437,7 @@ const LIGAS = [
 const UPDATE_MS = 5000, PROX_MS = 10000, ODDS_MS = 15000;
 const RESYNC_MS = 30*60*1000;     // recarga completa do histórico (as demais são incrementais: só as últimas 3h)
 const DIAS_HISTORICO = 4;         // histórico carregado (alimenta análises, rankings e padrões)
+const MAX_PROXIMOS = 3;           // máximo de próximos jogos por liga (pênaltis)
 const RUN_MS = 4*60*1000;         // quanto tempo um jogo iniciado fica "em andamento" aguardando o resultado
 const AMOSTRA_MINIMA = 30;        // abaixo disso o ranking mostra ⚠️
 const SEQ_MIN_OCORR = 20;         // mínimo de ocorrências do padrão pra considerar indicação
@@ -755,19 +756,25 @@ function upcoming(){
     u.state = u.ts > now ? 'f' : (now - u.ts <= RUN_MS ? 'r' : 'x');
     return u.state !== 'x';
   });
-  // a API repete o mesmo confronto em vários horários seguidos: fica só o primeiro de cada sequência
-  // e some o confronto que já saiu como resultado há poucos minutos
-  const par = (a, b) => `${noAccent(a).toLowerCase()}|${noAccent(b).toLowerCase()}`;
-  const recentes = new Map(); for(const r of S.rows.slice(0, 6)) recentes.set(par(r.a, r.b), r.ts);
-  const out = []; let ult = null;
+  // Rede de segurança contra linhas antigas duplicadas no banco (a captura nova já trava 1 event_id por jogo).
+  // Só junta se for o MESMO confronto, com início a até 3 min do anterior E odd parecida (quando as duas têm odd).
+  // Confronto igual mais tarde na mesma hora, ou com odd diferente, continua aparecendo normalmente.
+  const MESMO_MS = 3*60000, nome = u => `${noAccent(u.a).toLowerCase()}|${noAccent(u.b).toLowerCase()}`;
+  const oddParecida = (idA, idB) => {
+    const oa = oddsDe(idA), ob = oddsDe(idB); if(!oa || !ob) return true;
+    return ['odds_casa_vence','odds_mais_5_5'].every(c => { const x = validOdd(oa[c]), y = validOdd(ob[c]); return x === null || y === null || Math.abs(x - y) <= 0.05; });
+  };
+  const resRecentes = S.rows.slice(0, 6);
+  const out = [];
   for(const u of lista){
-    const k = par(u.a, u.b);
-    if(k === ult) continue;
-    ult = k;
-    const rt = recentes.get(k); if(rt !== undefined && Math.abs(u.ts - rt) <= 10*60000) continue;
-    out.push(u);
+    const k = nome(u);
+    const dup = out.some(v => nome(v) === k && Math.abs(u.ts - v.ts) <= MESMO_MS && oddParecida(u.eventId, v.eventId))
+      || resRecentes.some(r => nome({a:r.a, b:r.b}) === k && Math.abs(u.ts - r.ts) <= MESMO_MS && oddParecida(u.eventId, r.eventId));
+    if(!dup) out.push(u);
   }
-  return out;
+  // pênaltis têm no máximo 3 próximos (os jogos em andamento ▶ aparecem além desses)
+  let fut = 0;
+  return out.filter(u => u.state === 'r' || ++fut <= MAX_PROXIMOS);
 }
 function oddsRowsHtml(eventId){
   const o = oddsDe(eventId);
