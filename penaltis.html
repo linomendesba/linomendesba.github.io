@@ -16,8 +16,10 @@
     function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date()); gtag('config', 'G-4WT805FFHQ');
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="chart.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://datavirtual.com.br" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+<script src="chart.min.js" defer onload="window.__chartReady&&window.__chartReady()"></script>
 <style>
 :root{
   --bg:#05090d;--panel:#0b1118;--panel2:#101821;--line:#26313d;--txt:#f5f7fb;--muted:#9ba6b2;
@@ -821,7 +823,7 @@ function salvarOdds(slug, st){
     const d = {};
     for(const [id, o] of st.oddsMap) d[id] = { n:[o.time_casa || '', o.time_visitante || ''], v:ODD_COLS.map(c => { const v = validOdd(o[c]); return v === null ? 0 : Math.round(v*100); }) };
     try{ localStorage.setItem(ODDS_LS+slug, JSON.stringify({ sig:ODD_COLS.join(','), d })); }catch(e){ /* sem espaço: segue sem cache */ }
-  }, 15000);
+  }, 3000);
 }
 function carregarOddsCache(slug, st){
   try{
@@ -834,6 +836,29 @@ function carregarOddsCache(slug, st){
       st.oddsMap.set(id, o);
     }
     reindexOdds(st); linkOdds(st);
+  }catch(e){}
+}
+/* ---- resultados: ficam salvos no navegador; a tabela abre na hora e a rede só busca o que falta ---- */
+const RES_LS = 'penaltisResCache:v1:';
+const ordRes = (a, b) => b.ts - a.ts || (a.key < b.key ? 1 : -1);
+function salvarRes(slug, st){
+  clearTimeout(st.saveResT);
+  st.saveResT = setTimeout(() => {
+    const d = st.rows.map(r => [r.eventId, r.a, r.b, r.ga, r.gb]);
+    try{ localStorage.setItem(RES_LS+slug, JSON.stringify({ desde:st.desde || 0, fullTs:st.fullTs || 0, ok:st.lastOkRes || 0, d })); }catch(e){ /* sem espaço: segue sem cache */ }
+  }, 2000);
+}
+function carregarResCache(slug, st){
+  try{
+    const j = JSON.parse(localStorage.getItem(RES_LS+slug) || 'null');
+    if(!j || !Array.isArray(j.d)) return;
+    const cutoff = Date.now() - (DIAS_HISTORICO*24 + 6)*3600e3;
+    for(const e of j.d){
+      const n = normRes({ event_id:e[0], time_a:e[1], time_b:e[2], gols_a:e[3], gols_b:e[4] });
+      if(n && n.ts >= cutoff) st.resMap.set(n.eventId, n);
+    }
+    st.rows = [...st.resMap.values()].sort(ordRes);
+    st.desde = j.desde || 0; st.fullTs = j.fullTs || 0; st.lastOkRes = j.ok || 0;
   }catch(e){}
 }
 // antes do jogo começar vale a odd mais recente; depois que começou, só preenche o que estava faltando
@@ -850,9 +875,10 @@ function mergeOdds(old, nw, started){
 function getStore(slug){
   let s = store.get(slug);
   if(!s){
-    s = { resMap:new Map(), oddsMap:new Map(), oddsByTime:new Map(), rows:[], prox:[], proxSig:'', lastFullRes:0, lastOkRes:0, lastFullOdds:0 };
+    s = { resMap:new Map(), oddsMap:new Map(), oddsByTime:new Map(), rows:[], prox:[], proxSig:'', lastFullRes:0, lastOkRes:0, lastOkOdds:0, lastFullOdds:0, desde:0, fullTs:0 };
     store.set(slug, s);
-    carregarOddsCache(slug, s);
+    carregarResCache(slug, s);      // primeiro os resultados (a tabela já abre com o que ficou salvo)...
+    carregarOddsCache(slug, s);     // ...depois as odds, que se ligam aos resultados
   }
   return s;
 }
@@ -924,9 +950,12 @@ function filterByHoras(rows, horas){
 /* ===================== REDE (incremental: histórico 1x, depois só as últimas 3h) ===================== */
 const rota = (tipo, l) => `${API_BASE}/${tipo}/futpen/${encodeURIComponent(l.nome)}`;
 async function fetchJSON(url){
-  const res = await fetch(url, { cache:'no-store' });
-  if(!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 20000);   // não deixa a carga ficar presa
+  try{
+    const res = await fetch(url, { cache:'no-store', signal:ctl.signal });
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }finally{ clearTimeout(t); }
 }
 // horas = carga leve (só as últimas N horas, mescla no que já existe); full sem horas = histórico completo (dias=4)
 async function syncResultados(l, full, horas){
@@ -942,8 +971,12 @@ async function syncResultados(l, full, horas){
     const cutoff = Date.now() - (DIAS_HISTORICO*24 + 6)*3600e3;
     st.rows = [...st.resMap.values()].filter(r => r.ts >= cutoff).sort((a,b) => b.ts - a.ts || (a.key < b.key ? 1 : -1));
   }
-  st.lastOkRes = Date.now(); if(cheia) st.lastFullRes = Date.now();
+  const agoraR = Date.now(); let mudou = !!(novos || cheia);
+  st.lastOkRes = agoraR;
+  if(cheia){ st.lastFullRes = agoraR; st.fullTs = agoraR; st.desde = agoraR - DIAS_HISTORICO*24*3600e3; mudou = true; }
+  else if(horas){ const d = agoraR - horas*3600e3; if(!st.desde || d < st.desde){ st.desde = d; mudou = true; } }
   if(novos || cheia) linkOdds(st);
+  if(mudou) salvarRes(l.slug, st);
   return novos;
 }
 async function syncOdds(l, full, horas){
@@ -959,7 +992,7 @@ async function syncOdds(l, full, horas){
     const merged = mergeOdds(old, o, t ? tsDe(t) <= agora : false);
     if(merged !== old){ st.oddsMap.set(o.match_id, merged); novos++; }
   }
-  if(cheia) st.lastFullOdds = agora;
+  st.lastOkOdds = agora; if(cheia) st.lastFullOdds = agora;
   if(novos){ reindexOdds(st); linkOdds(st); salvarOdds(l.slug, st); }
   return novos;
 }
@@ -978,18 +1011,24 @@ async function syncProx(l){
 const inflight = { res:false, prox:false, odds:false };
 function showError(msg){ const e = $('error'); if(!e) return; e.textContent = msg; e.style.display = msg ? 'block' : 'none'; }
 
+// quantas horas buscar: o normal é 3h; se a aba ficou parada (ou o cache é velho) cobre o intervalo; se o período pedido não está coberto, busca ele todo
+function horasFalta(st, alvoH, ultimoOk){
+  const agora = Date.now();
+  let h = 3;
+  if(ultimoOk) h = Math.max(h, Math.ceil((agora - ultimoOk)/3600e3) + 1);
+  if(!st.desde || (agora - st.desde)/3600e3 < alvoH) h = Math.max(h, alvoH);
+  return Math.min(DIAS_HISTORICO*24, Math.ceil(h));
+}
 async function loadRes(){
   if(inflight.res || document.hidden) return;
   inflight.res = true;
   const l = ligaAtual(), st = getStore(l.slug), seq = loadSeq;
   try{
-    const agora = Date.now();
-    const full = !st.lastFullRes || agora - st.lastFullRes > RESYNC_MS || agora - st.lastOkRes > 2*3600e3;
-    const novos = await syncResultados(l, full);
+    const novos = await syncResultados(l, false, horasFalta(st, 3, st.lastOkRes));
     if(l.slug !== ligaSlug || seq !== loadSeq) return;
     showError('');
     $('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
-    if(novos || full) renderAll();
+    if(novos) renderAll();
   }catch(e){
     if(l.slug === ligaSlug) showError(`Erro ao carregar resultados: ${e.message}`);
   }finally{ inflight.res = false; }
@@ -1009,20 +1048,44 @@ async function loadOdds(){
   inflight.odds = true;
   const l = ligaAtual(), st = getStore(l.slug);
   try{
-    const full = !st.lastFullOdds || Date.now() - st.lastFullOdds > RESYNC_MS;
-    const novos = await syncOdds(l, full);
-    if(l.slug === ligaSlug && (novos || full)){
-      if(full) renderAll(); else { refreshMosaic(); renderNext(); }   // odd nova não precisa refazer gráficos/rankings
-    }
+    const novos = await syncOdds(l, false, horasFalta(st, 3, st.lastOkOdds || st.lastOkRes));
+    if(l.slug === ligaSlug && novos){ refreshMosaic(); renderNext(); }
   }catch(e){ console.warn('Falha ao carregar odds:', e.message); }
   finally{ inflight.odds = false; }
 }
-async function fullLoad(l, leve){
-  // carga inicial em 2 etapas: leve (só o período que o mosaico mostra, abre rápido) e depois o histórico completo em segundo plano
-  const h = leve ? Math.max(6, horasFiltro + 1) : 0;
-  return Promise.allSettled([syncResultados(l, true, h), syncOdds(l, true, h), syncProx(l)]);
+const histAberto = () => [...document.querySelectorAll('.accordionItem:not(.collapsed)')].some(e => e.dataset.tool !== 'proximas');
+/* Carga rápida: usa o que está salvo e busca só o que falta. Cada parte já atualiza a tabela quando chega (sem esperar as outras). */
+function carregaLiga(l, seq){
+  const st = getStore(l.slug), ativo = () => l.slug === ligaSlug && seq === loadSeq;
+  const hR = horasFalta(st, horasFiltro + 1, st.lastOkRes), hO = horasFalta(st, horasFiltro + 1, st.lastOkOdds || st.lastOkRes);
+  const pr = syncResultados(l, false, hR).then(() => {
+    if(!ativo()) return;
+    showError(''); $('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
+    refreshMosaic(); renderNext();
+  });
+  const po = syncOdds(l, false, hO).then(() => { if(ativo()){ refreshMosaic(); renderNext(); } });
+  const pp = syncProx(l).then(() => { if(ativo()){ refreshMosaic(); renderNext(); } });
+  pr.catch(e => { if(ativo()) showError(`Erro ao carregar resultados: ${e.message}`); }); po.catch(() => {}); pp.catch(() => {});
+  return Promise.allSettled([pr, po, pp]).then(() => { if(ativo() && histAberto()){ renderAll(); garantirHistorico(); } });
 }
-function completarHistorico(){ setTimeout(() => { loadRes(); loadOdds(); }, 600); }   // loadRes/loadOdds fazem a carga completa quando ainda não houve
+// histórico completo (4 dias): só é baixado quando uma ferramenta que precisa dele é aberta, e só se o que está salvo não cobre
+async function garantirHistorico(){
+  const l = ligaAtual(), st = getStore(l.slug), seq = loadSeq, agora = Date.now();
+  const cobre = st.desde ? (agora - st.desde)/3600e3 : 0;
+  if(cobre >= DIAS_HISTORICO*24 - 1 && st.fullTs && agora - st.fullTs < 6*3600e3) return;
+  if(st.histP) return st.histP;
+  st.histP = Promise.allSettled([syncResultados(l, true), syncOdds(l, true)]).finally(() => { st.histP = null; });
+  await st.histP;
+  if(l.slug === ligaSlug && seq === loadSeq) renderAll();
+}
+// período do mosaico maior do que o que está salvo (ex.: trocou 24h por 72h): busca só essa diferença
+async function garantirHoras(h){
+  const l = ligaAtual(), st = getStore(l.slug), seq = loadSeq, agora = Date.now();
+  if(st.desde && (agora - st.desde)/3600e3 >= h) return;
+  const n = Math.min(DIAS_HISTORICO*24, Math.ceil(h));
+  await Promise.allSettled([syncResultados(l, false, n), syncOdds(l, false, n)]);
+  if(l.slug === ligaSlug && seq === loadSeq){ refreshMosaic(); renderNext(); }
+}
 function setLiga(slug){
   if(!LIGAS.some(l => l.slug === slug)) return;
   ligaSlug = slug; S = getStore(slug); loadSeq++;
@@ -1031,15 +1094,7 @@ function setLiga(slug){
   showError('');
   if(S.rows.length) renderAll(); else { $('mosaic').innerHTML = '<tbody><tr><td class="empty" style="height:60px">Carregando...</td></tr></tbody>'; renderNext(); }
   renderLegend(); updateTitles();
-  (async () => {
-    const seq = loadSeq, l = ligaAtual(), st = getStore(l.slug);
-    const recente = st.lastFullRes && Date.now() - st.lastFullRes < RESYNC_MS;
-    if(recente) await Promise.allSettled([syncResultados(l, false), syncOdds(l, false), syncProx(l)]);   // já tem histórico: só atualiza o recente
-    else await fullLoad(l, true);
-    if(seq !== loadSeq) return;
-    renderAll();
-    if(!recente) completarHistorico();
-  })();
+  carregaLiga(ligaAtual(), loadSeq);
 }
 
 /* ===================== PRÓXIMOS ===================== */
@@ -1767,7 +1822,7 @@ function syncVarsFromControls(){
 $('fLiga').addEventListener('change', e => { setLiga(e.target.value); const u = new URL(location.href); u.searchParams.set('liga', e.target.value); history.replaceState(null,'',u); });
 $('fMercado').addEventListener('change', () => renderAll());
 ['fMostraOdd','fTimes'].forEach(id => $(id).addEventListener('change', () => { refreshMosaic(); renderNext(); }));
-$('fHoras').addEventListener('change', e => { horasFiltro = parseInt(e.target.value,10) || 24; refreshMosaic(); });
+$('fHoras').addEventListener('change', e => { horasFiltro = parseInt(e.target.value,10) || 24; refreshMosaic(); garantirHoras(horasFiltro + 1); });
 $('fChartMercados').addEventListener('change', () => renderChart(allRows()));
 $('fChartPoints').addEventListener('change', e => { chartNumPoints = parseInt(e.target.value,10) || 20; renderChart(allRows()); });
 $('fGolsPoints').addEventListener('change', e => { golsNumPoints = parseInt(e.target.value,10) || 20; renderGolsChart(allRows()); });
@@ -1813,6 +1868,7 @@ $('fRanking2Horas').addEventListener('change', e => { ranking2Horas = parseInt(e
       const it = (tg || hd).closest('.accordionItem'); it.classList.toggle('collapsed');
       const col = it.classList.contains('collapsed'), b = it.querySelector('.accToggle'); if(b) b.innerHTML = col ? '&#9656;' : '&#9662;';
       if(!col && LAZY_RENDER[it.dataset.tool]){ try{ LAZY_RENDER[it.dataset.tool](); }catch(err){ console.warn('Falha ao abrir ferramenta:', err); } }
+      if(!col && it.dataset.tool !== 'proximas') garantirHistorico();   // só aqui o histórico completo é baixado
       Object.values(charts).forEach(ch => { try{ ch.resize(); }catch(err){} });
     }
   });
@@ -1838,19 +1894,13 @@ loadPersistedFilters();
 syncVarsFromControls();
 renderLegend(); updateTitles();
 document.addEventListener('visibilitychange', () => { if(!document.hidden){ loadRes(); loadProx(); loadOdds(); } });
-(async () => {
-  const seq = loadSeq, l = ligaAtual();
-  $('mosaic').innerHTML = '<tbody><tr><td class="empty" style="height:60px">Carregando...</td></tr></tbody>';
-  const out = await fullLoad(l, true);
-  if(seq !== loadSeq) return;
-  const falhou = out[0].status === 'rejected';
-  if(falhou) showError(`Erro ao carregar resultados: ${out[0].reason && out[0].reason.message}`);
-  else $('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
-  renderAll();
-  completarHistorico();
+window.__chartReady = () => { if(histAberto()) renderAll(); };
+(function iniciar(){
+  const l = ligaAtual(), st = getStore(l.slug);
+  if(st.rows.length) renderAll();      // abre na hora com o que ficou salvo no navegador
+  else $('mosaic').innerHTML = '<tbody><tr><td class="empty" style="height:60px">Carregando...</td></tr></tbody>';
+  carregaLiga(l, loadSeq);
   setInterval(loadRes, UPDATE_MS); setInterval(loadProx, PROX_MS); setInterval(loadOdds, ODDS_MS);
-  // pré-carrega as outras ligas em segundo plano: trocar de liga abre já pronto
-  LIGAS.filter(x => x.slug !== l.slug).forEach((x,i) => setTimeout(() => { fullLoad(x, true).catch(() => {}); }, 8000 + i*4000));
 })();
 // diagnóstico: no console, rode __PEN.diagOdds() para ver quantos resultados de cada liga têm odd casada
 function diagOdds(){
