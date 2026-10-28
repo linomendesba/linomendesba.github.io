@@ -273,6 +273,15 @@ button:active{transform:translateY(1px)}
           <div class="accordionBody">
             <div class="chartTop">
               <div class="chartTopInfo" id="chartInfo"></div>
+              <select id="fChartMercados" title="Mercados exibidos no gráfico">
+                <option value="ou_total" selected>Todos Over e Under (total de gols)</option>
+                <option value="over_total">Só Over (total de gols)</option>
+                <option value="under_total">Só Under (total de gols)</option>
+                <option value="casa">Casa — Over e Under</option>
+                <option value="fora">Fora — Over e Under</option>
+                <option value="tudo">Todos Over/Under (total + casa + fora)</option>
+                <option value="mercado">Mercado selecionado (+ oposto)</option>
+              </select>
               <select id="fChartPoints"></select>
             </div>
             <div class="chartWrap" id="chartWrapBox"><canvas id="chart"></canvas></div>
@@ -532,18 +541,77 @@ let nextByKey = new Map();
 let lastNextSig = '';
 let loadSeq = 0;
 const store = new Map();
+/* ---- odds: acumulam (nunca são apagadas na recarga completa) e ficam salvas no navegador ----
+   Motivo: a API pode devolver odds só dos jogos ainda abertos; se a gente substituir o mapa a cada recarga,
+   o jogo que virou resultado perde a odd. Aqui a odd de cada jogo é guardada enquanto ele é "próximo". */
+const ODD_COLS = MERCADOS.map(m => m.col);
+const ODDS_LS = 'penaltisOddsCache:v1:';
+const validOdd = v => { const n = num(v); return n !== null && n > 0 ? n : null; };
+const timeKey = t => `${t.date}|${t.hh}:${t.mm}`;
+function reindexOdds(st){
+  const cutoff = Date.now() - (DIAS_HISTORICO*24 + 6)*3600e3, byTime = new Map();
+  for(const id of [...st.oddsMap.keys()]){
+    const t = parseEventId(id); if(!t) continue;
+    if(tsDe(t) < cutoff){ st.oddsMap.delete(id); continue; }
+    byTime.set(timeKey(t), id);
+  }
+  st.oddsByTime = byTime;
+}
+function salvarOdds(slug, st){
+  clearTimeout(st.saveT);
+  st.saveT = setTimeout(() => {
+    const d = {};
+    for(const [id, o] of st.oddsMap) d[id] = ODD_COLS.map(c => { const v = validOdd(o[c]); return v === null ? 0 : Math.round(v*100); });
+    try{ localStorage.setItem(ODDS_LS+slug, JSON.stringify({ sig:ODD_COLS.join(','), d })); }catch(e){ /* sem espaço: segue sem cache */ }
+  }, 2000);
+}
+function carregarOddsCache(slug, st){
+  try{
+    const j = JSON.parse(localStorage.getItem(ODDS_LS+slug) || 'null');
+    if(!j || j.sig !== ODD_COLS.join(',') || !j.d) return;
+    for(const id in j.d){
+      const arr = j.d[id], o = { match_id:id };
+      ODD_COLS.forEach((c,i) => { if(arr[i] > 0) o[c] = arr[i]/100; });
+      st.oddsMap.set(id, o);
+    }
+    reindexOdds(st);
+  }catch(e){}
+}
+// antes do jogo começar vale a odd mais recente; depois que começou, só preenche o que estava faltando
+function mergeOdds(old, nw, started){
+  if(!old) return nw;
+  let out = old;
+  for(const c of ODD_COLS){
+    const nv = validOdd(nw[c]); if(nv === null) continue;
+    const ov = validOdd(old[c]);
+    if(ov === null || (!started && ov !== nv)){ if(out === old) out = Object.assign({}, old); out[c] = nv; }
+  }
+  return out;
+}
 function getStore(slug){
   let s = store.get(slug);
-  if(!s){ s = { resMap:new Map(), oddsMap:new Map(), rows:[], prox:[], proxSig:'', lastFullRes:0, lastOkRes:0, lastFullOdds:0 }; store.set(slug, s); }
+  if(!s){
+    s = { resMap:new Map(), oddsMap:new Map(), oddsByTime:new Map(), rows:[], prox:[], proxSig:'', lastFullRes:0, lastOkRes:0, lastFullOdds:0 };
+    store.set(slug, s);
+    carregarOddsCache(slug, s);
+  }
   return s;
 }
 const ligaAtual = () => LIGAS.find(l => l.slug === ligaSlug) || LIGAS[0];
 let S = getStore(ligaSlug);
 const allRows = () => S.rows;
 const mkAtual = () => POR_ID.get($('fMercado').value) || POR_ID.get(MERCADO_PADRAO);
+// acha as odds do jogo pelo event_id; se o match_id da API tiver outro prefixo, casa por data + hora:minuto (único dentro da liga)
+function oddsDe(eventId, st){
+  st = st || S;
+  const o = st.oddsMap.get(eventId); if(o) return o;
+  const t = parseEventId(eventId); if(!t) return null;
+  const id = st.oddsByTime.get(timeKey(t));
+  return id ? (st.oddsMap.get(id) || null) : null;
+}
 function oddNum(eventId, m){
-  const o = S.oddsMap.get(eventId); if(!o) return null;
-  const v = Number(o[m.col]); return Number.isFinite(v) && v > 0 ? v : null;
+  const o = oddsDe(eventId); if(!o) return null;
+  return validOdd(o[m.col]);
 }
 // limiar de "bom resultado" = ponto de equilíbrio da odd média (100 / odd). Sem odds suficientes: 50%
 function thrFor(rows, m){
@@ -588,10 +656,15 @@ async function syncOdds(l, full){
   const data = await fetchJSON(`${rota('odds', l)}?${q}&_=${Date.now()}`);
   if(!Array.isArray(data)) return 0;
   let novos = 0;
-  const base = (full && data.length) ? new Map() : st.oddsMap;
-  for(const o of data){ if(o && o.match_id && !base.has(o.match_id)){ base.set(o.match_id, o); novos++; } }
-  if(base !== st.oddsMap) st.oddsMap = base;
-  if(full) st.lastFullOdds = Date.now();
+  const agora = Date.now();
+  for(const o of data){
+    if(!o || !o.match_id) continue;
+    const old = st.oddsMap.get(o.match_id), t = parseEventId(o.match_id);
+    const merged = mergeOdds(old, o, t ? tsDe(t) <= agora : false);
+    if(merged !== old){ st.oddsMap.set(o.match_id, merged); novos++; }
+  }
+  if(full) st.lastFullOdds = agora;
+  if(novos){ reindexOdds(st); salvarOdds(l.slug, st); }
   return novos;
 }
 async function syncProx(l){
@@ -677,7 +750,7 @@ function upcoming(){
   });
 }
 function oddsRowsHtml(eventId){
-  const o = S.oddsMap.get(eventId);
+  const o = oddsDe(eventId);
   if(!o) return '<div class="nextEmpty">Odds ainda não abertas.</div>';
   const sel = mkAtual().id, ids = [sel, ...MAIN_ODDS.filter(i => i !== sel)];
   const vals = ids.map(id => { const m = POR_ID.get(id), v = Number(o[m.col]); return { m, v: Number.isFinite(v) && v > 0 ? v : null }; }).filter(x => x.v !== null);
@@ -867,15 +940,22 @@ function rollMean(vals, W){
   return out;
 }
 const to2 = v => +v.toFixed(2);
-function upsertLine(id, labels, datasets, seq, lblFn, opts){
-  if(typeof Chart === 'undefined') return;
-  const isPct = !opts || opts.pct !== false;
-  const all = datasets.flatMap(d => d.data);
-  const rawMin = all.length ? Math.min(...all) : 0, rawMax = all.length ? Math.max(...all) : 100;
+function calcY(datasets, isPct){
+  let rawMin = Infinity, rawMax = -Infinity;
+  for(const d of datasets) for(const v of d.data){ if(v < rawMin) rawMin = v; if(v > rawMax) rawMax = v; }
+  if(rawMin === Infinity){ rawMin = 0; rawMax = 100; }
   let yMin, yMax;
   if(isPct){ const pad = Math.max(3, Math.round((rawMax-rawMin)*0.2)); yMin = Math.max(0, Math.floor(rawMin-pad)); yMax = Math.min(100, Math.ceil(rawMax+pad)); }
   else { yMin = Math.max(0, Math.floor(rawMin-0.5)); yMax = Math.ceil(rawMax+0.5); }
-  chartMeta[id] = { seq, lblFn, isPct };
+  return { yMin, yMax };
+}
+function upsertLine(id, labels, datasets, seq, lblFn, opts){
+  if(typeof Chart === 'undefined') return;
+  const isPct = !opts || opts.pct !== false;
+  const hidden = (opts && opts.hidden) || null, sortTip = !!(opts && opts.sortTip);
+  if(hidden) datasets.forEach(d => { d.hidden = hidden.has(d.label); });   // mantém o que o usuário escondeu na legenda
+  const { yMin, yMax } = calcY(datasets.filter(d => !d.hidden), isPct);
+  chartMeta[id] = { seq, lblFn, isPct, hidden, sortTip };
   const c = charts[id];
   if(c){ c.data.labels = labels; c.data.datasets = datasets; c.options.scales.y.min = yMin; c.options.scales.y.max = yMax; c.update('none'); return; }
   charts[id] = new Chart($(id), {
@@ -885,8 +965,16 @@ function upsertLine(id, labels, datasets, seq, lblFn, opts){
       interaction:{mode:'index', intersect:false, axis:'x'},
       elements:{ line:{borderCapStyle:'round', borderJoinStyle:'round'}, point:{hitRadius:8} },
       plugins:{
-        legend:{ labels:{ color:'#e7ecf2', usePointStyle:true, pointStyle:'circle', boxWidth:8, boxHeight:8, padding:18, font:{weight:'500', size:12, family:"'Roboto', Inter, sans-serif"} } },
-        tooltip:{ enabled:true, backgroundColor:'rgba(10,15,21,.94)', titleColor:'#fff', titleFont:{weight:'700', size:12}, bodyColor:'#d7dbe0', bodyFont:{size:12},
+        legend:{
+          onClick:(e, item, legend) => {
+            const ch = legend.chart, i = item.datasetIndex, vis = ch.isDatasetVisible(i), hs = chartMeta[id] && chartMeta[id].hidden;
+            ch.setDatasetVisibility(i, !vis);
+            if(hs){ const lb = ch.data.datasets[i].label; vis ? hs.add(lb) : hs.delete(lb); }
+            const y = calcY(ch.data.datasets.filter((d,k) => ch.isDatasetVisible(k)), chartMeta[id].isPct);
+            ch.options.scales.y.min = y.yMin; ch.options.scales.y.max = y.yMax; ch.update();
+          },
+          labels:{ color:'#e7ecf2', usePointStyle:true, pointStyle:'circle', boxWidth:8, boxHeight:8, padding:18, font:{weight:'500', size:12, family:"'Roboto', Inter, sans-serif"} } },
+        tooltip:{ enabled:true, itemSort:(a,b) => chartMeta[id].sortTip ? (b.raw - a.raw) : (a.datasetIndex - b.datasetIndex), backgroundColor:'rgba(10,15,21,.94)', titleColor:'#fff', titleFont:{weight:'700', size:12}, bodyColor:'#d7dbe0', bodyFont:{size:12},
           borderColor:'rgba(255,255,255,.08)', borderWidth:1, padding:12, cornerRadius:10, usePointStyle:true, boxPadding:5,
           callbacks:{
             title: items => { const r = chartMeta[id].seq[items[0].dataIndex]; return r ? `${r.date} ${r.hh}:${r.mm} · ${r.a} ${r.ga} x ${r.gb} ${r.b}` : ''; },
@@ -900,21 +988,41 @@ function upsertLine(id, labels, datasets, seq, lblFn, opts){
     }
   });
 }
+const CHART_GRUPOS = {
+  ou_total:    { nome:'TODOS OS OVER E UNDER (TOTAL DE GOLS)', ids:['over4.5','over5.5','over6.5','over7.5','under4.5','under5.5','under6.5','under7.5'] },
+  over_total:  { nome:'TODOS OS OVER (TOTAL DE GOLS)',         ids:['over4.5','over5.5','over6.5','over7.5'] },
+  under_total: { nome:'TODOS OS UNDER (TOTAL DE GOLS)',        ids:['under4.5','under5.5','under6.5','under7.5'] },
+  casa:        { nome:'CASA — OVER E UNDER',                   ids:['casaOver2.5','casaOver3.5','casaUnder2.5','casaUnder3.5'] },
+  fora:        { nome:'FORA — OVER E UNDER',                   ids:['foraOver2.5','foraOver3.5','foraUnder2.5','foraUnder3.5'] },
+  tudo:        { nome:'TODOS OS OVER/UNDER (TOTAL + CASA + FORA)', ids:['over4.5','over5.5','over6.5','over7.5','under4.5','under5.5','under6.5','under7.5','casaOver2.5','casaOver3.5','casaUnder2.5','casaUnder3.5','foraOver2.5','foraOver3.5','foraUnder2.5','foraUnder3.5'] }
+};
+const CHART_CORES = {
+  'over4.5':'#20d66b','over5.5':'#19a7ff','over6.5':'#00e5ff','over7.5':'#b388ff',
+  'under4.5':'#ff5c5c','under5.5':'#ff8b1a','under6.5':'#ffd23f','under7.5':'#ff6fd8',
+  'casaOver2.5':'#a3e635','casaOver3.5':'#2dd4bf','casaUnder2.5':'#f87171','casaUnder3.5':'#fb923c',
+  'foraOver2.5':'#60a5fa','foraOver3.5':'#c084fc','foraUnder2.5':'#fcd34d','foraUnder3.5':'#f9a8d4'
+};
+const chartHidden = new Set();   // séries escondidas pela legenda (sobrevive às atualizações automáticas)
 function renderChart(rows){
   if(!toolOpen('grafico')) return;
-  const m = mkAtual(), W = ligaAtual().jogosHora, chron = [...rows].reverse();
-  const roll = rollMean(chron.map(r => m.test(r) ? 1 : 0), W).map(v => to2(v*100));
+  const W = ligaAtual().jogosHora, chron = [...rows].reverse(), modo = ($('fChartMercados') || {}).value || 'ou_total';
   const seq = chron.slice(-chartNumPoints), st = chron.length - seq.length, ps = ptStyle(chartNumPoints);
-  const thr = thrFor(chron.slice(-Math.max(chartNumPoints, W)), m);
-  const ds = [mkDs(m.label, '#20d66b', roll.slice(st), ps)];
-  const opId = OPOSTO.get(m.id);
-  if(opId){
-    const mo = POR_ID.get(opId);
-    ds.push(mkDs(mo.label, '#ff5c5c', rollMean(chron.map(r => mo.test(r) ? 1 : 0), W).map(v => to2(v*100)).slice(st), ps));
+  const serie = m => rollMean(chron.map(r => m.test(r) ? 1 : 0), W).map(v => to2(v*100)).slice(st);
+  const grp = CHART_GRUPOS[modo];
+  let ds, titulo;
+  if(grp){
+    ds = grp.ids.map(id => { const m = POR_ID.get(id); return mkDs(m.label, CHART_CORES[id], serie(m), ps, { borderWidth: grp.ids.length > 8 ? 2 : 2.5, borderDash: id.includes('nder') ? [6,4] : [] }); });
+    titulo = `${grp.nome} · ÚLTIMOS ${chartNumPoints} JOGOS · JANELA DE ${W} JOGOS = 1 HORA · TRACEJADO = UNDER · CLIQUE NA LEGENDA PARA ESCONDER/MOSTRAR`;
+  }else{
+    const m = mkAtual(), thr = thrFor(chron.slice(-Math.max(chartNumPoints, W)), m);
+    ds = [mkDs(m.label, '#20d66b', serie(m), ps)];
+    const opId = OPOSTO.get(m.id);
+    if(opId){ const mo = POR_ID.get(opId); ds.push(mkDs(mo.label, '#ff5c5c', serie(mo), ps)); }
+    ds.push(mkDs(`Equilíbrio das odds (${thr}%)`, '#9ba6b2', seq.map(() => thr), {r:0,bw:0}, { borderDash:[6,4], borderWidth:1.5, tension:0 }));
+    titulo = `${m.label.toUpperCase()} · ÚLTIMOS ${chartNumPoints} JOGOS · JANELA DE ${W} JOGOS = 1 HORA`;
   }
-  ds.push(mkDs(`Equilíbrio das odds (${thr}%)`, '#9ba6b2', seq.map(() => thr), {r:0,bw:0}, { borderDash:[6,4], borderWidth:1.5, tension:0 }));
-  $('chartInfo').innerHTML = `(${esc(m.label.toUpperCase())} · ÚLTIMOS ${chartNumPoints} JOGOS · JANELA DE ${W} JOGOS = 1 HORA)`;
-  upsertLine('chart', seq.map(r => `${r.hh}:${r.mm}`), ds, seq);
+  $('chartInfo').innerHTML = `(${esc(titulo)})`;
+  upsertLine('chart', seq.map(r => `${r.hh}:${r.mm}`), ds, seq, null, { hidden:chartHidden, sortTip: ds.length > 4 });
 }
 function renderGolsChart(rows){
   if(!toolOpen('gols')) return;
@@ -1146,6 +1254,7 @@ $('fLiga').addEventListener('change', e => { setLiga(e.target.value); const u = 
 $('fMercado').addEventListener('change', () => renderAll());
 ['fMostraOdd','fTimes'].forEach(id => $(id).addEventListener('change', () => { refreshMosaic(); renderNext(); }));
 $('fHoras').addEventListener('change', e => { horasFiltro = parseInt(e.target.value,10) || 24; refreshMosaic(); });
+$('fChartMercados').addEventListener('change', () => renderChart(allRows()));
 $('fChartPoints').addEventListener('change', e => { chartNumPoints = parseInt(e.target.value,10) || 20; renderChart(allRows()); });
 $('fGolsPoints').addEventListener('change', e => { golsNumPoints = parseInt(e.target.value,10) || 20; renderGolsChart(allRows()); });
 $('fLadoPoints').addEventListener('change', e => { ladoNumPoints = parseInt(e.target.value,10) || 20; renderLadoChart(allRows()); });
@@ -1221,11 +1330,16 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden){ load
   if(falhou) showError(`Erro ao carregar resultados: ${out[0].reason && out[0].reason.message}`);
   else $('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
   renderAll();
+  try{ console.info('[DataVirtual] odds x resultados:', diagOdds()); }catch(e){}
   setInterval(loadRes, UPDATE_MS); setInterval(loadProx, PROX_MS); setInterval(loadOdds, ODDS_MS);
   // pré-carrega as outras ligas em segundo plano: trocar de liga abre já pronto
   LIGAS.filter(x => x.slug !== l.slug).forEach((x,i) => setTimeout(() => { fullLoad(x).catch(() => {}); }, 3000 + i*3000));
 })();
-window.__PEN = { MERCADOS, LIGAS, getStore, renderAll, refreshMosaic, normRes, normProx };
+// diagnóstico: no console, rode __PEN.diagOdds() para ver quantos resultados de cada liga têm odd casada
+function diagOdds(){
+  return LIGAS.map(l => { const st = getStore(l.slug); const com = st.rows.filter(r => oddsDe(r.eventId, st)).length; return { liga:l.curto, resultados:st.rows.length, comOdds:com, oddsGuardadas:st.oddsMap.size }; });
+}
+window.__PEN = { MERCADOS, LIGAS, getStore, renderAll, refreshMosaic, normRes, normProx, diagOdds };
 
 </script>
 
