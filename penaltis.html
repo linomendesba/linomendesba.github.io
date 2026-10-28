@@ -563,7 +563,7 @@ function salvarOdds(slug, st){
     const d = {};
     for(const [id, o] of st.oddsMap) d[id] = ODD_COLS.map(c => { const v = validOdd(o[c]); return v === null ? 0 : Math.round(v*100); });
     try{ localStorage.setItem(ODDS_LS+slug, JSON.stringify({ sig:ODD_COLS.join(','), d })); }catch(e){ /* sem espaço: segue sem cache */ }
-  }, 2000);
+  }, 15000);
 }
 function carregarOddsCache(slug, st){
   try{
@@ -634,25 +634,26 @@ async function fetchJSON(url){
   if(!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
-async function syncResultados(l, full){
-  const st = getStore(l.slug);
-  const q = full ? `dias=${DIAS_HISTORICO}` : 'horas=3';
+// horas = carga leve (só as últimas N horas, mescla no que já existe); full sem horas = histórico completo (dias=4)
+async function syncResultados(l, full, horas){
+  const st = getStore(l.slug), cheia = full && !horas;
+  const q = horas ? `horas=${horas}` : (full ? `dias=${DIAS_HISTORICO}` : 'horas=3');
   const data = await fetchJSON(`${rota('resultados', l)}?${q}&_=${Date.now()}`);
   if(!Array.isArray(data)) throw new Error('Resposta inesperada');
   let novos = 0;
-  const base = (full && data.length) ? new Map() : st.resMap;
+  const base = (cheia && data.length) ? new Map() : st.resMap;
   for(const raw of data){ const n = normRes(raw); if(n && !base.has(n.eventId)){ base.set(n.eventId, n); novos++; } }
   if(base !== st.resMap) st.resMap = base;
-  if(novos || full){
+  if(novos || cheia){
     const cutoff = Date.now() - (DIAS_HISTORICO*24 + 6)*3600e3;
     st.rows = [...st.resMap.values()].filter(r => r.ts >= cutoff).sort((a,b) => b.ts - a.ts || (a.key < b.key ? 1 : -1));
   }
-  st.lastOkRes = Date.now(); if(full) st.lastFullRes = Date.now();
+  st.lastOkRes = Date.now(); if(cheia) st.lastFullRes = Date.now();
   return novos;
 }
-async function syncOdds(l, full){
-  const st = getStore(l.slug);
-  const q = full ? `dias=${DIAS_HISTORICO}` : 'horas=3';
+async function syncOdds(l, full, horas){
+  const st = getStore(l.slug), cheia = full && !horas;
+  const q = horas ? `horas=${horas}` : (full ? `dias=${DIAS_HISTORICO}` : 'horas=3');
   const data = await fetchJSON(`${rota('odds', l)}?${q}&_=${Date.now()}`);
   if(!Array.isArray(data)) return 0;
   let novos = 0;
@@ -663,7 +664,7 @@ async function syncOdds(l, full){
     const merged = mergeOdds(old, o, t ? tsDe(t) <= agora : false);
     if(merged !== old){ st.oddsMap.set(o.match_id, merged); novos++; }
   }
-  if(full) st.lastFullOdds = agora;
+  if(cheia) st.lastFullOdds = agora;
   if(novos){ reindexOdds(st); salvarOdds(l.slug, st); }
   return novos;
 }
@@ -714,15 +715,18 @@ async function loadOdds(){
   try{
     const full = !st.lastFullOdds || Date.now() - st.lastFullOdds > RESYNC_MS;
     const novos = await syncOdds(l, full);
-    if(l.slug === ligaSlug && (novos || full)) renderAll();
+    if(l.slug === ligaSlug && (novos || full)){
+      if(full) renderAll(); else { refreshMosaic(); renderNext(); }   // odd nova não precisa refazer gráficos/rankings
+    }
   }catch(e){ console.warn('Falha ao carregar odds:', e.message); }
   finally{ inflight.odds = false; }
 }
-async function fullLoad(l){
-  // usado no carregamento inicial e no pré-carregamento das outras ligas
-  const out = await Promise.allSettled([syncResultados(l, true), syncOdds(l, true), syncProx(l)]);
-  return out;
+async function fullLoad(l, leve){
+  // carga inicial em 2 etapas: leve (só o período que o mosaico mostra, abre rápido) e depois o histórico completo em segundo plano
+  const h = leve ? Math.max(6, horasFiltro + 1) : 0;
+  return Promise.allSettled([syncResultados(l, true, h), syncOdds(l, true, h), syncProx(l)]);
 }
+function completarHistorico(){ setTimeout(() => { loadRes(); loadOdds(); }, 600); }   // loadRes/loadOdds fazem a carga completa quando ainda não houve
 function setLiga(slug){
   if(!LIGAS.some(l => l.slug === slug)) return;
   ligaSlug = slug; S = getStore(slug); loadSeq++;
@@ -732,22 +736,38 @@ function setLiga(slug){
   if(S.rows.length) renderAll(); else { $('mosaic').innerHTML = '<tbody><tr><td class="empty" style="height:60px">Carregando...</td></tr></tbody>'; renderNext(); }
   renderLegend(); updateTitles();
   (async () => {
-    const seq = loadSeq, l = ligaAtual();
-    await fullLoad(l);
+    const seq = loadSeq, l = ligaAtual(), st = getStore(l.slug);
+    const recente = st.lastFullRes && Date.now() - st.lastFullRes < RESYNC_MS;
+    if(recente) await Promise.allSettled([syncResultados(l, false), syncOdds(l, false), syncProx(l)]);   // já tem histórico: só atualiza o recente
+    else await fullLoad(l, true);
     if(seq !== loadSeq) return;
     renderAll();
+    if(!recente) completarHistorico();
   })();
 }
 
 /* ===================== PRÓXIMOS ===================== */
 function upcoming(){
   const now = Date.now(), seen = new Set();
-  return S.prox.slice().sort((a,b) => a.ts - b.ts).filter(u => {
+  const lista = S.prox.slice().sort((a,b) => a.ts - b.ts).filter(u => {
     if(seen.has(u.eventId)) return false; seen.add(u.eventId);
     if(S.resMap.has(u.eventId)) return false;
     u.state = u.ts > now ? 'f' : (now - u.ts <= RUN_MS ? 'r' : 'x');
     return u.state !== 'x';
   });
+  // a API repete o mesmo confronto em vários horários seguidos: fica só o primeiro de cada sequência
+  // e some o confronto que já saiu como resultado há poucos minutos
+  const par = (a, b) => `${noAccent(a).toLowerCase()}|${noAccent(b).toLowerCase()}`;
+  const recentes = new Map(); for(const r of S.rows.slice(0, 6)) recentes.set(par(r.a, r.b), r.ts);
+  const out = []; let ult = null;
+  for(const u of lista){
+    const k = par(u.a, u.b);
+    if(k === ult) continue;
+    ult = k;
+    const rt = recentes.get(k); if(rt !== undefined && Math.abs(u.ts - rt) <= 10*60000) continue;
+    out.push(u);
+  }
+  return out;
 }
 function oddsRowsHtml(eventId){
   const o = oddsDe(eventId);
@@ -1324,16 +1344,16 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden){ load
 (async () => {
   const seq = loadSeq, l = ligaAtual();
   $('mosaic').innerHTML = '<tbody><tr><td class="empty" style="height:60px">Carregando...</td></tr></tbody>';
-  const out = await fullLoad(l);
+  const out = await fullLoad(l, true);
   if(seq !== loadSeq) return;
   const falhou = out[0].status === 'rejected';
   if(falhou) showError(`Erro ao carregar resultados: ${out[0].reason && out[0].reason.message}`);
   else $('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
   renderAll();
-  try{ console.info('[DataVirtual] odds x resultados:', diagOdds()); }catch(e){}
+  completarHistorico();
   setInterval(loadRes, UPDATE_MS); setInterval(loadProx, PROX_MS); setInterval(loadOdds, ODDS_MS);
   // pré-carrega as outras ligas em segundo plano: trocar de liga abre já pronto
-  LIGAS.filter(x => x.slug !== l.slug).forEach((x,i) => setTimeout(() => { fullLoad(x).catch(() => {}); }, 3000 + i*3000));
+  LIGAS.filter(x => x.slug !== l.slug).forEach((x,i) => setTimeout(() => { fullLoad(x, true).catch(() => {}); }, 8000 + i*4000));
 })();
 // diagnóstico: no console, rode __PEN.diagOdds() para ver quantos resultados de cada liga têm odd casada
 function diagOdds(){
