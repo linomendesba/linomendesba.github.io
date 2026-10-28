@@ -242,6 +242,7 @@ function redirecionar(select) {
     url === "https://www.datavirtual.com.br/betssonsequencia.html" ||
     url === "https://www.datavirtual.com.br/betssonradar.html" ||
     url === "https://www.datavirtual.com.br/betssongols.html" ||
+    url === "https://www.datavirtual.com.br/penaltis" ||
     url === "https://www.datavirtual.com.br/betssongf.html" ||
     url === "https://www.datavirtual.com.br/betssongratime.html" ||
     url === "https://www.datavirtual.com.br/betssonmacro.html" ||
