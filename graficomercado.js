@@ -3124,39 +3124,18 @@ function processApiData(_0x3ae1c0, _0x8ae59d) {
   });
   return _0x39be0a;
 }
-let _lastRaw = null;
-let _lastSig = "";
-let _updating = false;
-function _horasNecessarias() {
-  const jogos = numPoints + Math.ceil(averagePoints * 3.5) + _JPH;
-  return Math.max(100, Math.ceil(jogos / _JPH) + 2);
-}
-function _buscarResultados() {
-  if (typeof LigaDataManager !== "undefined") {
-    return LigaDataManager.getResultados(_horasNecessarias());
-  }
-  return fetch(ROTAS_API.resultados(LIGA_ATUAL)).then(r => {
-    if (!r.ok) {
-      throw new Error(r.status);
-    }
-    return r.json();
-  });
-}
 function updateCharts() {
-  if (!_tabVisible || _updating) {
+  if (!_tabVisible) {
     return;
   }
-  _updating = true;
-  _buscarResultados().then(_0x40437e => {
-    const sig = numPoints + "|" + averagePoints;
-    const todosCriados = leagues.every(l => chartInstances[l] || !document.getElementById(l));
-    // Mesmos dados (mesma referência) e mesmas opções: nada a recalcular nem redesenhar.
-    if (_0x40437e === _lastRaw && sig === _lastSig && todosCriados) {
-      return;
-    }
-    _lastRaw = _0x40437e;
-    _lastSig = sig;
-    leagues.forEach(_0x3ad8e0 => {
+  const _0x3b0216 = new Date().getTime();
+  leagues.forEach(_0x3ad8e0 => {
+    fetch(ROTAS_API.resultados(LIGA_ATUAL) + ("?timestamp=" + _0x3b0216)).then(_0x4d71c0 => {
+      if (!_0x4d71c0.ok) {
+        throw new Error(_0x4d71c0.status);
+      }
+      return _0x4d71c0.json();
+    }).then(_0x40437e => {
       const _0x28e74c = processApiData(_0x40437e, _0x3ad8e0);
       const _0x1d867d = document.getElementById(_0x3ad8e0);
       if (!_0x1d867d) {
@@ -3168,9 +3147,7 @@ function updateCharts() {
       } else {
         updateStatsChart(chartInstances[_0x3ad8e0], _0x28e74c);
       }
-    });
-  }).catch(_0x324053 => console.error("Erro gráfico:", _0x324053)).finally(() => {
-    _updating = false;
+    }).catch(_0x324053 => console.error("Erro " + _0x3ad8e0 + ":", _0x324053));
   });
 }
 function toggleFibonacciLines() {
@@ -3379,8 +3356,4 @@ window.onload = () => {
   _renderLinesPanel(_getActiveSetup());
   _updateSetupCounter();
 };
-if (typeof sincronizarIntervalo === "function") {
-  sincronizarIntervalo(updateCharts, 10000);
-} else {
-  setInterval(updateCharts, 10000);
-}
+setInterval(updateCharts, 3000);
