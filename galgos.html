@@ -15,8 +15,10 @@
     function gtag() { dataLayer.push(arguments); }
     gtag('js', new Date()); gtag('config', 'G-4WT805FFHQ');
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="chart.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://datavirtual.com.br" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+<script src="chart.min.js" defer onload="window.__chartReady&&window.__chartReady()"></script>
 <style>
 :root{
   --bg:#05090d;--panel:#0b1118;--panel2:#101821;--line:#26313d;--txt:#f5f7fb;--muted:#9ba6b2;
@@ -1030,32 +1032,111 @@ $('btnToggleSignalSound').addEventListener('click', ()=>{
 $('btnToggleSignalSound').textContent = `🔔 Som: ${signalSoundOn ? 'ON' : 'OFF'}`;
 
 /* ===================== CARGA DE DADOS ===================== */
-let loadId = 0;
-async function loadData(){
-  const err = $('error'); err.style.display = 'none';
-  const id = ++loadId;
+/* Abre rápido: o último resultado fica salvo no navegador (a tabela aparece antes da rede responder), a rede baixa só a
+   janela que o mosaico mostra e o histórico completo (4 dias) só é baixado quando uma ferramenta é aberta. */
+const DIAS_HIST = 4, CACHE_TTL_MS = 6*3600e3;
+const CK = 'dvcache:' + API_RES.split('/').pop() + ':';
+let loadId = 0, ultimoOk = 0, fullTs = 0, desde = 0, histP = null, saveResT = null;
+const PREP = (rows => rows);
+const mergeKey = r => (r.event_id !== undefined && r.event_id !== null && r.event_id !== '') ? String(r.event_id) : rowKey(r);
+function sigRows(rows){ const sig = rows.length ? `${rows.length}|${rows.slice(0,3).map(r=>`${rowKey(r)}-${r.primeiro}-${r.odd_primeiro}`).join(',')}` : '0'; return sig; }
+
+function salvarCacheRes(){
+  clearTimeout(saveResT);
+  saveResT = setTimeout(()=>{
+    try{
+      const txt = JSON.stringify({ t:Date.now(), ok:ultimoOk, full:fullTs, desde, d:allRows });
+      if(txt.length < 2500000) localStorage.setItem(CK+'res', txt); else localStorage.removeItem(CK+'res');
+    }catch(e){ /* sem espaço: segue sem cache */ }
+  }, 1500);
+}
+function carregarCacheRes(){
   try{
-    const res = await fetch(`${API_RES}?dias=4&_=${Date.now()}`, {cache:'no-store'});
+    const j = JSON.parse(localStorage.getItem(CK+'res') || 'null');
+    if(!j || !Array.isArray(j.d) || !j.d.length || Date.now() - j.t > CACHE_TTL_MS) return false;
+    allRows = sortRows(j.d); indexRows();
+    ultimoOk = j.ok || 0; fullTs = j.full || 0; desde = j.desde || 0;
+    lastDataSignature = sigRows(allRows);
+    return true;
+  }catch(e){ return false; }
+}
+function salvarCacheProx(){
+  try{ localStorage.setItem(CK+'prox', JSON.stringify({ t:Date.now(), d:proxRows })); }catch(e){}
+}
+function carregarCacheProx(){
+  try{
+    const j = JSON.parse(localStorage.getItem(CK+'prox') || 'null');
+    if(!j || !Array.isArray(j.d) || Date.now() - j.t > CACHE_TTL_MS) return false;
+    proxRows = j.d; return true;
+  }catch(e){ return false; }
+}
+
+async function pedirRes(dias){
+  const ctl = new AbortController(), t = setTimeout(()=>ctl.abort(), 20000);   // não deixa a carga ficar presa
+  try{
+    const res = await fetch(`${API_RES}?dias=${dias}&_=${Date.now()}`, {cache:'no-store', signal:ctl.signal});
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    return PREP(Array.isArray(data) ? data : []);
+  }finally{ clearTimeout(t); }
+}
+// quantos dias pedir: o normal é só o dia atual; se o que está salvo não cobre o período do mosaico (ou a aba ficou parada), pede o período todo
+function diasDaBusca(){
+  const agora = Date.now(), leve = Math.min(DIAS_HIST, Math.ceil(horasFiltro/24) + 1);
+  const cobreH = desde ? (agora - desde)/3600e3 : 0;
+  if(cobreH < horasFiltro) return leve;
+  const mesmoDia = ultimoOk && new Date(ultimoOk).toDateString() === new Date(agora).toDateString();
+  if(mesmoDia && agora - ultimoOk < 30*60e3) return 1;
+  return leve;
+}
+function mesclar(novas, cheia){
+  const mapa = (cheia && novas.length) ? new Map() : new Map(allRows.map(r => [mergeKey(r), r]));
+  novas.forEach(r => mapa.set(mergeKey(r), r));
+  const corte = Date.now() - (DIAS_HIST*24 + 6)*3600e3;
+  return sortRows([...mapa.values()].filter(r => { const t = rowTimestamp(r); return !Number.isFinite(t) || t >= corte; }));
+}
+function aplicarRes(data, cheia, dias){
+  const agora = Date.now(), rows = mesclar(data, cheia), sig = sigRows(rows), mudou = sig !== lastDataSignature;
+  lastDataSignature = sig; allRows = rows; indexRows();
+  ultimoOk = agora;
+  const d = agora - (dias-1)*24*3600e3; if(cheia || !desde || d < desde) desde = d;
+  if(cheia) fullTs = agora;
+  if(mudou) renderAll();
+  $('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
+  salvarCacheRes();
+}
+async function loadData(){
+  if(document.hidden) return;
+  const err = $('error'); err.style.display = 'none';
+  const id = ++loadId, dias = diasDaBusca();
+  try{
+    const data = await pedirRes(dias);
     if(id !== loadId) return;
-    const rows = sortRows(Array.isArray(data) ? data : []);
-    const sig = rows.length ? `${rows.length}|${rows.slice(0,3).map(r=>`${rowKey(r)}-${r.primeiro}-${r.odd_primeiro}`).join(',')}` : '0';
-    const mudou = sig !== lastDataSignature;
-    lastDataSignature = sig; allRows = rows; indexRows();
-    if(mudou) renderAll();
-    $('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
+    aplicarRes(data, false, dias);
   }catch(e){
     if(id !== loadId) return;
     err.textContent = `Erro ao carregar resultados: ${e.message}`; err.style.display = 'block';
   }
 }
+// histórico completo: só é baixado quando uma ferramenta que precisa dele é aberta (e só se o que está salvo não for recente)
+function garantirHistorico(){
+  if(fullTs && Date.now() - fullTs < 6*3600e3) return Promise.resolve();
+  if(histP) return histP;
+  histP = (async ()=>{
+    try{ aplicarRes(await pedirRes(DIAS_HIST), true, DIAS_HIST); }
+    catch(e){ console.warn('Falha ao carregar o histórico:', e.message); }
+    finally{ histP = null; }
+  })();
+  return histP;
+}
+
 async function loadProx(){
+  if(document.hidden) return;
   try{
     const res = await fetch(`${API_PROX}?_=${Date.now()}`, {cache:'no-store'});
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    proxRows = Array.isArray(data) ? data : [];
+    proxRows = Array.isArray(data) ? data : []; salvarCacheProx();
     const sig = proxRows.map(p=>`${p.event_id}:${p.corredores?1:0}`).join(',');
     if(sig !== lastProxSignature){ lastProxSignature = sig; detectRunners(); refreshMosaic(); renderNext(); renderBacktest(allRows); }
   }catch(e){ console.warn('Falha ao carregar próximos:', e.message); }
@@ -1088,7 +1169,7 @@ function loadPersistedFilters(){
 }
 ['fResultado','fPar','fOdds'].forEach(id => $(id).addEventListener('change', ()=>refreshMosaic()));
 $('fNomes').addEventListener('change', e=>{ nomesMode = e.target.value; refreshMosaic(); });
-$('fHoras').addEventListener('change', e=>{ horasFiltro = parseInt(e.target.value,10)||24; refreshMosaic(); });
+$('fHoras').addEventListener('change', e=>{ horasFiltro = parseInt(e.target.value,10)||24; refreshMosaic(); loadData(); });
 $('fZebra').addEventListener('change', e=>{ ZEBRA_ODD = parseFloat(e.target.value)||8; renderAll(); });
 $('fChartPoints').addEventListener('change', e=>{ chartNumPoints = parseInt(e.target.value,10)||20; $('chartPointsLabel').textContent = chartNumPoints; renderChart(allRows); });
 $('fChartPosition').addEventListener('change', e=>{ chartPosicao = parseInt(e.target.value,10)||1; $('chartPositionLabel').textContent = `${chartPosicao}ª POSIÇÃO`; renderChart(allRows); });
@@ -1198,6 +1279,7 @@ setVideoVisivel(false); // padrão: fechado. O iframe só recebe o src (e carreg
       const it = (tg || hd).closest('.accordionItem'); it.classList.toggle('collapsed');
       const col = it.classList.contains('collapsed'), b = it.querySelector('.accToggle'); if(b) b.innerHTML = col ? '&#9656;' : '&#9662;';
       if(!col && LAZY_RENDER[it.dataset.tool]){ try{ LAZY_RENDER[it.dataset.tool](); }catch(err){ console.warn('Falha ao abrir ferramenta:', err); } }
+      if(!col && it.dataset.tool !== 'proximas') garantirHistorico();   // só aqui o histórico completo é baixado
       Object.values(charts).forEach(ch=>{ try{ ch.resize(); }catch(err){} });
     }
   });
@@ -1221,8 +1303,16 @@ makeHeightResizable('parImparChartWrapBox','galgosParImparChartHeight','parImpar
 /* ===== início ===== */
 loadPersistedFilters();
 renderLegend();
+(function abrirComCache(){          // a tabela aparece na hora com o que ficou salvo; a rede só atualiza
+  const r = carregarCacheRes(), p = carregarCacheProx();
+  if(p) detectRunners();
+  if(r || p) renderAll();
+})();
 loadData(); setInterval(loadData, UPDATE_MS);
 loadProx(); setInterval(loadProx, PROX_MS);
+
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ loadData(); loadProx();  } });
+window.__chartReady = ()=>{ if(document.querySelector('.accordionItem[data-tool]:not(.collapsed):not([data-tool="proximas"])')) renderAll(); };
 </script>
 
 <script>
