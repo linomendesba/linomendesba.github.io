@@ -956,19 +956,25 @@ function filterByHorasCheias(rows, horas){
 
 /* ===================== REDE (incremental: histórico 1x, depois só as últimas 3h) ===================== */
 const rota = (tipo, l) => `${API_BASE}/${tipo}/futpen/${encodeURIComponent(l.nome)}`;
-async function fetchJSON(url){
-  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 20000);   // não deixa a carga ficar presa
+async function fetchJSON(url, ms){
+  const ctl = new AbortController(); let estourou = false;
+  const t = setTimeout(() => { estourou = true; ctl.abort(); }, ms || 20000);   // não deixa a carga ficar presa
   try{
     const res = await fetch(url, { cache:'no-store', signal:ctl.signal });
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
+  }catch(e){
+    if(e && e.name === 'AbortError') throw new Error(estourou ? 'o servidor demorou para responder' : 'requisição cancelada');
+    throw e;
   }finally{ clearTimeout(t); }
 }
+// cargas grandes (histórico / várias horas) precisam de mais tempo que a atualização leve de 5 em 5 s
+const msCarga = (cheia, horas) => (cheia || (horas && horas > 6)) ? 90000 : 25000;
 // horas = carga leve (só as últimas N horas, mescla no que já existe); full sem horas = histórico completo (dias=4)
 async function syncResultados(l, full, horas){
   const st = getStore(l.slug), cheia = full && !horas;
   const q = horas ? `horas=${horas}` : (full ? `dias=${DIAS_HISTORICO}` : 'horas=3');
-  const data = await fetchJSON(`${rota('resultados', l)}?${q}&_=${Date.now()}`);
+  const data = await fetchJSON(`${rota('resultados', l)}?${q}&_=${Date.now()}`, msCarga(cheia, horas));
   if(!Array.isArray(data)) throw new Error('Resposta inesperada');
   let novos = 0;
   const base = (cheia && data.length) ? new Map() : st.resMap;
@@ -989,7 +995,7 @@ async function syncResultados(l, full, horas){
 async function syncOdds(l, full, horas){
   const st = getStore(l.slug), cheia = full && !horas;
   const q = horas ? `horas=${horas}` : (full ? `dias=${DIAS_HISTORICO}` : 'horas=3');
-  const data = await fetchJSON(`${rota('odds', l)}?${q}&_=${Date.now()}`);
+  const data = await fetchJSON(`${rota('odds', l)}?${q}&_=${Date.now()}`, msCarga(cheia, horas));
   if(!Array.isArray(data)) return 0;
   let novos = 0;
   const agora = Date.now();
@@ -1026,6 +1032,7 @@ function horasFalta(st, alvoH, ultimoOk){
   if(!st.desde || (agora - st.desde)/3600e3 < alvoH) h = Math.max(h, alvoH);
   return Math.min(DIAS_HISTORICO*24, Math.ceil(h));
 }
+let falhasRes = 0;
 async function loadRes(){
   if(inflight.res || document.hidden) return;
   inflight.res = true;
@@ -1033,11 +1040,13 @@ async function loadRes(){
   try{
     const novos = await syncResultados(l, false, horasFalta(st, 3, st.lastOkRes));
     if(l.slug !== ligaSlug || seq !== loadSeq) return;
-    showError('');
+    falhasRes = 0; showError('');
     $('updatedAt').textContent = `ÚLTIMA ATUALIZAÇÃO: ${new Date().toLocaleString('pt-BR')}`;
     if(novos) renderAll();
   }catch(e){
-    if(l.slug === ligaSlug) showError(`Erro ao carregar resultados: ${e.message}`);
+    // falha isolada de rede não assusta: a tela segue com o que já tem e tenta de novo em 5 s; só avisa se persistir
+    falhasRes++;
+    if(l.slug === ligaSlug && (falhasRes >= 3 || !st.rows.length)) showError(`Erro ao carregar resultados: ${e.message}`);
   }finally{ inflight.res = false; }
 }
 async function loadProx(){
