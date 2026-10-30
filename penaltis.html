@@ -946,6 +946,13 @@ function filterByHoras(rows, horas){
   const cutoff = Date.now() - horas*3600*1000;
   return rows.filter(r => r.ts >= cutoff);
 }
+// Mosaico: corte em HORA CHEIA. Com o corte "agora - N h" a hora mais antiga vinha sem os primeiros jogos
+// e os que sobravam apareciam deslocados para as primeiras colunas. Aqui a hora mais antiga entra inteira.
+function filterByHorasCheias(rows, horas){
+  if(!horas) return rows;
+  const H = 3600*1000, cutoff = Math.floor((Date.now() - horas*H) / H) * H;   // Brasília é UTC-3 fixo: a hora cheia coincide
+  return rows.filter(r => r.ts >= cutoff);
+}
 
 /* ===================== REDE (incremental: histórico 1x, depois só as últimas 3h) ===================== */
 const rota = (tipo, l) => `${API_BASE}/${tipo}/futpen/${encodeURIComponent(l.nome)}`;
@@ -1280,7 +1287,7 @@ function renderMosaic(rows){
     if(c.dataset.ft) selToggle('score', c.dataset.ft);
   }; });
 }
-function refreshMosaic(){ renderMosaic(filterByHoras(allRows(), horasFiltro)); }
+function refreshMosaic(){ renderMosaic(filterByHorasCheias(allRows(), horasFiltro)); }
 function updateHighlights(){
   document.querySelectorAll('#mosaic td[data-pos]').forEach(td => {
     td.classList.remove('dim','highlight');
@@ -1322,6 +1329,18 @@ function mkDs(label, color, data, ps, extra){
 function rollMean(vals, W){
   const out = []; let sum = 0;
   for(let i = 0; i < vals.length; i++){ sum += vals[i]; if(i >= W) sum -= vals[i-W]; out.push(sum / Math.min(i+1, W)); }
+  return out;
+}
+// Média móvel por TEMPO: para cada jogo, usa todos os jogos dos últimos 60 min reais (ts - 1h, ts].
+// Horas com 12 jogos e horas com 14 jogos passam a pesar o mesmo (1 hora = 1 hora), sem "escorregar".
+function rollMeanTime(vals, tss, ms){
+  ms = ms || 3600000;
+  const out = []; let sum = 0, j = 0;
+  for(let i = 0; i < vals.length; i++){
+    sum += vals[i];
+    while(tss[j] <= tss[i] - ms){ sum -= vals[j]; j++; }
+    out.push(sum / (i - j + 1));
+  }
   return out;
 }
 const to2 = v => +v.toFixed(2);
@@ -1392,19 +1411,19 @@ function renderChart(rows){
   if(!toolOpen('grafico')) return;
   const W = ligaAtual().jogosHora, chron = [...rows].reverse(), modo = ($('fChartMercados') || {}).value || 'ou_total';
   const seq = chron.slice(-chartNumPoints), st = chron.length - seq.length, ps = ptStyle(chartNumPoints);
-  const serie = m => rollMean(chron.map(r => m.test(r) ? 1 : 0), W).map(v => to2(v*100)).slice(st);
+  const serie = m => rollMeanTime(chron.map(r => m.test(r) ? 1 : 0), chron.map(r => r.ts)).map(v => to2(v*100)).slice(st);
   const grp = CHART_GRUPOS[modo];
   let ds, titulo;
   if(grp){
     ds = grp.ids.map(id => { const m = POR_ID.get(id); return mkDs(m.label, CHART_CORES[id], serie(m), ps, { borderWidth: grp.ids.length > 8 ? 2 : 2.5, borderDash: id.includes('nder') ? [6,4] : [] }); });
-    titulo = `${grp.nome} · ÚLTIMOS ${chartNumPoints} JOGOS · JANELA DE ${W} JOGOS = 1 HORA · TRACEJADO = UNDER · CLIQUE NA LEGENDA PARA ESCONDER/MOSTRAR`;
+    titulo = `${grp.nome} · ÚLTIMOS ${chartNumPoints} JOGOS · JANELA DE 1 HORA REAL (≈${W} JOGOS) · TRACEJADO = UNDER · CLIQUE NA LEGENDA PARA ESCONDER/MOSTRAR`;
   }else{
     const m = mkAtual(), thr = thrFor(chron.slice(-Math.max(chartNumPoints, W)), m);
     ds = [mkDs(m.label, '#20d66b', serie(m), ps)];
     const opId = OPOSTO.get(m.id);
     if(opId){ const mo = POR_ID.get(opId); ds.push(mkDs(mo.label, '#ff5c5c', serie(mo), ps)); }
     ds.push(mkDs(`Equilíbrio das odds (${thr}%)`, '#9ba6b2', seq.map(() => thr), {r:0,bw:0}, { borderDash:[6,4], borderWidth:1.5, tension:0 }));
-    titulo = `${m.label.toUpperCase()} · ÚLTIMOS ${chartNumPoints} JOGOS · JANELA DE ${W} JOGOS = 1 HORA`;
+    titulo = `${m.label.toUpperCase()} · ÚLTIMOS ${chartNumPoints} JOGOS · JANELA DE 1 HORA REAL (≈${W} JOGOS)`;
   }
   $('chartInfo').innerHTML = `(${esc(titulo)})`;
   upsertLine('chart', seq.map(r => `${r.hh}:${r.mm}`), ds, seq, null, { hidden:chartHidden, sortTip: ds.length > 4 });
@@ -1412,12 +1431,12 @@ function renderChart(rows){
 function renderGolsChart(rows){
   if(!toolOpen('gols')) return;
   const W = ligaAtual().jogosHora, chron = [...rows].reverse(), tot = chron.map(r => r.total);
-  const avg = rollMean(tot, W).map(to2);
+  const avg = rollMeanTime(tot, chron.map(r => r.ts)).map(to2);
   const seq = chron.slice(-golsNumPoints), st = chron.length - seq.length, ps = ptStyle(golsNumPoints);
   const media = tot.length ? (tot.reduce((a,b) => a+b, 0)/tot.length).toFixed(2) : '-';
-  $('golsChartInfo').innerHTML = `(ÚLTIMOS ${golsNumPoints} JOGOS · MÉDIA GERAL ${media} GOLS · JANELA DE ${W} JOGOS)`;
+  $('golsChartInfo').innerHTML = `(ÚLTIMOS ${golsNumPoints} JOGOS · MÉDIA GERAL ${media} GOLS · JANELA DE 1 HORA REAL)`;
   upsertLine('golsChart', seq.map(r => `${r.hh}:${r.mm}`), [
-    mkDs(`Média móvel (${W} jogos)`, '#00e5ff', avg.slice(st), ps),
+    mkDs('Média móvel (1 hora)', '#00e5ff', avg.slice(st), ps),
     mkDs('Gols do jogo', '#9ba6b2', tot.slice(st), {r:Math.min(ps.r,3), bw:0.6}, { borderWidth:1, tension:0, borderDash:[2,3] })
   ], seq, ctx => ctx.datasetIndex === 0 ? `Média móvel: ${ctx.raw} gols` : `Total do jogo: ${ctx.raw} gols`, { pct:false });
 }
@@ -1425,12 +1444,12 @@ function renderLadoChart(rows){
   if(!toolOpen('lado')) return;
   const W = ligaAtual().jogosHora, chron = [...rows].reverse(), tipo = $('fLadoTipo').value;
   const seq = chron.slice(-ladoNumPoints), st = chron.length - seq.length, ps = ptStyle(ladoNumPoints);
-  const series = f => rollMean(chron.map(r => f(r) ? 1 : 0), W).map(v => to2(v*100)).slice(st);
+  const series = f => rollMeanTime(chron.map(r => f(r) ? 1 : 0), chron.map(r => r.ts)).map(v => to2(v*100)).slice(st);
   if(tipo === 'parimpar'){
     $('ladoChartInfo').innerHTML = `(PAR × ÍMPAR DO TOTAL DE GOLS · ÚLTIMOS ${ladoNumPoints} JOGOS)`;
     upsertLine('ladoChart', seq.map(r => `${r.hh}:${r.mm}`), [mkDs('Par','#19a7ff', series(r => r.total%2===0), ps), mkDs('Ímpar','#ff8b1a', series(r => r.total%2===1), ps)], seq);
   }else{
-    $('ladoChartInfo').innerHTML = `(CASA × FORA · ÚLTIMOS ${ladoNumPoints} JOGOS · JANELA DE ${W} JOGOS)`;
+    $('ladoChartInfo').innerHTML = `(CASA × FORA · ÚLTIMOS ${ladoNumPoints} JOGOS · JANELA DE 1 HORA REAL)`;
     upsertLine('ladoChart', seq.map(r => `${r.hh}:${r.mm}`), [mkDs('Casa vence','#19a7ff', series(r => r.ga>r.gb), ps), mkDs('Fora vence','#ff8b1a', series(r => r.gb>r.ga), ps)], seq);
   }
 }
