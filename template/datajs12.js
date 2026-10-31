@@ -1836,16 +1836,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     hoursWrapper.style.cssText = 'display:inline-flex;align-items:center;gap:4px;';
     const hoursLabel = document.createElement('span');
     hoursLabel.textContent = 'Período:';
-    hoursLabel.style.cssText = 'font-size:10px;font-weight:600;color:#7a9e8a;text-transform:uppercase;letter-spacing:.6px;margin-right:4px;';
+    hoursLabel.style.cssText = 'font-size:10px;font-weight:600;color:rgba(255,255,255,.6);letter-spacing:.02em;margin-right:4px;';
     hoursWrapper.appendChild(hoursLabel);
 
     HOURS_OPTIONS.forEach(({ label, games }) => {
         const btn = document.createElement('button');
         btn.textContent   = label;
         btn.dataset.games = games;
-        btn.style.cssText = 'padding:3px 9px;font-size:10px;font-weight:600;border-radius:3px;border:1px solid #2a3d30;background:transparent;color:#7a9e8a;cursor:pointer;transition:all .15s;letter-spacing:.3px;';
-        btn.addEventListener('mouseenter', () => { if (!btn.classList.contains('rk-h-on')) { btn.style.background='rgba(255,255,255,.05)'; btn.style.color='#aacfbc'; }});
-        btn.addEventListener('mouseleave', () => { if (!btn.classList.contains('rk-h-on')) { btn.style.background='transparent'; btn.style.color='#7a9e8a'; btn.style.borderColor='#2a3d30'; }});
+        btn.style.cssText = 'padding:4px 10px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.6);cursor:pointer;transition:all .15s;letter-spacing:.3px;';
+        btn.addEventListener('mouseenter', () => { if (!btn.classList.contains('rk-h-on')) { btn.style.background='rgba(255,255,255,.05)'; btn.style.color='#fff'; }});
+        btn.addEventListener('mouseleave', () => { if (!btn.classList.contains('rk-h-on')) { btn.style.background='transparent'; btn.style.color='rgba(255,255,255,.6)'; btn.style.borderColor='rgba(255,255,255,.12)'; }});
         btn.addEventListener('click', () => { setActiveGames(games); scheduleUpdate(); });
         hoursWrapper.appendChild(btn);
     });
@@ -1856,7 +1856,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const btn = document.createElement('button');
         btn.textContent  = label;
         btn.dataset.modo = val;
-        btn.style.cssText = 'padding:3px 10px;font-size:10px;font-weight:600;border-radius:3px;border:1px solid #2a3d30;background:transparent;color:#7a9e8a;cursor:pointer;transition:all .15s;letter-spacing:.3px;';
+        btn.style.cssText = 'padding:4px 11px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.6);cursor:pointer;transition:all .15s;letter-spacing:.3px;';
         btn.addEventListener('click', () => { setActiveModo(val); scheduleUpdate(); });
         abasWrapper.appendChild(btn);
     });
@@ -1869,9 +1869,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         hoursWrapper.querySelectorAll('button').forEach(b => {
             const on = parseInt(b.dataset.games) === n;
             b.classList.toggle('rk-h-on', on);
-            b.style.background  = on ? 'rgba(31,172,137,.15)' : 'transparent';
-            b.style.color       = on ? '#3ecfa3' : '#7a9e8a';
-            b.style.borderColor = on ? '#2d9e76' : '#2a3d30';
+            b.style.background  = on ? 'rgba(21,127,147,.18)' : 'transparent';
+            b.style.color       = on ? '#5cc3d6' : 'rgba(255,255,255,.6)';
+            b.style.borderColor = on ? '#157f93' : 'rgba(255,255,255,.12)';
         });
     }
     function getActiveGames() {
@@ -1882,9 +1882,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         modoAtual = modo;
         abasWrapper.querySelectorAll('button').forEach(b => {
             const on = b.dataset.modo === modo;
-            b.style.background  = on ? 'rgba(79,114,255,.18)' : 'transparent';
-            b.style.color       = on ? '#72b0ff' : '#7a9e8a';
-            b.style.borderColor = on ? '#4f72ff' : '#2a3d30';
+            b.style.background  = on ? 'rgba(21,127,147,.18)' : 'transparent';
+            b.style.color       = on ? '#5cc3d6' : 'rgba(255,255,255,.6)';
+            b.style.borderColor = on ? '#157f93' : 'rgba(255,255,255,.12)';
         });
     }
 
@@ -2040,7 +2040,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const ativo = selecionados.includes(btn.dataset.time);
             const svg   = btn.querySelector('svg');
             if (svg) {
-                svg.setAttribute('stroke', ativo ? '#3ecfa3' : '#6a7d90');
+                svg.setAttribute('stroke', ativo ? '#5cc3d6' : '#6a7d90');
                 svg.style.opacity = ativo ? '1' : '0.5';
             }
             btn.style.background  = ativo ? 'rgba(62,207,163,.1)' : 'none';
@@ -2255,7 +2255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const sgText    = t.sg > 0 ? `+${t.sg}` : `${t.sg}`;
 
             const ativo     = selecionados.includes(t.name);
-            const eyeStroke = ativo ? '#3ecfa3' : '#6a7d90';
+            const eyeStroke = ativo ? '#5cc3d6' : '#6a7d90';
             const eyeOp     = ativo ? '1' : '0.5';
             const eyeBorder = ativo ? 'rgba(62,207,163,.4)' : 'transparent';
             const eyeBg     = ativo ? 'rgba(62,207,163,.1)' : 'none';
