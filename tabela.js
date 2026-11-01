@@ -1476,6 +1476,8 @@ function garantirCheckboxQuadrantes() {
     }
     .ht-span { cursor: pointer; opacity: 0.85; transition: opacity 0.15s; }
     .ht-span:hover { opacity: 1; text-decoration: underline dotted rgba(255,255,255,0.4); }
+    .placar:not(.placar-futuro) .time-casa,
+    .placar:not(.placar-futuro) .time-fora { font-size: min(11px, 0.8em); line-height: 1.15; letter-spacing: 0.01em; }
     .placar-futuro-odd { font-size:0.9em; opacity:0.85; margin-top:1px; color:#dfdfdf; font-weight:bold; cursor:pointer; }
     .placar-futuro .placar-texto { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1.1; }
 
@@ -1704,10 +1706,10 @@ function garantirCheckboxQuadrantes() {
     .pct-vermelho .valor-sub { color:#ff5c5c; opacity:0.75; }
     .pct-amarelo  .valor-sub { color:#f5c518; opacity:0.75; }
     .pct-verde    .valor-sub { color:#4ade80; opacity:0.75; }
-    /* Tom azul para células com jogos ainda não realizados (próximos) */
-    .cel-proximo-jogo { background-color:rgba(23,123,142,0.28) !important; box-shadow:inset 0 0 0 1px rgba(23,123,142,0.55); }
+    /* Células com jogos ainda não realizados (próximos): accent vivo do tema */
+    .cel-proximo-jogo { background-color:#157f93 !important; box-shadow:inset 0 0 0 1px rgba(92,195,214,0.55); }
     /* ── ORÁCULO: marca direto na célula os minutos sugeridos da hora atual ── */
-    .oraculo-marcado { position:relative; box-shadow:inset 0 0 0 1px rgba(23,123,142,0.7) !important; }
+    .oraculo-marcado { position:relative; box-shadow:inset 0 0 0 1.5px rgba(150,225,238,0.95) !important; }
     .oraculo-marcado::after {
       content: attr(data-oraculo-label);
       position:absolute;
@@ -3759,8 +3761,10 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const placarTexto=document.createElement("div"); placarTexto.className="placar-texto";
     let html="";
     if(mostrarTimes) html+=`<span class="time-casa" style="cursor:pointer" data-full-time="${dado.time_a}">${abbreviateTeamName(dado.time_a)}</span>`;
-    html+=`<span class="ft-span">${primary}</span>`;
-    if(mostrarHT) html+=`<span class="ht-span">(${secondary})</span>`;
+    const primaryTxt   = tipoPlacar==="ft" ? primary : `${primary}*`;
+    const secondaryTxt = tipoPlacar==="ft" ? `${secondary}*` : secondary;
+    html+=`<span class="ft-span">${primaryTxt}</span>`;
+    if(mostrarHT) html+=`<span class="ht-span">${secondaryTxt}</span>`;
     if(mostrarTimes) html+=`<span class="time-fora" style="cursor:pointer" data-full-time="${dado.time_b}">${abbreviateTeamName(dado.time_b)}</span>`;
     placarTexto.innerHTML=html;
     placar.appendChild(placarTexto);
