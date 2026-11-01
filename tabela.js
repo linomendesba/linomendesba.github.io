@@ -1708,6 +1708,21 @@ function garantirCheckboxQuadrantes() {
     .pct-verde    .valor-sub { color:#4ade80; opacity:0.75; }
     /* Células com jogos ainda não realizados (próximos): accent vivo do tema */
     .cel-proximo-jogo { background-color:#157f93 !important; box-shadow:inset 0 0 0 1px rgba(92,195,214,0.55); }
+    /* Texto escuro só nos próximos jogos (fundo vivo) */
+    .cel-proximo-jogo .placar-futuro,
+    .cel-proximo-jogo .placar-futuro .time-casa,
+    .cel-proximo-jogo .placar-futuro .time-fora,
+    .cel-proximo-jogo .placar-futuro .placar-futuro-odd:not(.odd-selecionada) { color:#031014 !important; }
+    .cel-proximo-jogo .placar-futuro .time-casa,
+    .cel-proximo-jogo .placar-futuro .time-fora { font-weight:800; }
+    .cel-proximo-jogo .placar-futuro .placar-futuro-odd:not(.odd-selecionada) { opacity:0.9; font-weight:800; }
+    .cel-proximo-jogo .placar .time-casa:hover,
+    .cel-proximo-jogo .placar .time-fora:hover { color:#fff !important; }
+    /* Top5 nos próximos: brilho ciano some no fundo azul, então vira ponto branco com contorno escuro */
+    .cel-proximo-jogo .placar-futuro .time-casa.rk-top5-nome,
+    .cel-proximo-jogo .placar-futuro .time-fora.rk-top5-nome { text-shadow:none !important; }
+    .cel-proximo-jogo .placar-futuro .time-casa.rk-top5-nome::before,
+    .cel-proximo-jogo .placar-futuro .time-fora.rk-top5-nome::before { background:#fff; box-shadow:0 0 0 1px #031014; }
     /* ── ORÁCULO: marca direto na célula os minutos sugeridos da hora atual ── */
     .oraculo-marcado { position:relative; box-shadow:inset 0 0 0 1.5px rgba(150,225,238,0.95) !important; }
     .oraculo-marcado::after {
