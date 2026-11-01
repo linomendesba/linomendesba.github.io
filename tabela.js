@@ -4867,7 +4867,6 @@ function sincronizarEstiloBtnMercadosExtras() {
   });
   
 
-
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
