@@ -1,669 +1,4850 @@
-/**
- * MARCADOR.JS — Ferramenta de anotação global para BetStat
- * Uso: <script src="marcador.js"></script>
- *
- * Canvas cobre TODA a página (position:fixed, full viewport).
- * Quando ativo, você desenha em qualquer lugar da tela.
- * O botão é injetado automaticamente na .seletor-container.
- *
- * v2 — paleta 157f93 / 0d0e10 (mesmo padrão do header), botão "Sair" movido para dentro do painel,
- * painel compacto, + ferramentas: marca-texto, preenchimento, presets de
- * cor, opacidade, e Shift para travar linha/quadrado/círculo perfeito.
- */
-(function () {
-  'use strict';
+// Adiciona o grupo "Viradinha" no seletor de mercado de todas as ligas
+(function adicionarGrupoViradinha() {
+  const inserir = () => {
+    const sel = document.querySelector("#seletorResultado");
+    if (!sel) return false;
+    if (sel.querySelector('option[value="viradinha"]')) return true; // já existe, não duplica
 
-  const css = `
-    :root {
-      --mrc-accent: #157f93;
-      --mrc-accent-bright: #5cc3d6;
-      --mrc-accent-rgb: 21,127,147;
-      --mrc-bg: #0d0e10;
-      --mrc-bg2: #131417;
-      --mrc-bg3: #1b1c20;
-      --mrc-border: rgba(21,127,147,0.35);
-    }
+    const og = document.createElement("optgroup");
+    og.label = "── Viradinha ──";
 
-    #btnMarcador {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      height: 34px;
-      padding: 0 16px;
-      border-radius: 8px;
-      border: 1px solid rgba(var(--mrc-accent-rgb),0.5);
-      background: linear-gradient(135deg, rgba(var(--mrc-accent-rgb),0.16), rgba(var(--mrc-accent-rgb),0.06));
-      color: var(--mrc-accent-bright);
-      font-family: 'DM Sans', 'Roboto', Arial, sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      cursor: pointer;
-      transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
-      white-space: nowrap;
-    }
-    #btnMarcador:hover {
-      border-color: rgba(var(--mrc-accent-rgb),0.85);
-      background: linear-gradient(135deg, rgba(var(--mrc-accent-rgb),0.3), rgba(var(--mrc-accent-rgb),0.14));
-      color: #fff;
-      transform: translateY(-1px);
-    }
-    #btnMarcador:active { transform: translateY(0); }
-    #btnMarcador:focus-visible { outline: 2px solid rgba(var(--mrc-accent-rgb),0.5); outline-offset: 2px; }
-    #btnMarcador.mrc-active {
-      background: rgba(var(--mrc-accent-rgb),0.3);
-      border-color: var(--mrc-accent-bright);
-      color: #fff;
-    }
-    #btnMarcador svg { width: 14px; height: 14px; flex-shrink: 0; }
+    const opt = document.createElement("option");
+    opt.value = "viradinha";
+    opt.textContent = "Viradinha";
 
-    /* Canvas global — cobre toda a viewport */
-    #mrcCanvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      z-index: 99998;
-      display: none;
-      cursor: crosshair;
-      touch-action: none;
-      background: transparent !important;
-    }
-    body.mrc-is-active #mrcCanvas { display: block; }
-
-    /* Painel lateral direito — agora inclui o botão de sair no topo */
-    #mrcToolbar {
-      position: fixed;
-      right: 14px;
-      top: 50%;
-      transform: translateY(-50%) translateX(10px);
-      width: 38px;
-      max-height: 94vh;
-      overflow-y: auto;
-      overflow-x: hidden;
-      background: var(--mrc-bg2);
-      border: 1px solid var(--mrc-border);
-      border-radius: 12px;
-      padding: 6px 4px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1px;
-      box-shadow: 0 16px 48px rgba(0,0,0,0.6);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.22s, transform 0.22s;
-      z-index: 99999;
-      scrollbar-width: thin;
-      scrollbar-color: var(--mrc-accent) transparent;
-    }
-    #mrcToolbar::-webkit-scrollbar { width: 4px; }
-    #mrcToolbar::-webkit-scrollbar-thumb { background: rgba(var(--mrc-accent-rgb),0.5); border-radius: 4px; }
-    body.mrc-is-active #mrcToolbar {
-      opacity: 1;
-      pointer-events: all;
-      transform: translateY(-50%) translateX(0);
-    }
-
-    .mrc-btn {
-      width: 29px; height: 29px;
-      border-radius: 8px;
-      border: 1px solid transparent;
-      background: transparent;
-      color: rgba(255,255,255,0.55);
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.13s;
-      flex-shrink: 0;
-      position: relative;
-      padding: 0;
-    }
-    .mrc-btn svg { width: 13px; height: 13px; }
-    .mrc-btn:focus-visible { outline: 2px solid rgba(var(--mrc-accent-rgb),0.7); outline-offset: 1px; }
-    .mrc-btn:hover {
-      background: rgba(var(--mrc-accent-rgb),0.12);
-      color: var(--mrc-accent-bright);
-      border-color: rgba(var(--mrc-accent-rgb),0.25);
-    }
-    .mrc-btn.mrc-sel {
-      background: rgba(var(--mrc-accent-rgb),0.22);
-      border-color: rgba(var(--mrc-accent-rgb),0.55);
-      color: var(--mrc-accent-bright);
-    }
-    .mrc-btn.mrc-danger:hover { background: rgba(248,113,113,0.1); color: #f87171; border-color: rgba(248,113,113,0.3); }
-    .mrc-btn.mrc-warn:hover   { background: rgba(251,191,36,0.1);  color: #fbbf24; border-color: rgba(251,191,36,0.3); }
-    .mrc-btn.mrc-ok:hover     { background: rgba(52,211,153,0.1);  color: #34d399; border-color: rgba(52,211,153,0.3); }
-
-    /* Botão sair — agora fixo no topo do próprio painel */
-    #mrcBtnFechar {
-      background: rgba(248,113,113,0.08);
-      color: #f87171;
-      border-color: rgba(248,113,113,0.25);
-      margin-bottom: 4px;
-    }
-    #mrcBtnFechar:hover {
-      background: rgba(248,113,113,0.18);
-      border-color: rgba(248,113,113,0.5);
-      color: #fca5a5;
-    }
-
-    /* Tooltip */
-    .mrc-btn[data-tip]::after {
-      content: attr(data-tip);
-      position: absolute;
-      right: calc(100% + 10px);
-      top: 50%; transform: translateY(-50%);
-      background: var(--mrc-bg3);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: rgba(255,255,255,0.85);
-      font-size: 11px;
-      font-family: 'DM Sans', 'Roboto', Arial, sans-serif;
-      font-weight: 500;
-      padding: 4px 9px;
-      border-radius: 6px;
-      white-space: nowrap;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.14s;
-      z-index: 5;
-    }
-    .mrc-btn[data-tip]:hover::after { opacity: 1; }
-
-    .mrc-sep { width: 22px; height: 1px; background: rgba(255,255,255,0.08); margin: 2px 0; flex-shrink: 0; }
-
-    .mrc-color-wrap {
-      width: 29px; height: 29px;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.1);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; padding: 4px;
-      transition: border-color 0.13s;
-    }
-    .mrc-color-wrap:hover { border-color: rgba(var(--mrc-accent-rgb),0.4); }
-    #mrcColor {
-      width: 100%; height: 100%;
-      border: none; padding: 0;
-      cursor: pointer; background: transparent; border-radius: 6px;
-    }
-
-    /* Presets de cor rápidos */
-    .mrc-presets {
-      display: flex; flex-wrap: wrap;
-      width: 29px; gap: 3px;
-      justify-content: center;
-      padding: 2px 0 4px;
-    }
-    .mrc-preset {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      border: 1px solid rgba(255,255,255,0.25);
-      cursor: pointer;
-      transition: transform 0.12s, border-color 0.12s;
-      padding: 0;
-    }
-    .mrc-preset:hover { transform: scale(1.25); }
-    .mrc-preset.mrc-preset-sel { border-color: #fff; box-shadow: 0 0 0 1px var(--mrc-accent); }
-
-    .mrc-size-wrap { display: flex; align-items: center; justify-content: center; height: 46px; }
-    #mrcSize {
-      writing-mode: vertical-lr;
-      direction: rtl;
-      width: 20px; height: 40px;
-      accent-color: var(--mrc-accent); cursor: pointer;
-    }
-    .mrc-opac-wrap { display: flex; align-items: center; justify-content: center; height: 36px; }
-    #mrcOpacidade {
-      writing-mode: vertical-lr;
-      direction: rtl;
-      width: 20px; height: 30px;
-      accent-color: var(--mrc-accent-bright); cursor: pointer;
-    }
-
-    /* Badge topo centro */
-    #mrcBadge {
-      position: fixed;
-      top: 12px; left: 50%;
-      transform: translateX(-50%);
-      background: var(--mrc-bg2);
-      border: 1px solid rgba(var(--mrc-accent-rgb),0.4);
-      border-radius: 20px;
-      padding: 5px 18px;
-      font-size: 12px; font-weight: 600;
-      font-family: 'DM Sans', 'Roboto', Arial, sans-serif;
-      color: var(--mrc-accent-bright);
-      letter-spacing: 0.04em;
-      white-space: nowrap;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.22s;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-      display: flex; align-items: center; gap: 8px;
-      z-index: 99999;
-    }
-    body.mrc-is-active #mrcBadge { opacity: 1; }
-    .mrc-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--mrc-accent); flex-shrink: 0;
-      animation: mrcPulse 2s ease-in-out infinite;
-    }
-    @keyframes mrcPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.65)} }
-    @media (prefers-reduced-motion: reduce) {
-      #btnMarcador, #mrcToolbar, .mrc-btn, .mrc-dot { transition: none; animation: none; }
-    }
-
-    /* Contador (canto inferior direito) */
-    #mrcContador {
-      position: fixed;
-      bottom: 14px; right: 70px;
-      background: var(--mrc-bg2);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 8px;
-      padding: 4px 11px;
-      font-size: 11px; font-family: 'DM Sans', 'Roboto', Arial, sans-serif;
-      font-variant-numeric: tabular-nums;
-      color: rgba(255,255,255,0.5);
-      letter-spacing: 0.02em;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.2s;
-      z-index: 99999;
-    }
-    body.mrc-is-active #mrcContador { opacity: 1; }
-
-    /* Input de texto flutuante */
-    #mrcTextInput {
-      position: fixed;
-      background: transparent; border: none;
-      border-bottom: 1.5px solid var(--mrc-accent);
-      color: #fff; outline: none;
-      padding: 2px 6px; z-index: 100000; display: none;
-      caret-color: var(--mrc-accent); font-family: monospace;
-    }
-  `;
-
-  const svg = {
-    pencil:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>',
-    close:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-    linha:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="5" y1="19" x2="19" y2="5"/></svg>',
-    seta:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9,5 19,5 19,15"/></svg>',
-    caneta:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
-    marcador: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l6-6 4 4-6 6"/><path d="M4 20l3-3h3l3 3-3 3H7z"/><path d="M12.5 8.5l3 3"/></svg>',
-    rect:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
-    circle:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/></svg>',
-    texto:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="4,7 4,4 20,4 20,7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>',
-    borracha: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l9-9 8 8-3 3z"/><path d="M6.5 17.5l5-5"/></svg>',
-    balde:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 11l-8-8-8.5 8.5a2 2 0 0 0 0 2.8L9 21l10-10z"/><path d="M4.5 12.5L14 3"/><path d="M17 15c1 1.5 2 2.6 2 4a2 2 0 1 1-4 0c0-1.4 1-2.5 2-4z"/></svg>',
-    undo:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,14 4,19 4,14"/><path d="M20 9a4 4 0 0 0-4-4H4"/><path d="M4 19h8a8 8 0 0 0 8-8"/></svg>',
-    lixeira:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>',
+    og.appendChild(opt);
+    sel.appendChild(og);
+    return true;
   };
 
-  const PRESETS = ['#157f93', '#5cc3d6', '#f87171', '#fbbf24', '#34d399', '#ffffff'];
+  if (!inserir()) document.addEventListener("DOMContentLoaded", inserir);
+})();
 
-  // Injetar CSS
-  var styleEl = document.createElement('style');
-  styleEl.textContent = css;
-  document.head.appendChild(styleEl);
+const MINUTOS_POR_LIGA = {
 
-  function init() {
+  // Estrelabet
+  "Copa do Mundo":       [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  "Ligas dos Campeões":  [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
+  "América Latina":      [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
+  "Premier League":      [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
 
-    // ── Canvas GLOBAL (full viewport, fixed) ─────────────────────
-    var canvas = document.createElement('canvas');
-    canvas.id = 'mrcCanvas';
-    document.body.appendChild(canvas);
+  // 1win: 20 jogos/hora (de 3 em 3 minutos)
+  "1win Inglaterra":     [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58],
+  "1win Espanha":        [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
+  "1win Itália":         [0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57],
 
-    // ── Toolbar (inclui botão de sair no topo) ─────────────────────
-    var toolbar = document.createElement('div');
-    toolbar.id = 'mrcToolbar';
-    toolbar.innerHTML =
-      '<button class="mrc-btn" id="mrcBtnFechar" data-tip="Sair - Esc">' + svg.close + '</button>' +
-      '<div class="mrc-sep"></div>' +
-      '<button class="mrc-btn mrc-sel" data-tool="linha"     data-tip="Linha - L">'      + svg.linha    + '</button>' +
-      '<button class="mrc-btn"         data-tool="seta"      data-tip="Seta - A">'        + svg.seta     + '</button>' +
-      '<button class="mrc-btn"         data-tool="caneta"    data-tip="Caneta - P">'      + svg.caneta   + '</button>' +
-      '<button class="mrc-btn"         data-tool="marcador"  data-tip="Marca-texto - H">' + svg.marcador + '</button>' +
-      '<button class="mrc-btn"         data-tool="retangulo" data-tip="Retangulo - R">'   + svg.rect     + '</button>' +
-      '<button class="mrc-btn"         data-tool="circulo"   data-tip="Circulo - C">'     + svg.circle   + '</button>' +
-      '<button class="mrc-btn"         data-tool="texto"     data-tip="Texto - T">'       + svg.texto    + '</button>' +
-      '<button class="mrc-btn"         data-tool="borracha"  data-tip="Borracha - E">'    + svg.borracha + '</button>' +
-      '<div class="mrc-sep"></div>' +
-      '<button class="mrc-btn" id="mrcFill" data-tip="Preencher forma - F">' + svg.balde + '</button>' +
-      '<div class="mrc-color-wrap" title="Cor"><input id="mrcColor" type="color" value="#157f93"></div>' +
-      '<div class="mrc-presets" id="mrcPresets"></div>' +
-      '<div class="mrc-size-wrap"><input id="mrcSize" type="range" min="1" max="40" value="3" title="Espessura"></div>' +
-      '<div class="mrc-opac-wrap"><input id="mrcOpacidade" type="range" min="10" max="100" value="100" title="Opacidade"></div>' +
-      '<div class="mrc-sep"></div>' +
-      '<button class="mrc-btn mrc-warn"   id="mrcUndo"    data-tip="Desfazer - Ctrl+Z">' + svg.undo     + '</button>' +
-      '<button class="mrc-btn mrc-danger" id="mrcLimpar"  data-tip="Apagar tudo - Del">' + svg.lixeira  + '</button>';
-    document.body.appendChild(toolbar);
+  // BetGreen: 12 jogos/hora (de 5 em 5 minutos)
+  "BetGreen Premier League":    [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+  "BetGreen La Liga":           [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+  "BetGreen World Cup":         [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+  "BetGreen Primera Division":  [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55],
+  "BetGreen Champions League":  [3, 8, 13, 18, 23, 28, 33, 38, 43, 48, 53, 58],
 
-    // Presets de cor
-    var presetsWrap = toolbar.querySelector('#mrcPresets');
-    PRESETS.forEach(function (hex, i) {
-      var dot = document.createElement('button');
-      dot.type = 'button';
-      dot.className = 'mrc-preset' + (i === 0 ? ' mrc-preset-sel' : '');
-      dot.style.background = hex;
-      dot.dataset.color = hex;
-      presetsWrap.appendChild(dot);
-    });
+  // Kiron
+  "Kiron Liga Inglaterra": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58],
+  "Kiron Liga Itália":     [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
+  "Kiron Liga Espanha":    [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 59],
+  "Kiron Liga Brasil":          [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
+  "Kiron Liga América Latina":  [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41, 44, 47, 50, 53, 56, 59],
+  "Kiron Liga Mundial":    [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58],
+};
 
-    // ── Badge ─────────────────────────────────────────────────────
-    var badge = document.createElement('div');
-    badge.id = 'mrcBadge';
-    badge.innerHTML = '<span class="mrc-dot"></span> modo marcacao';
-    document.body.appendChild(badge);
 
-    // ── Contador ──────────────────────────────────────────────────
-    var contador = document.createElement('div');
-    contador.id = 'mrcContador';
-    contador.textContent = '0 marcacoes';
-    document.body.appendChild(contador);
+const MINUTOS_FIXOS_PADRAO = [
+  1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55, 58,
+];
 
-    // ── Input de texto flutuante ─────────────────────────────────
-    var textInput = document.createElement('input');
-    textInput.id = 'mrcTextInput';
-    textInput.type = 'text';
-    textInput.placeholder = 'escreva... Enter pra confirmar';
-    document.body.appendChild(textInput);
+let minutosFixos = (typeof LIGA_ATUAL !== "undefined" && MINUTOS_POR_LIGA[LIGA_ATUAL])
+  ? MINUTOS_POR_LIGA[LIGA_ATUAL]
+  : MINUTOS_FIXOS_PADRAO;
 
-    // ── Botão Marcar (injetado na .seletor-container) ─────────────
-    var btnAbrir = document.createElement('button');
-    btnAbrir.id = 'btnMarcador';
-    btnAbrir.innerHTML = svg.pencil + ' Marcar';
-    var parentSel = window.MARCADOR_PARENT || '.seletor-container';
-    var btnParent = document.querySelector(parentSel);
-    if (btnParent) {
-      var wrap = document.createElement('div');
-      wrap.style.cssText = 'display:inline-flex;align-items:center;margin-left:4px;';
-      wrap.appendChild(btnAbrir);
-      btnParent.appendChild(wrap);
-    } else {
-      document.body.appendChild(btnAbrir);
-    }
+const MERCADO_THRESHOLD = {
+  ambasMarcam:    Math.round((9  / 20) * 100),
+  ambasNaoMarcam: Math.round((11 / 20) * 100),
+  casaVence:      Math.round((8  / 20) * 100),
+  foraVence:      Math.round((7  / 20) * 100),
+  empate:         Math.round((5  / 20) * 100),
+  viradinha:      Math.round((3  / 20) * 100),
+  "over0.5":      Math.round((17 / 20) * 100),
+  "over1.5":      Math.round((14 / 20) * 100),
+  "over2.5":      Math.round((8  / 20) * 100),
+  "over3.5":      Math.round((4  / 20) * 100),
+  over5:          Math.round((2  / 20) * 100),
+  "under0.5":     Math.round((3  / 20) * 100),
+  "under1.5":     Math.round((6  / 20) * 100),
+  "under2.5":     Math.round((12 / 20) * 100),
+  "under3.5":     Math.round((16 / 20) * 100),
+  exato0: 10, exato1: 20, exato2: 20, exato3: 15, exato4: 10,
+  exato2t0: 30, exato2t1: 35, exato2t2: 20, exato2t3: 10, exato2t4: 5,
+  casa0Gols: 25, casa1Gol: 35, casa2Gols: 25, casa3Gols: 10, casa4Gols: 5,
+  fora0Gols: 30, fora1Gol: 35, fora2Gols: 20, fora3Gols: 10, fora4Gols: 5,
+};
 
-    // ── Contexto e estado ─────────────────────────────────────────
-    var ctx = canvas.getContext('2d');
-    var ferramenta = 'linha', desenhando = false, preencher = false;
-    var startX = 0, startY = 0, snapshot = null, shiftAtivo = false;
-    var historico = [], aberto = false, totalMarcacoes = 0;
+function getThreshold(mercado) { return MERCADO_THRESHOLD[mercado] ?? 50; }
 
-    // Canvas sempre do tamanho da viewport
-    function resizeCanvas() {
-      var img = (canvas.width > 0 && canvas.height > 0)
-        ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
-      if (img) ctx.putImageData(img, 0, 0);
-    }
-    resizeCanvas();
-    window.addEventListener('resize', function() { if (aberto) resizeCanvas(); });
 
-    function atualizarContador() {
-      contador.textContent = totalMarcacoes + (totalMarcacoes === 1 ? ' marcacao' : ' marcacoes');
-    }
+function getClassePct(pct) {
+  if (pct >= 50) return "pct-verde";
+  if (pct >= 30) return "pct-amarelo";
+  return "pct-vermelho";
+}
 
-    var btnFechar = toolbar.querySelector('#mrcBtnFechar');
 
-    function abrir() {
-      if (!aberto) resizeCanvas();
-      document.body.classList.add('mrc-is-active');
-      btnAbrir.classList.add('mrc-active');
-      btnAbrir.innerHTML = svg.pencil + ' Sair';
-      aberto = true;
-    }
+const LABEL_CURTO_MERCADO = {
+  ambasMarcam: "BTS", ambasNaoMarcam: "NBTS",
+  casaVence: "1", empate: "X", foraVence: "2", viradinha: "VIRA",
+  "over0.5": "O0.5", "over1.5": "O1.5", "over2.5": "O2.5", "over3.5": "O3.5", over5: "O5+",
+  "under0.5": "U0.5", "under1.5": "U1.5", "under2.5": "U2.5", "under3.5": "U3.5",
+  exato0: "=0", exato1: "=1", exato2: "=2", exato3: "=3", exato4: "=4",
+  exato2t0: "2T=0", exato2t1: "2T=1", exato2t2: "2T=2", exato2t3: "2T=3", exato2t4: "2T=4",
+  casa0Gols: "C0", casa1Gol: "C1", casa2Gols: "C2", casa3Gols: "C3", casa4Gols: "C4",
+  fora0Gols: "F0", fora1Gol: "F1", fora2Gols: "F2", fora3Gols: "F3", fora4Gols: "F4",
+};
+const MERCADOS_EXTRAS_MAX = 5;
 
-    function fechar() {
-      document.body.classList.remove('mrc-is-active');
-      btnAbrir.classList.remove('mrc-active');
-      btnAbrir.innerHTML = svg.pencil + ' Marcar';
-      fecharTexto();
-      aberto = false;
-    }
+const COR_GREEN_PADRAO = "#007004";
+const COR_RED_PADRAO   = "#980b01";
 
-    btnAbrir.addEventListener('click', function() { aberto ? fechar() : abrir(); });
-    btnFechar.addEventListener('click', fechar);
+const CORES_PLACAR_FT = ["#A855F7","#F59E0B","#3B82F6","#EC4899","#06B6D4","#F97316"];
+const CORES_PLACAR_HT = ["#C084FC","#FCD34D","#67E8F9","#F9A8D4","#A5B4FC","#6EE7B7"];
+const CORES_TIME      = ["#FACC15","#818CF8","#34D399","#FB7185","#A78BFA","#22D3EE"];
+const CORES_ODD       = ["#F472B6","#FDE68A","#93C5FD","#6EE7B7","#FCA5A1","#C4B5FD"];
 
-    // Selecionar ferramenta
-    toolbar.querySelectorAll('[data-tool]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        ferramenta = btn.dataset.tool;
-        toolbar.querySelectorAll('[data-tool]').forEach(function(b) { b.classList.remove('mrc-sel'); });
-        btn.classList.add('mrc-sel');
-        canvas.style.cursor = ferramenta === 'borracha' ? 'cell' : 'crosshair';
-      });
-    });
+const SVG_ICONS = {
+  clock: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>`,
+  ball:  `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>`,
+  check: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>`,
+  chart: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>`,
+  trend: `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22,7 13.5,15.5 8.5,10.5 2,17"/><polyline points="16,7 22,7 22,13"/></svg>`,
+  reset: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1,4 1,10 7,10"/><path d="M3.51,15a9,9,0,1,0,.49-3.63"/></svg>`,
+  avg:   `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="14" width="3.5" height="7"/><rect x="10.25" y="8" width="3.5" height="13"/><rect x="17.5" y="4" width="3.5" height="17"/><line x1="2" y1="11" x2="22" y2="11" stroke-dasharray="2.5 2.5"/></svg>`,
+};
 
-    var colorEl    = document.getElementById('mrcColor');
-    var sizeEl     = document.getElementById('mrcSize');
-    var opacEl     = document.getElementById('mrcOpacidade');
-    var btnDesfaz  = document.getElementById('mrcUndo');
-    var btnLimpar  = document.getElementById('mrcLimpar');
-    var btnFill    = document.getElementById('mrcFill');
 
-    // Presets de cor
-    presetsWrap.querySelectorAll('.mrc-preset').forEach(function (dot) {
-      dot.addEventListener('click', function () {
-        colorEl.value = dot.dataset.color;
-        presetsWrap.querySelectorAll('.mrc-preset').forEach(function (d) { d.classList.remove('mrc-preset-sel'); });
-        dot.classList.add('mrc-preset-sel');
-      });
-    });
-    colorEl.addEventListener('input', function () {
-      presetsWrap.querySelectorAll('.mrc-preset').forEach(function (d) { d.classList.remove('mrc-preset-sel'); });
-    });
-
-    // Preenchimento de formas
-    btnFill.addEventListener('click', function () {
-      preencher = !preencher;
-      btnFill.classList.toggle('mrc-sel', preencher);
-    });
-
-    var getCor  = function() { return colorEl.value; };
-    var getTam  = function() { return parseInt(sizeEl.value); };
-    var getOpac = function() { return parseInt(opacEl.value) / 100; };
-
-    function salvarHistorico() {
-      historico.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-      if (historico.length > 80) historico.shift();
-    }
-
-    // Posição do cursor já em coords de canvas (canvas = viewport, então é direto)
-    function getPos(e) {
-      var s = e.touches ? e.touches[0] : e;
-      return { x: s.clientX, y: s.clientY };
-    }
-
-    // Trava linha/forma em ângulos de 45° e formas em quadrado/círculo perfeito quando Shift está ativo
-    function aplicarShift(x, y) {
-      if (!shiftAtivo) return { x: x, y: y };
-      if (ferramenta === 'retangulo' || ferramenta === 'circulo') {
-        var d = Math.max(Math.abs(x - startX), Math.abs(y - startY));
-        return {
-          x: startX + d * (x < startX ? -1 : 1),
-          y: startY + d * (y < startY ? -1 : 1)
-        };
-      }
-      var dx = x - startX, dy = y - startY;
-      var ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
-      var dist = Math.hypot(dx, dy);
-      return { x: startX + dist * Math.cos(ang), y: startY + dist * Math.sin(ang) };
-    }
-
-    function aplicarEstilo() {
-      var cor = getCor();
-      ctx.strokeStyle = cor; ctx.fillStyle = cor;
-      ctx.globalAlpha = getOpac();
-      ctx.lineWidth = getTam(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    }
-
-    function desfazer() {
-      if (!historico.length) return;
-      ctx.putImageData(historico.pop(), 0, 0);
-      totalMarcacoes = Math.max(0, totalMarcacoes - 1);
-      atualizarContador();
-    }
-    btnDesfaz.addEventListener('click', desfazer);
-
-    btnLimpar.addEventListener('click', function() {
-      salvarHistorico();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      totalMarcacoes = 0; atualizarContador();
-    });
-
-    // Texto flutuante
-    var tx = 0, ty = 0;
-    function abrirTexto(x, y) {
-      tx = x; ty = y;
-      textInput.style.left = x + 'px';
-      textInput.style.top  = (y - 24) + 'px';
-      textInput.style.color     = getCor();
-      textInput.style.fontSize  = Math.max(14, getTam() * 4) + 'px';
-      textInput.style.display   = 'block';
-      textInput.value = ''; textInput.focus();
-    }
-    function fecharTexto() { textInput.style.display = 'none'; textInput.value = ''; }
-
-    textInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        var txt = textInput.value.trim();
-        if (txt) {
-          salvarHistorico();
-          ctx.font = Math.max(14, getTam() * 4) + 'px monospace';
-          ctx.fillStyle = getCor();
-          ctx.globalAlpha = getOpac();
-          ctx.fillText(txt, tx, ty);
-          ctx.globalAlpha = 1;
-          totalMarcacoes++;
-          atualizarContador();
-        }
-        fecharTexto();
-      }
-      if (e.key === 'Escape') fecharTexto();
-    });
-
-    // Desenhar formas
-    function desenharForma(x, y) {
-      ctx.putImageData(snapshot, 0, 0); aplicarEstilo();
-      var p = aplicarShift(x, y); x = p.x; y = p.y;
-      if (ferramenta === 'linha') {
-        ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(x, y); ctx.stroke();
-      } else if (ferramenta === 'seta') {
-        var ang = Math.atan2(y - startY, x - startX);
-        var hl  = Math.max(14, getTam() * 5);
-        ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(x, y); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x, y);
-        ctx.lineTo(x - hl * Math.cos(ang - Math.PI/6), y - hl * Math.sin(ang - Math.PI/6));
-        ctx.lineTo(x - hl * Math.cos(ang + Math.PI/6), y - hl * Math.sin(ang + Math.PI/6));
-        ctx.closePath(); ctx.fill();
-      } else if (ferramenta === 'retangulo') {
-        ctx.beginPath(); ctx.rect(startX, startY, x - startX, y - startY);
-        if (preencher) ctx.fill(); ctx.stroke();
-      } else if (ferramenta === 'circulo') {
-        var rx = (x - startX) / 2, ry = (y - startY) / 2;
-        ctx.beginPath(); ctx.ellipse(startX + rx, startY + ry, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2);
-        if (preencher) ctx.fill(); ctx.stroke();
-      }
-    }
-
-    canvas.addEventListener('mousedown', function(e) {
-      e.preventDefault();
-      var pos = getPos(e);
-      if (ferramenta === 'texto') { abrirTexto(pos.x, pos.y); return; }
-      desenhando = true; startX = pos.x; startY = pos.y;
-      salvarHistorico(); aplicarEstilo();
-      if (ferramenta === 'caneta' || ferramenta === 'borracha' || ferramenta === 'marcador') {
-        ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
-      } else {
-        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      }
-    });
-
-    canvas.addEventListener('mousemove', function(e) {
-      e.preventDefault();
-      if (!desenhando) return;
-      var pos = getPos(e); aplicarEstilo();
-      if (ferramenta === 'caneta') {
-        ctx.lineTo(pos.x, pos.y); ctx.stroke();
-      } else if (ferramenta === 'marcador') {
-        ctx.globalAlpha = getOpac() * 0.4;
-        ctx.lineWidth = getTam() * 4;
-        ctx.lineTo(pos.x, pos.y); ctx.stroke();
-      } else if (ferramenta === 'borracha') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.globalAlpha = 1;
-        ctx.lineWidth = getTam() * 6; ctx.lineTo(pos.x, pos.y); ctx.stroke();
-        ctx.globalCompositeOperation = 'source-over';
-      }
-      else {
-        desenharForma(pos.x, pos.y);
-      }
-    });
-
-    function pararDesenho(e) {
-      if (e) e.preventDefault();
-      if (!desenhando) return;
-      desenhando = false;
-      ctx.globalAlpha = 1;
-      if (ferramenta === 'borracha') ctx.globalCompositeOperation = 'source-over';
-      if (ferramenta !== 'texto') { totalMarcacoes++; atualizarContador(); }
-    }
-
-    canvas.addEventListener('mouseup',    pararDesenho);
-    canvas.addEventListener('mouseleave', pararDesenho);
-
-    canvas.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      var pos = getPos(e);
-      if (ferramenta === 'texto') { abrirTexto(pos.x, pos.y); return; }
-      desenhando = true; startX = pos.x; startY = pos.y;
-      salvarHistorico(); aplicarEstilo();
-      if (ferramenta === 'caneta' || ferramenta === 'borracha' || ferramenta === 'marcador') {
-        ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
-      } else {
-        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      }
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', function(e) {
-      e.preventDefault();
-      if (!desenhando) return;
-      var pos = getPos(e); aplicarEstilo();
-      if (ferramenta === 'caneta') { ctx.lineTo(pos.x, pos.y); ctx.stroke(); }
-      else if (ferramenta === 'marcador') {
-        ctx.globalAlpha = getOpac() * 0.4;
-        ctx.lineWidth = getTam() * 4;
-        ctx.lineTo(pos.x, pos.y); ctx.stroke();
-      }
-      else if (ferramenta === 'borracha') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.globalAlpha = 1;
-        ctx.lineWidth = getTam() * 6; ctx.lineTo(pos.x, pos.y); ctx.stroke();
-        ctx.globalCompositeOperation = 'source-over';
-      } else { desenharForma(pos.x, pos.y); }
-    }, { passive: false });
-    canvas.addEventListener('touchend', pararDesenho, { passive: false });
-
-    // Atalhos de teclado
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Shift') shiftAtivo = true;
-      if (!aberto || document.activeElement === textInput) return;
-      var mapa = { p:'caneta', l:'linha', a:'seta', r:'retangulo', c:'circulo', t:'texto', e:'borracha', h:'marcador' };
-      var tool = mapa[e.key.toLowerCase()];
-      if (tool) {
-        var btn = toolbar.querySelector('[data-tool="' + tool + '"]');
-        if (btn) btn.click();
-      }
-      if (e.key.toLowerCase() === 'f') btnFill.click();
-      if (e.key === 'Escape') fechar();
-      if (e.key === 'Delete') btnLimpar.click();
-      if (e.ctrlKey && e.key === 'z') { e.preventDefault(); desfazer(); }
-    });
-    document.addEventListener('keyup', function(e) { if (e.key === 'Shift') shiftAtivo = false; });
-
-    atualizarContador();
+function getLigaKey() {
+  if (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) {
+    return String(LIGA_ATUAL).trim().toLowerCase().replace(/\s+/g, "_");
   }
+  const h4 = document.querySelector("h4.custom-color");
+  if (h4 && h4.textContent.trim()) {
+    return h4.textContent.trim().toLowerCase().replace(/\s+/g, "_");
+  }
+  return "default";
+}
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+
+const Estado = {
+  placarFTSelecionados: [],
+  placarHTSelecionados: [],
+  timesSelecionados:    [],
+  oddsSelecionadas:     [],
+  mercadosExtras:       [], 
+  corDestaqueExtra:     "#93C5FD",
+  selectedChaves:       [],
+  colunasSelecionadas:  [],
+  _ultimoHashDados:       null,
+  _ultimoHashOdds:        null,
+  _ultimoHashProximos:    null,
+  _ultimaLigaRenderizada: null,
+  corGreen: COR_GREEN_PADRAO,
+  corRed:   COR_RED_PADRAO,
+
+
+  _placarFTKey()  { return `placarFTSelecionados_${getLigaKey()}`; },
+  _placarHTKey()  { return `placarHTSelecionados_${getLigaKey()}`; },
+  _timesKey()     { return `timesSelecionados_${getLigaKey()}`; },
+  _oddsKey()      { return `oddsSelecionadas_${getLigaKey()}`; },
+  _mercadosExtrasKey() { return `mercadosExtras_${getLigaKey()}`; },
+  _chavesKey()    { return `selectedChaves_${getLigaKey()}`; },
+  _colunasKey()   { return `colunasSelecionadas_${getLigaKey()}`; },
+  _horasKey()     { return `seletorHoras_${getLigaKey()}`; },
+
+  carregar() {
+    const ligaKey = getLigaKey();
+
+    const legFT = JSON.parse(localStorage.getItem("placarSelecionados")) || [];
+    const legFTGlobal = JSON.parse(localStorage.getItem("placarFTSelecionados")) || legFT;
+    this.placarFTSelecionados = JSON.parse(localStorage.getItem(this._placarFTKey())) || [];
+    this.placarHTSelecionados = JSON.parse(localStorage.getItem(this._placarHTKey())) || [];
+    this.timesSelecionados    = JSON.parse(localStorage.getItem(this._timesKey()))    || [];
+    this.oddsSelecionadas     = JSON.parse(localStorage.getItem(this._oddsKey()))     || [];
+    this.mercadosExtras       = JSON.parse(localStorage.getItem(this._mercadosExtrasKey())) || [];
+    this.selectedChaves       = JSON.parse(localStorage.getItem(this._chavesKey()))   || [];
+    this.colunasSelecionadas  = JSON.parse(localStorage.getItem(this._colunasKey()))  || [];
+    this.corGreen = localStorage.getItem("corGreen") || COR_GREEN_PADRAO;
+    this.corRed   = localStorage.getItem("corRed")   || COR_RED_PADRAO;
+    this.corDestaqueExtra = localStorage.getItem("corDestaqueExtra") || this.corDestaqueExtra;
+    this.placarHTSelecionados = this.placarHTSelecionados
+      .map(v => v.replace(/^(__ht__|_ht_|ht:)/i, "").trim())
+      .filter(v => v.length > 0);
+
+    ["placarSelecionado","timeSelecionado","oddSelecionada"].forEach(k => localStorage.removeItem(k));
+  },
+
+  salvar() {
+    localStorage.setItem(this._placarFTKey(), JSON.stringify(this.placarFTSelecionados));
+    localStorage.setItem(this._placarHTKey(), JSON.stringify(this.placarHTSelecionados));
+    localStorage.setItem(this._timesKey(),    JSON.stringify(this.timesSelecionados));
+    localStorage.setItem(this._oddsKey(),     JSON.stringify(this.oddsSelecionadas));
+    localStorage.setItem(this._mercadosExtrasKey(), JSON.stringify(this.mercadosExtras));
+    localStorage.setItem(this._chavesKey(),   JSON.stringify(this.selectedChaves));
+    localStorage.setItem(this._colunasKey(),  JSON.stringify(this.colunasSelecionadas));
+    localStorage.setItem("corGreen", this.corGreen);
+    localStorage.setItem("corRed",   this.corRed);
+    localStorage.setItem("corDestaqueExtra", this.corDestaqueExtra);
+    const elH = document.querySelector("#seletorHoras");
+    if (elH) localStorage.setItem(this._horasKey(), elH.value);
+  },
+
+  recarregarChaves() {
+    this.selectedChaves      = JSON.parse(localStorage.getItem(this._chavesKey()))  || [];
+    this.colunasSelecionadas = JSON.parse(localStorage.getItem(this._colunasKey())) || [];
+  },
+
+  toggleSelecao(chave, valor) {
+    const lista = this[chave];
+    const idx = lista.indexOf(valor);
+    if (idx !== -1) lista.splice(idx, 1);
+    else { if (lista.length >= 6) lista.shift(); lista.push(valor); }
+    this.salvar();
+    atualizarIndicadorSelecao();
+  },
+
+  limparSelecoes(tipos) {
+    tipos.forEach(t => { this[t].length = 0; });
+    this.salvar();
+    atualizarIndicadorSelecao();
+  },
+
+  getCorSelecao(lista, valor, tipo) {
+    const idx = lista.indexOf(valor);
+    if (idx === -1) return null;
+    const paletas = { ft: CORES_PLACAR_FT, ht: CORES_PLACAR_HT, time: CORES_TIME, odd: CORES_ODD };
+    const paleta = paletas[tipo] || CORES_PLACAR_FT;
+    return { bg: paleta[idx % paleta.length] };
+  },
+
+  hashDados(dados) {
+    if (!dados || dados.length === 0) return "vazio";
+
+    return dados.length + "_" + dados.map(d => {
+      const id = d?.id ?? d?.match_id ?? "";
+      return `${id}:${d?.ft ?? ""}:${d?.ht ?? ""}`;
+    }).join("|");
+  },
+
+  dadosMudaram(dados, odds, proximos) {
+    const hD=this.hashDados(dados), hO=this.hashDados(odds), hP=this.hashDados(proximos);
+    if (hD!==this._ultimoHashDados || hO!==this._ultimoHashOdds || hP!==this._ultimoHashProximos) {
+      this._ultimoHashDados=hD; this._ultimoHashOdds=hO; this._ultimoHashProximos=hP; return true;
+    }
+    return false;
+  },
+
+  forcarRerender() { this._ultimoHashDados = null; _ultimaAssinaturaRender = null; },
+};
+
+Estado.carregar();
+
+
+let _ultimaLigaHorasRestauradas = null;
+function restaurarHorasSeletor() {
+  const key = Estado._horasKey();
+  if (_ultimaLigaHorasRestauradas === key) return;
+  _ultimaLigaHorasRestauradas = key;
+  const salvo = localStorage.getItem(key);
+  if (!salvo) return;
+  const el = document.querySelector("#seletorHoras");
+  if (el && el.value !== salvo) { el.value = salvo; }
+}
+
+
+// Tamanho do quadrante (nº de jogos por bloco) conforme a quantidade de jogos por hora da liga.
+// 12 jogos/hora (BetGreen) => 4 quadrantes de 3 jogos. Demais ligas: blocos de 5.
+const QD_TAMANHO_BLOCO_POR_QTD = { 12: 3 };
+const QD_TAMANHO_BLOCO_FIXO = QD_TAMANHO_BLOCO_POR_QTD[minutosFixos.length] ?? 5;
+function gerarBlocosDeMinutos(seq) {
+  const tamanho = QD_TAMANHO_BLOCO_FIXO;
+  const blocos = [];
+  for (let i = 0; i < seq.length; i += tamanho) blocos.push(seq.slice(i, i + tamanho));
+  return blocos;
+}
+
+let blocosDeMinutos = gerarBlocosDeMinutos(minutosFixos);
+
+
+function _tamanhoBlocoQD() {
+  return QD_TAMANHO_BLOCO_FIXO;
+}
+
+const counterMarketMap = {
+  'ambasMarcam':    'ambasNaoMarcam',
+  'ambasNaoMarcam': 'ambasMarcam',
+  'casaVence':      'empateOuFora',
+  'foraVence':      'empateOuCasa',
+  'empate':         'casaOuFora',
+  'viradinha':      null,
+  'over0.5':        'under0.5',
+  'under0.5':       'over0.5',
+  'over1.5':        'under1.5',
+  'under1.5':       'over1.5',
+  'over2.5':        'under2.5',
+  'under2.5':       'over2.5',
+  'over3.5':        'under3.5',
+  'under3.5':       'over3.5',
+  'over5':          null,
+  'exato0': null, 'exato1': null, 'exato2': null, 'exato3': null, 'exato4': null,
+  'exato2t0': null, 'exato2t1': null, 'exato2t2': null, 'exato2t3': null, 'exato2t4': null,
+  'casa0Gols': null, 'casa1Gol': null, 'casa2Gols': null, 'casa3Gols': null, 'casa4Gols': null,
+  'fora0Gols': null, 'fora1Gol': null, 'fora2Gols': null, 'fora3Gols': null, 'fora4Gols': null,
+};
+
+
+function mercadoPrincipalAtual() {
+  return document.querySelector("#seletorResultado")?.value || "";
+}
+function mercadoEhContrarioDoPrincipal(mercado) {
+  const principal = mercadoPrincipalAtual();
+  return counterMarketMap[principal] === mercado || counterMarketMap[mercado] === principal;
+}
+function mercadosExtrasAdicionar(mercado) {
+  if (!mercado) return;
+  if (Estado.mercadosExtras.some(m => m.mercado === mercado)) return;
+  if (Estado.mercadosExtras.length >= MERCADOS_EXTRAS_MAX) return;
+  Estado.mercadosExtras.push({ mercado, mostrarOdd: true, destacar: false });
+  Estado.salvar();
+  renderizarPainelMercadosExtras();
+  renderizarRapido();
+}
+function mercadosExtrasRemover(mercado) {
+  Estado.mercadosExtras = Estado.mercadosExtras.filter(m => m.mercado !== mercado);
+  Estado.salvar();
+  renderizarPainelMercadosExtras();
+  renderizarRapido();
+}
+function mercadosExtrasToggleFlag(mercado, flag) {
+  const item = Estado.mercadosExtras.find(m => m.mercado === mercado);
+  if (!item) return;
+  if (flag === "destacar") {
+
+    const novoValor = !item.destacar;
+    Estado.mercadosExtras.forEach(m => { m.destacar = false; });
+    item.destacar = novoValor;
   } else {
-    init();
+    item[flag] = !item[flag];
+  }
+  Estado.salvar();
+  renderizarPainelMercadosExtras();
+  renderizarRapido();
+}
+function corMercadoExtra(mercado) {
+  const idx = Estado.mercadosExtras.findIndex(m => m.mercado === mercado);
+  return CORES_ODD[idx % CORES_ODD.length] || CORES_ODD[0];
+}
+
+
+function renderizarPainelMercadosExtras() {
+  const btn = document.getElementById("btnMercadosExtras");
+  const countEl = document.getElementById("mercadosExtrasCount");
+  const select = document.getElementById("selectNovoMercadoExtra");
+  const lista = document.getElementById("listaMercadosExtras");
+  if (!btn || !select || !lista) return;
+
+
+  if (Estado.mercadosExtras.length > 0) {
+    countEl.textContent = `(${Estado.mercadosExtras.length})`;
+    countEl.style.display = "inline";
+  } else {
+    countEl.style.display = "none";
   }
 
+
+  const origem = document.querySelector("#seletorResultado");
+  select.innerHTML = '<option value="">+ Adicionar mercado…</option>';
+  if (origem) {
+    const principal = mercadoPrincipalAtual();
+    const jaAdicionados = new Set(Estado.mercadosExtras.map(m => m.mercado));
+    Array.from(origem.querySelectorAll("optgroup")).forEach(og => {
+      const novoGroup = document.createElement("optgroup");
+      novoGroup.label = og.label;
+      let temOpcaoValida = false;
+      Array.from(og.querySelectorAll("option")).forEach(opt => {
+        const val = opt.value;
+        if (!val || val === principal || jaAdicionados.has(val)) return;
+        const novoOpt = document.createElement("option");
+        novoOpt.value = val;
+        novoOpt.textContent = opt.textContent;
+        if (mercadoEhContrarioDoPrincipal(val)) {
+          novoOpt.disabled = true;
+          novoOpt.textContent += " (oposto ao mercado atual)";
+        }
+        novoGroup.appendChild(novoOpt);
+        temOpcaoValida = true;
+      });
+      if (temOpcaoValida) select.appendChild(novoGroup);
+    });
+  }
+  select.disabled = Estado.mercadosExtras.length >= MERCADOS_EXTRAS_MAX;
+
+
+  lista.innerHTML = "";
+  Estado.mercadosExtras.forEach(item => {
+    const cor = corMercadoExtra(item.mercado);
+    const label = LABEL_CURTO_MERCADO[item.mercado] || item.mercado;
+    const contrario = mercadoEhContrarioDoPrincipal(item.mercado);
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:6px;background:#1b1c20;border:1px solid "+cor+";border-radius:6px;padding:4px 6px;font-size:0.8em;";
+    row.innerHTML = `
+      <span style="width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
+      <span style="color:#e5e7eb;flex:1;" title="${contrario?'Atenção: oposto ao mercado principal atual':''}">${label}${contrario?" ⚠":""}</span>
+      <button type="button" data-acao="odd" data-mercado="${item.mercado}"
+        title="Mostrar odd na tabela" style="cursor:pointer;background:none;border:none;opacity:${item.mostrarOdd?1:0.35};font-size:1em;">💰</button>
+      <button type="button" data-acao="destaque" data-mercado="${item.mercado}"
+        title="Destacar sobreposição na tabela" style="cursor:pointer;background:none;border:none;opacity:${item.destacar?1:0.35};font-size:1em;">✨</button>
+      <button type="button" data-acao="remover" data-mercado="${item.mercado}"
+        title="Remover" style="cursor:pointer;background:none;border:none;color:#f87171;font-size:1em;">✕</button>
+    `;
+    lista.appendChild(row);
+  });
+}
+
+
+function renderizarBadgesMercadosExtras(placarEl, oddsObj) {
+ try {
+  if (!Estado.mercadosExtras.length) return;
+  Estado.mercadosExtras.forEach(item => {
+    if (!item.mostrarOdd) return;
+    const val = getOddValue(oddsObj, item.mercado);
+    if (!val || val === "N/A") return;
+    const b = document.createElement("div");
+    b.className = "odd-extra-badge";
+    b.style.cssText = `font-size:9px;line-height:1;margin-top:1px;padding:1px 2px;border-radius:3px;
+      background:none;color:#ffffff;white-space:nowrap;`;
+    b.textContent = `${LABEL_CURTO_MERCADO[item.mercado] || item.mercado} @${val}`;
+    placarEl.appendChild(b);
+  });
+ } catch (e) { console.error("Erro badges mercados extras:", e); }
+}
+
+
+function aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB) {
+ try {
+  const ativos = Estado.mercadosExtras.filter(m => m.destacar);
+
+  if (!ativos.length) {
+    if (cel.classList.contains("destaque-extra")) {
+      cel.classList.remove("destaque-extra");
+      cel.querySelectorAll(".destaque-extra-dot").forEach(d => d.remove());
+    }
+    return;
+  }
+  cel.classList.remove("destaque-extra");
+  cel.querySelectorAll(".destaque-extra-dot").forEach(d => d.remove());
+  let algumBateu = false;
+  ativos.forEach(item => {
+    if (verificarAcerto(item.mercado, rA, rB, htA, htB)) {
+      algumBateu = true;
+      const dot = document.createElement("span");
+      dot.className = "destaque-extra-dot";
+      dot.title = LABEL_CURTO_MERCADO[item.mercado] || item.mercado;
+      dot.style.cssText = `position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;
+        background:var(--destaque-extra-color, #93C5FD);box-shadow:0 0 3px var(--destaque-extra-color, #93C5FD);`;
+      cel.style.position = "relative";
+      cel.appendChild(dot);
+    }
+  });
+  if (algumBateu) cel.classList.add("destaque-extra");
+ } catch (e) { console.error("Erro destaque mercados extras:", e); }
+}
+
+
+function aplicarCorDestaqueExtraGlobal() {
+  document.documentElement.style.setProperty("--destaque-extra-color", Estado.corDestaqueExtra || "#93C5FD");
+}
+
+
+function tooltipMercadosExtrasHTML(oddsObj) {
+  if (!Estado.mercadosExtras.length) return "";
+  return Estado.mercadosExtras.filter(m => m.mostrarOdd).map(item => {
+    const val = getOddValue(oddsObj, item.mercado);
+    if (!val || val === "N/A") return "";
+    const label = LABEL_CURTO_MERCADO[item.mercado] || item.mercado;
+    return `<span class="odd-tooltip odd-tooltip-extra">${label} @${val}</span>`;
+  }).join("");
+}
+
+let qdNumPreviousHours = 1;
+let _qdKeyCarregada = null;
+function _qdKey() { return `qdNumPreviousHours_${getLigaKey()}`; }
+function qdCarregarQuantidade() {
+  const key = _qdKey();
+  if (_qdKeyCarregada === key) return;
+  _qdKeyCarregada = key;
+  try {
+    const n = parseInt(localStorage.getItem(key), 10);
+    if (Number.isFinite(n) && n >= 0 && n <= 24) qdNumPreviousHours = n;
+  } catch (e) {}
+}
+function qdSalvarQuantidade() {
+  try { localStorage.setItem(_qdKey(), String(qdNumPreviousHours)); } catch (e) {}
+}
+let qdDadosCache = null; 
+let qdOddsCache = null; 
+
+
+// Timestamp de cada jogo, calculado uma única vez por objeto
+const _tsJogoMemo = new WeakMap();
+function tsJogo(j) {
+  let t = _tsJogoMemo.get(j);
+  if (t === undefined) {
+    t = new Date(`${getDateStr(j.data)}T${j.hora.toString().padStart(2,"0")}:${j.minuto.toString().padStart(2,"0")}:00`).getTime();
+    _tsJogoMemo.set(j, t);
+  }
+  return t;
+}
+
+// Jogo mais recente: uma varredura O(n) (antes era sort completo com parse de Date a cada comparação)
+let _horaAtualMemo = { ref: null, len: -1, val: null };
+function qdGetHoraAtual(resultados) {
+  if (resultados && resultados.length > 0) {
+    if (_horaAtualMemo.ref === resultados && _horaAtualMemo.len === resultados.length) return _horaAtualMemo.val;
+    let rec = null, best = NaN;
+    for (let i = 0; i < resultados.length; i++) {
+      const r = resultados[i];
+      const t = new Date(`${r.data.split('T')[0]}T${r.hora.toString().padStart(2,'0')}:${(r.minuto||0).toString().padStart(2,'0')}:00`).getTime();
+      if (rec === null || isNaN(best) || t > best) { rec = r; best = t; }
+    }
+    const dateStr = rec.data.includes('T') ? rec.data.split('T')[0] : rec.data.split('/').reverse().join('-');
+    const val = { hora: rec.hora, dateStr };
+    _horaAtualMemo = { ref: resultados, len: resultados.length, val };
+    return val;
+  }
+
+  const now = new Date();
+  return { hora: now.getHours(), dateStr: now.toISOString().split('T')[0] };
+}
+
+
+function oraculoHoraAnterior(dataStr, hora) {
+  let h = hora - 1, d = dataStr;
+  if (h < 0) {
+    h = 23;
+    const dt = new Date(dataStr + 'T12:00:00');
+    dt.setDate(dt.getDate() - 1);
+    d = dt.toISOString().split('T')[0];
+  }
+  return { dataStr: d, hora: h };
+}
+
+function aplicarOraculoTabela() {
+  document.querySelectorAll(".oraculo-marcado").forEach(td => { td.classList.remove("oraculo-marcado"); td.removeAttribute("data-oraculo-label"); });
+  const ativo = localStorage.getItem("oraculoAtivo") === "1";
+  if (!ativo) return;
+  const dadosRef = qdDadosCache;
+  if (!dadosRef || !dadosRef.length) return;
+
+  const mercado = document.querySelector("#seletorResultado")?.value || "over2.5";
+  const { hora: horaAtual, dateStr: dataAtual } = qdGetHoraAtual(dadosRef);
+  const ant = oraculoHoraAnterior(dataAtual, horaAtual);
+
+  const jogosAnt = dadosRef.filter(j => getDateStr(j.data) === ant.dataStr && j.hora === ant.hora);
+  const qtd = jogosAnt.filter(j => qdCheckMarket(j.ft, j.ht, mercado)).length;
+  const sugeridos = minutosFixos.slice(qtd, qtd + 3);
+  if (!sugeridos.length) return;
+
+  const chave = `${dataAtual}-${horaAtual}`;
+  const tr = document.querySelector(`tr[data-chave="${chave}"]`);
+  if (!tr) return;
+
+  const ORACULO_LABELS = ["SG", "G1", "G2"];
+  sugeridos.forEach((m, i) => {
+    const idx = minutosFixos.indexOf(m);
+    if (idx < 0) return;
+    const td = tr.children[idx + 1]; 
+    if (td) {
+      td.classList.add("oraculo-marcado");
+      td.setAttribute("data-oraculo-label", ORACULO_LABELS[i] || "");
+    }
+  });
+}
+
+const BUSCADOR_PULO = 1; 
+
+const BUSCADOR_AMOSTRA_MINIMA_PADRAO = 10;
+const BUSCADOR_OPCOES_AMOSTRA = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+const BUSCADOR_SEQ_OPCOES   = [2, 3, 4];
+const BUSCADOR_GALES_OPCOES = [2, 3, 4];
+const BUSCADOR_PCT_OPCOES   = [80, 85, 90, 95, 100];
+const BUSCADOR_TIPO_OPCOES  = ["mercado", "placares", "odd"];
+
+const BUSCADOR_CONFIG_PADRAO = {
+  seq: 4,
+  gales: 3,
+  pct: 100,
+  tipo: "mercado",
+  amostraMinima: BUSCADOR_AMOSTRA_MINIMA_PADRAO
+};
+
+function buscadorConfigKey() { return `buscadorConfig_${getLigaKey()}`; }
+
+function buscadorCarregarConfig() {
+  let base = { ...BUSCADOR_CONFIG_PADRAO };
+
+  const legadoAmostra = parseInt(localStorage.getItem("buscadorAmostraMinima"), 10);
+  if (BUSCADOR_OPCOES_AMOSTRA.includes(legadoAmostra)) base.amostraMinima = legadoAmostra;
+
+  try {
+    const salvo = JSON.parse(localStorage.getItem(buscadorConfigKey()));
+    if (salvo) {
+      base = {
+        seq:   BUSCADOR_SEQ_OPCOES.includes(salvo.seq)     ? salvo.seq   : base.seq,
+        gales: BUSCADOR_GALES_OPCOES.includes(salvo.gales) ? salvo.gales : base.gales,
+        pct:   BUSCADOR_PCT_OPCOES.includes(salvo.pct)     ? salvo.pct   : base.pct,
+        tipo:  BUSCADOR_TIPO_OPCOES.includes(salvo.tipo)   ? salvo.tipo  : base.tipo,
+        amostraMinima: BUSCADOR_OPCOES_AMOSTRA.includes(salvo.amostraMinima) ? salvo.amostraMinima : base.amostraMinima
+      };
+    }
+  } catch (e) {}
+  return base;
+}
+
+function buscadorSalvarConfig(cfg) {
+  localStorage.setItem(buscadorConfigKey(), JSON.stringify(cfg));
+}
+
+let buscadorConfig = buscadorCarregarConfig();
+
+function buscadorLabelsGales(qtd) {
+  const labels = ["SG"];
+  for (let i = 1; i < qtd; i++) labels.push("G" + i);
+  return labels;
+}
+
+function buscadorCriterioAtual() {
+  return { tipo: buscadorConfig.tipo, mercado: buscadorMercadoAtual() };
+}
+
+function buscadorTituloModo(criterio) {
+  if (!criterio) return "";
+  const mercadoLabel = LABEL_CURTO_MERCADO[criterio.mercado] || criterio.mercado || "";
+  if (criterio.tipo === "placares") return `Placares → ${mercadoLabel}`;
+  if (criterio.tipo === "odd") return `Odd → ${mercadoLabel}`;
+  return mercadoLabel;
+}
+
+function buscadorAcertoGenerico(criterio, dado) {
+  if (!dado) return null;
+  return buscadorAcertoDado(criterio.mercado, dado);
+}
+
+function buscadorToken(criterio, entry) {
+  if (criterio.tipo === "placares") return entry.placar;
+  if (criterio.tipo === "odd") return entry.odd;
+  return entry.acertoMercado;
+}
+
+function buscadorParsePlacar(str) {
+  if (!str) return null;
+  const partes = String(str).split(" x ").map(n => parseInt(n, 10));
+  if (partes.length !== 2 || isNaN(partes[0]) || isNaN(partes[1])) return null;
+  return partes;
+}
+
+function buscadorAcertoDado(mercado, dado) {
+  const ft = buscadorParsePlacar(dado.ft);
+  if (!ft) return null;
+  const ht = buscadorParsePlacar(dado.ht);
+  return verificarAcerto(mercado, ft[0], ft[1], ht ? ht[0] : null, ht ? ht[1] : null);
+}
+
+function buscadorMercadoAtual() {
+  return document.querySelector("#seletorResultado")?.value || "over2.5";
+}
+
+function buscadorSerieGlobal(criterio) {
+  const precisaOdd = criterio.tipo === "odd";
+  const oddsIndex = precisaOdd ? indexarOddsMemo(qdOddsCache || []) : null;
+
+  return (qdDadosCache || [])
+    .map(d => {
+      const ftParsed = buscadorParsePlacar(d.ft);
+      if (!ftParsed) return null;
+      const acertoMercado = buscadorAcertoDado(criterio.mercado, d);
+      if (acertoMercado === null) return null;
+
+      let odd = null;
+      if (precisaOdd) {
+        const oddsMatch = findOddsNoIndex(oddsIndex, d);
+        const valorOdd = getOddValue(oddsMatch, criterio.mercado);
+        if (!valorOdd || valorOdd === "N/A") return null; 
+        odd = String(valorOdd).trim();
+      }
+
+      return {
+        ts: new Date(`${getDateStr(d.data)}T${d.hora.toString().padStart(2,"0")}:${d.minuto.toString().padStart(2,"0")}:00`).getTime(),
+        placar: String(d.ft).trim(),
+        acertoMercado,
+        odd
+      };
+    })
+    .filter(Boolean)
+    .sort((a,b) => a.ts - b.ts);
+}
+
+function buscadorAnalisar(criterio) {
+  const seq   = buscadorConfig.seq;
+  const gales = buscadorConfig.gales;
+  const serieObjs = buscadorSerieGlobal(criterio);
+  if (serieObjs.length < seq + BUSCADOR_PULO + gales) return null;
+
+
+  const tokens = serieObjs.map(e => buscadorToken(criterio, e));
+  const hits   = serieObjs.map(e => e.acertoMercado);
+  const atual  = tokens.slice(-seq);
+
+  const todasOcorrencias = []; 
+  for (let i = 0; i <= tokens.length - seq - BUSCADOR_PULO - gales; i++) {
+    let bate = true;
+    for (let j = 0; j < seq; j++) {
+      if (tokens[i+j] !== atual[j]) { bate = false; break; }
+    }
+    if (!bate) continue;
+    const inicioAlvos = i + seq + BUSCADOR_PULO;
+    const alvosHit = hits.slice(inicioAlvos, inicioAlvos + gales);
+    todasOcorrencias.push(alvosHit.some(Boolean));
+  }
+
+
+  const janela = todasOcorrencias.slice(-buscadorConfig.amostraMinima);
+  const ocorrencias = janela.length;
+  const greens = janela.filter(Boolean).length;
+  return { sequencia: atual, ocorrencias, greens, taxa: ocorrencias ? greens / ocorrencias : null };
+}
+
+function buscadorProximasCelulas() {
+  return Array.from(document.querySelectorAll("#tabelaResultados tbody td.cel-proximo-jogo"))
+    .map(td => {
+      const tr = td.closest("tr");
+      const chave = tr?.getAttribute("data-chave");
+      if (!chave) return null;
+      const idx = Array.prototype.indexOf.call(tr.children, td) - 1;
+      const minuto = minutosFixos[idx];
+      if (minuto === undefined) return null;
+      const corte = chave.lastIndexOf("-");
+      const data = chave.slice(0, corte), hora = chave.slice(corte + 1);
+      const ts = new Date(`${data}T${hora.toString().padStart(2,"0")}:${minuto.toString().padStart(2,"0")}:00`).getTime();
+      return { td, ts, chave, minuto };
+    })
+    .filter(Boolean)
+    .sort((a,b) => a.ts - b.ts);
+}
+
+function garantirPainelBuscador() {
+  let painel = document.getElementById("painelBuscador");
+  if (!painel) {
+    painel = document.createElement("div"); painel.id = "painelBuscador";
+    const tabela = document.getElementById("tabelaResultados");
+    if (tabela) {
+      const painelSelecao = document.getElementById("painel-selecao");
+      const anchor = painelSelecao || tabela;
+      anchor.parentNode.insertBefore(painel, anchor);
+    }
+  }
+  return painel;
+}
+
+function removerPainelBuscador() {
+  document.getElementById("painelBuscador")?.remove();
+}
+
+function buscadorChip(v, tipo) {
+  if (tipo === "mercado") return `<span class="buscador-chip ${v ? "buscador-chip-v" : "buscador-chip-x"}">${v ? "V" : "X"}</span>`;
+  const texto = tipo === "odd" ? `@${v}` : v;
+  return `<span class="buscador-chip buscador-chip-placar">${texto}</span>`;
+}
+
+function renderBuscadorPainel(info) {
+  if (!info) { removerPainelBuscador(); return; }
+  const painel = garantirPainelBuscador();
+  const tituloModo = buscadorTituloModo(info.criterio);
+  const cfg = buscadorConfig;
+
+  if (info.insuficiente) {
+    painel.innerHTML = `<div class="buscador-box buscador-box-muted">🔎 <strong>Buscador</strong> (${tituloModo}): histórico ainda insuficiente — precisa de pelo menos ${cfg.amostraMinima} ocorrências dessa sequência.</div>`;
+    return;
+  }
+
+  const { resultado, bateuAlvo } = info;
+  const chips = resultado.sequencia.map(v => buscadorChip(v, info.criterio.tipo)).join("");
+
+  if (resultado.ocorrencias === 0) {
+    painel.innerHTML = `<div class="buscador-box buscador-box-muted">🔎 <strong>Buscador</strong> (${tituloModo}) — sequência lida: ${chips} <span>ainda não apareceu no histórico completo.</span></div>`;
+    return;
+  }
+
+  const pct = (resultado.taxa * 100).toFixed(1);
+  const statusTxt = bateuAlvo
+    ? `${pct}% em ${resultado.ocorrencias} ocorrências — próximos ${cfg.gales} confrontos marcados na tabela`
+    : `${pct}% em ${resultado.ocorrencias} ocorrências (mais próximo de ${cfg.pct}% encontrado)`;
+
+  painel.innerHTML = `
+    <div class="buscador-box ${bateuAlvo ? "buscador-box-hit" : ""}">
+      🔎 <strong>Buscador</strong> (${tituloModo}) — sequência lida: ${chips}
+      <span class="buscador-status ${bateuAlvo ? "buscador-status-hit" : ""}">${statusTxt}</span>
+    </div>`;
+}
+
+let buscadorUltimoAlertaKey = null;
+
+function buscadorSinalKey() { return `buscadorSinalPendente_${getLigaKey()}`; }
+
+function buscadorCarregarSinal() {
+  try {
+    const sinal = JSON.parse(localStorage.getItem(buscadorSinalKey())) || null;
+
+    if (sinal && !sinal.criterio && sinal.mercado) sinal.criterio = { tipo: "mercado", mercado: sinal.mercado };
+    return sinal;
+  } catch (e) { return null; }
+}
+
+function buscadorSalvarSinal(sinal) {
+  if (sinal) localStorage.setItem(buscadorSinalKey(), JSON.stringify(sinal));
+  else localStorage.removeItem(buscadorSinalKey());
+}
+
+let buscadorSinalPendente = buscadorCarregarSinal();
+
+function buscadorBuscarDado(chave, minuto) {
+  const corte = chave.lastIndexOf("-");
+  const data = chave.slice(0, corte), hora = chave.slice(corte + 1);
+  return (qdDadosCache || []).find(d =>
+    getDateStr(d.data) === data && String(d.hora) === String(hora) && d.minuto === minuto
+  ) || null;
+}
+
+function buscadorAvaliarSinalPendente() {
+  if (!buscadorSinalPendente) return null;
+  const alvos = buscadorSinalPendente.alvos.map(a => {
+    const dado = buscadorBuscarDado(a.chave, a.minuto);
+    const acerto = dado ? buscadorAcertoGenerico(buscadorSinalPendente.criterio, dado) : null;
+    return { ...a, acerto };
+  });
+  const todosResolvidos = alvos.every(a => a.acerto !== null);
+  const idxAcerto = alvos.findIndex(a => a.acerto === true);
+  const algumAcerto = idxAcerto !== -1;
+  const conferidos = alvos.filter(a => a.acerto !== null).length;
+
+  return {
+    alvos,
+    todosResolvidos,
+    conferidos,
+    algumAcerto,
+    ordemAcerto: algumAcerto ? idxAcerto + 1 : null,
+    resolvido: algumAcerto || todosResolvidos
+  };
+}
+
+function buscadorRemarcarCelulasPendentes() {
+  if (!buscadorSinalPendente) return;
+  const labels = buscadorLabelsGales(buscadorSinalPendente.alvos.length);
+  buscadorSinalPendente.alvos.forEach((a, i) => {
+    const tr = document.querySelector(`#tabelaResultados tbody tr[data-chave="${a.chave}"]`);
+    if (!tr) return;
+    const idx = minutosFixos.indexOf(a.minuto);
+    if (idx === -1) return;
+    const td = tr.children[idx + 1];
+    if (td) {
+      td.classList.add("buscador-marcado");
+      td.setAttribute("data-buscador-label", labels[i] || String(i + 1));
+    }
+  });
+}
+
+function renderBuscadorPainelPendente(avaliacao) {
+  const painel = garantirPainelBuscador();
+  const tituloModo = buscadorTituloModo(buscadorSinalPendente.criterio);
+  const chips = (buscadorSinalPendente.sequencia || []).map(v => buscadorChip(v, buscadorSinalPendente.criterio.tipo)).join("");
+  const totalAlvos = buscadorSinalPendente.alvos.length;
+  painel.innerHTML = `
+    <div class="buscador-box buscador-box-hit">
+      🔎 <strong>Buscador</strong> (${tituloModo}) — sequência lida: ${chips}
+      <span class="buscador-status buscador-status-hit">Sinal em andamento — ${(avaliacao ? avaliacao.conferidos : 0)}/${totalAlvos} conferidos, ainda sem green (encerra no 1º acerto)</span>
+    </div>`;
+}
+
+function buscadorNotificarResultadoSinal(avaliacao) {
+  const tituloModo = buscadorTituloModo(buscadorSinalPendente.criterio);
+  const totalAlvos = buscadorSinalPendente.alvos.length;
+  if (avaliacao && avaliacao.algumAcerto) {
+    showToast(`✅ Buscador (${tituloModo}): sinal GREEN no ${avaliacao.ordemAcerto}º confronto — liberado pro próximo sinal`);
+  } else {
+    showToast(`❌ Buscador (${tituloModo}): sinal RED — não bateu em nenhum dos ${totalAlvos} confrontos`);
+  }
+  buscadorPlayBeep();
+}
+
+function buscadorPlayBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 1046.5;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.55);
+  } catch (e) {}
+}
+
+function buscadorAlertar(criterio, resultado) {
+  const key = `${criterio.tipo}|${criterio.mercado}|${resultado.sequencia.join(",")}|${resultado.ocorrencias}`;
+  if (key === buscadorUltimoAlertaKey) return;
+  buscadorUltimoAlertaKey = key;
+  const tituloModo = buscadorTituloModo(criterio);
+  showToast(`🔎 Buscador: sequência encontrada (${tituloModo}) — ${buscadorConfig.gales} próximos confrontos marcados`);
+  buscadorPlayBeep();
+  const painel = document.getElementById("painelBuscador");
+  if (painel) {
+    painel.classList.add("buscador-pulse");
+    setTimeout(() => painel.classList.remove("buscador-pulse"), 2000);
+  }
+}
+
+function aplicarBuscadorTabela() {
+  document.querySelectorAll(".buscador-marcado").forEach(td => {
+    td.classList.remove("buscador-marcado");
+    td.removeAttribute("data-buscador-label");
+  });
+
+  const ativo = localStorage.getItem("buscadorAtivo") === "1";
+  if (!ativo) { removerPainelBuscador(); return; }
+  if (!qdDadosCache || !qdDadosCache.length) { removerPainelBuscador(); return; }
+
+  if (buscadorSinalPendente) {
+    const avaliacao = buscadorAvaliarSinalPendente();
+    if (avaliacao && avaliacao.resolvido) {
+      buscadorNotificarResultadoSinal(avaliacao);
+      buscadorSinalPendente = null;
+      buscadorSalvarSinal(null);
+      buscadorUltimoAlertaKey = null;
+
+    } else {
+      buscadorRemarcarCelulasPendentes();
+      renderBuscadorPainelPendente(avaliacao);
+      return;
+    }
+  }
+
+  const cfg = buscadorConfig;
+  const criterio = buscadorCriterioAtual();
+  const resultado = buscadorAnalisar(criterio);
+  if (!resultado) { renderBuscadorPainel({ insuficiente: true, criterio }); return; }
+
+  const bateuAlvo = resultado.ocorrencias >= cfg.amostraMinima
+    && resultado.taxa !== null
+    && (resultado.taxa * 100) >= cfg.pct - 1e-9;
+
+  renderBuscadorPainel({ criterio, resultado, bateuAlvo });
+
+  if (bateuAlvo) {
+    const celulas = buscadorProximasCelulas().slice(BUSCADOR_PULO, BUSCADOR_PULO + cfg.gales);
+    const labels = buscadorLabelsGales(cfg.gales);
+    celulas.forEach((item, i) => {
+      item.td.classList.add("buscador-marcado");
+      item.td.setAttribute("data-buscador-label", labels[i] || String(i + 1));
+    });
+    if (celulas.length === cfg.gales) {
+      buscadorSinalPendente = {
+        criterio,
+        sequencia: resultado.sequencia,
+        alvos: celulas.map(c => ({ chave: c.chave, minuto: c.minuto })),
+        criadoEm: Date.now()
+      };
+      buscadorSalvarSinal(buscadorSinalPendente);
+    }
+    buscadorAlertar(criterio, resultado);
+  }
+}
+
+
+function garantirModalBuscadorConfig() {
+  let overlay = document.getElementById("buscador-modal-overlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "buscador-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true">
+      <h4>⚙ Configurar Buscador <span id="buscador-modal-liga"></span></h4>
+      <label>Sequência a analisar
+        <select id="cfg-buscador-seq" class="buscador-select">
+          ${BUSCADOR_SEQ_OPCOES.map(n => `<option value="${n}">${n} jogos</option>`).join("")}
+        </select>
+      </label>
+      <label>Quantidade de gales
+        <select id="cfg-buscador-gales" class="buscador-select">
+          ${BUSCADOR_GALES_OPCOES.map(n => `<option value="${n}">${n}</option>`).join("")}
+        </select>
+      </label>
+      <label>Assertividade mínima
+        <select id="cfg-buscador-pct" class="buscador-select">
+          ${BUSCADOR_PCT_OPCOES.map(n => `<option value="${n}">${n}%</option>`).join("")}
+        </select>
+      </label>
+      <label>Tipo de sequência
+        <select id="cfg-buscador-tipo" class="buscador-select">
+          <option value="mercado">Mercado</option>
+          <option value="placares">Placares</option>
+          <option value="odd">Odds</option>
+        </select>
+      </label>
+      <label>Ocorrências mín. no histórico
+        <select id="cfg-buscador-amostra" class="buscador-select">
+          ${BUSCADOR_OPCOES_AMOSTRA.map(n => `<option value="${n}">${String(n).padStart(2,"0")}</option>`).join("")}
+        </select>
+      </label>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarBuscadorConfig">Cancelar</button>
+        <button type="button" id="btnSalvarBuscadorConfig">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalBuscadorConfig(); });
+  overlay.querySelector("#btnCancelarBuscadorConfig").addEventListener("click", fecharModalBuscadorConfig);
+  overlay.querySelector("#btnSalvarBuscadorConfig").addEventListener("click", salvarModalBuscadorConfig);
+
+  return overlay;
+}
+
+function abrirModalBuscadorConfig() {
+  const overlay = garantirModalBuscadorConfig();
+  const ligaSpan = overlay.querySelector("#buscador-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+
+  overlay.querySelector("#cfg-buscador-seq").value    = String(buscadorConfig.seq);
+  overlay.querySelector("#cfg-buscador-gales").value  = String(buscadorConfig.gales);
+  overlay.querySelector("#cfg-buscador-pct").value    = String(buscadorConfig.pct);
+  overlay.querySelector("#cfg-buscador-tipo").value   = buscadorConfig.tipo;
+  overlay.querySelector("#cfg-buscador-amostra").value= String(buscadorConfig.amostraMinima);
+
+  overlay.hidden = false;
+}
+
+function fecharModalBuscadorConfig() {
+  const overlay = document.getElementById("buscador-modal-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function salvarModalBuscadorConfig() {
+  const overlay = document.getElementById("buscador-modal-overlay");
+  if (!overlay) return;
+
+  const novaConfig = {
+    seq:   parseInt(overlay.querySelector("#cfg-buscador-seq").value, 10),
+    gales: parseInt(overlay.querySelector("#cfg-buscador-gales").value, 10),
+    pct:   parseInt(overlay.querySelector("#cfg-buscador-pct").value, 10),
+    tipo:  overlay.querySelector("#cfg-buscador-tipo").value,
+    amostraMinima: parseInt(overlay.querySelector("#cfg-buscador-amostra").value, 10)
+  };
+
+  buscadorConfig = novaConfig;
+  buscadorSalvarConfig(novaConfig);
+
+
+  buscadorSinalPendente = null;
+  buscadorSalvarSinal(null);
+  buscadorUltimoAlertaKey = null;
+
+  fecharModalBuscadorConfig();
+  aplicarBuscadorTabela();
+  showToast(`⚙ Configurações do Buscador salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
+}
+
+
+const QD_CHECKBOX_KEY = "quadrantesAtivos";
+
+function qdCheckboxAtivo() {
+
+  const val = localStorage.getItem(QD_CHECKBOX_KEY);
+  return val === "1";
+}
+
+function qdSalvarCheckbox(ativo) {
+  localStorage.setItem(QD_CHECKBOX_KEY, ativo ? "1" : "0");
+}
+
+
+function qdCheckMarket(ftScore, htScore, market) {
+  if (!ftScore || !ftScore.includes('x')) return false;
+  const [golsCasa, golsFora] = ftScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+  const totalGols = golsCasa + golsFora;
+  let golsCasaHT = 0, golsForaHT = 0, golsCasa2T = 0, golsFora2T = 0;
+  if (htScore && htScore.includes('x')) {
+    const [htCasa, htFora] = htScore.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+    golsCasaHT = htCasa; golsForaHT = htFora;
+    golsCasa2T = Math.max(0, golsCasa - htCasa);
+    golsFora2T = Math.max(0, golsFora - htFora);
+  }
+  const total2T = golsCasa2T + golsFora2T;
+  switch (market) {
+    case 'ambasMarcam':    return golsCasa > 0 && golsFora > 0;
+    case 'ambasNaoMarcam': return golsCasa === 0 || golsFora === 0;
+    case 'casaVence':      return golsCasa > golsFora;
+    case 'foraVence':      return golsFora > golsCasa;
+    case 'empate':         return golsCasa === golsFora;
+    case 'viradinha':      {
+
+      const casaVenceuHT = golsCasaHT > golsForaHT;
+      const foraVenceuHT = golsForaHT > golsCasaHT;
+      const casaPerdeuFT = golsCasa < golsFora;
+      const foraPerdeuFT = golsFora < golsCasa;
+      return (casaVenceuHT && casaPerdeuFT) || (foraVenceuHT && foraPerdeuFT);
+    }
+    case 'empateOuFora':   return golsCasa <= golsFora;
+    case 'empateOuCasa':   return golsCasa >= golsFora;
+    case 'casaOuFora':     return golsCasa !== golsFora;
+    case 'over0.5':  return totalGols > 0.5;
+    case 'over1.5':  return totalGols > 1.5;
+    case 'over2.5':  return totalGols > 2.5;
+    case 'over3.5':  return totalGols > 3.5;
+    case 'over5':    return totalGols >= 5;
+    case 'under0.5': return totalGols < 0.5;
+    case 'under1.5': return totalGols < 1.5;
+    case 'under2.5': return totalGols < 2.5;
+    case 'under3.5': return totalGols < 3.5;
+    case 'exato0':   return totalGols === 0;
+    case 'exato1':   return totalGols === 1;
+    case 'exato2':   return totalGols === 2;
+    case 'exato3':   return totalGols === 3;
+    case 'exato4':   return totalGols === 4;
+    case 'exato2t0': return total2T === 0;
+    case 'exato2t1': return total2T === 1;
+    case 'exato2t2': return total2T === 2;
+    case 'exato2t3': return total2T === 3;
+    case 'exato2t4': return total2T === 4;
+    case 'casa0Gols': return golsCasa === 0;
+    case 'casa1Gol':  return golsCasa === 1;
+    case 'casa2Gols': return golsCasa === 2;
+    case 'casa3Gols': return golsCasa === 3;
+    case 'casa4Gols': return golsCasa === 4;
+    case 'fora0Gols': return golsFora === 0;
+    case 'fora1Gol':  return golsFora === 1;
+    case 'fora2Gols': return golsFora === 2;
+    case 'fora3Gols': return golsFora === 3;
+    case 'fora4Gols': return golsFora === 4;
+    default: return false;
+  }
+}
+
+function qdCalcStats(jogos, minutosDoBloco, selectedMarket, counterMarket) {
+  const stats = { totalGols: 0, marketHits: 0, counterMarketHits: 0 };
+  const jogosDoBloco = jogos.filter(j => minutosDoBloco.includes(j.minuto));
+  for (const jogo of jogosDoBloco) {
+    const [golsCasa, golsFora] = jogo.ft.split(' x ').map(Number).map(g => isNaN(g) ? 0 : g);
+    stats.totalGols += golsCasa + golsFora;
+    if (qdCheckMarket(jogo.ft, jogo.ht, selectedMarket)) stats.marketHits++;
+    if (counterMarket && qdCheckMarket(jogo.ft, jogo.ht, counterMarket)) stats.counterMarketHits++;
+  }
+  return stats;
+}
+
+function qdCreateBlocoThs(index, timeSlots) {
+  const qIdx        = index % 4;
+  const isFirstBloco = index === 0;
+
+  const colspanBloco = (blocosDeMinutos[index] && blocosDeMinutos[index].length) || 5;
+  let innerHtml = '';
+  timeSlots.forEach((slot, slotIdx) => {
+    const isCurrent       = slotIdx === 0;
+    const labelColor      = isCurrent ? '#e5e7eb' : '#9ca3af';
+    const labelWeight     = isCurrent ? '600' : '400';
+    const labelSize       = isCurrent ? '11px' : '10px';
+    const mtStyle         = slotIdx > 0 ? 'margin-top:0.25rem;' : '';
+    const golsBorderColor = isCurrent ? 'rgba(75,85,99,0.6)' : 'rgba(55,65,81,0.6)';
+    const golsBgColor     = isCurrent ? 'rgba(75,85,99,0.1)' : 'rgba(55,65,81,0.1)';
+    const golsTextColor   = isCurrent ? '#e5e7eb' : '#d1d5db';
+    const hitBorderColor  = isCurrent ? '#3a3d44' : 'rgba(4,120,87,0.6)';
+    const hitBgColor      = isCurrent ? 'rgba(1,139,6,0.1)' : 'rgb(41,45,54)';
+    const hitTextColor    = isCurrent ? '#018b06' : '#6ee7b7';
+    const counterBgColor  = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)';
+    const counterTextColor= isCurrent ? '#be0e02' : '#fda4af';
+    const labelTxt        = isCurrent
+      ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
+      : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
+
+    innerHtml += `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;${mtStyle}white-space:nowrap;">
+        <span id="qd-label-${index}-${slotIdx}" style="color:${labelColor};font-weight:${labelWeight};font-size:${labelSize};">${labelTxt}</span>
+        <div style="display:flex;align-items:center;gap:0.25rem;">
+<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${golsTextColor};" title="Gols">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+  <strong id="qd-gols-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
+</span>
+
+<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${hitTextColor};" title="Acertos">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="7,12.5 10.3,16 17,8.5"/></svg>
+  <strong id="qd-hits-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
+</span>
+
+<span style="display:inline-flex;align-items:center;gap:0.15rem;color:${counterTextColor};" title="Erros">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="m14.5 9.5-5 5M9.5 9.5l5 5"/></svg>
+  <strong id="qd-counter-${index}-${slotIdx}" style="font-size:11px;line-height:1;">0</strong>
+</span>
+        </div>
+      </div>`;
+  });
+  return `<th colspan="${colspanBloco}" class="qd-bloco-th qd-${qIdx}" style="padding:0.4rem 0.5rem;text-align:left;font-size:12px;line-height:1.2;${isFirstBloco ? '' : 'border-left:3px solid rgba(255,255,255,0.35);'}">${innerHtml}</th>`;
+}
+
+
+function qdBlocoAtual() {
+  const minAtual = new Date().getMinutes();
+
+  const passoAtual = minutosFixos.length > 1 ? (minutosFixos[1] - minutosFixos[0]) : 3;
+  for (let i = 0; i < blocosDeMinutos.length; i++) {
+    const mins = blocosDeMinutos[i];
+    if (minAtual >= mins[0] && minAtual < mins[mins.length - 1] + passoAtual) return i;
+  }
+
+  for (let i = 0; i < blocosDeMinutos.length; i++) {
+    if (minAtual < blocosDeMinutos[i][0]) return i;
+  }
+  return 0; 
+}
+
+function qdNomeBlocoLabel(blocoIdx) {
+  const mins = blocosDeMinutos[blocoIdx];
+  return `Q${blocoIdx + 1} (${mins[0]}-${mins[mins.length - 1]})`;
+}
+
+
+function qdAtualizarIndicadorAoVivo() {
+  const blocoAtivo = qdBlocoAtual();
+  document.querySelectorAll(".qd-bloco-th").forEach((th, i) => {
+    const badge = th.querySelector(".qd-live-badge");
+    const wasAtivo = th.classList.contains("qd-bloco-ativo");
+    const isAtivo  = (i === blocoAtivo);
+
+    th.classList.toggle("qd-bloco-ativo", isAtivo);
+
+    if (isAtivo && !badge) {
+      const b = document.createElement("span");
+      b.className = "qd-live-badge";
+      b.innerHTML = `<span class="qd-live-dot"></span>Q${i+1}`;
+
+      const firstDiv = th.querySelector("div");
+      if (firstDiv) firstDiv.insertBefore(b, firstDiv.firstChild);
+      else th.insertBefore(b, th.firstChild);
+    } else if (!isAtivo && badge) {
+      badge.remove();
+    }
+  });
+}
+
+
+function qdRenderTabelaValores(resultados) {
+  qdCarregarQuantidade();
+  if (!qdCheckboxAtivo()) return;
+  if (!document.querySelector("#trQuadrantes")) return;
+
+  const { hora: horaAtualNumero, dateStr: dataAtualStr } = qdGetHoraAtual(resultados);
+  let timeSlots = [];
+  let currentDate = new Date(dataAtualStr + 'T12:00:00');
+  let currentHour = horaAtualNumero;
+  for (let i = 0; i <= qdNumPreviousHours; i++) {
+    timeSlots.push({ date: currentDate.toISOString().split('T')[0], hour: currentHour });
+    currentHour--;
+    if (currentHour < 0) { currentHour = 23; currentDate.setDate(currentDate.getDate() - 1); }
+  }
+
+  const limiteJogosHora = minutosFixos.length;
+  const jogosPorSlot = timeSlots.map(slot =>
+    (resultados||[]).filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, limiteJogosHora)
+  );
+
+  timeSlots.forEach((slot, slotIdx) => {
+    for (let i = 0; i < blocosDeMinutos.length; i++) {
+      const labelEl = document.getElementById(`qd-label-${i}-${slotIdx}`);
+      if (labelEl) {
+        labelEl.textContent = slotIdx === 0
+          ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
+          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'00')}`;
+      }
+    }
+  });
+  const selectedMarket = document.querySelector('#seletorResultado')?.value || 'over2.5';
+  const counterMarket  = counterMarketMap[selectedMarket];
+  blocosDeMinutos.forEach((minutosDoBloco, index) => {
+    timeSlots.forEach((slot, slotIdx) => {
+      const stats = qdCalcStats(jogosPorSlot[slotIdx], minutosDoBloco, selectedMarket, counterMarket);
+      const golsEl    = document.getElementById(`qd-gols-${index}-${slotIdx}`);
+      const hitsEl    = document.getElementById(`qd-hits-${index}-${slotIdx}`);
+      const counterEl = document.getElementById(`qd-counter-${index}-${slotIdx}`);
+      if (golsEl)    golsEl.innerText    = stats.totalGols;
+      if (hitsEl)    hitsEl.innerText    = stats.marketHits;
+      if (counterEl) counterEl.innerText = stats.counterMarketHits;
+    });
+  });
+
+  qdAtualizarIndicadorAoVivo();
+}
+
+function qdRenderTabela(resultados) {
+  qdCarregarQuantidade();
+  if (!qdCheckboxAtivo()) return;
+
+  const thead = document.querySelector("#tabelaResultados thead");
+  if (!thead) return;
+
+  const { hora: horaAtualNumero, dateStr: dataAtualStr } = qdGetHoraAtual(resultados);
+  let timeSlots = [];
+  let currentDate = new Date(dataAtualStr + 'T12:00:00');
+  let currentHour = horaAtualNumero;
+  for (let i = 0; i <= qdNumPreviousHours; i++) {
+    timeSlots.push({ date: currentDate.toISOString().split('T')[0], hour: currentHour });
+    currentHour--;
+    if (currentHour < 0) { currentHour = 23; currentDate.setDate(currentDate.getDate() - 1); }
+  }
+
+
+  const limiteJogosHora = minutosFixos.length;
+  const jogosPorSlot = timeSlots.map(slot =>
+    (resultados||[]).filter(jogo => jogo.data.split('T')[0] === slot.date && jogo.hora === slot.hour).slice(0, limiteJogosHora)
+  );
+
+
+  const structKey = `${qdNumPreviousHours}`;
+
+  let trQD = thead.querySelector("#trQuadrantes");
+  if (!trQD || trQD.dataset.structKey !== structKey) {
+    if (trQD) trQD.remove();
+    trQD = document.createElement("tr");
+    trQD.id = "trQuadrantes";
+    trQD.dataset.structKey = structKey;
+
+    let trHtml = "";
+    trHtml += `<th style="position:sticky;left:0;z-index:10;background-color:#1b1c20;width:36px;min-width:36px;text-align:center;color:#d1d5db;font-weight:700;font-size:11px;padding:4px 3px;white-space:nowrap;">QDT<br><div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:3px;"><button id="qd-decrease" class="blocos-button" style="line-height:1;padding:1px 5px;">-</button><span id="qd-num-prev" style="color:white;font-size:11px;">${qdNumPreviousHours}</span><button id="qd-increase" class="blocos-button" style="line-height:1;padding:1px 5px;">+</button></div></th>`;
+    for (let i = 0; i < blocosDeMinutos.length; i++) {
+      trHtml += qdCreateBlocoThs(i, timeSlots);
+    }
+    trHtml += `<th style="background-color:#1b1c20;"></th><th style="background-color:#1b1c20;"></th>`;
+    trQD.innerHTML = trHtml;
+
+    thead.insertBefore(trQD, thead.firstChild);
+
+    trQD.querySelector("#qd-decrease")?.addEventListener("click", () => {
+      if (qdNumPreviousHours > 0) { qdNumPreviousHours--; qdSalvarQuantidade(); qdAtualizarComCache(); }
+    });
+    trQD.querySelector("#qd-increase")?.addEventListener("click", () => {
+      qdNumPreviousHours++; qdSalvarQuantidade(); qdAtualizarComCache();
+    });
+  }
+
+
+  timeSlots.forEach((slot, slotIdx) => {
+    for (let i = 0; i < blocosDeMinutos.length; i++) {
+      const labelEl = document.getElementById(`qd-label-${i}-${slotIdx}`);
+      if (labelEl) {
+        labelEl.textContent = slotIdx === 0
+          ? `H.Atual: ${slot.hour.toString().padStart(2,'0')}`
+          : `H.Ant.${slotIdx}: ${slot.hour.toString().padStart(2,'0')}`;
+      }
+    }
+  });
+
+
+  const selectedMarket = document.querySelector('#seletorResultado')?.value || 'over2.5';
+  const counterMarket  = counterMarketMap[selectedMarket];
+  blocosDeMinutos.forEach((minutosDoBloco, index) => {
+    timeSlots.forEach((slot, slotIdx) => {
+      const stats = qdCalcStats(jogosPorSlot[slotIdx], minutosDoBloco, selectedMarket, counterMarket);
+      const golsEl    = document.getElementById(`qd-gols-${index}-${slotIdx}`);
+      const hitsEl    = document.getElementById(`qd-hits-${index}-${slotIdx}`);
+      const counterEl = document.getElementById(`qd-counter-${index}-${slotIdx}`);
+      if (golsEl)    golsEl.innerText    = stats.totalGols;
+      if (hitsEl)    hitsEl.innerText    = stats.marketHits;
+      if (counterEl) counterEl.innerText = stats.counterMarketHits;
+    });
+  });
+
+
+  qdAtualizarIndicadorAoVivo();
+}
+
+function qdAtualizarComCache() {
+
+  const trQD = document.querySelector("#trQuadrantes");
+  if (trQD) trQD.remove();
+  qdRenderTabela(qdDadosCache);
+}
+
+
+function garantirQuadrantesWrapper() {
+  const old = document.getElementById("quadrantes-wrapper");
+  if (old) old.remove();
+}
+
+
+function qdToggle(ativo) {
+  qdSalvarCheckbox(ativo);
+  const trQD = document.querySelector("#trQuadrantes");
+  if (ativo) {
+
+    if (trQD) {
+      trQD.style.display = "";
+      qdAtualizarIndicadorAoVivo();
+    } else if (qdDadosCache) {
+      qdRenderTabela(qdDadosCache);
+    }
+  } else {
+
+    if (trQD) trQD.remove();
+  }
+  qdAplicarSeparadorTabela(ativo);
+}
+
+
+function qdAplicarSeparadorTabela(ativo) {
+  if (ativo) {
+    const tamanhoBloco = _tamanhoBlocoQD();
+    document.querySelectorAll(".minute-header").forEach((th, i) => {
+      th.classList.toggle("quadrant-border", i > 0 && i % tamanhoBloco === 0);
+    });
+    document.querySelectorAll("#tabelaResultados tbody tr").forEach(row => {
+      Array.from(row.cells).forEach((cell, i) => {
+        if (i < 1 || i >= 1 + minutosFixos.length) return;
+        cell.classList.toggle("quadrant-border", (i - 1) > 0 && (i - 1) % tamanhoBloco === 0);
+      });
+    });
+  } else {
+    document.querySelectorAll(".quadrant-border").forEach(el => el.classList.remove("quadrant-border"));
+  }
+}
+
+
+function garantirCheckboxQuadrantes() {
+  if (document.getElementById("lbl-quadrantes-toggle")) return;
+
+  const painel = document.getElementById("painel-cores");
+  if (!painel) return; 
+
+  const lbl = document.createElement("label");
+  lbl.id = "lbl-quadrantes-toggle";
+  lbl.className = "alerta-toggle-label";
+  lbl.style.cssText = "margin-left:6px;";
+  lbl.innerHTML = `<input type="checkbox" id="cb-quadrantes-toggle"> Quadrantes`;
+
+  const cb = lbl.querySelector("#cb-quadrantes-toggle");
+  cb.checked = qdCheckboxAtivo();
+  if (cb.checked) lbl.classList.add("alerta-ativo");
+
+  cb.addEventListener("change", function () {
+    lbl.classList.toggle("alerta-ativo", this.checked);
+    qdToggle(this.checked);
+  });
+
+  painel.appendChild(lbl);
+}
+
+
+(function injectStyles() {
+  if (document.getElementById("multi-select-styles")) return;
+  const style = document.createElement("style");
+  style.id = "multi-select-styles";
+  style.textContent = `
+    .odd-selecionada {
+      border: 3px solid var(--sel-color, #A855F7) !important;
+      outline: none !important; color: var(--sel-color, #A855F7) !important;
+    }
+    .time-nome-selecionado {
+      background-color: var(--sel-color, #A855F7) !important;
+      color: #000 !important; border-radius: 3px; padding: 0 2px; font-weight: bold;
+    }
+    .placar-score-ft-sel {
+      background-color: var(--sel-color-ft, #A855F7) !important;
+      color: #000 !important; border-radius: 3px; padding: 0 3px; font-weight: bold;
+    }
+    .placar-score-ht-sel {
+      background-color: var(--sel-color-ht, #10B981) !important;
+      color: #000 !important; border-radius: 3px; padding: 0 3px; font-weight: bold;
+    }
+    .ht-span { cursor: pointer; opacity: 0.85; transition: opacity 0.15s; }
+    .ht-span:hover { opacity: 1; text-decoration: underline dotted rgba(255,255,255,0.4); }
+    .placar:not(.placar-futuro) .time-casa,
+    .placar:not(.placar-futuro) .time-fora { font-size: min(11px, 0.8em); line-height: 1.15; letter-spacing: 0.01em; }
+    .placar-futuro-odd { font-size:0.9em; opacity:0.85; margin-top:1px; color:#dfdfdf; font-weight:bold; cursor:pointer; }
+    .placar-futuro .placar-texto { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1.1; }
+
+    .minute-header { cursor:pointer; user-select:none; font-size:0.82em; font-weight:700; }
+    .minute-header .jogo-num { font-size:0.95em; font-weight:700; opacity:1; margin-left:3px; color:rgba(255,255,255,0.55); }
+    .minute-header:hover { filter: brightness(1.6) !important; }
+
+    .qd-0 { background-color: #1a1b1f !important; box-shadow: inset 0 -2px 0 0 #363940; }
+    .qd-1 { background-color: #25272c !important; box-shadow: inset 0 -2px 0 0 #454850; }
+    .qd-2 { background-color: #17181c !important; box-shadow: inset 0 -2px 0 0 #2d3036; }
+    .qd-3 { background-color: #202227 !important; box-shadow: inset 0 -2px 0 0 #3e4148; }
+
+    .qd-cell-0 { background-color: rgba(255,255,255,0.03) !important; }
+    .qd-cell-1 { background-color: rgba(255,255,255,0.05) !important; }
+    .qd-cell-2 { background-color: rgba(255,255,255,0.03) !important; }
+    .qd-cell-3 { background-color: rgba(255,255,255,0.05) !important; }
+    td[data-resultado="acerto"] { background-color: var(--cor-green, #018b06) !important; }
+    td[data-resultado="erro"]   { background-color: var(--cor-red,   #be0e02) !important; }
+
+    #tabelaResultados.tem-coluna-selecionada td:not(.coluna-selecionada)             { filter: brightness(0.45); }
+    #tabelaResultados.tem-coluna-selecionada th.minute-header:not(.coluna-selecionada) { filter: brightness(0.45); }
+    #tabelaResultados.tem-coluna-selecionada td.coluna-selecionada                   { filter: none; }
+    #tabelaResultados.tem-coluna-selecionada th.coluna-selecionada                   { filter: none; background: rgba(255,255,255,0.2) !important; }
+    #tabelaResultados.tem-coluna-selecionada td:first-child,
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(1),
+    #tabelaResultados.tem-coluna-selecionada td:nth-last-child(2) { filter: none; }
+
+    td.quadrant-border, th.quadrant-border { border-left: 3px solid rgba(255,255,255,0.35) !important; }
+
+    /* Linha dos quadrantes no thead da tabela principal */
+    .qd-bloco-th { vertical-align: top; }
+    .qd-bloco-th.qd-0 { background-color: #1a1b1f !important; }
+    .qd-bloco-th.qd-1 { background-color: #25272c !important; }
+    .qd-bloco-th.qd-2 { background-color: #17181c !important; }
+    .qd-bloco-th.qd-3 { background-color: #202227 !important; }
+
+    /* Bloco ao vivo — destaque na linha de quadrantes */
+    .qd-bloco-th.qd-bloco-ativo {
+      background-color: rgba(21,127,147,0.18) !important;
+      box-shadow: inset 0 0 0 2px rgba(21,127,147,0.55);
+    }
+    .qd-live-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      background: rgba(21,127,147,0.22); color: #5cc3d6;
+      border: 1px solid rgba(21,127,147,0.5); border-radius: 4px;
+      font-size: 9px; font-weight: 700; padding: 1px 4px;
+      margin-right: 4px; white-space: nowrap; vertical-align: middle;
+    }
+    .qd-live-dot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      background: #5cc3d6;
+      animation: qdLivePulse 1.2s ease-in-out infinite;
+    }
+    @keyframes qdLivePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    #coluna-stats { display:flex; flex-wrap:wrap; gap:5px; padding:5px 8px; margin-bottom:4px; }
+    #coluna-stats:empty { display:none; }
+
+    .col-stat-tag { display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,0.08); border-radius:8px; padding:3px 10px; font-size:0.76em; white-space:nowrap; color:#fff; }
+    .col-stat-tag .col-min { font-weight:bold; color:#ccc; }
+    .col-stat-tag .col-g { color:#4cff55; font-weight:bold; }
+    .col-stat-tag .col-r { color:#ff5555; font-weight:bold; }
+    .col-stat-tag .col-pct { padding:1px 6px; border-radius:8px; font-weight:bold; color:#fff; margin-left:2px; }
+    .col-stat-verde  { background:#018b06; }
+    .col-stat-branca { background:#555; }
+    .col-stat-tag .col-remove { cursor:pointer; opacity:0.6; margin-left:2px; }
+    .col-stat-tag .col-remove:hover { opacity:1; }
+    .odd-tooltip { color:#f0c040; font-weight:bold; margin-top:3px; display:block; }
+    /* Tooltip: nomes dos times em amarelo igual à odd */
+    .tooltip .times { color:#f0c040 !important; font-weight:bold; }
+    /* Hover nos nomes dos times nas células normais */
+    .placar .time-casa:hover,
+    .placar .time-fora:hover { color:#f0c040 !important; opacity:1 !important; }
+
+    #selecao-indicator { display:flex; flex-wrap:wrap; gap:6px; padding:6px 8px; margin-bottom:6px; }
+    #selecao-indicator:empty { display:none; }
+    .sel-tag { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:12px; font-size:0.75em; font-weight:bold; color:#fff; border:2px solid rgba(255,255,255,0.25); white-space:nowrap; }
+    .sel-tag .sel-remove { cursor:pointer; opacity:0.8; padding:0 1px; }
+    .sel-tag .sel-remove:hover { opacity:1; }
+
+    #toast-container { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9999; pointer-events:none; display:flex; flex-direction:column; align-items:center; gap:6px; }
+    .toast { background:#333; color:#fff; padding:8px 18px; border-radius:20px; font-size:0.82em; opacity:0; animation: toastIn 0.25s ease forwards, toastOut 0.3s ease 1.8s forwards; }
+    @keyframes toastIn  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes toastOut { from{opacity:1} to{opacity:0} }
+
+    #painel-selecao { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:6px; flex-wrap:wrap; }
+    #selecao-indicator { margin-bottom:0; flex:1; min-width:0; }
+    #stats-selecao { display:flex; flex-direction:row; flex-wrap:wrap; gap:4px; flex-shrink:0; justify-content:flex-end; align-items:flex-start; }
+    .stat-row { display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.06); border-radius:8px; padding:3px 10px; font-size:0.76em; white-space:nowrap; }
+    .stat-color-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+    .stat-label { font-weight:bold; color:#fff; max-width:160px; overflow:hidden; text-overflow:ellipsis; }
+    .stat-sep { color:rgba(255,255,255,0.25); margin:0 1px; }
+    .stat-total { color:#ccc; font-weight:bold; }
+    .stat-count-green { color:#4cff55; font-weight:bold; }
+    .stat-count-red   { color:#ff5555; font-weight:bold; }
+    .stat-pct { margin-left:3px; padding:1px 7px; border-radius:10px; font-weight:bold; color:#fff; font-size:0.9em; }
+    .stat-pct-verde  { background:#018b06; }
+    .stat-pct-branca { background:#555; }
+
+    .th-icon { display:inline-flex; align-items:center; justify-content:center; vertical-align:middle; }
+    .th-icon svg { display:block; }
+
+    /* ── Painel "Cores das Células" — no mesmo padrão visual dos seletores do topo ── */
+    #painel-cores {
+      display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+      padding: 4px 2px; margin-top: -20px;
+    }
+    /* Base compartilhada por todos os "controles" do painel — mesma altura,
+       mesmo raio e mesma paleta neutra usada nos <select> do topo da página */
+    #painel-cores label,
+    .btn-reset-cores {
+      display:inline-flex; align-items:center; gap:4px;
+      height:26px; padding:0 9px; box-sizing:border-box;
+      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px; font-size:0.72em; font-weight:600; color:rgba(255,255,255,0.7);
+      cursor:pointer; white-space:nowrap;
+      transition:background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    #painel-cores label:hover,
+    .btn-reset-cores:hover { background:rgba(255,255,255,0.08); border-color:rgba(21,127,147,0.55); color:#fff; }
+    #painel-cores input[type="color"] {
+      width:14px; height:14px; border:1px solid rgba(255,255,255,0.18);
+      border-radius:4px; cursor:pointer; padding:0; background:none;
+    }
+
+    @keyframes streakPulse {
+      0%   { box-shadow: 0 0 0 0px rgba(255,220,0,0),   inset 0 0 0 0px rgba(255,220,0,0); }
+      25%  { box-shadow: 0 0 0 3px rgba(255,220,0,0.3), inset 0 0 0 3px rgba(255,220,0,1); }
+      50%  { box-shadow: 0 0 0 0px rgba(255,220,0,0),   inset 0 0 0 3px rgba(255,220,0,1); }
+      100% { box-shadow: 0 0 0 0px rgba(255,220,0,0),   inset 0 0 0 0px rgba(255,220,0,0); }
+    }
+    .streak-alerta {
+      animation: streakPulse 1.8s ease-in-out infinite;
+      z-index: 2; position: relative;
+      outline: 2px solid rgba(255,220,0,0.6);
+      outline-offset: -2px;
+    }
+    .alerta-toggle-label {
+      display: inline-flex; align-items: center; gap: 4px;
+      height:26px; padding: 0 9px; box-sizing:border-box;
+      cursor: pointer; color: rgba(255,255,255,0.7); font-size: 0.72em; font-weight: 600; user-select: none;
+      border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04);
+      transition: border-color 0.2s, color 0.2s, background 0.2s; letter-spacing: 0.1px; white-space: nowrap;
+    }
+    .alerta-toggle-label:hover { border-color: rgba(21,127,147,0.55); color: #fff; background: rgba(255,255,255,0.08); }
+    .alerta-toggle-label input[type="checkbox"] { width: 10px; height: 10px; cursor: pointer; accent-color: #157f93; flex-shrink: 0; }
+    .alerta-ativo { color: #5cc3d6 !important; font-weight: 700; border-color: rgba(21,127,147,0.6) !important; background: rgba(21,127,147,0.12) !important; }
+
+    /* Botão primário — preenchimento sólido, se destaca claramente como ação de confirmação */
+    .btn-aplicar-cores {
+      display:inline-flex; align-items:center; gap:4px;
+      height:26px; padding:0 11px; box-sizing:border-box;
+      background: linear-gradient(135deg, rgba(21,127,147,0.16), rgba(21,127,147,0.06));
+      border: 1px solid rgba(21,127,147,0.5);
+      border-radius: 8px;
+      cursor: pointer;
+      color: #5cc3d6;
+      font-size:0.72em; font-weight:700;
+      transition:background 0.15s, border-color 0.15s, box-shadow 0.15s; white-space:nowrap;
+    }
+    .btn-aplicar-cores:hover {
+      background: linear-gradient(135deg, rgba(21,127,147,0.3), rgba(21,127,147,0.14));
+      border-color: rgba(21,127,147,0.85);
+      color: #fff;
+    }
+    .btn-aplicar-cores:active { transform:translateY(1px); }
+    .btn-aplicar-cores svg { flex-shrink:0; }
+
+    /* Top5: bolinha + brilho ciano no span do nome (funciona com e sem Ver Times) */
+    .placar-futuro .time-casa.rk-top5-nome,
+    .placar-futuro .time-fora.rk-top5-nome {
+      font-weight: 800 !important;
+      text-shadow: 0 0 6px #22D3EE, 0 0 10px #22D3EE !important;
+    }
+    .placar-futuro .time-casa.rk-top5-nome::before,
+    .placar-futuro .time-fora.rk-top5-nome::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #22D3EE;
+      box-shadow: 0 0 4px #22D3EE, 0 0 8px #22D3EE;
+      margin-right: 2px;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    /* Odd e time clicáveis nos próximos confrontos */
+    .placar-futuro .time-casa,
+    .placar-futuro .time-fora {
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .placar-futuro .time-casa:hover,
+    .placar-futuro .time-fora:hover { opacity: 0.75; }
+    .placar-futuro .placar-futuro-odd {
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .placar-futuro .placar-futuro-odd:hover { opacity: 0.7; }
+
+    /* Colunas direitas combinadas: "Gols" (total + média) e "Dados" (% + quantidade) */
+    /* Colunas da DIREITA (Gols / Dados de cada linha de horário): estreitas, um valor em cima do outro — mesmo tamanho de fonte da linha do topo */
+    .col-combo { width:34px !important; min-width:34px !important; max-width:38px !important; padding:1px 1px !important; text-align:center; }
+    .col-combo .valor-principal { display:block; font-size:0.85em; font-weight:700; line-height:1.15; white-space:nowrap; }
+    .col-combo .valor-sub       { display:block; font-size:0.78em; font-weight:700; opacity:0.85; line-height:1.1; margin-top:1px; color:#93c5fd; white-space:nowrap; }
+    .col-combo-th { font-size:0.65em !important; padding:2px 0 !important; }
+    /* Linhas do TOPO (Gols por coluna / Dados por coluna): duas linhas separadas, e dentro de cada uma o texto do mesmo grupo (principal + sub) lado a lado — forçado com !important para não ser sobrescrito por outro CSS da página */
+    .col-combo-top { padding:3px 2px !important; text-align:center !important; white-space:nowrap !important; height:18px !important; box-sizing:border-box !important; }
+    .col-combo-top .valor-principal { display:inline-block !important; font-size:0.85em !important; font-weight:700 !important; white-space:nowrap !important; vertical-align:middle !important; }
+    .col-combo-top .valor-sub       { display:inline-block !important; font-size:0.78em !important; opacity:0.85 !important; margin-left:3px !important; color:#93c5fd; white-space:nowrap !important; vertical-align:middle !important; }
+    /* Separação visual clara entre a linha de Gols (de cima) e a linha de Dados (de baixo) */
+    #linhaGolsColuna { background:rgba(255,255,255,0.02) !important; }
+    #linhaGolsColuna td.col-combo-top,
+    #linhaGolsColuna th { border-bottom:1px solid rgba(255,255,255,0.10) !important; }
+    #linhaDadosColuna td.col-combo-top,
+    #linhaDadosColuna th { padding-top:3px !important; }
+    /* Faixas de cor do % — cor no TEXTO, sem preencher o fundo da célula: 0–29 vermelho / 30–49 amarelo / 50–100 verde */
+    .pct-vermelho .valor-principal { color:#ff5c5c; }
+    .pct-amarelo  .valor-principal { color:#f5c518; }
+    .pct-verde    .valor-principal { color:#4ade80; }
+    .pct-vermelho .valor-sub { color:#ff5c5c; opacity:0.75; }
+    .pct-amarelo  .valor-sub { color:#f5c518; opacity:0.75; }
+    .pct-verde    .valor-sub { color:#4ade80; opacity:0.75; }
+    /* Células com jogos ainda não realizados (próximos): accent vivo do tema */
+    .cel-proximo-jogo { background-color:#157f93 !important; box-shadow:inset 0 0 0 1px rgba(92,195,214,0.55); }
+    /* ── ORÁCULO: marca direto na célula os minutos sugeridos da hora atual ── */
+    .oraculo-marcado { position:relative; box-shadow:inset 0 0 0 1.5px rgba(150,225,238,0.95) !important; }
+    .oraculo-marcado::after {
+      content: attr(data-oraculo-label);
+      position:absolute;
+      top:2px; right:2px;
+      width:18px; height:18px;
+      border-radius:50%;
+      background:#f5c518;
+      color:#111;
+      font-size:9px;
+      font-weight:800;
+      letter-spacing:-0.2px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 0 4px rgba(245,197,24,0.8), 0 0 0 1px rgba(0,0,0,0.45);
+      pointer-events:none;
+      z-index:3;
+      line-height:1;
+    }
+    /* ── BUSCADOR: marca SG / G1 / G2 nos próximos confrontos validados pela sequência ── */
+    .buscador-marcado { position:relative; box-shadow:inset 0 0 0 1.5px rgba(139,77,232,0.9) !important; }
+    .buscador-marcado::before {
+      content: attr(data-buscador-label);
+      position:absolute;
+      top:2px; left:2px;
+      width:18px; height:18px;
+      border-radius:50%;
+      background:#8b4de8;
+      color:#fff;
+      font-size:9px;
+      font-weight:800;
+      letter-spacing:-0.2px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 0 4px rgba(139,77,232,0.85), 0 0 0 1px rgba(0,0,0,0.45);
+      pointer-events:none;
+      z-index:3;
+      line-height:1;
+    }
+    #painelBuscador { margin-bottom:6px; }
+    .buscador-box {
+      display:flex; align-items:center; flex-wrap:wrap; gap:7px;
+      background:rgba(139,77,232,0.08); border:1px solid rgba(139,77,232,0.35);
+      border-radius:8px; padding:6px 10px; font-size:0.76em; color:#e5e7eb;
+    }
+    .buscador-box-muted { border-color:rgba(255,255,255,0.1); color:#9ca3af; background:rgba(255,255,255,0.03); }
+    .buscador-box-hit { border-color:rgba(139,77,232,0.7); box-shadow:0 0 10px rgba(139,77,232,0.25); }
+    .buscador-chip { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:4px; font-size:9px; font-weight:800; color:#fff; }
+    .buscador-chip-v { background:#20d66b; }
+    .buscador-chip-x { background:#ff3b30; }
+    .buscador-status { color:#9ca3af; font-weight:600; }
+    .buscador-status-hit { color:#c9a6ff; font-weight:800; }
+    @keyframes buscadorPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(139,77,232,0.6); }
+      50%  { box-shadow: 0 0 18px 4px rgba(139,77,232,0.6); }
+      100% { box-shadow: 0 0 0 0 rgba(139,77,232,0); }
+    }
+    .buscador-pulse { animation: buscadorPulse 1s ease-in-out 2; }
+    .buscador-chip-placar { width:auto; min-width:34px; padding:0 5px; background:#25272c; border:1px solid rgba(212,175,55,0.4); color:#d4af37; }
+    .btn-buscador-config {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:22px; height:22px; margin-left:4px;
+      background:rgba(21,127,147,0.08); border:1px solid rgba(21,127,147,0.45);
+      border-radius:8px; color:#5cc3d6; font-size:13px; line-height:1;
+      cursor:pointer; transition:border-color .2s, background-color .2s;
+    }
+    .btn-buscador-config:hover { border-color:rgba(21,127,147,0.75); background-color:rgba(21,127,147,0.16); }
+    .buscador-modal-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,0.6);
+      display:flex; align-items:center; justify-content:center;
+      z-index:9999;
+    }
+    .buscador-modal-overlay[hidden] { display:none; }
+    .buscador-modal {
+      background:#1b1c20; border:1px solid rgba(255,255,255,0.12);
+      border-radius:10px; padding:18px 20px; width:280px; max-width:90vw;
+      box-shadow:0 8px 30px rgba(0,0,0,0.5);
+      display:flex; flex-direction:column; gap:12px;
+      color:#e5e7eb; font-size:13px;
+    }
+    .buscador-modal h4 { margin:0 0 4px; font-size:14px; color:#5cc3d6; }
+    .buscador-modal h4 span { color:#9ca3af; font-weight:600; font-size:12px; }
+    .buscador-modal label { display:flex; flex-direction:column; gap:4px; font-weight:600; }
+    .buscador-modal .buscador-select {
+      appearance:none; -webkit-appearance:none; -moz-appearance:none;
+      color-scheme:dark; box-sizing:border-box; height:30px; padding:0 22px 0 10px;
+      background-color:rgba(21,127,147,0.08);
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1.2 5 4.8 9 1.2' fill='none' stroke='%235cc3d6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat:no-repeat; background-position:right 8px center; background-size:8px 5px;
+      border:1px solid rgba(21,127,147,0.45); border-radius:6px; color:#5cc3d6;
+      font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; outline:none;
+    }
+    .buscador-modal .buscador-select option { background:#0a1114; color:#e5e7eb; }
+    .buscador-modal-actions { display:flex; gap:8px; margin-top:4px; }
+    .buscador-modal-actions button {
+      flex:1; height:32px; border-radius:6px; font-weight:800; font-size:12px;
+      cursor:pointer; border:1px solid rgba(21,127,147,0.45);
+    }
+    #btnSalvarBuscadorConfig { background:#157f93; color:#fff; }
+    #btnCancelarBuscadorConfig { background:transparent; color:#5cc3d6; }
+    #lbl-buscador-ocorrencias {
+      display:inline-flex; align-items:center;
+      height:22px; padding:0 !important;
+      border:none !important; background:transparent !important;
+    }
+    .buscador-ocorrencias-select {
+      appearance:none; -webkit-appearance:none; -moz-appearance:none;
+      color-scheme:dark;
+      box-sizing:border-box;
+      height:22px;
+      padding:0 19px 0 8px;
+      background-color:rgba(21,127,147,0.08);
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1.2 5 4.8 9 1.2' fill='none' stroke='%235cc3d6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat:no-repeat;
+      background-position:right 5px center;
+      background-size:8px 5px;
+      border:1px solid rgba(21,127,147,0.45);
+      border-radius:6px;
+      color:#5cc3d6;
+      font-family:inherit;
+      font-size:12px; font-weight:800; letter-spacing:0.3px;
+      line-height:20px; white-space:nowrap;
+      cursor:pointer; outline:none;
+      transition:border-color .2s, background-color .2s, color .2s;
+    }
+    .buscador-ocorrencias-select:hover {
+      border-color:rgba(21,127,147,0.75);
+      background-color:rgba(21,127,147,0.16);
+    }
+    .buscador-ocorrencias-select:focus-visible {
+      border-color:#5cc3d6;
+      box-shadow:0 0 0 2px rgba(21,127,147,0.25);
+    }
+    .buscador-ocorrencias-select option {
+      background:#0a1114; color:#e5e7eb;
+      font-size:13px; font-weight:700;
+    }
+    /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
+    #linhaGolsColuna th, #linhaDadosColuna th { font-size:0.72em !important; padding:1px 2px !important; line-height:1.1; }
+    /* ── ZONA GREEN: Intensidade por coluna ── */
+    td[data-resultado="acerto"].zg-low  { filter: brightness(0.55) saturate(0.7); }
+    td[data-resultado="acerto"].zg-mid  { filter: brightness(0.8) saturate(0.9); }
+    td[data-resultado="acerto"].zg-high { filter: brightness(1.0) saturate(1.1); }
+    td[data-resultado="acerto"].zg-hot  { filter: brightness(1.15) saturate(1.3); box-shadow: inset 0 0 6px rgba(0,255,60,0.3); }
+    td[data-resultado="erro"].zg-low    { filter: brightness(0.55) saturate(0.7); }
+    td[data-resultado="erro"].zg-mid    { filter: brightness(0.8) saturate(0.9); }
+    td[data-resultado="erro"].zg-high   { filter: brightness(1.0) saturate(1.1); }
+    td[data-resultado="erro"].zg-hot    { filter: brightness(1.15) saturate(1.3); }
+
+    /* Ocultar colunas direitas quando checkbox desativado */
+    .stats-laterais-ocultas .col-combo,
+    .stats-laterais-ocultas #th-gols-linha,
+    .stats-laterais-ocultas #th-dados-linha,
+    .stats-laterais-ocultas #th-foot-gols,
+    .stats-laterais-ocultas #th-foot-dados,
+    .stats-laterais-ocultas #linhaGolsColuna,
+    .stats-laterais-ocultas #linhaDadosColuna,
+    .stats-laterais-ocultas #trQuadrantes th:nth-last-child(1),
+    .stats-laterais-ocultas #trQuadrantes th:nth-last-child(2) { display:none !important; }
+  `;
+  document.head.appendChild(style);
+
+  document.documentElement.style.setProperty("--cor-green", Estado.corGreen);
+  document.documentElement.style.setProperty("--cor-red",   Estado.corRed);
+
+  const tc = document.createElement("div"); tc.id = "toast-container";
+  document.body.appendChild(tc);
+})();
+
+
+function showToast(msg, ms) {
+  const c = document.getElementById("toast-container"); if (!c) return;
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
+  c.appendChild(t); setTimeout(() => t.remove(), ms || 2200);
+}
+
+
+function calcularStreakMaximo() {
+  const tbody = document.querySelector("#tabelaResultados tbody");
+  if (!tbody) return;
+
+  document.querySelectorAll(".streak-alerta").forEach(el => el.classList.remove("streak-alerta"));
+
+  const alertaAtivo = localStorage.getItem("alertaStreakAtivo") === "1";
+  if (!alertaAtivo) return;
+
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  const numCols = minutosFixos.length;
+  const jogos = [];
+
+  for (let r = rows.length - 1; r >= 0; r--) {
+    const row = rows[r];
+    for (let colIdx = 0; colIdx < numCols; colIdx++) {
+      const cel = row.cells[1 + colIdx];
+      if (!cel) continue;
+      const tipo = cel.getAttribute("data-resultado");
+      if (tipo === "acerto" || tipo === "erro") { jogos.push({ tipo, cel }); }
+    }
+  }
+
+  if (jogos.length < 2) return;
+
+  let atualLen = 0;
+  for (let i = jogos.length - 1; i >= 0; i--) {
+    if (jogos[i].tipo === "erro") atualLen++;
+    else break;
+  }
+
+  let maxLen = 0, bestStart = -1, bestEnd = -1;
+  let curLen = 0, curStart = -1;
+
+  for (let i = 0; i < jogos.length; i++) {
+    if (jogos[i].tipo === "erro") {
+      if (curLen === 0) curStart = i;
+      curLen++;
+      if (curLen >= maxLen) { maxLen = curLen; bestStart = curStart; bestEnd = i; }
+    } else { curLen = 0; curStart = -1; }
+  }
+
+  if (maxLen < 3) { atualizarBadgeStreak(0, atualLen); return; }
+
+  for (let i = bestStart; i <= bestEnd; i++) { jogos[i].cel.classList.add("streak-alerta"); }
+  atualizarBadgeStreak(maxLen, atualLen);
+}
+
+function atualizarBadgeStreak(n, atual = 0) {
+  const anterior = document.getElementById("badge-streak-max");
+  if (anterior) anterior.remove();
+  const alertaAtivo = localStorage.getItem("alertaStreakAtivo") === "1";
+  if (!alertaAtivo || n < 3) return;
+  const indicator = document.getElementById("selecao-indicator");
+  if (!indicator) return;
+  const badge = document.createElement("span");
+  badge.id = "badge-streak-max"; badge.className = "sel-tag";
+  badge.style.cssText = "background:#92400e;border-color:#f59e0b;color:#fef3c7;gap:5px;";
+  const corAtual = atual === 0 ? '#4ade80' : (atual >= n ? '#f87171' : '#fbbf24');
+  const atualTxt = ` <span style="color:rgba(255,255,255,0.35);margin:0 3px">|</span> Atual: <strong style="color:${corAtual}">${atual} jogo${atual !== 1 ? 's' : ''}</strong>`;
+  badge.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/></svg>
+    Máx: <strong style="color:#fbbf24">${n} jogos</strong>${atualTxt}
+  `;
+  indicator.style.display = "flex";
+  indicator.appendChild(badge);
+}
+
+function atualizarCheckboxStreak() {
+  const cb  = document.getElementById("cb-streak-alerta");
+  const lbl = document.getElementById("lbl-streak-alerta");
+  if (!cb || !lbl) return;
+  const ativo = localStorage.getItem("alertaStreakAtivo") === "1";
+  cb.checked = ativo;
+  lbl.classList.toggle("alerta-ativo", ativo);
+}
+
+
+function aplicarCoresCelulas() {
+  document.querySelectorAll("td[data-resultado]").forEach(cel => {
+    const tipo = cel.getAttribute("data-resultado");
+    if (tipo === "acerto") cel.style.setProperty("background-color", Estado.corGreen, "important");
+    else if (tipo === "erro") cel.style.setProperty("background-color", Estado.corRed, "important");
+  });
+}
+
+
+function garantirPainelCores() {
+  if (document.getElementById("painel-cores")) {
+    garantirCheckboxQuadrantes();
+    garantirCheckboxHoraFixa();
+    garantirMenuFerramentas();
+    return;
+  }
+  const el = document.createElement("div"); el.id = "painel-cores";
+  el.innerHTML = `
+    <label>Cor Green<input type="color" id="input-cor-green" value="${Estado.corGreen}"></label>
+    <label>Cor Red<input type="color" id="input-cor-red" value="${Estado.corRed}"></label>
+    <button class="btn-aplicar-cores" id="btn-aplicar-cores">
+      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20,6 9,17 4,12"/></svg>
+      Aplicar
+    </button>
+    <button class="btn-reset-cores" id="btn-reset-cores">${SVG_ICONS.reset} Resetar padrão</button>
+    <label class="alerta-toggle-label" id="lbl-streak-alerta">
+      <input type="checkbox" id="cb-streak-alerta">
+      Máx. consecutiva
+    </label>
+    <label class="alerta-toggle-label" id="lbl-stats-laterais">
+      <input type="checkbox" id="cb-stats-laterais" checked>
+      Gols/Acertos/%
+    </label>
+    <label class="alerta-toggle-label" id="lbl-ranking-top5">
+      <input type="checkbox" id="cb-ranking-top5">
+      Ranking Top 5
+    </label>
+    <label class="alerta-toggle-label" id="lbl-zona-green-toggle">
+      <input type="checkbox" id="cb-zona-green-toggle">
+      Zona Green
+    </label>
+    <label class="alerta-toggle-label" id="lbl-oraculo-tabela">
+      <input type="checkbox" id="cb-oraculo-tabela">
+      Oráculo
+    </label>
+    <label class="alerta-toggle-label" id="lbl-buscador-tabela">
+      <input type="checkbox" id="cb-buscador-tabela">
+      Buscador
+    </label>
+    <button type="button" id="btn-buscador-config" class="btn-buscador-config" style="display:none;" title="Configurar Buscador">⚙</button>
+  `;
+  el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
+  el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
+  el.querySelector("#btn-aplicar-cores").addEventListener("click", () => { aplicarCoresCelulas(); showToast("Cores aplicadas!"); });
+  el.querySelector("#cb-streak-alerta").addEventListener("change", function() {
+    localStorage.setItem("alertaStreakAtivo", this.checked ? "1" : "0");
+    atualizarCheckboxStreak(); calcularStreakMaximo();
+    if (!this.checked) atualizarBadgeStreak(0, 0);
+  });
+  el.querySelector("#cb-stats-laterais").addEventListener("change", function() {
+    localStorage.setItem("statsLateraisOcultas", this.checked ? "0" : "1");
+    aplicarEstadoStatsLaterais();
+  });
+
+  const statsOcultas = localStorage.getItem("statsLateraisOcultas") === "1";
+  el.querySelector("#cb-stats-laterais").checked = !statsOcultas;
+
+
+  const rkCb = el.querySelector("#cb-ranking-top5");
+  if (rkCb) {
+    const rkOn = localStorage.getItem("rankingTop5Ativo") === "1";
+    rkCb.checked = rkOn;
+    if (rkOn) rkAplicarDestaque();
+    rkCb.addEventListener("change", function() {
+      localStorage.setItem("rankingTop5Ativo", this.checked ? "1" : "0");
+      if (this.checked) rkAplicarDestaque(); else rkLimparDestaque();
+      rkAtualizarVisibilidadeConfig();
+    });
+  }
+
+  const zgCb = el.querySelector("#cb-zona-green-toggle");
+  const zgLbl = el.querySelector("#lbl-zona-green-toggle");
+  if (zgCb) {
+    const zgOn = localStorage.getItem("zonaGreenAtivo") === "1"; 
+    zgCb.checked = zgOn;
+    zgLbl?.classList.toggle("alerta-ativo", zgOn);
+    zgCb.addEventListener("change", function() {
+      localStorage.setItem("zonaGreenAtivo", this.checked ? "1" : "0");
+      zgLbl?.classList.toggle("alerta-ativo", this.checked);
+      if (this.checked) aplicarZonaGreen();
+      else document.querySelectorAll(".zg-low,.zg-mid,.zg-high,.zg-hot").forEach(el => el.classList.remove("zg-low","zg-mid","zg-high","zg-hot"));
+    });
+  }
+
+
+  const orCb  = el.querySelector("#cb-oraculo-tabela");
+  const orLbl = el.querySelector("#lbl-oraculo-tabela");
+  if (orCb) {
+    const orOn = localStorage.getItem("oraculoAtivo") === "1"; 
+    orCb.checked = orOn;
+    orLbl?.classList.toggle("alerta-ativo", orOn);
+    orCb.addEventListener("change", function() {
+      localStorage.setItem("oraculoAtivo", this.checked ? "1" : "0");
+      orLbl?.classList.toggle("alerta-ativo", this.checked);
+      aplicarOraculoTabela();
+    });
+  }
+
+
+  const btnCfg = el.querySelector("#btn-buscador-config");
+
+  function atualizarVisibilidadeConfig(ativo) {
+    if (btnCfg) btnCfg.style.display = ativo ? "inline-flex" : "none";
+  }
+
+  const bqCb  = el.querySelector("#cb-buscador-tabela");
+  const bqLbl = el.querySelector("#lbl-buscador-tabela");
+  if (bqCb) {
+    const bqOn = localStorage.getItem("buscadorAtivo") === "1";
+    bqCb.checked = bqOn;
+    bqLbl?.classList.toggle("alerta-ativo", bqOn);
+    atualizarVisibilidadeConfig(bqOn);
+    bqCb.addEventListener("change", function() {
+      localStorage.setItem("buscadorAtivo", this.checked ? "1" : "0");
+      if (this.checked) setTimeout(refetchSePreciso, 0);
+      bqLbl?.classList.toggle("alerta-ativo", this.checked);
+      atualizarVisibilidadeConfig(this.checked);
+      aplicarBuscadorTabela();
+    });
+  }
+
+  if (btnCfg) {
+    btnCfg.addEventListener("click", abrirModalBuscadorConfig);
+  }
+
+  el.querySelector("#btn-reset-cores").addEventListener("click", () => {
+    Estado.corGreen = COR_GREEN_PADRAO; Estado.corRed = COR_RED_PADRAO; Estado.salvar();
+    el.querySelector("#input-cor-green").value = COR_GREEN_PADRAO;
+    el.querySelector("#input-cor-red").value   = COR_RED_PADRAO;
+    aplicarCoresCelulas(); showToast("Cores resetadas para o padrão");
+  });
+  const tabela = document.getElementById("tabelaResultados");
+  if (tabela && tabela.parentNode) tabela.parentNode.insertBefore(el, tabela.nextSibling);
+  else document.body.appendChild(el);
+
+
+  garantirCheckboxQuadrantes();
+
+  garantirCheckboxHoraFixa();
+
+  garantirMenuFerramentas();
+}
+
+
+
+
+const AN_TOGGLES = [
+  { id: "roi",    key: "anRoiAtivo",    label: "Saldo (ROI)", linha: "linhaRoiColuna",    th: "ROI",
+    tip: "Saldo em unidades por coluna: green = odd − 1, red = −1 (só jogos com odd)" },
+  { id: "atraso", key: "anAtrasoAtivo", label: "Atraso",      linha: "linhaAtrasoColuna", th: "ATR",
+    tip: "Horas seguidas sem green em cada coluna (histórico, não é previsão)" },
+  { id: "tend",   key: "anTendAtivo",   label: "Tendência",   linha: "linhaTendColuna",   th: "TEN",
+    tip: "% de acerto das últimas horas comparada com as anteriores" },
+  { id: "nota",   key: "anNotaAtivo",   label: "Nota",        linha: "linhaNotaColuna",   th: "NOTA",
+    tip: "Nota 0–100 combinando acerto, saldo, tendência, gols e atraso. ★ = 3 melhores das próximas colunas" },
+];
+const AN_JANELAS      = [3, 4, 6, 8];
+const AN_LIMIARES     = [10, 15, 20, 25];
+const AN_PESOS_OPCOES = [0, 10, 20, 30, 40, 50, 60];
+const AN_CFG_PADRAO   = { janela: 4, limiar: 15, pesos: { acerto: 40, roi: 30, tend: 20, gols: 10, atraso: 0 } };
+
+let _anRaw = null;
+let _anCalc = null;
+
+function anCfgKey() { return `an_config_${getLigaKey()}`; }
+function anLerConfig() {
+  const base = { janela: AN_CFG_PADRAO.janela, limiar: AN_CFG_PADRAO.limiar, pesos: { ...AN_CFG_PADRAO.pesos } };
+  try {
+    const sv = JSON.parse(localStorage.getItem(anCfgKey()));
+    if (sv && typeof sv === "object") {
+      if (AN_JANELAS.includes(sv.janela))   base.janela = sv.janela;
+      if (AN_LIMIARES.includes(sv.limiar))  base.limiar = sv.limiar;
+      if (sv.pesos && typeof sv.pesos === "object") {
+        Object.keys(base.pesos).forEach(k => { if (AN_PESOS_OPCOES.includes(sv.pesos[k])) base.pesos[k] = sv.pesos[k]; });
+      }
+    }
+  } catch (e) {}
+  return base;
+}
+function anSalvarConfig(c) { localStorage.setItem(anCfgKey(), JSON.stringify(c)); }
+function anAtivo(id) {
+  const t = AN_TOGGLES.find(x => x.id === id);
+  return !!t && localStorage.getItem(t.key) === "1";
+}
+function anClamp(v, a = 0, b = 100) { return Math.max(a, Math.min(b, v)); }
+
+function anCalcular(raw, cfg) {
+  const { res, totMercado, totGols } = raw;
+  const n = res.length;
+
+  let acTot = 0, jgTot = 0;
+  res.forEach(col => col.forEach(r => { jgTot++; if (r.acerto) acTot++; }));
+  const pctGeral = jgTot ? acTot / jgTot : 0;
+
+  const roi = [], atraso = [], tend = [], comp = [], nota = [];
+  for (let i = 0; i < n; i++) {
+    const col = res[i]; 
+    const jogos = col.length;
+    const acertos = col.reduce((sm, r) => sm + (r.acerto ? 1 : 0), 0);
+
+
+    const comOdd = col.filter(r => r.odd);
+    if (comOdd.length >= 3) {
+      const u = comOdd.reduce((sm, r) => sm + (r.acerto ? r.odd - 1 : -1), 0);
+      roi[i] = { u, n: comOdd.length, pct: (u / comOdd.length) * 100 };
+    } else roi[i] = null;
+
+
+    if (jogos > 0) {
+      let k = 0;
+      while (k < jogos && !col[k].acerto) k++;
+      atraso[i] = { horas: k, todos: k === jogos, jogos };
+    } else atraso[i] = null;
+
+
+    if (jogos >= 6) {
+      const J = Math.min(cfg.janela, Math.floor(jogos / 2));
+      const rec = col.slice(0, J), ant = col.slice(J);
+      const pR = (rec.filter(r => r.acerto).length / rec.length) * 100;
+      const pA = (ant.filter(r => r.acerto).length / ant.length) * 100;
+      const diff = pR - pA;
+      tend[i] = { diff, pR, pA, J, dir: diff >= cfg.limiar ? "up" : (diff <= -cfg.limiar ? "down" : "flat") };
+    } else tend[i] = null;
+
+
+    if (jogos >= 3) {
+      const K = 4;
+      const cAcerto = ((acertos + pctGeral * K) / (jogos + K)) * 100;
+      const cRoi    = roi[i]  ? anClamp(50 + roi[i].pct)  : 50;
+      const cTend   = tend[i] ? anClamp(50 + tend[i].diff) : 50;
+      const media   = totMercado[i] > 0 ? totGols[i] / totMercado[i] : 0;
+      const cGols   = anClamp((media / 4) * 100);
+      const cAtraso = atraso[i] ? anClamp((atraso[i].horas / 6) * 100) : 0;
+      const w = cfg.pesos;
+      const soma = w.acerto + w.roi + w.tend + w.gols + w.atraso;
+      nota[i] = soma > 0 ? (w.acerto * cAcerto + w.roi * cRoi + w.tend * cTend + w.gols * cGols + w.atraso * cAtraso) / soma : null;
+      comp[i] = { cAcerto, cRoi, cTend, cGols, cAtraso };
+    } else { nota[i] = null; comp[i] = null; }
+  }
+
+
+  let maisRecente = 0;
+  res.forEach(col => { if (col[0] && col[0].ts > maisRecente) maisRecente = col[0].ts; });
+  let cand = [];
+  for (let i = 0; i < n; i++) if (nota[i] != null && !(res[i][0] && res[i][0].ts === maisRecente)) cand.push(i);
+  if (!cand.length) for (let i = 0; i < n; i++) if (nota[i] != null) cand.push(i);
+  const top = cand.sort((a, b) => nota[b] - nota[a]).slice(0, 3);
+
+
+  const roiHora = {};
+  res.forEach(col => col.forEach(r => {
+    if (!r.odd) return;
+    const o = roiHora[r.chave] || (roiHora[r.chave] = { u: 0, n: 0 });
+    o.u += r.acerto ? r.odd - 1 : -1; o.n++;
+  }));
+
+  return { roi, atraso, tend, nota, comp, top, roiHora };
+}
+
+function anGarantirEstilos() {
+  if (document.getElementById("an-styles")) return;
+  const st = document.createElement("style");
+  st.id = "an-styles";
+  st.textContent = `
+    tr.an-linha th.an-th { width:26px; min-width:26px; font-size:0.55em !important; font-weight:800; color:#9ca3af; padding:1px 2px !important; text-align:center; letter-spacing:.02em; cursor:help; }
+    tr.an-linha td.an-cell { border-bottom:1px solid rgba(255,255,255,0.06); cursor:help; }
+    .an-cell.an-neutro .valor-principal, .an-cell.an-neutro .valor-sub { color:#9ca3af !important; }
+    .an-cell.an-pos .valor-principal, .an-cell.an-pos .valor-sub { color:#4ade80 !important; }
+    .an-cell.an-neg .valor-principal, .an-cell.an-neg .valor-sub { color:#ff5c5c !important; }
+    .an-cell.an-warm .valor-principal, .an-cell.an-warm .valor-sub { color:#f5c518 !important; }
+    .an-cell.an-hot  .valor-principal, .an-cell.an-hot  .valor-sub { color:#fb923c !important; }
+    .an-cell.an-top { background:rgba(212,175,55,0.16) !important; box-shadow:inset 0 -2px 0 #d4af37; }
+    .an-cell.an-top .valor-principal, .an-cell.an-top .valor-sub { color:#d4af37 !important; }
+    .an-modal-nota { font-size:0.74em; line-height:1.35; color:#9ca3af; }
+    .an-modal-grade { display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; }
+    .an-modal-grade label { margin:0; }
+  `;
+  document.head.appendChild(st);
+}
+
+function anCelula(cls, principal, sub, titulo) {
+  const td = document.createElement("td");
+  td.className = `col-combo-top an-cell ${cls}`;
+  td.innerHTML = `<span class="valor-principal">${principal}</span>${sub !== "" ? `<span class="valor-sub">${sub}</span>` : ""}`;
+  if (titulo) td.title = titulo;
+  return td;
+}
+
+function anRenderLinhas() {
+  anGarantirEstilos();
+  const tabela = document.getElementById("tabelaResultados");
+  if (!tabela) return;
+  const thead = tabela.querySelector("thead");
+  if (!thead) return;
+
+  AN_TOGGLES.forEach(t => document.getElementById(t.linha)?.remove());
+  tabela.querySelectorAll("tbody tr[data-chave] > td:first-child[data-an-titulo]").forEach(td => {
+    td.removeAttribute("title"); td.removeAttribute("data-an-titulo");
+  });
+  if (!_anCalc) return;
+
+  const c = _anCalc;
+  const N = minutosFixos.length;
+  const trMin = thead.querySelector("th.minute-header")?.parentElement;
+  if (!trMin) return;
+  const bloco = _tamanhoBlocoQD();
+  const qdOn = qdCheckboxAtivo();
+  const sinal = v => (v > 0 ? "+" : "");
+
+  const montar = (t, fn) => {
+    const tr = document.createElement("tr");
+    tr.id = t.linha; tr.className = "an-linha";
+    const th = document.createElement("th");
+    th.className = "an-th"; th.textContent = t.th; th.title = t.tip;
+    tr.appendChild(th);
+    for (let i = 0; i < N; i++) {
+      const td = fn(i);
+      if (qdOn && i > 0 && i % bloco === 0) td.classList.add("quadrant-border");
+      tr.appendChild(td);
+    }
+    for (let k = 0; k < 2; k++) { const e = document.createElement("td"); e.className = "col-combo"; tr.appendChild(e); }
+    thead.insertBefore(tr, trMin);
+  };
+
+  if (anAtivo("roi")) montar(AN_TOGGLES[0], i => {
+    const r = c.roi[i];
+    if (!r) return anCelula("an-neutro", "–", "", "Poucos jogos com odd nesta coluna (mínimo 3)");
+    const u = Math.abs(r.u) < 0.05 ? 0 : r.u;
+    const cls = u > 0 ? "an-pos" : (u < 0 ? "an-neg" : "an-neutro");
+    return anCelula(cls, `${sinal(u)}${u.toFixed(1)}`, `${sinal(r.pct)}${Math.round(r.pct)}%`,
+      `Saldo ${sinal(u)}${u.toFixed(2)}u em ${r.n} jogos com odd (ROI ${sinal(r.pct)}${Math.round(r.pct)}%)`);
+  });
+
+  if (anAtivo("atraso")) montar(AN_TOGGLES[1], i => {
+    const a = c.atraso[i];
+    if (!a) return anCelula("an-neutro", "–", "", "");
+    const k = a.horas;
+    const cls = k >= 5 ? "an-hot" : (k >= 3 ? "an-warm" : "an-neutro");
+    const tit = a.todos ? `Nenhum green nas ${k} horas da janela (histórico, não é previsão)`
+              : (k === 0 ? "O último resultado desta coluna foi green"
+                         : `${k} hora(s) seguidas sem green nesta coluna (histórico, não é previsão)`);
+    return anCelula(cls, a.todos ? `${k}+` : `${k}`, "h", tit);
+  });
+
+  if (anAtivo("tend")) montar(AN_TOGGLES[2], i => {
+    const t = c.tend[i];
+    if (!t) return anCelula("an-neutro", "–", "", "Poucos jogos (mínimo 6) para comparar");
+    const seta = t.dir === "up" ? "↑" : (t.dir === "down" ? "↓" : "→");
+    const cls = t.dir === "up" ? "an-pos" : (t.dir === "down" ? "an-neg" : "an-neutro");
+    const d = Math.round(t.diff);
+    return anCelula(cls, seta, `${sinal(d)}${d}`,
+      `Últimas ${t.J}h: ${Math.round(t.pR)}% • antes: ${Math.round(t.pA)}% (${sinal(d)}${d} p.p.)`);
+  });
+
+  if (anAtivo("nota")) montar(AN_TOGGLES[3], i => {
+    const v = c.nota[i];
+    if (v == null) return anCelula("an-neutro", "–", "", "Poucos jogos (mínimo 3) ou todos os pesos em 0");
+    const pos = c.top.indexOf(i);
+    const cm = c.comp[i];
+    const cls = pos >= 0 ? "an-top" : (v >= 60 ? "an-pos" : (v < 40 ? "an-neg" : "an-neutro"));
+    const tit = `Nota ${Math.round(v)} • acerto ${Math.round(cm.cAcerto)} • saldo ${Math.round(cm.cRoi)} • tendência ${Math.round(cm.cTend)} • gols ${Math.round(cm.cGols)} • atraso ${Math.round(cm.cAtraso)}`
+              + (pos >= 0 ? ` • ${pos + 1}º entre as próximas colunas` : "");
+    return anCelula(cls, String(Math.round(v)), pos >= 0 ? "★" : "", tit);
+  });
+
+
+  if (anAtivo("roi")) {
+    tabela.querySelectorAll("tbody tr[data-chave]").forEach(tr => {
+      const o = c.roiHora[tr.getAttribute("data-chave")];
+      const td = tr.firstElementChild;
+      if (!o || !td) return;
+      const u = Math.abs(o.u) < 0.05 ? 0 : o.u;
+      td.title = `Saldo da hora: ${sinal(u)}${u.toFixed(1)}u em ${o.n} jogos com odd`;
+      td.setAttribute("data-an-titulo", "1");
+    });
+  }
+}
+
+function anAtualizar(raw) {
+  _anRaw = raw;
+  _anCalc = anCalcular(raw, anLerConfig());
+  anRenderLinhas();
+}
+function anRecalcular() {
+  if (!_anRaw) return;
+  _anCalc = anCalcular(_anRaw, anLerConfig());
+  anRenderLinhas();
+}
+
+function anAtualizarVisibilidadeConfig() {
+  const btn = document.getElementById("btn-an-config");
+  if (btn) btn.style.display = (anAtivo("tend") || anAtivo("nota")) ? "inline-flex" : "none";
+}
+
+function garantirControlesAnalises() {
+  const painel = document.getElementById("painel-cores");
+  if (!painel) return;
+
+  AN_TOGGLES.forEach(t => {
+    if (document.getElementById(`lbl-an-${t.id}`)) return;
+    const lbl = document.createElement("label");
+    lbl.className = "alerta-toggle-label";
+    lbl.id = `lbl-an-${t.id}`;
+    lbl.title = t.tip;
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.id = `cb-an-${t.id}`;
+    const on = anAtivo(t.id);
+    cb.checked = on;
+    lbl.classList.toggle("alerta-ativo", on);
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(" " + t.label));
+    cb.addEventListener("change", function () {
+      localStorage.setItem(t.key, this.checked ? "1" : "0");
+      lbl.classList.toggle("alerta-ativo", this.checked);
+      anRenderLinhas();
+      anAtualizarVisibilidadeConfig();
+    });
+    painel.appendChild(lbl);
+  });
+
+  if (!document.getElementById("btn-an-config")) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "btn-an-config";
+    btn.className = "btn-buscador-config";
+    btn.style.display = "none";
+    btn.title = "Configurar análises (Tendência e Nota)";
+    btn.textContent = "⚙";
+    btn.addEventListener("click", abrirModalAnConfig);
+    painel.appendChild(btn);
+  }
+  anAtualizarVisibilidadeConfig();
+}
+
+function garantirModalAnConfig() {
+  let overlay = document.getElementById("an-modal-overlay");
+  if (overlay) return overlay;
+  anGarantirEstilos();
+  const optsPeso = AN_PESOS_OPCOES.map(n => `<option value="${n}">${n}</option>`).join("");
+  overlay = document.createElement("div");
+  overlay.id = "an-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true" style="max-height:92vh;overflow:auto;width:320px;">
+      <h4>⚙ Configurar análises <span id="an-modal-liga"></span></h4>
+      <label>Tendência — janela recente
+        <select id="cfg-an-janela" class="buscador-select">
+          ${AN_JANELAS.map(n => `<option value="${n}">últimas ${n} horas</option>`).join("")}
+        </select>
+      </label>
+      <label>Tendência — variação mínima
+        <select id="cfg-an-limiar" class="buscador-select">
+          ${AN_LIMIARES.map(n => `<option value="${n}">${n} p.p.</option>`).join("")}
+        </select>
+      </label>
+      <div class="an-modal-nota">Pesos da Nota (o que pesa mais na nota da coluna):</div>
+      <div class="an-modal-grade">
+        <label>Acerto<select id="cfg-an-p-acerto" class="buscador-select">${optsPeso}</select></label>
+        <label>Saldo (ROI)<select id="cfg-an-p-roi" class="buscador-select">${optsPeso}</select></label>
+        <label>Tendência<select id="cfg-an-p-tend" class="buscador-select">${optsPeso}</select></label>
+        <label>Gols<select id="cfg-an-p-gols" class="buscador-select">${optsPeso}</select></label>
+        <label>Atraso<select id="cfg-an-p-atraso" class="buscador-select">${optsPeso}</select></label>
+      </div>
+      <div class="an-modal-nota">Análises históricas: descrevem o passado da janela de horas escolhida e não garantem resultado. O Atraso vem com peso 0 por padrão, pois uma coluna estar há mais tempo sem green não significa que está "devendo" um.</div>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarAnConfig" style="background:transparent;color:#5cc3d6;">Cancelar</button>
+        <button type="button" id="btnSalvarAnConfig" style="background:#157f93;color:#fff;">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalAnConfig(); });
+  overlay.querySelector("#btnCancelarAnConfig").addEventListener("click", fecharModalAnConfig);
+  overlay.querySelector("#btnSalvarAnConfig").addEventListener("click", salvarModalAnConfig);
+  return overlay;
+}
+
+function abrirModalAnConfig() {
+  const ov = garantirModalAnConfig();
+  const cfg = anLerConfig();
+  const ligaSpan = ov.querySelector("#an-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+  ov.querySelector("#cfg-an-janela").value = String(cfg.janela);
+  ov.querySelector("#cfg-an-limiar").value = String(cfg.limiar);
+  Object.keys(cfg.pesos).forEach(k => { ov.querySelector(`#cfg-an-p-${k}`).value = String(cfg.pesos[k]); });
+  ov.hidden = false;
+}
+
+function fecharModalAnConfig() {
+  const ov = document.getElementById("an-modal-overlay");
+  if (ov) ov.hidden = true;
+}
+
+function salvarModalAnConfig() {
+  const ov = document.getElementById("an-modal-overlay");
+  if (!ov) return;
+  const pesos = {};
+  ["acerto", "roi", "tend", "gols", "atraso"].forEach(k => { pesos[k] = parseInt(ov.querySelector(`#cfg-an-p-${k}`).value, 10); });
+  anSalvarConfig({
+    janela: parseInt(ov.querySelector("#cfg-an-janela").value, 10),
+    limiar: parseInt(ov.querySelector("#cfg-an-limiar").value, 10),
+    pesos
+  });
+  fecharModalAnConfig();
+  anRecalcular();
+  showToast(`⚙ Análises salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
+}
+
+
+const FERR_ITENS = [
+  { lbl: "lbl-streak-alerta" },
+  { lbl: "lbl-stats-laterais" },
+  { lbl: "lbl-quadrantes-toggle" },
+  { lbl: "lbl-ranking-top5",     cfg: "btn-rk-config" },
+  { lbl: "lbl-zona-green-toggle" },
+  { lbl: "lbl-oraculo-tabela" },
+  { lbl: "lbl-buscador-tabela",  cfg: "btn-buscador-config" },
+  { lbl: "lbl-horafixa-toggle",  cfg: "btn-hf-config" },
+  { lbl: "lbl-an-roi" },
+  { lbl: "lbl-an-atraso" },
+  { lbl: "lbl-an-tend" },
+  { lbl: "lbl-an-nota",          cfg: "btn-an-config" },
+];
+
+function ferrAtualizarContagem() {
+  const badge = document.getElementById("ferr-count");
+  const panel = document.getElementById("ferr-panel");
+  const btn   = document.getElementById("btn-ferramentas");
+  if (!badge || !panel) return;
+  const n = panel.querySelectorAll('input[type="checkbox"]:checked').length;
+  badge.textContent = String(n);
+  btn?.classList.toggle("ferr-tem-ativos", n > 0);
+}
+
+
+function ferrPosicionar(panel) {
+  panel.style.left = "0px";
+  const r = panel.getBoundingClientRect();
+  const vw = document.documentElement.clientWidth;
+  if (!r.width || !vw) return;
+  const alvoEsq = Math.max(8, Math.min(r.left, vw - 8 - r.width));
+  panel.style.left = (alvoEsq - r.left) + "px";
+}
+
+function garantirMenuFerramentas() {
+  const painel = document.getElementById("painel-cores");
+  if (!painel) return;
+
+  garantirBotaoRkConfig();
+  rkAtualizarLabel();
+  rkAtualizarVisibilidadeConfig();
+  garantirControlesAnalises();
+
+  if (!document.getElementById("ferr-styles")) {
+    const st = document.createElement("style");
+    st.id = "ferr-styles";
+    st.textContent = `
+      #ferr-wrap { position:relative; display:inline-block; }
+      .btn-ferramentas {
+        display:inline-flex; align-items:center; gap:5px;
+        height:26px; padding:0 10px; box-sizing:border-box;
+        background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px;
+        color:rgba(255,255,255,0.7); font-size:0.72em; font-weight:700; cursor:pointer;
+        transition:background .15s, border-color .15s, color .15s;
+      }
+      .btn-ferramentas:hover { background:rgba(255,255,255,0.08); border-color:rgba(21,127,147,0.55); color:#fff; }
+      .btn-ferramentas.ferr-tem-ativos { color:#5cc3d6; border-color:rgba(21,127,147,0.6); background:rgba(21,127,147,0.12); }
+      #ferr-count {
+        min-width:14px; height:14px; padding:0 3px; box-sizing:border-box;
+        border-radius:7px; background:rgba(255,255,255,0.1); color:inherit;
+        font-size:0.95em; line-height:14px; text-align:center;
+      }
+      .ferr-tem-ativos #ferr-count { background:rgba(21,127,147,0.3); }
+      #ferr-panel {
+        position:absolute; left:0; top:calc(100% + 4px); z-index:10000;
+        display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:5px;
+        width:max-content; max-width:min(620px, 92vw); box-sizing:border-box;
+        padding:8px; background:#1b1c20; border:1px solid rgba(255,255,255,0.12);
+        border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.5);
+      }
+      #ferr-panel[hidden] { display:none; }
+      .ferr-row { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
+      .ferr-row > label { flex:0 0 auto; margin-left:0 !important; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  let wrap = document.getElementById("ferr-wrap");
+  if (!wrap) {
+    wrap = document.createElement("span");
+    wrap.id = "ferr-wrap";
+    wrap.innerHTML = `
+      <button type="button" id="btn-ferramentas" class="btn-ferramentas" title="Ferramentas da tabela" aria-haspopup="true">⚙ Ferramentas <span id="ferr-count">0</span></button>
+      <div id="ferr-panel" hidden></div>
+    `;
+    painel.appendChild(wrap);
+
+    const btn   = wrap.querySelector("#btn-ferramentas");
+    const panel = wrap.querySelector("#ferr-panel");
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) ferrPosicionar(panel);
+    });
+    panel.addEventListener("click", (e) => {
+      e.stopPropagation();
+
+      if (e.target.closest(".btn-buscador-config")) panel.hidden = true;
+    });
+    panel.addEventListener("change", () => setTimeout(ferrAtualizarContagem, 0));
+    document.addEventListener("click", () => { panel.hidden = true; });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") panel.hidden = true; });
+  }
+
+  const panel = wrap.querySelector("#ferr-panel");
+  FERR_ITENS.forEach(item => {
+    const lbl = document.getElementById(item.lbl);
+    if (!lbl) return; 
+    let row = panel.querySelector(`.ferr-row[data-lbl="${item.lbl}"]`);
+    if (!row) {
+      row = document.createElement("div");
+      row.className = "ferr-row";
+      row.dataset.lbl = item.lbl;
+      panel.appendChild(row);
+    }
+    if (lbl.parentNode !== row) row.appendChild(lbl);
+    if (item.cfg) {
+      const cfg = document.getElementById(item.cfg);
+      if (cfg && cfg.parentNode !== row) row.appendChild(cfg);
+    }
+  });
+
+
+  if (painel.lastElementChild !== wrap) painel.appendChild(wrap);
+  ferrAtualizarContagem();
+}
+
+function sincronizarPainelCores() {
+  const ig = document.getElementById("input-cor-green");
+  const ir = document.getElementById("input-cor-red");
+  if (ig) ig.value = Estado.corGreen;
+  if (ir) ir.value = Estado.corRed;
+  aplicarCoresCelulas();
+  aplicarEstadoStatsLaterais();
+
+  const zgCb  = document.getElementById("cb-zona-green-toggle");
+  const zgLbl = document.getElementById("lbl-zona-green-toggle");
+  if (zgCb) { const on = localStorage.getItem("zonaGreenAtivo") === "1"; zgCb.checked = on; zgLbl?.classList.toggle("alerta-ativo", on); }
+
+  const orCb  = document.getElementById("cb-oraculo-tabela");
+  const orLbl = document.getElementById("lbl-oraculo-tabela");
+  if (orCb) { const on = localStorage.getItem("oraculoAtivo") === "1"; orCb.checked = on; orLbl?.classList.toggle("alerta-ativo", on); }
+
+  const bqCb   = document.getElementById("cb-buscador-tabela");
+  const bqLbl  = document.getElementById("lbl-buscador-tabela");
+  const btnCfg = document.getElementById("btn-buscador-config");
+  if (bqCb) {
+    const on = localStorage.getItem("buscadorAtivo") === "1";
+    bqCb.checked = on;
+    bqLbl?.classList.toggle("alerta-ativo", on);
+    if (btnCfg) btnCfg.style.display = on ? "inline-flex" : "none";
+  }
+}
+
+
+function criarOuObterPainel() {
+  let painel = document.getElementById("painel-selecao");
+  if (!painel) {
+    painel = document.createElement("div"); painel.id = "painel-selecao";
+    const indicator = document.createElement("div"); indicator.id = "selecao-indicator";
+    const stats = document.createElement("div"); stats.id = "stats-selecao";
+    painel.appendChild(indicator); painel.appendChild(stats);
+    const tabela = document.getElementById("tabelaResultados");
+    if (tabela) {
+      const selCont = document.getElementById("selectedRowsContainer");
+      const anchor = selCont || tabela;
+      anchor.parentNode.insertBefore(painel, anchor);
+    }
+  }
+  return painel;
+}
+function criarOuObterIndicador() { criarOuObterPainel(); return document.getElementById("selecao-indicator"); }
+function criarOuObterStats()     { criarOuObterPainel(); return document.getElementById("stats-selecao"); }
+
+function atualizarStatsSelecao(statsMap) {
+  const el = criarOuObterStats(); if (!el) return;
+  el.innerHTML = "";
+  const temItems = statsMap && [...statsMap.values()].some(v => (v.green+v.red)>0);
+  el.style.display = temItems ? "flex" : "none";
+  if (!temItems) return;
+  statsMap.forEach(({green,red,cor,label,tipo}, valor) => {
+    const total = green+red; if (total===0) return;
+    const row = document.createElement("div"); row.className = "stat-row";
+    const dot = document.createElement("span"); dot.className="stat-color-dot"; dot.style.background=cor;
+    const valorDisplay = valor.replace(/^[★✦⊕]ht[★✦⊕]/, "");
+    const lbl = document.createElement("span"); lbl.className="stat-label"; lbl.title=valorDisplay; lbl.textContent=`${label}: ${valorDisplay}`;
+    const sep0 = document.createElement("span"); sep0.className="stat-sep"; sep0.textContent="·";
+    if (tipo==="ft"||tipo==="ht") {
+      const tot=document.createElement("span"); tot.className="stat-total"; tot.textContent=`${total}×`;
+      const inf=document.createElement("span"); inf.style.cssText="color:#aaa;font-size:0.85em"; inf.textContent="ocorrências";
+      row.append(dot,lbl,sep0,tot,inf);
+    } else {
+      const pct=Math.round((green/total)*100);
+      const tot=document.createElement("span"); tot.className="stat-total"; tot.textContent=`${total}×`;
+      const s1=document.createElement("span"); s1.className="stat-sep"; s1.textContent="/";
+      const g=document.createElement("span"); g.className="stat-count-green"; g.textContent=`${green}✔`;
+      const s2=document.createElement("span"); s2.className="stat-sep"; s2.textContent="/";
+      const r=document.createElement("span"); r.className="stat-count-red"; r.textContent=`${red}✘`;
+      const p=document.createElement("span");
+      const _t=getThreshold(document.querySelector("#seletorResultado")?.value||"");
+      p.className=`stat-pct ${pct>=_t?"stat-pct-verde":"stat-pct-branca"}`; p.textContent=`${pct}%`;
+      row.append(dot,lbl,sep0,tot,s1,g,s2,r,p);
+    }
+    el.appendChild(row);
+  });
+}
+
+function atualizarIndicadorSelecao() {
+  const indicator = criarOuObterIndicador(); if (!indicator) return;
+  indicator.innerHTML = "";
+  const grupos = [
+    { lista: Estado.placarFTSelecionados, tipo: "ft",   label: "FT",   paleta: CORES_PLACAR_FT },
+    { lista: Estado.placarHTSelecionados, tipo: "ht",   label: "HT",   paleta: CORES_PLACAR_HT },
+    { lista: Estado.timesSelecionados,    tipo: "time", label: "Time", paleta: CORES_TIME },
+    { lista: Estado.oddsSelecionadas,     tipo: "odd",  label: "Odd",  paleta: CORES_ODD },
+  ];
+  grupos.forEach(({ lista, tipo, label, paleta }) => {
+    lista.forEach((val, i) => {
+      const cor = paleta[i % paleta.length];
+      const tag = document.createElement("span"); tag.className = "sel-tag";
+      tag.style.cssText = `background:${cor};border-color:${cor};color:#000;`;
+      const displayVal = val.replace(/^[★✦⊕]ht[★✦⊕]/, "");
+      tag.innerHTML = `<span>${label}: ${displayVal}</span><span class="sel-remove" title="Remover">✕</span>`;
+      tag.querySelector(".sel-remove").addEventListener("click", () => {
+        Estado.toggleSelecao(
+          tipo==="ft"?"placarFTSelecionados":tipo==="ht"?"placarHTSelecionados":tipo==="time"?"timesSelecionados":"oddsSelecionadas",
+          val
+        );
+        aplicarHighlights();
+      });
+      indicator.appendChild(tag);
+    });
+  });
+}
+
+function computeStatsFromDOM() {
+  const mostrarOdds = document.querySelector("#mostrarOdds")?.value==="sim";
+  const statsFT   = new Map(Estado.placarFTSelecionados.map(v=>[v,{green:0,red:0,cor:Estado.getCorSelecao(Estado.placarFTSelecionados,v,"ft")?.bg||"#fff",label:"FT",tipo:"ft"}]));
+  const statsHT   = new Map(Estado.placarHTSelecionados.map(v=>[v,{green:0,red:0,cor:Estado.getCorSelecao(Estado.placarHTSelecionados,v,"ht")?.bg||"#fff",label:"HT",tipo:"ht"}]));
+  const statsTime = new Map(Estado.timesSelecionados.map(v=>[v,{green:0,red:0,cor:Estado.getCorSelecao(Estado.timesSelecionados,v,"time")?.bg||"#fff",label:"Time",tipo:"time"}]));
+  const statsOdd  = new Map(Estado.oddsSelecionadas.map(v=>[v,{green:0,red:0,cor:Estado.getCorSelecao(Estado.oddsSelecionadas,v,"odd")?.bg||"#fff",label:"Odd",tipo:"odd"}]));
+  document.querySelectorAll(".placar").forEach(placarEl=>{
+    if (placarEl.classList.contains("placar-futuro")) return;
+    const cel=placarEl.closest("td"); if(!cel) return;
+    const tipo=cel.getAttribute("data-resultado"); if(tipo!=="acerto"&&tipo!=="erro") return;
+    const acerto=tipo==="acerto";
+    const ft=placarEl.getAttribute("data-score-ft")||"";
+    const ht=placarEl.getAttribute("data-score-ht")||"";
+    const oddEl=placarEl.querySelector(".odds");
+    const oddTxt=oddEl?oddEl.textContent.trim().replace(/^@/,""):"";
+    const timeSpans=Array.from(placarEl.querySelectorAll(".time-casa,.time-fora")).map(s=>s.getAttribute("data-full-time")).filter(Boolean);
+    for(const v of Estado.placarFTSelecionados) if(ft===v){const s=statsFT.get(v);if(s){acerto?s.green++:s.red++;}break;}
+    for(const v of Estado.placarHTSelecionados) if(ht===v){const s=statsHT.get(v);if(s){acerto?s.green++:s.red++;}break;}
+    for(const v of Estado.timesSelecionados)    if(timeSpans.includes(v)){const s=statsTime.get(v);if(s){acerto?s.green++:s.red++;}break;}
+    if(mostrarOdds&&oddTxt) for(const v of Estado.oddsSelecionadas) if(oddTxt===v){const s=statsOdd.get(v);if(s){acerto?s.green++:s.red++;}break;}
+  });
+  const unif=new Map();
+  statsFT.forEach((v,k)=>unif.set(k,v));
+  statsHT.forEach((v,k)=>unif.set(`★ht★${k}`,v));
+  statsTime.forEach((v,k)=>unif.set(k,v));
+  statsOdd.forEach((v,k)=>unif.set(k,v));
+  criarOuObterPainel(); atualizarStatsSelecao(unif);
+}
+
+
+function aplicarHighlights() {
+  const mostrarOdds = document.querySelector("#mostrarOdds")?.value==="sim";
+  document.querySelectorAll(".placar").forEach(placar => {
+    const ft = placar.getAttribute("data-score-ft")||"";
+    const ht = placar.getAttribute("data-score-ht")||"";
+    placar.querySelectorAll(".placar-score-ft-sel").forEach(e=>{e.classList.remove("placar-score-ft-sel");e.style.removeProperty("--sel-color-ft");});
+    placar.querySelectorAll(".placar-score-ht-sel").forEach(e=>{e.classList.remove("placar-score-ht-sel");e.style.removeProperty("--sel-color-ht");});
+    placar.querySelectorAll(".time-nome-selecionado").forEach(e=>{e.classList.remove("time-nome-selecionado");e.style.removeProperty("--sel-color");});
+    const oddEl=placar.querySelector(".odds,.placar-futuro-odd");
+    if(oddEl){oddEl.classList.remove("odd-selecionada");oddEl.style.removeProperty("--sel-color");}
+    for(const val of Estado.placarFTSelecionados) {
+      if(ft===val) {
+        const cor=Estado.getCorSelecao(Estado.placarFTSelecionados,val,"ft");
+        const ftSpan=placar.querySelector(".ft-span");
+        if(ftSpan){ftSpan.style.setProperty("--sel-color-ft",cor.bg);ftSpan.classList.add("placar-score-ft-sel");}
+        break;
+      }
+    }
+    for(const val of Estado.placarHTSelecionados) {
+      if(ht===val) {
+        const cor=Estado.getCorSelecao(Estado.placarHTSelecionados,val,"ht");
+        const htSpan=placar.querySelector(".ht-span");
+        if(htSpan){htSpan.style.setProperty("--sel-color-ht",cor.bg);htSpan.classList.add("placar-score-ht-sel");}
+        break;
+      }
+    }
+    if(Estado.timesSelecionados.length>0){
+      [".time-casa",".time-fora"].forEach(sel=>{
+        const span=placar.querySelector(sel); if(!span) return;
+        const ft2=span.getAttribute("data-full-time");
+        for(const val of Estado.timesSelecionados){
+          if(ft2===val){const cor=Estado.getCorSelecao(Estado.timesSelecionados,val,"time");span.style.setProperty("--sel-color",cor.bg);span.classList.add("time-nome-selecionado");break;}
+        }
+      });
+    }
+    if(oddEl){
+      const rawTxt  = oddEl.textContent.trim();
+      const oddTxt  = rawTxt.startsWith("@") ? rawTxt.slice(1) : rawTxt;
+      for(const val of Estado.oddsSelecionadas){
+        if(oddTxt===val){
+          const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,val,"odd");
+          oddEl.style.setProperty("--sel-color",cor.bg);
+          oddEl.classList.add("odd-selecionada");
+          break;
+        }
+      }
+    }
+  });
+  atualizarIndicadorSelecao();
+  computeStatsFromDOM();
+}
+
+
+function toggleColuna(minuto) {
+  const lista=Estado.colunasSelecionadas, idx=lista.indexOf(minuto);
+  if(idx!==-1) lista.splice(idx,1); else lista.push(minuto);
+  Estado.salvar(); aplicarColunaHighlights(); atualizarColunaStats();
+}
+function aplicarColunaHighlights() {
+  const tabela=document.getElementById("tabelaResultados");
+  const temSel=Estado.colunasSelecionadas.length>0;
+  if(tabela) tabela.classList.toggle("tem-coluna-selecionada",temSel);
+  document.querySelectorAll(".minute-header").forEach(th=>{
+    const min=parseInt(th.textContent.trim());
+    th.classList.toggle("coluna-selecionada",Estado.colunasSelecionadas.includes(min));
+  });
+  const tamanhoBloco=_tamanhoBlocoQD();
+  document.querySelectorAll("#tabelaResultados tbody tr").forEach(row=>{
+    Array.from(row.cells).forEach((cell,i)=>{
+      if(i<1||i>=1+minutosFixos.length) return;
+      const colIdx=i-1;
+      cell.classList.toggle("coluna-selecionada",Estado.colunasSelecionadas.includes(minutosFixos[colIdx]));
+      if (qdCheckboxAtivo()) cell.classList.toggle("quadrant-border",colIdx>0&&colIdx%tamanhoBloco===0);
+    });
+  });
+  if (qdCheckboxAtivo()) {
+    document.querySelectorAll(".minute-header").forEach((th,i)=>{th.classList.toggle("quadrant-border",i>0&&i%tamanhoBloco===0);});
+  }
+}
+function atualizarColunaStats() {
+  let el=document.getElementById("coluna-stats");
+  if(!el){
+    el=document.createElement("div"); el.id="coluna-stats";
+    const painel=document.getElementById("painel-selecao");
+    if(painel) painel.insertAdjacentElement("afterend",el);
+    else{const t=document.getElementById("tabelaResultados");if(t)t.parentNode.insertBefore(el,t);}
+  }
+  el.innerHTML=""; if(Estado.colunasSelecionadas.length===0) return;
+
+
+  const colOrd=[...Estado.colunasSelecionadas].sort((a,b)=>minutosFixos.indexOf(a)-minutosFixos.indexOf(b));
+  let gT=0, rT=0;
+  document.querySelectorAll("#tabelaResultados tbody tr").forEach(row=>{
+    let temGreen=false, temRed=false, todasComResultado=true;
+    colOrd.forEach(min=>{
+      const colIdx=minutosFixos.indexOf(min); if(colIdx===-1) return;
+      const cell=row.cells[1+colIdx]; if(!cell) { todasComResultado=false; return; }
+
+      const placarReal=cell.querySelector(".placar:not(.placar-futuro)");
+      if(!placarReal) { todasComResultado=false; return; }
+      const tipo=cell.getAttribute("data-resultado");
+      if(tipo==="acerto") temGreen=true;
+      else if(tipo==="erro") temRed=true;
+    });
+
+    if(!todasComResultado) return;
+    if(temGreen) gT++;
+    else if(temRed) rT++;
+  });
+
+  const total=gT+rT; if(total===0) return;
+  const pct=Math.round((gT/total)*100);
+  const thresh=getThreshold(document.querySelector("#seletorResultado")?.value||"");
+  const tag=document.createElement("div"); tag.className="col-stat-tag";
+  tag.innerHTML=`<span class="col-min">min ${colOrd.join(", ")}</span><span style="color:#aaa;font-size:0.85em">${total}×</span><span class="col-g">${gT}✔</span><span class="col-r">${rT}✘</span><span class="col-pct ${pct>=thresh?"col-stat-verde":"col-stat-branca"}">${pct}%</span><span class="col-remove" title="Limpar">✕</span>`;
+  tag.querySelector(".col-remove").addEventListener("click",()=>{Estado.colunasSelecionadas.length=0;Estado.salvar();aplicarColunaHighlights();atualizarColunaStats();});
+  el.appendChild(tag);
+}
+
+
+function showErrorMessage(m){const e=document.getElementById("errorMessage");if(!e)return;e.textContent=m;e.style.display="block";}
+function hideErrorMessage(){const e=document.getElementById("errorMessage");if(!e)return;e.textContent="";e.style.display="none";}
+function normalizeString(s){if(!s)return"";return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
+function formatDateToDDMMYYYY(d){if(d.includes("T")){const dt=new Date(d);return`${dt.getUTCDate().toString().padStart(2,"0")}/${(dt.getUTCMonth()+1).toString().padStart(2,"0")}/${dt.getUTCFullYear()}`;}const[dd,mm,yy]=d.split("/");return`${dd.padStart(2,"0")}/${mm.padStart(2,"0")}/${yy}`;}
+const _dateStrCache = new Map();
+function getDateStr(d){
+  let r = _dateStrCache.get(d);
+  if (r !== undefined) return r;
+  if (d.includes("T")) r = new Date(d).toISOString().split("T")[0];
+  else { const [dd,mm,yy] = d.split("/"); r = `${yy}-${mm}-${dd}`; }
+  if (_dateStrCache.size > 20000) _dateStrCache.clear();
+  _dateStrCache.set(d, r);
+  return r;
+}
+function normalizarHorario(h,m){const c=minutosFixos.reduce((p,x)=>Math.abs(x-m)<Math.abs(p-m)?x:p);return`${h.toString().padStart(2,"0")}:${c.toString().padStart(2,"0")}`;}
+function normalizarHorarioStr(h){if(!h)return h;const[hr,mn]=h.split(":").map(Number);return normalizarHorario(hr,mn);}
+function abbreviateTeamName(n){if(!n)return"";const w=n.trim().split(" ");if(w.length>1)return w.map(x=>x.charAt(0).toUpperCase()).join("")+w[w.length-1].slice(0,3).toLowerCase();return n.length>5?n.slice(0,5).toUpperCase():n.toUpperCase();}
+
+
+// Só reconstrói o índice quando o array de odds realmente mudou (mesma referência = mesmo índice)
+let _oddsIdxMemo = { src: null, idx: null };
+function indexarOddsMemo(oddsData) {
+  if (_oddsIdxMemo.idx && _oddsIdxMemo.src === oddsData) return _oddsIdxMemo.idx;
+  const idx = indexarOdds(oddsData || []);
+  _oddsIdxMemo = { src: oddsData, idx };
+  return idx;
+}
+
+function indexarOdds(oddsData) {
+  const tm = {"peixe": "boca"};
+  const map = new Map();
+  oddsData.forEach(odd => {
+    const casa = normalizeString(tm[odd.time_casa?.toLowerCase()] || odd.time_casa);
+    const vis  = normalizeString(tm[odd.time_visitante?.toLowerCase()] || odd.time_visitante);
+    const [hStr, mnStr] = (odd.horario || "").split(":");
+    const h  = parseInt(hStr) || 0;
+    const mn = parseInt(mnStr) || 0;
+    const minNorm = minutosFixos.reduce((p, c) => Math.abs(c - mn) < Math.abs(p - mn) ? c : p);
+    const hor = `${h.toString().padStart(2,"0")}:${minNorm.toString().padStart(2,"0")}`;
+    const set = k => { if (!map.has(k)) map.set(k, odd); };
+    set(`${odd.data_captura}|${hor}|${casa}|${vis}`);
+    set(`${hor}|${casa}|${vis}`);
+    set(`${hor}|${casa}`);
+    set(`${hor}|${vis}`);
+  });
+  return map;
+}
+function findOddsNoIndex(idx,{data,hora,minuto,time_a,time_b}){
+  const tm={"peixe":"boca"};
+  const tA=normalizeString(tm[time_a?.toLowerCase()]||time_a), tB=normalizeString(tm[time_b?.toLowerCase()]||time_b);
+  const dt=formatDateToDDMMYYYY(data), hor=normalizarHorario(hora,minuto);
+  return idx.get(`${dt}|${hor}|${tA}|${tB}`)||idx.get(`${hor}|${tA}|${tB}`)||idx.get(`${hor}|${tA}`)||idx.get(`${hor}|${tB}`)||null;
+}
+function findOddsProximoNoIndex(idx, {time, team_home, team_visit}) {
+  const tm = {"peixe": "boca"};
+  const tA = normalizeString(tm[team_home?.toLowerCase()] || team_home);
+  const tB = normalizeString(tm[team_visit?.toLowerCase()] || team_visit);
+  const parts = (time || "").split(":");
+  const h  = parseInt(parts[0]) || 0;
+  const mn = parseInt(parts[1]) || 0;
+  const minNorm = minutosFixos.reduce((p, c) => Math.abs(c - mn) < Math.abs(p - mn) ? c : p);
+  for (const delta of [0, -1, 1]) {
+    const hAjust = ((h + delta) + 24) % 24;
+    const hor = `${hAjust.toString().padStart(2,"0")}:${minNorm.toString().padStart(2,"0")}`;
+    const found = idx.get(`${hor}|${tA}|${tB}`) || idx.get(`${hor}|${tA}`) || idx.get(`${hor}|${tB}`);
+    if (found) return found;
+  }
+  return null;
+}
+
+
+function getOddValue(odds, res) {
+  const m = {
+    ambasMarcam:    "odds_ambas_marcam_sim",
+    ambasNaoMarcam: "odds_ambas_marcam_nao",
+    casaVence:      "odds_casa_vence",
+    foraVence:      "odds_visitante_vence",
+    empate:         "odds_empate",
+    viradinha:      null,
+    "over0.5":      "odds_mais_0_5",
+    "over1.5":      "odds_mais_1_5",
+    "over2.5":      "odds_mais_2_5",
+    "over3.5":      "odds_mais_3_5",
+    over5:          "odds_mais_5_gols",
+    "under0.5":     "odds_menos_0_5",
+    "under1.5":     "odds_menos_1_5",
+    "under2.5":     "odds_menos_2_5",
+    "under3.5":     "odds_menos_3_5",
+    exato0:         "odds_exato_0_gols",
+    exato1:         "odds_exato_1_gol",
+    exato2:         "odds_exato_2_gols",
+    exato3:         "odds_exato_3_gols",
+    exato4:         "odds_exato_4_gols",
+    exato2t0:       "odds_2t_0_gols",
+    exato2t1:       "odds_2t_1_gol",
+    exato2t2:       "odds_2t_2_gols",
+    exato2t3:       "odds_2t_3_gols",
+    exato2t4:       "odds_2t_4_gols",
+    casa0Gols:      "odds_casa_0_gols",
+    casa1Gol:       "odds_casa_1_gol",
+    casa2Gols:      "odds_casa_2_gols",
+    casa3Gols:      "odds_casa_3_gols",
+    casa4Gols:      "odds_casa_4_gols",
+    fora0Gols:      "odds_fora_0_gols",
+    fora1Gol:       "odds_fora_1_gol",
+    fora2Gols:      "odds_fora_2_gols",
+    fora3Gols:      "odds_fora_3_gols",
+    fora4Gols:      "odds_fora_4_gols",
+  };
+  if (!m[res]) return "N/A";
+  return odds ? odds[m[res]] || "N/A" : "N/A";
+}
+
+
+
+const FETCH_TIMEOUT_MS = 8000;
+const FETCH_TIMEOUT_ODDS_MS = 20000; // odds rodam em segundo plano: podem demorar mais sem travar a tabela
+
+// Guarda o último texto recebido de cada recurso. Se o servidor devolver exatamente o mesmo conteúdo,
+// reaproveita o JSON já interpretado (mesma referência) e evita parse, hash, índice de odds e re-render.
+const _memoFetch = Object.create(null);
+
+async function fetchJsonComTimeout(url, nome, ms = FETCH_TIMEOUT_MS, usarMemo = true) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+    if (!res.ok) throw new Error(`Erro HTTP ${res.status} em ${nome}`);
+    const texto = await res.text();
+    const m = usarMemo ? _memoFetch[nome] : null;
+    if (m && m.texto === texto) return m.json;
+    const json = JSON.parse(texto);
+    if (usarMemo) _memoFetch[nome] = { texto, json };
+    return json;
+  } catch (e) {
+    if (e && e.name === "AbortError") throw new Error(`Tempo esgotado (${ms / 1000}s) em ${nome}`);
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// Quantidade de horas que o servidor precisa devolver (Infinity = histórico completo, sem parâmetro)
+function _qsHoras(horas) {
+  return (Number.isFinite(horas) && horas > 0) ? `&horas=${Math.ceil(horas)}` : "";
+}
+
+// O nome do memo inclui a liga: assim ligas diferentes nunca se misturam nem "brigam" pelo mesmo cache.
+// `liga` e `usarMemo` existem para o pré-carregamento das outras ligas (usarMemo=false não guarda texto na memória).
+async function fetchResultados(horas, liga = LIGA_ATUAL, usarMemo = true) {
+  return fetchJsonComTimeout(ROTAS_API.resultados(liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "resultados:" + liga, FETCH_TIMEOUT_MS, usarMemo);
+}
+
+async function fetchOdds(horas, liga = LIGA_ATUAL, usarMemo = true) {
+  try {
+    return await fetchJsonComTimeout(ROTAS_API.odds(liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "odds:" + liga, FETCH_TIMEOUT_ODDS_MS, usarMemo);
+  } catch(e) {
+    console.error("Erro odds:", e);
+    return null;
+  }
+}
+
+const _proxMemo = new Map();
+async function fetchProximosJogos(liga = LIGA_ATUAL, usarMemo = true) {
+  try {
+    const j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(liga) + `?timestamp=${Date.now()}`, "proximosJogos:" + liga, FETCH_TIMEOUT_MS, usarMemo);
+    const m = usarMemo ? _proxMemo.get(liga) : null;
+    if (m && m.src === j) return m.out;
+    const out = j.slice().sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
+    if (usarMemo) _proxMemo.set(liga, { src: j, out });
+    return out;
+  } catch(e) {
+    console.error("Erro próximos:", e);
+    return null;
+  }
+}
+
+
+function updateSelectedRows(){
+  let sel=document.getElementById("selectedRowsContainer");
+  const mainTable=document.getElementById("tabelaResultados");
+  if(!sel&&mainTable){
+    sel=document.createElement("table"); sel.id="selectedRowsContainer"; sel.className=mainTable.className; sel.style.cssText="width:100%;margin-bottom:10px";
+    const thead=mainTable.querySelector("thead").cloneNode(true);
+    // Remove linha de quadrantes do clone se existir
+    thead.querySelector("#trQuadrantes")?.remove();
+    sel.appendChild(thead); sel.appendChild(document.createElement("tbody"));
+    mainTable.parentNode.insertBefore(sel,mainTable);
+  }
+  if(!sel) return;
+  if(Estado.selectedChaves.length===0){sel.style.display="none";return;}
+  sel.style.display="";
+  const tbody=sel.querySelector("tbody"); tbody.innerHTML="";
+  const ord=[...Estado.selectedChaves].sort((a,b)=>{
+    const pA=a.split("-"),pB=b.split("-");
+    const hA=parseInt(pA[pA.length-1]),hB=parseInt(pB[pB.length-1]);
+    const dA=pA.slice(0,-1).join("-"),dB=pB.slice(0,-1).join("-");
+    return new Date(`${dB}T${hB.toString().padStart(2,"00")}:00:00`)-new Date(`${dA}T${hA.toString().padStart(2,"00")}:00:00`);
+  });
+  ord.forEach(chave=>{
+    const row=document.querySelector(`#tabelaResultados tbody tr[data-chave="${chave}"]`); if(!row) return;
+    const clone=row.cloneNode(true);
+    tbody.appendChild(clone);
+  });
+}
+
+
+function createIconTh(svgKey, title) {
+  const th = document.createElement("th"); th.title = title||"";
+  const wrap = document.createElement("span"); wrap.className = "th-icon";
+  wrap.innerHTML = SVG_ICONS[svgKey]||""; th.appendChild(wrap); return th;
+}
+
+
+function verificarAcerto(selRes, rA, rB, htA, htB) {
+  const tg  = rA + rB;
+  const tg2 = (typeof htA === "number" && typeof htB === "number") ? (rA - htA) + (rB - htB) : null;
+  switch (selRes) {
+    case "ambasMarcam":    return rA > 0 && rB > 0;
+    case "ambasNaoMarcam": return rA === 0 || rB === 0;
+    case "casaVence": return rA > rB;
+    case "foraVence": return rB > rA;
+    case "empate":    return rA === rB;
+    case "viradinha": {
+
+      if (typeof htA !== "number" || typeof htB !== "number") return false;
+
+      const casaVenceuHT = htA > htB;
+      const foraVenceuHT = htB > htA;
+      const casaPerdeuFT = rA < rB;
+      const foraPerdeuFT = rB < rA;
+      return (casaVenceuHT && casaPerdeuFT) || (foraVenceuHT && foraPerdeuFT);
+    }
+    case "over0.5": return tg > 0.5;
+    case "over1.5": return tg > 1.5;
+    case "over2.5": return tg > 2.5;
+    case "over3.5": return tg > 3.5;
+    case "over5":   return tg >= 5;
+    case "under0.5": return tg <= 0.5;
+    case "under1.5": return tg <= 1.5;
+    case "under2.5": return tg <= 2.5;
+    case "under3.5": return tg <= 3.5;
+    case "exato0": return tg === 0;
+    case "exato1": return tg === 1;
+    case "exato2": return tg === 2;
+    case "exato3": return tg === 3;
+    case "exato4": return tg === 4;
+    case "exato2t0": return tg2 !== null && tg2 === 0;
+    case "exato2t1": return tg2 !== null && tg2 === 1;
+    case "exato2t2": return tg2 !== null && tg2 === 2;
+    case "exato2t3": return tg2 !== null && tg2 === 3;
+    case "exato2t4": return tg2 !== null && tg2 === 4;
+    case "casa0Gols": return rA === 0;
+    case "casa1Gol":  return rA === 1;
+    case "casa2Gols": return rA === 2;
+    case "casa3Gols": return rA === 3;
+    case "casa4Gols": return rA === 4;
+    case "fora0Gols": return rB === 0;
+    case "fora1Gol":  return rB === 1;
+    case "fora2Gols": return rB === 2;
+    case "fora3Gols": return rB === 3;
+    case "fora4Gols": return rB === 4;
+    default: return false;
+  }
+}
+
+
+const HF_GALES_PADRAO = 1;
+const HF_DIAS_PADRAO = 5; 
+
+function hfGalesKey() { return `hf_gales_${getLigaKey()}`; }
+
+function hfLerGales() {
+  const v = parseInt(localStorage.getItem(hfGalesKey()), 10);
+  return (v >= 1 && v <= 4) ? v : HF_GALES_PADRAO;
+}
+function hfSalvarGales(v) { localStorage.setItem(hfGalesKey(), String(v)); }
+
+
+function hfDiasKey() { return `hf_dias_${getLigaKey()}`; }
+
+function hfLerDias() {
+  const v = parseInt(localStorage.getItem(hfDiasKey()), 10);
+  return (v === 5 || v === 6) ? v : HF_DIAS_PADRAO;
+}
+function hfSalvarDias(v) { localStorage.setItem(hfDiasKey(), String(v)); }
+
+const HF_ALERTA_OPCOES = [0, 70, 80, 90, 100]; // 0 = desligado
+function hfAlertaKey() { return `hf_alerta_${getLigaKey()}`; }
+function hfLerAlerta() {
+  const v = parseInt(localStorage.getItem(hfAlertaKey()), 10);
+  return HF_ALERTA_OPCOES.includes(v) ? v : 0;
+}
+function hfSalvarAlerta(v) { localStorage.setItem(hfAlertaKey(), String(v)); }
+
+
+const _hfAlertasDisparados = (() => {
+  try { return new Set(JSON.parse(sessionStorage.getItem("hf_alertas_disparados") || "[]")); }
+  catch (e) { return new Set(); }
+})();
+function hfSalvarAlertasSessao() {
+  try { sessionStorage.setItem("hf_alertas_disparados", JSON.stringify(Array.from(_hfAlertasDisparados).slice(-60))); }
+  catch (e) {}
+}
+function hfDispararAlerta(slot, p, horaAlvo, dataAlvo, mercadoLabel, gales, limite) {
+  const key = [getLigaKey(), dataAlvo, horaAlvo, slot.minuto, mercadoLabel, gales, limite].join("|");
+  if (_hfAlertasDisparados.has(key)) return;
+  _hfAlertasDisparados.add(key);
+  hfSalvarAlertasSessao();
+  showToast(`⏰ Hora Fixa: minuto ${String(slot.minuto).padStart(2, "0")} com ${Math.round(p)}% (${slot.green}/${slot.total}) — ${mercadoLabel}, ${gales} gale${gales > 1 ? "s" : ""}`, 6000);
+  buscadorPlayBeep();
+}
+
+
+function hfParseScore(s) {
+  if (!s || typeof s !== "string") return [0, 0];
+  const p = s.split("x").map(v => parseInt(v.trim(), 10) || 0);
+  return p.length === 2 ? p : [0, 0];
+}
+function hfTotalGols(jogo) {
+  const [g1, g2] = hfParseScore(jogo.ft);
+  return g1 + g2;
+}
+
+
+function hfUltimosDias(dados, n = HF_DIAS_PADRAO) {
+  const set = new Set();
+  (dados || []).forEach(j => { if (j && j.data) set.add(getDateStr(j.data)); });
+  return [...set].sort().slice(-n);
+}
+
+
+function hfMontarSlotsHora(dados, horaAlvo, diasSelecionados) {
+  const diasSet = new Set(diasSelecionados);
+  const slots = {};
+  minutosFixos.forEach(m => { slots[m] = {}; });
+  const vistos = new Set();
+  (dados || []).forEach(jogo => {
+    if (jogo.hora !== horaAlvo || jogo.minuto == null || !jogo.data) return;
+    const dia = getDateStr(jogo.data);
+    if (!diasSet.has(dia)) return;
+    const minNorm = minutosFixos.reduce((p, c) => Math.abs(c - jogo.minuto) < Math.abs(p - jogo.minuto) ? c : p);
+    const chave = `${jogo.time_a}|${jogo.time_b}|${dia}|${minNorm}`;
+    if (vistos.has(chave)) return;
+    vistos.add(chave);
+    slots[minNorm][dia] = jogo;
+  });
+  return slots;
+}
+
+
+function hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados) {
+  const slots = hfMontarSlotsHora(dados, horaAlvo, diasSelecionados);
+  const numMins = minutosFixos.length;
+
+
+  const horaSeguinte = (horaAlvo + 1) % 24;
+  const diaSeguinte = (d) => {
+    if (horaAlvo !== 23) return d;
+    const dt = new Date(`${d}T12:00:00`);
+    dt.setDate(dt.getDate() + 1);
+    return dt.toISOString().split("T")[0];
+  };
+  const diasSeguintes = diasSelecionados.map(diaSeguinte);
+  const slotsProx = hfMontarSlotsHora(dados, horaSeguinte, diasSeguintes);
+
+  return minutosFixos.map((baseMin, minIdx) => {
+    const faltam = (minIdx + gales) - numMins; 
+    const comboAtual = minutosFixos.slice(minIdx, Math.min(minIdx + gales, numMins));
+    const comboProx  = faltam > 0 ? minutosFixos.slice(0, faltam) : [];
+
+    let green = 0, red = 0, golsSum = 0;
+    diasSelecionados.forEach((dia, di) => {
+      let temGreen = false, temRed = false;
+      comboAtual.forEach(m => {
+        const jogo = slots[m][dia];
+        if (!jogo) return;
+        if (qdCheckMarket(jogo.ft, jogo.ht, mercado)) temGreen = true;
+        else temRed = true;
+      });
+      if (comboProx.length) {
+        const diaProx = diasSeguintes[di];
+        comboProx.forEach(m => {
+          const jogo = slotsProx[m] && slotsProx[m][diaProx];
+          if (!jogo) return;
+          if (qdCheckMarket(jogo.ft, jogo.ht, mercado)) temGreen = true;
+          else temRed = true;
+        });
+      }
+      if (!temGreen && !temRed) return; 
+
+      if (temGreen) green++; else red++;
+
+      const baseJogo = slots[baseMin][dia];
+      if (baseJogo) golsSum += hfTotalGols(baseJogo);
+    });
+
+    const total = green + red;
+    return { minuto: baseMin, total, green, golsSum };
+  });
+}
+
+function hfClassePct(p) {
+  if (p >= 100) return "hf-100";
+  if (p >= 90)  return "hf-90";
+  if (p >= 80)  return "hf-80";
+  if (p >= 70)  return "hf-70";
+  if (p >= 60)  return "hf-60";
+  if (p >= 50)  return "hf-50";
+  if (p >= 40)  return "hf-40";
+  return "hf-0";
+}
+
+
+const HF_CHECKBOX_KEY = "horaFixaAtiva";
+
+function hfCheckboxAtivo() {
+  return localStorage.getItem(HF_CHECKBOX_KEY) === "1";
+}
+function hfSalvarCheckbox(ativo) {
+  localStorage.setItem(HF_CHECKBOX_KEY, ativo ? "1" : "0");
+}
+
+function hfRemoverEstrutura() {
+  document.getElementById("hf-wrapper-top")?.remove();
+}
+
+function hfAtualizarVisibilidadeControles() {
+  const btn = document.getElementById("btn-hf-config");
+  if (btn) btn.style.display = hfCheckboxAtivo() ? "inline-flex" : "none";
+}
+
+
+function garantirModalHFConfig() {
+  let overlay = document.getElementById("hf-modal-overlay");
+  if (overlay) return overlay;
+
+  if (!document.getElementById("hf-modal-styles")) {
+    const st = document.createElement("style");
+    st.id = "hf-modal-styles";
+    st.textContent = `
+      #btnSalvarHFConfig { background:#157f93; color:#fff; }
+      #btnCancelarHFConfig { background:transparent; color:#5cc3d6; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  overlay = document.createElement("div");
+  overlay.id = "hf-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true">
+      <h4>⚙ Configurar Hora Fixa <span id="hf-modal-liga"></span></h4>
+      <label>Dias
+        <select id="cfg-hf-dias" class="buscador-select">
+          <option value="5">5 dias</option>
+          <option value="6">6 dias</option>
+        </select>
+      </label>
+      <label>Gales
+        <select id="cfg-hf-gales" class="buscador-select">
+          <option value="1">1</option><option value="2">2</option>
+          <option value="3">3</option><option value="4">4</option>
+        </select>
+      </label>
+      <label>Avisar quando a coluna atingir
+        <select id="cfg-hf-alerta" class="buscador-select">
+          <option value="0">Desligado</option>
+          ${HF_ALERTA_OPCOES.filter(n => n > 0).map(n => `<option value="${n}">${n}% ou mais</option>`).join("")}
+        </select>
+      </label>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarHFConfig">Cancelar</button>
+        <button type="button" id="btnSalvarHFConfig">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalHFConfig(); });
+  overlay.querySelector("#btnCancelarHFConfig").addEventListener("click", fecharModalHFConfig);
+  overlay.querySelector("#btnSalvarHFConfig").addEventListener("click", salvarModalHFConfig);
+  return overlay;
+}
+
+function abrirModalHFConfig() {
+  const overlay = garantirModalHFConfig();
+  const ligaSpan = overlay.querySelector("#hf-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+  overlay.querySelector("#cfg-hf-dias").value  = String(hfLerDias());
+  overlay.querySelector("#cfg-hf-gales").value = String(hfLerGales());
+  overlay.querySelector("#cfg-hf-alerta").value = String(hfLerAlerta());
+  overlay.hidden = false;
+}
+
+function fecharModalHFConfig() {
+  const overlay = document.getElementById("hf-modal-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function salvarModalHFConfig() {
+  const overlay = document.getElementById("hf-modal-overlay");
+  if (!overlay) return;
+  hfSalvarDias(parseInt(overlay.querySelector("#cfg-hf-dias").value, 10));
+  hfSalvarGales(parseInt(overlay.querySelector("#cfg-hf-gales").value, 10));
+  hfSalvarAlerta(parseInt(overlay.querySelector("#cfg-hf-alerta").value, 10));
+  setTimeout(refetchSePreciso, 0);
+  fecharModalHFConfig();
+  hfRender(qdDadosCache);
+  showToast(`⚙ Configurações da Hora Fixa salvas${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
+}
+
+function hfToggle(ativo) {
+  if (ativo) setTimeout(refetchSePreciso, 0);
+  hfSalvarCheckbox(ativo);
+  hfAtualizarVisibilidadeControles();
+  if (ativo) hfRender(qdDadosCache);
+  else hfRemoverEstrutura();
+}
+
+function garantirCheckboxHoraFixa() {
+  if (document.getElementById("lbl-horafixa-toggle")) {
+    hfAtualizarVisibilidadeControles();
+    return;
+  }
+  const painel = document.getElementById("painel-cores");
+  if (!painel) return; 
+
+  const lbl = document.createElement("label");
+  lbl.id = "lbl-horafixa-toggle";
+  lbl.className = "alerta-toggle-label";
+  lbl.style.cssText = "margin-left:6px;";
+  lbl.innerHTML = `<input type="checkbox" id="cb-horafixa-toggle"> Hora Fixa`;
+
+  const cb = lbl.querySelector("#cb-horafixa-toggle");
+  cb.checked = hfCheckboxAtivo();
+  if (cb.checked) lbl.classList.add("alerta-ativo");
+
+  cb.addEventListener("change", function () {
+    lbl.classList.toggle("alerta-ativo", this.checked);
+    hfToggle(this.checked);
+  });
+
+  painel.appendChild(lbl);
+
+
+  const btnCfg = document.createElement("button");
+  btnCfg.type = "button";
+  btnCfg.id = "btn-hf-config";
+  btnCfg.className = "btn-buscador-config";
+  btnCfg.style.display = "none";
+  btnCfg.title = "Configurar Hora Fixa";
+  btnCfg.textContent = "⚙";
+  btnCfg.addEventListener("click", abrirModalHFConfig);
+  painel.appendChild(btnCfg);
+
+  hfAtualizarVisibilidadeControles();
+}
+
+
+function hfSincronizarEstiloControles() {
+  const selDias  = document.getElementById("hf-seletor-dias");
+  const selGales = document.getElementById("hf-seletor-gales");
+  const ref = document.querySelector("#seletorHoras") || document.querySelector(".seletor-container select");
+  if (!ref || (!selGales && !selDias)) return;
+  const cs = getComputedStyle(ref);
+  const props = [
+    "height", "minHeight", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "fontSize", "fontFamily", "fontWeight", "color", "backgroundColor",
+    "border", "borderRadius", "boxSizing", "lineHeight"
+  ];
+  [selDias, selGales].forEach(sel => {
+    if (!sel) return;
+    props.forEach(p => { sel.style[p] = cs[p]; });
+    sel.style.width = "auto";
+    sel.style.height = "30px";
+    sel.style.boxSizing = "border-box";
+    sel.style.paddingTop = "0";
+    sel.style.paddingBottom = "0";
+    sel.style.display = "inline-block";
+    sel.style.verticalAlign = "middle";
+  });
+}
+
+function hfGarantirEstrutura() {
+  if (document.getElementById("hf-wrapper-top")) return;
+  const tabela = document.getElementById("tabelaResultados");
+  if (!tabela || !tabela.parentNode) return;
+
+  if (!document.getElementById("hf-styles")) {
+    const st = document.createElement("style");
+    st.id = "hf-styles";
+    st.textContent = `
+      #hf-wrapper-top { margin-bottom: 0; }
+      #hf-table-top { width: 100%; border-collapse: collapse; table-layout: fixed; }
+      #hf-table-top th, #hf-table-top td { text-align: center; padding: 4px 2px; font-size: 0.78em; border: 1px solid rgba(255,255,255,0.08); }
+      #hf-table-top th { background: #1b1c20; color: #d1d5db; font-weight: 700; }
+      #hf-table-top td.hf-hora-cell { background: #222428; color: #e5e7eb; font-weight: 700; width: 34px; }
+      .hf-cell-wrap { display: flex; flex-direction: column; line-height: 1.15; }
+      .hf-cell-pct { font-weight: 700; }
+      .hf-cell-avg { font-size: 0.85em; opacity: 0.85; }
+      .hf-100 { background: #16a34a !important; color: #fff; }
+      .hf-90  { background: #2563eb !important; color: #fff; }
+      .hf-80  { background: #06b6d4 !important; color: #111; }
+      .hf-70  { background: #eab308 !important; color: #111; }
+      .hf-60  { background: #f97316 !important; color: #111; }
+      .hf-50  { background: #ec4899 !important; color: #fff; }
+      .hf-40  { background: #a855f7 !important; color: #fff; }
+      .hf-0   { background: #dc2626 !important; color: #fff; }
+      .hf-alvo { outline: 2px solid #d4af37; outline-offset: -2px; }
+      #hf-controles-inline { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; }
+      #hf-controles-inline label { font-size: 0.76em; font-weight: 600; color: #9ca3af; white-space: nowrap; }
+      #hf-controles-inline select { width: auto !important; max-width: 120px; height: 30px !important; box-sizing: border-box !important; }
+    `;
+    document.head.appendChild(st);
+  }
+
+  const topWrap = document.createElement("div");
+  topWrap.id = "hf-wrapper-top";
+  topWrap.innerHTML = `
+    <table id="hf-table-top">
+      <thead><tr id="hf-header-top"></tr></thead>
+      <tbody><tr id="hf-row-top"></tr></tbody>
+    </table>
+  `;
+  tabela.parentNode.insertBefore(topWrap, tabela);
+}
+
+
+function hfRender(dados) {
+  if (!hfCheckboxAtivo()) { hfRemoverEstrutura(); return; } 
+  hfGarantirEstrutura();
+  if (!document.getElementById("hf-wrapper-top")) return;
+  if (!dados || !dados.length) return;
+
+  const seletorResultado = document.querySelector("#seletorResultado");
+  const mercado = seletorResultado?.value || "over2.5";
+  const mercadoLabel = seletorResultado?.selectedOptions?.[0]?.textContent || mercado;
+  const gales = hfLerGales();
+  const { hora: horaAlvo, dateStr: dataAlvoHF } = qdGetHoraAtual(dados); 
+
+
+  const dadosDaHora = dados.filter(d => d && d.hora === horaAlvo);
+
+
+  const agoraHF = new Date();
+  const hojeStrHF = `${agoraHF.getFullYear()}-${(agoraHF.getMonth()+1).toString().padStart(2,"0")}-${agoraHF.getDate().toString().padStart(2,"0")}`;
+
+
+  const temHojeHF = dadosDaHora.some(d => d && getDateStr(d.data) === hojeStrHF);
+  const historicoHF = hfUltimosDias(dadosDaHora.filter(d => !(d && getDateStr(d.data) === hojeStrHF)), hfLerDias());
+  let diasSelecionados = temHojeHF ? [...historicoHF, hojeStrHF] : historicoHF;
+
+  const linha = hfCalcularLinha(dados, mercado, gales, horaAlvo, diasSelecionados);
+
+  const header = document.getElementById("hf-header-top");
+  const row = document.getElementById("hf-row-top");
+  if (!header || !row) return;
+
+  header.innerHTML = `<th style="width:34px;">H</th>` + minutosFixos.map(m => `<th>${m.toString().padStart(2, "0")}</th>`).join("");
+  row.innerHTML = "";
+  const tdHora = document.createElement("td");
+  tdHora.className = "hf-hora-cell";
+  tdHora.textContent = horaAlvo.toString().padStart(2, "0");
+  row.appendChild(tdHora);
+
+
+  const limiteAlerta = hfLerAlerta();
+  const minJogadoHF = dados.reduce((m, d) =>
+    (d && d.hora === horaAlvo && getDateStr(d.data) === dataAlvoHF) ? Math.max(m, Number(d.minuto)) : m, -1);
+  let primeiroAlvoHF = null;
+
+  linha.forEach(slot => {
+    const p = slot.total > 0 ? (slot.green / slot.total) * 100 : 0;
+    const g = slot.total > 0 ? (slot.golsSum / slot.total) : 0;
+    const td = document.createElement("td");
+    td.className = hfClassePct(p);
+    if (limiteAlerta && slot.minuto > minJogadoHF && slot.total >= 3 && p >= limiteAlerta) {
+      td.classList.add("hf-alvo");
+      if (!primeiroAlvoHF) primeiroAlvoHF = { slot, p };
+    }
+    td.title = `Minuto ${slot.minuto}\nMercado: ${mercadoLabel}\nGales: ${gales}\nAcertos: ${slot.green} de ${slot.total} (${Math.round(p)}%)\nMédia de gols: ${g.toFixed(1)}`;
+    td.innerHTML = slot.total > 0
+      ? `<div class="hf-cell-wrap"><span class="hf-cell-pct">${Math.round(p)}%</span><span class="hf-cell-avg">${g.toFixed(1)}</span></div>`
+      : `<div class="hf-cell-wrap"><span class="hf-cell-pct">${Math.round(p)}%</span></div>`;
+    row.appendChild(td);
+  });
+
+  if (primeiroAlvoHF) {
+    hfDispararAlerta(primeiroAlvoHF.slot, primeiroAlvoHF.p, horaAlvo, dataAlvoHF, mercadoLabel, gales, limiteAlerta);
+  }
+}
+
+
+function criarTabela(dados, oddsData, proximosJogos) {
+  criarOuObterPainel();
+
+  qdOddsCache = oddsData; 
+
+  garantirQuadrantesWrapper();
+
+  const tabela = document.getElementById("tabelaResultados");
+  const tabelaBody = tabela.querySelector("tbody");
+  let thead = tabela.querySelector("thead");
+  if (!thead) { thead = document.createElement("thead"); tabela.insertBefore(thead, tabelaBody); }
+
+
+  thead.innerHTML = "";
+  if (qdCheckboxAtivo()) {
+    qdRenderTabela(dados);
+  }
+
+  const trGolsColuna = document.createElement("tr"); trGolsColuna.id="linhaGolsColuna";
+  trGolsColuna.appendChild(createIconTh("ball","Gols por coluna (total / média)"));
+
+  const trDadosColuna = document.createElement("tr"); trDadosColuna.id="linhaDadosColuna";
+  trDadosColuna.appendChild(createIconTh("chart","Dados por coluna (% acerto / quantidade)"));
+
+  thead.append(trGolsColuna, trDadosColuna);
+
+  const trMinutos = document.createElement("tr");
+
+  const thHora = document.createElement("th"); thHora.title="Hora";
+  const wrapH = document.createElement("span"); wrapH.className="th-icon"; wrapH.innerHTML=SVG_ICONS["clock"]||"";
+  thHora.appendChild(wrapH); thHora.style.cssText="width:26px;min-width:26px;";
+  trMinutos.appendChild(thHora);
+
+  const tamanhoBlocoHeader = _tamanhoBlocoQD();
+  minutosFixos.forEach((m, i) => {
+    const th = document.createElement("th"); th.className="minute-header";
+    th.innerHTML = `${m}<span class="jogo-num">&nbsp;·${String(i+1).padStart(2,"0")}</span>`;
+    const qIdx = Math.floor(i/tamanhoBlocoHeader) % 4;
+    th.classList.add(`qd-${qIdx}`);
+    if (qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) th.classList.add("quadrant-border");
+    if (Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
+    th.addEventListener("click", ()=>toggleColuna(m));
+    trMinutos.appendChild(th);
+  });
+
+  const thGolsLinha = createIconTh("ball","Gols (total / média)"); thGolsLinha.id="th-gols-linha"; thGolsLinha.classList.add("col-combo","col-combo-th");
+  const thDadosLinha = createIconTh("chart","Dados (% acerto / quantidade)"); thDadosLinha.id="th-dados-linha"; thDadosLinha.classList.add("col-combo","col-combo-th");
+  [thGolsLinha,thDadosLinha].forEach(th=>trMinutos.appendChild(th));
+  thead.appendChild(trMinutos);
+
+  tabelaBody.innerHTML = "";
+
+  const seletorHoras      = document.querySelector("#seletorHoras");
+  const seletorResultado  = document.querySelector("#seletorResultado");
+  const seletorTipoPlacar = document.querySelector("#seletorTipoPlacar");
+  const mostrarTimesEl    = document.querySelector("#mostrarTimes");
+  const mostrarHTEl       = document.querySelector("#mostrarHT");
+  const mostrarOddsEl     = document.querySelector("#mostrarOdds");
+  if (!seletorHoras||!seletorResultado||!seletorTipoPlacar||!mostrarTimesEl||!mostrarHTEl||!mostrarOddsEl) {
+    showErrorMessage("Erro interno: Seletores não encontrados."); return;
+  }
+  const mostrarTimes = mostrarTimesEl.value==="sim";
+  const mostrarOdds  = mostrarOddsEl.value==="sim";
+  const mostrarHT    = mostrarHTEl.value==="sim";
+  const horasSel     = parseInt(seletorHoras.value)||12;
+  const selRes       = seletorResultado.value;
+  const tipoPlacar   = seletorTipoPlacar.value;
+  const oddsIndex    = indexarOddsMemo(oddsData);
+
+  dados.sort((a,b)=>tsJogo(b)-tsJogo(a));
+
+  const proximosComHoras = proximosJogos.map(j=>{
+    const[h,mn]=j.time.split(":").map(Number);
+    const closest=minutosFixos.reduce((p,c)=>Math.abs(c-mn)<Math.abs(p-mn)?c:p);
+    return{...j,date:new Date(j.start_time),hora:h,minuto:closest,team_visitante:j.team_visit};
+  }).sort((a,b)=>new Date(b.start_time)-new Date(a.start_time));
+
+
+  const horasFuturasSet=new Set();
+  proximosComHoras.forEach(j=>{
+    const ds=j.captured_date?j.captured_date.split("/").reverse().join("-"):j.date.toISOString().split("T")[0];
+    horasFuturasSet.add(JSON.stringify({hora:j.hora,timestamp:new Date(`${ds}T${j.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds}));
+  });
+
+  const horasDadosMap=new Map();
+  dados.forEach(d=>{
+    const ds=getDateStr(d.data), k=ds+"-"+d.hora;
+    if(horasDadosMap.has(k)) return;
+    horasDadosMap.set(k,{hora:d.hora,timestamp:new Date(`${ds}T${d.hora.toString().padStart(2,"0")}:00:00`).getTime(),data:ds});
+  });
+  const horasDadosLimitadas=Array.from(horasDadosMap.values()).sort((a,b)=>b.timestamp-a.timestamp).slice(0,horasSel);
+
+  const chavesDados=new Set(horasDadosLimitadas.map(h=>`${h.data}-${h.hora}`));
+  const horasFuturasFiltradas=Array.from(horasFuturasSet).map(s=>JSON.parse(s)).filter(h=>!chavesDados.has(`${h.data}-${h.hora}`));
+  const horasUnicas=[...horasFuturasFiltradas,...horasDadosLimitadas].sort((a,b)=>b.timestamp-a.timestamp);
+  const mapeamentoChaveLinha={};
+
+  horasUnicas.forEach(item=>{
+    const chave=`${item.data}-${item.hora}`;
+    const tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
+    const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 1px;";
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
+    cb.style.cssText="display:block;margin:0 auto 1px auto;width:11px;height:11px;cursor:pointer;accent-color:#4ade80;";
+    cb.addEventListener("change",function(){
+      if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
+      else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
+      Estado.salvar();updateSelectedRows();
+    });
+    const horaSpan=document.createElement("span"); horaSpan.textContent=item.hora.toString().padStart(2,"0"); horaSpan.style.cssText="font-size:0.78em;font-weight:700;color:#e5e7eb;";
+    tdHora.appendChild(cb); tdHora.appendChild(horaSpan);
+    tr.appendChild(tdHora);
+    minutosFixos.forEach((m,i)=>{
+      const td=document.createElement("td");
+      const qIdx=Math.floor(i/tamanhoBlocoHeader) % 4;
+      td.classList.add(`qd-cell-${qIdx}`);
+      if(qdCheckboxAtivo() && i>0 && i%tamanhoBlocoHeader===0) td.classList.add("quadrant-border");
+      if(Estado.colunasSelecionadas.includes(m)) td.classList.add("coluna-selecionada");
+      tr.appendChild(td);
+    });
+    const tdGols = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
+    const tdDados = Object.assign(document.createElement("td"),{textContent:"0",className:"col-combo"});
+    tr.appendChild(tdGols); tr.appendChild(tdDados);
+    tabelaBody.appendChild(tr);
+    mapeamentoChaveLinha[chave]=tr;
+  });
+
+
+  function handleFTClick(e) {
+    if(e.target.classList.contains("time-casa")||e.target.classList.contains("time-fora")) return;
+    if(e.target.classList.contains("ht-span")||e.target.closest(".ht-span")) return;
+    const placarEl=e.currentTarget; if(placarEl.classList.contains("placar-futuro")) return;
+    const val=placarEl.getAttribute("data-score-ft"); if(!val) return;
+    Estado.toggleSelecao("placarFTSelecionados",val); aplicarHighlights();
+  }
+  function handleHTClick(e) {
+    e.stopPropagation();
+    const htSpan=e.currentTarget;
+    const placarEl=htSpan.closest(".placar"); if(!placarEl||placarEl.classList.contains("placar-futuro")) return;
+    const val=placarEl.getAttribute("data-score-ht"); if(!val) return;
+    Estado.toggleSelecao("placarHTSelecionados",val); aplicarHighlights();
+  }
+  function handleTimeClick(e) {
+    if(!mostrarTimes) return; const val=e.target.getAttribute("data-full-time"); if(!val) return;
+    Estado.toggleSelecao("timesSelecionados",val); aplicarHighlights();
+  }
+  function handleOddClick(e) {
+    e.stopPropagation();
+    const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
+    if (!txt || txt === "N/A") return;
+    Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
+  }
+  function handleTimeClickFuturo(e) {
+    e.stopPropagation();
+    const val = e.currentTarget.getAttribute("data-full-time"); if(!val) return;
+    Estado.toggleSelecao("timesSelecionados", val); aplicarHighlights();
+  }
+  function handleOddClickFuturo(e) {
+    e.stopPropagation();
+    const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
+    if (!txt || txt === "N/A") return;
+    Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
+  }
+
+
+  const totalGolsPorColuna    = Array(minutosFixos.length).fill(0);
+  const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
+  const processedMatches      = new Set();
+
+
+  const resPorColuna = minutosFixos.map(() => []);
+  const tsPorChave = {};
+  horasUnicas.forEach(h => { tsPorChave[`${h.data}-${h.hora}`] = h.timestamp; });
+
+  dados.forEach(dado => {
+    const ds=getDateStr(dado.data), chave=`${ds}-${dado.hora}`, linha=mapeamentoChaveLinha[chave];
+    const minNorm=minutosFixos.reduce((p,c)=>Math.abs(c-dado.minuto)<Math.abs(p-dado.minuto)?c:p);
+    const mk=`${dado.time_a}|${dado.time_b}|${chave}|${minNorm}`;
+    if(!linha||processedMatches.has(mk)) return;
+    const idx=minutosFixos.indexOf(minNorm); if(idx===-1) return;
+    const cel=linha.children[1+idx]; if(cel.querySelector(".placar")) return;
+
+    const placarFT=dado.ft, placarHT=dado.ht;
+    const primary=tipoPlacar==="ft"?placarFT:placarHT;
+    const secondary=tipoPlacar==="ft"?placarHT:placarFT;
+
+    const placar=document.createElement("div"); placar.className="placar";
+    placar.setAttribute("data-time-a",dado.time_a);
+    placar.setAttribute("data-time-b",dado.time_b);
+    placar.setAttribute("data-score-ft",placarFT);
+    placar.setAttribute("data-score-ht",placarHT);
+
+    const placarTexto=document.createElement("div"); placarTexto.className="placar-texto";
+    let html="";
+    if(mostrarTimes) html+=`<span class="time-casa" style="cursor:pointer" data-full-time="${dado.time_a}">${abbreviateTeamName(dado.time_a)}</span>`;
+    const primaryTxt   = tipoPlacar==="ft" ? primary : `${primary}*`;
+    const secondaryTxt = tipoPlacar==="ft" ? `${secondary}*` : secondary;
+    html+=`<span class="ft-span">${primaryTxt}</span>`;
+    if(mostrarHT) html+=`<span class="ht-span">${secondaryTxt}</span>`;
+    if(mostrarTimes) html+=`<span class="time-fora" style="cursor:pointer" data-full-time="${dado.time_b}">${abbreviateTeamName(dado.time_b)}</span>`;
+    placarTexto.innerHTML=html;
+    placar.appendChild(placarTexto);
+
+    const oddsMatch=findOddsNoIndex(oddsIndex,dado);
+    if(mostrarOdds){
+      const ov=getOddValue(oddsMatch,selRes);
+      const oel=document.createElement("div"); oel.className="odds"; oel.textContent=`@${ov}`;
+      oel.addEventListener("click",handleOddClick); placar.appendChild(oel);
+    }
+    renderizarBadgesMercadosExtras(placar, oddsMatch);
+
+    placar.addEventListener("click",handleFTClick);
+    if(mostrarHT) { const hs=placarTexto.querySelector(".ht-span"); if(hs) hs.addEventListener("click",handleHTClick); }
+    if(mostrarTimes){
+      placar.querySelector(".time-casa")?.addEventListener("click",handleTimeClick);
+      placar.querySelector(".time-fora")?.addEventListener("click",handleTimeClick);
+    }
+
+    const oddTip=getOddValue(oddsMatch,selRes);
+    const tooltip=document.createElement("span"); tooltip.className="tooltip";
+    tooltip.innerHTML=`<span class="times">${dado.time_a} vs ${dado.time_b}</span><span class="placares">${placarFT} <span class="placarHT">(${placarHT})</span></span>${oddTip&&oddTip!=="N/A"?`<span class="odd-tooltip">@${oddTip}</span>`:""}${tooltipMercadosExtrasHTML(oddsMatch)}`;
+    placar.appendChild(tooltip);
+    cel.appendChild(placar);
+    processedMatches.add(mk);
+
+
+    if(Estado.placarFTSelecionados.includes(placarFT)){
+      const cor=Estado.getCorSelecao(Estado.placarFTSelecionados,placarFT,"ft");
+      const ftSpan=placarTexto.querySelector(".ft-span");
+      if(ftSpan){ftSpan.style.setProperty("--sel-color-ft",cor.bg);ftSpan.classList.add("placar-score-ft-sel");}
+    }
+    if(mostrarHT&&Estado.placarHTSelecionados.includes(placarHT)){
+      const cor=Estado.getCorSelecao(Estado.placarHTSelecionados,placarHT,"ht");
+      const htSpan=placarTexto.querySelector(".ht-span");
+      if(htSpan){htSpan.style.setProperty("--sel-color-ht",cor.bg);htSpan.classList.add("placar-score-ht-sel");}
+    }
+    if(mostrarTimes){
+      [".time-casa",".time-fora"].forEach(sel=>{
+        const span=placar.querySelector(sel); if(!span) return;
+        const ft2=span.getAttribute("data-full-time");
+        if(Estado.timesSelecionados.includes(ft2)){const cor=Estado.getCorSelecao(Estado.timesSelecionados,ft2,"time");span.style.setProperty("--sel-color",cor.bg);span.classList.add("time-nome-selecionado");}
+      });
+    }
+    if(mostrarOdds){
+      const oel=placar.querySelector(".odds");
+      if(oel){
+        const oddNorm=oel.textContent.trim().replace(/^@/,"");
+        if(Estado.oddsSelecionadas.includes(oddNorm)){
+          const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,oddNorm,"odd");
+          oel.style.setProperty("--sel-color",cor.bg); oel.classList.add("odd-selecionada");
+        }
+      }
+    }
+
+    const placarAtual = tipoPlacar==="ft" ? placarFT : placarHT;
+    const [rA, rB] = placarAtual.split(" x ").map(n => parseInt(n) || 0);
+    const tg = rA + rB;
+
+    let htA = null, htB = null;
+    if (placarHT && placarFT) {
+      const htParts = placarHT.split(" x ").map(n => parseInt(n) || 0);
+      htA = htParts[0]; htB = htParts[1];
+    }
+
+    const acerto = verificarAcerto(selRes, rA, rB, htA, htB);
+
+    const oddNum = parseFloat(String(oddTip).replace(",", "."));
+    resPorColuna[idx].push({ chave, ts: tsPorChave[chave] || 0, acerto: !!acerto, odd: (isFinite(oddNum) && oddNum > 1) ? oddNum : null });
+
+    cel.setAttribute("data-resultado", acerto ? "acerto" : "erro");
+    cel.style.setProperty("background-color", acerto ? Estado.corGreen : Estado.corRed, "important");
+    aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB);
+
+    if(acerto){linha.children[linha.children.length-1].textContent=parseInt(linha.children[linha.children.length-1].textContent)+1;totalAcertosPorColuna[idx]++;}
+    linha.children[linha.children.length-2].textContent=parseInt(linha.children[linha.children.length-2].textContent)+tg;
+    totalGolsPorColuna[idx]+=tg;
+  });
+
+
+  proximosComHoras.forEach(jogo=>{
+    const dataStr=jogo.captured_date?jogo.captured_date.split("/").reverse().join("-"):jogo.date.toISOString().split("T")[0];
+    const chave=`${dataStr}-${jogo.hora}`, linha=mapeamentoChaveLinha[chave];
+    const mk=`${jogo.team_home}|${jogo.team_visit}|${chave}|${jogo.minuto}`;
+    if(!linha||jogo.minuto===null||processedMatches.has(mk)) return;
+    const jaTemRes=dados.some(d=>{const dd=getDateStr(d.data);return normalizeString(d.time_a)===normalizeString(jogo.team_home)&&normalizeString(d.time_b)===normalizeString(jogo.team_visit)&&dd===dataStr&&d.hora===jogo.hora&&d.minuto===jogo.minuto;});
+    if(jaTemRes) return;
+    const idx=minutosFixos.indexOf(jogo.minuto); if(idx===-1) return;
+    const cel=linha.children[1+idx]; if(cel.querySelector(".placar")) return;
+    cel.classList.add("cel-proximo-jogo");
+
+    const placar=document.createElement("div"); placar.className="placar placar-futuro";
+    placar.setAttribute("data-time-a",jogo.team_home); placar.setAttribute("data-time-b",jogo.team_visit);
+
+    const placarTexto=document.createElement("div"); placarTexto.className="placar-texto";
+    if(mostrarTimes) {
+      placarTexto.innerHTML=`<span class="time-casa" style="cursor:pointer" data-full-time="${jogo.team_home}">${abbreviateTeamName(jogo.team_home)}</span><span class="time-fora" style="cursor:pointer" data-full-time="${jogo.team_visit}">${abbreviateTeamName(jogo.team_visit)}</span>`;
+    } else {
+
+      placarTexto.innerHTML=`<span class="time-casa" data-full-time="${jogo.team_home}">${abbreviateTeamName(jogo.team_home)}</span><span class="time-fora" data-full-time="${jogo.team_visit}">${abbreviateTeamName(jogo.team_visit)}</span>`;
+    }
+    placar.appendChild(placarTexto);
+    rkMarcarPlacar(placar);
+
+    const oddsP=findOddsProximoNoIndex(oddsIndex,jogo);
+    const oddVal=getOddValue(oddsP,selRes);
+
+    if(mostrarOdds && oddVal && oddVal!=="N/A") {
+      const oddDiv=Object.assign(document.createElement("div"),{className:"placar-futuro-odd",textContent:`@${oddVal}`});
+      oddDiv.addEventListener("click", handleOddClickFuturo);
+      if(Estado.oddsSelecionadas.includes(oddVal)) {
+        const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,oddVal,"odd");
+        oddDiv.style.setProperty("--sel-color",cor.bg);
+        oddDiv.classList.add("odd-selecionada");
+      }
+      placar.appendChild(oddDiv);
+    }
+    renderizarBadgesMercadosExtras(placar, oddsP);
+
+    if(mostrarTimes){
+      const timeCasa = placar.querySelector(".time-casa");
+      const timeFora = placar.querySelector(".time-fora");
+      timeCasa?.addEventListener("click", handleTimeClickFuturo);
+      timeFora?.addEventListener("click", handleTimeClickFuturo);
+      [timeCasa, timeFora].forEach(span => {
+        if (!span) return;
+        const ft2 = span.getAttribute("data-full-time");
+        if(Estado.timesSelecionados.includes(ft2)){
+          const cor=Estado.getCorSelecao(Estado.timesSelecionados,ft2,"time");
+          span.style.setProperty("--sel-color",cor.bg);
+          span.classList.add("time-nome-selecionado");
+        }
+      });
+    }
+
+    const tooltip=document.createElement("span"); tooltip.className="tooltip";
+    tooltip.innerHTML=`<span class="times">${jogo.team_home} vs ${jogo.team_visit}</span>${mostrarOdds&&oddVal&&oddVal!=="N/A"?`<span class="odd-tooltip">@${oddVal}</span>`:""}${tooltipMercadosExtrasHTML(oddsP)}`;
+    placar.appendChild(tooltip);
+    cel.appendChild(placar);
+    processedMatches.add(mk);
+  });
+
+
+  const todasLinhasFooter=Array.from(tabelaBody.querySelectorAll("tr"));
+  const totMercadoCol=Array(minutosFixos.length).fill(0);
+  todasLinhasFooter.forEach(row=>{Array.from(row.cells).slice(1,-2).forEach((c,i)=>{if(c.querySelector(".placar")&&!c.querySelector(".placar-futuro"))totMercadoCol[i]++;});});
+
+
+  totalGolsPorColuna.forEach((t,i)=>{
+    const tot=totMercadoCol[i];
+    const media=tot>0?(t/tot).toFixed(1):"0.0";
+    const cell=document.createElement("td"); cell.className="col-combo-top";
+    cell.innerHTML=`<span class="valor-principal">${t}</span><span class="valor-sub">${media}</span>`;
+    trGolsColuna.appendChild(cell);
+  });
+
+  totMercadoCol.forEach((tot,i)=>{
+    const acertosCol=totalAcertosPorColuna[i];
+    const pct=tot>0?Math.floor((acertosCol/tot)*100):0;
+    const cell=document.createElement("td"); cell.className=`col-combo-top ${getClassePct(pct)}`;
+    cell.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">${acertosCol}</span>`;
+    trDadosColuna.appendChild(cell);
+  });
+  trGolsColuna.appendChild(document.createElement("td")); trGolsColuna.appendChild(document.createElement("td"));
+  trDadosColuna.appendChild(document.createElement("td")); trDadosColuna.appendChild(document.createElement("td"));
+
+  const todasLinhas=todasLinhasFooter;
+  todasLinhas.forEach(row=>{
+    const total=Array.from(row.cells).slice(1,-2).filter(c=>c.querySelector(".placar")&&!c.querySelector(".placar-futuro")).length;
+    const tdGolsRow=row.children[row.children.length-2];
+    const totalGolsRow=parseInt(tdGolsRow.textContent)||0;
+    const media = total>0 ? (totalGolsRow/total).toFixed(1) : "0.0";
+    tdGolsRow.className="col-combo";
+    tdGolsRow.innerHTML=`<span class="valor-principal">${totalGolsRow}</span><span class="valor-sub">${media}</span>`;
+
+    const tdDadosRow=row.children[row.children.length-1];
+    const acertos=parseInt(tdDadosRow.textContent)||0;
+    const pct=total>0?Math.floor((acertos/total)*100):0;
+    tdDadosRow.className=`col-combo ${getClassePct(pct)}`;
+    tdDadosRow.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">${acertos}</span>`;
+  });
+
+  criarOuObterPainel(); aplicarHighlights(); updateSelectedRows(); aplicarColunaHighlights(); atualizarColunaStats(); aplicarOraculoTabela();
+  garantirPainelCores(); sincronizarPainelCores();
+  atualizarCheckboxStreak(); calcularStreakMaximo();
+  iniciarObserverStreak();
+
+
+  let tfoot = tabela.querySelector("tfoot");
+  if (!tfoot) { tfoot = document.createElement("tfoot"); tabela.appendChild(tfoot); }
+  tfoot.innerHTML = "";
+  const trFootMinutos = document.createElement("tr");
+  const thFootHora = document.createElement("th"); thFootHora.style.cssText="width:26px;min-width:26px;text-align:center;font-size:0.7em;color:#9ca3af;padding:2px;";
+  thFootHora.innerHTML=SVG_ICONS["clock"]||""; trFootMinutos.appendChild(thFootHora);
+  const tamanhoBlocoFooter=_tamanhoBlocoQD();
+  minutosFixos.forEach((m,i)=>{
+    const th=document.createElement("th"); th.className="minute-header";
+    th.innerHTML = `${m}<span class="jogo-num">&nbsp;·${String(i+1).padStart(2,"0")}</span>`;
+    const qIdx=Math.floor(i/tamanhoBlocoFooter) % 4; th.classList.add(`qd-${qIdx}`);
+    if(qdCheckboxAtivo()&&i>0&&i%tamanhoBlocoFooter===0) th.classList.add("quadrant-border");
+    if(Estado.colunasSelecionadas.includes(m)) th.classList.add("coluna-selecionada");
+    th.addEventListener("click",()=>toggleColuna(m));
+    trFootMinutos.appendChild(th);
+  });
+  const thFG=document.createElement("th"); thFG.id="th-foot-gols"; thFG.classList.add("col-combo"); thFG.innerHTML=SVG_ICONS["ball"]||""; trFootMinutos.appendChild(thFG);
+  const thFD=document.createElement("th"); thFD.id="th-foot-dados"; thFD.classList.add("col-combo"); thFD.innerHTML=SVG_ICONS["chart"]||""; trFootMinutos.appendChild(thFD);
+  tfoot.appendChild(trFootMinutos);
+
+  aplicarEstadoStatsLaterais();
+
+
+  qdDadosCache = dados;
+  if (qdCheckboxAtivo()) qdRenderTabelaValores(dados);
+  aplicarBuscadorTabela();
+
+
+  rkSincronizar();
+
+
+  hfRender(dados);
+
+
+  aplicarZonaGreen(); 
+
+  anAtualizar({ res: resPorColuna, totMercado: totMercadoCol, totGols: totalGolsPorColuna });
+}
+
+
+function aplicarEstadoStatsLaterais() {
+  const ocultas = localStorage.getItem("statsLateraisOcultas") === "1";
+  const tabela = document.getElementById("tabelaResultados");
+  if (tabela) tabela.classList.toggle("stats-laterais-ocultas", ocultas);
+  const selRows = document.getElementById("selectedRowsContainer");
+  if (selRows) selRows.classList.toggle("stats-laterais-ocultas", ocultas);
+
+  const cb = document.getElementById("cb-stats-laterais");
+  if (cb) cb.checked = !ocultas;
+}
+
+
+let _streakDebounceTimer = null;
+function iniciarObserverStreak() {
+  const tabela = document.getElementById("tabelaResultados");
+  if (!tabela || tabela._streakObserver) return;
+  const observer = new MutationObserver(() => {
+    clearTimeout(_streakDebounceTimer);
+    _streakDebounceTimer = setTimeout(() => { calcularStreakMaximo(); }, 120);
+  });
+  observer.observe(tabela, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-resultado"] });
+  tabela._streakObserver = observer;
+}
+
+
+let _cacheOddsData = [];
+let _cacheProximosJogos = [];
+let _cacheResultados = [];
+let _renderizandoRapido = false; 
+
+let _versaoBusca = 0;
+let _falhasResultadosSeguidas = 0;
+const FALHAS_ATE_AVISAR = 5; 
+
+
+var _ultimaAssinaturaRender = null;
+let _ultimoRenderEm = 0;
+const RENDER_FORCA_A_CADA_MS = 60000; 
+
+const _CHAVES_RENDER_RE = /^(zonaGreenAtivo|oraculoAtivo|buscadorAtivo|alertaStreakAtivo|statsLateraisOcultas|rankingTop5Ativo|quadrantesAtivos|horaFixaAtiva|corGreen|corRed|corDestaqueExtra|buscadorAmostraMinima|placarSelecionados)$|^(placarFTSelecionados|placarHTSelecionados|timesSelecionados|oddsSelecionadas|mercadosExtras|selectedChaves|colunasSelecionadas|seletorHoras|buscadorSinal|buscadorConfig|hf_gales|hf_dias|hf_alerta|rk_config)/;
+
+function _fnvNum(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+const _hashMemo = new WeakMap();
+function _hashLista(arr) {
+  if (!arr || !arr.length) return "0";
+  const m = _hashMemo.get(arr);
+  if (m && m.len === arr.length) return m.h;
+  const h = _hashListaCalc(arr);
+  _hashMemo.set(arr, { len: arr.length, h });
+  return h;
+}
+function _hashListaCalc(arr) {
+  if (!arr || !arr.length) return "0";
+  try {
+    let soma = 0, mistura = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const h = _fnvNum(JSON.stringify(arr[i]));
+      soma = (soma + h) >>> 0;
+      mistura = (mistura ^ Math.imul(h, 2654435761)) >>> 0;
+    }
+    return arr.length + "_" + soma.toString(36) + "_" + mistura.toString(36);
+  } catch (e) { return "x" + Date.now(); }
+}
+function _assinaturaUI() {
+  let sels = "";
+  document.querySelectorAll("select").forEach(el => { sels += (el.id || el.name || "") + "=" + el.value + ","; });
+  let ls = "";
+  try {
+    const ks = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (_CHAVES_RENDER_RE.test(k)) ks.push(k);
+    }
+    ks.sort();
+    ls = ks.map(k => k + "=" + String(localStorage.getItem(k)).slice(0, 2000)).join("|");
+  } catch (e) { ls = "x" + Date.now(); }
+  const est = JSON.stringify([
+    Estado.placarFTSelecionados, Estado.placarHTSelecionados, Estado.timesSelecionados,
+    Estado.oddsSelecionadas, Estado.mercadosExtras, Estado.colunasSelecionadas, Estado.selectedChaves,
+    Estado.corGreen, Estado.corRed, Estado.corDestaqueExtra
+  ]);
+  const d = new Date();
+  const agora = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`;
+  return [getLigaKey(), sels, ls, est, minutosFixos.join(","), qdNumPreviousHours, agora].join("§");
+}
+
+function renderizarTabelaSeMudou(dados, odds, proximos, forcar) {
+  const sig = _hashLista(dados) + "§" + _hashLista(odds) + "§" + _hashLista(proximos) + "§" + _assinaturaUI();
+  const temConteudo = !!document.querySelector("#tabelaResultados tbody tr");
+  const vencido = (Date.now() - _ultimoRenderEm) > RENDER_FORCA_A_CADA_MS;
+  if (!forcar && temConteudo && !vencido && sig === _ultimaAssinaturaRender) return false;
+  criarTabela(dados, odds, proximos);
+  _ultimaAssinaturaRender = sig;
+  _ultimoRenderEm = Date.now();
+  return true;
+}
+
+// ── Quantas horas de histórico a tela realmente precisa ──
+// Seletor de horas + quadrantes. Ferramentas que olham mais longe aumentam o pedido:
+//   Hora Fixa  -> mesma hora dos últimos N dias
+//   Buscador   -> histórico completo (Infinity = sem limite)
+function horasNecessarias() {
+  if (localStorage.getItem("buscadorAtivo") === "1") return Infinity;
+  qdCarregarQuantidade();
+  const sel = parseInt(document.querySelector("#seletorHoras")?.value, 10) || 12;
+  let n = Math.max(sel, qdNumPreviousHours + 1);
+  if (hfCheckboxAtivo()) n = Math.max(n, (hfLerDias() + 1) * 24);
+  return n + 2; // margem: hora atual, Oráculo e jogos futuros
+}
+
+let _cacheHoras = 0;      // horas cobertas pelos resultados em cache
+let _cacheHorasOdds = 0;  // horas cobertas pelas odds em cache
+let _oddsUltimaBusca = 0;
+let _oddsEmVoo = false;
+let _proxEmVoo = false;
+let _pProxAtual = Promise.resolve();
+let _renderTimer = null;
+const ODDS_INTERVALO_MS = 6000; // odds mudam pouco: não precisam ser baixadas a cada 3s
+
+// Quando o usuário liga uma ferramenta que precisa de mais histórico, busca na hora
+function refetchSePreciso() {
+  const h = horasNecessarias();
+  if (h > _cacheHoras || h > _cacheHorasOdds) {
+    _ultimaAssinaturaRender = null;
+    _buscarDadosSeguro();
+  }
+}
+
+// ── Cache local por liga ──
+// Resultados, odds e próximos jogos são guardados SEPARADOS (localStorage), cada um assim que chega.
+// Antes era um único pacote gravado no máximo a cada 20s, geralmente no primeiro render (ainda sem odds/próximos),
+// por isso ao voltar numa liga a tabela vinha sem odds e sem próximos confrontos.
+const CACHE_LOCAL_PREFIXO = "dvcache2_";
+const CACHE_LOCAL_VALIDADE_MS = 30 * 60 * 1000;
+const CACHE_LOCAL_MAX_CHARS = 2500000;
+
+function ligaKeyDe(nome) { return String(nome).trim().toLowerCase().replace(/\s+/g, "_"); }
+function _cacheChave(lk, tipo) { return `${CACHE_LOCAL_PREFIXO}${lk}|${tipo}`; }
+
+function limparCacheLocal(manter) {
+  try {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith(CACHE_LOCAL_PREFIXO) && k !== manter)
+      .forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
+}
+
+function cacheGravar(lk, tipo, dados, horas) {
+  try {
+    if (!Array.isArray(dados) || !dados.length) return;
+    const chave = _cacheChave(lk, tipo);
+    const txt = JSON.stringify({ t: Date.now(), h: Number.isFinite(horas) ? horas : -1, d: dados });
+    if (txt.length > CACHE_LOCAL_MAX_CHARS) { localStorage.removeItem(chave); return; }
+    try { localStorage.setItem(chave, txt); }
+    catch (e) { limparCacheLocal(chave); try { localStorage.setItem(chave, txt); } catch (e2) {} }
+  } catch (e) {}
+}
+
+// Só regrava quando o array é outro (o servidor devolvendo o mesmo texto reaproveita a mesma referência)
+const _cacheGravadoRef = Object.create(null);
+function cacheGravarSeMudou(lk, tipo, dados, horas) {
+  if (!Array.isArray(dados) || !dados.length) return;
+  const k = lk + "|" + tipo;
+  if (_cacheGravadoRef[k] === dados) return;
+  _cacheGravadoRef[k] = dados;
+  setTimeout(() => cacheGravar(lk, tipo, dados, horas), 0);
+}
+
+function cacheLer(lk, tipo) {
+  try {
+    const raw = localStorage.getItem(_cacheChave(lk, tipo));
+    if (!raw) return null;
+    const c = JSON.parse(raw);
+    if (!c || !Array.isArray(c.d) || (Date.now() - c.t) > CACHE_LOCAL_VALIDADE_MS) return null;
+    return { dados: c.d, horas: c.h === -1 ? Infinity : (c.h || 0) };
+  } catch (e) { return null; }
+}
+
+// Jogos futuros que já passaram do horário não podem aparecer como "próximo confronto"
+function _proxAindaValidos(lista) {
+  const limite = Date.now() - 60000;
+  return (lista || []).filter(j => !(new Date(j.start_time).getTime() < limite));
+}
+
+// Memória da sessão: trocar de liga e voltar (sem recarregar a página) é instantâneo
+const _ligaStore = new Map();
+function guardarLigaNoStore(lk) {
+  if (!lk || !_cacheResultados.length) return;
+  _ligaStore.set(lk, {
+    res: _cacheResultados, odds: _cacheOddsData, prox: _cacheProximosJogos,
+    horas: _cacheHoras, horasOdds: _cacheHorasOdds
+  });
+}
+
+// Preenche as variáveis _cache* da liga a partir da memória ou do localStorage. Não renderiza.
+function carregarDadosDaLiga(lk) {
+  const s = _ligaStore.get(lk);
+  if (s) {
+    _cacheResultados = s.res; _cacheOddsData = s.odds; _cacheProximosJogos = _proxAindaValidos(s.prox);
+    _cacheHoras = s.horas; _cacheHorasOdds = s.horasOdds;
+    _oddsUltimaBusca = 0;
+    return _cacheResultados.length > 0;
+  }
+  const r = cacheLer(lk, "res");
+  if (!r) return false;
+  const o = cacheLer(lk, "odds"), p = cacheLer(lk, "prox");
+  _cacheResultados = r.dados; _cacheHoras = r.horas;
+  _cacheOddsData = o ? o.dados : []; _cacheHorasOdds = o ? o.horas : 0;
+  _cacheProximosJogos = p ? _proxAindaValidos(p.dados) : [];
+  _oddsUltimaBusca = 0;
+  return true;
+}
+
+function hidratarDoCacheLocal() {
+  try {
+    const lk = getLigaKey();
+    if (!carregarDadosDaLiga(lk)) return false;
+    Estado._ultimaLigaRenderizada = lk;
+    restaurarHorasSeletor();
+    qdDadosCache = _cacheResultados;
+    renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, true);
+    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+    return true;
+  } catch (e) {
+    console.warn("Cache local ignorado:", e);
+    return false;
+  }
+}
+
+// ── Pré-carregamento das outras ligas da mesma casa ──
+// Em segundo plano, baixa resultados + odds + próximos das ligas "irmãs" e grava no cache.
+// Quando o usuário troca de liga, a tabela já abre completa (com odds e próximos) e só atualiza depois.
+// Se os nomes aceitos pela API forem outros, defina window.PRELOAD_LIGAS = ["nome1","nome2"] antes deste script.
+const PRELOAD_INTERVALO_MS = 8 * 60 * 1000; // cada liga é renovada no máximo a cada 8 min
+const PRELOAD_HORAS_MAX = 48;
+let _preloadEmAndamento = false;
+
+function _casaDaLiga(nome) {
+  if (typeof LIGAS_INFO !== "undefined" && LIGAS_INFO[nome]) return LIGAS_INFO[nome].casa;
+  const p = String(nome).split(" ")[0];
+  return ["1win", "BetGreen", "Kiron"].includes(p) ? p : "Estrelabet";
+}
+
+function ligasParaPrecarregar() {
+  if (typeof LIGA_ATUAL === "undefined" || !LIGA_ATUAL) return [];
+  if (Array.isArray(window.PRELOAD_LIGAS)) return window.PRELOAD_LIGAS.filter(n => n !== LIGA_ATUAL);
+  const casa = _casaDaLiga(LIGA_ATUAL);
+  return Object.keys(MINUTOS_POR_LIGA).filter(n => n !== LIGA_ATUAL && _casaDaLiga(n) === casa);
+}
+
+// A troca de liga é uma navegação de página: o "quando foi pré-carregada" precisa sobreviver entre páginas.
+function _preloadQuando(lk) { return parseInt(localStorage.getItem("dvpreload_" + lk), 10) || 0; }
+function _preloadMarcar(lk) { try { localStorage.setItem("dvpreload_" + lk, String(Date.now())); } catch (e) {} }
+
+// Uma liga por chamada (a mais "velha" primeiro): custo constante no servidor, mesmo com 9 ligas irmãs.
+async function precarregarLigasIrmas() {
+  if (_preloadEmAndamento || !_tabVisibleTabela || !_cacheResultados.length) return;
+  const agora = Date.now();
+  const liga = ligasParaPrecarregar()
+    .filter(n => {
+      const lk = ligaKeyDe(n);
+      return (agora - _preloadQuando(lk)) >= PRELOAD_INTERVALO_MS || localStorage.getItem(_cacheChave(lk, "res")) === null;
+    })
+    .sort((a, b) => _preloadQuando(ligaKeyDe(a)) - _preloadQuando(ligaKeyDe(b)))[0];
+  if (!liga) return;
+
+  _preloadEmAndamento = true;
+  try {
+    const lk = ligaKeyDe(liga);
+    _preloadMarcar(lk);
+    const horasPedido = Math.min(horasNecessarias(), PRELOAD_HORAS_MAX);
+    const [d, o, p] = await Promise.all([
+      fetchResultados(horasPedido, liga, false).catch(() => null),
+      fetchOdds(horasPedido, liga, false),
+      fetchProximosJogos(liga, false)
+    ]);
+    if (Array.isArray(d) && d.length) {
+      cacheGravar(lk, "res", d, horasPedido);
+      if (Array.isArray(o) && o.length) cacheGravar(lk, "odds", o, horasPedido);
+      if (Array.isArray(p) && p.length) cacheGravar(lk, "prox", p, 0);
+    }
+  } catch (e) {
+    console.warn("Pré-carregamento falhou:", e);
+  } finally {
+    _preloadEmAndamento = false;
+  }
+}
+
+// Junta num único render as respostas que chegam quase juntas (resultados, odds, próximos)
+function agendarRender() {
+  if (_renderTimer) return;
+  _renderTimer = setTimeout(() => {
+    _renderTimer = null;
+    if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) return;
+    try {
+      qdDadosCache = _cacheResultados;
+      renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, false);
+      if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+    } catch (e) { console.error("Erro ao renderizar tabela:", e); }
+  }, 30);
+}
+
+async function buscarDados() {
+  const minhaVersao = ++_versaoBusca;
+  hideErrorMessage();
+  restaurarHorasSeletor();
+  const ligaAtual = getLigaKey();
+  Estado.recarregarChaves();
+  if (Estado._ultimaLigaRenderizada !== ligaAtual) {
+    guardarLigaNoStore(Estado._ultimaLigaRenderizada); // memória da liga que está saindo
+    Estado.forcarRerender();
+    Estado._ultimaLigaRenderizada = ligaAtual;
+    _ultimaLigaHorasRestauradas = null;
+
+    _cacheResultados = []; _cacheOddsData = []; _cacheProximosJogos = [];
+    _cacheHoras = 0; _cacheHorasOdds = 0; _oddsUltimaBusca = 0;
+    Estado.carregar();
+    const trQDantigo = document.querySelector("#trQuadrantes");
+    if (trQDantigo) trQDantigo.remove();
+
+    buscadorSinalPendente = buscadorCarregarSinal();
+    buscadorUltimoAlertaKey = null;
+
+    // Liga que já foi vista (ou pré-carregada): pinta na hora com resultados + odds + próximos
+    if (carregarDadosDaLiga(ligaAtual)) {
+      try {
+        restaurarHorasSeletor();
+        qdDadosCache = _cacheResultados;
+        renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, true);
+        if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+      } catch (e) { console.error("Erro ao pintar liga do cache:", e); }
+    }
+  }
+
+  const horas = horasNecessarias();
+
+  // Troca de mercado/seletor: redesenha com o que já está em memória (sem esperar rede)
+  if (_renderizandoRapido && _cacheResultados.length > 0) {
+    _renderizandoRapido = false;
+    qdDadosCache = _cacheResultados;
+    renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, true);
+    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+    if (horas <= _cacheHoras) return; // o cache já cobre o que foi pedido
+  }
+  _renderizandoRapido = false;
+
+  const ligaNaoMudou = () => Estado._ultimaLigaRenderizada === ligaAtual;
+  const agora = Date.now();
+
+  // Os três pedidos saem juntos e cada um atualiza a tela assim que chega,
+  // sem um esperar o outro (antes as odds só apareciam depois de odds E próximos).
+  const pRes = fetchResultados(horas).then(d => {
+    if (!ligaNaoMudou()) return;
+    _falhasResultadosSeguidas = 0;
+    if (d.length > 0) { _cacheResultados = d; _cacheHoras = horas; cacheGravarSeMudou(ligaAtual, "res", d, horas); }
+    agendarRender();
+  }).catch(e => {
+    _falhasResultadosSeguidas++;
+    console.warn("Falha ao buscar resultados (tentando de novo):", e.message);
+    if (_cacheResultados.length === 0 || _falhasResultadosSeguidas >= FALHAS_ATE_AVISAR) {
+      showErrorMessage(`Erro ao carregar resultados: ${e.message}`);
+    }
+  });
+
+  if (!_proxEmVoo) {
+    _proxEmVoo = true;
+    _pProxAtual = fetchProximosJogos().then(p => {
+      if (p !== null && ligaNaoMudou()) { _cacheProximosJogos = p; cacheGravarSeMudou(ligaAtual, "prox", p, 0); }
+    }).finally(() => { _proxEmVoo = false; agendarRender(); });
+  }
+
+  const precisaOdds = _cacheOddsData.length === 0 || horas > _cacheHorasOdds || (agora - _oddsUltimaBusca) >= ODDS_INTERVALO_MS;
+  if (!_oddsEmVoo && precisaOdds) {
+    _oddsEmVoo = true;
+    _oddsUltimaBusca = agora;
+    fetchOdds(horas).then(o => {
+      if (o !== null && ligaNaoMudou()) { _cacheOddsData = o; _cacheHorasOdds = horas; cacheGravarSeMudou(ligaAtual, "odds", o, horas); }
+    }).finally(() => { _oddsEmVoo = false; agendarRender(); });
+  }
+
+  // O ciclo só espera os resultados; odds e próximos continuam em segundo plano
+  await pRes;
+  if (minhaVersao !== _versaoBusca) return;
+
+  if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) {
+    await _pProxAtual;
+    if (minhaVersao !== _versaoBusca) return;
+    if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) showErrorMessage("Nenhum dado disponível.");
+  }
+}
+
+
+function aplicarZonaGreen() {
+
+  if (localStorage.getItem("zonaGreenAtivo") !== "1") {
+    document.querySelectorAll(".zg-low,.zg-mid,.zg-high,.zg-hot").forEach(el => el.classList.remove("zg-low","zg-mid","zg-high","zg-hot"));
+    return;
+  }
+  const linhas = Array.from(document.querySelectorAll("#tabelaResultados tbody tr"));
+
+  minutosFixos.forEach((m, colIdx) => {
+    let acertos = 0, total = 0;
+    linhas.forEach(row => {
+      const cel = row.cells[1 + colIdx]; if (!cel) return;
+      const tipo = cel.getAttribute("data-resultado");
+      if (tipo === "acerto") { acertos++; total++; }
+      else if (tipo === "erro") { total++; }
+    });
+
+    const pct = total > 0 ? (acertos / total) * 100 : 0;
+    let zgClass;
+    if (pct < 30)      zgClass = "zg-low";
+    else if (pct < 50) zgClass = "zg-mid";
+    else if (pct < 70) zgClass = "zg-high";
+    else               zgClass = "zg-hot";
+
+    linhas.forEach(row => {
+      const cel = row.cells[1 + colIdx]; if (!cel) return;
+      cel.classList.remove("zg-low","zg-mid","zg-high","zg-hot");
+      if (cel.getAttribute("data-resultado")) cel.classList.add(zgClass);
+    });
+  });
+}
+
+
+
+
+const RK_TAM_OPCOES   = [3, 5, 8];
+const RK_JOGOS_OPCOES = [20, 40, 60, 100];
+const RK_CONFIG_PADRAO = { tam: 5, fonte: "ranking", jogos: 60 };
+
+function rkConfigKey() { return `rk_config_${getLigaKey()}`; }
+
+function rkLerConfig() {
+  const base = { ...RK_CONFIG_PADRAO };
+  try {
+    const salvo = JSON.parse(localStorage.getItem(rkConfigKey()));
+    if (salvo && typeof salvo === "object") {
+      return {
+        tam:   RK_TAM_OPCOES.includes(salvo.tam)     ? salvo.tam   : base.tam,
+        fonte: (salvo.fonte === "calculo")           ? "calculo"   : "ranking",
+        jogos: RK_JOGOS_OPCOES.includes(salvo.jogos) ? salvo.jogos : base.jogos
+      };
+    }
+  } catch (e) {}
+  return base;
+}
+function rkSalvarConfig(cfg) { localStorage.setItem(rkConfigKey(), JSON.stringify(cfg)); }
+
+function rkCalcularTop5(dados, nJogos, tam = 5) {
+  const ts = {};
+  dados.slice(0, nJogos).forEach(d => {
+    const { time_a, time_b, ft } = d;
+    if (!ft || !ft.includes(" x ")) return;
+    const [gA, gB] = ft.split(" x ").map(Number);
+    if (isNaN(gA) || isNaN(gB)) return;
+    [time_a, time_b].forEach(n => { if (!ts[n]) ts[n] = { pts:0, gp:0, gc:0 }; });
+    ts[time_a].gp += gA; ts[time_a].gc += gB;
+    ts[time_b].gp += gB; ts[time_b].gc += gA;
+    if      (gA > gB) { ts[time_a].pts += 3; }
+    else if (gA === gB) { ts[time_a].pts += 1; ts[time_b].pts += 1; }
+    else                { ts[time_b].pts += 3; }
+  });
+  return new Set(
+    Object.entries(ts)
+      .sort(([,a],[,b]) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp)
+      .slice(0, tam)
+      .map(([nome]) => nome)
+  );
+}
+
+
+let _rkTop5Cache = new Set();
+
+function rkLerTop5DoDOM(tam) {
+  const n = tam || rkLerConfig().tam;
+  const nomes = new Set();
+  document.querySelectorAll("#rankingContainer .rk3-tbl tbody tr").forEach((tr, i) => {
+    if (i >= n) return;
+    const span = tr.querySelector(".rk3-team .rk-name-wrap span:first-child");
+    if (span && span.textContent.trim()) nomes.add(span.textContent.trim());
+  });
+  return nomes;
+}
+
+
+function rkObterTop() {
+  const cfg = rkLerConfig();
+  if (cfg.fonte === "calculo") {
+    const base = qdDadosCache;
+    return (base && base.length) ? rkCalcularTop5(base, cfg.jogos, cfg.tam) : new Set();
+  }
+  return rkLerTop5DoDOM(cfg.tam);
+}
+
+
+function rkAtualizarCache() {
+  const lido = rkObterTop();
+  if (lido.size) _rkTop5Cache = lido;
+  return _rkTop5Cache;
+}
+
+function rkAtivo() { return localStorage.getItem("rankingTop5Ativo") === "1"; }
+
+
+function rkMarcarPlacar(placar) {
+  if (!placar || !rkAtivo()) return;
+  if (!_rkTop5Cache.size) rkAtualizarCache();
+  if (!_rkTop5Cache.size) return;
+  [".time-casa", ".time-fora"].forEach(sel => {
+    const span = placar.querySelector(sel);
+    if (!span) return;
+    const nome = span.getAttribute("data-full-time");
+    if (nome && _rkTop5Cache.has(nome)) span.classList.add("rk-top5-nome");
+  });
+}
+
+
+function rkAplicarDestaque() {
+  const top = rkAtualizarCache();
+  if (!top.size) return;
+  document.querySelectorAll(".placar-futuro").forEach(placar => {
+    [".time-casa", ".time-fora"].forEach(sel => {
+      const span = placar.querySelector(sel);
+      if (!span) return;
+      const nome = span.getAttribute("data-full-time");
+      const deve = !!(nome && top.has(nome));
+      if (deve !== span.classList.contains("rk-top5-nome")) span.classList.toggle("rk-top5-nome", deve);
+    });
+  });
+}
+
+function rkLimparDestaque() {
+  document.querySelectorAll(".rk-top5-nome").forEach(el => el.classList.remove("rk-top5-nome"));
+}
+
+function rkSincronizar() {
+  if (rkAtivo()) {
+    rkAplicarDestaque(); 
+    setTimeout(rkAplicarDestaque, 120); 
+  }
+}
+
+
+(function rkObservarRanking() {
+  let timer = null;
+  const agenda = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { if (rkAtivo()) rkAplicarDestaque(); }, 150);
+  };
+  const ligar = () => {
+    const alvo = document.getElementById("rankingContainer");
+    if (!alvo) return false;
+    if (!alvo._rkObs) {
+      const obs = new MutationObserver(agenda);
+      obs.observe(alvo, { childList: true, subtree: true, characterData: true });
+      alvo._rkObs = obs;
+    }
+    return true;
+  };
+  if (!ligar()) {
+    let tentativas = 0;
+    const iv = setInterval(() => { if (ligar() || ++tentativas > 40) clearInterval(iv); }, 500);
+  }
+  setInterval(() => { if (rkAtivo()) rkAplicarDestaque(); }, 4000); 
+})();
+
+function rkAtualizarLabel() {
+  const lbl = document.getElementById("lbl-ranking-top5");
+  if (!lbl) return;
+  Array.from(lbl.childNodes).forEach(n => { if (n.nodeType === 3) n.remove(); });
+  lbl.appendChild(document.createTextNode(`Ranking Top ${rkLerConfig().tam}`));
+}
+
+function rkAtualizarVisibilidadeConfig() {
+  const btn = document.getElementById("btn-rk-config");
+  if (btn) btn.style.display = rkAtivo() ? "inline-flex" : "none";
+}
+
+function garantirBotaoRkConfig() {
+  if (document.getElementById("btn-rk-config")) return;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.id = "btn-rk-config";
+  btn.className = "btn-buscador-config";
+  btn.style.display = "none";
+  btn.title = "Configurar Ranking Top N";
+  btn.textContent = "⚙";
+  btn.addEventListener("click", abrirModalRkConfig);
+  const painel = document.getElementById("painel-cores");
+  if (painel) painel.appendChild(btn);
+}
+
+function garantirModalRkConfig() {
+  let overlay = document.getElementById("rk-modal-overlay");
+  if (overlay) return overlay;
+  overlay = document.createElement("div");
+  overlay.id = "rk-modal-overlay";
+  overlay.className = "buscador-modal-overlay";
+  overlay.hidden = true;
+  overlay.innerHTML = `
+    <div class="buscador-modal" role="dialog" aria-modal="true">
+      <h4>⚙ Configurar Ranking Top <span id="rk-modal-liga"></span></h4>
+      <label>Quantidade de times em destaque
+        <select id="cfg-rk-tam" class="buscador-select">
+          ${RK_TAM_OPCOES.map(n => `<option value="${n}">Top ${n}</option>`).join("")}
+        </select>
+      </label>
+      <label>Fonte do ranking
+        <select id="cfg-rk-fonte" class="buscador-select">
+          <option value="ranking">Ranking da página</option>
+          <option value="calculo">Calcular pela tabela</option>
+        </select>
+      </label>
+      <label>Jogos considerados (cálculo)
+        <select id="cfg-rk-jogos" class="buscador-select">
+          ${RK_JOGOS_OPCOES.map(n => `<option value="${n}">${n} jogos</option>`).join("")}
+        </select>
+      </label>
+      <div class="buscador-modal-actions">
+        <button type="button" id="btnCancelarRkConfig" style="background:transparent;color:#5cc3d6;">Cancelar</button>
+        <button type="button" id="btnSalvarRkConfig" style="background:#157f93;color:#fff;">Salvar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const fonteSel = overlay.querySelector("#cfg-rk-fonte");
+  const jogosSel = overlay.querySelector("#cfg-rk-jogos");
+  const sincJogos = () => { jogosSel.disabled = fonteSel.value !== "calculo"; jogosSel.style.opacity = jogosSel.disabled ? "0.45" : "1"; };
+  fonteSel.addEventListener("change", sincJogos);
+  overlay._sincJogos = sincJogos;
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) fecharModalRkConfig(); });
+  overlay.querySelector("#btnCancelarRkConfig").addEventListener("click", fecharModalRkConfig);
+  overlay.querySelector("#btnSalvarRkConfig").addEventListener("click", salvarModalRkConfig);
+  return overlay;
+}
+
+function abrirModalRkConfig() {
+  const overlay = garantirModalRkConfig();
+  const cfg = rkLerConfig();
+  const ligaSpan = overlay.querySelector("#rk-modal-liga");
+  if (ligaSpan) ligaSpan.textContent = (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? `— ${LIGA_ATUAL}` : "";
+  overlay.querySelector("#cfg-rk-tam").value   = String(cfg.tam);
+  overlay.querySelector("#cfg-rk-fonte").value = cfg.fonte;
+  overlay.querySelector("#cfg-rk-jogos").value = String(cfg.jogos);
+  overlay._sincJogos();
+  overlay.hidden = false;
+}
+
+function fecharModalRkConfig() {
+  const overlay = document.getElementById("rk-modal-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+function salvarModalRkConfig() {
+  const overlay = document.getElementById("rk-modal-overlay");
+  if (!overlay) return;
+  rkSalvarConfig({
+    tam:   parseInt(overlay.querySelector("#cfg-rk-tam").value, 10),
+    fonte: overlay.querySelector("#cfg-rk-fonte").value,
+    jogos: parseInt(overlay.querySelector("#cfg-rk-jogos").value, 10)
+  });
+  fecharModalRkConfig();
+  _rkTop5Cache = new Set();
+  rkAtualizarLabel();
+  if (rkAtivo()) { rkLimparDestaque(); rkAplicarDestaque(); }
+  showToast(`⚙ Ranking Top ${rkLerConfig().tam} salvo${(typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) ? ` para ${LIGA_ATUAL}` : ""}`);
+}
+
+
+let _tabVisibleTabela = !document.hidden;
+let _buscando = false;
+let _buscandoDesde = 0;
+const BUSCA_TRAVA_MAX_MS = 15000; 
+async function _buscarDadosSeguro() {
+  if (!_tabVisibleTabela) return;
+  if (_buscando && (Date.now() - _buscandoDesde) < BUSCA_TRAVA_MAX_MS) return;
+  _buscando = true;
+  _buscandoDesde = Date.now();
+  try { await buscarDados(); }
+  catch (e) { console.error("Erro no ciclo de busca:", e); }
+  finally { _buscando = false; }
+}
+document.addEventListener('visibilitychange', () => {
+  _tabVisibleTabela = !document.hidden;
+  if (_tabVisibleTabela) _buscarDadosSeguro();
+});
+
+hidratarDoCacheLocal();
+buscarDados();
+setTimeout(precarregarLigasIrmas, 4000);
+setInterval(precarregarLigasIrmas, 15000);
+setTimeout(iniciarObserverStreak, 1000);
+setInterval(_buscarDadosSeguro, 3000);
+
+
+const _sh=document.querySelector("#seletorHoras");
+const _sr=document.querySelector("#seletorResultado");
+const _stp=document.querySelector("#seletorTipoPlacar");
+const _mt=document.querySelector("#mostrarTimes");
+const _mht=document.querySelector("#mostrarHT");
+const _mo=document.querySelector("#mostrarOdds");
+
+
+if(_sh)  _sh.addEventListener("change", ()=>{ 
+  localStorage.setItem(Estado._horasKey(), _sh.value); 
+  renderizarRapido(); 
+});
+
+if(_sr)  _sr.addEventListener("change", ()=>{ 
+  renderizarRapido();
+
+  if(qdCheckboxAtivo()) qdRenderTabelaValores(qdDadosCache);
+});
+
+if(_stp) _stp.addEventListener("change",()=>{ 
+  renderizarRapido(); 
+});
+
+
+function renderizarRapido() {
+  if (_cacheResultados.length > 0) {
+    _renderizandoRapido = true; 
+  }
+  Estado.forcarRerender();
+  buscarDados();
+}
+
+if(_mt){
+  _mt.addEventListener("change",()=>{
+    if(_mt.value!=="sim"){
+      Estado.limparSelecoes(["timesSelecionados"]);
+    }
+    renderizarRapido();
+  });
+}
+
+if(_mht){
+  _mht.addEventListener("change",()=>{
+    if(_mht.value!=="sim"){
+      Estado.limparSelecoes(["placarHTSelecionados"]);
+    }
+    renderizarRapido();
+  });
+}
+
+if(_mo){
+  _mo.addEventListener("change",()=>{
+    if(_mo.value!=="sim"){
+      Estado.limparSelecoes(["oddsSelecionadas"]);
+    }
+    renderizarRapido();
+  });
+}
+
+
+function sincronizarEstiloBtnMercadosExtras() {
+  const btn = document.getElementById("btnMercadosExtras");
+
+  const ref = document.querySelector("#seletorHoras") || document.querySelector(".seletor-container select");
+  if (!btn || !ref) return;
+  const cs = getComputedStyle(ref);
+  const props = [
+    "height", "minHeight", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "fontSize", "fontFamily", "fontWeight", "color", "backgroundColor",
+    "border", "borderRadius", "boxSizing", "lineHeight"
+  ];
+  props.forEach(p => { btn.style[p] = cs[p]; });
+  btn.style.display = "inline-flex";
+  btn.style.alignItems = "center";
+  btn.style.justifyContent = "center";
+  btn.style.verticalAlign = "middle";
+}
+
+
+(function initMercadosExtrasUI() {
+ try {
+  const styleTag = document.createElement("style");
+  styleTag.textContent = `
+    .destaque-extra { box-shadow: inset 0 0 0 2px var(--destaque-extra-color, rgba(255,255,255,0.55)); }
+    /* Quando a célula também está em streak-alerta, o pulso (animação) deve vencer o destaque estático */
+    .streak-alerta.destaque-extra { animation: streakPulse 1.8s ease-in-out infinite; }
+    #painelMercadosExtras select { width:100%; }
+    .odd-tooltip-extra { color:#cbd5e1 !important; font-weight:600; }
+  `;
+  document.head.appendChild(styleTag);
+
+  const btn      = document.getElementById("btnMercadosExtras");
+  const painel   = document.getElementById("painelMercadosExtras");
+  const select   = document.getElementById("selectNovoMercadoExtra");
+  const lista    = document.getElementById("listaMercadosExtras");
+  const seletorResultado = document.getElementById("seletorResultado");
+  const corInput = document.getElementById("corDestaqueExtraInput");
+  if (!btn || !painel || !select || !lista) return;
+
+  if (corInput) {
+    corInput.value = Estado.corDestaqueExtra || "#93C5FD";
+
+    corInput.addEventListener("input", () => {
+      Estado.corDestaqueExtra = corInput.value;
+      aplicarCorDestaqueExtraGlobal();
+    });
+
+    corInput.addEventListener("change", () => {
+      Estado.corDestaqueExtra = corInput.value;
+      aplicarCorDestaqueExtraGlobal();
+      Estado.salvar();
+    });
+  }
+
+  sincronizarEstiloBtnMercadosExtras();
+  aplicarCorDestaqueExtraGlobal();
+  window.addEventListener("resize", sincronizarEstiloBtnMercadosExtras);
+
+  renderizarPainelMercadosExtras();
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const aberto = painel.style.display !== "none";
+    painel.style.display = aberto ? "none" : "block";
+    if (!aberto) renderizarPainelMercadosExtras();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (painel.style.display !== "none" && !painel.contains(e.target) && e.target !== btn) {
+      painel.style.display = "none";
+    }
+  });
+
+  select.addEventListener("change", () => {
+    if (select.value) mercadosExtrasAdicionar(select.value);
+  });
+
+  lista.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-acao]");
+    if (!b) return;
+    const { acao, mercado } = b.dataset;
+    if (acao === "remover") mercadosExtrasRemover(mercado);
+    else if (acao === "odd") mercadosExtrasToggleFlag(mercado, "mostrarOdd");
+    else if (acao === "destaque") mercadosExtrasToggleFlag(mercado, "destacar");
+  });
+  
+
+  if (seletorResultado) {
+    seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
+  }
+ } catch (e) {
+   console.error("Erro ao iniciar popover de mercados extras:", e);
+ }
 })();
