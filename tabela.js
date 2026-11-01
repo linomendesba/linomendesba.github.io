@@ -1707,7 +1707,17 @@ function garantirCheckboxQuadrantes() {
     .pct-amarelo  .valor-sub { color:#f5c518; opacity:0.75; }
     .pct-verde    .valor-sub { color:#4ade80; opacity:0.75; }
     /* Células com jogos ainda não realizados (próximos): accent vivo do tema */
-    .cel-proximo-jogo { background-color:#4db3c7 !important; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.25); }
+    .cel-proximo-jogo {
+      background-color:#1a1b1f !important;
+      background-image:linear-gradient(135deg, rgba(21,127,147,0.16), rgba(21,127,147,0.06)) !important;
+      box-shadow:inset 0 0 0 1px rgba(21,127,147,0.5);
+      border-radius:8px;
+      transition:background-image 0.15s, box-shadow 0.15s;
+    }
+    .cel-proximo-jogo:hover {
+      background-image:linear-gradient(135deg, rgba(21,127,147,0.3), rgba(21,127,147,0.14)) !important;
+      box-shadow:inset 0 0 0 1px rgba(21,127,147,0.85);
+    }
     /* Checkbox de seleção de linha (coluna de horas): discreto, no tema */
     #tabelaResultados input.row-selector {
       appearance: none; -webkit-appearance: none;
@@ -1721,21 +1731,16 @@ function garantirCheckboxQuadrantes() {
       background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><path d='M2 5.2 4.2 7.4 8 2.8' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
     }
     #tabelaResultados input.row-selector:focus-visible { outline: 2px solid rgba(21,127,147,0.8); outline-offset: 1px; }
-    /* Texto escuro só nos próximos jogos (fundo vivo) */
+    /* Texto ciano nos próximos jogos (mesma estética do botão Aplicar) */
     .cel-proximo-jogo .placar-futuro,
     .cel-proximo-jogo .placar-futuro .time-casa,
     .cel-proximo-jogo .placar-futuro .time-fora,
-    .cel-proximo-jogo .placar-futuro .placar-futuro-odd:not(.odd-selecionada) { color:#031014 !important; }
+    .cel-proximo-jogo .placar-futuro .placar-futuro-odd:not(.odd-selecionada) { color:#5cc3d6 !important; }
     .cel-proximo-jogo .placar-futuro .time-casa,
     .cel-proximo-jogo .placar-futuro .time-fora { font-weight:800; }
     .cel-proximo-jogo .placar-futuro .placar-futuro-odd:not(.odd-selecionada) { opacity:0.9; font-weight:800; }
     .cel-proximo-jogo .placar .time-casa:hover,
-    .cel-proximo-jogo .placar .time-fora:hover { color:#0a3f4b !important; text-decoration:underline; }
-    /* Top5 nos próximos: brilho ciano some no fundo claro, então vira ponto escuro com contorno branco */
-    .cel-proximo-jogo .placar-futuro .time-casa.rk-top5-nome,
-    .cel-proximo-jogo .placar-futuro .time-fora.rk-top5-nome { text-shadow:none !important; }
-    .cel-proximo-jogo .placar-futuro .time-casa.rk-top5-nome::before,
-    .cel-proximo-jogo .placar-futuro .time-fora.rk-top5-nome::before { background:#031014; box-shadow:0 0 0 1px #fff; }
+    .cel-proximo-jogo .placar .time-fora:hover { color:#fff !important; text-decoration:underline; }
     /* ── ORÁCULO: marca direto na célula os minutos sugeridos da hora atual ── */
     .oraculo-marcado { position:relative; box-shadow:inset 0 0 0 2px rgba(3,16,20,0.9) !important; }
     .oraculo-marcado::after {
@@ -4866,7 +4871,6 @@ function sincronizarEstiloBtnMercadosExtras() {
     else if (acao === "destaque") mercadosExtrasToggleFlag(mercado, "destacar");
   });
   
-
 
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
