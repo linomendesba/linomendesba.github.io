@@ -393,7 +393,7 @@ function renderizarPainelMercadosExtras() {
     const label = LABEL_CURTO_MERCADO[item.mercado] || item.mercado;
     const contrario = mercadoEhContrarioDoPrincipal(item.mercado);
     const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;gap:6px;background:#1a2030;border:1px solid "+cor+";border-radius:6px;padding:4px 6px;font-size:0.8em;";
+    row.style.cssText = "display:flex;align-items:center;gap:6px;background:#1b1c20;border:1px solid "+cor+";border-radius:6px;padding:4px 6px;font-size:0.8em;";
     row.innerHTML = `
       <span style="width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
       <span style="color:#e5e7eb;flex:1;" title="${contrario?'Atenção: oposto ao mercado principal atual':''}">${label}${contrario?" ⚠":""}</span>
@@ -1169,7 +1169,7 @@ function qdCreateBlocoThs(index, timeSlots) {
     const golsBorderColor = isCurrent ? 'rgba(75,85,99,0.6)' : 'rgba(55,65,81,0.6)';
     const golsBgColor     = isCurrent ? 'rgba(75,85,99,0.1)' : 'rgba(55,65,81,0.1)';
     const golsTextColor   = isCurrent ? '#e5e7eb' : '#d1d5db';
-    const hitBorderColor  = isCurrent ? '#3a3f4b' : 'rgba(4,120,87,0.6)';
+    const hitBorderColor  = isCurrent ? '#3a3d44' : 'rgba(4,120,87,0.6)';
     const hitBgColor      = isCurrent ? 'rgba(1,139,6,0.1)' : 'rgb(41,45,54)';
     const hitTextColor    = isCurrent ? '#018b06' : '#6ee7b7';
     const counterBgColor  = isCurrent ? 'rgba(190,14,2,0.1)' : 'rgba(190,18,60,0.1)';
@@ -1329,11 +1329,11 @@ function qdRenderTabela(resultados) {
     trQD.dataset.structKey = structKey;
 
     let trHtml = "";
-    trHtml += `<th style="position:sticky;left:0;z-index:10;background-color:#292d36;width:36px;min-width:36px;text-align:center;color:#d1d5db;font-weight:700;font-size:11px;padding:4px 3px;white-space:nowrap;">QDT<br><div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:3px;"><button id="qd-decrease" class="blocos-button" style="line-height:1;padding:1px 5px;">-</button><span id="qd-num-prev" style="color:white;font-size:11px;">${qdNumPreviousHours}</span><button id="qd-increase" class="blocos-button" style="line-height:1;padding:1px 5px;">+</button></div></th>`;
+    trHtml += `<th style="position:sticky;left:0;z-index:10;background-color:#1b1c20;width:36px;min-width:36px;text-align:center;color:#d1d5db;font-weight:700;font-size:11px;padding:4px 3px;white-space:nowrap;">QDT<br><div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:3px;"><button id="qd-decrease" class="blocos-button" style="line-height:1;padding:1px 5px;">-</button><span id="qd-num-prev" style="color:white;font-size:11px;">${qdNumPreviousHours}</span><button id="qd-increase" class="blocos-button" style="line-height:1;padding:1px 5px;">+</button></div></th>`;
     for (let i = 0; i < blocosDeMinutos.length; i++) {
       trHtml += qdCreateBlocoThs(i, timeSlots);
     }
-    trHtml += `<th style="background-color:#292d36;"></th><th style="background-color:#292d36;"></th>`;
+    trHtml += `<th style="background-color:#1b1c20;"></th><th style="background-color:#1b1c20;"></th>`;
     trQD.innerHTML = trHtml;
 
     thead.insertBefore(trQD, thead.firstChild);
@@ -1480,18 +1480,18 @@ function garantirCheckboxQuadrantes() {
     .placar-futuro .placar-texto { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; line-height:1.1; }
 
     .minute-header { cursor:pointer; user-select:none; font-size:0.82em; font-weight:700; }
-    .minute-header .jogo-num { font-size:0.95em; font-weight:700; opacity:1; margin-left:3px; color:#90a4c0; }
+    .minute-header .jogo-num { font-size:0.95em; font-weight:700; opacity:1; margin-left:3px; color:rgba(255,255,255,0.55); }
     .minute-header:hover { filter: brightness(1.6) !important; }
 
-    .qd-0 { background-color: #1c2133 !important; box-shadow: inset 0 -2px 0 0 #374060; }
-    .qd-1 { background-color: #232b3e !important; box-shadow: inset 0 -2px 0 0 #455070; }
-    .qd-2 { background-color: #1a1f30 !important; box-shadow: inset 0 -2px 0 0 #303858; }
-    .qd-3 { background-color: #20283b !important; box-shadow: inset 0 -2px 0 0 #3d4868; }
+    .qd-0 { background-color: #1a1b1f !important; box-shadow: inset 0 -2px 0 0 #363940; }
+    .qd-1 { background-color: #25272c !important; box-shadow: inset 0 -2px 0 0 #454850; }
+    .qd-2 { background-color: #17181c !important; box-shadow: inset 0 -2px 0 0 #2d3036; }
+    .qd-3 { background-color: #202227 !important; box-shadow: inset 0 -2px 0 0 #3e4148; }
 
-    .qd-cell-0 { background-color: rgba(55,64,96,0.10) !important; }
-    .qd-cell-1 { background-color: rgba(69,80,112,0.16) !important; }
-    .qd-cell-2 { background-color: rgba(48,56,88,0.10) !important; }
-    .qd-cell-3 { background-color: rgba(61,72,104,0.16) !important; }
+    .qd-cell-0 { background-color: rgba(255,255,255,0.03) !important; }
+    .qd-cell-1 { background-color: rgba(255,255,255,0.05) !important; }
+    .qd-cell-2 { background-color: rgba(255,255,255,0.03) !important; }
+    .qd-cell-3 { background-color: rgba(255,255,255,0.05) !important; }
     td[data-resultado="acerto"] { background-color: var(--cor-green, #018b06) !important; }
     td[data-resultado="erro"]   { background-color: var(--cor-red,   #be0e02) !important; }
 
@@ -1507,26 +1507,26 @@ function garantirCheckboxQuadrantes() {
 
     /* Linha dos quadrantes no thead da tabela principal */
     .qd-bloco-th { vertical-align: top; }
-    .qd-bloco-th.qd-0 { background-color: #1c2133 !important; }
-    .qd-bloco-th.qd-1 { background-color: #232b3e !important; }
-    .qd-bloco-th.qd-2 { background-color: #1a1f30 !important; }
-    .qd-bloco-th.qd-3 { background-color: #20283b !important; }
+    .qd-bloco-th.qd-0 { background-color: #1a1b1f !important; }
+    .qd-bloco-th.qd-1 { background-color: #25272c !important; }
+    .qd-bloco-th.qd-2 { background-color: #17181c !important; }
+    .qd-bloco-th.qd-3 { background-color: #202227 !important; }
 
     /* Bloco ao vivo — destaque na linha de quadrantes */
     .qd-bloco-th.qd-bloco-ativo {
-      background-color: rgba(31,172,137,0.18) !important;
-      box-shadow: inset 0 0 0 2px rgba(31,172,137,0.55);
+      background-color: rgba(21,127,147,0.18) !important;
+      box-shadow: inset 0 0 0 2px rgba(21,127,147,0.55);
     }
     .qd-live-badge {
       display: inline-flex; align-items: center; gap: 3px;
-      background: rgba(31,172,137,0.22); color: #1fac89;
-      border: 1px solid rgba(31,172,137,0.5); border-radius: 4px;
+      background: rgba(21,127,147,0.22); color: #5cc3d6;
+      border: 1px solid rgba(21,127,147,0.5); border-radius: 4px;
       font-size: 9px; font-weight: 700; padding: 1px 4px;
       margin-right: 4px; white-space: nowrap; vertical-align: middle;
     }
     .qd-live-dot {
       display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-      background: #1fac89;
+      background: #5cc3d6;
       animation: qdLivePulse 1.2s ease-in-out infinite;
     }
     @keyframes qdLivePulse {
@@ -1591,14 +1591,14 @@ function garantirCheckboxQuadrantes() {
     #painel-cores label,
     .btn-reset-cores {
       display:inline-flex; align-items:center; gap:4px;
-      height:22px; padding:0 7px; box-sizing:border-box;
-      background:#1c212f; border:1px solid rgba(255,255,255,0.09);
-      border-radius:6px; font-size:0.66em; font-weight:600; color:#9ca3af;
+      height:26px; padding:0 9px; box-sizing:border-box;
+      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px; font-size:0.72em; font-weight:600; color:rgba(255,255,255,0.7);
       cursor:pointer; white-space:nowrap;
       transition:background 0.15s, border-color 0.15s, color 0.15s;
     }
     #painel-cores label:hover,
-    .btn-reset-cores:hover { background:#242b3d; border-color:rgba(255,255,255,0.18); color:#d1d5db; }
+    .btn-reset-cores:hover { background:rgba(255,255,255,0.08); border-color:rgba(21,127,147,0.55); color:#fff; }
     #painel-cores input[type="color"] {
       width:14px; height:14px; border:1px solid rgba(255,255,255,0.18);
       border-radius:4px; cursor:pointer; padding:0; background:none;
@@ -1618,30 +1618,31 @@ function garantirCheckboxQuadrantes() {
     }
     .alerta-toggle-label {
       display: inline-flex; align-items: center; gap: 4px;
-      height:22px; padding: 0 7px; box-sizing:border-box;
-      cursor: pointer; color: #9ca3af; font-size: 0.66em; font-weight: 600; user-select: none;
-      border-radius: 6px; border: 1px solid rgba(255,255,255,0.09); background:#1c212f;
+      height:26px; padding: 0 9px; box-sizing:border-box;
+      cursor: pointer; color: rgba(255,255,255,0.7); font-size: 0.72em; font-weight: 600; user-select: none;
+      border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04);
       transition: border-color 0.2s, color 0.2s, background 0.2s; letter-spacing: 0.1px; white-space: nowrap;
     }
-    .alerta-toggle-label:hover { border-color: rgba(255,220,0,0.3); color: #d4af37; background: rgba(255,220,0,0.08); }
-    .alerta-toggle-label input[type="checkbox"] { width: 10px; height: 10px; cursor: pointer; accent-color: #d4af37; flex-shrink: 0; }
-    .alerta-ativo { color: #d4af37 !important; font-weight: 700; border-color: rgba(212,175,55,0.45) !important; background: rgba(212,175,55,0.08) !important; }
+    .alerta-toggle-label:hover { border-color: rgba(21,127,147,0.55); color: #fff; background: rgba(255,255,255,0.08); }
+    .alerta-toggle-label input[type="checkbox"] { width: 10px; height: 10px; cursor: pointer; accent-color: #157f93; flex-shrink: 0; }
+    .alerta-ativo { color: #5cc3d6 !important; font-weight: 700; border-color: rgba(21,127,147,0.6) !important; background: rgba(21,127,147,0.12) !important; }
 
     /* Botão primário — preenchimento sólido, se destaca claramente como ação de confirmação */
     .btn-aplicar-cores {
       display:inline-flex; align-items:center; gap:4px;
-      height:22px; padding:0 9px; box-sizing:border-box;
-      background: #20283b;
-      /* border: 1px solid #16a34a; */
-      border-radius: 6px;
+      height:26px; padding:0 11px; box-sizing:border-box;
+      background: linear-gradient(135deg, rgba(21,127,147,0.16), rgba(21,127,147,0.06));
+      border: 1px solid rgba(21,127,147,0.5);
+      border-radius: 8px;
       cursor: pointer;
-      color: #8ba3af;
-      font-size:0.66em; font-weight:700;
+      color: #5cc3d6;
+      font-size:0.72em; font-weight:700;
       transition:background 0.15s, border-color 0.15s, box-shadow 0.15s; white-space:nowrap;
     }
     .btn-aplicar-cores:hover {
-      background:#262f45;
-      box-shadow:0 0 0 1px rgba(255,255,255,0.08);
+      background: linear-gradient(135deg, rgba(21,127,147,0.3), rgba(21,127,147,0.14));
+      border-color: rgba(21,127,147,0.85);
+      color: #fff;
     }
     .btn-aplicar-cores:active { transform:translateY(1px); }
     .btn-aplicar-cores svg { flex-shrink:0; }
@@ -1766,15 +1767,15 @@ function garantirCheckboxQuadrantes() {
       100% { box-shadow: 0 0 0 0 rgba(139,77,232,0); }
     }
     .buscador-pulse { animation: buscadorPulse 1s ease-in-out 2; }
-    .buscador-chip-placar { width:auto; min-width:34px; padding:0 5px; background:#2b3040; border:1px solid rgba(212,175,55,0.4); color:#d4af37; }
+    .buscador-chip-placar { width:auto; min-width:34px; padding:0 5px; background:#25272c; border:1px solid rgba(212,175,55,0.4); color:#d4af37; }
     .btn-buscador-config {
       display:inline-flex; align-items:center; justify-content:center;
       width:22px; height:22px; margin-left:4px;
-      background:rgba(212,175,55,0.08); border:1px solid rgba(212,175,55,0.45);
-      border-radius:6px; color:#d4af37; font-size:13px; line-height:1;
+      background:rgba(21,127,147,0.08); border:1px solid rgba(21,127,147,0.45);
+      border-radius:8px; color:#5cc3d6; font-size:13px; line-height:1;
       cursor:pointer; transition:border-color .2s, background-color .2s;
     }
-    .btn-buscador-config:hover { border-color:rgba(212,175,55,0.75); background-color:rgba(212,175,55,0.16); }
+    .btn-buscador-config:hover { border-color:rgba(21,127,147,0.75); background-color:rgba(21,127,147,0.16); }
     .buscador-modal-overlay {
       position:fixed; inset:0; background:rgba(0,0,0,0.6);
       display:flex; align-items:center; justify-content:center;
@@ -1782,32 +1783,32 @@ function garantirCheckboxQuadrantes() {
     }
     .buscador-modal-overlay[hidden] { display:none; }
     .buscador-modal {
-      background:#1c212f; border:1px solid rgba(212,175,55,0.4);
+      background:#1b1c20; border:1px solid rgba(255,255,255,0.12);
       border-radius:10px; padding:18px 20px; width:280px; max-width:90vw;
       box-shadow:0 8px 30px rgba(0,0,0,0.5);
       display:flex; flex-direction:column; gap:12px;
       color:#e5e7eb; font-size:13px;
     }
-    .buscador-modal h4 { margin:0 0 4px; font-size:14px; color:#d4af37; }
+    .buscador-modal h4 { margin:0 0 4px; font-size:14px; color:#5cc3d6; }
     .buscador-modal h4 span { color:#9ca3af; font-weight:600; font-size:12px; }
     .buscador-modal label { display:flex; flex-direction:column; gap:4px; font-weight:600; }
     .buscador-modal .buscador-select {
       appearance:none; -webkit-appearance:none; -moz-appearance:none;
       color-scheme:dark; box-sizing:border-box; height:30px; padding:0 22px 0 10px;
-      background-color:rgba(212,175,55,0.08);
-      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1.2 5 4.8 9 1.2' fill='none' stroke='%23d4af37' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-color:rgba(21,127,147,0.08);
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1.2 5 4.8 9 1.2' fill='none' stroke='%235cc3d6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
       background-repeat:no-repeat; background-position:right 8px center; background-size:8px 5px;
-      border:1px solid rgba(212,175,55,0.45); border-radius:6px; color:#d4af37;
+      border:1px solid rgba(21,127,147,0.45); border-radius:6px; color:#5cc3d6;
       font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; outline:none;
     }
-    .buscador-modal .buscador-select option { background:#1c212f; color:#e5e7eb; }
+    .buscador-modal .buscador-select option { background:#0a1114; color:#e5e7eb; }
     .buscador-modal-actions { display:flex; gap:8px; margin-top:4px; }
     .buscador-modal-actions button {
       flex:1; height:32px; border-radius:6px; font-weight:800; font-size:12px;
-      cursor:pointer; border:1px solid rgba(212,175,55,0.45);
+      cursor:pointer; border:1px solid rgba(21,127,147,0.45);
     }
-    #btnSalvarBuscadorConfig { background:#d4af37; color:#1c212f; }
-    #btnCancelarBuscadorConfig { background:transparent; color:#d4af37; }
+    #btnSalvarBuscadorConfig { background:#157f93; color:#fff; }
+    #btnCancelarBuscadorConfig { background:transparent; color:#5cc3d6; }
     #lbl-buscador-ocorrencias {
       display:inline-flex; align-items:center;
       height:22px; padding:0 !important;
@@ -1819,14 +1820,14 @@ function garantirCheckboxQuadrantes() {
       box-sizing:border-box;
       height:22px;
       padding:0 19px 0 8px;
-      background-color:rgba(212,175,55,0.08);
-      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1.2 5 4.8 9 1.2' fill='none' stroke='%23d4af37' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-color:rgba(21,127,147,0.08);
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'><path d='M1 1.2 5 4.8 9 1.2' fill='none' stroke='%235cc3d6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
       background-repeat:no-repeat;
       background-position:right 5px center;
       background-size:8px 5px;
-      border:1px solid rgba(212,175,55,0.45);
+      border:1px solid rgba(21,127,147,0.45);
       border-radius:6px;
-      color:#d4af37;
+      color:#5cc3d6;
       font-family:inherit;
       font-size:12px; font-weight:800; letter-spacing:0.3px;
       line-height:20px; white-space:nowrap;
@@ -1834,15 +1835,15 @@ function garantirCheckboxQuadrantes() {
       transition:border-color .2s, background-color .2s, color .2s;
     }
     .buscador-ocorrencias-select:hover {
-      border-color:rgba(212,175,55,0.75);
-      background-color:rgba(212,175,55,0.16);
+      border-color:rgba(21,127,147,0.75);
+      background-color:rgba(21,127,147,0.16);
     }
     .buscador-ocorrencias-select:focus-visible {
-      border-color:#d4af37;
-      box-shadow:0 0 0 2px rgba(212,175,55,0.25);
+      border-color:#5cc3d6;
+      box-shadow:0 0 0 2px rgba(21,127,147,0.25);
     }
     .buscador-ocorrencias-select option {
-      background:#1c212f; color:#e5e7eb;
+      background:#0a1114; color:#e5e7eb;
       font-size:13px; font-weight:700;
     }
     /* Header rows das stats combinadas (Gols / Dados por coluna) mais baixos */
@@ -2439,8 +2440,8 @@ function garantirModalAnConfig() {
       </div>
       <div class="an-modal-nota">Análises históricas: descrevem o passado da janela de horas escolhida e não garantem resultado. O Atraso vem com peso 0 por padrão, pois uma coluna estar há mais tempo sem green não significa que está "devendo" um.</div>
       <div class="buscador-modal-actions">
-        <button type="button" id="btnCancelarAnConfig" style="background:transparent;color:#d4af37;">Cancelar</button>
-        <button type="button" id="btnSalvarAnConfig" style="background:#d4af37;color:#1c212f;">Salvar</button>
+        <button type="button" id="btnCancelarAnConfig" style="background:transparent;color:#5cc3d6;">Cancelar</button>
+        <button type="button" id="btnSalvarAnConfig" style="background:#157f93;color:#fff;">Salvar</button>
       </div>
     </div>
   `;
@@ -2534,25 +2535,25 @@ function garantirMenuFerramentas() {
       #ferr-wrap { position:relative; display:inline-block; }
       .btn-ferramentas {
         display:inline-flex; align-items:center; gap:5px;
-        height:22px; padding:0 8px; box-sizing:border-box;
-        background:#1c212f; border:1px solid rgba(255,255,255,0.09); border-radius:6px;
-        color:#9ca3af; font-size:0.66em; font-weight:700; cursor:pointer;
+        height:26px; padding:0 10px; box-sizing:border-box;
+        background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px;
+        color:rgba(255,255,255,0.7); font-size:0.72em; font-weight:700; cursor:pointer;
         transition:background .15s, border-color .15s, color .15s;
       }
-      .btn-ferramentas:hover { background:#242b3d; border-color:rgba(255,255,255,0.18); color:#d1d5db; }
-      .btn-ferramentas.ferr-tem-ativos { color:#d4af37; border-color:rgba(212,175,55,0.45); background:rgba(212,175,55,0.08); }
+      .btn-ferramentas:hover { background:rgba(255,255,255,0.08); border-color:rgba(21,127,147,0.55); color:#fff; }
+      .btn-ferramentas.ferr-tem-ativos { color:#5cc3d6; border-color:rgba(21,127,147,0.6); background:rgba(21,127,147,0.12); }
       #ferr-count {
         min-width:14px; height:14px; padding:0 3px; box-sizing:border-box;
         border-radius:7px; background:rgba(255,255,255,0.1); color:inherit;
         font-size:0.95em; line-height:14px; text-align:center;
       }
-      .ferr-tem-ativos #ferr-count { background:rgba(212,175,55,0.25); }
+      .ferr-tem-ativos #ferr-count { background:rgba(21,127,147,0.3); }
       #ferr-panel {
         position:absolute; left:0; top:calc(100% + 4px); z-index:10000;
         display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:5px;
         width:max-content; max-width:min(620px, 92vw); box-sizing:border-box;
-        padding:8px; background:#1c212f; border:1px solid rgba(212,175,55,0.4);
-        border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,0.5);
+        padding:8px; background:#1b1c20; border:1px solid rgba(255,255,255,0.12);
+        border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.5);
       }
       #ferr-panel[hidden] { display:none; }
       .ferr-row { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
@@ -3310,8 +3311,8 @@ function garantirModalHFConfig() {
     const st = document.createElement("style");
     st.id = "hf-modal-styles";
     st.textContent = `
-      #btnSalvarHFConfig { background:#d4af37; color:#1c212f; }
-      #btnCancelarHFConfig { background:transparent; color:#d4af37; }
+      #btnSalvarHFConfig { background:#157f93; color:#fff; }
+      #btnCancelarHFConfig { background:transparent; color:#5cc3d6; }
     `;
     document.head.appendChild(st);
   }
@@ -3465,9 +3466,9 @@ function hfGarantirEstrutura() {
     st.textContent = `
       #hf-wrapper-top { margin-bottom: 0; }
       #hf-table-top { width: 100%; border-collapse: collapse; table-layout: fixed; }
-      #hf-table-top th, #hf-table-top td { text-align: center; padding: 4px 2px; font-size: 0.78em; border: 1px solid #232833; }
-      #hf-table-top th { background: #20242e; color: #d1d5db; font-weight: 700; }
-      #hf-table-top td.hf-hora-cell { background: #292d36; color: #e5e7eb; font-weight: 700; width: 34px; }
+      #hf-table-top th, #hf-table-top td { text-align: center; padding: 4px 2px; font-size: 0.78em; border: 1px solid rgba(255,255,255,0.08); }
+      #hf-table-top th { background: #1b1c20; color: #d1d5db; font-weight: 700; }
+      #hf-table-top td.hf-hora-cell { background: #222428; color: #e5e7eb; font-weight: 700; width: 34px; }
       .hf-cell-wrap { display: flex; flex-direction: column; line-height: 1.15; }
       .hf-cell-pct { font-weight: 700; }
       .hf-cell-avg { font-size: 0.85em; opacity: 0.85; }
@@ -4613,8 +4614,8 @@ function garantirModalRkConfig() {
         </select>
       </label>
       <div class="buscador-modal-actions">
-        <button type="button" id="btnCancelarRkConfig" style="background:transparent;color:#d4af37;">Cancelar</button>
-        <button type="button" id="btnSalvarRkConfig" style="background:#d4af37;color:#1c212f;">Salvar</button>
+        <button type="button" id="btnCancelarRkConfig" style="background:transparent;color:#5cc3d6;">Cancelar</button>
+        <button type="button" id="btnSalvarRkConfig" style="background:#157f93;color:#fff;">Salvar</button>
       </div>
     </div>
   `;
