@@ -1707,7 +1707,20 @@ function garantirCheckboxQuadrantes() {
     .pct-amarelo  .valor-sub { color:#f5c518; opacity:0.75; }
     .pct-verde    .valor-sub { color:#4ade80; opacity:0.75; }
     /* Células com jogos ainda não realizados (próximos): accent vivo do tema */
-    .cel-proximo-jogo { background-color:#5cc3d6 !important; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.35); }
+    .cel-proximo-jogo { background-color:#4db3c7 !important; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.25); }
+    /* Checkbox de seleção de linha (coluna de horas): discreto, no tema */
+    #tabelaResultados input.row-selector {
+      appearance: none; -webkit-appearance: none;
+      border: 1px solid rgba(255,255,255,0.3); border-radius: 3px;
+      background-color: transparent; background-repeat: no-repeat; background-position: center; background-size: 9px;
+      transition: background-color .15s, border-color .15s;
+    }
+    #tabelaResultados input.row-selector:hover { border-color: rgba(92,195,214,0.85); }
+    #tabelaResultados input.row-selector:checked {
+      background-color: #157f93; border-color: #5cc3d6;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><path d='M2 5.2 4.2 7.4 8 2.8' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    }
+    #tabelaResultados input.row-selector:focus-visible { outline: 2px solid rgba(21,127,147,0.8); outline-offset: 1px; }
     /* Texto escuro só nos próximos jogos (fundo vivo) */
     .cel-proximo-jogo .placar-futuro,
     .cel-proximo-jogo .placar-futuro .time-casa,
@@ -3684,7 +3697,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const tr=document.createElement("tr"); tr.setAttribute("data-chave",chave);
     const tdHora=document.createElement("td"); tdHora.style.cssText="text-align:center;white-space:nowrap;padding:2px 1px;";
     const cb=document.createElement("input"); cb.type="checkbox"; cb.className="row-selector"; cb.checked=Estado.selectedChaves.includes(chave);
-    cb.style.cssText="display:block;margin:0 auto 1px auto;width:11px;height:11px;cursor:pointer;accent-color:#4ade80;";
+    cb.style.cssText="display:block;margin:0 auto 1px auto;width:11px;height:11px;cursor:pointer;accent-color:#157f93;";
     cb.addEventListener("change",function(){
       if(this.checked){if(!Estado.selectedChaves.includes(chave))Estado.selectedChaves.push(chave);}
       else{Estado.selectedChaves=Estado.selectedChaves.filter(c=>c!==chave);}
@@ -4853,7 +4866,7 @@ function sincronizarEstiloBtnMercadosExtras() {
     else if (acao === "destaque") mercadosExtrasToggleFlag(mercado, "destacar");
   });
   
-  
+
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
