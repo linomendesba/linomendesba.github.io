@@ -3776,10 +3776,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const placarTexto=document.createElement("div"); placarTexto.className="placar-texto";
     let html="";
     if(mostrarTimes) html+=`<span class="time-casa" style="cursor:pointer" data-full-time="${dado.time_a}">${abbreviateTeamName(dado.time_a)}</span>`;
-    const primaryTxt   = tipoPlacar==="ft" ? primary : `${primary}*`;
-    const secondaryTxt = tipoPlacar==="ft" ? `${secondary}*` : secondary;
-    html+=`<span class="ft-span">${primaryTxt}</span>`;
-    if(mostrarHT) html+=`<span class="ht-span">${secondaryTxt}</span>`;
+    html+=`<span class="ft-span">${primary}</span>`;
+    if(mostrarHT) html+=`<span class="ht-span">${secondary}</span>`;
     if(mostrarTimes) html+=`<span class="time-fora" style="cursor:pointer" data-full-time="${dado.time_b}">${abbreviateTeamName(dado.time_b)}</span>`;
     placarTexto.innerHTML=html;
     placar.appendChild(placarTexto);
@@ -4855,6 +4853,7 @@ function sincronizarEstiloBtnMercadosExtras() {
     else if (acao === "destaque") mercadosExtrasToggleFlag(mercado, "destacar");
   });
   
+
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
