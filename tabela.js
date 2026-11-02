@@ -1536,6 +1536,34 @@ function garantirCheckboxQuadrantes() {
       50%       { opacity: 0.4; transform: scale(0.7); }
     }
 
+    /* ── Linha dos quadrantes (H.Atual / H.Ant): mesma família do header azul, sem blocos cinza pesados ── */
+    th.qd-bloco-th.qd-0, th.qd-bloco-th.qd-2 {
+      background-color:#141821 !important;
+      background-image:linear-gradient(135deg, rgba(63,90,154,0.16), rgba(63,90,154,0.05)) !important;
+      box-shadow:inset 0 0 0 1px rgba(63,90,154,0.28) !important;
+    }
+    th.qd-bloco-th.qd-1, th.qd-bloco-th.qd-3 {
+      background-color:#171c27 !important;
+      background-image:linear-gradient(135deg, rgba(63,90,154,0.24), rgba(63,90,154,0.08)) !important;
+      box-shadow:inset 0 0 0 1px rgba(63,90,154,0.34) !important;
+    }
+    /* Quadrante ao vivo: mesma estética do botão Aplicar */
+    th.qd-bloco-th.qd-bloco-ativo {
+      background-color:#1a1b1f !important;
+      background-image:linear-gradient(135deg, rgba(21,127,147,0.24), rgba(21,127,147,0.08)) !important;
+      box-shadow:inset 0 0 0 1px rgba(21,127,147,0.65) !important;
+    }
+    /* Divisória entre quadrantes: fina e azulada em vez da faixa branca grossa */
+    th.qd-bloco-th[style*="border-left"] { border-left-width:2px !important; border-left-color:rgba(92,130,200,0.5) !important; }
+    td.quadrant-border, th.quadrant-border { border-left:2px solid rgba(92,130,200,0.5) !important; }
+    /* Contadores (gols / acertos / erros) como pílulas legíveis */
+    .qd-bloco-th span[title="Gols"], .qd-bloco-th span[title="Acertos"], .qd-bloco-th span[title="Erros"] {
+      padding:1px 7px; border-radius:999px; border:1px solid transparent;
+    }
+    .qd-bloco-th span[title="Gols"]    { color:#e5e7eb !important; background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.14); }
+    .qd-bloco-th span[title="Acertos"] { color:#4ade80 !important; background:rgba(74,222,128,0.10); border-color:rgba(74,222,128,0.35); }
+    .qd-bloco-th span[title="Erros"]   { color:#ff6b6b !important; background:rgba(255,92,92,0.10);  border-color:rgba(255,92,92,0.35); }
+
     #coluna-stats { display:flex; flex-wrap:wrap; gap:5px; padding:5px 8px; margin-bottom:4px; }
     #coluna-stats:empty { display:none; }
 
