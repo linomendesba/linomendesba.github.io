@@ -1718,6 +1718,27 @@ function garantirCheckboxQuadrantes() {
       background-image:linear-gradient(135deg, rgba(21,127,147,0.3), rgba(21,127,147,0.14)) !important;
       box-shadow:inset 0 0 0 1px rgba(21,127,147,0.85);
     }
+    /* Odds dos mercados extras (+mercado) nos próximos: ciano em vez de branco */
+    .cel-proximo-jogo .odd-extra-badge { color:#5cc3d6 !important; font-weight:700; opacity:0.85; }
+
+    /* Tooltip no mesmo estilo dos próximos jogos (fundo escuro + degradê ciano, borda ciano, textos ciano) */
+    .tooltip {
+      background:linear-gradient(135deg, rgba(21,127,147,0.28), rgba(21,127,147,0.12)), #1a1b1f !important;
+      border:1px solid rgba(21,127,147,0.6) !important;
+      border-radius:8px !important;
+      box-shadow:0 6px 18px rgba(0,0,0,0.55), 0 0 0 1px rgba(92,195,214,0.12) !important;
+    }
+    .tooltip .times { color:#5cc3d6 !important; font-weight:800; }
+    .tooltip .odd-tooltip { color:#5cc3d6 !important; font-weight:800; }
+    .tooltip .odd-tooltip-extra { color:#8fd3e0 !important; font-weight:600; }
+
+    /* Header dos minutos (topo e rodapé): azul-marinho pra diferenciar do fundo preto e do ciano dos próximos */
+    #tabelaResultados th.minute-header:not(.coluna-selecionada) { color:#e6eeff; }
+    #tabelaResultados th.minute-header.qd-0:not(.coluna-selecionada) { background-color:#1b2a4a !important; box-shadow:inset 0 -2px 0 0 #3f5a9a; }
+    #tabelaResultados th.minute-header.qd-1:not(.coluna-selecionada) { background-color:#243863 !important; box-shadow:inset 0 -2px 0 0 #4b69b3; }
+    #tabelaResultados th.minute-header.qd-2:not(.coluna-selecionada) { background-color:#16223b !important; box-shadow:inset 0 -2px 0 0 #36508a; }
+    #tabelaResultados th.minute-header.qd-3:not(.coluna-selecionada) { background-color:#1f3157 !important; box-shadow:inset 0 -2px 0 0 #445fa6; }
+    #tabelaResultados th.minute-header:not(.coluna-selecionada) .jogo-num { color:#8fa8d9; }
     /* Checkbox de seleção de linha (coluna de horas): discreto, no tema */
     #tabelaResultados input.row-selector {
       appearance: none; -webkit-appearance: none;
@@ -4871,7 +4892,7 @@ function sincronizarEstiloBtnMercadosExtras() {
     else if (acao === "destaque") mercadosExtrasToggleFlag(mercado, "destacar");
   });
   
-  
+
   if (seletorResultado) {
     seletorResultado.addEventListener("change", renderizarPainelMercadosExtras);
   }
