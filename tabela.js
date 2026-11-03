@@ -1761,12 +1761,12 @@ function garantirCheckboxQuadrantes() {
     .tooltip .odd-tooltip-extra { color:#8fd3e0 !important; font-weight:600; }
 
     /* Header dos minutos (topo e rodapé): azul-marinho pra diferenciar do fundo preto e do ciano dos próximos */
-    #tabelaResultados th.minute-header:not(.coluna-selecionada) { color:#e6eeff; }
-    #tabelaResultados th.minute-header.qd-0:not(.coluna-selecionada) { background-color:#1b2a4a !important; box-shadow:inset 0 -2px 0 0 #3f5a9a; }
-    #tabelaResultados th.minute-header.qd-1:not(.coluna-selecionada) { background-color:#243863 !important; box-shadow:inset 0 -2px 0 0 #4b69b3; }
-    #tabelaResultados th.minute-header.qd-2:not(.coluna-selecionada) { background-color:#16223b !important; box-shadow:inset 0 -2px 0 0 #36508a; }
-    #tabelaResultados th.minute-header.qd-3:not(.coluna-selecionada) { background-color:#1f3157 !important; box-shadow:inset 0 -2px 0 0 #445fa6; }
-    #tabelaResultados th.minute-header:not(.coluna-selecionada) .jogo-num { color:#8fa8d9; }
+    #tabelaResultados th.minute-header:not(.coluna-selecionada) { color:#cbd5e1; }
+    #tabelaResultados th.minute-header.qd-0:not(.coluna-selecionada) { background-color:#151b2b !important; box-shadow:inset 0 -1px 0 0 rgba(63,90,154,0.4); }
+    #tabelaResultados th.minute-header.qd-1:not(.coluna-selecionada) { background-color:#192236 !important; box-shadow:inset 0 -1px 0 0 rgba(63,90,154,0.45); }
+    #tabelaResultados th.minute-header.qd-2:not(.coluna-selecionada) { background-color:#131825 !important; box-shadow:inset 0 -1px 0 0 rgba(63,90,154,0.35); }
+    #tabelaResultados th.minute-header.qd-3:not(.coluna-selecionada) { background-color:#171f31 !important; box-shadow:inset 0 -1px 0 0 rgba(63,90,154,0.42); }
+    #tabelaResultados th.minute-header:not(.coluna-selecionada) .jogo-num { color:#6b7fa8; }
     /* Checkbox de seleção de linha (coluna de horas): discreto, no tema */
     #tabelaResultados input.row-selector {
       appearance: none; -webkit-appearance: none;
