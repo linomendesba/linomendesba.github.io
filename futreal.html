@@ -354,22 +354,6 @@ table.tb{width:100%;border-collapse:collapse;font-size:13px;min-width:900px}
 .rdStats span{display:block;font-size:11px;color:var(--muted);margin-top:2px}
 .rdQuote{font-size:13px;color:#b9c2cd;line-height:1.4}
 .rdFoot{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:8px;font-size:10.5px;color:var(--faint);font-family:'Roboto Mono',monospace}
-/* ── classificação ── */
-.cls{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
-.cls th{font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:8px 8px;text-align:center;border-bottom:1px solid var(--line)}
-.cls td{padding:7px 8px;text-align:center;border-bottom:1px solid #181e27;white-space:nowrap}
-.cls th.l,.cls td.l{text-align:left}
-.cls td.l{width:100%}
-.cls .cn{display:flex;align-items:center;gap:8px;max-width:260px;overflow:hidden;text-overflow:ellipsis}
-.cls td b{font-weight:700}
-.cls tr.hl td{background:rgba(232,160,58,.1)}
-.cls tr.hl td.l{color:#f0c47e;font-weight:600}
-.qd{display:inline-block;width:3px;height:14px;border-radius:2px;margin-right:8px;vertical-align:middle}
-.clsG{margin-bottom:14px}
-.clsG .lbl{display:block;margin:0 0 8px}
-.clsLeg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11.5px;color:var(--muted);margin-top:8px}
-.clsLeg span{display:flex;align-items:center;gap:6px}
-.clsLeg i{width:10px;height:10px;border-radius:2px;display:inline-block}
 .oddsRow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .oddsRow div{border:1px solid var(--line);border-radius:6px;padding:10px 6px;text-align:center;background:var(--panel2)}
 .oddsRow small{display:block;font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -483,7 +467,6 @@ table.tb{width:100%;border-collapse:collapse;font-size:13px;min-width:900px}
 const API_BASE   = 'https://datavirtual.com.br';
 const ROTA       = `${API_BASE}/futebol-real/ao-vivo`;
 const ROTA_AGENDA = `${API_BASE}/futebol-real/agenda`;
-const ROTA_TABELA = `${API_BASE}/futebol-real/tabela/`;
 const POLL_AGENDA_MS = 30000;   // a agenda do dia muda devagar (a captura renova a cada 30s)
 const POLL_MS    = 15000;       // a captura (real.js) atualiza a cada 30s; consultar mais rápido só repete o dado
 const TIMEOUT_MS = 12000;
@@ -510,6 +493,8 @@ const fmt = (v, d = 0) => v === null || v === undefined ? '—' : (d ? v.toFixed
 const pctH = (h, a) => { if (h === null || a === null) return null; const t = h + a; return t > 0 ? h / t * 100 : 50; };
 const lsGet = (k, v) => { try { const x = localStorage.getItem(k); return x === null ? v : JSON.parse(x); } catch { return v; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+const cacheSet = (k, d) => { try { localStorage.setItem(k, JSON.stringify({ t: Date.now(), d })); } catch {} };
+const cacheGet = k => { try { const x = JSON.parse(localStorage.getItem(k)); return x && Array.isArray(x.d) && Date.now() - x.t < 600000 ? x.d : null; } catch { return null; } };
 const ssGet = (k, v) => { try { const x = sessionStorage.getItem(k); return x === null ? v : JSON.parse(x); } catch { return v; } };
 const ssSet = (k, v) => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
@@ -526,7 +511,8 @@ const img = (src, cls = 'lgo', alt = '') => src
 
 
 // ═════════════ ESTADO ═════════════
-let dados = [];
+let dados = [];                            // só jogos com estatística (os que aparecem)
+let dadosAll = [];                         // todos os ao vivo (agenda/modal)
 let ultimoOk = 0;
 let falhas = 0;
 let busy = false;
@@ -553,6 +539,7 @@ const F = {
 
 // ═════════════ DADOS DO JOGO ═════════════
 const decorrido = j => (num(j.minuto) || 0) + (num(j.acrescimo) || 0);
+const temDados = j => temEstat(j) || (j.momentum && j.momentum.length > 0);
 const temEstat = j => [j.posse_casa, j.chutes_casa, j.escanteios_casa, j.toques_area_casa].some(v => num(v) !== null);
 
 function textoMinuto(j) {
@@ -601,13 +588,14 @@ function momEstimado(id) {
 }
 
 function podarHist() {
-  const vivos = new Set(dados.map(j => j.id));
+  const vivos = new Set(dadosAll.map(j => j.id));
   for (const id of Object.keys(hist)) if (!vivos.has(id)) delete hist[id];
   ssSet('dv_fr_hist', hist);
 }
 
 // ── pressão ──
-function pressao(j, jan) {
+function pressao(j, jan) { const m = j._m || (j._m = {}), k = 'p' + jan; return k in m ? m[k] : (m[k] = pressao_(j, jan)); }
+function pressao_(j, jan) {
   const mom = j.momentum || [];
   if (!mom.length) return null;
   const cur = Math.max(decorrido(j), mom[mom.length - 1][0]);
@@ -646,7 +634,9 @@ function finalizacoes(j, jan) {
 const totalEsc = j => (num(j.escanteios_casa) || 0) + (num(j.escanteios_fora) || 0);
 
 // ── métricas derivadas ──
-function analise(j) {
+const memo = (k, fn) => j => { const m = j._m || (j._m = {}); return k in m ? m[k] : (m[k] = fn(j)); };
+const analise = memo('a', analise_);
+function analise_(j) {
   const min = Math.max(decorrido(j), 0);
   const gc = num(j.gols_casa) || 0, gf = num(j.gols_fora) || 0;
   const pair = k => [num(j[k + '_casa']), num(j[k + '_fora'])];
@@ -682,7 +672,8 @@ function analise(j) {
   };
 }
 
-function temperatura(j) {
+const temperatura = memo('t', temperatura_);
+function temperatura_(j) {
   if (j.periodo === 'HT') return null;
   const min = decorrido(j);
   if (!min) return null;
@@ -698,7 +689,8 @@ function temperatura(j) {
 }
 
 // ── sinais (lista; o primeiro vira o banner) ──
-function sinais(j) {
+const sinais = memo('s', sinais_);
+function sinais_(j) {
   const out = [];
   if (j.periodo === 'HT') return out;
   const min = decorrido(j);
@@ -1139,7 +1131,7 @@ function agLigaHtml(g, vivosMap) {
   return `<div class="lg${fechada ? ' fechada' : ''}">
     <div class="lgHead" data-lg="${esc(g.key)}"><span class="lgName" title="${esc(g.liga)}">${img(logoLiga(g.liga_id), 'lgo s')}${esc(g.liga)}${g.pais ? ' · ' + esc(g.pais) : ''}</span>
       ${g.vivos ? `<span class="lgLive">${g.vivos} ao vivo</span>` : ''}<span class="lgCnt">${n} jogo${n !== 1 ? 's' : ''}</span><span class="lgChev">▾</span></div>
-    <div class="lgBody">${g.jogos.map(a => agRowHtml(a, vivosMap)).join('')}</div></div>`;
+    <div class="lgBody">${fechada ? '' : g.jogos.map(a => agRowHtml(a, vivosMap)).join('')}</div></div>`;
 }
 
 function renderAgenda() {
@@ -1147,7 +1139,7 @@ function renderAgenda() {
   if (!agenda.length && !agOk) { wrap.style.display = 'none'; return; }   // rota ainda indisponível: não mostra nada
   wrap.style.display = '';
 
-  const vivosMap = new Map(dados.map(j => [j.id, j]));
+  const vivosMap = new Map(dadosAll.map(j => [j.id, j]));
   const grupos = agendaGrupos(agendaFiltrada());
   const cont = e => agenda.filter(a => a.estado === e).length;
   $('agInfo').textContent = agenda.length
@@ -1255,47 +1247,6 @@ function renderRadar(lista) {
   if (el._h !== html) { el.innerHTML = html; el._h = html; }
 }
 
-// ═════════════ CLASSIFICAÇÃO DAS LIGAS ═════════════
-const tabCache = new Map();            // ligaId → { t, d, erro }
-const tabBusy = new Set();
-const TAB_TTL = 300000;
-
-async function carregarTabela(ligaId) {
-  const id = String(ligaId);
-  const c = tabCache.get(id);
-  if (tabBusy.has(id)) return c;
-  tabBusy.add(id);
-  const ctl = new AbortController();
-  const to = setTimeout(() => ctl.abort(), 20000);
-  try {
-    const r = await fetch(`${ROTA_TABELA}${encodeURIComponent(id)}?_ts=${Date.now()}`, { cache: 'no-store', signal: ctl.signal });
-    const d = await r.json().catch(() => null);
-    if (!r.ok || !d || d.erro) throw new Error(d && d.erro ? d.erro : 'HTTP ' + r.status);
-    tabCache.set(id, { t: Date.now(), d });
-  } catch (e) {
-    tabCache.set(id, { t: Date.now(), d: c ? c.d : null, erro: e.name === 'AbortError' ? 'tempo esgotado' : e.message });
-  } finally {
-    clearTimeout(to);
-    tabBusy.delete(id);
-  }
-  return tabCache.get(id);
-}
-
-const corOk = c => /^#[0-9a-f]{3,8}$/i.test(String(c || '')) ? c : 'transparent';
-
-function classHtml(d, dest) {
-  const grupos = (d && d.grupos) || [];
-  if (!grupos.length) return '<div class="mdMsg">Esta liga não tem tabela de classificação disponível no FotMob.</div>';
-  return grupos.map(g => `<div class="clsG">${g.nome && grupos.length > 1 ? `<span class="lbl">${esc(g.nome)}</span>` : ''}<div class="tw"><table class="cls"><thead><tr>
-    <th>#</th><th class="l">Time</th><th>J</th><th>V</th><th>E</th><th>D</th><th>GP</th><th>GC</th><th>SG</th><th>Pts</th></tr></thead><tbody>`
-    + g.linhas.map(r => `<tr class="${dest && dest.has(String(r.id)) ? 'hl' : ''}"><td><i class="qd" style="background:${corOk(r.cor)}"></i>${fmt(r.pos)}</td>
-      <td class="l"><span class="cn">${img(logoTime(r.id, true), 'lgo s')}${esc(r.nome)}</span></td><td>${fmt(r.jogos)}</td><td>${fmt(r.v)}</td><td>${fmt(r.e)}</td><td>${fmt(r.d)}</td>
-      <td>${fmt(r.gp)}</td><td>${fmt(r.gc)}</td><td>${r.sg === null ? '—' : (r.sg > 0 ? '+' : '') + r.sg}</td><td><b>${fmt(r.pts)}</b></td></tr>`).join('')
-    + '</tbody></table></div></div>').join('')
-    + ((d.legenda || []).length ? `<div class="clsLeg">${d.legenda.map(l => `<span><i style="background:${corOk(l.cor)}"></i>${esc(l.nome)}</span>`).join('')}</div>` : '');
-}
-
-
 // ═════════════ RENDER GERAL ═════════════
 function render() {
   const grid = $('grid'), tab = $('tabela');
@@ -1367,8 +1318,8 @@ async function carregar() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
     if (!Array.isArray(d)) throw new Error('resposta inválida');
-    dados = d.map(j => ({ ...j, id: String(j.id) }));
-    for (const j of dados) {
+    dadosAll = d.map(j => ({ ...j, id: String(j.id) }));
+    for (const j of dadosAll) {
       atualizarHist(j);
       if (!(j.momentum && j.momentum.length)) {          // sem cobertura minuto a minuto → usa a estimativa local
         j.momentum = momEstimado(j.id);
@@ -1379,7 +1330,9 @@ async function carregar() {
         j._estIni = num(j.momentum_est_ini);
       }
     }
+    dados = dadosAll.filter(temDados);
     podarHist();
+    cacheSet('dv_fr_c_live', d);
     ultimoOk = Date.now();
     falhas = 0;
     setErro('');
@@ -1407,6 +1360,7 @@ async function carregarAgenda() {
     if (!Array.isArray(d)) throw new Error('resposta inválida');
     agenda = d.map(a => ({ ...a, id: String(a.id) }));
     agOk = true;
+    cacheSet('dv_fr_c_ag', d);
   } catch (e) {
     agOk = false;                       // mantém a última agenda, se houver
   } finally {
@@ -1414,7 +1368,8 @@ async function carregarAgenda() {
     agBusy = false;
     agTentou = true;
     popularLigas();
-    render();
+    renderKpis();
+    renderAgenda();
   }
 }
 
@@ -1683,7 +1638,7 @@ function statRowM(t, h, a) {
 
 // jogo a partir do que a página já tem (card ao vivo ou agenda do dia)
 function baseJogo(id) {
-  const j = dados.find(x => x.id === id);
+  const j = dadosAll.find(x => x.id === id);
   const a = agenda.find(x => x.id === id);
   const s = j || a;
   if (!s) return null;
@@ -1823,16 +1778,6 @@ function abaConfronto(b, D) {
   return out;
 }
 
-function abaTabela(b, D) {
-  const ligaId = b.liga_id ?? D?.liga?.id;
-  if (ligaId === null || ligaId === undefined) return '<div class="mdMsg">Liga sem identificação para buscar a classificação.</div>';
-  const id = String(ligaId), c = tabCache.get(id);
-  if ((!c || Date.now() - c.t > TAB_TTL) && !tabBusy.has(id)) carregarTabela(id).then(() => { if (M.id && M.aba === 'tabela') renderModal(); });
-  if (!c) return '<div class="mdMsg">Carregando classificação…</div>';
-  if (!c.d) return `<div class="mdMsg err">Não foi possível carregar a classificação (${esc(c.erro || 'sem dados')}).</div>`;
-  return classHtml(c.d, new Set([D?.casa?.id ?? b.casa_id, D?.fora?.id ?? b.fora_id].map(String)));
-}
-
 function renderModal() {
   if (!M.id) return;
   const b = baseJogo(M.id) || M.base;
@@ -1856,7 +1801,7 @@ function renderModal() {
     + `<div class="mdTeam${noJog && M.time === 'fora' ? ' on' : ''}" data-m="time" data-l="fora" title="Ver jogadores">${img(logoTime(foraId), 'lgo l')}<span>${esc(foraN)}</span></div></div>`;
 
   const tabs = `<div class="tabs">`
-    + [['resumo', 'Resumo'], ['jogadores', 'Jogadores'], ['confronto', 'Confronto'], ['tabela', 'Tabela']]
+    + [['resumo', 'Resumo'], ['jogadores', 'Jogadores'], ['confronto', 'Confronto']]
       .map(([k, n]) => `<button type="button" data-m="aba" data-t="${k}" class="${M.aba === k ? 'on' : ''}">${n}</button>`).join('') + '</div>';
 
   let corpo;
@@ -1864,8 +1809,7 @@ function renderModal() {
     corpo = M.erro
       ? `<div class="mdMsg err">${esc(M.erro)}<br><br><button type="button" class="badge" data-m="retry">Tentar de novo</button></div>`
       : '<div class="mdMsg">Carregando dados do jogo…</div>';
-  } else if (M.aba === 'tabela') corpo = abaTabela(b, D);
-  else if (M.aba === 'jogadores') corpo = abaJogadores(b, D);
+  } else if (M.aba === 'jogadores') corpo = abaJogadores(b, D);
   else if (M.aba === 'confronto') corpo = abaConfronto(b, D);
   else corpo = abaResumo(b, D);
 
@@ -1946,6 +1890,20 @@ document.addEventListener('error', ev => {
 }, true);
 
 // ═════════════ LOOP ═════════════
+// mostra na hora o que foi salvo na última visita (até 10 min) e atualiza em seguida
+(function inicioRapido() {
+  const ag = cacheGet('dv_fr_c_ag'), lv = cacheGet('dv_fr_c_live');
+  if (ag) { agenda = ag.map(a => ({ ...a, id: String(a.id) })); agOk = true; }
+  if (lv) {
+    dadosAll = lv.map(j => ({ ...j, id: String(j.id) }));
+    for (const j of dadosAll) {
+      if (!(j.momentum && j.momentum.length)) { j.momentum = momEstimado(j.id); j._est = true; j._estIni = hist[j.id] ? hist[j.id].ini : decorrido(j); }
+      else if (num(j.momentum_est_ini) !== null) { j._est = true; j._estIni = num(j.momentum_est_ini); }
+    }
+    dados = dadosAll.filter(temDados);
+  }
+  if (ag || lv) { popularLigas(); render(); }
+})();
 carregar();
 carregarAgenda();
 setInterval(() => { if (!document.hidden) carregar(); }, POLL_MS);
