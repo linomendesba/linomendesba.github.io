@@ -6,6 +6,7 @@
     <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
     <link rel="stylesheet" href="mult.css" />
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="trader.css" />
     <title>BetStat</title>
 
     <script type="module" src="js/firebase-auth.js"></script>
@@ -27,6 +28,19 @@
         height: auto !important;
         min-height: 0 !important;
       }
+
+      .barra-grafico { margin: 0 0 10px; }
+      .btn-grafico-mercado {
+        cursor: pointer; color: #fff; font-size: 0.9rem;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;
+        padding: 6px 14px;
+      }
+      .btn-grafico-mercado:hover { background: rgba(255,255,255,0.16); }
+      .btn-grafico-mercado.ativo { background: #1fac89; border-color: #1fac89; }
+      #secaoGraficoMercado { display: none; margin-bottom: 14px; }
+      /* folga no fim para os painéis suspensos (Add Linha, Fib+, LTA/LTB) não serem cortados */
+      .espaco-paineis { height: 150px; }
     </style>
   </head>
 
@@ -34,6 +48,123 @@
     <div id="errorMessage" class="error-message" style="display: none;"></div>
 
     <h3 class="liga-card-titulo" id="ligaCardTitulo"></h3>
+
+    <!-- ══ GRÁFICO DE MERCADOS (só carrega o graficomercado.js quando abrir) ══ -->
+    <div class="barra-grafico">
+      <button type="button" id="btnGraficoMercado" class="btn-grafico-mercado">📈 Gráfico de Mercados</button>
+    </div>
+
+    <div id="secaoGraficoMercado">
+
+      <!-- MODAL criar/editar setup -->
+      <div id="setupModal" class="setup-modal-overlay" style="display:none;">
+        <div class="setup-modal-box">
+          <div class="setup-modal-header">
+            <h3 id="setupModalTitle">Criar Setup</h3>
+            <button class="setup-modal-close" onclick="_closeSetupModal()">✕</button>
+          </div>
+          <input id="setupModalName" type="text" placeholder="Nome do setup (ex: Meu favorito)..." maxlength="30">
+          <div id="setupLimitWarning" class="setup-limit-warning" style="display:none;">
+            ⚠ Limite de 10 setups atingido. Remova um antes de criar outro.
+          </div>
+          <p class="setup-modal-hint">Selecione os mercados e personalize as cores:</p>
+          <div id="setupModalMarkets" class="setup-modal-markets"></div>
+          <div class="setup-modal-actions">
+            <button class="setup-modal-save" id="setupModalSaveBtn" onclick="_saveSetupModal()">✔ Salvar Setup</button>
+            <button class="setup-modal-cancel" onclick="_closeSetupModal()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BARRA DE SETUPS -->
+      <div class="setup-bar-wrapper">
+        <div id="setupBar" class="setup-bar"></div>
+        <span id="setupCounter" class="setup-counter">0 / 10</span>
+        <button id="btnAddSetup" class="setup-add-btn" onclick="_openSetupModal()">＋ Novo Setup</button>
+      </div>
+
+      <!-- GRÁFICO -->
+      <div class="chart-container">
+        <div class="canvas-wrapper">
+          <canvas id="Copa" width="1080" height="450" style="max-height:450px;"></canvas>
+        </div>
+
+        <div class="control-panel">
+          <div>
+            <label for="pointsSelector"></label>
+            <select id="pointsSelector"></select><!-- preenchido pelo script, conforme jogos/hora da liga -->
+          </div>
+          <div>
+            <label for="averageSelector"></label>
+            <select id="averageSelector"></select><!-- idem -->
+          </div>
+          <div class="checkbox-container">
+            <input type="checkbox" id="fibonacciToggle">
+            <label for="fibonacciToggle">Fibo</label>
+          </div>
+          <div class="checkbox-container">
+            <input type="checkbox" id="movingAveragesToggle">
+            <label for="movingAveragesToggle">MM</label>
+          </div>
+          <div>
+            <label for="yAxisPositionSelector"></label>
+            <select id="yAxisPositionSelector" title="Posição das porcentagens">
+              <option value="left">% Esquerda</option>
+              <option value="right">% Direita</option>
+            </select>
+          </div>
+          <label class="linha-atual-toggle">
+            <input type="checkbox" id="linhaAtualToggle" checked>
+            Atual
+          </label>
+          <label class="linha-atual-toggle">
+            <input type="checkbox" id="labelsToggle">
+            Rótulos
+          </label>
+
+          <div class="linha-tools-wrapper">
+            <button id="btnLinhaTools">Add Linha</button>
+            <div id="linhaToolsPanel" class="tool-dropdown-panel" style="display:none;">
+              <div class="contador-linhas" id="contadorLinhas">0 / 6 linhas</div>
+              <label>Cor da nova linha</label>
+              <input id="lineColorPicker" type="color" value="#1fcc59">
+              <button class="btn-linha green" onclick="window.adicionarLinhaDraggable()">➕ Adicionar</button>
+              <div class="separador-panel"></div>
+              <button class="btn-linha yellow" onclick="window.deletarLinhaSelecionada()">🗑 Selecionada</button>
+              <button class="btn-linha red"    onclick="window.limparTodasLinhas()">🧹 Todas</button>
+            </div>
+          </div>
+
+          <div class="linha-tools-wrapper">
+            <button id="btnFibTools">Fib+</button>
+            <div id="fibToolsPanel" class="tool-dropdown-panel" style="display:none;">
+              <div class="contador-linhas" id="contadorFibs">0 / 4 fibonacci</div>
+              <button class="btn-linha green" onclick="window.ativarDesenhoFibonacci()">🖊 Traçar</button>
+              <div class="separador-panel"></div>
+              <button class="btn-linha yellow" onclick="window.deletarFibonacciSelecionado()">🗑 Selecionado</button>
+              <button class="btn-linha red"    onclick="window.limparFibonacciLivre()">🧹 Todos</button>
+            </div>
+          </div>
+
+          <div class="linha-tools-wrapper">
+            <button id="btnTrendTools">LTA/LTB</button>
+            <div id="trendToolsPanel" class="tool-dropdown-panel" style="display:none;">
+              <div class="contador-linhas" id="contadorTendencias">0 / 6 tendências</div>
+              <button class="btn-linha green" onclick="window.ativarDesenhoLTA()">▲ Traçar LTA</button>
+              <button class="btn-linha red"   onclick="window.ativarDesenhoLTB()">▼ Traçar LTB</button>
+              <div class="separador-panel"></div>
+              <button class="btn-linha yellow" onclick="window.deletarTendenciaSelecionada()">🗑 Selecionada</button>
+              <button class="btn-linha red"    onclick="window.limparTendencias()">🧹 Todas</button>
+            </div>
+          </div>
+        </div><!-- /control-panel -->
+      </div><!-- /chart-container -->
+
+      <!-- PAINEL DE TOGGLES DE LINHA -->
+      <div id="setupLinesPanel" class="setup-lines-panel"></div>
+
+      <div class="espaco-paineis"></div>
+    </div><!-- /secaoGraficoMercado -->
 
     <div class="seletor-container">
 
@@ -195,5 +326,128 @@
 
     <script src="app.utils.min.js"></script>
     <script src="tabela.js"></script>
+
+    <script>
+      // ── Gráfico de Mercados desta liga ──────────────────────────────
+      // O graficomercado.js (e o Chart.js) só são carregados na 1ª vez que o botão é aberto.
+      // O estado aberto/fechado fica salvo por liga e é restaurado ao voltar.
+      (function () {
+        const btn = document.getElementById("btnGraficoMercado");
+        const secao = document.getElementById("secaoGraficoMercado");
+        const CHAVE_ABERTO = "multligas_grafico_aberto:" + LIGA_ATUAL;
+
+        let carregando = false;
+        let iniciado = false;
+
+        function salvarAberto(v) {
+          try { if (v) localStorage.setItem(CHAVE_ABERTO, "1"); else localStorage.removeItem(CHAVE_ABERTO); } catch (e) {}
+        }
+        function lerAberto() {
+          try { return localStorage.getItem(CHAVE_ABERTO) === "1"; } catch (e) { return false; }
+        }
+
+        function carregarScript(src) {
+          return new Promise((ok, erro) => {
+            const s = document.createElement("script");
+            s.src = src;
+            s.onload = ok;
+            s.onerror = () => erro(new Error("Não carregou: " + src));
+            document.body.appendChild(s);
+          });
+        }
+
+        function prepararConstantes() {
+          // Estas constantes são lidas pelo graficomercado.js (devem existir ANTES dele).
+          // Jogos por hora = nº de minutos da liga em ligas-config.js (Kiron 30, 1win/Estrela 20, BetGreen 12).
+          const info = (typeof LIGAS_INFO !== "undefined" && LIGAS_INFO[LIGA_ATUAL]) || null;
+          const jph = (info && info.minutos && info.minutos.length) || 20;
+          window.__JPH_GRAF = jph;
+          // const no escopo global de scripts clássicos, visível ao graficomercado.js
+          const s = document.createElement("script");
+          s.textContent =
+            "const BS_JOGOS_POR_HORA = " + jph + ";" +
+            "const BS_QD_BLOCO = 5;" +
+            "const BS_KEY_SUFIXO = '_mult" + jph + "';";
+          document.body.appendChild(s);
+
+          if (typeof window.getLigaKey !== "function") {
+            window.getLigaKey = function () { return LIGA_ATUAL; };
+          }
+
+          // Opções dos seletores proporcionais aos jogos por hora
+          const pontos = document.getElementById("pointsSelector");
+          [1,2,3,4,5,6,7,8,9,10,11,12,24,48,72].forEach((h) => {
+            pontos.add(new Option(h + (h === 1 ? " Hora" : " Horas"), String(h * jph)));
+          });
+          const base = document.getElementById("averageSelector");
+          [1,2,3,4,5,6].forEach((k) => {
+            base.add(new Option("Base " + k * jph, String(k * jph - 1)));
+          });
+
+          // 1ª vez: cria um setup inicial para o gráfico não abrir vazio
+          try {
+            const kSetups = "mgraf:setups_v4_mult" + jph;
+            const kAtivo  = "mgraf:activeSetup_v4_mult" + jph;
+            const kSeed   = "mgraf:seed_mult" + jph;
+            if (!localStorage.getItem(kSeed)) {
+              localStorage.setItem(kSeed, "1");
+              const lista = JSON.parse(localStorage.getItem(kSetups) || "[]");
+              if (!Array.isArray(lista) || !lista.length) {
+                const setup = {
+                  id: "setup_inicial_mult", name: "Over / Ambas",
+                  markets: ["Over 2.5", "Ambas Sim", "Under 2.5"], colors: {},
+                  horas: 8 * jph, base: jph - 1,
+                  fibonacci: false, mediasMoveis: false, linhaAtual: true, labels: false, dragLines: []
+                };
+                localStorage.setItem(kSetups, JSON.stringify([setup]));
+                localStorage.setItem(kAtivo, JSON.stringify(setup.id));
+              }
+            }
+          } catch (e) {}
+        }
+
+        async function iniciar() {
+          if (iniciado || carregando) return;
+          carregando = true;
+          try {
+            if (typeof Chart === "undefined") {
+              await carregarScript("https://cdn.jsdelivr.net/npm/chart.js@3.9.1");
+            }
+            prepararConstantes();
+            await carregarScript("graficomercado.js");
+
+            // O graficomercado.js inicializa em DOMContentLoaded / window.onload, que já
+            // passaram: faz aqui o mesmo que ele faria.
+            const modal = document.getElementById("setupModal");
+            if (modal) modal.addEventListener("click", function (e) { if (e.target === this) _closeSetupModal(); });
+            _renderSetupBar();
+            _renderLinesPanel(_getActiveSetup());
+            _updateSetupCounter();
+            updateCharts();
+            iniciado = true;
+          } catch (e) {
+            console.error("[grafico]", e);
+            btn.textContent = "⚠ Não foi possível carregar o gráfico";
+          } finally {
+            carregando = false;
+          }
+        }
+
+        function aplicar(aberto) {
+          secao.style.display = aberto ? "block" : "none";
+          btn.classList.toggle("ativo", aberto);
+          btn.textContent = aberto ? "📈 Gráfico de Mercados ✓" : "📈 Gráfico de Mercados";
+          if (aberto) iniciar();
+        }
+
+        btn.addEventListener("click", function () {
+          const abrir = secao.style.display !== "block";
+          salvarAberto(abrir);
+          aplicar(abrir);
+        });
+
+        if (lerAberto()) aplicar(true);
+      })();
+    </script>
   </body>
 </html>
