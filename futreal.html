@@ -471,24 +471,6 @@ table.tb{width:100%;border-collapse:collapse;font-size:13px;min-width:900px}
     <div id="agVazio" class="vazio"></div>
   </div>
 
-  <div id="clsWrap" style="display:none">
-    <div class="agHead">
-      <h2 class="panelTitle">CLASSIFICAÇÃO DAS LIGAS</h2>
-      <select id="clsLiga" title="Escolha a liga"></select>
-    </div>
-    <div id="cls"></div>
-  </div>
-
-  <div class="rodape">
-    <b>Pressão:</b> média da pressão minuto a minuto (0–100) de cada time na janela escolhida; verde = mandante, azul = visitante.
-    <b>Domínio:</b> parcela de cada time num índice que combina chutes no gol, chutes, grandes chances, toques na área, escanteios e xG.
-    <b>Temperatura:</b> nota de 0 a 100 de quão "quente" está o jogo (chutes no gol, pressão dos últimos 5 min, xG somado, minuto e placar apertado).
-    <b>Gols − xG:</b> positivo = time marcando acima do esperado; negativo = abaixo.
-    <b>Pressão estimada:</b> nos jogos sem cobertura minuto a minuto, o DataVirtual monta o gráfico a partir da variação de chutes, escanteios e toques na área
-    desde que você abriu a página (não inclui o que aconteceu antes disso).
-    <b>Radar:</b> o motor é a chance estimada de sair gol até o fim (ou escanteio nos próximos 10 min), calculada pelo ritmo de xG/chutes no gol e pela pressão recente; a odd justa é 100 ÷ motor — só há valor se a odd da casa for maior que ela.
-    Os sinais e projeções são calculados a partir desses dados (regras simples e ajustáveis) e não são recomendação de aposta.
-  </div>
 </div>
 
 <div class="mdl" id="mdl"><div class="mdlBox" id="mdlBox" role="dialog" aria-modal="true"></div></div>
@@ -1313,42 +1295,6 @@ function classHtml(d, dest) {
     + ((d.legenda || []).length ? `<div class="clsLeg">${d.legenda.map(l => `<span><i style="background:${corOk(l.cor)}"></i>${esc(l.nome)}</span>`).join('')}</div>` : '');
 }
 
-function popularCls() {
-  const sel = $('clsLiga');
-  const mapa = new Map();
-  for (const j of [...dados, ...agenda]) {
-    if (j.liga_id === null || j.liga_id === undefined || mapa.has(String(j.liga_id))) continue;
-    mapa.set(String(j.liga_id), `${j.liga}${j.pais ? ' (' + j.pais + ')' : ''}`);
-  }
-  const opts = [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  const sig = opts.map(o => o[0]).join(';');
-  $('clsWrap').style.display = opts.length ? '' : 'none';
-  if (sel._sig === sig) return;
-  const atual = sel.value;
-  sel._sig = sig;
-  sel.innerHTML = opts.map(([k, n]) => `<option value="${esc(k)}">${esc(n)}</option>`).join('');
-  const salvo = lsGet('dv_fr_cls', '');
-  const vivo = dados.find(j => j.liga_id !== null && j.liga_id !== undefined);
-  sel.value = mapa.has(atual) ? atual : mapa.has(salvo) ? salvo : vivo ? String(vivo.liga_id) : (opts[0] ? opts[0][0] : '');
-}
-
-function renderCls() {
-  const sel = $('clsLiga'), box = $('cls');
-  const id = sel.value;
-  if (!id) { box.innerHTML = ''; return; }
-  const c = tabCache.get(id);
-  if ((!c || Date.now() - c.t > TAB_TTL) && !tabBusy.has(id)) carregarTabela(id).then(() => { if ($('clsLiga').value === id) renderCls(); });
-  let html;
-  if (!c) html = '<div class="mdMsg">Carregando classificação…</div>';
-  else if (!c.d) html = `<div class="mdMsg err">Não foi possível carregar a classificação (${esc(c.erro || 'sem dados')}).</div>`;
-  else {
-    const dest = new Set();
-    for (const j of [...dados, ...agenda]) if (String(j.liga_id) === id) { dest.add(String(j.casa_id)); dest.add(String(j.fora_id)); }
-    html = classHtml(c.d, dest);
-  }
-  if (box._h !== html) { box.innerHTML = html; box._h = html; }
-}
-$('clsLiga').addEventListener('change', () => { lsSet('dv_fr_cls', $('clsLiga').value); renderCls(); });
 
 // ═════════════ RENDER GERAL ═════════════
 function render() {
@@ -1394,8 +1340,6 @@ function render() {
 
   renderRadar(lista);
   renderAgenda();
-  popularCls();
-  renderCls();
 }
 
 // ═════════════ STATUS ═════════════
