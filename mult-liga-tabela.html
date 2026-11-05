@@ -39,6 +39,11 @@
       .btn-grafico-mercado:hover { background: rgba(255,255,255,0.16); }
       .btn-grafico-mercado.ativo { background: #1fac89; border-color: #1fac89; }
       #secaoGraficoMercado { display: none; margin-bottom: 14px; }
+      #erroGrafico {
+        display: none; margin: 0 0 10px; padding: 10px 12px; border-radius: 6px;
+        background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.5);
+        color: #fecaca; font-size: 0.85rem; word-break: break-word;
+      }
       /* folga no fim para os painéis suspensos (Add Linha, Fib+, LTA/LTB) não serem cortados */
       .espaco-paineis { height: 150px; }
     </style>
@@ -55,6 +60,8 @@
     </div>
 
     <div id="secaoGraficoMercado">
+
+      <div id="erroGrafico"></div>
 
       <!-- MODAL criar/editar setup -->
       <div id="setupModal" class="setup-modal-overlay" style="display:none;">
@@ -338,6 +345,20 @@
 
         let carregando = false;
         let iniciado = false;
+        const boxErro = document.getElementById("erroGrafico");
+
+        function mostrarErro(msg) {
+          boxErro.style.display = "block";
+          boxErro.textContent = "⚠ Gráfico: " + msg;
+        }
+
+        // Qualquer erro de script vindo do graficomercado.js aparece na tela
+        window.addEventListener("error", function (ev) {
+          const arq = String(ev.filename || "");
+          if (arq.indexOf("graficomercado") !== -1 || arq.indexOf("chart") !== -1) {
+            mostrarErro((ev.message || "erro desconhecido") + " (" + arq.split("/").pop() + ":" + ev.lineno + ")");
+          }
+        });
 
         function salvarAberto(v) {
           try { if (v) localStorage.setItem(CHAVE_ABERTO, "1"); else localStorage.removeItem(CHAVE_ABERTO); } catch (e) {}
@@ -425,9 +446,19 @@
             _updateSetupCounter();
             updateCharts();
             iniciado = true;
+
+            // Se em 8s o gráfico não foi criado, avisa (API sem resposta, erro de script, etc.)
+            setTimeout(function () {
+              const ok = typeof chartInstances !== "undefined" && chartInstances && chartInstances.Copa;
+              if (!ok && boxErro.style.display !== "block") {
+                mostrarErro("não foi criado. Liga: \"" + LIGA_ATUAL + "\" — " +
+                  (typeof ROTAS_API !== "undefined" ? ROTAS_API.resultados(LIGA_ATUAL) : "sem ROTAS_API") +
+                  ". Abra o Console (F12) para ver o erro.");
+              }
+            }, 8000);
           } catch (e) {
             console.error("[grafico]", e);
-            btn.textContent = "⚠ Não foi possível carregar o gráfico";
+            mostrarErro(String(e && e.message ? e.message : e));
           } finally {
             carregando = false;
           }
