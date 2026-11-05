@@ -56,7 +56,7 @@
       }
       .liga-card-iframe { width: 100%; border: none; display: block; }
       .liga-card-titulo {
-        display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
         padding: 12px 16px;
         border-bottom: 1px solid rgba(255,255,255,0.10);
         background: rgba(255,255,255,0.04);
@@ -64,7 +64,47 @@
       }
       .liga-card-titulo .liga-nome { font-size: 1.1rem; font-weight: 500; color: #fff; }
       .liga-card-titulo .liga-casa { font-size: 0.85rem; opacity: 0.65; }
+      .liga-card-titulo .liga-acoes { margin-left: auto; display: flex; gap: 6px; }
+      .liga-btn {
+        background: rgba(255,255,255,0.08); color: #fff; cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 6px;
+        padding: 4px 10px; font-size: 0.85rem;
+      }
+      .liga-btn:hover { background: rgba(255,255,255,0.16); }
+      .liga-btn.ativo { background: #1fac89; border-color: #1fac89; }
+      .liga-card.recolhido .liga-card-corpo { display: none; }
+      .liga-card.recolhido .liga-card-titulo { border-bottom: none; }
+
       .seletor-casa select { min-width: 200px; }
+
+      /* ── Seletor de ligas ── */
+      .seletor-ligas { position: relative; display: inline-block; }
+      .btn-ligas {
+        cursor: pointer; white-space: nowrap; color: #fff;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.2); border-radius: 6px;
+        padding: 7px 14px; font-size: 0.95rem;
+      }
+      .btn-ligas:hover { background: rgba(255,255,255,0.16); }
+      .btn-ligas .cont-ligas { margin-left: 6px; color: #4ade80; font-weight: 600; }
+      .painel-ligas {
+        position: absolute; top: 42px; left: 0; z-index: 60; width: 280px;
+        background: #0f1420; border: 1px solid #374151; border-radius: 8px;
+        padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      }
+      .painel-ligas-acoes { display: flex; gap: 6px; margin-bottom: 8px; }
+      .painel-ligas-acoes button {
+        flex: 1; cursor: pointer; color: #fff; font-size: 0.8rem;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 5px 8px;
+      }
+      .painel-ligas-lista { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+      .painel-ligas-lista label {
+        display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+        border-radius: 6px; cursor: pointer; color: #e5e7eb; font-size: 0.9rem;
+      }
+      .painel-ligas-lista label:hover { background: rgba(255,255,255,0.07); }
+      .ligas-vazio { padding: 40px 16px; text-align: center; opacity: 0.7; }
     </style>
 
     <!-- Carrega config.js e ligas-config.js para usar LIGAS_INFO -->
@@ -83,6 +123,19 @@
     <div class="seletor-container">
       <div class="seletor-casa">
         <select id="seletorCasa"></select>
+      </div>
+
+      <div class="seletor-ligas">
+        <button type="button" id="btnLigas" class="btn-ligas">
+          Ligas<span id="contLigas" class="cont-ligas"></span>
+        </button>
+        <div id="painelLigas" class="painel-ligas" style="display:none;">
+          <div class="painel-ligas-acoes">
+            <button type="button" id="ligasTodas">Marcar todas</button>
+            <button type="button" id="ligasNenhuma">Limpar</button>
+          </div>
+          <div id="listaLigas" class="painel-ligas-lista"></div>
+        </div>
       </div>
     </div>
 
@@ -107,6 +160,28 @@
         BETGREEN: "BetGreen",
         MGM: "MGM",
       };
+
+      // ── Configuração salva (tudo que o usuário ajusta nesta página) ──
+      //  casa       : última casa escolhida
+      //  ligas      : { casaKey: [res das ligas marcadas] }  (ausente = todas)
+      //  recolhidos : { "casaKey|res": true }                (cards fechados)
+      //  scroll     : última posição da página
+      const CFG_KEY = "multligas_config_v2";
+      const CASA_STORAGE_KEY = "multligas_casaSelecionada"; // chave antiga, só leitura (migração)
+
+      function lerCfg() {
+        try {
+          const c = JSON.parse(localStorage.getItem(CFG_KEY) || "{}");
+          return c && typeof c === "object" ? c : {};
+        } catch (e) { return {}; }
+      }
+      const CFG = lerCfg();
+      CFG.ligas = CFG.ligas || {};
+      CFG.recolhidos = CFG.recolhidos || {};
+      CFG.graficos = CFG.graficos || {}; // { "casaKey|res": true } = gráfico de mercado aberto
+      function salvarCfg() {
+        try { localStorage.setItem(CFG_KEY, JSON.stringify(CFG)); } catch (e) {}
+      }
 
       function nomeBonitoCasa(casa) {
         return CASAS_NOMES[casa] ||
@@ -141,7 +216,6 @@
       }
 
       const CASAS = construirCasas(LIGAS_INFO);
-      const CASA_STORAGE_KEY = "multligas_casaSelecionada";
 
       // Casa padrão pelo nome do arquivo: estrelamult.html -> estrelabet,
       // multbetano.html -> betano
@@ -160,6 +234,8 @@
       function casaInicial() {
         const param = (new URLSearchParams(window.location.search).get("casa") || "").toLowerCase();
         if (CASAS[param]) return param;
+
+        if (CFG.casa && CASAS[CFG.casa]) return CFG.casa;
 
         let salva = null;
         try { salva = localStorage.getItem(CASA_STORAGE_KEY); } catch (e) {}
@@ -180,6 +256,62 @@
         sel.value = casaInicial();
       }
 
+      // ── Ligas selecionadas por casa ──────────────────────────────────
+      function ligasSelecionadas(casaKey) {
+        const casa = CASAS[casaKey];
+        if (!casa) return [];
+        const salvas = CFG.ligas[casaKey];
+        if (!Array.isArray(salvas)) return casa.ligas.map((l) => l.res); // padrão: todas
+        const validas = new Set(casa.ligas.map((l) => l.res));
+        return salvas.filter((r) => validas.has(r));
+      }
+
+      function atualizarContador(casaKey) {
+        const total = CASAS[casaKey] ? CASAS[casaKey].ligas.length : 0;
+        const sel = ligasSelecionadas(casaKey).length;
+        document.getElementById("contLigas").textContent = sel + "/" + total;
+      }
+
+      function renderPainelLigas(casaKey) {
+        const lista = document.getElementById("listaLigas");
+        lista.innerHTML = "";
+        const casa = CASAS[casaKey];
+        if (!casa) return;
+        const marcadas = new Set(ligasSelecionadas(casaKey));
+
+        casa.ligas.forEach((liga) => {
+          const label = document.createElement("label");
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = marcadas.has(liga.res);
+          cb.addEventListener("change", () => {
+            const atual = new Set(ligasSelecionadas(casaKey));
+            if (cb.checked) atual.add(liga.res); else atual.delete(liga.res);
+            // mantém a ordem original da casa
+            CFG.ligas[casaKey] = casa.ligas.map((l) => l.res).filter((r) => atual.has(r));
+            salvarCfg();
+            atualizarContador(casaKey);
+            montarLigasDaCasa(casaKey);
+          });
+          const span = document.createElement("span");
+          span.textContent = liga.label;
+          label.appendChild(cb);
+          label.appendChild(span);
+          lista.appendChild(label);
+        });
+        atualizarContador(casaKey);
+      }
+
+      function definirTodas(casaKey, marcar) {
+        const casa = CASAS[casaKey];
+        if (!casa) return;
+        CFG.ligas[casaKey] = marcar ? casa.ligas.map((l) => l.res) : [];
+        salvarCfg();
+        renderPainelLigas(casaKey);
+        montarLigasDaCasa(casaKey);
+      }
+
+      // ── Altura dos iframes ───────────────────────────────────────────
       function medirAlturaConteudo(doc) {
         const body = doc.body;
         if (!body) return 0;
@@ -228,7 +360,22 @@
         const casa = CASAS[casaKey];
         if (!casa) return;
 
-        casa.ligas.forEach((liga, i) => {
+        const marcadas = new Set(ligasSelecionadas(casaKey));
+        const ligas = casa.ligas.filter((l) => marcadas.has(l.res));
+
+        if (!ligas.length) {
+          const vazio = document.createElement("div");
+          vazio.className = "ligas-vazio";
+          vazio.textContent = "Nenhuma liga selecionada. Use o botão \"Ligas\" para escolher.";
+          cont.appendChild(vazio);
+          return;
+        }
+
+        let posicaoFila = 0; // só conta os cards que realmente vão carregar
+
+        ligas.forEach((liga) => {
+          const chaveRecolhido = casaKey + "|" + liga.res;
+
           const card = document.createElement("div");
           card.className = "liga-card";
 
@@ -240,45 +387,185 @@
           const spanCasa = document.createElement("span");
           spanCasa.className = "liga-casa";
           spanCasa.textContent = liga.nome;
+          const acoes = document.createElement("div");
+          acoes.className = "liga-acoes";
+          const btnRecolher = document.createElement("button");
+          btnRecolher.type = "button";
+          btnRecolher.className = "liga-btn";
+          const btnGrafico = document.createElement("button");
+          btnGrafico.type = "button";
+          btnGrafico.className = "liga-btn";
+          btnGrafico.title = "Mostrar/ocultar o Gráfico de Mercados desta liga";
+          acoes.appendChild(btnGrafico);
+          acoes.appendChild(btnRecolher);
           titulo.appendChild(spanNome);
           titulo.appendChild(spanCasa);
+          titulo.appendChild(acoes);
           card.appendChild(titulo);
+
+          const corpo = document.createElement("div");
+          corpo.className = "liga-card-corpo";
+
+          // Gráfico de Mercados (fica acima da tabela; só carrega quando aberto)
+          const iframeGraf = document.createElement("iframe");
+          iframeGraf.className = "liga-card-iframe liga-grafico-iframe";
+          iframeGraf.scrolling = "no";
+          iframeGraf.style.height = "760px";
+          iframeGraf.style.display = "none";
+          iframeGraf.addEventListener("load", () => {
+            ajustarAlturaIframe(iframeGraf);
+            observarIframe(iframeGraf);
+          });
+          corpo.appendChild(iframeGraf);
 
           const iframe = document.createElement("iframe");
           iframe.className = "liga-card-iframe";
           iframe.scrolling = "no";
           iframe.style.height = "400px";
-
           iframe.addEventListener("load", () => {
             ajustarAlturaIframe(iframe);
             observarIframe(iframe);
           });
-
-          card.appendChild(iframe);
+          corpo.appendChild(iframe);
+          card.appendChild(corpo);
           cont.appendChild(card);
 
-          setTimeout(() => {
-            if (idMontagem !== _montagemId) return; // usuário trocou de casa
-            iframe.src = `mult-liga-tabela.html?casa=${encodeURIComponent(casaKey)}`
-                       + `&res=${encodeURIComponent(liga.res)}`
-                       + `&label=${encodeURIComponent(liga.label)}`;
-          }, i * ATRASO_ENTRE_IFRAMES_MS);
+          const urlIframe = `mult-liga-tabela.html?casa=${encodeURIComponent(casaKey)}`
+                          + `&res=${encodeURIComponent(liga.res)}`
+                          + `&label=${encodeURIComponent(liga.label)}`;
+
+          function carregar(atraso) {
+            if (iframe.getAttribute("src")) return; // já carregado
+            setTimeout(() => {
+              if (idMontagem !== _montagemId) return; // usuário trocou de casa/ligas
+              if (!iframe.getAttribute("src")) iframe.src = urlIframe;
+            }, atraso);
+          }
+
+          function aplicarRecolhido(recolhido) {
+            card.classList.toggle("recolhido", recolhido);
+            btnRecolher.textContent = recolhido ? "▸ Abrir" : "▾ Recolher";
+            btnRecolher.title = recolhido ? "Mostrar esta liga" : "Esconder o conteúdo desta liga";
+          }
+
+          const urlGrafico = `mult-liga-grafico.html?casa=${encodeURIComponent(casaKey)}`
+                           + `&res=${encodeURIComponent(liga.res)}`
+                           + `&label=${encodeURIComponent(liga.label)}`;
+
+          function aplicarGrafico(aberto) {
+            iframeGraf.style.display = aberto ? "block" : "none";
+            btnGrafico.classList.toggle("ativo", aberto);
+            btnGrafico.textContent = aberto ? "📈 Gráfico ✓" : "📈 Gráfico";
+            if (!aberto && iframeGraf.dataset.carregado) {
+              // descarrega para parar as chamadas à API do gráfico
+              iframeGraf.src = "about:blank";
+              delete iframeGraf.dataset.carregado;
+            }
+          }
+
+          function carregarGrafico(atraso) {
+            if (!CFG.graficos[chaveRecolhido]) return;
+            setTimeout(() => {
+              if (idMontagem !== _montagemId) return;
+              if (!CFG.graficos[chaveRecolhido] || card.classList.contains("recolhido")) return;
+              if (!iframeGraf.dataset.carregado) {
+                iframeGraf.dataset.carregado = "1";
+                iframeGraf.src = urlGrafico;
+              }
+            }, atraso);
+          }
+
+          aplicarGrafico(!!CFG.graficos[chaveRecolhido]);
+
+          btnGrafico.addEventListener("click", () => {
+            const abrir = !CFG.graficos[chaveRecolhido];
+            if (abrir) CFG.graficos[chaveRecolhido] = true;
+            else delete CFG.graficos[chaveRecolhido];
+            salvarCfg();
+            aplicarGrafico(abrir);
+            if (abrir) carregarGrafico(0);
+          });
+
+          const recolhidoInicial = !!CFG.recolhidos[chaveRecolhido];
+          aplicarRecolhido(recolhidoInicial);
+
+          btnRecolher.addEventListener("click", () => {
+            const novo = !card.classList.contains("recolhido");
+            aplicarRecolhido(novo);
+            if (novo) CFG.recolhidos[chaveRecolhido] = true;
+            else delete CFG.recolhidos[chaveRecolhido];
+            salvarCfg();
+            if (!novo) {
+              carregar(0); // carrega sob demanda se ainda não tinha carregado
+              carregarGrafico(0);
+              setTimeout(() => ajustarAlturaIframe(iframe), 100);
+            }
+          });
+
+          // Cards recolhidos não carregam (economiza chamadas à API)
+          if (!recolhidoInicial) {
+            carregar(posicaoFila * ATRASO_ENTRE_IFRAMES_MS);
+            posicaoFila++;
+            if (CFG.graficos[chaveRecolhido]) {
+              carregarGrafico(posicaoFila * ATRASO_ENTRE_IFRAMES_MS);
+              posicaoFila++;
+            }
+          }
         });
       }
 
       function ajustarTodasAlturas() {
-        document.querySelectorAll(".liga-card-iframe").forEach(ajustarAlturaIframe);
+        document.querySelectorAll(".liga-card:not(.recolhido) .liga-card-iframe").forEach(ajustarAlturaIframe);
       }
       setInterval(ajustarTodasAlturas, 6000);
 
+      // ── Inicialização ────────────────────────────────────────────────
       popularSeletorCasa();
       const seletorCasaEl = document.getElementById("seletorCasa");
-      montarLigasDaCasa(seletorCasaEl.value);
+      const casaAtual = () => seletorCasaEl.value;
+
+      CFG.casa = casaAtual();
+      salvarCfg();
+      renderPainelLigas(casaAtual());
+      montarLigasDaCasa(casaAtual());
 
       seletorCasaEl.addEventListener("change", () => {
-        try { localStorage.setItem(CASA_STORAGE_KEY, seletorCasaEl.value); } catch (e) {}
-        montarLigasDaCasa(seletorCasaEl.value);
+        CFG.casa = casaAtual();
+        salvarCfg();
+        renderPainelLigas(casaAtual());
+        montarLigasDaCasa(casaAtual());
       });
+
+      // Painel "Ligas"
+      const painelEl = document.getElementById("painelLigas");
+      document.getElementById("btnLigas").addEventListener("click", (e) => {
+        e.stopPropagation();
+        painelEl.style.display = painelEl.style.display === "none" ? "block" : "none";
+      });
+      painelEl.addEventListener("click", (e) => e.stopPropagation());
+      document.addEventListener("click", () => { painelEl.style.display = "none"; });
+      document.getElementById("ligasTodas").addEventListener("click", () => definirTodas(casaAtual(), true));
+      document.getElementById("ligasNenhuma").addEventListener("click", () => definirTodas(casaAtual(), false));
+
+      // Posição da rolagem: salva ao rolar e restaura ao voltar
+      // (só restaura se o usuário ainda não rolou manualmente)
+      let _usuarioRolou = false;
+      ["wheel", "touchstart", "keydown", "mousedown"].forEach((ev) =>
+        window.addEventListener(ev, () => { _usuarioRolou = true; }, { passive: true })
+      );
+      let _timerScroll = null;
+      window.addEventListener("scroll", () => {
+        clearTimeout(_timerScroll);
+        _timerScroll = setTimeout(() => {
+          CFG.scroll = Math.round(window.scrollY);
+          salvarCfg();
+        }, 300);
+      }, { passive: true });
+      [1200, 3500, 6500].forEach((ms) =>
+        setTimeout(() => {
+          if (!_usuarioRolou && CFG.scroll > 0) window.scrollTo(0, CFG.scroll);
+        }, ms)
+      );
     </script>
       <script>
   fetch('header.html').then(r=>r.text()).then(d=>{document.getElementById('header').innerHTML=d;});
