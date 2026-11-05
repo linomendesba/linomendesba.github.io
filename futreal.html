@@ -194,6 +194,40 @@ table.tb{width:100%;border-collapse:collapse;font-size:12.5px;min-width:900px}
 .tb .mb{display:inline-block;width:54px;height:6px;background:var(--away);border-radius:99px;overflow:hidden;vertical-align:middle}
 .tb .mb i{display:block;height:100%;background:var(--home)}
 
+/* ── agenda do dia (cards por liga) ── */
+.secTitle{margin:6px 0 10px}
+.agHead{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:26px 0 10px}
+.agHead .panelTitle{margin:0}
+.agInfo{color:var(--muted);font-size:12px}
+.agBtns{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:auto}
+.agGrid{grid-template-columns:repeat(auto-fill,minmax(380px,1fr))}
+.lg{background:linear-gradient(180deg,#0f1822,#0a1119);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-width:0}
+.lgHead{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none}
+.lgHead:hover{background:rgba(255,255,255,.03)}
+.lgName{flex:1;min-width:0;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#c7d0d9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lgCnt{font-size:11px;color:var(--muted);white-space:nowrap}
+.lgLive{font-size:10.5px;font-weight:800;color:#ff8a80;background:rgba(255,59,48,.14);border:1px solid rgba(255,59,48,.4);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.lgChev{color:#7d8996;font-size:12px;transition:transform .15s}
+.lg.fechada .lgChev{transform:rotate(-90deg)}
+.lg.fechada .lgBody{display:none}
+.lgBody{border-top:1px solid #1c2630}
+.agRow{display:grid;grid-template-columns:58px minmax(0,1fr) 82px minmax(0,1fr) 22px;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid #16202a;font-size:13px}
+.agRow:last-child{border-bottom:0}
+.agRow.encerrado{opacity:.62}
+.agRow.cancelado{opacity:.5}
+.agRow[data-goto]{cursor:pointer}
+.agRow[data-goto]:hover{background:rgba(255,139,26,.07)}
+.agHora{font-size:12px;font-weight:700;color:#c7d0d9;font-variant-numeric:tabular-nums;white-space:nowrap}
+.agHora.live{color:#ffb25e}
+.agT{font-weight:600;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.agT.h{text-align:right;color:#e9fff1}
+.agT.a{text-align:left;color:#e6f5ff}
+.agPl{text-align:center;font-weight:700;font-variant-numeric:tabular-nums;color:#e7eaee;font-size:14px;white-space:nowrap}
+.agPl.vs{color:#6b7682;font-weight:500}
+.agPl small{display:block;font-size:9px;font-weight:600;letter-spacing:.4px;color:#7d8996;margin-top:1px;text-transform:uppercase}
+.agPl.live small{color:#ff8a80}
+@media(max-width:640px){.agGrid{grid-template-columns:1fr}.agBtns{margin-left:0}}
+
 .rodape{color:#6b7682;font-size:11px;margin-top:16px;line-height:1.55}
 .rodape b{color:#9ba6b2}
 
@@ -260,11 +294,26 @@ table.tb{width:100%;border-collapse:collapse;font-size:12.5px;min-width:900px}
     </div>
   </div>
 
-  <div class="status">Atualizado <b id="upd">—</b> · atualização automática a cada 5s</div>
+  <div class="status">Atualizado <b id="upd">—</b> · atualização automática a cada 15s</div>
 
+  <h2 class="panelTitle secTitle">AO VIVO AGORA</h2>
   <div id="grid" class="grid"></div>
   <div id="tabela" class="tw" style="display:none"></div>
   <div id="vazio" class="vazio"></div>
+
+  <div id="agendaWrap" style="display:none">
+    <div class="agHead">
+      <h2 class="panelTitle">JOGOS DE HOJE</h2>
+      <span class="agInfo" id="agInfo"></span>
+      <div class="agBtns">
+        <label class="chk"><input type="checkbox" id="agOcultar"> Ocultar encerrados</label>
+        <button type="button" class="badge" id="agRecolher">Recolher todas</button>
+        <button type="button" class="badge" id="agExpandir">Expandir todas</button>
+      </div>
+    </div>
+    <div id="agenda" class="grid agGrid"></div>
+    <div id="agVazio" class="vazio"></div>
+  </div>
 
   <div class="rodape">
     <b>Pressão:</b> média da pressão minuto a minuto (0–100) de cada time na janela escolhida; verde = mandante, azul = visitante.
@@ -284,7 +333,9 @@ table.tb{width:100%;border-collapse:collapse;font-size:12.5px;min-width:900px}
 // ═════════════ CONFIG ═════════════
 const API_BASE   = 'https://datavirtual.com.br';
 const ROTA       = `${API_BASE}/futebol-real/ao-vivo`;
-const POLL_MS    = 5000;
+const ROTA_AGENDA = `${API_BASE}/futebol-real/agenda`;
+const POLL_AGENDA_MS = 30000;   // a agenda do dia muda devagar (a captura renova a cada 30s)
+const POLL_MS    = 15000;       // a captura (real.js) atualiza a cada 30s; consultar mais rápido só repete o dado
 const TIMEOUT_MS = 12000;
 const STALE_AVISO_S = 120;      // captura sem atualizar há mais que isso → avisa
 
@@ -321,6 +372,12 @@ const janela = {};                         // id → '5m' | 'geral'
 const aba = {};                            // id → 'geral' | 'stats' | 'analise'
 const els = new Map();                     // id → elemento do card
 let favoritos = new Set(lsGet('dv_fr_fav', []));
+let agenda = [];                                   // jogos do dia, em qualquer estado (fotmob_agenda)
+let agOk = false;                                  // última busca da agenda deu certo
+let agTentou = false;                              // já tentou carregar a agenda (com ou sem sucesso)
+let agBusy = false;
+let agFechadas = new Set(lsGet('dv_fr_agfech', []));   // ligas recolhidas
+let agOcultar = lsGet('dv_fr_agocultar', false);       // esconder encerrados
 let hist = ssGet('dv_fr_hist', {});        // id → histórico para o gráfico estimado
 const F = {
   busca: '',
@@ -759,7 +816,8 @@ function renderKpis() {
     tile('Quentes (70+)', quentes) +
     tile('Gols', gols, n ? `média ${(gols / n).toFixed(2)} por jogo` : '') +
     tile('Escanteios', esc_, n ? `média ${(esc_ / n).toFixed(1)} por jogo` : '') +
-    tile('Cobertura completa', `${completa}/${n}`, 'com gráfico oficial');
+    tile('Cobertura completa', `${completa}/${n}`, 'com gráfico oficial') +
+    (agenda.length ? tile('Jogos hoje', agenda.length, `${agenda.filter(a => a.estado === 'agendado').length} aguardando`) : '');
 }
 
 function renderTops() {
@@ -821,7 +879,7 @@ function ordenar(lista) {
 function popularLigas() {
   const sel = $('fLiga');
   const mapa = new Map();
-  for (const j of dados) mapa.set(ligaKey(j), `${j.liga}${j.pais ? ' (' + j.pais + ')' : ''}`);
+  for (const j of [...dados, ...agenda]) mapa.set(ligaKey(j), `${j.liga}${j.pais ? ' (' + j.pais + ')' : ''}`);
   const opts = [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   const sig = opts.map(o => o[0]).join(';');
   if (sel._sig === sig) return;
@@ -829,7 +887,97 @@ function popularLigas() {
   sel.innerHTML = '<option value="">🏆 Todas as ligas</option>' +
     opts.map(([k, n]) => `<option value="${esc(k)}">${esc(n)}</option>`).join('');
   sel.value = mapa.has(F.liga) ? F.liga : '';
-  if (sel.value !== F.liga) F.liga = sel.value;
+  if (sel.value !== F.liga && agTentou) F.liga = sel.value;   // só descarta a liga salva depois de ver a agenda também
+}
+
+// ═════════════ AGENDA DO DIA ═════════════
+const horaLocal = ms => (ms === null || ms === undefined) ? '--:--'
+  : new Date(Number(ms)).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+function agendaFiltrada() {
+  const q = F.busca.toLowerCase();
+  return agenda.filter(a => {
+    if (q && !`${a.casa} ${a.fora} ${a.liga}`.toLowerCase().includes(q)) return false;
+    if (F.liga && ligaKey(a) !== F.liga) return false;
+    if (F.fav && !favoritos.has(a.id)) return false;
+    if (agOcultar && a.estado === 'encerrado') return false;
+    return true;
+  });
+}
+
+function agendaGrupos(lista) {
+  const m = new Map();
+  for (const a of lista) {
+    const k = ligaKey(a);
+    if (!m.has(k)) m.set(k, { key: k, liga: a.liga || '—', pais: a.pais, jogos: [] });
+    m.get(k).jogos.push(a);
+  }
+  const gs = [...m.values()];
+  for (const g of gs) {
+    g.jogos.sort((x, y) => (num(x.inicio_ms) ?? 0) - (num(y.inicio_ms) ?? 0));
+    g.vivos = g.jogos.filter(a => a.estado === 'ao_vivo').length;
+    const futuros = g.jogos.filter(a => a.estado === 'agendado' || a.estado === 'ao_vivo').map(a => num(a.inicio_ms) ?? Infinity);
+    g.prox = futuros.length ? Math.min(...futuros) : Infinity;   // ligas só com encerrados vão pro fim
+  }
+  return gs.sort((a, b) => (b.vivos > 0) - (a.vivos > 0)
+    || (a.prox === b.prox ? 0 : a.prox < b.prox ? -1 : 1)
+    || a.liga.localeCompare(b.liga));
+}
+
+function agRowHtml(a, vivosMap) {
+  const live = a.estado === 'ao_vivo';
+  const j = live ? vivosMap.get(a.id) : null;
+  const gc = j ? num(j.gols_casa) : num(a.gols_casa);
+  const gf = j ? num(j.gols_fora) : num(a.gols_fora);
+  const fav = favoritos.has(a.id);
+  let esq = `<span class="agHora">${horaLocal(num(a.inicio_ms))}</span>`;
+  let mid = 'x', sub = 'aguardando', cls = ' vs';
+  if (live) {
+    esq = `<span class="agHora live">${j ? esc(textoMinuto(j).t) : 'AO VIVO'}</span>`;
+    mid = `${gc ?? 0} - ${gf ?? 0}`; sub = 'ao vivo'; cls = ' live';
+  } else if (a.estado === 'encerrado') {
+    mid = `${gc ?? 0} - ${gf ?? 0}`; sub = 'encerrado'; cls = '';
+  } else if (a.estado === 'cancelado') {
+    mid = '–'; sub = esc(String(a.obs || 'cancelado').toLowerCase());
+  } else if (num(a.inicio_ms) !== null && num(a.inicio_ms) < Date.now() - 60000) {
+    sub = 'iniciando';
+  }
+  return `<div class="agRow ${esc(a.estado)}" data-id="${esc(a.id)}"${j ? ` data-goto="${esc(a.id)}" title="Ir para o card ao vivo"` : ''}>
+    ${esq}<span class="agT h" title="${esc(a.casa)}">${esc(a.casa)}</span>
+    <span class="agPl${cls}">${mid}<small>${sub}</small></span>
+    <span class="agT a" title="${esc(a.fora)}">${esc(a.fora)}</span>
+    <button type="button" class="fav${fav ? ' on' : ''}" data-act="fav" title="Favoritar">${fav ? '★' : '☆'}</button></div>`;
+}
+
+function agLigaHtml(g, vivosMap) {
+  const fechada = agFechadas.has(g.key);
+  const n = g.jogos.length;
+  return `<div class="lg${fechada ? ' fechada' : ''}">
+    <div class="lgHead" data-lg="${esc(g.key)}"><span class="lgName" title="${esc(g.liga)}">${esc(g.liga)}${g.pais ? ' · ' + esc(g.pais) : ''}</span>
+      ${g.vivos ? `<span class="lgLive">${g.vivos} ao vivo</span>` : ''}<span class="lgCnt">${n} jogo${n !== 1 ? 's' : ''}</span><span class="lgChev">▾</span></div>
+    <div class="lgBody">${g.jogos.map(a => agRowHtml(a, vivosMap)).join('')}</div></div>`;
+}
+
+function renderAgenda() {
+  const wrap = $('agendaWrap');
+  if (!agenda.length && !agOk) { wrap.style.display = 'none'; return; }   // rota ainda indisponível: não mostra nada
+  wrap.style.display = '';
+
+  const vivosMap = new Map(dados.map(j => [j.id, j]));
+  const grupos = agendaGrupos(agendaFiltrada());
+  const cont = e => agenda.filter(a => a.estado === e).length;
+  $('agInfo').textContent = agenda.length
+    ? `${agenda.length} jogos · ${cont('agendado')} aguardando · ${cont('ao_vivo')} ao vivo · ${cont('encerrado')} encerrados` : '';
+
+  const html = grupos.map(g => agLigaHtml(g, vivosMap)).join('');
+  const el = $('agenda');
+  if (el._html !== html) { el.innerHTML = html; el._html = html; }
+
+  const vz = $('agVazio');
+  if (!grupos.length) {
+    vz.textContent = agenda.length ? 'Nenhum jogo da agenda com os filtros atuais.' : 'Ainda não há jogos na agenda de hoje.';
+    vz.classList.add('show');
+  } else vz.classList.remove('show');
 }
 
 // ═════════════ RENDER GERAL ═════════════
@@ -869,9 +1017,12 @@ function render() {
 
   const vz = $('vazio');
   if (!lista.length) {
-    vz.textContent = dados.length ? 'Nenhum jogo com os filtros atuais.' : 'Nenhum jogo ao vivo no momento.';
+    vz.textContent = dados.length ? 'Nenhum jogo com os filtros atuais.'
+      : agenda.length ? 'Nenhum jogo ao vivo agora — os jogos de hoje aparecem logo abaixo.' : 'Nenhum jogo ao vivo no momento.';
     vz.classList.add('show');
   } else vz.classList.remove('show');
+
+  renderAgenda();
 }
 
 // ═════════════ STATUS ═════════════
@@ -915,6 +1066,9 @@ async function carregar() {
         j.momentum = momEstimado(j.id);
         j._est = true;
         j._estIni = hist[j.id] ? hist[j.id].ini : decorrido(j);
+      } else if (num(j.momentum_est_ini) !== null) {      // momentum já estimado pelo servidor (histórico completo)
+        j._est = true;
+        j._estIni = num(j.momentum_est_ini);
       }
     }
     podarHist();
@@ -930,6 +1084,29 @@ async function carregar() {
     clearTimeout(to);
     busy = false;
     atualizarStatus();
+  }
+}
+
+async function carregarAgenda() {
+  if (agBusy) return;
+  agBusy = true;
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+  try {
+    const r = await fetch(`${ROTA_AGENDA}?_ts=${Date.now()}`, { cache: 'no-store', signal: ctl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (!Array.isArray(d)) throw new Error('resposta inválida');
+    agenda = d.map(a => ({ ...a, id: String(a.id) }));
+    agOk = true;
+  } catch (e) {
+    agOk = false;                       // mantém a última agenda, se houver
+  } finally {
+    clearTimeout(to);
+    agBusy = false;
+    agTentou = true;
+    popularLigas();
+    render();
   }
 }
 
@@ -952,16 +1129,36 @@ function clique(ev) {
 $('grid').addEventListener('click', clique);
 $('tabela').addEventListener('click', clique);
 
-$('tops').addEventListener('click', ev => {
-  const t = ev.target.closest('[data-goto]');
-  if (!t) return;
+function irParaCard(id) {
   if (F.modo !== 'cards') { F.modo = 'cards'; lsSet('dv_fr_modo', F.modo); render(); }
-  const c = els.get(t.dataset.goto);
+  const c = els.get(id);
   if (!c) return;
   c.scrollIntoView({ behavior: 'smooth', block: 'center' });
   c.classList.add('flash');
   setTimeout(() => c.classList.remove('flash'), 1600);
+}
+
+$('tops').addEventListener('click', ev => {
+  const t = ev.target.closest('[data-goto]');
+  if (t) irParaCard(t.dataset.goto);
 });
+
+$('agenda').addEventListener('click', ev => {
+  if (ev.target.closest('[data-act="fav"]')) return clique(ev);
+  const h = ev.target.closest('[data-lg]');
+  if (h) {
+    const k = h.dataset.lg;
+    agFechadas.has(k) ? agFechadas.delete(k) : agFechadas.add(k);
+    lsSet('dv_fr_agfech', [...agFechadas]);
+    render();
+    return;
+  }
+  const g = ev.target.closest('[data-goto]');
+  if (g) irParaCard(g.dataset.goto);
+});
+$('agOcultar').addEventListener('change', e => { agOcultar = e.target.checked; lsSet('dv_fr_agocultar', agOcultar); render(); });
+$('agRecolher').addEventListener('click', () => { agFechadas = new Set(agenda.map(ligaKey)); lsSet('dv_fr_agfech', [...agFechadas]); render(); });
+$('agExpandir').addEventListener('click', () => { agFechadas = new Set(); lsSet('dv_fr_agfech', []); render(); });
 
 $('views').addEventListener('click', ev => {
   const b = ev.target.closest('[data-modo]');
@@ -989,14 +1186,17 @@ $('presets').addEventListener('click', e => {
 if (![...$('fOrdem').options].some(o => o.value === F.ordem)) F.ordem = 'minuto';
 $('fOrdem').value = F.ordem;
 $('fFav').checked = !!F.fav;
+$('agOcultar').checked = !!agOcultar;
 document.querySelectorAll('#presets [data-preset]').forEach(b => b.classList.toggle('on', F.presets.has(b.dataset.preset)));
 document.querySelectorAll('#views [data-modo]').forEach(b => b.classList.toggle('on', b.dataset.modo === F.modo));
 
 // ═════════════ LOOP ═════════════
 carregar();
+carregarAgenda();
 setInterval(() => { if (!document.hidden) carregar(); }, POLL_MS);
+setInterval(() => { if (!document.hidden) carregarAgenda(); }, POLL_AGENDA_MS);
 setInterval(atualizarStatus, 1000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) carregar(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { carregar(); carregarAgenda(); } });
 })();
 </script>
 
