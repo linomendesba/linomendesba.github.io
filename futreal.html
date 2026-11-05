@@ -376,6 +376,12 @@ table.tb{width:100%;border-collapse:collapse;font-size:13px;min-width:900px}
 .oddsRow b{display:block;font-size:20px;font-weight:700;margin-top:2px;color:var(--yellow)}
 .oddsRow em{display:block;font-style:normal;font-size:11px;color:var(--faint);margin-top:2px}
 @media(max-width:480px){.radarGrid{grid-template-columns:1fr}.rdInfo h3{font-size:17px}.rdJusta{font-size:24px}}
+.mkRow{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.mkF{display:flex;flex-direction:column;gap:6px;min-width:0}
+.mkF select{background:var(--bg);color:var(--txt);border:1px solid var(--line2);border-radius:6px;padding:8px 10px;font-size:13px;min-width:0;width:100%}
+.mkF select.on{border-color:var(--accent);color:#f0c47e}
+.mkHead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-bottom:10px}
+.mkHead .hint{margin:0}
 </style>
 </head>
 <body>
@@ -431,6 +437,12 @@ table.tb{width:100%;border-collapse:collapse;font-size:13px;min-width:900px}
       <button type="button" class="badge" data-preset="vermelho">Cartão vermelho</button>
       <button type="button" class="badge" data-preset="completa">Cobertura completa</button>
     </div>
+    <div class="sep"></div>
+    <div class="mkHead">
+      <p class="hint">Mercados — filtram pelo que está acontecendo agora no jogo (placar, escanteios, cartões, período). Os filtros se combinam.</p>
+      <button type="button" class="badge" id="mkLimpar" style="display:none">Limpar mercados</button>
+    </div>
+    <div class="mkRow" id="mercados"></div>
   </div>
 
 
@@ -553,7 +565,8 @@ const F = {
   ordem: lsGet('dv_fr_ordem', 'minuto'),
   fav: lsGet('dv_fr_onlyfav', false),
   modo: lsGet('dv_fr_modo', 'cards'),
-  presets: new Set(lsGet('dv_fr_presets', []))
+  presets: new Set(lsGet('dv_fr_presets', [])),
+  mk: lsGet('dv_fr_mk', {})
 };
 
 // ═════════════ DADOS DO JOGO ═════════════
@@ -1041,6 +1054,10 @@ function passa(j) {
     if (p === 'muitos_escanteios' && totalEsc(j) < 8) return false;
     if (p === 'vermelho' && ((num(j.vermelhos_casa) || 0) + (num(j.vermelhos_fora) || 0)) === 0) return false;
     if (p === 'completa' && j._est) return false;
+  }
+  for (const [k, v] of Object.entries(F.mk)) {
+    const f = MK[k] && MK[k][v];
+    if (f && !f(j)) return false;
   }
   return true;
 }
@@ -1530,6 +1547,134 @@ $('presets').addEventListener('click', e => {
   lsSet('dv_fr_presets', [...F.presets]);
   render();
 });
+
+// ═════════════ FILTROS POR MERCADO ═════════════
+// Cada filtro olha a SITUAÇÃO ATUAL do jogo (não são odds): "Over 2.5 batido" = já saíram 3+ gols;
+// "Under 2.5 vivo" = ainda tem 2 gols ou menos. Dentro de cada mercado escolhe-se uma opção; mercados diferentes se combinam.
+const gcn = j => num(j.gols_casa) || 0;
+const gfn = j => num(j.gols_fora) || 0;
+const golsT = j => gcn(j) + gfn(j);
+const cartoesT = j => ['amarelos', 'vermelhos'].reduce((t, k) => t + (num(j[k + '_casa']) || 0) + (num(j[k + '_fora']) || 0), 0);
+
+// placar no intervalo, a partir dos eventos de gol; se os eventos não batem com o placar, não arrisca (null)
+function placarHT(j) {
+  if (!['HT', '2T', 'ET'].includes(j.periodo)) return null;
+  const gols = (j.eventos || []).filter(e => e.tipo === 'gol');
+  let h = 0, a = 0, th = 0, ta = 0;
+  for (const e of gols) {
+    e.lado === 'casa' ? th++ : ta++;
+    if ((num(e.min) || 0) <= 45) e.lado === 'casa' ? h++ : a++;
+  }
+  if (th !== gcn(j) || ta !== gfn(j)) return null;
+  return [h, a];
+}
+const sinalDif = d => d > 0 ? 1 : d < 0 ? -1 : 0;
+const htSe = fn => j => { const p = placarHT(j); return p ? fn(p[0], p[1], j) : false; };
+
+const MERCADOS = [
+  { k: 'res', t: 'Resultado (1X2 / dupla chance)', o: [
+    ['1', 'Casa vencendo (1)', j => gcn(j) > gfn(j)],
+    ['X', 'Empatado (X)', j => gcn(j) === gfn(j)],
+    ['2', 'Visitante vencendo (2)', j => gfn(j) > gcn(j)],
+    ['1X', 'Dupla chance 1X (casa não perde)', j => gcn(j) >= gfn(j)],
+    ['X2', 'Dupla chance X2 (visitante não perde)', j => gfn(j) >= gcn(j)],
+    ['12', 'Dupla chance 12 (sem empate)', j => gcn(j) !== gfn(j)]
+  ] },
+  { k: 'gols', t: 'Gols — Over / Under', o: [
+    ['o05', 'Over 0.5 batido (1+ gol)', j => golsT(j) >= 1],
+    ['o15', 'Over 1.5 batido (2+ gols)', j => golsT(j) >= 2],
+    ['o25', 'Over 2.5 batido (3+ gols)', j => golsT(j) >= 3],
+    ['o35', 'Over 3.5 batido (4+ gols)', j => golsT(j) >= 4],
+    ['o45', 'Over 4.5 batido (5+ gols)', j => golsT(j) >= 5],
+    ['u15', 'Under 1.5 vivo (até 1 gol)', j => golsT(j) <= 1],
+    ['u25', 'Under 2.5 vivo (até 2 gols)', j => golsT(j) <= 2],
+    ['u35', 'Under 3.5 vivo (até 3 gols)', j => golsT(j) <= 3],
+    ['p25', 'Projeção de 2.5+ gols no jogo', j => { const v = analise(j).projGols; return v !== null && v >= 2.5; }],
+    ['p35', 'Projeção de 3.5+ gols no jogo', j => { const v = analise(j).projGols; return v !== null && v >= 3.5; }]
+  ] },
+  { k: 'btts', t: 'Ambas marcam', o: [
+    ['sim', 'Sim — já marcaram os dois', j => gcn(j) > 0 && gfn(j) > 0],
+    ['falta', 'Falta um time marcar (só um marcou)', j => (gcn(j) > 0) !== (gfn(j) > 0)],
+    ['zero', 'Ninguém marcou (0 x 0)', j => golsT(j) === 0],
+    ['nao', 'Não — ainda não marcaram os dois', j => !(gcn(j) > 0 && gfn(j) > 0)]
+  ] },
+  { k: 'time', t: 'Gols por equipe', o: [
+    ['c0', 'Casa sem marcar', j => gcn(j) === 0],
+    ['f0', 'Visitante sem marcar', j => gfn(j) === 0],
+    ['c1', 'Casa com 1+ gol', j => gcn(j) >= 1],
+    ['f1', 'Visitante com 1+ gol', j => gfn(j) >= 1],
+    ['c2', 'Casa com 2+ gols', j => gcn(j) >= 2],
+    ['f2', 'Visitante com 2+ gols', j => gfn(j) >= 2]
+  ] },
+  { k: 'hcp', t: 'Handicap (diferença de gols)', o: [
+    ['d0', 'Sem diferença (empate)', j => gcn(j) === gfn(j)],
+    ['d1', 'Diferença de 1 gol', j => Math.abs(gcn(j) - gfn(j)) === 1],
+    ['d2', 'Diferença de 2+ gols', j => Math.abs(gcn(j) - gfn(j)) >= 2],
+    ['c2', 'Casa à frente por 2+', j => gcn(j) - gfn(j) >= 2],
+    ['f2', 'Visitante à frente por 2+', j => gfn(j) - gcn(j) >= 2]
+  ] },
+  { k: 'esc', t: 'Escanteios', o: [
+    ['e4', '4+ escanteios', j => totalEsc(j) >= 4],
+    ['e6', '6+ escanteios', j => totalEsc(j) >= 6],
+    ['e8', '8+ escanteios', j => totalEsc(j) >= 8],
+    ['e10', '10+ escanteios', j => totalEsc(j) >= 10],
+    ['e12', '12+ escanteios', j => totalEsc(j) >= 12],
+    ['ritmo', 'Ritmo alto (0,15+ por minuto)', j => decorrido(j) >= 15 && totalEsc(j) / decorrido(j) >= 0.15],
+    ['c5', 'Casa com 5+', j => (num(j.escanteios_casa) || 0) >= 5],
+    ['f5', 'Visitante com 5+', j => (num(j.escanteios_fora) || 0) >= 5]
+  ] },
+  { k: 'card', t: 'Cartões', o: [
+    ['c0', 'Sem cartões até agora', j => cartoesT(j) === 0],
+    ['c3', '3+ cartões', j => cartoesT(j) >= 3],
+    ['c5', '5+ cartões', j => cartoesT(j) >= 5],
+    ['c7', '7+ cartões', j => cartoesT(j) >= 7],
+    ['vm', 'Com cartão vermelho', j => ((num(j.vermelhos_casa) || 0) + (num(j.vermelhos_fora) || 0)) > 0]
+  ] },
+  { k: 'per', t: 'Período', o: [
+    ['ini', 'Primeiros 15 min', j => j.periodo === '1T' && decorrido(j) <= 15],
+    ['1t', '1º tempo', j => j.periodo === '1T'],
+    ['ht', 'Intervalo', j => j.periodo === 'HT'],
+    ['2t', '2º tempo', j => j.periodo === '2T'],
+    ['fim', 'Últimos 15 min (75+)', j => decorrido(j) >= 75]
+  ] },
+  { k: 'htft', t: 'HT / FT (só após o intervalo)', o: [
+    ['x', 'Empatava no intervalo', htSe((h, a) => h === a)],
+    ['1', 'Casa ganhava no intervalo', htSe((h, a) => h > a)],
+    ['2', 'Visitante ganhava no intervalo', htSe((h, a) => a > h)],
+    ['mant', 'Mesmo resultado do intervalo até agora', htSe((h, a, j) => sinalDif(h - a) === sinalDif(gcn(j) - gfn(j)))],
+    ['mud', 'Resultado mudou desde o intervalo', htSe((h, a, j) => sinalDif(h - a) !== sinalDif(gcn(j) - gfn(j)))]
+  ] }
+];
+
+const MK = {};
+const mkBox = $('mercados');
+mkBox.innerHTML = MERCADOS.map(m => {
+  MK[m.k] = Object.fromEntries(m.o.map(o => [o[0], o[2]]));
+  return `<label class="mkF"><span class="lbl">${m.t}</span><select data-mk="${m.k}"><option value="">Qualquer</option>`
+    + m.o.map(o => `<option value="${o[0]}">${o[1]}</option>`).join('') + '</select></label>';
+}).join('');
+
+function atualizarMk() {
+  let ativos = 0;
+  for (const m of MERCADOS) {
+    const sel = mkBox.querySelector(`[data-mk="${m.k}"]`);
+    if (F.mk[m.k] && !MK[m.k][F.mk[m.k]]) delete F.mk[m.k];   // opção que não existe mais
+    sel.value = F.mk[m.k] || '';
+    sel.classList.toggle('on', !!sel.value);
+    if (sel.value) ativos++;
+  }
+  $('mkLimpar').style.display = ativos ? '' : 'none';
+}
+mkBox.addEventListener('change', e => {
+  const k = e.target.dataset && e.target.dataset.mk;
+  if (!k) return;
+  if (e.target.value) F.mk[k] = e.target.value; else delete F.mk[k];
+  lsSet('dv_fr_mk', F.mk);
+  atualizarMk();
+  render();
+});
+$('mkLimpar').addEventListener('click', () => { F.mk = {}; lsSet('dv_fr_mk', F.mk); atualizarMk(); render(); });
+atualizarMk();
 
 // estado inicial dos controles
 if (![...$('fOrdem').options].some(o => o.value === F.ordem)) F.ordem = 'minuto';
