@@ -4333,7 +4333,14 @@ function _preloadQuando(lk) { return parseInt(localStorage.getItem("dvpreload_" 
 function _preloadMarcar(lk) { try { localStorage.setItem("dvpreload_" + lk, String(Date.now())); } catch (e) {} }
 
 // Uma liga por chamada (a mais "velha" primeiro): custo constante no servidor, mesmo com 9 ligas irmãs.
+// Dentro do split.html (?res=...) cada liga irmã já é um iframe com seus próprios dados:
+// pré-carregar as irmãs em cada iframe só duplica requisições e gravações no localStorage.
+function _modoSplit() {
+  try { return !!window.frameElement && /[?&]res=/.test(location.search); } catch (e) { return false; }
+}
+
 async function precarregarLigasIrmas() {
+  if (_modoSplit()) return;
   if (_preloadEmAndamento || !_tabVisibleTabela || !_cacheResultados.length) return;
   const agora = Date.now();
   const liga = ligasParaPrecarregar()
@@ -4761,10 +4768,23 @@ async function _buscarDadosSeguro() {
   catch (e) { console.error("Erro no ciclo de busca:", e); }
   finally { _buscando = false; }
 }
+let _naTelaTabela = true;
 document.addEventListener('visibilitychange', () => {
-  _tabVisibleTabela = !document.hidden;
+  _tabVisibleTabela = !document.hidden && _naTelaTabela;
   if (_tabVisibleTabela) _buscarDadosSeguro();
 });
+
+// No split.html há várias ligas empilhadas: as que estão fora da tela param de buscar dados
+// a cada 3s e voltam a atualizar assim que entram (de novo) na área visível.
+if (_modoSplit() && "IntersectionObserver" in window) {
+  new IntersectionObserver((entradas) => {
+    const visivel = entradas[entradas.length - 1].isIntersecting;
+    if (visivel === _naTelaTabela) return;
+    _naTelaTabela = visivel;
+    _tabVisibleTabela = !document.hidden && visivel;
+    if (_tabVisibleTabela) _buscarDadosSeguro();
+  }, { rootMargin: "300px 0px" }).observe(document.body);
+}
 
 hidratarDoCacheLocal();
 buscarDados();
