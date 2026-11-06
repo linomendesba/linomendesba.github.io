@@ -264,18 +264,25 @@
         return Math.ceil(maxBottom - bodyTop);
       }
 
-      function ajustarAlturaIframe(iframe) {
+      // forcarEncolher: usado só ao fechar o gráfico (devolve o espaço que sobrou).
+      // Nas atualizações normais mede direto, sem mexer na altura, pra página não "pular".
+      function ajustarAlturaIframe(iframe, forcarEncolher) {
         try {
           const doc = iframe.contentDocument || iframe.contentWindow.document;
-          // Encolhe antes de medir: se algo no conteúdo depende da altura do
-          // viewport (100%/vh/overlay), ele mantém o iframe alto depois de fechar o gráfico.
-          const alturaAntes = iframe.style.height;
-          iframe.style.height = "50px";
+          const atual = parseFloat(iframe.style.height) || 0;
+          const scrollX = window.scrollX, scrollY = window.scrollY;
+
+          if (forcarEncolher) iframe.style.height = "50px";
           const altura = medirAlturaConteudo(doc);
-          if (altura > 0) {
-            iframe.style.height = (altura + 24) + "px";
-          } else {
-            iframe.style.height = alturaAntes;
+          const nova = altura > 0 ? altura + 24 : atual;
+
+          // só mexe se a diferença for real (evita tremer a página)
+          if (forcarEncolher || Math.abs(nova - atual) > 1) {
+            iframe.style.height = nova + "px";
+          }
+          // mantém a rolagem da página onde estava
+          if (forcarEncolher && (window.scrollY !== scrollY || window.scrollX !== scrollX)) {
+            window.scrollTo(scrollX, scrollY);
           }
         } catch (e) {
           iframe.style.height = "900px";
@@ -478,7 +485,7 @@
       }
 
       function ajustarTodasAlturas() {
-        document.querySelectorAll(".liga-card-iframe").forEach(ajustarAlturaIframe);
+        document.querySelectorAll(".liga-card-iframe").forEach((f) => ajustarAlturaIframe(f));
       }
       setInterval(ajustarTodasAlturas, 6000);
 
