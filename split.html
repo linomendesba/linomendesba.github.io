@@ -61,10 +61,51 @@
         border-bottom: 1px solid rgba(255,255,255,0.10);
         background: rgba(255,255,255,0.04);
         border-left: 4px solid #f5b800;
+        cursor: pointer;
+        user-select: none;
       }
+      .liga-card-titulo:hover { background: rgba(255,255,255,0.07); }
+      .liga-card-titulo .liga-seta { font-size: 0.9rem; opacity: 0.7; width: 12px; }
       .liga-card-titulo .liga-nome { font-size: 1.1rem; font-weight: 500; color: #fff; }
       .liga-card-titulo .liga-casa { font-size: 0.85rem; opacity: 0.65; }
+      .liga-card.recolhido .liga-card-iframe { display: none; }
+      .liga-card.recolhido .liga-card-titulo { border-bottom: none; }
       .seletor-casa select { min-width: 200px; }
+
+      /* ── Seletor de ligas ── */
+      .seletor-ligas { position: relative; display: inline-block; }
+      #btnLigas { cursor: pointer; white-space: nowrap; }
+      #painelLigas {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        margin-top: 6px;
+        z-index: 60;
+        min-width: 240px;
+        max-height: 60vh;
+        overflow-y: auto;
+        background: #0f1420;
+        border: 1px solid #374151;
+        border-radius: 8px;
+        padding: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+      }
+      #painelLigas.aberto { display: block; }
+      .ligas-painel-topo { display: flex; gap: 6px; margin-bottom: 6px; }
+      .ligas-painel-topo button {
+        flex: 1; cursor: pointer; font-size: 0.8rem; padding: 5px 8px;
+        color: #fff; background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.15); border-radius: 6px;
+      }
+      .ligas-painel-topo button:hover { background: rgba(255,255,255,0.12); }
+      .ligas-painel-item {
+        display: flex; align-items: center; gap: 8px;
+        padding: 6px 8px; border-radius: 6px; cursor: pointer;
+        font-size: 0.9rem; color: #fff;
+      }
+      .ligas-painel-item:hover { background: rgba(255,255,255,0.07); }
+      .ligas-painel-item input { cursor: pointer; }
     </style>
 
     <!-- Carrega config.js e ligas-config.js para usar LIGAS_INFO -->
@@ -83,6 +124,11 @@
     <div class="seletor-container">
       <div class="seletor-casa">
         <select id="seletorCasa"></select>
+      </div>
+
+      <div class="seletor-ligas">
+        <button type="button" id="btnLigas">Ligas</button>
+        <div id="painelLigas"></div>
       </div>
     </div>
 
@@ -141,7 +187,30 @@
       }
 
       const CASAS = construirCasas(LIGAS_INFO);
-      const CASA_STORAGE_KEY = "multligas_casaSelecionada";
+
+      // ── Estado salvo (volta do jeito que você deixou) ─────────────────
+      //  casa       -> última casa selecionada
+      //  ocultas    -> { casa: [ligas desmarcadas] }  (ligas novas aparecem sozinhas)
+      //  recolhidos -> { "casa|liga": true }          (cards recolhidos)
+      // Os seletores de cada liga e o gráfico salvam o próprio estado dentro do iframe.
+      const CASA_STORAGE_KEY = "multligas_casaSelecionada"; // chave antiga, mantida por compatibilidade
+      const ESTADO_KEY = "split:estado:v1";
+      const estado = { casa: null, ocultas: {}, recolhidos: {} };
+
+      function carregarEstado() {
+        try {
+          const e = JSON.parse(localStorage.getItem(ESTADO_KEY) || "{}");
+          if (e && typeof e === "object") {
+            if (typeof e.casa === "string") estado.casa = e.casa;
+            if (e.ocultas && typeof e.ocultas === "object") estado.ocultas = e.ocultas;
+            if (e.recolhidos && typeof e.recolhidos === "object") estado.recolhidos = e.recolhidos;
+          }
+        } catch (err) {}
+      }
+
+      function salvarEstado() {
+        try { localStorage.setItem(ESTADO_KEY, JSON.stringify(estado)); } catch (err) {}
+      }
 
       // Casa padrão pelo nome do arquivo: estrelamult.html -> estrelabet,
       // multbetano.html -> betano
@@ -160,6 +229,8 @@
       function casaInicial() {
         const param = (new URLSearchParams(window.location.search).get("casa") || "").toLowerCase();
         if (CASAS[param]) return param;
+
+        if (estado.casa && CASAS[estado.casa]) return estado.casa;
 
         let salva = null;
         try { salva = localStorage.getItem(CASA_STORAGE_KEY); } catch (e) {}
@@ -180,6 +251,7 @@
         sel.value = casaInicial();
       }
 
+      // ── Altura dos iframes ────────────────────────────────────────────
       function medirAlturaConteudo(doc) {
         const body = doc.body;
         if (!body) return 0;
@@ -216,53 +288,184 @@
         } catch (e) {}
       }
 
-      // Carrega os iframes escalonados (um a cada ATRASO_ENTRE_IFRAMES_MS)
+      // ── Cards das ligas ───────────────────────────────────────────────
+      // Os iframes são carregados escalonados (um a cada ATRASO_ENTRE_IFRAMES_MS)
       // pra não disparar todas as chamadas à API ao mesmo tempo.
+      // Cards recolhidos só carregam quando forem expandidos.
       const ATRASO_ENTRE_IFRAMES_MS = 1500;
       let _montagemId = 0;
+      let _casaMontada = null;
+      const _cardsAtuais = new Map(); // nome da liga -> { card, iframe }
 
-      function montarLigasDaCasa(casaKey) {
-        const idMontagem = ++_montagemId; // invalida montagens anteriores
-        const cont = document.getElementById("ligasContainer");
-        cont.innerHTML = "";
+      function criarCard(casaKey, liga, atrasoMs, idMontagem) {
+        const chave = casaKey + "|" + liga.nome;
+
+        const card = document.createElement("div");
+        card.className = "liga-card";
+        const recolhido = !!estado.recolhidos[chave];
+        if (recolhido) card.classList.add("recolhido");
+
+        const titulo = document.createElement("div");
+        titulo.className = "liga-card-titulo";
+        titulo.title = "Clique para recolher/expandir";
+        const spanSeta = document.createElement("span");
+        spanSeta.className = "liga-seta";
+        spanSeta.textContent = recolhido ? "▸" : "▾";
+        const spanNome = document.createElement("span");
+        spanNome.className = "liga-nome";
+        spanNome.textContent = liga.label;
+        const spanCasa = document.createElement("span");
+        spanCasa.className = "liga-casa";
+        spanCasa.textContent = liga.nome;
+        titulo.appendChild(spanSeta);
+        titulo.appendChild(spanNome);
+        titulo.appendChild(spanCasa);
+        card.appendChild(titulo);
+
+        const iframe = document.createElement("iframe");
+        iframe.className = "liga-card-iframe";
+        iframe.scrolling = "no";
+        iframe.style.height = "400px";
+        iframe.addEventListener("load", () => {
+          ajustarAlturaIframe(iframe);
+          observarIframe(iframe);
+        });
+        card.appendChild(iframe);
+
+        let carregado = false;
+        const carregar = () => {
+          if (carregado) return;
+          carregado = true;
+          iframe.src = `mult-liga-tabela.html?casa=${encodeURIComponent(casaKey)}`
+                     + `&res=${encodeURIComponent(liga.res)}`
+                     + `&label=${encodeURIComponent(liga.label)}`;
+        };
+
+        titulo.addEventListener("click", () => {
+          const rec = card.classList.toggle("recolhido");
+          spanSeta.textContent = rec ? "▸" : "▾";
+          if (rec) estado.recolhidos[chave] = true;
+          else delete estado.recolhidos[chave];
+          salvarEstado();
+          if (!rec) {
+            carregar();
+            setTimeout(() => ajustarAlturaIframe(iframe), 300);
+          }
+        });
+
+        setTimeout(() => {
+          if (idMontagem !== _montagemId || !card.isConnected) return; // trocou de casa / liga removida
+          if (!card.classList.contains("recolhido")) carregar();
+        }, atrasoMs);
+
+        return { card, iframe };
+      }
+
+      // Ajusta os cards na tela sem recarregar os iframes que já estão abertos
+      function sincronizarLigas() {
+        const casaKey = document.getElementById("seletorCasa").value;
         const casa = CASAS[casaKey];
+        const cont = document.getElementById("ligasContainer");
         if (!casa) return;
 
-        casa.ligas.forEach((liga, i) => {
-          const card = document.createElement("div");
-          card.className = "liga-card";
+        if (casaKey !== _casaMontada) {
+          cont.innerHTML = "";
+          _cardsAtuais.clear();
+          _casaMontada = casaKey;
+          _montagemId++;
+        }
+        const idMontagem = _montagemId;
 
-          const titulo = document.createElement("div");
-          titulo.className = "liga-card-titulo";
-          const spanNome = document.createElement("span");
-          spanNome.className = "liga-nome";
-          spanNome.textContent = liga.label;
-          const spanCasa = document.createElement("span");
-          spanCasa.className = "liga-casa";
-          spanCasa.textContent = liga.nome;
-          titulo.appendChild(spanNome);
-          titulo.appendChild(spanCasa);
-          card.appendChild(titulo);
+        const ocultas = estado.ocultas[casaKey] || [];
+        const visiveis = casa.ligas.filter((l) => !ocultas.includes(l.nome));
 
-          const iframe = document.createElement("iframe");
-          iframe.className = "liga-card-iframe";
-          iframe.scrolling = "no";
-          iframe.style.height = "400px";
+        // remove as desmarcadas
+        Array.from(_cardsAtuais.keys()).forEach((nome) => {
+          if (!visiveis.some((l) => l.nome === nome)) {
+            _cardsAtuais.get(nome).card.remove();
+            _cardsAtuais.delete(nome);
+          }
+        });
 
-          iframe.addEventListener("load", () => {
-            ajustarAlturaIframe(iframe);
-            observarIframe(iframe);
+        // adiciona as novas na posição certa (cards existentes não são movidos,
+        // porque mover um iframe no DOM recarrega ele)
+        let novos = 0;
+        visiveis.forEach((liga, idx) => {
+          let item = _cardsAtuais.get(liga.nome);
+          if (!item) {
+            item = criarCard(casaKey, liga, novos++ * ATRASO_ENTRE_IFRAMES_MS, idMontagem);
+            _cardsAtuais.set(liga.nome, item);
+          }
+          if (cont.children[idx] !== item.card) {
+            cont.insertBefore(item.card, cont.children[idx] || null);
+          }
+        });
+
+        atualizarBotaoLigas();
+      }
+
+      // ── Painel "Ligas" ────────────────────────────────────────────────
+      function atualizarBotaoLigas() {
+        const casaKey = document.getElementById("seletorCasa").value;
+        const casa = CASAS[casaKey];
+        if (!casa) return;
+        const ocultas = estado.ocultas[casaKey] || [];
+        const total = casa.ligas.length;
+        const visiveis = casa.ligas.filter((l) => !ocultas.includes(l.nome)).length;
+        document.getElementById("btnLigas").textContent = `Ligas (${visiveis}/${total})`;
+      }
+
+      function definirOcultas(casaKey, lista) {
+        if (lista.length) estado.ocultas[casaKey] = lista;
+        else delete estado.ocultas[casaKey];
+        salvarEstado();
+        sincronizarLigas();
+      }
+
+      function montarPainelLigas() {
+        const painel = document.getElementById("painelLigas");
+        const casaKey = document.getElementById("seletorCasa").value;
+        const casa = CASAS[casaKey];
+        painel.innerHTML = "";
+        if (!casa) return;
+        const ocultas = estado.ocultas[casaKey] || [];
+
+        const topo = document.createElement("div");
+        topo.className = "ligas-painel-topo";
+        const btnTodas = document.createElement("button");
+        btnTodas.type = "button";
+        btnTodas.textContent = "Todas";
+        btnTodas.addEventListener("click", () => {
+          definirOcultas(casaKey, []);
+          montarPainelLigas();
+        });
+        const btnNenhuma = document.createElement("button");
+        btnNenhuma.type = "button";
+        btnNenhuma.textContent = "Nenhuma";
+        btnNenhuma.addEventListener("click", () => {
+          definirOcultas(casaKey, casa.ligas.map((l) => l.nome));
+          montarPainelLigas();
+        });
+        topo.appendChild(btnTodas);
+        topo.appendChild(btnNenhuma);
+        painel.appendChild(topo);
+
+        casa.ligas.forEach((liga) => {
+          const item = document.createElement("label");
+          item.className = "ligas-painel-item";
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = !ocultas.includes(liga.nome);
+          cb.addEventListener("change", () => {
+            const atuais = (estado.ocultas[casaKey] || []).filter((n) => n !== liga.nome);
+            if (!cb.checked) atuais.push(liga.nome);
+            definirOcultas(casaKey, atuais);
           });
-
-          card.appendChild(iframe);
-          cont.appendChild(card);
-
-          setTimeout(() => {
-            if (idMontagem !== _montagemId) return; // usuário trocou de casa
-            iframe.src = `mult-liga-tabela.html?casa=${encodeURIComponent(casaKey)}`
-                       + `&res=${encodeURIComponent(liga.res)}`
-                       + `&label=${encodeURIComponent(liga.label)}`;
-          }, i * ATRASO_ENTRE_IFRAMES_MS);
+          const txt = document.createElement("span");
+          txt.textContent = liga.label;
+          item.appendChild(cb);
+          item.appendChild(txt);
+          painel.appendChild(item);
         });
       }
 
@@ -271,14 +474,30 @@
       }
       setInterval(ajustarTodasAlturas, 6000);
 
+      // ── Inicialização ─────────────────────────────────────────────────
+      carregarEstado();
       popularSeletorCasa();
       const seletorCasaEl = document.getElementById("seletorCasa");
-      montarLigasDaCasa(seletorCasaEl.value);
+      montarPainelLigas();
+      sincronizarLigas();
 
       seletorCasaEl.addEventListener("change", () => {
+        estado.casa = seletorCasaEl.value;
+        salvarEstado();
         try { localStorage.setItem(CASA_STORAGE_KEY, seletorCasaEl.value); } catch (e) {}
-        montarLigasDaCasa(seletorCasaEl.value);
+        montarPainelLigas();
+        sincronizarLigas();
       });
+
+      // abrir/fechar o painel de ligas
+      const btnLigas = document.getElementById("btnLigas");
+      const painelLigas = document.getElementById("painelLigas");
+      btnLigas.addEventListener("click", (e) => {
+        e.stopPropagation();
+        painelLigas.classList.toggle("aberto");
+      });
+      painelLigas.addEventListener("click", (e) => e.stopPropagation());
+      document.addEventListener("click", () => painelLigas.classList.remove("aberto"));
     </script>
       <script>
   fetch('header.html').then(r=>r.text()).then(d=>{document.getElementById('header').innerHTML=d;});

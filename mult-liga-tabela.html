@@ -27,6 +27,33 @@
         height: auto !important;
         min-height: 0 !important;
       }
+
+      /* ── Gráfico de mercados (seção recolhível) ── */
+      .grafico-box {
+        margin-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.10);
+        padding-top: 8px;
+      }
+      .grafico-toggle {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        padding: 8px 12px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #fff;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+      }
+      .grafico-toggle:hover { background: rgba(255, 255, 255, 0.08); }
+      #graficoMercadosConteudo { padding-top: 8px; }
+      #graficoMercadosConteudo .canvas-wrapper {
+        position: relative;
+        height: 450px;
+      }
     </style>
   </head>
 
@@ -159,22 +186,149 @@
       <tbody></tbody>
     </table>
 
-    <script>
+    <!-- ═══════════════ GRÁFICO DE MERCADOS (por liga) ═══════════════ -->
+    <div class="grafico-box" id="graficoBox">
+      <button type="button" class="grafico-toggle" id="btnGraficoToggle">
+        <span>📈 Gráfico de Mercados</span>
+        <span id="graficoSeta">▼</span>
+      </button>
 
-      
+      <div id="graficoMercadosConteudo" style="display:none;">
+
+        <!-- MODAL criar/editar setup -->
+        <div id="setupModal" class="setup-modal-overlay" style="display:none;">
+          <div class="setup-modal-box">
+            <div class="setup-modal-header">
+              <h3 id="setupModalTitle">Criar Setup</h3>
+              <button class="setup-modal-close" onclick="_closeSetupModal()">✕</button>
+            </div>
+
+            <input id="setupModalName" type="text" placeholder="Nome do setup (ex: Meu favorito)..." maxlength="30">
+
+            <div id="setupLimitWarning" class="setup-limit-warning" style="display:none;">
+              ⚠ Limite de 10 setups atingido. Remova um antes de criar outro.
+            </div>
+
+            <p class="setup-modal-hint">Selecione os mercados e personalize as cores:</p>
+
+            <div id="setupModalMarkets" class="setup-modal-markets"></div>
+
+            <div class="setup-modal-actions">
+              <button class="setup-modal-save" id="setupModalSaveBtn" onclick="_saveSetupModal()">✔ Salvar Setup</button>
+              <button class="setup-modal-cancel" onclick="_closeSetupModal()">Cancelar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barra de setups -->
+        <div class="setup-bar-wrapper">
+          <div id="setupBar" class="setup-bar"></div>
+          <span id="setupCounter" class="setup-counter">0 / 10</span>
+          <button id="btnAddSetup" class="setup-add-btn" onclick="_openSetupModal()">＋ Novo Setup</button>
+        </div>
+
+        <div class="chart-container">
+          <div class="canvas-wrapper">
+            <canvas id="Copa" width="1080" height="450" style="max-height:450px;"></canvas>
+          </div>
+
+          <div class="control-panel">
+
+            <div>
+              <label for="pointsSelector"></label>
+              <select id="pointsSelector"></select>
+            </div>
+
+            <div>
+              <label for="averageSelector"></label>
+              <select id="averageSelector"></select>
+            </div>
+
+            <div class="checkbox-container">
+              <input type="checkbox" id="fibonacciToggle">
+              <label for="fibonacciToggle">Fibo</label>
+            </div>
+
+            <div class="checkbox-container">
+              <input type="checkbox" id="movingAveragesToggle">
+              <label for="movingAveragesToggle">MM</label>
+            </div>
+
+            <div>
+              <label for="yAxisPositionSelector"></label>
+              <select id="yAxisPositionSelector" title="Posição das porcentagens">
+                <option value="left">% Esquerda</option>
+                <option value="right">% Direita</option>
+              </select>
+            </div>
+
+            <label class="linha-atual-toggle">
+              <input type="checkbox" id="linhaAtualToggle" checked>
+              Atual
+            </label>
+
+            <label class="linha-atual-toggle">
+              <input type="checkbox" id="labelsToggle">
+              Rótulos
+            </label>
+
+            <div class="linha-tools-wrapper">
+              <button id="btnLinhaTools">Add Linha</button>
+              <div id="linhaToolsPanel" class="tool-dropdown-panel" style="display:none;">
+                <div class="contador-linhas" id="contadorLinhas">0 / 6 linhas</div>
+                <label>Cor da nova linha</label>
+                <input id="lineColorPicker" type="color" value="#1fcc59">
+                <button class="btn-linha green" onclick="window.adicionarLinhaDraggable()">➕ Adicionar</button>
+                <div class="separador-panel"></div>
+                <button class="btn-linha yellow" onclick="window.deletarLinhaSelecionada()">🗑 Selecionada</button>
+                <button class="btn-linha red" onclick="window.limparTodasLinhas()">🧹 Todas</button>
+              </div>
+            </div>
+
+            <div class="linha-tools-wrapper">
+              <button id="btnFibTools">Fib+</button>
+              <div id="fibToolsPanel" class="tool-dropdown-panel" style="display:none;">
+                <div class="contador-linhas" id="contadorFibs">0 / 4 fibonacci</div>
+                <button class="btn-linha green" onclick="window.ativarDesenhoFibonacci()">🖊 Traçar</button>
+                <div class="separador-panel"></div>
+                <button class="btn-linha yellow" onclick="window.deletarFibonacciSelecionado()">🗑 Selecionado</button>
+                <button class="btn-linha red" onclick="window.limparFibonacciLivre()">🧹 Todos</button>
+              </div>
+            </div>
+
+            <div class="linha-tools-wrapper">
+              <button id="btnTrendTools">LTA/LTB</button>
+              <div id="trendToolsPanel" class="tool-dropdown-panel" style="display:none;">
+                <div class="contador-linhas" id="contadorTendencias">0 / 6 tendências</div>
+                <button class="btn-linha green" onclick="window.ativarDesenhoLTA()">▲ Traçar LTA</button>
+                <button class="btn-linha red" onclick="window.ativarDesenhoLTB()">▼ Traçar LTB</button>
+                <div class="separador-panel"></div>
+                <button class="btn-linha yellow" onclick="window.deletarTendenciaSelecionada()">🗑 Selecionada</button>
+                <button class="btn-linha red" onclick="window.limparTendencias()">🧹 Todas</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div id="setupLinesPanel" class="setup-lines-panel"></div>
+      </div>
+    </div>
+
+    <script>
       const params = new URLSearchParams(location.search);
       const CASA_PARAM = params.get("casa") || "";
-      const RES_PARAM = params.get("res") || "";  // 
+      const RES_PARAM = params.get("res") || "";
       const LABEL_PARAM = params.get("label") || RES_PARAM;
 
       let LIGA_ATUAL_OVERRIDE = null;
       if (LIGAS_INFO[RES_PARAM]) {
         LIGA_ATUAL_OVERRIDE = RES_PARAM;
       } else {
-        const PREFIXO_CASA_MINUTOS = { 
-          bet365: "Bet365 ", 
-          betsson: "Betsson ", 
-          kiron: "Kiron " 
+        const PREFIXO_CASA_MINUTOS = {
+          bet365: "Bet365 ",
+          betsson: "Betsson ",
+          kiron: "Kiron "
         };
         const prefixoMinutos = PREFIXO_CASA_MINUTOS[CASA_PARAM] || "";
         LIGA_ATUAL_OVERRIDE = (prefixoMinutos && !LABEL_PARAM.startsWith(prefixoMinutos.trim()))
@@ -182,18 +336,142 @@
           : LABEL_PARAM;
       }
 
+      // Nota: LIGA_ATUAL é "const" no config.js (já detectada via ?res=),
+      // então não dá pra reatribuir aqui. O título da liga é mostrado pelo split.html.
 
-      LIGA_ATUAL = LIGA_ATUAL_OVERRIDE;
+      // Chave da liga usada pelo gráfico para salvar linhas/fibonacci/tendências por liga
+      window.getLigaKey = () => LIGA_ATUAL_OVERRIDE;
+    </script>
 
+    <!-- ── Salva/restaura os seletores desta liga (antes do tabela.js ler os valores) ── -->
+    <script>
+      (function () {
+        const KEY = "split:selecoes:" + LIGA_ATUAL_OVERRIDE;
+        const IDS = ["mostrarTimes", "mostrarHT", "seletorHoras", "seletorResultado", "mostrarOdds", "seletorTipoPlacar"];
+        let salvo = {};
+        try { salvo = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) {}
 
-      document.getElementById("ligaCardTitulo").textContent = LABEL_PARAM;
-      const h4Liga = document.querySelector("h4.custom-color");
-      if (h4Liga) h4Liga.textContent = LABEL_PARAM;
-
-
+        IDS.forEach((id) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          if (salvo[id] !== undefined && Array.from(el.options).some((o) => o.value === salvo[id])) {
+            el.value = salvo[id];
+          }
+          el.addEventListener("change", () => {
+            salvo[id] = el.value;
+            try { localStorage.setItem(KEY, JSON.stringify(salvo)); } catch (e) {}
+          });
+        });
+      })();
     </script>
 
     <script src="app.utils.min.js"></script>
     <script src="tabela.js"></script>
+
+    <!-- ── Gráfico de mercados: carrega só quando a seção é aberta ── -->
+    <script>
+      (function () {
+        const liga = LIGA_ATUAL_OVERRIDE;
+        const info = LIGAS_INFO[liga];
+        const JPH = info && info.minutos && info.minutos.length ? info.minutos.length : 20; // jogos por hora
+
+        // Constantes lidas pelo graficomercado.js
+        window.BS_JOGOS_POR_HORA = JPH;
+        window.BS_QD_BLOCO = Math.min(5, Math.round(JPH / 4));
+        window.BS_KEY_SUFIXO = JPH === 20 ? "" : "_" + JPH + "jph";
+
+        // Opções dos seletores conforme os jogos/hora da liga
+        const horas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 24, 48, 72];
+        document.getElementById("pointsSelector").innerHTML = horas
+          .map((h) => `<option value="${h * JPH}">${h === 1 ? "1 Hora" : h + " Horas"}</option>`)
+          .join("");
+        document.getElementById("averageSelector").innerHTML = [1, 2, 3, 4, 5, 6]
+          .map((n) => `<option value="${n * JPH - 1}">Base ${n * JPH}</option>`)
+          .join("");
+
+        const OPEN_KEY = "split:grafico:" + liga;
+        const conteudo = document.getElementById("graficoMercadosConteudo");
+        const seta = document.getElementById("graficoSeta");
+        let iniciado = false;
+
+        function carregarScript(src) {
+          return new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = () => reject(new Error("Falha ao carregar " + src));
+            document.head.appendChild(s);
+          });
+        }
+
+        // O iframe é alto (mostra tudo), então o modal precisa aparecer na parte visível da página
+        function posicionarModal() {
+          const ov = document.getElementById("setupModal");
+          const box = ov && ov.querySelector(".setup-modal-box");
+          if (!ov || !box) return;
+          let top = 20;
+          try {
+            const r = window.frameElement.getBoundingClientRect();
+            top = Math.max(20, -r.top + 20);
+          } catch (e) {}
+          ov.style.alignItems = "flex-start";
+          box.style.marginTop = top + "px";
+        }
+
+        async function iniciar() {
+          if (iniciado) return;
+          iniciado = true;
+          try {
+            if (!window.Chart) {
+              await carregarScript("https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js");
+            }
+            await carregarScript("graficomercado.js");
+
+            const abrirOriginal = window._openSetupModal;
+            window._openSetupModal = function (s) {
+              abrirOriginal(s);
+              posicionarModal();
+            };
+
+            // O graficomercado.js normalmente faz isso em DOMContentLoaded/onload,
+            // que já passaram quando ele é carregado sob demanda.
+            const modal = document.getElementById("setupModal");
+            modal.addEventListener("click", function (e) {
+              if (e.target === this) window._closeSetupModal();
+            });
+            window._renderSetupBar();
+            window._renderLinesPanel(window._getActiveSetup());
+            window._updateSetupCounter();
+            window.updateCharts();
+          } catch (e) {
+            iniciado = false;
+            console.error("[grafico]", e);
+          }
+        }
+
+        function definirAberto(aberto, salvar) {
+          conteudo.style.display = aberto ? "block" : "none";
+          seta.textContent = aberto ? "▲" : "▼";
+          if (salvar) {
+            try { localStorage.setItem(OPEN_KEY, JSON.stringify(aberto)); } catch (e) {}
+          }
+          if (aberto) {
+            if (!iniciado) {
+              iniciar();
+            } else {
+              try { chartInstances.Copa && chartInstances.Copa.resize(); } catch (e) {}
+            }
+          }
+        }
+
+        document.getElementById("btnGraficoToggle").addEventListener("click", () => {
+          definirAberto(conteudo.style.display === "none", true);
+        });
+
+        let abertoSalvo = false;
+        try { abertoSalvo = JSON.parse(localStorage.getItem(OPEN_KEY) || "false") === true; } catch (e) {}
+        if (abertoSalvo) definirAberto(true, false);
+      })();
+    </script>
   </body>
 </html>
