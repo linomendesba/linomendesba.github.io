@@ -213,7 +213,7 @@
     <!-- ═══════════════ GRÁFICO DE MERCADOS (por liga) ═══════════════ -->
     <div class="grafico-box" id="graficoBox">
       <button type="button" class="grafico-toggle" id="btnGraficoToggle">
-        <span>Gráfico de Mercados</span>
+        <span>📈 Gráfico de Mercados</span>
         <span id="graficoSeta">▼</span>
       </button>
 
@@ -565,6 +565,62 @@
         let abertoSalvo = false;
         try { abertoSalvo = JSON.parse(localStorage.getItem(OPEN_KEY) || "false") === true; } catch (e) {}
         if (abertoSalvo) definirAberto(true, false);
+      })();
+    </script>
+
+    <!-- ── Dá espaço no iframe quando um menu/painel suspenso (ex.: Ferramentas) abre
+         para baixo e passaria do fim do conteúdo (senão o iframe corta o menu) ── -->
+    <script>
+      (function () {
+        const spacer = document.createElement("div");
+        spacer.id = "espacoPopup";
+        spacer.style.cssText = "height:0;margin:0;padding:0;pointer-events:none;";
+        document.body.appendChild(spacer);
+
+        const IGNORAR = { SCRIPT: 1, STYLE: 1, LINK: 1, CANVAS: 1, TABLE: 1 };
+
+        function fundoDoPopup(el, ref) {
+          if (el === spacer || IGNORAR[el.tagName] || el.id === "setupModal") return ref;
+          const cs = getComputedStyle(el);
+          if (cs.display === "none" || cs.visibility === "hidden") return ref;
+          if (cs.position === "absolute" || cs.position === "fixed") {
+            const r = el.getBoundingClientRect();
+            const overlayTela = cs.position === "fixed" && r.height >= window.innerHeight - 5;
+            if (r.width > 0 && r.height > 0 && !overlayTela) ref = Math.max(ref, r.bottom);
+          }
+          for (const c of el.children) ref = fundoDoPopup(c, ref);
+          return ref;
+        }
+
+        function recalcular() {
+          // o espaçador precisa ser o último elemento do body
+          if (spacer.nextElementSibling) document.body.appendChild(spacer);
+          spacer.style.height = "0px";
+
+          let fimConteudo = 0;
+          let fimPopup = 0;
+          Array.from(document.body.children).forEach((el) => {
+            if (el === spacer || IGNORAR[el.tagName] && el.tagName !== "TABLE") return;
+            const r = el.getBoundingClientRect();
+            if (r.height > 0) fimConteudo = Math.max(fimConteudo, r.bottom);
+            fimPopup = fundoDoPopup(el, fimPopup);
+          });
+
+          const falta = Math.ceil(fimPopup - fimConteudo);
+          spacer.style.height = falta > 0 ? falta + 12 + "px" : "0px";
+
+          try {
+            const fr = window.frameElement;
+            if (fr && window.parent && typeof window.parent.ajustarAlturaIframe === "function") {
+              window.parent.ajustarAlturaIframe(fr);
+            }
+          } catch (e) {}
+        }
+
+        document.addEventListener("click", () => {
+          setTimeout(recalcular, 60);
+          setTimeout(recalcular, 300);
+        });
       })();
     </script>
   </body>
