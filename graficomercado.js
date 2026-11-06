@@ -449,7 +449,7 @@ function _applySetup(_0x5bc664) {
   _renderSetupBar();
   _renderLinesPanel(_0x5bc664);
   _updateSetupCounter();
-  updateCharts();
+  updateCharts(true);
 }
 function _getDatasetCurrentValue(_0x470cd2) {
   const _0x41e867 = chartInstances.Copa || Object.values(chartInstances)[0];
@@ -1402,6 +1402,7 @@ const linhaDraggablePlugin = {
       passive: true
     });
     window.addEventListener("keydown", _0x40883a => {
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test((_0x40883a.target && _0x40883a.target.tagName) || "")) return;
       if (_0x40883a.key === "Delete" || _0x40883a.key === "Backspace") {
         const _0x610466 = chartInstances.Copa || Object.values(chartInstances)[0];
         if (_0x610466) {
@@ -1739,6 +1740,7 @@ const fibDraggablePlugin = {
       passive: true
     });
     window.addEventListener("keydown", _0x59b911 => {
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test((_0x59b911.target && _0x59b911.target.tagName) || "")) return;
       if (_0x59b911.key === "Delete" || _0x59b911.key === "Backspace") {
         const _0x1b104e = chartInstances.Copa || Object.values(chartInstances)[0];
         if (_0x1b104e) {
@@ -2114,6 +2116,7 @@ const trendLinePlugin = {
       passive: true
     });
     window.addEventListener("keydown", _0xdae736 => {
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test((_0xdae736.target && _0xdae736.target.tagName) || "")) return;
       if (_0xdae736.key === "Delete" || _0xdae736.key === "Backspace") {
         const _0x28e3c1 = chartInstances.Copa || Object.values(chartInstances)[0];
         if (_0x28e3c1) {
@@ -2412,743 +2415,159 @@ function updateStatsChart(_0xf33629, _0x1b4f44) {
   _0xf33629.update();
   _updateLinesPanelValues();
 }
-function processApiData(_0x3ae1c0, _0x8ae59d) {
-  const _0x55758d = [..._0x3ae1c0].sort((_0x59510d, _0x3ed616) => {
-    const _0x5af263 = new Date(_0x59510d.data);
-    const _0x2daf41 = new Date(_0x3ed616.data);
-    if (_0x5af263.getTime() !== _0x2daf41.getTime()) {
-      return _0x5af263 - _0x2daf41;
-    }
-    if (_0x59510d.hora !== _0x3ed616.hora) {
-      return _0x59510d.hora - _0x3ed616.hora;
-    }
-    return _0x59510d.minuto - _0x3ed616.minuto;
+// ── Definições de mercado (tabela única, substitui ~80 arrays/contadores manuais) ──
+const _COR_OK = "#2DD4BF", _COR_NO = "#FB7185";
+const MARKET_DEFS = (() => {
+  const D = {};
+  const soma = (cor, fn) => ({ soma: true, cor, fn });
+  const bin  = (fn) => ({ soma: false, fn: g => (fn(g) ? 1 : 0) });
+  D.golsFT = soma("#FFFF00", g => g.t);
+  D.golsHT = soma("#26A69A", g => g.hTot);
+  D.golsFTCasa = soma("#00E5FF", g => g.c);
+  D.golsFTFora = soma("#FF6E40", g => g.f);
+  D.golsInd = { individual: true };
+  D.casaVence = bin(g => g.c > g.f);
+  D.empate = bin(g => g.c === g.f);
+  D.foraVence = bin(g => g.c < g.f);
+  D.ambasSim = bin(g => g.c > 0 && g.f > 0);
+  D.ambasNao = bin(g => g.c === 0 || g.f === 0);
+  D.over05 = bin(g => g.t > 0.5); D.over15 = bin(g => g.t > 1.5);
+  D.over25 = bin(g => g.t > 2.5); D.over35 = bin(g => g.t > 3.5);
+  D.over5 = bin(g => g.t >= 5);
+  D.under05 = bin(g => g.t <= 0.5); D.under15 = bin(g => g.t < 1.5);
+  D.under25 = bin(g => g.t < 2.5); D.under35 = bin(g => g.t < 3.5);
+  for (let n = 0; n <= 5; n++) D["gol" + n] = bin(g => g.t === n);
+  for (let n = 0; n <= 4; n++) D["gol2t" + n] = bin(g => g.s2t === n);
+  for (let n = 0; n <= 4; n++) { D["casa" + n] = bin(g => g.c === n); D["fora" + n] = bin(g => g.f === n); }
+  Object.values(labelToKey).forEach(k => {
+    let m = /^placar(\d)x(\d)$/.exec(k);
+    if (m) { const a = +m[1], b = +m[2]; D[k] = bin(g => g.c === a && g.f === b); return; }
+    m = /^placarHT(\d)x(\d)$/.exec(k);
+    if (m) { const a = +m[1], b = +m[2]; D[k] = bin(g => g.h && g.h[0] === a && g.h[1] === b); }
   });
-  const _0x5f5372 = _0x55758d.slice(-numPoints - Math.ceil(averagePoints * 3.5));
-  chartData[_0x8ae59d] = _0x5f5372;
-  function _0x4c5ae1(_0x3b729e) {
-    const _0x3078aa = new Date(_0x3b729e.data);
-    return Math.floor(_0x3078aa.getTime() / 86400000) * 1440 + _0x3b729e.hora * 60 + _0x3b729e.minuto;
-  }
-  let _0x2a455c = [];
-  let _0x79406a = [];
-  let _0x36a086 = [];
-  let _0x4c9aed = [];
-  let _0xa973ab = [];
-  let _0x4c2483 = [];
-  let _0x238cdc = [];
-  let _0x44aec2 = [];
-  let _0x57bf50 = [];
-  let _0x961a29 = [];
-  let _0x32bed0 = [];
-  let _0x54bd82 = [];
-  let _0x42ceff = [];
-  let _0x2b7431 = [];
-  let _0x5ec9dd = [];
-  let _0x118ce4 = [];
-  let _0x298f1f = [];
-  let _0x871047 = [];
-  let _0x19a14c = [];
-  let _0x1b5614 = [];
-  let _0x1c24ae = [];
-  let _0x5ef63e = [];
-  let _0x16bfb7 = [];
-  let _0x2b826b = [];
-  let _0x12441f = [];
-  let _0x5c3ac1 = [];
-  let _0x4a6b39 = [];
-  let _0x5457bc = [];
-  let _0x53be5a = [];
-  let _0xa0a671 = [];
-  let _0x5f1304 = [];
-  let _0x4680b7 = [];
-  let _0x4c92b3 = [];
-  let _0x4b2ad1 = [];
-  let _0x1bbe72 = [];
-  let _0x490262 = [];
-  let _0x233313 = [];
-  let _0x241130 = [];
-  let _0x6c90fc = [];
-  let _0x374007 = [];
-  let _0x298826 = [];
-  let _0x356c8a = [];
-  let _0x31dacc = [];
-  let _0x576e5c = [];
-  let _0x267262 = [];
-  let _0x396664 = [];
-  let _0x3ad61f = [];
-  let _0x1078d7 = [];
-  let _0x4e3946 = [];
-  let _0x3c88ed = [];
-  let _0x32e31c = [];
-  let _0x4a2a6a = [];
-  let _0x42be3b = [];
-  let _0x3b4c11 = [];
-  let _0x580ea3 = [];
-  let _0xf055c8 = [];
-  let _0x2bd5a6 = [];
-  let _0x4b7103 = [];
-  let _0x1de422 = [];
-  let _0x78bad6 = [];
-  let _0xcfb21e = [];
-  let _0xfb1500 = [];
-  let _0x292622 = [];
-  let _0x2f4611 = [];
-  let _0x5d2a9d = [];
-  let _0x3fedb7 = [];
-  let _0x3db7f8 = [];
-  let _0x439b42 = [];
-  let _0x309ef5 = [];
-  let _0x2937da = [];
-  let _0x2e2dc4 = [];
-  let _0x494829 = [];
-  let _0x57f21d = [];
-  let _0x5da5ff = [];
-  let _0x115534 = [];
-  let _0x1fd193 = [];
-  let _0x577e8c = [];
-  let _0x29164f = [];
-  let _0x383cef = [];
-  let _0x1411aa = [];
-  let _0x26bc21 = [];
-  let _0x2f752d = [];
-  let _0x2a505f = [];
-  let _0x2d2af0 = [];
-  let _0x125b43 = [];
-  let _0x41851b = [];
-  let _0x1e59b0 = [];
-  let _0x59b53a = [];
-  let _0xbd18da = [];
-  let _0x5b740a = [];
-  let _0x4a00e0 = [];
-  let _0x2d683b = [];
-  let _0x462787 = [];
-  let _0x10681f = [];
-  let _0x3a7cc1 = [];
-  let _0x3ca9f2 = [];
-  let _0x2e78ee = [];
-  let _0x5d2c42 = [];
-  let _0x220843 = [];
-  let _0x5c834f = [];
-  let _0x13aa88 = [];
-  let _0x3bb7bf = [];
-  let _0x4e7c61 = [];
-  let _0x2b9585 = [];
-  let _0x1eb193 = [];
-  let _0x2b69a6 = [];
-  let _0xc30986 = [];
-  let _0x1a372f = [];
-  let _0x92f603 = [];
-  let _0x164e8d = [];
-  let _0x7f9f9d = [];
-  let _0x817af1 = [];
-  let _0x59d1a8 = [];
-  let _0x26f98c = [];
-  let _0x877b4d = [];
-  let _0x50ed8d = [];
-  let _0x1125e5 = [];
-  let _0x3c2f22 = [];
-  let _0x242b3c = [];
-  let _0x423394 = [];
-  let _0x130d6c = [];
-  let _0x5123ed = [];
-  let _0x3c4c76 = [];
-  let _0x9b56f3 = [];
-  let _0x1d183c = [];
-  let _0x1ddaef = [];
-  let _0x7b8b2e = [];
-  let _0x42e965 = [];
-  let _0x2d59d2 = [];
-  let _0x16bb1d = [];
-  let _0x200c64 = [];
-  let _0x1e3eb9 = [];
-  let _0x46ed25 = [];
-  let _0x5a1897 = [];
-  let _0x44cd9a = [];
-  let _0x4c3fb4 = [];
-  let _0x170215 = [];
-  let _0x1fae6c = [];
-  let _0x8b1636 = [];
-  let _0x17f8ee = [];
-  let _0x59f64c = [];
-  let _0x2c00ea = [];
-  let _0x385d98 = [];
-  let _0x4728a5 = [];
-  let _0x539e04 = [];
-  let _0x3c4229 = [];
-  let _0x1bb734 = [];
-  let _0x1a05a1 = [];
-  let _0x34d42f = [];
-  let _0x19608b = [];
-  let _0x1c5eee = [];
-  let _0x21fd6e = [];
-  let _0x5ae753 = [];
-  const _0x840e70 = [_0x79406a, _0x36a086, _0xa973ab, _0x4c2483, _0x238cdc, _0x44aec2, _0x57bf50, _0x961a29, _0x32bed0, _0x54bd82, _0x42ceff, _0x2b7431, _0x5ec9dd, _0x118ce4, _0x298f1f, _0x871047, _0x19a14c, _0x1b5614, _0x1c24ae, _0x5ef63e, _0x16bfb7, _0x2b826b, _0x12441f, _0x5c3ac1, _0x4a6b39, _0x5457bc, _0x53be5a, _0xa0a671, _0x5f1304, _0x4680b7, _0x4c92b3, _0x4b2ad1, _0x1bbe72, _0x490262, _0x233313, _0x241130, _0x6c90fc, _0x374007, _0x298826, _0x356c8a, _0x31dacc, _0x576e5c, _0x267262, _0x396664, _0x3ad61f, _0x1078d7, _0x4e3946, _0x3c88ed, _0x32e31c, _0x4a2a6a, _0x42be3b, _0x3b4c11, _0x580ea3, _0xf055c8, _0x2bd5a6, _0x4b7103, _0x1de422, _0x78bad6, _0xcfb21e, _0xfb1500, _0x292622, _0x2f4611, _0x5d2a9d, _0x3fedb7, _0x3db7f8, _0x439b42, _0x309ef5, _0x2937da, _0x2e2dc4, _0x494829, _0x57f21d, _0x5da5ff, _0x115534];
-  const _0x2a3500 = [_0x29164f, _0x383cef, _0x26bc21, _0x2f752d, _0x2a505f, _0x2d2af0, _0x125b43, _0x41851b, _0x1e59b0, _0x59b53a, _0xbd18da, _0x5b740a, _0x4a00e0, _0x2d683b, _0x462787, _0x10681f, _0x3a7cc1, _0x3ca9f2, _0x2e78ee, _0x5d2c42, _0x220843, _0x5c834f, _0x13aa88, _0x3bb7bf, _0x4e7c61, _0x2b9585, _0x1eb193, _0x2b69a6, _0xc30986, _0x1a372f, _0x92f603, _0x164e8d, _0x7f9f9d, _0x817af1, _0x59d1a8, _0x26f98c, _0x877b4d, _0x50ed8d, _0x1125e5, _0x3c2f22, _0x242b3c, _0x423394, _0x130d6c, _0x5123ed, _0x3c4c76, _0x9b56f3, _0x1d183c, _0x1ddaef, _0x7b8b2e, _0x42e965, _0x2d59d2, _0x16bb1d, _0x200c64, _0x1e3eb9, _0x46ed25, _0x5a1897, _0x44cd9a, _0x4c3fb4, _0x170215, _0x1fae6c, _0x8b1636, _0x17f8ee, _0x59f64c, _0x2c00ea, _0x385d98, _0x4728a5, _0x539e04, _0x3c4229, _0x1bb734, _0x1a05a1, _0x34d42f, _0x19608b, _0x1c5eee];
-  const _0x38e9ba = "#2DD4BF";
-  const _0x45576f = "#FB7185";
-  const _0x26d767 = averagePoints * _MIN_POR_JOGO;
-  const _0x248ac9 = Math.max(0, _0x5f5372.length - numPoints);
-  for (let _0x57acf6 = 0; _0x57acf6 < _0x5f5372.length; _0x57acf6++) {
-    const _0x3dc032 = _0x5f5372[_0x57acf6];
-    const _0x4b0df2 = _0x4c5ae1(_0x3dc032);
-    let _0x22291d = {
-      golsFT: 0,
-      golsHT: 0,
-      casaVence: 0,
-      empate: 0,
-      foraVence: 0,
-      ambasSim: 0,
-      ambasNao: 0,
-      over05: 0,
-      over15: 0,
-      over25: 0,
-      over35: 0,
-      over5: 0,
-      under05: 0,
-      under15: 0,
-      under25: 0,
-      under35: 0,
-      gol0: 0,
-      gol1: 0,
-      gol2: 0,
-      gol3: 0,
-      gol4: 0,
-      gol5: 0,
-      gol2t0: 0,
-      gol2t1: 0,
-      gol2t2: 0,
-      gol2t3: 0,
-      gol2t4: 0,
-      casa0: 0,
-      casa1: 0,
-      casa2: 0,
-      casa3: 0,
-      casa4: 0,
-      fora0: 0,
-      fora1: 0,
-      fora2: 0,
-      fora3: 0,
-      fora4: 0,
-      p0x0: 0,
-      p1x0: 0,
-      p2x0: 0,
-      p3x0: 0,
-      p2x1: 0,
-      p3x1: 0,
-      p3x2: 0,
-      p4x0: 0,
-      p4x1: 0,
-      p0x1: 0,
-      p0x2: 0,
-      p1x2: 0,
-      p0x3: 0,
-      p1x3: 0,
-      p2x3: 0,
-      p0x4: 0,
-      p1x4: 0,
-      ht0x0: 0,
-      ht0x1: 0,
-      ht1x0: 0,
-      ht1x1: 0,
-      ht0x2: 0,
-      ht2x0: 0,
-      htOut: 0,
-      overHT: 0,
-      underHT: 0,
-      casaHT: 0,
-      empateHT: 0,
-      foraHT: 0,
-      viradinha: 0,
-      golsFTCasa: 0,
-      golsFTFora: 0,
-      par: 0,
-      impar: 0,
-      margem1: 0,
-      margem2: 0,
-      margem3: 0,
-      empateGols: 0,
-      valid: 0
-    };
-    for (let _0x4aab6c = _0x57acf6; _0x4aab6c >= 0; _0x4aab6c--) {
-      const _0x23146f = _0x5f5372[_0x4aab6c];
-      const _0x2eb580 = _0x4c5ae1(_0x23146f);
-      if (_0x4b0df2 - _0x2eb580 > _0x26d767) {
-        break;
-      }
-      const _0x47336a = _0x23146f;
-      let _0x7d23b1 = [0, 0];
-      if (_0x47336a.ft?.includes(" x ")) {
-        _0x7d23b1 = _0x47336a.ft.split(" x ").map(Number);
-      }
-      const _0x273f82 = parseHtScoreTotal(_0x47336a.ht);
-      const _0x2baf4a = parseHtParts(_0x47336a.ht);
-      const _0x2c9ae1 = _0x7d23b1[0] + _0x7d23b1[1];
-      const _0xd04e6e = Math.max(0, _0x2c9ae1 - _0x273f82);
-      _0x22291d.golsFT += _0x2c9ae1;
-      _0x22291d.golsHT += _0x273f82;
-      _0x22291d.golsFTCasa += _0x7d23b1[0];
-      _0x22291d.golsFTFora += _0x7d23b1[1];
-      _0x22291d.par += _0x2c9ae1 % 2 === 0 ? 1 : 0;
-      _0x22291d.impar += _0x2c9ae1 % 2 !== 0 ? 1 : 0;
-      const _0x42add0 = Math.abs(_0x7d23b1[0] - _0x7d23b1[1]);
-      _0x22291d.margem1 += _0x42add0 === 1 ? 1 : 0;
-      _0x22291d.margem2 += _0x42add0 === 2 ? 1 : 0;
-      _0x22291d.margem3 += _0x42add0 === 3 ? 1 : 0;
-      _0x22291d.empateGols += _0x7d23b1[0] === _0x7d23b1[1] && _0x2c9ae1 > 0 ? 1 : 0;
-      _0x22291d.casaVence += _0x7d23b1[0] > _0x7d23b1[1] ? 1 : 0;
-      _0x22291d.empate += _0x7d23b1[0] === _0x7d23b1[1] ? 1 : 0;
-      _0x22291d.foraVence += _0x7d23b1[0] < _0x7d23b1[1] ? 1 : 0;
-      _0x22291d.ambasSim += _0x7d23b1[0] > 0 && _0x7d23b1[1] > 0 ? 1 : 0;
-      _0x22291d.ambasNao += _0x7d23b1[0] === 0 || _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.over05 += _0x2c9ae1 > 0.5 ? 1 : 0;
-      _0x22291d.over15 += _0x2c9ae1 > 1.5 ? 1 : 0;
-      _0x22291d.over25 += _0x2c9ae1 > 2.5 ? 1 : 0;
-      _0x22291d.over35 += _0x2c9ae1 > 3.5 ? 1 : 0;
-      _0x22291d.over5 += _0x2c9ae1 >= 5 ? 1 : 0;
-      _0x22291d.under05 += _0x2c9ae1 <= 0.5 ? 1 : 0;
-      _0x22291d.under15 += _0x2c9ae1 < 1.5 ? 1 : 0;
-      _0x22291d.under25 += _0x2c9ae1 < 2.5 ? 1 : 0;
-      _0x22291d.under35 += _0x2c9ae1 < 3.5 ? 1 : 0;
-      _0x22291d.gol0 += _0x2c9ae1 === 0 ? 1 : 0;
-      _0x22291d.gol1 += _0x2c9ae1 === 1 ? 1 : 0;
-      _0x22291d.gol2 += _0x2c9ae1 === 2 ? 1 : 0;
-      _0x22291d.gol3 += _0x2c9ae1 === 3 ? 1 : 0;
-      _0x22291d.gol4 += _0x2c9ae1 === 4 ? 1 : 0;
-      _0x22291d.gol5 += _0x2c9ae1 === 5 ? 1 : 0;
-      _0x22291d.gol2t0 += _0xd04e6e === 0 ? 1 : 0;
-      _0x22291d.gol2t1 += _0xd04e6e === 1 ? 1 : 0;
-      _0x22291d.gol2t2 += _0xd04e6e === 2 ? 1 : 0;
-      _0x22291d.gol2t3 += _0xd04e6e === 3 ? 1 : 0;
-      _0x22291d.gol2t4 += _0xd04e6e === 4 ? 1 : 0;
-      _0x22291d.casa0 += _0x7d23b1[0] === 0 ? 1 : 0;
-      _0x22291d.casa1 += _0x7d23b1[0] === 1 ? 1 : 0;
-      _0x22291d.casa2 += _0x7d23b1[0] === 2 ? 1 : 0;
-      _0x22291d.casa3 += _0x7d23b1[0] === 3 ? 1 : 0;
-      _0x22291d.casa4 += _0x7d23b1[0] === 4 ? 1 : 0;
-      _0x22291d.fora0 += _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.fora1 += _0x7d23b1[1] === 1 ? 1 : 0;
-      _0x22291d.fora2 += _0x7d23b1[1] === 2 ? 1 : 0;
-      _0x22291d.fora3 += _0x7d23b1[1] === 3 ? 1 : 0;
-      _0x22291d.fora4 += _0x7d23b1[1] === 4 ? 1 : 0;
-      _0x22291d.p0x0 += _0x7d23b1[0] === 0 && _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.p1x0 += _0x7d23b1[0] === 1 && _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.p2x0 += _0x7d23b1[0] === 2 && _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.p3x0 += _0x7d23b1[0] === 3 && _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.p2x1 += _0x7d23b1[0] === 2 && _0x7d23b1[1] === 1 ? 1 : 0;
-      _0x22291d.p3x1 += _0x7d23b1[0] === 3 && _0x7d23b1[1] === 1 ? 1 : 0;
-      _0x22291d.p3x2 += _0x7d23b1[0] === 3 && _0x7d23b1[1] === 2 ? 1 : 0;
-      _0x22291d.p4x0 += _0x7d23b1[0] === 4 && _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.p4x1 += _0x7d23b1[0] === 4 && _0x7d23b1[1] === 1 ? 1 : 0;
-      _0x22291d.p0x1 += _0x7d23b1[0] === 0 && _0x7d23b1[1] === 1 ? 1 : 0;
-      _0x22291d.p0x2 += _0x7d23b1[0] === 0 && _0x7d23b1[1] === 2 ? 1 : 0;
-      _0x22291d.p1x2 += _0x7d23b1[0] === 1 && _0x7d23b1[1] === 2 ? 1 : 0;
-      _0x22291d.p0x3 += _0x7d23b1[0] === 0 && _0x7d23b1[1] === 3 ? 1 : 0;
-      _0x22291d.p1x3 += _0x7d23b1[0] === 1 && _0x7d23b1[1] === 3 ? 1 : 0;
-      _0x22291d.p2x3 += _0x7d23b1[0] === 2 && _0x7d23b1[1] === 3 ? 1 : 0;
-      _0x22291d.p0x4 += _0x7d23b1[0] === 0 && _0x7d23b1[1] === 4 ? 1 : 0;
-      _0x22291d.p1x4 += _0x7d23b1[0] === 1 && _0x7d23b1[1] === 4 ? 1 : 0;
-      _0x22291d.ht0x0 += _0x2baf4a && _0x2baf4a[0] === 0 && _0x2baf4a[1] === 0 ? 1 : 0;
-      _0x22291d.ht0x1 += _0x2baf4a && _0x2baf4a[0] === 0 && _0x2baf4a[1] === 1 ? 1 : 0;
-      _0x22291d.ht1x0 += _0x2baf4a && _0x2baf4a[0] === 1 && _0x2baf4a[1] === 0 ? 1 : 0;
-      _0x22291d.ht1x1 += _0x2baf4a && _0x2baf4a[0] === 1 && _0x2baf4a[1] === 1 ? 1 : 0;
-      _0x22291d.ht0x2 += _0x2baf4a && _0x2baf4a[0] === 0 && _0x2baf4a[1] === 2 ? 1 : 0;
-      _0x22291d.ht2x0 += _0x2baf4a && _0x2baf4a[0] === 2 && _0x2baf4a[1] === 0 ? 1 : 0;
-      _0x22291d.htOut += _0x47336a.ht === "OUT" ? 1 : 0;
-      if (_0x273f82 >= 2) {
-        _0x22291d.overHT++;
-      } else {
-        _0x22291d.underHT++;
-      }
-      if (_0x2baf4a) {
-        if (_0x2baf4a[0] > _0x2baf4a[1]) {
-          _0x22291d.casaHT++;
-        } else if (_0x2baf4a[0] < _0x2baf4a[1]) {
-          _0x22291d.foraHT++;
-        } else {
-          _0x22291d.empateHT++;
-        }
-      }
-      if (_0x2baf4a) {
-        const _0x2de944 = _0x2baf4a[0] > _0x2baf4a[1];
-        const _0xd03bec = _0x2baf4a[0] < _0x2baf4a[1];
-        let _0x2e7c2a = [0, 0];
-        if (_0x47336a.ft?.includes(" x ")) {
-          _0x2e7c2a = _0x47336a.ft.split(" x ").map(Number);
-        }
-        const _0x1dd0e5 = _0x2e7c2a[0] < _0x2e7c2a[1];
-        const _0xad0e40 = _0x2e7c2a[0] > _0x2e7c2a[1];
-        if (_0x2de944 && _0x1dd0e5 || _0xd03bec && _0xad0e40) {
-          _0x22291d.viradinha++;
-        }
-      }
-      _0x22291d.valid++;
-    }
-    if (_0x57acf6 < _0x248ac9) {
-      continue;
-    }
-    const _0x3dac32 = _0x5f5372[_0x57acf6];
-    _0x2a455c.push(_0x3dac32.hora + ":" + _0x3dac32.minuto.toString().padStart(2, "0"));
-    let _0x55b0ea = [0, 0];
-    if (_0x3dac32.ft?.includes(" x ")) {
-      _0x55b0ea = _0x3dac32.ft.split(" x ").map(Number);
-    }
-    const _0x597c23 = parseHtScoreTotal(_0x3dac32.ht);
-    const _0x9dff98 = parseHtParts(_0x3dac32.ht);
-    const _0x2a1ee0 = _0x55b0ea[0] + _0x55b0ea[1];
-    const _0x35b3be = Math.max(0, _0x2a1ee0 - _0x597c23);
-    const _0x4eba0d = _0x22291d.valid || 1;
-    _0x79406a.push(_0x22291d.golsFT);
-    _0x29164f.push("#FFFF00");
-    _0x36a086.push(_0x22291d.golsHT);
-    _0x383cef.push("#26A69A");
-    const _0x10b3bd = _0x2a1ee0;
-    const _0x1e10a8 = _0x10b3bd >= 5 ? "#2ecc71" : _0x10b3bd >= 3 ? "#3498db" : _0x10b3bd === 2 ? "#f1c40f" : _0x10b3bd === 1 ? "#e67e22" : "#e74c3c";
-    _0x4c9aed.push(_0x10b3bd);
-    _0x1411aa.push(_0x1e10a8);
-    _0x1fd193.push(_0x22291d.golsFTCasa);
-    _0x21fd6e.push("#00E5FF");
-    _0x577e8c.push(_0x22291d.golsFTFora);
-    _0x5ae753.push("#FF6E40");
-    _0x2937da.push(_0x22291d.par / _0x4eba0d * 100);
-    _0x3c4229.push(_0x2a1ee0 % 2 === 0 ? _0x38e9ba : _0x45576f);
-    _0x2e2dc4.push(_0x22291d.impar / _0x4eba0d * 100);
-    _0x1bb734.push(_0x2a1ee0 % 2 !== 0 ? _0x38e9ba : _0x45576f);
-    const _0x178d8f = Math.abs(_0x55b0ea[0] - _0x55b0ea[1]);
-    _0x494829.push(_0x22291d.margem1 / _0x4eba0d * 100);
-    _0x1a05a1.push(_0x178d8f === 1 ? _0x38e9ba : _0x45576f);
-    _0x57f21d.push(_0x22291d.margem2 / _0x4eba0d * 100);
-    _0x34d42f.push(_0x178d8f === 2 ? _0x38e9ba : _0x45576f);
-    _0x5da5ff.push(_0x22291d.margem3 / _0x4eba0d * 100);
-    _0x19608b.push(_0x178d8f === 3 ? _0x38e9ba : _0x45576f);
-    _0x115534.push(_0x22291d.empateGols / _0x4eba0d * 100);
-    _0x1c5eee.push(_0x55b0ea[0] === _0x55b0ea[1] && _0x2a1ee0 > 0 ? _0x38e9ba : _0x45576f);
-    _0xa973ab.push(_0x22291d.casaVence / _0x4eba0d * 100);
-    _0x26bc21.push(_0x55b0ea[0] > _0x55b0ea[1] ? _0x38e9ba : _0x45576f);
-    _0x4c2483.push(_0x22291d.empate / _0x4eba0d * 100);
-    _0x2f752d.push(_0x55b0ea[0] === _0x55b0ea[1] ? _0x38e9ba : _0x45576f);
-    _0x238cdc.push(_0x22291d.foraVence / _0x4eba0d * 100);
-    _0x2a505f.push(_0x55b0ea[0] < _0x55b0ea[1] ? _0x38e9ba : _0x45576f);
-    _0x44aec2.push(_0x22291d.ambasSim / _0x4eba0d * 100);
-    _0x2d2af0.push(_0x55b0ea[0] > 0 && _0x55b0ea[1] > 0 ? _0x38e9ba : _0x45576f);
-    _0x57bf50.push(_0x22291d.ambasNao / _0x4eba0d * 100);
-    _0x125b43.push(_0x55b0ea[0] === 0 || _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x961a29.push(_0x22291d.over05 / _0x4eba0d * 100);
-    _0x41851b.push(_0x2a1ee0 > 0.5 ? _0x38e9ba : _0x45576f);
-    _0x32bed0.push(_0x22291d.over15 / _0x4eba0d * 100);
-    _0x1e59b0.push(_0x2a1ee0 > 1.5 ? _0x38e9ba : _0x45576f);
-    _0x54bd82.push(_0x22291d.over25 / _0x4eba0d * 100);
-    _0x59b53a.push(_0x2a1ee0 > 2.5 ? _0x38e9ba : _0x45576f);
-    _0x42ceff.push(_0x22291d.over35 / _0x4eba0d * 100);
-    _0xbd18da.push(_0x2a1ee0 > 3.5 ? _0x38e9ba : _0x45576f);
-    _0x2b7431.push(_0x22291d.over5 / _0x4eba0d * 100);
-    _0x5b740a.push(_0x2a1ee0 >= 5 ? _0x38e9ba : _0x45576f);
-    _0x5ec9dd.push(_0x22291d.under05 / _0x4eba0d * 100);
-    _0x4a00e0.push(_0x2a1ee0 <= 0.5 ? _0x38e9ba : _0x45576f);
-    _0x118ce4.push(_0x22291d.under15 / _0x4eba0d * 100);
-    _0x2d683b.push(_0x2a1ee0 < 1.5 ? _0x38e9ba : _0x45576f);
-    _0x298f1f.push(_0x22291d.under25 / _0x4eba0d * 100);
-    _0x462787.push(_0x2a1ee0 < 2.5 ? _0x38e9ba : _0x45576f);
-    _0x871047.push(_0x22291d.under35 / _0x4eba0d * 100);
-    _0x10681f.push(_0x2a1ee0 < 3.5 ? _0x38e9ba : _0x45576f);
-    _0x19a14c.push(_0x22291d.gol0 / _0x4eba0d * 100);
-    _0x3a7cc1.push(_0x2a1ee0 === 0 ? _0x38e9ba : _0x45576f);
-    _0x1b5614.push(_0x22291d.gol1 / _0x4eba0d * 100);
-    _0x3ca9f2.push(_0x2a1ee0 === 1 ? _0x38e9ba : _0x45576f);
-    _0x1c24ae.push(_0x22291d.gol2 / _0x4eba0d * 100);
-    _0x2e78ee.push(_0x2a1ee0 === 2 ? _0x38e9ba : _0x45576f);
-    _0x5ef63e.push(_0x22291d.gol3 / _0x4eba0d * 100);
-    _0x5d2c42.push(_0x2a1ee0 === 3 ? _0x38e9ba : _0x45576f);
-    _0x16bfb7.push(_0x22291d.gol4 / _0x4eba0d * 100);
-    _0x220843.push(_0x2a1ee0 === 4 ? _0x38e9ba : _0x45576f);
-    _0x2b826b.push(_0x22291d.gol5 / _0x4eba0d * 100);
-    _0x5c834f.push(_0x2a1ee0 === 5 ? _0x38e9ba : _0x45576f);
-    _0x12441f.push(_0x22291d.gol2t0 / _0x4eba0d * 100);
-    _0x13aa88.push(_0x35b3be === 0 ? _0x38e9ba : _0x45576f);
-    _0x5c3ac1.push(_0x22291d.gol2t1 / _0x4eba0d * 100);
-    _0x3bb7bf.push(_0x35b3be === 1 ? _0x38e9ba : _0x45576f);
-    _0x4a6b39.push(_0x22291d.gol2t2 / _0x4eba0d * 100);
-    _0x4e7c61.push(_0x35b3be === 2 ? _0x38e9ba : _0x45576f);
-    _0x5457bc.push(_0x22291d.gol2t3 / _0x4eba0d * 100);
-    _0x2b9585.push(_0x35b3be === 3 ? _0x38e9ba : _0x45576f);
-    _0x53be5a.push(_0x22291d.gol2t4 / _0x4eba0d * 100);
-    _0x1eb193.push(_0x35b3be === 4 ? _0x38e9ba : _0x45576f);
-    _0xa0a671.push(_0x22291d.casa0 / _0x4eba0d * 100);
-    _0x2b69a6.push(_0x55b0ea[0] === 0 ? _0x38e9ba : _0x45576f);
-    _0x5f1304.push(_0x22291d.casa1 / _0x4eba0d * 100);
-    _0xc30986.push(_0x55b0ea[0] === 1 ? _0x38e9ba : _0x45576f);
-    _0x4680b7.push(_0x22291d.casa2 / _0x4eba0d * 100);
-    _0x1a372f.push(_0x55b0ea[0] === 2 ? _0x38e9ba : _0x45576f);
-    _0x4c92b3.push(_0x22291d.casa3 / _0x4eba0d * 100);
-    _0x92f603.push(_0x55b0ea[0] === 3 ? _0x38e9ba : _0x45576f);
-    _0x4b2ad1.push(_0x22291d.casa4 / _0x4eba0d * 100);
-    _0x164e8d.push(_0x55b0ea[0] === 4 ? _0x38e9ba : _0x45576f);
-    _0x1bbe72.push(_0x22291d.fora0 / _0x4eba0d * 100);
-    _0x7f9f9d.push(_0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x490262.push(_0x22291d.fora1 / _0x4eba0d * 100);
-    _0x817af1.push(_0x55b0ea[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x233313.push(_0x22291d.fora2 / _0x4eba0d * 100);
-    _0x59d1a8.push(_0x55b0ea[1] === 2 ? _0x38e9ba : _0x45576f);
-    _0x241130.push(_0x22291d.fora3 / _0x4eba0d * 100);
-    _0x26f98c.push(_0x55b0ea[1] === 3 ? _0x38e9ba : _0x45576f);
-    _0x6c90fc.push(_0x22291d.fora4 / _0x4eba0d * 100);
-    _0x877b4d.push(_0x55b0ea[1] === 4 ? _0x38e9ba : _0x45576f);
-    _0x374007.push(_0x22291d.p0x0 / _0x4eba0d * 100);
-    _0x50ed8d.push(_0x55b0ea[0] === 0 && _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x298826.push(_0x22291d.p1x0 / _0x4eba0d * 100);
-    _0x1125e5.push(_0x55b0ea[0] === 1 && _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x356c8a.push(_0x22291d.p2x0 / _0x4eba0d * 100);
-    _0x3c2f22.push(_0x55b0ea[0] === 2 && _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x31dacc.push(_0x22291d.p3x0 / _0x4eba0d * 100);
-    _0x242b3c.push(_0x55b0ea[0] === 3 && _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x576e5c.push(_0x22291d.p2x1 / _0x4eba0d * 100);
-    _0x423394.push(_0x55b0ea[0] === 2 && _0x55b0ea[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x267262.push(_0x22291d.p3x1 / _0x4eba0d * 100);
-    _0x130d6c.push(_0x55b0ea[0] === 3 && _0x55b0ea[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x396664.push(_0x22291d.p3x2 / _0x4eba0d * 100);
-    _0x5123ed.push(_0x55b0ea[0] === 3 && _0x55b0ea[1] === 2 ? _0x38e9ba : _0x45576f);
-    _0x3ad61f.push(_0x22291d.p4x0 / _0x4eba0d * 100);
-    _0x3c4c76.push(_0x55b0ea[0] === 4 && _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x1078d7.push(_0x22291d.p4x1 / _0x4eba0d * 100);
-    _0x9b56f3.push(_0x55b0ea[0] === 4 && _0x55b0ea[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x4e3946.push(_0x22291d.p0x1 / _0x4eba0d * 100);
-    _0x1d183c.push(_0x55b0ea[0] === 0 && _0x55b0ea[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x3c88ed.push(_0x22291d.p0x2 / _0x4eba0d * 100);
-    _0x1ddaef.push(_0x55b0ea[0] === 0 && _0x55b0ea[1] === 2 ? _0x38e9ba : _0x45576f);
-    _0x32e31c.push(_0x22291d.p1x2 / _0x4eba0d * 100);
-    _0x7b8b2e.push(_0x55b0ea[0] === 1 && _0x55b0ea[1] === 2 ? _0x38e9ba : _0x45576f);
-    _0x4a2a6a.push(_0x22291d.p0x3 / _0x4eba0d * 100);
-    _0x42e965.push(_0x55b0ea[0] === 0 && _0x55b0ea[1] === 3 ? _0x38e9ba : _0x45576f);
-    _0x42be3b.push(_0x22291d.p1x3 / _0x4eba0d * 100);
-    _0x2d59d2.push(_0x55b0ea[0] === 1 && _0x55b0ea[1] === 3 ? _0x38e9ba : _0x45576f);
-    _0x3b4c11.push(_0x22291d.p2x3 / _0x4eba0d * 100);
-    _0x16bb1d.push(_0x55b0ea[0] === 2 && _0x55b0ea[1] === 3 ? _0x38e9ba : _0x45576f);
-    _0x580ea3.push(_0x22291d.p0x4 / _0x4eba0d * 100);
-    _0x200c64.push(_0x55b0ea[0] === 0 && _0x55b0ea[1] === 4 ? _0x38e9ba : _0x45576f);
-    _0xf055c8.push(_0x22291d.p1x4 / _0x4eba0d * 100);
-    _0x1e3eb9.push(_0x55b0ea[0] === 1 && _0x55b0ea[1] === 4 ? _0x38e9ba : _0x45576f);
-    _0x2bd5a6.push(_0x22291d.ht0x0 / _0x4eba0d * 100);
-    _0x46ed25.push(_0x9dff98 && _0x9dff98[0] === 0 && _0x9dff98[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x4b7103.push(_0x22291d.ht0x1 / _0x4eba0d * 100);
-    _0x5a1897.push(_0x9dff98 && _0x9dff98[0] === 0 && _0x9dff98[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x1de422.push(_0x22291d.ht1x0 / _0x4eba0d * 100);
-    _0x44cd9a.push(_0x9dff98 && _0x9dff98[0] === 1 && _0x9dff98[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x78bad6.push(_0x22291d.ht1x1 / _0x4eba0d * 100);
-    _0x4c3fb4.push(_0x9dff98 && _0x9dff98[0] === 1 && _0x9dff98[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0xcfb21e.push(_0x22291d.ht0x2 / _0x4eba0d * 100);
-    _0x170215.push(_0x9dff98 && _0x9dff98[0] === 0 && _0x9dff98[1] === 2 ? _0x38e9ba : _0x45576f);
-    _0xfb1500.push(_0x22291d.ht2x0 / _0x4eba0d * 100);
-    _0x1fae6c.push(_0x9dff98 && _0x9dff98[0] === 2 && _0x9dff98[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x292622.push(_0x22291d.htOut / _0x4eba0d * 100);
-    _0x8b1636.push(_0x3dac32.ht === "OUT" ? _0x38e9ba : _0x45576f);
-    _0x2f4611.push(_0x22291d.overHT / _0x4eba0d * 100);
-    _0x17f8ee.push(_0x597c23 >= 2 ? _0x38e9ba : _0x45576f);
-    _0x5d2a9d.push(_0x22291d.underHT / _0x4eba0d * 100);
-    _0x59f64c.push(_0x597c23 < 2 ? _0x38e9ba : _0x45576f);
-    _0x3fedb7.push(_0x22291d.casaHT / _0x4eba0d * 100);
-    _0x2c00ea.push(_0x9dff98 && _0x9dff98[0] > _0x9dff98[1] ? _0x38e9ba : _0x45576f);
-    _0x3db7f8.push(_0x22291d.empateHT / _0x4eba0d * 100);
-    _0x385d98.push(_0x9dff98 && _0x9dff98[0] === _0x9dff98[1] ? _0x38e9ba : _0x45576f);
-    _0x439b42.push(_0x22291d.foraHT / _0x4eba0d * 100);
-    _0x4728a5.push(_0x9dff98 && _0x9dff98[0] < _0x9dff98[1] ? _0x38e9ba : _0x45576f);
-    const _0x4a7828 = _0x9dff98 && _0x9dff98[0] > _0x9dff98[1];
-    const _0x403422 = _0x9dff98 && _0x9dff98[0] < _0x9dff98[1];
-    const _0x2d3f6a = _0x55b0ea[0] < _0x55b0ea[1];
-    const _0x54341f = _0x55b0ea[0] > _0x55b0ea[1];
-    const _0xd42f20 = _0x9dff98 && (_0x4a7828 && _0x2d3f6a || _0x403422 && _0x54341f);
-    _0x309ef5.push(_0x22291d.viradinha / _0x4eba0d * 100);
-    _0x539e04.push(_0xd42f20 ? _0x38e9ba : _0x45576f);
-  }
-  const _0x156cbd = {
-    labels: _0x2a455c,
-    golsFT: _0x79406a,
-    golsHT: _0x36a086,
-    golsInd: _0x4c9aed,
-    casaVence: _0xa973ab,
-    empate: _0x4c2483,
-    foraVence: _0x238cdc,
-    ambasSim: _0x44aec2,
-    ambasNao: _0x57bf50,
-    over05: _0x961a29,
-    over15: _0x32bed0,
-    over25: _0x54bd82,
-    over35: _0x42ceff,
-    over5: _0x2b7431,
-    under05: _0x5ec9dd,
-    under15: _0x118ce4,
-    under25: _0x298f1f,
-    under35: _0x871047,
-    gol0: _0x19a14c,
-    gol1: _0x1b5614,
-    gol2: _0x1c24ae,
-    gol3: _0x5ef63e,
-    gol4: _0x16bfb7,
-    gol5: _0x2b826b,
-    gol2t0: _0x12441f,
-    gol2t1: _0x5c3ac1,
-    gol2t2: _0x4a6b39,
-    gol2t3: _0x5457bc,
-    gol2t4: _0x53be5a,
-    casa0: _0xa0a671,
-    casa1: _0x5f1304,
-    casa2: _0x4680b7,
-    casa3: _0x4c92b3,
-    casa4: _0x4b2ad1,
-    fora0: _0x1bbe72,
-    fora1: _0x490262,
-    fora2: _0x233313,
-    fora3: _0x241130,
-    fora4: _0x6c90fc,
-    placar0x0: _0x374007,
-    placar1x0: _0x298826,
-    placar2x0: _0x356c8a,
-    placar3x0: _0x31dacc,
-    placar2x1: _0x576e5c,
-    placar3x1: _0x267262,
-    placar3x2: _0x396664,
-    placar4x0: _0x3ad61f,
-    placar4x1: _0x1078d7,
-    placar0x1: _0x4e3946,
-    placar0x2: _0x3c88ed,
-    placar1x2: _0x32e31c,
-    placar0x3: _0x4a2a6a,
-    placar1x3: _0x42be3b,
-    placar2x3: _0x3b4c11,
-    placar0x4: _0x580ea3,
-    placar1x4: _0xf055c8,
-    placarHT0x0: _0x2bd5a6,
-    placarHT0x1: _0x4b7103,
-    placarHT1x0: _0x1de422,
-    placarHT1x1: _0x78bad6,
-    placarHT0x2: _0xcfb21e,
-    placarHT2x0: _0xfb1500,
-    placarHTOut: _0x292622,
-    overHT: _0x2f4611,
-    underHT: _0x5d2a9d,
-    casaHT: _0x3fedb7,
-    empateHT: _0x3db7f8,
-    foraHT: _0x439b42,
-    viradinha: _0x309ef5,
-    golsFTCasa: _0x1fd193,
-    golsFTFora: _0x577e8c,
-    par: _0x2937da,
-    impar: _0x2e2dc4,
-    margem1: _0x494829,
-    margem2: _0x57f21d,
-    margem3: _0x5da5ff,
-    empateGols: _0x115534,
-    golsFTColors: _0x29164f,
-    golsHTColors: _0x383cef,
-    golsIndColors: _0x1411aa,
-    casaVenceColors: _0x26bc21,
-    empateColors: _0x2f752d,
-    foraVenceColors: _0x2a505f,
-    ambasSimColors: _0x2d2af0,
-    ambasNaoColors: _0x125b43,
-    over05Colors: _0x41851b,
-    over15Colors: _0x1e59b0,
-    over25Colors: _0x59b53a,
-    over35Colors: _0xbd18da,
-    over5Colors: _0x5b740a,
-    under05Colors: _0x4a00e0,
-    under15Colors: _0x2d683b,
-    under25Colors: _0x462787,
-    under35Colors: _0x10681f,
-    gol0Colors: _0x3a7cc1,
-    gol1Colors: _0x3ca9f2,
-    gol2Colors: _0x2e78ee,
-    gol3Colors: _0x5d2c42,
-    gol4Colors: _0x220843,
-    gol5Colors: _0x5c834f,
-    gol2t0Colors: _0x13aa88,
-    gol2t1Colors: _0x3bb7bf,
-    gol2t2Colors: _0x4e7c61,
-    gol2t3Colors: _0x2b9585,
-    gol2t4Colors: _0x1eb193,
-    casa0Colors: _0x2b69a6,
-    casa1Colors: _0xc30986,
-    casa2Colors: _0x1a372f,
-    casa3Colors: _0x92f603,
-    casa4Colors: _0x164e8d,
-    fora0Colors: _0x7f9f9d,
-    fora1Colors: _0x817af1,
-    fora2Colors: _0x59d1a8,
-    fora3Colors: _0x26f98c,
-    fora4Colors: _0x877b4d,
-    placar0x0Colors: _0x50ed8d,
-    placar1x0Colors: _0x1125e5,
-    placar2x0Colors: _0x3c2f22,
-    placar3x0Colors: _0x242b3c,
-    placar2x1Colors: _0x423394,
-    placar3x1Colors: _0x130d6c,
-    placar3x2Colors: _0x5123ed,
-    placar4x0Colors: _0x3c4c76,
-    placar4x1Colors: _0x9b56f3,
-    placar0x1Colors: _0x1d183c,
-    placar0x2Colors: _0x1ddaef,
-    placar1x2Colors: _0x7b8b2e,
-    placar0x3Colors: _0x42e965,
-    placar1x3Colors: _0x2d59d2,
-    placar2x3Colors: _0x16bb1d,
-    placar0x4Colors: _0x200c64,
-    placar1x4Colors: _0x1e3eb9,
-    placarHT0x0Colors: _0x46ed25,
-    placarHT0x1Colors: _0x5a1897,
-    placarHT1x0Colors: _0x44cd9a,
-    placarHT1x1Colors: _0x4c3fb4,
-    placarHT0x2Colors: _0x170215,
-    placarHT2x0Colors: _0x1fae6c,
-    placarHTOutColors: _0x8b1636,
-    overHTColors: _0x17f8ee,
-    underHTColors: _0x59f64c,
-    casaHTColors: _0x2c00ea,
-    empateHTColors: _0x385d98,
-    foraHTColors: _0x4728a5,
-    viradinhaColors: _0x539e04,
-    golsFTCasaColors: _0x21fd6e,
-    golsFTForaColors: _0x5ae753,
-    parColors: _0x3c4229,
-    imparColors: _0x1bb734,
-    margem1Colors: _0x1a05a1,
-    margem2Colors: _0x34d42f,
-    margem3Colors: _0x19608b,
-    empateGolsColors: _0x1c5eee
-  };
-  const _0x39be0a = _0x156cbd;
-  const _0x2efa95 = _QBLOC;
-  const _0x20cea4 = _JPH;
-  Object.keys(labelToKey).forEach(_0x46d5f8 => {
-    const _0x48bbb7 = labelToKey[_0x46d5f8];
-    _0x39be0a[_0x48bbb7 + "Short"] = computeMA(_0x39be0a[_0x48bbb7], _0x2efa95);
-    _0x39be0a[_0x48bbb7 + "Long"] = computeMA(_0x39be0a[_0x48bbb7], _0x20cea4);
-  });
-  return _0x39be0a;
+  D.placarHTOut = bin(g => g.htRaw === "OUT");
+  D.overHT = bin(g => g.hTot >= 2);
+  D.underHT = bin(g => g.hTot < 2);
+  D.casaHT = bin(g => g.h && g.h[0] > g.h[1]);
+  D.empateHT = bin(g => g.h && g.h[0] === g.h[1]);
+  D.foraHT = bin(g => g.h && g.h[0] < g.h[1]);
+  D.viradinha = bin(g => g.h && ((g.h[0] > g.h[1] && g.c < g.f) || (g.h[0] < g.h[1] && g.c > g.f)));
+  D.par = bin(g => g.t % 2 === 0);
+  D.impar = bin(g => g.t % 2 !== 0);
+  D.margem1 = bin(g => g.m === 1); D.margem2 = bin(g => g.m === 2); D.margem3 = bin(g => g.m === 3);
+  D.empateGols = bin(g => g.c === g.f && g.t > 0);
+  return D;
+})();
+
+// Só calcula os mercados que estão no setup ativo (antes calculava os ~80 sempre)
+function _mercadosNecessarios() {
+  const setup = _getActiveSetup();
+  const keys = new Set();
+  (setup.markets || []).forEach(l => { if (labelToKey[l]) keys.add(labelToKey[l]); });
+  return [...keys].filter(k => MARKET_DEFS[k]);
 }
-function updateCharts() {
-  if (!_tabVisible) {
-    return;
-  }
-  const _0x3b0216 = new Date().getTime();
-  leagues.forEach(_0x3ad8e0 => {
-    fetch(ROTAS_API.resultados(LIGA_ATUAL) + ("?timestamp=" + _0x3b0216)).then(_0x4d71c0 => {
-      if (!_0x4d71c0.ok) {
-        throw new Error(_0x4d71c0.status);
-      }
-      return _0x4d71c0.json();
-    }).then(_0x40437e => {
-      const _0x28e74c = processApiData(_0x40437e, _0x3ad8e0);
-      const _0x1d867d = document.getElementById(_0x3ad8e0);
-      if (!_0x1d867d) {
-        return;
-      }
-      if (!chartInstances[_0x3ad8e0]) {
-        chartInstances[_0x3ad8e0] = createStatsChart(_0x1d867d.getContext("2d"), _0x28e74c.labels, _0x28e74c, _0x3ad8e0);
-        _applySetup(_getActiveSetup());
-      } else {
-        updateStatsChart(chartInstances[_0x3ad8e0], _0x28e74c);
-      }
-    }).catch(_0x324053 => console.error("Erro " + _0x3ad8e0 + ":", _0x324053));
+
+function _parseGame(r) {
+  let c = 0, f = 0;
+  if (r.ft && r.ft.includes(" x ")) { const p = r.ft.split(" x ").map(Number); c = p[0] || 0; f = p[1] || 0; }
+  const hTot = parseHtScoreTotal(r.ht);
+  const t = c + f;
+  return { c, f, t, m: Math.abs(c - f), h: parseHtParts(r.ht), hTot, htRaw: r.ht, s2t: Math.max(0, t - hTot) };
+}
+
+function _linhaMin(r) {
+  return Math.floor(new Date(r.data).getTime() / 86400000) * 1440 + r.hora * 60 + r.minuto;
+}
+
+function processApiData(rawData, ligaKey) {
+  const sorted = [...rawData].sort((a, b) => {
+    const da = new Date(a.data).getTime(), db = new Date(b.data).getTime();
+    if (da !== db) return da - db;
+    if (a.hora !== b.hora) return a.hora - b.hora;
+    return a.minuto - b.minuto;
   });
+  const data = sorted.slice(-numPoints - Math.ceil(averagePoints * 3.5));
+  chartData[ligaKey] = data;
+
+  const keys = _mercadosNecessarios();
+  const janelaMin = averagePoints * _MIN_POR_JOGO;
+  const inicioVisivel = Math.max(0, data.length - numPoints);
+
+  const games = data.map(_parseGame);
+  const mins = data.map(_linhaMin);
+
+  const out = { labels: [] };
+  Object.values(labelToKey).forEach(k => {
+    out[k] = []; out[k + "Colors"] = []; out[k + "Short"] = []; out[k + "Long"] = [];
+  });
+
+  // janela deslizante: cada jogo entra e sai da soma uma única vez (O(n) em vez de O(n*janela))
+  const somas = {};
+  keys.forEach(k => { somas[k] = 0; });
+  let left = 0;
+  for (let i = 0; i < data.length; i++) {
+    const g = games[i];
+    keys.forEach(k => { const d = MARKET_DEFS[k]; if (!d.individual) somas[k] += d.fn(g); });
+    while (mins[i] - mins[left] > janelaMin) {
+      const gl = games[left];
+      keys.forEach(k => { const d = MARKET_DEFS[k]; if (!d.individual) somas[k] -= d.fn(gl); });
+      left++;
+    }
+    if (i < inicioVisivel) continue;
+
+    const valid = (i - left + 1) || 1;
+    out.labels.push(data[i].hora + ":" + data[i].minuto.toString().padStart(2, "0"));
+    keys.forEach(k => {
+      const d = MARKET_DEFS[k];
+      if (d.individual) {
+        out[k].push(g.t);
+        out[k + "Colors"].push(g.t >= 5 ? "#2ecc71" : g.t >= 3 ? "#3498db" : g.t === 2 ? "#f1c40f" : g.t === 1 ? "#e67e22" : "#e74c3c");
+      } else if (d.soma) {
+        out[k].push(somas[k]);
+        out[k + "Colors"].push(d.cor);
+      } else {
+        out[k].push(somas[k] / valid * 100);
+        out[k + "Colors"].push(d.fn(g) ? _COR_OK : _COR_NO);
+      }
+    });
+  }
+
+  keys.forEach(k => {
+    out[k + "Short"] = computeMA(out[k], _QBLOC);
+    out[k + "Long"] = computeMA(out[k], _JPH);
+  });
+  return out;
+}
+const _ultimaAssinatura = {};
+let _graficoVisivel = true;
+let _emVoo = false;
+function updateCharts(forcar) {
+  if (!_tabVisible || !_graficoVisivel || _emVoo) return;
+  _emVoo = true;
+  const ts = Date.now();
+  Promise.all(leagues.map(liga =>
+    fetch(ROTAS_API.resultados(LIGA_ATUAL) + "?timestamp=" + ts)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(raw => {
+        const canvas = document.getElementById(liga);
+        if (!canvas) return;
+        // nada novo (mesmo último jogo, mesma config)? não reprocessa nem redesenha
+        const ult = raw[raw.length - 1] || {};
+        const sig = [raw.length, ult.data, ult.hora, ult.minuto, ult.ft, ult.ht,
+                     numPoints, averagePoints, _mercadosNecessarios().join(",")].join("|");
+        if (!forcar && chartInstances[liga] && _ultimaAssinatura[liga] === sig) return;
+        _ultimaAssinatura[liga] = sig;
+
+        const processed = processApiData(raw, liga);
+        if (!chartInstances[liga]) {
+          chartInstances[liga] = createStatsChart(canvas.getContext("2d"), processed.labels, processed, liga);
+          _applySetup(_getActiveSetup());
+        } else {
+          updateStatsChart(chartInstances[liga], processed);
+        }
+      })
+      .catch(e => console.error("Erro " + liga + ":", e))
+  )).finally(() => { _emVoo = false; });
 }
 function toggleFibonacciLines() {
   showFibonacciLines = document.getElementById("fibonacciToggle").checked;
@@ -3356,4 +2775,14 @@ window.onload = () => {
   _renderLinesPanel(_getActiveSetup());
   _updateSetupCounter();
 };
-setInterval(updateCharts, 3000);
+setInterval(updateCharts, 10000); // era 3s; jogo novo sai a cada 3-5 min
+try {
+  const _cv = document.getElementById("Copa");
+  if (_cv && "IntersectionObserver" in window) {
+    new IntersectionObserver(es => {
+      const v = es.some(e => e.isIntersecting);
+      if (v && !_graficoVisivel) { _graficoVisivel = true; updateCharts(); }
+      _graficoVisivel = v;
+    }, { rootMargin: "200px" }).observe(_cv);
+  }
+} catch (e) {}
