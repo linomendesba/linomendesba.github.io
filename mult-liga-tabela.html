@@ -50,6 +50,29 @@
       }
       .grafico-toggle:hover { background: rgba(255, 255, 255, 0.08); }
       #graficoMercadosConteudo { padding-top: 8px; }
+      .grafico-altura {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 4px 8px;
+        font-size: 0.8rem;
+        color: #9ca3af;
+      }
+      .grafico-altura button {
+        cursor: pointer;
+        width: 28px;
+        height: 26px;
+        line-height: 1;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #fff;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+      }
+      .grafico-altura button:hover { background: rgba(255, 255, 255, 0.12); }
+      .grafico-altura input[type="range"] { flex: 1; max-width: 220px; cursor: pointer; }
+      .grafico-altura .altura-valor { min-width: 48px; text-align: right; color: #fff; }
       #graficoMercadosConteudo .canvas-wrapper {
         position: relative;
         height: 450px;
@@ -190,6 +213,15 @@
 
       <div id="graficoMercadosConteudo" style="display:none;">
 
+        <!-- Altura do gráfico (salva por liga) -->
+        <div class="grafico-altura">
+          <span>Altura</span>
+          <button type="button" id="btnAlturaMenos" title="Diminuir altura">−</button>
+          <input type="range" id="alturaGrafico" min="250" max="900" step="10" value="450">
+          <button type="button" id="btnAlturaMais" title="Aumentar altura">+</button>
+          <span class="altura-valor" id="alturaGraficoValor">450px</span>
+        </div>
+
         <!-- MODAL criar/editar setup -->
         <div id="setupModal" class="setup-modal-overlay" style="display:none;">
           <div class="setup-modal-box">
@@ -224,7 +256,7 @@
 
         <div class="chart-container">
           <div class="canvas-wrapper">
-            <canvas id="Copa" width="1080" height="450" style="max-height:450px;"></canvas>
+            <canvas id="Copa" width="1080" height="450"></canvas>
           </div>
 
           <div class="control-panel">
@@ -475,6 +507,45 @@
           setTimeout(reajustar, 200);
           setTimeout(reajustar, 600);
         }
+
+        // ── Altura do gráfico (ajustável e salva por liga) ──
+        const ALT_KEY = "split:graficoAltura:" + liga;
+        const ALT_MIN = 250, ALT_MAX = 900, ALT_PADRAO = 450;
+        const rangeAlt = document.getElementById("alturaGrafico");
+        const valorAlt = document.getElementById("alturaGraficoValor");
+        const wrapperAlt = document.querySelector("#graficoMercadosConteudo .canvas-wrapper");
+        const canvasAlt = document.getElementById("Copa");
+
+        function aplicarAltura(h, salvar) {
+          h = Math.max(ALT_MIN, Math.min(ALT_MAX, Math.round(Number(h) || ALT_PADRAO)));
+          rangeAlt.value = h;
+          valorAlt.textContent = h + "px";
+          wrapperAlt.style.height = h + "px";
+          canvasAlt.style.maxHeight = h + "px";
+          if (salvar) {
+            try { localStorage.setItem(ALT_KEY, String(h)); } catch (e) {}
+          }
+          try { chartInstances.Copa && chartInstances.Copa.resize(); } catch (e) {}
+          reajustarIframe();
+        }
+
+        function reajustarIframe() {
+          try {
+            const fr = window.frameElement;
+            if (fr && window.parent && typeof window.parent.ajustarAlturaIframe === "function") {
+              window.parent.ajustarAlturaIframe(fr);
+            }
+          } catch (e) {}
+        }
+
+        let altSalva = ALT_PADRAO;
+        try { altSalva = parseInt(localStorage.getItem(ALT_KEY), 10) || ALT_PADRAO; } catch (e) {}
+        aplicarAltura(altSalva, false);
+
+        rangeAlt.addEventListener("input", () => aplicarAltura(rangeAlt.value, false));
+        rangeAlt.addEventListener("change", () => aplicarAltura(rangeAlt.value, true));
+        document.getElementById("btnAlturaMenos").addEventListener("click", () => aplicarAltura(Number(rangeAlt.value) - 50, true));
+        document.getElementById("btnAlturaMais").addEventListener("click", () => aplicarAltura(Number(rangeAlt.value) + 50, true));
 
         document.getElementById("btnGraficoToggle").addEventListener("click", () => {
           definirAberto(conteudo.style.display === "none", true);
