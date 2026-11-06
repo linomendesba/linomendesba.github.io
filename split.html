@@ -295,11 +295,20 @@
         _timersAltura.set(iframe, setTimeout(() => ajustarAlturaIframe(iframe), 150));
       }
 
+      // ResizeObserver só dispara quando o tamanho do conteúdo muda de verdade.
+      // (O MutationObserver com subtree+attributes disparava a cada célula da tabela
+      // que era reescrita, o que pesava com várias ligas na mesma página.)
       function observarIframe(iframe) {
         try {
-          const doc = iframe.contentDocument || iframe.contentWindow.document;
-          const obs = new MutationObserver(() => agendarAjusteAltura(iframe));
-          obs.observe(doc.body, { childList: true, subtree: true, attributes: true });
+          const win = iframe.contentWindow;
+          const doc = iframe.contentDocument || win.document;
+          const RO = win.ResizeObserver || window.ResizeObserver;
+          if (RO) {
+            new RO(() => agendarAjusteAltura(iframe)).observe(doc.body);
+          } else {
+            new MutationObserver(() => agendarAjusteAltura(iframe))
+              .observe(doc.body, { childList: true, subtree: true });
+          }
         } catch (e) {}
       }
 
@@ -484,10 +493,14 @@
         });
       }
 
+      // Rede de segurança (o ResizeObserver já cobre o normal): só com a aba visível
+      // e ignorando cards recolhidos, pra não forçar layout em todos os iframes à toa.
       function ajustarTodasAlturas() {
-        document.querySelectorAll(".liga-card-iframe").forEach((f) => ajustarAlturaIframe(f));
+        if (document.hidden) return;
+        document.querySelectorAll(".liga-card:not(.recolhido) .liga-card-iframe")
+          .forEach((f) => ajustarAlturaIframe(f));
       }
-      setInterval(ajustarTodasAlturas, 6000);
+      setInterval(ajustarTodasAlturas, 20000);
 
       // ── Inicialização ─────────────────────────────────────────────────
       carregarEstado();
