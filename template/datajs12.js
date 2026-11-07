@@ -545,8 +545,11 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ─── filterByCount ─── */
   function filterByCount(games, n) {
     if (!games.length) return games;
-    return [...games].reverse().slice(0, n);
+    if (games === _fbcRef && n === _fbcN) return _fbcVal;   // memoizado (evita copiar/inverter a lista várias vezes)
+    _fbcRef = games; _fbcN = n; _fbcVal = games.slice(-n).reverse();
+    return _fbcVal;
   }
+  let _fbcRef = null, _fbcN = 0, _fbcVal = [];
 
   function calcStats(matches, teamName, modo) {
     modo = modo || "ambos";
@@ -923,87 +926,175 @@ document.addEventListener('DOMContentLoaded', () => {
     return bar;
   }
 
-  async function loadNextGames() {
-    try {
-      const games=await LigaDataManager.getProximosJogos();
-      const slice=games.slice(0,6);
-      const newKey=JSON.stringify(slice.map(g=>g.match_id||(g.team_home+g.team_visit+g.time)));
-      if(newKey===lastGamesKey) return;
-      lastGamesKey=newKey;
-      const container=document.getElementById("nextGamesContainer");
-      const selHome  =container.querySelector(`.${UID}gc.${UID}sel`)?.dataset.home ||null;
-      const selVisit =container.querySelector(`.${UID}gc.${UID}sel`)?.dataset.visit||null;
-      container.innerHTML=`<div class="${UID}games">`+
-        slice.map(g=>{
-          const sel=g.team_home===selHome&&g.team_visit===selVisit;
-          return `<div class="${UID}gc${sel?" "+UID+"sel":""}"
-                    data-home="${g.team_home}" data-visit="${g.team_visit}" data-time="${g.time||""}">
-            <div class="${UID}gtime">${g.time||""}</div>
-            <div class="${UID}gteams">
-              <span>${g.team_home}</span><span class="${UID}vs">vs</span><span>${g.team_visit}</span>
-            </div>
-          </div>`;
-        }).join("")+`</div>`;
-      container.addEventListener("click",e=>{
-        const card=e.target.closest(`.${UID}gc`);
-        if(!card) return;
-        container.querySelectorAll(`.${UID}gc`).forEach(c=>c.classList.remove(UID+"sel"));
-        card.classList.add(UID+"sel");
-        modoTimeA="ambos"; modoTimeB="ambos";
-        obterResultados(card.dataset.home,card.dataset.visit,card.dataset.time);
-      });
-    } catch(err){ console.error("Erro próximos jogos:",err); }
+  /* ═══════════════════════════════════════════════════════════════════
+     Carregamento rápido + jogo padrão = PRÓXIMO jogo
+     - requisições em paralelo (próximos jogos + resultados + odds)
+     - cache curto + dedupe: trocar de confronto não vai mais à rede
+     - jogo selecionado automaticamente = 1º dos próximos jogos
+       (se o usuário clicar em outro, fica "fixado" até ele sair da lista)
+     - não analisa mais o último resultado
+     ═══════════════════════════════════════════════════════════════════ */
+  const TTL_RESULTS = 15000;
+  const TTL_ODDS    = 10000;
+  const _cache = { results:null, resultsTs:0, resP:null, odds:null, oddsTs:0, oddsP:null };
+
+  let selGame  = null;   // { home, visit, time }
+  let pinned   = false;  // true = usuário escolheu manualmente
+  let lastSig  = "";
+
+  function _asArray(r){ return Array.isArray(r) ? r : (r && Array.isArray(r.data) ? r.data : []); }
+
+  function getResultsCached(force){
+    if (!force && _cache.results && (Date.now() - _cache.resultsTs) < TTL_RESULTS) return Promise.resolve(_cache.results);
+    if (_cache.resP) return _cache.resP;
+    _cache.resP = Promise.resolve()
+      .then(() => LigaDataManager.getResultados())
+      .then(r => { _cache.results = _asArray(r); _cache.resultsTs = Date.now(); return _cache.results; })
+      .catch(err => { console.error("Erro resultados:", err); return _cache.results || []; })
+      .finally(() => { _cache.resP = null; });
+    return _cache.resP;
   }
 
-  async function obterResultados(teamA, teamB, gameTime) {
-    try {
-      const [resR,oddsR]=await Promise.allSettled([
-        LigaDataManager.getResultados(),
-        LigaDataManager.getOdds()
-      ]);
-      const results=resR.status==="fulfilled"?resR.value:[];
-      let oddsData=null;
-      if(oddsR.status==="fulfilled"){
-        const arr=oddsR.value;
-        oddsData=arr.find(o=>
-          (o.time_casa===teamA&&o.time_visitante===teamB)||
-          (o.time_casa===teamB&&o.time_visitante===teamA)
-        )||null;
-      }
-      currentResultados=results; currentTeamA=teamA; currentTeamB=teamB;
-      currentOddsData=oddsData;  currentGameTime=gameTime;
-      renderPanel(results,teamA,teamB,oddsData,gameTime);
-      isComparisonMode=true;
-      pararIntervaloSincronizado(autoUpdateInterval);
-    } catch(err){ console.error("Erro resultados:",err); }
+  function getOddsCached(force){
+    if (!force && _cache.odds && (Date.now() - _cache.oddsTs) < TTL_ODDS) return Promise.resolve(_cache.odds);
+    if (_cache.oddsP) return _cache.oddsP;
+    _cache.oddsP = Promise.resolve()
+      .then(() => LigaDataManager.getOdds())
+      .then(r => { _cache.odds = _asArray(r); _cache.oddsTs = Date.now(); return _cache.odds; })
+      .catch(() => _cache.odds || [])
+      .finally(() => { _cache.oddsP = null; });
+    return _cache.oddsP;
   }
 
-  async function fetchAndUpdateResults() {
-    if(isComparisonMode) return;
-    try {
-      const newResults=await LigaDataManager.getResultados();
-      if(JSON.stringify(newResults)!==JSON.stringify(currentResultados)){
-        currentResultados=newResults;
-        const sorted=[...newResults].sort((a,b)=>{
-          const da=new Date(a.data),db=new Date(b.data);
-          return db-da||b.hora-a.hora||b.minuto-a.minuto;
-        });
-        const latest=sorted[0];
-        renderPanel(sorted,latest.time_a,latest.time_b,null,null);
-      }
-    } catch(err){ console.error("Erro auto-update:",err); }
+  function findOdds(a, b){
+    const arr = _cache.odds || [];
+    return arr.find(o =>
+      (o.time_casa === a && o.time_visitante === b) ||
+      (o.time_casa === b && o.time_visitante === a)
+    ) || null;
   }
 
-  async function updateAll(){
-    await loadNextGames();
-    await fetchAndUpdateResults();
+  async function fetchNext(){
+    try { return _asArray(await LigaDataManager.getProximosJogos()); }
+    catch (err) { console.error("Erro próximos jogos:", err); return null; }
+  }
+
+  function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+
+  function showLoading(){
+    const mc = document.getElementById("mainContainer");
+    if (mc) mc.innerHTML = `<div style="padding:28px;text-align:center;color:#8b93a1;font-size:13px;">Carregando confronto…</div>`;
+  }
+
+  function markSel(){
+    const container = document.getElementById("nextGamesContainer");
+    if (!container || !selGame) return;
+    container.querySelectorAll("." + UID + "gc").forEach(c => {
+      const on = c.dataset.home === selGame.home && c.dataset.visit === selGame.visit;
+      c.classList.toggle(UID + "sel", on);
+    });
+  }
+
+  function drawBar(slice){
+    const container = document.getElementById("nextGamesContainer");
+    if (!container) return;
+    container.innerHTML = `<div class="${UID}games">` +
+      slice.map(g => `
+        <div class="${UID}gc" data-home="${esc(g.team_home)}" data-visit="${esc(g.team_visit)}" data-time="${esc(g.time || "")}">
+          <div class="${UID}gtime">${esc(g.time || "")}</div>
+          <div class="${UID}gteams">
+            <span>${esc(g.team_home)}</span><span class="${UID}vs">vs</span><span>${esc(g.team_visit)}</span>
+          </div>
+        </div>`).join("") + `</div>`;
+    markSel();
+  }
+
+  // Decide o jogo exibido. Retorna true se o jogo selecionado mudou.
+  function applyGames(games){
+    const slice = games.slice(0, 6);
+    if (!slice.length) return false;
+
+    let target = null;
+    if (pinned && selGame)
+      target = slice.find(g => g.team_home === selGame.home && g.team_visit === selGame.visit) || null;
+    if (!target) { pinned = false; target = slice[0]; }   // padrão: PRÓXIMO jogo
+
+    const tg = { home: target.team_home, visit: target.team_visit, time: target.time || "" };
+    const changed = !selGame || tg.home !== selGame.home || tg.visit !== selGame.visit;
+    if (changed) {
+      if (selGame) { modoTimeA = "ambos"; modoTimeB = "ambos"; }
+      selGame = tg;
+    }
+
+    const newKey = JSON.stringify(slice.map(g => g.match_id || (g.team_home + g.team_visit + g.time)));
+    if (newKey !== lastGamesKey) { lastGamesKey = newKey; drawBar(slice); }
+    else markSel();
+    return changed;
+  }
+
+  function renderCurrent(force){
+    if (!selGame || !_cache.results) return;
+    const results = _cache.results;
+    const oddsData = findOdds(selGame.home, selGame.visit);
+    const first = results.length ? results[0] : null;
+    const last  = results.length ? results[results.length - 1] : null;
+    const sig = [selGame.home, selGame.visit, results.length,
+                 first ? JSON.stringify(first) : "", last ? JSON.stringify(last) : "",
+                 oddsData ? JSON.stringify(oddsData) : ""].join("|");
+    if (!force && sig === lastSig) return;
+    lastSig = sig;
+    currentResultados = results; currentTeamA = selGame.home; currentTeamB = selGame.visit;
+    currentOddsData = oddsData;  currentGameTime = selGame.time;
+    renderPanel(results, selGame.home, selGame.visit, oddsData, selGame.time);
+    isComparisonMode = true;
+  }
+
+  async function refresh(){
+    if (document.hidden) return;
+    // dispara tudo em paralelo
+    const pNext = fetchNext(), pRes = getResultsCached(), pOdds = getOddsCached();
+    const games = await pNext;
+    if (games) {
+      const changed = applyGames(games);
+      if (changed) { if (_cache.results) renderCurrent(true); else showLoading(); }
+    }
+    await Promise.all([pRes, pOdds]);
+    renderCurrent(false);
+  }
+
+  function onPickGame(card){
+    pinned = true;
+    const g = { home: card.dataset.home, visit: card.dataset.visit, time: card.dataset.time || "" };
+    if (!selGame || g.home !== selGame.home || g.visit !== selGame.visit) { modoTimeA = "ambos"; modoTimeB = "ambos"; }
+    selGame = g;
+    markSel();
+    if (_cache.results) renderCurrent(true);   // instantâneo, usa o cache
+    else showLoading();
+    // revalida em segundo plano (só vai à rede se o cache estiver velho)
+    Promise.all([getResultsCached(), getOddsCached()]).then(() => renderCurrent(false));
+  }
+
+  function _ready(fn){
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn, { once:true });
+    else fn();
   }
 
   (function init(){
-    const ng=document.getElementById("nextGamesContainer");
-    if(ng){ ng.parentNode.insertBefore(buildHoursBar(),ng); }
-    updateAll();
-    autoUpdateInterval=sincronizarIntervalo(updateAll,10000);
+    _ready(function(){
+      const ng = document.getElementById("nextGamesContainer");
+      if (ng) {
+        ng.parentNode.insertBefore(buildHoursBar(), ng);
+        // UM único listener (antes era recriado a cada atualização da lista)
+        ng.addEventListener("click", e => {
+          const card = e.target.closest("." + UID + "gc");
+          if (card) onPickGame(card);
+        });
+      }
+      showLoading();
+      refresh();
+      autoUpdateInterval = sincronizarIntervalo(refresh, 10000);
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+    });
   })();
 
 })();
