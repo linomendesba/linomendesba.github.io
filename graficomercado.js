@@ -1,9 +1,9 @@
 // ── BetGreen (12 jogos/hora) ─────────────────────────────────────────────
 // BS_JOGOS_POR_HORA / BS_QD_BLOCO / BS_KEY_SUFIXO vêm do template HTML (index.html da BetGreen).
 // Em páginas que não definem essas constantes, tudo cai no padrão de 20 jogos/hora (sem mudança).
-const _JPH   = (typeof BS_JOGOS_POR_HORA !== "undefined") ? BS_JOGOS_POR_HORA : 20; // jogos por hora
-const _QBLOC = (typeof BS_QD_BLOCO       !== "undefined") ? BS_QD_BLOCO       : 5;  // jogos por quadrante
-const _KSUF  = (typeof BS_KEY_SUFIXO     !== "undefined") ? BS_KEY_SUFIXO     : "";
+const _JPH = typeof BS_JOGOS_POR_HORA !== "undefined" ? BS_JOGOS_POR_HORA : 20; // jogos por hora
+const _QBLOC = typeof BS_QD_BLOCO !== "undefined" ? BS_QD_BLOCO : 5; // jogos por quadrante
+const _KSUF = typeof BS_KEY_SUFIXO !== "undefined" ? BS_KEY_SUFIXO : "";
 const _MIN_POR_JOGO = 60 / _JPH; // 3 min (20 jogos/h) | 5 min (12 jogos/h)
 const SETUPS_KEY = "mgraf:setups_v4" + _KSUF;
 const ACTIVE_SETUP_KEY = "mgraf:activeSetup_v4" + _KSUF;
@@ -19,13 +19,20 @@ const MAX_DRAG_LINES = 6;
 const MAX_DRAG_FIBS = 4;
 const MAX_DRAG_TRENDS = 6;
 const FIB_RETR_LEVELS = [0, 23.6, 38.2, 50, 61.8, 100];
-const FIB_COLORS = ["#A78BFA", "#FBBF24", "#34D399", "#F472B6", "#60A5FA", "#FB923C"];
+const FIB_COLORS = [
+  "#A78BFA",
+  "#FBBF24",
+  "#34D399",
+  "#F472B6",
+  "#60A5FA",
+  "#FB923C",
+];
 const TREND_COLORS = {
   LTA: "#34D399",
-  LTB: "#F87171"
+  LTB: "#F87171",
 };
-let numPoints = _JPH;            // 1 hora
-let averagePoints = _JPH - 1;   // base = 1 hora (índice)
+let numPoints = _JPH; // 1 hora
+let averagePoints = _JPH - 1; // base = 1 hora (índice)
 let showFibonacciLines = false;
 let showMovingAverages = false;
 let showLabels = false;
@@ -36,16 +43,18 @@ let chartData = {};
 function _ligaAtual() {
   if (typeof window.getLigaKey === "function") {
     try {
-      const _0x2b7292 = window.getLigaKey();
-      if (_0x2b7292) {
-        return _0x2b7292;
+      const ligaKey = window.getLigaKey();
+      if (ligaKey) {
+        return ligaKey;
       }
     } catch {}
   }
-  const _0x587a8d = document.querySelector("#resultDisplay h4.custom-color") || document.querySelector("h4.custom-color");
-  const _0x48f27f = _0x587a8d && _0x587a8d.textContent ? _0x587a8d.textContent.trim() : "";
-  if (_0x48f27f) {
-    return _0x48f27f.toLowerCase().replace(/\s+/g, "_");
+  const h4 =
+    document.querySelector("#resultDisplay h4.custom-color") ||
+    document.querySelector("h4.custom-color");
+  const nome = h4 && h4.textContent ? h4.textContent.trim() : "";
+  if (nome) {
+    return nome.toLowerCase().replace(/\s+/g, "_");
   }
   if (leagues && leagues[0]) {
     return leagues[0];
@@ -53,8 +62,8 @@ function _ligaAtual() {
     return "default";
   }
 }
-function _ligaKey(_0x295a10) {
-  return _0x295a10 + ":" + _ligaAtual();
+function _ligaKey(baseKey) {
+  return baseKey + ":" + _ligaAtual();
 }
 let _tabVisible = !document.hidden;
 document.addEventListener("visibilitychange", () => {
@@ -139,7 +148,7 @@ const labelToKey = {
   "Margem 3": "margem3",
   "Empate Com Gols": "empateGols",
   "Gols FT Casa": "golsFTCasa",
-  "Gols FT Fora": "golsFTFora"
+  "Gols FT Fora": "golsFTFora",
 };
 const DATASET_COLORS = {
   "Gols FT": "#FFFF00",
@@ -217,78 +226,142 @@ const DATASET_COLORS = {
   "Margem 3": "#FF1744",
   "Empate Com Gols": "#00BFA5",
   "Gols FT Casa": "#00E5FF",
-  "Gols FT Fora": "#FF6E40"
+  "Gols FT Fora": "#FF6E40",
 };
-const MARKET_GROUPS = [{
-  title: "Geral",
-  labels: ["Gols FT", "Gols HT", "Gols Individual"]
-}, {
-  title: "Resultado",
-  labels: ["Casa Vence", "Empate", "Fora Vence"]
-}, {
-  title: "Ambas",
-  labels: ["Ambas Sim", "Ambas Não"]
-}, {
-  title: "Over",
-  labels: ["Over 0.5", "Over 1.5", "Over 2.5", "Over 3.5", "Over 5+"]
-}, {
-  title: "Under",
-  labels: ["Under 0.5", "Under 1.5", "Under 2.5", "Under 3.5"]
-}, {
-  title: "Gols Exatos",
-  labels: ["0 Gol Exato", "1 Gol Exato", "2 Gols Exatos", "3 Gols Exatos", "4 Gols Exatos", "5 Gols Exatos"]
-}, {
-  title: "Gols 2T",
-  labels: ["0 Gol 2T", "1 Gol 2T", "2 Gols 2T", "3 Gols 2T", "4 Gols 2T"]
-}, {
-  title: "Casa",
-  labels: ["Casa 0 Gols", "Casa 1 Gol", "Casa 2 Gols", "Casa 3 Gols", "Casa 4 Gols"]
-}, {
-  title: "Fora",
-  labels: ["Fora 0 Gols", "Fora 1 Gol", "Fora 2 Gols", "Fora 3 Gols", "Fora 4 Gols"]
-}, {
-  title: "Placares FT",
-  labels: ["0x0", "1x0", "2x0", "3x0", "2x1", "3x1", "3x2", "4x0", "4x1", "0x1", "0x2", "1x2", "0x3", "1x3", "2x3", "0x4", "1x4"]
-}, {
-  title: "Placar HT",
-  labels: ["0x0 HT", "0x1 HT", "1x0 HT", "1x1 HT", "0x2 HT", "2x0 HT", "OUT HT"]
-}, {
-  title: "Resultado HT",
-  labels: ["Casa HT", "Empate HT", "Fora HT"]
-}, {
-  title: "Over/Under HT",
-  labels: ["OverHT", "UnderHT"]
-}, {
-  title: "Viradinha",
-  labels: ["Viradinha"]
-}, {
-  title: "Par / Ímpar",
-  labels: ["Par", "Ímpar"]
-}, {
-  title: "Margem de Gols",
-  labels: ["Margem 1", "Margem 2", "Margem 3"]
-}, {
-  title: "Empate com Gols",
-  labels: ["Empate Com Gols"]
-}, {
-  title: "Gols FT por Time",
-  labels: ["Gols FT Casa", "Gols FT Fora"]
-}];
-function _ls(_0x119e56, _0x4f4e67) {
+const MARKET_GROUPS = [
+  {
+    title: "Geral",
+    labels: ["Gols FT", "Gols HT", "Gols Individual"],
+  },
+  {
+    title: "Resultado",
+    labels: ["Casa Vence", "Empate", "Fora Vence"],
+  },
+  {
+    title: "Ambas",
+    labels: ["Ambas Sim", "Ambas Não"],
+  },
+  {
+    title: "Over",
+    labels: ["Over 0.5", "Over 1.5", "Over 2.5", "Over 3.5", "Over 5+"],
+  },
+  {
+    title: "Under",
+    labels: ["Under 0.5", "Under 1.5", "Under 2.5", "Under 3.5"],
+  },
+  {
+    title: "Gols Exatos",
+    labels: [
+      "0 Gol Exato",
+      "1 Gol Exato",
+      "2 Gols Exatos",
+      "3 Gols Exatos",
+      "4 Gols Exatos",
+      "5 Gols Exatos",
+    ],
+  },
+  {
+    title: "Gols 2T",
+    labels: ["0 Gol 2T", "1 Gol 2T", "2 Gols 2T", "3 Gols 2T", "4 Gols 2T"],
+  },
+  {
+    title: "Casa",
+    labels: [
+      "Casa 0 Gols",
+      "Casa 1 Gol",
+      "Casa 2 Gols",
+      "Casa 3 Gols",
+      "Casa 4 Gols",
+    ],
+  },
+  {
+    title: "Fora",
+    labels: [
+      "Fora 0 Gols",
+      "Fora 1 Gol",
+      "Fora 2 Gols",
+      "Fora 3 Gols",
+      "Fora 4 Gols",
+    ],
+  },
+  {
+    title: "Placares FT",
+    labels: [
+      "0x0",
+      "1x0",
+      "2x0",
+      "3x0",
+      "2x1",
+      "3x1",
+      "3x2",
+      "4x0",
+      "4x1",
+      "0x1",
+      "0x2",
+      "1x2",
+      "0x3",
+      "1x3",
+      "2x3",
+      "0x4",
+      "1x4",
+    ],
+  },
+  {
+    title: "Placar HT",
+    labels: [
+      "0x0 HT",
+      "0x1 HT",
+      "1x0 HT",
+      "1x1 HT",
+      "0x2 HT",
+      "2x0 HT",
+      "OUT HT",
+    ],
+  },
+  {
+    title: "Resultado HT",
+    labels: ["Casa HT", "Empate HT", "Fora HT"],
+  },
+  {
+    title: "Over/Under HT",
+    labels: ["OverHT", "UnderHT"],
+  },
+  {
+    title: "Viradinha",
+    labels: ["Viradinha"],
+  },
+  {
+    title: "Par / Ímpar",
+    labels: ["Par", "Ímpar"],
+  },
+  {
+    title: "Margem de Gols",
+    labels: ["Margem 1", "Margem 2", "Margem 3"],
+  },
+  {
+    title: "Empate com Gols",
+    labels: ["Empate Com Gols"],
+  },
+  {
+    title: "Gols FT por Time",
+    labels: ["Gols FT Casa", "Gols FT Fora"],
+  },
+];
+function _ls(key, fallback) {
   try {
-    const _0x5a013e = localStorage.getItem(_0x119e56);
-    if (_0x5a013e !== null) {
-      return JSON.parse(_0x5a013e);
+    const v = localStorage.getItem(key);
+    if (v !== null) {
+      return JSON.parse(v);
     } else {
-      return _0x4f4e67;
+      return fallback;
     }
   } catch {
-    return _0x4f4e67;
+    return fallback;
   }
 }
-function _lsSet(_0x5384a1, _0x937023) {
+function _lsSet(key, val) {
   try {
-    localStorage.setItem(_0x5384a1, JSON.stringify(_0x937023));
+    localStorage.setItem(key, JSON.stringify(val));
   } catch {}
 }
 const SETUP_PADRAO = {
@@ -296,7 +369,8 @@ const SETUP_PADRAO = {
   name: "Padrão",
   markets: [],
   colors: {},
-  horas: 8 * _JPH,   // 8 horas
+  horas: 8 * _JPH,
+  // 8 horas
   base: _JPH - 1,
   fibonacci: false,
   mediasMoveis: false,
@@ -304,865 +378,902 @@ const SETUP_PADRAO = {
   labels: false,
   dragLines: [],
   fibDraws: [],
-  trendLines: []
+  trendLines: [],
 };
 function _loadCustomSetups() {
   return _ls(SETUPS_KEY, []);
 }
-function _saveCustomSetups(_0x50d34e) {
-  _lsSet(SETUPS_KEY, _0x50d34e);
+function _saveCustomSetups(a) {
+  _lsSet(SETUPS_KEY, a);
 }
 function _loadActiveId() {
   return _ls(ACTIVE_SETUP_KEY, "__padrao__");
 }
-function _saveActiveId(_0x43d6ca) {
-  _lsSet(ACTIVE_SETUP_KEY, _0x43d6ca);
+function _saveActiveId(a) {
+  _lsSet(ACTIVE_SETUP_KEY, a);
 }
 function _getAllSetups() {
   return [SETUP_PADRAO, ..._loadCustomSetups()];
 }
 function _getActiveSetup() {
-  const _0x2c633b = _loadActiveId();
-  return _getAllSetups().find(_0x593709 => _0x593709.id === _0x2c633b) || SETUP_PADRAO;
+  const id = _loadActiveId();
+  return _getAllSetups().find((s) => s.id === id) || SETUP_PADRAO;
 }
-function _marketColor(_0x13e8b2, _0x2062ef) {
-  return _0x13e8b2.colors && _0x13e8b2.colors[_0x2062ef] || DATASET_COLORS[_0x2062ef] || "#888";
+function _marketColor(setup, label) {
+  return (
+    (setup.colors && setup.colors[label]) || DATASET_COLORS[label] || "#888"
+  );
 }
-function _getLineToggles(_0x536f89) {
-  const _0x21c4ca = _ls(SETUP_LINE_TOGGLE_KEY, {});
-  return _0x21c4ca[_0x536f89] || {};
+function _getLineToggles(setupId) {
+  const all = _ls(SETUP_LINE_TOGGLE_KEY, {});
+  return all[setupId] || {};
 }
-function _saveLineToggles(_0x49701f, _0xe2919c) {
-  const _0x20fd7b = _ls(SETUP_LINE_TOGGLE_KEY, {});
-  _0x20fd7b[_0x49701f] = _0xe2919c;
-  _lsSet(SETUP_LINE_TOGGLE_KEY, _0x20fd7b);
+function _saveLineToggles(a, b) {
+  const lsResult = _ls(SETUP_LINE_TOGGLE_KEY, {});
+  lsResult[a] = b;
+  _lsSet(SETUP_LINE_TOGGLE_KEY, lsResult);
 }
-function _isLineActive(_0x26c060, _0x3cc538) {
-  const _0xd85fb3 = _getLineToggles(_0x26c060);
-  if (_0xd85fb3[_0x3cc538] !== undefined) {
-    return _0xd85fb3[_0x3cc538];
+function _isLineActive(a, b) {
+  const getLineTogglesResult = _getLineToggles(a);
+  if (getLineTogglesResult[b] !== undefined) {
+    return getLineTogglesResult[b];
   } else {
     return true;
   }
 }
-function _setLineActive(_0x578ad7, _0x58ae4f, _0x4f01c3) {
-  const _0x1b374d = _getLineToggles(_0x578ad7);
-  _0x1b374d[_0x58ae4f] = _0x4f01c3;
-  _saveLineToggles(_0x578ad7, _0x1b374d);
+function _setLineActive(SETUP_LINE_TOGGLE_KEY2, setupId, toggles) {
+  const all = _getLineToggles(SETUP_LINE_TOGGLE_KEY2);
+  all[setupId] = toggles;
+  _saveLineToggles(SETUP_LINE_TOGGLE_KEY2, all);
 }
-function _captureControlsToSetup(_0x522252) {
-  if (!_0x522252 || _0x522252.id === "__padrao__") {
+function _captureControlsToSetup(setup) {
+  if (!setup || setup.id === "__padrao__") {
     return;
   }
-  const _0x3cc66c = _loadCustomSetups();
-  const _0x1fbaac = _0x3cc66c.findIndex(_0x211c4e => _0x211c4e.id === _0x522252.id);
-  if (_0x1fbaac === -1) {
+  const arr = _loadCustomSetups();
+  const idx = arr.findIndex((s) => s.id === setup.id);
+  if (idx === -1) {
     return;
   }
-  const _0x544492 = document.getElementById("pointsSelector");
-  const _0x1566d2 = document.getElementById("averageSelector");
-  const _0x364815 = document.getElementById("fibonacciToggle");
-  const _0x529f67 = document.getElementById("movingAveragesToggle");
-  const _0x4c889a = document.getElementById("linhaAtualToggle");
-  const _0x24edd2 = document.getElementById("labelsToggle");
-  _0x3cc66c[_0x1fbaac].horas = _0x544492 ? parseInt(_0x544492.value, 10) : _0x522252.horas;
-  _0x3cc66c[_0x1fbaac].base = _0x1566d2 ? parseInt(_0x1566d2.value, 10) : _0x522252.base;
-  _0x3cc66c[_0x1fbaac].fibonacci = _0x364815 ? _0x364815.checked : _0x522252.fibonacci;
-  _0x3cc66c[_0x1fbaac].mediasMoveis = _0x529f67 ? _0x529f67.checked : _0x522252.mediasMoveis;
-  _0x3cc66c[_0x1fbaac].linhaAtual = _0x4c889a ? _0x4c889a.checked : _0x522252.linhaAtual;
-  _0x3cc66c[_0x1fbaac].labels = _0x24edd2 ? _0x24edd2.checked : _0x522252.labels;
-  _saveCustomSetups(_0x3cc66c);
+  const pSel = document.getElementById("pointsSelector");
+  const aSel = document.getElementById("averageSelector");
+  const fib = document.getElementById("fibonacciToggle");
+  const med = document.getElementById("movingAveragesToggle");
+  const lat = document.getElementById("linhaAtualToggle");
+  const lbl = document.getElementById("labelsToggle");
+  arr[idx].horas = pSel ? parseInt(pSel.value, 10) : setup.horas;
+  arr[idx].base = aSel ? parseInt(aSel.value, 10) : setup.base;
+  arr[idx].fibonacci = fib ? fib.checked : setup.fibonacci;
+  arr[idx].mediasMoveis = med ? med.checked : setup.mediasMoveis;
+  arr[idx].linhaAtual = lat ? lat.checked : setup.linhaAtual;
+  arr[idx].labels = lbl ? lbl.checked : setup.labels;
+  _saveCustomSetups(arr);
 }
-function _applySetup(_0x5bc664) {
-  const _0x18639e = _getActiveSetup();
-  if (_0x18639e.id !== _0x5bc664.id) {
-    _captureControlsToSetup(_0x18639e);
+function _applySetup(setup) {
+  const prevSetup = _getActiveSetup();
+  if (prevSetup.id !== setup.id) {
+    _captureControlsToSetup(prevSetup);
   }
-  _saveActiveId(_0x5bc664.id);
-  Object.keys(labelToKey).forEach(_0x443f51 => {
-    const _0x37d852 = _0x5bc664.markets.includes(_0x443f51);
-    const _0x51ea4c = _isLineActive(_0x5bc664.id, _0x443f51);
-    statsChartVisibleDatasets[_0x443f51] = _0x37d852 && _0x51ea4c;
+  _saveActiveId(setup.id);
+  Object.keys(labelToKey).forEach((label) => {
+    const inSetup = setup.markets.includes(label);
+    const toggled = _isLineActive(setup.id, label);
+    statsChartVisibleDatasets[label] = inSetup && toggled;
   });
   _saveVisibleDatasets(statsChartVisibleDatasets);
-  const _0x17a977 = document.getElementById("pointsSelector");
-  const _0x454895 = document.getElementById("averageSelector");
-  const _0x47c3bb = document.getElementById("fibonacciToggle");
-  const _0x1a427c = document.getElementById("movingAveragesToggle");
-  const _0x2a10fa = document.getElementById("linhaAtualToggle");
-  const _0x24b243 = document.getElementById("labelsToggle");
-  const _0x2916ef = _0x5bc664.horas ?? 8 * _JPH;
-  const _0x15ee90 = _0x5bc664.base ?? _JPH - 1;
-  const _0x2d6797 = _0x5bc664.fibonacci ?? false;
-  const _0x36b294 = _0x5bc664.mediasMoveis ?? false;
-  const _0x1e3d86 = _0x5bc664.linhaAtual ?? true;
-  const _0x4ea248 = _0x5bc664.labels ?? false;
-  if (_0x17a977) {
-    _0x17a977.value = String(_0x2916ef);
+  const pSel = document.getElementById("pointsSelector");
+  const aSel = document.getElementById("averageSelector");
+  const fib = document.getElementById("fibonacciToggle");
+  const med = document.getElementById("movingAveragesToggle");
+  const lat = document.getElementById("linhaAtualToggle");
+  const lbl = document.getElementById("labelsToggle");
+  const h = setup.horas ?? 8 * _JPH;
+  const b = setup.base ?? _JPH - 1;
+  const f = setup.fibonacci ?? false;
+  const m = setup.mediasMoveis ?? false;
+  const l = setup.linhaAtual ?? true;
+  const lb = setup.labels ?? false;
+  if (pSel) {
+    pSel.value = String(h);
   }
-  if (_0x454895) {
-    _0x454895.value = String(_0x15ee90);
+  if (aSel) {
+    aSel.value = String(b);
   }
-  if (_0x47c3bb) {
-    _0x47c3bb.checked = _0x2d6797;
+  if (fib) {
+    fib.checked = f;
   }
-  if (_0x1a427c) {
-    _0x1a427c.checked = _0x36b294;
+  if (med) {
+    med.checked = m;
   }
-  if (_0x2a10fa) {
-    _0x2a10fa.checked = _0x1e3d86;
+  if (lat) {
+    lat.checked = l;
   }
-  if (_0x24b243) {
-    _0x24b243.checked = _0x4ea248;
+  if (lbl) {
+    lbl.checked = lb;
   }
-  numPoints = _0x2916ef;
-  averagePoints = _0x15ee90;
-  showFibonacciLines = _0x2d6797;
-  showMovingAverages = _0x36b294;
-  showLabels = _0x4ea248;
-  const _0x1fde52 = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0x1fde52) {
-    _0x1fde52.dragLines = _loadDragLines();
-    _0x1fde52._selectedDragLine = -1;
-    _atualizarContador(_0x1fde52.dragLines);
-    _0x1fde52.fibDraws = _loadDragFibs();
-    _0x1fde52._selectedFib = -1;
-    _atualizarContadorFibs(_0x1fde52.fibDraws);
-    _0x1fde52.trendLines = _loadDragTrends();
-    _0x1fde52._selectedTrend = -1;
-    _atualizarContadorTrends(_0x1fde52.trendLines);
-    _0x1fde52.options.plugins.linhaAtual.enabled = _0x1e3d86;
-    _0x1fde52.data.datasets.forEach((_0x35e20d, _0x36f53c) => {
-      const _0x2cc7fa = _0x35e20d.label.includes(" - ") ? _0x35e20d.label.split(" - ")[0] : _0x35e20d.label;
-      const _0x8203f4 = statsChartVisibleDatasets[_0x2cc7fa];
-      _0x1fde52.getDatasetMeta(_0x36f53c).hidden = _0x35e20d.label.includes(" - ") ? !_0x36b294 || !_0x8203f4 : !_0x8203f4;
-      if (!_0x35e20d.label.includes(" - ") && _0x5bc664.colors && _0x5bc664.colors[_0x2cc7fa]) {
-        _0x35e20d.borderColor = _0x5bc664.colors[_0x2cc7fa];
-        _0x35e20d.backgroundColor = _0x5bc664.colors[_0x2cc7fa];
-      } else if (!_0x35e20d.label.includes(" - ")) {
-        _0x35e20d.borderColor = DATASET_COLORS[_0x2cc7fa] || "#888";
-        _0x35e20d.backgroundColor = DATASET_COLORS[_0x2cc7fa] || "#888";
+  numPoints = h;
+  averagePoints = b;
+  showFibonacciLines = f;
+  showMovingAverages = m;
+  showLabels = lb;
+  const ci = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (ci) {
+    ci.dragLines = _loadDragLines();
+    ci._selectedDragLine = -1;
+    _atualizarContador(ci.dragLines);
+    ci.fibDraws = _loadDragFibs();
+    ci._selectedFib = -1;
+    _atualizarContadorFibs(ci.fibDraws);
+    ci.trendLines = _loadDragTrends();
+    ci._selectedTrend = -1;
+    _atualizarContadorTrends(ci.trendLines);
+    ci.options.plugins.linhaAtual.enabled = l;
+    ci.data.datasets.forEach((ds, idx) => {
+      const mainLabel = ds.label.includes(" - ")
+        ? ds.label.split(" - ")[0]
+        : ds.label;
+      const vis = statsChartVisibleDatasets[mainLabel];
+      ci.getDatasetMeta(idx).hidden = ds.label.includes(" - ")
+        ? !m || !vis
+        : !vis;
+      if (
+        !ds.label.includes(" - ") &&
+        setup.colors &&
+        setup.colors[mainLabel]
+      ) {
+        ds.borderColor = setup.colors[mainLabel];
+        ds.backgroundColor = setup.colors[mainLabel];
+      } else if (!ds.label.includes(" - ")) {
+        ds.borderColor = DATASET_COLORS[mainLabel] || "#888";
+        ds.backgroundColor = DATASET_COLORS[mainLabel] || "#888";
       }
     });
-    _0x1fde52.update();
+    ci.update();
   }
   _renderSetupBar();
-  _renderLinesPanel(_0x5bc664);
+  _renderLinesPanel(setup);
   _updateSetupCounter();
   updateCharts();
 }
-function _getDatasetCurrentValue(_0x470cd2) {
-  const _0x41e867 = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (!_0x41e867) {
+function _getDatasetCurrentValue(label) {
+  const ci = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (!ci) {
     return null;
   }
-  const _0x1c9843 = _0x41e867.data.datasets.find(_0x1d6112 => _0x1d6112.label === _0x470cd2);
-  if (!_0x1c9843 || !_0x1c9843.data) {
+  const ds = ci.data.datasets.find((d) => d.label === label);
+  if (!ds || !ds.data) {
     return null;
   }
-  for (let _0x42ffec = _0x1c9843.data.length - 1; _0x42ffec >= 0; _0x42ffec--) {
-    const _0xb41cec = _0x1c9843.data[_0x42ffec];
-    if (_0xb41cec !== null && _0xb41cec !== undefined && isFinite(_0xb41cec)) {
-      return _0xb41cec;
+  for (let j = ds.data.length - 1; j >= 0; j--) {
+    const v = ds.data[j];
+    if (v !== null && v !== undefined && isFinite(v)) {
+      return v;
     }
   }
   return null;
 }
 function _renderSetupBar() {
-  const _0x4422fd = document.getElementById("setupBar");
-  if (!_0x4422fd) {
+  const bar = document.getElementById("setupBar");
+  if (!bar) {
     return;
   }
-  _0x4422fd.innerHTML = "";
-  const _0xbd2bf0 = _loadActiveId();
-  _getAllSetups().forEach(_0x57c8d0 => {
-    if (_0x57c8d0.id === "__padrao__") {
+  bar.innerHTML = "";
+  const activeId = _loadActiveId();
+  _getAllSetups().forEach((setup) => {
+    if (setup.id === "__padrao__") {
       return;
     }
-    const _0x30d320 = document.createElement("div");
-    _0x30d320.className = "setup-item" + (_0x57c8d0.id === _0xbd2bf0 ? " active" : "");
-    const _0x2b5aa4 = document.createElement("button");
-    _0x2b5aa4.className = "setup-btn";
-    const _0x441993 = document.createElement("span");
-    _0x441993.textContent = _0x57c8d0.name;
-    const _0x2a7dcb = document.createElement("span");
-    _0x2a7dcb.className = "setup-edit-hint";
-    _0x2a7dcb.textContent = "✏";
-    _0x2a7dcb.title = "Duplo clique para editar";
-    _0x2b5aa4.appendChild(_0x441993);
-    if (_0x57c8d0.id !== "__padrao__") {
-      _0x2b5aa4.appendChild(_0x2a7dcb);
+    const item = document.createElement("div");
+    item.className = "setup-item" + (setup.id === activeId ? " active" : "");
+    const btn = document.createElement("button");
+    btn.className = "setup-btn";
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent = setup.name;
+    const editHint = document.createElement("span");
+    editHint.className = "setup-edit-hint";
+    editHint.textContent = "✏";
+    editHint.title = "Duplo clique para editar";
+    btn.appendChild(nameSpan);
+    if (setup.id !== "__padrao__") {
+      btn.appendChild(editHint);
     }
-    _0x2b5aa4.title = _0x57c8d0.id === "__padrao__" ? _0x57c8d0.markets.join(" · ") : _0x57c8d0.markets.join(" · ") + "\nDuplo clique para editar";
-    _0x2b5aa4.addEventListener("click", () => _applySetup(_0x57c8d0));
-    _0x2b5aa4.addEventListener("dblclick", _0x9d5486 => {
-      _0x9d5486.stopPropagation();
-      if (_0x57c8d0.id === "__padrao__") {
-        alert("O setup \"Padrão\" não pode ser editado.");
+    btn.title =
+      setup.id === "__padrao__"
+        ? setup.markets.join(" · ")
+        : setup.markets.join(" · ") + "\nDuplo clique para editar";
+    btn.addEventListener("click", () => _applySetup(setup));
+    btn.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      if (setup.id === "__padrao__") {
+        alert('O setup "Padrão" não pode ser editado.');
         return;
       }
-      _openSetupModal(_0x57c8d0);
+      _openSetupModal(setup);
     });
-    _0x30d320.appendChild(_0x2b5aa4);
-    if (_0x57c8d0.id !== "__padrao__") {
-      const _0x13981f = document.createElement("button");
-      _0x13981f.className = "setup-dup";
-      _0x13981f.textContent = "⧉";
-      _0x13981f.title = "Duplicar setup";
-      _0x13981f.addEventListener("click", _0x7ef674 => {
-        _0x7ef674.stopPropagation();
-        _duplicateSetup(_0x57c8d0);
+    item.appendChild(btn);
+    if (setup.id !== "__padrao__") {
+      const dup = document.createElement("button");
+      dup.className = "setup-dup";
+      dup.textContent = "⧉";
+      dup.title = "Duplicar setup";
+      dup.addEventListener("click", (e) => {
+        e.stopPropagation();
+        _duplicateSetup(setup);
       });
-      _0x30d320.appendChild(_0x13981f);
-      const _0x1d1fa9 = document.createElement("button");
-      _0x1d1fa9.className = "setup-del";
-      _0x1d1fa9.textContent = "✕";
-      _0x1d1fa9.title = "Remover setup";
-      _0x1d1fa9.addEventListener("click", _0x5bbfd0 => {
-        _0x5bbfd0.stopPropagation();
-        if (!confirm("Remover o setup \"" + _0x57c8d0.name + "\"?")) {
+      item.appendChild(dup);
+      const del = document.createElement("button");
+      del.className = "setup-del";
+      del.textContent = "✕";
+      del.title = "Remover setup";
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!confirm('Remover o setup "' + setup.name + '"?')) {
           return;
         }
-        const _0x1cf6d7 = _loadCustomSetups().filter(_0x17b529 => _0x17b529.id !== _0x57c8d0.id);
-        _saveCustomSetups(_0x1cf6d7);
-        if (_loadActiveId() === _0x57c8d0.id) {
+        const arr = _loadCustomSetups().filter((s) => s.id !== setup.id);
+        _saveCustomSetups(arr);
+        if (_loadActiveId() === setup.id) {
           _applySetup(SETUP_PADRAO);
         } else {
           _renderSetupBar();
           _updateSetupCounter();
         }
       });
-      _0x30d320.appendChild(_0x1d1fa9);
+      item.appendChild(del);
     }
-    _0x4422fd.appendChild(_0x30d320);
+    bar.appendChild(item);
   });
 }
-function _duplicateSetup(_0x5ab6ed) {
-  const _0x41af10 = _loadCustomSetups();
-  if (_0x41af10.length >= MAX_SETUPS) {
-    alert("Limite de " + MAX_SETUPS + " setups atingido. Remova um antes de duplicar.");
+function _duplicateSetup(setup) {
+  const arr = _loadCustomSetups();
+  if (arr.length >= MAX_SETUPS) {
+    alert(
+      "Limite de " +
+        MAX_SETUPS +
+        " setups atingido. Remova um antes de duplicar.",
+    );
     return;
   }
-  const _0x2e6c7d = JSON.parse(JSON.stringify(_0x5ab6ed));
-  _0x2e6c7d.id = "setup_" + Date.now();
-  _0x2e6c7d.name = _0x5ab6ed.name + " (cópia)";
-  _0x41af10.push(_0x2e6c7d);
-  _saveCustomSetups(_0x41af10);
+  const dup = JSON.parse(JSON.stringify(setup));
+  dup.id = "setup_" + Date.now();
+  dup.name = setup.name + " (cópia)";
+  arr.push(dup);
+  _saveCustomSetups(arr);
   _renderSetupBar();
   _updateSetupCounter();
 }
-function _setPreviewLine(_0xb940a4, _0x5ad4d8) {
-  leagues.forEach(_0x3ab2cf => {
-    const _0x39eab6 = chartInstances[_0x3ab2cf];
-    if (!_0x39eab6) {
+function _setPreviewLine(a, arr) {
+  leagues.forEach((l) => {
+    const ci = chartInstances[l];
+    if (!ci) {
       return;
     }
-    let _0x9c3709 = false;
-    _0x39eab6.data.datasets.forEach((_0x55efe7, _0x1d4bd7) => {
-      const _0x12d89f = _0x55efe7.label.includes(" - ") ? _0x55efe7.label.split(" - ")[0] : _0x55efe7.label;
-      if (_0x12d89f !== _0xb940a4) {
+    let changed = false;
+    ci.data.datasets.forEach((ds, idx) => {
+      const ml = ds.label.includes(" - ") ? ds.label.split(" - ")[0] : ds.label;
+      if (ml !== a) {
         return;
       }
-      const _0x54264d = _0x55efe7.label.includes(" - ");
-      const _0xe39c92 = _0x5ad4d8 ? _0x54264d ? !showMovingAverages : false : true;
-      const _0x37d617 = _0x39eab6.getDatasetMeta(_0x1d4bd7);
-      if (_0x37d617.hidden !== _0xe39c92) {
-        _0x37d617.hidden = _0xe39c92;
-        _0x9c3709 = true;
+      const isMA = ds.label.includes(" - ");
+      const newHidden = arr ? (isMA ? !showMovingAverages : false) : true;
+      const meta = ci.getDatasetMeta(idx);
+      if (meta.hidden !== newHidden) {
+        meta.hidden = newHidden;
+        changed = true;
       }
     });
-    if (_0x9c3709) {
-      _0x39eab6.update("none");
+    if (changed) {
+      ci.update("none");
     }
   });
 }
-function _renderLinesPanel(_0x1a4dc3) {
-  const _0x426bf5 = document.getElementById("setupLinesPanel");
-  if (!_0x426bf5) {
+function _renderLinesPanel(setup) {
+  const panel = document.getElementById("setupLinesPanel");
+  if (!panel) {
     return;
   }
-  _0x426bf5.innerHTML = "";
-  if (!_0x1a4dc3 || !_0x1a4dc3.markets || _0x1a4dc3.markets.length === 0) {
+  panel.innerHTML = "";
+  if (!setup || !setup.markets || setup.markets.length === 0) {
     return;
   }
-  _0x1a4dc3.markets.forEach(_0xd0569e => {
-    const _0x1d74a3 = _isLineActive(_0x1a4dc3.id, _0xd0569e);
-    const _0x18d443 = _marketColor(_0x1a4dc3, _0xd0569e);
-    const _0x2d03a8 = _getDatasetCurrentValue(_0xd0569e);
-    let _0x230201 = _0xd0569e;
-    if (_0x2d03a8 !== null) {
-      const _0x21e302 = _0xd0569e === "Gols FT" || _0xd0569e === "Gols HT" || _0xd0569e === "Gols FT Casa" || _0xd0569e === "Gols FT Fora";
-      _0x230201 += " — " + (_0x21e302 ? Math.round(_0x2d03a8) + " gols" : _0x2d03a8.toFixed(1));
+  setup.markets.forEach((label) => {
+    const active = _isLineActive(setup.id, label);
+    const color = _marketColor(setup, label);
+    const val = _getDatasetCurrentValue(label);
+    let tooltipText = label;
+    if (val !== null) {
+      const isGols =
+        label === "Gols FT" ||
+        label === "Gols HT" ||
+        label === "Gols FT Casa" ||
+        label === "Gols FT Fora";
+      tooltipText +=
+        " — " + (isGols ? Math.round(val) + " gols" : val.toFixed(1));
     }
-    const _0x19aecd = document.createElement("div");
-    _0x19aecd.className = "market-toggle" + (_0x1d74a3 ? " active" : " inactive");
-    _0x19aecd.title = _0x230201;
-    _0x19aecd.style.setProperty("--mcolor", _0x18d443);
-    const _0xdc9e1b = document.createElement("span");
-    _0xdc9e1b.className = "market-toggle-dot";
-    _0xdc9e1b.style.background = _0x18d443;
-    const _0x4f698c = document.createElement("span");
-    _0x4f698c.textContent = _0xd0569e;
-    if (_0x2d03a8 !== null) {
-      const _0x171e4a = document.createElement("span");
-      _0x171e4a.className = "market-toggle-val";
-      const _0xdec20f = _0xd0569e === "Gols FT" || _0xd0569e === "Gols HT" || _0xd0569e === "Gols FT Casa" || _0xd0569e === "Gols FT Fora";
-      _0x171e4a.textContent = _0xdec20f ? Math.round(_0x2d03a8) : _0x2d03a8.toFixed(1);
-      _0x171e4a.style.color = _0x18d443;
-      _0x19aecd.appendChild(_0xdc9e1b);
-      _0x19aecd.appendChild(_0x4f698c);
-      _0x19aecd.appendChild(_0x171e4a);
+    const toggle = document.createElement("div");
+    toggle.className = "market-toggle" + (active ? " active" : " inactive");
+    toggle.title = tooltipText;
+    toggle.style.setProperty("--mcolor", color);
+    const dot = document.createElement("span");
+    dot.className = "market-toggle-dot";
+    dot.style.background = color;
+    const txt = document.createElement("span");
+    txt.textContent = label;
+    if (val !== null) {
+      const valSpan = document.createElement("span");
+      valSpan.className = "market-toggle-val";
+      const isGols =
+        label === "Gols FT" ||
+        label === "Gols HT" ||
+        label === "Gols FT Casa" ||
+        label === "Gols FT Fora";
+      valSpan.textContent = isGols ? Math.round(val) : val.toFixed(1);
+      valSpan.style.color = color;
+      toggle.appendChild(dot);
+      toggle.appendChild(txt);
+      toggle.appendChild(valSpan);
     } else {
-      _0x19aecd.appendChild(_0xdc9e1b);
-      _0x19aecd.appendChild(_0x4f698c);
+      toggle.appendChild(dot);
+      toggle.appendChild(txt);
     }
-    _0x19aecd.addEventListener("click", () => {
-      _0x19aecd.style.outline = "";
-      const _0x541e3f = !_isLineActive(_0x1a4dc3.id, _0xd0569e);
-      _setLineActive(_0x1a4dc3.id, _0xd0569e, _0x541e3f);
-      statsChartVisibleDatasets[_0xd0569e] = _0x1a4dc3.markets.includes(_0xd0569e) && _0x541e3f;
+    toggle.addEventListener("click", () => {
+      toggle.style.outline = "";
+      const nowActive = !_isLineActive(setup.id, label);
+      _setLineActive(setup.id, label, nowActive);
+      statsChartVisibleDatasets[label] =
+        setup.markets.includes(label) && nowActive;
       _saveVisibleDatasets(statsChartVisibleDatasets);
-      leagues.forEach(_0x3817a0 => {
-        const _0x10552d = chartInstances[_0x3817a0];
-        if (!_0x10552d) {
+      leagues.forEach((l) => {
+        const ci = chartInstances[l];
+        if (!ci) {
           return;
         }
-        _0x10552d.data.datasets.forEach((_0x539923, _0x2cda71) => {
-          const _0x532604 = _0x539923.label.includes(" - ") ? _0x539923.label.split(" - ")[0] : _0x539923.label;
-          if (_0x532604 !== _0xd0569e) {
+        ci.data.datasets.forEach((ds, idx) => {
+          const ml = ds.label.includes(" - ")
+            ? ds.label.split(" - ")[0]
+            : ds.label;
+          if (ml !== label) {
             return;
           }
-          const _0x122d1e = statsChartVisibleDatasets[_0x532604];
-          _0x10552d.getDatasetMeta(_0x2cda71).hidden = _0x539923.label.includes(" - ") ? !showMovingAverages || !_0x122d1e : !_0x122d1e;
+          const vis = statsChartVisibleDatasets[ml];
+          ci.getDatasetMeta(idx).hidden = ds.label.includes(" - ")
+            ? !showMovingAverages || !vis
+            : !vis;
         });
-        _0x10552d.update();
+        ci.update();
       });
       _renderLinesPanel(_getActiveSetup());
     });
-    _0x19aecd.dataset.label = _0xd0569e;
-    _0x19aecd.dataset.color = _0x18d443;
-    if (!_0x1d74a3) {
-      _0x19aecd.addEventListener("mouseenter", () => {
-        _0x19aecd.style.outline = "2px dashed " + _0x18d443;
-        _0x19aecd.style.outlineOffset = "2px";
-        _setPreviewLine(_0xd0569e, true);
+    toggle.dataset.label = label;
+    toggle.dataset.color = color;
+    if (!active) {
+      toggle.addEventListener("mouseenter", () => {
+        toggle.style.outline = "2px dashed " + color;
+        toggle.style.outlineOffset = "2px";
+        _setPreviewLine(label, true);
       });
-      _0x19aecd.addEventListener("mouseleave", () => {
-        _0x19aecd.style.outline = "";
-        if (!_isLineActive(_0x1a4dc3.id, _0xd0569e)) {
-          _setPreviewLine(_0xd0569e, false);
+      toggle.addEventListener("mouseleave", () => {
+        toggle.style.outline = "";
+        if (!_isLineActive(setup.id, label)) {
+          _setPreviewLine(label, false);
         }
       });
     }
-    _0x426bf5.appendChild(_0x19aecd);
+    panel.appendChild(toggle);
   });
-  _0x426bf5.querySelectorAll(".market-toggle.inactive").forEach(_0x44ad14 => {
-    const _0x1df456 = _0x44ad14.dataset.label;
-    if (!_0x1df456) {
+  panel.querySelectorAll(".market-toggle.inactive").forEach((el) => {
+    const lbl = el.dataset.label;
+    if (!lbl) {
       return;
     }
-    if (_0x44ad14.matches(":hover")) {
-      _0x44ad14.style.outline = "2px dashed " + _0x44ad14.dataset.color;
-      _0x44ad14.style.outlineOffset = "2px";
-      _setPreviewLine(_0x1df456, true);
+    if (el.matches(":hover")) {
+      el.style.outline = "2px dashed " + el.dataset.color;
+      el.style.outlineOffset = "2px";
+      _setPreviewLine(lbl, true);
     } else {
-      _setPreviewLine(_0x1df456, false);
+      _setPreviewLine(lbl, false);
     }
   });
 }
 function _updateLinesPanelValues() {
-  const _0x1722d3 = document.getElementById("setupLinesPanel");
-  if (!_0x1722d3) {
+  const panel = document.getElementById("setupLinesPanel");
+  if (!panel) {
     return;
   }
-  _0x1722d3.querySelectorAll(".market-toggle").forEach(_0x4af886 => {
-    const _0x4d1aac = _0x4af886.dataset.label;
-    if (!_0x4d1aac) {
+  panel.querySelectorAll(".market-toggle").forEach((toggle) => {
+    const label = toggle.dataset.label;
+    if (!label) {
       return;
     }
-    const _0x2379c6 = _getDatasetCurrentValue(_0x4d1aac);
-    const _0x4b01d4 = _0x4d1aac === "Gols FT" || _0x4d1aac === "Gols HT" || _0x4d1aac === "Gols FT Casa" || _0x4d1aac === "Gols FT Fora";
-    let _0x506599 = _0x4d1aac;
-    if (_0x2379c6 !== null) {
-      _0x506599 += " — " + (_0x4b01d4 ? Math.round(_0x2379c6) + " gols" : _0x2379c6.toFixed(1));
+    const val = _getDatasetCurrentValue(label);
+    const isGols =
+      label === "Gols FT" ||
+      label === "Gols HT" ||
+      label === "Gols FT Casa" ||
+      label === "Gols FT Fora";
+    let tooltipText = label;
+    if (val !== null) {
+      tooltipText +=
+        " — " + (isGols ? Math.round(val) + " gols" : val.toFixed(1));
     }
-    _0x4af886.title = _0x506599;
-    let _0xff2dc7 = _0x4af886.querySelector(".market-toggle-val");
-    if (_0x2379c6 !== null) {
-      const _0x49c5dd = _0x4b01d4 ? Math.round(_0x2379c6) : _0x2379c6.toFixed(1);
-      if (!_0xff2dc7) {
-        _0xff2dc7 = document.createElement("span");
-        _0xff2dc7.className = "market-toggle-val";
-        _0xff2dc7.style.color = _0x4af886.dataset.color || "#888";
-        _0x4af886.appendChild(_0xff2dc7);
+    toggle.title = tooltipText;
+    let valSpan = toggle.querySelector(".market-toggle-val");
+    if (val !== null) {
+      const text = isGols ? Math.round(val) : val.toFixed(1);
+      if (!valSpan) {
+        valSpan = document.createElement("span");
+        valSpan.className = "market-toggle-val";
+        valSpan.style.color = toggle.dataset.color || "#888";
+        toggle.appendChild(valSpan);
       }
-      _0xff2dc7.textContent = _0x49c5dd;
-    } else if (_0xff2dc7) {
-      _0xff2dc7.remove();
+      valSpan.textContent = text;
+    } else if (valSpan) {
+      valSpan.remove();
     }
   });
 }
 function _updateSetupCounter() {
-  const _0x4d346a = _loadCustomSetups().length;
-  const _0x12a180 = document.getElementById("setupCounter");
-  const _0x193269 = document.getElementById("btnAddSetup");
-  if (_0x12a180) {
-    _0x12a180.textContent = _0x4d346a + " / " + MAX_SETUPS;
-    _0x12a180.className = "setup-counter" + (_0x4d346a >= MAX_SETUPS ? " at-limit" : "");
+  const customs = _loadCustomSetups().length;
+  const counter = document.getElementById("setupCounter");
+  const addBtn = document.getElementById("btnAddSetup");
+  if (counter) {
+    counter.textContent = customs + " / " + MAX_SETUPS;
+    counter.className =
+      "setup-counter" + (customs >= MAX_SETUPS ? " at-limit" : "");
   }
-  if (_0x193269) {
-    _0x193269.disabled = _0x4d346a >= MAX_SETUPS;
-    _0x193269.title = _0x4d346a >= MAX_SETUPS ? "Limite de 10 setups atingido" : "Criar novo setup";
+  if (addBtn) {
+    addBtn.disabled = customs >= MAX_SETUPS;
+    addBtn.title =
+      customs >= MAX_SETUPS
+        ? "Limite de 10 setups atingido"
+        : "Criar novo setup";
   }
 }
 let _editingSetupId = null;
-function _openSetupModal(_0x3d9498) {
-  const _0x3659b9 = document.getElementById("setupModal");
-  const _0x622df9 = document.getElementById("setupLimitWarning");
-  if (!_0x3659b9) {
+function _openSetupModal(setupParaEditar) {
+  const modal = document.getElementById("setupModal");
+  const warning = document.getElementById("setupLimitWarning");
+  if (!modal) {
     return;
   }
-  const _0x210be8 = _loadCustomSetups().length;
-  if (_0x3d9498) {
-    _editingSetupId = _0x3d9498.id;
+  const customs = _loadCustomSetups().length;
+  if (setupParaEditar) {
+    _editingSetupId = setupParaEditar.id;
     document.getElementById("setupModalTitle").textContent = "Editar Setup";
-    document.getElementById("setupModalSaveBtn").textContent = "✔ Atualizar Setup";
-    document.getElementById("setupModalName").value = _0x3d9498.name;
-    if (_0x622df9) {
-      _0x622df9.style.display = "none";
+    document.getElementById("setupModalSaveBtn").textContent =
+      "✔ Atualizar Setup";
+    document.getElementById("setupModalName").value = setupParaEditar.name;
+    if (warning) {
+      warning.style.display = "none";
     }
   } else {
     _editingSetupId = null;
     document.getElementById("setupModalTitle").textContent = "Criar Setup";
     document.getElementById("setupModalSaveBtn").textContent = "✔ Salvar Setup";
     document.getElementById("setupModalName").value = "";
-    if (_0x622df9) {
-      _0x622df9.style.display = _0x210be8 >= MAX_SETUPS ? "block" : "none";
+    if (warning) {
+      warning.style.display = customs >= MAX_SETUPS ? "block" : "none";
     }
   }
-  const _0x5324ba = document.getElementById("setupModalMarkets");
-  _0x5324ba.innerHTML = "";
-  const _0x25a45e = _0x3d9498 || _getActiveSetup();
-  const _0x5aca44 = _0x25a45e.markets || [];
-  const _0x35b341 = (_0x3d9498 ? _0x3d9498.colors : null) || {};
-  MARKET_GROUPS.forEach(_0x3c7060 => {
-    const _0x59bf60 = document.createElement("div");
-    _0x59bf60.className = "setup-modal-group-title";
-    _0x59bf60.textContent = _0x3c7060.title;
-    _0x5324ba.appendChild(_0x59bf60);
-    _0x3c7060.labels.forEach(_0x2fb351 => {
-      const _0x37ddbf = _0x5aca44.includes(_0x2fb351);
-      const _0x1f8dd2 = document.createElement("label");
-      _0x1f8dd2.className = "setup-modal-row" + (_0x37ddbf ? " checked" : "");
-      const _0xba56cc = document.createElement("input");
-      _0xba56cc.type = "checkbox";
-      _0xba56cc.value = _0x2fb351;
-      _0xba56cc.checked = _0x37ddbf;
-      _0xba56cc.addEventListener("change", () => {
-        _0x1f8dd2.className = "setup-modal-row" + (_0xba56cc.checked ? " checked" : "");
+  const container = document.getElementById("setupModalMarkets");
+  container.innerHTML = "";
+  const refSetup = setupParaEditar || _getActiveSetup();
+  const checkedMarkets = refSetup.markets || [];
+  const currentColors = (setupParaEditar ? setupParaEditar.colors : null) || {};
+  MARKET_GROUPS.forEach((group) => {
+    const title = document.createElement("div");
+    title.className = "setup-modal-group-title";
+    title.textContent = group.title;
+    container.appendChild(title);
+    group.labels.forEach((label) => {
+      const isChecked = checkedMarkets.includes(label);
+      const row = document.createElement("label");
+      row.className = "setup-modal-row" + (isChecked ? " checked" : "");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = label;
+      cb.checked = isChecked;
+      cb.addEventListener("change", () => {
+        row.className = "setup-modal-row" + (cb.checked ? " checked" : "");
       });
-      const _0x322cd2 = document.createElement("span");
-      _0x322cd2.className = "setup-modal-dot";
-      const _0x1cbf2a = _0x35b341[_0x2fb351] || DATASET_COLORS[_0x2fb351] || "#888";
-      _0x322cd2.style.background = _0x1cbf2a;
-      const _0xa28cc0 = document.createElement("span");
-      _0xa28cc0.textContent = _0x2fb351;
-      _0xa28cc0.style.flex = "1";
-      const _0x3037db = document.createElement("input");
-      _0x3037db.type = "color";
-      _0x3037db.value = _0x1cbf2a;
-      _0x3037db.className = "market-color-picker";
-      _0x3037db.title = "Personalizar cor";
-      _0x3037db.addEventListener("input", () => {
-        _0x322cd2.style.background = _0x3037db.value;
+      const dot = document.createElement("span");
+      dot.className = "setup-modal-dot";
+      const currentColor =
+        currentColors[label] || DATASET_COLORS[label] || "#888";
+      dot.style.background = currentColor;
+      const txt = document.createElement("span");
+      txt.textContent = label;
+      txt.style.flex = "1";
+      const colorPick = document.createElement("input");
+      colorPick.type = "color";
+      colorPick.value = currentColor;
+      colorPick.className = "market-color-picker";
+      colorPick.title = "Personalizar cor";
+      colorPick.addEventListener("input", () => {
+        dot.style.background = colorPick.value;
       });
-      _0x1f8dd2.appendChild(_0xba56cc);
-      _0x1f8dd2.appendChild(_0x322cd2);
-      _0x1f8dd2.appendChild(_0xa28cc0);
-      _0x1f8dd2.appendChild(_0x3037db);
-      _0x5324ba.appendChild(_0x1f8dd2);
+      row.appendChild(cb);
+      row.appendChild(dot);
+      row.appendChild(txt);
+      row.appendChild(colorPick);
+      container.appendChild(row);
     });
   });
-  _0x3659b9.style.display = "flex";
+  modal.style.display = "flex";
   setTimeout(() => document.getElementById("setupModalName")?.focus(), 60);
 }
 function _closeSetupModal() {
-  const _0x3a1875 = document.getElementById("setupModal");
-  if (_0x3a1875) {
-    _0x3a1875.style.display = "none";
+  const modal = document.getElementById("setupModal");
+  if (modal) {
+    modal.style.display = "none";
   }
   _editingSetupId = null;
 }
 function _saveSetupModal() {
-  const _0x3c6a91 = document.getElementById("setupModalName").value.trim();
-  if (!_0x3c6a91) {
+  const name = document.getElementById("setupModalName").value.trim();
+  if (!name) {
     alert("Digite um nome para o setup.");
     return;
   }
-  const _0x355a3a = [];
-  const _0x5a6aa5 = {};
-  document.querySelectorAll("#setupModalMarkets .setup-modal-row").forEach(_0x50aea7 => {
-    const _0xeb4921 = _0x50aea7.querySelector("input[type=checkbox]");
-    const _0x4c9a4f = _0x50aea7.querySelector(".market-color-picker");
-    if (_0xeb4921 && _0xeb4921.checked) {
-      _0x355a3a.push(_0xeb4921.value);
-      const _0xc29988 = DATASET_COLORS[_0xeb4921.value] || "#888";
-      if (_0x4c9a4f && _0x4c9a4f.value.toLowerCase() !== _0xc29988.toLowerCase()) {
-        _0x5a6aa5[_0xeb4921.value] = _0x4c9a4f.value;
+  const markets = [];
+  const colors = {};
+  document
+    .querySelectorAll("#setupModalMarkets .setup-modal-row")
+    .forEach((row) => {
+      const cb = row.querySelector("input[type=checkbox]");
+      const cp = row.querySelector(".market-color-picker");
+      if (cb && cb.checked) {
+        markets.push(cb.value);
+        const def = DATASET_COLORS[cb.value] || "#888";
+        if (cp && cp.value.toLowerCase() !== def.toLowerCase()) {
+          colors[cb.value] = cp.value;
+        }
       }
-    }
-  });
-  if (_0x355a3a.length === 0) {
+    });
+  if (markets.length === 0) {
     alert("Selecione pelo menos um mercado.");
     return;
   }
-  const _0x4ca3ae = _loadCustomSetups();
+  const arr = _loadCustomSetups();
   if (_editingSetupId) {
-    const _0x1eb195 = _0x4ca3ae.findIndex(_0x434153 => _0x434153.id === _editingSetupId);
-    if (_0x1eb195 !== -1) {
-      _0x4ca3ae[_0x1eb195].name = _0x3c6a91;
-      _0x4ca3ae[_0x1eb195].markets = _0x355a3a;
-      _0x4ca3ae[_0x1eb195].colors = _0x5a6aa5;
-      _saveCustomSetups(_0x4ca3ae);
+    const idx = arr.findIndex((s) => s.id === _editingSetupId);
+    if (idx !== -1) {
+      arr[idx].name = name;
+      arr[idx].markets = markets;
+      arr[idx].colors = colors;
+      _saveCustomSetups(arr);
       _closeSetupModal();
       if (_loadActiveId() === _editingSetupId) {
-        _applySetup(_0x4ca3ae[_0x1eb195]);
+        _applySetup(arr[idx]);
       } else {
         _renderSetupBar();
         _updateSetupCounter();
       }
     }
   } else {
-    if (_0x4ca3ae.length >= MAX_SETUPS) {
+    if (arr.length >= MAX_SETUPS) {
       alert("Limite de " + MAX_SETUPS + " setups atingido.");
       return;
     }
-    const _0x2b151d = _getActiveSetup();
-    const _0x551161 = {
+    const active = _getActiveSetup();
+    const newSetup = {
       id: "setup_" + Date.now(),
-      name: _0x3c6a91,
-      markets: _0x355a3a,
-      colors: _0x5a6aa5,
-      horas: _0x2b151d.horas ?? 8 * _JPH,
-      base: _0x2b151d.base ?? _JPH - 1,
-      fibonacci: _0x2b151d.fibonacci ?? false,
-      mediasMoveis: _0x2b151d.mediasMoveis ?? false,
-      linhaAtual: _0x2b151d.linhaAtual ?? true,
-      labels: _0x2b151d.labels ?? false,
-      dragLines: []
+      name,
+      markets,
+      colors,
+      horas: active.horas ?? 8 * _JPH,
+      base: active.base ?? _JPH - 1,
+      fibonacci: active.fibonacci ?? false,
+      mediasMoveis: active.mediasMoveis ?? false,
+      linhaAtual: active.linhaAtual ?? true,
+      labels: active.labels ?? false,
+      dragLines: [],
     };
-    _0x4ca3ae.push(_0x551161);
-    _saveCustomSetups(_0x4ca3ae);
+    arr.push(newSetup);
+    _saveCustomSetups(arr);
     _closeSetupModal();
-    _applySetup(_0x551161);
+    _applySetup(newSetup);
   }
   _updateSetupCounter();
 }
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("setupModal")?.addEventListener("click", function (_0x423db2) {
-    if (_0x423db2.target === this) {
-      _closeSetupModal();
-    }
-  });
-  const _0x4ee1fa = _ls(ACCORDION_KEY, true);
-  const _0x286f27 = document.querySelector(".accordion-content");
-  if (_0x286f27 && !_0x4ee1fa) {
-    _0x286f27.style.display = "none";
+  document
+    .getElementById("setupModal")
+    ?.addEventListener("click", function (e) {
+      if (e.target === this) {
+        _closeSetupModal();
+      }
+    });
+  const accordionOpen = _ls(ACCORDION_KEY, true);
+  const content = document.querySelector(".accordion-content");
+  if (content && !accordionOpen) {
+    content.style.display = "none";
   }
   _renderSetupBar();
   _renderLinesPanel(_getActiveSetup());
   _updateSetupCounter();
 });
-function toggleAccordion(_0x5b7dcd) {
-  const _0x4d8003 = _0x5b7dcd.nextElementSibling;
-  const _0x33cc1c = _0x4d8003.style.display !== "none";
-  _0x4d8003.style.display = _0x33cc1c ? "none" : "block";
-  _lsSet(ACCORDION_KEY, !_0x33cc1c);
+function toggleAccordion(btn) {
+  const content = btn.nextElementSibling;
+  const isOpen = content.style.display !== "none";
+  content.style.display = isOpen ? "none" : "block";
+  _lsSet(ACCORDION_KEY, !isOpen);
 }
 const defaultStatsChartVisibleDatasets = (() => {
-  const _0x1dde83 = {};
-  Object.keys(labelToKey).forEach(_0x1d3bfb => _0x1dde83[_0x1d3bfb] = false);
-  return _0x1dde83;
+  const d = {};
+  Object.keys(labelToKey).forEach((k) => (d[k] = false));
+  return d;
 })();
 function _loadVisibleDatasets() {
-  const _0x26a613 = _ls(VISIBLE_DS_KEY, null);
-  const _0x5661d4 = {
-    ...defaultStatsChartVisibleDatasets
+  const raw = _ls(VISIBLE_DS_KEY, null);
+  const defaultStatsChartVisibleDatasets2 = {
+    ...defaultStatsChartVisibleDatasets,
   };
-  if (!_0x26a613) {
-    return _0x5661d4;
+  if (!raw) {
+    return defaultStatsChartVisibleDatasets2;
   }
-  return Object.assign({}, defaultStatsChartVisibleDatasets, _0x26a613);
+  return Object.assign({}, defaultStatsChartVisibleDatasets, raw);
 }
-function _saveVisibleDatasets(_0x531c63) {
-  _lsSet(VISIBLE_DS_KEY, _0x531c63);
+function _saveVisibleDatasets(a) {
+  _lsSet(VISIBLE_DS_KEY, a);
 }
 let statsChartVisibleDatasets = _loadVisibleDatasets();
-function getKeyFromLabel(_0x527e4c) {
-  if (_0x527e4c.includes(" - ")) {
-    const [_0x19fe2e, _0x33c023] = _0x527e4c.split(" - ");
-    return labelToKey[_0x19fe2e] + _0x33c023.split(" ")[0];
+function getKeyFromLabel(label) {
+  if (label.includes(" - ")) {
+    const [mainLabel, maPart] = label.split(" - ");
+    return labelToKey[mainLabel] + maPart.split(" ")[0];
   }
-  return labelToKey[_0x527e4c];
+  return labelToKey[label];
 }
-function computeMA(_0x5a476c, _0x536ad5) {
-  return _0x5a476c.map((_0x43bd46, _0x42510a) => {
-    let _0x382f54 = 0;
-    let _0x402fb2 = 0;
-    for (let _0x500245 = Math.max(0, _0x42510a - _0x536ad5 + 1); _0x500245 <= _0x42510a; _0x500245++) {
-      if (_0x5a476c[_0x500245] !== null) {
-        _0x382f54 += _0x5a476c[_0x500245];
-        _0x402fb2++;
+function computeMA(dataArray, period) {
+  return dataArray.map((_, i) => {
+    let sum = 0;
+    let count = 0;
+    for (let j = Math.max(0, i - period + 1); j <= i; j++) {
+      if (dataArray[j] !== null) {
+        sum += dataArray[j];
+        count++;
       }
     }
-    if (_0x402fb2 > 0) {
-      return _0x382f54 / _0x402fb2;
+    if (count > 0) {
+      return sum / count;
     } else {
       return null;
     }
   });
 }
-function parseHtScoreTotal(_0x372bf8) {
-  if (!_0x372bf8) {
+function parseHtScoreTotal(htStr) {
+  if (!htStr) {
     return 0;
   }
-  if (_0x372bf8 === "OUT") {
+  if (htStr === "OUT") {
     return 3;
   }
-  if (_0x372bf8.includes(" x ")) {
-    const _0x33ef0b = _0x372bf8.split(" x ").map(Number);
-    if (_0x33ef0b.length === 2 && !isNaN(_0x33ef0b[0]) && !isNaN(_0x33ef0b[1])) {
-      return _0x33ef0b[0] + _0x33ef0b[1];
+  if (htStr.includes(" x ")) {
+    const p = htStr.split(" x ").map(Number);
+    if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) {
+      return p[0] + p[1];
     }
   }
   return 0;
 }
-function parseHtParts(_0x457948) {
-  if (!_0x457948 || _0x457948 === "OUT") {
+function parseHtParts(htStr) {
+  if (!htStr || htStr === "OUT") {
     return null;
   }
-  if (_0x457948.includes(" x ")) {
-    const _0x240dc7 = _0x457948.split(" x ").map(Number);
-    if (_0x240dc7.length === 2 && !isNaN(_0x240dc7[0]) && !isNaN(_0x240dc7[1])) {
-      return _0x240dc7;
+  if (htStr.includes(" x ")) {
+    const p = htStr.split(" x ").map(Number);
+    if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) {
+      return p;
     }
   }
   return null;
 }
 const rotulosPlugin = {
   id: "rotulos",
-  afterDatasetsDraw(_0xce40ae) {
+  afterDatasetsDraw(chart) {
     if (!showLabels) {
       return;
     }
-    const {
-      ctx: _0x5e7d00,
-      chartArea: _0x51011b,
-      scales: _0x5628c2
-    } = _0xce40ae;
-    if (!_0x51011b || !_0x5628c2.y) {
+    const { ctx, chartArea, scales } = chart;
+    if (!chartArea || !scales.y) {
       return;
     }
-    _0xce40ae.data.datasets.forEach((_0x295767, _0x100041) => {
-      if (_0x295767.label.includes(" MA")) {
+    chart.data.datasets.forEach((ds, dsIdx) => {
+      if (ds.label.includes(" MA")) {
         return;
       }
-      if (!_0xce40ae.isDatasetVisible(_0x100041)) {
+      if (!chart.isDatasetVisible(dsIdx)) {
         return;
       }
-      const _0xfdb9ad = _0xce40ae.getDatasetMeta(_0x100041);
-      if (!_0xfdb9ad || !_0xfdb9ad.data) {
+      const meta = chart.getDatasetMeta(dsIdx);
+      if (!meta || !meta.data) {
         return;
       }
-      const _0x5417d8 = _0x295767.borderColor || "#fff";
-      _0x5e7d00.save();
-      _0x5e7d00.font = "600 9.5px 'Inter',Arial,sans-serif";
-      _0x5e7d00.textAlign = "center";
-      _0x5e7d00.textBaseline = "bottom";
-      _0x5e7d00.fillStyle = _0x5417d8;
-      _0xfdb9ad.data.forEach((_0x42b922, _0x48b879) => {
-        const _0x52822 = _0x295767.data[_0x48b879];
-        if (_0x52822 === null || _0x52822 === undefined || !isFinite(_0x52822)) {
+      const color = ds.borderColor || "#fff";
+      ctx.save();
+      ctx.font = "600 9.5px 'Inter',Arial,sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillStyle = color;
+      meta.data.forEach((point, i) => {
+        const v = ds.data[i];
+        if (v === null || v === undefined || !isFinite(v)) {
           return;
         }
-        if (_0x42b922.x < _0x51011b.left || _0x42b922.x > _0x51011b.right) {
+        if (point.x < chartArea.left || point.x > chartArea.right) {
           return;
         }
-        if (_0x42b922.y < _0x51011b.top || _0x42b922.y > _0x51011b.bottom) {
+        if (point.y < chartArea.top || point.y > chartArea.bottom) {
           return;
         }
-        const _0x1b8e21 = _0x295767.label === "Gols FT" || _0x295767.label === "Gols HT";
-        const _0x39abd4 = _0x1b8e21 ? String(Math.round(_0x52822)) : String(Math.round(_0x52822));
-        _0x5e7d00.fillText(_0x39abd4, _0x42b922.x, _0x42b922.y - 4);
+        const isGols = ds.label === "Gols FT" || ds.label === "Gols HT";
+        const text = isGols ? String(Math.round(v)) : String(Math.round(v));
+        ctx.fillText(text, point.x, point.y - 4);
       });
-      _0x5e7d00.restore();
+      ctx.restore();
     });
-  }
+  },
 };
 const fibonacciLinesPlugin = {
   id: "fibonacciLines",
-  afterDraw(_0x306fd5) {
+  afterDraw(chart) {
     if (!showFibonacciLines) {
       return;
     }
-    const _0x4f0daa = _0x306fd5.ctx;
-    const _0x223f8c = _0x306fd5.scales.y;
-    if (!_0x223f8c) {
+    const ctx = chart.ctx;
+    const yAxis = chart.scales.y;
+    if (!yAxis) {
       return;
     }
-    const _0x1041bd = [0, 23.6, 38.2, 50, 61.8, 100];
-    const _0xa608b6 = "rgba(167,139,250,0.55)";
-    const _0x9a3a1e = "rgba(196,181,253,0.9)";
-    const {
-      left: _0x1393cb,
-      right: _0xcdd5b7
-    } = _0x306fd5.chartArea;
-    const _0x308690 = _0x223f8c.max - _0x223f8c.min;
-    const _0x2df647 = _0x223f8c.position === "right";
-    _0x4f0daa.save();
-    _0x1041bd.forEach((_0x49762b, _0x55a5f5) => {
-      const _0x6f76ff = _0x223f8c.getPixelForValue(_0x223f8c.min + _0x49762b / 100 * _0x308690);
-      _0x4f0daa.beginPath();
-      _0x4f0daa.setLineDash([6, 4]);
-      _0x4f0daa.moveTo(_0x1393cb, _0x6f76ff);
-      _0x4f0daa.lineTo(_0xcdd5b7, _0x6f76ff);
-      _0x4f0daa.strokeStyle = _0xa608b6;
-      _0x4f0daa.lineWidth = 1;
-      _0x4f0daa.stroke();
-      _0x4f0daa.setLineDash([]);
-      _0x4f0daa.fillStyle = _0x9a3a1e;
-      _0x4f0daa.font = "10px 'Inter',Arial,sans-serif";
-      _0x4f0daa.textBaseline = "middle";
-      if (_0x2df647) {
-        _0x4f0daa.textAlign = "right";
-        _0x4f0daa.fillText(_0x1041bd[_0x55a5f5] + "%", _0x1393cb - 8, _0x6f76ff - (_0x55a5f5 === 0 ? -8 : 0));
+    const fibLevels = [0, 23.6, 38.2, 50, 61.8, 100];
+    const fibColor = "rgba(167,139,250,0.55)";
+    const fibText = "rgba(196,181,253,0.9)";
+    const { left, right } = chart.chartArea;
+    const range = yAxis.max - yAxis.min;
+    const axisRight = yAxis.position === "right";
+    ctx.save();
+    fibLevels.forEach((lvl, i) => {
+      const y = yAxis.getPixelForValue(yAxis.min + (lvl / 100) * range);
+      ctx.beginPath();
+      ctx.setLineDash([6, 4]);
+      ctx.moveTo(left, y);
+      ctx.lineTo(right, y);
+      ctx.strokeStyle = fibColor;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = fibText;
+      ctx.font = "10px 'Inter',Arial,sans-serif";
+      ctx.textBaseline = "middle";
+      if (axisRight) {
+        ctx.textAlign = "right";
+        ctx.fillText(fibLevels[i] + "%", left - 8, y - (i === 0 ? -8 : 0));
       } else {
-        _0x4f0daa.textAlign = "left";
-        _0x4f0daa.fillText(_0x1041bd[_0x55a5f5] + "%", _0xcdd5b7 + 52, _0x6f76ff - (_0x55a5f5 === 0 ? -8 : 0));
+        ctx.textAlign = "left";
+        ctx.fillText(fibLevels[i] + "%", right + 52, y - (i === 0 ? -8 : 0));
       }
     });
-    _0x4f0daa.restore();
-  }
+    ctx.restore();
+  },
 };
 const linhaAtualPlugin = {
   id: "linhaAtual",
-  afterDraw(_0x5001a2, _0xaf8aba, _0x4b434e) {
-    const _0x2b3cd2 = _0x4b434e?.enabled !== undefined ? _0x4b434e : _0x5001a2.options?.plugins?.linhaAtual ?? {};
-    if (_0x2b3cd2.enabled === false) {
+  afterDraw(chart, args, opts) {
+    const cfg =
+      opts?.enabled !== undefined
+        ? opts
+        : (chart.options?.plugins?.linhaAtual ?? {});
+    if (cfg.enabled === false) {
       return;
     }
-    const {
-      ctx: _0x2fa810,
-      chartArea: _0xc958bd,
-      scales: _0x15d6b3
-    } = _0x5001a2;
-    if (!_0xc958bd || !_0x15d6b3.y) {
+    const { ctx, chartArea, scales } = chart;
+    if (!chartArea || !scales.y) {
       return;
     }
-    const {
-      left: _0x3e2f50,
-      right: _0x293109,
-      top: _0x26e4c6,
-      bottom: _0x33a3a1
-    } = _0xc958bd;
-    const _0x1f2abf = 5;
-    const _0x77a4c1 = 18;
-    const _0x4e2549 = [];
-    _0x5001a2.data.datasets.forEach((_0x472e92, _0x2a236c) => {
-      if (!_0x472e92.label || _0x472e92.label.includes(" MA") || !_0x5001a2.isDatasetVisible(_0x2a236c)) {
+    const { left, right, top, bottom } = chartArea;
+    const padX = 5;
+    const BAD_H = 18;
+    const entries = [];
+    chart.data.datasets.forEach((d, i) => {
+      if (!d.label || d.label.includes(" MA") || !chart.isDatasetVisible(i)) {
         return;
       }
-      const _0x3d6c32 = _0x472e92.data;
-      if (!_0x3d6c32?.length) {
+      const arr = d.data;
+      if (!arr?.length) {
         return;
       }
-      let _0x255bb9 = null;
-      for (let _0x229c89 = _0x3d6c32.length - 1; _0x229c89 >= 0; _0x229c89--) {
-        const _0x5bcdec = _0x3d6c32[_0x229c89];
-        if (_0x5bcdec !== null && _0x5bcdec !== undefined && isFinite(_0x5bcdec)) {
-          _0x255bb9 = _0x5bcdec;
+      let yVal = null;
+      for (let j = arr.length - 1; j >= 0; j--) {
+        const v = arr[j];
+        if (v !== null && v !== undefined && isFinite(v)) {
+          yVal = v;
           break;
         }
       }
-      if (_0x255bb9 === null) {
+      if (yVal === null) {
         return;
       }
-      const _0x2b0c23 = _0x472e92.yAxisID || "y";
-      const _0x40844b = _0x15d6b3[_0x2b0c23] || _0x15d6b3.y;
-      const _0x1c434e = _0x40844b.getPixelForValue(_0x255bb9);
-      if (!isFinite(_0x1c434e) || _0x1c434e < _0x26e4c6 || _0x1c434e > _0x33a3a1) {
+      const axisId = d.yAxisID || "y";
+      const yAxis = scales[axisId] || scales.y;
+      const yPx = yAxis.getPixelForValue(yVal);
+      if (!isFinite(yPx) || yPx < top || yPx > bottom) {
         return;
       }
-      const _0x399038 = {
-        yVal: _0x255bb9,
-        yPx: _0x1c434e,
-        label: _0x472e92.label,
-        color: _0x472e92.borderColor || "#fff"
+      const entries2 = {
+        yVal,
+        yPx,
+        label: d.label,
+        color: d.borderColor || "#fff",
       };
-      _0x4e2549.push(_0x399038);
+      entries.push(entries2);
     });
-    if (!_0x4e2549.length) {
+    if (!entries.length) {
       return;
     }
-    _0x4e2549.sort((_0x280cbb, _0x2d3815) => _0x280cbb.yPx - _0x2d3815.yPx);
-    for (let _0x5d623c = 1; _0x5d623c < _0x4e2549.length; _0x5d623c++) {
-      const _0x17b454 = _0x4e2549[_0x5d623c - 1];
-      const _0x3513f4 = _0x4e2549[_0x5d623c];
-      _0x3513f4.badgeY = _0x3513f4.yPx - (_0x17b454.badgeY ?? _0x17b454.yPx) < _0x77a4c1 + 2 ? (_0x17b454.badgeY ?? _0x17b454.yPx) + _0x77a4c1 + 2 : _0x3513f4.yPx;
-      if (_0x5d623c === 1) {
-        _0x17b454.badgeY = _0x17b454.badgeY ?? _0x17b454.yPx;
+    entries.sort((a, b) => a.yPx - b.yPx);
+    for (let i = 1; i < entries.length; i++) {
+      const prev = entries[i - 1];
+      const curr = entries[i];
+      curr.badgeY =
+        curr.yPx - (prev.badgeY ?? prev.yPx) < BAD_H + 2
+          ? (prev.badgeY ?? prev.yPx) + BAD_H + 2
+          : curr.yPx;
+      if (i === 1) {
+        prev.badgeY = prev.badgeY ?? prev.yPx;
       }
     }
-    if (_0x4e2549.length === 1) {
-      _0x4e2549[0].badgeY = _0x4e2549[0].yPx;
+    if (entries.length === 1) {
+      entries[0].badgeY = entries[0].yPx;
     }
-    _0x4e2549.forEach(({
-      yVal: _0xc841d2,
-      yPx: _0x3ff9bd,
-      badgeY: _0x7fd67,
-      label: _0x1ab1ab,
-      color: _0x23920a
-    }) => {
-      _0x2fa810.save();
-      _0x2fa810.strokeStyle = _0x23920a;
-      _0x2fa810.lineWidth = 1.2;
-      _0x2fa810.setLineDash([6, 4]);
-      _0x2fa810.beginPath();
-      _0x2fa810.moveTo(_0x3e2f50, _0x3ff9bd);
-      _0x2fa810.lineTo(_0x293109, _0x3ff9bd);
-      _0x2fa810.stroke();
-      _0x2fa810.setLineDash([]);
-      const _0x1a58fc = _0x1ab1ab === "Gols FT" || _0x1ab1ab === "Gols HT" || _0x1ab1ab === "Gols Individual" || _0x1ab1ab === "Gols FT Casa" || _0x1ab1ab === "Gols FT Fora";
-      const _0x4d8870 = _0x1a58fc ? String(Math.round(_0xc841d2)) : _0xc841d2.toFixed(1);
-      _0x2fa810.font = "600 10.5px 'Inter',Arial,sans-serif";
-      _0x2fa810.textBaseline = "middle";
-      _0x2fa810.textAlign = "left";
-      const _0x544bbb = Math.ceil(_0x2fa810.measureText(_0x4d8870).width) + _0x1f2abf * 2;
-      const _0x2cc941 = _0x15d6b3.y.position === "right";
-      const _0x79b6d6 = _0x2cc941 ? _0x3e2f50 - 4 - _0x544bbb : _0x293109 + 4;
-      const _0x4d0165 = _0x7fd67 - _0x77a4c1 / 2;
-      const _0x44d952 = 4;
-      _0x2fa810.fillStyle = "rgba(13,16,26,0.96)";
-      _0x2fa810.strokeStyle = _0x23920a;
-      _0x2fa810.lineWidth = 1.2;
-      _0x2fa810.beginPath();
-      _0x2fa810.roundRect(_0x79b6d6, _0x4d0165, _0x544bbb, _0x77a4c1, _0x44d952);
-      _0x2fa810.fill();
-      _0x2fa810.stroke();
-      _0x2fa810.fillStyle = _0x23920a;
-      _0x2fa810.fillText(_0x4d8870, _0x79b6d6 + _0x1f2abf, _0x7fd67);
-      _0x2fa810.restore();
+    entries.forEach(({ yVal, yPx, badgeY, label, color }) => {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(left, yPx);
+      ctx.lineTo(right, yPx);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const isGols =
+        label === "Gols FT" ||
+        label === "Gols HT" ||
+        label === "Gols Individual" ||
+        label === "Gols FT Casa" ||
+        label === "Gols FT Fora";
+      const text = isGols ? String(Math.round(yVal)) : yVal.toFixed(1);
+      ctx.font = "600 10.5px 'Inter',Arial,sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+      const bw = Math.ceil(ctx.measureText(text).width) + padX * 2;
+      const axisRight = scales.y.position === "right";
+      const bx = axisRight ? left - 4 - bw : right + 4;
+      const by = badgeY - BAD_H / 2;
+      const br = 4;
+      ctx.fillStyle = "rgba(13,16,26,0.96)";
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, BAD_H, br);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = color;
+      ctx.fillText(text, bx + padX, badgeY);
+      ctx.restore();
     });
-  }
+  },
 };
 function _loadDragLines() {
   try {
-    const _0x4959b6 = JSON.parse(localStorage.getItem(_ligaKey(DRAG_LINES_KEY)) || "[]");
-    if (Array.isArray(_0x4959b6)) {
-      return _0x4959b6.map(_0x4f7d7e => ({
-        y: Number(_0x4f7d7e.y),
-        color: _0x4f7d7e.color || "#1fcc59",
-        dragging: false
+    const a = JSON.parse(
+      localStorage.getItem(_ligaKey(DRAG_LINES_KEY)) || "[]",
+    );
+    if (Array.isArray(a)) {
+      return a.map((l) => ({
+        y: Number(l.y),
+        color: l.color || "#1fcc59",
+        dragging: false,
       }));
     } else {
       return [];
@@ -1171,30 +1282,35 @@ function _loadDragLines() {
     return [];
   }
 }
-function _saveDragLines(_0x4fa99) {
+function _saveDragLines(l) {
   try {
-    localStorage.setItem(_ligaKey(DRAG_LINES_KEY), JSON.stringify(_0x4fa99.map(_0x50d3dd => ({
-      y: _0x50d3dd.y,
-      color: _0x50d3dd.color || "#1fcc59"
-    }))));
+    localStorage.setItem(
+      _ligaKey(DRAG_LINES_KEY),
+      JSON.stringify(
+        l.map((x) => ({
+          y: x.y,
+          color: x.color || "#1fcc59",
+        })),
+      ),
+    );
   } catch {}
 }
-function _atualizarContador(_0x16553f) {
-  const _0x219c25 = document.getElementById("contadorLinhas");
-  if (_0x219c25) {
-    _0x219c25.textContent = (_0x16553f || []).length + " / " + MAX_DRAG_LINES + " linhas";
+function _atualizarContador(l) {
+  const el = document.getElementById("contadorLinhas");
+  if (el) {
+    el.textContent = (l || []).length + " / " + MAX_DRAG_LINES + " linhas";
   }
 }
 function _loadDragFibs() {
   try {
-    const _0x19e68c = JSON.parse(localStorage.getItem(_ligaKey(DRAG_FIBS_KEY)) || "[]");
-    if (Array.isArray(_0x19e68c)) {
-      return _0x19e68c.map(_0x323882 => ({
-        y1: Number(_0x323882.y1),
-        y2: Number(_0x323882.y2),
-        x1Idx: _0x323882.x1Idx == null ? null : Number(_0x323882.x1Idx),
-        x2Idx: _0x323882.x2Idx == null ? null : Number(_0x323882.x2Idx),
-        color: _0x323882.color || "#A78BFA"
+    const a = JSON.parse(localStorage.getItem(_ligaKey(DRAG_FIBS_KEY)) || "[]");
+    if (Array.isArray(a)) {
+      return a.map((f) => ({
+        y1: Number(f.y1),
+        y2: Number(f.y2),
+        x1Idx: f.x1Idx == null ? null : Number(f.x1Idx),
+        x2Idx: f.x2Idx == null ? null : Number(f.x2Idx),
+        color: f.color || "#A78BFA",
       }));
     } else {
       return [];
@@ -1203,34 +1319,41 @@ function _loadDragFibs() {
     return [];
   }
 }
-function _saveDragFibs(_0x3c48a2) {
+function _saveDragFibs(arr) {
   try {
-    localStorage.setItem(_ligaKey(DRAG_FIBS_KEY), JSON.stringify((_0x3c48a2 || []).map(_0x43d8b9 => ({
-      y1: _0x43d8b9.y1,
-      y2: _0x43d8b9.y2,
-      x1Idx: _0x43d8b9.x1Idx ?? null,
-      x2Idx: _0x43d8b9.x2Idx ?? null,
-      color: _0x43d8b9.color || "#A78BFA"
-    }))));
+    localStorage.setItem(
+      _ligaKey(DRAG_FIBS_KEY),
+      JSON.stringify(
+        (arr || []).map((f) => ({
+          y1: f.y1,
+          y2: f.y2,
+          x1Idx: f.x1Idx ?? null,
+          x2Idx: f.x2Idx ?? null,
+          color: f.color || "#A78BFA",
+        })),
+      ),
+    );
   } catch {}
 }
-function _atualizarContadorFibs(_0x58aa14) {
-  const _0x62c983 = document.getElementById("contadorFibs");
-  if (_0x62c983) {
-    _0x62c983.textContent = (_0x58aa14 || []).length + " / " + MAX_DRAG_FIBS + " fibonacci";
+function _atualizarContadorFibs(arr) {
+  const el = document.getElementById("contadorFibs");
+  if (el) {
+    el.textContent = (arr || []).length + " / " + MAX_DRAG_FIBS + " fibonacci";
   }
 }
 function _loadDragTrends() {
   try {
-    const _0x186c6d = JSON.parse(localStorage.getItem(_ligaKey(DRAG_TRENDS_KEY)) || "[]");
-    if (Array.isArray(_0x186c6d)) {
-      return _0x186c6d.map(_0xed03a5 => ({
-        x1Idx: Number(_0xed03a5.x1Idx),
-        y1: Number(_0xed03a5.y1),
-        x2Idx: Number(_0xed03a5.x2Idx),
-        y2: Number(_0xed03a5.y2),
-        color: _0xed03a5.color || "#34D399",
-        tipo: _0xed03a5.tipo || "LTA"
+    const a = JSON.parse(
+      localStorage.getItem(_ligaKey(DRAG_TRENDS_KEY)) || "[]",
+    );
+    if (Array.isArray(a)) {
+      return a.map((t) => ({
+        x1Idx: Number(t.x1Idx),
+        y1: Number(t.y1),
+        x2Idx: Number(t.x2Idx),
+        y2: Number(t.y2),
+        color: t.color || "#34D399",
+        tipo: t.tipo || "LTA",
       }));
     } else {
       return [];
@@ -1239,978 +1362,992 @@ function _loadDragTrends() {
     return [];
   }
 }
-function _saveDragTrends(_0x33f251) {
+function _saveDragTrends(arr) {
   try {
-    localStorage.setItem(_ligaKey(DRAG_TRENDS_KEY), JSON.stringify((_0x33f251 || []).map(_0x166776 => ({
-      x1Idx: _0x166776.x1Idx,
-      y1: _0x166776.y1,
-      x2Idx: _0x166776.x2Idx,
-      y2: _0x166776.y2,
-      color: _0x166776.color || "#34D399",
-      tipo: _0x166776.tipo || "LTA"
-    }))));
+    localStorage.setItem(
+      _ligaKey(DRAG_TRENDS_KEY),
+      JSON.stringify(
+        (arr || []).map((t) => ({
+          x1Idx: t.x1Idx,
+          y1: t.y1,
+          x2Idx: t.x2Idx,
+          y2: t.y2,
+          color: t.color || "#34D399",
+          tipo: t.tipo || "LTA",
+        })),
+      ),
+    );
   } catch {}
 }
-function _atualizarContadorTrends(_0x3cb4c1) {
-  const _0x191828 = document.getElementById("contadorTendencias");
-  if (_0x191828) {
-    _0x191828.textContent = (_0x3cb4c1 || []).length + " / " + MAX_DRAG_TRENDS + " tendências";
+function _atualizarContadorTrends(arr) {
+  const el = document.getElementById("contadorTendencias");
+  if (el) {
+    el.textContent =
+      (arr || []).length + " / " + MAX_DRAG_TRENDS + " tendências";
   }
 }
-function _distToSegment(_0x43ea95, _0xf78104, _0x5d9b2e, _0x4ba91b, _0x5e12f7, _0x1db6c7) {
-  const _0x514b8a = _0x5e12f7 - _0x5d9b2e;
-  const _0x5baccc = _0x1db6c7 - _0x4ba91b;
-  const _0x4c2eda = _0x514b8a * _0x514b8a + _0x5baccc * _0x5baccc;
-  if (_0x4c2eda === 0) {
-    return Math.hypot(_0x43ea95 - _0x5d9b2e, _0xf78104 - _0x4ba91b);
+function _distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) {
+    return Math.hypot(px - x1, py - y1);
   }
-  let _0x280a31 = ((_0x43ea95 - _0x5d9b2e) * _0x514b8a + (_0xf78104 - _0x4ba91b) * _0x5baccc) / _0x4c2eda;
-  _0x280a31 = Math.max(0, Math.min(1, _0x280a31));
-  return Math.hypot(_0x43ea95 - (_0x5d9b2e + _0x280a31 * _0x514b8a), _0xf78104 - (_0x4ba91b + _0x280a31 * _0x5baccc));
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 const linhaDraggablePlugin = {
   id: "linhaDraggable",
-  afterInit(_0x86e893) {
-    const _0xd54fa2 = _0x86e893.canvas;
-    _0x86e893.dragLines = _loadDragLines();
-    _0x86e893._selectedDragLine = -1;
-    const _0x454d45 = 8;
-    let _0x2d8728 = -1;
-    const _0xf50bab = () => _0x86e893.scales.y;
-    const _0x202ac8 = _0x5732a3 => {
-      const _0x4fd681 = _0xd54fa2.getBoundingClientRect();
-      return ((_0x5732a3.touches && _0x5732a3.touches[0]?.clientY) ?? _0x5732a3.clientY ?? 0) - _0x4fd681.top;
+  afterInit(chart) {
+    const canvas = chart.canvas;
+    chart.dragLines = _loadDragLines();
+    chart._selectedDragLine = -1;
+    const HIT_PX = 8;
+    let draggingIdx = -1;
+    const getYS = () => chart.scales.y;
+    const getEvtY = (evt) => {
+      const r = canvas.getBoundingClientRect();
+      return (
+        ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top
+      );
     };
-    const _0x449ba8 = _0x14004f => {
-      const _0x3218b2 = _0xf50bab();
-      if (!_0x3218b2 || !_0x86e893.chartArea) {
+    const nearestLine = (pxY) => {
+      const yS = getYS();
+      if (!yS || !chart.chartArea) {
         return -1;
       }
-      const {
-        top: _0xc5e9e,
-        bottom: _0x918dc2
-      } = _0x86e893.chartArea;
-      let _0x43ace2 = -1;
-      let _0x410a4d = Infinity;
-      (_0x86e893.dragLines || []).forEach((_0x525e44, _0x162e0b) => {
-        const _0x567d74 = _0x3218b2.getPixelForValue(_0x525e44.y);
-        if (_0x567d74 < _0xc5e9e || _0x567d74 > _0x918dc2) {
+      const { top, bottom } = chart.chartArea;
+      let best = -1;
+      let bestDist = Infinity;
+      (chart.dragLines || []).forEach((l, i) => {
+        const ly = yS.getPixelForValue(l.y);
+        if (ly < top || ly > bottom) {
           return;
         }
-        const _0x37c9e6 = Math.abs(_0x567d74 - _0x14004f);
-        if (_0x37c9e6 < _0x410a4d && _0x37c9e6 <= _0x454d45) {
-          _0x410a4d = _0x37c9e6;
-          _0x43ace2 = _0x162e0b;
+        const d = Math.abs(ly - pxY);
+        if (d < bestDist && d <= HIT_PX) {
+          bestDist = d;
+          best = i;
         }
       });
-      return _0x43ace2;
+      return best;
     };
-    _0x86e893.addDragLine = (_0xfb225c = "#1fcc59") => {
-      if ((_0x86e893.dragLines || []).length >= MAX_DRAG_LINES) {
+    chart.addDragLine = (color = "#1fcc59") => {
+      if ((chart.dragLines || []).length >= MAX_DRAG_LINES) {
         alert("Máximo de " + MAX_DRAG_LINES + " linhas!");
         return;
       }
-      const _0x5033a3 = _0xf50bab();
-      if (!_0x5033a3) {
+      const yS = getYS();
+      if (!yS) {
         return;
       }
-      _0x86e893.dragLines.push({
-        y: Math.round((_0x5033a3.min + _0x5033a3.max) / 2),
-        color: _0xfb225c,
-        dragging: false
+      chart.dragLines.push({
+        y: Math.round((yS.min + yS.max) / 2),
+        color,
+        dragging: false,
       });
-      _0x86e893._selectedDragLine = _0x86e893.dragLines.length - 1;
-      _saveDragLines(_0x86e893.dragLines);
-      _atualizarContador(_0x86e893.dragLines);
-      _0x86e893.update();
+      chart._selectedDragLine = chart.dragLines.length - 1;
+      _saveDragLines(chart.dragLines);
+      _atualizarContador(chart.dragLines);
+      chart.update();
       _captureControlsToSetup(_getActiveSetup());
     };
-    _0x86e893.deleteDragLine = () => {
-      const _0x56f38b = _0x86e893._selectedDragLine;
-      if (_0x56f38b >= 0 && _0x56f38b < (_0x86e893.dragLines || []).length) {
-        _0x86e893.dragLines.splice(_0x56f38b, 1);
-        _0x86e893._selectedDragLine = -1;
-        _saveDragLines(_0x86e893.dragLines);
-        _atualizarContador(_0x86e893.dragLines);
-        _0x86e893.update();
+    chart.deleteDragLine = () => {
+      const idx = chart._selectedDragLine;
+      if (idx >= 0 && idx < (chart.dragLines || []).length) {
+        chart.dragLines.splice(idx, 1);
+        chart._selectedDragLine = -1;
+        _saveDragLines(chart.dragLines);
+        _atualizarContador(chart.dragLines);
+        chart.update();
         _captureControlsToSetup(_getActiveSetup());
       }
     };
-    _0x86e893.clearDragLines = () => {
-      _0x86e893.dragLines = [];
-      _0x86e893._selectedDragLine = -1;
-      _saveDragLines(_0x86e893.dragLines);
-      _atualizarContador(_0x86e893.dragLines);
-      _0x86e893.update();
+    chart.clearDragLines = () => {
+      chart.dragLines = [];
+      chart._selectedDragLine = -1;
+      _saveDragLines(chart.dragLines);
+      _atualizarContador(chart.dragLines);
+      chart.update();
       _captureControlsToSetup(_getActiveSetup());
     };
-    const _0x5cad41 = _0x431e26 => {
-      const _0x393d65 = _0x202ac8(_0x431e26);
-      const _0x2328b9 = _0x449ba8(_0x393d65);
-      if (_0x2328b9 >= 0) {
-        if (_0x431e26.cancelable) {
-          _0x431e26.preventDefault();
+    const startDrag = (evt) => {
+      const pxY = getEvtY(evt);
+      const idx = nearestLine(pxY);
+      if (idx >= 0) {
+        if (evt.cancelable) {
+          evt.preventDefault();
         }
-        _0x2d8728 = _0x2328b9;
-        _0x86e893.dragLines[_0x2328b9].dragging = true;
-        _0x86e893._selectedDragLine = _0x2328b9;
+        draggingIdx = idx;
+        chart.dragLines[idx].dragging = true;
+        chart._selectedDragLine = idx;
       } else {
-        _0x86e893._selectedDragLine = -1;
+        chart._selectedDragLine = -1;
       }
-      _0x86e893.update();
+      chart.update();
     };
-    const _0x5951a6 = _0x46882c => {
-      if (_0x2d8728 < 0) {
+    const moveDrag = (evt) => {
+      if (draggingIdx < 0) {
         return;
       }
-      if (_0x46882c.cancelable) {
-        _0x46882c.preventDefault();
+      if (evt.cancelable) {
+        evt.preventDefault();
       }
-      const _0x31f329 = _0xf50bab();
-      if (!_0x31f329) {
+      const yS = getYS();
+      if (!yS) {
         return;
       }
-      let _0x446e11 = _0x31f329.getValueForPixel(_0x202ac8(_0x46882c));
-      _0x446e11 = Math.max(_0x31f329.min, Math.min(_0x31f329.max, Math.round(_0x446e11 * 10) / 10));
-      _0x86e893.dragLines[_0x2d8728].y = _0x446e11;
-      _0x86e893.update("none");
+      let v = yS.getValueForPixel(getEvtY(evt));
+      v = Math.max(yS.min, Math.min(yS.max, Math.round(v * 10) / 10));
+      chart.dragLines[draggingIdx].y = v;
+      chart.update("none");
     };
-    const _0x4b2bf1 = () => {
-      if (_0x2d8728 >= 0) {
-        if (_0x86e893.dragLines[_0x2d8728]) {
-          _0x86e893.dragLines[_0x2d8728].dragging = false;
+    const stopDrag = () => {
+      if (draggingIdx >= 0) {
+        if (chart.dragLines[draggingIdx]) {
+          chart.dragLines[draggingIdx].dragging = false;
         }
-        _saveDragLines(_0x86e893.dragLines);
+        _saveDragLines(chart.dragLines);
         _captureControlsToSetup(_getActiveSetup());
       }
-      _0x2d8728 = -1;
+      draggingIdx = -1;
     };
-    _0xd54fa2.addEventListener("mousedown", _0x5cad41);
-    _0xd54fa2.addEventListener("mousemove", _0x5951a6);
-    _0xd54fa2.addEventListener("mouseleave", _0x4b2bf1);
-    window.addEventListener("mouseup", _0x4b2bf1);
-    _0xd54fa2.addEventListener("touchstart", _0x5cad41, {
-      passive: false
+    canvas.addEventListener("mousedown", startDrag);
+    canvas.addEventListener("mousemove", moveDrag);
+    canvas.addEventListener("mouseleave", stopDrag);
+    window.addEventListener("mouseup", stopDrag);
+    canvas.addEventListener("touchstart", startDrag, {
+      passive: false,
     });
-    _0xd54fa2.addEventListener("touchmove", _0x5951a6, {
-      passive: false
+    canvas.addEventListener("touchmove", moveDrag, {
+      passive: false,
     });
-    _0xd54fa2.addEventListener("touchend", _0x4b2bf1, {
-      passive: true
+    canvas.addEventListener("touchend", stopDrag, {
+      passive: true,
     });
-    _0xd54fa2.addEventListener("touchcancel", _0x4b2bf1, {
-      passive: true
+    canvas.addEventListener("touchcancel", stopDrag, {
+      passive: true,
     });
-    window.addEventListener("keydown", _0x40883a => {
-      if (_0x40883a.key === "Delete" || _0x40883a.key === "Backspace") {
-        const _0x610466 = chartInstances.Copa || Object.values(chartInstances)[0];
-        if (_0x610466) {
-          _0x610466.deleteDragLine();
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const c = chartInstances.Copa || Object.values(chartInstances)[0];
+        if (c) {
+          c.deleteDragLine();
         }
       }
     });
-    _atualizarContador(_0x86e893.dragLines);
+    _atualizarContador(chart.dragLines);
   },
-  afterDatasetsDraw(_0x4b3e9b) {
-    const _0x2595cb = _0x4b3e9b.scales.y;
-    const _0xef33db = _0x4b3e9b.dragLines || [];
-    if (!_0xef33db.length || !_0x4b3e9b.chartArea) {
+  afterDatasetsDraw(chart) {
+    const yS = chart.scales.y;
+    const lines = chart.dragLines || [];
+    if (!lines.length || !chart.chartArea) {
       return;
     }
-    const _0xd65e90 = _0x4b3e9b.ctx;
-    const {
-      left: _0xffb211,
-      right: _0x22927d,
-      top: _0x429a42,
-      bottom: _0x5979fc
-    } = _0x4b3e9b.chartArea;
-    const _0x4ed1c5 = 5;
-    const _0x37a7c0 = 16;
-    _0xef33db.forEach((_0x46dc2a, _0x192971) => {
-      const _0x57a0ee = _0x2595cb.getPixelForValue(_0x46dc2a.y);
-      if (!isFinite(_0x57a0ee) || _0x57a0ee < _0x429a42 || _0x57a0ee > _0x5979fc) {
+    const ctx = chart.ctx;
+    const { left, right, top, bottom } = chart.chartArea;
+    const PAD = 5;
+    const BH = 16;
+    lines.forEach((l, i) => {
+      const yPx = yS.getPixelForValue(l.y);
+      if (!isFinite(yPx) || yPx < top || yPx > bottom) {
         return;
       }
-      const _0x3245cb = _0x192971 === _0x4b3e9b._selectedDragLine;
-      _0xd65e90.save();
-      _0xd65e90.strokeStyle = _0x46dc2a.color || "#1fcc59";
-      _0xd65e90.lineWidth = _0x3245cb ? 2 : 1.5;
-      if (!_0x3245cb) {
-        _0xd65e90.setLineDash([8, 4]);
+      const isSel = i === chart._selectedDragLine;
+      ctx.save();
+      ctx.strokeStyle = l.color || "#1fcc59";
+      ctx.lineWidth = isSel ? 2 : 1.5;
+      if (!isSel) {
+        ctx.setLineDash([8, 4]);
       }
-      _0xd65e90.beginPath();
-      _0xd65e90.moveTo(_0xffb211, _0x57a0ee);
-      _0xd65e90.lineTo(_0x22927d, _0x57a0ee);
-      _0xd65e90.stroke();
-      _0xd65e90.setLineDash([]);
-      const _0xa624e1 = _0x46dc2a.y.toFixed(1);
-      _0xd65e90.font = "600 10.5px 'Inter',Arial,sans-serif";
-      _0xd65e90.textBaseline = "middle";
-      _0xd65e90.textAlign = "left";
-      const _0x377ef0 = Math.ceil(_0xd65e90.measureText(_0xa624e1).width) + _0x4ed1c5 * 2;
-      const _0x842ca = _0x2595cb.position === "right";
-      const _0x235413 = _0x842ca ? _0xffb211 - 4 - _0x377ef0 : _0x22927d + 4;
-      const _0xf431e1 = _0x57a0ee - _0x37a7c0 / 2;
-      const _0x4d3e6a = 4;
-      _0xd65e90.fillStyle = "rgba(13,16,26,0.96)";
-      _0xd65e90.strokeStyle = _0x46dc2a.color || "#1fcc59";
-      _0xd65e90.lineWidth = _0x3245cb ? 1.5 : 1;
-      _0xd65e90.beginPath();
-      _0xd65e90.roundRect(_0x235413, _0xf431e1, _0x377ef0, _0x37a7c0, _0x4d3e6a);
-      _0xd65e90.fill();
-      _0xd65e90.stroke();
-      _0xd65e90.fillStyle = _0x46dc2a.color || "#1fcc59";
-      _0xd65e90.fillText(_0xa624e1, _0x235413 + _0x4ed1c5, _0x57a0ee);
-      _0xd65e90.restore();
+      ctx.beginPath();
+      ctx.moveTo(left, yPx);
+      ctx.lineTo(right, yPx);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const text = l.y.toFixed(1);
+      ctx.font = "600 10.5px 'Inter',Arial,sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+      const bw = Math.ceil(ctx.measureText(text).width) + PAD * 2;
+      const axisRight = yS.position === "right";
+      const bx = axisRight ? left - 4 - bw : right + 4;
+      const by = yPx - BH / 2;
+      const br = 4;
+      ctx.fillStyle = "rgba(13,16,26,0.96)";
+      ctx.strokeStyle = l.color || "#1fcc59";
+      ctx.lineWidth = isSel ? 1.5 : 1;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, BH, br);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = l.color || "#1fcc59";
+      ctx.fillText(text, bx + PAD, yPx);
+      ctx.restore();
     });
-  }
+  },
 };
 const fibDraggablePlugin = {
   id: "fibDraggable",
-  afterInit(_0x210358) {
-    const _0x16934b = _0x210358.canvas;
-    _0x210358.fibDraws = _loadDragFibs();
-    _0x210358._selectedFib = -1;
-    _0x210358._fibDrawMode = false;
-    let _0x59cdb3 = null;
-    let _0x3d0796 = -1;
-    let _0x208f33 = 0;
-    let _0x3b1d63 = 0;
-    let _0x1a7f88 = 0;
-    let _0x2a3e7a = 0;
-    let _0x2c93d9 = null;
-    let _0x49e831 = null;
-    const _0x2154fe = 8;
-    const _0xc9ea28 = 12;
-    const _0x20c61f = () => _0x210358.scales.y;
-    const _0x742541 = () => _0x210358.scales.x;
-    const _0x59e545 = _0x485a7d => {
-      const _0x2b10cf = _0x16934b.getBoundingClientRect();
-      return ((_0x485a7d.touches && _0x485a7d.touches[0]?.clientY) ?? _0x485a7d.clientY ?? 0) - _0x2b10cf.top;
+  afterInit(chart) {
+    const canvas = chart.canvas;
+    chart.fibDraws = _loadDragFibs();
+    chart._selectedFib = -1;
+    chart._fibDrawMode = false;
+    let creating = null;
+    let draggingIdx = -1;
+    let dragStartVal = 0;
+    let dragOrigY1 = 0;
+    let dragOrigY2 = 0;
+    let dragStartXVal = 0;
+    let dragOrigX1Frac = null;
+    let dragOrigX2Frac = null;
+    const HIT_PX = 8;
+    const MIN_DRAG_PX = 12;
+    const getYS = () => chart.scales.y;
+    const getXS = () => chart.scales.x;
+    const getEvtY = (evt) => {
+      const r = canvas.getBoundingClientRect();
+      return (
+        ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top
+      );
     };
-    const _0x37ff28 = _0x21f9aa => {
-      const _0x23ff4d = _0x16934b.getBoundingClientRect();
-      return ((_0x21f9aa.touches && _0x21f9aa.touches[0]?.clientX) ?? _0x21f9aa.clientX ?? 0) - _0x23ff4d.left;
+    const getEvtX = (evt) => {
+      const r = canvas.getBoundingClientRect();
+      return (
+        ((evt.touches && evt.touches[0]?.clientX) ?? evt.clientX ?? 0) - r.left
+      );
     };
-    const _0x301602 = _0x4a6b60 => {
-      const {
-        left: _0x514fb6,
-        right: _0x139c25
-      } = _0x210358.chartArea;
-      const _0x17922c = _0x742541();
-      const _0x1da424 = {
-        x1: _0x514fb6,
-        x2: _0x139c25,
-        anchored: false
+    const spanPx = (f) => {
+      const { left, right } = chart.chartArea;
+      const xS = getXS();
+      const left2 = {
+        x1: left,
+        x2: right,
+        anchored: false,
       };
-      if (_0x4a6b60.x1Idx == null || _0x4a6b60.x2Idx == null || !_0x17922c) {
-        return _0x1da424;
+      if (f.x1Idx == null || f.x2Idx == null || !xS) {
+        return left2;
       }
-      let _0x441633 = _0x17922c.getPixelForValue(_0x4a6b60.x1Idx);
-      let _0x92c786 = _0x17922c.getPixelForValue(_0x4a6b60.x2Idx);
-      const _0x3c9545 = {
-        x1: _0x514fb6,
-        x2: _0x139c25,
-        anchored: false
+      let p1 = xS.getPixelForValue(f.x1Idx);
+      let p2 = xS.getPixelForValue(f.x2Idx);
+      const p12 = {
+        x1: left,
+        x2: right,
+        anchored: false,
       };
-      if (!isFinite(_0x441633) || !isFinite(_0x92c786)) {
-        return _0x3c9545;
+      if (!isFinite(p1) || !isFinite(p2)) {
+        return p12;
       }
-      if (_0x441633 > _0x92c786) {
-        [_0x441633, _0x92c786] = [_0x92c786, _0x441633];
+      if (p1 > p2) {
+        [p1, p2] = [p2, p1];
       }
       return {
-        x1: Math.max(_0x514fb6, _0x441633),
-        x2: Math.min(_0x139c25, _0x92c786),
-        anchored: true
+        x1: Math.max(left, p1),
+        x2: Math.min(right, p2),
+        anchored: true,
       };
     };
-    _0x210358.setFibDrawMode = _0x5649e9 => {
-      _0x210358._fibDrawMode = !!_0x5649e9;
-      _0x16934b.style.cursor = _0x5649e9 ? "crosshair" : "";
+    chart.setFibDrawMode = (on) => {
+      chart._fibDrawMode = !!on;
+      canvas.style.cursor = on ? "crosshair" : "";
     };
-    _0x210358.deleteFibSelected = () => {
-      const _0x49e139 = _0x210358._selectedFib;
-      if (_0x49e139 >= 0 && _0x49e139 < _0x210358.fibDraws.length) {
-        _0x210358.fibDraws.splice(_0x49e139, 1);
-        _0x210358._selectedFib = -1;
-        _saveDragFibs(_0x210358.fibDraws);
-        _atualizarContadorFibs(_0x210358.fibDraws);
-        _0x210358.update();
+    chart.deleteFibSelected = () => {
+      const idx = chart._selectedFib;
+      if (idx >= 0 && idx < chart.fibDraws.length) {
+        chart.fibDraws.splice(idx, 1);
+        chart._selectedFib = -1;
+        _saveDragFibs(chart.fibDraws);
+        _atualizarContadorFibs(chart.fibDraws);
+        chart.update();
         _captureControlsToSetup(_getActiveSetup());
       }
     };
-    _0x210358.clearFibDraws = () => {
-      _0x210358.fibDraws = [];
-      _0x210358._selectedFib = -1;
-      _saveDragFibs(_0x210358.fibDraws);
-      _atualizarContadorFibs(_0x210358.fibDraws);
-      _0x210358.update();
+    chart.clearFibDraws = () => {
+      chart.fibDraws = [];
+      chart._selectedFib = -1;
+      _saveDragFibs(chart.fibDraws);
+      _atualizarContadorFibs(chart.fibDraws);
+      chart.update();
       _captureControlsToSetup(_getActiveSetup());
     };
-    const _0x2e5b66 = (_0x19d0a6, _0x1a1c78) => {
-      const _0x5db088 = _0x20c61f();
-      if (!_0x5db088 || !_0x210358.chartArea) {
+    const nearestFib = (pxX, pxY) => {
+      const yS = getYS();
+      if (!yS || !chart.chartArea) {
         return -1;
       }
-      const {
-        top: _0x590452,
-        bottom: _0x203a61
-      } = _0x210358.chartArea;
-      let _0xf6efa2 = -1;
-      let _0x46ddcd = Infinity;
-      (_0x210358.fibDraws || []).forEach((_0x585738, _0x11aa84) => {
-        const {
-          x1: _0x1fb30f,
-          x2: _0xc408e9
-        } = _0x301602(_0x585738);
-        if (_0x19d0a6 < _0x1fb30f - 2 || _0x19d0a6 > _0xc408e9 + 2) {
+      const { top, bottom } = chart.chartArea;
+      let best = -1;
+      let bestDist = Infinity;
+      (chart.fibDraws || []).forEach((f, i) => {
+        const { x1, x2 } = spanPx(f);
+        if (pxX < x1 - 2 || pxX > x2 + 2) {
           return;
         }
-        FIB_RETR_LEVELS.forEach(_0x10005c => {
-          const _0x163c0c = _0x585738.y1 + _0x10005c / 100 * (_0x585738.y2 - _0x585738.y1);
-          const _0x518f04 = _0x5db088.getPixelForValue(_0x163c0c);
-          if (_0x518f04 < _0x590452 || _0x518f04 > _0x203a61) {
+        FIB_RETR_LEVELS.forEach((lvl) => {
+          const val = f.y1 + (lvl / 100) * (f.y2 - f.y1);
+          const ly = yS.getPixelForValue(val);
+          if (ly < top || ly > bottom) {
             return;
           }
-          const _0x3d6e3f = Math.abs(_0x518f04 - _0x1a1c78);
-          if (_0x3d6e3f < _0x46ddcd && _0x3d6e3f <= _0x2154fe) {
-            _0x46ddcd = _0x3d6e3f;
-            _0xf6efa2 = _0x11aa84;
+          const d = Math.abs(ly - pxY);
+          if (d < bestDist && d <= HIT_PX) {
+            bestDist = d;
+            best = i;
           }
         });
       });
-      return _0xf6efa2;
+      return best;
     };
-    const _0x2ebb46 = _0x15d1ac => {
-      const _0x479092 = _0x20c61f();
-      if (!_0x479092) {
+    const startEvt = (evt) => {
+      const yS = getYS();
+      if (!yS) {
         return;
       }
-      const _0x23ea34 = _0x59e545(_0x15d1ac);
-      const _0x4fb1c2 = _0x37ff28(_0x15d1ac);
-      if (_0x210358._fibDrawMode) {
-        if (_0x15d1ac.cancelable) {
-          _0x15d1ac.preventDefault();
+      const pxY = getEvtY(evt);
+      const pxX = getEvtX(evt);
+      if (chart._fibDrawMode) {
+        if (evt.cancelable) {
+          evt.preventDefault();
         }
-        let _0x3682e7 = _0x479092.getValueForPixel(_0x23ea34);
-        _0x3682e7 = Math.max(_0x479092.min, Math.min(_0x479092.max, Math.round(_0x3682e7 * 10) / 10));
-        const _0x220827 = {
-          y1: _0x3682e7,
-          y2: _0x3682e7,
-          x1Px: _0x4fb1c2,
-          x2Px: _0x4fb1c2
+        let v = yS.getValueForPixel(pxY);
+        v = Math.max(yS.min, Math.min(yS.max, Math.round(v * 10) / 10));
+        const creating2 = {
+          y1: v,
+          y2: v,
+          x1Px: pxX,
+          x2Px: pxX,
         };
-        _0x59cdb3 = _0x220827;
-        _0x210358._selectedFib = -1;
-        _0x210358.update("none");
+        creating = creating2;
+        chart._selectedFib = -1;
+        chart.update("none");
         return;
       }
-      const _0x1c4717 = _0x2e5b66(_0x4fb1c2, _0x23ea34);
-      if (_0x1c4717 >= 0) {
-        if (_0x15d1ac.cancelable) {
-          _0x15d1ac.preventDefault();
+      const idx = nearestFib(pxX, pxY);
+      if (idx >= 0) {
+        if (evt.cancelable) {
+          evt.preventDefault();
         }
-        const _0x1ffa34 = _0x742541();
-        _0x3d0796 = _0x1c4717;
-        _0x210358._selectedFib = _0x1c4717;
-        _0x208f33 = _0x479092.getValueForPixel(_0x23ea34);
-        _0x3b1d63 = _0x210358.fibDraws[_0x1c4717].y1;
-        _0x1a7f88 = _0x210358.fibDraws[_0x1c4717].y2;
-        _0x2a3e7a = _0x1ffa34 ? _0x1ffa34.getValueForPixel(_0x4fb1c2) : 0;
-        _0x2c93d9 = _0x210358.fibDraws[_0x1c4717].x1Idx ?? null;
-        _0x49e831 = _0x210358.fibDraws[_0x1c4717].x2Idx ?? null;
+        const xS = getXS();
+        draggingIdx = idx;
+        chart._selectedFib = idx;
+        dragStartVal = yS.getValueForPixel(pxY);
+        dragOrigY1 = chart.fibDraws[idx].y1;
+        dragOrigY2 = chart.fibDraws[idx].y2;
+        dragStartXVal = xS ? xS.getValueForPixel(pxX) : 0;
+        dragOrigX1Frac = chart.fibDraws[idx].x1Idx ?? null;
+        dragOrigX2Frac = chart.fibDraws[idx].x2Idx ?? null;
       } else {
-        _0x210358._selectedFib = -1;
+        chart._selectedFib = -1;
       }
-      _0x210358.update();
+      chart.update();
     };
-    const _0x23c290 = _0x3e7ecd => {
-      const _0x34baf9 = _0x20c61f();
-      if (!_0x34baf9) {
+    const moveEvt = (evt) => {
+      const yS = getYS();
+      if (!yS) {
         return;
       }
-      const _0x373373 = _0x59e545(_0x3e7ecd);
-      const _0x4a39b0 = _0x37ff28(_0x3e7ecd);
-      if (_0x59cdb3) {
-        if (_0x3e7ecd.cancelable) {
-          _0x3e7ecd.preventDefault();
+      const pxY = getEvtY(evt);
+      const pxX = getEvtX(evt);
+      if (creating) {
+        if (evt.cancelable) {
+          evt.preventDefault();
         }
-        let _0x269cb2 = _0x34baf9.getValueForPixel(_0x373373);
-        _0x269cb2 = Math.max(_0x34baf9.min, Math.min(_0x34baf9.max, Math.round(_0x269cb2 * 10) / 10));
-        _0x59cdb3.y2 = _0x269cb2;
-        _0x59cdb3.x2Px = _0x4a39b0;
-        _0x210358.update("none");
+        let v = yS.getValueForPixel(pxY);
+        v = Math.max(yS.min, Math.min(yS.max, Math.round(v * 10) / 10));
+        creating.y2 = v;
+        creating.x2Px = pxX;
+        chart.update("none");
         return;
       }
-      if (_0x3d0796 >= 0) {
-        if (_0x3e7ecd.cancelable) {
-          _0x3e7ecd.preventDefault();
+      if (draggingIdx >= 0) {
+        if (evt.cancelable) {
+          evt.preventDefault();
         }
-        const _0x9df03 = _0x34baf9.getValueForPixel(_0x373373);
-        const _0xce32ef = _0x9df03 - _0x208f33;
-        _0x210358.fibDraws[_0x3d0796].y1 = Math.round((_0x3b1d63 + _0xce32ef) * 10) / 10;
-        _0x210358.fibDraws[_0x3d0796].y2 = Math.round((_0x1a7f88 + _0xce32ef) * 10) / 10;
-        if (_0x2c93d9 != null && _0x49e831 != null) {
-          const _0x83a53a = _0x742541();
-          if (_0x83a53a) {
-            const _0x1ac47a = _0x83a53a.getValueForPixel(_0x4a39b0);
-            const _0x4f3ab9 = Math.round(_0x1ac47a - _0x2a3e7a);
-            let _0x2ae374 = _0x2c93d9 + _0x4f3ab9;
-            let _0x2f0741 = _0x49e831 + _0x4f3ab9;
-            const _0x380382 = (_0x210358.data.labels || []).length;
-            if (_0x380382 > 0) {
-              const _0x514dba = Math.min(_0x2ae374, _0x2f0741);
-              const _0x160b3c = Math.max(_0x2ae374, _0x2f0741);
-              if (_0x514dba < 0) {
-                _0x2ae374 -= _0x514dba;
-                _0x2f0741 -= _0x514dba;
+        const v = yS.getValueForPixel(pxY);
+        const delta = v - dragStartVal;
+        chart.fibDraws[draggingIdx].y1 =
+          Math.round((dragOrigY1 + delta) * 10) / 10;
+        chart.fibDraws[draggingIdx].y2 =
+          Math.round((dragOrigY2 + delta) * 10) / 10;
+        if (dragOrigX1Frac != null && dragOrigX2Frac != null) {
+          const xS = getXS();
+          if (xS) {
+            const xv = xS.getValueForPixel(pxX);
+            const deltaX = Math.round(xv - dragStartXVal);
+            let nx1 = dragOrigX1Frac + deltaX;
+            let nx2 = dragOrigX2Frac + deltaX;
+            const labelsLen = (chart.data.labels || []).length;
+            if (labelsLen > 0) {
+              const lo = Math.min(nx1, nx2);
+              const hi = Math.max(nx1, nx2);
+              if (lo < 0) {
+                nx1 -= lo;
+                nx2 -= lo;
               }
-              const _0x24c8a4 = Math.max(_0x2ae374, _0x2f0741);
-              if (_0x24c8a4 > _0x380382 - 1) {
-                const _0x4a6c6e = _0x24c8a4 - (_0x380382 - 1);
-                _0x2ae374 -= _0x4a6c6e;
-                _0x2f0741 -= _0x4a6c6e;
+              const hi2 = Math.max(nx1, nx2);
+              if (hi2 > labelsLen - 1) {
+                const over = hi2 - (labelsLen - 1);
+                nx1 -= over;
+                nx2 -= over;
               }
             }
-            _0x210358.fibDraws[_0x3d0796].x1Idx = _0x2ae374;
-            _0x210358.fibDraws[_0x3d0796].x2Idx = _0x2f0741;
+            chart.fibDraws[draggingIdx].x1Idx = nx1;
+            chart.fibDraws[draggingIdx].x2Idx = nx2;
           }
         }
-        _0x210358.update("none");
+        chart.update("none");
       }
     };
-    const _0x1c14e9 = () => {
-      if (_0x59cdb3) {
-        const _0x3dbbda = Math.abs(_0x59cdb3.y2 - _0x59cdb3.y1);
-        const _0x3b9cd4 = Math.abs(_0x59cdb3.x2Px - _0x59cdb3.x1Px);
-        if (_0x3dbbda > 0) {
-          if (_0x210358.fibDraws.length >= MAX_DRAG_FIBS) {
+    const endEvt = () => {
+      if (creating) {
+        const distY = Math.abs(creating.y2 - creating.y1);
+        const distX = Math.abs(creating.x2Px - creating.x1Px);
+        if (distY > 0) {
+          if (chart.fibDraws.length >= MAX_DRAG_FIBS) {
             alert("Máximo de " + MAX_DRAG_FIBS + " fibonacci!");
           } else {
-            const _0x40b1e2 = FIB_COLORS[_0x210358.fibDraws.length % FIB_COLORS.length];
-            let _0x46f9df = null;
-            let _0x5b4391 = null;
-            if (_0x3b9cd4 >= _0xc9ea28) {
-              const _0x1f9e92 = _0x742541();
-              if (_0x1f9e92) {
-                _0x46f9df = _0x1f9e92.getValueForPixel(_0x59cdb3.x1Px);
-                _0x5b4391 = _0x1f9e92.getValueForPixel(_0x59cdb3.x2Px);
+            const color = FIB_COLORS[chart.fibDraws.length % FIB_COLORS.length];
+            let x1Frac = null;
+            let x2Frac = null;
+            if (distX >= MIN_DRAG_PX) {
+              const xS = getXS();
+              if (xS) {
+                x1Frac = xS.getValueForPixel(creating.x1Px);
+                x2Frac = xS.getValueForPixel(creating.x2Px);
               }
             }
-            const _0x4948a9 = {
-              y1: _0x59cdb3.y1,
-              y2: _0x59cdb3.y2,
-              x1Idx: _0x46f9df,
-              x2Idx: _0x5b4391,
-              color: _0x40b1e2
+            const chart2 = {
+              y1: creating.y1,
+              y2: creating.y2,
+              x1Idx: x1Frac,
+              x2Idx: x2Frac,
+              color,
             };
-            _0x210358.fibDraws.push(_0x4948a9);
-            _0x210358._selectedFib = _0x210358.fibDraws.length - 1;
-            _saveDragFibs(_0x210358.fibDraws);
-            _atualizarContadorFibs(_0x210358.fibDraws);
+            chart.fibDraws.push(chart2);
+            chart._selectedFib = chart.fibDraws.length - 1;
+            _saveDragFibs(chart.fibDraws);
+            _atualizarContadorFibs(chart.fibDraws);
             _captureControlsToSetup(_getActiveSetup());
           }
         }
-        _0x59cdb3 = null;
-        _0x210358.setFibDrawMode(false);
-        _0x210358.update();
+        creating = null;
+        chart.setFibDrawMode(false);
+        chart.update();
       }
-      if (_0x3d0796 >= 0) {
-        _saveDragFibs(_0x210358.fibDraws);
+      if (draggingIdx >= 0) {
+        _saveDragFibs(chart.fibDraws);
         _captureControlsToSetup(_getActiveSetup());
-        _0x3d0796 = -1;
+        draggingIdx = -1;
       }
     };
-    _0x16934b.addEventListener("mousedown", _0x2ebb46);
-    _0x16934b.addEventListener("mousemove", _0x23c290);
-    _0x16934b.addEventListener("mouseleave", _0x1c14e9);
-    window.addEventListener("mouseup", _0x1c14e9);
-    _0x16934b.addEventListener("touchstart", _0x2ebb46, {
-      passive: false
+    canvas.addEventListener("mousedown", startEvt);
+    canvas.addEventListener("mousemove", moveEvt);
+    canvas.addEventListener("mouseleave", endEvt);
+    window.addEventListener("mouseup", endEvt);
+    canvas.addEventListener("touchstart", startEvt, {
+      passive: false,
     });
-    _0x16934b.addEventListener("touchmove", _0x23c290, {
-      passive: false
+    canvas.addEventListener("touchmove", moveEvt, {
+      passive: false,
     });
-    _0x16934b.addEventListener("touchend", _0x1c14e9, {
-      passive: true
+    canvas.addEventListener("touchend", endEvt, {
+      passive: true,
     });
-    _0x16934b.addEventListener("touchcancel", _0x1c14e9, {
-      passive: true
+    canvas.addEventListener("touchcancel", endEvt, {
+      passive: true,
     });
-    window.addEventListener("keydown", _0x59b911 => {
-      if (_0x59b911.key === "Delete" || _0x59b911.key === "Backspace") {
-        const _0x1b104e = chartInstances.Copa || Object.values(chartInstances)[0];
-        if (_0x1b104e) {
-          _0x1b104e.deleteFibSelected();
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const c = chartInstances.Copa || Object.values(chartInstances)[0];
+        if (c) {
+          c.deleteFibSelected();
         }
       }
     });
-    _0x210358._fibCreatingRef = () => _0x59cdb3;
-    _atualizarContadorFibs(_0x210358.fibDraws);
+    chart._fibCreatingRef = () => creating;
+    _atualizarContadorFibs(chart.fibDraws);
   },
-  afterDatasetsDraw(_0x49f073) {
-    const _0x2d91cf = _0x49f073.scales.y;
-    if (!_0x2d91cf || !_0x49f073.chartArea) {
+  afterDatasetsDraw(chart) {
+    const yS = chart.scales.y;
+    if (!yS || !chart.chartArea) {
       return;
     }
-    const _0x2a1e00 = _0x49f073.ctx;
-    const {
-      top: _0x46ecb8,
-      bottom: _0x5d5c62
-    } = _0x49f073.chartArea;
-    const _0xb0d9be = (_0x52a4cd, _0x1bd4fb, _0x5ec508, _0x1e8436) => {
-      const {
-        x1: _0x24492c,
-        x2: _0x4ae5e9,
-        anchored: _0x24e392
-      } = _0x1e8436;
-      FIB_RETR_LEVELS.forEach(_0x4a4935 => {
-        const _0x320276 = _0x52a4cd.y1 + _0x4a4935 / 100 * (_0x52a4cd.y2 - _0x52a4cd.y1);
-        const _0x1653e1 = _0x2d91cf.getPixelForValue(_0x320276);
-        if (!isFinite(_0x1653e1) || _0x1653e1 < _0x46ecb8 - 1 || _0x1653e1 > _0x5d5c62 + 1) {
+    const ctx = chart.ctx;
+    const { top, bottom } = chart.chartArea;
+    const draw = (f, isSel, isPreview, span) => {
+      const { x1: xa, x2: xb, anchored } = span;
+      FIB_RETR_LEVELS.forEach((lvl) => {
+        const val = f.y1 + (lvl / 100) * (f.y2 - f.y1);
+        const yPx = yS.getPixelForValue(val);
+        if (!isFinite(yPx) || yPx < top - 1 || yPx > bottom + 1) {
           return;
         }
-        _0x2a1e00.save();
-        _0x2a1e00.strokeStyle = _0x52a4cd.color;
-        _0x2a1e00.lineWidth = _0x1bd4fb ? 1.8 : 1;
-        _0x2a1e00.globalAlpha = _0x5ec508 ? 0.55 : _0x4a4935 === 0 || _0x4a4935 === 100 ? 0.9 : 0.7;
-        if (!_0x1bd4fb) {
-          _0x2a1e00.setLineDash([5, 4]);
+        ctx.save();
+        ctx.strokeStyle = f.color;
+        ctx.lineWidth = isSel ? 1.8 : 1;
+        ctx.globalAlpha = isPreview
+          ? 0.55
+          : lvl === 0 || lvl === 100
+            ? 0.9
+            : 0.7;
+        if (!isSel) {
+          ctx.setLineDash([5, 4]);
         }
-        _0x2a1e00.beginPath();
-        _0x2a1e00.moveTo(_0x24492c, _0x1653e1);
-        _0x2a1e00.lineTo(_0x4ae5e9, _0x1653e1);
-        _0x2a1e00.stroke();
-        _0x2a1e00.setLineDash([]);
-        _0x2a1e00.globalAlpha = 1;
-        _0x2a1e00.fillStyle = _0x52a4cd.color;
-        _0x2a1e00.font = "600 9.5px 'Inter',Arial,sans-serif";
-        _0x2a1e00.textAlign = "left";
-        _0x2a1e00.textBaseline = "middle";
-        _0x2a1e00.fillText(_0x4a4935 + "%  " + _0x320276.toFixed(1), _0x24492c + 6, _0x1653e1 - 7);
-        _0x2a1e00.restore();
+        ctx.beginPath();
+        ctx.moveTo(xa, yPx);
+        ctx.lineTo(xb, yPx);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = f.color;
+        ctx.font = "600 9.5px 'Inter',Arial,sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(lvl + "%  " + val.toFixed(1), xa + 6, yPx - 7);
+        ctx.restore();
       });
-      const _0x570c14 = _0x24e392 ? _0x24492c : _0x24492c + 16;
-      const _0x23b37f = _0x24e392 ? _0x4ae5e9 : _0x4ae5e9 - 16;
-      [[_0x52a4cd.y1, _0x570c14], [_0x52a4cd.y2, _0x23b37f]].forEach(([_0x4abb32, _0x18fc42]) => {
-        const _0x525716 = _0x2d91cf.getPixelForValue(_0x4abb32);
-        if (!isFinite(_0x525716) || _0x525716 < _0x46ecb8 || _0x525716 > _0x5d5c62) {
+      const ax = anchored ? xa : xa + 16;
+      const bx = anchored ? xb : xb - 16;
+      [
+        [f.y1, ax],
+        [f.y2, bx],
+      ].forEach(([v, px]) => {
+        const yPx = yS.getPixelForValue(v);
+        if (!isFinite(yPx) || yPx < top || yPx > bottom) {
           return;
         }
-        _0x2a1e00.save();
-        _0x2a1e00.fillStyle = _0x52a4cd.color;
-        _0x2a1e00.strokeStyle = "rgba(8,11,20,0.9)";
-        _0x2a1e00.lineWidth = 1.2;
-        _0x2a1e00.beginPath();
-        _0x2a1e00.arc(_0x18fc42, _0x525716, _0x1bd4fb ? 4.5 : 3.5, 0, Math.PI * 2);
-        _0x2a1e00.fill();
-        _0x2a1e00.stroke();
-        _0x2a1e00.restore();
+        ctx.save();
+        ctx.fillStyle = f.color;
+        ctx.strokeStyle = "rgba(8,11,20,0.9)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(px, yPx, isSel ? 4.5 : 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
       });
     };
-    const _0x5f5822 = _0x3e497a => {
-      const {
-        left: _0x2b4395,
-        right: _0x4db3ea
-      } = _0x49f073.chartArea;
-      const _0x4c2aa5 = _0x49f073.scales.x;
-      const _0x235a20 = {
-        x1: _0x2b4395,
-        x2: _0x4db3ea,
-        anchored: false
+    const spanPxSaved = (f) => {
+      const { left, right } = chart.chartArea;
+      const xS = chart.scales.x;
+      const left2 = {
+        x1: left,
+        x2: right,
+        anchored: false,
       };
-      if (_0x3e497a.x1Idx == null || _0x3e497a.x2Idx == null || !_0x4c2aa5) {
-        return _0x235a20;
+      if (f.x1Idx == null || f.x2Idx == null || !xS) {
+        return left2;
       }
-      let _0x5133e7 = _0x4c2aa5.getPixelForValue(_0x3e497a.x1Idx);
-      let _0x5b0b08 = _0x4c2aa5.getPixelForValue(_0x3e497a.x2Idx);
-      const _0x282110 = {
-        x1: _0x2b4395,
-        x2: _0x4db3ea,
-        anchored: false
+      let p1 = xS.getPixelForValue(f.x1Idx);
+      let p2 = xS.getPixelForValue(f.x2Idx);
+      const p12 = {
+        x1: left,
+        x2: right,
+        anchored: false,
       };
-      if (!isFinite(_0x5133e7) || !isFinite(_0x5b0b08)) {
-        return _0x282110;
+      if (!isFinite(p1) || !isFinite(p2)) {
+        return p12;
       }
-      if (_0x5133e7 > _0x5b0b08) {
-        [_0x5133e7, _0x5b0b08] = [_0x5b0b08, _0x5133e7];
+      if (p1 > p2) {
+        [p1, p2] = [p2, p1];
       }
       return {
-        x1: Math.max(_0x2b4395, _0x5133e7),
-        x2: Math.min(_0x4db3ea, _0x5b0b08),
-        anchored: true
+        x1: Math.max(left, p1),
+        x2: Math.min(right, p2),
+        anchored: true,
       };
     };
-    (_0x49f073.fibDraws || []).forEach((_0x105980, _0x4026af) => _0xb0d9be(_0x105980, _0x4026af === _0x49f073._selectedFib, false, _0x5f5822(_0x105980)));
-    const _0x3b55ba = _0x49f073._fibCreatingRef ? _0x49f073._fibCreatingRef() : null;
-    if (_0x3b55ba) {
-      const {
-        left: _0x42b414,
-        right: _0x4c3839
-      } = _0x49f073.chartArea;
-      const _0x523791 = Math.abs(_0x3b55ba.x2Px - _0x3b55ba.x1Px);
-      const _0xe0959 = _0x523791 >= 12;
-      const _0x1e422e = _0xe0959 ? Math.min(_0x3b55ba.x1Px, _0x3b55ba.x2Px) : _0x42b414;
-      const _0x438edf = _0xe0959 ? Math.max(_0x3b55ba.x1Px, _0x3b55ba.x2Px) : _0x4c3839;
-      const _0x31291c = {
-        y1: _0x3b55ba.y1,
-        y2: _0x3b55ba.y2,
-        color: "#E5E7EB"
+    (chart.fibDraws || []).forEach((f, i) =>
+      draw(f, i === chart._selectedFib, false, spanPxSaved(f)),
+    );
+    const creating = chart._fibCreatingRef ? chart._fibCreatingRef() : null;
+    if (creating) {
+      const { left, right } = chart.chartArea;
+      const distX = Math.abs(creating.x2Px - creating.x1Px);
+      const useSpan = distX >= 12;
+      const xa = useSpan ? Math.min(creating.x1Px, creating.x2Px) : left;
+      const xb = useSpan ? Math.max(creating.x1Px, creating.x2Px) : right;
+      const draw2 = {
+        y1: creating.y1,
+        y2: creating.y2,
+        color: "#E5E7EB",
       };
-      const _0x32762c = {
-        x1: _0x1e422e,
-        x2: _0x438edf,
-        anchored: _0xe0959
+      const obj = {
+        x1: xa,
+        x2: xb,
+        anchored: useSpan,
       };
-      _0xb0d9be(_0x31291c, true, true, _0x32762c);
+      draw(draw2, true, true, obj);
     }
-  }
+  },
 };
 const trendLinePlugin = {
   id: "trendLine",
-  afterInit(_0x1b36ef) {
-    const _0x530bb4 = _0x1b36ef.canvas;
-    _0x1b36ef.trendLines = _loadDragTrends();
-    _0x1b36ef._selectedTrend = -1;
-    _0x1b36ef._trendDrawMode = false;
-    _0x1b36ef._trendPendingTipo = "LTA";
-    let _0x21b525 = null;
-    let _0x41b9f2 = -1;
-    let _0x4a884e = null;
-    let _0x56fa7c = 0;
-    let _0x57571e = 0;
-    let _0x12af78 = null;
-    const _0x30ea41 = 9;
-    const _0x5f2343 = () => _0x1b36ef.scales.x;
-    const _0x2c6d95 = () => _0x1b36ef.scales.y;
-    const _0x590a52 = _0x2843f2 => {
-      const _0x3742df = _0x530bb4.getBoundingClientRect();
-      return ((_0x2843f2.touches && _0x2843f2.touches[0]?.clientY) ?? _0x2843f2.clientY ?? 0) - _0x3742df.top;
+  afterInit(chart) {
+    const canvas = chart.canvas;
+    chart.trendLines = _loadDragTrends();
+    chart._selectedTrend = -1;
+    chart._trendDrawMode = false;
+    chart._trendPendingTipo = "LTA";
+    let creating = null;
+    let draggingIdx = -1;
+    let draggingHandle = null;
+    let dragStartXVal = 0;
+    let dragStartYVal = 0;
+    let dragOrig = null;
+    const HIT_PX = 9;
+    const getXS = () => chart.scales.x;
+    const getYS = () => chart.scales.y;
+    const getEvtY = (evt) => {
+      const r = canvas.getBoundingClientRect();
+      return (
+        ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top
+      );
     };
-    const _0x4f9252 = _0x184b39 => {
-      const _0x126d46 = _0x530bb4.getBoundingClientRect();
-      return ((_0x184b39.touches && _0x184b39.touches[0]?.clientX) ?? _0x184b39.clientX ?? 0) - _0x126d46.left;
+    const getEvtX = (evt) => {
+      const r = canvas.getBoundingClientRect();
+      return (
+        ((evt.touches && evt.touches[0]?.clientX) ?? evt.clientX ?? 0) - r.left
+      );
     };
-    const _0x3abab6 = _0x2c55a5 => {
-      const _0x12c39c = _0x5f2343();
-      const _0x556e71 = _0x2c6d95();
-      if (!_0x12c39c || !_0x556e71) {
+    const pointPx = (t) => {
+      const xS = getXS();
+      const yS = getYS();
+      if (!xS || !yS) {
         return null;
       }
       return {
-        x1: _0x12c39c.getPixelForValue(_0x2c55a5.x1Idx),
-        y1: _0x556e71.getPixelForValue(_0x2c55a5.y1),
-        x2: _0x12c39c.getPixelForValue(_0x2c55a5.x2Idx),
-        y2: _0x556e71.getPixelForValue(_0x2c55a5.y2)
+        x1: xS.getPixelForValue(t.x1Idx),
+        y1: yS.getPixelForValue(t.y1),
+        x2: xS.getPixelForValue(t.x2Idx),
+        y2: yS.getPixelForValue(t.y2),
       };
     };
-    _0x1b36ef.setTrendDrawMode = (_0x326bc1, _0x2eb016) => {
-      _0x1b36ef._trendDrawMode = !!_0x326bc1;
-      if (_0x2eb016) {
-        _0x1b36ef._trendPendingTipo = _0x2eb016;
+    chart.setTrendDrawMode = (on, tipo) => {
+      chart._trendDrawMode = !!on;
+      if (tipo) {
+        chart._trendPendingTipo = tipo;
       }
-      _0x530bb4.style.cursor = _0x326bc1 ? "crosshair" : "";
+      canvas.style.cursor = on ? "crosshair" : "";
     };
-    _0x1b36ef.deleteTrendSelected = () => {
-      const _0x34f268 = _0x1b36ef._selectedTrend;
-      if (_0x34f268 >= 0 && _0x34f268 < _0x1b36ef.trendLines.length) {
-        _0x1b36ef.trendLines.splice(_0x34f268, 1);
-        _0x1b36ef._selectedTrend = -1;
-        _saveDragTrends(_0x1b36ef.trendLines);
-        _atualizarContadorTrends(_0x1b36ef.trendLines);
-        _0x1b36ef.update();
+    chart.deleteTrendSelected = () => {
+      const idx = chart._selectedTrend;
+      if (idx >= 0 && idx < chart.trendLines.length) {
+        chart.trendLines.splice(idx, 1);
+        chart._selectedTrend = -1;
+        _saveDragTrends(chart.trendLines);
+        _atualizarContadorTrends(chart.trendLines);
+        chart.update();
         _captureControlsToSetup(_getActiveSetup());
       }
     };
-    _0x1b36ef.clearTrendDraws = () => {
-      _0x1b36ef.trendLines = [];
-      _0x1b36ef._selectedTrend = -1;
-      _saveDragTrends(_0x1b36ef.trendLines);
-      _atualizarContadorTrends(_0x1b36ef.trendLines);
-      _0x1b36ef.update();
+    chart.clearTrendDraws = () => {
+      chart.trendLines = [];
+      chart._selectedTrend = -1;
+      _saveDragTrends(chart.trendLines);
+      _atualizarContadorTrends(chart.trendLines);
+      chart.update();
       _captureControlsToSetup(_getActiveSetup());
     };
-    const _0x256956 = (_0x2bd8d1, _0x5e1f3f) => {
-      const _0x361abf = {
+    const nearestTrend = (pxX, pxY) => {
+      const chart2 = {
         idx: -1,
-        handle: null
+        handle: null,
       };
-      if (!_0x1b36ef.chartArea) {
-        return _0x361abf;
+      if (!chart.chartArea) {
+        return chart2;
       }
-      let _0x1bbb6c = -1;
-      let _0x3c216f = Infinity;
-      let _0xdc414d = null;
-      (_0x1b36ef.trendLines || []).forEach((_0x8eb43a, _0x3c47b4) => {
-        const _0x56e436 = _0x3abab6(_0x8eb43a);
-        if (!_0x56e436) {
+      let best = -1;
+      let bestDist = Infinity;
+      let bestHandle = null;
+      (chart.trendLines || []).forEach((t, i) => {
+        const p = pointPx(t);
+        if (!p) {
           return;
         }
-        const _0xa2c9bb = Math.hypot(_0x56e436.x1 - _0x2bd8d1, _0x56e436.y1 - _0x5e1f3f);
-        const _0x41ae27 = Math.hypot(_0x56e436.x2 - _0x2bd8d1, _0x56e436.y2 - _0x5e1f3f);
-        const _0xb4ba70 = _distToSegment(_0x2bd8d1, _0x5e1f3f, _0x56e436.x1, _0x56e436.y1, _0x56e436.x2, _0x56e436.y2);
-        if (_0xa2c9bb <= _0x30ea41 && _0xa2c9bb < _0x3c216f) {
-          _0x3c216f = _0xa2c9bb;
-          _0x1bbb6c = _0x3c47b4;
-          _0xdc414d = "p1";
+        const dP1 = Math.hypot(p.x1 - pxX, p.y1 - pxY);
+        const dP2 = Math.hypot(p.x2 - pxX, p.y2 - pxY);
+        const dLine = _distToSegment(pxX, pxY, p.x1, p.y1, p.x2, p.y2);
+        if (dP1 <= HIT_PX && dP1 < bestDist) {
+          bestDist = dP1;
+          best = i;
+          bestHandle = "p1";
         }
-        if (_0x41ae27 <= _0x30ea41 && _0x41ae27 < _0x3c216f) {
-          _0x3c216f = _0x41ae27;
-          _0x1bbb6c = _0x3c47b4;
-          _0xdc414d = "p2";
+        if (dP2 <= HIT_PX && dP2 < bestDist) {
+          bestDist = dP2;
+          best = i;
+          bestHandle = "p2";
         }
-        if (_0xb4ba70 <= _0x30ea41 && _0xb4ba70 < _0x3c216f) {
-          _0x3c216f = _0xb4ba70;
-          _0x1bbb6c = _0x3c47b4;
-          _0xdc414d = "body";
+        if (dLine <= HIT_PX && dLine < bestDist) {
+          bestDist = dLine;
+          best = i;
+          bestHandle = "body";
         }
       });
-      const _0x1ca61e = {
-        idx: _0x1bbb6c,
-        handle: _0xdc414d
+      const bestHandle2 = {
+        idx: best,
+        handle: bestHandle,
       };
-      return _0x1ca61e;
+      return bestHandle2;
     };
-    const _0x44611b = _0x81ca96 => {
-      const _0x44da88 = _0x5f2343();
-      const _0x3fbb38 = _0x2c6d95();
-      if (!_0x44da88 || !_0x3fbb38) {
+    const startEvt = (evt) => {
+      const xS = getXS();
+      const yS = getYS();
+      if (!xS || !yS) {
         return;
       }
-      const _0x15a96e = _0x590a52(_0x81ca96);
-      const _0x47abff = _0x4f9252(_0x81ca96);
-      if (_0x1b36ef._trendDrawMode) {
-        if (_0x81ca96.cancelable) {
-          _0x81ca96.preventDefault();
+      const pxY = getEvtY(evt);
+      const pxX = getEvtX(evt);
+      if (chart._trendDrawMode) {
+        if (evt.cancelable) {
+          evt.preventDefault();
         }
-        let _0x236b80 = _0x3fbb38.getValueForPixel(_0x15a96e);
-        _0x236b80 = Math.round(_0x236b80 * 10) / 10;
-        const _0x307038 = {
-          x1Px: _0x47abff,
-          y1: _0x236b80,
-          x2Px: _0x47abff,
-          y2: _0x236b80
+        let v = yS.getValueForPixel(pxY);
+        v = Math.round(v * 10) / 10;
+        const creating2 = {
+          x1Px: pxX,
+          y1: v,
+          x2Px: pxX,
+          y2: v,
         };
-        _0x21b525 = _0x307038;
-        _0x1b36ef._selectedTrend = -1;
-        _0x1b36ef.update("none");
+        creating = creating2;
+        chart._selectedTrend = -1;
+        chart.update("none");
         return;
       }
-      const {
-        idx: _0x2875d4,
-        handle: _0x1bab8d
-      } = _0x256956(_0x47abff, _0x15a96e);
-      if (_0x2875d4 >= 0) {
-        if (_0x81ca96.cancelable) {
-          _0x81ca96.preventDefault();
+      const { idx, handle } = nearestTrend(pxX, pxY);
+      if (idx >= 0) {
+        if (evt.cancelable) {
+          evt.preventDefault();
         }
-        _0x41b9f2 = _0x2875d4;
-        _0x4a884e = _0x1bab8d;
-        _0x1b36ef._selectedTrend = _0x2875d4;
-        _0x56fa7c = _0x44da88.getValueForPixel(_0x47abff);
-        _0x57571e = _0x3fbb38.getValueForPixel(_0x15a96e);
-        const _0x366121 = {
-          ..._0x1b36ef.trendLines[_0x2875d4]
+        draggingIdx = idx;
+        draggingHandle = handle;
+        chart._selectedTrend = idx;
+        dragStartXVal = xS.getValueForPixel(pxX);
+        dragStartYVal = yS.getValueForPixel(pxY);
+        const dragOrig2 = {
+          ...chart.trendLines[idx],
         };
-        _0x12af78 = _0x366121;
+        dragOrig = dragOrig2;
       } else {
-        _0x1b36ef._selectedTrend = -1;
+        chart._selectedTrend = -1;
       }
-      _0x1b36ef.update();
+      chart.update();
     };
-    const _0xfbed0c = _0x5ef517 => {
-      const _0x1e7d8e = _0x5f2343();
-      const _0x13c26e = _0x2c6d95();
-      if (!_0x1e7d8e || !_0x13c26e) {
+    const moveEvt = (evt) => {
+      const xS = getXS();
+      const yS = getYS();
+      if (!xS || !yS) {
         return;
       }
-      const _0x46f7b5 = _0x590a52(_0x5ef517);
-      const _0x4b38a9 = _0x4f9252(_0x5ef517);
-      if (_0x21b525) {
-        if (_0x5ef517.cancelable) {
-          _0x5ef517.preventDefault();
+      const pxY = getEvtY(evt);
+      const pxX = getEvtX(evt);
+      if (creating) {
+        if (evt.cancelable) {
+          evt.preventDefault();
         }
-        let _0x38917c = _0x13c26e.getValueForPixel(_0x46f7b5);
-        _0x21b525.y2 = Math.round(_0x38917c * 10) / 10;
-        _0x21b525.x2Px = _0x4b38a9;
-        _0x1b36ef.update("none");
+        let v = yS.getValueForPixel(pxY);
+        creating.y2 = Math.round(v * 10) / 10;
+        creating.x2Px = pxX;
+        chart.update("none");
         return;
       }
-      if (_0x41b9f2 >= 0) {
-        if (_0x5ef517.cancelable) {
-          _0x5ef517.preventDefault();
+      if (draggingIdx >= 0) {
+        if (evt.cancelable) {
+          evt.preventDefault();
         }
-        const _0x55a012 = _0x1b36ef.trendLines[_0x41b9f2];
-        if (_0x4a884e === "p1") {
-          _0x55a012.x1Idx = Math.round(_0x1e7d8e.getValueForPixel(_0x4b38a9));
-          _0x55a012.y1 = Math.round(_0x13c26e.getValueForPixel(_0x46f7b5) * 10) / 10;
-        } else if (_0x4a884e === "p2") {
-          _0x55a012.x2Idx = Math.round(_0x1e7d8e.getValueForPixel(_0x4b38a9));
-          _0x55a012.y2 = Math.round(_0x13c26e.getValueForPixel(_0x46f7b5) * 10) / 10;
+        const t = chart.trendLines[draggingIdx];
+        if (draggingHandle === "p1") {
+          t.x1Idx = Math.round(xS.getValueForPixel(pxX));
+          t.y1 = Math.round(yS.getValueForPixel(pxY) * 10) / 10;
+        } else if (draggingHandle === "p2") {
+          t.x2Idx = Math.round(xS.getValueForPixel(pxX));
+          t.y2 = Math.round(yS.getValueForPixel(pxY) * 10) / 10;
         } else {
-          const _0x236a5a = _0x1e7d8e.getValueForPixel(_0x4b38a9) - _0x56fa7c;
-          const _0x1972f3 = _0x13c26e.getValueForPixel(_0x46f7b5) - _0x57571e;
-          _0x55a012.x1Idx = Math.round(_0x12af78.x1Idx + _0x236a5a);
-          _0x55a012.x2Idx = Math.round(_0x12af78.x2Idx + _0x236a5a);
-          _0x55a012.y1 = Math.round((_0x12af78.y1 + _0x1972f3) * 10) / 10;
-          _0x55a012.y2 = Math.round((_0x12af78.y2 + _0x1972f3) * 10) / 10;
+          const dxVal = xS.getValueForPixel(pxX) - dragStartXVal;
+          const dyVal = yS.getValueForPixel(pxY) - dragStartYVal;
+          t.x1Idx = Math.round(dragOrig.x1Idx + dxVal);
+          t.x2Idx = Math.round(dragOrig.x2Idx + dxVal);
+          t.y1 = Math.round((dragOrig.y1 + dyVal) * 10) / 10;
+          t.y2 = Math.round((dragOrig.y2 + dyVal) * 10) / 10;
         }
-        _0x1b36ef.update("none");
+        chart.update("none");
       }
     };
-    const _0x17ae1b = () => {
-      if (_0x21b525) {
-        const _0x3679cb = Math.abs(_0x21b525.x2Px - _0x21b525.x1Px);
-        if (_0x3679cb > 4) {
-          if (_0x1b36ef.trendLines.length >= MAX_DRAG_TRENDS) {
+    const endEvt = () => {
+      if (creating) {
+        const distPx = Math.abs(creating.x2Px - creating.x1Px);
+        if (distPx > 4) {
+          if (chart.trendLines.length >= MAX_DRAG_TRENDS) {
             alert("Máximo de " + MAX_DRAG_TRENDS + " linhas de tendência!");
           } else {
-            const _0x29d8c4 = _0x5f2343();
-            const _0x323f6e = Math.round(_0x29d8c4.getValueForPixel(_0x21b525.x1Px));
-            const _0x151ab2 = Math.round(_0x29d8c4.getValueForPixel(_0x21b525.x2Px));
-            const _0x1538a1 = _0x1b36ef._trendPendingTipo || "LTA";
-            const _0x166ba3 = TREND_COLORS[_0x1538a1] || "#34D399";
-            const _0x57585a = {
-              x1Idx: _0x323f6e,
-              y1: _0x21b525.y1,
-              x2Idx: _0x151ab2,
-              y2: _0x21b525.y2,
-              color: _0x166ba3,
-              tipo: _0x1538a1
+            const xS = getXS();
+            const x1Idx = Math.round(xS.getValueForPixel(creating.x1Px));
+            const x2Idx = Math.round(xS.getValueForPixel(creating.x2Px));
+            const tipo = chart._trendPendingTipo || "LTA";
+            const color = TREND_COLORS[tipo] || "#34D399";
+            const chart2 = {
+              x1Idx,
+              y1: creating.y1,
+              x2Idx,
+              y2: creating.y2,
+              color,
+              tipo,
             };
-            _0x1b36ef.trendLines.push(_0x57585a);
-            _0x1b36ef._selectedTrend = _0x1b36ef.trendLines.length - 1;
-            _saveDragTrends(_0x1b36ef.trendLines);
-            _atualizarContadorTrends(_0x1b36ef.trendLines);
+            chart.trendLines.push(chart2);
+            chart._selectedTrend = chart.trendLines.length - 1;
+            _saveDragTrends(chart.trendLines);
+            _atualizarContadorTrends(chart.trendLines);
             _captureControlsToSetup(_getActiveSetup());
           }
         }
-        _0x21b525 = null;
-        _0x1b36ef.setTrendDrawMode(false);
-        _0x1b36ef.update();
+        creating = null;
+        chart.setTrendDrawMode(false);
+        chart.update();
       }
-      if (_0x41b9f2 >= 0) {
-        _saveDragTrends(_0x1b36ef.trendLines);
+      if (draggingIdx >= 0) {
+        _saveDragTrends(chart.trendLines);
         _captureControlsToSetup(_getActiveSetup());
       }
-      _0x41b9f2 = -1;
-      _0x4a884e = null;
+      draggingIdx = -1;
+      draggingHandle = null;
     };
-    _0x530bb4.addEventListener("mousedown", _0x44611b);
-    _0x530bb4.addEventListener("mousemove", _0xfbed0c);
-    _0x530bb4.addEventListener("mouseleave", _0x17ae1b);
-    window.addEventListener("mouseup", _0x17ae1b);
-    _0x530bb4.addEventListener("touchstart", _0x44611b, {
-      passive: false
+    canvas.addEventListener("mousedown", startEvt);
+    canvas.addEventListener("mousemove", moveEvt);
+    canvas.addEventListener("mouseleave", endEvt);
+    window.addEventListener("mouseup", endEvt);
+    canvas.addEventListener("touchstart", startEvt, {
+      passive: false,
     });
-    _0x530bb4.addEventListener("touchmove", _0xfbed0c, {
-      passive: false
+    canvas.addEventListener("touchmove", moveEvt, {
+      passive: false,
     });
-    _0x530bb4.addEventListener("touchend", _0x17ae1b, {
-      passive: true
+    canvas.addEventListener("touchend", endEvt, {
+      passive: true,
     });
-    _0x530bb4.addEventListener("touchcancel", _0x17ae1b, {
-      passive: true
+    canvas.addEventListener("touchcancel", endEvt, {
+      passive: true,
     });
-    window.addEventListener("keydown", _0xdae736 => {
-      if (_0xdae736.key === "Delete" || _0xdae736.key === "Backspace") {
-        const _0x28e3c1 = chartInstances.Copa || Object.values(chartInstances)[0];
-        if (_0x28e3c1) {
-          _0x28e3c1.deleteTrendSelected();
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        const c = chartInstances.Copa || Object.values(chartInstances)[0];
+        if (c) {
+          c.deleteTrendSelected();
         }
       }
     });
-    _0x1b36ef._trendCreatingRef = () => _0x21b525;
-    _atualizarContadorTrends(_0x1b36ef.trendLines);
+    chart._trendCreatingRef = () => creating;
+    _atualizarContadorTrends(chart.trendLines);
   },
-  afterDatasetsDraw(_0x2633cb) {
-    const _0x4d26c2 = _0x2633cb.scales.x;
-    const _0x3ca2bd = _0x2633cb.scales.y;
-    if (!_0x4d26c2 || !_0x3ca2bd || !_0x2633cb.chartArea) {
+  afterDatasetsDraw(chart) {
+    const xS = chart.scales.x;
+    const yS = chart.scales.y;
+    if (!xS || !yS || !chart.chartArea) {
       return;
     }
-    const _0x53dbb5 = _0x2633cb.ctx;
-    const {
-      right: _0x37e910
-    } = _0x2633cb.chartArea;
-    const _0xf807b9 = (_0x1e9d36, _0x5680fe, _0x5806c9, _0x459613, _0x437c52, _0x4219ea, _0xba3543, _0x4c57d2) => {
-      const _0x431f8f = _0x4d26c2.getPixelForValue(_0x1e9d36);
-      const _0x2140b0 = _0x3ca2bd.getPixelForValue(_0x5680fe);
-      const _0x144c06 = _0x4d26c2.getPixelForValue(_0x5806c9);
-      const _0x781fc2 = _0x3ca2bd.getPixelForValue(_0x459613);
-      if (![_0x431f8f, _0x2140b0, _0x144c06, _0x781fc2].every(isFinite)) {
+    const ctx = chart.ctx;
+    const { right } = chart.chartArea;
+    const drawLine = (x1Idx, y1, x2Idx, y2, color, isSel, isPreview, tipo) => {
+      const p1x = xS.getPixelForValue(x1Idx);
+      const p1y = yS.getPixelForValue(y1);
+      const p2x = xS.getPixelForValue(x2Idx);
+      const p2y = yS.getPixelForValue(y2);
+      if (![p1x, p1y, p2x, p2y].every(isFinite)) {
         return;
       }
-      _0x53dbb5.save();
-      _0x53dbb5.strokeStyle = _0x437c52;
-      _0x53dbb5.lineWidth = _0x4219ea ? 2.2 : 1.6;
-      _0x53dbb5.globalAlpha = _0xba3543 ? 0.6 : 1;
-      _0x53dbb5.beginPath();
-      _0x53dbb5.moveTo(_0x431f8f, _0x2140b0);
-      _0x53dbb5.lineTo(_0x144c06, _0x781fc2);
-      _0x53dbb5.stroke();
-      if (_0x144c06 !== _0x431f8f) {
-        const _0x55bad2 = (_0x781fc2 - _0x2140b0) / (_0x144c06 - _0x431f8f);
-        const _0x2ba225 = _0x781fc2 + _0x55bad2 * (_0x37e910 - _0x144c06);
-        _0x53dbb5.setLineDash([6, 5]);
-        _0x53dbb5.globalAlpha = _0xba3543 ? 0.4 : 0.65;
-        _0x53dbb5.beginPath();
-        _0x53dbb5.moveTo(_0x144c06, _0x781fc2);
-        _0x53dbb5.lineTo(_0x37e910, _0x2ba225);
-        _0x53dbb5.stroke();
-        _0x53dbb5.setLineDash([]);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = isSel ? 2.2 : 1.6;
+      ctx.globalAlpha = isPreview ? 0.6 : 1;
+      ctx.beginPath();
+      ctx.moveTo(p1x, p1y);
+      ctx.lineTo(p2x, p2y);
+      ctx.stroke();
+      if (p2x !== p1x) {
+        const slope = (p2y - p1y) / (p2x - p1x);
+        const extY = p2y + slope * (right - p2x);
+        ctx.setLineDash([6, 5]);
+        ctx.globalAlpha = isPreview ? 0.4 : 0.65;
+        ctx.beginPath();
+        ctx.moveTo(p2x, p2y);
+        ctx.lineTo(right, extY);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
-      _0x53dbb5.globalAlpha = 1;
-      if (!_0xba3543) {
-        [[_0x431f8f, _0x2140b0], [_0x144c06, _0x781fc2]].forEach(([_0x4cfde2, _0x22c336]) => {
-          _0x53dbb5.beginPath();
-          _0x53dbb5.fillStyle = _0x437c52;
-          _0x53dbb5.strokeStyle = "rgba(8,11,20,0.9)";
-          _0x53dbb5.lineWidth = 1.2;
-          _0x53dbb5.arc(_0x4cfde2, _0x22c336, _0x4219ea ? 4.5 : 3.5, 0, Math.PI * 2);
-          _0x53dbb5.fill();
-          _0x53dbb5.stroke();
+      ctx.globalAlpha = 1;
+      if (!isPreview) {
+        [
+          [p1x, p1y],
+          [p2x, p2y],
+        ].forEach(([px, py]) => {
+          ctx.beginPath();
+          ctx.fillStyle = color;
+          ctx.strokeStyle = "rgba(8,11,20,0.9)";
+          ctx.lineWidth = 1.2;
+          ctx.arc(px, py, isSel ? 4.5 : 3.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
         });
-        if (_0x4c57d2) {
-          _0x53dbb5.font = "600 9.5px 'Inter',Arial,sans-serif";
-          _0x53dbb5.fillStyle = _0x437c52;
-          _0x53dbb5.textAlign = "left";
-          _0x53dbb5.textBaseline = "bottom";
-          _0x53dbb5.fillText(_0x4c57d2, _0x144c06 + 6, _0x781fc2 - 4);
+        if (tipo) {
+          ctx.font = "600 9.5px 'Inter',Arial,sans-serif";
+          ctx.fillStyle = color;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "bottom";
+          ctx.fillText(tipo, p2x + 6, p2y - 4);
         }
       }
-      _0x53dbb5.restore();
+      ctx.restore();
     };
-    (_0x2633cb.trendLines || []).forEach((_0x158bd1, _0x3f2b23) => {
-      _0xf807b9(_0x158bd1.x1Idx, _0x158bd1.y1, _0x158bd1.x2Idx, _0x158bd1.y2, _0x158bd1.color, _0x3f2b23 === _0x2633cb._selectedTrend, false, _0x158bd1.tipo);
+    (chart.trendLines || []).forEach((t, i) => {
+      drawLine(
+        t.x1Idx,
+        t.y1,
+        t.x2Idx,
+        t.y2,
+        t.color,
+        i === chart._selectedTrend,
+        false,
+        t.tipo,
+      );
     });
-    const _0xcd498f = _0x2633cb._trendCreatingRef ? _0x2633cb._trendCreatingRef() : null;
-    if (_0xcd498f) {
-      const _0xd2574e = _0x4d26c2.getValueForPixel(_0xcd498f.x1Px);
-      const _0x2f872d = _0x4d26c2.getValueForPixel(_0xcd498f.x2Px);
-      const _0x14b841 = TREND_COLORS[_0x2633cb._trendPendingTipo] || "#E5E7EB";
-      _0xf807b9(_0xd2574e, _0xcd498f.y1, _0x2f872d, _0xcd498f.y2, _0x14b841, true, true, null);
+    const creating = chart._trendCreatingRef ? chart._trendCreatingRef() : null;
+    if (creating) {
+      const x1Idx = xS.getValueForPixel(creating.x1Px);
+      const x2Idx = xS.getValueForPixel(creating.x2Px);
+      const previewColor = TREND_COLORS[chart._trendPendingTipo] || "#E5E7EB";
+      drawLine(
+        x1Idx,
+        creating.y1,
+        x2Idx,
+        creating.y2,
+        previewColor,
+        true,
+        true,
+        null,
+      );
     }
-  }
+  },
 };
 Chart.defaults.animation.duration = 0;
-Chart.defaults.font.family = "'Inter','Segoe UI',system-ui,-apple-system,Arial,sans-serif";
-function createStatsChart(_0x50c1c6, _0x470939, _0x2d629e, _0x5189b7) {
-  const _0x3976c3 = _getActiveSetup();
-  const _0xac04a6 = [];
-  const _0x34ec67 = "#38BDF8";
-  const _0x5d8f5f = "#F59E0B";
-  Object.entries(labelToKey).forEach(([_0x34af01]) => {
-    const _0x172b85 = labelToKey[_0x34af01];
-    const _0x28c490 = _marketColor(_0x3976c3, _0x34af01);
-    const _0x40a2e9 = _0x34af01 === "Gols Individual";
-    const _0xec2eda = {
-      label: _0x34af01,
-      data: _0x2d629e[_0x172b85],
-      borderColor: _0x28c490,
-      backgroundColor: _0x28c490,
-      pointBackgroundColor: _0x2d629e[_0x172b85 + "Colors"],
+Chart.defaults.font.family =
+  "'Inter','Segoe UI',system-ui,-apple-system,Arial,sans-serif";
+function createStatsChart(ctx, labels, data, league) {
+  const activeSetup = _getActiveSetup();
+  const datasets = [];
+  const shortColor = "#38BDF8";
+  const longColor = "#F59E0B";
+  Object.entries(labelToKey).forEach(([label]) => {
+    const key = labelToKey[label];
+    const color = _marketColor(activeSetup, label);
+    const isGolsInd = label === "Gols Individual";
+    const datasets2 = {
+      label,
+      data: data[key],
+      borderColor: color,
+      backgroundColor: color,
+      pointBackgroundColor: data[key + "Colors"],
       pointBorderColor: "rgba(8,11,20,0.9)",
       pointBorderWidth: 1.5,
       borderWidth: 2.5,
@@ -2222,14 +2359,14 @@ function createStatsChart(_0x50c1c6, _0x470939, _0x2d629e, _0x5189b7) {
       borderCapStyle: "round",
       borderJoinStyle: "round",
       fill: false,
-      yAxisID: _0x40a2e9 ? "y2" : "y",
-      hidden: !statsChartVisibleDatasets[_0x34af01]
+      yAxisID: isGolsInd ? "y2" : "y",
+      hidden: !statsChartVisibleDatasets[label],
     };
-    _0xac04a6.push(_0xec2eda);
-    const _0x5b11c6 = {
-      label: _0x34af01 + " - Short MA",
-      data: _0x2d629e[_0x172b85 + "Short"],
-      borderColor: _0x34ec67,
+    datasets.push(datasets2);
+    const obj3 = {
+      label: label + " - Short MA",
+      data: data[key + "Short"],
+      borderColor: shortColor,
       backgroundColor: "transparent",
       tension: 0.3,
       cubicInterpolationMode: "monotone",
@@ -2237,14 +2374,14 @@ function createStatsChart(_0x50c1c6, _0x470939, _0x2d629e, _0x5189b7) {
       borderDash: [4, 3],
       pointRadius: 0,
       fill: false,
-      yAxisID: _0x40a2e9 ? "y2" : "y",
-      hidden: !showMovingAverages || !statsChartVisibleDatasets[_0x34af01]
+      yAxisID: isGolsInd ? "y2" : "y",
+      hidden: !showMovingAverages || !statsChartVisibleDatasets[label],
     };
-    _0xac04a6.push(_0x5b11c6);
-    const _0x496cf2 = {
-      label: _0x34af01 + " - Long MA",
-      data: _0x2d629e[_0x172b85 + "Long"],
-      borderColor: _0x5d8f5f,
+    datasets.push(obj3);
+    const obj4 = {
+      label: label + " - Long MA",
+      data: data[key + "Long"],
+      borderColor: longColor,
       backgroundColor: "transparent",
       tension: 0.3,
       cubicInterpolationMode: "monotone",
@@ -2252,40 +2389,43 @@ function createStatsChart(_0x50c1c6, _0x470939, _0x2d629e, _0x5189b7) {
       borderDash: [2, 3],
       pointRadius: 0,
       fill: false,
-      yAxisID: _0x40a2e9 ? "y2" : "y",
-      hidden: !showMovingAverages || !statsChartVisibleDatasets[_0x34af01]
+      yAxisID: isGolsInd ? "y2" : "y",
+      hidden: !showMovingAverages || !statsChartVisibleDatasets[label],
     };
-    _0xac04a6.push(_0x496cf2);
+    datasets.push(obj4);
   });
-  const _0x5a0a01 = {
-    labels: _0x470939,
-    datasets: _0xac04a6
+  const obj = {
+    labels,
+    datasets,
   };
-  const _0x54fe40 = {
-    padding: yAxisPosition === "right" ? {
-      top: 30,
-      left: 80
-    } : {
-      top: 30,
-      right: 80
-    }
+  const obj2 = {
+    padding:
+      yAxisPosition === "right"
+        ? {
+            top: 30,
+            left: 80,
+          }
+        : {
+            top: 30,
+            right: 80,
+          },
   };
-  const _0x3a9f86 = {
-    enabled: _0x3976c3.linhaAtual ?? true
+  const activeSetup2 = {
+    enabled: activeSetup.linhaAtual ?? true,
   };
-  return new Chart(_0x50c1c6, {
+  return new Chart(ctx, {
     type: "line",
-    data: _0x5a0a01,
+    data: obj,
     options: {
       responsive: true,
       maintainAspectRatio: false,
       animation: {
-        duration: 0
+        duration: 0,
       },
-      layout: _0x54fe40,
+      layout: obj2,
       plugins: {
         legend: {
-          display: false
+          display: false,
         },
         tooltip: {
           enabled: true,
@@ -2293,11 +2433,11 @@ function createStatsChart(_0x50c1c6, _0x470939, _0x2d629e, _0x5189b7) {
           titleColor: "#7DE3D6",
           titleFont: {
             weight: "600",
-            size: 12
+            size: 12,
           },
           bodyColor: "#E5E7EB",
           bodyFont: {
-            size: 11.5
+            size: 11.5,
           },
           borderColor: "rgba(125,227,214,0.35)",
           borderWidth: 1,
@@ -2307,48 +2447,55 @@ function createStatsChart(_0x50c1c6, _0x470939, _0x2d629e, _0x5189b7) {
           caretPadding: 26,
           padding: 12,
           callbacks: {
-            title: _0x2f67c7 => {
-              const _0x414125 = chartData[_0x5189b7];
-              const _0x326381 = _0x414125[Math.max(0, _0x414125.length - numPoints) + _0x2f67c7[0].dataIndex];
-              if (_0x326381) {
-                return _0x326381.hora + ":" + _0x326381.minuto.toString().padStart(2, "0");
+            title: (items) => {
+              const sd = chartData[league];
+              const m =
+                sd[Math.max(0, sd.length - numPoints) + items[0].dataIndex];
+              if (m) {
+                return m.hora + ":" + m.minuto.toString().padStart(2, "0");
               } else {
                 return "";
               }
             },
-            label: _0x3327d9 => {
-              const _0x16363e = _0x3327d9.parsed.y;
-              if (_0x16363e === null) {
+            label: (ctx2) => {
+              const v = ctx2.parsed.y;
+              if (v === null) {
                 return "";
               }
-              const _0x2607aa = _0x3327d9.dataset.label === "Gols FT" || _0x3327d9.dataset.label === "Gols HT" || _0x3327d9.dataset.label === "Gols Individual" || _0x3327d9.dataset.label === "Gols FT Casa" || _0x3327d9.dataset.label === "Gols FT Fora";
-              if (_0x2607aa) {
-                return _0x3327d9.dataset.label + ": " + _0x16363e + " gols";
+              const isGols =
+                ctx2.dataset.label === "Gols FT" ||
+                ctx2.dataset.label === "Gols HT" ||
+                ctx2.dataset.label === "Gols Individual" ||
+                ctx2.dataset.label === "Gols FT Casa" ||
+                ctx2.dataset.label === "Gols FT Fora";
+              if (isGols) {
+                return ctx2.dataset.label + ": " + v + " gols";
               } else {
-                return _0x3327d9.dataset.label + ": " + _0x16363e.toFixed(2) + "%";
+                return ctx2.dataset.label + ": " + v.toFixed(2) + "%";
               }
             },
-            afterBody: _0x3e08e5 => {
-              const _0x18ca9f = chartData[_0x5189b7];
-              const _0x30c3e2 = _0x18ca9f[Math.max(0, _0x18ca9f.length - numPoints) + _0x3e08e5[0].dataIndex];
-              if (_0x30c3e2) {
-                return "FT: " + (_0x30c3e2.ft || "N/A") + "  HT: " + (_0x30c3e2.ht || "N/A");
+            afterBody: (items) => {
+              const sd = chartData[league];
+              const m =
+                sd[Math.max(0, sd.length - numPoints) + items[0].dataIndex];
+              if (m) {
+                return "FT: " + (m.ft || "N/A") + "  HT: " + (m.ht || "N/A");
               } else {
                 return "";
               }
-            }
-          }
+            },
+          },
         },
-        linhaAtual: _0x3a9f86
+        linhaAtual: activeSetup2,
       },
       scales: {
         x: {
           ticks: {
-            display: false
+            display: false,
           },
           grid: {
-            display: false
-          }
+            display: false,
+          },
         },
         y: {
           position: yAxisPosition,
@@ -2356,22 +2503,22 @@ function createStatsChart(_0x50c1c6, _0x470939, _0x2d629e, _0x5189b7) {
           ticks: {
             color: "#8B92A8",
             font: {
-              size: 11
+              size: 11,
             },
             stepSize: 5,
-            padding: 8
+            padding: 8,
           },
           grid: {
             color: "rgba(148,163,184,0.09)",
             lineWidth: 1,
-            drawTicks: false
+            drawTicks: false,
           },
           border: {
-            display: false
+            display: false,
           },
-          afterFit: _0x48abff => {
-            _0x48abff.paddingTop = 20;
-          }
+          afterFit: (s) => {
+            s.paddingTop = 20;
+          },
         },
         y2: {
           position: "right",
@@ -2381,218 +2528,375 @@ function createStatsChart(_0x50c1c6, _0x470939, _0x2d629e, _0x5189b7) {
           ticks: {
             color: "rgba(148,163,184,0.35)",
             stepSize: 1,
-            precision: 0
+            precision: 0,
           },
           grid: {
-            display: false
+            display: false,
           },
           border: {
-            display: false
+            display: false,
           },
-          afterFit: _0x202f32 => {
-            _0x202f32.width = 0;
-          }
-        }
-      }
+          afterFit: (s) => {
+            s.width = 0;
+          },
+        },
+      },
     },
-    plugins: [fibonacciLinesPlugin, fibDraggablePlugin, linhaAtualPlugin, linhaDraggablePlugin, trendLinePlugin, rotulosPlugin]
+    plugins: [
+      fibonacciLinesPlugin,
+      fibDraggablePlugin,
+      linhaAtualPlugin,
+      linhaDraggablePlugin,
+      trendLinePlugin,
+      rotulosPlugin,
+    ],
   });
 }
-function updateStatsChart(_0xf33629, _0x1b4f44) {
-  if (!_0xf33629) {
+function updateStatsChart(chart, newData) {
+  if (!chart) {
     return;
   }
-  _0xf33629.data.labels = _0x1b4f44.labels;
-  _0xf33629.data.datasets.forEach(_0x47e9c5 => {
-    _0x47e9c5.data = _0x1b4f44[getKeyFromLabel(_0x47e9c5.label)];
-    if (!_0x47e9c5.label.includes(" MA")) {
-      _0x47e9c5.pointBackgroundColor = _0x1b4f44[getKeyFromLabel(_0x47e9c5.label) + "Colors"];
+  chart.data.labels = newData.labels;
+  chart.data.datasets.forEach((ds) => {
+    ds.data = newData[getKeyFromLabel(ds.label)];
+    if (!ds.label.includes(" MA")) {
+      ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + "Colors"];
     }
   });
-  _0xf33629.update();
+  chart.update();
   _updateLinesPanelValues();
 }
-function processApiData(_0x3ae1c0, _0x8ae59d) {
-  const _0x55758d = [..._0x3ae1c0].sort((_0x59510d, _0x3ed616) => {
-    const _0x5af263 = new Date(_0x59510d.data);
-    const _0x2daf41 = new Date(_0x3ed616.data);
-    if (_0x5af263.getTime() !== _0x2daf41.getTime()) {
-      return _0x5af263 - _0x2daf41;
+function processApiData(data, league) {
+  const sortedData = [...data].sort((a, b) => {
+    const dA = new Date(a.data);
+    const dB = new Date(b.data);
+    if (dA.getTime() !== dB.getTime()) {
+      return dA - dB;
     }
-    if (_0x59510d.hora !== _0x3ed616.hora) {
-      return _0x59510d.hora - _0x3ed616.hora;
+    if (a.hora !== b.hora) {
+      return a.hora - b.hora;
     }
-    return _0x59510d.minuto - _0x3ed616.minuto;
+    return a.minuto - b.minuto;
   });
-  const _0x5f5372 = _0x55758d.slice(-numPoints - Math.ceil(averagePoints * 3.5));
-  chartData[_0x8ae59d] = _0x5f5372;
-  function _0x4c5ae1(_0x3b729e) {
-    const _0x3078aa = new Date(_0x3b729e.data);
-    return Math.floor(_0x3078aa.getTime() / 86400000) * 1440 + _0x3b729e.hora * 60 + _0x3b729e.minuto;
+  const slicedData = sortedData.slice(
+    -numPoints - Math.ceil(averagePoints * 3.5),
+  );
+  chartData[league] = slicedData;
+  function toAbsMin(m) {
+    const d = new Date(m.data);
+    return Math.floor(d.getTime() / 86400000) * 1440 + m.hora * 60 + m.minuto;
   }
-  let _0x2a455c = [];
-  let _0x79406a = [];
-  let _0x36a086 = [];
-  let _0x4c9aed = [];
-  let _0xa973ab = [];
-  let _0x4c2483 = [];
-  let _0x238cdc = [];
-  let _0x44aec2 = [];
-  let _0x57bf50 = [];
-  let _0x961a29 = [];
-  let _0x32bed0 = [];
-  let _0x54bd82 = [];
-  let _0x42ceff = [];
-  let _0x2b7431 = [];
-  let _0x5ec9dd = [];
-  let _0x118ce4 = [];
-  let _0x298f1f = [];
-  let _0x871047 = [];
-  let _0x19a14c = [];
-  let _0x1b5614 = [];
-  let _0x1c24ae = [];
-  let _0x5ef63e = [];
-  let _0x16bfb7 = [];
-  let _0x2b826b = [];
-  let _0x12441f = [];
-  let _0x5c3ac1 = [];
-  let _0x4a6b39 = [];
-  let _0x5457bc = [];
-  let _0x53be5a = [];
-  let _0xa0a671 = [];
-  let _0x5f1304 = [];
-  let _0x4680b7 = [];
-  let _0x4c92b3 = [];
-  let _0x4b2ad1 = [];
-  let _0x1bbe72 = [];
-  let _0x490262 = [];
-  let _0x233313 = [];
-  let _0x241130 = [];
-  let _0x6c90fc = [];
-  let _0x374007 = [];
-  let _0x298826 = [];
-  let _0x356c8a = [];
-  let _0x31dacc = [];
-  let _0x576e5c = [];
-  let _0x267262 = [];
-  let _0x396664 = [];
-  let _0x3ad61f = [];
-  let _0x1078d7 = [];
-  let _0x4e3946 = [];
-  let _0x3c88ed = [];
-  let _0x32e31c = [];
-  let _0x4a2a6a = [];
-  let _0x42be3b = [];
-  let _0x3b4c11 = [];
-  let _0x580ea3 = [];
-  let _0xf055c8 = [];
-  let _0x2bd5a6 = [];
-  let _0x4b7103 = [];
-  let _0x1de422 = [];
-  let _0x78bad6 = [];
-  let _0xcfb21e = [];
-  let _0xfb1500 = [];
-  let _0x292622 = [];
-  let _0x2f4611 = [];
-  let _0x5d2a9d = [];
-  let _0x3fedb7 = [];
-  let _0x3db7f8 = [];
-  let _0x439b42 = [];
-  let _0x309ef5 = [];
-  let _0x2937da = [];
-  let _0x2e2dc4 = [];
-  let _0x494829 = [];
-  let _0x57f21d = [];
-  let _0x5da5ff = [];
-  let _0x115534 = [];
-  let _0x1fd193 = [];
-  let _0x577e8c = [];
-  let _0x29164f = [];
-  let _0x383cef = [];
-  let _0x1411aa = [];
-  let _0x26bc21 = [];
-  let _0x2f752d = [];
-  let _0x2a505f = [];
-  let _0x2d2af0 = [];
-  let _0x125b43 = [];
-  let _0x41851b = [];
-  let _0x1e59b0 = [];
-  let _0x59b53a = [];
-  let _0xbd18da = [];
-  let _0x5b740a = [];
-  let _0x4a00e0 = [];
-  let _0x2d683b = [];
-  let _0x462787 = [];
-  let _0x10681f = [];
-  let _0x3a7cc1 = [];
-  let _0x3ca9f2 = [];
-  let _0x2e78ee = [];
-  let _0x5d2c42 = [];
-  let _0x220843 = [];
-  let _0x5c834f = [];
-  let _0x13aa88 = [];
-  let _0x3bb7bf = [];
-  let _0x4e7c61 = [];
-  let _0x2b9585 = [];
-  let _0x1eb193 = [];
-  let _0x2b69a6 = [];
-  let _0xc30986 = [];
-  let _0x1a372f = [];
-  let _0x92f603 = [];
-  let _0x164e8d = [];
-  let _0x7f9f9d = [];
-  let _0x817af1 = [];
-  let _0x59d1a8 = [];
-  let _0x26f98c = [];
-  let _0x877b4d = [];
-  let _0x50ed8d = [];
-  let _0x1125e5 = [];
-  let _0x3c2f22 = [];
-  let _0x242b3c = [];
-  let _0x423394 = [];
-  let _0x130d6c = [];
-  let _0x5123ed = [];
-  let _0x3c4c76 = [];
-  let _0x9b56f3 = [];
-  let _0x1d183c = [];
-  let _0x1ddaef = [];
-  let _0x7b8b2e = [];
-  let _0x42e965 = [];
-  let _0x2d59d2 = [];
-  let _0x16bb1d = [];
-  let _0x200c64 = [];
-  let _0x1e3eb9 = [];
-  let _0x46ed25 = [];
-  let _0x5a1897 = [];
-  let _0x44cd9a = [];
-  let _0x4c3fb4 = [];
-  let _0x170215 = [];
-  let _0x1fae6c = [];
-  let _0x8b1636 = [];
-  let _0x17f8ee = [];
-  let _0x59f64c = [];
-  let _0x2c00ea = [];
-  let _0x385d98 = [];
-  let _0x4728a5 = [];
-  let _0x539e04 = [];
-  let _0x3c4229 = [];
-  let _0x1bb734 = [];
-  let _0x1a05a1 = [];
-  let _0x34d42f = [];
-  let _0x19608b = [];
-  let _0x1c5eee = [];
-  let _0x21fd6e = [];
-  let _0x5ae753 = [];
-  const _0x840e70 = [_0x79406a, _0x36a086, _0xa973ab, _0x4c2483, _0x238cdc, _0x44aec2, _0x57bf50, _0x961a29, _0x32bed0, _0x54bd82, _0x42ceff, _0x2b7431, _0x5ec9dd, _0x118ce4, _0x298f1f, _0x871047, _0x19a14c, _0x1b5614, _0x1c24ae, _0x5ef63e, _0x16bfb7, _0x2b826b, _0x12441f, _0x5c3ac1, _0x4a6b39, _0x5457bc, _0x53be5a, _0xa0a671, _0x5f1304, _0x4680b7, _0x4c92b3, _0x4b2ad1, _0x1bbe72, _0x490262, _0x233313, _0x241130, _0x6c90fc, _0x374007, _0x298826, _0x356c8a, _0x31dacc, _0x576e5c, _0x267262, _0x396664, _0x3ad61f, _0x1078d7, _0x4e3946, _0x3c88ed, _0x32e31c, _0x4a2a6a, _0x42be3b, _0x3b4c11, _0x580ea3, _0xf055c8, _0x2bd5a6, _0x4b7103, _0x1de422, _0x78bad6, _0xcfb21e, _0xfb1500, _0x292622, _0x2f4611, _0x5d2a9d, _0x3fedb7, _0x3db7f8, _0x439b42, _0x309ef5, _0x2937da, _0x2e2dc4, _0x494829, _0x57f21d, _0x5da5ff, _0x115534];
-  const _0x2a3500 = [_0x29164f, _0x383cef, _0x26bc21, _0x2f752d, _0x2a505f, _0x2d2af0, _0x125b43, _0x41851b, _0x1e59b0, _0x59b53a, _0xbd18da, _0x5b740a, _0x4a00e0, _0x2d683b, _0x462787, _0x10681f, _0x3a7cc1, _0x3ca9f2, _0x2e78ee, _0x5d2c42, _0x220843, _0x5c834f, _0x13aa88, _0x3bb7bf, _0x4e7c61, _0x2b9585, _0x1eb193, _0x2b69a6, _0xc30986, _0x1a372f, _0x92f603, _0x164e8d, _0x7f9f9d, _0x817af1, _0x59d1a8, _0x26f98c, _0x877b4d, _0x50ed8d, _0x1125e5, _0x3c2f22, _0x242b3c, _0x423394, _0x130d6c, _0x5123ed, _0x3c4c76, _0x9b56f3, _0x1d183c, _0x1ddaef, _0x7b8b2e, _0x42e965, _0x2d59d2, _0x16bb1d, _0x200c64, _0x1e3eb9, _0x46ed25, _0x5a1897, _0x44cd9a, _0x4c3fb4, _0x170215, _0x1fae6c, _0x8b1636, _0x17f8ee, _0x59f64c, _0x2c00ea, _0x385d98, _0x4728a5, _0x539e04, _0x3c4229, _0x1bb734, _0x1a05a1, _0x34d42f, _0x19608b, _0x1c5eee];
-  const _0x38e9ba = "#2DD4BF";
-  const _0x45576f = "#FB7185";
-  const _0x26d767 = averagePoints * _MIN_POR_JOGO;
-  const _0x248ac9 = Math.max(0, _0x5f5372.length - numPoints);
-  for (let _0x57acf6 = 0; _0x57acf6 < _0x5f5372.length; _0x57acf6++) {
-    const _0x3dc032 = _0x5f5372[_0x57acf6];
-    const _0x4b0df2 = _0x4c5ae1(_0x3dc032);
-    let _0x22291d = {
+  let labels = [];
+  let golsFT = [];
+  let golsHT = [];
+  let placarHT0x1 = [];
+  let casaVence = [];
+  let empate = [];
+  let foraVence = [];
+  let ambasSim = [];
+  let ambasNao = [];
+  let over05 = [];
+  let over15 = [];
+  let over25 = [];
+  let over35 = [];
+  let over5 = [];
+  let under05 = [];
+  let under15 = [];
+  let under25 = [];
+  let under35 = [];
+  let gol0 = [];
+  let gol1 = [];
+  let gol2 = [];
+  let gol3 = [];
+  let gol4 = [];
+  let gol5 = [];
+  let gol2t0 = [];
+  let gol2t1 = [];
+  let gol2t2 = [];
+  let gol2t3 = [];
+  let gol2t4 = [];
+  let casa0 = [];
+  let casa1 = [];
+  let casa2 = [];
+  let casa3 = [];
+  let casa4 = [];
+  let fora0 = [];
+  let fora1 = [];
+  let fora2 = [];
+  let fora3 = [];
+  let fora4 = [];
+  let placar0x0 = [];
+  let placar1x0 = [];
+  let placar2x0 = [];
+  let placar3x0 = [];
+  let placar2x1 = [];
+  let placar3x1 = [];
+  let placar3x2 = [];
+  let placar4x0 = [];
+  let placar4x1 = [];
+  let placar0x1 = [];
+  let placar0x2 = [];
+  let placar1x2 = [];
+  let placar0x3 = [];
+  let placar1x3 = [];
+  let placar2x3 = [];
+  let placar0x4 = [];
+  let placar1x4 = [];
+  let placarHT0x0 = [];
+  let placarHT0x12 = [];
+  let placarHT1x0 = [];
+  let placarHT1x1 = [];
+  let placarHT0x2 = [];
+  let placarHT2x0 = [];
+  let placarHTOut = [];
+  let overHT = [];
+  let underHT = [];
+  let casaHT = [];
+  let empateHT = [];
+  let foraHT = [];
+  let viradinha = [];
+  let par = [];
+  let impar = [];
+  let margem1 = [];
+  let margem2 = [];
+  let margem3 = [];
+  let empateGols = [];
+  let golsFTCasa = [];
+  let golsFTFora = [];
+  let golsFTColors = [];
+  let golsHTColors = [];
+  let golsIndColors = [];
+  let casaVenceColors = [];
+  let empateColors = [];
+  let foraVenceColors = [];
+  let ambasSimColors = [];
+  let ambasNaoColors = [];
+  let over05Colors = [];
+  let over15Colors = [];
+  let over25Colors = [];
+  let over35Colors = [];
+  let over5Colors = [];
+  let under05Colors = [];
+  let under15Colors = [];
+  let under25Colors = [];
+  let under35Colors = [];
+  let gol0Colors = [];
+  let gol1Colors = [];
+  let gol2Colors = [];
+  let gol3Colors = [];
+  let gol4Colors = [];
+  let gol5Colors = [];
+  let gol2t0Colors = [];
+  let gol2t1Colors = [];
+  let gol2t2Colors = [];
+  let gol2t3Colors = [];
+  let gol2t4Colors = [];
+  let casa0Colors = [];
+  let casa1Colors = [];
+  let casa2Colors = [];
+  let casa3Colors = [];
+  let casa4Colors = [];
+  let fora0Colors = [];
+  let fora1Colors = [];
+  let fora2Colors = [];
+  let fora3Colors = [];
+  let fora4Colors = [];
+  let placar0x0Colors = [];
+  let placar1x0Colors = [];
+  let placar2x0Colors = [];
+  let placar3x0Colors = [];
+  let placar2x1Colors = [];
+  let placar3x1Colors = [];
+  let placar3x2Colors = [];
+  let placar4x0Colors = [];
+  let placar4x1Colors = [];
+  let placar0x1Colors = [];
+  let placar0x2Colors = [];
+  let placar1x2Colors = [];
+  let placar0x3Colors = [];
+  let placar1x3Colors = [];
+  let placar2x3Colors = [];
+  let placar0x4Colors = [];
+  let placar1x4Colors = [];
+  let placarHT0x0Colors = [];
+  let placarHT0x1Colors = [];
+  let placarHT1x0Colors = [];
+  let placarHT1x1Colors = [];
+  let placarHT0x2Colors = [];
+  let placarHT2x0Colors = [];
+  let placarHTOutColors = [];
+  let overHTColors = [];
+  let underHTColors = [];
+  let casaHTColors = [];
+  let empateHTColors = [];
+  let foraHTColors = [];
+  let viradinhaColors = [];
+  let parColors = [];
+  let imparColors = [];
+  let margem1Colors = [];
+  let margem2Colors = [];
+  let margem3Colors = [];
+  let empateGolsColors = [];
+  let golsFTCasaColors = [];
+  let golsFTForaColors = [];
+  const allData = [
+    golsFT,
+    golsHT,
+    casaVence,
+    empate,
+    foraVence,
+    ambasSim,
+    ambasNao,
+    over05,
+    over15,
+    over25,
+    over35,
+    over5,
+    under05,
+    under15,
+    under25,
+    under35,
+    gol0,
+    gol1,
+    gol2,
+    gol3,
+    gol4,
+    gol5,
+    gol2t0,
+    gol2t1,
+    gol2t2,
+    gol2t3,
+    gol2t4,
+    casa0,
+    casa1,
+    casa2,
+    casa3,
+    casa4,
+    fora0,
+    fora1,
+    fora2,
+    fora3,
+    fora4,
+    placar0x0,
+    placar1x0,
+    placar2x0,
+    placar3x0,
+    placar2x1,
+    placar3x1,
+    placar3x2,
+    placar4x0,
+    placar4x1,
+    placar0x1,
+    placar0x2,
+    placar1x2,
+    placar0x3,
+    placar1x3,
+    placar2x3,
+    placar0x4,
+    placar1x4,
+    placarHT0x0,
+    placarHT0x12,
+    placarHT1x0,
+    placarHT1x1,
+    placarHT0x2,
+    placarHT2x0,
+    placarHTOut,
+    overHT,
+    underHT,
+    casaHT,
+    empateHT,
+    foraHT,
+    viradinha,
+    par,
+    impar,
+    margem1,
+    margem2,
+    margem3,
+    empateGols,
+  ];
+  const allColors = [
+    golsFTColors,
+    golsHTColors,
+    casaVenceColors,
+    empateColors,
+    foraVenceColors,
+    ambasSimColors,
+    ambasNaoColors,
+    over05Colors,
+    over15Colors,
+    over25Colors,
+    over35Colors,
+    over5Colors,
+    under05Colors,
+    under15Colors,
+    under25Colors,
+    under35Colors,
+    gol0Colors,
+    gol1Colors,
+    gol2Colors,
+    gol3Colors,
+    gol4Colors,
+    gol5Colors,
+    gol2t0Colors,
+    gol2t1Colors,
+    gol2t2Colors,
+    gol2t3Colors,
+    gol2t4Colors,
+    casa0Colors,
+    casa1Colors,
+    casa2Colors,
+    casa3Colors,
+    casa4Colors,
+    fora0Colors,
+    fora1Colors,
+    fora2Colors,
+    fora3Colors,
+    fora4Colors,
+    placar0x0Colors,
+    placar1x0Colors,
+    placar2x0Colors,
+    placar3x0Colors,
+    placar2x1Colors,
+    placar3x1Colors,
+    placar3x2Colors,
+    placar4x0Colors,
+    placar4x1Colors,
+    placar0x1Colors,
+    placar0x2Colors,
+    placar1x2Colors,
+    placar0x3Colors,
+    placar1x3Colors,
+    placar2x3Colors,
+    placar0x4Colors,
+    placar1x4Colors,
+    placarHT0x0Colors,
+    placarHT0x1Colors,
+    placarHT1x0Colors,
+    placarHT1x1Colors,
+    placarHT0x2Colors,
+    placarHT2x0Colors,
+    placarHTOutColors,
+    overHTColors,
+    underHTColors,
+    casaHTColors,
+    empateHTColors,
+    foraHTColors,
+    viradinhaColors,
+    parColors,
+    imparColors,
+    margem1Colors,
+    margem2Colors,
+    margem3Colors,
+    empateGolsColors,
+  ];
+  const green = "#2DD4BF";
+  const red = "#FB7185";
+  const janelaMin = averagePoints * _MIN_POR_JOGO;
+  const startExibir = Math.max(0, slicedData.length - numPoints);
+  for (let i = 0; i < slicedData.length; i++) {
+    const mAtual = slicedData[i];
+    const tsAtual = toAbsMin(mAtual);
+    let s = {
       golsFT: 0,
       golsHT: 0,
       casaVence: 0,
@@ -2668,686 +2972,730 @@ function processApiData(_0x3ae1c0, _0x8ae59d) {
       margem2: 0,
       margem3: 0,
       empateGols: 0,
-      valid: 0
+      valid: 0,
     };
-    for (let _0x4aab6c = _0x57acf6; _0x4aab6c >= 0; _0x4aab6c--) {
-      const _0x23146f = _0x5f5372[_0x4aab6c];
-      const _0x2eb580 = _0x4c5ae1(_0x23146f);
-      if (_0x4b0df2 - _0x2eb580 > _0x26d767) {
+    for (let j = i; j >= 0; j--) {
+      const mj = slicedData[j];
+      const tsJ = toAbsMin(mj);
+      if (tsAtual - tsJ > janelaMin) {
         break;
       }
-      const _0x47336a = _0x23146f;
-      let _0x7d23b1 = [0, 0];
-      if (_0x47336a.ft?.includes(" x ")) {
-        _0x7d23b1 = _0x47336a.ft.split(" x ").map(Number);
+      const m2 = mj;
+      let ft2 = [0, 0];
+      if (m2.ft?.includes(" x ")) {
+        ft2 = m2.ft.split(" x ").map(Number);
       }
-      const _0x273f82 = parseHtScoreTotal(_0x47336a.ht);
-      const _0x2baf4a = parseHtParts(_0x47336a.ht);
-      const _0x2c9ae1 = _0x7d23b1[0] + _0x7d23b1[1];
-      const _0xd04e6e = Math.max(0, _0x2c9ae1 - _0x273f82);
-      _0x22291d.golsFT += _0x2c9ae1;
-      _0x22291d.golsHT += _0x273f82;
-      _0x22291d.golsFTCasa += _0x7d23b1[0];
-      _0x22291d.golsFTFora += _0x7d23b1[1];
-      _0x22291d.par += _0x2c9ae1 % 2 === 0 ? 1 : 0;
-      _0x22291d.impar += _0x2c9ae1 % 2 !== 0 ? 1 : 0;
-      const _0x42add0 = Math.abs(_0x7d23b1[0] - _0x7d23b1[1]);
-      _0x22291d.margem1 += _0x42add0 === 1 ? 1 : 0;
-      _0x22291d.margem2 += _0x42add0 === 2 ? 1 : 0;
-      _0x22291d.margem3 += _0x42add0 === 3 ? 1 : 0;
-      _0x22291d.empateGols += _0x7d23b1[0] === _0x7d23b1[1] && _0x2c9ae1 > 0 ? 1 : 0;
-      _0x22291d.casaVence += _0x7d23b1[0] > _0x7d23b1[1] ? 1 : 0;
-      _0x22291d.empate += _0x7d23b1[0] === _0x7d23b1[1] ? 1 : 0;
-      _0x22291d.foraVence += _0x7d23b1[0] < _0x7d23b1[1] ? 1 : 0;
-      _0x22291d.ambasSim += _0x7d23b1[0] > 0 && _0x7d23b1[1] > 0 ? 1 : 0;
-      _0x22291d.ambasNao += _0x7d23b1[0] === 0 || _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.over05 += _0x2c9ae1 > 0.5 ? 1 : 0;
-      _0x22291d.over15 += _0x2c9ae1 > 1.5 ? 1 : 0;
-      _0x22291d.over25 += _0x2c9ae1 > 2.5 ? 1 : 0;
-      _0x22291d.over35 += _0x2c9ae1 > 3.5 ? 1 : 0;
-      _0x22291d.over5 += _0x2c9ae1 >= 5 ? 1 : 0;
-      _0x22291d.under05 += _0x2c9ae1 <= 0.5 ? 1 : 0;
-      _0x22291d.under15 += _0x2c9ae1 < 1.5 ? 1 : 0;
-      _0x22291d.under25 += _0x2c9ae1 < 2.5 ? 1 : 0;
-      _0x22291d.under35 += _0x2c9ae1 < 3.5 ? 1 : 0;
-      _0x22291d.gol0 += _0x2c9ae1 === 0 ? 1 : 0;
-      _0x22291d.gol1 += _0x2c9ae1 === 1 ? 1 : 0;
-      _0x22291d.gol2 += _0x2c9ae1 === 2 ? 1 : 0;
-      _0x22291d.gol3 += _0x2c9ae1 === 3 ? 1 : 0;
-      _0x22291d.gol4 += _0x2c9ae1 === 4 ? 1 : 0;
-      _0x22291d.gol5 += _0x2c9ae1 === 5 ? 1 : 0;
-      _0x22291d.gol2t0 += _0xd04e6e === 0 ? 1 : 0;
-      _0x22291d.gol2t1 += _0xd04e6e === 1 ? 1 : 0;
-      _0x22291d.gol2t2 += _0xd04e6e === 2 ? 1 : 0;
-      _0x22291d.gol2t3 += _0xd04e6e === 3 ? 1 : 0;
-      _0x22291d.gol2t4 += _0xd04e6e === 4 ? 1 : 0;
-      _0x22291d.casa0 += _0x7d23b1[0] === 0 ? 1 : 0;
-      _0x22291d.casa1 += _0x7d23b1[0] === 1 ? 1 : 0;
-      _0x22291d.casa2 += _0x7d23b1[0] === 2 ? 1 : 0;
-      _0x22291d.casa3 += _0x7d23b1[0] === 3 ? 1 : 0;
-      _0x22291d.casa4 += _0x7d23b1[0] === 4 ? 1 : 0;
-      _0x22291d.fora0 += _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.fora1 += _0x7d23b1[1] === 1 ? 1 : 0;
-      _0x22291d.fora2 += _0x7d23b1[1] === 2 ? 1 : 0;
-      _0x22291d.fora3 += _0x7d23b1[1] === 3 ? 1 : 0;
-      _0x22291d.fora4 += _0x7d23b1[1] === 4 ? 1 : 0;
-      _0x22291d.p0x0 += _0x7d23b1[0] === 0 && _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.p1x0 += _0x7d23b1[0] === 1 && _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.p2x0 += _0x7d23b1[0] === 2 && _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.p3x0 += _0x7d23b1[0] === 3 && _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.p2x1 += _0x7d23b1[0] === 2 && _0x7d23b1[1] === 1 ? 1 : 0;
-      _0x22291d.p3x1 += _0x7d23b1[0] === 3 && _0x7d23b1[1] === 1 ? 1 : 0;
-      _0x22291d.p3x2 += _0x7d23b1[0] === 3 && _0x7d23b1[1] === 2 ? 1 : 0;
-      _0x22291d.p4x0 += _0x7d23b1[0] === 4 && _0x7d23b1[1] === 0 ? 1 : 0;
-      _0x22291d.p4x1 += _0x7d23b1[0] === 4 && _0x7d23b1[1] === 1 ? 1 : 0;
-      _0x22291d.p0x1 += _0x7d23b1[0] === 0 && _0x7d23b1[1] === 1 ? 1 : 0;
-      _0x22291d.p0x2 += _0x7d23b1[0] === 0 && _0x7d23b1[1] === 2 ? 1 : 0;
-      _0x22291d.p1x2 += _0x7d23b1[0] === 1 && _0x7d23b1[1] === 2 ? 1 : 0;
-      _0x22291d.p0x3 += _0x7d23b1[0] === 0 && _0x7d23b1[1] === 3 ? 1 : 0;
-      _0x22291d.p1x3 += _0x7d23b1[0] === 1 && _0x7d23b1[1] === 3 ? 1 : 0;
-      _0x22291d.p2x3 += _0x7d23b1[0] === 2 && _0x7d23b1[1] === 3 ? 1 : 0;
-      _0x22291d.p0x4 += _0x7d23b1[0] === 0 && _0x7d23b1[1] === 4 ? 1 : 0;
-      _0x22291d.p1x4 += _0x7d23b1[0] === 1 && _0x7d23b1[1] === 4 ? 1 : 0;
-      _0x22291d.ht0x0 += _0x2baf4a && _0x2baf4a[0] === 0 && _0x2baf4a[1] === 0 ? 1 : 0;
-      _0x22291d.ht0x1 += _0x2baf4a && _0x2baf4a[0] === 0 && _0x2baf4a[1] === 1 ? 1 : 0;
-      _0x22291d.ht1x0 += _0x2baf4a && _0x2baf4a[0] === 1 && _0x2baf4a[1] === 0 ? 1 : 0;
-      _0x22291d.ht1x1 += _0x2baf4a && _0x2baf4a[0] === 1 && _0x2baf4a[1] === 1 ? 1 : 0;
-      _0x22291d.ht0x2 += _0x2baf4a && _0x2baf4a[0] === 0 && _0x2baf4a[1] === 2 ? 1 : 0;
-      _0x22291d.ht2x0 += _0x2baf4a && _0x2baf4a[0] === 2 && _0x2baf4a[1] === 0 ? 1 : 0;
-      _0x22291d.htOut += _0x47336a.ht === "OUT" ? 1 : 0;
-      if (_0x273f82 >= 2) {
-        _0x22291d.overHT++;
+      const htTotal2 = parseHtScoreTotal(m2.ht);
+      const htParts2 = parseHtParts(m2.ht);
+      const tg2 = ft2[0] + ft2[1];
+      const tg2t2 = Math.max(0, tg2 - htTotal2);
+      s.golsFT += tg2;
+      s.golsHT += htTotal2;
+      s.golsFTCasa += ft2[0];
+      s.golsFTFora += ft2[1];
+      s.par += tg2 % 2 === 0 ? 1 : 0;
+      s.impar += tg2 % 2 !== 0 ? 1 : 0;
+      const margemAtualJ = Math.abs(ft2[0] - ft2[1]);
+      s.margem1 += margemAtualJ === 1 ? 1 : 0;
+      s.margem2 += margemAtualJ === 2 ? 1 : 0;
+      s.margem3 += margemAtualJ === 3 ? 1 : 0;
+      s.empateGols += ft2[0] === ft2[1] && tg2 > 0 ? 1 : 0;
+      s.casaVence += ft2[0] > ft2[1] ? 1 : 0;
+      s.empate += ft2[0] === ft2[1] ? 1 : 0;
+      s.foraVence += ft2[0] < ft2[1] ? 1 : 0;
+      s.ambasSim += ft2[0] > 0 && ft2[1] > 0 ? 1 : 0;
+      s.ambasNao += ft2[0] === 0 || ft2[1] === 0 ? 1 : 0;
+      s.over05 += tg2 > 0.5 ? 1 : 0;
+      s.over15 += tg2 > 1.5 ? 1 : 0;
+      s.over25 += tg2 > 2.5 ? 1 : 0;
+      s.over35 += tg2 > 3.5 ? 1 : 0;
+      s.over5 += tg2 >= 5 ? 1 : 0;
+      s.under05 += tg2 <= 0.5 ? 1 : 0;
+      s.under15 += tg2 < 1.5 ? 1 : 0;
+      s.under25 += tg2 < 2.5 ? 1 : 0;
+      s.under35 += tg2 < 3.5 ? 1 : 0;
+      s.gol0 += tg2 === 0 ? 1 : 0;
+      s.gol1 += tg2 === 1 ? 1 : 0;
+      s.gol2 += tg2 === 2 ? 1 : 0;
+      s.gol3 += tg2 === 3 ? 1 : 0;
+      s.gol4 += tg2 === 4 ? 1 : 0;
+      s.gol5 += tg2 === 5 ? 1 : 0;
+      s.gol2t0 += tg2t2 === 0 ? 1 : 0;
+      s.gol2t1 += tg2t2 === 1 ? 1 : 0;
+      s.gol2t2 += tg2t2 === 2 ? 1 : 0;
+      s.gol2t3 += tg2t2 === 3 ? 1 : 0;
+      s.gol2t4 += tg2t2 === 4 ? 1 : 0;
+      s.casa0 += ft2[0] === 0 ? 1 : 0;
+      s.casa1 += ft2[0] === 1 ? 1 : 0;
+      s.casa2 += ft2[0] === 2 ? 1 : 0;
+      s.casa3 += ft2[0] === 3 ? 1 : 0;
+      s.casa4 += ft2[0] === 4 ? 1 : 0;
+      s.fora0 += ft2[1] === 0 ? 1 : 0;
+      s.fora1 += ft2[1] === 1 ? 1 : 0;
+      s.fora2 += ft2[1] === 2 ? 1 : 0;
+      s.fora3 += ft2[1] === 3 ? 1 : 0;
+      s.fora4 += ft2[1] === 4 ? 1 : 0;
+      s.p0x0 += ft2[0] === 0 && ft2[1] === 0 ? 1 : 0;
+      s.p1x0 += ft2[0] === 1 && ft2[1] === 0 ? 1 : 0;
+      s.p2x0 += ft2[0] === 2 && ft2[1] === 0 ? 1 : 0;
+      s.p3x0 += ft2[0] === 3 && ft2[1] === 0 ? 1 : 0;
+      s.p2x1 += ft2[0] === 2 && ft2[1] === 1 ? 1 : 0;
+      s.p3x1 += ft2[0] === 3 && ft2[1] === 1 ? 1 : 0;
+      s.p3x2 += ft2[0] === 3 && ft2[1] === 2 ? 1 : 0;
+      s.p4x0 += ft2[0] === 4 && ft2[1] === 0 ? 1 : 0;
+      s.p4x1 += ft2[0] === 4 && ft2[1] === 1 ? 1 : 0;
+      s.p0x1 += ft2[0] === 0 && ft2[1] === 1 ? 1 : 0;
+      s.p0x2 += ft2[0] === 0 && ft2[1] === 2 ? 1 : 0;
+      s.p1x2 += ft2[0] === 1 && ft2[1] === 2 ? 1 : 0;
+      s.p0x3 += ft2[0] === 0 && ft2[1] === 3 ? 1 : 0;
+      s.p1x3 += ft2[0] === 1 && ft2[1] === 3 ? 1 : 0;
+      s.p2x3 += ft2[0] === 2 && ft2[1] === 3 ? 1 : 0;
+      s.p0x4 += ft2[0] === 0 && ft2[1] === 4 ? 1 : 0;
+      s.p1x4 += ft2[0] === 1 && ft2[1] === 4 ? 1 : 0;
+      s.ht0x0 += htParts2 && htParts2[0] === 0 && htParts2[1] === 0 ? 1 : 0;
+      s.ht0x1 += htParts2 && htParts2[0] === 0 && htParts2[1] === 1 ? 1 : 0;
+      s.ht1x0 += htParts2 && htParts2[0] === 1 && htParts2[1] === 0 ? 1 : 0;
+      s.ht1x1 += htParts2 && htParts2[0] === 1 && htParts2[1] === 1 ? 1 : 0;
+      s.ht0x2 += htParts2 && htParts2[0] === 0 && htParts2[1] === 2 ? 1 : 0;
+      s.ht2x0 += htParts2 && htParts2[0] === 2 && htParts2[1] === 0 ? 1 : 0;
+      s.htOut += m2.ht === "OUT" ? 1 : 0;
+      if (htTotal2 >= 2) {
+        s.overHT++;
       } else {
-        _0x22291d.underHT++;
+        s.underHT++;
       }
-      if (_0x2baf4a) {
-        if (_0x2baf4a[0] > _0x2baf4a[1]) {
-          _0x22291d.casaHT++;
-        } else if (_0x2baf4a[0] < _0x2baf4a[1]) {
-          _0x22291d.foraHT++;
+      if (htParts2) {
+        if (htParts2[0] > htParts2[1]) {
+          s.casaHT++;
+        } else if (htParts2[0] < htParts2[1]) {
+          s.foraHT++;
         } else {
-          _0x22291d.empateHT++;
+          s.empateHT++;
         }
       }
-      if (_0x2baf4a) {
-        const _0x2de944 = _0x2baf4a[0] > _0x2baf4a[1];
-        const _0xd03bec = _0x2baf4a[0] < _0x2baf4a[1];
-        let _0x2e7c2a = [0, 0];
-        if (_0x47336a.ft?.includes(" x ")) {
-          _0x2e7c2a = _0x47336a.ft.split(" x ").map(Number);
+      if (htParts2) {
+        const casaVenceHT = htParts2[0] > htParts2[1];
+        const foraVenceHT = htParts2[0] < htParts2[1];
+        let ftParts = [0, 0];
+        if (m2.ft?.includes(" x ")) {
+          ftParts = m2.ft.split(" x ").map(Number);
         }
-        const _0x1dd0e5 = _0x2e7c2a[0] < _0x2e7c2a[1];
-        const _0xad0e40 = _0x2e7c2a[0] > _0x2e7c2a[1];
-        if (_0x2de944 && _0x1dd0e5 || _0xd03bec && _0xad0e40) {
-          _0x22291d.viradinha++;
+        const casaPerdeFT = ftParts[0] < ftParts[1];
+        const foraPerdeFT = ftParts[0] > ftParts[1];
+        if ((casaVenceHT && casaPerdeFT) || (foraVenceHT && foraPerdeFT)) {
+          s.viradinha++;
         }
       }
-      _0x22291d.valid++;
+      s.valid++;
     }
-    if (_0x57acf6 < _0x248ac9) {
+    if (i < startExibir) {
       continue;
     }
-    const _0x3dac32 = _0x5f5372[_0x57acf6];
-    _0x2a455c.push(_0x3dac32.hora + ":" + _0x3dac32.minuto.toString().padStart(2, "0"));
-    let _0x55b0ea = [0, 0];
-    if (_0x3dac32.ft?.includes(" x ")) {
-      _0x55b0ea = _0x3dac32.ft.split(" x ").map(Number);
+    const m = slicedData[i];
+    labels.push(m.hora + ":" + m.minuto.toString().padStart(2, "0"));
+    let ft = [0, 0];
+    if (m.ft?.includes(" x ")) {
+      ft = m.ft.split(" x ").map(Number);
     }
-    const _0x597c23 = parseHtScoreTotal(_0x3dac32.ht);
-    const _0x9dff98 = parseHtParts(_0x3dac32.ht);
-    const _0x2a1ee0 = _0x55b0ea[0] + _0x55b0ea[1];
-    const _0x35b3be = Math.max(0, _0x2a1ee0 - _0x597c23);
-    const _0x4eba0d = _0x22291d.valid || 1;
-    _0x79406a.push(_0x22291d.golsFT);
-    _0x29164f.push("#FFFF00");
-    _0x36a086.push(_0x22291d.golsHT);
-    _0x383cef.push("#26A69A");
-    const _0x10b3bd = _0x2a1ee0;
-    const _0x1e10a8 = _0x10b3bd >= 5 ? "#2ecc71" : _0x10b3bd >= 3 ? "#3498db" : _0x10b3bd === 2 ? "#f1c40f" : _0x10b3bd === 1 ? "#e67e22" : "#e74c3c";
-    _0x4c9aed.push(_0x10b3bd);
-    _0x1411aa.push(_0x1e10a8);
-    _0x1fd193.push(_0x22291d.golsFTCasa);
-    _0x21fd6e.push("#00E5FF");
-    _0x577e8c.push(_0x22291d.golsFTFora);
-    _0x5ae753.push("#FF6E40");
-    _0x2937da.push(_0x22291d.par / _0x4eba0d * 100);
-    _0x3c4229.push(_0x2a1ee0 % 2 === 0 ? _0x38e9ba : _0x45576f);
-    _0x2e2dc4.push(_0x22291d.impar / _0x4eba0d * 100);
-    _0x1bb734.push(_0x2a1ee0 % 2 !== 0 ? _0x38e9ba : _0x45576f);
-    const _0x178d8f = Math.abs(_0x55b0ea[0] - _0x55b0ea[1]);
-    _0x494829.push(_0x22291d.margem1 / _0x4eba0d * 100);
-    _0x1a05a1.push(_0x178d8f === 1 ? _0x38e9ba : _0x45576f);
-    _0x57f21d.push(_0x22291d.margem2 / _0x4eba0d * 100);
-    _0x34d42f.push(_0x178d8f === 2 ? _0x38e9ba : _0x45576f);
-    _0x5da5ff.push(_0x22291d.margem3 / _0x4eba0d * 100);
-    _0x19608b.push(_0x178d8f === 3 ? _0x38e9ba : _0x45576f);
-    _0x115534.push(_0x22291d.empateGols / _0x4eba0d * 100);
-    _0x1c5eee.push(_0x55b0ea[0] === _0x55b0ea[1] && _0x2a1ee0 > 0 ? _0x38e9ba : _0x45576f);
-    _0xa973ab.push(_0x22291d.casaVence / _0x4eba0d * 100);
-    _0x26bc21.push(_0x55b0ea[0] > _0x55b0ea[1] ? _0x38e9ba : _0x45576f);
-    _0x4c2483.push(_0x22291d.empate / _0x4eba0d * 100);
-    _0x2f752d.push(_0x55b0ea[0] === _0x55b0ea[1] ? _0x38e9ba : _0x45576f);
-    _0x238cdc.push(_0x22291d.foraVence / _0x4eba0d * 100);
-    _0x2a505f.push(_0x55b0ea[0] < _0x55b0ea[1] ? _0x38e9ba : _0x45576f);
-    _0x44aec2.push(_0x22291d.ambasSim / _0x4eba0d * 100);
-    _0x2d2af0.push(_0x55b0ea[0] > 0 && _0x55b0ea[1] > 0 ? _0x38e9ba : _0x45576f);
-    _0x57bf50.push(_0x22291d.ambasNao / _0x4eba0d * 100);
-    _0x125b43.push(_0x55b0ea[0] === 0 || _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x961a29.push(_0x22291d.over05 / _0x4eba0d * 100);
-    _0x41851b.push(_0x2a1ee0 > 0.5 ? _0x38e9ba : _0x45576f);
-    _0x32bed0.push(_0x22291d.over15 / _0x4eba0d * 100);
-    _0x1e59b0.push(_0x2a1ee0 > 1.5 ? _0x38e9ba : _0x45576f);
-    _0x54bd82.push(_0x22291d.over25 / _0x4eba0d * 100);
-    _0x59b53a.push(_0x2a1ee0 > 2.5 ? _0x38e9ba : _0x45576f);
-    _0x42ceff.push(_0x22291d.over35 / _0x4eba0d * 100);
-    _0xbd18da.push(_0x2a1ee0 > 3.5 ? _0x38e9ba : _0x45576f);
-    _0x2b7431.push(_0x22291d.over5 / _0x4eba0d * 100);
-    _0x5b740a.push(_0x2a1ee0 >= 5 ? _0x38e9ba : _0x45576f);
-    _0x5ec9dd.push(_0x22291d.under05 / _0x4eba0d * 100);
-    _0x4a00e0.push(_0x2a1ee0 <= 0.5 ? _0x38e9ba : _0x45576f);
-    _0x118ce4.push(_0x22291d.under15 / _0x4eba0d * 100);
-    _0x2d683b.push(_0x2a1ee0 < 1.5 ? _0x38e9ba : _0x45576f);
-    _0x298f1f.push(_0x22291d.under25 / _0x4eba0d * 100);
-    _0x462787.push(_0x2a1ee0 < 2.5 ? _0x38e9ba : _0x45576f);
-    _0x871047.push(_0x22291d.under35 / _0x4eba0d * 100);
-    _0x10681f.push(_0x2a1ee0 < 3.5 ? _0x38e9ba : _0x45576f);
-    _0x19a14c.push(_0x22291d.gol0 / _0x4eba0d * 100);
-    _0x3a7cc1.push(_0x2a1ee0 === 0 ? _0x38e9ba : _0x45576f);
-    _0x1b5614.push(_0x22291d.gol1 / _0x4eba0d * 100);
-    _0x3ca9f2.push(_0x2a1ee0 === 1 ? _0x38e9ba : _0x45576f);
-    _0x1c24ae.push(_0x22291d.gol2 / _0x4eba0d * 100);
-    _0x2e78ee.push(_0x2a1ee0 === 2 ? _0x38e9ba : _0x45576f);
-    _0x5ef63e.push(_0x22291d.gol3 / _0x4eba0d * 100);
-    _0x5d2c42.push(_0x2a1ee0 === 3 ? _0x38e9ba : _0x45576f);
-    _0x16bfb7.push(_0x22291d.gol4 / _0x4eba0d * 100);
-    _0x220843.push(_0x2a1ee0 === 4 ? _0x38e9ba : _0x45576f);
-    _0x2b826b.push(_0x22291d.gol5 / _0x4eba0d * 100);
-    _0x5c834f.push(_0x2a1ee0 === 5 ? _0x38e9ba : _0x45576f);
-    _0x12441f.push(_0x22291d.gol2t0 / _0x4eba0d * 100);
-    _0x13aa88.push(_0x35b3be === 0 ? _0x38e9ba : _0x45576f);
-    _0x5c3ac1.push(_0x22291d.gol2t1 / _0x4eba0d * 100);
-    _0x3bb7bf.push(_0x35b3be === 1 ? _0x38e9ba : _0x45576f);
-    _0x4a6b39.push(_0x22291d.gol2t2 / _0x4eba0d * 100);
-    _0x4e7c61.push(_0x35b3be === 2 ? _0x38e9ba : _0x45576f);
-    _0x5457bc.push(_0x22291d.gol2t3 / _0x4eba0d * 100);
-    _0x2b9585.push(_0x35b3be === 3 ? _0x38e9ba : _0x45576f);
-    _0x53be5a.push(_0x22291d.gol2t4 / _0x4eba0d * 100);
-    _0x1eb193.push(_0x35b3be === 4 ? _0x38e9ba : _0x45576f);
-    _0xa0a671.push(_0x22291d.casa0 / _0x4eba0d * 100);
-    _0x2b69a6.push(_0x55b0ea[0] === 0 ? _0x38e9ba : _0x45576f);
-    _0x5f1304.push(_0x22291d.casa1 / _0x4eba0d * 100);
-    _0xc30986.push(_0x55b0ea[0] === 1 ? _0x38e9ba : _0x45576f);
-    _0x4680b7.push(_0x22291d.casa2 / _0x4eba0d * 100);
-    _0x1a372f.push(_0x55b0ea[0] === 2 ? _0x38e9ba : _0x45576f);
-    _0x4c92b3.push(_0x22291d.casa3 / _0x4eba0d * 100);
-    _0x92f603.push(_0x55b0ea[0] === 3 ? _0x38e9ba : _0x45576f);
-    _0x4b2ad1.push(_0x22291d.casa4 / _0x4eba0d * 100);
-    _0x164e8d.push(_0x55b0ea[0] === 4 ? _0x38e9ba : _0x45576f);
-    _0x1bbe72.push(_0x22291d.fora0 / _0x4eba0d * 100);
-    _0x7f9f9d.push(_0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x490262.push(_0x22291d.fora1 / _0x4eba0d * 100);
-    _0x817af1.push(_0x55b0ea[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x233313.push(_0x22291d.fora2 / _0x4eba0d * 100);
-    _0x59d1a8.push(_0x55b0ea[1] === 2 ? _0x38e9ba : _0x45576f);
-    _0x241130.push(_0x22291d.fora3 / _0x4eba0d * 100);
-    _0x26f98c.push(_0x55b0ea[1] === 3 ? _0x38e9ba : _0x45576f);
-    _0x6c90fc.push(_0x22291d.fora4 / _0x4eba0d * 100);
-    _0x877b4d.push(_0x55b0ea[1] === 4 ? _0x38e9ba : _0x45576f);
-    _0x374007.push(_0x22291d.p0x0 / _0x4eba0d * 100);
-    _0x50ed8d.push(_0x55b0ea[0] === 0 && _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x298826.push(_0x22291d.p1x0 / _0x4eba0d * 100);
-    _0x1125e5.push(_0x55b0ea[0] === 1 && _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x356c8a.push(_0x22291d.p2x0 / _0x4eba0d * 100);
-    _0x3c2f22.push(_0x55b0ea[0] === 2 && _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x31dacc.push(_0x22291d.p3x0 / _0x4eba0d * 100);
-    _0x242b3c.push(_0x55b0ea[0] === 3 && _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x576e5c.push(_0x22291d.p2x1 / _0x4eba0d * 100);
-    _0x423394.push(_0x55b0ea[0] === 2 && _0x55b0ea[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x267262.push(_0x22291d.p3x1 / _0x4eba0d * 100);
-    _0x130d6c.push(_0x55b0ea[0] === 3 && _0x55b0ea[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x396664.push(_0x22291d.p3x2 / _0x4eba0d * 100);
-    _0x5123ed.push(_0x55b0ea[0] === 3 && _0x55b0ea[1] === 2 ? _0x38e9ba : _0x45576f);
-    _0x3ad61f.push(_0x22291d.p4x0 / _0x4eba0d * 100);
-    _0x3c4c76.push(_0x55b0ea[0] === 4 && _0x55b0ea[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x1078d7.push(_0x22291d.p4x1 / _0x4eba0d * 100);
-    _0x9b56f3.push(_0x55b0ea[0] === 4 && _0x55b0ea[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x4e3946.push(_0x22291d.p0x1 / _0x4eba0d * 100);
-    _0x1d183c.push(_0x55b0ea[0] === 0 && _0x55b0ea[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x3c88ed.push(_0x22291d.p0x2 / _0x4eba0d * 100);
-    _0x1ddaef.push(_0x55b0ea[0] === 0 && _0x55b0ea[1] === 2 ? _0x38e9ba : _0x45576f);
-    _0x32e31c.push(_0x22291d.p1x2 / _0x4eba0d * 100);
-    _0x7b8b2e.push(_0x55b0ea[0] === 1 && _0x55b0ea[1] === 2 ? _0x38e9ba : _0x45576f);
-    _0x4a2a6a.push(_0x22291d.p0x3 / _0x4eba0d * 100);
-    _0x42e965.push(_0x55b0ea[0] === 0 && _0x55b0ea[1] === 3 ? _0x38e9ba : _0x45576f);
-    _0x42be3b.push(_0x22291d.p1x3 / _0x4eba0d * 100);
-    _0x2d59d2.push(_0x55b0ea[0] === 1 && _0x55b0ea[1] === 3 ? _0x38e9ba : _0x45576f);
-    _0x3b4c11.push(_0x22291d.p2x3 / _0x4eba0d * 100);
-    _0x16bb1d.push(_0x55b0ea[0] === 2 && _0x55b0ea[1] === 3 ? _0x38e9ba : _0x45576f);
-    _0x580ea3.push(_0x22291d.p0x4 / _0x4eba0d * 100);
-    _0x200c64.push(_0x55b0ea[0] === 0 && _0x55b0ea[1] === 4 ? _0x38e9ba : _0x45576f);
-    _0xf055c8.push(_0x22291d.p1x4 / _0x4eba0d * 100);
-    _0x1e3eb9.push(_0x55b0ea[0] === 1 && _0x55b0ea[1] === 4 ? _0x38e9ba : _0x45576f);
-    _0x2bd5a6.push(_0x22291d.ht0x0 / _0x4eba0d * 100);
-    _0x46ed25.push(_0x9dff98 && _0x9dff98[0] === 0 && _0x9dff98[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x4b7103.push(_0x22291d.ht0x1 / _0x4eba0d * 100);
-    _0x5a1897.push(_0x9dff98 && _0x9dff98[0] === 0 && _0x9dff98[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0x1de422.push(_0x22291d.ht1x0 / _0x4eba0d * 100);
-    _0x44cd9a.push(_0x9dff98 && _0x9dff98[0] === 1 && _0x9dff98[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x78bad6.push(_0x22291d.ht1x1 / _0x4eba0d * 100);
-    _0x4c3fb4.push(_0x9dff98 && _0x9dff98[0] === 1 && _0x9dff98[1] === 1 ? _0x38e9ba : _0x45576f);
-    _0xcfb21e.push(_0x22291d.ht0x2 / _0x4eba0d * 100);
-    _0x170215.push(_0x9dff98 && _0x9dff98[0] === 0 && _0x9dff98[1] === 2 ? _0x38e9ba : _0x45576f);
-    _0xfb1500.push(_0x22291d.ht2x0 / _0x4eba0d * 100);
-    _0x1fae6c.push(_0x9dff98 && _0x9dff98[0] === 2 && _0x9dff98[1] === 0 ? _0x38e9ba : _0x45576f);
-    _0x292622.push(_0x22291d.htOut / _0x4eba0d * 100);
-    _0x8b1636.push(_0x3dac32.ht === "OUT" ? _0x38e9ba : _0x45576f);
-    _0x2f4611.push(_0x22291d.overHT / _0x4eba0d * 100);
-    _0x17f8ee.push(_0x597c23 >= 2 ? _0x38e9ba : _0x45576f);
-    _0x5d2a9d.push(_0x22291d.underHT / _0x4eba0d * 100);
-    _0x59f64c.push(_0x597c23 < 2 ? _0x38e9ba : _0x45576f);
-    _0x3fedb7.push(_0x22291d.casaHT / _0x4eba0d * 100);
-    _0x2c00ea.push(_0x9dff98 && _0x9dff98[0] > _0x9dff98[1] ? _0x38e9ba : _0x45576f);
-    _0x3db7f8.push(_0x22291d.empateHT / _0x4eba0d * 100);
-    _0x385d98.push(_0x9dff98 && _0x9dff98[0] === _0x9dff98[1] ? _0x38e9ba : _0x45576f);
-    _0x439b42.push(_0x22291d.foraHT / _0x4eba0d * 100);
-    _0x4728a5.push(_0x9dff98 && _0x9dff98[0] < _0x9dff98[1] ? _0x38e9ba : _0x45576f);
-    const _0x4a7828 = _0x9dff98 && _0x9dff98[0] > _0x9dff98[1];
-    const _0x403422 = _0x9dff98 && _0x9dff98[0] < _0x9dff98[1];
-    const _0x2d3f6a = _0x55b0ea[0] < _0x55b0ea[1];
-    const _0x54341f = _0x55b0ea[0] > _0x55b0ea[1];
-    const _0xd42f20 = _0x9dff98 && (_0x4a7828 && _0x2d3f6a || _0x403422 && _0x54341f);
-    _0x309ef5.push(_0x22291d.viradinha / _0x4eba0d * 100);
-    _0x539e04.push(_0xd42f20 ? _0x38e9ba : _0x45576f);
+    const htTotal = parseHtScoreTotal(m.ht);
+    const htParts = parseHtParts(m.ht);
+    const tg = ft[0] + ft[1];
+    const tg2t = Math.max(0, tg - htTotal);
+    const avg = s.valid || 1;
+    golsFT.push(s.golsFT);
+    golsFTColors.push("#FFFF00");
+    golsHT.push(s.golsHT);
+    golsHTColors.push("#26A69A");
+    const golsIndVal = tg;
+    const golsIndColor =
+      golsIndVal >= 5
+        ? "#2ecc71"
+        : golsIndVal >= 3
+          ? "#3498db"
+          : golsIndVal === 2
+            ? "#f1c40f"
+            : golsIndVal === 1
+              ? "#e67e22"
+              : "#e74c3c";
+    placarHT0x1.push(golsIndVal);
+    golsIndColors.push(golsIndColor);
+    golsFTCasa.push(s.golsFTCasa);
+    golsFTCasaColors.push("#00E5FF");
+    golsFTFora.push(s.golsFTFora);
+    golsFTForaColors.push("#FF6E40");
+    par.push((s.par / avg) * 100);
+    parColors.push(tg % 2 === 0 ? green : red);
+    impar.push((s.impar / avg) * 100);
+    imparColors.push(tg % 2 !== 0 ? green : red);
+    const margemAtual = Math.abs(ft[0] - ft[1]);
+    margem1.push((s.margem1 / avg) * 100);
+    margem1Colors.push(margemAtual === 1 ? green : red);
+    margem2.push((s.margem2 / avg) * 100);
+    margem2Colors.push(margemAtual === 2 ? green : red);
+    margem3.push((s.margem3 / avg) * 100);
+    margem3Colors.push(margemAtual === 3 ? green : red);
+    empateGols.push((s.empateGols / avg) * 100);
+    empateGolsColors.push(ft[0] === ft[1] && tg > 0 ? green : red);
+    casaVence.push((s.casaVence / avg) * 100);
+    casaVenceColors.push(ft[0] > ft[1] ? green : red);
+    empate.push((s.empate / avg) * 100);
+    empateColors.push(ft[0] === ft[1] ? green : red);
+    foraVence.push((s.foraVence / avg) * 100);
+    foraVenceColors.push(ft[0] < ft[1] ? green : red);
+    ambasSim.push((s.ambasSim / avg) * 100);
+    ambasSimColors.push(ft[0] > 0 && ft[1] > 0 ? green : red);
+    ambasNao.push((s.ambasNao / avg) * 100);
+    ambasNaoColors.push(ft[0] === 0 || ft[1] === 0 ? green : red);
+    over05.push((s.over05 / avg) * 100);
+    over05Colors.push(tg > 0.5 ? green : red);
+    over15.push((s.over15 / avg) * 100);
+    over15Colors.push(tg > 1.5 ? green : red);
+    over25.push((s.over25 / avg) * 100);
+    over25Colors.push(tg > 2.5 ? green : red);
+    over35.push((s.over35 / avg) * 100);
+    over35Colors.push(tg > 3.5 ? green : red);
+    over5.push((s.over5 / avg) * 100);
+    over5Colors.push(tg >= 5 ? green : red);
+    under05.push((s.under05 / avg) * 100);
+    under05Colors.push(tg <= 0.5 ? green : red);
+    under15.push((s.under15 / avg) * 100);
+    under15Colors.push(tg < 1.5 ? green : red);
+    under25.push((s.under25 / avg) * 100);
+    under25Colors.push(tg < 2.5 ? green : red);
+    under35.push((s.under35 / avg) * 100);
+    under35Colors.push(tg < 3.5 ? green : red);
+    gol0.push((s.gol0 / avg) * 100);
+    gol0Colors.push(tg === 0 ? green : red);
+    gol1.push((s.gol1 / avg) * 100);
+    gol1Colors.push(tg === 1 ? green : red);
+    gol2.push((s.gol2 / avg) * 100);
+    gol2Colors.push(tg === 2 ? green : red);
+    gol3.push((s.gol3 / avg) * 100);
+    gol3Colors.push(tg === 3 ? green : red);
+    gol4.push((s.gol4 / avg) * 100);
+    gol4Colors.push(tg === 4 ? green : red);
+    gol5.push((s.gol5 / avg) * 100);
+    gol5Colors.push(tg === 5 ? green : red);
+    gol2t0.push((s.gol2t0 / avg) * 100);
+    gol2t0Colors.push(tg2t === 0 ? green : red);
+    gol2t1.push((s.gol2t1 / avg) * 100);
+    gol2t1Colors.push(tg2t === 1 ? green : red);
+    gol2t2.push((s.gol2t2 / avg) * 100);
+    gol2t2Colors.push(tg2t === 2 ? green : red);
+    gol2t3.push((s.gol2t3 / avg) * 100);
+    gol2t3Colors.push(tg2t === 3 ? green : red);
+    gol2t4.push((s.gol2t4 / avg) * 100);
+    gol2t4Colors.push(tg2t === 4 ? green : red);
+    casa0.push((s.casa0 / avg) * 100);
+    casa0Colors.push(ft[0] === 0 ? green : red);
+    casa1.push((s.casa1 / avg) * 100);
+    casa1Colors.push(ft[0] === 1 ? green : red);
+    casa2.push((s.casa2 / avg) * 100);
+    casa2Colors.push(ft[0] === 2 ? green : red);
+    casa3.push((s.casa3 / avg) * 100);
+    casa3Colors.push(ft[0] === 3 ? green : red);
+    casa4.push((s.casa4 / avg) * 100);
+    casa4Colors.push(ft[0] === 4 ? green : red);
+    fora0.push((s.fora0 / avg) * 100);
+    fora0Colors.push(ft[1] === 0 ? green : red);
+    fora1.push((s.fora1 / avg) * 100);
+    fora1Colors.push(ft[1] === 1 ? green : red);
+    fora2.push((s.fora2 / avg) * 100);
+    fora2Colors.push(ft[1] === 2 ? green : red);
+    fora3.push((s.fora3 / avg) * 100);
+    fora3Colors.push(ft[1] === 3 ? green : red);
+    fora4.push((s.fora4 / avg) * 100);
+    fora4Colors.push(ft[1] === 4 ? green : red);
+    placar0x0.push((s.p0x0 / avg) * 100);
+    placar0x0Colors.push(ft[0] === 0 && ft[1] === 0 ? green : red);
+    placar1x0.push((s.p1x0 / avg) * 100);
+    placar1x0Colors.push(ft[0] === 1 && ft[1] === 0 ? green : red);
+    placar2x0.push((s.p2x0 / avg) * 100);
+    placar2x0Colors.push(ft[0] === 2 && ft[1] === 0 ? green : red);
+    placar3x0.push((s.p3x0 / avg) * 100);
+    placar3x0Colors.push(ft[0] === 3 && ft[1] === 0 ? green : red);
+    placar2x1.push((s.p2x1 / avg) * 100);
+    placar2x1Colors.push(ft[0] === 2 && ft[1] === 1 ? green : red);
+    placar3x1.push((s.p3x1 / avg) * 100);
+    placar3x1Colors.push(ft[0] === 3 && ft[1] === 1 ? green : red);
+    placar3x2.push((s.p3x2 / avg) * 100);
+    placar3x2Colors.push(ft[0] === 3 && ft[1] === 2 ? green : red);
+    placar4x0.push((s.p4x0 / avg) * 100);
+    placar4x0Colors.push(ft[0] === 4 && ft[1] === 0 ? green : red);
+    placar4x1.push((s.p4x1 / avg) * 100);
+    placar4x1Colors.push(ft[0] === 4 && ft[1] === 1 ? green : red);
+    placar0x1.push((s.p0x1 / avg) * 100);
+    placar0x1Colors.push(ft[0] === 0 && ft[1] === 1 ? green : red);
+    placar0x2.push((s.p0x2 / avg) * 100);
+    placar0x2Colors.push(ft[0] === 0 && ft[1] === 2 ? green : red);
+    placar1x2.push((s.p1x2 / avg) * 100);
+    placar1x2Colors.push(ft[0] === 1 && ft[1] === 2 ? green : red);
+    placar0x3.push((s.p0x3 / avg) * 100);
+    placar0x3Colors.push(ft[0] === 0 && ft[1] === 3 ? green : red);
+    placar1x3.push((s.p1x3 / avg) * 100);
+    placar1x3Colors.push(ft[0] === 1 && ft[1] === 3 ? green : red);
+    placar2x3.push((s.p2x3 / avg) * 100);
+    placar2x3Colors.push(ft[0] === 2 && ft[1] === 3 ? green : red);
+    placar0x4.push((s.p0x4 / avg) * 100);
+    placar0x4Colors.push(ft[0] === 0 && ft[1] === 4 ? green : red);
+    placar1x4.push((s.p1x4 / avg) * 100);
+    placar1x4Colors.push(ft[0] === 1 && ft[1] === 4 ? green : red);
+    placarHT0x0.push((s.ht0x0 / avg) * 100);
+    placarHT0x0Colors.push(
+      htParts && htParts[0] === 0 && htParts[1] === 0 ? green : red,
+    );
+    placarHT0x12.push((s.ht0x1 / avg) * 100);
+    placarHT0x1Colors.push(
+      htParts && htParts[0] === 0 && htParts[1] === 1 ? green : red,
+    );
+    placarHT1x0.push((s.ht1x0 / avg) * 100);
+    placarHT1x0Colors.push(
+      htParts && htParts[0] === 1 && htParts[1] === 0 ? green : red,
+    );
+    placarHT1x1.push((s.ht1x1 / avg) * 100);
+    placarHT1x1Colors.push(
+      htParts && htParts[0] === 1 && htParts[1] === 1 ? green : red,
+    );
+    placarHT0x2.push((s.ht0x2 / avg) * 100);
+    placarHT0x2Colors.push(
+      htParts && htParts[0] === 0 && htParts[1] === 2 ? green : red,
+    );
+    placarHT2x0.push((s.ht2x0 / avg) * 100);
+    placarHT2x0Colors.push(
+      htParts && htParts[0] === 2 && htParts[1] === 0 ? green : red,
+    );
+    placarHTOut.push((s.htOut / avg) * 100);
+    placarHTOutColors.push(m.ht === "OUT" ? green : red);
+    overHT.push((s.overHT / avg) * 100);
+    overHTColors.push(htTotal >= 2 ? green : red);
+    underHT.push((s.underHT / avg) * 100);
+    underHTColors.push(htTotal < 2 ? green : red);
+    casaHT.push((s.casaHT / avg) * 100);
+    casaHTColors.push(htParts && htParts[0] > htParts[1] ? green : red);
+    empateHT.push((s.empateHT / avg) * 100);
+    empateHTColors.push(htParts && htParts[0] === htParts[1] ? green : red);
+    foraHT.push((s.foraHT / avg) * 100);
+    foraHTColors.push(htParts && htParts[0] < htParts[1] ? green : red);
+    const casaVenceHTcur = htParts && htParts[0] > htParts[1];
+    const foraVenceHTcur = htParts && htParts[0] < htParts[1];
+    const casaPerdeFTcur = ft[0] < ft[1];
+    const foraPerdeFTcur = ft[0] > ft[1];
+    const viradinhaOcorreu =
+      htParts &&
+      ((casaVenceHTcur && casaPerdeFTcur) ||
+        (foraVenceHTcur && foraPerdeFTcur));
+    viradinha.push((s.viradinha / avg) * 100);
+    viradinhaColors.push(viradinhaOcorreu ? green : red);
   }
-  const _0x156cbd = {
-    labels: _0x2a455c,
-    golsFT: _0x79406a,
-    golsHT: _0x36a086,
-    golsInd: _0x4c9aed,
-    casaVence: _0xa973ab,
-    empate: _0x4c2483,
-    foraVence: _0x238cdc,
-    ambasSim: _0x44aec2,
-    ambasNao: _0x57bf50,
-    over05: _0x961a29,
-    over15: _0x32bed0,
-    over25: _0x54bd82,
-    over35: _0x42ceff,
-    over5: _0x2b7431,
-    under05: _0x5ec9dd,
-    under15: _0x118ce4,
-    under25: _0x298f1f,
-    under35: _0x871047,
-    gol0: _0x19a14c,
-    gol1: _0x1b5614,
-    gol2: _0x1c24ae,
-    gol3: _0x5ef63e,
-    gol4: _0x16bfb7,
-    gol5: _0x2b826b,
-    gol2t0: _0x12441f,
-    gol2t1: _0x5c3ac1,
-    gol2t2: _0x4a6b39,
-    gol2t3: _0x5457bc,
-    gol2t4: _0x53be5a,
-    casa0: _0xa0a671,
-    casa1: _0x5f1304,
-    casa2: _0x4680b7,
-    casa3: _0x4c92b3,
-    casa4: _0x4b2ad1,
-    fora0: _0x1bbe72,
-    fora1: _0x490262,
-    fora2: _0x233313,
-    fora3: _0x241130,
-    fora4: _0x6c90fc,
-    placar0x0: _0x374007,
-    placar1x0: _0x298826,
-    placar2x0: _0x356c8a,
-    placar3x0: _0x31dacc,
-    placar2x1: _0x576e5c,
-    placar3x1: _0x267262,
-    placar3x2: _0x396664,
-    placar4x0: _0x3ad61f,
-    placar4x1: _0x1078d7,
-    placar0x1: _0x4e3946,
-    placar0x2: _0x3c88ed,
-    placar1x2: _0x32e31c,
-    placar0x3: _0x4a2a6a,
-    placar1x3: _0x42be3b,
-    placar2x3: _0x3b4c11,
-    placar0x4: _0x580ea3,
-    placar1x4: _0xf055c8,
-    placarHT0x0: _0x2bd5a6,
-    placarHT0x1: _0x4b7103,
-    placarHT1x0: _0x1de422,
-    placarHT1x1: _0x78bad6,
-    placarHT0x2: _0xcfb21e,
-    placarHT2x0: _0xfb1500,
-    placarHTOut: _0x292622,
-    overHT: _0x2f4611,
-    underHT: _0x5d2a9d,
-    casaHT: _0x3fedb7,
-    empateHT: _0x3db7f8,
-    foraHT: _0x439b42,
-    viradinha: _0x309ef5,
-    golsFTCasa: _0x1fd193,
-    golsFTFora: _0x577e8c,
-    par: _0x2937da,
-    impar: _0x2e2dc4,
-    margem1: _0x494829,
-    margem2: _0x57f21d,
-    margem3: _0x5da5ff,
-    empateGols: _0x115534,
-    golsFTColors: _0x29164f,
-    golsHTColors: _0x383cef,
-    golsIndColors: _0x1411aa,
-    casaVenceColors: _0x26bc21,
-    empateColors: _0x2f752d,
-    foraVenceColors: _0x2a505f,
-    ambasSimColors: _0x2d2af0,
-    ambasNaoColors: _0x125b43,
-    over05Colors: _0x41851b,
-    over15Colors: _0x1e59b0,
-    over25Colors: _0x59b53a,
-    over35Colors: _0xbd18da,
-    over5Colors: _0x5b740a,
-    under05Colors: _0x4a00e0,
-    under15Colors: _0x2d683b,
-    under25Colors: _0x462787,
-    under35Colors: _0x10681f,
-    gol0Colors: _0x3a7cc1,
-    gol1Colors: _0x3ca9f2,
-    gol2Colors: _0x2e78ee,
-    gol3Colors: _0x5d2c42,
-    gol4Colors: _0x220843,
-    gol5Colors: _0x5c834f,
-    gol2t0Colors: _0x13aa88,
-    gol2t1Colors: _0x3bb7bf,
-    gol2t2Colors: _0x4e7c61,
-    gol2t3Colors: _0x2b9585,
-    gol2t4Colors: _0x1eb193,
-    casa0Colors: _0x2b69a6,
-    casa1Colors: _0xc30986,
-    casa2Colors: _0x1a372f,
-    casa3Colors: _0x92f603,
-    casa4Colors: _0x164e8d,
-    fora0Colors: _0x7f9f9d,
-    fora1Colors: _0x817af1,
-    fora2Colors: _0x59d1a8,
-    fora3Colors: _0x26f98c,
-    fora4Colors: _0x877b4d,
-    placar0x0Colors: _0x50ed8d,
-    placar1x0Colors: _0x1125e5,
-    placar2x0Colors: _0x3c2f22,
-    placar3x0Colors: _0x242b3c,
-    placar2x1Colors: _0x423394,
-    placar3x1Colors: _0x130d6c,
-    placar3x2Colors: _0x5123ed,
-    placar4x0Colors: _0x3c4c76,
-    placar4x1Colors: _0x9b56f3,
-    placar0x1Colors: _0x1d183c,
-    placar0x2Colors: _0x1ddaef,
-    placar1x2Colors: _0x7b8b2e,
-    placar0x3Colors: _0x42e965,
-    placar1x3Colors: _0x2d59d2,
-    placar2x3Colors: _0x16bb1d,
-    placar0x4Colors: _0x200c64,
-    placar1x4Colors: _0x1e3eb9,
-    placarHT0x0Colors: _0x46ed25,
-    placarHT0x1Colors: _0x5a1897,
-    placarHT1x0Colors: _0x44cd9a,
-    placarHT1x1Colors: _0x4c3fb4,
-    placarHT0x2Colors: _0x170215,
-    placarHT2x0Colors: _0x1fae6c,
-    placarHTOutColors: _0x8b1636,
-    overHTColors: _0x17f8ee,
-    underHTColors: _0x59f64c,
-    casaHTColors: _0x2c00ea,
-    empateHTColors: _0x385d98,
-    foraHTColors: _0x4728a5,
-    viradinhaColors: _0x539e04,
-    golsFTCasaColors: _0x21fd6e,
-    golsFTForaColors: _0x5ae753,
-    parColors: _0x3c4229,
-    imparColors: _0x1bb734,
-    margem1Colors: _0x1a05a1,
-    margem2Colors: _0x34d42f,
-    margem3Colors: _0x19608b,
-    empateGolsColors: _0x1c5eee
+  const result = {
+    labels,
+    golsFT,
+    golsHT,
+    golsInd: placarHT0x1,
+    casaVence,
+    empate,
+    foraVence,
+    ambasSim,
+    ambasNao,
+    over05,
+    over15,
+    over25,
+    over35,
+    over5,
+    under05,
+    under15,
+    under25,
+    under35,
+    gol0,
+    gol1,
+    gol2,
+    gol3,
+    gol4,
+    gol5,
+    gol2t0,
+    gol2t1,
+    gol2t2,
+    gol2t3,
+    gol2t4,
+    casa0,
+    casa1,
+    casa2,
+    casa3,
+    casa4,
+    fora0,
+    fora1,
+    fora2,
+    fora3,
+    fora4,
+    placar0x0,
+    placar1x0,
+    placar2x0,
+    placar3x0,
+    placar2x1,
+    placar3x1,
+    placar3x2,
+    placar4x0,
+    placar4x1,
+    placar0x1,
+    placar0x2,
+    placar1x2,
+    placar0x3,
+    placar1x3,
+    placar2x3,
+    placar0x4,
+    placar1x4,
+    placarHT0x0,
+    placarHT0x1: placarHT0x12,
+    placarHT1x0,
+    placarHT1x1,
+    placarHT0x2,
+    placarHT2x0,
+    placarHTOut,
+    overHT,
+    underHT,
+    casaHT,
+    empateHT,
+    foraHT,
+    viradinha,
+    golsFTCasa,
+    golsFTFora,
+    par,
+    impar,
+    margem1,
+    margem2,
+    margem3,
+    empateGols,
+    golsFTColors,
+    golsHTColors,
+    golsIndColors,
+    casaVenceColors,
+    empateColors,
+    foraVenceColors,
+    ambasSimColors,
+    ambasNaoColors,
+    over05Colors,
+    over15Colors,
+    over25Colors,
+    over35Colors,
+    over5Colors,
+    under05Colors,
+    under15Colors,
+    under25Colors,
+    under35Colors,
+    gol0Colors,
+    gol1Colors,
+    gol2Colors,
+    gol3Colors,
+    gol4Colors,
+    gol5Colors,
+    gol2t0Colors,
+    gol2t1Colors,
+    gol2t2Colors,
+    gol2t3Colors,
+    gol2t4Colors,
+    casa0Colors,
+    casa1Colors,
+    casa2Colors,
+    casa3Colors,
+    casa4Colors,
+    fora0Colors,
+    fora1Colors,
+    fora2Colors,
+    fora3Colors,
+    fora4Colors,
+    placar0x0Colors,
+    placar1x0Colors,
+    placar2x0Colors,
+    placar3x0Colors,
+    placar2x1Colors,
+    placar3x1Colors,
+    placar3x2Colors,
+    placar4x0Colors,
+    placar4x1Colors,
+    placar0x1Colors,
+    placar0x2Colors,
+    placar1x2Colors,
+    placar0x3Colors,
+    placar1x3Colors,
+    placar2x3Colors,
+    placar0x4Colors,
+    placar1x4Colors,
+    placarHT0x0Colors,
+    placarHT0x1Colors,
+    placarHT1x0Colors,
+    placarHT1x1Colors,
+    placarHT0x2Colors,
+    placarHT2x0Colors,
+    placarHTOutColors,
+    overHTColors,
+    underHTColors,
+    casaHTColors,
+    empateHTColors,
+    foraHTColors,
+    viradinhaColors,
+    golsFTCasaColors,
+    golsFTForaColors,
+    parColors,
+    imparColors,
+    margem1Colors,
+    margem2Colors,
+    margem3Colors,
+    empateGolsColors,
   };
-  const _0x39be0a = _0x156cbd;
-  const _0x2efa95 = _QBLOC;
-  const _0x20cea4 = _JPH;
-  Object.keys(labelToKey).forEach(_0x46d5f8 => {
-    const _0x48bbb7 = labelToKey[_0x46d5f8];
-    _0x39be0a[_0x48bbb7 + "Short"] = computeMA(_0x39be0a[_0x48bbb7], _0x2efa95);
-    _0x39be0a[_0x48bbb7 + "Long"] = computeMA(_0x39be0a[_0x48bbb7], _0x20cea4);
+  const result2 = result;
+  const longPeriod = _QBLOC;
+  const longPeriod2 = _JPH;
+  Object.keys(labelToKey).forEach((label) => {
+    const key = labelToKey[label];
+    result2[key + "Short"] = computeMA(result2[key], longPeriod);
+    result2[key + "Long"] = computeMA(result2[key], longPeriod2);
   });
-  return _0x39be0a;
+  return result2;
 }
 function updateCharts() {
   if (!_tabVisible) {
     return;
   }
-  const _0x3b0216 = new Date().getTime();
-  leagues.forEach(_0x3ad8e0 => {
-    fetch(ROTAS_API.resultados(LIGA_ATUAL) + ("?timestamp=" + _0x3b0216)).then(_0x4d71c0 => {
-      if (!_0x4d71c0.ok) {
-        throw new Error(_0x4d71c0.status);
-      }
-      return _0x4d71c0.json();
-    }).then(_0x40437e => {
-      const _0x28e74c = processApiData(_0x40437e, _0x3ad8e0);
-      const _0x1d867d = document.getElementById(_0x3ad8e0);
-      if (!_0x1d867d) {
-        return;
-      }
-      if (!chartInstances[_0x3ad8e0]) {
-        chartInstances[_0x3ad8e0] = createStatsChart(_0x1d867d.getContext("2d"), _0x28e74c.labels, _0x28e74c, _0x3ad8e0);
-        _applySetup(_getActiveSetup());
-      } else {
-        updateStatsChart(chartInstances[_0x3ad8e0], _0x28e74c);
-      }
-    }).catch(_0x324053 => console.error("Erro " + _0x3ad8e0 + ":", _0x324053));
+  const ts = new Date().getTime();
+  leagues.forEach((league) => {
+    fetch(ROTAS_API.resultados(LIGA_ATUAL) + ("?timestamp=" + ts))
+      .then((r) => {
+        if (!r.ok) {
+          throw new Error(r.status);
+        }
+        return r.json();
+      })
+      .then((data) => {
+        const pd = processApiData(data, league);
+        const canvas = document.getElementById(league);
+        if (!canvas) {
+          return;
+        }
+        if (!chartInstances[league]) {
+          chartInstances[league] = createStatsChart(
+            canvas.getContext("2d"),
+            pd.labels,
+            pd,
+            league,
+          );
+          _applySetup(_getActiveSetup());
+        } else {
+          updateStatsChart(chartInstances[league], pd);
+        }
+      })
+      .catch((e) => console.error("Erro " + league + ":", e));
   });
 }
 function toggleFibonacciLines() {
   showFibonacciLines = document.getElementById("fibonacciToggle").checked;
-  leagues.forEach(_0x12fe6b => {
-    if (chartInstances[_0x12fe6b]) {
-      chartInstances[_0x12fe6b].update();
+  leagues.forEach((l) => {
+    if (chartInstances[l]) {
+      chartInstances[l].update();
     }
   });
   _captureControlsToSetup(_getActiveSetup());
 }
 function toggleMovingAverages() {
   showMovingAverages = document.getElementById("movingAveragesToggle").checked;
-  leagues.forEach(_0x1a8833 => {
-    const _0x558afe = chartInstances[_0x1a8833];
-    if (!_0x558afe) {
+  leagues.forEach((l) => {
+    const ci = chartInstances[l];
+    if (!ci) {
       return;
     }
-    _0x558afe.data.datasets.forEach((_0xd98ebe, _0x34d778) => {
-      if (_0xd98ebe.label.includes(" - ")) {
-        const _0x4cad2a = _0xd98ebe.label.split(" - ")[0];
-        _0x558afe.getDatasetMeta(_0x34d778).hidden = !showMovingAverages || !statsChartVisibleDatasets[_0x4cad2a];
+    ci.data.datasets.forEach((ds, idx) => {
+      if (ds.label.includes(" - ")) {
+        const main = ds.label.split(" - ")[0];
+        ci.getDatasetMeta(idx).hidden =
+          !showMovingAverages || !statsChartVisibleDatasets[main];
       }
     });
-    _0x558afe.update();
+    ci.update();
   });
   _captureControlsToSetup(_getActiveSetup());
 }
-function setYAxisPosition(_0x27eda1) {
-  yAxisPosition = _0x27eda1 === "right" ? "right" : "left";
+function setYAxisPosition(a) {
+  yAxisPosition = a === "right" ? "right" : "left";
   _lsSet(Y_AXIS_POS_KEY, yAxisPosition);
-  leagues.forEach(_0x3dbf4e => {
-    const _0x3e0227 = chartInstances[_0x3dbf4e];
-    if (!_0x3e0227) {
+  leagues.forEach((l) => {
+    const ci = chartInstances[l];
+    if (!ci) {
       return;
     }
-    _0x3e0227.options.scales.y.position = yAxisPosition;
-    _0x3e0227.options.layout.padding = yAxisPosition === "right" ? {
-      top: 30,
-      left: 80
-    } : {
-      top: 30,
-      right: 80
-    };
-    _0x3e0227.update();
+    ci.options.scales.y.position = yAxisPosition;
+    ci.options.layout.padding =
+      yAxisPosition === "right"
+        ? {
+            top: 30,
+            left: 80,
+          }
+        : {
+            top: 30,
+            right: 80,
+          };
+    ci.update();
   });
 }
-document.getElementById("pointsSelector").addEventListener("change", _0x25230e => {
-  numPoints = parseInt(_0x25230e.target.value, 10);
+document.getElementById("pointsSelector").addEventListener("change", (e) => {
+  numPoints = parseInt(e.target.value, 10);
   updateCharts();
   _captureControlsToSetup(_getActiveSetup());
 });
-document.getElementById("averageSelector").addEventListener("change", _0x394ab2 => {
-  averagePoints = parseInt(_0x394ab2.target.value, 10);
+document.getElementById("averageSelector").addEventListener("change", (e) => {
+  averagePoints = parseInt(e.target.value, 10);
   updateCharts();
   _captureControlsToSetup(_getActiveSetup());
 });
-document.getElementById("fibonacciToggle").addEventListener("change", toggleFibonacciLines);
-document.getElementById("movingAveragesToggle").addEventListener("change", toggleMovingAverages);
+document
+  .getElementById("fibonacciToggle")
+  .addEventListener("change", toggleFibonacciLines);
+document
+  .getElementById("movingAveragesToggle")
+  .addEventListener("change", toggleMovingAverages);
 const yAxisSel = document.getElementById("yAxisPositionSelector");
 if (yAxisSel) {
   yAxisSel.value = yAxisPosition;
-  yAxisSel.addEventListener("change", _0x2b5bd2 => setYAxisPosition(_0x2b5bd2.target.value));
+  yAxisSel.addEventListener("change", (e) => setYAxisPosition(e.target.value));
 }
-document.getElementById("linhaAtualToggle").addEventListener("change", function () {
-  leagues.forEach(_0x213b9a => {
-    const _0xc1f8a1 = chartInstances[_0x213b9a];
-    if (!_0xc1f8a1) {
-      return;
-    }
-    _0xc1f8a1.options.plugins.linhaAtual.enabled = this.checked;
-    _0xc1f8a1.update("active");
+document
+  .getElementById("linhaAtualToggle")
+  .addEventListener("change", function () {
+    leagues.forEach((l) => {
+      const ci = chartInstances[l];
+      if (!ci) {
+        return;
+      }
+      ci.options.plugins.linhaAtual.enabled = this.checked;
+      ci.update("active");
+    });
+    _captureControlsToSetup(_getActiveSetup());
   });
-  _captureControlsToSetup(_getActiveSetup());
-});
 document.getElementById("labelsToggle").addEventListener("change", function () {
   showLabels = this.checked;
-  leagues.forEach(_0x247a41 => {
-    if (chartInstances[_0x247a41]) {
-      chartInstances[_0x247a41].update();
+  leagues.forEach((l) => {
+    if (chartInstances[l]) {
+      chartInstances[l].update();
     }
   });
   _captureControlsToSetup(_getActiveSetup());
 });
 (function () {
-  const _0x4a7a37 = document.getElementById("btnLinhaTools");
-  const _0x2f5e79 = document.getElementById("linhaToolsPanel");
-  const _0x434bc5 = document.getElementById("btnFibTools");
-  const _0x4825ff = document.getElementById("fibToolsPanel");
-  const _0x1c4ec9 = document.getElementById("btnTrendTools");
-  const _0x2183eb = document.getElementById("trendToolsPanel");
-  if (!_0x4a7a37) {
+  const btnLinha = document.getElementById("btnLinhaTools");
+  const pLinha = document.getElementById("linhaToolsPanel");
+  const btnFib = document.getElementById("btnFibTools");
+  const pFib = document.getElementById("fibToolsPanel");
+  const btnTrend = document.getElementById("btnTrendTools");
+  const pTrend = document.getElementById("trendToolsPanel");
+  if (!btnLinha) {
     console.error("[grafico] elemento #btnLinhaTools não encontrado no HTML");
   }
-  if (!_0x2f5e79) {
+  if (!pLinha) {
     console.error("[grafico] elemento #linhaToolsPanel não encontrado no HTML");
   }
-  if (!_0x434bc5) {
+  if (!btnFib) {
     console.error("[grafico] elemento #btnFibTools não encontrado no HTML");
   }
-  if (!_0x4825ff) {
+  if (!pFib) {
     console.error("[grafico] elemento #fibToolsPanel não encontrado no HTML");
   }
-  if (!_0x1c4ec9) {
+  if (!btnTrend) {
     console.error("[grafico] elemento #btnTrendTools não encontrado no HTML");
   }
-  if (!_0x2183eb) {
+  if (!pTrend) {
     console.error("[grafico] elemento #trendToolsPanel não encontrado no HTML");
   }
-  if (_0x4a7a37 && _0x2f5e79) {
-    _0x4a7a37.addEventListener("click", _0x10de7d => {
-      _0x10de7d.stopPropagation();
-      _0x2f5e79.style.display = _0x2f5e79.style.display === "none" ? "block" : "none";
+  if (btnLinha && pLinha) {
+    btnLinha.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pLinha.style.display = pLinha.style.display === "none" ? "block" : "none";
     });
-    _0x2f5e79.addEventListener("click", _0x220914 => _0x220914.stopPropagation());
+    pLinha.addEventListener("click", (e) => e.stopPropagation());
   }
-  if (_0x434bc5 && _0x4825ff) {
-    _0x434bc5.addEventListener("click", _0xf806ba => {
-      _0xf806ba.stopPropagation();
-      _0x4825ff.style.display = _0x4825ff.style.display === "none" ? "block" : "none";
+  if (btnFib && pFib) {
+    btnFib.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pFib.style.display = pFib.style.display === "none" ? "block" : "none";
     });
-    _0x4825ff.addEventListener("click", _0x28ba9d => _0x28ba9d.stopPropagation());
+    pFib.addEventListener("click", (e) => e.stopPropagation());
   }
-  if (_0x1c4ec9 && _0x2183eb) {
-    _0x1c4ec9.addEventListener("click", _0x33fee6 => {
-      _0x33fee6.stopPropagation();
-      _0x2183eb.style.display = _0x2183eb.style.display === "none" ? "block" : "none";
+  if (btnTrend && pTrend) {
+    btnTrend.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pTrend.style.display = pTrend.style.display === "none" ? "block" : "none";
     });
-    _0x2183eb.addEventListener("click", _0x2a2356 => _0x2a2356.stopPropagation());
+    pTrend.addEventListener("click", (e) => e.stopPropagation());
   }
   document.addEventListener("click", () => {
-    if (_0x2f5e79) {
-      _0x2f5e79.style.display = "none";
+    if (pLinha) {
+      pLinha.style.display = "none";
     }
-    if (_0x4825ff) {
-      _0x4825ff.style.display = "none";
+    if (pFib) {
+      pFib.style.display = "none";
     }
-    if (_0x2183eb) {
-      _0x2183eb.style.display = "none";
+    if (pTrend) {
+      pTrend.style.display = "none";
     }
   });
 })();
 window.adicionarLinhaDraggable = () => {
-  const _0x27ca60 = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0x27ca60) {
-    _0x27ca60.addDragLine(document.getElementById("lineColorPicker")?.value || "#1fcc59");
+  const c = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (c) {
+    c.addDragLine(
+      document.getElementById("lineColorPicker")?.value || "#1fcc59",
+    );
   }
 };
 window.deletarLinhaSelecionada = () => {
-  const _0x116247 = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0x116247) {
-    _0x116247.deleteDragLine();
+  const c = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (c) {
+    c.deleteDragLine();
   }
 };
 window.limparTodasLinhas = () => {
-  const _0x1df564 = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0x1df564) {
-    _0x1df564.clearDragLines();
+  const c = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (c) {
+    c.clearDragLines();
   }
 };
 window.ativarDesenhoFibonacci = () => {
-  const _0x594d46 = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0x594d46) {
-    _0x594d46.setFibDrawMode(true);
+  const c = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (c) {
+    c.setFibDrawMode(true);
   }
 };
 window.deletarFibonacciSelecionado = () => {
-  const _0x27eb5d = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0x27eb5d) {
-    _0x27eb5d.deleteFibSelected();
+  const c = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (c) {
+    c.deleteFibSelected();
   }
 };
 window.limparFibonacciLivre = () => {
-  const _0x9465dd = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0x9465dd) {
-    _0x9465dd.clearFibDraws();
+  const c = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (c) {
+    c.clearFibDraws();
   }
 };
 window.ativarDesenhoLTA = () => {
-  const _0x2a3b65 = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0x2a3b65) {
-    _0x2a3b65.setTrendDrawMode(true, "LTA");
+  const c = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (c) {
+    c.setTrendDrawMode(true, "LTA");
   }
 };
 window.ativarDesenhoLTB = () => {
-  const _0x4514d3 = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0x4514d3) {
-    _0x4514d3.setTrendDrawMode(true, "LTB");
+  const c = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (c) {
+    c.setTrendDrawMode(true, "LTB");
   }
 };
 window.deletarTendenciaSelecionada = () => {
-  const _0x506abf = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0x506abf) {
-    _0x506abf.deleteTrendSelected();
+  const c = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (c) {
+    c.deleteTrendSelected();
   }
 };
 window.limparTendencias = () => {
-  const _0xd48ce0 = chartInstances.Copa || Object.values(chartInstances)[0];
-  if (_0xd48ce0) {
-    _0xd48ce0.clearTrendDraws();
+  const c = chartInstances.Copa || Object.values(chartInstances)[0];
+  if (c) {
+    c.clearTrendDraws();
   }
 };
 window.onload = () => {
