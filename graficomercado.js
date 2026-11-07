@@ -1,3 +1,42 @@
+/* ═══════════════════════════════════════════════════════════════════
+   GRÁFICO DE MERCADOS (graficomercado.js)
+   ═══════════════════════════════════════════════════════════════════
+
+   ÍNDICE (na ordem em que as partes aparecem no arquivo)
+     1. Configuração e variáveis globais ... jogos/hora, chaves do localStorage, estado
+     2. Mercados .......................... labelToKey, cores e grupos
+     3. Setups ............................ salvar, aplicar, barra de chips, painel de linhas, modal
+     4. Utilitários ....................... médias móveis, leitura do placar HT
+     5. Plugins do Chart.js ............... rótulos, Fibonacci, linha atual, linhas/Fibonacci/tendências arrastáveis
+     6. Gráfico ........................... createStatsChart, processApiData, updateCharts
+     7. Controles e funções globais ....... selects, toggles, botões do HTML
+     8. Inicialização ..................... window.onload e atualização a cada 3 s
+
+   COMO FAZER AS MUDANÇAS MAIS COMUNS
+
+   • Mudar jogos por hora / tamanho do bloco
+       Defina BS_JOGOS_POR_HORA, BS_QD_BLOCO e BS_KEY_SUFIXO no HTML antes de carregar este arquivo.
+       Sem elas o padrão é 20 jogos/hora (ver _JPH, _QBLOC, _KSUF no topo).
+
+   • Adicionar um novo mercado (ex.: "Over 6+")
+       1. labelToKey ......... "Over 6+": "over6"
+       2. DATASET_COLORS ..... cor da linha
+       3. MARKET_GROUPS ...... inclua o label no grupo certo (aparece no modal de setup)
+       4. MARKET_DEFS ........ over6: g => g.tg > 5.5   (a regra do mercado; g tem f0, f1, tg, hp, htTotal, g2t, margem)
+       (a média móvel curta/longa é gerada sozinha a partir de labelToKey)
+
+   • Mudar a cor de um mercado ............ DATASET_COLORS (ou a cor escolhida dentro do setup)
+   • Mudar limites de linhas desenhadas ... MAX_DRAG_LINES, MAX_DRAG_FIBS, MAX_DRAG_TRENDS
+   • Mudar níveis do Fibonacci ............ FIB_RETR_LEVELS e FIB_COLORS
+   • Mudar o intervalo de atualização ..... setInterval(updateCharts, 3000) no fim do arquivo
+
+   OBSERVAÇÕES
+   • Linhas manuais, Fibonacci livre e tendências são salvos por liga (_ligaKey).
+   • Desempenho: só os mercados do setup ativo são calculados e viram linhas no gráfico; se a API
+     devolver os mesmos dados e as configurações não mudaram, nada é recalculado nem redesenhado.
+     Arrastar linhas/Fibonacci/tendências só redesenha (_redraw), sem recalcular o gráfico.
+   ═══════════════════════════════════════════════════════════════════ */
+
 // ── BetGreen (12 jogos/hora) ─────────────────────────────────────────────
 // BS_JOGOS_POR_HORA / BS_QD_BLOCO / BS_KEY_SUFIXO vêm do template HTML (index.html da BetGreen).
 // Em páginas que não definem essas constantes, tudo cai no padrão de 20 jogos/hora (sem mudança).
@@ -19,20 +58,13 @@ const MAX_DRAG_LINES = 6;
 const MAX_DRAG_FIBS = 4;
 const MAX_DRAG_TRENDS = 6;
 const FIB_RETR_LEVELS = [0, 23.6, 38.2, 50, 61.8, 100];
-const FIB_COLORS = [
-  "#A78BFA",
-  "#FBBF24",
-  "#34D399",
-  "#F472B6",
-  "#60A5FA",
-  "#FB923C",
-];
+const FIB_COLORS = ["#A78BFA", "#FBBF24", "#34D399", "#F472B6", "#60A5FA", "#FB923C"];
 
 /* LTA = Linha de Tendência de Alta (suporte, ascendente) — verde
    LTB = Linha de Tendência de Baixa (resistência, descendente) — vermelho */
 const TREND_COLORS = {
   LTA: "#34D399",
-  LTB: "#F87171",
+  LTB: "#F87171"
 };
 
 /* ───────────────────────────────────────────
@@ -65,9 +97,7 @@ function _ligaAtual() {
     } catch {}
   }
 
-  const h4 =
-    document.querySelector("#resultDisplay h4.custom-color") ||
-    document.querySelector("h4.custom-color");
+  const h4 = document.querySelector("#resultDisplay h4.custom-color") || document.querySelector("h4.custom-color");
   const nome = h4 && h4.textContent ? h4.textContent.trim() : "";
 
   if (nome) {
@@ -177,8 +207,14 @@ const labelToKey = {
   "Margem 3": "margem3",
   "Empate Com Gols": "empateGols",
   "Gols FT Casa": "golsFTCasa",
-  "Gols FT Fora": "golsFTFora",
+  "Gols FT Fora": "golsFTFora"
 };
+
+/* ═══════════════════════════════════════════════════════════════════
+   CORES E GRUPOS DE MERCADOS
+   DATASET_COLORS: cor de cada linha do gráfico (por label).
+   MARKET_GROUPS: agrupamento dos mercados no modal de criar/editar setup.
+═══════════════════════════════════════════════════════════════════ */
 
 const DATASET_COLORS = {
   "Gols FT": "#FFFF00",
@@ -256,128 +292,64 @@ const DATASET_COLORS = {
   "Margem 3": "#FF1744",
   "Empate Com Gols": "#00BFA5",
   "Gols FT Casa": "#00E5FF",
-  "Gols FT Fora": "#FF6E40",
+  "Gols FT Fora": "#FF6E40"
 };
 
-const MARKET_GROUPS = [
-  {
-    title: "Geral",
-    labels: ["Gols FT", "Gols HT", "Gols Individual"],
-  },
-  {
-    title: "Resultado",
-    labels: ["Casa Vence", "Empate", "Fora Vence"],
-  },
-  {
-    title: "Ambas",
-    labels: ["Ambas Sim", "Ambas Não"],
-  },
-  {
-    title: "Over",
-    labels: ["Over 0.5", "Over 1.5", "Over 2.5", "Over 3.5", "Over 5+"],
-  },
-  {
-    title: "Under",
-    labels: ["Under 0.5", "Under 1.5", "Under 2.5", "Under 3.5"],
-  },
-  {
-    title: "Gols Exatos",
-    labels: [
-      "0 Gol Exato",
-      "1 Gol Exato",
-      "2 Gols Exatos",
-      "3 Gols Exatos",
-      "4 Gols Exatos",
-      "5 Gols Exatos",
-    ],
-  },
-  {
-    title: "Gols 2T",
-    labels: ["0 Gol 2T", "1 Gol 2T", "2 Gols 2T", "3 Gols 2T", "4 Gols 2T"],
-  },
-  {
-    title: "Casa",
-    labels: [
-      "Casa 0 Gols",
-      "Casa 1 Gol",
-      "Casa 2 Gols",
-      "Casa 3 Gols",
-      "Casa 4 Gols",
-    ],
-  },
-  {
-    title: "Fora",
-    labels: [
-      "Fora 0 Gols",
-      "Fora 1 Gol",
-      "Fora 2 Gols",
-      "Fora 3 Gols",
-      "Fora 4 Gols",
-    ],
-  },
-  {
-    title: "Placares FT",
-    labels: [
-      "0x0",
-      "1x0",
-      "2x0",
-      "3x0",
-      "2x1",
-      "3x1",
-      "3x2",
-      "4x0",
-      "4x1",
-      "0x1",
-      "0x2",
-      "1x2",
-      "0x3",
-      "1x3",
-      "2x3",
-      "0x4",
-      "1x4",
-    ],
-  },
-  {
-    title: "Placar HT",
-    labels: [
-      "0x0 HT",
-      "0x1 HT",
-      "1x0 HT",
-      "1x1 HT",
-      "0x2 HT",
-      "2x0 HT",
-      "OUT HT",
-    ],
-  },
-  {
-    title: "Resultado HT",
-    labels: ["Casa HT", "Empate HT", "Fora HT"],
-  },
-  {
-    title: "Over/Under HT",
-    labels: ["OverHT", "UnderHT"],
-  },
-  {
-    title: "Viradinha",
-    labels: ["Viradinha"],
-  },
-  {
-    title: "Par / Ímpar",
-    labels: ["Par", "Ímpar"],
-  },
-  {
-    title: "Margem de Gols",
-    labels: ["Margem 1", "Margem 2", "Margem 3"],
-  },
-  {
-    title: "Empate com Gols",
-    labels: ["Empate Com Gols"],
-  },
-  {
-    title: "Gols FT por Time",
-    labels: ["Gols FT Casa", "Gols FT Fora"],
-  },
-];
+const MARKET_GROUPS = [{
+  title: "Geral",
+  labels: ["Gols FT", "Gols HT", "Gols Individual"]
+}, {
+  title: "Resultado",
+  labels: ["Casa Vence", "Empate", "Fora Vence"]
+}, {
+  title: "Ambas",
+  labels: ["Ambas Sim", "Ambas Não"]
+}, {
+  title: "Over",
+  labels: ["Over 0.5", "Over 1.5", "Over 2.5", "Over 3.5", "Over 5+"]
+}, {
+  title: "Under",
+  labels: ["Under 0.5", "Under 1.5", "Under 2.5", "Under 3.5"]
+}, {
+  title: "Gols Exatos",
+  labels: ["0 Gol Exato", "1 Gol Exato", "2 Gols Exatos", "3 Gols Exatos", "4 Gols Exatos", "5 Gols Exatos"]
+}, {
+  title: "Gols 2T",
+  labels: ["0 Gol 2T", "1 Gol 2T", "2 Gols 2T", "3 Gols 2T", "4 Gols 2T"]
+}, {
+  title: "Casa",
+  labels: ["Casa 0 Gols", "Casa 1 Gol", "Casa 2 Gols", "Casa 3 Gols", "Casa 4 Gols"]
+}, {
+  title: "Fora",
+  labels: ["Fora 0 Gols", "Fora 1 Gol", "Fora 2 Gols", "Fora 3 Gols", "Fora 4 Gols"]
+}, {
+  title: "Placares FT",
+  labels: ["0x0", "1x0", "2x0", "3x0", "2x1", "3x1", "3x2", "4x0", "4x1", "0x1", "0x2", "1x2", "0x3", "1x3", "2x3", "0x4", "1x4"]
+}, {
+  title: "Placar HT",
+  labels: ["0x0 HT", "0x1 HT", "1x0 HT", "1x1 HT", "0x2 HT", "2x0 HT", "OUT HT"]
+}, {
+  title: "Resultado HT",
+  labels: ["Casa HT", "Empate HT", "Fora HT"]
+}, {
+  title: "Over/Under HT",
+  labels: ["OverHT", "UnderHT"]
+}, {
+  title: "Viradinha",
+  labels: ["Viradinha"]
+}, {
+  title: "Par / Ímpar",
+  labels: ["Par", "Ímpar"]
+}, {
+  title: "Margem de Gols",
+  labels: ["Margem 1", "Margem 2", "Margem 3"]
+}, {
+  title: "Empate com Gols",
+  labels: ["Empate Com Gols"]
+}, {
+  title: "Gols FT por Time",
+  labels: ["Gols FT Casa", "Gols FT Fora"]
+}];
 
 /* ═══════════════════════════════════════════════════════════════════
    HELPERS DE STORAGE
@@ -396,9 +368,9 @@ function _ls(key, fallback) {
   }
 }
 
-function _lsSet(key, val) {
+function _lsSet(key, value) {
   try {
-    localStorage.setItem(key, JSON.stringify(val));
+    localStorage.setItem(key, JSON.stringify(value));
   } catch {}
 }
 
@@ -421,38 +393,49 @@ const SETUP_PADRAO = {
   labels: false,
   dragLines: [],
   fibDraws: [],
-  trendLines: [],
+  trendLines: []
 };
 
+/* ═══════════════════════════════════════════════════════════════════
+   SETUPS: LEITURA E GRAVAÇÃO (localStorage)
+   Setup = conjunto de mercados + configurações do gráfico escolhidos pelo usuário.
+   O setup "__padrao__" (SETUP_PADRAO) é fixo e não pode ser editado.
+═══════════════════════════════════════════════════════════════════ */
+
+// Lê os setups criados pelo usuário.
 function _loadCustomSetups() {
   return _ls(SETUPS_KEY, []);
 }
 
-function _saveCustomSetups(a) {
-  _lsSet(SETUPS_KEY, a);
+// Grava a lista de setups do usuário.
+function _saveCustomSetups(setups) {
+  _lsSet(SETUPS_KEY, setups);
 }
 
+// Lê o id do setup ativo ("__padrao__" se nenhum).
 function _loadActiveId() {
   return _ls(ACTIVE_SETUP_KEY, "__padrao__");
 }
 
-function _saveActiveId(a) {
-  _lsSet(ACTIVE_SETUP_KEY, a);
+// Grava o id do setup ativo.
+function _saveActiveId(id) {
+  _lsSet(ACTIVE_SETUP_KEY, id);
 }
 
+// Setup padrão + setups do usuário.
 function _getAllSetups() {
   return [SETUP_PADRAO, ..._loadCustomSetups()];
 }
 
+// Setup que está selecionado agora.
 function _getActiveSetup() {
   const id = _loadActiveId();
-  return _getAllSetups().find((s) => s.id === id) || SETUP_PADRAO;
+  return _getAllSetups().find(s => s.id === id) || SETUP_PADRAO;
 }
 
+// Cor de um mercado: a do setup, senão DATASET_COLORS, senão cinza.
 function _marketColor(setup, label) {
-  return (
-    (setup.colors && setup.colors[label]) || DATASET_COLORS[label] || "#888"
-  );
+  return setup.colors && setup.colors[label] || DATASET_COLORS[label] || "#888";
 }
 
 /* ── TOGGLES DE LINHA POR SETUP ── */
@@ -461,26 +444,29 @@ function _getLineToggles(setupId) {
   return all[setupId] || {};
 }
 
-function _saveLineToggles(a, b) {
+// Grava quais linhas estão ligadas/desligadas em um setup.
+function _saveLineToggles(setupId, toggles) {
   const lsResult = _ls(SETUP_LINE_TOGGLE_KEY, {});
-  lsResult[a] = b;
+  lsResult[setupId] = toggles;
   _lsSet(SETUP_LINE_TOGGLE_KEY, lsResult);
 }
 
-function _isLineActive(a, b) {
-  const getLineTogglesResult = _getLineToggles(a);
+// Diz se a linha (mercado) está ligada no setup. Padrão: ligada.
+function _isLineActive(setupId, label) {
+  const getLineTogglesResult = _getLineToggles(setupId);
 
-  if (getLineTogglesResult[b] !== undefined) {
-    return getLineTogglesResult[b];
+  if (getLineTogglesResult[label] !== undefined) {
+    return getLineTogglesResult[label];
   } else {
     return true;
   }
 }
 
-function _setLineActive(SETUP_LINE_TOGGLE_KEY2, setupId, toggles) {
-  const all = _getLineToggles(SETUP_LINE_TOGGLE_KEY2);
-  all[setupId] = toggles;
-  _saveLineToggles(SETUP_LINE_TOGGLE_KEY2, all);
+// Liga/desliga uma linha (mercado) em um setup e grava.
+function _setLineActive(setupId, label, active) {
+  const setupToggles = _getLineToggles(setupId);
+  setupToggles[label] = active;
+  _saveLineToggles(setupId, setupToggles);
 }
 
 /* ── SALVA O ESTADO ATUAL DOS CONTROLES NO SETUP ── */
@@ -490,7 +476,7 @@ function _captureControlsToSetup(setup) {
   }
 
   const arr = _loadCustomSetups();
-  const idx = arr.findIndex((s) => s.id === setup.id);
+  const idx = arr.findIndex(s => s.id === setup.id);
 
   if (idx === -1) {
     return;
@@ -521,7 +507,7 @@ function _applySetup(setup) {
 
   _saveActiveId(setup.id);
 
-  Object.keys(labelToKey).forEach((label) => {
+  Object.keys(labelToKey).forEach(label => {
     const inSetup = setup.markets.includes(label);
     const toggled = _isLineActive(setup.id, label);
     statsChartVisibleDatasets[label] = inSetup && toggled;
@@ -530,46 +516,46 @@ function _applySetup(setup) {
   _saveVisibleDatasets(statsChartVisibleDatasets);
   const pSel = document.getElementById("pointsSelector");
   const aSel = document.getElementById("averageSelector");
-  const fib = document.getElementById("fibonacciToggle");
-  const med = document.getElementById("movingAveragesToggle");
-  const lat = document.getElementById("linhaAtualToggle");
-  const lbl = document.getElementById("labelsToggle");
-  const h = setup.horas ?? 8 * _JPH;
-  const b = setup.base ?? _JPH - 1;
-  const f = setup.fibonacci ?? false;
-  const m = setup.mediasMoveis ?? false;
-  const l = setup.linhaAtual ?? true;
-  const lb = setup.labels ?? false;
+  const fibToggleEl = document.getElementById("fibonacciToggle");
+  const mediasToggleEl = document.getElementById("movingAveragesToggle");
+  const linhaAtualToggleEl = document.getElementById("linhaAtualToggle");
+  const labelsToggleEl = document.getElementById("labelsToggle");
+  const horas = setup.horas ?? 8 * _JPH;
+  const base = setup.base ?? _JPH - 1;
+  const fibonacciOn = setup.fibonacci ?? false;
+  const mediasMoveisOn = setup.mediasMoveis ?? false;
+  const linhaAtualOn = setup.linhaAtual ?? true;
+  const labelsOn = setup.labels ?? false;
 
   if (pSel) {
-    pSel.value = String(h);
+    pSel.value = String(horas);
   }
 
   if (aSel) {
-    aSel.value = String(b);
+    aSel.value = String(base);
   }
 
-  if (fib) {
-    fib.checked = f;
+  if (fibToggleEl) {
+    fibToggleEl.checked = fibonacciOn;
   }
 
-  if (med) {
-    med.checked = m;
+  if (mediasToggleEl) {
+    mediasToggleEl.checked = mediasMoveisOn;
   }
 
-  if (lat) {
-    lat.checked = l;
+  if (linhaAtualToggleEl) {
+    linhaAtualToggleEl.checked = linhaAtualOn;
   }
 
-  if (lbl) {
-    lbl.checked = lb;
+  if (labelsToggleEl) {
+    labelsToggleEl.checked = labelsOn;
   }
 
-  numPoints = h;
-  averagePoints = b;
-  showFibonacciLines = f;
-  showMovingAverages = m;
-  showLabels = lb;
+  numPoints = horas;
+  averagePoints = base;
+  showFibonacciLines = fibonacciOn;
+  showMovingAverages = mediasMoveisOn;
+  showLabels = labelsOn;
   const ci = chartInstances.Copa || Object.values(chartInstances)[0];
 
   if (ci) {
@@ -582,22 +568,14 @@ function _applySetup(setup) {
     ci.trendLines = _loadDragTrends();
     ci._selectedTrend = -1;
     _atualizarContadorTrends(ci.trendLines);
-    ci.options.plugins.linhaAtual.enabled = l;
+    ci.options.plugins.linhaAtual.enabled = linhaAtualOn;
 
     ci.data.datasets.forEach((ds, idx) => {
-      const mainLabel = ds.label.includes(" - ")
-        ? ds.label.split(" - ")[0]
-        : ds.label;
+      const mainLabel = ds.label.includes(" - ") ? ds.label.split(" - ")[0] : ds.label;
       const vis = statsChartVisibleDatasets[mainLabel];
-      ci.getDatasetMeta(idx).hidden = ds.label.includes(" - ")
-        ? !m || !vis
-        : !vis;
+      ci.getDatasetMeta(idx).hidden = ds.label.includes(" - ") ? !mediasMoveisOn || !vis : !vis;
 
-      if (
-        !ds.label.includes(" - ") &&
-        setup.colors &&
-        setup.colors[mainLabel]
-      ) {
+      if (!ds.label.includes(" - ") && setup.colors && setup.colors[mainLabel]) {
         ds.borderColor = setup.colors[mainLabel];
         ds.backgroundColor = setup.colors[mainLabel];
       } else if (!ds.label.includes(" - ")) {
@@ -606,6 +584,10 @@ function _applySetup(setup) {
       }
     });
 
+  }
+
+  // Recalcula só com os mercados do novo setup (usa os dados já baixados, sem esperar a API).
+  if (!_refreshFromCache() && ci) {
     ci.update();
   }
 
@@ -623,17 +605,17 @@ function _getDatasetCurrentValue(label) {
     return null;
   }
 
-  const ds = ci.data.datasets.find((d) => d.label === label);
+  const ds = ci.data.datasets.find(d => d.label === label);
 
   if (!ds || !ds.data) {
     return null;
   }
 
   for (let j = ds.data.length - 1; j >= 0; j--) {
-    const v = ds.data[j];
+    const value = ds.data[j];
 
-    if (v !== null && v !== undefined && isFinite(v)) {
-      return v;
+    if (value !== null && value !== undefined && isFinite(value)) {
+      return value;
     }
   }
 
@@ -651,7 +633,7 @@ function _renderSetupBar() {
   bar.innerHTML = "";
   const activeId = _loadActiveId();
 
-  _getAllSetups().forEach((setup) => {
+  _getAllSetups().forEach(setup => {
     if (setup.id === "__padrao__") {
       return;
     }
@@ -672,17 +654,14 @@ function _renderSetupBar() {
       btn.appendChild(editHint);
     }
 
-    btn.title =
-      setup.id === "__padrao__"
-        ? setup.markets.join(" · ")
-        : setup.markets.join(" · ") + "\nDuplo clique para editar";
+    btn.title = setup.id === "__padrao__" ? setup.markets.join(" · ") : setup.markets.join(" · ") + "\nDuplo clique para editar";
     btn.addEventListener("click", () => _applySetup(setup));
 
-    btn.addEventListener("dblclick", (e) => {
+    btn.addEventListener("dblclick", e => {
       e.stopPropagation();
 
       if (setup.id === "__padrao__") {
-        alert('O setup "Padrão" não pode ser editado.');
+        alert("O setup \"Padrão\" não pode ser editado.");
         return;
       }
 
@@ -697,7 +676,7 @@ function _renderSetupBar() {
       dup.textContent = "⧉";
       dup.title = "Duplicar setup";
 
-      dup.addEventListener("click", (e) => {
+      dup.addEventListener("click", e => {
         e.stopPropagation();
         _duplicateSetup(setup);
       });
@@ -708,14 +687,14 @@ function _renderSetupBar() {
       del.textContent = "✕";
       del.title = "Remover setup";
 
-      del.addEventListener("click", (e) => {
+      del.addEventListener("click", e => {
         e.stopPropagation();
 
-        if (!confirm('Remover o setup "' + setup.name + '"?')) {
+        if (!confirm("Remover o setup \"" + setup.name + "\"?")) {
           return;
         }
 
-        const arr = _loadCustomSetups().filter((s) => s.id !== setup.id);
+        const arr = _loadCustomSetups().filter(s => s.id !== setup.id);
         _saveCustomSetups(arr);
 
         if (_loadActiveId() === setup.id) {
@@ -738,11 +717,7 @@ function _duplicateSetup(setup) {
   const arr = _loadCustomSetups();
 
   if (arr.length >= MAX_SETUPS) {
-    alert(
-      "Limite de " +
-        MAX_SETUPS +
-        " setups atingido. Remova um antes de duplicar.",
-    );
+    alert("Limite de " + MAX_SETUPS + " setups atingido. Remova um antes de duplicar.");
     return;
   }
 
@@ -756,8 +731,8 @@ function _duplicateSetup(setup) {
 }
 
 /* ── PRÉVIA NO HOVER (mostra a linha temporariamente sem ativar de verdade) ── */
-function _setPreviewLine(a, arr) {
-  leagues.forEach((l) => {
+function _setPreviewLine(label, visible) {
+  leagues.forEach(l => {
     const ci = chartInstances[l];
 
     if (!ci) {
@@ -769,12 +744,12 @@ function _setPreviewLine(a, arr) {
     ci.data.datasets.forEach((ds, idx) => {
       const ml = ds.label.includes(" - ") ? ds.label.split(" - ")[0] : ds.label;
 
-      if (ml !== a) {
+      if (ml !== label) {
         return;
       }
 
       const isMA = ds.label.includes(" - ");
-      const newHidden = arr ? (isMA ? !showMovingAverages : false) : true;
+      const newHidden = visible ? isMA ? !showMovingAverages : false : true;
       const meta = ci.getDatasetMeta(idx);
 
       if (meta.hidden !== newHidden) {
@@ -803,20 +778,15 @@ function _renderLinesPanel(setup) {
     return;
   }
 
-  setup.markets.forEach((label) => {
+  setup.markets.forEach(label => {
     const active = _isLineActive(setup.id, label);
     const color = _marketColor(setup, label);
-    const val = _getDatasetCurrentValue(label);
+    const currentValue = _getDatasetCurrentValue(label);
     let tooltipText = label;
 
-    if (val !== null) {
-      const isGols =
-        label === "Gols FT" ||
-        label === "Gols HT" ||
-        label === "Gols FT Casa" ||
-        label === "Gols FT Fora";
-      tooltipText +=
-        " — " + (isGols ? Math.round(val) + " gols" : val.toFixed(1));
+    if (currentValue !== null) {
+      const isGols = label === "Gols FT" || label === "Gols HT" || label === "Gols FT Casa" || label === "Gols FT Fora";
+      tooltipText += " — " + (isGols ? Math.round(currentValue) + " gols" : currentValue.toFixed(1));
     }
 
     const toggle = document.createElement("div");
@@ -829,15 +799,11 @@ function _renderLinesPanel(setup) {
     const txt = document.createElement("span");
     txt.textContent = label;
 
-    if (val !== null) {
+    if (currentValue !== null) {
       const valSpan = document.createElement("span");
       valSpan.className = "market-toggle-val";
-      const isGols =
-        label === "Gols FT" ||
-        label === "Gols HT" ||
-        label === "Gols FT Casa" ||
-        label === "Gols FT Fora";
-      valSpan.textContent = isGols ? Math.round(val) : val.toFixed(1);
+      const isGols = label === "Gols FT" || label === "Gols HT" || label === "Gols FT Casa" || label === "Gols FT Fora";
+      valSpan.textContent = isGols ? Math.round(currentValue) : currentValue.toFixed(1);
       valSpan.style.color = color;
       toggle.appendChild(dot);
       toggle.appendChild(txt);
@@ -851,11 +817,10 @@ function _renderLinesPanel(setup) {
       toggle.style.outline = "";
       const nowActive = !_isLineActive(setup.id, label);
       _setLineActive(setup.id, label, nowActive);
-      statsChartVisibleDatasets[label] =
-        setup.markets.includes(label) && nowActive;
+      statsChartVisibleDatasets[label] = setup.markets.includes(label) && nowActive;
       _saveVisibleDatasets(statsChartVisibleDatasets);
 
-      leagues.forEach((l) => {
+      leagues.forEach(l => {
         const ci = chartInstances[l];
 
         if (!ci) {
@@ -863,18 +828,14 @@ function _renderLinesPanel(setup) {
         }
 
         ci.data.datasets.forEach((ds, idx) => {
-          const ml = ds.label.includes(" - ")
-            ? ds.label.split(" - ")[0]
-            : ds.label;
+          const ml = ds.label.includes(" - ") ? ds.label.split(" - ")[0] : ds.label;
 
           if (ml !== label) {
             return;
           }
 
           const vis = statsChartVisibleDatasets[ml];
-          ci.getDatasetMeta(idx).hidden = ds.label.includes(" - ")
-            ? !showMovingAverages || !vis
-            : !vis;
+          ci.getDatasetMeta(idx).hidden = ds.label.includes(" - ") ? !showMovingAverages || !vis : !vis;
         });
 
         ci.update();
@@ -905,7 +866,7 @@ function _renderLinesPanel(setup) {
     panel.appendChild(toggle);
   });
 
-  panel.querySelectorAll(".market-toggle.inactive").forEach((el) => {
+  panel.querySelectorAll(".market-toggle.inactive").forEach(el => {
     const lbl = el.dataset.label;
 
     if (!lbl) {
@@ -936,31 +897,26 @@ function _updateLinesPanelValues() {
     return;
   }
 
-  panel.querySelectorAll(".market-toggle").forEach((toggle) => {
+  panel.querySelectorAll(".market-toggle").forEach(toggle => {
     const label = toggle.dataset.label;
 
     if (!label) {
       return;
     }
 
-    const val = _getDatasetCurrentValue(label);
-    const isGols =
-      label === "Gols FT" ||
-      label === "Gols HT" ||
-      label === "Gols FT Casa" ||
-      label === "Gols FT Fora";
+    const currentValue = _getDatasetCurrentValue(label);
+    const isGols = label === "Gols FT" || label === "Gols HT" || label === "Gols FT Casa" || label === "Gols FT Fora";
     let tooltipText = label;
 
-    if (val !== null) {
-      tooltipText +=
-        " — " + (isGols ? Math.round(val) + " gols" : val.toFixed(1));
+    if (currentValue !== null) {
+      tooltipText += " — " + (isGols ? Math.round(currentValue) + " gols" : currentValue.toFixed(1));
     }
 
     toggle.title = tooltipText;
     let valSpan = toggle.querySelector(".market-toggle-val");
 
-    if (val !== null) {
-      const text = isGols ? Math.round(val) : val.toFixed(1);
+    if (currentValue !== null) {
+      const text = isGols ? Math.round(currentValue) : currentValue.toFixed(1);
 
       if (!valSpan) {
         valSpan = document.createElement("span");
@@ -984,16 +940,12 @@ function _updateSetupCounter() {
 
   if (counter) {
     counter.textContent = customs + " / " + MAX_SETUPS;
-    counter.className =
-      "setup-counter" + (customs >= MAX_SETUPS ? " at-limit" : "");
+    counter.className = "setup-counter" + (customs >= MAX_SETUPS ? " at-limit" : "");
   }
 
   if (addBtn) {
     addBtn.disabled = customs >= MAX_SETUPS;
-    addBtn.title =
-      customs >= MAX_SETUPS
-        ? "Limite de 10 setups atingido"
-        : "Criar novo setup";
+    addBtn.title = customs >= MAX_SETUPS ? "Limite de 10 setups atingido" : "Criar novo setup";
   }
 }
 
@@ -1002,6 +954,7 @@ function _updateSetupCounter() {
 ═══════════════════════════════════════════════════════════════════ */
 let _editingSetupId = null;
 
+// Abre o modal de criar setup (ou editar, se receber um setup).
 function _openSetupModal(setupParaEditar) {
   const modal = document.getElementById("setupModal");
   const warning = document.getElementById("setupLimitWarning");
@@ -1015,8 +968,7 @@ function _openSetupModal(setupParaEditar) {
   if (setupParaEditar) {
     _editingSetupId = setupParaEditar.id;
     document.getElementById("setupModalTitle").textContent = "Editar Setup";
-    document.getElementById("setupModalSaveBtn").textContent =
-      "✔ Atualizar Setup";
+    document.getElementById("setupModalSaveBtn").textContent = "✔ Atualizar Setup";
     document.getElementById("setupModalName").value = setupParaEditar.name;
 
     if (warning) {
@@ -1039,13 +991,13 @@ function _openSetupModal(setupParaEditar) {
   const checkedMarkets = refSetup.markets || [];
   const currentColors = (setupParaEditar ? setupParaEditar.colors : null) || {};
 
-  MARKET_GROUPS.forEach((group) => {
+  MARKET_GROUPS.forEach(group => {
     const title = document.createElement("div");
     title.className = "setup-modal-group-title";
     title.textContent = group.title;
     container.appendChild(title);
 
-    group.labels.forEach((label) => {
+    group.labels.forEach(label => {
       const isChecked = checkedMarkets.includes(label);
       const row = document.createElement("label");
       row.className = "setup-modal-row" + (isChecked ? " checked" : "");
@@ -1060,8 +1012,7 @@ function _openSetupModal(setupParaEditar) {
 
       const dot = document.createElement("span");
       dot.className = "setup-modal-dot";
-      const currentColor =
-        currentColors[label] || DATASET_COLORS[label] || "#888";
+      const currentColor = currentColors[label] || DATASET_COLORS[label] || "#888";
       dot.style.background = currentColor;
       const txt = document.createElement("span");
       txt.textContent = label;
@@ -1088,6 +1039,7 @@ function _openSetupModal(setupParaEditar) {
   setTimeout(() => document.getElementById("setupModalName")?.focus(), 60);
 }
 
+// Fecha o modal de setup.
 function _closeSetupModal() {
   const modal = document.getElementById("setupModal");
 
@@ -1098,6 +1050,7 @@ function _closeSetupModal() {
   _editingSetupId = null;
 }
 
+// Valida e salva o setup digitado no modal.
 function _saveSetupModal() {
   const name = document.getElementById("setupModalName").value.trim();
 
@@ -1109,21 +1062,19 @@ function _saveSetupModal() {
   const markets = [];
   const colors = {};
 
-  document
-    .querySelectorAll("#setupModalMarkets .setup-modal-row")
-    .forEach((row) => {
-      const cb = row.querySelector("input[type=checkbox]");
-      const cp = row.querySelector(".market-color-picker");
+  document.querySelectorAll("#setupModalMarkets .setup-modal-row").forEach(row => {
+    const cb = row.querySelector("input[type=checkbox]");
+    const cp = row.querySelector(".market-color-picker");
 
-      if (cb && cb.checked) {
-        markets.push(cb.value);
-        const def = DATASET_COLORS[cb.value] || "#888";
+    if (cb && cb.checked) {
+      markets.push(cb.value);
+      const def = DATASET_COLORS[cb.value] || "#888";
 
-        if (cp && cp.value.toLowerCase() !== def.toLowerCase()) {
-          colors[cb.value] = cp.value;
-        }
+      if (cp && cp.value.toLowerCase() !== def.toLowerCase()) {
+        colors[cb.value] = cp.value;
       }
-    });
+    }
+  });
 
   if (markets.length === 0) {
     alert("Selecione pelo menos um mercado.");
@@ -1133,7 +1084,7 @@ function _saveSetupModal() {
   const arr = _loadCustomSetups();
 
   if (_editingSetupId) {
-    const idx = arr.findIndex((s) => s.id === _editingSetupId);
+    const idx = arr.findIndex(s => s.id === _editingSetupId);
 
     if (idx !== -1) {
       arr[idx].name = name;
@@ -1168,7 +1119,7 @@ function _saveSetupModal() {
       mediasMoveis: active.mediasMoveis ?? false,
       linhaAtual: active.linhaAtual ?? true,
       labels: active.labels ?? false,
-      dragLines: [],
+      dragLines: []
     };
 
     arr.push(newSetup);
@@ -1180,14 +1131,13 @@ function _saveSetupModal() {
   _updateSetupCounter();
 }
 
+// Ao carregar a página: clicar fora do modal de setup fecha o modal.
 document.addEventListener("DOMContentLoaded", () => {
-  document
-    .getElementById("setupModal")
-    ?.addEventListener("click", function (e) {
-      if (e.target === this) {
-        _closeSetupModal();
-      }
-    });
+  document.getElementById("setupModal")?.addEventListener("click", function (e) {
+    if (e.target === this) {
+      _closeSetupModal();
+    }
+  });
 
   const accordionOpen = _ls(ACCORDION_KEY, true);
   const content = document.querySelector(".accordion-content");
@@ -1215,25 +1165,27 @@ function toggleAccordion(btn) {
    PERSISTÊNCIA DATASETS VISÍVEIS
 ═══════════════════════════════════════════════════════════════════ */
 const defaultStatsChartVisibleDatasets = (() => {
-  const d = {};
-  Object.keys(labelToKey).forEach((k) => (d[k] = false));
-  return d;
+  const visible = {};
+  Object.keys(labelToKey).forEach(label => visible[label] = false);
+  return visible;
 })();
 
+// Lê quais mercados estão visíveis (mescla com o padrão).
 function _loadVisibleDatasets() {
-  const raw = _ls(VISIBLE_DS_KEY, null);
+  const saved = _ls(VISIBLE_DS_KEY, null);
 
-  const defaultStatsChartVisibleDatasets2 = {
-    ...defaultStatsChartVisibleDatasets,
+  const defaults = {
+    ...defaultStatsChartVisibleDatasets
   };
 
-  if (!raw) {
-    return defaultStatsChartVisibleDatasets2;
+  if (!saved) {
+    return defaults;
   }
 
-  return Object.assign({}, defaultStatsChartVisibleDatasets, raw);
+  return Object.assign({}, defaultStatsChartVisibleDatasets, saved);
 }
 
+// Grava quais mercados estão visíveis.
 function _saveVisibleDatasets(a) {
   _lsSet(VISIBLE_DS_KEY, a);
 }
@@ -1252,6 +1204,7 @@ function getKeyFromLabel(label) {
   return labelToKey[label];
 }
 
+// Média móvel simples de dataArray com a janela "period" (ignora null).
 function computeMA(dataArray, period) {
   return dataArray.map((_, i) => {
     let sum = 0;
@@ -1272,6 +1225,7 @@ function computeMA(dataArray, period) {
   });
 }
 
+// Total de gols do 1º tempo a partir do texto do HT (ex.: "1 x 0"; "OUT" vale 3).
 function parseHtScoreTotal(htStr) {
   if (!htStr) {
     return 0;
@@ -1282,26 +1236,27 @@ function parseHtScoreTotal(htStr) {
   }
 
   if (htStr.includes(" x ")) {
-    const p = htStr.split(" x ").map(Number);
+    const parts = htStr.split(" x ").map(Number);
 
-    if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) {
-      return p[0] + p[1];
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return parts[0] + parts[1];
     }
   }
 
   return 0;
 }
 
+// Separa o placar do HT em [casa, fora].
 function parseHtParts(htStr) {
   if (!htStr || htStr === "OUT") {
     return null;
   }
 
   if (htStr.includes(" x ")) {
-    const p = htStr.split(" x ").map(Number);
+    const parts = htStr.split(" x ").map(Number);
 
-    if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) {
-      return p;
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return parts;
     }
   }
 
@@ -1320,7 +1275,11 @@ const rotulosPlugin = {
       return;
     }
 
-    const { ctx, chartArea, scales } = chart;
+    const {
+      ctx,
+      chartArea,
+      scales
+    } = chart;
 
     if (!chartArea || !scales.y) {
       return;
@@ -1349,9 +1308,9 @@ const rotulosPlugin = {
       ctx.fillStyle = color;
 
       meta.data.forEach((point, i) => {
-        const v = ds.data[i];
+        const value = ds.data[i];
 
-        if (v === null || v === undefined || !isFinite(v)) {
+        if (value === null || value === undefined || !isFinite(value)) {
           return;
         }
 
@@ -1364,13 +1323,13 @@ const rotulosPlugin = {
         }
 
         const isGols = ds.label === "Gols FT" || ds.label === "Gols HT";
-        const text = isGols ? String(Math.round(v)) : String(Math.round(v));
+        const text = isGols ? String(Math.round(value)) : String(Math.round(value));
         ctx.fillText(text, point.x, point.y - 4);
       });
 
       ctx.restore();
     });
-  },
+  }
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1394,14 +1353,17 @@ const fibonacciLinesPlugin = {
     const fibColor = "rgba(167,139,250,0.55)";
     const fibText = "rgba(196,181,253,0.9)";
 
-    const { left, right } = chart.chartArea;
+    const {
+      left,
+      right
+    } = chart.chartArea;
 
     const range = yAxis.max - yAxis.min;
     const axisRight = yAxis.position === "right";
     ctx.save();
 
     fibLevels.forEach((lvl, i) => {
-      const y = yAxis.getPixelForValue(yAxis.min + (lvl / 100) * range);
+      const y = yAxis.getPixelForValue(yAxis.min + lvl / 100 * range);
       ctx.beginPath();
       ctx.setLineDash([6, 4]);
       ctx.moveTo(left, y);
@@ -1424,28 +1386,40 @@ const fibonacciLinesPlugin = {
     });
 
     ctx.restore();
-  },
+  }
 };
+
+/* ═══════════════════════════════════════════════════════════════════
+   PLUGIN: LINHA ATUAL
+   Desenha uma linha tracejada no último valor de cada mercado visível,
+   com uma etiqueta (badge) na borda do gráfico. Liga/desliga em #linhaAtualToggle.
+═══════════════════════════════════════════════════════════════════ */
 
 const linhaAtualPlugin = {
   id: "linhaAtual",
   afterDraw(chart, args, opts) {
-    const cfg =
-      opts?.enabled !== undefined
-        ? opts
-        : (chart.options?.plugins?.linhaAtual ?? {});
+    const cfg = opts?.enabled !== undefined ? opts : chart.options?.plugins?.linhaAtual ?? {};
 
     if (cfg.enabled === false) {
       return;
     }
 
-    const { ctx, chartArea, scales } = chart;
+    const {
+      ctx,
+      chartArea,
+      scales
+    } = chart;
 
     if (!chartArea || !scales.y) {
       return;
     }
 
-    const { left, right, top, bottom } = chartArea;
+    const {
+      left,
+      right,
+      top,
+      bottom
+    } = chartArea;
 
     const padX = 5;
     const BAD_H = 18;
@@ -1485,14 +1459,14 @@ const linhaAtualPlugin = {
         return;
       }
 
-      const entries2 = {
+      const entry = {
         yVal,
         yPx,
         label: d.label,
-        color: d.borderColor || "#fff",
+        color: d.borderColor || "#fff"
       };
 
-      entries.push(entries2);
+      entries.push(entry);
     });
 
     if (!entries.length) {
@@ -1504,10 +1478,7 @@ const linhaAtualPlugin = {
     for (let i = 1; i < entries.length; i++) {
       const prev = entries[i - 1];
       const curr = entries[i];
-      curr.badgeY =
-        curr.yPx - (prev.badgeY ?? prev.yPx) < BAD_H + 2
-          ? (prev.badgeY ?? prev.yPx) + BAD_H + 2
-          : curr.yPx;
+      curr.badgeY = curr.yPx - (prev.badgeY ?? prev.yPx) < BAD_H + 2 ? (prev.badgeY ?? prev.yPx) + BAD_H + 2 : curr.yPx;
 
       if (i === 1) {
         prev.badgeY = prev.badgeY ?? prev.yPx;
@@ -1518,7 +1489,13 @@ const linhaAtualPlugin = {
       entries[0].badgeY = entries[0].yPx;
     }
 
-    entries.forEach(({ yVal, yPx, badgeY, label, color }) => {
+    entries.forEach(({
+      yVal,
+      yPx,
+      badgeY,
+      label,
+      color
+    }) => {
       ctx.save();
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.2;
@@ -1528,12 +1505,7 @@ const linhaAtualPlugin = {
       ctx.lineTo(right, yPx);
       ctx.stroke();
       ctx.setLineDash([]);
-      const isGols =
-        label === "Gols FT" ||
-        label === "Gols HT" ||
-        label === "Gols Individual" ||
-        label === "Gols FT Casa" ||
-        label === "Gols FT Fora";
+      const isGols = label === "Gols FT" || label === "Gols HT" || label === "Gols Individual" || label === "Gols FT Casa" || label === "Gols FT Fora";
       const text = isGols ? String(Math.round(yVal)) : yVal.toFixed(1);
       ctx.font = "600 10.5px 'Inter',Arial,sans-serif";
       ctx.textBaseline = "middle";
@@ -1554,21 +1526,19 @@ const linhaAtualPlugin = {
       ctx.fillText(text, bx + padX, badgeY);
       ctx.restore();
     });
-  },
+  }
 };
 
 /* ── DRAG LINES ── */
 function _loadDragLines() {
   try {
-    const a = JSON.parse(
-      localStorage.getItem(_ligaKey(DRAG_LINES_KEY)) || "[]",
-    );
+    const saved = JSON.parse(localStorage.getItem(_ligaKey(DRAG_LINES_KEY)) || "[]");
 
-    if (Array.isArray(a)) {
-      return a.map((l) => ({
-        y: Number(l.y),
-        color: l.color || "#1fcc59",
-        dragging: false,
+    if (Array.isArray(saved)) {
+      return saved.map(line => ({
+        y: Number(line.y),
+        color: line.color || "#1fcc59",
+        dragging: false
       }));
     } else {
       return [];
@@ -1578,40 +1548,37 @@ function _loadDragLines() {
   }
 }
 
-function _saveDragLines(l) {
+// Grava as linhas horizontais manuais da liga atual.
+function _saveDragLines(lines) {
   try {
-    localStorage.setItem(
-      _ligaKey(DRAG_LINES_KEY),
-      JSON.stringify(
-        l.map((x) => ({
-          y: x.y,
-          color: x.color || "#1fcc59",
-        })),
-      ),
-    );
+    localStorage.setItem(_ligaKey(DRAG_LINES_KEY), JSON.stringify(lines.map(line => ({
+      y: line.y,
+      color: line.color || "#1fcc59"
+    }))));
   } catch {}
 }
 
-function _atualizarContador(l) {
+// Atualiza o texto "x / máx linhas" na tela.
+function _atualizarContador(lines) {
   const el = document.getElementById("contadorLinhas");
 
   if (el) {
-    el.textContent = (l || []).length + " / " + MAX_DRAG_LINES + " linhas";
+    el.textContent = (lines || []).length + " / " + MAX_DRAG_LINES + " linhas";
   }
 }
 
 /* ── FIBONACCI LIVRE (ARRASTÁVEL) ── */
 function _loadDragFibs() {
   try {
-    const a = JSON.parse(localStorage.getItem(_ligaKey(DRAG_FIBS_KEY)) || "[]");
+    const saved = JSON.parse(localStorage.getItem(_ligaKey(DRAG_FIBS_KEY)) || "[]");
 
-    if (Array.isArray(a)) {
-      return a.map((f) => ({
-        y1: Number(f.y1),
-        y2: Number(f.y2),
-        x1Idx: f.x1Idx == null ? null : Number(f.x1Idx),
-        x2Idx: f.x2Idx == null ? null : Number(f.x2Idx),
-        color: f.color || "#A78BFA",
+    if (Array.isArray(saved)) {
+      return saved.map(fib => ({
+        y1: Number(fib.y1),
+        y2: Number(fib.y2),
+        x1Idx: fib.x1Idx == null ? null : Number(fib.x1Idx),
+        x2Idx: fib.x2Idx == null ? null : Number(fib.x2Idx),
+        color: fib.color || "#A78BFA"
       }));
     } else {
       return [];
@@ -1621,23 +1588,20 @@ function _loadDragFibs() {
   }
 }
 
+// Grava os Fibonacci livres da liga atual.
 function _saveDragFibs(arr) {
   try {
-    localStorage.setItem(
-      _ligaKey(DRAG_FIBS_KEY),
-      JSON.stringify(
-        (arr || []).map((f) => ({
-          y1: f.y1,
-          y2: f.y2,
-          x1Idx: f.x1Idx ?? null,
-          x2Idx: f.x2Idx ?? null,
-          color: f.color || "#A78BFA",
-        })),
-      ),
-    );
+    localStorage.setItem(_ligaKey(DRAG_FIBS_KEY), JSON.stringify((arr || []).map(fib => ({
+      y1: fib.y1,
+      y2: fib.y2,
+      x1Idx: fib.x1Idx ?? null,
+      x2Idx: fib.x2Idx ?? null,
+      color: fib.color || "#A78BFA"
+    }))));
   } catch {}
 }
 
+// Atualiza o contador de Fibonacci na tela.
 function _atualizarContadorFibs(arr) {
   const el = document.getElementById("contadorFibs");
 
@@ -1649,18 +1613,16 @@ function _atualizarContadorFibs(arr) {
 /* ── LINHAS DE TENDÊNCIA LIVRES (LTA / LTB, ARRASTÁVEIS) ── */
 function _loadDragTrends() {
   try {
-    const a = JSON.parse(
-      localStorage.getItem(_ligaKey(DRAG_TRENDS_KEY)) || "[]",
-    );
+    const saved = JSON.parse(localStorage.getItem(_ligaKey(DRAG_TRENDS_KEY)) || "[]");
 
-    if (Array.isArray(a)) {
-      return a.map((t) => ({
-        x1Idx: Number(t.x1Idx),
-        y1: Number(t.y1),
-        x2Idx: Number(t.x2Idx),
-        y2: Number(t.y2),
-        color: t.color || "#34D399",
-        tipo: t.tipo || "LTA",
+    if (Array.isArray(saved)) {
+      return saved.map(trend => ({
+        x1Idx: Number(trend.x1Idx),
+        y1: Number(trend.y1),
+        x2Idx: Number(trend.x2Idx),
+        y2: Number(trend.y2),
+        color: trend.color || "#34D399",
+        tipo: trend.tipo || "LTA"
       }));
     } else {
       return [];
@@ -1670,30 +1632,26 @@ function _loadDragTrends() {
   }
 }
 
+// Grava as linhas de tendência (LTA/LTB) da liga atual.
 function _saveDragTrends(arr) {
   try {
-    localStorage.setItem(
-      _ligaKey(DRAG_TRENDS_KEY),
-      JSON.stringify(
-        (arr || []).map((t) => ({
-          x1Idx: t.x1Idx,
-          y1: t.y1,
-          x2Idx: t.x2Idx,
-          y2: t.y2,
-          color: t.color || "#34D399",
-          tipo: t.tipo || "LTA",
-        })),
-      ),
-    );
+    localStorage.setItem(_ligaKey(DRAG_TRENDS_KEY), JSON.stringify((arr || []).map(trend => ({
+      x1Idx: trend.x1Idx,
+      y1: trend.y1,
+      x2Idx: trend.x2Idx,
+      y2: trend.y2,
+      color: trend.color || "#34D399",
+      tipo: trend.tipo || "LTA"
+    }))));
   } catch {}
 }
 
+// Atualiza o contador de linhas de tendência na tela.
 function _atualizarContadorTrends(arr) {
   const el = document.getElementById("contadorTendencias");
 
   if (el) {
-    el.textContent =
-      (arr || []).length + " / " + MAX_DRAG_TRENDS + " tendências";
+    el.textContent = (arr || []).length + " / " + MAX_DRAG_TRENDS + " tendências";
   }
 }
 
@@ -1712,6 +1670,11 @@ function _distToSegment(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   PLUGIN: LINHAS HORIZONTAIS ARRASTÁVEIS
+   Linhas manuais que o usuário adiciona, arrasta e apaga. Salvas por liga (DRAG_LINES_KEY).
+═══════════════════════════════════════════════════════════════════ */
+
 const linhaDraggablePlugin = {
   id: "linhaDraggable",
   afterInit(chart) {
@@ -1722,36 +1685,37 @@ const linhaDraggablePlugin = {
     let draggingIdx = -1;
     const getYS = () => chart.scales.y;
 
-    const getEvtY = (evt) => {
+    const getEvtY = evt => {
       const r = canvas.getBoundingClientRect();
-      return (
-        ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top
-      );
+      return ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top;
     };
 
-    const nearestLine = (pxY) => {
+    const nearestLine = pxY => {
       const yS = getYS();
 
       if (!yS || !chart.chartArea) {
         return -1;
       }
 
-      const { top, bottom } = chart.chartArea;
+      const {
+        top,
+        bottom
+      } = chart.chartArea;
 
       let best = -1;
       let bestDist = Infinity;
 
-      (chart.dragLines || []).forEach((l, i) => {
-        const ly = yS.getPixelForValue(l.y);
+      (chart.dragLines || []).forEach((line, i) => {
+        const ly = yS.getPixelForValue(line.y);
 
         if (ly < top || ly > bottom) {
           return;
         }
 
-        const d = Math.abs(ly - pxY);
+        const dist = Math.abs(ly - pxY);
 
-        if (d < bestDist && d <= HIT_PX) {
-          bestDist = d;
+        if (dist < bestDist && dist <= HIT_PX) {
+          bestDist = dist;
           best = i;
         }
       });
@@ -1774,7 +1738,7 @@ const linhaDraggablePlugin = {
       chart.dragLines.push({
         y: Math.round((yS.min + yS.max) / 2),
         color,
-        dragging: false,
+        dragging: false
       });
 
       chart._selectedDragLine = chart.dragLines.length - 1;
@@ -1806,7 +1770,7 @@ const linhaDraggablePlugin = {
       _captureControlsToSetup(_getActiveSetup());
     };
 
-    const startDrag = (evt) => {
+    const startDrag = evt => {
       const pxY = getEvtY(evt);
       const idx = nearestLine(pxY);
 
@@ -1822,10 +1786,10 @@ const linhaDraggablePlugin = {
         chart._selectedDragLine = -1;
       }
 
-      chart.update();
+      _redraw(chart);
     };
 
-    const moveDrag = (evt) => {
+    const moveDrag = evt => {
       if (draggingIdx < 0) {
         return;
       }
@@ -1843,7 +1807,7 @@ const linhaDraggablePlugin = {
       let v = yS.getValueForPixel(getEvtY(evt));
       v = Math.max(yS.min, Math.min(yS.max, Math.round(v * 10) / 10));
       chart.dragLines[draggingIdx].y = v;
-      chart.update("none");
+      _redraw(chart);
     };
 
     const stopDrag = () => {
@@ -1865,27 +1829,27 @@ const linhaDraggablePlugin = {
     window.addEventListener("mouseup", stopDrag);
 
     canvas.addEventListener("touchstart", startDrag, {
-      passive: false,
+      passive: false
     });
 
     canvas.addEventListener("touchmove", moveDrag, {
-      passive: false,
+      passive: false
     });
 
     canvas.addEventListener("touchend", stopDrag, {
-      passive: true,
+      passive: true
     });
 
     canvas.addEventListener("touchcancel", stopDrag, {
-      passive: true,
+      passive: true
     });
 
-    window.addEventListener("keydown", (e) => {
+    window.addEventListener("keydown", e => {
       if (e.key === "Delete" || e.key === "Backspace") {
-        const c = chartInstances.Copa || Object.values(chartInstances)[0];
+        const chart = chartInstances.Copa || Object.values(chartInstances)[0];
 
-        if (c) {
-          c.deleteDragLine();
+        if (chart) {
+          chart.deleteDragLine();
         }
       }
     });
@@ -1902,7 +1866,12 @@ const linhaDraggablePlugin = {
 
     const ctx = chart.ctx;
 
-    const { left, right, top, bottom } = chart.chartArea;
+    const {
+      left,
+      right,
+      top,
+      bottom
+    } = chart.chartArea;
 
     const PAD = 5;
     const BH = 16;
@@ -1948,8 +1917,13 @@ const linhaDraggablePlugin = {
       ctx.fillText(text, bx + PAD, yPx);
       ctx.restore();
     });
-  },
+  }
 };
+
+/* ═══════════════════════════════════════════════════════════════════
+   PLUGIN: FIBONACCI LIVRE (ARRASTÁVEL)
+   Fibonacci desenhado manualmente entre dois pontos. Salvo por liga (DRAG_FIBS_KEY).
+═══════════════════════════════════════════════════════════════════ */
 
 const fibDraggablePlugin = {
   id: "fibDraggable",
@@ -1971,29 +1945,28 @@ const fibDraggablePlugin = {
     const getYS = () => chart.scales.y;
     const getXS = () => chart.scales.x;
 
-    const getEvtY = (evt) => {
+    const getEvtY = evt => {
       const r = canvas.getBoundingClientRect();
-      return (
-        ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top
-      );
+      return ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top;
     };
 
-    const getEvtX = (evt) => {
+    const getEvtX = evt => {
       const r = canvas.getBoundingClientRect();
-      return (
-        ((evt.touches && evt.touches[0]?.clientX) ?? evt.clientX ?? 0) - r.left
-      );
+      return ((evt.touches && evt.touches[0]?.clientX) ?? evt.clientX ?? 0) - r.left;
     };
 
-    const spanPx = (f) => {
-      const { left, right } = chart.chartArea;
+    const spanPx = f => {
+      const {
+        left,
+        right
+      } = chart.chartArea;
 
       const xS = getXS();
 
       const left2 = {
         x1: left,
         x2: right,
-        anchored: false,
+        anchored: false
       };
 
       if (f.x1Idx == null || f.x2Idx == null || !xS) {
@@ -2006,7 +1979,7 @@ const fibDraggablePlugin = {
       const p12 = {
         x1: left,
         x2: right,
-        anchored: false,
+        anchored: false
       };
 
       if (!isFinite(p1) || !isFinite(p2)) {
@@ -2020,11 +1993,11 @@ const fibDraggablePlugin = {
       return {
         x1: Math.max(left, p1),
         x2: Math.min(right, p2),
-        anchored: true,
+        anchored: true
       };
     };
 
-    chart.setFibDrawMode = (on) => {
+    chart.setFibDrawMode = on => {
       chart._fibDrawMode = !!on;
       canvas.style.cursor = on ? "crosshair" : "";
     };
@@ -2058,20 +2031,26 @@ const fibDraggablePlugin = {
         return -1;
       }
 
-      const { top, bottom } = chart.chartArea;
+      const {
+        top,
+        bottom
+      } = chart.chartArea;
 
       let best = -1;
       let bestDist = Infinity;
 
       (chart.fibDraws || []).forEach((f, i) => {
-        const { x1, x2 } = spanPx(f);
+        const {
+          x1,
+          x2
+        } = spanPx(f);
 
         if (pxX < x1 - 2 || pxX > x2 + 2) {
           return;
         }
 
-        FIB_RETR_LEVELS.forEach((lvl) => {
-          const val = f.y1 + (lvl / 100) * (f.y2 - f.y1);
+        FIB_RETR_LEVELS.forEach(lvl => {
+          const val = f.y1 + lvl / 100 * (f.y2 - f.y1);
           const ly = yS.getPixelForValue(val);
 
           if (ly < top || ly > bottom) {
@@ -2090,7 +2069,7 @@ const fibDraggablePlugin = {
       return best;
     };
 
-    const startEvt = (evt) => {
+    const startEvt = evt => {
       const yS = getYS();
 
       if (!yS) {
@@ -2112,12 +2091,12 @@ const fibDraggablePlugin = {
           y1: v,
           y2: v,
           x1Px: pxX,
-          x2Px: pxX,
+          x2Px: pxX
         };
 
         creating = creating2;
         chart._selectedFib = -1;
-        chart.update("none");
+        _redraw(chart);
         return;
       }
 
@@ -2141,10 +2120,10 @@ const fibDraggablePlugin = {
         chart._selectedFib = -1;
       }
 
-      chart.update();
+      _redraw(chart);
     };
 
-    const moveEvt = (evt) => {
+    const moveEvt = evt => {
       const yS = getYS();
 
       if (!yS) {
@@ -2163,7 +2142,7 @@ const fibDraggablePlugin = {
         v = Math.max(yS.min, Math.min(yS.max, Math.round(v * 10) / 10));
         creating.y2 = v;
         creating.x2Px = pxX;
-        chart.update("none");
+        _redraw(chart);
         return;
       }
 
@@ -2174,10 +2153,8 @@ const fibDraggablePlugin = {
 
         const v = yS.getValueForPixel(pxY);
         const delta = v - dragStartVal;
-        chart.fibDraws[draggingIdx].y1 =
-          Math.round((dragOrigY1 + delta) * 10) / 10;
-        chart.fibDraws[draggingIdx].y2 =
-          Math.round((dragOrigY2 + delta) * 10) / 10;
+        chart.fibDraws[draggingIdx].y1 = Math.round((dragOrigY1 + delta) * 10) / 10;
+        chart.fibDraws[draggingIdx].y2 = Math.round((dragOrigY2 + delta) * 10) / 10;
 
         if (dragOrigX1Frac != null && dragOrigX2Frac != null) {
           const xS = getXS();
@@ -2212,7 +2189,7 @@ const fibDraggablePlugin = {
           }
         }
 
-        chart.update("none");
+        _redraw(chart);
       }
     };
 
@@ -2243,7 +2220,7 @@ const fibDraggablePlugin = {
               y2: creating.y2,
               x1Idx: x1Frac,
               x2Idx: x2Frac,
-              color,
+              color
             };
 
             chart.fibDraws.push(chart2);
@@ -2272,22 +2249,22 @@ const fibDraggablePlugin = {
     window.addEventListener("mouseup", endEvt);
 
     canvas.addEventListener("touchstart", startEvt, {
-      passive: false,
+      passive: false
     });
 
     canvas.addEventListener("touchmove", moveEvt, {
-      passive: false,
+      passive: false
     });
 
     canvas.addEventListener("touchend", endEvt, {
-      passive: true,
+      passive: true
     });
 
     canvas.addEventListener("touchcancel", endEvt, {
-      passive: true,
+      passive: true
     });
 
-    window.addEventListener("keydown", (e) => {
+    window.addEventListener("keydown", e => {
       if (e.key === "Delete" || e.key === "Backspace") {
         const c = chartInstances.Copa || Object.values(chartInstances)[0];
 
@@ -2309,13 +2286,20 @@ const fibDraggablePlugin = {
 
     const ctx = chart.ctx;
 
-    const { top, bottom } = chart.chartArea;
+    const {
+      top,
+      bottom
+    } = chart.chartArea;
 
     const draw = (f, isSel, isPreview, span) => {
-      const { x1: xa, x2: xb, anchored } = span;
+      const {
+        x1: xa,
+        x2: xb,
+        anchored
+      } = span;
 
-      FIB_RETR_LEVELS.forEach((lvl) => {
-        const val = f.y1 + (lvl / 100) * (f.y2 - f.y1);
+      FIB_RETR_LEVELS.forEach(lvl => {
+        const val = f.y1 + lvl / 100 * (f.y2 - f.y1);
         const yPx = yS.getPixelForValue(val);
 
         if (!isFinite(yPx) || yPx < top - 1 || yPx > bottom + 1) {
@@ -2325,11 +2309,7 @@ const fibDraggablePlugin = {
         ctx.save();
         ctx.strokeStyle = f.color;
         ctx.lineWidth = isSel ? 1.8 : 1;
-        ctx.globalAlpha = isPreview
-          ? 0.55
-          : lvl === 0 || lvl === 100
-            ? 0.9
-            : 0.7;
+        ctx.globalAlpha = isPreview ? 0.55 : lvl === 0 || lvl === 100 ? 0.9 : 0.7;
 
         if (!isSel) {
           ctx.setLineDash([5, 4]);
@@ -2352,10 +2332,7 @@ const fibDraggablePlugin = {
       const ax = anchored ? xa : xa + 16;
       const bx = anchored ? xb : xb - 16;
 
-      [
-        [f.y1, ax],
-        [f.y2, bx],
-      ].forEach(([v, px]) => {
+      [[f.y1, ax], [f.y2, bx]].forEach(([v, px]) => {
         const yPx = yS.getPixelForValue(v);
 
         if (!isFinite(yPx) || yPx < top || yPx > bottom) {
@@ -2374,15 +2351,18 @@ const fibDraggablePlugin = {
       });
     };
 
-    const spanPxSaved = (f) => {
-      const { left, right } = chart.chartArea;
+    const spanPxSaved = f => {
+      const {
+        left,
+        right
+      } = chart.chartArea;
 
       const xS = chart.scales.x;
 
       const left2 = {
         x1: left,
         x2: right,
-        anchored: false,
+        anchored: false
       };
 
       if (f.x1Idx == null || f.x2Idx == null || !xS) {
@@ -2395,7 +2375,7 @@ const fibDraggablePlugin = {
       const p12 = {
         x1: left,
         x2: right,
-        anchored: false,
+        anchored: false
       };
 
       if (!isFinite(p1) || !isFinite(p2)) {
@@ -2409,17 +2389,18 @@ const fibDraggablePlugin = {
       return {
         x1: Math.max(left, p1),
         x2: Math.min(right, p2),
-        anchored: true,
+        anchored: true
       };
     };
 
-    (chart.fibDraws || []).forEach((f, i) =>
-      draw(f, i === chart._selectedFib, false, spanPxSaved(f)),
-    );
+    (chart.fibDraws || []).forEach((f, i) => draw(f, i === chart._selectedFib, false, spanPxSaved(f)));
     const creating = chart._fibCreatingRef ? chart._fibCreatingRef() : null;
 
     if (creating) {
-      const { left, right } = chart.chartArea;
+      const {
+        left,
+        right
+      } = chart.chartArea;
 
       const distX = Math.abs(creating.x2Px - creating.x1Px);
       const useSpan = distX >= 12;
@@ -2429,18 +2410,18 @@ const fibDraggablePlugin = {
       const draw2 = {
         y1: creating.y1,
         y2: creating.y2,
-        color: "#E5E7EB",
+        color: "#E5E7EB"
       };
 
       const obj = {
         x1: xa,
         x2: xb,
-        anchored: useSpan,
+        anchored: useSpan
       };
 
       draw(draw2, true, true, obj);
     }
-  },
+  }
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2471,21 +2452,17 @@ const trendLinePlugin = {
     const getXS = () => chart.scales.x;
     const getYS = () => chart.scales.y;
 
-    const getEvtY = (evt) => {
+    const getEvtY = evt => {
       const r = canvas.getBoundingClientRect();
-      return (
-        ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top
-      );
+      return ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top;
     };
 
-    const getEvtX = (evt) => {
+    const getEvtX = evt => {
       const r = canvas.getBoundingClientRect();
-      return (
-        ((evt.touches && evt.touches[0]?.clientX) ?? evt.clientX ?? 0) - r.left
-      );
+      return ((evt.touches && evt.touches[0]?.clientX) ?? evt.clientX ?? 0) - r.left;
     };
 
-    const pointPx = (t) => {
+    const pointPx = t => {
       const xS = getXS();
       const yS = getYS();
 
@@ -2497,7 +2474,7 @@ const trendLinePlugin = {
         x1: xS.getPixelForValue(t.x1Idx),
         y1: yS.getPixelForValue(t.y1),
         x2: xS.getPixelForValue(t.x2Idx),
-        y2: yS.getPixelForValue(t.y2),
+        y2: yS.getPixelForValue(t.y2)
       };
     };
 
@@ -2536,7 +2513,7 @@ const trendLinePlugin = {
     const nearestTrend = (pxX, pxY) => {
       const chart2 = {
         idx: -1,
-        handle: null,
+        handle: null
       };
 
       if (!chart.chartArea) {
@@ -2579,13 +2556,13 @@ const trendLinePlugin = {
 
       const bestHandle2 = {
         idx: best,
-        handle: bestHandle,
+        handle: bestHandle
       };
 
       return bestHandle2;
     };
 
-    const startEvt = (evt) => {
+    const startEvt = evt => {
       const xS = getXS();
       const yS = getYS();
 
@@ -2608,16 +2585,19 @@ const trendLinePlugin = {
           x1Px: pxX,
           y1: v,
           x2Px: pxX,
-          y2: v,
+          y2: v
         };
 
         creating = creating2;
         chart._selectedTrend = -1;
-        chart.update("none");
+        _redraw(chart);
         return;
       }
 
-      const { idx, handle } = nearestTrend(pxX, pxY);
+      const {
+        idx,
+        handle
+      } = nearestTrend(pxX, pxY);
 
       if (idx >= 0) {
         if (evt.cancelable) {
@@ -2631,7 +2611,7 @@ const trendLinePlugin = {
         dragStartYVal = yS.getValueForPixel(pxY);
 
         const dragOrig2 = {
-          ...chart.trendLines[idx],
+          ...chart.trendLines[idx]
         };
 
         dragOrig = dragOrig2;
@@ -2639,10 +2619,10 @@ const trendLinePlugin = {
         chart._selectedTrend = -1;
       }
 
-      chart.update();
+      _redraw(chart);
     };
 
-    const moveEvt = (evt) => {
+    const moveEvt = evt => {
       const xS = getXS();
       const yS = getYS();
 
@@ -2661,7 +2641,7 @@ const trendLinePlugin = {
         let v = yS.getValueForPixel(pxY);
         creating.y2 = Math.round(v * 10) / 10;
         creating.x2Px = pxX;
-        chart.update("none");
+        _redraw(chart);
         return;
       }
 
@@ -2687,7 +2667,7 @@ const trendLinePlugin = {
           t.y2 = Math.round((dragOrig.y2 + dyVal) * 10) / 10;
         }
 
-        chart.update("none");
+        _redraw(chart);
       }
     };
 
@@ -2711,7 +2691,7 @@ const trendLinePlugin = {
               x2Idx,
               y2: creating.y2,
               color,
-              tipo,
+              tipo
             };
 
             chart.trendLines.push(chart2);
@@ -2742,22 +2722,22 @@ const trendLinePlugin = {
     window.addEventListener("mouseup", endEvt);
 
     canvas.addEventListener("touchstart", startEvt, {
-      passive: false,
+      passive: false
     });
 
     canvas.addEventListener("touchmove", moveEvt, {
-      passive: false,
+      passive: false
     });
 
     canvas.addEventListener("touchend", endEvt, {
-      passive: true,
+      passive: true
     });
 
     canvas.addEventListener("touchcancel", endEvt, {
-      passive: true,
+      passive: true
     });
 
-    window.addEventListener("keydown", (e) => {
+    window.addEventListener("keydown", e => {
       if (e.key === "Delete" || e.key === "Backspace") {
         const c = chartInstances.Copa || Object.values(chartInstances)[0];
 
@@ -2780,7 +2760,9 @@ const trendLinePlugin = {
 
     const ctx = chart.ctx;
 
-    const { right } = chart.chartArea;
+    const {
+      right
+    } = chart.chartArea;
 
     const drawLine = (x1Idx, y1, x2Idx, y2, color, isSel, isPreview, tipo) => {
       const p1x = xS.getPixelForValue(x1Idx);
@@ -2816,10 +2798,7 @@ const trendLinePlugin = {
       ctx.globalAlpha = 1;
 
       if (!isPreview) {
-        [
-          [p1x, p1y],
-          [p2x, p2y],
-        ].forEach(([px, py]) => {
+        [[p1x, p1y], [p2x, p2y]].forEach(([px, py]) => {
           ctx.beginPath();
           ctx.fillStyle = color;
           ctx.strokeStyle = "rgba(8,11,20,0.9)";
@@ -2842,16 +2821,7 @@ const trendLinePlugin = {
     };
 
     (chart.trendLines || []).forEach((t, i) => {
-      drawLine(
-        t.x1Idx,
-        t.y1,
-        t.x2Idx,
-        t.y2,
-        t.color,
-        i === chart._selectedTrend,
-        false,
-        t.tipo,
-      );
+      drawLine(t.x1Idx, t.y1, t.x2Idx, t.y2, t.color, i === chart._selectedTrend, false, t.tipo);
     });
 
     const creating = chart._trendCreatingRef ? chart._trendCreatingRef() : null;
@@ -2860,113 +2830,146 @@ const trendLinePlugin = {
       const x1Idx = xS.getValueForPixel(creating.x1Px);
       const x2Idx = xS.getValueForPixel(creating.x2Px);
       const previewColor = TREND_COLORS[chart._trendPendingTipo] || "#E5E7EB";
-      drawLine(
-        x1Idx,
-        creating.y1,
-        x2Idx,
-        creating.y2,
-        previewColor,
-        true,
-        true,
-        null,
-      );
+      drawLine(x1Idx, creating.y1, x2Idx, creating.y2, previewColor, true, true, null);
     }
-  },
+  }
 };
 
-Chart.defaults.animation.duration = 0;
-Chart.defaults.font.family =
-  "'Inter','Segoe UI',system-ui,-apple-system,Arial,sans-serif";
+/* ═══════════════════════════════════════════════════════════════════
+   CRIAÇÃO E ATUALIZAÇÃO DO GRÁFICO
+   createStatsChart monta o Chart.js (datasets, plugins, tooltip).
+   updateStatsChart só troca os dados de um gráfico que já existe.
+═══════════════════════════════════════════════════════════════════ */
 
+Chart.defaults.animation.duration = 0;
+Chart.defaults.font.family = "'Inter','Segoe UI',system-ui,-apple-system,Arial,sans-serif";
+
+// Linha principal de um mercado.
+function _newMainDataset(label, data, setup) {
+  const key = labelToKey[label];
+  const color = _marketColor(setup, label);
+
+  return {
+    label,
+    data: data[key],
+    borderColor: color,
+    backgroundColor: color,
+    pointBackgroundColor: data[key + "Colors"],
+    pointBorderColor: "rgba(8,11,20,0.9)",
+    pointBorderWidth: 1.5,
+    borderWidth: 2.5,
+    pointRadius: 3.5,
+    pointHoverRadius: 6,
+    pointHoverBorderWidth: 2,
+    tension: 0.3,
+    cubicInterpolationMode: "monotone",
+    borderCapStyle: "round",
+    borderJoinStyle: "round",
+    fill: false,
+    yAxisID: label === "Gols Individual" ? "y2" : "y",
+    hidden: !statsChartVisibleDatasets[label]
+  };
+}
+
+// Média móvel (curta ou longa) de um mercado.
+function _newMaDataset(label, kind, data) {
+  const key = labelToKey[label];
+  const isShort = kind === "Short";
+
+  return {
+    label: label + (isShort ? " - Short MA" : " - Long MA"),
+    data: data[key + kind],
+    borderColor: isShort ? "#38BDF8" : "#F59E0B",
+    backgroundColor: "transparent",
+    tension: 0.3,
+    cubicInterpolationMode: "monotone",
+    borderWidth: 1.75,
+    borderDash: isShort ? [4, 3] : [2, 3],
+    pointRadius: 0,
+    fill: false,
+    yAxisID: label === "Gols Individual" ? "y2" : "y",
+    hidden: !showMovingAverages || !statsChartVisibleDatasets[label]
+  };
+}
+
+// Monta a lista de datasets só com os mercados do setup (reaproveita os que já existem).
+function _buildDatasetList(data, setup, existing) {
+  const wanted = _wantedLabels();
+  const byLabel = new Map((existing || []).map(d => [d.label, d]));
+  const list = [];
+
+  Object.keys(labelToKey).forEach(label => {
+    if (!wanted.has(label)) {
+      return;
+    }
+
+    list.push(byLabel.get(label) || _newMainDataset(label, data, setup));
+
+    if (showMovingAverages) {
+      list.push(byLabel.get(label + " - Short MA") || _newMaDataset(label, "Short", data));
+      list.push(byLabel.get(label + " - Long MA") || _newMaDataset(label, "Long", data));
+    }
+  });
+
+  return list;
+}
+
+// Ajusta os datasets do gráfico ao setup ativo. Devolve true se a lista mudou.
+function _syncChartDatasets(chart, data) {
+  const list = _buildDatasetList(data, _getActiveSetup(), chart.data.datasets);
+  const cur = chart.data.datasets;
+  const same = list.length === cur.length && list.every((d, i) => d === cur[i]);
+
+  if (same) {
+    return false;
+  }
+
+  chart.data.datasets = list;
+
+  chart.data.datasets.forEach((ds, idx) => {
+    const isMA = ds.label.includes(" - ");
+    const main = isMA ? ds.label.split(" - ")[0] : ds.label;
+    const vis = statsChartVisibleDatasets[main];
+    chart.getDatasetMeta(idx).hidden = isMA ? !showMovingAverages || !vis : !vis;
+  });
+
+  return true;
+}
+
+// Redesenha o gráfico SEM recalcular nada (usado ao arrastar linhas/Fibonacci/tendências).
+function _redraw(chart) {
+  if (chart._rafDraw) {
+    return;
+  }
+
+  chart._rafDraw = requestAnimationFrame(() => {
+    chart._rafDraw = 0;
+    chart.draw();
+  });
+}
+
+// Cria o gráfico Chart.js de uma liga (datasets, escalas, plugins e tooltip).
 function createStatsChart(ctx, labels, data, league) {
   const activeSetup = _getActiveSetup();
-  const datasets = [];
-  const shortColor = "#38BDF8";
-  const longColor = "#F59E0B";
-
-  Object.entries(labelToKey).forEach(([label]) => {
-    const key = labelToKey[label];
-    const color = _marketColor(activeSetup, label);
-    const isGolsInd = label === "Gols Individual";
-
-    const datasets2 = {
-      label,
-      data: data[key],
-      borderColor: color,
-      backgroundColor: color,
-      pointBackgroundColor: data[key + "Colors"],
-      pointBorderColor: "rgba(8,11,20,0.9)",
-      pointBorderWidth: 1.5,
-      borderWidth: 2.5,
-      pointRadius: 3.5,
-      pointHoverRadius: 6,
-      pointHoverBorderWidth: 2,
-      tension: 0.3,
-      cubicInterpolationMode: "monotone",
-      borderCapStyle: "round",
-      borderJoinStyle: "round",
-      fill: false,
-      yAxisID: isGolsInd ? "y2" : "y",
-      hidden: !statsChartVisibleDatasets[label],
-    };
-
-    datasets.push(datasets2);
-
-    const obj3 = {
-      label: label + " - Short MA",
-      data: data[key + "Short"],
-      borderColor: shortColor,
-      backgroundColor: "transparent",
-      tension: 0.3,
-      cubicInterpolationMode: "monotone",
-      borderWidth: 1.75,
-      borderDash: [4, 3],
-      pointRadius: 0,
-      fill: false,
-      yAxisID: isGolsInd ? "y2" : "y",
-      hidden: !showMovingAverages || !statsChartVisibleDatasets[label],
-    };
-
-    datasets.push(obj3);
-
-    const obj4 = {
-      label: label + " - Long MA",
-      data: data[key + "Long"],
-      borderColor: longColor,
-      backgroundColor: "transparent",
-      tension: 0.3,
-      cubicInterpolationMode: "monotone",
-      borderWidth: 1.75,
-      borderDash: [2, 3],
-      pointRadius: 0,
-      fill: false,
-      yAxisID: isGolsInd ? "y2" : "y",
-      hidden: !showMovingAverages || !statsChartVisibleDatasets[label],
-    };
-
-    datasets.push(obj4);
-  });
+  const datasets = _buildDatasetList(data, activeSetup, []);
 
   const obj = {
     labels,
-    datasets,
+    datasets
   };
 
-  const obj2 = {
-    padding:
-      yAxisPosition === "right"
-        ? {
-            top: 30,
-            left: 80,
-          }
-        : {
-            top: 30,
-            right: 80,
-          },
+  const layout = {
+    padding: yAxisPosition === "right" ? {
+      top: 30,
+      left: 80
+    } : {
+      top: 30,
+      right: 80
+    }
   };
 
-  const activeSetup2 = {
-    enabled: activeSetup.linhaAtual ?? true,
+  const linhaAtualOpts = {
+    enabled: activeSetup.linhaAtual ?? true
   };
 
   return new Chart(ctx, {
@@ -2976,12 +2979,12 @@ function createStatsChart(ctx, labels, data, league) {
       responsive: true,
       maintainAspectRatio: false,
       animation: {
-        duration: 0,
+        duration: 0
       },
-      layout: obj2,
+      layout: layout,
       plugins: {
         legend: {
-          display: false,
+          display: false
         },
         tooltip: {
           enabled: true,
@@ -2989,11 +2992,11 @@ function createStatsChart(ctx, labels, data, league) {
           titleColor: "#7DE3D6",
           titleFont: {
             weight: "600",
-            size: 12,
+            size: 12
           },
           bodyColor: "#E5E7EB",
           bodyFont: {
-            size: 11.5,
+            size: 11.5
           },
           borderColor: "rgba(125,227,214,0.35)",
           borderWidth: 1,
@@ -3003,60 +3006,53 @@ function createStatsChart(ctx, labels, data, league) {
           caretPadding: 26,
           padding: 12,
           callbacks: {
-            title: (items) => {
+            title: items => {
               const sd = chartData[league];
-              const m =
-                sd[Math.max(0, sd.length - numPoints) + items[0].dataIndex];
+              const jogo = sd[Math.max(0, sd.length - numPoints) + items[0].dataIndex];
 
-              if (m) {
-                return m.hora + ":" + m.minuto.toString().padStart(2, "0");
+              if (jogo) {
+                return jogo.hora + ":" + jogo.minuto.toString().padStart(2, "0");
               } else {
                 return "";
               }
             },
-            label: (ctx2) => {
-              const v = ctx2.parsed.y;
+            label: tooltipCtx => {
+              const value = tooltipCtx.parsed.y;
 
-              if (v === null) {
+              if (value === null) {
                 return "";
               }
 
-              const isGols =
-                ctx2.dataset.label === "Gols FT" ||
-                ctx2.dataset.label === "Gols HT" ||
-                ctx2.dataset.label === "Gols Individual" ||
-                ctx2.dataset.label === "Gols FT Casa" ||
-                ctx2.dataset.label === "Gols FT Fora";
+              const isGols = tooltipCtx.dataset.label === "Gols FT" || tooltipCtx.dataset.label === "Gols HT" || tooltipCtx.dataset.label === "Gols Individual" || tooltipCtx.dataset.label === "Gols FT Casa" || tooltipCtx.dataset.label === "Gols FT Fora";
 
               if (isGols) {
-                return ctx2.dataset.label + ": " + v + " gols";
+                return tooltipCtx.dataset.label + ": " + value + " gols";
               } else {
-                return ctx2.dataset.label + ": " + v.toFixed(2) + "%";
+                return tooltipCtx.dataset.label + ": " + value.toFixed(2) + "%";
               }
             },
-            afterBody: (items) => {
+            afterBody: items => {
               const sd = chartData[league];
-              const m =
-                sd[Math.max(0, sd.length - numPoints) + items[0].dataIndex];
+              const m = sd[Math.max(0, sd.length - numPoints) + items[0].dataIndex];
 
               if (m) {
                 return "FT: " + (m.ft || "N/A") + "  HT: " + (m.ht || "N/A");
               } else {
                 return "";
               }
-            },
-          },
+            }
+          }
         },
-        linhaAtual: activeSetup2,
+        linhaAtual: linhaAtualOpts
       },
       scales: {
         x: {
           ticks: {
-            display: false,
+            display: false
           },
           grid: {
-            display: false,
-          },
+            display: false
+          }
         },
         y: {
           position: yAxisPosition,
@@ -3064,22 +3060,22 @@ function createStatsChart(ctx, labels, data, league) {
           ticks: {
             color: "#8B92A8",
             font: {
-              size: 11,
+              size: 11
             },
             stepSize: 5,
-            padding: 8,
+            padding: 8
           },
           grid: {
             color: "rgba(148,163,184,0.09)",
             lineWidth: 1,
-            drawTicks: false,
+            drawTicks: false
           },
           border: {
-            display: false,
+            display: false
           },
-          afterFit: (s) => {
+          afterFit: s => {
             s.paddingTop = 20;
-          },
+          }
         },
         y2: {
           position: "right",
@@ -3089,39 +3085,34 @@ function createStatsChart(ctx, labels, data, league) {
           ticks: {
             color: "rgba(148,163,184,0.35)",
             stepSize: 1,
-            precision: 0,
+            precision: 0
           },
           grid: {
-            display: false,
+            display: false
           },
           border: {
-            display: false,
+            display: false
           },
-          afterFit: (s) => {
+          afterFit: s => {
             s.width = 0;
-          },
-        },
-      },
+          }
+        }
+      }
     },
-    plugins: [
-      fibonacciLinesPlugin,
-      fibDraggablePlugin,
-      linhaAtualPlugin,
-      linhaDraggablePlugin,
-      trendLinePlugin,
-      rotulosPlugin,
-    ],
+    plugins: [fibonacciLinesPlugin, fibDraggablePlugin, linhaAtualPlugin, linhaDraggablePlugin, trendLinePlugin, rotulosPlugin]
   });
 }
 
+// Troca os dados do gráfico existente e atualiza o painel de valores.
 function updateStatsChart(chart, newData) {
   if (!chart) {
     return;
   }
 
+  _syncChartDatasets(chart, newData);
   chart.data.labels = newData.labels;
 
-  chart.data.datasets.forEach((ds) => {
+  chart.data.datasets.forEach(ds => {
     ds.data = newData[getKeyFromLabel(ds.label)];
 
     if (!ds.label.includes(" MA")) {
@@ -3136,924 +3127,295 @@ function updateStatsChart(chart, newData) {
 /* ═══════════════════════════════════════════════════════════════════
    PROCESSAMENTO DE DADOS
 ═══════════════════════════════════════════════════════════════════ */
+// Regras de cada mercado: dado um jogo já lido (g), diz se ele "conta" no mercado.
+// A mesma regra pinta o ponto de verde/vermelho (jogo atual) e alimenta o % da janela.
+// Para ADICIONAR um mercado novo basta incluir a chave aqui (e em labelToKey/DATASET_COLORS/MARKET_GROUPS).
+const MARKET_DEFS = {
+  casaVence: g => g.f0 > g.f1,
+  empate: g => g.f0 === g.f1,
+  foraVence: g => g.f0 < g.f1,
+  ambasSim: g => g.f0 > 0 && g.f1 > 0,
+  ambasNao: g => g.f0 === 0 || g.f1 === 0,
+  over05: g => g.tg > 0.5,
+  over15: g => g.tg > 1.5,
+  over25: g => g.tg > 2.5,
+  over35: g => g.tg > 3.5,
+  over5: g => g.tg >= 5,
+  under05: g => g.tg <= 0.5,
+  under15: g => g.tg < 1.5,
+  under25: g => g.tg < 2.5,
+  under35: g => g.tg < 3.5,
+  placarHTOut: g => g.htStr === "OUT",
+  overHT: g => g.htTotal >= 2,
+  // underHT: conta quando NÃO é overHT; a cor usa htTotal < 2 (igual ao comportamento original)
+  underHT: {
+    c: g => !(g.htTotal >= 2),
+    k: g => g.htTotal < 2
+  },
+  casaHT: g => !!g.hp && g.hp[0] > g.hp[1],
+  empateHT: g => !!g.hp && g.hp[0] === g.hp[1],
+  foraHT: g => !!g.hp && g.hp[0] < g.hp[1],
+  viradinha: g => !!g.hp && (g.hp[0] > g.hp[1] && g.f0 < g.f1 || g.hp[0] < g.hp[1] && g.f0 > g.f1),
+  par: g => g.tg % 2 === 0,
+  impar: g => g.tg % 2 !== 0,
+  margem1: g => g.margem === 1,
+  margem2: g => g.margem === 2,
+  margem3: g => g.margem === 3,
+  empateGols: g => g.f0 === g.f1 && g.tg > 0
+};
+
+for (let n = 0; n <= 5; n++) {
+  MARKET_DEFS["gol" + n] = g => g.tg === n;
+}
+
+for (let n = 0; n <= 4; n++) {
+  MARKET_DEFS["gol2t" + n] = g => g.g2t === n;
+  MARKET_DEFS["casa" + n] = g => g.f0 === n;
+  MARKET_DEFS["fora" + n] = g => g.f1 === n;
+}
+
+[[0, 0], [1, 0], [2, 0], [3, 0], [2, 1], [3, 1], [3, 2], [4, 0], [4, 1], [0, 1], [0, 2], [1, 2], [0, 3], [1, 3], [2, 3], [0, 4], [1, 4]].forEach(([a, b]) => {
+  MARKET_DEFS["placar" + a + "x" + b] = g => g.f0 === a && g.f1 === b;
+});
+
+[[0, 0], [0, 1], [1, 0], [1, 1], [0, 2], [2, 0]].forEach(([a, b]) => {
+  MARKET_DEFS["placarHT" + a + "x" + b] = g => !!g.hp && g.hp[0] === a && g.hp[1] === b;
+});
+
+// Mercados que SOMAM valores na janela (não são porcentagem) e têm cor fixa.
+const MARKET_SUMS = {
+  golsFT: {
+    v: g => g.tg,
+    color: "#FFFF00"
+  },
+  golsHT: {
+    v: g => g.htTotal,
+    color: "#26A69A"
+  },
+  golsFTCasa: {
+    v: g => g.f0,
+    color: "#00E5FF"
+  },
+  golsFTFora: {
+    v: g => g.f1,
+    color: "#FF6E40"
+  }
+};
+
+function _golsIndColor(tg) {
+  return tg >= 5 ? "#2ecc71" : tg >= 3 ? "#3498db" : tg === 2 ? "#f1c40f" : tg === 1 ? "#e67e22" : "#e74c3c";
+}
+
+// Mercados (labels) do setup ativo — só estes são calculados e desenhados.
+function _wantedLabels() {
+  const setup = _getActiveSetup();
+  return new Set((setup.markets || []).filter(label => labelToKey[label]));
+}
+
 function processApiData(data, league) {
-  const sortedData = [...data].sort((a, b) => {
-    const dA = new Date(a.data);
-    const dB = new Date(b.data);
+  // Ordena uma vez só (a data é lida 1x por jogo, não a cada comparação).
+  const withT = data.map(m => ({
+    m,
+    t: new Date(m.data).getTime()
+  }));
 
-    if (dA.getTime() !== dB.getTime()) {
-      return dA - dB;
+  withT.sort((a, b) => {
+    if (a.t !== b.t) {
+      return a.t - b.t;
     }
 
-    if (a.hora !== b.hora) {
-      return a.hora - b.hora;
+    if (a.m.hora !== b.m.hora) {
+      return a.m.hora - b.m.hora;
     }
 
-    return a.minuto - b.minuto;
+    return a.m.minuto - b.m.minuto;
   });
 
-  const slicedData = sortedData.slice(
-    -numPoints - Math.ceil(averagePoints * 3.5),
-  );
-  chartData[league] = slicedData;
+  const sliced = withT.slice(-numPoints - Math.ceil(averagePoints * 3.5));
+  chartData[league] = sliced.map(x => x.m);
+  const n = sliced.length;
 
-  function toAbsMin(m) {
-    const d = new Date(m.data);
-    return Math.floor(d.getTime() / 86400000) * 1440 + m.hora * 60 + m.minuto;
-  }
+  // Lê cada jogo uma única vez (placar FT, HT, gols...).
+  const games = new Array(n);
+  const ts = new Array(n);
 
-  let labels = [];
-  let golsFT = [];
-  let golsHT = [];
-  let placarHT0x1 = [];
-  let casaVence = [];
-  let empate = [];
-  let foraVence = [];
-  let ambasSim = [];
-  let ambasNao = [];
-  let over05 = [];
-  let over15 = [];
-  let over25 = [];
-  let over35 = [];
-  let over5 = [];
-  let under05 = [];
-  let under15 = [];
-  let under25 = [];
-  let under35 = [];
-  let gol0 = [];
-  let gol1 = [];
-  let gol2 = [];
-  let gol3 = [];
-  let gol4 = [];
-  let gol5 = [];
-  let gol2t0 = [];
-  let gol2t1 = [];
-  let gol2t2 = [];
-  let gol2t3 = [];
-  let gol2t4 = [];
-  let casa0 = [];
-  let casa1 = [];
-  let casa2 = [];
-  let casa3 = [];
-  let casa4 = [];
-  let fora0 = [];
-  let fora1 = [];
-  let fora2 = [];
-  let fora3 = [];
-  let fora4 = [];
-  let placar0x0 = [];
-  let placar1x0 = [];
-  let placar2x0 = [];
-  let placar3x0 = [];
-  let placar2x1 = [];
-  let placar3x1 = [];
-  let placar3x2 = [];
-  let placar4x0 = [];
-  let placar4x1 = [];
-  let placar0x1 = [];
-  let placar0x2 = [];
-  let placar1x2 = [];
-  let placar0x3 = [];
-  let placar1x3 = [];
-  let placar2x3 = [];
-  let placar0x4 = [];
-  let placar1x4 = [];
-  let placarHT0x0 = [];
-  let placarHT0x12 = [];
-  let placarHT1x0 = [];
-  let placarHT1x1 = [];
-  let placarHT0x2 = [];
-  let placarHT2x0 = [];
-  let placarHTOut = [];
-  let overHT = [];
-  let underHT = [];
-  let casaHT = [];
-  let empateHT = [];
-  let foraHT = [];
-  let viradinha = [];
-  let par = [];
-  let impar = [];
-  let margem1 = [];
-  let margem2 = [];
-  let margem3 = [];
-  let empateGols = [];
-  let golsFTCasa = [];
-  let golsFTFora = [];
-  let golsFTColors = [];
-  let golsHTColors = [];
-  let golsIndColors = [];
-  let casaVenceColors = [];
-  let empateColors = [];
-  let foraVenceColors = [];
-  let ambasSimColors = [];
-  let ambasNaoColors = [];
-  let over05Colors = [];
-  let over15Colors = [];
-  let over25Colors = [];
-  let over35Colors = [];
-  let over5Colors = [];
-  let under05Colors = [];
-  let under15Colors = [];
-  let under25Colors = [];
-  let under35Colors = [];
-  let gol0Colors = [];
-  let gol1Colors = [];
-  let gol2Colors = [];
-  let gol3Colors = [];
-  let gol4Colors = [];
-  let gol5Colors = [];
-  let gol2t0Colors = [];
-  let gol2t1Colors = [];
-  let gol2t2Colors = [];
-  let gol2t3Colors = [];
-  let gol2t4Colors = [];
-  let casa0Colors = [];
-  let casa1Colors = [];
-  let casa2Colors = [];
-  let casa3Colors = [];
-  let casa4Colors = [];
-  let fora0Colors = [];
-  let fora1Colors = [];
-  let fora2Colors = [];
-  let fora3Colors = [];
-  let fora4Colors = [];
-  let placar0x0Colors = [];
-  let placar1x0Colors = [];
-  let placar2x0Colors = [];
-  let placar3x0Colors = [];
-  let placar2x1Colors = [];
-  let placar3x1Colors = [];
-  let placar3x2Colors = [];
-  let placar4x0Colors = [];
-  let placar4x1Colors = [];
-  let placar0x1Colors = [];
-  let placar0x2Colors = [];
-  let placar1x2Colors = [];
-  let placar0x3Colors = [];
-  let placar1x3Colors = [];
-  let placar2x3Colors = [];
-  let placar0x4Colors = [];
-  let placar1x4Colors = [];
-  let placarHT0x0Colors = [];
-  let placarHT0x1Colors = [];
-  let placarHT1x0Colors = [];
-  let placarHT1x1Colors = [];
-  let placarHT0x2Colors = [];
-  let placarHT2x0Colors = [];
-  let placarHTOutColors = [];
-  let overHTColors = [];
-  let underHTColors = [];
-  let casaHTColors = [];
-  let empateHTColors = [];
-  let foraHTColors = [];
-  let viradinhaColors = [];
-  let parColors = [];
-  let imparColors = [];
-  let margem1Colors = [];
-  let margem2Colors = [];
-  let margem3Colors = [];
-  let empateGolsColors = [];
-  let golsFTCasaColors = [];
-  let golsFTForaColors = [];
-  const allData = [
-    golsFT,
-    golsHT,
-    casaVence,
-    empate,
-    foraVence,
-    ambasSim,
-    ambasNao,
-    over05,
-    over15,
-    over25,
-    over35,
-    over5,
-    under05,
-    under15,
-    under25,
-    under35,
-    gol0,
-    gol1,
-    gol2,
-    gol3,
-    gol4,
-    gol5,
-    gol2t0,
-    gol2t1,
-    gol2t2,
-    gol2t3,
-    gol2t4,
-    casa0,
-    casa1,
-    casa2,
-    casa3,
-    casa4,
-    fora0,
-    fora1,
-    fora2,
-    fora3,
-    fora4,
-    placar0x0,
-    placar1x0,
-    placar2x0,
-    placar3x0,
-    placar2x1,
-    placar3x1,
-    placar3x2,
-    placar4x0,
-    placar4x1,
-    placar0x1,
-    placar0x2,
-    placar1x2,
-    placar0x3,
-    placar1x3,
-    placar2x3,
-    placar0x4,
-    placar1x4,
-    placarHT0x0,
-    placarHT0x12,
-    placarHT1x0,
-    placarHT1x1,
-    placarHT0x2,
-    placarHT2x0,
-    placarHTOut,
-    overHT,
-    underHT,
-    casaHT,
-    empateHT,
-    foraHT,
-    viradinha,
-    par,
-    impar,
-    margem1,
-    margem2,
-    margem3,
-    empateGols,
-  ];
-  const allColors = [
-    golsFTColors,
-    golsHTColors,
-    casaVenceColors,
-    empateColors,
-    foraVenceColors,
-    ambasSimColors,
-    ambasNaoColors,
-    over05Colors,
-    over15Colors,
-    over25Colors,
-    over35Colors,
-    over5Colors,
-    under05Colors,
-    under15Colors,
-    under25Colors,
-    under35Colors,
-    gol0Colors,
-    gol1Colors,
-    gol2Colors,
-    gol3Colors,
-    gol4Colors,
-    gol5Colors,
-    gol2t0Colors,
-    gol2t1Colors,
-    gol2t2Colors,
-    gol2t3Colors,
-    gol2t4Colors,
-    casa0Colors,
-    casa1Colors,
-    casa2Colors,
-    casa3Colors,
-    casa4Colors,
-    fora0Colors,
-    fora1Colors,
-    fora2Colors,
-    fora3Colors,
-    fora4Colors,
-    placar0x0Colors,
-    placar1x0Colors,
-    placar2x0Colors,
-    placar3x0Colors,
-    placar2x1Colors,
-    placar3x1Colors,
-    placar3x2Colors,
-    placar4x0Colors,
-    placar4x1Colors,
-    placar0x1Colors,
-    placar0x2Colors,
-    placar1x2Colors,
-    placar0x3Colors,
-    placar1x3Colors,
-    placar2x3Colors,
-    placar0x4Colors,
-    placar1x4Colors,
-    placarHT0x0Colors,
-    placarHT0x1Colors,
-    placarHT1x0Colors,
-    placarHT1x1Colors,
-    placarHT0x2Colors,
-    placarHT2x0Colors,
-    placarHTOutColors,
-    overHTColors,
-    underHTColors,
-    casaHTColors,
-    empateHTColors,
-    foraHTColors,
-    viradinhaColors,
-    parColors,
-    imparColors,
-    margem1Colors,
-    margem2Colors,
-    margem3Colors,
-    empateGolsColors,
-  ];
-  const green = "#2DD4BF";
-  const red = "#FB7185";
-  const janelaMin = averagePoints * _MIN_POR_JOGO;
-  const startExibir = Math.max(0, slicedData.length - numPoints);
-
-  for (let i = 0; i < slicedData.length; i++) {
-    const mAtual = slicedData[i];
-    const tsAtual = toAbsMin(mAtual);
-
-    let s = {
-      golsFT: 0,
-      golsHT: 0,
-      casaVence: 0,
-      empate: 0,
-      foraVence: 0,
-      ambasSim: 0,
-      ambasNao: 0,
-      over05: 0,
-      over15: 0,
-      over25: 0,
-      over35: 0,
-      over5: 0,
-      under05: 0,
-      under15: 0,
-      under25: 0,
-      under35: 0,
-      gol0: 0,
-      gol1: 0,
-      gol2: 0,
-      gol3: 0,
-      gol4: 0,
-      gol5: 0,
-      gol2t0: 0,
-      gol2t1: 0,
-      gol2t2: 0,
-      gol2t3: 0,
-      gol2t4: 0,
-      casa0: 0,
-      casa1: 0,
-      casa2: 0,
-      casa3: 0,
-      casa4: 0,
-      fora0: 0,
-      fora1: 0,
-      fora2: 0,
-      fora3: 0,
-      fora4: 0,
-      p0x0: 0,
-      p1x0: 0,
-      p2x0: 0,
-      p3x0: 0,
-      p2x1: 0,
-      p3x1: 0,
-      p3x2: 0,
-      p4x0: 0,
-      p4x1: 0,
-      p0x1: 0,
-      p0x2: 0,
-      p1x2: 0,
-      p0x3: 0,
-      p1x3: 0,
-      p2x3: 0,
-      p0x4: 0,
-      p1x4: 0,
-      ht0x0: 0,
-      ht0x1: 0,
-      ht1x0: 0,
-      ht1x1: 0,
-      ht0x2: 0,
-      ht2x0: 0,
-      htOut: 0,
-      overHT: 0,
-      underHT: 0,
-      casaHT: 0,
-      empateHT: 0,
-      foraHT: 0,
-      viradinha: 0,
-      golsFTCasa: 0,
-      golsFTFora: 0,
-      par: 0,
-      impar: 0,
-      margem1: 0,
-      margem2: 0,
-      margem3: 0,
-      empateGols: 0,
-      valid: 0,
-    };
-
-    for (let j = i; j >= 0; j--) {
-      const mj = slicedData[j];
-      const tsJ = toAbsMin(mj);
-
-      if (tsAtual - tsJ > janelaMin) {
-        break;
-      }
-
-      const m2 = mj;
-      let ft2 = [0, 0];
-
-      if (m2.ft?.includes(" x ")) {
-        ft2 = m2.ft.split(" x ").map(Number);
-      }
-
-      const htTotal2 = parseHtScoreTotal(m2.ht);
-      const htParts2 = parseHtParts(m2.ht);
-      const tg2 = ft2[0] + ft2[1];
-      const tg2t2 = Math.max(0, tg2 - htTotal2);
-      s.golsFT += tg2;
-      s.golsHT += htTotal2;
-      s.golsFTCasa += ft2[0];
-      s.golsFTFora += ft2[1];
-      s.par += tg2 % 2 === 0 ? 1 : 0;
-      s.impar += tg2 % 2 !== 0 ? 1 : 0;
-      const margemAtualJ = Math.abs(ft2[0] - ft2[1]);
-      s.margem1 += margemAtualJ === 1 ? 1 : 0;
-      s.margem2 += margemAtualJ === 2 ? 1 : 0;
-      s.margem3 += margemAtualJ === 3 ? 1 : 0;
-      s.empateGols += ft2[0] === ft2[1] && tg2 > 0 ? 1 : 0;
-      s.casaVence += ft2[0] > ft2[1] ? 1 : 0;
-      s.empate += ft2[0] === ft2[1] ? 1 : 0;
-      s.foraVence += ft2[0] < ft2[1] ? 1 : 0;
-      s.ambasSim += ft2[0] > 0 && ft2[1] > 0 ? 1 : 0;
-      s.ambasNao += ft2[0] === 0 || ft2[1] === 0 ? 1 : 0;
-      s.over05 += tg2 > 0.5 ? 1 : 0;
-      s.over15 += tg2 > 1.5 ? 1 : 0;
-      s.over25 += tg2 > 2.5 ? 1 : 0;
-      s.over35 += tg2 > 3.5 ? 1 : 0;
-      s.over5 += tg2 >= 5 ? 1 : 0;
-      s.under05 += tg2 <= 0.5 ? 1 : 0;
-      s.under15 += tg2 < 1.5 ? 1 : 0;
-      s.under25 += tg2 < 2.5 ? 1 : 0;
-      s.under35 += tg2 < 3.5 ? 1 : 0;
-      s.gol0 += tg2 === 0 ? 1 : 0;
-      s.gol1 += tg2 === 1 ? 1 : 0;
-      s.gol2 += tg2 === 2 ? 1 : 0;
-      s.gol3 += tg2 === 3 ? 1 : 0;
-      s.gol4 += tg2 === 4 ? 1 : 0;
-      s.gol5 += tg2 === 5 ? 1 : 0;
-      s.gol2t0 += tg2t2 === 0 ? 1 : 0;
-      s.gol2t1 += tg2t2 === 1 ? 1 : 0;
-      s.gol2t2 += tg2t2 === 2 ? 1 : 0;
-      s.gol2t3 += tg2t2 === 3 ? 1 : 0;
-      s.gol2t4 += tg2t2 === 4 ? 1 : 0;
-      s.casa0 += ft2[0] === 0 ? 1 : 0;
-      s.casa1 += ft2[0] === 1 ? 1 : 0;
-      s.casa2 += ft2[0] === 2 ? 1 : 0;
-      s.casa3 += ft2[0] === 3 ? 1 : 0;
-      s.casa4 += ft2[0] === 4 ? 1 : 0;
-      s.fora0 += ft2[1] === 0 ? 1 : 0;
-      s.fora1 += ft2[1] === 1 ? 1 : 0;
-      s.fora2 += ft2[1] === 2 ? 1 : 0;
-      s.fora3 += ft2[1] === 3 ? 1 : 0;
-      s.fora4 += ft2[1] === 4 ? 1 : 0;
-      s.p0x0 += ft2[0] === 0 && ft2[1] === 0 ? 1 : 0;
-      s.p1x0 += ft2[0] === 1 && ft2[1] === 0 ? 1 : 0;
-      s.p2x0 += ft2[0] === 2 && ft2[1] === 0 ? 1 : 0;
-      s.p3x0 += ft2[0] === 3 && ft2[1] === 0 ? 1 : 0;
-      s.p2x1 += ft2[0] === 2 && ft2[1] === 1 ? 1 : 0;
-      s.p3x1 += ft2[0] === 3 && ft2[1] === 1 ? 1 : 0;
-      s.p3x2 += ft2[0] === 3 && ft2[1] === 2 ? 1 : 0;
-      s.p4x0 += ft2[0] === 4 && ft2[1] === 0 ? 1 : 0;
-      s.p4x1 += ft2[0] === 4 && ft2[1] === 1 ? 1 : 0;
-      s.p0x1 += ft2[0] === 0 && ft2[1] === 1 ? 1 : 0;
-      s.p0x2 += ft2[0] === 0 && ft2[1] === 2 ? 1 : 0;
-      s.p1x2 += ft2[0] === 1 && ft2[1] === 2 ? 1 : 0;
-      s.p0x3 += ft2[0] === 0 && ft2[1] === 3 ? 1 : 0;
-      s.p1x3 += ft2[0] === 1 && ft2[1] === 3 ? 1 : 0;
-      s.p2x3 += ft2[0] === 2 && ft2[1] === 3 ? 1 : 0;
-      s.p0x4 += ft2[0] === 0 && ft2[1] === 4 ? 1 : 0;
-      s.p1x4 += ft2[0] === 1 && ft2[1] === 4 ? 1 : 0;
-      s.ht0x0 += htParts2 && htParts2[0] === 0 && htParts2[1] === 0 ? 1 : 0;
-      s.ht0x1 += htParts2 && htParts2[0] === 0 && htParts2[1] === 1 ? 1 : 0;
-      s.ht1x0 += htParts2 && htParts2[0] === 1 && htParts2[1] === 0 ? 1 : 0;
-      s.ht1x1 += htParts2 && htParts2[0] === 1 && htParts2[1] === 1 ? 1 : 0;
-      s.ht0x2 += htParts2 && htParts2[0] === 0 && htParts2[1] === 2 ? 1 : 0;
-      s.ht2x0 += htParts2 && htParts2[0] === 2 && htParts2[1] === 0 ? 1 : 0;
-      s.htOut += m2.ht === "OUT" ? 1 : 0;
-
-      if (htTotal2 >= 2) {
-        s.overHT++;
-      } else {
-        s.underHT++;
-      }
-
-      if (htParts2) {
-        if (htParts2[0] > htParts2[1]) {
-          s.casaHT++;
-        } else if (htParts2[0] < htParts2[1]) {
-          s.foraHT++;
-        } else {
-          s.empateHT++;
-        }
-      }
-
-      if (htParts2) {
-        const casaVenceHT = htParts2[0] > htParts2[1];
-        const foraVenceHT = htParts2[0] < htParts2[1];
-        let ftParts = [0, 0];
-
-        if (m2.ft?.includes(" x ")) {
-          ftParts = m2.ft.split(" x ").map(Number);
-        }
-
-        const casaPerdeFT = ftParts[0] < ftParts[1];
-        const foraPerdeFT = ftParts[0] > ftParts[1];
-
-        if ((casaVenceHT && casaPerdeFT) || (foraVenceHT && foraPerdeFT)) {
-          s.viradinha++;
-        }
-      }
-
-      s.valid++;
-    }
-
-    if (i < startExibir) {
-      continue;
-    }
-
-    const m = slicedData[i];
-    labels.push(m.hora + ":" + m.minuto.toString().padStart(2, "0"));
-    let ft = [0, 0];
+  for (let i = 0; i < n; i++) {
+    const m = sliced[i].m;
+    ts[i] = Math.floor(sliced[i].t / 86400000) * 1440 + m.hora * 60 + m.minuto;
+    let f0 = 0;
+    let f1 = 0;
 
     if (m.ft?.includes(" x ")) {
-      ft = m.ft.split(" x ").map(Number);
+      const p = m.ft.split(" x ").map(Number);
+      f0 = p[0];
+      f1 = p[1];
     }
 
     const htTotal = parseHtScoreTotal(m.ht);
-    const htParts = parseHtParts(m.ht);
-    const tg = ft[0] + ft[1];
-    const tg2t = Math.max(0, tg - htTotal);
-    const avg = s.valid || 1;
-    golsFT.push(s.golsFT);
-    golsFTColors.push("#FFFF00");
-    golsHT.push(s.golsHT);
-    golsHTColors.push("#26A69A");
-    const golsIndVal = tg;
-    const golsIndColor =
-      golsIndVal >= 5
-        ? "#2ecc71"
-        : golsIndVal >= 3
-          ? "#3498db"
-          : golsIndVal === 2
-            ? "#f1c40f"
-            : golsIndVal === 1
-              ? "#e67e22"
-              : "#e74c3c";
-    placarHT0x1.push(golsIndVal);
-    golsIndColors.push(golsIndColor);
-    golsFTCasa.push(s.golsFTCasa);
-    golsFTCasaColors.push("#00E5FF");
-    golsFTFora.push(s.golsFTFora);
-    golsFTForaColors.push("#FF6E40");
-    par.push((s.par / avg) * 100);
-    parColors.push(tg % 2 === 0 ? green : red);
-    impar.push((s.impar / avg) * 100);
-    imparColors.push(tg % 2 !== 0 ? green : red);
-    const margemAtual = Math.abs(ft[0] - ft[1]);
-    margem1.push((s.margem1 / avg) * 100);
-    margem1Colors.push(margemAtual === 1 ? green : red);
-    margem2.push((s.margem2 / avg) * 100);
-    margem2Colors.push(margemAtual === 2 ? green : red);
-    margem3.push((s.margem3 / avg) * 100);
-    margem3Colors.push(margemAtual === 3 ? green : red);
-    empateGols.push((s.empateGols / avg) * 100);
-    empateGolsColors.push(ft[0] === ft[1] && tg > 0 ? green : red);
-    casaVence.push((s.casaVence / avg) * 100);
-    casaVenceColors.push(ft[0] > ft[1] ? green : red);
-    empate.push((s.empate / avg) * 100);
-    empateColors.push(ft[0] === ft[1] ? green : red);
-    foraVence.push((s.foraVence / avg) * 100);
-    foraVenceColors.push(ft[0] < ft[1] ? green : red);
-    ambasSim.push((s.ambasSim / avg) * 100);
-    ambasSimColors.push(ft[0] > 0 && ft[1] > 0 ? green : red);
-    ambasNao.push((s.ambasNao / avg) * 100);
-    ambasNaoColors.push(ft[0] === 0 || ft[1] === 0 ? green : red);
-    over05.push((s.over05 / avg) * 100);
-    over05Colors.push(tg > 0.5 ? green : red);
-    over15.push((s.over15 / avg) * 100);
-    over15Colors.push(tg > 1.5 ? green : red);
-    over25.push((s.over25 / avg) * 100);
-    over25Colors.push(tg > 2.5 ? green : red);
-    over35.push((s.over35 / avg) * 100);
-    over35Colors.push(tg > 3.5 ? green : red);
-    over5.push((s.over5 / avg) * 100);
-    over5Colors.push(tg >= 5 ? green : red);
-    under05.push((s.under05 / avg) * 100);
-    under05Colors.push(tg <= 0.5 ? green : red);
-    under15.push((s.under15 / avg) * 100);
-    under15Colors.push(tg < 1.5 ? green : red);
-    under25.push((s.under25 / avg) * 100);
-    under25Colors.push(tg < 2.5 ? green : red);
-    under35.push((s.under35 / avg) * 100);
-    under35Colors.push(tg < 3.5 ? green : red);
-    gol0.push((s.gol0 / avg) * 100);
-    gol0Colors.push(tg === 0 ? green : red);
-    gol1.push((s.gol1 / avg) * 100);
-    gol1Colors.push(tg === 1 ? green : red);
-    gol2.push((s.gol2 / avg) * 100);
-    gol2Colors.push(tg === 2 ? green : red);
-    gol3.push((s.gol3 / avg) * 100);
-    gol3Colors.push(tg === 3 ? green : red);
-    gol4.push((s.gol4 / avg) * 100);
-    gol4Colors.push(tg === 4 ? green : red);
-    gol5.push((s.gol5 / avg) * 100);
-    gol5Colors.push(tg === 5 ? green : red);
-    gol2t0.push((s.gol2t0 / avg) * 100);
-    gol2t0Colors.push(tg2t === 0 ? green : red);
-    gol2t1.push((s.gol2t1 / avg) * 100);
-    gol2t1Colors.push(tg2t === 1 ? green : red);
-    gol2t2.push((s.gol2t2 / avg) * 100);
-    gol2t2Colors.push(tg2t === 2 ? green : red);
-    gol2t3.push((s.gol2t3 / avg) * 100);
-    gol2t3Colors.push(tg2t === 3 ? green : red);
-    gol2t4.push((s.gol2t4 / avg) * 100);
-    gol2t4Colors.push(tg2t === 4 ? green : red);
-    casa0.push((s.casa0 / avg) * 100);
-    casa0Colors.push(ft[0] === 0 ? green : red);
-    casa1.push((s.casa1 / avg) * 100);
-    casa1Colors.push(ft[0] === 1 ? green : red);
-    casa2.push((s.casa2 / avg) * 100);
-    casa2Colors.push(ft[0] === 2 ? green : red);
-    casa3.push((s.casa3 / avg) * 100);
-    casa3Colors.push(ft[0] === 3 ? green : red);
-    casa4.push((s.casa4 / avg) * 100);
-    casa4Colors.push(ft[0] === 4 ? green : red);
-    fora0.push((s.fora0 / avg) * 100);
-    fora0Colors.push(ft[1] === 0 ? green : red);
-    fora1.push((s.fora1 / avg) * 100);
-    fora1Colors.push(ft[1] === 1 ? green : red);
-    fora2.push((s.fora2 / avg) * 100);
-    fora2Colors.push(ft[1] === 2 ? green : red);
-    fora3.push((s.fora3 / avg) * 100);
-    fora3Colors.push(ft[1] === 3 ? green : red);
-    fora4.push((s.fora4 / avg) * 100);
-    fora4Colors.push(ft[1] === 4 ? green : red);
-    placar0x0.push((s.p0x0 / avg) * 100);
-    placar0x0Colors.push(ft[0] === 0 && ft[1] === 0 ? green : red);
-    placar1x0.push((s.p1x0 / avg) * 100);
-    placar1x0Colors.push(ft[0] === 1 && ft[1] === 0 ? green : red);
-    placar2x0.push((s.p2x0 / avg) * 100);
-    placar2x0Colors.push(ft[0] === 2 && ft[1] === 0 ? green : red);
-    placar3x0.push((s.p3x0 / avg) * 100);
-    placar3x0Colors.push(ft[0] === 3 && ft[1] === 0 ? green : red);
-    placar2x1.push((s.p2x1 / avg) * 100);
-    placar2x1Colors.push(ft[0] === 2 && ft[1] === 1 ? green : red);
-    placar3x1.push((s.p3x1 / avg) * 100);
-    placar3x1Colors.push(ft[0] === 3 && ft[1] === 1 ? green : red);
-    placar3x2.push((s.p3x2 / avg) * 100);
-    placar3x2Colors.push(ft[0] === 3 && ft[1] === 2 ? green : red);
-    placar4x0.push((s.p4x0 / avg) * 100);
-    placar4x0Colors.push(ft[0] === 4 && ft[1] === 0 ? green : red);
-    placar4x1.push((s.p4x1 / avg) * 100);
-    placar4x1Colors.push(ft[0] === 4 && ft[1] === 1 ? green : red);
-    placar0x1.push((s.p0x1 / avg) * 100);
-    placar0x1Colors.push(ft[0] === 0 && ft[1] === 1 ? green : red);
-    placar0x2.push((s.p0x2 / avg) * 100);
-    placar0x2Colors.push(ft[0] === 0 && ft[1] === 2 ? green : red);
-    placar1x2.push((s.p1x2 / avg) * 100);
-    placar1x2Colors.push(ft[0] === 1 && ft[1] === 2 ? green : red);
-    placar0x3.push((s.p0x3 / avg) * 100);
-    placar0x3Colors.push(ft[0] === 0 && ft[1] === 3 ? green : red);
-    placar1x3.push((s.p1x3 / avg) * 100);
-    placar1x3Colors.push(ft[0] === 1 && ft[1] === 3 ? green : red);
-    placar2x3.push((s.p2x3 / avg) * 100);
-    placar2x3Colors.push(ft[0] === 2 && ft[1] === 3 ? green : red);
-    placar0x4.push((s.p0x4 / avg) * 100);
-    placar0x4Colors.push(ft[0] === 0 && ft[1] === 4 ? green : red);
-    placar1x4.push((s.p1x4 / avg) * 100);
-    placar1x4Colors.push(ft[0] === 1 && ft[1] === 4 ? green : red);
-    placarHT0x0.push((s.ht0x0 / avg) * 100);
-    placarHT0x0Colors.push(
-      htParts && htParts[0] === 0 && htParts[1] === 0 ? green : red,
-    );
-    placarHT0x12.push((s.ht0x1 / avg) * 100);
-    placarHT0x1Colors.push(
-      htParts && htParts[0] === 0 && htParts[1] === 1 ? green : red,
-    );
-    placarHT1x0.push((s.ht1x0 / avg) * 100);
-    placarHT1x0Colors.push(
-      htParts && htParts[0] === 1 && htParts[1] === 0 ? green : red,
-    );
-    placarHT1x1.push((s.ht1x1 / avg) * 100);
-    placarHT1x1Colors.push(
-      htParts && htParts[0] === 1 && htParts[1] === 1 ? green : red,
-    );
-    placarHT0x2.push((s.ht0x2 / avg) * 100);
-    placarHT0x2Colors.push(
-      htParts && htParts[0] === 0 && htParts[1] === 2 ? green : red,
-    );
-    placarHT2x0.push((s.ht2x0 / avg) * 100);
-    placarHT2x0Colors.push(
-      htParts && htParts[0] === 2 && htParts[1] === 0 ? green : red,
-    );
-    placarHTOut.push((s.htOut / avg) * 100);
-    placarHTOutColors.push(m.ht === "OUT" ? green : red);
-    overHT.push((s.overHT / avg) * 100);
-    overHTColors.push(htTotal >= 2 ? green : red);
-    underHT.push((s.underHT / avg) * 100);
-    underHTColors.push(htTotal < 2 ? green : red);
-    casaHT.push((s.casaHT / avg) * 100);
-    casaHTColors.push(htParts && htParts[0] > htParts[1] ? green : red);
-    empateHT.push((s.empateHT / avg) * 100);
-    empateHTColors.push(htParts && htParts[0] === htParts[1] ? green : red);
-    foraHT.push((s.foraHT / avg) * 100);
-    foraHTColors.push(htParts && htParts[0] < htParts[1] ? green : red);
-    const casaVenceHTcur = htParts && htParts[0] > htParts[1];
-    const foraVenceHTcur = htParts && htParts[0] < htParts[1];
-    const casaPerdeFTcur = ft[0] < ft[1];
-    const foraPerdeFTcur = ft[0] > ft[1];
-    const viradinhaOcorreu =
-      htParts &&
-      ((casaVenceHTcur && casaPerdeFTcur) ||
-        (foraVenceHTcur && foraPerdeFTcur));
-    viradinha.push((s.viradinha / avg) * 100);
-    viradinhaColors.push(viradinhaOcorreu ? green : red);
+    const tg = f0 + f1;
+
+    games[i] = {
+      f0,
+      f1,
+      tg,
+      htStr: m.ht,
+      htTotal,
+      hp: parseHtParts(m.ht),
+      g2t: Math.max(0, tg - htTotal),
+      margem: Math.abs(f0 - f1)
+    };
   }
 
-  const result = {
-    labels,
-    golsFT,
-    golsHT,
-    golsInd: placarHT0x1,
-    casaVence,
-    empate,
-    foraVence,
-    ambasSim,
-    ambasNao,
-    over05,
-    over15,
-    over25,
-    over35,
-    over5,
-    under05,
-    under15,
-    under25,
-    under35,
-    gol0,
-    gol1,
-    gol2,
-    gol3,
-    gol4,
-    gol5,
-    gol2t0,
-    gol2t1,
-    gol2t2,
-    gol2t3,
-    gol2t4,
-    casa0,
-    casa1,
-    casa2,
-    casa3,
-    casa4,
-    fora0,
-    fora1,
-    fora2,
-    fora3,
-    fora4,
-    placar0x0,
-    placar1x0,
-    placar2x0,
-    placar3x0,
-    placar2x1,
-    placar3x1,
-    placar3x2,
-    placar4x0,
-    placar4x1,
-    placar0x1,
-    placar0x2,
-    placar1x2,
-    placar0x3,
-    placar1x3,
-    placar2x3,
-    placar0x4,
-    placar1x4,
-    placarHT0x0,
-    placarHT0x1: placarHT0x12,
-    placarHT1x0,
-    placarHT1x1,
-    placarHT0x2,
-    placarHT2x0,
-    placarHTOut,
-    overHT,
-    underHT,
-    casaHT,
-    empateHT,
-    foraHT,
-    viradinha,
-    golsFTCasa,
-    golsFTFora,
-    par,
-    impar,
-    margem1,
-    margem2,
-    margem3,
-    empateGols,
-    golsFTColors,
-    golsHTColors,
-    golsIndColors,
-    casaVenceColors,
-    empateColors,
-    foraVenceColors,
-    ambasSimColors,
-    ambasNaoColors,
-    over05Colors,
-    over15Colors,
-    over25Colors,
-    over35Colors,
-    over5Colors,
-    under05Colors,
-    under15Colors,
-    under25Colors,
-    under35Colors,
-    gol0Colors,
-    gol1Colors,
-    gol2Colors,
-    gol3Colors,
-    gol4Colors,
-    gol5Colors,
-    gol2t0Colors,
-    gol2t1Colors,
-    gol2t2Colors,
-    gol2t3Colors,
-    gol2t4Colors,
-    casa0Colors,
-    casa1Colors,
-    casa2Colors,
-    casa3Colors,
-    casa4Colors,
-    fora0Colors,
-    fora1Colors,
-    fora2Colors,
-    fora3Colors,
-    fora4Colors,
-    placar0x0Colors,
-    placar1x0Colors,
-    placar2x0Colors,
-    placar3x0Colors,
-    placar2x1Colors,
-    placar3x1Colors,
-    placar3x2Colors,
-    placar4x0Colors,
-    placar4x1Colors,
-    placar0x1Colors,
-    placar0x2Colors,
-    placar1x2Colors,
-    placar0x3Colors,
-    placar1x3Colors,
-    placar2x3Colors,
-    placar0x4Colors,
-    placar1x4Colors,
-    placarHT0x0Colors,
-    placarHT0x1Colors,
-    placarHT1x0Colors,
-    placarHT1x1Colors,
-    placarHT0x2Colors,
-    placarHT2x0Colors,
-    placarHTOutColors,
-    overHTColors,
-    underHTColors,
-    casaHTColors,
-    empateHTColors,
-    foraHTColors,
-    viradinhaColors,
-    golsFTCasaColors,
-    golsFTForaColors,
-    parColors,
-    imparColors,
-    margem1Colors,
-    margem2Colors,
-    margem3Colors,
-    empateGolsColors,
-  };
+  // Só os mercados do setup ativo.
+  const wanted = _wantedLabels();
+  const keys = [];
 
-  const result2 = result;
-  const longPeriod = _QBLOC;
-  const longPeriod2 = _JPH;
-
-  Object.keys(labelToKey).forEach((label) => {
-    const key = labelToKey[label];
-    result2[key + "Short"] = computeMA(result2[key], longPeriod);
-    result2[key + "Long"] = computeMA(result2[key], longPeriod2);
+  Object.keys(labelToKey).forEach(label => {
+    if (wanted.has(label)) {
+      keys.push(labelToKey[label]);
+    }
   });
 
-  return result2;
+  // Somas acumuladas: o valor de qualquer janela vira uma subtração (rápido).
+  const pre = {};
+
+  keys.forEach(key => {
+    if (key === "golsInd") {
+      return;
+    }
+
+    const sum = MARKET_SUMS[key];
+    const def = MARKET_DEFS[key];
+
+    if (!sum && !def) {
+      return;
+    }
+
+    const count = sum ? sum.v : typeof def === "function" ? def : def.c;
+    const arr = new Float64Array(n + 1);
+
+    for (let i = 0; i < n; i++) {
+      arr[i + 1] = arr[i] + (sum ? count(games[i]) : count(games[i]) ? 1 : 0);
+    }
+
+    pre[key] = arr;
+  });
+
+  const green = "#2DD4BF";
+  const red = "#FB7185";
+  const janelaMin = averagePoints * _MIN_POR_JOGO;
+  const startExibir = Math.max(0, n - numPoints);
+  const labels = [];
+  const output = {
+    labels
+  };
+
+  keys.forEach(key => {
+    output[key] = [];
+    output[key + "Colors"] = [];
+  });
+
+  for (let i = startExibir; i < n; i++) {
+    const m = sliced[i].m;
+    const g = games[i];
+    labels.push(m.hora + ":" + m.minuto.toString().padStart(2, "0"));
+
+    // Início da janela: jogos dentro de janelaMin minutos antes deste.
+    let lo = i;
+
+    while (lo > 0 && !(ts[i] - ts[lo - 1] > janelaMin)) {
+      lo--;
+    }
+
+    const valid = i - lo + 1;
+
+    keys.forEach(key => {
+      if (key === "golsInd") {
+        output.golsInd.push(g.tg);
+        output.golsIndColors.push(_golsIndColor(g.tg));
+        return;
+      }
+
+      const p = pre[key];
+
+      if (!p) {
+        return;
+      }
+
+      const total = p[i + 1] - p[lo];
+      const sum = MARKET_SUMS[key];
+
+      if (sum) {
+        output[key].push(total);
+        output[key + "Colors"].push(sum.color);
+        return;
+      }
+
+      const def = MARKET_DEFS[key];
+      const colorFn = typeof def === "function" ? def : def.k;
+      output[key].push(total / valid * 100);
+      output[key + "Colors"].push(colorFn(g) ? green : red);
+    });
+  }
+
+  // Médias móveis: só quando estão ligadas, e só para os mercados do setup.
+  if (showMovingAverages) {
+    keys.forEach(key => {
+      output[key + "Short"] = computeMA(output[key], _QBLOC);
+      output[key + "Long"] = computeMA(output[key], _JPH);
+    });
+  }
+
+  return output;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    UPDATE / EVENT LISTENERS
 ═══════════════════════════════════════════════════════════════════ */
+// Último texto recebido da API, dados lidos e configuração usada, por liga.
+const _lastText = {};
+const _lastRaw = {};
+const _lastSig = {};
+
+// Resumo das configurações que mudam os cálculos (se mudar, reprocessa).
+function _settingsSig() {
+  return [numPoints, averagePoints, showMovingAverages, [..._wantedLabels()].join(",")].join("|");
+}
+
+// Processa os dados e cria/atualiza o gráfico da liga.
+function _renderLeague(league, data) {
+  const pd = processApiData(data, league);
+  const canvas = document.getElementById(league);
+
+  if (!canvas) {
+    return;
+  }
+
+  if (!chartInstances[league]) {
+    chartInstances[league] = createStatsChart(canvas.getContext("2d"), pd.labels, pd, league);
+    _applySetup(_getActiveSetup());
+  } else {
+    updateStatsChart(chartInstances[league], pd);
+  }
+}
+
+// Refaz o gráfico com os últimos dados já baixados (sem nova requisição). Devolve false se não há dados.
+function _refreshFromCache() {
+  let did = false;
+
+  leagues.forEach(league => {
+    if (!_lastRaw[league]) {
+      return;
+    }
+
+    _lastSig[league] = _settingsSig();
+    _renderLeague(league, _lastRaw[league]);
+    did = true;
+  });
+
+  return did;
+}
+
 function updateCharts() {
   if (!_tabVisible) {
     return;
@@ -4061,82 +3423,61 @@ function updateCharts() {
 
   const ts = new Date().getTime();
 
-  leagues.forEach((league) => {
-    fetch(ROTAS_API.resultados(LIGA_ATUAL) + ("?timestamp=" + ts))
-      .then((r) => {
-        if (!r.ok) {
-          throw new Error(r.status);
-        }
+  leagues.forEach(league => {
+    fetch(ROTAS_API.resultados(LIGA_ATUAL) + ("?timestamp=" + ts)).then(response => {
+      if (!response.ok) {
+        throw new Error(response.status);
+      }
 
-        return r.json();
-      })
-      .then((data) => {
-        const pd = processApiData(data, league);
-        const canvas = document.getElementById(league);
+      return response.text();
+    }).then(text => {
+      const sig = _settingsSig();
 
-        if (!canvas) {
-          return;
-        }
+      // Mesmos dados e mesmas configurações: nada a recalcular nem redesenhar.
+      if (chartInstances[league] && _lastText[league] === text && _lastSig[league] === sig) {
+        return;
+      }
 
-        if (!chartInstances[league]) {
-          chartInstances[league] = createStatsChart(
-            canvas.getContext("2d"),
-            pd.labels,
-            pd,
-            league,
-          );
-          _applySetup(_getActiveSetup());
-        } else {
-          updateStatsChart(chartInstances[league], pd);
-        }
-      })
-      .catch((e) => console.error("Erro " + league + ":", e));
+      const data = JSON.parse(text);
+      _lastText[league] = text;
+      _lastRaw[league] = data;
+      _lastSig[league] = sig;
+      _renderLeague(league, data);
+    }).catch(e => console.error("Erro " + league + ":", e));
   });
 }
 
+// Liga/desliga as linhas de Fibonacci automáticas.
 function toggleFibonacciLines() {
   showFibonacciLines = document.getElementById("fibonacciToggle").checked;
 
-  leagues.forEach((l) => {
-    if (chartInstances[l]) {
-      chartInstances[l].update();
+  leagues.forEach(league => {
+    if (chartInstances[league]) {
+      chartInstances[league].update();
     }
   });
 
   _captureControlsToSetup(_getActiveSetup());
 }
 
+// Liga/desliga as médias móveis (curta e longa).
 function toggleMovingAverages() {
   showMovingAverages = document.getElementById("movingAveragesToggle").checked;
 
-  leagues.forEach((l) => {
-    const ci = chartInstances[l];
-
-    if (!ci) {
-      return;
-    }
-
-    ci.data.datasets.forEach((ds, idx) => {
-      if (ds.label.includes(" - ")) {
-        const main = ds.label.split(" - ")[0];
-        ci.getDatasetMeta(idx).hidden =
-          !showMovingAverages || !statsChartVisibleDatasets[main];
-      }
-    });
-
-    ci.update();
-  });
+  if (!_refreshFromCache()) {
+    updateCharts();
+  }
 
   _captureControlsToSetup(_getActiveSetup());
 }
 
 /* ── POSIÇÃO DO EIXO (%): preferência do usuário, esquerda ou direita ── */
-function setYAxisPosition(a) {
-  yAxisPosition = a === "right" ? "right" : "left";
+function setYAxisPosition(position) {
+  yAxisPosition = position === "right" ? "right" : "left";
   _lsSet(Y_AXIS_POS_KEY, yAxisPosition);
 
-  leagues.forEach((l) => {
-    const ci = chartInstances[l];
+  leagues.forEach(league => {
+    const ci = chartInstances[league];
 
     if (!ci) {
       return;
@@ -4144,67 +3485,71 @@ function setYAxisPosition(a) {
 
     ci.options.scales.y.position = yAxisPosition;
 
-    ci.options.layout.padding =
-      yAxisPosition === "right"
-        ? {
-            top: 30,
-            left: 80,
-          }
-        : {
-            top: 30,
-            right: 80,
-          };
+    ci.options.layout.padding = yAxisPosition === "right" ? {
+      top: 30,
+      left: 80
+    } : {
+      top: 30,
+      right: 80
+    };
 
     ci.update();
   });
 }
 
-document.getElementById("pointsSelector").addEventListener("change", (e) => {
+/* ═══════════════════════════════════════════════════════════════════
+   CONTROLES DA PÁGINA (selects e toggles do HTML)
+   Cada controle abaixo altera uma variável global e chama updateCharts().
+═══════════════════════════════════════════════════════════════════ */
+
+document.getElementById("pointsSelector").addEventListener("change", e => {
   numPoints = parseInt(e.target.value, 10);
-  updateCharts();
+
+  if (!_refreshFromCache()) {
+    updateCharts();
+  }
+
   _captureControlsToSetup(_getActiveSetup());
 });
 
-document.getElementById("averageSelector").addEventListener("change", (e) => {
+document.getElementById("averageSelector").addEventListener("change", e => {
   averagePoints = parseInt(e.target.value, 10);
-  updateCharts();
+
+  if (!_refreshFromCache()) {
+    updateCharts();
+  }
+
   _captureControlsToSetup(_getActiveSetup());
 });
 
-document
-  .getElementById("fibonacciToggle")
-  .addEventListener("change", toggleFibonacciLines);
-document
-  .getElementById("movingAveragesToggle")
-  .addEventListener("change", toggleMovingAverages);
+document.getElementById("fibonacciToggle").addEventListener("change", toggleFibonacciLines);
+document.getElementById("movingAveragesToggle").addEventListener("change", toggleMovingAverages);
 const yAxisSel = document.getElementById("yAxisPositionSelector");
 
 if (yAxisSel) {
   yAxisSel.value = yAxisPosition;
-  yAxisSel.addEventListener("change", (e) => setYAxisPosition(e.target.value));
+  yAxisSel.addEventListener("change", e => setYAxisPosition(e.target.value));
 }
 
-document
-  .getElementById("linhaAtualToggle")
-  .addEventListener("change", function () {
-    leagues.forEach((l) => {
-      const ci = chartInstances[l];
+document.getElementById("linhaAtualToggle").addEventListener("change", function () {
+  leagues.forEach(l => {
+    const ci = chartInstances[l];
 
-      if (!ci) {
-        return;
-      }
+    if (!ci) {
+      return;
+    }
 
-      ci.options.plugins.linhaAtual.enabled = this.checked;
-      ci.update("active");
-    });
-
-    _captureControlsToSetup(_getActiveSetup());
+    ci.options.plugins.linhaAtual.enabled = this.checked;
+    ci.update("active");
   });
+
+  _captureControlsToSetup(_getActiveSetup());
+});
 
 document.getElementById("labelsToggle").addEventListener("change", function () {
   showLabels = this.checked;
 
-  leagues.forEach((l) => {
+  leagues.forEach(l => {
     if (chartInstances[l]) {
       chartInstances[l].update();
     }
@@ -4212,6 +3557,12 @@ document.getElementById("labelsToggle").addEventListener("change", function () {
 
   _captureControlsToSetup(_getActiveSetup());
 });
+
+/* ═══════════════════════════════════════════════════════════════════
+   PAINÉIS DE FERRAMENTAS (linhas, Fibonacci, tendências)
+   Abre/fecha os painéis dos botões #btnLinhaTools, #btnFibTools e #btnTrendTools.
+   Clicar fora fecha todos.
+═══════════════════════════════════════════════════════════════════ */
 
 (function () {
   const btnLinha = document.getElementById("btnLinhaTools");
@@ -4246,30 +3597,30 @@ document.getElementById("labelsToggle").addEventListener("change", function () {
   }
 
   if (btnLinha && pLinha) {
-    btnLinha.addEventListener("click", (e) => {
+    btnLinha.addEventListener("click", e => {
       e.stopPropagation();
       pLinha.style.display = pLinha.style.display === "none" ? "block" : "none";
     });
 
-    pLinha.addEventListener("click", (e) => e.stopPropagation());
+    pLinha.addEventListener("click", e => e.stopPropagation());
   }
 
   if (btnFib && pFib) {
-    btnFib.addEventListener("click", (e) => {
+    btnFib.addEventListener("click", e => {
       e.stopPropagation();
       pFib.style.display = pFib.style.display === "none" ? "block" : "none";
     });
 
-    pFib.addEventListener("click", (e) => e.stopPropagation());
+    pFib.addEventListener("click", e => e.stopPropagation());
   }
 
   if (btnTrend && pTrend) {
-    btnTrend.addEventListener("click", (e) => {
+    btnTrend.addEventListener("click", e => {
       e.stopPropagation();
       pTrend.style.display = pTrend.style.display === "none" ? "block" : "none";
     });
 
-    pTrend.addEventListener("click", (e) => e.stopPropagation());
+    pTrend.addEventListener("click", e => e.stopPropagation());
   }
 
   document.addEventListener("click", () => {
@@ -4287,13 +3638,16 @@ document.getElementById("labelsToggle").addEventListener("change", function () {
   });
 })();
 
+/* ═══════════════════════════════════════════════════════════════════
+   FUNÇÕES GLOBAIS (chamadas pelos botões do HTML)
+   Cada uma pega o gráfico atual e repassa o comando para o plugin correspondente.
+═══════════════════════════════════════════════════════════════════ */
+
 window.adicionarLinhaDraggable = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
 
   if (c) {
-    c.addDragLine(
-      document.getElementById("lineColorPicker")?.value || "#1fcc59",
-    );
+    c.addDragLine(document.getElementById("lineColorPicker")?.value || "#1fcc59");
   }
 };
 
@@ -4368,6 +3722,10 @@ window.limparTendencias = () => {
     c.clearTrendDraws();
   }
 };
+
+/* ═══════════════════════════════════════════════════════════════════
+   INICIALIZAÇÃO
+═══════════════════════════════════════════════════════════════════ */
 
 window.onload = () => {
   updateCharts();
