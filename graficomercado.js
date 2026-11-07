@@ -27,10 +27,17 @@ const FIB_COLORS = [
   "#60A5FA",
   "#FB923C",
 ];
+
+/* LTA = Linha de Tendência de Alta (suporte, ascendente) — verde
+   LTB = Linha de Tendência de Baixa (resistência, descendente) — vermelho */
 const TREND_COLORS = {
   LTA: "#34D399",
   LTB: "#F87171",
 };
+
+/* ───────────────────────────────────────────
+   VARIÁVEIS GLOBAIS DE ESTADO
+─────────────────────────────────────────── */
 let numPoints = _JPH; // 1 hora
 let averagePoints = _JPH - 1; // base = 1 hora (índice)
 let showFibonacciLines = false;
@@ -40,38 +47,60 @@ let yAxisPosition = _ls(Y_AXIS_POS_KEY, "left");
 const leagues = ["Copa"];
 const chartInstances = {};
 let chartData = {};
+
+/* Nome da liga atual — lido do elemento <h4 class="custom-color"> dentro de
+   #resultDisplay, que toda página de liga possui com o nome da própria liga
+   (ex: "Clássicos"). Não usamos a const `leagues` porque este mesmo arquivo
+   grafico.js é compartilhado por todas as páginas, então `leagues[0]` não
+   diferencia uma liga da outra — o h4 é o único identificador realmente
+   único por página. */
 function _ligaAtual() {
   if (typeof window.getLigaKey === "function") {
     try {
       const ligaKey = window.getLigaKey();
+
       if (ligaKey) {
         return ligaKey;
       }
     } catch {}
   }
+
   const h4 =
     document.querySelector("#resultDisplay h4.custom-color") ||
     document.querySelector("h4.custom-color");
   const nome = h4 && h4.textContent ? h4.textContent.trim() : "";
+
   if (nome) {
     return nome.toLowerCase().replace(/\s+/g, "_");
   }
+
   if (leagues && leagues[0]) {
     return leagues[0];
   } else {
     return "default";
   }
 }
+
+/* Chave de armazenamento específica da liga atual — garante que linhas manuais,
+   fibonacci livre e linhas de tendência (LTA/LTB) desenhadas em uma liga NÃO
+   apareçam em outra ao trocar de liga. */
 function _ligaKey(baseKey) {
   return baseKey + ":" + _ligaAtual();
 }
+
 let _tabVisible = !document.hidden;
+
 document.addEventListener("visibilitychange", () => {
   _tabVisible = !document.hidden;
+
   if (_tabVisible) {
     updateCharts();
   }
 });
+
+/* ───────────────────────────────────────────
+   MAPA LABEL → CHAVE
+─────────────────────────────────────────── */
 const labelToKey = {
   "Gols FT": "golsFT",
   "Gols HT": "golsHT",
@@ -150,6 +179,7 @@ const labelToKey = {
   "Gols FT Casa": "golsFTCasa",
   "Gols FT Fora": "golsFTFora",
 };
+
 const DATASET_COLORS = {
   "Gols FT": "#FFFF00",
   "Gols HT": "#26A69A",
@@ -228,6 +258,7 @@ const DATASET_COLORS = {
   "Gols FT Casa": "#00E5FF",
   "Gols FT Fora": "#FF6E40",
 };
+
 const MARKET_GROUPS = [
   {
     title: "Geral",
@@ -347,9 +378,14 @@ const MARKET_GROUPS = [
     labels: ["Gols FT Casa", "Gols FT Fora"],
   },
 ];
+
+/* ═══════════════════════════════════════════════════════════════════
+   HELPERS DE STORAGE
+═══════════════════════════════════════════════════════════════════ */
 function _ls(key, fallback) {
   try {
     const v = localStorage.getItem(key);
+
     if (v !== null) {
       return JSON.parse(v);
     } else {
@@ -359,11 +395,18 @@ function _ls(key, fallback) {
     return fallback;
   }
 }
+
 function _lsSet(key, val) {
   try {
     localStorage.setItem(key, JSON.stringify(val));
   } catch {}
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ESTADO POR SETUP
+   Cada setup guarda: markets, colors, horas, base,
+   fibonacci, mediasMoveis, linhaAtual, dragLines, labels
+═══════════════════════════════════════════════════════════════════ */
 const SETUP_PADRAO = {
   id: "__padrao__",
   name: "Padrão",
@@ -380,61 +423,79 @@ const SETUP_PADRAO = {
   fibDraws: [],
   trendLines: [],
 };
+
 function _loadCustomSetups() {
   return _ls(SETUPS_KEY, []);
 }
+
 function _saveCustomSetups(a) {
   _lsSet(SETUPS_KEY, a);
 }
+
 function _loadActiveId() {
   return _ls(ACTIVE_SETUP_KEY, "__padrao__");
 }
+
 function _saveActiveId(a) {
   _lsSet(ACTIVE_SETUP_KEY, a);
 }
+
 function _getAllSetups() {
   return [SETUP_PADRAO, ..._loadCustomSetups()];
 }
+
 function _getActiveSetup() {
   const id = _loadActiveId();
   return _getAllSetups().find((s) => s.id === id) || SETUP_PADRAO;
 }
+
 function _marketColor(setup, label) {
   return (
     (setup.colors && setup.colors[label]) || DATASET_COLORS[label] || "#888"
   );
 }
+
+/* ── TOGGLES DE LINHA POR SETUP ── */
 function _getLineToggles(setupId) {
   const all = _ls(SETUP_LINE_TOGGLE_KEY, {});
   return all[setupId] || {};
 }
+
 function _saveLineToggles(a, b) {
   const lsResult = _ls(SETUP_LINE_TOGGLE_KEY, {});
   lsResult[a] = b;
   _lsSet(SETUP_LINE_TOGGLE_KEY, lsResult);
 }
+
 function _isLineActive(a, b) {
   const getLineTogglesResult = _getLineToggles(a);
+
   if (getLineTogglesResult[b] !== undefined) {
     return getLineTogglesResult[b];
   } else {
     return true;
   }
 }
+
 function _setLineActive(SETUP_LINE_TOGGLE_KEY2, setupId, toggles) {
   const all = _getLineToggles(SETUP_LINE_TOGGLE_KEY2);
   all[setupId] = toggles;
   _saveLineToggles(SETUP_LINE_TOGGLE_KEY2, all);
 }
+
+/* ── SALVA O ESTADO ATUAL DOS CONTROLES NO SETUP ── */
 function _captureControlsToSetup(setup) {
   if (!setup || setup.id === "__padrao__") {
     return;
   }
+
   const arr = _loadCustomSetups();
   const idx = arr.findIndex((s) => s.id === setup.id);
+
   if (idx === -1) {
     return;
   }
+
   const pSel = document.getElementById("pointsSelector");
   const aSel = document.getElementById("averageSelector");
   const fib = document.getElementById("fibonacciToggle");
@@ -449,17 +510,23 @@ function _captureControlsToSetup(setup) {
   arr[idx].labels = lbl ? lbl.checked : setup.labels;
   _saveCustomSetups(arr);
 }
+
+/* ── APLICA SETUP ── */
 function _applySetup(setup) {
   const prevSetup = _getActiveSetup();
+
   if (prevSetup.id !== setup.id) {
     _captureControlsToSetup(prevSetup);
   }
+
   _saveActiveId(setup.id);
+
   Object.keys(labelToKey).forEach((label) => {
     const inSetup = setup.markets.includes(label);
     const toggled = _isLineActive(setup.id, label);
     statsChartVisibleDatasets[label] = inSetup && toggled;
   });
+
   _saveVisibleDatasets(statsChartVisibleDatasets);
   const pSel = document.getElementById("pointsSelector");
   const aSel = document.getElementById("averageSelector");
@@ -473,30 +540,38 @@ function _applySetup(setup) {
   const m = setup.mediasMoveis ?? false;
   const l = setup.linhaAtual ?? true;
   const lb = setup.labels ?? false;
+
   if (pSel) {
     pSel.value = String(h);
   }
+
   if (aSel) {
     aSel.value = String(b);
   }
+
   if (fib) {
     fib.checked = f;
   }
+
   if (med) {
     med.checked = m;
   }
+
   if (lat) {
     lat.checked = l;
   }
+
   if (lbl) {
     lbl.checked = lb;
   }
+
   numPoints = h;
   averagePoints = b;
   showFibonacciLines = f;
   showMovingAverages = m;
   showLabels = lb;
   const ci = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (ci) {
     ci.dragLines = _loadDragLines();
     ci._selectedDragLine = -1;
@@ -508,6 +583,7 @@ function _applySetup(setup) {
     ci._selectedTrend = -1;
     _atualizarContadorTrends(ci.trendLines);
     ci.options.plugins.linhaAtual.enabled = l;
+
     ci.data.datasets.forEach((ds, idx) => {
       const mainLabel = ds.label.includes(" - ")
         ? ds.label.split(" - ")[0]
@@ -516,6 +592,7 @@ function _applySetup(setup) {
       ci.getDatasetMeta(idx).hidden = ds.label.includes(" - ")
         ? !m || !vis
         : !vis;
+
       if (
         !ds.label.includes(" - ") &&
         setup.colors &&
@@ -528,41 +605,57 @@ function _applySetup(setup) {
         ds.backgroundColor = DATASET_COLORS[mainLabel] || "#888";
       }
     });
+
     ci.update();
   }
+
   _renderSetupBar();
   _renderLinesPanel(setup);
   _updateSetupCounter();
   updateCharts();
 }
+
+/* ── VALOR ATUAL DE UM DATASET (último ponto visível) ── */
 function _getDatasetCurrentValue(label) {
   const ci = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (!ci) {
     return null;
   }
+
   const ds = ci.data.datasets.find((d) => d.label === label);
+
   if (!ds || !ds.data) {
     return null;
   }
+
   for (let j = ds.data.length - 1; j >= 0; j--) {
     const v = ds.data[j];
+
     if (v !== null && v !== undefined && isFinite(v)) {
       return v;
     }
   }
+
   return null;
 }
+
+/* ── RENDERIZA BARRA DE CHIPS ── */
 function _renderSetupBar() {
   const bar = document.getElementById("setupBar");
+
   if (!bar) {
     return;
   }
+
   bar.innerHTML = "";
   const activeId = _loadActiveId();
+
   _getAllSetups().forEach((setup) => {
     if (setup.id === "__padrao__") {
       return;
     }
+
     const item = document.createElement("div");
     item.className = "setup-item" + (setup.id === activeId ? " active" : "");
     const btn = document.createElement("button");
@@ -574,44 +667,57 @@ function _renderSetupBar() {
     editHint.textContent = "✏";
     editHint.title = "Duplo clique para editar";
     btn.appendChild(nameSpan);
+
     if (setup.id !== "__padrao__") {
       btn.appendChild(editHint);
     }
+
     btn.title =
       setup.id === "__padrao__"
         ? setup.markets.join(" · ")
         : setup.markets.join(" · ") + "\nDuplo clique para editar";
     btn.addEventListener("click", () => _applySetup(setup));
+
     btn.addEventListener("dblclick", (e) => {
       e.stopPropagation();
+
       if (setup.id === "__padrao__") {
         alert('O setup "Padrão" não pode ser editado.');
         return;
       }
+
       _openSetupModal(setup);
     });
+
     item.appendChild(btn);
+
     if (setup.id !== "__padrao__") {
       const dup = document.createElement("button");
       dup.className = "setup-dup";
       dup.textContent = "⧉";
       dup.title = "Duplicar setup";
+
       dup.addEventListener("click", (e) => {
         e.stopPropagation();
         _duplicateSetup(setup);
       });
+
       item.appendChild(dup);
       const del = document.createElement("button");
       del.className = "setup-del";
       del.textContent = "✕";
       del.title = "Remover setup";
+
       del.addEventListener("click", (e) => {
         e.stopPropagation();
+
         if (!confirm('Remover o setup "' + setup.name + '"?')) {
           return;
         }
+
         const arr = _loadCustomSetups().filter((s) => s.id !== setup.id);
         _saveCustomSetups(arr);
+
         if (_loadActiveId() === setup.id) {
           _applySetup(SETUP_PADRAO);
         } else {
@@ -619,13 +725,18 @@ function _renderSetupBar() {
           _updateSetupCounter();
         }
       });
+
       item.appendChild(del);
     }
+
     bar.appendChild(item);
   });
 }
+
+/* ── DUPLICAR SETUP ── */
 function _duplicateSetup(setup) {
   const arr = _loadCustomSetups();
+
   if (arr.length >= MAX_SETUPS) {
     alert(
       "Limite de " +
@@ -634,6 +745,7 @@ function _duplicateSetup(setup) {
     );
     return;
   }
+
   const dup = JSON.parse(JSON.stringify(setup));
   dup.id = "setup_" + Date.now();
   dup.name = setup.name + " (cópia)";
@@ -642,45 +754,61 @@ function _duplicateSetup(setup) {
   _renderSetupBar();
   _updateSetupCounter();
 }
+
+/* ── PRÉVIA NO HOVER (mostra a linha temporariamente sem ativar de verdade) ── */
 function _setPreviewLine(a, arr) {
   leagues.forEach((l) => {
     const ci = chartInstances[l];
+
     if (!ci) {
       return;
     }
+
     let changed = false;
+
     ci.data.datasets.forEach((ds, idx) => {
       const ml = ds.label.includes(" - ") ? ds.label.split(" - ")[0] : ds.label;
+
       if (ml !== a) {
         return;
       }
+
       const isMA = ds.label.includes(" - ");
       const newHidden = arr ? (isMA ? !showMovingAverages : false) : true;
       const meta = ci.getDatasetMeta(idx);
+
       if (meta.hidden !== newHidden) {
         meta.hidden = newHidden;
         changed = true;
       }
     });
+
     if (changed) {
       ci.update("none");
     }
   });
 }
+
+/* ── RENDERIZA PAINEL DE TOGGLES (ordenado pela ordem do setup) ── */
 function _renderLinesPanel(setup) {
   const panel = document.getElementById("setupLinesPanel");
+
   if (!panel) {
     return;
   }
+
   panel.innerHTML = "";
+
   if (!setup || !setup.markets || setup.markets.length === 0) {
     return;
   }
+
   setup.markets.forEach((label) => {
     const active = _isLineActive(setup.id, label);
     const color = _marketColor(setup, label);
     const val = _getDatasetCurrentValue(label);
     let tooltipText = label;
+
     if (val !== null) {
       const isGols =
         label === "Gols FT" ||
@@ -690,6 +818,7 @@ function _renderLinesPanel(setup) {
       tooltipText +=
         " — " + (isGols ? Math.round(val) + " gols" : val.toFixed(1));
     }
+
     const toggle = document.createElement("div");
     toggle.className = "market-toggle" + (active ? " active" : " inactive");
     toggle.title = tooltipText;
@@ -699,6 +828,7 @@ function _renderLinesPanel(setup) {
     dot.style.background = color;
     const txt = document.createElement("span");
     txt.textContent = label;
+
     if (val !== null) {
       const valSpan = document.createElement("span");
       valSpan.className = "market-toggle-val";
@@ -716,6 +846,7 @@ function _renderLinesPanel(setup) {
       toggle.appendChild(dot);
       toggle.appendChild(txt);
     }
+
     toggle.addEventListener("click", () => {
       toggle.style.outline = "";
       const nowActive = !_isLineActive(setup.id, label);
@@ -723,49 +854,64 @@ function _renderLinesPanel(setup) {
       statsChartVisibleDatasets[label] =
         setup.markets.includes(label) && nowActive;
       _saveVisibleDatasets(statsChartVisibleDatasets);
+
       leagues.forEach((l) => {
         const ci = chartInstances[l];
+
         if (!ci) {
           return;
         }
+
         ci.data.datasets.forEach((ds, idx) => {
           const ml = ds.label.includes(" - ")
             ? ds.label.split(" - ")[0]
             : ds.label;
+
           if (ml !== label) {
             return;
           }
+
           const vis = statsChartVisibleDatasets[ml];
           ci.getDatasetMeta(idx).hidden = ds.label.includes(" - ")
             ? !showMovingAverages || !vis
             : !vis;
         });
+
         ci.update();
       });
+
       _renderLinesPanel(_getActiveSetup());
     });
+
     toggle.dataset.label = label;
     toggle.dataset.color = color;
+
     if (!active) {
       toggle.addEventListener("mouseenter", () => {
         toggle.style.outline = "2px dashed " + color;
         toggle.style.outlineOffset = "2px";
         _setPreviewLine(label, true);
       });
+
       toggle.addEventListener("mouseleave", () => {
         toggle.style.outline = "";
+
         if (!_isLineActive(setup.id, label)) {
           _setPreviewLine(label, false);
         }
       });
     }
+
     panel.appendChild(toggle);
   });
+
   panel.querySelectorAll(".market-toggle.inactive").forEach((el) => {
     const lbl = el.dataset.label;
+
     if (!lbl) {
       return;
     }
+
     if (el.matches(":hover")) {
       el.style.outline = "2px dashed " + el.dataset.color;
       el.style.outlineOffset = "2px";
@@ -775,16 +921,28 @@ function _renderLinesPanel(setup) {
     }
   });
 }
+
+/* ── ATUALIZAÇÃO LEVE DOS VALORES DO PAINEL (sem recriar DOM) ──
+   Chamada a cada updateCharts() (3s). Diferente de _renderLinesPanel,
+   esta função NUNCA destrói/recria os elementos .market-toggle — apenas
+   atualiza o texto do valor e o tooltip. Isso evita que o hover/prévia
+   em andamento seja interrompido e o mercado pisque enquanto o usuário
+   está analisando o gráfico. Use _renderLinesPanel apenas quando a
+   ESTRUTURA realmente muda (troca de setup, ativar/desativar mercado). */
 function _updateLinesPanelValues() {
   const panel = document.getElementById("setupLinesPanel");
+
   if (!panel) {
     return;
   }
+
   panel.querySelectorAll(".market-toggle").forEach((toggle) => {
     const label = toggle.dataset.label;
+
     if (!label) {
       return;
     }
+
     const val = _getDatasetCurrentValue(label);
     const isGols =
       label === "Gols FT" ||
@@ -792,35 +950,44 @@ function _updateLinesPanelValues() {
       label === "Gols FT Casa" ||
       label === "Gols FT Fora";
     let tooltipText = label;
+
     if (val !== null) {
       tooltipText +=
         " — " + (isGols ? Math.round(val) + " gols" : val.toFixed(1));
     }
+
     toggle.title = tooltipText;
     let valSpan = toggle.querySelector(".market-toggle-val");
+
     if (val !== null) {
       const text = isGols ? Math.round(val) : val.toFixed(1);
+
       if (!valSpan) {
         valSpan = document.createElement("span");
         valSpan.className = "market-toggle-val";
         valSpan.style.color = toggle.dataset.color || "#888";
         toggle.appendChild(valSpan);
       }
+
       valSpan.textContent = text;
     } else if (valSpan) {
       valSpan.remove();
     }
   });
 }
+
+/* ── CONTADOR ── */
 function _updateSetupCounter() {
   const customs = _loadCustomSetups().length;
   const counter = document.getElementById("setupCounter");
   const addBtn = document.getElementById("btnAddSetup");
+
   if (counter) {
     counter.textContent = customs + " / " + MAX_SETUPS;
     counter.className =
       "setup-counter" + (customs >= MAX_SETUPS ? " at-limit" : "");
   }
+
   if (addBtn) {
     addBtn.disabled = customs >= MAX_SETUPS;
     addBtn.title =
@@ -829,20 +996,29 @@ function _updateSetupCounter() {
         : "Criar novo setup";
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   MODAL CRIAR / EDITAR
+═══════════════════════════════════════════════════════════════════ */
 let _editingSetupId = null;
+
 function _openSetupModal(setupParaEditar) {
   const modal = document.getElementById("setupModal");
   const warning = document.getElementById("setupLimitWarning");
+
   if (!modal) {
     return;
   }
+
   const customs = _loadCustomSetups().length;
+
   if (setupParaEditar) {
     _editingSetupId = setupParaEditar.id;
     document.getElementById("setupModalTitle").textContent = "Editar Setup";
     document.getElementById("setupModalSaveBtn").textContent =
       "✔ Atualizar Setup";
     document.getElementById("setupModalName").value = setupParaEditar.name;
+
     if (warning) {
       warning.style.display = "none";
     }
@@ -851,20 +1027,24 @@ function _openSetupModal(setupParaEditar) {
     document.getElementById("setupModalTitle").textContent = "Criar Setup";
     document.getElementById("setupModalSaveBtn").textContent = "✔ Salvar Setup";
     document.getElementById("setupModalName").value = "";
+
     if (warning) {
       warning.style.display = customs >= MAX_SETUPS ? "block" : "none";
     }
   }
+
   const container = document.getElementById("setupModalMarkets");
   container.innerHTML = "";
   const refSetup = setupParaEditar || _getActiveSetup();
   const checkedMarkets = refSetup.markets || [];
   const currentColors = (setupParaEditar ? setupParaEditar.colors : null) || {};
+
   MARKET_GROUPS.forEach((group) => {
     const title = document.createElement("div");
     title.className = "setup-modal-group-title";
     title.textContent = group.title;
     container.appendChild(title);
+
     group.labels.forEach((label) => {
       const isChecked = checkedMarkets.includes(label);
       const row = document.createElement("label");
@@ -873,9 +1053,11 @@ function _openSetupModal(setupParaEditar) {
       cb.type = "checkbox";
       cb.value = label;
       cb.checked = isChecked;
+
       cb.addEventListener("change", () => {
         row.className = "setup-modal-row" + (cb.checked ? " checked" : "");
       });
+
       const dot = document.createElement("span");
       dot.className = "setup-modal-dot";
       const currentColor =
@@ -889,9 +1071,11 @@ function _openSetupModal(setupParaEditar) {
       colorPick.value = currentColor;
       colorPick.className = "market-color-picker";
       colorPick.title = "Personalizar cor";
+
       colorPick.addEventListener("input", () => {
         dot.style.background = colorPick.value;
       });
+
       row.appendChild(cb);
       row.appendChild(dot);
       row.appendChild(txt);
@@ -899,50 +1083,65 @@ function _openSetupModal(setupParaEditar) {
       container.appendChild(row);
     });
   });
+
   modal.style.display = "flex";
   setTimeout(() => document.getElementById("setupModalName")?.focus(), 60);
 }
+
 function _closeSetupModal() {
   const modal = document.getElementById("setupModal");
+
   if (modal) {
     modal.style.display = "none";
   }
+
   _editingSetupId = null;
 }
+
 function _saveSetupModal() {
   const name = document.getElementById("setupModalName").value.trim();
+
   if (!name) {
     alert("Digite um nome para o setup.");
     return;
   }
+
   const markets = [];
   const colors = {};
+
   document
     .querySelectorAll("#setupModalMarkets .setup-modal-row")
     .forEach((row) => {
       const cb = row.querySelector("input[type=checkbox]");
       const cp = row.querySelector(".market-color-picker");
+
       if (cb && cb.checked) {
         markets.push(cb.value);
         const def = DATASET_COLORS[cb.value] || "#888";
+
         if (cp && cp.value.toLowerCase() !== def.toLowerCase()) {
           colors[cb.value] = cp.value;
         }
       }
     });
+
   if (markets.length === 0) {
     alert("Selecione pelo menos um mercado.");
     return;
   }
+
   const arr = _loadCustomSetups();
+
   if (_editingSetupId) {
     const idx = arr.findIndex((s) => s.id === _editingSetupId);
+
     if (idx !== -1) {
       arr[idx].name = name;
       arr[idx].markets = markets;
       arr[idx].colors = colors;
       _saveCustomSetups(arr);
       _closeSetupModal();
+
       if (_loadActiveId() === _editingSetupId) {
         _applySetup(arr[idx]);
       } else {
@@ -955,7 +1154,9 @@ function _saveSetupModal() {
       alert("Limite de " + MAX_SETUPS + " setups atingido.");
       return;
     }
+
     const active = _getActiveSetup();
+
     const newSetup = {
       id: "setup_" + Date.now(),
       name,
@@ -969,13 +1170,16 @@ function _saveSetupModal() {
       labels: active.labels ?? false,
       dragLines: [],
     };
+
     arr.push(newSetup);
     _saveCustomSetups(arr);
     _closeSetupModal();
     _applySetup(newSetup);
   }
+
   _updateSetupCounter();
 }
+
 document.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("setupModal")
@@ -984,57 +1188,82 @@ document.addEventListener("DOMContentLoaded", () => {
         _closeSetupModal();
       }
     });
+
   const accordionOpen = _ls(ACCORDION_KEY, true);
   const content = document.querySelector(".accordion-content");
+
   if (content && !accordionOpen) {
     content.style.display = "none";
   }
+
   _renderSetupBar();
   _renderLinesPanel(_getActiveSetup());
   _updateSetupCounter();
 });
+
+/* ═══════════════════════════════════════════════════════════════════
+   ACORDEÃO — persiste aberto/fechado
+═══════════════════════════════════════════════════════════════════ */
 function toggleAccordion(btn) {
   const content = btn.nextElementSibling;
   const isOpen = content.style.display !== "none";
   content.style.display = isOpen ? "none" : "block";
   _lsSet(ACCORDION_KEY, !isOpen);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PERSISTÊNCIA DATASETS VISÍVEIS
+═══════════════════════════════════════════════════════════════════ */
 const defaultStatsChartVisibleDatasets = (() => {
   const d = {};
   Object.keys(labelToKey).forEach((k) => (d[k] = false));
   return d;
 })();
+
 function _loadVisibleDatasets() {
   const raw = _ls(VISIBLE_DS_KEY, null);
+
   const defaultStatsChartVisibleDatasets2 = {
     ...defaultStatsChartVisibleDatasets,
   };
+
   if (!raw) {
     return defaultStatsChartVisibleDatasets2;
   }
+
   return Object.assign({}, defaultStatsChartVisibleDatasets, raw);
 }
+
 function _saveVisibleDatasets(a) {
   _lsSet(VISIBLE_DS_KEY, a);
 }
+
 let statsChartVisibleDatasets = _loadVisibleDatasets();
+
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITÁRIOS
+═══════════════════════════════════════════════════════════════════ */
 function getKeyFromLabel(label) {
   if (label.includes(" - ")) {
     const [mainLabel, maPart] = label.split(" - ");
     return labelToKey[mainLabel] + maPart.split(" ")[0];
   }
+
   return labelToKey[label];
 }
+
 function computeMA(dataArray, period) {
   return dataArray.map((_, i) => {
     let sum = 0;
     let count = 0;
+
     for (let j = Math.max(0, i - period + 1); j <= i; j++) {
       if (dataArray[j] !== null) {
         sum += dataArray[j];
         count++;
       }
     }
+
     if (count > 0) {
       return sum / count;
     } else {
@@ -1042,97 +1271,135 @@ function computeMA(dataArray, period) {
     }
   });
 }
+
 function parseHtScoreTotal(htStr) {
   if (!htStr) {
     return 0;
   }
+
   if (htStr === "OUT") {
     return 3;
   }
+
   if (htStr.includes(" x ")) {
     const p = htStr.split(" x ").map(Number);
+
     if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) {
       return p[0] + p[1];
     }
   }
+
   return 0;
 }
+
 function parseHtParts(htStr) {
   if (!htStr || htStr === "OUT") {
     return null;
   }
+
   if (htStr.includes(" x ")) {
     const p = htStr.split(" x ").map(Number);
+
     if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) {
       return p;
     }
   }
+
   return null;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PLUGIN — RÓTULOS ACIMA DOS PONTOS
+   Exibe só o número (sem %) acima de cada ponto visível.
+   Ativo apenas quando showLabels === true.
+═══════════════════════════════════════════════════════════════════ */
 const rotulosPlugin = {
   id: "rotulos",
   afterDatasetsDraw(chart) {
     if (!showLabels) {
       return;
     }
+
     const { ctx, chartArea, scales } = chart;
+
     if (!chartArea || !scales.y) {
       return;
     }
+
     chart.data.datasets.forEach((ds, dsIdx) => {
       if (ds.label.includes(" MA")) {
         return;
       }
+
       if (!chart.isDatasetVisible(dsIdx)) {
         return;
       }
+
       const meta = chart.getDatasetMeta(dsIdx);
+
       if (!meta || !meta.data) {
         return;
       }
+
       const color = ds.borderColor || "#fff";
       ctx.save();
       ctx.font = "600 9.5px 'Inter',Arial,sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
       ctx.fillStyle = color;
+
       meta.data.forEach((point, i) => {
         const v = ds.data[i];
+
         if (v === null || v === undefined || !isFinite(v)) {
           return;
         }
+
         if (point.x < chartArea.left || point.x > chartArea.right) {
           return;
         }
+
         if (point.y < chartArea.top || point.y > chartArea.bottom) {
           return;
         }
+
         const isGols = ds.label === "Gols FT" || ds.label === "Gols HT";
         const text = isGols ? String(Math.round(v)) : String(Math.round(v));
         ctx.fillText(text, point.x, point.y - 4);
       });
+
       ctx.restore();
     });
   },
 };
+
+/* ═══════════════════════════════════════════════════════════════════
+   PLUGINS — Fibonacci, Linha Atual, Drag Lines
+═══════════════════════════════════════════════════════════════════ */
 const fibonacciLinesPlugin = {
   id: "fibonacciLines",
   afterDraw(chart) {
     if (!showFibonacciLines) {
       return;
     }
+
     const ctx = chart.ctx;
     const yAxis = chart.scales.y;
+
     if (!yAxis) {
       return;
     }
+
     const fibLevels = [0, 23.6, 38.2, 50, 61.8, 100];
     const fibColor = "rgba(167,139,250,0.55)";
     const fibText = "rgba(196,181,253,0.9)";
+
     const { left, right } = chart.chartArea;
+
     const range = yAxis.max - yAxis.min;
     const axisRight = yAxis.position === "right";
     ctx.save();
+
     fibLevels.forEach((lvl, i) => {
       const y = yAxis.getPixelForValue(yAxis.min + (lvl / 100) * range);
       ctx.beginPath();
@@ -1146,6 +1413,7 @@ const fibonacciLinesPlugin = {
       ctx.fillStyle = fibText;
       ctx.font = "10px 'Inter',Arial,sans-serif";
       ctx.textBaseline = "middle";
+
       if (axisRight) {
         ctx.textAlign = "right";
         ctx.fillText(fibLevels[i] + "%", left - 8, y - (i === 0 ? -8 : 0));
@@ -1154,9 +1422,11 @@ const fibonacciLinesPlugin = {
         ctx.fillText(fibLevels[i] + "%", right + 52, y - (i === 0 ? -8 : 0));
       }
     });
+
     ctx.restore();
   },
 };
+
 const linhaAtualPlugin = {
   id: "linhaAtual",
   afterDraw(chart, args, opts) {
@@ -1164,54 +1434,73 @@ const linhaAtualPlugin = {
       opts?.enabled !== undefined
         ? opts
         : (chart.options?.plugins?.linhaAtual ?? {});
+
     if (cfg.enabled === false) {
       return;
     }
+
     const { ctx, chartArea, scales } = chart;
+
     if (!chartArea || !scales.y) {
       return;
     }
+
     const { left, right, top, bottom } = chartArea;
+
     const padX = 5;
     const BAD_H = 18;
     const entries = [];
+
     chart.data.datasets.forEach((d, i) => {
       if (!d.label || d.label.includes(" MA") || !chart.isDatasetVisible(i)) {
         return;
       }
+
       const arr = d.data;
+
       if (!arr?.length) {
         return;
       }
+
       let yVal = null;
+
       for (let j = arr.length - 1; j >= 0; j--) {
         const v = arr[j];
+
         if (v !== null && v !== undefined && isFinite(v)) {
           yVal = v;
           break;
         }
       }
+
       if (yVal === null) {
         return;
       }
+
       const axisId = d.yAxisID || "y";
       const yAxis = scales[axisId] || scales.y;
       const yPx = yAxis.getPixelForValue(yVal);
+
       if (!isFinite(yPx) || yPx < top || yPx > bottom) {
         return;
       }
+
       const entries2 = {
         yVal,
         yPx,
         label: d.label,
         color: d.borderColor || "#fff",
       };
+
       entries.push(entries2);
     });
+
     if (!entries.length) {
       return;
     }
+
     entries.sort((a, b) => a.yPx - b.yPx);
+
     for (let i = 1; i < entries.length; i++) {
       const prev = entries[i - 1];
       const curr = entries[i];
@@ -1219,13 +1508,16 @@ const linhaAtualPlugin = {
         curr.yPx - (prev.badgeY ?? prev.yPx) < BAD_H + 2
           ? (prev.badgeY ?? prev.yPx) + BAD_H + 2
           : curr.yPx;
+
       if (i === 1) {
         prev.badgeY = prev.badgeY ?? prev.yPx;
       }
     }
+
     if (entries.length === 1) {
       entries[0].badgeY = entries[0].yPx;
     }
+
     entries.forEach(({ yVal, yPx, badgeY, label, color }) => {
       ctx.save();
       ctx.strokeStyle = color;
@@ -1264,11 +1556,14 @@ const linhaAtualPlugin = {
     });
   },
 };
+
+/* ── DRAG LINES ── */
 function _loadDragLines() {
   try {
     const a = JSON.parse(
       localStorage.getItem(_ligaKey(DRAG_LINES_KEY)) || "[]",
     );
+
     if (Array.isArray(a)) {
       return a.map((l) => ({
         y: Number(l.y),
@@ -1282,6 +1577,7 @@ function _loadDragLines() {
     return [];
   }
 }
+
 function _saveDragLines(l) {
   try {
     localStorage.setItem(
@@ -1295,15 +1591,20 @@ function _saveDragLines(l) {
     );
   } catch {}
 }
+
 function _atualizarContador(l) {
   const el = document.getElementById("contadorLinhas");
+
   if (el) {
     el.textContent = (l || []).length + " / " + MAX_DRAG_LINES + " linhas";
   }
 }
+
+/* ── FIBONACCI LIVRE (ARRASTÁVEL) ── */
 function _loadDragFibs() {
   try {
     const a = JSON.parse(localStorage.getItem(_ligaKey(DRAG_FIBS_KEY)) || "[]");
+
     if (Array.isArray(a)) {
       return a.map((f) => ({
         y1: Number(f.y1),
@@ -1319,6 +1620,7 @@ function _loadDragFibs() {
     return [];
   }
 }
+
 function _saveDragFibs(arr) {
   try {
     localStorage.setItem(
@@ -1335,17 +1637,22 @@ function _saveDragFibs(arr) {
     );
   } catch {}
 }
+
 function _atualizarContadorFibs(arr) {
   const el = document.getElementById("contadorFibs");
+
   if (el) {
     el.textContent = (arr || []).length + " / " + MAX_DRAG_FIBS + " fibonacci";
   }
 }
+
+/* ── LINHAS DE TENDÊNCIA LIVRES (LTA / LTB, ARRASTÁVEIS) ── */
 function _loadDragTrends() {
   try {
     const a = JSON.parse(
       localStorage.getItem(_ligaKey(DRAG_TRENDS_KEY)) || "[]",
     );
+
     if (Array.isArray(a)) {
       return a.map((t) => ({
         x1Idx: Number(t.x1Idx),
@@ -1362,6 +1669,7 @@ function _loadDragTrends() {
     return [];
   }
 }
+
 function _saveDragTrends(arr) {
   try {
     localStorage.setItem(
@@ -1379,24 +1687,31 @@ function _saveDragTrends(arr) {
     );
   } catch {}
 }
+
 function _atualizarContadorTrends(arr) {
   const el = document.getElementById("contadorTendencias");
+
   if (el) {
     el.textContent =
       (arr || []).length + " / " + MAX_DRAG_TRENDS + " tendências";
   }
 }
+
+/* Distância de um ponto (px,py) até o segmento (x1,y1)-(x2,y2), em pixels */
 function _distToSegment(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const len2 = dx * dx + dy * dy;
+
   if (len2 === 0) {
     return Math.hypot(px - x1, py - y1);
   }
+
   let t = ((px - x1) * dx + (py - y1) * dy) / len2;
   t = Math.max(0, Math.min(1, t));
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
+
 const linhaDraggablePlugin = {
   id: "linhaDraggable",
   afterInit(chart) {
@@ -1406,55 +1721,72 @@ const linhaDraggablePlugin = {
     const HIT_PX = 8;
     let draggingIdx = -1;
     const getYS = () => chart.scales.y;
+
     const getEvtY = (evt) => {
       const r = canvas.getBoundingClientRect();
       return (
         ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top
       );
     };
+
     const nearestLine = (pxY) => {
       const yS = getYS();
+
       if (!yS || !chart.chartArea) {
         return -1;
       }
+
       const { top, bottom } = chart.chartArea;
+
       let best = -1;
       let bestDist = Infinity;
+
       (chart.dragLines || []).forEach((l, i) => {
         const ly = yS.getPixelForValue(l.y);
+
         if (ly < top || ly > bottom) {
           return;
         }
+
         const d = Math.abs(ly - pxY);
+
         if (d < bestDist && d <= HIT_PX) {
           bestDist = d;
           best = i;
         }
       });
+
       return best;
     };
+
     chart.addDragLine = (color = "#1fcc59") => {
       if ((chart.dragLines || []).length >= MAX_DRAG_LINES) {
         alert("Máximo de " + MAX_DRAG_LINES + " linhas!");
         return;
       }
+
       const yS = getYS();
+
       if (!yS) {
         return;
       }
+
       chart.dragLines.push({
         y: Math.round((yS.min + yS.max) / 2),
         color,
         dragging: false,
       });
+
       chart._selectedDragLine = chart.dragLines.length - 1;
       _saveDragLines(chart.dragLines);
       _atualizarContador(chart.dragLines);
       chart.update();
       _captureControlsToSetup(_getActiveSetup());
     };
+
     chart.deleteDragLine = () => {
       const idx = chart._selectedDragLine;
+
       if (idx >= 0 && idx < (chart.dragLines || []).length) {
         chart.dragLines.splice(idx, 1);
         chart._selectedDragLine = -1;
@@ -1464,6 +1796,7 @@ const linhaDraggablePlugin = {
         _captureControlsToSetup(_getActiveSetup());
       }
     };
+
     chart.clearDragLines = () => {
       chart.dragLines = [];
       chart._selectedDragLine = -1;
@@ -1472,95 +1805,124 @@ const linhaDraggablePlugin = {
       chart.update();
       _captureControlsToSetup(_getActiveSetup());
     };
+
     const startDrag = (evt) => {
       const pxY = getEvtY(evt);
       const idx = nearestLine(pxY);
+
       if (idx >= 0) {
         if (evt.cancelable) {
           evt.preventDefault();
         }
+
         draggingIdx = idx;
         chart.dragLines[idx].dragging = true;
         chart._selectedDragLine = idx;
       } else {
         chart._selectedDragLine = -1;
       }
+
       chart.update();
     };
+
     const moveDrag = (evt) => {
       if (draggingIdx < 0) {
         return;
       }
+
       if (evt.cancelable) {
         evt.preventDefault();
       }
+
       const yS = getYS();
+
       if (!yS) {
         return;
       }
+
       let v = yS.getValueForPixel(getEvtY(evt));
       v = Math.max(yS.min, Math.min(yS.max, Math.round(v * 10) / 10));
       chart.dragLines[draggingIdx].y = v;
       chart.update("none");
     };
+
     const stopDrag = () => {
       if (draggingIdx >= 0) {
         if (chart.dragLines[draggingIdx]) {
           chart.dragLines[draggingIdx].dragging = false;
         }
+
         _saveDragLines(chart.dragLines);
         _captureControlsToSetup(_getActiveSetup());
       }
+
       draggingIdx = -1;
     };
+
     canvas.addEventListener("mousedown", startDrag);
     canvas.addEventListener("mousemove", moveDrag);
     canvas.addEventListener("mouseleave", stopDrag);
     window.addEventListener("mouseup", stopDrag);
+
     canvas.addEventListener("touchstart", startDrag, {
       passive: false,
     });
+
     canvas.addEventListener("touchmove", moveDrag, {
       passive: false,
     });
+
     canvas.addEventListener("touchend", stopDrag, {
       passive: true,
     });
+
     canvas.addEventListener("touchcancel", stopDrag, {
       passive: true,
     });
+
     window.addEventListener("keydown", (e) => {
       if (e.key === "Delete" || e.key === "Backspace") {
         const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
         if (c) {
           c.deleteDragLine();
         }
       }
     });
+
     _atualizarContador(chart.dragLines);
   },
   afterDatasetsDraw(chart) {
     const yS = chart.scales.y;
     const lines = chart.dragLines || [];
+
     if (!lines.length || !chart.chartArea) {
       return;
     }
+
     const ctx = chart.ctx;
+
     const { left, right, top, bottom } = chart.chartArea;
+
     const PAD = 5;
     const BH = 16;
+
     lines.forEach((l, i) => {
       const yPx = yS.getPixelForValue(l.y);
+
       if (!isFinite(yPx) || yPx < top || yPx > bottom) {
         return;
       }
+
       const isSel = i === chart._selectedDragLine;
       ctx.save();
       ctx.strokeStyle = l.color || "#1fcc59";
       ctx.lineWidth = isSel ? 2 : 1.5;
+
       if (!isSel) {
         ctx.setLineDash([8, 4]);
       }
+
       ctx.beginPath();
       ctx.moveTo(left, yPx);
       ctx.lineTo(right, yPx);
@@ -1588,6 +1950,7 @@ const linhaDraggablePlugin = {
     });
   },
 };
+
 const fibDraggablePlugin = {
   id: "fibDraggable",
   afterInit(chart) {
@@ -1607,54 +1970,68 @@ const fibDraggablePlugin = {
     const MIN_DRAG_PX = 12;
     const getYS = () => chart.scales.y;
     const getXS = () => chart.scales.x;
+
     const getEvtY = (evt) => {
       const r = canvas.getBoundingClientRect();
       return (
         ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top
       );
     };
+
     const getEvtX = (evt) => {
       const r = canvas.getBoundingClientRect();
       return (
         ((evt.touches && evt.touches[0]?.clientX) ?? evt.clientX ?? 0) - r.left
       );
     };
+
     const spanPx = (f) => {
       const { left, right } = chart.chartArea;
+
       const xS = getXS();
+
       const left2 = {
         x1: left,
         x2: right,
         anchored: false,
       };
+
       if (f.x1Idx == null || f.x2Idx == null || !xS) {
         return left2;
       }
+
       let p1 = xS.getPixelForValue(f.x1Idx);
       let p2 = xS.getPixelForValue(f.x2Idx);
+
       const p12 = {
         x1: left,
         x2: right,
         anchored: false,
       };
+
       if (!isFinite(p1) || !isFinite(p2)) {
         return p12;
       }
+
       if (p1 > p2) {
         [p1, p2] = [p2, p1];
       }
+
       return {
         x1: Math.max(left, p1),
         x2: Math.min(right, p2),
         anchored: true,
       };
     };
+
     chart.setFibDrawMode = (on) => {
       chart._fibDrawMode = !!on;
       canvas.style.cursor = on ? "crosshair" : "";
     };
+
     chart.deleteFibSelected = () => {
       const idx = chart._selectedFib;
+
       if (idx >= 0 && idx < chart.fibDraws.length) {
         chart.fibDraws.splice(idx, 1);
         chart._selectedFib = -1;
@@ -1664,6 +2041,7 @@ const fibDraggablePlugin = {
         _captureControlsToSetup(_getActiveSetup());
       }
     };
+
     chart.clearFibDraws = () => {
       chart.fibDraws = [];
       chart._selectedFib = -1;
@@ -1672,63 +2050,84 @@ const fibDraggablePlugin = {
       chart.update();
       _captureControlsToSetup(_getActiveSetup());
     };
+
     const nearestFib = (pxX, pxY) => {
       const yS = getYS();
+
       if (!yS || !chart.chartArea) {
         return -1;
       }
+
       const { top, bottom } = chart.chartArea;
+
       let best = -1;
       let bestDist = Infinity;
+
       (chart.fibDraws || []).forEach((f, i) => {
         const { x1, x2 } = spanPx(f);
+
         if (pxX < x1 - 2 || pxX > x2 + 2) {
           return;
         }
+
         FIB_RETR_LEVELS.forEach((lvl) => {
           const val = f.y1 + (lvl / 100) * (f.y2 - f.y1);
           const ly = yS.getPixelForValue(val);
+
           if (ly < top || ly > bottom) {
             return;
           }
+
           const d = Math.abs(ly - pxY);
+
           if (d < bestDist && d <= HIT_PX) {
             bestDist = d;
             best = i;
           }
         });
       });
+
       return best;
     };
+
     const startEvt = (evt) => {
       const yS = getYS();
+
       if (!yS) {
         return;
       }
+
       const pxY = getEvtY(evt);
       const pxX = getEvtX(evt);
+
       if (chart._fibDrawMode) {
         if (evt.cancelable) {
           evt.preventDefault();
         }
+
         let v = yS.getValueForPixel(pxY);
         v = Math.max(yS.min, Math.min(yS.max, Math.round(v * 10) / 10));
+
         const creating2 = {
           y1: v,
           y2: v,
           x1Px: pxX,
           x2Px: pxX,
         };
+
         creating = creating2;
         chart._selectedFib = -1;
         chart.update("none");
         return;
       }
+
       const idx = nearestFib(pxX, pxY);
+
       if (idx >= 0) {
         if (evt.cancelable) {
           evt.preventDefault();
         }
+
         const xS = getXS();
         draggingIdx = idx;
         chart._selectedFib = idx;
@@ -1741,19 +2140,25 @@ const fibDraggablePlugin = {
       } else {
         chart._selectedFib = -1;
       }
+
       chart.update();
     };
+
     const moveEvt = (evt) => {
       const yS = getYS();
+
       if (!yS) {
         return;
       }
+
       const pxY = getEvtY(evt);
       const pxX = getEvtX(evt);
+
       if (creating) {
         if (evt.cancelable) {
           evt.preventDefault();
         }
+
         let v = yS.getValueForPixel(pxY);
         v = Math.max(yS.min, Math.min(yS.max, Math.round(v * 10) / 10));
         creating.y2 = v;
@@ -1761,49 +2166,61 @@ const fibDraggablePlugin = {
         chart.update("none");
         return;
       }
+
       if (draggingIdx >= 0) {
         if (evt.cancelable) {
           evt.preventDefault();
         }
+
         const v = yS.getValueForPixel(pxY);
         const delta = v - dragStartVal;
         chart.fibDraws[draggingIdx].y1 =
           Math.round((dragOrigY1 + delta) * 10) / 10;
         chart.fibDraws[draggingIdx].y2 =
           Math.round((dragOrigY2 + delta) * 10) / 10;
+
         if (dragOrigX1Frac != null && dragOrigX2Frac != null) {
           const xS = getXS();
+
           if (xS) {
             const xv = xS.getValueForPixel(pxX);
             const deltaX = Math.round(xv - dragStartXVal);
             let nx1 = dragOrigX1Frac + deltaX;
             let nx2 = dragOrigX2Frac + deltaX;
             const labelsLen = (chart.data.labels || []).length;
+
             if (labelsLen > 0) {
               const lo = Math.min(nx1, nx2);
               const hi = Math.max(nx1, nx2);
+
               if (lo < 0) {
                 nx1 -= lo;
                 nx2 -= lo;
               }
+
               const hi2 = Math.max(nx1, nx2);
+
               if (hi2 > labelsLen - 1) {
                 const over = hi2 - (labelsLen - 1);
                 nx1 -= over;
                 nx2 -= over;
               }
             }
+
             chart.fibDraws[draggingIdx].x1Idx = nx1;
             chart.fibDraws[draggingIdx].x2Idx = nx2;
           }
         }
+
         chart.update("none");
       }
     };
+
     const endEvt = () => {
       if (creating) {
         const distY = Math.abs(creating.y2 - creating.y1);
         const distX = Math.abs(creating.x2Px - creating.x1Px);
+
         if (distY > 0) {
           if (chart.fibDraws.length >= MAX_DRAG_FIBS) {
             alert("Máximo de " + MAX_DRAG_FIBS + " fibonacci!");
@@ -1811,13 +2228,16 @@ const fibDraggablePlugin = {
             const color = FIB_COLORS[chart.fibDraws.length % FIB_COLORS.length];
             let x1Frac = null;
             let x2Frac = null;
+
             if (distX >= MIN_DRAG_PX) {
               const xS = getXS();
+
               if (xS) {
                 x1Frac = xS.getValueForPixel(creating.x1Px);
                 x2Frac = xS.getValueForPixel(creating.x2Px);
               }
             }
+
             const chart2 = {
               y1: creating.y1,
               y2: creating.y2,
@@ -1825,6 +2245,7 @@ const fibDraggablePlugin = {
               x2Idx: x2Frac,
               color,
             };
+
             chart.fibDraws.push(chart2);
             chart._selectedFib = chart.fibDraws.length - 1;
             _saveDragFibs(chart.fibDraws);
@@ -1832,58 +2253,75 @@ const fibDraggablePlugin = {
             _captureControlsToSetup(_getActiveSetup());
           }
         }
+
         creating = null;
         chart.setFibDrawMode(false);
         chart.update();
       }
+
       if (draggingIdx >= 0) {
         _saveDragFibs(chart.fibDraws);
         _captureControlsToSetup(_getActiveSetup());
         draggingIdx = -1;
       }
     };
+
     canvas.addEventListener("mousedown", startEvt);
     canvas.addEventListener("mousemove", moveEvt);
     canvas.addEventListener("mouseleave", endEvt);
     window.addEventListener("mouseup", endEvt);
+
     canvas.addEventListener("touchstart", startEvt, {
       passive: false,
     });
+
     canvas.addEventListener("touchmove", moveEvt, {
       passive: false,
     });
+
     canvas.addEventListener("touchend", endEvt, {
       passive: true,
     });
+
     canvas.addEventListener("touchcancel", endEvt, {
       passive: true,
     });
+
     window.addEventListener("keydown", (e) => {
       if (e.key === "Delete" || e.key === "Backspace") {
         const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
         if (c) {
           c.deleteFibSelected();
         }
       }
     });
+
     chart._fibCreatingRef = () => creating;
     _atualizarContadorFibs(chart.fibDraws);
   },
   afterDatasetsDraw(chart) {
     const yS = chart.scales.y;
+
     if (!yS || !chart.chartArea) {
       return;
     }
+
     const ctx = chart.ctx;
+
     const { top, bottom } = chart.chartArea;
+
     const draw = (f, isSel, isPreview, span) => {
       const { x1: xa, x2: xb, anchored } = span;
+
       FIB_RETR_LEVELS.forEach((lvl) => {
         const val = f.y1 + (lvl / 100) * (f.y2 - f.y1);
         const yPx = yS.getPixelForValue(val);
+
         if (!isFinite(yPx) || yPx < top - 1 || yPx > bottom + 1) {
           return;
         }
+
         ctx.save();
         ctx.strokeStyle = f.color;
         ctx.lineWidth = isSel ? 1.8 : 1;
@@ -1892,9 +2330,11 @@ const fibDraggablePlugin = {
           : lvl === 0 || lvl === 100
             ? 0.9
             : 0.7;
+
         if (!isSel) {
           ctx.setLineDash([5, 4]);
         }
+
         ctx.beginPath();
         ctx.moveTo(xa, yPx);
         ctx.lineTo(xb, yPx);
@@ -1908,16 +2348,20 @@ const fibDraggablePlugin = {
         ctx.fillText(lvl + "%  " + val.toFixed(1), xa + 6, yPx - 7);
         ctx.restore();
       });
+
       const ax = anchored ? xa : xa + 16;
       const bx = anchored ? xb : xb - 16;
+
       [
         [f.y1, ax],
         [f.y2, bx],
       ].forEach(([v, px]) => {
         const yPx = yS.getPixelForValue(v);
+
         if (!isFinite(yPx) || yPx < top || yPx > bottom) {
           return;
         }
+
         ctx.save();
         ctx.fillStyle = f.color;
         ctx.strokeStyle = "rgba(8,11,20,0.9)";
@@ -1929,60 +2373,86 @@ const fibDraggablePlugin = {
         ctx.restore();
       });
     };
+
     const spanPxSaved = (f) => {
       const { left, right } = chart.chartArea;
+
       const xS = chart.scales.x;
+
       const left2 = {
         x1: left,
         x2: right,
         anchored: false,
       };
+
       if (f.x1Idx == null || f.x2Idx == null || !xS) {
         return left2;
       }
+
       let p1 = xS.getPixelForValue(f.x1Idx);
       let p2 = xS.getPixelForValue(f.x2Idx);
+
       const p12 = {
         x1: left,
         x2: right,
         anchored: false,
       };
+
       if (!isFinite(p1) || !isFinite(p2)) {
         return p12;
       }
+
       if (p1 > p2) {
         [p1, p2] = [p2, p1];
       }
+
       return {
         x1: Math.max(left, p1),
         x2: Math.min(right, p2),
         anchored: true,
       };
     };
+
     (chart.fibDraws || []).forEach((f, i) =>
       draw(f, i === chart._selectedFib, false, spanPxSaved(f)),
     );
     const creating = chart._fibCreatingRef ? chart._fibCreatingRef() : null;
+
     if (creating) {
       const { left, right } = chart.chartArea;
+
       const distX = Math.abs(creating.x2Px - creating.x1Px);
       const useSpan = distX >= 12;
       const xa = useSpan ? Math.min(creating.x1Px, creating.x2Px) : left;
       const xb = useSpan ? Math.max(creating.x1Px, creating.x2Px) : right;
+
       const draw2 = {
         y1: creating.y1,
         y2: creating.y2,
         color: "#E5E7EB",
       };
+
       const obj = {
         x1: xa,
         x2: xb,
         anchored: useSpan,
       };
+
       draw(draw2, true, true, obj);
     }
   },
 };
+
+/* ═══════════════════════════════════════════════════════════════════
+   PLUGIN — LINHAS DE TENDÊNCIA LIVRES (LTA / LTB)
+   O usuário clica em um ponto (ex.: um fundo) e arrasta até outro ponto
+   (ex.: outro fundo mais recente) para traçar a linha. Ela fica fixa,
+   com âncoras nas duas pontas — que podem ser arrastadas individualmente
+   para ajuste fino — e uma projeção pontilhada que estende a linha até
+   a borda direita do gráfico, exatamente como uma LTA/LTB é usada para
+   ler a direção do preço. A linha inteira também pode ser arrastada
+   segurando qualquer ponto do traço (fora das âncoras).
+═══════════════════════════════════════════════════════════════════ */
 const trendLinePlugin = {
   id: "trendLine",
   afterInit(chart) {
@@ -2000,24 +2470,29 @@ const trendLinePlugin = {
     const HIT_PX = 9;
     const getXS = () => chart.scales.x;
     const getYS = () => chart.scales.y;
+
     const getEvtY = (evt) => {
       const r = canvas.getBoundingClientRect();
       return (
         ((evt.touches && evt.touches[0]?.clientY) ?? evt.clientY ?? 0) - r.top
       );
     };
+
     const getEvtX = (evt) => {
       const r = canvas.getBoundingClientRect();
       return (
         ((evt.touches && evt.touches[0]?.clientX) ?? evt.clientX ?? 0) - r.left
       );
     };
+
     const pointPx = (t) => {
       const xS = getXS();
       const yS = getYS();
+
       if (!xS || !yS) {
         return null;
       }
+
       return {
         x1: xS.getPixelForValue(t.x1Idx),
         y1: yS.getPixelForValue(t.y1),
@@ -2025,15 +2500,20 @@ const trendLinePlugin = {
         y2: yS.getPixelForValue(t.y2),
       };
     };
+
     chart.setTrendDrawMode = (on, tipo) => {
       chart._trendDrawMode = !!on;
+
       if (tipo) {
         chart._trendPendingTipo = tipo;
       }
+
       canvas.style.cursor = on ? "crosshair" : "";
     };
+
     chart.deleteTrendSelected = () => {
       const idx = chart._selectedTrend;
+
       if (idx >= 0 && idx < chart.trendLines.length) {
         chart.trendLines.splice(idx, 1);
         chart._selectedTrend = -1;
@@ -2043,6 +2523,7 @@ const trendLinePlugin = {
         _captureControlsToSetup(_getActiveSetup());
       }
     };
+
     chart.clearTrendDraws = () => {
       chart.trendLines = [];
       chart._selectedTrend = -1;
@@ -2051,114 +2532,146 @@ const trendLinePlugin = {
       chart.update();
       _captureControlsToSetup(_getActiveSetup());
     };
+
     const nearestTrend = (pxX, pxY) => {
       const chart2 = {
         idx: -1,
         handle: null,
       };
+
       if (!chart.chartArea) {
         return chart2;
       }
+
       let best = -1;
       let bestDist = Infinity;
       let bestHandle = null;
+
       (chart.trendLines || []).forEach((t, i) => {
         const p = pointPx(t);
+
         if (!p) {
           return;
         }
+
         const dP1 = Math.hypot(p.x1 - pxX, p.y1 - pxY);
         const dP2 = Math.hypot(p.x2 - pxX, p.y2 - pxY);
         const dLine = _distToSegment(pxX, pxY, p.x1, p.y1, p.x2, p.y2);
+
         if (dP1 <= HIT_PX && dP1 < bestDist) {
           bestDist = dP1;
           best = i;
           bestHandle = "p1";
         }
+
         if (dP2 <= HIT_PX && dP2 < bestDist) {
           bestDist = dP2;
           best = i;
           bestHandle = "p2";
         }
+
         if (dLine <= HIT_PX && dLine < bestDist) {
           bestDist = dLine;
           best = i;
           bestHandle = "body";
         }
       });
+
       const bestHandle2 = {
         idx: best,
         handle: bestHandle,
       };
+
       return bestHandle2;
     };
+
     const startEvt = (evt) => {
       const xS = getXS();
       const yS = getYS();
+
       if (!xS || !yS) {
         return;
       }
+
       const pxY = getEvtY(evt);
       const pxX = getEvtX(evt);
+
       if (chart._trendDrawMode) {
         if (evt.cancelable) {
           evt.preventDefault();
         }
+
         let v = yS.getValueForPixel(pxY);
         v = Math.round(v * 10) / 10;
+
         const creating2 = {
           x1Px: pxX,
           y1: v,
           x2Px: pxX,
           y2: v,
         };
+
         creating = creating2;
         chart._selectedTrend = -1;
         chart.update("none");
         return;
       }
+
       const { idx, handle } = nearestTrend(pxX, pxY);
+
       if (idx >= 0) {
         if (evt.cancelable) {
           evt.preventDefault();
         }
+
         draggingIdx = idx;
         draggingHandle = handle;
         chart._selectedTrend = idx;
         dragStartXVal = xS.getValueForPixel(pxX);
         dragStartYVal = yS.getValueForPixel(pxY);
+
         const dragOrig2 = {
           ...chart.trendLines[idx],
         };
+
         dragOrig = dragOrig2;
       } else {
         chart._selectedTrend = -1;
       }
+
       chart.update();
     };
+
     const moveEvt = (evt) => {
       const xS = getXS();
       const yS = getYS();
+
       if (!xS || !yS) {
         return;
       }
+
       const pxY = getEvtY(evt);
       const pxX = getEvtX(evt);
+
       if (creating) {
         if (evt.cancelable) {
           evt.preventDefault();
         }
+
         let v = yS.getValueForPixel(pxY);
         creating.y2 = Math.round(v * 10) / 10;
         creating.x2Px = pxX;
         chart.update("none");
         return;
       }
+
       if (draggingIdx >= 0) {
         if (evt.cancelable) {
           evt.preventDefault();
         }
+
         const t = chart.trendLines[draggingIdx];
+
         if (draggingHandle === "p1") {
           t.x1Idx = Math.round(xS.getValueForPixel(pxX));
           t.y1 = Math.round(yS.getValueForPixel(pxY) * 10) / 10;
@@ -2173,12 +2686,15 @@ const trendLinePlugin = {
           t.y1 = Math.round((dragOrig.y1 + dyVal) * 10) / 10;
           t.y2 = Math.round((dragOrig.y2 + dyVal) * 10) / 10;
         }
+
         chart.update("none");
       }
     };
+
     const endEvt = () => {
       if (creating) {
         const distPx = Math.abs(creating.x2Px - creating.x1Px);
+
         if (distPx > 4) {
           if (chart.trendLines.length >= MAX_DRAG_TRENDS) {
             alert("Máximo de " + MAX_DRAG_TRENDS + " linhas de tendência!");
@@ -2188,6 +2704,7 @@ const trendLinePlugin = {
             const x2Idx = Math.round(xS.getValueForPixel(creating.x2Px));
             const tipo = chart._trendPendingTipo || "LTA";
             const color = TREND_COLORS[tipo] || "#34D399";
+
             const chart2 = {
               x1Idx,
               y1: creating.y1,
@@ -2196,6 +2713,7 @@ const trendLinePlugin = {
               color,
               tipo,
             };
+
             chart.trendLines.push(chart2);
             chart._selectedTrend = chart.trendLines.length - 1;
             _saveDragTrends(chart.trendLines);
@@ -2203,60 +2721,77 @@ const trendLinePlugin = {
             _captureControlsToSetup(_getActiveSetup());
           }
         }
+
         creating = null;
         chart.setTrendDrawMode(false);
         chart.update();
       }
+
       if (draggingIdx >= 0) {
         _saveDragTrends(chart.trendLines);
         _captureControlsToSetup(_getActiveSetup());
       }
+
       draggingIdx = -1;
       draggingHandle = null;
     };
+
     canvas.addEventListener("mousedown", startEvt);
     canvas.addEventListener("mousemove", moveEvt);
     canvas.addEventListener("mouseleave", endEvt);
     window.addEventListener("mouseup", endEvt);
+
     canvas.addEventListener("touchstart", startEvt, {
       passive: false,
     });
+
     canvas.addEventListener("touchmove", moveEvt, {
       passive: false,
     });
+
     canvas.addEventListener("touchend", endEvt, {
       passive: true,
     });
+
     canvas.addEventListener("touchcancel", endEvt, {
       passive: true,
     });
+
     window.addEventListener("keydown", (e) => {
       if (e.key === "Delete" || e.key === "Backspace") {
         const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
         if (c) {
           c.deleteTrendSelected();
         }
       }
     });
+
     chart._trendCreatingRef = () => creating;
     _atualizarContadorTrends(chart.trendLines);
   },
   afterDatasetsDraw(chart) {
     const xS = chart.scales.x;
     const yS = chart.scales.y;
+
     if (!xS || !yS || !chart.chartArea) {
       return;
     }
+
     const ctx = chart.ctx;
+
     const { right } = chart.chartArea;
+
     const drawLine = (x1Idx, y1, x2Idx, y2, color, isSel, isPreview, tipo) => {
       const p1x = xS.getPixelForValue(x1Idx);
       const p1y = yS.getPixelForValue(y1);
       const p2x = xS.getPixelForValue(x2Idx);
       const p2y = yS.getPixelForValue(y2);
+
       if (![p1x, p1y, p2x, p2y].every(isFinite)) {
         return;
       }
+
       ctx.save();
       ctx.strokeStyle = color;
       ctx.lineWidth = isSel ? 2.2 : 1.6;
@@ -2265,6 +2800,7 @@ const trendLinePlugin = {
       ctx.moveTo(p1x, p1y);
       ctx.lineTo(p2x, p2y);
       ctx.stroke();
+
       if (p2x !== p1x) {
         const slope = (p2y - p1y) / (p2x - p1x);
         const extY = p2y + slope * (right - p2x);
@@ -2276,7 +2812,9 @@ const trendLinePlugin = {
         ctx.stroke();
         ctx.setLineDash([]);
       }
+
       ctx.globalAlpha = 1;
+
       if (!isPreview) {
         [
           [p1x, p1y],
@@ -2290,6 +2828,7 @@ const trendLinePlugin = {
           ctx.fill();
           ctx.stroke();
         });
+
         if (tipo) {
           ctx.font = "600 9.5px 'Inter',Arial,sans-serif";
           ctx.fillStyle = color;
@@ -2298,8 +2837,10 @@ const trendLinePlugin = {
           ctx.fillText(tipo, p2x + 6, p2y - 4);
         }
       }
+
       ctx.restore();
     };
+
     (chart.trendLines || []).forEach((t, i) => {
       drawLine(
         t.x1Idx,
@@ -2312,7 +2853,9 @@ const trendLinePlugin = {
         t.tipo,
       );
     });
+
     const creating = chart._trendCreatingRef ? chart._trendCreatingRef() : null;
+
     if (creating) {
       const x1Idx = xS.getValueForPixel(creating.x1Px);
       const x2Idx = xS.getValueForPixel(creating.x2Px);
@@ -2330,18 +2873,22 @@ const trendLinePlugin = {
     }
   },
 };
+
 Chart.defaults.animation.duration = 0;
 Chart.defaults.font.family =
   "'Inter','Segoe UI',system-ui,-apple-system,Arial,sans-serif";
+
 function createStatsChart(ctx, labels, data, league) {
   const activeSetup = _getActiveSetup();
   const datasets = [];
   const shortColor = "#38BDF8";
   const longColor = "#F59E0B";
+
   Object.entries(labelToKey).forEach(([label]) => {
     const key = labelToKey[label];
     const color = _marketColor(activeSetup, label);
     const isGolsInd = label === "Gols Individual";
+
     const datasets2 = {
       label,
       data: data[key],
@@ -2362,7 +2909,9 @@ function createStatsChart(ctx, labels, data, league) {
       yAxisID: isGolsInd ? "y2" : "y",
       hidden: !statsChartVisibleDatasets[label],
     };
+
     datasets.push(datasets2);
+
     const obj3 = {
       label: label + " - Short MA",
       data: data[key + "Short"],
@@ -2377,7 +2926,9 @@ function createStatsChart(ctx, labels, data, league) {
       yAxisID: isGolsInd ? "y2" : "y",
       hidden: !showMovingAverages || !statsChartVisibleDatasets[label],
     };
+
     datasets.push(obj3);
+
     const obj4 = {
       label: label + " - Long MA",
       data: data[key + "Long"],
@@ -2392,12 +2943,15 @@ function createStatsChart(ctx, labels, data, league) {
       yAxisID: isGolsInd ? "y2" : "y",
       hidden: !showMovingAverages || !statsChartVisibleDatasets[label],
     };
+
     datasets.push(obj4);
   });
+
   const obj = {
     labels,
     datasets,
   };
+
   const obj2 = {
     padding:
       yAxisPosition === "right"
@@ -2410,9 +2964,11 @@ function createStatsChart(ctx, labels, data, league) {
             right: 80,
           },
   };
+
   const activeSetup2 = {
     enabled: activeSetup.linhaAtual ?? true,
   };
+
   return new Chart(ctx, {
     type: "line",
     data: obj,
@@ -2451,6 +3007,7 @@ function createStatsChart(ctx, labels, data, league) {
               const sd = chartData[league];
               const m =
                 sd[Math.max(0, sd.length - numPoints) + items[0].dataIndex];
+
               if (m) {
                 return m.hora + ":" + m.minuto.toString().padStart(2, "0");
               } else {
@@ -2459,15 +3016,18 @@ function createStatsChart(ctx, labels, data, league) {
             },
             label: (ctx2) => {
               const v = ctx2.parsed.y;
+
               if (v === null) {
                 return "";
               }
+
               const isGols =
                 ctx2.dataset.label === "Gols FT" ||
                 ctx2.dataset.label === "Gols HT" ||
                 ctx2.dataset.label === "Gols Individual" ||
                 ctx2.dataset.label === "Gols FT Casa" ||
                 ctx2.dataset.label === "Gols FT Fora";
+
               if (isGols) {
                 return ctx2.dataset.label + ": " + v + " gols";
               } else {
@@ -2478,6 +3038,7 @@ function createStatsChart(ctx, labels, data, league) {
               const sd = chartData[league];
               const m =
                 sd[Math.max(0, sd.length - numPoints) + items[0].dataIndex];
+
               if (m) {
                 return "FT: " + (m.ft || "N/A") + "  HT: " + (m.ht || "N/A");
               } else {
@@ -2552,40 +3113,55 @@ function createStatsChart(ctx, labels, data, league) {
     ],
   });
 }
+
 function updateStatsChart(chart, newData) {
   if (!chart) {
     return;
   }
+
   chart.data.labels = newData.labels;
+
   chart.data.datasets.forEach((ds) => {
     ds.data = newData[getKeyFromLabel(ds.label)];
+
     if (!ds.label.includes(" MA")) {
       ds.pointBackgroundColor = newData[getKeyFromLabel(ds.label) + "Colors"];
     }
   });
+
   chart.update();
   _updateLinesPanelValues();
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PROCESSAMENTO DE DADOS
+═══════════════════════════════════════════════════════════════════ */
 function processApiData(data, league) {
   const sortedData = [...data].sort((a, b) => {
     const dA = new Date(a.data);
     const dB = new Date(b.data);
+
     if (dA.getTime() !== dB.getTime()) {
       return dA - dB;
     }
+
     if (a.hora !== b.hora) {
       return a.hora - b.hora;
     }
+
     return a.minuto - b.minuto;
   });
+
   const slicedData = sortedData.slice(
     -numPoints - Math.ceil(averagePoints * 3.5),
   );
   chartData[league] = slicedData;
+
   function toAbsMin(m) {
     const d = new Date(m.data);
     return Math.floor(d.getTime() / 86400000) * 1440 + m.hora * 60 + m.minuto;
   }
+
   let labels = [];
   let golsFT = [];
   let golsHT = [];
@@ -2893,9 +3469,11 @@ function processApiData(data, league) {
   const red = "#FB7185";
   const janelaMin = averagePoints * _MIN_POR_JOGO;
   const startExibir = Math.max(0, slicedData.length - numPoints);
+
   for (let i = 0; i < slicedData.length; i++) {
     const mAtual = slicedData[i];
     const tsAtual = toAbsMin(mAtual);
+
     let s = {
       golsFT: 0,
       golsHT: 0,
@@ -2974,17 +3552,22 @@ function processApiData(data, league) {
       empateGols: 0,
       valid: 0,
     };
+
     for (let j = i; j >= 0; j--) {
       const mj = slicedData[j];
       const tsJ = toAbsMin(mj);
+
       if (tsAtual - tsJ > janelaMin) {
         break;
       }
+
       const m2 = mj;
       let ft2 = [0, 0];
+
       if (m2.ft?.includes(" x ")) {
         ft2 = m2.ft.split(" x ").map(Number);
       }
+
       const htTotal2 = parseHtScoreTotal(m2.ht);
       const htParts2 = parseHtParts(m2.ht);
       const tg2 = ft2[0] + ft2[1];
@@ -3059,11 +3642,13 @@ function processApiData(data, league) {
       s.ht0x2 += htParts2 && htParts2[0] === 0 && htParts2[1] === 2 ? 1 : 0;
       s.ht2x0 += htParts2 && htParts2[0] === 2 && htParts2[1] === 0 ? 1 : 0;
       s.htOut += m2.ht === "OUT" ? 1 : 0;
+
       if (htTotal2 >= 2) {
         s.overHT++;
       } else {
         s.underHT++;
       }
+
       if (htParts2) {
         if (htParts2[0] > htParts2[1]) {
           s.casaHT++;
@@ -3073,30 +3658,39 @@ function processApiData(data, league) {
           s.empateHT++;
         }
       }
+
       if (htParts2) {
         const casaVenceHT = htParts2[0] > htParts2[1];
         const foraVenceHT = htParts2[0] < htParts2[1];
         let ftParts = [0, 0];
+
         if (m2.ft?.includes(" x ")) {
           ftParts = m2.ft.split(" x ").map(Number);
         }
+
         const casaPerdeFT = ftParts[0] < ftParts[1];
         const foraPerdeFT = ftParts[0] > ftParts[1];
+
         if ((casaVenceHT && casaPerdeFT) || (foraVenceHT && foraPerdeFT)) {
           s.viradinha++;
         }
       }
+
       s.valid++;
     }
+
     if (i < startExibir) {
       continue;
     }
+
     const m = slicedData[i];
     labels.push(m.hora + ":" + m.minuto.toString().padStart(2, "0"));
     let ft = [0, 0];
+
     if (m.ft?.includes(" x ")) {
       ft = m.ft.split(" x ").map(Number);
     }
+
     const htTotal = parseHtScoreTotal(m.ht);
     const htParts = parseHtParts(m.ht);
     const tg = ft[0] + ft[1];
@@ -3287,6 +3881,7 @@ function processApiData(data, league) {
     viradinha.push((s.viradinha / avg) * 100);
     viradinhaColors.push(viradinhaOcorreu ? green : red);
   }
+
   const result = {
     labels,
     golsFT,
@@ -3442,35 +4037,47 @@ function processApiData(data, league) {
     margem3Colors,
     empateGolsColors,
   };
+
   const result2 = result;
   const longPeriod = _QBLOC;
   const longPeriod2 = _JPH;
+
   Object.keys(labelToKey).forEach((label) => {
     const key = labelToKey[label];
     result2[key + "Short"] = computeMA(result2[key], longPeriod);
     result2[key + "Long"] = computeMA(result2[key], longPeriod2);
   });
+
   return result2;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   UPDATE / EVENT LISTENERS
+═══════════════════════════════════════════════════════════════════ */
 function updateCharts() {
   if (!_tabVisible) {
     return;
   }
+
   const ts = new Date().getTime();
+
   leagues.forEach((league) => {
     fetch(ROTAS_API.resultados(LIGA_ATUAL) + ("?timestamp=" + ts))
       .then((r) => {
         if (!r.ok) {
           throw new Error(r.status);
         }
+
         return r.json();
       })
       .then((data) => {
         const pd = processApiData(data, league);
         const canvas = document.getElementById(league);
+
         if (!canvas) {
           return;
         }
+
         if (!chartInstances[league]) {
           chartInstances[league] = createStatsChart(
             canvas.getContext("2d"),
@@ -3486,22 +4093,29 @@ function updateCharts() {
       .catch((e) => console.error("Erro " + league + ":", e));
   });
 }
+
 function toggleFibonacciLines() {
   showFibonacciLines = document.getElementById("fibonacciToggle").checked;
+
   leagues.forEach((l) => {
     if (chartInstances[l]) {
       chartInstances[l].update();
     }
   });
+
   _captureControlsToSetup(_getActiveSetup());
 }
+
 function toggleMovingAverages() {
   showMovingAverages = document.getElementById("movingAveragesToggle").checked;
+
   leagues.forEach((l) => {
     const ci = chartInstances[l];
+
     if (!ci) {
       return;
     }
+
     ci.data.datasets.forEach((ds, idx) => {
       if (ds.label.includes(" - ")) {
         const main = ds.label.split(" - ")[0];
@@ -3509,19 +4123,27 @@ function toggleMovingAverages() {
           !showMovingAverages || !statsChartVisibleDatasets[main];
       }
     });
+
     ci.update();
   });
+
   _captureControlsToSetup(_getActiveSetup());
 }
+
+/* ── POSIÇÃO DO EIXO (%): preferência do usuário, esquerda ou direita ── */
 function setYAxisPosition(a) {
   yAxisPosition = a === "right" ? "right" : "left";
   _lsSet(Y_AXIS_POS_KEY, yAxisPosition);
+
   leagues.forEach((l) => {
     const ci = chartInstances[l];
+
     if (!ci) {
       return;
     }
+
     ci.options.scales.y.position = yAxisPosition;
+
     ci.options.layout.padding =
       yAxisPosition === "right"
         ? {
@@ -3532,19 +4154,23 @@ function setYAxisPosition(a) {
             top: 30,
             right: 80,
           };
+
     ci.update();
   });
 }
+
 document.getElementById("pointsSelector").addEventListener("change", (e) => {
   numPoints = parseInt(e.target.value, 10);
   updateCharts();
   _captureControlsToSetup(_getActiveSetup());
 });
+
 document.getElementById("averageSelector").addEventListener("change", (e) => {
   averagePoints = parseInt(e.target.value, 10);
   updateCharts();
   _captureControlsToSetup(_getActiveSetup());
 });
+
 document
   .getElementById("fibonacciToggle")
   .addEventListener("change", toggleFibonacciLines);
@@ -3552,32 +4178,41 @@ document
   .getElementById("movingAveragesToggle")
   .addEventListener("change", toggleMovingAverages);
 const yAxisSel = document.getElementById("yAxisPositionSelector");
+
 if (yAxisSel) {
   yAxisSel.value = yAxisPosition;
   yAxisSel.addEventListener("change", (e) => setYAxisPosition(e.target.value));
 }
+
 document
   .getElementById("linhaAtualToggle")
   .addEventListener("change", function () {
     leagues.forEach((l) => {
       const ci = chartInstances[l];
+
       if (!ci) {
         return;
       }
+
       ci.options.plugins.linhaAtual.enabled = this.checked;
       ci.update("active");
     });
+
     _captureControlsToSetup(_getActiveSetup());
   });
+
 document.getElementById("labelsToggle").addEventListener("change", function () {
   showLabels = this.checked;
+
   leagues.forEach((l) => {
     if (chartInstances[l]) {
       chartInstances[l].update();
     }
   });
+
   _captureControlsToSetup(_getActiveSetup());
 });
+
 (function () {
   const btnLinha = document.getElementById("btnLinhaTools");
   const pLinha = document.getElementById("linhaToolsPanel");
@@ -3585,123 +4220,160 @@ document.getElementById("labelsToggle").addEventListener("change", function () {
   const pFib = document.getElementById("fibToolsPanel");
   const btnTrend = document.getElementById("btnTrendTools");
   const pTrend = document.getElementById("trendToolsPanel");
+
   if (!btnLinha) {
     console.error("[grafico] elemento #btnLinhaTools não encontrado no HTML");
   }
+
   if (!pLinha) {
     console.error("[grafico] elemento #linhaToolsPanel não encontrado no HTML");
   }
+
   if (!btnFib) {
     console.error("[grafico] elemento #btnFibTools não encontrado no HTML");
   }
+
   if (!pFib) {
     console.error("[grafico] elemento #fibToolsPanel não encontrado no HTML");
   }
+
   if (!btnTrend) {
     console.error("[grafico] elemento #btnTrendTools não encontrado no HTML");
   }
+
   if (!pTrend) {
     console.error("[grafico] elemento #trendToolsPanel não encontrado no HTML");
   }
+
   if (btnLinha && pLinha) {
     btnLinha.addEventListener("click", (e) => {
       e.stopPropagation();
       pLinha.style.display = pLinha.style.display === "none" ? "block" : "none";
     });
+
     pLinha.addEventListener("click", (e) => e.stopPropagation());
   }
+
   if (btnFib && pFib) {
     btnFib.addEventListener("click", (e) => {
       e.stopPropagation();
       pFib.style.display = pFib.style.display === "none" ? "block" : "none";
     });
+
     pFib.addEventListener("click", (e) => e.stopPropagation());
   }
+
   if (btnTrend && pTrend) {
     btnTrend.addEventListener("click", (e) => {
       e.stopPropagation();
       pTrend.style.display = pTrend.style.display === "none" ? "block" : "none";
     });
+
     pTrend.addEventListener("click", (e) => e.stopPropagation());
   }
+
   document.addEventListener("click", () => {
     if (pLinha) {
       pLinha.style.display = "none";
     }
+
     if (pFib) {
       pFib.style.display = "none";
     }
+
     if (pTrend) {
       pTrend.style.display = "none";
     }
   });
 })();
+
 window.adicionarLinhaDraggable = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (c) {
     c.addDragLine(
       document.getElementById("lineColorPicker")?.value || "#1fcc59",
     );
   }
 };
+
 window.deletarLinhaSelecionada = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (c) {
     c.deleteDragLine();
   }
 };
+
 window.limparTodasLinhas = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (c) {
     c.clearDragLines();
   }
 };
+
 window.ativarDesenhoFibonacci = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (c) {
     c.setFibDrawMode(true);
   }
 };
+
 window.deletarFibonacciSelecionado = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (c) {
     c.deleteFibSelected();
   }
 };
+
 window.limparFibonacciLivre = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (c) {
     c.clearFibDraws();
   }
 };
+
 window.ativarDesenhoLTA = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (c) {
     c.setTrendDrawMode(true, "LTA");
   }
 };
+
 window.ativarDesenhoLTB = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (c) {
     c.setTrendDrawMode(true, "LTB");
   }
 };
+
 window.deletarTendenciaSelecionada = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (c) {
     c.deleteTrendSelected();
   }
 };
+
 window.limparTendencias = () => {
   const c = chartInstances.Copa || Object.values(chartInstances)[0];
+
   if (c) {
     c.clearTrendDraws();
   }
 };
+
 window.onload = () => {
   updateCharts();
   _renderSetupBar();
   _renderLinesPanel(_getActiveSetup());
   _updateSetupCounter();
 };
+
 setInterval(updateCharts, 3000);
