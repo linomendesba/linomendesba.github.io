@@ -57,6 +57,22 @@
       :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 
+      /* partículas de fundo */
+      #particulas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none;
+      }
+      .container { position: relative; z-index: 1; }
+
+      /* placar ao vivo (widget ER Soluções Web) */
+      .ticker-wrap { margin-top: 16px; }
+      .ticker-wrap .er-sport-live-inner { margin-top: 0; }
+
+
       /* cabeçalho */
       .topbar {
         display: flex;
@@ -551,6 +567,7 @@
     </style>
   </head>
   <body>
+    <canvas id="particulas" aria-hidden="true"></canvas>
     <div class="container">
 
       <header class="topbar">
@@ -567,6 +584,20 @@
           Sair
         </button>
       </header>
+
+      <div class="ticker-wrap">
+        <div
+          class="er-sport-live"
+          data-label="Jogos ao vivo"
+          data-color="#5aa9e6"
+          data-text-color="#0d131b"
+          data-bg-color="#141c27"
+          data-border-color="#344358"
+          data-team-color="#a3b0c0"
+          data-score-color="#e8edf3"
+          data-date-color="#74849a"
+        ></div>
+      </div>
 
       <div class="page-head">
         <h1 class="title">Escolha a sua casa</h1>
@@ -1159,5 +1190,94 @@
         carregarAssinatura(user);
       });
     </script>
+    <script>
+      /* partículas flutuantes de fundo */
+      (function () {
+        const canvas = document.getElementById("particulas");
+        if (!canvas || !canvas.getContext) return;
+        const ctx = canvas.getContext("2d");
+        const reduzir = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const COR = "90,169,230";
+        let w = 0, h = 0, dpr = 1, particulas = [], raf = 0, ultimo = 0;
+
+        function criar() {
+          const celular = w < 640;
+          const n = Math.round(Math.min(70, Math.max(22, (w * h) / (celular ? 22000 : 20000))));
+          particulas = Array.from({ length: n }, () => ({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            vx: (Math.random() - 0.5) * 0.28,
+            vy: (Math.random() - 0.5) * 0.28,
+            r: 0.8 + Math.random() * 1.2,
+          }));
+        }
+
+        function ajustar() {
+          dpr = Math.min(window.devicePixelRatio || 1, 2);
+          w = window.innerWidth;
+          h = window.innerHeight;
+          canvas.width = Math.round(w * dpr);
+          canvas.height = Math.round(h * dpr);
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          criar();
+          desenhar();
+        }
+
+        function desenhar() {
+          ctx.clearRect(0, 0, w, h);
+          const maxD = w < 640 ? 95 : 130;
+          for (let i = 0; i < particulas.length; i++) {
+            const a = particulas[i];
+            for (let j = i + 1; j < particulas.length; j++) {
+              const b = particulas[j];
+              const dx = a.x - b.x, dy = a.y - b.y;
+              const d = Math.sqrt(dx * dx + dy * dy);
+              if (d < maxD) {
+                ctx.strokeStyle = "rgba(" + COR + "," + (0.16 * (1 - d / maxD)).toFixed(3) + ")";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+              }
+            }
+          }
+          ctx.fillStyle = "rgba(" + COR + ",0.45)";
+          for (const p of particulas) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        function passo(t) {
+          raf = requestAnimationFrame(passo);
+          if (t - ultimo < 33) return; /* ~30 quadros por segundo */
+          ultimo = t;
+          for (const p of particulas) {
+            p.x += p.vx; p.y += p.vy;
+            if (p.x < -10) p.x = w + 10; else if (p.x > w + 10) p.x = -10;
+            if (p.y < -10) p.y = h + 10; else if (p.y > h + 10) p.y = -10;
+          }
+          desenhar();
+        }
+
+        function iniciar() { if (!raf && !reduzir) raf = requestAnimationFrame(passo); }
+        function parar() { cancelAnimationFrame(raf); raf = 0; }
+
+        let timer;
+        window.addEventListener("resize", () => {
+          clearTimeout(timer);
+          timer = setTimeout(ajustar, 150);
+        });
+        document.addEventListener("visibilitychange", () => (document.hidden ? parar() : iniciar()));
+
+        ajustar();
+        iniciar();
+      })();
+    </script>
+
+    <!-- Widget de placar ao vivo — ER Soluções Web -->
+    <script src="https://futebol.ersolucoesweb.com.br/ticker.js"></script>
   </body>
 </html>
