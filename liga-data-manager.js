@@ -1,24 +1,55 @@
-const LigaDataManager = {
-  async _get(url) {
+const LigaDataManager = (() => {
+  const CACHE_TTL_MS = 1000;
+  const cache = {};
+
+  async function fetchJson(url) {
     const urlSemCache = url + (url.includes("?") ? "&" : "?") + `_ts=${Date.now()}`;
     const res = await fetch(urlSemCache, { cache: "no-store" });
     if (!res.ok) throw new Error(`Erro HTTP ${res.status} em ${url}`);
     return res.json();
-  },
+  }
 
-  getResultados:    () => LigaDataManager._get(ROTAS_API.resultados(LIGA_ATUAL)),
-  getProximosJogos: () => LigaDataManager._get(ROTAS_API.proximosJogos(LIGA_ATUAL)),
-  getOdds:          () => LigaDataManager._get(ROTAS_API.odds(LIGA_ATUAL)),
+  function getCached(url) {
+    const now = Date.now();
+    const entry = cache[url];
 
-  // mantido só para não quebrar quem chama; não existe mais cache
-  _debugCacheSnapshot: () => ({}),
-};
+    if (entry && (now - entry.timestamp) < CACHE_TTL_MS) {
+      return entry.promise;
+    }
 
-// Intervalo normal, sem alinhar ao relógio
-function iniciarIntervalo(fn, periodoMs) {
-  return setInterval(fn, periodoMs);
+    const newEntry = { timestamp: now, promise: null };
+    const promise = fetchJson(url).catch(err => {
+      if (cache[url] === newEntry) delete cache[url];
+      throw err;
+    });
+    newEntry.promise = promise;
+    cache[url] = newEntry;
+    return promise;
+  }
+
+  return {
+    getResultados: () => getCached(ROTAS_API.resultados(LIGA_ATUAL)),
+    getProximosJogos: () => getCached(ROTAS_API.proximosJogos(LIGA_ATUAL)),
+    getOdds: () => getCached(ROTAS_API.odds(LIGA_ATUAL)),
+    _debugCacheSnapshot: () => ({ ...cache }),
+  };
+})();
+
+function sincronizarIntervalo(fn, periodoMs) {
+  const agora = Date.now();
+  const atraso = periodoMs - (agora % periodoMs);
+
+  const handle = { timeoutId: null, intervalId: null };
+  handle.timeoutId = setTimeout(() => {
+    fn();
+    handle.intervalId = setInterval(fn, periodoMs);
+  }, atraso);
+
+  return handle;
 }
 
-function pararIntervalo(id) {
-  if (id) clearInterval(id);
+function pararIntervaloSincronizado(handle) {
+  if (!handle) return;
+  if (handle.timeoutId) clearTimeout(handle.timeoutId);
+  if (handle.intervalId) clearInterval(handle.intervalId);
 }
