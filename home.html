@@ -536,6 +536,28 @@
       }
 
 
+
+      /* notícias esportivas */
+      .news-panel { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); overflow: hidden; }
+      .news-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
+      .news-updated { color:var(--text-3); font-size:.75rem; }
+      .news-refresh { border:1px solid var(--line-strong); background:transparent; color:var(--text-2); border-radius:6px; padding:6px 10px; cursor:pointer; font:500 .75rem var(--font); }
+      .news-refresh:hover { background:var(--surface-hover); color:var(--text); }
+      .news-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 16px; padding:0 16px; }
+      .news-item { display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line); min-width:0; text-decoration:none; color:var(--text); }
+      .news-item:hover .news-title { color:var(--accent); }
+      .news-thumb { width:88px; height:68px; flex:0 0 88px; object-fit:cover; border-radius:6px; background:var(--surface-hover); }
+      .news-copy { min-width:0; display:flex; flex-direction:column; gap:5px; }
+      .news-source { color:var(--accent); font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+      .news-title { font-size:.84rem; font-weight:600; line-height:1.35; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+      .news-meta { color:var(--text-3); font-size:.7rem; }
+      .news-message { padding:18px 16px; color:var(--text-2); font-size:.84rem; }
+      .news-footer { padding:10px 16px; color:var(--text-3); font-size:.72rem; border-top:1px solid var(--line); }
+      @media (max-width: 640px) {
+        .news-list { grid-template-columns:minmax(0,1fr); }
+        .news-thumb { width:76px; flex-basis:76px; height:62px; }
+      }
+
       @media (max-width: 860px) {
         .layout {
           grid-template-columns: minmax(0, 1fr);
@@ -630,6 +652,23 @@
               <span class="section-count" id="count-casas"></span>
             </div>
             <div class="board panel" id="board-casas" role="group" aria-label="Casas de apostas"></div>
+          </section>
+
+          <section class="section" aria-labelledby="news-heading">
+            <div class="section-head">
+              <h2 class="section-title" id="news-heading">Últimas notícias esportivas</h2>
+              <span class="section-count">Atualização automática</span>
+            </div>
+            <div class="news-panel">
+              <div class="news-toolbar">
+                <span class="news-updated" id="news-updated">Carregando notícias…</span>
+                <button class="news-refresh" type="button" id="news-refresh">Atualizar</button>
+              </div>
+              <div class="news-list" id="news-list" aria-live="polite">
+                <p class="news-message">Buscando as últimas notícias esportivas…</p>
+              </div>
+              <div class="news-footer">Notícias reunidas pelo Google Notícias. Ao selecionar uma manchete, você será direcionado à publicação original.</div>
+            </div>
           </section>
         </main>
 
@@ -1051,6 +1090,108 @@
           }
         }
       });
+    </script>
+
+    <script>
+      /* Notícias esportivas — feed RSS público do Google Notícias via RSS2JSON */
+      (function () {
+        const list = document.getElementById("news-list");
+        const updated = document.getElementById("news-updated");
+        const refresh = document.getElementById("news-refresh");
+        if (!list || !updated || !refresh) return;
+
+        const FEEDS = [
+          { label: "Futebol brasileiro", url: "https://news.google.com/rss/search?q=futebol+brasileiro&hl=pt-BR&gl=BR&ceid=BR:pt-BR" },
+          { label: "Futebol internacional", url: "https://news.google.com/rss/search?q=futebol+internacional&hl=pt-BR&gl=BR&ceid=BR:pt-BR" },
+          { label: "Esportes", url: "https://news.google.com/rss/headlines/section/topic/SPORTS?hl=pt-BR&gl=BR&ceid=BR:pt-BR" }
+        ];
+        const CACHE_KEY = "dvNoticiasCacheV1";
+        const CACHE_TTL = 10 * 60 * 1000;
+
+        function escapar(valor) {
+          return String(valor || "").replace(/[&<>"']/g, (c) => ({
+            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+          }[c]));
+        }
+
+        function dataLegivel(valor) {
+          const d = new Date(valor);
+          if (Number.isNaN(d.getTime())) return "";
+          return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+        }
+
+        function renderizar(items) {
+          if (!items.length) {
+            list.innerHTML = '<p class="news-message">Não foi possível encontrar notícias agora. Tente atualizar em alguns instantes.</p>';
+            return;
+          }
+          list.innerHTML = items.slice(0, 10).map((item) => {
+            const link = /^https?:\/\//i.test(item.link || "") ? item.link : "#";
+            const imagem = item.thumbnail && /^https?:\/\//i.test(item.thumbnail)
+              ? `<img class="news-thumb" src="${escapar(item.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
+              : "";
+            return `<a class="news-item" href="${escapar(link)}" target="_blank" rel="noopener noreferrer">
+              ${imagem}
+              <span class="news-copy">
+                <span class="news-source">${escapar(item.source || "Notícias esportivas")}</span>
+                <span class="news-title">${escapar(item.title)}</span>
+                <span class="news-meta">${escapar(dataLegivel(item.pubDate))}</span>
+              </span>
+            </a>`;
+          }).join("");
+        }
+
+        async function carregar(forcar) {
+          refresh.disabled = true;
+          refresh.textContent = "Atualizando…";
+          try {
+            if (!forcar) {
+              const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+              if (cache && Date.now() - cache.time < CACHE_TTL && Array.isArray(cache.items)) {
+                renderizar(cache.items);
+                updated.textContent = "Atualizado às " + new Date(cache.time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                return;
+              }
+            }
+
+            const resultados = await Promise.allSettled(FEEDS.map(async (feed) => {
+              const endpoint = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(feed.url);
+              const resposta = await fetch(endpoint);
+              if (!resposta.ok) throw new Error("Falha ao consultar feed");
+              const dados = await resposta.json();
+              if (dados.status !== "ok" || !Array.isArray(dados.items)) throw new Error("Feed indisponível");
+              return dados.items.map((item) => ({
+                title: item.title,
+                link: item.link,
+                pubDate: item.pubDate,
+                thumbnail: item.thumbnail || (item.enclosure && item.enclosure.link) || "",
+                source: (item.author || feed.label).split(" - ")[0]
+              }));
+            }));
+
+            const todos = resultados.flatMap((r) => r.status === "fulfilled" ? r.value : []);
+            const unicos = Array.from(new Map(todos.filter((x) => x.title && x.link).map((x) => [x.link, x])).values())
+              .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+              .slice(0, 10);
+
+            renderizar(unicos);
+            const agora = Date.now();
+            updated.textContent = "Atualizado às " + new Date(agora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+            try { localStorage.setItem(CACHE_KEY, JSON.stringify({ time: agora, items: unicos })); } catch (e) {}
+          } catch (erro) {
+            console.warn("[DataVirtual Notícias]", erro);
+            list.innerHTML = '<p class="news-message">As notícias não puderam ser carregadas neste momento. Você pode tentar novamente pelo botão Atualizar.</p>';
+            updated.textContent = "Feed temporariamente indisponível";
+          } finally {
+            refresh.disabled = false;
+            refresh.textContent = "Atualizar";
+          }
+        }
+
+        refresh.addEventListener("click", () => carregar(true));
+        carregar(false);
+        window.setInterval(() => carregar(true), CACHE_TTL);
+      })();
     </script>
 
     <script type="module">
