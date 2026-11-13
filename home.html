@@ -153,6 +153,7 @@
         grid-template-areas:
           "main account"
           "main help";
+        grid-template-rows: auto minmax(0, 1fr);
         column-gap: 40px;
         row-gap: 28px;
         align-items: start;
@@ -543,19 +544,20 @@
       .news-updated { color:var(--text-3); font-size:.75rem; }
       .news-refresh { border:1px solid var(--line-strong); background:transparent; color:var(--text-2); border-radius:6px; padding:6px 10px; cursor:pointer; font:500 .75rem var(--font); }
       .news-refresh:hover { background:var(--surface-hover); color:var(--text); }
-      .news-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 16px; padding:0 16px; }
-      .news-item { display:flex; gap:12px; padding:14px 0; border-bottom:1px solid var(--line); min-width:0; text-decoration:none; color:var(--text); }
+      .news-list { display:flex; flex-direction:column; padding:0 16px; }
+      .news-item { display:flex; align-items:flex-start; gap:14px; padding:13px 0; border-bottom:1px solid var(--line); min-width:0; text-decoration:none; color:var(--text); }
+      .news-item:last-child { border-bottom:0; }
       .news-item:hover .news-title { color:var(--accent); }
-      .news-thumb { width:88px; height:68px; flex:0 0 88px; object-fit:cover; border-radius:6px; background:var(--surface-hover); }
-      .news-copy { min-width:0; display:flex; flex-direction:column; gap:5px; }
-      .news-source { color:var(--accent); font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
-      .news-title { font-size:.84rem; font-weight:600; line-height:1.35; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-      .news-meta { color:var(--text-3); font-size:.7rem; }
+      .news-thumb { width:84px; height:60px; flex:0 0 84px; object-fit:cover; border-radius:6px; background:var(--surface-hover); }
+      .news-copy { min-width:0; flex:1; display:flex; flex-direction:column; gap:4px; }
+      .news-head { display:flex; align-items:baseline; gap:8px; min-width:0; font-size:.7rem; }
+      .news-source { color:var(--accent); font-weight:600; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60%; }
+      .news-meta { color:var(--text-3); white-space:nowrap; }
+      .news-title { font-size:.9rem; font-weight:600; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
       .news-message { padding:18px 16px; color:var(--text-2); font-size:.84rem; }
       .news-footer { padding:10px 16px; color:var(--text-3); font-size:.72rem; border-top:1px solid var(--line); }
       @media (max-width: 640px) {
-        .news-list { grid-template-columns:minmax(0,1fr); }
-        .news-thumb { width:76px; flex-basis:76px; height:62px; }
+        .news-thumb { width:68px; flex-basis:68px; height:52px; }
       }
 
       @media (max-width: 860px) {
@@ -1117,7 +1119,7 @@
         ];
         if (PROXY_PROPRIO) PROXIES.unshift((u) => PROXY_PROPRIO + encodeURIComponent(u));
 
-        const CACHE_KEY = "dvNoticiasCacheV2";
+        const CACHE_KEY = "dvNoticiasCacheV3";
         const CACHE_TTL = 10 * 60 * 1000;
         const FETCH_TIMEOUT = 8000;
 
@@ -1153,7 +1155,7 @@
             let fonte = get("source");
             if (!fonte && titulo.includes(" - ")) fonte = titulo.split(" - ").pop();
             if (fonte && titulo.endsWith(" - " + fonte)) titulo = titulo.slice(0, -(fonte.length + 3));
-            return { title: titulo, link: get("link"), pubDate: get("pubDate"), thumbnail: "", source: fonte || feed.label };
+            return { title: titulo, link: get("link"), pubDate: get("pubDate"), thumbnail: "", source: fonte || "Notícias", categoria: feed.label };
           });
           if (!itens.length) throw new Error("Feed vazio");
           return itens;
@@ -1173,11 +1175,17 @@
           if (!resp.ok) throw new Error("rss2json HTTP " + resp.status);
           const dados = await resp.json();
           if (dados.status !== "ok" || !Array.isArray(dados.items) || !dados.items.length) throw new Error("rss2json indisponível");
-          return dados.items.map((item) => ({
-            title: item.title, link: item.link, pubDate: item.pubDate,
-            thumbnail: item.thumbnail || (item.enclosure && item.enclosure.link) || "",
-            source: (item.author || feed.label).split(" - ")[0]
-          }));
+          return dados.items.map((item) => {
+            let titulo = String(item.title || "");
+            let fonte = (item.author || "").trim();
+            if (!fonte && titulo.includes(" - ")) fonte = titulo.split(" - ").pop().trim();
+            if (fonte && titulo.endsWith(" - " + fonte)) titulo = titulo.slice(0, -(fonte.length + 3));
+            return {
+              title: titulo, link: item.link, pubDate: item.pubDate,
+              thumbnail: item.thumbnail || (item.enclosure && item.enclosure.link) || "",
+              source: fonte || "Notícias", categoria: feed.label
+            };
+          });
         }
 
         function renderizar(items) {
@@ -1185,7 +1193,7 @@
             list.innerHTML = '<p class="news-message">Não foi possível encontrar notícias agora. Tente atualizar em alguns instantes.</p>';
             return;
           }
-          list.innerHTML = items.slice(0, 10).map((item) => {
+          list.innerHTML = items.slice(0, 8).map((item) => {
             const link = /^https?:\/\//i.test(item.link || "") ? item.link : "#";
             const imagem = item.thumbnail && /^https?:\/\//i.test(item.thumbnail)
               ? `<img class="news-thumb" src="${escapar(item.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
@@ -1193,9 +1201,11 @@
             return `<a class="news-item" href="${escapar(link)}" target="_blank" rel="noopener noreferrer">
               ${imagem}
               <span class="news-copy">
-                <span class="news-source">${escapar(item.source || "Notícias esportivas")}</span>
+                <span class="news-head">
+                  <span class="news-source">${escapar(item.source || "Notícias esportivas")}</span>
+                  <span class="news-meta">${escapar([dataLegivel(item.pubDate), item.categoria].filter(Boolean).join(" · "))}</span>
+                </span>
                 <span class="news-title">${escapar(item.title)}</span>
-                <span class="news-meta">${escapar(dataLegivel(item.pubDate))}</span>
               </span>
             </a>`;
           }).join("");
@@ -1223,7 +1233,8 @@
             const todos = resultados.flatMap((r) => r.status === "fulfilled" ? r.value : []);
             const unicos = Array.from(new Map(todos.filter((x) => x.title && x.link).map((x) => [x.link, x])).values())
               .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-              .slice(0, 10);
+              .filter((x, i, arr) => arr.findIndex((y) => y.title === x.title) === i)
+              .slice(0, 8);
 
             if (unicos.length) {
               renderizar(unicos);
