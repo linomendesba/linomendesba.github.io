@@ -1093,7 +1093,7 @@
     </script>
 
     <script>
-      /* Notícias esportivas — feed RSS público do Google Notícias via RSS2JSON */
+      /* Notícias esportivas — RSS público do Google Notícias, lido direto no navegador com fallback de proxies */
       (function () {
         const list = document.getElementById("news-list");
         const updated = document.getElementById("news-updated");
@@ -1105,8 +1105,21 @@
           { label: "Futebol internacional", url: "https://news.google.com/rss/search?q=futebol+internacional&hl=pt-BR&gl=BR&ceid=BR:pt-BR" },
           { label: "Esportes", url: "https://news.google.com/rss/headlines/section/topic/SPORTS?hl=pt-BR&gl=BR&ceid=BR:pt-BR" }
         ];
-        const CACHE_KEY = "dvNoticiasCacheV1";
+
+        /* Se um dia você criar um endpoint próprio no seu servidor (ex.: https://datavirtual.com.br/noticias?url=),
+           coloque aqui. Ele é tentado primeiro e deve devolver o XML do RSS. Deixe vazio para não usar. */
+        const PROXY_PROPRIO = "";
+
+        const PROXIES = [
+          (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+          (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+          (u) => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)
+        ];
+        if (PROXY_PROPRIO) PROXIES.unshift((u) => PROXY_PROPRIO + encodeURIComponent(u));
+
+        const CACHE_KEY = "dvNoticiasCacheV2";
         const CACHE_TTL = 10 * 60 * 1000;
+        const FETCH_TIMEOUT = 8000;
 
         function escapar(valor) {
           return String(valor || "").replace(/[&<>"']/g, (c) => ({
@@ -1118,6 +1131,53 @@
           const d = new Date(valor);
           if (Number.isNaN(d.getTime())) return "";
           return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+        }
+
+        function horaLegivel(ts) {
+          return new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        }
+
+        async function fetchTimeout(url) {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
+          try { return await fetch(url, { signal: ctrl.signal, cache: "no-store" }); }
+          finally { clearTimeout(t); }
+        }
+
+        function parseRss(xmlTexto, feed) {
+          const doc = new DOMParser().parseFromString(xmlTexto, "text/xml");
+          if (doc.querySelector("parsererror")) throw new Error("XML inválido");
+          const itens = Array.from(doc.querySelectorAll("item")).map((it) => {
+            const get = (tag) => { const n = it.querySelector(tag); return n ? n.textContent.trim() : ""; };
+            let titulo = get("title");
+            let fonte = get("source");
+            if (!fonte && titulo.includes(" - ")) fonte = titulo.split(" - ").pop();
+            if (fonte && titulo.endsWith(" - " + fonte)) titulo = titulo.slice(0, -(fonte.length + 3));
+            return { title: titulo, link: get("link"), pubDate: get("pubDate"), thumbnail: "", source: fonte || feed.label };
+          });
+          if (!itens.length) throw new Error("Feed vazio");
+          return itens;
+        }
+
+        async function buscarFeed(feed) {
+          /* 1) RSS direto via proxies CORS, um por vez até algum funcionar */
+          for (const montar of PROXIES) {
+            try {
+              const resp = await fetchTimeout(montar(feed.url));
+              if (!resp.ok) continue;
+              return parseRss(await resp.text(), feed);
+            } catch (e) { /* tenta o próximo */ }
+          }
+          /* 2) Último recurso: RSS2JSON */
+          const resp = await fetchTimeout("https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(feed.url));
+          if (!resp.ok) throw new Error("rss2json HTTP " + resp.status);
+          const dados = await resp.json();
+          if (dados.status !== "ok" || !Array.isArray(dados.items) || !dados.items.length) throw new Error("rss2json indisponível");
+          return dados.items.map((item) => ({
+            title: item.title, link: item.link, pubDate: item.pubDate,
+            thumbnail: item.thumbnail || (item.enclosure && item.enclosure.link) || "",
+            source: (item.author || feed.label).split(" - ")[0]
+          }));
         }
 
         function renderizar(items) {
@@ -1141,47 +1201,52 @@
           }).join("");
         }
 
+        function lerCache() {
+          try {
+            const c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+            return c && Array.isArray(c.items) && c.items.length ? c : null;
+          } catch (e) { return null; }
+        }
+
         async function carregar(forcar) {
           refresh.disabled = true;
           refresh.textContent = "Atualizando…";
+          const cache = lerCache();
           try {
-            if (!forcar) {
-              const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
-              if (cache && Date.now() - cache.time < CACHE_TTL && Array.isArray(cache.items)) {
-                renderizar(cache.items);
-                updated.textContent = "Atualizado às " + new Date(cache.time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-                return;
-              }
+            if (!forcar && cache && Date.now() - cache.time < CACHE_TTL) {
+              renderizar(cache.items);
+              updated.textContent = "Atualizado às " + horaLegivel(cache.time);
+              return;
             }
 
-            const resultados = await Promise.allSettled(FEEDS.map(async (feed) => {
-              const endpoint = "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(feed.url);
-              const resposta = await fetch(endpoint);
-              if (!resposta.ok) throw new Error("Falha ao consultar feed");
-              const dados = await resposta.json();
-              if (dados.status !== "ok" || !Array.isArray(dados.items)) throw new Error("Feed indisponível");
-              return dados.items.map((item) => ({
-                title: item.title,
-                link: item.link,
-                pubDate: item.pubDate,
-                thumbnail: item.thumbnail || (item.enclosure && item.enclosure.link) || "",
-                source: (item.author || feed.label).split(" - ")[0]
-              }));
-            }));
-
+            const resultados = await Promise.allSettled(FEEDS.map(buscarFeed));
             const todos = resultados.flatMap((r) => r.status === "fulfilled" ? r.value : []);
             const unicos = Array.from(new Map(todos.filter((x) => x.title && x.link).map((x) => [x.link, x])).values())
               .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
               .slice(0, 10);
 
-            renderizar(unicos);
-            const agora = Date.now();
-            updated.textContent = "Atualizado às " + new Date(agora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-            try { localStorage.setItem(CACHE_KEY, JSON.stringify({ time: agora, items: unicos })); } catch (e) {}
+            if (unicos.length) {
+              renderizar(unicos);
+              const agora = Date.now();
+              updated.textContent = "Atualizado às " + horaLegivel(agora);
+              try { localStorage.setItem(CACHE_KEY, JSON.stringify({ time: agora, items: unicos })); } catch (e) {}
+            } else if (cache) {
+              /* Falhou, mas há notícias antigas guardadas: mostra elas em vez de tela vazia */
+              renderizar(cache.items);
+              updated.textContent = "Última atualização às " + horaLegivel(cache.time) + " (sem conexão com o feed)";
+            } else {
+              renderizar([]);
+              updated.textContent = "Feed temporariamente indisponível";
+            }
           } catch (erro) {
             console.warn("[DataVirtual Notícias]", erro);
-            list.innerHTML = '<p class="news-message">As notícias não puderam ser carregadas neste momento. Você pode tentar novamente pelo botão Atualizar.</p>';
-            updated.textContent = "Feed temporariamente indisponível";
+            if (cache) {
+              renderizar(cache.items);
+              updated.textContent = "Última atualização às " + horaLegivel(cache.time);
+            } else {
+              list.innerHTML = '<p class="news-message">As notícias não puderam ser carregadas neste momento. Você pode tentar novamente pelo botão Atualizar.</p>';
+              updated.textContent = "Feed temporariamente indisponível";
+            }
           } finally {
             refresh.disabled = false;
             refresh.textContent = "Atualizar";
