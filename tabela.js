@@ -1494,7 +1494,8 @@ function garantirCheckboxQuadrantes() {
     .qd-cell-1 { background-color: rgba(255,255,255,0.05) !important; }
     .qd-cell-2 { background-color: rgba(255,255,255,0.03) !important; }
     .qd-cell-3 { background-color: rgba(255,255,255,0.05) !important; }
-    /* cores de acerto/erro: ver o bloco "tabela-moderna" no fim do arquivo */
+    td[data-resultado="acerto"] { background-color: var(--cor-green, #018b06) !important; }
+    td[data-resultado="erro"]   { background-color: var(--cor-red,   #be0e02) !important; }
 
     #tabelaResultados.tem-coluna-selecionada td:not(.coluna-selecionada)             { filter: brightness(0.45); }
     #tabelaResultados.tem-coluna-selecionada th.minute-header:not(.coluna-selecionada) { filter: brightness(0.45); }
@@ -2048,9 +2049,11 @@ function atualizarCheckboxStreak() {
 
 
 function aplicarCoresCelulas() {
-  const r = document.documentElement.style;
-  r.setProperty("--cor-green", Estado.corGreen);
-  r.setProperty("--cor-red",   Estado.corRed);
+  document.querySelectorAll("td[data-resultado]").forEach(cel => {
+    const tipo = cel.getAttribute("data-resultado");
+    if (tipo === "acerto") cel.style.setProperty("background-color", Estado.corGreen, "important");
+    else if (tipo === "erro") cel.style.setProperty("background-color", Estado.corRed, "important");
+  });
 }
 
 
@@ -2953,16 +2956,7 @@ function atualizarColunaStats() {
 
 function showErrorMessage(m){const e=document.getElementById("errorMessage");if(!e)return;e.textContent=m;e.style.display="block";}
 function hideErrorMessage(){const e=document.getElementById("errorMessage");if(!e)return;e.textContent="";e.style.display="none";}
-const _normCache = new Map();
-function normalizeString(s){
-  if(!s) return "";
-  let v = _normCache.get(s);
-  if (v !== undefined) return v;
-  v = s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-  if (_normCache.size > 5000) _normCache.clear();
-  _normCache.set(s, v);
-  return v;
-}
+function normalizeString(s){if(!s)return"";return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
 function formatDateToDDMMYYYY(d){if(d.includes("T")){const dt=new Date(d);return`${dt.getUTCDate().toString().padStart(2,"0")}/${(dt.getUTCMonth()+1).toString().padStart(2,"0")}/${dt.getUTCFullYear()}`;}const[dd,mm,yy]=d.split("/");return`${dd.padStart(2,"0")}/${mm.padStart(2,"0")}/${yy}`;}
 const _dateStrCache = new Map();
 function getDateStr(d){
@@ -3655,54 +3649,6 @@ function hfRender(dados) {
 }
 
 
-// Cliques da tabela: UM listener no tbody (antes eram ~5 por célula, recriados a cada render)
-function _garantirCliqueTabela(tbody) {
-  if (!tbody || tbody._cliqueDelegado) return;
-  tbody._cliqueDelegado = true;
-  tbody.addEventListener("click", function (e) {
-    const t = e.target;
-    const placar = t.closest(".placar");
-    if (!placar || !tbody.contains(placar)) return;
-    const futuro = placar.classList.contains("placar-futuro");
-    const mostrarTimes = document.querySelector("#mostrarTimes")?.value === "sim";
-
-    // Odd
-    const oddEl = t.closest(futuro ? ".placar-futuro-odd" : ".odds");
-    if (oddEl && placar.contains(oddEl)) {
-      e.stopPropagation();
-      const txt = oddEl.textContent.trim().replace(/^@/, "");
-      if (!txt || txt === "N/A") return;
-      Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
-      return;
-    }
-
-    // Nome de time
-    const timeEl = t.closest(".time-casa,.time-fora");
-    if (timeEl && placar.contains(timeEl)) {
-      if (!mostrarTimes) return;
-      if (futuro) e.stopPropagation();
-      const val = timeEl.getAttribute("data-full-time"); if (!val) return;
-      Estado.toggleSelecao("timesSelecionados", val); aplicarHighlights();
-      return;
-    }
-
-    if (futuro) return;
-
-    // Placar HT
-    const htEl = t.closest(".ht-span");
-    if (htEl && placar.contains(htEl)) {
-      e.stopPropagation();
-      const val = placar.getAttribute("data-score-ht"); if (!val) return;
-      Estado.toggleSelecao("placarHTSelecionados", val); aplicarHighlights();
-      return;
-    }
-
-    // Placar FT (clique no resto da célula)
-    const val = placar.getAttribute("data-score-ft"); if (!val) return;
-    Estado.toggleSelecao("placarFTSelecionados", val); aplicarHighlights();
-  });
-}
-
 function criarTabela(dados, oddsData, proximosJogos) {
   criarOuObterPainel();
 
@@ -3754,7 +3700,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
   thead.appendChild(trMinutos);
 
   tabelaBody.innerHTML = "";
-  _garantirCliqueTabela(tabelaBody);
 
   const seletorHoras      = document.querySelector("#seletorHoras");
   const seletorResultado  = document.querySelector("#seletorResultado");
@@ -3831,6 +3776,42 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
 
 
+  function handleFTClick(e) {
+    if(e.target.classList.contains("time-casa")||e.target.classList.contains("time-fora")) return;
+    if(e.target.classList.contains("ht-span")||e.target.closest(".ht-span")) return;
+    const placarEl=e.currentTarget; if(placarEl.classList.contains("placar-futuro")) return;
+    const val=placarEl.getAttribute("data-score-ft"); if(!val) return;
+    Estado.toggleSelecao("placarFTSelecionados",val); aplicarHighlights();
+  }
+  function handleHTClick(e) {
+    e.stopPropagation();
+    const htSpan=e.currentTarget;
+    const placarEl=htSpan.closest(".placar"); if(!placarEl||placarEl.classList.contains("placar-futuro")) return;
+    const val=placarEl.getAttribute("data-score-ht"); if(!val) return;
+    Estado.toggleSelecao("placarHTSelecionados",val); aplicarHighlights();
+  }
+  function handleTimeClick(e) {
+    if(!mostrarTimes) return; const val=e.target.getAttribute("data-full-time"); if(!val) return;
+    Estado.toggleSelecao("timesSelecionados",val); aplicarHighlights();
+  }
+  function handleOddClick(e) {
+    e.stopPropagation();
+    const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
+    if (!txt || txt === "N/A") return;
+    Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
+  }
+  function handleTimeClickFuturo(e) {
+    e.stopPropagation();
+    const val = e.currentTarget.getAttribute("data-full-time"); if(!val) return;
+    Estado.toggleSelecao("timesSelecionados", val); aplicarHighlights();
+  }
+  function handleOddClickFuturo(e) {
+    e.stopPropagation();
+    const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
+    if (!txt || txt === "N/A") return;
+    Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
+  }
+
 
   const totalGolsPorColuna    = Array(minutosFixos.length).fill(0);
   const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
@@ -3872,10 +3853,16 @@ function criarTabela(dados, oddsData, proximosJogos) {
     if(mostrarOdds){
       const ov=getOddValue(oddsMatch,selRes);
       const oel=document.createElement("div"); oel.className="odds"; oel.textContent=`@${ov}`;
-      placar.appendChild(oel);
+      oel.addEventListener("click",handleOddClick); placar.appendChild(oel);
     }
     renderizarBadgesMercadosExtras(placar, oddsMatch);
 
+    placar.addEventListener("click",handleFTClick);
+    if(mostrarHT) { const hs=placarTexto.querySelector(".ht-span"); if(hs) hs.addEventListener("click",handleHTClick); }
+    if(mostrarTimes){
+      placar.querySelector(".time-casa")?.addEventListener("click",handleTimeClick);
+      placar.querySelector(".time-fora")?.addEventListener("click",handleTimeClick);
+    }
 
     const oddTip=getOddValue(oddsMatch,selRes);
     const tooltip=document.createElement("span"); tooltip.className="tooltip";
@@ -3929,6 +3916,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     resPorColuna[idx].push({ chave, ts: tsPorChave[chave] || 0, acerto: !!acerto, odd: (isFinite(oddNum) && oddNum > 1) ? oddNum : null });
 
     cel.setAttribute("data-resultado", acerto ? "acerto" : "erro");
+    cel.style.setProperty("background-color", acerto ? Estado.corGreen : Estado.corRed, "important");
     aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB);
 
     if(acerto){linha.children[linha.children.length-1].textContent=parseInt(linha.children[linha.children.length-1].textContent)+1;totalAcertosPorColuna[idx]++;}
@@ -3937,15 +3925,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
 
 
-  const _chavesRes = new Set();
-  dados.forEach(d=>{ _chavesRes.add(`${normalizeString(d.time_a)}|${normalizeString(d.time_b)}|${getDateStr(d.data)}|${d.hora}|${d.minuto}`); });
-
   proximosComHoras.forEach(jogo=>{
     const dataStr=jogo.captured_date?jogo.captured_date.split("/").reverse().join("-"):jogo.date.toISOString().split("T")[0];
     const chave=`${dataStr}-${jogo.hora}`, linha=mapeamentoChaveLinha[chave];
     const mk=`${jogo.team_home}|${jogo.team_visit}|${chave}|${jogo.minuto}`;
     if(!linha||jogo.minuto===null||processedMatches.has(mk)) return;
-    const jaTemRes=_chavesRes.has(`${normalizeString(jogo.team_home)}|${normalizeString(jogo.team_visit)}|${dataStr}|${jogo.hora}|${jogo.minuto}`);
+    const jaTemRes=dados.some(d=>{const dd=getDateStr(d.data);return normalizeString(d.time_a)===normalizeString(jogo.team_home)&&normalizeString(d.time_b)===normalizeString(jogo.team_visit)&&dd===dataStr&&d.hora===jogo.hora&&d.minuto===jogo.minuto;});
     if(jaTemRes) return;
     const idx=minutosFixos.indexOf(jogo.minuto); if(idx===-1) return;
     const cel=linha.children[1+idx]; if(cel.querySelector(".placar")) return;
@@ -3969,6 +3954,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
     if(mostrarOdds && oddVal && oddVal!=="N/A") {
       const oddDiv=Object.assign(document.createElement("div"),{className:"placar-futuro-odd",textContent:`@${oddVal}`});
+      oddDiv.addEventListener("click", handleOddClickFuturo);
       if(Estado.oddsSelecionadas.includes(oddVal)) {
         const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,oddVal,"odd");
         oddDiv.style.setProperty("--sel-color",cor.bg);
@@ -3981,6 +3967,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
     if(mostrarTimes){
       const timeCasa = placar.querySelector(".time-casa");
       const timeFora = placar.querySelector(".time-fora");
+      timeCasa?.addEventListener("click", handleTimeClickFuturo);
+      timeFora?.addEventListener("click", handleTimeClickFuturo);
       [timeCasa, timeFora].forEach(span => {
         if (!span) return;
         const ft2 = span.getAttribute("data-full-time");
@@ -4016,7 +4004,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   totMercadoCol.forEach((tot,i)=>{
     const acertosCol=totalAcertosPorColuna[i];
     const pct=tot>0?Math.floor((acertosCol/tot)*100):0;
-    const cell=document.createElement("td"); cell.className=`col-combo-top ${getClassePct(pct)}`; cell.style.setProperty("--pct", pct+"%");
+    const cell=document.createElement("td"); cell.className=`col-combo-top ${getClassePct(pct)}`;
     cell.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">${acertosCol}</span>`;
     trDadosColuna.appendChild(cell);
   });
@@ -4035,7 +4023,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const tdDadosRow=row.children[row.children.length-1];
     const acertos=parseInt(tdDadosRow.textContent)||0;
     const pct=total>0?Math.floor((acertos/total)*100):0;
-    tdDadosRow.className=`col-combo ${getClassePct(pct)}`; tdDadosRow.style.setProperty("--pct", pct+"%");
+    tdDadosRow.className=`col-combo ${getClassePct(pct)}`;
     tdDadosRow.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">${acertos}</span>`;
   });
 
@@ -4959,83 +4947,4 @@ function sincronizarEstiloBtnMercadosExtras() {
  } catch (e) {
    console.error("Erro ao iniciar popover de mercados extras:", e);
  }
-})();
-
-
-// ═══════════════════════════════════════════════════════════════
-//  VISUAL MODERNO (opção A): célula escura + barra lateral colorida
-//  As cores continuam vindo do botão "Cor Green / Cor Red" (--cor-green / --cor-red)
-// ═══════════════════════════════════════════════════════════════
-(function injectEstiloModerno() {
-  if (document.getElementById("tabela-moderna")) return;
-  const st = document.createElement("style");
-  st.id = "tabela-moderna";
-  st.textContent = `
-    :root {
-      --tb-barra-g: #1fbf45;
-      --tb-barra-r: #d9382c;
-    }
-    @supports (color: color-mix(in srgb, red 50%, blue)) {
-      :root {
-        --tb-barra-g: color-mix(in srgb, var(--cor-green, #007004) 45%, #2bff6a);
-        --tb-barra-r: color-mix(in srgb, var(--cor-red,   #980b01) 45%, #ff4a3d);
-      }
-    }
-
-    /* Célula de resultado: fundo escuro + barra lateral + leve tinta da cor */
-    #tabelaResultados td[data-resultado] {
-      background-color: #13161c !important;
-      background-repeat: no-repeat !important;
-      background-size: 3px calc(100% - 10px), 100% 100% !important;
-      background-position: left center, 0 0 !important;
-      transition: background-color .12s ease;
-    }
-    #tabelaResultados td[data-resultado="acerto"] {
-      background-image:
-        linear-gradient(var(--tb-barra-g), var(--tb-barra-g)),
-        linear-gradient(90deg, rgba(31,191,69,.16), transparent 75%) !important;
-    }
-    #tabelaResultados td[data-resultado="erro"] {
-      background-image:
-        linear-gradient(var(--tb-barra-r), var(--tb-barra-r)),
-        linear-gradient(90deg, rgba(217,56,44,.16), transparent 75%) !important;
-    }
-    @supports (color: color-mix(in srgb, red 50%, blue)) {
-      #tabelaResultados td[data-resultado="acerto"] {
-        background-image:
-          linear-gradient(var(--tb-barra-g), var(--tb-barra-g)),
-          linear-gradient(90deg, color-mix(in srgb, var(--cor-green, #007004) 40%, transparent), transparent 75%) !important;
-      }
-      #tabelaResultados td[data-resultado="erro"] {
-        background-image:
-          linear-gradient(var(--tb-barra-r), var(--tb-barra-r)),
-          linear-gradient(90deg, color-mix(in srgb, var(--cor-red, #980b01) 40%, transparent), transparent 75%) !important;
-      }
-    }
-    #tabelaResultados td[data-resultado]:hover { background-color: #1a1e27 !important; }
-
-    /* Hierarquia: placar em destaque, odd discreta */
-    #tabelaResultados td[data-resultado] .placar-texto { color: #f3f4f6; }
-    #tabelaResultados td[data-resultado] .ft-span { font-size: 1.12em; font-weight: 800; letter-spacing: .03em; }
-    #tabelaResultados td[data-resultado] .odds { font-size: .78em; font-weight: 600; color: #8b93a3; }
-    #tabelaResultados td[data-resultado="acerto"] .odds:not(.odd-selecionada) { color: #7fd69a; }
-    #tabelaResultados td[data-resultado="erro"]   .odds:not(.odd-selecionada) { color: #e29a94; }
-
-    /* Linhas de grade mais discretas (preserva a divisória dos quadrantes) */
-    #tabelaResultados td:not(.quadrant-border),
-    #tabelaResultados th:not(.quadrant-border) { border-color: #1c2029 !important; }
-
-    /* Barrinha de % no cabeçalho e na coluna lateral */
-    #tabelaResultados td.col-combo-top,
-    #tabelaResultados td.col-combo { position: relative; }
-    #tabelaResultados td.col-combo-top[style*="--pct"]::after,
-    #tabelaResultados td.col-combo[style*="--pct"]::after {
-      content: ""; position: absolute; left: 0; bottom: 0; height: 2px;
-      width: var(--pct); border-radius: 0 2px 2px 0; opacity: .9;
-    }
-    #tabelaResultados .pct-verde::after    { background: #3ddc6a; }
-    #tabelaResultados .pct-amarelo::after  { background: #facc15; }
-    #tabelaResultados .pct-vermelho::after { background: #f87171; }
-  `;
-  document.head.appendChild(st);
 })();
