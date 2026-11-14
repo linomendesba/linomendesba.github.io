@@ -4972,21 +4972,21 @@ function sincronizarEstiloBtnMercadosExtras() {
   st.id = "tabela-moderna";
   st.textContent = `
     :root {
-      --tb-tint-g: rgba(31,191,69,.20);   --tb-borda-g: rgba(43,230,90,.65);
-      --tb-tint-r: rgba(217,56,44,.20);   --tb-borda-r: rgba(240,80,66,.65);
+      --tb-tint-g: rgba(31,191,69,.62);   --tb-borda-g: rgba(43,230,90,.65);
+      --tb-tint-r: rgba(217,56,44,.62);   --tb-borda-r: rgba(240,80,66,.65);
     }
     @supports (color: color-mix(in srgb, red 50%, blue)) {
       :root {
-        --tb-tint-g:  color-mix(in srgb, var(--cor-green, #007004) 42%, transparent);
-        --tb-borda-g: color-mix(in srgb, color-mix(in srgb, var(--cor-green, #007004) 45%, #2bff6a) 80%, transparent);
-        --tb-tint-r:  color-mix(in srgb, var(--cor-red, #980b01) 42%, transparent);
-        --tb-borda-r: color-mix(in srgb, color-mix(in srgb, var(--cor-red, #980b01) 45%, #ff4a3d) 80%, transparent);
+        --tb-tint-g:  color-mix(in srgb, var(--cor-green, #007004) 90%, transparent);
+        --tb-borda-g: color-mix(in srgb, color-mix(in srgb, var(--cor-green, #007004) 45%, #2bff6a) 95%, transparent);
+        --tb-tint-r:  color-mix(in srgb, var(--cor-red, #980b01) 90%, transparent);
+        --tb-borda-r: color-mix(in srgb, color-mix(in srgb, var(--cor-red, #980b01) 45%, #ff4a3d) 95%, transparent);
       }
     }
 
     /* Célula de resultado: fundo escuro tingido + borda fina colorida */
     :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] {
-      background-color: #12151b !important;
+      background-color: #171b22 !important;
       background-repeat: no-repeat !important;
       background-size: 100% 100% !important;
       background-position: 0 0 !important;
@@ -4994,24 +4994,24 @@ function sincronizarEstiloBtnMercadosExtras() {
       transition: background-color .12s ease, box-shadow .12s ease;
     }
     :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] {
-      background-image: linear-gradient(135deg, var(--tb-tint-g), transparent 130%) !important;
+      background-image: linear-gradient(135deg, var(--tb-tint-g), transparent 190%) !important;
       box-shadow: inset 0 0 0 1px var(--tb-borda-g);
     }
     :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"] {
-      background-image: linear-gradient(135deg, var(--tb-tint-r), transparent 130%) !important;
+      background-image: linear-gradient(135deg, var(--tb-tint-r), transparent 190%) !important;
       box-shadow: inset 0 0 0 1px var(--tb-borda-r);
     }
     :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"].zg-hot {
       box-shadow: inset 0 0 0 1px var(--tb-borda-g), inset 0 0 8px rgba(0,255,60,.3);
     }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado]:hover { background-color: #181c24 !important; }
+    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado]:hover { background-color: #1e232c !important; filter: brightness(1.15); }
 
     /* Hierarquia: placar em destaque, odd discreta */
     :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .placar-texto { color: #f3f4f6; }
     :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .ft-span { font-size: 1.12em; font-weight: 800; letter-spacing: .03em; }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .odds { font-size: .78em; font-weight: 600; color: #8b93a3; }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] .odds:not(.odd-selecionada) { color: #7fd69a; }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"]   .odds:not(.odd-selecionada) { color: #e29a94; }
+    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .odds { font-size: .78em; font-weight: 600; color: #a3acbb; }
+    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] .odds:not(.odd-selecionada) { color: #a6ecbb; }
+    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"]   .odds:not(.odd-selecionada) { color: #f1b3ad; }
 
     /* Linhas de grade mais discretas (preserva a divisória dos quadrantes) */
     :is(#tabelaResultados, #selectedRowsContainer) td:not(.quadrant-border),
