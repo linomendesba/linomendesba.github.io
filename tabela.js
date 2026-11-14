@@ -4386,16 +4386,21 @@ async function precarregarLigasIrmas() {
 }
 
 // Junta num único render as respostas que chegam quase juntas (resultados, odds, próximos)
+function _renderDoCache() {
+  if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) return;
+  try {
+    qdDadosCache = _cacheResultados;
+    renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, false);
+    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+  } catch (e) { console.error("Erro ao renderizar tabela:", e); }
+}
 function agendarRender() {
+  // Aba em segundo plano: o navegador segura setTimeout (1s ou até 1 min), então renderiza direto
+  if (document.hidden) { _renderDoCache(); return; }
   if (_renderTimer) return;
   _renderTimer = setTimeout(() => {
     _renderTimer = null;
-    if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) return;
-    try {
-      qdDadosCache = _cacheResultados;
-      renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, false);
-      if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
-    } catch (e) { console.error("Erro ao renderizar tabela:", e); }
+    _renderDoCache();
   }, 30);
 }
 
@@ -4772,7 +4777,7 @@ let _buscando = false;
 let _buscandoDesde = 0;
 const BUSCA_TRAVA_MAX_MS = 15000; 
 async function _buscarDadosSeguro() {
-  if (!_tabVisibleTabela) return;
+  if (!_naTelaTabela) return; // split: liga fora da área visível continua parada; aba em 2º plano NÃO pausa mais
   if (_buscando && (Date.now() - _buscandoDesde) < BUSCA_TRAVA_MAX_MS) return;
   _buscando = true;
   _buscandoDesde = Date.now();
@@ -4783,7 +4788,10 @@ async function _buscarDadosSeguro() {
 let _naTelaTabela = true;
 document.addEventListener('visibilitychange', () => {
   _tabVisibleTabela = !document.hidden && _naTelaTabela;
-  if (_tabVisibleTabela) _buscarDadosSeguro();
+  if (!document.hidden) {
+    _renderDoCache();        // pinta na hora o que chegou em segundo plano
+    _buscarDadosSeguro();    // e já busca o que faltar
+  }
 });
 
 // No split.html há várias ligas empilhadas: as que estão fora da tela param de buscar dados
@@ -4794,7 +4802,7 @@ if (_modoSplit() && "IntersectionObserver" in window) {
     if (visivel === _naTelaTabela) return;
     _naTelaTabela = visivel;
     _tabVisibleTabela = !document.hidden && visivel;
-    if (_tabVisibleTabela) _buscarDadosSeguro();
+    if (visivel) _buscarDadosSeguro();
   }, { rootMargin: "300px 0px" }).observe(document.body);
 }
 
@@ -4803,7 +4811,29 @@ buscarDados();
 setTimeout(precarregarLigasIrmas, 4000);
 setInterval(precarregarLigasIrmas, 15000);
 setTimeout(iniciarObserverStreak, 1000);
-setInterval(_buscarDadosSeguro, 3000);
+// Relógio da busca: roda num Web Worker porque setInterval na thread principal é limitado
+// pelo navegador em aba oculta (1x/s e, depois de ~5 min, 1x/min). Se o Worker não puder ser criado, cai no setInterval.
+const BUSCA_INTERVALO_MS = 3000;
+const BUSCA_INTERVALO_BG_MS = 5000; // em segundo plano não precisa ser tão frequente
+let _ultimaBuscaBg = 0;
+function _tickBusca() {
+  if (document.hidden) {
+    const t = Date.now();
+    if (t - _ultimaBuscaBg < BUSCA_INTERVALO_BG_MS) return;
+    _ultimaBuscaBg = t;
+  }
+  _buscarDadosSeguro();
+}
+(function iniciarRelogioBusca() {
+  let caiuNoFallback = false;
+  const fallback = () => { if (caiuNoFallback) return; caiuNoFallback = true; setInterval(_tickBusca, BUSCA_INTERVALO_MS); };
+  try {
+    const url = URL.createObjectURL(new Blob([`setInterval(function(){postMessage(0)},${BUSCA_INTERVALO_MS});`], { type: "text/javascript" }));
+    const w = new Worker(url);
+    w.onmessage = _tickBusca;
+    w.onerror = () => { try { w.terminate(); } catch (e) {} fallback(); };
+  } catch (e) { fallback(); }
+})();
 
 
 const _sh=document.querySelector("#seletorHoras");
