@@ -2070,6 +2070,7 @@ function garantirPainelCores() {
       Aplicar
     </button>
     <button class="btn-reset-cores" id="btn-reset-cores">${SVG_ICONS.reset} Resetar padrão</button>
+    <button class="btn-reset-cores" id="btn-estilo-celulas" type="button" title="Alternar entre célula moderna (fundo tingido + borda) e clássica (cor chapada)">Estilo: Moderno</button>
     <label class="alerta-toggle-label" id="lbl-streak-alerta">
       <input type="checkbox" id="cb-streak-alerta">
       Máx. consecutiva
@@ -2099,6 +2100,12 @@ function garantirPainelCores() {
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
   el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
   el.querySelector("#btn-aplicar-cores").addEventListener("click", () => { aplicarCoresCelulas(); showToast("Cores aplicadas!"); });
+  el.querySelector("#btn-estilo-celulas").addEventListener("click", () => {
+    try { localStorage.setItem("estiloCelulas", estiloCelulasAtual() === "classico" ? "moderno" : "classico"); } catch (e) {}
+    aplicarEstiloCelulas();
+    showToast("Estilo das células: " + (estiloCelulasAtual() === "classico" ? "Clássico" : "Moderno"));
+  });
+  aplicarEstiloCelulas();
   el.querySelector("#cb-streak-alerta").addEventListener("change", function() {
     localStorage.setItem("alertaStreakAtivo", this.checked ? "1" : "0");
     atualizarCheckboxStreak(); calcularStreakMaximo();
@@ -5037,7 +5044,7 @@ function sincronizarEstiloBtnMercadosExtras() {
     }
 
     /* Célula de resultado: fundo escuro tingido + borda fina colorida */
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] {
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] {
       background-color: #171b22 !important;
       background-repeat: no-repeat !important;
       background-size: 100% 100% !important;
@@ -5045,41 +5052,57 @@ function sincronizarEstiloBtnMercadosExtras() {
       border-radius: 6px;
       transition: background-color .12s ease, box-shadow .12s ease;
     }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] {
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] {
       background-image: linear-gradient(135deg, var(--tb-tint-g), transparent 190%) !important;
       box-shadow: inset 0 0 0 1px var(--tb-borda-g);
     }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"] {
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"] {
       background-image: linear-gradient(135deg, var(--tb-tint-r), transparent 190%) !important;
       box-shadow: inset 0 0 0 1px var(--tb-borda-r);
     }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"].zg-hot {
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"].zg-hot {
       box-shadow: inset 0 0 0 1px var(--tb-borda-g), inset 0 0 8px rgba(0,255,60,.3);
     }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado]:hover { background-color: #1e232c !important; filter: brightness(1.15); }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado]:hover { background-color: #1e232c !important; filter: brightness(1.15); }
 
     /* Hierarquia: placar em destaque, odd discreta */
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .placar-texto { color: #f3f4f6; }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .ft-span { font-size: 1.12em; font-weight: 800; letter-spacing: .03em; }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .odds { font-size: .78em; font-weight: 600; color: #a3acbb; }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] .odds:not(.odd-selecionada) { color: #a6ecbb; }
-    :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"]   .odds:not(.odd-selecionada) { color: #f1b3ad; }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .placar-texto { color: #f3f4f6; }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .ft-span { font-size: 1.12em; font-weight: 800; letter-spacing: .03em; }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .odds { font-size: .78em; font-weight: 600; color: #a3acbb; }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] .odds:not(.odd-selecionada) { color: #a6ecbb; }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"]   .odds:not(.odd-selecionada) { color: #f1b3ad; }
 
     /* Linhas de grade mais discretas (preserva a divisória dos quadrantes) */
-    :is(#tabelaResultados, #selectedRowsContainer) td:not(.quadrant-border),
-    :is(#tabelaResultados, #selectedRowsContainer) th:not(.quadrant-border) { border-color: #1c2029 !important; }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td:not(.quadrant-border),
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) th:not(.quadrant-border) { border-color: #1c2029 !important; }
 
     /* Barrinha de % no cabeçalho e na coluna lateral */
-    :is(#tabelaResultados, #selectedRowsContainer) td.col-combo-top,
-    :is(#tabelaResultados, #selectedRowsContainer) td.col-combo { position: relative; }
-    :is(#tabelaResultados, #selectedRowsContainer) td.col-combo-top[style*="--pct"]::after,
-    :is(#tabelaResultados, #selectedRowsContainer) td.col-combo[style*="--pct"]::after {
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td.col-combo-top,
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td.col-combo { position: relative; }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td.col-combo-top[style*="--pct"]::after,
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td.col-combo[style*="--pct"]::after {
       content: ""; position: absolute; left: 0; bottom: 0; height: 2px;
       width: var(--pct); border-radius: 0 2px 2px 0; opacity: .9;
     }
-    :is(#tabelaResultados, #selectedRowsContainer) .pct-verde::after    { background: #3ddc6a; }
-    :is(#tabelaResultados, #selectedRowsContainer) .pct-amarelo::after  { background: #facc15; }
-    :is(#tabelaResultados, #selectedRowsContainer) .pct-vermelho::after { background: #f87171; }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .pct-verde::after    { background: #3ddc6a; }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .pct-amarelo::after  { background: #facc15; }
+    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .pct-vermelho::after { background: #f87171; }
+
+    /* Estilo clássico: célula chapada com a cor cheia (como era antes) */
+    html.estilo-classico :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] { background-color: var(--cor-green, #018b06) !important; }
+    html.estilo-classico :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"]   { background-color: var(--cor-red,   #be0e02) !important; }
   `;
   document.head.appendChild(st);
 })();
+
+// Estilo das células: "moderno" (padrão) ou "classico" (chapado). Preferência salva no navegador, vale para todas as ligas.
+function estiloCelulasAtual() {
+  try { return localStorage.getItem("estiloCelulas") === "classico" ? "classico" : "moderno"; }
+  catch (e) { return "moderno"; }
+}
+function aplicarEstiloCelulas() {
+  document.documentElement.classList.toggle("estilo-classico", estiloCelulasAtual() === "classico");
+  const b = document.getElementById("btn-estilo-celulas");
+  if (b) b.textContent = "Estilo: " + (estiloCelulasAtual() === "classico" ? "Clássico" : "Moderno");
+}
+aplicarEstiloCelulas();
