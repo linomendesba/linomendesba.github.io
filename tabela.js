@@ -3116,12 +3116,115 @@ function _qsHoras(horas) {
 
 // O nome do memo inclui a liga: assim ligas diferentes nunca se misturam nem "brigam" pelo mesmo cache.
 // `liga` e `usarMemo` existem para o pré-carregamento das outras ligas (usarMemo=false não guarda texto na memória).
+// ═══════════════════════════════════════════════════════════════
+//  ROTA ÚNICA (/tabela/combo): resultados + próximos (e odds na primeira carga) numa só requisição
+//  Se a rota não existir/falhar, volta sozinho para as 3 rotas de antes (pausa de 60s e tenta de novo)
+// ═══════════════════════════════════════════════════════════════
+// <<COMBO_CLIENTE
+const _COMBO_OFF = Symbol("combo-off");
+const COMBO_PAUSA_MS = 60000;
+let _comboPausadoAte = 0;
+let _comboLote = null;                 // pedidos feitos no mesmo instante, enviados juntos
+const _comboMem = Object.create(null); // última resposta de cada parte (+hash) para não baixar de novo o que não mudou
+let _comboUltimoMs = null;             // tempos por parte da última resposta (veja no console: _comboUltimoMs)
+
+// Caminhos da liga no formato da API ("/resultados/...", "/odds/...", "/proximos/...") + prefixo do site (ex.: "/api")
+function _comboUrls(liga) {
+  if (typeof ROTAS_API === "undefined") return null;
+  const mk = (u) => new URL(u, location.href);
+  const r = mk(ROTAS_API.resultados(liga));
+  const o = typeof ROTAS_API.odds === "function" ? mk(ROTAS_API.odds(liga)) : null;
+  const p = typeof ROTAS_API.proximosJogos === "function" ? mk(ROTAS_API.proximosJogos(liga)) : null;
+  if (r.search || (o && o.search) || (p && p.search)) return null;
+  if ((o && o.origin !== r.origin) || (p && p.origin !== r.origin)) return null;
+  const i = r.pathname.indexOf("/resultados/");
+  if (i < 0) return null;
+  const prefixo = r.pathname.slice(0, i);
+  const rel = (u, nome) => (u && u.pathname.startsWith(prefixo + "/" + nome + "/")) ? u.pathname.slice(prefixo.length) : null;
+  return {
+    endpoint: r.origin + prefixo + "/tabela/combo",
+    caminhos: { resultados: rel(r, "resultados"), odds: rel(o, "odds"), proximos: rel(p, "proximos") }
+  };
+}
+
+// Devolve uma Promise com o JSON da parte, ou null se a rota única não se aplica (aí vale a rota normal)
+function _comboParte(parte, horas, liga) {
+  if (Date.now() < _comboPausadoAte) return null;
+  if (parte === "odds" && !_renderSegurado) return null; // odds só vão junto na primeira carga (depois seguem em segundo plano)
+  let urls;
+  try { urls = _comboUrls(liga); } catch (e) { return null; }
+  if (!urls || !urls.caminhos[parte]) return null;
+  if (!_comboLote || _comboLote.liga !== liga) {
+    const lote = _comboLote = { liga, horas: null, urls, partes: {} };
+    Promise.resolve().then(() => { if (_comboLote === lote) _comboLote = null; _comboEnviar(lote); });
+  }
+  if (parte !== "proximos" && horas !== undefined) _comboLote.horas = horas;
+  return new Promise((resolve, reject) => {
+    (_comboLote.partes[parte] = _comboLote.partes[parte] || []).push({ resolve, reject });
+  });
+}
+
+async function _comboEnviar(lote) {
+  const nomes = Object.keys(lote.partes);
+  const chaveMem = (n) => `${n}:${lote.liga}:${n === "proximos" ? "x" : (Number.isFinite(lote.horas) ? Math.ceil(lote.horas) : "tudo")}`;
+  const qs = new URLSearchParams();
+  nomes.forEach(n => {
+    qs.set(n, lote.urls.caminhos[n]);
+    const m = _comboMem[chaveMem(n)];
+    if (m && m.hash) qs.set("h_" + n, m.hash);
+  });
+  qs.set("inclui", nomes.join(","));
+  if (Number.isFinite(lote.horas) && lote.horas > 0) qs.set("horas", Math.ceil(lote.horas));
+  qs.set("timestamp", Date.now());
+
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), nomes.includes("odds") ? FETCH_TIMEOUT_ODDS_MS : FETCH_TIMEOUT_MS);
+  let j;
+  try {
+    const res = await fetch(lote.urls.endpoint + "?" + qs.toString(), { cache: "no-store", signal: ctrl.signal });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    j = JSON.parse(await res.text());
+    if (!j || typeof j !== "object") throw new Error("resposta inválida");
+  } catch (e) {
+    // rota única indisponível: cada parte volta para a sua rota normal e a rota única descansa um pouco
+    _comboPausadoAte = Date.now() + COMBO_PAUSA_MS;
+    console.warn("Rota única indisponível, usando as rotas separadas:", e && e.message);
+    nomes.forEach(n => lote.partes[n].forEach(w => w.resolve(_COMBO_OFF)));
+    return;
+  } finally {
+    clearTimeout(t);
+  }
+
+  _comboUltimoMs = j.ms || null;
+  nomes.forEach(n => {
+    const chave = chaveMem(n);
+    let v = j[n];
+    if (v && v.__igual === true) {
+      const m = _comboMem[chave];
+      v = m ? m.json : null;
+    } else if (v != null) {
+      const h = j.hash && j.hash[n];
+      if (h) _comboMem[chave] = { hash: h, json: v };
+    }
+    lote.partes[n].forEach(w => v != null ? w.resolve(v) : w.reject(new Error("Falha ao buscar " + n)));
+  });
+}
+// COMBO_CLIENTE>>
+
 async function fetchResultados(horas, liga = LIGA_ATUAL, usarMemo = true) {
+  if (usarMemo) {
+    const c = _comboParte("resultados", horas, liga);
+    if (c) { const r = await c; if (r !== _COMBO_OFF) return r; }
+  }
   return fetchJsonComTimeout(ROTAS_API.resultados(liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "resultados:" + liga, FETCH_TIMEOUT_MS, usarMemo);
 }
 
 async function fetchOdds(horas, liga = LIGA_ATUAL, usarMemo = true) {
   try {
+    if (usarMemo) {
+      const c = _comboParte("odds", horas, liga);
+      if (c) { const r = await c; if (r !== _COMBO_OFF) return r; }
+    }
     return await fetchJsonComTimeout(ROTAS_API.odds(liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "odds:" + liga, FETCH_TIMEOUT_ODDS_MS, usarMemo);
   } catch(e) {
     console.error("Erro odds:", e);
@@ -3132,7 +3235,12 @@ async function fetchOdds(horas, liga = LIGA_ATUAL, usarMemo = true) {
 const _proxMemo = new Map();
 async function fetchProximosJogos(liga = LIGA_ATUAL, usarMemo = true) {
   try {
-    const j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(liga) + `?timestamp=${Date.now()}`, "proximosJogos:" + liga, FETCH_TIMEOUT_MS, usarMemo);
+    let j = null;
+    if (usarMemo) {
+      const c = _comboParte("proximos", undefined, liga);
+      if (c) { const r = await c; if (r !== _COMBO_OFF) j = r; }
+    }
+    if (j === null) j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(liga) + `?timestamp=${Date.now()}`, "proximosJogos:" + liga, FETCH_TIMEOUT_MS, usarMemo);
     const m = usarMemo ? _proxMemo.get(liga) : null;
     if (m && m.src === j) return m.out;
     const out = j.slice().sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
