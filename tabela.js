@@ -4394,7 +4394,14 @@ function _renderDoCache() {
     if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
   } catch (e) { console.error("Erro ao renderizar tabela:", e); }
 }
+// Primeira carga (tabela ainda vazia): segura o desenho até resultados + odds + próximos chegarem juntos
+let _renderSegurado = false;
+let _renderSeguradoVersao = 0;
+let _pOddsAtual = Promise.resolve();
+const PRIMEIRA_CARGA_ESPERA_MAX_MS = 5000; // se algum dos três demorar mais que isso, desenha com o que tiver
+
 function agendarRender() {
+  if (_renderSegurado) return;
   // Aba em segundo plano: o navegador segura setTimeout (1s ou até 1 min), então renderiza direto
   if (document.hidden) { _renderDoCache(); return; }
   if (_renderTimer) return;
@@ -4453,6 +4460,9 @@ async function buscarDados() {
 
   // Os três pedidos saem juntos e cada um atualiza a tela assim que chega,
   // sem um esperar o outro (antes as odds só apareciam depois de odds E próximos).
+  const primeiraCarga = _cacheResultados.length === 0;
+  if (primeiraCarga) { _renderSegurado = true; _renderSeguradoVersao = minhaVersao; }
+
   const pRes = fetchResultados(horas).then(d => {
     if (!ligaNaoMudou()) return;
     _falhasResultadosSeguidas = 0;
@@ -4477,9 +4487,21 @@ async function buscarDados() {
   if (!_oddsEmVoo && precisaOdds) {
     _oddsEmVoo = true;
     _oddsUltimaBusca = agora;
-    fetchOdds(horas).then(o => {
+    _pOddsAtual = fetchOdds(horas).then(o => {
       if (o !== null && ligaNaoMudou()) { _cacheOddsData = o; _cacheHorasOdds = horas; cacheGravarSeMudou(ligaAtual, "odds", o, horas); }
     }).finally(() => { _oddsEmVoo = false; agendarRender(); });
+  }
+
+  // Primeira carga: espera os três (com limite de tempo) e desenha tudo de uma vez
+  if (primeiraCarga) {
+    try {
+      await Promise.race([
+        Promise.allSettled([pRes, _pProxAtual, _pOddsAtual]),
+        new Promise(r => setTimeout(r, PRIMEIRA_CARGA_ESPERA_MAX_MS))
+      ]);
+    } finally {
+      if (_renderSeguradoVersao === minhaVersao) { _renderSegurado = false; _renderDoCache(); }
+    }
   }
 
   // O ciclo só espera os resultados; odds e próximos continuam em segundo plano
