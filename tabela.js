@@ -5203,7 +5203,6 @@ function sincronizarEstiloBtnMercadosExtras() {
   document.head.appendChild(st);
 })();
 
-// Estilo das células: "moderno" (padrão) ou "classico" (chapado). Preferência salva no navegador, vale para todas as ligas.
 function estiloCelulasAtual() {
   try { return localStorage.getItem("estiloCelulas") === "classico" ? "classico" : "moderno"; }
   catch (e) { return "moderno"; }
