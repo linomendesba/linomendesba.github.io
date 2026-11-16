@@ -5135,6 +5135,8 @@ function sincronizarEstiloBtnMercadosExtras() {
 // ═══════════════════════════════════════════════════════════════
 (function injectEstiloModerno() {
   if (document.getElementById("tabela-moderna")) return;
+  // Liga com mais de 20 jogos/hora (ex.: 30) => colunas estreitas => modo compacto
+  document.documentElement.classList.toggle("liga-densa", Array.isArray(minutosFixos) && minutosFixos.length > 20);
   const st = document.createElement("style");
   st.id = "tabela-moderna";
   st.textContent = `
@@ -5195,6 +5197,37 @@ function sincronizarEstiloBtnMercadosExtras() {
     html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .pct-verde::after    { background: #3ddc6a; }
     html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .pct-amarelo::after  { background: #facc15; }
     html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .pct-vermelho::after { background: #f87171; }
+
+    /* ── Ligas densas (mais de 20 jogos/hora, ex.: 30): colunas estreitas ──
+       Placar numa linha só, fonte menor e menos padding, pra não quebrar "0 x / 1" */
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] {
+      padding: 2px 0 !important;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .placar,
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .placar-texto {
+      white-space: nowrap;
+      line-height: 1.1;
+    }
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .ft-span {
+      font-size: 10px; font-weight: 800; letter-spacing: 0; white-space: nowrap;
+    }
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .ht-span {
+      font-size: 8px; white-space: nowrap;
+    }
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .odds {
+      font-size: 8px; font-weight: 600; white-space: nowrap; margin-top: 0;
+    }
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .time-casa,
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .time-fora {
+      font-size: 7px; letter-spacing: 0; white-space: nowrap;
+    }
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .placar-futuro .time-casa,
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .placar-futuro .time-fora,
+    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .placar-futuro .placar-futuro-odd {
+      font-size: 8px; letter-spacing: 0;
+    }
 
     /* Estilo clássico: célula chapada com a cor cheia (como era antes) */
     html.estilo-classico :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] { background-color: var(--cor-green, #018b06) !important; }
