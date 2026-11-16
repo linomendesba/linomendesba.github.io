@@ -1494,7 +1494,8 @@ function garantirCheckboxQuadrantes() {
     .qd-cell-1 { background-color: rgba(255,255,255,0.05) !important; }
     .qd-cell-2 { background-color: rgba(255,255,255,0.03) !important; }
     .qd-cell-3 { background-color: rgba(255,255,255,0.05) !important; }
-    /* cores de acerto/erro: ver o bloco "tabela-moderna" no fim do arquivo */
+    td[data-resultado="acerto"] { background-color: var(--cor-green, #018b06) !important; }
+    td[data-resultado="erro"]   { background-color: var(--cor-red,   #be0e02) !important; }
 
     #tabelaResultados.tem-coluna-selecionada td:not(.coluna-selecionada)             { filter: brightness(0.45); }
     #tabelaResultados.tem-coluna-selecionada th.minute-header:not(.coluna-selecionada) { filter: brightness(0.45); }
@@ -2048,9 +2049,11 @@ function atualizarCheckboxStreak() {
 
 
 function aplicarCoresCelulas() {
-  const r = document.documentElement.style;
-  r.setProperty("--cor-green", Estado.corGreen);
-  r.setProperty("--cor-red",   Estado.corRed);
+  document.querySelectorAll("td[data-resultado]").forEach(cel => {
+    const tipo = cel.getAttribute("data-resultado");
+    if (tipo === "acerto") cel.style.setProperty("background-color", Estado.corGreen, "important");
+    else if (tipo === "erro") cel.style.setProperty("background-color", Estado.corRed, "important");
+  });
 }
 
 
@@ -2070,7 +2073,6 @@ function garantirPainelCores() {
       Aplicar
     </button>
     <button class="btn-reset-cores" id="btn-reset-cores">${SVG_ICONS.reset} Resetar padrão</button>
-    <button class="btn-reset-cores" id="btn-estilo-celulas" type="button" title="Alternar entre célula moderna (fundo tingido + borda) e clássica (cor chapada)">Estilo: Moderno</button>
     <label class="alerta-toggle-label" id="lbl-streak-alerta">
       <input type="checkbox" id="cb-streak-alerta">
       Máx. consecutiva
@@ -2100,12 +2102,6 @@ function garantirPainelCores() {
   el.querySelector("#input-cor-green").addEventListener("input", e => { Estado.corGreen = e.target.value; Estado.salvar(); });
   el.querySelector("#input-cor-red").addEventListener("input", e => { Estado.corRed = e.target.value; Estado.salvar(); });
   el.querySelector("#btn-aplicar-cores").addEventListener("click", () => { aplicarCoresCelulas(); showToast("Cores aplicadas!"); });
-  el.querySelector("#btn-estilo-celulas").addEventListener("click", () => {
-    try { localStorage.setItem("estiloCelulas", estiloCelulasAtual() === "classico" ? "moderno" : "classico"); } catch (e) {}
-    aplicarEstiloCelulas();
-    showToast("Estilo das células: " + (estiloCelulasAtual() === "classico" ? "Clássico" : "Moderno"));
-  });
-  aplicarEstiloCelulas();
   el.querySelector("#cb-streak-alerta").addEventListener("change", function() {
     localStorage.setItem("alertaStreakAtivo", this.checked ? "1" : "0");
     atualizarCheckboxStreak(); calcularStreakMaximo();
@@ -2960,16 +2956,7 @@ function atualizarColunaStats() {
 
 function showErrorMessage(m){const e=document.getElementById("errorMessage");if(!e)return;e.textContent=m;e.style.display="block";}
 function hideErrorMessage(){const e=document.getElementById("errorMessage");if(!e)return;e.textContent="";e.style.display="none";}
-const _normCache = new Map();
-function normalizeString(s){
-  if(!s) return "";
-  let v = _normCache.get(s);
-  if (v !== undefined) return v;
-  v = s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-  if (_normCache.size > 5000) _normCache.clear();
-  _normCache.set(s, v);
-  return v;
-}
+function normalizeString(s){if(!s)return"";return s.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
 function formatDateToDDMMYYYY(d){if(d.includes("T")){const dt=new Date(d);return`${dt.getUTCDate().toString().padStart(2,"0")}/${(dt.getUTCMonth()+1).toString().padStart(2,"0")}/${dt.getUTCFullYear()}`;}const[dd,mm,yy]=d.split("/");return`${dd.padStart(2,"0")}/${mm.padStart(2,"0")}/${yy}`;}
 const _dateStrCache = new Map();
 function getDateStr(d){
@@ -3116,115 +3103,12 @@ function _qsHoras(horas) {
 
 // O nome do memo inclui a liga: assim ligas diferentes nunca se misturam nem "brigam" pelo mesmo cache.
 // `liga` e `usarMemo` existem para o pré-carregamento das outras ligas (usarMemo=false não guarda texto na memória).
-// ═══════════════════════════════════════════════════════════════
-//  ROTA ÚNICA (/tabela/combo): resultados + próximos (e odds na primeira carga) numa só requisição
-//  Se a rota não existir/falhar, volta sozinho para as 3 rotas de antes (pausa de 60s e tenta de novo)
-// ═══════════════════════════════════════════════════════════════
-// <<COMBO_CLIENTE
-const _COMBO_OFF = Symbol("combo-off");
-const COMBO_PAUSA_MS = 60000;
-let _comboPausadoAte = 0;
-let _comboLote = null;                 // pedidos feitos no mesmo instante, enviados juntos
-const _comboMem = Object.create(null); // última resposta de cada parte (+hash) para não baixar de novo o que não mudou
-let _comboUltimoMs = null;             // tempos por parte da última resposta (veja no console: _comboUltimoMs)
-
-// Caminhos da liga no formato da API ("/resultados/...", "/odds/...", "/proximos/...") + prefixo do site (ex.: "/api")
-function _comboUrls(liga) {
-  if (typeof ROTAS_API === "undefined") return null;
-  const mk = (u) => new URL(u, location.href);
-  const r = mk(ROTAS_API.resultados(liga));
-  const o = typeof ROTAS_API.odds === "function" ? mk(ROTAS_API.odds(liga)) : null;
-  const p = typeof ROTAS_API.proximosJogos === "function" ? mk(ROTAS_API.proximosJogos(liga)) : null;
-  if (r.search || (o && o.search) || (p && p.search)) return null;
-  if ((o && o.origin !== r.origin) || (p && p.origin !== r.origin)) return null;
-  const i = r.pathname.indexOf("/resultados/");
-  if (i < 0) return null;
-  const prefixo = r.pathname.slice(0, i);
-  const rel = (u, nome) => (u && u.pathname.startsWith(prefixo + "/" + nome + "/")) ? u.pathname.slice(prefixo.length) : null;
-  return {
-    endpoint: r.origin + prefixo + "/tabela/combo",
-    caminhos: { resultados: rel(r, "resultados"), odds: rel(o, "odds"), proximos: rel(p, "proximos") }
-  };
-}
-
-// Devolve uma Promise com o JSON da parte, ou null se a rota única não se aplica (aí vale a rota normal)
-function _comboParte(parte, horas, liga) {
-  if (Date.now() < _comboPausadoAte) return null;
-  if (parte === "odds" && !_renderSegurado) return null; // odds só vão junto na primeira carga (depois seguem em segundo plano)
-  let urls;
-  try { urls = _comboUrls(liga); } catch (e) { return null; }
-  if (!urls || !urls.caminhos[parte]) return null;
-  if (!_comboLote || _comboLote.liga !== liga) {
-    const lote = _comboLote = { liga, horas: null, urls, partes: {} };
-    Promise.resolve().then(() => { if (_comboLote === lote) _comboLote = null; _comboEnviar(lote); });
-  }
-  if (parte !== "proximos" && horas !== undefined) _comboLote.horas = horas;
-  return new Promise((resolve, reject) => {
-    (_comboLote.partes[parte] = _comboLote.partes[parte] || []).push({ resolve, reject });
-  });
-}
-
-async function _comboEnviar(lote) {
-  const nomes = Object.keys(lote.partes);
-  const chaveMem = (n) => `${n}:${lote.liga}:${n === "proximos" ? "x" : (Number.isFinite(lote.horas) ? Math.ceil(lote.horas) : "tudo")}`;
-  const qs = new URLSearchParams();
-  nomes.forEach(n => {
-    qs.set(n, lote.urls.caminhos[n]);
-    const m = _comboMem[chaveMem(n)];
-    if (m && m.hash) qs.set("h_" + n, m.hash);
-  });
-  qs.set("inclui", nomes.join(","));
-  if (Number.isFinite(lote.horas) && lote.horas > 0) qs.set("horas", Math.ceil(lote.horas));
-  qs.set("timestamp", Date.now());
-
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), nomes.includes("odds") ? FETCH_TIMEOUT_ODDS_MS : FETCH_TIMEOUT_MS);
-  let j;
-  try {
-    const res = await fetch(lote.urls.endpoint + "?" + qs.toString(), { cache: "no-store", signal: ctrl.signal });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    j = JSON.parse(await res.text());
-    if (!j || typeof j !== "object") throw new Error("resposta inválida");
-  } catch (e) {
-    // rota única indisponível: cada parte volta para a sua rota normal e a rota única descansa um pouco
-    _comboPausadoAte = Date.now() + COMBO_PAUSA_MS;
-    console.warn("Rota única indisponível, usando as rotas separadas:", e && e.message);
-    nomes.forEach(n => lote.partes[n].forEach(w => w.resolve(_COMBO_OFF)));
-    return;
-  } finally {
-    clearTimeout(t);
-  }
-
-  _comboUltimoMs = j.ms || null;
-  nomes.forEach(n => {
-    const chave = chaveMem(n);
-    let v = j[n];
-    if (v && v.__igual === true) {
-      const m = _comboMem[chave];
-      v = m ? m.json : null;
-    } else if (v != null) {
-      const h = j.hash && j.hash[n];
-      if (h) _comboMem[chave] = { hash: h, json: v };
-    }
-    lote.partes[n].forEach(w => v != null ? w.resolve(v) : w.reject(new Error("Falha ao buscar " + n)));
-  });
-}
-// COMBO_CLIENTE>>
-
 async function fetchResultados(horas, liga = LIGA_ATUAL, usarMemo = true) {
-  if (usarMemo) {
-    const c = _comboParte("resultados", horas, liga);
-    if (c) { const r = await c; if (r !== _COMBO_OFF) return r; }
-  }
   return fetchJsonComTimeout(ROTAS_API.resultados(liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "resultados:" + liga, FETCH_TIMEOUT_MS, usarMemo);
 }
 
 async function fetchOdds(horas, liga = LIGA_ATUAL, usarMemo = true) {
   try {
-    if (usarMemo) {
-      const c = _comboParte("odds", horas, liga);
-      if (c) { const r = await c; if (r !== _COMBO_OFF) return r; }
-    }
     return await fetchJsonComTimeout(ROTAS_API.odds(liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "odds:" + liga, FETCH_TIMEOUT_ODDS_MS, usarMemo);
   } catch(e) {
     console.error("Erro odds:", e);
@@ -3235,12 +3119,7 @@ async function fetchOdds(horas, liga = LIGA_ATUAL, usarMemo = true) {
 const _proxMemo = new Map();
 async function fetchProximosJogos(liga = LIGA_ATUAL, usarMemo = true) {
   try {
-    let j = null;
-    if (usarMemo) {
-      const c = _comboParte("proximos", undefined, liga);
-      if (c) { const r = await c; if (r !== _COMBO_OFF) j = r; }
-    }
-    if (j === null) j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(liga) + `?timestamp=${Date.now()}`, "proximosJogos:" + liga, FETCH_TIMEOUT_MS, usarMemo);
+    const j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(liga) + `?timestamp=${Date.now()}`, "proximosJogos:" + liga, FETCH_TIMEOUT_MS, usarMemo);
     const m = usarMemo ? _proxMemo.get(liga) : null;
     if (m && m.src === j) return m.out;
     const out = j.slice().sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
@@ -3770,54 +3649,6 @@ function hfRender(dados) {
 }
 
 
-// Cliques da tabela: UM listener no tbody (antes eram ~5 por célula, recriados a cada render)
-function _garantirCliqueTabela(tbody) {
-  if (!tbody || tbody._cliqueDelegado) return;
-  tbody._cliqueDelegado = true;
-  tbody.addEventListener("click", function (e) {
-    const t = e.target;
-    const placar = t.closest(".placar");
-    if (!placar || !tbody.contains(placar)) return;
-    const futuro = placar.classList.contains("placar-futuro");
-    const mostrarTimes = document.querySelector("#mostrarTimes")?.value === "sim";
-
-    // Odd
-    const oddEl = t.closest(futuro ? ".placar-futuro-odd" : ".odds");
-    if (oddEl && placar.contains(oddEl)) {
-      e.stopPropagation();
-      const txt = oddEl.textContent.trim().replace(/^@/, "");
-      if (!txt || txt === "N/A") return;
-      Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
-      return;
-    }
-
-    // Nome de time
-    const timeEl = t.closest(".time-casa,.time-fora");
-    if (timeEl && placar.contains(timeEl)) {
-      if (!mostrarTimes) return;
-      if (futuro) e.stopPropagation();
-      const val = timeEl.getAttribute("data-full-time"); if (!val) return;
-      Estado.toggleSelecao("timesSelecionados", val); aplicarHighlights();
-      return;
-    }
-
-    if (futuro) return;
-
-    // Placar HT
-    const htEl = t.closest(".ht-span");
-    if (htEl && placar.contains(htEl)) {
-      e.stopPropagation();
-      const val = placar.getAttribute("data-score-ht"); if (!val) return;
-      Estado.toggleSelecao("placarHTSelecionados", val); aplicarHighlights();
-      return;
-    }
-
-    // Placar FT (clique no resto da célula)
-    const val = placar.getAttribute("data-score-ft"); if (!val) return;
-    Estado.toggleSelecao("placarFTSelecionados", val); aplicarHighlights();
-  });
-}
-
 function criarTabela(dados, oddsData, proximosJogos) {
   criarOuObterPainel();
 
@@ -3869,7 +3700,6 @@ function criarTabela(dados, oddsData, proximosJogos) {
   thead.appendChild(trMinutos);
 
   tabelaBody.innerHTML = "";
-  _garantirCliqueTabela(tabelaBody);
 
   const seletorHoras      = document.querySelector("#seletorHoras");
   const seletorResultado  = document.querySelector("#seletorResultado");
@@ -3946,6 +3776,42 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
 
 
+  function handleFTClick(e) {
+    if(e.target.classList.contains("time-casa")||e.target.classList.contains("time-fora")) return;
+    if(e.target.classList.contains("ht-span")||e.target.closest(".ht-span")) return;
+    const placarEl=e.currentTarget; if(placarEl.classList.contains("placar-futuro")) return;
+    const val=placarEl.getAttribute("data-score-ft"); if(!val) return;
+    Estado.toggleSelecao("placarFTSelecionados",val); aplicarHighlights();
+  }
+  function handleHTClick(e) {
+    e.stopPropagation();
+    const htSpan=e.currentTarget;
+    const placarEl=htSpan.closest(".placar"); if(!placarEl||placarEl.classList.contains("placar-futuro")) return;
+    const val=placarEl.getAttribute("data-score-ht"); if(!val) return;
+    Estado.toggleSelecao("placarHTSelecionados",val); aplicarHighlights();
+  }
+  function handleTimeClick(e) {
+    if(!mostrarTimes) return; const val=e.target.getAttribute("data-full-time"); if(!val) return;
+    Estado.toggleSelecao("timesSelecionados",val); aplicarHighlights();
+  }
+  function handleOddClick(e) {
+    e.stopPropagation();
+    const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
+    if (!txt || txt === "N/A") return;
+    Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
+  }
+  function handleTimeClickFuturo(e) {
+    e.stopPropagation();
+    const val = e.currentTarget.getAttribute("data-full-time"); if(!val) return;
+    Estado.toggleSelecao("timesSelecionados", val); aplicarHighlights();
+  }
+  function handleOddClickFuturo(e) {
+    e.stopPropagation();
+    const txt = e.currentTarget.textContent.trim().replace(/^@/, "");
+    if (!txt || txt === "N/A") return;
+    Estado.toggleSelecao("oddsSelecionadas", txt); aplicarHighlights();
+  }
+
 
   const totalGolsPorColuna    = Array(minutosFixos.length).fill(0);
   const totalAcertosPorColuna = Array(minutosFixos.length).fill(0);
@@ -3987,10 +3853,16 @@ function criarTabela(dados, oddsData, proximosJogos) {
     if(mostrarOdds){
       const ov=getOddValue(oddsMatch,selRes);
       const oel=document.createElement("div"); oel.className="odds"; oel.textContent=`@${ov}`;
-      placar.appendChild(oel);
+      oel.addEventListener("click",handleOddClick); placar.appendChild(oel);
     }
     renderizarBadgesMercadosExtras(placar, oddsMatch);
 
+    placar.addEventListener("click",handleFTClick);
+    if(mostrarHT) { const hs=placarTexto.querySelector(".ht-span"); if(hs) hs.addEventListener("click",handleHTClick); }
+    if(mostrarTimes){
+      placar.querySelector(".time-casa")?.addEventListener("click",handleTimeClick);
+      placar.querySelector(".time-fora")?.addEventListener("click",handleTimeClick);
+    }
 
     const oddTip=getOddValue(oddsMatch,selRes);
     const tooltip=document.createElement("span"); tooltip.className="tooltip";
@@ -4044,6 +3916,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     resPorColuna[idx].push({ chave, ts: tsPorChave[chave] || 0, acerto: !!acerto, odd: (isFinite(oddNum) && oddNum > 1) ? oddNum : null });
 
     cel.setAttribute("data-resultado", acerto ? "acerto" : "erro");
+    cel.style.setProperty("background-color", acerto ? Estado.corGreen : Estado.corRed, "important");
     aplicarDestaquesMercadosExtras(cel, rA, rB, htA, htB);
 
     if(acerto){linha.children[linha.children.length-1].textContent=parseInt(linha.children[linha.children.length-1].textContent)+1;totalAcertosPorColuna[idx]++;}
@@ -4052,15 +3925,12 @@ function criarTabela(dados, oddsData, proximosJogos) {
   });
 
 
-  const _chavesRes = new Set();
-  dados.forEach(d=>{ _chavesRes.add(`${normalizeString(d.time_a)}|${normalizeString(d.time_b)}|${getDateStr(d.data)}|${d.hora}|${d.minuto}`); });
-
   proximosComHoras.forEach(jogo=>{
     const dataStr=jogo.captured_date?jogo.captured_date.split("/").reverse().join("-"):jogo.date.toISOString().split("T")[0];
     const chave=`${dataStr}-${jogo.hora}`, linha=mapeamentoChaveLinha[chave];
     const mk=`${jogo.team_home}|${jogo.team_visit}|${chave}|${jogo.minuto}`;
     if(!linha||jogo.minuto===null||processedMatches.has(mk)) return;
-    const jaTemRes=_chavesRes.has(`${normalizeString(jogo.team_home)}|${normalizeString(jogo.team_visit)}|${dataStr}|${jogo.hora}|${jogo.minuto}`);
+    const jaTemRes=dados.some(d=>{const dd=getDateStr(d.data);return normalizeString(d.time_a)===normalizeString(jogo.team_home)&&normalizeString(d.time_b)===normalizeString(jogo.team_visit)&&dd===dataStr&&d.hora===jogo.hora&&d.minuto===jogo.minuto;});
     if(jaTemRes) return;
     const idx=minutosFixos.indexOf(jogo.minuto); if(idx===-1) return;
     const cel=linha.children[1+idx]; if(cel.querySelector(".placar")) return;
@@ -4084,6 +3954,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
 
     if(mostrarOdds && oddVal && oddVal!=="N/A") {
       const oddDiv=Object.assign(document.createElement("div"),{className:"placar-futuro-odd",textContent:`@${oddVal}`});
+      oddDiv.addEventListener("click", handleOddClickFuturo);
       if(Estado.oddsSelecionadas.includes(oddVal)) {
         const cor=Estado.getCorSelecao(Estado.oddsSelecionadas,oddVal,"odd");
         oddDiv.style.setProperty("--sel-color",cor.bg);
@@ -4096,6 +3967,8 @@ function criarTabela(dados, oddsData, proximosJogos) {
     if(mostrarTimes){
       const timeCasa = placar.querySelector(".time-casa");
       const timeFora = placar.querySelector(".time-fora");
+      timeCasa?.addEventListener("click", handleTimeClickFuturo);
+      timeFora?.addEventListener("click", handleTimeClickFuturo);
       [timeCasa, timeFora].forEach(span => {
         if (!span) return;
         const ft2 = span.getAttribute("data-full-time");
@@ -4131,7 +4004,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
   totMercadoCol.forEach((tot,i)=>{
     const acertosCol=totalAcertosPorColuna[i];
     const pct=tot>0?Math.floor((acertosCol/tot)*100):0;
-    const cell=document.createElement("td"); cell.className=`col-combo-top ${getClassePct(pct)}`; cell.style.setProperty("--pct", pct+"%");
+    const cell=document.createElement("td"); cell.className=`col-combo-top ${getClassePct(pct)}`;
     cell.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">${acertosCol}</span>`;
     trDadosColuna.appendChild(cell);
   });
@@ -4150,7 +4023,7 @@ function criarTabela(dados, oddsData, proximosJogos) {
     const tdDadosRow=row.children[row.children.length-1];
     const acertos=parseInt(tdDadosRow.textContent)||0;
     const pct=total>0?Math.floor((acertos/total)*100):0;
-    tdDadosRow.className=`col-combo ${getClassePct(pct)}`; tdDadosRow.style.setProperty("--pct", pct+"%");
+    tdDadosRow.className=`col-combo ${getClassePct(pct)}`;
     tdDadosRow.innerHTML=`<span class="valor-principal">${pct}%</span><span class="valor-sub">${acertos}</span>`;
   });
 
@@ -4501,28 +4374,16 @@ async function precarregarLigasIrmas() {
 }
 
 // Junta num único render as respostas que chegam quase juntas (resultados, odds, próximos)
-function _renderDoCache() {
-  if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) return;
-  try {
-    qdDadosCache = _cacheResultados;
-    renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, false);
-    if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
-  } catch (e) { console.error("Erro ao renderizar tabela:", e); }
-}
-// Primeira carga (tabela ainda vazia): segura o desenho até resultados + odds + próximos chegarem juntos
-let _renderSegurado = false;
-let _renderSeguradoVersao = 0;
-let _pOddsAtual = Promise.resolve();
-const PRIMEIRA_CARGA_ESPERA_MAX_MS = 5000; // se algum dos três demorar mais que isso, desenha com o que tiver
-
 function agendarRender() {
-  if (_renderSegurado) return;
-  // Aba em segundo plano: o navegador segura setTimeout (1s ou até 1 min), então renderiza direto
-  if (document.hidden) { _renderDoCache(); return; }
   if (_renderTimer) return;
   _renderTimer = setTimeout(() => {
     _renderTimer = null;
-    _renderDoCache();
+    if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) return;
+    try {
+      qdDadosCache = _cacheResultados;
+      renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, false);
+      if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
+    } catch (e) { console.error("Erro ao renderizar tabela:", e); }
   }, 30);
 }
 
@@ -4575,9 +4436,6 @@ async function buscarDados() {
 
   // Os três pedidos saem juntos e cada um atualiza a tela assim que chega,
   // sem um esperar o outro (antes as odds só apareciam depois de odds E próximos).
-  const primeiraCarga = _cacheResultados.length === 0;
-  if (primeiraCarga) { _renderSegurado = true; _renderSeguradoVersao = minhaVersao; }
-
   const pRes = fetchResultados(horas).then(d => {
     if (!ligaNaoMudou()) return;
     _falhasResultadosSeguidas = 0;
@@ -4602,21 +4460,9 @@ async function buscarDados() {
   if (!_oddsEmVoo && precisaOdds) {
     _oddsEmVoo = true;
     _oddsUltimaBusca = agora;
-    _pOddsAtual = fetchOdds(horas).then(o => {
+    fetchOdds(horas).then(o => {
       if (o !== null && ligaNaoMudou()) { _cacheOddsData = o; _cacheHorasOdds = horas; cacheGravarSeMudou(ligaAtual, "odds", o, horas); }
     }).finally(() => { _oddsEmVoo = false; agendarRender(); });
-  }
-
-  // Primeira carga: espera os três (com limite de tempo) e desenha tudo de uma vez
-  if (primeiraCarga) {
-    try {
-      await Promise.race([
-        Promise.allSettled([pRes, _pProxAtual, _pOddsAtual]),
-        new Promise(r => setTimeout(r, PRIMEIRA_CARGA_ESPERA_MAX_MS))
-      ]);
-    } finally {
-      if (_renderSeguradoVersao === minhaVersao) { _renderSegurado = false; _renderDoCache(); }
-    }
   }
 
   // O ciclo só espera os resultados; odds e próximos continuam em segundo plano
@@ -4914,7 +4760,7 @@ let _buscando = false;
 let _buscandoDesde = 0;
 const BUSCA_TRAVA_MAX_MS = 15000; 
 async function _buscarDadosSeguro() {
-  if (!_naTelaTabela) return; // split: liga fora da área visível continua parada; aba em 2º plano NÃO pausa mais
+  if (!_tabVisibleTabela) return;
   if (_buscando && (Date.now() - _buscandoDesde) < BUSCA_TRAVA_MAX_MS) return;
   _buscando = true;
   _buscandoDesde = Date.now();
@@ -4925,10 +4771,7 @@ async function _buscarDadosSeguro() {
 let _naTelaTabela = true;
 document.addEventListener('visibilitychange', () => {
   _tabVisibleTabela = !document.hidden && _naTelaTabela;
-  if (!document.hidden) {
-    _renderDoCache();        // pinta na hora o que chegou em segundo plano
-    _buscarDadosSeguro();    // e já busca o que faltar
-  }
+  if (_tabVisibleTabela) _buscarDadosSeguro();
 });
 
 // No split.html há várias ligas empilhadas: as que estão fora da tela param de buscar dados
@@ -4939,7 +4782,7 @@ if (_modoSplit() && "IntersectionObserver" in window) {
     if (visivel === _naTelaTabela) return;
     _naTelaTabela = visivel;
     _tabVisibleTabela = !document.hidden && visivel;
-    if (visivel) _buscarDadosSeguro();
+    if (_tabVisibleTabela) _buscarDadosSeguro();
   }, { rootMargin: "300px 0px" }).observe(document.body);
 }
 
@@ -4948,29 +4791,7 @@ buscarDados();
 setTimeout(precarregarLigasIrmas, 4000);
 setInterval(precarregarLigasIrmas, 15000);
 setTimeout(iniciarObserverStreak, 1000);
-// Relógio da busca: roda num Web Worker porque setInterval na thread principal é limitado
-// pelo navegador em aba oculta (1x/s e, depois de ~5 min, 1x/min). Se o Worker não puder ser criado, cai no setInterval.
-const BUSCA_INTERVALO_MS = 3000;
-const BUSCA_INTERVALO_BG_MS = 5000; // em segundo plano não precisa ser tão frequente
-let _ultimaBuscaBg = 0;
-function _tickBusca() {
-  if (document.hidden) {
-    const t = Date.now();
-    if (t - _ultimaBuscaBg < BUSCA_INTERVALO_BG_MS) return;
-    _ultimaBuscaBg = t;
-  }
-  _buscarDadosSeguro();
-}
-(function iniciarRelogioBusca() {
-  let caiuNoFallback = false;
-  const fallback = () => { if (caiuNoFallback) return; caiuNoFallback = true; setInterval(_tickBusca, BUSCA_INTERVALO_MS); };
-  try {
-    const url = URL.createObjectURL(new Blob([`setInterval(function(){postMessage(0)},${BUSCA_INTERVALO_MS});`], { type: "text/javascript" }));
-    const w = new Worker(url);
-    w.onmessage = _tickBusca;
-    w.onerror = () => { try { w.terminate(); } catch (e) {} fallback(); };
-  } catch (e) { fallback(); }
-})();
+setInterval(_buscarDadosSeguro, 3000);
 
 
 const _sh=document.querySelector("#seletorHoras");
@@ -5127,122 +4948,3 @@ function sincronizarEstiloBtnMercadosExtras() {
    console.error("Erro ao iniciar popover de mercados extras:", e);
  }
 })();
-
-// ═══════════════════════════════════════════════════════════════
-//  VISUAL MODERNO (opção C): fundo levemente tingido + borda colorida
-//  Vale na tabela principal E na tabela de linhas de hora selecionadas
-//  As cores vêm do botão "Cor Green / Cor Red" (--cor-green / --cor-red)
-// ═══════════════════════════════════════════════════════════════
-(function injectEstiloModerno() {
-  if (document.getElementById("tabela-moderna")) return;
-  // Liga com mais de 20 jogos/hora (ex.: 30) => colunas estreitas => modo compacto
-  document.documentElement.classList.toggle("liga-densa", Array.isArray(minutosFixos) && minutosFixos.length > 20);
-  const st = document.createElement("style");
-  st.id = "tabela-moderna";
-  st.textContent = `
-    :root {
-      --tb-tint-g: rgba(31,191,69,.62);   --tb-borda-g: rgba(43,230,90,.65);
-      --tb-tint-r: rgba(217,56,44,.62);   --tb-borda-r: rgba(240,80,66,.65);
-    }
-    @supports (color: color-mix(in srgb, red 50%, blue)) {
-      :root {
-        --tb-tint-g:  color-mix(in srgb, var(--cor-green, #007004) 90%, transparent);
-        --tb-borda-g: color-mix(in srgb, color-mix(in srgb, var(--cor-green, #007004) 45%, #2bff6a) 95%, transparent);
-        --tb-tint-r:  color-mix(in srgb, var(--cor-red, #980b01) 90%, transparent);
-        --tb-borda-r: color-mix(in srgb, color-mix(in srgb, var(--cor-red, #980b01) 45%, #ff4a3d) 95%, transparent);
-      }
-    }
-
-    /* Célula de resultado: fundo escuro tingido + borda fina colorida */
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] {
-      background-color: #171b22 !important;
-      background-repeat: no-repeat !important;
-      background-size: 100% 100% !important;
-      background-position: 0 0 !important;
-      border-radius: 6px;
-      transition: background-color .12s ease, box-shadow .12s ease;
-    }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] {
-      background-image: linear-gradient(135deg, var(--tb-tint-g), transparent 190%) !important;
-      box-shadow: inset 0 0 0 1px var(--tb-borda-g);
-    }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"] {
-      background-image: linear-gradient(135deg, var(--tb-tint-r), transparent 190%) !important;
-      box-shadow: inset 0 0 0 1px var(--tb-borda-r);
-    }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"].zg-hot {
-      box-shadow: inset 0 0 0 1px var(--tb-borda-g), inset 0 0 8px rgba(0,255,60,.3);
-    }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado]:hover { background-color: #1e232c !important; filter: brightness(1.15); }
-
-    /* Hierarquia: placar em destaque, odd discreta */
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .placar-texto { color: #f3f4f6; }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .ft-span { font-size: 1.12em; font-weight: 800; letter-spacing: .03em; }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .odds { font-size: .78em; font-weight: 600; color: #a3acbb; }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] .odds:not(.odd-selecionada) { color: #a6ecbb; }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"]   .odds:not(.odd-selecionada) { color: #f1b3ad; }
-
-    /* Linhas de grade mais discretas (preserva a divisória dos quadrantes) */
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td:not(.quadrant-border),
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) th:not(.quadrant-border) { border-color: #1c2029 !important; }
-
-    /* Barrinha de % no cabeçalho e na coluna lateral */
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td.col-combo-top,
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td.col-combo { position: relative; }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td.col-combo-top[style*="--pct"]::after,
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td.col-combo[style*="--pct"]::after {
-      content: ""; position: absolute; left: 0; bottom: 0; height: 2px;
-      width: var(--pct); border-radius: 0 2px 2px 0; opacity: .9;
-    }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .pct-verde::after    { background: #3ddc6a; }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .pct-amarelo::after  { background: #facc15; }
-    html:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .pct-vermelho::after { background: #f87171; }
-
-    /* ── Ligas densas (mais de 20 jogos/hora, ex.: 30): colunas estreitas ──
-       Placar numa linha só, fonte menor e menos padding, pra não quebrar "0 x / 1" */
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] {
-      padding: 2px 0 !important;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .placar,
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .placar-texto {
-      white-space: nowrap;
-      line-height: 1.1;
-    }
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .ft-span {
-      font-size: 10px; font-weight: 800; letter-spacing: 0; white-space: nowrap;
-    }
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .ht-span {
-      font-size: 8px; white-space: nowrap;
-    }
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .odds {
-      font-size: 8px; font-weight: 600; white-space: nowrap; margin-top: 0;
-    }
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .time-casa,
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado] .time-fora {
-      font-size: 7px; letter-spacing: 0; white-space: nowrap;
-    }
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .placar-futuro .time-casa,
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .placar-futuro .time-fora,
-    html.liga-densa:not(.estilo-classico) :is(#tabelaResultados, #selectedRowsContainer) .placar-futuro .placar-futuro-odd {
-      font-size: 8px; letter-spacing: 0;
-    }
-
-    /* Estilo clássico: célula chapada com a cor cheia (como era antes) */
-    html.estilo-classico :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="acerto"] { background-color: var(--cor-green, #018b06) !important; }
-    html.estilo-classico :is(#tabelaResultados, #selectedRowsContainer) td[data-resultado="erro"]   { background-color: var(--cor-red,   #be0e02) !important; }
-  `;
-  document.head.appendChild(st);
-})();
-
-function estiloCelulasAtual() {
-  try { return localStorage.getItem("estiloCelulas") === "classico" ? "classico" : "moderno"; }
-  catch (e) { return "moderno"; }
-}
-function aplicarEstiloCelulas() {
-  document.documentElement.classList.toggle("estilo-classico", estiloCelulasAtual() === "classico");
-  const b = document.getElementById("btn-estilo-celulas");
-  if (b) b.textContent = "Estilo: " + (estiloCelulasAtual() === "classico" ? "Clássico" : "Moderno");
-}
-aplicarEstiloCelulas();
