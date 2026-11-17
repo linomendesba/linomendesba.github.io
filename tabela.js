@@ -3076,19 +3076,30 @@ const FETCH_TIMEOUT_ODDS_MS = 20000; // odds rodam em segundo plano: podem demor
 // reaproveita o JSON já interpretado (mesma referência) e evita parse, hash, índice de odds e re-render.
 const _memoFetch = Object.create(null);
 
+// Diagnóstico: guarda o último tempo/tamanho de cada pedido em window.DV_TEMPOS (digite DV_TEMPOS no console F12).
+// Pedidos acima de 1,5s ou que falham também aparecem no console como "[DV] ...".
+function _registrarTempo(nome, t0, info) {
+  const ms = Math.round(performance.now() - t0);
+  try { (window.DV_TEMPOS = window.DV_TEMPOS || {})[nome] = Object.assign({ ms, quando: new Date().toLocaleTimeString() }, info); } catch (e) {}
+  if (ms > 1500 || (info && info.erro)) console.info(`[DV] ${nome}: ${ms}ms`, info || "");
+}
+
 async function fetchJsonComTimeout(url, nome, ms = FETCH_TIMEOUT_MS, usarMemo = true) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
+  const t0 = performance.now();
   try {
     const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
     if (!res.ok) throw new Error(`Erro HTTP ${res.status} em ${nome}`);
     const texto = await res.text();
+    _registrarTempo(nome, t0, { kb: Math.round(texto.length / 1024) });
     const m = usarMemo ? _memoFetch[nome] : null;
     if (m && m.texto === texto) return m.json;
     const json = JSON.parse(texto);
     if (usarMemo) _memoFetch[nome] = { texto, json };
     return json;
   } catch (e) {
+    _registrarTempo(nome, t0, { erro: (e && e.name === "AbortError") ? "timeout" : (e && e.message) });
     if (e && e.name === "AbortError") throw new Error(`Tempo esgotado (${ms / 1000}s) em ${nome}`);
     throw e;
   } finally {
@@ -4230,7 +4241,10 @@ function cacheGravar(lk, tipo, dados, horas) {
     if (!Array.isArray(dados) || !dados.length) return;
     const chave = _cacheChave(lk, tipo);
     const txt = JSON.stringify({ t: Date.now(), h: Number.isFinite(horas) ? horas : -1, d: dados });
-    if (txt.length > CACHE_LOCAL_MAX_CHARS) { localStorage.removeItem(chave); return; }
+    if (txt.length > CACHE_LOCAL_MAX_CHARS) {
+      console.warn(`[DV] cache de ${chave} não gravado: ${Math.round(txt.length / 1024)}KB passa do limite`);
+      localStorage.removeItem(chave); return;
+    }
     try { localStorage.setItem(chave, txt); }
     catch (e) { limparCacheLocal(chave); try { localStorage.setItem(chave, txt); } catch (e2) {} }
   } catch (e) {}
@@ -4291,12 +4305,22 @@ function carregarDadosDaLiga(lk) {
   return true;
 }
 
+// A tabela só pinta do cache se ele tiver os três: resultados, odds e próximos AINDA válidos.
+// Cache incompleto (odds grandes demais p/ gravar, ou próximos que já passaram do horário) pintava a tabela
+// pela metade e o resto "pingava" depois. Agora, nesse caso, espera a rede trazer os três juntos.
+let _cargaInicialFeita = false;
+function _cacheCompleto() {
+  return _cacheResultados.length > 0 && _cacheOddsData.length > 0 && _cacheProximosJogos.length > 0;
+}
+
 function hidratarDoCacheLocal() {
   try {
     const lk = getLigaKey();
     if (!carregarDadosDaLiga(lk)) return false;
     Estado._ultimaLigaRenderizada = lk;
     restaurarHorasSeletor();
+    if (!_cacheCompleto()) return false; // fica em memória como reserva; a tela espera a rede
+    _cargaInicialFeita = true;
     qdDadosCache = _cacheResultados;
     renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, true);
     if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
@@ -4378,22 +4402,37 @@ async function precarregarLigasIrmas() {
 // Na primeira abertura (sem cache) pede só as últimas CARGA_INICIAL_HORAS horas (resposta bem menor e mais rápida).
 // Se o seletor/ferramentas precisarem de mais, o ciclo seguinte completa em segundo plano.
 const CARGA_INICIAL_HORAS = 12;
-const CARGA_INICIAL_ESPERA_MAX_MS = 3500; // se odds/próximos demorarem, pinta mesmo assim
+const CARGA_INICIAL_ESPERA_MAX_MS = 5000; // se odds/próximos demorarem mais que isso, pinta mesmo assim
 const _primeiraCarga = { ativa: false, res: false, odds: false, prox: false };
 
 function _primeiraCargaIniciar() {
+  const id = (_primeiraCarga.id = (_primeiraCarga.id || 0) + 1);
   _primeiraCarga.ativa = true;
   _primeiraCarga.res = _primeiraCarga.odds = _primeiraCarga.prox = false;
   setTimeout(() => {
-    if (_primeiraCarga.ativa) { _primeiraCarga.ativa = false; agendarRender(); }
+    if (_primeiraCarga.ativa && _primeiraCarga.id === id) {
+      _primeiraCarga.ativa = false; _cargaInicialFeita = true;
+      console.info("[DV] carga inicial: pintou sem esperar tudo", JSON.parse(JSON.stringify(_primeiraCarga)));
+      agendarRender();
+    }
   }, CARGA_INICIAL_ESPERA_MAX_MS);
+}
+
+// Na carga inicial, se odds/próximos falharem de cara (erro, não só lentidão), tenta mais uma vez
+async function _tentarDeNovoSeFalhar(fn) {
+  let r = await fn();
+  if (r === null && _primeiraCarga.ativa) {
+    await new Promise(ok => setTimeout(ok, 600));
+    r = await fn();
+  }
+  return r;
 }
 
 // Cada pedido avisa quando termina; a tabela só pinta quando os três chegaram (ou estourou o tempo)
 function _primeiraCargaMarcar(tipo) {
   if (_primeiraCarga.ativa) {
     _primeiraCarga[tipo] = true;
-    if (_primeiraCarga.res && _primeiraCarga.odds && _primeiraCarga.prox) _primeiraCarga.ativa = false;
+    if (_primeiraCarga.res && _primeiraCarga.odds && _primeiraCarga.prox) { _primeiraCarga.ativa = false; _cargaInicialFeita = true; }
   }
   agendarRender();
 }
@@ -4434,6 +4473,7 @@ async function buscarDados() {
     _cacheResultados = []; _cacheOddsData = []; _cacheProximosJogos = [];
     _cacheHoras = 0; _cacheHorasOdds = 0; _oddsUltimaBusca = 0;
     _primeiraCarga.ativa = false;
+    _cargaInicialFeita = false;
     Estado.carregar();
     const trQDantigo = document.querySelector("#trQuadrantes");
     if (trQDantigo) trQDantigo.remove();
@@ -4442,8 +4482,9 @@ async function buscarDados() {
     buscadorUltimoAlertaKey = null;
 
     // Liga que já foi vista (ou pré-carregada): pinta na hora com resultados + odds + próximos
-    if (carregarDadosDaLiga(ligaAtual)) {
+    if (carregarDadosDaLiga(ligaAtual) && _cacheCompleto()) {
       try {
+        _cargaInicialFeita = true;
         restaurarHorasSeletor();
         qdDadosCache = _cacheResultados;
         renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, true);
@@ -4473,7 +4514,7 @@ async function buscarDados() {
 
   // Os três pedidos saem juntos e cada um atualiza a tela assim que chega,
   // sem um esperar o outro (antes as odds só apareciam depois de odds E próximos).
-  if (primeiraCarga && !_primeiraCarga.ativa) _primeiraCargaIniciar();
+  if (!_cargaInicialFeita && !_primeiraCarga.ativa && !_cacheCompleto()) _primeiraCargaIniciar();
 
   const pRes = fetchResultados(horas).then(d => {
     if (!ligaNaoMudou()) return;
@@ -4490,7 +4531,7 @@ async function buscarDados() {
 
   if (!_proxEmVoo) {
     _proxEmVoo = true;
-    _pProxAtual = fetchProximosJogos().then(p => {
+    _pProxAtual = _tentarDeNovoSeFalhar(() => fetchProximosJogos()).then(p => {
       if (p !== null && ligaNaoMudou()) { _cacheProximosJogos = p; cacheGravarSeMudou(ligaAtual, "prox", p, 0); }
     }).finally(() => { _proxEmVoo = false; _primeiraCargaMarcar("prox"); });
   }
@@ -4499,7 +4540,7 @@ async function buscarDados() {
   if (!_oddsEmVoo && precisaOdds) {
     _oddsEmVoo = true;
     _oddsUltimaBusca = agora;
-    fetchOdds(horas).then(o => {
+    _tentarDeNovoSeFalhar(() => fetchOdds(horas)).then(o => {
       if (o !== null && ligaNaoMudou()) { _cacheOddsData = o; _cacheHorasOdds = horas; cacheGravarSeMudou(ligaAtual, "odds", o, horas); }
     }).finally(() => { _oddsEmVoo = false; _primeiraCargaMarcar("odds"); });
   }
