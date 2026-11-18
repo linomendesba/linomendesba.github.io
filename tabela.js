@@ -1,5 +1,3 @@
-// DV-VERSAO 2026-11-18-b
-try { window.DV_VERSAO = "tabela.js 2026-11-18-b"; console.info("[DV] " + window.DV_VERSAO + " carregado"); } catch (e) {}
 // Adiciona o grupo "Viradinha" no seletor de mercado de todas as ligas
 (function adicionarGrupoViradinha() {
   const inserir = () => {
