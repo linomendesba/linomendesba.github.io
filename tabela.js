@@ -1,9 +1,3 @@
-// DV-VERSAO 2026-11-18-c
-try { window.DV_VERSAO = "tabela.js 2026-11-18-c"; console.info("[DV] " + window.DV_VERSAO + " carregado"); } catch (e) {}
-// Linha do tempo da carga (ms desde que a página começou a abrir). Para ver: digite DV_LINHA() no console (F12).
-var _DVT = [{ t: Math.round(performance.now()), evento: "tabela.js executou" }];
-function _dvMarca(evento, extra) { if (_DVT.length < 80) _DVT.push(Object.assign({ t: Math.round(performance.now()), evento }, extra || {})); }
-window.DV_LINHA = function () { console.table(_DVT); return _DVT; };
 // Adiciona o grupo "Viradinha" no seletor de mercado de todas as ligas
 (function adicionarGrupoViradinha() {
   const inserir = () => {
@@ -4186,11 +4180,7 @@ function renderizarTabelaSeMudou(dados, odds, proximos, forcar) {
   const temConteudo = !!document.querySelector("#tabelaResultados tbody tr");
   const vencido = (Date.now() - _ultimoRenderEm) > RENDER_FORCA_A_CADA_MS;
   if (!forcar && temConteudo && !vencido && sig === _ultimaAssinaturaRender) return false;
-  const _t0 = performance.now();
   criarTabela(dados, odds, proximos);
-  const _ms = Math.round(performance.now() - _t0);
-  _dvMarca("tabela pintada", { ms: _ms, res: dados.length, odds: odds.length, prox: proximos.length });
-  if (_ms > 500) console.info(`[DV] montar a tabela levou ${_ms}ms (${dados.length} resultados, ${odds.length} odds)`);
   _ultimaAssinaturaRender = sig;
   _ultimoRenderEm = Date.now();
   return true;
@@ -4470,7 +4460,6 @@ function agendarRender() {
 
 async function buscarDados() {
   const minhaVersao = ++_versaoBusca;
-  _dvMarca("ciclo de busca começou");
   hideErrorMessage();
   restaurarHorasSeletor();
   const ligaAtual = getLigaKey();
@@ -4530,7 +4519,6 @@ async function buscarDados() {
   const pRes = fetchResultados(horas).then(d => {
     if (!ligaNaoMudou()) return;
     _falhasResultadosSeguidas = 0;
-    _dvMarca("resultados chegaram", { linhas: d.length, horas });
     if (d.length > 0) { _cacheResultados = d; _cacheHoras = horas; cacheGravarSeMudou(ligaAtual, "res", d, horas); }
     _primeiraCargaMarcar("res");
   }).catch(e => {
@@ -4544,17 +4532,7 @@ async function buscarDados() {
   if (!_proxEmVoo) {
     _proxEmVoo = true;
     _pProxAtual = _tentarDeNovoSeFalhar(() => fetchProximosJogos()).then(p => {
-      _dvMarca(p === null ? "próximos FALHARAM" : "próximos chegaram", { linhas: p ? p.length : 0 });
-      if (p !== null && ligaNaoMudou()) {
-        let novo = p;
-        // Resposta vazia isolada (ex.: o script de captura estava regravando a tabela nesse instante):
-        // mantém os próximos que ainda não começaram em vez de apagar da tela.
-        if (p.length === 0 && _cacheProximosJogos.length > 0) {
-          const aindaValidos = _proxAindaValidos(_cacheProximosJogos);
-          if (aindaValidos.length > 0) novo = aindaValidos;
-        }
-        _cacheProximosJogos = novo; cacheGravarSeMudou(ligaAtual, "prox", novo, 0);
-      }
+      if (p !== null && ligaNaoMudou()) { _cacheProximosJogos = p; cacheGravarSeMudou(ligaAtual, "prox", p, 0); }
     }).finally(() => { _proxEmVoo = false; _primeiraCargaMarcar("prox"); });
   }
 
@@ -4563,9 +4541,6 @@ async function buscarDados() {
     _oddsEmVoo = true;
     _oddsUltimaBusca = agora;
     _tentarDeNovoSeFalhar(() => fetchOdds(horas)).then(o => {
-      _dvMarca(o === null ? "odds FALHARAM" : "odds chegaram", { linhas: o ? o.length : 0, horas });
-      // odds vazias de repente, tendo odds boas na memória, é falha momentânea: mantém as que já tinha
-      if (o !== null && o.length === 0 && _cacheOddsData.length > 0) o = null;
       if (o !== null && ligaNaoMudou()) { _cacheOddsData = o; _cacheHorasOdds = horas; cacheGravarSeMudou(ligaAtual, "odds", o, horas); }
     }).finally(() => { _oddsEmVoo = false; _primeiraCargaMarcar("odds"); });
   }
