@@ -4,12 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="img/favicon.ico" type="image/x-icon" />
-    <title>DataVirtual | Login</title>
+    <title>BetStat | Login</title>
     
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
     <style>
         :root {
@@ -148,13 +145,6 @@
         .btn-payment:hover {
             color: var(--accent);
         }
-
-
-        .cf-turnstile {
-            margin-top: 16px;
-            display: flex;
-            justify-content: center;
-        }
     </style>
 
     <script type="module">
@@ -174,7 +164,9 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        window.login = async function() {
+        const LOGIN_TIMEOUT_MS = 15000;  // tempo máximo esperando o Firebase
+
+        window.login = function() {
             const email    = document.getElementById("email").value;
             const password = document.getElementById("password").value;
 
@@ -182,58 +174,16 @@
                 return alert("Preencha os campos.");
             }
 
-            // Pega o token gerado pelo Turnstile
-            const token = document.querySelector('[name="cf-turnstile-response"]')?.value;
-
-            if (!token) {
-                return alert("Por favor, aguarde a verificação de segurança.");
-            }
-
             const btn = document.querySelector('.btn-login');
             btn.disabled = true;
-            btn.textContent = 'Verificando...';
-
-
-            let verify;
-            try {
-                verify = await fetch('https://datavirtual.com.br/api/verify-turnstile', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token })
-                });
-            } catch (e) {
-                console.error('Erro de rede ao chamar /api/verify-turnstile:', e);
-                alert("Não foi possível verificar a segurança agora. Tente novamente.");
-                btn.disabled = false;
-                btn.textContent = 'Entrar';
-                if (window.turnstile) turnstile.reset();
-                return;
-            }
-
-            let result;
-            try {
-                result = await verify.json();
-            } catch (e) {
-                console.error('Resposta de /api/verify-turnstile não é JSON. Status:', verify.status);
-                alert("Erro inesperado na verificação (status " + verify.status + "). Veja o console.");
-                btn.disabled = false;
-                btn.textContent = 'Entrar';
-                if (window.turnstile) turnstile.reset();
-                return;
-            }
-
-            if (!verify.ok || !result.success) {
-                console.error('Turnstile rejeitado:', verify.status, result);
-                alert("Falha na verificação de segurança.");
-                btn.disabled = false;
-                btn.textContent = 'Entrar';
-                if (window.turnstile) turnstile.reset();
-                return;
-            }
-
             btn.textContent = 'Entrando...';
 
-            signInWithEmailAndPassword(auth, email, password)
+            // Timeout pra nunca ficar travado em "Entrando..."
+            const loginTimeout = new Promise((_, reject) =>
+                setTimeout(() => reject({ code: 'app/timeout' }), LOGIN_TIMEOUT_MS)
+            );
+
+            Promise.race([signInWithEmailAndPassword(auth, email, password), loginTimeout])
                 .then(() => {
                     window.location.href = "/home.html";
                 })
@@ -243,10 +193,15 @@
                         window.location.href = "renovar.html?email=" + encodeURIComponent(email);
                         return;
                     }
-                    alert("E-mail ou senha incorretos.");
+                    if (e.code === 'app/timeout' || e.code === 'auth/network-request-failed') {
+                        alert("Conexão lenta ou instável. Tente novamente.");
+                    } else if (e.code === 'auth/too-many-requests') {
+                        alert("Muitas tentativas. Aguarde alguns minutos e tente novamente.");
+                    } else {
+                        alert("E-mail ou senha incorretos.");
+                    }
                     btn.disabled = false;
                     btn.textContent = 'Entrar';
-                    if (window.turnstile) turnstile.reset();
                 });
         }
 
@@ -276,7 +231,7 @@
 <body>
 
     <div class="login-container">
-        <img src="img/logo.png" alt="DataVirtual" class="logo">
+        <img src="img/logo3.png" alt="BetStat" class="logo">
         
         <h2>Login</h2>
 
@@ -288,11 +243,6 @@
         <div class="input-group">
             <label>Senha</label>
             <input type="password" id="password" placeholder="Sua senha">
-        </div>
-
-        <div class="cf-turnstile"
-             data-sitekey="0x4AAAAAABMb1ZbXMk4zcM_U"
-             data-theme="dark">
         </div>
 
         <button class="btn-login" onclick="login()">Entrar</button>
