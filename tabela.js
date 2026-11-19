@@ -3,6 +3,9 @@
 // ROTAS_API / LIGAS_INFO / LIGA_ATUAL definidos em outro arquivo.
 // Padrão: /resultados|/proximos|/odds  +  /<casa>/<identificador>
 // ════════════════════════════════════════════════════════════════
+// Endereço da API (igual ao API_BASE_URL do config.js — domínio SEM www)
+const DV_API_BASE = "https://datavirtual.com.br";
+
 const LIGAS_ROTAS = {
   // 1WIN
   "1win Inglaterra": { casa: "onewin", id: "Inglaterra" },
@@ -48,27 +51,48 @@ function resolverLiga(nome) {
   return achada ? (LIGAS_ROTAS[achada] ? achada : LIGAS_ALIAS[achada]) : null;
 }
 
-// Descobre a liga da página: LIGA_ATUAL já existente > ?liga= > título h4.custom-color > primeira da lista
+// Arquivo .html da página -> liga (mesma tabela do config.js)
+const LIGAS_ARQUIVOS = {
+  "onewininglaterra.html": "1win Inglaterra", "onewinespanha.html": "1win Espanha", "onewinitalia.html": "1win Itália",
+  "betgreenpremier.html": "BetGreen Premier League", "betgreenlaliga.html": "BetGreen La Liga",
+  "betgreenworldcup.html": "BetGreen World Cup", "betgreenchile.html": "BetGreen Primera Division",
+  "betgreenchampions.html": "BetGreen Champions League",
+  "kironbrazil.html": "Kiron Liga Brasil", "kironengland.html": "Kiron Liga Inglaterra", "kironitaly.html": "Kiron Liga Itália",
+  "kironamerica.html": "Kiron Liga América Latina", "kironspain.html": "Kiron Liga Espanha", "kironmundial.html": "Kiron Liga Mundial",
+  "estrelacopamundo.html": "Copa do Mundo", "estrelachampions.html": "Ligas dos Campeões",
+  "estrelaamericalatina.html": "América Latina", "estrelapremier.html": "Premier League",
+};
+
+// Descobre a liga da página. Se o config.js já definiu LIGA_ATUAL, usa esse e não mexe.
 (function definirLigaAtual() {
-  if (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) {
-    const r = resolverLiga(LIGA_ATUAL);
-    if (r && r !== LIGA_ATUAL) window.LIGA_ATUAL = r;
-    return;
-  }
+  if (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) return;
   let liga = null;
-  try { liga = resolverLiga(new URLSearchParams(location.search).get("liga")); } catch (e) {}
+  try {
+    const qs = new URLSearchParams(location.search);
+    liga = resolverLiga(qs.get("res")) || resolverLiga(qs.get("liga"));
+  } catch (e) {}
+  if (!liga) {
+    const caminho = (location.pathname || "").toLowerCase();
+    const arq = Object.keys(LIGAS_ARQUIVOS).find(a => caminho.includes(a));
+    if (arq) liga = LIGAS_ARQUIVOS[arq];
+  }
   if (!liga) {
     const h4 = document.querySelector("h4.custom-color");
     if (h4) liga = resolverLiga(h4.textContent);
   }
-  window.LIGA_ATUAL = liga || Object.keys(LIGAS_ROTAS)[0];
+  window.LIGA_ATUAL = liga || "Kiron Liga Inglaterra";
 })();
 
 function rotaLiga(tipo, liga) {
+  // Se a página já carregou o config da liga (ROTAS_API), usa ele: é a fonte oficial do site.
+  // As rotas embutidas abaixo só entram quando o config não existe (uso standalone).
+  if (typeof ROTAS_API !== "undefined" && ROTAS_API && typeof ROTAS_API[tipo === "proximos" ? "proximosJogos" : tipo] === "function") {
+    return ROTAS_API[tipo === "proximos" ? "proximosJogos" : tipo](liga);
+  }
   const k = resolverLiga(liga) || resolverLiga(LIGA_ATUAL);
   const r = k && LIGAS_ROTAS[k];
   if (!r) throw new Error(`Liga sem rota configurada: ${liga}`);
-  return `/${tipo}/${r.casa}/${r.id}`;
+  return `${DV_API_BASE}/${tipo}/${r.casa}/${r.id}`;
 }
 
 // Adiciona o grupo "Viradinha" no seletor de mercado de todas as ligas
@@ -4391,6 +4415,7 @@ const PRELOAD_HORAS_MAX = 48;
 let _preloadEmAndamento = false;
 
 function _casaDaLiga(nome) {
+  if (typeof LIGAS_INFO !== "undefined" && LIGAS_INFO[nome]) return LIGAS_INFO[nome].casa;
   const k = resolverLiga(nome);
   return k ? LIGAS_ROTAS[k].casa : null;
 }
@@ -4399,7 +4424,8 @@ function ligasParaPrecarregar() {
   if (typeof LIGA_ATUAL === "undefined" || !LIGA_ATUAL) return [];
   if (Array.isArray(window.PRELOAD_LIGAS)) return window.PRELOAD_LIGAS.filter(n => n !== LIGA_ATUAL);
   const casa = _casaDaLiga(LIGA_ATUAL);
-  return Object.keys(LIGAS_ROTAS).filter(n => n !== resolverLiga(LIGA_ATUAL) && _casaDaLiga(n) === casa);
+  const todas = (typeof LIGAS_INFO !== "undefined" && LIGAS_INFO) ? Object.keys(LIGAS_INFO) : Object.keys(LIGAS_ROTAS);
+  return todas.filter(n => n !== LIGA_ATUAL && _casaDaLiga(n) === casa);
 }
 
 // A troca de liga é uma navegação de página: o "quando foi pré-carregada" precisa sobreviver entre páginas.
