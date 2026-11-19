@@ -2052,6 +2052,20 @@ function agendarRender() {
   }, 30);
 }
 
+// Tenta o pedido várias vezes quando ele falha ou volta vazio (devolve { dados, erro })
+const _esperar = ms => new Promise(r => setTimeout(r, ms));
+async function _buscarComTentativas(fn, tentativas) {
+  let dados = null, erro = null;
+  for (let i = 0; i < tentativas; i++) {
+    try { dados = await fn(); erro = null; } catch (e) { dados = null; erro = e; }
+    if (Array.isArray(dados) && dados.length > 0) break;
+    if (i < tentativas - 1) await _esperar(400);
+  }
+  return { dados, erro };
+}
+// Quantas buscas seguidas vieram vazias (odds/próximos). Depois de 3, para de insistir (liga pode não ter odds).
+let _vazioSeguido = { odds: 0, prox: 0 };
+
 async function buscarDados() {
   const minhaVersao = ++_versaoBusca;
   hideErrorMessage();
@@ -2064,7 +2078,7 @@ async function buscarDados() {
     _ultimaLigaHorasRestauradas = null;
 
     _cacheResultados = []; _cacheOddsData = []; _cacheProximosJogos = [];
-    _cacheHoras = 0; _cacheHorasOdds = 0; _oddsUltimaBusca = 0;
+    _cacheHoras = 0; _cacheHorasOdds = 0; _oddsUltimaBusca = 0; _vazioSeguido = { odds: 0, prox: 0 };
     Estado.carregar();
 
 
@@ -2081,48 +2095,53 @@ async function buscarDados() {
   _renderizandoRapido = false;
 
   const ligaNaoMudou = () => Estado._ultimaLigaRenderizada === ligaAtual;
-  const agora = Date.now();
+  const semNadaNaTela = _cacheResultados.length === 0;
+  const tentativas = (jaTem, chave) => (!jaTem && _vazioSeguido[chave] < 3) ? 3 : 1;
 
-  // Os três pedidos saem juntos e cada um atualiza a tela assim que chega,
-  // sem um esperar o outro (antes as odds só apareciam depois de odds E próximos).
-  const pRes = fetchResultados(horas).then(d => {
-    if (!ligaNaoMudou()) return;
-    _falhasResultadosSeguidas = 0;
-    if (d.length > 0) { _cacheResultados = d; _cacheHoras = horas; }
-    agendarRender();
-  }).catch(e => {
-    _falhasResultadosSeguidas++;
-    console.warn("Falha ao buscar resultados (tentando de novo):", e.message);
-    if (_cacheResultados.length === 0 || _falhasResultadosSeguidas >= FALHAS_ATE_AVISAR) {
-      showErrorMessage(`Erro ao carregar resultados: ${e.message}`);
+  // Resultados, odds e próximos são buscados JUNTOS a cada ciclo e a tela é desenhada com os três.
+  // Se um deles falhar ou vier vazio sem haver dado em memória, o pedido é refeito (até 3 vezes).
+  const pRes = _buscarComTentativas(() => fetchResultados(horas), _cacheResultados.length ? 1 : 3).then(r => {
+    if (!ligaNaoMudou()) return r;
+    if (r.dados && r.dados.length > 0) {
+      _cacheResultados = r.dados; _cacheHoras = horas; _falhasResultadosSeguidas = 0;
+    } else if (r.erro) {
+      _falhasResultadosSeguidas++;
+      console.warn("Falha ao buscar resultados (tentando de novo):", r.erro.message);
+      if (_cacheResultados.length === 0 || _falhasResultadosSeguidas >= FALHAS_ATE_AVISAR) {
+        showErrorMessage(`Erro ao carregar resultados: ${r.erro.message}`);
+      }
     }
+    return r;
   });
 
-  if (!_proxEmVoo) {
-    _proxEmVoo = true;
-    _pProxAtual = fetchProximosJogos().then(p => {
-      if (p !== null && ligaNaoMudou()) { _cacheProximosJogos = p; }
-    }).finally(() => { _proxEmVoo = false; agendarRender(); });
-  }
+  const pOdds = _buscarComTentativas(() => fetchOdds(horas), tentativas(_cacheOddsData.length > 0, "odds")).then(r => {
+    if (!ligaNaoMudou()) return r;
+    if (Array.isArray(r.dados)) { _cacheOddsData = r.dados; _cacheHorasOdds = horas; }
+    _vazioSeguido.odds = (r.dados && r.dados.length) ? 0 : _vazioSeguido.odds + 1;
+    return r;
+  });
 
-  const precisaOdds = _cacheOddsData.length === 0 || horas > _cacheHorasOdds || (agora - _oddsUltimaBusca) >= ODDS_INTERVALO_MS;
-  if (!_oddsEmVoo && precisaOdds) {
-    _oddsEmVoo = true;
-    _oddsUltimaBusca = agora;
-    fetchOdds(horas).then(o => {
-      if (o !== null && ligaNaoMudou()) { _cacheOddsData = o; _cacheHorasOdds = horas; }
-    }).finally(() => { _oddsEmVoo = false; agendarRender(); });
-  }
+  const pProx = _buscarComTentativas(() => fetchProximosJogos(), tentativas(_cacheProximosJogos.length > 0, "prox")).then(r => {
+    if (!ligaNaoMudou()) return r;
+    if (Array.isArray(r.dados)) _cacheProximosJogos = r.dados;
+    _vazioSeguido.prox = (r.dados && r.dados.length) ? 0 : _vazioSeguido.prox + 1;
+    return r;
+  });
 
-  // O ciclo só espera os resultados; odds e próximos continuam em segundo plano
-  await pRes;
+  const todos = Promise.all([pRes, pOdds, pProx]);
+
+  // Primeira carga / troca de liga: espera os três (no máximo 8s) para desenhar tudo de uma vez.
+  // Se algum demorar mais que isso, desenha o que já chegou e redesenha quando o resto vier.
+  if (semNadaNaTela) {
+    await Promise.race([todos, _esperar(8000)]);
+    if (ligaNaoMudou()) agendarRender();
+  }
+  await todos;
+  if (!ligaNaoMudou()) return;
+  agendarRender();
   if (minhaVersao !== _versaoBusca) return;
 
-  if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) {
-    await _pProxAtual;
-    if (minhaVersao !== _versaoBusca) return;
-    if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) showErrorMessage("Nenhum dado disponível.");
-  }
+  if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) showErrorMessage("Nenhum dado disponível.");
 }
 
 
