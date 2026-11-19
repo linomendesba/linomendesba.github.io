@@ -3080,7 +3080,7 @@ async function fetchJsonComTimeout(url, nome, ms = FETCH_TIMEOUT_MS, usarMemo = 
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
-    const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
+    const res = await fetch(url, { cache: "reload", signal: ctrl.signal }); // "reload" = mesmo comportamento do Ctrl+Shift+R: ignora o cache HTTP e vai direto ao servidor
     if (!res.ok) throw new Error(`Erro HTTP ${res.status} em ${nome}`);
     const texto = await res.text();
     const m = usarMemo ? _memoFetch[nome] : null;
@@ -4169,10 +4169,33 @@ function renderizarTabelaSeMudou(dados, odds, proximos, forcar) {
   const temConteudo = !!document.querySelector("#tabelaResultados tbody tr");
   const vencido = (Date.now() - _ultimoRenderEm) > RENDER_FORCA_A_CADA_MS;
   if (!forcar && temConteudo && !vencido && sig === _ultimaAssinaturaRender) return false;
-  criarTabela(dados, odds, proximos);
+  _renderSemPiscar(() => criarTabela(dados, odds, proximos));
   _ultimaAssinaturaRender = sig;
   _ultimoRenderEm = Date.now();
   return true;
+}
+
+// Troca o conteúdo da tabela sem "pulo" visual: congela a altura enquanto o tbody é refeito
+// e devolve a rolagem (janela + contêineres roláveis) exatamente onde estava.
+function _renderSemPiscar(fn) {
+  const tabela = document.getElementById("tabelaResultados");
+  if (!tabela) { fn(); return; }
+  const salvos = [];
+  try {
+    salvos.push({ el: window, x: window.scrollX, y: window.scrollY });
+    for (let el = tabela.parentElement; el && el !== document.documentElement; el = el.parentElement) {
+      if (el.scrollTop || el.scrollLeft) salvos.push({ el, x: el.scrollLeft, y: el.scrollTop });
+    }
+  } catch (e) {}
+  const alturaAntes = tabela.offsetHeight;
+  if (alturaAntes > 0) tabela.style.minHeight = alturaAntes + "px";
+  try { fn(); }
+  finally {
+    try {
+      salvos.forEach(r => { if (r.el === window) window.scrollTo(r.x, r.y); else { r.el.scrollLeft = r.x; r.el.scrollTop = r.y; } });
+    } catch (e) {}
+    requestAnimationFrame(() => { tabela.style.minHeight = ""; });
+  }
 }
 
 // ── Quantas horas de histórico a tela realmente precisa ──
@@ -4195,7 +4218,7 @@ let _oddsEmVoo = false;
 let _proxEmVoo = false;
 let _pProxAtual = Promise.resolve();
 let _renderTimer = null;
-const ODDS_INTERVALO_MS = 6000; // odds mudam pouco: não precisam ser baixadas a cada 3s
+const ODDS_INTERVALO_MS = 3000; // odds atualizam junto com o ciclo principal (3s)
 
 // Quando o usuário liga uma ferramenta que precisa de mais histórico, busca na hora
 function refetchSePreciso() {
@@ -4311,7 +4334,7 @@ function hidratarDoCacheLocal() {
 // Em segundo plano, baixa resultados + odds + próximos das ligas "irmãs" e grava no cache.
 // Quando o usuário troca de liga, a tabela já abre completa (com odds e próximos) e só atualiza depois.
 // Se os nomes aceitos pela API forem outros, defina window.PRELOAD_LIGAS = ["nome1","nome2"] antes deste script.
-const PRELOAD_INTERVALO_MS = 8 * 60 * 1000; // cada liga é renovada no máximo a cada 8 min
+const PRELOAD_INTERVALO_MS = 3000; // sem espera mínima: a cada ciclo de 3s pré-carrega a liga irmã mais antiga (rodízio)
 const PRELOAD_HORAS_MAX = 48;
 let _preloadEmAndamento = false;
 
@@ -4802,7 +4825,7 @@ setTimeout(iniciarObserverStreak, 1000);
   const tick = () => {
     ticks++;
     _buscarDadosSeguro();
-    if (ticks % 5 === 0) precarregarLigasIrmas(); // a cada 15s
+    precarregarLigasIrmas(); // a cada 3s (uma liga irmã por ciclo, a mais antiga primeiro)
   };
   try {
     const src = "setInterval(function(){ postMessage(1); }, 3000);";
