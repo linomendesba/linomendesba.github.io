@@ -4334,7 +4334,7 @@ function hidratarDoCacheLocal() {
 // Em segundo plano, baixa resultados + odds + próximos das ligas "irmãs" e grava no cache.
 // Quando o usuário troca de liga, a tabela já abre completa (com odds e próximos) e só atualiza depois.
 // Se os nomes aceitos pela API forem outros, defina window.PRELOAD_LIGAS = ["nome1","nome2"] antes deste script.
-const PRELOAD_INTERVALO_MS = 3000; // sem espera mínima: a cada ciclo de 3s pré-carrega a liga irmã mais antiga (rodízio)
+const PRELOAD_INTERVALO_MS = 3000; // todas as ligas irmãs são renovadas a cada ciclo de 3s
 const PRELOAD_HORAS_MAX = 48;
 let _preloadEmAndamento = false;
 
@@ -4362,38 +4362,43 @@ function _modoSplit() {
   try { return !!window.frameElement && /[?&]res=/.test(location.search); } catch (e) { return false; }
 }
 
-async function precarregarLigasIrmas() {
-  if (_modoSplit()) return;
-  if (_preloadEmAndamento || !_tabVisibleTabela || !_cacheResultados.length) return;
-  const agora = Date.now();
-  const liga = ligasParaPrecarregar()
-    .filter(n => {
-      const lk = ligaKeyDe(n);
-      return (agora - _preloadQuando(lk)) >= PRELOAD_INTERVALO_MS || localStorage.getItem(_cacheChave(lk, "res")) === null;
-    })
-    .sort((a, b) => _preloadQuando(ligaKeyDe(a)) - _preloadQuando(ligaKeyDe(b)))[0];
-  if (!liga) return;
-
-  _preloadEmAndamento = true;
+// Todas as ligas irmãs são renovadas a cada ciclo (3s), em paralelo. Cada liga tem seu próprio "em voo":
+// se uma liga demorar mais de 3s, só ela pula o ciclo; as outras continuam normalmente.
+// Para limitar a carga no servidor, defina window.PRELOAD_LIGAS_POR_CICLO = N (padrão: todas).
+const _preloadEmVoo = new Set();
+async function _precarregarUmaLiga(liga) {
+  const lk = ligaKeyDe(liga);
+  if (_preloadEmVoo.has(lk)) return;
+  _preloadEmVoo.add(lk);
   try {
-    const lk = ligaKeyDe(liga);
     _preloadMarcar(lk);
     const horasPedido = Math.min(horasNecessarias(), PRELOAD_HORAS_MAX);
     const [d, o, p] = await Promise.all([
-      fetchResultados(horasPedido, liga, false).catch(() => null),
-      fetchOdds(horasPedido, liga, false),
-      fetchProximosJogos(liga, false)
+      fetchResultados(horasPedido, liga, true).catch(() => null),
+      fetchOdds(horasPedido, liga, true),
+      fetchProximosJogos(liga, true)
     ]);
+    // cacheGravarSeMudou: se o servidor devolveu o mesmo conteúdo, não regrava o localStorage
     if (Array.isArray(d) && d.length) {
-      cacheGravar(lk, "res", d, horasPedido);
-      if (Array.isArray(o) && o.length) cacheGravar(lk, "odds", o, horasPedido);
-      if (Array.isArray(p) && p.length) cacheGravar(lk, "prox", p, 0);
+      cacheGravarSeMudou(lk, "res", d, horasPedido);
+      if (Array.isArray(o) && o.length) cacheGravarSeMudou(lk, "odds", o, horasPedido);
+      if (Array.isArray(p) && p.length) cacheGravarSeMudou(lk, "prox", p, 0);
     }
   } catch (e) {
-    console.warn("Pré-carregamento falhou:", e);
+    console.warn("Pré-carregamento falhou (" + liga + "):", e);
   } finally {
-    _preloadEmAndamento = false;
+    _preloadEmVoo.delete(lk);
   }
+}
+
+async function precarregarLigasIrmas() {
+  if (_modoSplit()) return;
+  if (!_tabVisibleTabela || !_cacheResultados.length) return;
+  const limite = Number.isFinite(window.PRELOAD_LIGAS_POR_CICLO) ? window.PRELOAD_LIGAS_POR_CICLO : Infinity;
+  const ligas = ligasParaPrecarregar()
+    .sort((a, b) => _preloadQuando(ligaKeyDe(a)) - _preloadQuando(ligaKeyDe(b)))
+    .slice(0, limite);
+  await Promise.all(ligas.map(_precarregarUmaLiga));
 }
 
 // Junta num único render as respostas que chegam quase juntas (resultados, odds, próximos)
@@ -4825,7 +4830,7 @@ setTimeout(iniciarObserverStreak, 1000);
   const tick = () => {
     ticks++;
     _buscarDadosSeguro();
-    precarregarLigasIrmas(); // a cada 3s (uma liga irmã por ciclo, a mais antiga primeiro)
+    precarregarLigasIrmas(); // a cada 3s (todas as ligas irmãs, em paralelo)
   };
   try {
     const src = "setInterval(function(){ postMessage(1); }, 3000);";
