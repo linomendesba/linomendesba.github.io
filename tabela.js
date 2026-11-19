@@ -4376,6 +4376,8 @@ async function precarregarLigasIrmas() {
 // Junta num único render as respostas que chegam quase juntas (resultados, odds, próximos)
 function agendarRender() {
   if (_renderTimer) return;
+  // Aba escondida: setTimeout é muito atrasado pelo navegador, então renderiza direto
+  const _atraso = document.hidden ? 0 : 30;
   _renderTimer = setTimeout(() => {
     _renderTimer = null;
     if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) return;
@@ -4384,7 +4386,7 @@ function agendarRender() {
       renderizarTabelaSeMudou(_cacheResultados, _cacheOddsData, _cacheProximosJogos, false);
       if (!qdCheckboxAtivo()) qdAtualizarIndicadorAoVivo();
     } catch (e) { console.error("Erro ao renderizar tabela:", e); }
-  }, 30);
+  }, _atraso);
 }
 
 async function buscarDados() {
@@ -4755,7 +4757,8 @@ function salvarModalRkConfig() {
 }
 
 
-let _tabVisibleTabela = !document.hidden;
+// Aba em segundo plano continua atualizando: só pausa se a liga estiver fora da tela no split.html
+let _tabVisibleTabela = true;
 let _buscando = false;
 let _buscandoDesde = 0;
 const BUSCA_TRAVA_MAX_MS = 15000; 
@@ -4770,7 +4773,7 @@ async function _buscarDadosSeguro() {
 }
 let _naTelaTabela = true;
 document.addEventListener('visibilitychange', () => {
-  _tabVisibleTabela = !document.hidden && _naTelaTabela;
+  _tabVisibleTabela = _naTelaTabela;
   if (_tabVisibleTabela) _buscarDadosSeguro();
 });
 
@@ -4781,7 +4784,7 @@ if (_modoSplit() && "IntersectionObserver" in window) {
     const visivel = entradas[entradas.length - 1].isIntersecting;
     if (visivel === _naTelaTabela) return;
     _naTelaTabela = visivel;
-    _tabVisibleTabela = !document.hidden && visivel;
+    _tabVisibleTabela = visivel;
     if (_tabVisibleTabela) _buscarDadosSeguro();
   }, { rootMargin: "300px 0px" }).observe(document.body);
 }
@@ -4789,9 +4792,28 @@ if (_modoSplit() && "IntersectionObserver" in window) {
 hidratarDoCacheLocal();
 buscarDados();
 setTimeout(precarregarLigasIrmas, 4000);
-setInterval(precarregarLigasIrmas, 15000);
 setTimeout(iniciarObserverStreak, 1000);
-setInterval(_buscarDadosSeguro, 3000);
+
+// Relógio em Web Worker: os navegadores seguram setInterval em abas em segundo plano
+// (1x por segundo e, depois de ~5 min, 1x por minuto). Timers dentro de um Worker não sofrem
+// essa limitação, então os ciclos continuam no ritmo normal mesmo com a aba escondida.
+(function iniciarRelogioEmSegundoPlano() {
+  let ticks = 0;
+  const tick = () => {
+    ticks++;
+    _buscarDadosSeguro();
+    if (ticks % 5 === 0) precarregarLigasIrmas(); // a cada 15s
+  };
+  try {
+    const src = "setInterval(function(){ postMessage(1); }, 3000);";
+    const url = URL.createObjectURL(new Blob([src], { type: "application/javascript" }));
+    const w = new Worker(url);
+    w.onmessage = tick;
+    w.onerror = () => { try { w.terminate(); } catch (e) {} setInterval(tick, 3000); };
+  } catch (e) {
+    setInterval(tick, 3000); // fallback (ex.: CSP bloqueando blob:)
+  }
+})();
 
 
 const _sh=document.querySelector("#seletorHoras");
