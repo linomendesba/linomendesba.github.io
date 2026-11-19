@@ -89,6 +89,12 @@ const ROTAS_API = {
   resultados: (nomeLiga) => gerarUrlApi("resultados", nomeLiga),
   proximosJogos: (nomeLiga) => gerarUrlApi("proximos", nomeLiga),
   odds: (nomeLiga) => gerarUrlApi("odds", nomeLiga),
+  // Rota "completa" (próximos + odds + resultados numa resposta só). Só existe para Kiron e Estrela;
+  // para as outras ligas devolve null e a tabela continua usando as 3 rotas de sempre.
+  completo: (nomeLiga) => {
+    const sub = MAPEAMENTO_ROTAS_ESPECIAIS[nomeLiga];
+    return sub && /^(kiron|estrela)\//.test(sub) ? `${API_BASE_URL}/completo/${sub}` : null;
+  },
 };
 
 // 2. Mapeamento declarativo de Arquivo -> Liga
