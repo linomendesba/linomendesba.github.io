@@ -1,100 +1,3 @@
-// ════════════════════════════════════════════════════════════════
-// ROTAS DIRETAS — este arquivo acessa a API sozinho, sem depender de
-// ROTAS_API / LIGAS_INFO / LIGA_ATUAL definidos em outro arquivo.
-// Padrão: /resultados|/proximos|/odds  +  /<casa>/<identificador>
-// ════════════════════════════════════════════════════════════════
-// Endereço da API (igual ao API_BASE_URL do config.js — domínio SEM www)
-const DV_API_BASE = "https://datavirtual.com.br";
-
-const LIGAS_ROTAS = {
-  // 1WIN
-  "1win Inglaterra": { casa: "onewin", id: "Inglaterra" },
-  "1win Espanha":    { casa: "onewin", id: "Espanha" },
-  "1win Itália":     { casa: "onewin", id: "It%C3%A1lia" },
-
-  // BETGREEN
-  "BetGreen Premier League":   { casa: "betgreen", id: "England.%20Premier%20League" },
-  "BetGreen La Liga":          { casa: "betgreen", id: "Spain.%20La%20Liga" },
-  "BetGreen World Cup":        { casa: "betgreen", id: "World%20Cup.%20Play-offs" },
-  "BetGreen Primera Division": { casa: "betgreen", id: "Chile.%20Primera%20Division" }, // Chile
-  "BetGreen Champions League": { casa: "betgreen", id: "Champions%20League" },
-
-  // KIRON
-  "Kiron Liga Brasil":         { casa: "kiron", id: "Brasil" },
-  "Kiron Liga Inglaterra":     { casa: "kiron", id: "England" },
-  "Kiron Liga Itália":         { casa: "kiron", id: "Italy" },
-  "Kiron Liga América Latina": { casa: "kiron", id: "Am%C3%A9rica%20Latina" },
-  "Kiron Liga Espanha":        { casa: "kiron", id: "Spain" },
-  "Kiron Liga Mundial":        { casa: "kiron", id: "Mundial" },
-
-  // ESTRELABET
-  "Copa do Mundo":      { casa: "estrela", id: "Copa%20do%20Mundo" },
-  "Ligas dos Campeões": { casa: "estrela", id: "Ligas%20dos%20Campe%C3%B5es" },
-  "América Latina":     { casa: "estrela", id: "Am%C3%A9rica%20Latina" },
-  "Premier League":     { casa: "estrela", id: "Premier%20League" },
-};
-
-// Nomes alternativos aceitos para a mesma liga
-const LIGAS_ALIAS = {
-  "BetGreen Chile": "BetGreen Primera Division",
-  "BetGreen Chile Primera Division": "BetGreen Primera Division",
-};
-
-function resolverLiga(nome) {
-  if (!nome) return null;
-  const n = String(nome).trim();
-  if (LIGAS_ROTAS[n]) return n;
-  if (LIGAS_ALIAS[n]) return LIGAS_ALIAS[n];
-  const alvo = n.toLowerCase();
-  const achada = Object.keys(LIGAS_ROTAS).find(k => k.toLowerCase() === alvo)
-    || Object.keys(LIGAS_ALIAS).find(k => k.toLowerCase() === alvo);
-  return achada ? (LIGAS_ROTAS[achada] ? achada : LIGAS_ALIAS[achada]) : null;
-}
-
-// Arquivo .html da página -> liga (mesma tabela do config.js)
-const LIGAS_ARQUIVOS = {
-  "onewininglaterra.html": "1win Inglaterra", "onewinespanha.html": "1win Espanha", "onewinitalia.html": "1win Itália",
-  "betgreenpremier.html": "BetGreen Premier League", "betgreenlaliga.html": "BetGreen La Liga",
-  "betgreenworldcup.html": "BetGreen World Cup", "betgreenchile.html": "BetGreen Primera Division",
-  "betgreenchampions.html": "BetGreen Champions League",
-  "kironbrazil.html": "Kiron Liga Brasil", "kironengland.html": "Kiron Liga Inglaterra", "kironitaly.html": "Kiron Liga Itália",
-  "kironamerica.html": "Kiron Liga América Latina", "kironspain.html": "Kiron Liga Espanha", "kironmundial.html": "Kiron Liga Mundial",
-  "estrelacopamundo.html": "Copa do Mundo", "estrelachampions.html": "Ligas dos Campeões",
-  "estrelaamericalatina.html": "América Latina", "estrelapremier.html": "Premier League",
-};
-
-// Descobre a liga da página. Se o config.js já definiu LIGA_ATUAL, usa esse e não mexe.
-(function definirLigaAtual() {
-  if (typeof LIGA_ATUAL !== "undefined" && LIGA_ATUAL) return;
-  let liga = null;
-  try {
-    const qs = new URLSearchParams(location.search);
-    liga = resolverLiga(qs.get("res")) || resolverLiga(qs.get("liga"));
-  } catch (e) {}
-  if (!liga) {
-    const caminho = (location.pathname || "").toLowerCase();
-    const arq = Object.keys(LIGAS_ARQUIVOS).find(a => caminho.includes(a));
-    if (arq) liga = LIGAS_ARQUIVOS[arq];
-  }
-  if (!liga) {
-    const h4 = document.querySelector("h4.custom-color");
-    if (h4) liga = resolverLiga(h4.textContent);
-  }
-  window.LIGA_ATUAL = liga || "Kiron Liga Inglaterra";
-})();
-
-function rotaLiga(tipo, liga) {
-  // Se a página já carregou o config da liga (ROTAS_API), usa ele: é a fonte oficial do site.
-  // As rotas embutidas abaixo só entram quando o config não existe (uso standalone).
-  if (typeof ROTAS_API !== "undefined" && ROTAS_API && typeof ROTAS_API[tipo === "proximos" ? "proximosJogos" : tipo] === "function") {
-    return ROTAS_API[tipo === "proximos" ? "proximosJogos" : tipo](liga);
-  }
-  const k = resolverLiga(liga) || resolverLiga(LIGA_ATUAL);
-  const r = k && LIGAS_ROTAS[k];
-  if (!r) throw new Error(`Liga sem rota configurada: ${liga}`);
-  return `${DV_API_BASE}/${tipo}/${r.casa}/${r.id}`;
-}
-
 // Adiciona o grupo "Viradinha" no seletor de mercado de todas as ligas
 (function adicionarGrupoViradinha() {
   const inserir = () => {
@@ -3166,7 +3069,6 @@ function getOddValue(odds, res) {
 
 
 
-let _ultimoRecebidoResultados = "nada ainda";
 const FETCH_TIMEOUT_MS = 8000;
 const FETCH_TIMEOUT_ODDS_MS = 20000; // odds rodam em segundo plano: podem demorar mais sem travar a tabela
 
@@ -3181,7 +3083,6 @@ async function fetchJsonComTimeout(url, nome, ms = FETCH_TIMEOUT_MS, usarMemo = 
     const res = await fetch(url, { cache: "no-store", signal: ctrl.signal });
     if (!res.ok) throw new Error(`Erro HTTP ${res.status} em ${nome}`);
     const texto = await res.text();
-    if (nome.startsWith("resultados:")) _ultimoRecebidoResultados = `${res.status} ${res.headers.get("content-type") || ""} ${texto.length} bytes: ${texto.slice(0, 80).replace(/\s+/g, " ")}`;
     const m = usarMemo ? _memoFetch[nome] : null;
     if (m && m.texto === texto) return m.json;
     const json = JSON.parse(texto);
@@ -3203,12 +3104,12 @@ function _qsHoras(horas) {
 // O nome do memo inclui a liga: assim ligas diferentes nunca se misturam nem "brigam" pelo mesmo cache.
 // `liga` e `usarMemo` existem para o pré-carregamento das outras ligas (usarMemo=false não guarda texto na memória).
 async function fetchResultados(horas, liga = LIGA_ATUAL, usarMemo = true) {
-  return fetchJsonComTimeout(rotaLiga("resultados", liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "resultados:" + liga, FETCH_TIMEOUT_MS, usarMemo);
+  return fetchJsonComTimeout(ROTAS_API.resultados(liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "resultados:" + liga, FETCH_TIMEOUT_MS, usarMemo);
 }
 
 async function fetchOdds(horas, liga = LIGA_ATUAL, usarMemo = true) {
   try {
-    return await fetchJsonComTimeout(rotaLiga("odds", liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "odds:" + liga, FETCH_TIMEOUT_ODDS_MS, usarMemo);
+    return await fetchJsonComTimeout(ROTAS_API.odds(liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "odds:" + liga, FETCH_TIMEOUT_ODDS_MS, usarMemo);
   } catch(e) {
     console.error("Erro odds:", e);
     return null;
@@ -3218,7 +3119,7 @@ async function fetchOdds(horas, liga = LIGA_ATUAL, usarMemo = true) {
 const _proxMemo = new Map();
 async function fetchProximosJogos(liga = LIGA_ATUAL, usarMemo = true) {
   try {
-    const j = await fetchJsonComTimeout(rotaLiga("proximos", liga) + `?timestamp=${Date.now()}`, "proximosJogos:" + liga, FETCH_TIMEOUT_MS, usarMemo);
+    const j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(liga) + `?timestamp=${Date.now()}`, "proximosJogos:" + liga, FETCH_TIMEOUT_MS, usarMemo);
     const m = usarMemo ? _proxMemo.get(liga) : null;
     if (m && m.src === j) return m.out;
     const out = j.slice().sort((a,b) => new Date(a.start_time) - new Date(b.start_time)).slice(0, 10);
@@ -4416,16 +4317,15 @@ let _preloadEmAndamento = false;
 
 function _casaDaLiga(nome) {
   if (typeof LIGAS_INFO !== "undefined" && LIGAS_INFO[nome]) return LIGAS_INFO[nome].casa;
-  const k = resolverLiga(nome);
-  return k ? LIGAS_ROTAS[k].casa : null;
+  const p = String(nome).split(" ")[0];
+  return ["1win", "BetGreen", "Kiron"].includes(p) ? p : "Estrelabet";
 }
 
 function ligasParaPrecarregar() {
   if (typeof LIGA_ATUAL === "undefined" || !LIGA_ATUAL) return [];
   if (Array.isArray(window.PRELOAD_LIGAS)) return window.PRELOAD_LIGAS.filter(n => n !== LIGA_ATUAL);
   const casa = _casaDaLiga(LIGA_ATUAL);
-  const todas = (typeof LIGAS_INFO !== "undefined" && LIGAS_INFO) ? Object.keys(LIGAS_INFO) : Object.keys(LIGAS_ROTAS);
-  return todas.filter(n => n !== LIGA_ATUAL && _casaDaLiga(n) === casa);
+  return Object.keys(MINUTOS_POR_LIGA).filter(n => n !== LIGA_ATUAL && _casaDaLiga(n) === casa);
 }
 
 // A troca de liga é uma navegação de página: o "quando foi pré-carregada" precisa sobreviver entre páginas.
@@ -4572,7 +4472,7 @@ async function buscarDados() {
   if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) {
     await _pProxAtual;
     if (minhaVersao !== _versaoBusca) return;
-    if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) showErrorMessage(`Nenhum dado disponível. Liga: "${LIGA_ATUAL}" | rota: ${(() => { try { return rotaLiga("resultados", LIGA_ATUAL); } catch (e) { return e.message; } })()} | recebido: ${_ultimoRecebidoResultados}`);
+    if (_cacheResultados.length === 0 && _cacheProximosJogos.length === 0) showErrorMessage("Nenhum dado disponível.");
   }
 }
 
