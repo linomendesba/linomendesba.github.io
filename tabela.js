@@ -3101,97 +3101,14 @@ function _qsHoras(horas) {
   return (Number.isFinite(horas) && horas > 0) ? `&horas=${Math.ceil(horas)}` : "";
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-// ROTA COMPLETA  (/completo/:origem/:liga — só Kiron e Estrela)
-// Uma única requisição traz próximos + odds + resultados (tabela jogoscompleto).
-// fetchResultados / fetchOdds / fetchProximosJogos continuam devolvendo o MESMO formato de antes,
-// então o resto da tabela não muda. Se a rota nova falhar, vier vazia ou cobrir menos horas do que
-// o pedido, cai sozinho nas rotas antigas (/resultados, /odds, /proximos).
-// Para desligar: USAR_ROTA_COMPLETA = false.
-// ══════════════════════════════════════════════════════════════════════════
-const USAR_ROTA_COMPLETA = true;
-const FETCH_TIMEOUT_COMPLETO_MS = 15000;
-const _completoVoo   = new Map(); // liga -> { t, horas, p }  (os 3 fetch do mesmo ciclo dividem 1 requisição)
-const _completoDeriv = new Map(); // liga -> { src, res, odds, prox } (mesma referência enquanto o JSON não mudar)
-
-function _p2(n) { return String(n).padStart(2, "0"); }
-
-// Converte a resposta { proximos, jogos } nos 3 formatos antigos
-function _derivarCompleto(json) {
-  const jogos    = Array.isArray(json && json.jogos)    ? json.jogos    : [];
-  const proximos = Array.isArray(json && json.proximos) ? json.proximos : [];
-  const hm = r => `${_p2(r.hora)}:${_p2(r.minuto)}`;
-
-  const paraOdds = r => ({
-    ...r,
-    match_id: r.event_id,
-    time_casa: r.time_a,
-    time_visitante: r.time_b,
-    horario: hm(r),
-    data_captura: formatDateToDDMMYYYY(r.data)
-  });
-  const temOdds = r => r.odds_casa_vence != null || r.odds_mais_2_5 != null;
-
-  // mais recentes primeiro (o índice de odds guarda a 1ª ocorrência de cada chave)
-  const odds = proximos.slice().reverse().concat(jogos).filter(temOdds).map(paraOdds);
-  const prox = proximos.map(r => ({
-    ...r,
-    league: r.liga,
-    team_home: r.time_a,
-    team_visit: r.time_b,
-    time: hm(r),
-    captured_date: formatDateToDDMMYYYY(r.data)
-  }));
-  return { src: json, res: jogos, odds, prox };
-}
-
-// A rota completa só vale se cobre (quase) toda a janela de horas pedida;
-// senão a tabela mostraria menos histórico do que as rotas antigas.
-function _completoCobre(c, horas) {
-  if (!c || !c.res.length) return false;
-  if (!Number.isFinite(horas) || horas <= 0) return true;
-  const alvo = Math.min(horas, 192); // o servidor limita a janela padrão a 8 dias
-  const t0 = new Date(c.res[0].start_time).getTime();
-  const t1 = new Date(c.res[c.res.length - 1].start_time).getTime();
-  return (t0 - t1) >= alvo * 3600e3 * 0.8;
-}
-
-// Devolve { src, res, odds, prox } ou null (liga sem rota completa / desligada / erro)
-function _fetchCompleto(liga, horas, usarMemo) {
-  const url0 = USAR_ROTA_COMPLETA && ROTAS_API.completo ? ROTAS_API.completo(liga) : null;
-  if (!url0) return Promise.resolve(null);
-
-  const agora = Date.now();
-  const e = _completoVoo.get(liga);
-  if (e && agora - e.t < 1500 && (horas == null || e.horas === horas)) return e.p;
-
-  const h = horas == null ? 1 : horas; // pedido só de "próximos": janela mínima de resultados
-  const p = fetchJsonComTimeout(url0 + `?timestamp=${agora}` + _qsHoras(h), "completo:" + liga, FETCH_TIMEOUT_COMPLETO_MS, usarMemo)
-    .then(json => {
-      if (!json || Array.isArray(json)) return null;
-      const d = usarMemo ? _completoDeriv.get(liga) : null;
-      if (d && d.src === json) return d;
-      const novo = _derivarCompleto(json);
-      if (usarMemo) _completoDeriv.set(liga, novo);
-      return novo;
-    })
-    .catch(err => { console.warn("Rota completa falhou (usando rotas antigas):", err.message); return null; });
-  _completoVoo.set(liga, { t: agora, horas: h, p });
-  return p;
-}
-
 // O nome do memo inclui a liga: assim ligas diferentes nunca se misturam nem "brigam" pelo mesmo cache.
 // `liga` e `usarMemo` existem para o pré-carregamento das outras ligas (usarMemo=false não guarda texto na memória).
 async function fetchResultados(horas, liga = LIGA_ATUAL, usarMemo = true) {
-  const c = await _fetchCompleto(liga, horas, usarMemo);
-  if (c && _completoCobre(c, horas)) return c.res;
   return fetchJsonComTimeout(ROTAS_API.resultados(liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "resultados:" + liga, FETCH_TIMEOUT_MS, usarMemo);
 }
 
 async function fetchOdds(horas, liga = LIGA_ATUAL, usarMemo = true) {
   try {
-    const c = await _fetchCompleto(liga, horas, usarMemo);
-    if (c && c.odds.length && _completoCobre(c, horas)) return c.odds;
     return await fetchJsonComTimeout(ROTAS_API.odds(liga) + `?timestamp=${Date.now()}` + _qsHoras(horas), "odds:" + liga, FETCH_TIMEOUT_ODDS_MS, usarMemo);
   } catch(e) {
     console.error("Erro odds:", e);
@@ -3202,8 +3119,6 @@ async function fetchOdds(horas, liga = LIGA_ATUAL, usarMemo = true) {
 const _proxMemo = new Map();
 async function fetchProximosJogos(liga = LIGA_ATUAL, usarMemo = true) {
   try {
-    const c = await _fetchCompleto(liga, null, usarMemo);
-    if (c && c.prox.length) return c.prox;
     const j = await fetchJsonComTimeout(ROTAS_API.proximosJogos(liga) + `?timestamp=${Date.now()}`, "proximosJogos:" + liga, FETCH_TIMEOUT_MS, usarMemo);
     const m = usarMemo ? _proxMemo.get(liga) : null;
     if (m && m.src === j) return m.out;
