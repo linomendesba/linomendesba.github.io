@@ -1458,9 +1458,18 @@ function garantirCheckboxQuadrantes() {
   const style = document.createElement("style");
   style.id = "multi-select-styles";
   style.textContent = `
+    /* Odd selecionada: pílula discreta (sem borda grossa) — fundo escuro translúcido, anel fino e brilho suave na cor escolhida */
     .odd-selecionada {
-      border: 3px solid var(--sel-color, #A855F7) !important;
-      outline: none !important; color: var(--sel-color, #A855F7) !important;
+      border: none !important;
+      outline: none !important;
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 6px;
+      font-weight: 800;
+      color: var(--sel-color, #A855F7) !important;
+      background: rgba(0,0,0,0.55) !important;
+      box-shadow: 0 0 0 1px var(--sel-color, #A855F7), 0 0 6px var(--sel-color, #A855F7);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--sel-color, #A855F7) 75%, transparent), 0 0 7px color-mix(in srgb, var(--sel-color, #A855F7) 45%, transparent);
     }
     .time-nome-selecionado {
       background-color: var(--sel-color, #A855F7) !important;
@@ -1502,6 +1511,11 @@ function garantirCheckboxQuadrantes() {
     td[data-resultado="erro"] {
       border-radius: 8px;
       background-image: linear-gradient(to top, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.12) 38%, rgba(0,0,0,0) 75%, rgba(255,255,255,0.07) 100%) !important;
+    }
+    /* Hover: clareia levemente a célula (camada branca translúcida por cima do degradê, sem mexer em filter/box-shadow) */
+    td[data-resultado="acerto"]:hover,
+    td[data-resultado="erro"]:hover {
+      background-image: linear-gradient(rgba(255,255,255,0.14), rgba(255,255,255,0.14)), linear-gradient(to top, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.12) 38%, rgba(0,0,0,0) 75%, rgba(255,255,255,0.07) 100%) !important;
     }
 
     #tabelaResultados.tem-coluna-selecionada td:not(.coluna-selecionada)             { filter: brightness(0.45); }
