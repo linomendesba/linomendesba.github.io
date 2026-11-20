@@ -1496,6 +1496,13 @@ function garantirCheckboxQuadrantes() {
     .qd-cell-3 { background-color: rgba(255,255,255,0.05) !important; }
     td[data-resultado="acerto"] { background-color: var(--cor-green, #018b06) !important; }
     td[data-resultado="erro"]   { background-color: var(--cor-red,   #be0e02) !important; }
+    /* Células de resultado: cantos arredondados (igual aos próximos) + degradê sutil de baixo (escuro) pra cima (claro).
+       O degradê fica em background-image, por cima do background-color, então funciona com qualquer cor escolhida pelo usuário. */
+    td[data-resultado="acerto"],
+    td[data-resultado="erro"] {
+      border-radius: 8px;
+      background-image: linear-gradient(to top, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.12) 38%, rgba(0,0,0,0) 75%, rgba(255,255,255,0.07) 100%) !important;
+    }
 
     #tabelaResultados.tem-coluna-selecionada td:not(.coluna-selecionada)             { filter: brightness(0.45); }
     #tabelaResultados.tem-coluna-selecionada th.minute-header:not(.coluna-selecionada) { filter: brightness(0.45); }
