@@ -1,0 +1,735 @@
+(function () {
+  'use strict';
+  const LEAGUE_REGISTRY = [
+    // ── BETANO ──
+    { test: f => f.includes('brasileirao.html'),                     liga: () => LIGAS.BRASILEIRAO,            gph: 20 },
+    { test: f => f.includes('campeonato_italiano.html'),             liga: () => LIGAS.ITALIANO,               gph: 20 },
+    { test: f => f.includes('copa_america.html'),                    liga: () => LIGAS.COPA_AMERICA,           gph: 20 },
+    { test: f => f.includes('copa_das_estrelas.html'),               liga: () => LIGAS.COPA_ESTRELAS,          gph: 20 },
+    // "euro.html" também aparece em bet365euro.html e mgmeuro.html
+    { test: f => f.includes('euro.html') && !f.includes('bet365') && !f.includes('mgm'), liga: () => LIGAS.EURO, gph: 20 },
+
+    // ── BET365 ──
+    { test: f => f.includes('bet365copa.html'),                      liga: () => LIGAS.BET365_COPA,            gph: 20 },
+    { test: f => f.includes('bet365euro.html'),                      liga: () => LIGAS.BET365_EURO,            gph: 20 },
+    { test: f => f.includes('bet365super.html'),                     liga: () => LIGAS.BET365_SUPER,           gph: 20 },
+    { test: f => f.includes('bet365premier.html'),                   liga: () => LIGAS.BET365_PREMIER,         gph: 20 },
+
+    // ── MGM ──
+    { test: f => f.includes('mgmelite.html'),                        liga: () => LIGAS.MGM_ELITE,              gph: 20 },
+    { test: f => f.includes('mgmamericas.html'),                     liga: () => LIGAS.MGM_AMERICAS,           gph: 20 },
+    { test: f => f.includes('mgmeuro.html'),                         liga: () => LIGAS.MGM_EURO,               gph: 20 },
+    { test: f => f.includes('mgmglobal.html'),                       liga: () => LIGAS.MGM_GLOBAL,             gph: 60 },
+
+    // ── BETSSON ──
+    { test: f => f.includes('betssonespanha.html'),                  liga: () => LIGAS.BETSSON_ESPANHA,        gph: 20 },
+    { test: f => f.includes('betssoningland.html'),                  liga: () => LIGAS.BETSSON_INGLATERRA,     gph: 20 },
+    { test: f => f.includes('betssonbrasil.html'),                   liga: () => LIGAS.BETSSON_BRASIL,         gph: 20 },
+
+    // ── 1WIN ──
+    { test: f => f.includes('onewininglaterra.html'),                liga: () => LIGAS.ONEWIN_INGLATERRA,      gph: 20 },
+    { test: f => f.includes('onewinespanha.html'),                   liga: () => LIGAS.ONEWIN_ESPANHA,         gph: 20 },
+    { test: f => f.includes('onewinitalia.html'),                    liga: () => LIGAS.ONEWIN_ITALIA,          gph: 20 },
+
+    // ── BETGREEN (12 jogos/hora) ──
+    { test: f => f.includes('betgreenpremier.html'),                 liga: () => LIGAS.BETGREEN_PREMIER,       gph: 12 },
+    { test: f => f.includes('betgreenlaliga.html'),                  liga: () => LIGAS.BETGREEN_LALIGA,        gph: 12 },
+    { test: f => f.includes('betgreenworldcup.html'),                liga: () => LIGAS.BETGREEN_WORLDCUP,      gph: 12 },
+    { test: f => f.includes('betgreenchile.html'),                   liga: () => LIGAS.BETGREEN_CHILE,         gph: 12 },
+    { test: f => f.includes('betgreenchampions.html'),               liga: () => LIGAS.BETGREEN_CHAMPIONS,     gph: 12 },
+
+    // ── KIRON (30 jogos/hora, Brasil e América Latina são 20) ──
+    { test: f => f.includes('kironbrazil.html'),                     liga: () => LIGAS.KIRON_BRAZIL,           gph: 20 },
+    { test: f => f.includes('kironengland.html'),                    liga: () => LIGAS.KIRON_ENGLAND,          gph: 30 },
+    { test: f => f.includes('kironitaly.html'),                      liga: () => LIGAS.KIRON_ITALY,            gph: 30 },
+    { test: f => f.includes('kironamerica.html'),                    liga: () => LIGAS.KIRON_AMERICA,          gph: 20 },
+    { test: f => f.includes('kironspain.html'),                      liga: () => LIGAS.KIRON_SPAIN,            gph: 30 },
+    { test: f => f.includes('kironmundial.html'),                    liga: () => LIGAS.KIRON_MUNDIAL,          gph: 30 },
+
+    // ── ESTRELABET ──
+    { test: f => f.includes('estrelacopamundo.html'),                liga: () => LIGAS.ESTRELA_COPA_MUNDO,     gph: 20 },
+    { test: f => f.includes('estrelachampions.html'),                liga: () => LIGAS.ESTRELA_CHAMPIONS,      gph: 20 },
+    { test: f => f.includes('estrelaamericalatina.html'),            liga: () => LIGAS.ESTRELA_AMERICA_LATINA, gph: 20 },
+    { test: f => f.includes('estrelapremier.html'),                  liga: () => LIGAS.ESTRELA_PREMIER,        gph: 20 },
+
+    // ── VAVADA ──
+    // vavamundial.html precisa vir ANTES de "mundial.html"
+    { test: f => f.includes('vavamundial.html'),                     liga: () => LIGAS.VAVA_MUNDIAL,           gph: 30 },
+    { test: f => f.includes('vavainglaterra.html'),                  liga: () => LIGAS.VAVA_INGLATERRA,        gph: 30 },
+    { test: f => f.includes('vavaitalia.html'),                      liga: () => LIGAS.VAVA_ITALIA,            gph: 30 },
+    { test: f => f.includes('vavaespanha.html'),                     liga: () => LIGAS.VAVA_ESPANHA,           gph: 30 },
+    { test: f => f.includes('vavabrasil.html'),                      liga: () => LIGAS.VAVA_BRASIL,            gph: 20 },
+    { test: f => f.includes('vavaamerica.html'),                     liga: () => LIGAS.VAVA_AMERICA,           gph: 20 },
+    { test: f => f.includes('vavapremier.html'),                     liga: () => LIGAS.VAVA_PREMIER,           gph: 20 },
+
+    // ── STRIVO (Itália/Inglaterra/Espanha 30 jogos/hora; demais 20) ──
+    { test: f => f.includes('strivoitalia.html'),                   liga: () => LIGAS.STRIVO_ITALIA,      gph: 30 },
+    { test: f => f.includes('strivoinglaterra.html'),               liga: () => LIGAS.STRIVO_INGLATERRA,  gph: 30 },
+    { test: f => f.includes('strivoespanha.html'),                  liga: () => LIGAS.STRIVO_ESPANHA,     gph: 30 },
+    { test: f => f.includes('strivochampions.html'),                liga: () => LIGAS.STRIVO_CHAMPIONS,   gph: 20 },
+    { test: f => f.includes('strivocopamundo.html'),                liga: () => LIGAS.STRIVO_COPA_MUNDO,  gph: 20 },
+    { test: f => f.includes('strivoamericalatina.html'),            liga: () => LIGAS.STRIVO_AMERICA_LATINA, gph: 20 },
+    { test: f => f.includes('strivoamerica.html'),                  liga: () => LIGAS.STRIVO_AMERICA,     gph: 20 },
+    { test: f => f.includes('strivobrasil.html'),                   liga: () => LIGAS.STRIVO_BRASIL,      gph: 20 },
+
+    // ── MUNDIAL (Betano) — por último entre os "mundial", depois de kironmundial/vavamundial ──
+    { test: f => f.includes('mundial.html') && !f.includes('kiron') && !f.includes('vava'), liga: () => LIGAS.MUNDIAL, gph: 20 },
+
+    // ── Glória Eterna (index) ──
+    { test: f => f.includes('index.html') || f === '' || f === '/',  liga: () => LIGAS.GLORIA_ETERNA,          gph: 20 },
+  ];
+
+  function resolverCard(card) {
+    let href = '';
+    const a = card.querySelector('a[href]');
+    if (a) {
+      href = a.getAttribute('href') || '';
+    } else {
+      const onclick = card.getAttribute('onclick') || '';
+      const m = onclick.match(/href\s*=\s*['"]([^'"]+)['"]/);
+      if (m) href = m[1];
+      else if (card.dataset && card.dataset.href) href = card.dataset.href;
+    }
+    const arquivo = href.toLowerCase();
+    if (!arquivo) return null;
+    for (const entry of LEAGUE_REGISTRY) {
+      if (entry.test(arquivo)) return { liga: entry.liga(), gph: entry.gph };
+    }
+    return null;
+  }
+
+  const LINES_TO_SUM_PADRAO = 20; 
+  const MIN_GAMES_ESTRELA   = 10; 
+  const CHECK_INTERVAL_MS   = 60_000;
+
+  const HOUR_OPTIONS = [
+    { value: 3,  label: '3h'  }, { value: 6,  label: '6h'  },
+    { value: 12, label: '12h' }, { value: 24, label: '24h' },
+    { value: 48, label: '48h' }, { value: 72, label: '72h' },
+  ];
+
+  const MARKET_INFO = {
+    golsFT:            { label: 'Gols FT (Total)',     tipo: 'soma' },
+    golsHT:            { label: 'Gols HT (1º Tempo)',  tipo: 'soma' },
+    casaVence:         { label: 'Casa Vence',           tipo: 'pct' },
+    empate:            { label: 'Empate',               tipo: 'pct' },
+    foraVence:         { label: 'Fora Vence',           tipo: 'pct' },
+    ambasSim:          { label: 'Ambas Sim',            tipo: 'pct' },
+    ambasNao:          { label: 'Ambas Não',            tipo: 'pct' },
+    'over1.5':         { label: 'Over 1.5',             tipo: 'pct' },
+    'over2.5':         { label: 'Over 2.5',             tipo: 'pct' },
+    'over3.5':         { label: 'Over 3.5',             tipo: 'pct' },
+    'under1.5':        { label: 'Under 1.5',            tipo: 'pct' },
+    'under2.5':        { label: 'Under 2.5',            tipo: 'pct' },
+    'under3.5':        { label: 'Under 3.5',            tipo: 'pct' },
+    zeroGolsExatos:    { label: '0 Gol Exato',          tipo: 'pct' },
+    umGolExato:        { label: '1 Gol Exato',          tipo: 'pct' },
+    doisGolsExatos:    { label: '2 Gols Exatos',        tipo: 'pct' },
+    tresGolsExatos:    { label: '3 Gols Exatos',        tipo: 'pct' },
+    quatroGolsExatos:  { label: '4 Gols Exatos',        tipo: 'pct' },
+    cincoOuMaisGols:   { label: '5+ Gols',              tipo: 'pct' },
+    placar0x0:         { label: 'Placar 0x0',           tipo: 'pct' },
+    placar1x0:         { label: 'Placar 1x0',           tipo: 'pct' },
+    placar2x0:         { label: 'Placar 2x0',           tipo: 'pct' },
+    placar3x0:         { label: 'Placar 3x0',           tipo: 'pct' },
+    placar2x1:         { label: 'Placar 2x1',           tipo: 'pct' },
+    placar3x1:         { label: 'Placar 3x1',           tipo: 'pct' },
+    placar3x2:         { label: 'Placar 3x2',           tipo: 'pct' },
+    placar4x0:         { label: 'Placar 4x0',           tipo: 'pct' },
+    placar4x1:         { label: 'Placar 4x1',           tipo: 'pct' },
+  };
+
+  const LS_CFG_ESTRELA     = 'radarEstrela_config';
+  const LS_CFG_TF          = 'radarTopoFundo_config';
+  const LS_ACTIVE_ESTRELA  = 'radarLigas_active_estrela';
+  const LS_ACTIVE_TF       = 'radarLigas_active_tf';
+  const LS_VISIVEL         = 'radarLigas_visivel';
+
+  function parseFt(ft) {
+    if (!ft) return { h: 0, a: 0, total: 0 };
+    const parts = String(ft).split(/\s*x\s*/i).map(s => parseInt(s, 10) || 0);
+    const h = parts[0] || 0, a = parts[1] || 0;
+    return { h, a, total: h + a };
+  }
+
+  function parseHtGoals(ht) {
+    if (!ht) return 0;
+    const s = String(ht).trim();
+    if (s.toUpperCase() === 'OUT') return 3;
+    const parts = s.split(/\s*x\s*/i).map(Number);
+    return (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) ? parts[0] + parts[1] : 0;
+  }
+
+  function checkMkt(market, h, a, t) {
+    switch (market) {
+      case 'casaVence':        return h > a ? 1 : 0;
+      case 'empate':           return h === a ? 1 : 0;
+      case 'foraVence':        return a > h ? 1 : 0;
+      case 'ambasSim':         return h > 0 && a > 0 ? 1 : 0;
+      case 'ambasNao':         return h === 0 || a === 0 ? 1 : 0;
+      case 'over1.5':          return t > 1.5 ? 1 : 0;
+      case 'over2.5':          return t > 2.5 ? 1 : 0;
+      case 'over3.5':          return t > 3.5 ? 1 : 0;
+      case 'under1.5':         return t < 1.5 ? 1 : 0;
+      case 'under2.5':         return t < 2.5 ? 1 : 0;
+      case 'under3.5':         return t < 3.5 ? 1 : 0;
+      case 'zeroGolsExatos':   return t === 0 ? 1 : 0;
+      case 'umGolExato':       return t === 1 ? 1 : 0;
+      case 'doisGolsExatos':   return t === 2 ? 1 : 0;
+      case 'tresGolsExatos':   return t === 3 ? 1 : 0;
+      case 'quatroGolsExatos': return t === 4 ? 1 : 0;
+      case 'cincoOuMaisGols':  return t >= 5 ? 1 : 0;
+      case 'placar0x0': return h === 0 && a === 0 ? 1 : 0;
+      case 'placar1x0': return h === 1 && a === 0 ? 1 : 0;
+      case 'placar2x0': return h === 2 && a === 0 ? 1 : 0;
+      case 'placar3x0': return h === 3 && a === 0 ? 1 : 0;
+      case 'placar2x1': return h === 2 && a === 1 ? 1 : 0;
+      case 'placar3x1': return h === 3 && a === 1 ? 1 : 0;
+      case 'placar3x2': return h === 3 && a === 2 ? 1 : 0;
+      case 'placar4x0': return h === 4 && a === 0 ? 1 : 0;
+      case 'placar4x1': return h === 4 && a === 1 ? 1 : 0;
+      default: return 0;
+    }
+  }
+
+  function calcMarketValue(slice, marketId) {
+    if (!slice.length) return 0;
+    const info = MARKET_INFO[marketId];
+    if (!info) return 0;
+    if (info.tipo === 'soma') {
+      let soma = 0;
+      for (const jogo of slice) {
+        if (marketId === 'golsFT') soma += parseFt(jogo.ft).total;
+        else if (marketId === 'golsHT') soma += parseHtGoals(jogo.ht);
+      }
+      return Math.round(soma);
+    }
+    let count = 0;
+    for (const jogo of slice) {
+      const { h, a, total } = parseFt(jogo.ft);
+      count += checkMkt(marketId, h, a, total);
+    }
+    return count;
+  }
+
+
+  function fmtValor(marketId, val, linesToSum) {
+    const info = MARKET_INFO[marketId];
+    if (!info) return String(val);
+    if (info.tipo === 'soma') return `${val} gols`;
+    const pct = linesToSum > 0 ? Math.round((val / linesToSum) * 100) : 0;
+    return `${pct}%`;
+  }
+
+  function computeMinMax(allData, linesToSum, marketId) {
+    if (allData.length < linesToSum) return { min: null, max: null };
+    let min = Infinity, max = -Infinity;
+    for (let i = linesToSum - 1; i < allData.length; i++) {
+      const val = calcMarketValue(allData.slice(i - linesToSum + 1, i + 1), marketId);
+      if (val < min) min = val;
+      if (val > max) max = val;
+    }
+    return { min: min === Infinity ? null : min, max: max === -Infinity ? null : max };
+  }
+
+  function calcGames(hours, gph) { return hours * gph; }
+
+
+  function loadCfgEstrela() {
+    try { const s = JSON.parse(localStorage.getItem(LS_CFG_ESTRELA)); if (s && s.mercado && s.horas) return s; } catch (e) {}
+    return { mercado: 'over2.5', horas: 24 };
+  }
+  function saveCfgEstrela(cfg) { localStorage.setItem(LS_CFG_ESTRELA, JSON.stringify(cfg)); }
+
+  function loadCfgTF() {
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_CFG_TF));
+      if (s && s.modo && s.horas) return { mercado: 'golsFT', ...s };
+    } catch (e) {}
+    return { modo: 'fundo', horas: 12, mercado: 'golsFT' };
+  }
+  function saveCfgTF(cfg) { localStorage.setItem(LS_CFG_TF, JSON.stringify(cfg)); }
+
+  function isActiveEstrela() { return localStorage.getItem(LS_ACTIVE_ESTRELA) === '1'; }
+  function setActiveEstrela(v) { localStorage.setItem(LS_ACTIVE_ESTRELA, v ? '1' : '0'); }
+
+  function isActiveTF() { return localStorage.getItem(LS_ACTIVE_TF) === '1'; }
+  function setActiveTF(v) { localStorage.setItem(LS_ACTIVE_TF, v ? '1' : '0'); }
+
+  function isVisivel() { return localStorage.getItem(LS_VISIVEL) !== '0'; } 
+  function setVisivel(v) { localStorage.setItem(LS_VISIVEL, v ? '1' : '0'); }
+
+  let intervalId = null; 
+
+
+  function ordenarCronologico(dados) {
+    if (!Array.isArray(dados) || dados.length < 2) return dados;
+    const amostra = dados[0];
+
+    const CAMPOS_ID   = ['id', 'ID', 'timestamp', 'ts', 'unix', 'ordem'];
+    for (const campo of CAMPOS_ID) {
+      if (amostra && typeof amostra[campo] === 'number') {
+        return [...dados].sort((a, b) => (a[campo] ?? 0) - (b[campo] ?? 0));
+      }
+    }
+
+    const CAMPOS_DATA = ['data_hora', 'datahora', 'created_at', 'criado_em', 'datetime', 'date', 'data'];
+    for (const campo of CAMPOS_DATA) {
+      if (amostra && amostra[campo]) {
+        const t0 = Date.parse(amostra[campo]);
+        if (!isNaN(t0)) {
+          return [...dados].sort((a, b) => (Date.parse(a[campo]) || 0) - (Date.parse(b[campo]) || 0));
+        }
+      }
+    }
+
+
+    const minutosDoDia = (item) => {
+      let h = null, m = null;
+      if (item && typeof item.horario === 'string' && /^\d{1,2}:\d{2}$/.test(item.horario)) {
+        [h, m] = item.horario.split(':').map(Number);
+      } else if (item && item.hora != null && item.minuto != null) {
+        h = Number(item.hora); m = Number(item.minuto);
+      }
+      return (h === null || m === null || isNaN(h) || isNaN(m)) ? null : h * 60 + m;
+    };
+
+    const tempos = dados.map(minutosDoDia);
+    if (tempos.some(t => t === null)) return dados; 
+
+    let subiu = 0, desceu = 0;
+    for (let i = 1; i < tempos.length; i++) {
+      let delta = tempos[i] - tempos[i - 1];
+      if (delta > 720) delta -= 1440;   
+      if (delta < -720) delta += 1440;
+      if (delta > 0) subiu++;
+      else if (delta < 0) desceu++;
+    }
+    return subiu >= desceu ? dados : [...dados].reverse();
+  }
+
+  async function fetchLiga(ligaValue) {
+    try {
+      const res = await fetch(ROTAS_API.resultados(ligaValue) + `?ts=${Date.now()}`);
+      if (!res.ok) throw new Error(res.status);
+      let dados = await res.json();
+      if (!Array.isArray(dados)) return null;
+      return ordenarCronologico(dados);
+    } catch (e) {
+      console.warn('[radar-ligas] falha ao buscar', ligaValue, e.message);
+      return null;
+    }
+  }
+
+
+  function analisarEstrela(dadosCompletos, horas, mercado, gph) {
+    const janela = dadosCompletos.slice(-calcGames(horas, gph));
+    if (janela.length < MIN_GAMES_ESTRELA) return null;
+    const info = MARKET_INFO[mercado];
+    const valor = calcMarketValue(janela, mercado);
+    const metrica = info.tipo === 'pct' ? (valor / janela.length) * 100 : (valor / janela.length);
+    return { metrica, valor, jogos: janela.length };
+  }
+
+
+  function analisarTopoFundo(dadosCompletos, horas, gph, marketId) {
+    const linesToSum = gph || LINES_TO_SUM_PADRAO; // 1 "linha" = 1 hora de jogos
+    const dados = dadosCompletos.slice(-calcGames(horas, gph));
+    if (dados.length < linesToSum * 2) return null;
+    const { min, max } = computeMinMax(dados, linesToSum, marketId);
+    if (min === null || max === null) return null;
+    const atual = calcMarketValue(dados.slice(-linesToSum), marketId);
+    return { atual, min, max, linesToSum, noFundo: atual <= min, noTopo: atual >= max };
+  }
+
+
+  async function rodarAnalise() {
+    const ativaEstrela = isActiveEstrela();
+    const ativaTF = isActiveTF();
+    if (!ativaEstrela && !ativaTF) return; 
+
+    const cfgEstrela = loadCfgEstrela();
+    const cfgTF = loadCfgTF();
+    const cards = document.querySelectorAll('.cardsligasbetano-card');
+    if (!cards.length) return;
+
+
+    const semLiga = [];
+    const tarefas = [];
+    cards.forEach(card => {
+      const info = resolverCard(card);
+      if (!info || !info.liga) {
+        const h3 = card.querySelector('h3');
+        semLiga.push(h3 ? h3.textContent.trim() : '(sem título)');
+        return;
+      }
+      tarefas.push(fetchLiga(info.liga).then(dados => ({ card, dados, gph: info.gph })));
+    });
+    if (semLiga.length) console.warn('[radar-ligas] card sem liga resolvida: ' + semLiga.join(', '));
+
+    const resultados = await Promise.all(tarefas);
+
+
+    if (ativaEstrela) {
+      let melhor = null;
+      resultados.forEach(({ card, dados, gph }) => {
+        if (!dados) return;
+        const r = analisarEstrela(dados, cfgEstrela.horas, cfgEstrela.mercado, gph);
+        if (!r) return;
+        if (!melhor || r.metrica > melhor.metrica) melhor = { card, ...r };
+      });
+
+
+      cards.forEach(card => {
+        const jaTem = card.querySelector('.rdlg-estrela');
+        const deveTer = melhor && card === melhor.card;
+        if (jaTem && !deveTer) jaTem.remove();
+      });
+      if (melhor) {
+        const h3 = melhor.card.querySelector('h3');
+        const info = MARKET_INFO[cfgEstrela.mercado];
+        const txt = info.tipo === 'pct' ? `${melhor.metrica.toFixed(0)}% ${info.label}` : `${melhor.metrica.toFixed(2)} gols/jogo`;
+        const tituloNovo = `Melhor liga: ${txt} (últimas ${cfgEstrela.horas}h)`;
+        let estrela = h3 ? h3.querySelector('.rdlg-estrela') : null;
+        if (h3 && !estrela) {
+          estrela = document.createElement('span');
+          estrela.className = 'rdlg-estrela';
+          estrela.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="#22d3ee" stroke="#0e7490" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.63 22 9.24 16.5 13.97 18.18 21 12 17.27 5.82 21 7.5 13.97 2 9.24 8.91 8.63 12 2"/></svg>';
+          h3.appendChild(estrela);
+        }
+        if (estrela) estrela.title = tituloNovo; 
+      }
+    }
+
+
+    if (ativaTF) {
+      resultados.forEach(({ card, dados, gph }) => {
+        if (!dados) return;
+        const r = analisarTopoFundo(dados, cfgTF.horas, gph, cfgTF.mercado);
+        const hitFundo = !!(r && (cfgTF.modo === 'fundo' || cfgTF.modo === 'ambos') && r.noFundo);
+        const hitTopo  = !!(r && (cfgTF.modo === 'topo'  || cfgTF.modo === 'ambos') && r.noTopo);
+
+        // só toca na classList/title se o estado realmente mudou
+        const tinhaFundo = card.classList.contains('rdlg-hit-fundo');
+        const tinhaTopo  = card.classList.contains('rdlg-hit-topo');
+        if (hitFundo !== tinhaFundo) card.classList.toggle('rdlg-hit-fundo', hitFundo);
+        if (hitTopo !== tinhaTopo)   card.classList.toggle('rdlg-hit-topo', hitTopo);
+
+        if (hitFundo || hitTopo) {
+          const infoM = MARKET_INFO[cfgTF.mercado];
+          const atualTxt = fmtValor(cfgTF.mercado, r.atual, r.linesToSum);
+          const minTxt   = fmtValor(cfgTF.mercado, r.min, r.linesToSum);
+          const maxTxt   = fmtValor(cfgTF.mercado, r.max, r.linesToSum);
+          card.title = `${hitTopo ? 'Topo' : 'Fundo'} de ${infoM ? infoM.label : cfgTF.mercado}: atual ${atualTxt} (mín ${minTxt} / máx ${maxTxt})`;
+        } else if (tinhaFundo || tinhaTopo) {
+          card.removeAttribute('title');
+        }
+      });
+    }
+  }
+
+  function garantirTimer() {
+    if (intervalId) return;
+    intervalId = setInterval(rodarAnalise, CHECK_INTERVAL_MS);
+  }
+
+  function pararTimerSeNadaAtivo() {
+    if (!isActiveEstrela() && !isActiveTF() && intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  function iniciarEstrela() {
+    setActiveEstrela(true);
+    garantirTimer();
+    rodarAnalise();
+    atualizarStatus();
+  }
+
+  function pararEstrela() {
+    setActiveEstrela(false);
+    document.querySelectorAll('.cardsligasbetano-card .rdlg-estrela').forEach(el => el.remove());
+    pararTimerSeNadaAtivo();
+    atualizarStatus();
+  }
+
+  function iniciarTF() {
+    setActiveTF(true);
+    garantirTimer();
+    rodarAnalise();
+    atualizarStatus();
+  }
+
+  function pararTF() {
+    setActiveTF(false);
+    document.querySelectorAll('.cardsligasbetano-card').forEach(card => {
+      card.classList.remove('rdlg-hit-fundo', 'rdlg-hit-topo');
+      card.removeAttribute('title');
+    });
+    pararTimerSeNadaAtivo();
+    atualizarStatus();
+  }
+
+
+  function injetarCSS() {
+    const style = document.createElement('style');
+    style.textContent = `
+      .rdlg-wrap, .rdlg-wrap * {
+        box-sizing: border-box;
+        font-family: 'DM Sans', -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        line-height: 1.2;
+      }
+      .rdlg-wrap {
+        --rd-accent: 21 127 147;
+        --rd-accent-light: #5cc3d6;
+        --rd-line: rgb(255 255 255 / .1);
+        display: flex; align-items: center; gap: 10px;
+        flex-wrap: wrap;
+        background: #1b1c20;
+        border: 1px solid rgb(255 255 255 / .08);
+        border-radius: 10px;
+        padding: 6px 10px;
+        margin: 0 0 8px;
+        font-size: 12px;
+        color: rgb(255 255 255 / .75);
+        position: relative;
+      }
+      .rdlg-toggle {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 30px; height: 30px; flex: 0 0 auto;
+        border: 1px solid var(--rd-line);
+        border-radius: 8px;
+        background: rgb(255 255 255 / .04);
+        color: rgb(255 255 255 / .75);
+        font-size: 13px; cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+      }
+      .rdlg-toggle:hover {
+        background: rgb(255 255 255 / .08);
+        border-color: rgb(var(--rd-accent) / .55);
+        color: #fff;
+      }
+      .rdlg-status {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 11px; color: rgb(255 255 255 / .5); white-space: nowrap;
+      }
+      .rdlg-status .rdlg-dot { width: 6px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / .3); flex: 0 0 auto; }
+      .rdlg-status.on { color: var(--rd-accent-light); }
+      .rdlg-status.on .rdlg-dot { background: var(--rd-accent-light); }
+      .rdlg-controls {
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      }
+      .rdlg-controls.rdlg-hidden { display: none; }
+      .rdlg-grupo {
+        display: flex; align-items: center; gap: 6px;
+        padding-right: 12px;
+        border-right: 1px solid var(--rd-line);
+      }
+      .rdlg-grupo:last-of-type { border-right: none; padding-right: 0; }
+      .rdlg-wrap select {
+        appearance: none; -webkit-appearance: none;
+        background-color: rgb(255 255 255 / .04);
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        background-size: 9px;
+        color: rgb(255 255 255 / .85);
+        border: 1px solid var(--rd-line);
+        border-radius: 8px;
+        font-size: 12px; font-weight: 500;
+        padding: 0 24px 0 10px;
+        height: 30px;
+        max-width: 130px;
+        cursor: pointer;
+        transition: background-color .15s ease, border-color .15s ease;
+      }
+      .rdlg-wrap select:hover {
+        background-color: rgb(255 255 255 / .08);
+        border-color: rgb(var(--rd-accent) / .55);
+      }
+      .rdlg-wrap select option { background: #0a1114; color: #e6e6e6; }
+      .rdlg-wrap button:focus-visible,
+      .rdlg-wrap select:focus-visible {
+        outline: 2px solid rgb(var(--rd-accent) / .7);
+        outline-offset: 1px;
+      }
+      .rdlg-wrap button {
+        border-radius: 8px;
+        font-size: 12px; font-weight: 600;
+        padding: 0 14px; height: 30px;
+        cursor: pointer;
+        transition: background .2s ease, border-color .2s ease, color .2s ease;
+      }
+      .rdlg-btn-aplicar {
+        background: linear-gradient(135deg, rgb(var(--rd-accent) / .16), rgb(var(--rd-accent) / .06));
+        border: 1px solid rgb(var(--rd-accent) / .5);
+        color: var(--rd-accent-light);
+      }
+      .rdlg-btn-aplicar:hover {
+        background: linear-gradient(135deg, rgb(var(--rd-accent) / .3), rgb(var(--rd-accent) / .14));
+        border-color: rgb(var(--rd-accent) / .85);
+        color: #fff;
+      }
+      .rdlg-btn-parar {
+        background: transparent; color: rgb(255 255 255 / .7);
+        border: 1px solid var(--rd-line);
+      }
+      .rdlg-btn-parar:hover {
+        background: rgb(255 255 255 / .06);
+        border-color: rgb(255 255 255 / .22);
+        color: #fff;
+      }
+
+      /* aba da liga em destaque (topo/fundo): âmbar sobre o padrão das abas */
+      div.cardsligasbetano-container > div.cardsligasbetano-card.rdlg-hit-fundo,
+      div.cardsligasbetano-container > div.cardsligasbetano-card.rdlg-hit-topo {
+        background: linear-gradient(180deg, rgb(245 158 11 / .06) 0%, rgb(245 158 11 / .26) 100%);
+      }
+      div.cardsligasbetano-container > div.cardsligasbetano-card.rdlg-hit-fundo h3,
+      div.cardsligasbetano-container > div.cardsligasbetano-card.rdlg-hit-topo h3 {
+        color: #fbbf24;
+        font-weight: 600;
+      }
+      div.cardsligasbetano-container > div.cardsligasbetano-card.rdlg-hit-fundo::before,
+      div.cardsligasbetano-container > div.cardsligasbetano-card.rdlg-hit-topo::before {
+        background: #f59e0b;
+        transform: scaleX(1);
+        opacity: 1;
+      }
+      .rdlg-estrela { margin-left: 5px; vertical-align: middle; display: inline-block; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function atualizarStatusEl(id, ativo) {
+    const statusEl = document.getElementById(id);
+    if (!statusEl) return;
+    statusEl.classList.toggle('on', ativo);
+    statusEl.querySelector('span:last-child').textContent = ativo ? 'Ativo' : 'Parado';
+  }
+
+  function atualizarStatus() {
+    atualizarStatusEl('rdlg-status-estrela', isActiveEstrela());
+    atualizarStatusEl('rdlg-status-tf', isActiveTF());
+  }
+
+  function injetarUI() {
+    const container = document.querySelector('.cardsligasbetano-container');
+    if (!container || document.querySelector('.rdlg-wrap')) return;
+
+    const cfgEstrela = loadCfgEstrela();
+    const cfgTF = loadCfgTF();
+
+    const opcoesMercado = Object.entries(MARKET_INFO).map(([id, m]) => `<option value="${id}">${m.label}</option>`).join('');
+    const opcoesHoras = HOUR_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'rdlg-wrap';
+    wrap.innerHTML = `
+      <button type="button" class="rdlg-toggle" id="rdlg-toggle" title="Mostrar/ocultar controles">☰</button>
+      <div class="rdlg-controls" id="rdlg-controls">
+        <span class="rdlg-grupo" title="Análise 1: melhor liga (independente do 🔶)">
+          
+          <select id="rdlg-estrela-mercado">${opcoesMercado}</select>
+          <select id="rdlg-estrela-horas">${opcoesHoras}</select>
+          <button type="button" class="rdlg-btn-aplicar" id="rdlg-estrela-aplicar">Aplicar</button>
+          <button type="button" class="rdlg-btn-parar" id="rdlg-estrela-parar">Parar</button>
+          <span class="rdlg-status" id="rdlg-status-estrela"><span class="rdlg-dot"></span><span>Parado</span></span>
+        </span>
+        <span class="rdlg-grupo" title="Análise 2: topo/fundo (independente da ⭐)">
+          
+          <select id="rdlg-tf-mercado">${opcoesMercado}</select>
+          <select id="rdlg-tf-modo">
+            <option value="fundo">⬇Fundo</option>
+            <option value="topo">⬆Topo</option>
+            <option value="ambos">Ambos</option>
+          </select>
+          <select id="rdlg-tf-horas">${opcoesHoras}</select>
+          <button type="button" class="rdlg-btn-aplicar" id="rdlg-tf-aplicar">Aplicar</button>
+          <button type="button" class="rdlg-btn-parar" id="rdlg-tf-parar">Parar</button>
+          <span class="rdlg-status" id="rdlg-status-tf"><span class="rdlg-dot"></span><span>Parado</span></span>
+        </span>
+      </div>
+    `;
+    container.parentNode.insertBefore(wrap, container);
+
+    wrap.querySelector('#rdlg-estrela-mercado').value = cfgEstrela.mercado;
+    wrap.querySelector('#rdlg-estrela-horas').value = String(cfgEstrela.horas);
+    wrap.querySelector('#rdlg-tf-mercado').value = cfgTF.mercado;
+    wrap.querySelector('#rdlg-tf-modo').value = cfgTF.modo;
+    wrap.querySelector('#rdlg-tf-horas').value = String(cfgTF.horas);
+
+    wrap.querySelector('#rdlg-estrela-aplicar').addEventListener('click', () => {
+      saveCfgEstrela({
+        mercado: wrap.querySelector('#rdlg-estrela-mercado').value,
+        horas: parseInt(wrap.querySelector('#rdlg-estrela-horas').value, 10),
+      });
+      iniciarEstrela();
+    });
+    wrap.querySelector('#rdlg-estrela-parar').addEventListener('click', pararEstrela);
+
+    wrap.querySelector('#rdlg-tf-aplicar').addEventListener('click', () => {
+      saveCfgTF({
+        mercado: wrap.querySelector('#rdlg-tf-mercado').value,
+        modo: wrap.querySelector('#rdlg-tf-modo').value,
+        horas: parseInt(wrap.querySelector('#rdlg-tf-horas').value, 10),
+      });
+      iniciarTF();
+    });
+    wrap.querySelector('#rdlg-tf-parar').addEventListener('click', pararTF);
+
+    const controlsEl = wrap.querySelector('#rdlg-controls');
+    const toggleEl = wrap.querySelector('#rdlg-toggle');
+    function aplicarVisibilidade() {
+      const visivel = isVisivel();
+      controlsEl.classList.toggle('rdlg-hidden', !visivel);
+      toggleEl.textContent = visivel ? '☰' : '⋯';
+    }
+    toggleEl.addEventListener('click', () => { setVisivel(!isVisivel()); aplicarVisibilidade(); });
+    aplicarVisibilidade();
+
+    atualizarStatus();
+  }
+
+  window.radarVerOrdem = async function (filtroTexto) {
+    const cards = document.querySelectorAll('.cardsligasbetano-card');
+    if (!cards.length) { console.warn('[radar-debug] nenhum .cardsligasbetano-card encontrado nessa página.'); return; }
+    for (const card of cards) {
+      const h3 = card.querySelector('h3');
+      const titulo = h3 ? h3.textContent.trim() : '(sem título)';
+      if (filtroTexto && !titulo.toLowerCase().includes(String(filtroTexto).toLowerCase())) continue;
+
+      const info = resolverCard(card);
+      if (!info || !info.liga) { console.warn(`[radar-debug] "${titulo}" — não consegui resolver a liga (href do card).`); continue; }
+
+      const dados = await fetchLiga(info.liga);
+      if (!dados) { console.warn(`[radar-debug] "${titulo}" — falha ao buscar dados (veja o warning acima com o motivo).`); continue; }
+
+      console.log(`%c--- ${titulo}  (liga="${info.liga}", gph=${info.gph}) ---`, 'color:#22d3ee;font-weight:bold');
+      console.log('total de jogos recebidos:', dados.length);
+      console.log('índice [0]        (primeiro do array):', dados[0]);
+      console.log(`índice [${dados.length - 1}] (último do array):`, dados[dados.length - 1]);
+    }
+    console.log('%cIsso já passou pela auto-detecção de ordem (ordenarCronologico). O "último do array" deveria bater com o jogo mais recente que você vê de verdade na tela. Se não bater, me manda esse log que eu ajusto a heurística.', 'color:#f59e0b');
+  };
+
+
+  function boot() {
+    if (typeof ROTAS_API === 'undefined' || typeof LIGAS === 'undefined') {
+      console.warn('[radar-ligas] ROTAS_API/LIGAS não encontrados — confira a ordem dos <script> (config.js antes deste).');
+      return;
+    }
+    injetarCSS();
+    injetarUI();
+    if (isActiveEstrela()) garantirTimer();
+    if (isActiveTF()) garantirTimer();
+    if (isActiveEstrela() || isActiveTF()) rodarAnalise();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
