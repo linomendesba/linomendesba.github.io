@@ -1871,6 +1871,61 @@
       .mkHead .hint {
         margin: 0;
       }
+      .sPlacar {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 2px 8px;
+        border: 1px solid var(--line2);
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--faint);
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+      .card,
+      .rd {
+        min-width: 0;
+      }
+      .badge:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      @media (max-width: 640px) {
+        .toolbar input[type='text'],
+        .toolbar select {
+          flex: 1 1 100%;
+        }
+        .badges {
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          padding-bottom: 6px;
+          -webkit-overflow-scrolling: touch;
+        }
+        .badges .badge {
+          flex: 0 0 auto;
+        }
+        .tw {
+          -webkit-overflow-scrolling: touch;
+        }
+        table.tb {
+          min-width: 640px;
+        }
+        .tb th:nth-child(7),
+        .tb td:nth-child(7),
+        .tb th:nth-child(8),
+        .tb td:nth-child(8),
+        .tb th:nth-child(10),
+        .tb td:nth-child(10) {
+          display: none;
+        }
+        .tb td.jg {
+          min-width: 170px;
+        }
+        .kpi small {
+          font-size: 10.5px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1915,6 +1970,14 @@
           <label class="chk" title="Mostrar só os jogos marcados com estrela"
             ><input type="checkbox" id="fFav"> Favoritos</label
           >
+          <button type="button" class="badge" id="fLimpar" style="display: none">Limpar filtros</button>
+          <button
+            type="button"
+            class="badge"
+            id="fAlerta"
+            title="Notificação do navegador quando surgir um sinal de gol ou um jogo quente (a página precisa estar aberta)">
+            Alertas: desligado
+          </button>
           <div class="counter"><span id="total">0</span>&nbsp;JOGOS AO VIVO <span class="dot off" id="dot"></span></div>
         </div>
         <div class="sep"></div>
@@ -2077,7 +2140,11 @@
         let agBusy = false;
         let agAbertas = new Set(lsGet('dv_fr_agabertas', []));
         let agOcultar = lsGet('dv_fr_agocultar', false);
-        let hist = ssGet('dv_fr_hist', {});
+        const HIST_TTL_MS = 4 * 3600 * 1000;
+        let hist = (() => {
+          const x = lsGet('dv_fr_hist2', null);
+          return x && x.d && Date.now() - x.t < HIST_TTL_MS ? x.d : {};
+        })();
         const F = {
           busca: '',
           liga: lsGet('dv_fr_liga', ''),
@@ -2090,6 +2157,7 @@
 
         const decorrido = (j) => (num(j.minuto) || 0) + (num(j.acrescimo) || 0);
         const temDados = (j) => temEstat(j) || (j.momentum && j.momentum.length > 0);
+        const soPlacar = (j) => !temDados(j);
         const temEstat = (j) =>
           [j.posse_casa, j.chutes_casa, j.escanteios_casa, j.toques_area_casa].some((v) => num(v) !== null);
 
@@ -2160,9 +2228,11 @@
         }
 
         function podarHist() {
-          const vivos = new Set(dadosAll.map((j) => j.id));
-          for (const id of Object.keys(hist)) if (!vivos.has(id)) delete hist[id];
-          ssSet('dv_fr_hist', hist);
+          if (dadosAll.length) {
+            const vivos = new Set(dadosAll.map((j) => j.id));
+            for (const id of Object.keys(hist)) if (!vivos.has(id)) delete hist[id];
+          }
+          lsSet('dv_fr_hist2', { t: Date.now(), d: hist });
         }
 
         function pressao(j, jan) {
@@ -2656,7 +2726,7 @@
 
           return `<div class="cHead"><span class="cLeague" title="${esc(j.liga)}${j.pais ? ' · ' + esc(j.pais) : ''}">${img(logoLiga(j.liga_id), 'lgo s')}${esc(j.liga)}${j.pais ? ' · ' + esc(j.pais) : ''}</span>
       <button type="button" class="fav${fav ? ' on' : ''}" data-act="fav" title="Favoritar">${fav ? '★' : '☆'}</button></div>
-    <div class="minWrap"><span class="minPill${mn.ht ? ' ht' : ''}">${esc(mn.t)}</span>${T ? `<span class="temp ${T.nivel}" title="Temperatura do jogo (0–100)">${T.v} · ${T.txt}</span>` : ''}</div>
+    <div class="minWrap"><span class="minPill${mn.ht ? ' ht' : ''}">${esc(mn.t)}</span>${T ? `<span class="temp ${T.nivel}" title="Temperatura do jogo (0–100)">${T.v} · ${T.txt}</span>` : ''}${soPlacar(j) ? `<span class="sPlacar" title="A fonte não enviou estatísticas para este jogo">só placar</span>` : ''}</div>
     <div class="match"><div class="team h" data-act="abrir" data-foco="casa" title="Ver jogadores de ${esc(j.casa)}">${img(logoTime(j.casa_id), 'lgo m')}<span class="tn">${esc(j.casa)}</span></div>
       <div class="score" data-act="abrir" title="Ver estatísticas e jogadores">${gc === null ? '–' : gc}<span>-</span>${gf === null ? '–' : gf}</div>
       <div class="team a" data-act="abrir" data-foco="fora" title="Ver jogadores de ${esc(j.fora)}">${img(logoTime(j.fora_id), 'lgo m')}<span class="tn">${esc(j.fora)}</span></div></div>
@@ -2682,7 +2752,7 @@
               return `<tr data-id="${esc(j.id)}">
       <td><button type="button" class="fav${fav ? ' on' : ''}" data-act="fav">${fav ? '★' : '☆'}</button></td>
       <td>${esc(mn.t)}</td>
-      <td class="jg" data-act="abrir" style="cursor:pointer">${img(logoTime(j.casa_id, true), 'lgo s')}${esc(j.casa)} x ${esc(j.fora)}${img(logoTime(j.fora_id, true), 'lgo s')}<small>${esc(j.liga)}${j.pais ? ' · ' + esc(j.pais) : ''}</small></td>
+      <td class="jg" data-act="abrir" style="cursor:pointer">${img(logoTime(j.casa_id, true), 'lgo s')}${esc(j.casa)} x ${esc(j.fora)}${img(logoTime(j.fora_id, true), 'lgo s')}<small>${esc(j.liga)}${j.pais ? ' · ' + esc(j.pais) : ''}</small>${soPlacar(j) ? '<span class="sPlacar">só placar</span>' : ''}</td>
       <td class="pl">${gc === null ? '–' : gc} - ${gf === null ? '–' : gf}</td>
       <td>${par(A.ch[0], A.ch[1])}</td>
       <td>${par(A.ng[0], A.ng[1])}</td>
@@ -2699,20 +2769,32 @@
 
         function renderKpis() {
           const n = dados.length;
-          const comSinal = dados.filter((j) => sinal(j)).length;
-          const quentes = dados.filter((j) => (temperatura(j)?.v || 0) >= SINAIS.quente).length;
+          const com = dados.filter((j) => !soPlacar(j));
+          const m = com.length;
+          const sp = n - m;
+          const comSinal = com.filter((j) => sinal(j)).length;
+          const quentes = com.filter((j) => (temperatura(j)?.v || 0) >= SINAIS.quente).length;
           const gols = dados.reduce((s, j) => s + (num(j.gols_casa) || 0) + (num(j.gols_fora) || 0), 0);
-          const esc_ = dados.reduce((s, j) => s + totalEsc(j), 0);
-          const completa = dados.filter((j) => !j._est).length;
+          const esc_ = com.reduce((s, j) => s + totalEsc(j), 0);
+          const completa = com.filter((j) => !j._est).length;
+          const sr = sinResumo();
+          const sn = sr.gol.n + sr.canto.n;
           const tile = (t, v, s = '') =>
             `<div class="kpi"><span>${t}</span><b>${v}</b>${s ? `<small>${s}</small>` : ''}</div>`;
           $('kpis').innerHTML =
-            tile('Jogos ao vivo', n) +
-            tile('Com sinal', comSinal, n ? `${Math.round((comSinal / n) * 100)}% dos jogos` : '') +
+            tile('Jogos ao vivo', n, sp ? `${sp} só placar` : '') +
+            tile('Com sinal', comSinal, m ? `${Math.round((comSinal / m) * 100)}% dos jogos` : '') +
             tile('Quentes (70+)', quentes) +
             tile('Gols', gols, n ? `média ${(gols / n).toFixed(2)} por jogo` : '') +
-            tile('Escanteios', esc_, n ? `média ${(esc_ / n).toFixed(1)} por jogo` : '') +
+            tile('Escanteios', esc_, m ? `média ${(esc_ / m).toFixed(1)} por jogo` : '') +
             tile('Cobertura completa', `${completa}/${n}`, 'com gráfico oficial') +
+            (sn >= 5
+              ? tile(
+                  'Acerto dos sinais',
+                  `${Math.round(((sr.gol.g + sr.canto.g) / sn) * 100)}%`,
+                  `gol ${sr.gol.g}/${sr.gol.n} · escanteio ${sr.canto.g}/${sr.canto.n} · medido neste navegador`,
+                )
+              : '') +
             (agenda.length
               ? tile('Jogos hoje', agenda.length, `${agenda.filter((a) => a.estado === 'agendado').length} aguardando`)
               : '');
@@ -2785,7 +2867,8 @@
               gols: (a, b) =>
                 (num(b.gols_casa) || 0) + (num(b.gols_fora) || 0) - ((num(a.gols_casa) || 0) + (num(a.gols_fora) || 0)),
             }[F.ordem] || ((a, b) => 0);
-          return lista.slice().sort(cmp);
+          const ord = lista.slice().sort(cmp);
+          return [...ord.filter((j) => !soPlacar(j)), ...ord.filter(soPlacar)];
         }
 
         function popularLigas() {
@@ -3008,7 +3091,7 @@
       <div class="team a" data-act="abrir" data-foco="fora">${img(logoTime(j.fora_id), 'lgo m')}<span class="tn">${esc(j.fora)}</span></div></div>
     ${chartHtml(j)}
     <div class="rdEntry">
-      <div class="rdRing" style="--p:${p}"><b>${p}%</b><small>MOTOR</small></div>
+      <div class="rdRing" style="--p:${p}"><b>${p}%</b><small>ESTIMATIVA</small></div>
       <div class="rdInfo"><small>Entrada ao vivo</small><h3>${esc(it.titulo)}</h3><p>${esc(it.sub)}</p>
         <div class="rdJusta">JUSTA ${it.justa.toFixed(2)}</div><p>entre só com odd acima da justa</p></div>
     </div>
@@ -3041,6 +3124,7 @@
 
           renderKpis();
           renderTops();
+          atualizarFiltrosUI();
 
           grid.style.display = F.modo === 'cards' ? '' : 'none';
           tab.style.display = F.modo === 'tabela' ? '' : 'none';
@@ -3106,6 +3190,128 @@
           if (msg) console.warn('[futebolreal] ' + msg);
         }
 
+        const SIN_KEY = 'dv_fr_sinlog';
+        const SIN_TTL_MS = 7 * 86400000;
+        let sinLog = lsGet(SIN_KEY, {});
+
+        function sinRegistrar() {
+          const agora = Date.now();
+          let mudou = false;
+          for (const k of Object.keys(sinLog))
+            if (agora - sinLog[k].t > SIN_TTL_MS) {
+              delete sinLog[k];
+              mudou = true;
+            }
+          if (dadosAll.length) {
+            const vivos = new Set(dadosAll.map((j) => j.id));
+            for (const j of dadosAll) {
+              const min = decorrido(j);
+              const gt = (num(j.gols_casa) || 0) + (num(j.gols_fora) || 0);
+              for (const sg of sinais(j)) {
+                if (sg.tipo !== 'gol' && sg.tipo !== 'canto') continue;
+                const k = `${j.id}:${sg.tipo}`;
+                if (!sinLog[k]) {
+                  sinLog[k] = { t: agora, tipo: sg.tipo, base: sg.tipo === 'gol' ? gt : totalEsc(j), last: min, r: null };
+                  mudou = true;
+                }
+              }
+              for (const tipo of ['gol', 'canto']) {
+                const e = sinLog[`${j.id}:${tipo}`];
+                if (!e || e.r) continue;
+                if ((tipo === 'gol' ? gt : totalEsc(j)) > e.base) {
+                  e.r = 'g';
+                  mudou = true;
+                } else if (min !== e.last) {
+                  e.last = min;
+                  mudou = true;
+                }
+                if (e.miss) {
+                  e.miss = 0;
+                  mudou = true;
+                }
+              }
+            }
+            for (const [k, e] of Object.entries(sinLog)) {
+              if (e.r || vivos.has(k.split(':')[0])) continue;
+              e.miss = (e.miss || 0) + 1;
+              if (e.miss >= 3) e.r = e.last >= 85 ? 'm' : 'x';
+              mudou = true;
+            }
+          }
+          if (mudou) lsSet(SIN_KEY, sinLog);
+        }
+
+        function sinResumo() {
+          const r = { gol: { g: 0, n: 0 }, canto: { g: 0, n: 0 } };
+          for (const e of Object.values(sinLog)) {
+            if (!e.r || e.r === 'x' || !r[e.tipo]) continue;
+            r[e.tipo].n++;
+            if (e.r === 'g') r[e.tipo].g++;
+          }
+          return r;
+        }
+
+        let alertaModo = lsGet('dv_fr_alerta', 'off');
+        if (!['off', 'todos', 'fav'].includes(alertaModo)) alertaModo = 'off';
+        const alertaVistos = new Set(lsGet('dv_fr_alvistos', []));
+        let alertaSeed = false;
+        const alertaTxt = { off: 'Alertas: desligado', todos: 'Alertas: todos os jogos', fav: 'Alertas: só favoritos' };
+        const alertaOk = () => 'Notification' in window;
+
+        function atualizarBtnAlerta() {
+          const b = $('fAlerta');
+          if (!alertaOk()) {
+            b.textContent = 'Alertas indisponíveis';
+            b.disabled = true;
+            return;
+          }
+          if (alertaModo !== 'off' && Notification.permission === 'denied') alertaModo = 'off';
+          b.textContent = alertaTxt[alertaModo];
+          b.classList.toggle('on', alertaModo !== 'off');
+          b.title =
+            Notification.permission === 'denied'
+              ? 'Notificações bloqueadas — libere nas configurações do site no navegador'
+              : 'Notificação do navegador quando surgir um sinal de gol ou um jogo quente (a página precisa estar aberta)';
+        }
+
+        function alertar() {
+          const novos = [];
+          for (const j of dadosAll) {
+            const gc = num(j.gols_casa) || 0,
+              gf = num(j.gols_fora) || 0;
+            const titulo = `${j.casa} ${gc} x ${gf} ${j.fora}`;
+            const mn = textoMinuto(j).t;
+            const sg = sinais(j).find((x) => x.tipo === 'gol');
+            if (sg) novos.push({ j, k: `${j.id}:gol:${gc + gf}`, titulo, corpo: `${sg.label} · ${mn}` });
+            const T = temperatura(j);
+            if (T && T.v >= SINAIS.quente)
+              novos.push({ j, k: `${j.id}:quente:${gc + gf}`, titulo, corpo: `Jogo quente (${T.v}) · ${mn}` });
+          }
+          const fila = novos.filter((x) => !alertaVistos.has(x.k));
+          if (!fila.length) return;
+          fila.forEach((x) => alertaVistos.add(x.k));
+          lsSet('dv_fr_alvistos', [...alertaVistos].slice(-500));
+          if (!alertaSeed) {
+            alertaSeed = true;
+            return;
+          }
+          if (alertaModo === 'off' || !alertaOk() || Notification.permission !== 'granted') return;
+          fila
+            .filter((x) => alertaModo === 'todos' || favoritos.has(x.j.id))
+            .slice(0, 3)
+            .forEach((x) => {
+              try {
+                const n = new Notification(x.titulo, { body: x.corpo, tag: x.k, icon: 'img/favicon.ico' });
+                n.onclick = () => {
+                  window.focus();
+                  irParaCard(x.j.id);
+                  n.close();
+                };
+              } catch {}
+            });
+        }
+        alertaSeed = false;
+
         async function carregar() {
           if (busy) return;
           busy = true;
@@ -3130,6 +3336,9 @@
             }
             dados = dadosAll;
             podarHist();
+            sinRegistrar();
+            alertar();
+            alertaSeed = true;
             cacheSet('dv_fr_c_live', d);
             ultimoOk = Date.now();
             falhas = 0;
@@ -3490,6 +3699,53 @@
         document
           .querySelectorAll('#views [data-modo]')
           .forEach((b) => b.classList.toggle('on', b.dataset.modo === F.modo));
+
+        function filtrosAtivos() {
+          return (F.busca ? 1 : 0) + (F.liga ? 1 : 0) + (F.fav ? 1 : 0) + F.presets.size + Object.keys(F.mk).length;
+        }
+        function atualizarFiltrosUI() {
+          const n = filtrosAtivos();
+          const b = $('fLimpar');
+          b.style.display = n ? '' : 'none';
+          b.textContent = `Limpar filtros (${n})`;
+        }
+        $('fLimpar').addEventListener('click', () => {
+          F.busca = '';
+          $('fBusca').value = '';
+          F.liga = '';
+          lsSet('dv_fr_liga', '');
+          $('fLiga').value = '';
+          F.fav = false;
+          lsSet('dv_fr_onlyfav', false);
+          $('fFav').checked = false;
+          F.presets = new Set();
+          lsSet('dv_fr_presets', []);
+          document.querySelectorAll('#presets [data-preset]').forEach((b) => b.classList.remove('on'));
+          F.mk = {};
+          lsSet('dv_fr_mk', F.mk);
+          atualizarMk();
+          render();
+        });
+
+        $('fAlerta').addEventListener('click', () => {
+          if (!alertaOk()) return;
+          const prox = { off: 'todos', todos: 'fav', fav: 'off' }[alertaModo];
+          const aplicar = () => {
+            alertaModo = prox;
+            lsSet('dv_fr_alerta', alertaModo);
+            atualizarBtnAlerta();
+          };
+          if (prox === 'off' || Notification.permission === 'granted') return aplicar();
+          if (Notification.permission === 'denied') {
+            atualizarBtnAlerta();
+            return;
+          }
+          Notification.requestPermission().then((p) => {
+            if (p === 'granted') aplicar();
+            else atualizarBtnAlerta();
+          });
+        });
+        atualizarBtnAlerta();
 
         const ROTA_JOGO = `${API_BASE}/futebol-real/jogo/`;
         const POLL_JOGO_MS = 20000;
@@ -4030,7 +4286,9 @@
         setInterval(() => {
           if (!document.hidden) carregarAgenda();
         }, POLL_AGENDA_MS);
-        setInterval(atualizarStatus, 1000);
+        setInterval(() => {
+          if (!document.hidden) atualizarStatus();
+        }, 1000);
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden) {
             carregar();
