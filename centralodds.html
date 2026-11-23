@@ -732,6 +732,8 @@
       let loadSeq = 0;             // token da última chamada de loadData (descarta render velho)
       let ultimoRender = null;     // o que está desenhado agora (liga, janela e versão dos dados)
       let ftCacheOdd = null;       // cache odd -> resultado, por linha de odd
+      let carregandoFg = 0;        // cargas em primeiro plano em andamento (o pré-carregamento espera)
+      let prefetchRodando = false;
 
       // Paginação das seções de cards
       const PAGE_SIZE = 12;
@@ -1124,7 +1126,7 @@
           return Promise.resolve(entry[campo]);
         }
         const url = Catalogo.urlApi(CAMPOS_API[campo], entry.ligaId);
-        const p = fetchJson(url).then(json => {
+        const p = fetchComRetry(url).then(json => {
           const lista = comoLista(json);
           const h = hashLista(lista);
           entry['t' + campo] = Date.now();
@@ -1170,11 +1172,22 @@
         return { semData };
       }
 
-      // Busca JSON com timeout de 15s e cancelamento.
+      // A API de algumas ligas é lenta (histórico grande): 45s por tentativa, e uma nova tentativa
+      // automática (o servidor costuma responder bem mais rápido na segunda, com a rota já "quente").
+      const TIMEOUT_MS = 45000;
+      async function fetchComRetry(url) {
+        try {
+          return await fetchJson(url);
+        } catch (e1) {
+          return await fetchJson(url);
+        }
+      }
+
+      // Busca JSON com timeout e cancelamento.
       async function fetchJson(url, signal) {
         const ctrl = new AbortController();
         let estourou = false;
-        const timer = setTimeout(() => { estourou = true; ctrl.abort(); }, 15000);
+        const timer = setTimeout(() => { estourou = true; ctrl.abort(); }, TIMEOUT_MS);
         const aoCancelar = () => ctrl.abort();
         if (signal) {
           if (signal.aborted) ctrl.abort();
@@ -1185,7 +1198,7 @@
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           return await r.json();
         } catch (e) {
-          if (estourou) throw new Error('tempo esgotado (15s)');
+          if (estourou) throw new Error(`tempo esgotado (${Math.round(TIMEOUT_MS / 1000)}s)`);
           throw e;
         } finally {
           clearTimeout(timer);
@@ -1202,6 +1215,8 @@
       function limparResultadosUI(msg) {
         ligaCarregada = null;
         ultimoRender = null;
+        document.getElementById('cards-title-perto').textContent = 'Prestes a Quebrar';
+        document.getElementById('cards-title-recorde').textContent = 'Recorde Já Batido';
         ligaObjAtual = null;
         oddsJanela = []; oddsBrutos = []; resultadosBrutos = []; resultsMapOdd = null;
         oddStreakStats = {}; matchDetails = {}; selectedKey = null;
@@ -1269,7 +1284,8 @@
           setStatus('Carregando dados da API...', 'loading');
         } else if (!silencioso) {
           mostrar();   // já temos tudo no cache: tela instantânea
-          if (forcar) setStatus('Atualizando...', 'loading');
+          const velho = Date.now() - Math.min(entry.tres, entry.todds) >= CACHE_TTL;
+          if (forcar || velho) setStatus('Atualizando...', 'loading');
         }
 
         // Tudo em paralelo (requisições iguais em andamento são reaproveitadas).
@@ -1286,6 +1302,18 @@
           renderProximosCentralOdds(document.getElementById('filter-select').value);
         }, () => {});
 
+        // Sem dados ainda: mostra os segundos passando pra não parecer travado.
+        const fg = !pronto();
+        const t0 = Date.now();
+        let tick = null;
+        if (fg) {
+          carregandoFg++;
+          tick = setInterval(() => {
+            if (!vigente() || pronto()) { clearInterval(tick); return; }
+            setStatus(`Carregando dados da API... ${Math.round((Date.now() - t0) / 1000)}s`, 'loading');
+          }, 1000);
+        }
+
         try {
           await Promise.all([pRes, pOdds]);
         } catch (error) {
@@ -1298,6 +1326,9 @@
             limparResultadosUI(`Não foi possível carregar esta liga (${error.message}).`);
           }
           return;
+        } finally {
+          if (tick) clearInterval(tick);
+          if (fg) carregandoFg--;
         }
         if (!vigente() || !pronto()) return;
         if (renderDesatualizado(entry, ligaId)) {
@@ -1305,6 +1336,35 @@
         } else {
           statusPronto();
           marcarAtualizado();
+        }
+        prefetchOutrasLigas();
+      }
+
+      // Depois que a liga atual está pronta, baixa em segundo plano (uma por vez, sem competir
+      // com o que você acabou de pedir) as outras ligas da MESMA casa que ainda não foram vistas.
+      // Assim, quando você troca de liga, os dados já estão na memória.
+      async function prefetchOutrasLigas() {
+        if (prefetchRodando) return;
+        prefetchRodando = true;
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        try {
+          await sleep(1500);
+          const casa = document.getElementById('casa-select').value;
+          const ids = Array.from(document.getElementById('liga-select').options)
+            .map(o => o.value)
+            .filter(id => id && id !== document.getElementById('liga-select').value);
+          for (const id of ids) {
+            while (carregandoFg > 0) await sleep(500);        // primeiro plano tem prioridade
+            if (document.hidden || document.getElementById('casa-select').value !== casa) break;
+            if (!Catalogo.getLiga(id)) continue;
+            const e = getEntry(id);
+            if (e.res && e.odds) continue;                      // já tem (a atualização vem ao visitar)
+            try {
+              await Promise.all([buscar(e, 'res'), buscar(e, 'odds'), buscar(e, 'prox').catch(() => {})]);
+            } catch (err) { /* falhou em segundo plano: tenta de novo quando o usuário abrir */ }
+          }
+        } finally {
+          prefetchRodando = false;
         }
       }
 
