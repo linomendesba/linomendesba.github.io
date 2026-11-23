@@ -869,6 +869,8 @@
       const cacheLiga = {};         // ligaId -> { res, odds, prox, vres, vodds, vprox, memo, ftCache, ... }
       let loadSeq = 0;              // token da última chamada de loadData (descarta render velho)
       let ultimoRender = null;      // o que está desenhado agora (liga, aba e versão dos dados)
+      let estadoModo = {};          // modo -> { valores, horas, avancado } (filtros de cada aba)
+      let casaLigaGlobal = null;    // { casa, liga } — compartilhados por TODAS as abas
       let ftCacheOdd = null;        // (modo odd) cache odd -> resultado, por linha de odd
 
       /* ─────────────────────────────────────
@@ -906,7 +908,9 @@
       function salvarFiltrosAtuais() {
         try {
           estadoModo[modoAtual] = lerControles();
-          localStorage.setItem(FILTROS_STORAGE_KEY, JSON.stringify({ modo: modoAtual, porModo: estadoModo }));
+          const v = estadoModo[modoAtual].valores;
+          casaLigaGlobal = { casa: v['casa-select'], liga: v['liga-select'] };
+          localStorage.setItem(FILTROS_STORAGE_KEY, JSON.stringify({ modo: modoAtual, porModo: estadoModo, casaLiga: casaLigaGlobal }));
         } catch (e) {
           // localStorage indisponivel (modo privado, storage cheio, etc.) - ignora
         }
@@ -947,7 +951,12 @@
           };
           estadoModo[modo] = est;
         }
-        const v = est.valores || {};
+        const v = Object.assign({}, est.valores || {});
+        // Casa e liga são únicas para todas as abas: mudou numa, vale em todas.
+        if (casaLigaGlobal) {
+          if (casaLigaGlobal.casa) v['casa-select'] = casaLigaGlobal.casa;
+          if (casaLigaGlobal.liga) v['liga-select'] = casaLigaGlobal.liga;
+        }
         aplicarValorSalvo('casa-select', v['casa-select']);
         populateLigaSelect(v['liga-select']);
         populateLinesSelect(est.horas);
@@ -2345,6 +2354,9 @@
         const salvo = carregarFiltrosSalvos();
         estadoModo = (salvo && salvo.porModo) || {};
         modoAtual = salvo && MODOS.some(m => m.id === salvo.modo) ? salvo.modo : 'placar';
+        const vAba = estadoModo[modoAtual] && estadoModo[modoAtual].valores;
+        casaLigaGlobal = (salvo && salvo.casaLiga) ||
+          (vAba ? { casa: vAba['casa-select'], liga: vAba['liga-select'] } : null);
 
         initModoTabs();
         initCasaSelect();
