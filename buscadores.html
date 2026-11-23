@@ -859,16 +859,17 @@
       let ligaObjAtual = null;     // liga (catálogo) dos dados que estão em tela
       let ligaCarregada = null;    // id da liga dos dados que estão em tela
 
-      /* ABAS INDEPENDENTES
-         Cada aba (placar/time/confronto/odd) tem os PRÓPRIOS filtros (casa, liga, janela,
-         mercado, gales...) e os PRÓPRIOS dados carregados. Trocar de aba só restaura o que
-         ela guardou — não mexe nas outras e não depende de recarregar. */
-      let estadoModo = {};         // modo -> { valores, horas, avancado }
-      const dadosModo = {};        // modo -> { ligaId, resultadosBrutos, oddsBrutos, proximos, carregadoEm }
-      const loadTokens = {};       // modo -> token da última carga
-      const loadCtrls = {};        // modo -> AbortController da carga em andamento
-      const carregando = {};       // modo -> true enquanto carrega
-      const carregandoLiga = {};   // modo -> liga que está sendo carregada
+      /* CACHE COMPARTILHADO POR LIGA
+         Resultados, odds e próximos jogos de uma liga são buscados UMA vez e valem para as
+         4 abas (placar / time / confronto / odd). Trocar de aba, mercado ou filtro NÃO busca
+         nada: só reprocessa o que já está na memória. Cada aba continua com os próprios
+         filtros (estadoModo), mas os dados são de todas. */
+      const CACHE_TTL = 55000;      // dado mais novo que isso não é buscado de novo
+      const CAMPOS_API = { res: 'resultados', odds: 'odds', prox: 'proximos' };
+      const cacheLiga = {};         // ligaId -> { res, odds, prox, vres, vodds, vprox, memo, ftCache, ... }
+      let loadSeq = 0;              // token da última chamada de loadData (descarta render velho)
+      let ultimoRender = null;      // o que está desenhado agora (liga, aba e versão dos dados)
+      let ftCacheOdd = null;        // (modo odd) cache odd -> resultado, por linha de odd
 
       /* ─────────────────────────────────────
          PERSISTENCIA DE FILTROS (localStorage) — uma configuração POR ABA
@@ -1049,17 +1050,8 @@
       }
 
       function restaurarOuCarregar(modo) {
-        const ligaSel = document.getElementById('liga-select').value;
-        if (ativarDados(modo)) {
-          analyze();
-          const d = dadosModo[modo];
-          if (carregando[modo] && carregandoLiga[modo] === ligaSel) setStatus('Atualizando dados...', 'loading');
-          else if (Date.now() - d.carregadoEm > 60000) loadData();
-        } else {
-          limparResultadosUI('Carregando...');
-          if (carregando[modo] && carregandoLiga[modo] === ligaSel) setStatus('Carregando dados da API...', 'loading');
-          else loadData();
-        }
+        // Mostra na hora o que já está no cache da liga; só busca o que faltar ou estiver velho.
+        loadData();
       }
 
       function toggleAvancado() {
@@ -1101,7 +1093,7 @@
         return filtrado.sort((a, b) => a.dt - b.dt).map(x => x.item);
       }
 
-      function parseDataResultado(m) {
+      function parseDataResultadoRaw(m) {
         const d = new Date(m.data);
         if (isNaN(d)) return null;
         // IMPORTANTE: o campo "data" só carrega o DIA do jogo — o horário
@@ -1128,7 +1120,7 @@
       // dados reais. Isso fazia TODA linha de odds virar Data Invalida,
       // e o filtro de janela descartava 100% dos dados silenciosamente
       // (o modo "Por Odd" ficava zerado mesmo com odds no banco).
-      function parseDataOdd(o) {
+      function parseDataOddRaw(o) {
         try {
           if (o.inicio_jogo) {
             const sep = o.inicio_jogo.includes('T') ? 'T' : ' ';
@@ -1158,6 +1150,80 @@
          "travada" mostrando dados antigos ou misturados, dependendo de
          qual fetch respondeu por ultimo.
       ───────────────────────────────────── */
+      /* Parse de data é feito uma vez por linha (antes repetia a cada análise). */
+      const _dataResCache = new WeakMap();
+      const _dataOddCache = new WeakMap();
+      function parseDataResultado(m) {
+        if (_dataResCache.has(m)) return _dataResCache.get(m);
+        const v = parseDataResultadoRaw(m);
+        _dataResCache.set(m, v);
+        return v;
+      }
+      function parseDataOdd(o) {
+        if (_dataOddCache.has(o)) return _dataOddCache.get(o);
+        const v = parseDataOddRaw(o);
+        _dataOddCache.set(o, v);
+        return v;
+      }
+
+      function getEntry(ligaId) {
+        return cacheLiga[ligaId] || (cacheLiga[ligaId] = {
+          ligaId,
+          res: null, odds: null, prox: null,          // listas
+          tres: 0, todds: 0, tprox: 0,                // quando foram buscadas
+          hres: null, hodds: null, hprox: null,       // assinatura do conteúdo
+          vres: 0, vodds: 0, vprox: 0,                // versão (muda só se o conteúdo mudou)
+          pres: null, podds: null, pprox: null,       // requisição em andamento (evita duplicar)
+          memo: {},                                   // janelas / resolvedores / índice odd x resultado
+          ftCache: new WeakMap(),
+        });
+      }
+
+      function hashLista(lista) {
+        const s = JSON.stringify(lista);
+        let h = 5381;
+        for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+        return s.length + ':' + h;
+      }
+
+      // Busca um campo (res | odds | prox) da liga. Se já está fresco, devolve do cache sem rede;
+      // se já tem uma requisição igual em andamento, reaproveita ela.
+      function buscar(entry, campo, forcar) {
+        const pKey = 'p' + campo;
+        if (entry[pKey]) return entry[pKey];
+        if (!forcar && entry[campo] && Date.now() - entry['t' + campo] < CACHE_TTL) {
+          return Promise.resolve(entry[campo]);
+        }
+        const url = Catalogo.urlApi(CAMPOS_API[campo], entry.ligaId);
+        const p = fetchJson(url).then(json => {
+          let lista = comoLista(json);
+          if (campo === 'res') {
+            lista = lista.filter(m => m && typeof m.ft === 'string' && m.ft.includes(' x ') && m.time_a && m.time_b);
+          }
+          const h = hashLista(lista);
+          entry['t' + campo] = Date.now();
+          if (!entry[campo] || entry['h' + campo] !== h) {   // só troca se o conteúdo mudou
+            entry[campo] = lista;
+            entry['h' + campo] = h;
+            entry['v' + campo]++;
+            if (campo !== 'prox') { entry.memo = {}; entry.ftCache = new WeakMap(); }
+          }
+          return entry[campo];
+        }).finally(() => { entry[pKey] = null; });
+        entry[pKey] = p;
+        return p;
+      }
+
+      // O que está na tela ficou desatualizado em relação ao cache?
+      function renderDesatualizado(modo, ligaId, entry) {
+        const u = ultimoRender;
+        if (!u || u.ligaId !== ligaId || u.modo !== modo) return true;
+        if (u.vres !== entry.vres) return true;
+        if (modo === 'odd' && u.vodds !== entry.vodds) return true;
+        if (modo !== 'placar' && u.vprox !== entry.vprox) return true;
+        return false;
+      }
+
       // Busca JSON com timeout de 15s e cancelamento (signal).
       async function fetchJson(url, signal) {
         const ctrl = new AbortController();
@@ -1224,30 +1290,46 @@
         };
       }
 
-      // Joga os dados guardados da aba nos globais que as análises usam.
-      // Só vale se os dados são da liga selecionada agora.
+      // Joga os dados do cache da liga nos globais que as análises usam.
+      // Janela, resolvedores e índice odd x resultado ficam memorizados (não recalcula a cada filtro).
       function ativarDados(modo) {
-        const d = dadosModo[modo];
         const ligaSel = document.getElementById('liga-select').value;
-        if (!d || d.ligaId !== ligaSel) return false;
+        const e = cacheLiga[ligaSel];
+        if (!e || !e.res) return false;
+        if (modo === 'odd' && !e.odds) return false;
         const qtd = janelaQtd();
-        const liga = Catalogo.getLiga(d.ligaId);
-        resultadosBrutos = d.resultadosBrutos;
-        oddsBrutos = d.oddsBrutos || [];
-        window.__proximosData = d.proximos || [];
-        jogosJanela = filtrarPorJanela(resultadosBrutos, parseDataResultado, qtd);
-        oddsJanela = modo === 'odd' ? filtrarPorJanela(oddsBrutos, parseDataOdd, qtd) : [];
-        resultsMapOdd = modo === 'odd' ? buildResultsMapOdd(resultadosBrutos) : null;
+        const liga = Catalogo.getLiga(ligaSel);
+        const memo = (k, fn) => (k in e.memo ? e.memo[k] : (e.memo[k] = fn()));
+
+        resultadosBrutos = e.res;
+        oddsBrutos = e.odds || [];
+        window.__proximosData = e.prox || [];
+
+        const jr = memo('jr' + qtd, () => filtrarPorJanela(e.res, parseDataResultado, qtd));
+        jogosJanela = jr;
+        resolverRes = memo('rr' + qtd, () => criarResolvedor(jr, msResultado, liga));
+
+        if (modo === 'odd') {
+          const oj = memo('oj' + qtd, () => filtrarPorJanela(e.odds, parseDataOdd, qtd));
+          oddsJanela = oj;
+          resolverOdd = memo('ro' + qtd, () => criarResolvedor(oj, msOdd, liga));
+          resultsMapOdd = memo('rm', () => buildResultsMapOdd(e.res));
+          ftCacheOdd = e.ftCache;
+        } else {
+          oddsJanela = [];
+          resolverOdd = (i, off) => -1;
+          resultsMapOdd = null;
+          ftCacheOdd = null;
+        }
         ligaObjAtual = liga;
-        ligaCarregada = d.ligaId;
-        resolverRes = criarResolvedor(jogosJanela, msResultado, liga);
-        resolverOdd = criarResolvedor(oddsJanela, msOdd, liga);
+        ligaCarregada = ligaSel;
         return true;
       }
 
       // Esvazia a tela (e os dados em memória) pra não mostrar a liga anterior enquanto carrega.
       function limparResultadosUI(msg) {
         ligaCarregada = null;
+        ultimoRender = null;
         jogosJanela = []; oddsJanela = []; resultsMapOdd = null; oddsBrutos = [];
         window.__proximosData = [];
         matchDetails = {}; selectedKey = null;
@@ -1261,72 +1343,78 @@
       }
 
       /* ─────────────────────────────────────
-         CARREGAMENTO (por aba)
-         Cada aba tem a sua própria carga: token + AbortController próprios. Trocar de
-         casa/liga NA aba cancela só a carga anterior DELA; as outras abas não são afetadas
-         e, se uma carga termina com a aba já em segundo plano, o resultado fica guardado
-         pra quando você voltar. Requisições têm timeout de 15s, então nada fica preso em
-         "Carregando...".
+         CARREGAMENTO (cache compartilhado por liga)
+         1) Se a liga já está no cache, desenha NA HORA (sem esperar rede).
+         2) Em paralelo, busca o que faltar ou estiver velho (>55s) e só redesenha se o
+            conteúdo realmente mudou — o refresh de 60s não pisca nem fecha o painel aberto.
+         3) Resultados + próximos saem juntos; as odds são baixadas em segundo plano nas
+            outras abas, então quando você abre "Por Odd" elas já estão prontas.
+         Tokens evitam que uma resposta atrasada desenhe por cima de uma liga/aba nova.
       ───────────────────────────────────── */
-      async function loadData() {
+      async function loadData(silencioso) {
         const modo = modoAtual;
-        if (loadCtrls[modo]) loadCtrls[modo].abort();
-        const ctrl = new AbortController();
-        loadCtrls[modo] = ctrl;
-        const myToken = loadTokens[modo] = (loadTokens[modo] || 0) + 1;
-        const vigente = () => myToken === loadTokens[modo];
-        const ativo = () => modoAtual === modo;
-
         const ligaId = document.getElementById('liga-select').value;
-        carregando[modo] = true;
-        carregandoLiga[modo] = ligaId;
+        const myToken = ++loadSeq;
+        const vigente = () => myToken === loadSeq && modoAtual === modo &&
+          document.getElementById('liga-select').value === ligaId;
 
-        // Dados em tela são de outra liga: limpa agora (senão parece travado / mistura ligas).
-        if (!dadosModo[modo] || dadosModo[modo].ligaId !== ligaId) {
-          delete dadosModo[modo];
-          if (ativo()) limparResultadosUI('Carregando...');
+        if (!Catalogo.getLiga(ligaId)) {
+          setStatus('Erro: liga não encontrada no catálogo', 'error');
+          limparResultadosUI('Não foi possível carregar esta liga (liga não encontrada no catálogo).');
+          return;
         }
-        if (ativo()) setStatus('Carregando dados da API...', 'loading');
 
-        try {
-          if (!Catalogo.getLiga(ligaId)) throw new Error('liga não encontrada no catálogo');
-          const urls = buildUrls(ligaId);
-          const [resRaw, oddsRaw, proxRaw] = await Promise.all([
-            fetchJson(urls.resultados, ctrl.signal),
-            modo === 'odd' ? fetchJson(urls.odds, ctrl.signal) : Promise.resolve([]),
-            // próximos jogos nunca derrubam a análise (a casa pode não ter essa rota)
-            modo !== 'placar' ? fetchJson(urls.proximos, ctrl.signal).catch(() => []) : Promise.resolve([]),
-          ]);
-          if (!vigente()) return; // uma carga mais nova desta aba assumiu
-
-          const resultados = comoLista(resRaw)
-            .filter(m => m && typeof m.ft === 'string' && m.ft.includes(' x ') && m.time_a && m.time_b);
-          dadosModo[modo] = {
-            ligaId,
-            resultadosBrutos: resultados,
-            oddsBrutos: modo === 'odd' ? comoLista(oddsRaw) : [],
-            proximos: comoLista(proxRaw),
-            carregadoEm: Date.now(),
-          };
-
-          if (!ativo()) return; // aba em segundo plano: dados guardados pra quando voltar
-          if (document.getElementById('liga-select').value !== ligaId) return;
-          ativarDados(modo);
+        const entry = getEntry(ligaId);
+        const pronto = () => !!entry.res && (modo !== 'odd' || !!entry.odds);
+        const mostrar = () => {
+          if (!ativarDados(modo)) return;
+          ultimoRender = { ligaId, modo, vres: entry.vres, vodds: entry.vodds, vprox: entry.vprox };
           setStatus(`${jogosJanela.length} jogos carregados — analisando...`);
           analyze();
+        };
+
+        if (!pronto()) {
+          limparResultadosUI('Carregando...');
+          setStatus('Carregando dados da API...', 'loading');
+        } else if (!silencioso) {
+          mostrar();   // já temos tudo no cache: tela instantânea
+        }
+
+        // Dispara tudo em paralelo (requisições iguais em andamento são reaproveitadas).
+        const pRes = buscar(entry, 'res');
+        const pProx = buscar(entry, 'prox');
+        let pOdds = null;
+        if (modo === 'odd') {
+          pOdds = buscar(entry, 'odds');
+        } else if (!entry.odds && !entry.podds) {
+          // pré-carrega as odds em segundo plano pra aba "Por Odd" abrir instantânea
+          pRes.then(() => buscar(entry, 'odds')).catch(() => {});
+        }
+
+        // próximos jogos nunca derrubam a análise: se chegarem depois, só complementa a tela
+        pProx.then(() => {
+          if (modo !== 'placar' && vigente() && renderDesatualizado(modo, ligaId, entry)) mostrar();
+        }, () => {});
+
+        try {
+          await pRes;
+          if (pOdds) await pOdds;
         } catch (error) {
-          if (!vigente()) return; // erro/cancelamento de carga obsoleta
+          if (!vigente()) return;
           console.error('Erro ao carregar os dados:', error);
-          if (ativo()) {
+          if (pronto()) {
+            setStatus('Não foi possível atualizar agora — mostrando os últimos dados carregados', 'error');
+          } else {
             setStatus(`Erro: ${error.message}`, 'error');
             limparResultadosUI(`Não foi possível carregar esta liga (${error.message}).`);
           }
-        } finally {
-          if (vigente()) carregando[modo] = false;
+          return;
         }
+        if (!vigente()) return;
+        if (pronto() && renderDesatualizado(modo, ligaId, entry)) mostrar();
       }
 
-      function setStatus(msg, type) {
+            function setStatus(msg, type) {
         document.getElementById('statusMessage').textContent = msg;
         const bar = document.getElementById('statusBar');
         bar.classList.remove('loading', 'error');
@@ -1969,7 +2057,15 @@
             if (gameStart) {
               dataFmt = `${gameStart.getDate().toString().padStart(2,'0')}/${(gameStart.getMonth()+1).toString().padStart(2,'0')}`;
             }
-            const ftFound = gameStart ? lookupResultOdd(match.time_casa, match.time_visitante, gameStart, match.liga) : null;
+            let ftFound = null;
+            if (gameStart) {
+              if (ftCacheOdd && ftCacheOdd.has(match)) {
+                ftFound = ftCacheOdd.get(match);
+              } else {
+                ftFound = lookupResultOdd(match.time_casa, match.time_visitante, gameStart, match.liga);
+                if (ftCacheOdd) ftCacheOdd.set(match, ftFound);
+              }
+            }
             let status = 'N/A', ftDisplay = '?';
             if (ftFound) {
               hasResult = true;
@@ -2259,7 +2355,9 @@
         document.querySelector('.filter-section').addEventListener('change', salvarFiltrosAtuais);
 
         loadData();
-        setInterval(() => loadData(), 60000); // atualiza só a aba que está aberta
+        // Refresh silencioso: só redesenha se o conteúdo mudou; pausa com a aba do navegador escondida.
+        setInterval(() => { if (!document.hidden) loadData(true); }, 60000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) loadData(true); });
       });
     </script>
 
