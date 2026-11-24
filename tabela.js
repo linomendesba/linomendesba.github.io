@@ -4355,7 +4355,7 @@ function hidratarDoCacheLocal() {
 // Em segundo plano, baixa resultados + odds + próximos das ligas "irmãs" e grava no cache.
 // Quando o usuário troca de liga, a tabela já abre completa (com odds e próximos) e só atualiza depois.
 // Se os nomes aceitos pela API forem outros, defina window.PRELOAD_LIGAS = ["nome1","nome2"] antes deste script.
-const PRELOAD_INTERVALO_MS = 3000; // sem espera mínima: a cada ciclo de 3s pré-carrega a liga irmã mais antiga (rodízio)
+const PRELOAD_INTERVALO_MS = 60000; // cada liga irmã é pré-carregada no máximo 1x por minuto (antes: a cada ciclo de 3s, o que dobrava as requisições ao servidor)
 const PRELOAD_HORAS_MAX = 48;
 let _preloadEmAndamento = false;
 
